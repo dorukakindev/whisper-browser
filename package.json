@@ -1,0 +1,15 @@
+{
+  "name": "whisper-altyazi",
+  "version": "1.0.0",
+  "description": "RTX 4070 Ti için optimize edilmiş yüksek kaliteli altyazı çıkarma uygulaması",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "author": "Whisper Altyazı",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

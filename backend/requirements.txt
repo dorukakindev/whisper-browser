@@ -1,0 +1,11 @@
+faster-whisper>=1.1.0
+yt-dlp>=2024.5.27
+ctranslate2>=4.4.0
+torch>=2.0.0
+torchaudio>=2.0.0
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
+# Opsiyonel: LLM post-processing (DeepSeek, OpenAI uyumlu endpoint'ler)
+openai>=1.40.0
+# Konuşmacı tanıma (opsiyonel, sadece diarization açıkken kullanılır)
+# pyannote.audio>=3.1.0  # install-diarize.bat ile ayrı kurulur

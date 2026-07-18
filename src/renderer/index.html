@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
+  <title>Whisper Altyazı</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1v22M5 7v10M19 7v10M2 10v4M22 10v4M8 4v16M16 4v16"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Whisper Altyazı</h1>
+          <span class="brand-sub">faster-whisper · CUDA</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="gpu-badge" id="gpuBadge">
+          <span class="dot"></span>
+          <span id="gpuBadgeText">CUDA · float16</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="app-main">
+      <!-- LEFT PANEL -->
+      <section class="panel panel-left">
+        <!-- SOURCE -->
+        <div class="card">
+          <div class="card-head">
+            <h2>Kaynak</h2>
+            <div class="tabs">
+              <button class="tab active" data-tab="file">Dosya</button>
+              <button class="tab" data-tab="youtube">YouTube</button>
+            </div>
+          </div>
+
+          <div class="tab-content" data-content="file">
+            <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Dosya seçmek için tıkla veya sürükle bırak">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <div class="drop-text">
+                <strong>Sürükle bırak</strong> veya tıklayarak seç
+              </div>
+              <div class="drop-sub">.mp4, .mkv, .mov, .mp3, .wav ve daha fazlası</div>
+            </div>
+            <div class="file-info hidden" id="fileInfo">
+              <div class="file-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="file-meta">
+                <div class="file-name" id="fileName">—</div>
+                <div class="file-path" id="filePath">—</div>
+              </div>
+              <button class="btn-icon" id="clearFile" title="Kaldır">×</button>
+            </div>
+            <div class="hint" style="margin-top:8px">
+              Mevcut bir <strong>JSON</strong> çıktısından formatları yeniden üretmek için (yeniden transkripsiyon yok):
+              <button class="link-btn" id="reexportJson">JSON'dan yeniden üret</button>
+            </div>
+          </div>
+
+          <div class="tab-content hidden" data-content="youtube">
+            <div class="yt-input-wrap">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3 3 0 0 0 2.6 19.9C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+              <input type="url" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
+            </div>
+            <div class="hint">Linki yapıştır, en yüksek kalitede ses indirilir. İndirme hata veriyorsa: <button class="link-btn" id="updateYtdlp">yt-dlp'yi güncelle</button></div>
+          </div>
+        </div>
+
+        <!-- SUBTITLE SYNC TOOL -->
+        <div class="card">
+          <details class="advanced">
+            <summary>
+              <span>🔧 Altyazıyı videoya senkronla</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="hint" style="margin-top:6px">
+              Elinde hazır ama <strong>kayık</strong> bir altyazı varsa (ör. "3 sn geç"), videonun konuşma
+              ritmiyle hizalar ve <code>&lt;ad&gt;.synced.srt</code> üretir — kaynağın üstüne yazmaz.
+              Yalnızca <strong>sabit kayma</strong>; sürüklenme (framerate) düzeltmez.
+            </div>
+            <div class="settings-grid" style="margin-top:8px">
+              <div class="field field-full">
+                <span class="field-label">Video <button class="link-btn" id="pickSyncVideo">Seç</button></span>
+                <div class="path-display" id="syncVideoPath">Seçilmedi</div>
+              </div>
+              <div class="field field-full">
+                <span class="field-label">Altyazı (SRT) <button class="link-btn" id="pickSyncSrt">Seç</button></span>
+                <div class="path-display" id="syncSrtPath">Seçilmedi</div>
+              </div>
+            </div>
+            <button class="btn btn-secondary" id="syncBtn" disabled style="margin-top:8px">Senkronla</button>
+          </details>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="card">
+          <div class="card-head">
+            <h2>Ayarlar</h2>
+            <div class="settings-head-tools">
+              <select class="preset-select" id="presetSelect" title="Hazır ayar profili">
+                <option value="film" selected>🎬 Film (önerilen)</option>
+                <option value="custom">Özel ayarlar</option>
+                <option value="fast">⚡ Hızlı (turbo + batched)</option>
+                <option value="balanced">⚖️ Dengeli (turbo)</option>
+                <option value="quality">💎 En iyi kalite (large-v3)</option>
+              </select>
+              <button class="link-btn" id="exportSettings" title="Tüm ayarları dosyaya kaydet">Dışa</button>
+              <button class="link-btn" id="importSettings" title="Ayar dosyasından yükle">İçe</button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <label class="field">
+              <span class="field-label">Model</span>
+              <select id="model">
+                <option value="large-v3" selected>large-v3</option>
+                <option value="large-v3-turbo">large-v3-turbo</option>
+                <option value="large-v2">large-v2</option>
+                <option value="medium">medium</option>
+                <option value="small">small</option>
+                <option value="base">base</option>
+                <option value="tiny">tiny</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Motor</span>
+              <select id="engine">
+                <option value="faster" selected>faster-whisper (dengeli)</option>
+                <option value="faster-batched">faster-whisper · batched (hızlı)</option>
+                <option value="whisperx">WhisperX (hassas hizalama)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Dil</span>
+              <select id="language">
+                <option value="auto" selected>Otomatik algıla</option>
+                <option value="tr">Türkçe</option>
+                <option value="en">İngilizce</option>
+                <option value="de">Almanca</option>
+                <option value="fr">Fransızca</option>
+                <option value="es">İspanyolca</option>
+                <option value="it">İtalyanca</option>
+                <option value="pt">Portekizce</option>
+                <option value="ru">Rusça</option>
+                <option value="ja">Japonca</option>
+                <option value="ko">Korece</option>
+                <option value="zh">Çince</option>
+                <option value="ar">Arapça</option>
+                <option value="nl">Felemenkçe</option>
+                <option value="pl">Lehçe</option>
+                <option value="hi">Hintçe</option>
+                <option value="el">Yunanca</option>
+                <option value="sv">İsveççe</option>
+                <option value="no">Norveççe</option>
+                <option value="da">Danca</option>
+                <option value="fi">Fince</option>
+                <option value="cs">Çekçe</option>
+                <option value="hu">Macarca</option>
+                <option value="ro">Romence</option>
+                <option value="uk">Ukraynaca</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Görev</span>
+              <select id="task">
+                <option value="transcribe" selected>Transkripsiyon</option>
+                <option value="translate">İngilizce'ye çevir</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Çıktı formatı</span>
+              <select id="formats">
+                <option value="srt" selected>SRT (standart)</option>
+                <option value="vtt">VTT (web)</option>
+                <option value="txt">TXT (sadece metin)</option>
+                <option value="ass">ASS (Aegisub — stil/renk/karaoke)</option>
+                <option value="json">JSON (ham veri — kelime damgaları)</option>
+                <option value="srt,vtt,txt">SRT + VTT + TXT</option>
+                <option value="srt,ass,json">SRT + ASS + JSON</option>
+                <option value="srt,vtt,txt,ass,json">Hepsi</option>
+              </select>
+            </label>
+
+            <div class="field hidden" id="audioTrackField">
+              <span class="field-label">Ses kanalı</span>
+              <select id="audioTrack">
+                <option value="-1">Otomatik (varsayılan kanal)</option>
+              </select>
+            </div>
+
+            <div class="field field-full">
+              <span class="field-label">
+                Çıktı klasörü
+                <button class="link-btn" id="pickFolder">Seç</button>
+                <button class="link-btn" id="resetFolder" title="Video ile aynı klasöre dön">Varsayılan</button>
+              </span>
+              <div class="path-display" id="outputDir">Video ile aynı klasör</div>
+            </div>
+          </div>
+
+          <div class="hint" style="margin-top:6px">
+            <strong>Motor:</strong> <em>faster-whisper</em> dengeli (varsayılan); <em>batched</em> uzun videolarda çok daha hızlı; <em>WhisperX</em> wav2vec2 ile &lt;100ms kelime hizalaması verir (ilk seçimde <code>install-whisperx.bat</code> gerekir). Batch boyutu yalnızca batched/WhisperX'te, sözlük/başlangıç ipucu faster modlarında etkilidir.
+          </div>
+
+          <details class="advanced">
+            <summary>
+              <span>Gelişmiş ayarlar</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="settings-grid">
+              <label class="field">
+                <span class="field-label">Hesaplama tipi</span>
+                <select id="computeType">
+                  <option value="float16" selected>float16</option>
+                  <option value="int8_float16">int8_float16 (daha az VRAM)</option>
+                  <option value="int8">int8</option>
+                  <option value="float32">float32 (en yüksek hassasiyet)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Cihaz</span>
+                <select id="device">
+                  <option value="cuda" selected>CUDA (GPU)</option>
+                  <option value="cpu">CPU</option>
+                  <option value="auto">Otomatik</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Beam size: <span class="value" id="beamSizeVal">5</span></span>
+                <input type="range" id="beamSize" min="1" max="10" value="5" />
+              </label>
+              <label class="field">
+                <span class="field-label">Best of: <span class="value" id="bestOfVal">5</span></span>
+                <input type="range" id="bestOf" min="1" max="10" value="5" />
+              </label>
+              <label class="field">
+                <span class="field-label">Batch boyutu (batched/WhisperX): <span class="value" id="batchSizeVal">16</span></span>
+                <input type="range" id="batchSize" min="1" max="32" step="1" value="16" />
+              </label>
+              <label class="field">
+                <span class="field-label">VAD eşiği: <span class="value" id="vadThresholdVal">0.50</span></span>
+                <input type="range" id="vadThreshold" min="0.1" max="0.9" step="0.05" value="0.5" />
+              </label>
+              <label class="field">
+                <span class="field-label">Maks satır genişliği: <span class="value" id="maxLineWidthVal">42</span></span>
+                <input type="range" id="maxLineWidth" min="20" max="80" value="42" />
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="vadFilter" checked />
+                <span>VAD (sessizlik filtresi)</span>
+              </label>
+              <label class="field">
+                <span class="field-label">Bölme stratejisi</span>
+                <select id="splitMode">
+                  <option value="none">Bölme yok — Whisper çıktısı olduğu gibi</option>
+                  <option value="sentence" selected>Cümle bazlı — noktalama yoksa duraksamaya geçer</option>
+                  <option value="timing">Sadece zamanlama — duraksamalardan böl</option>
+                  <option value="smart">Akıllı — noktalama + karakter limiti</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Duraksama eşiği (sn): <span class="value" id="timingGapVal">0.50</span></span>
+                <input type="range" id="timingGap" min="0.2" max="1.5" step="0.05" value="0.5" />
+              </label>
+              <label class="field">
+                <span class="field-label">Satır kırma</span>
+                <select id="wrapMode">
+                  <option value="sentence">Cümle sonunda kır (cümleyi bölme)</option>
+                  <option value="balanced" selected>Dengeli 2 satır — karakter sınırına göre</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Sert karakter sınırı: <span class="value" id="hardMaxCharsVal">220</span></span>
+                <input type="range" id="hardMaxChars" min="80" max="320" step="10" value="220" />
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="fixTimings" checked />
+                <span>Zamanlamaları düzelt (okuma hızı / süre / boşluk)</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="mergeShort" checked />
+                <span>Kısa parçaları birleştir (flaş altyazı azaltma)</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="dedupe" checked />
+                <span>Tekrarlanan ardışık satırları temizle (kekeleme artefaktı)</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="langSuffix" />
+                <span>Dosya adına dil kodu ekle (video.tr.srt)</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="qualityReport" checked />
+                <span>Kalite raporu (KPS / çakışma / süre özeti)</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="resume" checked />
+                <span>Çökme/iptal sonrası kaldığı yerden devam et</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="notifyOnDone" checked />
+                <span>İş bitince Windows bildirimi göster</span>
+              </label>
+              <label class="field">
+                <span class="field-label">Maks okuma hızı (CPS): <span class="value" id="maxCpsVal">20</span></span>
+                <input type="range" id="maxCps" min="10" max="30" step="1" value="20" />
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="conditionOnPrevious" checked />
+                <span>Önceki bağlamı kullan</span>
+              </label>
+              <label class="field">
+                <span class="field-label">Aralık başlangıcı (boş = baştan)</span>
+                <input type="text" id="clipStart" placeholder="örn: 90 veya 1:30" />
+              </label>
+              <label class="field">
+                <span class="field-label">Aralık bitişi (boş = sona kadar)</span>
+                <input type="text" id="clipEnd" placeholder="örn: 5:00" />
+              </label>
+              <label class="field field-full">
+                <span class="field-label">Başlangıç ipucu (isim, jargon vb.)</span>
+                <input type="text" id="initialPrompt" placeholder="Örn: Atatürk, İstanbul, yapay zeka" />
+              </label>
+            </div>
+          </details>
+
+          <!-- DECODING AYARLARI -->
+          <details class="advanced">
+            <summary>
+              <span>🎚️ Decoding ince ayarları</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="settings-grid">
+              <label class="field switch-field">
+                <input type="checkbox" id="temperatureFallback" checked />
+                <span>Otomatik sıcaklık fallback</span>
+              </label>
+              <label class="field">
+                <span class="field-label">Sıcaklık (fallback kapalıyken): <span class="value" id="temperatureVal">0.00</span></span>
+                <input type="range" id="temperature" min="0" max="1" step="0.05" value="0" />
+              </label>
+              <label class="field">
+                <span class="field-label">Patience: <span class="value" id="patienceVal">1.0</span></span>
+                <input type="range" id="patience" min="0.5" max="3" step="0.1" value="1.0" />
+              </label>
+              <label class="field">
+                <span class="field-label">Length penalty: <span class="value" id="lengthPenaltyVal">1.0</span></span>
+                <input type="range" id="lengthPenalty" min="0.5" max="2" step="0.05" value="1.0" />
+              </label>
+              <label class="field">
+                <span class="field-label">Repetition penalty: <span class="value" id="repetitionPenaltyVal">1.0</span></span>
+                <input type="range" id="repetitionPenalty" min="1" max="2" step="0.05" value="1.0" />
+              </label>
+              <label class="field">
+                <span class="field-label">No-repeat n-gram: <span class="value" id="noRepeatNgramSizeVal">0</span></span>
+                <input type="range" id="noRepeatNgramSize" min="0" max="6" step="1" value="0" />
+              </label>
+              <label class="field">
+                <span class="field-label">Compression ratio eşiği: <span class="value" id="compressionRatioThresholdVal">2.4</span></span>
+                <input type="range" id="compressionRatioThreshold" min="1.5" max="4" step="0.1" value="2.4" />
+              </label>
+              <label class="field">
+                <span class="field-label">Log-prob eşiği: <span class="value" id="logProbThresholdVal">-1.0</span></span>
+                <input type="range" id="logProbThreshold" min="-3" max="0" step="0.1" value="-1.0" />
+              </label>
+              <label class="field">
+                <span class="field-label">No-speech eşiği: <span class="value" id="noSpeechThresholdVal">0.60</span></span>
+                <input type="range" id="noSpeechThreshold" min="0.1" max="0.9" step="0.05" value="0.6" />
+              </label>
+            </div>
+            <div class="hint">Varsayılan değerler Whisper'ın önerilenidir. Tekrar döngüsü sorunu için <code>repetition_penalty=1.15</code> ve <code>no_repeat_ngram_size=3</code> önerilir — <button class="link-btn" id="applyAntiRepeat">tek tıkla uygula</button>.</div>
+          </details>
+
+          <!-- DETAYLI VAD -->
+          <details class="advanced">
+            <summary>
+              <span>🎤 Detaylı VAD ayarları</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="settings-grid">
+              <label class="field">
+                <span class="field-label">Min konuşma süresi (ms): <span class="value" id="vadMinSpeechMsVal">0</span></span>
+                <input type="range" id="vadMinSpeechMs" min="0" max="1000" step="50" value="0" />
+              </label>
+              <label class="field">
+                <span class="field-label">Min sessizlik süresi (ms): <span class="value" id="vadMinSilenceMsVal">2000</span></span>
+                <input type="range" id="vadMinSilenceMs" min="100" max="3000" step="50" value="2000" />
+              </label>
+              <label class="field">
+                <span class="field-label">Konuşma dolgusu (ms): <span class="value" id="vadSpeechPadMsVal">400</span></span>
+                <input type="range" id="vadSpeechPadMs" min="0" max="500" step="25" value="400" />
+              </label>
+              <label class="field">
+                <span class="field-label">Maks konuşma (sn, 0=sınırsız): <span class="value" id="vadMaxSpeechSVal">0</span></span>
+                <input type="range" id="vadMaxSpeechS" min="0" max="60" step="5" value="0" />
+              </label>
+            </div>
+            <div class="hint">Gürültülü içerikte konuşmanın koparıldığı yerlerde Min sessizliği artırın. Sözcükler kesilirse Konuşma dolgusunu artırın.</div>
+          </details>
+
+          <!-- KONUŞMACI TANIMA -->
+          <details class="advanced">
+            <summary>
+              <span>👥 Konuşmacı tanıma (Diarization)</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="settings-grid">
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="diarize" />
+                <span>Konuşmacıları tanı ve etiketle (pyannote.audio)</span>
+              </label>
+              <label class="field field-full">
+                <span class="field-label">
+                  HuggingFace Token
+                  <a href="#" id="hfTokenHelp" class="link-btn">nasıl alınır?</a>
+                </span>
+                <input type="text" id="hfToken" placeholder="hf_..." autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Min konuşmacı (0=otomatik)</span>
+                <input type="text" id="minSpeakers" value="0" />
+              </label>
+              <label class="field">
+                <span class="field-label">Maks konuşmacı (0=otomatik)</span>
+                <input type="text" id="maxSpeakers" value="0" />
+              </label>
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="labelSpeakers" checked />
+                <span>SRT/VTT'de altyazıya [SPEAKER_XX] ekle (ASS rengiyle ayırır)</span>
+              </label>
+            </div>
+            <div class="hint">Bu özellik için <code>install-diarize.bat</code>'i bir kez çalıştırın ve hem <a href="https://hf.co/pyannote/speaker-diarization-3.1" target="_blank">diarization</a> hem de <a href="https://hf.co/pyannote/segmentation-3.0" target="_blank">segmentation</a> modellerinin erişimini onaylayın.</div>
+          </details>
+
+          <!-- SÖZLÜK -->
+          <details class="advanced">
+            <summary>
+              <span>📖 Sözlük / Hotwords</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="glossary-controls">
+              <input type="text" id="glossaryInput" placeholder="Yeni terim ekle (örn: Anthropic, Kubernetes, Atatürk)" />
+              <button class="btn-icon-add" id="glossaryAdd" title="Ekle">+</button>
+            </div>
+            <div class="glossary-list" id="glossaryList"></div>
+            <div class="hint">Her transkripsiyonda otomatik olarak Whisper'a verilir, özel isimlerin/jargonun doğru yazılmasını sağlar.</div>
+          </details>
+
+          <!-- LLM POST-PROCESSING -->
+          <details class="advanced">
+            <summary>
+              <span>🤖 LLM ile düzeltme (DeepSeek/OpenAI)</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="settings-grid">
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="llmPostprocess" />
+                <span>Transcribe sonrası LLM ile düzelt (sansür restore, halüsinasyon, noktalama)</span>
+              </label>
+              <label class="field field-full">
+                <span class="field-label">
+                  API Key
+                  <a href="#" id="deepseekKeyHelp" class="link-btn">platform.deepseek.com</a>
+                </span>
+                <input type="password" id="llmApiKey" placeholder="sk-..." autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Endpoint (base URL)</span>
+                <select id="llmEndpointPreset">
+                  <option value="https://api.deepseek.com" selected>DeepSeek</option>
+                  <option value="https://api.openai.com/v1">OpenAI</option>
+                  <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+                  <option value="https://api.groq.com/openai/v1">Groq</option>
+                  <option value="custom">Özel...</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Model</span>
+                <input type="text" id="llmModel" value="deepseek-v4-flash" placeholder="deepseek-v4-flash" />
+              </label>
+              <label class="field field-full hidden" id="llmCustomUrlField">
+                <span class="field-label">Özel endpoint URL</span>
+                <input type="text" id="llmBaseUrl" placeholder="https://api.example.com/v1" />
+              </label>
+              <label class="field">
+                <span class="field-label">Paralel istek: <span class="value" id="llmWorkersVal">4</span></span>
+                <input type="range" id="llmWorkers" min="1" max="10" step="1" value="4" />
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="llmFixCensorship" checked />
+                <span>Sansürlü küfürleri restore et (f*** → fuck)</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="llmFixHallucination" checked />
+                <span>Halüsinasyon/uydurma kelime düzeltme</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="llmFixPunctuation" checked />
+                <span>Noktalama ve birleşik kelime düzeltme</span>
+              </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="llmFixConsistency" />
+                <span>Tutarsız özel isim yazımlarını sabitleme</span>
+              </label>
+            </div>
+            <div class="hint">Transcribe bittikten sonra altyazıyı LLM'e gönderir, küçük düzeltmeler yapar. <code>deepseek-v4-flash</code> çok hızlı ve ucuz, Human Giant gibi yoğun küfürlü içerikte sansürü açar. Kelime sayısı uyuşmuyorsa orijinali korur.</div>
+          </details>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="actions">
+          <button class="btn btn-secondary" id="queueAddBtn" title="Mevcut dosyayı/URL'i kuyruğa ekle">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Kuyruğa</span>
+          </button>
+          <button class="btn btn-primary" id="startBtn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Altyazıyı Çıkar</span>
+          </button>
+          <button class="btn btn-danger hidden" id="cancelBtn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg>
+            <span>İptal</span>
+          </button>
+        </div>
+
+        <!-- QUEUE -->
+        <div class="card hidden" id="queueCard">
+          <div class="card-head">
+            <h2>Kuyruk · <span id="queueCount">0</span></h2>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="link-btn hidden" id="stopAfterCurrent" title="Çalışan iş bitince kuyruğu durdur (mevcut işi kesmez)">⏸ Sırada dur</button>
+              <button class="link-btn" id="clearQueue">Temizle</button>
+              <button class="btn btn-primary btn-sm" id="startQueueBtn">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Başlat</span>
+              </button>
+            </div>
+          </div>
+          <div class="queue-list" id="queueList"></div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL -->
+      <section class="panel panel-right">
+        <!-- STATUS -->
+        <div class="card">
+          <div class="card-head">
+            <h2>İlerleme</h2>
+            <div class="status-pill" id="statusPill" role="status" aria-live="polite">Hazır</div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-bar" role="progressbar" aria-label="Transkripsiyon ilerlemesi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-meta">
+              <span id="progressText">0%</span>
+              <span id="progressTime">—</span>
+            </div>
+          </div>
+
+          <div class="stage-list" id="stageList">
+            <div class="stage" data-stage="download"><span class="stage-dot"></span>İndirme</div>
+            <div class="stage" data-stage="extract"><span class="stage-dot"></span>Ses çıkarma</div>
+            <div class="stage" data-stage="load_model"><span class="stage-dot"></span>Model yükleme</div>
+            <div class="stage" data-stage="transcribe"><span class="stage-dot"></span>Transkripsiyon</div>
+            <div class="stage" data-stage="llm_postprocess"><span class="stage-dot"></span>LLM düzeltme</div>
+            <div class="stage" data-stage="diarize"><span class="stage-dot"></span>Konuşmacı tanıma</div>
+            <div class="stage" data-stage="write"><span class="stage-dot"></span>Yazma</div>
+          </div>
+        </div>
+
+        <!-- LIVE PREVIEW -->
+        <div class="card card-flex">
+          <div class="card-head">
+            <h2>Canlı önizleme</h2>
+            <div class="preview-tools">
+              <input type="search" id="previewSearch" class="preview-search" placeholder="Ara..." />
+              <button class="link-btn" id="copyPreview" title="Görünen segmentleri SRT olarak panoya kopyala">Kopyala</button>
+              <button class="link-btn" id="clearPreview">Temizle</button>
+            </div>
+          </div>
+          <div class="preview" id="preview" role="log" aria-live="polite" aria-label="Canlı önizleme">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5h18M3 12h18M3 19h12"/></svg>
+              <div>Transkripsiyon başladığında segmentler burada görünecek.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOG -->
+        <div class="card card-log">
+          <div class="card-head">
+            <h2>Günlük</h2>
+            <button class="link-btn" id="clearLog">Temizle</button>
+          </div>
+          <div class="log" id="log" role="log" aria-live="polite" aria-label="Günlük"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- RESULT MODAL -->
+    <div class="modal hidden" id="resultModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h2>Altyazı hazır!</h2>
+        <div class="modal-stats" id="modalStats"></div>
+        <div class="modal-stats hidden" id="modalQuality"></div>
+        <div class="modal-files" id="modalFiles"></div>
+
+        <!-- Çıktı sonrası araçlar -->
+        <details class="modal-tools">
+          <summary>🛠️ Araçlar — zaman kaydır / videoya göm</summary>
+          <div class="modal-tool-row">
+            <label class="modal-tool-label">Zaman kaydır (sn, SRT/VTT):</label>
+            <input type="number" id="shiftSeconds" step="0.1" value="0" />
+            <button class="btn btn-secondary btn-sm" id="applyShift">Uygula</button>
+          </div>
+          <div class="modal-tool-row" id="burninRow">
+            <label class="modal-tool-label">Altyazıyı videoya göm:</label>
+            <button class="btn btn-secondary btn-sm" id="burnInBtn">Videoya göm</button>
+            <button class="btn btn-danger btn-sm hidden" id="burnInCancel">Durdur</button>
+          </div>
+          <div class="burnin-progress hidden" id="burninProgress">
+            <div class="progress-bar"><div class="progress-fill" id="burninFill"></div></div>
+            <span id="burninText">Gömülüyor…</span>
+          </div>
+        </details>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="closeModal">Kapat</button>
+          <button class="btn btn-primary" id="openOutput">Klasörü Aç</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
