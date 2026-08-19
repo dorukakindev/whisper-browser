@@ -122,6 +122,13 @@ def test_find_unpunctuated_spans():
     # noktalama düzgünse hiç bölge çıkmaz
     ok = [(i * 2.0, i * 2.0 + 2.0, "Short clean sentence here.") for i in range(40)]
     assert T.find_unpunctuated_spans(ok, min_words=80) == []
+    # nokta yok ama virgül + büyük harf var → uzun cümle, çöküş DEĞİL (Loch Ness vakası)
+    longsent = [(0.0, 3.0, "This is a properly punctuated sentence.")]
+    t = 3.0
+    for i in range(20):
+        longsent.append((t, t + 3.0, "And then, in the dark, something moved slowly"))
+        t += 3.0
+    assert T.find_unpunctuated_spans(longsent, min_words=80) == []
 
 
 def test_drop_trailing_hallucination():

@@ -490,15 +490,23 @@ def punctuation_ratio(entries):
     return ends / len(words)
 
 
-def find_unpunctuated_spans(entries, min_words=80, min_dur=15.0, join_gap=10.0):
+def find_unpunctuated_spans(entries, min_words=80, min_dur=15.0, join_gap=10.0,
+                            max_comma_ratio=0.015, max_cap_ratio=0.10):
     """
     Cümle sonu noktalaması olmayan uzun bölgelerin (start, end) aralıklarını bulur.
     Whisper uzun videolarda bir noktadan sonra noktalamayı tamamen bırakabiliyor;
     bu bölgeler cümle bölme için kullanılamaz hale geliyor.
 
-    min_words : bir bölgeyi "çökmüş" saymak için gereken kesintisiz kelime sayısı
-    min_dur   : bundan kısa aralıklar yeniden çevirmeye değmez (sn)
-    join_gap  : birbirine bu kadar yakın aralıklar tek parça olarak birleştirilir (sn)
+    Uzun ama düzgün bir cümle ile gerçek çöküşü ayırmak için nokta yokluğu tek başına
+    yetmez: gerçek çöküşte virgül ve büyük harf de kaybolur. Ölçülen örnekler —
+    Popol Vuh çöküşü 0.000 virgül/kelime + %1 büyük harf, uzun-cümle vakası (Loch Ness)
+    0.021 + %14, sağlam metin 0.068 + %90.
+
+    min_words       : bir bölgeyi "çökmüş" saymak için gereken kesintisiz kelime sayısı
+    min_dur         : bundan kısa aralıklar yeniden çevirmeye değmez (sn)
+    join_gap        : birbirine bu kadar yakın aralıklar tek parça olarak birleştirilir (sn)
+    max_comma_ratio : kelime başına virgül bundan fazlaysa metin sağlıklı sayılır
+    max_cap_ratio   : büyük harfle başlayan blok oranı bundan fazlaysa sağlıklı sayılır
     """
     spans = []
     start = None
@@ -525,7 +533,24 @@ def find_unpunctuated_spans(entries, min_words=80, min_dur=15.0, join_gap=10.0):
             merged[-1] = (merged[-1][0], e)
         else:
             merged.append((s, e))
-    return [(s, e) for (s, e) in merged if (e - s) >= min_dur]
+
+    # Yalnızca gerçekten "çökmüş" görünenleri bırak (virgül + büyük harf de kaybolmuş)
+    out = []
+    for s, e in merged:
+        if (e - s) < min_dur:
+            continue
+        inside = [x for x in entries if s <= (x[0] + x[1]) / 2 <= e]
+        if not inside:
+            continue
+        n_words = sum(len((t or "").split()) for _, _, t in inside)
+        commas = sum((t or "").count(",") for _, _, t in inside)
+        caps = sum(1 for _, _, t in inside if (t or "").strip()[:1].isupper())
+        if n_words and commas / n_words > max_comma_ratio:
+            continue
+        if caps / len(inside) > max_cap_ratio:
+            continue
+        out.append((s, e))
+    return out
 
 
 def _cut_wav(src_wav, dst_wav, start, end, ffmpeg_path):
