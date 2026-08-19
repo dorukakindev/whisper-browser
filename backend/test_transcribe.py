@@ -125,9 +125,10 @@ def test_find_unpunctuated_spans():
 
 
 def test_drop_trailing_hallucination():
-    base = [(0, 3, "Bu bir cümledir."), (3, 6, "Bu da bir cümledir."), (6, 7, "Son.")]
-    hi = [{"word": "Son.", "start": 6.2, "end": 6.8, "probability": 0.95}]
-    lo = [{"word": "Son.", "start": 6.2, "end": 6.8, "probability": 0.20}]
+    # nötr son blok: ne kapanış kalıbı ne de kısaltma ("Son." kalıp listesinde — alta bak)
+    base = [(0, 3, "Bu bir cümledir."), (3, 6, "Bu da bir cümledir."), (6, 7, "Sessizlik.")]
+    hi = [{"word": "Sessizlik.", "start": 6.2, "end": 6.8, "probability": 0.95}]
+    lo = [{"word": "Sessizlik.", "start": 6.2, "end": 6.8, "probability": 0.20}]
     # kanıt yoksa (yüksek güven, ses ölçümü yok) korunur
     assert len(T.drop_trailing_hallucination(base, hi, None, None, 0.0)) == 3
     # düşük güven → atılır
@@ -138,6 +139,17 @@ def test_drop_trailing_hallucination():
     # 2 kelimeden uzun kapanış → korunur
     longer = [(0, 3, "Bir."), (3, 6, "İki."), (6, 8, "Bu uzun bir kapanış cümlesi.")]
     assert len(T.drop_trailing_hallucination(longer, lo, None, None, 0.0)) == 3
+    # tipik kapanış uydurmaları kanıt gerektirmeden atılır (yapısal koşullar sağlıysa)
+    for phrase in ("Thank you.", "The End", "Teşekkürler.", "Bye.", "Son."):
+        case = [(0, 3, "Bir cümle."), (3, 6, "İkinci cümle."), (6, 7, phrase)]
+        assert len(T.drop_trailing_hallucination(case, hi, None, None, 0.0)) == 2, phrase
+    # normal kısa kapanışlar korunur
+    for phrase in ("Suicide.", "Action.", "Dignity."):
+        case = [(0, 3, "Bir cümle."), (3, 6, "İkinci cümle."), (6, 7, phrase)]
+        assert len(T.drop_trailing_hallucination(case, hi, None, None, 0.0)) == 3, phrase
+    # film ORTASINDAKİ "Thank you." etkilenmez (son blok değil)
+    mid = [(0, 3, "Bir cümle."), (3, 6, "Thank you."), (6, 9, "Devam eden anlatım.")]
+    assert len(T.drop_trailing_hallucination(mid, hi, None, None, 0.0)) == 3
 
 
 def test_punctuation_ratio():

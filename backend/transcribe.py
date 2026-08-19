@@ -685,6 +685,17 @@ def _mean_volume_db(wav_path, start, end, ffmpeg_path):
     return float(m.group(1)) if m else None
 
 
+# Whisper'ın jenerik/müzik üzerine ürettiği tipik kapanış uydurmaları. Yalnızca
+# videonun EN SON bloğunda ve yapısal koşullar sağlanınca kanıt sayılır — film
+# ortasındaki gerçek "Teşekkürler." replikleri etkilenmez.
+TRAILING_HALLUCINATION_PHRASES = re.compile(
+    r"^\s*(thank\s*you|thanks|thank\s*u|bye(\s*bye)?|goodbye|the\s*end|fin|"
+    r"teşekkürler|teşekkür\s*ederim|sağ\s*olun|görüşürüz|hoşça\s*kal(ın)?|son)"
+    r"\s*[.!…]*\s*$",
+    re.IGNORECASE,
+)
+
+
 def drop_trailing_hallucination(entries, all_words, wav_path, ffmpeg_path, time_offset,
                                 max_words=2, max_chars=25, prob_thr=0.5, quiet_margin_db=8.0):
     """
@@ -695,6 +706,7 @@ def drop_trailing_hallucination(entries, all_words, wav_path, ffmpeg_path, time_
     aranır — son blok olacak, en fazla `max_words` kelime olacak, bir ÖNCEKİ blok tam
     cümleyle bitmiş olacak (yani bu blok bir cümlenin devamı değil) — ve ayrıca en az bir
     kanıt gerekir:
+      - metin tipik kapanış uydurması ("Thank you.", "The End", "Teşekkürler."), VEYA
       - kelime güven ortalaması `prob_thr` altında, VEYA
       - o aralığın sesi son bloklara göre `quiet_margin_db` dB daha sessiz
     Kanıt yoksa blok korunur. Atılan blok loga yazılır.
@@ -710,15 +722,20 @@ def drop_trailing_hallucination(entries, all_words, wav_path, ffmpeg_path, time_
 
     reason = None
 
-    # Kanıt 1: kelime güveni
-    probs = [w.get("probability", 1.0) for w in (all_words or [])
-             if s - 0.05 <= (w["start"] + w["end"]) / 2 <= e + 0.05]
-    if probs:
-        avg_p = sum(probs) / len(probs)
-        if avg_p < prob_thr:
-            reason = f"düşük güven ({avg_p:.2f})"
+    # Kanıt 1: bilinen kapanış uydurması kalıbı
+    if TRAILING_HALLUCINATION_PHRASES.match(text.strip()):
+        reason = "tipik kapanış uydurması"
 
-    # Kanıt 2: aralığın sesi komşularına göre belirgin sessiz
+    # Kanıt 2: kelime güveni
+    if reason is None:
+        probs = [w.get("probability", 1.0) for w in (all_words or [])
+                 if s - 0.05 <= (w["start"] + w["end"]) / 2 <= e + 0.05]
+        if probs:
+            avg_p = sum(probs) / len(probs)
+            if avg_p < prob_thr:
+                reason = f"düşük güven ({avg_p:.2f})"
+
+    # Kanıt 3: aralığın sesi komşularına göre belirgin sessiz
     if reason is None and wav_path and ffmpeg_path:
         try:
             ref_start = max(0.0, entries[-6][0] if len(entries) >= 6 else entries[0][0])
