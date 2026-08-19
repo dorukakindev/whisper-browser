@@ -329,7 +329,7 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         current = []
         for w in words:
             current.append(w)
-            if w.endswith(tuple(PUNCT_END)) and len(current) < len(words):
+            if w.endswith(tuple(PUNCT_END)) and not is_abbreviation(w) and len(current) < len(words):
                 lines.append(" ".join(current))
                 current = []
         if current:
@@ -391,6 +391,59 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
 PUNCT_END = ".!?…।。！？"
 PUNCT_SOFT = ",;:،，؛"
 
+# Nokta ile biten ama cümleyi BİTİRMEYEN kısaltmalar. "Mrs. Dolly" / "L.A. County"
+# gibi yerlerde cümle bölmeyi engeller (sonraki kelime büyük harfle başladığı için
+# aksi halde yeni cümle sanılıyordu).
+ABBREVIATIONS = {
+    # İngilizce unvan / kısaltma
+    "mr", "mrs", "ms", "dr", "prof", "st", "jr", "sr", "rev", "gen", "col",
+    "lt", "sgt", "capt", "cmdr", "det", "insp", "gov", "sen", "rep", "pres",
+    "hon", "atty", "supt", "messrs", "mt", "ft", "ave", "blvd", "rd",
+    "vs", "etc", "inc", "ltd", "co", "corp", "dept", "est", "approx",
+    "e.g", "i.e", "a.m", "p.m", "ph.d", "m.d", "b.a", "m.a",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct",
+    "nov", "dec",
+    # Türkçe unvan / kısaltma
+    "sn", "bay", "bn", "av", "doç", "yrd", "öğr", "gör", "arş", "müh",
+    "vb", "örn", "bkz", "yy", "cad", "sok", "mah", "apt", "tel", "çev",
+    "hz", "alb", "yzb", "tğm", "krş", "age",
+}
+# NOT: "no." bilinçli olarak listede yok — "Oh, no." gibi gerçek cümle sonları var.
+
+# "L.A.", "U.S.", "J.F.K." gibi baş harf dizileri
+_INITIALISM_RE = re.compile(r"^(?:[^\W\d_]\.){2,}$", re.UNICODE)
+# "J." gibi tek baş harf (isim kısaltması)
+_SINGLE_INITIAL_RE = re.compile(r"^[^\W\d_]\.$", re.UNICODE)
+# "1." / "19." gibi sıra sayıları (Türkçe'de çok yaygın: "2. Dünya Savaşı")
+_ORDINAL_RE = re.compile(r"^\d+\.$")
+
+
+def is_abbreviation(word):
+    """
+    Kelime nokta ile bitiyor ama cümle sonu DEĞİL mi? (kısaltma / baş harf / sıra sayısı)
+    Etrafındaki tırnak-parantez temizlenir; "Mrs." → True, "man." → False.
+    """
+    w = (word or "").strip().strip("\"'“”‘’()[]«»")
+    if not w.endswith("."):
+        return False
+    if _INITIALISM_RE.match(w) or _ORDINAL_RE.match(w):
+        return True
+    # Tek baş harf yalnızca BÜYÜK harfse kısaltmadır ("J. Edgar"); küçük harf değil
+    if _SINGLE_INITIAL_RE.match(w) and w[0].isupper():
+        return True
+    return w[:-1].lower() in ABBREVIATIONS
+
+
+def text_ends_sentence(text):
+    """Metin gerçekten bir cümle sonu ile mi bitiyor? (kısaltma sayılmaz)"""
+    t = (text or "").strip().rstrip("\"'“”‘’)]»")
+    if not t:
+        return False
+    if not t.endswith(tuple(PUNCT_END)):
+        return False
+    last_word = t.split()[-1] if t.split() else t
+    return not is_abbreviation(last_word)
+
 
 def _flush_chunk(words):
     if not words:
@@ -413,8 +466,12 @@ def has_enough_punctuation(text, min_ratio=0.04):
     words = text.split()
     if len(words) < 6:
         return True  # çok kısa metin için kontrol gereksiz
-    # Cümle sonu noktalama ile biten en az bir kelime varsa cümle bölme kullan
-    end_count = sum(1 for w in words if w.rstrip(",;:").endswith(tuple(PUNCT_END)))
+    # Cümle sonu noktalama ile biten (kısaltma olmayan) en az bir kelime varsa
+    # cümle bölme kullan — "Mr. Smith and Mrs. Jones" tek başına yeterli sayılmaz
+    end_count = sum(
+        1 for w in words
+        if w.rstrip(",;:").endswith(tuple(PUNCT_END)) and not is_abbreviation(w)
+    )
     return end_count > 0
 
 
@@ -426,7 +483,7 @@ def longest_unpunctuated_run(entries):
         for word in (text or "").split():
             current += 1
             longest = max(longest, current)
-            if word.rstrip("'\"”’)]}").endswith(tuple(PUNCT_END)):
+            if word.rstrip("'\"”’)]}").endswith(tuple(PUNCT_END)) and not is_abbreviation(word):
                 current = 0
     return longest
 
@@ -491,20 +548,6 @@ def split_segment_by_timing(segment, min_gap=0.5, target_chars=110,
     return chunks if chunks else [(segment.start, segment.end, segment.text.strip())]
 
 
-# Cümle sonu sanılmaması gereken yaygın kısaltma ve unvanlar
-ABBREVIATIONS = {
-    # İngilizce unvanlar, kısaltmalar, yer/kurum adları
-    "mr.", "mrs.", "ms.", "dr.", "prof.", "sr.", "jr.", "st.", "no.", "vs.", "etc.",
-    "l.a.", "u.s.", "u.s.a.", "u.k.", "e.g.", "i.e.", "a.m.", "p.m.", "co.", "inc.",
-    "ltd.", "corp.", "dept.", "est.", "vol.", "gen.", "gov.", "sgt.", "cpt.", "col.",
-    "lt.", "rev.", "hon.", "ave.", "blvd.", "rd.", "ft.", "mt.", "approx.",
-    # Türkçe unvanlar ve kısaltmalar
-    "dr.", "prof.", "doç.", "yrd.", "av.", "müh.", "mim.", "ist.", "ank.", "izm.",
-    "vb.", "vs.", "bkz.", "sf.", "sn.", "dk.", "sa.", "tl.", "kr.", "no.", "cad.",
-    "sok.", "mah.", "apt.", "alb.", "bçvş.", "org.", "kor.", "tüm.", "tuğ.",
-}
-
-
 def _is_false_sentence_end(words, idx):
     """
     Whisper bazen cümle ortasında yanlış nokta koyar veya kısaltmaları nokta sanır.
@@ -514,16 +557,13 @@ def _is_false_sentence_end(words, idx):
       2. Yanlış nokta kontrolü: sonraki kelime KÜÇÜK harfle başlıyorsa ve arada
          kısa duraksama (< 600ms) varsa yanlış noktadır.
     """
+    # Kısaltma / baş harf / sıra sayısı → nokta cümleyi bitirmiyor ("Mrs. Dolly")
+    if is_abbreviation(words[idx].word):
+        return True
     if idx + 1 >= len(words):
         return False
 
     w_curr = words[idx]
-    curr_clean = w_curr.word.strip().strip("'\"()[]{}").rstrip(",;:").lower()
-
-    # 1. Kısaltma ve unvan koruması (Mrs., Dr., L.A., tek harfli baş harfler A., B. vb.)
-    if curr_clean in ABBREVIATIONS or bool(re.match(r"^([a-z]\.)+$", curr_clean)):
-        return True
-
     next_w_raw = words[idx + 1].word.strip()
     if not next_w_raw:
         return False
@@ -608,17 +648,39 @@ def _best_subtitle_cut(words, max_chars, language="en"):
     return fallback
 
 
-def split_segment_sentence(segment, hard_max_chars=220, **kwargs):
+def _split_long_sentence(sent_words, soft_max_chars, language):
+    """
+    Tam bir cümleyi ≤ soft_max_chars parçalara ayırır — kesim yerini
+    _best_subtitle_cut seçer (virgül/duraksama artı, bağımlı kelime eksi).
+    Cümle zaten sığıyorsa tek parça döner.
+    """
+    pieces = []
+    rest = list(sent_words)
+    while rest:
+        if sum(len(w.word) for w in rest) <= soft_max_chars or len(rest) < 2:
+            pieces.append(rest)
+            break
+        cut_at = _best_subtitle_cut(rest, soft_max_chars, language=language)
+        if cut_at is None or cut_at >= len(rest) - 1:
+            pieces.append(rest)
+            break
+        pieces.append(rest[: cut_at + 1])
+        rest = rest[cut_at + 1 :]
+    return pieces
+
+
+def split_segment_sentence(segment, hard_max_chars=220, soft_max_chars=84, **kwargs):
     """
     Cümle-öncelikli bölme.
     Bir altyazı bloğu = bir cümle. Sadece cümle sonu noktalama (. ! ? …) görünce
-    yeni bloğa geçer. Ancak çok uzun (hard_max_chars) cümleleri okunabilirlik için
-    virgül/iki nokta gibi yumuşak noktalama yerlerinde böler. Bu yedek bölme de
-    yoksa kelime sınırında zorunlu olarak bölünür.
+    yeni bloğa geçer. soft_max_chars'tan uzun cümleler okunabilirlik için
+    _best_subtitle_cut ile doğal noktalardan (virgül, duraksama) alt bloklara
+    ayrılır; hard_max_chars hiç noktalama gelmeyen diziler için son güvenlik ağıdır.
 
     Yanlış nokta koruması: Whisper bazen cümle ortasına nokta atar (örn.
     "thinking about. or watching"). _is_false_sentence_end ile bunlar tespit edilip
-    yok sayılır — sonraki kelime küçük harfle başlıyor veya bağlaçsa.
+    yok sayılır — sonraki kelime küçük harfle başlıyor veya bağlaçsa. Kısaltmalar
+    (Mrs., L.A., 2.) is_abbreviation ile cümle sonu sayılmaz.
     """
     words = getattr(segment, "words", None)
     if not words:
@@ -628,6 +690,13 @@ def split_segment_sentence(segment, hard_max_chars=220, **kwargs):
     current = []
     current_len = 0
     language = "tr" if any(ch in segment.text.lower() for ch in "çğıöşü") else "en"
+
+    def flush_sentence(sent_words):
+        # Tam cümle çok uzunsa doğal noktalardan alt bloklara ayır
+        for piece in _split_long_sentence(sent_words, soft_max_chars, language):
+            chunk = _flush_chunk(piece)
+            if chunk:
+                chunks.append(chunk)
 
     for i, w in enumerate(words):
         current.append(w)
@@ -640,9 +709,7 @@ def split_segment_sentence(segment, hard_max_chars=220, **kwargs):
             # Yanlış nokta kontrolü: sonraki kelime küçük harf/bağlaç ise atla
             if _is_false_sentence_end(words, i):
                 continue
-            chunk = _flush_chunk(current)
-            if chunk:
-                chunks.append(chunk)
+            flush_sentence(current)
             current = []
             current_len = 0
             continue
@@ -661,9 +728,8 @@ def split_segment_sentence(segment, hard_max_chars=220, **kwargs):
             current_len = sum(len(w.word) for w in current)
             continue
 
-    chunk = _flush_chunk(current)
-    if chunk:
-        chunks.append(chunk)
+    if current:
+        flush_sentence(current)
 
     return chunks if chunks else [(segment.start, segment.end, segment.text.strip())]
 
@@ -719,7 +785,9 @@ def balanced_two_line_break(text, max_line_width=42, language="tr"):
         last_word = words[i - 1].rstrip(",.!?;:…").lower()
         # Noktalama varsa puan +
         score = 0
-        if words[i - 1].endswith(tuple(PUNCT_END)):
+        if is_abbreviation(words[i - 1]):
+            score -= 60  # "Mrs." ile ismi arasında satır kırma
+        elif words[i - 1].endswith(tuple(PUNCT_END)):
             score += 100
         elif words[i - 1].endswith(tuple(PUNCT_SOFT)):
             score += 50
@@ -773,7 +841,10 @@ def split_segment_by_punctuation(segment, max_chars=84):
         word_str = w.word
         current_words.append(w)
         current_text_len += len(word_str)
-        ends_sentence = word_str.strip().endswith(tuple(PUNCT_END))
+        ends_sentence = (
+            word_str.strip().endswith(tuple(PUNCT_END))
+            and not is_abbreviation(word_str)
+        )
         ends_soft = word_str.strip().endswith(tuple(PUNCT_SOFT))
 
         too_long = current_text_len >= max_chars
@@ -1641,6 +1712,59 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6, max_cha
     return [(o[0], o[1], o[2]) for o in out]
 
 
+def merge_incomplete_sentences(entries, max_gap=2.5, max_chars=84, max_dur=7.0, max_parts=6):
+    """
+    Yarım kalmış cümleleri (nokta/soru/ünlem ile bitmeyen blokları) sonraki blokla
+    birleştirir. Belgesel anlatımında seslendirmen dramatik duraksamalarla konuşur;
+    Whisper her duraksamada yeni segment üretir ve cümle parça parça bölünür:
+        "A Christmas Day gathering" / "led to the death of this man"
+    Bu parçalar tek blokta toplanır — karakter/süre sınırını aşmadığı sürece.
+
+    Birleştirme koşulları:
+      - Önceki blok cümle sonu noktalama ile BİTMİYOR (kısaltma da bitirmez: "Mrs.")
+      - Aradaki boşluk max_gap'ten küçük (uzun sessizlik = ayrı sahne/konu)
+      - Birleşim karakter (max_chars) ve süre (max_dur) sınırına sığıyor
+      - Sonraki blok diyalog tiresi / şarkı-efekt işaretiyle başlamıyor
+    entries: [(start, end, text), ...] — zamana göre sıralı varsayılır.
+    """
+    if len(entries) < 2:
+        return entries
+
+    DIALOG_STARTS = ("-", "—", "–", "[", "(", "♪", "*")
+    out = []
+    parts = []  # out ile paralel: her blokta kaç parça birleşti
+    for s, e, txt in entries:
+        s = float(s)
+        e = float(e)
+        txt = (txt or "").strip()
+        if not txt:
+            continue
+        if not out:
+            out.append([s, e, txt])
+            parts.append(1)
+            continue
+        prev = out[-1]
+        gap = s - prev[1]
+        combined = (prev[2] + " " + txt).strip()
+        can_merge = (
+            not text_ends_sentence(prev[2])
+            and not prev[2].startswith(DIALOG_STARTS)
+            and not txt.startswith(DIALOG_STARTS)
+            and -0.05 <= gap <= max_gap
+            and len(combined) <= max_chars
+            and (e - prev[0]) <= max_dur
+            and parts[-1] < max_parts
+        )
+        if can_merge:
+            prev[1] = e
+            prev[2] = combined
+            parts[-1] += 1
+        else:
+            out.append([s, e, txt])
+            parts.append(1)
+    return [(o[0], o[1], o[2]) for o in out]
+
+
 def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=20.0):
     """
     Profesyonel altyazı zamanlama normalizasyonu (Netflix/BBC tarzı).
@@ -2171,6 +2295,21 @@ def transcribe(args):
             if len(entries) != n0:
                 log(f"Tekrar temizleme: {n0} → {len(entries)} blok")
 
+        # Yarım kalmış cümleleri birleştir (kısa parça birleştirmeden ÖNCE — önce cümle
+        # bütünlüğü kurulur, kalan flaş parçalar sonraki adımda toplanır)
+        if args.merge_incomplete:
+            n0 = len(entries)
+            # Blok hedefi bölme ile aynı: max_chars (bölücü de cümleleri bu boya
+            # ayırdığından birleştirme daha uzun blok üretmemeli)
+            entries = merge_incomplete_sentences(
+                entries,
+                max_gap=args.incomplete_gap,
+                max_chars=args.max_chars,
+                max_dur=args.max_duration,
+            )
+            if len(entries) != n0:
+                log(f"Yarım cümle birleştirme: {n0} → {len(entries)} blok")
+
         # Çok kısa parçaları komşusuyla birleştir (LLM/diarization öncesi — temiz birleşim)
         if args.merge_short:
             n0 = len(entries)
@@ -2247,7 +2386,8 @@ def transcribe(args):
             log(f"Zamanlama düzeltildi (maks {args.max_cps:.0f} CPS, min {args.min_duration:.2f}s, boşluk {args.min_gap:.2f}s)")
 
         # Önizlemeyi nihai metinle tazele (birleştirme/LLM/diarization/zamanlama/devam değişmiş olabilir)
-        if args.merge_short or args.llm_postprocess or args.diarize or args.fix_timings or resumed_entries:
+        if (args.merge_short or args.merge_incomplete or args.llm_postprocess
+                or args.diarize or args.fix_timings or resumed_entries):
             emit("preview_refresh", segments=[
                 {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
                 for i, (s, e, t) in enumerate(entries)
@@ -2616,6 +2756,10 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--merge-incomplete", type=lambda x: x.lower() == "true", default=True,
+                        help="Cümle sonu noktalaması olmayan (yarım kalmış) blokları sonrakiyle birleştir")
+    parser.add_argument("--incomplete-gap", type=float, default=2.5,
+                        help="Yarım cümle birleştirmede izin verilen maksimum boşluk (sn)")
     parser.add_argument("--dedupe", type=lambda x: x.lower() == "true", default=True,
                         help="Ardışık aynı metinli altyazıları tek bloğa birleştir (tekrar artefaktı)")
     parser.add_argument("--device", default="cuda", choices=["cuda", "cpu", "auto"])

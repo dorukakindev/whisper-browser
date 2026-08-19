@@ -613,6 +613,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--fix-timings', options.fixTimings !== false ? 'true' : 'false');
   if (options.maxCps) args.push('--max-cps', String(options.maxCps));
   args.push('--merge-short', options.mergeShort !== false ? 'true' : 'false');
+  args.push('--merge-incomplete', options.mergeIncomplete !== false ? 'true' : 'false');
+  if (options.incompleteGap) args.push('--incomplete-gap', String(options.incompleteGap));
   args.push('--dedupe', options.dedupe !== false ? 'true' : 'false');
   if (options.computeType) args.push('--compute-type', options.computeType);
   if (options.language) args.push('--language', options.language);
