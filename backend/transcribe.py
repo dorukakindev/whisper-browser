@@ -141,6 +141,10 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        # YouTube artık oynatıcı imzalarını harici bir JS çalışma zamanıyla
+        # çözmeyi gerektiriyor. Node uygulamanın zaten zorunlu bağımlılığıdır;
+        # yt-dlp-ejs ise install.bat ile yt-dlp[default] içinden kurulur.
+        "js_runtimes": {"node": {}},
         "progress_hooks": [progress_hook],
         "postprocessors": [
             {
@@ -298,7 +302,9 @@ def format_vtt_time(seconds):
 
 def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
     """
-    Altyazıyı satırlara böl. İki mod:
+    Altyazıyı satırlara böl. Üç mod:
+
+    wrap_mode="none": Hiç kırma, her altyazıyı tek satır olarak bırak.
 
     wrap_mode="sentence" (varsayılan): Cümle ortasında ASLA kırma. Yeni satır
     SADECE cümle sonu noktalama (. ! ?) görünce başlar. Tek cümle ne kadar
@@ -310,6 +316,9 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     text = text.strip()
     if not text:
         return text
+
+    if wrap_mode == "none":
+        return " ".join(text.split())
 
     if wrap_mode == "sentence":
         # Sadece cümle sonu noktalamalarda satır kır — cümleyi asla kesme
@@ -404,10 +413,22 @@ def has_enough_punctuation(text, min_ratio=0.04):
     words = text.split()
     if len(words) < 6:
         return True  # çok kısa metin için kontrol gereksiz
-    # Cümle sonu noktalama ile biten kelimeleri say
+    # Cümle sonu noktalama ile biten en az bir kelime varsa cümle bölme kullan
     end_count = sum(1 for w in words if w.rstrip(",;:").endswith(tuple(PUNCT_END)))
-    ratio = end_count / max(1, len(words))
-    return ratio >= min_ratio
+    return end_count > 0
+
+
+def longest_unpunctuated_run(entries):
+    """Blok sınırlarını aşan en uzun cümle-sonu noktalamasız kelime dizisi."""
+    longest = 0
+    current = 0
+    for _start, _end, text in entries:
+        for word in (text or "").split():
+            current += 1
+            longest = max(longest, current)
+            if word.rstrip("'\"”’)]}").endswith(tuple(PUNCT_END)):
+                current = 0
+    return longest
 
 
 def split_segment_by_timing(segment, min_gap=0.5, target_chars=110,
@@ -470,46 +491,124 @@ def split_segment_by_timing(segment, min_gap=0.5, target_chars=110,
     return chunks if chunks else [(segment.start, segment.end, segment.text.strip())]
 
 
+# Cümle sonu sanılmaması gereken yaygın kısaltma ve unvanlar
+ABBREVIATIONS = {
+    # İngilizce unvanlar, kısaltmalar, yer/kurum adları
+    "mr.", "mrs.", "ms.", "dr.", "prof.", "sr.", "jr.", "st.", "no.", "vs.", "etc.",
+    "l.a.", "u.s.", "u.s.a.", "u.k.", "e.g.", "i.e.", "a.m.", "p.m.", "co.", "inc.",
+    "ltd.", "corp.", "dept.", "est.", "vol.", "gen.", "gov.", "sgt.", "cpt.", "col.",
+    "lt.", "rev.", "hon.", "ave.", "blvd.", "rd.", "ft.", "mt.", "approx.",
+    # Türkçe unvanlar ve kısaltmalar
+    "dr.", "prof.", "doç.", "yrd.", "av.", "müh.", "mim.", "ist.", "ank.", "izm.",
+    "vb.", "vs.", "bkz.", "sf.", "sn.", "dk.", "sa.", "tl.", "kr.", "no.", "cad.",
+    "sok.", "mah.", "apt.", "alb.", "bçvş.", "org.", "kor.", "tüm.", "tuğ.",
+}
+
+
 def _is_false_sentence_end(words, idx):
     """
-    Whisper bazen cümle ortasında yanlış nokta koyar (örn. "thinking about. or watching").
+    Whisper bazen cümle ortasında yanlış nokta koyar veya kısaltmaları nokta sanır.
     Tespit kriterleri:
-      - Sonraki kelime KÜÇÜK harfle başlıyor (and, or, but, because, that, vs.)
-      - VE/VEYA sonraki kelime ile arada çok kısa duraksama (< 350ms)
-    Bağlaçlar her zaman yanlış nokta belirtisi sayılır (gap fark etmez).
+      1. Kısaltma kontrolü (Mrs., Mr., Dr., L.A., U.S., vb.): sonraki kelime büyük
+         harf olsa bile (özel isim / kurum) kesinlikle cümle sonu DEĞİLDİR.
+      2. Yanlış nokta kontrolü: sonraki kelime KÜÇÜK harfle başlıyorsa ve arada
+         kısa duraksama (< 600ms) varsa yanlış noktadır.
     """
     if idx + 1 >= len(words):
         return False
+
+    w_curr = words[idx]
+    curr_clean = w_curr.word.strip().strip("'\"()[]{}").rstrip(",;:").lower()
+
+    # 1. Kısaltma ve unvan koruması (Mrs., Dr., L.A., tek harfli baş harfler A., B. vb.)
+    if curr_clean in ABBREVIATIONS or bool(re.match(r"^([a-z]\.)+$", curr_clean)):
+        return True
+
     next_w_raw = words[idx + 1].word.strip()
     if not next_w_raw:
         return False
-    next_clean = next_w_raw.lstrip("'\"")
+    next_clean = next_w_raw.lstrip("'\"([{")
     if not next_clean:
         return False
     first_char = next_clean[0]
-    w_curr = words[idx]
+
+    # Büyük harfle başlayan kelime = gerçek cümle başı → yanlış nokta DEĞİL
+    if first_char.isupper():
+        return False
+
     w_next = words[idx + 1]
     if w_next.start is None or w_curr.end is None:
         gap = 0.0
     else:
         gap = w_next.start - w_curr.end
-    # Bağlaç + cümle başı küçük harf → kesin yanlış
-    LOWER_CONJUNCTIONS = {"and", "or", "but", "because", "so", "that", "which",
-                          "while", "where", "when", "if", "though", "although",
-                          "yet", "as", "than", "nor"}
-    next_word_lower = next_clean.rstrip(",.;:!?").lower()
-    if next_word_lower in LOWER_CONJUNCTIONS:
-        return True
-    # Küçük harfle başlıyor → muhtemelen yanlış nokta
+
+    # Küçük harfle başlıyor → muhtemelen yanlış nokta (cümle ortası)
     if first_char.islower() and gap < 0.6:
         return True
-    # Büyük harfli ama çok kısa duraksama → muhtemelen yanlış nokta
-    if gap < 0.15:
-        return True
+
     return False
 
 
-def split_segment_sentence(segment, hard_max_chars=180, soft_max_chars=110):
+def _best_subtitle_cut(words, max_chars, language="en"):
+    """Bir kelime dizisini doğal ve güvenli bir yerde ikiye ayıracak indeksi seç."""
+    if len(words) < 2:
+        return None
+
+    no_break_after = NO_BREAK_AFTER_TR if language == "tr" else NO_BREAK_AFTER_EN
+    continuation_starts = {
+        "and", "or", "but", "because", "which", "that", "with", "without",
+        "of", "to", "for", "from", "as", "than", "while", "when", "where",
+        "ve", "veya", "ama", "fakat", "çünkü", "ki", "ile", "için",
+    }
+    best = None
+    total = 0
+    for i in range(len(words) - 1):
+        total += len(words[i].word)
+        if total > max_chars:
+            break
+        # Çok erken kesip "One of the" türü öksüz blok üretme.
+        if total < max_chars * 0.52:
+            continue
+
+        current = words[i].word.strip()
+        nxt = words[i + 1].word.strip().lstrip("'\"")
+        current_clean = current.rstrip(",.;:!?…").lower()
+        next_clean = nxt.rstrip(",.;:!?…").lower()
+        gap = 0.0
+        if words[i].end is not None and words[i + 1].start is not None:
+            gap = max(0.0, words[i + 1].start - words[i].end)
+
+        # Doluluğu temel al; virgül/duraksama güçlü artı, dilbilgisel olarak
+        # bağımlı kelimeleri ayırmak güçlü eksi.
+        score = (total / max_chars) * 10.0
+        if current.endswith(tuple(PUNCT_SOFT)):
+            score += 8.0
+        if gap >= 0.45:
+            score += 7.0
+        elif gap >= 0.25:
+            score += 3.0
+        if current_clean in no_break_after:
+            score -= 10.0
+        if next_clean in continuation_starts:
+            score -= 9.0
+        if best is None or score > best[0]:
+            best = (score, i)
+
+    if best is not None:
+        return best[1]
+
+    # Çok kısa/olağandışı dizide son güvenli kelime sınırına düş.
+    total = 0
+    fallback = 0
+    for i in range(len(words) - 1):
+        total += len(words[i].word)
+        if total > max_chars:
+            break
+        fallback = i
+    return fallback
+
+
+def split_segment_sentence(segment, hard_max_chars=220, **kwargs):
     """
     Cümle-öncelikli bölme.
     Bir altyazı bloğu = bir cümle. Sadece cümle sonu noktalama (. ! ? …) görünce
@@ -528,7 +627,7 @@ def split_segment_sentence(segment, hard_max_chars=180, soft_max_chars=110):
     chunks = []
     current = []
     current_len = 0
-    last_soft_break = -1  # current içinde son virgül/yumuşak nokta indeksi
+    language = "tr" if any(ch in segment.text.lower() for ch in "çğıöşü") else "en"
 
     for i, w in enumerate(words):
         current.append(w)
@@ -536,10 +635,6 @@ def split_segment_sentence(segment, hard_max_chars=180, soft_max_chars=110):
         current_len += len(w.word)
 
         ends_sentence = word_str.endswith(tuple(PUNCT_END))
-        ends_soft = word_str.endswith(tuple(PUNCT_SOFT))
-
-        if ends_soft:
-            last_soft_break = len(current) - 1
 
         if ends_sentence:
             # Yanlış nokta kontrolü: sonraki kelime küçük harf/bağlaç ise atla
@@ -550,12 +645,13 @@ def split_segment_sentence(segment, hard_max_chars=180, soft_max_chars=110):
                 chunks.append(chunk)
             current = []
             current_len = 0
-            last_soft_break = -1
             continue
 
-        # Cümle bitmeden çok uzadıysa: önce en son virgülde böl, yoksa kelimede
+        # Olağandışı tek kelime/ölçüm durumunda sert sınır son güvenlik ağıdır.
         if current_len >= hard_max_chars:
-            cut_at = last_soft_break if (last_soft_break >= 0 and last_soft_break >= len(current) // 2) else len(current) - 1
+            cut_at = _best_subtitle_cut(current, hard_max_chars, language=language)
+            if cut_at is None:
+                cut_at = len(current) - 1
             head = current[: cut_at + 1]
             tail = current[cut_at + 1 :]
             chunk = _flush_chunk(head)
@@ -563,7 +659,6 @@ def split_segment_sentence(segment, hard_max_chars=180, soft_max_chars=110):
                 chunks.append(chunk)
             current = list(tail)
             current_len = sum(len(w.word) for w in current)
-            last_soft_break = -1
             continue
 
     chunk = _flush_chunk(current)
@@ -1502,11 +1597,13 @@ def dedupe_consecutive(entries, max_gap=2.0):
     return [(o[0], o[1], o[2]) for o in out]
 
 
-def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.4, max_chars=84, max_dur=6.0):
+def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6, max_chars=84, max_dur=6.5):
     """
-    Çok kısa altyazı parçalarını (az karakter VEYA kısa süre) komşu altyazıyla birleştirir.
-    Yalnızca aradaki boşluk küçükse ve birleşim karakter/süre sınırını aşmıyorsa.
-    Flaş eden tek-kelimelik/çok kısa altyazıları azaltır (Subtitle Edit "merge short lines").
+    1) Tamamlanmamış cümleleri (sonunda . ! ? … olmayan) ve
+    2) Çok kısa altyazı parçalarını (az karakter VEYA kısa süre)
+    komşu altyazıyla birleştirir.
+    Yalnızca aradaki boşluk küçükse (gap <= max_gap) ve birleşim karakter/süre sınırını aşmıyorsa.
+    Flaş eden veya gereksiz yere parçalanmış altyazıları azaltır.
     entries: [(start, end, text), ...] — zamana göre sıralı varsayılır.
     """
     if len(entries) < 2:
@@ -1520,20 +1617,24 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.4, max_cha
             out.append([s, e, txt])
             continue
         prev = out[-1]
+        prev_ends_sentence = prev[2].rstrip().endswith(tuple(PUNCT_END))
+        if prev_ends_sentence:
+            out.append([s, e, txt])
+            continue
+
         gap = s - prev[1]
-        prev_short = (prev[1] - prev[0]) < min_dur or len(prev[2]) < min_chars
-        cur_short = (e - s) < min_dur or len(txt) < min_chars
         if prev[2] and txt:
             combined = (prev[2] + " " + txt).strip()
         else:
             combined = prev[2] or txt
+
         fits = (
-            0 <= gap <= max_gap
+            -0.15 <= gap <= max_gap
             and len(combined) <= max_chars
             and (e - prev[0]) <= max_dur
         )
-        if fits and (prev_short or cur_short):
-            prev[1] = e
+        if fits:
+            prev[1] = max(prev[1], e)
             prev[2] = combined
         else:
             out.append([s, e, txt])
@@ -2089,6 +2190,18 @@ def transcribe(args):
         else:
             log("ℹ LLM düzeltme kapalı", "info")
 
+        # Whisper bazı bölümlerde noktalama modundan çıkıp dakikalarca küçük harfli,
+        # noktasız metin üretebilir. Sessizce "kaliteli" saymak yerine kullanıcıya
+        # bunun metin düzeltmesi gerektirdiğini açıkça bildir.
+        unpunctuated_words = longest_unpunctuated_run(entries)
+        if unpunctuated_words >= 80:
+            warning = (
+                f"Noktalama uyarısı: {unpunctuated_words} kelimelik kesintisiz bir bölüm bulundu. "
+                "Daha temiz sonuç için LLM ile düzeltme → Noktalama seçeneğini açın."
+            )
+            log(f"⚠ {warning}", "warn")
+            warn_list.append(warning)
+
         # Konuşmacı tanıma (opsiyonel)
         speakers_map = {}
         if args.diarize:
@@ -2565,8 +2678,8 @@ def main():
     parser.add_argument(
         "--wrap-mode",
         default="sentence",
-        choices=["sentence", "balanced"],
-        help="sentence = sadece cümle sonunda satır kır (önerilen), balanced = max_line_width'e göre dengeli 2 satır",
+        choices=["sentence", "balanced", "none"],
+        help="sentence = sadece cümle sonunda satır kır, balanced = max_line_width'e göre dengeli 2 satır, none = kırma yok (tek satır)",
     )
     parser.add_argument("--max-chars", type=int, default=84, help="Yumuşak hedef: bir altyazı bloğunun maks. karakter sayısı")
     parser.add_argument(

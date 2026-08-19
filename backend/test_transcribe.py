@@ -67,6 +67,16 @@ def test_has_enough_punctuation():
     assert T.has_enough_punctuation("kısa metin") is True  # <6 kelime → kontrol yok
 
 
+def test_longest_unpunctuated_run():
+    entries = [
+        (0, 1, "This is a sentence."),
+        (1, 2, "then a run without"),
+        (2, 3, "any final punctuation here"),
+        (3, 4, "Now it ends."),
+    ]
+    assert T.longest_unpunctuated_run(entries) == 11
+
+
 # ===== tekrar döngüsü =====
 def test_repetition():
     assert T.has_repetition_loop("evet evet evet evet") is True
@@ -160,6 +170,20 @@ def test_split_segment_sentence():
     seg2 = Seg(0.0, 1.2, "düşünüyordum. and izliyordum.", words2)
     chunks2 = T.split_segment_sentence(seg2)
     assert len(chunks2) == 1, "bağlaç öncesi yanlış nokta bölmesi engellenmedi"
+
+    # Film presetindeki 42x2 hedefi gerçekten uygulanmalı; soft_max_chars eskiden
+    # kullanılmadığı için bu tür metinler tek blokta kalıp üç satıra taşıyordu.
+    text3 = ("The bizarre phenomenon of serial killers in the United States, which "
+             "coincided with the so-called satanic panic, became widespread.")
+    raw3 = text3.split()
+    words3 = []
+    for i, word in enumerate(raw3):
+        words3.append(W((" " if i else "") + word, i * 0.3, (i + 1) * 0.3))
+    seg3 = Seg(0.0, len(raw3) * 0.3, text3, words3)
+    chunks3 = T.split_segment_sentence(seg3, hard_max_chars=220, soft_max_chars=84)
+    assert len(chunks3) >= 2
+    assert all(len(chunk[2]) <= 84 for chunk in chunks3)
+    assert all(len(chunk[2]) >= 30 for chunk in chunks3), "öksüz kısa blok üretildi"
 
 
 # ===== checkpoint / kaldığı yerden devam =====

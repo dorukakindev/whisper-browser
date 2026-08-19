@@ -543,12 +543,12 @@ $$('.tab').forEach((tab) => {
   });
 });
 
-// ===== File selection =====
+// ===== File & folder selection =====
 const dropZone = $('dropZone');
 dropZone.addEventListener('click', async () => {
   const files = await window.api.selectVideo();
   if (!files || files.length === 0) return;
-  if (files.length === 1) {
+  if (files.length === 1 && state.queue.length === 0 && !state.running && !state.queueRunning) {
     setInputFile(files[0]);
   } else {
     // Birden çok dosya seçildi: hepsini kuyruğa ekle
@@ -556,6 +556,37 @@ dropZone.addEventListener('click', async () => {
     logLine(`+ ${files.length} dosya kuyruğa eklendi`, 'success');
   }
 });
+
+const pickVideosBtn = $('pickVideosBtn');
+if (pickVideosBtn) {
+  pickVideosBtn.addEventListener('click', async () => {
+    const files = await window.api.selectVideo();
+    if (!files || files.length === 0) return;
+    if (files.length === 1 && state.queue.length === 0 && !state.running && !state.queueRunning) {
+      setInputFile(files[0]);
+    } else {
+      files.forEach((f) => addToQueue('file', f));
+      logLine(`+ ${files.length} dosya kuyruğa eklendi`, 'success');
+    }
+  });
+}
+
+const pickFoldersBtn = $('pickFoldersBtn');
+if (pickFoldersBtn) {
+  pickFoldersBtn.addEventListener('click', async () => {
+    const files = await window.api.selectFolders();
+    if (!files || files.length === 0) {
+      logLine('Seçilen klasör(ler)de desteklenen video veya ses dosyası bulunamadı.', 'warn');
+      return;
+    }
+    if (files.length === 1 && state.queue.length === 0 && !state.running && !state.queueRunning) {
+      setInputFile(files[0]);
+    } else {
+      files.forEach((f) => addToQueue('file', f));
+      logLine(`+ ${files.length} bölüm/dosya kuyruğa eklendi`, 'success');
+    }
+  });
+}
 
 // Klavye erişimi: drop-zone bir <div> (role=button) — Enter/Space ile aç
 dropZone.addEventListener('keydown', (e) => {
@@ -574,21 +605,27 @@ dropZone.addEventListener('dragleave', () => {
   dropZone.classList.remove('dragover');
 });
 
-function handleDropPayload(e) {
+async function handleDropPayload(e) {
   // webUtils üzerinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)
   const paths = Array.from(e.dataTransfer.files)
     .map((f) => window.api.getFilePath(f))
     .filter(Boolean);
-  if (paths.length === 1) {
-    setInputFile(paths[0]);
+
+  if (paths.length > 0) {
+    const mediaFiles = await window.api.scanMediaPaths(paths);
+    if (!mediaFiles || mediaFiles.length === 0) {
+      logLine('Bırakılan dosya veya klasörlerde desteklenen video/ses dosyası bulunamadı.', 'warn');
+      return;
+    }
+    if (mediaFiles.length === 1 && state.queue.length === 0 && !state.running && !state.queueRunning) {
+      setInputFile(mediaFiles[0]);
+    } else {
+      mediaFiles.forEach((f) => addToQueue('file', f));
+      logLine(`+ ${mediaFiles.length} bölüm/dosya kuyruğa eklendi`, 'success');
+    }
     return;
   }
-  if (paths.length > 1) {
-    // Birden çok dosya: hepsini kuyruğa ekle
-    paths.forEach((p) => addToQueue('file', p));
-    logLine(`+ ${paths.length} dosya kuyruğa eklendi`, 'success');
-    return;
-  }
+
   // Dosya yok: tarayıcıdan sürüklenen bir link olabilir → YouTube sekmesine al
   const text = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').trim();
   const url = text.split(/\s+/)[0];
@@ -911,11 +948,11 @@ function scheduleSave() {
 const PRESETS = {
   film: {
     label: '🎬 Film',
-    // large-v3 (en iyi kalite) + faster (önceki bağlamı kullanır → tutarlı noktalama).
-    // Cümle bazlı bölme + yüksek sert sınır = cümleler asla ortadan kesilmez.
+    // large-v3-turbo (en iyi denge) + faster (önceki bağlamı kullanır → tutarlı noktalama).
+    // Cümle bazlı bölme (noktada böl) + kırma yok = her cümle tek satırlık blok olur.
     values: {
-      model: 'large-v3', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16',
-      splitMode: 'sentence', wrapMode: 'balanced', maxLineWidth: '42', hardMaxChars: '220', maxCps: '20',
+      model: 'large-v3-turbo', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16',
+      splitMode: 'sentence', wrapMode: 'none', maxLineWidth: '80', hardMaxChars: '220', maxCps: '20',
     },
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,
@@ -924,17 +961,17 @@ const PRESETS = {
   },
   fast: {
     label: '⚡ Hızlı',
-    values: { model: 'large-v3-turbo', engine: 'faster-batched', batchSize: '16', beamSize: '1', bestOf: '1', computeType: 'float16' },
+    values: { model: 'large-v3-turbo', engine: 'faster-batched', batchSize: '16', beamSize: '1', bestOf: '1', computeType: 'float16', splitMode: 'sentence', wrapMode: 'none' },
     checks: { vadFilter: true, temperatureFallback: true },
   },
   balanced: {
     label: '⚖️ Dengeli',
-    values: { model: 'large-v3-turbo', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16' },
+    values: { model: 'large-v3-turbo', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16', splitMode: 'sentence', wrapMode: 'none' },
     checks: { vadFilter: true, temperatureFallback: true },
   },
   quality: {
     label: '💎 En iyi kalite',
-    values: { model: 'large-v3', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16' },
+    values: { model: 'large-v3', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16', splitMode: 'sentence', wrapMode: 'none' },
     checks: { vadFilter: true, temperatureFallback: true },
   },
 };

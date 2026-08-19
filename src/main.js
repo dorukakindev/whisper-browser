@@ -205,6 +205,70 @@ ipcMain.handle('dialog:openFile', async (_event, kind) => {
   return result.filePaths[0];
 });
 
+const MEDIA_EXTS = new Set([
+  'mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'wmv', 'm4v', 'ts', '3gp',
+  'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma'
+]);
+
+function scanMediaFromPaths(inputPaths) {
+  const results = [];
+  const visited = new Set();
+
+  function walk(targetPath, depth = 0) {
+    if (depth > 5) return;
+    try {
+      if (!fs.existsSync(targetPath)) return;
+      const stat = fs.statSync(targetPath);
+      if (stat.isDirectory()) {
+        const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+        // Doğal sayısal sıralama (S01E01, S01E02 vb.)
+        entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        for (const entry of entries) {
+          walk(path.join(targetPath, entry.name), depth + 1);
+        }
+      } else if (stat.isFile()) {
+        const ext = path.extname(targetPath).slice(1).toLowerCase();
+        if (MEDIA_EXTS.has(ext)) {
+          const norm = path.normalize(targetPath);
+          if (!visited.has(norm)) {
+            visited.add(norm);
+            results.push(norm);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Klasör/dosya tarama hatası:', targetPath, err);
+    }
+  }
+
+  for (const p of inputPaths) {
+    walk(p);
+  }
+  return results;
+}
+
+ipcMain.handle('dialog:openFolders', async () => {
+  const prev = loadSettings();
+  const opts = {
+    title: 'Klasör veya klasörler seç (içlerindeki tüm videolar sıraya eklenir)',
+    properties: ['openDirectory', 'multiSelections'],
+  };
+  if (prev && prev.lastInputDir && fs.existsSync(prev.lastInputDir)) opts.defaultPath = prev.lastInputDir;
+  const result = await dialog.showOpenDialog(mainWindow, opts);
+  if (result.canceled || result.filePaths.length === 0) return null;
+  try {
+    const s = loadSettings();
+    s.lastInputDir = path.dirname(result.filePaths[0]);
+    saveSettings(s);
+  } catch (_) {}
+  return scanMediaFromPaths(result.filePaths);
+});
+
+ipcMain.handle('paths:scanMedia', async (_event, inputPaths) => {
+  if (!Array.isArray(inputPaths) || inputPaths.length === 0) return [];
+  return scanMediaFromPaths(inputPaths);
+});
+
 ipcMain.handle('dialog:openFolder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Çıktı klasörü seç',
@@ -737,7 +801,13 @@ ipcMain.handle('maintenance:updateYtdlp', async () => {
   return new Promise((resolve) => {
     let out = '';
     try {
-      updateJob = spawn(pythonPath, ['-m', 'pip', 'install', '--upgrade', 'yt-dlp'], { windowsHide: true });
+      // Nightly kanal, YouTube'un sık değişen istemci/PO-token davranışlarına
+      // stable sürümden önce uyum sağlar; [default] EJS çözücüsünü de getirir.
+      updateJob = spawn(
+        pythonPath,
+        ['-m', 'pip', 'install', '--upgrade', '--pre', 'yt-dlp[default]'],
+        { windowsHide: true },
+      );
     } catch (err) {
       updateJob = null;
       return resolve({ ok: false, error: err.message });

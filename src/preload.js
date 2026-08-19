@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('api', {
     try { return webUtils.getPathForFile(file); } catch (_) { return file && file.path; }
   },
   selectVideo: () => ipcRenderer.invoke('dialog:openVideo'),
+  selectFolders: () => ipcRenderer.invoke('dialog:openFolders'),
+  scanMediaPaths: (paths) => ipcRenderer.invoke('paths:scanMedia', paths),
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
   selectFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),

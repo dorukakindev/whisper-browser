@@ -44,7 +44,7 @@
           </div>
 
           <div class="tab-content" data-content="file">
-            <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Dosya seçmek için tıkla veya sürükle bırak">
+            <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Dosya veya klasör seçmek için tıkla veya sürükle bırak">
               <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="17 8 12 3 7 8"/>
@@ -53,7 +53,11 @@
               <div class="drop-text">
                 <strong>Sürükle bırak</strong> veya tıklayarak seç
               </div>
-              <div class="drop-sub">.mp4, .mkv, .mov, .mp3, .wav ve daha fazlası</div>
+              <div class="drop-sub">Video dosyaları veya klasörler bırakabilirsiniz (bölümler otomatik taranır)</div>
+            </div>
+            <div class="source-actions" style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn btn-secondary btn-sm" id="pickVideosBtn" style="flex:1" title="Birden fazla video/ses dosyası seç">📄 Dosya(lar) Seç</button>
+              <button class="btn btn-secondary btn-sm" id="pickFoldersBtn" style="flex:1" title="Bir veya birden fazla klasör seç (içlerindeki tüm videolar taranır)">📁 Klasör(ler) Seç</button>
             </div>
             <div class="file-info hidden" id="fileInfo">
               <div class="file-icon">
@@ -127,8 +131,8 @@
             <label class="field">
               <span class="field-label">Model</span>
               <select id="model">
-                <option value="large-v3" selected>large-v3</option>
-                <option value="large-v3-turbo">large-v3-turbo</option>
+                <option value="large-v3">large-v3</option>
+                <option value="large-v3-turbo" selected>large-v3-turbo</option>
                 <option value="large-v2">large-v2</option>
                 <option value="medium">medium</option>
                 <option value="small">small</option>
@@ -270,8 +274,8 @@
               <label class="field">
                 <span class="field-label">Bölme stratejisi</span>
                 <select id="splitMode">
-                  <option value="none">Bölme yok — Whisper çıktısı olduğu gibi</option>
                   <option value="sentence" selected>Cümle bazlı — noktalama yoksa duraksamaya geçer</option>
+                  <option value="none">Bölme yok — Whisper çıktısı olduğu gibi</option>
                   <option value="timing">Sadece zamanlama — duraksamalardan böl</option>
                   <option value="smart">Akıllı — noktalama + karakter limiti</option>
                 </select>
@@ -283,8 +287,9 @@
               <label class="field">
                 <span class="field-label">Satır kırma</span>
                 <select id="wrapMode">
+                  <option value="none" selected>Kırma yok — her altyazı tek satır</option>
                   <option value="sentence">Cümle sonunda kır (cümleyi bölme)</option>
-                  <option value="balanced" selected>Dengeli 2 satır — karakter sınırına göre</option>
+                  <option value="balanced">Dengeli 2 satır — karakter sınırına göre</option>
                 </select>
               </label>
               <label class="field">
