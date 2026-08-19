@@ -48,6 +48,7 @@ function buildOptsFromUI() {
     fixTimings: $('fixTimings').checked,
     mergeShort: $('mergeShort').checked,
     mergeIncomplete: $('mergeIncomplete').checked,
+    fixPunctuationCollapse: $('fixPunctuationCollapse').checked,
     incompleteGap: parseFloat($('incompleteGap').value),
     dedupe: $('dedupe').checked,
     maxCps: parseFloat($('maxCps').value),
@@ -891,7 +892,7 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'mergeShort', 'mergeIncomplete', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
@@ -951,15 +952,19 @@ function scheduleSave() {
 const PRESETS = {
   film: {
     label: '🎬 Film',
-    // large-v3-turbo (en iyi denge) + faster (önceki bağlamı kullanır → tutarlı noktalama).
-    // Cümle bazlı bölme (noktada böl) + kırma yok = her cümle tek satırlık blok olur.
+    // large-v3-turbo (en iyi denge) + faster. Cümle bazlı bölme (noktada böl) + kırma yok
+    // = her cümle tek satırlık blok olur.
+    // conditionOnPrevious KAPALI: uzun filmlerde Whisper bir kez noktalamayı bırakınca
+    // bozuk metni bağlam olarak geri besleyip sona kadar noktasız devam ediyordu
+    // (Popol Vuh vakası). Yedek olarak fixPunctuationCollapse yine de açık.
     values: {
       model: 'large-v3-turbo', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16',
       splitMode: 'sentence', wrapMode: 'none', maxLineWidth: '80', hardMaxChars: '220', maxCps: '20',
     },
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,
-      fixTimings: true, conditionOnPrevious: true, mergeIncomplete: true,
+      fixTimings: true, conditionOnPrevious: false, mergeIncomplete: true,
+      fixPunctuationCollapse: true,
     },
   },
   fast: {

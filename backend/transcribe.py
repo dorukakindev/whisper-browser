@@ -475,6 +475,203 @@ def has_enough_punctuation(text, min_ratio=0.04):
     return end_count > 0
 
 
+def punctuation_ratio(entries):
+    """Bloklardaki kelimelerin kaçta kaçı cümle sonu noktalaması ile bitiyor? (kısaltma sayılmaz)"""
+    words = []
+    for item in entries:
+        text = item[2] if isinstance(item, (list, tuple)) else item
+        words.extend((text or "").split())
+    if not words:
+        return 0.0
+    ends = sum(
+        1 for w in words
+        if w.rstrip("\"'“”’)]»").endswith(tuple(PUNCT_END)) and not is_abbreviation(w)
+    )
+    return ends / len(words)
+
+
+def find_unpunctuated_spans(entries, min_words=80, min_dur=15.0, join_gap=10.0):
+    """
+    Cümle sonu noktalaması olmayan uzun bölgelerin (start, end) aralıklarını bulur.
+    Whisper uzun videolarda bir noktadan sonra noktalamayı tamamen bırakabiliyor;
+    bu bölgeler cümle bölme için kullanılamaz hale geliyor.
+
+    min_words : bir bölgeyi "çökmüş" saymak için gereken kesintisiz kelime sayısı
+    min_dur   : bundan kısa aralıklar yeniden çevirmeye değmez (sn)
+    join_gap  : birbirine bu kadar yakın aralıklar tek parça olarak birleştirilir (sn)
+    """
+    spans = []
+    start = None
+    words = 0
+    last_end = None
+    for s, e, t in entries:
+        if start is None:
+            start = float(s)
+            words = 0
+        words += len((t or "").split())
+        last_end = float(e)
+        if text_ends_sentence(t):
+            if words >= min_words:
+                spans.append((start, float(e)))
+            start = None
+            words = 0
+    if start is not None and words >= min_words and last_end is not None:
+        spans.append((start, last_end))
+
+    # Yakın aralıkları birleştir, çok kısaları at
+    merged = []
+    for s, e in spans:
+        if merged and s - merged[-1][1] <= join_gap:
+            merged[-1] = (merged[-1][0], e)
+        else:
+            merged.append((s, e))
+    return [(s, e) for (s, e) in merged if (e - s) >= min_dur]
+
+
+def _cut_wav(src_wav, dst_wav, start, end, ffmpeg_path):
+    """WAV'dan [start, end) aralığını 16kHz mono olarak keser (örnek-hassas arama)."""
+    cmd = [
+        ffmpeg_path, "-y", "-i", str(src_wav),
+        "-ss", f"{max(0.0, start):.3f}", "-to", f"{max(0.0, end):.3f}",
+        "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(dst_wav),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg kesme hatası: {proc.stderr[-300:]}")
+    out = Path(dst_wav)
+    if not out.exists() or out.stat().st_size < 1000:
+        raise RuntimeError("Kesilen ses boş çıktı")
+    return str(dst_wav)
+
+
+# Noktalamayı yeniden tetiklemek için örnek metin (initial_prompt olarak verilir)
+PUNCT_PRIMER = {
+    "tr": "Merhaba. Bu, düzgün noktalanmış bir metindir; virgüller, noktalar ve soru "
+          "işaretleri içerir. Öyle değil mi? Evet, kesinlikle.",
+    "en": "Hello. This is a properly punctuated transcript, with commas, periods, and "
+          "question marks. Isn't it? Yes, indeed.",
+}
+
+
+def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_path, common,
+                                 args, language, time_offset, workdir,
+                                 min_words=80, max_spans=8, max_ratio_of_audio=0.6):
+    """
+    Whisper'ın noktalamayı bıraktığı bölgeleri, "önceki bağlamı kullan" KAPALI olarak
+    yeniden çevirip yerine koyar. Bağlam zinciri kırıldığı için model genelde
+    noktalamaya geri döner. Yalnızca noktalama oranı gerçekten arttıysa kabul edilir —
+    aksi halde eski bloklar korunur (asla kötüleştirmez).
+
+    entries/all_words: orijinal zaman ekseninde (time_offset uygulanmış)
+    Döner: (entries, all_words, düzeltilen_bölge_sayısı)
+    """
+    spans = find_unpunctuated_spans(entries, min_words=min_words)
+    if not spans:
+        return entries, all_words, 0
+
+    audio_dur = max(0.001, entries[-1][1] - entries[0][0])
+    total_span = sum(e - s for s, e in spans)
+    if total_span > audio_dur * max_ratio_of_audio:
+        log(
+            f"Noktalama onarımı: bozuk bölge çok geniş ({total_span/60:.0f} dk / "
+            f"{audio_dur/60:.0f} dk) — en uzun {max_spans} bölge işlenecek",
+            "warn",
+        )
+    spans = sorted(spans, key=lambda sp: sp[1] - sp[0], reverse=True)[:max_spans]
+    spans.sort()
+
+    kw = dict(common)
+    kw["condition_on_previous_text"] = False
+    kw["initial_prompt"] = PUNCT_PRIMER.get((language or "en").lower(), PUNCT_PRIMER["en"])
+
+    PAD = 2.0  # sn — modele giriş için kısa run-up
+    fixed = 0
+    for i, (span_start, span_end) in enumerate(spans, 1):
+        try:
+            emit("status", stage="transcribe",
+                 text=f"Noktalama onarımı {i}/{len(spans)} ({span_start/60:.0f}. dakika)...")
+            cut_start = max(0.0, span_start - time_offset - PAD)
+            cut_end = max(cut_start + 1.0, span_end - time_offset)
+            piece = _cut_wav(wav_path, str(Path(workdir) / f"fixpunct_{i}.wav"),
+                             cut_start, cut_end, ffmpeg_path)
+
+            seg_iter, _info = model.transcribe(piece, **kw)
+            base = cut_start + time_offset  # parçanın orijinal eksendeki başlangıcı
+
+            new_entries = []
+            new_words = []
+            for segment in seg_iter:
+                if is_hallucination(segment.text):
+                    continue
+                if getattr(segment, "words", None):
+                    _prev = segment.start
+                    for w in segment.words:
+                        ws = w.start if w.start is not None else _prev
+                        we = w.end if w.end is not None else ws
+                        _prev = we
+                        new_words.append({
+                            "word": w.word,
+                            "start": round(ws + base, 3),
+                            "end": round(we + base, 3),
+                            "probability": round(getattr(w, "probability", 1.0), 3),
+                        })
+                for s, e, text in segment_to_chunks(segment, args):
+                    if s is None:
+                        s = segment.start
+                    if e is None:
+                        e = segment.end
+                    cleaned = clean_text(text, language=language or "tr")
+                    if not cleaned or is_hallucination(cleaned):
+                        continue
+                    new_entries.append((s + base, e + base, cleaned))
+
+            # Yalnızca bölgeye düşenleri al (run-up kısmı eski bloklarda kalsın)
+            new_entries = [
+                (s, e, t) for (s, e, t) in new_entries
+                if span_start - 0.25 <= (s + e) / 2 <= span_end + 0.25
+            ]
+            if not new_entries:
+                log(f"Noktalama onarımı {i}: yeni blok üretilemedi, eski hali korundu", "warn")
+                continue
+
+            old_entries = [(s, e, t) for (s, e, t) in entries if span_start <= (s + e) / 2 <= span_end]
+            old_ratio = punctuation_ratio(old_entries)
+            new_ratio = punctuation_ratio(new_entries)
+            if new_ratio < old_ratio + 0.01:
+                log(
+                    f"Noktalama onarımı {i}: iyileşme yok "
+                    f"(%{old_ratio*100:.1f} → %{new_ratio*100:.1f}), eski hali korundu",
+                    "warn",
+                )
+                continue
+
+            entries = [(s, e, t) for (s, e, t) in entries if not (span_start <= (s + e) / 2 <= span_end)]
+            entries.extend(new_entries)
+            entries.sort(key=lambda x: x[0])
+            if new_words:
+                all_words = [w for w in all_words
+                             if not (span_start <= (w["start"] + w["end"]) / 2 <= span_end)]
+                all_words.extend(w for w in new_words
+                                 if span_start - 0.25 <= (w["start"] + w["end"]) / 2 <= span_end + 0.25)
+                all_words.sort(key=lambda w: w["start"])
+            fixed += 1
+            log(
+                f"Noktalama onarıldı {i}/{len(spans)}: "
+                f"{format_srt_time(span_start)[:8]}–{format_srt_time(span_end)[:8]} "
+                f"(%{old_ratio*100:.1f} → %{new_ratio*100:.1f} noktalama, {len(new_entries)} blok)",
+                "success",
+            )
+        except Exception as e:
+            log(f"Noktalama onarımı {i} başarısız: {e}", "warn")
+        finally:
+            try:
+                Path(workdir, f"fixpunct_{i}.wav").unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    return entries, all_words, fixed
+
+
 def longest_unpunctuated_run(entries):
     """Blok sınırlarını aşan en uzun cümle-sonu noktalamasız kelime dizisi."""
     longest = 0
@@ -821,6 +1018,39 @@ def balanced_two_line_break(text, max_line_width=42, language="tr"):
         return None
 
     return f"{' '.join(words[:best_i])}\n{' '.join(words[best_i:])}"
+
+
+def segment_to_chunks(segment, args):
+    """
+    Bir Whisper segmentini seçili bölme stratejisine göre (start, end, text)
+    parçalarına ayırır. Ana döngü ve noktalama-onarım geçişi aynı mantığı kullansın diye
+    ayrı fonksiyon.
+    """
+    if args.split_mode == "sentence":
+        # Önce noktalamayı kontrol et — yoksa zamanlama yedeğine geç
+        if has_enough_punctuation(segment.text):
+            return split_segment_sentence(
+                segment,
+                hard_max_chars=args.hard_max_chars,
+                soft_max_chars=args.max_chars,
+            )
+        # Whisper noktalama üretmedi → kelime duraksamalarını kullan
+        return split_segment_by_timing(
+            segment,
+            min_gap=args.timing_gap,
+            target_chars=args.max_chars,
+            hard_max_chars=args.hard_max_chars,
+        )
+    if args.split_mode == "timing":
+        return split_segment_by_timing(
+            segment,
+            min_gap=args.timing_gap,
+            target_chars=args.max_chars,
+            hard_max_chars=args.hard_max_chars,
+        )
+    if args.split_mode == "smart":
+        return split_segment_by_punctuation(segment, max_chars=args.max_chars)
+    return [(segment.start, segment.end, segment.text.strip())]
 
 
 def split_segment_by_punctuation(segment, max_chars=84):
@@ -2085,6 +2315,7 @@ def transcribe(args):
 
         model = None      # faster/batched yolunda atanır; diarization öncesi serbest bırakılır
         batched = None
+        common = None     # faster/batched decode parametreleri (noktalama onarımı yeniden kullanır)
         if args.engine == "whisperx":
             segments_iter, info = run_whisperx(
                 args, wav_path, need_words=need_words,
@@ -2195,33 +2426,7 @@ def transcribe(args):
                     })
 
             # Bölme stratejisi
-            if args.split_mode == "sentence":
-                # Önce noktalamayı kontrol et — yoksa zamanlama yedeğine geç
-                if has_enough_punctuation(segment.text):
-                    chunks = split_segment_sentence(
-                        segment,
-                        hard_max_chars=args.hard_max_chars,
-                        soft_max_chars=args.max_chars,
-                    )
-                else:
-                    # Whisper noktalama üretmedi → kelime duraksamalarını kullan
-                    chunks = split_segment_by_timing(
-                        segment,
-                        min_gap=args.timing_gap,
-                        target_chars=args.max_chars,
-                        hard_max_chars=args.hard_max_chars,
-                    )
-            elif args.split_mode == "timing":
-                chunks = split_segment_by_timing(
-                    segment,
-                    min_gap=args.timing_gap,
-                    target_chars=args.max_chars,
-                    hard_max_chars=args.hard_max_chars,
-                )
-            elif args.split_mode == "smart":
-                chunks = split_segment_by_punctuation(segment, max_chars=args.max_chars)
-            else:  # "none"
-                chunks = [(segment.start, segment.end, segment.text.strip())]
+            chunks = segment_to_chunks(segment, args)
 
             for start, end, text in chunks:
                 if is_hallucination(text):
@@ -2262,6 +2467,27 @@ def transcribe(args):
                 last_ckpt = now
 
         emit("progress", percent=100.0, current=round(total_duration, 2), total=round(total_duration, 2))
+
+        # Noktalama çöküşü onarımı — model HÂLÂ yüklüyken (VRAM boşaltmadan önce).
+        # Whisper uzun videolarda noktalamayı bırakabiliyor; "önceki bağlamı kullan"
+        # açıkken bozuk metin bağlam olarak geri beslendiği için sona kadar sürüyor.
+        # Bozuk bölgeleri conditioning KAPALI yeniden çevirip yerine koyarız.
+        if (args.fix_punctuation_collapse and entries and model is not None
+                and common is not None and args.engine != "whisperx"):
+            try:
+                entries, all_words, n_fixed = recover_punctuation_collapse(
+                    entries, all_words, model, wav_path, ffmpeg_path, common, args,
+                    info.language or language, time_offset, workdir,
+                    min_words=args.collapse_min_words,
+                )
+                if n_fixed:
+                    log(f"Noktalama onarımı: {n_fixed} bölge yeniden çevrildi", "success")
+                    emit("preview_refresh", segments=[
+                        {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
+                        for i, (s, e, t) in enumerate(entries)
+                    ])
+            except Exception as e:
+                log(f"Noktalama onarımı atlandı: {e}", "warn")
 
         # Transkripsiyon modelini diarization'dan ÖNCE VRAM'den boşalt. Aksi halde büyük
         # model (~3GB) + pyannote (~2-3GB) aynı anda yüklenip 12GB GPU'da OOM verebilir.
@@ -2756,6 +2982,10 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--fix-punctuation-collapse", type=lambda x: x.lower() == "true", default=True,
+                        help="Whisper'ın noktalamayı bıraktığı bölgeleri conditioning kapalı yeniden çevir")
+    parser.add_argument("--collapse-min-words", type=int, default=80,
+                        help="Noktalama çöküşü sayılması için gereken kesintisiz kelime sayısı")
     parser.add_argument("--merge-incomplete", type=lambda x: x.lower() == "true", default=True,
                         help="Cümle sonu noktalaması olmayan (yarım kalmış) blokları sonrakiyle birleştir")
     parser.add_argument("--incomplete-gap", type=float, default=2.5,

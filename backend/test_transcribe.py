@@ -77,6 +77,60 @@ def test_longest_unpunctuated_run():
     assert T.longest_unpunctuated_run(entries) == 11
 
 
+def test_is_abbreviation():
+    for w in ("Mrs.", "Dr.", "L.A.", "U.S.", "2.", "J.", "vb.", "Prof."):
+        assert T.is_abbreviation(w) is True, w
+    for w in ("man.", "again.", "no.", "Egger", "Osterreich."):
+        assert T.is_abbreviation(w) is False, w
+    # kısaltma cümleyi bitirmez, gerçek nokta bitirir
+    assert T.text_ends_sentence("He met Mrs.") is False
+    assert T.text_ends_sentence("He met her.") is True
+
+
+def test_merge_incomplete_sentences():
+    entries = [
+        (10.0, 11.5, "A Christmas Day gathering"),
+        (11.5, 13.0, "led to the death of this man"),
+        (13.0, 14.0, "for a full two years."),
+        (14.2, 15.0, "A new sentence."),
+        (15.2, 16.0, "- Who is there?"),
+        (16.1, 17.0, "- Nobody"),
+    ]
+    out = T.merge_incomplete_sentences(entries, max_chars=160, max_dur=7.0)
+    assert out[0][2] == ("A Christmas Day gathering led to the death of this man "
+                         "for a full two years.")
+    assert out[1][2] == "A new sentence."          # tam cümle birleşmez
+    assert out[2][2] == "- Who is there?"          # diyalog tiresi korunur
+    assert len(out) == 4
+    # uzun sessizlik ayrı bırakılır
+    far = [(0.0, 2.0, "yarım bir cümle"), (9.0, 11.0, "devamı geldi.")]
+    assert len(T.merge_incomplete_sentences(far)) == 2
+
+
+# ===== noktalama çöküşü tespiti =====
+def test_find_unpunctuated_spans():
+    # 100 kelimelik noktasız bölge + öncesinde/sonrasında düzgün cümleler
+    entries = [(0.0, 3.0, "This is a properly punctuated sentence.")]
+    t = 3.0
+    for i in range(20):
+        entries.append((t, t + 3.0, " ".join(f"word{i}{j}" for j in range(5))))
+        t += 3.0
+    entries.append((t, t + 3.0, "And here punctuation returns."))
+    spans = T.find_unpunctuated_spans(entries, min_words=80)
+    assert len(spans) == 1
+    assert spans[0][0] == 3.0 and spans[0][1] == t + 3.0
+    # noktalama düzgünse hiç bölge çıkmaz
+    ok = [(i * 2.0, i * 2.0 + 2.0, "Short clean sentence here.") for i in range(40)]
+    assert T.find_unpunctuated_spans(ok, min_words=80) == []
+
+
+def test_punctuation_ratio():
+    assert T.punctuation_ratio([(0, 1, "one two three four.")]) == 0.25
+    assert T.punctuation_ratio([(0, 1, "no punctuation at all")]) == 0.0
+    # kısaltma cümle sonu sayılmaz
+    assert T.punctuation_ratio([(0, 1, "He met Mrs. Dolly")]) == 0.0
+
+
 # ===== tekrar döngüsü =====
 def test_repetition():
     assert T.has_repetition_loop("evet evet evet evet") is True
