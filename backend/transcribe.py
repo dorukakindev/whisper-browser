@@ -672,6 +672,70 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
     return entries, all_words, fixed
 
 
+def _mean_volume_db(wav_path, start, end, ffmpeg_path):
+    """[start, end) aralığının ortalama ses düzeyi (dBFS). Ölçülemezse None."""
+    if end - start < 0.15:
+        return None
+    proc = subprocess.run(
+        [ffmpeg_path, "-hide_banner", "-ss", f"{max(0.0, start):.2f}", "-to", f"{end:.2f}",
+         "-i", str(wav_path), "-vn", "-af", "volumedetect", "-f", "null", "-"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", proc.stderr or "")
+    return float(m.group(1)) if m else None
+
+
+def drop_trailing_hallucination(entries, all_words, wav_path, ffmpeg_path, time_offset,
+                                max_words=2, max_chars=25, prob_thr=0.5, quiet_margin_db=8.0):
+    """
+    Videonun EN SONUNDAKİ uydurma tek-iki kelimelik bloğu atar
+    (jenerik/sessizlik üzerine gelen "Dude.", "The absurdity." gibi artefaktlar).
+
+    Yanlışlıkla gerçek bir kapanış repliğini silmemek için üç yapısal koşul birlikte
+    aranır — son blok olacak, en fazla `max_words` kelime olacak, bir ÖNCEKİ blok tam
+    cümleyle bitmiş olacak (yani bu blok bir cümlenin devamı değil) — ve ayrıca en az bir
+    kanıt gerekir:
+      - kelime güven ortalaması `prob_thr` altında, VEYA
+      - o aralığın sesi son bloklara göre `quiet_margin_db` dB daha sessiz
+    Kanıt yoksa blok korunur. Atılan blok loga yazılır.
+    """
+    if len(entries) < 3:
+        return entries
+    s, e, text = entries[-1]
+    words = (text or "").split()
+    if len(words) > max_words or len(text) > max_chars:
+        return entries
+    if not text_ends_sentence(entries[-2][2]):
+        return entries  # bu blok önceki cümlenin devamı → gerçek metin
+
+    reason = None
+
+    # Kanıt 1: kelime güveni
+    probs = [w.get("probability", 1.0) for w in (all_words or [])
+             if s - 0.05 <= (w["start"] + w["end"]) / 2 <= e + 0.05]
+    if probs:
+        avg_p = sum(probs) / len(probs)
+        if avg_p < prob_thr:
+            reason = f"düşük güven ({avg_p:.2f})"
+
+    # Kanıt 2: aralığın sesi komşularına göre belirgin sessiz
+    if reason is None and wav_path and ffmpeg_path:
+        try:
+            ref_start = max(0.0, entries[-6][0] if len(entries) >= 6 else entries[0][0])
+            here = _mean_volume_db(wav_path, s - time_offset, e - time_offset, ffmpeg_path)
+            ref = _mean_volume_db(wav_path, ref_start - time_offset,
+                                  entries[-2][1] - time_offset, ffmpeg_path)
+            if here is not None and ref is not None and here <= ref - quiet_margin_db:
+                reason = f"ses {ref - here:.0f} dB daha sessiz"
+        except Exception:
+            pass
+
+    if reason is None:
+        return entries
+    log(f"Kapanış halüsinasyonu atıldı ({reason}): \"{text}\"", "warn")
+    return entries[:-1]
+
+
 def longest_unpunctuated_run(entries):
     """Blok sınırlarını aşan en uzun cümle-sonu noktalamasız kelime dizisi."""
     longest = 0
@@ -2543,6 +2607,12 @@ def transcribe(args):
             if len(entries) != n0:
                 log(f"Kısa parça birleştirme: {n0} → {len(entries)} blok")
 
+        # Kapanış halüsinasyonu (jenerik üzerine gelen tek-iki kelimelik uydurma blok)
+        if args.drop_trailing_hallucination:
+            entries = drop_trailing_hallucination(
+                entries, all_words, wav_path, ffmpeg_path, time_offset,
+            )
+
         # LLM post-processing (opsiyonel — DeepSeek vb.)
         if args.llm_postprocess:
             try:
@@ -2982,6 +3052,8 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--drop-trailing-hallucination", type=lambda x: x.lower() == "true", default=True,
+                        help="Videonun en sonundaki uydurma tek-iki kelimelik bloğu at (jenerik artefaktı)")
     parser.add_argument("--fix-punctuation-collapse", type=lambda x: x.lower() == "true", default=True,
                         help="Whisper'ın noktalamayı bıraktığı bölgeleri conditioning kapalı yeniden çevir")
     parser.add_argument("--collapse-min-words", type=int, default=80,

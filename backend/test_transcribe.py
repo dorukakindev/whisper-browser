@@ -124,6 +124,22 @@ def test_find_unpunctuated_spans():
     assert T.find_unpunctuated_spans(ok, min_words=80) == []
 
 
+def test_drop_trailing_hallucination():
+    base = [(0, 3, "Bu bir cümledir."), (3, 6, "Bu da bir cümledir."), (6, 7, "Son.")]
+    hi = [{"word": "Son.", "start": 6.2, "end": 6.8, "probability": 0.95}]
+    lo = [{"word": "Son.", "start": 6.2, "end": 6.8, "probability": 0.20}]
+    # kanıt yoksa (yüksek güven, ses ölçümü yok) korunur
+    assert len(T.drop_trailing_hallucination(base, hi, None, None, 0.0)) == 3
+    # düşük güven → atılır
+    assert len(T.drop_trailing_hallucination(base, lo, None, None, 0.0)) == 2
+    # önceki blok cümle bitirmiyorsa bu blok devamıdır → korunur
+    cont = [(0, 3, "Bu bir cümledir."), (3, 6, "yarım kalan"), (6, 7, "devam.")]
+    assert len(T.drop_trailing_hallucination(cont, lo, None, None, 0.0)) == 3
+    # 2 kelimeden uzun kapanış → korunur
+    longer = [(0, 3, "Bir."), (3, 6, "İki."), (6, 8, "Bu uzun bir kapanış cümlesi.")]
+    assert len(T.drop_trailing_hallucination(longer, lo, None, None, 0.0)) == 3
+
+
 def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "one two three four.")]) == 0.25
     assert T.punctuation_ratio([(0, 1, "no punctuation at all")]) == 0.0
