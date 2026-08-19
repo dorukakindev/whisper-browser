@@ -47,6 +47,8 @@ function buildOptsFromUI() {
     hardMaxChars: parseInt($('hardMaxChars').value, 10),
     fixTimings: $('fixTimings').checked,
     mergeShort: $('mergeShort').checked,
+    mergeIncomplete: $('mergeIncomplete').checked,
+    incompleteGap: parseFloat($('incompleteGap').value),
     dedupe: $('dedupe').checked,
     maxCps: parseFloat($('maxCps').value),
     temperatureFallback: $('temperatureFallback').checked,
@@ -717,6 +719,7 @@ const ranges = [
   ['vadSpeechPadMs', 'vadSpeechPadMsVal'],
   ['vadMaxSpeechS', 'vadMaxSpeechSVal'],
   ['timingGap', 'timingGapVal'],
+  ['incompleteGap', 'incompleteGapVal'],
   ['llmWorkers', 'llmWorkersVal'],
 ];
 
@@ -727,7 +730,7 @@ ranges.forEach(([input, label]) => {
   if (!el || !lbl) return;
   const update = () => {
     let v = el.value;
-    if (['vadThreshold', 'temperature', 'noSpeechThreshold', 'timingGap'].includes(input)) {
+    if (['vadThreshold', 'temperature', 'noSpeechThreshold', 'timingGap', 'incompleteGap'].includes(input)) {
       v = parseFloat(v).toFixed(2);
     } else if (['logProbThreshold', 'patience', 'lengthPenalty', 'repetitionPenalty', 'compressionRatioThreshold'].includes(input)) {
       v = parseFloat(v).toFixed(1);
@@ -844,14 +847,14 @@ async function saveAppSettings() {
 const PERSIST_VALUE_CONTROLS = [
   'model', 'engine', 'batchSize', 'language', 'task', 'formats', 'computeType', 'device',
   'beamSize', 'bestOf', 'vadThreshold', 'maxLineWidth', 'splitMode', 'timingGap',
-  'wrapMode', 'hardMaxChars', 'maxCps', 'initialPrompt',
+  'wrapMode', 'hardMaxChars', 'maxCps', 'initialPrompt', 'incompleteGap',
   'temperature', 'patience', 'lengthPenalty', 'repetitionPenalty', 'noRepeatNgramSize',
   'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'mergeShort', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'mergeShort', 'mergeIncomplete', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
@@ -919,7 +922,7 @@ const PRESETS = {
     },
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,
-      fixTimings: true, conditionOnPrevious: true,
+      fixTimings: true, conditionOnPrevious: true, mergeIncomplete: true,
     },
   },
   fast: {
