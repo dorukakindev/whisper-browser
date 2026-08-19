@@ -627,7 +627,11 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
 
     kw = dict(common)
     kw["condition_on_previous_text"] = False
-    kw["initial_prompt"] = PUNCT_PRIMER.get((language or "en").lower(), PUNCT_PRIMER["en"])
+    # Sözlük/kullanıcı prompt'u KORUNUR (özel isimler onarılan bölgede de doğru yazılsın);
+    # noktalama örneği sona eklenir — sese en yakın bağlam o olur.
+    primer = PUNCT_PRIMER.get((language or "en").lower().split("-")[0], PUNCT_PRIMER["en"])
+    base_prompt = (common.get("initial_prompt") or "").strip()
+    kw["initial_prompt"] = f"{base_prompt} {primer}".strip() if base_prompt else primer
 
     PAD = 2.0  # sn — modele giriş için kısa run-up
     fixed = 0
@@ -668,7 +672,10 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
                     cleaned = clean_text(text, language=language or "tr")
                     if not cleaned or is_hallucination(cleaned):
                         continue
-                    new_entries.append((s + base, e + base, cleaned))
+                    # Bölge sınırına kırp: run-up'tan taşan blok eski bloklarla çakışmasın
+                    ns, ne = s + base, e + base
+                    if ne > span_start:
+                        new_entries.append((max(ns, span_start), ne, cleaned))
 
             # Yalnızca bölgeye düşenleri al (run-up kısmı eski bloklarda kalsın)
             new_entries = [
@@ -721,13 +728,20 @@ def _mean_volume_db(wav_path, start, end, ffmpeg_path):
     """[start, end) aralığının ortalama ses düzeyi (dBFS). Ölçülemezse None."""
     if end - start < 0.15:
         return None
+    # -ss/-to girdiden ÖNCE olmalı: volumedetect bir FİLTREdir ve çıkış tarafı kırpmadan
+    # önce çalışır — çıkış tarafına konursa ölçüm kırpılan sesi de içerir (yanlış sonuç).
     proc = subprocess.run(
-        [ffmpeg_path, "-hide_banner", "-ss", f"{max(0.0, start):.2f}", "-to", f"{end:.2f}",
-         "-i", str(wav_path), "-vn", "-af", "volumedetect", "-f", "null", "-"],
+        [ffmpeg_path, "-hide_banner",
+         "-ss", f"{max(0.0, start):.2f}", "-to", f"{end:.2f}", "-i", str(wav_path),
+         "-vn", "-af", "volumedetect", "-f", "null", "-"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
-    m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", proc.stderr or "")
-    return float(m.group(1)) if m else None
+    m = re.search(r"mean_volume:\s*(-?(?:inf|[\d.]+)) dB", proc.stderr or "")
+    if not m:
+        return None
+    val = m.group(1)
+    # Tam dijital sessizlikte ffmpeg "-inf dB" yazar — sayıya çevrilemez, en sessiz kabul et
+    return -120.0 if "inf" in val else float(val)
 
 
 # Whisper'ın jenerik/müzik üzerine ürettiği tipik kapanış uydurmaları. Yalnızca
@@ -2044,7 +2058,7 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6, max_cha
             out.append([s, e, txt])
             continue
         prev = out[-1]
-        prev_ends_sentence = prev[2].rstrip().endswith(tuple(PUNCT_END))
+        prev_ends_sentence = text_ends_sentence(prev[2])
         if prev_ends_sentence:
             out.append([s, e, txt])
             continue
@@ -2747,7 +2761,8 @@ def transcribe(args):
 
         # Önizlemeyi nihai metinle tazele (birleştirme/LLM/diarization/zamanlama/devam değişmiş olabilir)
         if (args.merge_short or args.merge_incomplete or args.llm_postprocess
-                or args.diarize or args.fix_timings or resumed_entries):
+                or args.diarize or args.fix_timings or args.drop_trailing_hallucination
+                or args.fix_punctuation_collapse or resumed_entries):
             emit("preview_refresh", segments=[
                 {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
                 for i, (s, e, t) in enumerate(entries)
@@ -2868,6 +2883,7 @@ def reexport_from_json(args):
         raise RuntimeError("JSON'da yazılabilir segment yok.")
 
     lang = data.get("language") or "tr"
+    set_language_conventions(lang)
     info = _WxInfo(language=lang, language_probability=data.get("language_probability") or 1.0,
                   duration=data.get("duration") or 0.0)
 

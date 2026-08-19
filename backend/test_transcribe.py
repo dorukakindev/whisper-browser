@@ -173,6 +173,19 @@ def test_drop_trailing_hallucination():
     assert len(T.drop_trailing_hallucination(mid, hi, None, None, 0.0)) == 3
 
 
+def test_merge_short_entries_abbreviation():
+    # "Mrs." cümle sonu değil → sonraki kısa blokla birleşmeli
+    T.set_language_conventions("en")
+    out = T.merge_short_entries([(0.0, 2.0, "He was the secret lover of Mrs."),
+                                 (2.1, 3.0, "Dolly.")], max_gap=0.6)
+    assert len(out) == 1 and out[0][2] == "He was the secret lover of Mrs. Dolly."
+    # gerçek cümle sonundan sonra birleştirme yok
+    out2 = T.merge_short_entries([(0.0, 2.0, "He died in 1935."), (2.1, 3.0, "Then.")],
+                                 max_gap=0.6)
+    assert len(out2) == 2
+    T.set_language_conventions("tr")
+
+
 def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "one two three four.")]) == 0.25
     assert T.punctuation_ratio([(0, 1, "no punctuation at all")]) == 0.0
