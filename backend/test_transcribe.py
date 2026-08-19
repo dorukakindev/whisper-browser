@@ -77,6 +77,20 @@ def test_longest_unpunctuated_run():
     assert T.longest_unpunctuated_run(entries) == 11
 
 
+def test_ordinal_language_conventions():
+    # İngilizce: "He died in 1935." gerçek cümle sonu (sıra sayısı kuralı yok)
+    T.set_language_conventions("en")
+    assert T.is_abbreviation("1935.") is False
+    assert T.is_abbreviation("Mrs.") is True          # kısaltmalar dilden bağımsız
+    # Türkçe: "2. Dünya Savaşı" — cümle ortasında sıra sayısı bölmeyi engeller
+    T.set_language_conventions("tr")
+    assert T.is_abbreviation("2.") is True
+    # metin SONUNDA rakam+nokta her dilde cümle sonudur
+    assert T.text_ends_sentence("He died in 1935.") is True
+    assert T.text_ends_sentence("Stay with 4.") is True
+    T.set_language_conventions("tr")  # varsayılanı geri koy (diğer testler için)
+
+
 def test_is_abbreviation():
     for w in ("Mrs.", "Dr.", "L.A.", "U.S.", "2.", "J.", "vb.", "Prof."):
         assert T.is_abbreviation(w) is True, w

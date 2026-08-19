@@ -417,16 +417,35 @@ _SINGLE_INITIAL_RE = re.compile(r"^[^\W\d_]\.$", re.UNICODE)
 # "1." / "19." gibi sıra sayıları (Türkçe'de çok yaygın: "2. Dünya Savaşı")
 _ORDINAL_RE = re.compile(r"^\d+\.$")
 
+# Sıra sayısını noktayla yazan diller. İngilizcede "He died in 1935." gerçek bir cümle
+# sonudur; Türkçede "2. Dünya Savaşı" değildir — bu yüzden kural dile bağlı.
+_ORDINAL_LANGS = {"tr", "de", "cs", "da", "et", "fi", "hr", "hu", "is", "lv", "nb", "nn",
+                  "no", "pl", "sk", "sl", "sv"}
+_ordinal_as_abbrev = True  # transcribe() dil tespitinden sonra set_language_conventions ile ayarlar
 
-def is_abbreviation(word):
+
+def set_language_conventions(language):
+    """Dile bağlı noktalama kurallarını ayarla (şimdilik sıra sayısı noktası)."""
+    global _ordinal_as_abbrev
+    _ordinal_as_abbrev = (language or "").lower().split("-")[0] in _ORDINAL_LANGS
+    return _ordinal_as_abbrev
+
+
+def is_abbreviation(word, ordinal=None):
     """
     Kelime nokta ile bitiyor ama cümle sonu DEĞİL mi? (kısaltma / baş harf / sıra sayısı)
     Etrafındaki tırnak-parantez temizlenir; "Mrs." → True, "man." → False.
+
+    ordinal: "1935." gibi rakam+nokta sıra sayısı sayılsın mı? None ise dile göre
+    (bkz. set_language_conventions). Metnin EN SONUNDAKİ kelime için çağıranlar
+    ordinal=False verir — orada rakam+nokta neredeyse her zaman gerçek cümle sonudur.
     """
     w = (word or "").strip().strip("\"'“”‘’()[]«»")
     if not w.endswith("."):
         return False
-    if _INITIALISM_RE.match(w) or _ORDINAL_RE.match(w):
+    if ordinal is None:
+        ordinal = _ordinal_as_abbrev
+    if _INITIALISM_RE.match(w) or (ordinal and _ORDINAL_RE.match(w)):
         return True
     # Tek baş harf yalnızca BÜYÜK harfse kısaltmadır ("J. Edgar"); küçük harf değil
     if _SINGLE_INITIAL_RE.match(w) and w[0].isupper():
@@ -442,7 +461,8 @@ def text_ends_sentence(text):
     if not t.endswith(tuple(PUNCT_END)):
         return False
     last_word = t.split()[-1] if t.split() else t
-    return not is_abbreviation(last_word)
+    # Metin sonunda rakam+nokta sıra sayısı değil, cümle sonudur ("He died in 1935.")
+    return not is_abbreviation(last_word, ordinal=False)
 
 
 def _flush_chunk(words):
@@ -2494,6 +2514,8 @@ def transcribe(args):
                 segments_iter, info = batched.transcribe(wav_path, **bkw)
             else:
                 segments_iter, info = model.transcribe(wav_path, **common)
+
+        set_language_conventions(info.language)
 
         emit(
             "language",
