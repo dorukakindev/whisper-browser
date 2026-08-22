@@ -476,7 +476,7 @@ def _flush_chunk(words):
     return (start, end, text)
 
 
-def has_enough_punctuation(text, min_ratio=0.04):
+def has_enough_punctuation(text):
     """
     Metinde yeterince cümle-sonu noktalama var mı?
     Whisper bazen noktalama üretmez — bu durumda zamanlama-bazlı bölmeye düşeriz.
@@ -493,6 +493,60 @@ def has_enough_punctuation(text, min_ratio=0.04):
         if w.rstrip(",;:").endswith(tuple(PUNCT_END)) and not is_abbreviation(w)
     )
     return end_count > 0
+
+
+# Yazı sistemi aralıkları — Whisper'ın dil karışması artefaktını yakalamak için
+# (ör. İngilizce belgeselde "The image that myалось to come up")
+_SCRIPT_RANGES = {
+    "kiril": "Ѐ-ӿ",
+    "çince/japonca": "一-鿿぀-ヿ",
+    "arapça": "؀-ۿ",
+    "korece": "가-힯",
+    "yunanca": "Ͱ-Ͽ",
+    "ibranice": "֐-׿",
+    "devanagari": "ऀ-ॿ",
+}
+_LANG_SCRIPT = {
+    "ru": "kiril", "uk": "kiril", "bg": "kiril", "sr": "kiril", "mk": "kiril", "be": "kiril",
+    "zh": "çince/japonca", "ja": "çince/japonca", "ko": "korece",
+    "ar": "arapça", "fa": "arapça", "ur": "arapça", "ps": "arapça",
+    "he": "ibranice", "yi": "ibranice", "el": "yunanca",
+    "hi": "devanagari", "mr": "devanagari", "ne": "devanagari", "sa": "devanagari",
+}
+
+
+def find_script_contamination(entries, language):
+    """
+    Altyazının dilinde beklenmeyen bir yazı sistemi içeren blokları bulur.
+    Whisper çok dilli olduğu için ara sıra tek kelimeyi başka alfabeyle yazabiliyor;
+    otomatik silmek riskli (filmde gerçekten yabancı yazı geçebilir) — bu yüzden
+    yalnızca rapor edilir. Döner: [(start, yazı_adı, metin), ...]
+    """
+    expected = _LANG_SCRIPT.get((language or "").lower().split("-")[0])
+    hits = []
+    for s, _e, t in entries:
+        for name, rng in _SCRIPT_RANGES.items():
+            if name == expected:
+                continue
+            if re.search(f"[{rng}]", t or ""):
+                hits.append((float(s), name, t))
+                break
+    return hits
+
+
+def find_suspicious_gaps(entries, min_gap=60.0):
+    """
+    Cümle ortasında kesilip çok sonra devam eden bloklar — Whisper'ın zaman damgası
+    halüsinasyonunun tipik izi (montaj/müzik bölümlerinde cümlenin devamını dakikalar
+    sonrasına damgalar). Cümle TAM biterek gelen uzun boşluklar (gerçek müzik bölümleri)
+    sayılmaz. Döner: [(bitiş_zamanı, boşluk_sn), ...]
+    """
+    out = []
+    for i in range(len(entries) - 1):
+        gap = float(entries[i + 1][0]) - float(entries[i][1])
+        if gap >= min_gap and not text_ends_sentence(entries[i][2]):
+            out.append((float(entries[i][1]), gap))
+    return out
 
 
 def punctuation_ratio(entries):
@@ -756,7 +810,23 @@ TRAILING_HALLUCINATION_PHRASES = re.compile(
 
 
 def drop_trailing_hallucination(entries, all_words, wav_path, ffmpeg_path, time_offset,
-                                max_words=2, max_chars=25, prob_thr=0.5, quiet_margin_db=8.0):
+                                max_words=2, max_chars=25, prob_thr=0.5, quiet_margin_db=8.0,
+                                max_drop=3):
+    """
+    Sondaki uydurma blokları atar. Whisper jenerik üzerine üst üste birkaç blok
+    üretebildiği için atma işlemi en fazla `max_drop` kez tekrarlanır.
+    """
+    for _ in range(max_drop):
+        shorter = _drop_one_trailing(entries, all_words, wav_path, ffmpeg_path, time_offset,
+                                     max_words, max_chars, prob_thr, quiet_margin_db)
+        if len(shorter) == len(entries):
+            break
+        entries = shorter
+    return entries
+
+
+def _drop_one_trailing(entries, all_words, wav_path, ffmpeg_path, time_offset,
+                       max_words=2, max_chars=25, prob_thr=0.5, quiet_margin_db=8.0):
     """
     Videonun EN SONUNDAKİ uydurma tek-iki kelimelik bloğu atar
     (jenerik/sessizlik üzerine gelen "Dude.", "The absurdity." gibi artefaktlar).
@@ -2690,6 +2760,25 @@ def transcribe(args):
             entries = drop_trailing_hallucination(
                 entries, all_words, wav_path, ffmpeg_path, time_offset,
             )
+
+        # Uyarılar: kullanıcı elle düzeltebilsin diye rapor edilir, otomatik silinmez
+        contam = find_script_contamination(entries, info.language)
+        if contam:
+            where = ", ".join(format_srt_time(s)[:8] for s, _n, _t in contam[:3])
+            scripts = ", ".join(sorted({n for _s, n, _t in contam}))
+            msg = (f"Alfabe karışması: {len(contam)} blokta {scripts} karakterleri var "
+                   f"({where}{'...' if len(contam) > 3 else ''}) — elle kontrol edin")
+            log(f"⚠ {msg}", "warn")
+            warn_list.append(msg)
+
+        sus = find_suspicious_gaps(entries)
+        if sus:
+            where = ", ".join(f"{format_srt_time(t)[:8]} ({g/60:.0f} dk)" for t, g in sus[:3])
+            msg = (f"Şüpheli zaman damgası: {len(sus)} yerde cümle yarıda kesilip çok sonra "
+                   f"devam ediyor ({where}{'...' if len(sus) > 3 else ''}) — Whisper zamanlama "
+                   f"halüsinasyonu olabilir")
+            log(f"⚠ {msg}", "warn")
+            warn_list.append(msg)
 
         # LLM post-processing (opsiyonel — DeepSeek vb.)
         if args.llm_postprocess:

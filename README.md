@@ -11,6 +11,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Akıllı bölme**: kelime zaman damgalarıyla noktalama bazlı altyazı bölme
 - **Profesyonel zamanlama**: okuma hızı (CPS), min/max süre ve altyazılar arası boşluk normalizasyonu (Netflix/BBC tarzı)
 - **Kısa parça birleştirme**: flaş eden tek-kelimelik altyazıları komşusuyla birleştirir (okunabilirlik)
+- **Kalite uyarıları**: alfabe karışması (İngilizce altyazıda Kiril harfleri gibi) ve şüpheli zaman damgaları (cümle yarıda kesilip dakikalar sonra devam etmesi) tamamlandığında günlükte raporlanır — otomatik silinmez, elle kontrol edilir
 - **Noktalama çöküşü onarımı**: Whisper uzun videoların ortasında noktalamayı bırakırsa (küçük harfli, noktasız akış) o bölüm otomatik olarak bağlam sıfırlanarak yeniden çevrilir — yalnızca sonuç gerçekten iyileşirse kullanılır
 - **Yarım cümle birleştirme**: belgesel/anlatım tarzı dramatik duraksamalarda parçalanan cümleleri tek blokta toplar; `Mrs.`, `Dr.`, `L.A.`, `2.` gibi kısaltmalar cümle sonu sanılmaz
 - **Okuma hızı uyarısı**: önizlemede CPS limitini aşan altyazılar görsel işaretlenir

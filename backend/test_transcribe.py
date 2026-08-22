@@ -171,6 +171,9 @@ def test_drop_trailing_hallucination():
     # film ORTASINDAKİ "Thank you." etkilenmez (son blok değil)
     mid = [(0, 3, "Bir cümle."), (3, 6, "Thank you."), (6, 9, "Devam eden anlatım.")]
     assert len(T.drop_trailing_hallucination(mid, hi, None, None, 0.0)) == 3
+    # üst üste gelen kapanış uydurmaları hepsi atılır (max_drop)
+    multi = [(0, 3, "Bir cümle."), (3, 6, "İkinci cümle."), (6, 7, "Thank you."), (7, 8, "The End")]
+    assert len(T.drop_trailing_hallucination(multi, hi, None, None, 0.0)) == 2
 
 
 def test_merge_short_entries_abbreviation():
@@ -184,6 +187,28 @@ def test_merge_short_entries_abbreviation():
                                  max_gap=0.6)
     assert len(out2) == 2
     T.set_language_conventions("tr")
+
+
+def test_find_script_contamination():
+    e = [(0, 2, "The image that myалось to come up"), (2, 4, "Normal English line.")]
+    hits = T.find_script_contamination(e, "en")
+    assert len(hits) == 1 and hits[0][1] == "kiril"
+    # Rusça altyazıda Kiril beklenen yazıdır → bulgu yok
+    assert T.find_script_contamination(e, "ru") == []
+    # Türkçe metin (ç, ğ, ş) latin alfabesidir → bulgu yok
+    assert T.find_script_contamination([(0, 2, "Çağrışım güçlüydü.")], "tr") == []
+
+
+def test_find_suspicious_gaps():
+    # cümle yarıda kesilip 90 sn sonra devam ediyor → şüpheli
+    e = [(0, 5, "The advent of prohibition,"), (95, 100, "the mobs of major cities")]
+    assert len(T.find_suspicious_gaps(e)) == 1
+    # cümle tam bitmişse uzun boşluk normaldir (müzik/montaj bölümü)
+    ok = [(0, 5, "That was the end of it."), (95, 100, "A new chapter begins.")]
+    assert T.find_suspicious_gaps(ok) == []
+    # kısa boşluk şüpheli değil
+    short = [(0, 5, "half a sentence"), (12, 15, "continues here.")]
+    assert T.find_suspicious_gaps(short) == []
 
 
 def test_punctuation_ratio():
