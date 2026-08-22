@@ -32,6 +32,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Önizlemede düzenleme** — segment metnini kaydetmeden önce çift tıkla düzelt; kopyala/JSON yeniden-üret düzeltilmiş metni kullanır
 - **JSON'dan yeniden üret** — mevcut JSON çıktısından SRT/VTT/TXT/ASS'yi yeniden transkripsiyon yapmadan saniyeler içinde yaz
 - **Zaman kaydırma & videoya gömme** — sonuç ekranından SRT/VTT'yi global olarak kaydır veya altyazıyı videoya göm (ffmpeg burn-in)
+- **Kalıcı iş günlükleri** — her iş `%APPDATA%/whisper-altyazi/logs` altına ayrı dosyaya yazılır (ayarlar, aşamalar, kalite raporu, uyarılar, hata izleri); Günlük panelindeki "Kayıtlı günlükler" ile açılır, en yeni 100 dosya tutulur
 - **Kuyruk uyarı özeti** — toplu işlem bitince hangi dosyaların elle kontrol istediği (alfabe karışması, şüpheli zaman damgası, noktalama uyarısı) tek listede özetlenir
 - **Kuyruk: "sırada dur"** — çalışan işi kesmeden kuyruğu mevcut iş bitince durdur
 - **Ayar dışa/içe aktarma** — tüm yapılandırmayı dosyaya kaydet/yükle (içerik türü profilleri)

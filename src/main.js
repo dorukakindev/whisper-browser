@@ -35,6 +35,103 @@ function sendEvent(payload) {
   }
 }
 
+// ===== Kalıcı iş günlüğü =====
+// Uygulama içi günlük kapanınca kayboluyor; gece çalışan kuyruklarda ne olduğunu
+// sonradan görebilmek için her iş userData/logs altına ayrı dosyaya yazılır.
+const LOG_KEEP = 100;                 // en yeni N günlük tutulur, gerisi silinir
+const LOG_SKIP = new Set(['segment', 'progress', 'download_progress', 'llm_progress', 'preview_refresh']);
+let jobLog = null;
+
+function logsDir() {
+  const dir = path.join(app.getPath('userData'), 'logs');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  return dir;
+}
+
+function pruneOldLogs(keep = LOG_KEEP) {
+  try {
+    const dir = logsDir();
+    const files = fs.readdirSync(dir)
+      .filter((f) => f.endsWith('.log'))
+      .map((f) => {
+        const full = path.join(dir, f);
+        try { return { full, t: fs.statSync(full).mtimeMs }; } catch (_) { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.t - a.t);
+    files.slice(keep).forEach((x) => { try { fs.unlinkSync(x.full); } catch (_) {} });
+  } catch (_) {}
+}
+
+function startJobLog(label, args) {
+  endJobLog();
+  try {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+    // Dosya adı yalnızca girdinin adı olsun (tam yol değil); tam yol başlıkta yazılı
+    const base = String(label || 'is').split(/[\\/]/).pop() || 'is';
+    const safe = base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
+    const file = path.join(logsDir(), `${stamp}_${safe}.log`);
+    const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
+    // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
+    stream.write(`# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`);
+    stream.write(`# Girdi     : ${label}\n# Ayarlar   : ${args.slice(1).join(' ')}\n\n`);
+    jobLog = { file, stream };
+    pruneOldLogs();
+  } catch (_) {
+    jobLog = null;
+  }
+}
+
+function writeJobLog(event) {
+  if (!jobLog || LOG_SKIP.has(event.type)) return;
+  const t = new Date().toLocaleTimeString('tr-TR');
+  let line;
+  switch (event.type) {
+    case 'log':
+      line = `[${t}] ${String(event.level || 'info').toUpperCase()}: ${event.message}`;
+      break;
+    case 'status':
+      line = `[${t}] AŞAMA (${event.stage}): ${event.text}`;
+      break;
+    case 'language':
+      line = `[${t}] DİL: ${event.code} (%${Math.round((event.probability || 0) * 100)}) · süre ${event.duration}s`;
+      break;
+    case 'quality_report':
+      line = `[${t}] KALİTE: ${event.blocks} blok · ${event.cps_violations} hızlı okuma · `
+           + `${event.overlaps} çakışma · en uzun ${event.longest_dur}s · maks ${event.max_cps} KPS`;
+      break;
+    case 'error':
+      line = `[${t}] HATA: ${event.message}${event.traceback ? `\n${event.traceback}` : ''}`;
+      break;
+    case 'done': {
+      const w = Array.isArray(event.warnings) ? event.warnings : [];
+      line = `[${t}] BİTTİ: ${event.segments} blok\n         dosyalar: ${(event.files || []).join(', ')}`
+           + (w.length ? `\n[${t}] UYARILAR (${w.length}):\n  - ${w.join('\n  - ')}` : '');
+      break;
+    }
+    case 'exit':
+      line = `[${t}] SÜREÇ KAPANDI (kod ${event.code})`;
+      break;
+    default:
+      line = `[${t}] ${event.type}`;
+  }
+  try { jobLog.stream.write(`${line}\n`); } catch (_) {}
+}
+
+function endJobLog() {
+  if (!jobLog) return;
+  try { jobLog.stream.end(); } catch (_) {}
+  jobLog = null;
+}
+
+ipcMain.handle('logs:openFolder', async () => {
+  const dir = logsDir();
+  const err = await shell.openPath(dir);
+  return err ? { ok: false, error: err } : { ok: true, path: dir };
+});
+
 function killActiveJob() {
   if (!activeJob) return;
   const proc = activeJob;
@@ -695,6 +792,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.diarize && options.hfToken) env.WHISPER_HF_TOKEN = options.hfToken;
   if (options.llmPostprocess && options.llmApiKey) env.WHISPER_LLM_API_KEY = options.llmApiKey;
 
+  startJobLog(options.youtube || options.input || 'is', args);
+
   try {
     activeJob = spawn(pythonPath, args, { env, cwd: appDir });
   } catch (err) {
@@ -729,8 +828,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
           mainWindow.flashFrame(true);
         }
       }
+      writeJobLog(event);
       sendEvent(event);
     } catch (_) {
+      writeJobLog({ type: 'log', level: 'info', message: line });
       sendEvent({ type: 'log', level: 'info', message: line });
     }
   };
@@ -761,17 +862,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (/warnings\.warn\(/.test(trimmed)) return;
     if (/Some weights of .* were not initialized/.test(trimmed)) return;
     if (/You should probably TRAIN this model/.test(trimmed)) return;
+    writeJobLog({ type: 'log', level: 'error', message: trimmed });
     sendEvent({ type: 'log', level: 'error', message: trimmed });
   });
 
   activeJob.on('close', (code) => {
     stopPowerBlocker();
     setTaskbarProgress(-1);
-    sendEvent({
-      type: 'exit',
-      code,
-      stderr: stderrBuf.slice(-1000),
-    });
+    const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000) };
+    writeJobLog(exitEvent);
+    endJobLog();
+    sendEvent(exitEvent);
     activeJob = null;
   });
 
@@ -782,6 +883,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (err.code === 'ENOENT') {
       message = 'Python bulunamadı. Python 3.10/3.11 kurup PATH\'e ekleyin veya install.bat ile venv oluşturun, sonra start.bat ile başlatın.';
     }
+    writeJobLog({ type: 'error', message });
+    endJobLog();
     sendEvent({ type: 'error', message });
     activeJob = null;
   });

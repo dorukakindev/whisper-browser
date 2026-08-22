@@ -570,6 +570,14 @@ dropZone.addEventListener('click', async () => {
   }
 });
 
+const openLogFolderBtn = $('openLogFolder');
+if (openLogFolderBtn) {
+  openLogFolderBtn.addEventListener('click', async () => {
+    const res = await window.api.openLogFolder();
+    if (!res || !res.ok) logLine(`Günlük klasörü açılamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+  });
+}
+
 const pickVideosBtn = $('pickVideosBtn');
 if (pickVideosBtn) {
   pickVideosBtn.addEventListener('click', async () => {

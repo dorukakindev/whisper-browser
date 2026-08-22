@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
   selectFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
+  openLogFolder: () => ipcRenderer.invoke('logs:openFolder'),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   notify: (title, body) => ipcRenderer.invoke('notify', { title, body }),
   showInFolder: (p) => ipcRenderer.invoke('shell:showInFolder', p),

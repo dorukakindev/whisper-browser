@@ -625,7 +625,10 @@
         <div class="card card-log">
           <div class="card-head">
             <h2>Günlük</h2>
-            <button class="link-btn" id="clearLog">Temizle</button>
+            <div style="display:flex;gap:12px">
+              <button class="link-btn" id="openLogFolder" title="Geçmiş işlerin günlük dosyaları (her iş ayrı dosya)">Kayıtlı günlükler</button>
+              <button class="link-btn" id="clearLog">Temizle</button>
+            </div>
           </div>
           <div class="log" id="log" role="log" aria-live="polite" aria-label="Günlük"></div>
         </div>
