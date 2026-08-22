@@ -227,9 +227,19 @@ async function processNextQueueItem() {
   if (!next) {
     const doneN = state.queue.filter(x => x.status === 'done').length;
     const errN = state.queue.filter(x => x.status === 'error').length;
+    // Uyarı özeti: toplu işlemde tek tek günlüğe bakmadan hangi dosya kontrol istiyor
+    const warned = state.queue.filter(x => x.warnings && x.warnings.length);
     finalizeQueue();
     logLine('Kuyruk tamamlandı ✓', 'success');
-    notifyDone('Kuyruk tamamlandı', `${doneN} iş bitti${errN ? ` · ${errN} hata` : ''}`);
+    if (warned.length) {
+      logLine(`⚠ ${warned.length} dosyada uyarı var — elle kontrol edin:`, 'warn');
+      warned.forEach((x) => {
+        const name = x.label || (x.input || '').split(/[\/]/).pop();
+        x.warnings.forEach((w) => logLine(`   ${name}: ${w}`, 'warn'));
+      });
+    }
+    notifyDone('Kuyruk tamamlandı',
+      `${doneN} iş bitti${errN ? ` · ${errN} hata` : ''}${warned.length ? ` · ${warned.length} uyarı` : ''}`);
     return;
   }
   next.status = 'running';
@@ -1353,6 +1363,8 @@ window.api.onEvent((event) => {
         if (item) {
           item.status = 'done';
           item.files = event.files || [];
+          // Uyarıları sakla: kuyruk bitince hangi dosyaların elle kontrol gerektirdiğini özetle
+          item.warnings = Array.isArray(event.warnings) ? event.warnings : [];
           renderQueue();
         }
         state.currentQueueId = null;
