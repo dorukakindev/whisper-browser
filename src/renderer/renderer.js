@@ -1053,7 +1053,7 @@ function scheduleSave() {
 // Diğer preset'ler bölme/format tercihlerini korur.
 const PRESETS = {
   film: {
-    label: '🎬 Film',
+    label: 'Film',
     // large-v3-turbo (en iyi denge) + faster. Cümle bazlı bölme (noktada böl) + kırma yok
     // = her cümle tek satırlık blok olur.
     // conditionOnPrevious KAPALI: uzun filmlerde Whisper bir kez noktalamayı bırakınca
@@ -1070,17 +1070,17 @@ const PRESETS = {
     },
   },
   fast: {
-    label: '⚡ Hızlı',
+    label: 'Hızlı',
     values: { model: 'large-v3-turbo', engine: 'faster-batched', batchSize: '16', beamSize: '1', bestOf: '1', computeType: 'float16', splitMode: 'sentence', wrapMode: 'none' },
     checks: { vadFilter: true, temperatureFallback: true },
   },
   balanced: {
-    label: '⚖️ Dengeli',
+    label: 'Dengeli',
     values: { model: 'large-v3-turbo', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16', splitMode: 'sentence', wrapMode: 'none' },
     checks: { vadFilter: true, temperatureFallback: true },
   },
   quality: {
-    label: '💎 En iyi kalite',
+    label: 'En iyi kalite',
     values: { model: 'large-v3', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16', splitMode: 'sentence', wrapMode: 'none' },
     checks: { vadFilter: true, temperatureFallback: true },
   },
@@ -1718,6 +1718,9 @@ function offerOpenLastOutput() {
 
 // ===== Klavye kısayolları =====
 document.addEventListener('keydown', (e) => {
+  // Oynatıcı açıkken kısayollar oynatıcıya aittir (Esc işi iptal etmesin)
+  const pl = $('playerLayer');
+  if (pl && !pl.classList.contains('hidden')) return;
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     if (!state.running) $('startBtn').click();
@@ -1887,3 +1890,354 @@ window.api.onBurnInEvent((ev) => {
 
 // ===== Initial log =====
 logLine('Whisper Altyazı hazır. (Ctrl+Enter: başlat · Esc: iptal)', 'success');
+
+
+// ============================================================================
+// PLAYER_START — Uygulama içi oynatıcı
+// Videoyu (yerel dosya veya indirilen YouTube videosu) kendi altyazılarınla izler.
+// Altyazı <track> yerine ÜSTTE ÇİZİLİR: file:// kaynaklı track'ler Electron'da
+// engellenebiliyor ve stil kontrolü olmuyor; overlay tam ekranda da çalışıyor.
+// ============================================================================
+const player = {
+  cues: [],          // [{start, end, text}]
+  activeIdx: -1,
+  offset: 0,         // altyazı gecikmesi (sn)
+  subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
+  ytInfo: null,
+  downloading: false,
+};
+
+function pSecToTime(sec) {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+           : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// SRT/VTT ayrıştırma — write_srt çıktımızla birebir uyumlu (BOM ve \r\n dahil)
+function parseSubtitles(text) {
+  const out = [];
+  const clean = String(text || '').replace(/\r/g, '').replace(/^\uFEFF/, '');
+  const re = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/;
+  for (const block of clean.split(/\n\s*\n/)) {
+    const lines = block.split('\n').filter((l) => l.trim() !== '');
+    if (lines.length < 2) continue;
+    const idx = lines.findIndex((l) => re.test(l));
+    if (idx === -1) continue;
+    const m = lines[idx].match(re);
+    const start = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (m[4].length === 2 ? 100 : 1000);
+    const end = (+m[5]) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8]) / (m[8].length === 2 ? 100 : 1000);
+    const body = lines.slice(idx + 1).join('\n').trim();
+    if (body) out.push({ start, end, text: body });
+  }
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
+function renderCue() {
+  const video = $('playerVideo');
+  const overlay = $('subtitleOverlay');
+  if (!video || !overlay) return;
+  if (!player.cues.length) { overlay.textContent = ''; return; }
+  const t = video.currentTime - player.offset;
+  // Aktif blok genelde bir öncekinin komşusudur — baştan aramak yerine oradan ilerle
+  let i = player.activeIdx;
+  if (i < 0 || i >= player.cues.length || player.cues[i].start > t || player.cues[i].end < t) {
+    i = player.cues.findIndex((c) => c.start <= t && c.end >= t);
+  }
+  player.activeIdx = i;
+  overlay.textContent = i >= 0 ? player.cues[i].text : '';
+}
+
+function setPlayerSource(src, title) {
+  const video = $('playerVideo');
+  if (!video) return;
+  video.src = src;
+  video.load();
+  $('playerEmpty').classList.add('hidden');
+  if (title) $('playerTitle').textContent = title;
+}
+
+function addSubtitleOption(path, label) {
+  if (!path) return;
+  if (player.subtitles.some((x) => x.path === path)) return;
+  player.subtitles.push({ path, label: label || path.split(/[\\/]/).pop() });
+  const sel = $('playerSubSelect');
+  const opt = document.createElement('option');
+  opt.value = path;
+  opt.textContent = label || path.split(/[\\/]/).pop();
+  sel.appendChild(opt);
+}
+
+async function loadSubtitle(path) {
+  if (!path) { player.cues = []; player.activeIdx = -1; renderCue(); return; }
+  const res = await window.api.readSubtitle(path);
+  if (!res || !res.ok) {
+    logLine(`Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  player.cues = parseSubtitles(res.text);
+  player.activeIdx = -1;
+  renderCue();
+  logLine(`Altyazı yüklendi: ${path.split(/[\\/]/).pop()} (${player.cues.length} blok)`, 'success');
+}
+
+function openPlayer() {
+  $('playerLayer').classList.remove('hidden');
+  // Son işin çıktılarını altyazı seçeneği olarak sun (kaynak + çeviri)
+  (state.outputFiles || []).forEach((f) => {
+    if (/\.(srt|vtt)$/i.test(f)) addSubtitleOption(f);
+  });
+  if (state.lastJobVideo) {
+    $('playerVideoPath').textContent = state.lastJobVideo;
+    setPlayerSource(pathToFileUrl(state.lastJobVideo), state.lastJobVideo.split(/[\\/]/).pop());
+  }
+}
+
+function closePlayer() {
+  const video = $('playerVideo');
+  if (video) video.pause();
+  $('playerLayer').classList.add('hidden');
+}
+
+function pathToFileUrl(p) {
+  const norm = String(p).replace(/\\/g, '/');
+  return 'file:///' + encodeURI(norm).replace(/^file:\/\/\//, '').replace(/#/g, '%23');
+}
+
+// ---- olay bağlantıları ----
+if ($('openPlayer')) $('openPlayer').addEventListener('click', openPlayer);
+if ($('closePlayer')) $('closePlayer').addEventListener('click', closePlayer);
+
+if ($('playerVideo')) {
+  const video = $('playerVideo');
+  video.addEventListener('timeupdate', () => {
+    renderCue();
+    const seek = $('playerSeek');
+    if (video.duration) {
+      seek.value = String((video.currentTime / video.duration) * 1000);
+      $('playerTime').textContent = `${pSecToTime(video.currentTime)} / ${pSecToTime(video.duration)}`;
+    }
+  });
+  video.addEventListener('loadedmetadata', () => {
+    $('playerTime').textContent = `0:00 / ${pSecToTime(video.duration)}`;
+  });
+  video.addEventListener('error', () => {
+    logLine('Video açılamadı (format desteklenmiyor olabilir).', 'error');
+  });
+
+  $('playPause').addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+  $('playerSeek').addEventListener('input', (e) => {
+    if (video.duration) video.currentTime = (e.target.value / 1000) * video.duration;
+  });
+  $('playerVolume').addEventListener('input', (e) => { video.volume = e.target.value / 100; });
+  $('muteBtn').addEventListener('click', () => { video.muted = !video.muted; });
+  $('fullscreenBtn').addEventListener('click', () => {
+    const stage = $('playerStage');
+    if (!document.fullscreenElement) stage.requestFullscreen();
+    else document.exitFullscreen();
+  });
+}
+
+// Klavye: oynatıcı açıkken boşluk/ok/F/Esc
+document.addEventListener('keydown', (e) => {
+  const layer = $('playerLayer');
+  if (!layer || layer.classList.contains('hidden')) return;
+  const video = $('playerVideo');
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+  if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+  else if (e.key === 'ArrowRight') video.currentTime += 5;
+  else if (e.key === 'ArrowLeft') video.currentTime -= 5;
+  else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
+  else if (e.key === 'Escape') {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else closePlayer();
+  }
+});
+
+// Kaynak sekmeleri
+$$('.tab[data-ptab]').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    $$('.tab[data-ptab]').forEach((t) => t.classList.remove('active'));
+    tab.classList.add('active');
+    $$('.ptab-content').forEach((c) => {
+      c.classList.toggle('hidden', c.dataset.pcontent !== tab.dataset.ptab);
+    });
+  });
+});
+
+if ($('playerPickVideo')) {
+  $('playerPickVideo').addEventListener('click', async () => {
+    const files = await window.api.selectVideo();
+    if (!files || !files.length) return;
+    const f = files[0];
+    $('playerVideoPath').textContent = f;
+    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop());
+    // Yanındaki altyazıları otomatik öner (video.srt / video.tr.srt)
+    const stem = f.replace(/\.[^.]+$/, '');
+    addSubtitleOption(stem + '.srt');
+    addSubtitleOption(stem + '.tr.srt');
+  });
+}
+
+if ($('playerPickSub')) {
+  $('playerPickSub').addEventListener('click', async () => {
+    const p = await window.api.selectFile('subtitle');
+    if (!p) return;
+    addSubtitleOption(p);
+    $('playerSubSelect').value = p;
+    loadSubtitle(p);
+  });
+}
+
+if ($('playerSubSelect')) {
+  $('playerSubSelect').addEventListener('change', (e) => loadSubtitle(e.target.value));
+}
+
+if ($('subSize')) {
+  $('subSize').addEventListener('input', (e) => {
+    $('subSizeVal').textContent = e.target.value;
+    $('subtitleOverlay').style.fontSize = `${e.target.value}px`;
+  });
+}
+if ($('subOffset')) {
+  $('subOffset').addEventListener('input', (e) => {
+    player.offset = parseFloat(e.target.value);
+    $('subOffsetVal').textContent = player.offset.toFixed(1);
+    player.activeIdx = -1;
+    renderCue();
+  });
+}
+
+// ---- YouTube ----
+if ($('playerProbe')) {
+  $('playerProbe').addEventListener('click', async () => {
+    const url = $('playerYtUrl').value.trim();
+    if (!url) { logLine('YouTube linki boş.', 'error'); return; }
+    $('playerProbe').disabled = true;
+    $('playerProbe').textContent = 'Bilgi alınıyor...';
+    const res = await window.api.probeYoutube(url);
+    $('playerProbe').disabled = false;
+    $('playerProbe').textContent = 'Bilgi al';
+    if (!res || !res.ok) {
+      logLine(`Video bilgisi alınamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    const info = res.data;
+    player.ytInfo = info;
+    $('playerYtInfo').classList.remove('hidden');
+    $('playerYtTitle').textContent = `${info.title} · ${pSecToTime(info.duration)}`;
+
+    // Kalite listesi: 1080p ve altı öne alınır (üstü de seçilebilir)
+    const q = $('playerQuality');
+    q.innerHTML = '';
+    const heights = (info.heights || []).slice().sort((a, b) => b - a);
+    heights.forEach((h) => {
+      const o = document.createElement('option');
+      o.value = String(h);
+      o.textContent = `${h}p`;
+      if (h === 1080 || (h < 1080 && !heights.includes(1080) && h === heights.find((x) => x <= 1080))) {
+        o.selected = true;
+      }
+      q.appendChild(o);
+    });
+
+    // Ses dilleri yalnızca birden fazlaysa gösterilir
+    const langs = info.audioLangs || [];
+    const af = $('playerAudioField');
+    const asel = $('playerAudioLang');
+    asel.innerHTML = '';
+    if (langs.length > 1) {
+      langs.forEach((l) => {
+        const o = document.createElement('option');
+        o.value = l.code;
+        o.textContent = `${l.code}${l.label && l.label !== l.code ? ' · ' + l.label : ''}`;
+        asel.appendChild(o);
+      });
+      af.classList.remove('hidden');
+    } else {
+      af.classList.add('hidden');
+    }
+
+    // "İndirmeden izle" yalnızca YouTube birleşik format sunuyorsa mümkün
+    const streamBtn = $('playerStream');
+    if (info.stream && info.stream.url) {
+      streamBtn.classList.remove('hidden');
+      streamBtn.textContent = `İndirmeden izle (${info.stream.height}p)`;
+    } else {
+      streamBtn.classList.add('hidden');
+      logLine('Bu videoda birleşik (indirmesiz) format yok — YouTube 1080p ve üstünü ses/görüntü ayrı sunuyor. İndirerek izleyebilirsin.', 'warn');
+    }
+  });
+}
+
+if ($('playerStream')) {
+  $('playerStream').addEventListener('click', () => {
+    if (!player.ytInfo || !player.ytInfo.stream) return;
+    setPlayerSource(player.ytInfo.stream.url, player.ytInfo.title);
+    logLine(`Yayın açıldı (${player.ytInfo.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
+  });
+}
+
+if ($('playerDownload')) {
+  $('playerDownload').addEventListener('click', async () => {
+    const url = $('playerYtUrl').value.trim();
+    if (!url) return;
+    const height = parseInt($('playerQuality').value, 10) || 1080;
+    const audioLang = $('playerAudioField').classList.contains('hidden')
+      ? '' : $('playerAudioLang').value;
+    player.downloading = true;
+    $('playerDownload').disabled = true;
+    $('playerCancelDl').classList.remove('hidden');
+    $('playerDlProgress').classList.remove('hidden');
+    $('playerDlFill').style.width = '0%';
+    $('playerDlText').textContent = '0%';
+
+    const res = await window.api.downloadYoutube({
+      url, height, audioLang,
+      outputDir: state.outputDir || undefined,
+    });
+
+    player.downloading = false;
+    $('playerDownload').disabled = false;
+    $('playerCancelDl').classList.add('hidden');
+    if (!res || !res.ok) {
+      logLine(`İndirme başarısız: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    const p = res.data.path;
+    $('playerVideoPath').textContent = p;
+    setPlayerSource(pathToFileUrl(p), res.data.title);
+    logLine(`İndirildi ve oynatılıyor: ${p}`, 'success');
+    // İndirilen videonun yanındaki altyazıları öner
+    const stem = p.replace(/\.[^.]+$/, '');
+    addSubtitleOption(stem + '.srt');
+    addSubtitleOption(stem + '.tr.srt');
+  });
+}
+
+if ($('playerCancelDl')) {
+  $('playerCancelDl').addEventListener('click', async () => {
+    await window.api.cancelYoutubeDownload();
+    logLine('İndirme iptal edildi.', 'warn');
+  });
+}
+
+if (window.api.onMediaEvent) {
+  window.api.onMediaEvent((ev) => {
+    if (!ev) return;
+    if (ev.type === 'download_progress') {
+      const pct = Math.min(100, ev.percent || 0);
+      $('playerDlFill').style.width = `${pct}%`;
+      $('playerDlText').textContent = `${pct.toFixed(0)}%`;
+    } else if (ev.type === 'log') {
+      logLine(ev.message, ev.level || 'info');
+    }
+  });
+}
+// PLAYER_END

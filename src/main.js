@@ -126,6 +126,95 @@ function endJobLog() {
   jobLog = null;
 }
 
+// ===== Oynatıcı: YouTube bilgi/indirme (backend/media.py) =====
+// Not: YouTube video+ses BİRLEŞİK formatı (360p) çoğu videoda artık sunulmuyor;
+// bu yüzden asıl yol indirip birleştirmek. Birleşik format varsa "hızlı izle" açılır.
+let mediaJob = null;
+
+function runMediaCommand(cmdArgs, onEvent) {
+  return new Promise((resolve) => {
+    const appDir = app.getAppPath();
+    const script = path.join(appDir, 'backend', 'media.py');
+    let proc;
+    try {
+      proc = spawn(resolvePython(), [script, ...cmdArgs], { cwd: appDir, windowsHide: true });
+    } catch (err) {
+      return resolve({ ok: false, error: `Python başlatılamadı: ${err.message}` });
+    }
+    mediaJob = proc;
+    let buf = '';
+    let result = null;
+    let errText = '';
+    proc.stdout.setEncoding('utf-8');
+    proc.stderr.setEncoding('utf-8');
+    proc.stdout.on('data', (chunk) => {
+      buf += chunk;
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) continue;
+        let ev;
+        try { ev = JSON.parse(line); } catch (_) { continue; }
+        if (ev.type === 'probe' || ev.type === 'downloaded') result = ev;
+        else if (ev.type === 'error') errText = ev.message || 'bilinmeyen hata';
+        if (onEvent) onEvent(ev);
+      }
+    });
+    proc.stderr.on('data', (c) => { errText = String(c).slice(-500); });
+    proc.on('close', (code) => {
+      mediaJob = null;
+      if (result) resolve({ ok: true, data: result });
+      else resolve({ ok: false, error: errText || `Süreç ${code} koduyla bitti` });
+    });
+    proc.on('error', (err) => {
+      mediaJob = null;
+      resolve({ ok: false, error: err.message });
+    });
+  });
+}
+
+ipcMain.handle('media:probe', async (_e, url) => {
+  if (!url) return { ok: false, error: 'URL boş' };
+  return runMediaCommand(['probe', '--url', url]);
+});
+
+ipcMain.handle('media:download', async (_e, opts) => {
+  const o = opts || {};
+  if (!o.url) return { ok: false, error: 'URL boş' };
+  const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
+  const args = ['download', '--url', o.url, '--output-dir', outDir];
+  if (o.height) args.push('--height', String(o.height));
+  if (o.audioLang) args.push('--audio-lang', o.audioLang);
+  return runMediaCommand(args, (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('media:event', ev);
+    }
+  });
+});
+
+ipcMain.handle('media:cancelDownload', async () => {
+  if (!mediaJob) return { ok: false, error: 'İndirme yok' };
+  try {
+    if (process.platform === 'win32' && mediaJob.pid) {
+      spawn('taskkill', ['/pid', String(mediaJob.pid), '/T', '/F'], { windowsHide: true });
+    } else {
+      mediaJob.kill('SIGTERM');
+    }
+  } catch (_) {}
+  return { ok: true };
+});
+
+// Altyazı dosyasını oynatıcı için oku (renderer'ın dosya sistemine erişimi yok)
+ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
+  try {
+    const text = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
+    return { ok: true, text };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('logs:openFolder', async () => {
   const dir = logsDir();
   const err = await shell.openPath(dir);

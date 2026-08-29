@@ -2,25 +2,31 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-0: #0a0d14;
-  --bg-1: #0f131c;
-  --bg-2: #161b27;
-  --bg-3: #1d2331;
-  --border: #252b3b;
-  --border-strong: #323a52;
-  --text: #e6e9f2;
-  --text-dim: #9aa3b7;
-  --text-muted: #5d6580;
-  --accent: #6366f1;
-  --accent-2: #8b5cf6;
-  --accent-glow: rgba(99, 102, 241, 0.35);
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --info: #3b82f6;
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* Nötr grafit taban — renk yalnızca durum bildirmek için kullanılır */
+  --bg-0: #0e0f11;
+  --bg-1: #141619;
+  --bg-2: #1a1d21;
+  --bg-3: #22262b;
+  --border: #2a2e34;
+  --border-strong: #3a3f47;
+  --text: #e8eaed;
+  --text-dim: #a4abb5;
+  --text-muted: #6b7280;
+  /* Tek, sakin vurgu rengi (çelik mavisi) — gradyan/parıltı yok */
+  --accent: #4a7ba7;
+  --accent-hover: #5a8cb8;
+  --accent-soft: rgba(74, 123, 167, 0.14);
+  --success: #4f9d69;
+  --danger: #c9564b;
+  --warning: #c99a4a;
+  --info: #4a7ba7;
+  --radius: 6px;
+  --radius-sm: 4px;
 }
+
+/* Genel gizleme yardımcısı — elemana özel .hidden kuralları yetmiyordu
+   (ör. .field.hidden, .player-layer.hidden gizlenmiyordu) */
+.hidden { display: none !important; }
 
 html, body {
   height: 100%;
@@ -32,15 +38,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.18), transparent 40%),
-    radial-gradient(circle at 85% 90%, rgba(139, 92, 246, 0.14), transparent 45%);
-  pointer-events: none;
-  z-index: 0;
-}
+/* Arka plan düz — dikkat dağıtan renk parıltısı yok */
 
 .app {
   position: relative;
@@ -67,17 +65,15 @@ body::before {
   width: 44px; height: 44px;
   display: grid; place-items: center;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: white;
-  box-shadow: 0 8px 24px var(--accent-glow);
+  box-shadow: 0 8px 24px var(--accent-soft);
 }
 
 .brand-text h1 {
   font-size: 18px; font-weight: 600; line-height: 1.1;
-  background: linear-gradient(135deg, #fff, #c7d2fe);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
+  letter-spacing: -0.01em;
 }
 
 .brand-sub { font-size: 12px; color: var(--text-dim); }
@@ -134,7 +130,7 @@ body::before {
 
 /* ===== Card ===== */
 .card {
-  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px;
@@ -178,7 +174,7 @@ body::before {
 }
 
 .preset-select:hover { border-color: var(--accent); }
-.preset-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.preset-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ===== Tabs ===== */
 .tabs {
@@ -203,9 +199,9 @@ body::before {
 
 .tab:hover { color: var(--text); }
 .tab.active {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: white;
-  box-shadow: 0 4px 12px var(--accent-glow);
+  box-shadow: 0 4px 12px var(--accent-soft);
 }
 
 .tab-content.hidden { display: none; }
@@ -313,7 +309,7 @@ body::before {
 
 .yt-input-wrap:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .yt-input-wrap svg { color: #ff0033; flex-shrink: 0; }
@@ -400,7 +396,7 @@ body::before {
 .field input[type="text"]:focus,
 .field input[type="password"]:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .field input[type="range"] {
@@ -418,9 +414,9 @@ body::before {
   appearance: none;
   width: 16px; height: 16px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 2px 6px var(--accent-glow);
+  box-shadow: 0 2px 6px var(--accent-soft);
 }
 
 /* Switch fields */
@@ -529,14 +525,14 @@ body::before {
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: white;
-  box-shadow: 0 6px 20px var(--accent-glow);
+  box-shadow: 0 6px 20px var(--accent-soft);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 28px var(--accent-glow);
+  box-shadow: 0 10px 28px var(--accent-soft);
 }
 
 .btn-danger {
@@ -701,12 +697,12 @@ body::before {
 
 .glossary-controls input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .btn-icon-add {
   width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   border: none;
   border-radius: var(--radius-sm);
   color: white;
@@ -717,7 +713,7 @@ body::before {
   flex-shrink: 0;
 }
 
-.btn-icon-add:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
+.btn-icon-add:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-soft); }
 
 .glossary-list {
   display: flex;
@@ -809,7 +805,7 @@ body::before {
 .progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   border-radius: 4px;
   transition: width 0.3s ease;
   position: relative;
@@ -871,7 +867,7 @@ body::before {
 .stage.active .stage-dot {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
+  box-shadow: 0 0 8px var(--accent-soft);
 }
 
 .stage.done {
@@ -955,7 +951,7 @@ body::before {
 
 .preview-search:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* Dar pencerede arama kutusu küçülebilsin (card-head taşmasını önle) */
@@ -1033,7 +1029,7 @@ body::before {
 
 .modal-content {
   position: relative;
-  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  background: var(--bg-2);
   border: 1px solid var(--border-strong);
   border-radius: 16px;
   padding: 32px;
@@ -1135,7 +1131,7 @@ body::before {
 .segment-text[contenteditable]:hover { background: var(--bg-3); }
 .segment-text[contenteditable]:focus {
   background: var(--bg-3);
-  box-shadow: 0 0 0 2px var(--accent-glow);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .segment.edited { box-shadow: inset 3px 0 0 var(--accent); }
 .segment.edited .segment-time::after { content: ' ✎'; color: var(--accent); }
@@ -1184,7 +1180,7 @@ body::before {
   font-family: inherit;
   outline: none;
 }
-.modal-tools input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.modal-tools input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .burnin-progress {
   display: flex;
   align-items: center;
@@ -1193,3 +1189,157 @@ body::before {
 }
 .burnin-progress .progress-bar { flex: 1; }
 .burnin-progress span { font-size: 11px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+
+/* ===== Oynatıcı ===== */
+.player-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg-0);
+  display: flex;
+  flex-direction: column;
+}
+
+.player-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
+.player-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  min-height: 0;
+}
+
+.player-stage {
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.player-stage video {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.player-empty {
+  position: absolute;
+  color: var(--text-muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* Altyazı katmanı — video üstünde, tam ekranda da görünür */
+.subtitle-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5%;
+  text-align: center;
+  padding: 0 6%;
+  pointer-events: none;
+  font-size: 28px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: #fff;
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, .9),
+    0 2px 6px rgba(0, 0, 0, .9),
+    0 0 14px rgba(0, 0, 0, .7);
+  white-space: pre-line;
+}
+
+.player-controls {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--border);
+}
+
+.player-time {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.player-seek { flex: 1; }
+.player-volume { width: 90px; }
+
+.player-side {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  border-left: 1px solid var(--border);
+  background: var(--bg-1);
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.player-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.player-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.player-panel select,
+.player-panel input[type="url"] { width: 100%; }
+.player-panel .btn { width: 100%; }
+
+.tabs-sm .tab { padding: 5px 10px; font-size: 12px; }
+
+.player-yt-info { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.player-yt-title { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+
+.player-dl-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.player-dl-progress .progress-track { flex: 1; }
+
+/* Tam ekranda yan panel ve kontroller gizlenir; altyazı katmanı kalır */
+.player-stage:fullscreen .subtitle-overlay { font-size: 2.2vw; }

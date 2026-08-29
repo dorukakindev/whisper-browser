@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' file: blob: https://*.googlevideo.com" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -22,6 +22,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" id="openPlayer" title="Videoyu altyazılarınla izle">İzle</button>
         <div class="gpu-badge" id="gpuBadge">
           <span class="dot"></span>
           <span id="gpuBadgeText">CUDA · float16</span>
@@ -56,8 +57,8 @@
               <div class="drop-sub">Video dosyaları veya klasörler bırakabilirsiniz (bölümler otomatik taranır)</div>
             </div>
             <div class="source-actions" style="display:flex;gap:8px;margin-top:8px">
-              <button class="btn btn-secondary btn-sm" id="pickVideosBtn" style="flex:1" title="Birden fazla video/ses dosyası seç">📄 Dosya(lar) Seç</button>
-              <button class="btn btn-secondary btn-sm" id="pickFoldersBtn" style="flex:1" title="Bir veya birden fazla klasör seç (içlerindeki tüm videolar taranır)">📁 Klasör(ler) Seç</button>
+              <button class="btn btn-secondary btn-sm" id="pickVideosBtn" style="flex:1" title="Birden fazla video/ses dosyası seç">Dosya(lar) Seç</button>
+              <button class="btn btn-secondary btn-sm" id="pickFoldersBtn" style="flex:1" title="Bir veya birden fazla klasör seç (içlerindeki tüm videolar taranır)">Klasör(ler) Seç</button>
             </div>
             <div class="file-info hidden" id="fileInfo">
               <div class="file-icon">
@@ -104,7 +105,7 @@
         <div class="card">
           <details class="advanced">
             <summary>
-              <span>🔧 Altyazıyı videoya senkronla</span>
+              <span>Altyazıyı videoya senkronla</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="hint" style="margin-top:6px">
@@ -132,11 +133,11 @@
             <h2>Ayarlar</h2>
             <div class="settings-head-tools">
               <select class="preset-select" id="presetSelect" title="Hazır ayar profili">
-                <option value="film" selected>🎬 Film (önerilen)</option>
+                <option value="film" selected>Film (önerilen)</option>
                 <option value="custom">Özel ayarlar</option>
-                <option value="fast">⚡ Hızlı (turbo + batched)</option>
-                <option value="balanced">⚖️ Dengeli (turbo)</option>
-                <option value="quality">💎 En iyi kalite (large-v3)</option>
+                <option value="fast">Hızlı (turbo + batched)</option>
+                <option value="balanced">Dengeli (turbo)</option>
+                <option value="quality">En iyi kalite (large-v3)</option>
               </select>
               <button class="link-btn" id="exportSettings" title="Tüm ayarları dosyaya kaydet">Dışa</button>
               <button class="link-btn" id="importSettings" title="Ayar dosyasından yükle">İçe</button>
@@ -374,7 +375,7 @@
           <!-- DECODING AYARLARI -->
           <details class="advanced">
             <summary>
-              <span>🎚️ Decoding ince ayarları</span>
+              <span>️ Decoding ince ayarları</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="settings-grid">
@@ -421,7 +422,7 @@
           <!-- DETAYLI VAD -->
           <details class="advanced">
             <summary>
-              <span>🎤 Detaylı VAD ayarları</span>
+              <span>Detaylı VAD ayarları</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="settings-grid">
@@ -448,7 +449,7 @@
           <!-- KONUŞMACI TANIMA -->
           <details class="advanced">
             <summary>
-              <span>👥 Konuşmacı tanıma (Diarization)</span>
+              <span>Konuşmacı tanıma (Diarization)</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="settings-grid">
@@ -482,7 +483,7 @@
           <!-- SÖZLÜK -->
           <details class="advanced">
             <summary>
-              <span>📖 Sözlük / Hotwords</span>
+              <span>Sözlük / Hotwords</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="glossary-controls">
@@ -496,7 +497,7 @@
           <!-- LLM POST-PROCESSING -->
           <details class="advanced">
             <summary>
-              <span>🌍 Çeviri (altyazıyı başka dile çevir)</span>
+              <span>Çeviri (altyazıyı başka dile çevir)</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="settings-grid">
@@ -580,7 +581,7 @@
         <div class="card">
           <details class="advanced">
             <summary>
-              <span>🤖 LLM ile düzeltme (DeepSeek/OpenAI)</span>
+              <span>LLM ile düzeltme (DeepSeek/OpenAI)</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="settings-grid">
@@ -731,6 +732,91 @@
       </section>
     </main>
 
+    <!-- OYNATICI -->
+    <div class="player-layer hidden" id="playerLayer">
+      <div class="player-head">
+        <div class="player-title" id="playerTitle">Oynatıcı</div>
+        <button class="btn-icon" id="closePlayer" title="Kapat (Esc)">&times;</button>
+      </div>
+
+      <div class="player-body">
+        <div class="player-stage" id="playerStage">
+          <video id="playerVideo" preload="metadata"></video>
+          <div class="subtitle-overlay" id="subtitleOverlay"></div>
+          <div class="player-empty" id="playerEmpty">
+            <p>İzlemek için bir kaynak seç</p>
+          </div>
+        </div>
+
+        <div class="player-controls" id="playerControls">
+          <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+          </button>
+          <span class="player-time" id="playerTime">0:00 / 0:00</span>
+          <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" />
+          <button class="btn-icon" id="muteBtn" title="Sessize al">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+          </button>
+          <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" />
+          <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+          </button>
+        </div>
+
+        <div class="player-side">
+          <div class="player-panel">
+            <div class="player-panel-title">Kaynak</div>
+            <div class="tabs tabs-sm">
+              <button class="tab active" data-ptab="local">Yerel dosya</button>
+              <button class="tab" data-ptab="yt">YouTube</button>
+            </div>
+
+            <div class="ptab-content" data-pcontent="local">
+              <button class="btn btn-secondary btn-sm" id="playerPickVideo">Video seç</button>
+              <div class="path-display" id="playerVideoPath">Seçilmedi</div>
+            </div>
+
+            <div class="ptab-content hidden" data-pcontent="yt">
+              <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." />
+              <button class="btn btn-secondary btn-sm" id="playerProbe" style="margin-top:8px">Bilgi al</button>
+              <div class="player-yt-info hidden" id="playerYtInfo">
+                <div class="player-yt-title" id="playerYtTitle"></div>
+                <label class="field">
+                  <span class="field-label">Kalite</span>
+                  <select id="playerQuality"></select>
+                </label>
+                <label class="field hidden" id="playerAudioField">
+                  <span class="field-label">Ses dili</span>
+                  <select id="playerAudioLang"></select>
+                </label>
+                <button class="btn btn-primary btn-sm" id="playerDownload" style="margin-top:8px;width:100%">İndir ve izle</button>
+                <button class="btn btn-secondary btn-sm hidden" id="playerStream" style="margin-top:6px;width:100%">İndirmeden izle</button>
+                <button class="btn btn-secondary btn-sm hidden" id="playerCancelDl" style="margin-top:6px;width:100%">İndirmeyi iptal et</button>
+                <div class="player-dl-progress hidden" id="playerDlProgress">
+                  <div class="progress-track"><div class="progress-fill" id="playerDlFill"></div></div>
+                  <span id="playerDlText">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="player-panel">
+            <div class="player-panel-title">Altyazı</div>
+            <select id="playerSubSelect"><option value="">Altyazı yok</option></select>
+            <button class="btn btn-secondary btn-sm" id="playerPickSub" style="margin-top:8px">Altyazı dosyası seç</button>
+            <label class="field" style="margin-top:10px">
+              <span class="field-label">Yazı boyutu: <span class="value" id="subSizeVal">28</span>px</span>
+              <input type="range" id="subSize" min="16" max="48" step="2" value="28" />
+            </label>
+            <label class="field">
+              <span class="field-label">Gecikme: <span class="value" id="subOffsetVal">0.0</span> sn</span>
+              <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- RESULT MODAL -->
     <div class="modal hidden" id="resultModal">
       <div class="modal-backdrop"></div>
@@ -745,7 +831,7 @@
 
         <!-- Çıktı sonrası araçlar -->
         <details class="modal-tools">
-          <summary>🛠️ Araçlar — zaman kaydır / videoya göm</summary>
+          <summary>️ Araçlar — zaman kaydır / videoya göm</summary>
           <div class="modal-tool-row">
             <label class="modal-tool-label">Zaman kaydır (sn, SRT/VTT):</label>
             <input type="number" id="shiftSeconds" step="0.1" value="0" />
