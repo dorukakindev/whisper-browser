@@ -129,9 +129,14 @@ function endJobLog() {
 // ===== Oynatıcı: YouTube bilgi/indirme (backend/media.py) =====
 // Not: YouTube video+ses BİRLEŞİK formatı (360p) çoğu videoda artık sunulmuyor;
 // bu yüzden asıl yol indirip birleştirmek. Birleşik format varsa "hızlı izle" açılır.
-let mediaJob = null;
+// Oynatici medya surecleri TURE GORE ayri tutulur. Eskiden hepsi tek bir
+// mediaJob degiskenini paylasiyordu: indirme surerken "Bilgi al" veya
+// "altyaziyi indir" denince yeni surec mediaJob'un uzerine yaziliyor, sonra
+// "Indirmeyi iptal et" yanlis sureci olduruyor ya da kisa is bitip mediaJob'u
+// null yaptigi icin "Indirme yok" deniyordu.
+const mediaJobs = { probe: null, download: null, subs: null };
 
-function runMediaCommand(cmdArgs, onEvent) {
+function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
   return new Promise((resolve) => {
     const appDir = app.getAppPath();
     const script = path.join(appDir, 'backend', 'media.py');
@@ -141,7 +146,7 @@ function runMediaCommand(cmdArgs, onEvent) {
     } catch (err) {
       return resolve({ ok: false, error: `Python başlatılamadı: ${err.message}` });
     }
-    mediaJob = proc;
+    mediaJobs[kind] = proc;
     let buf = '';
     let result = null;
     let errText = '';
@@ -163,12 +168,12 @@ function runMediaCommand(cmdArgs, onEvent) {
     });
     proc.stderr.on('data', (c) => { errText = String(c).slice(-500); });
     proc.on('close', (code) => {
-      mediaJob = null;
+      if (mediaJobs[kind] === proc) mediaJobs[kind] = null;   // baskasinin isini silme
       if (result) resolve({ ok: true, data: result });
       else resolve({ ok: false, error: errText || `Süreç ${code} koduyla bitti` });
     });
     proc.on('error', (err) => {
-      mediaJob = null;
+      if (mediaJobs[kind] === proc) mediaJobs[kind] = null;
       resolve({ ok: false, error: err.message });
     });
   });
@@ -176,7 +181,7 @@ function runMediaCommand(cmdArgs, onEvent) {
 
 ipcMain.handle('media:probe', async (_e, url) => {
   if (!url) return { ok: false, error: 'URL boş' };
-  return runMediaCommand(['probe', '--url', url]);
+  return runMediaCommand(['probe', '--url', url], null, 'probe');
 });
 
 ipcMain.handle('media:download', async (_e, opts) => {
@@ -190,7 +195,7 @@ ipcMain.handle('media:download', async (_e, opts) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('media:event', ev);
     }
-  });
+  }, 'download');
 });
 
 // YouTube'un KENDI altyazisini indir (elle yazilmis veya otomatik). Bizim
@@ -233,16 +238,17 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('media:event', ev);
     }
-  });
+  }, 'subs');
 });
 
 ipcMain.handle('media:cancelDownload', async () => {
-  if (!mediaJob) return { ok: false, error: 'İndirme yok' };
+  const job = mediaJobs.download;      // probe/altyazi isleri iptalden etkilenmez
+  if (!job) return { ok: false, error: 'İndirme yok' };
   try {
-    if (process.platform === 'win32' && mediaJob.pid) {
-      spawn('taskkill', ['/pid', String(mediaJob.pid), '/T', '/F'], { windowsHide: true });
+    if (process.platform === 'win32' && job.pid) {
+      spawn('taskkill', ['/pid', String(job.pid), '/T', '/F'], { windowsHide: true });
     } else {
-      mediaJob.kill('SIGTERM');
+      job.kill('SIGTERM');
     }
   } catch (_) {}
   return { ok: true };
@@ -551,8 +557,11 @@ app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
   killActiveJob();
-  // Çalışan yt-dlp güncellemesi (pip) / burn-in (ffmpeg) varsa onları da öldür — orphan kalmasın
-  for (const j of [updateJob, burninJob]) {
+  // Çalışan yt-dlp güncellemesi (pip) / burn-in (ffmpeg) / oynatıcı medya
+  // süreçleri (yt-dlp indirme, probe, altyazı) varsa onları da öldür — orphan
+  // kalmasın. Büyük bir YouTube indirmesi uygulama kapandıktan sonra arka planda
+  // sürüp disk ve ağ kullanmaya devam ediyordu.
+  for (const j of [updateJob, burninJob, ...Object.values(mediaJobs)]) {
     if (j && j.pid) {
       try { spawn('taskkill', ['/pid', String(j.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
     }

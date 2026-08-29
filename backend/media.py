@@ -223,7 +223,6 @@ def fetch_subs(url, lang, auto, output_dir):
 
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    before = set(out.glob("*.srt"))
 
     opts = _ydl_opts({
         "skip_download": True,
@@ -237,14 +236,21 @@ def fetch_subs(url, lang, auto, output_dir):
     })
     log(f"YouTube altyazısı indiriliyor: {lang}{' (otomatik)' if auto else ''}")
     with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.download([url])
+        info = ydl.extract_info(url, download=True)
 
-    new_files = sorted(set(out.glob("*.srt")) - before, key=lambda p: p.stat().st_mtime)
-    if not new_files:
+    # Dosyayi VIDEO KIMLIGINE gore bul. "Indirmeden once/sonra yeni dosya" farkini
+    # ALMIYORUZ: ayni altyazi ikinci kez istendiginde yt-dlp dosyayi atlar veya
+    # uzerine yazar; yeni dosya olusmadigi icin kod yanlislikla "indirilemedi" derdi.
+    vid = (info or {}).get("id") or ""
+    candidates = [p for p in out.glob("*.srt") if not vid or f"[{vid}]" in p.name]
+    # Dil eki dosya adinda olur (".tr.srt"); o dile ait olani tercih et
+    exact = [p for p in candidates if p.name.lower().endswith(f".{lang.lower()}.srt")]
+    picked = exact or candidates
+    if not picked:
         raise RuntimeError(
             f"Altyazı indirilemedi ({lang}). Bu videoda o dilde altyazı olmayabilir."
         )
-    path = new_files[-1]
+    path = max(picked, key=lambda p: p.stat().st_mtime)
     emit("subs", path=str(path), lang=lang, auto=bool(auto))
 
 
