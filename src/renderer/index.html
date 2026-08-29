@@ -798,21 +798,48 @@
           <div class="player-empty" id="playerEmpty">
             <p>İzlemek için bir kaynak seç</p>
           </div>
-        </div>
 
-        <div class="player-controls" id="playerControls">
-          <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
-          </button>
-          <span class="player-time" id="playerTime">0:00 / 0:00</span>
-          <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" />
-          <button class="btn-icon" id="muteBtn" title="Sessize al">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-          </button>
-          <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" />
-          <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-          </button>
+          <!-- Kaldigin yerden devam - uzun filmlerde kritik -->
+          <div class="resume-chip hidden" id="resumeChip">
+            <span id="resumeChipText"></span>
+            <button class="btn btn-primary btn-sm" id="resumeGo">Devam et</button>
+            <button class="btn-icon" id="resumeDismiss" title="Kapat">&times;</button>
+          </div>
+
+          <!-- Kontroller sahnenin ICINDE: tam ekranda da gorunur, bosta gizlenir -->
+          <div class="player-controls" id="playerControls">
+            <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+            </button>
+            <span class="player-time" id="playerTime">0:00 / 0:00</span>
+            <div class="seek-wrap" id="seekWrap">
+              <div class="seek-track"></div>
+              <div class="seek-buffered" id="seekBuffered"></div>
+              <div class="seek-played" id="seekPlayed"></div>
+              <div class="seek-markers" id="seekMarkers"></div>
+              <div class="seek-tip hidden" id="seekTip">0:00</div>
+              <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" />
+            </div>
+            <button class="btn-icon" id="subToggle" title="Altyazıyı gizle/göster (V)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/></svg>
+            </button>
+            <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)">
+              <option value="0.5">0.5&times;</option>
+              <option value="0.75">0.75&times;</option>
+              <option value="1" selected>1&times;</option>
+              <option value="1.25">1.25&times;</option>
+              <option value="1.5">1.5&times;</option>
+              <option value="1.75">1.75&times;</option>
+              <option value="2">2&times;</option>
+            </select>
+            <button class="btn-icon" id="muteBtn" title="Sessize al (M)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+            </button>
+            <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" />
+            <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
+          </div>
         </div>
 
         <div class="player-side">
@@ -872,7 +899,7 @@
               <input type="checkbox" id="autoPauseCue" />
               <span>Her blok sonunda duraklat</span>
             </label>
-            <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.</div>
+            <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.<br>İzlerken gecikme: <strong>G</strong>/<strong>H</strong> (0,1 sn), hız: <strong>&lt;</strong>/<strong>&gt;</strong>, altyazıyı gizle: <strong>V</strong>, 10 sn: <strong>J</strong>/<strong>L</strong>, ses: <strong>&uarr;</strong>/<strong>&darr;</strong>.</div>
           </div>
 
           <div class="player-panel player-panel-list">

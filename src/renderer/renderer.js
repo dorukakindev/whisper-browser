@@ -1035,6 +1035,7 @@ async function saveAppSettings() {
       model: $('llmModel') ? $('llmModel').value.trim() : '',
     },
     ui: collectUiSettings(),
+    playerPositions: player.positions,
   });
 }
 
@@ -1049,7 +1050,7 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl',
-  'subSize', 'subOffset',
+  'subSize', 'subOffset', 'playerSpeed', 'playerVolume',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -1258,6 +1259,9 @@ if ($('deepseekKeyHelp')) {
       if (s.outputDir) {
         state.outputDir = s.outputDir;
         $('outputDir').textContent = s.outputDir;
+      }
+      if (s.playerPositions && typeof s.playerPositions === 'object') {
+        player.positions = s.playerPositions;
       }
       if (s.watchDir) {
         state.watchDir = s.watchDir;
@@ -1977,6 +1981,11 @@ const player = {
   ytInfo: null,
   hls: null,
   downloading: false,
+  mediaKey: '',      // konum hatirlamada anahtar (dosya yolu veya YouTube linki)
+  positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
+  subsHidden: false,
+  idleTimer: null,
+  resumeOffered: false,
 };
 
 function pSecToTime(sec) {
@@ -2189,9 +2198,116 @@ function cuesToSrt(cues) {
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
 
-function setPlayerSource(src, title) {
+// ---- kontrollerin boşta gizlenmesi (film izlerken imleç/çubuk yolu kapatmasın) ----
+function showControls() {
+  const stage = $('playerStage');
+  const video = $('playerVideo');
+  if (!stage) return;
+  stage.classList.remove('idle');
+  clearTimeout(player.idleTimer);
+  // Duraklatılmışken veya düzeltme yaparken gizleme
+  if (!video || video.paused || player.editing) return;
+  player.idleTimer = setTimeout(() => stage.classList.add('idle'), 2500);
+}
+
+// ---- zaman çubuğu görselleri: oynanan + tamponlanan ----
+function updateSeekVisuals() {
+  const video = $('playerVideo');
+  const played = $('seekPlayed');
+  const buf = $('seekBuffered');
+  if (!video || !played || !video.duration) return;
+  const pct = (video.currentTime / video.duration) * 100;
+  played.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  if (buf && video.buffered && video.buffered.length) {
+    // İmlecin bulunduğu aralığın sonu — HLS'te ne kadar ileri yüklendiğini gösterir
+    let end = 0;
+    for (let i = 0; i < video.buffered.length; i++) {
+      if (video.buffered.start(i) <= video.currentTime && video.buffered.end(i) >= video.currentTime) {
+        end = video.buffered.end(i);
+        break;
+      }
+      end = Math.max(end, video.buffered.end(i));
+    }
+    buf.style.width = `${Math.max(0, Math.min(100, (end / video.duration) * 100))}%`;
+  }
+}
+
+// ---- zaman çubuğundaki işaretler: altyazıda arama yapınca eşleşmeler burada belirir ----
+function renderSeekMarkers(times) {
+  const box = $('seekMarkers');
+  const video = $('playerVideo');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!video || !video.duration || !times || !times.length) return;
+  times.slice(0, 400).forEach((t) => {
+    const el = document.createElement('div');
+    el.className = 'seek-marker';
+    el.style.left = `${(t / video.duration) * 100}%`;
+    box.appendChild(el);
+  });
+}
+
+// ---- kaldığın yerden devam ----
+// Uzun filmde en çok işe yarayan şey bu: konum ayarlarda saklanır, aynı videoyu
+// tekrar açınca "Devam et" rozeti çıkar. Otomatik atlamaz — yanlış videoda
+// sıçramasın diye kullanıcı onaylar.
+function playerPositionKey() {
+  return player.mediaKey || '';
+}
+
+function savePlayerPosition() {
+  const video = $('playerVideo');
+  const key = playerPositionKey();
+  if (!video || !key || !video.duration || !isFinite(video.duration)) return;
+  const t = video.currentTime;
+  // Son 60 saniyeye gelindiyse film bitmis sayilir - kaydi sil.
+  if (t > video.duration - 60) {
+    delete player.positions[key];
+  } else if (t < 30) {
+    // Videonun basi. SILME: video yeni yuklendiginde de currentTime 0'dir ve
+    // timeupdate/pause olaylari buraya dusuyor; silseydik "Devam et" rozetine
+    // basmadan kayit yok olurdu (testte tam olarak bu oldu). Sadece guncelleme.
+    return;
+  } else {
+    player.positions[key] = {
+      t: Math.round(t),
+      d: Math.round(video.duration),
+      title: $('playerTitle') ? $('playerTitle').textContent : '',
+      at: Date.now(),
+    };
+  }
+  // En son 60 video tutulur (ayar dosyası şişmesin)
+  const keys = Object.keys(player.positions);
+  if (keys.length > 60) {
+    keys.sort((a, b) => (player.positions[a].at || 0) - (player.positions[b].at || 0));
+    keys.slice(0, keys.length - 60).forEach((k) => delete player.positions[k]);
+  }
+  scheduleSave();
+}
+
+function maybeOfferResume() {
+  const chip = $('resumeChip');
+  const video = $('playerVideo');
+  const saved = player.positions[playerPositionKey()];
+  if (!chip || !video) return;
+  if (!saved || player.resumeOffered || saved.t < 30) { chip.classList.add('hidden'); return; }
+  player.resumeOffered = true;
+  $('resumeChipText').textContent = `Kaldığın yer: ${pSecToTime(saved.t)}`;
+  chip.classList.remove('hidden');
+  clearTimeout(player._resumeTimer);
+  player._resumeTimer = setTimeout(() => chip.classList.add('hidden'), 12000);
+}
+
+function setMediaKey(key) {
+  player.mediaKey = key || '';
+  player.resumeOffered = false;
+  if ($('resumeChip')) $('resumeChip').classList.add('hidden');
+}
+
+function setPlayerSource(src, title, key) {
   const video = $('playerVideo');
   if (!video) return;
+  setMediaKey(key || src);
   destroyHls();
   video.src = src;
   video.load();
@@ -2210,9 +2326,12 @@ function destroyHls() {
   }
 }
 
-function setPlayerHls(manifestUrl, title) {
+// key: YouTube linki verilir — manifest URL'si zaman asimina ugradigi icin
+// konum hatirlamada anahtar olarak kullanilamaz.
+function setPlayerHls(manifestUrl, title, key) {
   const video = $('playerVideo');
   if (!video) return false;
+  setMediaKey(key || manifestUrl);
   if (typeof Hls === 'undefined' || !Hls.isSupported()) {
     logLine('HLS oynatici yuklenemedi — indirerek izleyebilirsin.', 'error');
     return false;
@@ -2309,7 +2428,8 @@ function openPlayer() {
   });
   if (state.lastJobVideo) {
     $('playerVideoPath').textContent = state.lastJobVideo;
-    setPlayerSource(pathToFileUrl(state.lastJobVideo), state.lastJobVideo.split(/[\\/]/).pop());
+    setPlayerSource(pathToFileUrl(state.lastJobVideo),
+                    state.lastJobVideo.split(/[\\/]/).pop(), state.lastJobVideo);
   }
 }
 
@@ -2331,16 +2451,29 @@ if ($('closePlayer')) $('closePlayer').addEventListener('click', closePlayer);
 
 if ($('playerVideo')) {
   const video = $('playerVideo');
+  let _posTick = 0;
   video.addEventListener('timeupdate', () => {
     renderCue();
     const seek = $('playerSeek');
     if (video.duration) {
       seek.value = String((video.currentTime / video.duration) * 1000);
       $('playerTime').textContent = `${pSecToTime(video.currentTime)} / ${pSecToTime(video.duration)}`;
+      updateSeekVisuals();
     }
+    // Konumu 5 saniyede bir kaydet (her timeupdate'te yazmak ayar dosyasını yorar)
+    if (Date.now() - _posTick > 5000) { _posTick = Date.now(); savePlayerPosition(); }
   });
+  video.addEventListener('progress', updateSeekVisuals);
   video.addEventListener('loadedmetadata', () => {
     $('playerTime').textContent = `0:00 / ${pSecToTime(video.duration)}`;
+    updateSeekVisuals();
+    maybeOfferResume();
+  });
+  video.addEventListener('play', showControls);
+  video.addEventListener('pause', () => {
+    clearTimeout(player.idleTimer);
+    $('playerStage').classList.remove('idle');
+    savePlayerPosition();
   });
   video.addEventListener('error', () => {
     logLine('Video açılamadı (format desteklenmiyor olabilir).', 'error');
@@ -2351,9 +2484,67 @@ if ($('playerVideo')) {
   });
   $('playerSeek').addEventListener('input', (e) => {
     if (video.duration) video.currentTime = (e.target.value / 1000) * video.duration;
+    updateSeekVisuals();
   });
   $('playerVolume').addEventListener('input', (e) => { video.volume = e.target.value / 100; });
   $('muteBtn').addEventListener('click', () => { video.muted = !video.muted; });
+
+  // Hız: belgesellerde 1.25x, ağır aksanda 0.75x
+  if ($('playerSpeed')) {
+    $('playerSpeed').addEventListener('change', (e) => {
+      video.playbackRate = parseFloat(e.target.value) || 1;
+    });
+  }
+
+  // Altyazıyı gizle/göster (orijinali kendin anlamaya çalışırken)
+  if ($('subToggle')) {
+    $('subToggle').addEventListener('click', () => {
+      player.subsHidden = !player.subsHidden;
+      $('subtitleOverlay').style.visibility = player.subsHidden ? 'hidden' : '';
+      $('subtitleOverlay2').style.visibility = player.subsHidden ? 'hidden' : '';
+      logLine(player.subsHidden ? 'Altyazı gizlendi (V)' : 'Altyazı açık (V)', 'info');
+    });
+  }
+
+  // Sahnede fare hareketi -> kontroller görünür, 2.5 sn sonra kaybolur
+  const stage = $('playerStage');
+  stage.addEventListener('mousemove', showControls);
+  stage.addEventListener('mouseleave', () => {
+    if (!video.paused && !player.editing) stage.classList.add('idle');
+  });
+  // Videoya tıkla: oynat/duraklat — çift tıkla: tam ekran
+  video.addEventListener('click', () => { video.paused ? video.play() : video.pause(); });
+  video.addEventListener('dblclick', () => $('fullscreenBtn').click());
+
+  // Zaman çubuğunda imleç: o andaki zaman + o anda ne söyleniyor
+  const wrap = $('seekWrap');
+  if (wrap) {
+    wrap.addEventListener('mousemove', (e) => {
+      if (!video.duration) return;
+      const r = wrap.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      const t = ratio * video.duration;
+      const tip = $('seekTip');
+      const i = findCueAt(player.cues, t - player.offset, -1);
+      tip.textContent = i >= 0
+        ? `${pSecToTime(t)} · ${player.cues[i].text.replace(/\n/g, ' ').slice(0, 60)}`
+        : pSecToTime(t);
+      tip.style.left = `${ratio * 100}%`;
+      tip.classList.remove('hidden');
+    });
+    wrap.addEventListener('mouseleave', () => $('seekTip').classList.add('hidden'));
+  }
+
+  if ($('resumeGo')) {
+    $('resumeGo').addEventListener('click', () => {
+      const saved = player.positions[playerPositionKey()];
+      if (saved) { video.currentTime = saved.t; video.play().catch(() => {}); }
+      $('resumeChip').classList.add('hidden');
+    });
+  }
+  if ($('resumeDismiss')) {
+    $('resumeDismiss').addEventListener('click', () => $('resumeChip').classList.add('hidden'));
+  }
   $('fullscreenBtn').addEventListener('click', () => {
     const stage = $('playerStage');
     if (!document.fullscreenElement) stage.requestFullscreen();
@@ -2374,15 +2565,60 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
   if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replayCue(); return; }
   if (e.key === 'c' || e.key === 'C') { e.preventDefault(); copyCue(); return; }
+  if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; showControls(); return; }
+  if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; showControls(); return; }
+  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); video.muted = !video.muted; showControls(); return; }
+  if (e.key === 'v' || e.key === 'V') { e.preventDefault(); $('subToggle').click(); return; }
+  // Altyazi gecikmesini izlerken ayarla — G geri, H ileri (0.1 sn adim)
+  if (e.key === 'g' || e.key === 'G') { e.preventDefault(); nudgeOffset(-0.1); return; }
+  if (e.key === 'h' || e.key === 'H') { e.preventDefault(); nudgeOffset(0.1); return; }
+  if (e.key === '<' || e.key === ',') { e.preventDefault(); nudgeSpeed(-1); return; }
+  if (e.key === '>' || e.key === '.') { e.preventDefault(); nudgeSpeed(1); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); setPlayerVolume(video.volume + 0.05); showControls(); return; }
+  if (e.key === 'ArrowDown') { e.preventDefault(); setPlayerVolume(video.volume - 0.05); showControls(); return; }
   if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
-  else if (e.key === 'ArrowRight') video.currentTime += 5;
-  else if (e.key === 'ArrowLeft') video.currentTime -= 5;
+  else if (e.key === 'ArrowRight') { video.currentTime += 5; showControls(); }
+  else if (e.key === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
   else if (e.key === 'Escape') {
     if (document.fullscreenElement) document.exitFullscreen();
     else closePlayer();
   }
 });
+
+// Gecikme/hiz/ses: hem kontrolden hem klavyeden ayni yoldan degissin
+function nudgeOffset(delta) {
+  const el = $('subOffset');
+  if (!el) return;
+  const v = Math.max(-10, Math.min(10, (parseFloat(el.value) || 0) + delta));
+  el.value = String(v);
+  el.dispatchEvent(new Event('input'));
+  scheduleSave();
+  logLine(`Altyazı gecikmesi: ${v.toFixed(1)} sn`, 'info');
+  showControls();
+}
+
+function nudgeSpeed(dir) {
+  const sel = $('playerSpeed');
+  const video = $('playerVideo');
+  if (!sel || !video) return;
+  const opts = Array.from(sel.options).map((o) => parseFloat(o.value));
+  const cur = opts.indexOf(parseFloat(sel.value));
+  const next = Math.max(0, Math.min(opts.length - 1, (cur < 0 ? 2 : cur) + dir));
+  sel.value = String(opts[next]);
+  video.playbackRate = opts[next];
+  scheduleSave();
+  logLine(`Oynatma hızı: ${opts[next]}×`, 'info');
+  showControls();
+}
+
+function setPlayerVolume(v) {
+  const video = $('playerVideo');
+  const el = $('playerVolume');
+  if (!video) return;
+  video.volume = Math.max(0, Math.min(1, v));
+  if (el) { el.value = String(Math.round(video.volume * 100)); scheduleSave(); }
+}
 
 // Kaynak sekmeleri
 $$('.tab[data-ptab]').forEach((tab) => {
@@ -2401,7 +2637,7 @@ if ($('playerPickVideo')) {
     if (!files || !files.length) return;
     const f = files[0];
     $('playerVideoPath').textContent = f;
-    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop());
+    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), f);
     // Yanındaki altyazıları otomatik öner (video.srt / video.tr.srt)
     const stem = f.replace(/\.[^.]+$/, '');
     addSubtitleOption(stem + '.srt');
@@ -2438,6 +2674,7 @@ function openCueEditor() {
   }
   const cue = player.cues[player.activeIdx];
   player.editing = true;
+  $('playerStage').classList.add('editing');
   $('playerVideo').pause();
   $('subtitleEdit').classList.remove('hidden');
   $('subtitleEditBox').value = cue.text;
@@ -2449,6 +2686,7 @@ function openCueEditor() {
 
 function closeCueEditor() {
   player.editing = false;
+  $('playerStage').classList.remove('editing');
   $('subtitleEdit').classList.add('hidden');
   renderCue();
 }
@@ -2470,7 +2708,15 @@ async function saveCueEdit() {
 }
 
 if ($('cueSearch')) {
-  $('cueSearch').addEventListener('input', (e) => renderCueList(e.target.value));
+  // Arama yalniz listeyi degil zaman cubugunu da isaretler: "Kombai" yazinca
+  // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
+  $('cueSearch').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    renderCueList(e.target.value);
+    renderSeekMarkers(q
+      ? player.cues.filter((c) => c.text.toLowerCase().includes(q)).map((c) => c.start + player.offset)
+      : []);
+  });
 }
 if ($('autoPauseCue')) {
   $('autoPauseCue').addEventListener('change', (e) => {
@@ -2576,9 +2822,10 @@ if ($('playerStream')) {
   $('playerStream').addEventListener('click', () => {
     const info = player.ytInfo;
     if (!info) return;
-    if (info.hls && setPlayerHls(info.hls, info.title)) return;
+    const ytKey = $('playerYtUrl').value.trim() || info.title;
+    if (info.hls && setPlayerHls(info.hls, info.title, ytKey)) return;
     if (info.stream && info.stream.url) {
-      setPlayerSource(info.stream.url, info.title);
+      setPlayerSource(info.stream.url, info.title, ytKey);
       logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
     }
   });
@@ -2623,7 +2870,7 @@ if ($('playerDownload')) {
     }
     const p = res.data.path;
     $('playerVideoPath').textContent = p;
-    setPlayerSource(pathToFileUrl(p), res.data.title);
+    setPlayerSource(pathToFileUrl(p), res.data.title, p);
     logLine(`İndirildi ve oynatılıyor: ${p}`, 'success');
     // İndirilen videonun yanındaki altyazıları öner
     const stem = p.replace(/\.[^.]+$/, '');

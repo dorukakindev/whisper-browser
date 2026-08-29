@@ -1223,7 +1223,7 @@ html, body {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 300px;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
   gap: 0;
   min-height: 0;
 }
@@ -1274,14 +1274,127 @@ html, body {
   white-space: pre-line;
 }
 
+/* Kontroller sahnenin icinde yuzer: hem pencerede hem TAM EKRANDA gorunur.
+   Fare 2.5 sn kimildamayinca (ve video oynarken) gizlenir. */
 .player-controls {
-  grid-column: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  background: var(--bg-1);
-  border-top: 1px solid var(--border);
+  padding: 26px 14px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, .85) 0%, rgba(0, 0, 0, .55) 55%, transparent 100%);
+  opacity: 1;
+  transition: opacity .18s ease;
+}
+
+.player-stage.idle .player-controls { opacity: 0; pointer-events: none; }
+.player-stage.idle { cursor: none; }
+/* Duzeltme kutusu acikken kontroller yolu kapatmasin */
+.player-stage.editing .player-controls { opacity: 0; pointer-events: none; }
+
+.player-controls .btn-icon { color: #e8eaed; }
+.player-controls .btn-icon:hover { color: #fff; background: rgba(255, 255, 255, .14); }
+.player-controls .player-time { color: #cfd4da; }
+
+.player-speed {
+  background: rgba(255, 255, 255, .12);
+  color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+.player-speed option { background: var(--bg-1); color: var(--text); }
+
+/* --- zaman cubugu: tampon + oynanan + isaretler + imlecte zaman balonu --- */
+.seek-wrap {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.seek-track,
+.seek-buffered,
+.seek-played {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.seek-track { right: 0; background: rgba(255, 255, 255, .25); }
+.seek-buffered { width: 0; background: rgba(255, 255, 255, .45); }
+.seek-played { width: 0; background: var(--accent); }
+
+.seek-wrap:hover .seek-track,
+.seek-wrap:hover .seek-buffered,
+.seek-wrap:hover .seek-played { height: 6px; }
+
+.seek-markers { position: absolute; left: 0; right: 0; height: 100%; pointer-events: none; }
+.seek-marker {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 11px;
+  margin-left: -1px;
+  transform: translateY(-50%);
+  background: #f0b429;
+  border-radius: 1px;
+  opacity: .85;
+}
+
+.seek-tip {
+  position: absolute;
+  bottom: 20px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, .9);
+  color: #fff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Native range ustte ve seffaf: surukleme/klavye onun isi, gorsel altta cizilir */
+.player-seek {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  height: 18px;
+}
+
+/* Kaldigin yerden devam rozeti */
+.resume-chip {
+  position: absolute;
+  left: 16px;
+  bottom: 76px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  background: rgba(14, 15, 17, .94);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .5);
 }
 
 .player-time {
@@ -1341,8 +1454,13 @@ html, body {
 }
 .player-dl-progress .progress-track { flex: 1; }
 
-/* Tam ekranda yan panel ve kontroller gizlenir; altyazı katmanı kalır */
+/* Tam ekranda altyazi olceklenir; kontroller sahne icinde oldugu icin korunur */
 .player-stage:fullscreen .subtitle-overlay { font-size: 2.2vw; }
+
+/* Kontroller gorunurken altyazi onlarin uzerine kalksin (uzeri kapanmasin) */
+.subtitle-overlay { transition: bottom .18s ease; }
+.player-stage:not(.idle) .subtitle-overlay { bottom: 13%; }
+.player-stage:not(.idle) .subtitle-secondary { bottom: auto; }
 
 
 /* Karşılaştırma altyazısı (kaynak dil) — ana altyazının üstünde, daha soluk */
