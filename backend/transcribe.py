@@ -2630,6 +2630,90 @@ def drop_micro_blocks(entries, min_dur=0.08, max_words=2):
     return out, len(entries) - len(out)
 
 
+def find_repeated_hallucinations(entries, all_words, min_count=4, max_words=8,
+                                 conf_thr=0.55, spread_ratio=0.25):
+    """
+    "Bag of Hallucinations" yaklaşımı: sabit regex listesi yalnızca BİLİNEN uydurmaları
+    yakalar ("Thanks for watching" vb.). Bilinmeyenler (kanal adı, çevirmen imzası,
+    müzik üzerine uydurulan cümle) ancak istatistikle bulunur:
+
+      1. Aynı metin dosya boyunca `min_count` kez tekrar ediyor,
+      2. kısa (`max_words` kelimeden az) — gerçek diyalog nadiren birebir tekrar eder,
+      3. kelime güven ortalaması düşük (`conf_thr` altı),
+      4. tekrarlar dosyaya YAYILMIŞ (ardışık diyalog değil; ilk-son arası, toplam
+         sürenin `spread_ratio` katından geniş).
+
+    Dördü birden sağlanmadan bir metin uydurma sayılmaz — "Evet." gibi gerçek kısa
+    replikler korunur.
+
+    Döner: [{"text", "count", "conf", "indices"}, ...]
+    """
+    if not entries:
+        return []
+    total_span = max(1e-6, float(entries[-1][1]) - float(entries[0][0]))
+
+    def norm(t):
+        return re.sub(r"\s+", " ", (t or "").strip().strip(" .,!?…-").lower())
+
+    groups = {}
+    for i, (s0, e0, text) in enumerate(entries):
+        key = norm(text)
+        if not key or len(key.split()) > max_words:
+            continue
+        groups.setdefault(key, []).append(i)
+
+    def mean_conf(idx_list):
+        probs = []
+        for i in idx_list:
+            s0, e0, _t = entries[i]
+            for w in (all_words or []):
+                mid = (w["start"] + w["end"]) / 2
+                if s0 <= mid <= e0:
+                    probs.append(w.get("probability", 1.0))
+        return (sum(probs) / len(probs)) if probs else None
+
+    out = []
+    for key, idxs in groups.items():
+        if len(idxs) < min_count:
+            continue
+        spread = float(entries[idxs[-1]][0]) - float(entries[idxs[0]][0])
+        if spread < total_span * spread_ratio:
+            continue                      # ardışık diyalog tekrarı - gerçek olabilir
+        conf = mean_conf(idxs)
+        if conf is None or conf >= conf_thr:
+            continue
+        out.append({"text": entries[idxs[0]][2], "count": len(idxs),
+                    "conf": round(conf, 3), "indices": idxs})
+    out.sort(key=lambda d: -d["count"])
+    return out
+
+
+def drop_repeated_hallucinations(entries, all_words, warn_list=None, conf_drop=0.4):
+    """
+    Bulunan tekrarlı uydurmalardan güveni ÇOK düşük olanları (conf_drop altı) siler,
+    kalanları uyarı olarak bildirir — silmek riskliyken karar kullanıcıya bırakılır.
+    Döner: (entries, silinen_blok_sayısı)
+    """
+    found = find_repeated_hallucinations(entries, all_words)
+    if not found:
+        return entries, 0
+    drop_idx = set()
+    for item in found:
+        if item["conf"] < conf_drop:
+            drop_idx.update(item["indices"])
+            log(f"Tekrarlı uydurma silindi ({item['count']}x, güven {item['conf']:.2f}): "
+                f"\"{item['text'][:60]}\"", "warn")
+        else:
+            msg = (f"Şüpheli tekrar: \"{item['text'][:50]}\" {item['count']} kez geçiyor "
+                   f"(güven {item['conf']:.2f}) — halüsinasyon olabilir, kontrol edin")
+            log(msg, "warn")
+            if warn_list is not None:
+                warn_list.append(msg)
+    if not drop_idx:
+        return entries, 0
+    return [e for i, e in enumerate(entries) if i not in drop_idx], len(drop_idx)
+
+
 def fix_common_errors(entries, language="tr"):
     """
     Yaygın hataları sırayla düzeltir. Döner: (entries, {"islem": adet})
@@ -3248,6 +3332,13 @@ def transcribe(args):
             if _stats:
                 log("Yaygın hata düzeltme: "
                     + ", ".join(f"{k} {v}" for k, v in _stats.items()))
+
+        # Tekrarlı halüsinasyon (bilinmeyen uydurmalar; regex listesi yalnızca bilinenleri
+        # yakalıyor). Kelime güveni gerektiği için yalnızca kelime damgaları varsa çalışır.
+        if args.drop_repeated_hallucinations and all_words:
+            entries, n_drop = drop_repeated_hallucinations(entries, all_words, warn_list)
+            if n_drop:
+                log(f"Tekrarlı uydurma temizliği: {n_drop} blok silindi", "warn")
 
         # Yarım kalmış cümleleri birleştir (kısa parça birleştirmeden ÖNCE — önce cümle
         # bütünlüğü kurulur, kalan flaş parçalar sonraki adımda toplanır)
@@ -4119,6 +4210,10 @@ def main():
                              "(reklam arası kesilmiş kopya, farklı kurgu)")
     parser.add_argument("--sync-fix-framerate", type=lambda x: x.lower() == "true", default=True,
                         help="Senkronda framerate sürüklenmesini de düzelt (yalnızca sabit kayma değil)")
+    parser.add_argument("--drop-repeated-hallucinations", type=lambda x: x.lower() == "true",
+                        default=True,
+                        help="Dosya boyunca tekrarlayan düşük güvenli uydurmaları tespit et "
+                             "(çok düşük güvenli olanları sil, diğerlerini uyar)")
     parser.add_argument("--fix-common-errors", type=lambda x: x.lower() == "true", default=True,
                         help="Yaygın altyazı hatalarını düzelt (tekrar eden ön ek, mikro blok, "
                              "noktalama sonrası boşluk, cümle başı büyük harf)")

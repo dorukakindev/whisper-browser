@@ -820,6 +820,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--merge-incomplete', options.mergeIncomplete !== false ? 'true' : 'false');
   args.push('--fix-punctuation-collapse', options.fixPunctuationCollapse !== false ? 'true' : 'false');
   args.push('--fix-common-errors', options.fixCommonErrors !== false ? 'true' : 'false');
+  args.push('--drop-repeated-hallucinations', options.dropRepeatedHallucinations !== false ? 'true' : 'false');
   args.push('--confidence-report', options.confidenceReport !== false ? 'true' : 'false');
   if (options.incompleteGap) args.push('--incomplete-gap', String(options.incompleteGap));
   args.push('--dedupe', options.dedupe !== false ? 'true' : 'false');

@@ -244,6 +244,58 @@ def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "He met Mrs. Dolly")]) == 0.0
 
 
+# ===== istatistiksel halüsinasyon =====
+def _halluc_fixture(text, prob, n, spread=30.0):
+    entries, words = [], []
+    t = 0.0
+    for i in range(n):
+        entries.append((t, t + 2.0, f"Dolgu cümle {i}."))
+        words.append({"word": "Dolgu", "start": t + 0.2, "end": t + 0.5, "probability": 0.95})
+        t += spread
+        entries.append((t, t + 2.0, text))
+        for w in text.split():
+            words.append({"word": w, "start": t + 0.2, "end": t + 0.5, "probability": prob})
+        t += spread
+    return entries, words
+
+
+def test_find_repeated_hallucinations():
+    # dosyaya yayılmış + düşük güvenli tekrar -> uydurma
+    e, w = _halluc_fixture("Kanal XYZ abone ol", 0.30, 6)
+    found = T.find_repeated_hallucinations(e, w)
+    assert len(found) == 1 and found[0]["count"] == 6, found
+    # yayılmış ama YÜKSEK güvenli tekrar -> gerçek replik, dokunma
+    e2, w2 = _halluc_fixture("Evet.", 0.93, 6)
+    assert T.find_repeated_hallucinations(e2, w2) == []
+    # kelime damgası yoksa hiç çalışmaz (güvenli varsayılan)
+    assert T.find_repeated_hallucinations(e, []) == []
+
+
+def test_repeated_hallucinations_not_spread():
+    # ardışık tekrar (kekeleme/diyalog) yayılmış sayılmaz -> dokunulmaz
+    entries, words = [], []
+    t = 0.0
+    for i in range(30):
+        txt = "Hayır!" if 10 <= i < 16 else f"Cümle {i}."
+        entries.append((t, t + 1.5, txt))
+        for x in txt.split():
+            words.append({"word": x, "start": t + 0.2, "end": t + 0.5, "probability": 0.35})
+        t += 3.0
+    assert T.find_repeated_hallucinations(entries, words) == []
+
+
+def test_drop_repeated_hallucinations_thresholds():
+    # çok düşük güven -> SİL
+    e, w = _halluc_fixture("Kanal XYZ abone ol", 0.30, 6)
+    out, n = T.drop_repeated_hallucinations(e, w, [])
+    assert n == 6 and not any("Kanal XYZ" in x[2] for x in out)
+    # ara güven -> silme, UYAR
+    e2, w2 = _halluc_fixture("Belirsiz ifade", 0.50, 6)
+    warn = []
+    out2, n2 = T.drop_repeated_hallucinations(e2, w2, warn)
+    assert n2 == 0 and len(out2) == len(e2) and len(warn) == 1
+
+
 # ===== senkron: framerate sürüklenmesi =====
 def _sync_fixture(dur=900, seed=7):
     """Rastgele ama tekrarlanabilir konuşma blokları + referans sinyal."""
