@@ -3776,6 +3776,130 @@ def find_sync_transform(ref_sig, hz, spans, max_shift_sec=60.0, ratios=None):
     return best[0], best[1], best[2], trials
 
 
+def _segment_score(ref_sig, hz, seg_spans, offset, ratio=1.0):
+    """Bir parça için verilen offset'te normalize örtüşme skoru (0..1)."""
+    import numpy as np
+    if not seg_spans:
+        return 0.0
+    n = ref_sig.size
+    shifted = [((s0 * ratio) + offset, (e0 * ratio) + offset, t) for (s0, e0, t) in seg_spans]
+    sig = build_binary_signal(shifted, n, hz)
+    a = np.asarray(ref_sig, dtype=np.float64)
+    b = np.asarray(sig, dtype=np.float64)
+    denom = float(np.linalg.norm(a) * np.linalg.norm(b))
+    if denom <= 0:
+        return 0.0
+    return float(np.dot(a, b) / denom)
+
+
+def _block_fit(ref_sig, hz, s0, e0, offset):
+    """Tek bir bloğun verilen kaymada sese oturma ölçüsü (0..1 arası ortalama enerji)."""
+    i0 = int(max(0.0, (s0 + offset)) * hz)
+    i1 = int(max(0.0, (e0 + offset)) * hz)
+    if i1 <= i0 or i0 >= ref_sig.size:
+        return 0.0
+    seg = ref_sig[i0:min(i1, ref_sig.size)]
+    return float(seg.mean()) if seg.size else 0.0
+
+
+def refine_split_point(ref_sig, hz, spans, idx_first_of_second, off_a, off_b,
+                       ratio=1.0, window=40):
+    """
+    İki parça arasındaki kesim noktasını blok bazında bul. Kaba parçalama ~10 dakikalık
+    pencerelerle yapıldığı için gerçek kesim (reklam arası) parçanın ortasına düşebilir;
+    o zaman sınırdaki bloklar yanlış kaymayı alır. Burada her bloğa "hangi kayma daha
+    iyi oturuyor" diye sorulur ve tercihin döndüğü yer kesim noktası kabul edilir.
+    """
+    lo = max(1, idx_first_of_second - window)
+    hi = min(len(spans) - 1, idx_first_of_second + window)
+    best_k, best_total = idx_first_of_second, -1.0
+    for k in range(lo, hi + 1):
+        total = 0.0
+        for i in range(lo, hi + 1):
+            s0, e0, _t = spans[i]
+            off = off_a if i < k else off_b
+            total += _block_fit(ref_sig, hz, s0 * ratio, e0 * ratio, off)
+        if total > best_total:
+            best_total, best_k = total, k
+    return best_k
+
+
+def find_piecewise_offsets(ref_sig, hz, spans, base_offset, ratio=1.0,
+                           chunk_sec=600.0, local_window=45.0, step=0.1,
+                           split_gain=0.06, min_diff=0.25):
+    """
+    alass fikri: kaymanın film boyunca DEĞİŞEBİLDİĞİ durumlar (reklam arası kesilmiş
+    kopya, farklı kurgu, eksik sahne). Altyazı zaman ekseni parçalara bölünür, her
+    parça için genel kaymanın etrafında yerel bir arama yapılır.
+
+    "Split penalty": yerel kayma ancak o parçanın skorunu `split_gain` kadar
+    ARTIRIYORSA ve genel kaymadan `min_diff` saniyeden fazla farklıysa kabul edilir —
+    aksi halde parça genel kaymayı kullanır. Böylece gürültü yüzünden gereksiz
+    kırılma oluşmaz.
+
+    Döner: [(ilk_blok_indeksi, son_blok_indeksi_dahil, offset), ...]
+    """
+    import numpy as np
+    if not spans:
+        return []
+    # Parçalara böl: yaklaşık chunk_sec uzunluğunda, blok sınırlarında
+    chunks = []
+    start_idx = 0
+    chunk_start_t = spans[0][0] * ratio
+    for i, (s0, _e0, _t) in enumerate(spans):
+        if (s0 * ratio) - chunk_start_t >= chunk_sec and i - start_idx >= 20:
+            chunks.append((start_idx, i - 1))
+            start_idx = i
+            chunk_start_t = s0 * ratio
+    chunks.append((start_idx, len(spans) - 1))
+
+    out = []
+    for (a_idx, b_idx) in chunks:
+        seg = spans[a_idx:b_idx + 1]
+        base_score = _segment_score(ref_sig, hz, seg, base_offset, ratio)
+        best_off, best_score = base_offset, base_score
+        lo = base_offset - local_window
+        hi = base_offset + local_window
+        off = lo
+        while off <= hi + 1e-9:
+            if abs(off - base_offset) >= min_diff:
+                sc = _segment_score(ref_sig, hz, seg, off, ratio)
+                if sc > best_score:
+                    best_off, best_score = off, sc
+            off += step
+        # Kabul şartı: belirgin iyileşme (split penalty)
+        if best_off != base_offset and best_score < base_score * (1.0 + split_gain):
+            best_off, best_score = base_offset, base_score
+        out.append((a_idx, b_idx, best_off))
+
+    # Ardışık aynı offset'li parçaları birleştir (rapor sade olsun)
+    merged = []
+    for a_idx, b_idx, off in out:
+        if merged and abs(merged[-1][2] - off) < 1e-9:
+            merged[-1] = (merged[-1][0], b_idx, off)
+        else:
+            merged.append((a_idx, b_idx, off))
+
+    # Kesim noktalarını blok bazında hassaslaştır (kaba parça sınırında kalmasın)
+    for i in range(len(merged) - 1):
+        a0, _a1, off_a = merged[i]
+        b0, b1, off_b = merged[i + 1]
+        k = refine_split_point(ref_sig, hz, spans, b0, off_a, off_b, ratio)
+        k = min(max(k, a0 + 1), b1)          # parçalar boş kalmasın
+        merged[i] = (a0, k - 1, off_a)
+        merged[i + 1] = (k, b1, off_b)
+    return [(a, b, o) for (a, b, o) in merged if b >= a]
+
+
+def apply_piecewise(spans, pieces, ratio=1.0):
+    """Parça kaymalarını uygula (zamanlar ölçeklenip kendi offset'iyle kaydırılır)."""
+    out = []
+    for (a_idx, b_idx, off) in pieces:
+        for (s0, e0, t) in spans[a_idx:b_idx + 1]:
+            out.append((max(0.0, s0 * ratio + off), max(0.0, e0 * ratio + off), t))
+    return out
+
+
 def sync_subtitles(args):
     """Videoyu referans alıp mevcut SRT'yi sabit kaymadan hizalar; .synced.srt yazar."""
     ffmpeg_path = find_ffmpeg()
@@ -3810,6 +3934,7 @@ def sync_subtitles(args):
             raise RuntimeError("Ses analiz edilemedi (boş ses).")
         sub_sig = build_binary_signal(spans, ref_sig.size, hz)
 
+        warn = []
         emit("status", stage="sync", text="Kayma hesaplanıyor (korelasyon)...")
         if args.sync_fix_framerate:
             ratio, offset, score, trials = find_sync_transform(
@@ -3828,12 +3953,28 @@ def sync_subtitles(args):
             f"(altyazı {'ileri' if offset >= 0 else 'geri'} alındı)",
             "success")
 
-        shifted = shift_srt_entries(scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
+        pieces = []
+        if args.sync_piecewise and len(spans) >= 40:
+            emit("status", stage="sync", text="Parçalı hizalama deneniyor...")
+            pieces = find_piecewise_offsets(ref_sig, hz, spans, offset, ratio)
+            distinct = {round(p[2], 2) for p in pieces}
+            if len(distinct) > 1:
+                log(f"Kayma film boyunca DEĞİŞİYOR — {len(pieces)} parça ayrı hizalandı: "
+                    + ", ".join(f"{format_srt_time(spans[a][0] * ratio)[:8]}→{o:+.2f}s"
+                                for a, _b, o in pieces), "success")
+                warn.append(f"Kayma sabit değildi; {len(pieces)} parça ayrı hizalandı "
+                            "(reklam arası/farklı kurgu olabilir) — sonucu kontrol edin.")
+            else:
+                pieces = []
+
+        if pieces:
+            shifted = apply_piecewise(spans, pieces, ratio)
+        else:
+            shifted = shift_srt_entries(scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
         out_path = srt_path.with_name(srt_path.stem + ".synced.srt")
         emit("status", stage="write", text="Senkronlu altyazı yazılıyor...")
         write_srt_raw(shifted, out_path)
         log(f"Yazıldı: {out_path}")
-        warn = []
         if abs(offset) >= args.sync_max_shift - 0.05:
             warn.append("Kayma üst sınıra ulaştı — sonuç güvenilir olmayabilir, gözden geçirin.")
         if abs(ratio - 1.0) > 1e-9:
@@ -3875,6 +4016,9 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--sync-piecewise", type=lambda x: x.lower() == "true", default=True,
+                        help="Kayma film boyunca değişiyorsa parçaları ayrı hizala "
+                             "(reklam arası kesilmiş kopya, farklı kurgu)")
     parser.add_argument("--sync-fix-framerate", type=lambda x: x.lower() == "true", default=True,
                         help="Senkronda framerate sürüklenmesini de düzelt (yalnızca sabit kayma değil)")
     parser.add_argument("--fix-common-errors", type=lambda x: x.lower() == "true", default=True,

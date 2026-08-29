@@ -289,6 +289,33 @@ def test_scale_spans():
     assert out == [(20.0, 24.0, "a")]
 
 
+def test_find_piecewise_offsets():
+    """Reklam arası/farklı kurgu: kayma film ortasında değişiyor."""
+    spans, ref = _sync_fixture(dur=2400, seed=3)
+    half = 1200.0
+    bad = [((s - 3.0 if s < half else s - 11.0),
+            (e - 3.0 if s < half else e - 11.0), x) for s, e, x in spans]
+    ratio, offset, _s, _t = T.find_sync_transform(ref, 50, bad, max_shift_sec=60)
+    pieces = T.find_piecewise_offsets(ref, 50, bad, offset, ratio)
+    assert len(pieces) == 2, pieces
+    offs = sorted(round(p[2], 2) for p in pieces)
+    assert offs == [3.0, 11.0], offs
+    # kesim noktası hassaslaştırıldı -> blok bazında hata kalmamalı
+    fixed = T.apply_piecewise(bad, pieces, ratio)
+    worst = max(abs(f[0] - o[0]) for f, o in zip(fixed, spans))
+    assert worst < 0.1, worst
+
+
+def test_piecewise_no_false_split():
+    """Kayma sabitse tek parça kalmalı (gereksiz kırılma üretmesin)."""
+    spans, ref = _sync_fixture(dur=2400, seed=3)
+    uni = [(s - 5.0, e - 5.0, x) for s, e, x in spans]
+    ratio, offset, _s, _t = T.find_sync_transform(ref, 50, uni, max_shift_sec=60)
+    pieces = T.find_piecewise_offsets(ref, 50, uni, offset, ratio)
+    assert len(pieces) == 1, pieces
+    assert abs(pieces[0][2] - 5.0) < 0.1
+
+
 # ===== yaygın hata düzeltme =====
 def test_fix_text_artifacts():
     assert T.fix_text_artifacts("Merhaba,nasılsın?") == "Merhaba, nasılsın?"
