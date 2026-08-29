@@ -1991,8 +1991,12 @@ const player = {
   ytInfo: null,
   chapters: [],
   hls: null,
+  hlsRecover: 0,     // olumcul HLS hatasinda deneme sayaci (kaynak degisince sifirlanir)
+  isLive: false,
   downloading: false,
-  mediaKey: '',      // konum hatirlamada anahtar (dosya yolu veya YouTube linki)
+  mediaKey: '',      // konum hatirlamada KARARLI anahtar (bkz. mediaKeyFor)
+  generation: 0,     // her kaynak degisiminde artar - eski asenkron sonuclari elemek icin
+  originalUrl: '',   // kullanicinin girdigi kalici YouTube adresi (gecici HLS DEGIL)
   positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
   subsHidden: false,
   idleTimer: null,
@@ -2028,14 +2032,20 @@ function parseAss(text) {
     const start = toSec(parts[1]);
     const end = toSec(parts[2]);
     if (start === null || end === null) continue;
-    const body = parts.slice(9).join(',')
+    const rawBody = parts.slice(9).join(',');
+    // Bastaki bicim/konum etiketleri ({\\pos(960,100)} gibi) DUZENLEMEDE KORUNUR:
+    // kullanici bir kelimeyi duzeltince konumlandirma/stil silinmesin.
+    const lead = (rawBody.match(/^(?:\{[^}]*\})+/) || [''])[0];
+    const body = rawBody
       .replace(/\{[^}]*\}/g, '')       // {\i1} gibi biçim etiketleri
       .replace(/\\[Nn]/g, '\n')        // ASS satır sonu
       .replace(/\\h/g, ' ')
       .trim();
+    // Metnin ORTASINDA kalan etiket duzenlemede kaybolur - kullaniciyi uyar
+    const hadInner = /\{[^}]*\}/.test(rawBody.slice(lead.length));
     // line: kaynak dosyadaki satir numarasi - duzenleme kaydinda O satirin metin
     // alani degistirilir, dosyanin geri kalanina (stiller, konumlar) dokunulmaz.
-    if (body) out.push({ start, end, text: body, line: lineNo });
+    if (body) out.push({ start, end, text: body, line: lineNo, assLead: lead, assInner: hadInner });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -2211,14 +2221,13 @@ function copyCue() {
 
 // Blokları tekrar SRT'ye çevir (izlerken yapılan düzeltmeyi kaydetmek için)
 function cuesToSrt(cues) {
+  // ONCE tam milisaniyeye yuvarla, SONRA parcala. Ayri yuvarlamada 1.9996 gibi
+  // degerler ms=1000 uretip "00:00:01,1000" gibi gecersiz zaman kodu yaziyordu.
   const fmt = (sec) => {
-    const ms = Math.round((sec % 1) * 1000);
-    const total = Math.floor(sec);
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s2 = total % 60;
+    const t = Math.max(0, Math.round(sec * 1000));
     const p = (x, w = 2) => String(x).padStart(w, '0');
-    return `${p(h)}:${p(m)}:${p(s2)},${p(ms, 3)}`;
+    return `${p(Math.floor(t / 3600000))}:${p(Math.floor((t % 3600000) / 60000))}:`
+         + `${p(Math.floor((t % 60000) / 1000))},${p(t % 1000, 3)}`;
   };
   return cues.map((c, i) =>
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
@@ -2311,6 +2320,29 @@ function setChapters(chapters) {
 // Uzun filmde en çok işe yarayan şey bu: konum ayarlarda saklanır, aynı videoyu
 // tekrar açınca "Devam et" rozeti çıkar. Otomatik atlamaz — yanlış videoda
 // sıçramasın diye kullanıcı onaylar.
+// Ayni videonun farkli adresleri (youtu.be/ID, watch?v=ID&t=30, paylasim
+// parametreleri) AYNI kayda dusmeli; ham URL anahtar olarak kullanilinca izleme
+// gecmisi parcalaniyordu.
+function youtubeVideoId(url) {
+  const u = String(url || '');
+  // Tek dev regex yerine sirayla dene - okunur ve kirilgan degil
+  let m = u.match(/[?&]v=([\w-]{6,})/);                    // watch?v=ID
+  if (m) return m[1];
+  m = u.match(/youtu\.be\/([\w-]{6,})/i);                // youtu.be/ID
+  if (m) return m[1];
+  m = u.match(/\/(?:embed|shorts|live|v)\/([\w-]{6,})/i); // /embed|shorts|live/ID
+  return m ? m[1] : '';
+}
+
+function mediaKeyFor(kind, ref) {
+  if (kind === 'youtube') {
+    const id = youtubeVideoId(ref);
+    return id ? `youtube:${id}` : `youtube:${String(ref || '').trim()}`;
+  }
+  // Yerel dosya: ayrac ve buyuk/kucuk harf farki ayni dosyayi bolmesin (Windows)
+  return 'file:' + String(ref || '').replace(/\\/g, '/').toLowerCase();
+}
+
 function playerPositionKey() {
   return player.mediaKey || '';
 }
@@ -2318,6 +2350,8 @@ function playerPositionKey() {
 function savePlayerPosition() {
   const video = $('playerVideo');
   const key = playerPositionKey();
+  // Canli yayinda "kaldigin yer" anlamsiz: pencere kayiyor, sure Infinity olabilir
+  if (player.isLive) return;
   if (!video || !key || !video.duration || !isFinite(video.duration)) return;
   const t = video.currentTime;
   // Son 60 saniyeye gelindiyse film bitmis sayilir - kaydi sil.
@@ -2394,38 +2428,87 @@ function resetMediaBoundState() {
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
   renderSeekMarkers([]);
-  // Gecikme onceki dosyaya gore ayarlanmisti; yeni dosyada anlamsiz
+  // Gecikme ONCEKI dosyaya gore ayarlanmisti; yeni videoda anlamsiz - sifirla.
+  // (Eskiden yalnizca "dosyaya isle" dugmesi gizleniyordu; +2.3 sn'lik bir
+  // duzeltme sonraki butun videolara tasiniyordu.)
+  player.offset = 0;
+  const offEl = $('subOffset');
+  if (offEl && offEl.value !== '0') {
+    offEl.value = '0';
+    if ($('subOffsetVal')) $('subOffsetVal').textContent = '0.0';
+    scheduleSave();
+  }
   if ($('applyOffsetToFile')) $('applyOffsetToFile').classList.add('hidden');
 }
 
+// Kaynak degisiminde kusak artar. Devam eden her asenkron is (altyazi okuma,
+// kardes tarama, YouTube altyazi indirme) basladigi kusagi hatirlar ve sonuc
+// geldiginde kusak degistiyse sonucu ATAR - eski videonun altyazisi yenisine
+// baglanmasin diye.
 function setMediaKey(key) {
   player.mediaKey = key || '';
+  player.generation++;
+  player.hlsRecover = 0;
+  player.isLive = false;
   player.resumeOffered = false;
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
   resetMediaBoundState();
+}
+
+function currentGeneration() {
+  return player.generation;
+}
+
+function staleGeneration(gen) {
+  return gen !== player.generation;
 }
 
 // VTT yazici — SRT'den farki: WEBVTT basligi ve ms ayraci olarak nokta.
 // (Eskiden .vtt duzenleyince dosyaya SRT yaziliyor, WEBVTT basligi kayboluyordu.)
 function cuesToVtt(cues) {
   const NL = '\n';
+  // bkz. cuesToSrt: once tam ms'ye yuvarla, sonra parcala
   const fmt = (sec) => {
-    const total = Math.max(0, sec);
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s2 = Math.floor(total % 60);
-    const ms = Math.round((total % 1) * 1000);
+    const t = Math.max(0, Math.round(sec * 1000));
     const p = (x, w = 2) => String(x).padStart(w, '0');
-    return `${p(h)}:${p(m)}:${p(s2)}.${p(ms, 3)}`;
+    return `${p(Math.floor(t / 3600000))}:${p(Math.floor((t % 3600000) / 60000))}:`
+         + `${p(Math.floor((t % 60000) / 1000))}.${p(t % 1000, 3)}`;
   };
   return 'WEBVTT' + NL + NL
     + cues.map((c) => `${fmt(c.start)} --> ${fmt(c.end)}${NL}${c.text}${NL}`).join(NL);
 }
 
+// VTT: dosyayi yeniden URETMEK yerine yalnizca hedef cue'nun METIN satirlarini
+// degistiririz. Yeniden uretim cue kimliklerini, satir ayarlarini (align,
+// position, line, size), STYLE / REGION / NOTE bloklarini ve baslik
+// metadatasini yok ederdi.
+function replaceVttCueText(rawText, cue, newText) {
+  const lines = String(rawText).split(/\r?\n/);
+  const toSec = (t) => {
+    const m = String(t).match(/(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/);
+    if (!m) return null;
+    return (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].includes('-->')) continue;
+    const half = lines[i].split('-->');
+    const st = toSec(half[0]);
+    const en = toSec(half[1]);
+    if (st === null || en === null) continue;
+    if (Math.abs(st - cue.start) > 0.002 || Math.abs(en - cue.end) > 0.002) continue;
+    // Metin satirlari: zaman satirindan sonra bos satira kadar
+    let j = i + 1;
+    while (j < lines.length && lines[j].trim() !== '') j++;
+    lines.splice(i + 1, j - (i + 1), ...String(newText).split(/\n/));
+    return lines.join('\n');
+  }
+  return null;
+}
+
 // ASS/SSA: dosyayi yeniden URETMEK yerine ilgili Dialogue satirinin METIN alanini
 // degistiririz. Yeniden uretim stilleri, konumlari, efektleri ve konusmaci
 // adlarini yok ederdi (eskiden .ass dosyasina duz SRT yaziliyordu).
-function replaceAssDialogueText(rawText, lineNo, newText) {
+function replaceAssDialogueText(rawText, lineNo, newText, lead) {
   const NL = '\n';
   const lines = String(rawText).split(/\r?\n/);
   if (!(lineNo >= 0) || lineNo >= lines.length) return null;
@@ -2435,15 +2518,16 @@ function replaceAssDialogueText(rawText, lineNo, newText) {
   const colon = line.indexOf(':');
   const parts = line.slice(colon + 1).split(',');
   if (parts.length < 10) return null;
-  const body = String(newText).replace(/\n/g, '\\' + 'N');
+  const body = (lead || '') + String(newText).replace(/\n/g, '\\' + 'N');
   lines[lineNo] = line.slice(0, colon + 1) + parts.slice(0, 9).join(',') + ',' + body;
   return lines.join(NL);
 }
 
-function setPlayerSource(src, title, key) {
+function setPlayerSource(src, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return;
   setMediaKey(key || src);
+  if (meta && meta.chapters) setChapters(meta.chapters);
   destroyHls();
   video.src = src;
   video.load();
@@ -2464,10 +2548,16 @@ function destroyHls() {
 
 // key: YouTube linki verilir — manifest URL'si zaman asimina ugradigi icin
 // konum hatirlamada anahtar olarak kullanilamaz.
-function setPlayerHls(manifestUrl, title, key) {
+// meta: kaynak sifirlandiktan SONRA uygulanacak probe metadatasi (bolumler vb.).
+// Eskiden bolumler probe sirasinda yukleniyor, oynatma baslayinca
+// setMediaKey -> resetMediaBoundState onlari siliyordu: kullanici bolumleri
+// goruyor, "Izle"ye basinca kayboluyorlardi.
+function setPlayerHls(manifestUrl, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return false;
   setMediaKey(key || manifestUrl);
+  if (meta && meta.chapters) setChapters(meta.chapters);
+  if (meta && meta.isLive) player.isLive = true;
   if (typeof Hls === 'undefined' || !Hls.isSupported()) {
     logLine('HLS oynatici yuklenemedi — indirerek izleyebilirsin.', 'error');
     return false;
@@ -2485,9 +2575,13 @@ function setPlayerHls(manifestUrl, title, key) {
       auto.value = 'auto';
       auto.textContent = 'Otomatik';
       sel.appendChild(auto);
+      // DEGER HER ZAMAN GERCEK YUKSEKLIK olur; HLS seviye indeksi dataset'te
+      // saklanir. Eskiden deger indeks oluyordu ve "Indir ve izle" bunu piksel
+      // yuksekligi sanip backend'e height=2 gibi bir sey gonderebiliyordu.
       hls.levels.forEach((lvl, i) => {
         const o = document.createElement('option');
-        o.value = String(i);
+        o.value = String(lvl.height);
+        o.dataset.level = String(i);
         o.textContent = `${lvl.height}p`;
         sel.appendChild(o);
       });
@@ -2496,14 +2590,55 @@ function setPlayerHls(manifestUrl, title, key) {
       hls.levels.forEach((lvl, i) => {
         if (lvl.height <= 1080 && (pick < 0 || lvl.height > hls.levels[pick].height)) pick = i;
       });
-      if (pick >= 0) { sel.value = String(pick); hls.currentLevel = pick; }
+      if (pick >= 0) {
+        sel.value = String(hls.levels[pick].height);
+        hls.currentLevel = pick;
+      }
     }
     video.play().catch(() => {});
     logLine(`Yayin basladi (indirilmedi) — ${hls.levels.length} kalite mevcut`, 'success');
   });
-  hls.on(Hls.Events.ERROR, (_e, data) => {
+  // Olumcul hatada hemen pes etme. YouTube'un HLS adresi GECICIDIR (birkac saat);
+  // suresi dolunca ag hatasi gelir. Once hls.js'in kendi kurtarmalarini dene,
+  // olmazsa ORIJINAL YouTube adresiyle yeniden probe yapip yeni adresi ayni
+  // konumdan yukle. En fazla 2 deneme, sonra indirerek izlemeyi oner.
+  hls.on(Hls.Events.ERROR, async (_e, data) => {
     if (!data || !data.fatal) return;
-    logLine(`Yayin hatasi (${data.type}) — indirerek izlemeyi deneyebilirsin.`, 'error');
+    const at = video.currentTime || 0;
+    const wasPlaying = !video.paused;
+    if (data.type === Hls.ErrorTypes.MEDIA_ERROR && player.hlsRecover < 2) {
+      player.hlsRecover++;
+      logLine('Görüntü hatası — kurtarılıyor...', 'warn');
+      try { hls.recoverMediaError(); return; } catch (_) {}
+    }
+    if (data.type === Hls.ErrorTypes.NETWORK_ERROR && player.hlsRecover < 2) {
+      player.hlsRecover++;
+      const info = player.ytInfo;
+      if (info && info.sourceUrl) {
+        logLine('Yayın bağlantısı koptu (adres zaman aşımına uğramış olabilir) — yenileniyor...', 'warn');
+        const gen = currentGeneration();
+        const res = await window.api.probeYoutube(info.sourceUrl);
+        if (staleGeneration(gen)) return;               // baska videoya gecilmis
+        if (res && res.ok && res.data && res.data.hls) {
+          const fresh = res.data;
+          fresh.sourceUrl = info.sourceUrl;
+          fresh.videoKey = info.videoKey;
+          player.ytInfo = fresh;
+          destroyHls();
+          if (setPlayerHls(fresh.hls, fresh.title, fresh.videoKey, fresh)) {
+            const resume = () => {
+              video.removeEventListener('loadedmetadata', resume);
+              if (at > 0) video.currentTime = at;
+              if (wasPlaying) video.play().catch(() => {});
+            };
+            video.addEventListener('loadedmetadata', resume);
+            logLine(`Yayın yenilendi — ${pSecToTime(at)} konumundan devam.`, 'success');
+            return;
+          }
+        }
+      }
+    }
+    logLine(`Yayın hatası (${data.type}) — indirerek izlemeyi deneyebilirsin.`, 'error');
     destroyHls();
   });
   hls.loadSource(manifestUrl);
@@ -2535,11 +2670,18 @@ async function loadSubtitle(path, secondary = false) {
     renderCue();
     return;
   }
+  const gen = currentGeneration();
   const res = await window.api.readSubtitle(path);
+  // Okuma sirasinda baska videoya gecildiyse sonucu AT (eski altyazi yenisine
+  // baglanmasin). Ayni video icinde iki altyazi hizli secilirse de gec gelen
+  // ilk okuma sonuncuyu ezmesin diye yol karsilastirilir.
+  if (staleGeneration(gen)) return;
   if (!res || !res.ok) {
     logLine(`Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
+  const selNow = secondary ? $('playerSubSelect2') : $('playerSubSelect');
+  if (selNow && selNow.value && selNow.value !== path) return;
   const cues = parseSubtitles(res.text);
   if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
   if (secondary) {
@@ -2563,7 +2705,9 @@ async function loadSubtitle(path, secondary = false) {
 // Boylece video secince altyazi zaten ekranda olur.
 async function attachSiblingSubtitles(videoPath) {
   if (!videoPath || !window.api.findSiblingSubs) return;
+  const gen = currentGeneration();
   const res = await window.api.findSiblingSubs(videoPath);
+  if (staleGeneration(gen)) return;      // bu arada baska videoya gecilmis
   const files = (res && res.files) || [];
   if (!files.length) return;
   files.forEach((f) => addSubtitleOption(f));
@@ -2578,15 +2722,23 @@ async function attachSiblingSubtitles(videoPath) {
 
 function openPlayer() {
   $('playerLayer').classList.remove('hidden');
-  // Son işin çıktılarını altyazı seçeneği olarak sun (kaynak + çeviri)
-  (state.outputFiles || []).forEach((f) => {
-    if (/\.(srt|vtt)$/i.test(f)) addSubtitleOption(f);
-  });
+  // SIRA ONEMLI: once kaynak acilir (bu, medyaya bagli durumu SIFIRLAR), sonra
+  // altyazilar iliskilendirilir. Ters sirada, az once eklenen "son isin ciktilari"
+  // hemen siliniyordu ve cikti baska klasordeyse hic gorunmuyordu.
   if (state.lastJobVideo) {
     $('playerVideoPath').textContent = state.lastJobVideo;
     setPlayerSource(pathToFileUrl(state.lastJobVideo),
-                    state.lastJobVideo.split(/[\\/]/).pop(), state.lastJobVideo);
-    attachSiblingSubtitles(state.lastJobVideo);
+                    state.lastJobVideo.split(/[\\/]/).pop(),
+                    mediaKeyFor('local', state.lastJobVideo));
+  }
+  const outputs = (state.outputFiles || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
+  outputs.forEach((f) => addSubtitleOption(f));
+  if (state.lastJobVideo) attachSiblingSubtitles(state.lastJobVideo);
+  // Isin kendi ciktisi varsa onu birincil altyaziya yukle (kardes taramasi
+  // asenkron; o da bosalti doldurmaya calisir, ikisi ayni dosyayi bulur)
+  if (outputs.length && !player.cues.length) {
+    $('playerSubSelect').value = outputs[0];
+    loadSubtitle(outputs[0]);
   }
 }
 
@@ -2612,7 +2764,10 @@ if ($('playerVideo')) {
   video.addEventListener('timeupdate', () => {
     renderCue();
     const seek = $('playerSeek');
-    if (video.duration) {
+    if (player.isLive || !isFinite(video.duration)) {
+      // Canli: toplam sure yok; gecen sureyi ve CANLI rozetini goster
+      $('playerTime').textContent = `${pSecToTime(video.currentTime)} · CANLI`;
+    } else if (video.duration) {
       seek.value = String((video.currentTime / video.duration) * 1000);
       $('playerTime').textContent = `${pSecToTime(video.currentTime)} / ${pSecToTime(video.duration)}`;
       updateSeekVisuals();
@@ -2622,6 +2777,10 @@ if ($('playerVideo')) {
   });
   video.addEventListener('progress', updateSeekVisuals);
   video.addEventListener('loadedmetadata', () => {
+    if (player.isLive || !isFinite(video.duration)) {
+      $('playerTime').textContent = '0:00 · CANLI';
+      return;
+    }
     $('playerTime').textContent = `0:00 / ${pSecToTime(video.duration)}`;
     updateSeekVisuals();
     maybeOfferResume();
@@ -2797,7 +2956,7 @@ if ($('playerPickVideo')) {
     if (!files || !files.length) return;
     const f = files[0];
     $('playerVideoPath').textContent = f;
-    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), f);
+    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), mediaKeyFor('local', f));
     attachSiblingSubtitles(f);
   });
 }
@@ -2853,22 +3012,33 @@ async function saveCueEdit() {
   if (i < 0) return closeCueEditor();
   const text = $('subtitleEditBox').value.trim();
   if (!text) { logLine('Boş altyazı kaydedilmez.', 'warn'); return; }
-  player.cues[i].text = text;
-
+  // player.cues DISKE YAZMA BASARILI OLANA KADAR degistirilmez. Eskiden once
+  // bellek guncelleniyordu; yazma hata verirse dosya eski, ekran yeni kaliyor,
+  // kullanici kaydin gectigini saniyordu (sonraki kayit da onu tasiyordu).
   // DOSYA BICIMINI KORU. Eskiden her bicim cuesToSrt ile yazilirdi: .ass dosyasina
   // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
   // WEBVTT basligini kaybediyordu.
+  const cue = player.cues[i];
   let payload;
   if (player.subFormat === 'ass') {
-    payload = replaceAssDialogueText(player.subRaw, player.cues[i].line, text);
+    payload = replaceAssDialogueText(player.subRaw, cue.line, text, cue.assLead);
     if (payload === null) {
       logLine('ASS satırı bulunamadı — dosya biçimi bozulmasın diye kaydedilmedi.', 'error');
       return;
     }
+    if (cue.assInner) {
+      logLine('Uyarı: bu satırın metin içindeki biçim etiketleri (italik vb.) kaldırıldı.', 'warn');
+    }
   } else if (player.subFormat === 'vtt') {
-    payload = cuesToVtt(player.cues);
+    payload = replaceVttCueText(player.subRaw, cue, text);
+    if (payload === null) {
+      logLine('VTT bloğu bulunamadı — dosya metadatası bozulmasın diye kaydedilmedi.', 'error');
+      return;
+    }
   } else {
-    payload = cuesToSrt(player.cues);
+    // SRT'de korunacak metadata yok; blok listesinden yeniden uretmek guvenli
+    const draft = player.cues.map((c, k) => (k === i ? { ...c, text } : c));
+    payload = cuesToSrt(draft);
   }
 
   const res = await window.api.writeSubtitle(player.subPath, payload);
@@ -2876,7 +3046,8 @@ async function saveCueEdit() {
     logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
-  if (player.subFormat === 'ass') player.subRaw = payload;   // sonraki duzenleme icin
+  player.cues[i].text = text;                 // ANCAK yazma basarili olduysa
+  if (player.subFormat !== 'srt') player.subRaw = payload;
   logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   closeCueEditor();
@@ -2949,6 +3120,11 @@ if ($('playerProbe')) {
       return;
     }
     const info = res.data;
+    // Probe sonucu HANGI adres icin alindi? Sonraki islemler URL kutusunu degil
+    // bunu kullanir; kullanici kutuyu degistirip yeniden probe yapmadan izlemeye
+    // basarsa A'nin akisini B'nin anahtariyla kaydetmis oluyorduk.
+    info.sourceUrl = url;
+    info.videoKey = mediaKeyFor('youtube', url);
     player.ytInfo = info;
     $('playerYtInfo').classList.remove('hidden');
     $('playerYtTitle').textContent = `${info.title} · ${pSecToTime(info.duration)}`;
@@ -2986,6 +3162,10 @@ if ($('playerProbe')) {
 
     // Bölümler (varsa) — zaman çubuğuna işaret, panele liste
     setChapters(info.chapters);
+    if (info.isLive) {
+      logLine('Bu bir CANLI yayın — süre ve kaldığın yer bilgisi çalışmaz, '
+        + 'altyazı için önce yayının bitmesini beklemek gerekir.', 'warn');
+    }
     if ((info.chapters || []).length) {
       logLine(`${info.chapters.length} bölüm bulundu.`, 'info');
     }
@@ -3035,10 +3215,16 @@ if ($('playerStream')) {
   $('playerStream').addEventListener('click', () => {
     const info = player.ytInfo;
     if (!info) return;
-    const ytKey = $('playerYtUrl').value.trim() || info.title;
-    if (info.hls && setPlayerHls(info.hls, info.title, ytKey)) return;
+    // URL kutusu probe'dan sonra degistiyse eski akisi yeni adresle oynatma
+    const boxUrl = $('playerYtUrl').value.trim();
+    if (boxUrl && mediaKeyFor('youtube', boxUrl) !== info.videoKey) {
+      logLine('URL değişti — önce "Bilgi al" ile yeni videoyu yükleyin.', 'warn');
+      return;
+    }
+    const ytKey = info.videoKey;
+    if (info.hls && setPlayerHls(info.hls, info.title, ytKey, info)) return;
     if (info.stream && info.stream.url) {
-      setPlayerSource(info.stream.url, info.title, ytKey);
+      setPlayerSource(info.stream.url, info.title, ytKey, info);
       logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
     }
   });
@@ -3047,18 +3233,33 @@ if ($('playerStream')) {
 // Kalite değişimi: HLS akışında anında seviye değiştir (yeniden yükleme yok)
 if ($('playerQuality')) {
   $('playerQuality').addEventListener('change', (e) => {
-    if (!player.hls) return;
+    if (!player.hls) return;                      // akis yoksa deger indirme yuksekligidir
+    const opt = e.target.selectedOptions[0];
     const v = e.target.value;
-    player.hls.currentLevel = (v === 'auto') ? -1 : parseInt(v, 10);
-    logLine(v === 'auto' ? 'Kalite: otomatik' : `Kalite: ${player.hls.levels[parseInt(v, 10)].height}p`,
-            'info');
+    if (v === 'auto') {
+      player.hls.currentLevel = -1;
+      logLine('Kalite: otomatik', 'info');
+      return;
+    }
+    const level = opt && opt.dataset.level !== undefined ? parseInt(opt.dataset.level, 10) : -1;
+    if (level >= 0) {
+      player.hls.currentLevel = level;
+      logLine(`Kalite: ${v}p`, 'info');
+    }
   });
 }
 
 if ($('playerDownload')) {
   $('playerDownload').addEventListener('click', async () => {
-    const url = $('playerYtUrl').value.trim();
+    const info = player.ytInfo;
+    const url = (info && info.sourceUrl) || $('playerYtUrl').value.trim();
     if (!url) return;
+    const boxUrl2 = $('playerYtUrl').value.trim();
+    if (info && boxUrl2 && mediaKeyFor('youtube', boxUrl2) !== info.videoKey) {
+      logLine('URL değişti — önce "Bilgi al" ile yeni videoyu yükleyin.', 'warn');
+      return;
+    }
+    // Deger her zaman gercek yukseklik (bkz. kalite secici yorumu)
     const height = parseInt($('playerQuality').value, 10) || 1080;
     const audioLang = $('playerAudioField').classList.contains('hidden')
       ? '' : $('playerAudioLang').value;
@@ -3083,7 +3284,8 @@ if ($('playerDownload')) {
     }
     const p = res.data.path;
     $('playerVideoPath').textContent = p;
-    setPlayerSource(pathToFileUrl(p), res.data.title, p);
+    setPlayerSource(pathToFileUrl(p), res.data.title, mediaKeyFor('local', p),
+                    player.ytInfo || undefined);
     logLine(`İndirildi ve oynatılıyor: ${p}`, 'success');
     attachSiblingSubtitles(p);
   });
@@ -3112,11 +3314,16 @@ if ($('playerYtSubGet')) {
     const btn = $('playerYtSubGet');
     btn.disabled = true;
     btn.textContent = 'İndiriliyor...';
+    const gen = currentGeneration();
     const res = await window.api.downloadYoutubeSubs({
       url, lang, auto: auto === '1', outputDir: state.outputDir || undefined,
     });
     btn.disabled = false;
     btn.textContent = 'Bu altyazıyı indir';
+    if (staleGeneration(gen)) {
+      logLine('Altyazı indi ama bu arada başka videoya geçildi — yüklenmedi.', 'warn');
+      return;
+    }
     if (!res || !res.ok) {
       logLine(`YouTube altyazısı alınamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
       return;

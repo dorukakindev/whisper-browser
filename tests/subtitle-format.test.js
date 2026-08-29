@@ -10,7 +10,7 @@
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf-8');
 const body = src.slice(src.indexOf('function parseAss'), src.indexOf('function setPlayerSource'));
-const F = new Function(body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText};')();
+const F = new Function(body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceVttCueText};')();
 
 const BS = String.fromCharCode(92);
 let pass = 0; const fails = [];
@@ -98,6 +98,81 @@ t('SRT yolu aynen calisiyor (regresyon)', () => {
   const out = F.cuesToSrt(cues);
   ok(out.includes('00:00:05,000 --> 00:00:07,500'), 'SRT zamani virgullu degil');
   ok(F.parseSubtitles(out).length === 2, 'tur-ici kararsiz');
+});
+
+// ---- VTT metadata korunuyor mu (cerrahi duzenleme) ----
+const VTT_RICH = [
+  'WEBVTT - Test dosyasi',
+  'Kind: captions',
+  'Language: tr',
+  '',
+  'STYLE',
+  '::cue { color: yellow; }',
+  '',
+  'REGION',
+  'id:r1 width:40%',
+  '',
+  'NOTE Bu bir yorum satiri',
+  '',
+  'cue-1',
+  '00:00:05.000 --> 00:00:07.500 align:start position:10%',
+  'Birinci satir.',
+  '',
+  'cue-2',
+  '00:00:08.000 --> 00:00:09.250',
+  'Ikinci satir.',
+  'Devami.',
+  '',
+].join('\n');
+
+t('VTT duzenleme STYLE/REGION/NOTE/cue ayarlarini korur', () => {
+  const cues = F.parseSubtitles(VTT_RICH);
+  ok(cues.length === 2, 'blok sayisi ' + cues.length);
+  const out = F.replaceVttCueText(VTT_RICH, cues[1], 'Duzeltilmis metin');
+  ok(out !== null, 'null dondu');
+  ok(out.startsWith('WEBVTT - Test dosyasi'), 'baslik metadatasi kayboldu');
+  ok(out.includes('Kind: captions') && out.includes('Language: tr'), 'header kayboldu');
+  ok(out.includes('STYLE') && out.includes('::cue { color: yellow; }'), 'STYLE kayboldu');
+  ok(out.includes('REGION') && out.includes('id:r1 width:40%'), 'REGION kayboldu');
+  ok(out.includes('NOTE Bu bir yorum satiri'), 'NOTE kayboldu');
+  ok(out.includes('cue-1') && out.includes('cue-2'), 'cue kimlikleri kayboldu');
+  ok(out.includes('align:start position:10%'), 'cue ayarlari kayboldu');
+  ok(out.includes('Duzeltilmis metin'), 'yeni metin yok');
+  ok(!out.includes('Ikinci satir.') && !out.includes('Devami.'), 'eski metin kalmis');
+  ok(out.includes('Birinci satir.'), 'diger blok bozuldu');
+});
+
+t('VTT: eslesmeyen blokta null (dosya bozulmaz)', () => {
+  ok(F.replaceVttCueText(VTT_RICH, { start: 99, end: 100 }, 'x') === null, 'eslesmemeliydi');
+});
+
+// ---- ASS satir ici etiketler ----
+t('ASS: bastaki konum/stil etiketi duzenlemede KORUNUR', () => {
+  const cues = F.parseSubtitles(ASS);
+  const c = cues[1];                       // {\pos(960,100)} ile baslayan satir
+  ok(c.assLead.includes('pos('), 'lead yakalanmadi: ' + c.assLead);
+  const out = F.replaceAssDialogueText(ASS, c.line, 'Yeni metin', c.assLead);
+  const line = out.split('\n').find((l) => l.includes('Yeni metin'));
+  ok(line.includes('pos(960,100)'), 'konum etiketi kayboldu: ' + line);
+});
+
+t('ASS: metin ICINDEKI etiket isaretlenir (uyari icin)', () => {
+  const cues = F.parseSubtitles(ASS);
+  ok(cues[0].assInner === true, 'ic etiket tespit edilmedi');   // {\i1}Egik{\i0} ...
+  ok(cues[2].assInner === false, 'yanlis tespit');              // duz metin
+});
+
+// ---- ms yuvarlama tasmasi ----
+t('ms yuvarlamasi 1000 uretmez (tasma)', () => {
+  const bad = [{ start: 1.9996, end: 2.9999, text: 'x' }];
+  const srt = F.cuesToSrt(bad);
+  ok(!/,1000/.test(srt), 'SRT tasmasi: ' + srt.split('\n')[1]);
+  ok(srt.includes('00:00:02,000 --> 00:00:03,000'), 'SRT yanlis: ' + srt.split('\n')[1]);
+  const vtt = F.cuesToVtt(bad);
+  ok(!/\.1000/.test(vtt), 'VTT tasmasi');
+  ok(vtt.includes('00:00:02.000 --> 00:00:03.000'), 'VTT yanlis');
+  const edge = F.cuesToSrt([{ start: 59.9999, end: 3599.9999, text: 'x' }]);
+  ok(edge.includes('00:01:00,000 --> 01:00:00,000'), 'sinir tasmasi: ' + edge.split('\n')[1]);
 });
 
 console.log(`\n${pass} geçti, ${fails.length} başarısız (${pass + fails.length} test)`);

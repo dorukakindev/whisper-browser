@@ -139,6 +139,8 @@ def probe(url):
         "probe",
         title=info.get("title") or "",
         hls=hls_url,
+        isLive=bool(info.get("is_live")),
+        liveStatus=info.get("live_status") or "",
         chapters=chapters,
         subtitleLangs=sub_langs,
         duration=info.get("duration") or 0,
