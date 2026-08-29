@@ -629,6 +629,52 @@ def test_translate_returns_list_on_success():
     assert [(s, e) for s, e, _ in out] == [(s, e) for s, e, _ in ENTRIES]
 
 
+def test_translate_partial_response_counts_as_failed():
+    """Model 3 blok istenip 1 tanesini dondurse: kalan 2 blok BASARISIZ sayilmali.
+
+    Eskiden parca uzunlugu dondugu icin ilerleme 3/3, failed=0 ve "Ceviri
+    tamamlandi" yaziliyordu; hedef dosyada kaynak dilde kalan satirlar icin
+    hicbir uyari uretilmiyordu.
+    """
+    import sys, types, importlib.machinery, json
+
+    entries = [(0.0, 2.0, "One."), (2.0, 4.0, "Two."), (4.0, 6.0, "Three.")]
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        first = payload["items"][0]
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(
+                content=json.dumps({str(first["i"]): "[TR] " + first["t"]})))])
+
+    class _Partial:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Partial
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    try:
+        warns = []
+        out = T.llm_translate(entries, _TrArgs(), warns, source_lang="en")
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+
+    assert out is not None and len(out) == 3
+    assert out[0][2].startswith("[TR] "), out[0]
+    # gelmeyen bloklar KAYNAK metin olarak kalir ...
+    assert out[1][2] == "Two." and out[2][2] == "Three."
+    # ... ama sessizce degil: uyari uretilmeli
+    assert any("cevrilemedi" in w for w in warns), warns
+    assert any("2/3" in w for w in warns), warns
+
+
 def test_build_translate_prompt():
     p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
                                  register="documentary", profanity="explicit",

@@ -5,7 +5,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "test": "node tests/run-all.js"
   },
   "author": "Whisper Altyazı",
   "license": "MIT",

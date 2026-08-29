@@ -2325,14 +2325,25 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
             filled += 1
         if filled == 0:
             raise RuntimeError("Yanitta hicbir blok eslesmedi")
-        return ci_end - ci_start
+        # GERCEKTEN dolan blok sayisi doner (parca uzunlugu DEGIL). Model 20 blok
+        # istenip yalnizca birkacini dondurdugunde geri kalanlar sessizce KAYNAK
+        # metin olarak kaliyordu; eskiden parca uzunlugu dondugu icin ilerleme
+        # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
+        return filled
 
     with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
         futures = {ex.submit(task, ch): ch for ch in chunks}
         for fut in as_completed(futures):
             ch = futures[fut]
             try:
-                counters["done"] += fut.result()
+                got = fut.result()
+                counters["done"] += got
+                # Yanitta gelmeyen bloklar da BASARISIZ sayilir (kaynak metin kaldi)
+                missing = (ch[1] - ch[0]) - got
+                if missing > 0:
+                    counters["failed"] += missing
+                    log("Ceviri {}-{}: {} blok yanitta yoktu - o bloklarda orijinal "
+                        "metin kaldi.".format(ch[0], ch[1], missing), "warn")
             except Exception as e:
                 counters["failed"] += (ch[1] - ch[0])
                 log("Ceviri {}-{} hatasi: {}".format(ch[0], ch[1], e), "warn")
@@ -3624,12 +3635,26 @@ def transcribe(args):
             try:
                 # None doner = ceviri hic yapilamadi; bu durumda ceviri dosyasi
                 # YAZILMAZ ve kaynak dosyalar her halukarda yazilir (asagida).
-                translated = llm_translate(entries, args, warn_list, source_lang=info.language)
+                # task=translate ise Whisper metni zaten INGILIZCE uretti; kaynak
+                # dil olarak konusmanin ozgun dilini vermek modele celiskili
+                # talimat olurdu ("metin Ingilizce, kaynak dil Ispanyolca").
+                tr_source = "en" if args.task == "translate" else info.language
+                translated = llm_translate(entries, args, warn_list, source_lang=tr_source)
             except Exception as e:
                 log(f"Ceviri basarisiz: {e}", "warn")
                 warn_list.append(f"Ceviri yapilamadi: {e}")
         # Yalnizca ceviri istendiginde kaynak dosyalari yazma (ceviri gercekten olustuysa)
         write_source = args.translate_keep_source or not translated
+        # JSON ciktisinda ceviri YAZILMAZ (kelime damgalari kaynak metne ait).
+        # Kullanici yalnizca JSON secip "kaynagi koru"yu kapatirsa hicbir dosya
+        # olusmuyordu ve is yine de basarili bitiyordu - kaynagi yine de yaz.
+        if translated and not write_source and all(
+                f.strip().lower() == "json" for f in formats):
+            write_source = True
+            log("Yalnizca JSON secili - ceviri JSON'a yazilmadigi icin kaynak JSON "
+                "yazildi (aksi halde hic cikti olusmazdi).", "warn")
+            warn_list.append("Yalnizca JSON secili oldugundan ceviri dosyasi olusmadi; "
+                             "kaynak JSON yazildi. Ceviri icin srt/vtt/ass da secin.")
         tgt_suffix = f".{(args.translate_to or 'tr').lower()}"
 
         for fmt in formats:
@@ -3666,6 +3691,12 @@ def transcribe(args):
                 if fmt == "json":
                     continue
                 tr_path = output_dir / f"{base_name}{tgt_suffix}.{fmt}"
+                # Kaynak dil = hedef dil ise (ve dil eki aciksa) iki yol AYNI olur;
+                # ceviri kaynagin uzerine yazardi. Ayirt edici ek koy.
+                if write_source and tr_path == out_path:
+                    tr_path = output_dir / f"{base_name}{tgt_suffix}.ceviri.{fmt}"
+                    log(f"Kaynak ve ceviri ayni ada denk geldi - ceviri {tr_path.name} "
+                        f"olarak yazildi.", "warn")
                 if _write(translated, tr_path, (args.translate_to or "tr").lower()):
                     output_files.append(str(tr_path))
                     log(f"Çeviri yazıldı: {tr_path}")

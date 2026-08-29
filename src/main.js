@@ -391,16 +391,28 @@ ipcMain.handle('watch:stop', async () => {
   return { ok: true };
 });
 
+// Altyazi dosyasina yazmadan once BIR KEZ .bak alinir; yazma atomiktir
+// (once .tmp, sonra rename) - yazma sirasinda cokme olursa dosya yarim kalmaz.
+function backupOnce(filePath) {
+  const bak = filePath + '.bak';
+  if (!fs.existsSync(bak) && fs.existsSync(filePath)) fs.copyFileSync(filePath, bak);
+  return bak;
+}
+
+function writeSubtitleAtomic(filePath, text) {
+  // SRT/ASS çıktılarımız BOM'lu (Windows oynatıcıları için) — aynı biçimi koru
+  const data = '\uFEFF' + String(text).replace(/^\uFEFF/, '');
+  const tmp = filePath + '.tmp';
+  fs.writeFileSync(tmp, data, 'utf-8');
+  fs.renameSync(tmp, filePath);
+}
+
 ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
   const { path: filePath, text } = payload || {};
   if (!filePath || typeof text !== 'string') return { ok: false, error: 'Eksik parametre' };
   try {
-    const bak = filePath + '.bak';
-    if (!fs.existsSync(bak) && fs.existsSync(filePath)) {
-      fs.copyFileSync(filePath, bak);
-    }
-    // SRT/ASS çıktılarımız BOM'lu (Windows oynatıcıları için) — aynı biçimi koru
-    fs.writeFileSync(filePath, '\uFEFF' + text.replace(/^\uFEFF/, ''), 'utf-8');
+    const bak = backupOnce(filePath);
+    writeSubtitleAtomic(filePath, text);
     return { ok: true, backup: bak };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -887,10 +899,13 @@ ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
     return { ok: false, error: 'Zaman kaydırma yalnızca SRT/VTT için destekleniyor.' };
   }
   try {
-    const raw = fs.readFileSync(filePath, 'utf-8');         // BOM dahil okunur
+    // KODLAMA TESPITI ile oku. Duz 'utf-8' okumak eski cp1254 Turkce altyazilarda
+    // s/g/i harflerini U+FFFD'ye cevirip dosyaya GERI YAZIYORDU - kalici bozulma.
+    const { text: raw, note } = decodeSubtitleBuffer(fs.readFileSync(filePath));
     const shifted = shiftTimecodes(raw, offsetSec);
-    fs.writeFileSync(filePath, shifted, 'utf-8');
-    return { ok: true };
+    const bak = backupOnce(filePath);
+    writeSubtitleAtomic(filePath, shifted);
+    return { ok: true, backup: bak, note };
   } catch (err) {
     return { ok: false, error: err.message };
   }

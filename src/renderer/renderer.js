@@ -113,14 +113,45 @@ function buildOptsFromUI() {
   };
 }
 
+// Tekil baslatma ve KUYRUK ayni on kontrollerden gecer. Eskiden kuyruk
+// dogrudan buildOptsFromUI() ile ekliyordu; anahtarsiz ceviri/LLM/diarization
+// veya gecersiz kirpma araligiyla is eklenebiliyor, kullanici sorunu ancak
+// gunlukten anliyordu.
+function optsProblem(opts) {
+  const a = parseClipInput(opts.clipStart);
+  const b = parseClipInput(opts.clipEnd);
+  if (Number.isNaN(a) || Number.isNaN(b)) {
+    return 'Zaman aralığı biçimi geçersiz. Örnek: 90 · 1:30 · 01:02:03';
+  }
+  if (a !== null && b !== null && b <= a) {
+    return 'Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.';
+  }
+  if (opts.translate && !opts.translateApiKey) {
+    return 'Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → Çeviri → API Key.';
+  }
+  if (opts.diarize && !opts.hfToken) {
+    return 'Konuşmacı tanıma açık ama HuggingFace token girilmemiş.';
+  }
+  if (opts.llmPostprocess && !opts.llmApiKey) {
+    return 'LLM düzeltme açık ama API anahtarı girilmemiş.';
+  }
+  return null;
+}
+
 function addToQueue(type, input) {
   if (!input) return;
+  const opts = buildOptsFromUI();
+  const problem = optsProblem(opts);
+  if (problem) {
+    logLine(`Kuyruğa eklenmedi — ${problem}`, 'error');
+    return;
+  }
   const id = ++_queueIdCounter;
   const label = type === 'youtube'
     ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
     : input.split(/[\\/]/).pop();
   // Ayarları EKLEME anında dondur: kuyruk işlenirken UI değişse bile bu iş eski ayarı kullanır
-  state.queue.push({ id, type, input, label, status: 'pending', files: [], opts: buildOptsFromUI() });
+  state.queue.push({ id, type, input, label, status: 'pending', files: [], opts });
   renderQueue();
 }
 
@@ -1376,17 +1407,9 @@ $('startBtn').addEventListener('click', async () => {
 
   const opts = buildOptsFromUI();
 
-  // Zaman aralığı geçerli mi? (sessizce yanlış aralıkla çevirmektense burada dur)
-  const clipA = parseClipInput(opts.clipStart);
-  const clipB = parseClipInput(opts.clipEnd);
-  if (Number.isNaN(clipA) || Number.isNaN(clipB)) {
-    logLine('Zaman aralığı biçimi geçersiz. Örnek: 90 · 1:30 · 01:02:03', 'error');
-    return;
-  }
-  if (clipA !== null && clipB !== null && clipB <= clipA) {
-    logLine('Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.', 'error');
-    return;
-  }
+  // On kontroller kuyrukla AYNI fonksiyondan gecer (ikisi ayrismasin diye)
+  const problem = optsProblem(opts);
+  if (problem) { logLine(problem, 'error'); return; }
 
   if (state.source === 'youtube') {
     const url = $('youtubeUrl').value.trim();
@@ -1403,24 +1426,6 @@ $('startBtn').addEventListener('click', async () => {
     }
     opts.input = state.inputFile;
     state.lastJobVideo = state.inputFile;
-  }
-
-  // Çeviri açıksa API anahtarı zorunlu (yoksa iş boşuna çalışıp çevirisiz biter)
-  if (opts.translate && !opts.translateApiKey) {
-    logLine('Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → 🌍 Çeviri → API Key alanını doldurun.', 'error');
-    return;
-  }
-
-  // Diarization seçilmişse HF token kontrolü
-  if (opts.diarize && !opts.hfToken) {
-    logLine('Konuşmacı tanıma açık ama HuggingFace token girilmemiş. Gelişmiş ayarlar → Konuşmacı tanıma → Token alanını doldurun.', 'error');
-    return;
-  }
-
-  // LLM açıksa API key kontrolü
-  if (opts.llmPostprocess && !opts.llmApiKey) {
-    logLine('LLM düzeltme açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → 🤖 LLM ile düzeltme → API Key.', 'error');
-    return;
   }
 
   // Reset UI
@@ -1977,7 +1982,9 @@ const player = {
   activeIdx2: -1,
   offset: 0,         // altyazı gecikmesi (sn)
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
-  subPath: '',       // düzenleme kaydederken yazılacak dosya
+  subPath: '',       // duzenleme kaydederken yazilacak dosya
+  subFormat: 'srt',  // 'srt' | 'vtt' | 'ass' - kaydederken AYNI bicim korunur
+  subRaw: '',        // dosyanin ham metni (ASS'te cerrahi duzenleme icin)
   editing: false,
   autoPause: false,
   pausedAt: -1,
@@ -2005,12 +2012,15 @@ function pSecToTime(sec) {
 // zaman ve metin alınır; {\...} biçim etiketleri ve \N satır sonu çevrilir.
 function parseAss(text) {
   const out = [];
+  const srcLines = String(text).split(/\r?\n/);
+  let lineNo = -1;
   const toSec = (t) => {
     const m = String(t).trim().match(/(\d+):(\d{2}):(\d{2})[.,](\d{1,3})/);
     if (!m) return null;
     return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (m[4].length === 2 ? 100 : 1000);
   };
-  for (const line of String(text).split(/\r?\n/)) {
+  for (const line of srcLines) {
+    lineNo++;
     if (!/^Dialogue\s*:/i.test(line)) continue;
     // Dialogue: Layer,Start,End,Style,Name,ML,MR,MV,Effect,Text  (metin virgül içerebilir)
     const parts = line.slice(line.indexOf(':') + 1).split(',');
@@ -2023,7 +2033,9 @@ function parseAss(text) {
       .replace(/\\[Nn]/g, '\n')        // ASS satır sonu
       .replace(/\\h/g, ' ')
       .trim();
-    if (body) out.push({ start, end, text: body });
+    // line: kaynak dosyadaki satir numarasi - duzenleme kaydinda O satirin metin
+    // alani degistirilir, dosyanin geri kalanina (stiller, konumlar) dokunulmaz.
+    if (body) out.push({ start, end, text: body, line: lineNo });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -2356,6 +2368,8 @@ function resetMediaBoundState() {
   player.activeIdx = -1;
   player.activeIdx2 = -1;
   player.subPath = '';
+  player.subRaw = '';
+  player.subFormat = 'srt';
   player.pausedAt = -1;
   player.chapters = [];
 
@@ -2389,6 +2403,41 @@ function setMediaKey(key) {
   player.resumeOffered = false;
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
   resetMediaBoundState();
+}
+
+// VTT yazici — SRT'den farki: WEBVTT basligi ve ms ayraci olarak nokta.
+// (Eskiden .vtt duzenleyince dosyaya SRT yaziliyor, WEBVTT basligi kayboluyordu.)
+function cuesToVtt(cues) {
+  const NL = '\n';
+  const fmt = (sec) => {
+    const total = Math.max(0, sec);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s2 = Math.floor(total % 60);
+    const ms = Math.round((total % 1) * 1000);
+    const p = (x, w = 2) => String(x).padStart(w, '0');
+    return `${p(h)}:${p(m)}:${p(s2)}.${p(ms, 3)}`;
+  };
+  return 'WEBVTT' + NL + NL
+    + cues.map((c) => `${fmt(c.start)} --> ${fmt(c.end)}${NL}${c.text}${NL}`).join(NL);
+}
+
+// ASS/SSA: dosyayi yeniden URETMEK yerine ilgili Dialogue satirinin METIN alanini
+// degistiririz. Yeniden uretim stilleri, konumlari, efektleri ve konusmaci
+// adlarini yok ederdi (eskiden .ass dosyasina duz SRT yaziliyordu).
+function replaceAssDialogueText(rawText, lineNo, newText) {
+  const NL = '\n';
+  const lines = String(rawText).split(/\r?\n/);
+  if (!(lineNo >= 0) || lineNo >= lines.length) return null;
+  const line = lines[lineNo];
+  if (!/^Dialogue\s*:/i.test(line)) return null;
+  // "Dialogue:" sonrasi ilk 9 alan korunur, 10.'su (Text) degistirilir
+  const colon = line.indexOf(':');
+  const parts = line.slice(colon + 1).split(',');
+  if (parts.length < 10) return null;
+  const body = String(newText).replace(/\n/g, '\\' + 'N');
+  lines[lineNo] = line.slice(0, colon + 1) + parts.slice(0, 9).join(',') + ',' + body;
+  return lines.join(NL);
 }
 
 function setPlayerSource(src, title, key) {
@@ -2500,6 +2549,9 @@ async function loadSubtitle(path, secondary = false) {
     player.cues = cues;
     player.activeIdx = -1;
     player.subPath = path;
+    player.subRaw = res.text;
+    player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
+                     : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
   }
   renderCue();
@@ -2802,11 +2854,29 @@ async function saveCueEdit() {
   const text = $('subtitleEditBox').value.trim();
   if (!text) { logLine('Boş altyazı kaydedilmez.', 'warn'); return; }
   player.cues[i].text = text;
-  const res = await window.api.writeSubtitle(player.subPath, cuesToSrt(player.cues));
+
+  // DOSYA BICIMINI KORU. Eskiden her bicim cuesToSrt ile yazilirdi: .ass dosyasina
+  // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
+  // WEBVTT basligini kaybediyordu.
+  let payload;
+  if (player.subFormat === 'ass') {
+    payload = replaceAssDialogueText(player.subRaw, player.cues[i].line, text);
+    if (payload === null) {
+      logLine('ASS satırı bulunamadı — dosya biçimi bozulmasın diye kaydedilmedi.', 'error');
+      return;
+    }
+  } else if (player.subFormat === 'vtt') {
+    payload = cuesToVtt(player.cues);
+  } else {
+    payload = cuesToSrt(player.cues);
+  }
+
+  const res = await window.api.writeSubtitle(player.subPath, payload);
   if (!res || !res.ok) {
     logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
+  if (player.subFormat === 'ass') player.subRaw = payload;   // sonraki duzenleme icin
   logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   closeCueEditor();
@@ -2853,9 +2923,14 @@ if ($('subOffset')) {
     $('subOffsetVal').textContent = player.offset.toFixed(1);
     player.activeIdx = -1;
     renderCue();
-    // Dosyaya işleme yalnızca gerçekten bir gecikme varken anlamlı
+    // Dosyaya isleme yalnizca gercekten bir gecikme varken VE dosya SRT/VTT iken
+    // anlamli - backend ASS/SSA kaydirmayi kabul etmiyor (dugme gorunup hata
+    // vermesin diye burada gizlenir).
     const btn = $('applyOffsetToFile');
-    if (btn) btn.classList.toggle('hidden', !player.offset || !player.subPath);
+    if (btn) {
+      const shiftable = player.subFormat === 'srt' || player.subFormat === 'vtt';
+      btn.classList.toggle('hidden', !player.offset || !player.subPath || !shiftable);
+    }
   });
 }
 
