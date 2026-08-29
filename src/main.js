@@ -780,6 +780,15 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     args.push('--llm-postprocess', 'true');
     // llmApiKey argv yerine ortam değişkeniyle geçer (aşağıda)
     if (options.llmBaseUrl) args.push('--llm-base-url', options.llmBaseUrl);
+  // Çeviri (API anahtarı argv'de DEĞİL, ortam değişkeninde geçer)
+  args.push('--translate', options.translate ? 'true' : 'false');
+  if (options.translateTo) args.push('--translate-to', options.translateTo);
+  if (options.translateBaseUrl) args.push('--translate-base-url', options.translateBaseUrl);
+  if (options.translateModel) args.push('--translate-model', options.translateModel);
+  if (options.translateWorkers) args.push('--translate-workers', String(options.translateWorkers));
+  if (options.translateRegister) args.push('--translate-register', options.translateRegister);
+  if (options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
+  args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
     if (options.llmModel) args.push('--llm-model', options.llmModel);
     if (options.llmWorkers) args.push('--llm-workers', String(options.llmWorkers));
     args.push('--llm-fix-censorship', options.llmFixCensorship !== false ? 'true' : 'false');
@@ -792,6 +801,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Gizli anahtarları argv yerine ortam değişkeniyle geçir (process listesinde görünmesin)
   if (options.diarize && options.hfToken) env.WHISPER_HF_TOKEN = options.hfToken;
   if (options.llmPostprocess && options.llmApiKey) env.WHISPER_LLM_API_KEY = options.llmApiKey;
+  if (options.translate && options.translateApiKey) env.WHISPER_TRANSLATE_API_KEY = options.translateApiKey;
 
   startJobLog(options.youtube || options.input || 'is', args);
 

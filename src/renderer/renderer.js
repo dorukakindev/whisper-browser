@@ -84,6 +84,17 @@ function buildOptsFromUI() {
     labelSpeakers: $('labelSpeakers').checked,
     llmPostprocess: $('llmPostprocess').checked,
     llmApiKey: $('llmApiKey').value.trim(),
+    translate: $('translate').checked,
+    translateTo: $('translateTo').value,
+    translateApiKey: $('translateApiKey').value.trim(),
+    translateBaseUrl: $('translateEndpointPreset').value === 'custom'
+      ? $('translateBaseUrl').value.trim()
+      : $('translateEndpointPreset').value,
+    translateModel: $('translateModel').value.trim(),
+    translateWorkers: parseInt($('translateWorkers').value, 10),
+    translateRegister: $('translateRegister').value,
+    translateProfanity: $('translateProfanity').value,
+    translateKeepSource: $('translateKeepSource').checked,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
       ? $('llmBaseUrl').value.trim()
       : $('llmEndpointPreset').value,
@@ -840,6 +851,7 @@ const ranges = [
   ['timingGap', 'timingGapVal'],
   ['incompleteGap', 'incompleteGapVal'],
   ['llmWorkers', 'llmWorkersVal'],
+  ['translateWorkers', 'translateWorkersVal'],
 ];
 
 
@@ -952,6 +964,12 @@ async function saveAppSettings() {
     hfToken: $('hfToken').value.trim(),
     outputDir: state.outputDir || '',
     preset: $('presetSelect').value,
+    translate: {
+      apiKey: $('translateApiKey') ? $('translateApiKey').value.trim() : '',
+      endpointPreset: $('translateEndpointPreset') ? $('translateEndpointPreset').value : '',
+      customBaseUrl: $('translateBaseUrl') ? $('translateBaseUrl').value.trim() : '',
+      model: $('translateModel') ? $('translateModel').value.trim() : '',
+    },
     llm: {
       apiKey: $('llmApiKey') ? $('llmApiKey').value.trim() : '',
       endpointPreset: $('llmEndpointPreset') ? $('llmEndpointPreset').value : '',
@@ -971,11 +989,14 @@ const PERSIST_VALUE_CONTROLS = [
   'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
+  'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
+  'translateRegister', 'translateProfanity', 'translateBaseUrl',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
+  'translate', 'translateKeepSource',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
 ];
@@ -1133,6 +1154,28 @@ if ($('llmEndpointPreset')) {
     saveAppSettings();
   });
 }
+
+// Çeviri endpoint preset'i: "custom" seçilince özel URL alanı görünür
+function updateTranslateEndpointUI() {
+  const preset = $('translateEndpointPreset');
+  const customField = $('translateCustomUrlField');
+  if (!preset || !customField) return;
+  customField.classList.toggle('hidden', preset.value !== 'custom');
+}
+
+if ($('translateEndpointPreset')) {
+  $('translateEndpointPreset').addEventListener('change', () => {
+    updateTranslateEndpointUI();
+    saveAppSettings();
+  });
+  updateTranslateEndpointUI();
+}
+
+// API anahtarı yazılınca kaydet (gizli alanlar PERSIST listesinde değil)
+['translateApiKey'].forEach((id) => {
+  const el = $(id);
+  if (el) el.addEventListener('change', saveAppSettings);
+});
 ['llmApiKey', 'llmBaseUrl', 'llmModel'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('change', saveAppSettings);
@@ -1156,6 +1199,17 @@ if ($('deepseekKeyHelp')) {
       if (s.outputDir) {
         state.outputDir = s.outputDir;
         $('outputDir').textContent = s.outputDir;
+      }
+      if (s.translate) {
+        if (s.translate.apiKey && $('translateApiKey')) $('translateApiKey').value = s.translate.apiKey;
+        if (s.translate.endpointPreset && $('translateEndpointPreset')) {
+          $('translateEndpointPreset').value = s.translate.endpointPreset;
+        }
+        if (s.translate.customBaseUrl && $('translateBaseUrl')) {
+          $('translateBaseUrl').value = s.translate.customBaseUrl;
+        }
+        if (s.translate.model && $('translateModel')) $('translateModel').value = s.translate.model;
+        updateTranslateEndpointUI();
       }
       if (s.llm) {
         if (s.llm.apiKey && $('llmApiKey')) $('llmApiKey').value = s.llm.apiKey;
@@ -1282,6 +1336,12 @@ $('startBtn').addEventListener('click', async () => {
     }
     opts.input = state.inputFile;
     state.lastJobVideo = state.inputFile;
+  }
+
+  // Çeviri açıksa API anahtarı zorunlu (yoksa iş boşuna çalışıp çevirisiz biter)
+  if (opts.translate && !opts.translateApiKey) {
+    logLine('Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → 🌍 Çeviri → API Key alanını doldurun.', 'error');
+    return;
   }
 
   // Diarization seçilmişse HF token kontrolü

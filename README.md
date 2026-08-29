@@ -24,6 +24,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Zaman aralığı (kırpma)** — Kaynak kartındaki iki alanla videonun yalnızca bir bölümünü işle (örn. `1:30`–`5:00` veya saniye olarak `90`); seçili süre anında gösterilir, geçersiz aralık başlamadan uyarır. Zaman damgaları orijinal videoya göre hizalanır — uzun videoda ayar denemek için ideal. YouTube'da iki sınır da verilirse **yalnızca o aralık indirilir** (tüm videoyu indirmez)
 - **Önizlemede arama** — canlı önizlemedeki segmentlerde anlık metin filtresi
 - **Tek tıkla yt-dlp güncelleme** — YouTube indirme hatalarının başlıca çözümü, uygulama içinden
+- **Çeviri (uygulama içinde)** — altyazıyı hedef dile çevirir; kaynak dosya korunur, çeviri `<ad>.tr.srt` olarak ayrı yazılır. Bloklar ve zaman damgaları birebir aynı kalır (blok eklenmez/silinmez). Anlam-öncelikli çeviri, blok süresine göre karakter bütçesi (CPS), sözlükteki özel isimlerin korunması, içerik türüne göre üslup (belgesel/dram/komedi/aksiyon) ve küfür seviyesi seçimi. **shuaiapi** rotaları hazır tanımlı — biri tıkanırsa diğerine otomatik geçer; OpenAI/DeepSeek/OpenRouter veya özel endpoint de kullanılabilir
 - **LLM düzeltmede sözlük desteği** — sözlükteki özel isimler LLM'e de iletilir, yanlış duyulmuş yazımlar düzeltilir
 - **Hazır ayar profilleri** — ⚡ Hızlı (turbo+batched), ⚖️ Dengeli (turbo), 💎 En iyi kalite (large-v3) tek tıkla; elle değişiklik yapınca "Özel"e döner
 - **Ayarlar otomatik kaydedilir** — model, dil, çıktı klasörü, profil ve gelişmiş ayarlar bir sonraki açılışta geri yüklenir

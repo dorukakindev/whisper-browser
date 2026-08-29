@@ -496,6 +496,90 @@
           <!-- LLM POST-PROCESSING -->
           <details class="advanced">
             <summary>
+              <span>🌍 Çeviri (altyazıyı başka dile çevir)</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="settings-grid">
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="translate" />
+                <span>Altyazıyı çevir (kaynak dildeki dosya korunur, çeviri ayrı dosyaya yazılır)</span>
+              </label>
+              <label class="field">
+                <span class="field-label">Hedef dil</span>
+                <select id="translateTo">
+                  <option value="tr" selected>Türkçe</option>
+                  <option value="en">İngilizce</option>
+                  <option value="de">Almanca</option>
+                  <option value="fr">Fransızca</option>
+                  <option value="es">İspanyolca</option>
+                  <option value="it">İtalyanca</option>
+                  <option value="ru">Rusça</option>
+                  <option value="ar">Arapça</option>
+                  <option value="az">Azerbaycan Türkçesi</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">İçerik türü (üslup)</span>
+                <select id="translateRegister">
+                  <option value="documentary" selected>Belgesel / anlatım</option>
+                  <option value="drama">Dram</option>
+                  <option value="comedy">Komedi</option>
+                  <option value="action">Aksiyon</option>
+                  <option value="general">Genel</option>
+                </select>
+              </label>
+              <label class="field field-full">
+                <span class="field-label">API Key (shuaiapi / OpenAI uyumlu)</span>
+                <input type="password" id="translateApiKey" placeholder="sk-..." autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Endpoint (rota)</span>
+                <select id="translateEndpointPreset">
+                  <option value="https://api.shuaiapi.com/v1" selected>shuaiapi · CF optimize</option>
+                  <option value="https://oai.sb/v1">shuaiapi · Global</option>
+                  <option value="https://api.oai.sb/v1">shuaiapi · Asya Pasifik CDN 2</option>
+                  <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
+                  <option value="https://api.openai.com/v1">OpenAI</option>
+                  <option value="https://api.deepseek.com">DeepSeek</option>
+                  <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+                  <option value="custom">Özel...</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Model</span>
+                <input type="text" id="translateModel" value="gpt-4.1-mini" placeholder="gpt-4.1-mini" />
+              </label>
+              <label class="field field-full hidden" id="translateCustomUrlField">
+                <span class="field-label">Özel endpoint URL</span>
+                <input type="text" id="translateBaseUrl" placeholder="https://api.example.com/v1" />
+              </label>
+              <label class="field">
+                <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">4</span></span>
+                <input type="range" id="translateWorkers" min="1" max="10" step="1" value="4" />
+              </label>
+              <label class="field">
+                <span class="field-label">Küfür/argo</span>
+                <select id="translateProfanity">
+                  <option value="soft">Yumuşat</option>
+                  <option value="medium" selected>Orijinal şiddetinde</option>
+                  <option value="explicit">Sansürsüz</option>
+                </select>
+              </label>
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="translateKeepSource" checked />
+                <span>Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)</span>
+              </label>
+              <div class="hint field-full">
+                shuaiapi rotalarından biri seçiliyse, bir rota tıkanırsa diğerlerine otomatik geçilir.
+                Sözlükteki özel isimler çeviride de korunur. Çeviri dosyası <code>&lt;ad&gt;.tr.srt</code> olarak yazılır.
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
+          <details class="advanced">
+            <summary>
               <span>🤖 LLM ile düzeltme (DeepSeek/OpenAI)</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>

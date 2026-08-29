@@ -244,6 +244,33 @@ def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "He met Mrs. Dolly")]) == 0.0
 
 
+# ===== çeviri =====
+def test_resolve_translate_routes():
+    # shuaiapi rotası verilirse dördü de denenir, verilen ilk sırada
+    r = T.resolve_translate_routes("https://oai.sb/v1")
+    assert r[0] == "https://oai.sb/v1" and len(r) == 4
+    assert "https://api.shuaiapi.com/v1" in r
+    # başka sağlayıcıda yedekleme yok (tek endpoint)
+    assert T.resolve_translate_routes("https://api.deepseek.com") == ["https://api.deepseek.com"]
+    # boşsa varsayılan rota
+    assert T.resolve_translate_routes("") == [T.SHUAI_ROUTES[0][1]]
+
+
+def test_build_translate_prompt():
+    p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
+                                 register="documentary", profanity="explicit",
+                                 max_cps=21, max_line_width=42)
+    assert "Sanhuber, Osterreich" in p          # sözlük prompta giriyor
+    assert "21 karakter/saniye" in p            # CPS bütçesi
+    assert "GUVENILMEZ" in p                    # prompt injection koruması
+    assert "YER DEGISTIRME" in p                # blok hizası kuralı
+    # üslup ve küfür seçimi prompta yansır
+    assert "Anlatici cumleleri" in p
+    assert "sansursuz" in p.lower()
+    soft = T.build_translate_prompt("tr", "en", [], profanity="soft")
+    assert "yumusat" in soft.lower() and "sansursuz" not in soft.lower()
+
+
 # ===== tekrar döngüsü =====
 def test_repetition():
     assert T.has_repetition_loop("evet evet evet evet") is True
