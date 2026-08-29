@@ -2075,14 +2075,24 @@ function renderCue() {
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
     if (!player.editing) overlay.textContent = i >= 0 ? player.cues[i].text : '';
 
-    // Her blok sonunda duraklat (Voracious'taki çalışma modu): blok bitince dur,
-    // aynı blokta tekrar tekrar durmamak için bir kez işaretle
-    if (player.autoPause && i >= 0 && !video.paused) {
-      if (t >= player.cues[i].end - 0.05 && player.pausedAt !== i) {
-        player.pausedAt = i;
+    // Her blok sonunda duraklat (Voracious'taki çalışma modu).
+    // GECIS yakalanir: onceki zaman blok sonundan kucuk, simdiki buyuk/esit.
+    // Eskiden "t >= end - 0.05" penceresine bakiliyordu; timeupdate ~250 ms'de bir
+    // tetiklendigi icin 50 ms'lik pencere cogu blok sonunda ISKALANIYORDU (ve blok
+    // bittikten sonra findCueAt -1 dondugu icin kosul hic calismiyordu).
+    // dt korumasi: ileri/geri sarmada (buyuk sicrama) duraklatma tetiklenmesin -
+    // yalnizca normal oynatma adimi (0 < dt < 1 sn) gecis sayilir.
+    const dt = player.lastT === undefined ? -1 : t - player.lastT;
+    if (player.autoPause && !video.paused && dt > 0 && dt < 1.0) {
+      // Bitisini gectigimiz blogu ONCEKI zamana gore bul (i artik -1 olabilir)
+      const j = i >= 0 ? i : findCueAt(player.cues, player.lastT, player.activeIdx);
+      if (j >= 0 && player.lastT < player.cues[j].end && t >= player.cues[j].end) {
         video.pause();
+        // Kullanici geri sarip ayni blogu tekrar dinlerse YINE dursun diye
+        // isaretlemeye gerek yok: gecis mantigi kendini tekrarlamaz.
       }
     }
+    player.lastT = t;
   } else {
     overlay.textContent = '';
   }
@@ -2336,10 +2346,49 @@ function maybeOfferResume() {
   player._resumeTimer = setTimeout(() => chip.classList.add('hidden'), 12000);
 }
 
+// Yeni bir videoya gecerken ONCEKI videoya ait her sey temizlenmeli. Eskiden
+// yalnizca kaynak degisiyordu; A videosunun altyazilari B'nin uzerinde gorunmeye
+// devam ediyor, ustelik attachSiblingSubtitles "cues doluysa yukleme" dedigi icin
+// B'nin kendi altyazisi otomatik acilmiyordu. Bolum isaretleri de kaliyordu.
+function resetMediaBoundState() {
+  player.cues = [];
+  player.cues2 = [];
+  player.activeIdx = -1;
+  player.activeIdx2 = -1;
+  player.subPath = '';
+  player.pausedAt = -1;
+  player.chapters = [];
+
+  const ov = $('subtitleOverlay');
+  const ov2 = $('subtitleOverlay2');
+  if (ov) ov.textContent = '';
+  if (ov2) ov2.textContent = '';
+
+  // Altyazi secicileri ve liste bosaltilir (dosyalar onceki videoya aitti)
+  player.subtitles = [];
+  ['playerSubSelect', 'playerSubSelect2'].forEach((id, idx) => {
+    const sel = $(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = idx === 0 ? 'Altyazı yok' : 'Kapalı';
+    sel.appendChild(o);
+  });
+  if ($('cueSearch')) $('cueSearch').value = '';
+  renderCueList('');
+  if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
+  if ($('playerChapters')) $('playerChapters').innerHTML = '';
+  renderSeekMarkers([]);
+  // Gecikme onceki dosyaya gore ayarlanmisti; yeni dosyada anlamsiz
+  if ($('applyOffsetToFile')) $('applyOffsetToFile').classList.add('hidden');
+}
+
 function setMediaKey(key) {
   player.mediaKey = key || '';
   player.resumeOffered = false;
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
+  resetMediaBoundState();
 }
 
 function setPlayerSource(src, title, key) {
