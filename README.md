@@ -40,6 +40,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Önizlemeyi panoya kopyala** — segmentleri SRT biçiminde kopyala (arama filtresi uygulanır)
 - **Önizlemede düzenleme** — segment metnini kaydetmeden önce çift tıkla düzelt; kopyala/JSON yeniden-üret düzeltilmiş metni kullanır
 - **JSON'dan yeniden üret** — mevcut JSON çıktısından SRT/VTT/TXT/ASS'yi yeniden transkripsiyon yapmadan saniyeler içinde yaz
+- **Sözlük artık tüm video boyunca etkili** — sözlükteki özel isimler (`Kombai`, `Sanhuber`…) Whisper'a her çözümleme penceresinde yeniden verilir. Önceden yalnızca ilk 30 saniyede etkiliydi
 - **Bozuk Türkçe karakter onarımı** — dışarıdan gelen altyazılar (senkron aracı ve oynatıcı) kodlaması tespit edilerek okunur: UTF-8, cp1254 (eski Türkçe Windows), çift kodlanmış UTF-8 (`Ã§ocuk`) ve latin-1 okunmuş cp1254 (`þeyler`) otomatik düzeltilir. İzlandaca/İspanyolca gibi `þ ð ý á é` kullanan metinlere dokunulmaz
 - **ASS/SSA okuma** — oynatıcı `.ass`/`.ssa` altyazıları da açar (biçim etiketleri temizlenir, `\\N` satır sonu çevrilir)
 - **Altyazı listesi & blok gezinme** — oynatıcıda tüm bloklar listelenir; tıklayınca o ana atlar, aktif blok vurgulanıp kendiliğinden kaydırılır, metinde anlık arama yapılır. Klavyeyle blok blok gezinme (A/D), bloğu tekrar oynatma (R), satırı kopyalama (C) ve her blok sonunda otomatik duraklatma — uzun filmde altyazı denetimini hızlandırır

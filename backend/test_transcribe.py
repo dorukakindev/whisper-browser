@@ -441,6 +441,51 @@ def test_drop_micro_blocks():
     assert n2 == 0
 
 
+# ===== sözlük / hotwords =====
+class _A:
+    def __init__(self, **kw):
+        self.initial_prompt = ""
+        self.language = "en"
+        self.glossary = ""
+        self.__dict__.update(kw)
+
+
+def test_glossary_goes_to_hotwords_not_prompt():
+    # Kritik: conditioning kapaliyken initial_prompt yalnizca ILK pencerede
+    # etkilidir; sozluk hotwords'te olmali ki her pencereye ulassin.
+    p, hw, wx = T.build_prompt_and_hotwords(
+        _A(glossary="Sanhuber|Osterreich"), supports_hotwords=True)
+    assert hw == "Sanhuber, Osterreich"
+    assert "Sanhuber" not in p          # prompt'ta TEKRARLANMAZ
+    assert "Sanhuber" in wx             # WhisperX hotwords desteklemez
+
+
+def test_glossary_falls_back_to_prompt_on_old_version():
+    p, hw, wx = T.build_prompt_and_hotwords(
+        _A(glossary="Sanhuber"), supports_hotwords=False)
+    assert hw is None
+    assert "Sanhuber" in p and p == wx
+
+
+def test_prompt_defaults_and_no_glossary():
+    p, hw, wx = T.build_prompt_and_hotwords(_A(), supports_hotwords=True)
+    assert hw is None and p == wx
+    assert "punctuation" in p                       # varsayilan İngilizce primer
+    assert "noktalama" in T.build_prompt_and_hotwords(
+        _A(language="tr"), supports_hotwords=True)[0]
+    # kullanici prompt'u varsayilanin yerini alir
+    assert T.build_prompt_and_hotwords(
+        _A(initial_prompt="  Ozel baglam.  "), supports_hotwords=True)[0] == "Ozel baglam."
+    # bos/whitespace terimler ayiklanir
+    assert T.build_prompt_and_hotwords(
+        _A(glossary=" A || B "), supports_hotwords=True)[1] == "A, B"
+
+
+def test_installed_faster_whisper_supports_hotwords():
+    # Kurulu surumde gercekten var mi (yoksa sessizce eski yola duseriz)
+    assert T._supports_hotwords() is True
+
+
 # ===== dış altyazı kodlaması =====
 def test_read_subtitle_text_encodings():
     import tempfile, pathlib

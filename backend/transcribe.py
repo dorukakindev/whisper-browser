@@ -658,6 +658,57 @@ def _cut_wav(src_wav, dst_wav, start, end, ffmpeg_path):
     return str(dst_wav)
 
 
+# Kullanıcı prompt vermemişse Whisper'ın noktalama üretmesini sağlayan varsayılan
+# prompt. İyi noktalanmış bir metin verirsek decoder bunu taklit eder.
+_PUNCTUATION_PROMPT = {
+    "en": "Hello, welcome. This is a transcription with proper punctuation, capitalization, and formatting.",
+    "tr": "Merhaba, hoş geldiniz. Bu, doğru noktalama ve büyük harflerle yazılmış bir transkripsiyon.",
+}
+
+
+def build_prompt_and_hotwords(args, supports_hotwords=None):
+    """(initial_prompt, hotwords, whisperx_prompt) üretir.
+
+    SÖZLÜK hotwords'e gider, initial_prompt'a DEĞİL. Sebep: faster-whisper'da
+    ``condition_on_previous_text=False`` iken her pencere sonunda
+    ``prompt_reset_since = len(all_tokens)`` yapılır, yani initial_prompt SADECE
+    ilk 30 saniyelik pencerede etkilidir. Film preset'inde conditioning kapalı
+    olduğu için sözlük 90 dakikalık bir filmde pratikte çalışmıyordu. hotwords
+    ise ``get_prompt``'a her pencerede yeniden verilir.
+
+    WhisperX hotwords desteklemez; oraya sözlüğü prompt içinde göndeririz.
+    """
+    if supports_hotwords is None:
+        supports_hotwords = _supports_hotwords()
+
+    if getattr(args, "initial_prompt", ""):
+        base = args.initial_prompt.strip()
+    else:
+        lang = getattr(args, "language", None)
+        lang_key = lang if lang not in (None, "", "auto") else "en"
+        base = _PUNCTUATION_PROMPT.get(lang_key, _PUNCTUATION_PROMPT["en"])
+
+    terms = [t.strip() for t in (getattr(args, "glossary", "") or "").split("|") if t.strip()]
+    if not terms:
+        return base, None, base
+
+    with_terms = f"{base} {', '.join(terms)}."
+    if not supports_hotwords:
+        # Eski faster-whisper: eski davranışa dön (ilk pencerede de olsa etkili)
+        return with_terms, None, with_terms
+    return base, ", ".join(terms), with_terms
+
+
+def _supports_hotwords():
+    """Kurulu faster-whisper 'hotwords' parametresini destekliyor mu (>=1.0)."""
+    try:
+        import inspect
+        from faster_whisper import WhisperModel
+        return "hotwords" in inspect.signature(WhisperModel.transcribe).parameters
+    except Exception:
+        return False
+
+
 # Noktalamayı yeniden tetiklemek için örnek metin (initial_prompt olarak verilir)
 PUNCT_PRIMER = {
     "tr": "Merhaba. Bu, düzgün noktalanmış bir metindir; virgüller, noktalar ve soru "
@@ -3124,26 +3175,12 @@ def transcribe(args):
 
         language = None if args.language in (None, "", "auto") else args.language
 
-        # initial_prompt ile sözlük (hotwords) birleştir
-        # Kullanıcı prompt vermemişse, Whisper'ın noktalama üretmesini sağlayan
-        # varsayılan bir prompt ekle. İyi noktalanmış bir metin verirsek Whisper
-        # decoder'ı bunu taklit ederek noktalama üretmeye devam eder.
-        _PUNCTUATION_PROMPT = {
-            "en": "Hello, welcome. This is a transcription with proper punctuation, capitalization, and formatting.",
-            "tr": "Merhaba, hoş geldiniz. Bu, doğru noktalama ve büyük harflerle yazılmış bir transkripsiyon.",
-        }
-        prompt_parts = []
-        if args.initial_prompt:
-            prompt_parts.append(args.initial_prompt.strip())
-        else:
-            # Dil biliniyorsa o dildeki prompt'u, yoksa İngilizce'yi kullan
-            lang_key = args.language if args.language not in (None, "", "auto") else "en"
-            prompt_parts.append(_PUNCTUATION_PROMPT.get(lang_key, _PUNCTUATION_PROMPT["en"]))
-        if args.glossary:
-            terms = [t.strip() for t in args.glossary.split("|") if t.strip()]
-            if terms:
-                prompt_parts.append(", ".join(terms) + ".")
-        initial_prompt = " ".join(prompt_parts) if prompt_parts else None
+        initial_prompt, hotwords, wx_initial_prompt = build_prompt_and_hotwords(args)
+        if hotwords:
+            log(f"Sözlük hotwords olarak veriliyor "
+                f"({hotwords.count(',') + 1} terim, tüm pencerelerde etkili)")
+        elif args.glossary and args.engine != "whisperx":
+            log("faster-whisper sürümü hotwords desteklemiyor — sözlük prompt'a eklendi")
 
         # Temperature: tek değer mi yoksa fallback listesi mi?
         if args.temperature_fallback:
@@ -3162,7 +3199,7 @@ def transcribe(args):
         if args.engine == "whisperx":
             segments_iter, info = run_whisperx(
                 args, wav_path, need_words=need_words,
-                initial_prompt=initial_prompt, language=language,
+                initial_prompt=wx_initial_prompt, language=language,
                 device=device, compute_type=compute_type,
             )
         else:
@@ -3210,6 +3247,7 @@ def transcribe(args):
                 no_speech_threshold=args.no_speech_threshold,
                 condition_on_previous_text=args.condition_on_previous,
                 initial_prompt=initial_prompt,
+                hotwords=hotwords,
                 word_timestamps=need_words,
                 vad_filter=args.vad_filter,
                 vad_parameters=vad_parameters,
