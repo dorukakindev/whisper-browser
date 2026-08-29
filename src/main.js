@@ -206,10 +206,47 @@ ipcMain.handle('media:cancelDownload', async () => {
 });
 
 // Altyazı dosyasını oynatıcı için oku (renderer'ın dosya sistemine erişimi yok)
+// cp1254 (Türkçe Windows) dosya latin-1 okunmuşsa Türkçe harfler "Ð Ý Þ ð ý þ"
+// olarak donar. Backend'deki read_subtitle_text ile aynı mantık — oynatıcı da dış
+// altyazı dosyalarını (indirilmiş, eski) doğru göstersin.
+const CP1254_FIXUP = { 'Ð': 'Ğ', 'Ý': 'İ', 'Þ': 'Ş', 'ð': 'ğ', 'ý': 'ı', 'þ': 'ş' };
+const MOJIBAKE_MARKERS = ['Ã§', 'Ã¼', 'Ã¶', 'Ä±', 'ÄŸ', 'Ã‡', 'Ãœ', 'Ã–', 'Ä°'];
+
+function decodeSubtitleBuffer(buf) {
+  let text = buf.toString('utf-8').replace(/^\uFEFF/, '');
+  let note = '';
+  // Geçersiz UTF-8 → U+FFFD çıkar; bu durumda cp1254/latin-1 varsay
+  if (text.includes('\uFFFD')) {
+    text = buf.toString('latin1');
+    for (const [bad, good] of Object.entries(CP1254_FIXUP)) {
+      text = text.split(bad).join(good);
+    }
+    note = 'cp1254';
+  }
+  // Çift kodlanmış UTF-8 ("Ã§ocuk")
+  const marks = MOJIBAKE_MARKERS.reduce((a, m) => a + text.split(m).length - 1, 0);
+  if (marks > 0) {
+    const fixed = Buffer.from(text, 'latin1').toString('utf-8');
+    const after = MOJIBAKE_MARKERS.reduce((a, m) => a + fixed.split(m).length - 1, 0);
+    if (after < marks) { text = fixed; note = 'çift kodlama onarıldı'; }
+  }
+  // cp1254'ün latin-1 okunup UTF-8 kaydedilmiş hali (geçerli UTF-8 ama harfler bozuk)
+  const suspicious = 'ÐÝÞðýþ'.split('').reduce((a, c) => a + text.split(c).length - 1, 0);
+  const hasTurkish = /[ğışİĞŞ]/.test(text);
+  const hasForeign = /[áéíóúÁÉÍÓÚæÆøåÅ]/.test(text);
+  if (suspicious >= 3 && !hasTurkish && !hasForeign) {
+    for (const [bad, good] of Object.entries(CP1254_FIXUP)) {
+      text = text.split(bad).join(good);
+    }
+    note = 'Türkçe karakterler onarıldı';
+  }
+  return { text, note };
+}
+
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   try {
-    const text = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
-    return { ok: true, text };
+    const { text, note } = decodeSubtitleBuffer(fs.readFileSync(filePath));
+    return { ok: true, text, note };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -514,7 +551,7 @@ ipcMain.handle('dialog:openFile', async (_event, kind) => {
   const filterMap = {
     json: { name: 'JSON altyazı verisi', extensions: ['json'] },
     settings: { name: 'Ayar dosyası', extensions: ['json'] },
-    subtitle: { name: 'Altyazı (SRT)', extensions: ['srt'] },
+    subtitle: { name: 'Altyazı', extensions: ['srt', 'vtt', 'ass', 'ssa'] },
   };
   const f = filterMap[kind] || { name: 'Tüm Dosyalar', extensions: ['*'] };
   const result = await dialog.showOpenDialog(mainWindow, {

@@ -441,6 +441,38 @@ def test_drop_micro_blocks():
     assert n2 == 0
 
 
+# ===== dış altyazı kodlaması =====
+def test_read_subtitle_text_encodings():
+    import tempfile, pathlib
+    d = pathlib.Path(tempfile.mkdtemp())
+    tr = "Çocuk güzel şeyler öğrendi, ışık İstanbul."
+    cases = {
+        "utf8_bom": tr.encode("utf-8-sig"),
+        "cp1254": tr.encode("cp1254"),
+        # çift kodlanmış UTF-8 ("Ã§ocuk")
+        "double": tr.encode("utf-8").decode("latin-1").encode("utf-8"),
+        # cp1254 latin-1 okunup UTF-8 kaydedilmiş ("þeyler")
+        "cp1254_as_latin1": tr.encode("cp1254").decode("latin-1").encode("utf-8"),
+    }
+    for name, data in cases.items():
+        p = d / f"{name}.srt"
+        p.write_bytes(data)
+        text, _enc, _rep = T.read_subtitle_text(p)
+        assert text.strip() == tr, f"{name}: {text!r}"
+
+
+def test_encoding_repair_no_false_positive():
+    # İzlandaca'da þ ð ý GERÇEK harf — onarım dokunmamalı
+    ice = "Þetta er íslenskur texti með ðöðum og ýmsu."
+    out, repaired = T.repair_cp1254_as_latin1(ice)
+    assert out == ice and repaired is False
+    # sağlam Türkçe metinde de onarım tetiklenmez
+    ok = "Işıkları söndür, güzel şeyler olacak."
+    assert T.repair_cp1254_as_latin1(ok) == (ok, False)
+    # bozulmamış metinde mojibake onarımı da çalışmaz
+    assert T.repair_mojibake(ok) == (ok, False)
+
+
 # ===== çeviri =====
 def test_resolve_translate_routes():
     # shuaiapi rotası verilirse dördü de denenir, verilen ilk sırada

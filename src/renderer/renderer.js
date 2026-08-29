@@ -1988,8 +1988,39 @@ function pSecToTime(sec) {
            : `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// ASS/SSA ayrıştırma — indirilmiş altyazılarda yaygın. Dialogue satırlarındaki
+// zaman ve metin alınır; {\...} biçim etiketleri ve \N satır sonu çevrilir.
+function parseAss(text) {
+  const out = [];
+  const toSec = (t) => {
+    const m = String(t).trim().match(/(\d+):(\d{2}):(\d{2})[.,](\d{1,3})/);
+    if (!m) return null;
+    return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (m[4].length === 2 ? 100 : 1000);
+  };
+  for (const line of String(text).split(/\r?\n/)) {
+    if (!/^Dialogue\s*:/i.test(line)) continue;
+    // Dialogue: Layer,Start,End,Style,Name,ML,MR,MV,Effect,Text  (metin virgül içerebilir)
+    const parts = line.slice(line.indexOf(':') + 1).split(',');
+    if (parts.length < 10) continue;
+    const start = toSec(parts[1]);
+    const end = toSec(parts[2]);
+    if (start === null || end === null) continue;
+    const body = parts.slice(9).join(',')
+      .replace(/\{[^}]*\}/g, '')       // {\i1} gibi biçim etiketleri
+      .replace(/\\[Nn]/g, '\n')        // ASS satır sonu
+      .replace(/\\h/g, ' ')
+      .trim();
+    if (body) out.push({ start, end, text: body });
+  }
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
 // SRT/VTT ayrıştırma — write_srt çıktımızla birebir uyumlu (BOM ve \r\n dahil)
 function parseSubtitles(text) {
+  if (/^\s*(\[Script Info\]|\[V4\+? Styles\])/im.test(text) || /^Dialogue\s*:/im.test(text)) {
+    return parseAss(text);
+  }
   const out = [];
   const clean = String(text || '').replace(/\r/g, '').replace(/^\uFEFF/, '');
   const re = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/;
@@ -2255,6 +2286,7 @@ async function loadSubtitle(path, secondary = false) {
     return;
   }
   const cues = parseSubtitles(res.text);
+  if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
   if (secondary) {
     player.cues2 = cues;
     player.activeIdx2 = -1;
