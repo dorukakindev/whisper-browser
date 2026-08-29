@@ -217,6 +217,94 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
 
 // Oynatıcıda düzeltilen altyazıyı diske yaz. İlk yazımda .bak yedeği alınır —
 // kullanıcı izlerken yaptığı düzeltmeyi geri alabilsin.
+// ===== Klasör izleme =====
+// Bir klasöre yeni video düşünce kuyruğa eklenir. Kopyalama bitmeden işlememek için
+// dosya boyutu iki ölçüm arasında DEĞİŞMEYİNCE "hazır" sayılır (subgen'de de aynı sorun).
+let watchTimer = null;
+let watchDir = null;
+const watchSeen = new Map();      // yol -> {size, stableCount, queued}
+const WATCH_INTERVAL = 5000;
+const WATCH_STABLE_TICKS = 2;     // ~10 sn boyunca boyut değişmemeli
+
+function scanWatchFolder() {
+  if (!watchDir) return;
+  let entries;
+  try {
+    entries = fs.readdirSync(watchDir, { withFileTypes: true });
+  } catch (_) {
+    return;                        // klasör silinmiş/erişilemiyor — sessizce geç
+  }
+  const found = [];
+  for (const ent of entries) {
+    const full = path.join(watchDir, ent.name);
+    if (ent.isDirectory()) {
+      // Bir seviye alt klasör (dizi bölümleri klasörlenmiş olabilir)
+      try {
+        for (const sub of fs.readdirSync(full, { withFileTypes: true })) {
+          if (sub.isFile()) found.push(path.join(full, sub.name));
+        }
+      } catch (_) {}
+    } else if (ent.isFile()) {
+      found.push(full);
+    }
+  }
+
+  const ready = [];
+  for (const file of found) {
+    const ext = path.extname(file).slice(1).toLowerCase();
+    if (!MEDIA_EXTS.has(ext)) continue;
+    // Yanında altyazı varsa zaten işlenmiş say (tekrar tekrar çevirmesin)
+    const stem = file.replace(/\.[^.]+$/, '');
+    if (fs.existsSync(stem + '.srt')) { watchSeen.set(file, { queued: true }); continue; }
+    let size;
+    try { size = fs.statSync(file).size; } catch (_) { continue; }
+    const prev = watchSeen.get(file);
+    if (!prev) {
+      watchSeen.set(file, { size, stableCount: 0, queued: false });
+      continue;
+    }
+    if (prev.queued) continue;
+    if (prev.size === size) {
+      prev.stableCount += 1;
+      if (prev.stableCount >= WATCH_STABLE_TICKS) {
+        prev.queued = true;
+        ready.push(file);
+      }
+    } else {
+      prev.size = size;
+      prev.stableCount = 0;        // hâlâ kopyalanıyor
+    }
+  }
+
+  if (ready.length && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('watch:newFiles', ready);
+  }
+}
+
+ipcMain.handle('watch:start', async (_e, dir) => {
+  if (!dir || !fs.existsSync(dir)) return { ok: false, error: 'Klasör bulunamadı' };
+  watchDir = dir;
+  watchSeen.clear();
+  // İlk tarama: mevcut dosyalar "görülmüş" sayılır ki açılışta hepsi kuyruğa dolmasın
+  try {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      if (ent.isFile()) watchSeen.set(full, { queued: true });
+    }
+  } catch (_) {}
+  if (watchTimer) clearInterval(watchTimer);
+  watchTimer = setInterval(scanWatchFolder, WATCH_INTERVAL);
+  return { ok: true, path: dir };
+});
+
+ipcMain.handle('watch:stop', async () => {
+  if (watchTimer) clearInterval(watchTimer);
+  watchTimer = null;
+  watchDir = null;
+  watchSeen.clear();
+  return { ok: true };
+});
+
 ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
   const { path: filePath, text } = payload || {};
   if (!filePath || typeof text !== 'string') return { ok: false, error: 'Eksik parametre' };

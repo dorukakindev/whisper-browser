@@ -70,6 +70,16 @@
               </div>
               <button class="btn-icon" id="clearFile" title="Kaldır">×</button>
             </div>
+            <div class="watch-folder" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">
+              <label class="field switch-field">
+                <input type="checkbox" id="watchEnabled" />
+                <span>Klasörü izle — yeni video düşünce kuyruğa otomatik ekle</span>
+              </label>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+                <button class="btn btn-secondary btn-sm" id="pickWatchDir">Klasör seç</button>
+                <div class="path-display" id="watchDirPath" style="flex:1">Seçilmedi</div>
+              </div>
+            </div>
             <div class="hint" style="margin-top:8px">
               Mevcut bir <strong>JSON</strong> çıktısından formatları yeniden üretmek için (yeniden transkripsiyon yok):
               <button class="link-btn" id="reexportJson">JSON'dan yeniden üret</button>

@@ -17,6 +17,7 @@ const state = {
   gpuVramMib: null,     // toplam GPU VRAM (MiB) — yetersizlik uyarısı için
   lastJobVideo: null,   // son işin yerel video yolu (burn-in için; YouTube ise null)
   lastQualityReport: null, // son işin kalite raporu (sonuç modalında gösterilir)
+  watchDir: null,       // izlenen klasör (yeni dosyalar kuyruğa eklenir)
   syncVideo: null,      // altyazı senkron aracı: referans video
   syncSrt: null,        // altyazı senkron aracı: hizalanacak SRT
 };
@@ -649,6 +650,53 @@ if (clearClipBtn) {
 }
 updateClipHint();
 
+// ===== Klasör izleme =====
+// Yeni dosyalar kuyruğa eklenir; kuyruk çalışmıyorsa kendiliğinden başlatılır.
+async function applyWatchState() {
+  const on = $('watchEnabled') && $('watchEnabled').checked;
+  if (on && state.watchDir) {
+    const res = await window.api.startWatchFolder(state.watchDir);
+    if (res && res.ok) logLine(`Klasör izleniyor: ${state.watchDir}`, 'success');
+    else logLine(`Klasör izlenemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+  } else {
+    await window.api.stopWatchFolder();
+    if (!on) logLine('Klasör izleme kapatıldı.', 'info');
+  }
+}
+
+if ($('pickWatchDir')) {
+  $('pickWatchDir').addEventListener('click', async () => {
+    const dir = await window.api.selectFolder();
+    if (!dir) return;
+    state.watchDir = dir;
+    $('watchDirPath').textContent = dir;
+    saveAppSettings();
+    applyWatchState();
+  });
+}
+if ($('watchEnabled')) {
+  $('watchEnabled').addEventListener('change', () => {
+    if ($('watchEnabled').checked && !state.watchDir) {
+      logLine('Önce izlenecek klasörü seç.', 'warn');
+      $('watchEnabled').checked = false;
+      return;
+    }
+    saveAppSettings();
+    applyWatchState();
+  });
+}
+if (window.api.onWatchFiles) {
+  window.api.onWatchFiles((files) => {
+    if (!Array.isArray(files) || !files.length) return;
+    files.forEach((f) => addToQueue('file', f));
+    logLine(`Klasörde ${files.length} yeni dosya bulundu, kuyruğa eklendi.`, 'success');
+    if (!state.queueRunning && !state.running) {
+      logLine('Kuyruk otomatik başlatılıyor.', 'info');
+      $('startQueueBtn').click();
+    }
+  });
+}
+
 const openLogFolderBtn = $('openLogFolder');
 if (openLogFolderBtn) {
   openLogFolderBtn.addEventListener('click', async () => {
@@ -973,6 +1021,7 @@ async function saveAppSettings() {
     hfToken: $('hfToken').value.trim(),
     outputDir: state.outputDir || '',
     preset: $('presetSelect').value,
+    watchDir: state.watchDir || '',
     translate: {
       apiKey: $('translateApiKey') ? $('translateApiKey').value.trim() : '',
       endpointPreset: $('translateEndpointPreset') ? $('translateEndpointPreset').value : '',
@@ -1006,7 +1055,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'dualSubtitle',
+  'translate', 'translateKeepSource', 'translateRefine', 'dualSubtitle', 'watchEnabled',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
 ];
@@ -1209,6 +1258,10 @@ if ($('deepseekKeyHelp')) {
       if (s.outputDir) {
         state.outputDir = s.outputDir;
         $('outputDir').textContent = s.outputDir;
+      }
+      if (s.watchDir) {
+        state.watchDir = s.watchDir;
+        if ($('watchDirPath')) $('watchDirPath').textContent = s.watchDir;
       }
       if (s.translate) {
         if (s.translate.apiKey && $('translateApiKey')) $('translateApiKey').value = s.translate.apiKey;

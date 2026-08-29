@@ -23,6 +23,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Canlı önizleme** — segmentler oluştukça gerçek zamanlı görünür
 - **Birden çok format**: SRT, VTT, TXT, ASS (stil/renk), JSON (kelime damgaları) veya hepsi
 - **25+ dil**, otomatik dil algılama veya İngilizce'ye çeviri
+- **Klasör izleme** — bir klasörü izlemeye al; içine yeni video düştüğünde kuyruğa otomatik eklenir ve kuyruk kendiliğinden başlar. Kopyalama bitmeden işlemez (dosya boyutu sabitlenene kadar bekler), yanında `.srt` olan dosyayı ve video olmayanları atlar
 - **Toplu işlem kuyruğu** — birden çok dosyayı sürükleyip (veya diyalogdan çoklu seçip) sırayla işle; hatalı iş tek tıkla yeniden denenir, biten işin klasörü tıklayınca açılır
 - **Zaman aralığı (kırpma)** — Kaynak kartındaki iki alanla videonun yalnızca bir bölümünü işle (örn. `1:30`–`5:00` veya saniye olarak `90`); seçili süre anında gösterilir, geçersiz aralık başlamadan uyarır. Zaman damgaları orijinal videoya göre hizalanır — uzun videoda ayar denemek için ideal. YouTube'da iki sınır da verilirse **yalnızca o aralık indirilir** (tüm videoyu indirmez)
 - **Önizlemede arama** — canlı önizlemedeki segmentlerde anlık metin filtresi
