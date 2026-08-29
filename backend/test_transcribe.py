@@ -540,6 +540,95 @@ def test_build_refine_prompt():
     assert "DEGISTIRME" in p                    # doğru olana dokunma kuralı
 
 
+class _TrArgs:
+    """llm_translate icin en az ayar."""
+    def __init__(self, **kw):
+        self.translate_api_key = "sk-test"
+        self.translate_base_url = "https://api.example.com"
+        self.translate_to = "tr"
+        self.translate_model = "test-model"
+        self.translate_workers = 1
+        self.translate_register = "documentary"
+        self.translate_profanity = "keep"
+        self.translate_refine = False
+        self.max_cps = 20
+        self.max_line_width = 42
+        self.glossary = ""
+        self.__dict__.update(kw)
+
+
+ENTRIES = [(0.0, 2.0, "Hello there."), (2.0, 4.0, "This is a test.")]
+
+
+def test_translate_returns_none_without_api_key():
+    # Anahtar yoksa KAYNAK metin degil None donmeli - yoksa cagiran taraf
+    # kaynak dilde bir ".tr.srt" yazar ve gercek ceviri sanilir.
+    warns = []
+    out = T.llm_translate(ENTRIES, _TrArgs(translate_api_key=""), warns, source_lang="en")
+    assert out is None, f"None bekleniyordu, {type(out)} geldi"
+    assert any("API anahtari" in w for w in warns), warns
+
+
+def test_translate_returns_none_when_every_chunk_fails():
+    # Tum API cagrilari patlarsa out_texts KAYNAK metin olarak kalir; None donmeli.
+    import sys, types, importlib.machinery
+
+    class _Boom:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(
+                    create=lambda **kw: (_ for _ in ()).throw(RuntimeError("401 gecersiz anahtar"))))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Boom
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    try:
+        warns = []
+        out = T.llm_translate(ENTRIES, _TrArgs(), warns, source_lang="en")
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+    assert out is None, f"None bekleniyordu, {out!r} geldi"
+    assert any("Hicbir blok cevrilemedi" in w for w in warns), warns
+
+
+def test_translate_returns_list_on_success():
+    import sys, types, importlib.machinery, json
+
+    def _create(**kw):
+        # Beklenen yanit bicimi: {"0": "cevrilmis", "1": "..."} (duz sozluk)
+        payload = json.loads(kw["messages"][-1]["content"])
+        out = {str(it["i"]): "[TR] " + it["t"] for it in payload["items"]}
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(out)))])
+
+    class _Ok:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Ok
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    try:
+        out = T.llm_translate(ENTRIES, _TrArgs(), [], source_lang="en")
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+    assert out is not None and len(out) == len(ENTRIES)
+    assert all(t.startswith("[TR] ") for _s, _e, t in out), out
+    # zaman damgalari degismez
+    assert [(s, e) for s, e, _ in out] == [(s, e) for s, e, _ in ENTRIES]
+
+
 def test_build_translate_prompt():
     p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
                                  register="documentary", profanity="explicit",

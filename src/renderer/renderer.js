@@ -1533,11 +1533,14 @@ window.api.onEvent((event) => {
       addSegment(event);
       break;
 
-    case 'llm_progress':
+    case 'llm_progress': {
       setProgress(event.percent);
-      $('progressText').textContent = `LLM düzeltiyor ${event.percent.toFixed(1)}% (${event.done}/${event.total})`;
+      // Ayni kanal hem LLM duzeltmesi hem ceviri icin kullaniliyor (stage ayirir)
+      const _lbl = event.stage === 'translate' ? 'Çevriliyor' : 'LLM düzeltiyor';
+      $('progressText').textContent = `${_lbl} ${event.percent.toFixed(1)}% (${event.done}/${event.total})`;
       if (event.failed) $('progressTime').textContent = `${event.failed} blokta hata`;
       break;
+    }
 
     case 'preview_refresh':
       // LLM/diarization metni değiştirdi — önizlemeyi nihai çıktıyla tek seferde tazele

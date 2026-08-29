@@ -1088,7 +1088,18 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     args.push('--llm-postprocess', 'true');
     // llmApiKey argv yerine ortam değişkeniyle geçer (aşağıda)
     if (options.llmBaseUrl) args.push('--llm-base-url', options.llmBaseUrl);
-  // Çeviri (API anahtarı argv'de DEĞİL, ortam değişkeninde geçer)
+    if (options.llmModel) args.push('--llm-model', options.llmModel);
+    if (options.llmWorkers) args.push('--llm-workers', String(options.llmWorkers));
+    args.push('--llm-fix-censorship', options.llmFixCensorship !== false ? 'true' : 'false');
+    args.push('--llm-fix-hallucination', options.llmFixHallucination !== false ? 'true' : 'false');
+    args.push('--llm-fix-punctuation', options.llmFixPunctuation !== false ? 'true' : 'false');
+    args.push('--llm-fix-consistency', options.llmFixConsistency ? 'true' : 'false');
+  }
+
+  // Çeviri — LLM düzeltmesinden BAĞIMSIZ. (Bu satırlar bir ara yanlışlıkla yukarıdaki
+  // llmPostprocess bloğunun içinde kalmıştı; çeviri yalnızca LLM düzeltme açıkken
+  // çalışıyordu. Bu blok asla o if'in içine taşınmamalı.)
+  // API anahtarı argv'de DEĞİL, ortam değişkeninde geçer.
   args.push('--translate', options.translate ? 'true' : 'false');
   if (options.translateTo) args.push('--translate-to', options.translateTo);
   if (options.translateBaseUrl) args.push('--translate-base-url', options.translateBaseUrl);
@@ -1100,13 +1111,6 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
   if (options.audioPreprocess) args.push('--audio-preprocess', options.audioPreprocess);
-    if (options.llmModel) args.push('--llm-model', options.llmModel);
-    if (options.llmWorkers) args.push('--llm-workers', String(options.llmWorkers));
-    args.push('--llm-fix-censorship', options.llmFixCensorship !== false ? 'true' : 'false');
-    args.push('--llm-fix-hallucination', options.llmFixHallucination !== false ? 'true' : 'false');
-    args.push('--llm-fix-punctuation', options.llmFixPunctuation !== false ? 'true' : 'false');
-    args.push('--llm-fix-consistency', options.llmFixConsistency ? 'true' : 'false');
-  }
 
   const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' };
   // Gizli anahtarları argv yerine ortam değişkeniyle geçir (process listesinde görünmesin)

@@ -2191,6 +2191,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     Altyazilari OpenAI uyumlu bir API ile hedef dile cevirir.
     entries: [(start, end, text), ...] -> ayni yapida cevrilmis liste (blok sayisi DEGISMEZ).
     Cevrilemeyen bloklarda orijinal metin korunur ve uyari verilir.
+
+    HIC BLOK cevrilemediyse None doner (bos liste veya orijinal metin DEGIL). Sebep:
+    cagiran taraf sonucu truthy diye kontrol ediyor; orijinal metni geri dondurursek
+    kaynak dilde bir ".tr.srt" yaziliyor ve "kaynagi koru" kapaliysa gercek kaynak
+    dosyasi hic yazilmiyordu - yani gecersiz API anahtarinda tek ciktiniz sahte bir
+    ceviri oluyordu.
     """
     if not entries:
         return entries
@@ -2200,12 +2206,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         log("! Ceviri ATLANDI: openai paketi yuklu degil ('pip install openai').", "error")
         if warn_list is not None:
             warn_list.append("Ceviri atlandi: openai paketi yuklu degil.")
-        return entries
+        return None
     if not args.translate_api_key:
         log("! Ceviri ATLANDI: API anahtari bos (Gelismis ayarlar > Ceviri).", "error")
         if warn_list is not None:
             warn_list.append("Ceviri atlandi: API anahtari girilmedi.")
-        return entries
+        return None
 
     routes = resolve_translate_routes(args.translate_base_url)
     target = (args.translate_to or "tr").lower()
@@ -2337,6 +2343,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                      done=counters["done"], failed=counters["failed"], total=len(entries),
                      stage="translate")
                 last_emit_ts[0] = now
+
+    if counters["done"] == 0:
+        # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
+        # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
+        # kullaniciyi yanıltir - basarisiz say.
+        msg = "Hicbir blok cevrilemedi ({} blok denendi) - ceviri dosyasi YAZILMADI.".format(
+            len(entries))
+        log("! " + msg, "error")
+        if warn_list is not None:
+            warn_list.append(msg)
+        return None
 
     if counters["failed"]:
         msg = "{}/{} blok cevrilemedi - o bloklarda ORIJINAL metin kaldi.".format(
@@ -3605,6 +3622,8 @@ def transcribe(args):
         translated = None
         if args.translate:
             try:
+                # None doner = ceviri hic yapilamadi; bu durumda ceviri dosyasi
+                # YAZILMAZ ve kaynak dosyalar her halukarda yazilir (asagida).
                 translated = llm_translate(entries, args, warn_list, source_lang=info.language)
             except Exception as e:
                 log(f"Ceviri basarisiz: {e}", "warn")
