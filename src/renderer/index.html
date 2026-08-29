@@ -871,12 +871,22 @@
                 <button class="btn btn-primary btn-sm" id="playerDownload" style="margin-top:8px;width:100%">İndir ve izle</button>
                 <button class="btn btn-secondary btn-sm hidden" id="playerStream" style="margin-top:6px;width:100%">İndirmeden izle</button>
                 <button class="btn btn-secondary btn-sm hidden" id="playerCancelDl" style="margin-top:6px;width:100%">İndirmeyi iptal et</button>
+                <label class="field hidden" id="playerYtSubField" style="margin-top:10px">
+                  <span class="field-label">YouTube'un hazır altyazısı</span>
+                  <select id="playerYtSubLang"></select>
+                </label>
+                <button class="btn btn-secondary btn-sm hidden" id="playerYtSubGet" style="margin-top:6px;width:100%">Bu altyazıyı indir</button>
                 <div class="player-dl-progress hidden" id="playerDlProgress">
                   <div class="progress-track"><div class="progress-fill" id="playerDlFill"></div></div>
                   <span id="playerDlText">0%</span>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="player-panel hidden" id="playerChaptersPanel">
+            <div class="player-panel-title">Bölümler</div>
+            <select id="playerChapters"></select>
           </div>
 
           <div class="player-panel">
@@ -895,6 +905,7 @@
               <span class="field-label">Gecikme: <span class="value" id="subOffsetVal">0.0</span> sn</span>
               <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
             </label>
+            <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile" style="margin-top:6px;width:100%">Gecikmeyi dosyaya işle</button>
             <label class="field switch-field" style="margin-top:8px">
               <input type="checkbox" id="autoPauseCue" />
               <span>Her blok sonunda duraklat</span>

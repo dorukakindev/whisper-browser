@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   openLogFolder: () => ipcRenderer.invoke('logs:openFolder'),
   probeYoutube: (url) => ipcRenderer.invoke('media:probe', url),
   downloadYoutube: (opts) => ipcRenderer.invoke('media:download', opts),
+  downloadYoutubeSubs: (opts) => ipcRenderer.invoke('media:downloadSubs', opts),
   cancelYoutubeDownload: () => ipcRenderer.invoke('media:cancelDownload'),
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text) => ipcRenderer.invoke('media:writeSubtitle', { path, text }),

@@ -113,10 +113,34 @@ def probe(url):
             hls_url = f["manifest_url"]
             break
 
+    # 4) Bölümler — belgesellerde/uzun videolarda gezinmeyi kolaylaştırır
+    chapters = []
+    for ch in (info.get("chapters") or []):
+        if ch.get("start_time") is None:
+            continue
+        chapters.append({
+            "start": float(ch.get("start_time") or 0),
+            "end": float(ch.get("end_time") or 0),
+            "title": (ch.get("title") or "").strip(),
+        })
+
+    # 5) YouTube'un kendi altyazıları — elle yazılmış olanlar ve otomatik olanlar
+    #    ayrı işaretlenir (otomatik olanlar noktalamasız ve hatalı olur; bizim
+    #    çıktımızla karşılaştırma/ikinci altyazı olarak işe yarar).
+    sub_langs = []
+    for code in sorted((info.get("subtitles") or {}).keys()):
+        sub_langs.append({"code": code, "auto": False})
+    have = {x["code"] for x in sub_langs}
+    for code in sorted((info.get("automatic_captions") or {}).keys()):
+        if code not in have:
+            sub_langs.append({"code": code, "auto": True})
+
     emit(
         "probe",
         title=info.get("title") or "",
         hls=hls_url,
+        chapters=chapters,
+        subtitleLangs=sub_langs,
         duration=info.get("duration") or 0,
         thumbnail=info.get("thumbnail") or "",
         heights=heights,
@@ -193,18 +217,54 @@ def download(url, height, audio_lang, output_dir):
          duration=info.get("duration") or 0)
 
 
+def fetch_subs(url, lang, auto, output_dir):
+    """YouTube'un hazır altyazısını SRT olarak indirir ve yolunu döndürür."""
+    import yt_dlp
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    before = set(out.glob("*.srt"))
+
+    opts = _ydl_opts({
+        "skip_download": True,
+        "writesubtitles": not auto,
+        "writeautomaticsub": auto,
+        "subtitleslangs": [lang],
+        "subtitlesformat": "srt/vtt/best",
+        "outtmpl": {"default": str(out / "%(title).80B [%(id)s].%(ext)s")},
+        # vtt gelirse ffmpeg ile srt'ye çevir (oynatıcı ve düzenleyici srt bekliyor)
+        "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt"}],
+    })
+    log(f"YouTube altyazısı indiriliyor: {lang}{' (otomatik)' if auto else ''}")
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        ydl.download([url])
+
+    new_files = sorted(set(out.glob("*.srt")) - before, key=lambda p: p.stat().st_mtime)
+    if not new_files:
+        raise RuntimeError(
+            f"Altyazı indirilemedi ({lang}). Bu videoda o dilde altyazı olmayabilir."
+        )
+    path = new_files[-1]
+    emit("subs", path=str(path), lang=lang, auto=bool(auto))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Oynatıcı medya yardımcısı")
-    ap.add_argument("command", choices=["probe", "download"])
+    ap.add_argument("command", choices=["probe", "download", "subs"])
     ap.add_argument("--url", required=True)
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--audio-lang", default="")
     ap.add_argument("--output-dir", default=".")
+    ap.add_argument("--sub-lang", default="en")
+    ap.add_argument("--sub-auto", default="false")
     args = ap.parse_args()
 
     try:
         if args.command == "probe":
             probe(args.url)
+        elif args.command == "subs":
+            fetch_subs(args.url, args.sub_lang,
+                       str(args.sub_auto).lower() == "true", args.output_dir)
         else:
             download(args.url, args.height, args.audio_lang, args.output_dir)
     except Exception as e:

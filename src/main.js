@@ -156,7 +156,7 @@ function runMediaCommand(cmdArgs, onEvent) {
         if (!line) continue;
         let ev;
         try { ev = JSON.parse(line); } catch (_) { continue; }
-        if (ev.type === 'probe' || ev.type === 'downloaded') result = ev;
+        if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs') result = ev;
         else if (ev.type === 'error') errText = ev.message || 'bilinmeyen hata';
         if (onEvent) onEvent(ev);
       }
@@ -187,6 +187,24 @@ ipcMain.handle('media:download', async (_e, opts) => {
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
   return runMediaCommand(args, (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('media:event', ev);
+    }
+  });
+});
+
+// YouTube'un KENDI altyazisini indir (elle yazilmis veya otomatik). Bizim
+// urettigimizle karsilastirmak / ikinci altyazi olarak gostermek icin.
+ipcMain.handle('media:downloadSubs', async (_e, opts) => {
+  const o = opts || {};
+  if (!o.url) return { ok: false, error: 'URL boş' };
+  const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
+  return runMediaCommand([
+    'subs', '--url', o.url,
+    '--sub-lang', o.lang || 'en',
+    '--sub-auto', o.auto ? 'true' : 'false',
+    '--output-dir', outDir,
+  ], (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('media:event', ev);
     }

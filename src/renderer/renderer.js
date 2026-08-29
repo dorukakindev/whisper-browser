@@ -1979,6 +1979,7 @@ const player = {
   autoPause: false,
   pausedAt: -1,
   ytInfo: null,
+  chapters: [],
   hls: null,
   downloading: false,
   mediaKey: '',      // konum hatirlamada anahtar (dosya yolu veya YouTube linki)
@@ -2233,18 +2234,52 @@ function updateSeekVisuals() {
 }
 
 // ---- zaman çubuğundaki işaretler: altyazıda arama yapınca eşleşmeler burada belirir ----
+// Arama aktifse eslesmeler, degilse bolumler gosterilir (ayni katman).
+function defaultMarkers() {
+  return (player.chapters || []).map((c) => c.start);
+}
+
 function renderSeekMarkers(times) {
   const box = $('seekMarkers');
   const video = $('playerVideo');
   if (!box) return;
   box.innerHTML = '';
   if (!video || !video.duration || !times || !times.length) return;
-  times.slice(0, 400).forEach((t) => {
+  // Sure disina dusenler cizilmez (negatif gecikme veya baska videonun bolumleri)
+  times.filter((t) => t >= 0 && t <= video.duration).slice(0, 400).forEach((t) => {
     const el = document.createElement('div');
     el.className = 'seek-marker';
     el.style.left = `${(t / video.duration) * 100}%`;
     box.appendChild(el);
   });
+}
+
+// ---- bölümler (YouTube) ----
+// Belgesellerde bölüm başlıkları gezinmeyi çok kolaylaştırıyor: hem açılır
+// listeden atlanır hem de zaman çubuğunda işaret olarak görünür.
+function setChapters(chapters) {
+  player.chapters = Array.isArray(chapters) ? chapters : [];
+  const panel = $('playerChaptersPanel');
+  const sel = $('playerChapters');
+  if (!panel || !sel) return;
+  sel.innerHTML = '';
+  if (!player.chapters.length) {
+    panel.classList.add('hidden');
+    renderSeekMarkers([]);
+    return;
+  }
+  const head = document.createElement('option');
+  head.value = '';
+  head.textContent = `${player.chapters.length} bölüm — atlamak için seç`;
+  sel.appendChild(head);
+  player.chapters.forEach((c, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${pSecToTime(c.start)} · ${c.title || 'Bölüm ' + (i + 1)}`;
+    sel.appendChild(o);
+  });
+  panel.classList.remove('hidden');
+  renderSeekMarkers(player.chapters.map((c) => c.start));
 }
 
 // ---- kaldığın yerden devam ----
@@ -2468,6 +2503,9 @@ if ($('playerVideo')) {
     $('playerTime').textContent = `0:00 / ${pSecToTime(video.duration)}`;
     updateSeekVisuals();
     maybeOfferResume();
+    // Bölümler probe'dan gelmişti ama süre o an bilinmiyordu — şimdi çizilebilir
+    const q = $('cueSearch') ? $('cueSearch').value.trim() : '';
+    if (!q) renderSeekMarkers(defaultMarkers());
   });
   video.addEventListener('play', showControls);
   video.addEventListener('pause', () => {
@@ -2715,7 +2753,7 @@ if ($('cueSearch')) {
     renderCueList(e.target.value);
     renderSeekMarkers(q
       ? player.cues.filter((c) => c.text.toLowerCase().includes(q)).map((c) => c.start + player.offset)
-      : []);
+      : defaultMarkers());
   });
 }
 if ($('autoPauseCue')) {
@@ -2748,6 +2786,9 @@ if ($('subOffset')) {
     $('subOffsetVal').textContent = player.offset.toFixed(1);
     player.activeIdx = -1;
     renderCue();
+    // Dosyaya işleme yalnızca gerçekten bir gecikme varken anlamlı
+    const btn = $('applyOffsetToFile');
+    if (btn) btn.classList.toggle('hidden', !player.offset || !player.subPath);
   });
 }
 
@@ -2799,6 +2840,36 @@ if ($('playerProbe')) {
       af.classList.remove('hidden');
     } else {
       af.classList.add('hidden');
+    }
+
+    // Bölümler (varsa) — zaman çubuğuna işaret, panele liste
+    setChapters(info.chapters);
+    if ((info.chapters || []).length) {
+      logLine(`${info.chapters.length} bölüm bulundu.`, 'info');
+    }
+
+    // YouTube'un hazır altyazıları: elle yazılanlar önce, sonra otomatikler.
+    // tr ve en öne alınır (156 otomatik dil geliyor, hepsi listede ama üstte
+    // işine yarayacaklar olsun).
+    const subs = info.subtitleLangs || [];
+    const subField = $('playerYtSubField');
+    const subSel = $('playerYtSubLang');
+    const subBtn = $('playerYtSubGet');
+    subSel.innerHTML = '';
+    if (subs.length) {
+      const rank = (x) => (x.auto ? 100 : 0) + (x.code === 'tr' ? -3 : x.code === 'en' ? -2 : 0);
+      subs.slice().sort((a, b) => rank(a) - rank(b) || a.code.localeCompare(b.code))
+        .forEach((x) => {
+          const o = document.createElement('option');
+          o.value = `${x.code}|${x.auto ? '1' : '0'}`;
+          o.textContent = `${x.code}${x.auto ? ' (otomatik)' : ' (elle yazılmış)'}`;
+          subSel.appendChild(o);
+        });
+      subField.classList.remove('hidden');
+      subBtn.classList.remove('hidden');
+    } else {
+      subField.classList.add('hidden');
+      subBtn.classList.add('hidden');
     }
 
     // "İndirmeden izle": önce HLS (1080p+ ses dahil), yoksa birleşik format (360p)
@@ -2876,6 +2947,72 @@ if ($('playerDownload')) {
     const stem = p.replace(/\.[^.]+$/, '');
     addSubtitleOption(stem + '.srt');
     addSubtitleOption(stem + '.tr.srt');
+  });
+}
+
+// Bölüm seçimi -> o ana atla
+if ($('playerChapters')) {
+  $('playerChapters').addEventListener('change', (e) => {
+    const i = parseInt(e.target.value, 10);
+    const video = $('playerVideo');
+    if (!video || isNaN(i) || !player.chapters[i]) return;
+    video.currentTime = player.chapters[i].start;
+    video.play().catch(() => {});
+    logLine(`Bölüm: ${player.chapters[i].title || i + 1}`, 'info');
+  });
+}
+
+// YouTube'un hazır altyazısını indir — bizimkiyle karşılaştırmak veya ikinci
+// altyazı olarak göstermek için (otomatik olanlar noktalamasızdır).
+if ($('playerYtSubGet')) {
+  $('playerYtSubGet').addEventListener('click', async () => {
+    const url = $('playerYtUrl').value.trim();
+    const val = $('playerYtSubLang').value || 'en|0';
+    if (!url) return;
+    const [lang, auto] = val.split('|');
+    const btn = $('playerYtSubGet');
+    btn.disabled = true;
+    btn.textContent = 'İndiriliyor...';
+    const res = await window.api.downloadYoutubeSubs({
+      url, lang, auto: auto === '1', outputDir: state.outputDir || undefined,
+    });
+    btn.disabled = false;
+    btn.textContent = 'Bu altyazıyı indir';
+    if (!res || !res.ok) {
+      logLine(`YouTube altyazısı alınamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    const p = res.data.path;
+    addSubtitleOption(p, `YouTube ${lang}${auto === '1' ? ' (otomatik)' : ''}`);
+    // Ana altyazı boşsa oraya, doluysa karşılaştırma altyazısına koy
+    if (!player.cues.length) {
+      $('playerSubSelect').value = p;
+      loadSubtitle(p);
+    } else {
+      $('playerSubSelect2').value = p;
+      loadSubtitle(p, true);
+      logLine('YouTube altyazısı karşılaştırma altyazısı olarak yüklendi.', 'success');
+    }
+  });
+}
+
+// Kaydırıcıyla bulunan gecikmeyi altyazı DOSYASINA kalıcı işle
+if ($('applyOffsetToFile')) {
+  $('applyOffsetToFile').addEventListener('click', async () => {
+    if (!player.subPath) { logLine('Önce bir altyazı dosyası yükle.', 'warn'); return; }
+    const off = player.offset;
+    if (!off) { logLine('Gecikme sıfır — işlenecek bir şey yok.', 'warn'); return; }
+    const res = await window.api.shiftSubs(player.subPath, off);
+    if (!res || !res.ok) {
+      logLine(`Gecikme işlenemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    logLine(`${off > 0 ? '+' : ''}${off.toFixed(1)} sn dosyaya işlendi: `
+      + `${player.subPath.split(/[\\/]/).pop()}`, 'success');
+    // Dosya artık kaymış durumda; ekrandaki gecikmeyi sıfırla ve yeniden yükle
+    $('subOffset').value = '0';
+    $('subOffset').dispatchEvent(new Event('input'));
+    await loadSubtitle(player.subPath);
   });
 }
 
