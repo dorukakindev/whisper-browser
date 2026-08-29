@@ -1297,6 +1297,32 @@ html, body {
 .player-stage.editing .player-controls { opacity: 0; pointer-events: none; }
 
 .player-controls .btn-icon { color: #e8eaed; }
+/* Altyazi KAPALI durumu gorunur olsun (eskiden acik/kapali ayni goruntudeydi) */
+.player-controls .btn-icon.off { color: #8b9199; position: relative; }
+.player-controls .btn-icon.off::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 50%;
+  height: 2px;
+  background: #e05252;
+  transform: rotate(-20deg);
+  border-radius: 1px;
+}
+
+.sub-hidden-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 74px;
+  z-index: 3;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .78);
+  color: #e8eaed;
+  font-size: 12px;
+  pointer-events: none;
+}
 .player-controls .btn-icon:hover { color: #fff; background: rgba(255, 255, 255, .14); }
 .player-controls .player-time { color: #cfd4da; }
 

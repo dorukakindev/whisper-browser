@@ -2411,6 +2411,7 @@ function resetMediaBoundState() {
   const ov2 = $('subtitleOverlay2');
   if (ov) ov.textContent = '';
   if (ov2) ov2.textContent = '';
+  setSubtitlesVisible(true);       // yeni videoda altyazi GORUNUR baslar
 
   // Altyazi secicileri ve liste bosaltilir (dosyalar onceki videoya aitti)
   player.subtitles = [];
@@ -2445,6 +2446,26 @@ function resetMediaBoundState() {
 // kardes tarama, YouTube altyazi indirme) basladigi kusagi hatirlar ve sonuc
 // geldiginde kusak degistiyse sonucu ATAR - eski videonun altyazisi yenisine
 // baglanmasin diye.
+// Altyazi gorunurlugu TEK YERDEN yonetilir. Eskiden yalnizca dugme
+// tiklamasinda inline "visibility" degistiriliyordu; durum hicbir yerde
+// gorunmuyor ve kaynak degisince SIFIRLANMIYORDU. Altyaziyi acmak icin CC
+// dugmesine basan kullanici onu KAPATIYOR, sonra yukledigi hicbir altyazi
+// gorunmuyordu (ekranda da bir iz yok).
+function setSubtitlesVisible(visible) {
+  player.subsHidden = !visible;
+  const ov = $('subtitleOverlay');
+  const ov2 = $('subtitleOverlay2');
+  if (ov) ov.style.visibility = visible ? '' : 'hidden';
+  if (ov2) ov2.style.visibility = visible ? '' : 'hidden';
+  const btn = $('subToggle');
+  if (btn) {
+    btn.classList.toggle('off', !visible);
+    btn.title = visible ? 'Altyazıyı gizle (V)' : 'Altyazı GİZLİ — göstermek için tıkla (V)';
+  }
+  const hint = $('subHiddenHint');
+  if (hint) hint.classList.toggle('hidden', visible);
+}
+
 function setMediaKey(key) {
   player.mediaKey = key || '';
   player.generation++;
@@ -2696,6 +2717,12 @@ async function loadSubtitle(path, secondary = false) {
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
   }
+  // Kullanici altyaziyi acikca yukledi; gizliyken sessizce gizli kalmasi
+  // "ekledim ama gorunmuyor" sikayetinin ta kendisiydi.
+  if (player.subsHidden) {
+    setSubtitlesVisible(true);
+    logLine('Altyazı gizliydi — otomatik açıldı.', 'warn');
+  }
   renderCue();
   logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
     + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
@@ -2818,10 +2845,8 @@ if ($('playerVideo')) {
   // Altyazıyı gizle/göster (orijinali kendin anlamaya çalışırken)
   if ($('subToggle')) {
     $('subToggle').addEventListener('click', () => {
-      player.subsHidden = !player.subsHidden;
-      $('subtitleOverlay').style.visibility = player.subsHidden ? 'hidden' : '';
-      $('subtitleOverlay2').style.visibility = player.subsHidden ? 'hidden' : '';
-      logLine(player.subsHidden ? 'Altyazı gizlendi (V)' : 'Altyazı açık (V)', 'info');
+      setSubtitlesVisible(player.subsHidden);      // tersine cevir
+      logLine(player.subsHidden ? 'Altyazı gizlendi (V ile geri aç)' : 'Altyazı gösteriliyor', 'info');
     });
   }
 
