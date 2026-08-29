@@ -82,6 +82,22 @@
             </div>
             <div class="hint">Linki yapıştır, en yüksek kalitede ses indirilir. İndirme hata veriyorsa: <button class="link-btn" id="updateYtdlp">yt-dlp'yi güncelle</button></div>
           </div>
+
+          <!-- ZAMAN ARALIĞI — hem dosya hem YouTube için geçerli -->
+          <div class="clip-range" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span class="field-label" style="margin:0">Zaman aralığı (isteğe bağlı)</span>
+              <input type="text" id="clipStart" placeholder="baştan" style="width:90px" aria-label="Aralık başlangıcı" />
+              <span style="opacity:.5">–</span>
+              <input type="text" id="clipEnd" placeholder="sona kadar" style="width:90px" aria-label="Aralık bitişi" />
+              <button class="link-btn" id="clearClip" style="display:none">temizle</button>
+            </div>
+            <div class="hint" id="clipHint" style="margin-top:6px">
+              Yalnızca bir bölümü çevirmek için: <code>1:30</code> – <code>5:00</code> (veya saniye: <code>90</code>).
+              Zaman damgaları orijinal videoya göre hizalanır; YouTube'da iki sınır da doluysa
+              <strong>sadece o aralık indirilir</strong>.
+            </div>
+          </div>
         </div>
 
         <!-- SUBTITLE SYNC TOOL -->
@@ -347,14 +363,6 @@
               <label class="field switch-field">
                 <input type="checkbox" id="conditionOnPrevious" checked />
                 <span>Önceki bağlamı kullan</span>
-              </label>
-              <label class="field">
-                <span class="field-label">Aralık başlangıcı (boş = baştan)</span>
-                <input type="text" id="clipStart" placeholder="örn: 90 veya 1:30" />
-              </label>
-              <label class="field">
-                <span class="field-label">Aralık bitişi (boş = sona kadar)</span>
-                <input type="text" id="clipEnd" placeholder="örn: 5:00" />
               </label>
               <label class="field field-full">
                 <span class="field-label">Başlangıç ipucu (isim, jargon vb.)</span>

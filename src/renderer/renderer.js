@@ -571,6 +571,68 @@ dropZone.addEventListener('click', async () => {
   }
 });
 
+// ===== Zaman aralığı (kırpma) =====
+// "1:30", "90", "01:02:03" gibi girdileri saniyeye çevirir; geçersizse null.
+function parseClipInput(value) {
+  const v = (value || '').trim();
+  if (!v) return null;
+  if (!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(v)) return NaN;
+  const parts = v.split(':').map(Number);
+  if (parts.some((n) => Number.isNaN(n))) return NaN;
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+
+function formatClipDur(sec) {
+  const m = Math.floor(sec / 60), s2 = Math.round(sec % 60);
+  return m ? `${m} dk ${s2} sn` : `${s2} sn`;
+}
+
+function updateClipHint() {
+  const hint = $('clipHint');
+  const clearBtn = $('clearClip');
+  if (!hint) return;
+  const rawS = $('clipStart').value.trim();
+  const rawE = $('clipEnd').value.trim();
+  if (clearBtn) clearBtn.style.display = (rawS || rawE) ? '' : 'none';
+  const a = parseClipInput(rawS);
+  const b = parseClipInput(rawE);
+  hint.classList.remove('hint-error');
+  if (Number.isNaN(a) || Number.isNaN(b)) {
+    hint.textContent = '⚠ Geçersiz zaman biçimi. Örnek: 90 · 1:30 · 01:02:03';
+    hint.classList.add('hint-error');
+    return;
+  }
+  if (a !== null && b !== null && b <= a) {
+    hint.textContent = '⚠ Bitiş, başlangıçtan büyük olmalı.';
+    hint.classList.add('hint-error');
+    return;
+  }
+  if (a === null && b === null) {
+    hint.innerHTML = 'Yalnızca bir bölümü çevirmek için: <code>1:30</code> – <code>5:00</code> '
+      + '(veya saniye: <code>90</code>). Zaman damgaları orijinal videoya göre hizalanır; '
+      + "YouTube'da iki sınır da doluysa <strong>sadece o aralık indirilir</strong>.";
+    return;
+  }
+  const from = a === null ? 'baştan' : formatClipDur(a);
+  const to = b === null ? 'sona kadar' : formatClipDur(b);
+  const len = (a !== null && b !== null) ? ` · seçili süre: ${formatClipDur(b - a)}` : '';
+  hint.textContent = `⏱ Yalnızca ${from} → ${to} çevrilecek${len}`;
+}
+
+['clipStart', 'clipEnd'].forEach((id) => {
+  const el = $(id);
+  if (el) el.addEventListener('input', updateClipHint);
+});
+const clearClipBtn = $('clearClip');
+if (clearClipBtn) {
+  clearClipBtn.addEventListener('click', () => {
+    $('clipStart').value = '';
+    $('clipEnd').value = '';
+    updateClipHint();
+  });
+}
+updateClipHint();
+
 const openLogFolderBtn = $('openLogFolder');
 if (openLogFolderBtn) {
   openLogFolderBtn.addEventListener('click', async () => {
@@ -1192,6 +1254,18 @@ $('startBtn').addEventListener('click', async () => {
   }
 
   const opts = buildOptsFromUI();
+
+  // Zaman aralığı geçerli mi? (sessizce yanlış aralıkla çevirmektense burada dur)
+  const clipA = parseClipInput(opts.clipStart);
+  const clipB = parseClipInput(opts.clipEnd);
+  if (Number.isNaN(clipA) || Number.isNaN(clipB)) {
+    logLine('Zaman aralığı biçimi geçersiz. Örnek: 90 · 1:30 · 01:02:03', 'error');
+    return;
+  }
+  if (clipA !== null && clipB !== null && clipB <= clipA) {
+    logLine('Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.', 'error');
+    return;
+  }
 
   if (state.source === 'youtube') {
     const url = $('youtubeUrl').value.trim();

@@ -338,6 +338,11 @@ body::before {
   padding: 0 4px;
 }
 
+/* Geçersiz zaman aralığı gibi anlık doğrulama uyarıları */
+.hint.hint-error {
+  color: var(--danger, #f87171);
+}
+
 /* ===== Settings grid ===== */
 .settings-grid {
   display: grid;
