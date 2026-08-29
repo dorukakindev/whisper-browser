@@ -253,18 +253,12 @@ def test_write_dual_srt():
     text = open(p, encoding="utf-8-sig").read()
     # blok sayısı korunur, çeviri üstte kaynak altta
     assert text.count("-->") == 2
-    first = text.split("
-
-")[0].split("
-")
+    first = text.split("\n\n")[0].split("\n")
     assert first[2] == "Adiler yaşamayı sürdürüyor."
     assert first[3] == "The Addis continue to live."
     # ters sıra
     T.write_dual_srt(src, tr, p, translation_first=False)
-    t2 = open(p, encoding="utf-8-sig").read().split("
-
-")[0].split("
-")
+    t2 = open(p, encoding="utf-8-sig").read().split("\n\n")[0].split("\n")
     assert t2[2] == "The Addis continue to live."
 
 
