@@ -98,6 +98,8 @@ function buildOptsFromUI() {
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
+    dualSubtitle: $('dualSubtitle').checked,
+    audioPreprocess: $('audioPreprocess').value,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
       ? $('llmBaseUrl').value.trim()
       : $('llmEndpointPreset').value,
@@ -991,7 +993,7 @@ async function saveAppSettings() {
 const PERSIST_VALUE_CONTROLS = [
   'model', 'engine', 'batchSize', 'language', 'task', 'formats', 'computeType', 'device',
   'beamSize', 'bestOf', 'vadThreshold', 'maxLineWidth', 'splitMode', 'timingGap',
-  'wrapMode', 'hardMaxChars', 'maxCps', 'initialPrompt', 'incompleteGap',
+  'wrapMode', 'hardMaxChars', 'maxCps', 'initialPrompt', 'incompleteGap', 'audioPreprocess',
   'temperature', 'patience', 'lengthPenalty', 'repetitionPenalty', 'noRepeatNgramSize',
   'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
@@ -1004,7 +1006,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine',
+  'translate', 'translateKeepSource', 'translateRefine', 'dualSubtitle',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
 ];

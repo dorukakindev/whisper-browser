@@ -239,7 +239,8 @@ def probe_duration(media_path, ffmpeg_path):
         return None
 
 
-def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end=None, audio_track=-1):
+def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end=None,
+                  audio_track=-1, audio_filter="none"):
     """
     ffmpeg ile videodan 16kHz mono WAV ses çıkar (isteğe bağlı zaman aralığı).
 
@@ -260,6 +261,19 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
         cmd += ["-to", str(clip_end)]
     if audio_track is not None and audio_track >= 0:
         cmd += ["-map", f"0:a:{audio_track}"]
+    # Ses ön-işleme (opsiyonel): eski/gürültülü kaynaklarda tanımayı iyileştirir.
+    #   loudnorm  : seviye eşitleme (kısık konuşma - yüksek müzik farkını azaltır)
+    #   afftdn    : spektral gürültü azaltma (VHS uğultusu, bant hışırtısı)
+    # Whisper zaten gürültüye dayanıklı; bu yüzden VARSAYILAN KAPALI, kullanıcı açar.
+    filters = []
+    if audio_filter in ("loudnorm", "both"):
+        filters.append("loudnorm=I=-16:TP=-1.5:LRA=11")
+    if audio_filter in ("denoise", "both"):
+        filters.append("afftdn=nf=-25")
+    if filters:
+        cmd += ["-af", ",".join(filters)]
+        log(f"Ses ön-işleme: {', '.join(filters)}")
+
     cmd += [
         "-vn",
         "-ar", "16000",
@@ -1312,6 +1326,32 @@ def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr
             f.write(f"{i}\n")
             f.write(f"{format_srt_time(start)} --> {format_srt_time(end)}\n")
             f.write(f"{wrapped}\n\n")
+
+
+def write_dual_srt(source_entries, translated_entries, output_path, translation_first=True,
+                   max_line_width=42, language="tr", wrap_mode="none"):
+    """
+    Kaynak ve çeviriyi TEK dosyada üst üste yazar (dualsub/merge-srt-subtitles fikri).
+    Bloklar birebir aynı olduğu için (çeviri blok sayısını değiştirmiyor) eşleme
+    indeks bazlı — zaman kaydırmalı birleştirme gerekmiyor.
+
+    translation_first=True: üstte çeviri, altta kaynak (izlerken çeviriyi okur,
+    gözü kaynağa kayınca kontrol eder). Oynatıcı dışında herhangi bir player'da çalışır.
+    """
+    lines = []
+    for i, (s0, e0, tr_text) in enumerate(translated_entries):
+        src_text = source_entries[i][2] if i < len(source_entries) else ""
+        top, bottom = (tr_text, src_text) if translation_first else (src_text, tr_text)
+        top = wrap_text(top, max_line_width, 2, language=language, wrap_mode=wrap_mode)
+        bottom = wrap_text(bottom, max_line_width, 2, language=language, wrap_mode=wrap_mode)
+        body = top if not bottom else f"{top}\n{bottom}"
+        lines.append(f"{i + 1}")
+        lines.append(f"{format_srt_time(s0)} --> {format_srt_time(e0)}")
+        lines.append(body)
+        lines.append("")
+    with open(output_path, "w", encoding="utf-8-sig") as f:
+        f.write("\n".join(lines))
+    return output_path
 
 
 def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
@@ -3059,7 +3099,8 @@ def transcribe(args):
         ex_end = None if youtube_ranged else clip_end
         # Ses kanalı seçimi yalnızca yerel dosyada anlamlı (YouTube tek akış indirir)
         ex_track = -1 if args.youtube else args.audio_track
-        extract_audio(source_path, wav_path, ffmpeg_path, clip_start=ex_start, clip_end=ex_end, audio_track=ex_track)
+        extract_audio(source_path, wav_path, ffmpeg_path, clip_start=ex_start, clip_end=ex_end,
+                      audio_track=ex_track, audio_filter=args.audio_preprocess)
 
         # Güvenlik: aralık indirme beklendiği gibi çalışmadıysa (eski yt-dlp, canlı yayın)
         # çıkarılan ses tüm videoyu kapsıyor olabilir → ffmpeg ile yerelden kırp (yedek).
@@ -3551,6 +3592,20 @@ def transcribe(args):
                 if _write(translated, tr_path, (args.translate_to or "tr").lower()):
                     output_files.append(str(tr_path))
                     log(f"Çeviri yazıldı: {tr_path}")
+
+        # Çift dilli tek dosya (kaynak + çeviri üst üste) — herhangi bir oynatıcıda çalışır
+        if translated and args.dual_subtitle:
+            try:
+                dual_path = output_dir / f"{base_name}.dual.srt"
+                write_dual_srt(entries, translated, dual_path,
+                               translation_first=args.dual_translation_first,
+                               max_line_width=args.max_line_width,
+                               language=(args.translate_to or "tr").lower(),
+                               wrap_mode=args.wrap_mode)
+                output_files.append(str(dual_path))
+                log(f"Çift dilli altyazı yazıldı: {dual_path}")
+            except Exception as e:
+                log(f"Çift dilli dosya yazılamadı: {e}", "warn")
 
         # Düşük güvenli kelime raporu (kelime damgaları varsa)
         if args.confidence_report and all_words:
@@ -4210,6 +4265,13 @@ def main():
                              "(reklam arası kesilmiş kopya, farklı kurgu)")
     parser.add_argument("--sync-fix-framerate", type=lambda x: x.lower() == "true", default=True,
                         help="Senkronda framerate sürüklenmesini de düzelt (yalnızca sabit kayma değil)")
+    parser.add_argument("--dual-subtitle", type=lambda x: x.lower() == "true", default=False,
+                        help="Kaynak ve çeviriyi tek dosyada üst üste yaz (<ad>.dual.srt)")
+    parser.add_argument("--dual-translation-first", type=lambda x: x.lower() == "true", default=True,
+                        help="Çift dilli dosyada çeviri üstte olsun")
+    parser.add_argument("--audio-preprocess", default="none",
+                        choices=["none", "denoise", "loudnorm", "both"],
+                        help="Transkripsiyon öncesi ses işleme (eski/gürültülü kaynaklar için)")
     parser.add_argument("--drop-repeated-hallucinations", type=lambda x: x.lower() == "true",
                         default=True,
                         help="Dosya boyunca tekrarlayan düşük güvenli uydurmaları tespit et "

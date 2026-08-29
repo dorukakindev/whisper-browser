@@ -374,6 +374,15 @@
                 <span>İş bitince Windows bildirimi göster</span>
               </label>
               <label class="field">
+                <span class="field-label">Ses ön-işleme (eski/gürültülü kaynak)</span>
+                <select id="audioPreprocess">
+                  <option value="none" selected>Kapalı (önerilen)</option>
+                  <option value="loudnorm">Seviye eşitle</option>
+                  <option value="denoise">Gürültü azalt</option>
+                  <option value="both">İkisi birden</option>
+                </select>
+              </label>
+              <label class="field">
                 <span class="field-label">Maks okuma hızı (CPS): <span class="value" id="maxCpsVal">20</span></span>
                 <input type="range" id="maxCps" min="10" max="30" step="1" value="20" />
               </label>
@@ -581,6 +590,10 @@
                   <option value="medium" selected>Orijinal şiddetinde</option>
                   <option value="explicit">Sansürsüz</option>
                 </select>
+              </label>
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="dualSubtitle" />
+                <span>Çift dilli tek dosya da yaz (&lt;ad&gt;.dual.srt — kaynak ve çeviri üst üste)</span>
               </label>
               <label class="field switch-field field-full">
                 <input type="checkbox" id="translateRefine" />

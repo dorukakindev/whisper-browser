@@ -244,6 +244,30 @@ def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "He met Mrs. Dolly")]) == 0.0
 
 
+def test_write_dual_srt():
+    import tempfile, pathlib
+    src = [(0.0, 3.0, "The Addis continue to live."), (3.2, 5.0, "He lived in the attic.")]
+    tr = [(0.0, 3.0, "Adiler yaşamayı sürdürüyor."), (3.2, 5.0, "Tavan arasında yaşadı.")]
+    p = pathlib.Path(tempfile.mkdtemp()) / "x.dual.srt"
+    T.write_dual_srt(src, tr, p, translation_first=True)
+    text = open(p, encoding="utf-8-sig").read()
+    # blok sayısı korunur, çeviri üstte kaynak altta
+    assert text.count("-->") == 2
+    first = text.split("
+
+")[0].split("
+")
+    assert first[2] == "Adiler yaşamayı sürdürüyor."
+    assert first[3] == "The Addis continue to live."
+    # ters sıra
+    T.write_dual_srt(src, tr, p, translation_first=False)
+    t2 = open(p, encoding="utf-8-sig").read().split("
+
+")[0].split("
+")
+    assert t2[2] == "The Addis continue to live."
+
+
 # ===== istatistiksel halüsinasyon =====
 def _halluc_fixture(text, prob, n, spread=30.0):
     entries, words = [], []
