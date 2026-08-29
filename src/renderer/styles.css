@@ -1398,3 +1398,58 @@ html, body {
 
 .subtitle-overlay { cursor: default; }
 .player-stage:not(:fullscreen) .subtitle-overlay { pointer-events: auto; }
+
+
+/* Altyazı listesi — tıkla ve o ana atla, aktif blok vurgulanır */
+.player-panel-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 200px;
+}
+
+.cue-list {
+  margin-top: 8px;
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+
+.cue-list-empty {
+  padding: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.cue-row {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cue-row:last-child { border-bottom: none; }
+.cue-row:hover { background: var(--bg-3); }
+
+.cue-row.active {
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 6px;
+}
+
+.cue-row-time {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  padding-top: 1px;
+}
+
+.cue-row-text { color: var(--text-dim); }
+.cue-row.active .cue-row-text { color: var(--text); }

@@ -1912,6 +1912,8 @@ const player = {
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
   subPath: '',       // düzenleme kaydederken yazılacak dosya
   editing: false,
+  autoPause: false,
+  pausedAt: -1,
   ytInfo: null,
   downloading: false,
 };
@@ -1961,9 +1963,21 @@ function renderCue() {
 
   if (player.cues.length) {
     const i = findCueAt(player.cues, t, player.activeIdx);
-    player.activeIdx = i;
+    if (i !== player.activeIdx) {
+      player.activeIdx = i;
+      highlightCueRow();
+    }
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
     if (!player.editing) overlay.textContent = i >= 0 ? player.cues[i].text : '';
+
+    // Her blok sonunda duraklat (Voracious'taki çalışma modu): blok bitince dur,
+    // aynı blokta tekrar tekrar durmamak için bir kez işaretle
+    if (player.autoPause && i >= 0 && !video.paused) {
+      if (t >= player.cues[i].end - 0.05 && player.pausedAt !== i) {
+        player.pausedAt = i;
+        video.pause();
+      }
+    }
   } else {
     overlay.textContent = '';
   }
@@ -1977,6 +1991,95 @@ function renderCue() {
       overlay2.textContent = '';
     }
   }
+}
+
+// ---- Altyazı listesi (LLPlayer'daki "subtitles sidebar" fikri) ----
+// Tüm blokları listeler; tıklayınca o ana atlar, aktif blok vurgulanır ve
+// görünür alana kaydırılır. Uzun filmde altyazı denetimini kolaylaştırır.
+function renderCueList(filter = '') {
+  const box = $('cueList');
+  if (!box) return;
+  const q = filter.trim().toLocaleLowerCase('tr');
+  box.innerHTML = '';
+  if (!player.cues.length) {
+    box.innerHTML = '<div class="cue-list-empty">Altyazı yüklenince bloklar burada listelenir.</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  player.cues.forEach((c, i) => {
+    if (q && !c.text.toLocaleLowerCase('tr').includes(q)) return;
+    const row = document.createElement('div');
+    row.className = 'cue-row';
+    row.dataset.idx = String(i);
+    const time = document.createElement('div');
+    time.className = 'cue-row-time';
+    time.textContent = pSecToTime(c.start);
+    const text = document.createElement('div');
+    text.className = 'cue-row-text';
+    text.textContent = c.text.replace(/\n/g, ' ');
+    row.appendChild(time);
+    row.appendChild(text);
+    row.addEventListener('click', () => seekToCue(i));
+    frag.appendChild(row);
+  });
+  if (!frag.childNodes.length) {
+    box.innerHTML = '<div class="cue-list-empty">Eşleşen blok yok.</div>';
+    return;
+  }
+  box.appendChild(frag);
+  highlightCueRow();
+}
+
+function highlightCueRow() {
+  const box = $('cueList');
+  if (!box) return;
+  const prev = box.querySelector('.cue-row.active');
+  if (prev) prev.classList.remove('active');
+  if (player.activeIdx < 0) return;
+  const row = box.querySelector(`.cue-row[data-idx="${player.activeIdx}"]`);
+  if (!row) return;
+  row.classList.add('active');
+  const rb = row.getBoundingClientRect();
+  const bb = box.getBoundingClientRect();
+  if (rb.top < bb.top || rb.bottom > bb.bottom) {
+    row.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+// ---- blok gezinme (Voracious: "navigate forward and back by subtitle") ----
+function seekToCue(i) {
+  const video = $('playerVideo');
+  if (!video || i < 0 || i >= player.cues.length) return;
+  video.currentTime = Math.max(0, player.cues[i].start + player.offset + 0.01);
+  player.activeIdx = i;
+  renderCue();
+  highlightCueRow();
+}
+
+function stepCue(delta) {
+  if (!player.cues.length) return;
+  const video = $('playerVideo');
+  const t = video.currentTime - player.offset;
+  let i = player.activeIdx;
+  if (i < 0) {
+    i = player.cues.findIndex((c) => c.start > t);
+    if (i < 0) i = player.cues.length - 1;
+  } else {
+    i += delta;
+  }
+  seekToCue(Math.min(player.cues.length - 1, Math.max(0, i)));
+}
+
+function replayCue() {
+  if (player.activeIdx >= 0) seekToCue(player.activeIdx);
+  const video = $('playerVideo');
+  if (video && video.paused) video.play();
+}
+
+function copyCue() {
+  if (player.activeIdx < 0) return;
+  window.api.copyText(player.cues[player.activeIdx].text);
+  logLine('Altyazı satırı panoya kopyalandı.', 'success');
 }
 
 // Blokları tekrar SRT'ye çevir (izlerken yapılan düzeltmeyi kaydetmek için)
@@ -2038,6 +2141,7 @@ async function loadSubtitle(path, secondary = false) {
     player.cues = cues;
     player.activeIdx = -1;
     player.subPath = path;
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
   }
   renderCue();
   logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
@@ -2112,6 +2216,10 @@ document.addEventListener('keydown', (e) => {
   if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
   if (player.editing) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
+  if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
+  if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
+  if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replayCue(); return; }
+  if (e.key === 'c' || e.key === 'C') { e.preventDefault(); copyCue(); return; }
   if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
   else if (e.key === 'ArrowRight') video.currentTime += 5;
   else if (e.key === 'ArrowLeft') video.currentTime -= 5;
@@ -2203,9 +2311,19 @@ async function saveCueEdit() {
     return;
   }
   logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
   closeCueEditor();
 }
 
+if ($('cueSearch')) {
+  $('cueSearch').addEventListener('input', (e) => renderCueList(e.target.value));
+}
+if ($('autoPauseCue')) {
+  $('autoPauseCue').addEventListener('change', (e) => {
+    player.autoPause = e.target.checked;
+    player.pausedAt = -1;
+  });
+}
 if ($('subtitleOverlay')) {
   $('subtitleOverlay').addEventListener('dblclick', openCueEditor);
 }

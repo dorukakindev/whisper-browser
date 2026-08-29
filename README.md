@@ -33,6 +33,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Önizlemeyi panoya kopyala** — segmentleri SRT biçiminde kopyala (arama filtresi uygulanır)
 - **Önizlemede düzenleme** — segment metnini kaydetmeden önce çift tıkla düzelt; kopyala/JSON yeniden-üret düzeltilmiş metni kullanır
 - **JSON'dan yeniden üret** — mevcut JSON çıktısından SRT/VTT/TXT/ASS'yi yeniden transkripsiyon yapmadan saniyeler içinde yaz
+- **Altyazı listesi & blok gezinme** — oynatıcıda tüm bloklar listelenir; tıklayınca o ana atlar, aktif blok vurgulanıp kendiliğinden kaydırılır, metinde anlık arama yapılır. Klavyeyle blok blok gezinme (A/D), bloğu tekrar oynatma (R), satırı kopyalama (C) ve her blok sonunda otomatik duraklatma — uzun filmde altyazı denetimini hızlandırır
 - **Çift altyazı & izlerken düzeltme** — kaynak ve çeviri aynı anda gösterilebilir (çeviriyi izlerken kontrol etmenin en hızlı yolu); altyazıya çift tıklayıp (veya E tuşu) o bloğu düzeltip kaydedebilirsin, ilk kaydetmede .bak yedeği alınır
 - **Uygulama içi oynatıcı** — videoyu kendi altyazılarınla izle: yerel dosya veya YouTube linki. YouTube'da kalite (1080p'ye kadar) ve — video dublajlıysa — ses dili seçilir; video indirilip birleştirilerek oynatılır. Altyazı video üstünde çizilir (yazı boyutu ve gecikme ayarlanabilir), tam ekran ve klavye kısayolları (boşluk, ok tuşları, F, Esc) desteklenir
 - **Zaman kaydırma & videoya gömme** — sonuç ekranından SRT/VTT'yi global olarak kaydır veya altyazıyı videoya göm (ffmpeg burn-in)

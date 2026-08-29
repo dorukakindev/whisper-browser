@@ -825,7 +825,19 @@
               <span class="field-label">Gecikme: <span class="value" id="subOffsetVal">0.0</span> sn</span>
               <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
             </label>
-            <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E tuşu). İlk kaydetmede <code>.bak</code> yedeği alınır.</div>
+            <label class="field switch-field" style="margin-top:8px">
+              <input type="checkbox" id="autoPauseCue" />
+              <span>Her blok sonunda duraklat</span>
+            </label>
+            <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.</div>
+          </div>
+
+          <div class="player-panel player-panel-list">
+            <div class="player-panel-title">Altyazı listesi</div>
+            <input type="search" id="cueSearch" placeholder="Metinde ara..." />
+            <div class="cue-list" id="cueList">
+              <div class="cue-list-empty">Altyazı yüklenince bloklar burada listelenir.</div>
+            </div>
           </div>
         </div>
       </div>
