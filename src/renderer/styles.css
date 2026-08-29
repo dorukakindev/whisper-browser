@@ -1669,7 +1669,7 @@ html, body {
 
 /* Kontroller gorunurken altyazi onlarin uzerine kalksin (uzeri kapanmasin) */
 .subtitle-overlay { transition: bottom .18s ease; }
-.player-stage:not(.idle) .subtitle-overlay { bottom: 13%; }
+.player-stage:not(.idle):not(.sub-moved) .subtitle-overlay { bottom: 13%; }
 .player-stage:not(.idle) .subtitle-secondary { bottom: auto; }
 
 
@@ -1724,8 +1724,23 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
-.subtitle-overlay { cursor: default; }
-.player-stage:not(:fullscreen) .subtitle-overlay { pointer-events: auto; }
+/* Altyazi surukleme: TAM EKRANDA DA tutulabilmeli, bu yuzden pointer-events
+   her iki durumda da acik. Hareketsiz tiklama videoya iletilir (oynat/duraklat
+   davranisi kaybolmasin). */
+.subtitle-overlay { cursor: grab; }
+.player-stage .subtitle-overlay { pointer-events: auto; }
+.subtitle-overlay.dragging { cursor: grabbing; user-select: none; }
+
+/* Kullanici konumu elle ayarladiysa "kontroller gorununce yukari kalk" kurali
+   devre disi kalir - kendi secimi kazanir. */
+.player-stage.sub-moved .subtitle-overlay { transition: none; }
+
+/* Suruklerken hangi hizada oldugu gorunsun */
+.subtitle-overlay.dragging {
+  outline: 1px dashed rgba(255, 255, 255, .45);
+  outline-offset: 6px;
+  border-radius: 6px;
+}
 
 
 /* Altyazı listesi — tıkla ve o ana atla, aktif blok vurgulanır */

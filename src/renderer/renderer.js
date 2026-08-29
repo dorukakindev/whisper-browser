@@ -2055,6 +2055,8 @@ const player = {
   originalUrl: '',   // kullanicinin girdigi kalici YouTube adresi (gecici HLS DEGIL)
   positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
   subsHidden: false,
+  subBottom: null,       // altyazinin dikey konumu (%, alttan) - kullanici surukler
+  sub2Top: null,         // karsilastirma altyazisinin konumu (%, ustten)
   autoFollow: true,      // aktif satiri kendiliginden kaydir
   userScrolled: false,   // kullanici elle kaydirdi -> takip gecici durur
   viewMode: 'reading',
@@ -2397,6 +2399,107 @@ function cuesToSrt(cues) {
   };
   return cues.map((c, i) =>
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
+}
+
+// ---- altyazıyı sürükleyerek konumlandırma ----
+// Kullanici altyaziyi basili tutup dikeyde tasiyabilir. Konum YUZDE olarak
+// saklanir; boylece pencere boyutu degisse de tam ekrana gecilse de ayni yerde
+// durur. Yatay konum degismez (altyazi ortali kalmali).
+const SUB_POS_KEY = 'subtitlePos';
+
+function applySubtitlePos() {
+  const ov = $('subtitleOverlay');
+  const ov2 = $('subtitleOverlay2');
+  const stage = $('playerStage');
+  if (ov && player.subBottom != null) {
+    ov.style.bottom = `${player.subBottom}%`;
+    if (stage) stage.classList.add('sub-moved');
+  }
+  if (ov2 && player.sub2Top != null) ov2.style.top = `${player.sub2Top}%`;
+}
+
+function loadSubtitlePos() {
+  try {
+    const raw = localStorage.getItem(SUB_POS_KEY);
+    if (!raw) return;
+    const p = JSON.parse(raw);
+    if (typeof p.bottom === 'number') player.subBottom = p.bottom;
+    if (typeof p.top2 === 'number') player.sub2Top = p.top2;
+  } catch (_) {}
+  applySubtitlePos();
+}
+
+function saveSubtitlePos() {
+  try {
+    localStorage.setItem(SUB_POS_KEY, JSON.stringify({
+      bottom: player.subBottom, top2: player.sub2Top,
+    }));
+  } catch (_) {}
+}
+
+// el: 'bottom' (ana altyazi, alttan olculur) | 'top' (karsilastirma, ustten)
+function makeSubtitleDraggable(el, edge) {
+  if (!el) return;
+  let dragging = false;
+  let startY = 0;
+  let startPct = 0;
+  let moved = false;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || player.editing) return;
+    const stage = $('playerStage');
+    if (!stage) return;
+    const h = stage.getBoundingClientRect().height || 1;
+    const r = el.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    startPct = edge === 'bottom'
+      ? ((sr.bottom - r.bottom) / h) * 100
+      : ((r.top - sr.top) / h) * 100;
+    startY = e.clientY;
+    dragging = true;
+    moved = false;
+    el.setPointerCapture(e.pointerId);
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dy = e.clientY - startY;
+    // 4 px esigi: kisa tiklamayi surukleme sayma
+    if (!moved && Math.abs(dy) < 4) return;
+    if (!moved) { moved = true; el.classList.add('dragging'); showControls(); }
+    const stage = $('playerStage');
+    const h = stage.getBoundingClientRect().height || 1;
+    // asagi surukleme: alttan olculen deger AZALIR, ustten olculen ARTAR
+    const delta = (dy / h) * 100 * (edge === 'bottom' ? -1 : 1);
+    const pct = Math.max(1, Math.min(88, startPct + delta));
+    el.style[edge] = `${pct}%`;
+    if (edge === 'bottom') {
+      player.subBottom = pct;
+      stage.classList.add('sub-moved');
+    } else {
+      player.sub2Top = pct;
+      el.style.bottom = 'auto';
+    }
+  });
+
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (moved) {
+      saveSubtitlePos();
+      logLine(`Altyazı konumu kaydedildi (${edge === 'bottom' ? 'alt' : 'üst'}: `
+        + `%${Math.round(edge === 'bottom' ? player.subBottom : player.sub2Top)})`, 'info');
+    } else {
+      // Suruklenmedi: sade tiklama -> videoya ilet (tam ekranda oynat/duraklat
+      // davranisi kaybolmasin). Cift tiklama duzenleyiciyi acmaya devam eder.
+      const v = $('playerVideo');
+      if (v && !player.editing) { v.paused ? v.play().catch(() => {}) : v.pause(); }
+    }
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
 }
 
 // ---- kontrollerin boşta gizlenmesi (film izlerken imleç/çubuk yolu kapatmasın) ----
@@ -3029,6 +3132,9 @@ $$('.view-modes .vm').forEach((b) => {
   setViewMode(mode);
   if (width) setSideWidth(width);
   bindTranscriptScroll();
+  makeSubtitleDraggable($('subtitleOverlay'), 'bottom');
+  makeSubtitleDraggable($('subtitleOverlay2'), 'top');
+  loadSubtitlePos();
 })();
 
 // Panel genisligini surukleyerek ayarla
