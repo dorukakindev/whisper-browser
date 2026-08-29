@@ -332,6 +332,14 @@
                 <input type="range" id="hardMaxChars" min="80" max="320" step="10" value="220" />
               </label>
               <label class="field switch-field">
+                <input type="checkbox" id="snapToSpeech" checked />
+                <span>Konuşma başlangıcına yasla (altyazı sesten önce gelmesin)</span>
+              </label>
+              <div class="hint">Whisper'ın zaman damgaları cümle başında sessizliğin içine taşar;
+                ölçümde altyazılar gerçek konuşmadan <strong>medyan 0,54 sn</strong> erken
+                başlıyordu. Bu seçenek yalnızca sessizliğe denk gelen başlangıçları en fazla
+                1 saniye ileri alır; konuşmanın ortasından başlayan bloklara dokunmaz.</div>
+              <label class="field switch-field">
                 <input type="checkbox" id="fixTimings" checked />
                 <span>Zamanlamaları düzelt (okuma hızı / süre / boşluk)</span>
               </label>

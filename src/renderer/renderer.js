@@ -47,6 +47,7 @@ function buildOptsFromUI() {
     wrapMode: $('wrapMode').value,
     hardMaxChars: parseInt($('hardMaxChars').value, 10),
     fixTimings: $('fixTimings').checked,
+    snapToSpeech: $('snapToSpeech') ? $('snapToSpeech').checked : true,
     mergeShort: $('mergeShort').checked,
     mergeIncomplete: $('mergeIncomplete').checked,
     fixPunctuationCollapse: $('fixPunctuationCollapse').checked,
@@ -1085,7 +1086,7 @@ const PERSIST_VALUE_CONTROLS = [
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'translate', 'translateKeepSource', 'translateRefine', 'dualSubtitle', 'watchEnabled',
@@ -1159,6 +1160,7 @@ const PRESETS = {
     },
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,
+      snapToSpeech: true,
       fixTimings: true, conditionOnPrevious: false, mergeIncomplete: true,
       fixPunctuationCollapse: true, confidenceReport: true, fixCommonErrors: true,
     },

@@ -785,6 +785,44 @@ def test_translate_context_can_be_disabled():
     assert "## BAGLAM" not in seen["system"]
 
 
+def test_snap_to_speech_moves_only_silent_starts():
+    """Sessizlikte baslayan bloklar konusmaya yaslanir; digerlerine DOKUNULMAZ.
+
+    Olcum (Going Tribal klibi): yaslama oncesi 29 blogun 15'i sessizlikte
+    basliyordu (ortalama 448 ms, en fazla 920 ms erken); sonrasinda 0.
+    """
+    # konusma bolgeleri: 1.0-3.0, 5.0-8.0, 12.0-14.0
+    starts = [1.0, 5.0, 12.0]
+    ends = [3.0, 8.0, 14.0]
+
+    entries = [
+        (0.4, 3.0, "sessizlikte basliyor"),     # -> 1.0'a yaslanmali
+        (5.5, 8.0, "konusmanin icinde"),        # -> DOKUNULMAZ
+        (11.9, 14.0, "cok az erken"),           # -> 12.0 (100 ms)
+        (10.0, 10.4, "kisa blok"),              # -> yaslanirsa min_dur bozulur: DOKUNULMAZ
+        (4.98, 8.0, "cok kucuk fark"),          # 20 ms: esigin altinda, DOKUNULMAZ
+    ]
+    out, moved, avg = T.snap_entries_to_regions(entries, starts, ends, max_shift=1.0, min_dur=0.6)
+
+    assert [round(o[0], 3) for o in out] == [1.0, 5.5, 12.0, 10.0, 4.98], out
+    assert moved == 2
+    assert 0.3 < avg < 0.4                       # (0.6 + 0.1) / 2
+    # metin ve bitisler degismez
+    assert [o[2] for o in out] == [e[2] for e in entries]
+    assert [o[1] for o in out] == [e[1] for e in entries]
+
+
+def test_snap_to_speech_respects_max_shift():
+    # Konusma cok uzaktaysa (yanlis hizalama supehesi) blok oynatilmaz
+    out, moved, _ = T.snap_entries_to_regions(
+        [(1.0, 9.0, "uzak")], starts=[5.0], ends=[8.0], max_shift=1.0, min_dur=0.6)
+    assert moved == 0 and out[0][0] == 1.0
+    # sinir icindeyse oynatilir
+    out2, moved2, _ = T.snap_entries_to_regions(
+        [(4.2, 9.0, "yakin")], starts=[5.0], ends=[8.0], max_shift=1.0, min_dur=0.6)
+    assert moved2 == 1 and out2[0][0] == 5.0
+
+
 def test_build_translate_prompt():
     p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
                                  register="documentary", profanity="explicit",

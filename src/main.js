@@ -1035,6 +1035,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--quality-report', options.qualityReport !== false ? 'true' : 'false');
   args.push('--resume', options.resume !== false ? 'true' : 'false');
   if (options.device) args.push('--device', options.device);
+  args.push('--snap-to-speech', options.snapToSpeech !== false ? 'true' : 'false');
   args.push('--fix-timings', options.fixTimings !== false ? 'true' : 'false');
   if (options.maxCps) args.push('--max-cps', String(options.maxCps));
   args.push('--merge-short', options.mergeShort !== false ? 'true' : 'false');

@@ -2957,6 +2957,77 @@ def merge_incomplete_sentences(entries, max_gap=2.5, max_chars=84, max_dur=7.0, 
     return [(o[0], o[1], o[2]) for o in out]
 
 
+def snap_entries_to_speech(entries, wav_path, time_offset=0.0, max_shift=1.0,
+                           min_dur=0.6, warn_list=None):
+    """Altyazi baslangicini sessizligin disina, GERCEK konusma baslangicina yaslar.
+
+    Neden: Whisper'in zaman damgalari cumle basinda sessizligin icine tasar -
+    olcum (Going Tribal klibi, large-v3-turbo): altyazilar gercek konusma
+    baslangicindan MEDYAN 544 ms, en fazla 920 ms once basliyordu. Bu, izlerken
+    "altyazi sesten once geliyor" olarak hissediliyor.
+
+    Not: sorun segment/kelime damgasi farki DEGIL - ikisi ayni cikiyor (olculdu).
+    Damganin kendisi erken; bu yuzden cozum sesin kendisine yaslamak (stable-ts
+    de ayni fikri kullanir).
+
+    Yalnizca blogun basi SESSIZLIGE denk geliyorsa oteler; konusmanin ortasindan
+    baslayan bloklara dokunmaz. Otelenen miktar max_shift ile sinirlidir ve blok
+    min_dur'dan kisa kalacaksa oteleme yapilmaz.
+    """
+    if not entries or not wav_path:
+        return entries, 0, 0.0
+    try:
+        import bisect
+        from faster_whisper.audio import decode_audio
+        from faster_whisper.vad import get_speech_timestamps, VadOptions
+    except Exception:
+        return entries, 0, 0.0
+    try:
+        audio = decode_audio(wav_path, sampling_rate=16000)
+        # Transkripsiyondaki VAD'dan DAHA HASSAS ayar: kisa duraklamalari da gormek
+        # istiyoruz, yoksa tum film birkac dev "konusma bolgesi" olur ve yaslama ise yaramaz.
+        chunks = get_speech_timestamps(
+            audio,
+            VadOptions(threshold=0.35, min_silence_duration_ms=150, speech_pad_ms=0),
+        )
+    except Exception as e:
+        log(f"Konusma baslangicina yaslama atlandi: {e}", "warn")
+        return entries, 0, 0.0
+    if not chunks:
+        return entries, 0, 0.0
+
+    starts = [c["start"] / 16000.0 + time_offset for c in chunks]
+    ends = [c["end"] / 16000.0 + time_offset for c in chunks]
+    return snap_entries_to_regions(entries, starts, ends, max_shift=max_shift, min_dur=min_dur)
+
+
+def snap_entries_to_regions(entries, starts, ends, max_shift=1.0, min_dur=0.6):
+    """Saf mantik: konusma bolgeleri verildiginde baslangiclari yaslar.
+
+    Ses cozumlemeden ayri tutulur ki test edilebilsin (bkz. snap_entries_to_speech).
+    """
+    import bisect
+    out = []
+    moved = 0
+    total = 0.0
+    for (s, e, t) in entries:
+        i = bisect.bisect_right(starts, s) - 1
+        in_speech = i >= 0 and s <= ends[i]
+        ns = s
+        if not in_speech:
+            j = bisect.bisect_left(starts, s)
+            if j < len(starts):
+                shift = starts[j] - s
+                # Cok kucuk kaydirma gereksiz; cok buyuk olan supheli (yanlis
+                # hizalama); blok min_dur'dan kisa kalacaksa hic dokunma.
+                if 0.05 < shift <= max_shift and starts[j] <= e - min_dur:
+                    ns = starts[j]
+                    moved += 1
+                    total += shift
+        out.append((ns, e, t))
+    return out, moved, (total / moved if moved else 0.0)
+
+
 def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=20.0):
     """
     Profesyonel altyazı zamanlama normalizasyonu (Netflix/BBC tarzı).
@@ -3596,6 +3667,18 @@ def transcribe(args):
             except Exception as e:
                 log(f"Diarization başarısız: {e}", "error")
                 warn_list.append("Konuşmacı tanıma başarısız oldu (etiketler eklenmedi).")
+
+        # Baslangiclari gercek konusma baslangicina yasla. SIRA ONEMLI: normalize
+        # ONCESINDE olmali ki min-sure/CPS kurallari yeni baslangica gore uygulansin.
+        if getattr(args, "snap_to_speech", True):
+            entries, _moved, _avg = snap_entries_to_speech(
+                entries, wav_path, time_offset=time_offset,
+                max_shift=args.snap_max_shift, min_dur=args.min_duration,
+                warn_list=warn_list,
+            )
+            if _moved:
+                log(f"Konusma baslangicina yaslandi: {_moved} blok "
+                    f"(ortalama {_avg*1000:.0f} ms ileri alindi)")
 
         # Profesyonel zamanlama normalizasyonu (okuma hızı / min-max süre / boşluk)
         if args.fix_timings:
@@ -4462,6 +4545,10 @@ def main():
     parser.add_argument("--resume", type=lambda x: x.lower() == "true", default=True,
                         help="Çökme/iptal sonrası checkpoint'ten kaldığı yerden devam et (yalnızca yerel dosya, kırpma yok)")
     # Profesyonel altyazı zamanlama normalizasyonu (Netflix/BBC tarzı)
+    parser.add_argument("--snap-to-speech", type=lambda x: x.lower() == "true", default=True,
+                        help="Altyazi baslangicini gercek konusma baslangicina yasla")
+    parser.add_argument("--snap-max-shift", type=float, default=1.0,
+                        help="Yaslamada en fazla kac saniye ileri alinabilir")
     parser.add_argument("--fix-timings", type=lambda x: x.lower() == "true", default=True,
                         help="Okuma hızı/min-max süre/boşluk normalizasyonu")
     parser.add_argument("--max-cps", type=float, default=20.0, help="Maksimum okuma hızı (karakter/saniye)")
