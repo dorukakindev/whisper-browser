@@ -103,11 +103,23 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
     """
     yt-dlp ile YouTube'dan ses indir (en yüksek kalite, wav formatında).
 
-    clip_start ve clip_end'in İKİSİ de verilirse yalnızca o aralık indirilir
-    (download_ranges) — uzun videodan kısa bölüm alırken tüm videoyu indirmekten
-    kaçınır. Bu durumda çıktı 0'a sıfırlanır (dosya içi t=0 → orijinal clip_start).
-    Tek sınır verilirse aralık indirme atlanır (çağıran taraf ffmpeg ile kırpar).
-    Dönüş: (dosya_yolu, başlık, ranged_indi_mi)
+    ARALIK İNDİRME BİLEREK KULLANILMIYOR (ölçüm aşağıda). yt-dlp'ye
+    download_ranges verilince indirici FFmpegFD'ye düşer (downloader/__init__.py:
+    "if section_start or section_end ... return FFmpegFD") ve ffmpeg googlevideo
+    URL'sini TEK UZUN AKIŞ olarak okur. YouTube bu okumayı sert şekilde
+    boğazlıyor; yt-dlp'nin kendi indiricisi ise parça parça "range=" istekleri
+    yaptığı için tam hızda iniyor.
+
+    Ölçüm (8 saatlik video, DCqSCazDv64, aynı bağlantı):
+      aralıklı (ffmpeg) : 60 sn'lik ses için 97 sn, ~12 KB/sn  → gerçek zamandan yavaş
+      tam ses (yt-dlp)  : 115.8 MB / 20 sn = 5.79 MB/sn        → 431 MB ≈ 1.2 dakika
+    Yani 1 saat 55 dakikalık bir aralık, aralıklı indirmeyle ~3 SAAT sürüyordu;
+    tam sesi indirip yerelde kırpmak ~1-2 dakika. Üstelik FFmpegFD ilerleme
+    kancalarını beslemediği için arayüz de donmuş görünüyordu.
+
+    Bu yüzden her zaman TAM ses indirilir; aralığı çağıran taraf extract_audio
+    ile keser. clip_* parametreleri yalnızca kullanıcıya bilgi vermek için alınır.
+    Dönüş: (dosya_yolu, başlık, ranged_indi_mi=False)
     """
     try:
         import yt_dlp
@@ -117,7 +129,7 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         )
 
     output_template = str(Path(output_dir) / "%(id)s.%(ext)s")
-    ranged = clip_start is not None and clip_end is not None
+    ranged = False        # bkz. docstring - aralık indirme boğazlanıyor
 
     info_holder = {}
 
@@ -147,20 +159,19 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         # yt-dlp-ejs ise install.bat ile yt-dlp[default] içinden kurulur.
         "js_runtimes": {"node": {}},
         "progress_hooks": [progress_hook],
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav",
-                "preferredquality": "0",
-            }
-        ],
+        # WAV'a ÇEVİRME YOK. Eskiden yt-dlp indirdiği sesin tamamını WAV'a
+        # çeviriyordu; 8 saatlik bir videoda bu ~5,5 GB ara dosya ve dakikalarca
+        # ek işlem demek. Üstelik hemen ardından extract_audio aynı sesi 16 kHz
+        # mono'ya ÇEVİRİYOR - yani tam boy dönüşüm iki kez yapılıyordu. İndirilen
+        # dosya (webm/m4a) olduğu gibi bırakılır; kırpma + 16 kHz mono dönüşümü
+        # extract_audio'da tek ffmpeg geçişinde olur.
     }
-    if ranged:
-        from yt_dlp.utils import download_range_func
-        # force_keyframes_at_cuts: kesim noktasını örnek-hassas yapar ve çıktıyı 0'a sıfırlar
-        ydl_opts["download_ranges"] = download_range_func(None, [(clip_start, clip_end)])
-        ydl_opts["force_keyframes_at_cuts"] = True
-        log(f"Yalnızca seçilen aralık indiriliyor: {clip_start:.1f}s → {clip_end:.1f}s")
+    if clip_start is not None and clip_end is not None:
+        # Neden tamamı: aralıklı indirmede YouTube ffmpeg'i ~12 KB/sn'ye düşürüyor
+        # (ölçüm docstring'de). Tam ses tam hızda inip yerelde kesiliyor.
+        log(f"Tam ses indirilecek, {clip_start:.0f}-{clip_end:.0f}s aralığı indirme "
+            f"bittikten sonra yerelde kesilecek (aralıklı indirme YouTube tarafından "
+            f"boğazlandığı için çok daha yavaş).")
     if ffmpeg_path:
         ffmpeg_dir = str(Path(ffmpeg_path).parent)
         ydl_opts["ffmpeg_location"] = ffmpeg_dir
@@ -3156,15 +3167,6 @@ def transcribe(args):
         ex_track = -1 if args.youtube else args.audio_track
         extract_audio(source_path, wav_path, ffmpeg_path, clip_start=ex_start, clip_end=ex_end,
                       audio_track=ex_track, audio_filter=args.audio_preprocess)
-
-        # Güvenlik: aralık indirme beklendiği gibi çalışmadıysa (eski yt-dlp, canlı yayın)
-        # çıkarılan ses tüm videoyu kapsıyor olabilir → ffmpeg ile yerelden kırp (yedek).
-        if youtube_ranged and clip_end is not None:
-            expected = clip_end - (clip_start or 0.0)
-            actual = probe_duration(wav_path, ffmpeg_path)
-            if actual is not None and actual > expected * 1.5 + 5.0:
-                log("Aralıklı indirme uygulanmamış görünüyor — ffmpeg ile kırpılıyor (yedek).", "warn")
-                extract_audio(source_path, wav_path, ffmpeg_path, clip_start=clip_start, clip_end=clip_end, audio_track=ex_track)
 
         # 3-4) Transkripsiyon hazırlığı (tüm motorlar için ortak)
         # Detaylı VAD ayarları
