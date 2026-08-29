@@ -699,6 +699,10 @@ def build_prompt_and_hotwords(args, supports_hotwords=None):
     return base, ", ".join(terms), with_terms
 
 
+# Dil tespitinde bakilacak 30 sn'lik pencere sayisi (bkz. common dict yorumu)
+LANGUAGE_DETECTION_SEGMENTS = 4
+
+
 def _supports_hotwords():
     """Kurulu faster-whisper 'hotwords' parametresini destekliyor mu (>=1.0)."""
     try:
@@ -3251,6 +3255,16 @@ def transcribe(args):
                 word_timestamps=need_words,
                 vad_filter=args.vad_filter,
                 vad_parameters=vad_parameters,
+                # Dil tespiti faster-whisper'da varsayilan olarak TEK 30 sn'lik
+                # pencereye bakar. Ilk pencere emin degilse (olasilik <= esik)
+                # bu deger kadar pencereye bakip cogunluk oyu kullanir; emin
+                # oldugunda hemen cikar, yani normal durumda ek maliyet YOK.
+                # Olculen fark: VAD KAPALIYKEN muzikle baslayan seste varsayilan
+                # "la" (%49) diyordu, 4 pencere "en" (%97) diyor. VAD acikken
+                # (varsayilan) muzik zaten kirpildigi icin fark olusmuyor -
+                # yani bu ayar VAD'i kapatanlar ve girisi belirsiz sesler icin.
+                language_detection_segments=LANGUAGE_DETECTION_SEGMENTS,
+                language_detection_threshold=0.5,
             )
 
             if args.engine == "faster-batched":
@@ -3278,6 +3292,10 @@ def transcribe(args):
             probability=round(info.language_probability, 3),
             duration=round(info.duration, 2),
         )
+        if language is None and info.language_probability < 0.6:
+            # Otomatik tespit kararsiz - yanlis dil tum transkripsiyonu bozar
+            log(f"UYARI: Dil tespiti zayif ({info.language} %{info.language_probability*100:.0f}). "
+                f"Sonuc yanlissa dili elle secin.", "warn")
 
         total_duration = max(info.duration, 0.001)
         entries = []
