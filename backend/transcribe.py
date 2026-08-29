@@ -2106,7 +2106,8 @@ def resolve_translate_routes(base_url):
 
 
 def build_translate_prompt(target_lang, source_lang, glossary_terms, register="documentary",
-                           profanity="medium", max_cps=21, max_line_width=42):
+                           profanity="medium", max_cps=21, max_line_width=42,
+                           use_context=True):
     """Ceviri sistem promptu - ceviri hattindaki kurallarin damitilmis hali."""
     target_name = LANG_NAMES.get((target_lang or "tr").lower(), target_lang)
     source_name = LANG_NAMES.get((source_lang or "").lower(), source_lang or "kaynak dil")
@@ -2128,6 +2129,22 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "  daha dogal siralama icin komsu bloklar arasinda cumle parcalarini YER DEGISTIRME.",
         "- Blok ekleme, silme veya birlestirme YAPMA. Girdideki her ID icin tam bir cikti ver.",
         "- Konusmaci tiresi (-), muzik isareti ve koseli parantezli efektler korunur.",
+    ]
+    if use_context:
+        # Bu bolum EKSIKTI: context_before/context_after gonderiliyordu ama modele
+        # ne oldugu hic soylenmiyordu. Model onlari cevirmeye kalkabilir veya
+        # hangi ID'leri dondurecegi konusunda kafasi karisabilirdi.
+        lines += [
+            "",
+            "## BAGLAM (context_before / context_after)",
+            "- Girdide bu iki alan olabilir: cevrilecek bloklardan ONCE ve SONRA gelen",
+            "  altyazi satirlari. Bunlar YALNIZCA baglam icindir.",
+            "- Onlari CEVIRME ve ciktiya KOYMA. Yalnizca 'items' icindeki ID'leri dondur.",
+            "- Baglami sunlar icin kullan: zamir ve hitap secimi (Turkcede sen/siz),",
+            "  cinsiyet, kime hitap edildigi, devam eden cumleler, terim tutarliligi ve",
+            "  konusmanin tonu. Ayni terimi baglamda nasil kullandiysan oyle surdur.",
+        ]
+    lines += [
         "",
         "## USLUP",
     ]
@@ -2217,8 +2234,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     target = (args.translate_to or "tr").lower()
     target_name = LANG_NAMES.get(target, target)
     glossary_terms = [t.strip() for t in (getattr(args, "glossary", "") or "").split("|") if t.strip()]
+    # Cevrilen parcanin ONCE/SONRASINDA modele gosterilecek satir sayisi. 0 = kapali.
+    # Baglam ozellikle Turkcede sen/siz secimi, cinsiyet ve devam eden cumleler icin
+    # onemli; bu yuzden varsayilan ACIK (Film on ayarinda daha genis).
+    CONTEXT_LINES = max(0, min(20, int(getattr(args, "translate_context", 4) or 0)))
+
     system_prompt = build_translate_prompt(
         target, source_lang, glossary_terms,
+        use_context=CONTEXT_LINES > 0,
         register=args.translate_register, profanity=args.translate_profanity,
         max_cps=args.max_cps, max_line_width=args.max_line_width,
     )
@@ -2226,6 +2249,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     log("Ceviri BASLIYOR - {} blok -> {}, model: {}, endpoint: {}{}".format(
         len(entries), target_name, args.translate_model, routes[0],
         " (+{} yedek rota)".format(len(routes) - 1) if len(routes) > 1 else ""))
+    log("Ceviri baglami: " + (f"her parcanin oncesi/sonrasi {CONTEXT_LINES} satir"
+        if CONTEXT_LINES else "KAPALI (satirlar baglamsiz cevrilecek)"))
     emit("status", stage="translate", text="Ceviriliyor: {}".format(target_name))
 
     clients = {}
@@ -2238,7 +2263,6 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     CHUNK_SIZE = 20      # ceviride blok basina token yuksek - duzeltmeden kucuk tutulur
-    CONTEXT_LINES = 4
     out_texts = [e[2] for e in entries]
     chunks = [(i, min(i + CHUNK_SIZE, len(entries))) for i in range(0, len(entries), CHUNK_SIZE)]
     route_state = {"preferred": routes[0]}
@@ -2293,8 +2317,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                 "max": int(dur * args.max_cps),     # sureye gore karakter butcesi
             })
         payload = {"items": items}
-        ctx_before = [entries[k][2] for k in range(max(0, ci_start - CONTEXT_LINES), ci_start)]
-        ctx_after = [entries[k][2] for k in range(ci_end, min(len(entries), ci_end + CONTEXT_LINES))]
+        ctx_before = [entries[k][2] for k in range(max(0, ci_start - CONTEXT_LINES), ci_start)] \
+            if CONTEXT_LINES else []
+        ctx_after = [entries[k][2] for k in range(ci_end, min(len(entries), ci_end + CONTEXT_LINES))] \
+            if CONTEXT_LINES else []
         if ctx_before:
             payload["context_before"] = ctx_before
         if ctx_after:
@@ -4533,6 +4559,8 @@ def main():
                         choices=["documentary", "drama", "comedy", "action", "general"])
     parser.add_argument("--translate-profanity", default="medium",
                         choices=["soft", "medium", "explicit"])
+    parser.add_argument("--translate-context", type=int, default=4,
+                        help="Cevrilen parcanin once/sonrasinda modele verilecek baglam satiri (0=kapali)")
     parser.add_argument("--translate-refine", type=lambda x: x.lower() == "true", default=False,
                         help="Ceviriyi ikinci gecisle gozden gecir ve iyilestir (2x maliyet)")
     parser.add_argument("--translate-keep-source", type=lambda x: x.lower() == "true", default=True,

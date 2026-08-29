@@ -719,6 +719,72 @@ def test_translate_partial_response_counts_as_failed():
     assert any("2/3" in w for w in warns), warns
 
 
+def _capture_translate_payloads(entries, args):
+    """llm_translate'i taklit API ile kosturur; modele giden istekleri dondurur."""
+    import sys, types, json, importlib.machinery
+    seen = {"payloads": [], "system": ""}
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        seen["payloads"].append(payload)
+        seen["system"] = kw["messages"][0]["content"]
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(
+                content=json.dumps({str(it["i"]): "TR" for it in payload["items"]})))])
+
+    class _C:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _C
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    try:
+        out = T.llm_translate(entries, args, [], source_lang="en")
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+    return out, seen
+
+
+def test_translate_sends_context_and_explains_it():
+    """Her parca ONCEKI/SONRAKI satirlarla birlikte gonderilir ve prompt bunu anlatir.
+
+    Baglam gonderiliyordu ama sistem promptu context_before/context_after'dan hic
+    soz etmiyordu; model onlari cevirmeye kalkabilirdi.
+    """
+    entries = [(i * 2.0, i * 2.0 + 1.8, "Line {}.".format(i)) for i in range(25)]
+    out, seen = _capture_translate_payloads(entries, _TrArgs(translate_context=6))
+
+    assert len(out) == 25                      # blok sayisi degismez
+    assert len(seen["payloads"]) == 2          # 20'lik parcalar
+    first, second = seen["payloads"]
+    # Ilk parcanin oncesi yok, sonrasi var
+    assert "context_before" not in first
+    assert len(first["context_after"]) == 5    # 25 blokta 20'den sonra 5 satir kaldi
+    # Ikinci parca ONCEKI 6 satiri gorur
+    assert len(second["context_before"]) == 6, second.get("context_before")
+    assert second["context_before"][-1] == "Line 19."
+    # Prompt baglami ACIKLAR ve cevrilmemesini soyler
+    assert "## BAGLAM" in seen["system"]
+    assert "Onlari CEVIRME" in seen["system"]
+
+
+def test_translate_context_can_be_disabled():
+    entries = [(i * 2.0, i * 2.0 + 1.8, "Line {}.".format(i)) for i in range(25)]
+    out, seen = _capture_translate_payloads(entries, _TrArgs(translate_context=0))
+    assert len(out) == 25
+    assert all("context_before" not in p and "context_after" not in p
+               for p in seen["payloads"])
+    # Kapaliyken prompt'a gereksiz bolum eklenmez
+    assert "## BAGLAM" not in seen["system"]
+
+
 def test_build_translate_prompt():
     p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
                                  register="documentary", profanity="explicit",

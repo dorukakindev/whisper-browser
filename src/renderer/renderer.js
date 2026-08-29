@@ -96,6 +96,7 @@ function buildOptsFromUI() {
     translateModel: $('translateModel').value.trim(),
     translateWorkers: parseInt($('translateWorkers').value, 10),
     translateRegister: $('translateRegister').value,
+    translateContext: $('translateContext') ? $('translateContext').value : '4',
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
@@ -1080,7 +1081,7 @@ const PERSIST_VALUE_CONTROLS = [
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
-  'translateRegister', 'translateProfanity', 'translateBaseUrl',
+  'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
@@ -1153,6 +1154,8 @@ const PRESETS = {
     values: {
       model: 'large-v3-turbo', engine: 'faster', beamSize: '5', bestOf: '5', computeType: 'float16',
       splitMode: 'sentence', wrapMode: 'none', maxLineWidth: '80', hardMaxChars: '220', maxCps: '20',
+      // Filmde diyalog baglami kritik (sen/siz, cinsiyet, devam eden cumleler)
+      translateContext: '6',
     },
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,

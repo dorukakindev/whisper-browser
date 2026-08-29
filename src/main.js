@@ -1132,6 +1132,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.translateRegister) args.push('--translate-register', options.translateRegister);
   if (options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
   args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
+  if (options.translateContext !== undefined && options.translateContext !== '') {
+    args.push('--translate-context', String(options.translateContext));
+  }
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
   if (options.audioPreprocess) args.push('--audio-preprocess', options.audioPreprocess);

@@ -555,6 +555,20 @@
                 </select>
               </label>
               <label class="field">
+                <span class="field-label">Çeviri bağlamı</span>
+                <select id="translateContext">
+                  <option value="0">Kapalı (her blok tek başına)</option>
+                  <option value="2">2 satır</option>
+                  <option value="4" selected>4 satır (önerilen)</option>
+                  <option value="6">6 satır (film / diyalog)</option>
+                  <option value="10">10 satır (en geniş)</option>
+                </select>
+              </label>
+              <div class="hint">Her blok çevrilirken öncesindeki ve sonrasındaki satırlar da modele
+                gösterilir; çevrilmez, yalnızca bağlam olarak kullanılır. Türkçede
+                <strong>sen/siz</strong> seçimi, cinsiyet ve devam eden cümleler için önemlidir.
+                Geniş bağlam maliyeti biraz artırır.</div>
+              <label class="field">
                 <span class="field-label">İçerik türü (üslup)</span>
                 <select id="translateRegister">
                   <option value="documentary" selected>Belgesel / anlatım</option>
