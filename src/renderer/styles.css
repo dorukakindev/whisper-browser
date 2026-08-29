@@ -1237,6 +1237,129 @@ html, body {
 .player-layer.mode-cinema .player-side,
 .player-layer.mode-cinema .side-resizer { display: none; }
 
+/* ---------- Oynatici animasyonlari ---------- */
+@keyframes layerIn {
+  from { opacity: 0; transform: scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+.player-layer:not(.hidden) { animation: layerIn .18s cubic-bezier(.2, .7, .3, 1); }
+
+/* Mod degisiminde panel genisligi yumusak degissin */
+.player-body { transition: grid-template-columns .22s cubic-bezier(.2, .7, .3, 1); }
+.player-body.resizing { transition: none; }        /* surukleme sirasinda takilmasin */
+
+/* Kartlar: hafif kalkma + aktif olanda vurgu animasyonu */
+.cue-card { transition: background .15s ease, border-color .15s ease, transform .12s ease; }
+.cue-card:hover { transform: translateX(2px); }
+@keyframes cueActive {
+  from { box-shadow: 0 0 0 0 var(--accent-soft); }
+  to { box-shadow: 0 0 0 3px transparent; }
+}
+.cue-card.active { animation: cueActive .5s ease-out; }
+
+/* Dugmelerde basma geri bildirimi */
+.btn, .btn-icon, .vm, .tab { transition: background .14s ease, color .14s ease, transform .1s ease, border-color .14s ease; }
+.btn:active, .btn-icon:active, .vm:active { transform: translateY(1px) scale(.97); }
+
+/* Ekran bildirimi (OSD): hiz/ses/gecikme degisince ortada kisa bir kutu */
+.player-osd {
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.player-osd.show { opacity: 1; transform: translateX(-50%) translateY(4px); }
+
+/* Yukleniyor halkasi (HLS tamponlama / video acilisi) */
+.player-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  z-index: 4;
+  border: 3px solid rgba(255, 255, 255, .22);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  pointer-events: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* A-B dongusu isaretleri */
+.ab-marker {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  transform: translateY(-50%);
+  background: #4ade80;
+  border-radius: 1px;
+}
+.ab-range {
+  position: absolute;
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  background: rgba(74, 222, 128, .28);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* Kisayol yardimi */
+.shortcut-help {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 11, 13, .82);
+  backdrop-filter: blur(4px);
+  animation: layerIn .16s ease-out;
+}
+.shortcut-help-box {
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  max-width: 560px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+}
+.shortcut-help-box h3 { margin: 0 0 14px; font-size: 15px; }
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 8px 14px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.shortcut-grid kbd {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
 .side-resizer {
   grid-column: 2;
   cursor: col-resize;
@@ -1286,6 +1409,20 @@ html, body {
 }
 
 /* Altyazı katmanı — video üstünde, tam ekranda da görünür */
+/* Altyazi gorunumu CSS DEGISKENLERIYLE yonetilir (renderer applySubtitleStyle
+   ile sahneye yazar). Boylece ana/karsilastirma altyazisi ayni ayari paylasir
+   ve tam ekranda da gecerli olur. */
+.player-stage {
+  --sub-size: 28px;
+  --sub-color: #fff;
+  --sub-bg: rgba(0, 0, 0, .45);
+  --sub-pad: 4px 12px;
+  --sub-font: 'Segoe UI', system-ui, sans-serif;
+  --sub-weight: 600;
+  --sub-line: 1.35;
+  --sub-shadow: 0 0 4px rgba(0,0,0,.9), 0 2px 6px rgba(0,0,0,.9), 0 0 14px rgba(0,0,0,.7);
+}
+
 .subtitle-overlay {
   position: absolute;
   left: 0;
@@ -1294,16 +1431,31 @@ html, body {
   text-align: center;
   padding: 0 6%;
   pointer-events: none;
-  font-size: 28px;
-  line-height: 1.35;
-  font-weight: 600;
-  color: #fff;
-  text-shadow:
-    0 0 4px rgba(0, 0, 0, .9),
-    0 2px 6px rgba(0, 0, 0, .9),
-    0 0 14px rgba(0, 0, 0, .7);
+  font-size: var(--sub-size);
+  font-family: var(--sub-font);
+  line-height: var(--sub-line);
+  font-weight: var(--sub-weight);
+  color: var(--sub-color);
+  text-shadow: var(--sub-shadow);
   white-space: pre-line;
 }
+
+/* Arka plan yalnizca METNIN arkasinda olsun (tum satir boyunca degil) */
+.subtitle-overlay:not(:empty) > span,
+.subtitle-overlay-inner {
+  display: inline-block;
+  background: var(--sub-bg);
+  padding: var(--sub-pad);
+  border-radius: 6px;
+  backdrop-filter: blur(2px);
+}
+
+/* Altyazi degisince yumusak beliris */
+@keyframes subIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.subtitle-overlay-inner { animation: subIn .16s ease-out; }
 
 /* Kontroller sahnenin icinde yuzer: hem pencerede hem TAM EKRANDA gorunur.
    Fare 2.5 sn kimildamayinca (ve video oynarken) gizlenir. */
@@ -1677,10 +1829,31 @@ html, body {
 .subtitle-secondary {
   bottom: auto;
   top: 6%;
-  font-size: 0.72em;
+  font-size: calc(var(--sub-size) * 0.72);
   font-weight: 500;
   color: #cfd4da;
 }
+
+/* Renk secici satiri */
+.sub-color-row { display: flex; align-items: center; gap: 6px; }
+.sub-color-row input[type="color"] {
+  width: 34px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+.sub-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.sub-color-swatch:hover { transform: scale(1.15); border-color: var(--accent); }
 
 /* İzlerken düzeltme kutusu */
 .subtitle-edit {

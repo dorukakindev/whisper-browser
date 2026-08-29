@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
+  saveImage: (payload) => ipcRenderer.invoke('media:saveImage', payload),
   exportSettings: () => ipcRenderer.invoke('settings:export'),
   importSettings: () => ipcRenderer.invoke('settings:import'),
   startTranscribe: (opts) => ipcRenderer.invoke('transcribe:start', opts),

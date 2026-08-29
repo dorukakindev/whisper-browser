@@ -419,6 +419,29 @@ ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
   }
 });
 
+// Oynaticidan alinan kare (PNG data URL) diske kaydedilir.
+ipcMain.handle('media:saveImage', async (_e, payload) => {
+  const { dataUrl, suggestedName } = payload || {};
+  if (!dataUrl || !/^data:image\/png;base64,/.test(dataUrl)) {
+    return { ok: false, error: 'Geçersiz görüntü' };
+  }
+  try {
+    const prev = loadSettings() || {};
+    const dir = prev.outputDir && fs.existsSync(prev.outputDir)
+      ? prev.outputDir : app.getPath('pictures');
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Ekran görüntüsünü kaydet',
+      defaultPath: path.join(dir, suggestedName || 'kare.png'),
+      filters: [{ name: 'PNG', extensions: ['png'] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(result.filePath, Buffer.from(dataUrl.split(',')[1], 'base64'));
+    return { ok: true, path: result.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('logs:openFolder', async () => {
   const dir = logsDir();
   const err = await shell.openPath(dir);
@@ -787,7 +810,17 @@ ipcMain.handle('app:getEnvInfo', async () => {
     const m = gpuLine.match(/(\d+)\s*MiB/i);
     if (m) vramMib = parseInt(m[1], 10);
   }
-  return { venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib };
+  // Chromium'un donanim hizlandirma durumu: video GERCEKTEN GPU'da mi coozuluyor?
+  let gpuFeatures = null;
+  try {
+    const st = app.getGPUFeatureStatus() || {};
+    gpuFeatures = {
+      videoDecode: st.video_decode || 'bilinmiyor',
+      canvas: st['2d_canvas'] || 'bilinmiyor',
+      webgl: st.webgl || 'bilinmiyor',
+    };
+  } catch (_) {}
+  return { venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib, gpuFeatures };
 });
 
 // ---- Settings (sözlük, HF token) ----

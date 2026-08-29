@@ -61,6 +61,12 @@ oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebil
 - **Sözlük artık tüm video boyunca etkili** — sözlükteki özel isimler (`Kombai`, `Sanhuber`…) Whisper'a her çözümleme penceresinde yeniden verilir. Önceden yalnızca ilk 30 saniyede etkiliydi
 - **Bozuk Türkçe karakter onarımı** — dışarıdan gelen altyazılar (senkron aracı ve oynatıcı) kodlaması tespit edilerek okunur: UTF-8, cp1254 (eski Türkçe Windows), çift kodlanmış UTF-8 (`Ã§ocuk`) ve latin-1 okunmuş cp1254 (`þeyler`) otomatik düzeltilir. İzlandaca/İspanyolca gibi `þ ð ý á é` kullanan metinlere dokunulmaz
 - **ASS/SSA okuma** — oynatıcı `.ass`/`.ssa` altyazıları da açar (biçim etiketleri temizlenir, `\\N` satır sonu çevrilir)
+- **Altyazı görünümü** — yazı boyutu, **renk** (hazır tonlar + serbest seçici), **arka plan saydamlığı** (0–%90), kontur/gölge gücü, yazı tipi ve kalın yazı. Anında uygulanır ve hatırlanır
+- **A-B döngüsü** — `B` ile başlangıç, tekrar `B` ile bitiş; aralık zaman çubuğunda yeşil işaretlenir ve sonsuz tekrar eder (zor bir cümleyi dinlemek için)
+- **Ekran görüntüsü** — `S` ile o anki kareyi altyazısıyla birlikte PNG kaydet
+- **Kare kare gezinme** — duraklatınca `,` / `.` ile tek kare ileri geri
+- **Ekran bildirimleri** — hız, ses, gecikme değişince ekranda kısa bir kutu belirir; günlüğe bakmaya gerek yok
+- **Kısayol yardımı** — `?` ile tüm kısayolların listesi
 - **Altyazıyı sürükleyerek konumlandırma** — altyazıya basılı tutup yukarı/aşağı sürükle; letterbox bandından kurtulup görüntünün içine alabilirsin. Konum yüzde olarak saklandığı için pencere boyutu değişse de tam ekrana geçsen de aynı yerde durur. Sürüklemeden tıklamak oynat/duraklat, çift tıklamak düzenleyiciyi açar
 - **Konuşma başlangıcına yaslama** — Whisper'ın zaman damgaları cümle başında sessizliğin içine taşar, bu da "altyazı sesten önce geliyor" hissi verir. Ölçüm (Going Tribal klibi, large-v3-turbo): 29 bloğun 15'i gerçek konuşmadan önce başlıyordu — ortalama **448 ms**, en fazla **920 ms**. Bu seçenek yalnızca sessizliğe denk gelen başlangıçları Silero VAD ile ileri alır: **15 → 0**. Metin, blok sayısı ve bitişler korunur; en fazla 1 sn kaydırır ve bloğu kısaltacaksa dokunmaz
 - **Bağlamlı çeviri** — her blok çevrilirken öncesindeki ve sonrasındaki satırlar da modele gösterilir (çevrilmez, yalnızca bağlam). Türkçede **sen/siz** seçimi, cinsiyet, kime hitap edildiği ve devam eden cümleler için belirleyicidir. Varsayılan 4 satır; **Film ön ayarında 6**; istenirse kapatılabilir

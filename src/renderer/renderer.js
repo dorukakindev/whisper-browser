@@ -2055,6 +2055,11 @@ const player = {
   originalUrl: '',   // kullanicinin girdigi kalici YouTube adresi (gecici HLS DEGIL)
   positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
   subsHidden: false,
+  subStyle: null,        // gorunum ayarlari (renk/arka plan/kontur/yazi tipi)
+  abA: null,             // A-B dongusu baslangici
+  abB: null,             // A-B dongusu bitisi
+  osdTimer: null,
+  localPath: '',         // acik olan yerel video yolu
   subBottom: null,       // altyazinin dikey konumu (%, alttan) - kullanici surukler
   sub2Top: null,         // karsilastirma altyazisinin konumu (%, ustten)
   autoFollow: true,      // aktif satiri kendiliginden kaydir
@@ -2136,6 +2141,20 @@ function parseSubtitles(text) {
   return out;
 }
 
+// Altyazi metnini kutulu bir span icine yazar (arka plan yalnizca metnin
+// arkasinda dursun, satirin tamami boyunca degil) ve degisince animasyon tetikler.
+function setOverlayText(el, text) {
+  if (!el) return;
+  const cur = el.firstChild && el.firstChild.textContent;
+  if (cur === text) return;                  // ayni metin: animasyonu tekrarlama
+  el.textContent = '';
+  if (!text) return;
+  const span = document.createElement('span');
+  span.className = 'subtitle-overlay-inner';
+  span.textContent = text;
+  el.appendChild(span);
+}
+
 // Aktif blok genelde bir öncekinin komşusudur — baştan aramak yerine oradan ilerle
 function findCueAt(cues, t, hint) {
   let i = hint;
@@ -2157,7 +2176,7 @@ function renderCue() {
       highlightCueRow();
     }
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
-    if (!player.editing) overlay.textContent = i >= 0 ? player.cues[i].text : '';
+    if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
 
     // Her blok sonunda duraklat (Voracious'taki çalışma modu).
     // GECIS yakalanir: onceki zaman blok sonundan kucuk, simdiki buyuk/esit.
@@ -2178,16 +2197,16 @@ function renderCue() {
     }
     player.lastT = t;
   } else {
-    overlay.textContent = '';
+    setOverlayText(overlay, '');
   }
 
   if (overlay2) {
     if (player.cues2.length) {
       const j = findCueAt(player.cues2, t, player.activeIdx2);
       player.activeIdx2 = j;
-      overlay2.textContent = j >= 0 ? player.cues2[j].text : '';
+      setOverlayText(overlay2, j >= 0 ? player.cues2[j].text : '');
     } else {
-      overlay2.textContent = '';
+      setOverlayText(overlay2, '');
     }
   }
 }
@@ -2401,6 +2420,217 @@ function cuesToSrt(cues) {
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
 
+// ---- ekran bildirimi (OSD) ----
+// Klavyeyle yapilan degisiklikler (hiz, ses, gecikme) icin gorsel geri bildirim:
+// gunluge bakmak zorunda kalmadan ne oldugunu goruyorsun.
+function osd(text, ms) {
+  const el = $('playerOsd');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(player.osdTimer);
+  player.osdTimer = setTimeout(() => el.classList.remove('show'), ms || 900);
+}
+
+// ---- A-B döngüsü ----
+// Bir cumleyi/bolumu tekrar tekrar dinlemek icin (dil calismasi, zor aksan).
+function toggleAbLoop() {
+  const v = $('playerVideo');
+  if (!v) return;
+  if (player.abA === null) {
+    player.abA = v.currentTime;
+    osd(`A: ${pSecToTime(player.abA)}`);
+  } else if (player.abB === null) {
+    const b = v.currentTime;
+    if (b <= player.abA + 0.2) { osd('B, A’dan sonra olmalı'); return; }
+    player.abB = b;
+    osd(`A-B döngüsü: ${pSecToTime(player.abA)} → ${pSecToTime(player.abB)}`, 1400);
+  } else {
+    player.abA = null;
+    player.abB = null;
+    osd('A-B döngüsü kapalı');
+  }
+  renderAbMarkers();
+  const btn = $('abLoopBtn');
+  if (btn) btn.classList.toggle('active', player.abA !== null);
+}
+
+function renderAbMarkers() {
+  const box = $('seekMarkers');
+  const v = $('playerVideo');
+  if (!box || !v || !v.duration) return;
+  box.querySelectorAll('.ab-marker, .ab-range').forEach((e) => e.remove());
+  const pct = (t) => (t / v.duration) * 100;
+  if (player.abA !== null) {
+    const a = document.createElement('div');
+    a.className = 'ab-marker';
+    a.style.left = `${pct(player.abA)}%`;
+    box.appendChild(a);
+  }
+  if (player.abA !== null && player.abB !== null) {
+    const r = document.createElement('div');
+    r.className = 'ab-range';
+    r.style.left = `${pct(player.abA)}%`;
+    r.style.width = `${pct(player.abB) - pct(player.abA)}%`;
+    box.appendChild(r);
+    const b = document.createElement('div');
+    b.className = 'ab-marker';
+    b.style.left = `${pct(player.abB)}%`;
+    box.appendChild(b);
+  }
+}
+
+// ---- ekran görüntüsü ----
+// Videonun o anki karesini + ekrandaki altyaziyi PNG olarak kaydeder.
+async function capturePlayerFrame() {
+  const v = $('playerVideo');
+  if (!v || !v.videoWidth) { logLine('Ekran görüntüsü için önce video yüklensin.', 'warn'); return; }
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth;
+  c.height = v.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+
+  // Altyaziyi da cizelim (goruntude gorunsun)
+  const text = player.subsHidden ? '' : (player.activeIdx >= 0 && player.cues[player.activeIdx]
+    ? player.cues[player.activeIdx].text : '');
+  if (text) {
+    const st = player.subStyle || {};
+    const size = Math.round(c.height * 0.055);
+    ctx.font = `${st.weight || 600} ${size}px ${'Segoe UI, system-ui, sans-serif'}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const lines = String(text).split(/\n/);
+    let y = c.height - Math.round(c.height * 0.06);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const w = ctx.measureText(lines[i]).width;
+      if ((st.bg || 0) > 0) {
+        ctx.fillStyle = `rgba(0,0,0,${(st.bg / 100).toFixed(2)})`;
+        ctx.fillRect(c.width / 2 - w / 2 - 14, y - size - 6, w + 28, size + 14);
+      }
+      ctx.lineWidth = Math.max(2, size * 0.12);
+      ctx.strokeStyle = 'rgba(0,0,0,.85)';
+      ctx.strokeText(lines[i], c.width / 2, y);
+      ctx.fillStyle = st.color || '#fff';
+      ctx.fillText(lines[i], c.width / 2, y);
+      y -= size * (st.lineHeight || 1.35);
+    }
+  }
+
+  const dataUrl = c.toDataURL('image/png');
+  const name = `${(player.mediaKey || 'kare').replace(/[^a-z0-9]+/gi, '_').slice(-40)}`
+    + `_${Math.round(v.currentTime)}s.png`;
+  if (window.api.saveImage) {
+    const res = await window.api.saveImage({ dataUrl, suggestedName: name });
+    if (res && res.ok) { osd('Ekran görüntüsü kaydedildi'); logLine(`Ekran görüntüsü: ${res.path}`, 'success'); }
+    else if (res && res.error) logLine(`Ekran görüntüsü kaydedilemedi: ${res.error}`, 'error');
+  }
+}
+
+// ---- altyazı görünümü (renk, arka plan, kontur, yazı tipi) ----
+// Hepsi CSS degiskenleriyle uygulanir; boylece ana ve karsilastirma altyazisi
+// ayni ayarlari paylasir ve tam ekranda da gecerlidir.
+const SUB_STYLE_KEY = 'subtitleStyle';
+const SUB_STYLE_DEFAULTS = {
+  size: 28,          // px (pencere); tam ekranda vw ile olceklenir
+  color: '#ffffff',
+  bg: 45,            // arka plan saydamligi % (0 = yok)
+  outline: 70,       // kontur/golge gucu %
+  font: 'system',
+  weight: 600,
+  lineHeight: 1.35,
+};
+const SUB_FONTS = {
+  system: "'Segoe UI', system-ui, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'Cascadia Mono', Consolas, monospace",
+  rounded: "'Segoe UI Variable', 'Trebuchet MS', sans-serif",
+};
+
+function applySubtitleStyle() {
+  const st = player.subStyle;
+  const stage = $('playerStage');
+  if (!stage) return;
+  const a = Math.max(0, Math.min(100, st.bg)) / 100;
+  const o = Math.max(0, Math.min(100, st.outline)) / 100;
+  stage.style.setProperty('--sub-size', `${st.size}px`);
+  stage.style.setProperty('--sub-color', st.color);
+  stage.style.setProperty('--sub-bg', a ? `rgba(0,0,0,${a.toFixed(2)})` : 'transparent');
+  stage.style.setProperty('--sub-pad', a ? '4px 12px' : '0');
+  stage.style.setProperty('--sub-font', SUB_FONTS[st.font] || SUB_FONTS.system);
+  stage.style.setProperty('--sub-weight', String(st.weight));
+  stage.style.setProperty('--sub-line', String(st.lineHeight));
+  stage.style.setProperty('--sub-shadow', o
+    ? `0 0 ${(4 * o).toFixed(1)}px rgba(0,0,0,${(0.9 * o).toFixed(2)}),`
+      + ` 0 2px ${(6 * o).toFixed(1)}px rgba(0,0,0,${(0.9 * o).toFixed(2)}),`
+      + ` 0 0 ${(14 * o).toFixed(1)}px rgba(0,0,0,${(0.7 * o).toFixed(2)})`
+    : 'none');
+}
+
+function loadSubtitleStyle() {
+  player.subStyle = Object.assign({}, SUB_STYLE_DEFAULTS);
+  try {
+    const raw = localStorage.getItem(SUB_STYLE_KEY);
+    if (raw) Object.assign(player.subStyle, JSON.parse(raw) || {});
+  } catch (_) {}
+  // Kontrolleri duruma esitle
+  const map = { subSize: 'size', subColor: 'color', subBgOpacity: 'bg',
+                subOutline: 'outline', subFont: 'font', subWeight: 'weight' };
+  Object.entries(map).forEach(([id, key]) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = player.subStyle[key] >= 700;
+    else el.value = String(player.subStyle[key]);
+    const lbl = $(id + 'Val');
+    if (lbl) lbl.textContent = String(player.subStyle[key]);
+  });
+  applySubtitleStyle();
+}
+
+function saveSubtitleStyle() {
+  try { localStorage.setItem(SUB_STYLE_KEY, JSON.stringify(player.subStyle)); } catch (_) {}
+}
+
+function bindSubtitleStyleControls() {
+  const bind = (id, key, transform) => {
+    const el = $(id);
+    if (!el) return;
+    const handler = () => {
+      const raw = el.type === 'checkbox' ? (el.checked ? 700 : 600) : el.value;
+      player.subStyle[key] = transform ? transform(raw) : raw;
+      const lbl = $(id + 'Val');
+      if (lbl) lbl.textContent = String(player.subStyle[key]);
+      applySubtitleStyle();
+      saveSubtitleStyle();
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+  };
+  bind('subSize', 'size', (v) => parseInt(v, 10));
+  bind('subColor', 'color');
+  bind('subBgOpacity', 'bg', (v) => parseInt(v, 10));
+  bind('subOutline', 'outline', (v) => parseInt(v, 10));
+  bind('subFont', 'font');
+  bind('subWeight', 'weight', (v) => parseInt(v, 10));
+  $$('.sub-color-swatch').forEach((b) => {
+    b.addEventListener('click', () => {
+      player.subStyle.color = b.dataset.color;
+      if ($('subColor')) $('subColor').value = b.dataset.color;
+      applySubtitleStyle();
+      saveSubtitleStyle();
+    });
+  });
+  const reset = $('subStyleReset');
+  if (reset) {
+    reset.addEventListener('click', () => {
+      player.subStyle = Object.assign({}, SUB_STYLE_DEFAULTS);
+      saveSubtitleStyle();
+      loadSubtitleStyle();
+      logLine('Altyazı görünümü varsayılana döndü.', 'info');
+    });
+  }
+}
+
 // ---- altyazıyı sürükleyerek konumlandırma ----
 // Kullanici altyaziyi basili tutup dikeyde tasiyabilir. Konum YUZDE olarak
 // saklanir; boylece pencere boyutu degisse de tam ekrana gecilse de ayni yerde
@@ -2458,7 +2688,7 @@ function makeSubtitleDraggable(el, edge) {
     startY = e.clientY;
     dragging = true;
     moved = false;
-    el.setPointerCapture(e.pointerId);
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}   // yakalanamayabilir
   });
 
   el.addEventListener('pointermove', (e) => {
@@ -2740,6 +2970,7 @@ function setSubtitlesVisible(visible) {
 
 function setMediaKey(key) {
   player.mediaKey = key || '';
+  player.localPath = '';
   player.generation++;
   player.hlsRecover = 0;
   player.isLive = false;
@@ -2820,7 +3051,10 @@ function setPlayerSource(src, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return;
   setMediaKey(key || src);
-  player.videoPath = (key || '').startsWith('file:') ? (meta && meta.localPath) || '' : '';
+  // Yerel yol AYRICA saklanir: 'Altyazi olustur' bunu kullanir. Eskiden
+  // state.lastJobVideo'ya dusuyordu ve o ONCEKI ise ait olabiliyordu -
+  // oynaticida B videosu acikken A transkribe edilebilirdi.
+  player.localPath = (meta && meta.localPath) || player.localPath || '';
   if (meta && meta.chapters) setChapters(meta.chapters);
   destroyHls();
   video.src = src;
@@ -2992,8 +3226,25 @@ function addSubtitleOption(path, label) {
 
 async function loadSubtitle(path, secondary = false) {
   if (!path) {
-    if (secondary) { player.cues2 = []; player.activeIdx2 = -1; }
-    else { player.cues = []; player.activeIdx = -1; player.subPath = ''; }
+    // Altyazi kapatilinca LISTE de temizlenmeli. Eskiden yalnizca overlay
+    // siliniyordu; sagda 29 kart oldugu gibi kaliyor, tiklaninca hicbir sey
+    // olmuyordu (hayalet liste).
+    if (secondary) {
+      player.cues2 = [];
+      player.activeIdx2 = -1;
+      player.sub2Path = '';
+      const ov2 = $('subtitleOverlay2');
+      if (ov2) ov2.textContent = '';
+    } else {
+      player.cues = [];
+      player.activeIdx = -1;
+      player.subPath = '';
+      player.subRaw = '';
+      renderSeekMarkers(defaultMarkers());
+      if ($('applyOffsetToFile')) $('applyOffsetToFile').classList.add('hidden');
+    }
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
+    updateSubtitleChips();
     renderCue();
     return;
   }
@@ -3065,7 +3316,8 @@ function openPlayer() {
     $('playerVideoPath').textContent = state.lastJobVideo;
     setPlayerSource(pathToFileUrl(state.lastJobVideo),
                     state.lastJobVideo.split(/[\\/]/).pop(),
-                    mediaKeyFor('local', state.lastJobVideo));
+                    mediaKeyFor('local', state.lastJobVideo),
+                    { localPath: state.lastJobVideo });
   }
   const outputs = (state.outputFiles || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
   outputs.forEach((f) => addSubtitleOption(f));
@@ -3132,6 +3384,16 @@ $$('.view-modes .vm').forEach((b) => {
   setViewMode(mode);
   if (width) setSideWidth(width);
   bindTranscriptScroll();
+  loadSubtitleStyle();
+  bindSubtitleStyleControls();
+  if ($('abLoopBtn')) $('abLoopBtn').addEventListener('click', toggleAbLoop);
+  if ($('shotBtn')) $('shotBtn').addEventListener('click', capturePlayerFrame);
+  if ($('helpBtn')) {
+    $('helpBtn').addEventListener('click', () => $('shortcutHelp').classList.toggle('hidden'));
+  }
+  if ($('shortcutHelp')) {
+    $('shortcutHelp').addEventListener('click', () => $('shortcutHelp').classList.add('hidden'));
+  }
   makeSubtitleDraggable($('subtitleOverlay'), 'bottom');
   makeSubtitleDraggable($('subtitleOverlay2'), 'top');
   loadSubtitlePos();
@@ -3144,6 +3406,9 @@ if ($('sideResizer')) {
   rz.addEventListener('mousedown', (e) => {
     dragging = true;
     rz.classList.add('dragging');
+    // Surukleme sirasinda grid gecis animasyonu kapatilir, yoksa el takip etmez
+    const body = document.querySelector('.player-body');
+    if (body) body.classList.add('resizing');
     e.preventDefault();
   });
   window.addEventListener('mousemove', (e) => {
@@ -3155,6 +3420,8 @@ if ($('sideResizer')) {
     if (!dragging) return;
     dragging = false;
     rz.classList.remove('dragging');
+    const body = document.querySelector('.player-body');
+    if (body) body.classList.remove('resizing');
     highlightCueRow();
   });
 }
@@ -3213,8 +3480,7 @@ if ($('makeSubsBtn')) {
       activateTab('youtube');
       $('youtubeUrl').value = url;
     } else {
-      const path = state.lastJobVideo
-        || (player.videoPath || '')
+      const path = player.localPath
         || ($('playerVideoPath') ? $('playerVideoPath').textContent : '');
       if (!path || path === 'Seçilmedi') {
         logLine('Önce bir video aç.', 'error');
@@ -3254,6 +3520,20 @@ if ($('playerVideo')) {
     if (Date.now() - _posTick > 5000) { _posTick = Date.now(); savePlayerPosition(); }
   });
   video.addEventListener('progress', updateSeekVisuals);
+  // A-B dongusu: B'ye gelince A'ya don
+  video.addEventListener('timeupdate', () => {
+    if (player.abA !== null && player.abB !== null && video.currentTime >= player.abB) {
+      video.currentTime = player.abA;
+    }
+  });
+  // Yukleniyor halkasi: tamponlama veya acilis sirasinda
+  const spin = (on) => { const s = $('playerSpinner'); if (s) s.classList.toggle('hidden', !on); };
+  video.addEventListener('waiting', () => spin(true));
+  video.addEventListener('stalled', () => spin(true));
+  video.addEventListener('loadstart', () => spin(true));
+  video.addEventListener('playing', () => spin(false));
+  video.addEventListener('canplay', () => spin(false));
+  video.addEventListener('error', () => spin(false));
   video.addEventListener('loadedmetadata', () => {
     if (player.isLive || !isFinite(video.duration)) {
       $('playerTime').textContent = '0:00 · CANLI';
@@ -3360,22 +3640,39 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
   if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replayCue(); return; }
   if (e.key === 'c' || e.key === 'C') { e.preventDefault(); copyCue(); return; }
-  if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; showControls(); return; }
-  if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; showControls(); return; }
-  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); video.muted = !video.muted; showControls(); return; }
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault(); $('shortcutHelp').classList.toggle('hidden'); return;
+  }
+  if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
+  if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
+  // Kare kare gezinme (duraklatilmisken) - altyazi sinirini ayarlarken ise yarar
+  if ((e.key === ',' || e.key === '.') && video.paused) {
+    e.preventDefault();
+    video.currentTime += (e.key === '.' ? 1 : -1) / 25;      // ~1 kare (25 fps varsayimi)
+    osd(e.key === '.' ? 'Kare ileri' : 'Kare geri', 600);
+    return;
+  }
+  if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; showControls(); osd('-10 sn'); return; }
+  if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; showControls(); osd('+10 sn'); return; }
+  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); video.muted = !video.muted; showControls();
+    osd(video.muted ? 'Ses kapalı' : 'Ses açık'); return; }
   if (e.key === 'v' || e.key === 'V') { e.preventDefault(); $('subToggle').click(); return; }
   // Altyazi gecikmesini izlerken ayarla — G geri, H ileri (0.1 sn adim)
   if (e.key === 'g' || e.key === 'G') { e.preventDefault(); nudgeOffset(-0.1); return; }
   if (e.key === 'h' || e.key === 'H') { e.preventDefault(); nudgeOffset(0.1); return; }
   if (e.key === '<' || e.key === ',') { e.preventDefault(); nudgeSpeed(-1); return; }
   if (e.key === '>' || e.key === '.') { e.preventDefault(); nudgeSpeed(1); return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); setPlayerVolume(video.volume + 0.05); showControls(); return; }
-  if (e.key === 'ArrowDown') { e.preventDefault(); setPlayerVolume(video.volume - 0.05); showControls(); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); setPlayerVolume(video.volume + 0.05); showControls();
+    osd(`Ses %${Math.round(video.volume * 100)}`); return; }
+  if (e.key === 'ArrowDown') { e.preventDefault(); setPlayerVolume(video.volume - 0.05); showControls();
+    osd(`Ses %${Math.round(video.volume * 100)}`); return; }
   if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
   else if (e.key === 'ArrowRight') { video.currentTime += 5; showControls(); }
   else if (e.key === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
   else if (e.key === 'Escape') {
+    const help = $('shortcutHelp');
+    if (help && !help.classList.contains('hidden')) { help.classList.add('hidden'); return; }
     if (document.fullscreenElement) document.exitFullscreen();
     else closePlayer();
   }
@@ -3389,7 +3686,7 @@ function nudgeOffset(delta) {
   el.value = String(v);
   el.dispatchEvent(new Event('input'));
   scheduleSave();
-  logLine(`Altyazı gecikmesi: ${v.toFixed(1)} sn`, 'info');
+  osd(`Gecikme ${v > 0 ? '+' : ''}${v.toFixed(1)} sn`);
   showControls();
 }
 
@@ -3403,7 +3700,7 @@ function nudgeSpeed(dir) {
   sel.value = String(opts[next]);
   video.playbackRate = opts[next];
   scheduleSave();
-  logLine(`Oynatma hızı: ${opts[next]}×`, 'info');
+  osd(`${opts[next]}× hız`);
   showControls();
 }
 
@@ -3432,7 +3729,8 @@ if ($('playerPickVideo')) {
     if (!files || !files.length) return;
     const f = files[0];
     $('playerVideoPath').textContent = f;
-    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), mediaKeyFor('local', f));
+    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), mediaKeyFor('local', f),
+                    { localPath: f });
     attachSiblingSubtitles(f);
   });
 }
@@ -3761,7 +4059,7 @@ if ($('playerDownload')) {
     const p = res.data.path;
     $('playerVideoPath').textContent = p;
     setPlayerSource(pathToFileUrl(p), res.data.title, mediaKeyFor('local', p),
-                    player.ytInfo || undefined);
+                    Object.assign({ localPath: p }, player.ytInfo || {}));
     logLine(`İndirildi ve oynatılıyor: ${p}`, 'success');
     attachSiblingSubtitles(p);
   });
