@@ -215,6 +215,24 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   }
 });
 
+// Oynatıcıda düzeltilen altyazıyı diske yaz. İlk yazımda .bak yedeği alınır —
+// kullanıcı izlerken yaptığı düzeltmeyi geri alabilsin.
+ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
+  const { path: filePath, text } = payload || {};
+  if (!filePath || typeof text !== 'string') return { ok: false, error: 'Eksik parametre' };
+  try {
+    const bak = filePath + '.bak';
+    if (!fs.existsSync(bak) && fs.existsSync(filePath)) {
+      fs.copyFileSync(filePath, bak);
+    }
+    // SRT/ASS çıktılarımız BOM'lu (Windows oynatıcıları için) — aynı biçimi koru
+    fs.writeFileSync(filePath, '\uFEFF' + text.replace(/^\uFEFF/, ''), 'utf-8');
+    return { ok: true, backup: bak };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('logs:openFolder', async () => {
   const dir = logsDir();
   const err = await shell.openPath(dir);

@@ -742,7 +742,16 @@
       <div class="player-body">
         <div class="player-stage" id="playerStage">
           <video id="playerVideo" preload="metadata"></video>
+          <div class="subtitle-overlay subtitle-secondary" id="subtitleOverlay2"></div>
           <div class="subtitle-overlay" id="subtitleOverlay"></div>
+          <div class="subtitle-edit hidden" id="subtitleEdit">
+            <textarea id="subtitleEditBox" rows="2" spellcheck="false"></textarea>
+            <div class="subtitle-edit-actions">
+              <span class="subtitle-edit-hint" id="subtitleEditHint"></span>
+              <button class="btn btn-secondary btn-sm" id="subtitleEditCancel">Vazgeç</button>
+              <button class="btn btn-primary btn-sm" id="subtitleEditSave">Kaydet</button>
+            </div>
+          </div>
           <div class="player-empty" id="playerEmpty">
             <p>İzlemek için bir kaynak seç</p>
           </div>
@@ -805,6 +814,10 @@
             <select id="playerSubSelect"><option value="">Altyazı yok</option></select>
             <button class="btn btn-secondary btn-sm" id="playerPickSub" style="margin-top:8px">Altyazı dosyası seç</button>
             <label class="field" style="margin-top:10px">
+              <span class="field-label">İkinci altyazı (karşılaştırma)</span>
+              <select id="playerSubSelect2"><option value="">Kapalı</option></select>
+            </label>
+            <label class="field" style="margin-top:10px">
               <span class="field-label">Yazı boyutu: <span class="value" id="subSizeVal">28</span>px</span>
               <input type="range" id="subSize" min="16" max="48" step="2" value="28" />
             </label>
@@ -812,6 +825,7 @@
               <span class="field-label">Gecikme: <span class="value" id="subOffsetVal">0.0</span> sn</span>
               <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
             </label>
+            <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E tuşu). İlk kaydetmede <code>.bak</code> yedeği alınır.</div>
           </div>
         </div>
       </div>

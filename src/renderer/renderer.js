@@ -852,6 +852,8 @@ const ranges = [
   ['incompleteGap', 'incompleteGapVal'],
   ['llmWorkers', 'llmWorkersVal'],
   ['translateWorkers', 'translateWorkersVal'],
+  ['subSize', 'subSizeVal'],
+  ['subOffset', 'subOffsetVal'],
 ];
 
 
@@ -861,7 +863,9 @@ ranges.forEach(([input, label]) => {
   if (!el || !lbl) return;
   const update = () => {
     let v = el.value;
-    if (['vadThreshold', 'temperature', 'noSpeechThreshold', 'timingGap', 'incompleteGap'].includes(input)) {
+    if (input === 'subOffset') {
+      v = parseFloat(v).toFixed(1);
+    } else if (['vadThreshold', 'temperature', 'noSpeechThreshold', 'timingGap', 'incompleteGap'].includes(input)) {
       v = parseFloat(v).toFixed(2);
     } else if (['logProbThreshold', 'patience', 'lengthPenalty', 'repetitionPenalty', 'compressionRatioThreshold'].includes(input)) {
       v = parseFloat(v).toFixed(1);
@@ -991,6 +995,7 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl',
+  'subSize', 'subOffset',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -1900,9 +1905,13 @@ logLine('Whisper Altyazı hazır. (Ctrl+Enter: başlat · Esc: iptal)', 'success
 // ============================================================================
 const player = {
   cues: [],          // [{start, end, text}]
+  cues2: [],         // karşılaştırma altyazısı (ör. kaynak dil)
   activeIdx: -1,
+  activeIdx2: -1,
   offset: 0,         // altyazı gecikmesi (sn)
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
+  subPath: '',       // düzenleme kaydederken yazılacak dosya
+  editing: false,
   ytInfo: null,
   downloading: false,
 };
@@ -1936,19 +1945,53 @@ function parseSubtitles(text) {
   return out;
 }
 
+// Aktif blok genelde bir öncekinin komşusudur — baştan aramak yerine oradan ilerle
+function findCueAt(cues, t, hint) {
+  let i = hint;
+  if (i >= 0 && i < cues.length && cues[i].start <= t && cues[i].end >= t) return i;
+  return cues.findIndex((c) => c.start <= t && c.end >= t);
+}
+
 function renderCue() {
   const video = $('playerVideo');
   const overlay = $('subtitleOverlay');
+  const overlay2 = $('subtitleOverlay2');
   if (!video || !overlay) return;
-  if (!player.cues.length) { overlay.textContent = ''; return; }
   const t = video.currentTime - player.offset;
-  // Aktif blok genelde bir öncekinin komşusudur — baştan aramak yerine oradan ilerle
-  let i = player.activeIdx;
-  if (i < 0 || i >= player.cues.length || player.cues[i].start > t || player.cues[i].end < t) {
-    i = player.cues.findIndex((c) => c.start <= t && c.end >= t);
+
+  if (player.cues.length) {
+    const i = findCueAt(player.cues, t, player.activeIdx);
+    player.activeIdx = i;
+    // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
+    if (!player.editing) overlay.textContent = i >= 0 ? player.cues[i].text : '';
+  } else {
+    overlay.textContent = '';
   }
-  player.activeIdx = i;
-  overlay.textContent = i >= 0 ? player.cues[i].text : '';
+
+  if (overlay2) {
+    if (player.cues2.length) {
+      const j = findCueAt(player.cues2, t, player.activeIdx2);
+      player.activeIdx2 = j;
+      overlay2.textContent = j >= 0 ? player.cues2[j].text : '';
+    } else {
+      overlay2.textContent = '';
+    }
+  }
+}
+
+// Blokları tekrar SRT'ye çevir (izlerken yapılan düzeltmeyi kaydetmek için)
+function cuesToSrt(cues) {
+  const fmt = (sec) => {
+    const ms = Math.round((sec % 1) * 1000);
+    const total = Math.floor(sec);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s2 = total % 60;
+    const p = (x, w = 2) => String(x).padStart(w, '0');
+    return `${p(h)}:${p(m)}:${p(s2)},${p(ms, 3)}`;
+  };
+  return cues.map((c, i) =>
+    `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
 
 function setPlayerSource(src, title) {
@@ -1964,24 +2007,41 @@ function addSubtitleOption(path, label) {
   if (!path) return;
   if (player.subtitles.some((x) => x.path === path)) return;
   player.subtitles.push({ path, label: label || path.split(/[\\/]/).pop() });
-  const sel = $('playerSubSelect');
-  const opt = document.createElement('option');
-  opt.value = path;
-  opt.textContent = label || path.split(/[\\/]/).pop();
-  sel.appendChild(opt);
+  const name = label || path.split(/[\\/]/).pop();
+  ['playerSubSelect', 'playerSubSelect2'].forEach((id) => {
+    const sel = $(id);
+    if (!sel) return;
+    const opt = document.createElement('option');
+    opt.value = path;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
 }
 
-async function loadSubtitle(path) {
-  if (!path) { player.cues = []; player.activeIdx = -1; renderCue(); return; }
+async function loadSubtitle(path, secondary = false) {
+  if (!path) {
+    if (secondary) { player.cues2 = []; player.activeIdx2 = -1; }
+    else { player.cues = []; player.activeIdx = -1; player.subPath = ''; }
+    renderCue();
+    return;
+  }
   const res = await window.api.readSubtitle(path);
   if (!res || !res.ok) {
     logLine(`Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
-  player.cues = parseSubtitles(res.text);
-  player.activeIdx = -1;
+  const cues = parseSubtitles(res.text);
+  if (secondary) {
+    player.cues2 = cues;
+    player.activeIdx2 = -1;
+  } else {
+    player.cues = cues;
+    player.activeIdx = -1;
+    player.subPath = path;
+  }
   renderCue();
-  logLine(`Altyazı yüklendi: ${path.split(/[\\/]/).pop()} (${player.cues.length} blok)`, 'success');
+  logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
+    + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
 }
 
 function openPlayer() {
@@ -2050,6 +2110,8 @@ document.addEventListener('keydown', (e) => {
   const video = $('playerVideo');
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+  if (player.editing) return;
+  if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
   else if (e.key === 'ArrowRight') video.currentTime += 5;
   else if (e.key === 'ArrowLeft') video.currentTime -= 5;
@@ -2097,6 +2159,63 @@ if ($('playerPickSub')) {
 
 if ($('playerSubSelect')) {
   $('playerSubSelect').addEventListener('change', (e) => loadSubtitle(e.target.value));
+}
+if ($('playerSubSelect2')) {
+  $('playerSubSelect2').addEventListener('change', (e) => loadSubtitle(e.target.value, true));
+}
+
+// ---- izlerken düzeltme ----
+function openCueEditor() {
+  if (player.activeIdx < 0 || !player.cues.length) {
+    logLine('Düzeltmek için altyazının göründüğü bir ana gel.', 'warn');
+    return;
+  }
+  if (!player.subPath) {
+    logLine('Düzeltme kaydedilemez: altyazı bir dosyadan yüklenmemiş.', 'warn');
+    return;
+  }
+  const cue = player.cues[player.activeIdx];
+  player.editing = true;
+  $('playerVideo').pause();
+  $('subtitleEdit').classList.remove('hidden');
+  $('subtitleEditBox').value = cue.text;
+  $('subtitleEditHint').textContent =
+    `${pSecToTime(cue.start)} – ${pSecToTime(cue.end)} · ${player.subPath.split(/[\\/]/).pop()}`;
+  $('subtitleEditBox').focus();
+  $('subtitleEditBox').select();
+}
+
+function closeCueEditor() {
+  player.editing = false;
+  $('subtitleEdit').classList.add('hidden');
+  renderCue();
+}
+
+async function saveCueEdit() {
+  const i = player.activeIdx;
+  if (i < 0) return closeCueEditor();
+  const text = $('subtitleEditBox').value.trim();
+  if (!text) { logLine('Boş altyazı kaydedilmez.', 'warn'); return; }
+  player.cues[i].text = text;
+  const res = await window.api.writeSubtitle(player.subPath, cuesToSrt(player.cues));
+  if (!res || !res.ok) {
+    logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
+  closeCueEditor();
+}
+
+if ($('subtitleOverlay')) {
+  $('subtitleOverlay').addEventListener('dblclick', openCueEditor);
+}
+if ($('subtitleEditSave')) $('subtitleEditSave').addEventListener('click', saveCueEdit);
+if ($('subtitleEditCancel')) $('subtitleEditCancel').addEventListener('click', closeCueEditor);
+if ($('subtitleEditBox')) {
+  $('subtitleEditBox').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeCueEditor(); }
+    else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveCueEdit(); }
+  });
 }
 
 if ($('subSize')) {
