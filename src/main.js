@@ -899,6 +899,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.translateRegister) args.push('--translate-register', options.translateRegister);
   if (options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
   args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
+  args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
     if (options.llmModel) args.push('--llm-model', options.llmModel);
     if (options.llmWorkers) args.push('--llm-workers', String(options.llmWorkers));
     args.push('--llm-fix-censorship', options.llmFixCensorship !== false ? 'true' : 'false');

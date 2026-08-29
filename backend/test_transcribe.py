@@ -383,6 +383,16 @@ def test_resolve_translate_routes():
     assert T.resolve_translate_routes("") == [T.SHUAI_ROUTES[0][1]]
 
 
+def test_build_refine_prompt():
+    p = T.build_refine_prompt("tr", 21, 42)
+    # ikinci geçiş yalnızca DÜZELTİR, baştan çevirmez
+    assert "bastan yazmayacaksin" in p
+    assert "KAYNAK" in p and "CEVIRI" in p
+    assert "GUVENILMEZ" in p                    # prompt injection koruması
+    assert "21 karakter/saniye" in p            # CPS bütçesi ikinci geçişte de var
+    assert "DEGISTIRME" in p                    # doğru olana dokunma kuralı
+
+
 def test_build_translate_prompt():
     p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
                                  register="documentary", profanity="explicit",

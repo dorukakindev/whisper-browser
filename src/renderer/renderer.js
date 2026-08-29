@@ -96,6 +96,7 @@ function buildOptsFromUI() {
     translateRegister: $('translateRegister').value,
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
+    translateRefine: $('translateRefine').checked,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
       ? $('llmBaseUrl').value.trim()
       : $('llmEndpointPreset').value,
@@ -1002,7 +1003,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource',
+  'translate', 'translateKeepSource', 'translateRefine',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
 ];
