@@ -49,6 +49,7 @@ function buildOptsFromUI() {
     mergeShort: $('mergeShort').checked,
     mergeIncomplete: $('mergeIncomplete').checked,
     fixPunctuationCollapse: $('fixPunctuationCollapse').checked,
+    confidenceReport: $('confidenceReport').checked,
     incompleteGap: parseFloat($('incompleteGap').value),
     dedupe: $('dedupe').checked,
     maxCps: parseFloat($('maxCps').value),
@@ -910,7 +911,7 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
@@ -982,7 +983,7 @@ const PRESETS = {
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,
       fixTimings: true, conditionOnPrevious: false, mergeIncomplete: true,
-      fixPunctuationCollapse: true,
+      fixPunctuationCollapse: true, confidenceReport: true,
     },
   },
   fast: {

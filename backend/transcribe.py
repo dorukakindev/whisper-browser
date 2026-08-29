@@ -2913,6 +2913,27 @@ def transcribe(args):
             output_files.append(str(out_path))
             log(f"Yazıldı: {out_path}")
 
+        # Düşük güvenli kelime raporu (kelime damgaları varsa)
+        if args.confidence_report and all_words:
+            try:
+                rep_path = output_dir / f"{base_name}{name_suffix}.dusuk-guven.txt"
+                ok, n_low, frequent = write_confidence_report(
+                    rep_path, entries, all_words, threshold=args.confidence_threshold)
+                if ok:
+                    output_files.append(str(rep_path))
+                    total_words = len(all_words)
+                    pct = (n_low / total_words * 100) if total_words else 0
+                    log(f"Düşük güvenli kelime raporu: {n_low}/{total_words} kelime "
+                        f"(%{pct:.1f}) → {rep_path.name}")
+                    tops = [k for k, c in frequent if c > 1][:5]
+                    if tops:
+                        msg = ("Sözlük önerisi: sık tekrar eden düşük güvenli kelimeler — "
+                               + ", ".join(tops) + " (rapor: " + rep_path.name + ")")
+                        log(msg, "warn")
+                        warn_list.append(msg)
+            except Exception as e:
+                log(f"Düşük güven raporu yazılamadı: {e}", "warn")
+
         # Başarıyla tamamlandı → checkpoint'i sil (stale kalıp sonraki işi yanıltmasın)
         if ckpt_path and os.path.exists(ckpt_path):
             try:
@@ -2928,6 +2949,100 @@ def transcribe(args):
         if os.path.isdir(workdir):
             # Silinemedi (büyük olasılıkla model/ffmpeg dosya kilidi) — disk birikmesini görünür kıl
             log(f"Geçici klasör tamamen silinemedi: {workdir}", "warn")
+
+
+# Raporda gösterilmesi anlamsız kelimeler: ünlemler, dolgu sesleri ve çok yaygın
+# işlev sözcükleri. Whisper bunlarda da düşük skor verebiliyor ama yanlış duyulmuş
+# olmaları önemli değil — rapor özel isimlere odaklansın.
+_REPORT_NOISE = {
+    # İngilizce işlev sözcükleri / ünlemler
+    "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for", "with",
+    "is", "are", "was", "were", "be", "been", "am", "do", "does", "did", "so", "as",
+    "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "them", "my",
+    "your", "his", "its", "our", "their", "this", "that", "these", "those", "what",
+    "oh", "ah", "uh", "um", "hmm", "ooh", "huh", "okay", "ok", "yeah", "yes", "no",
+    "hey", "wow", "hi", "well", "right", "just", "like", "get", "got", "know",
+    # Türkçe
+    "bir", "bu", "şu", "o", "ve", "ile", "ki", "de", "da", "mi", "mı", "mu", "mü",
+    "evet", "hayır", "şey", "ya", "ha", "he", "eee", "ıı", "yani", "işte", "tamam",
+    "ben", "sen", "biz", "siz", "onlar", "için", "gibi", "ama", "çok", "daha",
+}
+
+
+def _report_key(word):
+    """Rapor için kelimeyi normalize et (noktalama/tırnak at, küçült)."""
+    return (word or "").strip().strip(",.!?;:\"'“”‘’()[]…-–—").lower()
+
+
+def build_confidence_report(entries, all_words, threshold=0.6, top_n=12):
+    """
+    Güven skoru düşük kelimeleri ALTYAZI BLOĞU BAĞLAMIYLA raporlar.
+    Düz kelime listesi yerine bloğun metnini de gösterir — "bu kelime nerede geçiyor,
+    doğru mu?" sorusu tek bakışta cevaplanır. Ayrıca en sık tekrar eden düşük güvenli
+    kelimeler özetlenir: bunlar genelde sözlüğe (glossary) eklenmesi gereken özel
+    isimlerdir (Sanhuber, Osterreich gibi).
+
+    Döner: (rapor_metni, düşük_güvenli_kelime_sayısı, [(kelime, adet), ...])
+    """
+    lows = [w for w in (all_words or [])
+            if w.get("probability", 1.0) < threshold
+            and _report_key(w.get("word")) not in _REPORT_NOISE
+            and len(_report_key(w.get("word"))) > 1]
+    if not lows:
+        return "", 0, []
+
+    # Kelimeleri ait oldukları bloğa dağıt (orta noktası bloğun içinde kalan)
+    buckets = {}
+    for w in lows:
+        mid = (w["start"] + w["end"]) / 2
+        idx = None
+        for i, (s0, e0, _t) in enumerate(entries):
+            if s0 <= mid <= e0:
+                idx = i
+                break
+        buckets.setdefault(idx, []).append(w)
+
+    counts = {}
+    for w in lows:
+        key = _report_key(w.get("word"))
+        if len(key) > 2:
+            counts[key] = counts.get(key, 0) + 1
+    # Yalnızca birden fazla geçenler sözlük adayıdır (tek seferlik hata değil, sistematik)
+    frequent = [(k, n) for k, n in
+                sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n] if n > 1]
+
+    out = []
+    out.append(f"# Düşük güvenli kelimeler (skor < {threshold:.2f}) — {len(lows)} kelime")
+    out.append("# Whisper bu kelimelerden emin değil; özellikle ÖZEL İSİMLERİ kontrol edin.")
+    out.append("# Sık tekrar edenleri Ayarlar > Sözlük'e ekleyip yeniden çevirirseniz düzelir.")
+    out.append("")
+    if frequent:
+        out.append("## En sık tekrar edenler (sözlük adayları)")
+        out.append("  " + " · ".join(f"{k} ({n})" for k, n in frequent))
+        out.append("")
+    out.append("## Geçtiği yerler")
+    for idx in sorted(buckets, key=lambda i: (i is None, i)):
+        ws = buckets[idx]
+        if idx is None:
+            out.append("[blok dışı]")
+        else:
+            s0, _e0, text = entries[idx]
+            out.append(f"[{format_srt_time(s0)[:8]}] {text}")
+        out.append("    " + " · ".join(
+            f"{(w.get('word') or '').strip()} ({w.get('probability', 0):.2f})" for w in ws
+        ))
+    out.append("")
+    return "\n".join(out), len(lows), frequent
+
+
+def write_confidence_report(path, entries, all_words, threshold=0.6):
+    """Raporu dosyaya yazar. Döner: (yazıldı_mı, kelime_sayısı, sık_gecenler)"""
+    text, count, frequent = build_confidence_report(entries, all_words, threshold)
+    if not count:
+        return False, 0, []
+    with open(path, "w", encoding="utf-8-sig") as f:
+        f.write(text)
+    return True, count, frequent
 
 
 def reexport_from_json(args):
@@ -3221,6 +3336,10 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--confidence-report", type=lambda x: x.lower() == "true", default=True,
+                        help="Güven skoru düşük kelimeleri ayrı bir rapor dosyasına yaz")
+    parser.add_argument("--confidence-threshold", type=float, default=0.6,
+                        help="Bu skorun altındaki kelimeler rapora girer (0-1)")
     parser.add_argument("--drop-trailing-hallucination", type=lambda x: x.lower() == "true", default=True,
                         help="Videonun en sonundaki uydurma tek-iki kelimelik bloğu at (jenerik artefaktı)")
     parser.add_argument("--fix-punctuation-collapse", type=lambda x: x.lower() == "true", default=True,

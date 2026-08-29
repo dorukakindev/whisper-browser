@@ -211,6 +211,32 @@ def test_find_suspicious_gaps():
     assert T.find_suspicious_gaps(short) == []
 
 
+def test_build_confidence_report():
+    entries = [
+        (10.0, 14.0, "Otto Sanhuber was the secret lover of Mrs. Dolly Osterreich."),
+        (20.0, 23.0, "The lords of Shibalba were called one death and seven death."),
+        (30.0, 33.0, "Okay."),
+    ]
+    words = [
+        {"word": "Sanhuber", "start": 10.5, "end": 11.0, "probability": 0.41},
+        {"word": "Osterreich", "start": 13.0, "end": 13.6, "probability": 0.38},
+        {"word": "Shibalba", "start": 21.0, "end": 21.5, "probability": 0.32},
+        {"word": "Shibalba", "start": 22.0, "end": 22.4, "probability": 0.29},
+        {"word": "the", "start": 11.2, "end": 11.4, "probability": 0.20},   # gürültü
+        {"word": "Okay.", "start": 30.5, "end": 31.0, "probability": 0.18}, # gürültü
+        {"word": "lover", "start": 12.0, "end": 12.4, "probability": 0.95}, # eşik üstü
+    ]
+    text, count, frequent = T.build_confidence_report(entries, words, threshold=0.6)
+    assert count == 4, count                       # gürültü ve eşik üstü elendi
+    assert frequent == [("shibalba", 2)]           # yalnızca tekrar edenler sözlük adayı
+    assert "Sanhuber (0.41)" in text and "Osterreich (0.38)" in text
+    assert "Okay" not in text and "the (0.20)" not in text
+    # bağlam: kelime ait olduğu bloğun metniyle birlikte gösterilir
+    assert "Otto Sanhuber was the secret lover" in text
+    # düşük güvenli kelime yoksa rapor üretilmez
+    assert T.build_confidence_report(entries, [words[-1]], threshold=0.6) == ("", 0, [])
+
+
 def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "one two three four.")]) == 0.25
     assert T.punctuation_ratio([(0, 1, "no punctuation at all")]) == 0.0
