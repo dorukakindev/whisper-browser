@@ -841,6 +841,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     args.push('--sync-subs', 'true');
     if (options.syncSrt) args.push('--sync-srt', options.syncSrt);
     if (options.syncMaxShift) args.push('--sync-max-shift', String(options.syncMaxShift));
+    args.push('--sync-fix-framerate', options.syncFixFramerate !== false ? 'true' : 'false');
   }
   if (options.maxLineWidth) args.push('--max-line-width', String(options.maxLineWidth));
   if (options.maxLines) args.push('--max-lines', String(options.maxLines));

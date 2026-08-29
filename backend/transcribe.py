@@ -3702,6 +3702,80 @@ def best_offset(ref_sig, sub_sig, hz, max_shift_sec=60.0):
     return lag / float(hz)
 
 
+# Yaygın framerate oranları: kaynak ve hedef farklı hızda kodlanmışsa altyazı
+# doğrusal olarak SÜRÜKLENİR (başta doğru, sonda dakikalarca kayık). ffsubsync'in
+# yaklaşımı: birkaç bilinen oranı dene, korelasyon skoru en yüksek olanı seç.
+FRAMERATE_RATIOS = [
+    1.0,
+    24000 / 23976,      # 24 -> 23.976 (0.1% hızlanma)
+    23976 / 24000,
+    25 / 24,            # PAL hızlandırma (%4)
+    24 / 25,
+    30000 / 29970,
+    29970 / 30000,
+    25 / 23.976,
+    23.976 / 25,
+]
+
+
+def best_offset_scored(ref_sig, sub_sig, hz, max_shift_sec=60.0):
+    """
+    best_offset ile aynı korelasyon, ama (offset, skor) döndürür.
+    Skor farklı adayları (ör. farklı framerate oranları) karşılaştırmak için gerekli;
+    normalize edilir ki farklı uzunluktaki sinyaller kıyaslanabilsin.
+    """
+    import numpy as np
+    ref = np.asarray(ref_sig, dtype=np.float64)
+    sub = np.asarray(sub_sig, dtype=np.float64)
+    if ref.size == 0 or sub.size == 0:
+        return 0.0, 0.0
+    n = max(ref.size, sub.size)
+    size = 1
+    while size < 2 * n:
+        size *= 2
+    a = np.zeros(size)
+    b = np.zeros(size)
+    a[:ref.size] = ref - ref.mean()
+    b[:sub.size] = sub - sub.mean()
+    corr = np.fft.irfft(np.fft.rfft(a) * np.conj(np.fft.rfft(b)), n=size)
+    max_lag = min(int(max_shift_sec * hz), size // 2 - 1)
+    idx = np.concatenate([np.arange(0, max_lag + 1), np.arange(size - max_lag, size)])
+    vals = corr[idx]
+    k = int(np.argmax(vals))
+    best = int(idx[k])
+    lag = best if best <= size // 2 else best - size
+    norm = float(np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
+    return lag / float(hz), float(vals[k]) / norm
+
+
+def scale_spans(spans, ratio):
+    """Blok zamanlarını framerate oranıyla ölçekle (sürüklenme düzeltmesi)."""
+    return [(s0 * ratio, e0 * ratio, t) for (s0, e0, t) in spans]
+
+
+def find_sync_transform(ref_sig, hz, spans, max_shift_sec=60.0, ratios=None):
+    """
+    En iyi (oran, offset) çiftini bulur: her framerate oranı için altyazı sinyalini
+    yeniden kurup korelasyon skoruna bakar, en yükseği kazanır. Oran 1.0 dışında bir
+    değer ancak skoru BELİRGİN artırıyorsa seçilir (gürültüye kanmayalım).
+    Döner: (ratio, offset, score, tüm_denemeler)
+    """
+    ratios = ratios or FRAMERATE_RATIOS
+    n = ref_sig.size
+    trials = []
+    for r in ratios:
+        scaled = scale_spans(spans, r)
+        sig = build_binary_signal(scaled, n, hz)
+        off, score = best_offset_scored(ref_sig, sig, hz, max_shift_sec=max_shift_sec)
+        trials.append((r, off, score))
+    base = next((t for t in trials if abs(t[0] - 1.0) < 1e-9), trials[0])
+    best = max(trials, key=lambda t: t[2])
+    # Oran değişikliği için %8 skor iyileşmesi şartı — küçük farklar rastlantı olabilir
+    if best[0] != base[0] and best[2] < base[2] * 1.08:
+        best = base
+    return best[0], best[1], best[2], trials
+
+
 def sync_subtitles(args):
     """Videoyu referans alıp mevcut SRT'yi sabit kaymadan hizalar; .synced.srt yazar."""
     ffmpeg_path = find_ffmpeg()
@@ -3737,12 +3811,24 @@ def sync_subtitles(args):
         sub_sig = build_binary_signal(spans, ref_sig.size, hz)
 
         emit("status", stage="sync", text="Kayma hesaplanıyor (korelasyon)...")
-        offset = best_offset(ref_sig, sub_sig, hz, max_shift_sec=args.sync_max_shift)
+        if args.sync_fix_framerate:
+            ratio, offset, score, trials = find_sync_transform(
+                ref_sig, hz, spans, max_shift_sec=args.sync_max_shift)
+            if abs(ratio - 1.0) > 1e-9:
+                drift = (ratio - 1.0) * (spans[-1][1] if spans else 0)
+                log(f"Framerate sürüklenmesi bulundu: oran {ratio:.5f} "
+                    f"(sonda ~{drift:+.1f} sn fark) — düzeltiliyor", "success")
+            else:
+                log("Framerate sürüklenmesi yok, sabit kayma uygulanıyor")
+        else:
+            ratio = 1.0
+            offset, score = best_offset_scored(
+                ref_sig, sub_sig, hz, max_shift_sec=args.sync_max_shift)
         log(f"Tespit edilen kayma: {offset:+.2f} sn "
             f"(altyazı {'ileri' if offset >= 0 else 'geri'} alındı)",
             "success")
 
-        shifted = shift_srt_entries(spans, offset)
+        shifted = shift_srt_entries(scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
         out_path = srt_path.with_name(srt_path.stem + ".synced.srt")
         emit("status", stage="write", text="Senkronlu altyazı yazılıyor...")
         write_srt_raw(shifted, out_path)
@@ -3750,8 +3836,11 @@ def sync_subtitles(args):
         warn = []
         if abs(offset) >= args.sync_max_shift - 0.05:
             warn.append("Kayma üst sınıra ulaştı — sonuç güvenilir olmayabilir, gözden geçirin.")
+        if abs(ratio - 1.0) > 1e-9:
+            warn.append(f"Framerate oranı {ratio:.5f} uygulandı (sürüklenme düzeltmesi) — "
+                        "sonucu bir kez kontrol edin.")
         emit("done", files=[str(out_path)], segments=len(shifted), language="",
-             warnings=warn, sync_offset=round(offset, 2))
+             warnings=warn, sync_offset=round(offset, 2), sync_ratio=round(ratio, 6))
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
@@ -3786,6 +3875,8 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--sync-fix-framerate", type=lambda x: x.lower() == "true", default=True,
+                        help="Senkronda framerate sürüklenmesini de düzelt (yalnızca sabit kayma değil)")
     parser.add_argument("--fix-common-errors", type=lambda x: x.lower() == "true", default=True,
                         help="Yaygın altyazı hatalarını düzelt (tekrar eden ön ek, mikro blok, "
                              "noktalama sonrası boşluk, cümle başı büyük harf)")

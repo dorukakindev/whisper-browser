@@ -999,7 +999,7 @@ const PERSIST_VALUE_CONTROLS = [
   'subSize', 'subOffset',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'syncFixFramerate', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'translate', 'translateKeepSource',
@@ -1828,6 +1828,7 @@ $('syncBtn').addEventListener('click', async () => {
   opts.input = state.syncVideo;
   opts.syncSubs = true;
   opts.syncSrt = state.syncSrt;
+  opts.syncFixFramerate = $('syncFixFramerate') ? $('syncFixFramerate').checked : true;
   // Transkripsiyon boru hattını yeniden kullan (ilerleme/günlük/sonuç)
   resetStages();
   clearPreview();

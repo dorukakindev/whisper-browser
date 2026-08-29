@@ -244,6 +244,51 @@ def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "He met Mrs. Dolly")]) == 0.0
 
 
+# ===== senkron: framerate sürüklenmesi =====
+def _sync_fixture(dur=900, seed=7):
+    """Rastgele ama tekrarlanabilir konuşma blokları + referans sinyal."""
+    import random
+    rng = random.Random(seed)
+    spans = []
+    t = 5.0
+    while t < dur - 10:
+        d = rng.uniform(1.2, 3.0)
+        spans.append((t, t + d, "x"))
+        t += d + rng.uniform(0.5, 4.0)
+    ref = T.build_binary_signal(spans, int(dur * 50), 50)
+    return spans, ref
+
+
+def test_find_sync_transform_framerate():
+    spans, ref = _sync_fixture()
+    # PAL hızlandırma (25/24) + 2.5 sn geri kayma ile bozulmuş altyazı
+    bad = [((s - 2.5) * (24 / 25), (e - 2.5) * (24 / 25), x) for s, e, x in spans]
+    ratio, offset, _score, _trials = T.find_sync_transform(ref, 50, bad, max_shift_sec=60)
+    assert abs(ratio - 25 / 24) < 1e-4, ratio
+    assert abs(offset - 2.5) < 0.1, offset
+    # düzeltme sonrası hata sıfıra yakın olmalı
+    fixed = T.shift_srt_entries(T.scale_spans(bad, ratio), offset)
+    worst = max(abs(f[0] - o[0]) for f, o in zip(fixed, spans))
+    assert worst < 0.1, worst
+
+
+def test_find_sync_transform_no_false_positive():
+    spans, ref = _sync_fixture(seed=11)
+    # yalnızca sabit kayma var → oran 1.0 kalmalı (sürüklenme uydurmasın)
+    bad = [(s - 4.0, e - 4.0, x) for s, e, x in spans]
+    ratio, offset, _s, _t = T.find_sync_transform(ref, 50, bad, max_shift_sec=60)
+    assert ratio == 1.0, ratio
+    assert abs(offset - 4.0) < 0.1, offset
+    # zaten senkronsa hem oran hem kayma nötr
+    ratio2, offset2, _s2, _t2 = T.find_sync_transform(ref, 50, spans, max_shift_sec=60)
+    assert ratio2 == 1.0 and abs(offset2) < 0.1
+
+
+def test_scale_spans():
+    out = T.scale_spans([(10.0, 12.0, "a")], 2.0)
+    assert out == [(20.0, 24.0, "a")]
+
+
 # ===== yaygın hata düzeltme =====
 def test_fix_text_artifacts():
     assert T.fix_text_artifacts("Merhaba,nasılsın?") == "Merhaba, nasılsın?"
