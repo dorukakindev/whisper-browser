@@ -1495,7 +1495,57 @@ function notifyDone(title, body) {
 }
 
 // ===== Event handler =====
+// Oynaticidan baslatilan is: ilerleme SAG PANELDE gosterilir (ana pencere
+// oynatici katmaninin altinda kaldigi icin oradaki cubuk gorunmuyor). Bitince
+// uretilen altyazi otomatik yuklenir - ama YALNIZCA hala ayni videodaysak.
+function playerJobEvent(event) {
+  const job = player.job;
+  if (!job || !job.running) return;
+  const bar = $('playerJobBar');
+  const txt = $('playerJobText');
+  const fill = $('playerJobFill');
+  if (!bar) return;
+
+  const finish = (message, level) => {
+    job.running = false;
+    txt.textContent = message;
+    setTimeout(() => bar.classList.add('hidden'), 4000);
+    if (level) logLine(message, level);
+  };
+
+  if (event.type === 'status' && event.text) txt.textContent = event.text;
+  else if (event.type === 'progress' && typeof event.percent === 'number') {
+    fill.style.width = `${Math.min(100, event.percent)}%`;
+    txt.textContent = `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
+  } else if (event.type === 'done') {
+    fill.style.width = '100%';
+    const files = (event.files || []).filter((f) => /\.(srt|vtt)$/i.test(f));
+    if (job.mediaKey !== player.mediaKey) {
+      finish('Altyazı hazır ama başka videoya geçildi — yüklenmedi.', 'warn');
+      return;
+    }
+    // Kaynak altyazi: ceviri dosyasi (.tr.srt) varsa onu IKINCI altyaziya koy
+    const src = files.find((f) => !/\.[a-z]{2}\.(srt|vtt)$/i.test(f)) || files[0];
+    const tr = files.find((f) => f !== src && /\.[a-z]{2}\.(srt|vtt)$/i.test(f));
+    if (src) {
+      addSubtitleOption(src);
+      $('playerSubSelect').value = src;
+      loadSubtitle(src);
+    }
+    if (tr) {
+      addSubtitleOption(tr);
+      $('playerSubSelect2').value = tr;
+      loadSubtitle(tr, true);
+    }
+    finish(src ? 'Altyazı hazır ve yüklendi.' : 'İş bitti ama altyazı dosyası bulunamadı.',
+           src ? 'success' : 'warn');
+  } else if (event.type === 'error') {
+    finish(`Altyazı oluşturulamadı: ${(event.message || '').slice(0, 80)}`, 'error');
+  }
+}
+
 window.api.onEvent((event) => {
+  playerJobEvent(event);
   switch (event.type) {
     case 'log':
       logLine(event.message, event.level || 'info');
@@ -1985,6 +2035,7 @@ const player = {
   subPath: '',       // duzenleme kaydederken yazilacak dosya
   subFormat: 'srt',  // 'srt' | 'vtt' | 'ass' - kaydederken AYNI bicim korunur
   subRaw: '',        // dosyanin ham metni (ASS'te cerrahi duzenleme icin)
+  subOrigins: {},    // { yol: 'YouTube' | 'Whisper' | 'Dosya' } - panelde gosterilir
   editing: false,
   autoPause: false,
   pausedAt: -1,
@@ -1999,6 +2050,10 @@ const player = {
   originalUrl: '',   // kullanicinin girdigi kalici YouTube adresi (gecici HLS DEGIL)
   positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
   subsHidden: false,
+  autoFollow: true,      // aktif satiri kendiliginden kaydir
+  userScrolled: false,   // kullanici elle kaydirdi -> takip gecici durur
+  viewMode: 'reading',
+  job: null,             // oynaticidan baslatilan transkripsiyon isi
   idleTimer: null,
   resumeOffered: false,
 };
@@ -2133,34 +2188,85 @@ function renderCue() {
 // ---- Altyazı listesi (LLPlayer'daki "subtitles sidebar" fikri) ----
 // Tüm blokları listeler; tıklayınca o ana atlar, aktif blok vurgulanır ve
 // görünür alana kaydırılır. Uzun filmde altyazı denetimini kolaylaştırır.
+// Kaynak ve ceviri AYRI zaman cizelgeleri olabilir (ceviri baska bir dosyadan
+// gelmis olabilir). Eslesme zaman ORTUSMESINE gore yapilir: kaynak blogunun
+// suresiyle en cok ortusen ceviri blogu secilir.
+function translationFor(cue) {
+  if (!player.cues2.length) return '';
+  let best = null;
+  let bestOverlap = 0;
+  for (const t of player.cues2) {
+    if (t.start >= cue.end) break;               // cues2 zaman sirali
+    const ov = Math.min(cue.end, t.end) - Math.max(cue.start, t.start);
+    if (ov > bestOverlap) { bestOverlap = ov; best = t; }
+  }
+  // Ortusme cok kucukse eslestirme (yanlis satir gostermektense bos birak)
+  return bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25) ? best.text : '';
+}
+
+// Aramada eslesen kismi vurgula (metin duz eklenir, XSS yok)
+function appendHighlighted(el, text, q) {
+  const flat = text.replace(/\n/g, ' ');
+  if (!q) { el.textContent = flat; return; }
+  const low = flat.toLocaleLowerCase('tr');
+  let from = 0;
+  let at = low.indexOf(q);
+  if (at < 0) { el.textContent = flat; return; }
+  while (at >= 0) {
+    el.appendChild(document.createTextNode(flat.slice(from, at)));
+    const m = document.createElement('mark');
+    m.textContent = flat.slice(at, at + q.length);
+    el.appendChild(m);
+    from = at + q.length;
+    at = low.indexOf(q, from);
+  }
+  el.appendChild(document.createTextNode(flat.slice(from)));
+}
+
 function renderCueList(filter = '') {
   const box = $('cueList');
   if (!box) return;
   const q = filter.trim().toLocaleLowerCase('tr');
   box.innerHTML = '';
   if (!player.cues.length) {
-    box.innerHTML = '<div class="cue-list-empty">Altyazı yüklenince bloklar burada listelenir.</div>';
+    box.innerHTML = '<div class="cue-list-empty">Altyazı yüklenince satırlar burada akar.</div>';
     return;
   }
   const frag = document.createDocumentFragment();
+  let shown = 0;
   player.cues.forEach((c, i) => {
-    if (q && !c.text.toLocaleLowerCase('tr').includes(q)) return;
-    const row = document.createElement('div');
-    row.className = 'cue-row';
-    row.dataset.idx = String(i);
+    const tr = translationFor(c);
+    if (q && !c.text.toLocaleLowerCase('tr').includes(q)
+        && !tr.toLocaleLowerCase('tr').includes(q)) return;
+    shown++;
+    const card = document.createElement('div');
+    card.className = 'cue-card';
+    card.dataset.idx = String(i);
+
     const time = document.createElement('div');
-    time.className = 'cue-row-time';
+    time.className = 'cue-card-time';
     time.textContent = pSecToTime(c.start);
-    const text = document.createElement('div');
-    text.className = 'cue-row-text';
-    text.textContent = c.text.replace(/\n/g, ' ');
-    row.appendChild(time);
-    row.appendChild(text);
-    row.addEventListener('click', () => seekToCue(i));
-    frag.appendChild(row);
+
+    const body = document.createElement('div');
+    const src = document.createElement('div');
+    src.className = 'cue-card-src';
+    appendHighlighted(src, c.text, q);
+    body.appendChild(src);
+    if (tr) {
+      const trEl = document.createElement('div');
+      trEl.className = 'cue-card-tr';
+      appendHighlighted(trEl, tr, q);
+      body.appendChild(trEl);
+    }
+
+    card.appendChild(time);
+    card.appendChild(body);
+    card.addEventListener('click', () => seekToCue(i));
+    card.addEventListener('dblclick', (e) => { e.preventDefault(); seekToCue(i); openCueEditor(); });
+    frag.appendChild(card);
   });
-  if (!frag.childNodes.length) {
-    box.innerHTML = '<div class="cue-list-empty">Eşleşen blok yok.</div>';
+  if (!shown) {
+    box.innerHTML = '<div class="cue-list-empty">Eşleşen satır yok.</div>';
     return;
   }
   box.appendChild(frag);
@@ -2170,17 +2276,72 @@ function renderCueList(filter = '') {
 function highlightCueRow() {
   const box = $('cueList');
   if (!box) return;
-  const prev = box.querySelector('.cue-row.active');
+  const prev = box.querySelector('.cue-card.active');
   if (prev) prev.classList.remove('active');
-  if (player.activeIdx < 0) return;
-  const row = box.querySelector(`.cue-row[data-idx="${player.activeIdx}"]`);
+  if (player.activeIdx < 0) {
+    // Altyazi bosluklarinda (sessiz bolumler) aktif satir yoktur. Kullanici elle
+    // kaydirmissa "Aktif satira don" dugmesi KAYBOLMAMALI - yoksa geri donus
+    // yolunu kaybediyor.
+    const b = $('backToActive');
+    if (b) b.classList.toggle('hidden', !(player.userScrolled && player.cues.length));
+    return;
+  }
+  const row = box.querySelector(`.cue-card[data-idx="${player.activeIdx}"]`);
   if (!row) return;
   row.classList.add('active');
   const rb = row.getBoundingClientRect();
   const bb = box.getBoundingClientRect();
-  if (rb.top < bb.top || rb.bottom > bb.bottom) {
-    row.scrollIntoView({ block: 'nearest' });
+  const visible = rb.top >= bb.top && rb.bottom <= bb.bottom;
+
+  // Kullanici elle kaydirdiysa takip GECICI olarak durur; "Aktif satıra dön"
+  // dugmesi cikar. Aksi halde aktif satir panelin ORTASINA yakin tutulur -
+  // okurken bir sonraki cumleyi de gormek icin.
+  if (!player.autoFollow || player.userScrolled) {
+    const btn = $('backToActive');
+    if (btn) btn.classList.toggle('hidden', visible);
+    return;
   }
+  // RECT FARKI: offsetTop, offsetParent .player-side oldugu icin kaydirma
+  // kutusuna gore DEGILDI ve satir hic ortalanmiyordu.
+  const delta = (rb.top + rb.height / 2) - (bb.top + bb.height / 2);
+  if (Math.abs(delta) > 2) {
+    const top = Math.max(0, box.scrollTop + delta);
+    box.scrollTop = top;
+    player.expectedScroll = box.scrollTop;   // tarayicinin kirptigi degeri al
+  }
+  const btn = $('backToActive');
+  if (btn) btn.classList.add('hidden');
+}
+
+// Kullanicinin kendi kaydirmasi ile bizim otomatik kaydirmamizi ayirmak icin
+// bayrak kullanilir (scroll olayi ikisinde de tetiklenir).
+function bindTranscriptScroll() {
+  const box = $('cueList');
+  if (!box) return;
+  // ZAMAN penceresi kirilgandi: kullanici kaydirdiktan hemen sonra gelen otomatik
+  // kaydirma onun olayini maskeliyordu. Bunun yerine BEKLENEN KONUM tutulur -
+  // gozlenen konum bizim yazdigimizdan farkliysa kaydiran kullanicidir.
+  window.__markAutoScroll = () => { player.expectedScroll = undefined; };
+  const userIntent = () => {
+    player.userScrolled = true;
+    player.expectedScroll = undefined;
+  };
+  box.addEventListener('wheel', userIntent, { passive: true });
+  box.addEventListener('touchmove', userIntent, { passive: true });
+  box.addEventListener('scroll', () => {
+    const expected = player.expectedScroll;
+    if (expected !== undefined && Math.abs(box.scrollTop - expected) <= 4) return;  // bizim
+    player.userScrolled = true;
+    const btn = $('backToActive');
+    if (btn && player.activeIdx >= 0) {
+      const row = box.querySelector(`.cue-card[data-idx="${player.activeIdx}"]`);
+      if (row) {
+        const rb = row.getBoundingClientRect();
+        const bb = box.getBoundingClientRect();
+        btn.classList.toggle('hidden', rb.top >= bb.top && rb.bottom <= bb.bottom);
+      }
+    }
+  }, { passive: true });
 }
 
 // ---- blok gezinme (Voracious: "navigate forward and back by subtitle") ----
@@ -2403,6 +2564,8 @@ function resetMediaBoundState() {
   player.activeIdx2 = -1;
   player.subPath = '';
   player.subRaw = '';
+  player.sub2Path = '';
+  player.subOrigins = {};
   player.subFormat = 'srt';
   player.pausedAt = -1;
   player.chapters = [];
@@ -2426,6 +2589,7 @@ function resetMediaBoundState() {
   });
   if ($('cueSearch')) $('cueSearch').value = '';
   renderCueList('');
+  updateSubtitleChips();
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
   renderSeekMarkers([]);
@@ -2548,6 +2712,7 @@ function setPlayerSource(src, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return;
   setMediaKey(key || src);
+  player.videoPath = (key || '').startsWith('file:') ? (meta && meta.localPath) || '' : '';
   if (meta && meta.chapters) setChapters(meta.chapters);
   destroyHls();
   video.src = src;
@@ -2669,10 +2834,43 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   return true;
 }
 
+// Whisper GORUNTUDEKI yaziyi okuyamaz, yalnizca sesi dinler. Bu yuzden altyazinin
+// NEREDEN geldigi panelde acikca yazar: YouTube'un hazir altyazisi mi, bizim
+// Whisper ciktimiz mi, yoksa disaridan acilan bir dosya mi.
+function subtitleOrigin(path, label) {
+  if (/^YouTube/i.test(label || '')) return 'YouTube';
+  if ((state.outputFiles || []).includes(path)) return 'Whisper';
+  return 'Dosya';
+}
+
+// Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR
+function langFromPath(path) {
+  const m = String(path || '').match(/\.([a-z]{2,3})\.(?:srt|vtt|ass|ssa)$/i);
+  return m ? m[1].toUpperCase() : '';
+}
+
+function updateSubtitleChips() {
+  const src = $('srcLangChip');
+  const tr = $('trLangChip');
+  const org = $('subOrigin');
+  if (src) {
+    const l = langFromPath(player.subPath);
+    src.textContent = l ? `Kaynak · ${l}` : 'Kaynak';
+    src.classList.toggle('hidden', !player.cues.length);
+  }
+  if (tr) {
+    const l2 = langFromPath(player.sub2Path);
+    tr.textContent = l2 ? `Çeviri · ${l2}` : 'Çeviri';
+    tr.classList.toggle('hidden', !player.cues2.length);
+  }
+  if (org) org.textContent = player.subPath ? (player.subOrigins[player.subPath] || 'Dosya') : '';
+}
+
 function addSubtitleOption(path, label) {
   if (!path) return;
   if (player.subtitles.some((x) => x.path === path)) return;
   player.subtitles.push({ path, label: label || path.split(/[\\/]/).pop() });
+  player.subOrigins[path] = subtitleOrigin(path, label);
   const name = label || path.split(/[\\/]/).pop();
   ['playerSubSelect', 'playerSubSelect2'].forEach((id) => {
     const sel = $(id);
@@ -2708,6 +2906,8 @@ async function loadSubtitle(path, secondary = false) {
   if (secondary) {
     player.cues2 = cues;
     player.activeIdx2 = -1;
+    player.sub2Path = path;
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');   // kartlara ceviri satiri gelsin
   } else {
     player.cues = cues;
     player.activeIdx = -1;
@@ -2723,6 +2923,7 @@ async function loadSubtitle(path, secondary = false) {
     setSubtitlesVisible(true);
     logLine('Altyazı gizliydi — otomatik açıldı.', 'warn');
   }
+  updateSubtitleChips();
   renderCue();
   logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
     + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
@@ -2781,7 +2982,146 @@ function pathToFileUrl(p) {
   return 'file:///' + encodeURI(norm).replace(/^file:\/\/\//, '').replace(/#/g, '%23');
 }
 
+// ---- gorunum modlari: Sinema / Okuma / Calisma ----
+// Ayni oynatici, farkli hiyerarsi: sinemada panel kapali, okumada ~%38,
+// calismada ~%48 ve daha buyuk metin.
+const VIEW_MODES = { cinema: '0%', reading: '38%', study: '48%' };
+
+function setViewMode(mode) {
+  if (!VIEW_MODES[mode]) mode = 'reading';
+  player.viewMode = mode;
+  const layer = $('playerLayer');
+  layer.classList.remove('mode-cinema', 'mode-reading', 'mode-study');
+  layer.classList.add(`mode-${mode}`);
+  if (mode !== 'cinema') layer.style.setProperty('--side-w', VIEW_MODES[mode]);
+  $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  try { localStorage.setItem('playerViewMode', mode); } catch (_) {}
+  // Mod degisince panel genisligi degisir; aktif satiri yeniden ortala
+  setTimeout(highlightCueRow, 60);
+}
+
+function setSideWidth(px) {
+  const layer = $('playerLayer');
+  const total = layer.getBoundingClientRect().width || window.innerWidth;
+  // Rapordaki sinirlar: en az 420px, en cok ~720px (ve videoya yer kalsin)
+  const w = Math.max(420, Math.min(720, Math.min(px, total - 360)));
+  layer.style.setProperty('--side-w', `${w}px`);
+  try { localStorage.setItem('playerSideWidth', String(w)); } catch (_) {}
+}
+
 // ---- olay bağlantıları ----
+// Gorunum modu dugmeleri + kalici genislik
+$$('.view-modes .vm').forEach((b) => {
+  b.addEventListener('click', () => setViewMode(b.dataset.mode));
+});
+(function initPlayerLayout() {
+  let mode = 'reading';
+  let width = 0;
+  try {
+    mode = localStorage.getItem('playerViewMode') || 'reading';
+    width = parseInt(localStorage.getItem('playerSideWidth') || '0', 10);
+  } catch (_) {}
+  setViewMode(mode);
+  if (width) setSideWidth(width);
+  bindTranscriptScroll();
+})();
+
+// Panel genisligini surukleyerek ayarla
+if ($('sideResizer')) {
+  const rz = $('sideResizer');
+  let dragging = false;
+  rz.addEventListener('mousedown', (e) => {
+    dragging = true;
+    rz.classList.add('dragging');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const layer = $('playerLayer').getBoundingClientRect();
+    setSideWidth(layer.right - e.clientX);
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    rz.classList.remove('dragging');
+    highlightCueRow();
+  });
+}
+
+// Ayar cekmecesi
+if ($('toggleSettings')) {
+  $('toggleSettings').addEventListener('click', () => {
+    const d = $('settingsDrawer');
+    if (d) d.classList.toggle('hidden');
+  });
+}
+
+// Alt arac cubugu — mevcut kisayollarin gorunur karsiliklari
+if ($('cuePrevBtn')) $('cuePrevBtn').addEventListener('click', () => stepCue(-1));
+if ($('cueNextBtn')) $('cueNextBtn').addEventListener('click', () => stepCue(1));
+if ($('cueReplayBtn')) $('cueReplayBtn').addEventListener('click', replayCue);
+
+if ($('autoFollow')) {
+  $('autoFollow').addEventListener('change', (e) => {
+    player.autoFollow = e.target.checked;
+    player.userScrolled = false;
+    if (player.autoFollow) highlightCueRow();
+  });
+}
+if ($('backToActive')) {
+  $('backToActive').addEventListener('click', () => {
+    player.userScrolled = false;
+    highlightCueRow();
+    $('backToActive').classList.add('hidden');
+  });
+}
+if ($('showSource')) {
+  $('showSource').addEventListener('change', (e) => {
+    $('playerSide').classList.toggle('hide-src', !e.target.checked);
+  });
+}
+if ($('showTranslation')) {
+  $('showTranslation').addEventListener('change', (e) => {
+    $('playerSide').classList.toggle('hide-tr', !e.target.checked);
+  });
+}
+
+// "Altyazı oluştur": oynaticidaki MEVCUT kaynagi ana is akisina verir. Ayni
+// dogrulamalar, ayni kuyruk korumasi, ayni backend - yalnizca baslatma yeri ve
+// ilerleme gosterimi farkli.
+if ($('makeSubsBtn')) {
+  $('makeSubsBtn').addEventListener('click', () => {
+    if (state.running || state.queueRunning) {
+      logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
+      return;
+    }
+    const key = player.mediaKey || '';
+    if (key.startsWith('youtube:')) {
+      const url = (player.ytInfo && player.ytInfo.sourceUrl) || $('playerYtUrl').value.trim();
+      if (!url) { logLine('YouTube adresi yok — önce "Bilgi al" yapın.', 'error'); return; }
+      activateTab('youtube');
+      $('youtubeUrl').value = url;
+    } else {
+      const path = state.lastJobVideo
+        || (player.videoPath || '')
+        || ($('playerVideoPath') ? $('playerVideoPath').textContent : '');
+      if (!path || path === 'Seçilmedi') {
+        logLine('Önce bir video aç.', 'error');
+        return;
+      }
+      setInputFile(path);
+    }
+    player.job = { running: true, mediaKey: player.mediaKey };
+    const bar = $('playerJobBar');
+    if (bar) {
+      bar.classList.remove('hidden');
+      $('playerJobFill').style.width = '0%';
+      $('playerJobText').textContent = 'Başlatılıyor…';
+    }
+    $('startBtn').click();          // tum dogrulama ve is yonetimi orada
+  });
+}
+
 if ($('openPlayer')) $('openPlayer').addEventListener('click', openPlayer);
 if ($('closePlayer')) $('closePlayer').addEventListener('click', closePlayer);
 

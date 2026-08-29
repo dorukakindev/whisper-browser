@@ -779,6 +779,11 @@
     <div class="player-layer hidden" id="playerLayer">
       <div class="player-head">
         <div class="player-title" id="playerTitle">Oynatıcı</div>
+        <div class="view-modes" id="viewModes">
+          <button class="vm" data-mode="cinema" title="Sinema — yalnızca video">Sinema</button>
+          <button class="vm active" data-mode="reading" title="Okuma — video + akan altyazı">Okuma</button>
+          <button class="vm" data-mode="study" title="Çalışma — geniş altyazı + tekrar araçları">Çalışma</button>
+        </div>
         <button class="btn-icon" id="closePlayer" title="Kapat (Esc)">&times;</button>
       </div>
 
@@ -843,7 +848,69 @@
           </div>
         </div>
 
-        <div class="player-side">
+        <div class="side-resizer" id="sideResizer" title="Sürükleyerek genişlet"></div>
+
+        <div class="player-side" id="playerSide">
+          <!-- UST: diller, kaynak rozeti, arama, ayar cekmecesi -->
+          <div class="side-top">
+            <div class="side-langs">
+              <span class="lang-chip" id="srcLangChip">Kaynak</span>
+              <span class="lang-chip lang-chip-tr hidden" id="trLangChip">Çeviri</span>
+              <span class="sub-origin" id="subOrigin" title="Altyazının kaynağı"></span>
+            </div>
+            <div class="side-toolrow">
+              <input type="search" id="cueSearch" placeholder="Altyazıda ara..." />
+              <button class="btn-icon" id="toggleSettings" title="Kaynak ve altyazı ayarları">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ORTA: akan altyazi (kaynak + ceviri ayni kartta) -->
+          <div class="transcript" id="cueList">
+            <div class="cue-list-empty">Altyazı yüklenince satırlar burada akar.</div>
+          </div>
+          <button class="btn btn-primary btn-sm back-to-active hidden" id="backToActive">
+            Aktif satıra dön
+          </button>
+
+          <!-- ALT: cumle araclari -->
+          <div class="side-bottom">
+            <div class="job-bar hidden" id="playerJobBar">
+              <span id="playerJobText">Hazırlanıyor…</span>
+              <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
+            </div>
+            <div class="sentence-tools">
+              <button class="btn-icon" id="cuePrevBtn" title="Önceki blok (A)">&#9664;</button>
+              <button class="btn-icon" id="cueReplayBtn" title="Bu cümleyi tekrar oynat (R)">&#8635;</button>
+              <button class="btn-icon" id="cueNextBtn" title="Sonraki blok (D)">&#9654;</button>
+              <label class="mini-toggle" title="Her blok sonunda duraklat">
+                <input type="checkbox" id="autoPauseCue" />
+                <span>Blok sonunda dur</span>
+              </label>
+              <label class="mini-toggle" title="Otomatik takip: aktif satır kendiliğinden kaydırılsın">
+                <input type="checkbox" id="autoFollow" checked />
+                <span>Takip</span>
+              </label>
+            </div>
+            <div class="sentence-tools">
+              <label class="mini-toggle" title="Kaynak dili gizle/göster">
+                <input type="checkbox" id="showSource" checked />
+                <span>Kaynak</span>
+              </label>
+              <label class="mini-toggle" title="Çeviriyi gizle/göster">
+                <input type="checkbox" id="showTranslation" checked />
+                <span>Çeviri</span>
+              </label>
+              <div class="tool-spacer"></div>
+              <button class="btn btn-secondary btn-sm" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
+              <button class="btn btn-secondary btn-sm" id="makeTransBtn" disabled
+                title="Mevcut altyazıyı bağımsız çevirme modu henüz yok — çeviriyi şimdilik altyazı oluştururken açın (Gelişmiş ayarlar → Çeviri)">Çeviri oluştur</button>
+            </div>
+          </div>
+
+          <!-- AYAR CEKMECESI -->
+          <div class="settings-drawer hidden" id="settingsDrawer">
           <div class="player-panel">
             <div class="player-panel-title">Kaynak</div>
             <div class="tabs tabs-sm">
@@ -907,20 +974,10 @@
               <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
             </label>
             <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile" style="margin-top:6px;width:100%">Gecikmeyi dosyaya işle</button>
-            <label class="field switch-field" style="margin-top:8px">
-              <input type="checkbox" id="autoPauseCue" />
-              <span>Her blok sonunda duraklat</span>
-            </label>
             <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.<br>İzlerken gecikme: <strong>G</strong>/<strong>H</strong> (0,1 sn), hız: <strong>&lt;</strong>/<strong>&gt;</strong>, altyazıyı gizle: <strong>V</strong>, 10 sn: <strong>J</strong>/<strong>L</strong>, ses: <strong>&uarr;</strong>/<strong>&darr;</strong>.</div>
           </div>
 
-          <div class="player-panel player-panel-list">
-            <div class="player-panel-title">Altyazı listesi</div>
-            <input type="search" id="cueSearch" placeholder="Metinde ara..." />
-            <div class="cue-list" id="cueList">
-              <div class="cue-list-empty">Altyazı yüklenince bloklar burada listelenir.</div>
-            </div>
-          </div>
+          </div><!-- /settings-drawer -->
         </div>
       </div>
     </div>
