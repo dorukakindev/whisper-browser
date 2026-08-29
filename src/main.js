@@ -195,6 +195,31 @@ ipcMain.handle('media:download', async (_e, opts) => {
 
 // YouTube'un KENDI altyazisini indir (elle yazilmis veya otomatik). Bizim
 // urettigimizle karsilastirmak / ikinci altyazi olarak gostermek icin.
+// Videonun yanindaki altyazi dosyalarini bul. Renderer dosya sistemine
+// erisemedigi icin varlik kontrolu burada yapilir - eskiden "<ad>.srt" secenegi
+// dosya yokken de listeye ekleniyordu ve secilince hata veriyordu.
+ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
+  try {
+    if (!videoPath || typeof videoPath !== 'string') return { ok: true, files: [] };
+    const dir = path.dirname(videoPath);
+    const stem = path.basename(videoPath, path.extname(videoPath)).toLowerCase();
+    const out = [];
+    for (const name of fs.readdirSync(dir)) {
+      const ext = path.extname(name).toLowerCase();
+      if (!['.srt', '.vtt', '.ass', '.ssa'].includes(ext)) continue;
+      // "film.srt", "film.tr.srt", "film.en.srt" ... hepsi ayni koke bagli
+      const base = path.basename(name, ext).toLowerCase();
+      if (base === stem || base.startsWith(stem + '.')) {
+        out.push(path.join(dir, name));
+      }
+    }
+    out.sort();
+    return { ok: true, files: out };
+  } catch (err) {
+    return { ok: false, error: err.message, files: [] };
+  }
+});
+
 ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   const o = opts || {};
   if (!o.url) return { ok: false, error: 'URL boş' };

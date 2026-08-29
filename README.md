@@ -43,6 +43,7 @@ RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma u
 - **Sözlük artık tüm video boyunca etkili** — sözlükteki özel isimler (`Kombai`, `Sanhuber`…) Whisper'a her çözümleme penceresinde yeniden verilir. Önceden yalnızca ilk 30 saniyede etkiliydi
 - **Bozuk Türkçe karakter onarımı** — dışarıdan gelen altyazılar (senkron aracı ve oynatıcı) kodlaması tespit edilerek okunur: UTF-8, cp1254 (eski Türkçe Windows), çift kodlanmış UTF-8 (`Ã§ocuk`) ve latin-1 okunmuş cp1254 (`þeyler`) otomatik düzeltilir. İzlandaca/İspanyolca gibi `þ ð ý á é` kullanan metinlere dokunulmaz
 - **ASS/SSA okuma** — oynatıcı `.ass`/`.ssa` altyazıları da açar (biçim etiketleri temizlenir, `\\N` satır sonu çevrilir)
+- **Altyazı kendiliğinden gelir** — video açınca yanındaki altyazılar (`film.srt`, `film.tr.srt`, `film.en.vtt`, `film.ass`) bulunup listeye eklenir ve ilki otomatik yüklenir
 - **YouTube bölümleri** — videonun bölüm başlıkları panelde listelenir, seçince o ana atlar; zaman çubuğunda da işaret olarak görünür
 - **YouTube'un hazır altyazısı** — elle yazılmış veya otomatik altyazı tek tuşla indirilir (SRT'ye çevrilir). Ekranda altyazı varsa ikinci altyazı olarak yüklenir — kendi çıktınla yan yana karşılaştırırsın
 - **Gecikmeyi dosyaya işle** — kaydırıcıyla senkronu bulduktan sonra tek tuşla altyazı dosyasına kalıcı yazılır

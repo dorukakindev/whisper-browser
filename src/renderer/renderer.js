@@ -2455,6 +2455,23 @@ async function loadSubtitle(path, secondary = false) {
     + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
 }
 
+// Videonun yanindaki altyazilari bul, listeye ekle, ilkini otomatik yukle.
+// Boylece video secince altyazi zaten ekranda olur.
+async function attachSiblingSubtitles(videoPath) {
+  if (!videoPath || !window.api.findSiblingSubs) return;
+  const res = await window.api.findSiblingSubs(videoPath);
+  const files = (res && res.files) || [];
+  if (!files.length) return;
+  files.forEach((f) => addSubtitleOption(f));
+  if (!player.cues.length) {
+    $('playerSubSelect').value = files[0];
+    await loadSubtitle(files[0]);
+  }
+  if (files.length > 1) {
+    logLine(`${files.length} altyazı bulundu (ikinci altyazı listesinden seçebilirsin).`, 'info');
+  }
+}
+
 function openPlayer() {
   $('playerLayer').classList.remove('hidden');
   // Son işin çıktılarını altyazı seçeneği olarak sun (kaynak + çeviri)
@@ -2465,6 +2482,7 @@ function openPlayer() {
     $('playerVideoPath').textContent = state.lastJobVideo;
     setPlayerSource(pathToFileUrl(state.lastJobVideo),
                     state.lastJobVideo.split(/[\\/]/).pop(), state.lastJobVideo);
+    attachSiblingSubtitles(state.lastJobVideo);
   }
 }
 
@@ -2676,10 +2694,7 @@ if ($('playerPickVideo')) {
     const f = files[0];
     $('playerVideoPath').textContent = f;
     setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), f);
-    // Yanındaki altyazıları otomatik öner (video.srt / video.tr.srt)
-    const stem = f.replace(/\.[^.]+$/, '');
-    addSubtitleOption(stem + '.srt');
-    addSubtitleOption(stem + '.tr.srt');
+    attachSiblingSubtitles(f);
   });
 }
 
@@ -2943,10 +2958,7 @@ if ($('playerDownload')) {
     $('playerVideoPath').textContent = p;
     setPlayerSource(pathToFileUrl(p), res.data.title, p);
     logLine(`İndirildi ve oynatılıyor: ${p}`, 'success');
-    // İndirilen videonun yanındaki altyazıları öner
-    const stem = p.replace(/\.[^.]+$/, '');
-    addSubtitleOption(stem + '.srt');
-    addSubtitleOption(stem + '.tr.srt');
+    attachSiblingSubtitles(p);
   });
 }
 
