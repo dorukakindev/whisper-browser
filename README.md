@@ -61,6 +61,8 @@ oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebil
 - **Sözlük artık tüm video boyunca etkili** — sözlükteki özel isimler (`Kombai`, `Sanhuber`…) Whisper'a her çözümleme penceresinde yeniden verilir. Önceden yalnızca ilk 30 saniyede etkiliydi
 - **Bozuk Türkçe karakter onarımı** — dışarıdan gelen altyazılar (senkron aracı ve oynatıcı) kodlaması tespit edilerek okunur: UTF-8, cp1254 (eski Türkçe Windows), çift kodlanmış UTF-8 (`Ã§ocuk`) ve latin-1 okunmuş cp1254 (`þeyler`) otomatik düzeltilir. İzlandaca/İspanyolca gibi `þ ð ý á é` kullanan metinlere dokunulmaz
 - **ASS/SSA okuma** — oynatıcı `.ass`/`.ssa` altyazıları da açar (biçim etiketleri temizlenir, `\\N` satır sonu çevrilir)
+- **Ortam ışığı** — videonun rengi arkadaki siyah kenarlara yayılır (YouTube'un ambient modu gibi). Saniyede 4 kare, 32×18 piksel çizildiği için maliyeti yok; kapatılabilir
+- **Sağda basılı tutunca 2× hız** — YouTube'daki gibi: videonun sağ yarısında basılı tut, 2× oynasın; bırakınca eski hızına döner. Kısa tıklama yine oynat/duraklat
 - **Altyazı görünümü** — yazı boyutu, **renk** (hazır tonlar + serbest seçici), **arka plan saydamlığı** (0–%90), kontur/gölge gücü, yazı tipi ve kalın yazı. Anında uygulanır ve hatırlanır
 - **A-B döngüsü** — `B` ile başlangıç, tekrar `B` ile bitiş; aralık zaman çubuğunda yeşil işaretlenir ve sonsuz tekrar eder (zor bir cümleyi dinlemek için)
 - **Ekran görüntüsü** — `S` ile o anki kareyi altyazısıyla birlikte PNG kaydet

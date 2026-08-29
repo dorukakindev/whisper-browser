@@ -2059,6 +2059,10 @@ const player = {
   abA: null,             // A-B dongusu baslangici
   abB: null,             // A-B dongusu bitisi
   osdTimer: null,
+  ambientOn: true,
+  ambientTimer: null,
+  holdSpeed: true,
+  suppressClick: false,
   localPath: '',         // acik olan yerel video yolu
   subBottom: null,       // altyazinin dikey konumu (%, alttan) - kullanici surukler
   sub2Top: null,         // karsilastirma altyazisinin konumu (%, ustten)
@@ -2420,6 +2424,80 @@ function cuesToSrt(cues) {
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
 
+// ---- ortam ışığı (ambient) ----
+// Videonun 32x18'lik kucuk bir kopyasi arkaya cizilir ve CSS ile asiri
+// bulaniklastirilip buyutulur; boylece renk siyah kenarlara tasar. Maliyeti
+// ihmal edilebilir (saniyede ~4 kare, 576 piksel).
+function startAmbient() {
+  stopAmbient();
+  const cv = $('ambientGlow');
+  const v = $('playerVideo');
+  const stage = $('playerStage');
+  if (!cv || !v || !stage || !player.ambientOn) return;
+  const ctx = cv.getContext('2d', { willReadFrequently: false });
+  stage.classList.add('ambient-on');
+  player.ambientTimer = setInterval(() => {
+    if (v.paused || v.readyState < 2 || !v.videoWidth) return;
+    try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch (_) {}
+  }, 250);
+}
+
+function stopAmbient() {
+  clearInterval(player.ambientTimer);
+  player.ambientTimer = null;
+  const stage = $('playerStage');
+  if (stage) stage.classList.remove('ambient-on');
+}
+
+function setAmbient(on) {
+  player.ambientOn = !!on;
+  try { localStorage.setItem('ambientMode', on ? '1' : '0'); } catch (_) {}
+  if (on) startAmbient(); else stopAmbient();
+}
+
+// ---- sağda basılı tutunca hızlan (YouTube'daki gibi) ----
+// Sahnenin SAG YARISINDA basili tutulunca oynatma 2x olur, birakinca eski
+// hizina doner. Kisa tiklama etkilenmez (oynat/duraklat calismaya devam eder).
+function bindHoldToSpeed() {
+  const stage = $('playerStage');
+  const v = $('playerVideo');
+  if (!stage || !v) return;
+  let timer = null;
+  let prevRate = 1;
+  let active = false;
+
+  const stop = () => {
+    clearTimeout(timer);
+    timer = null;
+    if (active) {
+      active = false;
+      v.playbackRate = prevRate;
+      stage.classList.remove('holding');
+      player.suppressClick = true;          // birakinca duraklatma tetiklenmesin
+      setTimeout(() => { player.suppressClick = false; }, 120);
+    }
+  };
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !player.holdSpeed || player.editing) return;
+    // Kontrol cubugu, altyazi ve panellerde degil; YALNIZCA videonun sag yarisi
+    if (e.target.closest('.player-controls, .subtitle-overlay, .settings-drawer, .shortcut-help')) return;
+    const r = stage.getBoundingClientRect();
+    if (e.clientX < r.left + r.width / 2) return;
+    if (v.paused) return;                   // duraklatilmisken anlamsiz
+    timer = setTimeout(() => {
+      active = true;
+      prevRate = v.playbackRate;
+      v.playbackRate = 2;
+      stage.classList.add('holding');
+      showControls();
+    }, 350);                                 // 350 ms basili tutunca devreye girer
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => {
+    stage.addEventListener(ev, stop);
+  });
+}
+
 // ---- ekran bildirimi (OSD) ----
 // Klavyeyle yapilan degisiklikler (hiz, ses, gecikme) icin gorsel geri bildirim:
 // gunluge bakmak zorunda kalmadan ne oldugunu goruyorsun.
@@ -2642,8 +2720,13 @@ function applySubtitlePos() {
   const ov2 = $('subtitleOverlay2');
   const stage = $('playerStage');
   if (ov && player.subBottom != null) {
-    ov.style.bottom = `${player.subBottom}%`;
-    if (stage) stage.classList.add('sub-moved');
+    // Inline 'bottom' YERINE degisken: boylece CSS, kontroller gorunurken
+    // max() ile cubugun ustune cikarabiliyor.
+    ov.style.bottom = '';
+    if (stage) {
+      stage.style.setProperty('--sub-user-bottom', `${player.subBottom}%`);
+      stage.classList.add('sub-moved');
+    }
   }
   if (ov2 && player.sub2Top != null) ov2.style.top = `${player.sub2Top}%`;
 }
@@ -2683,7 +2766,7 @@ function makeSubtitleDraggable(el, edge) {
     const r = el.getBoundingClientRect();
     const sr = stage.getBoundingClientRect();
     startPct = edge === 'bottom'
-      ? ((sr.bottom - r.bottom) / h) * 100
+      ? (player.subBottom != null ? player.subBottom : ((sr.bottom - r.bottom) / h) * 100)
       : ((r.top - sr.top) / h) * 100;
     startY = e.clientY;
     dragging = true;
@@ -2702,12 +2785,13 @@ function makeSubtitleDraggable(el, edge) {
     // asagi surukleme: alttan olculen deger AZALIR, ustten olculen ARTAR
     const delta = (dy / h) * 100 * (edge === 'bottom' ? -1 : 1);
     const pct = Math.max(1, Math.min(88, startPct + delta));
-    el.style[edge] = `${pct}%`;
     if (edge === 'bottom') {
       player.subBottom = pct;
+      stage.style.setProperty('--sub-user-bottom', `${pct}%`);
       stage.classList.add('sub-moved');
     } else {
       player.sub2Top = pct;
+      el.style.top = `${pct}%`;
       el.style.bottom = 'auto';
     }
   });
@@ -3050,6 +3134,7 @@ function replaceAssDialogueText(rawText, lineNo, newText, lead) {
 function setPlayerSource(src, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return;
+  if (player.ambientOn) startAmbient();
   setMediaKey(key || src);
   // Yerel yol AYRICA saklanir: 'Altyazi olustur' bunu kullanir. Eskiden
   // state.lastJobVideo'ya dusuyordu ve o ONCEKI ise ait olabiliyordu -
@@ -3386,6 +3471,23 @@ $$('.view-modes .vm').forEach((b) => {
   bindTranscriptScroll();
   loadSubtitleStyle();
   bindSubtitleStyleControls();
+  // Ortam isigi ve basili-tut-hizlan tercihleri
+  try {
+    player.ambientOn = localStorage.getItem('ambientMode') !== '0';
+    player.holdSpeed = localStorage.getItem('holdSpeed') !== '0';
+  } catch (_) {}
+  if ($('ambientMode')) {
+    $('ambientMode').checked = player.ambientOn;
+    $('ambientMode').addEventListener('change', (e) => setAmbient(e.target.checked));
+  }
+  if ($('holdSpeedOn')) {
+    $('holdSpeedOn').checked = player.holdSpeed;
+    $('holdSpeedOn').addEventListener('change', (e) => {
+      player.holdSpeed = e.target.checked;
+      try { localStorage.setItem('holdSpeed', e.target.checked ? '1' : '0'); } catch (_) {}
+    });
+  }
+  bindHoldToSpeed();
   if ($('abLoopBtn')) $('abLoopBtn').addEventListener('click', toggleAbLoop);
   if ($('shotBtn')) $('shotBtn').addEventListener('click', capturePlayerFrame);
   if ($('helpBtn')) {
@@ -3427,12 +3529,20 @@ if ($('sideResizer')) {
 }
 
 // Ayar cekmecesi
+function setSettingsDrawer(open) {
+  const d = $('settingsDrawer');
+  if (!d) return;
+  d.classList.toggle('hidden', !open);
+  const g = $('toggleSettings');
+  if (g) g.classList.toggle('active', open);
+}
+
 if ($('toggleSettings')) {
   $('toggleSettings').addEventListener('click', () => {
-    const d = $('settingsDrawer');
-    if (d) d.classList.toggle('hidden');
+    setSettingsDrawer($('settingsDrawer').classList.contains('hidden'));
   });
 }
+if ($('closeSettings')) $('closeSettings').addEventListener('click', () => setSettingsDrawer(false));
 
 // Alt arac cubugu — mevcut kisayollarin gorunur karsiliklari
 if ($('cuePrevBtn')) $('cuePrevBtn').addEventListener('click', () => stepCue(-1));
@@ -3546,7 +3656,7 @@ if ($('playerVideo')) {
     const q = $('cueSearch') ? $('cueSearch').value.trim() : '';
     if (!q) renderSeekMarkers(defaultMarkers());
   });
-  video.addEventListener('play', showControls);
+  video.addEventListener('play', () => { showControls(); if (player.ambientOn) startAmbient(); });
   video.addEventListener('pause', () => {
     clearTimeout(player.idleTimer);
     $('playerStage').classList.remove('idle');
@@ -3588,7 +3698,10 @@ if ($('playerVideo')) {
     if (!video.paused && !player.editing) stage.classList.add('idle');
   });
   // Videoya tıkla: oynat/duraklat — çift tıkla: tam ekran
-  video.addEventListener('click', () => { video.paused ? video.play() : video.pause(); });
+  video.addEventListener('click', () => {
+    if (player.suppressClick) return;      // 2x basili tutmadan sonra gelen tik
+    video.paused ? video.play() : video.pause();
+  });
   video.addEventListener('dblclick', () => $('fullscreenBtn').click());
 
   // Zaman çubuğunda imleç: o andaki zaman + o anda ne söyleniyor
@@ -3673,6 +3786,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') {
     const help = $('shortcutHelp');
     if (help && !help.classList.contains('hidden')) { help.classList.add('hidden'); return; }
+    const drawer = $('settingsDrawer');
+    if (drawer && !drawer.classList.contains('hidden')) { setSettingsDrawer(false); return; }
     if (document.fullscreenElement) document.exitFullscreen();
     else closePlayer();
   }

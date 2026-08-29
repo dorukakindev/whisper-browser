@@ -811,7 +811,11 @@
 
       <div class="player-body">
         <div class="player-stage" id="playerStage">
+          <!-- Ortam isigi: videonun kucultulmus hali arkada asiri bulaniklastirilir,
+               siyah kenarlara rengi tasar (YouTube'un ambient modu gibi). -->
+          <canvas class="ambient-glow" id="ambientGlow" width="32" height="18"></canvas>
           <video id="playerVideo" preload="metadata"></video>
+          <div class="hold-hint" id="holdHint">2&times; &#9654;&#9654;</div>
           <div class="subtitle-overlay subtitle-secondary" id="subtitleOverlay2"></div>
           <div class="subtitle-overlay" id="subtitleOverlay"
                title="Basılı tutup yukarı/aşağı sürükleyerek konumunu değiştir"></div>
@@ -958,6 +962,12 @@
 
           <!-- AYAR CEKMECESI -->
           <div class="settings-drawer hidden" id="settingsDrawer">
+          <!-- Cekmece tum paneli kapladigi icin KENDI kapatma dugmesi olmali:
+               onu acan disli dugmesi altta kaliyor ve geri donulemiyordu. -->
+          <div class="drawer-head">
+            <span>Kaynak ve altyazı ayarları</span>
+            <button class="btn-icon" id="closeSettings" title="Kapat (Esc)">&times;</button>
+          </div>
           <div class="player-panel">
             <div class="player-panel-title">Kaynak</div>
             <div class="tabs tabs-sm">
@@ -1048,6 +1058,14 @@
             <label class="field switch-field">
               <input type="checkbox" id="subWeight" />
               <span>Kalın yazı</span>
+            </label>
+            <label class="field switch-field">
+              <input type="checkbox" id="ambientMode" checked />
+              <span>Ortam ışığı (videonun rengi kenarlara yayılsın)</span>
+            </label>
+            <label class="field switch-field">
+              <input type="checkbox" id="holdSpeedOn" checked />
+              <span>Sağda basılı tutunca 2× hızlan</span>
             </label>
             <button class="btn btn-secondary btn-sm" id="subStyleReset">Görünümü sıfırla</button>
             <label class="field">
