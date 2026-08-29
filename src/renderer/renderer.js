@@ -1975,6 +1975,7 @@ const player = {
   autoPause: false,
   pausedAt: -1,
   ytInfo: null,
+  hls: null,
   downloading: false,
 };
 
@@ -2160,10 +2161,70 @@ function cuesToSrt(cues) {
 function setPlayerSource(src, title) {
   const video = $('playerVideo');
   if (!video) return;
+  destroyHls();
   video.src = src;
   video.load();
   $('playerEmpty').classList.add('hidden');
   if (title) $('playerTitle').textContent = title;
+}
+
+// ---- HLS ile indirmeden izleme ----
+// YouTube 1080p+ icin video ve sesi AYRI verir; duz <video> bunlari birlestiremez.
+// Ama YouTube ayni zamanda bir HLS manifesti sunuyor (tum cozunurlukler + ayri ses).
+// hls.js bunu MSE ile birlestirip oynatiyor: indirme yok, ileri-geri sarma calisiyor.
+function destroyHls() {
+  if (player.hls) {
+    try { player.hls.destroy(); } catch (_) {}
+    player.hls = null;
+  }
+}
+
+function setPlayerHls(manifestUrl, title) {
+  const video = $('playerVideo');
+  if (!video) return false;
+  if (typeof Hls === 'undefined' || !Hls.isSupported()) {
+    logLine('HLS oynatici yuklenemedi — indirerek izleyebilirsin.', 'error');
+    return false;
+  }
+  destroyHls();
+  video.removeAttribute('src');
+  const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+  player.hls = hls;
+  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    // Kalite listesini HLS seviyeleriyle doldur (Otomatik + her cozunurluk)
+    const sel = $('playerQuality');
+    if (sel) {
+      sel.innerHTML = '';
+      const auto = document.createElement('option');
+      auto.value = 'auto';
+      auto.textContent = 'Otomatik';
+      sel.appendChild(auto);
+      hls.levels.forEach((lvl, i) => {
+        const o = document.createElement('option');
+        o.value = String(i);
+        o.textContent = `${lvl.height}p`;
+        sel.appendChild(o);
+      });
+      // 1080p varsa onu, yoksa altindaki en yuksegi sec
+      let pick = -1;
+      hls.levels.forEach((lvl, i) => {
+        if (lvl.height <= 1080 && (pick < 0 || lvl.height > hls.levels[pick].height)) pick = i;
+      });
+      if (pick >= 0) { sel.value = String(pick); hls.currentLevel = pick; }
+    }
+    video.play().catch(() => {});
+    logLine(`Yayin basladi (indirilmedi) — ${hls.levels.length} kalite mevcut`, 'success');
+  });
+  hls.on(Hls.Events.ERROR, (_e, data) => {
+    if (!data || !data.fatal) return;
+    logLine(`Yayin hatasi (${data.type}) — indirerek izlemeyi deneyebilirsin.`, 'error');
+    destroyHls();
+  });
+  hls.loadSource(manifestUrl);
+  hls.attachMedia(video);
+  $('playerEmpty').classList.add('hidden');
+  if (title) $('playerTitle').textContent = title;
+  return true;
 }
 
 function addSubtitleOption(path, label) {
@@ -2223,6 +2284,7 @@ function openPlayer() {
 function closePlayer() {
   const video = $('playerVideo');
   if (video) video.pause();
+  destroyHls();
   $('playerLayer').classList.add('hidden');
 }
 
@@ -2461,23 +2523,43 @@ if ($('playerProbe')) {
       af.classList.add('hidden');
     }
 
-    // "İndirmeden izle" yalnızca YouTube birleşik format sunuyorsa mümkün
+    // "İndirmeden izle": önce HLS (1080p+ ses dahil), yoksa birleşik format (360p)
     const streamBtn = $('playerStream');
-    if (info.stream && info.stream.url) {
+    if (info.hls) {
+      streamBtn.classList.remove('hidden');
+      streamBtn.textContent = 'İndirmeden izle (1080p’ye kadar)';
+      streamBtn.dataset.mode = 'hls';
+    } else if (info.stream && info.stream.url) {
       streamBtn.classList.remove('hidden');
       streamBtn.textContent = `İndirmeden izle (${info.stream.height}p)`;
+      streamBtn.dataset.mode = 'progressive';
     } else {
       streamBtn.classList.add('hidden');
-      logLine('Bu videoda birleşik (indirmesiz) format yok — YouTube 1080p ve üstünü ses/görüntü ayrı sunuyor. İndirerek izleyebilirsin.', 'warn');
+      logLine('Bu videoda doğrudan izlenebilir akış yok — indirerek izleyebilirsin.', 'warn');
     }
   });
 }
 
 if ($('playerStream')) {
   $('playerStream').addEventListener('click', () => {
-    if (!player.ytInfo || !player.ytInfo.stream) return;
-    setPlayerSource(player.ytInfo.stream.url, player.ytInfo.title);
-    logLine(`Yayın açıldı (${player.ytInfo.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
+    const info = player.ytInfo;
+    if (!info) return;
+    if (info.hls && setPlayerHls(info.hls, info.title)) return;
+    if (info.stream && info.stream.url) {
+      setPlayerSource(info.stream.url, info.title);
+      logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
+    }
+  });
+}
+
+// Kalite değişimi: HLS akışında anında seviye değiştir (yeniden yükleme yok)
+if ($('playerQuality')) {
+  $('playerQuality').addEventListener('change', (e) => {
+    if (!player.hls) return;
+    const v = e.target.value;
+    player.hls.currentLevel = (v === 'auto') ? -1 : parseInt(v, 10);
+    logLine(v === 'auto' ? 'Kalite: otomatik' : `Kalite: ${player.hls.levels[parseInt(v, 10)].height}p`,
+            'info');
   });
 }
 

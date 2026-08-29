@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' file: blob: https://*.googlevideo.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' file: blob: https://*.googlevideo.com; connect-src 'self' https://*.googlevideo.com" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -925,6 +925,7 @@
     </div>
   </div>
 
+  <script src="vendor/hls.min.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

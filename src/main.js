@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -392,9 +392,38 @@ function saveWindowState() {
   } catch (_) {}
 }
 
+// ===== YouTube akışı için başlık düzeltmesi =====
+// YouTube CDN'i (googlevideo) CORS başlığı GÖNDERMİYOR — ölçtük: yanıtta
+// Access-Control-Allow-Origin yok. Bu yüzden normal bir web sayfasında hls.js
+// manifesti çekemez. Electron'da yanıt başlığını biz ekleyebiliyoruz (FreeTube'un
+// da yaptığı); ayrıca istek başlığındaki Origin/Referer YouTube'a çevrilir, aksi
+// halde CDN yabancı Origin'i reddedebiliyor.
+// Kapsam bilinçli olarak DAR: yalnızca googlevideo host'ları.
+const YT_MEDIA_FILTER = { urls: ['https://*.googlevideo.com/*'] };
+
+function installYoutubeStreamHeaders() {
+  const ses = session.defaultSession;
+  ses.webRequest.onBeforeSendHeaders(YT_MEDIA_FILTER, (details, callback) => {
+    const headers = { ...details.requestHeaders };
+    headers.Origin = 'https://www.youtube.com';
+    headers.Referer = 'https://www.youtube.com/';
+    callback({ requestHeaders: headers });
+  });
+  ses.webRequest.onHeadersReceived(YT_MEDIA_FILTER, (details, callback) => {
+    const headers = { ...details.responseHeaders };
+    headers['Access-Control-Allow-Origin'] = ['*'];
+    headers['Access-Control-Allow-Headers'] = ['*'];
+    // Chromium bu kaynağı çapraz-origin okumaktan alıkoyuyordu
+    delete headers['Cross-Origin-Resource-Policy'];
+    delete headers['cross-origin-resource-policy'];
+    callback({ responseHeaders: headers });
+  });
+}
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
+  installYoutubeStreamHeaders();
   const st = loadWindowState();
   // Kayıtlı boyutu ekrana kelepçele — bozuk/devasa window-state.json ekran-dışı pencere üretmesin
   const work = screen.getPrimaryDisplay().workAreaSize;

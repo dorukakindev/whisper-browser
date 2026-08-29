@@ -8,11 +8,15 @@ Kullanım:
     python media.py probe --url <youtube-url>
     python media.py download --url <url> --height 1080 --audio-lang tr --output-dir <klasor>
 
-ÖNEMLİ (YouTube gerçeği): YouTube'da video+ses BİRLEŞİK gelen tek format genelde 360p'dir
-(format 18). 1080p ve üstü DASH'tir — video ve ses ayrı akışlardır, HTML5 <video> bunları
-birleştiremez. Bu yüzden:
-  - "stream" yolu: yalnızca birleşik format (hızlı, indirmesiz, düşük çözünürlük)
-  - "download" yolu: yt-dlp + ffmpeg birleştirir, istenen çözünürlükte yerel dosya
+ÖNEMLİ (YouTube gerçeği): video+ses BİRLEŞİK gelen progressive format (360p) çoğu videoda
+artık sunulmuyor; 1080p ve üstü ayrı akışlar hâlinde gelir ve HTML5 <video> bunları
+birleştiremez. Üç yol var:
+  - "hls"      : YouTube'un HLS manifesti (tüm çözünürlükler + ayrı ses parçaları).
+                 hls.js ile indirmeden, ses dahil, ileri-geri sararak izlenir. En iyi yol.
+                 Not: googlevideo CORS başlığı göndermez — Electron tarafında yanıt
+                 başlığına eklenir (main.js > installYoutubeStreamHeaders).
+  - "stream"   : birleşik format varsa doğrudan <video src> (nadiren mevcut, düşük çözünürlük)
+  - "download" : yt-dlp + ffmpeg birleştirir, istenen çözünürlükte yerel dosya (en sağlam)
 """
 
 import argparse
@@ -100,9 +104,19 @@ def probe(url):
         seen.add(lang)
         audio_langs.append({"code": lang, "label": f.get("format_note") or lang})
 
+    # YouTube 1080p+ formatlarini HLS manifesti olarak da sunuyor. Bu manifest
+    # hem tum cozunurlukleri hem AYRI SES parcalarini (EXT-X-MEDIA) iceriyor; yani
+    # hls.js ile indirmeden, ses dahil, ileri-geri sararak izlenebilir.
+    hls_url = ""
+    for f in formats:
+        if f.get("protocol") in ("m3u8_native", "m3u8") and f.get("manifest_url"):
+            hls_url = f["manifest_url"]
+            break
+
     emit(
         "probe",
         title=info.get("title") or "",
+        hls=hls_url,
         duration=info.get("duration") or 0,
         thumbnail=info.get("thumbnail") or "",
         heights=heights,
