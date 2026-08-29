@@ -1,0 +1,45 @@
+name: Testler
+
+# Testler yalnızca saf mantığı sınar: GPU, model indirmesi veya ağ gerekmez.
+# Python testleri ağır bağımlılıklar (torch, faster-whisper) OLMADAN çalışır —
+# transcribe.py modül seviyesinde ağır import yapmaz, bu yüzden CI hızlıdır.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Node testleri
+        run: |
+          node tests/main-args.test.js
+          node tests/subtitle-format.test.js
+          node tests/validation.test.js
+
+      - name: Python testleri
+        run: python backend/test_transcribe.py
+
+      - name: Sözdizimi kontrolü
+        run: |
+          node --check src/main.js
+          node --check src/preload.js
+          node --check src/renderer/renderer.js
+          python -m py_compile backend/transcribe.py backend/media.py

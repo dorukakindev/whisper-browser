@@ -560,13 +560,57 @@ class _TrArgs:
 ENTRIES = [(0.0, 2.0, "Hello there."), (2.0, 4.0, "This is a test.")]
 
 
+def _fake_openai(client_cls):
+    """openai modulunu gecici olarak taklit eder (kurulu olmasa da testler kossun).
+
+    __spec__ SART: transformers gibi kutuphaneler find_spec("openai") cagiriyor,
+    spec'siz sahte modul orada patliyor.
+    """
+    import sys, types, importlib.machinery, contextlib
+
+    @contextlib.contextmanager
+    def ctx():
+        fake = types.ModuleType("openai")
+        fake.OpenAI = client_cls
+        fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+        real = sys.modules.get("openai")
+        sys.modules["openai"] = fake
+        try:
+            yield
+        finally:
+            if real is not None:
+                sys.modules["openai"] = real
+            else:
+                sys.modules.pop("openai", None)
+    return ctx()
+
+
 def test_translate_returns_none_without_api_key():
     # Anahtar yoksa KAYNAK metin degil None donmeli - yoksa cagiran taraf
     # kaynak dilde bir ".tr.srt" yazar ve gercek ceviri sanilir.
+    # openai TAKLIT edilir: gercekten kurulu olmayan bir makinede (CI) test
+    # "paket yok" dalina dusup yanlis sebeple gecmesin.
     warns = []
-    out = T.llm_translate(ENTRIES, _TrArgs(translate_api_key=""), warns, source_lang="en")
+    with _fake_openai(object):
+        out = T.llm_translate(ENTRIES, _TrArgs(translate_api_key=""), warns, source_lang="en")
     assert out is None, f"None bekleniyordu, {type(out)} geldi"
     assert any("API anahtari" in w for w in warns), warns
+
+
+def test_translate_returns_none_without_openai_package():
+    # Paket hic yoksa da None donmeli (sahte ceviri dosyasi yazilmasin)
+    import sys
+    real = sys.modules.pop("openai", None)
+    sys.modules["openai"] = None          # import basarisiz olsun
+    try:
+        warns = []
+        out = T.llm_translate(ENTRIES, _TrArgs(), warns, source_lang="en")
+    finally:
+        sys.modules.pop("openai", None)
+        if real is not None:
+            sys.modules["openai"] = real
+    assert out is None
+    assert any("openai" in w for w in warns), warns
 
 
 def test_translate_returns_none_when_every_chunk_fails():

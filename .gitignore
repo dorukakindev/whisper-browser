@@ -1,10 +1,54 @@
+# Bağımlılıklar
 node_modules/
 backend/venv/
 backend/.venv/
-backend/bin/
 backend/__pycache__/
 *.pyc
-.DS_Store
-Thumbs.db
+__pycache__/
+
+# Yerel araçlar (kullanıcının makinesine indirilen ffmpeg vb.)
+backend/bin/
+
+# Yapı çıktıları
 out/
 dist/
+build/
+
+# Ajan/editör yerel dosyaları
+.claude/
+.context_cache/
+.uiprev/
+.vscode/
+.idea/
+
+# Çalışma zamanı çıktıları — ASLA depoya girmemeli
+# (altyazılar, videolar, günlükler ve ayarlar kullanıcı verisidir)
+*.srt
+*.vtt
+*.ass
+*.ssa
+*.bak
+*.tmp
+logs/
+settings.json
+window-state.json
+.env
+.env.*
+
+# Test sabitleri bu kuralin disindadir
+!tests/fixtures/
+!tests/fixtures/**
+
+# Medya
+*.mp4
+*.mkv
+*.avi
+*.webm
+*.mp3
+*.m4a
+*.wav
+
+# İşletim sistemi
+.DS_Store
+Thumbs.db
+desktop.ini

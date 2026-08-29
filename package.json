@@ -1,7 +1,7 @@
 {
   "name": "whisper-altyazi",
   "version": "1.0.0",
-  "description": "RTX 4070 Ti için optimize edilmiş yüksek kaliteli altyazı çıkarma uygulaması",
+  "description": "Yerel, GPU hizlandirmali altyazi cikarma uygulamasi (Electron + faster-whisper). Film ve belgesel icin ayarlanmis; dahili oynatici, ceviri ve senkron araclariyla.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -15,5 +15,28 @@
   },
   "dependencies": {
     "hls.js": "^1.7.1"
+  },
+  "keywords": [
+    "whisper",
+    "faster-whisper",
+    "subtitles",
+    "altyazi",
+    "srt",
+    "electron",
+    "transcription",
+    "youtube",
+    "cuda",
+    "turkish"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/androiandot/whisper-altyazi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/androiandot/whisper-altyazi/issues"
+  },
+  "homepage": "https://github.com/androiandot/whisper-altyazi#readme",
+  "engines": {
+    "node": ">=18"
   }
 }

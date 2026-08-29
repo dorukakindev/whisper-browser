@@ -1,6 +1,24 @@
 # Whisper Altyazı
 
-RTX 4070 Ti için optimize edilmiş, yüksek kaliteli yerel altyazı çıkarma uygulaması. Electron arayüzü + faster-whisper backend.
+[![Testler](https://github.com/androiandot/whisper-altyazi/actions/workflows/ci.yml/badge.svg)](https://github.com/androiandot/whisper-altyazi/actions/workflows/ci.yml)
+[![Lisans: MIT](https://img.shields.io/badge/lisans-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+
+**Videolarınızdan yerel olarak, GPU hızıyla altyazı çıkarın.** Ses hiçbir yere
+gönderilmez: transkripsiyon tamamen kendi makinenizde, faster-whisper ile çalışır.
+Arayüz Electron, backend Python.
+
+Film ve belgesel altyazısı için ayarlanmıştır: cümle bazlı bölme, okuma hızı (CPS)
+normalizasyonu, halüsinasyon temizliği, noktalama çöküşü onarımı — ve dahili bir
+oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebilirsiniz.
+
+> Windows + NVIDIA GPU hedeflidir. CPU'da da çalışır ama çok yavaştır.
+
+**İçindekiler:** [Özellikler](#özellikler) · [Kurulum](#kurulum) ·
+[Kullanım](#kullanım) · [Önerilen ayarlar](#önerilen-ayarlar-4070-ti) ·
+[Motor seçimi](#motor-seçimi) · [Sorun giderme](#sorun-giderme) ·
+[Gizlilik ve veriler](#gizlilik-ve-veriler) · [Geliştirme](#geliştirme) ·
+[Lisans](#lisans)
 
 ## Özellikler
 
@@ -129,3 +147,75 @@ Notlar:
 - **Sözlük / başlangıç ipucu** faster-whisper (sıralı/batched) modlarında uygulanır.
 - **Konuşmacı tanıma** her motorda aynı (pyannote) yolla çalışır; `install-diarize.bat` gerekir.
 - WhisperX ilk seçimde model + dile özel hizalama modelini indirir; hizalama desteklenmeyen dilde otomatik olarak segment-seviyesine düşer.
+
+## Sorun giderme
+
+**`cublas` / `cudnn` hatası, model GPU'da yüklenemiyor**
+Uygulamayı `start.bat` ile başlatın. `npm start` tek başına yetmez: faster-whisper'ın
+cuDNN/cuBLAS DLL'leri `start.bat` tarafından PATH'e eklenir. Sorun sürerse
+`install.bat`'i tekrar çalıştırın veya Gelişmiş ayarlar'dan Cihaz=CPU / Hesaplama
+tipi=int8 deneyin.
+
+**YouTube indirmesi başarısız oluyor**
+YouTube sık sık indirici arayüzünü değiştirir. Ayarlar'daki **yt-dlp'yi güncelle**
+düğmesi çoğu hatayı çözer. `js_runtimes` için Node gerekir (zaten kuruludur).
+
+**Zaman aralığı seçtim, indirme uzun sürüyor**
+Aralık seçilse bile videonun **sesinin tamamı** inip aralık yerelde kesilir. Sebep
+ölçümle bulundu: aralıklı indirmede yt-dlp ffmpeg'e düşüyor ve YouTube o okumayı
+~12 KB/sn'ye boğazlıyor. 8 saatlik bir videodan 1 saat 55 dakikalık aralık:
+aralıklı indirmeyle ~3 saat, tam ses indirip yerelde kesmekle **102 saniye**.
+Karşılığında birkaç yüz MB'lık ses geçici klasöre iner.
+
+**VRAM yetmiyor (OOM)**
+12 GB'da `large-v3` + konuşmacı tanıma sınırda olabilir. Uygulama modeli
+diarization öncesi bellekten boşaltır; yine de sorun olursa `large-v3-turbo`
+kullanın veya batch boyutunu düşürün. Rozet, iş başlamadan tahmini VRAM'i gösterir.
+
+**Altyazıda Türkçe karakterler bozuk (`þeyler`, `Ã§ocuk`)**
+Bu, dışarıdan gelen dosyalarda olur; uygulama kendi çıktısını UTF-8 BOM ile yazar.
+Oynatıcı ve senkron aracı bozuk kodlamayı otomatik tespit edip onarır.
+
+**Sonuç noktalamasız, küçük harfli akıp gidiyor**
+Uzun videolarda Whisper'ın bilinen davranışı. Film ön ayarında
+`condition_on_previous` kapalıdır ve "noktalama çöküşü onarımı" açıktır: bozulan
+bölüm bağlam sıfırlanarak yeniden çevrilir, yalnızca gerçekten iyileşirse kullanılır.
+
+## Gizlilik ve veriler
+
+- **Transkripsiyon tamamen yereldir.** Ses ve video hiçbir sunucuya gönderilmez.
+- **İnternete çıkılan tek yerler:** YouTube indirme/izleme (yt-dlp), ilk kullanımda
+  model indirme (Hugging Face) ve **yalnızca siz açarsanız** LLM düzeltme / çeviri.
+- LLM düzeltme veya çeviri açıkken **altyazı metni** seçtiğiniz API sağlayıcısına
+  gönderilir. Bu özellikler varsayılan olarak kapalıdır.
+- API anahtarları ve HF token `%APPDATA%/whisper-altyazi/settings.json` içinde
+  **düz metin** olarak saklanır. Anahtarlar komut satırına (argv) hiçbir zaman
+  yazılmaz — ortam değişkeniyle geçer, böylece süreç listesinde ve iş
+  günlüklerinde görünmezler.
+- İş günlükleri `%APPDATA%/whisper-altyazi/logs/` altındadır ve eskiler otomatik
+  temizlenir.
+
+## Geliştirme
+
+```bash
+npm test        # Node testleri + Python testleri
+npm run dev     # DevTools açık (yine de cuDNN PATH'i için start.bat ortamı gerekir)
+```
+
+Testler GPU, model indirmesi veya ağ gerektirmez. Mimari, sözleşmeler ve
+"buraya dokunma" notları için `CLAUDE.md`, katkı akışı için `CONTRIBUTING.md`.
+
+## Lisans
+
+MIT — bkz. [LICENSE](LICENSE).
+
+Bu proje şu açık kaynak projeleri kullanır: [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+(MIT), [OpenAI Whisper](https://github.com/openai/whisper) modelleri (MIT),
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense),
+[hls.js](https://github.com/video-dev/hls.js) (Apache-2.0, `src/renderer/vendor/`
+içinde birlikte dağıtılır), [Electron](https://github.com/electron/electron) (MIT),
+opsiyonel olarak [WhisperX](https://github.com/m-bain/whisperX) ve
+[pyannote.audio](https://github.com/pyannote/pyannote-audio).
+
+Telif hakkıyla korunan içerikten altyazı çıkarırken bulunduğunuz ülkenin
+mevzuatına ve ilgili platformun kullanım şartlarına uymak sizin sorumluluğunuzdadır.
