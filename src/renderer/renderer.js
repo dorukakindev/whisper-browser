@@ -50,6 +50,7 @@ function buildOptsFromUI() {
     mergeIncomplete: $('mergeIncomplete').checked,
     fixPunctuationCollapse: $('fixPunctuationCollapse').checked,
     confidenceReport: $('confidenceReport').checked,
+    fixCommonErrors: $('fixCommonErrors').checked,
     incompleteGap: parseFloat($('incompleteGap').value),
     dedupe: $('dedupe').checked,
     maxCps: parseFloat($('maxCps').value),
@@ -998,7 +999,7 @@ const PERSIST_VALUE_CONTROLS = [
   'subSize', 'subOffset',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'translate', 'translateKeepSource',
@@ -1071,7 +1072,7 @@ const PRESETS = {
     checks: {
       vadFilter: true, temperatureFallback: true, mergeShort: true, dedupe: true,
       fixTimings: true, conditionOnPrevious: false, mergeIncomplete: true,
-      fixPunctuationCollapse: true, confidenceReport: true,
+      fixPunctuationCollapse: true, confidenceReport: true, fixCommonErrors: true,
     },
   },
   fast: {

@@ -244,6 +244,61 @@ def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "He met Mrs. Dolly")]) == 0.0
 
 
+# ===== yaygın hata düzeltme =====
+def test_fix_text_artifacts():
+    assert T.fix_text_artifacts("Merhaba,nasılsın?") == "Merhaba, nasılsın?"
+    assert T.fix_text_artifacts("Geldi.Sonra gitti.") == "Geldi. Sonra gitti."
+    assert T.fix_text_artifacts("Ne oldu!!!") == "Ne oldu!"
+    assert T.fix_text_artifacts("Bak--sonra") == "Bak…sonra"
+    assert T.fix_text_artifacts(">> Konuşmacı: merhaba") == "Konuşmacı: merhaba"
+    # sayı ve kısaltmalara DOKUNULMAZ
+    assert T.fix_text_artifacts("Bir 3.14 sayısı") == "Bir 3.14 sayısı"
+    assert T.fix_text_artifacts("L.A. County Jail") == "L.A. County Jail"
+    # diyalog tiresi korunur
+    assert T.fix_text_artifacts("- Kim var orada?") == "- Kim var orada?"
+
+
+def test_capitalize_after_sentence():
+    T.set_language_conventions("tr")
+    entries = [
+        (0, 1, "Bu bir cümle."),
+        (1, 2, "ikinci cümle geldi."),      # Türkçe: i -> İ olmalı (I değil)
+        (2, 3, "devam ediyor"),             # önceki cümle bitmiş -> büyük harf
+        (3, 4, "istanbul güzel."),          # önceki bitmemiş -> DOKUNMA
+    ]
+    out, n = T.capitalize_after_sentence(entries, "tr")
+    assert n == 2
+    assert out[1][2].startswith("İkinci"), out[1][2]
+    assert out[2][2].startswith("Devam")
+    assert out[3][2].startswith("istanbul")
+    # İngilizcede normal upper
+    en, _ = T.capitalize_after_sentence([(0, 1, "It ends."), (1, 2, "it starts.")], "en")
+    assert en[1][2].startswith("It")
+
+
+def test_strip_repeated_prefix():
+    # karaoke artefaktı: sonraki blok öncekini aynen içeriyor
+    k = [(0, 2, "The Addis continue to live"),
+         (2, 4, "The Addis continue to live according to their customs.")]
+    out, n = T.strip_repeated_prefix(k)
+    assert n == 1 and out[1][2] == "according to their customs"
+    # uzun boşlukta dokunulmaz (gerçek tekrar olabilir)
+    far = [(0, 2, "The Addis continue to live"),
+           (30, 34, "The Addis continue to live according to their customs.")]
+    _out, n2 = T.strip_repeated_prefix(far)
+    assert n2 == 0
+
+
+def test_drop_micro_blocks():
+    m = [(0, 0.03, "Ah"), (1, 3, "Normal bir cümle.")]
+    out, n = T.drop_micro_blocks(m)
+    assert n == 1 and len(out) == 1
+    # kısa ama çok kelimeli blok korunur (gerçek konuşma olabilir)
+    keep = [(0, 0.05, "bir iki üç dört"), (1, 3, "Cümle.")]
+    _o, n2 = T.drop_micro_blocks(keep)
+    assert n2 == 0
+
+
 # ===== çeviri =====
 def test_resolve_translate_routes():
     # shuaiapi rotası verilirse dördü de denenir, verilen ilk sırada

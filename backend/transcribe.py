@@ -2443,6 +2443,125 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6, max_cha
     return [(o[0], o[1], o[2]) for o in out]
 
 
+# ===== Yaygın altyazı hataları =====
+# Kaynak: Subtitle Edit "fix common errors" listesi + whisper-vtt2srt'nin AI çıktısı
+# temizleme kuralları. Yalnızca Whisper çıktısında GERÇEKTEN görülenler alındı;
+# OCR düzeltmeleri gibi bizde karşılığı olmayanlar dışarıda bırakıldı.
+
+# Noktalamadan sonra boşluk unutulmuş: "geldi.Sonra" -> "geldi. Sonra"
+# Sayı/ondalık ("3.14", "1,5"), kısaltma ("L.A.") ve URL'ler korunur.
+_MISSING_SPACE_RE = re.compile(r"(?<=[^\W\d_])([,;:!?])(?=[^\W\d_])", re.UNICODE)
+_MISSING_SPACE_DOT_RE = re.compile(r"(?<=[a-zçğıöşü])\.(?=[A-ZÇĞİÖŞÜ])", re.UNICODE)
+
+# Üst üste noktalama: "!!!" -> "!", "???" -> "?", "--" -> "…"
+_REPEAT_PUNCT_RE = re.compile(r"([!?])\1{1,}")
+_DOUBLE_DASH_RE = re.compile(r"(?<!-)--(?!-)")
+
+
+def fix_text_artifacts(text, language="tr"):
+    """Tek bir blok metnindeki tipik biçim hatalarını düzeltir."""
+    if not text:
+        return text
+    t = text
+    t = _DOUBLE_DASH_RE.sub("…", t)
+    t = t.replace("''", '"').replace("``", '"')
+    t = re.sub(r"^\s*>>\s*", "", t)          # ">> Konuşmacı" kalıbı (TV altyazısı artefaktı)
+    t = _REPEAT_PUNCT_RE.sub(r"\1", t)
+    t = _MISSING_SPACE_RE.sub(r"\1 ", t)
+    t = _MISSING_SPACE_DOT_RE.sub(". ", t)
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    return t.strip()
+
+
+def _upper_first(ch, language="tr"):
+    """Türkçede 'i' -> 'İ' (str.upper() 'I' verir, bu yanlış)."""
+    if (language or "").lower().startswith("tr") and ch == "i":
+        return "İ"
+    return ch.upper()
+
+
+def capitalize_after_sentence(entries, language="tr"):
+    """
+    Bir önceki blok cümleyi bitirmişse, sonraki blok büyük harfle başlamalı.
+    Whisper özellikle noktalamanın zayıfladığı yerlerde küçük harfle başlıyor.
+    Yalnızca ilk harf küçük HARF ise dokunulur (rakam/tire/nota işareti korunur).
+    """
+    out = []
+    prev_ended = True          # ilk blok cümle başıdır
+    fixed = 0
+    for s0, e0, text in entries:
+        t = text or ""
+        first = t[:1]
+        if prev_ended and first.islower() and first.isalpha():
+            t = _upper_first(first, language) + t[1:]
+            fixed += 1
+        prev_ended = text_ends_sentence(t)
+        out.append((s0, e0, t))
+    return out, fixed
+
+
+def strip_repeated_prefix(entries, max_gap=2.0):
+    """
+    "Karaoke" artefaktı: blok, bir öncekinin metnini AYNEN içinde barındırıp üstüne
+    ekliyor (YouTube otomatik altyazısı ve bazen Whisper). Tekrar eden ön ek atılır.
+    Yalnızca bloklar zaman olarak komşuysa ve kalan metin anlamlıysa uygulanır.
+    """
+    out = []
+    removed = 0
+    for s0, e0, text in entries:
+        t = (text or "").strip()
+        if out:
+            prev = out[-1][2].strip()
+            gap = float(s0) - float(out[-1][1])
+            if prev and gap <= max_gap and len(prev) >= 12 and t.startswith(prev):
+                rest = t[len(prev):].strip(" ,.;:-")
+                if len(rest.split()) >= 2:
+                    t = rest
+                    removed += 1
+        out.append((float(s0), float(e0), t))
+    return [(a, b, c) for a, b, c in out if c], removed
+
+
+def drop_micro_blocks(entries, min_dur=0.08, max_words=2):
+    """
+    Süresi 80 ms'nin altındaki tek-iki kelimelik bloklar: insan gözüne görünmez,
+    oynatıcıda titreme yapar, TTS/dublaj betiklerini bozar (whisper-vtt2srt notu).
+    """
+    out = [x for x in entries
+           if (float(x[1]) - float(x[0])) >= min_dur or len((x[2] or "").split()) > max_words]
+    return out, len(entries) - len(out)
+
+
+def fix_common_errors(entries, language="tr"):
+    """
+    Yaygın hataları sırayla düzeltir. Döner: (entries, {"islem": adet})
+    Sıra önemli: önce tekrar/çöp bloklar atılır, sonra metin biçimi, en son büyük harf
+    (büyük harf kararı düzeltilmiş noktalamaya göre verilsin).
+    """
+    stats = {}
+    entries, n = strip_repeated_prefix(entries)
+    if n:
+        stats["tekrar eden ön ek"] = n
+    entries, n = drop_micro_blocks(entries)
+    if n:
+        stats["mikro blok"] = n
+
+    fixed_text = 0
+    new_entries = []
+    for s0, e0, text in entries:
+        t = fix_text_artifacts(text, language)
+        if t != text:
+            fixed_text += 1
+        new_entries.append((s0, e0, t))
+    if fixed_text:
+        stats["metin biçimi"] = fixed_text
+
+    new_entries, n = capitalize_after_sentence(new_entries, language)
+    if n:
+        stats["cümle başı büyük harf"] = n
+    return new_entries, stats
+
+
 def merge_incomplete_sentences(entries, max_gap=2.5, max_chars=84, max_dur=7.0, max_parts=6):
     """
     Yarım kalmış cümleleri (nokta/soru/ünlem ile bitmeyen blokları) sonraki blokla
@@ -3023,6 +3142,14 @@ def transcribe(args):
             entries = dedupe_consecutive(entries)
             if len(entries) != n0:
                 log(f"Tekrar temizleme: {n0} → {len(entries)} blok")
+
+        # Yaygın altyazı hataları (tekrar eden ön ek, mikro blok, noktalama boşluğu,
+        # cümle başı büyük harf) — birleştirmelerden ÖNCE, metin temiz girsin
+        if args.fix_common_errors:
+            entries, _stats = fix_common_errors(entries, info.language or "tr")
+            if _stats:
+                log("Yaygın hata düzeltme: "
+                    + ", ".join(f"{k} {v}" for k, v in _stats.items()))
 
         # Yarım kalmış cümleleri birleştir (kısa parça birleştirmeden ÖNCE — önce cümle
         # bütünlüğü kurulur, kalan flaş parçalar sonraki adımda toplanır)
@@ -3659,6 +3786,9 @@ def main():
     parser.add_argument("--min-gap", type=float, default=0.08, help="Ardışık altyazılar arası minimum boşluk (sn)")
     parser.add_argument("--merge-short", type=lambda x: x.lower() == "true", default=True,
                         help="Çok kısa altyazı parçalarını komşusuyla birleştir")
+    parser.add_argument("--fix-common-errors", type=lambda x: x.lower() == "true", default=True,
+                        help="Yaygın altyazı hatalarını düzelt (tekrar eden ön ek, mikro blok, "
+                             "noktalama sonrası boşluk, cümle başı büyük harf)")
     parser.add_argument("--confidence-report", type=lambda x: x.lower() == "true", default=True,
                         help="Güven skoru düşük kelimeleri ayrı bir rapor dosyasına yaz")
     parser.add_argument("--confidence-threshold", type=float, default=0.6,
