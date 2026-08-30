@@ -2017,6 +2017,25 @@ html, body {
 #abLoopBtn.active { color: #4ade80; }
 .tool-spacer { flex: 1; }
 
+/* Anahtarlar ikili GRUP olarak sarar. Tek tek sardiklarinda (ve aralarindaki
+   ayirac tek basina bir satira dustugunde) duzen dagiliyordu - olcum: 430 px
+   panelde gezinme satiri 4 gorsel satira boluniyordu. */
+.toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 2px;
+}
+.tool-row-nav { align-items: center; row-gap: 8px; }
+
+/* Gecici bir yardimci; arac seridinin en bagiran ogesi olmamali */
+.tool-button-ghost {
+  color: #9aa7b4;
+  background: transparent;
+  border-color: #2f3d49;
+}
+.tool-button-ghost:hover { color: var(--player-amber); background: #1a242e; border-color: #44586a; }
+
 .mini-toggle {
   display: inline-flex;
   align-items: center;
@@ -2449,6 +2468,97 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .tool-glyph { font-size: 14px; line-height: 1; }
 .mini-toggle { padding: 6px 8px; color: #aebbc5; font-size: 10px; background: #0d141b; border: 1px solid #202c37; border-radius: 7px; }
 .action-button { min-height: 34px; padding: 7px 10px; border-radius: 8px; }
+
+/* ---------- Arac cubugu: UC AGIRLIK SEVIYESI ----------
+   Once hepsi ayni hapti (gezinme = eylem = anahtar) ve goz neyin dugme neyin
+   anahtar oldugunu ayirt edemiyordu. Simdi:
+     1) gezinme  -> tek govdeli ikon segmenti
+     2) anahtar  -> switch gorunumu (kare onay kutusu degil)
+     3) eylem    -> sessiz metin dugmesi (cercevesiz)
+     4) uretim   -> bir dolu + bir outline, esit genislikte             */
+
+/* 1) gezinme segmenti: uc dugme tek bir govde gibi gorunur */
+.tool-seg {
+  display: inline-flex;
+  overflow: hidden;
+  background: #151f29;
+  border: 1px solid #293744;
+  border-radius: 9px;
+}
+.tool-seg .tool-button {
+  min-width: 38px;
+  padding: 0 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  border-left: 1px solid #293744;
+}
+.tool-seg .tool-button:first-child { border-left: 0; }
+.tool-seg .tool-button:hover { background: #1e2b37; }
+.tool-seg .tool-button:active { background: #24323f; }
+
+/* 2) anahtarlar: gercek switch */
+.mini-toggle { gap: 8px; background: transparent; border-color: transparent; padding-left: 2px; }
+.mini-toggle:hover { color: var(--player-text); }
+.mini-toggle input[type="checkbox"] {
+  position: relative;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 15px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background: #2c2c30;
+  border: 1px solid #3a3a40;
+  border-radius: 999px;
+  transition: background .16s ease, border-color .16s ease;
+}
+.mini-toggle input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 11px;
+  height: 11px;
+  background: #83838c;
+  border-radius: 50%;
+  transition: transform .16s ease, background .16s ease;
+}
+.mini-toggle input[type="checkbox"]:checked {
+  background: rgba(228, 168, 93, .3);
+  border-color: rgba(228, 168, 93, .55);
+}
+.mini-toggle input[type="checkbox"]:checked::after {
+  background: var(--player-amber);
+  transform: translateX(11px);
+}
+.mini-toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--player-amber);
+  outline-offset: 2px;
+}
+
+/* 3) sessiz eylem satiri: cerceve yok, yalnizca metin */
+.tool-row-quiet { gap: 2px; }
+.tool-row-quiet .tool-button {
+  padding: 6px 10px;
+  color: #96a3b0;
+  background: transparent;
+  border-color: transparent;
+}
+.tool-row-quiet .tool-button:hover { color: var(--player-text); background: #1a242e; }
+.tool-row-quiet .tool-button:disabled { opacity: .4; }
+
+/* 4) uretim satiri: esit genislik, biri dolu digeri outline */
+.tool-row-main { gap: 8px; }
+.tool-row-main .action-button { flex: 1; min-height: 36px; height: 36px; font-weight: 600; }
+.action-button-outline {
+  color: #cbd5df;
+  background: transparent;
+  border: 1px solid #33434f;
+}
+.action-button-outline:hover:not(:disabled) { color: #fff; background: #1b2732; border-color: #4a5d6c; }
+
+.tool-spacer { flex: 1; }
 
 /* Ayni satirdaki dugmeler iki farkli aileden geliyor (.tool-button ile
    .btn.action-button) ve yukseklikleri 31 / 33 / 43px olarak farkli cikiyordu:

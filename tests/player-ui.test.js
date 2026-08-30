@@ -309,7 +309,58 @@ test('canlı birleştirme backend ile aynı kuralları kullanıyor', () => {
   assert(/DIALOG/.test(body), 'diyalog korumasi yok');
 });
 
-// ---- 15. ses çubuğu koyu temaya uygun ----
+// ---- 15. araç çubuğu görsel hiyerarşisi ----
+test('gezinme, anahtar ve eylem birbirinden AYIRT EDİLEBİLİR', () => {
+  // Once hepsi ayni agirlikta hapti; goz neyin dugme neyin anahtar oldugunu
+  // secemiyordu. Uc ayri gorsel dil olmali.
+  assert(/class="tool-seg"/.test(layer), 'gezinme segmenti yok');
+  assert(/\.tool-seg\s*\{/.test(css), 'segment stili yok');
+  assert(/\.tool-row-quiet \.tool-button\s*\{[^}]*background:\s*transparent/.test(css),
+    'eylem satiri hala cerceveli hap gorunumunde');
+  assert(/\.tool-row-main \.action-button\s*\{[^}]*flex:\s*1/.test(css),
+    'uretim dugmeleri esit genislikte degil');
+  assert(/\.action-button-outline/.test(css), 'ikinci uretim dugmesi outline degil');
+});
+
+test('anahtarlar switch olarak çiziliyor (kare onay kutusu değil)', () => {
+  const i = css.indexOf('.mini-toggle input[type="checkbox"] {');
+  assert(i > 0, 'switch kurali yok');
+  const body = css.slice(i, css.indexOf('}', i));
+  assert(/appearance:\s*none/.test(body), 'yerli onay kutusu gorunumu birakilmamis');
+  assert(/border-radius:\s*999px/.test(body), 'switch govdesi yuvarlak degil');
+  assert(/\.mini-toggle input\[type="checkbox"\]::after/.test(css), 'switch topuzu yok');
+  assert(/:checked::after[^}]*translateX/.test(css), 'acik durumda topuz kaymiyor');
+  assert(/:focus-visible/.test(css.slice(i, i + 1200)), 'klavye odagi gorunmuyor');
+});
+
+test('gezinme düğmeleri ikon (dar panelde yer kaplamasın)', () => {
+  const i = layer.indexOf('class="tool-seg"');
+  const seg = layer.slice(i, layer.indexOf('</div>', i));
+  for (const id of ['cuePrevBtn', 'cueReplayBtn', 'cueNextBtn']) {
+    assert(seg.includes(id), `${id} segmentte degil`);
+  }
+  assert(/<svg/.test(seg), 'ikon yok — metin etiketler dar panelde yer kapliyordu');
+  assert(/aria-label="/.test(seg), 'ikon dugmelerinde aria-label yok (ekran okuyucu)');
+});
+
+test('anahtarlar GRUP olarak sarıyor (dar panelde dağılmasın)', () => {
+  // Olcum: ayri ayri sardiklarinda 430 px panelde gezinme satiri 4 gorsel
+  // satira boluniyor ve ayirac tek basina kaliyordu.
+  const n = (layer.match(/class="toggle-group"/g) || []).length;
+  assert(n === 2, `iki anahtar grubu bekleniyordu, ${n} bulundu`);
+  assert(/\.toggle-group\s*\{[^}]*display:\s*inline-flex/.test(css), 'grup stili yok');
+  assert(!/class="tool-div"/.test(layer),
+    'ayirac ogesi geri gelmis — sarma sirasinda tek basina satira duser');
+});
+
+test('"Aktif satır" düğmesi araç şeridinin en bağıran öğesi değil', () => {
+  const i = layer.indexOf('id="backToActive"');
+  const tag = layer.slice(Math.max(0, i - 200), i + 120);
+  assert(/tool-button-ghost/.test(tag), 'hala dolu/birincil stilde');
+  assert(!/tool-button-primary/.test(tag), 'birincil stil kaldirilmamis');
+});
+
+// ---- 16. ses çubuğu koyu temaya uygun ----
 test('ses çubuğu tarayıcının varsayılan görünümünü kullanmıyor', () => {
   const i = css.indexOf('.player-volume {');
   assert(i > 0, '.player-volume kurali yok');

@@ -1081,45 +1081,55 @@
                 aria-controls="sentenceTools" title="Araç çubuğunu gizle/göster">
                 <span class="tools-caret" aria-hidden="true"></span><span>Araçlar</span>
               </button>
-              <button class="tool-button tool-button-primary hidden" id="backToActive"
-                title="Aktif altyazı satırına geri dön">Aktif satıra dön</button>
+              <button class="tool-button tool-button-ghost hidden" id="backToActive"
+                title="Aktif altyazı satırına geri dön">↑ Aktif satır</button>
             </div>
             <div id="sentenceTools">
             <div class="job-bar hidden" id="playerJobBar">
               <span id="playerJobText">Hazırlanıyor…</span>
               <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
             </div>
-            <div class="sentence-tools">
-              <button class="tool-button" id="cuePrevBtn" title="Önceki blok (A)"><span>Önceki</span></button>
-              <button class="tool-button tool-button-primary" id="cueReplayBtn" title="Bu cümleyi tekrar oynat (R)"><span>Tekrar</span></button>
-              <button class="tool-button" id="cueNextBtn" title="Sonraki blok (D)"><span>Sonraki</span></button>
-              <label class="mini-toggle" title="Her blok sonunda duraklat">
-                <input type="checkbox" id="autoPauseCue" />
-                <span>Otomatik dur</span>
-              </label>
-              <label class="mini-toggle" title="Otomatik takip: aktif satır kendiliğinden kaydırılsın">
-                <input type="checkbox" id="autoFollow" checked />
-                <span>Takip</span>
-              </label>
+            <div class="sentence-tools tool-row-nav">
+              <div class="tool-seg" role="group" aria-label="Altyazı gezinme">
+                <button class="tool-button" id="cuePrevBtn" title="Önceki blok (A)"
+                  aria-label="Önceki blok"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button>
+                <button class="tool-button" id="cueReplayBtn" title="Bu cümleyi tekrar oynat (R)"
+                  aria-label="Bu cümleyi tekrar oynat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+                <button class="tool-button" id="cueNextBtn" title="Sonraki blok (D)"
+                  aria-label="Sonraki blok"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
+              </div>
+              <div class="toggle-group">
+                <label class="mini-toggle" title="Her blok sonunda duraklat">
+                  <input type="checkbox" id="autoPauseCue" />
+                  <span>Otomatik dur</span>
+                </label>
+                <label class="mini-toggle" title="Otomatik takip: aktif satır kendiliğinden kaydırılsın">
+                  <input type="checkbox" id="autoFollow" checked />
+                  <span>Takip</span>
+                </label>
+              </div>
+              <div class="toggle-group">
+                <label class="mini-toggle" title="Kaynak dili gizle/göster">
+                  <input type="checkbox" id="showSource" checked />
+                  <span>Kaynak</span>
+                </label>
+                <label class="mini-toggle" title="Çeviriyi gizle/göster">
+                  <input type="checkbox" id="showTranslation" checked />
+                  <span>Çeviri</span>
+                </label>
+              </div>
             </div>
-            <div class="sentence-tools">
+            <div class="sentence-tools tool-row-quiet">
               <button class="tool-button" id="cueExplainBtn"
                 title="Bu cümleyi bağlamıyla açıklat (AI)"><span>Açıkla</span></button>
               <button class="tool-button" id="cueBetterBtn"
                 title="Bu satırın çevirisini değerlendir, gerekirse daha doğalını öner"><span>Çeviriyi değerlendir</span></button>
               <button class="tool-button tool-button-quiet" id="cueCopyBtn" title="Aktif cümleyi kopyala (C)"><span>Kopyala</span></button>
               <button class="tool-button tool-button-quiet" id="cueSaveBtn" title="Aktif cümleyi kaydet (K)"><span>Kaydet</span></button>
-              <label class="mini-toggle" title="Kaynak dili gizle/göster">
-                <input type="checkbox" id="showSource" checked />
-                <span>Kaynak</span>
-              </label>
-              <label class="mini-toggle" title="Çeviriyi gizle/göster">
-                <input type="checkbox" id="showTranslation" checked />
-                <span>Çeviri</span>
-              </label>
-              <div class="tool-spacer"></div>
+            </div>
+            <div class="sentence-tools tool-row-main">
               <button class="btn btn-primary btn-sm action-button" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
-              <button class="btn btn-secondary btn-sm action-button" id="makeTransBtn"
+              <button class="btn btn-sm action-button action-button-outline" id="makeTransBtn"
                 title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
             </div>
             </div>
