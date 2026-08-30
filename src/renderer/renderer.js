@@ -1,6 +1,9 @@
 // ===== State =====
 const state = {
   source: 'file',
+  forceTranslate: false,   // kontrol cubugundaki tek-tik "altyazi + ceviri"
+  aiJob: false,            // calisan is bir AI sorusu mu (sohbet / acikla)
+
   inputFile: null,
   outputDir: null,
   outputFiles: [],
@@ -88,7 +91,9 @@ function buildOptsFromUI() {
     labelSpeakers: $('labelSpeakers').checked,
     llmPostprocess: $('llmPostprocess').checked,
     llmApiKey: $('llmApiKey').value.trim(),
-    translate: $('translate').checked,
+    // state.forceTranslate: kontrol cubugundaki tek-tik dugmesi. Kalici
+    // ayari degistirmeden yalnizca o is icin ceviriyi acar.
+    translate: $('translate').checked || !!state.forceTranslate,
     translateTo: $('translateTo').value,
     translateApiKey: $('translateApiKey').value.trim(),
     translateBaseUrl: $('translateEndpointPreset').value === 'custom'
@@ -1520,6 +1525,20 @@ function playerJobEvent(event) {
     if (level) logLine(message, level);
   };
 
+  if (event.type === 'chat') {
+    const bubble = job.bubble;
+    if (bubble) {
+      bubble.classList.remove('is-loading');
+      bubble.textContent = event.text;
+      $('aiChatLog').scrollTop = $('aiChatLog').scrollHeight;
+    }
+    player.chatHistory = player.chatHistory || [];
+    player.chatHistory.push({ role: 'assistant', content: event.text });
+    job.running = false;
+    state.running = false;
+    bar.classList.add('hidden');
+    return;
+  }
   if (event.type === 'explain') {
     player.explainCache = player.explainCache || {};
     if (job.explainKey) player.explainCache[job.explainKey] = event.text;
@@ -1533,7 +1552,7 @@ function playerJobEvent(event) {
   else if (event.type === 'progress' && typeof event.percent === 'number') {
     fill.style.width = `${Math.min(100, event.percent)}%`;
     txt.textContent = `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
-  } else if (event.type === 'done' && job.kind === 'explain') {
+  } else if (event.type === 'done' && (job.kind === 'explain' || job.kind === 'chat')) {
     job.running = false;
     state.running = false;
     bar.classList.add('hidden');
@@ -1569,6 +1588,15 @@ function playerJobEvent(event) {
       finish(src ? 'Altyazı hazır ve yüklendi.' : 'İş bitti ama altyazı dosyası bulunamadı.',
              src ? 'success' : 'warn');
     }
+  } else if (event.type === 'error' && job.kind === 'chat') {
+    if (job.bubble) {
+      job.bubble.classList.remove('is-loading');
+      job.bubble.classList.add('ai-msg-err');
+      job.bubble.textContent = (event.message || 'Cevap alınamadı.').slice(0, 300);
+    }
+    job.running = false;
+    state.running = false;
+    bar.classList.add('hidden');
   } else if (event.type === 'error') {
     finish(`Altyazı oluşturulamadı: ${(event.message || '').slice(0, 80)}`, 'error');
   }
@@ -1576,7 +1604,20 @@ function playerJobEvent(event) {
 
 window.api.onEvent((event) => {
   playerJobEvent(event);
-  if (event.type === 'done' || event.type === 'error') refreshHistory();
+  // AI isleri (sohbet / acikla) yalnizca oynatici tarafinda islenir. Backend
+  // bunlarda da 'done' basiyor; asagidaki switch onu ALTYAZI isi sanip
+  // "Altyazi hazir!" modalini acar, asamalari yesile boyar ve bildirim
+  // gonderirdi. Cevap zaten playerJobEvent icinde balona/panele yazildi.
+  if (state.aiJob && (event.type === 'done' || event.type === 'error' || event.type === 'exit')) {
+    state.aiJob = false;
+    state.forceTranslate = false;
+    return;
+  }
+  if (event.type === 'done' || event.type === 'error' || event.type === 'exit') {
+    // Tek-tik bayragi ISE OZELDIR: bir sonraki ise sizmasin.
+    state.forceTranslate = false;
+    if (event.type !== 'exit') refreshHistory();
+  }
   switch (event.type) {
     case 'log':
       logLine(event.message, event.level || 'info');
@@ -2455,6 +2496,7 @@ function renderCue() {
       highlightCueRow();
     }
     updateCueMeta();
+    if (!$('aiChat').classList.contains('hidden')) aiChatCtxLabel();
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
     if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
 
@@ -2903,6 +2945,115 @@ function openHistoryItem(h) {
   openPlayer();
 }
 
+// ---- AI sohbet (yan panel sekmesi) ----
+// --explain sabit uc soru turuyle sinirliydi; burada kullanici ne isterse
+// sorabiliyor ve konusma cok turlu ilerliyor. Baglam yine RAG'siz: o anki
+// satir, cevirisi, komsulari, zaman ve video basligi zaten elimizde.
+const AI_CHAT_CTX = 3;             // kac onceki/sonraki satir gonderilsin
+
+function aiChatContext() {
+  const i = player.activeIdx;
+  const cues = player.cues || [];
+  const ctx = {
+    video: (document.getElementById('playerTitle') || {}).textContent || '',
+    zaman: pSecToTime(($('playerVideo') || {}).currentTime || 0),
+  };
+  if (i >= 0 && cues[i]) {
+    ctx.cumle = cues[i].text;
+    ctx.mevcut_ceviri = translationFor(i) || '';
+    ctx.onceki = cues.slice(Math.max(0, i - AI_CHAT_CTX), i).map((c) => c.text);
+    ctx.sonraki = cues.slice(i + 1, i + 1 + AI_CHAT_CTX).map((c) => c.text);
+  } else if (cues.length) {
+    ctx.not = 'Su an aktif bir altyazi satiri yok.';
+  } else {
+    ctx.not = 'Bu video icin yuklu altyazi yok.';
+  }
+  return ctx;
+}
+
+function aiChatCtxLabel() {
+  const el = $('aiChatCtx');
+  if (!el) return;
+  const i = player.activeIdx;
+  el.textContent = (i >= 0 && player.cues[i])
+    ? `Bağlam: ${pSecToTime(player.cues[i].start)} · ${player.cues[i].text.slice(0, 46)}`
+    : 'Bağlam: altyazı yok — genel soru sorabilirsin';
+}
+
+function aiChatAdd(role, text, cls) {
+  const log = $('aiChatLog');
+  if (!log) return null;
+  const bos = $('aiChatEmpty');
+  if (bos) bos.classList.add('hidden');
+  const d = document.createElement('div');
+  d.className = `ai-msg ai-msg-${role}${cls ? ' ' + cls : ''}`;
+  d.textContent = text;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+  return d;
+}
+
+async function aiChatSend(soru) {
+  const q = String(soru || '').trim();
+  if (!q) return;
+  if (state.running || state.queueRunning) {
+    aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
+    return;
+  }
+  const opts = buildOptsFromUI();
+  opts.translate = true;                      // anahtar dogrulamasi icin
+  // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
+  // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
+  // IKI KEZ giderdi.
+  opts.chat = { question: q, history: (player.chatHistory || []).slice(), context: aiChatContext() };
+  opts.input = player.subPath || 'chat';      // argparse girdi bekliyor; sohbette kullanilmaz
+  delete opts.youtube;
+  if (!opts.translateApiKey) {
+    aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
+    return;
+  }
+
+  aiChatAdd('user', q);
+  const bekleyen = aiChatAdd('ai', 'Düşünüyor…', 'is-loading');
+  $('aiChatText').value = '';
+  autoGrowChatBox();
+
+  player.chatHistory = player.chatHistory || [];
+  player.chatHistory.push({ role: 'user', content: q });
+  state.running = true;
+  state.aiJob = true;
+  player.job = { running: true, mediaKey: player.mediaKey, kind: 'chat', bubble: bekleyen };
+
+  const r = await window.api.startTranscribe(opts);
+  if (!r || !r.ok) {
+    state.running = false;
+    state.aiJob = false;
+    player.job = null;
+    bekleyen.classList.remove('is-loading');
+    bekleyen.classList.add('ai-msg-err');
+    bekleyen.textContent = (r && r.error) || 'Cevap alınamadı.';
+  }
+}
+
+function autoGrowChatBox() {
+  const t = $('aiChatText');
+  if (!t) return;
+  t.style.height = 'auto';
+  t.style.height = Math.min(120, t.scrollHeight) + 'px';
+}
+
+function setSideTab(tab) {
+  const ai = tab === 'ai';
+  $('playerSide').classList.toggle('ai-mode', ai);
+  $('aiChat').classList.toggle('hidden', !ai);
+  $$('.side-tab').forEach((b) => {
+    const on = b.dataset.stab === tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (ai) { aiChatCtxLabel(); $('aiChatText')?.focus(); }
+}
+
 // ---- bağlamlı AI açıklaması ----
 // RAG/embedding YOK: dogru baglam zaten elimizde (blogun kendisi, komsulari,
 // mevcut cevirisi, zamani). Uzun videoda tum transcript'i modele gondermek hem
@@ -2952,12 +3103,14 @@ async function askExplain(kind, index, word) {
   if (problem) { logLine(problem, 'error'); setSettingsDrawer(true); return; }
 
   state.running = true;
+  state.aiJob = true;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'explain',
                  explainKey: key, explainTitle: EXPLAIN_TITLES[kind] || 'AI' };
   showAiAnswer(EXPLAIN_TITLES[kind] || 'AI', 'Düşünüyor…', true);
   const r = await window.api.startTranscribe(opts);
   if (!r || !r.ok) {
     state.running = false;
+    state.aiJob = false;
     player.job = null;
     showAiAnswer('Hata', (r && r.error) || 'Açıklama alınamadı.');
   }
@@ -4181,7 +4334,10 @@ function setSettingsDrawer(open) {
   if (!d) return;
   const layer = $('playerLayer');
   if (open) hideWordInspector();
-  if (open && layer) layer.classList.remove('sidebar-collapsed');
+  // Panel daraltilmisken ayarlari acmak ARTIK paneli zorla acmiyor: cekmece
+  // (sinema modundaki gibi) videonun ustunde bagimsiz bir katman olarak cikar.
+  // Eskiden 'sidebar-collapsed' kaldiriliyordu ve dislye basinca arkada
+  // istenmeden transkript paneli de aciliyordu.
   d.classList.toggle('hidden', !open);
   if (layer) layer.classList.toggle('settings-open', open);
   const g = $('toggleSettings');
@@ -4350,14 +4506,18 @@ if ($('backToActive')) {
     $('backToActive').classList.add('hidden');
   });
 }
+// Kaynak/Ceviri anahtarlari sinifi KATMANA koyar. Eskiden yalnizca
+// #playerSide'a konuyordu: soldaki listede satir gizleniyor ama VIDEO
+// uzerindeki altyazi olduğu gibi kaliyordu - "kaynagi kapattim, hala
+// gorunuyor" sikayeti tam olarak buydu.
 if ($('showSource')) {
   $('showSource').addEventListener('change', (e) => {
-    $('playerSide').classList.toggle('hide-src', !e.target.checked);
+    $('playerLayer').classList.toggle('hide-src', !e.target.checked);
   });
 }
 if ($('showTranslation')) {
   $('showTranslation').addEventListener('change', (e) => {
-    $('playerSide').classList.toggle('hide-tr', !e.target.checked);
+    $('playerLayer').classList.toggle('hide-tr', !e.target.checked);
   });
 }
 
@@ -4448,6 +4608,34 @@ if ($('makeTransBtn')) {
   });
 }
 
+// Tek tikla "altyazi + ceviri": kullanicinin istedigi tek adim. Ayri ayri
+// "Altyazi olustur" sonra "Ceviri olustur" yapmak yerine tek iste ikisi de
+// uretilir; biten iste zaten kaynak birincil, ceviri ikincil altyazi olarak
+// yukleniyor (playerJobEvent 'done' dali).
+if ($('quickSubsBtn')) {
+  $('quickSubsBtn').addEventListener('click', () => {
+    if (state.running || state.queueRunning) {
+      logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
+      osd('Bir iş zaten çalışıyor');
+      return;
+    }
+    if (!$('translateApiKey') || !$('translateApiKey').value.trim()) {
+      logLine('Çeviri için API anahtarı gerekli. Gelişmiş ayarlar → Çeviri → API Key.', 'error');
+      osd('Çeviri API anahtarı yok');
+      toggleDrawerAt(null, '#translateApiKey');
+      return;
+    }
+    // Kullanicinin kalici ayarina DOKUNMA: yalnizca bu is icin ceviriyi ac.
+    state.forceTranslate = true;
+    osd('Altyazı + çeviri hazırlanıyor…', 1600);
+    $('makeSubsBtn').click();
+    // Dogrulama takilip is HIC baslamadiysa bayragi hemen geri al; yoksa
+    // kullanicinin ceviri kapali oldugu bir sonraki iste sessizce ceviri calisir.
+    // (startBtn, ilk await'ten once state.running'i senkron kuruyor.)
+    if (!state.running && !state.queueRunning) state.forceTranslate = false;
+  });
+}
+
 if ($('historyList')) {
   $('historyList').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-act]');
@@ -4472,6 +4660,30 @@ if ($('historyClear')) {
     if (!historyCache.length) return;
     await window.api.clearHistory();
     refreshHistory();
+  });
+}
+
+// --- AI sohbet dinleyicileri ---
+$$('.side-tab').forEach((b) => b.addEventListener('click', () => setSideTab(b.dataset.stab)));
+if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend($('aiChatText').value));
+if ($('aiChatText')) {
+  $('aiChatText').addEventListener('input', autoGrowChatBox);
+  $('aiChatText').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiChatSend(e.target.value); }
+  });
+}
+if ($('aiChatLog')) {
+  $('aiChatLog').addEventListener('click', (e) => {
+    const chip = e.target.closest('.ai-chip');
+    if (chip) aiChatSend(chip.dataset.ask);
+  });
+}
+if ($('aiChatClear')) {
+  $('aiChatClear').addEventListener('click', () => {
+    player.chatHistory = [];
+    const log = $('aiChatLog');
+    [...log.querySelectorAll('.ai-msg')].forEach((e) => e.remove());
+    $('aiChatEmpty')?.classList.remove('hidden');
   });
 }
 

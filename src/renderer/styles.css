@@ -1802,6 +1802,56 @@ html, body {
   color: var(--text-muted);
 }
 
+/* Yan panel sekmeleri: transkript <-> AI sohbet */
+.side-tabs { display: flex; gap: 4px; align-items: center; }
+.side-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.side-tab:hover { color: var(--text); }
+.side-tab.active { color: var(--player-amber); background: rgba(228, 168, 93, .12); border-color: rgba(228, 168, 93, .32); }
+
+/* Sohbet: transkriptle ayni alani paylasir, ayni akis mantigi */
+.ai-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 8px; padding-bottom: 8px; }
+.ai-chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 2px; }
+.ai-chat-empty { margin: auto 0; padding: 8px 4px; text-align: center; }
+.ai-chat-empty-title { color: var(--text); font-size: 14px; font-weight: 600; }
+.ai-chat-empty-text { margin-top: 6px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.ai-chat-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+.ai-chip {
+  padding: 6px 10px; color: var(--text-dim); font: inherit; font-size: 11px; cursor: pointer;
+  background: var(--bg-3); border: 1px solid var(--border); border-radius: 999px;
+}
+.ai-chip:hover { color: var(--player-amber); border-color: rgba(228, 168, 93, .45); }
+
+.ai-msg { max-width: 92%; padding: 9px 11px; font-size: 13px; line-height: 1.5; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-msg-user { align-self: flex-end; color: #16100a; background: var(--player-amber); border-bottom-right-radius: 4px; }
+.ai-msg-ai { align-self: flex-start; color: var(--text-dim); background: var(--bg-3); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.ai-msg-ai.is-loading { color: var(--text-muted); font-style: italic; }
+.ai-msg-err { align-self: flex-start; color: #f3b5b5; background: rgba(239, 68, 68, .1); border: 1px solid rgba(239, 68, 68, .4); border-radius: 12px; }
+.ai-msg-time { display: block; margin-bottom: 3px; font-size: 10px; opacity: .6; }
+
+.ai-chat-input { display: flex; gap: 6px; align-items: flex-end; }
+.ai-chat-input textarea {
+  flex: 1; min-width: 0; max-height: 120px; padding: 9px 11px; resize: none;
+  color: var(--text); font: inherit; font-size: 13px; line-height: 1.45;
+  background: var(--bg-3); border: 1px solid var(--border); border-radius: 10px; outline: none;
+}
+.ai-chat-input textarea:focus { border-color: var(--player-amber); }
+.ai-chat-input .btn { flex: 0 0 auto; min-height: 38px; }
+.ai-chat-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
+#aiChatCtx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .side-toolrow { display: flex; gap: 6px; align-items: center; }
 .side-toolrow input[type="search"] { flex: 1; min-width: 0; }
 
@@ -1864,8 +1914,21 @@ html, body {
 }
 
 /* kaynak/ceviri gizleme */
-.player-side.hide-src .cue-card-src { display: none; }
-.player-side.hide-tr .cue-card-tr { display: none; }
+/* Hem transkript listesi hem VIDEO uzerindeki katman ayni anahtardan etkilenir. */
+/* AI sekmesi acikken transkripte ozel kontroller gizlenir (arama, dil
+   rozetleri, cumle araclari) - sohbetle ilgileri yok. */
+.player-side.ai-mode .side-source-quick,
+.player-side.ai-mode .side-heading,
+.player-side.ai-mode .side-langs,
+.player-side.ai-mode .side-toolrow,
+.player-side.ai-mode .transcript-progress,
+.player-side.ai-mode .sentence-tools,
+.player-side.ai-mode #cueList { display: none; }
+
+.player-layer.hide-src .cue-card-src { display: none; }
+.player-layer.hide-tr .cue-card-tr { display: none; }
+.player-layer.hide-src #subtitleOverlay { display: none; }
+.player-layer.hide-tr #subtitleOverlay2 { display: none; }
 
 .back-to-active {
   position: absolute;
@@ -2697,6 +2760,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 /* Sinema modunda sağ panel normalde kapalıdır. Ayarlar açıldığında paneli
    body'nin üstünde bağımsız bir çekmeceye dönüştür; böylece üstteki dişli her
    düzende ulaşılabilir kalır. */
+.player-layer.sidebar-collapsed.settings-open .player-side,
 .player-layer.mode-cinema.settings-open .player-side {
   position: absolute;
   inset: 0 0 0 auto;
@@ -2710,6 +2774,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   background: transparent;
   border-left: 0;
 }
+.player-layer.sidebar-collapsed.settings-open .settings-drawer,
 .player-layer.mode-cinema.settings-open .settings-drawer { inset: 0; width: 100%; border-radius: 18px 0 0 18px; }
 .player-layer.sidebar-collapsed .player-body { grid-template-columns: minmax(0, 1fr) 0 0; }
 .player-layer.sidebar-collapsed .player-side, .player-layer.sidebar-collapsed .side-resizer { display: none; }

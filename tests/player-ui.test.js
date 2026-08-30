@@ -39,9 +39,18 @@ function assert(cond, msg) { if (!cond) throw new Error(msg || 'assert'); }
 
 // ---- 1. ölü kontrol yok ----
 test('oynatıcıdaki her düğmenin renderer.js\'te karşılığı var', () => {
-  const ids = [...new Set([...layer.matchAll(/<button[^>]*id="([A-Za-z0-9_-]+)"/g)].map((m) => m[1]))];
-  assert(ids.length > 30, `beklenenden az dugme bulundu (${ids.length}) — ayirma bozulmus olabilir`);
-  const dead = ids.filter((id) => !new RegExp(`['"]${id}['"]`).test(js));
+  const tags = [...layer.matchAll(/<button[^>]*id="([A-Za-z0-9_-]+)"[^>]*>/g)];
+  assert(tags.length > 30, `beklenenden az dugme bulundu (${tags.length}) — ayirma bozulmus olabilir`);
+  // Bir düğme ya id'siyle ya da delegasyon kancasıyla (data-* / sınıf)
+  // bağlanmış olmalı. Delegasyonu "ölü" saymak yanlış alarm üretir.
+  const wired = (m) => {
+    const [tag, id] = [m[0], m[1]];
+    if (new RegExp(`['"]${id}['"]`).test(js)) return true;
+    const hooks = [...tag.matchAll(/\sdata-([a-z-]+)=/g)].map((d) => d[1]);
+    return hooks.some((h) => js.includes(`data-${h}`) || js.includes(camel(h)));
+  };
+  const camel = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const dead = tags.filter((m) => !wired(m)).map((m) => m[1]);
   assert(dead.length === 0, `renderer.js'te hic gecmeyen dugme: ${dead.join(', ')}`);
 });
 
@@ -184,7 +193,65 @@ test('onay kutuları temaya boyanmış (tarayıcı mavisi değil)', () => {
     'oynaticidaki onay kutulari kehribar temaya baglanmamis');
 });
 
-// ---- 8. ses çubuğu koyu temaya uygun ----
+// ---- 8. kaynak/çeviri anahtarları ----
+test('Kaynak/Çeviri anahtarları VİDEO üzerindeki altyazıyı da etkiliyor', () => {
+  // Eskiden sinif yalnizca #playerSide'a konuyordu: listede satir gizleniyor,
+  // video uzerindeki katman oldugu gibi kaliyordu.
+  const i = js.indexOf("$('showSource').addEventListener");
+  assert(i > 0, 'showSource dinleyicisi yok');
+  const body = js.slice(i, i + 260);
+  assert(/playerLayer'\)\.classList\.toggle\('hide-src'/.test(body),
+    "sinif katmana konmuyor — video uzerindeki altyazi anahtardan etkilenmez");
+  assert(/\.player-layer\.hide-src #subtitleOverlay\s*\{[^}]*display:\s*none/.test(css),
+    'katmani gizleyen CSS kurali yok');
+  assert(/\.player-layer\.hide-tr #subtitleOverlay2\s*\{[^}]*display:\s*none/.test(css),
+    'ikinci altyazi katmanini gizleyen kural yok');
+});
+
+// ---- 9. ayarlar paneli zorla açmıyor ----
+test('ayarları açmak yan paneli zorla açmıyor', () => {
+  const i = js.indexOf('function setSettingsDrawer');
+  assert(i > 0, 'setSettingsDrawer yok');
+  const body = js.slice(i, js.indexOf('\n}', i));
+  assert(!/classList\.remove\('sidebar-collapsed'\)/.test(body),
+    'cekmece hala paneli zorla aciyor — kullanici istemedigi halde transkript acilir');
+  // Panel kapaliyken cekmecenin gorunebilmesi CSS'e bagli
+  assert(/\.player-layer\.sidebar-collapsed\.settings-open \.player-side/.test(css),
+    'panel daraltilmisken cekmeceyi gosteren kural yok — ayarlar hic acilmaz');
+});
+
+// ---- 10. AI işleri ana iş akışını tetiklemiyor ----
+test('AI işleri "Altyazı hazır" modalını açmıyor', () => {
+  // Backend sohbet/aciklama modlarinda da 'done' basiyor; ana switch onu
+  // altyazi isi sanip modal + bildirim + asama isaretleme yapardi.
+  assert(/state\.aiJob\s*&&\s*\(event\.type === 'done'/.test(js),
+    'AI isleri icin done/error muafiyeti yok — sohbette "Altyazi hazir!" modali cikar');
+  const kur = (js.match(/state\.aiJob = true/g) || []).length;
+  assert(kur >= 2, `aiJob bayragi ${kur} yerde kuruluyor — sohbet ve acikla ikisi de isaretlenmeli`);
+});
+
+// ---- 11. sohbet geçmişi ----
+test('sohbet geçmişi KOPYA olarak gönderiliyor', () => {
+  const i = js.indexOf('opts.chat = {');
+  assert(i > 0, 'sohbet yuku olusturulmuyor');
+  const body = js.slice(i, i + 220);
+  assert(/history:\s*\(player\.chatHistory \|\| \[\]\)\.slice\(\)/.test(body),
+    'gecmis referansla gonderiliyor — asagida ayni diziye soru eklenince '
+    + 'soru modele IKI KEZ gider');
+});
+
+test('tek tık "altyazı + çeviri" kalıcı ayarı değiştirmiyor', () => {
+  const i = js.indexOf("$('quickSubsBtn').addEventListener");
+  assert(i > 0, 'tek-tik dugmesi bagli degil');
+  const body = js.slice(i, i + 1600);
+  assert(!/\$\('translate'\)\.checked\s*=/.test(body),
+    'kullanicinin kalici ceviri ayarini degistiriyor');
+  assert(/state\.forceTranslate = true/.test(body), 'is-ozel bayrak kurulmuyor');
+  assert(/if \(!state\.running && !state\.queueRunning\) state\.forceTranslate = false/.test(body),
+    'is baslamazsa bayrak temizlenmiyor — sonraki ise sizar');
+});
+
+// ---- 12. ses çubuğu koyu temaya uygun ----
 test('ses çubuğu tarayıcının varsayılan görünümünü kullanmıyor', () => {
   const i = css.indexOf('.player-volume {');
   assert(i > 0, '.player-volume kurali yok');

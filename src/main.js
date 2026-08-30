@@ -1245,6 +1245,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (options.translateOnly) args.push('--translate-only', 'true');
+  // Sohbet: soru + gecmis + baglam TEK dosyaya yazilir. argv'ye koymak uzun
+  // metinlerde sinira takilir ve surec listesinde gorunur.
+  if (options.chat) {
+    try {
+      const dir = path.join(app.getPath('userData'), 'tmp');
+      fs.mkdirSync(dir, { recursive: true });
+      const p = path.join(dir, 'chat.json');
+      fs.writeFileSync(p, JSON.stringify(options.chat), 'utf-8');
+      args.push('--chat', 'true', '--chat-file', p);
+    } catch (err) {
+      return { ok: false, error: `Sohbet verisi yazilamadi: ${err.message}` };
+    }
+  }
   // Aciklama modu: tek blok/kelime, baglamiyla birlikte
   if (options.explain) {
     args.push('--explain', 'true');
