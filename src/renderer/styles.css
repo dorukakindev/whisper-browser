@@ -2946,3 +2946,129 @@ body::before {
   .field-full { grid-column: auto; }
   .actions { flex-direction: column; }
 }
+
+/* ===== Workbench polish =====
+   Kaynak formu, oynatıcıdaki koyu çalışma yüzeyiyle aynı görsel dile sahip
+   olmalı. Özellikle .field dışında duran zaman alanlarını tarayıcıya bırakma. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.header-actions #openPlayer {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 16px;
+  color: #e9edf0;
+  background: #151d24;
+  border: 1px solid #34424d;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.header-actions #openPlayer::before {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-right: 2px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--accent);
+}
+
+.header-actions #openPlayer:hover {
+  color: #fff;
+  background: #202c35;
+  border-color: #536472;
+  transform: translateY(-1px);
+}
+
+.header-actions .gpu-badge {
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.clip-range {
+  margin-top: 12px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+
+.clip-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 145px) auto minmax(110px, 145px) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.clip-label {
+  margin: 0;
+  min-width: 0;
+  color: #aebbc3;
+  white-space: nowrap;
+  /* .field-label `justify-content: space-between` kullanir - o, sagda deger
+     gosteren satirlar icin ("Yazi boyutu ... 28 px"). Burada iki parca AYNI
+     cumlenin parcasi; space-between kalirsa "(istege bagli)" etiketten
+     yuzlerce piksel oteye, kutularin dibine firlar. */
+  display: inline-flex;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+.clip-label > span {
+  color: #75838d;
+  font-weight: 400;
+}
+
+.clip-input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px;
+  color: #e5ebee;
+  background: #10161b;
+  border: 1px solid #2b3741;
+  border-radius: 9px;
+  outline: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.clip-input::placeholder { color: #66747e; }
+.clip-input:hover { border-color: #40505c; background: #131c23; }
+.clip-input:focus {
+  border-color: var(--accent);
+  background: #131c23;
+  box-shadow: 0 0 0 3px rgba(213,163,92,.10);
+}
+
+.clip-separator {
+  color: #697781;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.clip-fields .link-btn {
+  white-space: nowrap;
+  padding: 5px 2px;
+}
+
+@media (max-width: 760px) {
+  .clip-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr) auto minmax(100px, 1fr);
+  }
+  .clip-fields .link-btn { grid-column: 2 / -1; justify-self: end; }
+}
+
+@media (max-width: 560px) {
+  .header-actions #openPlayer { padding: 0 11px; }
+  .clip-fields { grid-template-columns: 1fr 1fr; }
+  .clip-label { grid-column: 1 / -1; }
+  .clip-separator { display: none; }
+  .clip-fields .link-btn { grid-column: 2; }
+}
