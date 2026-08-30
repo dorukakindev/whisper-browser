@@ -2068,6 +2068,10 @@ const player = {
   sub2Top: null,         // karsilastirma altyazisinin konumu (%, ustten)
   autoFollow: true,      // aktif satiri kendiliginden kaydir
   userScrolled: false,   // kullanici elle kaydirdi -> takip gecici durur
+  savedCues: [],         // bu video icin kaydedilen cümle imzalari
+  savedOnly: false,      // transcript filtresi: yalnizca kaydedilenler
+  savedWords: [],        // kelime koleksiyonu: kelime + cümle baglami
+  selectedWord: null,     // { word, cueIndex, source }
   viewMode: 'reading',
   job: null,             // oynaticidan baslatilan transkripsiyon isi
   idleTimer: null,
@@ -2081,6 +2085,251 @@ function pSecToTime(sec) {
   const s = Math.floor(sec % 60);
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
            : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Kayitli cümleler video degisse bile karismasin. Indeks yerine zaman+metin
+// imzasi kullanilir; altyazi yeniden üretildiginde ayni satir mümkün oldugunca
+// korunur, baska videoda eski favoriler görünmez.
+function cueSignature(cue) {
+  if (!cue) return '';
+  return `${Number(cue.start || 0).toFixed(3)}|${Number(cue.end || 0).toFixed(3)}|${String(cue.text || '').trim()}`;
+}
+
+function savedCueStorageKey() {
+  return player.mediaKey ? `whisper-player-saved:${player.mediaKey}` : '';
+}
+
+function loadSavedCues() {
+  player.savedCues = [];
+  const key = savedCueStorageKey();
+  if (!key) return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || '[]');
+    if (Array.isArray(raw)) player.savedCues = raw.filter((x) => typeof x === 'string').slice(-500);
+  } catch (_) {}
+}
+
+function persistSavedCues() {
+  const key = savedCueStorageKey();
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(player.savedCues.slice(-500))); } catch (_) {}
+}
+
+function isCueSaved(index) {
+  return index >= 0 && !!player.cues[index]
+    && player.savedCues.includes(cueSignature(player.cues[index]));
+}
+
+function updateCueMeta() {
+  const total = player.cues.length;
+  const position = $('cuePosition');
+  const fill = $('cueProgressFill');
+  if (position) {
+    position.textContent = total && player.activeIdx >= 0
+      ? `${String(player.activeIdx + 1).padStart(3, '0')} / ${String(total).padStart(3, '0')}`
+      : (total ? `000 / ${String(total).padStart(3, '0')}` : '— / —');
+  }
+  if (fill) {
+    const pct = total > 1 && player.activeIdx >= 0
+      ? (player.activeIdx / (total - 1)) * 100 : 0;
+    fill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  }
+  const save = $('cueSaveBtn');
+  if (save) {
+    const saved = isCueSaved(player.activeIdx);
+    save.classList.toggle('is-saved', saved);
+    save.title = saved ? 'Aktif cümleyi kayıtlardan çıkar (K)' : 'Aktif cümleyi kaydet (K)';
+    const label = save.querySelector('span:last-child');
+    if (label) label.textContent = saved ? 'Kayıtlı' : 'Kaydet';
+  }
+  const headSave = $('playerBookmark');
+  if (headSave) {
+    const saved = isCueSaved(player.activeIdx);
+    headSave.classList.toggle('active', saved);
+    headSave.setAttribute('aria-pressed', saved ? 'true' : 'false');
+    headSave.title = saved ? 'Aktif cümleyi kayıtlardan çıkar (K)' : 'Aktif cümleyi kaydet (K)';
+  }
+  const savedFilter = $('savedOnlyBtn');
+  if (savedFilter) {
+    savedFilter.classList.toggle('active', player.savedOnly);
+    const savedCount = player.savedCues.length;
+    savedFilter.title = player.savedOnly
+      ? 'Tüm cümleleri göster'
+      : `Kaydedilen cümleleri göster (${savedCount})`;
+    savedFilter.setAttribute('aria-pressed', player.savedOnly ? 'true' : 'false');
+  }
+  const clear = $('clearCueSearch');
+  if (clear) clear.classList.toggle('hidden', !$('cueSearch')?.value);
+}
+
+function savedWordStorageKey() {
+  return player.mediaKey ? `whisper-player-words:${player.mediaKey}` : '';
+}
+
+function wordRecordKey(word, cueIndex, source = 'source') {
+  const cue = player.cues[cueIndex];
+  return `${String(word || '').trim().toLocaleLowerCase('tr')}|${cueSignature(cue)}|${source}`;
+}
+
+function loadSavedWords() {
+  player.savedWords = [];
+  const key = savedWordStorageKey();
+  if (!key) return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || '[]');
+    if (Array.isArray(raw)) {
+      player.savedWords = raw.filter((x) => x && typeof x.key === 'string').slice(-1000);
+    }
+  } catch (_) {}
+}
+
+function persistSavedWords() {
+  const key = savedWordStorageKey();
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(player.savedWords.slice(-1000))); } catch (_) {}
+}
+
+function isWordSaved(word, cueIndex, source = 'source') {
+  return !!word && player.savedWords.some((x) => x.key === wordRecordKey(word, cueIndex, source));
+}
+
+function updateWordInspector() {
+  const panel = $('wordInspector');
+  const selected = player.selectedWord;
+  if (!panel || !selected) return;
+  const cue = player.cues[selected.cueIndex];
+  if (!cue) { panel.classList.add('hidden'); return; }
+  const word = String(selected.word || '').trim();
+  const saved = isWordSaved(word, selected.cueIndex, selected.source);
+  const wordEl = $('wordInspectorWord');
+  const metaEl = $('wordInspectorMeta');
+  const contextEl = $('wordInspectorContext');
+  if (wordEl) wordEl.textContent = word;
+  if (metaEl) metaEl.textContent = `${selected.source === 'translation' ? 'Çeviri' : 'Kaynak'} · ${pSecToTime(cue.start)}`;
+  if (contextEl) {
+    const translated = translationFor(cue);
+    contextEl.textContent = translated
+      ? `${cue.text}\n${translated}`
+      : cue.text;
+  }
+  const save = $('wordSaveBtn');
+  if (save) {
+    save.classList.toggle('is-saved', saved);
+    save.title = saved ? 'Kelimeyi koleksiyondan çıkar (W)' : 'Kelimeyi koleksiyona ekle (W)';
+    const label = save.querySelector('span:last-child');
+    if (label) label.textContent = saved ? 'Kayıtlı' : 'Kelimeyi kaydet';
+  }
+}
+
+function showWordInspector(word, cueIndex, source = 'source') {
+  const cue = player.cues[cueIndex];
+  if (!cue || !String(word || '').trim()) return;
+  player.selectedWord = { word: String(word).trim(), cueIndex, source };
+  const panel = $('wordInspector');
+  if (panel) panel.classList.remove('hidden');
+  updateWordInspector();
+}
+
+function hideWordInspector() {
+  player.selectedWord = null;
+  const panel = $('wordInspector');
+  if (panel) panel.classList.add('hidden');
+  setWordHighlight('picked', null);
+}
+
+// Kelimeler DUZ METIN olarak yazilir. Eskiden her kelime ayri bir <button> ve
+// 3 olay dinleyicisiydi; 4000 bloklu (8 saatlik) bir videoda bu 56.000 dugme,
+// 72.000 DOM dugumu ve ~168.000 dinleyici demekti. Olculen bedel: liste cizimi
+// 21 ms yerine 426 ms, aramada HER TUS VURUSUNDA 336 ms donma.
+// Kelime tiklama/vurgulama artik imlec konumundan (caretRangeFromPoint) tespit
+// ediliyor: tek delege dinleyici, sifir ek DOM. Ozellik aynen duruyor.
+const WORD_RE = /[\p{L}\p{N}][\p{L}\p{N}'’_-]*/gu;
+
+function appendInteractiveText(el, text, q, _cueIndex, _source) {
+  appendHighlighted(el, text, q);
+}
+
+// Ekran koordinatindaki kelimeyi bulur: {word, node, start, end}
+function wordAtPoint(x, y) {
+  let range = null;
+  if (document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(x, y);
+  } else if (document.caretPositionFromPoint) {
+    const p = document.caretPositionFromPoint(x, y);
+    if (p) { range = document.createRange(); range.setStart(p.offsetNode, p.offset); }
+  }
+  if (!range) return null;
+  const node = range.startContainer;
+  if (!node || node.nodeType !== 3) return null;
+  const text = node.textContent || '';
+  const off = range.startOffset;
+  WORD_RE.lastIndex = 0;
+  let m;
+  while ((m = WORD_RE.exec(text)) !== null) {
+    if (off >= m.index && off <= m.index + m[0].length) {
+      return { word: m[0], node, start: m.index, end: m.index + m[0].length };
+    }
+  }
+  return null;
+}
+
+// Vurgulama DOM'a dokunmadan CSS Custom Highlight API ile yapilir.
+const _hl = (typeof Highlight !== 'undefined' && window.CSS && CSS.highlights)
+  ? { hover: new Highlight(), picked: new Highlight() } : null;
+if (_hl) {
+  CSS.highlights.set('cue-word-hover', _hl.hover);
+  CSS.highlights.set('cue-word-picked', _hl.picked);
+}
+
+function setWordHighlight(which, hit) {
+  if (!_hl) return;
+  _hl[which].clear();
+  if (!hit) return;
+  try {
+    const r = document.createRange();
+    r.setStart(hit.node, hit.start);
+    r.setEnd(hit.node, hit.end);
+    _hl[which].add(r);
+  } catch (_) {}
+}
+
+// Tek delege dinleyici: kart tiklamasi, cift tiklama ve kelime secimi
+function bindCueListDelegation() {
+  const box = $('cueList');
+  if (!box) return;
+  const cardIndex = (e) => {
+    const card = e.target.closest ? e.target.closest('.cue-card') : null;
+    return card ? parseInt(card.dataset.idx, 10) : NaN;
+  };
+  box.addEventListener('click', (e) => {
+    const i = cardIndex(e);
+    if (isNaN(i)) return;
+    const inSrc = e.target.closest('.cue-card-src');
+    const inTr = e.target.closest('.cue-card-tr');
+    const hit = (inSrc || inTr) ? wordAtPoint(e.clientX, e.clientY) : null;
+    if (player.activeIdx !== i) seekToCue(i);
+    if (hit) {
+      setWordHighlight('picked', hit);
+      showWordInspector(hit.word, i, inTr ? 'translation' : 'source');
+    }
+  });
+  box.addEventListener('dblclick', (e) => {
+    const i = cardIndex(e);
+    if (isNaN(i)) return;
+    e.preventDefault();
+    seekToCue(i);
+    openCueEditor();
+  });
+  let moveTick = 0;
+  box.addEventListener('mousemove', (e) => {
+    if (!_hl) return;
+    const now = Date.now();
+    if (now - moveTick < 60) return;          // kisitla: her piksel icin hesaplama
+    moveTick = now;
+    const on = e.target.closest('.cue-card-src, .cue-card-tr');
+    setWordHighlight('hover', on ? wordAtPoint(e.clientX, e.clientY) : null);
+  }, { passive: true });
+  box.addEventListener('mouseleave', () => setWordHighlight('hover', null));
 }
 
 // ASS/SSA ayrıştırma — indirilmiş altyazılarda yaygın. Dialogue satırlarındaki
@@ -2179,6 +2428,7 @@ function renderCue() {
       player.activeIdx = i;
       highlightCueRow();
     }
+    updateCueMeta();
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
     if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
 
@@ -2202,6 +2452,7 @@ function renderCue() {
     player.lastT = t;
   } else {
     setOverlayText(overlay, '');
+    updateCueMeta();
   }
 
   if (overlay2) {
@@ -2258,6 +2509,7 @@ function renderCueList(filter = '') {
   if (!box) return;
   const q = filter.trim().toLocaleLowerCase('tr');
   box.innerHTML = '';
+  updateCueMeta();
   if (!player.cues.length) {
     box.innerHTML = '<div class="cue-list-empty">Altyazı yüklenince satırlar burada akar.</div>';
     return;
@@ -2268,9 +2520,11 @@ function renderCueList(filter = '') {
     const tr = translationFor(c);
     if (q && !c.text.toLocaleLowerCase('tr').includes(q)
         && !tr.toLocaleLowerCase('tr').includes(q)) return;
+    if (player.savedOnly && !isCueSaved(i)) return;
     shown++;
     const card = document.createElement('div');
     card.className = 'cue-card';
+    card.classList.toggle('saved', isCueSaved(i));
     card.dataset.idx = String(i);
 
     const time = document.createElement('div');
@@ -2280,19 +2534,18 @@ function renderCueList(filter = '') {
     const body = document.createElement('div');
     const src = document.createElement('div');
     src.className = 'cue-card-src';
-    appendHighlighted(src, c.text, q);
+    appendInteractiveText(src, c.text, q, i, 'source');
     body.appendChild(src);
     if (tr) {
       const trEl = document.createElement('div');
       trEl.className = 'cue-card-tr';
-      appendHighlighted(trEl, tr, q);
+      appendInteractiveText(trEl, tr, q, i, 'translation');
       body.appendChild(trEl);
     }
 
     card.appendChild(time);
     card.appendChild(body);
-    card.addEventListener('click', () => seekToCue(i));
-    card.addEventListener('dblclick', (e) => { e.preventDefault(); seekToCue(i); openCueEditor(); });
+    // tiklama/cift tiklama listeye DELEGE edilir (bkz. bindCueListDelegation)
     frag.appendChild(card);
   });
   if (!shown) {
@@ -2300,12 +2553,15 @@ function renderCueList(filter = '') {
     return;
   }
   box.appendChild(frag);
+  setWordHighlight('hover', null);
+  setWordHighlight('picked', null);   // eski aralikler yeniden cizimde gecersiz
   highlightCueRow();
 }
 
 function highlightCueRow() {
   const box = $('cueList');
   if (!box) return;
+  updateCueMeta();
   const prev = box.querySelector('.cue-card.active');
   if (prev) prev.classList.remove('active');
   if (player.activeIdx < 0) {
@@ -2408,6 +2664,82 @@ function copyCue() {
   if (player.activeIdx < 0) return;
   window.api.copyText(player.cues[player.activeIdx].text);
   logLine('Altyazı satırı panoya kopyalandı.', 'success');
+}
+
+function toggleCueSaved() {
+  if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
+    logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
+    return;
+  }
+  const sig = cueSignature(player.cues[player.activeIdx]);
+  const at = player.savedCues.indexOf(sig);
+  if (at >= 0) {
+    player.savedCues.splice(at, 1);
+    osd('Cümle kayıtlardan çıkarıldı');
+  } else {
+    player.savedCues.push(sig);
+    osd('Cümle kaydedildi');
+  }
+  persistSavedCues();
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  updateCueMeta();
+}
+
+function toggleSavedOnly() {
+  player.savedOnly = !player.savedOnly;
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  updateCueMeta();
+}
+
+function toggleWordSaved() {
+  const selected = player.selectedWord;
+  const cue = selected && player.cues[selected.cueIndex];
+  if (!selected || !cue) return;
+  const key = wordRecordKey(selected.word, selected.cueIndex, selected.source);
+  const at = player.savedWords.findIndex((x) => x.key === key);
+  if (at >= 0) {
+    player.savedWords.splice(at, 1);
+    osd('Kelime koleksiyondan çıkarıldı');
+  } else {
+    player.savedWords.push({
+      key,
+      word: selected.word,
+      source: selected.source,
+      cue: cue.text,
+      translation: translationFor(cue),
+      start: cue.start,
+    });
+    osd('Kelime koleksiyona eklendi');
+  }
+  persistSavedWords();
+  updateWordInspector();
+}
+
+function copySelectedWord() {
+  if (!player.selectedWord) return;
+  window.api.copyText(player.selectedWord.word);
+  osd('Kelime panoya kopyalandı');
+}
+
+// Kelime aramasi uygulamadan DISARI cikan tek islemdir: secilen kelime varsayilan
+// tarayicida acilan sozluk adresine gider. Bu yuzden hem dugme ipucunda hem
+// gunlukte acikca belirtilir. Turkce kullanici icin Google'in "define X" aramasi
+// zayif kaliyordu; EN-TR sozlukler varsayilan yapildi.
+const WORD_LOOKUP_SOURCES = {
+  tureng: { ad: 'Tureng', url: (w) => `https://tureng.com/tr/turkce-ingilizce/${encodeURIComponent(w)}` },
+  wiktionary: { ad: 'Vikisözlük', url: (w) => `https://tr.wiktionary.org/wiki/${encodeURIComponent(w)}` },
+  cambridge: { ad: 'Cambridge', url: (w) => `https://dictionary.cambridge.org/dictionary/english-turkish/${encodeURIComponent(w)}` },
+  google: { ad: 'Google', url: (w) => `https://www.google.com/search?q=${encodeURIComponent('define ' + w)}` },
+};
+
+function lookupSelectedWord() {
+  if (!player.selectedWord) return;
+  const sel = $('wordLookupSource');
+  const key = (sel && WORD_LOOKUP_SOURCES[sel.value]) ? sel.value : 'tureng';
+  const src = WORD_LOOKUP_SOURCES[key];
+  const word = player.selectedWord.word;
+  logLine(`"${word}" ${src.ad} sözlüğünde açılıyor (tarayıcıda, uygulama dışında).`, 'info');
+  window.api.openExternal(src.url(word));
 }
 
 // Blokları tekrar SRT'ye çevir (izlerken yapılan düzeltmeyi kaydetmek için)
@@ -2991,6 +3323,10 @@ function resetMediaBoundState() {
   player.subFormat = 'srt';
   player.pausedAt = -1;
   player.chapters = [];
+  player.savedCues = [];
+  player.savedOnly = false;
+  player.savedWords = [];
+  player.selectedWord = null;
 
   const ov = $('subtitleOverlay');
   const ov2 = $('subtitleOverlay2');
@@ -3010,6 +3346,7 @@ function resetMediaBoundState() {
     sel.appendChild(o);
   });
   if ($('cueSearch')) $('cueSearch').value = '';
+  hideWordInspector();
   renderCueList('');
   updateSubtitleChips();
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
@@ -3061,6 +3398,9 @@ function setMediaKey(key) {
   player.resumeOffered = false;
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
   resetMediaBoundState();
+  loadSavedCues();
+  loadSavedWords();
+  updateCueMeta();
 }
 
 function currentGeneration() {
@@ -3146,6 +3486,8 @@ function setPlayerSource(src, title, key, meta) {
   video.load();
   $('playerEmpty').classList.add('hidden');
   if (title) $('playerTitle').textContent = title;
+  const metaEl = $('playerMeta');
+  if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma';
 }
 
 // ---- HLS ile indirmeden izleme ----
@@ -3171,6 +3513,10 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   setMediaKey(key || manifestUrl);
   if (meta && meta.chapters) setChapters(meta.chapters);
   if (meta && meta.isLive) player.isLive = true;
+  const parseStatus = $('playerParseStatus');
+  const parseText = $('playerParseText');
+  if (parseStatus) parseStatus.classList.remove('hidden');
+  if (parseText) parseText.textContent = 'Yayın hazırlanıyor…';
   if (typeof Hls === 'undefined' || !Hls.isSupported()) {
     logLine('HLS oynatici yuklenemedi — indirerek izleyebilirsin.', 'error');
     return false;
@@ -3180,6 +3526,7 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
   player.hls = hls;
   hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    if (parseStatus) parseStatus.classList.add('hidden');
     // Kalite listesini HLS seviyeleriyle doldur (Otomatik + her cozunurluk)
     const sel = $('playerQuality');
     if (sel) {
@@ -3258,6 +3605,8 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   hls.attachMedia(video);
   $('playerEmpty').classList.add('hidden');
   if (title) $('playerTitle').textContent = title;
+  const metaEl = $('playerMeta');
+  if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma';
   return true;
 }
 
@@ -3347,6 +3696,7 @@ async function loadSubtitle(path, secondary = false) {
   if (selNow && selNow.value && selNow.value !== path) return;
   const cues = parseSubtitles(res.text);
   if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
+  hideWordInspector();
   if (secondary) {
     player.cues2 = cues;
     player.activeIdx2 = -1;
@@ -3440,6 +3790,13 @@ function setViewMode(mode) {
   layer.classList.add(`mode-${mode}`);
   if (mode !== 'cinema') layer.style.setProperty('--side-w', VIEW_MODES[mode]);
   $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  const sidebarButton = $('playerSidebarToggle');
+  if (sidebarButton) {
+    const shown = mode !== 'cinema' && !layer.classList.contains('sidebar-collapsed');
+    sidebarButton.classList.toggle('active', shown);
+    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
+  }
   try { localStorage.setItem('playerViewMode', mode); } catch (_) {}
   // Mod degisince panel genisligi degisir; aktif satiri yeniden ortala
   setTimeout(highlightCueRow, 60);
@@ -3469,6 +3826,17 @@ $$('.view-modes .vm').forEach((b) => {
   setViewMode(mode);
   if (width) setSideWidth(width);
   bindTranscriptScroll();
+  bindCueListDelegation();
+  const lookupSel = $('wordLookupSource');
+  if (lookupSel) {
+    try {
+      const saved = localStorage.getItem('wordLookupSource');
+      if (saved && WORD_LOOKUP_SOURCES[saved]) lookupSel.value = saved;
+    } catch (_) {}
+    lookupSel.addEventListener('change', () => {
+      try { localStorage.setItem('wordLookupSource', lookupSel.value); } catch (_) {}
+    });
+  }
   loadSubtitleStyle();
   bindSubtitleStyleControls();
   // Ortam isigi ve basili-tut-hizlan tercihleri
@@ -3532,9 +3900,20 @@ if ($('sideResizer')) {
 function setSettingsDrawer(open) {
   const d = $('settingsDrawer');
   if (!d) return;
+  const layer = $('playerLayer');
+  if (open) hideWordInspector();
+  if (open && layer) layer.classList.remove('sidebar-collapsed');
   d.classList.toggle('hidden', !open);
+  if (layer) layer.classList.toggle('settings-open', open);
   const g = $('toggleSettings');
   if (g) g.classList.toggle('active', open);
+  const head = $('playerHeadSettings');
+  if (head) {
+    head.classList.toggle('active', open);
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  const layout = $('playerLayoutQuick');
+  if (layout) layout.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 if ($('toggleSettings')) {
@@ -3544,10 +3923,112 @@ if ($('toggleSettings')) {
 }
 if ($('closeSettings')) $('closeSettings').addEventListener('click', () => setSettingsDrawer(false));
 
+// Trancy tarzı üst hızlı eylemler: aynı oynatıcı yeteneklerini daha görünür
+// noktalara taşır; mevcut alt araçlar ve klavye kısayolları aynen çalışmaya devam eder.
+if ($('playerHeadSettings')) {
+  $('playerHeadSettings').addEventListener('click', () => setSettingsDrawer(true));
+}
+if ($('playerLayoutQuick')) {
+  $('playerLayoutQuick').addEventListener('click', () => {
+    setSettingsDrawer(true);
+    document.querySelector('.player-layout-section .vm')?.focus();
+  });
+}
+function setPlayerSidebarCollapsed(collapsed) {
+  const layer = $('playerLayer');
+  const button = $('playerSidebarToggle');
+  if (!layer) return;
+  const next = !!collapsed;
+  layer.classList.toggle('sidebar-collapsed', next);
+  if (button) {
+    button.classList.toggle('active', !next);
+    button.setAttribute('aria-pressed', next ? 'false' : 'true');
+    button.title = next ? 'Altyazı panelini göster' : 'Altyazı panelini gizle';
+  }
+  if (next) setSettingsDrawer(false);
+  setTimeout(highlightCueRow, 80);
+}
+if ($('playerSidebarToggle')) {
+  $('playerSidebarToggle').addEventListener('click', () => {
+    const layer = $('playerLayer');
+    setPlayerSidebarCollapsed(!layer?.classList.contains('sidebar-collapsed'));
+  });
+}
+if ($('playerHeadFullscreen')) {
+  $('playerHeadFullscreen').addEventListener('click', () => $('fullscreenBtn')?.click());
+}
+if ($('playerBookmark')) {
+  $('playerBookmark').addEventListener('click', toggleCueSaved);
+}
+if ($('playerQuickDownload')) {
+  $('playerQuickDownload').addEventListener('click', () => {
+    setSettingsDrawer(true);
+    const tab = document.querySelector('.tabs .tab[data-ptab="yt"]');
+    if (tab) tab.click();
+    $('playerDownload')?.focus();
+  });
+}
+function openYoutubePanelAndProbe(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) {
+    logLine("YouTube URL'si boş.", 'warn');
+    $('playerQuickYtUrl')?.focus();
+    return;
+  }
+  const hiddenUrl = $('playerYtUrl');
+  if (hiddenUrl) hiddenUrl.value = url;
+  const tab = document.querySelector('.tabs .tab[data-ptab="yt"]');
+  if (tab) tab.click();
+  setSettingsDrawer(true);
+  $('playerProbe')?.click();
+}
+if ($('playerQuickYtLoad')) {
+  $('playerQuickYtLoad').addEventListener('click', () => openYoutubePanelAndProbe($('playerQuickYtUrl')?.value));
+}
+if ($('playerQuickYtUrl')) {
+  $('playerQuickYtUrl').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      openYoutubePanelAndProbe(e.currentTarget.value);
+    }
+  });
+}
+if ($('sideSubtitleLayout')) {
+  $('sideSubtitleLayout').addEventListener('click', () => {
+    setPlayerSidebarCollapsed(false);
+    setSettingsDrawer(true);
+  });
+}
+if ($('sideSubtitleExport')) {
+  $('sideSubtitleExport').addEventListener('click', async () => {
+    if (!player.subPath) {
+      logLine('Önce bir altyazı dosyası yükle.', 'warn');
+      setSettingsDrawer(true);
+      return;
+    }
+    const result = await window.api.openPath(player.subPath);
+    if (result) logLine(`Altyazı açılamadı: ${result}`, 'error');
+  });
+}
+
 // Alt arac cubugu — mevcut kisayollarin gorunur karsiliklari
 if ($('cuePrevBtn')) $('cuePrevBtn').addEventListener('click', () => stepCue(-1));
 if ($('cueNextBtn')) $('cueNextBtn').addEventListener('click', () => stepCue(1));
 if ($('cueReplayBtn')) $('cueReplayBtn').addEventListener('click', replayCue);
+if ($('cueCopyBtn')) $('cueCopyBtn').addEventListener('click', copyCue);
+if ($('cueSaveBtn')) $('cueSaveBtn').addEventListener('click', toggleCueSaved);
+if ($('savedOnlyBtn')) $('savedOnlyBtn').addEventListener('click', toggleSavedOnly);
+if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
+  const search = $('cueSearch');
+  if (!search) return;
+  search.value = '';
+  search.dispatchEvent(new Event('input'));
+  search.focus();
+});
+if ($('closeWordInspector')) $('closeWordInspector').addEventListener('click', hideWordInspector);
+if ($('wordSaveBtn')) $('wordSaveBtn').addEventListener('click', toggleWordSaved);
+if ($('wordCopyBtn')) $('wordCopyBtn').addEventListener('click', copySelectedWord);
+if ($('wordLookupBtn')) $('wordLookupBtn').addEventListener('click', lookupSelectedWord);
 
 if ($('autoFollow')) {
   $('autoFollow').addEventListener('change', (e) => {
@@ -3611,6 +4092,7 @@ if ($('makeSubsBtn')) {
 
 if ($('openPlayer')) $('openPlayer').addEventListener('click', openPlayer);
 if ($('closePlayer')) $('closePlayer').addEventListener('click', closePlayer);
+if ($('playerBack')) $('playerBack').addEventListener('click', closePlayer);
 
 if ($('playerVideo')) {
   const video = $('playerVideo');
@@ -3753,6 +4235,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
   if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replayCue(); return; }
   if (e.key === 'c' || e.key === 'C') { e.preventDefault(); copyCue(); return; }
+  if (e.key === 'k' || e.key === 'K') { e.preventDefault(); toggleCueSaved(); return; }
+  if ((e.key === 'w' || e.key === 'W') && player.selectedWord) { e.preventDefault(); toggleWordSaved(); return; }
   if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
     e.preventDefault(); $('shortcutHelp').classList.toggle('hidden'); return;
   }
@@ -3784,6 +4268,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
   else if (e.key === 'Escape') {
+    if (player.selectedWord) { hideWordInspector(); return; }
     const help = $('shortcutHelp');
     if (help && !help.classList.contains('hidden')) { help.classList.add('hidden'); return; }
     const drawer = $('settingsDrawer');
@@ -3949,7 +4434,9 @@ if ($('cueSearch')) {
     const q = e.target.value.trim().toLowerCase();
     renderCueList(e.target.value);
     renderSeekMarkers(q
-      ? player.cues.filter((c) => c.text.toLowerCase().includes(q)).map((c) => c.start + player.offset)
+      ? player.cues.filter((c) => c.text.toLocaleLowerCase('tr').includes(q)
+          || translationFor(c).toLocaleLowerCase('tr').includes(q))
+          .map((c) => c.start + player.offset)
       : defaultMarkers());
   });
 }
@@ -4001,9 +4488,14 @@ if ($('playerProbe')) {
     if (!url) { logLine('YouTube linki boş.', 'error'); return; }
     $('playerProbe').disabled = true;
     $('playerProbe').textContent = 'Bilgi alınıyor...';
+    const parseStatus = $('playerParseStatus');
+    const parseText = $('playerParseText');
+    if (parseStatus) parseStatus.classList.remove('hidden');
+    if (parseText) parseText.textContent = 'Video bilgisi alınıyor…';
     const res = await window.api.probeYoutube(url);
     $('playerProbe').disabled = false;
     $('playerProbe').textContent = 'Bilgi al';
+    if (parseStatus) parseStatus.classList.add('hidden');
     if (!res || !res.ok) {
       logLine(`Video bilgisi alınamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
       return;

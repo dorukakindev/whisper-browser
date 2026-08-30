@@ -203,6 +203,7 @@ bölüm bağlam sıfırlanarak yeniden çevrilir, yalnızca gerçekten iyileşir
   model indirme (Hugging Face) ve **yalnızca siz açarsanız** LLM düzeltme / çeviri.
 - LLM düzeltme veya çeviri açıkken **altyazı metni** seçtiğiniz API sağlayıcısına
   gönderilir. Bu özellikler varsayılan olarak kapalıdır.
+- **Kelime sözlükte arama** (oynatıcıdaki kelime inceleme panelinde) seçtiğiniz kelimeyi **varsayılan tarayıcınızda** bir sözlük sitesinde açar — Tureng, Vikisözlük, Cambridge veya Google. Uygulama içinden istek atılmaz, yalnızca bağlantı açılır; düğmeye basmadıkça hiçbir şey gönderilmez.
 - API anahtarları ve HF token `%APPDATA%/whisper-altyazi/settings.json` içinde
   **düz metin** olarak saklanır. Anahtarlar komut satırına (argv) hiçbir zaman
   yazılmaz — ortam değişkeniyle geçer, böylece süreç listesinde ve iş
