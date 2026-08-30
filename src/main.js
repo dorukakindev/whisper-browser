@@ -1171,6 +1171,14 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (options.translateOnly) args.push('--translate-only', 'true');
+  // Aciklama modu: tek blok/kelime, baglamiyla birlikte
+  if (options.explain) {
+    args.push('--explain', 'true');
+    args.push('--explain-index', String(options.explainIndex || 0));
+    args.push('--explain-kind', options.explainKind || 'sentence');
+    if (options.explainWord) args.push('--explain-word', options.explainWord);
+    if (options.explainTranslation) args.push('--explain-translation', options.explainTranslation);
+  }
   args.push('--translate-cache', options.translateCache !== false ? 'true' : 'false');
   args.push('--cache-dir', path.join(app.getPath('userData'), 'cache'));
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');

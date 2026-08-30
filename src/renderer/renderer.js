@@ -1520,10 +1520,23 @@ function playerJobEvent(event) {
     if (level) logLine(message, level);
   };
 
+  if (event.type === 'explain') {
+    player.explainCache = player.explainCache || {};
+    if (job.explainKey) player.explainCache[job.explainKey] = event.text;
+    showAiAnswer(job.explainTitle || 'AI', event.text);
+    job.running = false;
+    state.running = false;
+    bar.classList.add('hidden');
+    return;
+  }
   if (event.type === 'status' && event.text) txt.textContent = event.text;
   else if (event.type === 'progress' && typeof event.percent === 'number') {
     fill.style.width = `${Math.min(100, event.percent)}%`;
     txt.textContent = `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
+  } else if (event.type === 'done' && job.kind === 'explain') {
+    job.running = false;
+    state.running = false;
+    bar.classList.add('hidden');
   } else if (event.type === 'done') {
     fill.style.width = '100%';
     const files = (event.files || []).filter((f) => /\.(srt|vtt)$/i.test(f));
@@ -2767,6 +2780,72 @@ function cuesToSrt(cues) {
   return cues.map((c, i) =>
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
+
+// ---- bağlamlı AI açıklaması ----
+// RAG/embedding YOK: dogru baglam zaten elimizde (blogun kendisi, komsulari,
+// mevcut cevirisi, zamani). Uzun videoda tum transcript'i modele gondermek hem
+// pahali hem gereksiz. Model KAYNAK metni ve MEVCUT CEVIRIYI birlikte gorur -
+// yalnizca Turkceyi gorseydi ceviri hatasini gercek bilgi sanabilirdi.
+function showAiAnswer(title, text, loading) {
+  const box = $('aiAnswer');
+  if (!box) return;
+  box.classList.remove('hidden');
+  $('aiAnswerTitle').textContent = title;
+  const body = $('aiAnswerBody');
+  body.textContent = text;
+  body.classList.toggle('is-loading', !!loading);
+  const panel = $('wordInspector');
+  if (panel) panel.classList.remove('hidden');
+}
+
+function explainCacheKey(kind, index, word) {
+  return `${player.subPath}|${kind}|${index}|${word || ''}`;
+}
+
+async function askExplain(kind, index, word) {
+  if (!player.subPath || !player.cues.length) {
+    logLine('Önce bir altyazı yükleyin.', 'error');
+    return;
+  }
+  if (state.running || state.queueRunning) {
+    logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
+    return;
+  }
+  const key = explainCacheKey(kind, index, word);
+  player.explainCache = player.explainCache || {};
+  if (player.explainCache[key]) {                 // ayni soruyu tekrar sorma
+    showAiAnswer(EXPLAIN_TITLES[kind] || 'AI', player.explainCache[key]);
+    return;
+  }
+  const opts = buildOptsFromUI();
+  opts.explain = true;
+  opts.explainIndex = index;
+  opts.explainKind = kind;
+  opts.explainWord = word || '';
+  opts.input = player.subPath;
+  opts.explainTranslation = player.sub2Path || '';
+  opts.translate = true;                          // anahtar dogrulamasi icin
+  delete opts.youtube;
+  const problem = optsProblem(opts);
+  if (problem) { logLine(problem, 'error'); setSettingsDrawer(true); return; }
+
+  state.running = true;
+  player.job = { running: true, mediaKey: player.mediaKey, kind: 'explain',
+                 explainKey: key, explainTitle: EXPLAIN_TITLES[kind] || 'AI' };
+  showAiAnswer(EXPLAIN_TITLES[kind] || 'AI', 'Düşünüyor…', true);
+  const r = await window.api.startTranscribe(opts);
+  if (!r || !r.ok) {
+    state.running = false;
+    player.job = null;
+    showAiAnswer('Hata', (r && r.error) || 'Açıklama alınamadı.');
+  }
+}
+
+const EXPLAIN_TITLES = {
+  sentence: 'Cümle açıklaması',
+  word: 'Kelime açıklaması',
+  better: 'Çeviri değerlendirmesi',
+};
 
 // ---- ortam ışığı (ambient) ----
 // Videonun 32x18'lik kucuk bir kopyasi arkaya cizilir ve CSS ile asiri
@@ -4182,6 +4261,29 @@ if ($('makeTransBtn')) {
       logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
     }
   });
+}
+
+if ($('cueExplainBtn')) {
+  $('cueExplainBtn').addEventListener('click', () => {
+    if (player.activeIdx < 0) { logLine('Önce bir altyazı satırına gelin.', 'warn'); return; }
+    askExplain('sentence', player.activeIdx, '');
+  });
+}
+if ($('cueBetterBtn')) {
+  $('cueBetterBtn').addEventListener('click', () => {
+    if (player.activeIdx < 0) { logLine('Önce bir altyazı satırına gelin.', 'warn'); return; }
+    askExplain('better', player.activeIdx, '');
+  });
+}
+if ($('wordExplainBtn')) {
+  $('wordExplainBtn').addEventListener('click', () => {
+    const sel = player.selectedWord;
+    if (!sel) { logLine('Önce bir kelimeye tıklayın.', 'warn'); return; }
+    askExplain('word', sel.cueIndex, sel.word);
+  });
+}
+if ($('aiAnswerClose')) {
+  $('aiAnswerClose').addEventListener('click', () => $('aiAnswer').classList.add('hidden'));
 }
 
 if ($('openPlayer')) $('openPlayer').addEventListener('click', openPlayer);

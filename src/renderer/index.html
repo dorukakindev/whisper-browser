@@ -989,9 +989,18 @@
             <div class="word-inspector-word" id="wordInspectorWord">—</div>
             <div class="word-inspector-meta" id="wordInspectorMeta"></div>
             <div class="word-inspector-context" id="wordInspectorContext"></div>
+            <div class="ai-answer hidden" id="aiAnswer">
+              <div class="ai-answer-head">
+                <span id="aiAnswerTitle">AI açıklaması</span>
+                <button class="btn-icon side-tool" id="aiAnswerClose" title="Kapat">&times;</button>
+              </div>
+              <div class="ai-answer-body" id="aiAnswerBody"></div>
+            </div>
             <div class="word-inspector-actions">
               <button class="tool-button tool-button-primary" id="wordSaveBtn" title="Kelimeyi koleksiyona ekle (W)"><span>Kelimeyi kaydet</span></button>
               <button class="tool-button tool-button-quiet" id="wordCopyBtn"><span>Kopyala</span></button>
+              <button class="tool-button tool-button-quiet" id="wordExplainBtn"
+                title="Kelimeyi cümledeki anlamıyla açıklat (AI)"><span>AI'ye sor</span></button>
               <button class="tool-button tool-button-quiet" id="wordLookupBtn"
                 title="Kelimeyi TARAYICIDA açar — bu, uygulamadan dışarı çıkan tek işlemdir"><span>Sözlükte ara</span></button>
             </div>
@@ -1029,6 +1038,10 @@
               </label>
             </div>
             <div class="sentence-tools">
+              <button class="tool-button" id="cueExplainBtn"
+                title="Bu cümleyi bağlamıyla açıklat (AI)"><span>Açıkla</span></button>
+              <button class="tool-button" id="cueBetterBtn"
+                title="Bu satırın çevirisini değerlendir, gerekirse daha doğalını öner"><span>Çeviriyi değerlendir</span></button>
               <button class="tool-button tool-button-quiet" id="cueCopyBtn" title="Aktif cümleyi kopyala (C)"><span>Kopyala</span></button>
               <button class="tool-button tool-button-quiet" id="cueSaveBtn" title="Aktif cümleyi kaydet (K)"><span>Kaydet</span></button>
               <label class="mini-toggle" title="Kaynak dili gizle/göster">

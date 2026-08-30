@@ -2373,6 +2373,36 @@ html, body {
   border-left: 2px solid var(--player-cyan);
   border-radius: 0 6px 6px 0;
 }
+.ai-answer {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.ai-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.ai-answer-body {
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ai-answer-body.is-loading { color: var(--text-muted); font-style: italic; }
+
 .word-lookup-src {
   display: flex;
   align-items: center;
