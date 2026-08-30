@@ -1576,6 +1576,7 @@ function playerJobEvent(event) {
 
 window.api.onEvent((event) => {
   playerJobEvent(event);
+  if (event.type === 'done' || event.type === 'error') refreshHistory();
   switch (event.type) {
     case 'log':
       logLine(event.message, event.level || 'info');
@@ -2781,6 +2782,124 @@ function cuesToSrt(cues) {
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
 
+// ---- geçmiş (kütüphane) ----
+// "Bu videoyu daha once cevirmis miydim, hangi modelle, ciktilar nerede?"
+// Kayitlar main tarafinda tutulur (userData/history.json) - renderer yeniden
+// yuklendiginde de, uygulama kapanip acildiginda da durur.
+let historyCache = [];
+
+function historyWhen(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const gun = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const saat = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (gun === 0) return `bugün ${saat}`;
+  if (gun === 1) return `dün ${saat}`;
+  if (gun < 7) return `${gun} gün önce`;
+  return d.toLocaleDateString('tr-TR');
+}
+
+function historyDur(sec) {
+  const s = Math.round(sec || 0);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h ? `${h} sa ${m} dk` : `${m || 1} dk`;
+}
+
+function historyLine(h) {
+  const parts = [];
+  if (h.model) parts.push(h.model);
+  if (h.engine && h.engine !== 'faster') parts.push(h.engine);
+  if (h.perf && h.perf.rtf) parts.push(`${h.perf.rtf}x`);
+  if (h.perf && h.perf.mediaSeconds) parts.push(historyDur(h.perf.mediaSeconds));
+  if (h.segments) parts.push(`${h.segments} blok`);
+  parts.push(historyWhen(h.at));
+  return parts.filter(Boolean).join(' · ');
+}
+
+function renderHistory() {
+  const card = $('historyCard');
+  const list = $('historyList');
+  if (!card || !list) return;
+  const q = ($('historySearch')?.value || '').toLocaleLowerCase('tr');
+  const items = q
+    ? historyCache.filter((h) => (h.title || '').toLocaleLowerCase('tr').includes(q))
+    : historyCache;
+  $('historyCount').textContent = String(historyCache.length);
+  card.classList.toggle('hidden', historyCache.length === 0);
+  list.innerHTML = '';
+  if (!items.length) {
+    const e = document.createElement('div');
+    e.className = 'history-empty';
+    e.textContent = q ? 'Eşleşen kayıt yok.' : 'Henüz iş yok.';
+    list.appendChild(e);
+    return;
+  }
+  items.forEach((h) => {
+    const row = document.createElement('div');
+    row.className = 'history-item' + (h.ok ? '' : ' error');
+    row.dataset.id = h.id;
+
+    const main = document.createElement('div');
+    const t = document.createElement('div');
+    t.className = 'history-title';
+    t.textContent = h.title || 'İsimsiz';
+    t.title = h.input || '';
+    const m = document.createElement('div');
+    m.className = 'history-meta';
+    const badge = document.createElement('span');
+    badge.className = 'history-badge';
+    badge.textContent = h.source === 'youtube' ? 'YouTube' : 'Dosya';
+    m.appendChild(badge);
+    m.appendChild(document.createTextNode(h.ok ? historyLine(h) : (h.error || 'Hata')));
+    main.appendChild(t);
+    main.appendChild(m);
+
+    const acts = document.createElement('div');
+    acts.className = 'history-actions';
+    const mk = (act, label, title, cls) => {
+      const b = document.createElement('button');
+      b.className = cls || 'link-btn';
+      b.dataset.act = act;
+      b.textContent = label;
+      b.title = title;
+      return b;
+    };
+    if (h.ok && (h.files || []).length) {
+      acts.appendChild(mk('play', 'İzle', 'Videoyu ve bu işin altyazısını oynatıcıda aç'));
+      acts.appendChild(mk('folder', 'Klasör', 'Çıktı klasörünü aç'));
+    }
+    acts.appendChild(mk('del', '×', 'Bu kaydı listeden sil (dosyalar silinmez)'));
+    row.appendChild(main);
+    row.appendChild(acts);
+    list.appendChild(row);
+  });
+}
+
+async function refreshHistory() {
+  try {
+    historyCache = (await window.api.listHistory()) || [];
+  } catch (_) {
+    historyCache = [];
+  }
+  renderHistory();
+}
+
+function openHistoryItem(h) {
+  const subs = (h.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
+  if (h.source === 'youtube') {
+    // Yayin acilinca altyazi baglansin diye ONCE bekleyen listeye koy.
+    player.pendingSubs = { key: mediaKeyFor('youtube', h.input), files: subs };
+    $('playerLayer').classList.remove('hidden');
+    openYoutubePanelAndProbe(h.input);
+    logLine('YouTube videosu hazırlanıyor — "Yayını aç" ile izleyebilirsiniz.', 'info');
+    return;
+  }
+  state.lastJobVideo = h.video || null;
+  state.outputFiles = (h.files || []).slice();
+  openPlayer();
+}
+
 // ---- bağlamlı AI açıklaması ----
 // RAG/embedding YOK: dogru baglam zaten elimizde (blogun kendisi, komsulari,
 // mevcut cevirisi, zamani). Uzun videoda tum transcript'i modele gondermek hem
@@ -3491,6 +3610,22 @@ function setMediaKey(key) {
   player.resumeOffered = false;
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
   resetMediaBoundState();
+  // Gecmisten "Izle" ile gelindiyse o isin altyazilari, kaynak acildiktan
+  // SONRA baglanir: setMediaKey medyaya bagli her seyi sifirlar, once
+  // eklenseydi burada silinirdi. Anahtar kontrolu, kullanici arada baska bir
+  // video acarsa yanlis altyazinin yapismasini onler.
+  const pend = player.pendingSubs;
+  if (pend && (!pend.key || pend.key === player.mediaKey)) {
+    player.pendingSubs = null;
+    setTimeout(() => {
+      pend.files.forEach((f) => addSubtitleOption(f));
+      if (pend.files.length) {
+        const sel = $('playerSubSelect');
+        if (sel) sel.value = pend.files[0];
+        loadSubtitle(pend.files[0]);
+      }
+    }, 0);
+  }
   loadSavedCues();
   loadSavedWords();
   updateCueMeta();
@@ -4260,6 +4395,33 @@ if ($('makeTransBtn')) {
       if (bar) bar.classList.add('hidden');
       logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
     }
+  });
+}
+
+if ($('historyList')) {
+  $('historyList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.closest('.history-item')?.dataset.id;
+    const h = historyCache.find((x) => x.id === id);
+    if (!h) return;
+    if (btn.dataset.act === 'play') openHistoryItem(h);
+    else if (btn.dataset.act === 'folder') {
+      const f = (h.files || [])[0];
+      if (f) window.api.openPath(f.replace(/[\\/][^\\/]+$/, ''));
+    } else if (btn.dataset.act === 'del') {
+      await window.api.removeHistory(id);
+      refreshHistory();
+    }
+  });
+}
+refreshHistory();
+if ($('historySearch')) $('historySearch').addEventListener('input', renderHistory);
+if ($('historyClear')) {
+  $('historyClear').addEventListener('click', async () => {
+    if (!historyCache.length) return;
+    await window.api.clearHistory();
+    refreshHistory();
   });
 }
 

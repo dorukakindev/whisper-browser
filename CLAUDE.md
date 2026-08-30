@@ -104,7 +104,7 @@ Sıra: girdi (yerel dosya / yt-dlp ile YouTube) → ffmpeg ile 16kHz mono WAV ç
 HF token ve LLM API key **argv'den değil ortam değişkeninden** geçer (`WHISPER_HF_TOKEN`, `WHISPER_LLM_API_KEY`) — süreç listesinde görünmesin diye. main.js bunları `spawn` env'ine koyar; transcribe.py `main()` sonunda argv boşsa env'den okur. Yeni gizli alan eklersen aynı kalıbı izle.
 
 ### Kalıcılık
-İki ayrı dosya, `app.getPath('userData')` altında: `settings.json` (sözlük, HF token, LLM ayarları, çıktı klasörü, preset, tüm UI kontrolleri) ve `window-state.json` (pencere boyutu/maximized — pozisyon kasıtlı saklanmaz). Renderer'da ayar yazımı `scheduleSave()` ile debounce edilir; `_applyingSettings` bayrağı yükleme sırasında geri-kaydetmeyi önler.
+Üç ayrı dosya, `app.getPath('userData')` altında: `settings.json` (sözlük, HF token, LLM ayarları, çıktı klasörü, preset, tüm UI kontrolleri), `history.json` (iş geçmişi: başlık, kaynak, çıktı dosyaları, `perf` özeti — main'de `recordJob()` yazar; ayarlardan AYRI dosya, çünkü ayar yazımı debounce'lu ve sık) ve `window-state.json` (pencere boyutu/maximized — pozisyon kasıtlı saklanmaz). Renderer'da ayar yazımı `scheduleSave()` ile debounce edilir; `_applyingSettings` bayrağı yükleme sırasında geri-kaydetmeyi önler.
 
 ### Kuyruk
 `renderer.js`'te `state.queue`. Her item EKLENME anında `buildOptsFromUI()` ile ayarlarını **dondurur** (`item.opts`) — kuyruk işlenirken UI değişse bile her iş kendi ayarıyla çalışır. Kuyruk ilerleyişi tek-iş UI'ını yeniden kullanır; `done`/`error`/`exit` olaylarında `processNextQueueItem()` tetiklenir.

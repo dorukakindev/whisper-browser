@@ -744,6 +744,19 @@
           </div>
           <div class="queue-list" id="queueList"></div>
         </div>
+
+        <!-- GEÇMİŞ -->
+        <div class="card hidden" id="historyCard">
+          <div class="card-head">
+            <h2>Geçmiş · <span id="historyCount">0</span></h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="search" id="historySearch" class="preview-search" placeholder="Ara..."
+                     aria-label="Geçmişte ara" />
+              <button class="link-btn" id="historyClear" title="Tüm geçmiş kayıtlarını sil (dosyalara dokunmaz)">Temizle</button>
+            </div>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </div>
       </section>
 
       <!-- RIGHT PANEL -->

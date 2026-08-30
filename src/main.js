@@ -487,6 +487,43 @@ function saveSettings(s) {
   }
 }
 
+// ---- İş geçmişi (ayrı dosya — settings.json'ı şişirmesin) ----
+// Amac: "bu videoyu daha once cevirmis miydim, hangi modelle, ne kadar surdu,
+// ciktilar nerede?" sorusu. Ayarlarla ayni dosyada tutulsa ayar yazan her
+// debounce kaydi gecmisi de yeniden yazardi.
+const HISTORY_LIMIT = 300;
+
+function historyPath() {
+  return path.join(app.getPath('userData'), 'history.json');
+}
+
+function loadHistory() {
+  try {
+    const list = JSON.parse(fs.readFileSync(historyPath(), 'utf-8'));
+    return Array.isArray(list) ? list : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveHistory(list) {
+  try {
+    fs.mkdirSync(path.dirname(historyPath()), { recursive: true });
+    fs.writeFileSync(historyPath(), JSON.stringify(list.slice(0, HISTORY_LIMIT), null, 2), 'utf-8');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Ayni medya tekrar islenirse ESKI kayit silinir: gecmis "en son ne yaptim"
+// listesi, ayni filmin on kopyasi degil.
+function addHistory(rec) {
+  const list = loadHistory().filter((h) => !(h.input && rec.input && h.input === rec.input));
+  list.unshift(rec);
+  saveHistory(list);
+}
+
 // ---- Pencere boyutu hatırlama (ayrı dosya — settings.json'a karışmaz) ----
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -721,6 +758,18 @@ ipcMain.handle('dialog:openFolder', async () => {
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
+});
+
+ipcMain.handle('history:list', async () => loadHistory());
+
+ipcMain.handle('history:remove', async (_event, id) => {
+  saveHistory(loadHistory().filter((h) => h.id !== id));
+  return { ok: true };
+});
+
+ipcMain.handle('history:clear', async () => {
+  saveHistory([]);
+  return { ok: true };
 });
 
 ipcMain.handle('shell:openPath', async (_event, p) => {
@@ -1041,6 +1090,31 @@ function resolvePython() {
   return 'python';
 }
 
+// Bir isin sonucunu gecmise yazar. Baslik once URETILEN dosyadan alinir:
+// YouTube'da yt-dlp dosyayi video basligiyla adlandirir, girdi URL'i ise
+// "watch?v=..." gibi okunmaz bir seydir.
+function recordJob(meta, event) {
+  const files = Array.isArray(event.files) ? event.files : [];
+  const base = files[0] || meta.input;
+  const title = base ? String(base).split(/[\\/]/).pop().replace(/\.[^.]+$/, '') : 'İsimsiz';
+  addHistory({
+    id: `${meta.startedAt}-${Math.random().toString(36).slice(2, 8)}`,
+    at: new Date().toISOString(),
+    title,
+    source: meta.source,
+    input: meta.input,
+    video: meta.video,
+    files,
+    model: meta.model,
+    engine: meta.engine,
+    segments: event.segments || 0,
+    language: event.language || '',
+    perf: event.perf || null,
+    ok: event.type === 'done',
+    error: event.type === 'error' ? String(event.message || '') : '',
+  });
+}
+
 ipcMain.handle('transcribe:start', async (_event, options) => {
   if (activeJob) {
     return { ok: false, error: 'Zaten bir iş çalışıyor.' };
@@ -1193,6 +1267,18 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
 
   startJobLog(options.youtube || options.input || 'is', args);
 
+  // Gecmise yazmak icin isin baglami; 'done'/'error' olayinda kullanilir.
+  // Aciklama (--explain) ve on-izleme isleri gecmise GIRMEZ: cikti uretmezler.
+  const jobMeta = {
+    startedAt: Date.now(),
+    input: options.youtube || options.input || '',
+    source: options.youtube ? 'youtube' : 'local',
+    video: options.youtube ? '' : (options.input || ''),
+    model: options.model || '',
+    engine: options.engine || '',
+    skip: !!options.explain,
+  };
+
   try {
     activeJob = spawn(pythonPath, args, { env, cwd: appDir });
   } catch (err) {
@@ -1226,6 +1312,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
         if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused()) {
           mainWindow.flashFrame(true);
         }
+      }
+      if ((event.type === 'done' || event.type === 'error') && !jobMeta.skip) {
+        recordJob(jobMeta, event);
+        jobMeta.skip = true;              // tek is = tek kayit
       }
       writeJobLog(event);
       sendEvent(event);

@@ -95,6 +95,9 @@ oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebil
 - **Kalıcı iş günlükleri** — her iş `%APPDATA%/whisper-altyazi/logs` altına ayrı dosyaya yazılır (ayarlar, aşamalar, kalite raporu, uyarılar, hata izleri); Günlük panelindeki "Kayıtlı günlükler" ile açılır, en yeni 100 dosya tutulur
 - **Kuyruk uyarı özeti** — toplu işlem bitince hangi dosyaların elle kontrol istediği (alfabe karışması, şüpheli zaman damgası, noktalama uyarısı) tek listede özetlenir
 - **Kuyruk: "sırada dur"** — çalışan işi kesmeden kuyruğu mevcut iş bitince durdur
+- **Geçmiş (kütüphane)** — biten her iş kaydedilir: başlık, model/motor, gerçek zaman katsayısı, süre, blok sayısı ve üretilen dosyalar. Listeden tek tıkla oynatıcıda aç (o işin altyazısı yüklü gelir) veya çıktı klasörünü aç. Aynı video tekrar işlenirse kayıt tazelenir, kopya birikmez
+- **İş sonu performans özeti** — model/motor/cihaz, ses süresi, işlem süresi, gerçek zaman katsayısı (RTF) ve düşük güvenli kelime sayısı günlüğe yazılır. "Hangi model benim videolarımda gerçekten daha iyi?" sorusu ancak ölçümle cevaplanır
+- **Bağlamlı AI açıklaması** (oynatıcıda) — bir cümleyi ya da kelimeyi *o sahnedeki* anlamıyla açıklatır; çeviriyi değerlendirip daha doğal bir alternatif önerir. Modele cümlenin kendisi, mevcut çevirisi, iki önceki/sonraki satır ve zaman bilgisi gider (çeviri API'si açıksa)
 - **Ayar dışa/içe aktarma** — tüm yapılandırmayı dosyaya kaydet/yükle (içerik türü profilleri)
 - **VRAM uyarısı** — seçili model+compute+diarization GPU belleğini aşacaksa rozette önceden uyarır
 - **Aşama süreleri** — her işlem aşamasının (model yükleme, transkripsiyon, yazma) süresi ilerleme listesinde görünür
@@ -212,7 +215,8 @@ bölüm bağlam sıfırlanarak yeniden çevrilir, yalnızca gerçekten iyileşir
   yazılmaz — ortam değişkeniyle geçer, böylece süreç listesinde ve iş
   günlüklerinde görünmezler.
 - İş günlükleri `%APPDATA%/whisper-altyazi/logs/` altındadır ve eskiler otomatik
-  temizlenir.
+  temizlenir. İş geçmişi (`history.json`) yalnızca **yerel** tutulur: başlık, dosya
+  yolları ve ölçümler; hiçbir yere gönderilmez, arayüzden tek tık ile silinir.
 
 ## Geliştirme
 
