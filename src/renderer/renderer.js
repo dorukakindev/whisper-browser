@@ -2948,6 +2948,78 @@ function openHistoryItem(h) {
   openPlayer();
 }
 
+// ---- izlerken cumle birlestirme (CANLI) ----
+// Backend'deki merge_continuation_lines ile AYNI kurallar, ama burada yuklu
+// altyaziya aninda uygulanir ve DOSYA degismez. Oynatirken acip kapatarak
+// farki gorebilmek icin ham hali saklanir.
+const CONT_MARKS = ['…', '...'];
+
+function stripCont(t, atStart) {
+  let s = String(t || '').trim();
+  for (;;) {
+    if (atStart && s.startsWith('...')) s = s.slice(3).trimStart();
+    else if (atStart && s.startsWith('…')) s = s.slice(1).trimStart();
+    else if (!atStart && s.endsWith('...')) s = s.slice(0, -3).trimEnd();
+    else if (!atStart && s.endsWith('…')) s = s.slice(0, -1).trimEnd();
+    else return s;
+  }
+}
+
+function endsSentence(t) {
+  return /[.!?…。！？]["'”’)\]]*$/.test(String(t || '').trim());
+}
+
+function mergeCueContinuation(cues, maxGap = 3.0) {
+  if (!Array.isArray(cues) || cues.length < 2) return cues;
+  const DIALOG = ['-', '—', '–', '[', '(', '♪', '*'];
+  const out = [];
+  for (const c of cues) {
+    const txt = String(c.text || '').trim();
+    if (!txt) continue;
+    if (!out.length) { out.push({ ...c, text: txt }); continue; }
+    const prev = out[out.length - 1];
+    const gap = c.start - prev.end;
+    const devam = CONT_MARKS.some((m) => txt.startsWith(m))
+      || CONT_MARKS.some((m) => prev.text.endsWith(m));
+    const yarim = !endsSentence(prev.text);
+    const kuyruk = stripCont(txt, true);
+    const birlesik = `${stripCont(prev.text, false)} ${kuyruk}`.trim();
+    const kisaKuyruk = kuyruk.length <= 45;
+    const ustKrk = kisaKuyruk ? 170 : 120;
+    const ustSure = kisaKuyruk ? 13 : 10;
+    if ((devam || yarim)
+        && !DIALOG.some((d) => txt.startsWith(d))
+        && !DIALOG.some((d) => prev.text.startsWith(d))
+        && gap >= -0.05 && gap <= maxGap
+        && birlesik.length <= ustKrk
+        && (c.end - prev.start) <= ustSure) {
+      prev.end = c.end;
+      prev.text = birlesik;
+    } else {
+      out.push({ ...c, text: txt });
+    }
+  }
+  return out;
+}
+
+function resetCueRaw() {
+  player.cuesRaw = null;
+  player.cues2Raw = null;
+}
+
+function applyCueMerge() {
+  const on = !!player.mergeCont;
+  if (!player.cuesRaw) player.cuesRaw = player.cues;
+  if (!player.cues2Raw) player.cues2Raw = player.cues2;
+  player.cues = on ? mergeCueContinuation(player.cuesRaw) : player.cuesRaw;
+  player.cues2 = on ? mergeCueContinuation(player.cues2Raw) : player.cues2Raw;
+  player.activeIdx = -1;
+  player.activeIdx2 = -1;
+  renderCueList();
+  renderCue();
+  updateCueMeta();
+}
+
 // ---- AI sohbet (yan panel sekmesi) ----
 // --explain sabit uc soru turuyle sinirliydi; burada kullanici ne isterse
 // sorabiliyor ve konusma cok turlu ilerliyor. Baglam yine RAG'siz: o anki
@@ -3683,6 +3755,8 @@ function maybeOfferResume() {
 function resetMediaBoundState() {
   player.cues = [];
   player.cues2 = [];
+  player.cuesRaw = null;
+  player.cues2Raw = null;
   player.activeIdx = -1;
   player.activeIdx2 = -1;
   player.subPath = '';
@@ -4111,12 +4185,14 @@ async function loadSubtitle(path, secondary = false) {
   if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
   hideWordInspector();
   if (secondary) {
-    player.cues2 = cues;
+    player.cues2Raw = cues;                 // ham hali: birlestirme kapatilinca geri donulur
+    player.cues2 = player.mergeCont ? mergeCueContinuation(cues) : cues;
     player.activeIdx2 = -1;
     player.sub2Path = path;
     renderCueList($('cueSearch') ? $('cueSearch').value : '');   // kartlara ceviri satiri gelsin
   } else {
-    player.cues = cues;
+    player.cuesRaw = cues;
+    player.cues = player.mergeCont ? mergeCueContinuation(cues) : cues;
     player.activeIdx = -1;
     player.subPath = path;
     player.subRaw = res.text;
@@ -4663,6 +4739,34 @@ if ($('historyClear')) {
     if (!historyCache.length) return;
     await window.api.clearHistory();
     refreshHistory();
+  });
+}
+
+// --- arac cubugu gizle/goster ---
+if ($('toolsToggle')) {
+  const uygula = (acik) => {
+    $('toolsToggle').setAttribute('aria-expanded', acik ? 'true' : 'false');
+    document.querySelector('.side-bottom')?.classList.toggle('tools-collapsed', !acik);
+    try { localStorage.setItem('playerToolsOpen', acik ? '1' : '0'); } catch (_) {}
+    setTimeout(highlightCueRow, 60);
+  };
+  let acik = true;
+  try { acik = localStorage.getItem('playerToolsOpen') !== '0'; } catch (_) {}
+  uygula(acik);
+  $('toolsToggle').addEventListener('click', () => {
+    uygula($('toolsToggle').getAttribute('aria-expanded') !== 'true');
+  });
+}
+
+// --- izlerken cumle birlestirme ---
+if ($('playerMergeCont')) {
+  try { player.mergeCont = localStorage.getItem('playerMergeCont') === '1'; } catch (_) {}
+  $('playerMergeCont').checked = !!player.mergeCont;
+  $('playerMergeCont').addEventListener('change', (e) => {
+    player.mergeCont = e.target.checked;
+    try { localStorage.setItem('playerMergeCont', player.mergeCont ? '1' : '0'); } catch (_) {}
+    applyCueMerge();
+    osd(player.mergeCont ? 'Cümleler birleştirildi' : 'Cümle birleştirme kapalı');
   });
 }
 

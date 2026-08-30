@@ -591,6 +591,16 @@ function createWindow() {
     // Pozisyon kasıtlı olarak geri yüklenmiyor (ekran-dışı pencere riskini önlemek için)
     width: initW,
     height: initH,
+    // Isletim sistemi baslik cubugu gizlenir: uygulamanin kendi basligi zaten
+    // var, ustte ikinci bir "Whisper Altyazi" seridi gereksiz - ozellikle
+    // izleme modunda dikkat dagitiyor. Pencere dugmeleri overlay olarak
+    // kalir (yoksa pencere kapatilamaz).
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#0f1115',
+      symbolColor: '#c9ced6',
+      height: 34,
+    },
     minWidth: 940,
     minHeight: 680,
     backgroundColor: '#0b0f17',

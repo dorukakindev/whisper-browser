@@ -49,6 +49,19 @@ html, body {
 }
 
 /* ===== Header ===== */
+/* Isletim sistemi baslik cubugu gizli (main.js titleBarStyle:'hidden').
+   Pencere yine SURUKLENEBILIR olmali ve pencere dugmelerinin (kucult/buyut/
+   kapat) uzerine icerik binmemeli: `env(titlebar-area-width)` Electron'un
+   overlay icin ayirdigi genisligi verir. Tarayicida (harness) tanimsizdir,
+   yedek deger 100vw ile dolgu 0'a duser. */
+.app-header, .player-head { -webkit-app-region: drag; }
+.app-header button, .app-header input, .app-header select, .app-header a,
+.app-header .gpu-badge, .player-head button, .player-head input,
+.player-head select { -webkit-app-region: no-drag; }
+.app-header, .player-head {
+  padding-right: calc(100vw - env(titlebar-area-width, 100vw) + 16px);
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -1930,14 +1943,42 @@ html, body {
 .player-layer.hide-src #subtitleOverlay { display: none; }
 .player-layer.hide-tr #subtitleOverlay2 { display: none; }
 
-.back-to-active {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 104px;
-  z-index: 2;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+/* "Aktif satira don" artik ARAC CUBUGUNDA duruyor. Eskiden altyazi listesinin
+   ustunde mutlak konumlu yuzuyordu ve okunan satiri kapatiyordu. */
+.tools-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 26px;
 }
+.tools-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 2px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+}
+.tools-toggle:hover { color: var(--text); }
+.tools-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .16s ease;
+}
+.tools-toggle[aria-expanded="true"] .tools-caret { transform: rotate(90deg); }
+.side-bottom.tools-collapsed #sentenceTools { display: none; }
 
 /* --- alt arac cubugu --- */
 .side-bottom {

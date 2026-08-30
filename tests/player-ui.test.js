@@ -251,7 +251,65 @@ test('tek tık "altyazı + çeviri" kalıcı ayarı değiştirmiyor', () => {
     'is baslamazsa bayrak temizlenmiyor — sonraki ise sizar');
 });
 
-// ---- 12. ses çubuğu koyu temaya uygun ----
+// ---- 12. araç çubuğu ve aktif satır ----
+test('"Aktif satıra dön" altyazının üstünde yüzmüyor', () => {
+  // Eskiden .back-to-active mutlak konumlu, listenin ustunde duruyordu ve
+  // okunan satiri kapatiyordu. Artik arac cubugu seridinde normal bir dugme.
+  assert(/id="backToActive"/.test(layer), 'dugme yok');
+  const i = layer.indexOf('id="backToActive"');
+  const once = layer.slice(Math.max(0, i - 400), i);
+  assert(/class="tools-head"/.test(once),
+    'dugme tools-head seridinde degil — eski yuzen konumuna donmus olabilir');
+  assert(!/\.back-to-active\s*\{[^}]*position:\s*absolute/.test(css),
+    'mutlak konumlandirma kurali hala duruyor');
+});
+
+test('araç bloğu gizlenip açılabiliyor', () => {
+  assert(/id="toolsToggle"/.test(layer), 'gizleme dugmesi yok');
+  assert(/id="sentenceTools"/.test(layer), 'gizlenecek kapsayici yok');
+  assert(/\.side-bottom\.tools-collapsed #sentenceTools\s*\{[^}]*display:\s*none/.test(css),
+    'gizleme kurali yok');
+  const i = js.indexOf("$('toolsToggle').addEventListener");
+  assert(i > 0, 'gizleme dinleyicisi yok');
+  assert(/playerToolsOpen/.test(js), 'durum kalici degil (localStorage yok)');
+});
+
+// ---- 13. işletim sistemi başlık çubuğu ----
+test('OS başlık çubuğu gizli ama pencere kullanılabilir', () => {
+  const main = fs.readFileSync(path.join(SRC, '..', 'main.js'), 'utf-8');
+  assert(/titleBarStyle:\s*'hidden'/.test(main), 'baslik cubugu gizlenmemis');
+  // Overlay SART: yoksa kucult/buyut/kapat dugmeleri kaybolur.
+  assert(/titleBarOverlay:\s*\{/.test(main), 'pencere dugmeleri overlay yok — pencere kapatilamaz');
+  // Pencere sürüklenebilir kalmali
+  assert(/-webkit-app-region:\s*drag/.test(css), 'surukleme bolgesi yok — pencere tasinamaz');
+  assert(/-webkit-app-region:\s*no-drag/.test(css), 'dugmeler surukleme bolgesinden ayrilmamis');
+  // Icerik pencere dugmelerinin altina girmemeli
+  assert(/env\(titlebar-area-width/.test(css),
+    'baslik alani genisligi hesaba katilmamis — ust sagdaki dugmeler ortulur');
+});
+
+// ---- 14. izlerken canlı cümle birleştirme ----
+test('oynatıcıda cümle birleştirme anahtarı var ve dosyayı değiştirmiyor', () => {
+  assert(/id="playerMergeCont"/.test(layer), 'oynaticida anahtar yok');
+  assert(/function mergeCueContinuation/.test(js), 'canli birlestirme fonksiyonu yok');
+  // Ham kopya SART: kapatinca geri donulebilmeli
+  assert(/player\.cuesRaw/.test(js), 'ham kopya tutulmuyor — kapatinca geri donulemez');
+  const i = js.indexOf('function applyCueMerge');
+  assert(i > 0, 'applyCueMerge yok');
+  const body = js.slice(i, js.indexOf('\n}', i));
+  assert(/player\.cues = on \? mergeCueContinuation\(player\.cuesRaw\) : player\.cuesRaw/.test(body),
+    'kapaliyken ham liste geri verilmiyor');
+});
+
+test('canlı birleştirme backend ile aynı kuralları kullanıyor', () => {
+  const i = js.indexOf('function mergeCueContinuation');
+  const body = js.slice(i, i + 1400);
+  assert(/CONT_MARKS/.test(body), '"…" devam isareti yorumu yok');
+  assert(/45/.test(body), 'kisa kuyruk esigi (45 krk) yok');
+  assert(/DIALOG/.test(body), 'diyalog korumasi yok');
+});
+
+// ---- 15. ses çubuğu koyu temaya uygun ----
 test('ses çubuğu tarayıcının varsayılan görünümünü kullanmıyor', () => {
   const i = css.indexOf('.player-volume {');
   assert(i > 0, '.player-volume kurali yok');

@@ -1074,12 +1074,17 @@
               </select>
             </label>
           </div>
-          <button class="btn btn-primary btn-sm back-to-active hidden" id="backToActive">
-            Aktif satıra dön
-          </button>
-
-          <!-- ALT: cumle araclari -->
+          <!-- ALT: cumle araclari (gizlenebilir) -->
           <div class="side-bottom">
+            <div class="tools-head">
+              <button class="tools-toggle" id="toolsToggle" aria-expanded="true"
+                aria-controls="sentenceTools" title="Araç çubuğunu gizle/göster">
+                <span class="tools-caret" aria-hidden="true"></span><span>Araçlar</span>
+              </button>
+              <button class="tool-button tool-button-primary hidden" id="backToActive"
+                title="Aktif altyazı satırına geri dön">Aktif satıra dön</button>
+            </div>
+            <div id="sentenceTools">
             <div class="job-bar hidden" id="playerJobBar">
               <span id="playerJobText">Hazırlanıyor…</span>
               <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
@@ -1116,6 +1121,7 @@
               <button class="btn btn-primary btn-sm action-button" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
               <button class="btn btn-secondary btn-sm action-button" id="makeTransBtn"
                 title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
+            </div>
             </div>
           </div>
 
@@ -1194,6 +1200,14 @@
               <select id="playerSubSelect2"><option value="">Kapalı</option></select>
             </label>
             <div class="player-panel-title" style="margin-top:14px">Görünüm</div>
+            <label class="field switch-field">
+              <input type="checkbox" id="playerMergeCont" />
+              <span>Cümleleri birleştir — sonraki satıra taşan cümleyi tek satırda göster</span>
+            </label>
+            <div class="hint" style="margin:-2px 0 10px">
+              İzlerken anında uygulanır, dosyayı değiştirmez. Yeni altyazı üretirken de
+              geçerli olsun isterseniz Gelişmiş ayarlar → Metin işleme'deki aynı seçeneği açın.
+            </div>
             <label class="field">
               <span class="field-label">Yazı boyutu: <span class="value" id="subSizeVal">28</span>px</span>
               <input type="range" id="subSize" min="14" max="56" step="1" value="28" />
