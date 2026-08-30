@@ -1924,6 +1924,15 @@ html, body {
 }
 .mini-toggle input { margin: 0; }
 
+/* Onay kutulari ve radyolar tarayicinin varsayilan MAVI'siyle geliyordu -
+   kehribar/koyu temanin ortasinda sirittiklari icin renklendirildi.
+   accent-color, yerli davranisi ve erisilebilirligi bozmadan yalnizca rengi
+   degistirir (tam ozel cizim klavye/okuyucu davranisini riske atardi). */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+.player-layer input[type="checkbox"], .player-layer input[type="radio"] {
+  accent-color: var(--player-amber);
+}
+
 /* --- ayar cekmecesi (eski paneller) --- */
 .drawer-head {
   display: flex;
@@ -2336,6 +2345,18 @@ html, body {
 .tool-glyph { font-size: 14px; line-height: 1; }
 .mini-toggle { padding: 6px 8px; color: #aebbc5; font-size: 10px; background: #0d141b; border: 1px solid #202c37; border-radius: 7px; }
 .action-button { min-height: 34px; padding: 7px 10px; border-radius: 8px; }
+
+/* Ayni satirdaki dugmeler iki farkli aileden geliyor (.tool-button ile
+   .btn.action-button) ve yukseklikleri 31 / 33 / 43px olarak farkli cikiyordu:
+   "Altyazi olustur" dar kaldigi icin iki satira kiriliyor ve komsulariyla
+   hizasi kaciyordu. Satiri tek olcuye sabitle, etiketleri kirma. */
+.sentence-tools .tool-button,
+.sentence-tools .action-button,
+.sentence-tools .mini-toggle {
+  min-height: 32px;
+  height: 32px;
+  white-space: nowrap;
+}
 #makeSubsBtn { box-shadow: 0 5px 16px rgba(228, 168, 93, .16); }
 .settings-drawer { padding: 18px; background: #10161e; }
 .drawer-head { margin: -18px -18px 0; padding: 17px 18px 12px; background: #10161e; border-color: #263440; }
@@ -2614,7 +2635,10 @@ html, body {
 .side-langs { min-height: 22px; }
 .lang-chip { color: #aaaab0; background: #1b1b1c; border-color: #2c2c2e; }
 .lang-chip-tr { color: var(--player-cyan); background: rgba(155,215,208,.10); border-color: rgba(155,215,208,.22); }
-.side-toolrow input[type=search] { height: 36px; background: #141415; border-color: #29292b; border-radius: 10px; }
+/* Arama kutusu 36px, yanindaki iki simge dugmesi 32 ve 28px'di - satir
+   basamakli duruyordu. Ucunu de ayni yukseklige getir. */
+.side-toolrow input[type=search] { height: 34px; background: #141415; border-color: #29292b; border-radius: 10px; }
+.side-toolrow .btn-icon { width: 34px; height: 34px; flex: 0 0 34px; }
 .transcript-progress { background: #202022; }
 .transcript-progress span { background: var(--player-amber); }
 .transcript { padding: 12px 0 8px; scrollbar-color: #343437 transparent; }

@@ -2467,8 +2467,11 @@ function renderCue() {
     // yalnizca normal oynatma adimi (0 < dt < 1 sn) gecis sayilir.
     const dt = player.lastT === undefined ? -1 : t - player.lastT;
     if (player.autoPause && !video.paused && dt > 0 && dt < 1.0) {
-      // Bitisini gectigimiz blogu ONCEKI zamana gore bul (i artik -1 olabilir)
-      const j = i >= 0 ? i : findCueAt(player.cues, player.lastT, player.activeIdx);
+      // Bitisini gectigimiz blogu HER ZAMAN onceki zamana gore bul.
+      // Eskiden `i >= 0 ? i : ...` yaziyordu: tik boslugu atlayip sonraki
+      // blogun icine dustugunde (250 ms tik / 80 ms bosluk -> cogu zaman)
+      // gecis YANLIS blogun sonuna gore sinaniyor ve duraklatma kaciriliyordu.
+      const j = findCueAt(player.cues, player.lastT, player.activeIdx);
       if (j >= 0 && player.lastT < player.cues[j].end && t >= player.cues[j].end) {
         video.pause();
         // Kullanici geri sarip ayni blogu tekrar dinlerse YINE dursun diye

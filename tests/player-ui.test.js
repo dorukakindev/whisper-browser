@@ -142,7 +142,49 @@ for (const fn of ['setViewMode', 'setPlayerSidebarCollapsed']) {
   });
 }
 
-// ---- 6. ses çubuğu koyu temaya uygun ----
+// ---- 6. otomatik dur ----
+test('otomatik dur geçişi ÖNCEKİ zamanın bloğuna göre sınanıyor', () => {
+  const i = js.indexOf('player.autoPause && !video.paused');
+  assert(i > 0, 'otomatik dur blogu bulunamadi');
+  const body = js.slice(i, i + 900);
+  // timeupdate ~250 ms'de bir tetiklenir, bloklar arasi bosluk ~80 ms. Tik
+  // cogu zaman boslugu atlayip SONRAKI blogun icine duser; o an mevcut
+  // indeksi kullanmak gecisi yanlis blogun sonuna gore sinar ve duraklatma
+  // kacirilir. Gecis her zaman lastT'nin blogu uzerinden sinanmali.
+  assert(!/const j = i >= 0 \? i :/.test(body),
+    'gecis mevcut indekse guveniyor — tik boslugu atlayinca duraklatma kacar');
+  assert(/const j = findCueAt\(player\.cues,\s*player\.lastT/.test(body),
+    'gecis lastT blogundan hesaplanmiyor');
+  assert(/dt > 0 && dt < 1/.test(body),
+    'ileri/geri sarma korumasi (dt) kaybolmus — sarmada da duraklatir');
+});
+
+// ---- 7. satır hizası ve tema ----
+test('cümle araçları satırı tek ölçüde', () => {
+  const i = css.indexOf('.sentence-tools .tool-button');
+  assert(i > 0, 'satir yukseklik kurali yok');
+  const body = css.slice(i, css.indexOf('}', i));
+  assert(/height:\s*32px/.test(body), 'sabit yukseklik yok — dugmeler 31/33/43px olur');
+  assert(/white-space:\s*nowrap/.test(body),
+    'etiket kirilabiliyor — "Altyazi olustur" iki satira dusup hizayi bozar');
+});
+
+test('arama satırındaki simge düğmeleri kutuyla aynı yükseklikte', () => {
+  assert(/\.side-toolrow \.btn-icon\s*\{[^}]*height:\s*34px/.test(css),
+    '.side-toolrow .btn-icon yukseklik kurali yok — satir basamakli gorunur');
+  assert(/\.side-toolrow input\[type=search\][^}]*height:\s*34px/.test(css),
+    'arama kutusu 34px degil');
+});
+
+test('onay kutuları temaya boyanmış (tarayıcı mavisi değil)', () => {
+  // Genel kural: oynatıcıya özel olan bunu maskelememeli, ikisi de aransın.
+  assert(/(^|\n)input\[type="checkbox"\], input\[type="radio"\][^}]*accent-color/.test(css),
+    'uygulama geneli accent-color yok — Chrome onay kutularini MAVI cizer');
+  assert(/\.player-layer input\[type="checkbox"\][^}]*accent-color:\s*var\(--player-amber\)/.test(css),
+    'oynaticidaki onay kutulari kehribar temaya baglanmamis');
+});
+
+// ---- 8. ses çubuğu koyu temaya uygun ----
 test('ses çubuğu tarayıcının varsayılan görünümünü kullanmıyor', () => {
   const i = css.indexOf('.player-volume {');
   assert(i > 0, '.player-volume kurali yok');
