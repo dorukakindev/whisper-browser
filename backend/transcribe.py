@@ -2756,7 +2756,8 @@ def dedupe_consecutive(entries, max_gap=2.0):
     return [(o[0], o[1], o[2]) for o in out]
 
 
-def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6, max_chars=84, max_dur=6.5):
+def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6,
+                        max_chars=84, max_dur=6.5, flash_dur=0.8):
     """
     1) Tamamlanmamış cümleleri (sonunda . ! ? … olmayan) ve
     2) Çok kısa altyazı parçalarını (az karakter VEYA kısa süre)
@@ -2776,8 +2777,21 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6, max_cha
             out.append([s, e, txt])
             continue
         prev = out[-1]
+        # FLAS blok: ekranda okunamayacak kadar kisa kaliyor. normalize_timings
+        # bunu uzatmaya calisir ama tavani "sonraki baslangic - min_gap"tir;
+        # bloklar bitisikse (olcum: 11 blogun HEPSINDE bosluk tam 0.08 sn)
+        # tavan mevcut bitisin kendisi olur ve blok 0.46 sn'de kalir.
+        # Boyle bir blok, onceki cumle TAMAMLANMIS olsa bile komsusuyla
+        # birlestirilir - iki kisa cumleyi tek blokta gostermek standart
+        # altyazi pratigi ve okunabilirligi artiriyor.
+        flash = (e - s) < flash_dur
+        prev_flash = (prev[1] - prev[0]) < flash_dur
         prev_ends_sentence = text_ends_sentence(prev[2])
-        if prev_ends_sentence:
+        if prev_ends_sentence and not (flash or prev_flash):
+            out.append([s, e, txt])
+            continue
+        if prev_ends_sentence and (s - prev[1]) > 0.35:
+            # Cumle bitmis ve arada gercek bir duraksama var: birlestirme
             out.append([s, e, txt])
             continue
 
@@ -3053,6 +3067,80 @@ def merge_incomplete_sentences(entries, max_gap=2.5, max_chars=84, max_dur=7.0, 
         else:
             out.append([s, e, txt])
             parts.append(1)
+    return [(o[0], o[1], o[2]) for o in out]
+
+
+CONTINUATION_MARKS = ("…", "...")
+
+
+def strip_continuation(text, at_start=False):
+    """Devam isaretlerini ("…" / "...") baslangictan veya sondan temizler."""
+    t = (text or "").strip()
+    while True:
+        if at_start and t.startswith("..."):
+            t = t[3:].lstrip()
+        elif at_start and t.startswith("…"):
+            t = t[1:].lstrip()
+        elif not at_start and t.endswith("..."):
+            t = t[:-3].rstrip()
+        elif not at_start and t.endswith("…"):
+            t = t[:-1].rstrip()
+        else:
+            return t
+
+
+def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
+                             tail_chars=45, tail_max_chars=170, tail_max_dur=13.0):
+    """Bir sonraki bloga tasan cumleleri tek blokta toplar.
+
+    merge_incomplete_sentences'ten FARKI iki tane:
+      1. "…" burada CUMLE SONU degil, DEVAM sinyali sayilir. text_ends_sentence
+         "…"yi cumle sonu kabul ediyor (PUNCT_END); ama ceviri modeli yarim
+         biten bir blogu tam da "…" ile isaretliyor. Olcum (Harlan Ellison
+         roportaji, 231 blok): ceviride 11 blok "…" ile bitiyor, 5 blok "..."
+         ile basliyor - hicbiri birlestirilemiyordu.
+      2. Kuyruk KISAYSA (birkac kelime) karakter/sure tavani yukselir. Uzun bir
+         bloga uc kelime eklemek okuma yukunu neredeyse artirmaz; cumleyi ikiye
+         bolunmus birakmak ise okumayi bozar.
+
+    Olcum (ayni dosya, ceviri): 231 -> 223 blok. Kullanicinin sikayet ettigi iki
+    satir birlesti ve okuma hizi 13 CPS'e dustu:
+      "... Bu kulaga cok…" + "kasinti gelir ama degil."
+        -> tek blok, 10.74 sn, 139 krk
+    Bedeli: 8 sn'den uzun blok sayisi 0 -> 5. Bu yuzden OPSIYONEL.
+    """
+    if len(entries) < 2:
+        return entries
+
+    DIALOG_STARTS = ("-", "—", "–", "[", "(", "♪", "*")
+    out = []
+    for s, e, txt in entries:
+        s, e, txt = float(s), float(e), (txt or "").strip()
+        if not txt:
+            continue
+        if not out:
+            out.append([s, e, txt])
+            continue
+        prev = out[-1]
+        gap = s - prev[1]
+        devam = (txt.lstrip().startswith(CONTINUATION_MARKS)
+                 or prev[2].rstrip().endswith(CONTINUATION_MARKS))
+        yarim = not text_ends_sentence(prev[2])
+        kuyruk = strip_continuation(txt, at_start=True)
+        birlesik = (strip_continuation(prev[2]) + " " + kuyruk).strip()
+        kisa_kuyruk = len(kuyruk) <= tail_chars
+        ust_krk = tail_max_chars if kisa_kuyruk else max_chars
+        ust_sure = tail_max_dur if kisa_kuyruk else max_dur
+        if ((devam or yarim)
+                and not txt.startswith(DIALOG_STARTS)
+                and not prev[2].startswith(DIALOG_STARTS)
+                and -0.05 <= gap <= max_gap
+                and len(birlesik) <= ust_krk
+                and (e - prev[0]) <= ust_sure):
+            prev[1] = e
+            prev[2] = birlesik
+        else:
+            out.append([s, e, txt])
     return [(o[0], o[1], o[2]) for o in out]
 
 
@@ -3780,6 +3868,14 @@ def transcribe(args):
                 log(f"Konusma baslangicina yaslandi: {_moved} blok "
                     f"(ortalama {_avg*1000:.0f} ms ileri alindi)")
 
+        # Sonraki satira tasan cumleleri birlestir (opsiyonel)
+        if args.merge_continuation:
+            _once = len(entries)
+            entries = merge_continuation_lines(entries, max_gap=args.continuation_gap)
+            if len(entries) != _once:
+                log(f"Cumle birlestirme: {_once} -> {len(entries)} blok "
+                    f"({_once - len(entries)} devam satiri onceki bloga katildi)")
+
         # Profesyonel zamanlama normalizasyonu (okuma hızı / min-max süre / boşluk)
         if args.fix_timings:
             entries = normalize_timings(
@@ -3849,6 +3945,16 @@ def transcribe(args):
                 # talimat olurdu ("metin Ingilizce, kaynak dil Ispanyolca").
                 tr_source = "en" if args.task == "translate" else info.language
                 translated = llm_translate(entries, args, warn_list, source_lang=tr_source)
+                # Devam birlestirmesi CEVIRIDE ayrica calisir: "…" isaretlerini
+                # ceviri modeli koyuyor, kaynakta hic yok (olcum: kaynakta 0,
+                # ceviride 11 blok "…" ile bitiyor). Ayrica Turkce'de yuklem
+                # sona geldigi icin cumle Ingilizce'den FARKLI yerden bolunur.
+                if translated and args.merge_continuation:
+                    _o = len(translated)
+                    translated = merge_continuation_lines(
+                        translated, max_gap=args.continuation_gap)
+                    if len(translated) != _o:
+                        log(f"Ceviri cumle birlestirme: {_o} -> {len(translated)} blok")
             except Exception as e:
                 log(f"Ceviri basarisiz: {e}", "warn")
                 warn_list.append(f"Ceviri yapilamadi: {e}")
@@ -4326,6 +4432,9 @@ def translate_existing_subtitle(args):
     target = (args.translate_to or "tr").lower()
     emit("status", stage="translate", text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
     translated = llm_translate(entries, args, warn_list, source_lang=args.language)
+    if translated and getattr(args, "merge_continuation", False):
+        translated = merge_continuation_lines(
+            translated, max_gap=getattr(args, "continuation_gap", 3.0))
     if not translated:
         raise RuntimeError("Ceviri yapilamadi - ayrintilar gunlukte.")
 
@@ -5046,6 +5155,11 @@ def main():
                         choices=["documentary", "drama", "comedy", "action", "general"])
     parser.add_argument("--translate-profanity", default="medium",
                         choices=["soft", "medium", "explicit"])
+    parser.add_argument("--merge-continuation", type=lambda x: x.lower() == "true",
+                        default=False,
+                        help="Sonraki satira tasan cumleleri tek blokta birlestir")
+    parser.add_argument("--continuation-gap", type=float, default=3.0,
+                        help="Devam birlestirmesinde izin verilen en buyuk bosluk (sn)")
     parser.add_argument("--chat", type=lambda x: x.lower() == "true", default=False,
                         help="Video hakkinda serbest soru-cevap (cok turlu)")
     parser.add_argument("--chat-file", default=None,

@@ -1155,6 +1155,80 @@ def test_build_binary_signal():
     assert sig[0] == 0.0 and sig[150] == 0.0
 
 
+# ------------------------------------------------- cumle (devam) birlestirme
+def test_merge_continuation_treats_ellipsis_as_continuation():
+    """'…' cumle sonu DEGIL devam sinyalidir.
+
+    text_ends_sentence '…'yi PUNCT_END'de sayiyor, bu yuzden
+    merge_incomplete_sentences bu bloklari birlestiremiyordu. Ama ceviri modeli
+    yarim biten blogu tam da '…' ile isaretliyor (olcum: gercek dosyada
+    kaynakta 0, ceviride 11 blok '…' ile bitiyor).
+    """
+    e = [(0.0, 7.0, "Bu kulağa çok…"), (9.4, 10.7, "kasıntı gelir ama değil.")]
+    out = T.merge_continuation_lines(e)
+    assert len(out) == 1, f"birlesmedi: {out}"
+    assert out[0][2] == "Bu kulağa çok kasıntı gelir ama değil.", out[0][2]
+    assert out[0][0] == 0.0 and out[0][1] == 10.7, "zaman araligi genislemedi"
+
+
+def test_merge_continuation_strips_both_markers():
+    e = [(0.0, 3.0, "birinci kısım…"), (3.2, 4.5, "...ikinci kısım.")]
+    out = T.merge_continuation_lines(e)
+    assert out[0][2] == "birinci kısım ikinci kısım.", out[0][2]
+
+
+def test_merge_continuation_short_tail_gets_higher_ceiling():
+    """Uzun bloga birkac kelime eklemek serbest; uzun kuyruk degil."""
+    uzun = "x" * 110
+    kisa_kuyruk = [(0.0, 7.0, uzun + "…"), (7.5, 9.0, "son iki kelime.")]
+    assert len(T.merge_continuation_lines(kisa_kuyruk)) == 1, "kisa kuyruk birlesmeliydi"
+    uzun_kuyruk = [(0.0, 7.0, uzun + "…"), (7.5, 9.0, "y" * 60 + ".")]
+    assert len(T.merge_continuation_lines(uzun_kuyruk)) == 2, "uzun kuyruk birlesmemeliydi"
+
+
+def test_merge_continuation_respects_gap():
+    e = [(0.0, 3.0, "yarım cümle…"), (9.0, 10.0, "devamı.")]
+    assert len(T.merge_continuation_lines(e, max_gap=3.0)) == 2, "uzun sessizlik asilmamali"
+    assert len(T.merge_continuation_lines(e, max_gap=7.0)) == 1, "gap ayari etkisiz"
+
+
+def test_merge_continuation_keeps_dialogue_apart():
+    e = [(0.0, 2.0, "Ne dedin…"), (2.2, 4.0, "- Hiçbir şey.")]
+    assert len(T.merge_continuation_lines(e)) == 2, "diyalog tiresi birlestirilmemeli"
+
+
+def test_merge_continuation_noop_on_complete_sentences():
+    e = [(0.0, 2.0, "Tam bir cümle."), (2.5, 4.0, "Başka bir cümle.")]
+    assert T.merge_continuation_lines(e) == e, "tamamlanmis cumleler birlestirilmemeli"
+
+
+# --------------------------------------------------------- flas blok (okunmaz)
+def test_merge_short_merges_flash_after_complete_sentence():
+    """0.8 sn altindaki blok, onceki cumle bitmis olsa bile birlestirilir.
+
+    normalize_timings bunu uzatmaya calisir ama tavani "sonraki baslangic -
+    min_gap"; bloklar bitisikse yer yoktur ve blok 0.46 sn'de kalir - izlerken
+    okunamaz. Olcum (gercek dosya): 0.8 sn alti blok kaynakta 11 -> 2,
+    ceviride 11 -> 0.
+    """
+    e = [(0.0, 2.0, "Bir şey söyledi."), (2.08, 2.54, "Belki.")]
+    out = T.merge_short_entries(e)
+    assert len(out) == 1, f"flas blok birlesmedi: {out}"
+    assert out[0][2] == "Bir şey söyledi. Belki."
+
+
+def test_merge_short_leaves_readable_short_block_alone():
+    """0.9 sn okunabilir; yalnizca gercekten FLAS olanlar birlestirilir."""
+    e = [(0.0, 2.0, "He died in 1935."), (2.1, 3.0, "Then.")]
+    assert len(T.merge_short_entries(e, max_gap=0.6)) == 2
+
+
+def test_merge_short_flash_needs_tight_gap():
+    """Arada gercek duraksama varsa (yeni sahne) birlestirme yok."""
+    e = [(0.0, 2.0, "Bir şey söyledi."), (3.0, 3.4, "Belki.")]
+    assert len(T.merge_short_entries(e)) == 2
+
+
 # ---------------------------------------------------------------- AI sohbet
 def _chat_args(chat_path, **over):
     """chat_about_video icin minimal argparse benzeri nesne."""

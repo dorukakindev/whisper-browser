@@ -1147,6 +1147,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.maxCps) args.push('--max-cps', String(options.maxCps));
   args.push('--merge-short', options.mergeShort !== false ? 'true' : 'false');
   args.push('--merge-incomplete', options.mergeIncomplete !== false ? 'true' : 'false');
+  args.push('--merge-continuation', options.mergeContinuation ? 'true' : 'false');
+  if (options.continuationGap) args.push('--continuation-gap', String(options.continuationGap));
   args.push('--fix-punctuation-collapse', options.fixPunctuationCollapse !== false ? 'true' : 'false');
   args.push('--fix-common-errors', options.fixCommonErrors !== false ? 'true' : 'false');
   args.push('--drop-repeated-hallucinations', options.dropRepeatedHallucinations !== false ? 'true' : 'false');

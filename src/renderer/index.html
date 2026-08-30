@@ -372,6 +372,19 @@
                 <input type="range" id="incompleteGap" min="0.5" max="4" step="0.1" value="2.5" />
               </label>
               <label class="field switch-field">
+                <input type="checkbox" id="mergeContinuation" />
+                <span>Cümleleri birleştir — sonraki satıra taşan cümleyi tek blokta topla</span>
+              </label>
+              <div class="hint" style="margin:-4px 0 8px">
+                Cümle bir sonraki altyazıda birkaç kelimeyle bitiyorsa ikisi birleştirilir
+                (“…” devam işaretleri temizlenir). Çeviride de ayrıca uygulanır. Bloklar
+                uzayabilir: bu videoda 8 sn üstü blok sayısı 0 → 5 oldu.
+              </div>
+              <label class="field">
+                <span class="field-label">Birleştirme boşluk sınırı (sn): <span class="value" id="continuationGapVal">3.0</span></span>
+                <input type="range" id="continuationGap" min="0.5" max="5" step="0.1" value="3" />
+              </label>
+              <label class="field switch-field">
                 <input type="checkbox" id="dedupe" checked />
                 <span>Tekrarlanan ardışık satırları temizle (kekeleme artefaktı)</span>
               </label>

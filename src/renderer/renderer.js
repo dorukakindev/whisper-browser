@@ -53,6 +53,8 @@ function buildOptsFromUI() {
     snapToSpeech: $('snapToSpeech') ? $('snapToSpeech').checked : true,
     mergeShort: $('mergeShort').checked,
     mergeIncomplete: $('mergeIncomplete').checked,
+    mergeContinuation: $('mergeContinuation') ? $('mergeContinuation').checked : false,
+    continuationGap: $('continuationGap') ? parseFloat($('continuationGap').value) : 3.0,
     fixPunctuationCollapse: $('fixPunctuationCollapse').checked,
     confidenceReport: $('confidenceReport').checked,
     fixCommonErrors: $('fixCommonErrors').checked,
@@ -942,6 +944,7 @@ const ranges = [
   ['vadMaxSpeechS', 'vadMaxSpeechSVal'],
   ['timingGap', 'timingGapVal'],
   ['incompleteGap', 'incompleteGapVal'],
+  ['continuationGap', 'continuationGapVal'],
   ['llmWorkers', 'llmWorkersVal'],
   ['translateWorkers', 'translateWorkersVal'],
   ['subSize', 'subSizeVal'],
@@ -957,7 +960,7 @@ ranges.forEach(([input, label]) => {
     let v = el.value;
     if (input === 'subOffset') {
       v = parseFloat(v).toFixed(1);
-    } else if (['vadThreshold', 'temperature', 'noSpeechThreshold', 'timingGap', 'incompleteGap'].includes(input)) {
+    } else if (['vadThreshold', 'temperature', 'noSpeechThreshold', 'timingGap', 'incompleteGap', 'continuationGap'].includes(input)) {
       v = parseFloat(v).toFixed(2);
     } else if (['logProbThreshold', 'patience', 'lengthPenalty', 'repetitionPenalty', 'compressionRatioThreshold'].includes(input)) {
       v = parseFloat(v).toFixed(1);
@@ -1082,7 +1085,7 @@ async function saveAppSettings() {
 const PERSIST_VALUE_CONTROLS = [
   'model', 'engine', 'batchSize', 'language', 'task', 'formats', 'computeType', 'device',
   'beamSize', 'bestOf', 'vadThreshold', 'maxLineWidth', 'splitMode', 'timingGap',
-  'wrapMode', 'hardMaxChars', 'maxCps', 'initialPrompt', 'incompleteGap', 'audioPreprocess',
+  'wrapMode', 'hardMaxChars', 'maxCps', 'initialPrompt', 'incompleteGap', 'continuationGap', 'audioPreprocess',
   'temperature', 'patience', 'lengthPenalty', 'repetitionPenalty', 'noRepeatNgramSize',
   'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
@@ -1092,7 +1095,7 @@ const PERSIST_VALUE_CONTROLS = [
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
-  'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
+  'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'dualSubtitle', 'watchEnabled',

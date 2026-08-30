@@ -127,6 +127,18 @@ test('YouTube ve yerel dosya birbirini disliyor', () => {
   assert(!local.includes('--youtube'), 'yerel dosyada --youtube gitmis');
 });
 
+// ---- 5) cumle birlestirme (opsiyonel) ----
+test('cümle birleştirme opsiyonel ve varsayılan kapalı', () => {
+  // Varsayilan KAPALI olmali: acikken bloklar uzuyor (olcum: 8 sn ustu blok
+  // sayisi 0 -> 5), bu yuzden kullanici acmadikca devreye girmemeli.
+  const kapali = build(base({}));
+  assert(argValue(kapali, '--merge-continuation') === 'false',
+    '--merge-continuation varsayilan false degil');
+  const acik = build(base({ mergeContinuation: true, continuationGap: 2.5 }));
+  assert(argValue(acik, '--merge-continuation') === 'true', 'acikken true gitmiyor');
+  assert(argValue(acik, '--continuation-gap') === '2.5', 'bosluk siniri gitmiyor');
+});
+
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);
 if (failures.length) {
   console.log('\nBaşarısızlar:');
