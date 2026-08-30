@@ -2203,6 +2203,65 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
     ])
 
 
+def translate_cache_path(args):
+    """Onbellek dosyasi. Yol main.js'ten --cache-dir ile gelir; yoksa cikti klasoru."""
+    # YALNIZCA acikca verilen --cache-dir kullanilir. Eskiden cikti klasorune,
+    # o da yoksa CALISMA DIZININE dusuyordu; bu hem kullanicinin klasorunu
+    # kirletiyor hem de farkli isleri ayni onbellekte topluyordu (testler bunu
+    # yakaladi). Klasor verilmezse onbellek KAPALI kalir.
+    base = getattr(args, "cache_dir", None)
+    if not base:
+        return None
+    try:
+        Path(base).mkdir(parents=True, exist_ok=True)
+    except Exception:
+        return None
+    return str(Path(base) / "translate-cache.json")
+
+
+def translate_cache_key(text, args, target):
+    """Ayni metin + ayni ceviri AYARLARI -> ayni anahtar.
+
+    Baglam (context_before/after) anahtara DAHIL DEGIL: dahil olsaydi blogun
+    komsulari degistiginde onbellek bosa duserdi ve isabet orani cok dusuk
+    kalirdi. Bedeli: bir blok, baska bir baglamda uretilmis cevirisiyle geri
+    gelebilir. Pratikte ayni cumle ayni sekilde cevrilir; kazanc cok daha buyuk.
+    """
+    import hashlib
+    raw = "|".join([
+        str(target),
+        str(getattr(args, "translate_model", "") or ""),
+        str(getattr(args, "translate_register", "") or ""),
+        str(getattr(args, "translate_profanity", "") or ""),
+        "1" if getattr(args, "translate_refine", False) else "0",
+        text,
+    ])
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def load_translate_cache(path):
+    if not path or not Path(path).exists():
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_translate_cache(path, cache, limit=200000):
+    if not path:
+        return
+    try:
+        if len(cache) > limit:                      # dosya sismesin
+            cache = dict(list(cache.items())[-limit:])
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            json.dump(cache, f, ensure_ascii=False)
+    except Exception as e:
+        log(f"Ceviri onbellegi yazilamadi: {e}", "warn")
+
+
 def llm_translate(entries, args, warn_list=None, source_lang=None):
     """
     Altyazilari OpenAI uyumlu bir API ile hedef dile cevirir.
@@ -2264,7 +2323,31 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
 
     CHUNK_SIZE = 20      # ceviride blok basina token yuksek - duzeltmeden kucuk tutulur
     out_texts = [e[2] for e in entries]
-    chunks = [(i, min(i + CHUNK_SIZE, len(entries))) for i in range(0, len(entries), CHUNK_SIZE)]
+
+    # --- ONBELLEK: daha once cevrilmis bloklar tekrar GONDERILMEZ ---
+    cache_on = getattr(args, "translate_cache", True)
+    cache_file = translate_cache_path(args) if cache_on else None
+    cache = load_translate_cache(cache_file) if cache_on else {}
+    cached_idx = set()
+    pending = []
+    for i, (_s, _e, t) in enumerate(entries):
+        hit = cache.get(translate_cache_key(t, args, target)) if cache_on else None
+        if isinstance(hit, str) and hit.strip():
+            out_texts[i] = hit
+            cached_idx.add(i)
+        else:
+            pending.append(i)
+    if cache_on and cached_idx:
+        log(f"Ceviri onbellegi: {len(cached_idx)}/{len(entries)} blok hazir, "
+            f"{len(pending)} blok cevrilecek")
+    if not pending:
+        log("Tum bloklar onbellekten geldi - API'ye hic istek gonderilmedi.", "success")
+        emit("llm_progress", percent=100.0, done=len(entries), failed=0,
+             total=len(entries), stage="translate")
+        return [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
+
+    # Parcalar artik ARDISIK ARALIK degil, cevrilecek INDEKS LISTESI
+    chunks = [pending[i:i + CHUNK_SIZE] for i in range(0, len(pending), CHUNK_SIZE)]
     route_state = {"preferred": routes[0]}
     lock = threading.Lock()
     counters = {"done": 0, "failed": 0}
@@ -2305,21 +2388,22 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
-    def task(chunk_range):
-        ci_start, ci_end = chunk_range
+    def task(chunk_idx):
         items = []
-        for i in range(ci_start, ci_end):
+        for pos, i in enumerate(chunk_idx):
             s0, e0, text = entries[i]
             dur = max(0.4, float(e0) - float(s0))
             items.append({
-                "i": i - ci_start,
+                "i": pos,
                 "t": text,
                 "max": int(dur * args.max_cps),     # sureye gore karakter butcesi
             })
         payload = {"items": items}
-        ctx_before = [entries[k][2] for k in range(max(0, ci_start - CONTEXT_LINES), ci_start)] \
+        # Baglam ORIJINAL komsulardan alinir (parca artik ardisik olmayabilir)
+        lo, hi = chunk_idx[0], chunk_idx[-1]
+        ctx_before = [entries[k][2] for k in range(max(0, lo - CONTEXT_LINES), lo)] \
             if CONTEXT_LINES else []
-        ctx_after = [entries[k][2] for k in range(ci_end, min(len(entries), ci_end + CONTEXT_LINES))] \
+        ctx_after = [entries[k][2] for k in range(hi + 1, min(len(entries), hi + 1 + CONTEXT_LINES))] \
             if CONTEXT_LINES else []
         if ctx_before:
             payload["context_before"] = ctx_before
@@ -2347,7 +2431,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
             val = data.get(str(item["i"]))
             if not isinstance(val, str) or not val.strip():
                 continue
-            out_texts[ci_start + item["i"]] = val.strip()
+            out_texts[chunk_idx[item["i"]]] = val.strip()
+            done_idx.add(chunk_idx[item["i"]])
             filled += 1
         if filled == 0:
             raise RuntimeError("Yanitta hicbir blok eslesmedi")
@@ -2357,6 +2442,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
         return filled
 
+    done_idx = set()
     with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
         futures = {ex.submit(task, ch): ch for ch in chunks}
         for fut in as_completed(futures):
@@ -2365,23 +2451,24 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                 got = fut.result()
                 counters["done"] += got
                 # Yanitta gelmeyen bloklar da BASARISIZ sayilir (kaynak metin kaldi)
-                missing = (ch[1] - ch[0]) - got
+                missing = len(ch) - got
                 if missing > 0:
                     counters["failed"] += missing
                     log("Ceviri {}-{}: {} blok yanitta yoktu - o bloklarda orijinal "
-                        "metin kaldi.".format(ch[0], ch[1], missing), "warn")
+                        "metin kaldi.".format(ch[0], ch[-1], missing), "warn")
             except Exception as e:
-                counters["failed"] += (ch[1] - ch[0])
-                log("Ceviri {}-{} hatasi: {}".format(ch[0], ch[1], e), "warn")
+                counters["failed"] += len(ch)
+                log("Ceviri {}-{} hatasi: {}".format(ch[0], ch[-1], e), "warn")
             now = time.time()
-            handled = counters["done"] + counters["failed"]
+            handled = counters["done"] + counters["failed"] + len(cached_idx)
             if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
                 emit("llm_progress", percent=round(handled / len(entries) * 100.0, 1),
-                     done=counters["done"], failed=counters["failed"], total=len(entries),
+                     done=counters["done"] + len(cached_idx),
+                     failed=counters["failed"], total=len(entries),
                      stage="translate")
                 last_emit_ts[0] = now
 
-    if counters["done"] == 0:
+    if counters["done"] == 0 and not cached_idx:
         # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
         # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
         # kullaniciyi yanıltir - basarisiz say.
@@ -2465,6 +2552,18 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         else:
             log("2. geçiş tamamlandı: {} blok iyileştirildi".format(r_counters["changed"]),
                 "success")
+
+    # Basarili cevirileri onbellege yaz (basarisizlar KAYNAK metin oldugu icin yazilmaz)
+    if cache_on and cache_file:
+        added = 0
+        for i in done_idx:
+            k = translate_cache_key(entries[i][2], args, target)
+            if cache.get(k) != out_texts[i]:
+                cache[k] = out_texts[i]
+                added += 1
+        if added:
+            save_translate_cache(cache_file, cache)
+            log(f"Ceviri onbellegine {added} blok eklendi.")
 
     return [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
 
@@ -3956,6 +4055,62 @@ def write_confidence_report(path, entries, all_words, threshold=0.6):
     return True, count, frequent
 
 
+def translate_existing_subtitle(args):
+    """Var olan bir altyaziyi cevirir: ses indirme YOK, Whisper YOK.
+
+    --input bir .srt/.vtt/.ass dosyasidir. Zaman kodlarina DOKUNULMAZ; yalnizca
+    metinler cevrilir ve "<ad>.<hedef>.srt" olarak yazilir. Onbellek burada da
+    gecerli oldugundan ayni dosyayi tekrar cevirmek bedava.
+    """
+    src_path = Path(args.input)
+    if not src_path.exists():
+        raise RuntimeError(f"Altyazi dosyasi bulunamadi: {src_path}")
+
+    text, enc, repaired = read_subtitle_text(src_path)
+    if repaired:
+        log(f"Altyazi kodlamasi onarildi ({enc}).", "warn")
+    entries = parse_srt(text)
+    if not entries:
+        raise RuntimeError(
+            "Altyazi okunamadi veya bos. Desteklenen bicimler: SRT, VTT "
+            "(ASS icin once SRT'ye donusturun)."
+        )
+    log(f"{len(entries)} blok okundu: {src_path.name}")
+
+    warn_list = []
+    target = (args.translate_to or "tr").lower()
+    emit("status", stage="translate", text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
+    translated = llm_translate(entries, args, warn_list, source_lang=args.language)
+    if not translated:
+        raise RuntimeError("Ceviri yapilamadi - ayrintilar gunlukte.")
+
+    out_dir = Path(args.output_dir) if args.output_dir else src_path.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # "film.en.srt" -> "film.tr.srt"; "film.srt" -> "film.tr.srt"
+    stem = src_path.stem
+    m = re.match(r"^(.*)\.[a-z]{2,3}$", stem, re.I)
+    if m:
+        stem = m.group(1)
+    out_path = out_dir / f"{stem}.{target}.srt"
+    if out_path.resolve() == src_path.resolve():          # kaynagin uzerine yazma
+        out_path = out_dir / f"{stem}.{target}.ceviri.srt"
+
+    write_srt(translated, out_path, args.max_line_width, args.max_lines,
+              language=target, wrap_mode=args.wrap_mode)
+    log(f"Ceviri yazildi: {out_path}", "success")
+
+    files = [str(out_path)]
+    if args.dual_subtitle:
+        dual_path = out_dir / f"{stem}.dual.srt"
+        write_dual_srt(entries, translated, dual_path,
+                       translation_first=args.dual_translation_first,
+                       max_line_width=args.max_line_width)
+        files.append(str(dual_path))
+        log(f"Cift dilli altyazi yazildi: {dual_path}", "success")
+
+    emit("done", files=files, segments=len(translated), warnings=warn_list)
+
+
 def reexport_from_json(args):
     """
     Daha önce üretilmiş JSON çıktısından SRT/VTT/TXT/ASS'yi yeniden yazar —
@@ -4646,6 +4801,11 @@ def main():
                         choices=["documentary", "drama", "comedy", "action", "general"])
     parser.add_argument("--translate-profanity", default="medium",
                         choices=["soft", "medium", "explicit"])
+    parser.add_argument("--translate-only", type=lambda x: x.lower() == "true", default=False,
+                        help="--input bir altyazi dosyasi: Whisper calistirmadan yalnizca cevir")
+    parser.add_argument("--translate-cache", type=lambda x: x.lower() == "true", default=True,
+                        help="Cevrilmis bloklari onbellege al (ayni blok tekrar gonderilmez)")
+    parser.add_argument("--cache-dir", default=None, help="Onbellek klasoru")
     parser.add_argument("--translate-context", type=int, default=4,
                         help="Cevrilen parcanin once/sonrasinda modele verilecek baglam satiri (0=kapali)")
     parser.add_argument("--translate-refine", type=lambda x: x.lower() == "true", default=False,
@@ -4717,6 +4877,8 @@ def main():
     try:
         if args.sync_subs:
             sync_subtitles(args)
+        elif args.translate_only:
+            translate_existing_subtitle(args)
         elif args.reexport:
             reexport_from_json(args)
         else:

@@ -29,7 +29,10 @@ if (i < 0 || j < 0 || j < i) {
   process.exit(1);
 }
 const body = src.slice(i, j) + '\n  return args;';
-const buildArgs = new Function('options', 'scriptPath', 'path', body);
+// main.js gercek kodu app.getPath('userData') kullaniyor (onbellek klasoru);
+// cikarilan blok icin sahte bir app veriyoruz.
+const fakeApp = { getPath: (k) => `C:/fake/${k}` };
+const buildArgs = new Function('options', 'scriptPath', 'path', 'app', body);
 
 // ---- minik test cercevesi ----
 let pass = 0;
@@ -48,7 +51,7 @@ function argValue(args, flag) {
 function base(extra) {
   return Object.assign({ input: 'C:/video.mkv', model: 'large-v3', outputDir: 'C:/out' }, extra);
 }
-const build = (o) => buildArgs(o, 'transcribe.py', path);
+const build = (o) => buildArgs(o, 'transcribe.py', path, fakeApp);
 
 // ---- 1) ASIL HATA: ceviri, LLM duzeltmesinden bagimsiz olmali ----
 test('ceviri LLM duzeltme KAPALIYKEN de gonderilir', () => {
@@ -71,6 +74,14 @@ test('ceviri kapaliyken --translate false gider', () => {
 test('ses on-isleme LLM duzeltmeden bagimsiz', () => {
   const args = build(base({ llmPostprocess: false, audioPreprocess: 'loudnorm' }));
   assert(argValue(args, '--audio-preprocess') === 'loudnorm', '--audio-preprocess yok');
+});
+
+test('ceviri onbellegi ve onbellek klasoru gonderilir', () => {
+  const args = build(base({ translate: true, translateCache: true }));
+  assert(argValue(args, '--translate-cache') === 'true', '--translate-cache yok');
+  assert(String(argValue(args, '--cache-dir') || '').includes('userData'), '--cache-dir yok');
+  const off = build(base({ translate: true, translateCache: false }));
+  assert(argValue(off, '--translate-cache') === 'false', 'onbellek kapatilamiyor');
 });
 
 test('ceviri yan ayarlari da gider', () => {

@@ -730,7 +730,10 @@ def _capture_translate_payloads(entries, args):
         seen["system"] = kw["messages"][0]["content"]
         return types.SimpleNamespace(choices=[types.SimpleNamespace(
             message=types.SimpleNamespace(
-                content=json.dumps({str(it["i"]): "TR" for it in payload["items"]})))])
+                # Kaynak metni YANKILAR: testler hangi blogun cevrildigini
+                # icerikten dogrulayabilsin diye sabit bir dize donmuyoruz.
+                content=json.dumps({str(it["i"]): "[TR] " + it["t"]
+                                    for it in payload["items"]})))])
 
     class _C:
         def __init__(self, *a, **k):
@@ -821,6 +824,108 @@ def test_snap_to_speech_respects_max_shift():
     out2, moved2, _ = T.snap_entries_to_regions(
         [(4.2, 9.0, "yakin")], starts=[5.0], ends=[8.0], max_shift=1.0, min_dur=0.6)
     assert moved2 == 1 and out2[0][0] == 5.0
+
+
+def test_translate_cache_skips_already_translated():
+    """Ayni blok ikinci kez API'ye GONDERILMEZ; degisen blok gonderilir."""
+    import tempfile, pathlib
+    d = str(pathlib.Path(tempfile.mkdtemp()))
+    entries = [(i * 2.0, i * 2.0 + 1.8, "Line {}.".format(i)) for i in range(25)]
+    args = _TrArgs(translate_cache=True, cache_dir=d)
+
+    out1, seen1 = _capture_translate_payloads(entries, args)
+    gonderilen1 = sum(len(p["items"]) for p in seen1["payloads"])
+    assert gonderilen1 == 25 and out1 is not None
+
+    out2, seen2 = _capture_translate_payloads(entries, args)
+    assert seen2["payloads"] == [], "ikinci calistirmada API'ye istek gitti"
+    assert [x[2] for x in out2] == [x[2] for x in out1], "onbellekten gelen metin farkli"
+
+    # yalnizca DEGISEN bloklar gonderilmeli
+    degisik = list(entries)
+    degisik[7] = (degisik[7][0], degisik[7][1], "CHANGED line 7.")
+    out3, seen3 = _capture_translate_payloads(degisik, args)
+    gonderilen3 = sum(len(p["items"]) for p in seen3["payloads"])
+    assert gonderilen3 == 1, f"1 blok bekleniyordu, {gonderilen3} gonderildi"
+    assert out3[7][2].startswith("[TR] CHANGED"), out3[7]
+    assert out3[0][2] == out1[0][2], "degismeyen blok bozuldu"
+
+
+def test_translate_cache_not_shared_across_target_language():
+    import tempfile, pathlib
+    d = str(pathlib.Path(tempfile.mkdtemp()))
+    entries = [(0.0, 2.0, "Hello.")]
+    _capture_translate_payloads(entries, _TrArgs(translate_cache=True, cache_dir=d))
+    _out, seen = _capture_translate_payloads(
+        entries, _TrArgs(translate_cache=True, cache_dir=d, translate_to="de"))
+    assert sum(len(p["items"]) for p in seen["payloads"]) == 1, "farkli dil onbellegi paylasti"
+
+
+def test_translate_cache_disabled_without_cache_dir():
+    """cache_dir verilmezse onbellek KAPALI: calisma dizinine dosya yazilmaz."""
+    assert T.translate_cache_path(_TrArgs()) is None
+    assert T.translate_cache_path(_TrArgs(cache_dir="")) is None
+
+
+def test_translate_existing_subtitle_keeps_timings():
+    """Yalnizca-ceviri modu: zaman kodlarina dokunmaz, Whisper calistirmaz."""
+    import tempfile, pathlib, sys, types, importlib.machinery, json
+    d = pathlib.Path(tempfile.mkdtemp())
+    src = d / "film.en.srt"
+    # Kacis karmasasindan kacinmak icin satirlar listeden birlestirilir
+    src.write_text("\n".join([
+        "1",
+        "00:00:01,500 --> 00:00:03,250",
+        "First line.",
+        "",
+        "2",
+        "00:00:05,000 --> 00:00:07,125",
+        "Second line.",
+        "",
+    ]), encoding="utf-8-sig")
+
+    def _create(**kw):
+        p = json.loads(kw["messages"][-1]["content"])
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(
+                content=json.dumps({str(i["i"]): "[TR] " + i["t"] for i in p["items"]})))])
+
+    class _C:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _C
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+
+    args = _TrArgs(cache_dir=str(d), translate_cache=True)
+    args.input = str(src)
+    args.output_dir = str(d)
+    args.language = "en"
+    args.max_lines = 2
+    args.wrap_mode = "sentence"
+    args.dual_subtitle = False
+    args.dual_translation_first = False
+    try:
+        T.translate_existing_subtitle(args)
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+
+    out = d / "film.tr.srt"                      # ".en" eki hedef dille degisir
+    assert out.exists(), sorted(p.name for p in d.iterdir())
+    text = out.read_text(encoding="utf-8-sig")
+    # ZAMAN KODLARI AYNEN korunur
+    assert "00:00:01,500 --> 00:00:03,250" in text, text
+    assert "00:00:05,000 --> 00:00:07,125" in text, text
+    assert "[TR] First line." in text and "[TR] Second line." in text
+    # kaynak dosya DEGISMEDI
+    assert "First line." in src.read_text(encoding="utf-8-sig")
 
 
 def test_build_translate_prompt():

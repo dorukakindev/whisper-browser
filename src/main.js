@@ -1169,6 +1169,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.translateContext !== undefined && options.translateContext !== '') {
     args.push('--translate-context', String(options.translateContext));
   }
+  // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
+  if (options.translateOnly) args.push('--translate-only', 'true');
+  args.push('--translate-cache', options.translateCache !== false ? 'true' : 'false');
+  args.push('--cache-dir', path.join(app.getPath('userData'), 'cache'));
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
   if (options.audioPreprocess) args.push('--audio-preprocess', options.audioPreprocess);

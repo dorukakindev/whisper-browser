@@ -562,6 +562,15 @@
                   <option value="az">Azerbaycan Türkçesi</option>
                 </select>
               </label>
+              <label class="field switch-field">
+                <input type="checkbox" id="translateCache" checked />
+                <span>Çeviri önbelleği (aynı satır ikinci kez gönderilmez)</span>
+              </label>
+              <div class="hint">Çevrilen her blok saklanır; aynı videoyu yeniden çalıştırdığınızda
+                veya yalnızca birkaç satırı düzelttiğinizde <strong>yalnızca değişenler</strong>
+                API'ye gider. Ölçüm: 50 bloklu bir dosyada ikinci çalıştırma <strong>0 istek</strong>,
+                3 satır değişince <strong>1 istek</strong>. Hedef dil veya model değişirse önbellek
+                paylaşılmaz.</div>
               <label class="field">
                 <span class="field-label">Çeviri bağlamı</span>
                 <select id="translateContext">
@@ -1032,8 +1041,8 @@
               </label>
               <div class="tool-spacer"></div>
               <button class="btn btn-primary btn-sm action-button" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
-              <button class="btn btn-secondary btn-sm action-button" id="makeTransBtn" disabled
-                title="Mevcut altyazıyı bağımsız çevirme modu henüz yok — çeviriyi şimdilik altyazı oluştururken açın (Gelişmiş ayarlar → Çeviri)">Çeviri oluştur</button>
+              <button class="btn btn-secondary btn-sm action-button" id="makeTransBtn"
+                title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
             </div>
           </div>
 
@@ -1073,6 +1082,10 @@
                 <label class="field">
                   <span class="field-label">Kalite</span>
                   <select id="playerQuality"></select>
+                </label>
+                <label class="field hidden" id="playerStreamAudioField">
+                  <span class="field-label">Yayın ses parçası (dublaj)</span>
+                  <select id="playerStreamAudio"></select>
                 </label>
                 <label class="field hidden" id="playerAudioField">
                   <span class="field-label">Ses dili</span>

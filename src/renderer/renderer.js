@@ -98,6 +98,7 @@ function buildOptsFromUI() {
     translateWorkers: parseInt($('translateWorkers').value, 10),
     translateRegister: $('translateRegister').value,
     translateContext: $('translateContext') ? $('translateContext').value : '4',
+    translateCache: $('translateCache') ? $('translateCache').checked : true,
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
@@ -1089,7 +1090,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'dualSubtitle', 'watchEnabled',
+  'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'dualSubtitle', 'watchEnabled',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
 ];
@@ -1513,6 +1514,7 @@ function playerJobEvent(event) {
 
   const finish = (message, level) => {
     job.running = false;
+    state.running = false;         // oynaticidan baslatilan is bitti
     txt.textContent = message;
     setTimeout(() => bar.classList.add('hidden'), 4000);
     if (level) logLine(message, level);
@@ -1529,9 +1531,14 @@ function playerJobEvent(event) {
       finish('Altyazı hazır ama başka videoya geçildi — yüklenmedi.', 'warn');
       return;
     }
-    // Kaynak altyazi: ceviri dosyasi (.tr.srt) varsa onu IKINCI altyaziya koy
-    const src = files.find((f) => !/\.[a-z]{2}\.(srt|vtt)$/i.test(f)) || files[0];
-    const tr = files.find((f) => f !== src && /\.[a-z]{2}\.(srt|vtt)$/i.test(f));
+    // "Ceviri olustur" isinde kaynak altyazi ZATEN yuklu; yalnizca ceviriyi
+    // ikinci altyaziya koy. Aksi halde .dual.srt yanlislikla ana altyazi olurdu.
+    const isTranslateJob = job.kind === 'translate';
+    const langSuffixed = (f) => /\.[a-z]{2}\.(srt|vtt)$/i.test(f);
+    const src = isTranslateJob
+      ? null
+      : (files.find((f) => !langSuffixed(f) && !/\.dual\./i.test(f)) || files[0]);
+    const tr = files.find((f) => f !== src && langSuffixed(f) && !/\.dual\./i.test(f));
     if (src) {
       addSubtitleOption(src);
       $('playerSubSelect').value = src;
@@ -1542,8 +1549,13 @@ function playerJobEvent(event) {
       $('playerSubSelect2').value = tr;
       loadSubtitle(tr, true);
     }
-    finish(src ? 'Altyazı hazır ve yüklendi.' : 'İş bitti ama altyazı dosyası bulunamadı.',
-           src ? 'success' : 'warn');
+    if (isTranslateJob) {
+      finish(tr ? 'Çeviri hazır ve ikinci altyazı olarak yüklendi.'
+                : 'Çeviri bitti ama dosya bulunamadı.', tr ? 'success' : 'warn');
+    } else {
+      finish(src ? 'Altyazı hazır ve yüklendi.' : 'İş bitti ama altyazı dosyası bulunamadı.',
+             src ? 'success' : 'warn');
+    }
   } else if (event.type === 'error') {
     finish(`Altyazı oluşturulamadı: ${(event.message || '').slice(0, 80)}`, 'error');
   }
@@ -3349,6 +3361,8 @@ function resetMediaBoundState() {
   hideWordInspector();
   renderCueList('');
   updateSubtitleChips();
+  updateMakeTransState();
+  if ($('playerStreamAudioField')) $('playerStreamAudioField').classList.add('hidden');
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
   renderSeekMarkers([]);
@@ -3525,7 +3539,32 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   video.removeAttribute('src');
   const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
   player.hls = hls;
+  // Ses parcalari (dublaj) - yalnizca birden fazlaysa gosterilir.
+  const syncAudioTracks = () => {
+    const field = $('playerStreamAudioField');
+    const sel = $('playerStreamAudio');
+    if (!field || !sel) return;
+    const tracks = hls.audioTracks || [];
+    if (tracks.length < 2) { field.classList.add('hidden'); return; }
+    sel.innerHTML = '';
+    tracks.forEach((t, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = t.name || t.lang || `Parça ${i + 1}`;
+      sel.appendChild(o);
+    });
+    sel.value = String(hls.audioTrack >= 0 ? hls.audioTrack : 0);
+    field.classList.remove('hidden');
+    logLine(`${tracks.length} ses parçası bulundu (dublaj seçilebilir).`, 'info');
+  };
+  hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, syncAudioTracks);
+  hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, () => {
+    const sel = $('playerStreamAudio');
+    if (sel && hls.audioTrack >= 0) sel.value = String(hls.audioTrack);
+  });
+
   hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    syncAudioTracks();
     if (parseStatus) parseStatus.classList.add('hidden');
     // Kalite listesini HLS seviyeleriyle doldur (Otomatik + her cozunurluk)
     const sel = $('playerQuality');
@@ -3679,6 +3718,7 @@ async function loadSubtitle(path, secondary = false) {
     }
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
     updateSubtitleChips();
+    updateMakeTransState();
     renderCue();
     return;
   }
@@ -3718,6 +3758,7 @@ async function loadSubtitle(path, secondary = false) {
     logLine('Altyazı gizliydi — otomatik açıldı.', 'warn');
   }
   updateSubtitleChips();
+  updateMakeTransState();
   renderCue();
   logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
     + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
@@ -3827,6 +3868,7 @@ $$('.view-modes .vm').forEach((b) => {
   if (width) setSideWidth(width);
   bindTranscriptScroll();
   bindCueListDelegation();
+  updateMakeTransState();
   const lookupSel = $('wordLookupSource');
   if (lookupSel) {
     try {
@@ -4087,6 +4129,58 @@ if ($('makeSubsBtn')) {
       $('playerJobText').textContent = 'Başlatılıyor…';
     }
     $('startBtn').click();          // tum dogrulama ve is yonetimi orada
+  });
+}
+
+// "Ceviri olustur": EKRANDA YUKLU altyaziyi cevirir. Ses indirme ve Whisper
+// calismaz; zaman kodlarina dokunulmaz. Sonuc ikinci altyazi olarak yuklenir.
+function updateMakeTransState() {
+  const btn = $('makeTransBtn');
+  if (!btn) return;
+  const ok = !!player.subPath && player.cues.length > 0;
+  btn.disabled = !ok;
+  btn.title = ok
+    ? 'Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur'
+    : 'Önce bir altyazı yükleyin (soldaki listeden veya dosyadan)';
+}
+
+if ($('makeTransBtn')) {
+  $('makeTransBtn').addEventListener('click', async () => {
+    if (state.running || state.queueRunning) {
+      logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
+      return;
+    }
+    if (!player.subPath || !player.cues.length) {
+      logLine('Önce bir altyazı yükleyin.', 'error');
+      return;
+    }
+    const opts = buildOptsFromUI();
+    opts.translateOnly = true;
+    opts.translate = true;
+    opts.input = player.subPath;
+    delete opts.youtube;
+    const problem = optsProblem(opts);
+    if (problem) { logLine(problem, 'error'); setSettingsDrawer(true); return; }
+
+    state.running = true;
+    state.cancelled = false;
+    state.outputFiles = [];
+    player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate' };
+    const bar = $('playerJobBar');
+    if (bar) {
+      bar.classList.remove('hidden');
+      $('playerJobFill').style.width = '0%';
+      $('playerJobText').textContent = 'Çeviri başlatılıyor…';
+    }
+    logLine(`Çeviri başlatıldı: ${player.subPath.split(/[\\/]/).pop()} → `
+      + `${opts.translateTo || 'tr'}`, 'info');
+    const r = await window.api.startTranscribe(opts);
+    if (!r || !r.ok) {
+      state.running = false;
+      player.job = null;
+      if (bar) bar.classList.add('hidden');
+      logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
+    }
   });
 }
 
@@ -4612,6 +4706,20 @@ if ($('playerStream')) {
 }
 
 // Kalite değişimi: HLS akışında anında seviye değiştir (yeniden yükleme yok)
+// Ses parcasi degistirme: SES secimi ile ALTYAZI/kalite secimi birbirinden
+// bagimsizdir; biri digerini sifirlamaz.
+if ($('playerStreamAudio')) {
+  $('playerStreamAudio').addEventListener('change', (e) => {
+    if (!player.hls) return;
+    const i = parseInt(e.target.value, 10);
+    if (isNaN(i)) return;
+    const t = (player.hls.audioTracks || [])[i];
+    player.hls.audioTrack = i;
+    osd(`Ses: ${(t && (t.name || t.lang)) || 'parça ' + (i + 1)}`);
+    logLine(`Ses parçası: ${(t && (t.name || t.lang)) || i}`, 'info');
+  });
+}
+
 if ($('playerQuality')) {
   $('playerQuality').addEventListener('change', (e) => {
     if (!player.hls) return;                      // akis yoksa deger indirme yuksekligidir
