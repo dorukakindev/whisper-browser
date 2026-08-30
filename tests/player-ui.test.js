@@ -95,7 +95,54 @@ test('sinemadan çıkınca dönülecek düzen hatırlanıyor', () => {
   assert(/playerLastSideMode/.test(js), 'son duzen kalici degil (localStorage yok)');
 });
 
-// ---- 4. ses çubuğu koyu temaya uygun ----
+// ---- 4. sinema modunda ayar çekmecesi ----
+test('sinema çekmecesi genişliği kapsayıcı bloğa bağlı değil', () => {
+  const i = css.indexOf('.player-layer.mode-cinema.settings-open .player-side');
+  assert(i > 0, 'sinema cekmece kurali yok');
+  const body = css.slice(i, css.indexOf('}', i));
+  assert(/position:\s*absolute/.test(body), 'mutlak konumlanmiyor');
+  // .player-side bir grid ogesi (grid-area: 1/3) ve sinema modunda o sutun 0px.
+  // Mutlak konumlu grid cocugunun kapsayici blogu kendi GRID ALANI oldugu icin
+  // yuzde genislik sifira duser ve cekmece gorunmez olur.
+  assert(!/width:[^;]*\b100%/.test(body),
+    'genislik 100% kullaniyor — sinema modunda grid alani 0px, cekmece 0 genislikte acilir');
+});
+
+test('.player-side gerçekten grid öğesi (yukarıdaki testin dayanağı)', () => {
+  // Kaynakta `grid-column`, tarayıcı bunu `grid-area` diye normalize eder.
+  assert(/\.player-side\s*\{[\s\S]{0,200}grid-(column|area)\s*:/.test(css),
+    '.player-side artik grid sutununa yerlesmiyor — test varsayimi eskimis');
+  assert(/\.player-layer\.mode-cinema\s+\.player-body\s*\{[^}]*grid-template-columns:[^}]*\b0\b/.test(css),
+    'sinema modunda yan sutun artik 0 degil — test varsayimi eskimis');
+});
+
+// ---- 5. mod geçişinde grid animasyonu ----
+test('sütun şekli değişiminde geçiş atlanıyor', () => {
+  // .player-body'de `transition: grid-template-columns` var. Modlar arasi
+  // track listeleri farkli bicimde ("1fr 0 0" <-> "minmax(...) 6px minmax(...)");
+  // Chrome bunlari interpolate edemiyor ve gecis BASLANGIC degerinde takiliyor.
+  // Sonuc: sinemadan cikilinca sinif dogru ama yan panel 0 genislikte kaliyor.
+  assert(/transition:\s*grid-template-columns/.test(css),
+    'grid gecisi yok — bu test artik gereksiz olabilir, gozden gecir');
+  assert(/\.player-body\.no-grid-anim\s*\{[^}]*transition:\s*none/.test(css),
+    'gecisi atlayacak kural (.player-body.no-grid-anim) yok');
+  assert(/function snapGridColumns/.test(js), 'snapGridColumns yardimcisi yok');
+  const snap = js.slice(js.indexOf('function snapGridColumns'));
+  assert(/offsetWidth/.test(snap.slice(0, 400)),
+    'reflow zorlanmiyor — sinif eklemek tek basina yeni degeri gecissiz uygulamaz');
+});
+
+for (const fn of ['setViewMode', 'setPlayerSidebarCollapsed']) {
+  test(`${fn} sütunları anında uyguluyor`, () => {
+    const i = js.indexOf(`function ${fn}(`);
+    assert(i > 0, `${fn} tanimi yok`);
+    const body = js.slice(i, js.indexOf('\n}', i));
+    assert(/snapGridColumns\(\)/.test(body),
+      `${fn} snapGridColumns cagirmiyor — panel gecis ortasinda takilabilir`);
+  });
+}
+
+// ---- 6. ses çubuğu koyu temaya uygun ----
 test('ses çubuğu tarayıcının varsayılan görünümünü kullanmıyor', () => {
   const i = css.indexOf('.player-volume {');
   assert(i > 0, '.player-volume kurali yok');

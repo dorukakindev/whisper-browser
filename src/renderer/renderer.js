@@ -4037,6 +4037,17 @@ function pathToFileUrl(p) {
 // calismada ~%48 ve daha buyuk metin.
 const VIEW_MODES = { cinema: '0%', reading: '38%', study: '48%' };
 
+// Grid sutun SEKLI degistiginde (mod gecisi, panel daraltma) gecisi tek kare
+// kapat: Chrome farkli bicimdeki track listelerini interpolate edemiyor ve
+// gecis baslangic degerinde takiliyor - panel 0 genislikte kaliyordu.
+function snapGridColumns() {
+  const body = document.querySelector('.player-body');
+  if (!body) return;
+  body.classList.add('no-grid-anim');
+  void body.offsetWidth;                    // reflow: yeni deger gecissiz uygulansin
+  setTimeout(() => body.classList.remove('no-grid-anim'), 50);
+}
+
 function setViewMode(mode) {
   if (!VIEW_MODES[mode]) mode = 'reading';
   player.viewMode = mode;
@@ -4049,6 +4060,7 @@ function setViewMode(mode) {
     player.lastSideMode = mode;
     try { localStorage.setItem('playerLastSideMode', mode); } catch (_) {}
   }
+  snapGridColumns();
   $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const sidebarButton = $('playerSidebarToggle');
   if (sidebarButton) {
@@ -4230,6 +4242,7 @@ function setPlayerSidebarCollapsed(collapsed) {
   if (!layer) return;
   const next = !!collapsed;
   layer.classList.toggle('sidebar-collapsed', next);
+  snapGridColumns();
   if (button) {
     const shown = sidebarIsVisible();
     button.classList.toggle('active', shown);

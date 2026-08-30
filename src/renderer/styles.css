@@ -1308,6 +1308,10 @@ html, body {
 /* Mod degisiminde panel genisligi yumusak degissin */
 .player-body { transition: grid-template-columns .22s cubic-bezier(.2, .7, .3, 1); }
 .player-body.resizing { transition: none; }        /* surukleme sirasinda takilmasin */
+/* Sutun SEKLI degisirken (mod gecisi) animasyon atlanir: Chrome
+   `1fr 0 0` ile `minmax(...) 6px minmax(...)` arasini interpolate edemiyor
+   ve gecis baslangic degerinde takili kaliyor. */
+.player-body.no-grid-anim { transition: none; }
 
 /* Kartlar: hafif kalkma + aktif olanda vurgu animasyonu */
 .cue-card { transition: background .15s ease, border-color .15s ease, transform .12s ease; }
@@ -2673,7 +2677,10 @@ html, body {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
-  width: min(410px, 100%);
+  /* 100% DEGIL: .player-side bir grid ogesi ve sinema modunda sutunu 0px.
+     Mutlak konumlu grid cocugunun kapsayici blogu kendi grid ALANI oldugu icin
+     `min(410px, 100%)` sifira dusuyor ve cekmece gorunmez genislikte aciliyordu. */
+  width: min(410px, 100vw);
   z-index: 20;
   padding: 0;
   background: transparent;
