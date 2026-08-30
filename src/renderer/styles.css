@@ -1716,7 +1716,51 @@ html, body {
 }
 
 .player-seek { flex: 1; }
-.player-volume { width: 90px; }
+
+/* Ses: koyu oynaticida yerli (beyaz zemin + mavi dolgu) gorunum sirittigi icin
+   tamamen ozel cizilir. Dolgu, JS'in guncelledigi --vol yuzdesiyle boyanir. */
+.player-volume {
+  width: 90px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--player-amber) 0%,
+    var(--player-amber) var(--vol, 100%),
+    rgba(255, 255, 255, .18) var(--vol, 100%),
+    rgba(255, 255, 255, .18) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+.player-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--player-text);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+  transition: transform .12s ease;
+}
+.player-volume:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.player-volume:focus-visible { outline: 2px solid var(--player-amber); outline-offset: 3px; }
+
+/* Hiz: yerli acilir ok yerine kendi oku (metnin ustune binmesin diye sag dolgu) */
+.player-speed {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 13px center, right 8px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 26px;
+}
 
 .player-side {
   grid-column: 3;
@@ -2295,7 +2339,7 @@ html, body {
 .player-controls { padding: 30px 18px 13px; gap: 12px; background: linear-gradient(to top, rgba(4, 7, 10, .94), rgba(4, 7, 10, .63) 58%, transparent); }
 .player-controls .btn-icon { border-radius: 8px; }
 .player-controls .btn-icon:hover { color: #f6c984; background: rgba(228, 168, 93, .18); }
-.player-speed { background: rgba(13, 20, 27, .85); border-color: #465463; }
+.player-speed { background-color: rgba(13, 20, 27, .85); border-color: #465463; }
 .resume-chip { border-color: #475665; background: rgba(12, 18, 24, .95); }
 .player-layer.mode-cinema .player-stage {
   margin: 0;
@@ -2596,7 +2640,7 @@ html, body {
 .player-controls .btn-icon { width: 46px; height: 46px; color: #e9e9ec; border-radius: 50%; background: #1c1c1d; }
 .player-controls .btn-icon:hover { color: #fff; background: #2b2b2d; }
 .player-controls .player-time { padding: 12px 14px; color: #c3c3c7; background: #1b1b1c; border-radius: 999px; }
-.player-controls .player-speed { min-height: 38px; padding: 0 12px; color: #dedee2; background: #1b1b1c; border-color: #29292b; border-radius: 999px; }
+.player-controls .player-speed { min-height: 38px; padding: 0 26px 0 12px; color: #dedee2; background-color: #1b1b1c; border-color: #29292b; border-radius: 999px; }
 .player-controls #subToggle { margin-left: auto; }
 .player-controls .player-volume { width: 86px; }
 .seek-track, .seek-buffered, .seek-played { height: 4px; }

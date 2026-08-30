@@ -4043,11 +4043,16 @@ function setViewMode(mode) {
   const layer = $('playerLayer');
   layer.classList.remove('mode-cinema', 'mode-reading', 'mode-study');
   layer.classList.add(`mode-${mode}`);
-  if (mode !== 'cinema') layer.style.setProperty('--side-w', VIEW_MODES[mode]);
+  if (mode !== 'cinema') {
+    layer.style.setProperty('--side-w', VIEW_MODES[mode]);
+    // Sinemadan cikarken hangi duzene donecegimizi bilelim
+    player.lastSideMode = mode;
+    try { localStorage.setItem('playerLastSideMode', mode); } catch (_) {}
+  }
   $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const sidebarButton = $('playerSidebarToggle');
   if (sidebarButton) {
-    const shown = mode !== 'cinema' && !layer.classList.contains('sidebar-collapsed');
+    const shown = sidebarIsVisible();
     sidebarButton.classList.toggle('active', shown);
     sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
     sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
@@ -4077,6 +4082,9 @@ $$('.view-modes .vm').forEach((b) => {
   try {
     mode = localStorage.getItem('playerViewMode') || 'reading';
     width = parseInt(localStorage.getItem('playerSideWidth') || '0', 10);
+    // Sinema modunda kapatilip acildiysa: yan panel dugmesi hangi duzene
+    // donecegini bilsin, yoksa hep 'reading'e duserdi
+    player.lastSideMode = localStorage.getItem('playerLastSideMode') || 'reading';
   } catch (_) {}
   setViewMode(mode);
   if (width) setSideWidth(width);
@@ -4181,15 +4189,41 @@ if ($('closeSettings')) $('closeSettings').addEventListener('click', () => setSe
 
 // Trancy tarzı üst hızlı eylemler: aynı oynatıcı yeteneklerini daha görünür
 // noktalara taşır; mevcut alt araçlar ve klavye kısayolları aynen çalışmaya devam eder.
+//
+// Bu ucu ANAHTAR gibi davranir. Onceden hepsi setSettingsDrawer(TRUE) cagiriyordu:
+// panel bir kez acildiktan sonra ayni dugmeye basmak hicbir sey yapmiyordu, dugme
+// da "aktif" kalip acikmis gibi duruyordu - kullanicida "ayarlar tusu calismiyor"
+// olarak gorunuyordu. Artik hedefe atlar, zaten hedefteyse kapatir.
+function drawerIsOpen() {
+  const d = $('settingsDrawer');
+  return !!d && !d.classList.contains('hidden');
+}
+
+function toggleDrawerAt(tabName, focusSel) {
+  const tab = tabName ? document.querySelector(`.tabs .tab[data-ptab="${tabName}"]`) : null;
+  const hedefteyiz = !tabName || (tab && tab.classList.contains('active'));
+  if (drawerIsOpen() && hedefteyiz) { setSettingsDrawer(false); return; }
+  setSettingsDrawer(true);
+  if (tab) tab.click();
+  if (focusSel) document.querySelector(focusSel)?.focus();
+}
+
 if ($('playerHeadSettings')) {
-  $('playerHeadSettings').addEventListener('click', () => setSettingsDrawer(true));
+  $('playerHeadSettings').addEventListener('click', () => toggleDrawerAt(null, null));
 }
 if ($('playerLayoutQuick')) {
   $('playerLayoutQuick').addEventListener('click', () => {
-    setSettingsDrawer(true);
-    document.querySelector('.player-layout-section .vm')?.focus();
+    toggleDrawerAt(null, '.player-layout-section .vm');
   });
 }
+// Panel GERCEKTEN gorunuyor mu? Sinema modunda CSS `display:none` veriyor;
+// yalnizca 'sidebar-collapsed' sinifina bakmak yaniltir.
+function sidebarIsVisible() {
+  const layer = $('playerLayer');
+  if (!layer) return false;
+  return player.viewMode !== 'cinema' && !layer.classList.contains('sidebar-collapsed');
+}
+
 function setPlayerSidebarCollapsed(collapsed) {
   const layer = $('playerLayer');
   const button = $('playerSidebarToggle');
@@ -4197,17 +4231,22 @@ function setPlayerSidebarCollapsed(collapsed) {
   const next = !!collapsed;
   layer.classList.toggle('sidebar-collapsed', next);
   if (button) {
-    button.classList.toggle('active', !next);
-    button.setAttribute('aria-pressed', next ? 'false' : 'true');
-    button.title = next ? 'Altyazı panelini göster' : 'Altyazı panelini gizle';
+    const shown = sidebarIsVisible();
+    button.classList.toggle('active', shown);
+    button.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    button.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   if (next) setSettingsDrawer(false);
   setTimeout(highlightCueRow, 80);
 }
 if ($('playerSidebarToggle')) {
   $('playerSidebarToggle').addEventListener('click', () => {
-    const layer = $('playerLayer');
-    setPlayerSidebarCollapsed(!layer?.classList.contains('sidebar-collapsed'));
+    if (sidebarIsVisible()) { setPlayerSidebarCollapsed(true); return; }
+    // Sinema modunda panel CSS ile gizli: sinifi temizlemek YETMEZ, moddan
+    // cikmak gerekir. Eskiden dugme sinifi bir acip bir kapatiyor ama ekranda
+    // hicbir sey degismiyordu - kullanici paneli geri getiremiyordu.
+    if (player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
+    setPlayerSidebarCollapsed(false);
   });
 }
 if ($('playerHeadFullscreen')) {
@@ -4217,12 +4256,7 @@ if ($('playerBookmark')) {
   $('playerBookmark').addEventListener('click', toggleCueSaved);
 }
 if ($('playerQuickDownload')) {
-  $('playerQuickDownload').addEventListener('click', () => {
-    setSettingsDrawer(true);
-    const tab = document.querySelector('.tabs .tab[data-ptab="yt"]');
-    if (tab) tab.click();
-    $('playerDownload')?.focus();
-  });
+  $('playerQuickDownload').addEventListener('click', () => toggleDrawerAt('yt', '#playerDownload'));
 }
 function openYoutubePanelAndProbe(rawUrl) {
   const url = String(rawUrl || '').trim();
@@ -4513,7 +4547,11 @@ if ($('playerVideo')) {
     if (video.duration) video.currentTime = (e.target.value / 1000) * video.duration;
     updateSeekVisuals();
   });
-  $('playerVolume').addEventListener('input', (e) => { video.volume = e.target.value / 100; });
+  $('playerVolume').addEventListener('input', (e) => {
+    video.volume = e.target.value / 100;
+    syncVolumeFill();
+  });
+  syncVolumeFill();
   $('muteBtn').addEventListener('click', () => { video.muted = !video.muted; });
 
   // Hız: belgesellerde 1.25x, ağır aksanda 0.75x
@@ -4662,12 +4700,18 @@ function nudgeSpeed(dir) {
   showControls();
 }
 
+// Ses cubugu ozel cizildigi icin dolgu yuzdesini CSS'e biz veriyoruz.
+function syncVolumeFill() {
+  const el = $('playerVolume');
+  if (el) el.style.setProperty('--vol', `${el.value}%`);
+}
+
 function setPlayerVolume(v) {
   const video = $('playerVideo');
   const el = $('playerVolume');
   if (!video) return;
   video.volume = Math.max(0, Math.min(1, v));
-  if (el) { el.value = String(Math.round(video.volume * 100)); scheduleSave(); }
+  if (el) { el.value = String(Math.round(video.volume * 100)); syncVolumeFill(); scheduleSave(); }
 }
 
 // Kaynak sekmeleri
