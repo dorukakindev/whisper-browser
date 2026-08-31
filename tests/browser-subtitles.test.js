@@ -307,6 +307,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /parseMp4Timescale\(init\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
   assert.match(main, /type: 'load-error'[\s\S]*browserNavigationState\(\{ loading: false \}\)/);
+  assert.match(main, /ERR_NETWORK_ACCESS_DENIED/);
+  assert.match(main, /Proton VPN ayrılmış tünellemesinde/);
   assert.match(main, /overrideBrowserWindowOptions: browserPopupWindowOptions\(\)/);
   assert.doesNotMatch(main, /setTimeout\(\(\) => wc\.loadURL\(safe\)/);
   assert.match(main, /'frame-step', 'speed'/);

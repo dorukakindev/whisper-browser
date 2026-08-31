@@ -1205,6 +1205,17 @@ function browserNavigationState(extra = {}) {
   };
 }
 
+function browserLoadErrorMessage(code, description) {
+  const raw = String(description || 'Sayfa yüklenemedi.');
+  if (Number(code) === -138 || /ERR_NETWORK_ACCESS_DENIED/i.test(raw)) {
+    return 'Ağ erişimi Windows veya VPN tarafından reddedildi. Proton VPN ayrılmış tünellemesinde bu uygulama seçiliyse Proton’a bağlanın ya da electron.exe seçimini kaldırın.';
+  }
+  if (Number(code) === -356 || /ERR_QUIC_PROTOCOL_ERROR/i.test(raw)) {
+    return 'VPN bağlantısı QUIC protokolünü tamamlayamadı; uygulamayı yeniden başlatıp tekrar deneyin.';
+  }
+  return raw;
+}
+
 function browserSubtitleDir() {
   const dir = path.join(app.getPath('userData'), 'browser-subtitles');
   fs.mkdirSync(dir, { recursive: true });
@@ -1975,9 +1986,7 @@ function ensureBrowserView() {
   });
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
     if (isMainFrame && code !== -3) {
-      const message = code === -356 || description === 'ERR_QUIC_PROTOCOL_ERROR'
-        ? 'VPN bağlantısı QUIC protokolünü tamamlayamadı; uygulamayı yeniden başlatıp tekrar deneyin.'
-        : description;
+      const message = browserLoadErrorMessage(code, description);
       sendBrowserEvent({ type: 'navigation', ...browserNavigationState({ loading: false }) });
       sendBrowserEvent({ type: 'load-error', ...browserNavigationState({ loading: false }), code, message, url });
     }
@@ -2221,7 +2230,7 @@ ipcMain.handle('browser:navigate', async (event, rawUrl) => {
     await view.webContents.loadURL(url);
     return { ok: true, ...browserNavigationState() };
   } catch (err) {
-    return { ok: false, error: err.message, url };
+    return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message), url };
   }
 });
 
