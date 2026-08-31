@@ -2477,6 +2477,8 @@ const player = {
   browserPlacesSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
+  browserSignalVisible: true,
+  browserChromeCollapsed: false,
 };
 
 try { player.audioLocks = JSON.parse(localStorage.getItem('playerAudioLocks') || '{}') || {}; }
@@ -2485,6 +2487,8 @@ catch (_) { player.audioLocks = {}; }
 try {
   const savedWorkspace = localStorage.getItem('playerWorkspaceMode');
   if (savedWorkspace === 'browser' || savedWorkspace === 'player') player.workspaceMode = savedWorkspace;
+  player.browserSignalVisible = localStorage.getItem('playerBrowserSignalVisible') !== 'false';
+  player.browserChromeCollapsed = localStorage.getItem('playerBrowserChromeCollapsed') === 'true';
 } catch (_) {}
 
 function browserSlotBounds() {
@@ -2516,6 +2520,48 @@ function bindBrowserBoundsObserver() {
 function setBrowserSignal(text, detected = false) {
   if ($('browserSignalText')) $('browserSignalText').textContent = text;
   $('browserSignal')?.classList.toggle('detected', detected);
+}
+
+function setBrowserSignalVisible(visible, persist = true) {
+  player.browserSignalVisible = !!visible;
+  $('browserWorkspace')?.classList.toggle('signal-collapsed', !player.browserSignalVisible);
+  const button = $('browserSignalToggle');
+  if (button) {
+    button.classList.toggle('active', player.browserSignalVisible);
+    button.setAttribute('aria-pressed', player.browserSignalVisible ? 'true' : 'false');
+    button.title = player.browserSignalVisible ? 'Altyazı sinyalini gizle' : 'Altyazı sinyalini göster';
+    button.setAttribute('aria-label', button.title);
+  }
+  if (!player.browserSignalVisible) {
+    $('browserDiagnosticsPanel')?.classList.add('hidden');
+    $('browserDiagnosticsToggle')?.setAttribute('aria-expanded', 'false');
+  }
+  if (persist) {
+    try { localStorage.setItem('playerBrowserSignalVisible', player.browserSignalVisible ? 'true' : 'false'); } catch (_) {}
+  }
+  scheduleBrowserBounds();
+}
+
+function setBrowserChromeCollapsed(collapsed, persist = true) {
+  player.browserChromeCollapsed = !!collapsed;
+  const active = player.workspaceMode === 'browser' && player.browserChromeCollapsed;
+  $('playerLayer')?.classList.toggle('browser-chrome-collapsed', active);
+  const button = $('browserChromeToggle');
+  if (button) {
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    button.title = active ? 'Üst araçları göster' : 'Sade izleme görünümüne geç';
+    button.setAttribute('aria-label', button.title);
+  }
+  if (active) {
+    setBrowserPlacesOpen(false);
+    $('browserDiagnosticsPanel')?.classList.add('hidden');
+    $('browserDiagnosticsToggle')?.setAttribute('aria-expanded', 'false');
+  }
+  if (persist) {
+    try { localStorage.setItem('playerBrowserChromeCollapsed', player.browserChromeCollapsed ? 'true' : 'false'); } catch (_) {}
+  }
+  scheduleBrowserBounds();
 }
 
 function browserPlaceTitle(item) {
@@ -2869,7 +2915,9 @@ function setWorkspaceMode(mode, persist = true) {
   player.workspaceMode = mode;
   const layer = $('playerLayer');
   layer?.classList.toggle('workspace-browser', mode === 'browser');
+  layer?.classList.toggle('browser-chrome-collapsed', mode === 'browser' && player.browserChromeCollapsed);
   $('browserWorkspace')?.classList.toggle('hidden', mode !== 'browser');
+  setBrowserSignalVisible(player.browserSignalVisible, false);
   const playerButton = $('workspacePlayerMode');
   const browserButton = $('workspaceBrowserMode');
   if (playerButton) {
@@ -2902,6 +2950,7 @@ function setWorkspaceMode(mode, persist = true) {
     try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
   }
   snapGridColumns();
+  scheduleBrowserBounds();
 }
 
 async function navigateBrowserFromAddress() {
@@ -2970,6 +3019,13 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
 if ($('browserBack')) $('browserBack').addEventListener('click', () => window.api.browserCommand('back'));
 if ($('browserForward')) $('browserForward').addEventListener('click', () => window.api.browserCommand('forward'));
 if ($('browserReload')) $('browserReload').addEventListener('click', () => window.api.browserCommand('reload'));
+if ($('browserSignalToggle')) $('browserSignalToggle').addEventListener('click', () => {
+  setBrowserSignalVisible(!player.browserSignalVisible);
+});
+if ($('browserSignalClose')) $('browserSignalClose').addEventListener('click', () => setBrowserSignalVisible(false));
+if ($('browserChromeToggle')) $('browserChromeToggle').addEventListener('click', () => {
+  setBrowserChromeCollapsed(!player.browserChromeCollapsed);
+});
 if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () => useBrowserTrack(false));
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
 if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click', () => {

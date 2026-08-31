@@ -1748,9 +1748,17 @@ function createWindow() {
     // Pozisyon kasıtlı olarak geri yüklenmiyor (ekran-dışı pencere riskini önlemek için)
     width: initW,
     height: initH,
-    // Sistem başlık çubuğunu içerikten ayır. titleBarOverlay kullanıldığında
-    // küçült/büyüt/kapat düğmeleri web içeriğinin üzerine çizilebildiği için
-    // oynatıcı araçlarıyla çakışıyordu; normal çerçeve bu çakışmayı önler.
+    // Ayrı Windows başlık şeridini kaldır; sistem pencere düğmelerini koru.
+    // Renderer sağ üstte sabit güvenli alan ayırır, böylece düğmeler oynatıcı
+    // ve tarayıcı araçlarının üzerine binmez.
+    ...(process.platform === 'win32' ? {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: '#0a0a0b',
+        symbolColor: '#a6adb6',
+        height: 36,
+      },
+    } : {}),
     minWidth: 940,
     minHeight: 680,
     backgroundColor: '#0b0f17',

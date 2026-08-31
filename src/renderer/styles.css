@@ -22,6 +22,7 @@
   --info: #4a7ba7;
   --radius: 6px;
   --radius-sm: 4px;
+  --window-controls-safe-width: 148px;
 }
 
 /* Genel gizleme yardımcısı — elemana özel .hidden kuralları yetmiyordu
@@ -3712,7 +3713,7 @@ body::before {
 
 .browser-toolbar {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
   align-items: center;
   gap: 9px;
   padding: 8px 10px;
@@ -3721,6 +3722,7 @@ body::before {
 }
 
 .browser-nav { display: flex; gap: 3px; }
+.browser-toolbar-actions { display: flex; align-items: center; gap: 7px; }
 .browser-nav-button {
   width: 34px;
   height: 34px;
@@ -3843,6 +3845,7 @@ body::before {
 }
 .browser-track-actions .btn { width: auto; min-height: 32px; padding: 0 11px; white-space: nowrap; }
 .browser-dismiss { width: 30px; height: 30px; color: #77777b; border-radius: 8px; }
+.browser-signal-close { flex: 0 0 30px; }
 
 .browser-diagnostics {
   position: absolute;
@@ -3902,6 +3905,42 @@ body::before {
 .player-layer.workspace-browser .player-stage { display: none; }
 .player-layer:not(.workspace-browser) .browser-workspace { display: none !important; }
 
+/* Tarayıcı izlerken iki ayrı yoğunluk denetimi vardır: sinyal şeridi tek
+   başına kapanabilir; sade görünüm ise başlığı ve ikincil araçları kaldırıp
+   yalnız adres alanını ve geri açma düğmesini bırakır. */
+.browser-workspace.signal-collapsed { grid-template-rows: 52px 0 minmax(0, 1fr); }
+.browser-workspace.signal-collapsed .browser-signal { display: none; }
+.browser-workspace.signal-collapsed .browser-diagnostics { top: 53px; }
+.player-layer.browser-chrome-collapsed .player-head { display: none; }
+.player-layer.browser-chrome-collapsed .player-body { padding: 0; }
+.player-layer.browser-chrome-collapsed .browser-workspace {
+  grid-template-rows: 52px 0 minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.player-layer.browser-chrome-collapsed .browser-signal { display: none; }
+.player-layer.browser-chrome-collapsed .browser-toolbar {
+  grid-template-columns: minmax(180px, 1fr) auto;
+  padding-right: calc(10px + var(--window-controls-safe-width));
+  border-bottom-color: #18181a;
+}
+.player-layer.browser-chrome-collapsed .browser-nav,
+.player-layer.browser-chrome-collapsed #browserGo,
+.player-layer.browser-chrome-collapsed #browserBookmarkToggle,
+.player-layer.browser-chrome-collapsed #browserPlacesToggle,
+.player-layer.browser-chrome-collapsed #browserSignalToggle { display: none; }
+.player-layer.browser-chrome-collapsed .browser-chrome-toggle svg { transform: rotate(180deg); }
+
+/* Windows başlık alanı uygulama yüzeyine gömülüdür. Son sıradaki bu kurallar,
+   daha eski padding kısayollarının güvenli sağ boşluğu ezmesini önler. */
+.app-header,
+.player-head,
+.browser-toolbar { -webkit-app-region: drag; }
+.app-header { padding-right: calc(24px + var(--window-controls-safe-width)); }
+.player-head { padding-right: calc(14px + var(--window-controls-safe-width)); }
+button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-drag; }
+
 @media (max-width: 1280px) {
   .player-workspace-switch { margin-left: 0; }
   .workspace-mode { padding: 0 10px; }
@@ -3911,7 +3950,7 @@ body::before {
 
 @media (max-width: 1060px) {
   .player-workspace-switch { order: 4; }
-  .browser-toolbar { grid-template-columns: auto minmax(120px, 1fr) auto auto auto; }
+  .browser-toolbar { grid-template-columns: auto minmax(120px, 1fr) auto; }
   .browser-signal { align-items: flex-start; flex-direction: column; padding-left: 15px; }
   .browser-track-actions { width: 100%; }
   .browser-track-actions select { flex: 1; width: auto; }

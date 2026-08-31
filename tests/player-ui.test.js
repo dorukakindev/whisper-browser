@@ -343,14 +343,31 @@ test('araç bloğu gizlenip açılabiliyor', () => {
   assert(/playerToolsOpen/.test(js), 'durum kalici degil (localStorage yok)');
 });
 
-// ---- 13. işletim sistemi başlık çubuğu ----
-test('OS başlık çubuğu oynatıcı içeriğinden ayrı tutulur', () => {
+// ---- 13. işletim sistemi başlık çubuğu ve sade tarayıcı görünümü ----
+test('native başlık gizlenirken pencere düğmeleri için güvenli alan korunur', () => {
   const main = fs.readFileSync(path.join(SRC, '..', 'main.js'), 'utf-8');
-  // Sistem düğmeleri ayrı native başlıkta kalır; içerik yüzeyine overlay çizilmez.
-  assert(!/titleBarStyle:\s*'hidden'/.test(main), 'eski gizli başlık düzeni geri geldi');
-  assert(!/titleBarOverlay:\s*\{/.test(main), 'pencere düğmeleri içerik üzerine overlay ediliyor');
-  assert(!/windowControlsOverlay|--wco-w|env\(titlebar-area-width/.test(`${main}\n${css}\n${js}`),
-    'overlay için eski içerik boşluğu kodu kaldı');
+  assert(/titleBarStyle:\s*'hidden'/.test(main), 'ayrı Windows başlık şeridi hâlâ açık');
+  assert(/titleBarOverlay:\s*\{/.test(main), 'native küçült/büyüt/kapat düğmeleri korunmuyor');
+  assert(/--window-controls-safe-width:\s*148px/.test(css), 'pencere düğmeleri için güvenli genişlik yok');
+  assert(/\.player-head\s*\{[^}]*padding-right:\s*calc\(14px \+ var\(--window-controls-safe-width\)\)/.test(css),
+    'oynatıcı başlığı native düğmelerden kaçınmıyor');
+});
+
+test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabilir', () => {
+  for (const id of ['browserSignalToggle', 'browserSignalClose', 'browserChromeToggle']) {
+    assert(layer.includes(`id="${id}"`), `${id} kontrolü yok`);
+    assert(js.includes(`$('${id}')`), `${id} renderer'a bağlı değil`);
+  }
+  assert(/function setBrowserSignalVisible/.test(js) && /playerBrowserSignalVisible/.test(js),
+    'altyazı sinyali görünürlüğü kalıcı değil');
+  assert(/function setBrowserChromeCollapsed/.test(js) && /playerBrowserChromeCollapsed/.test(js),
+    'sade görünüm kalıcı değil');
+  assert(/\.browser-workspace\.signal-collapsed \.browser-signal\s*\{[^}]*display:\s*none/.test(css),
+    'sinyal şeridini gerçekten gizleyen CSS yok');
+  assert(/\.player-layer\.browser-chrome-collapsed \.player-head\s*\{[^}]*display:\s*none/.test(css),
+    'sade görünüm üst oynatıcı başlığını gizlemiyor');
+  assert(/\.player-layer\.browser-chrome-collapsed #browserSignalToggle\s*\{[^}]*display:\s*none/.test(css),
+    'sade görünümde adres dışı araçlar tamamen çekilmiyor');
 });
 
 // ---- 14. izlerken canlı cümle birleştirme ----
