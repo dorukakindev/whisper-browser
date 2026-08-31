@@ -3157,6 +3157,36 @@ if ($('browserPlacesClear')) $('browserPlacesClear').addEventListener('click', a
   const result = await window.api.clearBrowserHistory().catch(() => null);
   if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
 });
+async function clearBrowserCookieScope(scope) {
+  const site = player.browserPageUrl || '';
+  const isSite = scope === 'site';
+  if (isSite && !site) {
+    setBrowserSignal('Önce bir site açın; temizlenecek site yok.', false);
+    return;
+  }
+  const question = isSite
+    ? 'Bu sitenin tüm çerezleri silinsin mi? Site oturumunuz kapanabilir.'
+    : 'Uygulamadaki tüm web çerezleri silinsin mi? Açık site oturumları kapanabilir.';
+  if (!confirm(question)) return;
+  const apiCall = isSite
+    ? window.api.clearBrowserSiteCookies?.(site)
+    : window.api.clearBrowserCookies?.();
+  const result = await (apiCall || Promise.resolve(null)).catch(() => null);
+  if (!result || !result.ok) {
+    setBrowserSignal(`Çerezler temizlenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  setBrowserPlacesOpen(false);
+  const count = Number(result.removed) || 0;
+  const failed = Number(result.failed) || 0;
+  const suffix = failed ? ` ${failed} çerez silinemedi.` : '';
+  setBrowserSignal(isSite
+    ? `${result.host || 'Bu site'} çerezleri temizlendi (${count}). Sayfa yenileniyor.${suffix}`
+    : `Tüm web çerezleri temizlendi (${count}). Sayfa yenileniyor.${suffix}`,
+  true);
+}
+if ($('browserSiteCookiesClear')) $('browserSiteCookiesClear').addEventListener('click', () => clearBrowserCookieScope('site'));
+if ($('browserCookiesClear')) $('browserCookiesClear').addEventListener('click', () => clearBrowserCookieScope('all'));
 document.querySelectorAll('[data-place-tab]').forEach((tab) => tab.addEventListener('click', () => {
   player.browserPlaceTab = tab.dataset.placeTab === 'history' ? 'history' : 'bookmarks';
   renderBrowserPlaces();

@@ -312,6 +312,10 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browser:places:list/);
   assert.match(main, /browser:places:toggleBookmark/);
   assert.match(main, /browser:places:clearHistory/);
+  assert.match(main, /browser:cookies:clearSite/);
+  assert.match(main, /browser:cookies:clearAll/);
+  assert.match(main, /clearStorageData\(\{ storages: \['cookies'\] \}\)/);
+  assert.match(main, /browserCookieMatchesHost/);
   assert.match(main, /browser:session:reset/);
   assert.match(main, /browser:subtitle:export/);
   assert.match(main, /rememberBrowserVisit\(wc\.getURL\(\)/);
@@ -320,6 +324,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(preload, /listBrowserPlaces:/);
   assert.match(preload, /toggleBrowserBookmark:/);
   assert.match(preload, /resetBrowserSession:/);
+  assert.match(preload, /clearBrowserSiteCookies:/);
+  assert.match(preload, /clearBrowserCookies:/);
   assert.match(preload, /exportBrowserSubtitle:/);
   assert.match(renderer, /function setWorkspaceMode/);
   assert.match(renderer, /offset: player\.offset/);
@@ -343,6 +349,11 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(html, /id="browserAddressSuggestions"/);
   assert.match(html, /id="browserPlacesClear"/);
   assert.match(html, /id="browserSessionReset"/);
+  assert.match(html, /id="browserSiteCookiesClear"/);
+  assert.match(html, /id="browserCookiesClear"/);
+  assert.match(renderer, /clearBrowserCookieScope/);
+  assert.match(renderer, /clearBrowserSiteCookies/);
+  assert.match(renderer, /clearBrowserCookies/);
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
 });

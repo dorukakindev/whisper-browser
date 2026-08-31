@@ -951,11 +951,13 @@
           <section class="browser-places hidden" id="browserPlacesPanel" aria-label="Yer imleri ve geçmiş">
             <div class="browser-places-head">
               <strong>Yer imleri ve geçmiş</strong>
-              <div class="browser-places-head-actions">
-                <button class="btn btn-ghost btn-sm browser-session-reset" id="browserSessionReset" type="button">Oturumu sıfırla</button>
-                <button class="btn btn-ghost btn-sm browser-places-clear hidden" id="browserPlacesClear" type="button">Geçmişi temizle</button>
-                <button class="btn-icon browser-dismiss" id="browserPlacesClose" type="button" title="Kapat" aria-label="Kapat">×</button>
-              </div>
+              <button class="btn-icon browser-dismiss" id="browserPlacesClose" type="button" title="Kapat" aria-label="Kapat">×</button>
+            </div>
+            <div class="browser-cookie-actions" aria-label="Çerez ve oturum işlemleri">
+              <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserSiteCookiesClear" type="button">Bu sitenin çerezlerini temizle</button>
+              <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserCookiesClear" type="button">Tüm çerezleri temizle</button>
+              <button class="btn btn-ghost btn-sm browser-session-reset" id="browserSessionReset" type="button">Oturumu ve önbelleği sıfırla</button>
+              <button class="btn btn-ghost btn-sm browser-places-clear hidden" id="browserPlacesClear" type="button">Geçmişi temizle</button>
             </div>
             <div class="browser-place-tabs" role="tablist" aria-label="Kayıt türü">
               <button class="browser-place-tab active" type="button" data-place-tab="bookmarks" role="tab">Yer imleri</button>

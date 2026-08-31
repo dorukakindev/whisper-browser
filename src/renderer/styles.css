@@ -3792,7 +3792,7 @@ body::before {
   box-shadow: 0 20px 55px rgba(0,0,0,.58);
 }
 .browser-places-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #e2e2e4; font-size: 12px; }
-.browser-places-head-actions { display: flex; align-items: center; gap: 5px; }
+.browser-cookie-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 9px; }
 .browser-places-clear { min-height: 26px; padding: 0 8px; color: #a99a83; font-size: 10px; }
 .browser-place-tabs { display: flex; gap: 5px; margin-top: 10px; padding-bottom: 8px; border-bottom: 1px solid #2b2b2f; }
 .browser-place-tab { padding: 6px 9px; color: #85858a; border: 1px solid transparent; border-radius: 7px; background: transparent; font-size: 10px; cursor: pointer; }
@@ -3837,9 +3837,12 @@ body::before {
 .browser-diagnostics-toggle:hover,
 .browser-diagnostics-toggle[aria-expanded="true"] { color: #e0e0e2; border-color: #4a3a22; background: #201b14; }
 .browser-signal-tool,
+.browser-cookie-action,
 .browser-session-reset { width: auto; min-height: 30px; padding: 0 9px; color: #929297; white-space: nowrap; }
 .browser-signal-tool:hover,
+.browser-cookie-action:hover,
 .browser-session-reset:hover { color: #dfdfe1; border-color: #4a3a22; background: #201b14; }
+.browser-cookie-action { color: #c2a16d; }
 .browser-track-actions { min-width: 0; display: flex; align-items: center; gap: 6px; }
 .browser-track-actions select {
   width: min(180px, 18vw);

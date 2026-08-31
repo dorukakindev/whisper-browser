@@ -873,6 +873,48 @@ function browserPlacesSnapshot() {
   return readBrowserPlaces();
 }
 
+function browserCookieUrl(cookie) {
+  const domain = String(cookie && cookie.domain || '').replace(/^\.+/, '');
+  const protocol = cookie && cookie.secure ? 'https' : 'http';
+  const cookiePath = String(cookie && cookie.path || '/');
+  return `${protocol}://${domain}${cookiePath.startsWith('/') ? cookiePath : `/${cookiePath}`}`;
+}
+
+function browserCookieMatchesHost(cookie, host) {
+  const domain = String(cookie && cookie.domain || '').replace(/^\.+/, '').toLowerCase();
+  const normalizedHost = String(host || '').toLowerCase();
+  return !!domain && !!normalizedHost && (domain === normalizedHost || normalizedHost.endsWith(`.${domain}`));
+}
+
+async function clearBrowserCookiesForSite(rawUrl) {
+  let parsed;
+  try { parsed = new URL(String(rawUrl || '')); } catch (_) { return { ok: false, error: 'Geçerli bir site adresi gerekli.' }; }
+  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+    return { ok: false, error: 'Çerez temizlemek için http/https adresi gerekli.' };
+  }
+  const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  const cookies = await browserSession.cookies.get({});
+  const targets = cookies.filter((cookie) => browserCookieMatchesHost(cookie, parsed.hostname));
+  let removed = 0;
+  let failed = 0;
+  for (const cookie of targets) {
+    try {
+      await browserSession.cookies.remove(browserCookieUrl(cookie), cookie.name);
+      removed++;
+    } catch (_) { failed++; }
+  }
+  await browserSession.cookies.flushStore().catch(() => {});
+  return { ok: true, host: parsed.hostname, removed, failed, total: targets.length };
+}
+
+async function clearAllBrowserCookies() {
+  const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  const before = await browserSession.cookies.get({}).catch(() => []);
+  await browserSession.clearStorageData({ storages: ['cookies'] });
+  await browserSession.cookies.flushStore().catch(() => {});
+  return { ok: true, removed: before.length };
+}
+
 function rememberBrowserVisit(url, title = '') {
   const safeUrl = safeBrowserPlaceUrl(url);
   if (!safeUrl) return;
@@ -2081,6 +2123,24 @@ ipcMain.handle('browser:places:clearHistory', (event) => {
   const snapshot = browserPlacesSnapshot();
   sendBrowserEvent({ type: 'places', places: snapshot });
   return { ok: true, places: snapshot };
+});
+
+ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const result = await clearBrowserCookiesForSite(rawUrl);
+    if (result.ok && browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
+    return result;
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+ipcMain.handle('browser:cookies:clearAll', async (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const result = await clearAllBrowserCookies();
+    if (browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
+    return result;
+  } catch (err) { return { ok: false, error: err.message }; }
 });
 
 ipcMain.handle('browser:session:reset', async (event) => {
