@@ -24,6 +24,10 @@ kontrol kaldırılamaz.
 Üretim paketini imzalamak için Castlabs EVS hesabı gerekir. Hesap doğrulandıktan
 sonra proje kökünde (paket klasörünü imzalar, tek `electron.exe` dosyasını değil):
 
+En kolay yol: proje klasöründeki `drm-kur.bat` dosyasına çift tıklayın. Menüden
+`1` (yeni hesap), `2` (mevcut hesap) veya `3` (hesap zaten hazır) seçin. E-posta,
+parola ve doğrulama kodunu yalnızca açılan terminale girin.
+
 ```bat
 backend\venv\Scripts\python.exe -m pip install --upgrade castlabs-evs
 backend\venv\Scripts\python.exe -m castlabs_evs.vmp sign-pkg node_modules\electron\dist
