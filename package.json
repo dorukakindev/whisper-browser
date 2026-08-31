@@ -11,7 +11,7 @@
   "author": "Whisper Altyazı",
   "license": "MIT",
   "devDependencies": {
-    "electron": "https://github.com/castlabs/electron-releases#v43.0.0+wvcus"
+    "electron": "https://github.com/castlabs/electron-releases#v43.2.0+wvcus"
   },
   "dependencies": {
     "hls.js": "^1.7.1"

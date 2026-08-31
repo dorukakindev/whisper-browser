@@ -177,6 +177,18 @@ for (const fn of ['setViewMode', 'setPlayerSidebarCollapsed']) {
   });
 }
 
+test('tarayıcı görünümü panel ve sürükleme değişikliklerinde gerçek alanı yeniden ölçüyor', () => {
+  const observer = js.slice(js.indexOf('function bindBrowserBoundsObserver'), js.indexOf('function setBrowserSignal'));
+  assert(/new ResizeObserver/.test(observer) && /observe\(slot\)/.test(observer),
+    'browserViewSlot ResizeObserver ile izlenmiyor — Electron görünümü eski genişlikte kalır');
+  for (const fn of ['setViewMode', 'setSideWidth', 'setPlayerSidebarCollapsed']) {
+    const i = js.indexOf(`function ${fn}(`);
+    const body = js.slice(i, js.indexOf('\n}', i));
+    assert(/scheduleBrowserBounds\(\)/.test(body),
+      `${fn} tarayici gorunumu sinirlarini yenilemiyor`);
+  }
+});
+
 // ---- 6. otomatik dur ----
 test('otomatik dur geçişi ÖNCEKİ zamanın bloğuna göre sınanıyor', () => {
   const i = js.indexOf('player.autoPause && !video.paused');

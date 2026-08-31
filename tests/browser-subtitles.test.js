@@ -239,6 +239,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browserSeenManifests = new Map/);
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
   assert.match(main, /components\.whenReady\(\)/);
+  assert.match(main, /setUserAgent\(sanitizeBrowserUserAgent\(/);
+  assert.match(main, /drm-playback-error/);
+  assert.match(main, /require\('\.\/browser-drm'\)/);
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
   assert.match(main, /updatedAt: Date\.now\(\)/);
@@ -258,7 +261,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(html, /id="browserTrackTranslate"/);
   assert.match(html, /id="browserDiagnosticsPanel"/);
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.0\.0\+wvcus/);
+  assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
 });
 
 if (!process.exitCode) console.log(`\n${passed} tarayıcı altyazısı testi geçti.`);

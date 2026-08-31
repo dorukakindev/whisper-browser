@@ -27,6 +27,10 @@ const {
   browserResponseAdapter,
   redactCaptureUrl,
 } = require('./browser-adapters');
+const {
+  browserDrmFailureMessage,
+  sanitizeBrowserUserAgent,
+} = require('./browser-drm');
 
 let mainWindow;
 let mainWindowClosing = false;
@@ -47,6 +51,7 @@ const browserTrackPublications = new Map();
 const browserSeenManifests = new Map();
 let browserDashSubtitleMatchers = [];
 let browserLastDrmStatus = '';
+let browserLastDrmFailure = '';
 let browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
 let browserDiagnostics = null;
 let widevineComponentStatus = { available: false, ready: false, detail: 'Castlabs bileşen API’si bulunamadı' };
@@ -886,6 +891,7 @@ function resetBrowserCaptureState() {
   browserTrackPublications.clear();
   browserSeenManifests.clear();
   browserDashSubtitleMatchers = [];
+  browserLastDrmFailure = '';
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
   browserDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url);
   publishBrowserDiagnostics();
@@ -1533,7 +1539,10 @@ function ensureBrowserView() {
   browserView.setVisible(false);
   mainWindow.contentView.addChildView(browserView);
   const wc = browserView.webContents;
-  wc.setUserAgent(wc.getUserAgent().replace(/\sElectron\/[^\s]+/i, ''));
+  // Birçok yayın sitesi `Electron/x` belirtecini desteklenmeyen tarayıcı diye
+  // reddediyor. Chromium sürümünü değiştirmeden yalnızca Electron ürün adını
+  // kaldır; navigator.userAgent ve istek başlıkları aynı kimliği kullansın.
+  wc.setUserAgent(sanitizeBrowserUserAgent(wc.getUserAgent()));
   wc.setWindowOpenHandler(({ url }) => {
     const safe = normalizeBrowserUrl(url);
     if (safe) setTimeout(() => wc.loadURL(safe), 0);
@@ -1555,6 +1564,12 @@ function ensureBrowserView() {
   wc.on('page-title-updated', (_event, title) => sendBrowserEvent({ type: 'title', title: title || '' }));
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
     if (isMainFrame && code !== -3) sendBrowserEvent({ type: 'load-error', code, message: description, url });
+  });
+  wc.on('console-message', (details, _level, legacyMessage) => {
+    const message = browserDrmFailureMessage((details && details.message) || legacyMessage);
+    if (!message || message === browserLastDrmFailure) return;
+    browserLastDrmFailure = message;
+    sendBrowserEvent({ type: 'drm-playback-error', message });
   });
   wc.on('dom-ready', () => {
     attachBrowserDebugger();

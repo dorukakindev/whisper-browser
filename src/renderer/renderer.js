@@ -2467,6 +2467,7 @@ const player = {
   browserDuration: 0,
   browserPaused: true,
   browserBoundsFrame: 0,
+  browserBoundsObserver: null,
   browserOverlayTimer: null,
   browserTrackRefreshTimer: null,
   browserLoadedTrackId: '',
@@ -2499,6 +2500,14 @@ function scheduleBrowserBounds() {
     const bounds = browserSlotBounds();
     if (bounds && window.api.setBrowserBounds) window.api.setBrowserBounds(bounds).catch(() => {});
   });
+}
+
+function bindBrowserBoundsObserver() {
+  const slot = $('browserViewSlot');
+  if (!slot || typeof ResizeObserver !== 'function') return;
+  if (player.browserBoundsObserver) player.browserBoundsObserver.disconnect();
+  player.browserBoundsObserver = new ResizeObserver(() => scheduleBrowserBounds());
+  player.browserBoundsObserver.observe(slot);
 }
 
 function setBrowserSignal(text, detected = false) {
@@ -2842,14 +2851,19 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     renderBrowserDiagnostics(event.diagnostics);
   } else if (event.type === 'drm-status') {
     const message = event.supported
-      ? 'Widevine erişimi hazır; korumalı video oynatma site hesabı ve lisans koşullarına bağlı.'
+      ? 'Widevine modülü bulundu. Bu yalnızca teknik erişimi doğrular; Hulu, Discovery+ ve benzeri servisler ayrıca üretim lisansı/VMP imzası isteyebilir.'
       : 'Bu Electron derlemesinde Widevine kullanılamıyor; korumalı video oynatılamayabilir, ancak erişilebilen altyazı ağ izleri taranmaya devam eder.';
     setBrowserSignal(message, !!event.supported);
     logLine(message, event.supported ? 'info' : 'warn');
+  } else if (event.type === 'drm-playback-error') {
+    const message = `Korumalı video lisans aşamasında reddedildi: ${event.message || 'DRM hatası'}`;
+    setBrowserSignal(message, false);
+    logLine(message, 'warn');
   }
 });
 
 window.addEventListener('resize', scheduleBrowserBounds);
+bindBrowserBoundsObserver();
 
 function normalizeAudioLang(value) {
   return String(value || '').trim().toLowerCase().replace(/_/g, '-');
@@ -6023,6 +6037,7 @@ function setViewMode(mode) {
     try { localStorage.setItem('playerLastSideMode', mode); } catch (_) {}
   }
   snapGridColumns();
+  scheduleBrowserBounds();
   $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const sidebarButton = $('playerSidebarToggle');
   if (sidebarButton) {
@@ -6042,6 +6057,7 @@ function setSideWidth(px) {
   // Rapordaki sinirlar: en az 420px, en cok ~720px (ve videoya yer kalsin)
   const w = Math.max(420, Math.min(720, Math.min(px, total - 360)));
   layer.style.setProperty('--side-w', `${w}px`);
+  scheduleBrowserBounds();
   try { localStorage.setItem('playerSideWidth', String(w)); } catch (_) {}
 }
 
@@ -6208,6 +6224,7 @@ function setPlayerSidebarCollapsed(collapsed) {
   const next = !!collapsed;
   layer.classList.toggle('sidebar-collapsed', next);
   snapGridColumns();
+  scheduleBrowserBounds();
   if (button) {
     const shown = sidebarIsVisible();
     button.classList.toggle('active', shown);
