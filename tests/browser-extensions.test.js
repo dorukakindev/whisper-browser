@@ -27,9 +27,9 @@ ok(main.includes("ipcMain.handle('browser:extensions:add'")
   && main.includes("ipcMain.handle('browser:extensions:remove'"),
   'ekle, ac/kapat, popup ve kaldir IPC uclari var');
 ok(main.includes('await loadConfiguredBrowserExtensions();'), 'kayitli eklentiler pencere acilmadan yukleniyor');
-ok(main.includes('BUNDLED_PROTON_EXTENSION_PATH')
-  && main.includes('ensureBundledBrowserExtensions();'),
-  'Proton VPN eklentisi ilk açılışta otomatik kaydediliyor');
+ok(main.includes("permissions.includes('proxy')")
+  && main.includes('Electron chrome.proxy API’sini desteklemediği için'),
+  'desteklenmeyen proxy eklentileri Electron acilmadan reddediliyor');
 ok(preload.includes('addBrowserExtension') && preload.includes('toggleBrowserExtension')
   && preload.includes('removeBrowserExtension'), 'eklenti IPC koprusu preload uzerinden sinirli');
 ok(html.includes('id="browserExtensionsToggle"') && html.includes('id="browserExtensionsPanel"')
