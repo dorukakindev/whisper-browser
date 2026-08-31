@@ -2473,6 +2473,7 @@ const player = {
   browserTime: 0,
   browserDuration: 0,
   browserPaused: true,
+  browserRate: 1,
   browserBoundsFrame: 0,
   browserBoundsObserver: null,
   browserOverlayTimer: null,
@@ -2869,6 +2870,7 @@ function updateBrowserNavigation(data) {
     player.browserPageTitle = data.title || '';
     player.browserTime = 0;
     player.browserDuration = 0;
+    player.browserRate = 1;
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
     setMediaKey(`browser:${data.url}`);
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
@@ -3087,6 +3089,14 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     player.browserTime = Number(event.media.currentTime) || 0;
     player.browserDuration = Number(event.media.duration) || 0;
     player.browserPaused = !!event.media.paused;
+    const browserRate = Number(event.media.playbackRate);
+    if (Number.isFinite(browserRate) && browserRate > 0) {
+      player.browserRate = browserRate;
+      if (player.workspaceMode === 'browser' && $('playerSpeed')) {
+        const exact = Array.from($('playerSpeed').options).some((option) => Number(option.value) === browserRate);
+        if (exact) $('playerSpeed').value = String(browserRate);
+      }
+    }
     if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
   } else if (event.type === 'load-error') {
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
@@ -3100,6 +3110,12 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       : 'Bu Electron derlemesinde Widevine kullanılamıyor; korumalı video oynatılamayabilir, ancak erişilebilen altyazı ağ izleri taranmaya devam eder.';
     setBrowserSignal(message, !!event.supported);
     logLine(message, event.supported ? 'info' : 'warn');
+  } else if (event.type === 'drm-wait') {
+    setBrowserSignal(event.message || (event.waiting ? 'DRM bileşeni hazırlanıyor…' : 'Sayfa açılıyor…'), false);
+  } else if (event.type === 'popup-opened') {
+    const message = `${event.host || 'Site'} için güvenli giriş penceresi açıldı.`;
+    setBrowserSignal(message, false);
+    logLine(message, 'info');
   } else if (event.type === 'drm-playback-error') {
     const message = `Korumalı video lisans aşamasında reddedildi: ${event.message || 'DRM hatası'}`;
     setBrowserSignal(message, false);
@@ -7136,8 +7152,20 @@ if ($('playerVideo')) {
 
   // Hız: belgesellerde 1.25x, ağır aksanda 0.75x
   if ($('playerSpeed')) {
-    $('playerSpeed').addEventListener('change', (e) => {
-      video.playbackRate = parseFloat(e.target.value) || 1;
+    $('playerSpeed').addEventListener('change', async (e) => {
+      const rate = parseFloat(e.target.value) || 1;
+      if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+        const result = await window.api.browserCommand('speed', rate).catch(() => null);
+        if (!result || !result.ok) {
+          e.target.value = String(player.browserRate || 1);
+          osd('Web video hızı değiştirilemedi');
+          return;
+        }
+        player.browserRate = Number(result.media && result.media.playbackRate) || rate;
+      } else {
+        video.playbackRate = rate;
+      }
+      scheduleSave();
     });
   }
 
@@ -7232,6 +7260,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+    if ((e.key === ',' || e.key === '.') && player.browserPaused) {
+      e.preventDefault();
+      stepBrowserFrame(e.key === '.' ? 1 : -1);
+      return;
+    }
+    if (e.key === '<' || e.key === ',') { e.preventDefault(); nudgeSpeed(-1); return; }
+    if (e.key === '>' || e.key === '.') { e.preventDefault(); nudgeSpeed(1); return; }
     let command = '', value;
     if (e.key === ' ') command = 'play-pause';
     else if (e.key === 'ArrowRight') { command = 'seek-relative'; value = 5; }
@@ -7305,17 +7340,38 @@ function nudgeOffset(delta) {
   showControls();
 }
 
-function nudgeSpeed(dir) {
+async function stepBrowserFrame(dir) {
+  const result = await window.api.browserCommand('frame-step', Number(dir || 0) / 25).catch(() => null);
+  if (!result || !result.ok) {
+    osd('Web videoda kare adımı uygulanamadı', 900);
+    return;
+  }
+  if (result.media) player.browserTime = Number(result.media.currentTime) || player.browserTime;
+  osd(dir > 0 ? 'Kare ileri' : 'Kare geri', 600);
+  showControls();
+}
+
+async function nudgeSpeed(dir) {
   const sel = $('playerSpeed');
   const video = $('playerVideo');
   if (!sel || !video) return;
   const opts = Array.from(sel.options).map((o) => parseFloat(o.value));
   const cur = opts.indexOf(parseFloat(sel.value));
   const next = Math.max(0, Math.min(opts.length - 1, (cur < 0 ? 2 : cur) + dir));
-  sel.value = String(opts[next]);
-  video.playbackRate = opts[next];
+  const target = opts[next];
+  if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+    const result = await window.api.browserCommand('speed', target).catch(() => null);
+    if (!result || !result.ok) {
+      osd('Web video hızı değiştirilemedi', 900);
+      return;
+    }
+    player.browserRate = Number(result.media && result.media.playbackRate) || target;
+  } else {
+    video.playbackRate = target;
+  }
+  sel.value = String(target);
   scheduleSave();
-  osd(`${opts[next]}× hız`);
+  osd(`${target}× hız`);
   showControls();
 }
 

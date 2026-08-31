@@ -66,6 +66,11 @@ test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
     assert(body.includes(`'${command}'`), `${command} web videosuna bağlı değil`);
   }
   assert(/window\.api\.browserCommand\(command, value\)/.test(body), 'komut tarayıcı IPC kanalına gitmiyor');
+  assert(/stepBrowserFrame/.test(body), 'duraklatılmış web videosunda kare adımı bağlı değil');
+  const frame = js.slice(js.indexOf('async function stepBrowserFrame'), js.indexOf('async function nudgeSpeed'));
+  assert(/browserCommand\('frame-step'/.test(frame), 'kare adımı web videosu IPC komutunu kullanmıyor');
+  const speed = js.slice(js.indexOf('async function nudgeSpeed'), js.indexOf('// Ses cubugu'));
+  assert(/browserCommand\('speed', target\)/.test(speed), 'hız kısayolu web videosunu hedeflemiyor');
 });
 
 test('tarayıcı A-B döngüsü ve otomatik dur web video zamanını kullanıyor', () => {

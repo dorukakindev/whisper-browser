@@ -7,6 +7,7 @@ const {
   cueFingerprint,
   cuesToSrt,
   isLikelySubtitleResponse,
+  manifestFingerprint,
   normalizeCues,
   parseSubtitlePayload,
   parseHlsSubtitleTracks,
@@ -48,7 +49,6 @@ let browserCaptureTimer = null;
 let browserCaptureBusy = false;
 let browserDebuggerReady = false;
 const browserPendingResponses = new Map();
-const browserSeenTracks = new Set();
 const browserTrackBuffers = new Map();
 const browserTrackPublications = new Map();
 const browserSeenManifests = new Map();
@@ -933,6 +933,24 @@ function normalizeBrowserUrl(raw) {
   }
 }
 
+function browserPopupWindowOptions() {
+  return {
+    width: 980,
+    height: 720,
+    show: true,
+    autoHideMenuBar: true,
+    backgroundColor: '#08090a',
+    webPreferences: {
+      partition: BROWSER_PARTITION,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      spellcheck: false,
+    },
+  };
+}
+
 function safeBrowserBounds(raw) {
   if (!mainWindow || mainWindow.isDestroyed() || !raw) return null;
   const content = mainWindow.getContentBounds();
@@ -968,7 +986,6 @@ function browserSubtitleDir() {
 
 function resetBrowserCaptureState() {
   browserPendingResponses.clear();
-  browserSeenTracks.clear();
   browserTrackBuffers.clear();
   browserTrackPublications.clear();
   browserSeenManifests.clear();
@@ -977,11 +994,6 @@ function resetBrowserCaptureState() {
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
   browserDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url);
   publishBrowserDiagnostics();
-}
-
-function browserManifestFingerprint(body) {
-  const text = String(body || '');
-  return `${text.length}:${text.slice(0, 384)}:${text.slice(-384)}`;
 }
 
 function browserTrackStreamKey(sourceUrl, language = '') {
@@ -1026,10 +1038,6 @@ function storeBrowserTrack(cues, meta = {}) {
   const publicationKey = streamKey || fingerprint;
   const previousPublication = browserTrackPublications.get(publicationKey);
   if (previousPublication && previousPublication.fingerprint === fingerprint) return null;
-  // Çok uzun oturumlarda sınırsız büyümesin; aynı sayfa yenilenince yakın
-  // geçmişteki izleri yine de tekrar bildirmeyelim.
-  browserSeenTracks.add(fingerprint);
-  if (browserSeenTracks.size > 240) browserSeenTracks.delete(browserSeenTracks.values().next().value);
   const lang = String(meta.language || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
   const suffix = lang ? `.${lang}` : '';
   const stableId = previousPublication ? previousPublication.id : fingerprint;
@@ -1130,11 +1138,11 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
     if (isManifest) {
       noteBrowserCapture('manifest', candidate, 'aday', strategy);
       const manifestKey = browserTrackStreamKey(candidate.url);
-      const manifestFingerprint = browserManifestFingerprint(body);
-      if (browserSeenManifests.get(manifestKey) !== manifestFingerprint) {
+      const fingerprint = manifestFingerprint(body);
+      if (browserSeenManifests.get(manifestKey) !== fingerprint) {
         // Canlı HLS/DASH manifestleri aynı URL altında yenilenir. URL'yi sonsuza
         // dek kilitlemek yeni altyazı parçalarını sessizce kaçırıyordu.
-        browserSeenManifests.set(manifestKey, manifestFingerprint);
+        browserSeenManifests.set(manifestKey, fingerprint);
         const isHls = /mpegurl|\.m3u8(?:[?#]|$)/i.test(mime + candidate.url);
         if (!isHls) {
           const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
@@ -1184,7 +1192,8 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
     }
     if (parsed.cues.length && candidate.dashTrack) {
       const offset = dashSegmentOffset(candidate.dashTrack);
-      const segmentDuration = Number(candidate.dashTrack.duration || 0) / Math.max(1, Number(candidate.dashTrack.timescale) || 1);
+      const segmentDuration = Number(candidate.dashTrack.duration || 0)
+        / Math.max(1, Number(candidate.dashTrack.timescale) || 1);
       const likelyLocalTimeline = offset > 0
         && cuesUseLocalSegmentTimeline(parsed.cues, segmentDuration, offset);
       if (likelyLocalTimeline) parsed.cues = parsed.cues.map((cue) => ({
@@ -1417,6 +1426,7 @@ function browserMediaProbeScript() {
     return { currentTime: Number(v.currentTime) || 0,
       duration: Number.isFinite(v.duration) ? v.duration : 0,
       paused: !!v.paused, muted: !!v.muted, volume: Number(v.volume) || 0,
+      playbackRate: Number(v.playbackRate) || 1,
       area: Math.max(0, v.clientWidth * v.clientHeight) };
   })()`;
 }
@@ -1454,8 +1464,15 @@ function browserMediaCommandScript(command, value) {
     else if (command === 'pause') video.pause();
     else if (command === 'mute') video.muted = !video.muted;
     else if (command === 'volume-relative') video.volume = Math.max(0, Math.min(1, video.volume + ${safeValue}));
+    else if (command === 'frame-step') {
+      if (!video.paused) return false;
+      video.currentTime = Math.max(0, video.currentTime + ${safeValue});
+    } else if (command === 'speed') {
+      video.playbackRate = Math.max(.25, Math.min(4, ${safeValue} || 1));
+    }
     else return false;
-    return true;
+    return { handled: true, currentTime: Number(video.currentTime) || 0,
+      playbackRate: Number(video.playbackRate) || 1, paused: !!video.paused };
   })()`;
 }
 
@@ -1619,19 +1636,33 @@ async function prepareWidevineComponents() {
 
 async function waitForProtectedPlayback(url) {
   if (!isProtectedBrowserHost(url) || widevineComponentStatus.ready || !widevineReadinessPromise) return;
+  sendBrowserEvent({
+    type: 'drm-wait', waiting: true,
+    message: 'DRM bileşeni hazırlanıyor; korumalı video birazdan açılacak…',
+  });
   // Component Updater çevrimdışıysa sonsuza kadar gezinmeyi kilitleme; bu süreden
   // sonra sayfa yine açılır ve teşhis paneli gerçek durumu gösterir.
-  await Promise.race([
-    widevineReadinessPromise,
-    new Promise((resolve) => setTimeout(resolve, 30000)),
-  ]);
+  try {
+    await Promise.race([
+      widevineReadinessPromise,
+      new Promise((resolve) => setTimeout(resolve, 30000)),
+    ]);
+  } finally {
+    sendBrowserEvent({
+      type: 'drm-wait', waiting: false, component: widevineComponentStatus,
+      message: widevineComponentStatus.ready
+        ? 'DRM bileşeni hazır; sayfa açılıyor…'
+        : 'DRM hazırlığı tamamlanamadı; sayfa yine de açılıyor…',
+    });
+  }
 }
 
 async function reportBrowserDrmSupport() {
   if (!browserView || browserView.webContents.isDestroyed()) return;
+  const pageUrl = browserView.webContents.getURL();
+  if (!isProtectedBrowserHost(pageUrl)) return;
   let host = '';
-  try { host = new URL(browserView.webContents.getURL()).hostname.toLowerCase(); } catch (_) {}
-  if (!/(^|\.)(netflix\.com|hulu\.com|max\.com|hbomax\.com|discoveryplus\.com|disneyplus\.com|primevideo\.com|amazon\.com)$/.test(host)) return;
+  try { host = new URL(pageUrl).hostname.toLowerCase(); } catch (_) {}
   const result = await browserView.webContents.executeJavaScript(`(async () => {
     if (!navigator.requestMediaKeySystemAccess) return { supported: false, reason: 'EME yok' };
     try {
@@ -1680,8 +1711,17 @@ function ensureBrowserView() {
   wc.setUserAgent(sanitizeBrowserUserAgent(wc.getUserAgent()));
   wc.setWindowOpenHandler(({ url }) => {
     const safe = normalizeBrowserUrl(url);
-    if (safe) setTimeout(() => wc.loadURL(safe), 0);
-    return { action: 'deny' };
+    if (!safe) return { action: 'deny' };
+    let host = '';
+    try { host = new URL(safe).hostname; } catch (_) {}
+    sendBrowserEvent({ type: 'popup-opened', host });
+    return { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() };
+  });
+  wc.on('did-create-window', (popup) => {
+    popup.setMenuBarVisibility(false);
+    popup.webContents.setWindowOpenHandler(({ url }) => normalizeBrowserUrl(url)
+      ? { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() }
+      : { action: 'deny' });
   });
   wc.on('will-navigate', (event, url) => {
     if (!normalizeBrowserUrl(url)) event.preventDefault();
@@ -1740,6 +1780,11 @@ function ensureBrowserView() {
           ...response, requestId: params.requestId, sessionId: sessionId || '',
           ...(dashTrack ? { dashTrack } : {}),
         });
+        // loadingFinished gelmeyen istekler çok uzun oturumlarda belleği sınırsız
+        // büyütmesin. En eski adayları bırakmak, yeni altyazı izlerini korur.
+        while (browserPendingResponses.size > 320) {
+          browserPendingResponses.delete(browserPendingResponses.keys().next().value);
+        }
       }
     } else if (method === 'Network.loadingFinished') {
       const pendingKey = `${sessionId || 'root'}:${params.requestId}`;
@@ -1955,9 +2000,11 @@ ipcMain.handle('browser:command', async (event, command, value) => {
       wc.stop();
     } else if (command === 'focus') {
       wc.focus();
-    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative'].includes(command)) {
-      const handled = (await executeBrowserFrames(browserMediaCommandScript(command, value))).some(Boolean);
-      if (!handled) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'frame-step', 'speed'].includes(command)) {
+      const media = (await executeBrowserFrames(browserMediaCommandScript(command, value)))
+        .find((result) => result && (result === true || result.handled));
+      if (!media) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
+      return { ok: true, media: media === true ? null : media, ...browserNavigationState() };
     } else {
       return { ok: false, error: 'Bu tarayıcı komutu desteklenmiyor.' };
     }

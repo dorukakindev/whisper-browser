@@ -7,8 +7,9 @@ function sanitizeBrowserUserAgent(value) {
 
 function isProtectedBrowserHost(value) {
   try {
-    const host = new URL(String(value || '')).hostname.toLowerCase();
-    return /(^|\.)(netflix\.com|hulu\.com|hulu\.jp|max\.com|hbomax\.com|discoveryplus\.com)$/.test(host);
+    const raw = String(value || '').trim();
+    const host = new URL(/^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
+    return /(^|\.)(netflix\.com|hulu\.com|hulu\.jp|max\.com|hbomax\.com|discoveryplus\.com|disneyplus\.com|primevideo\.com|amazon\.com)$/.test(host);
   } catch (_) {
     return false;
   }

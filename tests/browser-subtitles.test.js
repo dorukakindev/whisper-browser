@@ -6,6 +6,7 @@ const {
   cueFingerprint,
   cuesToSrt,
   isLikelySubtitleResponse,
+  manifestFingerprint,
   parseAss,
   parseHlsSubtitleTracks,
   parseHlsSegmentUris,
@@ -108,6 +109,12 @@ test('Aynı cue içeriği kararlı parmak izi üretir', () => {
   assert.notEqual(cueFingerprint(cues), cueFingerprint([{ start: 1, end: 2, text: 'C' }]));
 });
 
+test('Manifest parmak izi aynı uzunluktaki orta bölüm değişikliğini yakalar', () => {
+  const prefix = 'A'.repeat(500);
+  const suffix = 'Z'.repeat(500);
+  assert.notEqual(manifestFingerprint(`${prefix}X${suffix}`), manifestFingerprint(`${prefix}Y${suffix}`));
+});
+
 test('SRT çıktısı UTF-8 metni ve zamanları korur', () => {
   const srt = cuesToSrt([{ start: 1.005, end: 3.21, text: 'Türkçe metin' }]);
   assert.match(srt, /00:00:01,005 --> 00:00:03,210/);
@@ -128,6 +135,11 @@ test('Hulu benzeri HLS manifestinden altyazı izlerini çıkarır', () => {
     { url: 'https://cdn.test/video/captions/part-1.vtt', start: 0, duration: 4 },
     { url: 'https://cdn.test/video/captions/part-2.vtt', start: 4, duration: 5.5 },
   ]);
+  assert.deepEqual(parseHlsSegments('#EXTINF:2,\nsame.vtt\n#EXTINF:3,\nsame.vtt\n#EXTINF:4,\nnext.vtt', 'https://cdn.test/video/captions/en.m3u8'), [
+    { url: 'https://cdn.test/video/captions/same.vtt', start: 0, duration: 2 },
+    { url: 'https://cdn.test/video/captions/same.vtt', start: 2, duration: 3 },
+    { url: 'https://cdn.test/video/captions/next.vtt', start: 5, duration: 4 },
+  ]);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\npart-1.vtt', 'https://cdn.test/master.m3u8'), true);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\nvideo-1.ts', 'https://cdn.test/video.m3u8'), false);
 });
@@ -137,6 +149,10 @@ test('DASH MPD içindeki doğrudan TTML ve VTT adaptasyonlarını bulur', () => 
   assert.deepEqual(parseDashSubtitleTracks(mpd, 'https://cdn.test/movie/manifest.mpd'), [{ url: 'https://cdn.test/movie/subs/en.ttml', language: 'en', label: 'en', format: 'ttml' }]);
   const nested = '<MPD><BaseURL>https://media.test/root/</BaseURL><Period><BaseURL>period/</BaseURL><AdaptationSet contentType="text" lang="tr"><BaseURL>subs/</BaseURL><Representation id="tr"><BaseURL>main.ttml</BaseURL></Representation></AdaptationSet></Period></MPD>';
   assert.equal(parseDashSubtitleTracks(nested, 'https://origin.test/a.mpd')[0].url, 'https://media.test/root/period/subs/main.ttml');
+  const selfClosing = '<MPD><Period><AdaptationSet contentType="text" mimeType="text/vtt"><BaseURL>captions.vtt</BaseURL><Representation id="tr"/></AdaptationSet></Period></MPD>';
+  assert.deepEqual(parseDashSubtitleTracks(selfClosing, 'https://cdn.test/movie/manifest.mpd'), [
+    { url: 'https://cdn.test/movie/captions.vtt', language: '', label: 'tr', format: 'vtt' },
+  ]);
 });
 
 test('DASH parçalı altyazı eşleştiricisi video segmentlerini dışarıda bırakır', () => {
@@ -273,6 +289,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
   assert.match(main, /components\.whenReady\(\)/);
   assert.match(main, /waitForProtectedPlayback\(url\)/);
+  assert.match(main, /type: 'drm-wait'/);
   assert.match(main, /widevineReadinessPromise = readiness/);
   assert.match(main, /setUserAgent\(sanitizeBrowserUserAgent\(/);
   assert.match(main, /drm-playback-error/);
@@ -280,6 +297,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /parseMp4Timescale\(init\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
+  assert.match(main, /overrideBrowserWindowOptions: browserPopupWindowOptions\(\)/);
+  assert.doesNotMatch(main, /setTimeout\(\(\) => wc\.loadURL\(safe\)/);
+  assert.match(main, /'frame-step', 'speed'/);
   assert.match(main, /updatedAt: Date\.now\(\)/);
   assert.match(main, /browser:places:list/);
   assert.match(main, /browser:places:toggleBookmark/);

@@ -39,6 +39,10 @@ test('normal lisans bilgisi ve ilgisiz JavaScript hatası false positive üretme
 test('korumalı servis alan adlarını doğru sınıflandırır', () => {
   assert.equal(isProtectedBrowserHost('https://play.discoveryplus.com/video/watch/abc'), true);
   assert.equal(isProtectedBrowserHost('https://www.hulu.com/watch/abc'), true);
+  assert.equal(isProtectedBrowserHost('hulu.jp'), true);
+  assert.equal(isProtectedBrowserHost('https://www.disneyplus.com/play/abc'), true);
+  assert.equal(isProtectedBrowserHost('https://www.primevideo.com/detail/abc'), true);
+  assert.equal(isProtectedBrowserHost('https://www.amazon.com/gp/video/detail/abc'), true);
   assert.equal(isProtectedBrowserHost('https://example.com/video'), false);
   assert.equal(isProtectedBrowserHost('not a url'), false);
 });

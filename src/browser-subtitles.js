@@ -172,10 +172,11 @@ function parseHlsSegments(body, baseUrl = '') {
     if (value.startsWith('#')) continue;
     try {
       const url = new URL(value, baseUrl).href;
-      if (!out.some((item) => item.url === url)) {
-        out.push({ url, start: elapsed, duration: pendingDuration });
-        elapsed += pendingDuration;
-      }
+      // Aynı URI canlı/kayan bir listede yeniden kullanılabilir. URI'yi tekilleştirmek
+      // sonraki parçaların zamanını geriye kaydırdığı gibi ikinci oluşumun kendi
+      // zamanını da kaybettirir; her playlist satırı ayrı bir zaman örneğidir.
+      out.push({ url, start: elapsed, duration: pendingDuration });
+      elapsed += pendingDuration;
     } catch (_) {}
     pendingDuration = 0;
   }
@@ -311,6 +312,8 @@ function matchDashSubtitleUrl(url, matchers = []) {
 
 function dashSegmentOffset(matcher) {
   const value = Number(matcher && matcher.segmentValue);
+  // MPEG-DASH'te timescale verilmezse standart varsayılanı 1'dir. Manifest
+  // varsa init parçasından okunan gerçek değer eşleştiriciye daha önce yazılır.
   const timescale = Math.max(1, Number(matcher && matcher.timescale) || 1);
   if (!Number.isFinite(value)) return 0;
   if (matcher.variable === 'time') return Math.max(0, value / timescale);
@@ -370,9 +373,9 @@ function parseDashSubtitleTracks(body, baseUrl = '') {
     const tag = match.tag;
     const inner = match.inner;
     const signature = match.signature;
-    const representation = inner.match(/<Representation\b([^>]*)>([\s\S]*?)<\/Representation>/i);
-    const repTag = representation ? representation[1] : '';
-    const repInner = representation ? representation[2] : '';
+    const representation = dashRepresentations(inner)[0];
+    const repTag = representation ? representation.tag : '';
+    const repInner = representation ? representation.inner : '';
     const outerBase = dashOuterBase(xml, match, baseUrl);
     const adaptationPrefix = inner.split(/<Representation\b/i)[0];
     const adaptationValue = firstBaseValue(adaptationPrefix);
@@ -716,6 +719,12 @@ function cueFingerprint(cues) {
   return crypto.createHash('sha256').update(compact).digest('hex').slice(0, 20);
 }
 
+function manifestFingerprint(body) {
+  // DASH SegmentTimeline belgenin ortasında aynı uzunlukta değişebilir; baş/son
+  // örneklemesi bu yenilemeyi kaçırır. Tam gövde hash'i bu sessiz kaçırmayı önler.
+  return crypto.createHash('sha256').update(String(body || '')).digest('hex');
+}
+
 function formatSrtTime(seconds) {
   const total = Math.max(0, Math.round(Number(seconds || 0) * 1000));
   const pad = (value, width = 2) => String(value).padStart(width, '0');
@@ -749,6 +758,7 @@ module.exports = {
   cueFingerprint,
   cuesToSrt,
   isLikelySubtitleResponse,
+  manifestFingerprint,
   normalizeCues,
   parseSubtitlePayload,
   parseTime,
