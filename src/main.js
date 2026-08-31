@@ -23,6 +23,7 @@ const {
 } = require('./browser-subtitles');
 
 let mainWindow;
+let mainWindowClosing = false;
 let activeJob = null;
 let powerBlockerId = null;
 let browserView = null;
@@ -1377,6 +1378,17 @@ function destroyBrowserView() {
   browserView = null;
 }
 
+async function flushBrowserSession() {
+  try {
+    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+    // localStorage / IndexedDB Chromium deposuna, kalıcı giriş çerezleri de
+    // çerez deposuna yazılmış olsun. Böylece pencere kapanır kapanmaz süreç sona
+    // erse bile sonraki açılış aynı site oturumuyla devam eder.
+    browserSession.flushStorageData();
+    await browserSession.cookies.flushStore();
+  } catch (_) {}
+}
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
@@ -1408,9 +1420,23 @@ function createWindow() {
   if (st && st.maximized) mainWindow.maximize();
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.on('close', () => {
+  mainWindowClosing = false;
+  mainWindow.on('close', (event) => {
+    if (mainWindowClosing) {
+      event.preventDefault();
+      return;
+    }
+    event.preventDefault();
+    mainWindowClosing = true;
     saveWindowState();
-    destroyBrowserView();
+    flushBrowserSession().finally(() => {
+      destroyBrowserView();
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+    });
+  });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    mainWindowClosing = false;
   });
   // İş bitince yanıp sönen taskbar vurgusunu odaklanınca temizle
   mainWindow.on('focus', () => mainWindow.flashFrame(false));

@@ -217,6 +217,10 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
   assert.match(main, /new WebContentsView/);
   assert.match(main, /partition: BROWSER_PARTITION/);
+  assert.match(main, /BROWSER_PARTITION = 'persist:whisper-browser'/);
+  assert.match(main, /browserSession\.flushStorageData\(\)/);
+  assert.match(main, /browserSession\.cookies\.flushStore\(\)/);
+  assert.match(main, /flushBrowserSession\(\)\.finally/);
   assert.match(main, /nodeIntegration: false/);
   assert.match(main, /contextIsolation: true/);
   assert.match(main, /sandbox: true/);
