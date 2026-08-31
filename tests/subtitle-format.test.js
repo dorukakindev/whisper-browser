@@ -156,6 +156,14 @@ t('VTT: eslesmeyen blokta null (dosya bozulmaz)', () => {
   ok(F.replaceVttCueText(VTT_RICH, { start: 99, end: 100 }, 'x') === null, 'eslesmemeliydi');
 });
 
+t('VTT duzenleme bir ve iki haneli kesirleri doğru milisaniyeye çevirir', () => {
+  const raw = 'WEBVTT\n\n00:01.5 --> 00:02.50\nEski\n';
+  const cues = F.parseSubtitles(raw);
+  ok(cues.length === 1 && cues[0].start === 1.5 && cues[0].end === 2.5, 'VTT ayrıştırılamadı');
+  const out = F.replaceVttCueText(raw, cues[0], 'Yeni');
+  ok(out && out.includes('Yeni') && !out.includes('Eski'), 'kısa kesirli cue güncellenemedi');
+});
+
 // ---- ASS satir ici etiketler ----
 t('ASS: bastaki konum/stil etiketi duzenlemede KORUNUR', () => {
   const cues = F.parseSubtitles(ASS);

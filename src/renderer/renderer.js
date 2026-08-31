@@ -1366,10 +1366,12 @@ if ($('deepseekKeyHelp')) {
   } catch (_) {}
 })();
 
-// Seçili model+compute+diarization için kaba VRAM tahmini (MiB)
+// Seçili model+motor+batch+diarization için korumacı VRAM üst sınırı (MiB)
 function estimateVramMib() {
   const model = $('model') ? $('model').value : 'large-v3';
   const ct = $('computeType') ? $('computeType').value : 'float16';
+  const engine = $('engine') ? $('engine').value : 'faster';
+  const batchSize = Math.max(1, Math.min(32, parseInt(($('batchSize') || {}).value, 10) || 1));
   // float16 taban tahminleri (MiB); int8 ~yarı, float32 ~iki kat
   const base = {
     'large-v3': 3100, 'large-v3-turbo': 1700, 'large-v2': 3100,
@@ -1379,6 +1381,13 @@ function estimateVramMib() {
   if (ct === 'int8' || ct === 'int8_float16') mult = 0.55;
   else if (ct === 'float32') mult = 1.9;
   let est = base * mult;
+  if (engine === 'faster-batched' || engine === 'whisperx') {
+    // Aktivasyon belleği batch ile artar; doğrusal katsayıyı üstten sınırlamak
+    // rozeti kesin ölçüm gibi göstermeden yüksek batch değerlerini görünür kılar.
+    const batchMultiplier = Math.min(1.35, 0.12 + Math.max(0, batchSize - 1) * 0.035);
+    est += base * mult * batchMultiplier;
+  }
+  if (engine === 'whisperx') est += 1400; // wav2vec2 hizalama aşaması için güvenlik payı
   if ($('diarize') && $('diarize').checked) est += 2500;  // pyannote
   return Math.round(est);
 }
@@ -1399,17 +1408,18 @@ function updateGpuBadge() {
     const tight = est > state.gpuVramMib * 0.85;
     badge.classList.toggle('vram-warn', tight);
     badge.title = tight
-      ? `Tahmini VRAM ~${est} MiB / ${state.gpuVramMib} MiB — yetersiz kalabilir (OOM). Daha küçük model, int8 veya diarization'ı kapatmayı deneyin.`
-      : `Tahmini VRAM ~${est} MiB / ${state.gpuVramMib} MiB`;
+      ? `Korumacı VRAM tahmini ~${est} MiB / ${state.gpuVramMib} MiB — yetersiz kalabilir (OOM). Batch boyutunu düşürün; daha küçük model, int8 veya diarization'ı kapatmayı deneyin.`
+      : `Korumacı VRAM tahmini ~${est} MiB / ${state.gpuVramMib} MiB`;
   } else if (badge) {
     badge.classList.remove('vram-warn');
     badge.title = '';
   }
 }
-['device', 'computeType', 'model', 'diarize'].forEach((id) => {
+['device', 'computeType', 'model', 'engine', 'diarize'].forEach((id) => {
   const el = $(id);
   if (el) el.addEventListener('change', updateGpuBadge);
 });
+if ($('batchSize')) $('batchSize').addEventListener('input', updateGpuBadge);
 updateGpuBadge();
 
 // ===== Clear buttons =====
@@ -2003,13 +2013,9 @@ window.api.onEvent((event) => {
           item.warnings = Array.isArray(event.warnings) ? event.warnings : [];
           renderQueue();
         }
-        state.currentQueueId = null;
-        state.running = false;
-        $('startBtn').classList.remove('hidden');
-        $('cancelBtn').classList.add('hidden');
-        setStatus('Hazır');
-        // Sonrakine geç (kısa bekleme)
-        setTimeout(processNextQueueItem, 500);
+        // Python stdout'taki done, işletim sistemi süreci kapanmadan gelebilir.
+        // Sıradaki işi yalnız exit olayında başlat; activeJob o anda temizlenmiştir.
+        setStatus('Tamamlandı · süreç kapanıyor');
       } else {
         // Tek seferlik mod — modal göster
         showResultModal(event);
@@ -2030,11 +2036,7 @@ window.api.onEvent((event) => {
           item.status = 'error';
           renderQueue();
         }
-        state.currentQueueId = null;
-        state.running = false;
-        $('startBtn').classList.remove('hidden');
-        $('cancelBtn').classList.add('hidden');
-        setTimeout(processNextQueueItem, 500);
+        // error olayından sonra da süreç kapanışını bekle (done ile aynı yarış).
       } else {
         finishRun(false);
         notifyDone('Altyazı çıkarma başarısız', event.message || 'Bilinmeyen hata');
@@ -2052,25 +2054,30 @@ window.api.onEvent((event) => {
         setStatus('İptal edildi');
         break;
       }
+      if (state.queueRunning && state.currentQueueId !== null) {
+        const item = state.queue.find(x => x.id === state.currentQueueId);
+        if (event.code !== 0 && item && item.status === 'running') item.status = 'error';
+        if (event.code !== 0) {
+          logLine(`İşlem çıkış kodu ${event.code} ile bitti.`, 'error');
+          if (event.stderr) logLine(event.stderr, 'error');
+          setStatus('Hata', 'error');
+        } else {
+          setStatus('Hazır');
+        }
+        renderQueue();
+        state.currentQueueId = null;
+        state.running = false;
+        $('startBtn').classList.remove('hidden');
+        $('cancelBtn').classList.add('hidden');
+        setTimeout(processNextQueueItem, 250);
+        break;
+      }
       if (event.code !== 0 && state.running) {
         logLine(`İşlem çıkış kodu ${event.code} ile bitti.`, 'error');
         if (event.stderr) logLine(event.stderr, 'error');
         setStatus('Hata', 'error');
 
-        if (state.queueRunning && state.currentQueueId !== null) {
-          const item = state.queue.find(x => x.id === state.currentQueueId);
-          if (item && item.status === 'running') {
-            item.status = 'error';
-            renderQueue();
-          }
-          state.currentQueueId = null;
-          state.running = false;
-          $('startBtn').classList.remove('hidden');
-          $('cancelBtn').classList.add('hidden');
-          setTimeout(processNextQueueItem, 500);
-        } else {
-          finishRun(false);
-        }
+        finishRun(false);
       }
       break;
   }
@@ -2875,13 +2882,28 @@ function updateBrowserNavigation(data) {
   }
 }
 
-function renderBrowserCueAt(time) {
+function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   const t = Number(time || 0) - player.offset;
+  const previous = Number(previousTime);
+  if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
+      && (!Number.isFinite(previous) || previous < player.abB)) {
+    player.browserTime = player.abA;
+    window.api.browserCommand('seek', player.abA).catch(() => {});
+    return renderBrowserCueAt(player.abA, undefined, paused);
+  }
   if (player.cues.length) {
     const index = findCueAt(player.cues, t, player.activeIdx);
     if (index !== player.activeIdx) {
       player.activeIdx = index;
       highlightCueRow();
+    }
+    const prev = previous - player.offset;
+    const dt = Number.isFinite(prev) ? t - prev : -1;
+    if (player.autoPause && !paused && dt > 0 && dt < 1) {
+      const priorIndex = findCueAt(player.cues, prev, player.activeIdx);
+      if (priorIndex >= 0 && prev < player.cues[priorIndex].end && t >= player.cues[priorIndex].end) {
+        window.api.browserCommand('pause').catch(() => {});
+      }
     }
   }
   if (player.cues2.length) player.activeIdx2 = findCueAt(player.cues2, t, player.activeIdx2);
@@ -3061,10 +3083,11 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     scheduleActiveBrowserTrackRefresh(event.track);
     if (index < 0) logLine(`Web altyazısı bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
   } else if (event.type === 'media' && event.media) {
+    const previousTime = player.browserTime;
     player.browserTime = Number(event.media.currentTime) || 0;
     player.browserDuration = Number(event.media.duration) || 0;
     player.browserPaused = !!event.media.paused;
-    if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime);
+    if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
   } else if (event.type === 'load-error') {
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
   } else if (event.type === 'capture-warning') {
@@ -3743,8 +3766,13 @@ function stepCue(delta) {
   const t = (player.workspaceMode === 'browser' ? player.browserTime : (video && video.currentTime) || 0) - player.offset;
   let i = player.activeIdx;
   if (i < 0) {
-    i = player.cues.findIndex((c) => c.start > t);
-    if (i < 0) i = player.cues.length - 1;
+    if (delta < 0) {
+      i = player.cues.length - 1;
+      while (i > 0 && player.cues[i].end > t) i--;
+    } else {
+      i = player.cues.findIndex((c) => c.start > t);
+      if (i < 0) i = player.cues.length - 1;
+    }
   } else {
     i += delta;
   }
@@ -4031,8 +4059,12 @@ function timelineSplitCue() {
   if (!cue || !(at > cue.start + .2 && at < cue.end - .2)) {
     logLine('Oynatma noktası seçili bloğun en az 200 ms içinde olmalı.', 'warn'); return;
   }
-  timelinePushUndo();
   const words = cue.text.split(/\s+/);
+  if (words.length < 2) {
+    logLine('Tek kelimelik altyazı metni iki anlamlı parçaya bölünemez.', 'warn');
+    return;
+  }
+  timelinePushUndo();
   const cut = Math.max(1, Math.min(words.length - 1,
     Math.round(words.length * (at - cue.start) / (cue.end - cue.start))));
   const left = { ...cue, end: at, text: words.slice(0, cut).join(' ') || cue.text };
@@ -4089,8 +4121,12 @@ if ($('timelineCanvas')) {
     const span = view.end - view.start;
     const x = e.clientX - rect.left;
     const at = view.start + x / rect.width * span;
-    const hit = e.offsetY >= 76 && e.offsetY <= 122
+    const edgeSec = Math.max(.08, span * 8 / rect.width);
+    let hit = e.offsetY >= 76 && e.offsetY <= 122
       ? player.cues.findIndex((c) => c.start <= at && c.end >= at) : -1;
+    if (hit < 0 && e.offsetY >= 76 && e.offsetY <= 122) {
+      hit = player.cues.findIndex((c) => Math.min(Math.abs(at - c.start), Math.abs(at - c.end)) <= edgeSec);
+    }
     if (hit < 0) {
       const video = $('playerVideo');
       if (video) video.currentTime = Math.max(0, Math.min(timelineDuration(), at));
@@ -4100,7 +4136,6 @@ if ($('timelineCanvas')) {
     player.timeline.selected = hit;
     player.activeIdx = hit;
     const cue = player.cues[hit];
-    const edgeSec = Math.max(.08, span * 8 / rect.width);
     const mode = Math.abs(at - cue.start) <= edgeSec ? 'start'
       : Math.abs(at - cue.end) <= edgeSec ? 'end' : 'move';
     timelinePushUndo();
@@ -4736,8 +4771,14 @@ function applyCueMerge() {
 const AI_CHAT_CTX = 3;             // kac onceki/sonraki satir gonderilsin
 
 function aiChatContext() {
-  const i = player.activeIdx;
   const cues = player.cues || [];
+  const now = (player.workspaceMode === 'browser'
+    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0)) - player.offset;
+  let i = player.activeIdx;
+  if (i < 0 && cues.length) {
+    i = cues.length - 1;
+    while (i >= 0 && cues[i].end > now) i--;
+  }
   const ctx = {
     video: (document.getElementById('playerTitle') || {}).textContent || '',
     zaman: pSecToTime(player.workspaceMode === 'browser'
@@ -4761,7 +4802,13 @@ function aiChatContext() {
 function aiChatCtxLabel() {
   const el = $('aiChatCtx');
   if (!el) return;
-  const i = player.activeIdx;
+  const now = (player.workspaceMode === 'browser'
+    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0)) - player.offset;
+  let i = player.activeIdx;
+  if (i < 0 && player.cues.length) {
+    i = player.cues.length - 1;
+    while (i >= 0 && player.cues[i].end > now) i--;
+  }
   el.textContent = (i >= 0 && player.cues[i])
     ? `Bağlam: ${pSecToTime(player.cues[i].start)} · ${player.cues[i].text.slice(0, 46)}`
     : 'Bağlam: altyazı yok — genel soru sorabilirsin';
@@ -5059,11 +5106,12 @@ function osd(text, ms) {
 function toggleAbLoop() {
   const v = $('playerVideo');
   if (!v) return;
+  const currentTime = player.workspaceMode === 'browser' ? player.browserTime : v.currentTime;
   if (player.abA === null) {
-    player.abA = v.currentTime;
+    player.abA = currentTime;
     osd(`A: ${pSecToTime(player.abA)}`);
   } else if (player.abB === null) {
-    const b = v.currentTime;
+    const b = currentTime;
     if (b <= player.abA + 0.2) { osd('B, A’dan sonra olmalı'); return; }
     player.abB = b;
     osd(`A-B döngüsü: ${pSecToTime(player.abA)} → ${pSecToTime(player.abB)}`, 1400);
@@ -5080,9 +5128,10 @@ function toggleAbLoop() {
 function renderAbMarkers() {
   const box = $('seekMarkers');
   const v = $('playerVideo');
-  if (!box || !v || !v.duration) return;
+  const duration = player.workspaceMode === 'browser' ? player.browserDuration : (v && v.duration);
+  if (!box || !v || !duration) return;
   box.querySelectorAll('.ab-marker, .ab-range').forEach((e) => e.remove());
-  const pct = (t) => (t / v.duration) * 100;
+  const pct = (t) => (t / duration) * 100;
   if (player.abA !== null) {
     const a = document.createElement('div');
     a.className = 'ab-marker';
@@ -5806,7 +5855,8 @@ function replaceVttCueText(rawText, cue, newText) {
   const toSec = (t) => {
     const m = String(t).match(/(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/);
     if (!m) return null;
-    return (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000;
+    return (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3])
+      + (+String(m[4]).padEnd(3, '0')) / 1000;
   };
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i].includes('-->')) continue;
@@ -7181,6 +7231,22 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
+  if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+    let command = '', value;
+    if (e.key === ' ') command = 'play-pause';
+    else if (e.key === 'ArrowRight') { command = 'seek-relative'; value = 5; }
+    else if (e.key === 'ArrowLeft') { command = 'seek-relative'; value = -5; }
+    else if (e.key === 'j' || e.key === 'J') { command = 'seek-relative'; value = -10; }
+    else if (e.key === 'l' || e.key === 'L') { command = 'seek-relative'; value = 10; }
+    else if (e.key === 'm' || e.key === 'M') command = 'mute';
+    else if (e.key === 'ArrowUp') { command = 'volume-relative'; value = .05; }
+    else if (e.key === 'ArrowDown') { command = 'volume-relative'; value = -.05; }
+    if (command) {
+      e.preventDefault();
+      window.api.browserCommand(command, value).catch(() => {});
+      return;
+    }
+  }
   // Kare kare gezinme (duraklatilmisken) - altyazi sinirini ayarlarken ise yarar
   if ((e.key === ',' || e.key === '.') && video.paused) {
     e.preventDefault();

@@ -22,6 +22,7 @@ birleştiremez. Üç yol var:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -261,8 +262,12 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     vid = (info or {}).get("id") or ""
     candidates = [p for p in out.glob("*.srt") if not vid or f"[{vid}]" in p.name]
     # Dil eki dosya adinda olur (".tr.srt"); o dile ait olani tercih et
-    exact = [p for p in candidates if p.name.lower().endswith(f".{lang.lower()}.srt")]
-    picked = exact or candidates
+    requested = lang.lower().replace("_", "-")
+    exact = [p for p in candidates if p.name.lower().endswith(f".{requested}.srt")]
+    if not exact and "-" not in requested:
+        exact = [p for p in candidates
+                 if re.search(rf"\.{re.escape(requested)}-[a-z0-9-]+\.srt$", p.name.lower())]
+    picked = exact
     if not picked:
         raise RuntimeError(
             f"Altyazı indirilemedi ({lang}). Bu videoda o dilde altyazı olmayabilir."

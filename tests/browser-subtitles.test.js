@@ -16,7 +16,9 @@ const {
   matchDashSubtitleUrl,
   dashSegmentOffset,
   cuesUseLocalSegmentTimeline,
+  browserActiveCuesAt,
   parseMp4WebVtt,
+  parseMp4Timescale,
   findSubtitleUrls,
   parseLrc,
   parseSami,
@@ -69,6 +71,13 @@ test('YouTube json3 olaylarını saniyeye çevirir', () => {
   ] }), 'application/json', 'https://youtube.com/api/timedtext?fmt=json3');
   assert.equal(result.format, 'json3');
   assert.deepEqual(result.cues[0], { start: 1.25, end: 3.5, text: 'Hello world' });
+});
+
+test('YouTube srv3 kısa t/d değerlerini de milisaniye kabul eder', () => {
+  const result = parseSubtitlePayload('<timedtext><body><p t="80" d="40">Kısa</p></body></timedtext>',
+    'text/xml', 'https://youtube.com/api/timedtext?fmt=srv3');
+  // Normalleştirici, görünür kalması için bloklara en az 80 ms süre verir.
+  assert.deepEqual(result.cues, [{ start: .08, end: .16, text: 'Kısa' }]);
 });
 
 test('Genel altyazı JSON dizisini açık zaman alanlarıyla ayrıştırır', () => {
@@ -141,12 +150,28 @@ test('DASH parçalı altyazı eşleştiricisi video segmentlerini dışarıda b�
   assert.ok(matchDashSubtitleUrl('https://cdn.test/movie/text/eng/00003.m4s?token=signed', matchers));
   const repTyped = '<MPD><Period><AdaptationSet><SegmentTemplate media="cc/$Number$.m4s"/><Representation id="tr" mimeType="application/ttml+xml"/></AdaptationSet></Period></MPD>';
   assert.equal(parseDashSubtitleMatchers(repTyped, 'https://cdn.test/a.mpd').length, 1);
+  const initOnly = '<MPD><Period><AdaptationSet contentType="text" codecs="wvtt"><SegmentTemplate media="cc/$Number$.m4s" initialization="cc/$RepresentationID$/init.mp4"/><Representation id="en"/></AdaptationSet></Period></MPD>';
+  const initMatcher = parseDashSubtitleMatchers(initOnly, 'https://cdn.test/movie/a.mpd')[0];
+  assert.equal(initMatcher.timescale, 0);
+  assert.equal(initMatcher.initializationUrl, 'https://cdn.test/movie/cc/en/init.mp4');
 });
 
 test('Segment zaman kararı mutlak cueyu ikinci kez kaydırmaz', () => {
-  assert.equal(cuesUseLocalSegmentTimeline([{ start: 0.25, end: 3, text: 'Yerel' }], 6), true);
-  assert.equal(cuesUseLocalSegmentTimeline([{ start: 6.1, end: 9, text: 'Mutlak' }], 6), false);
-  assert.equal(cuesUseLocalSegmentTimeline([{ start: 4, end: 7.5, text: 'Mutlak HLS' }], 4), false);
+  assert.equal(cuesUseLocalSegmentTimeline([{ start: 0.25, end: 3, text: 'Yerel' }], 6, 12), true);
+  assert.equal(cuesUseLocalSegmentTimeline([{ start: 3.5, end: 5.8, text: 'Müzikten sonra' }], 6, 12), true);
+  assert.equal(cuesUseLocalSegmentTimeline([{ start: 6.1, end: 9, text: 'Mutlak' }], 6, 6), false);
+  assert.equal(cuesUseLocalSegmentTimeline([{ start: 4, end: 7.5, text: 'Mutlak HLS' }], 4, 4), false);
+});
+
+test('Aynı anda etkin olan çakışan altyazıların tamamını korur', () => {
+  const cues = [
+    { start: 1, end: 4, text: 'Konuşmacı bir' },
+    { start: 2, end: 5, text: 'Konuşmacı iki' },
+    { start: 6, end: 7, text: 'Sonraki' },
+  ];
+  assert.deepEqual(browserActiveCuesAt(cues, 3).map((cue) => cue.text),
+    ['Konuşmacı bir', 'Konuşmacı iki']);
+  assert.deepEqual(browserActiveCuesAt(cues, 5.5), []);
 });
 
 test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () => {
@@ -172,6 +197,10 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
   assert.deepEqual(parseMp4WebVtt(fragment, { timescale: 1000 }), [
     { start: 6, end: 8, text: 'Bir' }, { start: 8, end: 10, text: 'İki' },
   ]);
+  const mdhd = Buffer.alloc(20); mdhd.writeUInt32BE(1000, 12);
+  const init = box('moov', box('trak', box('mdia', box('mdhd', mdhd))));
+  assert.equal(parseMp4Timescale(init), 1000);
+  assert.deepEqual(parseMp4WebVtt(fragment, {}), []);
 });
 
 test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bulur', () => {
@@ -230,11 +259,15 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /Network\.responseReceived/);
   assert.match(main, /Target\.setAutoAttach/);
   assert.match(main, /browserCaptureHookScript/);
+  assert.match(main, /const bodyBase64 = String\(entry\.bodyBase64/);
+  assert.match(main, /\(!body && !bodyBase64\)/);
   assert.match(main, /processBrowserCapturedPayload/);
   assert.match(main, /capture-status/);
   assert.match(main, /\.framesInSubtree/);
   assert.match(main, /node\.shadowRoot/);
   assert.match(main, /executeBrowserFrames\(browserOverlayScript/);
+  assert.match(main, /document\.fullscreenElement/);
+  assert.match(main, /fullscreenchange/);
   assert.match(main, /state\.offset/);
   assert.match(main, /browserSeenManifests = new Map/);
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
@@ -245,6 +278,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /drm-playback-error/);
   assert.match(main, /require\('\.\/browser-drm'\)/);
   assert.match(main, /matchDashSubtitleUrl/);
+  assert.match(main, /parseMp4Timescale\(init\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
   assert.match(main, /updatedAt: Date\.now\(\)/);
   assert.match(main, /browser:places:list/);

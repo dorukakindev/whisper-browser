@@ -1170,6 +1170,28 @@ def test_parse_and_shift_srt():
     assert T.shift_srt_entries(spans, -5.0)[0][0] == 0.0  # negatif → 0'a kırpılır
     assert abs(T.shift_srt_entries(spans, 2.0)[0][0] - 3.0) < 1e-6
 
+    vtt = "WEBVTT\n\n05:23.500 --> 05:28.100 align:start\nStandart VTT\n"
+    vtt_spans = T.parse_srt(vtt)
+    assert len(vtt_spans) == 1
+    assert abs(vtt_spans[0][0] - 323.5) < 1e-6
+
+
+def test_parse_llm_json_object_with_intro_and_fence():
+    assert T.parse_llm_json_object('İstenen çıktı:\n```json\n{"0":"Merhaba"}\n```') == {"0": "Merhaba"}
+    assert T.parse_llm_json_object('Kısa not. {"ok": true} Son.') == {"ok": True}
+    try:
+        T.parse_llm_json_object('[1, 2, 3]')
+        raise AssertionError("JSON dizisi nesne diye kabul edildi")
+    except RuntimeError:
+        pass
+
+
+def test_wrap_sentence_closing_quote_and_parenthesis():
+    assert T.wrap_text('"Gidelim mi?" Sonra bakarız.', wrap_mode="sentence") == \
+        '"Gidelim mi?"\nSonra bakarız.'
+    assert T.wrap_text('(Gülüşmeler.) Son söz.', wrap_mode="sentence") == \
+        '(Gülüşmeler.)\nSon söz.'
+
 
 def test_best_offset():
     if not _has_numpy():

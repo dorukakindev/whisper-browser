@@ -17,7 +17,9 @@ const {
   matchDashSubtitleUrl,
   dashSegmentOffset,
   cuesUseLocalSegmentTimeline,
+  browserActiveCuesAt,
   parseMp4WebVtt,
+  parseMp4Timescale,
   findSubtitleUrls,
   subtitleLanguage,
 } = require('./browser-subtitles');
@@ -463,11 +465,25 @@ function backupOnce(filePath) {
 }
 
 function writeSubtitleAtomic(filePath, text) {
-  // SRT/ASS çıktılarımız BOM'lu (Windows oynatıcıları için) — aynı biçimi koru
-  const data = '\uFEFF' + String(text).replace(/^\uFEFF/, '');
+  // Yalnız Windows oynatıcılarında gerekli SRT/ASS dosyaları BOM'lu. WebVTT ve
+  // başka metin biçimlerine koşulsuz BOM ekleme (JSON.parse bunu kabul etmez).
+  const plain = String(text).replace(/^\uFEFF/, '');
+  const data = /\.(srt|ass|ssa)$/i.test(filePath) ? '\uFEFF' + plain : plain;
   const tmp = filePath + '.tmp';
   fs.writeFileSync(tmp, data, 'utf-8');
   fs.renameSync(tmp, filePath);
+}
+
+function writeJsonAtomic(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = filePath + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(value, null, 2), 'utf-8');
+    fs.renameSync(tmp, filePath);
+  } catch (error) {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+    throw error;
+  }
 }
 
 ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
@@ -560,8 +576,7 @@ function loadSettings() {
 
 function saveSettings(s) {
   try {
-    fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
-    fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2), 'utf-8');
+    writeJsonAtomic(settingsPath(), s);
     return true;
   } catch (err) {
     return false;
@@ -589,8 +604,7 @@ function loadHistory() {
 
 function saveHistory(list) {
   try {
-    fs.mkdirSync(path.dirname(historyPath()), { recursive: true });
-    fs.writeFileSync(historyPath(), JSON.stringify(list.slice(0, HISTORY_LIMIT), null, 2), 'utf-8');
+    writeJsonAtomic(historyPath(), list.slice(0, HISTORY_LIMIT));
     return true;
   } catch (_) {
     return false;
@@ -626,9 +640,8 @@ function loadWatchLibrary() {
 
 function saveWatchLibrary(list) {
   try {
-    fs.mkdirSync(path.dirname(watchLibraryPath()), { recursive: true });
     const ordered = list.slice().sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0));
-    fs.writeFileSync(watchLibraryPath(), JSON.stringify(ordered.slice(0, WATCH_LIBRARY_LIMIT), null, 2), 'utf-8');
+    writeJsonAtomic(watchLibraryPath(), ordered.slice(0, WATCH_LIBRARY_LIMIT));
     return true;
   } catch (_) {
     return false;
@@ -693,7 +706,9 @@ function subtitleTextForSearch(filePath) {
 function subtitleSeconds(block) {
   // WebVTT, bir saatin altindaki cue'larda HH alanini atlayabilir:
   // MM:SS.mmm. SRT'nin HH:MM:SS,mmm bicimi de ayni regex ile korunur.
-  const match = String(block).match(/(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})\s*-->/);
+  // Standart WebVTT dakika alanını iki haneli ister; bazı dış araçların ürettiği
+  // tek haneli biçimi de kütüphane sonucunu 0:00'a göndermeden toleranslı oku.
+  const match = String(block).match(/(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->/);
   if (match) return (+(match[1] || 0)) * 3600 + (+match[2]) * 60 + (+match[3]) + (+match[4].padEnd(3, '0')) / 1000;
   const ass = String(block).match(/^Dialogue\s*:\s*[^,]*,(\d+):(\d{2}):(\d{2})[.](\d{1,2}),/i);
   return ass ? (+ass[1]) * 3600 + (+ass[2]) * 60 + (+ass[3]) + (+ass[4].padEnd(2, '0')) / 100 : 0;
@@ -841,11 +856,10 @@ function readBrowserPlaces() {
 function writeBrowserPlaces(places) {
   try {
     const file = browserPlacesPath();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({
+    writeJsonAtomic(file, {
       history: places.history.slice(0, BROWSER_PLACE_LIMIT),
       bookmarks: places.bookmarks.slice(0, BROWSER_PLACE_LIMIT),
-    }, null, 2), 'utf8');
+    });
   } catch (_) {}
 }
 
@@ -1039,7 +1053,7 @@ function storeBrowserTrack(cues, meta = {}) {
   return track;
 }
 
-async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024) {
+async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024) {
   if (!browserView || browserView.webContents.isDestroyed()) throw new Error('Tarayıcı kapalı.');
   const safe = normalizeBrowserUrl(url);
   if (!safe) throw new Error('Geçersiz altyazı adresi.');
@@ -1054,7 +1068,11 @@ async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024) {
   if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
-  return buffer.toString('utf-8');
+  return buffer;
+}
+
+async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024) {
+  return (await fetchBrowserBuffer(url, maxBytes)).toString('utf-8');
 }
 
 async function fetchAndStoreBrowserSubtitle(url, meta = {}) {
@@ -1087,7 +1105,7 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}) 
         if (!part.cues.length) return false;
         const hasTimestampMap = /X-TIMESTAMP-MAP/i.test(partBody);
         const likelyLocalTimeline = !hasTimestampMap && segment.start > 0
-          && cuesUseLocalSegmentTimeline(part.cues, segment.duration);
+          && cuesUseLocalSegmentTimeline(part.cues, segment.duration, segment.start);
         collected.push(...part.cues.map((cue) => likelyLocalTimeline
           ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
           : cue));
@@ -1121,6 +1139,12 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
         if (!isHls) {
           const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
           for (const matcher of discoveredMatchers) {
+            if (!matcher.timescale && matcher.initializationUrl) {
+              try {
+                const init = await fetchBrowserBuffer(matcher.initializationUrl, 4 * 1024 * 1024);
+                matcher.timescale = parseMp4Timescale(init);
+              } catch (_) {}
+            }
             if (!browserDashSubtitleMatchers.some((item) => item.pattern === matcher.pattern)) {
               browserDashSubtitleMatchers.push(matcher);
             }
@@ -1161,7 +1185,8 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
     if (parsed.cues.length && candidate.dashTrack) {
       const offset = dashSegmentOffset(candidate.dashTrack);
       const segmentDuration = Number(candidate.dashTrack.duration || 0) / Math.max(1, Number(candidate.dashTrack.timescale) || 1);
-      const likelyLocalTimeline = offset > 0 && cuesUseLocalSegmentTimeline(parsed.cues, segmentDuration);
+      const likelyLocalTimeline = offset > 0
+        && cuesUseLocalSegmentTimeline(parsed.cues, segmentDuration, offset);
       if (likelyLocalTimeline) parsed.cues = parsed.cues.map((cue) => ({
         ...cue, start: cue.start + offset, end: cue.end + offset,
       }));
@@ -1286,8 +1311,12 @@ function browserCaptureHookScript() {
     const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
     const push = (entry) => {
       const body = String(entry.body || '');
-      if (!body || body.length > MAX_TEXT) return;
-      const key = String(entry.url || '') + '|' + body.length + '|' + body.slice(0, 96) + '|' + body.slice(-96);
+      const bodyBase64 = String(entry.bodyBase64 || '');
+      const binaryBytes = bodyBase64 ? Math.floor(bodyBase64.length * 3 / 4) : 0;
+      if ((!body && !bodyBase64) || body.length > MAX_TEXT || binaryBytes > MAX_TEXT) return;
+      const sample = body || bodyBase64;
+      const key = String(entry.url || '') + '|' + sample.length + '|'
+        + sample.slice(0, 96) + '|' + sample.slice(-96);
       if (window.__whisperCaptureSeen.has(key)) return;
       window.__whisperCaptureSeen.add(key);
       if (window.__whisperCaptureSeen.size > 120) window.__whisperCaptureSeen.delete(window.__whisperCaptureSeen.values().next().value);
@@ -1323,13 +1352,26 @@ function browserCaptureHookScript() {
     XMLHttpRequest.prototype.send = function(...args) {
       if (!this.__whisperListening) {
         this.__whisperListening = true;
-        this.addEventListener('loadend', () => {
+        this.addEventListener('loadend', async () => {
           try {
             const mime = this.getResponseHeader('content-type') || '';
             if (!hinted.test(this.__whisperUrl || '') && !acceptedMime.test(mime)) return;
-            if (this.responseType && this.responseType !== 'text') return;
-            const body = String(this.responseText || '');
-            push({ url: this.responseURL || this.__whisperUrl || '', mimeType: mime, body, via: 'xhr' });
+            const base = { url: this.responseURL || this.__whisperUrl || '', mimeType: mime, via: 'xhr' };
+            if (this.responseType === 'arraybuffer' && this.response) {
+              const bytes = new Uint8Array(this.response);
+              let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+              }
+              push({ ...base, bodyBase64: btoa(binary) });
+            } else if (this.responseType === 'blob' && this.response) {
+              const bytes = new Uint8Array(await this.response.arrayBuffer());
+              let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+              }
+              push({ ...base, bodyBase64: btoa(binary) });
+            } else {
+              push({ ...base, body: String(this.responseText || '') });
+            }
           } catch (_) {}
         }, { once: true });
       }
@@ -1394,7 +1436,7 @@ async function executeBrowserFrames(script) {
 
 function browserMediaCommandScript(command, value) {
   const safeCommand = JSON.stringify(String(command || ''));
-  const safeValue = JSON.stringify(Math.max(0, Number(value) || 0));
+  const safeValue = JSON.stringify(Number(value) || 0);
   return `(async () => {
     const roots = [document];
     for (let i = 0; i < roots.length; i++) {
@@ -1404,10 +1446,14 @@ function browserMediaCommandScript(command, value) {
     const video = videos.sort((a,b) => (b.clientWidth*b.clientHeight)-(a.clientWidth*a.clientHeight))[0];
     if (!video) return false;
     const command = ${safeCommand};
-    if (command === 'seek') video.currentTime = ${safeValue};
+    if (command === 'seek') video.currentTime = Math.max(0, ${safeValue});
+    else if (command === 'seek-relative') video.currentTime = Math.max(0, video.currentTime + ${safeValue});
     else if (command === 'play-pause') {
       if (video.paused) await video.play(); else video.pause();
     } else if (command === 'play') await video.play();
+    else if (command === 'pause') video.pause();
+    else if (command === 'mute') video.muted = !video.muted;
+    else if (command === 'volume-relative') video.volume = Math.max(0, Math.min(1, video.volume + ${safeValue}));
     else return false;
     return true;
   })()`;
@@ -1437,11 +1483,13 @@ function startBrowserPolling() {
       await executeBrowserFrames(browserCaptureHookScript());
       const batches = await executeBrowserFrames(browserCaptureDrainScript());
       for (const entries of batches) for (const entry of entries || []) {
-        if (!entry || typeof entry.body !== 'string') continue;
+        if (!entry || (typeof entry.body !== 'string' && typeof entry.bodyBase64 !== 'string')) continue;
         const pageUrl = browserView.webContents.getURL();
         const adapter = browserResponseAdapter(pageUrl, entry.url);
         if (!adapterAcceptsResponse(adapter, entry)) continue;
-        await processBrowserCapturedPayload(Buffer.from(entry.body, 'utf-8'), {
+        const payload = typeof entry.bodyBase64 === 'string'
+          ? Buffer.from(entry.bodyBase64, 'base64') : Buffer.from(entry.body, 'utf-8');
+        await processBrowserCapturedPayload(payload, {
           url: String(entry.url || ''),
           mimeType: String(entry.mimeType || ''),
           sourceOffset: Number(entry.sourceOffset) || 0,
@@ -1487,12 +1535,18 @@ function browserOverlayScript(payload) {
       const translation = document.createElement('div'); translation.dataset.kind = 'translation';
       root.append(source, translation); document.documentElement.appendChild(root);
     }
-    const findCue = (cues, t) => {
-      let lo = 0, hi = cues.length - 1;
-      while (lo <= hi) { const mid = (lo + hi) >> 1, c = cues[mid];
-        if (t < c.start) hi = mid - 1; else if (t > c.end) lo = mid + 1; else return c; }
-      return null;
+    const moveToTopLayer = () => {
+      const host = document.fullscreenElement || document.documentElement;
+      if (root.parentNode !== host) host.appendChild(root);
     };
+    moveToTopLayer();
+    if (!window.__whisperBrowserFullscreenBound) {
+      window.__whisperBrowserFullscreenBound = true;
+      document.addEventListener('fullscreenchange', moveToTopLayer);
+    }
+    // Normal altyazılarda çakışan satırlar komşudur. 64 geriye bakmak hem iki
+    // konuşmacıyı korur hem 20 bin cue'yu her animasyon karesinde taramaz.
+    const findCues = ${browserActiveCuesAt.toString()};
     if (!window.__whisperBrowserSubLoop) {
       window.__whisperBrowserSubLoop = true;
       const tick = () => {
@@ -1510,10 +1564,10 @@ function browserOverlayScript(payload) {
         box.style.width = Math.max(0, rect.width) + 'px';
         box.style.top = Math.max(rect.top, rect.bottom - Math.max(96, rect.height * .17)) + 'px';
         const t = (Number(video.currentTime) || 0) - (Number(state.offset) || 0);
-        const src = findCue(state.source || [], t); const tr = findCue(state.translation || [], t);
+        const src = findCues(state.source || [], t); const tr = findCues(state.translation || [], t);
         const srcEl = box.querySelector('[data-kind="source"]'); const trEl = box.querySelector('[data-kind="translation"]');
-        srcEl.textContent = src && (state.mode === 'source' || state.mode === 'both') ? src.text : '';
-        trEl.textContent = tr && (state.mode === 'translation' || state.mode === 'both') ? tr.text : '';
+        srcEl.textContent = src.length && (state.mode === 'source' || state.mode === 'both') ? src.map(c => c.text).join('\n') : '';
+        trEl.textContent = tr.length && (state.mode === 'translation' || state.mode === 'both') ? tr.map(c => c.text).join('\n') : '';
         srcEl.style.cssText = 'max-width:88%;padding:3px 8px;border-radius:5px;background:rgba(5,7,10,.74);color:#f5f5f5;font-size:clamp(15px,2vw,25px);line-height:1.35;white-space:pre-line;';
         trEl.style.cssText = 'max-width:88%;padding:4px 9px;border-radius:5px;background:rgba(5,7,10,.82);color:#e0ad5d;font-weight:650;font-size:clamp(16px,2.15vw,27px);line-height:1.35;white-space:pre-line;';
         srcEl.style.display = srcEl.textContent ? '' : 'none'; trEl.style.display = trEl.textContent ? '' : 'none';
@@ -1577,7 +1631,7 @@ async function reportBrowserDrmSupport() {
   if (!browserView || browserView.webContents.isDestroyed()) return;
   let host = '';
   try { host = new URL(browserView.webContents.getURL()).hostname.toLowerCase(); } catch (_) {}
-  if (!/(^|\.)(netflix\.com|hulu\.com|max\.com|hbomax\.com|discoveryplus\.com)$/.test(host)) return;
+  if (!/(^|\.)(netflix\.com|hulu\.com|max\.com|hbomax\.com|discoveryplus\.com|disneyplus\.com|primevideo\.com|amazon\.com)$/.test(host)) return;
   const result = await browserView.webContents.executeJavaScript(`(async () => {
     if (!navigator.requestMediaKeySystemAccess) return { supported: false, reason: 'EME yok' };
     try {
@@ -1901,7 +1955,7 @@ ipcMain.handle('browser:command', async (event, command, value) => {
       wc.stop();
     } else if (command === 'focus') {
       wc.focus();
-    } else if (command === 'seek' || command === 'play-pause' || command === 'play') {
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative'].includes(command)) {
       const handled = (await executeBrowserFrames(browserMediaCommandScript(command, value))).some(Boolean);
       if (!handled) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
     } else {
@@ -2259,7 +2313,9 @@ ipcMain.handle('settings:import', async () => {
   if (result.canceled || result.filePaths.length === 0) return { ok: false };
   try {
     const data = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf-8'));
-    if (!data || typeof data !== 'object') return { ok: false, error: 'Geçersiz ayar dosyası.' };
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return { ok: false, error: 'Geçersiz ayar dosyası.' };
+    }
     saveSettings(data);          // diske yaz
     return { ok: true, settings: data };  // renderer UI'a uygulasın
   } catch (err) {
@@ -2372,17 +2428,49 @@ ipcMain.handle('media:waveform', async (_event, filePath) => {
 
 // ---- Altyazı zaman kaydırma (SRT/VTT) ----
 function shiftTimecodes(text, offsetSec) {
-  return text.replace(/(\d{2}):(\d{2}):(\d{2})([,.])(\d{3})/g, (_m, h, m, s, sep, ms) => {
-    let total = (+h) * 3600 + (+m) * 60 + (+s) + (+ms) / 1000 + offsetSec;
-    if (total < 0) total = 0;
-    const t = Math.round(total * 1000);
-    const hh = Math.floor(t / 3600000);
-    const mm = Math.floor((t % 3600000) / 60000);
-    const ss = Math.floor((t % 60000) / 1000);
-    const mmm = t % 1000;
+  const newline = String(text).includes('\r\n') ? '\r\n' : '\n';
+  const lines = String(text).split(/\r?\n/);
+  const removed = new Set();
+  const parse = (raw) => {
+    const m = String(raw).match(/^(?:(\d+):)?(\d{1,3}):(\d{2})([,.])(\d{1,3})$/);
+    if (!m) return null;
+    return {
+      seconds: Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3])
+        + Number(String(m[5]).padEnd(3, '0')) / 1000,
+      hours: m[1] !== undefined, sep: m[4],
+    };
+  };
+  const format = (seconds, shape) => {
+    const value = Math.max(0, Math.round(seconds * 1000));
     const p2 = (n) => String(n).padStart(2, '0');
-    return `${p2(hh)}:${p2(mm)}:${p2(ss)}${sep}${String(mmm).padStart(3, '0')}`;
-  });
+    const ms = String(value % 1000).padStart(3, '0');
+    if (!shape.hours) {
+      const minutes = Math.floor(value / 60000);
+      return `${p2(minutes)}:${p2(Math.floor((value % 60000) / 1000))}${shape.sep}${ms}`;
+    }
+    return `${p2(Math.floor(value / 3600000))}:${p2(Math.floor((value % 3600000) / 60000))}:`
+      + `${p2(Math.floor((value % 60000) / 1000))}${shape.sep}${ms}`;
+  };
+  for (let index = 0; index < lines.length; index++) {
+    const match = lines[index].match(/^(\s*)(\S+)(\s*-->\s*)(\S+)(.*)$/);
+    if (!match) continue;
+    const start = parse(match[2]);
+    const end = parse(match[4]);
+    if (!start || !end) continue;
+    const shiftedStart = start.seconds + offsetSec;
+    const shiftedEnd = end.seconds + offsetSec;
+    if (shiftedEnd <= 0) {
+      let from = index, to = index;
+      while (from > 0 && lines[from - 1].trim() !== '') from--;
+      while (to + 1 < lines.length && lines[to + 1].trim() !== '') to++;
+      for (let i = from; i <= to; i++) removed.add(i);
+      continue;
+    }
+    const safeStart = Math.max(0, shiftedStart);
+    const safeEnd = Math.max(safeStart + 0.001, shiftedEnd);
+    lines[index] = `${match[1]}${format(safeStart, start)}${match[3]}${format(safeEnd, end)}${match[5]}`;
+  }
+  return lines.filter((_line, index) => !removed.has(index)).join(newline);
 }
 
 ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
@@ -2410,7 +2498,7 @@ ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
 // subtitles filtresi argümanı: yolu tek tırnağa al (boşluk + sürücü iki noktası güvenli),
 // backslash→slash çevir, içerideki tek tırnağı kaçışla. argv ile geçildiği için shell kaçışı gerekmez.
 function ffSubtitlesArg(p) {
-  const fwd = p.replace(/\\/g, '/').replace(/'/g, "\\'");
+  const fwd = p.replace(/\\/g, '/').replace(/'/g, "\\'").replace(/^([A-Za-z]):/, '$1\\:');
   return `subtitles='${fwd}'`;
 }
 
@@ -2793,8 +2881,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000) };
     writeJobLog(exitEvent);
     endJobLog();
-    sendEvent(exitEvent);
     activeJob = null;
+    // Renderer kuyruktaki sonraki işi bu olaydan sonra başlatır; önce null yaparak
+    // transcribe:start ile "Zaten bir iş çalışıyor" yarışını ortadan kaldır.
+    sendEvent(exitEvent);
   });
 
   activeJob.on('error', (err) => {

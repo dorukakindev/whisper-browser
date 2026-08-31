@@ -32,12 +32,14 @@ function cut(startMark, endMark) {
 
 const store = cut('const HISTORY_LIMIT', '// ---- Pencere boyutu hatırlama');
 const recorder = cut('function recordJob(meta, event)', "ipcMain.handle('transcribe:start'");
+const jsonWriter = cut('function writeJsonAtomic(filePath, value)', "ipcMain.handle('media:writeSubtitle'");
 
 // Geçici bir userData klasörü: gerçek ayarlara dokunma
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-hist-'));
 const fakeApp = { getPath: () => tmp };
 
 const api = new Function('fs', 'path', 'app', `
+  ${jsonWriter}
   ${store}
   ${recorder}
   return { loadHistory, addHistory, recordJob, historyPath };

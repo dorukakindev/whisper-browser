@@ -258,6 +258,11 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
       if (!media) continue;
       const representationId = attr(rep.tag, 'id');
       const bandwidth = attr(rep.tag, 'bandwidth');
+      const initialization = attr(templateTag, 'initialization');
+      const initializationUrl = initialization ? resolveUrl(decodeEntities(initialization)
+        .replace(/\$RepresentationID\$/gi, representationId || '')
+        .replace(/\$Bandwidth\$/gi, bandwidth || '')
+        .replace(/\$\$/g, '$'), repBase) : '';
       let template = decodeEntities(media)
         .replace(/\$RepresentationID\$/gi, representationId || '__DASHREP__')
         .replace(/\$Bandwidth\$/gi, bandwidth || '__DASHREP__')
@@ -279,7 +284,10 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
       matchers.push({
         pattern,
         variable,
-        timescale: Math.max(1, Number(attr(templateTag, 'timescale')) || 1),
+        // MPD'de timescale bulunmayabilir; 1 varsaymak tfdt değerlerini
+        // günler sonrasına şişirir. Çağıran taraf init segmentindeki mdhd'yi okur.
+        timescale: Math.max(0, Number(attr(templateTag, 'timescale')) || 0),
+        initializationUrl,
         duration: Math.max(0, Number(attr(templateTag, 'duration')) || 0),
         startNumber: Math.max(0, Number(attr(templateTag, 'startNumber')) || 1),
         language: attr(adaptation.tag, 'lang') || attr(rep.tag, 'lang') || '',
@@ -314,15 +322,44 @@ function dashSegmentOffset(matcher) {
   return 0;
 }
 
-function cuesUseLocalSegmentTimeline(cues, segmentDuration) {
+function cuesUseLocalSegmentTimeline(cues, segmentDuration, segmentStart = 0) {
   const list = normalizeCues(cues);
   const duration = Math.max(0, Number(segmentDuration) || 0);
+  const absoluteStart = Math.max(0, Number(segmentStart) || 0);
   if (!list.length || !duration) return false;
-  // Mutlak zamanlı segmentleri ikinci kez kaydırmamak için yalnız parçanın
-  // başına açıkça yakın cue'ları yerel kabul et. Geç başlayan belirsiz bir cue
-  // için kaydırmamak, yanlış çift ofsetten daha güvenlidir.
-  const nearZero = Math.max(0.75, Math.min(2, duration / 3));
-  return list[0].start < nearZero && list[list.length - 1].end <= duration + 3;
+  // Bu yardımcı yalnız segment başlangıcı > 0 iken çağrılır. İlk birkaç saniyesi
+  // müzik/sessizlik olan yerel zamanlı parçalarda ilk cue 2 saniyeden sonra da
+  // başlayabilir; belirleyici olan bütün cue'ların parça süresine sığmasıdır.
+  // Cue zaten parçanın mutlak başlangıcına denk geliyorsa ikinci kez ofsetleme.
+  // Küçük tolerans, komşu parçalara taşan replikleri mutlak kabul eder.
+  if (absoluteStart > 0 && list[0].start >= absoluteStart - 0.5) return false;
+  return list[0].start >= 0
+    && list[0].start < duration
+    && list[list.length - 1].end <= duration + 3;
+}
+
+function browserActiveCuesAt(cues, time, lookback = 64) {
+  const list = Array.isArray(cues) ? cues : [];
+  const t = Number(time);
+  if (!Number.isFinite(t) || !list.length) return [];
+  let lo = 0;
+  let hi = list.length - 1;
+  let last = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (Number(list[mid].start) <= t) {
+      last = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  const active = [];
+  const limit = Math.max(1, Number(lookback) || 64);
+  for (let index = last; index >= 0 && index > last - limit; index--) {
+    if (Number(list[index].end) >= t) active.push(list[index]);
+  }
+  return active.reverse();
 }
 
 function parseDashSubtitleTracks(body, baseUrl = '') {
@@ -423,8 +460,8 @@ function parseXml(body) {
     let duration = parseXmlTime(durRaw, xml);
     let end = parseXmlTime(endRaw, xml);
     // YouTube srv3 t/d değerleri milisaniyedir.
-    if (/\bt\s*=/.test(tag) && Number(startRaw) > 100) start = Number(startRaw) / 1000;
-    if (/\bd\s*=/.test(tag) && Number(durRaw) > 50) duration = Number(durRaw) / 1000;
+    if (/\bt\s*=/.test(tag) && Number.isFinite(Number(startRaw))) start = Number(startRaw) / 1000;
+    if (/\bd\s*=/.test(tag) && Number.isFinite(Number(durRaw))) duration = Number(durRaw) / 1000;
     if (end === null && start !== null && duration !== null) end = start + duration;
     if (start !== null) out.push({ start, end, text: match[2] });
   }
@@ -560,6 +597,27 @@ function mp4PaylText(buffer) {
   return visit(0, buffer.length).map(cleanCueText).filter(Boolean).join('\n');
 }
 
+function parseMp4Timescale(buffer) {
+  const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
+  if (data.length < 16) return 0;
+  const visit = (start, end, depth = 0) => {
+    if (depth > 6) return 0;
+    for (const box of mp4Boxes(data, start, end)) {
+      if (box.type === 'mdhd') {
+        const version = data[box.start];
+        const offset = box.start + (version === 1 ? 20 : 12);
+        if (offset + 4 <= box.end) return data.readUInt32BE(offset) || 0;
+      }
+      if (/^(moov|trak|mdia)$/.test(box.type)) {
+        const nested = visit(box.start, box.end, depth + 1);
+        if (nested) return nested;
+      }
+    }
+    return 0;
+  };
+  return visit(0, data.length);
+}
+
 function parseMp4WebVtt(buffer, matcher = {}) {
   const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
   if (data.length < 16) return [];
@@ -568,7 +626,10 @@ function parseMp4WebVtt(buffer, matcher = {}) {
   const mdat = mp4Child(top, 'mdat');
   if (!moof || !mdat) return [];
   const trafs = mp4Boxes(data, moof.start, moof.end).filter((box) => box.type === 'traf');
-  const timescale = Math.max(1, Number(matcher.timescale) || 1);
+  const timescale = Math.max(0, Number(matcher.timescale) || parseMp4Timescale(data));
+  // Yanlış bir '1' varsayımı sessizce devasa zamanlar üretmektense, init
+  // segmenti henüz bulunamadığında parçayı reddetmek daha güvenlidir.
+  if (!timescale) return [];
   for (const traf of trafs) {
     const children = mp4Boxes(data, traf.start, traf.end);
     const defaults = mp4Tfhd(data, mp4Child(children, 'tfhd'));
@@ -701,9 +762,11 @@ module.exports = {
   matchDashSubtitleUrl,
   dashSegmentOffset,
   cuesUseLocalSegmentTimeline,
+  browserActiveCuesAt,
   findSubtitleUrls,
   parseLrc,
   parseSami,
   parseMp4WebVtt,
+  parseMp4Timescale,
   subtitleLanguage,
 };

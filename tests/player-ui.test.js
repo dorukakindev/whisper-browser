@@ -37,6 +37,54 @@ function test(name, fn) {
 }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'assert'); }
 
+test('VRAM uyarısı motor ve batch boyutunu hesaba katıyor', () => {
+  const start = js.indexOf('function estimateVramMib');
+  const end = js.indexOf('// ===== GPU rozeti', start);
+  assert(start > 0 && end > start, 'VRAM tahmin fonksiyonu bulunamadı');
+  const controls = {
+    model: { value: 'large-v3' }, computeType: { value: 'float16' },
+    engine: { value: 'faster' }, batchSize: { value: '1' }, diarize: { checked: false },
+  };
+  const estimate = new Function('$', `${js.slice(start, end)}; return estimateVramMib;`)
+    ((id) => controls[id]) ;
+  const sequential = estimate();
+  controls.engine.value = 'faster-batched'; controls.batchSize.value = '32';
+  const batched = estimate();
+  controls.engine.value = 'whisperx';
+  const aligned = estimate();
+  assert(batched > sequential, 'batch artışı tahmini değiştirmiyor');
+  assert(aligned > batched, 'WhisperX hizalama payı yok');
+  assert(js.includes("$('batchSize').addEventListener('input', updateGpuBadge)"),
+    'batch kaydırıcısı rozeti canlı güncellemiyor');
+});
+
+test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
+  const start = js.lastIndexOf("document.addEventListener('keydown'");
+  const body = js.slice(start, start + 4200);
+  assert(/workspaceMode === 'browser'/.test(body), 'tarayıcı kısayol dalı yok');
+  for (const command of ['play-pause', 'seek-relative', 'mute', 'volume-relative']) {
+    assert(body.includes(`'${command}'`), `${command} web videosuna bağlı değil`);
+  }
+  assert(/window\.api\.browserCommand\(command, value\)/.test(body), 'komut tarayıcı IPC kanalına gitmiyor');
+});
+
+test('tarayıcı A-B döngüsü ve otomatik dur web video zamanını kullanıyor', () => {
+  const cue = js.slice(js.indexOf('function renderBrowserCueAt'), js.indexOf('function applyBrowserTracks'));
+  assert(/player\.abB/.test(cue) && /browserCommand\('seek', player\.abA\)/.test(cue),
+    'A-B döngüsü web videosunu geri sarmıyor');
+  assert(/player\.autoPause/.test(cue) && /browserCommand\('pause'\)/.test(cue),
+    'otomatik dur web videosunu durdurmuyor');
+  const toggle = js.slice(js.indexOf('function toggleAbLoop'), js.indexOf('function renderAbMarkers'));
+  assert(/workspaceMode === 'browser' \? player\.browserTime/.test(toggle), 'A/B noktaları web zamanından alınmıyor');
+});
+
+test('kuyruk sıradaki işi done değil süreç exit olayında başlatıyor', () => {
+  const done = js.slice(js.indexOf("case 'done':"), js.indexOf("case 'error':"));
+  const exit = js.slice(js.indexOf("case 'exit':"), js.indexOf('\n  }\n});', js.indexOf("case 'exit':")));
+  assert(!/processNextQueueItem/.test(done), 'done olayı süreç kapanmadan sıradaki işi başlatıyor');
+  assert(/processNextQueueItem/.test(exit), 'exit olayı sıradaki kuyruk işini başlatmıyor');
+});
+
 // ---- 1. ölü kontrol yok ----
 test('oynatıcıdaki her düğmenin renderer.js\'te karşılığı var', () => {
   const tags = [...layer.matchAll(/<button[^>]*id="([A-Za-z0-9_-]+)"[^>]*>/g)];

@@ -8,13 +8,17 @@ const start = main.indexOf('const WATCH_LIBRARY_LIMIT');
 const end = main.indexOf('// ---- Pencere boyutu hatırlama', start);
 if (start < 0 || end < 0) throw new Error('İzleme kütüphanesi kaynak bloğu bulunamadı');
 const source = main.slice(start, end);
+const jsonStart = main.indexOf('function writeJsonAtomic(filePath, value)');
+const jsonEnd = main.indexOf("ipcMain.handle('media:writeSubtitle'", jsonStart);
+if (jsonStart < 0 || jsonEnd < 0) throw new Error('Atomik JSON yazıcı kaynak bloğu bulunamadı');
+const jsonSource = main.slice(jsonStart, jsonEnd);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-watch-'));
 const app = { getPath: () => tmp };
 // Kutuphane blogu decodeSubtitleBuffer'i main.js'in onceki bolumunden kullanir.
 const decodeStart = main.indexOf('const CP1254_FIXUP');
 const decodeEnd = main.indexOf("ipcMain.handle('media:readSubtitle'", decodeStart);
 const decodeSource = main.slice(decodeStart, decodeEnd);
-const api = new Function('fs', 'path', 'app', `${decodeSource}\n${source}\nreturn { loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath };`)(fs, path, app);
+const api = new Function('fs', 'path', 'app', `${decodeSource}\n${jsonSource}\n${source}\nreturn { loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath };`)(fs, path, app);
 
 let pass = 0;
 const failures = [];
@@ -73,6 +77,15 @@ test('saat alani olmayan VTT eslesmesinin zamanini döndürür', () => {
   const item = api.searchWatchLibrary('kisa zamanli').find((x) => x.key === 'file:vtt');
   assert(item && item.matches.length === 1, 'VTT eslesmesi yok');
   assert(Math.abs(item.matches[0].seconds - 83.4) < .001, `VTT zamani ${item.matches[0].seconds}`);
+});
+
+test('standart dışı tek haneli VTT dakikasını toleranslı okur', () => {
+  const subtitle = path.join(tmp, 'tek-dakika.vtt');
+  fs.writeFileSync(subtitle, 'WEBVTT\n\n5:23.456 --> 5:25.000\nTek haneli dakika.\n', 'utf-8');
+  api.upsertWatchItem({ key: 'file:vtt-short', title: 'VTT kısa', subtitlePaths: [subtitle] });
+  const item = api.searchWatchLibrary('tek haneli').find((x) => x.key === 'file:vtt-short');
+  assert(item && item.matches.length === 1, 'tek haneli VTT eşleşmesi yok');
+  assert(Math.abs(item.matches[0].seconds - 323.456) < .001, `VTT zamanı ${item.matches[0].seconds}`);
 });
 
 test('cp1254 altyazi oynaticiyla ayni sekilde aranir', () => {

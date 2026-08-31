@@ -77,11 +77,54 @@ t('zaman kaydirma SRT ve VTT bicimlerini korur', () => {
   ok(out.includes('00:00:07,500 --> 00:00:10,000'), 'SRT kaymadi: ' + out);
   const vtt = '00:00:05.000 --> 00:00:07.500';
   ok(shiftTimecodes(vtt, 1).includes('00:00:06.000 --> 00:00:08.500'), 'VTT ayraci bozuldu');
+  const shortVtt = '05:23.500 --> 05:28.100 align:start';
+  ok(shiftTimecodes(shortVtt, 1).includes('05:24.500 --> 05:29.100 align:start'), 'iki parçalı VTT kaymadı');
 });
 
-t('negatif kaydirma sifira kelepcelenir', () => {
-  const out = shiftTimecodes('00:00:01,000 --> 00:00:03,000', -5);
-  ok(out.startsWith('00:00:00,000'), 'kelepceleme yok: ' + out);
+t('negatif kaydirmada tamamen video disinda kalan blok atilir', () => {
+  const out = shiftTimecodes('1\n00:00:01,000 --> 00:00:03,000\nEski blok\n\n2\n00:00:05,000 --> 00:00:08,000\nKalan', -5);
+  ok(!out.includes('Eski blok'), 'sifir süreli blok kaldi: ' + out);
+  ok(out.includes('00:00:00,000 --> 00:00:03,000') && out.includes('Kalan'), 'kismen kalan blok bozuldu: ' + out);
+});
+
+const writeStart = msrc.indexOf('function writeSubtitleAtomic(');
+const writeEnd = msrc.indexOf('function writeJsonAtomic(', writeStart);
+ok(writeStart >= 0 && writeEnd > writeStart, 'atomik altyazı yazıcısı bulunamadı');
+const writeSubtitleAtomic = new Function('fs', `${msrc.slice(writeStart, writeEnd)}; return writeSubtitleAtomic;`)(fs);
+
+t('SRT BOM alır fakat WebVTT BOM almaz', () => {
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'whisper-bom-'));
+  try {
+    const srt = path.join(dir, 'a.srt'); const vtt = path.join(dir, 'a.vtt');
+    writeSubtitleAtomic(srt, '1\n00:00:00,000 --> 00:00:01,000\nA');
+    writeSubtitleAtomic(vtt, 'WEBVTT\n\n00:00.000 --> 00:01.000\nA');
+    ok(fs.readFileSync(srt, 'utf8').startsWith('\uFEFF'), 'SRT BOM kayboldu');
+    ok(!fs.readFileSync(vtt, 'utf8').startsWith('\uFEFF'), 'VTT dosyasına BOM eklendi');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+t('FFmpeg burn-in Windows sürücü iki noktasını kaçışlı yazar', () => {
+  const start = msrc.indexOf('function ffSubtitlesArg(');
+  const end = msrc.indexOf("ipcMain.handle('burnin:start'", start);
+  ok(start >= 0 && end > start, 'ffSubtitlesArg bulunamadı');
+  const fn = new Function(`${msrc.slice(start, end)}; return ffSubtitlesArg;`)();
+  ok(fn('D:\\Film\\altyazi.srt').includes("D\\:/Film/altyazi.srt"), 'sürücü iki noktası kaçırılmadı');
+});
+
+t('ayar içe aktarma JSON dizisini reddeder', () => {
+  const start = msrc.indexOf("ipcMain.handle('settings:import'");
+  const body = msrc.slice(start, msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", start));
+  ok(/Array\.isArray\(data\)/.test(body), 'JSON dizisi ayar nesnesi olarak kabul ediliyor');
+});
+
+t('ana süreç activeJob temizlendikten sonra exit olayı gönderir', () => {
+  const start = msrc.indexOf("activeJob.on('close'");
+  const body = msrc.slice(start, msrc.indexOf("activeJob.on('error'", start));
+  ok(body.indexOf('activeJob = null') >= 0, 'activeJob temizlenmiyor');
+  ok(body.indexOf('activeJob = null') < body.indexOf('sendEvent(exitEvent)'),
+    'exit olayı activeJob temizlenmeden gönderiliyor');
 });
 
 // ---------------------------------------------------------------- decodeSubtitleBuffer

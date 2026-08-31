@@ -386,7 +386,8 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         current = []
         for w in words:
             current.append(w)
-            if w.endswith(tuple(PUNCT_END)) and not is_abbreviation(w) and len(current) < len(words):
+            terminal = w.rstrip('"\'”’»)]}')
+            if terminal.endswith(tuple(PUNCT_END)) and not is_abbreviation(w) and len(current) < len(words):
                 lines.append(" ".join(current))
                 current = []
         if current:
@@ -830,7 +831,7 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
                             "end": round(we + base, 3),
                             "probability": round(getattr(w, "probability", 1.0), 3),
                         })
-                for s, e, text in segment_to_chunks(segment, args):
+                for s, e, text in segment_to_chunks(segment, args, language=language):
                     if s is None:
                         s = segment.start
                     if e is None:
@@ -1208,7 +1209,9 @@ def split_segment_sentence(segment, hard_max_chars=220, soft_max_chars=84, **kwa
     chunks = []
     current = []
     current_len = 0
-    language = "tr" if any(ch in segment.text.lower() for ch in "çğıöşü") else "en"
+    language = str(kwargs.get("language") or "").lower().split("-")[0]
+    if not language:
+        language = "tr" if any(ch in segment.text.lower() for ch in "çğıöşü") else "en"
 
     def flush_sentence(sent_words):
         # Tam cümle çok uzunsa doğal noktalardan alt bloklara ayır
@@ -1342,7 +1345,7 @@ def balanced_two_line_break(text, max_line_width=42, language="tr"):
     return f"{' '.join(words[:best_i])}\n{' '.join(words[best_i:])}"
 
 
-def segment_to_chunks(segment, args):
+def segment_to_chunks(segment, args, language=None):
     """
     Bir Whisper segmentini seçili bölme stratejisine göre (start, end, text)
     parçalarına ayırır. Ana döngü ve noktalama-onarım geçişi aynı mantığı kullansın diye
@@ -1355,6 +1358,7 @@ def segment_to_chunks(segment, args):
                 segment,
                 hard_max_chars=args.hard_max_chars,
                 soft_max_chars=args.max_chars,
+                language=language,
             )
         # Whisper noktalama üretmedi → kelime duraksamalarını kullan
         return split_segment_by_timing(
@@ -1858,6 +1862,32 @@ def assign_speakers(entries, diarization_spans):
     return result
 
 
+def parse_llm_json_object(content, error_message="LLM JSON yanıtı parse edilemedi"):
+    """Modelin düz JSON, fenced JSON veya kısa açıklama + JSON yanıtını güvenle çöz."""
+    raw = (content or "").strip()
+    candidates = [raw]
+    candidates.extend(match.group(1).strip() for match in re.finditer(
+        r"```(?:json)?\s*([\s\S]*?)```", raw, re.IGNORECASE))
+    decoder = json.JSONDecoder()
+    for candidate in candidates:
+        try:
+            value = json.loads(candidate)
+            if isinstance(value, dict):
+                return value
+        except json.JSONDecodeError:
+            pass
+        for pos, char in enumerate(candidate):
+            if char != "{":
+                continue
+            try:
+                value, _end = decoder.raw_decode(candidate[pos:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict):
+                return value
+    raise RuntimeError(error_message)
+
+
 def llm_postprocess(entries, args, warn_list=None):
     """
     Transcribe edilmiş altyazıları OpenAI uyumlu bir LLM'e gönderip düzeltir.
@@ -1986,20 +2016,7 @@ def llm_postprocess(entries, args, warn_list=None):
             else:
                 raise
         content = (resp.choices[0].message.content or "").strip()
-        try:
-            data = json.loads(content)
-        except json.JSONDecodeError:
-            # ```json``` fence varsa temizle
-            cleaned = re.sub(r"^```(?:json)?\s*", "", content)
-            cleaned = re.sub(r"\s*```\s*$", "", cleaned)
-            try:
-                data = json.loads(cleaned)
-            except json.JSONDecodeError:
-                raise RuntimeError("LLM JSON yanıtı parse edilemedi")
-
-        if not isinstance(data, dict):
-            # Model bir dizi/başka tip döndürdü — chunk başarısız say (sessiz geçme)
-            raise RuntimeError("LLM yanıtı beklenen JSON nesnesi değil")
+        data = parse_llm_json_object(content)
 
         # Sonuçları orijinal index'lere geri yaz
         for local_i, item in enumerate(items):
@@ -2494,14 +2511,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                 log("Ceviri rotasi degisti -> {}".format(used_url), "warn")
 
         content = (resp.choices[0].message.content or "").strip()
-        try:
-            data = json.loads(content)
-        except json.JSONDecodeError:
-            cleaned = re.sub(r"^```(?:json)?\s*", "", content)
-            cleaned = re.sub(r"\s*```\s*$", "", cleaned)
-            data = json.loads(cleaned)
-        if not isinstance(data, dict):
-            raise RuntimeError("Ceviri yaniti JSON nesnesi degil")
+        data = parse_llm_json_object(content, "Ceviri yaniti JSON nesnesi degil")
 
         filled = 0
         for item in items:
@@ -2600,14 +2610,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
             payload = {"items": items}
             resp, used_url = call_api_with(refine_prompt, payload)
             content = (resp.choices[0].message.content or "").strip()
-            try:
-                data = json.loads(content)
-            except json.JSONDecodeError:
-                cleaned = re.sub(r"^```(?:json)?\s*", "", content)
-                cleaned = re.sub(r"\s*```\s*$", "", cleaned)
-                data = json.loads(cleaned)
-            if not isinstance(data, dict):
-                raise RuntimeError("2. geçiş yanıtı JSON nesnesi değil")
+            data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
             n_changed = 0
             for item in items:
                 val = data.get(str(item["i"]))
@@ -2912,7 +2915,7 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6,
 # Noktalamadan sonra boşluk unutulmuş: "geldi.Sonra" -> "geldi. Sonra"
 # Sayı/ondalık ("3.14", "1,5"), kısaltma ("L.A.") ve URL'ler korunur.
 _MISSING_SPACE_RE = re.compile(r"(?<=[^\W\d_])([,;:!?])(?=[^\W\d_])", re.UNICODE)
-_MISSING_SPACE_DOT_RE = re.compile(r"(?<=[a-zçğıöşü])\.(?=[A-ZÇĞİÖŞÜ])", re.UNICODE)
+_MISSING_SPACE_DOT_RE = re.compile(r"([^\W\d_])\.([^\W\d_])", re.UNICODE)
 
 # Üst üste noktalama: "!!!" -> "!", "???" -> "?", "--" -> "…"
 _REPEAT_PUNCT_RE = re.compile(r"([!?])\1{1,}")
@@ -2929,7 +2932,9 @@ def fix_text_artifacts(text, language="tr"):
     t = re.sub(r"^\s*>>\s*", "", t)          # ">> Konuşmacı" kalıbı (TV altyazısı artefaktı)
     t = _REPEAT_PUNCT_RE.sub(r"\1", t)
     t = _MISSING_SPACE_RE.sub(r"\1 ", t)
-    t = _MISSING_SPACE_DOT_RE.sub(". ", t)
+    t = _MISSING_SPACE_DOT_RE.sub(
+        lambda m: f"{m.group(1)}. {m.group(2)}"
+        if m.group(1).islower() and m.group(2).isupper() else m.group(0), t)
     t = re.sub(r"[ \t]{2,}", " ", t)
     return t.strip()
 
@@ -3737,7 +3742,7 @@ def transcribe(args):
                     segment_words.append(word_row)
 
             # Bölme stratejisi
-            chunks = segment_to_chunks(segment, args)
+            chunks = segment_to_chunks(segment, args, language=info.language)
 
             for start, end, text in chunks:
                 if is_hallucination(text):
@@ -3925,6 +3930,16 @@ def transcribe(args):
             log(f"⚠ {warning}", "warn")
             warn_list.append(warning)
 
+        # Sonraki satıra taşan cümleleri konuşmacı indeksleri üretilmeden önce
+        # birleştir. Aksi halde diarization haritası eski indekslere bağlı kalır ve
+        # etiketler birleştirilen metnin ortasına gömülür.
+        if args.merge_continuation:
+            _once = len(entries)
+            entries = merge_continuation_lines(entries, max_gap=args.continuation_gap)
+            if len(entries) != _once:
+                log(f"Cumle birlestirme: {_once} -> {len(entries)} blok "
+                    f"({_once - len(entries)} devam satiri onceki bloga katildi)")
+
         # Konuşmacı tanıma (opsiyonel)
         speakers_map = {}
         if args.diarize:
@@ -3970,14 +3985,6 @@ def transcribe(args):
                 log(f"Konusma baslangicina yaslandi: {_moved} blok "
                     f"(ortalama {_avg*1000:.0f} ms ileri alindi)")
 
-        # Sonraki satira tasan cumleleri birlestir (opsiyonel)
-        if args.merge_continuation:
-            _once = len(entries)
-            entries = merge_continuation_lines(entries, max_gap=args.continuation_gap)
-            if len(entries) != _once:
-                log(f"Cumle birlestirme: {_once} -> {len(entries)} blok "
-                    f"({_once - len(entries)} devam satiri onceki bloga katildi)")
-
         # Profesyonel zamanlama normalizasyonu (okuma hızı / min-max süre / boşluk)
         if args.fix_timings:
             entries = normalize_timings(
@@ -3990,7 +3997,8 @@ def transcribe(args):
             log(f"Zamanlama düzeltildi (maks {args.max_cps:.0f} CPS, min {args.min_duration:.2f}s, boşluk {args.min_gap:.2f}s)")
 
         # Önizlemeyi nihai metinle tazele (birleştirme/LLM/diarization/zamanlama/devam değişmiş olabilir)
-        if (args.merge_short or args.merge_incomplete or args.llm_postprocess
+        if (args.merge_short or args.merge_incomplete or args.merge_continuation
+                or args.llm_postprocess
                 or args.diarize or args.fix_timings or args.drop_trailing_hallucination
                 or args.fix_punctuation_collapse or resumed_entries):
             emit("preview_refresh", segments=[
@@ -4646,7 +4654,7 @@ def reexport_from_json(args):
     output_dir.mkdir(parents=True, exist_ok=True)
     base_name = src.stem
     # JSON adı "video.tr" gibiyse ".tr" dil ekini gövdeden ayıkla (tekrar eklenmesin)
-    if base_name.endswith(f".{lang}"):
+    if base_name.lower().endswith(f".{str(lang).lower()}"):
         base_name = base_name[: -(len(lang) + 1)]
 
     emit("status", stage="write", text="Formatlar yeniden yazılıyor...")
@@ -4683,14 +4691,21 @@ def reexport_from_json(args):
 # yeni bir <ad>.synced.srt üretir.
 
 def srt_time_to_seconds(s):
-    """'01:02:03,500' veya '01:02:03.500' → saniye (float)."""
+    """SRT HH:MM:SS,mmm veya WebVTT MM:SS.mmm → saniye (float)."""
     s = s.strip().replace(",", ".")
-    h, m, rest = s.split(":")
+    parts = s.split(":")
+    if len(parts) == 2:
+        h, m, rest = 0, parts[0], parts[1]
+    elif len(parts) == 3:
+        h, m, rest = parts
+    else:
+        raise ValueError("Geçersiz altyazı zaman damgası")
     return int(h) * 3600 + int(m) * 60 + float(rest)
 
 
 _SRT_TIMING = re.compile(
-    r"(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})"
+    r"((?:\d{1,2}:)?\d{1,3}:\d{2}[,.]\d{1,3})\s*-->\s*"
+    r"((?:\d{1,2}:)?\d{1,3}:\d{2}[,.]\d{1,3})"
 )
 
 
