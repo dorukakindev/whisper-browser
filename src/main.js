@@ -800,6 +800,72 @@ function installYoutubeStreamHeaders() {
 // hem de ziyaret edilen sayfanın uygulamanın preload/Node yetkilerine erişmesini
 // engeller. Görünüm yalnızca renderer'ın bildirdiği boş alana çizilir.
 const BROWSER_PARTITION = 'persist:whisper-browser';
+const BROWSER_PLACES_FILE = 'browser-places.json';
+const BROWSER_PLACE_LIMIT = 100;
+const BROWSER_SENSITIVE_PARAMS = /^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+
+function browserPlacesPath() {
+  return path.join(app.getPath('userData'), BROWSER_PLACES_FILE);
+}
+
+function safeBrowserPlaceUrl(raw) {
+  try {
+    const url = new URL(String(raw || ''));
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    for (const key of [...url.searchParams.keys()]) {
+      if (BROWSER_SENSITIVE_PARAMS.test(key)) url.searchParams.delete(key);
+    }
+    url.hash = '';
+    return url.href.slice(0, 2000);
+  } catch (_) {
+    return '';
+  }
+}
+
+function readBrowserPlaces() {
+  const empty = { history: [], bookmarks: [] };
+  try {
+    const raw = JSON.parse(fs.readFileSync(browserPlacesPath(), 'utf8'));
+    const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
+      url: safeBrowserPlaceUrl(item && item.url),
+      title: String(item && item.title || '').trim().slice(0, 240),
+      visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+    })).filter((item) => item.url);
+    return {
+      history: clean(raw.history).slice(0, BROWSER_PLACE_LIMIT),
+      bookmarks: clean(raw.bookmarks).slice(0, BROWSER_PLACE_LIMIT),
+    };
+  } catch (_) { return empty; }
+}
+
+function writeBrowserPlaces(places) {
+  try {
+    const file = browserPlacesPath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({
+      history: places.history.slice(0, BROWSER_PLACE_LIMIT),
+      bookmarks: places.bookmarks.slice(0, BROWSER_PLACE_LIMIT),
+    }, null, 2), 'utf8');
+  } catch (_) {}
+}
+
+function browserPlacesSnapshot() {
+  return readBrowserPlaces();
+}
+
+function rememberBrowserVisit(url, title = '') {
+  const safeUrl = safeBrowserPlaceUrl(url);
+  if (!safeUrl) return;
+  const places = readBrowserPlaces();
+  const now = Date.now();
+  const previous = places.history.find((item) => item.url === safeUrl);
+  places.history = [
+    { url: safeUrl, title: String(title || (previous && previous.title) || '').trim().slice(0, 240), visitedAt: now },
+    ...places.history.filter((item) => item.url !== safeUrl),
+  ].slice(0, BROWSER_PLACE_LIMIT);
+  writeBrowserPlaces(places);
+  sendBrowserEvent({ type: 'places', places: browserPlacesSnapshot() });
+}
 
 function sendBrowserEvent(payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1570,13 +1636,20 @@ function ensureBrowserView() {
   wc.on('did-stop-loading', () => sendBrowserEvent({ type: 'navigation', ...browserNavigationState({ loading: false }) }));
   wc.on('did-navigate', () => {
     resetBrowserCaptureState();
+    rememberBrowserVisit(wc.getURL(), wc.getTitle());
     sendBrowserEvent({ type: 'navigation', ...browserNavigationState() });
   });
   wc.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
-    if (isMainFrame) resetBrowserCaptureState();
+    if (isMainFrame) {
+      resetBrowserCaptureState();
+      rememberBrowserVisit(wc.getURL(), wc.getTitle());
+    }
     sendBrowserEvent({ type: 'navigation', ...browserNavigationState() });
   });
-  wc.on('page-title-updated', (_event, title) => sendBrowserEvent({ type: 'title', title: title || '' }));
+  wc.on('page-title-updated', (_event, title) => {
+    rememberBrowserVisit(wc.getURL(), title || '');
+    sendBrowserEvent({ type: 'title', title: title || '' });
+  });
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
     if (isMainFrame && code !== -3) sendBrowserEvent({ type: 'load-error', code, message: description, url });
   });
@@ -1834,7 +1907,61 @@ ipcMain.handle('browser:command', async (event, command, value) => {
 
 ipcMain.handle('browser:getState', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
-  return { ok: true, visible: browserVisible, diagnostics: browserDiagnostics, ...browserNavigationState() };
+  return { ok: true, visible: browserVisible, diagnostics: browserDiagnostics,
+    places: browserPlacesSnapshot(), ...browserNavigationState() };
+});
+
+ipcMain.handle('browser:places:list', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  return { ok: true, places: browserPlacesSnapshot() };
+});
+
+ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry : {};
+  const url = safeBrowserPlaceUrl(entry.url);
+  if (!url) return { ok: false, error: 'Geçerli bir site adresi gerekli.' };
+  const places = readBrowserPlaces();
+  const index = places.bookmarks.findIndex((item) => item.url === url);
+  let bookmarked;
+  if (index >= 0) {
+    places.bookmarks.splice(index, 1);
+    bookmarked = false;
+  } else {
+    places.bookmarks.unshift({
+      url,
+      title: String(entry.title || '').trim().slice(0, 240),
+      visitedAt: Date.now(),
+    });
+    places.bookmarks = places.bookmarks.slice(0, BROWSER_PLACE_LIMIT);
+    bookmarked = true;
+  }
+  writeBrowserPlaces(places);
+  const snapshot = browserPlacesSnapshot();
+  sendBrowserEvent({ type: 'places', places: snapshot });
+  return { ok: true, bookmarked, places: snapshot };
+});
+
+ipcMain.handle('browser:places:remove', (event, kind, rawUrl) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  const url = safeBrowserPlaceUrl(rawUrl);
+  if (!url || !['history', 'bookmarks'].includes(kind)) return { ok: false };
+  const places = readBrowserPlaces();
+  places[kind] = places[kind].filter((item) => item.url !== url);
+  writeBrowserPlaces(places);
+  const snapshot = browserPlacesSnapshot();
+  sendBrowserEvent({ type: 'places', places: snapshot });
+  return { ok: true, places: snapshot };
+});
+
+ipcMain.handle('browser:places:clearHistory', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  const places = readBrowserPlaces();
+  places.history = [];
+  writeBrowserPlaces(places);
+  const snapshot = browserPlacesSnapshot();
+  sendBrowserEvent({ type: 'places', places: snapshot });
+  return { ok: true, places: snapshot };
 });
 
 ipcMain.handle('browser:setOverlay', async (event, payload) => {

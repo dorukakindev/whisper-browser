@@ -924,10 +924,31 @@
             <div class="browser-address-wrap">
               <span class="browser-security-mark" id="browserSecurityMark" aria-hidden="true"></span>
               <input type="url" id="browserAddress" autocomplete="off" spellcheck="false"
-                placeholder="Bir video sitesi adresi girin" aria-label="Web adresi" />
+                list="browserAddressSuggestions" placeholder="Bir video sitesi adresi girin" aria-label="Web adresi" />
+              <datalist id="browserAddressSuggestions"></datalist>
             </div>
             <button class="btn btn-primary btn-sm browser-go" id="browserGo" type="button">Aç</button>
+            <button class="btn-icon browser-place-button" id="browserBookmarkToggle" type="button"
+              title="Bu siteyi yer imlerine ekle" aria-label="Bu siteyi yer imlerine ekle" aria-pressed="false">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg>
+            </button>
+            <button class="btn-icon browser-place-button" id="browserPlacesToggle" type="button"
+              title="Yer imleri ve geçmiş" aria-label="Yer imleri ve geçmiş" aria-expanded="false">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v13a.5.5 0 0 1-.8.4L12 14.6l-7.2 5.3a.5.5 0 0 1-.8-.4v-13Z"/><path d="M8 8h8M8 11h6"/></svg>
+            </button>
           </div>
+
+          <section class="browser-places hidden" id="browserPlacesPanel" aria-label="Yer imleri ve geçmiş">
+            <div class="browser-places-head">
+              <strong>Yer imleri ve geçmiş</strong>
+              <button class="btn-icon browser-dismiss" id="browserPlacesClose" type="button" title="Kapat" aria-label="Kapat">×</button>
+            </div>
+            <div class="browser-place-tabs" role="tablist" aria-label="Kayıt türü">
+              <button class="browser-place-tab active" type="button" data-place-tab="bookmarks" role="tab">Yer imleri</button>
+              <button class="browser-place-tab" type="button" data-place-tab="history" role="tab">Geçmiş</button>
+            </div>
+            <div class="browser-places-list" id="browserPlacesList"></div>
+          </section>
 
           <div class="browser-signal" id="browserSignal" role="status" aria-live="polite">
             <span class="browser-signal-line" aria-hidden="true"></span>

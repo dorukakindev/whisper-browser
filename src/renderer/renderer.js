@@ -2472,6 +2472,9 @@ const player = {
   browserTrackRefreshTimer: null,
   browserLoadedTrackId: '',
   browserDiagnostics: null,
+  browserPlaces: { history: [], bookmarks: [] },
+  browserPlaceTab: 'bookmarks',
+  browserPlacesSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
 };
@@ -2513,6 +2516,118 @@ function bindBrowserBoundsObserver() {
 function setBrowserSignal(text, detected = false) {
   if ($('browserSignalText')) $('browserSignalText').textContent = text;
   $('browserSignal')?.classList.toggle('detected', detected);
+}
+
+function browserPlaceTitle(item) {
+  if (item && item.title) return item.title;
+  try { return new URL(item && item.url || '').hostname; } catch (_) { return item && item.url || 'Site'; }
+}
+
+function browserPlaceKey(raw) {
+  try {
+    const url = new URL(String(raw || ''));
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i.test(key)) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.hash = '';
+    return url.href;
+  } catch (_) { return ''; }
+}
+
+function browserPlaceList() {
+  const places = player.browserPlaces || { history: [], bookmarks: [] };
+  return Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : [];
+}
+
+function updateBrowserBookmarkButton() {
+  const button = $('browserBookmarkToggle');
+  if (!button) return;
+  const url = player.browserPageUrl || '';
+  const key = browserPlaceKey(url);
+  const active = !!(player.browserPlaces.bookmarks || []).some((item) => browserPlaceKey(item.url) === key);
+  button.classList.toggle('active', active);
+  button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  button.title = active ? 'Bu siteyi yer imlerinden kaldır' : 'Bu siteyi yer imlerine ekle';
+  button.setAttribute('aria-label', button.title);
+}
+
+function renderBrowserPlaces() {
+  const list = $('browserPlacesList');
+  const datalist = $('browserAddressSuggestions');
+  const places = player.browserPlaces || { history: [], bookmarks: [] };
+  if (datalist) {
+    datalist.replaceChildren();
+    const seen = new Set();
+    [...(places.bookmarks || []), ...(places.history || [])].forEach((item) => {
+      if (!item || !item.url || seen.has(item.url)) return;
+      seen.add(item.url);
+      const option = document.createElement('option');
+      option.value = item.url;
+      option.label = browserPlaceTitle(item);
+      datalist.appendChild(option);
+    });
+  }
+  updateBrowserBookmarkButton();
+  document.querySelectorAll('[data-place-tab]').forEach((tab) => {
+    const active = tab.dataset.placeTab === player.browserPlaceTab;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  if (!list) return;
+  list.replaceChildren();
+  const entries = browserPlaceList();
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'browser-place-empty';
+    empty.textContent = player.browserPlaceTab === 'bookmarks'
+      ? 'Henüz yer imi eklenmedi.' : 'Henüz ziyaret edilen site yok.';
+    list.appendChild(empty);
+    return;
+  }
+  entries.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = 'browser-place-row';
+    const open = document.createElement('button');
+    open.className = 'browser-place-open';
+    open.type = 'button';
+    open.dataset.placeOpen = item.url;
+    const title = document.createElement('span');
+    title.className = 'browser-place-title';
+    title.textContent = browserPlaceTitle(item);
+    const url = document.createElement('span');
+    url.className = 'browser-place-url';
+    url.textContent = item.url;
+    open.append(title, url);
+    const remove = document.createElement('button');
+    remove.className = 'btn-icon browser-place-remove';
+    remove.type = 'button';
+    remove.dataset.placeRemove = item.url;
+    remove.title = player.browserPlaceTab === 'history' ? 'Geçmişten kaldır' : 'Yer iminden kaldır';
+    remove.setAttribute('aria-label', remove.title);
+    remove.textContent = '×';
+    row.append(open, remove);
+    list.appendChild(row);
+  });
+}
+
+async function loadBrowserPlaces() {
+  if (!window.api.listBrowserPlaces) return;
+  const seq = ++player.browserPlacesSeq;
+  const result = await window.api.listBrowserPlaces().catch(() => null);
+  if (seq === player.browserPlacesSeq && result && result.ok && result.places) {
+    player.browserPlaces = result.places;
+    renderBrowserPlaces();
+  }
+}
+
+function setBrowserPlacesOpen(open) {
+  const panel = $('browserPlacesPanel');
+  if (!panel) return;
+  panel.classList.toggle('hidden', !open);
+  $('browserPlacesToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) { loadBrowserPlaces(); renderBrowserPlaces(); }
 }
 
 function renderBrowserDiagnostics(diagnostics) {
@@ -2703,8 +2818,10 @@ function updateBrowserNavigation(data) {
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
     setMediaKey(`browser:${data.url}`);
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
+    loadBrowserPlaces();
   }
   if (data.title) player.browserPageTitle = data.title;
+  updateBrowserBookmarkButton();
   if (player.workspaceMode === 'browser') {
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor' : 'Web videosu · altyazı algılama açık';
@@ -2735,6 +2852,8 @@ async function showBrowserWorkspace() {
   }
   updateBrowserNavigation(result);
   if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
+  if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  else loadBrowserPlaces();
   scheduleBrowserBounds();
   if (!result.hasPage) {
     const last = (() => { try { return localStorage.getItem('playerBrowserLastUrl') || ''; } catch (_) { return ''; } })();
@@ -2805,6 +2924,43 @@ if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFrom
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') { event.preventDefault(); navigateBrowserFromAddress(); }
 });
+if ($('browserBookmarkToggle')) $('browserBookmarkToggle').addEventListener('click', async () => {
+  if (!player.browserPageUrl || !window.api.toggleBrowserBookmark) return;
+  const result = await window.api.toggleBrowserBookmark({
+    url: player.browserPageUrl,
+    title: player.browserPageTitle,
+  }).catch(() => null);
+  if (result && result.ok && result.places) {
+    player.browserPlaces = result.places;
+    renderBrowserPlaces();
+    setBrowserSignal(result.bookmarked ? 'Site yer imlerine eklendi.' : 'Site yer imlerinden kaldırıldı.', result.bookmarked);
+  }
+});
+if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click', () => {
+  const panel = $('browserPlacesPanel');
+  setBrowserPlacesOpen(panel?.classList.contains('hidden'));
+});
+if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
+document.querySelectorAll('[data-place-tab]').forEach((tab) => tab.addEventListener('click', () => {
+  player.browserPlaceTab = tab.dataset.placeTab === 'history' ? 'history' : 'bookmarks';
+  renderBrowserPlaces();
+}));
+if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', async (event) => {
+  const open = event.target.closest('[data-place-open]');
+  if (open) {
+    const url = open.dataset.placeOpen;
+    setBrowserPlacesOpen(false);
+    if ($('browserAddress')) $('browserAddress').value = url;
+    const result = await window.api.navigateBrowser(url).catch(() => null);
+    if (result && result.ok) updateBrowserNavigation(result);
+    else if (result) setBrowserSignal(`Sayfa açılamadı: ${result.error || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  const remove = event.target.closest('[data-place-remove]');
+  if (!remove || !window.api.removeBrowserPlace) return;
+  const result = await window.api.removeBrowserPlace(player.browserPlaceTab, remove.dataset.placeRemove).catch(() => null);
+  if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+});
 if ($('browserBack')) $('browserBack').addEventListener('click', () => window.api.browserCommand('back'));
 if ($('browserForward')) $('browserForward').addEventListener('click', () => window.api.browserCommand('forward'));
 if ($('browserReload')) $('browserReload').addEventListener('click', () => window.api.browserCommand('reload'));
@@ -2830,6 +2986,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'title') {
     player.browserPageTitle = event.title || '';
     if (player.workspaceMode === 'browser') $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
+    loadBrowserPlaces();
+  } else if (event.type === 'places' && event.places) {
+    player.browserPlaces = event.places;
+    renderBrowserPlaces();
   } else if (event.type === 'subtitle-found' && event.track) {
     const selectedBefore = $('browserTrackSelect')?.value || '';
     const index = player.browserTracks.findIndex((track) => track.id === event.track.id);
