@@ -29,6 +29,7 @@ const {
 } = require('./browser-adapters');
 const {
   browserDrmFailureMessage,
+  isProtectedBrowserHost,
   sanitizeBrowserUserAgent,
 } = require('./browser-drm');
 
@@ -55,6 +56,7 @@ let browserLastDrmFailure = '';
 let browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
 let browserDiagnostics = null;
 let widevineComponentStatus = { available: false, ready: false, detail: 'Castlabs bileşen API’si bulunamadı' };
+let widevineReadinessPromise = null;
 
 // İş çalışırken sistemin uykuya geçmesini engelle (uzun transkripsiyon yarıda kalmasın)
 function startPowerBlocker() {
@@ -1478,6 +1480,9 @@ async function prepareWidevineComponents() {
     widevineComponentStatus = { available: true, ready: false, detail: message.slice(0, 240) };
     return widevineComponentStatus;
   });
+  // Başlangıçta 15 saniyelik genel açılış sınırı olsa bile bu promise'i sakla.
+  // Korumalı bir siteye gidilirken CDM kurulumu tamamlanmadan sayfa yüklenmesin.
+  widevineReadinessPromise = readiness;
   // Bileşen sunucusu çevrimdışıysa uygulamanın tümü açılmaz halde kalmasın.
   // Kurulum arka planda sürer; DRM sayfası açıldığında EME ayrıca doğrulanır.
   let timeoutId = null;
@@ -1490,6 +1495,16 @@ async function prepareWidevineComponents() {
   const result = await Promise.race([readiness, timeout]);
   if (timeoutId) clearTimeout(timeoutId);
   return result;
+}
+
+async function waitForProtectedPlayback(url) {
+  if (!isProtectedBrowserHost(url) || widevineComponentStatus.ready || !widevineReadinessPromise) return;
+  // Component Updater çevrimdışıysa sonsuza kadar gezinmeyi kilitleme; bu süreden
+  // sonra sayfa yine açılır ve teşhis paneli gerçek durumu gösterir.
+  await Promise.race([
+    widevineReadinessPromise,
+    new Promise((resolve) => setTimeout(resolve, 30000)),
+  ]);
 }
 
 async function reportBrowserDrmSupport() {
@@ -1772,6 +1787,7 @@ ipcMain.handle('browser:navigate', async (event, rawUrl) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
   const url = normalizeBrowserUrl(rawUrl);
   if (!url) return { ok: false, error: 'Geçerli bir http veya https adresi girin.' };
+  await waitForProtectedPlayback(url);
   const view = ensureBrowserView();
   if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
   if (browserBounds) view.setBounds(browserBounds);

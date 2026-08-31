@@ -1,6 +1,7 @@
 const assert = require('assert');
 const {
   browserDrmFailureMessage,
+  isProtectedBrowserHost,
   redactConsoleUrls,
   sanitizeBrowserUserAgent,
 } = require('../src/browser-drm');
@@ -33,6 +34,13 @@ test('normal lisans bilgisi ve ilgisiz JavaScript hatası false positive üretme
   assert.equal(browserDrmFailureMessage('License acquired successfully'), '');
   assert.equal(browserDrmFailureMessage('TypeError: cannot read properties of undefined'), '');
   assert.equal(browserDrmFailureMessage('Failed to load resource: net::ERR_BLOCKED_BY_CLIENT'), '');
+});
+
+test('korumalı servis alan adlarını doğru sınıflandırır', () => {
+  assert.equal(isProtectedBrowserHost('https://play.discoveryplus.com/video/watch/abc'), true);
+  assert.equal(isProtectedBrowserHost('https://www.hulu.com/watch/abc'), true);
+  assert.equal(isProtectedBrowserHost('https://example.com/video'), false);
+  assert.equal(isProtectedBrowserHost('not a url'), false);
 });
 
 test('genel URL temizleyici sorgu ve fragmenti dışarı sızdırmaz', () => {

@@ -239,6 +239,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browserSeenManifests = new Map/);
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
   assert.match(main, /components\.whenReady\(\)/);
+  assert.match(main, /waitForProtectedPlayback\(url\)/);
+  assert.match(main, /widevineReadinessPromise = readiness/);
   assert.match(main, /setUserAgent\(sanitizeBrowserUserAgent\(/);
   assert.match(main, /drm-playback-error/);
   assert.match(main, /require\('\.\/browser-drm'\)/);

@@ -5,6 +5,15 @@ function sanitizeBrowserUserAgent(value) {
     .trim();
 }
 
+function isProtectedBrowserHost(value) {
+  try {
+    const host = new URL(String(value || '')).hostname.toLowerCase();
+    return /(^|\.)(netflix\.com|hulu\.com|hulu\.jp|max\.com|hbomax\.com|discoveryplus\.com)$/.test(host);
+  } catch (_) {
+    return false;
+  }
+}
+
 function redactConsoleUrls(value) {
   return String(value || '').replace(/https?:\/\/[^\s"']+/gi, (rawUrl) => {
     try {
@@ -26,6 +35,7 @@ function browserDrmFailureMessage(rawMessage) {
 
 module.exports = {
   browserDrmFailureMessage,
+  isProtectedBrowserHost,
   redactConsoleUrls,
   sanitizeBrowserUserAgent,
 };
