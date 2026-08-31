@@ -2493,6 +2493,8 @@ const player = {
   browserPlaces: { history: [], bookmarks: [] },
   browserPlaceTab: 'bookmarks',
   browserPlacesSeq: 0,
+  browserExtensions: [],
+  browserExtensionsSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
   browserSignalVisible: true,
@@ -2573,6 +2575,7 @@ function setBrowserChromeCollapsed(collapsed, persist = true) {
   }
   if (active) {
     setBrowserPlacesOpen(false);
+    setBrowserExtensionsOpen(false);
     $('browserDiagnosticsPanel')?.classList.add('hidden');
     $('browserDiagnosticsToggle')?.setAttribute('aria-expanded', 'false');
   }
@@ -2692,7 +2695,97 @@ function setBrowserPlacesOpen(open) {
   if (!panel) return;
   panel.classList.toggle('hidden', !open);
   $('browserPlacesToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open) { loadBrowserPlaces(); renderBrowserPlaces(); }
+  if (open) {
+    setBrowserExtensionsOpen(false);
+    loadBrowserPlaces(); renderBrowserPlaces();
+  }
+}
+
+function browserExtensionStatusText(extension) {
+  if (extension && extension.error) return extension.error;
+  if (extension && extension.loaded) return extension.enabled ? 'Etkin · bu oturumda yüklü' : 'Pasif';
+  return extension && extension.enabled ? 'Yeniden başlatılınca yüklenecek' : 'Pasif';
+}
+
+function renderBrowserExtensions() {
+  const list = $('browserExtensionsList');
+  if (!list) return;
+  list.replaceChildren();
+  const entries = Array.isArray(player.browserExtensions) ? player.browserExtensions : [];
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'browser-extension-empty';
+    empty.textContent = 'Henüz eklenti eklenmedi.';
+    list.appendChild(empty);
+    return;
+  }
+  entries.forEach((extension) => {
+    const row = document.createElement('div');
+    row.className = 'browser-extension-row';
+    const copy = document.createElement('div');
+    copy.className = 'browser-extension-copy';
+    const name = document.createElement('strong');
+    name.textContent = extension.name || 'İsimsiz eklenti';
+    const meta = document.createElement('span');
+    meta.textContent = `v${extension.version || '?'} · Manifest ${extension.manifestVersion || '?'}`;
+    const path = document.createElement('small');
+    path.textContent = extension.path || '';
+    const status = document.createElement('em');
+    status.className = extension.error ? 'is-error' : extension.enabled ? 'is-on' : 'is-off';
+    status.textContent = browserExtensionStatusText(extension);
+    copy.append(name, meta, path, status);
+    const actions = document.createElement('div');
+    actions.className = 'browser-extension-actions';
+    if (extension.hasPopup) {
+      const open = document.createElement('button');
+      open.className = 'btn btn-secondary btn-sm';
+      open.type = 'button';
+      open.dataset.extensionOpen = extension.id;
+      open.textContent = 'Aç';
+      open.title = 'Eklenti penceresini aç';
+      actions.appendChild(open);
+    }
+    const toggle = document.createElement('button');
+    toggle.className = 'btn btn-ghost btn-sm';
+    toggle.type = 'button';
+    toggle.dataset.extensionToggle = extension.id;
+    toggle.dataset.extensionEnabled = extension.enabled ? 'true' : 'false';
+    toggle.textContent = extension.enabled ? 'Kapat' : 'Aç';
+    toggle.title = extension.enabled ? 'Eklentiyi kapat' : 'Eklentiyi aç';
+    const remove = document.createElement('button');
+    remove.className = 'btn-icon browser-extension-remove';
+    remove.type = 'button';
+    remove.dataset.extensionRemove = extension.id;
+    remove.textContent = '×';
+    remove.title = 'Eklentiyi listeden kaldır';
+    remove.setAttribute('aria-label', remove.title);
+    actions.append(toggle, remove);
+    row.append(copy, actions);
+    list.appendChild(row);
+  });
+}
+
+async function loadBrowserExtensions() {
+  if (!window.api.listBrowserExtensions) return;
+  const seq = ++player.browserExtensionsSeq;
+  const result = await window.api.listBrowserExtensions().catch(() => null);
+  if (seq === player.browserExtensionsSeq && result && result.ok) {
+    player.browserExtensions = Array.isArray(result.extensions) ? result.extensions : [];
+    renderBrowserExtensions();
+  }
+}
+
+function setBrowserExtensionsOpen(open) {
+  const panel = $('browserExtensionsPanel');
+  if (!panel) return;
+  const next = !!open;
+  panel.classList.toggle('hidden', !next);
+  $('browserExtensionsToggle')?.setAttribute('aria-expanded', next ? 'true' : 'false');
+  if (next) {
+    setBrowserPlacesOpen(false);
+    loadBrowserExtensions();
+    renderBrowserExtensions();
+  }
 }
 
 function renderBrowserDiagnostics(diagnostics) {
@@ -3060,6 +3153,8 @@ async function showBrowserWorkspace() {
   if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
   if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
   else loadBrowserPlaces();
+  if (result.extensions) { player.browserExtensions = result.extensions; renderBrowserExtensions(); }
+  else loadBrowserExtensions();
   scheduleBrowserBounds();
   if (!result.hasPage) {
     const last = (() => { try { return localStorage.getItem('playerBrowserLastUrl') || ''; } catch (_) { return ''; } })();
@@ -3152,6 +3247,53 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
   setBrowserPlacesOpen(panel?.classList.contains('hidden'));
 });
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
+if ($('browserExtensionsToggle')) $('browserExtensionsToggle').addEventListener('click', () => {
+  const panel = $('browserExtensionsPanel');
+  setBrowserExtensionsOpen(panel?.classList.contains('hidden'));
+});
+if ($('browserExtensionsClose')) $('browserExtensionsClose').addEventListener('click', () => setBrowserExtensionsOpen(false));
+if ($('browserExtensionAdd')) $('browserExtensionAdd').addEventListener('click', async () => {
+  if (!window.api.addBrowserExtension) return;
+  const result = await window.api.addBrowserExtension().catch(() => null);
+  if (!result || result.canceled) return;
+  if (!result.ok) {
+    setBrowserSignal(`Eklenti eklenemedi: ${result.error || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  player.browserExtensions = Array.isArray(result.extensions) ? result.extensions : [];
+  renderBrowserExtensions();
+  setBrowserSignal(`${result.extension?.name || 'Eklenti'} yüklendi. Açık sayfa yenileniyor.`, true);
+});
+if ($('browserExtensionsList')) $('browserExtensionsList').addEventListener('click', async (event) => {
+  const toggle = event.target.closest('[data-extension-toggle]');
+  const open = event.target.closest('[data-extension-open]');
+  const remove = event.target.closest('[data-extension-remove]');
+  if (open && window.api.openBrowserExtension) {
+    const result = await window.api.openBrowserExtension(open.dataset.extensionOpen).catch(() => null);
+    if (result && !result.ok && result.error) setBrowserSignal(result.error, false);
+    return;
+  }
+  if (toggle && window.api.toggleBrowserExtension) {
+    const enabled = toggle.dataset.extensionEnabled !== 'true';
+    const result = await window.api.toggleBrowserExtension(toggle.dataset.extensionToggle, enabled).catch(() => null);
+    if (result && result.ok) {
+      player.browserExtensions = Array.isArray(result.extensions) ? result.extensions : [];
+      renderBrowserExtensions();
+      setBrowserSignal(enabled ? 'Eklenti etkinleştirildi.' : 'Eklenti kapatıldı.', true);
+    } else if (result && result.error) setBrowserSignal(`Eklenti değiştirilemedi: ${result.error}`, false);
+    return;
+  }
+  if (remove && window.api.removeBrowserExtension) {
+    const entry = player.browserExtensions.find((item) => item.id === remove.dataset.extensionRemove);
+    if (!confirm(`${entry?.name || 'Bu eklenti'} listeden kaldırılsın mı? Eklenti dosyası silinmez.`)) return;
+    const result = await window.api.removeBrowserExtension(remove.dataset.extensionRemove).catch(() => null);
+    if (result && result.ok) {
+      player.browserExtensions = Array.isArray(result.extensions) ? result.extensions : [];
+      renderBrowserExtensions();
+      setBrowserSignal('Eklenti listeden kaldırıldı.', true);
+    } else if (result && result.error) setBrowserSignal(`Eklenti kaldırılamadı: ${result.error}`, false);
+  }
+});
 if ($('browserPlacesClear')) $('browserPlacesClear').addEventListener('click', async () => {
   if (player.browserPlaceTab !== 'history' || !window.api.clearBrowserHistory) return;
   const result = await window.api.clearBrowserHistory().catch(() => null);
@@ -3270,6 +3412,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'places' && event.places) {
     player.browserPlaces = event.places;
     renderBrowserPlaces();
+  } else if (event.type === 'extensions' && Array.isArray(event.extensions)) {
+    player.browserExtensions = event.extensions;
+    renderBrowserExtensions();
   } else if (event.type === 'subtitle-found' && event.track) {
     const selectedBefore = $('browserTrackSelect')?.value || '';
     const index = player.browserTracks.findIndex((track) => track.id === event.track.id);

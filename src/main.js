@@ -817,11 +817,181 @@ function installYoutubeStreamHeaders() {
 // engeller. Görünüm yalnızca renderer'ın bildirdiği boş alana çizilir.
 const BROWSER_PARTITION = 'persist:whisper-browser';
 const BROWSER_PLACES_FILE = 'browser-places.json';
+const BROWSER_EXTENSIONS_FILE = 'browser-extensions.json';
 const BROWSER_PLACE_LIMIT = 100;
 const BROWSER_SENSITIVE_PARAMS = /^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+const loadedBrowserExtensions = new Map();
+const browserExtensionErrors = new Map();
+const browserExtensionWindows = new Map();
 
 function browserPlacesPath() {
   return path.join(app.getPath('userData'), BROWSER_PLACES_FILE);
+}
+
+function browserExtensionsPath() {
+  return path.join(app.getPath('userData'), BROWSER_EXTENSIONS_FILE);
+}
+
+function browserExtensionApi(browserSession) {
+  // Electron 43+ exposes the API under session.extensions; the legacy method is
+  // kept as a fallback so an existing installation can still start cleanly.
+  if (browserSession && browserSession.extensions
+      && typeof browserSession.extensions.loadExtension === 'function') {
+    return browserSession.extensions;
+  }
+  return browserSession;
+}
+
+function browserExtensionManifest(extensionPath) {
+  const dir = path.resolve(String(extensionPath || ''));
+  if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+    throw new Error('Eklenti klasörü bulunamadı.');
+  }
+  const manifestPath = path.join(dir, 'manifest.json');
+  if (!fs.existsSync(manifestPath)) throw new Error('Bu klasörde manifest.json bulunamadı.');
+  const stat = fs.statSync(manifestPath);
+  if (stat.size > 2 * 1024 * 1024) throw new Error('Eklenti manifesti güvenli boyut sınırını aşıyor.');
+  let manifest;
+  try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); }
+  catch (_) { throw new Error('Eklentinin manifest.json dosyası okunamadı.'); }
+  const manifestVersion = Number(manifest && manifest.manifest_version);
+  if (![2, 3].includes(manifestVersion)) throw new Error('Yalnızca Manifest V2 veya V3 eklentileri desteklenir.');
+  const rawName = manifest && manifest.name;
+  const name = typeof rawName === 'string' && rawName.trim() && !/^__MSG_/i.test(rawName)
+    ? rawName.trim() : path.basename(dir);
+  const version = String(manifest && manifest.version || '').trim() || 'bilinmiyor';
+  const action = manifest.action || manifest.browser_action || manifest.page_action || {};
+  const popup = typeof action.default_popup === 'string' ? action.default_popup.trim() : '';
+  const popupPath = popup && !popup.includes('..') && !/^[a-z][a-z0-9+.-]*:/i.test(popup)
+    ? popup.replace(/^[/\\]+/, '').replace(/\\/g, '/') : '';
+  return {
+    dir, manifest, manifestVersion, name: name.slice(0, 160), version: version.slice(0, 80), popupPath,
+  };
+}
+
+function browserExtensionEntry(raw) {
+  const input = raw && typeof raw === 'object' ? raw : {};
+  let info;
+  try { info = browserExtensionManifest(input.path); } catch (_) { return null; }
+  const stableId = String(input.id || `path:${info.dir.toLowerCase()}`).slice(0, 500);
+  return {
+    id: stableId,
+    name: String(input.name || info.name).slice(0, 160),
+    version: String(input.version || info.version).slice(0, 80),
+    manifestVersion: info.manifestVersion,
+    hasPopup: !!info.popupPath,
+    path: info.dir,
+    enabled: input.enabled !== false,
+  };
+}
+
+function readBrowserExtensions() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(browserExtensionsPath(), 'utf8'));
+    const entries = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.extensions) ? raw.extensions : []);
+    const seen = new Set();
+    return entries.map(browserExtensionEntry).filter((entry) => {
+      if (!entry || seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    }).slice(0, 24);
+  } catch (_) { return []; }
+}
+
+function writeBrowserExtensions(entries) {
+  const clean = (Array.isArray(entries) ? entries : []).map((entry) => {
+    const normalized = browserExtensionEntry(entry);
+    if (!normalized) return null;
+    normalized.enabled = entry.enabled !== false;
+    return normalized;
+  }).filter(Boolean).slice(0, 24);
+  writeJsonAtomic(browserExtensionsPath(), { extensions: clean });
+  return clean;
+}
+
+function browserExtensionsSnapshot() {
+  return readBrowserExtensions().map((entry) => {
+    const loaded = loadedBrowserExtensions.get(entry.id);
+    return {
+      ...entry,
+      hasPopup: !!entry.hasPopup,
+      loaded: !!loaded,
+      error: browserExtensionErrors.get(entry.id) || '',
+    };
+  });
+}
+
+async function loadBrowserExtension(entry) {
+  const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  const api = browserExtensionApi(browserSession);
+  if (!api || typeof api.loadExtension !== 'function') throw new Error('Bu Electron sürümü eklenti yüklemeyi desteklemiyor.');
+  const info = browserExtensionManifest(entry.path);
+  const extension = await api.loadExtension(info.dir);
+  const extensionId = String(extension && extension.id || entry.id);
+  loadedBrowserExtensions.set(entry.id, { id: extensionId, path: info.dir, popupPath: info.popupPath });
+  browserExtensionErrors.delete(entry.id);
+  return { ...entry, id: entry.id, name: extension && extension.name || info.name,
+    version: extension && extension.version || info.version, loaded: true, error: '' };
+}
+
+function unloadBrowserExtension(entry) {
+  const loaded = loadedBrowserExtensions.get(entry.id);
+  if (!loaded) return;
+  try {
+    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+    const api = browserExtensionApi(browserSession);
+    if (api && typeof api.removeExtension === 'function') api.removeExtension(loaded.id);
+  } catch (_) {}
+  loadedBrowserExtensions.delete(entry.id);
+}
+
+async function openBrowserExtensionPopup(entry) {
+  const loaded = loadedBrowserExtensions.get(entry.id);
+  if (!loaded) throw new Error('Eklenti etkin değil. Önce eklentiyi açın.');
+  if (!loaded.popupPath) throw new Error('Bu eklentinin açılabilir bir popup penceresi yok.');
+  const existing = browserExtensionWindows.get(entry.id);
+  if (existing && !existing.isDestroyed()) {
+    existing.show();
+    existing.focus();
+    return;
+  }
+  const extensionUrl = `chrome-extension://${loaded.id}/${loaded.popupPath}`;
+  const popup = new BrowserWindow({
+    parent: mainWindow,
+    width: 390,
+    height: 620,
+    minWidth: 320,
+    minHeight: 420,
+    show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#101112',
+    title: entry.name || 'Eklenti',
+    webPreferences: {
+      partition: BROWSER_PARTITION,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+    },
+  });
+  browserExtensionWindows.set(entry.id, popup);
+  popup.on('closed', () => {
+    if (browserExtensionWindows.get(entry.id) === popup) browserExtensionWindows.delete(entry.id);
+  });
+  popup.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  await popup.loadURL(extensionUrl);
+  popup.show();
+}
+
+async function loadConfiguredBrowserExtensions() {
+  for (const entry of readBrowserExtensions()) {
+    if (!entry.enabled) continue;
+    try { await loadBrowserExtension(entry); }
+    catch (error) { browserExtensionErrors.set(entry.id, error.message || 'Eklenti yüklenemedi.'); }
+  }
 }
 
 function safeBrowserPlaceUrl(raw) {
@@ -1963,6 +2133,10 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   await prepareWidevineComponents();
+  // Eklentiler tarayıcı WebContentsView oluşturulmadan önce yüklenir; böylece
+  // içerik betikleri ilk açılan sayfaya da uygulanır. Hatalı bir eklenti,
+  // uygulamanın açılışını engellemez; durum panelde gösterilir.
+  await loadConfiguredBrowserExtensions();
   createWindow();
 });
 
@@ -1997,7 +2171,8 @@ ipcMain.handle('browser:show', (event, rawBounds) => {
   const hasPage = !!browserNavigationState().url;
   view.setVisible(hasPage);
   startBrowserPolling();
-  return { ok: true, hasPage, diagnostics: browserDiagnostics, ...browserNavigationState() };
+  return { ok: true, hasPage, diagnostics: browserDiagnostics,
+    extensions: browserExtensionsSnapshot(), ...browserNavigationState() };
 });
 
 ipcMain.handle('browser:hide', (event) => {
@@ -2069,7 +2244,97 @@ ipcMain.handle('browser:command', async (event, command, value) => {
 ipcMain.handle('browser:getState', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
   return { ok: true, visible: browserVisible, diagnostics: browserDiagnostics,
-    places: browserPlacesSnapshot(), ...browserNavigationState() };
+    places: browserPlacesSnapshot(), extensions: browserExtensionsSnapshot(), ...browserNavigationState() };
+});
+
+ipcMain.handle('browser:extensions:list', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  return { ok: true, extensions: browserExtensionsSnapshot() };
+});
+
+ipcMain.handle('browser:extensions:add', async (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Chrome eklentisi klasörünü seç',
+    properties: ['openDirectory'],
+  });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  let info;
+  try { info = browserExtensionManifest(result.filePaths[0]); }
+  catch (error) { return { ok: false, error: error.message }; }
+  const entries = readBrowserExtensions();
+  const existing = entries.find((entry) => entry.path.toLowerCase() === info.dir.toLowerCase());
+  if (existing) return { ok: false, error: 'Bu eklenti zaten ekli.' };
+  const entry = {
+    id: `path:${info.dir.toLowerCase()}`,
+    name: info.name,
+    version: info.version,
+    manifestVersion: info.manifestVersion,
+    path: info.dir,
+    enabled: true,
+  };
+  try {
+    await loadBrowserExtension(entry);
+  } catch (error) {
+    return { ok: false, error: `Eklenti yüklenemedi: ${error.message}` };
+  }
+  const saved = writeBrowserExtensions([...entries, entry]);
+  sendBrowserEvent({ type: 'extensions', extensions: browserExtensionsSnapshot() });
+  // Content script'ler mevcut sayfaya geriye dönük uygulanmaz; açık sayfa varsa
+  // bir kez yenilemek, eklentinin ilk yüklemede de görünmesini sağlar.
+  if (browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
+  return { ok: true, extension: browserExtensionsSnapshot().find((item) => item.id === entry.id), extensions: saved };
+});
+
+ipcMain.handle('browser:extensions:toggle', async (event, rawId, rawEnabled) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const id = String(rawId || '');
+  const entries = readBrowserExtensions();
+  const index = entries.findIndex((entry) => entry.id === id);
+  if (index < 0) return { ok: false, error: 'Eklenti bulunamadı.' };
+  const enabled = rawEnabled !== false;
+  const entry = entries[index];
+  if (enabled) {
+    try { await loadBrowserExtension(entry); }
+    catch (error) {
+      browserExtensionErrors.set(id, error.message || 'Eklenti yüklenemedi.');
+      sendBrowserEvent({ type: 'extensions', extensions: browserExtensionsSnapshot() });
+      return { ok: false, error: `Eklenti etkinleştirilemedi: ${error.message}` };
+    }
+  } else unloadBrowserExtension(entry);
+  entries[index] = { ...entry, enabled };
+  writeBrowserExtensions(entries);
+  sendBrowserEvent({ type: 'extensions', extensions: browserExtensionsSnapshot() });
+  if (browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
+  return { ok: true, extensions: browserExtensionsSnapshot() };
+});
+
+ipcMain.handle('browser:extensions:open', async (event, rawId) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const id = String(rawId || '');
+  const entry = readBrowserExtensions().find((item) => item.id === id);
+  if (!entry) return { ok: false, error: 'Eklenti bulunamadı.' };
+  try {
+    await openBrowserExtensionPopup(entry);
+    return { ok: true };
+  } catch (error) { return { ok: false, error: `Eklenti açılamadı: ${error.message}` }; }
+});
+
+ipcMain.handle('browser:extensions:remove', async (event, rawId) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const id = String(rawId || '');
+  const entries = readBrowserExtensions();
+  const entry = entries.find((item) => item.id === id);
+  if (!entry) return { ok: false, error: 'Eklenti bulunamadı.' };
+  unloadBrowserExtension(entry);
+  const extensionWindow = browserExtensionWindows.get(id);
+  if (extensionWindow && !extensionWindow.isDestroyed()) extensionWindow.close();
+  browserExtensionWindows.delete(id);
+  browserExtensionErrors.delete(id);
+  const saved = writeBrowserExtensions(entries.filter((item) => item.id !== id));
+  sendBrowserEvent({ type: 'extensions', extensions: browserExtensionsSnapshot() });
+  if (browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
+  return { ok: true, extensions: saved };
 });
 
 ipcMain.handle('browser:places:list', (event) => {
