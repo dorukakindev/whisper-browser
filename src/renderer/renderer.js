@@ -2575,6 +2575,7 @@ function renderBrowserPlaces() {
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', active ? 'true' : 'false');
   });
+  $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
   list.replaceChildren();
   const entries = browserPlaceList();
@@ -2941,6 +2942,11 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
   setBrowserPlacesOpen(panel?.classList.contains('hidden'));
 });
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
+if ($('browserPlacesClear')) $('browserPlacesClear').addEventListener('click', async () => {
+  if (player.browserPlaceTab !== 'history' || !window.api.clearBrowserHistory) return;
+  const result = await window.api.clearBrowserHistory().catch(() => null);
+  if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+});
 document.querySelectorAll('[data-place-tab]').forEach((tab) => tab.addEventListener('click', () => {
   player.browserPlaceTab = tab.dataset.placeTab === 'history' ? 'history' : 'bookmarks';
   renderBrowserPlaces();

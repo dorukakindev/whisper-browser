@@ -275,6 +275,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(html, /id="browserPlacesPanel"/);
   assert.match(html, /id="browserBookmarkToggle"/);
   assert.match(html, /id="browserAddressSuggestions"/);
+  assert.match(html, /id="browserPlacesClear"/);
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
 });
