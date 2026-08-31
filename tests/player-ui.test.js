@@ -402,7 +402,7 @@ test('native başlık gizlenirken pencere düğmeleri için güvenli alan korunu
   assert(/titleBarStyle:\s*'hidden'/.test(main), 'ayrı Windows başlık şeridi hâlâ açık');
   assert(/titleBarOverlay:\s*\{/.test(main), 'native küçült/büyüt/kapat düğmeleri korunmuyor');
   assert(/--window-controls-safe-width:\s*148px/.test(css), 'pencere düğmeleri için güvenli genişlik yok');
-  assert(/\.player-head\s*\{[^}]*padding-right:\s*calc\(14px \+ var\(--window-controls-safe-width\)\)/.test(css),
+  assert(/\.player-head\s*\{[\s\S]*?padding-right:\s*calc\((?:14|22)px \+ var\(--window-controls-safe-width\)\)/.test(css),
     'oynatıcı başlığı native düğmelerden kaçınmıyor');
 });
 
@@ -606,6 +606,20 @@ test('ses kilidi ve zamanlama masasi yalniz goruntu degil islev baglantisina sah
   assert(/rememberAudioLock/.test(js) && /nextYoutubeAudioLang/.test(js), 'ses kilidi is akimina bagli degil');
   assert(/id="timelineDrawer"/.test(layer) && /id="timelineCanvas"/.test(layer), 'zamanlama masasi UI yok');
   assert(/saveSubtitleCopy/.test(js) && /getWaveform/.test(js), 'zamanlama masasi IPC islevlerine bagli degil');
+});
+
+test('Windows başlık düğmeleri içerik satırının üzerine binmiyor', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  assert(/titleBarOverlay\s*:\s*\{[\s\S]*?height:\s*36/.test(main),
+    'native başlık şeridi yüksekliği tanımlı değil');
+  assert(/--window-controls-safe-height:\s*36px/.test(css),
+    'başlık düğmeleri için dikey güvenli alan yok');
+  assert(/\.app-header\s*\{[\s\S]*?min-height:\s*calc\(72px \+ var\(--window-controls-safe-height\)\)/.test(css),
+    'ana başlık güvenli yüksekliği ayırmıyor');
+  assert(/\.player-head\s*\{[\s\S]*?min-height:\s*calc\(70px \+ var\(--window-controls-safe-height\)\)/.test(css),
+    'oynatıcı başlığı güvenli yüksekliği ayırmıyor');
+  assert(/browser-chrome-collapsed \.browser-workspace\s*\{[\s\S]*?calc\(52px \+ var\(--window-controls-safe-height\)\)/.test(css),
+    'başlık gizliyken tarayıcı araç çubuğu native düğmelerin altına taşınmıyor');
 });
 
 test('HLS adres yenilemesi aynı videonun altyazı durumunu sıfırlamıyor', () => {

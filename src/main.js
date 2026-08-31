@@ -1861,7 +1861,9 @@ function createWindow() {
     ...(process.platform === 'win32' ? {
       titleBarStyle: 'hidden',
       titleBarOverlay: {
-        color: '#0a0a0b',
+        // Renderer başlık yüzeyiyle aynı renk; native düğme alanı ayrı siyah
+        // bir kutu gibi görünmesin.
+        color: '#0a0d11',
         symbolColor: '#a6adb6',
         height: 36,
       },

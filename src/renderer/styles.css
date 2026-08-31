@@ -23,6 +23,9 @@
   --radius: 6px;
   --radius-sm: 4px;
   --window-controls-safe-width: 148px;
+  /* Electron titleBarOverlay, Windows'ta istemci alanının ilk 36px'ini
+     pencere düğmelerine ayırır. İçerik bu şeridin altından başlamalı. */
+  --window-controls-safe-height: 36px;
 }
 
 /* Genel gizleme yardımcısı — elemana özel .hidden kuralları yetmiyordu
@@ -3938,12 +3941,30 @@ body::before {
 .player-layer.browser-chrome-collapsed .browser-chrome-toggle svg { transform: rotate(180deg); }
 
 /* Windows başlık alanı uygulama yüzeyine gömülüdür. Son sıradaki bu kurallar,
-   daha eski padding kısayollarının güvenli sağ boşluğu ezmesini önler. */
+   daha eski padding kısayollarının güvenli boşlukları ezmesini önler. */
 .app-header,
 .player-head,
 .browser-toolbar { -webkit-app-region: drag; }
-.app-header { padding-right: calc(24px + var(--window-controls-safe-width)); }
-.player-head { padding-right: calc(14px + var(--window-controls-safe-width)); }
+.app-header {
+  min-height: calc(72px + var(--window-controls-safe-height));
+  padding-top: calc(13px + var(--window-controls-safe-height));
+  padding-right: calc(24px + var(--window-controls-safe-width));
+  background: #0a0d11;
+}
+.player-head {
+  min-height: calc(70px + var(--window-controls-safe-height));
+  padding-top: calc(12px + var(--window-controls-safe-height));
+  padding-right: calc(22px + var(--window-controls-safe-width));
+  background: #0a0d11;
+}
+/* Başlık gizli kompakt tarayıcı görünümünde araç çubuğu doğrudan pencerenin
+   tepesine gelir; aynı güvenli yüksekliği bu durumda da koru. */
+.player-layer.browser-chrome-collapsed .browser-workspace {
+  grid-template-rows: calc(52px + var(--window-controls-safe-height)) 0 minmax(0, 1fr);
+}
+.player-layer.browser-chrome-collapsed .browser-toolbar {
+  padding-top: calc(8px + var(--window-controls-safe-height));
+}
 button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-drag; }
 
 @media (max-width: 1280px) {
