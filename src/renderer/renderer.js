@@ -1859,6 +1859,15 @@ function playerJobEvent(event) {
     if (isTranslateJob) {
       finish(tr ? 'Çeviri hazır ve ikinci altyazı olarak yüklendi.'
                 : 'Çeviri bitti ama dosya bulunamadı.', tr ? 'success' : 'warn');
+      if (job.browserTrackId) {
+        const latestTrack = player.browserTracks.find((track) => track.id === job.browserTrackId);
+        if (latestTrack && Number(latestTrack.cueCount || 0) > Number(job.browserSourceCueCount || 0)) {
+          const added = Number(latestTrack.cueCount || 0) - Number(job.browserSourceCueCount || 0);
+          setBrowserSignal(`Çeviri sırasında ${added} yeni altyazı satırı bulundu. Çeviriyi güncelleyebilirsiniz.`, true);
+          logLine(`Web altyazısı çeviri sırasında ${added} satır büyüdü; kaynak güncellendi.`, 'warn');
+        }
+        if (latestTrack) scheduleActiveBrowserTrackRefresh(latestTrack);
+      }
     } else if (isSyncJob) {
       finish(src ? 'Altyazı sese göre senkronlandı ve yüklendi.'
                  : 'Senkron bitti ama çıktı bulunamadı.', src ? 'success' : 'warn');
@@ -2462,6 +2471,8 @@ const player = {
   browserTrackRefreshTimer: null,
   browserLoadedTrackId: '',
   browserDiagnostics: null,
+  browserPrepareSeq: 0,
+  browserTranslatePreparing: false,
 };
 
 try { player.audioLocks = JSON.parse(localStorage.getItem('playerAudioLocks') || '{}') || {}; }
@@ -2533,6 +2544,8 @@ function renderBrowserDiagnostics(diagnostics) {
 }
 
 function clearBrowserTracks(message) {
+  player.browserPrepareSeq += 1;
+  player.browserTranslatePreparing = false;
   clearTimeout(player.browserTrackRefreshTimer);
   player.browserTrackRefreshTimer = null;
   player.browserLoadedTrackId = '';
@@ -2568,13 +2581,50 @@ function browserTrackSelection() {
   return player.browserTracks.find((track) => track.id === id) || player.browserTracks[0] || null;
 }
 
+function browserTrackSourceLanguage(track) {
+  const raw = normalizeAudioLang(track && track.language);
+  const base = raw.split('-')[0];
+  return /^[a-z]{2,3}$/.test(base) && !['und', 'mul', 'zxx'].includes(base) ? base : '';
+}
+
+async function waitForBrowserTrackStable(trackId, prepareSeq, quietMs = 1200, maxWaitMs = 5000) {
+  const started = Date.now();
+  let quietSince = started;
+  let signature = '';
+  let latest = null;
+  while (Date.now() - started < maxWaitMs) {
+    if (prepareSeq !== player.browserPrepareSeq) return null;
+    latest = player.browserTracks.find((track) => track.id === trackId) || null;
+    if (!latest) return null;
+    const nextSignature = `${latest.cueCount || 0}:${latest.updatedAt || 0}`;
+    if (nextSignature !== signature) {
+      signature = nextSignature;
+      quietSince = Date.now();
+    } else if (Date.now() - quietSince >= quietMs) {
+      return latest;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return latest;
+}
+
 async function useBrowserTrack(translate) {
-  const track = browserTrackSelection();
+  let track = browserTrackSelection();
   if (!track) return;
-  if (state.running || state.queueRunning) {
+  if (state.running || state.queueRunning || player.browserTranslatePreparing) {
     setBrowserSignal('Başka bir iş çalışıyor; altyazı hazır tutuluyor.', true);
     logLine('Tarayıcı altyazısı bekliyor — çalışan iş bitince yeniden deneyin.', 'warn');
     return;
+  }
+  if (translate) {
+    const prepareSeq = ++player.browserPrepareSeq;
+    player.browserTranslatePreparing = true;
+    if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = true;
+    setBrowserSignal('Altyazı parçaları tamamlanıyor; son sürüm bekleniyor…', true);
+    track = await waitForBrowserTrackStable(track.id, prepareSeq);
+    player.browserTranslatePreparing = false;
+    if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = false;
+    if (!track || prepareSeq !== player.browserPrepareSeq) return;
   }
   addSubtitleOption(track.path, `Web · ${track.language || track.label}`);
   $('playerSubSelect').value = track.path;
@@ -2582,7 +2632,11 @@ async function useBrowserTrack(translate) {
   if (player.subPath !== track.path) return;
   player.browserLoadedTrackId = track.id;
   setPlayerSidebarCollapsed(false);
-  setBrowserSignal(translate ? 'Altyazı yüklendi; çeviri başlatılıyor…' : 'Altyazı çalışma alanına yüklendi.', true);
+  const contextLines = Number($('translateContext')?.value || 4);
+  const sourceLanguage = browserTrackSourceLanguage(track);
+  setBrowserSignal(translate
+    ? `Altyazı yüklendi; ${sourceLanguage ? sourceLanguage.toUpperCase() + ' · ' : ''}önceki/sonraki ${contextLines} satırla çevriliyor…`
+    : 'Altyazı çalışma alanına yüklendi.', true);
   if (translate) $('makeTransBtn')?.click();
 }
 
@@ -2594,7 +2648,9 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
     const latest = player.browserTracks.find((item) => item.id === track.id);
     if (!latest || player.browserLoadedTrackId !== latest.id || player.subPath !== latest.path) return;
     if (state.running || state.queueRunning) {
-      if (attempt < 120) scheduleActiveBrowserTrackRefresh(latest, attempt + 1);
+      // Uzun film çevirileri iki dakikayı aşabilir. Eski 120 deneme sınırı,
+      // iş bitince büyüyen kaynak altyazının bir daha yüklenmemesine yol açıyordu.
+      scheduleActiveBrowserTrackRefresh(latest, attempt + 1);
       return;
     }
     if ($('playerSubSelect')) $('playerSubSelect').value = latest.path;
@@ -6435,6 +6491,13 @@ if ($('makeTransBtn')) {
     opts.translate = true;
     opts.input = player.subPath;
     delete opts.youtube;
+    const browserTrack = player.browserTracks.find((track) =>
+      track.id === player.browserLoadedTrackId && track.path === player.subPath) || null;
+    const browserLanguage = browserTrackSourceLanguage(browserTrack);
+    // Tarayıcı altyazısının kendi dil bilgisi, ana ekranda önceki işten kalmış
+    // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa
+    // repliklerde yanlış anlam ve hitap seçimine yol açıyordu.
+    if (browserLanguage) opts.language = browserLanguage;
     const problem = optsProblem(opts);
     if (problem) { logLine(problem, 'error'); setSettingsDrawer(true); return; }
 
@@ -6442,15 +6505,18 @@ if ($('makeTransBtn')) {
     state.cancelled = false;
     state.outputFiles = [];
     player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
-      liveSource: player.cues.slice(), liveTranslation: new Map() };
+      liveSource: player.cues.slice(), liveTranslation: new Map(),
+      browserTrackId: browserTrack ? browserTrack.id : '',
+      browserSourceCueCount: browserTrack ? Number(browserTrack.cueCount || 0) : 0 };
     const bar = $('playerJobBar');
     if (bar) {
       bar.classList.remove('hidden');
       $('playerJobFill').style.width = '0%';
-      $('playerJobText').textContent = 'Çeviri başlatılıyor…';
+      $('playerJobText').textContent = `Çeviri başlatılıyor · önceki/sonraki ${Number(opts.translateContext || 0)} satır`;
     }
     logLine(`Çeviri başlatıldı: ${player.subPath.split(/[\\/]/).pop()} → `
-      + `${opts.translateTo || 'tr'}`, 'info');
+      + `${opts.translateTo || 'tr'} · kaynak ${opts.language || 'otomatik'} · `
+      + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
     const r = await window.api.startTranscribe(opts);
     if (!r || !r.ok) {
       state.running = false;

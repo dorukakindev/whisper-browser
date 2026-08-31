@@ -801,6 +801,28 @@ def test_translate_context_can_be_disabled():
     assert "## BAGLAM" not in seen["system"]
 
 
+def test_translate_cache_key_includes_scene_language_and_glossary():
+    """Baglamli ceviri baska sahne/dil/sozluk sonucunu sessizce kullanamaz."""
+    args = _TrArgs(translate_context=4, glossary="Amicia")
+    a = T.translate_cache_key("Right.", args, "tr", "en", ["Go left."], ["Now."])
+    b = T.translate_cache_key("Right.", args, "tr", "en", ["Are you sure?"], ["I agree."])
+    c = T.translate_cache_key("Right.", args, "tr", "fr", ["Go left."], ["Now."])
+    d = T.translate_cache_key("Right.", _TrArgs(glossary="Hugo"), "tr", "en",
+                              ["Go left."], ["Now."])
+    e = T.translate_cache_key("Right.", args, "tr", "en", ["Go left."], ["Now."], 20)
+    f = T.translate_cache_key("Right.", args, "tr", "en", ["Go left."], ["Now."], 80)
+    g = T.translate_cache_key("Right.",
+                              _TrArgs(glossary="Amicia", translate_base_url="https://other.example.com"),
+                              "tr", "en", ["Go left."], ["Now."])
+    assert len({a, b, c, d, e, f, g}) == 7
+
+
+def test_translate_pending_chunks_never_bridge_cached_gap():
+    """0-1 ve 8-9 eksikse aradaki onbellekli sahne tek istekte atlanamaz."""
+    assert T.contiguous_index_chunks([0, 1, 8, 9, 10, 31], 20) == [[0, 1], [8, 9, 10], [31]]
+    assert T.contiguous_index_chunks(list(range(23)), 20) == [list(range(20)), [20, 21, 22]]
+
+
 def test_snap_to_speech_moves_only_silent_starts():
     """Sessizlikte baslayan bloklar konusmaya yaslanir; digerlerine DOKUNULMAZ.
 
@@ -840,7 +862,7 @@ def test_snap_to_speech_respects_max_shift():
 
 
 def test_translate_cache_skips_already_translated():
-    """Ayni blok ikinci kez API'ye GONDERILMEZ; degisen blok gonderilir."""
+    """Ayni sahne ikinci kez gonderilmez; degisen replik ve komsulari yenilenir."""
     import tempfile, pathlib
     d = str(pathlib.Path(tempfile.mkdtemp()))
     entries = [(i * 2.0, i * 2.0 + 1.8, "Line {}.".format(i)) for i in range(25)]
@@ -854,12 +876,16 @@ def test_translate_cache_skips_already_translated():
     assert seen2["payloads"] == [], "ikinci calistirmada API'ye istek gitti"
     assert [x[2] for x in out2] == [x[2] for x in out1], "onbellekten gelen metin farkli"
 
-    # yalnizca DEGISEN bloklar gonderilmeli
+    # Degisen blok ile onu baglaminda gorebilen ±4 komsu yeniden cevrilmeli.
+    # Eski davranis yalnizca 7'yi gonderiyor ve 3-6/8-11 icin artik gecersiz
+    # sahne baglamiyla uretilmis ceviriyi onbellekten kullaniyordu.
     degisik = list(entries)
     degisik[7] = (degisik[7][0], degisik[7][1], "CHANGED line 7.")
     out3, seen3 = _capture_translate_payloads(degisik, args)
     gonderilen3 = sum(len(p["items"]) for p in seen3["payloads"])
-    assert gonderilen3 == 1, f"1 blok bekleniyordu, {gonderilen3} gonderildi"
+    assert gonderilen3 == 9, f"9 baglam-etkilenen blok bekleniyordu, {gonderilen3} gonderildi"
+    sent_texts = [item["t"] for payload in seen3["payloads"] for item in payload["items"]]
+    assert sent_texts == [row[2] for row in degisik[3:12]], sent_texts
     assert out3[7][2].startswith("[TR] CHANGED"), out3[7]
     assert out3[0][2] == out1[0][2], "degismeyen blok bozuldu"
 

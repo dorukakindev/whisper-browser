@@ -954,6 +954,9 @@ function storeBrowserTrack(cues, meta = {}) {
     label: String(meta.label || lang || 'Web altyazısı').slice(0, 120),
     format: String(meta.format || 'web'),
     cueCount: normalized.length,
+    // Renderer, segmentli bir akisin hâlâ büyüyüp büyümediğini bununla anlar;
+    // ilk küçük parça yazılır yazılmaz eksik dosyayı çevirmeye başlamaz.
+    updatedAt: Date.now(),
     pageUrl: browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '',
     sourceUrl: String(meta.sourceUrl || '').slice(0, 1000),
   };

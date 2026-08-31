@@ -2250,23 +2250,61 @@ def translate_cache_path(args):
     return str(Path(base) / "translate-cache.json")
 
 
-def translate_cache_key(text, args, target):
-    """Ayni metin + ayni ceviri AYARLARI -> ayni anahtar.
+def translation_context(entries, index, count):
+    """Bir blok icin yalnizca kaynak dildeki onceki/sonraki komsulari dondurur."""
+    count = max(0, int(count or 0))
+    if not count:
+        return [], []
+    before = [entries[k][2] for k in range(max(0, index - count), index)]
+    after = [entries[k][2] for k in range(index + 1, min(len(entries), index + 1 + count))]
+    return before, after
 
-    Baglam (context_before/after) anahtara DAHIL DEGIL: dahil olsaydi blogun
-    komsulari degistiginde onbellek bosa duserdi ve isabet orani cok dusuk
-    kalirdi. Bedeli: bir blok, baska bir baglamda uretilmis cevirisiyle geri
-    gelebilir. Pratikte ayni cumle ayni sekilde cevrilir; kazanc cok daha buyuk.
+
+def contiguous_index_chunks(indexes, limit):
+    """Kesintili onbellek isabetlerini komsu olmayan tek bir istekte birlestirmez."""
+    chunks = []
+    current = []
+    for index in indexes:
+        if current and (index != current[-1] + 1 or len(current) >= limit):
+            chunks.append(current)
+            current = []
+        current.append(index)
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def translation_char_budget(entry, args):
+    """API payload'indaki blok-suresine bagli karakter butcesini tek yerde hesaplar."""
+    return int(max(0.4, float(entry[1]) - float(entry[0])) * args.max_cps)
+
+
+def translate_cache_key(text, args, target, source_lang=None,
+                        context_before=None, context_after=None, max_chars=None):
+    """Ayni metin + ayni ceviri AYARLARI + ayni sahne baglami -> ayni anahtar.
+
+    Ceviri baglama gore uretiliyorsa onbellek de baglama gore ayrilmalidir.
+    Aksi halde "Right.", "You?" gibi kisa replikler baska bir sahnedeki hitap,
+    cinsiyet veya anlamla sessizce geri gelebilir.
     """
     import hashlib
-    raw = "|".join([
-        str(target),
-        str(getattr(args, "translate_model", "") or ""),
-        str(getattr(args, "translate_register", "") or ""),
-        str(getattr(args, "translate_profanity", "") or ""),
-        "1" if getattr(args, "translate_refine", False) else "0",
-        text,
-    ])
+    raw = json.dumps({
+        "v": 2,
+        "target": str(target or "").lower(),
+        "source": str(source_lang or "").lower(),
+        "model": str(getattr(args, "translate_model", "") or ""),
+        "base_url": str(getattr(args, "translate_base_url", "") or "").rstrip("/"),
+        "register": str(getattr(args, "translate_register", "") or ""),
+        "profanity": str(getattr(args, "translate_profanity", "") or ""),
+        "refine": bool(getattr(args, "translate_refine", False)),
+        "max_cps": int(getattr(args, "max_cps", 0) or 0),
+        "max_line_width": int(getattr(args, "max_line_width", 0) or 0),
+        "glossary": str(getattr(args, "glossary", "") or ""),
+        "text": text,
+        "max_chars": int(max_chars or 0),
+        "context_before": list(context_before or []),
+        "context_after": list(context_after or []),
+    }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
@@ -2362,7 +2400,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     cached_idx = set()
     pending = []
     for i, (_s, _e, t) in enumerate(entries):
-        hit = cache.get(translate_cache_key(t, args, target)) if cache_on else None
+        before, after = translation_context(entries, i, CONTEXT_LINES)
+        key = translate_cache_key(t, args, target, source_lang, before, after,
+                                  translation_char_budget(entries[i], args))
+        hit = cache.get(key) if cache_on else None
         if isinstance(hit, str) and hit.strip():
             out_texts[i] = hit
             cached_idx.add(i)
@@ -2381,8 +2422,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         ])
         return ready
 
-    # Parcalar artik ARDISIK ARALIK degil, cevrilecek INDEKS LISTESI
-    chunks = [pending[i:i + CHUNK_SIZE] for i in range(0, len(pending), CHUNK_SIZE)]
+    # Onbellekten kalan indeksler kesintili olabilir. Komsu olmayan bloklari tek
+    # istekte toplamak, aradaki kaynak satirlari modelden saklayip yanlis baglam
+    # yaratir. Bu nedenle her istek hem ardisik hem en fazla CHUNK_SIZE bloktur.
+    chunks = contiguous_index_chunks(pending, CHUNK_SIZE)
     route_state = {"preferred": routes[0]}
     lock = threading.Lock()
     counters = {"done": 0, "failed": 0}
@@ -2426,12 +2469,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     def task(chunk_idx):
         items = []
         for pos, i in enumerate(chunk_idx):
-            s0, e0, text = entries[i]
-            dur = max(0.4, float(e0) - float(s0))
+            text = entries[i][2]
             items.append({
                 "i": pos,
                 "t": text,
-                "max": int(dur * args.max_cps),     # sureye gore karakter butcesi
+                "max": translation_char_budget(entries[i], args),
             })
         payload = {"items": items}
         # Baglam ORIJINAL komsulardan alinir (parca artik ardisik olmayabilir)
@@ -2599,7 +2641,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     if cache_on and cache_file:
         added = 0
         for i in done_idx:
-            k = translate_cache_key(entries[i][2], args, target)
+            before, after = translation_context(entries, i, CONTEXT_LINES)
+            k = translate_cache_key(entries[i][2], args, target, source_lang, before, after,
+                                    translation_char_budget(entries[i], args))
             if cache.get(k) != out_texts[i]:
                 cache[k] = out_texts[i]
                 added += 1
