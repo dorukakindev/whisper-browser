@@ -818,6 +818,11 @@ function installYoutubeStreamHeaders() {
 const BROWSER_PARTITION = 'persist:whisper-browser';
 const BROWSER_PLACES_FILE = 'browser-places.json';
 const BROWSER_EXTENSIONS_FILE = 'browser-extensions.json';
+// Resmi Proton VPN eklentisi uygulamayla birlikte gelir. İlk açılışta
+// kullanıcı eklenti klasörü seçmek zorunda kalmasın; yine de kayıt dosyasına
+// yazıldığı için kullanıcı isterse listeden kaldırabilir.
+const BUNDLED_PROTON_EXTENSION_PATH = path.join(__dirname, '..', 'extensions', 'proton-vpn');
+const BUNDLED_PROTON_EXTENSION_ID = 'bundled:proton-vpn';
 const BROWSER_PLACE_LIMIT = 100;
 const BROWSER_SENSITIVE_PARAMS = /^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 const loadedBrowserExtensions = new Map();
@@ -882,7 +887,30 @@ function browserExtensionEntry(raw) {
     hasPopup: !!info.popupPath,
     path: info.dir,
     enabled: input.enabled !== false,
+    bundled: input.bundled === true,
   };
+}
+
+function ensureBundledBrowserExtensions() {
+  // Do not recreate the file after the user deliberately removes the bundled
+  // extension. A missing file means this is the first run of this feature.
+  if (fs.existsSync(browserExtensionsPath())) return;
+  try {
+    const info = browserExtensionManifest(BUNDLED_PROTON_EXTENSION_PATH);
+    writeJsonAtomic(browserExtensionsPath(), {
+      extensions: [{
+        id: BUNDLED_PROTON_EXTENSION_ID,
+        name: info.name,
+        version: info.version,
+        path: info.dir,
+        enabled: true,
+        bundled: true,
+      }],
+    });
+  } catch (_) {
+    // A packaged build may omit optional bundled extensions; the normal
+    // user-selected extension flow must continue to work in that case.
+  }
 }
 
 function readBrowserExtensions() {
@@ -987,6 +1015,7 @@ async function openBrowserExtensionPopup(entry) {
 }
 
 async function loadConfiguredBrowserExtensions() {
+  ensureBundledBrowserExtensions();
   for (const entry of readBrowserExtensions()) {
     if (!entry.enabled) continue;
     try { await loadBrowserExtension(entry); }
