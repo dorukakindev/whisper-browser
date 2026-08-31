@@ -48,7 +48,10 @@ def _find_ffmpeg():
     return which("ffmpeg") or which("ffmpeg.exe")
 
 
-def _ydl_opts(extra=None):
+COOKIE_BROWSERS = {"chrome", "edge", "firefox", "brave", "vivaldi", "opera"}
+
+
+def _ydl_opts(extra=None, cookie_browser=""):
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -59,16 +62,23 @@ def _ydl_opts(extra=None):
     ff = _find_ffmpeg()
     if ff:
         opts["ffmpeg_location"] = str(Path(ff).parent)
+    browser = str(cookie_browser or "").strip().lower()
+    if browser:
+        if browser not in COOKIE_BROWSERS:
+            raise ValueError("Desteklenmeyen cookie tarayıcısı")
+        # Cookie içeriği uygulamaya/argv'ye taşınmaz. yt-dlp seçilen tarayıcının
+        # profilinden doğrudan okur; uygulama yalnızca tarayıcı adını bilir.
+        opts["cookiesfrombrowser"] = (browser,)
     if extra:
         opts.update(extra)
     return opts
 
 
-def probe(url):
+def probe(url, cookie_browser=""):
     """Video bilgisi + oynatılabilir/indirilebilir seçenekleri döndürür."""
     import yt_dlp
 
-    with yt_dlp.YoutubeDL(_ydl_opts()) as ydl:
+    with yt_dlp.YoutubeDL(_ydl_opts(cookie_browser=cookie_browser)) as ydl:
         info = ydl.extract_info(url, download=False)
 
     formats = info.get("formats") or []
@@ -147,18 +157,23 @@ def probe(url):
         thumbnail=info.get("thumbnail") or "",
         heights=heights,
         audioLangs=audio_langs,
+        originalLanguage=info.get("language") or "",
         stream=(
             {
                 "url": best_progressive.get("url"),
                 "height": best_progressive.get("height"),
                 "ext": best_progressive.get("ext"),
+                # Progressive akista ses parcasi sonradan degistirilemez. UI ve
+                # Whisper'in gercekte duyulan dili kilitleyebilmesi icin secilen
+                # birlesik formatin dilini acikca bildir.
+                "audioLang": best_progressive.get("language") or info.get("language") or "",
             }
             if best_progressive else None
         ),
     )
 
 
-def download(url, height, audio_lang, output_dir):
+def download(url, height, audio_lang, output_dir, cookie_browser=""):
     """İstenen çözünürlükte indirip birleştirir (ffmpeg). Yerel dosya yolunu döndürür."""
     import yt_dlp
 
@@ -195,7 +210,7 @@ def download(url, height, audio_lang, output_dir):
         "progress_hooks": [hook],
         # Oynatıcı için tek dosya şart — birleştirme başarısızsa hata versin
         "postprocessors": [{"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}],
-    })
+    }, cookie_browser=cookie_browser)
 
     log(f"İndiriliyor (en fazla {height or 'sınırsız'}p"
         + (f", ses dili: {audio_lang}" if audio_lang else "") + ")")
@@ -219,7 +234,7 @@ def download(url, height, audio_lang, output_dir):
          duration=info.get("duration") or 0)
 
 
-def fetch_subs(url, lang, auto, output_dir):
+def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     """YouTube'un hazır altyazısını SRT olarak indirir ve yolunu döndürür."""
     import yt_dlp
 
@@ -235,7 +250,7 @@ def fetch_subs(url, lang, auto, output_dir):
         "outtmpl": {"default": str(out / "%(title).80B [%(id)s].%(ext)s")},
         # vtt gelirse ffmpeg ile srt'ye çevir (oynatıcı ve düzenleyici srt bekliyor)
         "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt"}],
-    })
+    }, cookie_browser=cookie_browser)
     log(f"YouTube altyazısı indiriliyor: {lang}{' (otomatik)' if auto else ''}")
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
@@ -265,19 +280,29 @@ def main():
     ap.add_argument("--output-dir", default=".")
     ap.add_argument("--sub-lang", default="en")
     ap.add_argument("--sub-auto", default="false")
+    ap.add_argument("--cookie-browser", default="")
     args = ap.parse_args()
 
     try:
         if args.command == "probe":
-            probe(args.url)
+            probe(args.url, args.cookie_browser)
         elif args.command == "subs":
             fetch_subs(args.url, args.sub_lang,
-                       str(args.sub_auto).lower() == "true", args.output_dir)
+                       str(args.sub_auto).lower() == "true", args.output_dir,
+                       args.cookie_browser)
         else:
-            download(args.url, args.height, args.audio_lang, args.output_dir)
+            download(args.url, args.height, args.audio_lang, args.output_dir,
+                     args.cookie_browser)
     except Exception as e:
         import traceback
-        emit("error", message=str(e), traceback=traceback.format_exc())
+        message = str(e)
+        if "confirm you’re not a bot" in message or "confirm you're not a bot" in message:
+            message = ("YouTube bu video için oturum doğrulaması istedi. "
+                       "YouTube ayarlarından giriş yaptığınız tarayıcıyı seçip yeniden deneyin.")
+        elif "Could not copy" in message and "cookie" in message.lower():
+            message = ("Tarayıcı cookie veritabanı okunamadı. Tarayıcıyı tamamen kapatıp "
+                       "yeniden deneyin veya Firefox oturumunu seçin.")
+        emit("error", message=message, traceback=traceback.format_exc())
         sys.exit(1)
 
 

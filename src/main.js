@@ -1,11 +1,44 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const {
+  browserNavigationCapabilities,
+  cueFingerprint,
+  cuesToSrt,
+  isLikelySubtitleResponse,
+  normalizeCues,
+  parseSubtitlePayload,
+  parseHlsSubtitleTracks,
+  parseHlsSegments,
+  isHlsSubtitlePlaylist,
+  parseDashSubtitleTracks,
+  parseDashSubtitleMatchers,
+  matchDashSubtitleUrl,
+  dashSegmentOffset,
+  cuesUseLocalSegmentTimeline,
+  parseMp4WebVtt,
+  findSubtitleUrls,
+  subtitleLanguage,
+} = require('./browser-subtitles');
 
 let mainWindow;
 let activeJob = null;
 let powerBlockerId = null;
+let browserView = null;
+let browserVisible = false;
+let browserBounds = null;
+let browserTrackTimer = null;
+let browserMediaTimer = null;
+let browserDebuggerReady = false;
+const browserPendingResponses = new Map();
+const browserSeenTracks = new Set();
+const browserTrackBuffers = new Map();
+const browserTrackPublications = new Map();
+const browserSeenManifests = new Map();
+let browserDashSubtitleMatchers = [];
+let browserLastDrmStatus = '';
+let browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
 
 // İş çalışırken sistemin uykuya geçmesini engelle (uzun transkripsiyon yarıda kalmasın)
 function startPowerBlocker() {
@@ -39,7 +72,7 @@ function sendEvent(payload) {
 // Uygulama içi günlük kapanınca kayboluyor; gece çalışan kuyruklarda ne olduğunu
 // sonradan görebilmek için her iş userData/logs altına ayrı dosyaya yazılır.
 const LOG_KEEP = 100;                 // en yeni N günlük tutulur, gerisi silinir
-const LOG_SKIP = new Set(['segment', 'progress', 'download_progress', 'llm_progress', 'preview_refresh']);
+const LOG_SKIP = new Set(['segment', 'progress', 'download_progress', 'llm_progress', 'preview_refresh', 'translation_chunk', 'translation_refresh']);
 let jobLog = null;
 
 function logsDir() {
@@ -180,8 +213,13 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
 }
 
 ipcMain.handle('media:probe', async (_e, url) => {
-  if (!url) return { ok: false, error: 'URL boş' };
-  return runMediaCommand(['probe', '--url', url], null, 'probe');
+  const input = typeof url === 'object' && url ? url : { url };
+  if (!input.url) return { ok: false, error: 'URL boş' };
+  const args = ['probe', '--url', input.url];
+  if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(input.cookieBrowser)) {
+    args.push('--cookie-browser', input.cookieBrowser);
+  }
+  return runMediaCommand(args, null, 'probe');
 });
 
 ipcMain.handle('media:download', async (_e, opts) => {
@@ -191,6 +229,9 @@ ipcMain.handle('media:download', async (_e, opts) => {
   const args = ['download', '--url', o.url, '--output-dir', outDir];
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
+  if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
+    args.push('--cookie-browser', o.cookieBrowser);
+  }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('media:event', ev);
@@ -229,12 +270,16 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   const o = opts || {};
   if (!o.url) return { ok: false, error: 'URL boş' };
   const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
-  return runMediaCommand([
+  const args = [
     'subs', '--url', o.url,
     '--sub-lang', o.lang || 'en',
     '--sub-auto', o.auto ? 'true' : 'false',
     '--output-dir', outDir,
-  ], (ev) => {
+  ];
+  if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
+    args.push('--cookie-browser', o.cookieBrowser);
+  }
+  return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('media:event', ev);
     }
@@ -419,6 +464,24 @@ ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
   }
 });
 
+ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
+  const { sourcePath, text } = payload || {};
+  if (typeof text !== 'string') return { ok: false, error: 'Altyazı metni eksik.' };
+  const parsed = path.parse(sourcePath || 'altyazi.srt');
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Düzeltilmiş altyazıyı farklı kaydet',
+    defaultPath: path.join(parsed.dir || app.getPath('downloads'), `${parsed.name}.duzeltilmis.srt`),
+    filters: [{ name: 'SubRip altyazı', extensions: ['srt'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    writeSubtitleAtomic(result.filePath, text);
+    return { ok: true, path: result.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 // Oynaticidan alinan kare (PNG data URL) diske kaydedilir.
 ipcMain.handle('media:saveImage', async (_e, payload) => {
   const { dataUrl, suggestedName } = payload || {};
@@ -524,6 +587,141 @@ function addHistory(rec) {
   saveHistory(list);
 }
 
+// ---- İzleme kütüphanesi ----
+// İş geçmişinden bilinçli olarak ayrıdır: burada transkripsiyon işi değil,
+// oynatılan medya, kaldığı konum, video bazlı tercihler ve koleksiyonlar tutulur.
+const WATCH_LIBRARY_LIMIT = 1000;
+const subtitleSearchCache = new Map();
+
+function watchLibraryPath() {
+  return path.join(app.getPath('userData'), 'watch-library.json');
+}
+
+function loadWatchLibrary() {
+  try {
+    const list = JSON.parse(fs.readFileSync(watchLibraryPath(), 'utf-8'));
+    return Array.isArray(list) ? list : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveWatchLibrary(list) {
+  try {
+    fs.mkdirSync(path.dirname(watchLibraryPath()), { recursive: true });
+    const ordered = list.slice().sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0));
+    fs.writeFileSync(watchLibraryPath(), JSON.stringify(ordered.slice(0, WATCH_LIBRARY_LIMIT), null, 2), 'utf-8');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function uniqueStrings(values) {
+  return [...new Set((Array.isArray(values) ? values : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()))];
+}
+
+function upsertWatchItem(patch) {
+  if (!patch || typeof patch.key !== 'string' || !patch.key.trim()) return null;
+  const list = loadWatchLibrary();
+  const index = list.findIndex((item) => item.key === patch.key);
+  const previous = index >= 0 ? list[index] : {};
+  const sessions = Array.isArray(previous.sessions) ? previous.sessions.slice(-39) : [];
+  if (patch.session && patch.session.id) {
+    const sessionIndex = sessions.findIndex((s) => s.id === patch.session.id);
+    if (sessionIndex >= 0) sessions[sessionIndex] = { ...sessions[sessionIndex], ...patch.session };
+    else sessions.push(patch.session);
+  }
+  const now = Date.now();
+  const merged = {
+    ...previous,
+    ...patch,
+    key: patch.key,
+    firstWatched: previous.firstWatched || patch.firstWatched || now,
+    lastWatched: patch.lastWatched || now,
+    collections: patch.collections === undefined
+      ? uniqueStrings(previous.collections)
+      : uniqueStrings(patch.collections),
+    subtitlePaths: uniqueStrings([...(previous.subtitlePaths || []), ...(patch.subtitlePaths || [])]),
+    prefs: { ...(previous.prefs || {}), ...(patch.prefs || {}) },
+    sessions,
+  };
+  delete merged.session;
+  merged.totalWatchSeconds = sessions.reduce((total, s) => total + Math.max(0, Number(s.watchSeconds) || 0), 0);
+  if (index >= 0) list.splice(index, 1);
+  list.unshift(merged);
+  saveWatchLibrary(list);
+  return merged;
+}
+
+function subtitleTextForSearch(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile() || stat.size > 8 * 1024 * 1024) return '';
+    const cached = subtitleSearchCache.get(filePath);
+    if (cached && cached.mtimeMs === stat.mtimeMs) return cached.text;
+    // Oynatici ile kutuphane aramasi AYNI kodlama yolunu kullanmali. Aksi
+    // halde cp1254 bir dosya videoda dogru gorunurken aramada mojibake olur ve
+    // Turkce kelimeler bulunamaz.
+    const text = decodeSubtitleBuffer(fs.readFileSync(filePath)).text;
+    subtitleSearchCache.set(filePath, { mtimeMs: stat.mtimeMs, text });
+    return text;
+  } catch (_) {
+    return '';
+  }
+}
+
+function subtitleSeconds(block) {
+  // WebVTT, bir saatin altindaki cue'larda HH alanini atlayabilir:
+  // MM:SS.mmm. SRT'nin HH:MM:SS,mmm bicimi de ayni regex ile korunur.
+  const match = String(block).match(/(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})\s*-->/);
+  if (match) return (+(match[1] || 0)) * 3600 + (+match[2]) * 60 + (+match[3]) + (+match[4].padEnd(3, '0')) / 1000;
+  const ass = String(block).match(/^Dialogue\s*:\s*[^,]*,(\d+):(\d{2}):(\d{2})[.](\d{1,2}),/i);
+  return ass ? (+ass[1]) * 3600 + (+ass[2]) * 60 + (+ass[3]) + (+ass[4].padEnd(2, '0')) / 100 : 0;
+}
+
+function subtitleSearchBlocks(text) {
+  const source = String(text || '');
+  if (/^Dialogue\s*:/im.test(source)) {
+    return source.split(/\r?\n/).filter((line) => /^Dialogue\s*:/i.test(line)).map((line) => {
+      const colon = line.indexOf(':');
+      const fields = line.slice(colon + 1).split(',');
+      return { raw: line, plain: fields.slice(9).join(',').replace(/\\N/gi, ' ').replace(/\{[^}]*\}/g, '').trim() };
+    });
+  }
+  return source.split(/\r?\n\s*\r?\n/).map((block) => ({
+    raw: block,
+    plain: block.replace(/^\s*\d+\s*$/gm, '').replace(/^.*-->.*$/gm, '')
+      .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+  }));
+}
+
+function searchWatchLibrary(query) {
+  const q = String(query || '').trim().toLocaleLowerCase('tr');
+  const list = loadWatchLibrary();
+  if (!q) return list.map((item) => ({ ...item, matches: [] }));
+  const results = [];
+  for (const item of list) {
+    const basic = [item.title, item.sourceRef, ...(item.collections || [])]
+      .join(' ').toLocaleLowerCase('tr').includes(q);
+    const matches = [];
+    for (const subtitlePath of item.subtitlePaths || []) {
+      const text = subtitleTextForSearch(subtitlePath);
+      if (!text) continue;
+      for (const block of subtitleSearchBlocks(text)) {
+        const plain = block.plain;
+        if (!plain.toLocaleLowerCase('tr').includes(q)) continue;
+        matches.push({ subtitlePath, seconds: subtitleSeconds(block.raw), snippet: plain.slice(0, 220) });
+        if (matches.length >= 5) break;
+      }
+      if (matches.length >= 5) break;
+    }
+    if (basic || matches.length) results.push({ ...item, matches });
+  }
+  return results;
+}
+
 // ---- Pencere boyutu hatırlama (ayrı dosya — settings.json'a karışmaz) ----
 function windowStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -578,6 +776,607 @@ function installYoutubeStreamHeaders() {
   });
 }
 
+// ===== İzleme ekranı / Tarayıcı modu =====
+// Üçüncü taraf sayfaları renderer DOM'una <webview> olarak yerleştirmiyoruz.
+// Ayrı bir WebContentsView hem Electron'ın önerdiği güncel mimariyi kullanır
+// hem de ziyaret edilen sayfanın uygulamanın preload/Node yetkilerine erişmesini
+// engeller. Görünüm yalnızca renderer'ın bildirdiği boş alana çizilir.
+const BROWSER_PARTITION = 'persist:whisper-browser';
+
+function sendBrowserEvent(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('browser:event', payload);
+  }
+}
+
+function normalizeBrowserUrl(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
+  try {
+    const parsed = new URL(candidate);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+    return parsed.href;
+  } catch (_) {
+    return null;
+  }
+}
+
+function safeBrowserBounds(raw) {
+  if (!mainWindow || mainWindow.isDestroyed() || !raw) return null;
+  const content = mainWindow.getContentBounds();
+  const x = Math.max(0, Math.round(Number(raw.x) || 0));
+  const y = Math.max(0, Math.round(Number(raw.y) || 0));
+  const width = Math.max(1, Math.min(Math.round(Number(raw.width) || 1), content.width - x));
+  const height = Math.max(1, Math.min(Math.round(Number(raw.height) || 1), content.height - y));
+  if (x >= content.width || y >= content.height) return null;
+  return { x, y, width, height };
+}
+
+function browserNavigationState(extra = {}) {
+  if (!browserView || browserView.webContents.isDestroyed()) {
+    return { url: '', title: '', loading: false, canGoBack: false, canGoForward: false, ...extra };
+  }
+  const wc = browserView.webContents;
+  const { canGoBack, canGoForward } = browserNavigationCapabilities(wc);
+  return {
+    url: wc.getURL() === 'about:blank' ? '' : wc.getURL(),
+    title: wc.getTitle() || '',
+    loading: wc.isLoading(),
+    canGoBack,
+    canGoForward,
+    ...extra,
+  };
+}
+
+function browserSubtitleDir() {
+  const dir = path.join(app.getPath('userData'), 'browser-subtitles');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function resetBrowserCaptureState() {
+  browserPendingResponses.clear();
+  browserSeenTracks.clear();
+  browserTrackBuffers.clear();
+  browserTrackPublications.clear();
+  browserSeenManifests.clear();
+  browserDashSubtitleMatchers = [];
+}
+
+function browserManifestFingerprint(body) {
+  const text = String(body || '');
+  return `${text.length}:${text.slice(0, 384)}:${text.slice(-384)}`;
+}
+
+function browserTrackStreamKey(sourceUrl, language = '') {
+  const raw = String(sourceUrl || '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    let pathname = u.pathname;
+    // Segmentli VTT/HLS URL'lerinde dosya adı her parçada değişir
+    // (seg-001.vtt, chunk_002.vtt veya yalnızca 000123.vtt). Bunları aynı
+    // altyazı akışına bağla; sabit captions/en.vtt yolu olduğu gibi kalır.
+    pathname = pathname.replace(/(?:segment|seg|chunk|part|fragment|frag)[-_]?\d+(?=\.[^/]+$)/i, '__segment__')
+      .replace(/\/\d{1,8}(?=\.[^/]+$)/, '/__segment__');
+    // İmzalı URL'lerde expire/sig/range gibi sorgular her parçada değişebilir;
+    // aynı path'i tek akış olarak birleştiriyoruz.
+    const params = [...u.searchParams.entries()]
+      .filter(([key]) => !/^(expire|expires|sig|signature|token|range|rn|rbuf|ms|mv|mt|ip|ipbits|start|end|segment|part|offset)$/i.test(key))
+      .sort(([a], [b]) => a.localeCompare(b));
+    const query = params.map(([k, v]) => `${k}=${v}`).join('&');
+    return `${u.origin}${pathname}${query ? `?${query}` : ''}|${String(language || '').toLowerCase()}`;
+  } catch (_) { return `${raw}|${String(language || '').toLowerCase()}`; }
+}
+
+function storeBrowserTrack(cues, meta = {}) {
+  let normalized = normalizeCues(cues).slice(0, 20000);
+  if (!normalized.length) return null;
+  const streamKey = String(meta.streamKey || '');
+  if (streamKey) {
+    const previous = browserTrackBuffers.get(streamKey) || [];
+    const merged = [...previous, ...normalized]
+      .sort((a, b) => a.start - b.start || a.end - b.end)
+      .filter((cue, index, all) => index === 0
+        || Math.abs(cue.start - all[index - 1].start) > 0.015
+        || cue.text !== all[index - 1].text)
+      .slice(0, 20000);
+    browserTrackBuffers.set(streamKey, merged);
+    normalized = merged;
+  }
+  if (normalized.length < 2) return null;
+  const fingerprint = cueFingerprint(normalized);
+  if (!fingerprint) return null;
+  const publicationKey = streamKey || fingerprint;
+  const previousPublication = browserTrackPublications.get(publicationKey);
+  if (previousPublication && previousPublication.fingerprint === fingerprint) return null;
+  // Çok uzun oturumlarda sınırsız büyümesin; aynı sayfa yenilenince yakın
+  // geçmişteki izleri yine de tekrar bildirmeyelim.
+  browserSeenTracks.add(fingerprint);
+  if (browserSeenTracks.size > 240) browserSeenTracks.delete(browserSeenTracks.values().next().value);
+  const lang = String(meta.language || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
+  const suffix = lang ? `.${lang}` : '';
+  const stableId = previousPublication ? previousPublication.id : fingerprint;
+  const filePath = previousPublication?.path || path.join(browserSubtitleDir(), `web-${stableId}${suffix}.srt`);
+  fs.writeFileSync(filePath, `\uFEFF${cuesToSrt(normalized)}`, 'utf-8');
+  const track = {
+    id: stableId,
+    path: filePath,
+    language: lang,
+    label: String(meta.label || lang || 'Web altyazısı').slice(0, 120),
+    format: String(meta.format || 'web'),
+    cueCount: normalized.length,
+    pageUrl: browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '',
+    sourceUrl: String(meta.sourceUrl || '').slice(0, 1000),
+  };
+  browserTrackPublications.set(publicationKey, { fingerprint, id: stableId, path: filePath });
+  sendBrowserEvent({ type: 'subtitle-found', track });
+  return track;
+}
+
+async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024) {
+  if (!browserView || browserView.webContents.isDestroyed()) throw new Error('Tarayıcı kapalı.');
+  const safe = normalizeBrowserUrl(url);
+  if (!safe) throw new Error('Geçersiz altyazı adresi.');
+  // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
+  // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
+  // page-world fetch'e göre daha güvenilir.
+  const response = await browserView.webContents.session.fetch(safe, {
+    method: 'GET', credentials: 'include', redirect: 'follow',
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const length = Number(response.headers.get('content-length') || 0);
+  if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+  return buffer.toString('utf-8');
+}
+
+async function fetchAndStoreBrowserSubtitle(url, meta = {}) {
+  const text = await fetchBrowserText(url);
+  const parsed = parseSubtitlePayload(text, '', url);
+  if (!parsed.cues.length) return { parsed, text, stored: null };
+  const language = meta.language || subtitleLanguage({ url });
+  return { parsed, text, stored: storeBrowserTrack(parsed.cues, {
+    language,
+    label: meta.label || language || 'Sayfada bulunan altyazı',
+    format: parsed.format,
+    sourceUrl: url,
+    streamKey: meta.streamKey || browserTrackStreamKey(url, language),
+  }) };
+}
+
+async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}) {
+  if (!isHlsSubtitlePlaylist(playlistBody, playlistUrl)) return false;
+  const language = meta.language || subtitleLanguage({ url: playlistUrl });
+  const streamKey = browserTrackStreamKey(playlistUrl, language);
+  const parts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600);
+  const collected = [];
+  // Yalnızca altyazı olduğu doğrulanmış playlist işlenir. Altışarlı gruplar
+  // uzun filmlerde hızlıdır ama CDN'i yüzlerce eşzamanlı istekle boğmaz.
+  for (let index = 0; index < parts.length; index += 6) {
+    const batch = await Promise.all(parts.slice(index, index + 6).map(async (segment) => {
+      try {
+        const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024);
+        const part = parseSubtitlePayload(partBody, '', segment.url);
+        if (!part.cues.length) return false;
+        const hasTimestampMap = /X-TIMESTAMP-MAP/i.test(partBody);
+        const likelyLocalTimeline = !hasTimestampMap && segment.start > 0
+          && cuesUseLocalSegmentTimeline(part.cues, segment.duration);
+        collected.push(...part.cues.map((cue) => likelyLocalTimeline
+          ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
+          : cue));
+        return true;
+      } catch (_) { return false; }
+    }));
+    void batch;
+  }
+  if (!collected.length) return false;
+  storeBrowserTrack(collected, {
+    language, label: meta.label || language || 'HLS altyazısı', format: 'hls-vtt',
+    sourceUrl: playlistUrl, streamKey,
+  });
+  return true;
+}
+
+async function captureBrowserResponse(requestId) {
+  const candidate = browserPendingResponses.get(requestId);
+  browserPendingResponses.delete(requestId);
+  if (!candidate || !browserView || browserView.webContents.isDestroyed() || !browserDebuggerReady) return;
+  try {
+    const result = await browserView.webContents.debugger.sendCommand('Network.getResponseBody', { requestId });
+    const responseBuffer = result.base64Encoded
+      ? Buffer.from(result.body || '', 'base64')
+      : Buffer.from(String(result.body || ''), 'utf-8');
+    const body = responseBuffer.toString('utf-8');
+    const mime = String(candidate.mimeType || '').toLowerCase();
+    const isManifest = /mpegurl|dash\+xml/i.test(mime) || /\.(m3u8|mpd)(?:[?#]|$)/i.test(candidate.url || '');
+    if (isManifest) {
+      const manifestKey = browserTrackStreamKey(candidate.url);
+      const manifestFingerprint = browserManifestFingerprint(body);
+      if (browserSeenManifests.get(manifestKey) !== manifestFingerprint) {
+        // Canlı HLS/DASH manifestleri aynı URL altında yenilenir. URL'yi sonsuza
+        // dek kilitlemek yeni altyazı parçalarını sessizce kaçırıyordu.
+        browserSeenManifests.set(manifestKey, manifestFingerprint);
+        const isHls = /mpegurl|\.m3u8(?:[?#]|$)/i.test(mime + candidate.url);
+        if (!isHls) {
+          const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
+          for (const matcher of discoveredMatchers) {
+            if (!browserDashSubtitleMatchers.some((item) => item.pattern === matcher.pattern)) {
+              browserDashSubtitleMatchers.push(matcher);
+            }
+          }
+          browserDashSubtitleMatchers = browserDashSubtitleMatchers.slice(-64);
+        }
+        const tracks = isHls ? parseHlsSubtitleTracks(body, candidate.url)
+          : parseDashSubtitleTracks(body, candidate.url);
+        for (const discovered of tracks.slice(0, 24)) {
+          try {
+            const fetched = await fetchBrowserText(discovered.url);
+            const parsed = parseSubtitlePayload(fetched, '', discovered.url);
+            if (parsed.cues.length) storeBrowserTrack(parsed.cues, {
+              language: discovered.language, label: discovered.label, format: parsed.format,
+              sourceUrl: discovered.url,
+              streamKey: browserTrackStreamKey(discovered.url, discovered.language),
+            });
+            else if (isHls) await captureHlsSubtitlePlaylist(fetched, discovered.url, discovered);
+          } catch (_) {}
+        }
+        if (!tracks.length && isHls) await captureHlsSubtitlePlaylist(body, candidate.url, {
+          language: subtitleLanguage(candidate), label: 'HLS altyazısı',
+        });
+      }
+      return;
+    }
+    const parsed = parseSubtitlePayload(body, candidate.mimeType, candidate.url);
+    if (!parsed.cues.length && candidate.dashTrack?.format === 'vtt') {
+      parsed.cues = parseMp4WebVtt(responseBuffer, candidate.dashTrack);
+      if (parsed.cues.length) parsed.format = 'dash-wvtt';
+    }
+    if (parsed.cues.length && candidate.dashTrack) {
+      const offset = dashSegmentOffset(candidate.dashTrack);
+      const segmentDuration = Number(candidate.dashTrack.duration || 0) / Math.max(1, Number(candidate.dashTrack.timescale) || 1);
+      const likelyLocalTimeline = offset > 0 && cuesUseLocalSegmentTimeline(parsed.cues, segmentDuration);
+      if (likelyLocalTimeline) parsed.cues = parsed.cues.map((cue) => ({
+        ...cue, start: cue.start + offset, end: cue.end + offset,
+      }));
+    }
+    if (!parsed.cues.length && /json/i.test(mime)) {
+      // Netflix/Max gibi oyuncular timed-text URL'sini JSON manifest içinde
+      // taşır; yanıt URL'sinin kendisinde "subtitle" geçmeyebilir.
+      for (const subtitleUrl of findSubtitleUrls(body, candidate.url)) {
+        try {
+          await fetchAndStoreBrowserSubtitle(subtitleUrl, { label: 'Manifest altyazısı' });
+        } catch (_) {}
+      }
+    }
+    if (!parsed.cues.length) return;
+    const language = candidate.dashTrack?.language || subtitleLanguage(candidate);
+    storeBrowserTrack(parsed.cues, {
+      language,
+      label: candidate.dashTrack?.label || language || 'Sayfada bulunan altyazı',
+      format: parsed.format,
+      sourceUrl: candidate.url,
+      streamKey: browserTrackStreamKey(candidate.url, language),
+    });
+  } catch (_) {
+    // Bazı önbellek/ServiceWorker yanıtlarının gövdesi CDP'den okunamaz. DOM
+    // TextTrack taraması aynı altyazı için ikinci ve daha güvenli yoldur.
+  }
+}
+
+async function attachBrowserDebugger() {
+  if (!browserView || browserView.webContents.isDestroyed()) return;
+  const wc = browserView.webContents;
+  try {
+    if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
+    await wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 });
+    browserDebuggerReady = true;
+  } catch (err) {
+    browserDebuggerReady = false;
+    sendBrowserEvent({ type: 'capture-warning', message: `Ağ altyazısı izlenemedi: ${err.message}` });
+  }
+}
+
+function browserTrackProbeScript() {
+  return `(async () => {
+    const roots = [document];
+    for (let i = 0; i < roots.length; i++) {
+      for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+    }
+    const videos = roots.flatMap(root => [...root.querySelectorAll('video')]);
+    const video = videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
+    if (!video) return [];
+    const tracks = [];
+    const changed = [];
+    for (const track of [...(video.textTracks || [])]) {
+      const previousMode = track.mode;
+      // Birçok platform iz kapalıyken cue listesini yüklemez. Kısa süreli
+      // hidden modu cue'ları doldurur; sonra sitenin görünürlük tercihini geri
+      // yükleyerek çift altyazı basmasını engelleriz.
+      if (previousMode === 'disabled' && !(track.cues && track.cues.length)) {
+        try { track.mode = 'hidden'; changed.push(track); } catch (_) {}
+      }
+    }
+    if (changed.length) await new Promise(resolve => setTimeout(resolve, 450));
+    for (const track of [...(video.textTracks || [])]) {
+      const list = track.cues ? [...track.cues].slice(0, 20000) : [];
+      if (changed.includes(track)) {
+        try { track.mode = 'disabled'; } catch (_) {}
+      }
+      if (list.length < 2) continue;
+      const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
+      tracks.push({
+        language: track.language || '', label: track.label || track.language || 'HTML5 altyazı',
+        sourceUrl: element ? (element.src || '') : '',
+        cues: list.map(c => ({ start: c.startTime, end: c.endTime, text: c.text || '' }))
+      });
+    }
+    return tracks;
+  })()`;
+}
+
+function browserMediaProbeScript() {
+  return `(() => {
+    const roots = [document];
+    for (let i = 0; i < roots.length; i++) {
+      for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+    }
+    const videos = roots.flatMap(root => [...root.querySelectorAll('video')]);
+    const v = videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
+    if (!v) return null;
+    return { currentTime: Number(v.currentTime) || 0,
+      duration: Number.isFinite(v.duration) ? v.duration : 0,
+      paused: !!v.paused, muted: !!v.muted, volume: Number(v.volume) || 0,
+      area: Math.max(0, v.clientWidth * v.clientHeight) };
+  })()`;
+}
+
+function browserFrames() {
+  if (!browserView || browserView.webContents.isDestroyed()) return [];
+  const main = browserView.webContents.mainFrame;
+  const frames = main && Array.isArray(main.framesInSubtree) ? main.framesInSubtree : [];
+  return frames.length ? frames : (main ? [main] : []);
+}
+
+async function executeBrowserFrames(script) {
+  const results = await Promise.all(browserFrames().map((frame) =>
+    frame.executeJavaScript(script, true).catch(() => null)));
+  return results.filter((result) => result !== null && result !== undefined);
+}
+
+function browserMediaCommandScript(command, value) {
+  const safeCommand = JSON.stringify(String(command || ''));
+  const safeValue = JSON.stringify(Math.max(0, Number(value) || 0));
+  return `(async () => {
+    const roots = [document];
+    for (let i = 0; i < roots.length; i++) {
+      for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+    }
+    const videos = roots.flatMap(scope => [...scope.querySelectorAll('video')]);
+    const video = videos.sort((a,b) => (b.clientWidth*b.clientHeight)-(a.clientWidth*a.clientHeight))[0];
+    if (!video) return false;
+    const command = ${safeCommand};
+    if (command === 'seek') video.currentTime = ${safeValue};
+    else if (command === 'play-pause') {
+      if (video.paused) await video.play(); else video.pause();
+    } else if (command === 'play') await video.play();
+    else return false;
+    return true;
+  })()`;
+}
+
+function startBrowserPolling() {
+  stopBrowserPolling();
+  browserTrackTimer = setInterval(async () => {
+    if (!browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    try {
+      const frameTracks = await executeBrowserFrames(browserTrackProbeScript());
+      for (const tracks of frameTracks) for (const track of tracks || []) {
+        storeBrowserTrack(track.cues, {
+          language: track.language, label: track.label, format: 'html5-track', sourceUrl: track.sourceUrl || 'dom:texttrack',
+          streamKey: browserTrackStreamKey(track.sourceUrl || `dom:${track.language}:${track.label}`, track.language),
+        });
+      }
+    } catch (_) {}
+  }, 2600);
+  browserMediaTimer = setInterval(async () => {
+    if (!browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    try {
+      const media = (await executeBrowserFrames(browserMediaProbeScript()))
+        .sort((a, b) => Number(b.area || 0) - Number(a.area || 0))[0];
+      if (media) sendBrowserEvent({ type: 'media', media });
+    } catch (_) {}
+  }, 500);
+}
+
+function stopBrowserPolling() {
+  if (browserTrackTimer) clearInterval(browserTrackTimer);
+  if (browserMediaTimer) clearInterval(browserMediaTimer);
+  browserTrackTimer = null;
+  browserMediaTimer = null;
+}
+
+function browserOverlayScript(payload) {
+  const encoded = JSON.stringify(payload || {}).replace(/[\u2028\u2029]/g, ' ');
+  return `(() => {
+    const data = ${encoded};
+    window.__whisperBrowserSubs = data;
+    let root = document.getElementById('__whisper_browser_subtitles');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = '__whisper_browser_subtitles';
+      root.style.cssText = 'position:fixed;z-index:2147483646;pointer-events:none;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:Inter,Segoe UI,sans-serif;text-shadow:0 2px 5px #000,0 0 2px #000;';
+      const source = document.createElement('div'); source.dataset.kind = 'source';
+      const translation = document.createElement('div'); translation.dataset.kind = 'translation';
+      root.append(source, translation); document.documentElement.appendChild(root);
+    }
+    const findCue = (cues, t) => {
+      let lo = 0, hi = cues.length - 1;
+      while (lo <= hi) { const mid = (lo + hi) >> 1, c = cues[mid];
+        if (t < c.start) hi = mid - 1; else if (t > c.end) lo = mid + 1; else return c; }
+      return null;
+    };
+    if (!window.__whisperBrowserSubLoop) {
+      window.__whisperBrowserSubLoop = true;
+      const tick = () => {
+        const state = window.__whisperBrowserSubs || {};
+        const roots = [document];
+        for (let i = 0; i < roots.length; i++) {
+          for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+        }
+        const videos = roots.flatMap(scope => [...scope.querySelectorAll('video')]);
+        const video = videos.sort((a,b) => (b.clientWidth*b.clientHeight)-(a.clientWidth*a.clientHeight))[0];
+        const box = document.getElementById('__whisper_browser_subtitles');
+        if (!video || !box || state.mode === 'off') { if (box) box.style.display = 'none'; requestAnimationFrame(tick); return; }
+        const rect = video.getBoundingClientRect();
+        box.style.display = 'flex'; box.style.left = Math.max(0, rect.left) + 'px';
+        box.style.width = Math.max(0, rect.width) + 'px';
+        box.style.top = Math.max(rect.top, rect.bottom - Math.max(96, rect.height * .17)) + 'px';
+        const t = (Number(video.currentTime) || 0) - (Number(state.offset) || 0);
+        const src = findCue(state.source || [], t); const tr = findCue(state.translation || [], t);
+        const srcEl = box.querySelector('[data-kind="source"]'); const trEl = box.querySelector('[data-kind="translation"]');
+        srcEl.textContent = src && (state.mode === 'source' || state.mode === 'both') ? src.text : '';
+        trEl.textContent = tr && (state.mode === 'translation' || state.mode === 'both') ? tr.text : '';
+        srcEl.style.cssText = 'max-width:88%;padding:3px 8px;border-radius:5px;background:rgba(5,7,10,.74);color:#f5f5f5;font-size:clamp(15px,2vw,25px);line-height:1.35;white-space:pre-line;';
+        trEl.style.cssText = 'max-width:88%;padding:4px 9px;border-radius:5px;background:rgba(5,7,10,.82);color:#e0ad5d;font-weight:650;font-size:clamp(16px,2.15vw,27px);line-height:1.35;white-space:pre-line;';
+        srcEl.style.display = srcEl.textContent ? '' : 'none'; trEl.style.display = trEl.textContent ? '' : 'none';
+        requestAnimationFrame(tick);
+      }; requestAnimationFrame(tick);
+    }
+    return true;
+  })()`;
+}
+
+async function applyBrowserOverlay() {
+  if (!browserView || browserView.webContents.isDestroyed()) return false;
+  try {
+    const results = await executeBrowserFrames(browserOverlayScript(browserOverlay));
+    return results.some(Boolean);
+  } catch (_) { return false; }
+}
+
+async function reportBrowserDrmSupport() {
+  if (!browserView || browserView.webContents.isDestroyed()) return;
+  let host = '';
+  try { host = new URL(browserView.webContents.getURL()).hostname.toLowerCase(); } catch (_) {}
+  if (!/(^|\.)(netflix\.com|hulu\.com|max\.com|hbomax\.com|discoveryplus\.com)$/.test(host)) return;
+  const result = await browserView.webContents.executeJavaScript(`(async () => {
+    if (!navigator.requestMediaKeySystemAccess) return { supported: false, reason: 'EME yok' };
+    try {
+      await navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{
+        initDataTypes: ['cenc'],
+        audioCapabilities: [{ contentType: 'audio/mp4; codecs="mp4a.40.2"' }],
+        videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }]
+      }]);
+      return { supported: true };
+    } catch (error) { return { supported: false, reason: error && error.name || 'desteklenmiyor' }; }
+  })()`, true).catch((error) => ({ supported: false, reason: error.message }));
+  const statusKey = `${host}:${result.supported}:${result.reason || ''}`;
+  if (statusKey === browserLastDrmStatus) return;
+  browserLastDrmStatus = statusKey;
+  sendBrowserEvent({ type: 'drm-status', host, supported: !!result.supported, reason: result.reason || '' });
+}
+
+function ensureBrowserView() {
+  if (browserView && !browserView.webContents.isDestroyed()) return browserView;
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  browserSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(permission === 'fullscreen' || permission === 'clipboard-sanitized-write');
+  });
+  browserView = new WebContentsView({
+    webPreferences: {
+      partition: BROWSER_PARTITION,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      spellcheck: false,
+      autoplayPolicy: 'user-gesture-required',
+    },
+  });
+  browserView.setBackgroundColor('#08090a');
+  browserView.setVisible(false);
+  mainWindow.contentView.addChildView(browserView);
+  const wc = browserView.webContents;
+  wc.setUserAgent(wc.getUserAgent().replace(/\sElectron\/[^\s]+/i, ''));
+  wc.setWindowOpenHandler(({ url }) => {
+    const safe = normalizeBrowserUrl(url);
+    if (safe) setTimeout(() => wc.loadURL(safe), 0);
+    return { action: 'deny' };
+  });
+  wc.on('will-navigate', (event, url) => {
+    if (!normalizeBrowserUrl(url)) event.preventDefault();
+  });
+  wc.on('did-start-loading', () => sendBrowserEvent({ type: 'navigation', ...browserNavigationState({ loading: true }) }));
+  wc.on('did-stop-loading', () => sendBrowserEvent({ type: 'navigation', ...browserNavigationState({ loading: false }) }));
+  wc.on('did-navigate', () => {
+    resetBrowserCaptureState();
+    sendBrowserEvent({ type: 'navigation', ...browserNavigationState() });
+  });
+  wc.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
+    if (isMainFrame) resetBrowserCaptureState();
+    sendBrowserEvent({ type: 'navigation', ...browserNavigationState() });
+  });
+  wc.on('page-title-updated', (_event, title) => sendBrowserEvent({ type: 'title', title: title || '' }));
+  wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
+    if (isMainFrame && code !== -3) sendBrowserEvent({ type: 'load-error', code, message: description, url });
+  });
+  wc.on('dom-ready', () => {
+    attachBrowserDebugger();
+    applyBrowserOverlay();
+    reportBrowserDrmSupport();
+  });
+  wc.debugger.on('detach', () => { browserDebuggerReady = false; });
+  wc.debugger.on('message', (_event, method, params) => {
+    if (method === 'Network.responseReceived') {
+      const response = params.response || {};
+      const dashTrack = matchDashSubtitleUrl(response.url, browserDashSubtitleMatchers);
+      if (dashTrack || isLikelySubtitleResponse(response)
+        || /mpegurl|dash\+xml/i.test(String(response.mimeType || ''))
+        || /\.(m3u8|mpd)(?:[?#]|$)/i.test(String(response.url || ''))
+        || (/json/i.test(String(response.mimeType || ''))
+          && /manifest|playback|timedtext|texttrack|caption/i.test(String(response.url || '')))) {
+        browserPendingResponses.set(params.requestId, dashTrack ? { ...response, dashTrack } : response);
+      }
+    } else if (method === 'Network.loadingFinished' && browserPendingResponses.has(params.requestId)) {
+      captureBrowserResponse(params.requestId);
+    } else if (method === 'Network.loadingFailed') {
+      browserPendingResponses.delete(params.requestId);
+    }
+  });
+  attachBrowserDebugger();
+  return browserView;
+}
+
+function hideBrowserView(pause = true) {
+  browserVisible = false;
+  stopBrowserPolling();
+  if (!browserView || browserView.webContents.isDestroyed()) return;
+  browserView.setVisible(false);
+  if (pause) executeBrowserFrames(`(() => {
+    const roots = [document];
+    for (let i = 0; i < roots.length; i++) {
+      for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+    }
+    roots.flatMap(scope => [...scope.querySelectorAll('video,audio')])
+      .forEach(media => { try { media.pause(); } catch (_) {} });
+    return true;
+  })()`).catch(() => {});
+}
+
+function destroyBrowserView() {
+  stopBrowserPolling();
+  resetBrowserCaptureState();
+  browserDebuggerReady = false;
+  if (!browserView) return;
+  try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(browserView); } catch (_) {}
+  try { if (!browserView.webContents.isDestroyed()) browserView.webContents.close({ waitForBeforeUnload: false }); } catch (_) {}
+  browserView = null;
+}
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
@@ -591,16 +1390,9 @@ function createWindow() {
     // Pozisyon kasıtlı olarak geri yüklenmiyor (ekran-dışı pencere riskini önlemek için)
     width: initW,
     height: initH,
-    // Isletim sistemi baslik cubugu gizlenir: uygulamanin kendi basligi zaten
-    // var, ustte ikinci bir "Whisper Altyazi" seridi gereksiz - ozellikle
-    // izleme modunda dikkat dagitiyor. Pencere dugmeleri overlay olarak
-    // kalir (yoksa pencere kapatilamaz).
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#0f1115',
-      symbolColor: '#c9ced6',
-      height: 34,
-    },
+    // Sistem başlık çubuğunu içerikten ayır. titleBarOverlay kullanıldığında
+    // küçült/büyüt/kapat düğmeleri web içeriğinin üzerine çizilebildiği için
+    // oynatıcı araçlarıyla çakışıyordu; normal çerçeve bu çakışmayı önler.
     minWidth: 940,
     minHeight: 680,
     backgroundColor: '#0b0f17',
@@ -616,7 +1408,10 @@ function createWindow() {
   if (st && st.maximized) mainWindow.maximize();
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.on('close', saveWindowState);
+  mainWindow.on('close', () => {
+    saveWindowState();
+    destroyBrowserView();
+  });
   // İş bitince yanıp sönen taskbar vurgusunu odaklanınca temizle
   mainWindow.on('focus', () => mainWindow.flashFrame(false));
 
@@ -656,6 +1451,101 @@ app.on('activate', () => {
 });
 
 // --- IPC handlers ---
+
+ipcMain.handle('browser:show', (event, rawBounds) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const view = ensureBrowserView();
+  const bounds = safeBrowserBounds(rawBounds);
+  if (!view || !bounds) return { ok: false, error: 'Tarayıcı alanı hazırlanamadı.' };
+  browserBounds = bounds;
+  view.setBounds(bounds);
+  browserVisible = true;
+  const hasPage = !!browserNavigationState().url;
+  view.setVisible(hasPage);
+  startBrowserPolling();
+  return { ok: true, hasPage, ...browserNavigationState() };
+});
+
+ipcMain.handle('browser:hide', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  hideBrowserView(true);
+  return { ok: true };
+});
+
+ipcMain.handle('browser:setBounds', (event, rawBounds) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  const bounds = safeBrowserBounds(rawBounds);
+  if (!bounds) return { ok: false };
+  browserBounds = bounds;
+  if (browserView && !browserView.webContents.isDestroyed()) browserView.setBounds(bounds);
+  return { ok: true };
+});
+
+ipcMain.handle('browser:navigate', async (event, rawUrl) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const url = normalizeBrowserUrl(rawUrl);
+  if (!url) return { ok: false, error: 'Geçerli bir http veya https adresi girin.' };
+  const view = ensureBrowserView();
+  if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
+  if (browserBounds) view.setBounds(browserBounds);
+  browserVisible = true;
+  resetBrowserCaptureState();
+  view.setVisible(true);
+  startBrowserPolling();
+  try {
+    await view.webContents.loadURL(url);
+    return { ok: true, ...browserNavigationState() };
+  } catch (err) {
+    return { ok: false, error: err.message, url };
+  }
+});
+
+ipcMain.handle('browser:command', async (event, command, value) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents || !browserView
+      || browserView.webContents.isDestroyed()) return { ok: false, error: 'Tarayıcı açık değil.' };
+  const wc = browserView.webContents;
+  const history = wc.navigationHistory;
+  try {
+    const { canGoBack, canGoForward } = browserNavigationCapabilities(wc);
+    if (command === 'back' && canGoBack) {
+      if (history && typeof history.goBack === 'function') history.goBack(); else wc.goBack();
+    } else if (command === 'forward' && canGoForward) {
+      if (history && typeof history.goForward === 'function') history.goForward(); else wc.goForward();
+    } else if (command === 'reload') {
+      wc.reload();
+    } else if (command === 'stop') {
+      wc.stop();
+    } else if (command === 'focus') {
+      wc.focus();
+    } else if (command === 'seek' || command === 'play-pause' || command === 'play') {
+      const handled = (await executeBrowserFrames(browserMediaCommandScript(command, value))).some(Boolean);
+      if (!handled) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
+    } else {
+      return { ok: false, error: 'Bu tarayıcı komutu desteklenmiyor.' };
+    }
+    return { ok: true, ...browserNavigationState() };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('browser:getState', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  return { ok: true, visible: browserVisible, ...browserNavigationState() };
+});
+
+ipcMain.handle('browser:setOverlay', async (event, payload) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  const mode = ['off', 'source', 'translation', 'both'].includes(payload && payload.mode)
+    ? payload.mode : 'translation';
+  browserOverlay = {
+    source: normalizeCues(payload && payload.source).slice(0, 20000),
+    translation: normalizeCues(payload && payload.translation).slice(0, 20000),
+    mode,
+    offset: Math.max(-30, Math.min(30, Number(payload && payload.offset) || 0)),
+  };
+  return { ok: await applyBrowserOverlay() };
+});
 
 ipcMain.handle('dialog:openVideo', async () => {
   const prev = loadSettings();
@@ -761,6 +1651,12 @@ ipcMain.handle('paths:scanMedia', async (_event, inputPaths) => {
   return scanMediaFromPaths(inputPaths);
 });
 
+ipcMain.handle('media:listFolder', async (_event, filePath) => {
+  if (typeof filePath !== 'string' || !filePath) return [];
+  try { return scanMediaFromPaths([path.dirname(path.normalize(filePath))]); }
+  catch (_) { return []; }
+});
+
 ipcMain.handle('dialog:openFolder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Çıktı klasörü seç',
@@ -781,6 +1677,20 @@ ipcMain.handle('history:clear', async () => {
   saveHistory([]);
   return { ok: true };
 });
+
+ipcMain.handle('library:list', async () => loadWatchLibrary());
+
+ipcMain.handle('library:upsert', async (_event, item) => {
+  const saved = upsertWatchItem(item);
+  return saved ? { ok: true, item: saved } : { ok: false, error: 'Geçersiz kütüphane kaydı' };
+});
+
+ipcMain.handle('library:remove', async (_event, key) => {
+  saveWatchLibrary(loadWatchLibrary().filter((item) => item.key !== key));
+  return { ok: true };
+});
+
+ipcMain.handle('library:search', async (_event, query) => searchWatchLibrary(query));
 
 ipcMain.handle('shell:openPath', async (_event, p) => {
   if (!p) return;
@@ -967,6 +1877,61 @@ ipcMain.handle('media:probeTracks', async (_event, filePath) => {
   });
 });
 
+// Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
+// PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
+const waveformCache = new Map();
+ipcMain.handle('media:waveform', async (_event, filePath) => {
+  if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) {
+    return { ok: false, error: 'Yerel medya dosyası bulunamadı.' };
+  }
+  let stamp;
+  try { stamp = `${filePath}:${fs.statSync(filePath).mtimeMs}`; } catch (_) { stamp = filePath; }
+  if (waveformCache.has(stamp)) return waveformCache.get(stamp);
+  const ffmpeg = resolveFfTool('ffmpeg');
+  const result = await new Promise((resolve) => {
+    const chunks = [];
+    let bytes = 0;
+    let settled = false;
+    let p;
+    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
+    try {
+      p = spawn(ffmpeg, ['-v', 'error', '-i', filePath, '-vn', '-ac', '1', '-ar', '50',
+        '-f', 's16le', 'pipe:1'], { windowsHide: true });
+    } catch (err) {
+      return finish({ ok: false, error: err.message });
+    }
+    p.on('error', (err) => finish({ ok: false, error: err.message }));
+    p.stdout.on('data', (buf) => {
+      bytes += buf.length;
+      if (bytes <= 12 * 1024 * 1024) chunks.push(buf);
+      else try { p.kill(); } catch (_) {}
+    });
+    p.on('close', (code) => {
+      if (settled) return;
+      if (code !== 0 || !chunks.length || bytes > 12 * 1024 * 1024) {
+        return finish({ ok: false, error: 'Ses dalga biçimi çıkarılamadı.' });
+      }
+      const data = Buffer.concat(chunks);
+      const samples = Math.floor(data.length / 2);
+      const count = Math.min(1800, samples);
+      const points = [];
+      for (let i = 0; i < count; i++) {
+        const from = Math.floor(i * samples / count);
+        const to = Math.max(from + 1, Math.floor((i + 1) * samples / count));
+        let peak = 0;
+        for (let j = from; j < to; j++) peak = Math.max(peak, Math.abs(data.readInt16LE(j * 2)));
+        points.push(Math.round(peak / 32767 * 1000) / 1000);
+      }
+      finish({ ok: true, points, duration: samples / 50 });
+    });
+  });
+  if (result.ok) {
+    waveformCache.clear();
+    waveformCache.set(stamp, result);
+  }
+  return result;
+});
+
 // ---- Altyazı zaman kaydırma (SRT/VTT) ----
 function shiftTimecodes(text, offsetSec) {
   return text.replace(/(\d{2}):(\d{2}):(\d{2})([,.])(\d{3})/g, (_m, h, m, s, sep, ms) => {
@@ -1149,6 +2114,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.engine) args.push('--engine', options.engine);
   if (options.batchSize) args.push('--batch-size', String(options.batchSize));
   if (options.audioTrack !== undefined && options.audioTrack >= 0) args.push('--audio-track', String(options.audioTrack));
+  if (options.youtubeAudioLang) args.push('--youtube-audio-lang', String(options.youtubeAudioLang));
+  if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(options.youtubeCookieBrowser)) {
+    args.push('--youtube-cookie-browser', options.youtubeCookieBrowser);
+  }
   args.push('--quality-report', options.qualityReport !== false ? 'true' : 'false');
   args.push('--resume', options.resume !== false ? 'true' : 'false');
   if (options.device) args.push('--device', options.device);
@@ -1301,7 +2270,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     video: options.youtube ? '' : (options.input || ''),
     model: options.model || '',
     engine: options.engine || '',
-    skip: !!options.explain,
+    skip: !!options.explain || !!options.skipHistory,
   };
 
   try {

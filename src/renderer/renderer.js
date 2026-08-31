@@ -35,6 +35,8 @@ function buildOptsFromUI() {
     engine: $('engine').value,
     batchSize: parseInt($('batchSize').value, 10),
     audioTrack: $('audioTrack') ? parseInt($('audioTrack').value, 10) : -1,
+    youtubeAudioLang: state.nextYoutubeAudioLang || '',
+    youtubeCookieBrowser: $('youtubeCookieBrowser') ? $('youtubeCookieBrowser').value : '',
     qualityReport: $('qualityReport') ? $('qualityReport').checked : true,
     resume: $('resume') ? $('resume').checked : true,
     language: $('language').value,
@@ -151,6 +153,9 @@ function optsProblem(opts) {
 function addToQueue(type, input) {
   if (!input) return;
   const opts = buildOptsFromUI();
+  // Oynaticinin ses kilidi yalnizca bu tek ise aittir; ana ekrandaki sonraki
+  // YouTube isi yanlislikla ayni dublaji devralmasin.
+  state.nextYoutubeAudioLang = '';
   const problem = optsProblem(opts);
   if (problem) {
     logLine(`Kuyruğa eklenmedi — ${problem}`, 'error');
@@ -1092,13 +1097,14 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
-  'subSize', 'subOffset', 'playerSpeed', 'playerVolume',
+  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'youtubeCookieBrowser',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'dualSubtitle', 'watchEnabled',
+  'playerAutoNext',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
 ];
@@ -1512,18 +1518,232 @@ function notifyDone(title, body) {
 // Oynaticidan baslatilan is: ilerleme SAG PANELDE gosterilir (ana pencere
 // oynatici katmaninin altinda kaldigi icin oradaki cubuk gorunmuyor). Bitince
 // uretilen altyazi otomatik yuklenir - ama YALNIZCA hala ayni videodaysak.
+let _liveCueRenderTimer = null;
+function scheduleLiveCueRender() {
+  if (_liveCueRenderTimer) return;
+  _liveCueRenderTimer = setTimeout(() => {
+    _liveCueRenderTimer = null;
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
+    renderCue();
+    if (typeof drawTimeline === 'function') drawTimeline();
+  }, 140);
+}
+
+function liveSegments(event) {
+  if (Array.isArray(event.segments)) return event.segments;
+  if (event.type === 'segment' && event.text) {
+    return [{ start: event.start, end: event.end, text: event.text,
+      confidence: event.confidence, lowConfidenceWords: event.lowConfidenceWords || 0 }];
+  }
+  return [];
+}
+
+function cueKey(cue) {
+  return `${Number(cue.start).toFixed(3)}|${Number(cue.end).toFixed(3)}`;
+}
+
+function mergeLiveCues(existing, incoming) {
+  const byTime = new Map((existing || []).map((cue) => [cueKey(cue), cue]));
+  (incoming || []).forEach((cue) => {
+    const old = byTime.get(cueKey(cue));
+    byTime.set(cueKey(cue), old
+      ? { ...old, ...cue,
+          confidence: cue.confidence === undefined ? old.confidence : cue.confidence,
+          lowConfidenceWords: cue.lowConfidenceWords === undefined
+            ? old.lowConfidenceWords : cue.lowConfidenceWords }
+      : cue);
+  });
+  return [...byTime.values()].sort((a, b) => a.start - b.start);
+}
+
+function applyCueQuality(cues, qualityCues) {
+  if (!qualityCues || !qualityCues.length) return cues;
+  return cues.map((cue) => {
+    let best = null, overlap = 0;
+    for (const q of qualityCues) {
+      if (q.start >= cue.end) break;
+      const ov = Math.min(cue.end, q.end) - Math.max(cue.start, q.start);
+      if (ov > overlap) { overlap = ov; best = q; }
+    }
+    return best && overlap > 0
+      ? { ...cue, confidence: best.confidence, lowConfidenceWords: best.lowConfidenceWords || 0 }
+      : cue;
+  });
+}
+
+function progressiveRanges(duration, current, windowSec = 600) {
+  if (!isFinite(duration) || duration <= 0) return [{ start: '', end: '' }];
+  const start = Math.max(0, Math.min(duration, (Number(current) || 0) - 2));
+  const firstEnd = Math.min(duration, start + windowSec);
+  const ranges = [{ start, end: firstEnd }];
+  if (firstEnd < duration - 0.5) ranges.push({ start: firstEnd, end: duration });
+  if (start > 0.5) ranges.push({ start: 0, end: start });
+  return ranges;
+}
+
+async function startProgressiveChunk(job) {
+  if (!job || job !== player.job || job.mediaKey !== player.mediaKey) return;
+  const range = job.ranges[job.rangeIndex];
+  const opts = { ...job.baseOpts, clipStart: range.start, clipEnd: range.end,
+    formats: 'srt', resume: false, skipHistory: job.rangeIndex < job.ranges.length - 1 };
+  job.awaitingExit = false;
+  job.running = true;
+  const n = job.rangeIndex + 1;
+  $('playerJobText').textContent = `Öncelikli altyazı bölümü ${n}/${job.ranges.length} hazırlanıyor…`;
+  const result = await window.api.startTranscribe(opts);
+  if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if (!result || !result.ok) {
+    job.running = false;
+    state.running = false;
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
+    $('playerJobText').textContent = `Altyazı başlatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`;
+    logLine($('playerJobText').textContent, 'error');
+  }
+}
+
+async function finishProgressiveJob(job) {
+  if (!job || job !== player.job || job.mediaKey !== player.mediaKey) return;
+  const source = mergeLiveCues([], job.liveSource || []);
+  const translated = mergeLiveCues([], [...(job.liveTranslation || new Map()).values()]);
+  player.cueQualitySource = source.slice();
+  if (job.sourceFile && source.length) await window.api.writeSubtitle(job.sourceFile, cuesToSrt(source));
+  if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if (job.translationFile && translated.length) {
+    await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
+    if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  }
+  if (job.sourceFile) {
+    addSubtitleOption(job.sourceFile, 'Whisper · aşamalı');
+    $('playerSubSelect').value = job.sourceFile;
+    await loadSubtitle(job.sourceFile);
+    if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  } else {
+    player.cues = source;
+    renderCueList();
+    renderCue();
+  }
+  if (job.translationFile) {
+    addSubtitleOption(job.translationFile, 'Çeviri · aşamalı');
+    $('playerSubSelect2').value = job.translationFile;
+    await loadSubtitle(job.translationFile, true);
+    if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  }
+  job.running = false;
+  state.running = false;
+  state.forceTranslate = false;
+  updateMakeTransState();
+  updatePlayerAutoSyncState();
+  $('startBtn').classList.remove('hidden');
+  $('cancelBtn').classList.add('hidden');
+  $('playerJobFill').style.width = '100%';
+  $('playerJobText').textContent = `Altyazı hazır · ${source.length} blok`;
+  setTimeout(() => $('playerJobBar').classList.add('hidden'), 4000);
+  logLine(`Öncelikli altyazı üretimi tamamlandı: ${source.length} blok`, 'success');
+  refreshHistory();
+}
+
+async function handleProgressiveTerminal(event, job) {
+  if (event.type === 'done') {
+    const files = (event.files || []).filter((f) => /\.srt$/i.test(f));
+    const langSuffixed = (f) => /\.[a-z]{2,3}\.srt$/i.test(f);
+    const src = files.find((f) => !langSuffixed(f) && !/\.dual\./i.test(f)) || files[0];
+    const tr = files.find((f) => f !== src && langSuffixed(f) && !/\.dual\./i.test(f));
+    if (src) job.sourceFile = src;
+    if (tr) job.translationFile = tr;
+    job.awaitingExit = true;
+    job.running = true;
+    return true;
+  }
+  if (event.type === 'exit' && job.awaitingExit) {
+    // Hata olayı süreç kapanmadan önce gelebilir. Hata sonrası gelen exit'i
+    // ana iş akışına sızdırma; aksi halde genel arayüz aynı işi ikinci kez
+    // tamamlandı sanabilir.
+    if (job.failed) {
+      job.awaitingExit = false;
+      return true;
+    }
+    if (event.code !== 0) {
+      job.running = false; state.running = false;
+      $('startBtn').classList.remove('hidden');
+      $('cancelBtn').classList.add('hidden');
+      $('playerJobText').textContent = 'Altyazı üretimi beklenmedik biçimde durdu.';
+      return true;
+    }
+    job.awaitingExit = false;
+    if (job.rangeIndex + 1 < job.ranges.length) {
+      job.rangeIndex++;
+      setTimeout(() => startProgressiveChunk(job), 80);
+    } else {
+      setTimeout(() => finishProgressiveJob(job), 80);
+    }
+    return true;
+  }
+  if (event.type === 'error') {
+    job.failed = true;
+    job.awaitingExit = true;
+    job.running = false; state.running = false;
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
+    $('playerJobText').textContent = `Altyazı oluşturulamadı: ${friendlyYoutubeError(event.message || '').slice(0, 240)}`;
+    logLine($('playerJobText').textContent, 'error');
+    return true;
+  }
+  return false;
+}
+
 function playerJobEvent(event) {
   const job = player.job;
-  if (!job || !job.running) return;
+  if (!job || (!job.running && !job.awaitingExit)) return false;
   const bar = $('playerJobBar');
   const txt = $('playerJobText');
   const fill = $('playerJobFill');
-  if (!bar) return;
+  if (!bar) return false;
+
+  // Iptal edilen oynatici isi kapanirken gec bir error/done uretebilir. Bunlar
+  // ana ekranin transkripsiyon akimina sizmamali ve basarisizlik bildirimi
+  // gostermemeli.
+  if (job.cancelled) {
+    if (event.type === 'exit') {
+      job.awaitingExit = false;
+      state.cancelled = false;
+      if (player.job === job) player.job = null;
+    }
+    return event.type !== 'log';
+  }
+
+  if (job.kind === 'progressive' && ['done', 'exit', 'error'].includes(event.type)) {
+    handleProgressiveTerminal(event, job);
+    return true;
+  }
+
+  if (event.type === 'exit' && job.awaitingExit) {
+    job.awaitingExit = false;
+    state.aiJob = false;
+    if (player.job === job) player.job = null;
+    return true;
+  }
+
+  if ((event.type === 'chat' || event.type === 'explain') && job.mediaKey !== player.mediaKey) {
+    job.running = false;
+    job.awaitingExit = true;
+    state.running = false;
+    state.aiJob = false;
+    bar.classList.add('hidden');
+    logLine('AI yanıtı önceki videoya aitti; mevcut sohbete eklenmedi.', 'warn');
+    return true;
+  }
 
   const finish = (message, level) => {
     job.running = false;
+    job.awaitingExit = true;
     state.running = false;         // oynaticidan baslatilan is bitti
+    state.forceTranslate = false;
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
     txt.textContent = message;
+    updateMakeTransState();
+    updatePlayerAutoSyncState();
     setTimeout(() => bar.classList.add('hidden'), 4000);
     if (level) logLine(message, level);
   };
@@ -1532,29 +1752,77 @@ function playerJobEvent(event) {
     const bubble = job.bubble;
     if (bubble) {
       bubble.classList.remove('is-loading');
-      bubble.textContent = event.text;
+      renderAiText(bubble, event.text);
       $('aiChatLog').scrollTop = $('aiChatLog').scrollHeight;
     }
     player.chatHistory = player.chatHistory || [];
     player.chatHistory.push({ role: 'assistant', content: event.text });
     job.running = false;
+    job.awaitingExit = true;
     state.running = false;
+    state.aiJob = false;
     bar.classList.add('hidden');
-    return;
+    return true;
   }
   if (event.type === 'explain') {
     player.explainCache = player.explainCache || {};
     if (job.explainKey) player.explainCache[job.explainKey] = event.text;
     showAiAnswer(job.explainTitle || 'AI', event.text);
     job.running = false;
+    job.awaitingExit = true;
     state.running = false;
+    state.aiJob = false;
     bar.classList.add('hidden');
-    return;
+    return true;
   }
   if (event.type === 'status' && event.text) txt.textContent = event.text;
+  if (event.type === 'segment') {
+    job.liveSource = mergeLiveCues(job.liveSource || [], liveSegments(event));
+    if (job.mediaKey === player.mediaKey && job.kind !== 'translate') {
+      player.cues = job.liveSource.slice().sort((a, b) => a.start - b.start);
+      player.activeIdx = -1;
+      scheduleLiveCueRender();
+    }
+  } else if (event.type === 'preview_refresh') {
+    const fresh = liveSegments(event);
+    if (fresh.length) job.liveSource = mergeLiveCues(job.liveSource || [], fresh);
+    if (fresh.length && job.mediaKey === player.mediaKey && job.kind !== 'translate') {
+      player.cues = (job.liveSource || []).slice().sort((a, b) => a.start - b.start);
+      player.activeIdx = -1;
+      scheduleLiveCueRender();
+    }
+  } else if (event.type === 'translation_chunk') {
+    job.liveTranslation = job.liveTranslation || new Map();
+    liveSegments(event).forEach((s) => job.liveTranslation.set(
+      job.kind === 'progressive' ? cueKey(s) : s.index, s));
+    if (job.mediaKey === player.mediaKey) {
+      player.cues2 = [...job.liveTranslation.values()].sort((a, b) => a.start - b.start);
+      player.activeIdx2 = -1;
+      scheduleLiveCueRender();
+      scheduleBrowserOverlaySync();
+    }
+  } else if (event.type === 'translation_refresh') {
+    const fresh = liveSegments(event);
+    if (fresh.length && job.mediaKey === player.mediaKey) {
+      if (job.kind === 'progressive') {
+        fresh.forEach((s) => job.liveTranslation.set(cueKey(s), s));
+        player.cues2 = [...job.liveTranslation.values()].sort((a, b) => a.start - b.start);
+      } else {
+        player.cues2 = fresh.slice().sort((a, b) => a.start - b.start);
+      }
+      player.activeIdx2 = -1;
+      scheduleLiveCueRender();
+      scheduleBrowserOverlaySync();
+    }
+  }
   else if (event.type === 'progress' && typeof event.percent === 'number') {
-    fill.style.width = `${Math.min(100, event.percent)}%`;
-    txt.textContent = `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
+    const overall = job.kind === 'progressive'
+      ? ((job.rangeIndex + event.percent / 100) / job.ranges.length) * 100
+      : event.percent;
+    fill.style.width = `${Math.min(100, overall)}%`;
+    txt.textContent = job.kind === 'progressive'
+      ? `İzleme konumundan hazırlanıyor · ${job.rangeIndex + 1}/${job.ranges.length} · %${event.percent.toFixed(0)}`
+      : `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
   } else if (event.type === 'done' && (job.kind === 'explain' || job.kind === 'chat')) {
     job.running = false;
     state.running = false;
@@ -1564,17 +1832,21 @@ function playerJobEvent(event) {
     const files = (event.files || []).filter((f) => /\.(srt|vtt)$/i.test(f));
     if (job.mediaKey !== player.mediaKey) {
       finish('Altyazı hazır ama başka videoya geçildi — yüklenmedi.', 'warn');
-      return;
+      refreshHistory();
+      return true;
     }
     // "Ceviri olustur" isinde kaynak altyazi ZATEN yuklu; yalnizca ceviriyi
     // ikinci altyaziya koy. Aksi halde .dual.srt yanlislikla ana altyazi olurdu.
     const isTranslateJob = job.kind === 'translate';
+    const isSyncJob = job.kind === 'sync';
     const langSuffixed = (f) => /\.[a-z]{2}\.(srt|vtt)$/i.test(f);
     const src = isTranslateJob
       ? null
-      : (files.find((f) => !langSuffixed(f) && !/\.dual\./i.test(f)) || files[0]);
+      : (isSyncJob ? files.find((f) => /\.synced\.srt$/i.test(f))
+        : (files.find((f) => !langSuffixed(f) && !/\.dual\./i.test(f)) || files[0]));
     const tr = files.find((f) => f !== src && langSuffixed(f) && !/\.dual\./i.test(f));
     if (src) {
+      player.cueQualitySource = (job.liveSource || []).slice();
       addSubtitleOption(src);
       $('playerSubSelect').value = src;
       loadSubtitle(src);
@@ -1587,10 +1859,14 @@ function playerJobEvent(event) {
     if (isTranslateJob) {
       finish(tr ? 'Çeviri hazır ve ikinci altyazı olarak yüklendi.'
                 : 'Çeviri bitti ama dosya bulunamadı.', tr ? 'success' : 'warn');
+    } else if (isSyncJob) {
+      finish(src ? 'Altyazı sese göre senkronlandı ve yüklendi.'
+                 : 'Senkron bitti ama çıktı bulunamadı.', src ? 'success' : 'warn');
     } else {
       finish(src ? 'Altyazı hazır ve yüklendi.' : 'İş bitti ama altyazı dosyası bulunamadı.',
              src ? 'success' : 'warn');
     }
+    refreshHistory();
   } else if (event.type === 'error' && job.kind === 'chat') {
     if (job.bubble) {
       job.bubble.classList.remove('is-loading');
@@ -1598,15 +1874,23 @@ function playerJobEvent(event) {
       job.bubble.textContent = (event.message || 'Cevap alınamadı.').slice(0, 300);
     }
     job.running = false;
+    job.awaitingExit = true;
     state.running = false;
+    state.aiJob = false;
     bar.classList.add('hidden');
   } else if (event.type === 'error') {
-    finish(`Altyazı oluşturulamadı: ${(event.message || '').slice(0, 80)}`, 'error');
+    finish(`Altyazı oluşturulamadı: ${friendlyYoutubeError(event.message || '').slice(0, 240)}`, 'error');
+    refreshHistory();
   }
+  // Oynatici isi icin status/progress/segment/terminal olaylari ana ekranin
+  // asamalarini, onizlemesini ve sonuc modalini degistirmemeli. Yalniz log
+  // satirlarini ortak gunlukte gostermeye devam et.
+  return event.type !== 'log';
 }
 
 window.api.onEvent((event) => {
-  playerJobEvent(event);
+  const playerConsumed = playerJobEvent(event);
+  if (playerConsumed) return;
   // AI isleri (sohbet / acikla) yalnizca oynatici tarafinda islenir. Backend
   // bunlarda da 'done' basiyor; asagidaki switch onu ALTYAZI isi sanip
   // "Altyazi hazir!" modalini acar, asamalari yesile boyar ve bildirim
@@ -2107,6 +2391,7 @@ const player = {
   activeIdx2: -1,
   offset: 0,         // altyazı gecikmesi (sn)
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
+  cueQualitySource: [], // canli Whisper guveni; SRT yeniden okununca zamanla eslestirilir
   subPath: '',       // duzenleme kaydederken yazilacak dosya
   subFormat: 'srt',  // 'srt' | 'vtt' | 'ass' - kaydederken AYNI bicim korunur
   subRaw: '',        // dosyanin ham metni (ASS'te cerrahi duzenleme icin)
@@ -2125,6 +2410,7 @@ const player = {
   originalUrl: '',   // kullanicinin girdigi kalici YouTube adresi (gecici HLS DEGIL)
   positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
   subsHidden: false,
+  lastSubtitleMode: 'both', // V ile geri acarken son kaynak/ceviri secimini koru
   subStyle: null,        // gorunum ayarlari (renk/arka plan/kontur/yazi tipi)
   abA: null,             // A-B dongusu baslangici
   abB: null,             // A-B dongusu bitisi
@@ -2140,13 +2426,366 @@ const player = {
   userScrolled: false,   // kullanici elle kaydirdi -> takip gecici durur
   savedCues: [],         // bu video icin kaydedilen cümle imzalari
   savedOnly: false,      // transcript filtresi: yalnizca kaydedilenler
+  qualityOnly: false,    // transcript filtresi: yalnizca dusuk guvenli satirlar
   savedWords: [],        // kelime koleksiyonu: kelime + cümle baglami
   selectedWord: null,     // { word, cueIndex, source }
   viewMode: 'reading',
   job: null,             // oynaticidan baslatilan transkripsiyon isi
+  audioLocks: {},        // video anahtari -> { lang, label }; oynatma/Whisper ayni ses
+  timeline: { open: false, waveform: [], waveformDuration: 0, selected: -1,
+    undo: [], drag: null, loading: false, drawPending: false },
   idleTimer: null,
   resumeOffered: false,
+  playlist: [],       // yerel klasör/çoklu seçim sırası
+  playlistIndex: -1,
+  autoNext: true,
+  watchSession: null,
+  watchSaveTick: 0,
+  pendingLibrarySeek: null,
+  pendingAutoOpen: null,
+  openIntent: 0,
+  probeSeq: 0,
+  probeRequestSeq: 0,
+  downloadIntent: 0,
+  watchSearchSeq: 0,
+  playerLibrarySearchSeq: 0,
+  playbackAudioLang: '',
+  workspaceMode: 'player', // 'player' | 'browser'
+  browserTracks: [],
+  browserPageUrl: '',
+  browserPageTitle: '',
+  browserTime: 0,
+  browserDuration: 0,
+  browserPaused: true,
+  browserBoundsFrame: 0,
+  browserOverlayTimer: null,
+  browserTrackRefreshTimer: null,
+  browserLoadedTrackId: '',
 };
+
+try { player.audioLocks = JSON.parse(localStorage.getItem('playerAudioLocks') || '{}') || {}; }
+catch (_) { player.audioLocks = {}; }
+
+try {
+  const savedWorkspace = localStorage.getItem('playerWorkspaceMode');
+  if (savedWorkspace === 'browser' || savedWorkspace === 'player') player.workspaceMode = savedWorkspace;
+} catch (_) {}
+
+function browserSlotBounds() {
+  const slot = $('browserViewSlot');
+  if (!slot) return null;
+  const rect = slot.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2) return null;
+  return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+}
+
+function scheduleBrowserBounds() {
+  if (player.workspaceMode !== 'browser' || $('playerLayer')?.classList.contains('hidden')) return;
+  cancelAnimationFrame(player.browserBoundsFrame);
+  player.browserBoundsFrame = requestAnimationFrame(() => {
+    player.browserBoundsFrame = 0;
+    const bounds = browserSlotBounds();
+    if (bounds && window.api.setBrowserBounds) window.api.setBrowserBounds(bounds).catch(() => {});
+  });
+}
+
+function setBrowserSignal(text, detected = false) {
+  if ($('browserSignalText')) $('browserSignalText').textContent = text;
+  $('browserSignal')?.classList.toggle('detected', detected);
+}
+
+function clearBrowserTracks(message) {
+  clearTimeout(player.browserTrackRefreshTimer);
+  player.browserTrackRefreshTimer = null;
+  player.browserLoadedTrackId = '';
+  player.browserTracks = [];
+  const select = $('browserTrackSelect');
+  if (select) select.innerHTML = '';
+  $('browserTrackActions')?.classList.add('hidden');
+  setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
+}
+
+function renderBrowserTracks(selectedId) {
+  const select = $('browserTrackSelect');
+  const actions = $('browserTrackActions');
+  if (!select || !actions) return;
+  const previous = selectedId || select.value;
+  select.innerHTML = '';
+  player.browserTracks.forEach((track) => {
+    const option = document.createElement('option');
+    option.value = track.id;
+    option.textContent = `${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
+    select.appendChild(option);
+  });
+  if (player.browserTracks.some((track) => track.id === previous)) select.value = previous;
+  actions.classList.toggle('hidden', player.browserTracks.length === 0);
+  if (player.browserTracks.length) {
+    const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
+    setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true);
+  }
+}
+
+function browserTrackSelection() {
+  const id = $('browserTrackSelect')?.value;
+  return player.browserTracks.find((track) => track.id === id) || player.browserTracks[0] || null;
+}
+
+async function useBrowserTrack(translate) {
+  const track = browserTrackSelection();
+  if (!track) return;
+  if (state.running || state.queueRunning) {
+    setBrowserSignal('Başka bir iş çalışıyor; altyazı hazır tutuluyor.', true);
+    logLine('Tarayıcı altyazısı bekliyor — çalışan iş bitince yeniden deneyin.', 'warn');
+    return;
+  }
+  addSubtitleOption(track.path, `Web · ${track.language || track.label}`);
+  $('playerSubSelect').value = track.path;
+  await loadSubtitle(track.path);
+  if (player.subPath !== track.path) return;
+  player.browserLoadedTrackId = track.id;
+  setPlayerSidebarCollapsed(false);
+  setBrowserSignal(translate ? 'Altyazı yüklendi; çeviri başlatılıyor…' : 'Altyazı çalışma alanına yüklendi.', true);
+  if (translate) $('makeTransBtn')?.click();
+}
+
+function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
+  if (!track || player.browserLoadedTrackId !== track.id || player.subPath !== track.path) return;
+  clearTimeout(player.browserTrackRefreshTimer);
+  player.browserTrackRefreshTimer = setTimeout(async () => {
+    player.browserTrackRefreshTimer = null;
+    const latest = player.browserTracks.find((item) => item.id === track.id);
+    if (!latest || player.browserLoadedTrackId !== latest.id || player.subPath !== latest.path) return;
+    if (state.running || state.queueRunning) {
+      if (attempt < 120) scheduleActiveBrowserTrackRefresh(latest, attempt + 1);
+      return;
+    }
+    if ($('playerSubSelect')) $('playerSubSelect').value = latest.path;
+    await loadSubtitle(latest.path, false, { silent: true, preserveInspector: true });
+  }, attempt ? 1000 : 180);
+}
+
+function browserSubtitleMode() {
+  const mode = currentSubtitleMode();
+  return ['off', 'source', 'translation', 'both'].includes(mode) ? mode : 'both';
+}
+
+function scheduleBrowserOverlaySync() {
+  clearTimeout(player.browserOverlayTimer);
+  if (player.workspaceMode !== 'browser' || !window.api.setBrowserOverlay) return;
+  player.browserOverlayTimer = setTimeout(() => {
+    player.browserOverlayTimer = null;
+    window.api.setBrowserOverlay({
+      source: player.cues.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
+      translation: player.cues2.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
+      mode: browserSubtitleMode(),
+      offset: player.offset,
+    }).catch(() => {});
+  }, 120);
+}
+
+function updateBrowserNavigation(data) {
+  if (!data) return;
+  const address = $('browserAddress');
+  if (data.url && document.activeElement !== address) address.value = data.url;
+  if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
+  if ($('browserForward')) $('browserForward').disabled = !data.canGoForward;
+  if ($('browserReload')) $('browserReload').classList.toggle('loading', !!data.loading);
+  $('browserSecurityMark')?.classList.toggle('secure', /^https:/i.test(data.url || ''));
+  $('browserEmpty')?.classList.toggle('hidden', !!data.url);
+  if (data.url && data.url !== player.browserPageUrl) {
+    player.browserPageUrl = data.url;
+    player.browserPageTitle = data.title || '';
+    player.browserTime = 0;
+    player.browserDuration = 0;
+    clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
+    setMediaKey(`browser:${data.url}`);
+    try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
+  }
+  if (data.title) player.browserPageTitle = data.title;
+  if (player.workspaceMode === 'browser') {
+    $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
+    $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor' : 'Web videosu · altyazı algılama açık';
+  }
+}
+
+function renderBrowserCueAt(time) {
+  const t = Number(time || 0) - player.offset;
+  if (player.cues.length) {
+    const index = findCueAt(player.cues, t, player.activeIdx);
+    if (index !== player.activeIdx) {
+      player.activeIdx = index;
+      highlightCueRow();
+    }
+  }
+  if (player.cues2.length) player.activeIdx2 = findCueAt(player.cues2, t, player.activeIdx2);
+  updateCueMeta();
+  if (!$('aiChat')?.classList.contains('hidden')) aiChatCtxLabel();
+}
+
+async function showBrowserWorkspace() {
+  const bounds = browserSlotBounds();
+  if (!bounds || !window.api.showBrowser) return;
+  const result = await window.api.showBrowser(bounds);
+  if (!result || !result.ok) {
+    setBrowserSignal((result && result.error) || 'Tarayıcı alanı açılamadı.', false);
+    return;
+  }
+  updateBrowserNavigation(result);
+  scheduleBrowserBounds();
+  if (!result.hasPage) {
+    const last = (() => { try { return localStorage.getItem('playerBrowserLastUrl') || ''; } catch (_) { return ''; } })();
+    if (last && $('browserAddress') && !$('browserAddress').value) $('browserAddress').value = last;
+    setTimeout(() => $('browserAddress')?.focus(), 0);
+  }
+}
+
+function setWorkspaceMode(mode, persist = true) {
+  mode = mode === 'browser' ? 'browser' : 'player';
+  if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
+  player.workspaceMode = mode;
+  const layer = $('playerLayer');
+  layer?.classList.toggle('workspace-browser', mode === 'browser');
+  $('browserWorkspace')?.classList.toggle('hidden', mode !== 'browser');
+  const playerButton = $('workspacePlayerMode');
+  const browserButton = $('workspaceBrowserMode');
+  if (playerButton) {
+    playerButton.classList.toggle('active', mode === 'player');
+    playerButton.setAttribute('aria-selected', mode === 'player' ? 'true' : 'false');
+  }
+  if (browserButton) {
+    browserButton.classList.toggle('active', mode === 'browser');
+    browserButton.setAttribute('aria-selected', mode === 'browser' ? 'true' : 'false');
+  }
+  if ($('makeSubsBtn')) {
+    $('makeSubsBtn').disabled = mode === 'browser';
+    $('makeSubsBtn').title = mode === 'browser'
+      ? 'Tarayıcı modunda sayfanın mevcut altyazısı algılanir; Whisper için videoyu normal oynatıcıda açın.'
+      : 'Bu video için altyazı oluştur';
+  }
+  if (mode === 'browser') {
+    $('playerVideo')?.pause();
+    $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
+    $('playerMeta').textContent = 'Web videosu · altyazı algılama açık';
+    requestAnimationFrame(() => showBrowserWorkspace());
+    scheduleBrowserOverlaySync();
+  } else {
+    if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
+    $('playerTitle').textContent = player.localPath
+      ? player.localPath.split(/[\\/]/).pop() : (player.ytInfo && player.ytInfo.title) || 'Oynatıcı';
+    $('playerMeta').textContent = 'Çift dilli izleme ve çalışma alanı';
+  }
+  if (persist) {
+    try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
+  }
+  snapGridColumns();
+}
+
+async function navigateBrowserFromAddress() {
+  const value = $('browserAddress')?.value.trim();
+  if (!value || !window.api.navigateBrowser) {
+    $('browserAddress')?.focus();
+    return;
+  }
+  setBrowserSignal('Sayfa açılıyor; altyazı izi bekleniyor…', false);
+  const result = await window.api.navigateBrowser(value);
+  if (!result || !result.ok) {
+    setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  updateBrowserNavigation(result);
+}
+
+if ($('workspacePlayerMode')) $('workspacePlayerMode').addEventListener('click', () => setWorkspaceMode('player'));
+if ($('workspaceBrowserMode')) $('workspaceBrowserMode').addEventListener('click', () => setWorkspaceMode('browser'));
+if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
+if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') { event.preventDefault(); navigateBrowserFromAddress(); }
+});
+if ($('browserBack')) $('browserBack').addEventListener('click', () => window.api.browserCommand('back'));
+if ($('browserForward')) $('browserForward').addEventListener('click', () => window.api.browserCommand('forward'));
+if ($('browserReload')) $('browserReload').addEventListener('click', () => window.api.browserCommand('reload'));
+if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () => useBrowserTrack(false));
+if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
+if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click', () => {
+  $('browserTrackActions')?.classList.add('hidden');
+  setBrowserSignal('Bildirim kapatıldı; altyazı izleme arka planda sürüyor.', false);
+});
+if ($('browserTrackSelect')) $('browserTrackSelect').addEventListener('change', () => renderBrowserTracks());
+
+if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
+  if (!event || !event.type) return;
+  if (event.type === 'navigation') {
+    updateBrowserNavigation(event);
+  } else if (event.type === 'title') {
+    player.browserPageTitle = event.title || '';
+    if (player.workspaceMode === 'browser') $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
+  } else if (event.type === 'subtitle-found' && event.track) {
+    const selectedBefore = $('browserTrackSelect')?.value || '';
+    const index = player.browserTracks.findIndex((track) => track.id === event.track.id);
+    if (index >= 0) player.browserTracks[index] = event.track;
+    else player.browserTracks.push(event.track);
+    renderBrowserTracks(selectedBefore || event.track.id);
+    scheduleActiveBrowserTrackRefresh(event.track);
+    if (index < 0) logLine(`Web altyazısı bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
+  } else if (event.type === 'media' && event.media) {
+    player.browserTime = Number(event.media.currentTime) || 0;
+    player.browserDuration = Number(event.media.duration) || 0;
+    player.browserPaused = !!event.media.paused;
+    if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime);
+  } else if (event.type === 'load-error') {
+    setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
+  } else if (event.type === 'capture-warning') {
+    logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
+  } else if (event.type === 'drm-status') {
+    const message = event.supported
+      ? 'Widevine erişimi hazır; korumalı video oynatma site hesabı ve lisans koşullarına bağlı.'
+      : 'Bu Electron derlemesinde Widevine kullanılamıyor; korumalı video oynatılamayabilir, ancak erişilebilen altyazı ağ izleri taranmaya devam eder.';
+    setBrowserSignal(message, !!event.supported);
+    logLine(message, event.supported ? 'info' : 'warn');
+  }
+});
+
+window.addEventListener('resize', scheduleBrowserBounds);
+
+function normalizeAudioLang(value) {
+  return String(value || '').trim().toLowerCase().replace(/_/g, '-');
+}
+
+function audioLanguagesMatch(a, b) {
+  const left = normalizeAudioLang(a);
+  const right = normalizeAudioLang(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const lBase = left.split('-')[0];
+  const rBase = right.split('-')[0];
+  return lBase === rBase && (!left.includes('-') || !right.includes('-'));
+}
+
+function currentAudioLock(key = player.mediaKey) {
+  return player.audioLocks[key] || null;
+}
+
+function rememberAudioLock(lang, label, key = player.mediaKey) {
+  lang = normalizeAudioLang(lang);
+  if (!key || !lang) return;
+  player.audioLocks[key] = { lang, label: label || lang, at: Date.now() };
+  const keys = Object.keys(player.audioLocks).sort((a, b) =>
+    (player.audioLocks[b].at || 0) - (player.audioLocks[a].at || 0));
+  keys.slice(60).forEach((k) => delete player.audioLocks[k]);
+  try { localStorage.setItem('playerAudioLocks', JSON.stringify(player.audioLocks)); } catch (_) {}
+  updateAudioLockStatus();
+}
+
+function updateAudioLockStatus() {
+  const status = $('playerAudioLockStatus');
+  const enabled = !$('playerAudioLock') || $('playerAudioLock').checked;
+  const lock = currentAudioLock();
+  if (!status) return;
+  status.textContent = !enabled ? 'Kapalı — Whisper kendi varsayılan sesini kullanır'
+    : player.playbackAudioLang ? `Oynatılan ve Whisper sesi: ${player.playbackAudioLang}`
+    : lock ? `Kilitli ses: ${lock.label || lock.lang}`
+      : 'Ses seçilince otomatik eşleştirilir';
+}
 
 function pSecToTime(sec) {
   if (!isFinite(sec) || sec < 0) sec = 0;
@@ -2227,6 +2866,16 @@ function updateCueMeta() {
       ? 'Tüm cümleleri göster'
       : `Kaydedilen cümleleri göster (${savedCount})`;
     savedFilter.setAttribute('aria-pressed', player.savedOnly ? 'true' : 'false');
+  }
+  const qualityFilter = $('qualityOnlyBtn');
+  if (qualityFilter) {
+    qualityFilter.classList.toggle('active', player.qualityOnly);
+    const lowCount = player.cues.filter((c) => Number(c.lowConfidenceWords) > 0
+      || (c.confidence !== undefined && Number(c.confidence) < 0.6)).length;
+    qualityFilter.title = player.qualityOnly
+      ? 'Tüm cümleleri göster'
+      : `Düşük güvenli cümleleri göster (${lowCount})`;
+    qualityFilter.setAttribute('aria-pressed', player.qualityOnly ? 'true' : 'false');
   }
   const clear = $('clearCueSearch');
   if (clear) clear.classList.toggle('hidden', !$('cueSearch')?.value);
@@ -2374,6 +3023,14 @@ function bindCueListDelegation() {
   box.addEventListener('click', (e) => {
     const i = cardIndex(e);
     if (isNaN(i)) return;
+    if (e.target.closest && e.target.closest('.cue-confidence')) {
+      e.preventDefault();
+      seekToCue(i);
+      const video = $('playerVideo');
+      if (video) video.play().catch(() => {});
+      return;
+    }
+    if (player.timeline.open) { player.timeline.selected = i; drawTimeline(); }
     const inSrc = e.target.closest('.cue-card-src');
     const inTr = e.target.closest('.cue-card-tr');
     const hit = (inSrc || inTr) ? wordAtPoint(e.clientX, e.clientY) : null;
@@ -2386,6 +3043,7 @@ function bindCueListDelegation() {
   box.addEventListener('dblclick', (e) => {
     const i = cardIndex(e);
     if (isNaN(i)) return;
+    if (player.timeline.open) { player.timeline.selected = i; drawTimeline(); }
     e.preventDefault();
     seekToCue(i);
     openCueEditor();
@@ -2448,15 +3106,17 @@ function parseSubtitles(text) {
   }
   const out = [];
   const clean = String(text || '').replace(/\r/g, '').replace(/^\uFEFF/, '');
-  const re = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/;
+  // WebVTT bir saatin altinda HH alanini atlayabilir (MM:SS.mmm). SRT'nin
+  // HH:MM:SS,mmm bicimini de kabul eden tek ifade kullan.
+  const re = /(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})/;
   for (const block of clean.split(/\n\s*\n/)) {
     const lines = block.split('\n').filter((l) => l.trim() !== '');
     if (lines.length < 2) continue;
     const idx = lines.findIndex((l) => re.test(l));
     if (idx === -1) continue;
     const m = lines[idx].match(re);
-    const start = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (m[4].length === 2 ? 100 : 1000);
-    const end = (+m[5]) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8]) / (m[8].length === 2 ? 100 : 1000);
+    const start = (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4].padEnd(3, '0')) / 1000;
+    const end = (+(m[5] || 0)) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8].padEnd(3, '0')) / 1000;
     const body = lines.slice(idx + 1).join('\n').trim();
     if (body) out.push({ start, end, text: body });
   }
@@ -2538,6 +3198,7 @@ function renderCue() {
       setOverlayText(overlay2, '');
     }
   }
+  scheduleTimelineDraw();
 }
 
 // ---- Altyazı listesi (LLPlayer'daki "subtitles sidebar" fikri) ----
@@ -2595,15 +3256,29 @@ function renderCueList(filter = '') {
     if (q && !c.text.toLocaleLowerCase('tr').includes(q)
         && !tr.toLocaleLowerCase('tr').includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
+    const lowConfidence = Number(c.lowConfidenceWords) > 0
+      || (c.confidence !== undefined && Number(c.confidence) < 0.6);
+    if (player.qualityOnly && !lowConfidence) return;
     shown++;
     const card = document.createElement('div');
     card.className = 'cue-card';
     card.classList.toggle('saved', isCueSaved(i));
+    card.classList.toggle('low-confidence', lowConfidence);
     card.dataset.idx = String(i);
 
     const time = document.createElement('div');
     time.className = 'cue-card-time';
     time.textContent = pSecToTime(c.start);
+    if (lowConfidence) {
+      const confidence = document.createElement('button');
+      confidence.type = 'button';
+      confidence.className = 'cue-confidence';
+      confidence.title = `Düşük güven${c.confidence !== undefined
+        ? ` · %${Math.round(Number(c.confidence) * 100)}` : ''} — sesi tekrar dinle`;
+      confidence.setAttribute('aria-label', confidence.title);
+      confidence.textContent = '!';
+      time.appendChild(confidence);
+    }
 
     const body = document.createElement('div');
     const src = document.createElement('div');
@@ -2707,17 +3382,25 @@ function bindTranscriptScroll() {
 // ---- blok gezinme (Voracious: "navigate forward and back by subtitle") ----
 function seekToCue(i) {
   const video = $('playerVideo');
-  if (!video || i < 0 || i >= player.cues.length) return;
-  video.currentTime = Math.max(0, player.cues[i].start + player.offset + 0.01);
+  if (i < 0 || i >= player.cues.length) return;
+  const target = Math.max(0, player.cues[i].start + player.offset + 0.01);
+  if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+    player.browserTime = target;
+    window.api.browserCommand('seek', target).catch(() => {});
+    renderBrowserCueAt(target);
+  } else {
+    if (!video) return;
+    video.currentTime = target;
+  }
   player.activeIdx = i;
-  renderCue();
+  if (player.workspaceMode !== 'browser') renderCue();
   highlightCueRow();
 }
 
 function stepCue(delta) {
   if (!player.cues.length) return;
   const video = $('playerVideo');
-  const t = video.currentTime - player.offset;
+  const t = (player.workspaceMode === 'browser' ? player.browserTime : (video && video.currentTime) || 0) - player.offset;
   let i = player.activeIdx;
   if (i < 0) {
     i = player.cues.findIndex((c) => c.start > t);
@@ -2730,6 +3413,10 @@ function stepCue(delta) {
 
 function replayCue() {
   if (player.activeIdx >= 0) seekToCue(player.activeIdx);
+  if (player.workspaceMode === 'browser') {
+    if (window.api.browserCommand) window.api.browserCommand('play').catch(() => {});
+    return;
+  }
   const video = $('playerVideo');
   if (video && video.paused) video.play();
 }
@@ -2761,6 +3448,12 @@ function toggleCueSaved() {
 
 function toggleSavedOnly() {
   player.savedOnly = !player.savedOnly;
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  updateCueMeta();
+}
+
+function toggleQualityOnly() {
+  player.qualityOnly = !player.qualityOnly;
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   updateCueMeta();
 }
@@ -2829,6 +3522,286 @@ function cuesToSrt(cues) {
   return cues.map((c, i) =>
     `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
 }
+
+// ---- Dalga biçimli zamanlama masası ----
+function timelineDuration() {
+  const video = $('playerVideo');
+  return Math.max(1, Number(video && video.duration) || 0,
+    player.cues.length ? player.cues[player.cues.length - 1].end : 0,
+    player.timeline.waveformDuration || 0);
+}
+
+function timelineWindow() {
+  const duration = timelineDuration();
+  const zoom = Number($('timelineZoom') ? $('timelineZoom').value : 60);
+  if (!zoom || zoom >= duration) return { start: 0, end: duration };
+  const video = $('playerVideo');
+  const selected = player.cues[player.timeline.selected];
+  const center = player.timeline.drag ? player.timeline.drag.center
+    : (selected ? (selected.start + selected.end) / 2 : Number(video && video.currentTime) || 0);
+  const start = Math.max(0, Math.min(duration - zoom, center - zoom / 2));
+  return { start, end: start + zoom };
+}
+
+function timelineMarkDirty(message) {
+  const drawer = $('timelineDrawer');
+  if (drawer) drawer.classList.add('dirty');
+  if ($('timelineStatus')) $('timelineStatus').textContent = message || 'Kaydedilmemiş zamanlama değişiklikleri';
+  if ($('timelineUndo')) $('timelineUndo').disabled = !player.timeline.undo.length;
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  renderCue();
+  drawTimeline();
+}
+
+function timelinePushUndo() {
+  player.timeline.undo.push(player.cues.map((c) => ({ ...c })));
+  if (player.timeline.undo.length > 30) player.timeline.undo.shift();
+  if ($('timelineUndo')) $('timelineUndo').disabled = false;
+}
+
+function drawTimeline() {
+  const canvas = $('timelineCanvas');
+  const drawer = $('timelineDrawer');
+  if (!canvas || !drawer || drawer.classList.contains('hidden')) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  const view = timelineWindow();
+  const span = Math.max(.01, view.end - view.start);
+  const xFor = (t) => (t - view.start) / span * w;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#0b0b0c'; ctx.fillRect(0, 0, w, h);
+
+  // Zaman cetveli
+  ctx.strokeStyle = '#252528'; ctx.fillStyle = '#737378'; ctx.font = '10px Segoe UI';
+  const tick = span <= 35 ? 5 : span <= 130 ? 15 : span <= 320 ? 60 : Math.max(60, Math.round(span / 8 / 60) * 60);
+  for (let t = Math.ceil(view.start / tick) * tick; t <= view.end; t += tick) {
+    const x = xFor(t); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    ctx.fillText(pSecToTime(t), x + 4, 13);
+  }
+
+  // Gerçek yerel dalga biçimi. YouTube akışında dosya yoksa blok yoğunluğu yine görünür.
+  const points = player.timeline.waveform;
+  if (points.length) {
+    ctx.strokeStyle = '#4d7270'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let px = 0; px < w; px++) {
+      const t = view.start + px / w * span;
+      const idx = Math.max(0, Math.min(points.length - 1,
+        Math.floor(t / Math.max(.01, player.timeline.waveformDuration) * points.length)));
+      const amp = points[idx] * 38;
+      if (px === 0) ctx.moveTo(px, 52 - amp); else ctx.lineTo(px, 52 - amp);
+      ctx.lineTo(px, 52 + amp);
+    }
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#333337'; ctx.beginPath(); ctx.moveTo(0, 52); ctx.lineTo(w, 52); ctx.stroke();
+  }
+
+  const chosen = player.timeline.selected >= 0 ? player.timeline.selected : player.activeIdx;
+  player.cues.forEach((cue, i) => {
+    if (cue.end < view.start || cue.start > view.end) return;
+    const x1 = Math.max(0, xFor(cue.start));
+    const x2 = Math.min(w, xFor(cue.end));
+    const lowConfidence = Number(cue.lowConfidenceWords) > 0 ||
+      (cue.confidence !== undefined && Number(cue.confidence) < 0.6);
+    ctx.fillStyle = i === chosen ? 'rgba(243,189,79,.62)'
+      : lowConfidence ? 'rgba(196,91,72,.42)' : 'rgba(155,215,208,.30)';
+    ctx.strokeStyle = i === chosen ? '#f3bd4f' : lowConfidence ? '#c45b48' : '#5f8d89';
+    ctx.fillRect(x1, 82, Math.max(3, x2 - x1), 33);
+    ctx.strokeRect(x1 + .5, 82.5, Math.max(2, x2 - x1 - 1), 32);
+    if (x2 - x1 > 38) {
+      ctx.save(); ctx.beginPath(); ctx.rect(x1 + 4, 84, x2 - x1 - 8, 28); ctx.clip();
+      ctx.fillStyle = i === chosen ? '#17130b' : '#c8d8d6'; ctx.font = '10px Segoe UI';
+      ctx.fillText(cue.text.replace(/\n/g, ' '), x1 + 6, 102); ctx.restore();
+    }
+  });
+  const video = $('playerVideo');
+  const now = Number(video && video.currentTime) || 0;
+  if (now >= view.start && now <= view.end) {
+    const x = xFor(now); ctx.strokeStyle = '#f4f4f6'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, 18); ctx.lineTo(x, 121); ctx.stroke();
+  }
+}
+
+function scheduleTimelineDraw() {
+  if (!player.timeline.open || player.timeline.drawPending) return;
+  player.timeline.drawPending = true;
+  requestAnimationFrame(() => { player.timeline.drawPending = false; drawTimeline(); });
+}
+
+async function openTimeline() {
+  if (!player.cues.length) { logLine('Zamanlama için önce bir altyazı yükleyin.', 'warn'); return; }
+  player.timeline.open = true;
+  if ($('playerVideo')) $('playerVideo').pause();
+  player.timeline.selected = player.activeIdx >= 0 ? player.activeIdx : 0;
+  $('timelineDrawer').classList.remove('hidden');
+  $('timelineToggle').classList.add('active');
+  drawTimeline();
+  if (!player.timeline.waveform.length && player.localPath && !player.timeline.loading) {
+    const waveformPath = player.localPath;
+    const waveformGen = currentGeneration();
+    player.timeline.loading = true;
+    $('timelineStatus').textContent = 'Ses dalga biçimi hazırlanıyor…';
+    let result;
+    try { result = await window.api.getWaveform(waveformPath); }
+    catch (err) { result = { ok: false, error: err && err.message }; }
+    if (staleGeneration(waveformGen) || player.localPath !== waveformPath) return;
+    player.timeline.loading = false;
+    if (result && result.ok && player.timeline.open) {
+      player.timeline.waveform = result.points || [];
+      player.timeline.waveformDuration = result.duration || 0;
+      $('timelineStatus').textContent = 'Dalga biçimi hazır — bir bloğu seçip sürükleyin';
+    } else if (player.timeline.open) {
+      $('timelineStatus').textContent = 'Dalga biçimi yok — altyazı blokları yine düzenlenebilir';
+    }
+    drawTimeline();
+  } else if (!player.localPath) {
+    $('timelineStatus').textContent = 'YouTube akışında blok zamanlaması düzenlenebilir';
+  }
+}
+
+function closeTimeline() {
+  player.timeline.open = false;
+  player.timeline.drag = null;
+  if ($('timelineDrawer')) $('timelineDrawer').classList.add('hidden');
+  if ($('timelineToggle')) $('timelineToggle').classList.remove('active');
+}
+
+function timelineNudge(delta) {
+  const i = player.timeline.selected;
+  if (i < 0 || !player.cues[i]) return;
+  timelinePushUndo();
+  const c = player.cues[i];
+  const shift = Math.max(-c.start, delta);
+  c.start += shift; c.end += shift;
+  timelineMarkDirty(`${i + 1}. blok ${delta < 0 ? 'geri' : 'ileri'} kaydırıldı`);
+}
+
+function timelineSplitCue() {
+  const video = $('playerVideo');
+  const at = Number(video && video.currentTime);
+  const i = player.timeline.selected;
+  const cue = player.cues[i];
+  if (!cue || !(at > cue.start + .2 && at < cue.end - .2)) {
+    logLine('Oynatma noktası seçili bloğun en az 200 ms içinde olmalı.', 'warn'); return;
+  }
+  timelinePushUndo();
+  const words = cue.text.split(/\s+/);
+  const cut = Math.max(1, Math.min(words.length - 1,
+    Math.round(words.length * (at - cue.start) / (cue.end - cue.start))));
+  const left = { ...cue, end: at, text: words.slice(0, cut).join(' ') || cue.text };
+  const right = { ...cue, start: at, text: words.slice(cut).join(' ') || cue.text };
+  player.cues.splice(i, 1, left, right);
+  timelineMarkDirty(`${i + 1}. blok oynatma noktasında bölündü`);
+}
+
+function timelineMergeCue() {
+  const i = player.timeline.selected;
+  if (i < 0 || i >= player.cues.length - 1) return;
+  timelinePushUndo();
+  const a = player.cues[i], b = player.cues[i + 1];
+  player.cues.splice(i, 2, { ...a, end: b.end, text: `${a.text} ${b.text}`.trim() });
+  timelineMarkDirty(`${i + 1}. blok sonrakiyle birleştirildi`);
+}
+
+async function saveTimelineCopy() {
+  if (!player.cues.length) return;
+  const result = await window.api.saveSubtitleCopy(player.subPath || 'altyazi.srt', cuesToSrt(player.cues));
+  if (!result || !result.ok) {
+    if (!(result && result.canceled)) logLine(`Zamanlama kopyası kaydedilemedi: ${(result && result.error) || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  $('timelineDrawer').classList.remove('dirty');
+  $('timelineStatus').textContent = `Kopya kaydedildi: ${result.path.split(/[\\/]/).pop()}`;
+  logLine(`Düzeltilmiş altyazı kopyası kaydedildi: ${result.path}`, 'success');
+}
+
+if (typeof $ === 'function') {
+if ($('timelineToggle')) $('timelineToggle').addEventListener('click', () =>
+  player.timeline.open ? closeTimeline() : openTimeline());
+if ($('timelineClose')) $('timelineClose').addEventListener('click', closeTimeline);
+if ($('timelineZoom')) $('timelineZoom').addEventListener('change', drawTimeline);
+if ($('timelineBack')) $('timelineBack').addEventListener('click', () => timelineNudge(-.1));
+if ($('timelineForward')) $('timelineForward').addEventListener('click', () => timelineNudge(.1));
+if ($('timelineSplit')) $('timelineSplit').addEventListener('click', timelineSplitCue);
+if ($('timelineMerge')) $('timelineMerge').addEventListener('click', timelineMergeCue);
+if ($('timelineSave')) $('timelineSave').addEventListener('click', saveTimelineCopy);
+if ($('timelineUndo')) $('timelineUndo').addEventListener('click', () => {
+  const prior = player.timeline.undo.pop();
+  if (!prior) return;
+  player.cues = prior;
+  player.timeline.selected = Math.min(player.timeline.selected, player.cues.length - 1);
+  $('timelineUndo').disabled = !player.timeline.undo.length;
+  timelineMarkDirty('Son zamanlama değişikliği geri alındı');
+});
+
+if ($('timelineCanvas')) {
+  const canvas = $('timelineCanvas');
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const view = timelineWindow();
+    const span = view.end - view.start;
+    const x = e.clientX - rect.left;
+    const at = view.start + x / rect.width * span;
+    const hit = e.offsetY >= 76 && e.offsetY <= 122
+      ? player.cues.findIndex((c) => c.start <= at && c.end >= at) : -1;
+    if (hit < 0) {
+      const video = $('playerVideo');
+      if (video) video.currentTime = Math.max(0, Math.min(timelineDuration(), at));
+      drawTimeline();
+      return;
+    }
+    player.timeline.selected = hit;
+    player.activeIdx = hit;
+    const cue = player.cues[hit];
+    const edgeSec = Math.max(.08, span * 8 / rect.width);
+    const mode = Math.abs(at - cue.start) <= edgeSec ? 'start'
+      : Math.abs(at - cue.end) <= edgeSec ? 'end' : 'move';
+    timelinePushUndo();
+    player.timeline.drag = { index: hit, mode, x, start: cue.start, end: cue.end,
+      center: (cue.start + cue.end) / 2, changed: false };
+    canvas.setPointerCapture(e.pointerId);
+    drawTimeline();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const drag = player.timeline.drag;
+    if (!drag) return;
+    const rect = canvas.getBoundingClientRect();
+    const view = timelineWindow();
+    const delta = (e.clientX - rect.left - drag.x) / rect.width * (view.end - view.start);
+    const cue = player.cues[drag.index];
+    if (!cue) return;
+    if (drag.mode === 'start') cue.start = Math.max(0, Math.min(cue.end - .15, drag.start + delta));
+    else if (drag.mode === 'end') cue.end = Math.max(cue.start + .15, drag.end + delta);
+    else {
+      const duration = drag.end - drag.start;
+      cue.start = Math.max(0, Math.min(timelineDuration() - duration, drag.start + delta));
+      cue.end = cue.start + duration;
+    }
+    drag.changed = true;
+    if ($('timelineStatus')) $('timelineStatus').textContent =
+      `${drag.index + 1}. blok · ${pSecToTime(cue.start)} – ${pSecToTime(cue.end)}`;
+    drawTimeline();
+  });
+  const endTimelineDrag = () => {
+    const drag = player.timeline.drag;
+    if (!drag) return;
+    player.timeline.drag = null;
+    if (!drag.changed) player.timeline.undo.pop();
+    else timelineMarkDirty(`${drag.index + 1}. bloğun zamanlaması değiştirildi`);
+    if ($('timelineUndo')) $('timelineUndo').disabled = !player.timeline.undo.length;
+  };
+  canvas.addEventListener('pointerup', endTimelineDrag);
+  canvas.addEventListener('pointercancel', endTimelineDrag);
+}
+}
+if (typeof window !== 'undefined') window.addEventListener('resize', scheduleTimelineDraw);
 
 // ---- geçmiş (kütüphane) ----
 // "Bu videoyu daha once cevirmis miydim, hangi modelle, ciktilar nerede?"
@@ -2933,14 +3906,408 @@ async function refreshHistory() {
   renderHistory();
 }
 
+// ---- izleme kütüphanesi ----
+// İş geçmişi yalnızca çıktı üretimini anlatır. Bu katman gerçek izleme davranışını
+// tutar: kaldığın yer, video bazlı tercihler, koleksiyon ve altyazı içi arama.
+let watchLibraryCache = [];
+let watchLibraryResults = [];
+let playerLibraryResults = [];
+let watchSearchTimer = null;
+let watchSearchSeq = 0;
+let playerLibrarySearchTimer = null;
+
+function watchProgress(item) {
+  const d = Number(item && item.duration) || 0;
+  const t = Number(item && item.position) || 0;
+  return d > 0 ? Math.max(0, Math.min(100, (t / d) * 100)) : 0;
+}
+
+function watchCompletionReached(position, duration) {
+  const d = Number(duration) || 0;
+  const t = Number(position) || 0;
+  if (d <= 0 || !isFinite(d)) return false;
+  // Uzun videolarda son 30 saniye, kisa videolarda ise son %10. Eski
+  // `duration - 30` kosulu 30 saniyeden kisa her videoyu 0:00'da bitmis
+  // sayiyordu.
+  const margin = Math.min(30, d * 0.1);
+  return t >= d - margin;
+}
+
+function watchItemByKey(key) {
+  return watchLibraryCache.find((item) => item.key === key) || null;
+}
+
+function captureWatchPrefs() {
+  const video = $('playerVideo');
+  return {
+    speed: video ? video.playbackRate : 1,
+    volume: video ? video.volume : 1,
+    muted: video ? video.muted : false,
+    viewMode: player.viewMode,
+    offset: player.offset,
+    autoPause: player.autoPause,
+    autoFollow: player.autoFollow,
+    showSource: $('showSource') ? $('showSource').checked : true,
+    showTranslation: $('showTranslation') ? $('showTranslation').checked : true,
+    mergeContinuation: !!player.mergeCont,
+    subStyle: player.subStyle ? { ...player.subStyle } : null,
+    subBottom: player.subBottom,
+    sub2Top: player.sub2Top,
+    selectedSubPath: player.subPath || '',
+    secondSubPath: player.sub2Path || '',
+    audioLang: $('playerAudioLang') ? $('playerAudioLang').value : '',
+  };
+}
+
+function beginWatchSession() {
+  if (!player.mediaKey) return;
+  const video = $('playerVideo');
+  const now = Date.now();
+  player.watchSession = {
+    id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+    startedAt: now,
+    endedAt: now,
+    watchSeconds: 0,
+    startPosition: video ? Number(video.currentTime) || 0 : 0,
+    endPosition: video ? Number(video.currentTime) || 0 : 0,
+    lastClock: 0,
+  };
+}
+
+function currentWatchPatch(completed) {
+  const video = $('playerVideo');
+  if (!video || !player.mediaKey || player.isLive) return null;
+  const duration = Number(video.duration);
+  if (!duration || !isFinite(duration)) return null;
+  const position = completed ? duration : Number(video.currentTime) || 0;
+  const session = player.watchSession ? { ...player.watchSession, endedAt: Date.now(), endPosition: position } : null;
+  if (session) delete session.lastClock;
+  return {
+    key: player.mediaKey,
+    type: player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local',
+    title: $('playerTitle') ? $('playerTitle').textContent : '',
+    sourceRef: player.mediaKey.startsWith('youtube:')
+      ? ((player.ytInfo && player.ytInfo.sourceUrl) || player.originalUrl || '')
+      : player.localPath,
+    localPath: player.localPath || '',
+    duration: Math.round(duration),
+    position: Math.round(position),
+    completed: !!completed || watchCompletionReached(position, duration),
+    lastWatched: Date.now(),
+    subtitlePaths: [player.subPath, player.sub2Path, ...player.subtitles.map((s) => s.path)].filter(Boolean),
+    prefs: captureWatchPrefs(),
+    session,
+  };
+}
+
+async function flushWatchState(completed = false, refresh = false) {
+  const patch = currentWatchPatch(completed);
+  if (!patch || !window.api.updateWatchItem) return;
+  try {
+    const res = await window.api.updateWatchItem(patch);
+    if (res && res.ok && res.item) {
+      const i = watchLibraryCache.findIndex((x) => x.key === res.item.key);
+      if (i >= 0) watchLibraryCache.splice(i, 1);
+      watchLibraryCache.unshift(res.item);
+      if (refresh) { renderWatchLibrary(); renderPlayerLibrary(); }
+    }
+  } catch (_) {}
+}
+
+async function restoreWatchProfile(key) {
+  const gen = currentGeneration();
+  let item = watchItemByKey(key);
+  if (!item && window.api.listWatchLibrary) {
+    try {
+      const loaded = (await window.api.listWatchLibrary()) || [];
+      if (staleGeneration(gen) || player.mediaKey !== key) return;
+      watchLibraryCache = loaded;
+      item = watchItemByKey(key);
+    } catch (_) {}
+  }
+  // Kutuphane okumasi surerken baska videoya gecilmis olabilir. Eski videonun
+  // hizi, sesi ve altyazisi yeni videoya uygulanmasin.
+  if (!item || staleGeneration(gen) || player.mediaKey !== key) return;
+  const prefs = item.prefs || {};
+  const video = $('playerVideo');
+  if (video && prefs.speed) video.playbackRate = Math.max(.25, Math.min(4, Number(prefs.speed) || 1));
+  if (video && prefs.volume !== undefined) video.volume = Math.max(0, Math.min(1, Number(prefs.volume)));
+  if (video && prefs.muted !== undefined) video.muted = !!prefs.muted;
+  if ($('playerSpeed') && prefs.speed) $('playerSpeed').value = String(prefs.speed);
+  if ($('playerVolume') && prefs.volume !== undefined) {
+    $('playerVolume').value = String(Math.round(Number(prefs.volume) * 100));
+    syncVolumeFill();
+  }
+  if (prefs.viewMode) setViewMode(prefs.viewMode);
+  if (prefs.offset !== undefined) {
+    player.offset = Number(prefs.offset) || 0;
+    if ($('subOffset')) $('subOffset').value = String(player.offset);
+    if ($('subOffsetVal')) $('subOffsetVal').textContent = player.offset.toFixed(1);
+  }
+  const checks = [
+    ['autoPauseCue', 'autoPause'], ['autoFollow', 'autoFollow'],
+    ['showSource', 'showSource'], ['showTranslation', 'showTranslation'],
+    ['playerMergeCont', 'mergeContinuation'],
+  ];
+  checks.forEach(([id, name]) => {
+    if (prefs[name] === undefined || !$(id)) return;
+    $(id).checked = !!prefs[name];
+    $(id).dispatchEvent(new Event('change'));
+  });
+  if (prefs.subStyle && typeof prefs.subStyle === 'object') {
+    player.subStyle = { ...SUB_STYLE_DEFAULTS, ...prefs.subStyle };
+    applySubtitleStyle();
+  }
+  if (prefs.subBottom !== undefined) player.subBottom = prefs.subBottom;
+  if (prefs.sub2Top !== undefined) player.sub2Top = prefs.sub2Top;
+  applySubtitlePos();
+  if (prefs.audioLang && $('playerAudioLang')) $('playerAudioLang').value = prefs.audioLang;
+  const remembered = [prefs.selectedSubPath, prefs.secondSubPath].filter(Boolean);
+  remembered.forEach((p) => addSubtitleOption(p));
+  if (prefs.selectedSubPath) {
+    $('playerSubSelect').value = prefs.selectedSubPath;
+    await loadSubtitle(prefs.selectedSubPath);
+    if (staleGeneration(gen) || player.mediaKey !== key) return;
+  }
+  if (prefs.secondSubPath) {
+    $('playerSubSelect2').value = prefs.secondSubPath;
+    await loadSubtitle(prefs.secondSubPath, true);
+    if (staleGeneration(gen) || player.mediaKey !== key) return;
+  }
+}
+
+function makeWatchAction(label, action, key, extra) {
+  const button = document.createElement('button');
+  button.className = 'link-btn';
+  button.textContent = label;
+  button.dataset.watchAction = action;
+  button.dataset.key = key;
+  if (extra !== undefined) button.dataset.seconds = String(extra);
+  return button;
+}
+
+function renderWatchLibrary() {
+  const card = $('watchLibraryCard');
+  const list = $('watchLibraryList');
+  const strip = $('continueWatching');
+  if (!card || !list || !strip) return;
+  const filter = $('watchCollectionFilter') ? $('watchCollectionFilter').value : 'all';
+  const searching = !!($('watchLibrarySearch') && $('watchLibrarySearch').value.trim());
+  let items = searching ? watchLibraryResults : watchLibraryCache;
+  if (filter === 'continue') items = items.filter((x) => !x.completed && watchProgress(x) > 0);
+  else if (filter === 'completed') items = items.filter((x) => x.completed);
+  else if (filter.startsWith('collection:')) items = items.filter((x) => (x.collections || []).includes(filter.slice(11)));
+  $('watchLibraryCount').textContent = String(watchLibraryCache.length);
+  // Kayıt yokken de görünür: kullanıcı özelliğin nerede olduğunu anlayabilsin.
+  card.classList.remove('hidden');
+  strip.innerHTML = '';
+  const continuing = watchLibraryCache.filter((x) => !x.completed && watchProgress(x) >= 1).slice(0, 8);
+  $('continueWatchingSection').classList.toggle('hidden', continuing.length === 0);
+  continuing.forEach((item) => {
+    const article = document.createElement('article');
+    article.className = 'watch-card';
+    const title = document.createElement('strong');
+    title.textContent = item.title || 'İsimsiz video';
+    const meta = document.createElement('span');
+    meta.textContent = `${pSecToTime(item.position || 0)} / ${pSecToTime(item.duration || 0)}`;
+    const progress = document.createElement('div');
+    progress.className = 'watch-progress';
+    const fill = document.createElement('i');
+    fill.style.width = `${watchProgress(item)}%`;
+    progress.appendChild(fill);
+    article.append(title, meta, progress, makeWatchAction('Devam et', 'open', item.key, item.position || 0));
+    strip.appendChild(article);
+  });
+  list.innerHTML = '';
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = searching ? 'Başlıkta veya bilinen altyazılarda eşleşme yok.' : 'Bu görünümde video yok.';
+    list.appendChild(empty);
+  }
+  items.forEach((item) => {
+    const row = document.createElement('article');
+    row.className = 'watch-list-row';
+    const info = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = item.title || 'İsimsiz video';
+    const meta = document.createElement('span');
+    const collections = (item.collections || []).length ? ` · ${(item.collections || []).join(', ')}` : '';
+    meta.textContent = `${item.type === 'youtube' ? 'YouTube' : 'Yerel'} · ${historyWhen(item.lastWatched)} · %${Math.round(watchProgress(item))}${collections}`;
+    info.append(title, meta);
+    (item.matches || []).forEach((match) => {
+      const hit = makeWatchAction(`${pSecToTime(match.seconds)} · ${match.snippet}`, 'hit', item.key, match.seconds);
+      hit.className = 'watch-hit';
+      info.appendChild(hit);
+    });
+    const actions = document.createElement('div');
+    actions.className = 'watch-row-actions';
+    actions.append(
+      makeWatchAction(item.completed ? 'Baştan izle' : 'Aç', item.completed ? 'restart' : 'open', item.key, item.completed ? 0 : item.position || 0),
+      makeWatchAction('Koleksiyon', 'collection', item.key),
+      makeWatchAction(item.completed ? 'Tamamlanmadı' : 'Tamamlandı', 'complete', item.key),
+      makeWatchAction('Kaldır', 'remove', item.key),
+    );
+    row.append(info, actions);
+    list.appendChild(row);
+  });
+  updateCollectionOptions();
+}
+
+function renderPlayerLibrary() {
+  const panel = $('playerLibraryPanel');
+  const list = $('playerLibraryList');
+  const status = $('playerLibraryStatus');
+  if (!panel || !list || !status) return;
+  const searching = !!($('playerLibrarySearch') && $('playerLibrarySearch').value.trim());
+  const filter = $('playerLibraryFilter') ? $('playerLibraryFilter').value : 'all';
+  let items = searching ? playerLibraryResults : watchLibraryCache;
+  if (filter === 'continue') items = items.filter((x) => !x.completed && watchProgress(x) > 0);
+  else if (filter === 'completed') items = items.filter((x) => x.completed);
+  else if (filter.startsWith('collection:')) items = items.filter((x) => (x.collections || []).includes(filter.slice(11)));
+  const matches = items.reduce((sum, item) => sum + (item.matches || []).length, 0);
+  status.textContent = !watchLibraryCache.length
+    ? 'Bir video oynattığında kaldığın yer burada görünecek.'
+    : searching ? `${items.length} video · ${matches} altyazı eşleşmesi`
+      : `${items.length} video · ${watchLibraryCache.filter((x) => !x.completed && watchProgress(x) > 0).length} devam eden`;
+  list.innerHTML = '';
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'player-library-empty';
+    empty.textContent = searching ? 'Aramana uyan video veya altyazı bulunamadı.' : 'Bu filtrede video yok.';
+    list.appendChild(empty);
+  }
+  items.forEach((item) => {
+    const row = document.createElement('article');
+    row.className = 'player-library-item';
+    const head = document.createElement('div');
+    head.className = 'player-library-item-head';
+    const title = document.createElement('strong');
+    title.textContent = item.title || 'İsimsiz video';
+    const time = document.createElement('span');
+    time.textContent = item.completed ? 'Tamamlandı' : `${pSecToTime(item.position || 0)} / ${pSecToTime(item.duration || 0)}`;
+    head.append(title, time);
+    const progress = document.createElement('div');
+    progress.className = 'watch-progress';
+    const fill = document.createElement('i');
+    fill.style.width = `${watchProgress(item)}%`;
+    progress.appendChild(fill);
+    const meta = document.createElement('div');
+    meta.className = 'player-library-meta';
+    meta.textContent = [item.type === 'youtube' ? 'YouTube' : 'Yerel', historyWhen(item.lastWatched), ...(item.collections || [])].join(' · ');
+    const hits = document.createElement('div');
+    hits.className = 'player-library-hits';
+    (item.matches || []).forEach((match) => {
+      const hit = makeWatchAction(`${pSecToTime(match.seconds)} · ${match.snippet}`, 'hit', item.key, match.seconds);
+      hit.className = 'watch-hit';
+      hits.appendChild(hit);
+    });
+    const actions = document.createElement('div');
+    actions.className = 'player-library-actions';
+    actions.append(
+      makeWatchAction(item.completed ? 'Baştan izle' : 'Devam et', item.completed ? 'restart' : 'open', item.key, item.completed ? 0 : item.position || 0),
+      makeWatchAction('Koleksiyon', 'collection', item.key),
+      makeWatchAction('Kaldır', 'remove', item.key),
+    );
+    row.append(head, progress, meta);
+    if (hits.childElementCount) row.appendChild(hits);
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  updateCollectionOptions();
+}
+
+function updateCollectionOptions() {
+  const names = [...new Set(watchLibraryCache.flatMap((x) => x.collections || []))].sort((a, b) => a.localeCompare(b, 'tr'));
+  ['watchCollectionFilter', 'playerLibraryFilter'].forEach((id) => {
+    const select = $(id);
+    if (!select) return;
+    const current = select.value;
+    [...select.options].slice(3).forEach((o) => o.remove());
+    names.forEach((name) => {
+      const option = document.createElement('option');
+      option.value = `collection:${name}`;
+      option.textContent = name;
+      select.appendChild(option);
+    });
+    if ([...select.options].some((o) => o.value === current)) select.value = current;
+  });
+}
+
+async function refreshWatchLibrary() {
+  // Devam eden arama cevaplari yeni listeyi eski sonucuyla ezmesin.
+  watchSearchSeq++;
+  player.playerLibrarySearchSeq++;
+  try { watchLibraryCache = (await window.api.listWatchLibrary()) || []; }
+  catch (_) { watchLibraryCache = []; }
+  watchLibraryResults = watchLibraryCache;
+  playerLibraryResults = watchLibraryCache;
+  renderWatchLibrary();
+  renderPlayerLibrary();
+}
+
+async function setLocalPlaylistAround(filePath, explicitFiles, intent) {
+  let files = Array.isArray(explicitFiles) && explicitFiles.length ? explicitFiles.slice() : [];
+  if (!files.length && window.api.listMediaFolder) {
+    try { files = (await window.api.listMediaFolder(filePath)) || []; } catch (_) {}
+  }
+  if (intent !== undefined && intent !== player.openIntent) return false;
+  player.playlist = files;
+  player.playlistIndex = files.findIndex((p) => mediaKeyFor('local', p) === mediaKeyFor('local', filePath));
+  updatePlaylistButtons();
+  return true;
+}
+
+function updatePlaylistButtons() {
+  const prev = $('playerPrevMedia');
+  const next = $('playerNextMedia');
+  if (prev) prev.disabled = player.playlistIndex <= 0;
+  if (next) next.disabled = player.playlistIndex < 0 || player.playlistIndex >= player.playlist.length - 1;
+}
+
+async function openLocalMedia(filePath, seconds, explicitFiles) {
+  if (!filePath) return;
+  const intent = ++player.openIntent;
+  player.probeRequestSeq++;
+  player.pendingAutoOpen = null;
+  $('playerLayer').classList.remove('hidden');
+  $('playerVideoPath').textContent = filePath;
+  const playlistReady = await setLocalPlaylistAround(filePath, explicitFiles, intent);
+  // Klasor taramasi surerken baska bir kaynak acildiysa gec kalan A istegi B'yi
+  // tekrar ezmesin.
+  if (!playlistReady || intent !== player.openIntent) return;
+  setPlayerSource(pathToFileUrl(filePath), filePath.split(/[\\/]/).pop(), mediaKeyFor('local', filePath), { localPath: filePath });
+  player.pendingLibrarySeek = {
+    key: player.mediaKey,
+    generation: currentGeneration(),
+    seconds: Number(seconds) || 0,
+  };
+  attachSiblingSubtitles(filePath);
+}
+
+function openWatchLibraryItem(item, seconds) {
+  if (!item) return;
+  if (item.type === 'youtube') {
+    const intent = ++player.openIntent;
+    $('playerLayer').classList.remove('hidden');
+    player.pendingLibrarySeek = { key: item.key, generation: null, seconds: Number(seconds) || 0 };
+    player.pendingAutoOpen = { key: item.key, intent };
+    openYoutubePanelAndProbe(item.sourceRef);
+  } else {
+    openLocalMedia(item.localPath || item.sourceRef, seconds);
+  }
+}
+
 function openHistoryItem(h) {
   const subs = (h.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
   if (h.source === 'youtube') {
+    const intent = ++player.openIntent;
     // Yayin acilinca altyazi baglansin diye ONCE bekleyen listeye koy.
     player.pendingSubs = { key: mediaKeyFor('youtube', h.input), files: subs };
+    player.pendingAutoOpen = { key: mediaKeyFor('youtube', h.input), intent };
     $('playerLayer').classList.remove('hidden');
     openYoutubePanelAndProbe(h.input);
-    logLine('YouTube videosu hazırlanıyor — "Yayını aç" ile izleyebilirsiniz.', 'info');
+    logLine('YouTube videosu ve bu işin altyazısı hazırlanıyor.', 'info');
     return;
   }
   state.lastJobVideo = h.video || null;
@@ -3005,6 +4372,7 @@ function mergeCueContinuation(cues, maxGap = 3.0) {
 function resetCueRaw() {
   player.cuesRaw = null;
   player.cues2Raw = null;
+  player.cueQualitySource = [];
 }
 
 function applyCueMerge() {
@@ -3018,6 +4386,7 @@ function applyCueMerge() {
   renderCueList();
   renderCue();
   updateCueMeta();
+  scheduleBrowserOverlaySync();
 }
 
 // ---- AI sohbet (yan panel sekmesi) ----
@@ -3031,13 +4400,16 @@ function aiChatContext() {
   const cues = player.cues || [];
   const ctx = {
     video: (document.getElementById('playerTitle') || {}).textContent || '',
-    zaman: pSecToTime(($('playerVideo') || {}).currentTime || 0),
+    zaman: pSecToTime(player.workspaceMode === 'browser'
+      ? player.browserTime : (($('playerVideo') || {}).currentTime || 0)),
   };
   if (i >= 0 && cues[i]) {
     ctx.cumle = cues[i].text;
-    ctx.mevcut_ceviri = translationFor(i) || '';
-    ctx.onceki = cues.slice(Math.max(0, i - AI_CHAT_CTX), i).map((c) => c.text);
-    ctx.sonraki = cues.slice(i + 1, i + 1 + AI_CHAT_CTX).map((c) => c.text);
+    ctx.mevcut_ceviri = translationFor(cues[i]) || '';
+    ctx.onceki = cues.slice(Math.max(0, i - AI_CHAT_CTX), i)
+      .map((c) => ({ zaman: pSecToTime(c.start), metin: c.text }));
+    ctx.sonraki = cues.slice(i + 1, i + 1 + AI_CHAT_CTX)
+      .map((c) => ({ zaman: pSecToTime(c.start), metin: c.text }));
   } else if (cues.length) {
     ctx.not = 'Su an aktif bir altyazi satiri yok.';
   } else {
@@ -3055,6 +4427,46 @@ function aiChatCtxLabel() {
     : 'Bağlam: altyazı yok — genel soru sorabilirsin';
 }
 
+function aiTimeToSeconds(value) {
+  const parts = String(value || '').split(':').map(Number);
+  if (parts.some((n) => !isFinite(n))) return null;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return null;
+}
+
+function renderAiText(el, text) {
+  if (!el) return;
+  el.textContent = '';
+  const raw = String(text || '');
+  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)/g;
+  let last = 0, match;
+  while ((match = re.exec(raw))) {
+    const prefixEnd = match.index + match[1].length;
+    el.appendChild(document.createTextNode(raw.slice(last, prefixEnd)));
+    const seconds = aiTimeToSeconds(match[2]);
+    if (seconds === null) {
+      el.appendChild(document.createTextNode(match[2]));
+    } else {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ai-time-link';
+      button.textContent = match[2];
+      button.title = `${match[2]} konumuna git`;
+      button.addEventListener('click', () => {
+        const video = $('playerVideo');
+        if (!video) return;
+        video.currentTime = Math.max(0, Math.min(Number(video.duration) || seconds, seconds));
+        showControls();
+        renderCue();
+      });
+      el.appendChild(button);
+    }
+    last = re.lastIndex;
+  }
+  el.appendChild(document.createTextNode(raw.slice(last)));
+}
+
 function aiChatAdd(role, text, cls) {
   const log = $('aiChatLog');
   if (!log) return null;
@@ -3062,7 +4474,8 @@ function aiChatAdd(role, text, cls) {
   if (bos) bos.classList.add('hidden');
   const d = document.createElement('div');
   d.className = `ai-msg ai-msg-${role}${cls ? ' ' + cls : ''}`;
-  d.textContent = text;
+  if (role === 'ai' && !cls?.includes('is-loading')) renderAiText(d, text);
+  else d.textContent = text;
   log.appendChild(d);
   log.scrollTop = log.scrollHeight;
   return d;
@@ -3119,14 +4532,21 @@ function autoGrowChatBox() {
 
 function setSideTab(tab) {
   const ai = tab === 'ai';
+  const library = tab === 'library';
   $('playerSide').classList.toggle('ai-mode', ai);
+  $('playerSide').classList.toggle('library-mode', library);
   $('aiChat').classList.toggle('hidden', !ai);
+  if ($('playerLibraryPanel')) $('playerLibraryPanel').classList.toggle('hidden', !library);
   $$('.side-tab').forEach((b) => {
     const on = b.dataset.stab === tab;
     b.classList.toggle('active', on);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
   });
   if (ai) { aiChatCtxLabel(); $('aiChatText')?.focus(); }
+  if (library) {
+    refreshWatchLibrary();
+    $('playerLibrarySearch')?.focus();
+  }
 }
 
 // ---- bağlamlı AI açıklaması ----
@@ -3140,7 +4560,8 @@ function showAiAnswer(title, text, loading) {
   box.classList.remove('hidden');
   $('aiAnswerTitle').textContent = title;
   const body = $('aiAnswerBody');
-  body.textContent = text;
+  if (loading) body.textContent = text;
+  else renderAiText(body, text);
   body.classList.toggle('is-loading', !!loading);
   const panel = $('wordInspector');
   if (panel) panel.classList.remove('hidden');
@@ -3208,11 +4629,16 @@ function startAmbient() {
   const stage = $('playerStage');
   if (!cv || !v || !stage || !player.ambientOn) return;
   const ctx = cv.getContext('2d', { willReadFrequently: false });
+  ctx.clearRect(0, 0, cv.width, cv.height);
   stage.classList.add('ambient-on');
-  player.ambientTimer = setInterval(() => {
+  const paint = () => {
     if (v.paused || v.readyState < 2 || !v.videoWidth) return;
     try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch (_) {}
-  }, 250);
+  };
+  // Oynatma olayı ilk gerçek kareden hemen önce gelebilir. Hazır kare varsa
+  // gecikmeden çiz; ardından düşük maliyetli 4 fps güncelleme sürsün.
+  paint();
+  player.ambientTimer = setInterval(paint, 250);
 }
 
 function stopAmbient() {
@@ -3220,6 +4646,11 @@ function stopAmbient() {
   player.ambientTimer = null;
   const stage = $('playerStage');
   if (stage) stage.classList.remove('ambient-on');
+  const cv = $('ambientGlow');
+  if (cv) {
+    const ctx = cv.getContext('2d', { willReadFrequently: false });
+    try { ctx.clearRect(0, 0, cv.width, cv.height); } catch (_) {}
+  }
 }
 
 function setAmbient(on) {
@@ -3340,7 +4771,12 @@ async function capturePlayerFrame() {
   c.width = v.videoWidth;
   c.height = v.videoHeight;
   const ctx = c.getContext('2d');
-  ctx.drawImage(v, 0, 0, c.width, c.height);
+  try {
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+  } catch (err) {
+    logLine(`Ekran görüntüsü alınamadı: ${(err && err.message) || 'video karesi okunamadı'}`, 'error');
+    return;
+  }
 
   // Altyaziyi da cizelim (goruntude gorunsun)
   const text = player.subsHidden ? '' : (player.activeIdx >= 0 && player.cues[player.activeIdx]
@@ -3368,7 +4804,13 @@ async function capturePlayerFrame() {
     }
   }
 
-  const dataUrl = c.toDataURL('image/png');
+  let dataUrl;
+  try {
+    dataUrl = c.toDataURL('image/png');
+  } catch (_) {
+    logLine('Bu çevrimiçi video ekran görüntüsü alınmasına izin vermiyor. Videoyu indirip yeniden deneyin.', 'warn');
+    return;
+  }
   const name = `${(player.mediaKey || 'kare').replace(/[^a-z0-9]+/gi, '_').slice(-40)}`
     + `_${Math.round(v.currentTime)}s.png`;
   if (window.api.saveImage) {
@@ -3710,8 +5152,9 @@ function savePlayerPosition() {
   if (player.isLive) return;
   if (!video || !key || !video.duration || !isFinite(video.duration)) return;
   const t = video.currentTime;
-  // Son 60 saniyeye gelindiyse film bitmis sayilir - kaydi sil.
-  if (t > video.duration - 60) {
+  // Tamamlanma esigi izleme kutuphanesiyle ayni olmali. Sabit 60 saniye,
+  // 90 saniyelik bir videoda neredeyse tum devam kaydini siliyordu.
+  if (watchCompletionReached(t, video.duration)) {
     delete player.positions[key];
   } else if (t < 30) {
     // Videonun basi. SILME: video yeni yuklendiginde de currentTime 0'dir ve
@@ -3753,6 +5196,7 @@ function maybeOfferResume() {
 // devam ediyor, ustelik attachSiblingSubtitles "cues doluysa yukleme" dedigi icin
 // B'nin kendi altyazisi otomatik acilmiyordu. Bolum isaretleri de kaliyordu.
 function resetMediaBoundState() {
+  closeTimeline();
   player.cues = [];
   player.cues2 = [];
   player.cuesRaw = null;
@@ -3768,8 +5212,27 @@ function resetMediaBoundState() {
   player.chapters = [];
   player.savedCues = [];
   player.savedOnly = false;
+  player.qualityOnly = false;
   player.savedWords = [];
+  player.cueQualitySource = [];
   player.selectedWord = null;
+  player.abA = null;
+  player.abB = null;
+  player.chatHistory = [];
+  player.timeline.waveform = [];
+  player.timeline.waveformDuration = 0;
+  player.timeline.selected = -1;
+  player.timeline.undo = [];
+  player.timeline.loading = false;
+  player.editing = false;
+  if ($('timelineDrawer')) $('timelineDrawer').classList.remove('dirty');
+  $('playerStage')?.classList.remove('editing');
+  $('subtitleEdit')?.classList.add('hidden');
+  if ($('abLoopBtn')) $('abLoopBtn').classList.remove('active');
+  const chatLog = $('aiChatLog');
+  if (chatLog) [...chatLog.querySelectorAll('.ai-msg')].forEach((e) => e.remove());
+  $('aiChatEmpty')?.classList.remove('hidden');
+  $('aiAnswer')?.classList.add('hidden');
 
   const ov = $('subtitleOverlay');
   const ov2 = $('subtitleOverlay2');
@@ -3789,10 +5252,11 @@ function resetMediaBoundState() {
     sel.appendChild(o);
   });
   if ($('cueSearch')) $('cueSearch').value = '';
-  hideWordInspector();
+  if (!options.preserveInspector) hideWordInspector();
   renderCueList('');
   updateSubtitleChips();
   updateMakeTransState();
+  updatePlayerAutoSyncState();
   if ($('playerStreamAudioField')) $('playerStreamAudioField').classList.add('hidden');
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
@@ -3814,33 +5278,135 @@ function resetMediaBoundState() {
 // kardes tarama, YouTube altyazi indirme) basladigi kusagi hatirlar ve sonuc
 // geldiginde kusak degistiyse sonucu ATAR - eski videonun altyazisi yenisine
 // baglanmasin diye.
-// Altyazi gorunurlugu TEK YERDEN yonetilir. Eskiden yalnizca dugme
-// tiklamasinda inline "visibility" degistiriliyordu; durum hicbir yerde
-// gorunmuyor ve kaynak degisince SIFIRLANMIYORDU. Altyaziyi acmak icin CC
-// dugmesine basan kullanici onu KAPATIYOR, sonra yukledigi hicbir altyazi
-// gorunmuyordu (ekranda da bir iz yok).
+// Altyazi gorunurlugu TEK YERDEN yonetilir. CC menusu ve sag paneldeki
+// Kaynak/Ceviri anahtarlari ayni secimi degistirir; biri digerini ezmez.
+function subtitleTrackState() {
+  return {
+    source: $('showSource') ? $('showSource').checked : true,
+    translation: $('showTranslation') ? $('showTranslation').checked : true,
+  };
+}
+
+function applySubtitleTrackSelection(source, translation) {
+  if ($('showSource')) $('showSource').checked = !!source;
+  if ($('showTranslation')) $('showTranslation').checked = !!translation;
+  const layer = $('playerLayer');
+  if (layer) {
+    layer.classList.toggle('hide-src', !source);
+    layer.classList.toggle('hide-tr', !translation);
+  }
+  scheduleBrowserOverlaySync();
+}
+
+function currentSubtitleMode() {
+  const tracks = subtitleTrackState();
+  if (player.subsHidden || (!tracks.source && !tracks.translation)) return 'off';
+  if (tracks.source && !tracks.translation) return 'source';
+  if (!tracks.source && tracks.translation) return 'translation';
+  return 'both';
+}
+
+function syncSubtitleModeUi() {
+  const mode = currentSubtitleMode();
+  const labels = {
+    off: 'Altyazılar kapalı',
+    source: 'Yalnızca kaynak altyazı gösteriliyor',
+    translation: 'Yalnızca çeviri gösteriliyor',
+    both: 'Kaynak ve çeviri gösteriliyor',
+  };
+  const btn = $('subToggle');
+  if (btn) {
+    btn.classList.toggle('off', mode === 'off');
+    btn.dataset.mode = mode;
+    btn.title = `${labels[mode]} — seçenekler için tıkla (V: aç/kapat)`;
+    btn.setAttribute('aria-label', labels[mode]);
+  }
+  $$('#subtitleModeMenu [data-subtitle-mode]').forEach((item) => {
+    const active = item.dataset.subtitleMode === mode;
+    item.classList.toggle('active', active);
+    item.setAttribute('aria-checked', active ? 'true' : 'false');
+  });
+  const hint = $('subHiddenHint');
+  if (hint) hint.classList.toggle('hidden', mode !== 'off');
+}
+
 function setSubtitlesVisible(visible) {
+  if (visible) {
+    const tracks = subtitleTrackState();
+    if (!tracks.source && !tracks.translation) {
+      const restore = player.lastSubtitleMode === 'translation' ? 'translation' : 'source';
+      applySubtitleTrackSelection(restore === 'source', restore === 'translation');
+    }
+  }
   player.subsHidden = !visible;
   const ov = $('subtitleOverlay');
   const ov2 = $('subtitleOverlay2');
   if (ov) ov.style.visibility = visible ? '' : 'hidden';
   if (ov2) ov2.style.visibility = visible ? '' : 'hidden';
-  const btn = $('subToggle');
-  if (btn) {
-    btn.classList.toggle('off', !visible);
-    btn.title = visible ? 'Altyazıyı gizle (V)' : 'Altyazı GİZLİ — göstermek için tıkla (V)';
+  syncSubtitleModeUi();
+  scheduleBrowserOverlaySync();
+}
+
+function setSubtitleMode(mode, announce = true) {
+  if (mode === 'off') {
+    setSubtitlesVisible(false);
+  } else if (mode === 'source' || mode === 'translation') {
+    applySubtitleTrackSelection(mode === 'source', mode === 'translation');
+    player.lastSubtitleMode = mode;
+    setSubtitlesVisible(true);
+  } else {
+    return;
   }
-  const hint = $('subHiddenHint');
-  if (hint) hint.classList.toggle('hidden', visible);
+  setSubtitleModeMenuOpen(false);
+  if (announce) {
+    const text = mode === 'off' ? 'Altyazılar kapatıldı'
+      : mode === 'source' ? 'Yalnızca kaynak altyazı'
+      : 'Yalnızca çeviri';
+    osd(text);
+    logLine(text, 'info');
+  }
+}
+
+function setSubtitleModeMenuOpen(open) {
+  const menu = $('subtitleModeMenu');
+  const btn = $('subToggle');
+  if (!menu || !btn) return;
+  menu.classList.toggle('hidden', !open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) {
+    syncSubtitleModeUi();
+    const selected = menu.querySelector('.active') || menu.querySelector('button');
+    if (selected) selected.focus();
+  } else if (document.activeElement && menu.contains(document.activeElement)) {
+    btn.focus();
+  }
 }
 
 function setMediaKey(key) {
-  player.mediaKey = key || '';
+  // Eski medyanın son konumunu ve tercihlerini anahtar değişmeden yakala.
+  flushWatchState(false, true);
+  const nextKey = key || '';
+  if (!String(nextKey).startsWith('youtube:')) {
+    player.ytInfo = null;
+    player.originalUrl = '';
+    $('playerYtInfo')?.classList.add('hidden');
+    $('playerYtSubField')?.classList.add('hidden');
+    $('playerYtSubGet')?.classList.add('hidden');
+    $('playerStream')?.classList.add('hidden');
+    $('playerAudioField')?.classList.add('hidden');
+    $('playerStreamAudioField')?.classList.add('hidden');
+  }
+  player.mediaKey = nextKey;
+  if (player.pendingLibrarySeek && player.pendingLibrarySeek.key !== player.mediaKey) {
+    player.pendingLibrarySeek = null;
+  }
   player.localPath = '';
   player.generation++;
   player.hlsRecover = 0;
   player.isLive = false;
+  player.playbackAudioLang = '';
   player.resumeOffered = false;
+  player.watchSession = null;
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
   resetMediaBoundState();
   // Gecmisten "Izle" ile gelindiyse o isin altyazilari, kaynak acildiktan
@@ -3848,9 +5414,11 @@ function setMediaKey(key) {
   // eklenseydi burada silinirdi. Anahtar kontrolu, kullanici arada baska bir
   // video acarsa yanlis altyazinin yapismasini onler.
   const pend = player.pendingSubs;
-  if (pend && (!pend.key || pend.key === player.mediaKey)) {
+  if (pend && pend.key === player.mediaKey) {
+    const pendGen = currentGeneration();
     player.pendingSubs = null;
     setTimeout(() => {
+      if (player.mediaKey !== pend.key || currentGeneration() !== pendGen) return;
       pend.files.forEach((f) => addSubtitleOption(f));
       if (pend.files.length) {
         const sel = $('playerSubSelect');
@@ -3858,6 +5426,8 @@ function setMediaKey(key) {
         loadSubtitle(pend.files[0]);
       }
     }, 0);
+  } else if (pend) {
+    player.pendingSubs = null;
   }
   loadSavedCues();
   loadSavedWords();
@@ -3935,12 +5505,14 @@ function replaceAssDialogueText(rawText, lineNo, newText, lead) {
 function setPlayerSource(src, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return;
+  setWorkspaceMode('player');
   if (player.ambientOn) startAmbient();
   setMediaKey(key || src);
   // Yerel yol AYRICA saklanir: 'Altyazi olustur' bunu kullanir. Eskiden
   // state.lastJobVideo'ya dusuyordu ve o ONCEKI ise ait olabiliyordu -
   // oynaticida B videosu acikken A transkribe edilebilirdi.
   player.localPath = (meta && meta.localPath) || player.localPath || '';
+  updatePlayerAutoSyncState();
   if (meta && meta.chapters) setChapters(meta.chapters);
   destroyHls();
   video.src = src;
@@ -3949,6 +5521,8 @@ function setPlayerSource(src, title, key, meta) {
   if (title) $('playerTitle').textContent = title;
   const metaEl = $('playerMeta');
   if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma';
+  beginWatchSession();
+  restoreWatchProfile(player.mediaKey);
 }
 
 // ---- HLS ile indirmeden izleme ----
@@ -3968,20 +5542,24 @@ function destroyHls() {
 // Eskiden bolumler probe sirasinda yukleniyor, oynatma baslayinca
 // setMediaKey -> resetMediaBoundState onlari siliyordu: kullanici bolumleri
 // goruyor, "Izle"ye basinca kayboluyorlardi.
-function setPlayerHls(manifestUrl, title, key, meta) {
+function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false) {
+  setWorkspaceMode('player');
   const video = $('playerVideo');
   if (!video) return false;
-  setMediaKey(key || manifestUrl);
+  if (typeof Hls === 'undefined' || !Hls.isSupported()) {
+    logLine('HLS oynatici yuklenemedi — indirerek izleyebilirsin.', 'error');
+    return false;
+  }
+  // Gecici YouTube manifesti yenilenirken bu HALA AYNI videodur. Medya
+  // anahtarini yeniden kurmak altyazilari, ceviriyi, zamanlama masasini ve
+  // tercihlerı siler. Yalniz ilk acilista medyaya bagli durumu sifirla.
+  if (!preserveMediaState) setMediaKey(key || manifestUrl);
   if (meta && meta.chapters) setChapters(meta.chapters);
   if (meta && meta.isLive) player.isLive = true;
   const parseStatus = $('playerParseStatus');
   const parseText = $('playerParseText');
   if (parseStatus) parseStatus.classList.remove('hidden');
   if (parseText) parseText.textContent = 'Yayın hazırlanıyor…';
-  if (typeof Hls === 'undefined' || !Hls.isSupported()) {
-    logLine('HLS oynatici yuklenemedi — indirerek izleyebilirsin.', 'error');
-    return false;
-  }
   destroyHls();
   video.removeAttribute('src');
   const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
@@ -4000,7 +5578,16 @@ function setPlayerHls(manifestUrl, title, key, meta) {
       o.textContent = t.name || t.lang || `Parça ${i + 1}`;
       sel.appendChild(o);
     });
-    sel.value = String(hls.audioTrack >= 0 ? hls.audioTrack : 0);
+    const lock = currentAudioLock();
+    const lockedIndex = lock ? tracks.findIndex((t) => audioLanguagesMatch(t.lang, lock.lang)) : -1;
+    if (lockedIndex >= 0 && $('playerAudioLock') && $('playerAudioLock').checked) {
+      hls.audioTrack = lockedIndex;
+    }
+    const activeIndex = hls.audioTrack >= 0 ? hls.audioTrack : (lockedIndex >= 0 ? lockedIndex : 0);
+    sel.value = String(activeIndex);
+    const activeTrack = tracks[activeIndex];
+    player.playbackAudioLang = normalizeAudioLang(activeTrack && activeTrack.lang);
+    updateAudioLockStatus();
     field.classList.remove('hidden');
     logLine(`${tracks.length} ses parçası bulundu (dublaj seçilebilir).`, 'info');
   };
@@ -4008,6 +5595,9 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, () => {
     const sel = $('playerStreamAudio');
     if (sel && hls.audioTrack >= 0) sel.value = String(hls.audioTrack);
+    const track = (hls.audioTracks || [])[hls.audioTrack];
+    player.playbackAudioLang = normalizeAudioLang(track && track.lang);
+    updateAudioLockStatus();
   });
 
   hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -4063,7 +5653,7 @@ function setPlayerHls(manifestUrl, title, key, meta) {
       if (info && info.sourceUrl) {
         logLine('Yayın bağlantısı koptu (adres zaman aşımına uğramış olabilir) — yenileniyor...', 'warn');
         const gen = currentGeneration();
-        const res = await window.api.probeYoutube(info.sourceUrl);
+        const res = await window.api.probeYoutube(info.sourceUrl, youtubeCookieBrowser());
         if (staleGeneration(gen)) return;               // baska videoya gecilmis
         if (res && res.ok && res.data && res.data.hls) {
           const fresh = res.data;
@@ -4071,7 +5661,7 @@ function setPlayerHls(manifestUrl, title, key, meta) {
           fresh.videoKey = info.videoKey;
           player.ytInfo = fresh;
           destroyHls();
-          if (setPlayerHls(fresh.hls, fresh.title, fresh.videoKey, fresh)) {
+          if (setPlayerHls(fresh.hls, fresh.title, fresh.videoKey, fresh, true)) {
             const resume = () => {
               video.removeEventListener('loadedmetadata', resume);
               if (at > 0) video.currentTime = at;
@@ -4093,6 +5683,10 @@ function setPlayerHls(manifestUrl, title, key, meta) {
   if (title) $('playerTitle').textContent = title;
   const metaEl = $('playerMeta');
   if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma';
+  if (!preserveMediaState) {
+    beginWatchSession();
+    restoreWatchProfile(player.mediaKey);
+  }
   return true;
 }
 
@@ -4144,7 +5738,7 @@ function addSubtitleOption(path, label) {
   });
 }
 
-async function loadSubtitle(path, secondary = false) {
+async function loadSubtitle(path, secondary = false, options = {}) {
   if (!path) {
     // Altyazi kapatilinca LISTE de temizlenmeli. Eskiden yalnizca overlay
     // siliniyordu; sagda 29 kart oldugu gibi kaliyor, tiklaninca hicbir sey
@@ -4180,8 +5774,11 @@ async function loadSubtitle(path, secondary = false) {
     return;
   }
   const selNow = secondary ? $('playerSubSelect2') : $('playerSubSelect');
-  if (selNow && selNow.value && selNow.value !== path) return;
-  const cues = parseSubtitles(res.text);
+  // Bos secim de bilincli bir secimdir ("Altyazi yok" / "Kapali"). Okuma
+  // surerken temizlendiyse gec kalan dosyayi tekrar yukleme.
+  if (selNow && selNow.value !== path) return;
+  let cues = parseSubtitles(res.text);
+  if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
   if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
   hideWordInspector();
   if (secondary) {
@@ -4208,9 +5805,13 @@ async function loadSubtitle(path, secondary = false) {
   }
   updateSubtitleChips();
   updateMakeTransState();
+  updatePlayerAutoSyncState();
   renderCue();
-  logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
-    + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
+  scheduleBrowserOverlaySync();
+  if (!options.silent) {
+    logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
+      + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
+  }
 }
 
 // Videonun yanindaki altyazilari bul, listeye ekle, ilkini otomatik yukle.
@@ -4234,10 +5835,13 @@ async function attachSiblingSubtitles(videoPath) {
 
 function openPlayer() {
   $('playerLayer').classList.remove('hidden');
+  setWorkspaceMode(player.workspaceMode, false);
   // SIRA ONEMLI: once kaynak acilir (bu, medyaya bagli durumu SIFIRLAR), sonra
   // altyazilar iliskilendirilir. Ters sirada, az once eklenen "son isin ciktilari"
   // hemen siliniyordu ve cikti baska klasordeyse hic gorunmuyordu.
   if (state.lastJobVideo) {
+    player.openIntent++;
+    player.pendingAutoOpen = null;
     $('playerVideoPath').textContent = state.lastJobVideo;
     setPlayerSource(pathToFileUrl(state.lastJobVideo),
                     state.lastJobVideo.split(/[\\/]/).pop(),
@@ -4257,9 +5861,28 @@ function openPlayer() {
 
 function closePlayer() {
   const video = $('playerVideo');
+  // Kapanirken suren klasor/probe istekleri katmani yeniden acmasin.
+  player.openIntent++;
+  player.probeRequestSeq++;
+  player.pendingAutoOpen = null;
+  player.pendingLibrarySeek = null;
+  player.pendingSubs = null;
   if (video) video.pause();
+  flushWatchState(false, true);
   destroyHls();
+  if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
   $('playerLayer').classList.add('hidden');
+}
+
+async function playPlaylistDelta(delta) {
+  const nextIndex = player.playlistIndex + delta;
+  if (nextIndex < 0 || nextIndex >= player.playlist.length) return false;
+  const files = player.playlist.slice();
+  const target = files[nextIndex];
+  await openLocalMedia(target, 0, files);
+  const video = $('playerVideo');
+  if (video) video.play().catch(() => {});
+  return true;
 }
 
 function pathToFileUrl(p) {
@@ -4521,7 +6144,19 @@ function openYoutubePanelAndProbe(rawUrl) {
   const tab = document.querySelector('.tabs .tab[data-ptab="yt"]');
   if (tab) tab.click();
   setSettingsDrawer(true);
-  $('playerProbe')?.click();
+  const requestSeq = ++player.probeRequestSeq;
+  const launch = () => {
+    if (requestSeq !== player.probeRequestSeq) return;
+    const probe = $('playerProbe');
+    if (!probe) return;
+    if (probe.disabled) {
+      setTimeout(launch, 80);
+      return;
+    }
+    if (hiddenUrl) hiddenUrl.value = url;
+    probe.click();
+  };
+  launch();
 }
 if ($('playerQuickYtLoad')) {
   $('playerQuickYtLoad').addEventListener('click', () => openYoutubePanelAndProbe($('playerQuickYtUrl')?.value));
@@ -4559,6 +6194,7 @@ if ($('cueReplayBtn')) $('cueReplayBtn').addEventListener('click', replayCue);
 if ($('cueCopyBtn')) $('cueCopyBtn').addEventListener('click', copyCue);
 if ($('cueSaveBtn')) $('cueSaveBtn').addEventListener('click', toggleCueSaved);
 if ($('savedOnlyBtn')) $('savedOnlyBtn').addEventListener('click', toggleSavedOnly);
+if ($('qualityOnlyBtn')) $('qualityOnlyBtn').addEventListener('click', toggleQualityOnly);
 if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
   const search = $('cueSearch');
   if (!search) return;
@@ -4589,51 +6225,95 @@ if ($('backToActive')) {
 // #playerSide'a konuyordu: soldaki listede satir gizleniyor ama VIDEO
 // uzerindeki altyazi olduğu gibi kaliyordu - "kaynagi kapattim, hala
 // gorunuyor" sikayeti tam olarak buydu.
-if ($('showSource')) {
-  $('showSource').addEventListener('change', (e) => {
-    $('playerLayer').classList.toggle('hide-src', !e.target.checked);
-  });
+function onSubtitleTrackToggle() {
+  const tracks = subtitleTrackState();
+  applySubtitleTrackSelection(tracks.source, tracks.translation);
+  if (tracks.source || tracks.translation) {
+    player.lastSubtitleMode = tracks.source && tracks.translation ? 'both'
+      : tracks.source ? 'source' : 'translation';
+    setSubtitlesVisible(true);
+  } else {
+    setSubtitlesVisible(false);
+  }
 }
-if ($('showTranslation')) {
-  $('showTranslation').addEventListener('change', (e) => {
-    $('playerLayer').classList.toggle('hide-tr', !e.target.checked);
-  });
+if ($('showSource')) $('showSource').addEventListener('change', onSubtitleTrackToggle);
+if ($('showTranslation')) $('showTranslation').addEventListener('change', onSubtitleTrackToggle);
+
+async function startProgressivePlayerTranscription() {
+  if (state.running || state.queueRunning) {
+    logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
+    return;
+  }
+  const opts = buildOptsFromUI();
+  const key = player.mediaKey || '';
+  if (key.startsWith('youtube:')) {
+    const url = (player.ytInfo && player.ytInfo.sourceUrl) || $('playerYtUrl').value.trim();
+    if (!url) { logLine('YouTube adresi yok — önce videoyu yükleyin.', 'error'); return; }
+    opts.youtube = url;
+    delete opts.input;
+    const lock = $('playerAudioLock') && $('playerAudioLock').checked ? currentAudioLock() : null;
+    opts.youtubeAudioLang = $('playerAudioLock') && $('playerAudioLock').checked
+      ? (player.playbackAudioLang || (lock && lock.lang) || '') : '';
+  } else {
+    const path = player.localPath || ($('playerVideoPath') ? $('playerVideoPath').textContent : '');
+    if (!path || path === 'Seçilmedi') { logLine('Önce bir video aç.', 'error'); return; }
+    opts.input = path;
+    delete opts.youtube;
+  }
+  // Oynatici icin SRT zorunlu: farkli zaman araliklari en sonda tek, atomik
+  // dosyada birlestirilir. Kullanici ana ekrandaki kalici format secimini kaybetmez.
+  opts.formats = 'srt';
+  opts.clipStart = '';
+  opts.clipEnd = '';
+  const problem = optsProblem(opts);
+  if (problem) { logLine(problem, 'error'); return; }
+
+  const video = $('playerVideo');
+  const ranges = progressiveRanges(Number(video && video.duration), Number(video && video.currentTime));
+  player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
+    ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
+    sourceFile: '', translationFile: '', awaitingExit: false };
+  state.running = true;
+  state.cancelled = false;
+  state.startTime = Date.now();
+  state.outputFiles = [];
+  $('startBtn').classList.add('hidden');
+  $('cancelBtn').classList.remove('hidden');
+  $('playerJobBar').classList.remove('hidden');
+  $('playerJobFill').style.width = '0%';
+  $('playerJobText').textContent = ranges.length > 1
+    ? 'Önce izlediğin bölüm hazırlanıyor…' : 'Altyazı hazırlanıyor…';
+  logLine(`Altyazı izleme konumundan başlatıldı · ${ranges.length} aşama`, 'info');
+  await startProgressiveChunk(player.job);
 }
 
-// "Altyazı oluştur": oynaticidaki MEVCUT kaynagi ana is akisina verir. Ayni
-// dogrulamalar, ayni kuyruk korumasi, ayni backend - yalnizca baslatma yeri ve
-// ilerleme gosterimi farkli.
+// "Altyazı oluştur": ilk olarak oynatma konumunun onundeki 10 dakikayi işler;
+// izleyici beklemeden devam ederken kalan kisimlar arkada tamamlanir.
 if ($('makeSubsBtn')) {
-  $('makeSubsBtn').addEventListener('click', () => {
-    if (state.running || state.queueRunning) {
-      logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
-      return;
-    }
-    const key = player.mediaKey || '';
-    if (key.startsWith('youtube:')) {
-      const url = (player.ytInfo && player.ytInfo.sourceUrl) || $('playerYtUrl').value.trim();
-      if (!url) { logLine('YouTube adresi yok — önce "Bilgi al" yapın.', 'error'); return; }
-      activateTab('youtube');
-      $('youtubeUrl').value = url;
-    } else {
-      const path = player.localPath
-        || ($('playerVideoPath') ? $('playerVideoPath').textContent : '');
-      if (!path || path === 'Seçilmedi') {
-        logLine('Önce bir video aç.', 'error');
-        return;
-      }
-      setInputFile(path);
-    }
-    player.job = { running: true, mediaKey: player.mediaKey };
-    const bar = $('playerJobBar');
-    if (bar) {
-      bar.classList.remove('hidden');
-      $('playerJobFill').style.width = '0%';
-      $('playerJobText').textContent = 'Başlatılıyor…';
-    }
-    $('startBtn').click();          // tum dogrulama ve is yonetimi orada
-  });
+  $('makeSubsBtn').addEventListener('click', startProgressivePlayerTranscription);
 }
+
+if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async () => {
+  if (!player.job || !state.running) return;
+  state.cancelled = true;
+  player.job.cancelled = true;
+  player.job.running = false;
+  player.job.awaitingExit = true;
+  const cancelResult = await window.api.cancelTranscribe();
+  if (!cancelResult || !cancelResult.ok) {
+    player.job.awaitingExit = false;
+    player.job.cancelled = false;
+    state.cancelled = false;
+    player.job = null;
+    logLine(`İptal isteği tamamlanamadı: ${(cancelResult && cancelResult.error) || 'çalışan süreç yok'}`, 'warn');
+  }
+  state.running = false;
+  state.forceTranslate = false;
+  $('startBtn').classList.remove('hidden');
+  $('cancelBtn').classList.add('hidden');
+  $('playerJobText').textContent = 'Altyazı işi iptal edildi.';
+  setTimeout(() => $('playerJobBar').classList.add('hidden'), 2000);
+});
 
 // "Ceviri olustur": EKRANDA YUKLU altyaziyi cevirir. Ses indirme ve Whisper
 // calismaz; zaman kodlarina dokunulmaz. Sonuc ikinci altyazi olarak yuklenir.
@@ -4646,6 +6326,51 @@ function updateMakeTransState() {
     ? 'Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur'
     : 'Önce bir altyazı yükleyin (soldaki listeden veya dosyadan)';
 }
+
+function updatePlayerAutoSyncState() {
+  const btn = $('playerAutoSync');
+  const hint = $('playerAutoSyncHint');
+  if (!btn) return;
+  const ready = !!player.localPath && !!player.subPath && player.cues.length > 0;
+  btn.disabled = !ready || state.running;
+  btn.title = ready
+    ? 'Ses ritmini analiz eder; sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir'
+    : 'Otomatik senkron için yerel video ve kaynak altyazı gerekli';
+  if (hint) hint.textContent = ready
+    ? 'Özgün dosyayı değiştirmez; .synced.srt kopyası oluşturup otomatik yükler.'
+    : 'YouTube akışında önce videoyu indir; yerel video ve altyazı hazır olunca kullanılabilir.';
+}
+
+if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () => {
+  if (state.running || state.queueRunning) { logLine('Bir iş çalışırken senkronlama yapılamaz.', 'warn'); return; }
+  if (!player.localPath || !player.subPath) { updatePlayerAutoSyncState(); return; }
+  const opts = buildOptsFromUI();
+  opts.input = player.localPath;
+  delete opts.youtube;
+  opts.syncSubs = true;
+  opts.syncSrt = player.subPath;
+  opts.syncFixFramerate = true;
+  opts.syncPiecewise = true;
+  opts.translate = false;
+  opts.llmPostprocess = false;
+  opts.diarize = false;
+  state.running = true;
+  state.cancelled = false;
+  state.startTime = Date.now();
+  player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [] };
+  $('playerJobBar').classList.remove('hidden');
+  $('playerJobFill').style.width = '0%';
+  $('playerJobText').textContent = 'Ses ritmi analiz ediliyor…';
+  updatePlayerAutoSyncState();
+  const result = await window.api.startTranscribe(opts);
+  if (!result || !result.ok) {
+    state.running = false;
+    player.job = null;
+    $('playerJobText').textContent = `Senkron başlatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`;
+    logLine($('playerJobText').textContent, 'error');
+    updatePlayerAutoSyncState();
+  }
+});
 
 if ($('makeTransBtn')) {
   $('makeTransBtn').addEventListener('click', async () => {
@@ -4668,7 +6393,8 @@ if ($('makeTransBtn')) {
     state.running = true;
     state.cancelled = false;
     state.outputFiles = [];
-    player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate' };
+    player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
+      liveSource: player.cues.slice(), liveTranslation: new Map() };
     const bar = $('playerJobBar');
     if (bar) {
       bar.classList.remove('hidden');
@@ -4739,6 +6465,92 @@ if ($('historyClear')) {
     if (!historyCache.length) return;
     await window.api.clearHistory();
     refreshHistory();
+  });
+}
+
+async function handleWatchLibraryAction(e) {
+  const button = e.target.closest('[data-watch-action]');
+  if (!button) return;
+  const item = watchItemByKey(button.dataset.key);
+  if (!item) return;
+  const action = button.dataset.watchAction;
+  if (action === 'open' || action === 'hit' || action === 'restart') {
+    openWatchLibraryItem(item, Number(button.dataset.seconds) || 0);
+    if ($('sideTabSubs')) setSideTab('subs');
+  } else if (action === 'collection') {
+    const name = window.prompt('Koleksiyon adları (virgülle ayırın)', (item.collections || []).join(', '));
+    if (name === null) return;
+    const collections = [...new Set(name.split(',').map((x) => x.trim()).filter(Boolean))];
+    await window.api.updateWatchItem({ key: item.key, collections, lastWatched: item.lastWatched });
+    refreshWatchLibrary();
+  } else if (action === 'complete') {
+    await window.api.updateWatchItem({
+      key: item.key,
+      completed: !item.completed,
+      position: item.completed ? 0 : item.duration,
+      lastWatched: Date.now(),
+    });
+    refreshWatchLibrary();
+  } else if (action === 'remove') {
+    await window.api.removeWatchItem(item.key);
+    refreshWatchLibrary();
+  }
+}
+
+refreshWatchLibrary();
+if ($('watchLibrarySearch')) {
+  $('watchLibrarySearch').addEventListener('input', (e) => {
+    clearTimeout(watchSearchTimer);
+    const seq = ++watchSearchSeq;
+    const q = e.target.value.trim();
+    const status = $('watchSearchStatus');
+    if (!q) {
+      watchLibraryResults = watchLibraryCache;
+      if (status) status.classList.add('hidden');
+      renderWatchLibrary();
+      return;
+    }
+    if (status) {
+      status.textContent = 'Başlıklar ve bilinen altyazılar aranıyor...';
+      status.classList.remove('hidden');
+    }
+    watchSearchTimer = setTimeout(async () => {
+      let results = [];
+      try { results = (await window.api.searchWatchLibrary(q)) || []; }
+      catch (_) { results = []; }
+      if (seq !== watchSearchSeq || ($('watchLibrarySearch')?.value || '').trim() !== q) return;
+      watchLibraryResults = results;
+      if (status) {
+        const hitCount = watchLibraryResults.reduce((n, x) => n + (x.matches || []).length, 0);
+        status.textContent = `${watchLibraryResults.length} video · ${hitCount} altyazı eşleşmesi`;
+      }
+      renderWatchLibrary();
+    }, 280);
+  });
+}
+if ($('watchCollectionFilter')) $('watchCollectionFilter').addEventListener('change', renderWatchLibrary);
+if ($('watchLibraryCard')) $('watchLibraryCard').addEventListener('click', handleWatchLibraryAction);
+if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', handleWatchLibraryAction);
+if ($('playerLibraryFilter')) $('playerLibraryFilter').addEventListener('change', renderPlayerLibrary);
+if ($('playerLibrarySearch')) {
+  $('playerLibrarySearch').addEventListener('input', (e) => {
+    clearTimeout(playerLibrarySearchTimer);
+    const seq = ++player.playerLibrarySearchSeq;
+    const q = e.target.value.trim();
+    if (!q) {
+      playerLibraryResults = watchLibraryCache;
+      renderPlayerLibrary();
+      return;
+    }
+    $('playerLibraryStatus').textContent = 'Başlıklar ve altyazılar aranıyor...';
+    playerLibrarySearchTimer = setTimeout(async () => {
+      let results = [];
+      try { results = (await window.api.searchWatchLibrary(q)) || []; }
+      catch (_) { results = []; }
+      if (seq !== player.playerLibrarySearchSeq || ($('playerLibrarySearch')?.value || '').trim() !== q) return;
+      playerLibraryResults = results;
+      renderPlayerLibrary();
+    }, 280);
   });
 }
 
@@ -4836,7 +6648,19 @@ if ($('playerVideo')) {
       updateSeekVisuals();
     }
     // Konumu 5 saniyede bir kaydet (her timeupdate'te yazmak ayar dosyasını yorar)
-    if (Date.now() - _posTick > 5000) { _posTick = Date.now(); savePlayerPosition(); }
+    const now = Date.now();
+    if (!video.paused && player.watchSession) {
+      const last = player.watchSession.lastClock || now;
+      const elapsed = (now - last) / 1000;
+      if (elapsed > 0 && elapsed < 10) player.watchSession.watchSeconds += elapsed;
+      player.watchSession.lastClock = now;
+      player.watchSession.endPosition = video.currentTime || 0;
+    }
+    if (now - _posTick > 5000) { _posTick = now; savePlayerPosition(); }
+    if (now - player.watchSaveTick > 10000) {
+      player.watchSaveTick = now;
+      flushWatchState(false, false);
+    }
   });
   video.addEventListener('progress', updateSeekVisuals);
   // A-B dongusu: B'ye gelince A'ya don
@@ -4861,15 +6685,33 @@ if ($('playerVideo')) {
     $('playerTime').textContent = `0:00 / ${pSecToTime(video.duration)}`;
     updateSeekVisuals();
     maybeOfferResume();
+    const pendingSeek = player.pendingLibrarySeek;
+    if (pendingSeek && pendingSeek.key === player.mediaKey
+        && pendingSeek.generation === currentGeneration()) {
+      const seekTo = Math.max(0, Math.min(video.duration || 0, Number(pendingSeek.seconds) || 0));
+      player.pendingLibrarySeek = null;
+      if (seekTo > 0) video.currentTime = seekTo;
+    }
     // Bölümler probe'dan gelmişti ama süre o an bilinmiyordu — şimdi çizilebilir
     const q = $('cueSearch') ? $('cueSearch').value.trim() : '';
     if (!q) renderSeekMarkers(defaultMarkers());
   });
-  video.addEventListener('play', () => { showControls(); if (player.ambientOn) startAmbient(); });
+  video.addEventListener('play', () => {
+    showControls();
+    if (player.ambientOn) startAmbient();
+    if (!player.watchSession) beginWatchSession();
+    if (player.watchSession) player.watchSession.lastClock = Date.now();
+  });
   video.addEventListener('pause', () => {
     clearTimeout(player.idleTimer);
     $('playerStage').classList.remove('idle');
     savePlayerPosition();
+    if (player.watchSession) player.watchSession.lastClock = 0;
+    flushWatchState(false, true);
+  });
+  video.addEventListener('ended', async () => {
+    await flushWatchState(true, true);
+    if (player.autoNext) await playPlaylistDelta(1);
   });
   video.addEventListener('error', () => {
     logLine('Video açılamadı (format desteklenmiyor olabilir).', 'error');
@@ -4896,13 +6738,26 @@ if ($('playerVideo')) {
     });
   }
 
-  // Altyazıyı gizle/göster (orijinali kendin anlamaya çalışırken)
+  // CC: kaynak, ceviri veya kapali secimi. V kisayolu menuyu acmaz; son secilen
+  // altyazi turunu hizlica gizleyip geri getirir.
   if ($('subToggle')) {
-    $('subToggle').addEventListener('click', () => {
-      setSubtitlesVisible(player.subsHidden);      // tersine cevir
-      logLine(player.subsHidden ? 'Altyazı gizlendi (V ile geri aç)' : 'Altyazı gösteriliyor', 'info');
+    $('subToggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = $('subtitleModeMenu');
+      setSubtitleModeMenuOpen(!!menu && menu.classList.contains('hidden'));
     });
   }
+  if ($('subtitleModeMenu')) {
+    $('subtitleModeMenu').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = e.target.closest('[data-subtitle-mode]');
+      if (item) setSubtitleMode(item.dataset.subtitleMode);
+    });
+  }
+  document.addEventListener('click', (e) => {
+    const wrap = $('subtitleModeWrap');
+    if (wrap && !wrap.contains(e.target)) setSubtitleModeMenuOpen(false);
+  });
 
   // Sahnede fare hareketi -> kontroller görünür, 2.5 sn sonra kaybolur
   const stage = $('playerStage');
@@ -4984,7 +6839,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; showControls(); osd('+10 sn'); return; }
   if (e.key === 'm' || e.key === 'M') { e.preventDefault(); video.muted = !video.muted; showControls();
     osd(video.muted ? 'Ses kapalı' : 'Ses açık'); return; }
-  if (e.key === 'v' || e.key === 'V') { e.preventDefault(); $('subToggle').click(); return; }
+  if (e.key === 'v' || e.key === 'V') {
+    e.preventDefault();
+    setSubtitleModeMenuOpen(false);
+    setSubtitlesVisible(player.subsHidden);       // tersine cevir
+    const text = player.subsHidden ? 'Altyazılar kapatıldı' : 'Altyazılar gösteriliyor';
+    osd(text);
+    logLine(text, 'info');
+    return;
+  }
   // Altyazi gecikmesini izlerken ayarla — G geri, H ileri (0.1 sn adim)
   if (e.key === 'g' || e.key === 'G') { e.preventDefault(); nudgeOffset(-0.1); return; }
   if (e.key === 'h' || e.key === 'H') { e.preventDefault(); nudgeOffset(0.1); return; }
@@ -4999,6 +6862,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
   else if (e.key === 'Escape') {
+    const subMenu = $('subtitleModeMenu');
+    if (subMenu && !subMenu.classList.contains('hidden')) { setSubtitleModeMenuOpen(false); return; }
     if (player.selectedWord) { hideWordInspector(); return; }
     const help = $('shortcutHelp');
     if (help && !help.classList.contains('hidden')) { help.classList.add('hidden'); return; }
@@ -5065,10 +6930,25 @@ if ($('playerPickVideo')) {
     const files = await window.api.selectVideo();
     if (!files || !files.length) return;
     const f = files[0];
-    $('playerVideoPath').textContent = f;
-    setPlayerSource(pathToFileUrl(f), f.split(/[\\/]/).pop(), mediaKeyFor('local', f),
-                    { localPath: f });
-    attachSiblingSubtitles(f);
+    openLocalMedia(f, 0, files);
+  });
+}
+
+if ($('playerPickFolder')) {
+  $('playerPickFolder').addEventListener('click', async () => {
+    const files = await window.api.selectFolders();
+    if (!files || !files.length) return;
+    openLocalMedia(files[0], 0, files);
+  });
+}
+
+if ($('playerPrevMedia')) $('playerPrevMedia').addEventListener('click', () => playPlaylistDelta(-1));
+if ($('playerNextMedia')) $('playerNextMedia').addEventListener('click', () => playPlaylistDelta(1));
+if ($('playerAutoNext')) {
+  player.autoNext = $('playerAutoNext').checked;
+  $('playerAutoNext').addEventListener('change', (e) => {
+    player.autoNext = e.target.checked;
+    scheduleSave();
   });
 }
 
@@ -5130,6 +7010,9 @@ async function saveCueEdit() {
   // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
   // WEBVTT basligini kaybediyordu.
   const cue = player.cues[i];
+  const targetPath = player.subPath;
+  const targetKey = player.mediaKey;
+  const targetGen = currentGeneration();
   let payload;
   if (player.subFormat === 'ass') {
     payload = replaceAssDialogueText(player.subRaw, cue.line, text, cue.assLead);
@@ -5152,12 +7035,19 @@ async function saveCueEdit() {
     payload = cuesToSrt(draft);
   }
 
-  const res = await window.api.writeSubtitle(player.subPath, payload);
+  let res;
+  try { res = await window.api.writeSubtitle(targetPath, payload); }
+  catch (err) { res = { ok: false, error: err && err.message }; }
   if (!res || !res.ok) {
     logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
-  player.cues[i].text = text;                 // ANCAK yazma basarili olduysa
+  if (staleGeneration(targetGen) || player.mediaKey !== targetKey
+      || player.subPath !== targetPath || player.cues[i] !== cue) {
+    logLine('Düzenleme önceki altyazı dosyasına kaydedildi; mevcut videoya uygulanmadı.', 'warn');
+    return;
+  }
+  cue.text = text;                            // ANCAK yazma basarili olduysa
   if (player.subFormat !== 'srt') player.subRaw = payload;
   logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
@@ -5219,9 +7109,41 @@ if ($('subOffset')) {
 }
 
 // ---- YouTube ----
+function youtubeCookieBrowser() {
+  return ($('playerCookieBrowser') && $('playerCookieBrowser').value)
+    || ($('youtubeCookieBrowser') && $('youtubeCookieBrowser').value)
+    || '';
+}
+
+function friendlyYoutubeError(raw) {
+  const message = String(raw || '');
+  if (/confirm you(?:'|’)re not a bot|use --cookies/i.test(message)) {
+    return 'YouTube bu video için oturum doğrulaması istedi. YouTube oturumu alanından giriş yaptığın tarayıcıyı seçip yeniden dene.';
+  }
+  if (/could not copy.*cookie|cookie database/i.test(message)) {
+    return 'Tarayıcı oturumu okunamadı. Tarayıcıyı tamamen kapatıp yeniden dene veya Firefox seç.';
+  }
+  return message || 'bilinmeyen hata';
+}
+
+// Ana ekrandaki ve oynatıcıdaki seçim aynı ayardır. Cookie içeriği okunmaz;
+// yalnızca yt-dlp'ye hangi tarayıcı profilini kullanacağı söylenir.
+if ($('youtubeCookieBrowser') && $('playerCookieBrowser')) {
+  const syncCookieBrowser = (from, to) => {
+    to.value = from.value;
+    scheduleSave();
+  };
+  $('youtubeCookieBrowser').addEventListener('change', (e) => syncCookieBrowser(e.target, $('playerCookieBrowser')));
+  $('playerCookieBrowser').addEventListener('change', (e) => syncCookieBrowser(e.target, $('youtubeCookieBrowser')));
+  setTimeout(() => { $('playerCookieBrowser').value = $('youtubeCookieBrowser').value; }, 0);
+}
+
 if ($('playerProbe')) {
   $('playerProbe').addEventListener('click', async () => {
     const url = $('playerYtUrl').value.trim();
+    player.probeRequestSeq++;
+    const probeSeq = ++player.probeSeq;
+    const probeGen = currentGeneration();
     if (!url) { logLine('YouTube linki boş.', 'error'); return; }
     $('playerProbe').disabled = true;
     $('playerProbe').textContent = 'Bilgi alınıyor...';
@@ -5229,12 +7151,24 @@ if ($('playerProbe')) {
     const parseText = $('playerParseText');
     if (parseStatus) parseStatus.classList.remove('hidden');
     if (parseText) parseText.textContent = 'Video bilgisi alınıyor…';
-    const res = await window.api.probeYoutube(url);
+    let res;
+    try {
+      res = await window.api.probeYoutube(url, youtubeCookieBrowser());
+    } catch (err) {
+      res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+    }
     $('playerProbe').disabled = false;
     $('playerProbe').textContent = 'Bilgi al';
     if (parseStatus) parseStatus.classList.add('hidden');
+    if (probeSeq !== player.probeSeq || staleGeneration(probeGen)
+        || ($('playerYtUrl')?.value || '').trim() !== url) {
+      logLine('YouTube bilgisi güncelliğini yitirdi; eski probe sonucu uygulanmadı.', 'warn');
+      return;
+    }
     if (!res || !res.ok) {
-      logLine(`Video bilgisi alınamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+      const message = friendlyYoutubeError((res && res.error) || 'bilinmeyen hata');
+      logLine(`Video bilgisi alınamadı: ${message}`, 'error');
+      if (/oturum|tarayıcı/i.test(message)) toggleDrawerAt(null, '#playerCookieBrowser');
       return;
     }
     const info = res.data;
@@ -5244,6 +7178,7 @@ if ($('playerProbe')) {
     info.sourceUrl = url;
     info.videoKey = mediaKeyFor('youtube', url);
     player.ytInfo = info;
+    player.originalUrl = url;
     $('playerYtInfo').classList.remove('hidden');
     $('playerYtTitle').textContent = `${info.title} · ${pSecToTime(info.duration)}`;
 
@@ -5273,9 +7208,16 @@ if ($('playerProbe')) {
         o.textContent = `${l.code}${l.label && l.label !== l.code ? ' · ' + l.label : ''}`;
         asel.appendChild(o);
       });
+      const saved = currentAudioLock(info.videoKey);
+      const preferred = saved && langs.some((l) => audioLanguagesMatch(l.code, saved.lang))
+        ? saved.lang : (info.originalLanguage || langs[0].code);
+      const option = langs.find((l) => audioLanguagesMatch(l.code, preferred)) || langs[0];
+      asel.value = option.code;
+      rememberAudioLock(option.code, option.label || option.code, info.videoKey);
       af.classList.remove('hidden');
     } else {
       af.classList.add('hidden');
+      if (langs.length === 1) rememberAudioLock(langs[0].code, langs[0].label || langs[0].code, info.videoKey);
     }
 
     // Bölümler (varsa) — zaman çubuğuna işaret, panele liste
@@ -5326,6 +7268,13 @@ if ($('playerProbe')) {
       streamBtn.classList.add('hidden');
       logLine('Bu videoda doğrudan izlenebilir akış yok — indirerek izleyebilirsin.', 'warn');
     }
+    const pendingOpen = player.pendingAutoOpen;
+    if (pendingOpen && pendingOpen.key === info.videoKey
+        && pendingOpen.intent === player.openIntent
+        && !streamBtn.classList.contains('hidden')) {
+      player.pendingAutoOpen = null;
+      streamBtn.click();
+    }
   });
 }
 
@@ -5340,9 +7289,28 @@ if ($('playerStream')) {
       return;
     }
     const ytKey = info.videoKey;
-    if (info.hls && setPlayerHls(info.hls, info.title, ytKey, info)) return;
+    player.openIntent++;
+    if (info.hls && setPlayerHls(info.hls, info.title, ytKey, info)) {
+      if (player.pendingLibrarySeek && player.pendingLibrarySeek.key === player.mediaKey) {
+        player.pendingLibrarySeek.generation = currentGeneration();
+      }
+      return;
+    }
     if (info.stream && info.stream.url) {
       setPlayerSource(info.stream.url, info.title, ytKey, info);
+      // Progressive URL tek bir gomulu ses tasir; secici sonradan o sesi
+      // degistiremez. Whisper kilidini gercekte oynayan dile bagla.
+      player.playbackAudioLang = normalizeAudioLang(info.stream.audioLang || info.originalLanguage);
+      const actualOption = $('playerAudioLang') && [...$('playerAudioLang').options].find((o) =>
+        audioLanguagesMatch(o.value, player.playbackAudioLang));
+      if (actualOption && $('playerAudioLock') && $('playerAudioLock').checked) {
+        $('playerAudioLang').value = actualOption.value;
+        rememberAudioLock(actualOption.value, actualOption.textContent, ytKey);
+      }
+      updateAudioLockStatus();
+      if (player.pendingLibrarySeek && player.pendingLibrarySeek.key === player.mediaKey) {
+        player.pendingLibrarySeek.generation = currentGeneration();
+      }
       logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
     }
   });
@@ -5358,9 +7326,54 @@ if ($('playerStreamAudio')) {
     if (isNaN(i)) return;
     const t = (player.hls.audioTracks || [])[i];
     player.hls.audioTrack = i;
+    player.playbackAudioLang = normalizeAudioLang(t && t.lang);
+    updateAudioLockStatus();
+    if ($('playerAudioLock') && $('playerAudioLock').checked && t && t.lang) {
+      rememberAudioLock(t.lang, t.name || t.lang);
+      const asel = $('playerAudioLang');
+      const matching = asel && [...asel.options].find((o) =>
+        audioLanguagesMatch(o.value, t.lang));
+      if (matching) asel.value = matching.value;
+    }
     osd(`Ses: ${(t && (t.name || t.lang)) || 'parça ' + (i + 1)}`);
     logLine(`Ses parçası: ${(t && (t.name || t.lang)) || i}`, 'info');
   });
+}
+
+if ($('playerAudioLang')) {
+  $('playerAudioLang').addEventListener('change', (e) => {
+    const option = e.target.selectedOptions[0];
+    const key = player.ytInfo && player.ytInfo.videoKey ? player.ytInfo.videoKey : player.mediaKey;
+    rememberAudioLock(e.target.value, option ? option.textContent : e.target.value, key);
+    if (player.hls && $('playerAudioLock') && $('playerAudioLock').checked) {
+      const idx = (player.hls.audioTracks || []).findIndex((t) =>
+        audioLanguagesMatch(t.lang, e.target.value));
+      if (idx >= 0) {
+        player.hls.audioTrack = idx;
+        player.playbackAudioLang = normalizeAudioLang(player.hls.audioTracks[idx].lang);
+        updateAudioLockStatus();
+      }
+    }
+  });
+}
+
+if ($('playerAudioLock')) {
+  $('playerAudioLock').addEventListener('change', () => {
+    if ($('playerAudioLock').checked && $('playerAudioLang') && $('playerAudioLang').value) {
+      const option = $('playerAudioLang').selectedOptions[0];
+      rememberAudioLock($('playerAudioLang').value, option ? option.textContent : '');
+      if (player.hls) {
+        const idx = (player.hls.audioTracks || []).findIndex((t) =>
+          audioLanguagesMatch(t.lang, $('playerAudioLang').value));
+        if (idx >= 0) {
+          player.hls.audioTrack = idx;
+          player.playbackAudioLang = normalizeAudioLang(player.hls.audioTracks[idx].lang);
+        }
+      }
+    }
+    updateAudioLockStatus();
+  });
+  updateAudioLockStatus();
 }
 
 if ($('playerQuality')) {
@@ -5395,6 +7408,9 @@ if ($('playerDownload')) {
     const height = parseInt($('playerQuality').value, 10) || 1080;
     const audioLang = $('playerAudioField').classList.contains('hidden')
       ? '' : $('playerAudioLang').value;
+    const intent = ++player.openIntent;
+    player.downloadIntent = intent;
+    player.pendingAutoOpen = null;
     player.downloading = true;
     $('playerDownload').disabled = true;
     $('playerCancelDl').classList.remove('hidden');
@@ -5402,16 +7418,29 @@ if ($('playerDownload')) {
     $('playerDlFill').style.width = '0%';
     $('playerDlText').textContent = '0%';
 
-    const res = await window.api.downloadYoutube({
-      url, height, audioLang,
-      outputDir: state.outputDir || undefined,
-    });
+    let res;
+    try {
+      res = await window.api.downloadYoutube({
+        url, height, audioLang,
+        cookieBrowser: youtubeCookieBrowser(),
+        outputDir: state.outputDir || undefined,
+      });
+    } catch (err) {
+      res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+    }
 
     player.downloading = false;
     $('playerDownload').disabled = false;
     $('playerCancelDl').classList.add('hidden');
+    $('playerDlProgress').classList.add('hidden');
     if (!res || !res.ok) {
       logLine(`İndirme başarısız: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    // Indirme surerken kullanici baska bir video actiysa biten eski indirme
+    // yeni kaynagi zorla ezmesin. Dosya diskte kalir ve gecmisten acilabilir.
+    if (intent !== player.openIntent) {
+      logLine('İndirme tamamlandı; bu sırada başka video açıldığı için oynatıcı değiştirilmedi.', 'info');
       return;
     }
     const p = res.data.path;
@@ -5443,16 +7472,24 @@ if ($('playerYtSubGet')) {
     const val = $('playerYtSubLang').value || 'en|0';
     if (!url) return;
     const [lang, auto] = val.split('|');
+    const requestKey = mediaKeyFor('youtube', url);
     const btn = $('playerYtSubGet');
     btn.disabled = true;
     btn.textContent = 'İndiriliyor...';
     const gen = currentGeneration();
-    const res = await window.api.downloadYoutubeSubs({
-      url, lang, auto: auto === '1', outputDir: state.outputDir || undefined,
-    });
+    let res;
+    try {
+      res = await window.api.downloadYoutubeSubs({
+        url, lang, auto: auto === '1', cookieBrowser: youtubeCookieBrowser(),
+        outputDir: state.outputDir || undefined,
+      });
+    } catch (err) {
+      res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+    }
     btn.disabled = false;
     btn.textContent = 'Bu altyazıyı indir';
-    if (staleGeneration(gen)) {
+    if (staleGeneration(gen) || mediaKeyFor('youtube', ($('playerYtUrl')?.value || '').trim()) !== requestKey
+        || !player.ytInfo || player.ytInfo.videoKey !== requestKey) {
       logLine('Altyazı indi ama bu arada başka videoya geçildi — yüklenmedi.', 'warn');
       return;
     }
@@ -5478,19 +7515,31 @@ if ($('playerYtSubGet')) {
 if ($('applyOffsetToFile')) {
   $('applyOffsetToFile').addEventListener('click', async () => {
     if (!player.subPath) { logLine('Önce bir altyazı dosyası yükle.', 'warn'); return; }
+    const targetPath = player.subPath;
+    const targetKey = player.mediaKey;
+    const targetGen = currentGeneration();
     const off = player.offset;
     if (!off) { logLine('Gecikme sıfır — işlenecek bir şey yok.', 'warn'); return; }
-    const res = await window.api.shiftSubs(player.subPath, off);
+    let res;
+    try {
+      res = await window.api.shiftSubs(targetPath, off);
+    } catch (err) {
+      res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+    }
     if (!res || !res.ok) {
       logLine(`Gecikme işlenemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
       return;
     }
+    if (staleGeneration(targetGen) || player.mediaKey !== targetKey || player.subPath !== targetPath) {
+      logLine('Gecikme eski altyazı dosyasına işlendi; bu sırada başka videoya geçildi.', 'warn');
+      return;
+    }
     logLine(`${off > 0 ? '+' : ''}${off.toFixed(1)} sn dosyaya işlendi: `
-      + `${player.subPath.split(/[\\/]/).pop()}`, 'success');
+      + `${targetPath.split(/[\\/]/).pop()}`, 'success');
     // Dosya artık kaymış durumda; ekrandaki gecikmeyi sıfırla ve yeniden yükle
     $('subOffset').value = '0';
     $('subOffset').dispatchEvent(new Event('input'));
-    await loadSubtitle(player.subPath);
+    await loadSubtitle(targetPath);
   });
 }
 
@@ -5504,7 +7553,8 @@ if ($('playerCancelDl')) {
 if (window.api.onMediaEvent) {
   window.api.onMediaEvent((ev) => {
     if (!ev) return;
-    if (ev.type === 'download_progress') {
+    if (ev.type === 'download_progress' && player.downloading
+        && player.downloadIntent === player.openIntent) {
       const pct = Math.min(100, ev.percent || 0);
       $('playerDlFill').style.width = `${pct}%`;
       $('playerDlText').textContent = `${pct.toFixed(0)}%`;

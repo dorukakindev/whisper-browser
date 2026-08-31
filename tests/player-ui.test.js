@@ -54,6 +54,32 @@ test('oynatıcıdaki her düğmenin renderer.js\'te karşılığı var', () => {
   assert(dead.length === 0, `renderer.js'te hic gecmeyen dugme: ${dead.join(', ')}`);
 });
 
+test('yerel oynatma sırası önceki/sonraki düğmelerine ve ended olayına bağlı', () => {
+  assert(/playerPrevMedia['"]\)\.addEventListener\('click'/.test(js), 'önceki video düğmesi bağlı değil');
+  assert(/playerNextMedia['"]\)\.addEventListener\('click'/.test(js), 'sonraki video düğmesi bağlı değil');
+  const ended = js.indexOf("video.addEventListener('ended'");
+  assert(ended > 0, 'video ended dinleyicisi yok');
+  const body = js.slice(ended, ended + 300);
+  assert(/player\.autoNext/.test(body) && /playPlaylistDelta\(1\)/.test(body), 'otomatik sonraki video çağrısı yok');
+});
+
+test('izleme kütüphanesi gerçek kalıcı IPC yöntemlerini kullanıyor', () => {
+  for (const name of ['listWatchLibrary', 'updateWatchItem', 'removeWatchItem', 'searchWatchLibrary']) {
+    assert(js.includes(`window.api.${name}`), `${name} renderer tarafından kullanılmıyor`);
+  }
+  assert(html.includes('id="watchLibrarySearch"'), 'kütüphane arama alanı yok');
+  assert(html.includes('id="watchCollectionFilter"'), 'koleksiyon filtresi yok');
+});
+
+test('izleme kütüphanesi oynatıcı sağ panelinde erişilebilir ve boşken gizlenmiyor', () => {
+  assert(html.includes('id="sideTabLibrary"') && html.includes('data-stab="library"'), 'oynatıcı kütüphane sekmesi yok');
+  assert(html.includes('id="playerLibraryPanel"'), 'oynatıcı kütüphane paneli yok');
+  const render = js.slice(js.indexOf('function renderWatchLibrary'), js.indexOf('function renderPlayerLibrary'));
+  assert(/card\.classList\.remove\('hidden'\)/.test(render), 'ana kütüphane boşken hâlâ gizleniyor');
+  const tabs = js.slice(js.indexOf('function setSideTab'), js.indexOf('// ---- bağlamlı AI'));
+  assert(/tab === 'library'/.test(tabs) && /playerLibraryPanel/.test(tabs), 'kütüphane sekmesi panele bağlı değil');
+});
+
 // ---- 2. üst düğmeler anahtar ----
 for (const id of ['playerHeadSettings', 'playerLayoutQuick', 'playerQuickDownload']) {
   test(`${id} paneli açıp KAPATABİLİYOR (sabit true değil)`, () => {
@@ -197,15 +223,46 @@ test('onay kutuları temaya boyanmış (tarayıcı mavisi değil)', () => {
 test('Kaynak/Çeviri anahtarları VİDEO üzerindeki altyazıyı da etkiliyor', () => {
   // Eskiden sinif yalnizca #playerSide'a konuyordu: listede satir gizleniyor,
   // video uzerindeki katman oldugu gibi kaliyordu.
-  const i = js.indexOf("$('showSource').addEventListener");
-  assert(i > 0, 'showSource dinleyicisi yok');
-  const body = js.slice(i, i + 260);
-  assert(/playerLayer'\)\.classList\.toggle\('hide-src'/.test(body),
-    "sinif katmana konmuyor — video uzerindeki altyazi anahtardan etkilenmez");
+  assert(/showSource'\)\.addEventListener\('change',\s*onSubtitleTrackToggle\)/.test(js),
+    'showSource ortak gorunurluk yoneticisine bagli degil');
+  assert(/showTranslation'\)\.addEventListener\('change',\s*onSubtitleTrackToggle\)/.test(js),
+    'showTranslation ortak gorunurluk yoneticisine bagli degil');
+  const i = js.indexOf('function applySubtitleTrackSelection');
+  const body = js.slice(i, i + 650);
+  assert(/classList\.toggle\('hide-src',\s*!source\)/.test(body),
+    "kaynak sinifi playerLayer'a uygulanmiyor");
+  assert(/classList\.toggle\('hide-tr',\s*!translation\)/.test(body),
+    "ceviri sinifi playerLayer'a uygulanmiyor");
   assert(/\.player-layer\.hide-src #subtitleOverlay\s*\{[^}]*display:\s*none/.test(css),
     'katmani gizleyen CSS kurali yok');
   assert(/\.player-layer\.hide-tr #subtitleOverlay2\s*\{[^}]*display:\s*none/.test(css),
     'ikinci altyazi katmanini gizleyen kural yok');
+});
+
+test('CC düğmesi istenen üç altyazı seçeneğini açıyor', () => {
+  for (const mode of ['translation', 'source', 'off']) {
+    assert(new RegExp(`data-subtitle-mode=["']${mode}["']`).test(html), `${mode} CC secenegi yok`);
+  }
+  assert((html.match(/data-subtitle-mode=/g) || []).length === 3,
+    'CC menusunde istenmeyen veya eksik secenek var');
+  const click = js.slice(js.indexOf("$('subToggle').addEventListener('click'"),
+    js.indexOf("$('subtitleModeMenu').addEventListener('click'"));
+  assert(/setSubtitleModeMenuOpen/.test(click), 'CC dugmesi menuyu acmiyor');
+  assert(/setSubtitleMode\(item\.dataset\.subtitleMode\)/.test(js),
+    'menu secimi gorunurluk durumuna bagli degil');
+  assert(/bottom:\s*calc\(100% \+ 10px\)/.test(css), 'CC menusu kontrol cubugunun ustune acilmiyor');
+});
+
+test('CC seçimi sağ panel anahtarlarıyla aynı durumu kullanıyor', () => {
+  const i = js.indexOf('function setSubtitleMode(');
+  const body = js.slice(i, i + 750);
+  assert(/applySubtitleTrackSelection\(mode === 'source',\s*mode === 'translation'\)/.test(body),
+    'CC secimi Kaynak/Ceviri anahtarlarini guncellemiyor');
+  assert(/setSubtitlesVisible\(false\)/.test(body), 'altyazilari kapat secenegi iki katmani kapatmiyor');
+  const key = js.slice(js.indexOf("if (e.key === 'v' || e.key === 'V')"),
+    js.indexOf('// Altyazi gecikmesini', js.indexOf("if (e.key === 'v' || e.key === 'V')")));
+  assert(/setSubtitlesVisible\(player\.subsHidden\)/.test(key), 'V kisayolu altyaziyi acip kapatmiyor');
+  assert(!/subToggle'\)\.click/.test(key), 'V kisayolu yanlislikla CC menusunu aciyor');
 });
 
 // ---- 9. ayarlar paneli zorla açmıyor ----
@@ -275,17 +332,13 @@ test('araç bloğu gizlenip açılabiliyor', () => {
 });
 
 // ---- 13. işletim sistemi başlık çubuğu ----
-test('OS başlık çubuğu gizli ama pencere kullanılabilir', () => {
+test('OS başlık çubuğu oynatıcı içeriğinden ayrı tutulur', () => {
   const main = fs.readFileSync(path.join(SRC, '..', 'main.js'), 'utf-8');
-  assert(/titleBarStyle:\s*'hidden'/.test(main), 'baslik cubugu gizlenmemis');
-  // Overlay SART: yoksa kucult/buyut/kapat dugmeleri kaybolur.
-  assert(/titleBarOverlay:\s*\{/.test(main), 'pencere dugmeleri overlay yok — pencere kapatilamaz');
-  // Pencere sürüklenebilir kalmali
-  assert(/-webkit-app-region:\s*drag/.test(css), 'surukleme bolgesi yok — pencere tasinamaz');
-  assert(/-webkit-app-region:\s*no-drag/.test(css), 'dugmeler surukleme bolgesinden ayrilmamis');
-  // Icerik pencere dugmelerinin altina girmemeli
-  assert(/env\(titlebar-area-width/.test(css),
-    'baslik alani genisligi hesaba katilmamis — ust sagdaki dugmeler ortulur');
+  // Sistem düğmeleri ayrı native başlıkta kalır; içerik yüzeyine overlay çizilmez.
+  assert(!/titleBarStyle:\s*'hidden'/.test(main), 'eski gizli başlık düzeni geri geldi');
+  assert(!/titleBarOverlay:\s*\{/.test(main), 'pencere düğmeleri içerik üzerine overlay ediliyor');
+  assert(!/windowControlsOverlay|--wco-w|env\(titlebar-area-width/.test(`${main}\n${css}\n${js}`),
+    'overlay için eski içerik boşluğu kodu kaldı');
 });
 
 // ---- 14. izlerken canlı cümle birleştirme ----
@@ -353,6 +406,22 @@ test('anahtarlar GRUP olarak sarıyor (dar panelde dağılmasın)', () => {
     'ayirac ogesi geri gelmis — sarma sirasinda tek basina satira duser');
 });
 
+test('dar yan panel araçları kendi genişliğine göre düzenli satırlara dönüşüyor', () => {
+  assert(/\.player-side\s*\{[^}]*container-type:\s*inline-size/.test(css),
+    'yan panel container degil — pencere genis ama panel daralinca duzen degismez');
+  const i = css.indexOf('@container player-sidebar (max-width: 500px)');
+  assert(i > 0, 'dar panel icin container sorgusu yok');
+  const body = css.slice(i, i + 1800);
+  assert(/\.tool-row-nav\s*\{[^}]*display:\s*grid/.test(body),
+    'gezinme ve anahtarlar dar panelde grid olmuyor');
+  assert(/\.tool-seg\s*\{[^}]*width:\s*100%/.test(body),
+    'gezinme segmenti dar panelde tam genislik degil');
+  assert(/\.tool-row-nav \.toggle-group\s*\{[^}]*repeat\(2/.test(body),
+    'anahtar ciftleri dengeli iki sutuna ayrilmiyor');
+  assert(/\.tool-row-quiet\s*\{[^}]*repeat\(2/.test(body),
+    'metin eylemleri dar panelde iki sutunlu degil');
+});
+
 test('"Aktif satır" düğmesi araç şeridinin en bağıran öğesi değil', () => {
   const i = layer.indexOf('id="backToActive"');
   const tag = layer.slice(Math.max(0, i - 200), i + 120);
@@ -375,6 +444,201 @@ test('ses çubuğu dolgusu JS tarafından güncelleniyor', () => {
   const i = js.indexOf("$('playerVolume').addEventListener('input'");
   assert(i > 0, 'ses girdisi dinleyicisi yok');
   assert(/syncVolumeFill\(\)/.test(js.slice(i, i + 240)), 'suruklerken dolgu guncellenmiyor');
+});
+
+test('ortam ışığı video tarafından opak siyahla örtülmüyor', () => {
+  const blocks = [...css.matchAll(/\.player-stage video\s*\{([^}]*)\}/g)].map((m) => m[1]);
+  assert(blocks.length > 0, 'player-stage video CSS kuralı yok');
+  const opaque = blocks.some((body) => /background\s*:\s*(?:#000(?:000)?|black)\b/i.test(body));
+  assert(!opaque, 'video elemanı siyah arka planla ambient canvasını örtüyor');
+  assert(/\.player-stage\.ambient-on \.ambient-glow\s*\{[^}]*opacity\s*:\s*(?!0(?:\D|$))/s.test(css), 'ambient açık durumda görünür değil');
+  const ambient = js.slice(js.indexOf('function startAmbient'), js.indexOf('// ---- sağda basılı'));
+  assert(/drawImage\(v/.test(ambient) && /setInterval\(paint,\s*250\)/.test(ambient), 'video kareleri ambient canvasa güncellenmiyor');
+});
+
+test('YouTube bot doğrulaması için açık rızalı tarayıcı oturumu seçimi var', () => {
+  assert(html.includes('id="youtubeCookieBrowser"'), 'ana YouTube kaynağında oturum seçimi yok');
+  assert(html.includes('id="playerCookieBrowser"'), 'oynatıcı YouTube ayarında oturum seçimi yok');
+  assert(/youtubeCookieBrowser:\s*\$\('youtubeCookieBrowser'\)/.test(js), 'seçim transkripsiyon seçeneklerine gitmiyor');
+  assert(/probeYoutube\(url, youtubeCookieBrowser\(\)\)/.test(js), 'seçim oynatıcı probe çağrısına gitmiyor');
+  assert(/cookieBrowser:\s*youtubeCookieBrowser\(\)/.test(js), 'seçim indirme/altyazı çağrısına gitmiyor');
+  assert(/confirm you.*not a bot[\s\S]{0,300}oturum doğrulaması/i.test(js), 'ham bot hatası Türkçe yönlendirmeye çevrilmiyor');
+});
+
+test('canli Whisper ve ceviri olaylari oynatici altyazilarini guncelliyor', () => {
+  assert(/event\.type === 'segment'/.test(js) && /event\.type === 'preview_refresh'/.test(js),
+    'canli kaynak altyazi olaylari oynaticida dinlenmiyor');
+  assert(/event\.type === 'translation_chunk'/.test(js) && /event\.type === 'translation_refresh'/.test(js),
+    'canli ceviri olaylari oynaticida dinlenmiyor');
+});
+
+test('uzun videoda transkripsiyon izlenen konumdan parçalara ayrılıyor', () => {
+  assert(/function progressiveRanges\(duration, current, windowSec = 600\)/.test(js),
+    'progressiveRanges yok');
+  const i = js.indexOf('async function startProgressiveChunk');
+  assert(i > 0, 'parça başlatma fonksiyonu yok');
+  const body = js.slice(i, i + 700);
+  assert(/clipStart:\s*range\.start/.test(body) && /clipEnd:\s*range\.end/.test(body),
+    'her parça kendi zaman aralığını backend e göndermiyor');
+  assert(/mergeLiveCues/.test(js.slice(js.indexOf('async function finishProgressiveJob'), js.indexOf('async function handleProgressiveTerminal'))),
+    'parça sonuçları tek listede birleştirilmiyor');
+});
+
+test('düşük güvenli satırlar listede ve zaman çizgisinde işaretleniyor', () => {
+  assert(/lowConfidenceWords/.test(js), 'düşük güven alanı taşınmıyor');
+  assert(/classList\.toggle\('low-confidence'/.test(js), 'liste satırı düşük güven sınıfı almıyor');
+  assert(/low-confidence/.test(css), 'düşük güven görünüm kuralı yok');
+  assert(/confidence\) < 0\.6/.test(js), 'düşük güven eşiği kullanılmıyor');
+});
+
+test('düşük güven filtresi yalnız sorunlu satırları gösterip kapatılabiliyor', () => {
+  assert(/id="qualityOnlyBtn"/.test(layer), 'düşük güven filtresi düğmesi yok');
+  assert(/function toggleQualityOnly\(\)/.test(js), 'düşük güven filtresi işlevi yok');
+  const i = js.indexOf('function toggleQualityOnly');
+  const body = js.slice(i, i + 260);
+  assert(/player\.qualityOnly = !player\.qualityOnly/.test(body), 'filtre anahtarı değişmiyor');
+  assert(/player\.qualityOnly && !lowConfidence/.test(js), 'liste filtresi uygulanmıyor');
+  assert(/qualityOnlyBtn/.test(js) && /aria-pressed/.test(js), 'filtre düğmesinin durumu erişilebilir olarak yansıtılmıyor');
+});
+
+test('AI yanıtlarındaki zamanlar tıklanabilir konum bağlantısına dönüşüyor', () => {
+  assert(/function renderAiText\(el, text\)/.test(js), 'AI metin rendererı yok');
+  assert(/className = 'ai-time-link'/.test(js), 'AI zaman düğmesi üretilmiyor');
+  assert(/video\.currentTime = Math\.max\(0, Math\.min/.test(js), 'AI zaman düğmesi videoya atlamıyor');
+  assert(/\.ai-time-link/.test(css), 'AI zaman bağlantısı stili yok');
+});
+
+test('oynatıcı otomatik senkronu yalnız hazır yerel altyazıda etkinleştiriyor', () => {
+  assert(/id="playerAutoSync"/.test(layer), 'otomatik senkron düğmesi yok');
+  const i = js.indexOf('function updatePlayerAutoSyncState');
+  assert(i > 0, 'otomatik senkron durum fonksiyonu yok');
+  const body = js.slice(i, i + 650);
+  assert(/player\.localPath/.test(body) && /player\.subPath/.test(body) && /player\.cues\.length/.test(body),
+    'hazır olma koşulları eksik');
+  assert(/opts\.syncSubs = true/.test(js) && /opts\.syncSrt = player\.subPath/.test(js),
+    'senkron seçenekleri backend e gitmiyor');
+});
+
+test('ses kilidi ve zamanlama masasi yalniz goruntu degil islev baglantisina sahip', () => {
+  assert(/id="playerAudioLock"/.test(layer), 'ses kilidi UI yok');
+  assert(/rememberAudioLock/.test(js) && /nextYoutubeAudioLang/.test(js), 'ses kilidi is akimina bagli degil');
+  assert(/id="timelineDrawer"/.test(layer) && /id="timelineCanvas"/.test(layer), 'zamanlama masasi UI yok');
+  assert(/saveSubtitleCopy/.test(js) && /getWaveform/.test(js), 'zamanlama masasi IPC islevlerine bagli degil');
+});
+
+test('HLS adres yenilemesi aynı videonun altyazı durumunu sıfırlamıyor', () => {
+  assert(/function setPlayerHls\([^)]*preserveMediaState\s*=\s*false/.test(js),
+    'HLS kurulumunda durum koruma seçeneği yok');
+  assert(/setPlayerHls\(fresh\.hls,\s*fresh\.title,\s*fresh\.videoKey,\s*fresh,\s*true\)/.test(js),
+    'yenilenen HLS aynı medya durumunu korumuyor');
+  const i = js.indexOf('function setPlayerHls');
+  const body = js.slice(i, i + 700);
+  assert(/if \(!preserveMediaState\) setMediaKey/.test(body),
+    'setMediaKey yenilemede de çağrılıyor');
+});
+
+test('izleme profili gecikirse başka videoya uygulanmıyor', () => {
+  const i = js.indexOf('async function restoreWatchProfile');
+  const body = js.slice(i, js.indexOf('function makeWatchAction', i));
+  assert(/const gen = currentGeneration\(\)/.test(body), 'profil kuşağı yakalanmıyor');
+  assert(/staleGeneration\(gen\).*player\.mediaKey !== key/s.test(body),
+    'geç gelen profil için kuşak ve medya anahtarı kontrolü yok');
+  assert((body.match(/staleGeneration\(gen\)/g) || []).length >= 3,
+    'altyazı awaitleri sonrasında yeniden kuşak kontrol edilmiyor');
+});
+
+test('altyazı okuma sürerken seçim temizlenirse eski dosya geri gelmiyor', () => {
+  const i = js.indexOf('async function loadSubtitle');
+  const body = js.slice(i, js.indexOf('async function attachSiblingSubtitles', i));
+  assert(/if \(selNow && selNow\.value !== path\) return/.test(body),
+    'boş seçim, geciken altyazı sonucunu reddetmiyor');
+  assert(!/selNow && selNow\.value && selNow\.value !== path/.test(body),
+    'eski boş-değer yarış koşulu hâlâ duruyor');
+});
+
+test('geciken yerel medya açma isteği yeni videoyu ezmiyor', () => {
+  const i = js.indexOf('async function openLocalMedia');
+  const body = js.slice(i, js.indexOf('function openWatchLibraryItem', i));
+  assert(/const intent = \+\+player\.openIntent/.test(body), 'açma isteği kimliği yok');
+  assert(/intent !== player\.openIntent/.test(body), 'geç gelen istek atılmıyor');
+  const playlist = js.slice(js.indexOf('async function setLocalPlaylistAround'), i);
+  assert(/intent !== undefined && intent !== player\.openIntent/.test(playlist),
+    'geç istek oynatma listesini yine de değiştirebiliyor');
+});
+
+test('kaldığı yer isteği medya anahtarı ve kuşağa bağlı', () => {
+  const i = js.lastIndexOf("video.addEventListener('loadedmetadata'");
+  const body = js.slice(i, i + 1800);
+  assert(/pendingSeek\.key === player\.mediaKey/.test(body), 'seek medya anahtarını doğrulamıyor');
+  assert(/pendingSeek\.generation === currentGeneration\(\)/.test(body), 'seek kuşağı doğrulamıyor');
+});
+
+test('oynatıcı işi olayları ana transkripsiyon ekranına sızmıyor', () => {
+  const i = js.indexOf('function playerJobEvent');
+  const body = js.slice(i, js.indexOf('window.api.onEvent', i));
+  assert(/return event\.type !== 'log'/.test(body), 'oynatıcı olayları tüketilmiyor');
+  assert(/job\.awaitingExit = true/.test(body), 'terminalden sonraki exit sahipliği korunmuyor');
+  assert(/job\.cancelled/.test(body), 'iptal sonrası geç olay koruması yok');
+});
+
+test('kısa video başlangıçta tamamlanmış sayılmıyor', () => {
+  const start = js.indexOf('function watchCompletionReached');
+  const end = js.indexOf('function watchItemByKey', start);
+  assert(start > 0 && end > start, 'tamamlanma yardımcısı yok');
+  const fn = new Function(`${js.slice(start, end)}; return watchCompletionReached;`)();
+  assert(fn(0, 20) === false, '20 saniyelik video 0:00 konumunda tamamlandı');
+  assert(fn(18, 20) === true, 'kısa videoda %90 eşiği çalışmıyor');
+  assert(fn(570, 600) === true, 'uzun videoda son 30 saniye eşiği çalışmıyor');
+  const save = js.slice(js.indexOf('function savePlayerPosition'), js.indexOf('function maybeOfferResume'));
+  assert(/watchCompletionReached\(t, video\.duration\)/.test(save),
+    'devam kaydı tamamlanma mantığıyla aynı eşiği kullanmıyor');
+});
+
+test('ses dili bölge kodlarını güvenli biçimde eşleştiriyor', () => {
+  const start = js.indexOf('function normalizeAudioLang');
+  const end = js.indexOf('function currentAudioLock', start);
+  const api = new Function(`${js.slice(start, end)}; return {audioLanguagesMatch};`)();
+  assert(api.audioLanguagesMatch('en', 'en-US'), 'en ile en-US eşleşmedi');
+  assert(!api.audioLanguagesMatch('en-US', 'en-GB'), 'iki farklı bölgesel ses yanlış eşleşti');
+  const lock = js.slice(js.indexOf("$('playerAudioLock').addEventListener('change'"),
+    js.indexOf("if ($('playerQuality'))"));
+  assert(/player\.hls\.audioTrack = idx/.test(lock), 'ses kilidi açılınca gerçek HLS parçası değişmiyor');
+});
+
+test('geciken YouTube işleri güncel medya kimliğini doğruluyor', () => {
+  const media = js.slice(js.indexOf('function setMediaKey'), js.indexOf('function currentGeneration'));
+  assert(/pendGen = currentGeneration\(\)/.test(media), 'bekleyen altyazı kuşağı yakalanmıyor');
+  assert(/player\.mediaKey !== pend\.key/.test(media), 'geç altyazı zamanlayıcısı medya anahtarını doğrulamıyor');
+  const probe = js.slice(js.indexOf("$('playerProbe').addEventListener"), js.indexOf("if ($('playerStream'))"));
+  assert(/probeSeq/.test(probe) && /probeGen/.test(probe), 'probe yarış kimliği yok');
+  assert(/playerYtUrl.*trim\(\) !== url/.test(probe), 'probe URL değişimini reddetmiyor');
+});
+
+test('iki kütüphane araması ayrı sonuç ve zamanlayıcı kullanıyor', () => {
+  assert(/playerLibrarySearchTimer/.test(js), 'oynatıcı aramasının ayrı zamanlayıcısı yok');
+  assert(/let playerLibraryResults/.test(js), 'oynatıcı aramasının ayrı sonuç dizisi yok');
+  assert(/seq !== watchSearchSeq/.test(js) && /seq !== player\.playerLibrarySearchSeq/.test(js),
+    'geç arama cevapları reddedilmiyor');
+});
+
+test('video değişiminde A-B döngüsü ve AI sohbet bağlamı temizleniyor', () => {
+  const reset = js.slice(js.indexOf('function resetMediaBoundState'), js.indexOf('function subtitleTrackState'));
+  assert(/player\.abA = null/.test(reset) && /player\.abB = null/.test(reset), 'A-B döngüsü sıfırlanmıyor');
+  assert(/player\.chatHistory = \[\]/.test(reset), 'AI sohbet geçmişi videoya bağlı değil');
+  const events = js.slice(js.indexOf('function playerJobEvent'), js.indexOf('window.api.onEvent'));
+  assert(/job\.mediaKey !== player\.mediaKey/.test(events) && /önceki videoya aitti/.test(events),
+    'geç AI cevabı yeni videoya eklenebiliyor');
+});
+
+test('dalga biçimi ve altyazı düzenleme sonuçları medya değişimini doğruluyor', () => {
+  const timeline = js.slice(js.indexOf('async function openTimeline'), js.indexOf('function closeTimeline'));
+  assert(/waveformGen = currentGeneration\(\)/.test(timeline), 'dalga biçimi medya kuşağını yakalamıyor');
+  assert(/staleGeneration\(waveformGen\).*player\.localPath !== waveformPath/s.test(timeline),
+    'geç dalga biçimi yanlış videoya uygulanabiliyor');
+  const editStart = js.indexOf('async function saveCueEdit');
+  const edit = js.slice(editStart, js.indexOf("if ($('cueSearch'))", editStart));
+  assert(/targetPath = player\.subPath/.test(edit) && /staleGeneration\(targetGen\)/.test(edit),
+    'geç altyazı kaydı mevcut videonun belleğini değiştirebiliyor');
 });
 
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);

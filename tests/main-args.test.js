@@ -127,6 +127,20 @@ test('YouTube ve yerel dosya birbirini disliyor', () => {
   assert(!local.includes('--youtube'), 'yerel dosyada --youtube gitmis');
 });
 
+test('oynaticida secilen YouTube ses dili Whisper isine gider', () => {
+  const args = build({ youtube: 'https://youtu.be/test', model: 'large-v3',
+    youtubeAudioLang: 'en-US' });
+  assert(argValue(args, '--youtube-audio-lang') === 'en-US',
+    'secilen ses dili argv sozlesmesine tasinmadi');
+});
+
+test('YouTube cookie tarayıcısı yalnızca izin verilen değerde backend\'e gider', () => {
+  const ok = build({ youtube: 'https://youtu.be/test', model: 'large-v3', youtubeCookieBrowser: 'firefox' });
+  assert(argValue(ok, '--youtube-cookie-browser') === 'firefox', 'cookie tarayicisi argv ye gitmedi');
+  const bad = build({ youtube: 'https://youtu.be/test', model: 'large-v3', youtubeCookieBrowser: 'keyfi-komut' });
+  assert(!bad.includes('--youtube-cookie-browser'), 'izin verilmeyen tarayici argv ye sizdi');
+});
+
 // ---- 5) cumle birlestirme (opsiyonel) ----
 test('cümle birleştirme opsiyonel ve varsayılan kapalı', () => {
   // Varsayilan KAPALI olmali: acikken bloklar uzuyor (olcum: 8 sn ustu blok

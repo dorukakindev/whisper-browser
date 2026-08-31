@@ -91,6 +91,16 @@ t('VTT yazici gecerli VTT uretir', () => {
   ok(Math.abs(again[1].start - 8.0) < 0.001 && Math.abs(again[1].end - 9.25) < 0.001, 'zamanlar kaymis');
 });
 
+t('VTT saat alani olmayan MM:SS.mmm zamanlarini ayristirir', () => {
+  const vtt = 'WEBVTT\n\n00:12.500 --> 01:03.250\nKisa VTT.\n\n02:03.5 --> 02:04.75\nOndalik basamaklari.\n';
+  const cues = F.parseSubtitles(vtt);
+  ok(cues.length === 2, 'blok sayisi ' + cues.length);
+  ok(Math.abs(cues[0].start - 12.5) < .001, 'ilk baslangic ' + cues[0].start);
+  ok(Math.abs(cues[0].end - 63.25) < .001, 'ilk bitis ' + cues[0].end);
+  ok(Math.abs(cues[1].start - 123.5) < .001, 'tek basamakli ms ' + cues[1].start);
+  ok(Math.abs(cues[1].end - 124.75) < .001, 'iki basamakli ms ' + cues[1].end);
+});
+
 t('SRT yolu aynen calisiyor (regresyon)', () => {
   const srt = '1\n00:00:05,000 --> 00:00:07,500\nDuz SRT.\n\n2\n00:00:08,000 --> 00:00:09,000\nIkinci.\n';
   const cues = F.parseSubtitles(srt);

@@ -99,7 +99,8 @@ def find_ffmpeg():
     return None
 
 
-def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_end=None):
+def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_end=None,
+                     audio_lang=None, cookie_browser=None):
     """
     yt-dlp ile YouTube'dan ses indir (en yüksek kalite, wav formatında).
 
@@ -128,6 +129,9 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
             "yt-dlp yüklü değil. Lütfen 'pip install yt-dlp' komutunu çalıştırın."
         )
 
+    if audio_lang and not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", str(audio_lang)):
+        log("Gecersiz YouTube ses dili secimi yok sayildi.", "warn")
+        audio_lang = None
     output_template = str(Path(output_dir) / "%(id)s.%(ext)s")
     ranged = False        # bkz. docstring - aralık indirme boğazlanıyor
 
@@ -149,7 +153,10 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
             info_holder["filename"] = d.get("filename")
 
     ydl_opts = {
-        "format": "bestaudio/best",
+        # Oynaticida secilen dublaj/orijinal ses dili Whisper'a da tasinir.
+        # Dil bulunamazsa normal en iyi sese dusmek isi gereksiz yere bozmaz.
+        "format": (f"bestaudio[language={audio_lang}]/bestaudio/best"
+                   if audio_lang else "bestaudio/best"),
         "outtmpl": output_template,
         "noplaylist": True,
         "quiet": True,
@@ -166,6 +173,12 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         # dosya (webm/m4a) olduğu gibi bırakılır; kırpma + 16 kHz mono dönüşümü
         # extract_audio'da tek ffmpeg geçişinde olur.
     }
+    browser = str(cookie_browser or "").strip().lower()
+    if browser:
+        allowed = {"chrome", "edge", "firefox", "brave", "vivaldi", "opera"}
+        if browser not in allowed:
+            raise RuntimeError("Desteklenmeyen YouTube cookie tarayıcısı")
+        ydl_opts["cookiesfrombrowser"] = (browser,)
     if clip_start is not None and clip_end is not None:
         # Neden tamamı: aralıklı indirmede YouTube ffmpeg'i ~12 KB/sn'ye düşürüyor
         # (ölçüm docstring'de). Tam ses tam hızda inip yerelde kesiliyor.
@@ -181,9 +194,27 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
             log(f"⚠ ffprobe bulunamadı: {ffprobe_path} — yt-dlp postprocess hata verebilir", "warn")
         log(f"yt-dlp için ffmpeg klasörü: {ffmpeg_dir}")
 
-    log(f"YouTube'dan indiriliyor: {url}")
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
+    log(f"YouTube'dan indiriliyor: {url}"
+        + (f" (ses dili: {audio_lang})" if audio_lang else ""))
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+    except Exception as exc:
+        message = str(exc)
+        if "confirm you’re not a bot" in message or "confirm you're not a bot" in message:
+            raise RuntimeError(
+                "YouTube bu video için oturum doğrulaması istedi. "
+                "Kaynak > YouTube bölümünden giriş yaptığınız tarayıcıyı seçip yeniden deneyin."
+            ) from exc
+        if "Could not copy" in message and "cookie" in message.lower():
+            raise RuntimeError(
+                "Tarayıcı cookie veritabanı okunamadı. Tarayıcıyı tamamen kapatıp "
+                "yeniden deneyin veya Firefox oturumunu seçin."
+            ) from exc
+        raise
+
+    # Indirme bittikten sonra dosya yolunu aynı blokta çözümle.
+    if info:
         video_id = info.get("id") or "audio"
         title = info.get("title") or video_id
         
@@ -2344,7 +2375,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         log("Tum bloklar onbellekten geldi - API'ye hic istek gonderilmedi.", "success")
         emit("llm_progress", percent=100.0, done=len(entries), failed=0,
              total=len(entries), stage="translate")
-        return [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
+        ready = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
+        emit("translation_refresh", segments=[
+            {"start": s, "end": e, "text": t} for s, e, t in ready
+        ])
+        return ready
 
     # Parcalar artik ARDISIK ARALIK degil, cevrilecek INDEKS LISTESI
     chunks = [pending[i:i + CHUNK_SIZE] for i in range(0, len(pending), CHUNK_SIZE)]
@@ -2459,6 +2494,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
             except Exception as e:
                 counters["failed"] += len(ch)
                 log("Ceviri {}-{} hatasi: {}".format(ch[0], ch[-1], e), "warn")
+            completed = [i for i in ch if i in done_idx]
+            if completed:
+                emit("translation_chunk", segments=[
+                    {"index": i, "start": entries[i][0], "end": entries[i][1],
+                     "text": out_texts[i]}
+                    for i in completed
+                ])
             now = time.time()
             handled = counters["done"] + counters["failed"] + len(cached_idx)
             if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
@@ -2565,7 +2607,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
             save_translate_cache(cache_file, cache)
             log(f"Ceviri onbellegine {added} blok eklendi.")
 
-    return [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
+    result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
+    emit("translation_refresh", segments=[
+        {"start": s, "end": e, "text": t} for s, e, t in result
+    ])
+    return result
 
 
 # ===== WhisperX motoru (opsiyonel) =====
@@ -3221,8 +3267,12 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
     Yalnızca bitiş zamanlarını ayarlar (başlangıçları kaydırmaz → zincirleme kayma yok):
       - Çakışmaları gider, ardışık altyazılar arası minimum boşluk bırakır
       - Çok kısa süreleri uzatır (flaş altyazıları önler)
-      - Çok uzun süreleri kırpar (max_dur)
-      - Okuma hızını (CPS) düşürmek için yer varsa süreyi uzatır
+      - Okuma hızını (CPS) düşürmek için yer varsa süreyi max_dur'a kadar uzatır
+
+    Önemli: max_dur mevcut bir bloğun gerçek bitişini KIRPMAZ. Whisper'ın
+    0-11 sn olarak zamanladığı bir konuşmayı metni bölmeden 0-7 sn'ye kesmek,
+    konuşma sürerken altyazının kaybolmasına yol açar. Uzun blok kalite
+    raporunda işaretlenir; bölünecekse metin/zaman birlikte bölünmelidir.
     entries: [(start, end, text), ...] — zamana göre sıralı varsayılır.
     """
     if not entries:
@@ -3236,10 +3286,6 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
             e = s
         next_start = out[i + 1][0] if i + 1 < n else None
         ceiling = (next_start - min_gap) if next_start is not None else None
-
-        # Maksimum süre
-        if e - s > max_dur:
-            e = s + max_dur
 
         # Minimum süre — yer varsa uzat
         if e - s < min_dur:
@@ -3462,6 +3508,8 @@ def transcribe(args):
             source_path, title, youtube_ranged = download_youtube(
                 args.youtube, workdir, ffmpeg_path,
                 clip_start=clip_start, clip_end=clip_end,
+                audio_lang=args.youtube_audio_lang,
+                cookie_browser=args.youtube_cookie_browser,
             )
             base_name = re.sub(r'[\\/:*?"<>|]', "_", title).strip()[:120] or "altyazi"
         else:
@@ -3628,18 +3676,21 @@ def transcribe(args):
             # Kelime listesini toparla (diarization + JSON için global)
             # faster-whisper bazı tokenlarda start/end=None döndürebilir — None + offset
             # çökerdi; segment sınırlarına/komşuya düşerek koru.
+            segment_words = []
             if getattr(segment, "words", None):
                 _prev_end = segment.start
                 for w in segment.words:
                     ws = w.start if w.start is not None else _prev_end
                     we = w.end if w.end is not None else ws
                     _prev_end = we
-                    all_words.append({
+                    word_row = {
                         "word": w.word,
                         "start": round(ws + time_offset, 3),
                         "end": round(we + time_offset, 3),
                         "probability": round(getattr(w, "probability", 1.0), 3),
-                    })
+                    }
+                    all_words.append(word_row)
+                    segment_words.append(word_row)
 
             # Bölme stratejisi
             chunks = segment_to_chunks(segment, args)
@@ -3660,12 +3711,19 @@ def transcribe(args):
                 start += time_offset
                 end += time_offset
                 entries.append((start, end, cleaned))
+                # Oynatici, tum is bitmeden dusuk-guvenli satiri gosterebilsin.
+                # Yalnizca bu parcayla zaman olarak ortusen kelimeler kullanilir;
+                # segment ortalamasi uzun cumledeki tek sorunlu kelimeyi gizlemesin.
+                chunk_confidence, low_word_count = cue_confidence(
+                    segment_words, start, end, args.confidence_threshold)
                 emit(
                     "segment",
                     index=len(entries),
                     start=round(start, 3),
                     end=round(end, 3),
                     text=cleaned,
+                    confidence=round(chunk_confidence, 3),
+                    lowConfidenceWords=low_word_count,
                 )
 
             # İlerleme yayını
@@ -3955,6 +4013,10 @@ def transcribe(args):
                         translated, max_gap=args.continuation_gap)
                     if len(translated) != _o:
                         log(f"Ceviri cumle birlestirme: {_o} -> {len(translated)} blok")
+                if translated:
+                    emit("translation_refresh", segments=[
+                        {"start": s, "end": e, "text": t} for s, e, t in translated
+                    ])
             except Exception as e:
                 log(f"Ceviri basarisiz: {e}", "warn")
                 warn_list.append(f"Ceviri yapilamadi: {e}")
@@ -4197,6 +4259,21 @@ def write_confidence_report(path, entries, all_words, threshold=0.6):
     return True, count, frequent
 
 
+def cue_confidence(words, start, end, threshold=0.6):
+    """Bir altyazi bloguyla ortusen kelimelerden (ortalama guven, dusuk sayi) uretir.
+
+    Canli oynatici rapor dosyasini beklemeden sorunlu satirlari isaretler. Zaman
+    ortusmesi kullanildigi icin cumle bolunmus olsa da komsu parcanin kelimeleri
+    yanlis bloga yazilmaz.
+    """
+    probs = [float(w.get("probability", 1.0)) for w in (words or [])
+             if float(w.get("end", 0.0)) >= start - 0.03
+             and float(w.get("start", 0.0)) <= end + 0.03]
+    if not probs:
+        return 1.0, 0
+    return sum(probs) / len(probs), sum(1 for p in probs if p < threshold)
+
+
 EXPLAIN_KINDS = {
     "sentence": (
         "Bu altyazi satirini acikla.",
@@ -4230,6 +4307,7 @@ def build_explain_prompt(kind, target_lang="tr"):
         "- YALNIZCA sana verilen baglami kullan. Baglamda olmayan bir sey uydurma.",
         "- Emin degilsen 'altyazidan anlasilmiyor' de.",
         "- KISA yaz: en fazla 6 kisa satir. Madde isareti kullanabilirsin.",
+        "- Bir replik veya ana atif yapiyorsan verilen zamani [MM:SS] biciminde yaz; zaman UYDURMA.",
         "- Cevabi {} dilinde yaz.".format(LANG_NAMES.get(target_lang, target_lang)),
         "",
         "## GUVENLIK",
@@ -4339,6 +4417,8 @@ def build_chat_prompt(target_lang="tr"):
         "  kendi bilgini kullanabilirsin; ama videoya dair OLGU uydurma.",
         "- KISA ve net yaz. Gerekiyorsa madde isareti kullan. En fazla 10 satir.",
         "- Onceki mesajlari hatirla; kullanici 'peki ya bu?' derse baglami koru.",
+        "- Baglamdaki bir replige dayaniyorsan cumlede onun zamanini [MM:SS] biciminde belirt.",
+        "  Yalnizca verilen zamanlari kullan; yeni zaman UYDURMA.",
         "- Cevabi {} dilinde yaz.".format(LANG_NAMES.get(target_lang, target_lang)),
         "",
         "## GUVENLIK",
@@ -5049,6 +5129,10 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16, help="faster-batched ve whisperx için batch boyutu")
     parser.add_argument("--audio-track", type=int, default=-1,
                         help="Yerel dosyada ses akışı indeksi (0'dan başlar; -1 = ffmpeg varsayılan kanalı)")
+    parser.add_argument("--youtube-audio-lang", default="",
+                        help="YouTube'da indirilecek ses dili; bos = yt-dlp varsayilani")
+    parser.add_argument("--youtube-cookie-browser", default="",
+                        help="YouTube oturumu için cookie okunacak tarayıcı; bos = kapali")
     parser.add_argument("--quality-report", type=lambda x: x.lower() == "true", default=True,
                         help="Yazımdan önce altyazı kalite metriklerini (KPS/çakışma/süre) bildir")
     parser.add_argument("--resume", type=lambda x: x.lower() == "true", default=True,

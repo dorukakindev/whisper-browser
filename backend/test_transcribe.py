@@ -238,6 +238,18 @@ def test_build_confidence_report():
     assert T.build_confidence_report(entries, [words[-1]], threshold=0.6) == ("", 0, [])
 
 
+def test_cue_confidence_uses_only_overlapping_words():
+    words = [
+        {"word": "Good", "start": 1.0, "end": 1.4, "probability": 0.9},
+        {"word": "maybe", "start": 1.5, "end": 1.9, "probability": 0.3},
+        {"word": "later", "start": 4.0, "end": 4.4, "probability": 0.1},
+    ]
+    confidence, low = T.cue_confidence(words, 1.0, 2.0, threshold=0.6)
+    assert abs(confidence - 0.6) < 1e-9
+    assert low == 1
+    assert T.cue_confidence(words, 8.0, 9.0) == (1.0, 0)
+
+
 def test_punctuation_ratio():
     assert T.punctuation_ratio([(0, 1, "one two three four.")]) == 0.25
     assert T.punctuation_ratio([(0, 1, "no punctuation at all")]) == 0.0
@@ -995,6 +1007,10 @@ def test_normalize_timings():
     # çok kısa süre uzatılmalı (yer varsa)
     out2 = T.normalize_timings([(0.0, 0.1, "biraz uzunca metin")], min_dur=0.8)
     assert out2[0][1] - out2[0][0] >= 0.7
+    # Uzun Whisper blogunun gerçek bitişi max_dur bahanesiyle kesilmemeli.
+    # Metni bölmeden 0-11 sn'yi 0-7 sn yapmak, konuşma sürerken altyazıyı kapatır.
+    out3 = T.normalize_timings([(0.0, 11.0, "uzun bir konuşmanın tamamı")], max_dur=7.0)
+    assert out3[0][1] == 11.0, "uzun blogun gerçek ses bitişi kırpıldı"
 
 
 # ===== kalite raporu =====

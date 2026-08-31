@@ -91,7 +91,19 @@
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3 3 0 0 0 2.6 19.9C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
               <input type="url" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
             </div>
-            <div class="hint">Linki yapıştır, en yüksek kalitede ses indirilir. İndirme hata veriyorsa: <button class="link-btn" id="updateYtdlp">yt-dlp'yi güncelle</button></div>
+            <label class="field youtube-session-field">
+              <span class="field-label">YouTube oturumu <small>Yalnızca bot/yaş doğrulaması gerekiyorsa</small></span>
+              <select id="youtubeCookieBrowser">
+                <option value="" selected>Kapalı — oturum kullanma</option>
+                <option value="firefox">Firefox (önerilen)</option>
+                <option value="chrome">Chrome</option>
+                <option value="edge">Edge</option>
+                <option value="brave">Brave</option>
+                <option value="vivaldi">Vivaldi</option>
+                <option value="opera">Opera</option>
+              </select>
+            </label>
+            <div class="hint">Seçildiğinde cookie içeriği uygulamaya kopyalanmaz; yt-dlp tarayıcı profilinden doğrudan okur. Tarayıcı veritabanı kilitliyse tarayıcıyı tamamen kapatıp yeniden dene. İndirme hata veriyorsa: <button class="link-btn" id="updateYtdlp">yt-dlp'yi güncelle</button></div>
           </div>
 
           <!-- ZAMAN ARALIĞI — hem dosya hem YouTube için geçerli -->
@@ -758,6 +770,31 @@
           <div class="queue-list" id="queueList"></div>
         </div>
 
+        <!-- İZLEME KÜTÜPHANESİ -->
+        <div class="card watch-library-card hidden" id="watchLibraryCard">
+          <div class="card-head watch-library-head">
+            <div>
+              <h2>İzleme kütüphanesi · <span id="watchLibraryCount">0</span></h2>
+              <p class="card-kicker">Kaldığın yerler, koleksiyonlar ve altyazı içi arama</p>
+            </div>
+            <div class="watch-library-filters">
+              <input type="search" id="watchLibrarySearch" class="preview-search"
+                     placeholder="Başlık veya altyazıda ara..." aria-label="İzleme kütüphanesinde ara" />
+              <select id="watchCollectionFilter" aria-label="Koleksiyona göre filtrele">
+                <option value="all">Tüm videolar</option>
+                <option value="continue">İzlemeye devam</option>
+                <option value="completed">Tamamlananlar</option>
+              </select>
+            </div>
+          </div>
+          <section class="continue-section" id="continueWatchingSection">
+            <div class="section-label">İzlemeye devam et</div>
+            <div class="watch-strip" id="continueWatching"></div>
+          </section>
+          <div class="watch-search-status hidden" id="watchSearchStatus"></div>
+          <div class="watch-library-list" id="watchLibraryList"></div>
+        </div>
+
         <!-- GEÇMİŞ -->
         <div class="card hidden" id="historyCard">
           <div class="card-head">
@@ -841,6 +878,12 @@
           <div class="player-title" id="playerTitle">Oynatıcı</div>
           <div class="player-meta" id="playerMeta">Çift dilli izleme ve çalışma alanı</div>
         </div>
+        <div class="player-workspace-switch" role="tablist" aria-label="İzleme modu">
+          <button class="workspace-mode active" id="workspacePlayerMode" type="button" role="tab"
+            aria-selected="true">Oynatıcı</button>
+          <button class="workspace-mode" id="workspaceBrowserMode" type="button" role="tab"
+            aria-selected="false">Tarayıcı</button>
+        </div>
         <div class="player-head-actions">
           <div class="player-parse-status hidden" id="playerParseStatus">
             <span class="parse-spark" aria-hidden="true"></span><span id="playerParseText">Ses işleniyor…</span>
@@ -868,6 +911,49 @@
       </div>
 
       <div class="player-body">
+        <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
+          <div class="browser-toolbar">
+            <div class="browser-nav" role="group" aria-label="Tarayıcı gezinme">
+              <button class="btn-icon browser-nav-button" id="browserBack" type="button" title="Geri" disabled
+                aria-label="Geri"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5-7 7 7 7"/></svg></button>
+              <button class="btn-icon browser-nav-button" id="browserForward" type="button" title="İleri" disabled
+                aria-label="İleri"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7"/></svg></button>
+              <button class="btn-icon browser-nav-button" id="browserReload" type="button" title="Yenile"
+                aria-label="Yenile"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.35 5.65"/><path d="M20 4v7h-7"/></svg></button>
+            </div>
+            <div class="browser-address-wrap">
+              <span class="browser-security-mark" id="browserSecurityMark" aria-hidden="true"></span>
+              <input type="url" id="browserAddress" autocomplete="off" spellcheck="false"
+                placeholder="Bir video sitesi adresi girin" aria-label="Web adresi" />
+            </div>
+            <button class="btn btn-primary btn-sm browser-go" id="browserGo" type="button">Aç</button>
+          </div>
+
+          <div class="browser-signal" id="browserSignal" role="status" aria-live="polite">
+            <span class="browser-signal-line" aria-hidden="true"></span>
+            <div class="browser-signal-copy">
+              <span class="browser-signal-kicker">ALTYAZI SİNYALİ</span>
+              <span class="browser-signal-text" id="browserSignalText">Sayfadaki video ve altyazı izleri burada algılanır.</span>
+            </div>
+            <div class="browser-track-actions hidden" id="browserTrackActions">
+              <select id="browserTrackSelect" aria-label="Bulunan altyazı izi"></select>
+              <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
+              <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
+              <button class="btn-icon browser-dismiss" id="browserTrackDismiss" type="button"
+                title="Bu bildirimi kapat" aria-label="Bildirimi kapat">×</button>
+            </div>
+          </div>
+
+          <div class="browser-view-slot" id="browserViewSlot">
+            <div class="browser-empty" id="browserEmpty">
+              <span class="browser-empty-rule" aria-hidden="true"></span>
+              <strong>Web videosunu burada aç</strong>
+              <p>Siteye giriş yapabilir, videoyu başlatabilir ve mevcut altyazıyı uygulamanın çeviri motoruna gönderebilirsin.</p>
+              <small>DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</small>
+            </div>
+          </div>
+        </section>
+
         <div class="player-stage" id="playerStage">
           <!-- Ortam isigi: videonun kucultulmus hali arkada asiri bulaniklastirilir,
                siyah kenarlara rengi tasar (YouTube'un ambient modu gibi). -->
@@ -919,8 +1005,14 @@
 
           <!-- Kontroller sahnenin ICINDE: tam ekranda da gorunur, bosta gizlenir -->
           <div class="player-controls" id="playerControls">
+            <button class="btn-icon" id="playerPrevMedia" title="Önceki video" disabled>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>
+            </button>
             <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+            </button>
+            <button class="btn-icon" id="playerNextMedia" title="Sonraki video" disabled>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>
             </button>
             <span class="player-time" id="playerTime">0:00 / 0:00</span>
             <div class="seek-wrap" id="seekWrap">
@@ -931,9 +1023,21 @@
               <div class="seek-tip hidden" id="seekTip">0:00</div>
               <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" />
             </div>
-            <button class="btn-icon" id="subToggle" title="Altyazıyı gizle/göster (V)">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/></svg>
-            </button>
+            <div class="subtitle-mode-wrap" id="subtitleModeWrap">
+              <button class="btn-icon" id="subToggle" title="Altyazı görünümünü seç (V)"
+                aria-label="Altyazı görünümünü seç" aria-haspopup="menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/></svg>
+              </button>
+              <div class="subtitle-mode-menu hidden" id="subtitleModeMenu" role="menu"
+                aria-label="Altyazı görünümü">
+                <button type="button" role="menuitemradio" data-subtitle-mode="translation"
+                  aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Yalnızca çeviri</span></button>
+                <button type="button" role="menuitemradio" data-subtitle-mode="source"
+                  aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Yalnızca kaynak altyazı</span></button>
+                <button type="button" role="menuitemradio" data-subtitle-mode="off"
+                  aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Altyazıları kapat</span></button>
+              </div>
+            </div>
             <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)">
               <option value="0.5">0.5&times;</option>
               <option value="0.75">0.75&times;</option>
@@ -973,6 +1077,8 @@
                   aria-selected="true"><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
                 <button class="side-tab" id="sideTabAi" data-stab="ai" role="tab"
                   aria-selected="false" title="Video hakkında soru sor (AI)"><span>AI'ye sor</span></button>
+                <button class="side-tab" id="sideTabLibrary" data-stab="library" role="tab"
+                  aria-selected="false" title="İzleme geçmişi ve koleksiyonlar"><span>Kütüphane</span></button>
               </div>
               <div class="side-tab-actions">
                 <button class="btn-icon side-tool" id="sideSubtitleExport" title="Altyazı dosyasını aç" aria-label="Altyazı dosyasını aç">
@@ -1004,6 +1110,9 @@
               <button class="btn-icon side-tool hidden" id="clearCueSearch" title="Aramayı temizle" aria-label="Aramayı temizle">×</button>
               <button class="btn-icon side-tool" id="savedOnlyBtn" title="Kaydedilen cümleleri göster" aria-label="Kaydedilen cümleleri göster">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg>
+              </button>
+              <button class="btn-icon side-tool" id="qualityOnlyBtn" title="Düşük güvenli cümleleri göster" aria-label="Düşük güvenli cümleleri göster">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 16H3L12 3Z"/><path d="M12 9v4m0 3h.01" stroke-linecap="round"/></svg>
               </button>
               <button class="btn-icon side-tool" id="toggleSettings" title="Kaynak ve altyazı ayarları">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1039,6 +1148,21 @@
               <span id="aiChatCtx">Bağlam: —</span>
               <button class="link-btn" id="aiChatClear">Sohbeti temizle</button>
             </div>
+          </div>
+
+          <!-- İZLEME KÜTÜPHANESİ: oynatıcıdan çıkmadan geçmişe ve listelere erişim -->
+          <div class="player-library hidden" id="playerLibraryPanel">
+            <div class="player-library-controls">
+              <input type="search" id="playerLibrarySearch" placeholder="Başlık veya altyazıda ara..."
+                     aria-label="Oynatıcı kütüphanesinde ara" />
+              <select id="playerLibraryFilter" aria-label="Kütüphane filtresi">
+                <option value="all">Tümü</option>
+                <option value="continue">Devam et</option>
+                <option value="completed">Tamamlananlar</option>
+              </select>
+            </div>
+            <div class="player-library-status" id="playerLibraryStatus">Henüz izleme kaydı yok.</div>
+            <div class="player-library-list" id="playerLibraryList"></div>
           </div>
 
           <div class="word-inspector hidden" id="wordInspector" role="dialog" aria-live="polite" aria-label="Kelime inceleme">
@@ -1083,11 +1207,14 @@
               </button>
               <button class="tool-button tool-button-ghost hidden" id="backToActive"
                 title="Aktif altyazı satırına geri dön">↑ Aktif satır</button>
+              <button class="tool-button tool-button-ghost" id="timelineToggle"
+                title="Altyazı başlangıç ve bitişlerini dalga biçimi üzerinde düzenle">Zaman çizgisi</button>
             </div>
             <div id="sentenceTools">
             <div class="job-bar hidden" id="playerJobBar">
               <span id="playerJobText">Hazırlanıyor…</span>
               <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
+              <button class="btn-icon player-job-cancel" id="playerJobCancel" title="İşi iptal et" aria-label="Altyazı işini iptal et">&times;</button>
             </div>
             <div class="sentence-tools tool-row-nav">
               <div class="tool-seg" role="group" aria-label="Altyazı gezinme">
@@ -1159,12 +1286,35 @@
             </div>
 
             <div class="ptab-content" data-pcontent="local">
-              <button class="btn btn-secondary btn-sm" id="playerPickVideo">Video seç</button>
+              <div class="source-actions">
+                <button class="btn btn-secondary btn-sm" id="playerPickVideo">Video seç</button>
+                <button class="btn btn-secondary btn-sm" id="playerPickFolder">Klasör seç</button>
+              </div>
               <div class="path-display" id="playerVideoPath">Seçilmedi</div>
+              <label class="field switch-field player-auto-next">
+                <input type="checkbox" id="playerAutoNext" checked />
+                <span>
+                  <strong>Sonraki videoya otomatik geç</strong>
+                  <small>Seçilen klasör veya dosya sırasını kullanır</small>
+                </span>
+              </label>
             </div>
 
             <div class="ptab-content hidden" data-pcontent="yt">
               <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." />
+              <label class="field youtube-session-field">
+                <span class="field-label">YouTube oturumu</span>
+                <select id="playerCookieBrowser">
+                  <option value="">Kapalı</option>
+                  <option value="firefox">Firefox (önerilen)</option>
+                  <option value="chrome">Chrome</option>
+                  <option value="edge">Edge</option>
+                  <option value="brave">Brave</option>
+                  <option value="vivaldi">Vivaldi</option>
+                  <option value="opera">Opera</option>
+                </select>
+                <small>Bot veya yaş doğrulamasında giriş yaptığın tarayıcıyı seç.</small>
+              </label>
               <button class="btn btn-secondary btn-sm" id="playerProbe" style="margin-top:8px">Bilgi al</button>
               <div class="player-yt-info hidden" id="playerYtInfo">
                 <div class="player-yt-title" id="playerYtTitle"></div>
@@ -1179,6 +1329,13 @@
                 <label class="field hidden" id="playerAudioField">
                   <span class="field-label">Ses dili</span>
                   <select id="playerAudioLang"></select>
+                </label>
+                <label class="field switch-field player-audio-lock">
+                  <input type="checkbox" id="playerAudioLock" checked />
+                  <span>
+                    <strong>Oynatıcı ve Whisper aynı sesi kullansın</strong>
+                    <small id="playerAudioLockStatus">Ses seçilince otomatik eşleştirilir</small>
+                  </span>
                 </label>
                 <button class="btn btn-primary btn-sm" id="playerDownload" style="margin-top:8px;width:100%">İndir ve izle</button>
                 <button class="btn btn-secondary btn-sm hidden" id="playerStream" style="margin-top:6px;width:100%">İndirmeden izle</button>
@@ -1268,12 +1425,51 @@
               <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
             </label>
             <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile" style="margin-top:6px;width:100%">Gecikmeyi dosyaya işle</button>
+            <button class="btn btn-secondary btn-sm" id="playerAutoSync" style="margin-top:6px;width:100%"
+              title="Yerel videonun sesini analiz ederek sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir">
+              Sese göre otomatik senkronla
+            </button>
+            <div class="hint" id="playerAutoSyncHint" style="margin-top:6px">
+              Yerel videoda ses ritmini analiz eder; özgün altyazıyı değiştirmeden senkronlu bir kopya oluşturur.
+            </div>
             <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.<br>Altyazıyı <strong>basılı tutup yukarı/aşağı sürükleyerek</strong> konumunu değiştirebilirsin; konum hatırlanır.<br>İzlerken gecikme: <strong>G</strong>/<strong>H</strong> (0,1 sn), hız: <strong>&lt;</strong>/<strong>&gt;</strong>, altyazıyı gizle: <strong>V</strong>, 10 sn: <strong>J</strong>/<strong>L</strong>, ses: <strong>&uarr;</strong>/<strong>&darr;</strong>.</div>
           </div>
 
           </div><!-- /settings-drawer -->
         </div>
       </div>
+      <section class="timeline-drawer hidden" id="timelineDrawer" aria-label="Altyazı zamanlama editörü">
+        <header class="timeline-head">
+          <div>
+            <strong>Zamanlama masası</strong>
+            <span id="timelineStatus">Bir altyazı seçerek zamanını düzenleyin</span>
+          </div>
+          <button class="btn-icon" id="timelineClose" title="Zamanlama masasını kapat">&times;</button>
+        </header>
+        <div class="timeline-toolbar">
+          <div class="timeline-group">
+            <button class="tool-button" id="timelineBack">−100 ms</button>
+            <button class="tool-button" id="timelineForward">+100 ms</button>
+            <button class="tool-button" id="timelineSplit">Oynatma noktasında böl</button>
+            <button class="tool-button" id="timelineMerge">Sonrakiyle birleştir</button>
+          </div>
+          <div class="timeline-group timeline-group-end">
+            <label>Görünüm
+              <select id="timelineZoom">
+                <option value="30">30 sn</option><option value="60" selected>60 sn</option>
+                <option value="120">2 dk</option><option value="300">5 dk</option>
+                <option value="0">Tümü</option>
+              </select>
+            </label>
+            <button class="tool-button" id="timelineUndo" disabled>Geri al</button>
+            <button class="tool-button tool-button-primary" id="timelineSave">Kopya olarak kaydet</button>
+          </div>
+        </div>
+        <div class="timeline-canvas-wrap">
+          <canvas id="timelineCanvas" tabindex="0" aria-label="Ses dalga biçimi ve altyazı blokları"></canvas>
+          <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür.</div>
+        </div>
+      </section>
     </div>
 
     <!-- RESULT MODAL -->
