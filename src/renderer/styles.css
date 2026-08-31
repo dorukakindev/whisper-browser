@@ -3697,6 +3697,7 @@ body::before {
 .player-head-actions { margin-left: 0; }
 
 .browser-workspace {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -3776,6 +3777,17 @@ body::before {
 .browser-signal-kicker { color: #66666a; font-size: 8px; font-weight: 800; letter-spacing: .17em; }
 .browser-signal-text { overflow: hidden; color: #a4a4a8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .browser-signal.detected .browser-signal-text { color: #dfdfe1; }
+.browser-diagnostics-toggle {
+  width: auto;
+  min-height: 30px;
+  padding: 0 10px;
+  color: #85858a;
+  border: 1px solid #29292c;
+  background: #151516;
+  white-space: nowrap;
+}
+.browser-diagnostics-toggle:hover,
+.browser-diagnostics-toggle[aria-expanded="true"] { color: #e0e0e2; border-color: #4a3a22; background: #201b14; }
 .browser-track-actions { min-width: 0; display: flex; align-items: center; gap: 6px; }
 .browser-track-actions select {
   width: min(180px, 18vw);
@@ -3788,6 +3800,39 @@ body::before {
 }
 .browser-track-actions .btn { width: auto; min-height: 32px; padding: 0 11px; white-space: nowrap; }
 .browser-dismiss { width: 30px; height: 30px; color: #77777b; border-radius: 8px; }
+
+.browser-diagnostics {
+  position: absolute;
+  z-index: 4;
+  top: 101px;
+  right: 12px;
+  width: min(560px, calc(100% - 24px));
+  padding: 12px;
+  border: 1px solid #303034;
+  border-radius: 12px;
+  background: rgba(16,16,17,.97);
+  box-shadow: 0 18px 50px rgba(0,0,0,.5);
+}
+.browser-diagnostics-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.browser-diagnostics-head > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.browser-diagnostics-service { color: #e3e3e5; font-size: 12px; font-weight: 700; }
+.browser-diagnostics-help { color: #88888d; font-size: 10px; line-height: 1.45; }
+.browser-diagnostics-summary { flex: 0 0 auto; color: var(--player-amber); font-size: 10px; white-space: nowrap; }
+.browser-diagnostics-recent {
+  max-height: 112px;
+  margin-top: 10px;
+  padding-top: 9px;
+  overflow: auto;
+  border-top: 1px solid #29292c;
+  color: #77777c;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 9px;
+  line-height: 1.6;
+}
+.browser-diagnostic-row { display: grid; grid-template-columns: 48px 52px minmax(0, 1fr); gap: 7px; }
+.browser-diagnostic-row.is-parsed { color: #a9c7ae; }
+.browser-diagnostic-row.is-error { color: #d79a91; }
+.browser-diagnostic-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .browser-view-slot {
   position: relative;

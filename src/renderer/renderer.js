@@ -2461,6 +2461,7 @@ const player = {
   browserOverlayTimer: null,
   browserTrackRefreshTimer: null,
   browserLoadedTrackId: '',
+  browserDiagnostics: null,
 };
 
 try { player.audioLocks = JSON.parse(localStorage.getItem('playerAudioLocks') || '{}') || {}; }
@@ -2492,6 +2493,43 @@ function scheduleBrowserBounds() {
 function setBrowserSignal(text, detected = false) {
   if ($('browserSignalText')) $('browserSignalText').textContent = text;
   $('browserSignal')?.classList.toggle('detected', detected);
+}
+
+function renderBrowserDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== 'object') return;
+  player.browserDiagnostics = diagnostics;
+  const adapter = diagnostics.adapter || {};
+  if ($('browserDiagnosticsService')) $('browserDiagnosticsService').textContent = adapter.label || 'Genel web videosu';
+  if ($('browserDiagnosticsHelp')) $('browserDiagnosticsHelp').textContent = adapter.help
+    || 'Videoyu başlatın ve varsa sitenin kendi altyazısını açın.';
+  const counts = diagnostics.counts || {};
+  const attempts = Number(counts.cdp || 0) + Number(counts.page || 0) + Number(counts.textTrack || 0);
+  if ($('browserDiagnosticsSummary')) $('browserDiagnosticsSummary').textContent = attempts
+    ? `${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`
+    : 'Henüz ağ izi yok';
+  const recent = $('browserDiagnosticsRecent');
+  if (!recent) return;
+  recent.replaceChildren();
+  const entries = Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 8) : [];
+  if (!entries.length) {
+    recent.textContent = 'Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.';
+    return;
+  }
+  for (const entry of entries) {
+    const row = document.createElement('div');
+    row.className = `browser-diagnostic-row is-${entry.outcome === 'parsed' ? 'parsed' : entry.outcome === 'error' ? 'error' : 'neutral'}`;
+    const strategy = document.createElement('span');
+    strategy.textContent = ({ cdp: 'AĞ', page: 'SAYFA', textTrack: 'İZ', manifest: 'AKIŞ' })[entry.strategy]
+      || String(entry.strategy || '').toUpperCase();
+    const result = document.createElement('span');
+    result.textContent = entry.outcome === 'parsed' ? 'işlendi' : entry.outcome === 'error' ? 'hata' : 'elendi';
+    const detail = document.createElement('span');
+    detail.className = 'browser-diagnostic-url';
+    detail.textContent = [entry.detail, entry.url].filter(Boolean).join(' · ') || entry.mime || 'altyazı adayı';
+    detail.title = detail.textContent;
+    row.append(strategy, result, detail);
+    recent.appendChild(row);
+  }
 }
 
 function clearBrowserTracks(message) {
@@ -2631,6 +2669,7 @@ async function showBrowserWorkspace() {
     return;
   }
   updateBrowserNavigation(result);
+  if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
   scheduleBrowserBounds();
   if (!result.hasPage) {
     const last = (() => { try { return localStorage.getItem('playerBrowserLastUrl') || ''; } catch (_) { return ''; } })();
@@ -2711,6 +2750,13 @@ if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click',
   setBrowserSignal('Bildirim kapatıldı; altyazı izleme arka planda sürüyor.', false);
 });
 if ($('browserTrackSelect')) $('browserTrackSelect').addEventListener('change', () => renderBrowserTracks());
+if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListener('click', () => {
+  const panel = $('browserDiagnosticsPanel');
+  if (!panel) return;
+  const open = panel.classList.toggle('hidden') === false;
+  $('browserDiagnosticsToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open && player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+});
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
@@ -2736,6 +2782,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
   } else if (event.type === 'capture-warning') {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
+  } else if (event.type === 'capture-status' && event.diagnostics) {
+    renderBrowserDiagnostics(event.diagnostics);
   } else if (event.type === 'drm-status') {
     const message = event.supported
       ? 'Widevine erişimi hazır; korumalı video oynatma site hesabı ve lisans koşullarına bağlı.'

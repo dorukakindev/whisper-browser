@@ -935,6 +935,8 @@
               <span class="browser-signal-kicker">ALTYAZI SİNYALİ</span>
               <span class="browser-signal-text" id="browserSignalText">Sayfadaki video ve altyazı izleri burada algılanır.</span>
             </div>
+            <button class="btn btn-ghost btn-sm browser-diagnostics-toggle" id="browserDiagnosticsToggle"
+              type="button" aria-expanded="false" aria-controls="browserDiagnosticsPanel">Yakalama</button>
             <div class="browser-track-actions hidden" id="browserTrackActions">
               <select id="browserTrackSelect" aria-label="Bulunan altyazı izi"></select>
               <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
@@ -943,6 +945,19 @@
                 title="Bu bildirimi kapat" aria-label="Bildirimi kapat">×</button>
             </div>
           </div>
+
+          <section class="browser-diagnostics hidden" id="browserDiagnosticsPanel" aria-label="Altyazı yakalama teşhisi">
+            <div class="browser-diagnostics-head">
+              <div>
+                <span class="browser-diagnostics-service" id="browserDiagnosticsService">Genel web videosu</span>
+                <span class="browser-diagnostics-help" id="browserDiagnosticsHelp">Videoyu başlatın ve sitenin altyazısını açın.</span>
+              </div>
+              <span class="browser-diagnostics-summary" id="browserDiagnosticsSummary">Henüz ağ izi yok</span>
+            </div>
+            <div class="browser-diagnostics-recent" id="browserDiagnosticsRecent">
+              Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.
+            </div>
+          </section>
 
           <div class="browser-view-slot" id="browserViewSlot">
             <div class="browser-empty" id="browserEmpty">

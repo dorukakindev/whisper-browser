@@ -11,7 +11,7 @@
   "author": "Whisper Altyazı",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^31.0.0"
+    "electron": "https://github.com/castlabs/electron-releases#v43.0.0+wvcus"
   },
   "dependencies": {
     "hls.js": "^1.7.1"
@@ -37,6 +37,6 @@
   },
   "homepage": "https://github.com/androiandot/whisper-altyazi#readme",
   "engines": {
-    "node": ">=18"
+    "node": ">=22.12"
   }
 }

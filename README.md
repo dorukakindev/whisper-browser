@@ -92,6 +92,9 @@ oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebil
 - **Altyazı listesi & blok gezinme** — oynatıcıda tüm bloklar listelenir; tıklayınca o ana atlar, aktif blok vurgulanıp kendiliğinden kaydırılır, metinde anlık arama yapılır. Klavyeyle blok blok gezinme (A/D), bloğu tekrar oynatma (R), satırı kopyalama (C) ve her blok sonunda otomatik duraklatma — uzun filmde altyazı denetimini hızlandırır
 - **Çift altyazı & izlerken düzeltme** — kaynak ve çeviri aynı anda gösterilebilir (çeviriyi izlerken kontrol etmenin en hızlı yolu); altyazıya çift tıklayıp (veya E tuşu) o bloğu düzeltip kaydedebilirsin, ilk kaydetmede .bak yedeği alınır
 - **YouTube'u indirmeden izleme (1080p'ye kadar)** — YouTube'un HLS manifesti kullanılır: tüm çözünürlükler + ses tek akışta, ileri-geri sarma çalışır, dosya indirilmez. Kalite oynatırken değiştirilebilir (Otomatik veya sabit). Manifest yoksa veya akış hata verirse indirme yolu her zaman yedekte
+- **Uygulama içi web video modu** — Netflix, Disney+, Max, Discovery+, Hulu ve YouTube sayfalarını kalıcı bir tarayıcı profilinde açar; giriş çerezleri ve site verileri sonraki açılışta korunur. Açılmış kaynak altyazıyı ağ yanıtı, HTML5 TextTrack ve sayfa içi fetch/XHR olmak üzere üç bağımsız yoldan algılar; bulunan izi çalışma alanına yükleyip mevcut çeviri motoruna gönderebilir
+- **Web altyazısı yakalama teşhisi** — hangi servis adaptörünün seçildiğini, kaç adayın işlendiğini/elendiğini ve kullanılan yakalama yolunu gösterir. İmzalı CDN bağlantılarındaki token, imza ve özel sorgu parametreleri arayüzde gösterilmez
+- **Widevine çalışma zamanı** — Castlabs Electron for Content Security kullanılır. DRM oynatma yine site hesabına, bölgeye, lisans koşullarına ve üretim VMP kabulüne bağlıdır; altyazı yakalama DRM çözme veya koruma atlatma yapmaz
 - **Uygulama içi oynatıcı** — videoyu kendi altyazılarınla izle: yerel dosya veya YouTube linki. YouTube'da kalite (1080p'ye kadar) ve — video dublajlıysa — ses dili seçilir; video indirilip birleştirilerek oynatılır. Altyazı video üstünde çizilir (yazı boyutu ve gecikme ayarlanabilir), tam ekran ve klavye kısayolları (boşluk, ok tuşları, F, Esc) desteklenir
 - **Zaman kaydırma & videoya gömme** — sonuç ekranından SRT/VTT'yi global olarak kaydır veya altyazıyı videoya göm (ffmpeg burn-in)
 - **Kalıcı iş günlükleri** — her iş `%APPDATA%/whisper-altyazi/logs` altına ayrı dosyaya yazılır (ayarlar, aşamalar, kalite raporu, uyarılar, hata izleri); Günlük panelindeki "Kayıtlı günlükler" ile açılır, en yeni 100 dosya tutulur
@@ -122,7 +125,7 @@ oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebil
 Gereksinimler:
 - Windows 10/11
 - Python 3.10 veya 3.11
-- Node.js 18+
+- Node.js 22.12+
 - NVIDIA CUDA destekli GPU (RTX 4070 Ti önerilen)
 - ffmpeg (PATH'de veya `backend/bin/` içinde)
 

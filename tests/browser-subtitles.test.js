@@ -228,12 +228,17 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /parseHlsSubtitleTracks/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);
+  assert.match(main, /Target\.setAutoAttach/);
+  assert.match(main, /browserCaptureHookScript/);
+  assert.match(main, /processBrowserCapturedPayload/);
+  assert.match(main, /capture-status/);
   assert.match(main, /\.framesInSubtree/);
   assert.match(main, /node\.shadowRoot/);
   assert.match(main, /executeBrowserFrames\(browserOverlayScript/);
   assert.match(main, /state\.offset/);
   assert.match(main, /browserSeenManifests = new Map/);
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
+  assert.match(main, /components\.whenReady\(\)/);
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
   assert.match(preload, /navigateBrowser:/);
@@ -243,8 +248,12 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(renderer, /scheduleActiveBrowserTrackRefresh/);
   assert.match(renderer, /selectedBefore \|\| event\.track\.id/);
   assert.match(renderer, /preserveInspector/);
+  assert.match(renderer, /function renderBrowserDiagnostics/);
   assert.match(html, /id="workspaceBrowserMode"/);
   assert.match(html, /id="browserTrackTranslate"/);
+  assert.match(html, /id="browserDiagnosticsPanel"/);
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.0\.0\+wvcus/);
 });
 
 if (!process.exitCode) console.log(`\n${passed} tarayıcı altyazısı testi geçti.`);

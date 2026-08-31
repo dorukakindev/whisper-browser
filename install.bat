@@ -29,11 +29,18 @@ echo [2/5] Node.js kontrol ediliyor...
 where node >nul 2>nul
 if errorlevel 1 (
     echo HATA: Node.js bulunamadi.
-    echo Lutfen https://nodejs.org/ adresinden Node.js 18+ yukleyin.
+    echo Lutfen https://nodejs.org/ adresinden Node.js 22.12+ yukleyin.
     pause
     exit /b 1
 )
 node --version
+node -e "const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>22||(a===22&&b>=12)?0:1)"
+if errorlevel 1 (
+    echo HATA: Widevine destekli Electron icin Node.js 22.12 veya daha yeni bir surum gerekir.
+    echo Lutfen https://nodejs.org/ adresinden guncel LTS surumunu yukleyin.
+    pause
+    exit /b 1
+)
 echo.
 
 REM ----- ffmpeg kontrol -----
@@ -90,6 +97,16 @@ echo [5/5] Electron yukleniyor...
 call npm install
 if errorlevel 1 (
     echo HATA: npm install basarisiz oldu.
+    pause
+    exit /b 1
+)
+
+REM Castlabs Electron paketi ikili dosyayi ayri indirir. Bunu kurulumda
+REM tamamla; ilk uygulama acilisinda sessiz indirme hatasi yasanmasin.
+call npx install-electron --no
+if errorlevel 1 (
+    echo HATA: Widevine destekli Electron ikilisi indirilemedi.
+    echo Internet baglantisini kontrol edip install.bat'i yeniden calistirin.
     pause
     exit /b 1
 )

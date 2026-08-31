@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -21,6 +21,12 @@ const {
   findSubtitleUrls,
   subtitleLanguage,
 } = require('./browser-subtitles');
+const {
+  adapterAcceptsResponse,
+  browserAdapterForUrl,
+  browserResponseAdapter,
+  redactCaptureUrl,
+} = require('./browser-adapters');
 
 let mainWindow;
 let mainWindowClosing = false;
@@ -31,6 +37,8 @@ let browserVisible = false;
 let browserBounds = null;
 let browserTrackTimer = null;
 let browserMediaTimer = null;
+let browserCaptureTimer = null;
+let browserCaptureBusy = false;
 let browserDebuggerReady = false;
 const browserPendingResponses = new Map();
 const browserSeenTracks = new Set();
@@ -40,6 +48,8 @@ const browserSeenManifests = new Map();
 let browserDashSubtitleMatchers = [];
 let browserLastDrmStatus = '';
 let browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
+let browserDiagnostics = null;
+let widevineComponentStatus = { available: false, ready: false, detail: 'Castlabs bileşen API’si bulunamadı' };
 
 // İş çalışırken sistemin uykuya geçmesini engelle (uzun transkripsiyon yarıda kalmasın)
 function startPowerBlocker() {
@@ -790,6 +800,39 @@ function sendBrowserEvent(payload) {
   }
 }
 
+function freshBrowserDiagnostics(url = '') {
+  const adapter = browserAdapterForUrl(url);
+  return {
+    adapter: { id: adapter.id, label: adapter.label, help: adapter.help },
+    pageUrl: redactCaptureUrl(url),
+    counts: { cdp: 0, page: 0, textTrack: 0, manifest: 0, parsed: 0, rejected: 0, errors: 0 },
+    recent: [],
+  };
+}
+
+function publishBrowserDiagnostics() {
+  if (browserDiagnostics) sendBrowserEvent({ type: 'capture-status', diagnostics: browserDiagnostics });
+}
+
+function noteBrowserCapture(strategy, candidate = {}, outcome = 'aday', detail = '') {
+  if (!browserDiagnostics) browserDiagnostics = freshBrowserDiagnostics(
+    browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '');
+  if (browserDiagnostics.counts[strategy] !== undefined) browserDiagnostics.counts[strategy]++;
+  if (outcome === 'parsed') browserDiagnostics.counts.parsed++;
+  else if (outcome === 'rejected') browserDiagnostics.counts.rejected++;
+  else if (outcome === 'error') browserDiagnostics.counts.errors++;
+  const adapter = browserResponseAdapter(browserDiagnostics.pageUrl, candidate.url || '');
+  browserDiagnostics.recent.unshift({
+    at: Date.now(), strategy, outcome,
+    service: adapter.label,
+    mime: String(candidate.mimeType || candidate.mime || '').slice(0, 80),
+    url: redactCaptureUrl(candidate.url || ''),
+    detail: String(detail || '').slice(0, 160),
+  });
+  browserDiagnostics.recent = browserDiagnostics.recent.slice(0, 12);
+  publishBrowserDiagnostics();
+}
+
 function normalizeBrowserUrl(raw) {
   const value = String(raw || '').trim();
   if (!value) return null;
@@ -843,6 +886,9 @@ function resetBrowserCaptureState() {
   browserTrackPublications.clear();
   browserSeenManifests.clear();
   browserDashSubtitleMatchers = [];
+  const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
+  browserDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url);
+  publishBrowserDiagnostics();
 }
 
 function browserManifestFingerprint(body) {
@@ -981,19 +1027,13 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}) 
   return true;
 }
 
-async function captureBrowserResponse(requestId) {
-  const candidate = browserPendingResponses.get(requestId);
-  browserPendingResponses.delete(requestId);
-  if (!candidate || !browserView || browserView.webContents.isDestroyed() || !browserDebuggerReady) return;
+async function processBrowserCapturedPayload(responseBuffer, candidate = {}, strategy = 'cdp') {
   try {
-    const result = await browserView.webContents.debugger.sendCommand('Network.getResponseBody', { requestId });
-    const responseBuffer = result.base64Encoded
-      ? Buffer.from(result.body || '', 'base64')
-      : Buffer.from(String(result.body || ''), 'utf-8');
     const body = responseBuffer.toString('utf-8');
     const mime = String(candidate.mimeType || '').toLowerCase();
     const isManifest = /mpegurl|dash\+xml/i.test(mime) || /\.(m3u8|mpd)(?:[?#]|$)/i.test(candidate.url || '');
     if (isManifest) {
+      noteBrowserCapture('manifest', candidate, 'aday', strategy);
       const manifestKey = browserTrackStreamKey(candidate.url);
       const manifestFingerprint = browserManifestFingerprint(body);
       if (browserSeenManifests.get(manifestKey) !== manifestFingerprint) {
@@ -1012,23 +1052,29 @@ async function captureBrowserResponse(requestId) {
         }
         const tracks = isHls ? parseHlsSubtitleTracks(body, candidate.url)
           : parseDashSubtitleTracks(body, candidate.url);
+        let storedCount = 0;
         for (const discovered of tracks.slice(0, 24)) {
           try {
             const fetched = await fetchBrowserText(discovered.url);
             const parsed = parseSubtitlePayload(fetched, '', discovered.url);
-            if (parsed.cues.length) storeBrowserTrack(parsed.cues, {
-              language: discovered.language, label: discovered.label, format: parsed.format,
-              sourceUrl: discovered.url,
-              streamKey: browserTrackStreamKey(discovered.url, discovered.language),
-            });
-            else if (isHls) await captureHlsSubtitlePlaylist(fetched, discovered.url, discovered);
+            if (parsed.cues.length) {
+              if (storeBrowserTrack(parsed.cues, {
+                language: discovered.language, label: discovered.label, format: parsed.format,
+                sourceUrl: discovered.url,
+                streamKey: browserTrackStreamKey(discovered.url, discovered.language),
+              })) storedCount++;
+            } else if (isHls && await captureHlsSubtitlePlaylist(fetched, discovered.url, discovered)) storedCount++;
           } catch (_) {}
         }
-        if (!tracks.length && isHls) await captureHlsSubtitlePlaylist(body, candidate.url, {
+        if (!tracks.length && isHls && await captureHlsSubtitlePlaylist(body, candidate.url, {
           language: subtitleLanguage(candidate), label: 'HLS altyazısı',
-        });
+        })) storedCount++;
+        noteBrowserCapture(strategy, candidate, storedCount ? 'parsed' : 'rejected',
+          storedCount ? `${storedCount} altyazı izi` : 'Manifestte kullanılabilir altyazı izi bulunamadı');
+      } else {
+        noteBrowserCapture(strategy, candidate, 'rejected', 'Aynı manifest daha önce işlendi');
       }
-      return;
+      return true;
     }
     const parsed = parseSubtitlePayload(body, candidate.mimeType, candidate.url);
     if (!parsed.cues.length && candidate.dashTrack?.format === 'vtt') {
@@ -1046,24 +1092,54 @@ async function captureBrowserResponse(requestId) {
     if (!parsed.cues.length && /json/i.test(mime)) {
       // Netflix/Max gibi oyuncular timed-text URL'sini JSON manifest içinde
       // taşır; yanıt URL'sinin kendisinde "subtitle" geçmeyebilir.
+      let storedFromJson = 0;
       for (const subtitleUrl of findSubtitleUrls(body, candidate.url)) {
         try {
-          await fetchAndStoreBrowserSubtitle(subtitleUrl, { label: 'Manifest altyazısı' });
+          const result = await fetchAndStoreBrowserSubtitle(subtitleUrl, { label: 'Manifest altyazısı' });
+          if (result.stored) storedFromJson++;
         } catch (_) {}
       }
+      if (storedFromJson) {
+        noteBrowserCapture(strategy, candidate, 'parsed', `${storedFromJson} manifest altyazısı`);
+        return true;
+      }
     }
-    if (!parsed.cues.length) return;
+    if (!parsed.cues.length) {
+      noteBrowserCapture(strategy, candidate, 'rejected', 'Altyazı zaman kodu ayrıştırılamadı');
+      return false;
+    }
     const language = candidate.dashTrack?.language || subtitleLanguage(candidate);
-    storeBrowserTrack(parsed.cues, {
+    const stored = storeBrowserTrack(parsed.cues, {
       language,
       label: candidate.dashTrack?.label || language || 'Sayfada bulunan altyazı',
       format: parsed.format,
       sourceUrl: candidate.url,
       streamKey: browserTrackStreamKey(candidate.url, language),
     });
-  } catch (_) {
+    noteBrowserCapture(strategy, candidate, stored ? 'parsed' : 'rejected',
+      stored ? `${parsed.cues.length} satır · ${parsed.format}` : 'Aynı altyazı daha önce işlendi');
+    return true;
+  } catch (error) {
+    noteBrowserCapture(strategy, candidate, 'error', error && error.message || 'Yakalama hatası');
+    return false;
+  }
+}
+
+async function captureBrowserResponse(pendingKey) {
+  const candidate = browserPendingResponses.get(pendingKey);
+  browserPendingResponses.delete(pendingKey);
+  if (!candidate || !browserView || browserView.webContents.isDestroyed() || !browserDebuggerReady) return;
+  try {
+    const result = await browserView.webContents.debugger.sendCommand(
+      'Network.getResponseBody', { requestId: candidate.requestId }, candidate.sessionId || undefined);
+    const responseBuffer = result.base64Encoded
+      ? Buffer.from(result.body || '', 'base64')
+      : Buffer.from(String(result.body || ''), 'utf-8');
+    await processBrowserCapturedPayload(responseBuffer, candidate, 'cdp');
+  } catch (error) {
     // Bazı önbellek/ServiceWorker yanıtlarının gövdesi CDP'den okunamaz. DOM
-    // TextTrack taraması aynı altyazı için ikinci ve daha güvenli yoldur.
+    // TextTrack ve sayfa içi fetch/XHR kancası aynı altyazı için diğer yollardır.
+    noteBrowserCapture('cdp', candidate, 'error', error && error.message || 'Yanıt gövdesi okunamadı');
   }
 }
 
@@ -1073,6 +1149,9 @@ async function attachBrowserDebugger() {
   try {
     if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
     await wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 });
+    await wc.debugger.sendCommand('Target.setAutoAttach', {
+      autoAttach: true, waitForDebuggerOnStart: false, flatten: true,
+    }).catch(() => {});
     browserDebuggerReady = true;
   } catch (err) {
     browserDebuggerReady = false;
@@ -1115,6 +1194,95 @@ function browserTrackProbeScript() {
       });
     }
     return tracks;
+  })()`;
+}
+
+function browserCaptureHookScript() {
+  return `(() => {
+    if (window.__whisperCaptureInstalled) return true;
+    window.__whisperCaptureInstalled = true;
+    window.__whisperCaptureQueue = [];
+    window.__whisperCaptureSeen = new Set();
+    window.__whisperSourceOffsets = [];
+    const MAX_TEXT = 2 * 1024 * 1024;
+    const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
+    const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
+    const push = (entry) => {
+      const body = String(entry.body || '');
+      if (!body || body.length > MAX_TEXT) return;
+      const key = String(entry.url || '') + '|' + body.length + '|' + body.slice(0, 96) + '|' + body.slice(-96);
+      if (window.__whisperCaptureSeen.has(key)) return;
+      window.__whisperCaptureSeen.add(key);
+      if (window.__whisperCaptureSeen.size > 120) window.__whisperCaptureSeen.delete(window.__whisperCaptureSeen.values().next().value);
+      const offsets = window.__whisperSourceOffsets || [];
+      const recent = offsets.length ? offsets[offsets.length - 1] : null;
+      window.__whisperCaptureQueue.push({ ...entry, sourceOffset: recent ? recent.offset : 0 });
+      window.__whisperCaptureQueue = window.__whisperCaptureQueue.slice(-32);
+    };
+    const inspectResponse = (url, response) => {
+      try {
+        const mime = response.headers && response.headers.get ? (response.headers.get('content-type') || '') : '';
+        if (!hinted.test(String(url || '')) && !acceptedMime.test(mime)) return;
+        const length = Number(response.headers && response.headers.get ? response.headers.get('content-length') : 0) || 0;
+        if (length > MAX_TEXT) return;
+        response.clone().text().then((body) => push({ url: String(url || response.url || ''), mimeType: mime, body, via: 'fetch' })).catch(() => {});
+      } catch (_) {}
+    };
+    const originalFetch = window.fetch;
+    if (typeof originalFetch === 'function') {
+      window.fetch = function(...args) {
+        const result = originalFetch.apply(this, args);
+        result.then((response) => inspectResponse(response.url || (args[0] && args[0].url) || args[0], response)).catch(() => {});
+        return result;
+      };
+    }
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+      this.__whisperUrl = String(url || '');
+      this.__whisperListening = false;
+      return originalOpen.call(this, method, url, ...rest);
+    };
+    XMLHttpRequest.prototype.send = function(...args) {
+      if (!this.__whisperListening) {
+        this.__whisperListening = true;
+        this.addEventListener('loadend', () => {
+          try {
+            const mime = this.getResponseHeader('content-type') || '';
+            if (!hinted.test(this.__whisperUrl || '') && !acceptedMime.test(mime)) return;
+            if (this.responseType && this.responseType !== 'text') return;
+            const body = String(this.responseText || '');
+            push({ url: this.responseURL || this.__whisperUrl || '', mimeType: mime, body, via: 'xhr' });
+          } catch (_) {}
+        }, { once: true });
+      }
+      return originalSend.apply(this, args);
+    };
+    if (window.SourceBuffer && SourceBuffer.prototype && typeof SourceBuffer.prototype.appendBuffer === 'function') {
+      const originalAppend = SourceBuffer.prototype.appendBuffer;
+      SourceBuffer.prototype.appendBuffer = function(data) {
+        try {
+          const offset = Number(this.timestampOffset);
+          if (Number.isFinite(offset)) {
+            const list = window.__whisperSourceOffsets;
+            const last = list[list.length - 1];
+            if (!last || Math.abs(last.offset - offset) > 0.001) {
+              list.push({ offset, at: performance.now(), bytes: data && data.byteLength || 0 });
+              window.__whisperSourceOffsets = list.slice(-24);
+            }
+          }
+        } catch (_) {}
+        return originalAppend.call(this, data);
+      };
+    }
+    return true;
+  })()`;
+}
+
+function browserCaptureDrainScript() {
+  return `(() => {
+    const queue = Array.isArray(window.__whisperCaptureQueue) ? window.__whisperCaptureQueue.splice(0, 32) : [];
+    return queue;
   })()`;
 }
 
@@ -1175,13 +1343,39 @@ function startBrowserPolling() {
     try {
       const frameTracks = await executeBrowserFrames(browserTrackProbeScript());
       for (const tracks of frameTracks) for (const track of tracks || []) {
-        storeBrowserTrack(track.cues, {
+        const stored = storeBrowserTrack(track.cues, {
           language: track.language, label: track.label, format: 'html5-track', sourceUrl: track.sourceUrl || 'dom:texttrack',
           streamKey: browserTrackStreamKey(track.sourceUrl || `dom:${track.language}:${track.label}`, track.language),
         });
+        if (stored) noteBrowserCapture('textTrack', {
+          url: track.sourceUrl || 'dom:texttrack', mimeType: 'text/html5-track',
+        }, 'parsed', `${track.cues.length} satır`);
       }
     } catch (_) {}
   }, 2600);
+  browserCaptureTimer = setInterval(async () => {
+    if (browserCaptureBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    browserCaptureBusy = true;
+    try {
+      await executeBrowserFrames(browserCaptureHookScript());
+      const batches = await executeBrowserFrames(browserCaptureDrainScript());
+      for (const entries of batches) for (const entry of entries || []) {
+        if (!entry || typeof entry.body !== 'string') continue;
+        const pageUrl = browserView.webContents.getURL();
+        const adapter = browserResponseAdapter(pageUrl, entry.url);
+        if (!adapterAcceptsResponse(adapter, entry)) continue;
+        await processBrowserCapturedPayload(Buffer.from(entry.body, 'utf-8'), {
+          url: String(entry.url || ''),
+          mimeType: String(entry.mimeType || ''),
+          sourceOffset: Number(entry.sourceOffset) || 0,
+        }, 'page');
+      }
+    } catch (_) {
+      // Bir alt frame erişilemez olduğunda diğer yakalama yolları sürer.
+    } finally {
+      browserCaptureBusy = false;
+    }
+  }, 900);
   browserMediaTimer = setInterval(async () => {
     if (!browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     try {
@@ -1195,8 +1389,11 @@ function startBrowserPolling() {
 function stopBrowserPolling() {
   if (browserTrackTimer) clearInterval(browserTrackTimer);
   if (browserMediaTimer) clearInterval(browserMediaTimer);
+  if (browserCaptureTimer) clearInterval(browserCaptureTimer);
   browserTrackTimer = null;
   browserMediaTimer = null;
+  browserCaptureTimer = null;
+  browserCaptureBusy = false;
 }
 
 function browserOverlayScript(payload) {
@@ -1258,6 +1455,34 @@ async function applyBrowserOverlay() {
   } catch (_) { return false; }
 }
 
+async function prepareWidevineComponents() {
+  if (!components || typeof components.whenReady !== 'function') return widevineComponentStatus;
+  widevineComponentStatus = { available: true, ready: false, detail: 'Widevine bileşeni hazırlanıyor' };
+  const readiness = components.whenReady().then(() => {
+    const status = typeof components.status === 'function' ? components.status() : null;
+    widevineComponentStatus = { available: true, ready: true, detail: 'Widevine bileşeni hazır', status };
+    if (browserView && !browserView.webContents.isDestroyed()) setTimeout(() => reportBrowserDrmSupport(), 0);
+    return widevineComponentStatus;
+  }).catch((error) => {
+    const message = error && error.message
+      ? error.message : (error && error.errors ? 'Widevine bileşeni kurulamadı' : String(error || 'Bilinmeyen hata'));
+    widevineComponentStatus = { available: true, ready: false, detail: message.slice(0, 240) };
+    return widevineComponentStatus;
+  });
+  // Bileşen sunucusu çevrimdışıysa uygulamanın tümü açılmaz halde kalmasın.
+  // Kurulum arka planda sürer; DRM sayfası açıldığında EME ayrıca doğrulanır.
+  let timeoutId = null;
+  const timeout = new Promise((resolve) => {
+    timeoutId = setTimeout(() => {
+      widevineComponentStatus = { available: true, ready: false, detail: 'Widevine kurulumu arka planda sürüyor' };
+      resolve(widevineComponentStatus);
+    }, 15000);
+  });
+  const result = await Promise.race([readiness, timeout]);
+  if (timeoutId) clearTimeout(timeoutId);
+  return result;
+}
+
 async function reportBrowserDrmSupport() {
   if (!browserView || browserView.webContents.isDestroyed()) return;
   let host = '';
@@ -1277,7 +1502,10 @@ async function reportBrowserDrmSupport() {
   const statusKey = `${host}:${result.supported}:${result.reason || ''}`;
   if (statusKey === browserLastDrmStatus) return;
   browserLastDrmStatus = statusKey;
-  sendBrowserEvent({ type: 'drm-status', host, supported: !!result.supported, reason: result.reason || '' });
+  sendBrowserEvent({
+    type: 'drm-status', host, supported: !!result.supported,
+    reason: result.reason || '', component: widevineComponentStatus,
+  });
 }
 
 function ensureBrowserView() {
@@ -1327,25 +1555,37 @@ function ensureBrowserView() {
   });
   wc.on('dom-ready', () => {
     attachBrowserDebugger();
+    executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
     applyBrowserOverlay();
     reportBrowserDrmSupport();
   });
   wc.debugger.on('detach', () => { browserDebuggerReady = false; });
-  wc.debugger.on('message', (_event, method, params) => {
+  wc.debugger.on('message', (_event, method, params, sessionId) => {
+    if (method === 'Target.attachedToTarget' && params && params.sessionId) {
+      wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }, params.sessionId).catch(() => {});
+      return;
+    }
     if (method === 'Network.responseReceived') {
       const response = params.response || {};
       const dashTrack = matchDashSubtitleUrl(response.url, browserDashSubtitleMatchers);
+      const adapter = browserResponseAdapter(wc.getURL(), response.url);
       if (dashTrack || isLikelySubtitleResponse(response)
+        || adapterAcceptsResponse(adapter, response)
         || /mpegurl|dash\+xml/i.test(String(response.mimeType || ''))
         || /\.(m3u8|mpd)(?:[?#]|$)/i.test(String(response.url || ''))
         || (/json/i.test(String(response.mimeType || ''))
           && /manifest|playback|timedtext|texttrack|caption/i.test(String(response.url || '')))) {
-        browserPendingResponses.set(params.requestId, dashTrack ? { ...response, dashTrack } : response);
+        const pendingKey = `${sessionId || 'root'}:${params.requestId}`;
+        browserPendingResponses.set(pendingKey, {
+          ...response, requestId: params.requestId, sessionId: sessionId || '',
+          ...(dashTrack ? { dashTrack } : {}),
+        });
       }
-    } else if (method === 'Network.loadingFinished' && browserPendingResponses.has(params.requestId)) {
-      captureBrowserResponse(params.requestId);
+    } else if (method === 'Network.loadingFinished') {
+      const pendingKey = `${sessionId || 'root'}:${params.requestId}`;
+      if (browserPendingResponses.has(pendingKey)) captureBrowserResponse(pendingKey);
     } else if (method === 'Network.loadingFailed') {
-      browserPendingResponses.delete(params.requestId);
+      browserPendingResponses.delete(`${sessionId || 'root'}:${params.requestId}`);
     }
   });
   attachBrowserDebugger();
@@ -1456,7 +1696,10 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await prepareWidevineComponents();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   killActiveJob();
@@ -1489,7 +1732,7 @@ ipcMain.handle('browser:show', (event, rawBounds) => {
   const hasPage = !!browserNavigationState().url;
   view.setVisible(hasPage);
   startBrowserPolling();
-  return { ok: true, hasPage, ...browserNavigationState() };
+  return { ok: true, hasPage, diagnostics: browserDiagnostics, ...browserNavigationState() };
 });
 
 ipcMain.handle('browser:hide', (event) => {
@@ -1557,7 +1800,7 @@ ipcMain.handle('browser:command', async (event, command, value) => {
 
 ipcMain.handle('browser:getState', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
-  return { ok: true, visible: browserVisible, ...browserNavigationState() };
+  return { ok: true, visible: browserVisible, diagnostics: browserDiagnostics, ...browserNavigationState() };
 });
 
 ipcMain.handle('browser:setOverlay', async (event, payload) => {
