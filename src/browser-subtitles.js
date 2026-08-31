@@ -737,6 +737,13 @@ function cuesToSrt(cues) {
     + `${formatSrtTime(cue.end)}\r\n${cue.text}\r\n`).join('\r\n');
 }
 
+function cuesToVtt(cues) {
+  const stamp = (seconds) => formatSrtTime(seconds).replace(',', '.');
+  const body = normalizeCues(cues).map((cue) => `${stamp(cue.start)} --> ${stamp(cue.end)}\r\n`
+    + `${cue.text}\r\n`).join('\r\n');
+  return `WEBVTT\r\n\r\n${body}`;
+}
+
 function browserNavigationCapabilities(webContents) {
   const history = webContents && webContents.navigationHistory;
   const readCapability = (name) => {
@@ -757,6 +764,7 @@ module.exports = {
   cleanCueText,
   cueFingerprint,
   cuesToSrt,
+  cuesToVtt,
   isLikelySubtitleResponse,
   manifestFingerprint,
   normalizeCues,

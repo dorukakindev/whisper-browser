@@ -672,8 +672,32 @@ test('kısa video başlangıçta tamamlanmış sayılmıyor', () => {
   assert(fn(18, 20) === true, 'kısa videoda %90 eşiği çalışmıyor');
   assert(fn(570, 600) === true, 'uzun videoda son 30 saniye eşiği çalışmıyor');
   const save = js.slice(js.indexOf('function savePlayerPosition'), js.indexOf('function maybeOfferResume'));
-  assert(/watchCompletionReached\(t, video\.duration\)/.test(save),
+  assert(/watchCompletionReached\(t, duration\)/.test(save),
     'devam kaydı tamamlanma mantığıyla aynı eşiği kullanmıyor');
+});
+
+test('web videosu konumu izleme kütüphanesine yazılır ve geri açılır', () => {
+  const patchStart = js.indexOf('function currentWatchPatch');
+  const patchBody = js.slice(patchStart, js.indexOf('async function flushWatchState', patchStart));
+  assert(/key\.startsWith\('browser:'\)|mediaKey\.startsWith\('browser:'\)/.test(patchBody),
+    'web medya anahtarı izleme kaydında tanınmıyor');
+  assert(/type:\s*browserMode \? 'browser'/.test(patchBody), 'web kayıt türü kütüphaneye yazılmıyor');
+  const openStart = js.indexOf('function openWatchLibraryItem');
+  const openBody = js.slice(openStart, js.indexOf('function openHistoryItem', openStart));
+  assert(/item\.type === 'browser'/.test(openBody), 'web kütüphane kaydı yeniden açılamıyor');
+  assert(/pendingLibrarySeek/.test(openBody) && /navigateBrowserFromAddress/.test(openBody),
+    'web kütüphane kaydı kaldığı konuma hazırlanmıyor');
+});
+
+test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını bağlıyor', () => {
+  for (const id of ['browserManualSubtitle', 'browserTrackSelect2', 'browserTrackLoadPair', 'browserTrackExport', 'browserCopyAb']) {
+    assert(layer.includes(`id="${id}"`), `${id} arayüzde yok`);
+    assert(js.includes(`$('${id}')`), `${id} renderer'a bağlı değil`);
+  }
+  assert(/loadSubtitle\(second\.path, true\)/.test(js), 'ikinci web izi ikinci altyazı kanalına yüklenmiyor');
+  assert(/exportBrowserSubtitle/.test(js), 'web altyazısı dışa aktarma IPC hattına gitmiyor');
+  assert(/function abSubtitleExcerpt/.test(js) && /cuesToSrt\(cues\)/.test(js),
+    'A-B altyazı metni zamanlı SRT olarak üretilmiyor');
 });
 
 test('ses dili bölge kodlarını güvenli biçimde eşleştiriyor', () => {

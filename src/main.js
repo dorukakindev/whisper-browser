@@ -6,6 +6,7 @@ const {
   browserNavigationCapabilities,
   cueFingerprint,
   cuesToSrt,
+  cuesToVtt,
   isLikelySubtitleResponse,
   manifestFingerprint,
   normalizeCues,
@@ -856,9 +857,14 @@ function readBrowserPlaces() {
 function writeBrowserPlaces(places) {
   try {
     const file = browserPlacesPath();
+    const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
+      url: safeBrowserPlaceUrl(item && item.url),
+      title: String(item && item.title || '').trim().slice(0, 240),
+      visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+    })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
     writeJsonAtomic(file, {
-      history: places.history.slice(0, BROWSER_PLACE_LIMIT),
-      bookmarks: places.bookmarks.slice(0, BROWSER_PLACE_LIMIT),
+      history: clean(places && places.history),
+      bookmarks: clean(places && places.bookmarks),
     });
   } catch (_) {}
 }
@@ -1464,6 +1470,7 @@ function browserMediaCommandScript(command, value) {
     else if (command === 'pause') video.pause();
     else if (command === 'mute') video.muted = !video.muted;
     else if (command === 'volume-relative') video.volume = Math.max(0, Math.min(1, video.volume + ${safeValue}));
+    else if (command === 'volume-set') video.volume = Math.max(0, Math.min(1, ${safeValue}));
     else if (command === 'frame-step') {
       if (!video.paused) return false;
       video.currentTime = Math.max(0, video.currentTime + ${safeValue});
@@ -1472,7 +1479,8 @@ function browserMediaCommandScript(command, value) {
     }
     else return false;
     return { handled: true, currentTime: Number(video.currentTime) || 0,
-      playbackRate: Number(video.playbackRate) || 1, paused: !!video.paused };
+      playbackRate: Number(video.playbackRate) || 1, paused: !!video.paused,
+      volume: Number(video.volume) || 0, muted: !!video.muted };
   })()`;
 }
 
@@ -2000,7 +2008,7 @@ ipcMain.handle('browser:command', async (event, command, value) => {
       wc.stop();
     } else if (command === 'focus') {
       wc.focus();
-    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'frame-step', 'speed'].includes(command)) {
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed'].includes(command)) {
       const media = (await executeBrowserFrames(browserMediaCommandScript(command, value)))
         .find((result) => result && (result === true || result.handled));
       if (!media) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
@@ -2073,6 +2081,21 @@ ipcMain.handle('browser:places:clearHistory', (event) => {
   return { ok: true, places: snapshot };
 });
 
+ipcMain.handle('browser:session:reset', async (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    destroyBrowserView();
+    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+    await browserSession.clearStorageData();
+    await browserSession.clearCache();
+    if (typeof browserSession.clearAuthCache === 'function') await browserSession.clearAuthCache();
+    browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
+    return { ok: true, places: browserPlacesSnapshot() };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('browser:setOverlay', async (event, payload) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
   const mode = ['off', 'source', 'translation', 'both'].includes(payload && payload.mode)
@@ -2084,6 +2107,33 @@ ipcMain.handle('browser:setOverlay', async (event, payload) => {
     offset: Math.max(-30, Math.min(30, Number(payload && payload.offset) || 0)),
   };
   return { ok: await applyBrowserOverlay() };
+});
+
+ipcMain.handle('browser:subtitle:export', async (event, payload) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  const cues = normalizeCues(payload && payload.cues).slice(0, 20000);
+  if (!cues.length) return { ok: false, error: 'Dışa aktarılacak altyazı yok.' };
+  const safeTitle = String(payload && payload.title || 'web-altyazi')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'web-altyazi';
+  const preferredFormat = payload && payload.format === 'vtt' ? 'vtt' : 'srt';
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Web altyazısını dışa aktar',
+    defaultPath: `${safeTitle}.${preferredFormat}`,
+    filters: [
+      { name: 'SubRip altyazısı', extensions: ['srt'] },
+      { name: 'WebVTT altyazısı', extensions: ['vtt'] },
+    ],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    const extension = path.extname(result.filePath).toLowerCase();
+    const outputPath = extension ? result.filePath : `${result.filePath}.${preferredFormat}`;
+    const vtt = path.extname(outputPath).toLowerCase() === '.vtt';
+    fs.writeFileSync(outputPath, vtt ? cuesToVtt(cues) : `\uFEFF${cuesToSrt(cues)}`, 'utf-8');
+    return { ok: true, path: outputPath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 ipcMain.handle('dialog:openVideo', async () => {
@@ -2338,13 +2388,20 @@ ipcMain.handle('settings:save', (_event, s) => saveSettings(s));
 // ---- Ayarları dışa/içe aktar ----
 ipcMain.handle('settings:export', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Ayarları dışa aktar',
-    defaultPath: 'whisper-altyazi-ayarlar.json',
-    filters: [{ name: 'Ayar dosyası', extensions: ['json'] }],
+    title: 'Uygulama yedeğini dışa aktar',
+    defaultPath: 'whisper-altyazi-yedek.json',
+    filters: [{ name: 'Whisper Altyazı yedeği', extensions: ['json'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false };
   try {
-    fs.writeFileSync(result.filePath, JSON.stringify(loadSettings(), null, 2), 'utf-8');
+    const backup = {
+      backupVersion: 2,
+      exportedAt: new Date().toISOString(),
+      settings: loadSettings(),
+      browserPlaces: browserPlacesSnapshot(),
+      watchLibrary: loadWatchLibrary(),
+    };
+    fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf-8');
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -2363,8 +2420,34 @@ ipcMain.handle('settings:import', async () => {
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
       return { ok: false, error: 'Geçersiz ayar dosyası.' };
     }
-    saveSettings(data);          // diske yaz
-    return { ok: true, settings: data };  // renderer UI'a uygulasın
+    const bundled = Number(data.backupVersion) >= 2 && data.settings
+      && typeof data.settings === 'object' && !Array.isArray(data.settings);
+    const settings = bundled ? data.settings : data;
+    saveSettings(settings);
+    if (bundled && data.browserPlaces && typeof data.browserPlaces === 'object') {
+      writeBrowserPlaces(data.browserPlaces);
+    }
+    if (bundled && Array.isArray(data.watchLibrary)) {
+      const watchLibrary = data.watchLibrary.filter((item) => item && typeof item === 'object'
+        && typeof item.key === 'string' && item.key.trim()).map((item) => ({
+        ...item,
+        key: item.key.trim().slice(0, 2200),
+        title: String(item.title || '').slice(0, 500),
+        sourceRef: String(item.sourceRef || '').slice(0, 4000),
+        localPath: String(item.localPath || '').slice(0, 4000),
+        subtitlePaths: uniqueStrings(item.subtitlePaths),
+        collections: uniqueStrings(item.collections),
+      }));
+      saveWatchLibrary(watchLibrary);
+    }
+    return {
+      ok: true,
+      settings,
+      restored: bundled ? {
+        browserPlaces: browserPlacesSnapshot(),
+        watchLibraryCount: loadWatchLibrary().length,
+      } : null,
+    };
   } catch (err) {
     return { ok: false, error: 'Ayar dosyası okunamadı: ' + err.message };
   }

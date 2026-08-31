@@ -2238,7 +2238,7 @@ document.addEventListener('keydown', (e) => {
 $('exportSettings').addEventListener('click', async () => {
   await saveAppSettings();  // önce mevcut UI'yi diske yaz
   const r = await window.api.exportSettings();
-  if (r && r.ok) logLine(`Ayarlar dışa aktarıldı: ${r.path}`, 'success');
+  if (r && r.ok) logLine(`Uygulama yedeği oluşturuldu: ${r.path}`, 'success');
   else if (r && r.error) logLine('Dışa aktarma başarısız: ' + r.error, 'error');
 });
 
@@ -2263,7 +2263,12 @@ $('importSettings').addEventListener('click', async () => {
   renderGlossary();
   updateLlmEndpointUI();
   updateGpuBadge();
-  logLine('Ayarlar içe aktarıldı ve uygulandı.', 'success');
+  if (r.restored) {
+    await Promise.all([refreshWatchLibrary(), loadBrowserPlaces()]);
+    logLine(`Yedek geri yüklendi: ${r.restored.watchLibraryCount} izleme kaydı.`, 'success');
+  } else {
+    logLine('Eski ayar dosyası içe aktarıldı ve uygulandı.', 'success');
+  }
 });
 
 // ===== JSON'dan yeniden dışa aktarma =====
@@ -2474,11 +2479,16 @@ const player = {
   browserDuration: 0,
   browserPaused: true,
   browserRate: 1,
+  browserVolume: 1,
+  browserMuted: false,
+  browserProfileKey: '',
+  browserPositionTick: 0,
   browserBoundsFrame: 0,
   browserBoundsObserver: null,
   browserOverlayTimer: null,
-  browserTrackRefreshTimer: null,
+  browserTrackRefreshTimers: {},
   browserLoadedTrackId: '',
+  browserLoadedTrackId2: '',
   browserDiagnostics: null,
   browserPlaces: { history: [], bookmarks: [] },
   browserPlaceTab: 'bookmarks',
@@ -2725,29 +2735,37 @@ function renderBrowserDiagnostics(diagnostics) {
 function clearBrowserTracks(message) {
   player.browserPrepareSeq += 1;
   player.browserTranslatePreparing = false;
-  clearTimeout(player.browserTrackRefreshTimer);
-  player.browserTrackRefreshTimer = null;
+  Object.values(player.browserTrackRefreshTimers).forEach((timer) => clearTimeout(timer));
+  player.browserTrackRefreshTimers = {};
   player.browserLoadedTrackId = '';
+  player.browserLoadedTrackId2 = '';
   player.browserTracks = [];
   const select = $('browserTrackSelect');
   if (select) select.innerHTML = '';
+  const select2 = $('browserTrackSelect2');
+  if (select2) select2.innerHTML = '<option value="">İkinci iz yok</option>';
   $('browserTrackActions')?.classList.add('hidden');
   setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
 }
 
 function renderBrowserTracks(selectedId) {
   const select = $('browserTrackSelect');
+  const select2 = $('browserTrackSelect2');
   const actions = $('browserTrackActions');
-  if (!select || !actions) return;
+  if (!select || !select2 || !actions) return;
   const previous = selectedId || select.value;
+  const previous2 = select2.value;
   select.innerHTML = '';
+  select2.innerHTML = '<option value="">İkinci iz yok</option>';
   player.browserTracks.forEach((track) => {
     const option = document.createElement('option');
     option.value = track.id;
     option.textContent = `${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
     select.appendChild(option);
+    select2.appendChild(option.cloneNode(true));
   });
   if (player.browserTracks.some((track) => track.id === previous)) select.value = previous;
+  if (player.browserTracks.some((track) => track.id === previous2)) select2.value = previous2;
   actions.classList.toggle('hidden', player.browserTracks.length === 0);
   if (player.browserTracks.length) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
@@ -2755,9 +2773,10 @@ function renderBrowserTracks(selectedId) {
   }
 }
 
-function browserTrackSelection() {
-  const id = $('browserTrackSelect')?.value;
-  return player.browserTracks.find((track) => track.id === id) || player.browserTracks[0] || null;
+function browserTrackSelection(secondary = false) {
+  const id = $(secondary ? 'browserTrackSelect2' : 'browserTrackSelect')?.value;
+  if (secondary && !id) return null;
+  return player.browserTracks.find((track) => track.id === id) || (secondary ? null : player.browserTracks[0]) || null;
 }
 
 function browserTrackSourceLanguage(track) {
@@ -2819,21 +2838,131 @@ async function useBrowserTrack(translate) {
   if (translate) $('makeTransBtn')?.click();
 }
 
+async function useBrowserTrackPair() {
+  const source = browserTrackSelection(false);
+  const second = browserTrackSelection(true);
+  if (!source || !second) {
+    setBrowserSignal('İki altyazı için ikinci iz seçin.', false);
+    return;
+  }
+  if (source.id === second.id) {
+    setBrowserSignal('Birinci ve ikinci altyazı izi farklı olmalı.', false);
+    return;
+  }
+  addSubtitleOption(source.path, `Web · ${source.language || source.label}`);
+  addSubtitleOption(second.path, `Web · ${second.language || second.label}`);
+  $('playerSubSelect').value = source.path;
+  $('playerSubSelect2').value = second.path;
+  await loadSubtitle(source.path);
+  if (player.subPath !== source.path) return;
+  await loadSubtitle(second.path, true);
+  if (player.sub2Path !== second.path) return;
+  player.browserLoadedTrackId = source.id;
+  player.browserLoadedTrackId2 = second.id;
+  setPlayerSidebarCollapsed(false);
+  setSubtitleMode('both');
+  setBrowserSignal('Kaynak ve ikinci altyazı birlikte yüklendi.', true);
+}
+
+async function loadManualBrowserSubtitle() {
+  const path = await window.api.selectFile('subtitle').catch(() => null);
+  if (!path) return;
+  addSubtitleOption(path, `Dosya · ${String(path).split(/[\\/]/).pop()}`);
+  $('playerSubSelect').value = path;
+  await loadSubtitle(path);
+  if (player.subPath !== path) return;
+  player.browserLoadedTrackId = '';
+  setPlayerSidebarCollapsed(false);
+  setBrowserSignal('Dosyadaki altyazı web videosunun üzerine yüklendi.', true);
+}
+
+async function exportSelectedBrowserTrack() {
+  const track = browserTrackSelection(false);
+  let cues = [];
+  let label = player.browserPageTitle || 'web-altyazi';
+  if (track && track.path) {
+    const result = await window.api.readSubtitle(track.path).catch(() => null);
+    if (result && result.ok) {
+      cues = parseSubtitles(result.text);
+      label = `${label} ${track.language || track.label || ''}`.trim();
+    }
+  }
+  if (!cues.length) cues = player.cues.slice();
+  if (!cues.length) {
+    setBrowserSignal('Dışa aktarılacak altyazı yüklenmedi.', false);
+    return;
+  }
+  const format = $('browserExportFormat')?.value === 'vtt' ? 'vtt' : 'srt';
+  const result = await window.api.exportBrowserSubtitle({ cues, title: label, format }).catch(() => null);
+  if (result && result.ok) setBrowserSignal('Altyazı dosyası dışa aktarıldı.', true);
+  else if (result && !result.canceled) setBrowserSignal(`Altyazı kaydedilemedi: ${result.error || 'bilinmeyen hata'}`, false);
+}
+
+function abSubtitleExcerpt() {
+  if (player.abA === null || player.abB === null || player.abB <= player.abA) return [];
+  const start = player.abA - player.offset;
+  const end = player.abB - player.offset;
+  const mode = browserSubtitleMode();
+  const source = player.cues.filter((cue) => cue.end > start && cue.start < end);
+  const translation = player.cues2.filter((cue) => cue.end > start && cue.start < end);
+  const base = mode === 'translation' ? translation : (source.length ? source : translation);
+  return base.map((cue) => {
+    let text = cue.text;
+    if (mode === 'both' && source.length && translation.length) {
+      const middle = (cue.start + cue.end) / 2;
+      const translated = translation.filter((item) => item.end > cue.start && item.start < cue.end)
+        .map((item) => item.text).join(' / ');
+      if (translated && !text.includes(translated)) text = `${text}\n${translated}`;
+      else if (!translated) {
+        const index = findCueAt(translation, middle, -1);
+        if (index >= 0) text = `${text}\n${translation[index].text}`;
+      }
+    }
+    return {
+      start: Math.max(0, Math.max(cue.start, start) - start),
+      end: Math.max(0.05, Math.min(cue.end, end) - start),
+      text,
+    };
+  });
+}
+
+async function copyBrowserAbText() {
+  const cues = abSubtitleExcerpt();
+  if (!cues.length) {
+    setBrowserSignal(player.abA === null || player.abB === null
+      ? 'Önce oynatıcıdaki A-B düğmesiyle bir aralık belirleyin.'
+      : 'A-B aralığında yüklü altyazı bulunamadı.', false);
+    return;
+  }
+  await window.api.copyText(cuesToSrt(cues));
+  setBrowserSignal(`${cues.length} altyazı satırı A-B aralığıyla panoya kopyalandı.`, true);
+}
+
 function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
-  if (!track || player.browserLoadedTrackId !== track.id || player.subPath !== track.path) return;
-  clearTimeout(player.browserTrackRefreshTimer);
-  player.browserTrackRefreshTimer = setTimeout(async () => {
-    player.browserTrackRefreshTimer = null;
+  const primary = !!track && player.browserLoadedTrackId === track.id && player.subPath === track.path;
+  const secondary = !!track && player.browserLoadedTrackId2 === track.id && player.sub2Path === track.path;
+  if (!primary && !secondary) return;
+  clearTimeout(player.browserTrackRefreshTimers[track.id]);
+  player.browserTrackRefreshTimers[track.id] = setTimeout(async () => {
+    delete player.browserTrackRefreshTimers[track.id];
     const latest = player.browserTracks.find((item) => item.id === track.id);
-    if (!latest || player.browserLoadedTrackId !== latest.id || player.subPath !== latest.path) return;
+    const refreshPrimary = !!latest && player.browserLoadedTrackId === latest.id && player.subPath === latest.path;
+    const refreshSecondary = !!latest && player.browserLoadedTrackId2 === latest.id && player.sub2Path === latest.path;
+    if (!refreshPrimary && !refreshSecondary) return;
     if (state.running || state.queueRunning) {
       // Uzun film çevirileri iki dakikayı aşabilir. Eski 120 deneme sınırı,
       // iş bitince büyüyen kaynak altyazının bir daha yüklenmemesine yol açıyordu.
       scheduleActiveBrowserTrackRefresh(latest, attempt + 1);
       return;
     }
-    if ($('playerSubSelect')) $('playerSubSelect').value = latest.path;
-    await loadSubtitle(latest.path, false, { silent: true, preserveInspector: true });
+    if (refreshPrimary) {
+      if ($('playerSubSelect')) $('playerSubSelect').value = latest.path;
+      await loadSubtitle(latest.path, false, { silent: true, preserveInspector: true });
+    }
+    if (refreshSecondary) {
+      if ($('playerSubSelect2')) $('playerSubSelect2').value = latest.path;
+      await loadSubtitle(latest.path, true, { silent: true, preserveInspector: true });
+    }
   }, attempt ? 1000 : 180);
 }
 
@@ -2866,13 +2995,19 @@ function updateBrowserNavigation(data) {
   $('browserSecurityMark')?.classList.toggle('secure', /^https:/i.test(data.url || ''));
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
   if (data.url && data.url !== player.browserPageUrl) {
+    // Anahtar degisimi eski kaydi diske yazar. Yeni URL'yi once state'e
+    // koyarsak onceki sayfanin konumu yeni sayfanin basligi altinda kalir.
+    setMediaKey(`browser:${browserPlaceKey(data.url) || data.url}`);
     player.browserPageUrl = data.url;
     player.browserPageTitle = data.title || '';
     player.browserTime = 0;
     player.browserDuration = 0;
     player.browserRate = 1;
+    player.browserVolume = 1;
+    player.browserMuted = false;
+    player.browserProfileKey = '';
+    player.browserPositionTick = 0;
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
-    setMediaKey(`browser:${data.url}`);
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
     loadBrowserPlaces();
   }
@@ -2935,6 +3070,7 @@ async function showBrowserWorkspace() {
 
 function setWorkspaceMode(mode, persist = true) {
   mode = mode === 'browser' ? 'browser' : 'player';
+  if (mode !== player.workspaceMode) flushWatchState(false, true);
   if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
   player.workspaceMode = mode;
   const layer = $('playerLayer');
@@ -2981,15 +3117,16 @@ async function navigateBrowserFromAddress() {
   const value = $('browserAddress')?.value.trim();
   if (!value || !window.api.navigateBrowser) {
     $('browserAddress')?.focus();
-    return;
+    return null;
   }
   setBrowserSignal('Sayfa açılıyor; altyazı izi bekleniyor…', false);
   const result = await window.api.navigateBrowser(value);
   if (!result || !result.ok) {
     setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
-    return;
+    return result || null;
   }
   updateBrowserNavigation(result);
+  return result;
 }
 
 if ($('workspacePlayerMode')) $('workspacePlayerMode').addEventListener('click', () => setWorkspaceMode('player'));
@@ -3051,12 +3188,39 @@ if ($('browserChromeToggle')) $('browserChromeToggle').addEventListener('click',
   setBrowserChromeCollapsed(!player.browserChromeCollapsed);
 });
 if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () => useBrowserTrack(false));
+if ($('browserTrackLoadPair')) $('browserTrackLoadPair').addEventListener('click', useBrowserTrackPair);
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
+if ($('browserTrackExport')) $('browserTrackExport').addEventListener('click', exportSelectedBrowserTrack);
+if ($('browserManualSubtitle')) $('browserManualSubtitle').addEventListener('click', loadManualBrowserSubtitle);
+if ($('browserCopyAb')) $('browserCopyAb').addEventListener('click', copyBrowserAbText);
 if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click', () => {
   $('browserTrackActions')?.classList.add('hidden');
   setBrowserSignal('Bildirim kapatıldı; altyazı izleme arka planda sürüyor.', false);
 });
 if ($('browserTrackSelect')) $('browserTrackSelect').addEventListener('change', () => renderBrowserTracks());
+if ($('browserTrackSelect2')) $('browserTrackSelect2').addEventListener('change', () => renderBrowserTracks());
+if ($('browserSessionReset')) $('browserSessionReset').addEventListener('click', async () => {
+  const confirmed = confirm('Web oturumu sıfırlansın mı? Site girişleri, çerezler ve önbellek silinir. Yer imleri, geçmiş ve izleme kütüphanesi korunur.');
+  if (!confirmed) return;
+  await flushWatchState(false, true);
+  const result = await window.api.resetBrowserSession().catch(() => null);
+  if (!result || !result.ok) {
+    setBrowserSignal(`Oturum sıfırlanamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  setMediaKey('');
+  player.browserPageUrl = '';
+  player.browserPageTitle = '';
+  player.browserTime = 0;
+  player.browserDuration = 0;
+  try { localStorage.removeItem('playerBrowserLastUrl'); } catch (_) {}
+  if ($('browserAddress')) $('browserAddress').value = '';
+  $('browserEmpty')?.classList.remove('hidden');
+  clearBrowserTracks('Tarayıcı oturumu sıfırlandı; yer imleri ve geçmiş korundu.');
+  if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  setBrowserPlacesOpen(false);
+  showBrowserWorkspace();
+});
 if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListener('click', () => {
   const panel = $('browserDiagnosticsPanel');
   if (!panel) return;
@@ -3086,15 +3250,55 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (index < 0) logLine(`Web altyazısı bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
   } else if (event.type === 'media' && event.media) {
     const previousTime = player.browserTime;
+    const wasPaused = player.browserPaused;
     player.browserTime = Number(event.media.currentTime) || 0;
     player.browserDuration = Number(event.media.duration) || 0;
     player.browserPaused = !!event.media.paused;
+    player.browserVolume = Math.max(0, Math.min(1, Number(event.media.volume)));
+    player.browserMuted = !!event.media.muted;
     const browserRate = Number(event.media.playbackRate);
     if (Number.isFinite(browserRate) && browserRate > 0) {
       player.browserRate = browserRate;
       if (player.workspaceMode === 'browser' && $('playerSpeed')) {
         const exact = Array.from($('playerSpeed').options).some((option) => Number(option.value) === browserRate);
         if (exact) $('playerSpeed').value = String(browserRate);
+      }
+    }
+    const now = Date.now();
+    if (!player.browserPaused) {
+      if (!player.watchSession) beginWatchSession();
+      if (player.watchSession) {
+        const last = player.watchSession.lastClock || now;
+        const elapsed = (now - last) / 1000;
+        if (elapsed > 0 && elapsed < 10) player.watchSession.watchSeconds += elapsed;
+        player.watchSession.lastClock = now;
+        player.watchSession.endPosition = player.browserTime;
+      }
+    } else if (!wasPaused) {
+      if (player.watchSession) player.watchSession.lastClock = 0;
+      savePlayerPosition();
+      flushWatchState(false, true);
+    }
+    if (player.browserDuration > 0 && isFinite(player.browserDuration)) {
+      if (player.browserProfileKey !== player.mediaKey) {
+        player.browserProfileKey = player.mediaKey;
+        restoreWatchProfile(player.mediaKey);
+        maybeOfferResume();
+      }
+      const pendingSeek = player.pendingLibrarySeek;
+      if (pendingSeek && pendingSeek.key === player.mediaKey
+          && pendingSeek.generation === currentGeneration()) {
+        const seekTo = Math.max(0, Math.min(player.browserDuration, Number(pendingSeek.seconds) || 0));
+        player.pendingLibrarySeek = null;
+        if (seekTo > 0) window.api.browserCommand('seek', seekTo).catch(() => {});
+      }
+      if (now - player.browserPositionTick > 5000) {
+        player.browserPositionTick = now;
+        savePlayerPosition();
+      }
+      if (now - player.watchSaveTick > 10000) {
+        player.watchSaveTick = now;
+        flushWatchState(false, false);
       }
     }
     if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
@@ -4330,10 +4534,11 @@ function watchItemByKey(key) {
 
 function captureWatchPrefs() {
   const video = $('playerVideo');
+  const browserMode = player.workspaceMode === 'browser';
   return {
-    speed: video ? video.playbackRate : 1,
-    volume: video ? video.volume : 1,
-    muted: video ? video.muted : false,
+    speed: browserMode ? player.browserRate : (video ? video.playbackRate : 1),
+    volume: browserMode ? player.browserVolume : (video ? video.volume : 1),
+    muted: browserMode ? player.browserMuted : (video ? video.muted : false),
     viewMode: player.viewMode,
     offset: player.offset,
     autoPause: player.autoPause,
@@ -4353,31 +4558,35 @@ function captureWatchPrefs() {
 function beginWatchSession() {
   if (!player.mediaKey) return;
   const video = $('playerVideo');
+  const position = player.workspaceMode === 'browser'
+    ? Number(player.browserTime) || 0
+    : (video ? Number(video.currentTime) || 0 : 0);
   const now = Date.now();
   player.watchSession = {
     id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
     startedAt: now,
     endedAt: now,
     watchSeconds: 0,
-    startPosition: video ? Number(video.currentTime) || 0 : 0,
-    endPosition: video ? Number(video.currentTime) || 0 : 0,
+    startPosition: position,
+    endPosition: position,
     lastClock: 0,
   };
 }
 
 function currentWatchPatch(completed) {
   const video = $('playerVideo');
-  if (!video || !player.mediaKey || player.isLive) return null;
-  const duration = Number(video.duration);
+  const browserMode = player.workspaceMode === 'browser' && player.mediaKey.startsWith('browser:');
+  if (!player.mediaKey || (!browserMode && (!video || player.isLive))) return null;
+  const duration = browserMode ? Number(player.browserDuration) : Number(video.duration);
   if (!duration || !isFinite(duration)) return null;
-  const position = completed ? duration : Number(video.currentTime) || 0;
+  const position = completed ? duration : (browserMode ? Number(player.browserTime) : Number(video.currentTime)) || 0;
   const session = player.watchSession ? { ...player.watchSession, endedAt: Date.now(), endPosition: position } : null;
   if (session) delete session.lastClock;
   return {
     key: player.mediaKey,
-    type: player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local',
+    type: browserMode ? 'browser' : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
     title: $('playerTitle') ? $('playerTitle').textContent : '',
-    sourceRef: player.mediaKey.startsWith('youtube:')
+    sourceRef: browserMode ? browserPlaceKey(player.browserPageUrl) : player.mediaKey.startsWith('youtube:')
       ? ((player.ytInfo && player.ytInfo.sourceUrl) || player.originalUrl || '')
       : player.localPath,
     localPath: player.localPath || '',
@@ -4421,15 +4630,27 @@ async function restoreWatchProfile(key) {
   if (!item || staleGeneration(gen) || player.mediaKey !== key) return;
   const prefs = item.prefs || {};
   const video = $('playerVideo');
-  if (video && prefs.speed) video.playbackRate = Math.max(.25, Math.min(4, Number(prefs.speed) || 1));
-  if (video && prefs.volume !== undefined) video.volume = Math.max(0, Math.min(1, Number(prefs.volume)));
-  if (video && prefs.muted !== undefined) video.muted = !!prefs.muted;
+  const browserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
+  if (browserMode && window.api.browserCommand) {
+    if (prefs.speed) await window.api.browserCommand('speed', Math.max(.25, Math.min(4, Number(prefs.speed) || 1))).catch(() => null);
+    if (prefs.volume !== undefined) {
+      const target = Math.max(0, Math.min(1, Number(prefs.volume)));
+      await window.api.browserCommand('volume-set', target).catch(() => null);
+    }
+    if (prefs.muted !== undefined && !!prefs.muted !== player.browserMuted) {
+      await window.api.browserCommand('mute').catch(() => null);
+    }
+  } else {
+    if (video && prefs.speed) video.playbackRate = Math.max(.25, Math.min(4, Number(prefs.speed) || 1));
+    if (video && prefs.volume !== undefined) video.volume = Math.max(0, Math.min(1, Number(prefs.volume)));
+    if (video && prefs.muted !== undefined) video.muted = !!prefs.muted;
+  }
   if ($('playerSpeed') && prefs.speed) $('playerSpeed').value = String(prefs.speed);
   if ($('playerVolume') && prefs.volume !== undefined) {
     $('playerVolume').value = String(Math.round(Number(prefs.volume) * 100));
     syncVolumeFill();
   }
-  if (prefs.viewMode) setViewMode(prefs.viewMode);
+  if (prefs.viewMode && !browserMode) setViewMode(prefs.viewMode);
   if (prefs.offset !== undefined) {
     player.offset = Number(prefs.offset) || 0;
     if ($('subOffset')) $('subOffset').value = String(player.offset);
@@ -4452,7 +4673,7 @@ async function restoreWatchProfile(key) {
   if (prefs.subBottom !== undefined) player.subBottom = prefs.subBottom;
   if (prefs.sub2Top !== undefined) player.sub2Top = prefs.sub2Top;
   applySubtitlePos();
-  if (prefs.audioLang && $('playerAudioLang')) $('playerAudioLang').value = prefs.audioLang;
+  if (prefs.audioLang && $('playerAudioLang') && !browserMode) $('playerAudioLang').value = prefs.audioLang;
   const remembered = [prefs.selectedSubPath, prefs.secondSubPath].filter(Boolean);
   remembered.forEach((p) => addSubtitleOption(p));
   if (prefs.selectedSubPath) {
@@ -4524,7 +4745,8 @@ function renderWatchLibrary() {
     title.textContent = item.title || 'İsimsiz video';
     const meta = document.createElement('span');
     const collections = (item.collections || []).length ? ` · ${(item.collections || []).join(', ')}` : '';
-    meta.textContent = `${item.type === 'youtube' ? 'YouTube' : 'Yerel'} · ${historyWhen(item.lastWatched)} · %${Math.round(watchProgress(item))}${collections}`;
+    const sourceLabel = item.type === 'youtube' ? 'YouTube' : item.type === 'browser' ? 'Web' : 'Yerel';
+    meta.textContent = `${sourceLabel} · ${historyWhen(item.lastWatched)} · %${Math.round(watchProgress(item))}${collections}`;
     info.append(title, meta);
     (item.matches || []).forEach((match) => {
       const hit = makeWatchAction(`${pSecToTime(match.seconds)} · ${match.snippet}`, 'hit', item.key, match.seconds);
@@ -4585,7 +4807,7 @@ function renderPlayerLibrary() {
     progress.appendChild(fill);
     const meta = document.createElement('div');
     meta.className = 'player-library-meta';
-    meta.textContent = [item.type === 'youtube' ? 'YouTube' : 'Yerel', historyWhen(item.lastWatched), ...(item.collections || [])].join(' · ');
+    meta.textContent = [item.type === 'youtube' ? 'YouTube' : item.type === 'browser' ? 'Web' : 'Yerel', historyWhen(item.lastWatched), ...(item.collections || [])].join(' · ');
     const hits = document.createElement('div');
     hits.className = 'player-library-hits';
     (item.matches || []).forEach((match) => {
@@ -4676,9 +4898,17 @@ async function openLocalMedia(filePath, seconds, explicitFiles) {
   attachSiblingSubtitles(filePath);
 }
 
-function openWatchLibraryItem(item, seconds) {
+async function openWatchLibraryItem(item, seconds) {
   if (!item) return;
-  if (item.type === 'youtube') {
+  if (item.type === 'browser') {
+    $('playerLayer').classList.remove('hidden');
+    setWorkspaceMode('browser');
+    if ($('browserAddress')) $('browserAddress').value = item.sourceRef || '';
+    const result = await navigateBrowserFromAddress();
+    if (result && result.ok && player.mediaKey === item.key) {
+      player.pendingLibrarySeek = { key: item.key, generation: currentGeneration(), seconds: Number(seconds) || 0 };
+    }
+  } else if (item.type === 'youtube') {
     const intent = ++player.openIntent;
     $('playerLayer').classList.remove('hidden');
     player.pendingLibrarySeek = { key: item.key, generation: null, seconds: Number(seconds) || 0 };
@@ -5553,13 +5783,15 @@ function playerPositionKey() {
 function savePlayerPosition() {
   const video = $('playerVideo');
   const key = playerPositionKey();
+  const browserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
   // Canli yayinda "kaldigin yer" anlamsiz: pencere kayiyor, sure Infinity olabilir
-  if (player.isLive) return;
-  if (!video || !key || !video.duration || !isFinite(video.duration)) return;
-  const t = video.currentTime;
+  if (!browserMode && player.isLive) return;
+  const duration = browserMode ? Number(player.browserDuration) : Number(video && video.duration);
+  if (!key || !duration || !isFinite(duration)) return;
+  const t = browserMode ? Number(player.browserTime) || 0 : Number(video.currentTime) || 0;
   // Tamamlanma esigi izleme kutuphanesiyle ayni olmali. Sabit 60 saniye,
   // 90 saniyelik bir videoda neredeyse tum devam kaydini siliyordu.
-  if (watchCompletionReached(t, video.duration)) {
+  if (watchCompletionReached(t, duration)) {
     delete player.positions[key];
   } else if (t < 30) {
     // Videonun basi. SILME: video yeni yuklendiginde de currentTime 0'dir ve
@@ -5569,7 +5801,7 @@ function savePlayerPosition() {
   } else {
     player.positions[key] = {
       t: Math.round(t),
-      d: Math.round(video.duration),
+      d: Math.round(duration),
       title: $('playerTitle') ? $('playerTitle').textContent : '',
       at: Date.now(),
     };
@@ -5585,9 +5817,8 @@ function savePlayerPosition() {
 
 function maybeOfferResume() {
   const chip = $('resumeChip');
-  const video = $('playerVideo');
   const saved = player.positions[playerPositionKey()];
-  if (!chip || !video) return;
+  if (!chip) return;
   if (!saved || player.resumeOffered || saved.t < 30) { chip.classList.add('hidden'); return; }
   player.resumeOffered = true;
   $('resumeChipText').textContent = `Kaldığın yer: ${pSecToTime(saved.t)}`;
@@ -7225,7 +7456,12 @@ if ($('playerVideo')) {
   if ($('resumeGo')) {
     $('resumeGo').addEventListener('click', () => {
       const saved = player.positions[playerPositionKey()];
-      if (saved) { video.currentTime = saved.t; video.play().catch(() => {}); }
+      if (saved && player.workspaceMode === 'browser') {
+        window.api.browserCommand('seek', saved.t).then(() => window.api.browserCommand('play')).catch(() => {});
+      } else if (saved) {
+        video.currentTime = saved.t;
+        video.play().catch(() => {});
+      }
       $('resumeChip').classList.add('hidden');
     });
   }

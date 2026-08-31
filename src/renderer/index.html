@@ -169,8 +169,8 @@
                 <option value="balanced">Dengeli (turbo)</option>
                 <option value="quality">En iyi kalite (large-v3)</option>
               </select>
-              <button class="link-btn" id="exportSettings" title="Tüm ayarları dosyaya kaydet">Dışa</button>
-              <button class="link-btn" id="importSettings" title="Ayar dosyasından yükle">İçe</button>
+              <button class="link-btn" id="exportSettings" title="Ayarları, yer imlerini ve izleme kütüphanesini yedekle">Yedekle</button>
+              <button class="link-btn" id="importSettings" title="Uygulama yedeğini veya eski ayar dosyasını yükle">Geri yükle</button>
             </div>
           </div>
 
@@ -952,6 +952,7 @@
             <div class="browser-places-head">
               <strong>Yer imleri ve geçmiş</strong>
               <div class="browser-places-head-actions">
+                <button class="btn btn-ghost btn-sm browser-session-reset" id="browserSessionReset" type="button">Oturumu sıfırla</button>
                 <button class="btn btn-ghost btn-sm browser-places-clear hidden" id="browserPlacesClear" type="button">Geçmişi temizle</button>
                 <button class="btn-icon browser-dismiss" id="browserPlacesClose" type="button" title="Kapat" aria-label="Kapat">×</button>
               </div>
@@ -971,10 +972,21 @@
             </div>
             <button class="btn btn-ghost btn-sm browser-diagnostics-toggle" id="browserDiagnosticsToggle"
               type="button" aria-expanded="false" aria-controls="browserDiagnosticsPanel">Yakalama</button>
+            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>
+            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserCopyAb" type="button" title="A-B aralığındaki altyazıları panoya kopyala">A-B metni</button>
             <div class="browser-track-actions hidden" id="browserTrackActions">
-              <select id="browserTrackSelect" aria-label="Bulunan altyazı izi"></select>
+              <select id="browserTrackSelect" aria-label="Birinci altyazı izi" title="Birinci altyazı izi"></select>
+              <select id="browserTrackSelect2" aria-label="İkinci altyazı izi" title="İkinci altyazı izi">
+                <option value="">İkinci iz yok</option>
+              </select>
               <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
+              <button class="btn btn-secondary btn-sm" id="browserTrackLoadPair" type="button">İki izi yükle</button>
               <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
+              <select id="browserExportFormat" aria-label="Dışa aktarma biçimi" title="Dışa aktarma biçimi">
+                <option value="srt">SRT</option>
+                <option value="vtt">VTT</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" id="browserTrackExport" type="button">Dışa aktar</button>
               <button class="btn-icon browser-dismiss" id="browserTrackDismiss" type="button"
                 title="Bu bildirimi kapat" aria-label="Bildirimi kapat">×</button>
             </div>

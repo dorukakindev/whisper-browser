@@ -119,6 +119,20 @@ t('ayar içe aktarma JSON dizisini reddeder', () => {
   ok(/Array\.isArray\(data\)/.test(body), 'JSON dizisi ayar nesnesi olarak kabul ediliyor');
 });
 
+t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte taşır', () => {
+  const exportStart = msrc.indexOf("ipcMain.handle('settings:export'");
+  const importStart = msrc.indexOf("ipcMain.handle('settings:import'", exportStart);
+  const end = msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", importStart);
+  const exported = msrc.slice(exportStart, importStart);
+  const imported = msrc.slice(importStart, end);
+  ok(/backupVersion:\s*2/.test(exported), 'sürümlü yedek biçimi yok');
+  ok(/browserPlaces:\s*browserPlacesSnapshot\(\)/.test(exported), 'yer imleri ve geçmiş yedeklenmiyor');
+  ok(/watchLibrary:\s*loadWatchLibrary\(\)/.test(exported), 'izleme kütüphanesi yedeklenmiyor');
+  ok(/writeBrowserPlaces\(data\.browserPlaces\)/.test(imported), 'tarayıcı yerleri geri yüklenmiyor');
+  ok(/saveWatchLibrary\(watchLibrary\)/.test(imported), 'izleme kütüphanesi geri yüklenmiyor');
+  ok(/const settings = bundled \? data\.settings : data/.test(imported), 'eski ayar dosyası uyumluluğu korunmuyor');
+});
+
 t('ana süreç activeJob temizlendikten sonra exit olayı gönderir', () => {
   const start = msrc.indexOf("activeJob.on('close'");
   const body = msrc.slice(start, msrc.indexOf("activeJob.on('error'", start));

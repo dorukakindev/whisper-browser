@@ -5,6 +5,7 @@ const {
   browserNavigationCapabilities,
   cueFingerprint,
   cuesToSrt,
+  cuesToVtt,
   isLikelySubtitleResponse,
   manifestFingerprint,
   parseAss,
@@ -119,6 +120,13 @@ test('SRT çıktısı UTF-8 metni ve zamanları korur', () => {
   const srt = cuesToSrt([{ start: 1.005, end: 3.21, text: 'Türkçe metin' }]);
   assert.match(srt, /00:00:01,005 --> 00:00:03,210/);
   assert.match(srt, /Türkçe metin/);
+});
+
+test('WebVTT dışa aktarımı başlık ve noktalı zaman damgası üretir', () => {
+  const vtt = cuesToVtt([{ start: 1.005, end: 3.21, text: 'Türkçe metin' }]);
+  assert.match(vtt, /^WEBVTT\r?\n\r?\n/);
+  assert.match(vtt, /00:00:01\.005 --> 00:00:03\.210/);
+  assert.match(vtt, /Türkçe metin/);
 });
 
 test('Zaman ayrıştırıcı saatli ve birimli değerleri destekler', () => {
@@ -304,11 +312,15 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browser:places:list/);
   assert.match(main, /browser:places:toggleBookmark/);
   assert.match(main, /browser:places:clearHistory/);
+  assert.match(main, /browser:session:reset/);
+  assert.match(main, /browser:subtitle:export/);
   assert.match(main, /rememberBrowserVisit\(wc\.getURL\(\)/);
   assert.match(preload, /navigateBrowser:/);
   assert.match(preload, /onBrowserEvent:/);
   assert.match(preload, /listBrowserPlaces:/);
   assert.match(preload, /toggleBrowserBookmark:/);
+  assert.match(preload, /resetBrowserSession:/);
+  assert.match(preload, /exportBrowserSubtitle:/);
   assert.match(renderer, /function setWorkspaceMode/);
   assert.match(renderer, /offset: player\.offset/);
   assert.match(renderer, /scheduleActiveBrowserTrackRefresh/);
@@ -330,6 +342,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(html, /id="browserBookmarkToggle"/);
   assert.match(html, /id="browserAddressSuggestions"/);
   assert.match(html, /id="browserPlacesClear"/);
+  assert.match(html, /id="browserSessionReset"/);
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
 });

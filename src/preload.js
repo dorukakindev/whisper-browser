@@ -43,7 +43,9 @@ contextBridge.exposeInMainWorld('api', {
   toggleBrowserBookmark: (entry) => ipcRenderer.invoke('browser:places:toggleBookmark', entry),
   removeBrowserPlace: (kind, url) => ipcRenderer.invoke('browser:places:remove', kind, url),
   clearBrowserHistory: () => ipcRenderer.invoke('browser:places:clearHistory'),
+  resetBrowserSession: () => ipcRenderer.invoke('browser:session:reset'),
   setBrowserOverlay: (payload) => ipcRenderer.invoke('browser:setOverlay', payload),
+  exportBrowserSubtitle: (payload) => ipcRenderer.invoke('browser:subtitle:export', payload),
   onBrowserEvent: (cb) => {
     const listener = (_event, payload) => cb(payload);
     ipcRenderer.on('browser:event', listener);
