@@ -37,6 +37,11 @@ const {
   sanitizeBrowserUserAgent,
 } = require('./browser-drm');
 
+// QUIC bazı VPN/tünelleme sürücülerinde bağlantıyı kuramadan bekleyebiliyor
+// (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
+// tarayıcının aynı sayfada sonsuza kadar siyah ekranda kalmasını önler.
+app.commandLine.appendSwitch('disable-quic');
+
 let mainWindow;
 let mainWindowClosing = false;
 let activeJob = null;
@@ -1969,7 +1974,13 @@ function ensureBrowserView() {
     sendBrowserEvent({ type: 'title', title: title || '' });
   });
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
-    if (isMainFrame && code !== -3) sendBrowserEvent({ type: 'load-error', code, message: description, url });
+    if (isMainFrame && code !== -3) {
+      const message = code === -356 || description === 'ERR_QUIC_PROTOCOL_ERROR'
+        ? 'VPN bağlantısı QUIC protokolünü tamamlayamadı; uygulamayı yeniden başlatıp tekrar deneyin.'
+        : description;
+      sendBrowserEvent({ type: 'navigation', ...browserNavigationState({ loading: false }) });
+      sendBrowserEvent({ type: 'load-error', ...browserNavigationState({ loading: false }), code, message, url });
+    }
   });
   wc.on('console-message', (details, _level, legacyMessage) => {
     const message = browserDrmFailureMessage((details && details.message) || legacyMessage);

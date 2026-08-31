@@ -269,6 +269,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
   assert.match(main, /new WebContentsView/);
+  assert.match(main, /app\.commandLine\.appendSwitch\('disable-quic'\)/);
   assert.match(main, /partition: BROWSER_PARTITION/);
   assert.match(main, /BROWSER_PARTITION = 'persist:whisper-browser'/);
   assert.match(main, /browserSession\.flushStorageData\(\)/);
@@ -305,6 +306,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /parseMp4Timescale\(init\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
+  assert.match(main, /type: 'load-error'[\s\S]*browserNavigationState\(\{ loading: false \}\)/);
   assert.match(main, /overrideBrowserWindowOptions: browserPopupWindowOptions\(\)/);
   assert.doesNotMatch(main, /setTimeout\(\(\) => wc\.loadURL\(safe\)/);
   assert.match(main, /'frame-step', 'speed'/);

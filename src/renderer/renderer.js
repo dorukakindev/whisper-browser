@@ -3215,9 +3215,16 @@ async function navigateBrowserFromAddress() {
     return null;
   }
   setBrowserSignal('Sayfa açılıyor; altyazı izi bekleniyor…', false);
-  const result = await window.api.navigateBrowser(value);
+  let result;
+  try {
+    result = await window.api.navigateBrowser(value);
+  } catch (error) {
+    result = { ok: false, error: error && error.message ? error.message : 'Tarayıcı isteği tamamlanamadı.' };
+  }
   if (!result || !result.ok) {
     setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
+    $('browserReload')?.classList.remove('loading');
     return result || null;
   }
   updateBrowserNavigation(result);
@@ -3478,6 +3485,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     }
     if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
   } else if (event.type === 'load-error') {
+    updateBrowserNavigation({ ...event, loading: false });
+    if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
   } else if (event.type === 'capture-warning') {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
