@@ -3426,16 +3426,52 @@ def _checkpoint_path(input_path):
 def job_signature(args):
     """
     Checkpoint yalnızca transkripsiyon çıktısını etkileyen ayarlar AYNIYSA geçerlidir.
-    Bunlardan biri değişmişse (ör. model, dil, ses kanalı) baştan başlanır.
+    Bunlardan biri değişmişse (ör. model, ses işleme, VAD veya decode ayarı)
+    baştan başlanır. Birleştirme/LLM/zamanlama ayarları burada yoktur: checkpoint
+    ham blokları saklar ve bu adımlar resume sonrasında birleşik bütün üzerinde
+    yeniden çalışır.
     """
     return {
+        "version": 2,
         "model": args.model,
         "engine": args.engine,
+        "batch_size": args.batch_size,
+        "device": args.device,
+        "compute_type": args.compute_type,
         "language": args.language,
         "task": args.task,
-        "split_mode": args.split_mode,
         "audio_track": args.audio_track,
+        "audio_preprocess": args.audio_preprocess,
+        "vad_filter": args.vad_filter,
+        "vad_threshold": args.vad_threshold,
+        "vad_min_speech_ms": args.vad_min_speech_ms,
+        "vad_min_silence_ms": args.vad_min_silence_ms,
+        "vad_speech_pad_ms": args.vad_speech_pad_ms,
+        "vad_max_speech_s": args.vad_max_speech_s,
+        "temperature": args.temperature,
+        "temperature_fallback": args.temperature_fallback,
+        "beam_size": args.beam_size,
+        "best_of": args.best_of,
+        "patience": args.patience,
+        "length_penalty": args.length_penalty,
+        "repetition_penalty": args.repetition_penalty,
+        "no_repeat_ngram_size": args.no_repeat_ngram_size,
+        "compression_ratio_threshold": args.compression_ratio_threshold,
+        "log_prob_threshold": args.log_prob_threshold,
+        "no_speech_threshold": args.no_speech_threshold,
+        "condition_on_previous": args.condition_on_previous,
+        "initial_prompt": args.initial_prompt,
+        "glossary": args.glossary,
+        "split_mode": args.split_mode,
+        "max_chars": args.max_chars,
         "hard_max_chars": args.hard_max_chars,
+        "timing_gap": args.timing_gap,
+        # split=none iken JSON istemek word_timestamps'i açar; bu bazı motorlarda
+        # segment sınırlarını da etkileyebildiği için salt format adı yerine gerçek
+        # davranışı imzalarız.
+        "need_words": args.split_mode != "none" or "json" in {
+            f.strip().lower() for f in (args.formats or "srt").split(",")
+        },
     }
 
 

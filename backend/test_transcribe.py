@@ -1164,15 +1164,54 @@ def test_checkpoint_path():
 
 
 def test_job_signature():
-    args = types.SimpleNamespace(
-        model="large-v3", engine="faster", language="tr", task="transcribe",
-        split_mode="sentence", audio_track=-1, hard_max_chars=220,
-    )
+    values = {
+        "model": "large-v3", "engine": "faster", "batch_size": 16,
+        "device": "cuda", "compute_type": "float16", "language": "tr",
+        "task": "transcribe", "audio_track": -1, "audio_preprocess": "none",
+        "vad_filter": True, "vad_threshold": 0.5, "vad_min_speech_ms": 0,
+        "vad_min_silence_ms": 2000, "vad_speech_pad_ms": 400,
+        "vad_max_speech_s": 0.0, "temperature": 0.0,
+        "temperature_fallback": True, "beam_size": 5, "best_of": 5,
+        "patience": 1.0, "length_penalty": 1.0, "repetition_penalty": 1.0,
+        "no_repeat_ngram_size": 0, "compression_ratio_threshold": 2.4,
+        "log_prob_threshold": -1.0, "no_speech_threshold": 0.6,
+        "condition_on_previous": True, "initial_prompt": "",
+        "glossary": "", "split_mode": "sentence", "max_chars": 84,
+        "hard_max_chars": 220, "timing_gap": 0.8, "formats": "srt",
+    }
+    args = types.SimpleNamespace(**values)
     sig = T.job_signature(args)
+    assert sig["version"] == 2
     assert sig["model"] == "large-v3" and sig["audio_track"] == -1
+    assert sig["audio_preprocess"] == "none" and sig["vad_filter"] is True
+    assert sig["initial_prompt"] == "" and sig["glossary"] == ""
+    assert sig["need_words"] is True
     # JSON round-trip sonrası eşitlik korunmalı (imza karşılaştırması buna dayanır)
     import json as _j
     assert _j.loads(_j.dumps(sig)) == sig
+
+    # Raporlanan tehlikenin özü: resume öncesi bu ayarlardan biri değişirse eski
+    # bloklar yeni ayarlı bloklarla karışmamalı.
+    for field, changed in {
+        "audio_preprocess": "denoise",
+        "vad_threshold": 0.7,
+        "temperature_fallback": False,
+        "beam_size": 3,
+        "initial_prompt": "Özel bağlam",
+        "glossary": "Karah|Eruldin",
+        "max_chars": 72,
+    }.items():
+        altered = types.SimpleNamespace(**{**values, field: changed})
+        assert T.job_signature(altered) != sig, field
+
+    no_words = types.SimpleNamespace(**{
+        **values, "split_mode": "none", "formats": "srt",
+    })
+    json_words = types.SimpleNamespace(**{
+        **values, "split_mode": "none", "formats": "srt,json",
+    })
+    assert T.job_signature(no_words)["need_words"] is False
+    assert T.job_signature(json_words)["need_words"] is True
 
 
 def test_checkpoint_roundtrip():
