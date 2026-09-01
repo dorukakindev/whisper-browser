@@ -237,6 +237,7 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
                         break
         log(f"İndirme tamamlandı: {title}")
         return str(wav_path), title, ranged
+    raise RuntimeError("YouTube indirme bilgisi alınamadı; yt-dlp boş sonuç döndürdü.")
 
 
 def parse_timecode(value):
@@ -393,6 +394,8 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         if current:
             lines.append(" ".join(current))
         # Tek bir cümle varsa zaten tek satır — kırma yok
+        if max_lines > 0 and len(lines) > max_lines:
+            lines = lines[:max_lines - 1] + [" ".join(lines[max_lines - 1:])]
         return "\n".join(lines)
 
     # ---- balanced modu ----
@@ -1441,7 +1444,14 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
     """
     lines = []
     for i, (s0, e0, tr_text) in enumerate(translated_entries):
-        src_text = source_entries[i][2] if i < len(source_entries) else ""
+        # Çeviri tarafındaki devam-birleştirme birden çok kaynak bloğu tek zaman
+        # aralığında toplayabilir. İndeks eşlemesi bu noktadan sonra kayar; zaman
+        # olarak örtüşen kaynak bloklarını birleştirerek doğru metni koru.
+        overlapping = [text for ss, ee, text in source_entries
+                       if min(e0, ee) - max(s0, ss) > 0.001]
+        src_text = " ".join(t.strip() for t in overlapping if t.strip())
+        if not src_text and i < len(source_entries):
+            src_text = source_entries[i][2]
         top, bottom = (tr_text, src_text) if translation_first else (src_text, tr_text)
         top = wrap_text(top, max_line_width, 2, language=language, wrap_mode=wrap_mode)
         bottom = wrap_text(bottom, max_line_width, 2, language=language, wrap_mode=wrap_mode)
@@ -1576,12 +1586,14 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None):
         }
         if n_words:
             # Bu segmentin zaman aralığına düşen kelimeleri ekle
-            while cursor < n_words and all_words[cursor]["start"] < start - 0.05:
+            while cursor < n_words and all_words[cursor].get(
+                    "end", all_words[cursor]["start"]) < start - 0.05:
                 cursor += 1
             j = cursor
             seg_words = []
             while j < n_words and all_words[j]["start"] <= end + 0.05:
-                seg_words.append(all_words[j])
+                if all_words[j].get("end", all_words[j]["start"]) >= start - 0.05:
+                    seg_words.append(all_words[j])
                 j += 1
             if seg_words:
                 seg["words"] = seg_words
@@ -2158,7 +2170,9 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
                            use_context=True):
     """Ceviri sistem promptu - ceviri hattindaki kurallarin damitilmis hali."""
     target_name = LANG_NAMES.get((target_lang or "tr").lower(), target_lang)
-    source_name = LANG_NAMES.get((source_lang or "").lower(), source_lang or "kaynak dil")
+    source_code = (source_lang or "").lower()
+    source_name = ("kaynak dil" if source_code in {"", "auto"}
+                   else LANG_NAMES.get(source_code, source_lang))
     lines = [
         "Sen profesyonel bir altyazi cevirmenisin. {} altyaziyi {} diline cevireceksin.".format(
             source_name, target_name),
@@ -2966,9 +2980,15 @@ def capitalize_after_sentence(entries, language="tr"):
     fixed = 0
     for s0, e0, text in entries:
         t = text or ""
-        first = t[:1]
-        if prev_ended and first.islower() and first.isalpha():
-            t = _upper_first(first, language) + t[1:]
+        # Diyalog tiresi, açılış tırnağı ve diarization etiketi harf değildir;
+        # cümle başındaki gerçek ilk harfi bunların ardından bul.
+        match = re.match(
+            r'^(\s*(?:\[[^\]]+\]\s*)?(?:[-–—"\'“‘«(]\s*)*)([a-zçğıöşü])',
+            t,
+        )
+        if prev_ended and match:
+            pos = match.start(2)
+            t = t[:pos] + _upper_first(match.group(2), language) + t[pos + 1:]
             fixed += 1
         prev_ended = text_ends_sentence(t)
         out.append((s0, e0, t))
@@ -3354,7 +3374,7 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
                 e = target
 
         # Okuma hızı (CPS) — metin uzunsa süreyi uzatmaya çalış (max_dur ve boşlukla sınırlı)
-        text_len = len((t or "").strip())
+        text_len = len(re.sub(r"^\[[^\]]+\]\s*", "", (t or "").strip()))
         if max_cps > 0 and text_len > 0:
             need = text_len / max_cps
             if (e - s) < need:
@@ -3424,8 +3444,8 @@ def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8):
 # faster-whisper akışı ortadan devam ettiremez; çözüm: işlenen blokları periyodik
 # olarak diske yaz, çökme olursa sesi son güvenli noktadan (clip-start mekaniği)
 # yeniden çıkar ve korunan blokları yenilerle birleştir. Yalnızca yerel dosya +
-# kırpma yokken çalışır (film senaryosu). NOT: kelime zaman damgaları checkpoint'e
-# yazılmaz — devam sonrası JSON çıktısında devam-öncesi kısım kelimesiz kalabilir.
+# kırpma yokken çalışır (film senaryosu). Kelime zaman damgaları da saklanır;
+# böylece devam sonrası JSON çıktısının eski bölümü kelimesiz kalmaz.
 
 def _checkpoint_path(input_path):
     """Girdinin yanına deterministik checkpoint yolu."""
@@ -3484,13 +3504,14 @@ def job_signature(args):
     }
 
 
-def write_checkpoint(path, signature, entries, last_time):
+def write_checkpoint(path, signature, entries, last_time, words=None):
     """Checkpoint'i atomik yaz (önce .tmp, sonra replace) — yazım anında çökme bozmasın."""
     data = {
-        "version": 1,
+        "version": 2,
         "signature": signature,
         "last_time": round(float(last_time), 3),
         "entries": [[round(float(s), 3), round(float(e), 3), t] for (s, e, t) in entries],
+        "words": list(words or []),
     }
     tmp = path + ".tmp"
     try:
@@ -3503,7 +3524,7 @@ def write_checkpoint(path, signature, entries, last_time):
 
 def read_checkpoint(path, signature):
     """
-    Geçerli + imzası eşleşen checkpoint'i (entries, last_time) olarak döndür.
+    Geçerli + imzası eşleşen checkpoint'i (entries, last_time, words) olarak döndür.
     Yoksa/bozuksa/imza uymuyorsa None.
     """
     try:
@@ -3511,7 +3532,7 @@ def read_checkpoint(path, signature):
             data = json.load(f)
     except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(data, dict) or data.get("version") != 1:
+    if not isinstance(data, dict) or data.get("version") not in (1, 2):
         return None
     if data.get("signature") != signature:
         return None  # ayarlar değişmiş → temiz başla
@@ -3528,7 +3549,23 @@ def read_checkpoint(path, signature):
             continue
     if not entries:
         return None
-    return entries, float(last_time)
+    words = data.get("words") if data.get("version") == 2 else []
+    if not isinstance(words, list):
+        words = []
+    valid_words = []
+    for word in words:
+        if not isinstance(word, dict):
+            continue
+        try:
+            valid_words.append({
+                "word": str(word.get("word", "")),
+                "start": float(word["start"]),
+                "end": float(word["end"]),
+                "probability": float(word.get("probability", 1.0)),
+            })
+        except (KeyError, TypeError, ValueError):
+            continue
+    return entries, float(last_time), valid_words
 
 
 def merge_resumed_entries(old_entries, new_entries, boundary):
@@ -3541,6 +3578,13 @@ def merge_resumed_entries(old_entries, new_entries, boundary):
     kept_old = [(s, e, t) for (s, e, t) in old_entries if e <= boundary + 0.1]
     kept_new = [(s, e, t) for (s, e, t) in new_entries if s >= boundary - 0.5]
     return kept_old + kept_new
+
+
+def merge_resumed_words(old_words, new_words, boundary):
+    """Checkpoint kelimelerini geri-alma penceresinde yinelenmeden birleştir."""
+    kept_old = [w for w in (old_words or []) if float(w.get("end", 0)) <= boundary + 0.1]
+    kept_new = [w for w in (new_words or []) if float(w.get("start", 0)) >= boundary - 0.5]
+    return sorted(kept_old + kept_new, key=lambda w: float(w.get("start", 0)))
 
 
 def transcribe(args):
@@ -3580,12 +3624,13 @@ def transcribe(args):
         user_clipped = clip_start is not None or clip_end is not None
         resume_from = None
         resumed_entries = []
+        resumed_words = []
         ckpt_sig = job_signature(args)
         ckpt_path = _checkpoint_path(args.input) if (args.input and not user_clipped) else None
         if args.resume and ckpt_path:
             ck = read_checkpoint(ckpt_path, ckpt_sig)
             if ck:
-                resumed_entries, last_time = ck
+                resumed_entries, last_time, resumed_words = ck
                 # Sınırı 2 sn geri al: son bloklar yeniden yazılır → hem sonuna ulaşmış
                 # checkpoint'te "boş ses" hatası olmaz, hem sınır temiz birleşir.
                 resume_from = max(0.0, last_time - 2.0)
@@ -3831,7 +3876,12 @@ def transcribe(args):
             # Snapshot birleştirilmiş yazılır ki devam-üstüne-devam'da örtüşme birikmesin.
             if ckpt_path and args.resume and (now - last_ckpt) > CKPT_INTERVAL:
                 snapshot = merge_resumed_entries(resumed_entries, entries, resume_from) if resumed_entries else list(entries)
-                write_checkpoint(ckpt_path, ckpt_sig, snapshot, segment.end + time_offset)
+                word_snapshot = merge_resumed_words(
+                    resumed_words, all_words, resume_from) if resumed_words else list(all_words)
+                write_checkpoint(
+                    ckpt_path, ckpt_sig, snapshot, segment.end + time_offset,
+                    words=word_snapshot,
+                )
                 last_ckpt = now
 
         emit("progress", percent=100.0, current=round(total_duration, 2), total=round(total_duration, 2))
@@ -3873,6 +3923,7 @@ def transcribe(args):
         if resumed_entries:
             n_new = len(entries)
             entries = merge_resumed_entries(resumed_entries, entries, resume_from or 0.0)
+            all_words = merge_resumed_words(resumed_words, all_words, resume_from or 0.0)
             log(f"Devam birleştirme: {len(resumed_entries)} korunan + {n_new} yeni = {len(entries)} blok")
 
         if not entries:
@@ -4431,7 +4482,7 @@ def explain_subtitle(args):
     if not src_path.exists():
         raise RuntimeError(f"Altyazi dosyasi bulunamadi: {src_path}")
     text, _enc, _rep = read_subtitle_text(src_path)
-    entries = parse_srt(text)
+    entries = parse_subtitle_entries(text, src_path.suffix)
     if not entries:
         raise RuntimeError("Altyazi okunamadi veya bos.")
 
@@ -4445,7 +4496,7 @@ def explain_subtitle(args):
     tr_path = getattr(args, "explain_translation", None)
     if tr_path and Path(tr_path).exists():
         t2, _e2, _r2 = read_subtitle_text(Path(tr_path))
-        tr_entries = parse_srt(t2)
+        tr_entries = parse_subtitle_entries(t2, Path(tr_path).suffix)
 
     def tr_for(idx):
         if not tr_entries:
@@ -4587,7 +4638,7 @@ def translate_existing_subtitle(args):
     """Var olan bir altyaziyi cevirir: ses indirme YOK, Whisper YOK.
 
     --input bir .srt/.vtt/.ass dosyasidir. Zaman kodlarina DOKUNULMAZ; yalnizca
-    metinler cevrilir ve "<ad>.<hedef>.srt" olarak yazilir. Onbellek burada da
+    metinler cevrilir ve secilen cikti bicimlerine yazilir. Onbellek burada da
     gecerli oldugundan ayni dosyayi tekrar cevirmek bedava.
     """
     src_path = Path(args.input)
@@ -4597,11 +4648,10 @@ def translate_existing_subtitle(args):
     text, enc, repaired = read_subtitle_text(src_path)
     if repaired:
         log(f"Altyazi kodlamasi onarildi ({enc}).", "warn")
-    entries = parse_srt(text)
+    entries = parse_subtitle_entries(text, src_path.suffix)
     if not entries:
         raise RuntimeError(
-            "Altyazi okunamadi veya bos. Desteklenen bicimler: SRT, VTT "
-            "(ASS icin once SRT'ye donusturun)."
+            "Altyazi okunamadi veya bos. Desteklenen bicimler: SRT, VTT, ASS/SSA."
         )
     log(f"{len(entries)} blok okundu: {src_path.name}")
 
@@ -4622,15 +4672,35 @@ def translate_existing_subtitle(args):
     m = re.match(r"^(.*)\.[a-z]{2,3}$", stem, re.I)
     if m:
         stem = m.group(1)
-    out_path = out_dir / f"{stem}.{target}.srt"
-    if out_path.resolve() == src_path.resolve():          # kaynagin uzerine yazma
-        out_path = out_dir / f"{stem}.{target}.ceviri.srt"
+    requested = []
+    for fmt in str(getattr(args, "formats", "srt") or "srt").split(","):
+        fmt = fmt.strip().lower()
+        if fmt in {"srt", "vtt", "txt", "ass", "json"} and fmt not in requested:
+            requested.append(fmt)
+    if not requested:
+        requested = ["srt"]
 
-    write_srt(translated, out_path, args.max_line_width, args.max_lines,
-              language=target, wrap_mode=args.wrap_mode)
-    log(f"Ceviri yazildi: {out_path}", "success")
+    files = []
+    for fmt in requested:
+        out_path = out_dir / f"{stem}.{target}.{fmt}"
+        if out_path.resolve() == src_path.resolve():      # kaynagin uzerine yazma
+            out_path = out_dir / f"{stem}.{target}.ceviri.{fmt}"
+        if fmt == "srt":
+            write_srt(translated, out_path, args.max_line_width, args.max_lines,
+                      language=target, wrap_mode=args.wrap_mode)
+        elif fmt == "vtt":
+            write_vtt(translated, out_path, args.max_line_width, args.max_lines,
+                      language=target, wrap_mode=args.wrap_mode)
+        elif fmt == "txt":
+            write_txt(translated, out_path)
+        elif fmt == "ass":
+            write_ass(translated, out_path, max_line_width=args.max_line_width,
+                      language=target, wrap_mode=args.wrap_mode)
+        else:
+            write_json(translated, out_path)
+        files.append(str(out_path))
+        log(f"Ceviri yazildi: {out_path}", "success")
 
-    files = [str(out_path)]
     if args.dual_subtitle:
         dual_path = out_dir / f"{stem}.dual.srt"
         write_dual_srt(entries, translated, dual_path,
@@ -4860,12 +4930,62 @@ def parse_srt(text):
     return entries
 
 
+def parse_ass(text):
+    """ASS/SSA Dialogue satırlarını ortak (start, end, text) modeline çevir."""
+    entries = []
+    in_events = False
+    fields = ["layer", "start", "end", "style", "name", "marginl", "marginr",
+              "marginv", "effect", "text"]
+    for raw in str(text).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw.strip()
+        if line.startswith("[") and line.endswith("]"):
+            in_events = line.lower() == "[events]"
+            continue
+        if not in_events:
+            continue
+        if line.lower().startswith("format:"):
+            fields = [part.strip().lower() for part in line.split(":", 1)[1].split(",")]
+            continue
+        if not line.lower().startswith("dialogue:"):
+            continue
+        values = line.split(":", 1)[1].lstrip().split(",", max(0, len(fields) - 1))
+        if len(values) < len(fields):
+            continue
+        row = dict(zip(fields, values))
+        try:
+            start = srt_time_to_seconds(row["start"])
+            end = srt_time_to_seconds(row["end"])
+        except (KeyError, ValueError):
+            continue
+        body = row.get("text", "").replace("\\N", "\n").replace("\\n", "\n")
+        body = re.sub(r"\{[^}]*\}", "", body).strip()
+        entries.append((start, end, body))
+    return entries
+
+
+def parse_subtitle_entries(text, suffix=""):
+    ext = str(suffix or "").lower().lstrip(".")
+    return parse_ass(text) if ext in {"ass", "ssa"} else parse_srt(text)
+
+
 def shift_srt_entries(entries, offset):
-    """Tüm zaman damgalarına offset (sn) ekle; negatif zamanı 0'a kırp."""
+    """Zamanları kaydır; bütünüyle sıfırdan önce kalan blokları çıkar."""
     out = []
     for s, e, t in entries:
-        out.append((max(0.0, s + offset), max(0.0, e + offset), t))
+        shifted_start = float(s) + offset
+        shifted_end = float(e) + offset
+        if shifted_end <= 0:
+            continue
+        safe_start = max(0.0, shifted_start)
+        out.append((safe_start, max(safe_start + 0.001, shifted_end), t))
     return out
+
+
+def sync_output_path(subtitle_path, output_dir=None):
+    source = Path(subtitle_path)
+    target_dir = Path(output_dir) if output_dir else source.parent
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir / f"{source.stem}.synced.srt"
 
 
 def write_srt_raw(entries, output_path):
@@ -5139,7 +5259,7 @@ def apply_piecewise(spans, pieces, ratio=1.0):
 
 
 def sync_subtitles(args):
-    """Videoyu referans alıp mevcut SRT'yi sabit kaymadan hizalar; .synced.srt yazar."""
+    """Videoyu referans alıp mevcut altyazıyı hizalar; .synced.srt yazar."""
     ffmpeg_path = find_ffmpeg()
     if not ffmpeg_path:
         raise RuntimeError("ffmpeg bulunamadı. PATH'e ekleyin veya backend/bin/ klasörüne koyun.")
@@ -5159,9 +5279,9 @@ def sync_subtitles(args):
         log(f"Altyazı kodlaması: {used_enc} (UTF-8 değil, dönüştürüldü)", "warn")
     if repaired:
         log("Bozuk Türkçe karakterler onarıldı (çift kodlanmış UTF-8)", "success")
-    spans = parse_srt(text)
+    spans = parse_subtitle_entries(text, srt_path.suffix)
     if not spans:
-        raise RuntimeError("Altyazıda geçerli blok bulunamadı (SRT değil mi?).")
+        raise RuntimeError("Altyazıda geçerli blok bulunamadı (SRT/VTT/ASS desteklenir).")
 
     workdir = tempfile.mkdtemp(prefix="whisper_sync_")
     try:
@@ -5213,7 +5333,7 @@ def sync_subtitles(args):
             shifted = apply_piecewise(spans, pieces, ratio)
         else:
             shifted = shift_srt_entries(scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
-        out_path = srt_path.with_name(srt_path.stem + ".synced.srt")
+        out_path = sync_output_path(srt_path, args.output_dir)
         emit("status", stage="write", text="Senkronlu altyazı yazılıyor...")
         write_srt_raw(shifted, out_path)
         log(f"Yazıldı: {out_path}")

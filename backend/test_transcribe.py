@@ -294,6 +294,24 @@ def test_write_dual_srt():
     t2 = open(p, encoding="utf-8-sig").read().split("\n\n")[0].split("\n")
     assert t2[2] == "The Addis continue to live."
 
+    # Çeviri iki bloğu birleştirdiyse kaynak indeksle değil zamanla eşleşmeli.
+    merged_tr = [(0.0, 5.0, "Adiler yaşamayı sürdürdü ve tavan arasında yaşadı.")]
+    T.write_dual_srt(src, merged_tr, p, translation_first=True)
+    merged = open(p, encoding="utf-8-sig").read()
+    assert "The Addis continue to live. He lived in the attic." in merged
+
+
+def test_write_json_keeps_word_overlapping_snapped_start():
+    import tempfile, pathlib, json
+    p = pathlib.Path(tempfile.mkdtemp()) / "x.json"
+    words = [
+        {"word": "Hello", "start": 0.8, "end": 1.15, "probability": 0.9},
+        {"word": "there", "start": 1.16, "end": 1.5, "probability": 0.9},
+    ]
+    T.write_json([(1.0, 2.0, "Hello there")], p, all_words=words)
+    data = json.loads(p.read_text(encoding="utf-8"))
+    assert [w["word"] for w in data["segments"][0]["words"]] == ["Hello", "there"]
+
 
 # ===== istatistiksel halüsinasyon =====
 def _halluc_fixture(text, prob, n, spread=30.0):
@@ -449,6 +467,14 @@ def test_capitalize_after_sentence():
     # İngilizcede normal upper
     en, _ = T.capitalize_after_sentence([(0, 1, "It ends."), (1, 2, "it starts.")], "en")
     assert en[1][2].startswith("It")
+    decorated, n2 = T.capitalize_after_sentence([
+        (0, 1, "Bitti."),
+        (1, 2, '- "merhaba."'),
+        (2, 3, "[SPEAKER_01] istanbul güzel."),
+    ], "tr")
+    assert n2 == 2
+    assert decorated[1][2] == '- "Merhaba."'
+    assert decorated[2][2].startswith("[SPEAKER_01] İstanbul")
 
 
 def test_strip_repeated_prefix():
@@ -1070,6 +1096,7 @@ def test_translate_existing_subtitle_keeps_timings():
     args.language = "en"
     args.max_lines = 2
     args.wrap_mode = "sentence"
+    args.formats = "srt,vtt,ass"
     args.dual_subtitle = False
     args.dual_translation_first = False
     try:
@@ -1087,6 +1114,8 @@ def test_translate_existing_subtitle_keeps_timings():
     assert "00:00:01,500 --> 00:00:03,250" in text, text
     assert "00:00:05,000 --> 00:00:07,125" in text, text
     assert "[TR] First line." in text and "[TR] Second line." in text
+    assert (d / "film.tr.vtt").read_text(encoding="utf-8").startswith("WEBVTT")
+    assert "Dialogue:" in (d / "film.tr.ass").read_text(encoding="utf-8-sig")
     # kaynak dosya DEGISMEDI
     assert "First line." in src.read_text(encoding="utf-8-sig")
 
@@ -1104,6 +1133,39 @@ def test_build_translate_prompt():
     assert "sansursuz" in p.lower()
     soft = T.build_translate_prompt("tr", "en", [], profanity="soft")
     assert "yumusat" in soft.lower() and "sansursuz" not in soft.lower()
+    automatic = T.build_translate_prompt("tr", "auto", [])
+    assert "auto altyaziyi" not in automatic.lower()
+    assert "kaynak dil altyaziyi" in automatic.lower()
+
+
+def test_download_youtube_rejects_empty_info():
+    import sys, types, tempfile
+
+    class _Ydl:
+        def __init__(self, _opts):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def extract_info(self, _url, download=True):
+            return None
+
+    fake = types.ModuleType("yt_dlp")
+    fake.YoutubeDL = _Ydl
+    old = sys.modules.get("yt_dlp")
+    sys.modules["yt_dlp"] = fake
+    try:
+        try:
+            T.download_youtube("https://youtu.be/test", tempfile.mkdtemp())
+            raise AssertionError("bos yt-dlp sonucu kabul edildi")
+        except RuntimeError as exc:
+            assert "boş sonuç" in str(exc)
+    finally:
+        if old is None:
+            sys.modules.pop("yt_dlp", None)
+        else:
+            sys.modules["yt_dlp"] = old
 
 
 # ===== tekrar döngüsü =====
@@ -1308,12 +1370,14 @@ def test_checkpoint_roundtrip():
     fd, path = tempfile.mkstemp(suffix=".ckpt.json")
     os.close(fd)
     try:
-        T.write_checkpoint(path, sig, entries, 4.0)
+        words = [{"word": "Merhaba", "start": 0.1, "end": 0.8, "probability": 0.9}]
+        T.write_checkpoint(path, sig, entries, 4.0, words=words)
         got = T.read_checkpoint(path, sig)
         assert got is not None
-        got_entries, last_time = got
+        got_entries, last_time, got_words = got
         assert last_time == 4.0
         assert len(got_entries) == 2 and got_entries[0][2] == "Merhaba."
+        assert got_words == words
         # imza uymuyorsa reddet (ayar değişikliği → temiz başla)
         bad = dict(sig); bad["model"] = "medium"
         assert T.read_checkpoint(path, bad) is None
@@ -1336,6 +1400,12 @@ def test_merge_resumed_entries():
     assert len(merged) == 2
     assert merged[0][2] == "korunan"
     assert merged[1][2] == "yeni blok"
+    old_words = [{"word": "eski", "start": 10.0, "end": 10.4},
+                 {"word": "sinir", "start": 77.9, "end": 78.2}]
+    new_words = [{"word": "tekrar", "start": 77.0, "end": 77.4},
+                 {"word": "yeni", "start": 78.5, "end": 79.0}]
+    merged_words = T.merge_resumed_words(old_words, new_words, 78.0)
+    assert [w["word"] for w in merged_words] == ["eski", "yeni"]
 
 
 # ===== altyazı senkronlama =====
@@ -1356,13 +1426,23 @@ def test_parse_and_shift_srt():
     assert spans[0][2] == "Merhaba"
     assert spans[1][2] == "Dünya\niki satır"  # iç satır sonu korunmalı
     assert abs(T.srt_time_to_seconds("01:00:00.250") - 3600.25) < 1e-6
-    assert T.shift_srt_entries(spans, -5.0)[0][0] == 0.0  # negatif → 0'a kırpılır
+    assert T.shift_srt_entries(spans, -5.0) == []  # bütünüyle video dışına çıkan bloklar atılır
     assert abs(T.shift_srt_entries(spans, 2.0)[0][0] - 3.0) < 1e-6
+    partial = T.shift_srt_entries([(4.5, 6.0, "Kısmi")], -5.0)
+    assert partial == [(0.0, 1.0, "Kısmi")]
 
     vtt = "WEBVTT\n\n05:23.500 --> 05:28.100 align:start\nStandart VTT\n"
     vtt_spans = T.parse_srt(vtt)
     assert len(vtt_spans) == 1
     assert abs(vtt_spans[0][0] - 323.5) < 1e-6
+
+    ass = "\n".join([
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        r"Dialogue: 0,0:00:01.50,0:00:03.25,Default,,0,0,0,,{\i1}First\Nline",
+    ])
+    ass_spans = T.parse_subtitle_entries(ass, ".ass")
+    assert ass_spans == [(1.5, 3.25, "First\nline")]
 
 
 def test_parse_llm_json_object_with_intro_and_fence():
@@ -1380,6 +1460,22 @@ def test_wrap_sentence_closing_quote_and_parenthesis():
         '"Gidelim mi?"\nSonra bakarız.'
     assert T.wrap_text('(Gülüşmeler.) Son söz.', wrap_mode="sentence") == \
         '(Gülüşmeler.)\nSon söz.'
+    assert T.wrap_text("Bir. İki. Üç.", max_lines=2, wrap_mode="sentence") == \
+        "Bir.\nİki. Üç."
+
+
+def test_sync_output_path_respects_output_dir():
+    import tempfile, pathlib
+    root = pathlib.Path(tempfile.mkdtemp())
+    target = T.sync_output_path(root / "input" / "film.vtt", root / "out")
+    assert target == root / "out" / "film.synced.srt"
+    assert target.parent.exists()
+
+
+def test_normalize_timings_ignores_speaker_label_for_cps():
+    entries = [(0.0, 1.0, "[SPEAKER_00] Merhaba")]
+    out = T.normalize_timings(entries, min_dur=0.1, max_dur=5.0, max_cps=10.0)
+    assert abs(out[0][1] - 1.0) < 1e-6, out
 
 
 def test_best_offset():
