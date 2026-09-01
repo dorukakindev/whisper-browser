@@ -686,6 +686,43 @@ def test_translate_returns_list_on_success():
     assert [(s, e) for s, e, _ in out] == [(s, e) for s, e, _ in ENTRIES]
 
 
+def test_translate_refine_processes_full_index_chunks():
+    """İkinci geçiş, birinci geçişin indeks listelerini aralık çifti sanmamalı."""
+    import json, types
+
+    entries = [(i * 2.0, i * 2.0 + 1.8, f"Line {i}.") for i in range(21)]
+    seen = {"translate": 0, "refine": 0}
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        is_refine = bool(payload["items"] and "src" in payload["items"][0])
+        stage = "refine" if is_refine else "translate"
+        seen[stage] += 1
+        out = {}
+        for item in payload["items"]:
+            source = item["tr"] if is_refine else item["t"]
+            out[str(item["i"])] = ("[R] " if is_refine else "[TR] ") + source
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(out)))])
+
+    class _Ok:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    with _fake_openai(_Ok):
+        out = T.llm_translate(
+            entries,
+            _TrArgs(translate_refine=True, translate_cache=False, translate_context=0),
+            [],
+            source_lang="en",
+        )
+
+    assert seen == {"translate": 2, "refine": 2}, seen
+    assert out is not None and len(out) == len(entries)
+    assert all(text.startswith("[R] [TR] ") for _s, _e, text in out), out
+
+
 def test_translate_partial_response_counts_as_failed():
     """Model 3 blok istenip 1 tanesini dondurse: kalan 2 blok BASARISIZ sayilmali.
 

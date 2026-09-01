@@ -2595,14 +2595,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         refined = list(out_texts)
         r_counters = {"changed": 0, "failed": 0}
 
-        def refine_task(chunk_range):
-            ci_start, ci_end = chunk_range
+        def refine_task(chunk_idx):
             items = []
-            for i in range(ci_start, ci_end):
+            for pos, i in enumerate(chunk_idx):
                 s0, e0, src_text = entries[i]
                 dur = max(0.4, float(e0) - float(s0))
                 items.append({
-                    "i": i - ci_start,
+                    "i": pos,
                     "src": src_text,
                     "tr": out_texts[i],
                     "max": int(dur * args.max_cps),
@@ -2617,9 +2616,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                 if not isinstance(val, str) or not val.strip():
                     continue
                 new_text = val.strip()
-                if new_text != out_texts[ci_start + item["i"]]:
+                source_index = chunk_idx[item["i"]]
+                if new_text != out_texts[source_index]:
                     n_changed += 1
-                refined[ci_start + item["i"]] = new_text
+                refined[source_index] = new_text
             return n_changed
 
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
@@ -2629,9 +2629,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                 try:
                     r_counters["changed"] += fut.result()
                 except Exception as e:
-                    r_counters["failed"] += (ch[1] - ch[0])
+                    r_counters["failed"] += len(ch)
                     log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
-                        ch[0], ch[1], e), "warn")
+                        ch[0], ch[-1], e), "warn")
         out_texts = refined
         if r_counters["failed"]:
             log("2. geçiş: {} blok düzeltildi, {} blokta hata (1. geçiş korundu)".format(
