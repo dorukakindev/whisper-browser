@@ -1627,6 +1627,24 @@ function browserTranslationConfig(overrides = {}) {
   };
 }
 
+function browserMangaTranslationConfig(overrides = {}) {
+  const settings = loadSettings();
+  const manga = settings.manga || {};
+  const ui = settings.ui || {};
+  const inherited = browserTranslationConfig(overrides);
+  const preset = String(manga.endpointPreset || ui.mangaEndpointPreset || 'inherit').trim();
+  const customBaseUrl = String(manga.customBaseUrl || ui.mangaBaseUrl || '').trim();
+  const endpoint = !preset || preset === 'inherit'
+    ? inherited.endpoint
+    : (preset === 'custom' ? customBaseUrl : preset);
+  return {
+    ...inherited,
+    apiKey: String(manga.apiKey || inherited.apiKey || ''),
+    endpoint: endpoint || inherited.endpoint,
+    model: String(manga.model || ui.mangaModel || inherited.model),
+  };
+}
+
 function safeTranslationEndpoint(raw) {
   try {
     const url = new URL(String(raw || ''));
@@ -1881,12 +1899,9 @@ async function startBrowserManga(tab, options = {}) {
     return { ok: false, error: 'Etkin tarayıcı sekmesi bulunamadı.' };
   }
   if (tab.mangaJob) return { ok: false, busy: true, error: 'Manga çevirisi zaten çalışıyor.' };
-  const config = browserTranslationConfig({ targetLanguage: options.targetLanguage });
-  // Altyazı çevirisinde seçilen endpoint, anahtar ve multimodal model manga
-  // için de aynen kullanılır. Böylece shuaiapi hesabında bulunmayan ayrı bir
-  // model adı zorlanmaz.
+  const config = browserMangaTranslationConfig({ targetLanguage: options.targetLanguage });
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
-    return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde görsel destekli bir API anahtarı seçin.' };
+    return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde API anahtarı girin.' };
   }
   const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
   tab.mangaJob = job;

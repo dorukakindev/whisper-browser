@@ -4481,6 +4481,21 @@ textarea { resize: none; }
 .secret-toggle:hover { color: #edf1f3; background: #26313a; }
 .secret-toggle[aria-pressed="true"] { color: var(--accent-hover); }
 
+.translation-profile-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
+.translation-profile-heading span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 /* Sinyal zinciri: ekranın ayırt edici öğesi. Aşamalar veri akışını yatay,
    dar yüzeyde kaydırılabilir ve metinle okunabilir halde gösterir. */
 .stage-list {

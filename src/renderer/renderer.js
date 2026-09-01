@@ -1381,6 +1381,12 @@ async function saveAppSettings() {
       customBaseUrl: $('translateBaseUrl') ? $('translateBaseUrl').value.trim() : '',
       model: $('translateModel') ? $('translateModel').value.trim() : '',
     },
+    manga: {
+      apiKey: $('mangaApiKey') ? $('mangaApiKey').value.trim() : '',
+      endpointPreset: $('mangaEndpointPreset') ? $('mangaEndpointPreset').value : 'inherit',
+      customBaseUrl: $('mangaBaseUrl') ? $('mangaBaseUrl').value.trim() : '',
+      model: $('mangaModel') ? $('mangaModel').value.trim() : '',
+    },
     llm: {
       apiKey: $('llmApiKey') ? $('llmApiKey').value.trim() : '',
       endpointPreset: $('llmEndpointPreset') ? $('llmEndpointPreset').value : '',
@@ -1715,8 +1721,27 @@ if ($('translateEndpointPreset')) {
   updateTranslateEndpointUI();
 }
 
+function updateMangaEndpointUI() {
+  const preset = $('mangaEndpointPreset');
+  const customField = $('mangaCustomUrlField');
+  if (!preset || !customField) return;
+  customField.classList.toggle('hidden', preset.value !== 'custom');
+}
+
+if ($('mangaEndpointPreset')) {
+  $('mangaEndpointPreset').addEventListener('change', () => {
+    updateMangaEndpointUI();
+    saveAppSettings();
+  });
+  updateMangaEndpointUI();
+}
+
 // API anahtarı yazılınca kaydet (gizli alanlar PERSIST listesinde değil)
-['translateApiKey'].forEach((id) => {
+['translateApiKey', 'mangaApiKey'].forEach((id) => {
+  const el = $(id);
+  if (el) el.addEventListener('change', saveAppSettings);
+});
+['mangaBaseUrl', 'mangaModel'].forEach((id) => {
   const el = $(id);
   if (el) el.addEventListener('change', saveAppSettings);
 });
@@ -1761,6 +1786,13 @@ if ($('deepseekKeyHelp')) {
         }
         if (s.translate.model && $('translateModel')) $('translateModel').value = s.translate.model;
         updateTranslateEndpointUI();
+      }
+      if (s.manga) {
+        if (s.manga.apiKey && $('mangaApiKey')) $('mangaApiKey').value = s.manga.apiKey;
+        if (s.manga.endpointPreset && $('mangaEndpointPreset')) $('mangaEndpointPreset').value = s.manga.endpointPreset;
+        if (s.manga.customBaseUrl && $('mangaBaseUrl')) $('mangaBaseUrl').value = s.manga.customBaseUrl;
+        if (s.manga.model && $('mangaModel')) $('mangaModel').value = s.manga.model;
+        updateMangaEndpointUI();
       }
       if (s.llm) {
         if (s.llm.apiKey && $('llmApiKey')) $('llmApiKey').value = s.llm.apiKey;
@@ -2802,6 +2834,13 @@ $('importSettings').addEventListener('click', async () => {
     if (s.translate.model && $('translateModel')) $('translateModel').value = s.translate.model;
     updateTranslateEndpointUI();
   }
+  if (s.manga) {
+    if (s.manga.apiKey !== undefined && $('mangaApiKey')) $('mangaApiKey').value = s.manga.apiKey || '';
+    if (s.manga.endpointPreset && $('mangaEndpointPreset')) $('mangaEndpointPreset').value = s.manga.endpointPreset;
+    if (s.manga.customBaseUrl !== undefined && $('mangaBaseUrl')) $('mangaBaseUrl').value = s.manga.customBaseUrl || '';
+    if (s.manga.model !== undefined && $('mangaModel')) $('mangaModel').value = s.manga.model || '';
+    updateMangaEndpointUI();
+  }
   if (s.ui) applyUiSettings(s.ui);
   if (s.preset && $('presetSelect').querySelector(`option[value="${s.preset}"]`)) $('presetSelect').value = s.preset;
   if (s.presetReference && PRESETS[s.presetReference]) _presetReference = s.presetReference;
@@ -3516,6 +3555,9 @@ async function handleBrowserMangaAction(clickEvent) {
     applyBrowserMangaState({ state: 'ready', translated: result.translated, visible: result.visible });
     return;
   }
+  // Yeni girilen ayrı manga anahtarı/modeli blur-save yarışına takılmadan
+  // ana sürecin okuyacağı ayar dosyasına ulaşsın.
+  await saveAppSettings();
   applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
   const result = await window.api.startBrowserManga?.(player.browserActiveTabId, {
     targetLanguage: $('translateTo')?.value || 'tr', maxImages: 16,

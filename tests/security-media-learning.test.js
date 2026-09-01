@@ -43,17 +43,21 @@ test('ayarlar public bölüm ve gizli değerler olarak ayrılır', () => {
     hfToken: 'hf-secret',
     llm: { apiKey: 'llm-secret', model: 'x' },
     translate: { apiKey: 'translate-secret', target: 'tr' },
+    manga: { apiKey: 'manga-secret', model: 'vision-x' },
   };
   const { publicSettings, secrets } = splitSettingsSecrets(input);
   assert.equal(secrets.hfToken, 'hf-secret');
   assert.equal(secrets['llm.apiKey'], 'llm-secret');
   assert.equal(secrets['translate.apiKey'], 'translate-secret');
+  assert.equal(secrets['manga.apiKey'], 'manga-secret');
   const text = JSON.stringify(publicSettings);
   assert(!text.includes('secret'));
   assert.equal(publicSettings.llm.model, 'x');
   assert.equal(publicSettings.translate.target, 'tr');
+  assert.equal(publicSettings.manga.model, 'vision-x');
   const merged = mergeSettingsSecrets(publicSettings, secrets);
   assert.equal(merged.llm.apiKey, 'llm-secret');
+  assert.equal(merged.manga.apiKey, 'manga-secret');
 });
 
 test('OS güvenli deposu şifreli yazar ve ayarlarla geri birleştirir', () => {
@@ -65,6 +69,7 @@ test('OS güvenli deposu şifreli yazar ve ayarlarla geri birleştirir', () => {
       hfToken: 'hf-value',
       llm: { apiKey: 'llm-value', model: 'model' },
       translate: { apiKey: 'tr-value' },
+      manga: { apiKey: 'manga-value' },
       ordinary: true,
     });
     assert(saved.ok, saved.error);
@@ -72,10 +77,12 @@ test('OS güvenli deposu şifreli yazar ve ayarlarla geri birleştirir', () => {
     const disk = fs.readFileSync(file, 'utf8');
     assert(!disk.includes('hf-value'));
     assert(!disk.includes('llm-value'));
+    assert(!disk.includes('manga-value'));
     const loaded = store.withSecrets(saved.publicSettings);
     assert(loaded.ok, loaded.error);
     assert.equal(loaded.settings.hfToken, 'hf-value');
     assert.equal(loaded.settings.llm.apiKey, 'llm-value');
+    assert.equal(loaded.settings.manga.apiKey, 'manga-value');
     assert.equal(loaded.settings.ordinary, true);
     assert(!JSON.stringify(store.forExport(loaded.settings)).includes('value'));
   } finally {

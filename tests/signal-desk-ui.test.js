@@ -79,7 +79,7 @@ test('tüm aramalar uygulamaya ait temizleme düğmesine sahip', () => {
 });
 
 test('gizli anahtarlar maskeli ve klavye erişimli görünürlük düğmesine sahip', () => {
-  for (const id of ['hfToken', 'translateApiKey', 'llmApiKey']) {
+  for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey']) {
     assert(new RegExp(`type="password" id="${id}"`).test(html), `${id} maskeli değil`);
     assert(html.includes(`data-secret-target="${id}"`), `${id} görünürlük düğmesi yok`);
   }

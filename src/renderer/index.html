@@ -700,6 +700,43 @@
                 <span class="field-label">Özel endpoint URL</span>
                 <input type="text" id="translateBaseUrl" placeholder="https://api.example.com/v1" />
               </label>
+              <div class="translation-profile-heading field-full">
+                <strong>Manga görsel çevirisi</strong>
+                <span>Altyazıdan bağımsız model ve API anahtarı kullanabilirsiniz.</span>
+              </div>
+              <label class="field field-full">
+                <span class="field-label">Manga API Key</span>
+                <span class="secret-control">
+                  <input type="password" id="mangaApiKey" placeholder="Boşsa altyazı anahtarı kullanılır" autocomplete="off" />
+                  <button class="secret-toggle" type="button" data-secret-target="mangaApiKey" aria-label="Manga API anahtarını göster" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                  </button>
+                </span>
+              </label>
+              <label class="field">
+                <span class="field-label">Manga endpoint (rota)</span>
+                <select id="mangaEndpointPreset">
+                  <option value="inherit" selected>Altyazı ayarını kullan</option>
+                  <option value="https://api.shuaiapi.com/v1">shuaiapi · CF optimize</option>
+                  <option value="https://oai.sb/v1">shuaiapi · Global</option>
+                  <option value="https://api.oai.sb/v1">shuaiapi · Asya Pasifik CDN 2</option>
+                  <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
+                  <option value="https://api.openai.com/v1">OpenAI</option>
+                  <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini</option>
+                  <option value="https://api.deepseek.com">DeepSeek</option>
+                  <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+                  <option value="custom">Özel...</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Manga modeli</span>
+                <input type="text" id="mangaModel" placeholder="Boşsa altyazı modeli kullanılır" />
+              </label>
+              <label class="field field-full hidden" id="mangaCustomUrlField">
+                <span class="field-label">Manga özel endpoint URL</span>
+                <input type="text" id="mangaBaseUrl" placeholder="https://api.example.com/v1" />
+              </label>
+              <div class="hint field-full">Manga alanları boşsa altyazı profili kullanılır. Ayrı anahtar girerseniz aynı sağlayıcıda iki farklı API anahtarıyla çalışabilirsiniz.</div>
               <label class="field">
                 <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">4</span></span>
                 <input type="range" id="translateWorkers" min="1" max="10" step="1" value="4" />
