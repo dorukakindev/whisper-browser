@@ -1614,10 +1614,17 @@ function browserTranslationConfig(overrides = {}) {
   const endpoint = preset === 'custom'
     ? String(translate.customBaseUrl || ui.translateBaseUrl || '').trim()
     : preset;
+  const configuredModel = String(translate.model || ui.translateModel || 'gpt-4.1-mini');
+  // Gemini presetinden shuaiapi'ye dönüldüğünde eski otomatik model adı
+  // ayarlarda kalabiliyordu. Shuaiapi'ye Gemini'ye özgü model adı göndermek
+  // manga ve normal çeviriyi anında "model bulunamadı" hatasına düşürür.
+  const model = /(?:shuaiapi\.com|api\.oai\.sb)/i.test(endpoint)
+      && configuredModel.toLowerCase() === 'gemini-3.7-flash'
+    ? 'gpt-4.1-mini' : configuredModel;
   return {
     apiKey: String(translate.apiKey || ''),
     endpoint: endpoint || 'https://api.shuaiapi.com/v1',
-    model: String(translate.model || ui.translateModel || 'gpt-4.1-mini'),
+    model,
     targetLanguage: String(overrides.targetLanguage || ui.translateTo || 'tr').toLowerCase().slice(0, 16),
     sourceLanguage: String(overrides.sourceLanguage || '').toLowerCase().slice(0, 16),
     register: String(overrides.register || ui.translateRegister || 'documentary').slice(0, 32),

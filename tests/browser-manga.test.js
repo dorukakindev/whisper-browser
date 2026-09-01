@@ -51,11 +51,14 @@ const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'src', 'renderer', 'index.html'), 'utf8');
 assert.match(main, /ipcMain\.handle\('browser:manga:start'/);
+assert.match(main, /configuredModel\.toLowerCase\(\) === 'gemini-3\.7-flash'[\s\S]{0,80}'gpt-4\.1-mini'/);
 assert.match(main, /redirect: 'manual', credentials: 'include'/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
 assert.match(renderer, /browserMangaTranslate.*addEventListener\('click', handleBrowserMangaAction\)/);
+assert.match(renderer, /Manga hata/);
+assert.match(renderer, /shuaiapi\\\.com\|api\\\.oai\\\.sb/);
 assert.match(html, /id="browserMangaTranslate"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 18 test');
+console.log('browser-manga: 21 test');

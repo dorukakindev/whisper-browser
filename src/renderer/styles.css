@@ -3803,6 +3803,8 @@ body::before {
 .browser-manga-button[data-state="running"]::after { background: #31240e; animation: manga-scan-pulse 1s ease-in-out infinite; }
 .browser-manga-button[data-state="ready"] { color: #f3ca77; border-color: #765921; background: #251c0f; }
 .browser-manga-button[data-state="hidden"] { color: #8e877c; border-color: #34302a; background: #161514; }
+.browser-manga-button[data-state="error"] { color: #efb39f; border-color: #744032; background: #251714; }
+.browser-manga-button[data-state="error"]::after { background: #c9674e; }
 .browser-manga-button:disabled { opacity: .55; cursor: wait; }
 @keyframes manga-scan-pulse { 50% { opacity: .25; transform: scaleY(.5); } }
 .browser-place-button {

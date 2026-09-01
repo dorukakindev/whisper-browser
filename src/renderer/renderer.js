@@ -1698,16 +1698,21 @@ function updateTranslateEndpointUI() {
   const customField = $('translateCustomUrlField');
   if (!preset || !customField) return;
   customField.classList.toggle('hidden', preset.value !== 'custom');
+  const model = $('translateModel');
+  if (!model) return;
+  const current = model.value.trim();
+  if (preset.value.includes('generativelanguage.googleapis.com')
+      && (!current || ['gpt-4.1-mini', 'deepseek-chat'].includes(current))) {
+    model.value = 'gemini-3.7-flash';
+  } else if (/(?:shuaiapi\.com|api\.oai\.sb)/i.test(preset.value)
+      && current.toLowerCase() === 'gemini-3.7-flash') {
+    model.value = 'gpt-4.1-mini';
+  }
 }
 
 if ($('translateEndpointPreset')) {
   $('translateEndpointPreset').addEventListener('change', () => {
     updateTranslateEndpointUI();
-    if ($('translateEndpointPreset').value.includes('generativelanguage.googleapis.com')
-        && $('translateModel') && (!$('translateModel').value.trim()
-          || ['gpt-4.1-mini', 'deepseek-chat'].includes($('translateModel').value.trim()))) {
-      $('translateModel').value = 'gemini-3.7-flash';
-    }
     saveAppSettings();
   });
   updateTranslateEndpointUI();
@@ -3054,6 +3059,7 @@ const player = {
   browserMangaVisible: false,
   browserMangaCompleted: 0,
   browserMangaTotal: 0,
+  browserMangaError: '',
   browserTranslationTrackId: '',
   browserLiveTranslations: new Map(),
   browserSignalVisible: true,
@@ -3448,6 +3454,8 @@ function updateBrowserMangaButton() {
     state = 'running';
     text = player.browserMangaTotal ? `${player.browserMangaCompleted}/${player.browserMangaTotal}` : 'Taranıyor';
     title = 'Manga çevirisini durdur';
+  } else if (player.browserMangaError) {
+    state = 'error'; text = 'Manga hata'; title = `${player.browserMangaError} · Yeniden denemek için tıkla`;
   } else if (player.browserMangaTranslated > 0 && player.browserMangaVisible) {
     state = 'ready'; text = 'Manga açık'; title = 'Manga çevirisini gizle · Shift+tık: sayfayı yeniden tara';
   } else if (player.browserMangaTranslated > 0) {
@@ -3462,6 +3470,8 @@ function updateBrowserMangaButton() {
 
 function applyBrowserMangaState(event = {}) {
   player.browserMangaBusy = event.state === 'running';
+  if (event.state === 'error') player.browserMangaError = String(event.message || event.error || 'Manga çevirisi başarısız oldu.');
+  else if (['running', 'ready', 'idle'].includes(event.state)) player.browserMangaError = '';
   if (event.translated !== undefined) player.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
   if (event.visible !== undefined) player.browserMangaVisible = !!event.visible;
   else if (event.state === 'ready') player.browserMangaVisible = player.browserMangaTranslated > 0;
@@ -3514,6 +3524,7 @@ async function handleBrowserMangaAction(clickEvent) {
     targetLanguage: $('translateTo')?.value || 'tr', maxImages: 16,
   }).catch((error) => ({ ok: false, error: error.message }));
   if (!result?.ok && !result?.canceled) {
+    logLine(`Manga çevirisi: ${result?.error || 'bilinmeyen hata'}`, 'error');
     applyBrowserMangaState({ state: 'error', translated: 0, visible: false,
       message: result?.error || 'Manga görselleri çevrilemedi.' });
   }
