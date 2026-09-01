@@ -710,7 +710,7 @@ function loadSettings() {
   }
 
   const loaded = getSettingsSecretStore().withSecrets(settings);
-  return loaded.ok ? loaded.settings : settings;
+  return (loaded.ok || loaded.partial) ? loaded.settings : settings;
 }
 
 function saveSettings(s) {
@@ -1021,11 +1021,11 @@ function saveWindowState() {
   try {
     // Maximized iken bile geri yüklenecek normal boyutu sakla
     const b = mainWindow.getNormalBounds ? mainWindow.getNormalBounds() : mainWindow.getBounds();
-    fs.writeFileSync(
-      windowStatePath(),
-      JSON.stringify({ width: b.width, height: b.height, maximized: mainWindow.isMaximized() }, null, 2),
-      'utf-8'
-    );
+    writeJsonAtomic(windowStatePath(), {
+      width: b.width,
+      height: b.height,
+      maximized: mainWindow.isMaximized(),
+    });
   } catch (_) {}
 }
 
@@ -3185,6 +3185,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   await prepareWidevineComponents();
   sweepBrowserLiveAsrTemp();
+  browserAssetStore().sweepTempFiles();
   browserAdapterPluginStatus = ADAPTER_REGISTRY.loadJsonDirectory(
     path.join(app.getPath('userData'), 'browser-adapters'));
   restoreBrowserSessionState();
@@ -4075,7 +4076,12 @@ ipcMain.handle('settings:import', async () => {
   });
   if (result.canceled || result.filePaths.length === 0) return { ok: false };
   try {
-    const data = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf-8'));
+    const importPath = result.filePaths[0];
+    const maxImportBytes = 8 * 1024 * 1024;
+    if (fs.statSync(importPath).size > maxImportBytes) {
+      return { ok: false, error: 'Ayar dosyası çok büyük (en fazla 8 MB).' };
+    }
+    const data = JSON.parse(fs.readFileSync(importPath, 'utf-8'));
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
       return { ok: false, error: 'Geçersiz ayar dosyası.' };
     }
@@ -4797,6 +4803,9 @@ ipcMain.handle('maintenance:updateYtdlp', async () => {
   }
   return new Promise((resolve) => {
     let out = '';
+    const appendOutput = (chunk) => {
+      out = (out + chunk).slice(-64 * 1024);
+    };
     try {
       // Nightly kanal, YouTube'un sık değişen istemci/PO-token davranışlarına
       // stable sürümden önce uyum sağlar; [default] EJS çözücüsünü de getirir.
@@ -4809,8 +4818,8 @@ ipcMain.handle('maintenance:updateYtdlp', async () => {
       updateJob = null;
       return resolve({ ok: false, error: err.message });
     }
-    if (updateJob.stdout) updateJob.stdout.on('data', (d) => { out += d; });
-    if (updateJob.stderr) updateJob.stderr.on('data', (d) => { out += d; });
+    if (updateJob.stdout) updateJob.stdout.on('data', appendOutput);
+    if (updateJob.stderr) updateJob.stderr.on('data', appendOutput);
     updateJob.on('error', (err) => {
       updateJob = null;
       resolve({ ok: false, error: err.code === 'ENOENT' ? 'Python bulunamadı (install.bat ile venv oluşturun).' : err.message });

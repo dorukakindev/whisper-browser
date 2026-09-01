@@ -137,6 +137,15 @@ t('ayar içe aktarma JSON dizisini reddeder', () => {
   const start = msrc.indexOf("ipcMain.handle('settings:import'");
   const body = msrc.slice(start, msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", start));
   ok(/Array\.isArray\(data\)/.test(body), 'JSON dizisi ayar nesnesi olarak kabul ediliyor');
+  ok(/maxImportBytes\s*=\s*8\s*\*\s*1024\s*\*\s*1024/.test(body), 'ayar içe aktarma boyut sınırı yok');
+  ok(/statSync\(importPath\)\.size\s*>\s*maxImportBytes/.test(body), 'dosya boyutu okumadan önce denetlenmiyor');
+});
+
+t('kısmen okunabilen güvenli anahtarlar ayarlara geri yüklenir', () => {
+  const start = msrc.indexOf('function loadSettings()');
+  const end = msrc.indexOf('function saveSettings(', start);
+  const body = msrc.slice(start, end);
+  ok(/loaded\.ok\s*\|\|\s*loaded\.partial/.test(body), 'sağlam kalan gizli anahtarlar yüklemede atılıyor');
 });
 
 t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte taşır', () => {

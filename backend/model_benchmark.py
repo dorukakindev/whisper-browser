@@ -24,7 +24,10 @@ def main():
     parser.add_argument("--input", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
-    parser.add_argument("--compute-type", default="float16")
+    parser.add_argument("--compute-type", choices=(
+        "auto", "int8", "int8_float16", "int8_float32", "int16",
+        "float16", "float32", "bfloat16",
+    ), default="float16")
     parser.add_argument("--seconds", type=float, default=30.0)
     parser.add_argument("--language", default="")
     parser.add_argument("--ffmpeg", default="ffmpeg")

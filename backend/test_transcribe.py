@@ -1249,6 +1249,28 @@ def test_normalize_timings():
     # Metni bölmeden 0-11 sn'yi 0-7 sn yapmak, konuşma sürerken altyazıyı kapatır.
     out3 = T.normalize_timings([(0.0, 11.0, "uzun bir konuşmanın tamamı")], max_dur=7.0)
     assert out3[0][1] == 11.0, "uzun blogun gerçek ses bitişi kırpıldı"
+    # Whisper nadiren bütün kelime zamanlarını None döndürebilir; çıktı çökmemeli.
+    out4 = T.normalize_timings([(None, None, "zamanı eksik")])
+    assert out4[0][0] == 0.0 and out4[0][1] > out4[0][0]
+
+
+def test_atomic_subtitle_write_preserves_existing_file_on_failure():
+    import tempfile
+    from pathlib import Path
+    target = Path(tempfile.mkdtemp()) / "existing.srt"
+    target.write_text("eski içerik", encoding="utf-8")
+    original_wrap = T.wrap_text
+    try:
+        T.wrap_text = lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("yazma kesildi"))
+        try:
+            T.write_srt([(0.0, 1.0, "yeni")], target)
+            assert False, "yazma hatası bekleniyordu"
+        except RuntimeError:
+            pass
+    finally:
+        T.wrap_text = original_wrap
+    assert target.read_text(encoding="utf-8") == "eski içerik"
+    assert not list(target.parent.glob("*.tmp"))
 
 
 # ===== kalite raporu =====
@@ -1453,6 +1475,27 @@ def test_parse_llm_json_object_with_intro_and_fence():
         raise AssertionError("JSON dizisi nesne diye kabul edildi")
     except RuntimeError:
         pass
+
+
+def test_api_retry_and_json_mode_detection():
+    class ApiError(Exception):
+        def __init__(self, message, status_code=None):
+            super().__init__(message)
+            self.status_code = status_code
+
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise ApiError("geçici", 503)
+        return "ok"
+
+    assert T.call_api_with_retry(flaky, attempts=3, base_delay=0) == "ok"
+    assert len(calls) == 3
+    assert T.json_mode_unsupported(ApiError("response_format desteklenmiyor", 400))
+    assert not T.json_mode_unsupported(ApiError("400 bad request: model yok", 400))
+    assert not T.retryable_api_error(ApiError("geçersiz anahtar", 401))
 
 
 def test_wrap_sentence_closing_quote_and_parenthesis():

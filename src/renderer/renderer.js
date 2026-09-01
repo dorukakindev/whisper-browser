@@ -729,8 +729,12 @@ $('copyPreview').addEventListener('click', async () => {
   const srt = segs
     .map((s, i) => `${i + 1}\n${srtTime(s.start)} --> ${srtTime(s.end)}\n${s.text}\n`)
     .join('\n');
-  await window.api.copyText(srt);
-  logLine(`${segs.length} segment panoya kopyalandı (SRT biçimi)`, 'success');
+  try {
+    await window.api.copyText(srt);
+    logLine(`${segs.length} segment panoya kopyalandı (SRT biçimi)`, 'success');
+  } catch (error) {
+    logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
+  }
 });
 
 // Önizleme metin filtresi — büyük transkriptlerde arama
@@ -1319,6 +1323,7 @@ $$('.secret-toggle').forEach((button) => {
     button.setAttribute('aria-label', show
       ? label.replace(/ göster$/i, ' gizle')
       : label.replace(/ gizle$/i, ' göster'));
+    button.title = button.getAttribute('aria-label');
     input.focus();
     if (Number.isInteger(start) && Number.isInteger(end)) input.setSelectionRange(start, end);
   });
@@ -3964,8 +3969,12 @@ async function copyBrowserAbText() {
       : 'A-B aralığında yüklü altyazı bulunamadı.', false);
     return;
   }
-  await window.api.copyText(cuesToSrt(cues));
-  setBrowserSignal(`${cues.length} altyazı satırı A-B aralığıyla panoya kopyalandı.`, true);
+  try {
+    await window.api.copyText(cuesToSrt(cues));
+    setBrowserSignal(`${cues.length} altyazı satırı A-B aralığıyla panoya kopyalandı.`, true);
+  } catch (error) {
+    setBrowserSignal(`Panoya kopyalanamadı: ${error.message}`, false);
+  }
 }
 
 function queueCurrentBrowserPage() {
@@ -5444,10 +5453,14 @@ function replayCue() {
   if (video && video.paused) video.play();
 }
 
-function copyCue() {
+async function copyCue() {
   if (player.activeIdx < 0) return;
-  window.api.copyText(player.cues[player.activeIdx].text);
-  logLine('Altyazı satırı panoya kopyalandı.', 'success');
+  try {
+    await window.api.copyText(player.cues[player.activeIdx].text);
+    logLine('Altyazı satırı panoya kopyalandı.', 'success');
+  } catch (error) {
+    logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
+  }
 }
 
 function syncLearningAnnotation(type, cue, saved, options = {}) {
@@ -5566,10 +5579,14 @@ function toggleWordSaved() {
   updateWordInspector();
 }
 
-function copySelectedWord() {
+async function copySelectedWord() {
   if (!player.selectedWord) return;
-  window.api.copyText(player.selectedWord.word);
-  osd('Kelime panoya kopyalandı');
+  try {
+    await window.api.copyText(player.selectedWord.word);
+    osd('Kelime panoya kopyalandı');
+  } catch (error) {
+    osd(`Panoya kopyalanamadı: ${error.message}`);
+  }
 }
 
 // Kelime aramasi uygulamadan DISARI cikan tek islemdir: secilen kelime varsayilan

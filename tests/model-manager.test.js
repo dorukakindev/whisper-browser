@@ -19,10 +19,18 @@ test('model depo adları güvenli biçimde eşlenir', () => {
   assert(!repositoryMatchesModel('models--Systran--faster-whisper-base', 'large-v3'));
 });
 
-test('önbellekte bulunan model indirilmiş görünür', () => {
+test('yalnızca tamamlanmış model anlık görüntüsü indirilmiş görünür', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-model-cache-'));
-  fs.mkdirSync(path.join(root, 'models--Systran--faster-whisper-small'));
-  const result = scanModelCache('', { HUGGINGFACE_HUB_CACHE: root });
+  const repo = path.join(root, 'models--Systran--faster-whisper-small');
+  fs.mkdirSync(repo);
+  let result = scanModelCache('', { HUGGINGFACE_HUB_CACHE: root });
+  assert.equal(result.models.find((item) => item.id === 'small').installed, false);
+  const snapshot = path.join(repo, 'snapshots', 'abc123');
+  fs.mkdirSync(snapshot, { recursive: true });
+  for (const name of ['config.json', 'model.bin', 'tokenizer.json']) {
+    fs.writeFileSync(path.join(snapshot, name), name);
+  }
+  result = scanModelCache('', { HUGGINGFACE_HUB_CACHE: root });
   assert.equal(result.models.find((item) => item.id === 'small').installed, true);
   assert.equal(result.models.find((item) => item.id === 'medium').installed, false);
   fs.rmSync(root, { recursive: true, force: true });

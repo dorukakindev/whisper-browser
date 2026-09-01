@@ -20,7 +20,11 @@ def read_commands(commands, stop_event):
     for raw in sys.stdin:
         try:
             command = json.loads(raw)
-        except Exception:
+        except Exception as error:
+            emit("error", message=f"Canlı Whisper komutu okunamadı: {error}")
+            continue
+        if not isinstance(command, dict):
+            emit("error", message="Canlı Whisper komutu bir JSON nesnesi olmalı.")
             continue
         if command.get("type") == "stop":
             stop_event.set()

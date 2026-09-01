@@ -4,7 +4,7 @@ const os = require('os');
 const path = require('path');
 
 const { BrowserAssetStore } = require('../src/browser-asset-store');
-const { WatchIndex, ftsQuery } = require('../src/watch-index');
+const { WatchIndex, foldSearchText, ftsQuery } = require('../src/watch-index');
 const { normalizeAnnotation } = require('../src/browser-learning');
 
 let passed = 0;
@@ -50,9 +50,31 @@ try {
     assert.equal(store.getTrack(result.assetId).ok, false);
   });
 
+  test('eski yarım kalmış web altyazısı geçici dosyaları temizlenir', () => {
+    const rootDir = path.join(dir, 'sweep-assets');
+    const nested = path.join(rootDir, 'nested');
+    fs.mkdirSync(nested, { recursive: true });
+    const oldTemp = path.join(nested, 'old.json.1.tmp');
+    const freshTemp = path.join(nested, 'fresh.json.1.tmp');
+    fs.writeFileSync(oldTemp, 'old');
+    fs.writeFileSync(freshTemp, 'fresh');
+    const now = Date.now();
+    const oldDate = new Date(now - 48 * 60 * 60 * 1000);
+    fs.utimesSync(oldTemp, oldDate, oldDate);
+    const store = new BrowserAssetStore({ rootDir });
+    assert.equal(store.sweepTempFiles(24 * 60 * 60 * 1000, now), 1);
+    assert.equal(fs.existsSync(oldTemp), false);
+    assert.equal(fs.existsSync(freshTemp), true);
+  });
+
   test('FTS sorgusu kullanıcı metnini güvenli prefix terimlerine dönüştürür', () => {
     assert.equal(ftsQuery('  Merhaba dünya!  '), '"Merhaba"* AND "dünya"*');
     assert.equal(ftsQuery('" OR *'), '"OR"*');
+  });
+
+  test('Türkçe büyük-küçük harf araması I ve İ ayrımını doğru katlar', () => {
+    assert.equal(foldSearchText('IŞIK'), 'ışık');
+    assert.equal(foldSearchText('İZMİR'), 'izmir');
   });
 
   const index = new WatchIndex(path.join(dir, 'watch.db'));
@@ -92,13 +114,14 @@ try {
     test('notlar medya ve zamana bağlı saklanır', () => {
       const annotation = normalizeAnnotation({
         type: 'quote', mediaId: 'youtube:abc', start: 10, end: 12,
-        source: 'Changed text.', translation: 'Değişmiş metin.', note: 'önemli',
+        source: 'Changed text.', translation: 'Değişmiş metin.', note: 'IŞIK önemli',
       });
       index.upsertAnnotation(annotation);
       const rows = index.listAnnotations('youtube:abc');
       assert.equal(rows.length, 1);
-      assert.equal(rows[0].note, 'önemli');
+      assert.equal(rows[0].note, 'IŞIK önemli');
       assert.equal(rows[0].start, 10);
+      assert.equal(index.searchAnnotations('ışık').length, 1);
     });
 
     test('eski watch-library kayıtları temel medya satırlarına göç eder', () => {

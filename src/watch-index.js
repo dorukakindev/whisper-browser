@@ -17,12 +17,20 @@ function ftsQuery(raw) {
   return tokens.slice(0, 12).map((token) => `"${token.replace(/"/g, '""')}"*`).join(' AND ');
 }
 
+function foldSearchText(value) {
+  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR');
+}
+
 class WatchIndex {
   constructor(filePath, options = {}) {
     const DatabaseSync = options.DatabaseSync || databaseConstructor();
     if (!DatabaseSync) throw new Error('Bu Node/Electron sürümünde node:sqlite kullanılamıyor.');
     this.filePath = path.resolve(filePath);
     this.db = new DatabaseSync(this.filePath);
+    this.hasTurkishFold = typeof this.db.function === 'function';
+    if (this.hasTurkishFold) {
+      this.db.function('tr_fold', { deterministic: true }, foldSearchText);
+    }
     this.initialize();
   }
 
@@ -259,15 +267,28 @@ class WatchIndex {
   searchAnnotations(query, limit = 50) {
     const value = String(query || '').trim();
     if (!value) return [];
-    const pattern = `%${value.replace(/[\\%_]/g, '\\$&')}%`;
-    return this.db.prepare(`
+    const folded = foldSearchText(value);
+    const capped = Math.max(1, Math.min(200, Number(limit) || 50));
+    if (this.hasTurkishFold) {
+      return this.db.prepare(`
+        SELECT a.*, m.service, m.title, m.url
+        FROM annotations a JOIN media m ON m.id = a.media_id
+        WHERE instr(tr_fold(a.source), ?) > 0
+           OR instr(tr_fold(a.translation), ?) > 0
+           OR instr(tr_fold(a.note), ?) > 0
+        ORDER BY a.updated_at DESC LIMIT ?
+      `).all(folded, folded, folded, capped);
+    }
+    const rows = this.db.prepare(`
       SELECT a.*, m.service, m.title, m.url
       FROM annotations a JOIN media m ON m.id = a.media_id
-      WHERE a.source LIKE ? ESCAPE '\\' COLLATE NOCASE
-         OR a.translation LIKE ? ESCAPE '\\' COLLATE NOCASE
-         OR a.note LIKE ? ESCAPE '\\' COLLATE NOCASE
-      ORDER BY a.updated_at DESC LIMIT ?
-    `).all(pattern, pattern, pattern, Math.max(1, Math.min(200, Number(limit) || 50)));
+      ORDER BY a.updated_at DESC LIMIT 5000
+    `).all();
+    return rows.filter((row) => (
+      foldSearchText(row.source).includes(folded)
+      || foldSearchText(row.translation).includes(folded)
+      || foldSearchText(row.note).includes(folded)
+    )).slice(0, capped);
   }
 
   migrateLegacyWatchLibrary(items) {
@@ -301,5 +322,6 @@ module.exports = {
   WATCH_INDEX_VERSION,
   WatchIndex,
   databaseConstructor,
+  foldSearchText,
   ftsQuery,
 };

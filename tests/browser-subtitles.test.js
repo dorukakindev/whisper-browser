@@ -273,6 +273,7 @@ test('ASS, SAMI ve LRC metinleri ortak cue modeline dönüştürür', () => {
   assert.deepEqual(parseAss('[Events]\nDialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\i1}Merhaba\\N dünya'), [{ start: 1, end: 3, text: 'Merhaba\ndünya' }]);
   assert.equal(parseSami('<SAMI><SYNC Start=1000><P>Bir</P><SYNC Start=3000><P>İki</P></SYNC>').length, 2);
   assert.deepEqual(parseLrc('[00:01.00]Bir\n[00:03.00]İki').map((cue) => cue.start), [1, 3]);
+  assert.deepEqual(parseLrc('[00:01.00]Bir\n[00:03.00]İki').map((cue) => cue.end), [3, 8]);
 });
 
 test('Tarayıcı geri/ileri durumu yeni Electron API ve eski API ile güvenli okunur', () => {

@@ -101,13 +101,24 @@ class SafeSecretStore {
         return { ok: false, error: 'Güvenli anahtar deposu biçimi desteklenmiyor.', secrets: {} };
       }
       const secrets = {};
+      const errors = [];
       for (const field of this.fields) {
         const encoded = parsed.entries[field];
         if (typeof encoded !== 'string' || !encoded) continue;
-        const value = this.safeStorage.decryptString(Buffer.from(encoded, 'base64'));
-        if (value) secrets[field] = value;
+        try {
+          const value = this.safeStorage.decryptString(Buffer.from(encoded, 'base64'));
+          if (value) secrets[field] = value;
+        } catch (error) {
+          errors.push({ field, error: error.message });
+        }
       }
-      return { ok: true, secrets };
+      return {
+        ok: errors.length === 0,
+        partial: errors.length > 0 && Object.keys(secrets).length > 0,
+        error: errors.length ? `${errors.length} gizli alan çözülemedi.` : undefined,
+        errors,
+        secrets,
+      };
     } catch (error) {
       return { ok: false, error: error.message, secrets: {} };
     }
@@ -140,14 +151,17 @@ class SafeSecretStore {
     const { publicSettings, secrets } = splitSettingsSecrets(settings, this.fields);
     if (!Object.keys(secrets).length) return { ok: true, publicSettings, stored: [] };
     const current = this.load();
-    if (!current.ok && !current.unavailable) return { ...current, publicSettings };
+    if (!current.ok && !current.unavailable && !current.partial) return { ...current, publicSettings };
     const saved = this.save({ ...(current.secrets || {}), ...secrets });
     return { ...saved, publicSettings };
   }
 
   withSecrets(settings) {
     const loaded = this.load();
-    return { ...loaded, settings: loaded.ok ? mergeSettingsSecrets(settings, loaded.secrets, this.fields) : cloneJson(settings) };
+    return {
+      ...loaded,
+      settings: mergeSettingsSecrets(settings, loaded.secrets, this.fields),
+    };
   }
 
   forExport(settings, options = {}) {

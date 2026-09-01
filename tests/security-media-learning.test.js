@@ -107,6 +107,37 @@ test('boş anahtar güvenli kasadaki eski değeri temizler', () => {
   }
 });
 
+test('tek bozuk gizli alan sağlam anahtarların yüklenmesini engellemez', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-secrets-partial-'));
+  const file = path.join(dir, 'secrets.safe.json');
+  const selectiveStorage = {
+    ...fakeSafeStorage,
+    decryptString: (buffer) => {
+      const text = buffer.toString('utf8');
+      if (text.includes('broken')) throw new Error('bozuk kayıt');
+      return text.replace(/^encrypted:/, '');
+    },
+  };
+  try {
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1,
+      entries: {
+        hfToken: Buffer.from('encrypted:hf-ok').toString('base64'),
+        'llm.apiKey': Buffer.from('encrypted:broken').toString('base64'),
+      },
+    }));
+    const store = new SafeSecretStore({ safeStorage: selectiveStorage, filePath: file });
+    const loaded = store.withSecrets({ ordinary: true });
+    assert.equal(loaded.ok, false);
+    assert.equal(loaded.partial, true);
+    assert.equal(loaded.settings.hfToken, 'hf-ok');
+    assert.equal(loaded.settings.llm?.apiKey, undefined);
+    assert.equal(loaded.errors[0].field, 'llm.apiKey');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 const probe = {
   streams: [
     { index: 3, codec_name: 'subrip', tags: { language: 'tur', title: 'Türkçe' }, disposition: { default: 1 } },

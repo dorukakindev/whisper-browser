@@ -23,6 +23,7 @@ import threading
 import time
 import traceback
 import warnings
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -56,6 +57,29 @@ def emit(event_type, **payload):
 
 def log(message, level="info"):
     emit("log", level=level, message=message)
+
+
+@contextmanager
+def atomic_text_writer(output_path, encoding="utf-8", newline=None):
+    """Aynı klasörde geçici dosyaya yazıp tek adımda nihai dosyanın yerine koyar."""
+    target = Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent)
+    )
+    os.close(fd)
+    try:
+        with open(temp_name, "w", encoding=encoding, newline=newline) as handle:
+            yield handle
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, target)
+    finally:
+        try:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        except OSError:
+            pass
 
 
 def find_ffmpeg():
@@ -1424,7 +1448,7 @@ def split_segment_by_punctuation(segment, max_chars=84):
 def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
     # utf-8-sig (BOM): Windows oynatıcıları (WMP, bazı TV'ler) BOM'suz SRT'de
     # Türkçe karakterleri yanlış kodlamayla açabiliyor
-    with open(output_path, "w", encoding="utf-8-sig") as f:
+    with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
         for i, (start, end, text) in enumerate(entries, 1):
             wrapped = wrap_text(text, max_line_width, max_lines, language=language, wrap_mode=wrap_mode)
             f.write(f"{i}\n")
@@ -1460,13 +1484,13 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
         lines.append(f"{format_srt_time(s0)} --> {format_srt_time(e0)}")
         lines.append(body)
         lines.append("")
-    with open(output_path, "w", encoding="utf-8-sig") as f:
+    with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
         f.write("\n".join(lines))
     return output_path
 
 
 def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
-    with open(output_path, "w", encoding="utf-8") as f:
+    with atomic_text_writer(output_path, encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, (start, end, text) in enumerate(entries, 1):
             wrapped = wrap_text(text, max_line_width, max_lines, language=language, wrap_mode=wrap_mode)
@@ -1475,7 +1499,7 @@ def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr
 
 
 def write_txt(entries, output_path):
-    with open(output_path, "w", encoding="utf-8") as f:
+    with atomic_text_writer(output_path, encoding="utf-8") as f:
         for _, _, text in entries:
             f.write(text.strip() + "\n")
 
@@ -1542,7 +1566,7 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
     ]
 
     # ASS de BOM ile (Aegisub/SubtitleEdit varsayılanı)
-    with open(output_path, "w", encoding="utf-8-sig") as f:
+    with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
         f.write("\n".join(header) + "\n")
         for i, (start, end, text) in enumerate(entries):
             sp = speakers.get(i)
@@ -1599,7 +1623,7 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None):
                 seg["words"] = seg_words
         payload["segments"].append(seg)
 
-    with open(output_path, "w", encoding="utf-8") as f:
+    with atomic_text_writer(output_path, encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
@@ -1900,6 +1924,51 @@ def parse_llm_json_object(content, error_message="LLM JSON yanıtı parse edilem
     raise RuntimeError(error_message)
 
 
+def api_error_status(error):
+    """OpenAI uyumlu istemcilerin farklı hata nesnelerinden HTTP durumunu okur."""
+    for candidate in (getattr(error, "status_code", None),
+                      getattr(getattr(error, "response", None), "status_code", None),
+                      getattr(getattr(error, "response", None), "status", None)):
+        try:
+            if candidate is not None:
+                return int(candidate)
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def json_mode_unsupported(error):
+    """Genel bir 400'ü değil, yalnız JSON yanıt biçimiyle ilgili hatayı yakalar."""
+    message = str(error).lower()
+    return any(key in message for key in (
+        "response_format", "response format", "response_type", "json_object",
+        "json mode", "structured output",
+    ))
+
+
+def retryable_api_error(error):
+    status = api_error_status(error)
+    if status in (408, 409, 425, 429) or (status is not None and status >= 500):
+        return True
+    message = str(error).lower()
+    return any(key in message for key in (
+        "timed out", "timeout", "connection reset", "connection aborted",
+        "connection error", "temporarily unavailable", "rate limit",
+    ))
+
+
+def call_api_with_retry(operation, attempts=3, base_delay=0.75):
+    """Geçici ağ/429/5xx hatalarını sınırlı üstel gecikmeyle yeniden dener."""
+    attempts = max(1, int(attempts))
+    for attempt in range(attempts):
+        try:
+            return operation()
+        except Exception as error:
+            if attempt + 1 >= attempts or not retryable_api_error(error):
+                raise
+            time.sleep(min(4.0, max(0.0, base_delay) * (2 ** attempt)))
+
+
 def llm_postprocess(entries, args, warn_list=None):
     """
     Transcribe edilmiş altyazıları OpenAI uyumlu bir LLM'e gönderip düzeltir.
@@ -2003,7 +2072,7 @@ def llm_postprocess(entries, args, warn_list=None):
             payload["context_before"] = prev_ctx
 
         try:
-            resp = client.chat.completions.create(
+            resp = call_api_with_retry(lambda: client.chat.completions.create(
                 model=args.llm_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -2011,20 +2080,19 @@ def llm_postprocess(entries, args, warn_list=None):
                 ],
                 temperature=0.1,
                 response_format={"type": "json_object"},
-            )
+            ))
         except Exception as e:
             # response_format desteklenmiyorsa (Ollama, LM Studio veya bazı API'lerde 400 hatası) fallback yap
-            err_str = str(e).lower()
-            if "response_format" in err_str or "response_type" in err_str or "400" in err_str:
+            if json_mode_unsupported(e):
                 log("⚠ LLM JSON modu desteklenmiyor, normal modda yeniden deneniyor...", "warn")
-                resp = client.chat.completions.create(
+                resp = call_api_with_retry(lambda: client.chat.completions.create(
                     model=args.llm_model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                     ],
                     temperature=0.1,
-                )
+                ))
             else:
                 raise
         content = (resp.choices[0].message.content or "").strip()
@@ -2469,7 +2537,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         last_err = None
         for url in order:
             try:
-                return client_for(url).chat.completions.create(
+                return call_api_with_retry(lambda: client_for(url).chat.completions.create(
                     model=args.translate_model,
                     messages=[
                         {"role": "system", "content": prompt_text},
@@ -2477,20 +2545,20 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                     ],
                     temperature=0.2,
                     response_format={"type": "json_object"},
-                ), url
+                ), attempts=2), url
             except Exception as e:
                 last_err = e
                 msg = str(e).lower()
                 # JSON modu desteklenmiyorsa ayni rotada duz modda dene
                 if "response_format" in msg or "response_type" in msg:
-                    return client_for(url).chat.completions.create(
+                    return call_api_with_retry(lambda: client_for(url).chat.completions.create(
                         model=args.translate_model,
                         messages=[
                             {"role": "system", "content": prompt_text},
                             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                         ],
                         temperature=0.2,
-                    ), url
+                    ), attempts=2), url
                 # Kota/anahtar sorunu tum rotalarda ayni olur - rota denemek anlamsiz
                 if any(k in msg for k in ("insufficient_quota", "invalid_api_key",
                                           "401", "403", "quota")):
@@ -3356,7 +3424,28 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
     if not entries:
         return entries
 
-    out = [[float(s), float(e), t] for (s, e, t) in entries]
+    def finite_time(value):
+        try:
+            parsed = float(value)
+            return parsed if parsed == parsed and abs(parsed) != float("inf") else None
+        except (TypeError, ValueError):
+            return None
+
+    raw = [(finite_time(s), finite_time(e), t) for (s, e, t) in entries]
+    out = []
+    for i, (start, end, text) in enumerate(raw):
+        if start is None:
+            start = out[-1][1] if out else next(
+                (candidate[0] for candidate in raw[i + 1:] if candidate[0] is not None), 0.0
+            )
+        if end is None:
+            next_start = next(
+                (candidate[0] for candidate in raw[i + 1:]
+                 if candidate[0] is not None and candidate[0] > start),
+                None,
+            )
+            end = next_start if next_start is not None else start + max(0.05, min_dur)
+        out.append([max(0.0, start), max(0.0, end), text])
     n = len(out)
     for i in range(n):
         s, e, t = out[i]
@@ -4353,15 +4442,17 @@ def build_confidence_report(entries, all_words, threshold=0.6, top_n=12):
     if not lows:
         return "", 0, []
 
-    # Kelimeleri ait oldukları bloğa dağıt (orta noktası bloğun içinde kalan)
+    # Kelimeleri ait oldukları bloğa dağıt. Kelimeler ve bloklar zaman sıralı
+    # yürütülür; böylece uzun kayıtlarda her kelime için bütün bloklar taranmaz.
     buckets = {}
-    for w in lows:
+    entry_idx = 0
+    ordered_lows = sorted(lows, key=lambda w: (w["start"] + w["end"]) / 2)
+    for w in ordered_lows:
         mid = (w["start"] + w["end"]) / 2
-        idx = None
-        for i, (s0, e0, _t) in enumerate(entries):
-            if s0 <= mid <= e0:
-                idx = i
-                break
+        while entry_idx < len(entries) and entries[entry_idx][1] < mid:
+            entry_idx += 1
+        idx = entry_idx if entry_idx < len(entries) \
+            and entries[entry_idx][0] <= mid <= entries[entry_idx][1] else None
         buckets.setdefault(idx, []).append(w)
 
     counts = {}
@@ -4402,7 +4493,7 @@ def write_confidence_report(path, entries, all_words, threshold=0.6):
     text, count, frequent = build_confidence_report(entries, all_words, threshold)
     if not count:
         return False, 0, []
-    with open(path, "w", encoding="utf-8-sig") as f:
+    with atomic_text_writer(path, encoding="utf-8-sig") as f:
         f.write(text)
     return True, count, frequent
 
@@ -4767,10 +4858,14 @@ def reexport_from_json(args):
 
     lang = data.get("language") or "tr"
     set_language_conventions(lang)
-    info = _WxInfo(language=lang, language_probability=data.get("language_probability") or 1.0,
-                  duration=data.get("duration") or 0.0)
+    stored_probability = data.get("language_probability")
+    info = _WxInfo(
+        language=lang,
+        language_probability=1.0 if stored_probability is None else stored_probability,
+        duration=data.get("duration") or 0.0,
+    )
 
-    emit("language", code=lang, probability=round(float(info.language_probability or 1.0), 3),
+    emit("language", code=lang, probability=round(float(info.language_probability), 3),
          duration=round(float(info.duration or 0.0), 2))
     emit("preview_refresh", segments=[
         {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
@@ -4990,7 +5085,7 @@ def sync_output_path(subtitle_path, output_dir=None):
 
 def write_srt_raw(entries, output_path):
     """Metni AYNEN koruyarak SRT yaz (senkron: yalnızca zaman değişir, sarma yok)."""
-    with open(output_path, "w", encoding="utf-8-sig") as f:
+    with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
         for i, (start, end, text) in enumerate(entries, 1):
             f.write(f"{i}\n{format_srt_time(start)} --> {format_srt_time(end)}\n{text}\n\n")
 

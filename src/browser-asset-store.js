@@ -126,6 +126,30 @@ class BrowserAssetStore {
       return { ok: false, error: error.message };
     }
   }
+
+  sweepTempFiles(maxAgeMs = 24 * 60 * 60 * 1000, now = Date.now()) {
+    let removed = 0;
+    const visit = (directory) => {
+      let entries = [];
+      try { entries = this.fs.readdirSync(directory, { withFileTypes: true }); } catch (_) { return; }
+      for (const entry of entries) {
+        const filePath = path.join(directory, entry.name);
+        if (entry.isDirectory()) {
+          visit(filePath);
+          continue;
+        }
+        if (!entry.name.endsWith('.tmp')) continue;
+        try {
+          if (now - this.fs.statSync(filePath).mtimeMs >= maxAgeMs) {
+            this.fs.unlinkSync(filePath);
+            removed += 1;
+          }
+        } catch (_) {}
+      }
+    };
+    visit(this.rootDir);
+    return removed;
+  }
 }
 
 module.exports = {

@@ -136,7 +136,12 @@ function parseLrc(body) {
     }
   }
   rows.sort((a, b) => a.start - b.start);
-  return normalizeCues(rows.map((row, i) => ({ ...row, end: rows[i + 1]?.start ?? null })));
+  return normalizeCues(rows.map((row, i) => ({
+    ...row,
+    // LRC'nin son satırında bitiş damgası yoktur. Sıfıra düşürüp satırı
+    // kaybetmek yerine okunabilir kısa bir varsayılan süre kullan.
+    end: rows[i + 1]?.start ?? row.start + 5,
+  })));
 }
 
 function parseHlsSubtitleTracks(body, baseUrl = '') {

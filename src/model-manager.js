@@ -16,12 +16,30 @@ function modelCacheRoots(appPath, env = process.env) {
   return [...new Set(values)];
 }
 
-function cachedRepositoryNames(root) {
+function cachedRepositories(root) {
   try {
     return fs.readdirSync(root, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && entry.name.startsWith('models--'))
-      .map((entry) => entry.name.toLowerCase());
+      .map((entry) => ({ name: entry.name.toLowerCase(), path: path.join(root, entry.name) }));
   } catch (_) { return []; }
+}
+
+function hasModelFiles(directory) {
+  try {
+    if (!fs.statSync(directory).isDirectory()) return false;
+    const names = new Set(fs.readdirSync(directory).map((name) => name.toLowerCase()));
+    return names.has('config.json') && names.has('model.bin')
+      && (names.has('tokenizer.json') || names.has('vocabulary.json') || names.has('vocabulary.txt'));
+  } catch (_) { return false; }
+}
+
+function repositoryHasUsableSnapshot(repositoryPath) {
+  if (hasModelFiles(repositoryPath)) return true;
+  const snapshots = path.join(repositoryPath, 'snapshots');
+  try {
+    return fs.readdirSync(snapshots, { withFileTypes: true })
+      .some((entry) => entry.isDirectory() && hasModelFiles(path.join(snapshots, entry.name)));
+  } catch (_) { return false; }
 }
 
 function repositoryMatchesModel(repository, model) {
@@ -33,14 +51,22 @@ function repositoryMatchesModel(repository, model) {
 
 function scanModelCache(appPath, env = process.env) {
   const roots = modelCacheRoots(appPath, env);
-  const repositories = roots.flatMap((root) => cachedRepositoryNames(root).map((name) => ({ root, name })));
+  const repositories = roots.flatMap((root) => cachedRepositories(root).map((repo) => ({ root, ...repo })));
   return {
     roots,
     models: KNOWN_MODELS.map((id) => {
-      const match = repositories.find((repo) => repositoryMatchesModel(repo.name, id));
+      const match = repositories.find((repo) => repositoryMatchesModel(repo.name, id)
+        && repositoryHasUsableSnapshot(repo.path));
       return { id, installed: !!match, repository: match?.name || '' };
     }),
   };
 }
 
-module.exports = { KNOWN_MODELS, modelCacheRoots, repositoryMatchesModel, scanModelCache };
+module.exports = {
+  KNOWN_MODELS,
+  hasModelFiles,
+  modelCacheRoots,
+  repositoryHasUsableSnapshot,
+  repositoryMatchesModel,
+  scanModelCache,
+};
