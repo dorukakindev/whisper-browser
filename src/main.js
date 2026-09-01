@@ -2,6 +2,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notificatio
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 const {
   browserNavigationCapabilities,
   cueFingerprint,
@@ -3120,6 +3121,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const pythonPath = resolvePython();
 
   const args = [scriptPath];
+  let chatFilePath = null;
+  const cleanupChatFile = () => {
+    const target = chatFilePath;
+    chatFilePath = null; // error + close birlikte gelse de yalnız bir kez sil
+    if (!target) return;
+    try { fs.unlinkSync(target); } catch (err) {
+      if (!err || err.code !== 'ENOENT') {
+        writeJobLog({ type: 'log', level: 'warn', message: 'Geçici sohbet dosyası silinemedi.' });
+      }
+    }
+  };
 
   if (options.youtube) {
     args.push('--youtube', options.youtube);
@@ -3252,10 +3264,12 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     try {
       const dir = path.join(app.getPath('userData'), 'tmp');
       fs.mkdirSync(dir, { recursive: true });
-      const p = path.join(dir, 'chat.json');
+      const p = path.join(dir, `chat-${randomUUID()}.json`);
       fs.writeFileSync(p, JSON.stringify(options.chat), 'utf-8');
+      chatFilePath = p;
       args.push('--chat', 'true', '--chat-file', p);
     } catch (err) {
+      cleanupChatFile();
       return { ok: false, error: `Sohbet verisi yazilamadi: ${err.message}` };
     }
   }
@@ -3296,6 +3310,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   try {
     activeJob = spawn(pythonPath, args, { env, cwd: appDir });
   } catch (err) {
+    cleanupChatFile();
     return { ok: false, error: `Python başlatılamadı: ${err.message}` };
   }
 
@@ -3303,6 +3318,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!activeJob.stdout || !activeJob.stderr) {
     try { activeJob.kill(); } catch (_) {}
     activeJob = null;
+    cleanupChatFile();
     return { ok: false, error: 'Python süreç akışları (stdout/stderr) oluşturulamadı.' };
   }
 
@@ -3374,6 +3390,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     setTaskbarProgress(-1);
     const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000) };
     writeJobLog(exitEvent);
+    cleanupChatFile();
     endJobLog();
     activeJob = null;
     // Renderer kuyruktaki sonraki işi bu olaydan sonra başlatır; önce null yaparak
@@ -3389,6 +3406,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       message = 'Python bulunamadı. Python 3.10/3.11 kurup PATH\'e ekleyin veya install.bat ile venv oluşturun, sonra start.bat ile başlatın.';
     }
     writeJobLog({ type: 'error', message });
+    cleanupChatFile();
     endJobLog();
     sendEvent({ type: 'error', message });
     activeJob = null;

@@ -141,6 +141,20 @@ t('ana süreç activeJob temizlendikten sonra exit olayı gönderir', () => {
     'exit olayı activeJob temizlenmeden gönderiliyor');
 });
 
+t('geçici sohbet verisi benzersiz dosyada tutulur ve tüm iş bitiş yollarında silinir', () => {
+  const start = msrc.indexOf("ipcMain.handle('transcribe:start'");
+  const end = msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", start);
+  const body = msrc.slice(start, end);
+  ok(/chat-\$\{randomUUID\(\)\}\.json/.test(body), 'sohbet dosyası hâlâ sabit adlı');
+  ok(/const cleanupChatFile\s*=/.test(body), 'sohbet temizleme yardımcısı yok');
+  ok(/catch \(err\) \{\s*cleanupChatFile\(\);\s*return \{ ok: false, error: `Python başlatılamadı/s.test(body),
+    'spawn hatasında sohbet dosyası silinmiyor');
+  const closeBody = body.slice(body.indexOf("activeJob.on('close'"), body.indexOf("activeJob.on('error'"));
+  const errorBody = body.slice(body.indexOf("activeJob.on('error'"), body.indexOf('startPowerBlocker()', body.indexOf("activeJob.on('error'")));
+  ok(/cleanupChatFile\(\)/.test(closeBody), 'normal kapanışta sohbet dosyası silinmiyor');
+  ok(/cleanupChatFile\(\)/.test(errorBody), 'child error yolunda sohbet dosyası silinmiyor');
+});
+
 // ---------------------------------------------------------------- decodeSubtitleBuffer
 const dStart = msrc.indexOf('function decodeSubtitleBuffer(');
 const dEnd = msrc.indexOf("ipcMain.handle('media:readSubtitle'");
