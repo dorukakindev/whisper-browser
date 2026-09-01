@@ -44,6 +44,12 @@ test('WebVTT satırlarını ve HTML etiketlerini ayrıştırır', () => {
   ]);
 });
 
+test('saat alanı olmayan üç haneli WebVTT dakikasını ayrıştırır', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\n123:45.000 --> 123:47.500\nUzun video',
+    'text/vtt', 'https://cdn.test/long.vtt');
+  assert.deepEqual(result.cues, [{ start: 7425, end: 7427.5, text: 'Uzun video' }]);
+});
+
 test('Bozuk HTML sayısal entity altyazı yakalamayı çökertmez', () => {
   const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:01.000\nGeçersiz &#9999999; değer',
     'text/vtt', 'https://cdn.test/captions.vtt');

@@ -2302,6 +2302,19 @@ $('importSettings').addEventListener('click', async () => {
     if (s.llm.customBaseUrl !== undefined && $('llmBaseUrl')) $('llmBaseUrl').value = s.llm.customBaseUrl || '';
     if (s.llm.model && $('llmModel')) $('llmModel').value = s.llm.model;
   }
+  if (s.translate) {
+    if (s.translate.apiKey !== undefined && $('translateApiKey')) {
+      $('translateApiKey').value = s.translate.apiKey || '';
+    }
+    if (s.translate.endpointPreset && $('translateEndpointPreset')) {
+      $('translateEndpointPreset').value = s.translate.endpointPreset;
+    }
+    if (s.translate.customBaseUrl !== undefined && $('translateBaseUrl')) {
+      $('translateBaseUrl').value = s.translate.customBaseUrl || '';
+    }
+    if (s.translate.model && $('translateModel')) $('translateModel').value = s.translate.model;
+    updateTranslateEndpointUI();
+  }
   if (s.ui) applyUiSettings(s.ui);
   if (s.preset && $('presetSelect').querySelector(`option[value="${s.preset}"]`)) $('presetSelect').value = s.preset;
   renderGlossary();
@@ -3170,6 +3183,12 @@ function setWorkspaceMode(mode, persist = true) {
       ? 'Tarayıcı modunda sayfanın mevcut altyazısı algılanir; Whisper için videoyu normal oynatıcıda açın.'
       : 'Bu video için altyazı oluştur';
   }
+  if ($('shotBtn')) {
+    $('shotBtn').disabled = mode === 'browser';
+    $('shotBtn').title = mode === 'browser'
+      ? 'Ekran görüntüsü yalnız yerel oynatıcıda kullanılabilir'
+      : 'Ekran görüntüsü al (S)';
+  }
   if (mode === 'browser') {
     $('playerVideo')?.pause();
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
@@ -3822,7 +3841,7 @@ function parseSubtitles(text) {
   const clean = String(text || '').replace(/\r/g, '').replace(/^\uFEFF/, '');
   // WebVTT bir saatin altinda HH alanini atlayabilir (MM:SS.mmm). SRT'nin
   // HH:MM:SS,mmm bicimini de kabul eden tek ifade kullan.
-  const re = /(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})/;
+  const re = /(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
   for (const block of clean.split(/\n\s*\n/)) {
     const lines = block.split('\n').filter((l) => l.trim() !== '');
     if (lines.length < 2) continue;
@@ -3832,7 +3851,7 @@ function parseSubtitles(text) {
     const start = (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4].padEnd(3, '0')) / 1000;
     const end = (+(m[5] || 0)) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8].padEnd(3, '0')) / 1000;
     const body = lines.slice(idx + 1).join('\n').trim();
-    if (body) out.push({ start, end, text: body });
+    if (body) out.push({ start, end, text: body, sourceStart: start, sourceEnd: end });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -4245,19 +4264,26 @@ function cuesToSrt(cues) {
 // ---- Dalga biçimli zamanlama masası ----
 function timelineDuration() {
   const video = $('playerVideo');
-  return Math.max(1, Number(video && video.duration) || 0,
-    player.cues.length ? player.cues[player.cues.length - 1].end : 0,
+  return Math.max(1,
+    player.workspaceMode === 'browser' ? Number(player.browserDuration) || 0 : Number(video && video.duration) || 0,
+    player.cues.length ? player.cues[player.cues.length - 1].end + player.offset : 0,
     player.timeline.waveformDuration || 0);
+}
+
+function timelinePlaybackTime() {
+  const video = $('playerVideo');
+  return player.workspaceMode === 'browser'
+    ? Number(player.browserTime) || 0
+    : Number(video && video.currentTime) || 0;
 }
 
 function timelineWindow() {
   const duration = timelineDuration();
   const zoom = Number($('timelineZoom') ? $('timelineZoom').value : 60);
   if (!zoom || zoom >= duration) return { start: 0, end: duration };
-  const video = $('playerVideo');
   const selected = player.cues[player.timeline.selected];
   const center = player.timeline.drag ? player.timeline.drag.center
-    : (selected ? (selected.start + selected.end) / 2 : Number(video && video.currentTime) || 0);
+    : (selected ? (selected.start + selected.end) / 2 + player.offset : timelinePlaybackTime());
   const start = Math.max(0, Math.min(duration - zoom, center - zoom / 2));
   return { start, end: start + zoom };
 }
@@ -4324,9 +4350,11 @@ function drawTimeline() {
 
   const chosen = player.timeline.selected >= 0 ? player.timeline.selected : player.activeIdx;
   player.cues.forEach((cue, i) => {
-    if (cue.end < view.start || cue.start > view.end) return;
-    const x1 = Math.max(0, xFor(cue.start));
-    const x2 = Math.min(w, xFor(cue.end));
+    const mediaStart = cue.start + player.offset;
+    const mediaEnd = cue.end + player.offset;
+    if (mediaEnd < view.start || mediaStart > view.end) return;
+    const x1 = Math.max(0, xFor(mediaStart));
+    const x2 = Math.min(w, xFor(mediaEnd));
     const lowConfidence = Number(cue.lowConfidenceWords) > 0 ||
       (cue.confidence !== undefined && Number(cue.confidence) < 0.6);
     ctx.fillStyle = i === chosen ? 'rgba(243,189,79,.62)'
@@ -4340,8 +4368,7 @@ function drawTimeline() {
       ctx.fillText(cue.text.replace(/\n/g, ' '), x1 + 6, 102); ctx.restore();
     }
   });
-  const video = $('playerVideo');
-  const now = Number(video && video.currentTime) || 0;
+  const now = timelinePlaybackTime();
   if (now >= view.start && now <= view.end) {
     const x = xFor(now); ctx.strokeStyle = '#f4f4f6'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, 18); ctx.lineTo(x, 121); ctx.stroke();
@@ -4357,7 +4384,11 @@ function scheduleTimelineDraw() {
 async function openTimeline() {
   if (!player.cues.length) { logLine('Zamanlama için önce bir altyazı yükleyin.', 'warn'); return; }
   player.timeline.open = true;
-  if ($('playerVideo')) $('playerVideo').pause();
+  if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+    window.api.browserCommand('pause').catch(() => {});
+  } else if ($('playerVideo')) {
+    $('playerVideo').pause();
+  }
   player.timeline.selected = player.activeIdx >= 0 ? player.activeIdx : 0;
   $('timelineDrawer').classList.remove('hidden');
   $('timelineToggle').classList.add('active');
@@ -4403,8 +4434,7 @@ function timelineNudge(delta) {
 }
 
 function timelineSplitCue() {
-  const video = $('playerVideo');
-  const at = Number(video && video.currentTime);
+  const at = timelinePlaybackTime() - player.offset;
   const i = player.timeline.selected;
   const cue = player.cues[i];
   if (!cue || !(at > cue.start + .2 && at < cue.end - .2)) {
@@ -4472,26 +4502,35 @@ if ($('timelineCanvas')) {
     const span = view.end - view.start;
     const x = e.clientX - rect.left;
     const at = view.start + x / rect.width * span;
+    const cueAt = at - player.offset;
     const edgeSec = Math.max(.08, span * 8 / rect.width);
     let hit = e.offsetY >= 76 && e.offsetY <= 122
-      ? player.cues.findIndex((c) => c.start <= at && c.end >= at) : -1;
+      ? player.cues.findIndex((c) => c.start <= cueAt && c.end >= cueAt) : -1;
     if (hit < 0 && e.offsetY >= 76 && e.offsetY <= 122) {
-      hit = player.cues.findIndex((c) => Math.min(Math.abs(at - c.start), Math.abs(at - c.end)) <= edgeSec);
+      hit = player.cues.findIndex((c) => Math.min(
+        Math.abs(cueAt - c.start), Math.abs(cueAt - c.end)) <= edgeSec);
     }
     if (hit < 0) {
-      const video = $('playerVideo');
-      if (video) video.currentTime = Math.max(0, Math.min(timelineDuration(), at));
+      const target = Math.max(0, Math.min(timelineDuration(), at));
+      if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+        player.browserTime = target;
+        window.api.browserCommand('seek', target).catch(() => {});
+        renderBrowserCueAt(target);
+      } else {
+        const video = $('playerVideo');
+        if (video) video.currentTime = target;
+      }
       drawTimeline();
       return;
     }
     player.timeline.selected = hit;
     player.activeIdx = hit;
     const cue = player.cues[hit];
-    const mode = Math.abs(at - cue.start) <= edgeSec ? 'start'
-      : Math.abs(at - cue.end) <= edgeSec ? 'end' : 'move';
+    const mode = Math.abs(cueAt - cue.start) <= edgeSec ? 'start'
+      : Math.abs(cueAt - cue.end) <= edgeSec ? 'end' : 'move';
     timelinePushUndo();
     player.timeline.drag = { index: hit, mode, x, start: cue.start, end: cue.end,
-      center: (cue.start + cue.end) / 2, changed: false };
+      center: (cue.start + cue.end) / 2 + player.offset, changed: false };
     canvas.setPointerCapture(e.pointerId);
     drawTimeline();
   });
@@ -5186,6 +5225,13 @@ function renderAiText(el, text) {
       button.textContent = match[2];
       button.title = `${match[2]} konumuna git`;
       button.addEventListener('click', () => {
+        if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+          player.browserTime = Math.max(0, seconds);
+          window.api.browserCommand('seek', player.browserTime).catch(() => {});
+          renderBrowserCueAt(player.browserTime);
+          showControls();
+          return;
+        }
         const video = $('playerVideo');
         if (!video) return;
         video.currentTime = Math.max(0, Math.min(Number(video.duration) || seconds, seconds));
@@ -5499,6 +5545,10 @@ function renderAbMarkers() {
 // ---- ekran görüntüsü ----
 // Videonun o anki karesini + ekrandaki altyaziyi PNG olarak kaydeder.
 async function capturePlayerFrame() {
+  if (player.workspaceMode === 'browser') {
+    logLine('Tarayıcı videosunda ekran görüntüsü desteklenmiyor; yerel oynatıcıyı kullanın.', 'warn');
+    return;
+  }
   const v = $('playerVideo');
   if (!v || !v.videoWidth) { logLine('Ekran görüntüsü için önce video yüklensin.', 'warn'); return; }
   const c = document.createElement('canvas');
@@ -6216,7 +6266,9 @@ function replaceVttCueText(rawText, cue, newText) {
     const st = toSec(half[0]);
     const en = toSec(half[1]);
     if (st === null || en === null) continue;
-    if (Math.abs(st - cue.start) > 0.002 || Math.abs(en - cue.end) > 0.002) continue;
+    const sourceStart = Number.isFinite(cue.sourceStart) ? cue.sourceStart : cue.start;
+    const sourceEnd = Number.isFinite(cue.sourceEnd) ? cue.sourceEnd : cue.end;
+    if (Math.abs(st - sourceStart) > 0.002 || Math.abs(en - sourceEnd) > 0.002) continue;
     // Metin satirlari: zaman satirindan sonra bos satira kadar
     let j = i + 1;
     while (j < lines.length && lines[j].trim() !== '') j++;
@@ -7821,6 +7873,8 @@ async function saveCueEdit() {
   // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
   // WEBVTT basligini kaybediyordu.
   const cue = player.cues[i];
+  const savedSignature = cueSignature(cue);
+  const wasSaved = player.savedCues.includes(savedSignature);
   const targetPath = player.subPath;
   const targetKey = player.mediaKey;
   const targetGen = currentGeneration();
@@ -7859,6 +7913,11 @@ async function saveCueEdit() {
     return;
   }
   cue.text = text;                            // ANCAK yazma basarili olduysa
+  if (wasSaved) {
+    const at = player.savedCues.indexOf(savedSignature);
+    if (at >= 0) player.savedCues[at] = cueSignature(cue);
+    persistSavedCues();
+  }
   if (player.subFormat !== 'srt') player.subRaw = payload;
   logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
@@ -7869,7 +7928,7 @@ if ($('cueSearch')) {
   // Arama yalniz listeyi degil zaman cubugunu da isaretler: "Kombai" yazinca
   // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
   $('cueSearch').addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
+    const q = e.target.value.trim().toLocaleLowerCase('tr');
     renderCueList(e.target.value);
     renderSeekMarkers(q
       ? player.cues.filter((c) => c.text.toLocaleLowerCase('tr').includes(q)

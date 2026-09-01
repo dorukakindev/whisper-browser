@@ -81,7 +81,7 @@ function parseTimedBlocks(body) {
   const local = localMatch ? parseTime(localMatch[1]) : 0;
   const mapped = mpegMatch ? Number(mpegMatch[1]) / 90000 : 0;
   const timelineOffset = Number.isFinite(local) && Number.isFinite(mapped) ? mapped - local : 0;
-  const re = /(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})/;
+  const re = /(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
   for (const block of clean.split(/\n\s*\n/)) {
     const lines = block.split('\n');
     const idx = lines.findIndex((line) => re.test(line));

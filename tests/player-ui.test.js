@@ -661,6 +661,51 @@ test('AI yanıtlarındaki zamanlar tıklanabilir konum bağlantısına dönüş�
   assert(/\.ai-time-link/.test(css), 'AI zaman bağlantısı stili yok');
 });
 
+test('AI zaman bağlantısı tarayıcı videosunu da ileri sarıyor', () => {
+  const start = js.indexOf('function renderAiText');
+  const end = js.indexOf('function aiChatAdd', start);
+  const block = js.slice(start, end);
+  assert(/player\.workspaceMode === 'browser'/.test(block), 'tarayıcı modu ayrılmıyor');
+  assert(/browserCommand\('seek', player\.browserTime\)/.test(block), 'web videosuna seek gönderilmiyor');
+});
+
+test('zamanlama masası altyazı gecikmesini medya eksenine uygular', () => {
+  const start = js.indexOf('function timelineDuration');
+  const end = js.indexOf('async function saveTimelineCopy', start);
+  const block = js.slice(start, end);
+  assert(/\.end \+ player\.offset/.test(block), 'altyazı bitişi medya eksenine taşınmıyor');
+  assert(/mediaStart = cue\.start \+ player\.offset/.test(block), 'blok çizimi gecikmeyi kullanmıyor');
+  assert(/timelinePlaybackTime\(\) - player\.offset/.test(block), 'bölme noktası altyazı eksenine çevrilmiyor');
+});
+
+test('tarayıcı modunda yerel kare yakalama kontrolü kapatılıyor', () => {
+  const mode = js.slice(js.indexOf('function setWorkspaceMode'), js.indexOf('async function navigateBrowserFromAddress'));
+  const capture = js.slice(js.indexOf('async function capturePlayerFrame'), js.indexOf('// ---- altyazı görünümü'));
+  assert(/shotBtn'\)\.disabled = mode === 'browser'/.test(mode), 'ekran görüntüsü düğmesi açık kalıyor');
+  assert(/player\.workspaceMode === 'browser'/.test(capture), 'klavye kısayolu tarayıcıda engellenmiyor');
+});
+
+test('ayar içe aktarma çeviri sağlayıcısını da uygular', () => {
+  const start = js.indexOf("$('importSettings').addEventListener");
+  const end = js.indexOf('// ===== JSON\'dan yeniden dışa aktarma', start);
+  const block = js.slice(start, end);
+  assert(/if \(s\.translate\)/.test(block), 'çeviri ayarları içe aktarılmıyor');
+  assert(/updateTranslateEndpointUI\(\)/.test(block), 'çeviri sağlayıcısı arayüzü yenilenmiyor');
+});
+
+test('Türkçe altyazı araması sorguyu da Türkçe kuralla küçültür', () => {
+  const start = js.indexOf("if ($('cueSearch'))");
+  const end = js.indexOf("if ($('autoPauseCue'))", start);
+  assert(/toLocaleLowerCase\('tr'\)/.test(js.slice(start, end)), 'arama sorgusu Türkçe yerelleştirilmemiş');
+});
+
+test('kaydedilmiş cümle metin düzenlemesinden sonra korunur', () => {
+  const start = js.indexOf('async function saveCueEdit');
+  const end = js.indexOf("if ($('cueSearch'))", start);
+  const block = js.slice(start, end);
+  assert(/wasSaved/.test(block) && /persistSavedCues\(\)/.test(block), 'kayıtlı cümle imzası taşınmıyor');
+});
+
 test('oynatıcı otomatik senkronu yalnız hazır yerel altyazıda etkinleştiriyor', () => {
   assert(/id="playerAutoSync"/.test(layer), 'otomatik senkron düğmesi yok');
   const i = js.indexOf('function updatePlayerAutoSyncState');

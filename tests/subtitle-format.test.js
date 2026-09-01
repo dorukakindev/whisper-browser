@@ -101,6 +101,13 @@ t('VTT saat alani olmayan MM:SS.mmm zamanlarini ayristirir', () => {
   ok(Math.abs(cues[1].end - 124.75) < .001, 'iki basamakli ms ' + cues[1].end);
 });
 
+t('VTT tek ve uc haneli dakika alanlarini ayristirir', () => {
+  const cues = F.parseSubtitles('WEBVTT\n\n5:23.500 --> 5:28.100\nKisa\n\n123:45.000 --> 123:46.000\nUzun\n');
+  ok(cues.length === 2, 'blok sayisi ' + cues.length);
+  ok(cues[0].start === 323.5, 'tek haneli dakika yanlis');
+  ok(cues[1].start === 7425, 'uc haneli dakika yanlis');
+});
+
 t('SRT yolu aynen calisiyor (regresyon)', () => {
   const srt = '1\n00:00:05,000 --> 00:00:07,500\nDuz SRT.\n\n2\n00:00:08,000 --> 00:00:09,000\nIkinci.\n';
   const cues = F.parseSubtitles(srt);
@@ -150,6 +157,15 @@ t('VTT duzenleme STYLE/REGION/NOTE/cue ayarlarini korur', () => {
   ok(out.includes('Duzeltilmis metin'), 'yeni metin yok');
   ok(!out.includes('Ikinci satir.') && !out.includes('Devami.'), 'eski metin kalmis');
   ok(out.includes('Birinci satir.'), 'diger blok bozuldu');
+});
+
+t('VTT zamanlamasi bellekte degisse de kaynak blok duzenlenir', () => {
+  const cues = F.parseSubtitles(VTT_RICH);
+  cues[1].start += 1.25;
+  cues[1].end += 1.25;
+  const out = F.replaceVttCueText(VTT_RICH, cues[1], 'Zamanlamadan sonra duzenlendi');
+  ok(out !== null && out.includes('Zamanlamadan sonra duzenlendi'), 'kaynak zaman kimligi kayboldu');
+  ok(out.includes('00:00:08.000 --> 00:00:09.250'), 'zaman satiri bozuldu');
 });
 
 t('VTT: eslesmeyen blokta null (dosya bozulmaz)', () => {
