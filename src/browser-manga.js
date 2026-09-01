@@ -131,7 +131,7 @@ function mangaCandidateScanScript() {
     const absoluteUrl = (raw) => {
       const value = String(raw || '').trim();
       if (!value || value === '#' || /^(?:about:|chrome:|file:|javascript:|blob:)/i.test(value)) return '';
-      if (/^data:image\//i.test(value)) return value;
+      if (/^data:image\\//i.test(value)) return value;
       try { return new URL(value, document.baseURI).href; } catch (_) { return ''; }
     };
     for (const image of document.images || []) {
@@ -161,7 +161,7 @@ function mangaCandidateScanScript() {
       const lazyAttributes = ['data-src', 'data-lazy-src', 'data-original', 'data-url', 'data-image'];
       const lazyUrl = lazyAttributes.map(name => absoluteUrl(image.getAttribute(name))).find(Boolean) || '';
       const srcset = String(image.getAttribute('data-srcset') || image.getAttribute('srcset') || '').trim();
-      const srcsetUrl = srcset.split(',').map(part => part.trim().split(/\s+/)[0]).map(absoluteUrl).filter(Boolean).pop() || '';
+      const srcsetUrl = srcset.split(',').map(part => part.trim().split(/\\s+/)[0]).map(absoluteUrl).filter(Boolean).pop() || '';
       const url = lazyUrl || srcsetUrl || absoluteUrl(image.currentSrc || image.src);
       if (!url) continue;
       let id = image.getAttribute('data-whisper-manga-id');

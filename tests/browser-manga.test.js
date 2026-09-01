@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const {
   buildMangaPrompt,
   extractJsonPayload,
@@ -52,6 +53,29 @@ assert.match(mangaCandidateScanScript(), /data-whisper-manga-id/);
 assert.match(mangaCandidateScanScript(), /data-lazy-src/);
 assert.match(mangaCandidateScanScript(), /data-srcset/);
 assert.match(mangaCandidateScanScript(), /#imgs/);
+const fakeImage = (attributes, index) => ({
+  id: '', className: '', alt: '', naturalWidth: 600, naturalHeight: 900, currentSrc: '', src: '',
+  getBoundingClientRect: () => ({ width: 600, height: 900, top: index * 900, bottom: (index + 1) * 900 }),
+  closest: () => null,
+  getAttribute: (name) => attributes[name] || '',
+  setAttribute(name, value) { attributes[name] = value; },
+});
+const scanContext = {
+  innerHeight: 900,
+  URL,
+  window: { __whisperMangaSequence: 0 },
+  document: {
+    baseURI: 'https://reader.example/chapter/1',
+    images: [
+      fakeImage({ 'data-src': 'data:image/png;base64,AA==' }, 0),
+      fakeImage({ srcset: '/small.jpg 320w, /large.jpg 1280w' }, 1),
+    ],
+  },
+  getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
+};
+const scanned = vm.runInNewContext(mangaCandidateScanScript(), scanContext);
+assert.equal(scanned[0].url, 'data:image/png;base64,AA==');
+assert.equal(scanned[1].url, 'https://reader.example/large.jpg');
 assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
   /data-whisper-manga-overlay/);
 assert.match(mangaOverlayScript({ id: 'x', lang: 'en-US', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
@@ -90,4 +114,4 @@ assert.match(html, /id="mangaEndpointPreset"/);
 assert.match(html, /id="mangaModel"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 38 test');
+console.log('browser-manga: 40 test');
