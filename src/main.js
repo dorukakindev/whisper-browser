@@ -68,6 +68,10 @@ const { WatchIndex } = require('./watch-index');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
 const {
+  resolveTranslationEndpoints,
+  shouldFailoverTranslationStatus,
+} = require('./translation-endpoints');
+const {
   buildMangaPrompt,
   extractJsonPayload,
   isSafeMangaImageUrl,
@@ -77,6 +81,7 @@ const {
   mangaOverlayScript,
   mangaVisibilityScript,
   normalizeMangaRegions,
+  selectMangaCandidates,
 } = require('./browser-manga');
 const { normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
@@ -1657,8 +1662,8 @@ function safeTranslationEndpoint(raw) {
   } catch (_) { return ''; }
 }
 
-async function requestBrowserSentenceTranslation(sentence, config, signal) {
-  const endpoint = safeTranslationEndpoint(config.endpoint);
+async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
+  const endpoint = safeTranslationEndpoint(endpointBase);
   if (!endpoint) throw new Error('Çeviri endpoint adresi güvenli değil. HTTPS veya yerel HTTP kullanın.');
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint)) {
     throw new Error('Canlı web çevirisi için API anahtarı girilmemiş.');
@@ -1700,11 +1705,31 @@ async function requestBrowserSentenceTranslation(sentence, config, signal) {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', forwardAbort);
   }
-  if (!response.ok) throw new Error(`Çeviri servisi HTTP ${response.status} döndürdü.`);
+  if (!response.ok) {
+    const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü.`);
+    error.httpStatus = response.status;
+    throw error;
+  }
   const data = await response.json();
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
   return text.trim().replace(/^```(?:text)?\s*|\s*```$/gi, '').trim();
+}
+
+async function requestBrowserSentenceTranslation(sentence, config, signal) {
+  const endpoints = resolveTranslationEndpoints(config.endpoint);
+  let lastError;
+  for (const endpoint of endpoints) {
+    try {
+      return await requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpoint);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      const status = Number(error?.httpStatus) || 0;
+      if (status && !shouldFailoverTranslationStatus(status)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Çeviri servislerinin hiçbirine ulaşılamadı.');
 }
 
 function mangaJobIsCurrent(tab, job) {
@@ -1795,8 +1820,8 @@ async function fetchMangaImage(candidate, pageUrl, signal) {
   return { buffer, mimeType: /^image\//.test(mimeType) ? mimeType : 'image/png' };
 }
 
-async function requestMangaTranslation(image, config, pageTitle, signal, useSchema = true) {
-  const endpoint = safeTranslationEndpoint(config.endpoint);
+async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, useSchema = true) {
+  const endpoint = safeTranslationEndpoint(endpointBase);
   if (!endpoint) throw new Error('Görsel çeviri endpoint adresi güvenli değil.');
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint)) {
     throw new Error('Manga çevirisi için API anahtarı girilmemiş.');
@@ -1817,7 +1842,7 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
   // Shuaiapi bir OpenAI uyumluluk geçidi; bazı arka uçları strict
   // response_format alanını reddediyor. JSON biçimini prompt ile isterken bu
   // geçitte şemayı göndermemek model ve rota uyumluluğunu korur.
-  const attachSchema = useSchema && !/(?:shuaiapi\.com|api\.oai\.sb)/i.test(config.endpoint);
+  const attachSchema = useSchema && resolveTranslationEndpoints(endpointBase).length === 1;
   const body = {
     model: config.model,
     temperature: 0.1,
@@ -1851,17 +1876,37 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
   }
   if (!response.ok) {
     if (attachSchema && ![401, 403, 413, 429].includes(response.status)) {
-      return requestMangaTranslation(image, config, pageTitle, signal, false);
+      return requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, false);
     }
-    throw new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${errorDetail ? `: ${errorDetail}` : '.'}`);
+    const error = new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${errorDetail ? `: ${errorDetail}` : '.'}`);
+    error.httpStatus = response.status;
+    throw error;
   }
   if (data?.error) {
     const detail = String(data.error?.message || data.error).replace(/\s+/g, ' ').slice(0, 300);
-    throw new Error(`Görsel çeviri servisi hata döndürdü${detail ? `: ${detail}` : '.'}`);
+    const error = new Error(`Görsel çeviri servisi hata döndürdü${detail ? `: ${detail}` : '.'}`);
+    error.httpStatus = 400;
+    throw error;
   }
   let content = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (Array.isArray(content)) content = content.map((part) => part?.text || part?.content || '').join('');
   return normalizeMangaRegions(extractJsonPayload(content));
+}
+
+async function requestMangaTranslation(image, config, pageTitle, signal) {
+  const endpoints = resolveTranslationEndpoints(config.endpoint);
+  let lastError;
+  for (const endpoint of endpoints) {
+    try {
+      return await requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpoint);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      const status = Number(error?.httpStatus) || 0;
+      if (status && !shouldFailoverTranslationStatus(status)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Görsel çeviri servislerinin hiçbirine ulaşılamadı.');
 }
 
 async function translateMangaCandidate(tab, candidate, config, job) {
@@ -1922,13 +1967,11 @@ async function startBrowserManga(tab, options = {}) {
       if (!dataUrlMangaImage(item.url) && !isSafeMangaImageUrl(item.url)) continue;
       ids.add(item.id); candidates.push(item);
     }
-    if (candidates.length >= 2) break;
     if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, 650));
   }
   if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
-  const limit = Math.max(1, Math.min(24, Number(options.maxImages) || 16));
-  candidates.sort((a, b) => Number(b.visible) - Number(a.visible) || a.distance - b.distance || b.area - a.area);
-  const selected = candidates.slice(0, limit);
+  const limit = Math.max(1, Math.min(64, Number(options.maxImages) || 64));
+  const selected = selectMangaCandidates(candidates, limit);
   if (!selected.length) {
     tab.mangaJob = null;
     tab.mangaVisible = false;
@@ -1937,7 +1980,7 @@ async function startBrowserManga(tab, options = {}) {
     return { ok: false, error };
   }
   sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: selected.length, translated: 0,
-    message: `${selected.length} manga görseli bulundu; shuaiapi ile çevriliyor…` });
+    message: `${selected.length} manga görseli bulundu; görsel çeviri servisine gönderiliyor…` });
   let cursor = 0;
   let completed = 0;
   let translated = 0;

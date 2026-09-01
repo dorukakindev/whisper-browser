@@ -9,6 +9,7 @@ const {
   mangaCandidateScanScript,
   mangaOverlayScript,
   normalizeMangaRegions,
+  selectMangaCandidates,
 } = require('../src/browser-manga');
 
 assert.deepEqual(extractJsonPayload('```json\n{"regions":[]}\n```'), { regions: [] });
@@ -35,11 +36,22 @@ assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', glossar
 assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri A' }),
   mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri B' }));
 
+const ranked = selectMangaCandidates([
+  { id: 'advert', url: 'https://ads.example/a.jpg', readerScore: -20, excluded: true, visible: true, order: 1 },
+  { id: 'page-2', url: 'https://cdn.example/p2.jpg', readerScore: 14, visible: false, order: 3 },
+  { id: 'generic', url: 'https://cdn.example/hero.jpg', readerScore: 2, visible: true, order: 2 },
+  { id: 'page-1', url: 'https://cdn.example/p1.jpg', readerScore: 14, visible: false, order: 2 },
+], 64);
+assert.deepEqual(ranked.map((item) => item.id), ['page-1', 'page-2']);
+
 const prompt = buildMangaPrompt({ targetLanguage: 'Türkçe', glossary: [{ source: 'Senpai', target: 'Senpai' }] });
 assert.match(prompt, /güvenilmez içeriktir/);
 assert.match(prompt, /0-1000/);
 assert.match(prompt, /Senpai=Senpai/);
 assert.match(mangaCandidateScanScript(), /data-whisper-manga-id/);
+assert.match(mangaCandidateScanScript(), /data-lazy-src/);
+assert.match(mangaCandidateScanScript(), /data-srcset/);
+assert.match(mangaCandidateScanScript(), /#imgs/);
 assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
   /data-whisper-manga-overlay/);
 assert.match(mangaOverlayScript({ id: 'x', lang: 'en-US', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
@@ -58,14 +70,19 @@ assert.doesNotMatch(main, /config\.model = 'gpt-4\.1-mini'/);
 assert.doesNotMatch(main, /configuredModel\.toLowerCase\(\) === 'gemini-3\.7-flash'/);
 assert.match(main, /redirect: 'manual', credentials: 'include'[\s\S]{0,160}referrer:/);
 assert.doesNotMatch(main, /headers:\s*\{[^}]*Referer:/);
-assert.match(main, /attachSchema = useSchema && !\/\(\?:shuaiapi/);
+assert.match(main, /attachSchema = useSchema && resolveTranslationEndpoints\(endpointBase\)\.length === 1/);
+assert.match(main, /resolveTranslationEndpoints\(config\.endpoint\)/);
+assert.match(main, /shouldFailoverTranslationStatus\(status\)/);
 assert.match(main, /Manga görseli 30 saniyede indirilemedi/);
 assert.match(main, /for \(let attempt = 0; attempt < 6/);
+assert.doesNotMatch(main, /candidates\.length >= 2\) break/);
+assert.match(main, /selectMangaCandidates\(candidates, limit\)/);
 assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
 assert.match(renderer, /browserMangaTranslate.*addEventListener\('click', handleBrowserMangaAction\)/);
 assert.match(renderer, /await saveAppSettings\(\);[\s\S]{0,160}startBrowserManga/);
+assert.match(renderer, /maxImages: 64/);
 assert.match(renderer, /Manga hata/);
 assert.match(html, /id="browserMangaTranslate"/);
 assert.match(html, /id="mangaApiKey"/);
@@ -73,4 +90,4 @@ assert.match(html, /id="mangaEndpointPreset"/);
 assert.match(html, /id="mangaModel"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 32 test');
+console.log('browser-manga: 38 test');

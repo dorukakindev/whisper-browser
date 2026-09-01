@@ -3560,7 +3560,7 @@ async function handleBrowserMangaAction(clickEvent) {
   await saveAppSettings();
   applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
   const result = await window.api.startBrowserManga?.(player.browserActiveTabId, {
-    targetLanguage: $('translateTo')?.value || 'tr', maxImages: 16,
+    targetLanguage: $('translateTo')?.value || 'tr', maxImages: 64,
   }).catch((error) => ({ ok: false, error: error.message }));
   if (!result?.ok && !result?.canceled) {
     logLine(`Manga çevirisi: ${result?.error || 'bilinmeyen hata'}`, 'error');
