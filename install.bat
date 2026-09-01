@@ -89,7 +89,7 @@ echo.
 REM Diger gereksinimler (surumler backend\requirements.txt ile uyumlu)
 REM nvidia-cudnn-cu12==9.* kritik: ctranslate2 >=4.4 cuDNN 9 gerektirir
 echo Diger paketler yukleniyor...
-pip install "faster-whisper>=1.1.0" --pre "yt-dlp[default]" "ctranslate2>=4.4.0" nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" "openai>=1.40.0"
+pip install "faster-whisper>=1.1.0" --pre "yt-dlp[default]" "ctranslate2>=4.4.0" nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" "openai>=1.40.0" "castlabs-evs>=1.3.2"
 echo.
 
 REM ----- Node modulleri -----
