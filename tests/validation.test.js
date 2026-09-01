@@ -147,6 +147,8 @@ t('geçici sohbet verisi benzersiz dosyada tutulur ve tüm iş bitiş yollarınd
   const body = msrc.slice(start, end);
   ok(/chat-\$\{randomUUID\(\)\}\.json/.test(body), 'sohbet dosyası hâlâ sabit adlı');
   ok(/const cleanupChatFile\s*=/.test(body), 'sohbet temizleme yardımcısı yok');
+  ok(body.indexOf('chatFilePath = p') < body.indexOf('fs.writeFileSync(p, JSON.stringify(options.chat)'),
+    'kısmi yazma hatasında temizlenecek sohbet yolu önceden kaydedilmiyor');
   ok(/catch \(err\) \{\s*cleanupChatFile\(\);\s*return \{ ok: false, error: `Python başlatılamadı/s.test(body),
     'spawn hatasında sohbet dosyası silinmiyor');
   const closeBody = body.slice(body.indexOf("activeJob.on('close'"), body.indexOf("activeJob.on('error'"));

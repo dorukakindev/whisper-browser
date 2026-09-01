@@ -3265,8 +3265,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       const dir = path.join(app.getPath('userData'), 'tmp');
       fs.mkdirSync(dir, { recursive: true });
       const p = path.join(dir, `chat-${randomUUID()}.json`);
-      fs.writeFileSync(p, JSON.stringify(options.chat), 'utf-8');
       chatFilePath = p;
+      fs.writeFileSync(p, JSON.stringify(options.chat), 'utf-8');
       args.push('--chat', 'true', '--chat-file', p);
     } catch (err) {
       cleanupChatFile();
