@@ -39,6 +39,7 @@ const {
 } = require('./browser-drm');
 const { rankBrowserMediaCandidates } = require('./browser-media');
 const { hasConfiguredWatchOutput, normalizeWatchOutputConfig } = require('./watch-folder');
+const { createNdjsonLineBuffer } = require('./ndjson-lines');
 
 // QUIC bazı VPN/tünelleme sürücülerinde bağlantıyı kuramadan bekleyebiliyor
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
@@ -3386,7 +3387,6 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     return { ok: false, error: 'Python süreç akışları (stdout/stderr) oluşturulamadı.' };
   }
 
-  let stdoutBuf = '';
   let stderrBuf = '';
 
   activeJob.stdout.setEncoding('utf-8');
@@ -3419,15 +3419,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     }
   };
 
+  const stdoutLines = createNdjsonLineBuffer({
+    maxLineChars: 32 * 1024 * 1024,
+    onOverflow: (length) => {
+      const message = `Backend olayı ${length} karakteri aştığı için güvenli biçimde reddedildi.`;
+      writeJobLog({ type: 'log', level: 'error', message });
+      sendEvent({ type: 'log', level: 'error', message });
+    },
+  });
+
   activeJob.stdout.on('data', (chunk) => {
-    stdoutBuf += chunk;
-    // Tek seferde böl, son parça (tamamlanmamış satır) tamponda kalsın —
-    // satır başına slice yerine O(n) tarama; uzun videoda binlerce segment olayında önemli
-    const lines = stdoutBuf.split('\n');
-    stdoutBuf = lines.pop();
-    // Güvenlik: newline'sız patolojik uzun satır tamponu sınırsız şişirmesin
-    if (stdoutBuf.length > 1_000_000) stdoutBuf = stdoutBuf.slice(-100_000);
-    for (const raw of lines) handleLine(raw);
+    for (const raw of stdoutLines.push(chunk)) handleLine(raw);
   });
 
   activeJob.stderr.on('data', (chunk) => {
@@ -3450,6 +3452,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   });
 
   activeJob.on('close', (code) => {
+    for (const raw of stdoutLines.flush()) handleLine(raw);
     stopPowerBlocker();
     setTaskbarProgress(-1);
     const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000) };

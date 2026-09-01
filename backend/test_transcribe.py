@@ -743,6 +743,73 @@ def test_translate_refine_processes_full_index_chunks():
     assert all(text.startswith("[R] [TR] ") for _s, _e, text in out), out
 
 
+def test_translate_refine_failure_is_not_cached_as_confirmed():
+    """Geçici refine hatası, ham ilk geçişi refine=True anahtarına kilitlememeli."""
+    import json, pathlib, tempfile, types
+
+    cache_dir = pathlib.Path(tempfile.mkdtemp())
+    state = {"fail_refine": True, "translate": 0, "refine": 0}
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        is_refine = bool(payload["items"] and "src" in payload["items"][0])
+        state["refine" if is_refine else "translate"] += 1
+        if is_refine and state["fail_refine"]:
+            raise RuntimeError("geçici refine hatası")
+        out = {}
+        for item in payload["items"]:
+            text = item["tr"] if is_refine else "[TR] " + item["t"]
+            out[str(item["i"])] = "[R] " + text if is_refine else text
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(out)))])
+
+    class _Client:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=_create))
+
+    args = _TrArgs(translate_refine=True, translate_cache=True,
+                   cache_dir=str(cache_dir), translate_context=0)
+    with _fake_openai(_Client):
+        first = T.llm_translate(ENTRIES, args, [], source_lang="en")
+    assert first and all(text.startswith("[TR] ") for _s, _e, text in first)
+    assert T.load_translate_cache(T.translate_cache_path(args)) == {}, \
+        "refine başarısızken ham çeviri önbelleğe yazıldı"
+
+    state["fail_refine"] = False
+    with _fake_openai(_Client):
+        second = T.llm_translate(ENTRIES, args, [], source_lang="en")
+    assert second and all(text.startswith("[R] [TR] ") for _s, _e, text in second)
+    assert state == {"fail_refine": False, "translate": 2, "refine": 2}, state
+
+
+def test_translate_refine_caches_valid_unchanged_answers():
+    """Model aynı metni onaylarsa blok yine refine edilmiş kabul edilip cache'lenmeli."""
+    import json, pathlib, tempfile, types
+
+    calls = {"count": 0}
+
+    def _create(**kw):
+        calls["count"] += 1
+        payload = json.loads(kw["messages"][-1]["content"])
+        is_refine = bool(payload["items"] and "src" in payload["items"][0])
+        out = {str(item["i"]): (item["tr"] if is_refine else "[TR] " + item["t"])
+               for item in payload["items"]}
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(out)))])
+
+    class _Client:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=_create))
+
+    args = _TrArgs(translate_refine=True, translate_cache=True,
+                   cache_dir=str(pathlib.Path(tempfile.mkdtemp())), translate_context=0)
+    with _fake_openai(_Client):
+        first = T.llm_translate(ENTRIES, args, [], source_lang="en")
+        second = T.llm_translate(ENTRIES, args, [], source_lang="en")
+    assert first == second
+    assert calls["count"] == 2, "ikinci çalıştırma geçerli refine cache'ini kullanmadı"
+
+
 def test_translate_partial_response_counts_as_failed():
     """Model 3 blok istenip 1 tanesini dondurse: kalan 2 blok BASARISIZ sayilmali.
 

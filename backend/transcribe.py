@@ -2306,7 +2306,7 @@ def translate_cache_key(text, args, target, source_lang=None,
     """
     import hashlib
     raw = json.dumps({
-        "v": 2,
+        "v": 3,
         "target": str(target or "").lower(),
         "source": str(source_lang or "").lower(),
         "model": str(getattr(args, "translate_model", "") or ""),
@@ -2593,6 +2593,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         if glossary_terms:
             refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
         refined = list(out_texts)
+        refined_idx = set()
         r_counters = {"changed": 0, "failed": 0}
 
         def refine_task(chunk_idx):
@@ -2611,6 +2612,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
             content = (resp.choices[0].message.content or "").strip()
             data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
             n_changed = 0
+            confirmed = []
             for item in items:
                 val = data.get(str(item["i"]))
                 if not isinstance(val, str) or not val.strip():
@@ -2620,14 +2622,19 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
                 if new_text != out_texts[source_index]:
                     n_changed += 1
                 refined[source_index] = new_text
-            return n_changed
+                # Metin değişmese de model bu bloğu geçerli bir yanıtla onayladı;
+                # sonraki çalıştırmada yeniden refine edilmesi gerekmez.
+                confirmed.append(source_index)
+            return n_changed, confirmed
 
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
             futs = {ex.submit(refine_task, ch): ch for ch in chunks}
             for fut in as_completed(futs):
                 ch = futs[fut]
                 try:
-                    r_counters["changed"] += fut.result()
+                    changed, confirmed = fut.result()
+                    r_counters["changed"] += changed
+                    refined_idx.update(confirmed)
                 except Exception as e:
                     r_counters["failed"] += len(ch)
                     log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
@@ -2643,7 +2650,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     # Basarili cevirileri onbellege yaz (basarisizlar KAYNAK metin oldugu icin yazilmaz)
     if cache_on and cache_file:
         added = 0
-        for i in done_idx:
+        cacheable_idx = done_idx if not getattr(args, "translate_refine", False) \
+            else done_idx.intersection(refined_idx)
+        for i in cacheable_idx:
             before, after = translation_context(entries, i, CONTEXT_LINES)
             k = translate_cache_key(entries[i][2], args, target, source_lang, before, after,
                                     translation_char_budget(entries[i], args))
