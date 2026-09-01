@@ -36,6 +36,8 @@ const {
   isProtectedBrowserHost,
   sanitizeBrowserUserAgent,
 } = require('./browser-drm');
+const { rankBrowserMediaCandidates } = require('./browser-media');
+const { hasConfiguredWatchOutput, normalizeWatchOutputConfig } = require('./watch-folder');
 
 // QUIC bazı VPN/tünelleme sürücülerinde bağlantıyı kuramadan bekleyebiliyor
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
@@ -379,6 +381,7 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
 // dosya boyutu iki ölçüm arasında DEĞİŞMEYİNCE "hazır" sayılır (subgen'de de aynı sorun).
 let watchTimer = null;
 let watchDir = null;
+let watchOutputConfig = normalizeWatchOutputConfig();
 const watchSeen = new Map();      // yol -> {size, stableCount, queued}
 const WATCH_INTERVAL = 5000;
 const WATCH_STABLE_TICKS = 2;     // ~10 sn boyunca boyut değişmemeli
@@ -411,8 +414,10 @@ function scanWatchFolder() {
     const ext = path.extname(file).slice(1).toLowerCase();
     if (!MEDIA_EXTS.has(ext)) continue;
     // Yanında altyazı varsa zaten işlenmiş say (tekrar tekrar çevirmesin)
-    const stem = file.replace(/\.[^.]+$/, '');
-    if (fs.existsSync(stem + '.srt')) { watchSeen.set(file, { queued: true }); continue; }
+    if (hasConfiguredWatchOutput(file, watchOutputConfig, fs.existsSync)) {
+      watchSeen.set(file, { queued: true });
+      continue;
+    }
     let size;
     try { size = fs.statSync(file).size; } catch (_) { continue; }
     const prev = watchSeen.get(file);
@@ -438,15 +443,25 @@ function scanWatchFolder() {
   }
 }
 
-ipcMain.handle('watch:start', async (_e, dir) => {
+ipcMain.handle('watch:start', async (_e, dir, options) => {
   if (!dir || !fs.existsSync(dir)) return { ok: false, error: 'Klasör bulunamadı' };
   watchDir = dir;
+  watchOutputConfig = normalizeWatchOutputConfig(options);
   watchSeen.clear();
   // İlk tarama: mevcut dosyalar "görülmüş" sayılır ki açılışta hepsi kuyruğa dolmasın
   try {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, ent.name);
-      if (ent.isFile()) watchSeen.set(full, { queued: true });
+      if (ent.isFile() && MEDIA_EXTS.has(path.extname(full).slice(1).toLowerCase())) {
+        watchSeen.set(full, { queued: true });
+      } else if (ent.isDirectory()) {
+        for (const sub of fs.readdirSync(full, { withFileTypes: true })) {
+          const nested = path.join(full, sub.name);
+          if (sub.isFile() && MEDIA_EXTS.has(path.extname(nested).slice(1).toLowerCase())) {
+            watchSeen.set(nested, { queued: true });
+          }
+        }
+      }
     }
   } catch (_) {}
   if (watchTimer) clearInterval(watchTimer);
@@ -458,6 +473,7 @@ ipcMain.handle('watch:stop', async () => {
   if (watchTimer) clearInterval(watchTimer);
   watchTimer = null;
   watchDir = null;
+  watchOutputConfig = normalizeWatchOutputConfig();
   watchSeen.clear();
   return { ok: true };
 });
@@ -2088,8 +2104,24 @@ ipcMain.handle('browser:command', async (event, command, value) => {
     } else if (command === 'focus') {
       wc.focus();
     } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed'].includes(command)) {
-      const media = (await executeBrowserFrames(browserMediaCommandScript(command, value)))
-        .find((result) => result && (result === true || result.handled));
+      // Probe first, then mutate only the best frame. Sending the command to
+      // every iframe also controls ad/preview videos and can pause the wrong
+      // player on services that split their UI across frames.
+      const frames = browserFrames();
+      const candidates = await Promise.all(frames.map(async (frame) => ({
+        frame,
+        media: await frame.executeJavaScript(browserMediaProbeScript(), true).catch(() => null),
+      })));
+      let media = null;
+      for (const candidate of rankBrowserMediaCandidates(candidates)) {
+        const result = await candidate.frame
+          .executeJavaScript(browserMediaCommandScript(command, value), true)
+          .catch(() => null);
+        if (result && (result === true || result.handled)) {
+          media = result;
+          break;
+        }
+      }
       if (!media) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
       return { ok: true, media: media === true ? null : media, ...browserNavigationState() };
     } else {

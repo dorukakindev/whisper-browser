@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld('api', {
   writeSubtitle: (path, text) => ipcRenderer.invoke('media:writeSubtitle', { path, text }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),
   getWaveform: (path) => ipcRenderer.invoke('media:waveform', path),
-  startWatchFolder: (dir) => ipcRenderer.invoke('watch:start', dir),
+  startWatchFolder: (dir, options) => ipcRenderer.invoke('watch:start', dir, options),
   stopWatchFolder: () => ipcRenderer.invoke('watch:stop'),
   onWatchFiles: (cb) => ipcRenderer.on('watch:newFiles', (_e, files) => cb(files)),
   onMediaEvent: (cb) => ipcRenderer.on('media:event', (_e, data) => cb(data)),

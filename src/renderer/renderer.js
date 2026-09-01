@@ -701,7 +701,13 @@ updateClipHint();
 async function applyWatchState() {
   const on = $('watchEnabled') && $('watchEnabled').checked;
   if (on && state.watchDir) {
-    const res = await window.api.startWatchFolder(state.watchDir);
+    const opts = buildOptsFromUI();
+    const res = await window.api.startWatchFolder(state.watchDir, {
+      formats: opts.formats,
+      langSuffix: opts.langSuffix,
+      outputDir: opts.outputDir,
+      translateTo: opts.translateTo,
+    });
     if (res && res.ok) logLine(`Klasör izleniyor: ${state.watchDir}`, 'success');
     else logLine(`Klasör izlenemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
   } else {
@@ -731,6 +737,17 @@ if ($('watchEnabled')) {
     applyWatchState();
   });
 }
+// Klasör izleme açıkken çıktı biçimi/dil eki değişirse ana süreçteki tarama
+// politikasını da güncelle; aksi halde yeni ayar ancak uygulama yeniden
+// başlatıldığında devreye girer.
+['formats', 'langSuffix'].forEach((id) => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('change', () => {
+    saveAppSettings();
+    if ($('watchEnabled')?.checked && state.watchDir) applyWatchState();
+  });
+});
 if (window.api.onWatchFiles) {
   window.api.onWatchFiles((files) => {
     if (!Array.isArray(files) || !files.length) return;
