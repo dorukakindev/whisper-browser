@@ -1703,6 +1703,11 @@ function updateTranslateEndpointUI() {
 if ($('translateEndpointPreset')) {
   $('translateEndpointPreset').addEventListener('change', () => {
     updateTranslateEndpointUI();
+    if ($('translateEndpointPreset').value.includes('generativelanguage.googleapis.com')
+        && $('translateModel') && (!$('translateModel').value.trim()
+          || ['gpt-4.1-mini', 'deepseek-chat'].includes($('translateModel').value.trim()))) {
+      $('translateModel').value = 'gemini-3.7-flash';
+    }
     saveAppSettings();
   });
   updateTranslateEndpointUI();
@@ -3044,6 +3049,11 @@ const player = {
   browserPlacesSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
+  browserMangaBusy: false,
+  browserMangaTranslated: 0,
+  browserMangaVisible: false,
+  browserMangaCompleted: 0,
+  browserMangaTotal: 0,
   browserTranslationTrackId: '',
   browserLiveTranslations: new Map(),
   browserSignalVisible: true,
@@ -3097,6 +3107,9 @@ function newBrowserTabState(snapshot = {}) {
     browserLoadedTrackId2: '',
     browserTranslationTrackId: '',
     browserLiveTranslations: [],
+    browserMangaBusy: !!snapshot.mangaBusy,
+    browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
+    browserMangaVisible: !!snapshot.mangaVisible,
     mediaKey: snapshot.mediaId ? `browser:${snapshot.mediaId}`
       : snapshot.url ? `browser:${browserPlaceKey(snapshot.url) || snapshot.url}` : '',
     watchSession: null,
@@ -3137,6 +3150,9 @@ function saveActiveBrowserTabWorkspace() {
     browserLoadedTrackId2: player.browserLoadedTrackId2,
     browserTranslationTrackId: player.browserTranslationTrackId,
     browserLiveTranslations: [...player.browserLiveTranslations.values()],
+    browserMangaBusy: player.browserMangaBusy,
+    browserMangaTranslated: player.browserMangaTranslated,
+    browserMangaVisible: player.browserMangaVisible,
     mediaKey: player.mediaKey,
     watchSession: player.watchSession ? { ...player.watchSession } : null,
     watchManualCompletedKey: player.watchManualCompletedKey,
@@ -3187,6 +3203,9 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserLoadedTrackId2 = tab.browserLoadedTrackId2 || '';
   player.browserTranslationTrackId = tab.browserTranslationTrackId || '';
   player.browserLiveTranslations = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
+  player.browserMangaBusy = !!tab.browserMangaBusy;
+  player.browserMangaTranslated = Number(tab.browserMangaTranslated) || 0;
+  player.browserMangaVisible = !!tab.browserMangaVisible;
   player.watchSession = tab.watchSession ? { ...tab.watchSession, lastClock: 0 } : null;
   player.watchManualCompletedKey = tab.watchManualCompletedKey || '';
   player.watchManualCompleted = tab.watchManualCompleted ?? null;
@@ -3218,6 +3237,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   renderBrowserTracks();
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
   setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
+  updateBrowserMangaButton();
   updateBrowserNavigation(tab, { preserveWorkspace: true });
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
 }
@@ -3232,6 +3252,9 @@ function syncBrowserTabs(snapshots, activeTabId) {
       url: snapshot.url || '', title: snapshot.title || '', loading: !!snapshot.loading,
       canGoBack: !!snapshot.canGoBack, canGoForward: !!snapshot.canGoForward,
       captureEnabled: snapshot.captureEnabled !== false,
+      browserMangaBusy: !!snapshot.mangaBusy,
+      browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
+      browserMangaVisible: !!snapshot.mangaVisible,
       diagnostics: snapshot.diagnostics || tab.diagnostics,
       mediaId: snapshot.mediaId || tab.mediaId || '', service: snapshot.service || tab.service || '',
       browserTime: Number.isFinite(Number(snapshot.position)) ? Number(snapshot.position) : (tab.browserTime || 0),
@@ -3412,6 +3435,88 @@ function bindBrowserBoundsObserver() {
 function setBrowserSignal(text, detected = false) {
   if ($('browserSignalText')) $('browserSignalText').textContent = text;
   $('browserSignal')?.classList.toggle('detected', detected);
+}
+
+function updateBrowserMangaButton() {
+  const button = $('browserMangaTranslate');
+  const label = $('browserMangaLabel');
+  if (!button || !label) return;
+  let state = 'idle';
+  let text = 'Manga';
+  let title = 'Sayfadaki manga ve webtoon görsellerini Türkçeye çevir';
+  if (player.browserMangaBusy) {
+    state = 'running';
+    text = player.browserMangaTotal ? `${player.browserMangaCompleted}/${player.browserMangaTotal}` : 'Taranıyor';
+    title = 'Manga çevirisini durdur';
+  } else if (player.browserMangaTranslated > 0 && player.browserMangaVisible) {
+    state = 'ready'; text = 'Manga açık'; title = 'Manga çevirisini gizle · Shift+tık: sayfayı yeniden tara';
+  } else if (player.browserMangaTranslated > 0) {
+    state = 'hidden'; text = 'Manga kapalı'; title = 'Manga çevirisini göster · Shift+tık: sayfayı yeniden tara';
+  }
+  button.dataset.state = state;
+  button.setAttribute('aria-pressed', state === 'ready' || state === 'running' ? 'true' : 'false');
+  button.setAttribute('aria-label', title);
+  button.title = title;
+  label.textContent = text;
+}
+
+function applyBrowserMangaState(event = {}) {
+  player.browserMangaBusy = event.state === 'running';
+  if (event.translated !== undefined) player.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
+  if (event.visible !== undefined) player.browserMangaVisible = !!event.visible;
+  else if (event.state === 'ready') player.browserMangaVisible = player.browserMangaTranslated > 0;
+  else if (event.state === 'idle' || event.state === 'error') player.browserMangaVisible = false;
+  player.browserMangaCompleted = Math.max(0, Number(event.completed) || 0);
+  player.browserMangaTotal = Math.max(0, Number(event.total) || 0);
+  const tab = browserTabState();
+  if (tab) Object.assign(tab, {
+    browserMangaBusy: player.browserMangaBusy,
+    browserMangaTranslated: player.browserMangaTranslated,
+    browserMangaVisible: player.browserMangaVisible,
+  });
+  updateBrowserMangaButton();
+  if (event.message) setBrowserSignal(event.message, event.state === 'ready');
+  else if (event.state === 'running') {
+    setBrowserSignal(`Manga görselleri çevriliyor: ${player.browserMangaCompleted}/${player.browserMangaTotal}`, true);
+  }
+}
+
+async function handleBrowserMangaAction(clickEvent) {
+  if (!player.browserPageUrl || !player.browserActiveTabId) {
+    setBrowserSignal('Manga çevirmek için önce bir okuma sayfası açın.', false);
+    return;
+  }
+  if (player.browserMangaBusy) {
+    const stopped = await window.api.clearBrowserManga?.(player.browserActiveTabId).catch(() => null);
+    if (!stopped?.ok) setBrowserSignal(stopped?.error || 'Manga çevirisi durdurulamadı.', false);
+    return;
+  }
+  if (player.browserMangaTranslated > 0 && clickEvent?.shiftKey) {
+    const cleared = await window.api.clearBrowserManga?.(player.browserActiveTabId).catch(() => null);
+    if (!cleared?.ok) {
+      setBrowserSignal(cleared?.error || 'Manga katmanı temizlenemedi.', false);
+      return;
+    }
+    applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
+  } else if (player.browserMangaTranslated > 0) {
+    const result = await window.api.toggleBrowserManga?.(
+      player.browserActiveTabId, !player.browserMangaVisible).catch(() => null);
+    if (!result?.ok) {
+      if (result?.stale) applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
+      setBrowserSignal(result?.error || 'Manga katmanı değiştirilemedi.', false);
+      return;
+    }
+    applyBrowserMangaState({ state: 'ready', translated: result.translated, visible: result.visible });
+    return;
+  }
+  applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
+  const result = await window.api.startBrowserManga?.(player.browserActiveTabId, {
+    targetLanguage: $('translateTo')?.value || 'tr', maxImages: 16,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok && !result?.canceled) {
+    applyBrowserMangaState({ state: 'error', translated: 0, visible: false,
+      message: result?.error || 'Manga görselleri çevrilemedi.' });
+  }
 }
 
 function setBrowserSignalVisible(visible, persist = true) {
@@ -4196,6 +4301,7 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserMuted = false;
     player.browserProfileKey = '';
     player.browserPositionTick = 0;
+    applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
     scheduleBrowserOverlaySync();
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
@@ -4378,6 +4484,7 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (even
   activateBrowserTabAndFocus(tabs[next].dataset.browserTabActivate);
 });
 if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
+if ($('browserMangaTranslate')) $('browserMangaTranslate').addEventListener('click', handleBrowserMangaAction);
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); navigateBrowserFromAddress(); }
 });
@@ -4595,6 +4702,11 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.browserLiveTranslations = [...translated.values()];
       } else if (event.type === 'capture-enabled') {
         tab.captureEnabled = event.enabled !== false;
+      } else if (event.type === 'manga-state') {
+        tab.browserMangaBusy = event.state === 'running';
+        if (event.translated !== undefined) tab.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
+        if (event.visible !== undefined) tab.browserMangaVisible = !!event.visible;
+        else if (event.state === 'idle' || event.state === 'error') tab.browserMangaVisible = false;
       } else if (event.type === 'load-error' || event.type === 'drm-playback-error') {
         tab.error = event.message || 'Tarayıcı hatası';
       }
@@ -4695,6 +4807,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
+  } else if (event.type === 'manga-state') {
+    applyBrowserMangaState(event);
   } else if (event.type === 'translation-result') {
     applyBrowserTranslationResult(event);
   } else if (event.type === 'translation-state' && event.trackId === player.browserTranslationTrackId) {

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage } = require('electron');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -67,6 +67,17 @@ const { BrowserAssetStore } = require('./browser-asset-store');
 const { WatchIndex } = require('./watch-index');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
+const {
+  buildMangaPrompt,
+  extractJsonPayload,
+  isSafeMangaImageUrl,
+  mangaCacheKey,
+  mangaCandidateScanScript,
+  mangaClearScript,
+  mangaOverlayScript,
+  mangaVisibilityScript,
+  normalizeMangaRegions,
+} = require('./browser-manga');
 const { normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
 const {
@@ -773,6 +784,7 @@ let watchIndexUnavailable = false;
 let watchIndexLegacyMigrated = false;
 let browserAssetStoreInstance = null;
 let browserTranslationCacheInstance = null;
+let browserMangaCacheInstance = null;
 
 function watchLibraryPath() {
   return path.join(app.getPath('userData'), 'watch-library.json');
@@ -818,6 +830,16 @@ function browserTranslationCache() {
     );
   }
   return browserTranslationCacheInstance;
+}
+
+function browserMangaCache() {
+  if (!browserMangaCacheInstance) {
+    browserMangaCacheInstance = new PersistentTranslationCache(
+      path.join(app.getPath('userData'), 'browser-manga-cache.json'),
+      { limit: 3000, ttlMs: 90 * 24 * 60 * 60 * 1000 }
+    );
+  }
+  return browserMangaCacheInstance;
 }
 
 function loadWatchLibrary() {
@@ -1088,6 +1110,9 @@ function createBrowserTabRecord(initial = {}) {
     translationTrackId: '',
     translationSourceCues: [],
     translationResults: new Map(),
+    mangaJob: null,
+    mangaTranslated: 0,
+    mangaVisible: false,
     overlay: { source: [], translation: [], mode: 'translation', offset: restored.offset || 0 },
     restoredUrl: restored.url || '',
     restoredTitle: restored.title || '',
@@ -1135,6 +1160,9 @@ function browserTabSnapshot(tab) {
     canGoBack,
     canGoForward,
     captureEnabled: tab ? tab.captureEnabled !== false : true,
+    mangaBusy: !!tab?.mangaJob,
+    mangaTranslated: Number(tab?.mangaTranslated) || 0,
+    mangaVisible: !!tab?.mangaVisible,
     diagnostics: tab ? tab.diagnostics : null,
     mediaId: tab?.mediaId || '',
     service: tab?.service || '',
@@ -1659,6 +1687,233 @@ async function requestBrowserSentenceTranslation(sentence, config, signal) {
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
   return text.trim().replace(/^```(?:text)?\s*|\s*```$/gi, '').trim();
+}
+
+function mangaJobIsCurrent(tab, job) {
+  return !!tab && tab.mangaJob === job && !job.controller.signal.aborted
+    && tab.generation === job.generation && tab.view && !tab.view.webContents.isDestroyed();
+}
+
+function stopBrowserManga(tab, clearOverlay = true) {
+  if (!tab) return;
+  if (tab.mangaJob) {
+    tab.mangaJob.controller.abort(new Error('Manga çevirisi durduruldu.'));
+    tab.mangaJob = null;
+  }
+  if (clearOverlay && tab.view && !tab.view.webContents.isDestroyed()) {
+    void executeBrowserViewFrames(tab.view, mangaClearScript()).catch(() => {});
+    tab.mangaTranslated = 0;
+    tab.mangaVisible = false;
+  }
+}
+
+function dataUrlMangaImage(raw) {
+  const match = String(raw || '').match(/^data:(image\/(?:png|jpe?g|webp));base64,([a-z0-9+/=]+)$/i);
+  if (!match) return null;
+  const buffer = Buffer.from(match[2], 'base64');
+  return buffer.length ? { buffer, mimeType: match[1].toLowerCase().replace('jpg', 'jpeg') } : null;
+}
+
+async function fetchMangaImage(candidate, pageUrl, signal) {
+  const inline = dataUrlMangaImage(candidate.url);
+  let buffer;
+  let mimeType;
+  if (inline) {
+    ({ buffer, mimeType } = inline);
+  } else {
+    if (!isSafeMangaImageUrl(candidate.url)) throw new Error('Görsel adresi güvenli değil.');
+    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+    let imageUrl = candidate.url;
+    let response;
+    for (let redirects = 0; redirects <= 4; redirects++) {
+      response = await browserSession.fetch(imageUrl, {
+        method: 'GET', signal, redirect: 'manual', credentials: 'include',
+        headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5', Referer: pageUrl },
+      });
+      if (![301, 302, 303, 307, 308].includes(response.status)) break;
+      const location = response.headers.get('location');
+      if (!location || redirects === 4) throw new Error('Görsel çok fazla kez yönlendirildi.');
+      imageUrl = new URL(location, imageUrl).href;
+      if (!isSafeMangaImageUrl(imageUrl)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
+    }
+    if (!response.ok) throw new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
+    if (response.url && !isSafeMangaImageUrl(response.url)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
+    const length = Number(response.headers.get('content-length')) || 0;
+    if (length > 14 * 1024 * 1024) throw new Error('Görsel 14 MB sınırını aşıyor.');
+    mimeType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!/^image\/(?:png|jpe?g|webp|gif|avif)$/.test(mimeType)) throw new Error('Adres desteklenen bir görsel döndürmedi.');
+    buffer = Buffer.from(await response.arrayBuffer());
+  }
+  if (!buffer.length || buffer.length > 14 * 1024 * 1024) throw new Error('Görsel boş veya 14 MB sınırından büyük.');
+
+  const decoded = nativeImage.createFromBuffer(buffer);
+  if (decoded.isEmpty()) throw new Error('Görsel çözülemedi.');
+  const size = decoded.getSize();
+  const pixels = size.width * size.height;
+  if (pixels > 14_000_000) {
+    const scale = Math.sqrt(14_000_000 / pixels);
+    const resized = decoded.resize({
+      width: Math.max(320, Math.round(size.width * scale)),
+      height: Math.max(320, Math.round(size.height * scale)),
+      quality: 'best',
+    });
+    buffer = resized.toJPEG(92);
+    mimeType = 'image/jpeg';
+  }
+  return { buffer, mimeType: /^image\//.test(mimeType) ? mimeType : 'image/png' };
+}
+
+async function requestMangaTranslation(image, config, pageTitle, signal, useSchema = true) {
+  const endpoint = safeTranslationEndpoint(config.endpoint);
+  if (!endpoint) throw new Error('Görsel çeviri endpoint adresi güvenli değil.');
+  if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint)) {
+    throw new Error('Manga çevirisi için API anahtarı girilmemiş.');
+  }
+  const schema = {
+    type: 'object', additionalProperties: false, required: ['regions'], properties: {
+      regions: { type: 'array', maxItems: 160, items: {
+        type: 'object', additionalProperties: false,
+        required: ['box', 'source', 'translation', 'kind'],
+        properties: {
+          box: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'integer', minimum: 0, maximum: 1000 } },
+          source: { type: 'string' }, translation: { type: 'string' },
+          kind: { type: 'string', enum: ['speech', 'narration', 'sfx'] },
+        },
+      } },
+    },
+  };
+  const body = {
+    model: config.model,
+    temperature: 0.1,
+    max_tokens: 12000,
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: buildMangaPrompt({ ...config, pageTitle }) },
+      { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.buffer.toString('base64')}`, detail: 'high' } },
+    ] }],
+    ...(useSchema ? { response_format: { type: 'json_schema', json_schema: { name: 'manga_translation', strict: true, schema } } } : {}),
+  };
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort(signal?.reason || new Error('Manga çevirisi iptal edildi.'));
+  if (signal?.aborted) forwardAbort();
+  else signal?.addEventListener('abort', forwardAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(new Error('Görsel çeviri isteği 90 saniyede yanıt vermedi.')), 90_000);
+  timer.unref?.();
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}) },
+      body: JSON.stringify(body),
+    });
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', forwardAbort);
+  }
+  if (!response.ok) {
+    if (useSchema && [400, 404, 422].includes(response.status)) {
+      return requestMangaTranslation(image, config, pageTitle, signal, false);
+    }
+    const detail = String(await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${detail ? `: ${detail}` : '.'}`);
+  }
+  const data = await response.json();
+  let content = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
+  if (Array.isArray(content)) content = content.map((part) => part?.text || part?.content || '').join('');
+  return normalizeMangaRegions(extractJsonPayload(content));
+}
+
+async function translateMangaCandidate(tab, candidate, config, job) {
+  const image = await fetchMangaImage(candidate, tab.view.webContents.getURL(), job.controller.signal);
+  if (!mangaJobIsCurrent(tab, job)) return { stale: true };
+  const pageTitle = tab.restoredTitle || tab.view.webContents.getTitle();
+  const key = mangaCacheKey(image.buffer, { ...config, pageTitle });
+  let regions;
+  const cached = browserMangaCache().get(key);
+  if (cached) {
+    try { regions = normalizeMangaRegions(JSON.parse(cached)); } catch (_) {}
+  }
+  if (!regions) {
+    let request = job.imageRequests.get(key);
+    if (!request) {
+      request = requestMangaTranslation(image, config, pageTitle, job.controller.signal)
+        .then((result) => {
+          browserMangaCache().set(key, JSON.stringify({ regions: result }));
+          return result;
+        }).finally(() => job.imageRequests.delete(key));
+      job.imageRequests.set(key, request);
+    }
+    regions = await request;
+  }
+  if (!mangaJobIsCurrent(tab, job)) return { stale: true };
+  if (!regions.length) return { translated: false, empty: true };
+  const applied = await executeBrowserViewFrames(tab.view, mangaOverlayScript({
+    id: candidate.id, regions, lang: config.targetLanguage,
+  }));
+  return { translated: applied.some(Boolean), regions: regions.length, cached: !!cached };
+}
+
+async function startBrowserManga(tab, options = {}) {
+  if (!tab || tab.id !== browserActiveTabId || !tab.view || tab.view.webContents.isDestroyed()) {
+    return { ok: false, error: 'Etkin tarayıcı sekmesi bulunamadı.' };
+  }
+  if (tab.mangaJob) return { ok: false, busy: true, error: 'Manga çevirisi zaten çalışıyor.' };
+  const config = browserTranslationConfig({ targetLanguage: options.targetLanguage });
+  if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
+    return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde görsel destekli bir API anahtarı seçin.' };
+  }
+  await executeBrowserViewFrames(tab.view, mangaClearScript()).catch(() => {});
+  const frameResults = await executeBrowserViewFrames(tab.view, mangaCandidateScanScript()).catch(() => []);
+  const candidates = [];
+  const ids = new Set();
+  for (const frame of frameResults) for (const item of Array.isArray(frame) ? frame : []) {
+    if (!item?.id || !item.url || ids.has(item.id)) continue;
+    if (!dataUrlMangaImage(item.url) && !isSafeMangaImageUrl(item.url)) continue;
+    ids.add(item.id); candidates.push(item);
+  }
+  const limit = Math.max(1, Math.min(24, Number(options.maxImages) || 16));
+  candidates.sort((a, b) => Number(b.visible) - Number(a.visible) || a.distance - b.distance || b.area - a.area);
+  const selected = candidates.slice(0, limit);
+  if (!selected.length) return { ok: false, error: 'Bu sayfada çevrilebilecek büyük manga/webtoon görseli bulunamadı.' };
+
+  const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
+  tab.mangaJob = job;
+  tab.mangaTranslated = 0;
+  tab.mangaVisible = true;
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: selected.length, translated: 0 });
+  let cursor = 0;
+  let completed = 0;
+  let translated = 0;
+  let failed = 0;
+  let firstError = '';
+  const worker = async () => {
+    while (mangaJobIsCurrent(tab, job)) {
+      const index = cursor++;
+      if (index >= selected.length) return;
+      try {
+        const result = await translateMangaCandidate(tab, selected[index], config, job);
+        if (result.translated) translated += 1;
+      } catch (error) {
+        if (job.controller.signal.aborted) return;
+        failed += 1;
+        if (!firstError) firstError = error?.message || 'Görsel çevrilemedi.';
+      }
+      completed += 1;
+      if (mangaJobIsCurrent(tab, job)) {
+        tab.mangaTranslated = translated;
+        sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed, total: selected.length, translated, failed });
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, selected.length) }, worker));
+  if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
+  tab.mangaJob = null;
+  tab.mangaTranslated = translated;
+  tab.mangaVisible = translated > 0;
+  const state = translated ? 'ready' : 'error';
+  sendBrowserEvent(tab, { type: 'manga-state', state, completed, total: selected.length, translated, failed,
+    message: translated ? `${translated} manga görseli çevrildi.` : firstError || 'Görsellerde çevrilecek metin bulunamadı.' });
+  return { ok: translated > 0, translated, failed, total: selected.length,
+    error: translated ? '' : firstError || 'Görsellerde çevrilecek metin bulunamadı.' };
 }
 
 function startBrowserTranslation(tab, rawCues, options = {}) {
@@ -2855,7 +3110,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (!normalizeBrowserUrl(url)) event.preventDefault();
   });
   wc.on('did-start-loading', () => {
+    stopBrowserManga(tab, false);
+    tab.mangaTranslated = 0;
+    tab.mangaVisible = false;
     tab.generation += 1;
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
       browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
       tab.overlay = browserOverlay;
@@ -2880,7 +3139,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
     if (isMainFrame) {
+      stopBrowserManga(tab, true);
+      tab.mangaTranslated = 0;
+      tab.mangaVisible = false;
       tab.generation += 1;
+      sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
       rememberBrowserVisit(wc.getURL(), wc.getTitle());
       tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
       tab.restoredTitle = wc.getTitle() || '';
@@ -3023,6 +3286,7 @@ function queueBrowserTabTransition(work) {
 
 function destroyBrowserTab(tab) {
   if (!tab) return;
+  stopBrowserManga(tab, false);
   tab.translationScheduler?.cancelAll('Sekme kapatıldı.');
   tab.translationScheduler = null;
   if (browserLiveAsr?.tab === tab) stopBrowserLiveAsr('Sekme kapatıldığı için canlı Whisper durduruldu.');
@@ -3254,11 +3518,12 @@ app.whenReady().then(async () => {
 let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
-  if (!browserTranslationCacheInstance || browserCacheQuitFlushComplete) return;
+  const caches = [browserTranslationCacheInstance, browserMangaCacheInstance].filter(Boolean);
+  if (!caches.length || browserCacheQuitFlushComplete) return;
   event.preventDefault();
   if (browserCacheQuitFlushStarted) return;
   browserCacheQuitFlushStarted = true;
-  browserTranslationCacheInstance.flush().catch(() => null).finally(() => {
+  Promise.all(caches.map((cache) => cache.flush().catch(() => null))).finally(() => {
     browserCacheQuitFlushComplete = true;
     app.quit();
   });
@@ -3645,6 +3910,41 @@ ipcMain.handle('browser:setOverlay', async (event, request) => {
   tab.overlay = browserOverlay;
   scheduleBrowserSessionSave();
   return { ok: await applyBrowserOverlay() };
+});
+
+ipcMain.handle('browser:manga:start', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  return startBrowserManga(tab, {
+    targetLanguage: request && request.targetLanguage,
+    maxImages: request && request.maxImages,
+  });
+});
+
+ipcMain.handle('browser:manga:toggle', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  if (!tab.mangaTranslated) return { ok: false, error: 'Bu sekmede gösterilecek manga çevirisi yok.' };
+  tab.mangaVisible = request?.visible === undefined ? !tab.mangaVisible : !!request.visible;
+  const counts = await executeBrowserViewFrames(tab.view, mangaVisibilityScript(tab.mangaVisible));
+  if (!counts.some((count) => Number(count) > 0)) {
+    tab.mangaTranslated = 0;
+    tab.mangaVisible = false;
+    return { ok: false, stale: true, error: 'Sayfadaki manga katmanları artık mevcut değil.' };
+  }
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'ready', translated: tab.mangaTranslated, visible: tab.mangaVisible });
+  return { ok: true, translated: tab.mangaTranslated, visible: tab.mangaVisible };
+});
+
+ipcMain.handle('browser:manga:clear', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  stopBrowserManga(tab, true);
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+  return { ok: true };
 });
 
 ipcMain.handle('browser:translation:start', async (event, request) => {

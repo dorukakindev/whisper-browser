@@ -3772,6 +3772,39 @@ body::before {
 }
 .browser-address-wrap input::placeholder { color: #66666b; }
 .browser-go { min-width: 58px; height: 36px; border-radius: 9px; }
+.browser-manga-button {
+  position: relative;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: #b9aa92;
+  border: 1px solid #3a3226;
+  border-radius: 9px;
+  background: #181612;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.browser-manga-button::after {
+  content: '';
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 2px;
+  border-radius: 2px;
+  background: #514735;
+}
+.browser-manga-button:hover { color: #f1d79f; border-color: #66502a; background: #211b12; }
+.browser-manga-button[data-state="running"] { color: #1b160d; border-color: var(--player-amber); background: var(--player-amber); }
+.browser-manga-button[data-state="running"]::after { background: #31240e; animation: manga-scan-pulse 1s ease-in-out infinite; }
+.browser-manga-button[data-state="ready"] { color: #f3ca77; border-color: #765921; background: #251c0f; }
+.browser-manga-button[data-state="hidden"] { color: #8e877c; border-color: #34302a; background: #161514; }
+.browser-manga-button:disabled { opacity: .55; cursor: wait; }
+@keyframes manga-scan-pulse { 50% { opacity: .25; transform: scaleY(.5); } }
 .browser-place-button {
   width: 36px;
   height: 36px;
@@ -4089,6 +4122,7 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
   .browser-tab { min-width: 78px; }
   .browser-tab-new { width: 27px; padding: 0; }
   .browser-tab-new span { display: none; }
+  .browser-manga-button { min-width: 88px; }
   .browser-signal-tools,
   .browser-track-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .browser-signal-tool,
@@ -4103,6 +4137,7 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
 
 @media (prefers-reduced-motion: reduce) {
   .workspace-mode, .browser-address-wrap { transition: none; }
+  .browser-manga-button[data-state="running"]::after { animation: none; }
 }
 
 /* ===== Signal Desk / üretim davranış katmanı =====
