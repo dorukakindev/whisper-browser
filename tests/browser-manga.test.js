@@ -54,6 +54,9 @@ assert.match(main, /ipcMain\.handle\('browser:manga:start'/);
 assert.match(main, /shuaiapi\\\.com\|api\\\.oai\\\.sb[\s\S]{0,100}config\.model = 'gpt-4\.1-mini'/);
 assert.doesNotMatch(main, /configuredModel\.toLowerCase\(\) === 'gemini-3\.7-flash'/);
 assert.match(main, /redirect: 'manual', credentials: 'include'/);
+assert.match(main, /Manga görseli 30 saniyede indirilemedi/);
+assert.match(main, /for \(let attempt = 0; attempt < 6/);
+assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
 assert.match(renderer, /browserMangaTranslate.*addEventListener\('click', handleBrowserMangaAction\)/);
@@ -61,4 +64,4 @@ assert.match(renderer, /Manga hata/);
 assert.match(html, /id="browserMangaTranslate"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 20 test');
+console.log('browser-manga: 23 test');

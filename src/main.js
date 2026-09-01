@@ -1722,27 +1722,39 @@ async function fetchMangaImage(candidate, pageUrl, signal) {
     ({ buffer, mimeType } = inline);
   } else {
     if (!isSafeMangaImageUrl(candidate.url)) throw new Error('Görsel adresi güvenli değil.');
+    const downloadController = new AbortController();
+    const forwardAbort = () => downloadController.abort(signal?.reason || new Error('Manga çevirisi iptal edildi.'));
+    if (signal?.aborted) forwardAbort();
+    else signal?.addEventListener('abort', forwardAbort, { once: true });
+    const downloadTimer = setTimeout(() => downloadController.abort(
+      new Error('Manga görseli 30 saniyede indirilemedi.')), 30_000);
+    downloadTimer.unref?.();
     const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
     let imageUrl = candidate.url;
     let response;
-    for (let redirects = 0; redirects <= 4; redirects++) {
-      response = await browserSession.fetch(imageUrl, {
-        method: 'GET', signal, redirect: 'manual', credentials: 'include',
-        headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5', Referer: pageUrl },
-      });
-      if (![301, 302, 303, 307, 308].includes(response.status)) break;
-      const location = response.headers.get('location');
-      if (!location || redirects === 4) throw new Error('Görsel çok fazla kez yönlendirildi.');
-      imageUrl = new URL(location, imageUrl).href;
-      if (!isSafeMangaImageUrl(imageUrl)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
+    try {
+      for (let redirects = 0; redirects <= 4; redirects++) {
+        response = await browserSession.fetch(imageUrl, {
+          method: 'GET', signal: downloadController.signal, redirect: 'manual', credentials: 'include',
+          headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5', Referer: pageUrl },
+        });
+        if (![301, 302, 303, 307, 308].includes(response.status)) break;
+        const location = response.headers.get('location');
+        if (!location || redirects === 4) throw new Error('Görsel çok fazla kez yönlendirildi.');
+        imageUrl = new URL(location, imageUrl).href;
+        if (!isSafeMangaImageUrl(imageUrl)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
+      }
+      if (!response.ok) throw new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
+      if (response.url && !isSafeMangaImageUrl(response.url)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
+      const length = Number(response.headers.get('content-length')) || 0;
+      if (length > 14 * 1024 * 1024) throw new Error('Görsel 14 MB sınırını aşıyor.');
+      mimeType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^image\/(?:png|jpe?g|webp|gif|avif)$/.test(mimeType)) throw new Error('Adres desteklenen bir görsel döndürmedi.');
+      buffer = Buffer.from(await response.arrayBuffer());
+    } finally {
+      clearTimeout(downloadTimer);
+      signal?.removeEventListener('abort', forwardAbort);
     }
-    if (!response.ok) throw new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
-    if (response.url && !isSafeMangaImageUrl(response.url)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
-    const length = Number(response.headers.get('content-length')) || 0;
-    if (length > 14 * 1024 * 1024) throw new Error('Görsel 14 MB sınırını aşıyor.');
-    mimeType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-    if (!/^image\/(?:png|jpe?g|webp|gif|avif)$/.test(mimeType)) throw new Error('Adres desteklenen bir görsel döndürmedi.');
-    buffer = Buffer.from(await response.arrayBuffer());
   }
   if (!buffer.length || buffer.length > 14 * 1024 * 1024) throw new Error('Görsel boş veya 14 MB sınırından büyük.');
 
@@ -1799,12 +1811,16 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
   const timer = setTimeout(() => controller.abort(new Error('Görsel çeviri isteği 90 saniyede yanıt vermedi.')), 90_000);
   timer.unref?.();
   let response;
+  let data;
+  let errorDetail = '';
   try {
     response = await fetch(endpoint, {
       method: 'POST', signal: controller.signal,
       headers: { 'Content-Type': 'application/json', ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}) },
       body: JSON.stringify(body),
     });
+    if (response.ok) data = await response.json();
+    else errorDetail = String(await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', forwardAbort);
@@ -1813,10 +1829,8 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
     if (useSchema && [400, 404, 422].includes(response.status)) {
       return requestMangaTranslation(image, config, pageTitle, signal, false);
     }
-    const detail = String(await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
-    throw new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${detail ? `: ${detail}` : '.'}`);
+    throw new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${errorDetail ? `: ${errorDetail}` : '.'}`);
   }
-  const data = await response.json();
   let content = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (Array.isArray(content)) content = content.map((part) => part?.text || part?.content || '').join('');
   return normalizeMangaRegions(extractJsonPayload(content));
@@ -1864,25 +1878,41 @@ async function startBrowserManga(tab, options = {}) {
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
     return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde görsel destekli bir API anahtarı seçin.' };
   }
-  await executeBrowserViewFrames(tab.view, mangaClearScript()).catch(() => {});
-  const frameResults = await executeBrowserViewFrames(tab.view, mangaCandidateScanScript()).catch(() => []);
-  const candidates = [];
-  const ids = new Set();
-  for (const frame of frameResults) for (const item of Array.isArray(frame) ? frame : []) {
-    if (!item?.id || !item.url || ids.has(item.id)) continue;
-    if (!dataUrlMangaImage(item.url) && !isSafeMangaImageUrl(item.url)) continue;
-    ids.add(item.id); candidates.push(item);
-  }
-  const limit = Math.max(1, Math.min(24, Number(options.maxImages) || 16));
-  candidates.sort((a, b) => Number(b.visible) - Number(a.visible) || a.distance - b.distance || b.area - a.area);
-  const selected = candidates.slice(0, limit);
-  if (!selected.length) return { ok: false, error: 'Bu sayfada çevrilebilecek büyük manga/webtoon görseli bulunamadı.' };
-
   const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
   tab.mangaJob = job;
   tab.mangaTranslated = 0;
   tab.mangaVisible = true;
-  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: selected.length, translated: 0 });
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: 0, translated: 0,
+    message: 'Manga görsellerinin yüklenmesi bekleniyor…' });
+  await executeBrowserViewFrames(tab.view, mangaClearScript()).catch(() => {});
+  const candidates = [];
+  const ids = new Set();
+  // MangaKatana gibi okuyucular gerçek src adresini sayfa açıldıktan sonra
+  // JavaScript ile doldurur. Tek anlık tarama boş dönmesin; kısa süre boyunca
+  // yüklenen adayları biriktir.
+  for (let attempt = 0; attempt < 6 && mangaJobIsCurrent(tab, job); attempt++) {
+    const frameResults = await executeBrowserViewFrames(tab.view, mangaCandidateScanScript()).catch(() => []);
+    for (const frame of frameResults) for (const item of Array.isArray(frame) ? frame : []) {
+      if (!item?.id || !item.url || ids.has(item.id)) continue;
+      if (!dataUrlMangaImage(item.url) && !isSafeMangaImageUrl(item.url)) continue;
+      ids.add(item.id); candidates.push(item);
+    }
+    if (candidates.length >= 2) break;
+    if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, 650));
+  }
+  if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
+  const limit = Math.max(1, Math.min(24, Number(options.maxImages) || 16));
+  candidates.sort((a, b) => Number(b.visible) - Number(a.visible) || a.distance - b.distance || b.area - a.area);
+  const selected = candidates.slice(0, limit);
+  if (!selected.length) {
+    tab.mangaJob = null;
+    tab.mangaVisible = false;
+    const error = 'Bu sayfada yüklenmiş büyük manga/webtoon görseli bulunamadı.';
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'error', completed: 0, total: 0, translated: 0, message: error });
+    return { ok: false, error };
+  }
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: selected.length, translated: 0,
+    message: `${selected.length} manga görseli bulundu; shuaiapi ile çevriliyor…` });
   let cursor = 0;
   let completed = 0;
   let translated = 0;
