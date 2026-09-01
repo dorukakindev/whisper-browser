@@ -4675,6 +4675,20 @@ function syncPlayerSpeedControl(rawRate) {
   return rate;
 }
 
+function steppedPlaybackRate(options, currentRate, direction) {
+  const current = Number(currentRate);
+  const rates = [...new Set(Array.from(options || [])
+    .map((option) => Number(option && option.value !== undefined ? option.value : option))
+    .filter((rate) => Number.isFinite(rate) && rate > 0)
+    .concat(Number.isFinite(current) && current > 0 ? [current] : []))]
+    .sort((a, b) => a - b);
+  if (!rates.length) return 1;
+  let index = rates.findIndex((rate) => Math.abs(rate - current) < 1e-6);
+  if (index < 0) index = rates.reduce((best, rate, i) => (
+    Math.abs(rate - current) < Math.abs(rates[best] - current) ? i : best), 0);
+  return rates[Math.max(0, Math.min(rates.length - 1, index + Math.sign(direction || 0)))];
+}
+
 function captureWatchPrefs() {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser';
@@ -4779,13 +4793,19 @@ async function restoreWatchProfile(key) {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
   if (browserMode && window.api.browserCommand) {
-    if (prefs.speed) await window.api.browserCommand('speed', Math.max(.25, Math.min(4, Number(prefs.speed) || 1))).catch(() => null);
+    const stillCurrent = () => !staleGeneration(gen) && player.mediaKey === key;
+    if (prefs.speed) {
+      await window.api.browserCommand('speed', Math.max(.25, Math.min(4, Number(prefs.speed) || 1))).catch(() => null);
+      if (!stillCurrent()) return;
+    }
     if (prefs.volume !== undefined) {
       const target = Math.max(0, Math.min(1, Number(prefs.volume)));
       await window.api.browserCommand('volume-set', target).catch(() => null);
+      if (!stillCurrent()) return;
     }
     if (prefs.muted !== undefined && !!prefs.muted !== player.browserMuted) {
       await window.api.browserCommand('mute').catch(() => null);
+      if (!stillCurrent()) return;
     }
   } else {
     if (video && prefs.speed) video.playbackRate = Math.max(.25, Math.min(4, Number(prefs.speed) || 1));
@@ -7775,10 +7795,7 @@ async function nudgeSpeed(dir) {
   const sel = $('playerSpeed');
   const video = $('playerVideo');
   if (!sel || !video) return;
-  const opts = Array.from(sel.options).map((o) => parseFloat(o.value));
-  const cur = opts.indexOf(parseFloat(sel.value));
-  const next = Math.max(0, Math.min(opts.length - 1, (cur < 0 ? 2 : cur) + dir));
-  const target = opts[next];
+  const target = steppedPlaybackRate(sel.options, sel.value, dir);
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
     const result = await window.api.browserCommand('speed', target).catch(() => null);
     if (!result || !result.ok) {

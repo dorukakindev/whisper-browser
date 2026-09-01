@@ -73,6 +73,19 @@ test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
   assert(/browserCommand\('speed', target\)/.test(speed), 'hız kısayolu web videosunu hedeflemiyor');
 });
 
+test('özel web oynatma hızında kısayol sıralı komşu hıza geçiyor', () => {
+  const start = js.indexOf('function steppedPlaybackRate');
+  const end = js.indexOf('function captureWatchPrefs', start);
+  assert(start > 0 && end > start, 'hız basamak yardımcısı bulunamadı');
+  const steppedPlaybackRate = new Function(
+    `${js.slice(start, end)}; return steppedPlaybackRate;`)();
+  const options = [.5, .75, 1, 1.25, 1.5, 2, 1.1].map((value) => ({ value: String(value) }));
+  assert(steppedPlaybackRate(options, 1.1, -1) === 1, 'özel hızdan azaltma 1× değerine gitmiyor');
+  assert(steppedPlaybackRate(options, 1.1, 1) === 1.25, 'özel hızdan artırma 1.25× değerine gitmiyor');
+  const speed = js.slice(js.indexOf('async function nudgeSpeed'), js.indexOf('// Ses cubugu'));
+  assert(/steppedPlaybackRate\(sel\.options, sel\.value, dir\)/.test(speed), 'hız kısayolu sıralı yardımcıyı kullanmıyor');
+});
+
 test('tarayıcı A-B döngüsü ve otomatik dur web video zamanını kullanıyor', () => {
   const cue = js.slice(js.indexOf('function renderBrowserCueAt'), js.indexOf('function applyBrowserTracks'));
   assert(/player\.abB/.test(cue) && /browserCommand\('seek', player\.abA\)/.test(cue),
@@ -81,6 +94,23 @@ test('tarayıcı A-B döngüsü ve otomatik dur web video zamanını kullanıyor
     'otomatik dur web videosunu durdurmuyor');
   const toggle = js.slice(js.indexOf('function toggleAbLoop'), js.indexOf('function renderAbMarkers'));
   assert(/workspaceMode === 'browser' \? player\.browserTime/.test(toggle), 'A/B noktaları web zamanından alınmıyor');
+});
+
+test('web profil geri yükleme her asenkron komuttan sonra güncelliği denetliyor', () => {
+  const restore = js.slice(js.indexOf('async function restoreWatchProfile'), js.indexOf('function makeWatchAction'));
+  assert(/const stillCurrent =/.test(restore), 'profil güncellik yardımcısı yok');
+  const checks = restore.match(/if \(!stillCurrent\(\)\) return;/g) || [];
+  assert(checks.length >= 3, 'hız, ses ve mute komutlarından sonra ayrı güncellik denetimi yok');
+});
+
+test('web medya probu üst üste binmiyor ve gezinme sonrası eski sonucu yayınlamıyor', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const poll = main.slice(main.indexOf('function startBrowserPolling'), main.indexOf('function stopBrowserPolling'));
+  assert(/browserMediaBusy/.test(poll), 'medya probunda busy koruması yok');
+  assert(/generation !== browserStateGeneration/.test(poll), 'eski tarama kuşağı elenmiyor');
+  assert(/activeContents\.getURL\(\) !== pageUrl/.test(poll), 'gezinme sonrası eski medya sonucu elenmiyor');
+  assert(/finally\s*{\s*if \(generation === browserStateGeneration\) browserMediaBusy = false/.test(poll),
+    'eski medya probu yeni probun busy durumunu temizleyebiliyor');
 });
 
 test('kuyruk sıradaki işi done değil süreç exit olayında başlatıyor', () => {

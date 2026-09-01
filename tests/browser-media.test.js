@@ -38,7 +38,8 @@ test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
 
 test('medya zamanlayıcısı komutlarla aynı aday sıralamasını kullanır', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
-  assert.match(main, /rankBrowserMediaCandidates\(\s*\(await executeBrowserFrames\(browserMediaProbeScript\(\)\)\)\.map\(\(item\) => \(\{ media: item \}\)\)/s);
+  assert.match(main, /const probed = await withTimeout\(executeBrowserFrames\(browserMediaProbeScript\(\)\)/);
+  assert.match(main, /rankBrowserMediaCandidates\(\s*probed\.map\(\(item\) => \(\{ media: item \}\)\)/s);
 });
 
 console.log(`browser-media: ${passed} test`);

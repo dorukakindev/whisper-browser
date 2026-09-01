@@ -41,6 +41,7 @@ const { rankBrowserMediaCandidates } = require('./browser-media');
 const { hasConfiguredWatchOutput, normalizeWatchOutputConfig } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
 const { burninOutputPaths, removeFileQuietly, replaceBurninOutput } = require('./burnin-output');
+const { withAbortTimeout, withTimeout } = require('./async-timeout');
 
 // QUIC bazı VPN/tünelleme sürücülerinde bağlantıyı kuramadan bekleyebiliyor
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
@@ -66,9 +67,11 @@ let browserMediaTimer = null;
 let browserCaptureTimer = null;
 let browserCaptureBusy = false;
 let browserTrackBusy = false;
+let browserMediaBusy = false;
 let browserCaptureEnabled = true;
 let browserLastCaptureDropped = 0;
 let browserDebuggerReady = false;
+let browserStateGeneration = 0;
 const browserPendingResponses = new Map();
 const browserTrackBuffers = new Map();
 const browserTrackPublications = new Map();
@@ -83,6 +86,8 @@ let browserOverlay = { source: [], translation: [], mode: 'translation', offset:
 let browserDiagnostics = null;
 let widevineComponentStatus = { available: false, ready: false, detail: 'Castlabs bileşen API’si bulunamadı' };
 let widevineReadinessPromise = null;
+const BROWSER_FETCH_TIMEOUT = 12000;
+const BROWSER_SCRIPT_TIMEOUT = 6000;
 
 // İş çalışırken sistemin uykuya geçmesini engelle (uzun transkripsiyon yarıda kalmasın)
 function startPowerBlocker() {
@@ -1129,6 +1134,7 @@ function browserSubtitleDir() {
 }
 
 function resetBrowserCaptureState() {
+  browserStateGeneration += 1;
   browserPendingResponses.clear();
   browserTrackBuffers.clear();
   browserTrackPublications.clear();
@@ -1137,6 +1143,7 @@ function resetBrowserCaptureState() {
   browserDashSubtitleMatchers = [];
   browserCaptureBusy = false;
   browserTrackBusy = false;
+  browserMediaBusy = false;
   browserLastCaptureDropped = 0;
   browserHlsFetchedSegments.clear();
   browserHlsInFlight.clear();
@@ -1231,15 +1238,17 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024) {
   // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
   // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
   // page-world fetch'e göre daha güvenilir.
-  const response = await browserView.webContents.session.fetch(safe, {
-    method: 'GET', credentials: 'include', redirect: 'follow',
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const length = Number(response.headers.get('content-length') || 0);
-  if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
-  return buffer;
+  return withAbortTimeout(async (signal) => {
+    const response = await browserView.webContents.session.fetch(safe, {
+      method: 'GET', credentials: 'include', redirect: 'follow', signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const length = Number(response.headers.get('content-length') || 0);
+    if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+    return buffer;
+  }, BROWSER_FETCH_TIMEOUT, 'Altyazı isteği zaman aşımına uğradı.');
 }
 
 async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024) {
@@ -1804,8 +1813,12 @@ function startBrowserPolling() {
   browserTrackTimer = setInterval(async () => {
     if (!browserCaptureEnabled || browserTrackBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     browserTrackBusy = true;
+    const generation = browserStateGeneration;
     try {
-      const frameTracks = await executeBrowserFrames(browserTrackProbeScript());
+      const frameTracks = await withTimeout(
+        executeBrowserFrames(browserTrackProbeScript()), BROWSER_SCRIPT_TIMEOUT,
+        'Altyazı izi taraması zaman aşımına uğradı.');
+      if (generation !== browserStateGeneration) return;
       for (const tracks of frameTracks) for (const track of tracks || []) {
         const stored = storeBrowserTrack(track.cues, {
           language: track.language, label: track.label, format: 'html5-track', sourceUrl: track.sourceUrl || 'dom:texttrack',
@@ -1815,16 +1828,22 @@ function startBrowserPolling() {
           url: track.sourceUrl || 'dom:texttrack', mimeType: 'text/html5-track',
         }, 'parsed', `${track.cues.length} satır`);
       }
-    } catch (_) {} finally {
-      browserTrackBusy = false;
+    } catch (error) {
+      if (error && error.code === 'ETIMEDOUT') noteBrowserCapture('textTrack', {}, 'error', error.message);
+    } finally {
+      if (generation === browserStateGeneration) browserTrackBusy = false;
     }
   }, 2600);
   browserCaptureTimer = setInterval(async () => {
     if (!browserCaptureEnabled || browserCaptureBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     browserCaptureBusy = true;
+    const generation = browserStateGeneration;
     try {
-      await executeBrowserFrames(browserCaptureHookScript());
-      const batches = await executeBrowserFrames(browserCaptureDrainScript());
+      await withTimeout(executeBrowserFrames(browserCaptureHookScript()), BROWSER_SCRIPT_TIMEOUT,
+        'Yakalama kancası zaman aşımına uğradı.');
+      const batches = await withTimeout(executeBrowserFrames(browserCaptureDrainScript()),
+        BROWSER_SCRIPT_TIMEOUT, 'Yakalama kuyruğu zaman aşımına uğradı.');
+      if (generation !== browserStateGeneration) return;
       const ackIds = [];
       const releaseIds = [];
       for (const batch of batches) {
@@ -1860,28 +1879,43 @@ function startBrowserPolling() {
           }
         }
       }
-      if (ackIds.length) await executeBrowserFrames(browserCaptureAckScript(ackIds));
-      if (releaseIds.length) await executeBrowserFrames(browserCaptureReleaseScript(releaseIds));
-    } catch (_) {
+      if (ackIds.length) await withTimeout(executeBrowserFrames(browserCaptureAckScript(ackIds)),
+        BROWSER_SCRIPT_TIMEOUT, 'Yakalama onayı zaman aşımına uğradı.');
+      if (releaseIds.length) await withTimeout(executeBrowserFrames(browserCaptureReleaseScript(releaseIds)),
+        BROWSER_SCRIPT_TIMEOUT, 'Yakalama iadesi zaman aşımına uğradı.');
+    } catch (error) {
       // Bir alt frame erişilemez olduğunda diğer yakalama yolları sürer.
+      if (error && error.code === 'ETIMEDOUT') noteBrowserCapture('page', {}, 'error', error.message);
     } finally {
-      browserCaptureBusy = false;
+      if (generation === browserStateGeneration) browserCaptureBusy = false;
     }
   }, 900);
   browserMediaTimer = setInterval(async () => {
-    if (!browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    if (browserMediaBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    browserMediaBusy = true;
+    const generation = browserStateGeneration;
+    const activeView = browserView;
+    const activeContents = activeView.webContents;
+    const pageUrl = activeContents.getURL();
     try {
       // Komut gönderiminde kullanılan sıralamayla aynı adayı seç. Böylece
       // durum/altyazı yayını, komutların hedeflediği videodan kopmaz.
+      const probed = await withTimeout(executeBrowserFrames(browserMediaProbeScript()),
+        BROWSER_SCRIPT_TIMEOUT, 'Web video durumu zaman aşımına uğradı.');
+      if (generation !== browserStateGeneration || browserView !== activeView
+          || activeContents.isDestroyed() || activeContents.getURL() !== pageUrl) return;
       const media = rankBrowserMediaCandidates(
-        (await executeBrowserFrames(browserMediaProbeScript())).map((item) => ({ media: item }))
+        probed.map((item) => ({ media: item }))
       )[0]?.media;
       if (media) sendBrowserEvent({ type: 'media', media });
-    } catch (_) {}
+    } catch (_) {} finally {
+      if (generation === browserStateGeneration) browserMediaBusy = false;
+    }
   }, 500);
 }
 
 function stopBrowserPolling() {
+  browserStateGeneration += 1;
   if (browserTrackTimer) clearInterval(browserTrackTimer);
   if (browserMediaTimer) clearInterval(browserMediaTimer);
   if (browserCaptureTimer) clearInterval(browserCaptureTimer);
@@ -1890,6 +1924,7 @@ function stopBrowserPolling() {
   browserCaptureTimer = null;
   browserCaptureBusy = false;
   browserTrackBusy = false;
+  browserMediaBusy = false;
 }
 
 function browserOverlayScript(payload) {
@@ -2403,15 +2438,19 @@ ipcMain.handle('browser:command', async (event, command, value) => {
 ipcMain.handle('browser:capture:setEnabled', async (event, enabled) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
   browserCaptureEnabled = enabled !== false;
+  browserStateGeneration += 1;
   browserPendingResponses.clear();
   browserCaptureBusy = false;
   browserTrackBusy = false;
+  browserMediaBusy = false;
   if (browserView && !browserView.webContents.isDestroyed()) {
     if (browserCaptureEnabled) {
-      await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+      await withTimeout(executeBrowserFrames(browserCaptureHookScript()), BROWSER_SCRIPT_TIMEOUT,
+        'Yakalama kancası zaman aşımına uğradı.').catch(() => {});
       attachBrowserDebugger();
     } else {
-      await executeBrowserFrames(browserCaptureToggleScript(false)).catch(() => {});
+      await withTimeout(executeBrowserFrames(browserCaptureToggleScript(false)), BROWSER_SCRIPT_TIMEOUT,
+        'Yakalama kapatma işlemi zaman aşımına uğradı.').catch(() => {});
       try { if (browserView.webContents.debugger.isAttached()) browserView.webContents.debugger.detach(); } catch (_) {}
       browserDebuggerReady = false;
     }
