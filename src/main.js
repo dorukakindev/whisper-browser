@@ -3064,6 +3064,13 @@ async function drainBrowserCaptureBeforeClose() {
   return status;
 }
 
+function browserCaptureCloseNeedsWarning(status) {
+  // Bir alt kare kapanış sırasında yanıt vermeyebilir. Bu, tek başına veri
+  // kaybı kanıtı değildir; kullanıcıyı yalnız gerçekten kuyrukta parça
+  // görüldüğünde durdur. Normal yakalama kuyruğu zaten 900 ms'de bir boşaltılır.
+  return Number(status && status.pending) > 0;
+}
+
 async function flushBrowserSession() {
   try {
     persistBrowserSessionNow();
@@ -3133,12 +3140,15 @@ function createWindow() {
         captureStatus = await withTimeout(drainBrowserCaptureBeforeClose(), BROWSER_CLOSE_DRAIN_TIMEOUT,
           'Kapanışta yakalama kuyruğu zamanında boşaltılamadı.');
       } catch (error) {
-        captureStatus = { pending: -1, error: error && error.message || 'Yakalama kuyruğu ölçülemedi.' };
+        captureStatus = {
+          pending: 0,
+          unverified: true,
+          error: error && error.message || 'Yakalama kuyruğu ölçülemedi.',
+        };
       }
-      if (captureStatus.pending !== 0 && mainWindow && !mainWindow.isDestroyed()) {
-        const detail = captureStatus.pending > 0
-          ? `${captureStatus.pending} yakalanmış altyazı parçası henüz işlenemedi.`
-          : 'Yakalama kuyruğunun tamamen işlendiği doğrulanamadı.';
+      if (browserCaptureCloseNeedsWarning(captureStatus)
+          && mainWindow && !mainWindow.isDestroyed()) {
+        const detail = `${captureStatus.pending} yakalanmış altyazı parçası henüz işlenemedi.`;
         const choice = await dialog.showMessageBox(mainWindow, {
           type: 'warning',
           title: 'Altyazı yakalama sürüyor',

@@ -191,7 +191,7 @@ test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
   assert.match(main, /const browserLastCaptureDropped = new Map\(\)/);
 });
 
-test('pencere kapanışı yakalamayı durdurur, dört batch drain eder ve belirsiz kaybı uyarır', () => {
+test('pencere kapanışı kuyruğu boşaltır ve yalnız doğrulanmış bekleyen parçayı uyarır', () => {
   const drainBodyStart = main.indexOf('async function drainBrowserCaptureBeforeClose(');
   const drainBodyEnd = main.indexOf('async function flushBrowserSession(', drainBodyStart);
   const drainBody = main.slice(drainBodyStart, drainBodyEnd);
@@ -199,6 +199,12 @@ test('pencere kapanışı yakalamayı durdurur, dört batch drain eder ve belirs
   assert.match(drainBody, /pass < 4/);
   assert.match(drainBody, /flushBrowserCaptureQueue\(\{ allowHidden: true, force: true, installHook: false \}\)/);
   assert.match(main, /captureStatus = await withTimeout\(drainBrowserCaptureBeforeClose\(\), BROWSER_CLOSE_DRAIN_TIMEOUT/);
+  assert.match(main, /function browserCaptureCloseNeedsWarning\(status\)[\s\S]*?Number\(status && status\.pending\) > 0/);
+  assert.match(main, /if \(browserCaptureCloseNeedsWarning\(captureStatus\)/);
+  assert.doesNotMatch(main, /captureStatus\.pending !== 0/,
+    'ölçüm zaman aşımı gerçek bekleyen parça gibi uyarı açıyor');
+  assert.match(main, /pending:\s*0,[\s\S]{0,100}unverified:\s*true/,
+    'ölçülemeyen kuyruk gerçek bekleyen parça olarak işaretleniyor');
   assert.match(main, /buttons: \['Kapatmayı iptal et', 'Yine de kapat'\]/);
   assert.ok(main.indexOf('captureStatus = await withTimeout(drainBrowserCaptureBeforeClose()')
     < main.indexOf('destroyBrowserView();', main.indexOf("mainWindow.on('close'")),
