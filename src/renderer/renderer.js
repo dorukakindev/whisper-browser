@@ -2517,7 +2517,6 @@ const player = {
   probeSeq: 0,
   probeRequestSeq: 0,
   downloadIntent: 0,
-  watchSearchSeq: 0,
   playerLibrarySearchSeq: 0,
   playbackAudioLang: '',
   workspaceMode: 'player', // 'player' | 'browser'
@@ -4637,10 +4636,7 @@ async function refreshHistory() {
 // İş geçmişi yalnızca çıktı üretimini anlatır. Bu katman gerçek izleme davranışını
 // tutar: kaldığın yer, video bazlı tercihler, koleksiyon ve altyazı içi arama.
 let watchLibraryCache = [];
-let watchLibraryResults = [];
 let playerLibraryResults = [];
-let watchSearchTimer = null;
-let watchSearchSeq = 0;
 let playerLibrarySearchTimer = null;
 
 function watchProgress(item) {
@@ -4779,7 +4775,7 @@ async function flushWatchState(completed = false, refresh = false) {
       const i = watchLibraryCache.findIndex((x) => x.key === res.item.key);
       if (i >= 0) watchLibraryCache.splice(i, 1);
       watchLibraryCache.unshift(res.item);
-      if (refresh) { renderWatchLibrary(); renderPlayerLibrary(); }
+      if (refresh) renderPlayerLibrary();
     }
   } catch (_) {}
 }
@@ -4874,75 +4870,6 @@ function makeWatchAction(label, action, key, extra) {
   return button;
 }
 
-function renderWatchLibrary() {
-  const card = $('watchLibraryCard');
-  const list = $('watchLibraryList');
-  const strip = $('continueWatching');
-  if (!card || !list || !strip) return;
-  const filter = $('watchCollectionFilter') ? $('watchCollectionFilter').value : 'all';
-  const searching = !!($('watchLibrarySearch') && $('watchLibrarySearch').value.trim());
-  let items = searching ? watchLibraryResults : watchLibraryCache;
-  if (filter === 'continue') items = items.filter((x) => !x.completed && watchProgress(x) > 0);
-  else if (filter === 'completed') items = items.filter((x) => x.completed);
-  else if (filter.startsWith('collection:')) items = items.filter((x) => (x.collections || []).includes(filter.slice(11)));
-  $('watchLibraryCount').textContent = String(watchLibraryCache.length);
-  // Kayıt yokken de görünür: kullanıcı özelliğin nerede olduğunu anlayabilsin.
-  card.classList.remove('hidden');
-  strip.innerHTML = '';
-  const continuing = watchLibraryCache.filter((x) => !x.completed && watchProgress(x) >= 1).slice(0, 8);
-  $('continueWatchingSection').classList.toggle('hidden', continuing.length === 0);
-  continuing.forEach((item) => {
-    const article = document.createElement('article');
-    article.className = 'watch-card';
-    const title = document.createElement('strong');
-    title.textContent = item.title || 'İsimsiz video';
-    const meta = document.createElement('span');
-    meta.textContent = `${pSecToTime(item.position || 0)} / ${pSecToTime(item.duration || 0)}`;
-    const progress = document.createElement('div');
-    progress.className = 'watch-progress';
-    const fill = document.createElement('i');
-    fill.style.width = `${watchProgress(item)}%`;
-    progress.appendChild(fill);
-    article.append(title, meta, progress, makeWatchAction('Devam et', 'open', item.key, item.position || 0));
-    strip.appendChild(article);
-  });
-  list.innerHTML = '';
-  if (!items.length) {
-    const empty = document.createElement('div');
-    empty.className = 'history-empty';
-    empty.textContent = searching ? 'Başlıkta veya bilinen altyazılarda eşleşme yok.' : 'Bu görünümde video yok.';
-    list.appendChild(empty);
-  }
-  items.forEach((item) => {
-    const row = document.createElement('article');
-    row.className = 'watch-list-row';
-    const info = document.createElement('div');
-    const title = document.createElement('strong');
-    title.textContent = item.title || 'İsimsiz video';
-    const meta = document.createElement('span');
-    const collections = (item.collections || []).length ? ` · ${(item.collections || []).join(', ')}` : '';
-    const sourceLabel = item.type === 'youtube' ? 'YouTube' : item.type === 'browser' ? 'Web' : 'Yerel';
-    meta.textContent = `${sourceLabel} · ${historyWhen(item.lastWatched)} · %${Math.round(watchProgress(item))}${collections}`;
-    info.append(title, meta);
-    (item.matches || []).forEach((match) => {
-      const hit = makeWatchAction(`${pSecToTime(match.seconds)} · ${match.snippet}`, 'hit', item.key, match.seconds);
-      hit.className = 'watch-hit';
-      info.appendChild(hit);
-    });
-    const actions = document.createElement('div');
-    actions.className = 'watch-row-actions';
-    actions.append(
-      makeWatchAction(item.completed ? 'Baştan izle' : 'Aç', item.completed ? 'restart' : 'open', item.key, item.completed ? 0 : item.position || 0),
-      makeWatchAction('Koleksiyon', 'collection', item.key),
-      makeWatchAction(item.completed ? 'Tamamlanmadı' : 'Tamamlandı', 'complete', item.key),
-      makeWatchAction('Kaldır', 'remove', item.key),
-    );
-    row.append(info, actions);
-    list.appendChild(row);
-  });
-  updateCollectionOptions();
-}
-
 function renderPlayerLibrary() {
   const panel = $('playerLibraryPanel');
   const list = $('playerLibraryList');
@@ -5008,7 +4935,7 @@ function renderPlayerLibrary() {
 
 function updateCollectionOptions() {
   const names = [...new Set(watchLibraryCache.flatMap((x) => x.collections || []))].sort((a, b) => a.localeCompare(b, 'tr'));
-  ['watchCollectionFilter', 'playerLibraryFilter'].forEach((id) => {
+  ['playerLibraryFilter'].forEach((id) => {
     const select = $(id);
     if (!select) return;
     const current = select.value;
@@ -5024,14 +4951,10 @@ function updateCollectionOptions() {
 }
 
 async function refreshWatchLibrary() {
-  // Devam eden arama cevaplari yeni listeyi eski sonucuyla ezmesin.
-  watchSearchSeq++;
   player.playerLibrarySearchSeq++;
   try { watchLibraryCache = (await window.api.listWatchLibrary()) || []; }
   catch (_) { watchLibraryCache = []; }
-  watchLibraryResults = watchLibraryCache;
   playerLibraryResults = watchLibraryCache;
-  renderWatchLibrary();
   renderPlayerLibrary();
 }
 
@@ -7349,38 +7272,6 @@ async function handleWatchLibraryAction(e) {
 }
 
 refreshWatchLibrary();
-if ($('watchLibrarySearch')) {
-  $('watchLibrarySearch').addEventListener('input', (e) => {
-    clearTimeout(watchSearchTimer);
-    const seq = ++watchSearchSeq;
-    const q = e.target.value.trim();
-    const status = $('watchSearchStatus');
-    if (!q) {
-      watchLibraryResults = watchLibraryCache;
-      if (status) status.classList.add('hidden');
-      renderWatchLibrary();
-      return;
-    }
-    if (status) {
-      status.textContent = 'Başlıklar ve bilinen altyazılar aranıyor...';
-      status.classList.remove('hidden');
-    }
-    watchSearchTimer = setTimeout(async () => {
-      let results = [];
-      try { results = (await window.api.searchWatchLibrary(q)) || []; }
-      catch (_) { results = []; }
-      if (seq !== watchSearchSeq || ($('watchLibrarySearch')?.value || '').trim() !== q) return;
-      watchLibraryResults = results;
-      if (status) {
-        const hitCount = watchLibraryResults.reduce((n, x) => n + (x.matches || []).length, 0);
-        status.textContent = `${watchLibraryResults.length} video · ${hitCount} altyazı eşleşmesi`;
-      }
-      renderWatchLibrary();
-    }, 280);
-  });
-}
-if ($('watchCollectionFilter')) $('watchCollectionFilter').addEventListener('change', renderWatchLibrary);
-if ($('watchLibraryCard')) $('watchLibraryCard').addEventListener('click', handleWatchLibraryAction);
 if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', handleWatchLibraryAction);
 if ($('playerLibraryFilter')) $('playerLibraryFilter').addEventListener('change', renderPlayerLibrary);
 if ($('playerLibrarySearch')) {

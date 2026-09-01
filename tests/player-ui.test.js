@@ -157,15 +157,15 @@ test('izleme kütüphanesi gerçek kalıcı IPC yöntemlerini kullanıyor', () =
   for (const name of ['listWatchLibrary', 'updateWatchItem', 'removeWatchItem', 'searchWatchLibrary']) {
     assert(js.includes(`window.api.${name}`), `${name} renderer tarafından kullanılmıyor`);
   }
-  assert(html.includes('id="watchLibrarySearch"'), 'kütüphane arama alanı yok');
-  assert(html.includes('id="watchCollectionFilter"'), 'koleksiyon filtresi yok');
+  assert(html.includes('id="playerLibrarySearch"'), 'oynatıcı kütüphanesi arama alanı yok');
+  assert(html.includes('id="playerLibraryFilter"'), 'oynatıcı kütüphanesi filtresi yok');
 });
 
-test('izleme kütüphanesi oynatıcı sağ panelinde erişilebilir ve boşken gizlenmiyor', () => {
+test('izleme kütüphanesi yalnız oynatıcı-tarayıcı alanında bulunuyor', () => {
+  assert(!html.includes('id="watchLibraryCard"'), 'kütüphane ana Whisper ekranında yineleniyor');
   assert(html.includes('id="sideTabLibrary"') && html.includes('data-stab="library"'), 'oynatıcı kütüphane sekmesi yok');
   assert(html.includes('id="playerLibraryPanel"'), 'oynatıcı kütüphane paneli yok');
-  const render = js.slice(js.indexOf('function renderWatchLibrary'), js.indexOf('function renderPlayerLibrary'));
-  assert(/card\.classList\.remove\('hidden'\)/.test(render), 'ana kütüphane boşken hâlâ gizleniyor');
+  assert(!/function renderWatchLibrary\s*\(/.test(js), 'ana ekran kütüphanesinin ölü render kodu kaldı');
   const tabs = js.slice(js.indexOf('function setSideTab'), js.indexOf('// ---- bağlamlı AI'));
   assert(/tab === 'library'/.test(tabs) && /playerLibraryPanel/.test(tabs), 'kütüphane sekmesi panele bağlı değil');
 });
@@ -838,11 +838,10 @@ test('geciken YouTube işleri güncel medya kimliğini doğruluyor', () => {
   assert(/playerYtUrl.*trim\(\) !== url/.test(probe), 'probe URL değişimini reddetmiyor');
 });
 
-test('iki kütüphane araması ayrı sonuç ve zamanlayıcı kullanıyor', () => {
-  assert(/playerLibrarySearchTimer/.test(js), 'oynatıcı aramasının ayrı zamanlayıcısı yok');
-  assert(/let playerLibraryResults/.test(js), 'oynatıcı aramasının ayrı sonuç dizisi yok');
-  assert(/seq !== watchSearchSeq/.test(js) && /seq !== player\.playerLibrarySearchSeq/.test(js),
-    'geç arama cevapları reddedilmiyor');
+test('oynatıcı kütüphanesi geciken arama sonucunu reddediyor', () => {
+  assert(/playerLibrarySearchTimer/.test(js), 'oynatıcı aramasının zamanlayıcısı yok');
+  assert(/let playerLibraryResults/.test(js), 'oynatıcı aramasının sonuç dizisi yok');
+  assert(/seq !== player\.playerLibrarySearchSeq/.test(js), 'geç arama cevabı reddedilmiyor');
 });
 
 test('video değişiminde A-B döngüsü ve AI sohbet bağlamı temizleniyor', () => {

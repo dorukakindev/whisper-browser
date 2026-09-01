@@ -3029,85 +3029,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .ai-time-link:hover,
 .ai-time-link:focus-visible { color: #1b1408; background: var(--player-amber); outline: none; }
 
-/* İzleme kütüphanesi: iş geçmişinden daha görsel, fakat ana çalışma alanını
-   ele geçirmeyen kompakt bir medya rafı. */
-.watch-library-card {
-  overflow: hidden;
-  border-color: rgba(228, 168, 93, .2);
-  background:
-    radial-gradient(900px 180px at 12% 0%, rgba(228, 168, 93, .08), transparent 55%),
-    var(--surface, #111820);
-}
-.watch-library-head { align-items: flex-start; gap: 18px; }
-.watch-library-head h2 { margin-bottom: 3px; }
-.card-kicker { margin: 0; color: var(--text-muted, #75808b); font-size: 12px; }
-.watch-library-filters { display: flex; align-items: center; gap: 8px; }
-.watch-library-filters .preview-search { width: min(260px, 24vw); }
-.watch-library-filters select { min-width: 142px; }
-.continue-section { margin: 18px 0 16px; }
-.section-label {
-  margin-bottom: 9px;
-  color: var(--text-muted, #89939d);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .13em;
-  text-transform: uppercase;
-}
-.watch-strip {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(190px, 1fr);
-  gap: 10px;
-  overflow-x: auto;
-  padding: 1px 1px 8px;
-  scrollbar-width: thin;
-}
-.watch-card {
-  display: grid;
-  grid-template-rows: minmax(38px, auto) auto auto auto;
-  gap: 8px;
-  min-width: 0;
-  padding: 13px;
-  border: 1px solid rgba(255,255,255,.075);
-  border-radius: 12px;
-  background: rgba(5, 10, 15, .58);
-}
-.watch-card strong {
-  overflow: hidden;
-  color: #e7e9ec;
-  font-size: 13px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.watch-card > span { color: #87919b; font-size: 11px; font-variant-numeric: tabular-nums; }
-.watch-card .link-btn { justify-self: start; padding: 0; color: #e3b164; }
 .watch-progress { height: 3px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.08); }
 .watch-progress i { display: block; height: 100%; border-radius: inherit; background: #dfa856; box-shadow: 0 0 10px rgba(223,168,86,.28); }
-.watch-search-status {
-  margin: 0 0 8px;
-  padding: 8px 10px;
-  border-left: 2px solid #d9a253;
-  color: #9da6af;
-  background: rgba(217, 162, 83, .055);
-  font-size: 11px;
-}
-.watch-library-list { display: grid; gap: 1px; border-top: 1px solid rgba(255,255,255,.065); }
-.watch-list-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: center;
-  padding: 12px 4px;
-  border-bottom: 1px solid rgba(255,255,255,.055);
-}
-.watch-list-row > div:first-child { display: grid; min-width: 0; gap: 4px; }
-.watch-list-row strong { overflow: hidden; color: #e0e4e8; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.watch-list-row span { color: #78838e; font-size: 11px; }
-.watch-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
-.watch-row-actions .link-btn { padding: 2px 0; font-size: 11px; }
 .watch-hit {
   max-width: 100%;
   overflow: hidden;
@@ -3129,13 +3052,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .player-controls #playerPrevMedia:disabled,
 .player-controls #playerNextMedia:disabled { opacity: .28; cursor: default; }
 
-@media (max-width: 900px) {
-  .watch-library-head { display: grid; }
-  .watch-library-filters { width: 100%; }
-  .watch-library-filters .preview-search { width: 100%; }
-  .watch-list-row { grid-template-columns: 1fr; }
-  .watch-row-actions { justify-content: flex-start; }
-}
 .player-controls .player-volume { width: 86px; }
 .seek-track, .seek-buffered, .seek-played { height: 4px; }
 .seek-wrap:hover .seek-track, .seek-wrap:hover .seek-buffered, .seek-wrap:hover .seek-played { height: 6px; }
