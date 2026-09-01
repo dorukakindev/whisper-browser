@@ -1389,6 +1389,15 @@ if ($('deepseekKeyHelp')) {
         updateGpuBadge();
         logLine(`GPU: ${env.gpu.trim()}`, 'info');
       }
+      if (env.gpuFeatures) {
+        const featureLabel = (value) => String(value || 'bilinmiyor').replace(/_/g, ' ');
+        const accelerated = [env.gpuFeatures.videoDecode, env.gpuFeatures.webgl,
+          env.gpuFeatures.gpuCompositing].some((value) => String(value || '').startsWith('enabled'));
+        logLine(`Tarayıcı GPU ${accelerated ? 'etkin' : 'sınırlı'} · video çözme: ${featureLabel(env.gpuFeatures.videoDecode)}`
+          + ` · WebGL: ${featureLabel(env.gpuFeatures.webgl)}`
+          + ` · kompozisyon: ${featureLabel(env.gpuFeatures.gpuCompositing)}`,
+        accelerated ? 'success' : 'warn');
+      }
       if (!env.venv) logLine('⚠ Python sanal ortamı bulunamadı — önce install.bat çalıştırın.', 'warn');
       if (!env.ffmpeg) logLine('⚠ ffmpeg bulunamadı — PATH\'e ekleyin veya backend/bin/ içine koyun.', 'warn');
     }

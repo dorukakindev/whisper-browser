@@ -47,13 +47,10 @@ const { withAbortTimeout, withTimeout } = require('./async-timeout');
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
 // tarayıcının aynı sayfada sonsuza kadar siyah ekranda kalmasını önler.
 app.commandLine.appendSwitch('disable-quic');
-// Bazı Windows kurulumlarında Electron GPU süreci eksik/uyumsuz DLL nedeniyle
-// daha pencere oluşmadan çökebiliyor (STATUS_DLL_NOT_FOUND). Whisper'ın Python
-// CUDA'sından bağımsız olan bu ayar arayüzü yazılım çizimine alır; tarayıcı ve
-// DRM akışı açılmaya devam eder, model GPU kullanımı etkilenmez.
-app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('in-process-gpu');
-if (typeof app.disableHardwareAcceleration === 'function') app.disableHardwareAcceleration();
+// Electron/Chromium donanım hızlandırması varsayılan olarak açıktır. Burada
+// disable-gpu / in-process-gpu kullanmayın: gömülü tarayıcı video çözme, WebGL
+// ve sayfa kompozisyonunu CPU'ya düşürerek özellikle yüksek çözünürlüklü web
+// videolarında takılmaya neden olur.
 
 let mainWindow;
 let mainWindowClosing = false;
@@ -2834,6 +2831,7 @@ ipcMain.handle('app:getEnvInfo', async () => {
       videoDecode: st.video_decode || 'bilinmiyor',
       canvas: st['2d_canvas'] || 'bilinmiyor',
       webgl: st.webgl || 'bilinmiyor',
+      gpuCompositing: st.gpu_compositing || 'bilinmiyor',
     };
   } catch (_) {}
   return { venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib, gpuFeatures };

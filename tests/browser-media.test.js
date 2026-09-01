@@ -31,9 +31,10 @@ test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   assert.match(main, /rankBrowserMediaCandidates\(candidates\)/);
   assert.doesNotMatch(main, /executeBrowserFrames\(browserMediaCommandScript/);
-  assert.match(main, /appendSwitch\('disable-gpu'\)/);
-  assert.match(main, /disableHardwareAcceleration\(\)/);
-  assert.match(main, /appendSwitch\('in-process-gpu'\)/);
+  assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('disable-gpu'\)/);
+  assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('in-process-gpu'\)/);
+  assert.doesNotMatch(main, /app\.disableHardwareAcceleration\(\)/);
+  assert.match(main, /gpuCompositing: st\.gpu_compositing/);
 });
 
 test('medya zamanlayıcısı komutlarla aynı aday sıralamasını kullanır', () => {

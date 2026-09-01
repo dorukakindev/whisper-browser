@@ -58,6 +58,13 @@ test('VRAM uyarısı motor ve batch boyutunu hesaba katıyor', () => {
     'batch kaydırıcısı rozeti canlı güncellemiyor');
 });
 
+test('Chromium donanım hızlandırma durumu açılış günlüğünde görünür', () => {
+  const init = js.slice(js.indexOf('// Ortam kontrolü:'), js.indexOf('// Seçili model+motor'));
+  assert(/env\.gpuFeatures/.test(init), 'Chromium GPU özellikleri okunmuyor');
+  assert(/video çözme:/.test(init) && /WebGL:/.test(init) && /kompozisyon:/.test(init),
+    'video decode, WebGL ve kompozisyon durumu kullanıcıya gösterilmiyor');
+});
+
 test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
   const start = js.lastIndexOf("document.addEventListener('keydown'");
   const body = js.slice(start, start + 4200);
