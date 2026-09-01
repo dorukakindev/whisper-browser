@@ -62,12 +62,15 @@ let browserTrackTimer = null;
 let browserMediaTimer = null;
 let browserCaptureTimer = null;
 let browserCaptureBusy = false;
+let browserTrackBusy = false;
 let browserCaptureEnabled = true;
 let browserDebuggerReady = false;
 const browserPendingResponses = new Map();
 const browserTrackBuffers = new Map();
 const browserTrackPublications = new Map();
 const browserSeenManifests = new Map();
+const browserHlsFetchedSegments = new Map();
+const browserHlsInFlight = new Set();
 let browserDashSubtitleMatchers = [];
 let browserLastDrmStatus = '';
 let browserLastDrmFailure = '';
@@ -422,18 +425,27 @@ function scanWatchFolder() {
     const ext = path.extname(file).slice(1).toLowerCase();
     if (!MEDIA_EXTS.has(ext)) continue;
     // Yanında altyazı varsa zaten işlenmiş say (tekrar tekrar çevirmesin)
-    if (hasConfiguredWatchOutput(file, watchOutputConfig, fs.existsSync)) {
-      watchSeen.set(file, { queued: true });
+    const hasOutput = hasConfiguredWatchOutput(file, watchOutputConfig, fs.existsSync);
+    if (hasOutput) {
+      watchSeen.set(file, { queued: true, hadOutput: true });
       continue;
     }
     let size;
     try { size = fs.statSync(file).size; } catch (_) { continue; }
     const prev = watchSeen.get(file);
     if (!prev) {
-      watchSeen.set(file, { size, stableCount: 0, queued: false });
+      watchSeen.set(file, { size, stableCount: 0, queued: false, hadOutput: false });
       continue;
     }
-    if (prev.queued) continue;
+    // Çıktı sonradan silindiyse eski "queued" damgasını kaldır; dosya yeniden
+    // sabitlenince tekrar kuyruğa girebilsin.
+    if (prev.queued && prev.hadOutput) {
+      prev.queued = false;
+      prev.hadOutput = false;
+      prev.size = size;
+      prev.stableCount = 0;
+      continue;
+    }
     if (prev.size === size) {
       prev.stableCount += 1;
       if (prev.stableCount >= WATCH_STABLE_TICKS) {
@@ -446,6 +458,10 @@ function scanWatchFolder() {
     }
   }
 
+  // Silinen/taşınan medya dosyaları için bellekte sonsuza dek kayıt tutma.
+  const foundSet = new Set(found);
+  for (const file of watchSeen.keys()) if (!foundSet.has(file)) watchSeen.delete(file);
+
   if (ready.length && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('watch:newFiles', ready);
   }
@@ -456,17 +472,23 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
   watchDir = dir;
   watchOutputConfig = normalizeWatchOutputConfig(options);
   watchSeen.clear();
-  // İlk tarama: mevcut dosyalar "görülmüş" sayılır ki açılışta hepsi kuyruğa dolmasın
+  // İlk tarama da çıktı-temelli olsun. Çıktısı olmayan dosyaları "queued" diye
+  // işaretlemek, yeniden başlatma sonrasında veya yarım kalan işlerde dosyanın
+  // bir daha hiç kuyruğa girmemesine neden oluyordu.
   try {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, ent.name);
       if (ent.isFile() && MEDIA_EXTS.has(path.extname(full).slice(1).toLowerCase())) {
-        watchSeen.set(full, { queued: true });
+        const hasOutput = hasConfiguredWatchOutput(full, watchOutputConfig, fs.existsSync);
+        const size = hasOutput ? 0 : (() => { try { return fs.statSync(full).size; } catch (_) { return 0; } })();
+        watchSeen.set(full, { size, stableCount: 0, queued: hasOutput, hadOutput: hasOutput });
       } else if (ent.isDirectory()) {
         for (const sub of fs.readdirSync(full, { withFileTypes: true })) {
           const nested = path.join(full, sub.name);
           if (sub.isFile() && MEDIA_EXTS.has(path.extname(nested).slice(1).toLowerCase())) {
-            watchSeen.set(nested, { queued: true });
+            const hasOutput = hasConfiguredWatchOutput(nested, watchOutputConfig, fs.existsSync);
+            const size = hasOutput ? 0 : (() => { try { return fs.statSync(nested).size; } catch (_) { return 0; } })();
+            watchSeen.set(nested, { size, stableCount: 0, queued: hasOutput, hadOutput: hasOutput });
           }
         }
       }
@@ -1090,6 +1112,10 @@ function resetBrowserCaptureState() {
   browserTrackPublications.clear();
   browserSeenManifests.clear();
   browserDashSubtitleMatchers = [];
+  browserCaptureBusy = false;
+  browserTrackBusy = false;
+  browserHlsFetchedSegments.clear();
+  browserHlsInFlight.clear();
   browserLastDrmFailure = '';
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
   browserDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url);
@@ -1212,33 +1238,54 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}) 
   if (!isHlsSubtitlePlaylist(playlistBody, playlistUrl)) return false;
   const language = meta.language || subtitleLanguage({ url: playlistUrl });
   const streamKey = browserTrackStreamKey(playlistUrl, language);
-  const parts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600);
-  const collected = [];
-  // Yalnızca altyazı olduğu doğrulanmış playlist işlenir. Altışarlı gruplar
-  // uzun filmlerde hızlıdır ama CDN'i yüzlerce eşzamanlı istekle boğmaz.
-  for (let index = 0; index < parts.length; index += 6) {
-    const batch = await Promise.all(parts.slice(index, index + 6).map(async (segment) => {
-      try {
-        const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024);
-        const part = parseSubtitlePayload(partBody, '', segment.url);
-        if (!part.cues.length) return false;
-        const hasTimestampMap = /X-TIMESTAMP-MAP/i.test(partBody);
-        const likelyLocalTimeline = !hasTimestampMap && segment.start > 0
-          && cuesUseLocalSegmentTimeline(part.cues, segment.duration, segment.start);
-        collected.push(...part.cues.map((cue) => likelyLocalTimeline
-          ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
-          : cue));
-        return true;
-      } catch (_) { return false; }
-    }));
-    void batch;
+  if (browserHlsInFlight.has(streamKey)) return false;
+  browserHlsInFlight.add(streamKey);
+  try {
+    const fetched = browserHlsFetchedSegments.get(streamKey) || new Set();
+    browserHlsFetchedSegments.set(streamKey, fetched);
+    const parts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600)
+      .filter((segment) => !fetched.has(segment.url));
+    if (!parts.length) return false;
+    const collected = [];
+    // Yalnızca yeni segmentleri indir; canlı playlist her yenilendiğinde eski
+    // parçaları tekrar istemek hem gereksiz trafik hem de servis yükü yaratır.
+    for (let index = 0; index < parts.length; index += 6) {
+      const batch = await Promise.all(parts.slice(index, index + 6).map(async (segment) => {
+        try {
+          const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024);
+          const part = parseSubtitlePayload(partBody, '', segment.url);
+          if (!part.cues.length) return false;
+          const hasTimestampMap = /X-TIMESTAMP-MAP/i.test(partBody);
+          const likelyLocalTimeline = !hasTimestampMap && segment.start > 0
+            && cuesUseLocalSegmentTimeline(part.cues, segment.duration, segment.start);
+          collected.push(...part.cues.map((cue) => likelyLocalTimeline
+            ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
+            : cue));
+          fetched.add(segment.url);
+          return true;
+        } catch (_) {
+          // Başarısız segmenti tekrar denenebilir bırak.
+          fetched.delete(segment.url);
+          return false;
+        }
+      }));
+      void batch;
+    }
+    if (!collected.length) return false;
+    storeBrowserTrack(collected, {
+      language, label: meta.label || language || 'HLS altyazısı', format: 'hls-vtt',
+      sourceUrl: playlistUrl, streamKey,
+    });
+    // Canlı yayınlarda bellek büyümesini sınırlarken henüz playlistte görülen
+    // son segmentleri koru.
+    if (fetched.size > 4000) {
+      const keep = [...fetched].slice(-2000);
+      fetched.clear(); keep.forEach((url) => fetched.add(url));
+    }
+    return true;
+  } finally {
+    browserHlsInFlight.delete(streamKey);
   }
-  if (!collected.length) return false;
-  storeBrowserTrack(collected, {
-    language, label: meta.label || language || 'HLS altyazısı', format: 'hls-vtt',
-    sourceUrl: playlistUrl, streamKey,
-  });
-  return true;
 }
 
 async function processBrowserCapturedPayload(responseBuffer, candidate = {}, strategy = 'cdp') {
@@ -1559,9 +1606,18 @@ function browserFrames() {
 }
 
 async function executeBrowserFrames(script) {
-  const results = await Promise.all(browserFrames().map((frame) =>
+  const work = Promise.all(browserFrames().map((frame) =>
     frame.executeJavaScript(script, true).catch(() => null)));
-  return results.filter((result) => result !== null && result !== undefined);
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Tarayıcı sayfası yanıt vermedi.')), 5000);
+  });
+  try {
+    const results = await Promise.race([work, timeout]);
+    return results.filter((result) => result !== null && result !== undefined);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function browserMediaCommandScript(command, value) {
@@ -1601,7 +1657,8 @@ function browserMediaCommandScript(command, value) {
 function startBrowserPolling() {
   stopBrowserPolling();
   browserTrackTimer = setInterval(async () => {
-    if (!browserCaptureEnabled || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    if (!browserCaptureEnabled || browserTrackBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    browserTrackBusy = true;
     try {
       const frameTracks = await executeBrowserFrames(browserTrackProbeScript());
       for (const tracks of frameTracks) for (const track of tracks || []) {
@@ -1613,7 +1670,9 @@ function startBrowserPolling() {
           url: track.sourceUrl || 'dom:texttrack', mimeType: 'text/html5-track',
         }, 'parsed', `${track.cues.length} satır`);
       }
-    } catch (_) {}
+    } catch (_) {} finally {
+      browserTrackBusy = false;
+    }
   }, 2600);
   browserCaptureTimer = setInterval(async () => {
     if (!browserCaptureEnabled || browserCaptureBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
@@ -1643,8 +1702,11 @@ function startBrowserPolling() {
   browserMediaTimer = setInterval(async () => {
     if (!browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     try {
-      const media = (await executeBrowserFrames(browserMediaProbeScript()))
-        .sort((a, b) => Number(b.area || 0) - Number(a.area || 0))[0];
+      // Komut gönderiminde kullanılan sıralamayla aynı adayı seç. Böylece
+      // durum/altyazı yayını, komutların hedeflediği videodan kopmaz.
+      const media = rankBrowserMediaCandidates(
+        (await executeBrowserFrames(browserMediaProbeScript())).map((item) => ({ media: item }))
+      )[0]?.media;
       if (media) sendBrowserEvent({ type: 'media', media });
     } catch (_) {}
   }, 500);
@@ -1658,6 +1720,7 @@ function stopBrowserPolling() {
   browserMediaTimer = null;
   browserCaptureTimer = null;
   browserCaptureBusy = false;
+  browserTrackBusy = false;
 }
 
 function browserOverlayScript(payload) {

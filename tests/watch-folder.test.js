@@ -62,11 +62,14 @@ test('izleme IPCsi renderer ayarlarını ana sürece taşır', () => {
   const root = path.join(__dirname, '..', 'src');
   const preload = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   assert.match(preload, /startWatchFolder: \(dir, options\)/);
   assert.match(renderer, /formats: opts\.formats/);
   assert.match(renderer, /langSuffix: opts\.langSuffix/);
   assert.match(renderer, /outputDir: opts\.outputDir/);
   assert.match(renderer, /translateTo: opts\.translateTo/);
+  assert.match(main, /prev\.queued && prev\.hadOutput/);
+  assert.match(main, /queued: hasOutput, hadOutput: hasOutput/);
 });
 
 console.log(`watch-folder: ${passed} test`);
