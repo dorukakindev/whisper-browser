@@ -427,6 +427,18 @@ test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabil
     'sade görünümde adres dışı araçlar tamamen çekilmiyor');
 });
 
+test('tarayıcı altyazı yakalaması normal gezinme için durdurulup yeniden başlatılabilir', () => {
+  assert(layer.includes('id="browserCaptureToggle"'), 'yakalama aç/kapat düğmesi yok');
+  assert(/setBrowserCaptureEnabled/.test(js), 'yakalama durumu rendererda bağlı değil');
+  assert(/playerBrowserCaptureEnabled/.test(js), 'yakalama tercihi kalıcı değil');
+  assert(/browser:capture:setEnabled/.test(fs.readFileSync(path.join(SRC, '..', 'main.js'), 'utf-8')),
+    'yakalama IPC ucu yok');
+  assert(/startWatchFolder|setBrowserCaptureEnabled/.test(fs.readFileSync(path.join(SRC, '..', 'preload.js'), 'utf-8')),
+    'preload yakalama köprüsü yok');
+  assert(/\.browser-capture-toggle\s*\{[^}]*flex:\s*0 0 auto/.test(css),
+    'yakalama düğmesi sinyal satırını gereksiz büyütüyor');
+});
+
 // ---- 14. izlerken canlı cümle birleştirme ----
 test('oynatıcıda cümle birleştirme anahtarı var ve dosyayı değiştirmiyor', () => {
   assert(/id="playerMergeCont"/.test(layer), 'oynaticida anahtar yok');

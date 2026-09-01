@@ -3841,16 +3841,21 @@ body::before {
   border: 1px solid #29292c;
   background: #151516;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 .browser-diagnostics-toggle:hover,
 .browser-diagnostics-toggle[aria-expanded="true"] { color: #e0e0e2; border-color: #4a3a22; background: #201b14; }
 .browser-signal-tool,
 .browser-cookie-action,
 .browser-session-reset { width: auto; min-height: 30px; padding: 0 9px; color: #929297; white-space: nowrap; }
+.browser-signal-tool { flex: 0 0 auto; }
 .browser-signal-tool:hover,
 .browser-cookie-action:hover,
 .browser-session-reset:hover { color: #dfdfe1; border-color: #4a3a22; background: #201b14; }
 .browser-cookie-action { color: #c2a16d; }
+.browser-capture-toggle { flex: 0 0 auto; color: #c2a16d; border-color: #4a3a22; background: #201b14; }
+.browser-capture-toggle[aria-pressed="false"] { color: #8d8d92; border-color: #29292c; background: #151516; }
+.browser-capture-toggle:hover { color: #f0d29a; border-color: #6a512b; background: #282015; }
 .browser-track-actions { min-width: 0; display: flex; align-items: center; gap: 6px; }
 .browser-track-actions select {
   width: min(180px, 18vw);

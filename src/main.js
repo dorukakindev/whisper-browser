@@ -62,6 +62,7 @@ let browserTrackTimer = null;
 let browserMediaTimer = null;
 let browserCaptureTimer = null;
 let browserCaptureBusy = false;
+let browserCaptureEnabled = true;
 let browserDebuggerReady = false;
 const browserPendingResponses = new Map();
 const browserTrackBuffers = new Map();
@@ -968,6 +969,7 @@ function freshBrowserDiagnostics(url = '') {
   return {
     adapter: { id: adapter.id, label: adapter.label, help: adapter.help },
     pageUrl: redactCaptureUrl(url),
+    captureEnabled: browserCaptureEnabled,
     counts: { cdp: 0, page: 0, textTrack: 0, manifest: 0, parsed: 0, rejected: 0, errors: 0 },
     recent: [],
   };
@@ -1092,6 +1094,17 @@ function resetBrowserCaptureState() {
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
   browserDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url);
   publishBrowserDiagnostics();
+}
+
+function browserCaptureToggleScript(enabled) {
+  return `(() => {
+    window.__whisperCaptureEnabled = ${enabled ? 'true' : 'false'};
+    if (!window.__whisperCaptureEnabled) {
+      if (Array.isArray(window.__whisperCaptureQueue)) window.__whisperCaptureQueue.length = 0;
+      if (window.__whisperCaptureSeen && typeof window.__whisperCaptureSeen.clear === 'function') window.__whisperCaptureSeen.clear();
+    }
+    return window.__whisperCaptureEnabled;
+  })()`;
 }
 
 function browserTrackStreamKey(sourceUrl, language = '') {
@@ -1353,7 +1366,7 @@ async function captureBrowserResponse(pendingKey) {
 }
 
 async function attachBrowserDebugger() {
-  if (!browserView || browserView.webContents.isDestroyed()) return;
+  if (!browserCaptureEnabled || !browserView || browserView.webContents.isDestroyed()) return;
   const wc = browserView.webContents;
   try {
     if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
@@ -1411,8 +1424,12 @@ function browserTrackProbeScript() {
 
 function browserCaptureHookScript() {
   return `(() => {
-    if (window.__whisperCaptureInstalled) return true;
+    if (window.__whisperCaptureInstalled) {
+      window.__whisperCaptureEnabled = true;
+      return true;
+    }
     window.__whisperCaptureInstalled = true;
+    window.__whisperCaptureEnabled = true;
     window.__whisperCaptureQueue = [];
     window.__whisperCaptureSeen = new Set();
     window.__whisperSourceOffsets = [];
@@ -1420,6 +1437,7 @@ function browserCaptureHookScript() {
     const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
     const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
     const push = (entry) => {
+      if (!window.__whisperCaptureEnabled) return;
       const body = String(entry.body || '');
       const bodyBase64 = String(entry.bodyBase64 || '');
       const binaryBytes = bodyBase64 ? Math.floor(bodyBase64.length * 3 / 4) : 0;
@@ -1436,6 +1454,7 @@ function browserCaptureHookScript() {
       window.__whisperCaptureQueue = window.__whisperCaptureQueue.slice(-32);
     };
     const inspectResponse = (url, response) => {
+      if (!window.__whisperCaptureEnabled) return;
       try {
         const mime = response.headers && response.headers.get ? (response.headers.get('content-type') || '') : '';
         if (!hinted.test(String(url || '')) && !acceptedMime.test(mime)) return;
@@ -1582,7 +1601,7 @@ function browserMediaCommandScript(command, value) {
 function startBrowserPolling() {
   stopBrowserPolling();
   browserTrackTimer = setInterval(async () => {
-    if (!browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    if (!browserCaptureEnabled || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     try {
       const frameTracks = await executeBrowserFrames(browserTrackProbeScript());
       for (const tracks of frameTracks) for (const track of tracks || []) {
@@ -1597,7 +1616,7 @@ function startBrowserPolling() {
     } catch (_) {}
   }, 2600);
   browserCaptureTimer = setInterval(async () => {
-    if (browserCaptureBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    if (!browserCaptureEnabled || browserCaptureBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     browserCaptureBusy = true;
     try {
       await executeBrowserFrames(browserCaptureHookScript());
@@ -1864,13 +1883,15 @@ function ensureBrowserView() {
   });
   wc.on('dom-ready', () => {
     attachBrowserDebugger();
-    executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+    if (browserCaptureEnabled) executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
     applyBrowserOverlay();
     reportBrowserDrmSupport();
   });
   wc.debugger.on('detach', () => { browserDebuggerReady = false; });
   wc.debugger.on('message', (_event, method, params, sessionId) => {
+    if (!browserCaptureEnabled && /^Network\./.test(method)) return;
     if (method === 'Target.attachedToTarget' && params && params.sessionId) {
+      if (!browserCaptureEnabled) return;
       wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }, params.sessionId).catch(() => {});
       return;
     }
@@ -2055,7 +2076,7 @@ ipcMain.handle('browser:show', (event, rawBounds) => {
   const hasPage = !!browserNavigationState().url;
   view.setVisible(hasPage);
   startBrowserPolling();
-  return { ok: true, hasPage, diagnostics: browserDiagnostics, ...browserNavigationState() };
+  return { ok: true, hasPage, captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
 });
 
 ipcMain.handle('browser:hide', (event) => {
@@ -2140,9 +2161,30 @@ ipcMain.handle('browser:command', async (event, command, value) => {
   }
 });
 
+ipcMain.handle('browser:capture:setEnabled', async (event, enabled) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  browserCaptureEnabled = enabled !== false;
+  browserPendingResponses.clear();
+  browserCaptureBusy = false;
+  if (browserView && !browserView.webContents.isDestroyed()) {
+    if (browserCaptureEnabled) {
+      await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+      attachBrowserDebugger();
+    } else {
+      await executeBrowserFrames(browserCaptureToggleScript(false)).catch(() => {});
+      try { if (browserView.webContents.debugger.isAttached()) browserView.webContents.debugger.detach(); } catch (_) {}
+      browserDebuggerReady = false;
+    }
+  }
+  if (browserDiagnostics) browserDiagnostics.captureEnabled = browserCaptureEnabled;
+  sendBrowserEvent({ type: 'capture-enabled', enabled: browserCaptureEnabled });
+  publishBrowserDiagnostics();
+  return { ok: true, enabled: browserCaptureEnabled };
+});
+
 ipcMain.handle('browser:getState', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
-  return { ok: true, visible: browserVisible, diagnostics: browserDiagnostics,
+  return { ok: true, visible: browserVisible, captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics,
     places: browserPlacesSnapshot(), ...browserNavigationState() };
 });
 

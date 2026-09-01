@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('api', {
   setBrowserBounds: (bounds) => ipcRenderer.invoke('browser:setBounds', bounds),
   navigateBrowser: (url) => ipcRenderer.invoke('browser:navigate', url),
   browserCommand: (command, value) => ipcRenderer.invoke('browser:command', command, value),
+  setBrowserCaptureEnabled: (enabled) => ipcRenderer.invoke('browser:capture:setEnabled', enabled),
   getBrowserState: () => ipcRenderer.invoke('browser:getState'),
   listBrowserPlaces: () => ipcRenderer.invoke('browser:places:list'),
   toggleBrowserBookmark: (entry) => ipcRenderer.invoke('browser:places:toggleBookmark', entry),

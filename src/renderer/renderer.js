@@ -2507,6 +2507,7 @@ const player = {
   browserLoadedTrackId: '',
   browserLoadedTrackId2: '',
   browserDiagnostics: null,
+  browserCaptureEnabled: true,
   browserPlaces: { history: [], bookmarks: [] },
   browserPlaceTab: 'bookmarks',
   browserPlacesSeq: 0,
@@ -2524,6 +2525,7 @@ try {
   if (savedWorkspace === 'browser' || savedWorkspace === 'player') player.workspaceMode = savedWorkspace;
   player.browserSignalVisible = localStorage.getItem('playerBrowserSignalVisible') !== 'false';
   player.browserChromeCollapsed = localStorage.getItem('playerBrowserChromeCollapsed') === 'true';
+  player.browserCaptureEnabled = localStorage.getItem('playerBrowserCaptureEnabled') !== 'false';
 } catch (_) {}
 
 function browserSlotBounds() {
@@ -2575,6 +2577,25 @@ function setBrowserSignalVisible(visible, persist = true) {
     try { localStorage.setItem('playerBrowserSignalVisible', player.browserSignalVisible ? 'true' : 'false'); } catch (_) {}
   }
   scheduleBrowserBounds();
+}
+
+function setBrowserCaptureEnabled(enabled, persist = true) {
+  player.browserCaptureEnabled = !!enabled;
+  const button = $('browserCaptureToggle');
+  if (button) {
+    button.textContent = player.browserCaptureEnabled ? 'Yakalama açık' : 'Yakalama kapalı';
+    button.setAttribute('aria-pressed', player.browserCaptureEnabled ? 'true' : 'false');
+    button.title = player.browserCaptureEnabled ? 'Altyazı yakalamayı durdur' : 'Altyazı yakalamayı başlat';
+    button.setAttribute('aria-label', button.title);
+  }
+  if (player.workspaceMode === 'browser' && $('playerMeta')) {
+    $('playerMeta').textContent = player.browserCaptureEnabled
+      ? 'Web videosu · altyazı algılama açık'
+      : 'Web videosu · altyazı yakalama kapalı';
+  }
+  if (persist) {
+    try { localStorage.setItem('playerBrowserCaptureEnabled', player.browserCaptureEnabled ? 'true' : 'false'); } catch (_) {}
+  }
 }
 
 function setBrowserChromeCollapsed(collapsed, persist = true) {
@@ -3070,12 +3091,16 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
 async function showBrowserWorkspace() {
   const bounds = browserSlotBounds();
   if (!bounds || !window.api.showBrowser) return;
+  if (window.api.setBrowserCaptureEnabled) {
+    await window.api.setBrowserCaptureEnabled(player.browserCaptureEnabled).catch(() => {});
+  }
   const result = await window.api.showBrowser(bounds);
   if (!result || !result.ok) {
     setBrowserSignal((result && result.error) || 'Tarayıcı alanı açılamadı.', false);
     return;
   }
   updateBrowserNavigation(result);
+  if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
   if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
   if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
   else loadBrowserPlaces();
@@ -3097,6 +3122,7 @@ function setWorkspaceMode(mode, persist = true) {
   layer?.classList.toggle('browser-chrome-collapsed', mode === 'browser' && player.browserChromeCollapsed);
   $('browserWorkspace')?.classList.toggle('hidden', mode !== 'browser');
   setBrowserSignalVisible(player.browserSignalVisible, false);
+  setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
   const playerButton = $('workspacePlayerMode');
   const browserButton = $('workspaceBrowserMode');
   if (playerButton) {
@@ -3236,6 +3262,22 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
 if ($('browserBack')) $('browserBack').addEventListener('click', () => window.api.browserCommand('back'));
 if ($('browserForward')) $('browserForward').addEventListener('click', () => window.api.browserCommand('forward'));
 if ($('browserReload')) $('browserReload').addEventListener('click', () => window.api.browserCommand('reload'));
+if ($('browserCaptureToggle')) $('browserCaptureToggle').addEventListener('click', async () => {
+  const button = $('browserCaptureToggle');
+  if (button.disabled) return;
+  const next = !player.browserCaptureEnabled;
+  button.disabled = true;
+  const result = await (window.api.setBrowserCaptureEnabled
+    ? window.api.setBrowserCaptureEnabled(next)
+    : Promise.resolve(null)).catch(() => null);
+  button.disabled = false;
+  if (!result || !result.ok) {
+    setBrowserSignal('Altyazı yakalama durumu değiştirilemedi.', false);
+    return;
+  }
+  setBrowserCaptureEnabled(result.enabled !== false);
+  setBrowserSignal(result.enabled ? 'Altyazı yakalama yeniden başlatıldı.' : 'Altyazı yakalama durduruldu; tarayıcı kullanımı devam ediyor.', false);
+});
 if ($('browserSignalToggle')) $('browserSignalToggle').addEventListener('click', () => {
   setBrowserSignalVisible(!player.browserSignalVisible);
 });
@@ -3364,7 +3406,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
   } else if (event.type === 'capture-warning') {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
+  } else if (event.type === 'capture-enabled') {
+    setBrowserCaptureEnabled(event.enabled !== false, false);
   } else if (event.type === 'capture-status' && event.diagnostics) {
+    if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
   } else if (event.type === 'drm-status') {
     const message = event.supported
