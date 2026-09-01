@@ -1048,74 +1048,82 @@
             <div class="browser-places-list" id="browserPlacesList"></div>
           </section>
 
-          <div class="browser-signal" id="browserSignal" role="status" aria-live="polite">
+          <div class="browser-signal" id="browserSignal">
             <span class="browser-signal-line" aria-hidden="true"></span>
-            <div class="browser-signal-copy">
-              <span class="browser-signal-kicker">ALTYAZI SİNYALİ</span>
-              <span class="browser-signal-text" id="browserSignalText">Sayfadaki video ve altyazı izleri burada algılanır.</span>
+            <div class="browser-signal-head">
+              <div class="browser-signal-copy">
+                <span class="browser-signal-kicker">ALTYAZI SİNYALİ</span>
+                <span class="browser-signal-text" id="browserSignalText" role="status" aria-live="polite">Sayfadaki video ve altyazı izleri burada algılanır.</span>
+              </div>
+              <div class="browser-signal-state-actions" aria-label="Altyazı yakalama durumu">
+                <button class="btn btn-ghost btn-sm browser-capture-toggle" id="browserCaptureToggle"
+                  type="button" aria-pressed="true" title="Altyazı yakalamayı durdur" aria-label="Altyazı yakalamayı durdur">Yakalama açık</button>
+                <button class="btn btn-ghost btn-sm browser-diagnostics-toggle" id="browserDiagnosticsToggle"
+                  type="button" aria-expanded="false" aria-controls="browserDiagnosticsPanel">Ayrıntılar</button>
+                <button class="btn-icon browser-dismiss browser-signal-close" id="browserSignalClose" type="button"
+                  title="Altyazı sinyalini gizle" aria-label="Altyazı sinyalini gizle">×</button>
+              </div>
             </div>
-            <button class="btn btn-ghost btn-sm browser-capture-toggle" id="browserCaptureToggle"
-              type="button" aria-pressed="true" title="Altyazı yakalamayı durdur" aria-label="Altyazı yakalamayı durdur">Yakalama açık</button>
-            <button class="btn btn-ghost btn-sm browser-diagnostics-toggle" id="browserDiagnosticsToggle"
-              type="button" aria-expanded="false" aria-controls="browserDiagnosticsPanel">Ayrıntılar</button>
-            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>
-            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserCopyAb" type="button" title="A-B aralığındaki altyazıları panoya kopyala">A-B metni</button>
-            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserQueuePage" type="button" title="Açık ve indirilebilir sayfayı transkripsiyon kuyruğuna ekle">Kuyruğa</button>
-            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserExportClip" type="button" title="A-B aralığını açık kaynakta MP4 klip olarak çıkar">A-B klibi</button>
-            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserLiveAsr" type="button" aria-pressed="false" title="Kullanıcı onayıyla sistem sesini yerel Whisper'a gönder">Canlı Whisper</button>
-            <div class="browser-track-actions hidden" id="browserTrackActions">
-              <select id="browserTrackSelect" aria-label="Birinci altyazı izi" title="Birinci altyazı izi"></select>
-              <select id="browserTrackSelect2" aria-label="İkinci altyazı izi" title="İkinci altyazı izi">
-                <option value="">İkinci iz yok</option>
-              </select>
-              <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
-              <button class="btn btn-secondary btn-sm" id="browserTrackLoadPair" type="button">İki izi yükle</button>
-              <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
-              <button class="btn btn-secondary btn-sm" id="browserTrackTranslateAll" type="button">Tüm izi tamamla</button>
-              <select id="browserExportFormat" aria-label="Dışa aktarma biçimi" title="Dışa aktarma biçimi">
-                <option value="srt">SRT</option>
-                <option value="vtt">VTT</option>
-              </select>
-              <button class="btn btn-ghost btn-sm" id="browserTrackExport" type="button">Dışa aktar</button>
-              <button class="btn-icon browser-dismiss" id="browserTrackDismiss" type="button"
-                title="Bu bildirimi kapat" aria-label="Bildirimi kapat">×</button>
+            <div class="browser-signal-body">
+              <div class="browser-signal-tools" role="group" aria-label="Altyazı yardımcı araçları">
+                <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>
+                <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserCopyAb" type="button" title="A-B aralığındaki altyazıları panoya kopyala">A-B metni</button>
+                <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserQueuePage" type="button" title="Açık ve indirilebilir sayfayı transkripsiyon kuyruğuna ekle">Kuyruğa</button>
+                <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserExportClip" type="button" title="A-B aralığını açık kaynakta MP4 klip olarak çıkar">A-B klibi</button>
+                <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserLiveAsr" type="button" aria-pressed="false" title="Kullanıcı onayıyla sistem sesini yerel Whisper'a gönder">Canlı Whisper</button>
+              </div>
+              <div class="browser-track-actions hidden" id="browserTrackActions">
+                <select id="browserTrackSelect" aria-label="Birinci altyazı izi" title="Birinci altyazı izi"></select>
+                <select id="browserTrackSelect2" aria-label="İkinci altyazı izi" title="İkinci altyazı izi">
+                  <option value="">İkinci iz yok</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
+                <button class="btn btn-secondary btn-sm" id="browserTrackLoadPair" type="button">İki izi yükle</button>
+                <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
+                <button class="btn btn-secondary btn-sm" id="browserTrackTranslateAll" type="button">Tüm izi tamamla</button>
+                <select id="browserExportFormat" aria-label="Dışa aktarma biçimi" title="Dışa aktarma biçimi">
+                  <option value="srt">SRT</option>
+                  <option value="vtt">VTT</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" id="browserTrackExport" type="button">Dışa aktar</button>
+                <button class="btn-icon browser-dismiss" id="browserTrackDismiss" type="button"
+                  title="Bu bildirimi kapat" aria-label="Bildirimi kapat">×</button>
+              </div>
             </div>
-            <button class="btn-icon browser-dismiss browser-signal-close" id="browserSignalClose" type="button"
-              title="Altyazı sinyalini gizle" aria-label="Altyazı sinyalini gizle">×</button>
-          </div>
 
-          <section class="browser-diagnostics hidden" id="browserDiagnosticsPanel" aria-label="Altyazı yakalama teşhisi">
-            <div class="browser-diagnostics-head">
-              <div>
-                <span class="browser-diagnostics-service" id="browserDiagnosticsService">Genel web videosu</span>
-                <span class="browser-diagnostics-help" id="browserDiagnosticsHelp">Videoyu başlatın ve sitenin altyazısını açın.</span>
+            <section class="browser-diagnostics hidden" id="browserDiagnosticsPanel" aria-label="Altyazı yakalama teşhisi">
+              <div class="browser-diagnostics-head">
+                <div>
+                  <span class="browser-diagnostics-service" id="browserDiagnosticsService">Genel web videosu</span>
+                  <span class="browser-diagnostics-help" id="browserDiagnosticsHelp">Videoyu başlatın ve sitenin altyazısını açın.</span>
+                </div>
+                <span class="browser-diagnostics-summary" id="browserDiagnosticsSummary">Henüz ağ izi yok</span>
               </div>
-              <span class="browser-diagnostics-summary" id="browserDiagnosticsSummary">Henüz ağ izi yok</span>
-            </div>
-            <div class="browser-acquisition" aria-label="Altyazı edinme yolu">
-              <div class="browser-acquisition-head">
-                <span>EDİNME YOLU</span>
-                <span id="browserAcquisitionSummary" role="status" aria-live="polite">Kaynak bekleniyor</span>
+              <div class="browser-acquisition" aria-label="Altyazı edinme yolu">
+                <div class="browser-acquisition-head">
+                  <span>EDİNME YOLU</span>
+                  <span id="browserAcquisitionSummary" role="status" aria-live="polite">Kaynak bekleniyor</span>
+                </div>
+                <ol class="browser-acquisition-stages" id="browserAcquisitionStages"></ol>
               </div>
-              <ol class="browser-acquisition-stages" id="browserAcquisitionStages"></ol>
-            </div>
-            <details class="browser-capability-matrix">
-              <summary>Servis yetenek matrisi</summary>
-              <div class="browser-capability-scroll">
-                <table aria-label="Tarayıcı servis yetenekleri">
-                  <thead><tr><th>Servis</th><th>Altyazı</th><th>Çift iz</th><th>Katman</th><th>Tam ekran</th><th>Çeviri</th><th>Doğrulama</th></tr></thead>
-                  <tbody id="browserCapabilityRows"></tbody>
-                </table>
+              <details class="browser-capability-matrix">
+                <summary>Servis yetenek matrisi</summary>
+                <div class="browser-capability-scroll">
+                  <table aria-label="Tarayıcı servis yetenekleri">
+                    <thead><tr><th>Servis</th><th>Altyazı</th><th>Çift iz</th><th>Katman</th><th>Tam ekran</th><th>Çeviri</th><th>Doğrulama</th></tr></thead>
+                    <tbody id="browserCapabilityRows"></tbody>
+                  </table>
+                </div>
+                <div class="browser-capability-actions">
+                  <span id="browserAdapterPluginStatus">Kullanıcı adaptörü yok</span>
+                  <button class="link-btn" id="browserAdapterFolder" type="button">Adaptör klasörünü aç</button>
+                </div>
+              </details>
+              <div class="browser-diagnostics-recent" id="browserDiagnosticsRecent">
+                Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.
               </div>
-              <div class="browser-capability-actions">
-                <span id="browserAdapterPluginStatus">Kullanıcı adaptörü yok</span>
-                <button class="link-btn" id="browserAdapterFolder" type="button">Adaptör klasörünü aç</button>
-              </div>
-            </details>
-            <div class="browser-diagnostics-recent" id="browserDiagnosticsRecent">
-              Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.
-            </div>
-          </section>
+            </section>
+          </div>
 
           <div class="browser-view-slot" id="browserViewSlot">
             <div class="browser-empty" id="browserEmpty">

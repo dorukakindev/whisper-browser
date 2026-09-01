@@ -494,6 +494,25 @@ test('tarayıcı altyazı yakalaması normal gezinme için durdurulup yeniden ba
     'yakalama düğmesi sinyal satırını gereksiz büyütüyor');
 });
 
+test('tarayıcı altyazı şeridi panel genişliğine göre sarılıyor ve yardımcı eylemler ghost görünüyor', () => {
+  assert(layer.includes('class="browser-signal-head"')
+    && layer.includes('class="browser-signal-body"')
+    && layer.includes('class="browser-signal-tools"'),
+  'altyazı şeridinde durum, araç ve iz grupları ayrılmamış');
+  assert(/\.btn-ghost\s*\{[^}]*background:\s*transparent[^}]*border:\s*1px solid transparent/.test(css),
+    'ghost düğmeler tarayıcı varsayılanı beyaz yüzeye düşebilir');
+  assert(/\.browser-workspace\s*\{[^}]*container:\s*browser-workspace\s*\/\s*inline-size/.test(css),
+    'tarayıcı çalışma alanı kendi genişliğini ölçmüyor');
+  assert(/\.browser-signal-body\s*\{[^}]*flex-wrap:\s*wrap/.test(css),
+    'altyazı şeridi dar panelde satıra geçemiyor');
+  assert(/@container browser-workspace \(max-width:\s*1640px\)[\s\S]*?\.browser-track-actions\s*\{[^}]*width:\s*100%/.test(css),
+    'bulunan iz eylemleri dar çalışma alanında kendi satırına geçmiyor');
+  assert(/class="browser-signal"[\s\S]*?<section class="browser-diagnostics hidden"/.test(layer),
+    'değişken şerit yüksekliğinde ayrıntılar paneli şeride bağlı değil');
+  assert(/id="browserSignalText" role="status" aria-live="polite"/.test(layer),
+    'canlı durum bölgesi etkileşimli şeridin tamamını kapsamamalı');
+});
+
 // ---- 14. izlerken canlı cümle birleştirme ----
 test('oynatıcıda cümle birleştirme anahtarı var ve dosyayı değiştirmiyor', () => {
   assert(/id="playerMergeCont"/.test(layer), 'oynaticida anahtar yok');

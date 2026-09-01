@@ -554,6 +554,19 @@ html, body {
 
 .btn-secondary:hover { background: var(--bg-2); border-color: var(--border-strong); }
 
+.btn-ghost {
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-3);
+  border-color: var(--border);
+}
+
 .btn.hidden { display: none; }
 
 /* ===== Queue ===== */
@@ -3622,6 +3635,7 @@ body::before {
 
 .browser-workspace {
   position: relative;
+  container: browser-workspace / inline-size;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -3790,19 +3804,36 @@ body::before {
 .browser-signal {
   position: relative;
   min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 8px 11px 8px 15px;
+  display: grid;
+  gap: 7px;
+  padding: 8px 11px 9px 15px;
   border-bottom: 1px solid #1d1d1f;
   background: #0d0d0e;
 }
 .browser-signal-line { position: absolute; inset: 9px auto 9px 0; width: 2px; background: #3b3b3e; }
 .browser-signal.detected .browser-signal-line { background: var(--player-amber); }
-.browser-signal-copy { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.browser-signal-head {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.browser-signal-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .browser-signal-kicker { color: #66666a; font-size: 8px; font-weight: 800; letter-spacing: .17em; }
 .browser-signal-text { overflow: hidden; color: #a4a4a8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .browser-signal.detected .browser-signal-text { color: #dfdfe1; }
+.browser-signal-state-actions,
+.browser-signal-tools,
+.browser-signal-body {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.browser-signal-state-actions { justify-content: flex-end; }
+.browser-signal-body { align-items: flex-start; flex-wrap: wrap; }
+.browser-signal-tools { flex: 0 1 auto; flex-wrap: wrap; }
 .browser-diagnostics-toggle {
   width: auto;
   min-height: 30px;
@@ -3818,7 +3849,7 @@ body::before {
 .browser-signal-tool,
 .browser-cookie-action,
 .browser-session-reset { width: auto; min-height: 30px; padding: 0 9px; color: #929297; white-space: nowrap; }
-.browser-signal-tool { flex: 0 0 auto; }
+.browser-signal-tool { flex: 0 0 auto; background: transparent; }
 .browser-signal-tool:hover,
 .browser-cookie-action:hover,
 .browser-session-reset:hover { color: #dfdfe1; border-color: #4a3a22; background: #201b14; }
@@ -3826,9 +3857,20 @@ body::before {
 .browser-capture-toggle { flex: 0 0 auto; color: #c2a16d; border-color: #4a3a22; background: #201b14; }
 .browser-capture-toggle[aria-pressed="false"] { color: #8d8d92; border-color: #29292c; background: #151516; }
 .browser-capture-toggle:hover { color: #f0d29a; border-color: #6a512b; background: #282015; }
-.browser-track-actions { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.browser-track-actions {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 760px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .browser-track-actions select {
-  width: min(180px, 18vw);
+  width: auto;
+  min-width: 132px;
+  max-width: 220px;
+  flex: 1 1 150px;
   height: 32px;
   color: #cfcfd2;
   border: 1px solid #2b2b2e;
@@ -3837,16 +3879,16 @@ body::before {
   font-size: 11px;
 }
 #browserExportFormat { min-width: 58px; width: 58px; flex: 0 0 58px; }
-.browser-track-actions .btn { width: auto; min-height: 32px; padding: 0 11px; white-space: nowrap; }
+.browser-track-actions .btn { width: auto; min-height: 32px; flex: 0 0 auto; padding: 0 11px; white-space: nowrap; }
 .browser-dismiss { width: 30px; height: 30px; color: #77777b; border-radius: 8px; }
 .browser-signal-close { flex: 0 0 30px; }
 
 .browser-diagnostics {
   position: absolute;
   z-index: 4;
-  top: 131px;
-  right: 12px;
-  width: min(560px, calc(100% - 24px));
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(560px, calc(100% - 4px));
   padding: 12px;
   border: 1px solid #303034;
   border-radius: 12px;
@@ -3931,7 +3973,6 @@ body::before {
    yalnız adres alanını ve geri açma düğmesini bırakır. */
 .browser-workspace.signal-collapsed { grid-template-rows: 82px 0 minmax(0, 1fr); }
 .browser-workspace.signal-collapsed .browser-signal { display: none; }
-.browser-workspace.signal-collapsed .browser-diagnostics { top: 83px; }
 .player-layer.browser-chrome-collapsed .player-head { display: none; }
 .player-layer.browser-chrome-collapsed .player-body { padding: 0; }
 .player-layer.browser-chrome-collapsed .browser-workspace {
@@ -3987,17 +4028,33 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
 @media (max-width: 1280px) {
   .player-workspace-switch { margin-left: 0; }
   .workspace-mode { padding: 0 10px; }
-  .browser-track-actions select { width: 125px; }
-  #browserTrackLoad { display: none; }
 }
 
 @media (max-width: 1060px) {
   .player-workspace-switch { order: 4; }
   .browser-toolbar { grid-template-columns: auto minmax(120px, 1fr) auto; }
-  .browser-signal { align-items: flex-start; flex-direction: column; padding-left: 15px; }
   .browser-acquisition-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .browser-track-actions { width: 100%; flex-wrap: wrap; }
-  .browser-track-actions select { min-width: 150px; flex: 1; width: auto; }
+}
+
+@container browser-workspace (max-width: 1640px) {
+  .browser-signal-body { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .browser-track-actions { width: 100%; justify-content: flex-start; }
+}
+
+@container browser-workspace (max-width: 920px) {
+  .browser-signal-head { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .browser-signal-state-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .browser-track-actions select { max-width: none; }
+}
+
+@container browser-workspace (max-width: 620px) {
+  .browser-signal-tools,
+  .browser-track-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .browser-signal-tool,
+  .browser-track-actions .btn,
+  .browser-track-actions select { width: 100%; max-width: none; }
+  #browserExportFormat { width: 100%; min-width: 0; }
+  .browser-track-actions .browser-dismiss { justify-self: end; }
 }
 
 @media (prefers-reduced-motion: reduce) {
