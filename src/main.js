@@ -43,6 +43,13 @@ const { hasConfiguredWatchOutput, normalizeWatchOutputConfig } = require('./watc
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
 // tarayıcının aynı sayfada sonsuza kadar siyah ekranda kalmasını önler.
 app.commandLine.appendSwitch('disable-quic');
+// Bazı Windows kurulumlarında Electron GPU süreci eksik/uyumsuz DLL nedeniyle
+// daha pencere oluşmadan çökebiliyor (STATUS_DLL_NOT_FOUND). Whisper'ın Python
+// CUDA'sından bağımsız olan bu ayar arayüzü yazılım çizimine alır; tarayıcı ve
+// DRM akışı açılmaya devam eder, model GPU kullanımı etkilenmez.
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('in-process-gpu');
+if (typeof app.disableHardwareAcceleration === 'function') app.disableHardwareAcceleration();
 
 let mainWindow;
 let mainWindowClosing = false;
