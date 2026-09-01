@@ -201,6 +201,10 @@ test('pencere kapanışı kuyruğu boşaltır ve yalnız doğrulanmış bekleyen
   assert.match(main, /captureStatus = await withTimeout\(drainBrowserCaptureBeforeClose\(\), BROWSER_CLOSE_DRAIN_TIMEOUT/);
   assert.match(main, /function browserCaptureCloseNeedsWarning\(status\)[\s\S]*?Number\(status && status\.pending\) > 0/);
   assert.match(main, /if \(browserCaptureCloseNeedsWarning\(captureStatus\)/);
+  assert.match(main, /captureStatus\.pending \+= await backgroundBrowserCapturePending\(browserActiveTabId\)/,
+    'arka plan sekmelerindeki doğrulanmış kuyruk kapanış hesabına katılmıyor');
+  assert.match(main, /browser:tab:close[\s\S]{0,1100}browserTabCapturePending\(tab, true\)[\s\S]{0,260}confirmBrowserCaptureDiscard\(capturePending, 'sekme'\)/,
+    'sekme kapanışı o sekmenin bekleyen yakalama parçalarını korumuyor');
   assert.doesNotMatch(main, /captureStatus\.pending !== 0/,
     'ölçüm zaman aşımı gerçek bekleyen parça gibi uyarı açıyor');
   assert.match(main, /pending:\s*0,[\s\S]{0,100}unverified:\s*true/,

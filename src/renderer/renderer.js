@@ -3358,6 +3358,7 @@ async function closeBrowserTab(tabId) {
     saveActiveBrowserTabWorkspace();
   }
   const result = await window.api.closeBrowserTab(tabId).catch(() => null);
+  if (result && result.canceled) return;
   if (!result || !result.ok) {
     setBrowserSignal(`Sekme kapatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     return;

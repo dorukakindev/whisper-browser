@@ -95,6 +95,7 @@ let browserBounds = null;
 const browserTabs = new Map();
 let browserActiveTabId = '';
 let browserTabSequence = 0;
+let browserTabTransitionPromise = Promise.resolve();
 let browserSessionSaveTimer = null;
 let browserSessionRestoreEnabled = true;
 let browserTrackTimer = null;
@@ -2519,15 +2520,15 @@ function browserCaptureStatusScript() {
   }))()`;
 }
 
-function browserFrames() {
-  if (!browserView || browserView.webContents.isDestroyed()) return [];
-  const main = browserView.webContents.mainFrame;
+function browserFrames(view = browserView) {
+  if (!view || view.webContents.isDestroyed()) return [];
+  const main = view.webContents.mainFrame;
   const frames = main && Array.isArray(main.framesInSubtree) ? main.framesInSubtree : [];
   return frames.length ? frames : (main ? [main] : []);
 }
 
-async function executeBrowserFrames(script) {
-  const work = Promise.all(browserFrames().map((frame) =>
+async function executeBrowserViewFrames(view, script) {
+  const work = Promise.all(browserFrames(view).map((frame) =>
     frame.executeJavaScript(script, true).catch(() => null)));
   let timer = null;
   const timeout = new Promise((_, reject) => {
@@ -2539,6 +2540,10 @@ async function executeBrowserFrames(script) {
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+function executeBrowserFrames(script) {
+  return executeBrowserViewFrames(browserView, script);
 }
 
 async function performBrowserCaptureFlush({ installHook = true } = {}) {
@@ -2973,13 +2978,24 @@ function detachBrowserDebugger(view) {
   } catch (_) {}
 }
 
-function activateBrowserTab(rawId) {
+async function activateBrowserTab(rawId) {
   const next = browserTabById(rawId);
   if (!next) return null;
   if (next.id === browserActiveTabId && next.view && !next.view.webContents.isDestroyed()) return next;
   const previous = activeBrowserTab();
   persistActiveBrowserTabState();
   stopBrowserPolling();
+  if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
+    try {
+      await withTimeout(drainBrowserCaptureBeforeClose(), BROWSER_CLOSE_DRAIN_TIMEOUT,
+        'Sekme değişiminde yakalama kuyruğu zamanında boşaltılamadı.');
+      // Kuyruk boşalamadıysa sayfanın içinde, yakalama duraklatılmış halde
+      // korunur. Kapanışta sekmenin gerçek durumu yeniden ölçülür.
+    } catch (_) {
+      // Ölçülemeyen bir kareyi veri kaybı diye varsayma. Sayfa kuyruğu
+      // temizlenmez; duraklatılmış halde bir sonraki etkinleştirmeye kalır.
+    }
+  }
   if (browserLiveAsr?.tab === previous) stopBrowserLiveAsr('Sekme değiştiği için canlı Whisper durduruldu.');
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
     previous.view.setVisible(false);
@@ -2997,6 +3013,12 @@ function activateBrowserTab(rawId) {
   if (browserCaptureEnabled) attachBrowserDebugger();
   applyBrowserOverlay();
   return next;
+}
+
+function queueBrowserTabTransition(work) {
+  const transition = browserTabTransitionPromise.catch(() => null).then(work);
+  browserTabTransitionPromise = transition.catch(() => null);
+  return transition;
 }
 
 function destroyBrowserTab(tab) {
@@ -3069,6 +3091,42 @@ function browserCaptureCloseNeedsWarning(status) {
   // kaybı kanıtı değildir; kullanıcıyı yalnız gerçekten kuyrukta parça
   // görüldüğünde durdur. Normal yakalama kuyruğu zaten 900 ms'de bir boşaltılır.
   return Number(status && status.pending) > 0;
+}
+
+async function browserTabCapturePending(tab, pause = false) {
+  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return 0;
+  try {
+    if (pause) await withTimeout(executeBrowserViewFrames(tab.view, browserCapturePauseScript()),
+      BROWSER_SCRIPT_TIMEOUT, 'Arka plan sekmesinde yakalama durdurulamadı.');
+    const frames = await withTimeout(executeBrowserViewFrames(tab.view, browserCaptureStatusScript()),
+      BROWSER_SCRIPT_TIMEOUT, 'Arka plan sekmesinin yakalama kuyruğu ölçülemedi.');
+    return frames.reduce((total, frame) => total + (Number(frame && frame.pending) || 0), 0);
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function backgroundBrowserCapturePending(excludedTabId = '') {
+  let pending = 0;
+  for (const tab of browserTabs.values()) {
+    if (tab.id !== excludedTabId) pending += await browserTabCapturePending(tab, true);
+  }
+  return pending;
+}
+
+async function confirmBrowserCaptureDiscard(pending, subject = 'uygulama') {
+  if (!(Number(pending) > 0) || !mainWindow || mainWindow.isDestroyed()) return true;
+  const detail = `${pending} yakalanmış altyazı parçası henüz işlenemedi.`;
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Altyazı yakalama sürüyor',
+    message: `${detail} ${subject === 'sekme' ? 'Sekme' : 'Uygulama'} şimdi kapatılırsa bu parçalar kaybolabilir.`,
+    buttons: ['Kapatmayı iptal et', 'Yine de kapat'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  });
+  return choice.response === 1;
 }
 
 async function flushBrowserSession() {
@@ -3146,19 +3204,10 @@ function createWindow() {
           error: error && error.message || 'Yakalama kuyruğu ölçülemedi.',
         };
       }
+      captureStatus.pending += await backgroundBrowserCapturePending(browserActiveTabId);
       if (browserCaptureCloseNeedsWarning(captureStatus)
           && mainWindow && !mainWindow.isDestroyed()) {
-        const detail = `${captureStatus.pending} yakalanmış altyazı parçası henüz işlenemedi.`;
-        const choice = await dialog.showMessageBox(mainWindow, {
-          type: 'warning',
-          title: 'Altyazı yakalama sürüyor',
-          message: `${detail} Şimdi kapatılırsa bu parçalar kaybolabilir.`,
-          buttons: ['Kapatmayı iptal et', 'Yine de kapat'],
-          defaultId: 0,
-          cancelId: 0,
-          noLink: true,
-        });
-        if (choice.response === 0) {
+        if (!await confirmBrowserCaptureDiscard(captureStatus.pending)) {
           mainWindowClosing = false;
           await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
           if (browserVisible) startBrowserPolling();
@@ -3246,50 +3295,66 @@ function activeRequestedBrowserTab(rawId) {
   return tab && tab.id === browserActiveTabId ? tab : null;
 }
 
-ipcMain.handle('browser:tab:create', (event) => {
+ipcMain.handle('browser:tab:create', (event) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = createBrowserTabRecord();
   ensureBrowserView(tab);
-  activateBrowserTab(tab.id);
+  await activateBrowserTab(tab.id);
   scheduleBrowserSessionSave();
   return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), ...browserEventContext(tab), ...browserNavigationState() };
-});
+}));
 
-ipcMain.handle('browser:tab:activate', (event, rawId) => {
+ipcMain.handle('browser:tab:activate', (event, rawId) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const tab = activateBrowserTab(rawId);
+  const tab = await activateBrowserTab(rawId);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   scheduleBrowserSessionSave();
   return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
-});
+}));
 
-ipcMain.handle('browser:tab:close', (event, rawId) => {
+ipcMain.handle('browser:tab:close', (event, rawId) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = browserTabById(rawId);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   const ordered = [...browserTabs.values()];
   const index = ordered.indexOf(tab);
   const wasActive = tab.id === browserActiveTabId;
+  let capturePending = 0;
   if (wasActive) {
     persistActiveBrowserTabState();
     stopBrowserPolling();
+    try {
+      const status = await withTimeout(drainBrowserCaptureBeforeClose(), BROWSER_CLOSE_DRAIN_TIMEOUT,
+        'Sekme kapanışında yakalama kuyruğu zamanında boşaltılamadı.');
+      capturePending = Number(status && status.pending) || 0;
+    } catch (_) {}
+  } else {
+    capturePending = await browserTabCapturePending(tab, true);
+  }
+  if (browserCaptureCloseNeedsWarning({ pending: capturePending })
+      && !await confirmBrowserCaptureDiscard(capturePending, 'sekme')) {
+    if (wasActive) {
+      await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+      if (browserVisible) startBrowserPolling();
+    }
+    return { ok: false, canceled: true };
   }
   destroyBrowserTab(tab);
   let next = null;
   if (browserTabs.size) next = ordered[index + 1] || ordered[index - 1] || [...browserTabs.values()][0];
   else next = createBrowserTabRecord();
   ensureBrowserView(next);
-  if (wasActive || !browserActiveTabId) activateBrowserTab(next.id);
+  if (wasActive || !browserActiveTabId) await activateBrowserTab(next.id);
   scheduleBrowserSessionSave();
   return { ok: true, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), ...browserEventContext(activeBrowserTab()),
     captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
-});
+}));
 
-ipcMain.handle('browser:show', (event, payload) => {
+ipcMain.handle('browser:show', async (event, payload) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
   let tab = browserTabById(payload && payload.tabId) || activeBrowserTab(true);
-  if (tab.id !== browserActiveTabId) tab = activateBrowserTab(tab.id);
+  if (tab.id !== browserActiveTabId) tab = await queueBrowserTabTransition(() => activateBrowserTab(tab.id));
   const view = ensureBrowserView(tab);
   const bounds = safeBrowserBounds(payload && payload.bounds);
   if (!view || !bounds) return { ok: false, error: 'Tarayıcı alanı hazırlanamadı.' };

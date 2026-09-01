@@ -105,6 +105,9 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(main, /tabId[\s\S]{0,120}generation/);
   assert.match(main, /browserOverlay = \{ source: \[\], translation: \[\], mode: 'translation', offset: 0 \}/);
   assert.match(main, /browserLiveAsr\?\.tab === previous/);
+  assert.match(main, /async function activateBrowserTab[\s\S]{0,900}await withTimeout\(drainBrowserCaptureBeforeClose\(\)/);
+  assert.match(main, /function queueBrowserTabTransition[\s\S]{0,240}browserTabTransitionPromise/);
+  assert.match(main, /ipcMain\.handle\('browser:tab:activate'[\s\S]{0,220}await activateBrowserTab/);
   assert.match(main, /persistedTrack: true/);
   assert.match(main, /browserCaptureEnabled === nextEnabled[\s\S]{0,180}unchanged: true/);
   assert.match(main, /resetBrowserCaptureState\(\{ preserveDiagnostics: true \}\)/);
