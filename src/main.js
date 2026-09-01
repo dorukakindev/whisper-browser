@@ -65,6 +65,7 @@ let browserCaptureTimer = null;
 let browserCaptureBusy = false;
 let browserTrackBusy = false;
 let browserCaptureEnabled = true;
+let browserLastCaptureDropped = 0;
 let browserDebuggerReady = false;
 const browserPendingResponses = new Map();
 const browserTrackBuffers = new Map();
@@ -1132,6 +1133,7 @@ function resetBrowserCaptureState() {
   browserDashSubtitleMatchers = [];
   browserCaptureBusy = false;
   browserTrackBusy = false;
+  browserLastCaptureDropped = 0;
   browserHlsFetchedSegments.clear();
   browserHlsInFlight.clear();
   browserLastDrmFailure = '';
@@ -1146,6 +1148,8 @@ function browserCaptureToggleScript(enabled) {
     if (!window.__whisperCaptureEnabled) {
       if (Array.isArray(window.__whisperCaptureQueue)) window.__whisperCaptureQueue.length = 0;
       if (window.__whisperCaptureSeen && typeof window.__whisperCaptureSeen.clear === 'function') window.__whisperCaptureSeen.clear();
+      if (window.__whisperCaptureInFlight && typeof window.__whisperCaptureInFlight.clear === 'function') window.__whisperCaptureInFlight.clear();
+      window.__whisperCaptureDropped = 0;
     }
     return window.__whisperCaptureEnabled;
   })()`;
@@ -1330,6 +1334,10 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}) 
   }
 }
 
+const CAPTURE_PROCESSED = 'processed';
+const CAPTURE_DISCARDED = 'discarded';
+const CAPTURE_RETRY = 'retry';
+
 async function processBrowserCapturedPayload(responseBuffer, candidate = {}, strategy = 'cdp') {
   try {
     const body = responseBuffer.toString('utf-8');
@@ -1418,13 +1426,14 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
           // tamamen başarısız bir işleme durumunda aynı manifest yeniden ele
           // alınabilsin diye işaret ancak işlem tamamlandıktan sonra yazılır.
           if (manifestHandled) browserSeenManifests.set(manifestKey, fingerprint);
+          return manifestHandled ? CAPTURE_PROCESSED : CAPTURE_RETRY;
         } finally {
           browserManifestInFlight.delete(manifestToken);
         }
       } else {
         noteBrowserCapture(strategy, candidate, 'rejected', 'Aynı manifest daha önce işlendi');
+        return CAPTURE_DISCARDED;
       }
-      return true;
     }
     const parsed = parseSubtitlePayload(body, candidate.mimeType, candidate.url);
     if (!parsed.cues.length && candidate.dashTrack?.format === 'vtt') {
@@ -1445,7 +1454,8 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
       // Netflix/Max gibi oyuncular timed-text URL'sini JSON manifest içinde
       // taşır; yanıt URL'sinin kendisinde "subtitle" geçmeyebilir.
       let storedFromJson = 0;
-      for (const subtitleUrl of findSubtitleUrls(body, candidate.url)) {
+      const subtitleUrls = findSubtitleUrls(body, candidate.url);
+      for (const subtitleUrl of subtitleUrls) {
         try {
           const result = await fetchAndStoreBrowserSubtitle(subtitleUrl, { label: 'Manifest altyazısı' });
           if (result.stored) storedFromJson++;
@@ -1453,12 +1463,13 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
       }
       if (storedFromJson) {
         noteBrowserCapture(strategy, candidate, 'parsed', `${storedFromJson} manifest altyazısı`);
-        return true;
+        return CAPTURE_PROCESSED;
       }
+      if (subtitleUrls.length) return CAPTURE_RETRY;
     }
     if (!parsed.cues.length) {
       noteBrowserCapture(strategy, candidate, 'rejected', 'Altyazı zaman kodu ayrıştırılamadı');
-      return false;
+      return CAPTURE_DISCARDED;
     }
     const language = candidate.dashTrack?.language || subtitleLanguage(candidate);
     const stored = storeBrowserTrack(parsed.cues, {
@@ -1470,10 +1481,10 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
     });
     noteBrowserCapture(strategy, candidate, stored ? 'parsed' : 'rejected',
       stored ? `${parsed.cues.length} satır · ${parsed.format}` : 'Aynı altyazı daha önce işlendi');
-    return true;
+    return CAPTURE_PROCESSED;
   } catch (error) {
     noteBrowserCapture(strategy, candidate, 'error', error && error.message || 'Yakalama hatası');
-    return false;
+    return CAPTURE_RETRY;
   }
 }
 
@@ -1562,6 +1573,7 @@ function browserCaptureHookScript() {
     window.__whisperCaptureEnabled = true;
     window.__whisperCaptureQueue = [];
     window.__whisperCaptureSeen = new Set();
+    window.__whisperCaptureInFlight = new Map();
     window.__whisperCaptureFrameId = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
     window.__whisperCaptureSeq = 0;
@@ -1584,8 +1596,18 @@ function browserCaptureHookScript() {
       const offsets = window.__whisperSourceOffsets || [];
       const recent = offsets.length ? offsets[offsets.length - 1] : null;
       const captureId = String(window.__whisperCaptureFrameId) + ':' + (++window.__whisperCaptureSeq);
-      window.__whisperCaptureQueue.push({ ...entry, captureId, sourceOffset: recent ? recent.offset : 0 });
-      window.__whisperCaptureQueue = window.__whisperCaptureQueue.slice(-32);
+      window.__whisperCaptureQueue.push({ ...entry, captureId, captureKey: key, sourceOffset: recent ? recent.offset : 0 });
+      const inFlight = window.__whisperCaptureInFlight instanceof Map
+        ? window.__whisperCaptureInFlight : new Map();
+      window.__whisperCaptureInFlight = inFlight;
+      while (window.__whisperCaptureQueue.length > 128) {
+        let dropIndex = window.__whisperCaptureQueue.findIndex((item) => !inFlight.has(item && item.captureId));
+        if (dropIndex < 0) dropIndex = 0;
+        const dropped = window.__whisperCaptureQueue.splice(dropIndex, 1)[0];
+        if (dropped && dropped.captureKey) window.__whisperCaptureSeen.delete(dropped.captureKey);
+        if (dropped && dropped.captureId) inFlight.delete(dropped.captureId);
+        window.__whisperCaptureDropped = (Number(window.__whisperCaptureDropped) || 0) + 1;
+      }
     };
     const inspectResponse = (url, response) => {
       if (!window.__whisperCaptureEnabled) return;
@@ -1663,8 +1685,15 @@ function browserCaptureHookScript() {
 
 function browserCaptureDrainScript() {
   return `(() => {
-    const queue = Array.isArray(window.__whisperCaptureQueue) ? window.__whisperCaptureQueue.slice(0, 32) : [];
-    return queue;
+    const queue = Array.isArray(window.__whisperCaptureQueue) ? window.__whisperCaptureQueue : [];
+    const inFlight = window.__whisperCaptureInFlight instanceof Map
+      ? window.__whisperCaptureInFlight : new Map();
+    window.__whisperCaptureInFlight = inFlight;
+    const now = Date.now();
+    for (const [id, at] of inFlight) if (now - at > 15000) inFlight.delete(id);
+    const batch = queue.filter((entry) => entry && !inFlight.has(entry.captureId)).slice(0, 32);
+    for (const entry of batch) if (entry.captureId) inFlight.set(entry.captureId, now);
+    return { entries: batch, dropped: Number(window.__whisperCaptureDropped) || 0 };
   })()`;
 }
 
@@ -1674,6 +1703,20 @@ function browserCaptureAckScript(ids) {
     const ids = new Set(${encoded});
     if (ids.size && Array.isArray(window.__whisperCaptureQueue)) {
       window.__whisperCaptureQueue = window.__whisperCaptureQueue.filter((entry) => !ids.has(entry && entry.captureId));
+    }
+    if (window.__whisperCaptureInFlight instanceof Map) {
+      for (const id of ids) window.__whisperCaptureInFlight.delete(id);
+    }
+    return true;
+  })()`;
+}
+
+function browserCaptureReleaseScript(ids) {
+  const encoded = JSON.stringify(Array.isArray(ids) ? ids : []).replace(/[\u2028\u2029]/g, ' ');
+  return `(() => {
+    const ids = new Set(${encoded});
+    if (window.__whisperCaptureInFlight instanceof Map) {
+      for (const id of ids) window.__whisperCaptureInFlight.delete(id);
     }
     return true;
   })()`;
@@ -1779,21 +1822,42 @@ function startBrowserPolling() {
       await executeBrowserFrames(browserCaptureHookScript());
       const batches = await executeBrowserFrames(browserCaptureDrainScript());
       const ackIds = [];
-      for (const entries of batches) for (const entry of entries || []) {
-        if (!entry || (typeof entry.body !== 'string' && typeof entry.bodyBase64 !== 'string')) continue;
-        if (entry.captureId) ackIds.push(String(entry.captureId));
-        const pageUrl = browserView.webContents.getURL();
-        const adapter = browserResponseAdapter(pageUrl, entry.url);
-        if (!adapterAcceptsResponse(adapter, entry)) continue;
-        const payload = typeof entry.bodyBase64 === 'string'
-          ? Buffer.from(entry.bodyBase64, 'base64') : Buffer.from(entry.body, 'utf-8');
-        await processBrowserCapturedPayload(payload, {
-          url: String(entry.url || ''),
-          mimeType: String(entry.mimeType || ''),
-          sourceOffset: Number(entry.sourceOffset) || 0,
-        }, 'page');
+      const releaseIds = [];
+      for (const batch of batches) {
+        const entries = Array.isArray(batch) ? batch : (batch && batch.entries) || [];
+        const dropped = Number(batch && batch.dropped) || 0;
+        if (dropped > browserLastCaptureDropped) {
+          noteBrowserCapture('page', {}, 'error', `${dropped - browserLastCaptureDropped} yanıt yakalama kuyruğu kapasitesi aşıldığı için düştü`);
+          browserLastCaptureDropped = dropped;
+        }
+        for (const entry of entries) {
+          const captureId = entry && entry.captureId ? String(entry.captureId) : '';
+          if (!entry || (typeof entry.body !== 'string' && typeof entry.bodyBase64 !== 'string')) {
+            if (captureId) ackIds.push(captureId);
+            continue;
+          }
+          const pageUrl = browserView.webContents.getURL();
+          const adapter = browserResponseAdapter(pageUrl, entry.url);
+          if (!adapterAcceptsResponse(adapter, entry)) {
+            if (captureId) ackIds.push(captureId);
+            continue;
+          }
+          try {
+            const payload = typeof entry.bodyBase64 === 'string'
+              ? Buffer.from(entry.bodyBase64, 'base64') : Buffer.from(entry.body, 'utf-8');
+            const outcome = await processBrowserCapturedPayload(payload, {
+              url: String(entry.url || ''),
+              mimeType: String(entry.mimeType || ''),
+              sourceOffset: Number(entry.sourceOffset) || 0,
+            }, 'page');
+            if (captureId) (outcome === CAPTURE_RETRY ? releaseIds : ackIds).push(captureId);
+          } catch (_) {
+            if (captureId) releaseIds.push(captureId);
+          }
+        }
       }
       if (ackIds.length) await executeBrowserFrames(browserCaptureAckScript(ackIds));
+      if (releaseIds.length) await executeBrowserFrames(browserCaptureReleaseScript(releaseIds));
     } catch (_) {
       // Bir alt frame erişilemez olduğunda diğer yakalama yolları sürer.
     } finally {

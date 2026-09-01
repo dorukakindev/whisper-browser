@@ -171,6 +171,28 @@ test('DASH MPD içindeki doğrudan TTML ve VTT adaptasyonlarını bulur', () => 
   ]);
 });
 
+test('çok dönemli DASH BaseURL değerlerini kardeş Periodlar arasında zincirlemez', () => {
+  const mpd = '<MPD><BaseURL>root/</BaseURL>'
+    + '<Period><BaseURL>p1/</BaseURL><AdaptationSet contentType="text" lang="en">'
+    + '<Representation id="en"><BaseURL>a.vtt</BaseURL></Representation></AdaptationSet></Period>'
+    + '<Period><BaseURL>p2/</BaseURL><AdaptationSet contentType="text" lang="tr">'
+    + '<Representation id="tr"><BaseURL>b.vtt</BaseURL></Representation></AdaptationSet></Period></MPD>';
+  assert.deepEqual(parseDashSubtitleTracks(mpd, 'https://cdn.test/manifest.mpd').map((track) => track.url), [
+    'https://cdn.test/root/p1/a.vtt',
+    'https://cdn.test/root/p2/b.vtt',
+  ]);
+
+  const templated = '<MPD><BaseURL>root/</BaseURL>'
+    + '<Period><BaseURL>p1/</BaseURL><AdaptationSet contentType="text">'
+    + '<SegmentTemplate media="s-$Number$.m4s" duration="2"/><Representation id="one"/></AdaptationSet></Period>'
+    + '<Period><BaseURL>p2/</BaseURL><AdaptationSet contentType="text">'
+    + '<SegmentTemplate media="s-$Number$.m4s" duration="2"/><Representation id="two"/></AdaptationSet></Period></MPD>';
+  const matchers = parseDashSubtitleMatchers(templated, 'https://cdn.test/manifest.mpd');
+  assert.ok(matchDashSubtitleUrl('https://cdn.test/root/p1/s-1.m4s', matchers));
+  assert.ok(matchDashSubtitleUrl('https://cdn.test/root/p2/s-1.m4s', matchers));
+  assert.equal(matchDashSubtitleUrl('https://cdn.test/root/p1/p2/s-1.m4s', matchers), null);
+});
+
 test('DASH parçalı altyazı eşleştiricisi video segmentlerini dışarıda bırakır', () => {
   const mpd = `<MPD><Period><AdaptationSet contentType="video" mimeType="video/mp4"><SegmentTemplate media="video/$Number$.m4s" duration="5000" timescale="1000"/><Representation id="v1"/></AdaptationSet><AdaptationSet contentType="text" lang="en" mimeType="application/mp4" codecs="stpp"><SegmentTemplate media="text/$RepresentationID$/$Number%05d$.m4s" duration="6000" timescale="1000" startNumber="1"/><Representation id="eng" bandwidth="1000"/></AdaptationSet></Period></MPD>`;
   const matchers = parseDashSubtitleMatchers(mpd, 'https://cdn.test/movie/manifest.mpd');
@@ -293,7 +315,14 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /Target\.setAutoAttach/);
   assert.match(main, /browserCaptureHookScript/);
   assert.match(main, /browserCaptureAckScript/);
-  assert.match(main, /__whisperCaptureQueue\)\s*\?\s*window\.__whisperCaptureQueue\.slice\(0, 32\)/);
+  assert.match(main, /browserCaptureReleaseScript/);
+  assert.match(main, /__whisperCaptureInFlight instanceof Map/);
+  assert.match(main, /now - at > 15000/);
+  assert.match(main, /window\.__whisperCaptureQueue\.length > 128/);
+  assert.match(main, /outcome === CAPTURE_RETRY \? releaseIds : ackIds/);
+  assert.ok(main.indexOf('const outcome = await processBrowserCapturedPayload')
+    < main.indexOf('(outcome === CAPTURE_RETRY ? releaseIds : ackIds).push'),
+  'ack kararı payload işlenmeden veriliyor');
   assert.match(main, /browserManifestInFlight/);
   assert.match(main, /fetchBrowserTextWithRetry/);
   assert.match(main, /manifestRetryNeeded = true/);

@@ -214,11 +214,25 @@ function firstBaseValue(xml) {
 }
 
 function dashOuterBase(xml, adaptation, baseUrl) {
-  const outer = String(xml || '').slice(0, adaptation.index)
+  const source = String(xml || '');
+  const prefix = source.slice(0, adaptation.index);
+  const periodOpen = prefix.toLowerCase().lastIndexOf('<period');
+  const periodClose = prefix.toLowerCase().lastIndexOf('</period>');
+  const inPeriod = periodOpen > periodClose;
+  // Yalnız MPD kökü ile mevcut Period'un BaseURL zincirini kullan. Önceki
+  // Period bloklarını prefix içinde bırakmak, p1/ + p2/ gibi kardeş tabanları
+  // art arda ekleyip ikinci dönemin URL'lerini bozuyordu.
+  const rootPrefix = (inPeriod ? prefix.slice(0, periodOpen) : prefix)
+    .replace(/<Period\b[\s\S]*?<\/Period>/gi, '')
     .replace(/<AdaptationSet\b[\s\S]*?<\/AdaptationSet>/gi, '');
+  const periodPrefix = inPeriod
+    ? prefix.slice(periodOpen).replace(/<AdaptationSet\b[\s\S]*?<\/AdaptationSet>/gi, '')
+    : '';
   let resolved = baseUrl;
-  for (const match of outer.matchAll(/<BaseURL\b[^>]*>([\s\S]*?)<\/BaseURL>/gi)) {
-    resolved = resolveUrl(match[1], resolved);
+  for (const scope of [rootPrefix, periodPrefix]) {
+    for (const match of scope.matchAll(/<BaseURL\b[^>]*>([\s\S]*?)<\/BaseURL>/gi)) {
+      resolved = resolveUrl(match[1], resolved);
+    }
   }
   return resolved;
 }
