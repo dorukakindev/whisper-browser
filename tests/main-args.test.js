@@ -134,6 +134,15 @@ test('oynaticida secilen YouTube ses dili Whisper isine gider', () => {
     'secilen ses dili argv sozlesmesine tasinmadi');
 });
 
+test('yalnizca sifir veya pozitif tam sayi ses parcasi argumana gider', () => {
+  assert(argValue(build(base({ audioTrack: 0 })), '--audio-track') === '0', '0 numarali parca atlandi');
+  assert(argValue(build(base({ audioTrack: 3 })), '--audio-track') === '3', 'gecerli parca atlandi');
+  for (const invalid of ['', null, undefined, -1, 1.5, '2']) {
+    assert(!build(base({ audioTrack: invalid })).includes('--audio-track'),
+      `gecersiz ses parcasi sizdi: ${JSON.stringify(invalid)}`);
+  }
+});
+
 test('YouTube cookie tarayıcısı yalnızca izin verilen değerde backend\'e gider', () => {
   const ok = build({ youtube: 'https://youtu.be/test', model: 'large-v3', youtubeCookieBrowser: 'firefox' });
   assert(argValue(ok, '--youtube-cookie-browser') === 'firefox', 'cookie tarayicisi argv ye gitmedi');

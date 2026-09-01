@@ -60,4 +60,26 @@ function hasConfiguredWatchOutput(videoPath, config, exists = (filePath) => fals
   });
 }
 
-module.exports = { WATCH_FORMATS, normalizeWatchOutputConfig, watchOutputNames, hasConfiguredWatchOutput };
+function advanceWatchStability(prev, size, stableTicks) {
+  if (!prev || typeof prev !== 'object') return false;
+  if (prev.size !== size) {
+    prev.size = size;
+    prev.stableCount = 0;
+    return false;
+  }
+  // Dosya bir kez ana sürece bildirildikten sonra, çıktı henüz oluşmamış olsa
+  // bile her tarama turunda yeniden kuyruğa gönderilmemeli.
+  if (prev.queued) return false;
+  prev.stableCount = Number(prev.stableCount || 0) + 1;
+  if (prev.stableCount < stableTicks) return false;
+  prev.queued = true;
+  return true;
+}
+
+module.exports = {
+  WATCH_FORMATS,
+  normalizeWatchOutputConfig,
+  watchOutputNames,
+  hasConfiguredWatchOutput,
+  advanceWatchStability,
+};

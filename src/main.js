@@ -38,7 +38,11 @@ const {
   sanitizeBrowserUserAgent,
 } = require('./browser-drm');
 const { rankBrowserMediaCandidates } = require('./browser-media');
-const { hasConfiguredWatchOutput, normalizeWatchOutputConfig } = require('./watch-folder');
+const {
+  hasConfiguredWatchOutput,
+  normalizeWatchOutputConfig,
+  advanceWatchStability,
+} = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
 const { burninOutputPaths, removeFileQuietly, replaceBurninOutput } = require('./burnin-output');
 const { withAbortTimeout, withTimeout } = require('./async-timeout');
@@ -453,16 +457,7 @@ function scanWatchFolder() {
       prev.stableCount = 0;
       continue;
     }
-    if (prev.size === size) {
-      prev.stableCount += 1;
-      if (prev.stableCount >= WATCH_STABLE_TICKS) {
-        prev.queued = true;
-        ready.push(file);
-      }
-    } else {
-      prev.size = size;
-      prev.stableCount = 0;        // hâlâ kopyalanıyor
-    }
+    if (advanceWatchStability(prev, size, WATCH_STABLE_TICKS)) ready.push(file);
   }
 
   // Silinen/taşınan medya dosyaları için bellekte sonsuza dek kayıt tutma.
@@ -2839,7 +2834,12 @@ ipcMain.handle('app:getEnvInfo', async () => {
 
 // ---- Settings (sözlük, HF token) ----
 ipcMain.handle('settings:load', () => loadSettings());
-ipcMain.handle('settings:save', (_event, s) => saveSettings(s));
+ipcMain.handle('settings:save', (_event, s) => {
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return false;
+  // Renderer yalnızca arayüz ayarlarını yollar. Dosya seçicinin ana süreçte
+  // tuttuğu lastInputDir gibi alanları bu kısmi kayıtla silme.
+  return saveSettings({ ...loadSettings(), ...s });
+});
 
 // ---- Ayarları dışa/içe aktar ----
 ipcMain.handle('settings:export', async () => {
@@ -3269,7 +3269,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.model) args.push('--model', options.model);
   if (options.engine) args.push('--engine', options.engine);
   if (options.batchSize) args.push('--batch-size', String(options.batchSize));
-  if (options.audioTrack !== undefined && options.audioTrack >= 0) args.push('--audio-track', String(options.audioTrack));
+  if (Number.isInteger(options.audioTrack) && options.audioTrack >= 0) {
+    args.push('--audio-track', String(options.audioTrack));
+  }
   if (options.youtubeAudioLang) args.push('--youtube-audio-lang', String(options.youtubeAudioLang));
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(options.youtubeCookieBrowser)) {
     args.push('--youtube-cookie-browser', options.youtubeCookieBrowser);

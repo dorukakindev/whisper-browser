@@ -5,6 +5,7 @@ const path = require('path');
 const {
   normalizeWatchOutputConfig,
   hasConfiguredWatchOutput,
+  advanceWatchStability,
 } = require('../src/watch-folder');
 
 let passed = 0;
@@ -58,6 +59,15 @@ test('hedef dili farklı çeviri dosyası da tekrar kuyruğa girmez', () => {
   }
 });
 
+test('sabit dosya yalnızca bir kez kuyruğa bildirilir', () => {
+  const state = { size: 100, stableCount: 0, queued: false, hadOutput: false };
+  assert.equal(advanceWatchStability(state, 100, 2), false);
+  assert.equal(advanceWatchStability(state, 100, 2), true);
+  assert.equal(advanceWatchStability(state, 100, 2), false);
+  assert.equal(advanceWatchStability(state, 100, 2), false);
+  assert.equal(state.queued, true);
+});
+
 test('izleme IPCsi renderer ayarlarını ana sürece taşır', () => {
   const root = path.join(__dirname, '..', 'src');
   const preload = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
@@ -69,6 +79,7 @@ test('izleme IPCsi renderer ayarlarını ana sürece taşır', () => {
   assert.match(renderer, /outputDir: opts\.outputDir/);
   assert.match(renderer, /translateTo: opts\.translateTo/);
   assert.match(main, /prev\.queued && prev\.hadOutput/);
+  assert.match(main, /advanceWatchStability\(prev, size, WATCH_STABLE_TICKS\)/);
   assert.match(main, /queued: hasOutput, hadOutput: hasOutput/);
 });
 
