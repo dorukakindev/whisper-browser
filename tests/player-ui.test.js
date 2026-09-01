@@ -417,6 +417,10 @@ test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabil
     'sade görünüm kalıcı değil');
   assert(/\.browser-workspace\.signal-collapsed \.browser-signal\s*\{[^}]*display:\s*none/.test(css),
     'sinyal şeridini gerçekten gizleyen CSS yok');
+  assert(/\.browser-toolbar\s*\{\s*grid-row:\s*1/.test(css)
+    && /\.browser-signal\s*\{\s*grid-row:\s*2/.test(css)
+    && /\.browser-view-slot\s*\{\s*grid-row:\s*3/.test(css),
+    'sinyal gizlenince native tarayıcı yuvası sıfır yüksekliğe düşebilir');
   assert(/\.player-layer\.browser-chrome-collapsed \.player-head\s*\{[^}]*display:\s*none/.test(css),
     'sade görünüm üst oynatıcı başlığını gizlemiyor');
   assert(/\.player-layer\.browser-chrome-collapsed #browserSignalToggle\s*\{[^}]*display:\s*none/.test(css),
@@ -743,6 +747,8 @@ test('iki kütüphane araması ayrı sonuç ve zamanlayıcı kullanıyor', () =>
 
 test('video değişiminde A-B döngüsü ve AI sohbet bağlamı temizleniyor', () => {
   const reset = js.slice(js.indexOf('function resetMediaBoundState'), js.indexOf('function subtitleTrackState'));
+  assert(/function resetMediaBoundState\(options\s*=\s*\{\}\)/.test(reset),
+    'seçeneksiz medya sıfırlama options ReferenceError üretebilir');
   assert(/player\.abA = null/.test(reset) && /player\.abB = null/.test(reset), 'A-B döngüsü sıfırlanmıyor');
   assert(/player\.chatHistory = \[\]/.test(reset), 'AI sohbet geçmişi videoya bağlı değil');
   const events = js.slice(js.indexOf('function playerJobEvent'), js.indexOf('window.api.onEvent'));

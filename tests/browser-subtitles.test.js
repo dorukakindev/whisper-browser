@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const {
   browserNavigationCapabilities,
   cueFingerprint,
@@ -358,6 +359,20 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(renderer, /clearBrowserCookieScope/);
   assert.match(renderer, /clearBrowserSiteCookies/);
   assert.match(renderer, /clearBrowserCookies/);
+  const generatedScriptEnd = {
+    browserCaptureHookScript: '\nfunction browserCaptureDrainScript',
+    browserOverlayScript: '\nasync function applyBrowserOverlay',
+  };
+  for (const name of Object.keys(generatedScriptEnd)) {
+    const start = main.indexOf(`function ${name}(`);
+    const end = main.indexOf(generatedScriptEnd[name], start + 1);
+    assert(start >= 0 && end > start, `${name} kaynakta bulunamadı`);
+    const factory = vm.runInNewContext(`(${main.slice(start, end)})`, { browserActiveCuesAt });
+    const generated = name === 'browserOverlayScript'
+      ? factory({ source: [], translation: [], mode: 'both', offset: 0, visible: true })
+      : factory();
+    assert.doesNotThrow(() => new vm.Script(generated), `${name} geçerli JavaScript üretmiyor`);
+  }
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
 });

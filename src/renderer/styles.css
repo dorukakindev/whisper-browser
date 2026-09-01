@@ -3714,6 +3714,14 @@ body::before {
   box-shadow: 0 18px 70px rgba(0,0,0,.35);
 }
 
+/* Sinyal satiri gizlendiginde grid'in otomatik yerlestirmesi goruntu yuvasini
+   yuksekligi 0 olan ikinci satira tasiyordu. Uc ana bolumu kendi satirina
+   sabitle; boylece sinyal acik, kapali ve sade gorunumde native tarayici alani
+   daima kalan yuksekligi kullanir. */
+.browser-toolbar { grid-row: 1; }
+.browser-signal { grid-row: 2; }
+.browser-view-slot { grid-row: 3; }
+
 .browser-toolbar {
   display: grid;
   grid-template-columns: auto minmax(180px, 1fr) auto;
@@ -3808,59 +3816,6 @@ body::before {
 .browser-place-url { margin-top: 3px; color: #77777c; font-family: Consolas, "Cascadia Mono", monospace; font-size: 9px; }
 .browser-place-remove { flex: 0 0 26px; width: 26px; height: 26px; color: #77777c; border-radius: 6px; }
 .browser-place-remove:hover { color: #d89082; background: #2a1d1b; }
-
-.browser-extensions {
-  position: absolute;
-  z-index: 8;
-  top: 53px;
-  right: 10px;
-  width: min(430px, calc(100% - 20px));
-  max-height: min(540px, calc(100% - 70px));
-  padding: 14px;
-  overflow: auto;
-  border: 1px solid #35353a;
-  border-radius: 12px;
-  background: #111112;
-  box-shadow: 0 20px 55px rgba(0,0,0,.58);
-}
-.browser-extensions-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.browser-extensions-head > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.browser-extensions-head strong { color: #e5e5e7; font-size: 13px; }
-.browser-extensions-head span { color: #77777c; font-size: 10px; }
-.browser-extensions-note {
-  margin: 12px 0 10px;
-  padding: 9px 10px;
-  color: #9d9da2;
-  border-left: 2px solid var(--player-amber);
-  background: #181719;
-  font-size: 10px;
-  line-height: 1.45;
-}
-.browser-extensions-list { display: flex; flex-direction: column; gap: 6px; }
-.browser-extension-empty { padding: 18px 8px; color: #737379; text-align: center; font-size: 11px; }
-.browser-extension-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid #29292d;
-  border-radius: 9px;
-  background: #171718;
-}
-.browser-extension-row:hover { border-color: #4a3a22; background: #1c1a17; }
-.browser-extension-copy { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 3px; }
-.browser-extension-copy strong { overflow: hidden; color: #dedee1; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.browser-extension-copy span { color: #a18d69; font-size: 9px; }
-.browser-extension-copy small { overflow: hidden; color: #65656a; font-family: Consolas, "Cascadia Mono", monospace; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.browser-extension-copy em { color: #879c8b; font-size: 9px; font-style: normal; }
-.browser-extension-copy em.is-off { color: #85858a; }
-.browser-extension-copy em.is-error { color: #d79a91; }
-.browser-extension-actions { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
-.browser-extension-actions .btn { min-height: 28px; padding: 0 8px; font-size: 10px; }
-.browser-extension-remove { width: 26px; height: 28px; color: #77777c; border-radius: 6px; }
-.browser-extension-remove:hover { color: #d89082; background: #2a1d1b; }
-.browser-extension-add { width: 100%; margin-top: 10px; }
 
 .browser-signal {
   position: relative;
@@ -3993,7 +3948,6 @@ body::before {
 .player-layer.browser-chrome-collapsed #browserGo,
 .player-layer.browser-chrome-collapsed #browserBookmarkToggle,
 .player-layer.browser-chrome-collapsed #browserPlacesToggle,
-.player-layer.browser-chrome-collapsed #browserExtensionsToggle,
 .player-layer.browser-chrome-collapsed #browserSignalToggle { display: none; }
 .player-layer.browser-chrome-collapsed .browser-chrome-toggle svg { transform: rotate(180deg); }
 
