@@ -1,6 +1,6 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const {
   browserNavigationCapabilities,
@@ -1947,6 +1947,13 @@ function destroyBrowserView() {
   resetBrowserCaptureState();
   browserDebuggerReady = false;
   if (!browserView) return;
+  // Debugger oturumunu görünüm kapanmadan ayır. Aksi halde yeniden açılan
+  // görünümde "debugger attached" yarışları ve yakalama kilitleri kalabiliyor.
+  try {
+    if (browserView.webContents && browserView.webContents.debugger.isAttached()) {
+      browserView.webContents.debugger.detach();
+    }
+  } catch (_) {}
   try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(browserView); } catch (_) {}
   try { if (!browserView.webContents.isDestroyed()) browserView.webContents.close({ waitForBeforeUnload: false }); } catch (_) {}
   browserView = null;
@@ -2813,6 +2820,7 @@ function ffSubtitlesArg(p) {
 let burninJob = null;
 ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
   if (burninJob) return { ok: false, error: 'Gömme zaten çalışıyor.' };
+  if (activeJob) return { ok: false, error: 'Transkripsiyon işi çalışırken gömme başlatılamaz.' };
   if (!videoPath || !subPath || !fs.existsSync(videoPath) || !fs.existsSync(subPath)) {
     return { ok: false, error: 'Video veya altyazı dosyası bulunamadı.' };
   }
@@ -2887,16 +2895,26 @@ ipcMain.handle('burnin:cancel', () => {
 
 function resolvePython() {
   const appDir = app.getAppPath();
-  const candidates = [
-    path.join(appDir, 'backend', 'venv', 'Scripts', 'python.exe'),
-    path.join(appDir, 'backend', '.venv', 'Scripts', 'python.exe'),
-    'python',
-    'py',
-  ];
-  for (const c of candidates) {
-    if (path.isAbsolute(c) && fs.existsSync(c)) return c;
+  const binDir = process.platform === 'win32' ? 'Scripts' : 'bin';
+  const exeNames = process.platform === 'win32' ? ['python.exe', 'python3.exe'] : ['python3', 'python'];
+  const candidates = [];
+  for (const envName of ['venv', '.venv']) {
+    for (const exeName of exeNames) candidates.push(path.join(appDir, 'backend', envName, binDir, exeName));
   }
-  return 'python';
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  // Windows kurulumlarında python.exe olmayıp yalnızca Python Launcher (py)
+  // bulunabilir. Komutu gerçekten çalıştırılabilir mi diye kontrol et; aksi
+  // halde transkripsiyon başlangıcında yanıltıcı ENOENT hatası oluşuyordu.
+  const commands = process.platform === 'win32' ? ['python', 'py', 'python3'] : ['python3', 'python'];
+  for (const command of commands) {
+    try {
+      const probe = spawnSync(command, ['--version'], { windowsHide: true, stdio: 'ignore' });
+      if (probe.status === 0 && !probe.error) return command;
+    } catch (_) {}
+  }
+  return commands[0];
 }
 
 // Bir isin sonucunu gecmise yazar. Baslik once URETILEN dosyadan alinir:
@@ -2927,6 +2945,9 @@ function recordJob(meta, event) {
 ipcMain.handle('transcribe:start', async (_event, options) => {
   if (activeJob) {
     return { ok: false, error: 'Zaten bir iş çalışıyor.' };
+  }
+  if (burninJob) {
+    return { ok: false, error: 'Gömme işi çalışırken transkripsiyon başlatılamaz.' };
   }
 
   const appDir = app.getAppPath();

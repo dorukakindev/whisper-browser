@@ -1025,6 +1025,32 @@ def test_dedupe_consecutive():
     assert len(T.dedupe_consecutive(far)) == 2
 
 
+def test_reexport_sorts_segments_before_writing():
+    # JSON elle düzenlendiğinde sıra bozulabilir; re-export çıktısı kronolojik
+    # olmalı ve konuşmacı etiketi segmentle birlikte taşınmalı.
+    with tempfile.TemporaryDirectory() as td:
+        src = os.path.join(td, "edited.json")
+        with open(src, "w", encoding="utf-8") as fh:
+            json.dump({"language": "en", "segments": [
+                {"start": 5, "end": 6, "text": "late", "speaker": "B"},
+                {"start": 1, "end": 2, "text": "early", "speaker": "A"},
+            ]}, fh)
+        args = types.SimpleNamespace(
+            input=src, output_dir=td, formats="srt", lang_suffix=False,
+            max_line_width=42, max_lines=2, wrap_mode="sentence",
+        )
+        emitted = []
+        written = []
+        old_emit, old_write = T.emit, T.write_srt
+        try:
+            T.emit = lambda event, **payload: emitted.append((event, payload))
+            T.write_srt = lambda entries, *args, **kwargs: written.append(list(entries))
+            T.reexport_from_json(args)
+        finally:
+            T.emit, T.write_srt = old_emit, old_write
+        assert written == [[(1.0, 2.0, "early"), (5.0, 6.0, "late")]]
+
+
 # ===== zamanlama normalizasyonu =====
 def test_normalize_timings():
     # çakışma: 0-5 ve 4-8 → ilkinin bitişi ikincinin başına taşmamalı

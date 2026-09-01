@@ -3,6 +3,12 @@ const crypto = require('crypto');
 const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(caption|captions|subtitle|subtitles|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3)(?:[\/?&_.=-]|$)/i;
 
 function decodeEntities(value) {
+  const decodeCodePoint = (raw, radix = 10) => {
+    const codePoint = parseInt(String(raw), radix);
+    // Kötü niyetli/bozuk altyazı yanıtı String.fromCodePoint'u patlatmasın.
+    return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
+      ? String.fromCodePoint(codePoint) : '\uFFFD';
+  };
   return String(value || '')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -10,8 +16,8 @@ function decodeEntities(value) {
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(Number(n) || 0))
-    .replace(/&#x([0-9a-f]+);/gi, (_m, n) => String.fromCodePoint(parseInt(n, 16) || 0));
+    .replace(/&#(\d+);/g, (_m, n) => decodeCodePoint(n))
+    .replace(/&#x([0-9a-f]+);/gi, (_m, n) => decodeCodePoint(n, 16));
 }
 
 function cleanCueText(value) {

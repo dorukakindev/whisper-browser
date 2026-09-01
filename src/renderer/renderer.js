@@ -150,6 +150,18 @@ function optsProblem(opts) {
   return null;
 }
 
+// IPC çağrısı Electron kapanışı, kanal hatası veya süreç çökmesi nedeniyle
+// reddedilirse UI kilitli kalmasın. Tüm başlatma akışları aynı güvenli sonucu
+// kullanır ve mevcut !result.ok hata yollarına düşer.
+async function startTranscribeSafe(opts) {
+  try {
+    const result = await window.api.startTranscribe(opts);
+    return result || { ok: false, error: 'Transkripsiyon başlatılamadı.' };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'Transkripsiyon IPC çağrısı başarısız.' };
+  }
+}
+
 function addToQueue(type, input) {
   if (!input) return;
   const opts = buildOptsFromUI();
@@ -333,7 +345,7 @@ async function processNextQueueItem() {
 
   logLine(`▶ Kuyruk: "${next.label}" başlıyor (${next.type})`);
 
-  const r = await window.api.startTranscribe(opts);
+  const r = await startTranscribeSafe(opts);
   if (!r.ok) {
     logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${r.error}`, 'error');
     next.status = 'error';
@@ -1492,7 +1504,7 @@ $('startBtn').addEventListener('click', async () => {
   setStatus('Çalışıyor', 'active');
   logLine('Altyazı çıkarma başlatıldı', 'info');
 
-  const result = await window.api.startTranscribe(opts);
+  const result = await startTranscribeSafe(opts);
   if (!result.ok) {
     logLine('Hata: ' + result.error, 'error');
     finishRun(false);
@@ -1525,6 +1537,9 @@ $('cancelBtn').addEventListener('click', async () => {
 
 function finishRun(success) {
   state.running = false;
+  // İptal sonrası gelebilecek hata/çıkış olayını önce exit handler'ının
+  // görmesine izin ver; başarılı/normal tamamlanmada bayrağı temizle.
+  if (success) state.cancelled = false;
   $('startBtn').classList.remove('hidden');
   $('cancelBtn').classList.add('hidden');
   if (success) setStatus('Tamamlandı', 'success');
@@ -1617,7 +1632,7 @@ async function startProgressiveChunk(job) {
   job.running = true;
   const n = job.rangeIndex + 1;
   $('playerJobText').textContent = `Öncelikli altyazı bölümü ${n}/${job.ranges.length} hazırlanıyor…`;
-  const result = await window.api.startTranscribe(opts);
+  const result = await startTranscribeSafe(opts);
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (!result || !result.ok) {
     job.running = false;
@@ -2043,6 +2058,9 @@ window.api.onEvent((event) => {
     }
 
     case 'error':
+      // İptal ile yarışan geç hata olayını kullanıcıya gerçek hata gibi gösterme;
+      // süreç kapanışında exit dalı iptal durumunu toparlar.
+      if (state.cancelled) break;
       logLine('Hata: ' + (event.message || 'Bilinmeyen hata'), 'error');
       if (event.traceback) logLine(event.traceback, 'error');
       setStatus('Hata', 'error');
@@ -2309,7 +2327,7 @@ $('reexportJson').addEventListener('click', async () => {
   $('startBtn').classList.add('hidden');
   $('cancelBtn').classList.remove('hidden');
   logLine(`JSON'dan yeniden üretiliyor: ${jsonPath.split(/[\\/]/).pop()}`, 'info');
-  const r = await window.api.startTranscribe(opts);
+  const r = await startTranscribeSafe(opts);
   if (!r.ok) { logLine('Hata: ' + r.error, 'error'); finishRun(false); }
 });
 
@@ -2359,7 +2377,7 @@ $('syncBtn').addEventListener('click', async () => {
   $('startBtn').classList.add('hidden');
   $('cancelBtn').classList.remove('hidden');
   logLine(`Senkronlanıyor: ${state.syncSrt.split(/[\\/]/).pop()} ↔ ${state.syncVideo.split(/[\\/]/).pop()}`, 'info');
-  const r = await window.api.startTranscribe(opts);
+  const r = await startTranscribeSafe(opts);
   if (!r.ok) { logLine('Hata: ' + r.error, 'error'); finishRun(false); }
 });
 
@@ -5248,7 +5266,7 @@ async function aiChatSend(soru) {
   state.aiJob = true;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'chat', bubble: bekleyen };
 
-  const r = await window.api.startTranscribe(opts);
+  const r = await startTranscribeSafe(opts);
   if (!r || !r.ok) {
     state.running = false;
     state.aiJob = false;
@@ -5339,7 +5357,7 @@ async function askExplain(kind, index, word) {
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'explain',
                  explainKey: key, explainTitle: EXPLAIN_TITLES[kind] || 'AI' };
   showAiAnswer(EXPLAIN_TITLES[kind] || 'AI', 'Düşünüyor…', true);
-  const r = await window.api.startTranscribe(opts);
+  const r = await startTranscribeSafe(opts);
   if (!r || !r.ok) {
     state.running = false;
     state.aiJob = false;
@@ -7105,7 +7123,7 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   $('playerJobFill').style.width = '0%';
   $('playerJobText').textContent = 'Ses ritmi analiz ediliyor…';
   updatePlayerAutoSyncState();
-  const result = await window.api.startTranscribe(opts);
+  const result = await startTranscribeSafe(opts);
   if (!result || !result.ok) {
     state.running = false;
     player.job = null;
@@ -7156,7 +7174,7 @@ if ($('makeTransBtn')) {
     logLine(`Çeviri başlatıldı: ${player.subPath.split(/[\\/]/).pop()} → `
       + `${opts.translateTo || 'tr'} · kaynak ${opts.language || 'otomatik'} · `
       + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
-    const r = await window.api.startTranscribe(opts);
+    const r = await startTranscribeSafe(opts);
     if (!r || !r.ok) {
       state.running = false;
       player.job = null;

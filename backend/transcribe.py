@@ -4000,7 +4000,7 @@ def transcribe(args):
         if (args.merge_short or args.merge_incomplete or args.merge_continuation
                 or args.llm_postprocess
                 or args.diarize or args.fix_timings or args.drop_trailing_hallucination
-                or args.fix_punctuation_collapse or resumed_entries):
+                or args.fix_punctuation_collapse or args.dedupe or resumed_entries):
             emit("preview_refresh", segments=[
                 {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
                 for i, (s, e, t) in enumerate(entries)
@@ -4619,7 +4619,8 @@ def reexport_from_json(args):
     entries = []
     speakers_map = {}
     all_words = []
-    for i, seg in enumerate(segments):
+    records = []
+    for seg in segments:
         try:
             s = float(seg.get("start"))
             e = float(seg.get("end"))
@@ -4628,12 +4629,23 @@ def reexport_from_json(args):
         text = (seg.get("text") or "").strip()
         if not text:
             continue
-        idx = len(entries)
-        entries.append((s, e, text))
-        if seg.get("speaker"):
-            speakers_map[idx] = seg["speaker"]
+        records.append((s, e, text, seg.get("speaker")))
         for w in (seg.get("words") or []):
-            all_words.append(w)
+            if isinstance(w, dict):
+                all_words.append(w)
+
+    # Elle düzenlenmiş JSON'larda segmentler zaman sırasını kaybedebilir.
+    # Yazıcılar ileri yönlü imleç kullandığı için önce sıralamak hem SRT'yi
+    # hem de kelime eşlemesini doğru tutar; konuşmacı eşlemesi de birlikte taşınır.
+    records.sort(key=lambda row: (row[0], row[1]))
+    entries = [(s, e, text) for s, e, text, _speaker in records]
+    speakers_map = {i: speaker for i, (_s, _e, _text, speaker) in enumerate(records) if speaker}
+    def _word_start(word):
+        try:
+            return float(word.get("start", 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    all_words.sort(key=_word_start)
 
     if not entries:
         raise RuntimeError("JSON'da yazılabilir segment yok.")

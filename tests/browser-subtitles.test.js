@@ -44,6 +44,13 @@ test('WebVTT satırlarını ve HTML etiketlerini ayrıştırır', () => {
   ]);
 });
 
+test('Bozuk HTML sayısal entity altyazı yakalamayı çökertmez', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:01.000\nGeçersiz &#9999999; değer',
+    'text/vtt', 'https://cdn.test/captions.vtt');
+  assert.equal(result.cues.length, 1);
+  assert.match(result.cues[0].text, /Geçersiz .* değer/);
+});
+
 test('Parçalı WebVTT MPEGTS zaman haritasını video zamanına uygular', () => {
   const result = parseSubtitlePayload('WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:900000\n\n00:00.500 --> 00:02.000\nMapped cue', 'text/vtt', 'https://cdn.test/seg-1.vtt');
   assert.deepEqual(result.cues, [{ start: 10.5, end: 12, text: 'Mapped cue' }]);
