@@ -1758,14 +1758,14 @@ function dataUrlMangaImage(raw) {
   return buffer.length ? { buffer, mimeType: match[1].toLowerCase().replace('jpg', 'jpeg') } : null;
 }
 
-async function fetchMangaImage(candidate, pageUrl, signal) {
-  const inline = dataUrlMangaImage(candidate.url);
+async function fetchMangaImageSource(sourceUrl, pageUrl, signal) {
+  const inline = dataUrlMangaImage(sourceUrl);
   let buffer;
   let mimeType;
   if (inline) {
     ({ buffer, mimeType } = inline);
   } else {
-    if (!isSafeMangaImageUrl(candidate.url)) throw new Error('Görsel adresi güvenli değil.');
+    if (!isSafeMangaImageUrl(sourceUrl)) throw new Error('Görsel adresi güvenli değil.');
     const downloadController = new AbortController();
     const forwardAbort = () => downloadController.abort(signal?.reason || new Error('Manga çevirisi iptal edildi.'));
     if (signal?.aborted) forwardAbort();
@@ -1774,12 +1774,13 @@ async function fetchMangaImage(candidate, pageUrl, signal) {
       new Error('Manga görseli 30 saniyede indirilemedi.')), 30_000);
     downloadTimer.unref?.();
     const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
-    let imageUrl = candidate.url;
+    let imageUrl = sourceUrl;
     let response;
     try {
       for (let redirects = 0; redirects <= 4; redirects++) {
         response = await browserSession.fetch(imageUrl, {
           method: 'GET', signal: downloadController.signal, redirect: 'manual', credentials: 'include',
+          cache: 'force-cache',
           referrer: /^https?:\/\//i.test(pageUrl) ? pageUrl : undefined,
           referrerPolicy: 'strict-origin-when-cross-origin',
           headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5' },
@@ -1819,6 +1820,23 @@ async function fetchMangaImage(candidate, pageUrl, signal) {
     mimeType = 'image/jpeg';
   }
   return { buffer, mimeType: /^image\//.test(mimeType) ? mimeType : 'image/png' };
+}
+
+async function fetchMangaImage(candidate, pageUrl, signal) {
+  const sources = [...new Set([
+    ...(Array.isArray(candidate?.urls) ? candidate.urls : []),
+    candidate?.url,
+  ].map((value) => String(value || '').trim()).filter(Boolean))];
+  let lastError;
+  for (const sourceUrl of sources) {
+    try {
+      return await fetchMangaImageSource(sourceUrl, pageUrl, signal);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Manga görselinin indirilebilir adresi bulunamadı.');
 }
 
 async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, useSchema = true) {

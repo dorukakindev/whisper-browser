@@ -173,7 +173,12 @@ function mangaCandidateScanScript() {
       const lazyUrl = lazyAttributes.map(name => absoluteUrl(image.getAttribute(name))).find(Boolean) || '';
       const srcset = String(image.getAttribute('data-srcset') || image.getAttribute('srcset') || '').trim();
       const srcsetUrl = srcset.split(',').map(part => part.trim().split(/\\s+/)[0]).map(absoluteUrl).filter(Boolean).pop() || '';
-      const url = lazyUrl || srcsetUrl || absoluteUrl(image.currentSrc || image.src);
+      // Sayfanın gerçekten yüklediği currentSrc, CDN/hotlink dönüşümlerini ve
+      // lazy-loader'ın seçtiği nihai adresi taşır. data-src bazı sitelerde
+      // yalnız bir ara rota olduğundan onu alternatif olarak sakla.
+      const renderedUrl = absoluteUrl(image.currentSrc || image.src);
+      const urls = [...new Set([renderedUrl, srcsetUrl, lazyUrl].filter(Boolean))];
+      const url = urls[0] || '';
       if (!url) continue;
       let id = image.getAttribute('data-whisper-manga-id');
       if (!id) {
@@ -183,7 +188,7 @@ function mangaCandidateScanScript() {
       }
       const visible = rect.bottom > 0 && rect.top < viewportBottom;
       const distance = visible ? 0 : Math.min(Math.abs(rect.top), Math.abs(rect.bottom - viewportBottom));
-      candidates.push({ id, url, width, height, visible, distance, readerScore, excluded, order,
+      candidates.push({ id, url, urls, width, height, visible, distance, readerScore, excluded, order,
         lazy: !!(lazyUrl || srcsetUrl), portrait, alt: String(image.alt || '').slice(0, 200), area: width * height });
     }
     window.__whisperMangaSequence = sequence;
