@@ -4961,6 +4961,7 @@ function renderPlayerLibrary() {
     actions.className = 'player-library-actions';
     actions.append(
       makeWatchAction(item.completed ? 'Baştan izle' : 'Devam et', item.completed ? 'restart' : 'open', item.key, item.completed ? 0 : item.position || 0),
+      makeWatchAction(item.completed ? 'Tamamlanmadı' : 'Tamamlandı', 'complete', item.key),
       makeWatchAction('Koleksiyon', 'collection', item.key),
       makeWatchAction('Kaldır', 'remove', item.key),
     );

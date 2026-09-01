@@ -942,6 +942,14 @@ test('açık videoda elle tamamla/kaldır kararı otomatik flush tarafından ezi
     'elle tamamla/tamamlanmadı kararı flush içinde korunmuyor');
 });
 
+test('izleme kütüphanesi elle tamamlandı/tamamlanmadı eylemini görünür sunuyor', () => {
+  const start = js.indexOf('function renderPlayerLibrary()');
+  const end = js.indexOf('function updateCollectionOptions()', start);
+  const body = js.slice(start, end);
+  assert(/makeWatchAction\(item\.completed \? 'Tamamlanmadı' : 'Tamamlandı', 'complete', item\.key\)/.test(body),
+    'tamamlanma işleyicisi var fakat kullanıcıya düğme sunulmuyor');
+});
+
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);
 if (failures.length) {
   console.error('\nBaşarısız:');
