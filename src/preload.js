@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('api', {
   startBrowserManga: (tabId, payload) => ipcRenderer.invoke('browser:manga:start', { ...payload, tabId }),
   toggleBrowserManga: (tabId, visible) => ipcRenderer.invoke('browser:manga:toggle', { tabId, visible }),
   clearBrowserManga: (tabId) => ipcRenderer.invoke('browser:manga:clear', { tabId }),
+  retrySelectedBrowserManga: (tabId) => ipcRenderer.invoke('browser:manga:retrySelected', { tabId }),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),
   stopBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:stop', { tabId }),
   completeBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:completeAll', { tabId }),

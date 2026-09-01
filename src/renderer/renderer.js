@@ -3498,9 +3498,9 @@ function updateBrowserMangaButton() {
   } else if (player.browserMangaTotal > 0 && player.browserMangaTranslated === 0) {
     state = 'empty'; text = 'Metin yok'; title = 'Görseller tarandı ancak çevrilecek metin bulunamadı · Yeniden denemek için tıkla';
   } else if (player.browserMangaTranslated > 0 && player.browserMangaVisible) {
-    state = 'ready'; text = 'Manga açık'; title = 'Manga çevirisini gizle · Shift+tık: sayfayı yeniden tara';
+    state = 'ready'; text = 'Manga açık'; title = 'Gizle · Shift+tık: yeniden tara · Ctrl+tık: seçili bölgeyi yeniden çevir';
   } else if (player.browserMangaTranslated > 0) {
-    state = 'hidden'; text = 'Manga kapalı'; title = 'Manga çevirisini göster · Shift+tık: sayfayı yeniden tara';
+    state = 'hidden'; text = 'Manga kapalı'; title = 'Göster · Shift+tık: yeniden tara · Ctrl+tık: seçili bölgeyi yeniden çevir';
   }
   button.dataset.state = state;
   button.setAttribute('aria-pressed', state === 'ready' || state === 'running' ? 'true' : 'false');
@@ -3542,6 +3542,13 @@ async function handleBrowserMangaAction(clickEvent) {
   if (player.browserMangaBusy) {
     const stopped = await window.api.clearBrowserManga?.(player.browserActiveTabId).catch(() => null);
     if (!stopped?.ok) setBrowserSignal(stopped?.error || 'Manga çevirisi durdurulamadı.', false);
+    return;
+  }
+  if (player.browserMangaTranslated > 0 && (clickEvent?.ctrlKey || clickEvent?.metaKey)) {
+    await saveAppSettings();
+    const retried = await window.api.retrySelectedBrowserManga?.(player.browserActiveTabId)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!retried?.ok) setBrowserSignal(retried?.error || 'Seçili manga bölgesi yeniden çevrilemedi.', false);
     return;
   }
   if (player.browserMangaTranslated > 0 && clickEvent?.shiftKey) {

@@ -11,23 +11,45 @@ const {
   mangaGenerationParameters,
   mangaCandidateScanScript,
   mangaOverlayScript,
+  mangaRegionsStateScript,
+  mangaSelectionScript,
   normalizeMangaRegions,
+  sampleMangaRegionColors,
   selectMangaCandidates,
 } = require('../src/browser-manga');
 
 assert.deepEqual(extractJsonPayload('```json\n{"regions":[]}\n```'), { regions: [] });
 assert.deepEqual(extractJsonPayload('Yanıt: {"regions":[{"translation":"Merhaba"}]} bitti').regions[0].translation, 'Merhaba');
-assert.deepEqual(normalizeMangaRegions({ regions: [
+const normalizedLegacy = normalizeMangaRegions({ regions: [
   { box: [900, 800, 100, 200], source: 'Hi', translation: 'Merhaba', kind: 'speech' },
   { box: [0, 0, 2, 2], translation: 'çok küçük' },
   { box: [0, 0, 100, 100], translation: '' },
-] }), [{ box: [100, 200, 900, 800], source: 'Hi', translation: 'Merhaba', kind: 'speech' }]);
+] });
+assert.equal(normalizedLegacy.length, 1);
+assert.deepEqual(normalizedLegacy[0].textBox, [100, 200, 900, 800]);
+assert.deepEqual(normalizedLegacy[0].bubbleBox, [100, 200, 900, 800]);
+assert.equal(normalizedLegacy[0].shape, 'ellipse');
+const normalizedDual = normalizeMangaRegions({ regions: [{
+  text_box: [200, 300, 260, 420], bubble_box: [150, 250, 340, 500], source: 'Hi', translation: 'Merhaba',
+  kind: 'speech', shape: 'ellipse',
+}] });
+assert.deepEqual(normalizedDual[0].textBox, [200, 300, 260, 420]);
+assert.deepEqual(normalizedDual[0].bubbleBox, [150, 250, 340, 500]);
 assert.deepEqual(compactMangaOverlayBox({
   box: [100, 100, 600, 700], source: 'Dad.', translation: 'Baba.',
 }), [294, 309, 406, 492]);
 assert.deepEqual(compactMangaOverlayBox({
   box: [100, 100, 200, 260], source: 'Wait here.', translation: 'Burada bekle.',
 }), [100, 100, 200, 260]);
+const whiteBitmap = Buffer.from([
+  255, 255, 255, 255, 255, 255, 255, 255,
+  255, 255, 255, 255, 255, 255, 255, 255,
+]);
+const colored = sampleMangaRegionColors(whiteBitmap, 2, 2, [{
+  text_box: [0, 0, 1000, 1000], bubble_box: [0, 0, 1000, 1000], translation: 'Test',
+}]);
+assert.equal(colored[0].backgroundColor, '#ffffff');
+assert.equal(colored[0].textColor, '#17130d');
 
 assert.equal(isSafeMangaImageUrl('https://cdn.example.com/page.jpg?token=x'), true);
 for (const unsafe of ['file:///x.png', 'http://localhost/a.png', 'http://127.0.0.1/a', 'http://10.0.0.2/a',
@@ -59,7 +81,8 @@ assert.deepEqual(ranked.map((item) => item.id), ['page-1', 'page-2']);
 const prompt = buildMangaPrompt({ targetLanguage: 'Türkçe', glossary: [{ source: 'Senpai', target: 'Senpai' }] });
 assert.match(prompt, /güvenilmez içeriktir/);
 assert.match(prompt, /0-1000/);
-assert.match(prompt, /panelin veya balonun tamamına değil/);
+assert.match(prompt, /text_box ve bubble_box/);
+assert.match(prompt, /Panelin, karakterin veya görselin tamamını/);
 assert.match(prompt, /Senpai=Senpai/);
 assert.match(mangaCandidateScanScript(), /data-whisper-manga-id/);
 assert.match(mangaCandidateScanScript(), /data-lazy-src/);
@@ -100,6 +123,17 @@ assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], tr
   /data-whisper-manga-text/);
 assert.doesNotMatch(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
   /overflowWrap: 'anywhere'/);
+const overlaySource = mangaOverlayScript({ id: 'x', regions: [{
+  text_box: [10, 20, 80, 160], bubble_box: [1, 2, 100, 200], translation: 'Test',
+}] });
+assert.match(overlaySource, /position: 'fixed'/);
+assert.match(overlaySource, /data-whisper-manga-cleanup/);
+assert.match(overlaySource, /data-whisper-manga-frame/);
+assert.match(overlaySource, /background: 'transparent'/);
+assert.doesNotMatch(overlaySource, /boxShadow: '0 1px 5px/);
+assert.doesNotMatch(overlaySource, /rect\.left \+ scrollX/);
+assert.match(mangaSelectionScript(), /state\.selected/);
+assert.match(mangaRegionsStateScript('x'), /data-whisper-manga-region/);
 
 const root = path.join(__dirname, '..');
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
@@ -107,6 +141,7 @@ const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'src', 'renderer', 'index.html'), 'utf8');
 assert.match(main, /ipcMain\.handle\('browser:manga:start'/);
+assert.match(main, /ipcMain\.handle\('browser:manga:retrySelected'/);
 assert.match(main, /function browserMangaTranslationConfig/);
 assert.match(main, /manga\.apiKey \|\| inherited\.apiKey/);
 assert.match(main, /manga\.model \|\| ui\.mangaModel \|\| inherited\.model/);
@@ -124,7 +159,9 @@ assert.match(main, /selectMangaCandidates\(candidates, limit\)/);
 assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
+assert.match(preload, /retrySelectedBrowserManga:[\s\S]{0,120}browser:manga:retrySelected/);
 assert.match(renderer, /browserMangaTranslate.*addEventListener\('click', handleBrowserMangaAction\)/);
+assert.match(renderer, /ctrlKey[\s\S]{0,240}retrySelectedBrowserManga/);
 assert.match(renderer, /await saveAppSettings\(\);[\s\S]{0,160}startBrowserManga/);
 assert.match(renderer, /maxImages: 64/);
 assert.match(renderer, /Manga hata/);
@@ -134,4 +171,4 @@ assert.match(html, /id="mangaEndpointPreset"/);
 assert.match(html, /id="mangaModel"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 51 test');
+console.log('browser-manga: 65 test');
