@@ -3639,7 +3639,7 @@ body::before {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: 82px auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   margin: 0;
   overflow: hidden;
   border: 1px solid #202021;
@@ -3717,7 +3717,7 @@ body::before {
 .browser-nav, .browser-address-wrap, .browser-toolbar-actions { grid-row: 2; }
 
 .browser-nav { display: flex; gap: 3px; }
-.browser-toolbar-actions { display: flex; align-items: center; gap: 7px; }
+.browser-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .browser-nav-button {
   width: 34px;
   height: 34px;
@@ -3821,7 +3821,7 @@ body::before {
 }
 .browser-signal-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .browser-signal-kicker { color: #66666a; font-size: 8px; font-weight: 800; letter-spacing: .17em; }
-.browser-signal-text { overflow: hidden; color: #a4a4a8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.browser-signal-text { color: #a4a4a8; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .browser-signal.detected .browser-signal-text { color: #dfdfe1; }
 .browser-signal-state-actions,
 .browser-signal-tools,
@@ -3971,7 +3971,7 @@ body::before {
 /* Tarayıcı izlerken iki ayrı yoğunluk denetimi vardır: sinyal şeridi tek
    başına kapanabilir; sade görünüm ise başlığı ve ikincil araçları kaldırıp
    yalnız adres alanını ve geri açma düğmesini bırakır. */
-.browser-workspace.signal-collapsed { grid-template-rows: 82px 0 minmax(0, 1fr); }
+.browser-workspace.signal-collapsed { grid-template-rows: auto 0 minmax(0, 1fr); }
 .browser-workspace.signal-collapsed .browser-signal { display: none; }
 .player-layer.browser-chrome-collapsed .player-head { display: none; }
 .player-layer.browser-chrome-collapsed .player-body { padding: 0; }
@@ -4032,8 +4032,6 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
 
 @media (max-width: 1060px) {
   .player-workspace-switch { order: 4; }
-  .browser-toolbar { grid-template-columns: auto minmax(120px, 1fr) auto; }
-  .browser-acquisition-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @container browser-workspace (max-width: 1640px) {
@@ -4045,9 +4043,35 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
   .browser-signal-head { grid-template-columns: minmax(0, 1fr); gap: 7px; }
   .browser-signal-state-actions { justify-content: flex-start; flex-wrap: wrap; }
   .browser-track-actions select { max-width: none; }
+  .browser-diagnostics {
+    position: relative;
+    z-index: 2;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-height: min(420px, 48dvh);
+    overflow: auto;
+    box-shadow: none;
+  }
+  .browser-acquisition-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .browser-diagnostics-summary { white-space: normal; text-align: right; }
+  .browser-capability-actions { flex-wrap: wrap; }
 }
 
 @container browser-workspace (max-width: 620px) {
+  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 28px 36px 36px;
+  }
+  .player-layer:not(.browser-chrome-collapsed) .browser-nav { grid-column: 1; grid-row: 2; }
+  .player-layer:not(.browser-chrome-collapsed) .browser-address-wrap { grid-column: 2; grid-row: 2; }
+  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar-actions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-end;
+  }
+  .browser-places { top: 124px; max-height: calc(100% - 136px); }
+  .browser-tab { min-width: 78px; }
   .browser-signal-tools,
   .browser-track-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .browser-signal-tool,
@@ -4055,6 +4079,9 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
   .browser-track-actions select { width: 100%; max-width: none; }
   #browserExportFormat { width: 100%; min-width: 0; }
   .browser-track-actions .browser-dismiss { justify-self: end; }
+  .browser-diagnostics-head,
+  .browser-acquisition-head { align-items: flex-start; flex-wrap: wrap; }
+  #browserAcquisitionSummary { max-width: 100%; white-space: normal; text-align: right; }
 }
 
 @media (prefers-reduced-motion: reduce) {

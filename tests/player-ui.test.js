@@ -513,6 +513,36 @@ test('tarayıcı altyazı şeridi panel genişliğine göre sarılıyor ve yard�
     'canlı durum bölgesi etkileşimli şeridin tamamını kapsamamalı');
 });
 
+test('tarayıcı araç çubuğu ve ayrıntılar yeniden boyutlanan paneli izliyor', () => {
+  assert(/\.browser-workspace\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/.test(css),
+    'araç çubuğu büyüdüğünde tarayıcı görünümü sabit 82px satıra sıkışıyor');
+  assert(/@container browser-workspace \(max-width:\s*620px\)[\s\S]*?\.browser-toolbar\s*\{[^}]*grid-template-rows:\s*28px 36px 36px/.test(css),
+    'dar panel araç çubuğu container genişliğine göre üç satıra geçmiyor');
+  assert(/@container browser-workspace \(max-width:\s*920px\)[\s\S]*?\.browser-diagnostics\s*\{[^}]*position:\s*relative[^}]*max-height:\s*min\(420px,\s*48dvh\)[^}]*overflow:\s*auto/.test(css),
+    'dar panelde ayrıntılar görünür akışa girmiyor veya yüksekliği sınırlanmıyor');
+  assert(/@container browser-workspace \(max-width:\s*920px\)[\s\S]*?\.browser-acquisition-stages\s*\{[^}]*repeat\(2/.test(css),
+    'edinme adımları panel genişliğine göre iki sütuna düşmüyor');
+  assert(/\.browser-signal-text\s*\{[^}]*overflow-wrap:\s*anywhere/.test(css)
+    && !/\.browser-signal-text\s*\{[^}]*white-space:\s*nowrap/.test(css),
+    'önemli yakalama durumu dar panelde kesiliyor');
+});
+
+test('tarayıcı sekmeleri erişilebilir tab modeli ve SVG kapatma ikonları kullanıyor', () => {
+  assert(/open\.setAttribute\('role', 'tab'\)/.test(js)
+    && /open\.tabIndex = tab\.id === player\.browserActiveTabId \? 0 : -1/.test(js),
+    'sekme odağı ve seçimi gerçek tab düğmesinde değil');
+  assert(/\['ArrowLeft', 'ArrowRight', 'Home', 'End'\]/.test(js),
+    'tarayıcı sekmelerinde ok ve Home\/End klavye dolaşımı yok');
+  assert(/async function activateBrowserTabAndFocus/.test(js),
+    'sekme değişiminde yeniden çizilen etkin sekmeye odak geri verilmiyor');
+  assert(!/close\.textContent = '×'/.test(js) && !/remove\.textContent = '×'/.test(js),
+    'dinamik tarayıcı kapatma eylemleri Unicode çarpı kullanıyor');
+  for (const id of ['browserPlacesClose', 'browserSignalClose', 'browserTrackDismiss']) {
+    const index = layer.indexOf(`id="${id}"`);
+    assert(index >= 0 && /<svg/.test(layer.slice(index, index + 500)), `${id} SVG ikon kullanmıyor`);
+  }
+});
+
 // ---- 14. izlerken canlı cümle birleştirme ----
 test('oynatıcıda cümle birleştirme anahtarı var ve dosyayı değiştirmiyor', () => {
   assert(/id="playerMergeCont"/.test(layer), 'oynaticida anahtar yok');

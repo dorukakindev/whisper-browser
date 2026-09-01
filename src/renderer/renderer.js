@@ -3265,6 +3265,23 @@ function browserTabLabel(tab) {
   try { return new URL(tab && tab.url || '').hostname; } catch (_) { return 'Yeni sekme'; }
 }
 
+function browserCloseIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'm6 6 12 12M18 6 6 18');
+  svg.appendChild(path);
+  return svg;
+}
+
 function renderBrowserTabs() {
   const strip = $('browserTabStrip');
   if (!strip) return;
@@ -3273,17 +3290,19 @@ function renderBrowserTabs() {
     const item = document.createElement('div');
     item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}`;
     item.dataset.browserTabId = tab.id;
-    item.setAttribute('role', 'tab');
-    item.setAttribute('aria-selected', tab.id === player.browserActiveTabId ? 'true' : 'false');
+    item.setAttribute('role', 'presentation');
     const open = document.createElement('button');
     open.type = 'button'; open.className = 'browser-tab-open';
     open.dataset.browserTabActivate = tab.id;
+    open.setAttribute('role', 'tab');
+    open.setAttribute('aria-selected', tab.id === player.browserActiveTabId ? 'true' : 'false');
+    open.tabIndex = tab.id === player.browserActiveTabId ? 0 : -1;
     open.textContent = browserTabLabel(tab);
     open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'browser-tab-close';
     close.dataset.browserTabClose = tab.id;
-    close.textContent = '×'; close.title = 'Sekmeyi kapat'; close.setAttribute('aria-label', 'Sekmeyi kapat');
+    close.appendChild(browserCloseIcon()); close.title = 'Sekmeyi kapat'; close.setAttribute('aria-label', 'Sekmeyi kapat');
     item.append(open, close);
     strip.appendChild(item);
   }
@@ -3347,6 +3366,13 @@ async function closeBrowserTab(tabId) {
     scheduleBrowserOverlaySync();
   }
   scheduleBrowserBounds();
+}
+
+async function activateBrowserTabAndFocus(tabId) {
+  await activateBrowserTab(tabId);
+  const tab = [...($('browserTabStrip')?.querySelectorAll('[role="tab"]') || [])]
+    .find((item) => item.dataset.browserTabActivate === tabId);
+  tab?.focus();
 }
 
 function browserSlotBounds() {
@@ -3534,7 +3560,7 @@ function renderBrowserPlaces() {
     remove.dataset.placeRemove = item.url;
     remove.title = player.browserPlaceTab === 'history' ? 'Geçmişten kaldır' : 'Yer iminden kaldır';
     remove.setAttribute('aria-label', remove.title);
-    remove.textContent = '×';
+    remove.appendChild(browserCloseIcon());
     row.append(open, remove);
     list.appendChild(row);
   });
@@ -4322,7 +4348,20 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', (event)
   const close = event.target.closest('[data-browser-tab-close]');
   if (close) { closeBrowserTab(close.dataset.browserTabClose); return; }
   const open = event.target.closest('[data-browser-tab-activate]');
-  if (open) activateBrowserTab(open.dataset.browserTabActivate);
+  if (open) activateBrowserTabAndFocus(open.dataset.browserTabActivate);
+});
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  const tabs = [...$('browserTabStrip').querySelectorAll('[role="tab"]')];
+  if (!tabs.length) return;
+  const current = Math.max(0, tabs.indexOf(document.activeElement));
+  let next = current;
+  if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+  if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+  if (event.key === 'Home') next = 0;
+  if (event.key === 'End') next = tabs.length - 1;
+  event.preventDefault();
+  activateBrowserTabAndFocus(tabs[next].dataset.browserTabActivate);
 });
 if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
