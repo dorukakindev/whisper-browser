@@ -1855,25 +1855,34 @@ function decorateMangaRegionColors(image, regions) {
   }
 }
 
-async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, useSchema = true, focusRegion = null) {
+async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, useSchema = true, focusRegion = null, simpleDetection = false) {
   const endpoint = safeTranslationEndpoint(endpointBase);
   if (!endpoint) throw new Error('Görsel çeviri endpoint adresi güvenli değil.');
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint)) {
     throw new Error('Manga çevirisi için API anahtarı girilmemiş.');
   }
+  const regionSchema = simpleDetection ? {
+    type: 'object', additionalProperties: false,
+    required: ['box', 'source', 'translation', 'kind'],
+    properties: {
+      box: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'integer', minimum: 0, maximum: 1000 } },
+      source: { type: 'string' }, translation: { type: 'string' },
+      kind: { type: 'string', enum: ['speech', 'narration', 'sfx'] },
+    },
+  } : {
+    type: 'object', additionalProperties: false,
+    required: ['text_box', 'bubble_box', 'source', 'translation', 'kind', 'shape'],
+    properties: {
+      text_box: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'integer', minimum: 0, maximum: 1000 } },
+      bubble_box: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'integer', minimum: 0, maximum: 1000 } },
+      source: { type: 'string' }, translation: { type: 'string' },
+      kind: { type: 'string', enum: ['speech', 'narration', 'sfx'] },
+      shape: { type: 'string', enum: ['ellipse', 'rect', 'free'] },
+    },
+  };
   const schema = {
     type: 'object', additionalProperties: false, required: ['regions'], properties: {
-      regions: { type: 'array', maxItems: 160, items: {
-        type: 'object', additionalProperties: false,
-        required: ['text_box', 'bubble_box', 'source', 'translation', 'kind', 'shape'],
-        properties: {
-          text_box: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'integer', minimum: 0, maximum: 1000 } },
-          bubble_box: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'integer', minimum: 0, maximum: 1000 } },
-          source: { type: 'string' }, translation: { type: 'string' },
-          kind: { type: 'string', enum: ['speech', 'narration', 'sfx'] },
-          shape: { type: 'string', enum: ['ellipse', 'rect', 'free'] },
-        },
-      } },
+      regions: { type: 'array', maxItems: 160, items: regionSchema },
     },
   };
   // Shuaiapi bir OpenAI uyumluluk geçidi; bazı arka uçları strict
@@ -1884,7 +1893,7 @@ async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signa
     model: config.model,
     ...mangaGenerationParameters(config.model),
     messages: [{ role: 'user', content: [
-      { type: 'text', text: buildMangaPrompt({ ...config, pageTitle, focusRegion }) },
+      { type: 'text', text: buildMangaPrompt({ ...config, pageTitle, focusRegion, simpleDetection }) },
       { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.buffer.toString('base64')}`, detail: 'high' } },
     ] }],
     ...(attachSchema ? { response_format: { type: 'json_schema', json_schema: { name: 'manga_translation', strict: true, schema } } } : {}),
@@ -1912,7 +1921,7 @@ async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signa
   }
   if (!response.ok) {
     if (attachSchema && ![401, 403, 413, 429].includes(response.status)) {
-      return requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, false, focusRegion);
+      return requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpointBase, false, focusRegion, simpleDetection);
     }
     const error = new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${errorDetail ? `: ${errorDetail}` : '.'}`);
     error.httpStatus = response.status;
@@ -1934,7 +1943,11 @@ async function requestMangaTranslation(image, config, pageTitle, signal, focusRe
   let lastError;
   for (const endpoint of endpoints) {
     try {
-      return await requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpoint, true, focusRegion);
+      let result = await requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpoint, true, focusRegion);
+      if (!result.length) {
+        result = await requestMangaTranslationAtEndpoint(image, config, pageTitle, signal, endpoint, true, focusRegion, true);
+      }
+      return result;
     } catch (error) {
       if (signal?.aborted) throw error;
       const status = Number(error?.httpStatus) || 0;
@@ -1971,12 +1984,12 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   if (cached) {
     try { regions = normalizeMangaRegions(JSON.parse(cached)); } catch (_) {}
   }
-  if (!regions) {
+  if (!regions?.length) {
     let request = job.imageRequests.get(key);
     if (!request) {
       request = requestMangaTranslation(image, config, pageTitle, job.controller.signal)
         .then((result) => {
-          browserMangaCache().set(key, JSON.stringify({ regions: result }));
+          if (result.length) browserMangaCache().set(key, JSON.stringify({ regions: result }));
           return result;
         }).finally(() => job.imageRequests.delete(key));
       job.imageRequests.set(key, request);
