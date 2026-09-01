@@ -133,7 +133,8 @@
             <div class="hint" style="margin-top:6px">
               Elinde hazır ama <strong>kayık</strong> bir altyazı varsa (ör. "3 sn geç"), videonun konuşma
               ritmiyle hizalar ve <code>&lt;ad&gt;.synced.srt</code> üretir — kaynağın üstüne yazmaz.
-              Yalnızca <strong>sabit kayma</strong>; sürüklenme (framerate) düzeltmez.
+              Varsayılan seçenekler değişken kaymayı ve framerate sürüklenmesini de düzeltebilir;
+              yalnız sabit kayma için aşağıdaki iki seçeneği kapat.
             </div>
             <div class="settings-grid" style="margin-top:8px">
               <div class="field field-full">
@@ -770,13 +771,13 @@
           <div class="queue-list" id="queueList"></div>
         </div>
 
-        <!-- GEÇMİŞ -->
+        <!-- İŞ GEÇMİŞİ -->
         <div class="card hidden" id="historyCard">
           <div class="card-head">
-            <h2>Geçmiş · <span id="historyCount">0</span></h2>
+            <h2>İş geçmişi · <span id="historyCount">0</span></h2>
             <div style="display:flex;gap:8px;align-items:center;">
-              <input type="search" id="historySearch" class="preview-search" placeholder="Ara..."
-                     aria-label="Geçmişte ara" />
+              <input type="search" id="historySearch" class="preview-search" placeholder="İşlerde ara..."
+                     aria-label="İş geçmişinde ara" />
               <button class="link-btn" id="historyClear" title="Tüm geçmiş kayıtlarını sil (dosyalara dokunmaz)">Temizle</button>
             </div>
           </div>
@@ -882,7 +883,6 @@
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 4v16"/></svg>
           </button>
         </div>
-        <button class="btn-icon" id="closePlayer" title="Kapat (Esc)">&times;</button>
       </div>
 
       <div class="player-body">

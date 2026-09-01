@@ -7372,7 +7372,6 @@ if ($('aiAnswerClose')) {
 }
 
 if ($('openPlayer')) $('openPlayer').addEventListener('click', openPlayer);
-if ($('closePlayer')) $('closePlayer').addEventListener('click', closePlayer);
 if ($('playerBack')) $('playerBack').addEventListener('click', closePlayer);
 
 if ($('playerVideo')) {

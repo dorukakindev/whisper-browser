@@ -170,6 +170,24 @@ test('izleme kütüphanesi yalnız oynatıcı-tarayıcı alanında bulunuyor', (
   assert(/tab === 'library'/.test(tabs) && /playerLibraryPanel/.test(tabs), 'kütüphane sekmesi panele bağlı değil');
 });
 
+test('ana ekran iş geçmişi ile tarayıcı geçmişi açıkça ayrılıyor', () => {
+  assert(/<h2>İş geçmişi · <span id="historyCount">/.test(html), 'transkripsiyon kayıtları genel Geçmiş adıyla gösteriliyor');
+  assert(/aria-label="İş geçmişinde ara"/.test(html), 'iş geçmişi araması tarayıcı geçmişinden ayırt edilmiyor');
+  assert(/<strong>Yer imleri ve geçmiş<\/strong>/.test(html), 'tarayıcı geçmişi kendi bağlamında etiketli değil');
+});
+
+test('oynatıcı başlığında aynı kapatma işini yapan ikinci düğme yok', () => {
+  assert(!html.includes('id="closePlayer"'), 'geri düğmesine ek olarak aynı işi yapan kapatma düğmesi var');
+  assert(/playerBack['"]\)\.addEventListener\('click', closePlayer\)/.test(js), 'tek geri düğmesi oynatıcıyı kapatmıyor');
+});
+
+test('senkron açıklaması değişken kayma seçenekleriyle çelişmiyor', () => {
+  const sync = html.slice(html.indexOf('<!-- SUBTITLE SYNC TOOL -->'), html.indexOf('<!-- SETTINGS -->'));
+  assert(sync.includes('id="syncPiecewise"') && sync.includes('id="syncFixFramerate"'), 'senkron seçenekleri bulunamadı');
+  assert(!/Yalnızca\s*<strong>sabit kayma<\/strong>/.test(sync), 'açıklama hâlâ yalnız sabit kayma desteklendiğini söylüyor');
+  assert(/yalnız sabit kayma için/.test(sync), 'iki gelişmiş seçenek kapatıldığında sabit kayma davranışı açıklanmıyor');
+});
+
 // ---- 2. üst düğmeler anahtar ----
 for (const id of ['playerHeadSettings', 'playerLayoutQuick', 'playerQuickDownload']) {
   test(`${id} paneli açıp KAPATABİLİYOR (sabit true değil)`, () => {

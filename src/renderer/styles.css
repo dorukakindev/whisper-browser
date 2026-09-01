@@ -2896,7 +2896,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .parse-spark { width: 9px; height: 9px; display: inline-block; background: var(--player-amber); border-radius: 50%; box-shadow: 0 0 0 4px rgba(243,189,79,.12); }
 .player-head-button { width: 40px; height: 40px; color: #9a9a9e; border: 1px solid transparent; border-radius: 50%; background: #1a1a1b; }
 .player-head-button:hover, .player-head-button.active { color: var(--player-amber); border-color: #3d3525; background: #25221c; }
-#closePlayer { width: 40px; height: 40px; border-radius: 50%; color: #a5a5a8; background: #171718; }
 
 .player-body {
   grid-template-columns: minmax(0, 1fr) 6px minmax(360px, var(--side-w));
@@ -3167,7 +3166,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   .player-head { min-height: 58px; padding-left: 12px; }
   .player-title { font-size: 14px; }
   .player-meta { font-size: 10px; }
-  .player-head-button, #closePlayer { width: 34px; height: 34px; }
+  .player-head-button { width: 34px; height: 34px; }
   .player-back-button { flex-basis: 34px; width: 34px; height: 34px; font-size: 26px; }
   .player-stage { flex-basis: 42vh; min-height: 220px; border-radius: 12px; }
   .player-stage video { border-radius: 11px; }
