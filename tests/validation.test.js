@@ -4,8 +4,9 @@
  * Neden var:
  *  - Kuyruk, tekil başlatmadaki ön kontrolleri hiç yapmıyordu: anahtarsız
  *    çeviri/LLM/diarization veya geçersiz kırpma aralığıyla iş eklenebiliyor,
- *    kullanıcı sorunu ancak günlükten anlıyordu. Artık ikisi de optsProblem()
- *    kullanıyor; bu test o fonksiyonu gerçek kaynaktan alır.
+ *    kullanıcı sorunu ancak günlükten anlıyordu. Artık ikisi de aynı zengin
+ *    doğrulama sonucunu (optsProblemInfo) kullanıyor; bu test gerçek kaynak
+ *    uygulamasını alır.
  *  - subs:shift dosyayı düz UTF-8 okuyordu; eski cp1254 Türkçe altyazıda
  *    ş/ğ/ı harfleri U+FFFD olup dosyaya geri yazılıyordu (kalıcı bozulma).
  *
@@ -24,11 +25,11 @@ const t = (name, fn) => {
 };
 const ok = (c, m) => { if (!c) throw new Error(m || 'assert'); };
 
-// ---------------------------------------------------------------- optsProblem
+// ------------------------------------------------------------ optsProblemInfo
 const rsrc = fs.readFileSync(RENDERER, 'utf-8');
-const vStart = rsrc.indexOf('function optsProblem(opts) {');
+const vStart = rsrc.indexOf('function optsProblemInfo(opts) {');
 const vEnd = rsrc.indexOf('function addToQueue(');
-ok(vStart >= 0 && vEnd > vStart, 'optsProblem kaynakta bulunamadi');
+ok(vStart >= 0 && vEnd > vStart, 'optsProblemInfo kaynakta bulunamadi');
 // parseClipInput de gerekiyor
 const pStart = rsrc.indexOf('function parseClipInput(');
 const pEnd = rsrc.indexOf('\n}', pStart) + 2;
@@ -60,8 +61,8 @@ t('anahtarsiz ceviri/LLM/diarization yakalanir', () => {
 
 t('kuyruk ve tekil baslatma AYNI fonksiyonu kullanir', () => {
   // Ikisinin ayrismasi bu hatanin ta kendisiydi - kaynakta iki cagri da olmali
-  const calls = (rsrc.match(/optsProblem\(opts\)/g) || []).length;
-  ok(calls >= 2, `optsProblem yalnizca ${calls} yerde cagriliyor`);
+  const calls = (rsrc.match(/optsProblemInfo\(opts\)/g) || []).length;
+  ok(calls >= 2, `optsProblemInfo yalnizca ${calls} yerde cagriliyor`);
 });
 
 // ---------------------------------------------------------------- shiftTimecodes

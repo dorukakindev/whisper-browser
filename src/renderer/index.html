@@ -38,13 +38,16 @@
         <div class="card">
           <div class="card-head">
             <h2>Kaynak</h2>
-            <div class="tabs">
-              <button class="tab active" data-tab="file">Dosya</button>
-              <button class="tab" data-tab="youtube">YouTube</button>
+            <div class="tabs" role="tablist" aria-label="Kaynak türü">
+              <button class="tab active" id="sourceTabFile" type="button" data-tab="file" role="tab"
+                aria-selected="true" aria-controls="sourcePanelFile" tabindex="0">Dosya</button>
+              <button class="tab" id="sourceTabYoutube" type="button" data-tab="youtube" role="tab"
+                aria-selected="false" aria-controls="sourcePanelYoutube" tabindex="-1">YouTube</button>
             </div>
           </div>
 
-          <div class="tab-content" data-content="file">
+          <div class="tab-content" id="sourcePanelFile" data-content="file" role="tabpanel"
+            aria-labelledby="sourceTabFile">
             <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Dosya veya klasör seçmek için tıkla veya sürükle bırak">
               <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -68,7 +71,9 @@
                 <div class="file-name" id="fileName">—</div>
                 <div class="file-path" id="filePath">—</div>
               </div>
-              <button class="btn-icon" id="clearFile" title="Kaldır">×</button>
+              <button class="btn-icon" id="clearFile" type="button" title="Seçili dosyayı kaldır" aria-label="Seçili dosyayı kaldır">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
             </div>
             <div class="watch-folder" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">
               <label class="field switch-field">
@@ -86,7 +91,8 @@
             </div>
           </div>
 
-          <div class="tab-content hidden" data-content="youtube">
+          <div class="tab-content hidden" id="sourcePanelYoutube" data-content="youtube" role="tabpanel"
+            aria-labelledby="sourceTabYoutube">
             <div class="yt-input-wrap">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3 3 0 0 0 2.6 19.9C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
               <input type="url" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
@@ -122,6 +128,38 @@
             </div>
           </div>
         </div>
+
+        <!-- SIGNAL DESK — seçili işin tek bakışta özeti -->
+        <section class="card signal-desk" id="signalDesk" aria-labelledby="signalDeskTitle">
+          <div class="signal-desk-head">
+            <div>
+              <span class="signal-kicker">AKTİF İŞ</span>
+              <h2 id="signalDeskTitle">İş özeti</h2>
+            </div>
+            <button class="preset-diff-trigger" id="presetDiffBtn" type="button"
+              aria-expanded="false" aria-controls="presetDiffPanel">
+              <span id="presetDiffLabel">Film profili</span>
+              <span class="preset-diff-count" id="presetDiffCount">Aynı</span>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+            </button>
+          </div>
+          <div class="job-summary-grid" aria-label="Seçili iş ayarları">
+            <div class="job-summary-item"><span>Kaynak</span><strong id="summarySource">Dosya bekleniyor</strong></div>
+            <div class="job-summary-item"><span>Motor</span><strong id="summaryEngine">large-v3-turbo · faster</strong></div>
+            <div class="job-summary-item"><span>Çıktı</span><strong id="summaryOutput">SRT</strong></div>
+            <div class="job-summary-item"><span>Dil katmanı</span><strong id="summaryTranslation">Kaynak altyazı</strong></div>
+            <div class="job-summary-item job-summary-vram"><span>VRAM bütçesi</span><strong id="summaryVram">Hesaplanıyor</strong></div>
+          </div>
+          <div class="preset-diff-panel hidden" id="presetDiffPanel">
+            <div class="preset-diff-intro" id="presetDiffIntro">Profil ayarları değiştirilmedi.</div>
+            <ul id="presetDiffList"></ul>
+          </div>
+          <div class="job-validation hidden" id="jobValidation" role="alert" tabindex="-1">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/></svg>
+            <div><strong>İş başlatılamadı</strong><span id="jobValidationText"></span></div>
+            <button class="link-btn" id="jobValidationFix" type="button">Alanı düzelt</button>
+          </div>
+        </section>
 
         <!-- SUBTITLE SYNC TOOL -->
         <div class="card">
@@ -176,8 +214,8 @@
           </div>
 
           <div class="settings-grid">
-            <label class="field">
-              <span class="field-label">Model</span>
+            <div class="field">
+              <label class="field-label" for="model">Model</label>
               <select id="model">
                 <option value="large-v3">large-v3</option>
                 <option value="large-v3-turbo" selected>large-v3-turbo</option>
@@ -187,7 +225,12 @@
                 <option value="base">base</option>
                 <option value="tiny">tiny</option>
               </select>
-            </label>
+              <div class="model-management-row">
+                <span id="modelInstallStatus" role="status">Önbellek denetlenmedi</span>
+                <button class="link-btn" id="modelStatusRefresh" type="button">Yenile</button>
+                <button class="link-btn" id="modelBenchmark" type="button">30 sn benchmark</button>
+              </div>
+            </div>
 
             <label class="field">
               <span class="field-label">Motor</span>
@@ -529,9 +572,14 @@
               <label class="field field-full">
                 <span class="field-label">
                   HuggingFace Token
-                  <a href="#" id="hfTokenHelp" class="link-btn">nasıl alınır?</a>
+                  <button type="button" id="hfTokenHelp" class="link-btn">nasıl alınır?</button>
                 </span>
-                <input type="text" id="hfToken" placeholder="hf_..." autocomplete="off" />
+                <span class="secret-control">
+                  <input type="password" id="hfToken" placeholder="hf_..." autocomplete="off" />
+                  <button class="secret-toggle" type="button" data-secret-target="hfToken" aria-label="HuggingFace tokenını göster" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                  </button>
+                </span>
               </label>
               <label class="field">
                 <span class="field-label">Min konuşmacı (0=otomatik)</span>
@@ -557,7 +605,7 @@
             </summary>
             <div class="glossary-controls">
               <input type="text" id="glossaryInput" placeholder="Yeni terim ekle (örn: Anthropic, Kubernetes, Atatürk)" />
-              <button class="btn-icon-add" id="glossaryAdd" title="Ekle">+</button>
+              <button class="btn-icon-add" id="glossaryAdd" title="Terimi ekle" aria-label="Terimi sözlüğe ekle">+</button>
             </div>
             <div class="glossary-list" id="glossaryList"></div>
             <div class="hint">Her transkripsiyonda otomatik olarak Whisper'a verilir, özel isimlerin/jargonun doğru yazılmasını sağlar. Terimler <em>hotwords</em> olarak geçirilir: videonun başından sonuna kadar her çözümleme penceresinde etkilidir.</div>
@@ -623,7 +671,12 @@
               </label>
               <label class="field field-full">
                 <span class="field-label">API Key (shuaiapi / OpenAI uyumlu)</span>
-                <input type="password" id="translateApiKey" placeholder="sk-..." autocomplete="off" />
+                <span class="secret-control">
+                  <input type="password" id="translateApiKey" placeholder="sk-..." autocomplete="off" />
+                  <button class="secret-toggle" type="button" data-secret-target="translateApiKey" aria-label="Çeviri API anahtarını göster" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                  </button>
+                </span>
               </label>
               <label class="field">
                 <span class="field-label">Endpoint (rota)</span>
@@ -692,9 +745,14 @@
               <label class="field field-full">
                 <span class="field-label">
                   API Key
-                  <a href="#" id="deepseekKeyHelp" class="link-btn">platform.deepseek.com</a>
+                  <button type="button" id="deepseekKeyHelp" class="link-btn">platform.deepseek.com</button>
                 </span>
-                <input type="password" id="llmApiKey" placeholder="sk-..." autocomplete="off" />
+                <span class="secret-control">
+                  <input type="password" id="llmApiKey" placeholder="sk-..." autocomplete="off" />
+                  <button class="secret-toggle" type="button" data-secret-target="llmApiKey" aria-label="LLM API anahtarını göster" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                  </button>
+                </span>
               </label>
               <label class="field">
                 <span class="field-label">Endpoint (base URL)</span>
@@ -755,34 +813,64 @@
           </button>
         </div>
 
-        <!-- QUEUE -->
-        <div class="card hidden" id="queueCard">
-          <div class="card-head">
-            <h2>Kuyruk · <span id="queueCount">0</span></h2>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <button class="link-btn hidden" id="stopAfterCurrent" title="Çalışan iş bitince kuyruğu durdur (mevcut işi kesmez)">⏸ Sırada dur</button>
-              <button class="link-btn" id="clearQueue">Temizle</button>
+        <!-- BİRLEŞİK İŞLER MERKEZİ -->
+        <section class="card jobs-center" id="jobsCard" aria-labelledby="jobsTitle">
+          <div class="card-head jobs-center-head">
+            <div>
+              <span class="signal-kicker">OPERASYON MASASI</span>
+              <h2 id="jobsTitle">İşler</h2>
+            </div>
+            <div class="jobs-tabs" role="tablist" aria-label="İş görünümleri">
+              <button class="jobs-tab active" id="jobsTabQueue" type="button" role="tab" data-jobs-tab="queue"
+                aria-selected="true" aria-controls="queueCard" tabindex="0">Kuyruk <span id="jobsQueueBadge">0</span></button>
+              <button class="jobs-tab" id="jobsTabHistory" type="button" role="tab" data-jobs-tab="history"
+                aria-selected="false" aria-controls="historyCard" tabindex="-1">Geçmiş <span id="jobsHistoryBadge">0</span></button>
+              <button class="jobs-tab" id="jobsTabReview" type="button" role="tab" data-jobs-tab="review"
+                aria-selected="false" aria-controls="reviewCard" tabindex="-1">Kontrol <span id="jobsReviewBadge">0</span></button>
+            </div>
+          </div>
+
+          <div class="jobs-toolbar" id="queueToolbar">
+            <div class="jobs-toolbar-copy">Bekleyen işler, eklendikleri andaki ayarlarla çalışır.</div>
+            <div class="jobs-toolbar-actions">
+              <button class="link-btn hidden" id="stopAfterCurrent" title="Çalışan iş bitince kuyruğu durdur (mevcut işi kesmez)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 5v14M17 5v14"/></svg>
+                <span>Sırada dur</span>
+              </button>
+              <button class="link-btn" id="clearQueue">Kuyruğu temizle</button>
               <button class="btn btn-primary btn-sm" id="startQueueBtn">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                <span>Başlat</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Kuyruğu başlat</span>
               </button>
             </div>
           </div>
-          <div class="queue-list" id="queueList"></div>
-        </div>
 
-        <!-- İŞ GEÇMİŞİ -->
-        <div class="card hidden" id="historyCard">
-          <div class="card-head">
-            <h2>İş geçmişi · <span id="historyCount">0</span></h2>
-            <div style="display:flex;gap:8px;align-items:center;">
+          <div class="jobs-toolbar hidden" id="historyToolbar">
+            <div class="search-control jobs-search-control">
               <input type="search" id="historySearch" class="preview-search" placeholder="İşlerde ara..."
                      aria-label="İş geçmişinde ara" />
-              <button class="link-btn" id="historyClear" title="Tüm geçmiş kayıtlarını sil (dosyalara dokunmaz)">Temizle</button>
+              <button class="search-clear hidden" id="historySearchClear" type="button" aria-label="İş geçmişi aramasını temizle">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
             </div>
+            <button class="link-btn" id="historyClear" title="Tüm geçmiş kayıtlarını sil (dosyalara dokunmaz)">Geçmişi temizle</button>
           </div>
-          <div class="history-list" id="historyList"></div>
-        </div>
+
+          <section class="jobs-panel" id="queueCard" role="tabpanel" aria-labelledby="jobsTabQueue">
+            <h2>Kuyruk · <span id="queueCount">0</span></h2>
+            <div class="queue-list" id="queueList"></div>
+          </section>
+
+          <section class="jobs-panel hidden" id="historyCard" role="tabpanel" aria-labelledby="jobsTabHistory">
+            <h2>İş geçmişi · <span id="historyCount">0</span></h2>
+            <div class="history-list" id="historyList"></div>
+          </section>
+
+          <section class="jobs-panel hidden" id="reviewCard" role="tabpanel" aria-labelledby="jobsTabReview">
+            <h2>Elle kontrol · <span id="reviewCount">0</span></h2>
+            <div class="review-list" id="reviewList"></div>
+          </section>
+        </section>
       </section>
 
       <!-- RIGHT PANEL -->
@@ -790,7 +878,10 @@
         <!-- STATUS -->
         <div class="card">
           <div class="card-head">
-            <h2>İlerleme</h2>
+            <div>
+              <span class="signal-kicker">SİNYAL ZİNCİRİ</span>
+              <h2>İlerleme</h2>
+            </div>
             <div class="status-pill" id="statusPill" role="status" aria-live="polite">Hazır</div>
           </div>
 
@@ -802,14 +893,14 @@
             </div>
           </div>
 
-          <div class="stage-list" id="stageList">
-            <div class="stage" data-stage="download"><span class="stage-dot"></span>İndirme</div>
-            <div class="stage" data-stage="extract"><span class="stage-dot"></span>Ses çıkarma</div>
-            <div class="stage" data-stage="load_model"><span class="stage-dot"></span>Model yükleme</div>
-            <div class="stage" data-stage="transcribe"><span class="stage-dot"></span>Transkripsiyon</div>
-            <div class="stage" data-stage="llm_postprocess"><span class="stage-dot"></span>LLM düzeltme</div>
-            <div class="stage" data-stage="diarize"><span class="stage-dot"></span>Konuşmacı tanıma</div>
-            <div class="stage" data-stage="write"><span class="stage-dot"></span>Yazma</div>
+          <div class="stage-list" id="stageList" aria-label="İşlem aşamaları">
+            <div class="stage" data-stage="download"><span class="stage-dot"></span><span><strong>Kaynak</strong><small>İndirme</small></span></div>
+            <div class="stage" data-stage="extract"><span class="stage-dot"></span><span><strong>Ses</strong><small>Ayırma</small></span></div>
+            <div class="stage" data-stage="load_model"><span class="stage-dot"></span><span><strong>Model</strong><small>Yükleme</small></span></div>
+            <div class="stage" data-stage="transcribe"><span class="stage-dot"></span><span><strong>Metin</strong><small>Transkripsiyon</small></span></div>
+            <div class="stage" data-stage="llm_postprocess"><span class="stage-dot"></span><span><strong>Dil</strong><small>Düzeltme / çeviri</small></span></div>
+            <div class="stage" data-stage="diarize"><span class="stage-dot"></span><span><strong>Sesler</strong><small>Konuşmacılar</small></span></div>
+            <div class="stage" data-stage="write"><span class="stage-dot"></span><span><strong>Çıktı</strong><small>Dosyalar</small></span></div>
           </div>
         </div>
 
@@ -818,7 +909,12 @@
           <div class="card-head">
             <h2>Canlı önizleme</h2>
             <div class="preview-tools">
-              <input type="search" id="previewSearch" class="preview-search" placeholder="Ara..." />
+              <div class="search-control">
+                <input type="search" id="previewSearch" class="preview-search" placeholder="Ara..." aria-label="Canlı önizlemede ara" />
+                <button class="search-clear hidden" id="previewSearchClear" type="button" aria-label="Önizleme aramasını temizle">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+              </div>
               <button class="link-btn" id="copyPreview" title="Görünen segmentleri SRT olarak panoya kopyala">Kopyala</button>
               <button class="link-btn" id="clearPreview">Temizle</button>
             </div>
@@ -848,7 +944,9 @@
     <!-- OYNATICI -->
     <div class="player-layer hidden" id="playerLayer">
       <div class="player-head">
-        <button class="btn-icon player-back-button" id="playerBack" title="Oynatıcıdan çık (Esc)" aria-label="Oynatıcıdan çık">‹</button>
+        <button class="btn-icon player-back-button" id="playerBack" title="Oynatıcıdan çık (Esc)" aria-label="Oynatıcıdan çık">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
         <div class="player-head-copy">
           <span class="player-eyebrow">WHISPER ALTYAZI <span class="player-eyebrow-dot">/</span> OYNATICI</span>
           <div class="player-title" id="playerTitle">Oynatıcı</div>
@@ -856,9 +954,9 @@
         </div>
         <div class="player-workspace-switch" role="tablist" aria-label="İzleme modu">
           <button class="workspace-mode active" id="workspacePlayerMode" type="button" role="tab"
-            aria-selected="true">Oynatıcı</button>
+            aria-selected="true" aria-controls="playerStage" tabindex="0">Oynatıcı</button>
           <button class="workspace-mode" id="workspaceBrowserMode" type="button" role="tab"
-            aria-selected="false">Tarayıcı</button>
+            aria-selected="false" aria-controls="browserWorkspace" tabindex="-1">Tarayıcı</button>
         </div>
         <div class="player-head-actions">
           <div class="player-parse-status hidden" id="playerParseStatus">
@@ -888,6 +986,11 @@
       <div class="player-body">
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
+            <div class="browser-tabbar" role="tablist" aria-label="Web sekmeleri">
+              <div class="browser-tab-strip" id="browserTabStrip"></div>
+              <button class="browser-tab-new" id="browserTabNew" type="button" title="Yeni sekme"
+                aria-label="Yeni sekme">+</button>
+            </div>
             <div class="browser-nav" role="group" aria-label="Tarayıcı gezinme">
               <button class="btn-icon browser-nav-button" id="browserBack" type="button" title="Geri" disabled
                 aria-label="Geri"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5-7 7 7 7"/></svg></button>
@@ -929,6 +1032,10 @@
               <button class="btn-icon browser-dismiss" id="browserPlacesClose" type="button" title="Kapat" aria-label="Kapat">×</button>
             </div>
             <div class="browser-cookie-actions" aria-label="Çerez ve oturum işlemleri">
+              <label class="browser-session-memory">
+                <input type="checkbox" id="browserSessionRestore" checked />
+                <span>Son sekmeleri açılışta geri yükle</span>
+              </label>
               <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserSiteCookiesClear" type="button">Bu sitenin çerezlerini temizle</button>
               <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserCookiesClear" type="button">Tüm çerezleri temizle</button>
               <button class="btn btn-ghost btn-sm browser-session-reset" id="browserSessionReset" type="button">Oturumu ve önbelleği sıfırla</button>
@@ -953,6 +1060,9 @@
               type="button" aria-expanded="false" aria-controls="browserDiagnosticsPanel">Ayrıntılar</button>
             <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>
             <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserCopyAb" type="button" title="A-B aralığındaki altyazıları panoya kopyala">A-B metni</button>
+            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserQueuePage" type="button" title="Açık ve indirilebilir sayfayı transkripsiyon kuyruğuna ekle">Kuyruğa</button>
+            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserExportClip" type="button" title="A-B aralığını açık kaynakta MP4 klip olarak çıkar">A-B klibi</button>
+            <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserLiveAsr" type="button" aria-pressed="false" title="Kullanıcı onayıyla sistem sesini yerel Whisper'a gönder">Canlı Whisper</button>
             <div class="browser-track-actions hidden" id="browserTrackActions">
               <select id="browserTrackSelect" aria-label="Birinci altyazı izi" title="Birinci altyazı izi"></select>
               <select id="browserTrackSelect2" aria-label="İkinci altyazı izi" title="İkinci altyazı izi">
@@ -961,6 +1071,7 @@
               <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
               <button class="btn btn-secondary btn-sm" id="browserTrackLoadPair" type="button">İki izi yükle</button>
               <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
+              <button class="btn btn-secondary btn-sm" id="browserTrackTranslateAll" type="button">Tüm izi tamamla</button>
               <select id="browserExportFormat" aria-label="Dışa aktarma biçimi" title="Dışa aktarma biçimi">
                 <option value="srt">SRT</option>
                 <option value="vtt">VTT</option>
@@ -981,6 +1092,26 @@
               </div>
               <span class="browser-diagnostics-summary" id="browserDiagnosticsSummary">Henüz ağ izi yok</span>
             </div>
+            <div class="browser-acquisition" aria-label="Altyazı edinme yolu">
+              <div class="browser-acquisition-head">
+                <span>EDİNME YOLU</span>
+                <span id="browserAcquisitionSummary" role="status" aria-live="polite">Kaynak bekleniyor</span>
+              </div>
+              <ol class="browser-acquisition-stages" id="browserAcquisitionStages"></ol>
+            </div>
+            <details class="browser-capability-matrix">
+              <summary>Servis yetenek matrisi</summary>
+              <div class="browser-capability-scroll">
+                <table aria-label="Tarayıcı servis yetenekleri">
+                  <thead><tr><th>Servis</th><th>Altyazı</th><th>Çift iz</th><th>Katman</th><th>Tam ekran</th><th>Çeviri</th><th>Doğrulama</th></tr></thead>
+                  <tbody id="browserCapabilityRows"></tbody>
+                </table>
+              </div>
+              <div class="browser-capability-actions">
+                <span id="browserAdapterPluginStatus">Kullanıcı adaptörü yok</span>
+                <button class="link-btn" id="browserAdapterFolder" type="button">Adaptör klasörünü aç</button>
+              </div>
+            </details>
             <div class="browser-diagnostics-recent" id="browserDiagnosticsRecent">
               Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.
             </div>
@@ -1028,9 +1159,11 @@
             </div>
           </div>
           <div class="subtitle-edit hidden" id="subtitleEdit">
-            <textarea id="subtitleEditBox" rows="2" spellcheck="false"></textarea>
+            <textarea id="subtitleEditBox" class="resize-none" rows="2" spellcheck="false"></textarea>
             <div class="subtitle-edit-actions">
               <span class="subtitle-edit-hint" id="subtitleEditHint"></span>
+              <button class="btn btn-secondary btn-sm" id="subtitleEditUndo" type="button" disabled>Geri al</button>
+              <button class="btn btn-secondary btn-sm" id="subtitleEditRedo" type="button" disabled>Yinele</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditCancel">Vazgeç</button>
               <button class="btn btn-primary btn-sm" id="subtitleEditSave">Kaydet</button>
             </div>
@@ -1043,18 +1176,20 @@
           <div class="resume-chip hidden" id="resumeChip">
             <span id="resumeChipText"></span>
             <button class="btn btn-primary btn-sm" id="resumeGo">Devam et</button>
-            <button class="btn-icon" id="resumeDismiss" title="Kapat">&times;</button>
+            <button class="btn-icon" id="resumeDismiss" title="Kapat" aria-label="Devam et önerisini kapat">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
           </div>
 
           <!-- Kontroller sahnenin ICINDE: tam ekranda da gorunur, bosta gizlenir -->
           <div class="player-controls" id="playerControls">
-            <button class="btn-icon" id="playerPrevMedia" title="Önceki video" disabled>
+            <button class="btn-icon" id="playerPrevMedia" title="Önceki video" aria-label="Önceki videoyu aç" disabled>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>
             </button>
-            <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)">
+            <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)" aria-label="Videoyu oynat veya duraklat">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
             </button>
-            <button class="btn-icon" id="playerNextMedia" title="Sonraki video" disabled>
+            <button class="btn-icon" id="playerNextMedia" title="Sonraki video" aria-label="Sonraki videoyu aç" disabled>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>
             </button>
             <span class="player-time" id="playerTime">0:00 / 0:00</span>
@@ -1090,20 +1225,20 @@
               <option value="1.75">1.75&times;</option>
               <option value="2">2&times;</option>
             </select>
-            <button class="btn-icon" id="muteBtn" title="Sessize al (M)">
+            <button class="btn-icon" id="muteBtn" title="Sessize al (M)" aria-label="Sesi aç veya kapat">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
             </button>
             <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" />
-            <button class="btn-icon" id="abLoopBtn" title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat (B)">A-B</button>
-            <button class="btn-icon" id="shotBtn" title="Ekran görüntüsü al (S)">
+            <button class="btn-icon" id="abLoopBtn" title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat (B)" aria-label="A-B döngüsü noktalarını ayarla">A-B</button>
+            <button class="btn-icon" id="shotBtn" title="Ekran görüntüsü al (S)" aria-label="Ekran görüntüsü al">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </button>
             <button class="btn-icon" id="quickSubsBtn"
               title="Tek tıkla: altyazıyı çıkar, çevir ve izlemeye hazır hale getir">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
             </button>
-            <button class="btn-icon" id="helpBtn" title="Klavye kısayolları (?)">?</button>
-            <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)">
+            <button class="btn-icon" id="helpBtn" title="Klavye kısayolları (?)" aria-label="Klavye kısayollarını göster">?</button>
+            <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)" aria-label="Tam ekranı aç veya kapat">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
             </button>
           </div>
@@ -1117,11 +1252,11 @@
             <div class="side-tabbar">
               <div class="side-tabs" role="tablist">
                 <button class="side-tab active" id="sideTabSubs" data-stab="subs" role="tab"
-                  aria-selected="true"><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
+                  aria-selected="true" tabindex="0"><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
                 <button class="side-tab" id="sideTabAi" data-stab="ai" role="tab"
-                  aria-selected="false" title="Video hakkında soru sor (AI)"><span>AI'ye sor</span></button>
+                  aria-selected="false" tabindex="-1" title="Video hakkında soru sor (AI)"><span>AI'ye sor</span></button>
                 <button class="side-tab" id="sideTabLibrary" data-stab="library" role="tab"
-                  aria-selected="false" title="İzleme geçmişi ve koleksiyonlar"><span>Kütüphane</span></button>
+                  aria-selected="false" tabindex="-1" title="İzleme geçmişi ve koleksiyonlar"><span>Kütüphane</span></button>
               </div>
               <div class="side-tab-actions">
                 <button class="btn-icon side-tool" id="sideSubtitleExport" title="Altyazı dosyasını aç" aria-label="Altyazı dosyasını aç">
@@ -1150,14 +1285,16 @@
             </div>
             <div class="side-toolrow">
               <input type="search" id="cueSearch" placeholder="Altyazıda ara..." />
-              <button class="btn-icon side-tool hidden" id="clearCueSearch" title="Aramayı temizle" aria-label="Aramayı temizle">×</button>
+              <button class="btn-icon side-tool hidden" id="clearCueSearch" title="Aramayı temizle" aria-label="Aramayı temizle">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
               <button class="btn-icon side-tool" id="savedOnlyBtn" title="Kaydedilen cümleleri göster" aria-label="Kaydedilen cümleleri göster">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg>
               </button>
               <button class="btn-icon side-tool" id="qualityOnlyBtn" title="Düşük güvenli cümleleri göster" aria-label="Düşük güvenli cümleleri göster">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 16H3L12 3Z"/><path d="M12 9v4m0 3h.01" stroke-linecap="round"/></svg>
               </button>
-              <button class="btn-icon side-tool" id="toggleSettings" title="Kaynak ve altyazı ayarları">
+              <button class="btn-icon side-tool" id="toggleSettings" title="Kaynak ve altyazı ayarları" aria-label="Kaynak ve altyazı ayarlarını aç">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
             </div>
@@ -1184,7 +1321,7 @@
               </div>
             </div>
             <div class="ai-chat-input">
-              <textarea id="aiChatText" rows="1" placeholder="Sorunu yaz… (Enter: gönder, Shift+Enter: alt satır)"></textarea>
+              <textarea id="aiChatText" class="resize-none" rows="1" placeholder="Sorunu yaz… (Enter: gönder, Shift+Enter: alt satır)"></textarea>
               <button class="btn btn-primary btn-sm" id="aiChatSend" title="Gönder (Enter)">Sor</button>
             </div>
             <div class="ai-chat-foot">
@@ -1196,8 +1333,13 @@
           <!-- İZLEME KÜTÜPHANESİ: oynatıcıdan çıkmadan geçmişe ve listelere erişim -->
           <div class="player-library hidden" id="playerLibraryPanel">
             <div class="player-library-controls">
-              <input type="search" id="playerLibrarySearch" placeholder="Başlık veya altyazıda ara..."
-                     aria-label="Oynatıcı kütüphanesinde ara" />
+              <div class="search-control library-search-control">
+                <input type="search" id="playerLibrarySearch" placeholder="Başlık veya altyazıda ara..."
+                       aria-label="Oynatıcı kütüphanesinde ara" />
+                <button class="search-clear hidden" id="playerLibrarySearchClear" type="button" aria-label="Kütüphane aramasını temizle">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+              </div>
               <select id="playerLibraryFilter" aria-label="Kütüphane filtresi">
                 <option value="all">Tümü</option>
                 <option value="continue">Devam et</option>
@@ -1219,7 +1361,9 @@
             <div class="ai-answer hidden" id="aiAnswer">
               <div class="ai-answer-head">
                 <span id="aiAnswerTitle">AI açıklaması</span>
-                <button class="btn-icon side-tool" id="aiAnswerClose" title="Kapat">&times;</button>
+                <button class="btn-icon side-tool" id="aiAnswerClose" title="Kapat" aria-label="AI açıklamasını kapat">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
               </div>
               <div class="ai-answer-body" id="aiAnswerBody"></div>
             </div>
@@ -1296,6 +1440,7 @@
                 title="Bu satırın çevirisini değerlendir, gerekirse daha doğalını öner"><span>Çeviriyi değerlendir</span></button>
               <button class="tool-button tool-button-quiet" id="cueCopyBtn" title="Aktif cümleyi kopyala (C)"><span>Kopyala</span></button>
               <button class="tool-button tool-button-quiet" id="cueSaveBtn" title="Aktif cümleyi kaydet (K)"><span>Kaydet</span></button>
+              <button class="tool-button tool-button-quiet" id="cueNoteBtn" title="Aktif cümleye zaman bağlı not ekle"><span>Not</span></button>
             </div>
             <div class="sentence-tools tool-row-main">
               <button class="btn btn-primary btn-sm action-button" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
@@ -1311,24 +1456,29 @@
                onu acan disli dugmesi altta kaliyor ve geri donulemiyordu. -->
           <div class="drawer-head">
             <span>Kaynak ve altyazı ayarları</span>
-            <button class="btn-icon" id="closeSettings" title="Kapat (Esc)">&times;</button>
+            <button class="btn-icon" id="closeSettings" title="Kapat (Esc)" aria-label="Ayarları kapat">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
           </div>
           <div class="player-layout-section">
             <div class="player-panel-title">Düzen</div>
             <div class="view-modes" id="viewModes">
               <button class="vm" data-mode="cinema" title="Sinema — yalnızca video"><span class="vm-mark" aria-hidden="true"></span><span class="vm-label">Sinema</span></button>
               <button class="vm active" data-mode="reading" title="Okuma — video + akan altyazı"><span class="vm-mark" aria-hidden="true"></span><span class="vm-label">Okuma</span></button>
-              <button class="vm" data-mode="study" title="Karışık — video + pratik araçları"><span class="vm-mark" aria-hidden="true"></span><span class="vm-label">Karışık</span></button>
+              <button class="vm" data-mode="study" title="Çalışma — video + pratik araçları"><span class="vm-mark" aria-hidden="true"></span><span class="vm-label">Çalışma</span></button>
             </div>
           </div>
           <div class="player-panel">
             <div class="player-panel-title">Kaynak</div>
-            <div class="tabs tabs-sm">
-              <button class="tab active" data-ptab="local">Yerel dosya</button>
-              <button class="tab" data-ptab="yt">YouTube</button>
+            <div class="tabs tabs-sm" role="tablist" aria-label="Oynatıcı kaynağı">
+              <button class="tab active" id="playerSourceTabLocal" type="button" data-ptab="local" role="tab"
+                aria-selected="true" aria-controls="playerSourcePanelLocal" tabindex="0">Yerel dosya</button>
+              <button class="tab" id="playerSourceTabYoutube" type="button" data-ptab="yt" role="tab"
+                aria-selected="false" aria-controls="playerSourcePanelYoutube" tabindex="-1">YouTube</button>
             </div>
 
-            <div class="ptab-content" data-pcontent="local">
+            <div class="ptab-content" id="playerSourcePanelLocal" data-pcontent="local" role="tabpanel"
+              aria-labelledby="playerSourceTabLocal">
               <div class="source-actions">
                 <button class="btn btn-secondary btn-sm" id="playerPickVideo">Video seç</button>
                 <button class="btn btn-secondary btn-sm" id="playerPickFolder">Klasör seç</button>
@@ -1343,7 +1493,8 @@
               </label>
             </div>
 
-            <div class="ptab-content hidden" data-pcontent="yt">
+            <div class="ptab-content hidden" id="playerSourcePanelYoutube" data-pcontent="yt" role="tabpanel"
+              aria-labelledby="playerSourceTabYoutube">
               <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." />
               <label class="field youtube-session-field">
                 <span class="field-label">YouTube oturumu</span>
@@ -1405,6 +1556,12 @@
             <div class="player-panel-title">Altyazı</div>
             <select id="playerSubSelect"><option value="">Altyazı yok</option></select>
             <button class="btn btn-secondary btn-sm" id="playerPickSub" style="margin-top:8px">Altyazı dosyası seç</button>
+            <label class="field hidden" id="playerEmbeddedSubField" style="margin-top:10px">
+              <span class="field-label">Videodaki gömülü altyazı</span>
+              <select id="playerEmbeddedSubSelect"></select>
+              <button class="btn btn-secondary btn-sm" id="playerEmbeddedSubLoad" type="button" style="margin-top:6px">Çıkar ve yükle</button>
+              <small id="playerEmbeddedSubHint">Hazır metin izi doğrudan kullanılır; Whisper çalıştırılmaz.</small>
+            </label>
             <label class="field" style="margin-top:10px">
               <span class="field-label">İkinci altyazı (karşılaştırma)</span>
               <select id="playerSubSelect2"><option value="">Kapalı</option></select>
@@ -1413,6 +1570,16 @@
             <label class="field switch-field">
               <input type="checkbox" id="playerMergeCont" />
               <span>Cümleleri birleştir — sonraki satıra taşan cümleyi tek satırda göster</span>
+            </label>
+            <label class="field" style="margin-top:10px">
+              <span class="field-label">İzleme politikası</span>
+              <select id="playerPlaybackPolicy">
+                <option value="normal">Normal</option>
+                <option value="accelerate-gaps">Altyazısız bölümü 2× hızlandır</option>
+                <option value="skip-gaps">Altyazısız bölümü atla</option>
+                <option value="shadowing">Dinle ve tekrar et (shadowing)</option>
+              </select>
+              <small>Yalnız altyazı yüklüyken çalışır; normal moda dönünce seçili hız geri gelir.</small>
             </label>
             <div class="hint" style="margin:-2px 0 10px">
               İzlerken anında uygulanır, dosyayı değiştirmez. Yeni altyazı üretirken de
@@ -1487,7 +1654,9 @@
             <strong>Zamanlama masası</strong>
             <span id="timelineStatus">Bir altyazı seçerek zamanını düzenleyin</span>
           </div>
-          <button class="btn-icon" id="timelineClose" title="Zamanlama masasını kapat">&times;</button>
+          <button class="btn-icon" id="timelineClose" title="Zamanlama masasını kapat" aria-label="Zamanlama masasını kapat">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
         </header>
         <div class="timeline-toolbar">
           <div class="timeline-group">
@@ -1516,20 +1685,33 @@
     </div>
 
     <!-- RESULT MODAL -->
-    <div class="modal hidden" id="resultModal">
+    <div class="modal hidden" id="resultModal" role="dialog" aria-modal="true"
+      aria-labelledby="resultModalTitle" aria-describedby="modalStats">
       <div class="modal-backdrop"></div>
-      <div class="modal-content">
+      <div class="modal-content" tabindex="-1">
         <div class="modal-icon">
           <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <h2>Altyazı hazır!</h2>
+        <span class="signal-kicker">SONUÇ MASASI</span>
+        <h2 id="resultModalTitle">Altyazı hazır</h2>
         <div class="modal-stats" id="modalStats"></div>
-        <div class="modal-stats hidden" id="modalQuality"></div>
+        <section class="result-quality hidden" id="modalQuality" aria-labelledby="resultQualityTitle">
+          <div class="result-quality-head">
+            <h3 id="resultQualityTitle">Kalite özeti</h3>
+            <span class="quality-verdict" id="qualityVerdict">Kontrol edildi</span>
+          </div>
+          <div class="quality-metrics">
+            <div><span>Hızlı okuma</span><strong id="qualityCps">0</strong></div>
+            <div><span>Çakışma</span><strong id="qualityOverlap">0</strong></div>
+            <div><span>Uzun blok</span><strong id="qualityLong">0</strong></div>
+            <div><span>En yüksek KPS</span><strong id="qualityMaxCps">0</strong></div>
+          </div>
+        </section>
         <div class="modal-files" id="modalFiles"></div>
 
         <!-- Çıktı sonrası araçlar -->
         <details class="modal-tools">
-          <summary>️ Araçlar — zaman kaydır / videoya göm</summary>
+          <summary>Araçlar — zaman kaydır / videoya göm</summary>
           <div class="modal-tool-row">
             <label class="modal-tool-label">Zaman kaydır (sn, SRT/VTT):</label>
             <input type="number" id="shiftSeconds" step="0.1" value="0" />
@@ -1548,13 +1730,37 @@
 
         <div class="modal-actions">
           <button class="btn btn-secondary" id="closeModal">Kapat</button>
+          <button class="btn btn-secondary" id="reviewOutput">Oynatıcıda incele</button>
           <button class="btn btn-primary" id="openOutput">Klasörü Aç</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- UYGULAMA DIALOG'U — onay ve kısa metin girişi için ortak sahip -->
+    <div class="modal app-dialog hidden" id="appDialog" role="alertdialog" aria-modal="true"
+      aria-labelledby="appDialogTitle" aria-describedby="appDialogDescription">
+      <div class="modal-backdrop" data-dialog-cancel></div>
+      <div class="modal-content app-dialog-content" tabindex="-1">
+        <div class="app-dialog-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 3 20h18L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>
+        </div>
+        <h2 id="appDialogTitle">İşlemi onayla</h2>
+        <p id="appDialogDescription"></p>
+        <label class="field app-dialog-field hidden" id="appDialogField">
+          <span class="field-label" id="appDialogInputLabel">Değer</span>
+          <input type="text" id="appDialogInput" autocomplete="off" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="appDialogCancel" type="button">Vazgeç</button>
+          <button class="btn btn-danger" id="appDialogConfirm" type="button">Onayla</button>
         </div>
       </div>
     </div>
   </div>
 
   <script src="vendor/hls.min.js"></script>
+  <script src="../playback-policy.js"></script>
+  <script src="../browser-tabs.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

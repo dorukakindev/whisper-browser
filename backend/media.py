@@ -239,6 +239,40 @@ def download(url, height, audio_lang, output_dir, cookie_browser=""):
          duration=info.get("duration") or 0)
 
 
+def download_clip(url, start, end, output_file, cookie_browser=""):
+    """yt-dlp'nin desteklediği açık kaynakta yalnız seçili zaman aralığını indirir."""
+    import yt_dlp
+    from yt_dlp.utils import download_range_func
+
+    start = max(0.0, float(start or 0))
+    end = max(0.0, float(end or 0))
+    if end <= start:
+        raise ValueError("Klip bitişi başlangıçtan büyük olmalı")
+    if end - start > 3600:
+        raise ValueError("Tek klip en fazla 60 dakika olabilir")
+    target = Path(output_file)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    opts = _ydl_opts({
+        "format": "bestvideo+bestaudio/best",
+        "outtmpl": str(target),
+        "merge_output_format": "mp4",
+        "download_ranges": download_range_func(None, [(start, end)]),
+        "force_keyframes_at_cuts": True,
+        "noplaylist": True,
+    }, cookie_browser=cookie_browser)
+    log(f"A-B klibi hazırlanıyor: {start:.2f}–{end:.2f} sn")
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+    candidates = [target, target.with_suffix(".mp4")]
+    path = next((item for item in candidates if item.exists()), None)
+    if path is None:
+        nearby = list(target.parent.glob(f"{target.stem}*"))
+        path = max(nearby, key=lambda item: item.stat().st_mtime) if nearby else None
+    if path is None or not path.exists():
+        raise RuntimeError("Oluşturulan klip dosyası bulunamadı")
+    emit("clip", path=str(path), title=info.get("title") or "", start=start, end=end)
+
+
 def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     """YouTube'un hazır altyazısını SRT olarak indirir ve yolunu döndürür."""
     import yt_dlp
@@ -282,7 +316,7 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
 
 def main():
     ap = argparse.ArgumentParser(description="Oynatıcı medya yardımcısı")
-    ap.add_argument("command", choices=["probe", "download", "subs"])
+    ap.add_argument("command", choices=["probe", "download", "subs", "clip"])
     ap.add_argument("--url", required=True)
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--audio-lang", default="")
@@ -290,6 +324,9 @@ def main():
     ap.add_argument("--sub-lang", default="en")
     ap.add_argument("--sub-auto", default="false")
     ap.add_argument("--cookie-browser", default="")
+    ap.add_argument("--clip-start", type=float, default=0)
+    ap.add_argument("--clip-end", type=float, default=0)
+    ap.add_argument("--output-file", default="")
     args = ap.parse_args()
 
     try:
@@ -299,6 +336,9 @@ def main():
             fetch_subs(args.url, args.sub_lang,
                        str(args.sub_auto).lower() == "true", args.output_dir,
                        args.cookie_browser)
+        elif args.command == "clip":
+            download_clip(args.url, args.clip_start, args.clip_end,
+                          args.output_file, args.cookie_browser)
         else:
             download(args.url, args.height, args.audio_lang, args.output_dir,
                      args.cookie_browser)

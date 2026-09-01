@@ -1,53 +1,7 @@
-const SERVICE_ADAPTERS = Object.freeze([
-  {
-    id: 'netflix',
-    label: 'Netflix',
-    hosts: /(^|\.)netflix\.com$|(^|\.)nflxvideo\.net$/i,
-    pageHosts: /(^|\.)netflix\.com$/i,
-    responseHint: /manifest|timedtext|texttrack|caption|subtitle|webvtt|ttml|dfxp/i,
-    help: 'Videoyu başlatın ve Netflix altyazı menüsünden kaynak dili açın.',
-  },
-  {
-    id: 'disney',
-    label: 'Disney+',
-    hosts: /(^|\.)(disneyplus\.com|dssott\.com|bamgrid\.com)$/i,
-    pageHosts: /(^|\.)disneyplus\.com$/i,
-    responseHint: /caption|subtitle|texttrack|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i,
-    help: 'Videoyu başlatın ve Disney+ oynatıcısında kaynak altyazıyı açın.',
-  },
-  {
-    id: 'max',
-    label: 'Max',
-    hosts: /(^|\.)(max\.com|hbomax\.com|hbo\.com)$/i,
-    pageHosts: /(^|\.)(max\.com|hbomax\.com)$/i,
-    responseHint: /manifest|playback|caption|subtitle|texttrack|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i,
-    help: 'Videoyu başlatın ve Max oynatıcısında kaynak altyazıyı açın.',
-  },
-  {
-    id: 'discovery',
-    label: 'Discovery+',
-    hosts: /(^|\.)(discoveryplus\.com|discovery\.com)$/i,
-    pageHosts: /(^|\.)discoveryplus\.com$/i,
-    responseHint: /caption|subtitle|texttrack|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i,
-    help: 'Videoyu başlatın; HLS altyazı izi oynatma başlayınca görünür.',
-  },
-  {
-    id: 'hulu',
-    label: 'Hulu',
-    hosts: /(^|\.)hulu\.(com|jp)$/i,
-    pageHosts: /(^|\.)hulu\.(com|jp)$/i,
-    responseHint: /caption|subtitle|texttrack|webvtt|ttml|dfxp|sami|\.vtt|\.m3u8|\.mpd/i,
-    help: 'Videoyu başlatın ve Hulu oynatıcısında kaynak altyazıyı açın.',
-  },
-  {
-    id: 'youtube',
-    label: 'YouTube',
-    hosts: /(^|\.)(youtube\.com|googlevideo\.com|youtu\.be)$/i,
-    pageHosts: /(^|\.)(youtube\.com|youtu\.be)$/i,
-    responseHint: /timedtext|caption|subtitle|json3|srv3|\.vtt/i,
-    help: 'Videoyu başlatın ve YouTube CC menüsünden kaynak altyazıyı seçin.',
-  },
-]);
+const { createBuiltinAdapterRegistry } = require('./browser-adapter-registry');
+
+const ADAPTER_REGISTRY = createBuiltinAdapterRegistry();
+const SERVICE_ADAPTERS = Object.freeze(ADAPTER_REGISTRY.list());
 
 const GENERIC_ADAPTER = Object.freeze({
   id: 'generic',
@@ -61,18 +15,11 @@ function hostnameOf(value) {
 }
 
 function browserAdapterForUrl(url) {
-  const host = hostnameOf(url);
-  return SERVICE_ADAPTERS.find((adapter) => adapter.pageHosts.test(host)) || GENERIC_ADAPTER;
+  return ADAPTER_REGISTRY.forPage(url) || GENERIC_ADAPTER;
 }
 
 function browserResponseAdapter(pageUrl, responseUrl) {
-  const responseHost = hostnameOf(responseUrl);
-  const pageAdapter = browserAdapterForUrl(pageUrl);
-  if (pageAdapter !== GENERIC_ADAPTER
-      && (pageAdapter.hosts.test(responseHost) || pageAdapter.responseHint.test(String(responseUrl || '')))) {
-    return pageAdapter;
-  }
-  return SERVICE_ADAPTERS.find((adapter) => adapter.hosts.test(responseHost)) || pageAdapter;
+  return ADAPTER_REGISTRY.forResponse(pageUrl, responseUrl) || browserAdapterForUrl(pageUrl);
 }
 
 function adapterAcceptsResponse(adapter, response = {}) {
@@ -99,6 +46,7 @@ function redactCaptureUrl(value) {
 }
 
 module.exports = {
+  ADAPTER_REGISTRY,
   GENERIC_ADAPTER,
   SERVICE_ADAPTERS,
   adapterAcceptsResponse,

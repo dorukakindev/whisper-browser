@@ -72,7 +72,7 @@ test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
   for (const command of ['play-pause', 'seek-relative', 'mute', 'volume-relative']) {
     assert(body.includes(`'${command}'`), `${command} web videosuna bağlı değil`);
   }
-  assert(/window\.api\.browserCommand\(command, value\)/.test(body), 'komut tarayıcı IPC kanalına gitmiyor');
+  assert(/browserCommand\(command, value\)/.test(body), 'komut sekme kimlikli tarayıcı IPC kanalına gitmiyor');
   assert(/stepBrowserFrame/.test(body), 'duraklatılmış web videosunda kare adımı bağlı değil');
   const frame = js.slice(js.indexOf('async function stepBrowserFrame'), js.indexOf('async function nudgeSpeed'));
   assert(/browserCommand\('frame-step'/.test(frame), 'kare adımı web videosu IPC komutunu kullanmıyor');
@@ -114,7 +114,7 @@ test('web medya probu üst üste binmiyor ve gezinme sonrası eski sonucu yayın
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
   const poll = main.slice(main.indexOf('function startBrowserPolling'), main.indexOf('function stopBrowserPolling'));
   assert(/browserMediaBusy/.test(poll), 'medya probunda busy koruması yok');
-  assert(/generation !== browserStateGeneration/.test(poll), 'eski tarama kuşağı elenmiyor');
+  assert(/generation !== browserStateGeneration|isCurrentBrowserContext\(context\)/.test(poll), 'eski tarama kuşağı elenmiyor');
   assert(/activeContents\.getURL\(\) !== pageUrl/.test(poll), 'gezinme sonrası eski medya sonucu elenmiyor');
   assert(/finally\s*{\s*if \(generation === browserStateGeneration\) browserMediaBusy = false/.test(poll),
     'eski medya probu yeni probun busy durumunu temizleyebiliyor');

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "id": "ornek-video",
+  "label": "Örnek Video",
+  "hosts": ["video.example.com", "cdn.example.com"],
+  "pageHosts": ["video.example.com"],
+  "help": "Videoyu başlatın ve sitenin kendi altyazısını açın.",
+  "capabilities": {
+    "signIn": true,
+    "playback": true,
+    "nativeTextTrack": true,
+    "networkCapture": true,
+    "manifestCapture": true,
+    "dualTrack": false,
+    "overlay": true,
+    "fullscreen": false,
+    "translation": true
+  }
+}

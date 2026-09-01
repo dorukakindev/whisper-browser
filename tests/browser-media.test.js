@@ -30,7 +30,7 @@ test('eşit alanlı videoda oynayan aday öne alınır, giriş sırası korunur'
 test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   assert.match(main, /rankBrowserMediaCandidates\(candidates\)/);
-  assert.doesNotMatch(main, /executeBrowserFrames\(browserMediaCommandScript/);
+  assert.doesNotMatch(main, /executeBrowserFrames\(buildBrowserMediaCommandScript/);
   assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('disable-gpu'\)/);
   assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('in-process-gpu'\)/);
   assert.doesNotMatch(main, /app\.disableHardwareAcceleration\(\)/);
@@ -39,7 +39,7 @@ test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
 
 test('medya zamanlayıcısı komutlarla aynı aday sıralamasını kullanır', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
-  assert.match(main, /const probed = await withTimeout\(executeBrowserFrames\(browserMediaProbeScript\(\)\)/);
+  assert.match(main, /const probed = await withTimeout\(executeBrowserFrames\(buildBrowserMediaProbeScript\(\)\)/);
   assert.match(main, /rankBrowserMediaCandidates\(\s*probed\.map\(\(item\) => \(\{ media: item \}\)\)/s);
 });
 

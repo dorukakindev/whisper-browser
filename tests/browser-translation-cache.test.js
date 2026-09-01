@@ -1,0 +1,20 @@
+const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { PersistentTranslationCache } = require('../src/browser-translation-cache');
+
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'));
+try {
+  const file = path.join(dir, 'cache.json');
+  const cache = new PersistentTranslationCache(file, { limit: 100 });
+  assert.equal(cache.set('a', 'Merhaba'), true);
+  assert.equal(cache.get('a'), 'Merhaba');
+  assert(cache.flush().ok);
+  const restored = new PersistentTranslationCache(file);
+  assert.equal(restored.get('a'), 'Merhaba');
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).version, 1);
+  console.log('browser-translation-cache: 1 test');
+} finally {
+  fs.rmSync(dir, { recursive: true, force: true });
+}

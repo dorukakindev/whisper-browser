@@ -25,6 +25,10 @@ const state = {
   syncSrt: null,        // altyazı senkron aracı: hizalanacak SRT
 };
 
+// Kalıcı iş geçmişinin renderer önbelleği. İşler merkezi bu sayacı kuyruk
+// yönetiminden önce de okuyabildiği için tek üst-seviye sahibi burada durur.
+let historyCache = [];
+
 // ===== Kuyruk yönetimi =====
 let _queueIdCounter = 0;
 
@@ -129,25 +133,66 @@ function buildOptsFromUI() {
 // dogrudan buildOptsFromUI() ile ekliyordu; anahtarsiz ceviri/LLM/diarization
 // veya gecersiz kirpma araligiyla is eklenebiliyor, kullanici sorunu ancak
 // gunlukten anliyordu.
-function optsProblem(opts) {
+function optsProblemInfo(opts) {
   const a = parseClipInput(opts.clipStart);
   const b = parseClipInput(opts.clipEnd);
   if (Number.isNaN(a) || Number.isNaN(b)) {
-    return 'Zaman aralığı biçimi geçersiz. Örnek: 90 · 1:30 · 01:02:03';
+    return { message: 'Zaman aralığı biçimi geçersiz. Örnek: 90 · 1:30 · 01:02:03', fieldId: Number.isNaN(a) ? 'clipStart' : 'clipEnd' };
   }
   if (a !== null && b !== null && b <= a) {
-    return 'Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.';
+    return { message: 'Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.', fieldId: 'clipEnd' };
   }
   if (opts.translate && !opts.translateApiKey) {
-    return 'Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → Çeviri → API Key.';
+    return { message: 'Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → Çeviri → API Key.', fieldId: 'translateApiKey' };
   }
   if (opts.diarize && !opts.hfToken) {
-    return 'Konuşmacı tanıma açık ama HuggingFace token girilmemiş.';
+    return { message: 'Konuşmacı tanıma açık ama HuggingFace token girilmemiş.', fieldId: 'hfToken' };
   }
   if (opts.llmPostprocess && !opts.llmApiKey) {
-    return 'LLM düzeltme açık ama API anahtarı girilmemiş.';
+    return { message: 'LLM düzeltme açık ama API anahtarı girilmemiş.', fieldId: 'llmApiKey' };
   }
   return null;
+}
+
+function optsProblem(opts) {
+  const problem = optsProblemInfo(opts);
+  return problem ? problem.message : null;
+}
+
+let _validationTargetId = '';
+
+function clearJobValidation() {
+  const box = $('jobValidation');
+  if (!box) return;
+  box.classList.add('hidden');
+  _validationTargetId = '';
+  document.querySelectorAll('[aria-invalid="true"][data-job-validation]').forEach((el) => {
+    el.removeAttribute('aria-invalid');
+    el.removeAttribute('data-job-validation');
+    const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter((id) => id && id !== 'jobValidationText');
+    if (ids.length) el.setAttribute('aria-describedby', ids.join(' '));
+    else el.removeAttribute('aria-describedby');
+  });
+}
+
+function showJobValidation(problem) {
+  if (!problem) { clearJobValidation(); return; }
+  clearJobValidation();
+  const box = $('jobValidation');
+  if (!box) return;
+  $('jobValidationText').textContent = problem.message;
+  _validationTargetId = problem.fieldId || '';
+  const target = _validationTargetId ? $(_validationTargetId) : null;
+  if (target) {
+    target.setAttribute('aria-invalid', 'true');
+    target.setAttribute('data-job-validation', 'true');
+    const described = new Set((target.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+    described.add('jobValidationText');
+    target.setAttribute('aria-describedby', [...described].join(' '));
+  }
+  box.classList.remove('hidden');
+  box.focus({ preventScroll: true });
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // IPC çağrısı Electron kapanışı, kanal hatası veya süreç çökmesi nedeniyle
@@ -168,17 +213,21 @@ function addToQueue(type, input) {
   // Oynaticinin ses kilidi yalnizca bu tek ise aittir; ana ekrandaki sonraki
   // YouTube isi yanlislikla ayni dublaji devralmasin.
   state.nextYoutubeAudioLang = '';
-  const problem = optsProblem(opts);
+  const problemInfo = optsProblemInfo(opts);
+  const problem = problemInfo && problemInfo.message;
   if (problem) {
     logLine(`Kuyruğa eklenmedi — ${problem}`, 'error');
+    showJobValidation(problemInfo);
     return;
   }
+  clearJobValidation();
   const id = ++_queueIdCounter;
   const label = type === 'youtube'
     ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
     : input.split(/[\\/]/).pop();
   // Ayarları EKLEME anında dondur: kuyruk işlenirken UI değişse bile bu iş eski ayarı kullanır
   state.queue.push({ id, type, input, label, status: 'pending', files: [], opts });
+  setJobsTab('queue');
   renderQueue();
 }
 
@@ -199,8 +248,8 @@ function clearQueue() {
 const STATUS_TEXT = {
   pending: 'Bekliyor',
   running: 'İşleniyor',
-  done: 'Tamamlandı ✓',
-  error: 'Hata ✗',
+  done: 'Tamamlandı',
+  error: 'Hata',
 };
 
 function renderQueue() {
@@ -208,12 +257,15 @@ function renderQueue() {
   const list = $('queueList');
   const count = $('queueCount');
   count.textContent = state.queue.length;
+  list.innerHTML = '';
   if (state.queue.length === 0) {
-    card.classList.add('hidden');
+    const empty = document.createElement('div');
+    empty.className = 'jobs-empty';
+    empty.textContent = 'Kuyruk boş. Bir kaynak seçip “Kuyruğa” ile ekleyin.';
+    list.appendChild(empty);
+    syncJobsCenter();
     return;
   }
-  card.classList.remove('hidden');
-  list.innerHTML = '';
   state.queue.forEach((item) => {
     const div = document.createElement('div');
     div.className = `queue-item ${item.status}`;
@@ -223,7 +275,6 @@ function renderQueue() {
     const removable = item.status !== 'running';
     const retryable = item.status === 'error';
     const openable = item.status === 'done' && item.files && item.files.length > 0;
-    if (openable) div.title = 'Çıktı klasörünü aç';
     div.innerHTML = `
       <span class="queue-icon">${icon}</span>
       <div class="queue-name" title="${escapeHtml(item.input)}">
@@ -232,18 +283,18 @@ function renderQueue() {
       </div>
       <span class="queue-status">${STATUS_TEXT[item.status] || item.status}</span>
       <span class="queue-actions">
-        ${retryable ? `<button class="queue-remove queue-retry" data-retry="${item.id}" title="Yeniden dene">↻</button>` : ''}
-        ${removable ? `<button class="queue-remove" data-id="${item.id}" title="Kaldır">×</button>` : ''}
+        ${openable ? `<button class="queue-remove queue-open" data-open="${item.id}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
+        ${retryable ? `<button class="queue-remove queue-retry" data-retry="${item.id}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
+        ${removable ? `<button class="queue-remove" data-id="${item.id}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
       </span>
     `;
-    if (openable) {
-      div.classList.add('openable');
-      div.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
-        window.api.showInFolder(item.files[0]);
-      });
-    }
     list.appendChild(div);
+  });
+  list.querySelectorAll('.queue-open').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = state.queue.find(x => x.id === parseInt(btn.dataset.open, 10));
+      if (item && item.files && item.files[0]) window.api.showInFolder(item.files[0]);
+    });
   });
   list.querySelectorAll('.queue-remove[data-id]').forEach(btn => {
     btn.addEventListener('click', () => removeFromQueue(parseInt(btn.dataset.id, 10)));
@@ -254,9 +305,10 @@ function renderQueue() {
       if (!item || item.status !== 'error') return;
       item.status = 'pending';
       renderQueue();
-      logLine(`↻ "${item.label}" yeniden kuyruğa alındı`, 'info');
+      logLine(`"${item.label}" yeniden kuyruğa alındı`, 'info');
     });
   });
+  syncJobsCenter();
 }
 
 async function startQueue() {
@@ -377,6 +429,191 @@ function setProgress(percent) {
   const bar = $('progressBar');
   if (bar) bar.setAttribute('aria-valuenow', String(Math.round(p)));
 }
+
+// ===== Ortak modal/dialog sahibi =====
+let _activeModal = null;
+let _modalReturnFocus = null;
+let _dialogResolve = null;
+
+function modalFocusable(modal) {
+  return [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
+    .filter((el) => !el.classList.contains('hidden') && el.offsetParent !== null);
+}
+
+function setModalBackgroundInert(modal, inert) {
+  const app = document.querySelector('.app');
+  if (!app) return;
+  [...app.children].forEach((child) => {
+    if (child === modal) return;
+    child.inert = inert;
+  });
+}
+
+function openManagedModal(modal, initialFocus) {
+  if (!modal) return;
+  if (_activeModal && _activeModal !== modal) closeManagedModal(_activeModal, false);
+  _modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  _activeModal = modal;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  setModalBackgroundInert(modal, true);
+  document.body.classList.add('modal-open');
+  requestAnimationFrame(() => {
+    const target = initialFocus || modalFocusable(modal)[0] || modal.querySelector('.modal-content');
+    target?.focus();
+  });
+}
+
+function closeManagedModal(modal, restoreFocus = true) {
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  setModalBackgroundInert(modal, false);
+  document.body.classList.remove('modal-open');
+  if (_activeModal === modal) _activeModal = null;
+  const restore = _modalReturnFocus;
+  _modalReturnFocus = null;
+  if (restoreFocus && restore && document.contains(restore)) requestAnimationFrame(() => restore.focus());
+}
+
+document.addEventListener('keydown', (event) => {
+  const modal = _activeModal;
+  if (!modal) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (modal === $('appDialog')) resolveAppDialog(false);
+    else closeManagedModal(modal);
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusable = modalFocusable(modal);
+  if (!focusable.length) { event.preventDefault(); modal.querySelector('.modal-content')?.focus(); return; }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+}, true);
+
+function resolveAppDialog(value) {
+  const resolve = _dialogResolve;
+  _dialogResolve = null;
+  closeManagedModal($('appDialog'));
+  if (resolve) resolve(value);
+}
+
+function openAppDialog({ title, description, confirmLabel, intent = 'danger', inputLabel = '', inputValue = '' }) {
+  const modal = $('appDialog');
+  const field = $('appDialogField');
+  const input = $('appDialogInput');
+  const confirm = $('appDialogConfirm');
+  const hasInput = !!inputLabel;
+  $('appDialogTitle').textContent = title;
+  $('appDialogDescription').textContent = description;
+  $('appDialogInputLabel').textContent = inputLabel || 'Değer';
+  field.classList.toggle('hidden', !hasInput);
+  input.value = hasInput ? inputValue : '';
+  confirm.textContent = confirmLabel;
+  confirm.className = `btn ${intent === 'danger' ? 'btn-danger' : 'btn-primary'}`;
+  modal.setAttribute('role', hasInput ? 'dialog' : 'alertdialog');
+  if (_dialogResolve) _dialogResolve(false);
+  return new Promise((resolve) => {
+    _dialogResolve = resolve;
+    openManagedModal(modal, hasInput ? input : $('appDialogCancel'));
+  });
+}
+
+$('appDialogCancel')?.addEventListener('click', () => resolveAppDialog(false));
+$('appDialogConfirm')?.addEventListener('click', () => {
+  const hasInput = !$('appDialogField').classList.contains('hidden');
+  resolveAppDialog(hasInput ? $('appDialogInput').value : true);
+});
+$('appDialog')?.querySelector('[data-dialog-cancel]')?.addEventListener('click', () => {
+  if ($('appDialog').getAttribute('role') === 'dialog') resolveAppDialog(false);
+});
+$('appDialogInput')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.isComposing) {
+    event.preventDefault();
+    $('appDialogConfirm').click();
+  }
+});
+
+// ===== Birleşik İşler merkezi =====
+let _jobsTab = 'queue';
+
+function setJobsTab(tab, focus = false) {
+  if (!['queue', 'history', 'review'].includes(tab)) tab = 'queue';
+  _jobsTab = tab;
+  $$('.jobs-tab').forEach((button) => {
+    const active = button.dataset.jobsTab === tab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+    button.tabIndex = active ? 0 : -1;
+    if (active && focus) button.focus();
+  });
+  const panels = { queue: 'queueCard', history: 'historyCard', review: 'reviewCard' };
+  Object.entries(panels).forEach(([name, id]) => $(id)?.classList.toggle('hidden', name !== tab));
+  $('queueToolbar')?.classList.toggle('hidden', tab !== 'queue');
+  $('historyToolbar')?.classList.toggle('hidden', tab !== 'history');
+}
+
+function reviewItems() {
+  const items = [];
+  state.queue.forEach((item) => {
+    if (item.status === 'error') items.push({ tone: 'error', title: item.label, detail: 'İş tamamlanamadı; günlükten hatayı inceleyip yeniden deneyin.' });
+    (item.warnings || []).forEach((warning) => items.push({ tone: 'warning', title: item.label, detail: warning }));
+  });
+  const qr = state.lastQualityReport;
+  if (qr && qr.blocks) {
+    const issueCount = Number(qr.cps_violations || 0) + Number(qr.overlaps || 0) + Number(qr.too_long || 0);
+    if (issueCount) {
+      items.push({ tone: 'warning', title: 'Son çıktı kalite raporu', detail: `${qr.cps_violations || 0} hızlı okuma · ${qr.overlaps || 0} çakışma · ${qr.too_long || 0} uzun blok` });
+    }
+  }
+  return items;
+}
+
+function renderReviewCenter() {
+  const list = $('reviewList');
+  if (!list) return;
+  const items = reviewItems();
+  $('reviewCount').textContent = String(items.length);
+  $('jobsReviewBadge').textContent = String(items.length);
+  list.innerHTML = '';
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'review-empty';
+    empty.textContent = 'Şu anda elle kontrol isteyen iş yok.';
+    list.appendChild(empty);
+    return;
+  }
+  items.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = `review-item ${item.tone === 'error' ? 'error' : ''}`;
+    const mark = document.createElement('span');
+    mark.className = 'review-item-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    const body = document.createElement('div');
+    const title = document.createElement('strong');
+    const detail = document.createElement('span');
+    title.textContent = item.title || 'İş';
+    detail.textContent = item.detail;
+    body.append(title, detail);
+    row.append(mark, body);
+    list.appendChild(row);
+  });
+}
+
+function syncJobsCenter() {
+  $('jobsQueueBadge').textContent = String(state.queue.length);
+  $('jobsHistoryBadge').textContent = String(historyCache.length);
+  $('startQueueBtn').disabled = !state.queue.some((item) => item.status === 'pending') || state.queueRunning;
+  $('clearQueue').disabled = !state.queue.some((item) => item.status !== 'running');
+  renderReviewCenter();
+  setJobsTab(_jobsTab);
+}
+
+$$('.jobs-tab').forEach((button) => button.addEventListener('click', () => setJobsTab(button.dataset.jobsTab)));
 
 function markStagesDoneUpTo(stage) {
   const order = ['download', 'extract', 'load_model', 'transcribe', 'llm_postprocess', 'diarize', 'write'];
@@ -517,10 +754,20 @@ function applySegmentFilter(el) {
 let _searchTimer = null;
 $('previewSearch').addEventListener('input', () => {
   clearTimeout(_searchTimer);
+  $('previewSearchClear')?.classList.toggle('hidden', !$('previewSearch').value);
   _searchTimer = setTimeout(() => {
     previewFilter = $('previewSearch').value.trim().toLowerCase();
     $$('#preview .segment').forEach(applySegmentFilter);
   }, 120);
+});
+
+$('previewSearchClear')?.addEventListener('click', () => {
+  clearTimeout(_searchTimer);
+  $('previewSearch').value = '';
+  previewFilter = '';
+  $$('#preview .segment').forEach(applySegmentFilter);
+  $('previewSearchClear').classList.add('hidden');
+  $('previewSearch').focus();
 });
 
 // Segment DOM elemanını üret (yan etkisiz) — hem akış hem toplu render kullanır.
@@ -621,14 +868,9 @@ function renderFinalPreview(segs) {
 }
 
 // ===== Tabs =====
-$$('.tab').forEach((tab) => {
+$$('.tab[data-tab]').forEach((tab) => {
   tab.addEventListener('click', () => {
-    const target = tab.dataset.tab;
-    $$('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-    $$('.tab-content').forEach((c) => {
-      c.classList.toggle('hidden', c.dataset.content !== target);
-    });
-    state.source = target;
+    activateTab(tab.dataset.tab);
   });
 });
 
@@ -877,9 +1119,15 @@ document.addEventListener('drop', (e) => {
 });
 
 function activateTab(target) {
-  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === target));
-  $$('.tab-content').forEach((c) => c.classList.toggle('hidden', c.dataset.content !== target));
+  $$('.tab[data-tab]').forEach((t) => {
+    const active = t.dataset.tab === target;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', active ? 'true' : 'false');
+    t.tabIndex = active ? 0 : -1;
+  });
+  $$('.tab-content[data-content]').forEach((c) => c.classList.toggle('hidden', c.dataset.content !== target));
   state.source = target;
+  updateSignalDesk();
 }
 
 function setInputFile(filepath) {
@@ -892,6 +1140,8 @@ function setInputFile(filepath) {
   $('fileInfo').classList.remove('hidden');
   dropZone.classList.add('hidden');
   refreshAudioTracks(filepath);
+  if (_validationTargetId === 'dropZone') clearJobValidation();
+  updateSignalDesk();
 }
 
 // Seçilen dosyanın ses kanallarını ffprobe ile listele; >1 kanal varsa dropdown göster.
@@ -932,6 +1182,7 @@ $('clearFile').addEventListener('click', () => {
   $('fileInfo').classList.add('hidden');
   dropZone.classList.remove('hidden');
   resetAudioTracks();
+  updateSignalDesk();
 });
 
 // ===== Output folder =====
@@ -1053,6 +1304,26 @@ $('hfTokenHelp').addEventListener('click', (e) => {
   window.api.openExternal('https://huggingface.co/settings/tokens');
 });
 
+$$('.secret-toggle').forEach((button) => {
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const input = $(button.dataset.secretTarget);
+    if (!input) return;
+    const show = input.type === 'password';
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.type = show ? 'text' : 'password';
+    button.setAttribute('aria-pressed', show ? 'true' : 'false');
+    const label = button.getAttribute('aria-label') || 'Gizli değeri göster';
+    button.setAttribute('aria-label', show
+      ? label.replace(/ göster$/i, ' gizle')
+      : label.replace(/ gizle$/i, ' göster'));
+    input.focus();
+    if (Number.isInteger(start) && Number.isInteger(end)) input.setSelectionRange(start, end);
+  });
+});
+
 // yt-dlp güncelleme — YouTube indirme hataları çoğunlukla eski sürümden kaynaklanır
 $('updateYtdlp').addEventListener('click', async () => {
   const btn = $('updateYtdlp');
@@ -1072,7 +1343,7 @@ $('updateYtdlp').addEventListener('click', async () => {
 
 // YouTube URL alanında Enter → başlat
 $('youtubeUrl').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !state.running) {
+  if (e.key === 'Enter' && !e.isComposing && !state.running) {
     e.preventDefault();
     $('startBtn').click();
   }
@@ -1097,6 +1368,7 @@ async function saveAppSettings() {
     hfToken: $('hfToken').value.trim(),
     outputDir: state.outputDir || '',
     preset: $('presetSelect').value,
+    presetReference: _presetReference,
     watchDir: state.watchDir || '',
     translate: {
       apiKey: $('translateApiKey') ? $('translateApiKey').value.trim() : '',
@@ -1126,7 +1398,7 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
-  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'youtubeCookieBrowser',
+  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'youtubeCookieBrowser',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -1231,9 +1503,94 @@ const PRESET_CONTROLS = new Set(
   Object.values(PRESETS).flatMap((p) => [...Object.keys(p.values), ...Object.keys(p.checks)])
 );
 
+let _presetReference = 'film';
+const PRESET_CONTROL_LABELS = {
+  model: 'Model', engine: 'Motor', batchSize: 'Batch', beamSize: 'Beam', bestOf: 'Best of',
+  computeType: 'Hesaplama', splitMode: 'Bölme', wrapMode: 'Satır kırma', maxLineWidth: 'Satır genişliği',
+  hardMaxChars: 'Blok sınırı', maxCps: 'KPS sınırı', translateContext: 'Çeviri bağlamı',
+  vadFilter: 'VAD', temperatureFallback: 'Sıcaklık yedeği', mergeShort: 'Kısa blok birleştirme',
+  dedupe: 'Tekrar temizleme', snapToSpeech: 'Konuşmaya yaslama', fixTimings: 'Zaman düzeltme',
+  conditionOnPrevious: 'Önceki metin bağlamı', mergeIncomplete: 'Eksik cümle birleştirme',
+  fixPunctuationCollapse: 'Noktalama savunması', confidenceReport: 'Güven raporu', fixCommonErrors: 'Yaygın hata düzeltme',
+};
+
+function presetControlValue(id) {
+  const el = $(id);
+  if (!el) return null;
+  if (el.type === 'checkbox') return el.checked;
+  return String(el.value);
+}
+
+function presetValueLabel(id, value) {
+  const el = $(id);
+  if (typeof value === 'boolean') return value ? 'Açık' : 'Kapalı';
+  if (el && el.tagName === 'SELECT') {
+    const option = [...el.options].find((item) => String(item.value) === String(value));
+    if (option) return option.textContent.trim();
+  }
+  return String(value);
+}
+
+function currentPresetDiffs() {
+  const preset = PRESETS[_presetReference] || PRESETS.film;
+  const expected = { ...preset.values, ...preset.checks };
+  return Object.entries(expected).flatMap(([id, value]) => {
+    const current = presetControlValue(id);
+    if (current === null || String(current) === String(value)) return [];
+    return [{ id, label: PRESET_CONTROL_LABELS[id] || id, current: presetValueLabel(id, current), expected: presetValueLabel(id, value) }];
+  });
+}
+
+function updatePresetDiff() {
+  const preset = PRESETS[_presetReference] || PRESETS.film;
+  const diffs = currentPresetDiffs();
+  $('presetDiffLabel').textContent = `${preset.label} profili`;
+  $('presetDiffCount').textContent = diffs.length ? `${diffs.length} fark` : 'Aynı';
+  $('presetDiffCount').classList.toggle('is-dirty', diffs.length > 0);
+  $('presetDiffIntro').textContent = diffs.length
+    ? `Seçili ayarlar ${preset.label} profilinden ayrılıyor. İş bu görünür değerlerle çalışacak.`
+    : `${preset.label} profilinin dokunduğu ayarlar değişmedi.`;
+  const list = $('presetDiffList');
+  list.innerHTML = '';
+  diffs.slice(0, 8).forEach((diff) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    const value = document.createElement('strong');
+    label.textContent = diff.label;
+    label.title = `Profil: ${diff.expected}`;
+    value.textContent = diff.current;
+    item.append(label, value);
+    list.appendChild(item);
+  });
+}
+
+function updateSignalDesk() {
+  if (!$('signalDesk')) return;
+  const source = state.source === 'youtube'
+    ? ($('youtubeUrl').value.trim() ? 'YouTube bağlantısı' : 'YouTube bekleniyor')
+    : (state.inputFile ? state.inputFile.split(/[\\/]/).pop() : 'Dosya bekleniyor');
+  $('summarySource').textContent = source;
+  $('summarySource').title = state.source === 'file' && state.inputFile ? state.inputFile : source;
+  const engineOption = $('engine').selectedOptions[0];
+  const engine = engineOption ? engineOption.textContent.split('(')[0].trim() : $('engine').value;
+  $('summaryEngine').textContent = `${$('model').value} · ${engine}`;
+  $('summaryOutput').textContent = $('formats').selectedOptions[0]?.textContent.trim() || $('formats').value.toUpperCase();
+  const translation = $('translate').checked || state.forceTranslate;
+  $('summaryTranslation').textContent = translation
+    ? `Çeviri → ${$('translateTo').selectedOptions[0]?.textContent.trim() || $('translateTo').value}`
+    : ($('task').value === 'translate' ? 'Whisper → İngilizce' : 'Kaynak altyazı');
+  const estimate = estimateVramMib();
+  const total = Number(state.gpuVramMib) || 0;
+  const tight = total > 0 && estimate > total * .85;
+  $('summaryVram').textContent = total ? `~${estimate} / ${total} MiB${tight ? ' · sınırda' : ''}` : `~${estimate} MiB tahmin`;
+  $('summaryVram').classList.toggle('is-tight', tight);
+  updatePresetDiff();
+}
+
 function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
+  _presetReference = name;
   _applyingSettings = true;
   try {
     Object.entries(p.values).forEach(([id, v]) => {
@@ -1253,6 +1610,7 @@ function applyPreset(name) {
     _applyingSettings = false;
   }
   updateGpuBadge();
+  updateSignalDesk();
   logLine(`Ön ayar uygulandı: ${p.label} — model ${p.values.model}, motor ${p.values.engine}, beam ${p.values.beamSize}`, 'success');
   saveAppSettings();
 }
@@ -1260,7 +1618,7 @@ function applyPreset(name) {
 $('presetSelect').addEventListener('change', () => {
   const v = $('presetSelect').value;
   if (v !== 'custom') applyPreset(v);
-  else saveAppSettings();
+  else { updateSignalDesk(); saveAppSettings(); }
 });
 
 PRESET_CONTROLS.forEach((id) => {
@@ -1272,7 +1630,41 @@ PRESET_CONTROLS.forEach((id) => {
       $('presetSelect').value = 'custom';
       scheduleSave();
     }
+    updateSignalDesk();
   });
+});
+
+$('presetDiffBtn').addEventListener('click', () => {
+  const expanded = $('presetDiffBtn').getAttribute('aria-expanded') === 'true';
+  $('presetDiffBtn').setAttribute('aria-expanded', expanded ? 'false' : 'true');
+  $('presetDiffPanel').classList.toggle('hidden', expanded);
+});
+
+$('jobValidationFix').addEventListener('click', () => {
+  const target = _validationTargetId ? $(_validationTargetId) : null;
+  if (!target) return;
+  let parent = target.parentElement;
+  while (parent) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+    parent = parent.parentElement;
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  requestAnimationFrame(() => target.focus());
+});
+
+const SIGNAL_SUMMARY_CONTROLS = new Set([
+  'model', 'engine', 'batchSize', 'computeType', 'device', 'diarize', 'formats', 'translate',
+  'translateTo', 'task', ...PRESET_CONTROLS,
+]);
+document.addEventListener('change', (event) => {
+  if (!SIGNAL_SUMMARY_CONTROLS.has(event.target.id)) return;
+  updateSignalDesk();
+  const problem = optsProblemInfo(buildOptsFromUI());
+  if (!problem) clearJobValidation();
+});
+$('youtubeUrl').addEventListener('input', () => {
+  if (_validationTargetId === 'youtubeUrl' && $('youtubeUrl').value.trim()) clearJobValidation();
+  updateSignalDesk();
 });
 
 ['hfToken'].forEach(id => {
@@ -1371,6 +1763,8 @@ if ($('deepseekKeyHelp')) {
       if (s.preset && ($('presetSelect').querySelector(`option[value="${s.preset}"]`))) {
         $('presetSelect').value = s.preset;
       }
+      if (s.presetReference && PRESETS[s.presetReference]) _presetReference = s.presetReference;
+      else if (s.preset && PRESETS[s.preset]) _presetReference = s.preset;
     }
   } catch (_) {}
   renderGlossary();
@@ -1402,6 +1796,8 @@ if ($('deepseekKeyHelp')) {
       if (!env.ffmpeg) logLine('⚠ ffmpeg bulunamadı — PATH\'e ekleyin veya backend/bin/ içine koyun.', 'warn');
     }
   } catch (_) {}
+  await refreshModelStatus();
+  updateSignalDesk();
 })();
 
 // Seçili model+motor+batch+diarization için korumacı VRAM üst sınırı (MiB)
@@ -1430,6 +1826,60 @@ function estimateVramMib() {
   return Math.round(est);
 }
 
+let modelStatusSnapshot = null;
+let modelBenchmarkRunning = false;
+
+function renderSelectedModelStatus() {
+  const status = $('modelInstallStatus');
+  if (!status) return;
+  const selected = $('model')?.value || '';
+  const entry = modelStatusSnapshot?.models?.find((item) => item.id === selected);
+  status.textContent = !modelStatusSnapshot ? 'Önbellek denetlenmedi'
+    : entry?.installed ? 'Bu cihazda hazır' : 'İlk kullanımda indirilecek';
+  status.title = entry?.repository || status.textContent;
+}
+
+async function refreshModelStatus() {
+  if (!window.api.getModelStatus) return;
+  const result = await window.api.getModelStatus().catch(() => null);
+  if (result?.ok) modelStatusSnapshot = result;
+  renderSelectedModelStatus();
+}
+
+if ($('model')?.addEventListener) $('model').addEventListener('change', renderSelectedModelStatus);
+if ($('modelStatusRefresh')?.addEventListener) $('modelStatusRefresh').addEventListener('click', refreshModelStatus);
+if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener('click', async () => {
+  const button = $('modelBenchmark');
+  if (modelBenchmarkRunning) {
+    await window.api.cancelModelBenchmark?.().catch(() => null);
+    return;
+  }
+  modelBenchmarkRunning = true;
+  if (button) button.textContent = 'Benchmarkı durdur';
+  if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Dosya seçimi bekleniyor…';
+  const result = await window.api.benchmarkModel?.({
+    model: $('model')?.value,
+    device: $('device')?.value,
+    computeType: $('computeType')?.value,
+    language: $('language')?.value,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  modelBenchmarkRunning = false;
+  if (button) button.textContent = '30 sn benchmark';
+  if (result?.canceled) {
+    renderSelectedModelStatus();
+    return;
+  }
+  if (result?.ok) {
+    const message = `${result.model} · ${result.audioSeconds.toFixed(1)} sn ses · ${result.transcribeSeconds.toFixed(1)} sn işlem · ${result.speedX.toFixed(1)}× gerçek zaman`;
+    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = `${result.speedX.toFixed(1)}× gerçek zaman`;
+    logLine(`Model benchmarkı: ${message}`, 'success');
+    await refreshModelStatus();
+  } else {
+    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Benchmark tamamlanamadı';
+    logLine(`Model benchmarkı: ${result?.error || 'bilinmeyen hata'}`, 'warn');
+  }
+});
+
 // ===== GPU rozeti — seçili cihaz/compute tipini yansıt + VRAM yetersizlik uyarısı =====
 function updateGpuBadge() {
   const el = $('gpuBadgeText');
@@ -1452,6 +1902,7 @@ function updateGpuBadge() {
     badge.classList.remove('vram-warn');
     badge.title = '';
   }
+  updateSignalDesk();
 }
 ['device', 'computeType', 'model', 'engine', 'diarize'].forEach((id) => {
   const el = $(id);
@@ -1476,13 +1927,18 @@ $('startBtn').addEventListener('click', async () => {
   const opts = buildOptsFromUI();
 
   // On kontroller kuyrukla AYNI fonksiyondan gecer (ikisi ayrismasin diye)
-  const problem = optsProblem(opts);
-  if (problem) { logLine(problem, 'error'); return; }
+  const problemInfo = optsProblemInfo(opts);
+  if (problemInfo) {
+    logLine(problemInfo.message, 'error');
+    showJobValidation(problemInfo);
+    return;
+  }
 
   if (state.source === 'youtube') {
     const url = $('youtubeUrl').value.trim();
     if (!url) {
       logLine('YouTube URL boş olamaz.', 'error');
+      showJobValidation({ message: 'YouTube bağlantısını girin veya Dosya sekmesine geçin.', fieldId: 'youtubeUrl' });
       return;
     }
     opts.youtube = url;
@@ -1490,11 +1946,13 @@ $('startBtn').addEventListener('click', async () => {
   } else {
     if (!state.inputFile) {
       logLine('Lütfen bir dosya seç.', 'error');
+      showJobValidation({ message: 'Başlatmadan önce bir video veya ses dosyası seçin.', fieldId: 'dropZone' });
       return;
     }
     opts.input = state.inputFile;
     state.lastJobVideo = state.inputFile;
   }
+  clearJobValidation();
 
   // Reset UI
   state.running = true;
@@ -1575,6 +2033,7 @@ function scheduleLiveCueRender() {
   _liveCueRenderTimer = setTimeout(() => {
     _liveCueRenderTimer = null;
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
+    loadLearningAnnotations();
     renderCue();
     if (typeof drawTimeline === 'function') drawTimeline();
   }, 140);
@@ -2023,6 +2482,7 @@ window.api.onEvent((event) => {
 
     case 'quality_report':
       state.lastQualityReport = event;
+      renderReviewCenter();
       break;
 
     case 'done': {
@@ -2146,12 +2606,13 @@ function showResultModal(event) {
   const qEl = $('modalQuality');
   if (qEl) {
     if (qr && qr.blocks) {
-      const issues = [];
-      if (qr.cps_violations) issues.push(`${qr.cps_violations} hızlı okuma`);
-      if (qr.overlaps) issues.push(`${qr.overlaps} çakışma`);
-      if (qr.too_long) issues.push(`${qr.too_long} çok uzun blok`);
-      const health = issues.length ? `⚠ ${issues.join(' · ')}` : '✓ Zamanlama sorunsuz';
-      qEl.textContent = `${health} · en uzun blok ${qr.longest_dur}s · en yüksek ${Math.round(qr.max_cps)} KPS`;
+      const issueCount = Number(qr.cps_violations || 0) + Number(qr.overlaps || 0) + Number(qr.too_long || 0);
+      $('qualityCps').textContent = String(qr.cps_violations || 0);
+      $('qualityOverlap').textContent = String(qr.overlaps || 0);
+      $('qualityLong').textContent = String(qr.too_long || 0);
+      $('qualityMaxCps').textContent = String(Math.round(Number(qr.max_cps) || 0));
+      $('qualityVerdict').textContent = issueCount ? 'Elle kontrol' : 'Sorunsuz';
+      $('qualityVerdict').classList.toggle('needs-review', issueCount > 0);
       qEl.classList.remove('hidden');
     } else {
       qEl.classList.add('hidden');
@@ -2161,15 +2622,17 @@ function showResultModal(event) {
   const filesEl = $('modalFiles');
   filesEl.innerHTML = '';
   (event.files || []).forEach((f) => {
-    const div = document.createElement('div');
-    div.className = 'modal-file-item';
+    const button = document.createElement('button');
+    button.className = 'modal-file-item';
+    button.type = 'button';
     const name = f.split(/[\\/]/).pop();
-    div.innerHTML = `
+    button.setAttribute('aria-label', `${name} dosyasını aç`);
+    button.innerHTML = `
       <span>${escapeHtml(name)}</span>
-      <span style="opacity:.6">aç →</span>
+      <span class="modal-file-action">Aç</span>
     `;
-    div.addEventListener('click', () => window.api.openPath(f));
-    filesEl.appendChild(div);
+    button.addEventListener('click', () => window.api.openPath(f));
+    filesEl.appendChild(button);
   });
 
   // Araçları sıfırla: kaydırma + burn-in
@@ -2180,18 +2643,28 @@ function showResultModal(event) {
   // Burn-in yalnızca yerel video + SRT/ASS çıktısı varsa anlamlı
   const canBurn = !!state.lastJobVideo && !!pickOutput(['.srt', '.ass']);
   $('burninRow').classList.toggle('hidden', !canBurn);
+  $('reviewOutput').disabled = !state.lastJobVideo;
+  $('reviewOutput').title = state.lastJobVideo
+    ? 'Videoyu son çıktıyla oynatıcıda aç'
+    : 'YouTube işleri geçmişteki İzle eyleminden yeniden açılabilir';
 
-  $('resultModal').classList.remove('hidden');
+  openManagedModal($('resultModal'), state.lastJobVideo ? $('reviewOutput') : $('openOutput'));
 }
 
 $('closeModal').addEventListener('click', () => {
-  $('resultModal').classList.add('hidden');
+  closeManagedModal($('resultModal'));
 });
 
 $('openOutput').addEventListener('click', () => {
   const f = state.outputFiles[0];
   if (f) window.api.showInFolder(f);
-  $('resultModal').classList.add('hidden');
+  closeManagedModal($('resultModal'));
+});
+
+$('reviewOutput').addEventListener('click', () => {
+  if (!state.lastJobVideo) return;
+  closeManagedModal($('resultModal'), false);
+  openPlayer();
 });
 
 // ===== Kuyruk buton event'leri =====
@@ -2200,6 +2673,7 @@ $('queueAddBtn').addEventListener('click', () => {
     const url = $('youtubeUrl').value.trim();
     if (!url) {
       logLine('YouTube URL boş', 'warn');
+      showJobValidation({ message: 'Kuyruğa eklemek için YouTube bağlantısını girin.', fieldId: 'youtubeUrl' });
       return;
     }
     addToQueue('youtube', url);
@@ -2208,6 +2682,7 @@ $('queueAddBtn').addEventListener('click', () => {
   } else {
     if (!state.inputFile) {
       logLine('Önce bir dosya seç', 'warn');
+      showJobValidation({ message: 'Kuyruğa eklemek için önce bir video veya ses dosyası seçin.', fieldId: 'dropZone' });
       return;
     }
     addToQueue('file', state.inputFile);
@@ -2317,6 +2792,8 @@ $('importSettings').addEventListener('click', async () => {
   }
   if (s.ui) applyUiSettings(s.ui);
   if (s.preset && $('presetSelect').querySelector(`option[value="${s.preset}"]`)) $('presetSelect').value = s.preset;
+  if (s.presetReference && PRESETS[s.presetReference]) _presetReference = s.presetReference;
+  else if (s.preset && PRESETS[s.preset]) _presetReference = s.preset;
   renderGlossary();
   updateLlmEndpointUI();
   updateGpuBadge();
@@ -2462,6 +2939,8 @@ logLine('Whisper Altyazı hazır. (Ctrl+Enter: başlat · Esc: iptal)', 'success
 // Altyazı <track> yerine ÜSTTE ÇİZİLİR: file:// kaynaklı track'ler Electron'da
 // engellenebiliyor ve stil kontrolü olmuyor; overlay tam ekranda da çalışıyor.
 // ============================================================================
+const { BrowserTabEventGate } = window.BrowserTabs;
+
 const player = {
   cues: [],          // [{start, end, text}]
   cues2: [],         // karşılaştırma altyazısı (ör. kaynak dil)
@@ -2533,6 +3012,9 @@ const player = {
   playerLibrarySearchSeq: 0,
   playbackAudioLang: '',
   workspaceMode: 'player', // 'player' | 'browser'
+  browserTabs: [],
+  browserActiveTabId: '',
+  browserTabEventGate: new BrowserTabEventGate(),
   browserTracks: [],
   browserPageUrl: '',
   browserPageTitle: '',
@@ -2557,8 +3039,21 @@ const player = {
   browserPlacesSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
+  browserTranslationTrackId: '',
+  browserLiveTranslations: new Map(),
   browserSignalVisible: true,
   browserChromeCollapsed: false,
+  browserLiveAsrActive: false,
+  browserLiveAsrStream: null,
+  browserLiveAsrRecorder: null,
+  browserLiveAsrTimer: null,
+  browserLiveAsrStartedAt: 0,
+  embeddedSubtitleTracks: [],
+  playbackPolicy: 'normal',
+  learningBaseRate: 1,
+  shadowResumeTimer: null,
+  cueEditUndo: [],
+  cueEditRedo: [],
 };
 
 try { player.audioLocks = JSON.parse(localStorage.getItem('playerAudioLocks') || '{}') || {}; }
@@ -2571,6 +3066,288 @@ try {
   player.browserChromeCollapsed = localStorage.getItem('playerBrowserChromeCollapsed') === 'true';
   player.browserCaptureEnabled = localStorage.getItem('playerBrowserCaptureEnabled') !== 'false';
 } catch (_) {}
+
+function newBrowserTabState(snapshot = {}) {
+  return {
+    id: snapshot.id || '',
+    generation: Math.max(0, Number(snapshot.generation) || 0),
+    url: snapshot.url || '',
+    title: snapshot.title || '',
+    loading: !!snapshot.loading,
+    canGoBack: !!snapshot.canGoBack,
+    canGoForward: !!snapshot.canGoForward,
+    captureEnabled: snapshot.captureEnabled !== false,
+    diagnostics: snapshot.diagnostics || null,
+    error: '',
+    browserTracks: [],
+    browserTime: Number(snapshot.position) || 0,
+    browserDuration: Number(snapshot.duration) || 0,
+    browserPaused: true,
+    browserRate: Number(snapshot.rate) || 1,
+    browserVolume: Number.isFinite(Number(snapshot.volume)) ? Number(snapshot.volume) : 1,
+    browserMuted: !!snapshot.muted,
+    browserProfileKey: '',
+    browserPositionTick: 0,
+    browserLoadedTrackId: '',
+    browserLoadedTrackId2: '',
+    browserTranslationTrackId: '',
+    browserLiveTranslations: [],
+    mediaKey: snapshot.mediaId ? `browser:${snapshot.mediaId}`
+      : snapshot.url ? `browser:${browserPlaceKey(snapshot.url) || snapshot.url}` : '',
+    watchSession: null,
+    watchManualCompletedKey: '',
+    watchManualCompleted: null,
+    watchRemovedKey: '',
+    cues: [], cues2: [], subtitles: [], subOrigins: {},
+    subPath: '', sub2Path: '', subFormat: 'srt', subRaw: '', offset: Number(snapshot.offset) || 0,
+    mediaId: snapshot.mediaId || '', service: snapshot.service || '',
+    viewMode: snapshot.viewMode || 'reading', targetLanguage: snapshot.targetLanguage || '',
+    trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : [],
+    resumePending: !!snapshot.resumePending,
+  };
+}
+
+function browserTabState(tabId = player.browserActiveTabId) {
+  return player.browserTabs.find((tab) => tab.id === tabId) || null;
+}
+
+function saveActiveBrowserTabWorkspace() {
+  const tab = browserTabState();
+  if (!tab) return;
+  Object.assign(tab, {
+    url: player.browserPageUrl,
+    title: player.browserPageTitle,
+    captureEnabled: player.browserCaptureEnabled,
+    diagnostics: player.browserDiagnostics,
+    browserTracks: player.browserTracks.slice(),
+    browserTime: player.browserTime,
+    browserDuration: player.browserDuration,
+    browserPaused: player.browserPaused,
+    browserRate: player.browserRate,
+    browserVolume: player.browserVolume,
+    browserMuted: player.browserMuted,
+    browserProfileKey: player.browserProfileKey,
+    browserPositionTick: player.browserPositionTick,
+    browserLoadedTrackId: player.browserLoadedTrackId,
+    browserLoadedTrackId2: player.browserLoadedTrackId2,
+    browserTranslationTrackId: player.browserTranslationTrackId,
+    browserLiveTranslations: [...player.browserLiveTranslations.values()],
+    mediaKey: player.mediaKey,
+    watchSession: player.watchSession ? { ...player.watchSession } : null,
+    watchManualCompletedKey: player.watchManualCompletedKey,
+    watchManualCompleted: player.watchManualCompleted,
+    watchRemovedKey: player.watchRemovedKey,
+    cues: player.cues.slice(), cues2: player.cues2.slice(),
+    subtitles: player.subtitles.map((item) => ({ ...item })),
+    subOrigins: { ...player.subOrigins },
+    subPath: player.subPath, sub2Path: player.sub2Path,
+    subFormat: player.subFormat, subRaw: player.subRaw, offset: player.offset,
+    viewMode: player.viewMode,
+    targetLanguage: $('translateTo')?.value || tab.targetLanguage || '',
+  });
+  if (window.api.updateBrowserSessionTab) {
+    const refs = [];
+    if (player.browserLoadedTrackId) refs.push({ id: player.browserLoadedTrackId, role: 'source' });
+    if (player.browserLoadedTrackId2) refs.push({ id: player.browserLoadedTrackId2, role: 'secondary' });
+    window.api.updateBrowserSessionTab({
+      id: tab.id, url: tab.url, title: tab.title,
+      mediaId: tab.mediaId || '', service: tab.service || '',
+      position: tab.browserTime, duration: tab.browserDuration,
+      rate: tab.browserRate, volume: tab.browserVolume, muted: tab.browserMuted,
+      offset: tab.offset, captureEnabled: tab.captureEnabled,
+      viewMode: player.viewMode, targetLanguage: $('translateTo')?.value || '',
+      trackRefs: refs,
+    }).catch(() => {});
+  }
+}
+
+function restoreActiveBrowserTabWorkspace(tab) {
+  if (!tab) return;
+  setMediaKey(tab.mediaKey || (tab.mediaId ? `browser:${tab.mediaId}`
+    : tab.url ? `browser:${browserPlaceKey(tab.url) || tab.url}` : ''));
+  player.browserPageUrl = tab.url || '';
+  player.browserPageTitle = tab.title || '';
+  player.browserCaptureEnabled = tab.captureEnabled !== false;
+  player.browserDiagnostics = tab.diagnostics || null;
+  player.browserTracks = (tab.browserTracks || []).slice();
+  player.browserTime = Number(tab.browserTime) || 0;
+  player.browserDuration = Number(tab.browserDuration) || 0;
+  player.browserPaused = tab.browserPaused !== false;
+  player.browserRate = Number(tab.browserRate) || 1;
+  player.browserVolume = Number.isFinite(Number(tab.browserVolume)) ? Number(tab.browserVolume) : 1;
+  player.browserMuted = !!tab.browserMuted;
+  player.browserProfileKey = tab.browserProfileKey || '';
+  player.browserPositionTick = Number(tab.browserPositionTick) || 0;
+  player.browserLoadedTrackId = tab.browserLoadedTrackId || '';
+  player.browserLoadedTrackId2 = tab.browserLoadedTrackId2 || '';
+  player.browserTranslationTrackId = tab.browserTranslationTrackId || '';
+  player.browserLiveTranslations = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
+  player.watchSession = tab.watchSession ? { ...tab.watchSession, lastClock: 0 } : null;
+  player.watchManualCompletedKey = tab.watchManualCompletedKey || '';
+  player.watchManualCompleted = tab.watchManualCompleted ?? null;
+  player.watchRemovedKey = tab.watchRemovedKey || '';
+  player.cues = (tab.cues || []).slice();
+  player.cues2 = (tab.cues2 || []).slice();
+  const restoredSubtitles = (tab.subtitles || []).map((item) => ({ ...item }));
+  player.subtitles = [];
+  player.subOrigins = { ...(tab.subOrigins || {}) };
+  player.subPath = tab.subPath || '';
+  player.sub2Path = tab.sub2Path || '';
+  player.subFormat = tab.subFormat || 'srt';
+  player.subRaw = tab.subRaw || '';
+  player.offset = Number(tab.offset) || 0;
+  if ($('translateTo') && tab.targetLanguage) $('translateTo').value = tab.targetLanguage;
+  ['playerSubSelect', 'playerSubSelect2'].forEach((id, index) => {
+    const select = $(id);
+    if (!select) return;
+    select.replaceChildren();
+    const empty = document.createElement('option');
+    empty.value = ''; empty.textContent = index ? 'Kapalı' : 'Altyazı yok';
+    select.appendChild(empty);
+  });
+  restoredSubtitles.forEach((item) => addSubtitleOption(item.path, item.label));
+  if ($('playerSubSelect')) $('playerSubSelect').value = player.subPath;
+  if ($('playerSubSelect2')) $('playerSubSelect2').value = player.sub2Path;
+  renderTranscript();
+  updateSubtitleChips();
+  renderBrowserTracks();
+  if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
+  updateBrowserNavigation(tab, { preserveWorkspace: true });
+  if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
+}
+
+function syncBrowserTabs(snapshots, activeTabId) {
+  const previous = new Map(player.browserTabs.map((tab) => [tab.id, tab]));
+  const next = [];
+  for (const snapshot of Array.isArray(snapshots) ? snapshots : []) {
+    const tab = previous.get(snapshot.id) || newBrowserTabState(snapshot);
+    Object.assign(tab, {
+      generation: Math.max(Number(tab.generation) || 0, Number(snapshot.generation) || 0),
+      url: snapshot.url || '', title: snapshot.title || '', loading: !!snapshot.loading,
+      canGoBack: !!snapshot.canGoBack, canGoForward: !!snapshot.canGoForward,
+      captureEnabled: snapshot.captureEnabled !== false,
+      diagnostics: snapshot.diagnostics || tab.diagnostics,
+      mediaId: snapshot.mediaId || tab.mediaId || '', service: snapshot.service || tab.service || '',
+      browserTime: Number.isFinite(Number(snapshot.position)) ? Number(snapshot.position) : (tab.browserTime || 0),
+      browserDuration: Number.isFinite(Number(snapshot.duration)) ? Number(snapshot.duration) : (tab.browserDuration || 0),
+      browserRate: Number.isFinite(Number(snapshot.rate)) ? Number(snapshot.rate) : (tab.browserRate || 1),
+      browserVolume: Number.isFinite(Number(snapshot.volume)) ? Number(snapshot.volume) : tab.browserVolume,
+      browserMuted: snapshot.muted !== undefined ? !!snapshot.muted : tab.browserMuted,
+      offset: Number.isFinite(Number(snapshot.offset)) ? Number(snapshot.offset) : (tab.offset || 0),
+      viewMode: snapshot.viewMode || tab.viewMode || 'reading',
+      targetLanguage: snapshot.targetLanguage || tab.targetLanguage || '',
+      trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : (tab.trackRefs || []),
+      resumePending: !!snapshot.resumePending,
+    });
+    player.browserTabEventGate.open(tab.id, tab.generation, {
+      mediaId: tab.mediaId || '', acquisitionId: snapshot.acquisitionId || '',
+    });
+    previous.delete(tab.id);
+    next.push(tab);
+  }
+  for (const id of previous.keys()) player.browserTabEventGate.close(id);
+  player.browserTabs = next;
+  player.browserActiveTabId = activeTabId || (next[0] && next[0].id) || '';
+  renderBrowserTabs();
+}
+
+function browserCommand(command, value, tabId = player.browserActiveTabId) {
+  return window.api.browserCommand(tabId, command, value);
+}
+
+function navigateBrowser(url, tabId = player.browserActiveTabId) {
+  return window.api.navigateBrowser(tabId, url);
+}
+
+function browserTabLabel(tab) {
+  if (tab && tab.title) return tab.title;
+  try { return new URL(tab && tab.url || '').hostname; } catch (_) { return 'Yeni sekme'; }
+}
+
+function renderBrowserTabs() {
+  const strip = $('browserTabStrip');
+  if (!strip) return;
+  strip.replaceChildren();
+  for (const tab of player.browserTabs) {
+    const item = document.createElement('div');
+    item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}`;
+    item.dataset.browserTabId = tab.id;
+    item.setAttribute('role', 'tab');
+    item.setAttribute('aria-selected', tab.id === player.browserActiveTabId ? 'true' : 'false');
+    const open = document.createElement('button');
+    open.type = 'button'; open.className = 'browser-tab-open';
+    open.dataset.browserTabActivate = tab.id;
+    open.textContent = browserTabLabel(tab);
+    open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
+    const close = document.createElement('button');
+    close.type = 'button'; close.className = 'browser-tab-close';
+    close.dataset.browserTabClose = tab.id;
+    close.textContent = '×'; close.title = 'Sekmeyi kapat'; close.setAttribute('aria-label', 'Sekmeyi kapat');
+    item.append(open, close);
+    strip.appendChild(item);
+  }
+}
+
+async function activateBrowserTab(tabId) {
+  if (!tabId || tabId === player.browserActiveTabId) return browserTabState(tabId);
+  await flushWatchState(false, true);
+  saveActiveBrowserTabWorkspace();
+  const result = await window.api.activateBrowserTab(tabId).catch(() => null);
+  if (!result || !result.ok) {
+    setBrowserSignal(`Sekme açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return null;
+  }
+  syncBrowserTabs(result.tabs, result.activeTabId);
+  const tab = browserTabState();
+  restoreActiveBrowserTabWorkspace(tab);
+  if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
+  if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
+  updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
+  scheduleBrowserBounds();
+  scheduleBrowserOverlaySync();
+  return tab;
+}
+
+async function createBrowserTab() {
+  await flushWatchState(false, true);
+  saveActiveBrowserTabWorkspace();
+  const result = await window.api.createBrowserTab().catch(() => null);
+  if (!result || !result.ok) {
+    setBrowserSignal(`Yeni sekme açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return null;
+  }
+  syncBrowserTabs(result.tabs, result.activeTabId);
+  const tab = browserTabState();
+  restoreActiveBrowserTabWorkspace(tab);
+  updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
+  setTimeout(() => $('browserAddress')?.focus(), 0);
+  scheduleBrowserBounds();
+  return tab;
+}
+
+async function closeBrowserTab(tabId) {
+  if (!tabId) return;
+  const wasActive = tabId === player.browserActiveTabId;
+  if (wasActive) {
+    await flushWatchState(false, true);
+    saveActiveBrowserTabWorkspace();
+  }
+  const result = await window.api.closeBrowserTab(tabId).catch(() => null);
+  if (!result || !result.ok) {
+    setBrowserSignal(`Sekme kapatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  player.browserTabEventGate.close(tabId);
+  syncBrowserTabs(result.tabs, result.activeTabId);
+  if (wasActive) {
+    const tab = browserTabState();
+    restoreActiveBrowserTabWorkspace(tab);
+    updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
+    scheduleBrowserOverlaySync();
+  }
+  scheduleBrowserBounds();
+}
 
 function browserSlotBounds() {
   const slot = $('browserViewSlot');
@@ -2586,7 +3363,9 @@ function scheduleBrowserBounds() {
   player.browserBoundsFrame = requestAnimationFrame(() => {
     player.browserBoundsFrame = 0;
     const bounds = browserSlotBounds();
-    if (bounds && window.api.setBrowserBounds) window.api.setBrowserBounds(bounds).catch(() => {});
+    if (bounds && window.api.setBrowserBounds) {
+      window.api.setBrowserBounds(player.browserActiveTabId, bounds).catch(() => {});
+    }
   });
 }
 
@@ -2625,6 +3404,8 @@ function setBrowserSignalVisible(visible, persist = true) {
 
 function setBrowserCaptureEnabled(enabled, persist = true) {
   player.browserCaptureEnabled = !!enabled;
+  const tab = browserTabState();
+  if (tab) tab.captureEnabled = player.browserCaptureEnabled;
   const button = $('browserCaptureToggle');
   if (button) {
     button.textContent = player.browserCaptureEnabled ? 'Yakalama açık' : 'Yakalama kapalı';
@@ -2782,6 +3563,8 @@ function setBrowserPlacesOpen(open) {
 function renderBrowserDiagnostics(diagnostics) {
   if (!diagnostics || typeof diagnostics !== 'object') return;
   player.browserDiagnostics = diagnostics;
+  const tab = browserTabState();
+  if (tab) tab.diagnostics = diagnostics;
   const adapter = diagnostics.adapter || {};
   if ($('browserDiagnosticsService')) $('browserDiagnosticsService').textContent = adapter.label || 'Genel web videosu';
   if ($('browserDiagnosticsHelp')) $('browserDiagnosticsHelp').textContent = adapter.help
@@ -2791,6 +3574,17 @@ function renderBrowserDiagnostics(diagnostics) {
   if ($('browserDiagnosticsSummary')) $('browserDiagnosticsSummary').textContent = attempts
     ? `${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`
     : 'Henüz ağ izi yok';
+  renderBrowserAcquisition(diagnostics.acquisition);
+  renderBrowserCapabilityMatrix(diagnostics.capabilityMatrix);
+  const pluginStatus = diagnostics.adapterPlugins || {};
+  if ($('browserAdapterPluginStatus')) {
+    const loaded = Array.isArray(pluginStatus.loaded) ? pluginStatus.loaded.length : 0;
+    const errors = Array.isArray(pluginStatus.errors) ? pluginStatus.errors.length : 0;
+    $('browserAdapterPluginStatus').textContent = loaded
+      ? `${loaded} kullanıcı adaptörü yüklendi${errors ? ` · ${errors} hata` : ''}`
+      : errors ? `${errors} adaptör yüklenemedi` : 'Kullanıcı adaptörü yok';
+    $('browserAdapterPluginStatus').title = (pluginStatus.errors || []).join('\n');
+  }
   const recent = $('browserDiagnosticsRecent');
   if (!recent) return;
   recent.replaceChildren();
@@ -2813,6 +3607,74 @@ function renderBrowserDiagnostics(diagnostics) {
     detail.title = detail.textContent;
     row.append(strategy, result, detail);
     recent.appendChild(row);
+  }
+}
+
+function renderBrowserCapabilityMatrix(matrix) {
+  const body = $('browserCapabilityRows');
+  if (!body) return;
+  body.replaceChildren();
+  const statusLabels = { verified: 'Doğrulandı', partial: 'Kısmi', unverified: 'Doğrulanmadı' };
+  const yesNo = (value) => value ? 'Var' : 'Yok';
+  for (const entry of Array.isArray(matrix) ? matrix : []) {
+    const row = document.createElement('tr');
+    const values = [
+      entry.label || entry.service || 'Servis',
+      yesNo(entry.captionDetection), yesNo(entry.dualTrack), yesNo(entry.overlay),
+      yesNo(entry.fullscreen), yesNo(entry.translation),
+      `${statusLabels[entry.verificationStatus] || 'Doğrulanmadı'}${entry.verifiedAt ? ` · ${entry.verifiedAt}` : ''}`,
+    ];
+    values.forEach((value, index) => {
+      const cell = document.createElement(index ? 'td' : 'th');
+      if (!index) cell.scope = 'row';
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+    body.appendChild(row);
+  }
+  if (!body.children.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 7;
+    cell.textContent = 'Henüz servis tanımı yok.';
+    row.appendChild(cell);
+    body.appendChild(row);
+  }
+}
+
+function renderBrowserAcquisition(acquisition) {
+  const list = $('browserAcquisitionStages');
+  const summary = $('browserAcquisitionSummary');
+  if (!list || !summary) return;
+  list.replaceChildren();
+  const stages = Array.isArray(acquisition && acquisition.stages) ? acquisition.stages : [];
+  const labels = {
+    waiting: 'Sırada', running: 'Aranıyor', success: 'Bulundu', failed: 'Bulunamadı',
+    skipped: 'Atlandı', blocked: 'Onay gerekiyor',
+  };
+  if (!stages.length) {
+    summary.textContent = 'Kaynak bekleniyor';
+    return;
+  }
+  const winner = stages.find((stage) => stage.status === 'success');
+  const running = stages.find((stage) => stage.status === 'running');
+  summary.textContent = winner ? `${winner.label} bulundu`
+    : running ? `${running.label} aranıyor`
+      : acquisition.needsConsent && acquisition.needsConsent.length ? 'Ek yöntemler onay bekliyor' : 'Kaynak bekleniyor';
+  for (const stage of stages) {
+    const item = document.createElement('li');
+    item.className = 'browser-acquisition-stage';
+    item.dataset.status = stage.status || 'waiting';
+    if (stage.status === 'running') item.setAttribute('aria-current', 'step');
+    const name = document.createElement('span');
+    name.className = 'browser-acquisition-name';
+    name.textContent = stage.label || 'Altyazı kaynağı';
+    const status = document.createElement('span');
+    status.className = 'browser-acquisition-status';
+    status.textContent = labels[stage.status] || labels.waiting;
+    if (stage.reason) item.title = stage.reason;
+    item.append(name, status);
+    list.appendChild(item);
   }
 }
 
@@ -2914,12 +3776,70 @@ async function useBrowserTrack(translate) {
   if (player.subPath !== track.path) return;
   player.browserLoadedTrackId = track.id;
   setPlayerSidebarCollapsed(false);
-  const contextLines = Number($('translateContext')?.value || 4);
   const sourceLanguage = browserTrackSourceLanguage(track);
   setBrowserSignal(translate
-    ? `Altyazı yüklendi; ${sourceLanguage ? sourceLanguage.toUpperCase() + ' · ' : ''}önceki/sonraki ${contextLines} satırla çevriliyor…`
+    ? `Altyazı yüklendi; ${sourceLanguage ? sourceLanguage.toUpperCase() + ' · ' : ''}oynatma kafasının ilerisi çevriliyor…`
     : 'Altyazı çalışma alanına yüklendi.', true);
-  if (translate) $('makeTransBtn')?.click();
+  if (translate) await startBrowserLiveTranslation(track, sourceLanguage);
+}
+
+async function completeSelectedBrowserTranslation() {
+  await useBrowserTrack(true);
+  if (!player.browserTranslationTrackId) return;
+  const result = await window.api.completeBrowserTranslation?.(player.browserActiveTabId).catch(() => null);
+  if (!result?.ok) {
+    setBrowserSignal(result?.error || 'Tüm iz çeviri kuyruğuna alınamadı.', false);
+    return;
+  }
+  setBrowserSignal(`${Number(result.remaining || 0)} cümle arka planda tamamlanacak; oynatma çevresi öncelikli kalacak.`, true);
+}
+
+async function startBrowserLiveTranslation(track, sourceLanguage = '') {
+  if (!window.api.startBrowserTranslation || !track || !player.cues.length) return;
+  player.browserTranslationTrackId = track.id;
+  player.browserLiveTranslations = new Map();
+  player.cues2 = [];
+  const result = await window.api.startBrowserTranslation(player.browserActiveTabId, {
+    trackId: track.id,
+    cues: player.cues.map((cue, index) => ({
+      id: cue.id ?? index, start: cue.start, end: cue.end, text: cue.text,
+    })),
+    targetLanguage: $('translateTo')?.value || 'tr',
+    sourceLanguage,
+    register: $('translateRegister')?.value || 'documentary',
+    profanity: $('translateProfanity')?.value || 'medium',
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (!result || !result.ok) {
+    player.browserTranslationTrackId = '';
+    setBrowserSignal(`Canlı çeviri başlatılamadı: ${result?.error || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  setSubtitleMode('both', false);
+  setBrowserSignal(`${result.sentenceCount} cümle planlandı; oynatma konumunun 90 saniye ilerisi hazırlanıyor.`, true);
+}
+
+function applyBrowserTranslationResult(event) {
+  if (!event.result || event.trackId !== player.browserTranslationTrackId) return;
+  if (event.result.error) {
+    logLine(`Canlı web çevirisi: ${event.result.error}`, 'warn');
+    return;
+  }
+  for (const cue of event.result.cues || []) {
+    const key = String(cue.cueId ?? `${cue.start}:${cue.end}`);
+    player.browserLiveTranslations.set(key, {
+      id: `web-tr-${key}`, start: Number(cue.start) || 0,
+      end: Number(cue.end) || Number(cue.start) || 0, text: String(cue.text || '').trim(),
+    });
+  }
+  player.cues2 = [...player.browserLiveTranslations.values()]
+    .filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
+  const tab = browserTabState();
+  if (tab) {
+    tab.browserTranslationTrackId = player.browserTranslationTrackId;
+    tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
+  }
+  scheduleBrowserOverlaySync();
+  if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
 }
 
 async function useBrowserTrackPair() {
@@ -3022,6 +3942,140 @@ async function copyBrowserAbText() {
   setBrowserSignal(`${cues.length} altyazı satırı A-B aralığıyla panoya kopyalandı.`, true);
 }
 
+function queueCurrentBrowserPage() {
+  const tab = browserTabState();
+  const protectedServices = new Set(['netflix', 'disney', 'max', 'discovery', 'hulu', 'prime-video']);
+  if (!player.browserPageUrl) {
+    setBrowserSignal('Kuyruğa eklemek için önce bir video sayfası açın.', false);
+    return;
+  }
+  if (protectedServices.has(tab?.service || '')) {
+    setBrowserSignal('Bu DRM korumalı servis indirme/transkripsiyon kuyruğuna eklenemez; yakalanan altyazıyı dışa aktarabilirsiniz.', false);
+    return;
+  }
+  addToQueue('youtube', player.browserPageUrl);
+  setBrowserSignal('Açık sayfa mevcut ayarlarla transkripsiyon kuyruğuna eklendi.', true);
+}
+
+async function exportBrowserAbClip() {
+  if (player.abA === null || player.abB === null || player.abB <= player.abA) {
+    setBrowserSignal('Klip için önce A-B aralığı belirleyin.', false);
+    return;
+  }
+  const result = await window.api.exportBrowserClip({
+    url: player.browserPageUrl, title: player.browserPageTitle || 'web-klip',
+    start: player.abA, end: player.abB,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (result?.type === 'clip' || result?.ok) {
+    setBrowserSignal('A-B klibi dışa aktarıldı.', true);
+    const clipPath = result.path || result.data?.path;
+    if (clipPath) logLine(`Klip hazır: ${clipPath}`, 'success');
+  } else if (!result?.canceled) {
+    setBrowserSignal(`Klip oluşturulamadı: ${result?.error || result?.message || 'bilinmeyen hata'}`, false);
+  }
+}
+
+function updateBrowserLiveAsrButton(message = '') {
+  const button = $('browserLiveAsr');
+  if (!button) return;
+  button.setAttribute('aria-pressed', player.browserLiveAsrActive ? 'true' : 'false');
+  button.textContent = player.browserLiveAsrActive ? 'Canlı Whisper’ı durdur' : 'Canlı Whisper';
+  if (message) button.title = message;
+}
+
+async function blobToBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function recordNextBrowserLiveAsrChunk() {
+  if (!player.browserLiveAsrActive || !player.browserLiveAsrStream) return;
+  const audioTracks = player.browserLiveAsrStream.getAudioTracks();
+  if (!audioTracks.length || audioTracks.every((track) => track.readyState === 'ended')) {
+    stopBrowserLiveAsrCapture(true, 'Sistem sesi akışı sona erdi.');
+    return;
+  }
+  const mimeType = ['audio/webm;codecs=opus', 'audio/webm']
+    .find((type) => window.MediaRecorder?.isTypeSupported(type)) || '';
+  const recorder = new MediaRecorder(new MediaStream(audioTracks), mimeType ? { mimeType } : undefined);
+  const chunks = [];
+  let resolveChunk;
+  const chunkCompletion = new Promise((resolve) => { resolveChunk = resolve; });
+  const offset = Math.max(0, (performance.now() - player.browserLiveAsrStartedAt) / 1000);
+  player.browserLiveAsrRecorder = recorder;
+  player.browserLiveAsrChunkCompletion = chunkCompletion;
+  recorder.ondataavailable = (event) => { if (event.data?.size) chunks.push(event.data); };
+  recorder.onstop = async () => {
+    try {
+      if (chunks.length) {
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        const base64 = await blobToBase64(blob);
+        const result = await window.api.sendBrowserLiveAsrChunk(player.browserActiveTabId, { base64, offset }).catch(() => null);
+        if (result && !result.ok) logLine(`Canlı Whisper ses parçası işlenemedi: ${result.error}`, 'warn');
+      }
+    } finally {
+      resolveChunk();
+    }
+    if (player.browserLiveAsrActive) recordNextBrowserLiveAsrChunk();
+  };
+  recorder.start();
+  clearTimeout(player.browserLiveAsrTimer);
+  player.browserLiveAsrTimer = setTimeout(() => {
+    if (recorder.state === 'recording') recorder.stop();
+  }, 6000);
+}
+
+async function stopBrowserLiveAsrCapture(notifyMain = true, message = 'Canlı Whisper durduruldu.') {
+  player.browserLiveAsrActive = false;
+  clearTimeout(player.browserLiveAsrTimer);
+  player.browserLiveAsrTimer = null;
+  const recorder = player.browserLiveAsrRecorder;
+  player.browserLiveAsrRecorder = null;
+  if (recorder?.state === 'recording') recorder.stop();
+  await player.browserLiveAsrChunkCompletion?.catch(() => null);
+  player.browserLiveAsrChunkCompletion = null;
+  for (const track of player.browserLiveAsrStream?.getTracks() || []) track.stop();
+  player.browserLiveAsrStream = null;
+  if (notifyMain) await window.api.stopBrowserLiveAsr?.().catch(() => null);
+  updateBrowserLiveAsrButton(message);
+  setBrowserSignal(message, false);
+}
+
+async function toggleBrowserLiveAsr() {
+  if (player.browserLiveAsrActive) return stopBrowserLiveAsrCapture(true);
+  const accepted = await openAppDialog({
+    title: 'Sistem sesini canlı yazıya çevir',
+    description: 'Bu özellik yalnız bu oturumda sistem sesini yakalar ve seçili yerel Whisper modeline gönderir. Mikrofon kullanılmaz; durdurduğunuzda yakalama kapanır.',
+    confirmLabel: 'Sistem sesini başlat', intent: 'primary',
+  });
+  if (!accepted) return;
+  const started = await window.api.startBrowserLiveAsr(player.browserActiveTabId, {
+    language: $('language')?.value || '', model: $('model')?.value || 'small',
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (!started?.ok) {
+    setBrowserSignal(`Canlı Whisper başlatılamadı: ${started?.error || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    for (const track of stream.getVideoTracks()) track.stop();
+    if (!stream.getAudioTracks().length) throw new Error('Sistem sesi paylaşılmadı.');
+    player.browserLiveAsrStream = stream;
+    player.browserLiveAsrActive = true;
+    player.browserLiveAsrStartedAt = performance.now();
+    updateBrowserLiveAsrButton('Sistem sesi yakalanıyor; durdurmak için tıklayın.');
+    setBrowserSignal(`Canlı Whisper başlatıldı · ${started.model}; ilk cümle bekleniyor…`, true);
+    recordNextBrowserLiveAsrChunk();
+  } catch (error) {
+    await window.api.stopBrowserLiveAsr().catch(() => null);
+    setBrowserSignal(`Sistem sesi başlatılamadı: ${error.message}`, false);
+  }
+}
+
 function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
   const primary = !!track && player.browserLoadedTrackId === track.id && player.subPath === track.path;
   const secondary = !!track && player.browserLoadedTrackId2 === track.id && player.sub2Path === track.path;
@@ -3042,6 +4096,9 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
     if (refreshPrimary) {
       if ($('playerSubSelect')) $('playerSubSelect').value = latest.path;
       await loadSubtitle(latest.path, false, { silent: true, preserveInspector: true });
+      if (player.browserTranslationTrackId === latest.id) {
+        await startBrowserLiveTranslation(latest, browserTrackSourceLanguage(latest));
+      }
     }
     if (refreshSecondary) {
       if ($('playerSubSelect2')) $('playerSubSelect2').value = latest.path;
@@ -3060,7 +4117,7 @@ function scheduleBrowserOverlaySync() {
   if (player.workspaceMode !== 'browser' || !window.api.setBrowserOverlay) return;
   player.browserOverlayTimer = setTimeout(() => {
     player.browserOverlayTimer = null;
-    window.api.setBrowserOverlay({
+    window.api.setBrowserOverlay(player.browserActiveTabId, {
       source: player.cues.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       translation: player.cues2.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
@@ -3069,8 +4126,20 @@ function scheduleBrowserOverlaySync() {
   }, 120);
 }
 
-function updateBrowserNavigation(data) {
+function updateBrowserNavigation(data, options = {}) {
   if (!data) return;
+  if (data.tabId && (data.tabId !== player.browserActiveTabId || !player.browserTabEventGate.accept(data))) return false;
+  const tab = browserTabState();
+  if (tab) {
+    tab.generation = Math.max(Number(tab.generation) || 0, Number(data.generation) || 0);
+    if (data.url !== undefined) tab.url = data.url || '';
+    if (data.title !== undefined) tab.title = data.title || '';
+    if (data.loading !== undefined) tab.loading = !!data.loading;
+    if (data.canGoBack !== undefined) tab.canGoBack = !!data.canGoBack;
+    if (data.canGoForward !== undefined) tab.canGoForward = !!data.canGoForward;
+    if (data.mediaId !== undefined) tab.mediaId = data.mediaId || '';
+    if (data.service !== undefined) tab.service = data.service || '';
+  }
   const address = $('browserAddress');
   if (data.url && document.activeElement !== address) address.value = data.url;
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
@@ -3078,10 +4147,10 @@ function updateBrowserNavigation(data) {
   if ($('browserReload')) $('browserReload').classList.toggle('loading', !!data.loading);
   $('browserSecurityMark')?.classList.toggle('secure', /^https:/i.test(data.url || ''));
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
-  if (data.url && data.url !== player.browserPageUrl) {
+  if (!options.preserveWorkspace && data.url && data.url !== player.browserPageUrl) {
     // Anahtar degisimi eski kaydi diske yazar. Yeni URL'yi once state'e
     // koyarsak onceki sayfanin konumu yeni sayfanin basligi altinda kalir.
-    setMediaKey(`browser:${browserPlaceKey(data.url) || data.url}`);
+    setMediaKey(data.mediaId ? `browser:${data.mediaId}` : `browser:${browserPlaceKey(data.url) || data.url}`);
     player.browserPageUrl = data.url;
     player.browserPageTitle = data.title || '';
     player.browserTime = 0;
@@ -3096,20 +4165,27 @@ function updateBrowserNavigation(data) {
     loadBrowserPlaces();
   }
   if (data.title) player.browserPageTitle = data.title;
+  if (tab) {
+    tab.url = player.browserPageUrl || data.url || '';
+    tab.title = player.browserPageTitle || data.title || '';
+  }
+  renderBrowserTabs();
   updateBrowserBookmarkButton();
   if (player.workspaceMode === 'browser') {
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor' : 'Web videosu · altyazı algılama açık';
   }
+  return true;
 }
 
 function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   const t = Number(time || 0) - player.offset;
   const previous = Number(previousTime);
+  applyPlaybackLearningPolicy(time, previousTime, paused, true);
   if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
       && (!Number.isFinite(previous) || previous < player.abB)) {
     player.browserTime = player.abA;
-    window.api.browserCommand('seek', player.abA).catch(() => {});
+    browserCommand('seek', player.abA).catch(() => {});
     return renderBrowserCueAt(player.abA, undefined, paused);
   }
   if (player.cues.length) {
@@ -3123,7 +4199,7 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
     if (player.autoPause && !paused && dt > 0 && dt < 1) {
       const priorIndex = findCueAt(player.cues, prev, player.activeIdx);
       if (priorIndex >= 0 && prev < player.cues[priorIndex].end && t >= player.cues[priorIndex].end) {
-        window.api.browserCommand('pause').catch(() => {});
+        browserCommand('pause').catch(() => {});
       }
     }
   }
@@ -3135,13 +4211,19 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
 async function showBrowserWorkspace() {
   const bounds = browserSlotBounds();
   if (!bounds || !window.api.showBrowser) return;
-  if (window.api.setBrowserCaptureEnabled) {
-    await window.api.setBrowserCaptureEnabled(player.browserCaptureEnabled).catch(() => {});
-  }
-  const result = await window.api.showBrowser(bounds);
+  const previousActive = player.browserActiveTabId;
+  const result = await window.api.showBrowser(player.browserActiveTabId, bounds);
   if (!result || !result.ok) {
     setBrowserSignal((result && result.error) || 'Tarayıcı alanı açılamadı.', false);
     return;
+  }
+  if (result.tabs) syncBrowserTabs(result.tabs, result.activeTabId);
+  if ($('browserSessionRestore') && typeof result.restoreEnabled === 'boolean') {
+    $('browserSessionRestore').checked = result.restoreEnabled;
+  }
+  if (!previousActive && player.browserActiveTabId) restoreActiveBrowserTabWorkspace(browserTabState());
+  if (window.api.setBrowserCaptureEnabled) {
+    await window.api.setBrowserCaptureEnabled(player.browserActiveTabId, player.browserCaptureEnabled).catch(() => {});
   }
   updateBrowserNavigation(result);
   if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
@@ -3172,10 +4254,12 @@ function setWorkspaceMode(mode, persist = true) {
   if (playerButton) {
     playerButton.classList.toggle('active', mode === 'player');
     playerButton.setAttribute('aria-selected', mode === 'player' ? 'true' : 'false');
+    playerButton.tabIndex = mode === 'player' ? 0 : -1;
   }
   if (browserButton) {
     browserButton.classList.toggle('active', mode === 'browser');
     browserButton.setAttribute('aria-selected', mode === 'browser' ? 'true' : 'false');
+    browserButton.tabIndex = mode === 'browser' ? 0 : -1;
   }
   if ($('makeSubsBtn')) {
     $('makeSubsBtn').disabled = mode === 'browser';
@@ -3217,7 +4301,7 @@ async function navigateBrowserFromAddress() {
   setBrowserSignal('Sayfa açılıyor; altyazı izi bekleniyor…', false);
   let result;
   try {
-    result = await window.api.navigateBrowser(value);
+    result = await navigateBrowser(value);
   } catch (error) {
     result = { ok: false, error: error && error.message ? error.message : 'Tarayıcı isteği tamamlanamadı.' };
   }
@@ -3233,9 +4317,16 @@ async function navigateBrowserFromAddress() {
 
 if ($('workspacePlayerMode')) $('workspacePlayerMode').addEventListener('click', () => setWorkspaceMode('player'));
 if ($('workspaceBrowserMode')) $('workspaceBrowserMode').addEventListener('click', () => setWorkspaceMode('browser'));
+if ($('browserTabNew')) $('browserTabNew').addEventListener('click', createBrowserTab);
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', (event) => {
+  const close = event.target.closest('[data-browser-tab-close]');
+  if (close) { closeBrowserTab(close.dataset.browserTabClose); return; }
+  const open = event.target.closest('[data-browser-tab-activate]');
+  if (open) activateBrowserTab(open.dataset.browserTabActivate);
+});
 if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') { event.preventDefault(); navigateBrowserFromAddress(); }
+  if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); navigateBrowserFromAddress(); }
 });
 if ($('browserBookmarkToggle')) $('browserBookmarkToggle').addEventListener('click', async () => {
   if (!player.browserPageUrl || !window.api.toggleBrowserBookmark) return;
@@ -3256,6 +4347,12 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
 if ($('browserPlacesClear')) $('browserPlacesClear').addEventListener('click', async () => {
   if (player.browserPlaceTab !== 'history' || !window.api.clearBrowserHistory) return;
+  const confirmed = await openAppDialog({
+    title: 'Tarayıcı geçmişini temizle',
+    description: 'Whisper içindeki web gezinme geçmişi kaldırılacak. Yer imleri ve izleme kütüphanesi korunur.',
+    confirmLabel: 'Geçmişi temizle',
+  });
+  if (!confirmed) return;
   const result = await window.api.clearBrowserHistory().catch(() => null);
   if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
 });
@@ -3266,10 +4363,14 @@ async function clearBrowserCookieScope(scope) {
     setBrowserSignal('Önce bir site açın; temizlenecek site yok.', false);
     return;
   }
-  const question = isSite
-    ? 'Bu sitenin tüm çerezleri silinsin mi? Site oturumunuz kapanabilir.'
-    : 'Uygulamadaki tüm web çerezleri silinsin mi? Açık site oturumları kapanabilir.';
-  if (!confirm(question)) return;
+  const confirmed = await openAppDialog({
+    title: isSite ? 'Bu sitenin çerezlerini sil' : 'Tüm web çerezlerini sil',
+    description: isSite
+      ? 'Bu siteye ait çerezler silinecek ve sayfa yenilenecek. Site oturumunuz kapanabilir.'
+      : 'Whisper içindeki tüm web çerezleri silinecek. Açık site oturumlarınız kapanabilir.',
+    confirmLabel: 'Çerezleri sil',
+  });
+  if (!confirmed) return;
   const apiCall = isSite
     ? window.api.clearBrowserSiteCookies?.(site)
     : window.api.clearBrowserCookies?.();
@@ -3299,7 +4400,7 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
     const url = open.dataset.placeOpen;
     setBrowserPlacesOpen(false);
     if ($('browserAddress')) $('browserAddress').value = url;
-    const result = await window.api.navigateBrowser(url).catch(() => null);
+    const result = await navigateBrowser(url).catch(() => null);
     if (result && result.ok) updateBrowserNavigation(result);
     else if (result) setBrowserSignal(`Sayfa açılamadı: ${result.error || 'bilinmeyen hata'}`, false);
     return;
@@ -3309,16 +4410,16 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
   const result = await window.api.removeBrowserPlace(player.browserPlaceTab, remove.dataset.placeRemove).catch(() => null);
   if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
 });
-if ($('browserBack')) $('browserBack').addEventListener('click', () => window.api.browserCommand('back'));
-if ($('browserForward')) $('browserForward').addEventListener('click', () => window.api.browserCommand('forward'));
-if ($('browserReload')) $('browserReload').addEventListener('click', () => window.api.browserCommand('reload'));
+if ($('browserBack')) $('browserBack').addEventListener('click', () => browserCommand('back'));
+if ($('browserForward')) $('browserForward').addEventListener('click', () => browserCommand('forward'));
+if ($('browserReload')) $('browserReload').addEventListener('click', () => browserCommand('reload'));
 if ($('browserCaptureToggle')) $('browserCaptureToggle').addEventListener('click', async () => {
   const button = $('browserCaptureToggle');
   if (button.disabled) return;
   const next = !player.browserCaptureEnabled;
   button.disabled = true;
   const result = await (window.api.setBrowserCaptureEnabled
-    ? window.api.setBrowserCaptureEnabled(next)
+    ? window.api.setBrowserCaptureEnabled(player.browserActiveTabId, next)
     : Promise.resolve(null)).catch(() => null);
   button.disabled = false;
   if (!result || !result.ok) {
@@ -3338,7 +4439,11 @@ if ($('browserChromeToggle')) $('browserChromeToggle').addEventListener('click',
 if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () => useBrowserTrack(false));
 if ($('browserTrackLoadPair')) $('browserTrackLoadPair').addEventListener('click', useBrowserTrackPair);
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
+if ($('browserTrackTranslateAll')) $('browserTrackTranslateAll').addEventListener('click', completeSelectedBrowserTranslation);
 if ($('browserTrackExport')) $('browserTrackExport').addEventListener('click', exportSelectedBrowserTrack);
+if ($('browserQueuePage')) $('browserQueuePage').addEventListener('click', queueCurrentBrowserPage);
+if ($('browserExportClip')) $('browserExportClip').addEventListener('click', exportBrowserAbClip);
+if ($('browserLiveAsr')) $('browserLiveAsr').addEventListener('click', toggleBrowserLiveAsr);
 if ($('browserManualSubtitle')) $('browserManualSubtitle').addEventListener('click', loadManualBrowserSubtitle);
 if ($('browserCopyAb')) $('browserCopyAb').addEventListener('click', copyBrowserAbText);
 if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click', () => {
@@ -3348,7 +4453,11 @@ if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click',
 if ($('browserTrackSelect')) $('browserTrackSelect').addEventListener('change', () => renderBrowserTracks());
 if ($('browserTrackSelect2')) $('browserTrackSelect2').addEventListener('change', () => renderBrowserTracks());
 if ($('browserSessionReset')) $('browserSessionReset').addEventListener('click', async () => {
-  const confirmed = confirm('Web oturumu sıfırlansın mı? Site girişleri, çerezler ve önbellek silinir. Yer imleri, geçmiş ve izleme kütüphanesi korunur.');
+  const confirmed = await openAppDialog({
+    title: 'Web oturumunu sıfırla',
+    description: 'Site girişleri, çerezler ve önbellek silinecek. Yer imleri, geçmiş ve izleme kütüphanesi korunur.',
+    confirmLabel: 'Oturumu sıfırla',
+  });
   if (!confirmed) return;
   await flushWatchState(false, true);
   const result = await window.api.resetBrowserSession().catch(() => null);
@@ -3361,6 +4470,7 @@ if ($('browserSessionReset')) $('browserSessionReset').addEventListener('click',
   player.browserPageTitle = '';
   player.browserTime = 0;
   player.browserDuration = 0;
+  syncBrowserTabs(result.tabs || [], result.activeTabId || '');
   try { localStorage.removeItem('playerBrowserLastUrl'); } catch (_) {}
   if ($('browserAddress')) $('browserAddress').value = '';
   $('browserEmpty')?.classList.remove('hidden');
@@ -3369,6 +4479,20 @@ if ($('browserSessionReset')) $('browserSessionReset').addEventListener('click',
   setBrowserPlacesOpen(false);
   showBrowserWorkspace();
 });
+if ($('browserSessionRestore')) $('browserSessionRestore').addEventListener('change', async () => {
+  const checkbox = $('browserSessionRestore');
+  checkbox.disabled = true;
+  const result = await window.api.setBrowserSessionRestore(checkbox.checked).catch(() => null);
+  checkbox.disabled = false;
+  if (!result?.ok) {
+    checkbox.checked = !checkbox.checked;
+    setBrowserSignal('Oturum geri yükleme tercihi kaydedilemedi.', false);
+    return;
+  }
+  setBrowserSignal(result.enabled
+    ? 'Son sekmeler uygulama açılışında geri yüklenecek.'
+    : 'Son sekmeler diskte tutulmayacak ve açılışta geri yüklenmeyecek.', false);
+});
 if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListener('click', () => {
   const panel = $('browserDiagnosticsPanel');
   if (!panel) return;
@@ -3376,13 +4500,62 @@ if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListene
   $('browserDiagnosticsToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open && player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
 });
+if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEventListener('click', async () => {
+  const result = await window.api.openBrowserAdapterFolder?.().catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) logLine(`Adaptör klasörü açılamadı: ${result?.error || 'bilinmeyen hata'}`, 'warn');
+});
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.tabId) {
+    const tab = browserTabState(event.tabId);
+    if (!tab || !player.browserTabEventGate.accept(event)) return;
+    tab.generation = Math.max(Number(tab.generation) || 0, Number(event.generation) || 0);
+    if (event.tabId !== player.browserActiveTabId) {
+      if (event.type === 'navigation') {
+        if (event.url && event.url !== tab.url) {
+          const fresh = newBrowserTabState({ ...event, id: tab.id, captureEnabled: tab.captureEnabled });
+          Object.assign(tab, fresh);
+        }
+        Object.assign(tab, {
+          url: event.url || '', title: event.title || tab.title || '', loading: !!event.loading,
+          canGoBack: !!event.canGoBack, canGoForward: !!event.canGoForward,
+        });
+      } else if (event.type === 'title') {
+        tab.title = event.title || '';
+      } else if (event.type === 'subtitle-found' && event.track) {
+        const index = tab.browserTracks.findIndex((track) => track.id === event.track.id);
+        if (index >= 0) tab.browserTracks[index] = event.track; else tab.browserTracks.push(event.track);
+      } else if (event.type === 'media' && event.media) {
+        tab.browserTime = Number(event.media.currentTime) || 0;
+        tab.browserDuration = Number(event.media.duration) || 0;
+        tab.browserPaused = !!event.media.paused;
+      } else if (event.type === 'capture-status') {
+        tab.diagnostics = event.diagnostics || null;
+      } else if (event.type === 'translation-result' && event.result && !event.result.error) {
+        const translated = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
+        for (const cue of event.result.cues || []) {
+          const key = String(cue.cueId ?? `${cue.start}:${cue.end}`);
+          translated.set(key, { id: `web-tr-${key}`, start: cue.start, end: cue.end, text: cue.text });
+        }
+        tab.browserTranslationTrackId = event.trackId || tab.browserTranslationTrackId;
+        tab.browserLiveTranslations = [...translated.values()];
+      } else if (event.type === 'capture-enabled') {
+        tab.captureEnabled = event.enabled !== false;
+      } else if (event.type === 'load-error' || event.type === 'drm-playback-error') {
+        tab.error = event.message || 'Tarayıcı hatası';
+      }
+      renderBrowserTabs();
+      return;
+    }
+  }
   if (event.type === 'navigation') {
     updateBrowserNavigation(event);
   } else if (event.type === 'title') {
     player.browserPageTitle = event.title || '';
+    const tab = browserTabState();
+    if (tab) tab.title = player.browserPageTitle;
+    renderBrowserTabs();
     if (player.workspaceMode === 'browser') $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     loadBrowserPlaces();
   } else if (event.type === 'places' && event.places) {
@@ -3393,6 +4566,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const index = player.browserTracks.findIndex((track) => track.id === event.track.id);
     if (index >= 0) player.browserTracks[index] = event.track;
     else player.browserTracks.push(event.track);
+    const tab = browserTabState();
+    if (tab) tab.browserTracks = player.browserTracks.slice();
     renderBrowserTracks(selectedBefore || event.track.id);
     scheduleActiveBrowserTrackRefresh(event.track);
     if (index < 0) logLine(`Web altyazısı bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
@@ -3404,9 +4579,16 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     player.browserPaused = !!event.media.paused;
     player.browserVolume = Math.max(0, Math.min(1, Number(event.media.volume)));
     player.browserMuted = !!event.media.muted;
+    const tab = browserTabState();
+    if (tab) Object.assign(tab, {
+      browserTime: player.browserTime, browserDuration: player.browserDuration,
+      browserPaused: player.browserPaused, browserVolume: player.browserVolume,
+      browserMuted: player.browserMuted,
+    });
     const browserRate = Number(event.media.playbackRate);
     if (Number.isFinite(browserRate) && browserRate > 0) {
       player.browserRate = browserRate;
+      if (tab) tab.browserRate = browserRate;
       if (player.workspaceMode === 'browser') syncPlayerSpeedControl(browserRate);
     }
     const now = Date.now();
@@ -3435,7 +4617,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
           && pendingSeek.generation === currentGeneration()) {
         const seekTo = Math.max(0, Math.min(player.browserDuration, Number(pendingSeek.seconds) || 0));
         player.pendingLibrarySeek = null;
-        if (seekTo > 0) window.api.browserCommand('seek', seekTo).catch(() => {});
+        if (seekTo > 0) browserCommand('seek', seekTo).catch(() => {});
       }
       if (now - player.browserPositionTick > 5000) {
         player.browserPositionTick = now;
@@ -3448,6 +4630,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     }
     if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
   } else if (event.type === 'load-error') {
+    const tab = browserTabState();
+    if (tab) tab.error = event.message || `hata ${event.code}`;
     updateBrowserNavigation({ ...event, loading: false });
     if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
@@ -3458,6 +4642,27 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
+  } else if (event.type === 'translation-result') {
+    applyBrowserTranslationResult(event);
+  } else if (event.type === 'translation-state' && event.trackId === player.browserTranslationTrackId) {
+    const progress = event.state || {};
+    const estimate = progress.remaining
+      ? ` · ~${Number(progress.remaining)} istek / ~${Number(progress.estimatedTokens || 0).toLocaleString('tr-TR')} token`
+      : '';
+    if (progress.pending || progress.queued) {
+      setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true);
+    } else if (progress.total) {
+      setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle.`, true);
+    }
+  } else if (event.type === 'live-asr-state') {
+    if (event.active === false && player.browserLiveAsrActive) {
+      stopBrowserLiveAsrCapture(false, event.message || 'Canlı Whisper durduruldu.');
+    } else {
+      updateBrowserLiveAsrButton(event.message || 'Canlı Whisper');
+      if (event.message) setBrowserSignal(event.message, !!event.active);
+    }
+  } else if (event.type === 'live-asr-warning') {
+    logLine(`Canlı Whisper: ${event.message || 'ses parçası işlenemedi'}`, 'warn');
   } else if (event.type === 'drm-status') {
     const message = event.supported
       ? 'Widevine modülü bulundu. Bu yalnızca teknik erişimi doğrular; Hulu, Discovery+ ve benzeri servisler ayrıca üretim lisansı/VMP imzası isteyebilir.'
@@ -3471,6 +4676,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     setBrowserSignal(message, false);
     logLine(message, 'info');
   } else if (event.type === 'drm-playback-error') {
+    const tab = browserTabState();
+    if (tab) tab.error = event.message || 'DRM hatası';
     const message = `Korumalı video lisans aşamasında reddedildi: ${event.message || 'DRM hatası'}`;
     setBrowserSignal(message, false);
     logLine(message, 'warn');
@@ -3878,6 +5085,39 @@ function findCueAt(cues, t, hint) {
   return cues.findIndex((c) => c.start <= t && c.end >= t);
 }
 
+function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
+  if (player.playbackPolicy === 'normal' || !player.cues.length || !window.WhisperPlaybackPolicy) return;
+  const action = window.WhisperPlaybackPolicy.playbackLearningAction(
+    player.cues, Number(time) - player.offset, Number(previousTime) - player.offset,
+    player.playbackPolicy,
+    { baseRate: player.learningBaseRate, gapRate: Math.max(2, player.learningBaseRate), minGap: 2, lead: .15 },
+  );
+  if (!action) return;
+  if (action.type === 'seek') {
+    const target = action.time + player.offset;
+    if (browserMode) browserCommand('seek', target).catch(() => {});
+    else if ($('playerVideo')) $('playerVideo').currentTime = target;
+  } else if (action.type === 'set-rate') {
+    const current = browserMode ? player.browserRate : Number($('playerVideo')?.playbackRate || 1);
+    if (Math.abs(current - action.rate) < .01) return;
+    if (browserMode) browserCommand('speed', action.rate).then((result) => {
+      if (result?.ok) player.browserRate = Number(result.media?.playbackRate) || action.rate;
+    }).catch(() => {});
+    else if ($('playerVideo')) $('playerVideo').playbackRate = action.rate;
+  } else if (action.type === 'pause-for-shadowing' && !paused && !player.shadowResumeTimer) {
+    const generation = currentGeneration();
+    if (browserMode) browserCommand('pause').catch(() => {});
+    else $('playerVideo')?.pause();
+    player.shadowResumeTimer = setTimeout(() => {
+      player.shadowResumeTimer = null;
+      if (generation !== currentGeneration() || player.playbackPolicy !== 'shadowing') return;
+      if (browserMode) browserCommand('play').catch(() => {});
+      else $('playerVideo')?.play().catch(() => {});
+    }, action.durationMs);
+    osd(`Tekrar et · ${Math.round(action.durationMs / 1000)} sn`, 1000);
+  }
+}
+
 function renderCue() {
   const video = $('playerVideo');
   const overlay = $('subtitleOverlay');
@@ -3904,6 +5144,8 @@ function renderCue() {
     // dt korumasi: ileri/geri sarmada (buyuk sicrama) duraklatma tetiklenmesin -
     // yalnizca normal oynatma adimi (0 < dt < 1 sn) gecis sayilir.
     const dt = player.lastT === undefined ? -1 : t - player.lastT;
+    applyPlaybackLearningPolicy(video.currentTime,
+      player.lastT === undefined ? NaN : player.lastT + player.offset, video.paused, false);
     if (player.autoPause && !video.paused && dt > 0 && dt < 1.0) {
       // Bitisini gectigimiz blogu HER ZAMAN onceki zamana gore bul.
       // Eskiden `i >= 0 ? i : ...` yaziyordu: tik boslugu atlayip sonraki
@@ -4119,7 +5361,7 @@ function seekToCue(i) {
   const target = Math.max(0, player.cues[i].start + player.offset + 0.01);
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
     player.browserTime = target;
-    window.api.browserCommand('seek', target).catch(() => {});
+    browserCommand('seek', target).catch(() => {});
     renderBrowserCueAt(target);
   } else {
     if (!video) return;
@@ -4152,7 +5394,7 @@ function stepCue(delta) {
 function replayCue() {
   if (player.activeIdx >= 0) seekToCue(player.activeIdx);
   if (player.workspaceMode === 'browser') {
-    if (window.api.browserCommand) window.api.browserCommand('play').catch(() => {});
+    if (window.api.browserCommand) browserCommand('play').catch(() => {});
     return;
   }
   const video = $('playerVideo');
@@ -4165,6 +5407,63 @@ function copyCue() {
   logLine('Altyazı satırı panoya kopyalandı.', 'success');
 }
 
+function syncLearningAnnotation(type, cue, saved, options = {}) {
+  if (!window.api.toggleLearningAnnotation || !player.mediaKey || !cue) return;
+  window.api.toggleLearningAnnotation({
+    type,
+    mediaId: player.mediaKey,
+    start: Number(cue.start) || 0,
+    end: Number(cue.end) || Number(cue.start) || 0,
+    source: String(options.source ?? cue.text ?? ''),
+    translation: String(options.translation ?? translationFor(cue) ?? ''),
+    note: String(options.note || ''),
+    status: options.status || (type === 'word' ? 'learning' : 'new'),
+  }, saved).catch(() => {});
+}
+
+async function loadLearningAnnotations() {
+  if (!window.api.listLearningAnnotations || !player.mediaKey) return;
+  const key = player.mediaKey;
+  const generation = currentGeneration();
+  const result = await window.api.listLearningAnnotations(key).catch(() => null);
+  if (!result?.ok || staleGeneration(generation) || player.mediaKey !== key) return;
+  for (const annotation of result.annotations || []) {
+    if (annotation.type === 'quote') {
+      const cue = player.cues.find((item) => Math.abs(item.start - annotation.start) < .05);
+      const signature = cue ? cueSignature(cue)
+        : `${Number(annotation.start).toFixed(3)}|${Number(annotation.end).toFixed(3)}|${annotation.source}`;
+      if (!player.savedCues.includes(signature)) player.savedCues.push(signature);
+    } else if (annotation.type === 'word') {
+      const cue = player.cues.find((item) => Math.abs(item.start - annotation.start) < .05);
+      if (!cue) continue;
+      const keyValue = wordRecordKey(annotation.source, player.cues.indexOf(cue), 'source');
+      if (!player.savedWords.some((item) => item.key === keyValue)) {
+        player.savedWords.push({ key: keyValue, word: annotation.source, source: 'source',
+          cue: cue.text, translation: annotation.translation, start: cue.start });
+      }
+    }
+  }
+  persistSavedCues();
+  persistSavedWords();
+  updateCueMeta();
+}
+
+async function saveCueNote() {
+  const cue = player.cues[player.activeIdx];
+  if (!cue || !player.mediaKey) {
+    logLine('Not eklemek için önce bir altyazı satırına gel.', 'warn');
+    return;
+  }
+  const note = await openAppDialog({
+    title: 'Cümleye not ekle',
+    description: `${pSecToTime(cue.start)} zamanındaki cümleye bağlı kalıcı bir not yaz.`,
+    confirmLabel: 'Notu kaydet', intent: 'primary', inputLabel: 'Not', inputValue: '',
+  });
+  if (note === false || !String(note).trim()) return;
+  syncLearningAnnotation('note', cue, true, { note: String(note).trim() });
+  osd('Zaman bağlı not kaydedildi');
+}
+
 function toggleCueSaved() {
   if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
     logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
@@ -4174,9 +5473,11 @@ function toggleCueSaved() {
   const at = player.savedCues.indexOf(sig);
   if (at >= 0) {
     player.savedCues.splice(at, 1);
+    syncLearningAnnotation('quote', player.cues[player.activeIdx], false);
     osd('Cümle kayıtlardan çıkarıldı');
   } else {
     player.savedCues.push(sig);
+    syncLearningAnnotation('quote', player.cues[player.activeIdx], true);
     osd('Cümle kaydedildi');
   }
   persistSavedCues();
@@ -4204,6 +5505,7 @@ function toggleWordSaved() {
   const at = player.savedWords.findIndex((x) => x.key === key);
   if (at >= 0) {
     player.savedWords.splice(at, 1);
+    syncLearningAnnotation('word', cue, false, { source: selected.word, translation: translationFor(cue) });
     osd('Kelime koleksiyondan çıkarıldı');
   } else {
     player.savedWords.push({
@@ -4214,6 +5516,7 @@ function toggleWordSaved() {
       translation: translationFor(cue),
       start: cue.start,
     });
+    syncLearningAnnotation('word', cue, true, { source: selected.word, translation: translationFor(cue) });
     osd('Kelime koleksiyona eklendi');
   }
   persistSavedWords();
@@ -4385,7 +5688,7 @@ async function openTimeline() {
   if (!player.cues.length) { logLine('Zamanlama için önce bir altyazı yükleyin.', 'warn'); return; }
   player.timeline.open = true;
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
-    window.api.browserCommand('pause').catch(() => {});
+    browserCommand('pause').catch(() => {});
   } else if ($('playerVideo')) {
     $('playerVideo').pause();
   }
@@ -4514,7 +5817,7 @@ if ($('timelineCanvas')) {
       const target = Math.max(0, Math.min(timelineDuration(), at));
       if (player.workspaceMode === 'browser' && window.api.browserCommand) {
         player.browserTime = target;
-        window.api.browserCommand('seek', target).catch(() => {});
+        browserCommand('seek', target).catch(() => {});
         renderBrowserCueAt(target);
       } else {
         const video = $('playerVideo');
@@ -4572,8 +5875,6 @@ if (typeof window !== 'undefined') window.addEventListener('resize', scheduleTim
 // "Bu videoyu daha once cevirmis miydim, hangi modelle, ciktilar nerede?"
 // Kayitlar main tarafinda tutulur (userData/history.json) - renderer yeniden
 // yuklendiginde de, uygulama kapanip acildiginda da durur.
-let historyCache = [];
-
 function historyWhen(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
@@ -4612,13 +5913,16 @@ function renderHistory() {
     ? historyCache.filter((h) => (h.title || '').toLocaleLowerCase('tr').includes(q))
     : historyCache;
   $('historyCount').textContent = String(historyCache.length);
-  card.classList.toggle('hidden', historyCache.length === 0);
+  $('jobsHistoryBadge').textContent = String(historyCache.length);
+  $('historySearchClear')?.classList.toggle('hidden', !q);
+  if ($('historyClear')) $('historyClear').disabled = historyCache.length === 0;
   list.innerHTML = '';
   if (!items.length) {
     const e = document.createElement('div');
-    e.className = 'history-empty';
-    e.textContent = q ? 'Eşleşen kayıt yok.' : 'Henüz iş yok.';
+    e.className = 'jobs-empty';
+    e.textContent = q ? 'Aramayla eşleşen iş yok. Aramayı temizleyip tüm kayıtları gösterebilirsiniz.' : 'Henüz tamamlanmış iş yok.';
     list.appendChild(e);
+    syncJobsCenter();
     return;
   }
   items.forEach((h) => {
@@ -4649,17 +5953,22 @@ function renderHistory() {
       b.dataset.act = act;
       b.textContent = label;
       b.title = title;
+      b.type = 'button';
+      b.setAttribute('aria-label', title);
       return b;
     };
     if (h.ok && (h.files || []).length) {
       acts.appendChild(mk('play', 'İzle', 'Videoyu ve bu işin altyazısını oynatıcıda aç'));
       acts.appendChild(mk('folder', 'Klasör', 'Çıktı klasörünü aç'));
     }
-    acts.appendChild(mk('del', '×', 'Bu kaydı listeden sil (dosyalar silinmez)'));
+    const remove = mk('del', '', 'Bu iş kaydını geçmişten kaldır (çıktı dosyaları korunur)');
+    remove.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    acts.appendChild(remove);
     row.appendChild(main);
     row.appendChild(acts);
     list.appendChild(row);
   });
+  syncJobsCenter();
 }
 
 async function refreshHistory() {
@@ -4743,6 +6052,7 @@ function captureWatchPrefs() {
     viewMode: player.viewMode,
     offset: player.offset,
     autoPause: player.autoPause,
+    playbackPolicy: player.playbackPolicy,
     autoFollow: player.autoFollow,
     showSource: $('showSource') ? $('showSource').checked : true,
     showTranslation: $('showTranslation') ? $('showTranslation').checked : true,
@@ -4839,16 +6149,16 @@ async function restoreWatchProfile(key) {
   if (browserMode && window.api.browserCommand) {
     const stillCurrent = () => !staleGeneration(gen) && player.mediaKey === key;
     if (prefs.speed) {
-      await window.api.browserCommand('speed', Math.max(.25, Math.min(4, Number(prefs.speed) || 1))).catch(() => null);
+      await browserCommand('speed', Math.max(.25, Math.min(4, Number(prefs.speed) || 1))).catch(() => null);
       if (!stillCurrent()) return;
     }
     if (prefs.volume !== undefined) {
       const target = Math.max(0, Math.min(1, Number(prefs.volume)));
-      await window.api.browserCommand('volume-set', target).catch(() => null);
+      await browserCommand('volume-set', target).catch(() => null);
       if (!stillCurrent()) return;
     }
     if (prefs.muted !== undefined && !!prefs.muted !== player.browserMuted) {
-      await window.api.browserCommand('mute').catch(() => null);
+      await browserCommand('mute').catch(() => null);
       if (!stillCurrent()) return;
     }
   } else {
@@ -4861,7 +6171,7 @@ async function restoreWatchProfile(key) {
     $('playerVolume').value = String(Math.round(Number(prefs.volume) * 100));
     syncVolumeFill();
   }
-  if (prefs.viewMode && !browserMode) setViewMode(prefs.viewMode);
+  if (prefs.viewMode) setViewMode(prefs.viewMode);
   if (prefs.offset !== undefined) {
     player.offset = Number(prefs.offset) || 0;
     if ($('subOffset')) $('subOffset').value = String(player.offset);
@@ -4877,6 +6187,10 @@ async function restoreWatchProfile(key) {
     $(id).checked = !!prefs[name];
     $(id).dispatchEvent(new Event('change'));
   });
+  if (prefs.playbackPolicy && $('playerPlaybackPolicy')) {
+    $('playerPlaybackPolicy').value = prefs.playbackPolicy;
+    $('playerPlaybackPolicy').dispatchEvent(new Event('change'));
+  }
   if (prefs.subStyle && typeof prefs.subStyle === 'object') {
     player.subStyle = { ...SUB_STYLE_DEFAULTS, ...prefs.subStyle };
     applySubtitleStyle();
@@ -5035,6 +6349,56 @@ async function openLocalMedia(filePath, seconds, explicitFiles) {
     seconds: Number(seconds) || 0,
   };
   attachSiblingSubtitles(filePath);
+  refreshEmbeddedSubtitleTracks(filePath);
+}
+
+function resetEmbeddedSubtitleTracks() {
+  player.embeddedSubtitleTracks = [];
+  $('playerEmbeddedSubField')?.classList.add('hidden');
+  if ($('playerEmbeddedSubSelect')) $('playerEmbeddedSubSelect').replaceChildren();
+}
+
+async function refreshEmbeddedSubtitleTracks(filePath) {
+  resetEmbeddedSubtitleTracks();
+  if (!window.api.probeTracks || !filePath) return;
+  const generation = currentGeneration();
+  const result = await window.api.probeTracks(filePath).catch(() => null);
+  if (!result?.ok || staleGeneration(generation) || player.localPath !== filePath) return;
+  player.embeddedSubtitleTracks = Array.isArray(result.subtitleTracks) ? result.subtitleTracks : [];
+  if (!player.embeddedSubtitleTracks.length) return;
+  const select = $('playerEmbeddedSubSelect');
+  for (const track of player.embeddedSubtitleTracks) {
+    const option = document.createElement('option');
+    option.value = String(track.streamIndex);
+    option.textContent = `${track.label || `Altyazı ${track.subtitleIndex + 1}`}${track.requiresOcr ? ' · görüntü tabanlı' : ''}`;
+    option.disabled = !track.extractable;
+    select.appendChild(option);
+  }
+  $('playerEmbeddedSubField')?.classList.remove('hidden');
+  const textCount = player.embeddedSubtitleTracks.filter((track) => track.extractable).length;
+  const bitmapCount = player.embeddedSubtitleTracks.filter((track) => track.requiresOcr).length;
+  $('playerEmbeddedSubHint').textContent = textCount
+    ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}.`
+    : `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor.`;
+  $('playerEmbeddedSubLoad').disabled = !textCount;
+}
+
+async function loadSelectedEmbeddedSubtitle() {
+  const select = $('playerEmbeddedSubSelect');
+  const track = player.embeddedSubtitleTracks.find((item) => String(item.streamIndex) === select?.value);
+  if (!track || !player.localPath) return;
+  const button = $('playerEmbeddedSubLoad');
+  if (button) button.disabled = true;
+  const result = await window.api.extractSubtitleTrack(player.localPath, track).catch((error) => ({ ok: false, error: error.message }));
+  if (button) button.disabled = false;
+  if (!result?.ok) {
+    logLine(`Gömülü altyazı çıkarılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  addSubtitleOption(result.path, `Gömülü · ${result.label || track.label}`);
+  $('playerSubSelect').value = result.path;
+  await loadSubtitle(result.path);
+  logLine('Gömülü altyazı çıkarıldı ve oynatıcıya yüklendi; Whisper çalıştırılmadı.', 'success');
 }
 
 async function openWatchLibraryItem(item, seconds) {
@@ -5228,7 +6592,7 @@ function renderAiText(el, text) {
       button.addEventListener('click', () => {
         if (player.workspaceMode === 'browser' && window.api.browserCommand) {
           player.browserTime = Math.max(0, seconds);
-          window.api.browserCommand('seek', player.browserTime).catch(() => {});
+          browserCommand('seek', player.browserTime).catch(() => {});
           renderBrowserCueAt(player.browserTime);
           showControls();
           return;
@@ -5320,6 +6684,7 @@ function setSideTab(tab) {
     const on = b.dataset.stab === tab;
     b.classList.toggle('active', on);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
   });
   if (ai) { aiChatCtxLabel(); $('aiChatText')?.focus(); }
   if (library) {
@@ -5983,6 +7348,7 @@ function maybeOfferResume() {
 // B'nin kendi altyazisi otomatik acilmiyordu. Bolum isaretleri de kaliyordu.
 function resetMediaBoundState(options = {}) {
   closeTimeline();
+  resetEmbeddedSubtitleTracks();
   player.cues = [];
   player.cues2 = [];
   player.cuesRaw = null;
@@ -6009,6 +7375,9 @@ function resetMediaBoundState(options = {}) {
   player.timeline.waveformDuration = 0;
   player.timeline.selected = -1;
   player.timeline.undo = [];
+  player.cueEditUndo = [];
+  player.cueEditRedo = [];
+  updateCueEditHistoryButtons();
   player.timeline.loading = false;
   player.editing = false;
   if ($('timelineDrawer')) $('timelineDrawer').classList.remove('dirty');
@@ -6139,6 +7508,9 @@ function setSubtitleMode(mode, announce = true) {
   } else if (mode === 'source' || mode === 'translation') {
     applySubtitleTrackSelection(mode === 'source', mode === 'translation');
     player.lastSubtitleMode = mode;
+    setSubtitlesVisible(true);
+  } else if (mode === 'both') {
+    applySubtitleTrackSelection(true, true);
     setSubtitlesVisible(true);
   } else {
     return;
@@ -6570,6 +7942,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     return;
   }
   const gen = currentGeneration();
+  const previousPrimaryPath = player.subPath;
   const res = await window.api.readSubtitle(path);
   // Okuma sirasinda baska videoya gecildiyse sonucu AT (eski altyazi yenisine
   // baglanmasin). Ayni video icinde iki altyazi hizli secilirse de gec gelen
@@ -6594,6 +7967,11 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.sub2Path = path;
     renderCueList($('cueSearch') ? $('cueSearch').value : '');   // kartlara ceviri satiri gelsin
   } else {
+    if (previousPrimaryPath && previousPrimaryPath !== path) {
+      player.cueEditUndo = [];
+      player.cueEditRedo = [];
+      updateCueEditHistoryButtons();
+    }
     player.cuesRaw = cues;
     player.cues = player.mergeCont ? mergeCueContinuation(cues) : cues;
     player.activeIdx = -1;
@@ -7005,6 +8383,7 @@ if ($('cueNextBtn')) $('cueNextBtn').addEventListener('click', () => stepCue(1))
 if ($('cueReplayBtn')) $('cueReplayBtn').addEventListener('click', replayCue);
 if ($('cueCopyBtn')) $('cueCopyBtn').addEventListener('click', copyCue);
 if ($('cueSaveBtn')) $('cueSaveBtn').addEventListener('click', toggleCueSaved);
+if ($('cueNoteBtn')) $('cueNoteBtn').addEventListener('click', saveCueNote);
 if ($('savedOnlyBtn')) $('savedOnlyBtn').addEventListener('click', toggleSavedOnly);
 if ($('qualityOnlyBtn')) $('qualityOnlyBtn').addEventListener('click', toggleQualityOnly);
 if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
@@ -7275,16 +8654,36 @@ if ($('historyList')) {
       const f = (h.files || [])[0];
       if (f) window.api.openPath(f.replace(/[\\/][^\\/]+$/, ''));
     } else if (btn.dataset.act === 'del') {
+      const confirmed = await openAppDialog({
+        title: 'İş kaydını kaldır',
+        description: `“${h.title || 'İsimsiz iş'}” geçmişten kaldırılacak. Üretilmiş altyazı dosyaları silinmez.`,
+        confirmLabel: 'Geçmişten kaldır',
+      });
+      if (!confirmed) return;
       await window.api.removeHistory(id);
       refreshHistory();
     }
   });
 }
+renderQueue();
 refreshHistory();
 if ($('historySearch')) $('historySearch').addEventListener('input', renderHistory);
+if ($('historySearchClear')) {
+  $('historySearchClear').addEventListener('click', () => {
+    $('historySearch').value = '';
+    renderHistory();
+    $('historySearch').focus();
+  });
+}
 if ($('historyClear')) {
   $('historyClear').addEventListener('click', async () => {
     if (!historyCache.length) return;
+    const confirmed = await openAppDialog({
+      title: 'İş geçmişini temizle',
+      description: `${historyCache.length} iş kaydı geçmişten kaldırılacak. Çıktı dosyaları korunur; bu liste geri alınamaz.`,
+      confirmLabel: 'Geçmişi temizle',
+    });
+    if (!confirmed) return;
     await window.api.clearHistory();
     refreshHistory();
   });
@@ -7300,8 +8699,15 @@ async function handleWatchLibraryAction(e) {
     openWatchLibraryItem(item, Number(button.dataset.seconds) || 0);
     if ($('sideTabSubs')) setSideTab('subs');
   } else if (action === 'collection') {
-    const name = window.prompt('Koleksiyon adları (virgülle ayırın)', (item.collections || []).join(', '));
-    if (name === null) return;
+    const name = await openAppDialog({
+      title: 'Koleksiyonları düzenle',
+      description: 'Birden çok koleksiyon adını virgülle ayırın. Alanı boş bırakırsanız video tüm koleksiyonlardan çıkarılır.',
+      confirmLabel: 'Koleksiyonları kaydet',
+      intent: 'primary',
+      inputLabel: 'Koleksiyon adları',
+      inputValue: (item.collections || []).join(', '),
+    });
+    if (name === false) return;
     const collections = [...new Set(name.split(',').map((x) => x.trim()).filter(Boolean))];
     await window.api.updateWatchItem({ key: item.key, collections, lastWatched: item.lastWatched });
     refreshWatchLibrary();
@@ -7318,6 +8724,12 @@ async function handleWatchLibraryAction(e) {
     });
     refreshWatchLibrary();
   } else if (action === 'remove') {
+    const confirmed = await openAppDialog({
+      title: 'Kütüphane kaydını kaldır',
+      description: `“${item.title || 'Bu video'}” izleme kütüphanesinden kaldırılacak. Video ve altyazı dosyaları silinmez.`,
+      confirmLabel: 'Kütüphaneden kaldır',
+    });
+    if (!confirmed) return;
     if (player.mediaKey === item.key) player.watchRemovedKey = item.key;
     await window.api.removeWatchItem(item.key);
     refreshWatchLibrary();
@@ -7329,6 +8741,8 @@ if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', h
 if ($('playerLibraryFilter')) $('playerLibraryFilter').addEventListener('change', renderPlayerLibrary);
 if ($('playerLibrarySearch')) {
   $('playerLibrarySearch').addEventListener('input', (e) => {
+    $('playerLibrarySearchClear')?.classList.toggle('hidden', !e.target.value);
+    if (e.isComposing) return;
     clearTimeout(playerLibrarySearchTimer);
     const seq = ++player.playerLibrarySearchSeq;
     const q = e.target.value.trim();
@@ -7346,6 +8760,20 @@ if ($('playerLibrarySearch')) {
       playerLibraryResults = results;
       renderPlayerLibrary();
     }, 280);
+  });
+  $('playerLibrarySearch').addEventListener('compositionend', (e) => {
+    e.target.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+if ($('playerLibrarySearchClear')) {
+  $('playerLibrarySearchClear').addEventListener('click', () => {
+    clearTimeout(playerLibrarySearchTimer);
+    player.playerLibrarySearchSeq++;
+    $('playerLibrarySearch').value = '';
+    playerLibraryResults = watchLibraryCache;
+    renderPlayerLibrary();
+    $('playerLibrarySearchClear').classList.add('hidden');
+    $('playerLibrarySearch').focus();
   });
 }
 
@@ -7383,7 +8811,7 @@ if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend(
 if ($('aiChatText')) {
   $('aiChatText').addEventListener('input', autoGrowChatBox);
   $('aiChatText').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiChatSend(e.target.value); }
+    if (e.key === 'Enter' && !e.isComposing && !e.shiftKey) { e.preventDefault(); aiChatSend(e.target.value); }
   });
 }
 if ($('aiChatLog')) {
@@ -7542,7 +8970,7 @@ if ($('playerVideo')) {
     $('playerSpeed').addEventListener('change', async (e) => {
       const rate = parseFloat(e.target.value) || 1;
       if (player.workspaceMode === 'browser' && window.api.browserCommand) {
-        const result = await window.api.browserCommand('speed', rate).catch(() => null);
+        const result = await browserCommand('speed', rate).catch(() => null);
         if (!result || !result.ok) {
           e.target.value = String(player.browserRate || 1);
           osd('Web video hızı değiştirilemedi');
@@ -7552,6 +8980,7 @@ if ($('playerVideo')) {
       } else {
         video.playbackRate = rate;
       }
+      player.learningBaseRate = rate;
       scheduleSave();
     });
   }
@@ -7613,7 +9042,7 @@ if ($('playerVideo')) {
     $('resumeGo').addEventListener('click', () => {
       const saved = player.positions[playerPositionKey()];
       if (saved && player.workspaceMode === 'browser') {
-        window.api.browserCommand('seek', saved.t).then(() => window.api.browserCommand('play')).catch(() => {});
+        browserCommand('seek', saved.t).then(() => browserCommand('play')).catch(() => {});
       } else if (saved) {
         video.currentTime = saved.t;
         video.play().catch(() => {});
@@ -7670,7 +9099,7 @@ document.addEventListener('keydown', (e) => {
     else if (e.key === 'ArrowDown') { command = 'volume-relative'; value = -.05; }
     if (command) {
       e.preventDefault();
-      window.api.browserCommand(command, value).catch(() => {});
+      browserCommand(command, value).catch(() => {});
       return;
     }
   }
@@ -7733,7 +9162,7 @@ function nudgeOffset(delta) {
 }
 
 async function stepBrowserFrame(dir) {
-  const result = await window.api.browserCommand('frame-step', Number(dir || 0) / 25).catch(() => null);
+  const result = await browserCommand('frame-step', Number(dir || 0) / 25).catch(() => null);
   if (!result || !result.ok) {
     osd('Web videoda kare adımı uygulanamadı', 900);
     return;
@@ -7749,7 +9178,7 @@ async function nudgeSpeed(dir) {
   if (!sel || !video) return;
   const target = steppedPlaybackRate(sel.options, sel.value, dir);
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
-    const result = await window.api.browserCommand('speed', target).catch(() => null);
+    const result = await browserCommand('speed', target).catch(() => null);
     if (!result || !result.ok) {
       osd('Web video hızı değiştirilemedi', 900);
       return;
@@ -7758,6 +9187,7 @@ async function nudgeSpeed(dir) {
   } else {
     video.playbackRate = target;
   }
+  player.learningBaseRate = target;
   sel.value = String(target);
   scheduleSave();
   osd(`${target}× hız`);
@@ -7779,14 +9209,20 @@ function setPlayerVolume(v) {
 }
 
 // Kaynak sekmeleri
-$$('.tab[data-ptab]').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    $$('.tab[data-ptab]').forEach((t) => t.classList.remove('active'));
-    tab.classList.add('active');
-    $$('.ptab-content').forEach((c) => {
-      c.classList.toggle('hidden', c.dataset.pcontent !== tab.dataset.ptab);
-    });
+function setPlayerSourcePanel(target) {
+  $$('.tab[data-ptab]').forEach((tab) => {
+    const active = tab.dataset.ptab === target;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    tab.tabIndex = active ? 0 : -1;
   });
+  $$('.ptab-content').forEach((content) => {
+    content.classList.toggle('hidden', content.dataset.pcontent !== target);
+  });
+}
+
+$$('.tab[data-ptab]').forEach((tab) => {
+  tab.addEventListener('click', () => setPlayerSourcePanel(tab.dataset.ptab));
 });
 
 if ($('playerPickVideo')) {
@@ -7825,6 +9261,9 @@ if ($('playerPickSub')) {
     loadSubtitle(p);
   });
 }
+if ($('playerEmbeddedSubLoad')) {
+  $('playerEmbeddedSubLoad').addEventListener('click', loadSelectedEmbeddedSubtitle);
+}
 
 if ($('playerSubSelect')) {
   $('playerSubSelect').addEventListener('change', (e) => loadSubtitle(e.target.value));
@@ -7852,6 +9291,7 @@ function openCueEditor() {
   $('subtitleEditHint').textContent =
     `${pSecToTime(cue.start)} – ${pSecToTime(cue.end)} · ${player.subPath.split(/[\\/]/).pop()}`;
   $('subtitleEditBox').focus();
+  updateCueEditHistoryButtons();
   $('subtitleEditBox').select();
 }
 
@@ -7860,6 +9300,36 @@ function closeCueEditor() {
   $('playerStage').classList.remove('editing');
   $('subtitleEdit').classList.add('hidden');
   renderCue();
+}
+
+function updateCueEditHistoryButtons() {
+  if ($('subtitleEditUndo')) $('subtitleEditUndo').disabled = !player.cueEditUndo.length;
+  if ($('subtitleEditRedo')) $('subtitleEditRedo').disabled = !player.cueEditRedo.length;
+}
+
+async function applyCueEditHistory(direction) {
+  const source = direction === 'undo' ? player.cueEditUndo : player.cueEditRedo;
+  const target = direction === 'undo' ? player.cueEditRedo : player.cueEditUndo;
+  const entry = source[source.length - 1];
+  if (!entry || entry.path !== player.subPath || entry.mediaKey !== player.mediaKey) return;
+  const payload = direction === 'undo' ? entry.before : entry.after;
+  const result = await window.api.writeSubtitle(entry.path, payload, {
+    action: direction, cueIndex: entry.index, start: entry.start,
+    before: direction === 'undo' ? entry.afterText : entry.beforeText,
+    after: direction === 'undo' ? entry.beforeText : entry.afterText,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    logLine(`Düzenleme ${direction === 'undo' ? 'geri alınamadı' : 'yinelenemedi'}: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  source.pop();
+  target.push(entry);
+  await loadSubtitle(entry.path, false, { silent: true, preserveInspector: true });
+  player.activeIdx = Math.max(0, Math.min(player.cues.length - 1, entry.index));
+  updateCueEditHistoryButtons();
+  renderCueList($('cueSearch')?.value || '');
+  renderCue();
+  osd(direction === 'undo' ? 'Düzenleme geri alındı' : 'Düzenleme yinelendi');
 }
 
 async function saveCueEdit() {
@@ -7902,7 +9372,9 @@ async function saveCueEdit() {
   }
 
   let res;
-  try { res = await window.api.writeSubtitle(targetPath, payload); }
+  try { res = await window.api.writeSubtitle(targetPath, payload, {
+    action: 'edit', cueIndex: i, start: cue.start, before: cue.text, after: text,
+  }); }
   catch (err) { res = { ok: false, error: err && err.message }; }
   if (!res || !res.ok) {
     logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
@@ -7914,12 +9386,20 @@ async function saveCueEdit() {
     return;
   }
   cue.text = text;                            // ANCAK yazma basarili olduysa
+  player.cueEditUndo.push({
+    path: targetPath, mediaKey: targetKey, index: i, start: cue.start,
+    before: player.subRaw, after: payload, beforeText: savedSignature.split('|').slice(2).join('|'),
+    afterText: text, at: Date.now(),
+  });
+  player.cueEditUndo = player.cueEditUndo.slice(-100);
+  player.cueEditRedo = [];
   if (wasSaved) {
     const at = player.savedCues.indexOf(savedSignature);
     if (at >= 0) player.savedCues[at] = cueSignature(cue);
     persistSavedCues();
   }
-  if (player.subFormat !== 'srt') player.subRaw = payload;
+  player.subRaw = payload;
+  updateCueEditHistoryButtons();
   logLine(`Altyazı güncellendi (blok ${i + 1}) → ${player.subPath.split(/[\\/]/).pop()}`, 'success');
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   closeCueEditor();
@@ -7944,15 +9424,36 @@ if ($('autoPauseCue')) {
     player.pausedAt = -1;
   });
 }
+if ($('playerPlaybackPolicy')) {
+  $('playerPlaybackPolicy').addEventListener('change', (event) => {
+    clearTimeout(player.shadowResumeTimer);
+    player.shadowResumeTimer = null;
+    player.playbackPolicy = event.target.value || 'normal';
+    player.learningBaseRate = Number($('playerSpeed')?.value)
+      || (player.workspaceMode === 'browser' ? player.browserRate : Number($('playerVideo')?.playbackRate)) || 1;
+    if (player.playbackPolicy === 'normal') {
+      if (player.workspaceMode === 'browser') browserCommand('speed', player.learningBaseRate).catch(() => {});
+      else if ($('playerVideo')) $('playerVideo').playbackRate = player.learningBaseRate;
+    }
+    scheduleSave();
+  });
+}
 if ($('subtitleOverlay')) {
   $('subtitleOverlay').addEventListener('dblclick', openCueEditor);
 }
 if ($('subtitleEditSave')) $('subtitleEditSave').addEventListener('click', saveCueEdit);
 if ($('subtitleEditCancel')) $('subtitleEditCancel').addEventListener('click', closeCueEditor);
+if ($('subtitleEditUndo')) $('subtitleEditUndo').addEventListener('click', () => applyCueEditHistory('undo'));
+if ($('subtitleEditRedo')) $('subtitleEditRedo').addEventListener('click', () => applyCueEditHistory('redo'));
 if ($('subtitleEditBox')) {
   $('subtitleEditBox').addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.stopPropagation(); closeCueEditor(); }
     else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveCueEdit(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      e.preventDefault(); applyCueEditHistory('undo');
+    } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+      e.preventDefault(); applyCueEditHistory('redo');
+    }
   });
 }
 
@@ -8434,4 +9935,29 @@ if (window.api.onMediaEvent) {
     }
   });
 }
+
+// Tüm uygulama içi gerçek sekmeler aynı WAI-ARIA klavye modelini kullanır.
+// Paneller yerel ve anlık olduğu için okla odaklama otomatik etkinleştirir.
+function setupRovingTablists() {
+  $$('[role="tablist"]').forEach((tablist) => {
+    if (tablist.dataset.keyboardReady === 'true') return;
+    tablist.dataset.keyboardReady = 'true';
+    tablist.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      const tabs = [...tablist.querySelectorAll('[role="tab"]:not(:disabled)')];
+      if (!tabs.length) return;
+      const current = Math.max(0, tabs.indexOf(document.activeElement));
+      let next = current;
+      if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = tabs.length - 1;
+      else if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+      else next = (current - 1 + tabs.length) % tabs.length;
+      event.preventDefault();
+      tabs[next].focus();
+      tabs[next].click();
+    });
+  });
+}
+
+setupRovingTablists();
 // PLAYER_END

@@ -301,6 +301,7 @@ test('Tarayıcı geri/ileri durumu yeni Electron API ve eski API ile güvenli ok
 test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', () => {
   const root = path.join(__dirname, '..', 'src');
   const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  const overlayController = fs.readFileSync(path.join(root, 'browser-overlay-controller.js'), 'utf8');
   const preload = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
@@ -310,7 +311,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /BROWSER_PARTITION = 'persist:whisper-browser'/);
   assert.match(main, /browserSession\.flushStorageData\(\)/);
   assert.match(main, /browserSession\.cookies\.flushStore\(\)/);
-  assert.match(main, /flushBrowserSession\(\)\.finally/);
+  assert.match(main, /await flushBrowserSession\(\)/);
   assert.match(main, /nodeIntegration: false/);
   assert.match(main, /contextIsolation: true/);
   assert.match(main, /sandbox: true/);
@@ -323,11 +324,12 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browserCaptureAckScript/);
   assert.match(main, /browserCaptureReleaseScript/);
   assert.match(main, /__whisperCaptureInFlight instanceof Map/);
-  assert.match(main, /now - at > 15000/);
+  assert.match(main, /now - leasedAt <= 15000/);
+  assert.match(main, /lease\.deliveryId !== receipt\.deliveryId/);
   assert.match(main, /window\.__whisperCaptureQueue\.length > 128/);
-  assert.match(main, /outcome === CAPTURE_RETRY \? releaseIds : ackIds/);
+  assert.match(main, /outcome === CAPTURE_RETRY \? releaseReceipts : ackReceipts/);
   assert.ok(main.indexOf('const outcome = await processBrowserCapturedPayload')
-    < main.indexOf('(outcome === CAPTURE_RETRY ? releaseIds : ackIds).push'),
+    < main.indexOf('(outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push'),
   'ack kararı payload işlenmeden veriliyor');
   assert.match(main, /browserManifestInFlight/);
   assert.match(main, /fetchBrowserTextWithRetry/);
@@ -341,9 +343,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /\.framesInSubtree/);
   assert.match(main, /node\.shadowRoot/);
   assert.match(main, /executeBrowserFrames\(browserOverlayScript/);
-  assert.match(main, /document\.fullscreenElement/);
-  assert.match(main, /fullscreenchange/);
-  assert.match(main, /state\.offset/);
+  assert.match(overlayController, /document\.fullscreenElement/);
+  assert.match(overlayController, /fullscreenchange/);
+  assert.match(overlayController, /state\.offset/);
   assert.match(main, /browserSeenManifests = new Map/);
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
   assert.match(main, /components\.whenReady\(\)/);
@@ -356,7 +358,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /parseMp4Timescale\(init\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
-  assert.match(main, /type: 'load-error'[\s\S]*browserNavigationState\(\{ loading: false \}\)/);
+  assert.match(main, /type: 'load-error'[\s\S]*browserNavigationState(?:ForTab)?\([^)]*\{ loading: false \}\)/);
   assert.match(main, /ERR_NETWORK_ACCESS_DENIED/);
   assert.match(main, /Proton VPN ayrılmış tünellemesinde/);
   assert.match(main, /overrideBrowserWindowOptions: browserPopupWindowOptions\(\)/);
@@ -416,7 +418,10 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
     const start = main.indexOf(`function ${name}(`);
     const end = main.indexOf(generatedScriptEnd[name], start + 1);
     assert(start >= 0 && end > start, `${name} kaynakta bulunamadı`);
-    const factory = vm.runInNewContext(`(${main.slice(start, end)})`, { browserActiveCuesAt });
+    const factory = vm.runInNewContext(`(${main.slice(start, end)})`, {
+      browserActiveCuesAt,
+      buildBrowserOverlayScript: require('../src/browser-overlay-controller').buildBrowserOverlayScript,
+    });
     const generated = name === 'browserOverlayScript'
       ? factory({ source: [], translation: [], mode: 'both', offset: 0, visible: true })
       : factory();
