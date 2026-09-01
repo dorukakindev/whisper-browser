@@ -78,6 +78,7 @@ const {
   mangaCacheKey,
   mangaCandidateScanScript,
   mangaClearScript,
+  mangaGenerationParameters,
   mangaOverlayScript,
   mangaVisibilityScript,
   normalizeMangaRegions,
@@ -1845,8 +1846,7 @@ async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signa
   const attachSchema = useSchema && resolveTranslationEndpoints(endpointBase).length === 1;
   const body = {
     model: config.model,
-    temperature: 0.1,
-    max_tokens: 12000,
+    ...mangaGenerationParameters(config.model),
     messages: [{ role: 'user', content: [
       { type: 'text', text: buildMangaPrompt({ ...config, pageTitle }) },
       { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.buffer.toString('base64')}`, detail: 'high' } },
@@ -1907,6 +1907,17 @@ async function requestMangaTranslation(image, config, pageTitle, signal) {
     }
   }
   throw lastError || new Error('Görsel çeviri servislerinin hiçbirine ulaşılamadı.');
+}
+
+function fatalMangaBatchError(error) {
+  const status = Number(error?.httpStatus) || 0;
+  if ([401, 403, 404, 422].includes(status)) return true;
+  if (status !== 400) return false;
+  const message = String(error?.message || '').toLowerCase();
+  // Bozuk veya fazla büyük tek görsel diğer sayfaların çevrilmesini
+  // engellemesin. Model/parametre/yetki kaynaklı diğer 400'ler ise bütün
+  // bölümde aynı biçimde tekrarlanacağı için işi erken keser.
+  return !/(?:invalid|corrupt|decode|size|large|dimension|format).{0,40}(?:image|base64)|(?:image|base64).{0,40}(?:invalid|corrupt|decode|size|large|dimension|format)/i.test(message);
 }
 
 async function translateMangaCandidate(tab, candidate, config, job) {
@@ -1985,23 +1996,26 @@ async function startBrowserManga(tab, options = {}) {
   let completed = 0;
   let translated = 0;
   let failed = 0;
+  let empty = 0;
   let firstError = '';
   const worker = async () => {
-    while (mangaJobIsCurrent(tab, job)) {
+    while (mangaJobIsCurrent(tab, job) && !job.fatalError) {
       const index = cursor++;
       if (index >= selected.length) return;
       try {
         const result = await translateMangaCandidate(tab, selected[index], config, job);
         if (result.translated) translated += 1;
+        else if (result.empty) empty += 1;
       } catch (error) {
         if (job.controller.signal.aborted) return;
         failed += 1;
         if (!firstError) firstError = error?.message || 'Görsel çevrilemedi.';
+        if (fatalMangaBatchError(error)) job.fatalError = firstError;
       }
       completed += 1;
       if (mangaJobIsCurrent(tab, job)) {
         tab.mangaTranslated = translated;
-        sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed, total: selected.length, translated, failed });
+        sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed, total: selected.length, translated, failed, empty });
       }
     }
   };
@@ -2010,11 +2024,15 @@ async function startBrowserManga(tab, options = {}) {
   tab.mangaJob = null;
   tab.mangaTranslated = translated;
   tab.mangaVisible = translated > 0;
-  const state = translated ? 'ready' : 'error';
+  const state = translated ? 'ready' : (failed ? 'error' : 'empty');
+  const skipped = failed + empty;
+  const message = translated
+    ? `${translated} manga görseli çevrildi${skipped ? `, ${skipped} görsel atlandı.` : '.'}`
+    : (firstError || `${selected.length} görsel tarandı; çevrilecek metin bulunamadı.`);
   sendBrowserEvent(tab, { type: 'manga-state', state, completed, total: selected.length, translated, failed,
-    message: translated ? `${translated} manga görseli çevrildi.` : firstError || 'Görsellerde çevrilecek metin bulunamadı.' });
-  return { ok: translated > 0, translated, failed, total: selected.length,
-    error: translated ? '' : firstError || 'Görsellerde çevrilecek metin bulunamadı.' };
+    empty, message });
+  return { ok: translated > 0 || (!failed && empty > 0), translated, failed, empty, total: selected.length,
+    error: translated || (!failed && empty > 0) ? '' : firstError || 'Görsellerde çevrilecek metin bulunamadı.' };
 }
 
 function startBrowserTranslation(tab, rawCues, options = {}) {

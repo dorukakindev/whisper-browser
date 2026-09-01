@@ -7,6 +7,7 @@ const {
   extractJsonPayload,
   isSafeMangaImageUrl,
   mangaCacheKey,
+  mangaGenerationParameters,
   mangaCandidateScanScript,
   mangaOverlayScript,
   normalizeMangaRegions,
@@ -36,6 +37,9 @@ assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', glossar
   mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', glossary: ['A=C'] }));
 assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri A' }),
   mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri B' }));
+assert.deepEqual(mangaGenerationParameters('gpt-5.4'), { max_completion_tokens: 12000 });
+assert.deepEqual(mangaGenerationParameters('o4-mini'), { max_completion_tokens: 12000 });
+assert.deepEqual(mangaGenerationParameters('gpt-4.1-mini'), { temperature: 0.1, max_tokens: 12000 });
 
 const ranked = selectMangaCandidates([
   { id: 'advert', url: 'https://ads.example/a.jpg', readerScore: -20, excluded: true, visible: true, order: 1 },
@@ -114,4 +118,4 @@ assert.match(html, /id="mangaEndpointPreset"/);
 assert.match(html, /id="mangaModel"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 40 test');
+console.log('browser-manga: 43 test');

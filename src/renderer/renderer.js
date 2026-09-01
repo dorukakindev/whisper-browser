@@ -3095,6 +3095,8 @@ const player = {
   browserMangaVisible: false,
   browserMangaCompleted: 0,
   browserMangaTotal: 0,
+  browserMangaFailed: 0,
+  browserMangaEmpty: 0,
   browserMangaError: '',
   browserTranslationTrackId: '',
   browserLiveTranslations: new Map(),
@@ -3492,6 +3494,8 @@ function updateBrowserMangaButton() {
     title = 'Manga çevirisini durdur';
   } else if (player.browserMangaError) {
     state = 'error'; text = 'Manga hata'; title = `${player.browserMangaError} · Yeniden denemek için tıkla`;
+  } else if (player.browserMangaTotal > 0 && player.browserMangaTranslated === 0) {
+    state = 'empty'; text = 'Metin yok'; title = 'Görseller tarandı ancak çevrilecek metin bulunamadı · Yeniden denemek için tıkla';
   } else if (player.browserMangaTranslated > 0 && player.browserMangaVisible) {
     state = 'ready'; text = 'Manga açık'; title = 'Manga çevirisini gizle · Shift+tık: sayfayı yeniden tara';
   } else if (player.browserMangaTranslated > 0) {
@@ -3507,13 +3511,15 @@ function updateBrowserMangaButton() {
 function applyBrowserMangaState(event = {}) {
   player.browserMangaBusy = event.state === 'running';
   if (event.state === 'error') player.browserMangaError = String(event.message || event.error || 'Manga çevirisi başarısız oldu.');
-  else if (['running', 'ready', 'idle'].includes(event.state)) player.browserMangaError = '';
+  else if (['running', 'ready', 'idle', 'empty'].includes(event.state)) player.browserMangaError = '';
   if (event.translated !== undefined) player.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
   if (event.visible !== undefined) player.browserMangaVisible = !!event.visible;
   else if (event.state === 'ready') player.browserMangaVisible = player.browserMangaTranslated > 0;
-  else if (event.state === 'idle' || event.state === 'error') player.browserMangaVisible = false;
+  else if (event.state === 'idle' || event.state === 'error' || event.state === 'empty') player.browserMangaVisible = false;
   player.browserMangaCompleted = Math.max(0, Number(event.completed) || 0);
   player.browserMangaTotal = Math.max(0, Number(event.total) || 0);
+  player.browserMangaFailed = Math.max(0, Number(event.failed) || 0);
+  player.browserMangaEmpty = Math.max(0, Number(event.empty) || 0);
   const tab = browserTabState();
   if (tab) Object.assign(tab, {
     browserMangaBusy: player.browserMangaBusy,
@@ -3523,7 +3529,7 @@ function applyBrowserMangaState(event = {}) {
   updateBrowserMangaButton();
   if (event.message) setBrowserSignal(event.message, event.state === 'ready');
   else if (event.state === 'running') {
-    setBrowserSignal(`Manga görselleri çevriliyor: ${player.browserMangaCompleted}/${player.browserMangaTotal}`, true);
+    setBrowserSignal(`Manga görselleri işlendi: ${player.browserMangaCompleted}/${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · atlanan ${player.browserMangaFailed + player.browserMangaEmpty}`, true);
   }
 }
 

@@ -104,6 +104,17 @@ function buildMangaPrompt(options = {}) {
   ].filter(Boolean).join('\n');
 }
 
+function mangaGenerationParameters(model) {
+  // OpenAI'nin GPT-5 ve reasoning aileleri Chat Completions'ta eski
+  // max_tokens alanını reddedebiliyor. Shuai gibi uyumluluk katmanları da
+  // isteği model arka ucuna aynen ilettiği için modeli seçerken gövdeyi de
+  // uyumlu tutmak gerekiyor.
+  if (/^(?:gpt-5(?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(String(model || '').trim())) {
+    return { max_completion_tokens: 12000 };
+  }
+  return { temperature: 0.1, max_tokens: 12000 };
+}
+
 function selectMangaCandidates(candidates, requestedLimit = 64) {
   const limit = Math.max(1, Math.min(64, Number(requestedLimit) || 64));
   const valid = (Array.isArray(candidates) ? candidates : [])
@@ -284,6 +295,7 @@ module.exports = {
   mangaCandidateScanScript,
   mangaClearScript,
   mangaOverlayScript,
+  mangaGenerationParameters,
   mangaVisibilityScript,
   normalizeMangaRegions,
   selectMangaCandidates,
