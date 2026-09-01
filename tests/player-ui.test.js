@@ -679,6 +679,37 @@ test('izleme profili gecikirse başka videoya uygulanmıyor', () => {
     'altyazı awaitleri sonrasında yeniden kuşak kontrol edilmiyor');
 });
 
+test('standart dışı oynatma hızı menüde gerçek değerle gösterilir', () => {
+  const start = js.indexOf('function syncPlayerSpeedControl');
+  const end = js.indexOf('function captureWatchPrefs', start);
+  assert(start >= 0 && end > start, 'hız kontrol eşitleyicisi bulunamadı');
+  const options = [0.5, 1, 1.25, 1.5, 2].map((value) => ({
+    value: String(value), dataset: {}, remove() { options.splice(options.indexOf(this), 1); },
+  }));
+  const select = {
+    options,
+    value: '1',
+    appendChild(option) { options.push(option); },
+  };
+  const documentMock = { createElement: () => {
+    const option = { value: '', textContent: '', dataset: {}, remove() { options.splice(options.indexOf(option), 1); } };
+    return option;
+  } };
+  const sync = new Function('$', 'document', `${js.slice(start, end)}; return syncPlayerSpeedControl;`)(
+    (id) => id === 'playerSpeed' ? select : null,
+    documentMock,
+  );
+  sync(1.3);
+  assert(select.value === '1.3', 'özel hız menüde seçilmedi');
+  assert(options.some((option) => option.dataset.customRate === 'true' && option.value === '1.3'),
+    'özel hız seçeneği oluşturulmadı');
+  sync(1.25);
+  assert(select.value === '1.25', 'standart hıza dönüş gösterilmedi');
+  assert(!options.some((option) => option.dataset.customRate === 'true'), 'eski özel hız seçeneği temizlenmedi');
+  const restore = js.slice(js.indexOf('async function restoreWatchProfile'), js.indexOf('function makeWatchAction'));
+  assert(/syncPlayerSpeedControl\(prefs\.speed\)/.test(restore), 'profil geri yükleme hız eşitleyicisini kullanmıyor');
+});
+
 test('altyazı okuma sürerken seçim temizlenirse eski dosya geri gelmiyor', () => {
   const i = js.indexOf('async function loadSubtitle');
   const body = js.slice(i, js.indexOf('async function attachSiblingSubtitles', i));

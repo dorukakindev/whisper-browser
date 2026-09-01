@@ -40,6 +40,7 @@ const {
 const { rankBrowserMediaCandidates } = require('./browser-media');
 const { hasConfiguredWatchOutput, normalizeWatchOutputConfig } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
+const { burninOutputPaths, removeFileQuietly, replaceBurninOutput } = require('./burnin-output');
 
 // QUIC bazı VPN/tünelleme sürücülerinde bağlantıyı kuramadan bekleyebiliyor
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
@@ -472,7 +473,9 @@ function scanWatchFolder() {
 }
 
 ipcMain.handle('watch:start', async (_e, dir, options) => {
-  if (!dir || !fs.existsSync(dir)) return { ok: false, error: 'Klasör bulunamadı' };
+  let isDirectory = false;
+  try { isDirectory = !!dir && fs.statSync(dir).isDirectory(); } catch (_) {}
+  if (!isDirectory) return { ok: false, error: 'Geçerli bir klasör yolu seçin.' };
   watchDir = dir;
   watchOutputConfig = normalizeWatchOutputConfig(options);
   watchSeen.clear();
@@ -3061,9 +3064,7 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
   }
   const ffmpeg = resolveFfTool('ffmpeg');
   const ffprobe = resolveFfTool('ffprobe');
-  const dir = path.dirname(videoPath);
-  const base = path.basename(videoPath, path.extname(videoPath));
-  const outPath = path.join(dir, `${base}.altyazili.mp4`);
+  const { outPath, tempPath } = burninOutputPaths(videoPath);
 
   // Toplam süreyi al (ilerleme yüzdesi için)
   let totalSec = 0;
@@ -3073,23 +3074,30 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
   } catch (_) {}
 
   const vf = ffSubtitlesArg(subPath);
-  const args = ['-y', '-i', videoPath, '-vf', vf, '-c:a', 'copy', '-progress', 'pipe:1', '-nostats', outPath];
+  const args = ['-y', '-i', videoPath, '-vf', vf, '-c:a', 'copy', '-progress', 'pipe:1', '-nostats', tempPath];
 
   const send = (payload) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('burnin:event', payload);
   };
 
+  let job;
   try {
-    burninJob = spawn(ffmpeg, args, { windowsHide: true });
+    job = spawn(ffmpeg, args, { windowsHide: true });
+    job.tempPath = tempPath;
+    job.outPath = outPath;
+    job.cancelled = false;
+    job.settled = false;
+    burninJob = job;
   } catch (err) {
     burninJob = null;
+    try { removeFileQuietly(tempPath); } catch (_) {}
     return { ok: false, error: err.message };
   }
   send({ type: 'start', total: totalSec });
   let errTail = '';
-  if (burninJob.stdout) {
-    burninJob.stdout.setEncoding('utf-8');
-    burninJob.stdout.on('data', (chunk) => {
+  if (job.stdout) {
+    job.stdout.setEncoding('utf-8');
+    job.stdout.on('data', (chunk) => {
       // -progress çıktısı: out_time_us=... / progress=continue|end
       const m = String(chunk).match(/out_time_us=(\d+)/g);
       if (m && m.length) {
@@ -3100,24 +3108,38 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
       }
     });
   }
-  if (burninJob.stderr) {
-    burninJob.stderr.setEncoding('utf-8');
-    burninJob.stderr.on('data', (d) => { errTail = (errTail + d).slice(-1500); });
+  if (job.stderr) {
+    job.stderr.setEncoding('utf-8');
+    job.stderr.on('data', (d) => { errTail = (errTail + d).slice(-1500); });
   }
-  burninJob.on('error', (err) => {
-    burninJob = null;
-    send({ type: 'error', message: err.code === 'ENOENT' ? 'ffmpeg bulunamadı (PATH veya backend/bin).' : err.message });
+  const finish = (ok, message) => {
+    if (job.settled) return;
+    job.settled = true;
+    if (burninJob === job) burninJob = null;
+    if (ok && !job.cancelled) {
+      try {
+        replaceBurninOutput(tempPath, outPath);
+        send({ type: 'done', file: outPath });
+        return;
+      } catch (error) {
+        message = `Gömme çıktısı tamamlanamadı: ${error.message}`;
+      }
+    }
+    try { removeFileQuietly(tempPath); } catch (_) {}
+    send({ type: 'error', message: job.cancelled ? 'Gömme iptal edildi.' : message });
+  };
+  job.on('error', (err) => {
+    finish(false, err.code === 'ENOENT' ? 'ffmpeg bulunamadı (PATH veya backend/bin).' : err.message);
   });
-  burninJob.on('close', (code) => {
-    burninJob = null;
-    if (code === 0) send({ type: 'done', file: outPath });
-    else send({ type: 'error', message: errTail.trim() || `ffmpeg çıkış kodu ${code}` });
+  job.on('close', (code) => {
+    finish(code === 0, errTail.trim() || `ffmpeg çıkış kodu ${code}`);
   });
   return { ok: true };
 });
 
 ipcMain.handle('burnin:cancel', () => {
   if (burninJob && burninJob.pid) {
+    burninJob.cancelled = true;
     try { spawn('taskkill', ['/pid', String(burninJob.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
     return { ok: true };
   }

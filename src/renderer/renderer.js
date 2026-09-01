@@ -3380,10 +3380,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const browserRate = Number(event.media.playbackRate);
     if (Number.isFinite(browserRate) && browserRate > 0) {
       player.browserRate = browserRate;
-      if (player.workspaceMode === 'browser' && $('playerSpeed')) {
-        const exact = Array.from($('playerSpeed').options).some((option) => Number(option.value) === browserRate);
-        if (exact) $('playerSpeed').value = String(browserRate);
-      }
+      if (player.workspaceMode === 'browser') syncPlayerSpeedControl(browserRate);
     }
     const now = Date.now();
     if (!player.browserPaused) {
@@ -4658,6 +4655,26 @@ function watchItemByKey(key) {
   return watchLibraryCache.find((item) => item.key === key) || null;
 }
 
+function syncPlayerSpeedControl(rawRate) {
+  const select = $('playerSpeed');
+  const parsed = Number(rawRate);
+  if (!select || !Number.isFinite(parsed) || parsed <= 0) return null;
+  const rate = Math.max(.25, Math.min(4, parsed));
+  let exact = Array.from(select.options).find((option) => Math.abs(Number(option.value) - rate) < 1e-6);
+  for (const option of Array.from(select.options)) {
+    if (option.dataset && option.dataset.customRate === 'true' && option !== exact) option.remove();
+  }
+  if (!exact) {
+    exact = document.createElement('option');
+    exact.value = String(rate);
+    exact.textContent = `${Number(rate.toFixed(3))}×`;
+    exact.dataset.customRate = 'true';
+    select.appendChild(exact);
+  }
+  select.value = exact.value;
+  return rate;
+}
+
 function captureWatchPrefs() {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser';
@@ -4775,7 +4792,7 @@ async function restoreWatchProfile(key) {
     if (video && prefs.volume !== undefined) video.volume = Math.max(0, Math.min(1, Number(prefs.volume)));
     if (video && prefs.muted !== undefined) video.muted = !!prefs.muted;
   }
-  if ($('playerSpeed') && prefs.speed) $('playerSpeed').value = String(prefs.speed);
+  if (prefs.speed) syncPlayerSpeedControl(prefs.speed);
   if ($('playerVolume') && prefs.volume !== undefined) {
     $('playerVolume').value = String(Math.round(Number(prefs.volume) * 100));
     syncVolumeFill();

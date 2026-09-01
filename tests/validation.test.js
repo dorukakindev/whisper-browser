@@ -113,6 +113,25 @@ t('FFmpeg burn-in Windows sürücü iki noktasını kaçışlı yazar', () => {
   ok(fn('D:\\Film\\altyazi.srt').includes("D\\:/Film/altyazi.srt"), 'sürücü iki noktası kaçırılmadı');
 });
 
+t('burn-in nihai dosyaya değil benzersiz tmp.mp4 yoluna yazar ve tek kez finalize edilir', () => {
+  const start = msrc.indexOf("ipcMain.handle('burnin:start'");
+  const end = msrc.indexOf("ipcMain.handle('burnin:cancel'", start);
+  const body = msrc.slice(start, end);
+  ok(/burninOutputPaths\(videoPath\)/.test(body), 'benzersiz burn-in geçici yolu üretilmiyor');
+  ok(/'\-nostats', tempPath/.test(body), 'ffmpeg doğrudan nihai dosyaya yazıyor');
+  ok(/if \(job\.settled\) return/.test(body), 'error ve close çift finalizasyonu engellenmiyor');
+  ok(/if \(burninJob === job\) burninJob = null/.test(body), 'eski job yeni job durumunu silebilir');
+  ok(/replaceBurninOutput\(tempPath, outPath\)/.test(body), 'başarılı geçici çıktı nihai yola alınmıyor');
+  ok(/removeFileQuietly\(tempPath\)/.test(body), 'hata ve iptalde geçici çıktı temizlenmiyor');
+});
+
+t('klasör izleme yalnız gerçek dizin yolunu kabul eder', () => {
+  const start = msrc.indexOf("ipcMain.handle('watch:start'");
+  const end = msrc.indexOf("ipcMain.handle('watch:stop'", start);
+  const body = msrc.slice(start, end);
+  ok(/fs\.statSync\(dir\)\.isDirectory\(\)/.test(body), 'watch:start dosya yolunu klasör sanıyor');
+});
+
 t('ayar içe aktarma JSON dizisini reddeder', () => {
   const start = msrc.indexOf("ipcMain.handle('settings:import'");
   const body = msrc.slice(start, msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", start));
