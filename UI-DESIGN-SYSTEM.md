@@ -1,7 +1,7 @@
 # Whisper Local UI Tasarım Sistemi
 
-Sürüm: 1.0  
-Kaynak: `src/renderer/styles.css` ve oynatıcı arayüzü  
+Sürüm: 1.1
+Kaynak: `src/renderer/styles.css` ve oynatıcı arayüzü
 Taşınabilir tema: `design-system/whisper-local-theme.css`
 
 Bu doküman Whisper Local'in görünüşünü birebir bir ekran kopyası olarak değil,
@@ -71,7 +71,7 @@ Başka programa taşırken renkleri bileşenlerin içinde tek tek değiştirme. 
 |---|---:|---|
 | `--wl-text` | `#edf1f3` | Birincil metin |
 | `--wl-text-secondary` | `#a1adb7` | Etiket ve ikincil bilgi |
-| `--wl-text-muted` | `#687681` | Yardımcı bilgi, boş durum |
+| `--wl-text-muted` | `#84929c` | Yardımcı bilgi, boş durum; grafit yüzeyde AA kontrastı |
 | `--wl-border` | `#27313b` | Kart sınırı |
 | `--wl-border-control` | `#2b3741` | Form kontrolü sınırı |
 | `--wl-border-strong` | `#3a4652` | Hover ve yüksek ayrım |
@@ -252,6 +252,42 @@ Dialog açıldığında:
 - Kapanınca odak dialogu açan kontrole döner.
 - Arka plan `aria-hidden` veya `inert` olur.
 
+### 6.9 Signal Desk
+
+Ana üretim ekranının ayırt edici bileşeni `Signal Desk`tir. Üç parçanın aynı
+iş bağlamını farklı zaman ölçeklerinde göstermesini sağlar:
+
+- `İş özeti`: kaynağı, model/motoru, çıktıyı, dil katmanını ve VRAM bütçesini
+  başlatmadan önce tek bakışta gösterir.
+- `Profil farkı`: seçili ayarların son temel profilden hangi alanlarda ayrıldığını
+  sayar; “Özel” etiketiyle farkın içeriğini saklamaz.
+- `Sinyal zinciri`: Kaynak → Ses → Model → Metin → Dil → Sesler → Çıktı
+  aşamalarını ad ve durumla gösterir; renk tek başına anlam taşımaz.
+
+Signal Desk yeni bir parlak kart ailesi değildir. Mevcut grafit yüzeyi, tek
+amber sinyal çizgisini ve yoğun tipografi ritmini kullanır.
+
+### 6.10 İşler merkezi ve sonuç masası
+
+Kuyruk, geçmiş ve elle kontrol kayıtları ayrı kartlar yerine `İşler` yüzeyinin
+eş sekmeleridir. Her panel kendi boş durumuna sahiptir ve sekmeler sol/sağ ok,
+Home ve End ile çalışır. Kalite raporu sonuç dialogunda hızlı okuma, çakışma,
+uzun blok ve en yüksek KPS değerlerini ayrı hücrelerde gösterir; sorun varsa
+`Elle kontrol` metni görünür.
+
+### 6.11 Form ve açılır liste sahipliği
+
+Electron/Windows sürümünde tek seçim kontrollerinin tetikleyicisi tema tokenlarıyla
+uygulamaya aittir; açılan seçenek listesi Windows/Chromium'un yerel `<select>`
+popup'ıdır. Popup geometrisinin platforma ait olması bilinçli kabul edilir.
+Uygulama gelecekte popup genişliği, çarpışma veya seçenek çizimini sahiplenirse
+tek bir ortak erişilebilir listbox primitive'i kurulur; ekran bazlı özel select
+yapılmaz.
+
+Arama alanları doluyken uygulamaya ait temizleme düğmesi gösterir. İş başlatma
+doğrulaması yalnız günlüğe yazılmaz: görünür hata özeti, `aria-invalid`, bağlı
+açıklama ve ilk sorunlu alana odak yolu sağlar.
+
 ## 7. İkonlar
 
 - Emoji kullanma.
@@ -367,6 +403,14 @@ sessizce değiştirmek yerine sürüm numarasıyla takip et:
 - Patch: renk düzeltmesi veya küçük erişilebilirlik iyileştirmesi.
 - Minor: geriye uyumlu yeni bileşen veya varyant.
 - Major: token adı veya HTML sınıfı değiştiren kırıcı güncelleme.
+
+### Token sahipliği
+
+Bu olgun Electron uygulamasında çalışan `src/renderer/styles.css` semantik
+tokenların kanonik sahibidir (Model B). `design-system/whisper-local-theme.css`
+taşınabilir `--wl-*` eşlemesidir; `UI-DESIGN-SYSTEM.md` değerleri ve kullanım
+gerekçesini belgeler. Global token değişikliği bu üç katmanda aynı değişiklikte
+izlenir; bileşenlerde yeni ham renk kopyaları üretilmez.
 
 Projeye özel renk veya ölçü farklılıkları `whisper-local-theme.css` dosyasını
 değiştirmek yerine tema dosyasından sonra yüklenen küçük bir override dosyasında

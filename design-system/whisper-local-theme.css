@@ -1,5 +1,5 @@
 /*
- * Whisper Local UI Theme v1.0
+ * Whisper Local UI Theme v1.1
  * Portable, framework-independent theme extracted from the Electron app.
  *
  * Usage:
@@ -31,7 +31,7 @@
   /* Text */
   --wl-text: #edf1f3;
   --wl-text-secondary: #a1adb7;
-  --wl-text-muted: #687681;
+  --wl-text-muted: #84929c;
   --wl-text-on-accent: #1b160f;
 
   /* Accent and semantic colors */
