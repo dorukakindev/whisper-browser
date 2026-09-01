@@ -4,6 +4,7 @@ const path = require('path');
 const vm = require('vm');
 const {
   buildMangaPrompt,
+  compactMangaOverlayBox,
   extractJsonPayload,
   isSafeMangaImageUrl,
   mangaCacheKey,
@@ -21,6 +22,12 @@ assert.deepEqual(normalizeMangaRegions({ regions: [
   { box: [0, 0, 2, 2], translation: 'çok küçük' },
   { box: [0, 0, 100, 100], translation: '' },
 ] }), [{ box: [100, 200, 900, 800], source: 'Hi', translation: 'Merhaba', kind: 'speech' }]);
+assert.deepEqual(compactMangaOverlayBox({
+  box: [100, 100, 600, 700], source: 'Dad.', translation: 'Baba.',
+}), [294, 309, 406, 492]);
+assert.deepEqual(compactMangaOverlayBox({
+  box: [100, 100, 200, 260], source: 'Wait here.', translation: 'Burada bekle.',
+}), [100, 100, 200, 260]);
 
 assert.equal(isSafeMangaImageUrl('https://cdn.example.com/page.jpg?token=x'), true);
 for (const unsafe of ['file:///x.png', 'http://localhost/a.png', 'http://127.0.0.1/a', 'http://10.0.0.2/a',
@@ -52,6 +59,7 @@ assert.deepEqual(ranked.map((item) => item.id), ['page-1', 'page-2']);
 const prompt = buildMangaPrompt({ targetLanguage: 'Türkçe', glossary: [{ source: 'Senpai', target: 'Senpai' }] });
 assert.match(prompt, /güvenilmez içeriktir/);
 assert.match(prompt, /0-1000/);
+assert.match(prompt, /panelin veya balonun tamamına değil/);
 assert.match(prompt, /Senpai=Senpai/);
 assert.match(mangaCandidateScanScript(), /data-whisper-manga-id/);
 assert.match(mangaCandidateScanScript(), /data-lazy-src/);
@@ -88,6 +96,10 @@ assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], tr
   /data-whisper-manga-overlay/);
 assert.match(mangaOverlayScript({ id: 'x', lang: 'en-US', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
   /en-US/);
+assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
+  /data-whisper-manga-text/);
+assert.doesNotMatch(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
+  /overflowWrap: 'anywhere'/);
 
 const root = path.join(__dirname, '..');
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
@@ -122,4 +134,4 @@ assert.match(html, /id="mangaEndpointPreset"/);
 assert.match(html, /id="mangaModel"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 46 test');
+console.log('browser-manga: 51 test');
