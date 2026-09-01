@@ -105,7 +105,7 @@ let browserCaptureFlushPromise = null;
 let browserTrackBusy = false;
 let browserMediaBusy = false;
 let browserCaptureEnabled = true;
-let browserLastCaptureDropped = 0;
+const browserLastCaptureDropped = new Map();
 let browserDebuggerReady = false;
 let browserStateGeneration = 0;
 const browserPendingResponses = new Map();
@@ -1317,7 +1317,7 @@ function sendBrowserEvent(tabOrPayload, maybePayload) {
     const envelope = createBrowserEventEnvelope(type, browserEventContext(tab), body);
     // Düz alanlar eski renderer tüketicileriyle uyumluluğu korur; `payload`
     // yeni servislerin tek sözleşme üzerinden bağlanmasını sağlar.
-    mainWindow.webContents.send('browser:event', { ...envelope, ...body });
+    mainWindow.webContents.send('browser:event', { ...body, ...envelope });
   }
 }
 
@@ -1331,7 +1331,7 @@ function createBrowserAcquisitionPlan(tab) {
       nativeTextTrack: true,
       networkCapture: true,
       manifestCapture: true,
-      persistedTrack: false,
+      persistedTrack: true,
       manualTrack: true,
       liveAsr: true,
     },
@@ -1504,15 +1504,27 @@ function resetBrowserCaptureState(options = {}) {
   browserDashSubtitleMatchers = [];
   browserTrackBusy = false;
   browserMediaBusy = false;
-  browserLastCaptureDropped = 0;
+  browserLastCaptureDropped.clear();
   browserHlsFetchedSegments.clear();
   browserHlsInFlight.clear();
   browserLastDrmStatus = '';
   browserLastDrmFailure = '';
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
   const tab = activeBrowserTab();
+  const preservedDiagnostics = options.preserveDiagnostics && tab?.diagnostics
+    ? tab.diagnostics : null;
   createBrowserAcquisitionPlan(tab);
-  browserDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url, tab);
+  const freshDiagnostics = freshBrowserDiagnostics(url === 'about:blank' ? '' : url, tab);
+  browserDiagnostics = preservedDiagnostics ? {
+    ...freshDiagnostics,
+    ...preservedDiagnostics,
+    pageUrl: freshDiagnostics.pageUrl,
+    adapter: freshDiagnostics.adapter,
+    capabilityMatrix: freshDiagnostics.capabilityMatrix,
+    adapterPlugins: freshDiagnostics.adapterPlugins,
+    acquisition: freshDiagnostics.acquisition,
+    captureEnabled: browserCaptureEnabled,
+  } : freshDiagnostics;
   if (options.restorePersisted !== false && restorePersistedBrowserTracks(tab)) {
     browserDiagnostics.acquisition = tab.acquisitionPlan.snapshot();
   }
@@ -1614,21 +1626,33 @@ async function requestBrowserSentenceTranslation(sentence, config, signal) {
     `Üslup: ${config.register}. Küfür/argo düzeyi: ${config.profanity}.`,
     glossary ? `Zorunlu sözlük: ${glossary}` : '',
   ].filter(Boolean).join('\n');
-  const response = await fetch(endpoint, {
-    method: 'POST', signal,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-    },
-    body: JSON.stringify({
-      model: config.model,
-      temperature: 0.2,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: String(sentence.text || '').slice(0, 12000) },
-      ],
-    }),
-  });
+  const requestController = new AbortController();
+  const forwardAbort = () => requestController.abort(signal?.reason || new Error('Çeviri isteği iptal edildi.'));
+  if (signal?.aborted) forwardAbort();
+  else signal?.addEventListener('abort', forwardAbort, { once: true });
+  const timeout = setTimeout(() => requestController.abort(new Error('Çeviri isteği 20 saniyede yanıt vermedi.')), 20000);
+  timeout.unref?.();
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST', signal: requestController.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: config.model,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: String(sentence.text || '').slice(0, 12000) },
+        ],
+      }),
+    });
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', forwardAbort);
+  }
   if (!response.ok) throw new Error(`Çeviri servisi HTTP ${response.status} döndürdü.`);
   const data = await response.json();
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
@@ -1681,6 +1705,7 @@ function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
   const job = browserLiveAsr;
   if (!job || job.stopping) return false;
   job.stopping = true;
+  browserLiveAsr = null;
   const stage = job.tab.acquisitionPlan?.stage('live-asr');
   if (stage && ['waiting', 'running'].includes(stage.status)) {
     job.tab.acquisitionPlan.finish('live-asr', { success: false, reason });
@@ -1693,6 +1718,20 @@ function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
   }, 15000).unref?.();
   sendBrowserEvent(job.tab, { type: 'live-asr-state', active: false, message: reason });
   return true;
+}
+
+function sweepBrowserLiveAsrTemp() {
+  const dir = path.join(app.getPath('temp'), 'whisper-live-asr');
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.webm')) continue;
+      const filePath = path.join(dir, entry.name);
+      try {
+        if (fs.statSync(filePath).mtimeMs < cutoff) fs.unlinkSync(filePath);
+      } catch (_) {}
+    }
+  } catch (_) {}
 }
 
 function startBrowserLiveAsr(tab, options = {}) {
@@ -2368,6 +2407,8 @@ function browserCaptureHookScript() {
                 binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
               }
               push({ ...base, bodyBase64: btoa(binary) });
+            } else if (this.responseType === 'json') {
+              push({ ...base, body: JSON.stringify(this.response == null ? null : this.response) });
             } else {
               push({ ...base, body: String(this.responseText || '') });
             }
@@ -2416,7 +2457,8 @@ function browserCaptureDrainScript() {
       inFlight.set(entry.captureId, { deliveryId, at: now });
       batch.push({ ...entry, deliveryId });
     }
-    return { entries: batch, dropped: Number(window.__whisperCaptureDropped) || 0, pending: queue.length };
+    return { frameId: String(window.__whisperCaptureFrameId || 'frame'), entries: batch,
+      dropped: Number(window.__whisperCaptureDropped) || 0, pending: queue.length };
   })()`;
 }
 
@@ -2430,7 +2472,8 @@ function normalizeBrowserCaptureReceipts(receipts) {
 }
 
 function browserCaptureAckScript(receipts) {
-  const encoded = JSON.stringify(normalizeBrowserCaptureReceipts(receipts)).replace(/[\u2028\u2029]/g, ' ');
+  const encoded = JSON.stringify(normalizeBrowserCaptureReceipts(receipts))
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   return `(() => {
     const receipts = ${encoded};
     const inFlight = window.__whisperCaptureInFlight instanceof Map
@@ -2452,7 +2495,8 @@ function browserCaptureAckScript(receipts) {
 }
 
 function browserCaptureReleaseScript(receipts) {
-  const encoded = JSON.stringify(normalizeBrowserCaptureReceipts(receipts)).replace(/[\u2028\u2029]/g, ' ');
+  const encoded = JSON.stringify(normalizeBrowserCaptureReceipts(receipts))
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   return `(() => {
     const receipts = ${encoded};
     let released = 0;
@@ -2519,9 +2563,11 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
       attempted += entries.length;
       pendingBeforeAck += Number(batch && batch.pending) || entries.length;
       const dropped = Number(batch && batch.dropped) || 0;
-      if (dropped > browserLastCaptureDropped) {
-        noteBrowserCapture('page', { context }, 'error', `${dropped - browserLastCaptureDropped} yanıt yakalama kuyruğu kapasitesi aşıldığı için düştü`);
-        browserLastCaptureDropped = dropped;
+      const frameId = String(batch && batch.frameId || 'frame');
+      const previousDropped = browserLastCaptureDropped.get(frameId) || 0;
+      if (dropped > previousDropped) {
+        noteBrowserCapture('page', { context }, 'error', `${dropped - previousDropped} yanıt yakalama kuyruğu kapasitesi aşıldığı için düştü`);
+        browserLastCaptureDropped.set(frameId, dropped);
       }
       for (const entry of entries) {
         const captureId = entry && entry.captureId ? String(entry.captureId) : '';
@@ -2805,7 +2851,12 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('did-start-loading', () => {
     tab.generation += 1;
-    if (tab.id === browserActiveTabId) resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
+    if (tab.id === browserActiveTabId) {
+      browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
+      tab.overlay = browserOverlay;
+      resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
+      applyBrowserOverlay();
+    }
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: true }) });
   });
   wc.on('did-stop-loading', () => sendBrowserEvent(tab,
@@ -2929,6 +2980,7 @@ function activateBrowserTab(rawId) {
   const previous = activeBrowserTab();
   persistActiveBrowserTabState();
   stopBrowserPolling();
+  if (browserLiveAsr?.tab === previous) stopBrowserLiveAsr('Sekme değiştiği için canlı Whisper durduruldu.');
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
     previous.view.setVisible(false);
     detachBrowserDebugger(previous.view);
@@ -2938,7 +2990,7 @@ function activateBrowserTab(rawId) {
   browserCaptureEnabled = next.captureEnabled !== false;
   browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
   browserDiagnostics = next.diagnostics;
-  resetBrowserCaptureState();
+  resetBrowserCaptureState({ preserveDiagnostics: true });
   if (browserView && browserBounds) browserView.setBounds(browserBounds);
   if (browserView) browserView.setVisible(browserVisible && !!browserNavigationState().url);
   if (browserVisible) startBrowserPolling();
@@ -2983,7 +3035,7 @@ function hideBrowserView(pause = true) {
 
 function destroyBrowserView() {
   stopBrowserPolling();
-  resetBrowserCaptureState();
+  resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
   browserDebuggerReady = false;
   for (const tab of [...browserTabs.values()]) destroyBrowserTab(tab);
   browserTabs.clear();
@@ -3132,10 +3184,24 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   await prepareWidevineComponents();
+  sweepBrowserLiveAsrTemp();
   browserAdapterPluginStatus = ADAPTER_REGISTRY.loadJsonDirectory(
     path.join(app.getPath('userData'), 'browser-adapters'));
   restoreBrowserSessionState();
   createWindow();
+});
+
+let browserCacheQuitFlushStarted = false;
+let browserCacheQuitFlushComplete = false;
+app.on('before-quit', (event) => {
+  if (!browserTranslationCacheInstance || browserCacheQuitFlushComplete) return;
+  event.preventDefault();
+  if (browserCacheQuitFlushStarted) return;
+  browserCacheQuitFlushStarted = true;
+  browserTranslationCacheInstance.flush().catch(() => null).finally(() => {
+    browserCacheQuitFlushComplete = true;
+    app.quit();
+  });
 });
 
 app.on('window-all-closed', () => {
@@ -3255,7 +3321,9 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
   if (browserBounds) view.setBounds(browserBounds);
   browserVisible = true;
-  resetBrowserCaptureState();
+  browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
+  tab.overlay = browserOverlay;
+  resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
   view.setVisible(true);
   startBrowserPolling();
   try {
@@ -3324,7 +3392,11 @@ ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
   const tab = activeRequestedBrowserTab(payload && payload.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   const enabled = payload && payload.enabled;
-  browserCaptureEnabled = enabled !== false;
+  const nextEnabled = enabled !== false;
+  if (browserCaptureEnabled === nextEnabled && tab.captureEnabled === nextEnabled) {
+    return { ok: true, enabled: browserCaptureEnabled, unchanged: true };
+  }
+  browserCaptureEnabled = nextEnabled;
   tab.captureEnabled = browserCaptureEnabled;
   scheduleBrowserSessionSave();
   browserStateGeneration += 1;
@@ -4051,7 +4123,8 @@ function resolveFfTool(name) {
 // ---- Ses ve gömülü altyazı kanallarını listele ----
 // Ses için `index` ffmpeg -map 0:a:N sırasıdır; altyazıda gerçek stream indexi
 // korunur, böylece hazır metin izi varken ASR çalıştırmak gerekmez.
-ipcMain.handle('media:probeTracks', async (_event, filePath) => {
+ipcMain.handle('media:probeTracks', async (event, filePath) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, tracks: [], error: 'Yetkisiz istek.' };
   if (!filePath || typeof filePath !== 'string') return { ok: false, tracks: [] };
   const ffprobe = resolveFfTool('ffprobe');
   return new Promise((resolve) => {

@@ -81,6 +81,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
       duration: 100,
       rate: 99,
       volume: -4,
+      offset: 99,
       requestHeaders: { Authorization: 'Bearer LEAK' },
       trackRefs: [{ id: 'source', role: 'source', language: 'EN' }],
     }],
@@ -90,6 +91,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   assert.equal(session.tabs[0].mediaId, 'netflix:81234567');
   assert.equal(session.tabs[0].rate, 4);
   assert.equal(session.tabs[0].volume, 0);
+  assert.equal(session.tabs[0].offset, 30);
   assert.equal(session.tabs[0].trackRefs[0].language, 'en');
   const serialized = JSON.stringify(session);
   assert(!serialized.includes('LEAK'));
@@ -115,6 +117,24 @@ test('oturum atomik yazılır, okunur ve önceki sürüm yedeklenir', () => {
     assert.equal(loaded.activeTabId, 'two');
     assert.equal(loaded.tabs[0].mediaId, 'youtube:second');
     assert.equal(loaded.tabs[0].position, 8);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('bozuk ana oturum dosyasında sağlam yedek kullanılır', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-session-backup-'));
+  const file = path.join(dir, 'browser-session.json');
+  try {
+    fs.writeFileSync(file, '{bozuk', 'utf8');
+    fs.writeFileSync(`${file}.bak`, JSON.stringify({
+      activeTabId: 'backup',
+      tabs: [{ id: 'backup', url: 'https://youtu.be/recovered', position: 17 }],
+    }), 'utf8');
+    const loaded = readBrowserSession(file);
+    assert.equal(loaded.activeTabId, 'backup');
+    assert.equal(loaded.tabs[0].mediaId, 'youtube:recovered');
+    assert.equal(loaded.tabs[0].position, 17);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

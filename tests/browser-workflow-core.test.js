@@ -184,6 +184,51 @@ async function test(name, fn) {
     assert(states.some((state) => state.completeTrack && state.estimatedTokens > 0));
   });
 
+  await test('başarısız çeviri sınırlı sayıda ve backoff ile yeniden denenir', async () => {
+    const sentence = { id: 'retry', start: 0, end: 2, text: 'Retry.', pieces: [{ cueId: 'r', start: 0, end: 2, text: 'Retry.' }] };
+    const failures = [];
+    let calls = 0;
+    const scheduler = new BrowserTranslationScheduler({
+      maxAttempts: 3,
+      retryBaseMs: 10,
+      retryMaxMs: 20,
+      translate: async () => { calls++; throw new Error('kalıcı hata'); },
+      onResult: (result) => { if (result.error) failures.push(result); },
+    });
+    scheduler.setSentences([sentence]);
+    scheduler.updatePlayhead(0);
+    await scheduler.whenIdle();
+    assert.equal(calls, 3);
+    assert.equal(failures.length, 3);
+    assert.deepEqual(failures.map((failure) => failure.retrying), [true, true, false]);
+    assert.equal(scheduler.snapshot().failures[0].terminal, true);
+    scheduler.updatePlayhead(0);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(calls, 3, 'terminal hata yeniden kuyruğa girdi');
+  });
+
+  await test('aynı cache anahtarındaki eşzamanlı çeviriler tek isteği paylaşır', async () => {
+    const pieces = (cueId, start) => [{ cueId, start, end: start + 1, text: 'Same.' }];
+    const sentences = [
+      { id: 'same-a', start: 0, end: 1, text: 'Same.', pieces: pieces('a', 0) },
+      { id: 'same-b', start: 2, end: 3, text: 'Same.', pieces: pieces('b', 2) },
+    ];
+    let calls = 0;
+    const scheduler = new BrowserTranslationScheduler({
+      maxConcurrent: 2,
+      translate: async () => {
+        calls++;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return 'Aynı.';
+      },
+    });
+    scheduler.setSentences(sentences);
+    scheduler.updatePlayhead(0);
+    await scheduler.whenIdle();
+    assert.equal(calls, 1);
+    assert.equal(scheduler.snapshot().results.length, 2);
+  });
+
   console.log(`browser-workflow-core: ${passed} test`);
 })().catch((error) => {
   console.error(error.stack || error);

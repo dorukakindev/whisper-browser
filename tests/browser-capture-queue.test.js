@@ -53,6 +53,7 @@ test('drain yalnız kiralar; doğru ACK gelmeden öğeyi silmez', () => {
   const first = h.drain().entries;
   assert.deepEqual(h.queueIds(), ['a', 'b']);
   assert.equal(first.length, 2);
+  assert.equal(h.drain().frameId, 'frame-a');
   assert.equal(h.drain().entries.length, 0, 'aktif kira ikinci kez teslim edildi');
   assert.equal(h.ack([receipt(first[0])]), 1);
   assert.deepEqual(h.queueIds(), ['b']);
@@ -186,6 +187,8 @@ test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
   const receiptAt = main.indexOf('(outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push', processAt);
   assert(processAt >= 0 && generationCheckAt > processAt && receiptAt > generationCheckAt,
     'gecikmiş işleme generation kontrolünden önce ACK/RELEASE üretiyor');
+  assert.match(main, /responseType === 'json'[\s\S]{0,120}JSON\.stringify\(this\.response/);
+  assert.match(main, /const browserLastCaptureDropped = new Map\(\)/);
 });
 
 test('pencere kapanışı yakalamayı durdurur, dört batch drain eder ve belirsiz kaybı uyarır', () => {

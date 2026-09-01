@@ -103,6 +103,13 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(main, /ipcMain\.handle\('browser:tab:activate'/);
   assert.match(main, /ipcMain\.handle\('browser:tab:close'/);
   assert.match(main, /tabId[\s\S]{0,120}generation/);
+  assert.match(main, /browserOverlay = \{ source: \[\], translation: \[\], mode: 'translation', offset: 0 \}/);
+  assert.match(main, /browserLiveAsr\?\.tab === previous/);
+  assert.match(main, /persistedTrack: true/);
+  assert.match(main, /browserCaptureEnabled === nextEnabled[\s\S]{0,180}unchanged: true/);
+  assert.match(main, /resetBrowserCaptureState\(\{ preserveDiagnostics: true \}\)/);
+  assert.match(main, /ipcMain\.handle\('media:probeTracks'[\s\S]{0,180}event\.sender !== mainWindow\.webContents/);
+  assert.match(main, /sweepBrowserLiveAsrTemp\(\)/);
   assert.match(preload, /createBrowserTab/);
   assert.match(preload, /activateBrowserTab/);
   assert.match(preload, /closeBrowserTab/);
@@ -113,6 +120,7 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(renderer, /\$\('browserTabNew'\)\.addEventListener\('click', createBrowserTab\)/);
   assert.match(renderer, /syncBrowserTabs\(result\.tabs, result\.activeTabId\)/);
   assert.match(renderer, /restoreActiveBrowserTabWorkspace\(tab\)/);
+  assert.match(renderer, /result\.captureEnabled !== player\.browserCaptureEnabled/);
 });
 
 console.log(`browser-tabs: ${passed} test`);

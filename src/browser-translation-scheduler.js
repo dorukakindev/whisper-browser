@@ -120,12 +120,18 @@ class BrowserTranslationScheduler {
     this.lookBehind = Math.max(0, finiteNumber(options.lookBehind, 15));
     this.lookAhead = Math.max(1, finiteNumber(options.lookAhead, 90));
     this.farSeekThreshold = Math.max(1, finiteNumber(options.farSeekThreshold, 30));
+    this.maxAttempts = Math.max(1, Math.trunc(finiteNumber(options.maxAttempts, 3)));
+    this.retryBaseMs = Math.max(10, finiteNumber(options.retryBaseMs, 1000));
+    this.retryMaxMs = Math.max(this.retryBaseMs, finiteNumber(options.retryMaxMs, 10000));
     this.onResult = typeof options.onResult === 'function' ? options.onResult : () => {};
     this.onState = typeof options.onState === 'function' ? options.onState : () => {};
     this.context = { ...(options.context || {}) };
     this.sentences = [];
     this.results = new Map();
     this.pending = new Map();
+    this.failures = new Map();
+    this.retryTimers = new Set();
+    this.inFlightByCacheKey = new Map();
     this.queue = [];
     this.playhead = 0;
     this.generation = 0;
@@ -143,6 +149,7 @@ class BrowserTranslationScheduler {
     this.generation += 1;
     this.sentences = (Array.isArray(sentences) ? sentences : []).map((sentence) => ({ ...sentence }));
     this.results.clear();
+    this.failures.clear();
     this.completeTrack = false;
     return this.sentences.length;
   }
@@ -160,7 +167,11 @@ class BrowserTranslationScheduler {
         if (!windowIds.has(id)) job.controller.abort('Oynatma konumu değişti.');
       }
     }
+    const now = Date.now();
     const excluded = new Set([...this.results.keys(), ...this.pending.keys()]);
+    for (const [id, failure] of this.failures.entries()) {
+      if (failure.terminal || failure.retryAt > now) excluded.add(id);
+    }
     const windowQueue = planTranslationWindow(this.sentences, next, {
       lookBehind: this.lookBehind,
       lookAhead: this.lookAhead,
@@ -190,6 +201,8 @@ class BrowserTranslationScheduler {
       remaining: incomplete.length,
       estimatedTokens: Math.ceil(incomplete.reduce((sum, sentence) => sum + sentence.text.length, 0) / 4),
       completeTrack: this.completeTrack,
+      failed: [...this.failures.values()].filter((failure) => failure.terminal).length,
+      retrying: [...this.failures.values()].filter((failure) => !failure.terminal).length,
     });
   }
 
@@ -205,6 +218,32 @@ class BrowserTranslationScheduler {
 
   async writeCache(key, value) {
     if (this.cache && typeof this.cache.set === 'function') await this.cache.set(key, value);
+  }
+
+  translateShared(sentence, cacheKey, jobController) {
+    let shared = this.inFlightByCacheKey.get(cacheKey);
+    if (!shared) {
+      const controller = new AbortController();
+      shared = { controller, consumers: new Set(), settled: false, promise: null };
+      shared.promise = Promise.resolve().then(() => this.translate(
+        sentence, { ...this.context, signal: controller.signal }
+      )).finally(() => {
+        shared.settled = true;
+        if (this.inFlightByCacheKey.get(cacheKey) === shared) this.inFlightByCacheKey.delete(cacheKey);
+      });
+      this.inFlightByCacheKey.set(cacheKey, shared);
+    }
+    const consumer = {};
+    shared.consumers.add(consumer);
+    const release = () => {
+      shared.consumers.delete(consumer);
+      if (!shared.settled && shared.consumers.size === 0) shared.controller.abort('Çeviri isteği artık kullanılmıyor.');
+    };
+    jobController.signal.addEventListener('abort', release, { once: true });
+    return shared.promise.finally(() => {
+      jobController.signal.removeEventListener('abort', release);
+      release();
+    });
   }
 
   pump() {
@@ -225,7 +264,7 @@ class BrowserTranslationScheduler {
     this.pending.set(sentence.id, job);
     Promise.resolve(this.readCache(cacheKey)).then((cached) => {
       if (cached !== undefined && cached !== null && cached !== '') return { text: String(cached), cached: true };
-      return Promise.resolve(this.translate(sentence, { ...this.context, signal: controller.signal }))
+      return this.translateShared(sentence, cacheKey, controller)
         .then((value) => ({ text: typeof value === 'string' ? value : String(value && value.text || ''), cached: false }));
     }).then(async (result) => {
       if (controller.signal.aborted || generation !== this.generation) return;
@@ -236,11 +275,38 @@ class BrowserTranslationScheduler {
         cached: result.cached,
         cues: distributeTranslation(sentence, result.text),
       };
+      this.failures.delete(sentence.id);
       this.results.set(sentence.id, value);
       this.onResult(value, sentence);
     }).catch((error) => {
       if (!controller.signal.aborted && generation === this.generation) {
-        this.onResult({ sentenceId: sentence.id, error: error.message || String(error), cues: [] }, sentence);
+        const previous = this.failures.get(sentence.id);
+        const attempts = (previous?.attempts || 0) + 1;
+        const terminal = attempts >= this.maxAttempts;
+        const delay = Math.min(this.retryMaxMs, this.retryBaseMs * (2 ** Math.max(0, attempts - 1)));
+        const failure = {
+          attempts,
+          terminal,
+          retryAt: terminal ? Infinity : Date.now() + delay,
+          error: error.message || String(error),
+        };
+        this.failures.set(sentence.id, failure);
+        this.onResult({
+          sentenceId: sentence.id,
+          error: failure.error,
+          attempt: attempts,
+          retrying: !terminal,
+          nextRetryMs: terminal ? 0 : delay,
+          cues: [],
+        }, sentence);
+        if (!terminal) {
+          const timer = setTimeout(() => {
+            this.retryTimers.delete(timer);
+            if (generation === this.generation) this.updatePlayhead(this.playhead);
+            else this.resolveIdleIfNeeded();
+          }, delay);
+          this.retryTimers.add(timer);
+        }
       }
     }).finally(() => {
       const current = this.pending.get(sentence.id);
@@ -253,18 +319,23 @@ class BrowserTranslationScheduler {
     this.queue = [];
     for (const job of this.pending.values()) job.controller.abort(reason);
     this.pending.clear();
+    for (const shared of this.inFlightByCacheKey.values()) shared.controller.abort(reason);
+    this.inFlightByCacheKey.clear();
+    for (const timer of this.retryTimers) clearTimeout(timer);
+    this.retryTimers.clear();
+    this.failures.clear();
     this.emitState();
     this.resolveIdleIfNeeded();
   }
 
   resolveIdleIfNeeded() {
-    if (this.queue.length || this.pending.size) return;
+    if (this.queue.length || this.pending.size || this.retryTimers.size) return;
     const waiters = this.idleWaiters.splice(0);
     for (const resolve of waiters) resolve();
   }
 
   whenIdle() {
-    if (!this.queue.length && !this.pending.size) return Promise.resolve();
+    if (!this.queue.length && !this.pending.size && !this.retryTimers.size) return Promise.resolve();
     return new Promise((resolve) => this.idleWaiters.push(resolve));
   }
 
@@ -273,6 +344,7 @@ class BrowserTranslationScheduler {
       playhead: this.playhead,
       queued: this.queue.map((sentence) => sentence.id),
       pending: [...this.pending.keys()],
+      failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure })),
       results: [...this.results.values()].map((value) => ({ ...value, cues: value.cues.map((cue) => ({ ...cue })) })),
     };
   }

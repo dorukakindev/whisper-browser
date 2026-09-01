@@ -1,5 +1,6 @@
 function buildBrowserOverlayScript(payload, findCuesSource) {
-  const encoded = JSON.stringify(payload || {}).replace(/[\u2028\u2029]/g, ' ');
+  const encoded = JSON.stringify(payload || {})
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   const finder = String(findCuesSource || '(() => [])');
   return `(() => {
     const nextState = ${encoded};
@@ -16,6 +17,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     let mediaDirty = true;
     let frameToken = 0;
     let frameKind = '';
+    let mutationFrame = 0;
     let resizeObserver = null;
     const mediaListeners = [];
 
@@ -140,7 +142,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
 
     const mutationObserver = new MutationObserver(() => {
       mediaDirty = true;
-      if (!document.hidden && state.mode !== 'off') render();
+      if (mutationFrame || document.hidden || state.mode === 'off') return;
+      mutationFrame = requestAnimationFrame(() => {
+        mutationFrame = 0;
+        render();
+      });
     });
     mutationObserver.observe(document, { childList: true, subtree: true });
     document.addEventListener('fullscreenchange', render);
@@ -151,7 +157,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     window.__whisperBrowserOverlayController = {
       update(value) {
         state = value || {};
-        if (state.mode === 'off') cancelFrame();
+        if (state.mode === 'off') {
+          cancelFrame();
+          if (mutationFrame) cancelAnimationFrame(mutationFrame);
+          mutationFrame = 0;
+        }
         render();
       },
       diagnostics() {

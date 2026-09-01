@@ -5,13 +5,28 @@ stdout NDJSON: ready, segment, chunk_done, error
 """
 import argparse
 import json
+import queue
 import sys
+import threading
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def emit(event_type, **payload):
     print(json.dumps({"type": event_type, **payload}, ensure_ascii=False), flush=True)
+
+
+def read_commands(commands, stop_event):
+    for raw in sys.stdin:
+        try:
+            command = json.loads(raw)
+        except Exception:
+            continue
+        if command.get("type") == "stop":
+            stop_event.set()
+            break
+        commands.put(command)
+    stop_event.set()
 
 
 def main():
@@ -30,13 +45,16 @@ def main():
         return 2
     emit("ready", model=args.model, device=args.device)
 
-    for raw in sys.stdin:
+    commands = queue.Queue()
+    stop_event = threading.Event()
+    reader = threading.Thread(target=read_commands, args=(commands, stop_event), daemon=True)
+    reader.start()
+
+    while not stop_event.is_set():
         try:
-            command = json.loads(raw)
-        except Exception:
+            command = commands.get(timeout=0.2)
+        except queue.Empty:
             continue
-        if command.get("type") == "stop":
-            break
         if command.get("type") != "chunk":
             continue
         file_path = str(command.get("path") or "")
@@ -51,6 +69,8 @@ def main():
             )
             count = 0
             for segment in segments:
+                if stop_event.is_set():
+                    break
                 text = str(segment.text or "").strip()
                 if not text:
                     continue
@@ -58,9 +78,11 @@ def main():
                      end=offset + float(segment.end), text=text,
                      language=getattr(info, "language", "") or "")
                 count += 1
-            emit("chunk_done", path=file_path, count=count)
+            if not stop_event.is_set():
+                emit("chunk_done", path=file_path, count=count)
         except Exception as error:
-            emit("chunk_done", path=file_path, count=0, error=str(error))
+            if not stop_event.is_set():
+                emit("chunk_done", path=file_path, count=0, error=str(error))
     emit("stopped")
     return 0
 

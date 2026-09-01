@@ -51,7 +51,7 @@ function normalizeSessionTab(raw) {
     rate: finiteNumber(raw.rate, 1, 0.25, 4),
     volume: finiteNumber(raw.volume, 1, 0, 1),
     muted: !!raw.muted,
-    offset: finiteNumber(raw.offset, 0, -3600, 3600),
+    offset: finiteNumber(raw.offset, 0, -30, 30),
     captureEnabled: raw.captureEnabled !== false,
     viewMode: ['cinema', 'reading', 'study'].includes(raw.viewMode) ? raw.viewMode : 'reading',
     targetLanguage: cleanString(raw.targetLanguage, 24).toLowerCase(),
@@ -78,12 +78,13 @@ function browserSessionPath(app) {
 }
 
 function readBrowserSession(filePath, fsModule = fs) {
-  try {
-    const parsed = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
-    return normalizeBrowserSession(parsed);
-  } catch (_) {
-    return normalizeBrowserSession({});
+  for (const candidate of [filePath, `${filePath}.bak`]) {
+    try {
+      const parsed = JSON.parse(fsModule.readFileSync(candidate, 'utf8'));
+      return normalizeBrowserSession(parsed);
+    } catch (_) {}
   }
+  return normalizeBrowserSession({});
 }
 
 function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs) {

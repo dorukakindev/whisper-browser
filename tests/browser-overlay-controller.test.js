@@ -16,7 +16,7 @@ test('overlay tek controller ve observer yaşam döngüsü kurar', () => {
 
 test('kapalı, gizli ve duraklatılmış durumda sürekli frame planlamaz', () => {
   assert.match(script, /document\.hidden \|\| state\.mode === 'off' \|\| !media \|\| media\.paused/);
-  assert.match(script, /state\.mode === 'off'\) cancelFrame/);
+  assert.match(script, /state\.mode === 'off'\) \{[\s\S]*?cancelFrame/);
   assert.match(script, /requestVideoFrameCallback/);
 });
 
@@ -26,9 +26,21 @@ test('doküman taraması frame callback içinde değil yalnız kirli keşifte ya
   assert.match(script, /if \(!mediaDirty && media && media\.isConnected\) return media/);
 });
 
+test('DOM değişiklikleri tek animation frame içinde birleştirilir', () => {
+  const observer = script.slice(script.indexOf('const mutationObserver'), script.indexOf('mutationObserver.observe'));
+  assert.match(observer, /if \(mutationFrame/);
+  assert.match(observer, /mutationFrame = requestAnimationFrame/);
+});
+
 test('yeniden enjeksiyon yeni controller üretmeden state günceller', () => {
   assert.match(script, /existing && typeof existing\.update === 'function'/);
   assert.match(script, /existing\.update\(nextState\)/);
+});
+
+test('satır ayırıcı karakterleri silmeden JavaScript içinde güvenle escape eder', () => {
+  const escaped = buildBrowserOverlayScript({ mode: 'source', source: [{ text: `a\u2028b\u2029c` }] }, '(cues) => cues');
+  assert(escaped.includes('a\\u2028b\\u2029c'));
+  assert(!escaped.includes(`a\u2028b`));
 });
 
 console.log(`browser-overlay-controller: ${passed} test`);

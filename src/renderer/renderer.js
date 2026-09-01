@@ -4187,6 +4187,7 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserProfileKey = '';
     player.browserPositionTick = 0;
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
+    scheduleBrowserOverlaySync();
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
     loadBrowserPlaces();
   }
@@ -4248,8 +4249,11 @@ async function showBrowserWorkspace() {
     $('browserSessionRestore').checked = result.restoreEnabled;
   }
   if (!previousActive && player.browserActiveTabId) restoreActiveBrowserTabWorkspace(browserTabState());
-  if (window.api.setBrowserCaptureEnabled) {
-    await window.api.setBrowserCaptureEnabled(player.browserActiveTabId, player.browserCaptureEnabled).catch(() => {});
+  if (window.api.setBrowserCaptureEnabled && typeof result.captureEnabled === 'boolean'
+      && result.captureEnabled !== player.browserCaptureEnabled) {
+    const captureResult = await window.api.setBrowserCaptureEnabled(
+      player.browserActiveTabId, player.browserCaptureEnabled).catch(() => null);
+    if (captureResult && typeof captureResult.enabled === 'boolean') result.captureEnabled = captureResult.enabled;
   }
   updateBrowserNavigation(result);
   if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
