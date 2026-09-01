@@ -17,6 +17,7 @@ import types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transcribe as T  # noqa: E402
+import media as M  # noqa: E402
 
 
 # ---- faster-whisper segment/word arayüzünü taklit eden hafif sahte sınıflar ----
@@ -50,6 +51,25 @@ def test_parse_timecode():
             assert False, f"beklenen hata yok: {bad}"
         except RuntimeError:
             pass
+
+
+def test_media_find_ffmpeg_checks_project_bin():
+    """Oynatıcı yardımcısı transcribe.py gibi proje/bin fallback'ini görmeli."""
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        backend = root / "backend"
+        backend.mkdir()
+        project_ffmpeg = root / "bin" / "ffmpeg.exe"
+        project_ffmpeg.parent.mkdir()
+        project_ffmpeg.write_bytes(b"")
+        original_file = M.__file__
+        try:
+            M.__file__ = str(backend / "media.py")
+            assert M._find_ffmpeg() == str(project_ffmpeg)
+        finally:
+            M.__file__ = original_file
 
 
 # ===== zaman biçimleme =====

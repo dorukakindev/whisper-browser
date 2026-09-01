@@ -649,6 +649,26 @@ test('HLS adres yenilemesi aynı videonun altyazı durumunu sıfırlamıyor', ()
     'setMediaKey yenilemede de çağrılıyor');
 });
 
+test('HLS ses parçası bilgisi aynı liste için tekrar tekrar loglanmıyor', () => {
+  const i = js.indexOf('const syncAudioTracks = () =>');
+  const body = js.slice(i, js.indexOf('hls.on(Hls.Events.AUDIO_TRACKS_UPDATED', i));
+  assert(/loggedAudioTrackCount !== tracks\.length/.test(body),
+    'ses parçası logu tekrar olaylarına karşı korunmuyor');
+  assert(/loggedAudioTrackCount = tracks\.length/.test(body),
+    'loglanan parça sayısı hatırlanmıyor');
+});
+
+test('iş çıktısı kardeş altyazı taramasında birincil seçimi kaybetmiyor', () => {
+  const attach = js.slice(js.indexOf('async function attachSiblingSubtitles'), js.indexOf('function openPlayer'));
+  const open = js.slice(js.indexOf('function openPlayer'), js.indexOf('function closePlayer'));
+  assert(/attachSiblingSubtitles\(videoPath, autoLoad = true\)/.test(attach),
+    'kardeş taramasında otomatik yükleme kontrolü yok');
+  assert(/if \(autoLoad && !player\.cues\.length\)/.test(attach),
+    'kardeş altyazı her durumda birincil seçilebiliyor');
+  assert(/attachSiblingSubtitles\(state\.lastJobVideo, outputs\.length === 0\)/.test(open),
+    'iş çıktısı varken kardeş otomatik yüklemesi kapatılmıyor');
+});
+
 test('izleme profili gecikirse başka videoya uygulanmıyor', () => {
   const i = js.indexOf('async function restoreWatchProfile');
   const body = js.slice(i, js.indexOf('function makeWatchAction', i));

@@ -6340,12 +6340,17 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
   player.hls = hls;
   // Ses parcalari (dublaj) - yalnizca birden fazlaysa gosterilir.
+  let loggedAudioTrackCount = null;
   const syncAudioTracks = () => {
     const field = $('playerStreamAudioField');
     const sel = $('playerStreamAudio');
     if (!field || !sel) return;
     const tracks = hls.audioTracks || [];
-    if (tracks.length < 2) { field.classList.add('hidden'); return; }
+    if (tracks.length < 2) {
+      loggedAudioTrackCount = tracks.length;
+      field.classList.add('hidden');
+      return;
+    }
     sel.innerHTML = '';
     tracks.forEach((t, i) => {
       const o = document.createElement('option');
@@ -6364,7 +6369,10 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
     player.playbackAudioLang = normalizeAudioLang(activeTrack && activeTrack.lang);
     updateAudioLockStatus();
     field.classList.remove('hidden');
-    logLine(`${tracks.length} ses parçası bulundu (dublaj seçilebilir).`, 'info');
+    if (loggedAudioTrackCount !== tracks.length) {
+      logLine(`${tracks.length} ses parçası bulundu (dublaj seçilebilir).`, 'info');
+      loggedAudioTrackCount = tracks.length;
+    }
   };
   hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, syncAudioTracks);
   hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, () => {
@@ -6592,7 +6600,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
 
 // Videonun yanindaki altyazilari bul, listeye ekle, ilkini otomatik yukle.
 // Boylece video secince altyazi zaten ekranda olur.
-async function attachSiblingSubtitles(videoPath) {
+async function attachSiblingSubtitles(videoPath, autoLoad = true) {
   if (!videoPath || !window.api.findSiblingSubs) return;
   const gen = currentGeneration();
   const res = await window.api.findSiblingSubs(videoPath);
@@ -6600,7 +6608,7 @@ async function attachSiblingSubtitles(videoPath) {
   const files = (res && res.files) || [];
   if (!files.length) return;
   files.forEach((f) => addSubtitleOption(f));
-  if (!player.cues.length) {
+  if (autoLoad && !player.cues.length) {
     $('playerSubSelect').value = files[0];
     await loadSubtitle(files[0]);
   }
@@ -6626,7 +6634,10 @@ function openPlayer() {
   }
   const outputs = (state.outputFiles || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
   outputs.forEach((f) => addSubtitleOption(f));
-  if (state.lastJobVideo) attachSiblingSubtitles(state.lastJobVideo);
+  // Is ciktisi varsa onu deterministik olarak birincil tut. Klasor taramasi
+  // asenkron tamamlanip cues henuz bosken kardes dosyayi secerek cikti yuklemesini
+  // yarista iptal etmesin; bu durumda kardesler yalnizca seceneklere eklenir.
+  if (state.lastJobVideo) attachSiblingSubtitles(state.lastJobVideo, outputs.length === 0);
   // Isin kendi ciktisi varsa onu birincil altyaziya yukle (kardes taramasi
   // asenkron; o da bosalti doldurmaya calisir, ikisi ayni dosyayi bulur)
   if (outputs.length && !player.cues.length) {

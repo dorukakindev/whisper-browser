@@ -42,9 +42,13 @@ def log(message, level="info"):
 
 def _find_ffmpeg():
     """transcribe.py ile aynı arama sırası: yerel bin -> PATH."""
-    local = Path(__file__).parent / "bin" / "ffmpeg.exe"
-    if local.exists():
-        return str(local)
+    script_dir = Path(__file__).parent
+    for local in (
+        script_dir / "bin" / "ffmpeg.exe",
+        script_dir.parent / "bin" / "ffmpeg.exe",
+    ):
+        if local.exists():
+            return str(local)
     from shutil import which
     return which("ffmpeg") or which("ffmpeg.exe")
 
