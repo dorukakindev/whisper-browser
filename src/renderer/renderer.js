@@ -3490,7 +3490,8 @@ function updateBrowserMangaButton() {
   let title = 'Sayfadaki manga ve webtoon görsellerini Türkçeye çevir';
   if (player.browserMangaBusy) {
     state = 'running';
-    text = player.browserMangaTotal ? `${player.browserMangaCompleted}/${player.browserMangaTotal}` : 'Taranıyor';
+    text = player.browserMangaTotal
+      ? `${player.browserMangaTranslated} çevrildi` : 'Taranıyor';
     title = 'Manga çevirisini durdur';
   } else if (player.browserMangaError) {
     state = 'error'; text = 'Manga hata'; title = `${player.browserMangaError} · Yeniden denemek için tıkla`;

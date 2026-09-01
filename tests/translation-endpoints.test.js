@@ -19,5 +19,8 @@ for (const status of [0, 404, 408, 425, 429, 500, 502, 503]) {
 for (const status of [400, 401, 403, 413, 422]) {
   assert.equal(shouldFailoverTranslationStatus(status), false, `HTTP ${status}`);
 }
+assert.equal(shouldFailoverTranslationStatus(401, { sameProviderAliases: true }), true);
+assert.equal(shouldFailoverTranslationStatus(403, { sameProviderAliases: true }), true);
+assert.equal(shouldFailoverTranslationStatus(400, { sameProviderAliases: true }), false);
 
-console.log('translation-endpoints: 17 test');
+console.log('translation-endpoints: 20 test');

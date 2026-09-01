@@ -1902,9 +1902,14 @@ async function requestMangaTranslation(image, config, pageTitle, signal) {
     } catch (error) {
       if (signal?.aborted) throw error;
       const status = Number(error?.httpStatus) || 0;
-      if (status && !shouldFailoverTranslationStatus(status)) throw error;
+      if (status && !shouldFailoverTranslationStatus(status, { sameProviderAliases: endpoints.length > 1 })) throw error;
       lastError = error;
     }
+  }
+  if ([401, 403].includes(Number(lastError?.httpStatus) || 0)) {
+    const error = new Error('Manga API anahtarı ShuaiAPI tarafından reddedildi. Gelişmiş ayarlar → Çeviri → Manga API Key alanını kontrol edin.');
+    error.httpStatus = lastError.httpStatus;
+    throw error;
   }
   throw lastError || new Error('Görsel çeviri servislerinin hiçbirine ulaşılamadı.');
 }

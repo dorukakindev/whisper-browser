@@ -19,8 +19,13 @@ function resolveTranslationEndpoints(raw) {
   return [selected, ...SHUAI_ROUTES.filter((route) => normalizeEndpointBase(route) !== selected)];
 }
 
-function shouldFailoverTranslationStatus(status) {
+function shouldFailoverTranslationStatus(status, options = {}) {
   const code = Number(status) || 0;
+  // Shuai'nin dört adresi aynı sağlayıcının alias'larıdır. Bazı anahtarlar
+  // geçiş dönemlerinde yalnız belirli gateway'de doğrulanabildiği için manga
+  // isteğinde kimlik doğrulama yanıtını da diğer alias'la sınamak gerekir.
+  // Varsayılan davranış değişmez; altyazı çağrıları 401/403'ü tekrarlamaz.
+  if (options.sameProviderAliases && (code === 401 || code === 403)) return true;
   return code === 0 || code === 404 || code === 408 || code === 425 || code === 429 || code >= 500;
 }
 
