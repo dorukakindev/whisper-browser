@@ -1614,17 +1614,10 @@ function browserTranslationConfig(overrides = {}) {
   const endpoint = preset === 'custom'
     ? String(translate.customBaseUrl || ui.translateBaseUrl || '').trim()
     : preset;
-  const configuredModel = String(translate.model || ui.translateModel || 'gpt-4.1-mini');
-  // Gemini presetinden shuaiapi'ye dönüldüğünde eski otomatik model adı
-  // ayarlarda kalabiliyordu. Shuaiapi'ye Gemini'ye özgü model adı göndermek
-  // manga ve normal çeviriyi anında "model bulunamadı" hatasına düşürür.
-  const model = /(?:shuaiapi\.com|api\.oai\.sb)/i.test(endpoint)
-      && configuredModel.toLowerCase() === 'gemini-3.7-flash'
-    ? 'gpt-4.1-mini' : configuredModel;
   return {
     apiKey: String(translate.apiKey || ''),
     endpoint: endpoint || 'https://api.shuaiapi.com/v1',
-    model,
+    model: String(translate.model || ui.translateModel || 'gpt-4.1-mini'),
     targetLanguage: String(overrides.targetLanguage || ui.translateTo || 'tr').toLowerCase().slice(0, 16),
     sourceLanguage: String(overrides.sourceLanguage || '').toLowerCase().slice(0, 16),
     register: String(overrides.register || ui.translateRegister || 'documentary').slice(0, 32),
@@ -1865,6 +1858,9 @@ async function startBrowserManga(tab, options = {}) {
   }
   if (tab.mangaJob) return { ok: false, busy: true, error: 'Manga çevirisi zaten çalışıyor.' };
   const config = browserTranslationConfig({ targetLanguage: options.targetLanguage });
+  // Altyazı çevirisinin seçili modeline dokunma. Shuaiapi üzerindeki manga
+  // isteği ayrı olarak görsel girdisi destekleyen modele yönelir.
+  if (/(?:shuaiapi\.com|api\.oai\.sb)/i.test(config.endpoint)) config.model = 'gpt-4.1-mini';
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
     return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde görsel destekli bir API anahtarı seçin.' };
   }

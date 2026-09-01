@@ -1704,9 +1704,6 @@ function updateTranslateEndpointUI() {
   if (preset.value.includes('generativelanguage.googleapis.com')
       && (!current || ['gpt-4.1-mini', 'deepseek-chat'].includes(current))) {
     model.value = 'gemini-3.7-flash';
-  } else if (/(?:shuaiapi\.com|api\.oai\.sb)/i.test(preset.value)
-      && current.toLowerCase() === 'gemini-3.7-flash') {
-    model.value = 'gpt-4.1-mini';
   }
 }
 
