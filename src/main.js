@@ -1736,7 +1736,9 @@ async function fetchMangaImage(candidate, pageUrl, signal) {
       for (let redirects = 0; redirects <= 4; redirects++) {
         response = await browserSession.fetch(imageUrl, {
           method: 'GET', signal: downloadController.signal, redirect: 'manual', credentials: 'include',
-          headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5', Referer: pageUrl },
+          referrer: /^https?:\/\//i.test(pageUrl) ? pageUrl : undefined,
+          referrerPolicy: 'strict-origin-when-cross-origin',
+          headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5' },
         });
         if (![301, 302, 303, 307, 308].includes(response.status)) break;
         const location = response.headers.get('location');
@@ -1794,6 +1796,10 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
       } },
     },
   };
+  // Shuaiapi bir OpenAI uyumluluk geçidi; bazı arka uçları strict
+  // response_format alanını reddediyor. JSON biçimini prompt ile isterken bu
+  // geçitte şemayı göndermemek model ve rota uyumluluğunu korur.
+  const attachSchema = useSchema && !/(?:shuaiapi\.com|api\.oai\.sb)/i.test(config.endpoint);
   const body = {
     model: config.model,
     temperature: 0.1,
@@ -1802,7 +1808,7 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
       { type: 'text', text: buildMangaPrompt({ ...config, pageTitle }) },
       { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.buffer.toString('base64')}`, detail: 'high' } },
     ] }],
-    ...(useSchema ? { response_format: { type: 'json_schema', json_schema: { name: 'manga_translation', strict: true, schema } } } : {}),
+    ...(attachSchema ? { response_format: { type: 'json_schema', json_schema: { name: 'manga_translation', strict: true, schema } } } : {}),
   };
   const controller = new AbortController();
   const forwardAbort = () => controller.abort(signal?.reason || new Error('Manga çevirisi iptal edildi.'));
@@ -1826,10 +1832,14 @@ async function requestMangaTranslation(image, config, pageTitle, signal, useSche
     signal?.removeEventListener('abort', forwardAbort);
   }
   if (!response.ok) {
-    if (useSchema && [400, 404, 422].includes(response.status)) {
+    if (attachSchema && ![401, 403, 413, 429].includes(response.status)) {
       return requestMangaTranslation(image, config, pageTitle, signal, false);
     }
     throw new Error(`Görsel çeviri servisi HTTP ${response.status} döndürdü${errorDetail ? `: ${errorDetail}` : '.'}`);
+  }
+  if (data?.error) {
+    const detail = String(data.error?.message || data.error).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`Görsel çeviri servisi hata döndürdü${detail ? `: ${detail}` : '.'}`);
   }
   let content = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (Array.isArray(content)) content = content.map((part) => part?.text || part?.content || '').join('');
@@ -1872,9 +1882,9 @@ async function startBrowserManga(tab, options = {}) {
   }
   if (tab.mangaJob) return { ok: false, busy: true, error: 'Manga çevirisi zaten çalışıyor.' };
   const config = browserTranslationConfig({ targetLanguage: options.targetLanguage });
-  // Altyazı çevirisinin seçili modeline dokunma. Shuaiapi üzerindeki manga
-  // isteği ayrı olarak görsel girdisi destekleyen modele yönelir.
-  if (/(?:shuaiapi\.com|api\.oai\.sb)/i.test(config.endpoint)) config.model = 'gpt-4.1-mini';
+  // Altyazı çevirisinde seçilen endpoint, anahtar ve multimodal model manga
+  // için de aynen kullanılır. Böylece shuaiapi hesabında bulunmayan ayrı bir
+  // model adı zorlanmaz.
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
     return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde görsel destekli bir API anahtarı seçin.' };
   }
