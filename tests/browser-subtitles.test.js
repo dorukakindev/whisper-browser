@@ -292,6 +292,13 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /Network\.responseReceived/);
   assert.match(main, /Target\.setAutoAttach/);
   assert.match(main, /browserCaptureHookScript/);
+  assert.match(main, /browserCaptureAckScript/);
+  assert.match(main, /__whisperCaptureQueue\)\s*\?\s*window\.__whisperCaptureQueue\.slice\(0, 32\)/);
+  assert.match(main, /browserManifestInFlight/);
+  assert.match(main, /fetchBrowserTextWithRetry/);
+  assert.match(main, /manifestRetryNeeded = true/);
+  assert.match(main, /if \(manifestHandled\) browserSeenManifests\.set/);
+  assert.match(main, /browserDashSubtitleMatchers\[existingIndex\]/);
   assert.match(main, /const bodyBase64 = String\(entry\.bodyBase64/);
   assert.match(main, /\(!body && !bodyBase64\)/);
   assert.match(main, /processBrowserCapturedPayload/);

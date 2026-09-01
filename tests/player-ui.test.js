@@ -779,6 +779,19 @@ test('dalga biçimi ve altyazı düzenleme sonuçları medya değişimini doğru
     'geç altyazı kaydı mevcut videonun belleğini değiştirebiliyor');
 });
 
+test('HLS medya ve ağ kurtarma bütçeleri ayrıdır ve kararlı oynatmada temizlenir', () => {
+  assert(/hlsMediaRecover/.test(js) && /hlsNetRecover/.test(js), 'HLS hata sayaçları ortak kalmış');
+  assert(/hlsMediaRecover < 2/.test(js) && /hlsNetRecover < 2/.test(js), 'kurtarma sınırı korunmuyor');
+  assert(/hlsMediaRecover = 0[\s\S]*hlsNetRecover = 0/.test(js), 'kararlı oynatmada sayaçlar sıfırlanmıyor');
+});
+
+test('açık videoda elle tamamla/kaldır kararı otomatik flush tarafından ezilmiyor', () => {
+  assert(/watchRemovedKey/.test(js) && /watchManualCompletedKey/.test(js), 'manuel kitaplık koruması yok');
+  assert(/if \(player\.watchRemovedKey === player\.mediaKey\) return null/.test(js), 'kaldırılan kayıt yeniden yazılabiliyor');
+  assert(/manualCompleted === null[\s\S]*watchCompletionReached[\s\S]*: manualCompleted/.test(js),
+    'elle tamamla/tamamlanmadı kararı flush içinde korunmuyor');
+});
+
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);
 if (failures.length) {
   console.error('\nBaşarısız:');

@@ -69,6 +69,7 @@ const browserPendingResponses = new Map();
 const browserTrackBuffers = new Map();
 const browserTrackPublications = new Map();
 const browserSeenManifests = new Map();
+const browserManifestInFlight = new Set();
 const browserHlsFetchedSegments = new Map();
 const browserHlsInFlight = new Set();
 let browserDashSubtitleMatchers = [];
@@ -676,24 +677,30 @@ function addHistory(rec) {
 // oynatılan medya, kaldığı konum, video bazlı tercihler ve koleksiyonlar tutulur.
 const WATCH_LIBRARY_LIMIT = 1000;
 const subtitleSearchCache = new Map();
+const SUBTITLE_SEARCH_CACHE_LIMIT = 32;
+let watchLibraryCache = null;
 
 function watchLibraryPath() {
   return path.join(app.getPath('userData'), 'watch-library.json');
 }
 
 function loadWatchLibrary() {
+  if (Array.isArray(watchLibraryCache)) return watchLibraryCache;
   try {
     const list = JSON.parse(fs.readFileSync(watchLibraryPath(), 'utf-8'));
-    return Array.isArray(list) ? list : [];
+    watchLibraryCache = Array.isArray(list) ? list : [];
+    return watchLibraryCache;
   } catch (_) {
-    return [];
+    watchLibraryCache = [];
+    return watchLibraryCache;
   }
 }
 
 function saveWatchLibrary(list) {
   try {
     const ordered = list.slice().sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0));
-    writeJsonAtomic(watchLibraryPath(), ordered.slice(0, WATCH_LIBRARY_LIMIT));
+    watchLibraryCache = ordered.slice(0, WATCH_LIBRARY_LIMIT);
+    writeJsonAtomic(watchLibraryPath(), watchLibraryCache);
     return true;
   } catch (_) {
     return false;
@@ -743,12 +750,21 @@ function subtitleTextForSearch(filePath) {
     const stat = fs.statSync(filePath);
     if (!stat.isFile() || stat.size > 8 * 1024 * 1024) return '';
     const cached = subtitleSearchCache.get(filePath);
-    if (cached && cached.mtimeMs === stat.mtimeMs) return cached.text;
+    if (cached && cached.mtimeMs === stat.mtimeMs) {
+      // Map sırasını erişim sırasına çevirerek küçük bir LRU tut.
+      subtitleSearchCache.delete(filePath);
+      subtitleSearchCache.set(filePath, cached);
+      return cached.text;
+    }
     // Oynatici ile kutuphane aramasi AYNI kodlama yolunu kullanmali. Aksi
     // halde cp1254 bir dosya videoda dogru gorunurken aramada mojibake olur ve
     // Turkce kelimeler bulunamaz.
     const text = decodeSubtitleBuffer(fs.readFileSync(filePath)).text;
+    subtitleSearchCache.delete(filePath);
     subtitleSearchCache.set(filePath, { mtimeMs: stat.mtimeMs, text });
+    while (subtitleSearchCache.size > SUBTITLE_SEARCH_CACHE_LIMIT) {
+      subtitleSearchCache.delete(subtitleSearchCache.keys().next().value);
+    }
     return text;
   } catch (_) {
     return '';
@@ -1111,6 +1127,7 @@ function resetBrowserCaptureState() {
   browserTrackBuffers.clear();
   browserTrackPublications.clear();
   browserSeenManifests.clear();
+  browserManifestInFlight.clear();
   browserDashSubtitleMatchers = [];
   browserCaptureBusy = false;
   browserTrackBusy = false;
@@ -1220,6 +1237,30 @@ async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024) {
   return (await fetchBrowserBuffer(url, maxBytes)).toString('utf-8');
 }
 
+async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2) {
+  let lastError;
+  for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
+    try { return await fetchBrowserText(url, maxBytes); }
+    catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+  throw lastError || new Error('Altyazı isteği başarısız.');
+}
+
+async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2) {
+  let lastError;
+  for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
+    try { return await fetchBrowserBuffer(url, maxBytes); }
+    catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+  throw lastError || new Error('Altyazı isteği başarısız.');
+}
+
 async function fetchAndStoreBrowserSubtitle(url, meta = {}) {
   const text = await fetchBrowserText(url);
   const parsed = parseSubtitlePayload(text, '', url);
@@ -1297,47 +1338,88 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
       noteBrowserCapture('manifest', candidate, 'aday', strategy);
       const manifestKey = browserTrackStreamKey(candidate.url);
       const fingerprint = manifestFingerprint(body);
-      if (browserSeenManifests.get(manifestKey) !== fingerprint) {
-        // Canlı HLS/DASH manifestleri aynı URL altında yenilenir. URL'yi sonsuza
-        // dek kilitlemek yeni altyazı parçalarını sessizce kaçırıyordu.
-        browserSeenManifests.set(manifestKey, fingerprint);
-        const isHls = /mpegurl|\.m3u8(?:[?#]|$)/i.test(mime + candidate.url);
-        if (!isHls) {
-          const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
-          for (const matcher of discoveredMatchers) {
-            if (!matcher.timescale && matcher.initializationUrl) {
-              try {
-                const init = await fetchBrowserBuffer(matcher.initializationUrl, 4 * 1024 * 1024);
-                matcher.timescale = parseMp4Timescale(init);
-              } catch (_) {}
+      const manifestToken = `${manifestKey}|${fingerprint}`;
+      if (browserSeenManifests.get(manifestKey) !== fingerprint
+        && !browserManifestInFlight.has(manifestToken)) {
+        browserManifestInFlight.add(manifestToken);
+        try {
+          const isHls = /mpegurl|\.m3u8(?:[?#]|$)/i.test(mime + candidate.url);
+          let manifestRetryNeeded = false;
+          if (!isHls) {
+            const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
+            for (const matcher of discoveredMatchers) {
+              if (!matcher.timescale && matcher.initializationUrl) {
+                try {
+                  const init = await fetchBrowserBufferWithRetry(matcher.initializationUrl, 4 * 1024 * 1024, 2);
+                  matcher.timescale = parseMp4Timescale(init);
+                  if (!matcher.timescale) throw new Error('DASH timescale bulunamadı.');
+                } catch (_) {
+                  // Timescale bilinmiyorsa MP4 cue'larını güvenli biçimde reddet;
+                  // aynı manifesti işlenmiş saymayıp sonraki yanıtta yeniden dene.
+                  matcher.timescale = 0;
+                  manifestRetryNeeded = true;
+                  noteBrowserCapture('manifest', candidate, 'error', 'DASH timescale bilinmiyor; init segmenti alınamadı');
+                }
+              }
+              const existingIndex = browserDashSubtitleMatchers
+                .findIndex((item) => item.pattern === matcher.pattern);
+              if (existingIndex >= 0) {
+                // İlk init isteği başarısız, sonraki deneme başarılıysa eski
+                // timescale=0 eşleştiricisini güncel bilgiyle değiştir.
+                browserDashSubtitleMatchers[existingIndex] = {
+                  ...browserDashSubtitleMatchers[existingIndex], ...matcher,
+                };
+              } else {
+                browserDashSubtitleMatchers.push(matcher);
+              }
             }
-            if (!browserDashSubtitleMatchers.some((item) => item.pattern === matcher.pattern)) {
-              browserDashSubtitleMatchers.push(matcher);
-            }
+            browserDashSubtitleMatchers = browserDashSubtitleMatchers.slice(-64);
           }
-          browserDashSubtitleMatchers = browserDashSubtitleMatchers.slice(-64);
+          const tracks = isHls ? parseHlsSubtitleTracks(body, candidate.url)
+            : parseDashSubtitleTracks(body, candidate.url);
+          let storedCount = 0;
+          for (const discovered of tracks.slice(0, 24)) {
+            let captured = false;
+            try {
+              const fetched = await fetchBrowserTextWithRetry(discovered.url);
+              const parsed = parseSubtitlePayload(fetched, '', discovered.url);
+              if (parsed.cues.length) {
+                storeBrowserTrack(parsed.cues, {
+                  language: discovered.language, label: discovered.label, format: parsed.format,
+                  sourceUrl: discovered.url,
+                  streamKey: browserTrackStreamKey(discovered.url, discovered.language),
+                });
+                storedCount++;
+                captured = true;
+              } else if (isHls && await captureHlsSubtitlePlaylist(fetched, discovered.url, discovered)) {
+                storedCount++;
+                captured = true;
+              }
+            } catch (_) {}
+            if (!captured) manifestRetryNeeded = true;
+          }
+          const inlineHlsSubtitle = !tracks.length && isHls
+            && isHlsSubtitlePlaylist(body, candidate.url);
+          if (inlineHlsSubtitle) {
+            const captured = await captureHlsSubtitlePlaylist(body, candidate.url, {
+              language: subtitleLanguage(candidate), label: 'HLS altyazısı',
+            });
+            if (captured) storedCount++;
+            else manifestRetryNeeded = true;
+          }
+          const noSubtitleWork = !tracks.length && !inlineHlsSubtitle;
+          const manifestHandled = !manifestRetryNeeded && (storedCount > 0 || noSubtitleWork);
+          noteBrowserCapture(strategy, candidate, storedCount ? 'parsed' : (manifestHandled ? 'rejected' : 'error'),
+            storedCount ? `${storedCount} altyazı izi`
+              : (manifestHandled ? 'Manifestte kullanılabilir altyazı izi bulunamadı'
+                : 'Manifest altyazısı alınamadı; tekrar denenecek'));
+          // Geçici CDN/VPN hataları child fetch'lerde tekrar denenir; yine de
+          // tamamen başarısız bir işleme durumunda aynı manifest yeniden ele
+          // alınabilsin diye işaret ancak işlem tamamlandıktan sonra yazılır.
+          if (manifestHandled) browserSeenManifests.set(manifestKey, fingerprint);
+        } finally {
+          browserManifestInFlight.delete(manifestToken);
         }
-        const tracks = isHls ? parseHlsSubtitleTracks(body, candidate.url)
-          : parseDashSubtitleTracks(body, candidate.url);
-        let storedCount = 0;
-        for (const discovered of tracks.slice(0, 24)) {
-          try {
-            const fetched = await fetchBrowserText(discovered.url);
-            const parsed = parseSubtitlePayload(fetched, '', discovered.url);
-            if (parsed.cues.length) {
-              if (storeBrowserTrack(parsed.cues, {
-                language: discovered.language, label: discovered.label, format: parsed.format,
-                sourceUrl: discovered.url,
-                streamKey: browserTrackStreamKey(discovered.url, discovered.language),
-              })) storedCount++;
-            } else if (isHls && await captureHlsSubtitlePlaylist(fetched, discovered.url, discovered)) storedCount++;
-          } catch (_) {}
-        }
-        if (!tracks.length && isHls && await captureHlsSubtitlePlaylist(body, candidate.url, {
-          language: subtitleLanguage(candidate), label: 'HLS altyazısı',
-        })) storedCount++;
-        noteBrowserCapture(strategy, candidate, storedCount ? 'parsed' : 'rejected',
-          storedCount ? `${storedCount} altyazı izi` : 'Manifestte kullanılabilir altyazı izi bulunamadı');
       } else {
         noteBrowserCapture(strategy, candidate, 'rejected', 'Aynı manifest daha önce işlendi');
       }
@@ -1479,6 +1561,9 @@ function browserCaptureHookScript() {
     window.__whisperCaptureEnabled = true;
     window.__whisperCaptureQueue = [];
     window.__whisperCaptureSeen = new Set();
+    window.__whisperCaptureFrameId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    window.__whisperCaptureSeq = 0;
     window.__whisperSourceOffsets = [];
     const MAX_TEXT = 2 * 1024 * 1024;
     const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
@@ -1497,7 +1582,8 @@ function browserCaptureHookScript() {
       if (window.__whisperCaptureSeen.size > 120) window.__whisperCaptureSeen.delete(window.__whisperCaptureSeen.values().next().value);
       const offsets = window.__whisperSourceOffsets || [];
       const recent = offsets.length ? offsets[offsets.length - 1] : null;
-      window.__whisperCaptureQueue.push({ ...entry, sourceOffset: recent ? recent.offset : 0 });
+      const captureId = String(window.__whisperCaptureFrameId) + ':' + (++window.__whisperCaptureSeq);
+      window.__whisperCaptureQueue.push({ ...entry, captureId, sourceOffset: recent ? recent.offset : 0 });
       window.__whisperCaptureQueue = window.__whisperCaptureQueue.slice(-32);
     };
     const inspectResponse = (url, response) => {
@@ -1576,8 +1662,19 @@ function browserCaptureHookScript() {
 
 function browserCaptureDrainScript() {
   return `(() => {
-    const queue = Array.isArray(window.__whisperCaptureQueue) ? window.__whisperCaptureQueue.splice(0, 32) : [];
+    const queue = Array.isArray(window.__whisperCaptureQueue) ? window.__whisperCaptureQueue.slice(0, 32) : [];
     return queue;
+  })()`;
+}
+
+function browserCaptureAckScript(ids) {
+  const encoded = JSON.stringify(Array.isArray(ids) ? ids : []).replace(/[\u2028\u2029]/g, ' ');
+  return `(() => {
+    const ids = new Set(${encoded});
+    if (ids.size && Array.isArray(window.__whisperCaptureQueue)) {
+      window.__whisperCaptureQueue = window.__whisperCaptureQueue.filter((entry) => !ids.has(entry && entry.captureId));
+    }
+    return true;
   })()`;
 }
 
@@ -1680,8 +1777,10 @@ function startBrowserPolling() {
     try {
       await executeBrowserFrames(browserCaptureHookScript());
       const batches = await executeBrowserFrames(browserCaptureDrainScript());
+      const ackIds = [];
       for (const entries of batches) for (const entry of entries || []) {
         if (!entry || (typeof entry.body !== 'string' && typeof entry.bodyBase64 !== 'string')) continue;
+        if (entry.captureId) ackIds.push(String(entry.captureId));
         const pageUrl = browserView.webContents.getURL();
         const adapter = browserResponseAdapter(pageUrl, entry.url);
         if (!adapterAcceptsResponse(adapter, entry)) continue;
@@ -1693,6 +1792,7 @@ function startBrowserPolling() {
           sourceOffset: Number(entry.sourceOffset) || 0,
         }, 'page');
       }
+      if (ackIds.length) await executeBrowserFrames(browserCaptureAckScript(ackIds));
     } catch (_) {
       // Bir alt frame erişilemez olduğunda diğer yakalama yolları sürer.
     } finally {
@@ -2236,6 +2336,7 @@ ipcMain.handle('browser:capture:setEnabled', async (event, enabled) => {
   browserCaptureEnabled = enabled !== false;
   browserPendingResponses.clear();
   browserCaptureBusy = false;
+  browserTrackBusy = false;
   if (browserView && !browserView.webContents.isDestroyed()) {
     if (browserCaptureEnabled) {
       await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
@@ -2375,7 +2476,8 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
     const extension = path.extname(result.filePath).toLowerCase();
-    const outputPath = extension ? result.filePath : `${result.filePath}.${preferredFormat}`;
+    const outputPath = ['.srt', '.vtt'].includes(extension)
+      ? result.filePath : `${result.filePath}.${preferredFormat}`;
     const vtt = path.extname(outputPath).toLowerCase() === '.vtt';
     fs.writeFileSync(outputPath, vtt ? cuesToVtt(cues) : `\uFEFF${cuesToSrt(cues)}`, 'utf-8');
     return { ok: true, path: outputPath };

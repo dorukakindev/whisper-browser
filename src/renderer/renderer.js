@@ -2458,7 +2458,9 @@ const player = {
   ytInfo: null,
   chapters: [],
   hls: null,
-  hlsRecover: 0,     // olumcul HLS hatasinda deneme sayaci (kaynak degisince sifirlanir)
+  hlsMediaRecover: 0, // medya kurtarma denemeleri (kaynak degisince sifirlanir)
+  hlsNetRecover: 0,   // ağ adresi yenileme denemeleri (kaynak degisince sifirlanir)
+  hlsRecoveryTimer: null,
   isLive: false,
   downloading: false,
   mediaKey: '',      // konum hatirlamada KARARLI anahtar (bkz. mediaKeyFor)
@@ -2496,6 +2498,9 @@ const player = {
   playlistIndex: -1,
   autoNext: true,
   watchSession: null,
+  watchManualCompletedKey: '',
+  watchManualCompleted: null,
+  watchRemovedKey: '',
   watchSaveTick: 0,
   pendingLibrarySeek: null,
   pendingAutoOpen: null,
@@ -4698,11 +4703,14 @@ function currentWatchPatch(completed) {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser' && player.mediaKey.startsWith('browser:');
   if (!player.mediaKey || (!browserMode && (!video || player.isLive))) return null;
+  if (player.watchRemovedKey === player.mediaKey) return null;
   const duration = browserMode ? Number(player.browserDuration) : Number(video.duration);
   if (!duration || !isFinite(duration)) return null;
   const position = completed ? duration : (browserMode ? Number(player.browserTime) : Number(video.currentTime)) || 0;
   const session = player.watchSession ? { ...player.watchSession, endedAt: Date.now(), endPosition: position } : null;
   if (session) delete session.lastClock;
+  const manualCompleted = player.watchManualCompletedKey === player.mediaKey
+    ? player.watchManualCompleted : null;
   return {
     key: player.mediaKey,
     type: browserMode ? 'browser' : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
@@ -4713,7 +4721,8 @@ function currentWatchPatch(completed) {
     localPath: player.localPath || '',
     duration: Math.round(duration),
     position: Math.round(position),
-    completed: !!completed || watchCompletionReached(position, duration),
+    completed: manualCompleted === null
+      ? (!!completed || watchCompletionReached(position, duration)) : manualCompleted,
     lastWatched: Date.now(),
     subtitlePaths: [player.subPath, player.sub2Path, ...player.subtitles.map((s) => s.path)].filter(Boolean),
     prefs: captureWatchPrefs(),
@@ -6159,11 +6168,17 @@ function setMediaKey(key) {
   }
   player.localPath = '';
   player.generation++;
-  player.hlsRecover = 0;
+  player.hlsMediaRecover = 0;
+  player.hlsNetRecover = 0;
+  clearTimeout(player.hlsRecoveryTimer);
+  player.hlsRecoveryTimer = null;
   player.isLive = false;
   player.playbackAudioLang = '';
   player.resumeOffered = false;
   player.watchSession = null;
+  player.watchManualCompletedKey = '';
+  player.watchManualCompleted = null;
+  player.watchRemovedKey = '';
   if ($('resumeChip')) $('resumeChip').classList.add('hidden');
   resetMediaBoundState();
   // Gecmisten "Izle" ile gelindiyse o isin altyazilari, kaynak acildiktan
@@ -6288,6 +6303,8 @@ function setPlayerSource(src, title, key, meta) {
 // Ama YouTube ayni zamanda bir HLS manifesti sunuyor (tum cozunurlukler + ayri ses).
 // hls.js bunu MSE ile birlestirip oynatiyor: indirme yok, ileri-geri sarma calisiyor.
 function destroyHls() {
+  clearTimeout(player.hlsRecoveryTimer);
+  player.hlsRecoveryTimer = null;
   if (player.hls) {
     try { player.hls.destroy(); } catch (_) {}
     player.hls = null;
@@ -6395,18 +6412,19 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   // Olumcul hatada hemen pes etme. YouTube'un HLS adresi GECICIDIR (birkac saat);
   // suresi dolunca ag hatasi gelir. Once hls.js'in kendi kurtarmalarini dene,
   // olmazsa ORIJINAL YouTube adresiyle yeniden probe yapip yeni adresi ayni
-  // konumdan yukle. En fazla 2 deneme, sonra indirerek izlemeyi oner.
+  // konumdan yukle. Medya ve ağ hatalarının ayrı ayrı en fazla 2 kurtarma
+  // denemesi vardır; başarılı oynatma sonrasında sayaçlar temizlenir.
   hls.on(Hls.Events.ERROR, async (_e, data) => {
     if (!data || !data.fatal) return;
     const at = video.currentTime || 0;
     const wasPlaying = !video.paused;
-    if (data.type === Hls.ErrorTypes.MEDIA_ERROR && player.hlsRecover < 2) {
-      player.hlsRecover++;
+    if (data.type === Hls.ErrorTypes.MEDIA_ERROR && player.hlsMediaRecover < 2) {
+      player.hlsMediaRecover++;
       logLine('Görüntü hatası — kurtarılıyor...', 'warn');
       try { hls.recoverMediaError(); return; } catch (_) {}
     }
-    if (data.type === Hls.ErrorTypes.NETWORK_ERROR && player.hlsRecover < 2) {
-      player.hlsRecover++;
+    if (data.type === Hls.ErrorTypes.NETWORK_ERROR && player.hlsNetRecover < 2) {
+      player.hlsNetRecover++;
       const info = player.ytInfo;
       if (info && info.sourceUrl) {
         logLine('Yayın bağlantısı koptu (adres zaman aşımına uğramış olabilir) — yenileniyor...', 'warn');
@@ -7255,6 +7273,10 @@ async function handleWatchLibraryAction(e) {
     await window.api.updateWatchItem({ key: item.key, collections, lastWatched: item.lastWatched });
     refreshWatchLibrary();
   } else if (action === 'complete') {
+    if (player.mediaKey === item.key) {
+      player.watchManualCompletedKey = item.key;
+      player.watchManualCompleted = !item.completed;
+    }
     await window.api.updateWatchItem({
       key: item.key,
       completed: !item.completed,
@@ -7263,6 +7285,7 @@ async function handleWatchLibraryAction(e) {
     });
     refreshWatchLibrary();
   } else if (action === 'remove') {
+    if (player.mediaKey === item.key) player.watchRemovedKey = item.key;
     await window.api.removeWatchItem(item.key);
     refreshWatchLibrary();
   }
@@ -7445,7 +7468,19 @@ if ($('playerVideo')) {
   video.addEventListener('waiting', () => spin(true));
   video.addEventListener('stalled', () => spin(true));
   video.addEventListener('loadstart', () => spin(true));
-  video.addEventListener('playing', () => spin(false));
+  video.addEventListener('playing', () => {
+    spin(false);
+    if (player.hls) {
+      const activeHls = player.hls;
+      clearTimeout(player.hlsRecoveryTimer);
+      player.hlsRecoveryTimer = setTimeout(() => {
+        if (player.hls === activeHls && !video.paused) {
+          player.hlsMediaRecover = 0;
+          player.hlsNetRecover = 0;
+        }
+      }, 10000);
+    }
+  });
   video.addEventListener('canplay', () => spin(false));
   video.addEventListener('error', () => spin(false));
   video.addEventListener('loadedmetadata', () => {
