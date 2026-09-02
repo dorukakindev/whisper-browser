@@ -3528,7 +3528,7 @@ function applyBrowserMangaState(event = {}) {
     browserMangaVisible: player.browserMangaVisible,
   });
   updateBrowserMangaButton();
-  if (event.message) setBrowserSignal(event.message, event.state === 'ready');
+  if (event.message) setBrowserSignal(event.message, event.state === 'ready' && !event.error);
   else if (event.state === 'running') {
     setBrowserSignal(`Manga görselleri işlendi: ${player.browserMangaCompleted}/${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · atlanan ${player.browserMangaFailed + player.browserMangaEmpty}`, true);
   }
