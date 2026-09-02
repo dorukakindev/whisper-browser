@@ -11,6 +11,7 @@ const {
   mangaCacheKey,
   mangaGenerationParameters,
   mangaCandidateScanScript,
+  mangaClearScript,
   mangaOverlayScript,
   mangaRegionsStateScript,
   mangaSelectionScript,
@@ -152,19 +153,24 @@ assert.match(mangaOverlayScript({ id: 'x', lang: 'en-US', regions: [{ box: [1, 2
   /en-US/);
 assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
   /data-whisper-manga-text/);
-assert.doesNotMatch(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
-  /overflowWrap: 'anywhere'/);
+assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
+  /overflowWrap: 'normal', wordBreak: 'normal'/);
 const overlaySource = mangaOverlayScript({ id: 'x', regions: [{
   text_box: [10, 20, 80, 160], bubble_box: [1, 2, 100, 200], translation: 'Test',
 }], bridgeToken: 'test-bridge' });
+assert.doesNotThrow(() => new vm.Script(overlaySource), 'Üretilen manga katmanı geçerli JavaScript olmalı');
 assert.match(overlaySource, /position: 'fixed'/);
 assert.match(overlaySource, /data-whisper-manga-cleanup/);
+assert.match(overlaySource, /item\.shape === 'ellipse' \? '45%'/);
 assert.match(overlaySource, /data-whisper-manga-frame/);
 assert.match(overlaySource, /background: 'transparent'/);
 assert.doesNotMatch(overlaySource, /boxShadow: '0 1px 5px/);
 assert.doesNotMatch(overlaySource, /rect\.left \+ scrollX/);
 assert.match(overlaySource, /text\.dataset\.fitKey/);
 assert.match(overlaySource, /bridgeToken/);
+assert.match(overlaySource, /data-whisper-manga-editor/);
+assert.match(overlaySource, /Orijinal konuşma balonu/);
+assert.match(mangaClearScript(), /removeEventListener\('keydown'/);
 assert.doesNotMatch(overlaySource, /text\.textContent \+ ':' \+ group\.dataset\.fontScale/);
 assert.match(mangaSelectionScript(), /state\.selected/);
 assert.match(mangaRegionsStateScript('x'), /data-whisper-manga-region/);
@@ -196,9 +202,10 @@ assert.match(main, /decoded\.crop\(\{ x: left, y: top/);
 assert.doesNotMatch(main, /sampleMangaRegionColors\(decoded\.toBitmap/);
 assert.match(main, /rateLimitRetries = 2/);
 assert.match(main, /await stopBrowserManga\(tab, true\)/);
-assert.match(main, /attempt < 6/);
+assert.match(main, /attempt < \(incremental \? 1 : 6\)/);
 assert.match(main, /stableScans >= 2/);
-assert.match(main, /selectMangaCandidates\(candidates, limit\)/);
+assert.match(main, /candidates\.filter\(candidate => !tab\.mangaAttempted\.has/);
+assert.match(main, /for \(const candidate of selected\) tab\.mangaAttempted\.add/);
 assert.match(main, /error\.mangaImageDownload = true/);
 assert.match(main, /if \(error\?\.mangaImageDownload\) return false/);
 assert.match(main, /if \(\[401, 403, 404\]\.includes\(status\)\) return true/);

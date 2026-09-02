@@ -1100,7 +1100,20 @@
               <button class="browser-place-tab active" type="button" data-place-tab="bookmarks" role="tab">Yer imleri</button>
               <button class="browser-place-tab" type="button" data-place-tab="history" role="tab">Geçmiş</button>
             </div>
+            <div class="browser-place-filters">
+              <input type="search" id="browserPlacesSearch" placeholder="Başlık veya adreste ara…" aria-label="Yer imleri ve geçmişte ara" />
+              <select id="browserPlacesFolder" aria-label="Yer imi klasörü"><option value="">Tüm klasörler</option></select>
+            </div>
             <div class="browser-places-list" id="browserPlacesList"></div>
+            <div class="browser-workspaces">
+              <label for="browserWorkspaceSelect">Kayıtlı çalışma alanları</label>
+              <select id="browserWorkspaceSelect"><option value="">Henüz kayıt yok</option></select>
+              <div class="browser-workspace-actions">
+                <button class="btn btn-ghost btn-sm" id="browserWorkspaceSave" type="button">Sekmeleri kaydet</button>
+                <button class="btn btn-ghost btn-sm" id="browserWorkspaceOpen" type="button">Sekmelere ekle</button>
+                <button class="btn btn-ghost btn-sm" id="browserWorkspaceRemove" type="button">Kaydı sil</button>
+              </div>
+            </div>
           </section>
 
           <div class="browser-signal" id="browserSignal">
@@ -1157,6 +1170,10 @@
                     <option value="de">Almanca</option><option value="fr">Fransızca</option>
                     <option value="es">İspanyolca</option><option value="it">İtalyanca</option>
                     <option value="ru">Rusça</option><option value="ar">Arapça</option>
+                  </select></label>
+                  <label><span>Manga yazı tipi</span><select id="browserMangaFont">
+                    <option value="comic">Çizgi roman</option><option value="system">Sistem</option>
+                    <option value="compact">Dar</option>
                   </select></label>
                   <label><span>Paralel istek <output id="browserMangaWorkersVal">2</output></span>
                     <input type="range" id="browserMangaWorkers" min="1" max="6" step="1" value="2" /></label>
@@ -1891,6 +1908,7 @@
   <script src="vendor/hls.min.js"></script>
   <script src="../playback-policy.js"></script>
   <script src="../browser-tabs.js"></script>
-  <script src="renderer.js"></script>
+<script src="../browser-place-url.js"></script>
+<script src="renderer.js"></script>
 </body>
 </html>

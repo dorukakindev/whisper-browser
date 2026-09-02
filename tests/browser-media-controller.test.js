@@ -31,4 +31,11 @@ test('komutlar durum yoklamasıyla aynı medya seçicisini kullanır', () => {
   assert.match(script, /1\.5/);
 });
 
+test('tam ekran ham video yerine altyazıyı taşıyabilen oynatıcı kapsayıcısını seçer', () => {
+  const script = buildBrowserMediaCommandScript('fullscreen', 0);
+  assert.match(script, /video\.closest\('\.html5-video-player/);
+  assert.match(script, /target\.requestFullscreen/);
+  assert.doesNotMatch(script, /else await video\.requestFullscreen/);
+});
+
 console.log(`browser-media-controller: ${passed} test`);

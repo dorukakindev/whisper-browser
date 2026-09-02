@@ -62,6 +62,14 @@ def test_live_asr_chunk_offset_is_validated_without_killing_worker():
             assert False, f"bozuk offset kabul edildi: {bad}"
         except (TypeError, ValueError):
             pass
+    assert L.parse_chunk_rate({}) == 1
+    assert L.parse_chunk_rate({"rate": "1.5"}) == 1.5
+    for bad in (0, 4.1, "nan"):
+        try:
+            L.parse_chunk_rate({"rate": bad})
+            assert False, f"bozuk hız kabul edildi: {bad}"
+        except (TypeError, ValueError):
+            pass
 
 
 # ===== parse_timecode =====

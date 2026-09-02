@@ -107,7 +107,12 @@ function buildBrowserMediaCommandScript(command, value) {
       video.playbackRate = Math.max(.25, Math.min(4, ${safeValue} || 1));
     } else if (command === 'fullscreen') {
       if (document.fullscreenElement) await document.exitFullscreen();
-      else await video.requestFullscreen();
+      else {
+        // Replaced elements cannot paint our DOM captions as fullscreen children.
+        const container = video.closest('.html5-video-player, [class*="player"], [id*="player"]');
+        const target = container && container !== video ? container : video.parentElement || document.documentElement;
+        await target.requestFullscreen();
+      }
     } else if (command === 'pip') {
       if (!('requestPictureInPicture' in video)) return false;
       if (document.pictureInPictureElement) await document.exitPictureInPicture();

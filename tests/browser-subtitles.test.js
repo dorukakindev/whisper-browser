@@ -336,6 +336,11 @@ test('ASS Events Format alan sırası değiştiğinde zaman ve metni korur', () 
   assert.deepEqual(cues, [{ start: 2, end: 4.5, text: 'Merhaba, dünya' }]);
 });
 
+test('ASS vektör çizimini konuşma metnine dönüştürmez', () => {
+  const cues = parseAss('[Events]\nDialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\p1}m 0 0 l 100 0 100 50{\\p0}Merhaba');
+  assert.deepEqual(cues, [{ start: 1, end: 3, text: 'Merhaba' }]);
+});
+
 test('Tarayıcı geri/ileri durumu yeni Electron API ve eski API ile güvenli okunur', () => {
   const modern = browserNavigationCapabilities({
     navigationHistory: {

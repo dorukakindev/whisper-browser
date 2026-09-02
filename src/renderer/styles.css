@@ -3783,7 +3783,7 @@ body::before {
   cursor: pointer;
 }
 .browser-tab.active .browser-tab-open { color: #e3e3e5; }
-.browser-tab-close, .browser-tab-new {
+.browser-tab-close, .browser-tab-audio, .browser-tab-new {
   border: 0;
   color: #77777c;
   background: transparent;
@@ -3791,6 +3791,8 @@ body::before {
 }
 .browser-tab-close { width: 25px; height: 25px; flex: 0 0 25px; border-radius: 5px; }
 .browser-tab-close:hover { color: #d89082; background: #2a1d1b; }
+.browser-tab-audio { width: 22px; height: 23px; flex: 0 0 22px; padding: 0; border-radius: 5px; font-size: 12px; }
+.browser-tab-audio:hover, .browser-tab-audio[aria-pressed="true"] { color: var(--player-amber); background: #2a241a; }
 .browser-tab-new {
   width: auto;
   height: 27px;
@@ -3904,7 +3906,7 @@ body::before {
   top: 83px;
   right: 10px;
   width: min(410px, calc(100% - 20px));
-  max-height: min(460px, calc(100% - 70px));
+  max-height: min(610px, calc(100% - 70px));
   padding: 12px;
   overflow: auto;
   border: 1px solid #35353a;
@@ -3916,6 +3918,10 @@ body::before {
 .browser-cookie-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 9px; }
 .browser-places-clear { min-height: 26px; padding: 0 8px; color: #a99a83; font-size: 10px; }
 .browser-place-tabs { display: flex; gap: 5px; margin-top: 10px; padding-bottom: 8px; border-bottom: 1px solid #2b2b2f; }
+.browser-place-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, .55fr); gap: 7px; margin-top: 9px; }
+.browser-place-filters input, .browser-place-filters select, .browser-workspaces select {
+  min-width: 0; height: 31px; padding: 0 9px; color: #d7d7da; border: 1px solid #303034; border-radius: 7px; background: #151516; font-size: 10px;
+}
 .browser-place-tab { padding: 6px 9px; color: #85858a; border: 1px solid transparent; border-radius: 7px; background: transparent; font-size: 10px; cursor: pointer; }
 .browser-place-tab:hover { color: #d6d6d9; background: #212124; }
 .browser-place-tab.active { color: #1c160c; background: var(--player-amber); }
@@ -3929,6 +3935,10 @@ body::before {
 .browser-place-url { margin-top: 3px; color: #77777c; font-family: Consolas, "Cascadia Mono", monospace; font-size: 9px; }
 .browser-place-remove { flex: 0 0 26px; width: 26px; height: 26px; color: #77777c; border-radius: 6px; }
 .browser-place-remove:hover { color: #d89082; background: #2a1d1b; }
+.browser-place-folder { max-width: 88px; padding: 5px 7px; overflow: hidden; color: #b9a682; border: 1px solid #3a3327; border-radius: 6px; background: #201c16; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.browser-workspaces { display: grid; gap: 7px; margin-top: 11px; padding-top: 10px; border-top: 1px solid #29292c; color: #98989d; font-size: 10px; }
+.browser-workspace-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.browser-workspace-actions .btn { width: auto; min-height: 29px; padding: 0 9px; }
 
 .browser-signal {
   position: relative;

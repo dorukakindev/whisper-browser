@@ -311,7 +311,7 @@ function mangaGenerationParameters(model) {
 }
 
 function selectMangaCandidates(candidates, requestedLimit = 64) {
-  const limit = Math.max(1, Math.min(64, Number(requestedLimit) || 64));
+  const limit = Math.max(1, Math.min(120, Math.floor(Number(requestedLimit) || 64)));
   const valid = (Array.isArray(candidates) ? candidates : [])
     .filter((item) => item && item.id && item.url && !item.excluded);
   const readerCandidates = valid.filter((item) => Number(item.readerScore) >= 6);
@@ -400,6 +400,16 @@ function mangaClearScript() {
     const state = window.__whisperMangaOverlay;
     if (state && state.overlays) for (const overlay of state.overlays.values()) overlay.remove();
     if (state && state.editor) state.editor.remove();
+    if (state) {
+      state.destroyed = true;
+      if (state.layoutFrame) cancelAnimationFrame(state.layoutFrame);
+      if (state.onKeydown) removeEventListener('keydown', state.onKeydown, true);
+      for (const image of state.images || []) image.removeEventListener('load', state.onLayout);
+      state.overlays?.clear();
+      state.undo = [];
+      state.selected = null;
+      state.editor = null;
+    }
     if (state && state.onLayout) {
       removeEventListener('scroll', state.onLayout, true);
       removeEventListener('resize', state.onLayout, true);
@@ -464,6 +474,7 @@ function mangaOverlayScript(payload) {
     id: payload?.id,
     lang: String(payload?.lang || 'tr').replace(/[^a-z0-9-]/gi, '').slice(0, 24) || 'tr',
     fontScale: Math.max(.7, Math.min(1.7, Number(payload?.fontScale) || 1)),
+    fontFamily: ['comic', 'system', 'compact'].includes(payload?.fontFamily) ? payload.fontFamily : 'comic',
     verticalText: !!payload?.verticalText,
     sfxStyle: payload?.sfxStyle !== false,
     bridgeToken: String(payload?.bridgeToken || '').slice(0, 80),
@@ -475,12 +486,15 @@ function mangaOverlayScript(payload) {
   });
   return `(() => {
     const payload = ${safe};
+    payload.fontStack = payload.fontFamily === 'compact' ? 'Arial Narrow, Roboto Condensed, sans-serif'
+      : payload.fontFamily === 'system' ? 'Segoe UI, Arial, sans-serif'
+      : 'Comic Sans MS, Comic Neue, Trebuchet MS, sans-serif';
     const image = [...(document.images || [])].find(item => item.getAttribute('data-whisper-manga-id') === payload.id);
     if (!image || !payload.regions.length) return false;
     let state = window.__whisperMangaOverlay;
     if (!state) {
       state = { overlays: new Map(), visible: true, layoutQueued: false, onLayout: null, selected: null, editor: null,
-        undo: [], visibleImages: new Set() };
+        undo: [], visibleImages: new Set(), images: new Set(), destroyed: false, layoutFrame: 0 };
       state.emitEdit = (group, previous) => {
         try {
           globalThis.__whisperTrustedBridgeSend?.('manga-edit', {
@@ -514,6 +528,8 @@ function mangaOverlayScript(payload) {
       };
       state.layout = () => {
         state.layoutQueued = false;
+        state.layoutFrame = 0;
+        if (state.destroyed) return;
         for (const [id, overlay] of state.overlays) {
           const target = [...(document.images || [])].find(item => item.getAttribute('data-whisper-manga-id') === id);
           if (!target || !target.isConnected) { overlay.remove(); state.overlays.delete(id); continue; }
@@ -583,7 +599,7 @@ function mangaOverlayScript(payload) {
               text.dataset.fitKey = '';
               continue;
             }
-            region.title = (group.dataset.source ? 'Orijinal: ' + group.dataset.source + '\n' : '')
+            region.title = (group.dataset.source ? 'Orijinal: ' + group.dataset.source + '\\n' : '')
               + (overflowed ? 'Metin balona sığmadığı için okunabilir alan genişletildi. ' : '')
               + 'Düzenlemek için çift tıkla.';
             text.dataset.fitKey = fitKey;
@@ -591,7 +607,16 @@ function mangaOverlayScript(payload) {
         }
       };
       state.onLayout = () => {
-        if (!state.layoutQueued) { state.layoutQueued = true; requestAnimationFrame(state.layout); }
+        if (state.destroyed) return;
+        for (const image of state.images) {
+          if (!image.isConnected) {
+            state.resizeObserver?.unobserve(image);
+            state.intersectionObserver?.unobserve(image);
+            image.removeEventListener('load', state.onLayout);
+            state.images.delete(image);
+          }
+        }
+        if (!state.layoutQueued) { state.layoutQueued = true; state.layoutFrame = requestAnimationFrame(state.layout); }
       };
       addEventListener('scroll', state.onLayout, true);
       addEventListener('resize', state.onLayout, true);
@@ -617,19 +642,56 @@ function mangaOverlayScript(payload) {
         const editor = document.createElement('div');
         editor.setAttribute('data-whisper-manga-editor', '');
         Object.assign(editor.style, { position: 'fixed', right: '18px', bottom: '18px', zIndex: '2147483646',
-          width: 'min(390px, calc(100vw - 36px))', padding: '12px', borderRadius: '10px',
+          width: 'min(680px, calc(100vw - 36px))', maxHeight: 'calc(100vh - 36px)', overflow: 'auto', padding: '16px', boxSizing: 'border-box', borderRadius: '10px',
           background: '#11161c', color: '#eef1f4', border: '1px solid #39434d', boxShadow: '0 10px 30px rgba(0,0,0,.45)',
           fontFamily: 'Segoe UI, Arial, sans-serif', pointerEvents: 'auto' });
         const label = document.createElement('div');
         label.textContent = 'Manga bölgesi · metni düzenle';
+        editor.setAttribute('role', 'dialog');
+        editor.setAttribute('aria-label', label.textContent);
         Object.assign(label.style, { fontSize: '13px', fontWeight: '700', marginBottom: '8px' });
         const area = document.createElement('textarea');
+        area.setAttribute('aria-label', 'Çeviri metni');
+        area.dir = 'auto';
         area.value = group.querySelector('[data-whisper-manga-text]')?.textContent || '';
         Object.assign(area.style, { width: '100%', minHeight: '82px', resize: 'vertical', boxSizing: 'border-box',
           padding: '9px', color: '#eef1f4', background: '#0b0f13', border: '1px solid #46515c', borderRadius: '7px',
           font: '14px/1.35 Segoe UI, Arial, sans-serif' });
+        const columns = document.createElement('div');
+        Object.assign(columns.style, { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '14px' });
+        const sourcePanel = document.createElement('div');
+        const sourceTitle = document.createElement('div');
+        sourceTitle.textContent = 'Orijinal';
+        const original = document.createElement('p');
+        original.textContent = group.dataset.source || 'Kaynak metin bulunamadı.';
+        original.dir = 'auto';
+        Object.assign(original.style, { whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: '1.45', overflowWrap: 'anywhere' });
+        const originalImage = [...document.images].find(item => item.getAttribute('data-whisper-manga-id') === group.dataset.imageId);
+        sourcePanel.append(sourceTitle);
+        if (originalImage?.naturalWidth) {
+          // Drawing is allowed even for a cross-origin image. Never read/export
+          // this possibly tainted canvas; it is only an on-screen source crop.
+          try {
+            const box = JSON.parse(group.dataset.bubbleBox);
+            const y = Math.max(0, box[0] - 30), x = Math.max(0, box[1] - 30);
+            const h = Math.min(1000, box[2] + 30) - y, w = Math.min(1000, box[3] + 30) - x;
+            const preview = document.createElement('canvas');
+            preview.width = 400; preview.height = Math.max(1, Math.min(800, Math.round(400 * h * originalImage.naturalHeight / (w * originalImage.naturalWidth))));
+            preview.setAttribute('aria-label', 'Orijinal konuşma balonu');
+            Object.assign(preview.style, { width: '100%', maxHeight: '220px', objectFit: 'contain', marginTop: '8px', background: '#0b0f13' });
+            preview.getContext('2d').drawImage(originalImage, x / 1000 * originalImage.naturalWidth, y / 1000 * originalImage.naturalHeight,
+              w / 1000 * originalImage.naturalWidth, h / 1000 * originalImage.naturalHeight, 0, 0, preview.width, preview.height);
+            sourcePanel.append(preview);
+          } catch (_) {}
+        }
+        sourcePanel.append(original);
+        const translationPanel = document.createElement('label');
+        translationPanel.textContent = 'Çeviri';
+        area.style.marginTop = '8px'; area.style.minHeight = '190px'; area.maxLength = 3000;
+        translationPanel.append(area);
+        columns.append(sourcePanel, translationPanel);
         const buttons = document.createElement('div');
-        Object.assign(buttons.style, { display: 'flex', gap: '7px', justifyContent: 'flex-end', marginTop: '9px' });
+        Object.assign(buttons.style, { display: 'flex', flexWrap: 'wrap', gap: '7px', justifyContent: 'flex-end', marginTop: '9px' });
         const makeButton = (caption, primary, action) => {
           const button = document.createElement('button');
           button.type = 'button';
@@ -663,24 +725,26 @@ function mangaOverlayScript(payload) {
           state.onLayout();
           close();
         }));
-        editor.append(label, area, buttons);
+        editor.append(label, columns, buttons);
         document.documentElement.appendChild(editor);
         state.editor = editor;
         area.focus();
         area.select();
       };
       window.__whisperMangaOverlay = state;
-      addEventListener('keydown', (event) => {
+      state.onKeydown = (event) => {
+        if (state.destroyed || event.target?.closest?.('input,textarea,[contenteditable="true"]')) return;
         if (event.isTrusted && (event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key).toLowerCase() === 'z'
             && state.undoLast()) event.preventDefault();
-      }, true);
+      };
+      addEventListener('keydown', state.onKeydown, true);
     }
     const previous = state.overlays.get(payload.id);
     if (previous) previous.remove();
     const overlay = document.createElement('div');
     overlay.setAttribute('data-whisper-manga-overlay', payload.id);
     Object.assign(overlay.style, { position: 'fixed', zIndex: '2147483000', pointerEvents: 'none', overflow: 'hidden',
-      display: state.visible ? '' : 'none', fontFamily: 'Segoe UI, Arial, sans-serif', contain: 'layout paint style' });
+      display: state.visible ? '' : 'none', fontFamily: payload.fontStack, contain: 'layout paint style' });
     payload.regions.forEach((item, index) => {
       const [ty1, tx1, ty2, tx2] = item.textBox;
       const [by1, bx1, by2, bx2] = item.bubbleBox;
@@ -702,11 +766,12 @@ function mangaOverlayScript(payload) {
       cleanup.setAttribute('data-whisper-manga-cleanup', '');
       Object.assign(cleanup.style, { position: 'absolute', left: (tx1 / 10) + '%', top: (ty1 / 10) + '%',
         width: ((tx2 - tx1) / 10) + '%', height: ((ty2 - ty1) / 10) + '%', boxSizing: 'border-box',
-        background: item.backgroundColor || '#fffdf7', pointerEvents: 'none' });
+        background: item.backgroundColor || '#fffdf7', borderRadius: item.shape === 'ellipse' ? '45%' : '3px',
+        pointerEvents: 'none' });
       region.setAttribute('data-whisper-manga-frame', '');
       text.setAttribute('data-whisper-manga-text', '');
       text.textContent = item.translation;
-      region.title = (item.source ? 'Orijinal: ' + item.source + '\n' : '') + 'Düzenlemek için çift tıkla. Seçili bölgeyi yeniden çevirmek için Ctrl+Manga.';
+      region.title = (item.source ? 'Orijinal: ' + item.source + '\\n' : '') + 'Düzenlemek için çift tıkla. Seçili bölgeyi yeniden çevirmek için Ctrl+Manga.';
       region.setAttribute('lang', payload.lang);
       region.dataset.baseLeft = String(bx1 / 10);
       region.dataset.baseTop = String(by1 / 10);
@@ -739,6 +804,7 @@ function mangaOverlayScript(payload) {
     });
     document.documentElement.appendChild(overlay);
     state.overlays.set(payload.id, overlay);
+    state.images.add(image);
     state.resizeObserver?.observe(image);
     state.intersectionObserver?.observe(image);
     image.addEventListener('load', state.onLayout, { once: true });

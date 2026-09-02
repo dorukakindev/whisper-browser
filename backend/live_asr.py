@@ -41,6 +41,13 @@ def parse_chunk_offset(command):
     return max(0.0, raw_offset)
 
 
+def parse_chunk_rate(command):
+    rate = float(command.get("rate", 1))
+    if not math.isfinite(rate) or not 0.25 <= rate <= 4:
+        raise ValueError("Oynatma hızı geçersiz")
+    return rate
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="small")
@@ -72,6 +79,7 @@ def main():
         file_path = str(command.get("path") or "")
         try:
             offset = parse_chunk_offset(command)
+            rate = parse_chunk_rate(command)
             segments, info = model.transcribe(
                 file_path,
                 language=args.language or None,
@@ -86,8 +94,8 @@ def main():
                 text = str(segment.text or "").strip()
                 if not text:
                     continue
-                emit("segment", start=offset + float(segment.start),
-                     end=offset + float(segment.end), text=text,
+                emit("segment", start=offset + float(segment.start) * rate,
+                     end=offset + float(segment.end) * rate, text=text,
                      language=getattr(info, "language", "") or "")
                 count += 1
             if not stop_event.is_set():

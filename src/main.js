@@ -1267,7 +1267,6 @@ const BROWSER_PARTITION = 'persist:whisper-browser';
 const BROWSER_ISOLATED_WORLD_ID = 999;
 const BROWSER_PLACES_FILE = 'browser-places.json';
 const BROWSER_PLACE_LIMIT = 100;
-const BROWSER_SENSITIVE_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 
 function nextBrowserTabId() {
   browserTabSequence += 1;
@@ -1293,6 +1292,7 @@ function createBrowserTabRecord(initial = {}) {
     mangaJob: null,
     mangaClearPromise: Promise.resolve([]),
     mangaPages: new Map(),
+    mangaAttempted: new Set(),
     mangaFailures: [],
     mangaTranslated: 0,
     mangaVisible: false,
@@ -1355,6 +1355,8 @@ function browserTabSnapshot(tab) {
     rate: Number(tab?.rate) || 1,
     volume: Number.isFinite(Number(tab?.volume)) ? Number(tab.volume) : 1,
     muted: !!tab?.muted,
+    tabMuted: wc ? !!wc.isAudioMuted?.() : !!tab?.tabMuted,
+    audible: wc ? !!wc.isCurrentlyAudible?.() : false,
     offset: Number(tab?.overlay?.offset) || 0,
     viewMode: tab?.viewMode || 'reading',
     targetLanguage: tab?.targetLanguage || '',
@@ -1434,32 +1436,28 @@ function browserPlacesPath() {
 }
 
 function safeBrowserPlaceUrl(raw) {
-  try {
-    const url = new URL(String(raw || ''));
-    if (!['http:', 'https:'].includes(url.protocol)) return '';
-    for (const key of [...url.searchParams.keys()]) {
-      if (BROWSER_SENSITIVE_PARAMS.test(key)) url.searchParams.delete(key);
-    }
-    url.hash = '';
-    return url.href.slice(0, 2000);
-  } catch (_) {
-    return '';
-  }
+  return require('./browser-place-url').safePlaceUrl(raw);
 }
 
 function normalizeBrowserPlaces(places) {
   const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
     url: safeBrowserPlaceUrl(item && item.url),
     title: String(item && item.title || '').trim().slice(0, 240),
+    folder: String(item && item.folder || '').trim().slice(0, 64),
     visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
   })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
-  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks) };
+  const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
+    name: String(item?.name || '').trim().slice(0, 64),
+    tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, 24),
+  })).filter(item => item.name && item.tabs.length);
+  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks), workspaces };
 }
 
 function cloneBrowserPlaces(places) {
   return {
     history: (places?.history || []).map((item) => ({ ...item })),
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
+    workspaces: (places?.workspaces || []).map(item => ({ ...item, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
   };
 }
 
@@ -1915,6 +1913,8 @@ function browserMangaTranslationConfig(overrides = {}) {
     workers: Math.max(1, Math.min(6, Number(overrides.workers || manga.workers || ui.browserMangaWorkers) || 2)),
     maxImages: Math.max(1, Math.min(120, Number(overrides.maxImages || manga.maxImages || ui.browserMangaMaxImages) || 48)),
     fontScale: Math.max(.7, Math.min(1.7, Number(overrides.fontScale || manga.fontScale || (Number(ui.browserMangaFontScale) / 100)) || 1)),
+    fontFamily: ['comic', 'system', 'compact'].includes(overrides.fontFamily || manga.fontFamily || ui.browserMangaFont)
+      ? (overrides.fontFamily || manga.fontFamily || ui.browserMangaFont) : 'comic',
     verticalText: overrides.verticalText === undefined ? !!(manga.verticalText ?? ui.browserMangaVertical) : !!overrides.verticalText,
     sfxStyle: overrides.sfxStyle === undefined ? (manga.sfxStyle ?? ui.browserMangaSfx) !== false : !!overrides.sfxStyle,
   };
@@ -2063,6 +2063,7 @@ function stopBrowserManga(tab, clearOverlay = true) {
     tab.mangaJob = null;
   }
   tab.mangaPages?.clear();
+  tab.mangaAttempted?.clear();
   let clearing = Promise.resolve([]);
   if (clearOverlay && tab.view && !tab.view.webContents.isDestroyed()) {
     clearing = executeBrowserTrustedMain(tab.view, mangaClearScript()).catch(() => []);
@@ -2505,7 +2506,7 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   if (!regions.length) return { translated: false, empty: true };
   regions = decorateMangaRegionColors(image, regions);
   const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
-    id: candidate.id, regions, lang: config.targetLanguage, fontScale: config.fontScale,
+    id: candidate.id, regions, lang: config.targetLanguage, fontScale: config.fontScale, fontFamily: config.fontFamily,
     verticalText: config.verticalText, sfxStyle: config.sfxStyle, bridgeToken: tab.bridgeToken,
   }));
   if (applied.some(Boolean)) {
@@ -2606,7 +2607,7 @@ async function retrySelectedMangaRegion(tab) {
     page.regions = decorateMangaRegionColors(image, merged);
     browserMangaCache().set(page.cacheKey, JSON.stringify({ regions: page.regions }));
     const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
-      id: selected.id, regions: page.regions, lang: config.targetLanguage, fontScale: config.fontScale,
+      id: selected.id, regions: page.regions, lang: config.targetLanguage, fontScale: config.fontScale, fontFamily: config.fontFamily,
       verticalText: config.verticalText, sfxStyle: config.sfxStyle, bridgeToken: tab.bridgeToken,
     }));
     if (!applied.some(Boolean)) throw new Error('Güncellenen manga katmanı sayfaya uygulanamadı.');
@@ -2639,19 +2640,25 @@ async function startBrowserManga(tab, options = {}) {
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
     return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde API anahtarı girin.' };
   }
+  const incremental = !!options.incremental;
+  if (incremental && tab.mangaAttempted.size >= config.maxImages) {
+    return { ok: true, unchanged: true, translated: tab.mangaTranslated };
+  }
   const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
   tab.mangaJob = job;
   const retryCandidates = Array.isArray(options.retryCandidates) ? options.retryCandidates.filter(Boolean) : [];
   const retryRun = retryCandidates.length > 0;
-  if (!retryRun) tab.mangaTranslated = 0;
-  tab.mangaVisible = true;
-  if (!retryRun) {
+  if (!retryRun && !incremental) tab.mangaTranslated = 0;
+  if (!incremental) tab.mangaVisible = true;
+  if (!retryRun && !incremental) {
     tab.mangaPages.clear();
+    tab.mangaAttempted.clear();
     tab.mangaFailures = [];
   }
-  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: 0, translated: 0,
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: incremental ? tab.mangaTranslated : 0,
+    total: incremental ? tab.mangaTranslated : 0, translated: incremental ? tab.mangaTranslated : 0,
     message: 'Manga görsellerinin yüklenmesi bekleniyor…' });
-  if (!retryRun) await executeBrowserTrustedMain(tab.view, mangaClearScript()).catch(() => {});
+  if (!retryRun && !incremental) await executeBrowserTrustedMain(tab.view, mangaClearScript()).catch(() => {});
   const candidates = [];
   const ids = new Set();
   // MangaKatana gibi okuyucular gerçek src adresini sayfa açıldıktan sonra
@@ -2659,12 +2666,12 @@ async function startBrowserManga(tab, options = {}) {
   // yüklenen adayları biriktir.
   let stableScans = 0;
   let previousCount = -1;
-  for (let attempt = 0; !retryRun && attempt < 6 && mangaJobIsCurrent(tab, job); attempt++) {
+  for (let attempt = 0; !retryRun && attempt < (incremental ? 1 : 6) && mangaJobIsCurrent(tab, job); attempt++) {
     // Aday taramasını da katmanı çizen güvenilir isolated world'de ve ana
     // çerçevede çalıştır. Böylece alt çerçeveden seçilip üzerine katman
     // yerleştirilemeyen görseller sonuç sayısını şişirmez.
     const frameResult = await executeBrowserTrustedMain(tab.view, mangaCandidateScanScript()).catch(() => null);
-    const frameResults = frameResult ? [frameResult] : [];
+    const frameResults = frameResult || [];
     for (const frame of frameResults) for (const item of Array.isArray(frame) ? frame : []) {
       if (!item?.id || !item.url || ids.has(item.id)) continue;
       if (!supportedMangaDataUrl(item.url) && !isSafeMangaImageUrl(item.url)) continue;
@@ -2673,20 +2680,27 @@ async function startBrowserManga(tab, options = {}) {
     stableScans = candidates.length === previousCount ? stableScans + 1 : 0;
     previousCount = candidates.length;
     if (stableScans >= 2 && candidates.length) break;
-    if (attempt < 5) await waitForMangaRetry(job.controller.signal, 650).catch(() => {});
+    if (!incremental && attempt < 5) await waitForMangaRetry(job.controller.signal, 650).catch(() => {});
   }
   if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
   const limit = Math.max(1, Math.min(120, Number(options.maxImages || config.maxImages) || 48));
-  const selected = retryRun ? retryCandidates.slice(0, limit) : selectMangaCandidates(candidates, limit);
+  const remaining = Math.max(0, limit - (incremental ? tab.mangaAttempted.size : 0));
+  const selected = retryRun ? retryCandidates.slice(0, limit)
+    : selectMangaCandidates(candidates.filter(candidate => !tab.mangaAttempted.has(candidate.id)), remaining || 1).slice(0, remaining);
   if (!selected.length) {
     tab.mangaJob = null;
+    if (incremental) {
+      sendBrowserEvent(tab, { type: 'manga-state', state: 'ready', completed: tab.mangaTranslated,
+        total: tab.mangaTranslated, translated: tab.mangaTranslated, visible: tab.mangaVisible });
+      return { ok: true, unchanged: true, translated: tab.mangaTranslated };
+    }
     tab.mangaVisible = false;
     const error = 'Bu sayfada yüklenmiş büyük manga/webtoon görseli bulunamadı.';
     sendBrowserEvent(tab, { type: 'manga-state', state: 'error', completed: 0, total: 0, translated: 0, message: error });
     return { ok: false, error };
   }
-  const baseTranslated = retryRun ? tab.mangaTranslated : 0;
-  const reportTotal = retryRun ? baseTranslated + selected.length : selected.length;
+  const baseTranslated = retryRun || incremental ? tab.mangaTranslated : 0;
+  const reportTotal = retryRun || incremental ? baseTranslated + selected.length : selected.length;
   sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: baseTranslated,
     total: reportTotal, translated: baseTranslated, retryRun,
     message: `${selected.length} manga görseli bulundu; görsel çeviri servisine gönderiliyor…` });
@@ -2697,6 +2711,7 @@ async function startBrowserManga(tab, options = {}) {
   let empty = 0;
   let firstError = '';
   const failures = [];
+  if (!retryRun) for (const candidate of selected) tab.mangaAttempted.add(candidate.id);
   const worker = async () => {
     while (mangaJobIsCurrent(tab, job) && !job.fatalError) {
       const index = cursor++;
@@ -2739,7 +2754,7 @@ async function startBrowserManga(tab, options = {}) {
   if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
   tab.mangaJob = null;
   tab.mangaTranslated = translated;
-  tab.mangaFailures = failures;
+  tab.mangaFailures = incremental ? [...tab.mangaFailures, ...failures].slice(-120) : failures;
   tab.mangaVisible = translated > 0;
   const state = translated ? 'ready' : (failed ? 'error' : 'empty');
   const skipped = failed + empty;
@@ -2860,7 +2875,7 @@ function sweepBrowserLiveAsrTemp() {
   const cutoff = Date.now() - 5 * 60 * 1000;
   try {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith('.webm')) continue;
+      if (!entry.isFile() || !/\.(?:webm|wav)$/.test(entry.name)) continue;
       const filePath = path.join(dir, entry.name);
       try {
         if (fs.statSync(filePath).mtimeMs < cutoff) fs.unlinkSync(filePath);
@@ -2887,7 +2902,7 @@ function startBrowserLiveAsr(tab, options = {}) {
     { cwd: app.getAppPath(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (error) { return { ok: false, error: error.message }; }
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
-  const job = { proc, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false };
+  const job = { id: randomUUID(), proc, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false };
   browserLiveAsr = job;
   tab.acquisitionPlan?.updateConsent({ liveAsr: true });
   tab.acquisitionPlan?.start('live-asr');
@@ -2956,7 +2971,7 @@ function startBrowserLiveAsr(tab, options = {}) {
     }
   });
   sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: false, message: `Canlı Whisper modeli yükleniyor · ${model}` });
-  return { ok: true, model, device };
+  return { ok: true, model, device, sessionId: job.id };
 }
 
 function installSystemAudioCaptureHandler() {
@@ -3951,6 +3966,15 @@ function startBrowserPolling() {
     void flushBrowserCaptureQueue({ installHook: true });
   }, 900);
   browserMediaTimer = setInterval(async () => {
+    for (const item of browserTabs.values()) {
+      const wc = item.view?.webContents;
+      if (!wc || wc.isDestroyed()) continue;
+      const audible = !!wc.isCurrentlyAudible?.(), tabMuted = !!wc.isAudioMuted?.();
+      if (item.audible !== audible || item.tabMuted !== tabMuted) {
+        Object.assign(item, { audible, tabMuted });
+        sendBrowserEvent(item, { type: 'tab-audio', audible, tabMuted });
+      }
+    }
     if (browserMediaBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     browserMediaBusy = true;
     const generation = browserStateGeneration;
@@ -4942,6 +4966,58 @@ ipcMain.handle('browser:places:list', (event) => {
   return { ok: true, places: browserPlacesSnapshot() };
 });
 
+ipcMain.handle('browser:tab:mute', (event, tabId) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = browserTabById(tabId), wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return { ok: false, error: 'Sekme henüz yüklenmedi.' };
+  wc.setAudioMuted(!wc.isAudioMuted());
+  tab.tabMuted = wc.isAudioMuted();
+  const audio = { tabMuted: tab.tabMuted, audible: wc.isCurrentlyAudible() };
+  sendBrowserEvent(tab, { type: 'tab-audio', ...audio });
+  return { ok: true, ...audio };
+});
+
+ipcMain.handle('browser:places:folder', (event, url, folder) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const places = readBrowserPlaces();
+  const item = places.bookmarks.find(entry => entry.url === safeBrowserPlaceUrl(url));
+  if (!item) return { ok: false, error: 'Yer imi bulunamadı.' };
+  item.folder = String(folder || '').trim().slice(0, 64);
+  setBrowserPlaces(places);
+  return { ok: true, places: browserPlacesSnapshot() };
+});
+
+ipcMain.handle('browser:workspace:save', (event, rawName) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const name = String(rawName || '').trim().slice(0, 64);
+  const tabs = browserTabsSnapshot().map(normalizeSessionTab).filter(Boolean);
+  if (!name || !tabs.length) return { ok: false, error: 'Bir ad ve en az bir açık site gerekli.' };
+  if (tabs.length > 24) return { ok: false, error: 'Bir çalışma alanına en fazla 24 sekme kaydedilebilir.' };
+  const places = readBrowserPlaces();
+  places.workspaces = [{ name, tabs }, ...places.workspaces.filter(item => item.name !== name)].slice(0, 20);
+  setBrowserPlaces(places);
+  return { ok: true, places: browserPlacesSnapshot() };
+});
+
+ipcMain.handle('browser:workspace:remove', (event, name) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const places = readBrowserPlaces();
+  places.workspaces = places.workspaces.filter(item => item.name !== name);
+  setBrowserPlaces(places);
+  return { ok: true, places: browserPlacesSnapshot() };
+});
+
+ipcMain.handle('browser:workspace:open', (event, name) => queueBrowserTabTransition(async () => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const workspace = readBrowserPlaces().workspaces.find(item => item.name === name);
+  if (!workspace) return { ok: false, error: 'Çalışma alanı bulunamadı.' };
+  if (browserTabs.size + workspace.tabs.length > 24) return { ok: false, error: 'Toplam sekme sınırı 24. Önce birkaç sekmeyi kapatın.' };
+  // Append lazily. Never destroy the user's open tabs or start every site at once.
+  const added = workspace.tabs.map(item => createBrowserTabRecord({ ...item, id: '' }));
+  scheduleBrowserSessionSave();
+  return { ok: true, tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId, firstTabId: added[0].id };
+}));
+
 ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
   const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry : {};
@@ -5058,8 +5134,10 @@ ipcMain.handle('browser:manga:start', async (event, request) => {
     maxImages: request && request.maxImages,
     workers: request && request.workers,
     fontScale: request && request.fontScale,
+    fontFamily: request && request.fontFamily,
     verticalText: request && request.verticalText,
     sfxStyle: request && request.sfxStyle,
+    incremental: !!(request && request.incremental),
   });
 });
 
@@ -5185,18 +5263,22 @@ ipcMain.handle('browser:liveAsr:chunk', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const job = browserLiveAsr;
   if (!job || job.stopping || request?.tabId !== job.tab.id) return { ok: false, error: 'Canlı Whisper çalışmıyor.' };
+  if (request.sessionId !== job.id || request.format !== 'pcm16') return { ok: false, error: 'Ses oturumu değişti; eski parça reddedildi.' };
+  if (job.chunkFiles.size >= 8) return { ok: false, error: 'Ses kuyruğu dolu; daha küçük bir Whisper modeli seçin.' };
+  const offset = Number(request.offset), rate = Number(request.rate);
+  if (!Number.isFinite(offset) || offset < 0 || !Number.isFinite(rate) || rate < .25 || rate > 4) return { ok: false, error: 'Ses zamanlaması geçersiz.' };
   const encoded = String(request && request.base64 || '');
   if (!encoded || encoded.length > 24 * 1024 * 1024) return { ok: false, error: 'Ses parçası boyut sınırını aşıyor.' };
   const data = Buffer.from(encoded, 'base64');
   if (!data.length || data.length > 16 * 1024 * 1024) return { ok: false, error: 'Ses parçası geçersiz.' };
   const dir = path.join(app.getPath('temp'), 'whisper-live-asr');
   fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `${job.tab.id}-${Date.now()}-${randomUUID().slice(0, 8)}.webm`);
+  const filePath = path.join(dir, `${job.tab.id}-${Date.now()}-${randomUUID().slice(0, 8)}.wav`);
   try {
-    fs.writeFileSync(filePath, data);
+    fs.writeFileSync(filePath, require('./browser-live-audio').pcm16Wav(data));
     job.chunkFiles.add(filePath);
     job.proc.stdin.write(`${JSON.stringify({ type: 'chunk', path: filePath,
-      offset: Math.max(0, Number(request.offset) || 0) })}\n`);
+      offset, rate })}\n`);
     return { ok: true };
   } catch (error) {
     job.chunkFiles.delete(filePath);

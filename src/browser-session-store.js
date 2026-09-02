@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media-identity');
+const { safePlaceUrl } = require('./browser-place-url');
 
 const BROWSER_SESSION_VERSION = 1;
 const MAX_SESSION_TABS = 24;
@@ -30,7 +31,7 @@ function normalizeTrackRef(raw) {
 
 function normalizeSessionTab(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const url = normalizeBrowserUrl(raw.url);
+  const url = safePlaceUrl(raw.url);
   if (!url) return null;
   const identity = canonicalMediaIdentity(url, {
     service: raw.service,

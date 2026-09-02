@@ -97,6 +97,19 @@ function parseTimedBlocks(body) {
   return normalizeCues(out);
 }
 
+function stripAssDrawing(text) {
+  let drawing = false;
+  return String(text || '').split(/(\{[^}]*\})/g).map((part) => {
+    if (part.startsWith('{') && part.endsWith('}')) {
+      for (const tag of part.matchAll(/\\(p\s*\d+|r[^\\}]*)/gi)) {
+        drawing = /^p/i.test(tag[1]) && Number(tag[1].slice(1).trim()) > 0;
+      }
+      return part;
+    }
+    return drawing ? '' : part;
+  }).join('');
+}
+
 function parseAss(body) {
   const out = [];
   let eventFields = ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
@@ -122,7 +135,7 @@ function parseAss(body) {
     const start = parseTime(rawFields[startIndex]);
     const end = parseTime(rawFields[endIndex]);
     // Text alanı son yapısal alandır ve virgül içerebilir.
-    const text = rawFields.slice(textIndex).join(',').replace(/\\N/gi, '\n').replace(/\\n/gi, '\n');
+    const text = stripAssDrawing(rawFields.slice(textIndex).join(',')).replace(/\\N/gi, '\n');
     if (start !== null) out.push({ start, end, text });
   }
   return normalizeCues(out);
@@ -332,7 +345,8 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
       if (!variable) continue;
       const absolute = resolveUrl(template, repBase);
       const escaped = absolute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const querySuffix = /[?#]/.test(absolute) ? '' : '(?:[?#].*)?';
+      const querySuffix = absolute.includes('#') ? ''
+        : absolute.includes('?') ? '(?:&[^#]*)?(?:#.*)?' : '(?:[?#].*)?';
       const pattern = `^${escaped
         .replace('__DASHCAP__', '(\\d+)')
         .replace(/__DASHNUM__/g, '\\d+')

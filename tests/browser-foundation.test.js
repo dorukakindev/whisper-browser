@@ -112,6 +112,14 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   assert(!serialized.includes('requestHeaders'));
 });
 
+test('oturum SPA rotasını korurken hash içindeki gizli anahtarı siler', () => {
+  const session = normalizeBrowserSession({ tabs: [
+    { id: 'route', url: 'https://reader.example/#/chapter/7?page=2&token=LEAK' },
+  ] });
+  assert.equal(session.tabs[0].url, 'https://reader.example/#/chapter/7?page=2');
+  assert(!JSON.stringify(session).includes('LEAK'));
+});
+
 test('oturum atomik yazılır, okunur ve önceki sürüm yedeklenir', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-session-'));
   const file = path.join(dir, 'browser-session.json');
