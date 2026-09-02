@@ -1,4 +1,6 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const {
   browserDrmFailureMessage,
   isProtectedBrowserHost,
@@ -50,6 +52,15 @@ test('korumalı servis alan adlarını doğru sınıflandırır', () => {
 test('genel URL temizleyici sorgu ve fragmenti dışarı sızdırmaz', () => {
   const value = redactConsoleUrls('GET https://cdn.test/file.mpd?jwt=abc#secret failed');
   assert.equal(value, 'GET https://cdn.test/file.mpd failed');
+});
+
+test('başlatıcı npm kurulumunun ezdiği üretim VMP imzasını görünür kılıyor', () => {
+  const start = fs.readFileSync(path.join(__dirname, '..', 'start.bat'), 'utf8');
+  assert.match(start, /castlabs_evs\.vmp verify-pkg "%DRM_PKG%"/);
+  assert.match(start, /2312400/);
+  assert.match(start, /Castlabs EVS imza hizmetine gonderir/);
+  assert.ok(start.indexOf('choice /c EH') < start.indexOf('call "%~dp0drm-kur.bat"'),
+    'harici imza isteği kullanıcı onayından önce başlatılıyor');
 });
 
 if (!process.exitCode) console.log(`\n${passed} DRM testi geçti.`);
