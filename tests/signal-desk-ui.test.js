@@ -26,6 +26,13 @@ test('iş özeti kaynak, motor, çıktı, dil ve VRAM sinyallerini gösteriyor',
   assert(/function updateSignalDesk\s*\(/.test(js), 'ortak iş özeti sahibi yok');
 });
 
+test('sol panel kartları görünür yüksekliğe sıkışmıyor', () => {
+  assert(/\.panel-left\s*>\s*\.card\s*\{[^}]*flex:\s*0\s+0\s+auto/.test(css),
+    'Aktif İş kartı panel yüksekliği daralınca içe çökebilir');
+  assert(/\.panel\s*\{[^}]*overflow-y:\s*auto/.test(css),
+    'doğal yüksekliği korunan kartlar panel içinde kaydırılamıyor');
+});
+
 test('preset farkı referans profili ve alan farklarını saklamıyor', () => {
   assert(html.includes('id="presetDiffCount"') && html.includes('id="presetDiffList"'), 'preset fark yüzeyi eksik');
   assert(/function currentPresetDiffs\s*\(/.test(js), 'preset karşılaştırma işlevi yok');

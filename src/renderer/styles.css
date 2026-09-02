@@ -123,6 +123,12 @@ html, body {
   padding-right: 4px;
 }
 
+/* Sol panel kendi kaydırma alanına sahip. Kartları görünür yüksekliğe
+   sığdırmak için küçültmek, overflow:hidden kullanan Signal Desk'in bütün
+   içeriğini birkaç piksele sıkıştırıyordu. Her kart doğal yüksekliğini korur;
+   taşan içerik panel kaydırmasıyla erişilebilir kalır. */
+.panel-left > .card { flex: 0 0 auto; }
+
 .panel::-webkit-scrollbar { width: 8px; }
 .panel::-webkit-scrollbar-track { background: transparent; }
 .panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
