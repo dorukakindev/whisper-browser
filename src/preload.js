@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('api', {
   exportBrowserManga: (tabId, format) => ipcRenderer.invoke('browser:manga:export', { tabId, format }),
   captureBrowserPage: (tabId) => ipcRenderer.invoke('browser:capturePage', { tabId }),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),
+  getBrowserTranslationSnapshot: (tabId) => ipcRenderer.invoke('browser:translation:snapshot', { tabId }),
   stopBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:stop', { tabId }),
   completeBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:completeAll', { tabId }),
   startBrowserLiveAsr: (tabId, options) => ipcRenderer.invoke('browser:liveAsr:start', { ...options, tabId }),

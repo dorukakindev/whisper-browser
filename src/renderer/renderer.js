@@ -64,13 +64,19 @@ function scheduleQueuePersist(delay = 80) {
   _queuePersistTimer = setTimeout(persistQueueNow, Math.max(0, delay));
 }
 
-function queueSecretsFromCurrentUi() {
+function queueSecretsFromCurrentUi(savedOptions = {}) {
   const current = buildOptsFromUI();
-  return {
+  const runtime = {
     hfToken: current.hfToken || '',
     translateApiKey: current.translateApiKey || '',
     llmApiKey: current.llmApiKey || '',
   };
+  // Kimlik bilgisi taşıdığı için kuyruk diskinden çıkarılan özel endpoint'ler
+  // işi yeniden başlatırken güncel UI'dan çalışma anında geri eklenir.
+  for (const key of ['translateBaseUrl', 'llmBaseUrl']) {
+    if (!savedOptions[key] && current[key]) runtime[key] = current[key];
+  }
+  return runtime;
 }
 
 async function restorePersistedQueue() {
@@ -127,7 +133,7 @@ async function offerBurnInRecovery() {
   if (_burninRecoveryPromptOpen) return;
   _burninRecoveryPromptOpen = true;
   try {
-  if (!status.inputReady && !status.canFinalize) {
+  if (!status.inputReady && !status.canFinalize && !status.alreadyDone) {
     const discard = await openAppDialog({
       title: 'Yarım gömme işi kullanılamıyor',
       description: `${videoName} için kaynak video veya altyazı bulunamadı. Geçici kurtarma kaydı silinsin mi?`,
@@ -137,11 +143,15 @@ async function offerBurnInRecovery() {
     return;
   }
   const accepted = await openAppDialog({
-    title: status.canFinalize ? 'Tamamlanan videoyu kurtar' : 'Yarım kalan gömmeyi sürdür',
-    description: status.canFinalize
+    title: status.alreadyDone ? 'Tamamlanan videoyu doğrula'
+      : status.canFinalize ? 'Tamamlanan videoyu kurtar' : 'Yarım kalan gömmeyi sürdür',
+    description: status.alreadyDone
+      ? `${videoName} için nihai video tamamlanmış görünüyor. Kurtarma kaydı doğrulanıp temizlensin mi?`
+      : status.canFinalize
       ? `${videoName} için tamamlanmış geçici çıktı bulundu. Son video dosyasına dönüştürülsün mü?`
       : `${videoName} gömme sırasında yarım kalmış. Güvenli biçimde baştan başlatılsın mı?`,
-    confirmLabel: status.canFinalize ? 'Çıktıyı kurtar' : 'Baştan başlat',
+    confirmLabel: status.alreadyDone ? 'Doğrula ve temizle'
+      : status.canFinalize ? 'Çıktıyı kurtar' : 'Baştan başlat',
     intent: 'primary',
   });
   if (!accepted) return;
@@ -536,7 +546,7 @@ async function processNextQueueItem() {
   state.lastQualityReport = null;
 
   // Eklenirken dondurulmuş ayarları kullan (yoksa mevcut UI'dan üret — geriye uyum)
-  const opts = next.opts ? { ...next.opts, ...queueSecretsFromCurrentUi() } : buildOptsFromUI();
+  const opts = next.opts ? { ...next.opts, ...queueSecretsFromCurrentUi(next.opts) } : buildOptsFromUI();
   opts.queueItemId = next.id;
   const problemInfo = optsProblemInfo(opts);
   if (problemInfo) {
@@ -3404,7 +3414,7 @@ function newBrowserTabState(snapshot = {}) {
     browserPositionTick: 0,
     browserLoadedTrackId: '',
     browserLoadedTrackId2: '',
-    browserTranslationTrackId: '',
+    browserTranslationTrackId: snapshot.translationTrackId || '',
     browserLiveTranslations: [],
     browserMangaBusy: !!snapshot.mangaBusy,
     browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
@@ -3599,6 +3609,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   updateBrowserMangaButton();
   updateBrowserNavigation(tab, { preserveWorkspace: true });
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
+  void restoreBrowserTranslationSnapshot(tab);
 }
 
 function syncBrowserTabs(snapshots, activeTabId) {
@@ -3624,6 +3635,7 @@ function syncBrowserTabs(snapshots, activeTabId) {
       offset: Number.isFinite(Number(snapshot.offset)) ? Number(snapshot.offset) : (tab.offset || 0),
       viewMode: snapshot.viewMode || tab.viewMode || 'reading',
       targetLanguage: snapshot.targetLanguage || tab.targetLanguage || '',
+      browserTranslationTrackId: snapshot.translationTrackId || tab.browserTranslationTrackId || '',
       trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : (tab.trackRefs || []),
       resumePending: !!snapshot.resumePending,
     });
@@ -4454,21 +4466,67 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   setBrowserSignal(`${result.sentenceCount} cümlenin tamamı kuyruğa alındı; oynatma çevresi öncelikli hazırlanıyor.`, true);
 }
 
+function browserTranslationCueKey(cue) {
+  const raw = cue?.cueId ?? cue?.id ?? `${cue?.start}:${cue?.end}`;
+  return String(raw).replace(/^web-tr-/, '');
+}
+
+function mergeBrowserTranslationCues(target, cues) {
+  for (const cue of Array.isArray(cues) ? cues : []) {
+    const text = String(cue?.text || '').trim();
+    if (!text) continue;
+    const key = browserTranslationCueKey(cue);
+    target.set(key, {
+      id: `web-tr-${key}`, start: Number(cue.start) || 0,
+      end: Number(cue.end) || Number(cue.start) || 0, text,
+    });
+  }
+  return target;
+}
+
+async function restoreBrowserTranslationSnapshot(tab) {
+  if (!tab?.id || !tab.browserTranslationTrackId || !window.api.getBrowserTranslationSnapshot) return;
+  const tabId = tab.id;
+  const result = await window.api.getBrowserTranslationSnapshot(tabId).catch(() => null);
+  const current = browserTabState(tabId);
+  if (!result?.ok || !current || player.browserActiveTabId !== tabId
+      || result.trackId !== current.browserTranslationTrackId
+      || Number(result.generation) < Number(current.generation || 0)) return;
+  const translated = mergeBrowserTranslationCues(
+    new Map((current.browserLiveTranslations || []).map((cue) => [browserTranslationCueKey(cue), cue])),
+    result.results);
+  if (Array.isArray(result.sourceCues) && result.sourceCues.length) {
+    player.cues = result.sourceCues.map((cue, index) => ({
+      id: cue.id ?? index, start: Number(cue.start) || 0,
+      end: Number(cue.end) || Number(cue.start) || 0, text: String(cue.text || ''),
+    }));
+    current.cues = player.cues.slice();
+    if (!current.browserLoadedTrackId) current.browserLoadedTrackId = result.trackId;
+    if (!player.browserLoadedTrackId) player.browserLoadedTrackId = result.trackId;
+  }
+  current.browserLiveTranslations = [...translated.values()];
+  player.browserTranslationTrackId = result.trackId;
+  player.browserLiveTranslations = translated;
+  player.cues2 = [...translated.values()].sort((a, b) => a.start - b.start || a.end - b.end);
+  updateBrowserTranslationExportButton();
+  syncSubtitleModeUi();
+  if (result.state?.total && Number(result.state.completed) >= Number(result.state.total)) {
+    setSubtitleMode('translation', false);
+  }
+  scheduleBrowserOverlaySync();
+  if (player.workspaceMode === 'browser') {
+    renderTranscript();
+    renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+  }
+}
+
 function applyBrowserTranslationResult(event) {
   if (!event.result || event.trackId !== player.browserTranslationTrackId) return;
   if (event.result.error) {
     logLine(`Canlı web çevirisi: ${event.result.error}`, 'warn');
     return;
   }
-  for (const cue of event.result.cues || []) {
-    const text = String(cue.text || '').trim();
-    if (!text) continue;
-    const key = String(cue.cueId ?? `${cue.start}:${cue.end}`);
-    player.browserLiveTranslations.set(key, {
-      id: `web-tr-${key}`, start: Number(cue.start) || 0,
-      end: Number(cue.end) || Number(cue.start) || 0, text,
-    });
-  }
+  mergeBrowserTranslationCues(player.browserLiveTranslations, event.result.cues);
   player.cues2 = [...player.browserLiveTranslations.values()]
     .filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
   updateBrowserTranslationExportButton();
@@ -5292,13 +5350,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'capture-status') {
         tab.diagnostics = event.diagnostics || null;
       } else if (event.type === 'translation-result' && event.result && !event.result.error) {
-        const translated = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
-        for (const cue of event.result.cues || []) {
-          const text = String(cue.text || '').trim();
-          if (!text) continue;
-          const key = String(cue.cueId ?? `${cue.start}:${cue.end}`);
-          translated.set(key, { id: `web-tr-${key}`, start: cue.start, end: cue.end, text });
-        }
+        const translated = mergeBrowserTranslationCues(
+          new Map((tab.browserLiveTranslations || []).map((cue) => [browserTranslationCueKey(cue), cue])),
+          event.result.cues);
         tab.browserTranslationTrackId = event.trackId || tab.browserTranslationTrackId;
         tab.browserLiveTranslations = [...translated.values()];
       } else if (event.type === 'capture-enabled') {

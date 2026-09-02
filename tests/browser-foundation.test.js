@@ -171,4 +171,23 @@ test('kalıcı sekme özeti konum, hız, medya ve iz referanslarını taşır', 
   }
 });
 
+test('kapanış finalinden sonra gecikmiş sekme timerı boş oturum yazamaz', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const persist = main.slice(main.indexOf('function persistBrowserSessionNow'),
+    main.indexOf('function restoreBrowserSessionState'));
+  assert.match(persist, /if \(browserSessionFinalizedForQuit\) return \{ ok: true, skipped: true \}/);
+  assert.match(persist, /function scheduleBrowserSessionSave[\s\S]*if \(browserSessionFinalizedForQuit\) return/);
+});
+
+test('renderer yenilenince süren web çevirisine ana süreç snapshotından yeniden bağlanır', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+  assert.match(main, /translationTrackId:\s*tab\?\.translationTrackId/);
+  assert.match(main, /ipcMain\.handle\('browser:translation:snapshot'/);
+  assert.match(preload, /getBrowserTranslationSnapshot/);
+  assert.match(renderer, /async function restoreBrowserTranslationSnapshot/);
+  assert.match(renderer, /void restoreBrowserTranslationSnapshot\(tab\)/);
+});
+
 console.log(`browser-foundation: ${passed} test`);

@@ -50,14 +50,20 @@ const {
 } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
 const {
+  burninFinalOutputLooksComplete,
   burninOutputPaths,
+  burninRecoveryProcessMatches,
   burninRecoveryPathsMatch,
+  burninReplacementBackupPaths,
   burninTempLooksComplete,
+  cleanupBurninReplacementBackups,
   normalizeBurninRecovery,
   removeFileQuietly,
+  restoreNewestBurninReplacementBackup,
   replaceBurninOutput,
 } = require('./burnin-output');
 const {
+  mergeQueueSnapshotForSave,
   normalizeQueueSnapshot,
   queueSnapshotForDisk,
   updateQueueSnapshotRunning,
@@ -139,6 +145,7 @@ if (!hasSingleInstanceLock) {
 }
 let activeJob = null;
 let activeQueueItemId = null;
+const queueTerminalGuards = new Set();
 let powerBlockerId = null;
 let browserView = null;
 let browserVisible = false;
@@ -720,11 +727,15 @@ function loadQueueState() {
 
 function persistQueueTerminal(queueItemId, event) {
   if (!queueItemId) return;
+  queueTerminalGuards.add(Number(queueItemId));
   writeQueueState(updateQueueSnapshotTerminal(readQueueStateRaw(), queueItemId, event));
 }
 
 function persistQueueRunning(queueItemId, options) {
   if (!queueItemId) return;
+  // Bu yalnız gerçekten yeni Python işi başladığında çağrılır; önceki terminal
+  // durumunu koruyan yarış engeli artık bilinçli yeniden-denemeyi durdurmamalı.
+  queueTerminalGuards.delete(Number(queueItemId));
   const input = String(options?.youtube || options?.input || '');
   writeQueueState(updateQueueSnapshotRunning(readQueueStateRaw(), queueItemId, {
     type: options?.youtube ? 'youtube' : 'file',
@@ -1347,6 +1358,7 @@ function browserTabSnapshot(tab) {
     offset: Number(tab?.overlay?.offset) || 0,
     viewMode: tab?.viewMode || 'reading',
     targetLanguage: tab?.targetLanguage || '',
+    translationTrackId: tab?.translationTrackId || '',
     trackRefs: Array.isArray(tab?.trackRefs) ? tab.trackRefs : [],
     resumePending: !!url && !(wc && wc.getURL() !== 'about:blank'),
   };
@@ -1359,6 +1371,9 @@ function browserTabsSnapshot() {
 function persistBrowserSessionNow() {
   if (browserSessionSaveTimer) clearTimeout(browserSessionSaveTimer);
   browserSessionSaveTimer = null;
+  // Kapanışta görünüm yok edilmeden önce son sağlam snapshot yazıldı. Sekmeler
+  // destroy edilirken planlanan gecikmiş kayıt bunun üzerine boş liste yazmasın.
+  if (browserSessionFinalizedForQuit) return { ok: true, skipped: true };
   persistActiveBrowserTabState();
   const result = writeBrowserSessionAtomic(browserSessionPath(app), {
     restoreEnabled: browserSessionRestoreEnabled,
@@ -1377,6 +1392,8 @@ function persistBrowserSessionNow() {
 
 function scheduleBrowserSessionSave(delay = 700) {
   if (browserSessionSaveTimer) clearTimeout(browserSessionSaveTimer);
+  browserSessionSaveTimer = null;
+  if (browserSessionFinalizedForQuit) return;
   // Oynatma konumu yaklaşık 250 ms'de bir değişir. Yalnız trailing debounce
   // kullanılırsa timer sürekli sıfırlanır ve çökme halinde son konum kaybolur.
   const elapsed = Date.now() - browserSessionLastWriteAt;
@@ -4537,7 +4554,11 @@ function createWindow() {
           return;
         }
       }
-      browserSessionFinalizedForQuit = await flushBrowserSession();
+      // Disk/çerez flush sonucundan bağımsız olarak artık görünüm yok edilmek
+      // üzere. Başarısızlıkta eski sağlam dosyayı koru; boş Map'i ikinci kez
+      // yazarak onu silme.
+      await flushBrowserSession();
+      browserSessionFinalizedForQuit = true;
       destroyBrowserView();
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
     })();
@@ -5124,6 +5145,20 @@ ipcMain.handle('browser:translation:start', async (event, request) => {
   });
 });
 
+ipcMain.handle('browser:translation:snapshot', (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  return {
+    ok: true,
+    ...browserEventContext(tab),
+    trackId: tab.translationTrackId || '',
+    sourceCues: tab.translationSourceCues.slice(0, 20000),
+    results: [...tab.translationResults.values()].slice(0, 20000),
+    state: tab.translationScheduler?.snapshot() || null,
+  };
+});
+
 ipcMain.handle('browser:translation:stop', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
@@ -5596,10 +5631,20 @@ ipcMain.handle('queue:save', (event, snapshot) => {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     return { ok: false, error: 'Geçersiz kuyruk durumu.' };
   }
-  return writeQueueState({
-    ...snapshot,
-    currentQueueId: activeQueueItemId || snapshot.currentQueueId || null,
-  });
+  const merged = mergeQueueSnapshotForSave(
+    readQueueStateRaw(), snapshot, activeQueueItemId, queueTerminalGuards);
+  const result = writeQueueState(merged);
+  if (result.ok) {
+    // Renderer terminal durumu gördüğünü yazınca geçici yarış korumasını bırak.
+    for (const item of merged.items) {
+      if (queueTerminalGuards.has(item.id) && ['done', 'error'].includes(item.status)) {
+        const incoming = Array.isArray(snapshot.items)
+          ? snapshot.items.find((entry) => Number(entry?.id) === item.id) : null;
+        if (incoming && ['done', 'error'].includes(incoming.status)) queueTerminalGuards.delete(item.id);
+      }
+    }
+  }
+  return result;
 });
 
 // ---- Ayarları dışa/içe aktar ----
@@ -5937,35 +5982,86 @@ function processIsAlive(pid) {
   try { process.kill(Number(pid), 0); return true; } catch (_) { return false; }
 }
 
+function processNameForPid(pid) {
+  if (!Number.isSafeInteger(Number(pid)) || Number(pid) <= 0) return '';
+  try {
+    if (process.platform === 'win32') {
+      const result = spawnSync('tasklist', ['/FI', `PID eq ${Number(pid)}`, '/FO', 'CSV', '/NH'], {
+        encoding: 'utf8', windowsHide: true, timeout: 2000,
+      });
+      if (result.error || result.status !== 0) return '';
+      const match = String(result.stdout || '').trim().match(/^"([^"]+)"/);
+      return match ? match[1] : '';
+    }
+    const result = spawnSync('ps', ['-p', String(Number(pid)), '-o', 'comm='], {
+      encoding: 'utf8', windowsHide: true, timeout: 2000,
+    });
+    return result.error || result.status !== 0 ? '' : String(result.stdout || '').trim();
+  } catch (_) { return ''; }
+}
+
+function burninRecoveryProcessIsRunning(recovery) {
+  if (burninJob && burninJob.pid === recovery?.pid) return true;
+  const pidAlive = processIsAlive(recovery?.pid);
+  return burninRecoveryProcessMatches({
+    pidAlive,
+    processName: pidAlive ? processNameForPid(recovery?.pid) : '',
+    startedAt: recovery?.startedAt,
+  });
+}
+
 async function inspectBurninRecovery() {
   const recovery = readBurninRecoveryState();
   if (!recovery) return { ok: true, available: false };
-  const externalRunning = !!(burninJob && burninJob.pid === recovery.pid) || processIsAlive(recovery.pid);
+  const externalRunning = burninRecoveryProcessIsRunning(recovery);
   const inputReady = fs.existsSync(recovery.videoPath) && fs.existsSync(recovery.subPath);
   let tempSize = 0;
   let tempDuration = 0;
+  let outSize = 0;
+  let outDuration = 0;
+  let outMtimeMs = 0;
   try { tempSize = fs.statSync(recovery.tempPath).size; } catch (_) {}
-  if (tempSize && !externalRunning) {
+  try {
+    const stat = fs.statSync(recovery.outPath);
+    outSize = stat.size;
+    outMtimeMs = stat.mtimeMs;
+  } catch (_) {}
+  if (!externalRunning && (tempSize || outSize)) {
     try {
       const ffprobe = resolveFfTool('ffprobe');
-      tempDuration = parseFloat(await probeCommand(ffprobe,
-        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', recovery.tempPath])) || 0;
+      if (tempSize) {
+        tempDuration = parseFloat(await probeCommand(ffprobe,
+          ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', recovery.tempPath])) || 0;
+      }
+      if (outSize) {
+        outDuration = parseFloat(await probeCommand(ffprobe,
+          ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', recovery.outPath])) || 0;
+      }
     } catch (_) {}
   }
+  const alreadyDone = !externalRunning && burninFinalOutputLooksComplete({
+    size: outSize, duration: outDuration, totalSec: recovery.totalSec,
+    mtimeMs: outMtimeMs, startedAt: recovery.startedAt,
+    previousOutSize: recovery.previousOutSize,
+    previousOutMtimeMs: recovery.previousOutMtimeMs,
+  });
   return {
     ok: true,
     available: true,
     recovery,
     externalRunning,
     inputReady,
-    canFinalize: !externalRunning && burninTempLooksComplete({
+    alreadyDone,
+    backupCount: burninReplacementBackupPaths(recovery.outPath).length,
+    canFinalize: !alreadyDone && !externalRunning && burninTempLooksComplete({
       size: tempSize, duration: tempDuration, totalSec: recovery.totalSec,
     }),
   };
 }
 
 let burninJob = null;
-ipcMain.handle('burnin:start', async (_event, videoPath, subPath, recoveryId = '') => {
+ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = '') => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (burninJob) return { ok: false, error: 'Gömme zaten çalışıyor.' };
   if (activeJob) return { ok: false, error: 'Transkripsiyon işi çalışırken gömme başlatılamaz.' };
   if (!videoPath || !subPath || !fs.existsSync(videoPath) || !fs.existsSync(subPath)) {
@@ -6004,6 +6100,13 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath, recoveryId = '
 
   let job;
   try {
+    let previousOutSize = 0;
+    let previousOutMtimeMs = 0;
+    try {
+      const stat = fs.statSync(outPath);
+      previousOutSize = stat.size;
+      previousOutMtimeMs = stat.mtimeMs;
+    } catch (_) {}
     job = spawn(ffmpeg, args, { windowsHide: true });
     job.tempPath = tempPath;
     job.outPath = outPath;
@@ -6014,7 +6117,7 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath, recoveryId = '
     try {
       job.recovery = writeBurninRecoveryState({
         version: 1, id: randomUUID(), videoPath, subPath, tempPath, outPath,
-        pid: job.pid, totalSec, startedAt: Date.now(),
+        pid: job.pid, totalSec, startedAt: Date.now(), previousOutSize, previousOutMtimeMs,
       });
       if (resumingPrevious && previousRecovery.tempPath !== tempPath) {
         try { removeFileQuietly(previousRecovery.tempPath); } catch (_) {}
@@ -6054,9 +6157,12 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath, recoveryId = '
     if (job.settled) return;
     job.settled = true;
     if (burninJob === job) burninJob = null;
-    if (ok && !job.cancelled) {
+    // İptal isteği FFmpeg doğal olarak başarıyla kapandıktan hemen önce gelmiş
+    // olabilir. Çıkış kodu 0 ise tamamlanmış dosyayı silmek yerine her zaman al.
+    if (ok) {
       try {
         replaceBurninOutput(tempPath, outPath);
+        cleanupBurninReplacementBackups(outPath);
         clearBurninRecoveryState(job.recovery?.id, false);
         send({ type: 'done', file: outPath });
         return;
@@ -6085,7 +6191,8 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath, recoveryId = '
   return { ok: true };
 });
 
-ipcMain.handle('burnin:cancel', () => {
+ipcMain.handle('burnin:cancel', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (burninJob && burninJob.pid) {
     burninJob.cancelled = true;
     try { spawn('taskkill', ['/pid', String(burninJob.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
@@ -6109,9 +6216,20 @@ ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
   if (inspected.externalRunning) {
     return { ok: false, running: true, error: 'Önceki FFmpeg süreci hâlâ çalışıyor; dosyaya dokunulmadı.' };
   }
+  if (inspected.alreadyDone) {
+    try {
+      cleanupBurninReplacementBackups(recovery.outPath);
+      removeFileQuietly(recovery.tempPath);
+      clearBurninRecoveryState(recovery.id, false);
+      return { ok: true, recovered: true, file: recovery.outPath };
+    } catch (error) {
+      return { ok: false, error: `Tamamlanmış çıktı doğrulandı ancak kurtarma kaydı temizlenemedi: ${error.message}` };
+    }
+  }
   if (inspected.canFinalize) {
     try {
       replaceBurninOutput(recovery.tempPath, recovery.outPath);
+      cleanupBurninReplacementBackups(recovery.outPath);
       clearBurninRecoveryState(recovery.id, false);
       return { ok: true, recovered: true, file: recovery.outPath };
     } catch (error) {
@@ -6121,6 +6239,10 @@ ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
   if (!inspected.inputReady) {
     return { ok: false, error: 'Kaynak video veya altyazı artık bulunamadığı için gömme yeniden başlatılamıyor.' };
   }
+  // Önceki atomik değiştirme tam yedek adımında çöktüyse eski nihai çıktıyı
+  // yeniden başlatmadan önce yerine koy; yeni iş daha sonra onu yine atomik
+  // biçimde değiştirecektir.
+  try { restoreNewestBurninReplacementBackup(recovery.outPath); } catch (_) {}
   return { ok: true, restart: true, recoveryId: recovery.id,
     videoPath: recovery.videoPath, subPath: recovery.subPath };
 });
@@ -6130,6 +6252,12 @@ ipcMain.handle('burnin:recovery:discard', (event, recoveryId) => {
   const recovery = readBurninRecoveryState();
   if (!recovery || recovery.id !== String(recoveryId || '')) {
     return { ok: false, error: 'Kurtarma kaydı bulunamadı.' };
+  }
+  try {
+    if (!fs.existsSync(recovery.outPath)) restoreNewestBurninReplacementBackup(recovery.outPath);
+    else cleanupBurninReplacementBackups(recovery.outPath);
+  } catch (error) {
+    return { ok: false, error: `Önceki çıktı yedeği korunamadı: ${error.message}` };
   }
   clearBurninRecoveryState(recovery.id, true);
   return { ok: true };
@@ -6393,7 +6521,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   };
 
   try {
-    activeJob = spawn(pythonPath, args, { env, cwd: appDir });
+    activeJob = spawn(pythonPath, args, { env, cwd: appDir, windowsHide: true });
     activeQueueItemId = jobMeta.queueItemId;
     persistQueueRunning(jobMeta.queueItemId, options);
   } catch (err) {

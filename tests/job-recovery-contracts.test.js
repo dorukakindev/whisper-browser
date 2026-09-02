@@ -38,7 +38,7 @@ test('renderer yenilenince yaşayan işe bağlanır, çökmüş iş beklemeye al
   assert.match(restore, /item\.id === activeId && item\.status === 'running'/);
   assert.match(restore, /state\.lastJobVideo = active\.type === 'file' \? active\.input : null/);
   assert.match(restore, /yarım kuyruk işi kurtarıldı/);
-  assert.match(renderer, /queueSecretsFromCurrentUi\(\)/);
+  assert.match(renderer, /queueSecretsFromCurrentUi\(next\.opts\)/);
 });
 
 test('burn-in kurtarma kaydı preload üzerinden yönetilir ve yollar doğrulanır', () => {
@@ -49,6 +49,30 @@ test('burn-in kurtarma kaydı preload üzerinden yönetilir ve yollar doğrulan�
   assert.match(main, /normalizeBurninRecovery\(JSON\.parse/);
   assert.match(main, /burninRecoveryPathsMatch\(recovery\)/);
   assert.match(main, /replaceBurninOutput\(recovery\.tempPath, recovery\.outPath\)/);
+});
+
+test('burn-in başlatma ve iptal yalnız ana renderer tarafından çağrılır', () => {
+  const start = main.slice(main.indexOf("ipcMain.handle('burnin:start'"),
+    main.indexOf("ipcMain.handle('burnin:cancel'"));
+  const cancel = main.slice(main.indexOf("ipcMain.handle('burnin:cancel'"),
+    main.indexOf("ipcMain.handle('burnin:recovery:get'"));
+  assert.match(start, /authorizedBrowserSender\(event\)/);
+  assert.match(cancel, /authorizedBrowserSender\(event\)/);
+});
+
+test('burn-in kurtarma PID yanında süreç kimliğini ve tamamlanmış nihai çıktıyı doğrular', () => {
+  assert.match(main, /function processNameForPid/);
+  assert.match(main, /burninRecoveryProcessMatches/);
+  assert.match(main, /burninFinalOutputLooksComplete/);
+  assert.match(main, /if \(inspected\.alreadyDone\)/);
+  assert.match(renderer, /status\.alreadyDone/);
+});
+
+test('başarılı FFmpeg kapanışı geç gelen iptal bayrağına rağmen finalize edilir', () => {
+  const start = main.slice(main.indexOf("ipcMain.handle('burnin:start'"),
+    main.indexOf("ipcMain.handle('burnin:cancel'"));
+  assert.match(start, /if \(ok\) \{[\s\S]{0,160}replaceBurninOutput\(tempPath, outPath\)/);
+  assert.doesNotMatch(start, /if \(ok && !job\.cancelled\)/);
 });
 
 test('çalışmaya devam eden eski FFmpeg periyodik izlenir ve yarım iş yeniden başlatılabilir', () => {

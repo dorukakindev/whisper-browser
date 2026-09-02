@@ -53,6 +53,8 @@ function normalizeBurninRecovery(raw) {
     pid: Number.isSafeInteger(Number(raw.pid)) && Number(raw.pid) > 0 ? Number(raw.pid) : null,
     totalSec: Math.max(0, Number(raw.totalSec) || 0),
     startedAt: Math.max(0, Number(raw.startedAt) || 0),
+    previousOutSize: Math.max(0, Number(raw.previousOutSize) || 0),
+    previousOutMtimeMs: Math.max(0, Number(raw.previousOutMtimeMs) || 0),
   };
 }
 
@@ -63,6 +65,62 @@ function burninTempLooksComplete({ size = 0, duration = 0, totalSec = 0 } = {}) 
   if (bytes < 1024 || actual <= 0) return false;
   if (expected <= 0) return true;
   return actual >= Math.max(expected * 0.99, expected - 1);
+}
+
+function burninFinalOutputLooksComplete({ size = 0, duration = 0, totalSec = 0,
+    mtimeMs = 0, startedAt = 0, previousOutSize = 0, previousOutMtimeMs = 0 } = {}) {
+  // Var olan eski bir .altyazili.mp4 dosyasını yeni işin çıktısı sanma. FFmpeg
+  // geçici dosyayı bitirdikten sonra rename mtime'ı koruduğundan başarılı yeni
+  // çıktı başlangıç zamanından daha yeni olmalıdır.
+  const unchangedPrevious = Number(previousOutMtimeMs) > 0
+    && Number(mtimeMs) === Number(previousOutMtimeMs)
+    && Number(size) === Number(previousOutSize);
+  if (unchangedPrevious || !(Number(startedAt) > 0)
+      || Number(mtimeMs) < Number(startedAt) - 2000) return false;
+  return burninTempLooksComplete({ size, duration, totalSec });
+}
+
+function burninProcessNameMatches(processName) {
+  return /^ffmpeg(?:\.exe)?$/i.test(path.basename(String(processName || '').trim()));
+}
+
+function burninRecoveryProcessMatches({ pidAlive = false, processName = '', startedAt = 0,
+    now = Date.now(), maxAgeMs = 48 * 60 * 60 * 1000 } = {}) {
+  if (!pidAlive) return false;
+  const age = Number(now) - Number(startedAt);
+  if (!(Number(startedAt) > 0) || age < 0 || age > Number(maxAgeMs)) return false;
+  // Süreç adı sorgulanabildiyse yalnız FFmpeg kabul edilir. Sorgu işletim
+  // sistemi tarafından engellendiyse kısa ömürlü PID kontrolü güvenli fallback.
+  return processName ? burninProcessNameMatches(processName) : true;
+}
+
+function burninReplacementBackupPaths(outPath, fsImpl = fs) {
+  const dir = path.dirname(outPath);
+  const base = path.basename(outPath).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^${base}\\.[A-Za-z0-9-]{1,100}\\.replace-backup$`, 'i');
+  try {
+    return fsImpl.readdirSync(dir).filter((name) => pattern.test(name))
+      .map((name) => path.join(dir, name));
+  } catch (_) { return []; }
+}
+
+function cleanupBurninReplacementBackups(outPath, fsImpl = fs) {
+  for (const backupPath of burninReplacementBackupPaths(outPath, fsImpl)) {
+    removeFileQuietly(backupPath, fsImpl);
+  }
+}
+
+function restoreNewestBurninReplacementBackup(outPath, fsImpl = fs) {
+  if (fsImpl.existsSync(outPath)) return false;
+  const backups = burninReplacementBackupPaths(outPath, fsImpl)
+    .map((backupPath) => {
+      try { return { backupPath, mtimeMs: Number(fsImpl.statSync(backupPath).mtimeMs) || 0 }; }
+      catch (_) { return null; }
+    }).filter(Boolean).sort((a, b) => b.mtimeMs - a.mtimeMs);
+  if (!backups.length) return false;
+  fsImpl.renameSync(backups[0].backupPath, outPath);
+  cleanupBurninReplacementBackups(outPath, fsImpl);
+  return true;
 }
 
 function burninRecoveryPathsMatch(recovery) {
@@ -78,10 +136,16 @@ function burninRecoveryPathsMatch(recovery) {
 }
 
 module.exports = {
+  burninFinalOutputLooksComplete,
   burninOutputPaths,
+  burninProcessNameMatches,
+  burninRecoveryProcessMatches,
   burninRecoveryPathsMatch,
+  burninReplacementBackupPaths,
   burninTempLooksComplete,
+  cleanupBurninReplacementBackups,
   normalizeBurninRecovery,
   removeFileQuietly,
+  restoreNewestBurninReplacementBackup,
   replaceBurninOutput,
 };

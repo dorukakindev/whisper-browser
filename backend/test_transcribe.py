@@ -15,11 +15,25 @@ import sys
 import tempfile
 import types
 import wave
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transcribe as T  # noqa: E402
 import media as M  # noqa: E402
 import live_asr as L  # noqa: E402
+
+
+def test_checkpoint_write_failure_warns_once_and_continues():
+    events = []
+    with tempfile.TemporaryDirectory() as tmp:
+        missing = os.path.join(tmp, 'olmayan', 'job.json')
+        T._CHECKPOINT_WRITE_WARNED.discard(os.path.abspath(missing))
+        with mock.patch.object(T, 'emit', side_effect=lambda kind, **payload: events.append((kind, payload))):
+            assert T.write_checkpoint(missing, {'x': 1}, [(0, 1, 'metin')], 1) is False
+            assert T.write_checkpoint(missing, {'x': 1}, [(0, 1, 'metin')], 1) is False
+    warnings = [payload for kind, payload in events if kind == 'log' and payload.get('level') == 'warn']
+    assert len(warnings) == 1, warnings
+    assert 'checkpoint' in warnings[0]['message'].lower()
 
 
 # ---- faster-whisper segment/word arayüzünü taklit eden hafif sahte sınıflar ----

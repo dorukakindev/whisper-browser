@@ -123,6 +123,7 @@ t('burn-in nihai dosyaya değil benzersiz tmp.mp4 yoluna yazar ve tek kez finali
   ok(/if \(job\.settled\) return/.test(body), 'error ve close çift finalizasyonu engellenmiyor');
   ok(/if \(burninJob === job\) burninJob = null/.test(body), 'eski job yeni job durumunu silebilir');
   ok(/replaceBurninOutput\(tempPath, outPath\)/.test(body), 'başarılı geçici çıktı nihai yola alınmıyor');
+  ok(/if \(ok\) \{/.test(body), 'başarılı FFmpeg çıkışı geç iptal yarışında silinebilir');
   ok(/removeFileQuietly\(tempPath\)/.test(body), 'hata ve iptalde geçici çıktı temizlenmiyor');
 });
 
@@ -246,15 +247,26 @@ t('kapanışta sağlam sekmeler boş görünümle ikinci kez ezilmez', () => {
   const closeStart = msrc.indexOf("mainWindow.on('close'");
   const closeEnd = msrc.indexOf("mainWindow.on('closed'", closeStart);
   const close = msrc.slice(closeStart, closeEnd);
-  const finalized = close.indexOf('browserSessionFinalizedForQuit = await flushBrowserSession()');
+  const flushed = close.indexOf('await flushBrowserSession()');
+  const finalized = close.indexOf('browserSessionFinalizedForQuit = true');
   const destroyed = close.indexOf('destroyBrowserView()');
-  ok(finalized >= 0, 'kapanış oturum yazımının sonucunu işaretlemiyor');
+  ok(flushed >= 0 && finalized > flushed, 'kapanış oturum yazımını finalize etmiyor');
   ok(destroyed > finalized, 'tarayıcı sekmeleri oturum yazılmadan önce yok ediliyor');
 
   const beforeQuit = msrc.slice(msrc.indexOf("app.on('before-quit'"),
     msrc.indexOf("app.on('window-all-closed'"));
   ok(/if \(!browserSessionFinalizedForQuit\) persistBrowserSessionNow\(\)/.test(beforeQuit),
     'before-quit sağlam oturumu boş sekme listesiyle yeniden yazabilir');
+  const persist = msrc.slice(msrc.indexOf('function persistBrowserSessionNow'),
+    msrc.indexOf('function restoreBrowserSessionState'));
+  ok(/if \(browserSessionFinalizedForQuit\) return \{ ok: true, skipped: true \}/.test(persist),
+    'destroyBrowserView gecikmiş timerı sağlam oturumun üzerine yazabilir');
+});
+
+t('transkripsiyon Python süreci Windows konsol penceresi açmadan başlatılır', () => {
+  const start = msrc.indexOf('activeJob = spawn(pythonPath, args');
+  const line = msrc.slice(start, msrc.indexOf('\n', start));
+  ok(/windowsHide:\s*true/.test(line), 'transkripsiyon spawn windowsHide kullanmıyor');
 });
 
 t('çeviri endpointi tam rota verilince chat/completions ekini çoğaltmaz', () => {

@@ -3,6 +3,7 @@
 const assert = require('assert');
 const {
   clonePublicOptions,
+  mergeQueueSnapshotForSave,
   normalizeQueueSnapshot,
   queueSnapshotForDisk,
   updateQueueSnapshotRunning,
@@ -21,6 +22,28 @@ test('API anahtarları ve geçici AI verisi kuyruk dosyasına girmez', () => {
     llmApiKey: 'llm-x', chat: { question: 'gizli' }, explain: true, queueItemId: 8,
     input: 'D:\\gizli.mp4', youtube: 'https://secret.test' });
   assert.deepEqual(opts, { model: 'large-v3' });
+});
+
+test('iç içe sırlar ve kimlik bilgili sağlayıcı URLsi kalıcı kuyruğa girmez', () => {
+  const opts = clonePublicOptions({
+    translateBaseUrl: 'https://user:pass@example.test/v1?api_key=secret&region=eu',
+    llmEndpoint: 'https://example.test/v1?client_secret=x&api-version=2026-01-01',
+    nested: { accessToken: 'secret', safe: 'değer', deeper: { password: 'gizli' } },
+  });
+  assert.equal(opts.translateBaseUrl, undefined);
+  assert.equal(opts.llmEndpoint, 'https://example.test/v1?api-version=2026-01-01');
+  assert.deepEqual(opts.nested, { safe: 'değer', deeper: {} });
+});
+
+test('gecikmiş renderer snapshotı ana sürecin terminal sonucunu geri alamaz', () => {
+  const disk = { items: [{ id: 4, type: 'file', input: 'D:\\a.mp4', status: 'done',
+    files: ['D:\\a.srt'], warnings: ['uyarı'] }] };
+  const stale = { queueRunning: true, currentQueueId: 4,
+    items: [{ id: 4, type: 'file', input: 'D:\\a.mp4', status: 'running' }] };
+  const merged = mergeQueueSnapshotForSave(disk, stale, 4, [4]);
+  assert.equal(merged.items[0].status, 'done');
+  assert.deepEqual(merged.items[0].files, ['D:\\a.srt']);
+  assert.deepEqual(merged.items[0].warnings, ['uyarı']);
 });
 
 test('ana süreç eksik veya gecikmiş renderer kaydında çalışan öğeyi kurar', () => {

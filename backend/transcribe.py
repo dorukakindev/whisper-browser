@@ -3725,6 +3725,9 @@ def job_signature(args):
     }
 
 
+_CHECKPOINT_WRITE_WARNED = set()
+
+
 def write_checkpoint(path, signature, entries, last_time, words=None):
     """Checkpoint'i atomik yaz (önce .tmp, sonra replace) — yazım anında çökme bozmasın."""
     data = {
@@ -3739,8 +3742,22 @@ def write_checkpoint(path, signature, entries, last_time, words=None):
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False)
         os.replace(tmp, path)
-    except OSError:
-        pass  # yazılamıyorsa (salt-okunur klasör) sessizce devam et
+    except OSError as exc:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
+        warning_key = os.path.abspath(path)
+        if warning_key not in _CHECKPOINT_WRITE_WARNED:
+            _CHECKPOINT_WRITE_WARNED.add(warning_key)
+            log(
+                f"Devam checkpoint'i yazılamadı; iş sürecek ancak çökme sonrası "
+                f"bu noktadan devam edilemeyebilir: {exc}",
+                "warn",
+            )
+        return False
+    return True
 
 
 def read_checkpoint(path, signature):

@@ -5,14 +5,58 @@ const MAX_QUEUE_ITEMS = 500;
 const MAX_QUEUE_OPTIONS_BYTES = 512 * 1024;
 const SECRET_OPTION_KEYS = new Set(['hfToken', 'translateApiKey', 'llmApiKey']);
 const ALLOWED_STATUS = new Set(['pending', 'running', 'done', 'error']);
+const TERMINAL_STATUS = new Set(['done', 'error']);
+const SENSITIVE_URL_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+
+function secretOptionKey(key) {
+  return SECRET_OPTION_KEYS.has(key)
+    || /(?:^|[_-])(?:api[_-]?key|access[_-]?token|refresh[_-]?token|oauth[_-]?token|secret|password|passwd|authorization|cookie|credential)(?:$|[_-])/i.test(key)
+    || /(?:ApiKey|AccessToken|RefreshToken|OauthToken|ClientSecret|Password|Authorization|Credential)$/i.test(key);
+}
+
+function sanitizeOptionUrl(value, key) {
+  if (typeof value !== 'string' || !/(?:url|uri|endpoint)$/i.test(key)) return value;
+  if (!/^https?:\/\//i.test(value)) return value;
+  try {
+    const parsed = new URL(value);
+    // Kullanıcı adı/parola taşıyan sağlayıcı adresi kalıcı kuyruğa hiç girmez.
+    // Renderer işi yeniden başlatırken güncel UI değerini çalışma anında ekler.
+    if (parsed.username || parsed.password) return undefined;
+    for (const name of [...parsed.searchParams.keys()]) {
+      if (SENSITIVE_URL_PARAMS.test(name)) parsed.searchParams.delete(name);
+    }
+    return parsed.toString();
+  } catch (_) {
+    // URL olduğu söylenen ama ayrıştırılamayan değer güvenle saklanamaz.
+    return undefined;
+  }
+}
+
+function sanitizePublicValue(value, key = '', depth = 0) {
+  if (depth > 8 || typeof value === 'function' || typeof value === 'symbol' || value === undefined) return undefined;
+  if (secretOptionKey(key)) return undefined;
+  if (value === null || typeof value === 'boolean' || typeof value === 'number') return value;
+  if (typeof value === 'string') return sanitizeOptionUrl(value, key);
+  if (Array.isArray(value)) {
+    return value.slice(0, 5000).map((item) => sanitizePublicValue(item, '', depth + 1))
+      .filter((item) => item !== undefined);
+  }
+  if (!value || typeof value !== 'object') return undefined;
+  const result = {};
+  for (const [childKey, childValue] of Object.entries(value)) {
+    const sanitized = sanitizePublicValue(childValue, childKey, depth + 1);
+    if (sanitized !== undefined) result[childKey] = sanitized;
+  }
+  return result;
+}
 
 function clonePublicOptions(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const publicOptions = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (SECRET_OPTION_KEYS.has(key) || ['chat', 'explain', 'queueItemId', 'input', 'youtube'].includes(key)) continue;
-    if (typeof value === 'function' || typeof value === 'symbol' || value === undefined) continue;
-    publicOptions[key] = value;
+    if (['chat', 'explain', 'queueItemId', 'input', 'youtube'].includes(key)) continue;
+    const sanitized = sanitizePublicValue(value, key);
+    if (sanitized !== undefined) publicOptions[key] = sanitized;
   }
   try {
     const encoded = JSON.stringify(publicOptions);
@@ -20,6 +64,33 @@ function clonePublicOptions(raw) {
     const parsed = JSON.parse(encoded);
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch (_) { return {}; }
+}
+
+function mergeQueueSnapshotForSave(diskRaw, incomingRaw, activeQueueItemId = null,
+    protectedTerminalIds = []) {
+  const incoming = normalizeQueueSnapshot(incomingRaw, activeQueueItemId);
+  const disk = normalizeQueueSnapshot(diskRaw, activeQueueItemId);
+  const protectedIds = new Set([...protectedTerminalIds]
+    .map(Number).filter((id) => Number.isSafeInteger(id) && id > 0));
+  const diskById = new Map(disk.items.map((item) => [item.id, item]));
+  for (const item of incoming.items) {
+    if (!protectedIds.has(item.id)) continue;
+    const authoritative = diskById.get(item.id);
+    if (!authoritative || !TERMINAL_STATUS.has(authoritative.status)
+        || TERMINAL_STATUS.has(item.status)) continue;
+    // Ana süreç terminal olayı diske yazdıktan sonra gecikmiş renderer
+    // snapshot'ı hâlâ "running" olabilir. Yalnız terminal alanlarını koru;
+    // kullanıcının diğer kuyruk düzenlemelerini kaybetme.
+    item.status = authoritative.status;
+    item.files = authoritative.files.slice();
+    item.warnings = authoritative.warnings.slice();
+    item.recovered = false;
+  }
+  return queueSnapshotForDisk({
+    ...incoming,
+    queueRunning: !!incomingRaw?.queueRunning,
+    currentQueueId: activeQueueItemId || incoming.currentQueueId,
+  });
 }
 
 function normalizeQueueItem(raw) {
@@ -126,6 +197,7 @@ module.exports = {
   MAX_QUEUE_ITEMS,
   SECRET_OPTION_KEYS,
   clonePublicOptions,
+  mergeQueueSnapshotForSave,
   normalizeQueueItem,
   normalizeQueueSnapshot,
   queueSnapshotForDisk,
