@@ -309,6 +309,16 @@ def probe_duration(media_path, ffmpeg_path):
         return None
 
 
+def _run_ffmpeg_bounded(command, timeout, **kwargs):
+    try:
+        return subprocess.run(command, timeout=timeout, **kwargs)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"FFmpeg ses işlemi {timeout} saniyelik süre sınırını aştığı için durduruldu. "
+            "Dosyayı kontrol edin veya daha kısa bir zaman aralığı seçin."
+        ) from exc
+
+
 def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end=None,
                   audio_track=-1, audio_filter="none"):
     """
@@ -351,7 +361,7 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
         "-c:a", "pcm_s16le",
         str(output_wav),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    proc = _run_ffmpeg_bounded(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600)
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg hatası: {proc.stderr[-500:]}")
     # ffmpeg 0 dönse bile çıktı boş olabilir (ör. dosyada ses akışı yoksa)
@@ -722,7 +732,7 @@ def _cut_wav(src_wav, dst_wav, start, end, ffmpeg_path):
         "-ss", f"{max(0.0, start):.3f}", "-to", f"{max(0.0, end):.3f}",
         "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(dst_wav),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    proc = _run_ffmpeg_bounded(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg kesme hatası: {proc.stderr[-300:]}")
     out = Path(dst_wav)
@@ -927,11 +937,11 @@ def _mean_volume_db(wav_path, start, end, ffmpeg_path):
         return None
     # -ss/-to girdiden ÖNCE olmalı: volumedetect bir FİLTREdir ve çıkış tarafı kırpmadan
     # önce çalışır — çıkış tarafına konursa ölçüm kırpılan sesi de içerir (yanlış sonuç).
-    proc = subprocess.run(
+    proc = _run_ffmpeg_bounded(
         [ffmpeg_path, "-hide_banner",
          "-ss", f"{max(0.0, start):.2f}", "-to", f"{end:.2f}", "-i", str(wav_path),
          "-vn", "-af", "volumedetect", "-f", "null", "-"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
     )
     m = re.search(r"mean_volume:\s*(-?(?:inf|[\d.]+)) dB", proc.stderr or "")
     if not m:
@@ -1832,6 +1842,9 @@ def resolve_device_and_compute(device_arg, compute_type_arg, warn_list=None):
 
 
 
+PYANNOTE_MAX_WAVEFORM_BYTES = 512 * 1024 * 1024
+
+
 def _load_pcm_waveform_for_pyannote(wav_path, torch_module):
     """TorchCodec'e ihtiyaç duymadan PCM WAV'i pyannote AudioFile biçimine yükler."""
     import numpy as np
@@ -1842,25 +1855,36 @@ def _load_pcm_waveform_for_pyannote(wav_path, torch_module):
         channels = wav.getnchannels()
         sample_rate = wav.getframerate()
         sample_width = wav.getsampwidth()
-        raw = wav.readframes(wav.getnframes())
-
-    if sample_width == 1:
-        audio = (np.frombuffer(raw, dtype=np.uint8).astype(np.float32) - 128.0) / 128.0
-    elif sample_width == 2:
-        audio = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
-    elif sample_width == 3:
-        packed = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3).astype(np.int32)
-        values = packed[:, 0] | (packed[:, 1] << 8) | (packed[:, 2] << 16)
-        values = np.where(values & 0x800000, values - 0x1000000, values)
-        audio = values.astype(np.float32) / 8388608.0
-    elif sample_width == 4:
-        audio = np.frombuffer(raw, dtype="<i4").astype(np.float32) / 2147483648.0
-    else:
-        raise RuntimeError(f"Desteklenmeyen WAV örnek genişliği: {sample_width * 8} bit")
-
-    if channels < 1 or audio.size % channels:
-        raise RuntimeError("WAV kanal verisi bozuk veya eksik.")
-    waveform = audio.reshape(-1, channels).T.copy()
+        frames = wav.getnframes()
+        if channels < 1 or sample_rate < 1 or frames < 1:
+            raise RuntimeError("WAV kanal verisi bozuk veya eksik.")
+        if sample_width not in (1, 2, 3, 4):
+            raise RuntimeError(f"Desteklenmeyen WAV örnek genişliği: {sample_width * 8} bit")
+        # pyannote requires one continuous waveform for global speaker IDs.
+        # Decode into one final array, not raw + float + transpose copies.
+        if frames * channels * 4 > PYANNOTE_MAX_WAVEFORM_BYTES:
+            raise RuntimeError("Konuşmacı tanıma sesi 512 MB bellek sınırını aşıyor. Daha kısa bir zaman aralığı seçin veya konuşmacı tanımayı kapatın.")
+        waveform = np.empty((channels, frames), dtype=np.float32)
+        chunk_frames = max(1, min(sample_rate * 60, 1024 * 1024 // channels))
+        for offset in range(0, frames, chunk_frames):
+            count = min(chunk_frames, frames - offset)
+            raw = wav.readframes(count)
+            if len(raw) != count * channels * sample_width:
+                raise RuntimeError("WAV kanal verisi bozuk veya eksik.")
+            if sample_width == 1:
+                audio = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
+                audio -= 128.0
+                audio /= 128.0
+            elif sample_width == 3:
+                packed = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3).astype(np.int32)
+                values = packed[:, 0] | (packed[:, 1] << 8) | (packed[:, 2] << 16)
+                values = (values ^ 0x800000) - 0x800000
+                audio = values.astype(np.float32)
+                audio /= 8388608.0
+            else:
+                audio = np.frombuffer(raw, dtype=f"<i{sample_width}").astype(np.float32)
+                audio /= float(1 << (sample_width * 8 - 1))
+            waveform[:, offset:offset + count] = audio.reshape(-1, channels).T
     return {
         "waveform": torch_module.from_numpy(waveform),
         "sample_rate": sample_rate,
@@ -1891,17 +1915,6 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
             "ve pyannote/speaker-diarization-3.1 modelini kabul edin."
         )
 
-    auth_name = (
-        "token"
-        if "token" in inspect.signature(Pipeline.from_pretrained).parameters
-        else "use_auth_token"
-    )
-    pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1", **{auth_name: hf_token}
-    )
-    if torch is not None and torch.cuda.is_available():
-        pipeline.to(torch.device("cuda"))
-
     kwargs = {}
     if min_speakers:
         kwargs["min_speakers"] = min_speakers
@@ -1912,23 +1925,34 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
         raise RuntimeError("Konuşmacı tanıma için PyTorch gerekli.")
     # pyannote 4 dosya yolunu TorchCodec ile açar. Uygulamanın ürettiği PCM
     # WAV'i doğrudan tensor olarak vererek bozuk/eksik TorchCodec'i atlarız.
+    # Boyut/biçim kontrolünü model yüklemeden yap.
     diarization_audio = _load_pcm_waveform_for_pyannote(wav_path, torch)
-    diarization = pipeline(diarization_audio, **kwargs)
-    annotation = getattr(diarization, "speaker_diarization", diarization)
-    spans = []
-    for turn, _, speaker in annotation.itertracks(yield_label=True):
-        spans.append((turn.start, turn.end, speaker))
-
-    # pyannote pipeline'ını GPU'dan boşalt (sürecin VRAM tepe noktasını düşür)
+    pipeline = diarization = annotation = None
     try:
-        del pipeline, diarization, diarization_audio
-        import gc
-        gc.collect()
-        if torch is not None and torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
-        pass
-    return spans
+        auth_name = (
+            "token"
+            if "token" in inspect.signature(Pipeline.from_pretrained).parameters
+            else "use_auth_token"
+        )
+        pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1", **{auth_name: hf_token}
+        )
+        if torch.cuda.is_available():
+            pipeline.to(torch.device("cuda"))
+        diarization = pipeline(diarization_audio, **kwargs)
+        annotation = getattr(diarization, "speaker_diarization", diarization)
+        return [(turn.start, turn.end, speaker)
+                for turn, _, speaker in annotation.itertracks(yield_label=True)]
+    finally:
+        # Başarısız model çağrısı da GPU/bellek temizliğinden geçmeli.
+        pipeline = diarization = annotation = diarization_audio = None
+        try:
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
 
 def assign_speakers(entries, diarization_spans):
@@ -2481,7 +2505,7 @@ def save_translate_cache(path, cache, limit=200000):
     try:
         if len(cache) > limit:                      # dosya sismesin
             cache = dict(list(cache.items())[-limit:])
-        with open(path, "w", encoding="utf-8", newline="") as f:
+        with atomic_text_writer(path, encoding="utf-8", newline="") as f:
             json.dump(cache, f, ensure_ascii=False)
     except Exception as e:
         log(f"Ceviri onbellegi yazilamadi: {e}", "warn")
@@ -3741,6 +3765,8 @@ def write_checkpoint(path, signature, entries, last_time, words=None):
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, path)
     except OSError as exc:
         try:

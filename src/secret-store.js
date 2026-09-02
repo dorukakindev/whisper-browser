@@ -95,9 +95,24 @@ class SafeSecretStore {
 
   load() {
     if (!this.isAvailable()) return { ok: false, unavailable: true, secrets: {} };
+    if (!this.filePath) return { ok: true, secrets: {} };
+    let failure = null;
+    for (const candidate of [this.filePath, `${this.filePath}.bak`]) {
+      if (!this.fs.existsSync(candidate)) continue;
+      const loaded = this.loadFile(candidate);
+      // A parseable primary is authoritative, even for intentionally cleared
+      // keys or partial decryption. Do not resurrect deleted keys from .bak.
+      if (loaded.ok || loaded.partial || loaded.errors?.length) {
+        return { ...loaded, recovered: candidate !== this.filePath };
+      }
+      failure = loaded;
+    }
+    return failure || { ok: true, secrets: {} };
+  }
+
+  loadFile(candidate) {
     try {
-      if (!this.filePath || !this.fs.existsSync(this.filePath)) return { ok: true, secrets: {} };
-      const parsed = JSON.parse(this.fs.readFileSync(this.filePath, 'utf8'));
+      const parsed = JSON.parse(this.fs.readFileSync(candidate, 'utf8'));
       if (!parsed || parsed.version !== SECRET_STORE_VERSION || !parsed.entries || typeof parsed.entries !== 'object') {
         return { ok: false, error: 'Güvenli anahtar deposu biçimi desteklenmiyor.', secrets: {} };
       }
@@ -128,6 +143,7 @@ class SafeSecretStore {
   save(secrets) {
     if (!this.isAvailable()) return { ok: false, unavailable: true, error: 'İşletim sistemi güvenli deposu kullanılamıyor.' };
     const entries = {};
+    let temp;
     try {
       for (const field of this.fields) {
         const value = secrets && secrets[field];
@@ -135,16 +151,18 @@ class SafeSecretStore {
         entries[field] = this.safeStorage.encryptString(value).toString('base64');
       }
       const dir = path.dirname(this.filePath);
-      const temp = path.join(dir, `.${path.basename(this.filePath)}.${process.pid}.${Date.now()}.tmp`);
+      temp = path.join(dir, `.${path.basename(this.filePath)}.${process.pid}.${Date.now()}.tmp`);
       this.fs.mkdirSync(dir, { recursive: true });
-      this.fs.writeFileSync(temp, `${JSON.stringify({ version: SECRET_STORE_VERSION, entries }, null, 2)}\n`, 'utf8');
-      if (this.fs.existsSync(this.filePath)) {
-        try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
+      this.fs.writeFileSync(temp, `${JSON.stringify({ version: SECRET_STORE_VERSION, entries }, null, 2)}\n`, { encoding: 'utf8', flush: true });
+      if (this.fs.existsSync(this.filePath) && this.loadFile(this.filePath).ok) {
+        this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
       }
       this.fs.renameSync(temp, this.filePath);
       return { ok: true, stored: Object.keys(entries) };
     } catch (error) {
       return { ok: false, error: error.message };
+    } finally {
+      if (temp) { try { if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp); } catch (_) {} }
     }
   }
 

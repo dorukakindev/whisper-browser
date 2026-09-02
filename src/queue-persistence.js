@@ -60,10 +60,19 @@ function clonePublicOptions(raw) {
   }
   try {
     const encoded = JSON.stringify(publicOptions);
-    if (Buffer.byteLength(encoded, 'utf8') > MAX_QUEUE_OPTIONS_BYTES) return {};
+    if (Buffer.byteLength(encoded, 'utf8') > MAX_QUEUE_OPTIONS_BYTES) return null;
     const parsed = JSON.parse(encoded);
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch (_) { return {}; }
+  } catch (_) { return null; }
+}
+
+function validateQueueOptions(snapshot) {
+  for (const item of (Array.isArray(snapshot?.items) ? snapshot.items : []).slice(0, MAX_QUEUE_ITEMS)) {
+    if (clonePublicOptions(item?.opts) === null) {
+      return { ok: false, error: 'Kuyruk ayarları kaydedilemedi: bir işin seçenekleri geçersiz veya 512 KB sınırını aşıyor. Mevcut kayıt korundu.' };
+    }
+  }
+  return { ok: true };
 }
 
 function mergeQueueSnapshotForSave(diskRaw, incomingRaw, activeQueueItemId = null,
@@ -100,6 +109,8 @@ function normalizeQueueItem(raw) {
   const input = String(raw.input || '').trim().slice(0, 8000);
   if (!Number.isSafeInteger(id) || id <= 0 || !type || !input) return null;
   const status = ALLOWED_STATUS.has(raw.status) ? raw.status : 'pending';
+  const opts = clonePublicOptions(raw.opts);
+  if (opts === null) return null;
   return {
     id,
     type,
@@ -113,7 +124,7 @@ function normalizeQueueItem(raw) {
     warnings: Array.isArray(raw.warnings)
       ? raw.warnings.filter((value) => typeof value === 'string').map((value) => value.slice(0, 2000)).slice(0, 100)
       : [],
-    opts: clonePublicOptions(raw.opts),
+    opts,
     recovered: !!raw.recovered,
   };
 }
@@ -195,8 +206,10 @@ function updateQueueSnapshotRunning(raw, queueItemId, fallback = null) {
 
 module.exports = {
   MAX_QUEUE_ITEMS,
+  MAX_QUEUE_OPTIONS_BYTES,
   SECRET_OPTION_KEYS,
   clonePublicOptions,
+  validateQueueOptions,
   mergeQueueSnapshotForSave,
   normalizeQueueItem,
   normalizeQueueSnapshot,

@@ -42,7 +42,10 @@ def main():
         wav_path = os.path.join(tmp, "sample.wav")
         command = [args.ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", source,
                    "-t", str(seconds), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", wav_path]
-        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        try:
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=180)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("FFmpeg ölçüm sesi hazırlığı 180 saniyeyi aştığı için durduruldu.") from exc
         audio_seconds = wav_duration(wav_path)
         if audio_seconds < 1:
             raise RuntimeError("Seçilen dosyada ölçülebilir ses bulunamadı.")

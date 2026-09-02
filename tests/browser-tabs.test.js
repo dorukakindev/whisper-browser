@@ -148,7 +148,7 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   const resetBody = main.slice(resetStart, resetEnd);
   assert(resetBody.indexOf('publishBrowserDiagnostics()') < resetBody.indexOf('restorePersistedBrowserTracks(tab)'),
     'yeni acquisition kimligi kayitli izlerden once renderer kapisina bildirilmelidir');
-  assert.match(main, /ipcMain\.handle\('media:probeTracks'[\s\S]{0,180}event\.sender !== mainWindow\.webContents/);
+  assert.match(main, /ipcMain\.handle\('media:probeTracks'[\s\S]{0,180}authorizedBrowserSender\(event\)/);
   assert.match(main, /sweepBrowserLiveAsrTemp\(\)/);
   assert.match(preload, /createBrowserTab/);
   assert.match(preload, /activateBrowserTab/);

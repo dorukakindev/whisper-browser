@@ -337,7 +337,7 @@ t('cp1254 altyazi dogru cozulur (kaydirma yolu icin)', () => {
 
 t('subs:shift kodlama tespitini KULLANIYOR (duz utf-8 degil)', () => {
   const handler = msrc.slice(msrc.indexOf("ipcMain.handle('subs:shift'"),
-                             msrc.indexOf("ipcMain.handle('subs:shift'") + 900);
+                             msrc.indexOf('\n});', msrc.indexOf("ipcMain.handle('subs:shift'")) + 4);
   ok(handler.includes('decodeSubtitleBuffer'), 'duz utf-8 okuma geri gelmis');
   ok(handler.includes('backupOnce'), '.bak alinmiyor');
   ok(handler.includes('writeSubtitleAtomic'), 'atomik yazma yok');

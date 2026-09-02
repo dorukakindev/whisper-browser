@@ -1954,6 +1954,166 @@ def test_chat_requires_api_key():
         os.remove(p)
 
 
+def test_cache_and_checkpoint_failed_replace_preserve_previous_file():
+    with tempfile.TemporaryDirectory() as tmp:
+        cache = os.path.join(tmp, "cache.json")
+        checkpoint = os.path.join(tmp, "job.ckpt.json")
+        T.save_translate_cache(cache, {"old": "önceki"})
+        assert T.write_checkpoint(checkpoint, {}, [(0, 1, "önceki")], 1)
+        before = {}
+        for p in (cache, checkpoint):
+            with open(p, "rb") as f:
+                before[p] = f.read()
+        with mock.patch.object(T.os, "replace", side_effect=OSError("disk locked")), mock.patch.object(T, "log"):
+            T.save_translate_cache(cache, {"new": "yeni"})
+            assert not T.write_checkpoint(checkpoint, {}, [(0, 2, "yeni")], 2)
+        for p, content in before.items():
+            with open(p, "rb") as f:
+                assert f.read() == content
+        assert sorted(os.listdir(tmp)) == ["cache.json", "job.ckpt.json"]
+
+
+def test_cache_and_checkpoint_fsync_before_replace():
+    with tempfile.TemporaryDirectory() as tmp:
+        for writer in (
+            lambda p: T.save_translate_cache(p, {"key": "Türkçe"}),
+            lambda p: T.write_checkpoint(p, {}, [(0, 1, "Türkçe")], 1),
+        ):
+            p = os.path.join(tmp, "state.json")
+            events = []
+            real_sync, real_replace = T.os.fsync, T.os.replace
+            def sync(fd):
+                events.append("sync")
+                return real_sync(fd)
+            def replace(src, dst):
+                events.append("replace")
+                return real_replace(src, dst)
+            with mock.patch.object(T.os, "fsync", side_effect=sync), mock.patch.object(T.os, "replace", side_effect=replace):
+                writer(p)
+            assert events == ["sync", "replace"]
+            with open(p, "rb") as f:
+                before = f.read()
+            with mock.patch.object(T.os, "fsync", side_effect=OSError("sync failed")), mock.patch.object(T.os, "replace") as rename, mock.patch.object(T, "log"):
+                writer(p)
+                rename.assert_not_called()
+            with open(p, "rb") as f:
+                assert f.read() == before
+
+
+def test_pyannote_pcm_depths_channels_and_bounded_reads():
+    import numpy as np
+    from contextlib import closing
+    import io
+    fake_torch = types.SimpleNamespace(from_numpy=lambda data: data)
+    for width in (1, 2, 3, 4):
+        # Three stereo frames repeated enough to cross the 60-second read bound.
+        magnitude = 1 << (width * 8 - 1)
+        signed = [-magnitude, 0, magnitude // 2, -magnitude // 2, 0, magnitude // 4] * 41
+        raw = b"".join((v + 128).to_bytes(1, "little") if width == 1
+                       else v.to_bytes(width, "little", signed=True) for v in signed)
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wav:
+            wav.setnchannels(2)
+            wav.setsampwidth(width)
+            wav.setframerate(1)
+            wav.writeframes(raw)
+        reader = wave.open(io.BytesIO(buffer.getvalue()), "rb")
+        calls = []
+        original = reader.readframes
+        def read(count):
+            calls.append(count)
+            return original(count)
+        reader.readframes = read
+        with mock.patch.object(T.wave, "open", return_value=closing(reader)):
+            result = T._load_pcm_waveform_for_pyannote("unused", fake_torch)
+        expected = np.array(signed, dtype=np.float32).reshape(-1, 2).T / magnitude
+        np.testing.assert_allclose(result["waveform"], expected)
+        assert result["waveform"].flags.c_contiguous
+        assert result["sample_rate"] == 1
+        assert calls == [60, 60, 3], calls
+
+
+def test_pyannote_memory_limit_precedes_allocation_and_truncated_wav_rejected():
+    import numpy as np
+    import io
+    from contextlib import closing
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(b"\x00\x00" * 10)
+    fake_torch = types.SimpleNamespace(from_numpy=lambda data: data)
+    reader = wave.open(io.BytesIO(buffer.getvalue()), "rb")
+    with mock.patch.object(T.wave, "open", return_value=closing(reader)), mock.patch.object(T, "PYANNOTE_MAX_WAVEFORM_BYTES", 1), mock.patch.object(np, "empty") as allocate:
+        try:
+            T._load_pcm_waveform_for_pyannote("unused", fake_torch)
+            assert False, "bellek sınırı uygulanmadı"
+        except RuntimeError as error:
+            assert "bellek sınırı" in str(error)
+        allocate.assert_not_called()
+    reader = wave.open(io.BytesIO(buffer.getvalue()[:-2]), "rb")
+    with mock.patch.object(T.wave, "open", return_value=closing(reader)):
+        try:
+            T._load_pcm_waveform_for_pyannote("unused", fake_torch)
+            assert False, "eksik PCM kabul edildi"
+        except RuntimeError as error:
+            assert "eksik" in str(error)
+
+
+def test_pyannote_failure_also_cleans_up_without_loading_real_model():
+    calls = []
+    class FakePipeline:
+        @staticmethod
+        def from_pretrained(model, token):
+            calls.append("load")
+            assert token == "fake-token"
+            return FakePipeline()
+        def to(self, device):
+            calls.append("cuda")
+        def __call__(self, audio, **kwargs):
+            raise RuntimeError("test failure")
+    torch = types.SimpleNamespace(cuda=types.SimpleNamespace(
+        is_available=lambda: True, empty_cache=lambda: calls.append("cleanup")), device=lambda d: d)
+    modules = {"pyannote": types.ModuleType("pyannote"),
+               "pyannote.audio": types.SimpleNamespace(Pipeline=FakePipeline), "torch": torch}
+    with mock.patch.dict(sys.modules, modules), mock.patch.object(T, "_load_pcm_waveform_for_pyannote", return_value={}):
+        try:
+            T.run_diarization("unused", "fake-token")
+            assert False
+        except RuntimeError as error:
+            assert str(error) == "test failure"
+    assert calls == ["load", "cuda", "cleanup"]
+    calls.clear()
+    with mock.patch.dict(sys.modules, modules), mock.patch.object(T, "_load_pcm_waveform_for_pyannote", side_effect=RuntimeError("too big")):
+        try:
+            T.run_diarization("unused", "fake-token")
+            assert False
+        except RuntimeError:
+            pass
+    assert calls == [], "Geçersiz WAV için model yüklenmemeli"
+
+
+def test_ffmpeg_preparation_has_timeouts_without_running_ffmpeg():
+    import model_benchmark as B
+    expected = [3600, 600, 120, 180]
+    observed = []
+    def timeout_run(command, **kwargs):
+        observed.append(kwargs["timeout"])
+        raise T.subprocess.TimeoutExpired(command, kwargs["timeout"])
+    actions = [lambda: T.extract_audio("in", "out", "ffmpeg"),
+               lambda: T._cut_wav("in", "out", 0, 1, "ffmpeg"),
+               lambda: T._mean_volume_db("in", 0, 1, "ffmpeg"), B.main]
+    with mock.patch.object(T.subprocess, "run", side_effect=timeout_run), mock.patch.object(T, "log"), mock.patch.object(B.os.path, "isfile", return_value=True), mock.patch.object(sys, "argv", ["model_benchmark", "--input", "fake.mp4", "--model", "tiny"]):
+        for action in actions:
+            try:
+                action()
+                assert False, "zaman aşımı yutuldu"
+            except RuntimeError as error:
+                assert "durduruldu" in str(error)
+    assert observed == expected, observed
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0

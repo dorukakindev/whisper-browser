@@ -3,6 +3,8 @@
 const assert = require('assert');
 const {
   clonePublicOptions,
+  MAX_QUEUE_OPTIONS_BYTES,
+  validateQueueOptions,
   mergeQueueSnapshotForSave,
   normalizeQueueSnapshot,
   queueSnapshotForDisk,
@@ -16,6 +18,18 @@ function test(name, fn) {
   passed += 1;
   console.log(`  PASS  ${name}`);
 }
+
+test('büyük ayarlar boş varsayılana dönüşmez, snapshot reddedilir', () => {
+  const opts = { glossary: 'ğ'.repeat(MAX_QUEUE_OPTIONS_BYTES / 2) };
+  assert.equal(clonePublicOptions(opts), null);
+  assert.equal(validateQueueOptions({ items: [{ opts }] }).ok, false);
+  assert.equal(normalizeQueueSnapshot({ items: [{ id: 9, type: 'file', input: 'video.mp4', opts }] }).items.length, 0);
+  assert.equal(validateQueueOptions({ items: [{ opts: { model: 'small' } }] }).ok, true);
+});
+
+test('mangaApiKey mevcut sonda eşleşen sır filtresiyle ayıklanır', () => {
+  assert.deepEqual(clonePublicOptions({ mangaApiKey: 'fake-secret', nested: { mangaApiKey: 'fake' } }), { nested: {} });
+});
 
 test('API anahtarları ve geçici AI verisi kuyruk dosyasına girmez', () => {
   const opts = clonePublicOptions({ model: 'large-v3', hfToken: 'hf-x', translateApiKey: 'sk-x',

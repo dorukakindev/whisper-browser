@@ -7,6 +7,9 @@ const http = require('http');
 const https = require('https');
 const { isIP } = require('net');
 const { createHash, randomUUID } = require('crypto');
+const { terminateProcessTree } = require('./process-lifecycle');
+const { canonicalLocalPath, SubtitleFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
+const subtitleFileAccess = new SubtitleFileAccess();
 const {
   browserNavigationCapabilities,
   cueFingerprint,
@@ -64,6 +67,8 @@ const {
 } = require('./burnin-output');
 const {
   mergeQueueSnapshotForSave,
+  clonePublicOptions,
+  validateQueueOptions,
   normalizeQueueSnapshot,
   queueSnapshotForDisk,
   updateQueueSnapshotRunning,
@@ -199,6 +204,8 @@ let browserOverlay = { source: [], translation: [], mode: 'translation', offset:
 let browserDiagnostics = null;
 let browserLiveAsr = null;
 let modelBenchmarkJob = null;
+// Includes stopping Live ASR processes until their actual close event.
+const modelProcesses = new Set();
 let browserAdapterPluginStatus = { loaded: [], errors: [] };
 let widevineComponentStatus = { available: false, ready: false, detail: 'Castlabs bileşen API’si bulunamadı' };
 let widevineReadinessPromise = null;
@@ -228,6 +235,7 @@ function setTaskbarProgress(value) {
 }
 
 function sendEvent(payload) {
+  for (const file of Array.isArray(payload?.files) ? payload.files : []) subtitleFileAccess.grant(file);
   // Pencere iş çalışırken kapatılmış olabilir — yok edilmiş pencereye göndermeye çalışma
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('transcribe:event', payload);
@@ -350,6 +358,7 @@ const mediaJobs = { probe: null, download: null, subs: null };
 
 function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
   return new Promise((resolve) => {
+    if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir medya işi zaten çalışıyor; önce bitmesini bekleyin.' });
     const appDir = app.getAppPath();
     const script = path.join(appDir, 'backend', 'media.py');
     let proc;
@@ -387,13 +396,14 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
       else resolve({ ok: false, error: errText || `Süreç ${code} koduyla bitti` });
     });
     proc.on('error', (err) => {
-      if (mediaJobs[kind] === proc) mediaJobs[kind] = null;
+      // Keep the cancellation target until close, including failed spawn.
       resolve({ ok: false, error: err.message });
     });
   });
 }
 
 ipcMain.handle('media:probe', async (_e, url) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const input = typeof url === 'object' && url ? url : { url };
   if (!input.url) return { ok: false, error: 'URL boş' };
   const args = ['probe', '--url', input.url];
@@ -404,6 +414,7 @@ ipcMain.handle('media:probe', async (_e, url) => {
 });
 
 ipcMain.handle('media:download', async (_e, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const o = opts || {};
   if (!o.url) return { ok: false, error: 'URL boş' };
   const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
@@ -426,6 +437,7 @@ ipcMain.handle('media:download', async (_e, opts) => {
 // erisemedigi icin varlik kontrolu burada yapilir - eskiden "<ad>.srt" secenegi
 // dosya yokken de listeye ekleniyordu ve secilince hata veriyordu.
 ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     if (!videoPath || typeof videoPath !== 'string') return { ok: true, files: [] };
     const dir = path.dirname(videoPath);
@@ -448,6 +460,7 @@ ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
 });
 
 ipcMain.handle('media:downloadSubs', async (_e, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const o = opts || {};
   if (!o.url) return { ok: false, error: 'URL boş' };
   const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
@@ -467,16 +480,11 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   }, 'subs');
 });
 
-ipcMain.handle('media:cancelDownload', async () => {
+ipcMain.handle('media:cancelDownload', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const job = mediaJobs.download;      // probe/altyazi isleri iptalden etkilenmez
   if (!job) return { ok: false, error: 'İndirme yok' };
-  try {
-    if (process.platform === 'win32' && job.pid) {
-      spawn('taskkill', ['/pid', String(job.pid), '/T', '/F'], { windowsHide: true });
-    } else {
-      job.kill('SIGTERM');
-    }
-  } catch (_) {}
+  terminateProcessTree(job, { spawn });
   return { ok: true };
 });
 
@@ -530,7 +538,9 @@ function decodeSubtitleBuffer(buf) {
 }
 
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
+    filePath = await authorizeSubtitleFile(filePath);
     const { text, note } = decodeSubtitleBuffer(fs.readFileSync(filePath));
     return { ok: true, text, note };
   } catch (err) {
@@ -612,6 +622,7 @@ function scanWatchFolder() {
 }
 
 ipcMain.handle('watch:start', async (_e, dir, options) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   let isDirectory = false;
   try { isDirectory = !!dir && fs.statSync(dir).isDirectory(); } catch (_) {}
   if (!isDirectory) return { ok: false, error: 'Geçerli bir klasör yolu seçin.' };
@@ -645,7 +656,8 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
   return { ok: true, path: dir };
 });
 
-ipcMain.handle('watch:stop', async () => {
+ipcMain.handle('watch:stop', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (watchTimer) clearInterval(watchTimer);
   watchTimer = null;
   watchDir = null;
@@ -681,7 +693,7 @@ function writeJsonAtomic(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = filePath + '.tmp';
   try {
-    fs.writeFileSync(tmp, JSON.stringify(value, null, 2), 'utf-8');
+    fs.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
     fs.renameSync(tmp, filePath);
   } catch (error) {
     try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
@@ -747,9 +759,12 @@ function persistQueueRunning(queueItemId, options) {
 }
 
 ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
-  const { path: filePath, text, change } = payload || {};
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  let { path: filePath, text, change } = payload || {};
   if (!filePath || typeof text !== 'string') return { ok: false, error: 'Eksik parametre' };
   try {
+    if (Buffer.byteLength(text, 'utf8') > MAX_SUBTITLE_BYTES) throw new Error('Altyazı metni 32 MB sınırını aşıyor.');
+    filePath = await authorizeSubtitleFile(filePath);
     const bak = backupOnce(filePath);
     writeSubtitleAtomic(filePath, text);
     if (change && typeof change === 'object') {
@@ -770,6 +785,7 @@ ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
 });
 
 ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const { sourcePath, text } = payload || {};
   if (typeof text !== 'string') return { ok: false, error: 'Altyazı metni eksik.' };
   const parsed = path.parse(sourcePath || 'altyazi.srt');
@@ -787,6 +803,7 @@ ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
     writeSubtitleAtomic(result.filePath, text);
+    subtitleFileAccess.grant(result.filePath);
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -795,6 +812,7 @@ ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
 
 // Oynaticidan alinan kare (PNG data URL) diske kaydedilir.
 ipcMain.handle('media:saveImage', async (_e, payload) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const { dataUrl, suggestedName } = payload || {};
   if (!dataUrl || !/^data:image\/png;base64,/.test(dataUrl)) {
     return { ok: false, error: 'Geçersiz görüntü' };
@@ -816,7 +834,8 @@ ipcMain.handle('media:saveImage', async (_e, payload) => {
   }
 });
 
-ipcMain.handle('logs:openFolder', async () => {
+ipcMain.handle('logs:openFolder', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const dir = logsDir();
   const err = await shell.openPath(dir);
   return err ? { ok: false, error: err } : { ok: true, path: dir };
@@ -824,18 +843,7 @@ ipcMain.handle('logs:openFolder', async () => {
 
 function killActiveJob() {
   if (!activeJob) return;
-  const proc = activeJob;
-  const pid = proc.pid;
-  try {
-    if (process.platform === 'win32' && pid) {
-      // Tüm süreç ağacını öldür (python + ffmpeg/yt-dlp alt süreçleri orphan kalmasın)
-      spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true });
-    } else {
-      proc.kill('SIGTERM');
-    }
-  } catch (_) {
-    try { proc.kill('SIGKILL'); } catch (_) {}
-  }
+  terminateProcessTree(activeJob, { spawn, onWarning: (message) => sendEvent({ type: 'log', level: 'warn', message }) });
 }
 
 // ---- Kalıcı ayarlar + işletim sistemi şifreli gizli değer kasası ----
@@ -1569,6 +1577,7 @@ function rememberBrowserVisit(url, title = '') {
 function sendBrowserEvent(tabOrPayload, maybePayload) {
   const tab = maybePayload ? tabOrPayload : activeBrowserTab();
   const payload = maybePayload || tabOrPayload;
+  if (payload?.type === 'subtitle-found') subtitleFileAccess.grant(payload.track?.path);
   if (mainWindow && !mainWindow.isDestroyed()) {
     const type = String(payload?.type || 'browser-event');
     const body = { ...(payload || {}) };
@@ -2864,7 +2873,7 @@ function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
   }
   try { job.proc.stdin.write(`${JSON.stringify({ type: 'stop' })}\n`); } catch (_) {}
   setTimeout(() => {
-    try { if (!job.proc.killed) job.proc.kill(); } catch (_) {}
+    terminateProcessTree(job.proc, { spawn });
   }, 15000).unref?.();
   sendBrowserEvent(job.tab, { type: 'live-asr-state', active: false, message: reason });
   return true;
@@ -2886,6 +2895,7 @@ function sweepBrowserLiveAsrTemp() {
 
 function startBrowserLiveAsr(tab, options = {}) {
   if (browserLiveAsr) return { ok: false, error: 'Canlı Whisper zaten çalışıyor.' };
+  if (activeJob || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
   const settings = loadSettings();
   const ui = settings.ui || {};
@@ -2904,6 +2914,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
   const job = { id: randomUUID(), proc, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false };
   browserLiveAsr = job;
+  modelProcesses.add(proc);
   tab.acquisitionPlan?.updateConsent({ liveAsr: true });
   tab.acquisitionPlan?.start('live-asr');
   if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
@@ -2957,6 +2968,7 @@ function startBrowserLiveAsr(tab, options = {}) {
     if (browserLiveAsr === job) stopBrowserLiveAsr(`Canlı Whisper başlatılamadı: ${error.message}`);
   });
   proc.on('close', () => {
+    modelProcesses.delete(proc);
     for (const line of liveAsrLines.flush()) consumeLiveAsrLine(line);
     for (const filePath of job.chunkFiles) {
       try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
@@ -4658,10 +4670,8 @@ app.on('window-all-closed', () => {
   // süreçleri (yt-dlp indirme, probe, altyazı) varsa onları da öldür — orphan
   // kalmasın. Büyük bir YouTube indirmesi uygulama kapandıktan sonra arka planda
   // sürüp disk ve ağ kullanmaya devam ediyordu.
-  for (const j of [modelBenchmarkJob?.proc, browserLiveAsr?.proc, updateJob, burninJob, ...Object.values(mediaJobs)]) {
-    if (j && j.pid) {
-      try { spawn('taskkill', ['/pid', String(j.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
-    }
+  for (const j of new Set([...modelProcesses, modelBenchmarkJob?.proc, browserLiveAsr?.proc, updateJob, burninJob, ...Object.values(mediaJobs)])) {
+    if (j) terminateProcessTree(j, { spawn });
   }
   if (process.platform !== 'darwin') app.quit();
 });
@@ -4676,6 +4686,24 @@ function authorizedBrowserSender(event) {
   if (!mainWindow || mainWindow.isDestroyed() || !event) return false;
   const contents = mainWindow.webContents;
   return event.sender === contents && event.senderFrame === contents.mainFrame;
+}
+
+async function authorizeSubtitleFile(filePath) {
+  const target = subtitleFileAccess.inspect(filePath);
+  if (!subtitleFileAccess.has(target)) {
+    // Old history entries and manually entered paths are not blanket authority.
+    // Native picker/output events grant exact files; unknown files need consent.
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'question', title: 'Altyazı dosyasına erişim',
+      message: 'Bu altyazının okunmasına ve düzenlenmesine izin verilsin mi?',
+      detail: target, buttons: ['İptal', 'İzin ver'], defaultId: 0, cancelId: 0, noLink: true,
+    });
+    if (result.response !== 1 || subtitleFileAccess.inspect(filePath) !== target) {
+      throw new Error('Altyazı dosyasına erişim onaylanmadı.');
+    }
+    subtitleFileAccess.grant(target);
+  }
+  return target;
 }
 
 ipcMain.on('browser:trusted-bridge', (event, message) => {
@@ -4756,7 +4784,7 @@ ipcMain.handle('browser:tab:close', (event, rawId) => queueBrowserTabTransition(
 }));
 
 ipcMain.handle('browser:show', async (event, payload) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   let tab = browserTabById(payload && payload.tabId) || activeBrowserTab(true);
   if (tab.id !== browserActiveTabId) tab = await queueBrowserTabTransition(() => activateBrowserTab(tab.id));
   const view = ensureBrowserView(tab);
@@ -4774,13 +4802,13 @@ ipcMain.handle('browser:show', async (event, payload) => {
 });
 
 ipcMain.handle('browser:hide', async (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   await hideBrowserView(true);
   return { ok: true };
 });
 
 ipcMain.handle('browser:setOccluded', (event, occluded) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   browserModalOccluded = !!occluded;
   if (browserView && !browserView.webContents.isDestroyed()) {
     browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
@@ -4789,7 +4817,7 @@ ipcMain.handle('browser:setOccluded', (event, occluded) => {
 });
 
 ipcMain.handle('browser:setBounds', (event, payload) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!activeRequestedBrowserTab(payload && payload.tabId)) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   const bounds = safeBrowserBounds(payload && payload.bounds);
   if (!bounds) return { ok: false };
@@ -4799,7 +4827,7 @@ ipcMain.handle('browser:setBounds', (event, payload) => {
 });
 
 ipcMain.handle('browser:navigate', async (event, payload) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(payload && payload.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   const url = normalizeBrowserUrl(payload && payload.url);
@@ -4826,6 +4854,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
 });
 
 ipcMain.handle('browser:command', async (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const { command, value } = payload || {};
   const tab = activeRequestedBrowserTab(payload && payload.tabId);
   if (!mainWindow || event.sender !== mainWindow.webContents || !browserView
@@ -4883,7 +4912,7 @@ ipcMain.handle('browser:command', async (event, payload) => {
 });
 
 ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(payload && payload.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   const enabled = payload && payload.enabled;
@@ -4917,7 +4946,7 @@ ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
 });
 
 ipcMain.handle('browser:getState', (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, visible: browserVisible, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), ...browserEventContext(activeBrowserTab()),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled, diagnostics: browserDiagnostics,
     places: browserPlacesSnapshot(), ...browserNavigationState() };
@@ -4962,7 +4991,7 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
 });
 
 ipcMain.handle('browser:places:list', (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, places: browserPlacesSnapshot() };
 });
 
@@ -5019,7 +5048,7 @@ ipcMain.handle('browser:workspace:open', (event, name) => queueBrowserTabTransit
 }));
 
 ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry : {};
   const url = safeBrowserPlaceUrl(entry.url);
   if (!url) return { ok: false, error: 'Geçerli bir site adresi gerekli.' };
@@ -5044,7 +5073,7 @@ ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
 });
 
 ipcMain.handle('browser:places:remove', (event, kind, rawUrl) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const url = safeBrowserPlaceUrl(rawUrl);
   if (!url || !['history', 'bookmarks'].includes(kind)) return { ok: false };
   const places = readBrowserPlaces();
@@ -5055,7 +5084,7 @@ ipcMain.handle('browser:places:remove', (event, kind, rawUrl) => {
 });
 
 ipcMain.handle('browser:places:clearHistory', (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const places = readBrowserPlaces();
   places.history = [];
   setBrowserPlaces(places);
@@ -5064,7 +5093,7 @@ ipcMain.handle('browser:places:clearHistory', (event) => {
 });
 
 ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     const result = await clearBrowserCookiesForSite(rawUrl);
     if (result.ok && browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
@@ -5073,7 +5102,7 @@ ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
 });
 
 ipcMain.handle('browser:cookies:clearAll', async (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     const result = await clearAllBrowserCookies();
     if (browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
@@ -5082,7 +5111,7 @@ ipcMain.handle('browser:cookies:clearAll', async (event) => {
 });
 
 ipcMain.handle('browser:session:reset', async (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     destroyBrowserView();
     const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
@@ -5098,7 +5127,7 @@ ipcMain.handle('browser:session:reset', async (event) => {
 });
 
 ipcMain.handle('browser:setOverlay', async (event, request) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   const payload = request && request.payload;
@@ -5303,7 +5332,7 @@ ipcMain.handle('browser:adapters:openFolder', async (event) => {
 });
 
 ipcMain.handle('browser:subtitle:export', async (event, payload) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const cues = normalizeCues(payload && payload.cues).slice(0, 20000);
   if (!cues.length) return { ok: false, error: 'Dışa aktarılacak altyazı yok.' };
   const safeTitle = String(payload && payload.title || 'web-altyazi')
@@ -5354,7 +5383,8 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
   }, 'download');
 });
 
-ipcMain.handle('dialog:openVideo', async () => {
+ipcMain.handle('dialog:openVideo', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const prev = loadSettings();
   const opts = {
     title: 'Video veya ses dosyası seç (çoklu seçim → kuyruk)',
@@ -5368,6 +5398,7 @@ ipcMain.handle('dialog:openVideo', async () => {
   if (prev && prev.lastInputDir && fs.existsSync(prev.lastInputDir)) opts.defaultPath = prev.lastInputDir;
   const result = await dialog.showOpenDialog(mainWindow, opts);
   if (result.canceled || result.filePaths.length === 0) return null;
+  result.filePaths.forEach((file) => subtitleFileAccess.grant(file));
   // Seçilen dosyanın klasörünü kaydet (mevcut ayarları koruyarak birleştir)
   try {
     const s = loadSettings();
@@ -5379,6 +5410,7 @@ ipcMain.handle('dialog:openVideo', async () => {
 
 // JSON re-export / SRT shift / settings import için tek-dosya seçici (uzantı filtreli)
 ipcMain.handle('dialog:openFile', async (_event, kind) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   const filterMap = {
     json: { name: 'JSON altyazı verisi', extensions: ['json'] },
     settings: { name: 'Ayar dosyası', extensions: ['json'] },
@@ -5391,6 +5423,7 @@ ipcMain.handle('dialog:openFile', async (_event, kind) => {
     filters: [f, { name: 'Tüm Dosyalar', extensions: ['*'] }],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
+  subtitleFileAccess.grant(result.filePaths[0]);
   return result.filePaths[0];
 });
 
@@ -5436,7 +5469,8 @@ function scanMediaFromPaths(inputPaths) {
   return results;
 }
 
-ipcMain.handle('dialog:openFolders', async () => {
+ipcMain.handle('dialog:openFolders', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const prev = loadSettings();
   const opts = {
     title: 'Klasör veya klasörler seç (içlerindeki tüm videolar sıraya eklenir)',
@@ -5454,17 +5488,20 @@ ipcMain.handle('dialog:openFolders', async () => {
 });
 
 ipcMain.handle('paths:scanMedia', async (_event, inputPaths) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!Array.isArray(inputPaths) || inputPaths.length === 0) return [];
   return scanMediaFromPaths(inputPaths);
 });
 
 ipcMain.handle('media:listFolder', async (_event, filePath) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (typeof filePath !== 'string' || !filePath) return [];
   try { return scanMediaFromPaths([path.dirname(path.normalize(filePath))]); }
   catch (_) { return []; }
 });
 
-ipcMain.handle('dialog:openFolder', async () => {
+ipcMain.handle('dialog:openFolder', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Çıktı klasörü seç',
     properties: ['openDirectory', 'createDirectory'],
@@ -5473,39 +5510,45 @@ ipcMain.handle('dialog:openFolder', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('history:list', async () => loadHistory());
+ipcMain.handle('history:list', async (event) => authorizedBrowserSender(event) ? loadHistory() : []);
 
 ipcMain.handle('history:remove', async (_event, id) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   saveHistory(loadHistory().filter((h) => h.id !== id));
   return { ok: true };
 });
 
-ipcMain.handle('history:clear', async () => {
+ipcMain.handle('history:clear', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   saveHistory([]);
   return { ok: true };
 });
 
-ipcMain.handle('library:list', async () => loadWatchLibrary());
+ipcMain.handle('library:list', async (event) => authorizedBrowserSender(event) ? loadWatchLibrary() : []);
 
 ipcMain.handle('library:upsert', async (_event, item) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   const saved = upsertWatchItem(item);
   return saved ? { ok: true, item: saved } : { ok: false, error: 'Geçersiz kütüphane kaydı' };
 });
 
 ipcMain.handle('library:remove', async (_event, key) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   saveWatchLibrary(loadWatchLibrary().filter((item) => item.key !== key));
   try { watchIndex()?.removeMedia(key); } catch (_) {}
   return { ok: true };
 });
 
-ipcMain.handle('library:search', async (_event, query) => searchWatchLibrary(query));
+ipcMain.handle('library:search', async (event, query) => authorizedBrowserSender(event) ? searchWatchLibrary(query) : []);
 
 ipcMain.handle('library:annotations:list', async (_event, mediaId) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   try { return { ok: true, annotations: watchIndex()?.listAnnotations(mediaId) || [] }; }
   catch (error) { return { ok: false, error: error.message, annotations: [] }; }
 });
 
 ipcMain.handle('library:annotations:toggle', async (_event, request) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     const annotation = normalizeAnnotation(request && request.annotation);
     if (!annotation.mediaId) return { ok: false, error: 'Medya kimliği yok.' };
@@ -5526,11 +5569,20 @@ ipcMain.handle('library:annotations:toggle', async (_event, request) => {
 });
 
 ipcMain.handle('shell:openPath', async (_event, p) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!p) return;
-  return shell.openPath(p);
+  try {
+    const target = canonicalLocalPath(p);
+    const stat = fs.statSync(target);
+    if (!stat.isDirectory() && !/\.(?:srt|vtt|ass|ssa|json|txt|log|png|jpg|jpeg|webp|mp4|mkv|avi|mov|webm|flv|wmv|m4v|ts|3gp|mp3|wav|m4a|aac|flac|ogg|opus|wma)$/i.test(target)) {
+      return 'Bu dosya türü uygulamadan açılamaz.';
+    }
+    return await shell.openPath(target);
+  } catch (_) { return 'Dosya veya klasör açılamadı.'; }
 });
 
 ipcMain.handle('shell:openExternal', async (_event, url) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   // Sadece http(s) — keyfi protokol açılmasını engelle
   if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
   return shell.openExternal(url);
@@ -5559,11 +5611,13 @@ ipcMain.handle('notify', (event, opts) => {
 });
 
 ipcMain.handle('shell:showInFolder', async (_event, p) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!p) return;
-  return shell.showItemInFolder(p);
+  try { return shell.showItemInFolder(canonicalLocalPath(p)); } catch (_) { return false; }
 });
 
-ipcMain.handle('app:getPaths', () => {
+ipcMain.handle('app:getPaths', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return {
     appPath: app.getAppPath(),
     userData: app.getPath('userData'),
@@ -5573,6 +5627,7 @@ ipcMain.handle('app:getPaths', () => {
 });
 
 ipcMain.handle('clipboard:write', (_event, text) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (typeof text !== 'string') return false;
   clipboard.writeText(text);
   return true;
@@ -5598,7 +5653,8 @@ function probeCommand(cmd, cmdArgs) {
 }
 
 // Açılış ortam kontrolü: venv, ffmpeg ve GPU adı
-ipcMain.handle('app:getEnvInfo', async () => {
+ipcMain.handle('app:getEnvInfo', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const appDir = app.getAppPath();
   const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', 'Scripts', 'python.exe'))
             || fs.existsSync(path.join(appDir, 'backend', '.venv', 'Scripts', 'python.exe'));
@@ -5628,13 +5684,13 @@ ipcMain.handle('app:getEnvInfo', async () => {
 });
 
 ipcMain.handle('models:status', (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, ...scanModelCache(app.getAppPath()) };
 });
 
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
-  if (activeJob || browserLiveAsr || modelBenchmarkJob) {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'GPU kullanan başka bir iş çalışırken benchmark başlatılamaz.' };
   }
   const picked = await dialog.showOpenDialog(mainWindow, {
@@ -5643,6 +5699,10 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     filters: [{ name: 'Medya', extensions: ['mp4', 'mkv', 'webm', 'mov', 'avi', 'mp3', 'wav', 'm4a', 'flac', 'ogg'] }],
   });
   if (picked.canceled || !picked.filePaths[0]) return { ok: false, canceled: true };
+  // The native dialog yields; a different request may have acquired the GPU.
+  if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return { ok: false, error: 'Dosya seçimi sırasında başka bir model işi başladı.' };
+  }
   const settings = loadSettings();
   const ui = settings.ui || {};
   const requestedModel = String(options.model || ui.model || 'small');
@@ -5660,6 +5720,7 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   const proc = spawn(resolvePython(), args, { cwd: appDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   const job = { proc, canceled: false };
   modelBenchmarkJob = job;
+  modelProcesses.add(proc);
   return await new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -5667,7 +5728,6 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     const finish = (result) => {
       if (settled) return;
       settled = true;
-      if (modelBenchmarkJob === job) modelBenchmarkJob = null;
       resolve(result);
     };
     proc.stdout?.setEncoding('utf8');
@@ -5676,6 +5736,8 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     proc.stderr?.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-8000); });
     proc.on('error', (error) => finish({ ok: false, error: error.message }));
     proc.on('close', () => {
+      modelProcesses.delete(proc);
+      if (modelBenchmarkJob === job) modelBenchmarkJob = null;
       if (job.canceled) return finish({ ok: false, canceled: true });
       const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop() || '';
       try { finish(JSON.parse(line)); }
@@ -5685,16 +5747,17 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
 });
 
 ipcMain.handle('models:benchmark:cancel', (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!modelBenchmarkJob) return { ok: false, error: 'Çalışan benchmark yok.' };
   modelBenchmarkJob.canceled = true;
-  try { modelBenchmarkJob.proc.kill(); } catch (_) {}
+  terminateProcessTree(modelBenchmarkJob.proc, { spawn });
   return { ok: true };
 });
 
 // ---- Settings (sözlük, HF token) ----
-ipcMain.handle('settings:load', () => loadSettings());
+ipcMain.handle('settings:load', (event) => authorizedBrowserSender(event) ? loadSettings() : {});
 ipcMain.handle('settings:save', (_event, s) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!s || typeof s !== 'object' || Array.isArray(s)) return false;
   // Renderer yalnızca arayüz ayarlarını yollar. Dosya seçicinin ana süreçte
   // tuttuğu lastInputDir gibi alanları bu kısmi kayıtla silme.
@@ -5713,6 +5776,8 @@ ipcMain.handle('queue:save', (event, snapshot) => {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     return { ok: false, error: 'Geçersiz kuyruk durumu.' };
   }
+  const validation = validateQueueOptions(snapshot);
+  if (!validation.ok) return validation;
   const merged = mergeQueueSnapshotForSave(
     readQueueStateRaw(), snapshot, activeQueueItemId, queueTerminalGuards);
   const result = writeQueueState(merged);
@@ -5730,7 +5795,8 @@ ipcMain.handle('queue:save', (event, snapshot) => {
 });
 
 // ---- Ayarları dışa/içe aktar ----
-ipcMain.handle('settings:export', async () => {
+ipcMain.handle('settings:export', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Uygulama yedeğini dışa aktar',
     defaultPath: 'whisper-altyazi-yedek.json',
@@ -5753,7 +5819,8 @@ ipcMain.handle('settings:export', async () => {
   }
 });
 
-ipcMain.handle('settings:import', async () => {
+ipcMain.handle('settings:import', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Ayar dosyası içe aktar',
     properties: ['openFile'],
@@ -5816,7 +5883,7 @@ function resolveFfTool(name) {
 // Ses için `index` ffmpeg -map 0:a:N sırasıdır; altyazıda gerçek stream indexi
 // korunur, böylece hazır metin izi varken ASR çalıştırmak gerekmez.
 ipcMain.handle('media:probeTracks', async (event, filePath) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, tracks: [], error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!filePath || typeof filePath !== 'string') return { ok: false, tracks: [] };
   const ffprobe = resolveFfTool('ffprobe');
   return new Promise((resolve) => {
@@ -5859,7 +5926,7 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
 });
 
 ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const filePath = request && request.filePath;
   const track = request && request.track;
   if (typeof filePath !== 'string' || !fs.existsSync(filePath)) {
@@ -5893,6 +5960,7 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
 const waveformCache = new Map();
 ipcMain.handle('media:waveform', async (_event, filePath) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) {
     return { ok: false, error: 'Yerel medya dosyası bulunamadı.' };
   }
@@ -5992,6 +6060,7 @@ function shiftTimecodes(text, offsetSec) {
 }
 
 ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!filePath || typeof offsetSec !== 'number' || !isFinite(offsetSec)) {
     return { ok: false, error: 'Geçersiz parametre.' };
   }
@@ -6000,6 +6069,7 @@ ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
     return { ok: false, error: 'Zaman kaydırma yalnızca SRT/VTT için destekleniyor.' };
   }
   try {
+    filePath = await authorizeSubtitleFile(filePath);
     // KODLAMA TESPITI ile oku. Duz 'utf-8' okumak eski cp1254 Turkce altyazilarda
     // s/g/i harflerini U+FFFD'ye cevirip dosyaya GERI YAZIYORDU - kalici bozulma.
     const { text: raw, note } = decodeSubtitleBuffer(fs.readFileSync(filePath));
@@ -6206,9 +6276,12 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       }
     } catch (recoveryError) {
       job.cancelled = true;
-      try { spawn('taskkill', ['/pid', String(job.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
-      burninJob = null;
-      try { removeFileQuietly(tempPath); } catch (_) {}
+      job.once('error', () => {});
+      job.once('close', () => {
+        if (burninJob === job) burninJob = null;
+        try { removeFileQuietly(tempPath); } catch (_) {}
+      });
+      terminateProcessTree(job, { spawn });
       return { ok: false, error: `Gömme kurtarma kaydı oluşturulamadı: ${recoveryError.message}` };
     }
   } catch (err) {
@@ -6275,9 +6348,9 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
 
 ipcMain.handle('burnin:cancel', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (burninJob && burninJob.pid) {
+  if (burninJob) {
     burninJob.cancelled = true;
-    try { spawn('taskkill', ['/pid', String(burninJob.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
+    terminateProcessTree(burninJob, { spawn });
     return { ok: true };
   }
   return { ok: false };
@@ -6395,11 +6468,17 @@ function recordJob(meta, event) {
 }
 
 ipcMain.handle('transcribe:start', async (_event, options) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!options || typeof options !== 'object' || Array.isArray(options)) return { ok: false, error: 'Geçersiz iş seçenekleri.' };
+  if (options.queueItemId && clonePublicOptions(options) === null) return { ok: false, error: 'Kuyruk işi seçenekleri 512 KB sınırını aşıyor.' };
   if (activeJob) {
     return { ok: false, error: 'Zaten bir iş çalışıyor.' };
   }
   if (burninJob) {
     return { ok: false, error: 'Gömme işi çalışırken transkripsiyon başlatılamaz.' };
+  }
+  if (browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   }
 
   const appDir = app.getAppPath();
@@ -6621,6 +6700,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
 
   let stderrBuf = '';
+  const jobProc = activeJob;
+  modelProcesses.add(jobProc);
 
   activeJob.stdout.setEncoding('utf-8');
   activeJob.stderr.setEncoding('utf-8');
@@ -6629,7 +6710,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     const line = raw.trim();
     if (!line) return;
     try {
-      const event = JSON.parse(line);
+      const event = { ...JSON.parse(line), queueItemId: jobMeta.queueItemId };
       // Görev çubuğunda ilerleme göster; bitiş/hatada pencereyi vurgula
       if ((event.type === 'progress' || event.type === 'download_progress' || event.type === 'llm_progress')
           && typeof event.percent === 'number') {
@@ -6649,7 +6730,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
         persistQueueTerminal(jobMeta.queueItemId, event);
       }
       writeJobLog(event);
-      sendEvent(event);
+      const { traceback, ...publicEvent } = event;
+      sendEvent(publicEvent);
     } catch (_) {
       writeJobLog({ type: 'log', level: 'info', message: line });
       sendEvent({ type: 'log', level: 'info', message: line });
@@ -6689,10 +6771,11 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   });
 
   activeJob.on('close', (code) => {
+    modelProcesses.delete(jobProc);
     for (const raw of stdoutLines.flush()) handleLine(raw);
     stopPowerBlocker();
     setTaskbarProgress(-1);
-    const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000) };
+    const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000), queueItemId: jobMeta.queueItemId };
     if (!jobMeta.terminalSeen) persistQueueTerminal(jobMeta.queueItemId, exitEvent);
     writeJobLog(exitEvent);
     cleanupChatFile();
@@ -6713,11 +6796,12 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     }
     writeJobLog({ type: 'error', message });
     persistQueueTerminal(jobMeta.queueItemId, { type: 'error', message });
+    jobMeta.terminalSeen = true;
     cleanupChatFile();
     endJobLog();
-    sendEvent({ type: 'error', message });
-    activeJob = null;
-    activeQueueItemId = null;
+    sendEvent({ type: 'error', message, queueItemId: jobMeta.queueItemId });
+    // Node emits close after error. Keep ownership until then, otherwise the
+    // old close callback can clear a newly started job and its log/power lock.
   });
 
   startPowerBlocker();
@@ -6726,7 +6810,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
 
 // yt-dlp güncelleme — YouTube indirme hatalarının başlıca nedeni eski yt-dlp sürümüdür
 let updateJob = null;
-ipcMain.handle('maintenance:updateYtdlp', async () => {
+ipcMain.handle('maintenance:updateYtdlp', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (activeJob) return { ok: false, error: 'Bir iş çalışırken güncelleme yapılamaz.' };
   if (updateJob) return { ok: false, error: 'Güncelleme zaten çalışıyor.' };
   const pythonPath = resolvePython();
@@ -6771,7 +6856,8 @@ ipcMain.handle('maintenance:updateYtdlp', async () => {
   });
 });
 
-ipcMain.handle('transcribe:cancel', async () => {
+ipcMain.handle('transcribe:cancel', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!activeJob) return { ok: false, error: 'Çalışan iş yok.' };
   try {
     killActiveJob();

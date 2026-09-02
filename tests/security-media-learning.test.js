@@ -145,6 +145,44 @@ test('tek bozuk gizli alan sağlam anahtarların yüklenmesini engellemez', () =
   }
 });
 
+test('güvenli kasa bozuk/eksik primary için yedekten döner; sağlam boş kayıt önceliklidir', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-secrets-backup-'));
+  const file = path.join(dir, 'secrets.safe.json');
+  try {
+    const store = new SafeSecretStore({ safeStorage: fakeSafeStorage, filePath: file });
+    assert(store.save({ hfToken: 'old' }).ok);
+    assert(store.save({ hfToken: 'new' }).ok);
+    fs.writeFileSync(file, '{broken');
+    assert.equal(store.load().secrets.hfToken, 'old');
+    assert.equal(store.load().recovered, true);
+    // Saving after recovery must not replace the usable backup with corruption.
+    assert(store.save({ hfToken: 'recovered' }).ok);
+    assert.equal(store.loadFile(file + '.bak').secrets.hfToken, 'old');
+    assert(store.save({}).ok);
+    assert.deepEqual(store.load().secrets, {});
+    assert.equal(store.load().recovered, false);
+    fs.unlinkSync(file);
+    assert.equal(store.load().secrets.hfToken, 'recovered');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('güvenli kasa başarısız replace sonrası eski veriyi korur, temp dosyasını temizler', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-secrets-failure-'));
+  const file = path.join(dir, 'secrets.safe.json');
+  try {
+    const store = new SafeSecretStore({ safeStorage: fakeSafeStorage, filePath: file });
+    assert(store.save({ hfToken: 'old' }).ok);
+    let flushed = false;
+    store.fs = { ...fs, writeFileSync: (...args) => { flushed = args[2].flush === true; return fs.writeFileSync(...args); },
+      renameSync: () => { throw new Error('locked'); } };
+    assert.equal(store.save({ hfToken: 'new' }).ok, false);
+    assert(flushed);
+    assert.equal(store.load().secrets.hfToken, 'old');
+    assert.equal(store.loadFile(file + '.bak').secrets.hfToken, 'old');
+    assert.deepEqual(fs.readdirSync(dir).sort(), ['secrets.safe.json', 'secrets.safe.json.bak']);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 const probe = {
   streams: [
     { index: 3, codec_name: 'subrip', tags: { language: 'tur', title: 'Türkçe' }, disposition: { default: 1 } },

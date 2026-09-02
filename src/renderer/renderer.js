@@ -50,11 +50,15 @@ function queueSnapshotPayload() {
   };
 }
 
+let queuePersistLastError = '';
 async function persistQueueNow() {
   if (!_queuePersistenceReady || !window.api.saveQueueState) return false;
   clearTimeout(_queuePersistTimer);
   _queuePersistTimer = null;
   const result = await window.api.saveQueueState(queueSnapshotPayload()).catch(() => null);
+  const error = result?.ok ? '' : (result?.error || 'Kuyruk kaydedilemedi. Mevcut disk kaydı korundu.');
+  if (error && error !== queuePersistLastError) logLine(error, 'error');
+  queuePersistLastError = error;
   return !!result?.ok;
 }
 
@@ -527,7 +531,13 @@ async function processNextQueueItem() {
   // Ana süreç başlatılmadan önce çalışan öğeyi diske geçir. Main süreç de
   // spawn sonrasında aynı durumu tekrar yazar; iki katmanlı kayıt renderer'ın
   // bu dar aralıkta yenilenmesi halinde işi kaybetmesini önler.
-  await persistQueueNow();
+  if (!await persistQueueNow()) {
+    next.status = 'pending';
+    finalizeQueue();
+    setStatus('Kuyruk kaydedilemedi', 'error');
+    renderQueue();
+    return;
+  }
 
   // Tek-iş arayüzünü güncelle: kuyruk item'i mevcut iş gibi göster
   resetStages();
@@ -2715,6 +2725,8 @@ function playerJobEvent(event) {
 }
 
 window.api.onEvent((event) => {
+  if (event.queueItemId != null && state.queueRunning
+      && event.queueItemId !== state.currentQueueId) return;
   const playerConsumed = playerJobEvent(event);
   if (playerConsumed) return;
   // AI isleri (sohbet / acikla) yalnizca oynatici tarafinda islenir. Backend
@@ -2838,7 +2850,6 @@ window.api.onEvent((event) => {
       // süreç kapanışında exit dalı iptal durumunu toparlar.
       if (state.cancelled) break;
       logLine('Hata: ' + (event.message || 'Bilinmeyen hata'), 'error');
-      if (event.traceback) logLine(event.traceback, 'error');
       setStatus('Hata', 'error');
 
       if (state.queueRunning && state.currentQueueId !== null) {
