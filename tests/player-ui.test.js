@@ -120,6 +120,41 @@ test('web medya probu üst üste binmiyor ve gezinme sonrası eski sonucu yayın
     'eski medya probu yeni probun busy durumunu temizleyebiliyor');
 });
 
+test('tarayıcı modalı WebContentsView katmanını geçici olarak gizliyor', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
+  assert((preload.match(/setBrowserOccluded:/g) || []).length === 1, 'modal okluzyon köprüsü yinelenmiş veya eksik');
+  assert(/openManagedModal[\s\S]{0,650}setBrowserOccluded\(true\)/.test(js), 'modal açılırken web görünümü gizlenmiyor');
+  assert(/closeManagedModal[\s\S]{0,500}setBrowserOccluded\(false\)/.test(js), 'modal kapanırken web görünümü geri açılmıyor');
+  assert(/ipcMain\.handle\('browser:setOccluded'/.test(main), 'okluzyon IPC işleyicisi yok');
+});
+
+test('tarayıcı yaşam döngüsü yerel altyazıyı koruyor ve eski çeviriyi durduruyor', () => {
+  assert(/function saveLocalSubtitleWorkspace/.test(js) && /function restoreLocalSubtitleWorkspace/.test(js),
+    'yerel altyazı çalışma alanı saklanıp geri yüklenmiyor');
+  const mode = js.slice(js.indexOf('function setWorkspaceMode'), js.indexOf('async function navigateBrowserFromAddress'));
+  assert(/saveLocalSubtitleWorkspace\(\)/.test(mode) && /restoreLocalSubtitleWorkspace\(\)/.test(mode),
+    'tarayıcı geçişi yerel altyazı çalışma alanına bağlı değil');
+  const clear = js.slice(js.indexOf('function clearBrowserTracks'), js.indexOf('function renderBrowserTracks'));
+  assert(/stopBrowserTranslation/.test(clear) && /player\.cues2 = \[\]/.test(clear),
+    'iz temizliği eski scheduler veya çeviri cue durumunu bırakıyor');
+});
+
+test('tarayıcı kontrol olayları sekme kapısından önce ve sayısal medya değerleri güvenli işleniyor', () => {
+  const events = js.slice(js.indexOf('if (window.api.onBrowserEvent)'), js.indexOf("window.addEventListener('resize'"));
+  assert(events.indexOf("event.type === 'live-asr-state' && event.active === false") < events.indexOf('if (event.tabId)'),
+    'Canlı ASR durdurma olayı sekme kapısında kaybolabilir');
+  assert(/const nextVolume = Number\(event\.media\.volume\)[\s\S]{0,100}Number\.isFinite\(nextVolume\)/.test(events),
+    'medya olayında NaN ses koruması yok');
+});
+
+test('yeni sekme isteği in-flight süresince tekilleştiriliyor', () => {
+  const create = js.slice(js.indexOf('async function createBrowserTab'), js.indexOf('async function closeBrowserTab'));
+  assert(/if \(button\?\.disabled\) return null/.test(create), 'çift tıklama kısa devresi yok');
+  assert(/button\.disabled = true/.test(create) && /finally[\s\S]{0,120}button\.disabled = false/.test(create),
+    'yeni sekme düğmesi hata dahil tüm yollarda geri açılmıyor');
+});
+
 test('kuyruk sıradaki işi done değil süreç exit olayında başlatıyor', () => {
   const done = js.slice(js.indexOf("case 'done':"), js.indexOf("case 'error':"));
   const exit = js.slice(js.indexOf("case 'exit':"), js.indexOf('\n  }\n});', js.indexOf("case 'exit':")));
@@ -507,8 +542,9 @@ test('tarayıcı altyazı şeridi panel genişliğine göre sarılıyor ve yard�
     'altyazı şeridi dar panelde satıra geçemiyor');
   assert(/@container browser-workspace \(max-width:\s*1640px\)[\s\S]*?\.browser-track-actions\s*\{[^}]*width:\s*100%/.test(css),
     'bulunan iz eylemleri dar çalışma alanında kendi satırına geçmiyor');
-  assert(/class="browser-signal"[\s\S]*?<section class="browser-diagnostics hidden"/.test(layer),
-    'değişken şerit yüksekliğinde ayrıntılar paneli şeride bağlı değil');
+  assert(layer.includes('id="settingsPageBrowserDiagnostics"')
+    && /settingsPageBrowserDiagnostics['"]\)\.appendChild\(diagnostics\)/.test(js),
+    'yakalama ayrıntıları sağ ayar çekmecesine taşınmıyor');
   assert(/id="browserSignalText" role="status" aria-live="polite"/.test(layer),
     'canlı durum bölgesi etkileşimli şeridin tamamını kapsamamalı');
 });
@@ -727,11 +763,11 @@ test('zamanlama masası altyazı gecikmesini medya eksenine uygular', () => {
   assert(/timelinePlaybackTime\(\) - player\.offset/.test(block), 'bölme noktası altyazı eksenine çevrilmiyor');
 });
 
-test('tarayıcı modunda yerel kare yakalama kontrolü kapatılıyor', () => {
+test('tarayıcı modunda sayfa ekran görüntüsü ayrı IPC yoluna gidiyor', () => {
   const mode = js.slice(js.indexOf('function setWorkspaceMode'), js.indexOf('async function navigateBrowserFromAddress'));
   const capture = js.slice(js.indexOf('async function capturePlayerFrame'), js.indexOf('// ---- altyazı görünümü'));
-  assert(/shotBtn'\)\.disabled = mode === 'browser'/.test(mode), 'ekran görüntüsü düğmesi açık kalıyor');
-  assert(/player\.workspaceMode === 'browser'/.test(capture), 'klavye kısayolu tarayıcıda engellenmiyor');
+  assert(/shotBtn'\)\.disabled = false/.test(mode), 'ekran görüntüsü düğmesi tarayıcıda açık kalmıyor');
+  assert(/player\.workspaceMode === 'browser'[\s\S]{0,240}captureBrowserPage/.test(capture), 'tarayıcı ekran görüntüsü IPC yoluna gitmiyor');
 });
 
 test('ayar içe aktarma çeviri sağlayıcısını da uygular', () => {
@@ -920,14 +956,60 @@ test('web videosu konumu izleme kütüphanesine yazılır ve geri açılır', ()
 });
 
 test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını bağlıyor', () => {
-  for (const id of ['browserManualSubtitle', 'browserTrackSelect2', 'browserTrackLoadPair', 'browserTrackExport', 'browserCopyAb']) {
+  for (const id of ['browserManualSubtitle', 'browserTrackSelect2', 'browserTrackLoadPair', 'browserTrackExport',
+    'browserTranslationExport', 'browserCopyAb']) {
     assert(layer.includes(`id="${id}"`), `${id} arayüzde yok`);
     assert(js.includes(`$('${id}')`), `${id} renderer'a bağlı değil`);
   }
   assert(/loadSubtitle\(second\.path, true\)/.test(js), 'ikinci web izi ikinci altyazı kanalına yüklenmiyor');
   assert(/exportBrowserSubtitle/.test(js), 'web altyazısı dışa aktarma IPC hattına gitmiyor');
+  assert(/function exportBrowserTranslation/.test(js)
+    && /browserLiveTranslations/.test(js.slice(js.indexOf('function exportBrowserTranslation'),
+      js.indexOf('function abSubtitleExcerpt'))),
+  'canlı çeviri ayrı olarak dışa aktarılamıyor');
+  assert(/liveCues\.length \? liveCues : player\.cues2/.test(js),
+    'sekme geri yüklemesinde çeviri dışa aktarımı hazır ikinci kanala düşmüyor');
   assert(/function abSubtitleExcerpt/.test(js) && /cuesToSrt\(cues\)/.test(js),
     'A-B altyazı metni zamanlı SRT olarak üretilmiyor');
+});
+
+test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçilebilir', () => {
+  assert(layer.includes('id="playerSubtitleDisplay"'), 'kaynak/çeviri görünüm seçicisi arayüzde yok');
+  assert(layer.includes('<option value="both">Kaynak ve çeviri</option>'),
+    'görünüm seçicisinde çift altyazı seçeneği yok');
+  const translation = js.slice(js.indexOf('async function startBrowserLiveTranslation'),
+    js.indexOf('function applyBrowserTranslationResult'));
+  assert(/completeTrack:\s*true/.test(translation), 'Yükle ve çevir tüm izi istemiyor');
+  assert(/tamamı kuyruğa alındı/.test(translation), 'tam iz davranışı kullanıcıya açıkça bildirilmiyor');
+  assert(/playerSubtitleDisplay['"]\)\.addEventListener\('change'/.test(js),
+    'görünüm seçicisi altyazı moduna bağlı değil');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const start = main.slice(main.indexOf('function startBrowserTranslation'),
+    main.indexOf('function stopBrowserLiveAsr'));
+  assert(/options\.completeTrack === false[\s\S]*scheduler\.completeAll\(\)/.test(start),
+    'ana süreç tam iz kuyruğunu başlatmıyor');
+  const states = js.slice(js.indexOf("event.type === 'translation-state'"),
+    js.indexOf("event.type === 'overlay-style'"));
+  assert(/completed\) >= Number\(progress\.total\)[\s\S]*setSubtitleMode\('translation', false\)/.test(states),
+    'tamamlanan canlı çeviri otomatik olarak ana görünüm yapılmıyor');
+});
+
+test('tarayıcı görünüm ve yakalama ayarları videoyu itmeden sağ çekmecede açılır', () => {
+  for (const id of ['browserViewSettingsToggle', 'browserDiagnosticsToolbar',
+    'settingsPageBrowserView', 'settingsPageBrowserDiagnostics']) {
+    assert(layer.includes(`id="${id}"`), `${id} arayüzde yok`);
+  }
+  const setup = js.slice(js.indexOf('function initializeSettingsPages'),
+    js.indexOf('function setSettingsDrawer'));
+  assert(/settingsPageBrowserView['"]\)\.appendChild\(view\)/.test(setup),
+    'görünüm ve manga ayarları sağ çekmeceye taşınmıyor');
+  assert(/settingsPageBrowserDiagnostics['"]\)\.appendChild\(diagnostics\)/.test(setup),
+    'yakalama ayrıntıları sağ çekmeceye taşınmıyor');
+  assert(/\.settings-page-browser-diagnostics \.browser-diagnostics\s*\{[^}]*position:\s*static/.test(css),
+    'yakalama paneli çekmecede hâlâ yüzen mutlak panel');
+  assert(/toggleSettingsPage\('browser-view'\)/.test(js)
+    && /toggleSettingsPage\('browser-diagnostics'\)/.test(js),
+  'tarayıcı üst çubuğu sağ çekmece sayfalarını açmıyor');
 });
 
 test('ses dili bölge kodlarını güvenli biçimde eşleştiriyor', () => {
@@ -989,6 +1071,17 @@ test('açık videoda elle tamamla/kaldır kararı otomatik flush tarafından ezi
   assert(/if \(player\.watchRemovedKey === player\.mediaKey\) return null/.test(js), 'kaldırılan kayıt yeniden yazılabiliyor');
   assert(/manualCompleted === null[\s\S]*watchCompletionReached[\s\S]*: manualCompleted/.test(js),
     'elle tamamla/tamamlanmadı kararı flush içinde korunmuyor');
+});
+
+test('tüm izi tamamla aynı çeviri oturumunu yeniden başlatmaz', () => {
+  const start = js.indexOf('async function completeSelectedBrowserTranslation()');
+  const end = js.indexOf('async function startBrowserLiveTranslation(', start);
+  const body = js.slice(start, end);
+  assert(/player\.browserTranslationTrackId !== selected\.id/.test(body),
+    'seçili iz zaten aktifken yeniden başlatma engeli yok');
+  assert(/await useBrowserTrack\(true\)/.test(body),
+    'farklı iz seçildiğinde çeviri oturumu başlatılmıyor');
+  assert(/completeBrowserTranslation/.test(body), 'kalan cümleler kuyruğa alınmıyor');
 });
 
 test('izleme kütüphanesi elle tamamlandı/tamamlanmadı eylemini görünür sunuyor', () => {

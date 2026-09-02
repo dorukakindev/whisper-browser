@@ -49,9 +49,19 @@ class BrowserTabEventGate {
     }
     const mediaId = String(event && event.mediaId || '');
     const acquisitionId = String(event && event.acquisitionId || '');
-    if (current.mediaId && mediaId && current.mediaId !== mediaId) return false;
+    const establishesContext = event.type === 'capture-status' || event.type === 'navigation';
+    if (current.mediaId && mediaId && current.mediaId !== mediaId) {
+      // did-start-loading yeni kuşağı, yönlendirme tamamlanmadan önce eski
+      // mediaId ile açabilir. Discovery+ gibi /topical -> /video/watch
+      // geçişlerinde aynı kuşaktaki ilk durum/gezinme olayı yeni bağlamı
+      // kurabilmelidir; normal altyazı/medya olayları ise eski kimlikle hâlâ
+      // reddedilir.
+      if (!establishesContext) return false;
+      current.mediaId = '';
+      current.acquisitionId = '';
+    }
     if (current.acquisitionId && acquisitionId && current.acquisitionId !== acquisitionId) {
-      if (event.type !== 'capture-status') return false;
+      if (!establishesContext) return false;
       current.acquisitionId = '';
     }
     if (mediaId) current.mediaId = mediaId;

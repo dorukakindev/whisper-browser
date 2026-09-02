@@ -24,6 +24,8 @@ test('doküman taraması frame callback içinde değil yalnız kirli keşifte ya
   const callback = script.slice(script.indexOf('const queueFrame'), script.indexOf('function render'));
   assert(!callback.includes('querySelectorAll'));
   assert.match(script, /if \(!mediaDirty && media && media\.isConnected\) return media/);
+  assert.doesNotMatch(script, /querySelectorAll\('\*'\)/);
+  assert.match(script, /scanShadowHosts = \(node, depth = 0\)/);
 });
 
 test('DOM değişiklikleri tek animation frame içinde birleştirilir', () => {
@@ -35,6 +37,16 @@ test('DOM değişiklikleri tek animation frame içinde birleştirilir', () => {
 test('yeniden enjeksiyon yeni controller üretmeden state günceller', () => {
   assert.match(script, /existing && typeof existing\.update === 'function'/);
   assert.match(script, /existing\.update\(nextState\)/);
+});
+
+test('web altyazısı basılı tutularak taşınır ve yeni konum uygulamaya bildirilir', () => {
+  assert.match(script, /addEventListener\('pointerdown'/);
+  assert.match(script, /setPointerCapture/);
+  assert.match(script, /__whisperTrustedBridgeSend\?\.\('overlay-style'/);
+  assert.equal((script.match(/!event\.isTrusted/g) || []).length, 3);
+  assert.doesNotMatch(script, /__WHISPER_BROWSER_OVERLAY_STYLE__/);
+  assert.match(script, /Math\.min\(75/);
+  assert.match(script, /style\.pointerEvents = 'auto'/);
 });
 
 test('satır ayırıcı karakterleri silmeden JavaScript içinde güvenle escape eder', () => {

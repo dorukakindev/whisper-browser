@@ -7,9 +7,12 @@ JSON satırları olarak basar (NDJSON), böylece UI gerçek zamanlı takip edebi
 """
 
 import argparse
+import inspect
 import json
 import os
 import re
+import unicodedata
+import wave
 # PyTorch'u en bas başta yükle (DLL çakışmalarını önlemek için)
 try:
     import torch
@@ -1457,7 +1460,8 @@ def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr
 
 
 def write_dual_srt(source_entries, translated_entries, output_path, translation_first=True,
-                   max_line_width=42, language="tr", wrap_mode="none"):
+                   max_line_width=42, language="tr", source_language=None,
+                   wrap_mode="none"):
     """
     Kaynak ve çeviriyi TEK dosyada üst üste yazar (dualsub/merge-srt-subtitles fikri).
     Bloklar birebir aynı olduğu için (çeviri blok sayısını değiştirmiyor) eşleme
@@ -1476,9 +1480,13 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
         src_text = " ".join(t.strip() for t in overlapping if t.strip())
         if not src_text and i < len(source_entries):
             src_text = source_entries[i][2]
-        top, bottom = (tr_text, src_text) if translation_first else (src_text, tr_text)
-        top = wrap_text(top, max_line_width, 2, language=language, wrap_mode=wrap_mode)
-        bottom = wrap_text(bottom, max_line_width, 2, language=language, wrap_mode=wrap_mode)
+        source_lang = source_language or language
+        if translation_first:
+            top = wrap_text(tr_text, max_line_width, 2, language=language, wrap_mode=wrap_mode)
+            bottom = wrap_text(src_text, max_line_width, 2, language=source_lang, wrap_mode=wrap_mode)
+        else:
+            top = wrap_text(src_text, max_line_width, 2, language=source_lang, wrap_mode=wrap_mode)
+            bottom = wrap_text(tr_text, max_line_width, 2, language=language, wrap_mode=wrap_mode)
         body = top if not bottom else f"{top}\n{bottom}"
         lines.append(f"{i + 1}")
         lines.append(f"{format_srt_time(s0)} --> {format_srt_time(e0)}")
@@ -1651,7 +1659,6 @@ HALLUCINATION_PATTERNS = [
     re.compile(r"^\s*transcri(ption|bed)\s+by.*$", re.IGNORECASE),
     re.compile(r"^\s*captions?\s+(by|:).*$", re.IGNORECASE),
     re.compile(r"^\s*www\.[^\s]+\s*$", re.IGNORECASE),
-    re.compile(r"^\s*https?://.*$"),
     # Boş ses göstergeleri
     re.compile(r"^\s*\[.*?\]\s*$"),
     re.compile(r"^\s*\(.*?\)\s*$"),
@@ -1825,6 +1832,41 @@ def resolve_device_and_compute(device_arg, compute_type_arg, warn_list=None):
 
 
 
+def _load_pcm_waveform_for_pyannote(wav_path, torch_module):
+    """TorchCodec'e ihtiyaç duymadan PCM WAV'i pyannote AudioFile biçimine yükler."""
+    import numpy as np
+
+    with wave.open(str(wav_path), "rb") as wav:
+        if wav.getcomptype() != "NONE":
+            raise RuntimeError("Konuşmacı tanıma yalnızca sıkıştırılmamış PCM WAV ile çalışır.")
+        channels = wav.getnchannels()
+        sample_rate = wav.getframerate()
+        sample_width = wav.getsampwidth()
+        raw = wav.readframes(wav.getnframes())
+
+    if sample_width == 1:
+        audio = (np.frombuffer(raw, dtype=np.uint8).astype(np.float32) - 128.0) / 128.0
+    elif sample_width == 2:
+        audio = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    elif sample_width == 3:
+        packed = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3).astype(np.int32)
+        values = packed[:, 0] | (packed[:, 1] << 8) | (packed[:, 2] << 16)
+        values = np.where(values & 0x800000, values - 0x1000000, values)
+        audio = values.astype(np.float32) / 8388608.0
+    elif sample_width == 4:
+        audio = np.frombuffer(raw, dtype="<i4").astype(np.float32) / 2147483648.0
+    else:
+        raise RuntimeError(f"Desteklenmeyen WAV örnek genişliği: {sample_width * 8} bit")
+
+    if channels < 1 or audio.size % channels:
+        raise RuntimeError("WAV kanal verisi bozuk veya eksik.")
+    waveform = audio.reshape(-1, channels).T.copy()
+    return {
+        "waveform": torch_module.from_numpy(waveform),
+        "sample_rate": sample_rate,
+    }
+
+
 def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
     """
     pyannote.audio ile konuşmacı tanıma.
@@ -1849,8 +1891,13 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
             "ve pyannote/speaker-diarization-3.1 modelini kabul edin."
         )
 
+    auth_name = (
+        "token"
+        if "token" in inspect.signature(Pipeline.from_pretrained).parameters
+        else "use_auth_token"
+    )
     pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1", use_auth_token=hf_token
+        "pyannote/speaker-diarization-3.1", **{auth_name: hf_token}
     )
     if torch is not None and torch.cuda.is_available():
         pipeline.to(torch.device("cuda"))
@@ -1861,14 +1908,20 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
     if max_speakers:
         kwargs["max_speakers"] = max_speakers
 
-    diarization = pipeline(wav_path, **kwargs)
+    if torch is None:
+        raise RuntimeError("Konuşmacı tanıma için PyTorch gerekli.")
+    # pyannote 4 dosya yolunu TorchCodec ile açar. Uygulamanın ürettiği PCM
+    # WAV'i doğrudan tensor olarak vererek bozuk/eksik TorchCodec'i atlarız.
+    diarization_audio = _load_pcm_waveform_for_pyannote(wav_path, torch)
+    diarization = pipeline(diarization_audio, **kwargs)
+    annotation = getattr(diarization, "speaker_diarization", diarization)
     spans = []
-    for turn, _, speaker in diarization.itertracks(yield_label=True):
+    for turn, _, speaker in annotation.itertracks(yield_label=True):
         spans.append((turn.start, turn.end, speaker))
 
     # pyannote pipeline'ını GPU'dan boşalt (sürecin VRAM tepe noktasını düşür)
     try:
-        del pipeline, diarization
+        del pipeline, diarization, diarization_audio
         import gc
         gc.collect()
         if torch is not None and torch.cuda.is_available():
@@ -2387,22 +2440,26 @@ def translate_cache_key(text, args, target, source_lang=None,
     cinsiyet veya anlamla sessizce geri gelebilir.
     """
     import hashlib
+
+    def nfc(value):
+        return unicodedata.normalize("NFC", str(value or ""))
+
     raw = json.dumps({
-        "v": 3,
-        "target": str(target or "").lower(),
-        "source": str(source_lang or "").lower(),
-        "model": str(getattr(args, "translate_model", "") or ""),
-        "base_url": str(getattr(args, "translate_base_url", "") or "").rstrip("/"),
-        "register": str(getattr(args, "translate_register", "") or ""),
-        "profanity": str(getattr(args, "translate_profanity", "") or ""),
+        "v": 4,
+        "target": nfc(target).lower(),
+        "source": nfc(source_lang).lower(),
+        "model": nfc(getattr(args, "translate_model", "")),
+        "base_url": nfc(getattr(args, "translate_base_url", "")).rstrip("/"),
+        "register": nfc(getattr(args, "translate_register", "")),
+        "profanity": nfc(getattr(args, "translate_profanity", "")),
         "refine": bool(getattr(args, "translate_refine", False)),
         "max_cps": int(getattr(args, "max_cps", 0) or 0),
         "max_line_width": int(getattr(args, "max_line_width", 0) or 0),
-        "glossary": str(getattr(args, "glossary", "") or ""),
-        "text": text,
+        "glossary": nfc(getattr(args, "glossary", "")),
+        "text": nfc(text),
         "max_chars": int(max_chars or 0),
-        "context_before": list(context_before or []),
-        "context_after": list(context_after or []),
+        "context_before": [nfc(value) for value in (context_before or [])],
+        "context_after": [nfc(value) for value in (context_after or [])],
     }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -2835,8 +2892,10 @@ def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=
             "WhisperX yüklü değil. 'install-whisperx.bat' çalıştırın veya 'pip install whisperx' deneyin."
         )
 
-    # WhisperX/CTranslate2 int8_float16'yı doğrudan desteklemez → int8'e indir
+    # WhisperX/CTranslate2 int8_float16'yı doğrudan desteklemez → int8'e indir.
+    # Sessiz değiştirmek yerine gerçek çalışma biçimini kullanıcıya bildir.
     if compute_type == "int8_float16":
+        log("WhisperX int8_float16 desteklemiyor; hesaplama tipi int8 olarak kullanılacak.", "warn")
         compute_type = "int8"
 
     emit("status", stage="load_model", text=f"WhisperX modeli yükleniyor: {args.model}")
@@ -2861,35 +2920,36 @@ def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=
         "condition_on_previous_text": args.condition_on_previous,
         "initial_prompt": initial_prompt,
     }
+    model = None
     try:
-        model = whisperx.load_model(
-            args.model, device, compute_type=compute_type,
-            language=language, asr_options=asr_options,
-        )
-    except Exception as e:
-        low = str(e).lower()
-        if any(k in low for k in ("cublas", "cudnn", "cuda", "gpu", "libcu")):
-            raise RuntimeError(
-                f"WhisperX GPU'da yüklenemedi: {e}\n"
-                "Cihaz=CPU veya Hesaplama tipi=int8 deneyin, ya da install-whisperx.bat'i yeniden çalıştırın."
+        try:
+            model = whisperx.load_model(
+                args.model, device, compute_type=compute_type,
+                language=language, asr_options=asr_options,
             )
-        raise
+        except Exception as e:
+            low = str(e).lower()
+            if any(k in low for k in ("cublas", "cudnn", "cuda", "gpu", "libcu", "out of memory")):
+                raise RuntimeError(
+                    f"WhisperX GPU'da yüklenemedi: {e}\n"
+                    "Cihaz=CPU veya Hesaplama tipi=int8 deneyin, ya da install-whisperx.bat'i yeniden çalıştırın."
+                )
+            raise
 
-    audio = whisperx.load_audio(wav_path)
-    emit("status", stage="transcribe", text="WhisperX transkripsiyon...")
-    result = model.transcribe(audio, batch_size=args.batch_size)
+        audio = whisperx.load_audio(wav_path)
+        emit("status", stage="transcribe", text="WhisperX transkripsiyon...")
+        result = model.transcribe(audio, batch_size=args.batch_size)
+    finally:
+        # load/transcribe hata yolunda da CTranslate2 çalışma alanını ve CUDA
+        # cache'ini hizalama/diarization başlamadan önce bırak.
+        model = None
+        _wx_free_gpu()
     detected = result.get("language") or language or "en"
     log(f"WhisperX dil: {detected}, {len(result.get('segments', []))} ham segment")
 
-    # Transkripsiyon modelini boşalt (hizalama modeline VRAM aç)
-    try:
-        del model
-    except Exception:
-        pass
-    _wx_free_gpu()
-
     # Zorunlu hizalama (kelime zaman damgaları) — yalnızca gerektiğinde
     if need_words and result.get("segments"):
+        model_a = None
         try:
             emit("status", stage="transcribe", text="WhisperX hizalama (kelime zaman damgaları)...")
             model_a, metadata = whisperx.load_align_model(language_code=detected, device=device)
@@ -2897,10 +2957,11 @@ def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=
                 result["segments"], model_a, metadata, audio, device,
                 return_char_alignments=False,
             )
-            del model_a
-            _wx_free_gpu()
         except Exception as e:
             log(f"WhisperX hizalama atlandı (dil={detected}): {e}", "warn")
+        finally:
+            model_a = None
+            _wx_free_gpu()
 
     info = _WxInfo(language=detected, language_probability=1.0, duration=len(audio) / 16000.0)
     segments = [_wrap_whisperx_segment(s) for s in result.get("segments", [])]
@@ -2975,7 +3036,7 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6,
             out.append([s, e, txt])
             continue
         if prev_ends_sentence and (s - prev[1]) > 0.35:
-            # Cumle bitmis ve arada gercek bir duraksama var: birlestirme
+            # Cumle bitmis ve arada gercek bir duraksama var: ayri blok olarak tut
             out.append([s, e, txt])
             continue
 
@@ -3336,6 +3397,78 @@ def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
     return [(o[0], o[1], o[2]) for o in out]
 
 
+def _pcm_bytes_to_float32(raw, sample_width, channels):
+    """PCM baytlarını frame x channel float32 diziye çevirir."""
+    import numpy as np
+
+    if sample_width == 1:
+        audio = (np.frombuffer(raw, dtype=np.uint8).astype(np.float32) - 128.0) / 128.0
+    elif sample_width == 2:
+        audio = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    elif sample_width == 3:
+        packed = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3).astype(np.int32)
+        values = packed[:, 0] | (packed[:, 1] << 8) | (packed[:, 2] << 16)
+        values = np.where(values & 0x800000, values - 0x1000000, values)
+        audio = values.astype(np.float32) / 8388608.0
+    elif sample_width == 4:
+        audio = np.frombuffer(raw, dtype="<i4").astype(np.float32) / 2147483648.0
+    else:
+        raise ValueError(f"Desteklenmeyen PCM örnek genişliği: {sample_width * 8} bit")
+    if channels < 1 or audio.size % channels:
+        raise ValueError("WAV kanal verisi bozuk veya eksik.")
+    return audio.reshape(-1, channels)
+
+
+def _stream_speech_timestamps(wav_path, get_speech_timestamps, vad_options,
+                              target_rate=16000, chunk_seconds=600, overlap_seconds=1):
+    """Uzun WAV'i belleğe bütünüyle almadan VAD bölgelerini üretir."""
+    import numpy as np
+
+    regions = []
+    with wave.open(str(wav_path), "rb") as wav:
+        if wav.getcomptype() != "NONE":
+            raise ValueError("Sıkıştırılmış WAV desteklenmiyor.")
+        channels = wav.getnchannels()
+        source_rate = wav.getframerate()
+        sample_width = wav.getsampwidth()
+        total_frames = wav.getnframes()
+        chunk_frames = max(1, int(source_rate * chunk_seconds))
+        overlap_frames = max(0, min(chunk_frames // 4, int(source_rate * overlap_seconds)))
+        position = 0
+        while position < total_frames:
+            wav.setpos(position)
+            frame_count = min(chunk_frames, total_frames - position)
+            frames = _pcm_bytes_to_float32(
+                wav.readframes(frame_count), sample_width, channels
+            )
+            mono = frames.mean(axis=1, dtype=np.float32)
+            if source_rate != target_rate and mono.size:
+                output_count = max(1, round(mono.size * target_rate / source_rate))
+                mono = np.interp(
+                    np.linspace(0.0, mono.size - 1, output_count),
+                    np.arange(mono.size),
+                    mono,
+                ).astype(np.float32)
+            base_sample = round(position * target_rate / source_rate)
+            for region in get_speech_timestamps(mono, vad_options):
+                regions.append({
+                    "start": base_sample + int(region["start"]),
+                    "end": base_sample + int(region["end"]),
+                })
+            if position + frame_count >= total_frames:
+                break
+            position += max(1, frame_count - overlap_frames)
+
+    # Örtüşen parçaların aynı konuşmayı iki kez üretmesini temizle.
+    merged = []
+    for region in sorted(regions, key=lambda item: (item["start"], item["end"])):
+        if merged and region["start"] <= merged[-1]["end"] + int(target_rate * 0.05):
+            merged[-1]["end"] = max(merged[-1]["end"], region["end"])
+        else:
+            merged.append(dict(region))
+    return merged
+
+
 def snap_entries_to_speech(entries, wav_path, time_offset=0.0, max_shift=1.0,
                            min_dur=0.6, warn_list=None):
     """Altyazi baslangicini sessizligin disina, GERCEK konusma baslangicina yaslar.
@@ -3357,16 +3490,15 @@ def snap_entries_to_speech(entries, wav_path, time_offset=0.0, max_shift=1.0,
         return entries, 0, 0.0
     try:
         import bisect
-        from faster_whisper.audio import decode_audio
         from faster_whisper.vad import get_speech_timestamps, VadOptions
     except Exception:
         return entries, 0, 0.0
     try:
-        audio = decode_audio(wav_path, sampling_rate=16000)
         # Transkripsiyondaki VAD'dan DAHA HASSAS ayar: kisa duraklamalari da gormek
         # istiyoruz, yoksa tum film birkac dev "konusma bolgesi" olur ve yaslama ise yaramaz.
-        chunks = get_speech_timestamps(
-            audio,
+        chunks = _stream_speech_timestamps(
+            wav_path,
+            get_speech_timestamps,
             VadOptions(threshold=0.35, min_silence_duration_ms=150, speech_pad_ms=0),
         )
     except Exception as e:
@@ -3664,16 +3796,72 @@ def merge_resumed_entries(old_entries, new_entries, boundary):
     onları yeniden üretti), new'de sınırdan belirgin ÖNCE başlayanlar atılır.
     Böylece geri-alma (backoff) penceresinde örtüşme/çift kayıt oluşmaz.
     """
-    kept_old = [(s, e, t) for (s, e, t) in old_entries if e <= boundary + 0.1]
-    kept_new = [(s, e, t) for (s, e, t) in new_entries if s >= boundary - 0.5]
+    cut = float(boundary)
+    kept_old = [(s, e, t) for (s, e, t) in old_entries if float(e) <= cut]
+    # Model, kesilmiş WAV'ın ilk bloğuna çok küçük negatif başlangıç verebilir.
+    # Sınırı aşan yeni bloğu atmak yerine başlangıcını sınıra kırp; eski ve yeni
+    # tarafın aynı zaman aralığını iki kez kaplamasını mekanik olarak engelle.
+    kept_new = [
+        (max(float(s), cut), float(e), t)
+        for (s, e, t) in new_entries
+        if float(e) > cut
+    ]
     return kept_old + kept_new
 
 
 def merge_resumed_words(old_words, new_words, boundary):
     """Checkpoint kelimelerini geri-alma penceresinde yinelenmeden birleştir."""
-    kept_old = [w for w in (old_words or []) if float(w.get("end", 0)) <= boundary + 0.1]
-    kept_new = [w for w in (new_words or []) if float(w.get("start", 0)) >= boundary - 0.5]
+    cut = float(boundary)
+    kept_old = [w for w in (old_words or []) if float(w.get("end", 0)) <= cut]
+    kept_new = []
+    for word in (new_words or []):
+        if float(word.get("end", 0)) <= cut:
+            continue
+        item = dict(word)
+        item["start"] = max(float(item.get("start", 0)), cut)
+        kept_new.append(item)
     return sorted(kept_old + kept_new, key=lambda w: float(w.get("start", 0)))
+
+
+def resolve_output_dir(args):
+    """İş türünden bağımsız olarak nihai çıktı klasörünü belirle."""
+    if args.output_dir:
+        return Path(args.output_dir)
+    if args.input:
+        return Path(args.input).parent
+    downloads = Path.home() / "Downloads"
+    return downloads if downloads.exists() else Path.home()
+
+
+def preflight_output_dir(output_dir):
+    """Uzun GPU işi başlamadan çıktı klasörünün gerçekten yazılabilir olduğunu doğrula."""
+    output_dir = Path(output_dir)
+    probe_path = None
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix=".whisper-write-probe-", dir=str(output_dir),
+                                         delete=False) as probe:
+            probe.write(b"ok")
+            probe.flush()
+            os.fsync(probe.fileno())
+            probe_path = Path(probe.name)
+    except Exception as exc:
+        raise RuntimeError(f"Çıktı klasörüne yazılamıyor: {output_dir} ({exc})") from exc
+    finally:
+        if probe_path is not None:
+            try:
+                probe_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return output_dir
+
+
+def checkpoint_resume_from(entries, last_time, backoff=2.0):
+    """Geri-alma sınırını kesen checkpoint bloğunun başını kaybetmeden seç."""
+    candidate = max(0.0, float(last_time) - max(0.0, float(backoff)))
+    crossing_starts = [float(s) for s, e, _text in (entries or [])
+                       if float(e) > candidate]
+    return max(0.0, min([candidate, *crossing_starts]))
 
 
 def transcribe(args):
@@ -3708,6 +3896,10 @@ def transcribe(args):
             log(f"Zaman aralığı: {clip_start if clip_start is not None else 0:.1f}s → "
                 f"{f'{clip_end:.1f}s' if clip_end is not None else 'son'}")
 
+        output_dir = preflight_output_dir(resolve_output_dir(args))
+        if not args.output_dir and not args.input:
+            log(f"Çıktı klasörü seçilmedi — buraya yazılıyor: {output_dir}", "warn")
+
         # Checkpoint / kaldığı yerden devam — yalnızca yerel dosya + kırpma yokken.
         # Checkpoint varsa sesi o noktadan çıkarmak için clip_start'ı içeriden set ederiz.
         user_clipped = clip_start is not None or clip_end is not None
@@ -3722,7 +3914,10 @@ def transcribe(args):
                 resumed_entries, last_time, resumed_words = ck
                 # Sınırı 2 sn geri al: son bloklar yeniden yazılır → hem sonuna ulaşmış
                 # checkpoint'te "boş ses" hatası olmaz, hem sınır temiz birleşir.
-                resume_from = max(0.0, last_time - 2.0)
+                # Son checkpoint bloğu geri-alma sınırını kesiyorsa yalnız son iki
+                # saniyeyi yeniden üretmek bloğun başını kaybettirir. Yeniden
+                # transkripsiyonu kesişen en eski bloğun başından başlat.
+                resume_from = checkpoint_resume_from(resumed_entries, last_time)
                 clip_start = resume_from   # sesi bu noktadan çıkar (aşağıdaki ex_start)
                 time_offset = resume_from  # yeni segmentleri orijinal eksene taşı
                 log(f"⏯ Checkpoint bulundu — ~{resume_from:.0f}. saniyeden devam ediliyor "
@@ -4207,17 +4402,6 @@ def transcribe(args):
 
         # 5) Çıktıyı yaz
         emit("status", stage="write", text="Altyazı dosyası yazılıyor...")
-        if args.output_dir:
-            output_dir = Path(args.output_dir)
-        elif args.input:
-            output_dir = Path(args.input).parent
-        else:
-            # YouTube + çıktı klasörü seçilmedi: sistem temp'ine değil İndirilenler'e yaz
-            downloads = Path.home() / "Downloads"
-            output_dir = downloads if downloads.exists() else Path.home()
-            log(f"Çıktı klasörü seçilmedi — buraya yazılıyor: {output_dir}", "warn")
-        output_dir.mkdir(parents=True, exist_ok=True)
-
         formats = args.formats.split(",") if args.formats else ["srt"]
         output_files = []
         lang = info.language or "tr"
@@ -4323,6 +4507,7 @@ def transcribe(args):
                                translation_first=args.dual_translation_first,
                                max_line_width=args.max_line_width,
                                language=(args.translate_to or "tr").lower(),
+                               source_language=tr_source,
                                wrap_mode=args.wrap_mode)
                 output_files.append(str(dual_path))
                 log(f"Çift dilli altyazı yazıldı: {dual_path}")
@@ -4796,7 +4981,8 @@ def translate_existing_subtitle(args):
         dual_path = out_dir / f"{stem}.dual.srt"
         write_dual_srt(entries, translated, dual_path,
                        translation_first=args.dual_translation_first,
-                       max_line_width=args.max_line_width)
+                       max_line_width=args.max_line_width,
+                       language=target, source_language=args.language)
         files.append(str(dual_path))
         log(f"Cift dilli altyazi yazildi: {dual_path}", "success")
 
@@ -4987,7 +5173,17 @@ def read_subtitle_text(path):
     Ayrıca çift kodlanmış UTF-8 ve latin-1 okunmuş cp1254 izleri onarılır.
     Döner: (metin, kullanılan_kodlama, onarım_yapıldı_mı)
     """
-    raw = open(path, "rb").read()
+    with open(path, "rb") as subtitle_file:
+        raw = subtitle_file.read()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        try:
+            text = raw.decode("utf-16")
+            fixed, repaired = repair_mojibake(text)
+            fixed2, repaired2 = repair_cp1254_as_latin1(fixed)
+            endian = "utf-16le" if raw.startswith(b"\xff\xfe") else "utf-16be"
+            return fixed2, endian, (repaired or repaired2)
+        except UnicodeDecodeError:
+            pass
     for enc in ("utf-8-sig", "cp1254"):
         try:
             text = raw.decode(enc)
@@ -5109,20 +5305,32 @@ def audio_energy_signal(wav_path, hz=50):
     Silero VAD kullanmaz (sürüm bağımsız olsun diye); korelasyon için ritim yeter.
     Dönüş: (signal, hz).
     """
-    import wave
     import numpy as np
     with wave.open(wav_path, "rb") as wf:
         sr = wf.getframerate()
-        raw = wf.readframes(wf.getnframes())
-    samples = np.frombuffer(raw, dtype=np.int16)
-    if samples.size == 0:
+        channels = max(1, wf.getnchannels())
+        sample_width = wf.getsampwidth()
+        bin_len = max(1, int(sr / hz))
+        chunk_frames = max(bin_len * 2048, sr * 60)
+        carry = np.empty(0, dtype=np.float32)
+        rms_parts = []
+        while True:
+            raw = wf.readframes(chunk_frames)
+            if not raw:
+                break
+            frames = _pcm_bytes_to_float32(raw, sample_width, channels)
+            samples = frames.mean(axis=1) if channels > 1 else frames[:, 0]
+            if carry.size:
+                samples = np.concatenate((carry, samples))
+            nbins = samples.size // bin_len
+            used = nbins * bin_len
+            if nbins:
+                shaped = samples[:used].reshape(nbins, bin_len)
+                rms_parts.append(np.sqrt((shaped * shaped).mean(axis=1) + 1e-12))
+            carry = samples[used:].copy()
+    if not rms_parts:
         return np.zeros(0, dtype=np.float32), hz
-    bin_len = max(1, int(sr / hz))
-    nbins = samples.size // bin_len
-    if nbins == 0:
-        return np.zeros(0, dtype=np.float32), hz
-    trimmed = samples[:nbins * bin_len].astype(np.float32).reshape(nbins, bin_len)
-    rms = np.sqrt((trimmed ** 2).mean(axis=1) + 1e-9)
+    rms = np.concatenate(rms_parts)
     # Adaptif eşik: gürültü tabanının (medyan) üstü + tepe enerjinin küçük payı
     thr = np.median(rms) * 1.5 + rms.max() * 0.02
     return (rms > thr).astype(np.float32), hz

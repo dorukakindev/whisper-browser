@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { BrowserAssetStore } = require('../src/browser-asset-store');
+const { BrowserAssetStore, normalizeCues: normalizeAssetCues } = require('../src/browser-asset-store');
 const { WatchIndex, foldSearchText, ftsQuery } = require('../src/watch-index');
 const { normalizeAnnotation } = require('../src/browser-learning');
 
@@ -67,6 +67,45 @@ try {
     assert.equal(fs.existsSync(freshTemp), true);
   });
 
+  test('altyazı varlığı sınırda en yeni 20.000 cueyu korur', () => {
+    const cues = Array.from({ length: 20005 }, (_, index) => ({ id: index, start: index, end: index + 1, text: `Satır ${index}` }));
+    const normalized = normalizeAssetCues(cues);
+    assert.equal(normalized.length, 20000);
+    assert.equal(normalized[0].text, 'Satır 5');
+    assert.equal(normalized[19999].text, 'Satır 20004');
+  });
+
+  test('JSON sağlamken eksik SRT yeniden üretilir', () => {
+    const store = new BrowserAssetStore({ rootDir: path.join(dir, 'repair-assets') });
+    const saved = store.putTrack({ mediaId: 'web:repair', trackId: 'tr', cues: [
+      { id: '1', start: 0, end: 1, text: 'Onarılan satır' },
+    ] });
+    assert(saved.ok, saved.error);
+    fs.unlinkSync(saved.srtPath);
+    const loaded = store.getTrack(saved.assetId);
+    assert(loaded.ok, loaded.error);
+    assert.equal(fs.existsSync(saved.srtPath), true);
+    assert.match(fs.readFileSync(saved.srtPath, 'utf8'), /Onarılan satır/);
+  });
+
+  test('referanssız eski asset çifti temizlenir, referanslı olan korunur', () => {
+    const store = new BrowserAssetStore({ rootDir: path.join(dir, 'orphan-assets') });
+    const orphan = store.putTrack({ mediaId: 'web:orphan', trackId: 'a', cues: [
+      { id: '1', start: 0, end: 1, text: 'Eski' },
+    ] });
+    const kept = store.putTrack({ mediaId: 'web:kept', trackId: 'b', cues: [
+      { id: '1', start: 0, end: 1, text: 'Kalsın' },
+    ] });
+    const now = Date.now();
+    const old = new Date(now - 40 * 24 * 60 * 60 * 1000);
+    for (const filePath of [orphan.jsonPath, orphan.srtPath, kept.jsonPath, kept.srtPath]) fs.utimesSync(filePath, old, old);
+    assert.equal(store.sweepOrphans(new Set([kept.assetId]), 30 * 24 * 60 * 60 * 1000, now), 2);
+    assert.equal(fs.existsSync(orphan.jsonPath), false);
+    assert.equal(fs.existsSync(orphan.srtPath), false);
+    assert.equal(fs.existsSync(kept.jsonPath), true);
+    assert.equal(fs.existsSync(kept.srtPath), true);
+  });
+
   test('FTS sorgusu kullanıcı metnini güvenli prefix terimlerine dönüştürür', () => {
     assert.equal(ftsQuery('  Merhaba dünya!  '), '"Merhaba"* AND "dünya"*');
     assert.equal(ftsQuery('" OR *'), '"OR"*');
@@ -91,6 +130,7 @@ try {
       });
       assert.equal(index.getTrack('track:en').media_id, 'youtube:abc');
       assert.equal(index.listTracks('youtube:abc').length, 1);
+      assert(index.listTrackAssetPaths().includes('asset.srt'));
       assert.equal(index.replaceTrackCues('track:en', [
         { id: 'a', start: 10, end: 12, sourceText: 'Hello world.', translationText: 'Merhaba dünya.' },
         { id: 'b', start: 20, end: 22, sourceText: 'A quiet second line.', translationText: 'Sessiz ikinci satır.' },
@@ -134,6 +174,17 @@ try {
       assert.equal(media.title, 'Film');
       assert.equal(media.position, 400);
       assert.deepEqual(media.prefs, { speed: 1 });
+    });
+
+    test('eski iz kayıtlarını ve ilişkili varlık yollarını budar', () => {
+      index.upsertTrack({
+        id: 'track:old', mediaId: 'youtube:abc', role: 'source', language: 'en',
+        label: 'Eski', source: 'network', assetPath: 'old.srt',
+        updatedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      });
+      const removed = index.pruneTracks({ maxTracks: 100, maxAgeMs: 24 * 60 * 60 * 1000 });
+      assert(removed.some((track) => track.id === 'track:old' && track.asset_path === 'old.srt'));
+      assert.equal(index.getTrack('track:old'), null);
     });
   } finally {
     index.close();

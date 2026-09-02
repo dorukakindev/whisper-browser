@@ -22,6 +22,7 @@ const {
   browserActiveCuesAt,
   parseMp4WebVtt,
   parseMp4Timescale,
+  decodeSubtitleBuffer,
   findSubtitleUrls,
   parseLrc,
   parseSami,
@@ -80,6 +81,28 @@ test('TTML tick ve frame zamanlarını kök oranıyla saniyeye çevirir', () => 
   assert.deepEqual(frames.cues, [{ start: 2, end: 3, text: 'Frame' }]);
 });
 
+test('TTML saat:kare zamanını ve start alanını doğru ölçekle ayrıştırır', () => {
+  const clock = parseSubtitlePayload('<tt ttp:frameRate="25"><body><p begin="00:00:01:12" end="00:00:02:00">Kare</p></body></tt>',
+    'application/ttml+xml', 'https://cdn.test/frame.ttml');
+  assert.deepEqual(clock.cues, [{ start: 1.48, end: 2, text: 'Kare' }]);
+  const explicit = parseSubtitlePayload('<tt><body><p start="5" t="5000" dur="2">Başlangıç</p></body></tt>',
+    'application/ttml+xml', 'https://cdn.test/start.ttml');
+  assert.deepEqual(explicit.cues, [{ start: 5, end: 7, text: 'Başlangıç' }]);
+});
+
+test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
+  const text = 'WEBVTT\n\n00:00.000 --> 00:01.000\nTürkçe';
+  const littleEndian = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
+  assert.equal(decodeSubtitleBuffer(littleEndian), text);
+  const bigEndianBody = Buffer.from(text, 'utf16le');
+  for (let index = 0; index + 1 < bigEndianBody.length; index += 2) {
+    const first = bigEndianBody[index];
+    bigEndianBody[index] = bigEndianBody[index + 1];
+    bigEndianBody[index + 1] = first;
+  }
+  assert.equal(decodeSubtitleBuffer(Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndianBody])), text);
+});
+
 test('YouTube json3 olaylarını saniyeye çevirir', () => {
   const result = parseSubtitlePayload(JSON.stringify({ events: [
     { tStartMs: 1250, dDurationMs: 2250, segs: [{ utf8: 'Hello ' }, { utf8: 'world' }] },
@@ -124,6 +147,14 @@ test('Aynı cue içeriği kararlı parmak izi üretir', () => {
   assert.notEqual(cueFingerprint(cues), cueFingerprint([{ start: 1, end: 2, text: 'C' }]));
 });
 
+test('Canlı iz parmak izi 80 satırdan sonraki büyümeyi yakalar', () => {
+  const cues = Array.from({ length: 100 }, (_, index) => ({ start: index, end: index + 0.8, text: `Satır ${index}` }));
+  assert.notEqual(cueFingerprint(cues), cueFingerprint([...cues, { start: 101, end: 102, text: 'Yeni satır' }]));
+  const changedTail = cues.map((cue) => ({ ...cue }));
+  changedTail[99].text = 'Değişen son satır';
+  assert.notEqual(cueFingerprint(cues), cueFingerprint(changedTail));
+});
+
 test('Manifest parmak izi aynı uzunluktaki orta bölüm değişikliğini yakalar', () => {
   const prefix = 'A'.repeat(500);
   const suffix = 'Z'.repeat(500);
@@ -154,13 +185,23 @@ test('Hulu benzeri HLS manifestinden altyazı izlerini çıkarır', () => {
   assert.deepEqual(tracks, [{ url: 'https://cdn.test/video/captions/en.m3u8', language: 'en', label: 'English', forced: false }]);
   assert.deepEqual(parseHlsSegmentUris('#EXTINF:4,\npart-1.vtt\n#EXTINF:4,\npart-2.vtt', 'https://cdn.test/video/captions/en.m3u8'), ['https://cdn.test/video/captions/part-1.vtt', 'https://cdn.test/video/captions/part-2.vtt']);
   assert.deepEqual(parseHlsSegments('#EXTINF:4,\npart-1.vtt\n#EXTINF:5.5,\npart-2.vtt', 'https://cdn.test/video/captions/en.m3u8'), [
-    { url: 'https://cdn.test/video/captions/part-1.vtt', start: 0, duration: 4 },
-    { url: 'https://cdn.test/video/captions/part-2.vtt', start: 4, duration: 5.5 },
+    { url: 'https://cdn.test/video/captions/part-1.vtt', start: 0, duration: 4, sequence: 0, discontinuity: 0, targetDuration: 0 },
+    { url: 'https://cdn.test/video/captions/part-2.vtt', start: 4, duration: 5.5, sequence: 1, discontinuity: 0, targetDuration: 0 },
   ]);
   assert.deepEqual(parseHlsSegments('#EXTINF:2,\nsame.vtt\n#EXTINF:3,\nsame.vtt\n#EXTINF:4,\nnext.vtt', 'https://cdn.test/video/captions/en.m3u8'), [
-    { url: 'https://cdn.test/video/captions/same.vtt', start: 0, duration: 2 },
-    { url: 'https://cdn.test/video/captions/same.vtt', start: 2, duration: 3 },
-    { url: 'https://cdn.test/video/captions/next.vtt', start: 5, duration: 4 },
+    { url: 'https://cdn.test/video/captions/same.vtt', start: 0, duration: 2, sequence: 0, discontinuity: 0, targetDuration: 0 },
+    { url: 'https://cdn.test/video/captions/same.vtt', start: 2, duration: 3, sequence: 1, discontinuity: 0, targetDuration: 0 },
+    { url: 'https://cdn.test/video/captions/next.vtt', start: 5, duration: 4, sequence: 2, discontinuity: 0, targetDuration: 0 },
+  ]);
+  assert.deepEqual(parseHlsSegments('#EXT-X-MEDIA-SEQUENCE:40\n#EXT-X-TARGETDURATION:6\n#EXTINF:4,\na.vtt\n#EXT-X-DISCONTINUITY\n#EXTINF:5,\nb.vtt', 'https://cdn.test/live.m3u8')
+    .map(({ sequence, discontinuity, targetDuration }) => ({ sequence, discontinuity, targetDuration })), [
+    { sequence: 40, discontinuity: 0, targetDuration: 6 },
+    { sequence: 41, discontinuity: 1, targetDuration: 6 },
+  ]);
+  assert.deepEqual(parseHlsSegments('#EXT-X-TARGETDURATION:6\nfirst.vtt\nsecond.vtt', 'https://cdn.test/live.m3u8')
+    .map(({ start, duration }) => ({ start, duration })), [
+    { start: 0, duration: 6 },
+    { start: 6, duration: 6 },
   ]);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\npart-1.vtt', 'https://cdn.test/master.m3u8'), true);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\nvideo-1.ts', 'https://cdn.test/video.m3u8'), false);
@@ -261,6 +302,20 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
   const init = box('moov', box('trak', box('mdia', box('mdhd', mdhd))));
   assert.equal(parseMp4Timescale(init), 1000);
   assert.deepEqual(parseMp4WebVtt(fragment, {}), []);
+  const secondTfdt = Buffer.alloc(4); secondTfdt.writeUInt32BE(10000);
+  const secondRows = Buffer.alloc(12); secondRows.writeUInt32BE(1);
+  secondRows.writeUInt32BE(1000, 4); secondRows.writeUInt32BE(first.length, 8);
+  const secondTraf = box('traf', Buffer.concat([
+    box('tfhd', full(0, tfhdPayload)), box('tfdt', full(0, secondTfdt)), box('trun', full(0x300, secondRows)),
+  ]));
+  const twoFragments = Buffer.concat([
+    fragment,
+    box('moof', secondTraf), box('mdat', first),
+  ]);
+  assert.deepEqual(parseMp4WebVtt(twoFragments, { timescale: 1000 }), [
+    { start: 6, end: 8, text: 'Bir' }, { start: 8, end: 10, text: 'İki' },
+    { start: 10, end: 11, text: 'Bir' },
+  ]);
 });
 
 test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bulur', () => {
@@ -274,6 +329,11 @@ test('ASS, SAMI ve LRC metinleri ortak cue modeline dönüştürür', () => {
   assert.equal(parseSami('<SAMI><SYNC Start=1000><P>Bir</P><SYNC Start=3000><P>İki</P></SYNC>').length, 2);
   assert.deepEqual(parseLrc('[00:01.00]Bir\n[00:03.00]İki').map((cue) => cue.start), [1, 3]);
   assert.deepEqual(parseLrc('[00:01.00]Bir\n[00:03.00]İki').map((cue) => cue.end), [3, 8]);
+});
+
+test('ASS Events Format alan sırası değiştiğinde zaman ve metni korur', () => {
+  const cues = parseAss('[Events]\nFormat: Style, End, Layer, Start, Text\nDialogue: Default,0:00:04.50,0,0:00:02.00,Merhaba, dünya');
+  assert.deepEqual(cues, [{ start: 2, end: 4.5, text: 'Merhaba, dünya' }]);
 });
 
 test('Tarayıcı geri/ileri durumu yeni Electron API ve eski API ile güvenli okunur', () => {
@@ -303,6 +363,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   const root = path.join(__dirname, '..', 'src');
   const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   const overlayController = fs.readFileSync(path.join(root, 'browser-overlay-controller.js'), 'utf8');
+  const browserPreload = fs.readFileSync(path.join(root, 'browser-preload.js'), 'utf8');
   const preload = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
@@ -335,7 +396,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browserManifestInFlight/);
   assert.match(main, /fetchBrowserTextWithRetry/);
   assert.match(main, /manifestRetryNeeded = true/);
-  assert.match(main, /if \(manifestHandled\) browserSeenManifests\.set/);
+  assert.match(main, /if \(manifestHandled\) \{[\s\S]{0,120}browserSeenManifests\.set/);
   assert.match(main, /browserDashSubtitleMatchers\[existingIndex\]/);
   assert.match(main, /const bodyBase64 = String\(entry\.bodyBase64/);
   assert.match(main, /\(!body && !bodyBase64\)/);
@@ -343,7 +404,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /capture-status/);
   assert.match(main, /\.framesInSubtree/);
   assert.match(main, /node\.shadowRoot/);
-  assert.match(main, /executeBrowserFrames\(browserOverlayScript/);
+  assert.match(main, /executeBrowserTrustedMain\(browserView, browserOverlayScript/);
+  assert.match(main, /executeJavaScriptInIsolatedWorld/);
+  assert.match(browserPreload, /ipcRenderer\.send\('browser:trusted-bridge'/);
   assert.match(overlayController, /document\.fullscreenElement/);
   assert.match(overlayController, /fullscreenchange/);
   assert.match(overlayController, /state\.offset/);
@@ -376,6 +439,18 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browser:session:reset/);
   assert.match(main, /browser:subtitle:export/);
   assert.match(main, /rememberBrowserVisit\(wc\.getURL\(\)/);
+  assert.match(main, /let browserSessionLastWriteAt = 0/);
+  assert.match(main, /restoreEnabled:\s*browserSessionRestoreEnabled,[\s\S]{0,900}tabs:\s*browserTabsSnapshot\(\)/,
+    'geri yuklemeyi kapatmak mevcut sekme anlik goruntulerini diskte silmemeli');
+  assert.match(main, /effectiveDelay = elapsed >= 10_000 \? 0/);
+  assert.match(main, /let browserPlacesCache = null/);
+  assert.match(main, /setTimeout\(\(\) => flushBrowserPlaces\(\), 400\)/);
+  assert.match(main, /app\.on\('before-quit'[\s\S]{0,180}flushBrowserPlaces\(\)/);
+  assert.match(main, /const cueList = track\.cues \|\| null[\s\S]{0,800}const list = Array\.from/);
+  assert(main.indexOf('image = await tab.view.webContents.capturePage()')
+    < main.indexOf('const result = await dialog.showSaveDialog(mainWindow', main.indexOf('async function saveBrowserPageCapture')),
+  'sayfa görüntüsü kayıt diyaloğundan sonra alınıyor');
+  assert.match(main, /type: 'popup-opened', host, capture: false/);
   assert.match(preload, /navigateBrowser:/);
   assert.match(preload, /onBrowserEvent:/);
   assert.match(preload, /listBrowserPlaces:/);
@@ -398,9 +473,13 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(renderer, /browserAddressSuggestions/);
   assert.match(renderer, /browserBookmarkToggle/);
   assert.match(renderer, /function renderBrowserDiagnostics/);
+  assert.match(renderer, /function updateBrowserTabPresentation/);
+  assert.match(renderer, /updateBrowserTabPresentation\(tab\)[\s\S]{0,80}return/);
+  assert.match(renderer, /browserAdapterPluginErrors/);
   assert.match(html, /id="workspaceBrowserMode"/);
   assert.match(html, /id="browserTrackTranslate"/);
   assert.match(html, /id="browserDiagnosticsPanel"/);
+  assert.match(html, /id="browserAdapterPluginErrors"/);
   assert.match(html, /id="browserPlacesPanel"/);
   assert.match(html, /id="browserBookmarkToggle"/);
   assert.match(html, /id="browserAddressSuggestions"/);

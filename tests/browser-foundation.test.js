@@ -31,9 +31,23 @@ function test(name, fn) {
 }
 
 test('hassas ve takip parametreleri kanonik URL’den çıkarılır', () => {
-  const url = normalizeBrowserUrl('https://Example.com/watch/42/?utm_source=x&token=SECRET&lang=en#part');
+  const url = normalizeBrowserUrl('https://Example.com/watch/42/?utm_source=x&token=SECRET&apikey=A&client_secret=B&refresh_token=C&oauth_token=D&csrf=E&xsrf=F&lang=en#part');
   assert.equal(url, 'https://example.com/watch/42?lang=en');
   assert(!url.includes('SECRET'));
+});
+
+test('ana süreç tek örnek kilidi, yetkili bildirim ve izole sayfa köprüsü kullanır', () => {
+  const root = path.join(__dirname, '..', 'src');
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  const browserPreload = fs.readFileSync(path.join(root, 'browser-preload.js'), 'utf8');
+  assert.match(main, /app\.requestSingleInstanceLock\(\)/);
+  assert.match(main, /app\.on\('second-instance'/);
+  assert.match(main, /ipcMain\.handle\('notify', \(event, opts\)/);
+  assert.match(main, /event\.sender !== mainWindow\.webContents/);
+  assert.match(main, /executeJavaScriptInIsolatedWorld/);
+  assert.match(main, /preload: path\.join\(__dirname, 'browser-preload\.js'\)/);
+  assert.match(browserPreload, /ipcRenderer\.send\('browser:trusted-bridge'/);
+  assert.doesNotMatch(main, /rawMsg\.startsWith\('__WHISPER_(?:MANGA_EDIT|BROWSER_OVERLAY_STYLE)__/);
 });
 
 test('YouTube URL biçimleri aynı medya kimliğine birleşir', () => {

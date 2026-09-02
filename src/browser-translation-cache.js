@@ -10,13 +10,18 @@ class PersistentTranslationCache {
     this.map = new Map();
     this.timer = null;
     this.flushPromise = null;
+    this.lastFlushAt = 0;
+    this.minFlushIntervalMs = Math.max(500, Number(options.minFlushIntervalMs) || 3000);
     this.version = 0;
     this.load();
   }
 
   load() {
+    const loadFile = (filePath) => JSON.parse(this.fs.readFileSync(filePath, 'utf8'));
     try {
-      const parsed = JSON.parse(this.fs.readFileSync(this.filePath, 'utf8'));
+      let parsed;
+      try { parsed = loadFile(this.filePath); }
+      catch (error) { parsed = loadFile(`${this.filePath}.bak`); }
       const entries = parsed && [1, 2].includes(parsed.version) && Array.isArray(parsed.entries) ? parsed.entries : [];
       const now = Date.now();
       this.map = new Map(entries.filter((entry) => Array.isArray(entry) && entry.length === 2)
@@ -43,6 +48,9 @@ class PersistentTranslationCache {
     }
     this.map.delete(normalized);
     this.map.set(normalized, record);
+    // Okuma LRU'yu bellekte günceller; salt bir get() disk yazımı başlatmaz.
+    // Bir sonraki gerçek set/silme veya uygulama kapanışındaki flush güncel
+    // sırayı da kalıcılaştırır.
     return record.value;
   }
 
@@ -59,7 +67,8 @@ class PersistentTranslationCache {
 
   scheduleFlush(delay = 500) {
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => { void this.flush(); }, delay);
+    const dueIn = Math.max(Number(delay) || 0, this.minFlushIntervalMs - (Date.now() - this.lastFlushAt));
+    this.timer = setTimeout(() => { void this.flush(); }, Math.max(0, dueIn));
   }
 
   async flush() {
@@ -70,21 +79,21 @@ class PersistentTranslationCache {
     const temp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     const promises = this.fs.promises;
     this.flushPromise = (async () => {
+      const flushedVersion = this.version;
       try {
-        let flushedVersion;
-        do {
-          flushedVersion = this.version;
-          const payload = `${JSON.stringify({ version: 2, entries: [...this.map] })}\n`;
-          if (promises) {
-            await promises.mkdir(dir, { recursive: true });
-            await promises.writeFile(temp, payload, 'utf8');
-            await promises.rename(temp, this.filePath);
-          } else {
-            this.fs.mkdirSync(dir, { recursive: true });
-            this.fs.writeFileSync(temp, payload, 'utf8');
-            this.fs.renameSync(temp, this.filePath);
-          }
-        } while (flushedVersion !== this.version);
+        const payload = `${JSON.stringify({ version: 2, entries: [...this.map] })}\n`;
+        if (promises) {
+          await promises.mkdir(dir, { recursive: true });
+          await promises.writeFile(temp, payload, 'utf8');
+          try { await promises.copyFile(this.filePath, `${this.filePath}.bak`); } catch (_) {}
+          await promises.rename(temp, this.filePath);
+        } else {
+          this.fs.mkdirSync(dir, { recursive: true });
+          this.fs.writeFileSync(temp, payload, 'utf8');
+          try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
+          this.fs.renameSync(temp, this.filePath);
+        }
+        this.lastFlushAt = Date.now();
         return { ok: true, count: this.map.size };
       } catch (error) {
         try {
@@ -94,6 +103,9 @@ class PersistentTranslationCache {
         return { ok: false, error: error.message };
       } finally {
         this.flushPromise = null;
+        // Yazma sürerken set() geldiyse bu flush'ı sonsuz bir döngüye sokma;
+        // yeni sürümü ayrı ve birleştirilebilir bir yazım olarak planla.
+        if (flushedVersion !== this.version) this.scheduleFlush();
       }
     })();
     return this.flushPromise;

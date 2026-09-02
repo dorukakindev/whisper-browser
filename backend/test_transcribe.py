@@ -14,10 +14,12 @@ import os
 import sys
 import tempfile
 import types
+import wave
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transcribe as T  # noqa: E402
 import media as M  # noqa: E402
+import live_asr as L  # noqa: E402
 
 
 # ---- faster-whisper segment/word arayüzünü taklit eden hafif sahte sınıflar ----
@@ -35,6 +37,17 @@ class Seg:
         self.end = end
         self.text = text
         self.words = words
+
+
+def test_live_asr_chunk_offset_is_validated_without_killing_worker():
+    assert L.parse_chunk_offset({"offset": "12.5"}) == 12.5
+    assert L.parse_chunk_offset({"offset": -4}) == 0.0
+    for bad in ("bozuk", "nan", "inf"):
+        try:
+            L.parse_chunk_offset({"offset": bad})
+            assert False, f"bozuk offset kabul edildi: {bad}"
+        except (TypeError, ValueError):
+            pass
 
 
 # ===== parse_timecode =====
@@ -552,6 +565,8 @@ def test_read_subtitle_text_encodings():
     tr = "Çocuk güzel şeyler öğrendi, ışık İstanbul."
     cases = {
         "utf8_bom": tr.encode("utf-8-sig"),
+        "utf16_le": tr.encode("utf-16"),
+        "utf16_be": b"\xfe\xff" + tr.encode("utf-16-be"),
         "cp1254": tr.encode("cp1254"),
         # çift kodlanmış UTF-8 ("Ã§ocuk")
         "double": tr.encode("utf-8").decode("latin-1").encode("utf-8"),
@@ -563,6 +578,95 @@ def test_read_subtitle_text_encodings():
         p.write_bytes(data)
         text, _enc, _rep = T.read_subtitle_text(p)
         assert text.strip() == tr, f"{name}: {text!r}"
+
+
+def test_audio_energy_signal_streams_wav_in_bounded_chunks():
+    import pathlib
+
+    with tempfile.TemporaryDirectory() as tmp:
+        wav_path = pathlib.Path(tmp) / "energy.wav"
+        with wave.open(str(wav_path), "wb") as out:
+            out.setnchannels(1)
+            out.setsampwidth(2)
+            out.setframerate(16000)
+            out.writeframes((b"\x00\x00" * 16000) + (b"\xff\x3f" * 16000))
+
+        real_open = T.wave.open
+        requested = []
+
+        class TrackedWave:
+            def __init__(self, inner):
+                self.inner = inner
+
+            def __enter__(self):
+                self.inner.__enter__()
+                return self
+
+            def __exit__(self, *args):
+                return self.inner.__exit__(*args)
+
+            def __getattr__(self, name):
+                return getattr(self.inner, name)
+
+            def readframes(self, count):
+                requested.append(count)
+                return self.inner.readframes(count)
+
+        T.wave.open = lambda *args, **kwargs: TrackedWave(real_open(*args, **kwargs))
+        try:
+            signal, hz = T.audio_energy_signal(str(wav_path), hz=50)
+        finally:
+            T.wave.open = real_open
+
+        assert hz == 50 and 95 <= len(signal) <= 105
+        assert requested and max(requested) <= 16000 * 60
+
+
+def test_whisperx_error_path_releases_gpu_and_logs_compute_fallback():
+    seen = {}
+
+    class FakeModel:
+        def transcribe(self, _audio, batch_size):
+            seen["batch_size"] = batch_size
+            raise RuntimeError("decode failed")
+
+    fake_whisperx = types.SimpleNamespace(
+        load_model=lambda _name, _device, **kwargs: (seen.update(kwargs) or FakeModel()),
+        load_audio=lambda _path: [0.0] * 160,
+    )
+    args = types.SimpleNamespace(
+        model="tiny", temperature_fallback=False, temperature=0.0,
+        beam_size=1, best_of=1, patience=1.0, length_penalty=1.0,
+        repetition_penalty=1.0, no_repeat_ngram_size=0,
+        compression_ratio_threshold=2.4, log_prob_threshold=-1.0,
+        no_speech_threshold=0.6, condition_on_previous=False, batch_size=3,
+    )
+    old_module = sys.modules.get("whisperx")
+    old_free = T._wx_free_gpu
+    old_log = T.log
+    freed = []
+    logs = []
+    sys.modules["whisperx"] = fake_whisperx
+    T._wx_free_gpu = lambda: freed.append(True)
+    T.log = lambda message, level="info": logs.append((message, level))
+    try:
+        try:
+            T.run_whisperx(args, "unused.wav", need_words=False,
+                           device="cpu", compute_type="int8_float16")
+            assert False, "WhisperX decode hatası yayılmadı"
+        except RuntimeError as error:
+            assert "decode failed" in str(error)
+    finally:
+        T._wx_free_gpu = old_free
+        T.log = old_log
+        if old_module is None:
+            sys.modules.pop("whisperx", None)
+        else:
+            sys.modules["whisperx"] = old_module
+
+    assert seen.get("compute_type") == "int8"
+    assert freed, "WhisperX hata yolunda GPU temizliği çağrılmadı"
+    assert any("int8_float16" in message and level == "warn" for message, level in logs)
 
 
 def test_encoding_repair_no_false_positive():
@@ -967,6 +1071,16 @@ def test_translate_cache_key_includes_scene_language_and_glossary():
     assert len({a, b, c, d, e, f, g}) == 7
 
 
+def test_translate_cache_key_normalizes_unicode_nfc():
+    args = _TrArgs(glossary="Café")
+    composed = T.translate_cache_key("Café", args, "Türkçe", "Français",
+                                     ["résumé"], ["élève"])
+    decomposed = T.translate_cache_key("Cafe\u0301", _TrArgs(glossary="Cafe\u0301"),
+                                       "Tu\u0308rkc\u0327e", "Franc\u0327ais",
+                                       ["re\u0301sume\u0301"], ["e\u0301le\u0300ve"])
+    assert composed == decomposed
+
+
 def test_translate_pending_chunks_never_bridge_cached_gap():
     """0-1 ve 8-9 eksikse aradaki onbellekli sahne tek istekte atlanamaz."""
     assert T.contiguous_index_chunks([0, 1, 8, 9, 10, 31], 20) == [[0, 1], [8, 9, 10], [31]]
@@ -1009,6 +1123,49 @@ def test_snap_to_speech_respects_max_shift():
     out2, moved2, _ = T.snap_entries_to_regions(
         [(4.2, 9.0, "yakin")], starts=[5.0], ends=[8.0], max_shift=1.0, min_dur=0.6)
     assert moved2 == 1 and out2[0][0] == 5.0
+
+
+def test_stream_speech_timestamps_reads_wav_in_bounded_chunks():
+    import array
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+        wav_path = handle.name
+    try:
+        with wave.open(wav_path, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(10)
+            wav.writeframes(array.array("h", [0] * 50).tobytes())
+        calls = []
+        def fake_vad(audio, _options):
+            calls.append(len(audio))
+            return [{"start": 0, "end": len(audio)}]
+        regions = T._stream_speech_timestamps(
+            wav_path, fake_vad, object(), target_rate=10,
+            chunk_seconds=2, overlap_seconds=0,
+        )
+        assert calls == [20, 20, 10]
+        assert regions == [{"start": 0, "end": 50}]
+    finally:
+        os.unlink(wav_path)
+
+
+def test_pyannote_pcm_loader_returns_waveform_dictionary():
+    import array
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+        wav_path = handle.name
+    try:
+        with wave.open(wav_path, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(16000)
+            wav.writeframes(array.array("h", [0, 16384, -16384]).tobytes())
+        fake_torch = types.SimpleNamespace(from_numpy=lambda value: value)
+        audio = T._load_pcm_waveform_for_pyannote(wav_path, fake_torch)
+        assert audio["sample_rate"] == 16000
+        assert audio["waveform"].shape == (1, 3)
+        assert abs(float(audio["waveform"][0, 1]) - 0.5) < 0.001
+    finally:
+        os.unlink(wav_path)
 
 
 def test_translate_cache_skips_already_translated():
@@ -1181,6 +1338,8 @@ def test_is_hallucination():
     assert T.is_hallucination("[Müzik]") is True
     assert T.is_hallucination("Abone olmayı unutmayın") is True
     assert T.is_hallucination("Subtitles by someone") is True
+    assert T.is_hallucination("https://example.edu/course/week-3") is False
+    assert T.is_hallucination("http://www.example.org/lesson") is False
     assert T.is_hallucination("Merhaba dünya, bugün güzel bir gün.") is False
 
 
@@ -1417,7 +1576,7 @@ def test_read_checkpoint_missing():
 def test_merge_resumed_entries():
     old = [(0.0, 40.0, "korunan"), (40.0, 80.0, "sınırı aşan — atılmalı")]
     new = [(70.0, 75.0, "eski bölge — atılmalı"), (78.5, 84.0, "yeni blok")]
-    # boundary=78: old'da end>78.1 atılır (40-80 düşer); new'de start<77.5 atılır (70-75 düşer)
+    # boundary=78: eski tarafta sınırı aşan, yeni tarafta sınırdan önce biten blok düşer.
     merged = T.merge_resumed_entries(old, new, 78.0)
     assert len(merged) == 2
     assert merged[0][2] == "korunan"
@@ -1428,6 +1587,27 @@ def test_merge_resumed_entries():
                  {"word": "yeni", "start": 78.5, "end": 79.0}]
     merged_words = T.merge_resumed_words(old_words, new_words, 78.0)
     assert [w["word"] for w in merged_words] == ["eski", "yeni"]
+
+    # Yeni motor bloğu kesim noktasından biraz önce başlasa da atılmaz; başlangıcı
+    # sınıra kırpılır ve eski checkpoint bloğuyla zaman olarak üst üste binmez.
+    overlap = T.merge_resumed_entries(
+        [(60.0, 78.0, "eski sınır")],
+        [(77.7, 84.0, "yeni sınır")],
+        78.0,
+    )
+    assert overlap == [(60.0, 78.0, "eski sınır"), (78.0, 84.0, "yeni sınır")]
+    overlap_words = T.merge_resumed_words(
+        [{"word": "eski", "start": 77.6, "end": 78.0}],
+        [{"word": "yeni", "start": 77.8, "end": 78.4}],
+        78.0,
+    )
+    assert overlap_words[1]["start"] == 78.0
+
+    # Son checkpoint bloğu çok uzunsa sabit iki saniyelik backoff bloğun başını
+    # kaybettirmemeli; yeniden çalışma kesişen bloğun başından başlamalı.
+    assert T.checkpoint_resume_from([(0.0, 40.0, "uzun blok")], 40.0) == 0.0
+    assert T.checkpoint_resume_from([(0.0, 20.0, "eski"), (20.0, 40.0, "son")], 40.0) == 20.0
+    assert T.checkpoint_resume_from([], 40.0) == 38.0
 
 
 # ===== altyazı senkronlama =====

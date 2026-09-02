@@ -71,7 +71,7 @@ class BrowserAdapterRegistry {
     try { host = new URL(String(responseUrl || '')).hostname.toLowerCase(); } catch (_) {}
     const page = this.forPage(pageUrl);
     if (page && (page.hosts.test(host) || page.responseHint.test(String(responseUrl || '')))) return page;
-    return this.list().find((adapter) => adapter.hosts.test(host)) || page;
+    return this.list().find((adapter) => adapter.hosts.test(host)) || null;
   }
 
   mediaIdentity(url, hints = {}) {

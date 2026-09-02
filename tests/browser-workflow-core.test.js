@@ -51,6 +51,18 @@ async function test(name, fn) {
     assert.equal(plan.stage('network-capture').status, 'skipped');
   });
 
+  await test('geç kalan eşzamanlı edinme sonucu ilk kazananı değiştirmez', () => {
+    const plan = new CaptionAcquisitionPlan({
+      capabilities: { nativeTextTrack: true, networkCapture: true },
+    });
+    assert(plan.start('native-text-track'));
+    assert(plan.start('network-capture'));
+    assert(plan.finish('network-capture', { success: true, trackCount: 1 }));
+    assert.equal(plan.finish('native-text-track', { success: true, trackCount: 2 }), false);
+    assert.equal(plan.snapshot().winner, 'network-capture');
+    assert.equal(plan.stage('native-text-track').status, 'skipped');
+  });
+
   await test('servis yetenek matrisi doğrulama tarihini ve caption yollarını özetler', () => {
     const row = capabilityMatrixEntry('netflix', {
       networkCapture: true,
@@ -84,6 +96,20 @@ async function test(name, fn) {
     assert.deepEqual(distributed.map((cue) => cue.cueId), ['a', 'b']);
     assert.deepEqual(distributed.map((cue) => [cue.start, cue.end]), [[0, 1], [1.05, 2]]);
     assert.equal(distributed.map((cue) => cue.text).join(' '), 'Bu tek bir cümledir.');
+  });
+
+  await test('kısa çeviri boş cue üretmeden komşu zaman aralıklarını birleştirir', () => {
+    const sentence = {
+      pieces: [
+        { cueId: 'a', start: 0, end: 1, text: 'First' },
+        { cueId: 'b', start: 1, end: 2, text: 'second' },
+        { cueId: 'c', start: 2, end: 3, text: 'third' },
+      ],
+    };
+    const distributed = distributeTranslation(sentence, 'Kısa metin');
+    assert.deepEqual(distributed.map((cue) => cue.text), ['Kısa', 'metin']);
+    assert(distributed.every((cue) => cue.text.trim()), 'boş çeviri cue üretildi');
+    assert.equal(distributed[1].end, 3);
   });
 
   await test('oynatma penceresi aktif ve ilerideki cümleleri önce planlar', () => {
@@ -227,6 +253,31 @@ async function test(name, fn) {
     await scheduler.whenIdle();
     assert.equal(calls, 1);
     assert.equal(scheduler.snapshot().results.length, 2);
+  });
+
+  await test('abort edilmiş paylaşılan istek yeni tüketiciyi zehirlemez', async () => {
+    let calls = 0;
+    const scheduler = new BrowserTranslationScheduler({
+      translate: (_sentence, { signal }) => {
+        calls++;
+        return new Promise((resolve, reject) => {
+          if (signal.aborted) return reject(new Error('aborted'));
+          const timer = setTimeout(() => resolve('Yeni sonuç'), 5);
+          signal.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true });
+        });
+      },
+    });
+    const sentence = { id: 'shared', text: 'Same.' };
+    const firstController = new AbortController();
+    const first = scheduler.translateShared(sentence, 'same-key', firstController);
+    firstController.abort('ilk tüketici ayrıldı');
+    const secondController = new AbortController();
+    const second = scheduler.translateShared(sentence, 'same-key', secondController);
+    const [firstResult, secondResult] = await Promise.allSettled([first, second]);
+    assert.equal(firstResult.status, 'rejected');
+    assert.equal(secondResult.status, 'fulfilled');
+    assert.equal(secondResult.value, 'Yeni sonuç');
+    assert.equal(calls, 2);
   });
 
   console.log(`browser-workflow-core: ${passed} test`);

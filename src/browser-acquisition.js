@@ -85,6 +85,13 @@ class CaptionAcquisitionPlan {
   finish(id, result = {}) {
     const stage = this.stage(id);
     if (!stage || !['waiting', 'running'].includes(stage.status)) return false;
+    // Birden fazla edinme yolu aynı anda çalışıyor olabilir. İlk başarılı yol
+    // kazandıktan sonra geciken bir manifest/ağ sonucu kazananı değiştirmesin.
+    if (this.winner && this.winner !== id) {
+      stage.status = 'skipped';
+      stage.reason = 'Altyazı başka bir edinme yolunda daha önce bulundu.';
+      return false;
+    }
     const success = result.success === true;
     stage.status = success ? 'success' : 'failed';
     stage.reason = String(result.reason || '').slice(0, 500);

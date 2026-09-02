@@ -79,9 +79,24 @@ test('RELEASE yalnız kendi teslimatını iade eder ve yeni teslimat kimliği ü
   h.enqueue('a');
   const first = receipt(h.drain().entries[0]);
   assert.equal(h.release([first]), 1);
+  h.now += 900;
   const second = receipt(h.drain().entries[0]);
   assert.notEqual(second.deliveryId, first.deliveryId);
   assert.equal(h.ack([second]), 1);
+});
+
+test('tekrarlanan RELEASE sonsuz döngü yerine sınırlı denemeden sonra öğeyi bırakır', () => {
+  const h = createHarness();
+  h.enqueue('a');
+  for (const delay of [900, 1800, 3600]) {
+    const current = receipt(h.drain().entries[0]);
+    assert.equal(h.release([current]), 1);
+    h.now += delay;
+  }
+  const last = receipt(h.drain().entries[0]);
+  assert.equal(h.release([last]), 1);
+  assert.deepEqual(h.queueIds(), []);
+  assert.equal(h.drain().entries.length, 0);
 });
 
 test('renderer/frame yenilenmesinden kalan onay yeni frame kuyruğuna dokunmaz', () => {
@@ -181,7 +196,10 @@ test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
   assert.match(flushBody, /browserCaptureFlushPromise/);
   assert.match(flushBody, /finally\(\(\) => \{[\s\S]*?browserCaptureBusy = false/);
   assert.match(functionBody('startBrowserPolling', 'stopBrowserPolling'),
-    /setInterval\(\(\) => \{ void flushBrowserCaptureQueue\(\); \}, 900\)/);
+    /setInterval\(\(\) => \{[\s\S]{0,420}flushBrowserCaptureQueue\(\{ installHook: true \}\)[\s\S]{0,40}\}, 900\)/);
+  assert.match(main, /browserCaptureHookFrames = new WeakSet\(\)/);
+  assert.match(functionBody('ensureBrowserCaptureHooks', 'performBrowserCaptureFlush'),
+    /frames\.filter\(\(frame\) => !browserCaptureHookFrames\.has\(frame\)\)[\s\S]{0,420}browserCaptureHookFrames\.add\(frame\)/);
   const processAt = main.indexOf('const outcome = await processBrowserCapturedPayload');
   const generationCheckAt = main.indexOf('if (!isCurrentBrowserContext(context)) return', processAt);
   const receiptAt = main.indexOf('(outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push', processAt);
@@ -191,7 +209,7 @@ test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
   assert.match(main, /const browserLastCaptureDropped = new Map\(\)/);
 });
 
-test('pencere kapanışı kuyruğu boşaltır ve yalnız doğrulanmış bekleyen parçayı uyarır', () => {
+test('pencere kapanışı yalnız bekleyen parçayı, sekme kapanışı ölçülemeyen kuyruğu da uyarır', () => {
   const drainBodyStart = main.indexOf('async function drainBrowserCaptureBeforeClose(');
   const drainBodyEnd = main.indexOf('async function flushBrowserSession(', drainBodyStart);
   const drainBody = main.slice(drainBodyStart, drainBodyEnd);
@@ -199,12 +217,14 @@ test('pencere kapanışı kuyruğu boşaltır ve yalnız doğrulanmış bekleyen
   assert.match(drainBody, /pass < 4/);
   assert.match(drainBody, /flushBrowserCaptureQueue\(\{ allowHidden: true, force: true, installHook: false \}\)/);
   assert.match(main, /captureStatus = await withTimeout\(drainBrowserCaptureBeforeClose\(\), BROWSER_CLOSE_DRAIN_TIMEOUT/);
-  assert.match(main, /function browserCaptureCloseNeedsWarning\(status\)[\s\S]*?Number\(status && status\.pending\) > 0/);
+  assert.match(main, /function browserCaptureCloseNeedsWarning\(status, includeUnverified = false\)[\s\S]*?Number\(status && status\.pending\) > 0/);
   assert.match(main, /if \(browserCaptureCloseNeedsWarning\(captureStatus\)/);
   assert.match(main, /captureStatus\.pending \+= await backgroundBrowserCapturePending\(browserActiveTabId\)/,
     'arka plan sekmelerindeki doğrulanmış kuyruk kapanış hesabına katılmıyor');
-  assert.match(main, /browser:tab:close[\s\S]{0,1100}browserTabCapturePending\(tab, true\)[\s\S]{0,260}confirmBrowserCaptureDiscard\(capturePending, 'sekme'\)/,
-    'sekme kapanışı o sekmenin bekleyen yakalama parçalarını korumuyor');
+  assert.match(main, /browser:tab:close[\s\S]{0,1300}browserTabCapturePending\(tab, true\)[\s\S]{0,360}browserCaptureCloseNeedsWarning\(captureStatus, true\)[\s\S]{0,180}confirmBrowserCaptureDiscard\(captureStatus\.pending, 'sekme', captureStatus\.unverified\)/,
+    'sekme kapanışı bekleyen veya ölçülemeyen yakalama kuyruğunu korumuyor');
+  assert.match(main, /else if \(tab\.view && !tab\.view\.webContents\.isDestroyed\(\)\)[\s\S]{0,260}executeBrowserViewFrames\(tab\.view, tab\.captureEnabled !== false[\s\S]{0,120}browserCaptureHookScript\(\) : browserCaptureToggleScript\(false\)\)/,
+    'arka plan sekmesi kapanışı iptal edilince yakalama yeniden başlatılmıyor');
   assert.doesNotMatch(main, /captureStatus\.pending !== 0/,
     'ölçüm zaman aşımı gerçek bekleyen parça gibi uyarı açıyor');
   assert.match(main, /pending:\s*0,[\s\S]{0,100}unverified:\s*true/,

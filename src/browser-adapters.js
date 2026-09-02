@@ -19,7 +19,7 @@ function browserAdapterForUrl(url) {
 }
 
 function browserResponseAdapter(pageUrl, responseUrl) {
-  return ADAPTER_REGISTRY.forResponse(pageUrl, responseUrl) || browserAdapterForUrl(pageUrl);
+  return ADAPTER_REGISTRY.forResponse(pageUrl, responseUrl) || GENERIC_ADAPTER;
 }
 
 function adapterAcceptsResponse(adapter, response = {}) {

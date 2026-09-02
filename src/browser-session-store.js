@@ -4,7 +4,7 @@ const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media
 
 const BROWSER_SESSION_VERSION = 1;
 const MAX_SESSION_TABS = 24;
-const MAX_TRACK_REFS = 8;
+const MAX_TRACK_REFS = 12;
 
 function cleanString(value, max = 300) {
   return String(value == null ? '' : value).trim().slice(0, max);

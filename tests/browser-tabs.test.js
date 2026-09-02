@@ -50,6 +50,38 @@ test('ayni kusakta eski medya ve edinme olaylari reddedilir', () => {
   assert.equal(gate.accept({ tabId: 'tab-1', generation: 5, mediaId: 'youtube:next', acquisitionId: 'cap-next' }), true);
 });
 
+test('yeni edinme durumu kayitli altyazi olayindan once kapida tanitilir', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 4, { mediaId: 'discovery:episode', acquisitionId: 'cap-old' });
+  const restored = {
+    type: 'subtitle-found', tabId: 'tab-1', generation: 4,
+    mediaId: 'discovery:episode', acquisitionId: 'cap-new',
+  };
+  assert.equal(gate.accept(restored), false, 'durum olayi gelmeden yeni iz kabul edilmemeli');
+  assert.equal(gate.accept({
+    type: 'capture-status', tabId: 'tab-1', generation: 4,
+    mediaId: 'discovery:episode', acquisitionId: 'cap-new',
+  }), true);
+  assert.equal(gate.accept(restored), true, 'durum olayi sonrasinda kayitli iz kabul edilmeli');
+});
+
+test('Discovery yonlendirmesi ayni kusakta yeni medya baglamini kurabilir', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 7, { mediaId: 'discovery:topical', acquisitionId: 'cap-loading' });
+  assert.equal(gate.accept({
+    type: 'capture-status', tabId: 'tab-1', generation: 7,
+    mediaId: 'discovery:watch', acquisitionId: 'cap-watch',
+  }), true, 'yeni sayfanin durum olayi medya kimligini degistirebilmeli');
+  assert.equal(gate.accept({
+    type: 'subtitle-found', tabId: 'tab-1', generation: 7,
+    mediaId: 'discovery:watch', acquisitionId: 'cap-watch',
+  }), true, 'yeni medya icin yakalanan altyazi kabul edilmeli');
+  assert.equal(gate.accept({
+    type: 'subtitle-found', tabId: 'tab-1', generation: 7,
+    mediaId: 'discovery:topical', acquisitionId: 'cap-loading',
+  }), false, 'yonlendirme oncesinden gec gelen altyazi reddedilmeli');
+});
+
 test('ayni video iki sekmede altyazi ve konumu ayri tutar', () => {
   const gate = new BrowserTabEventGate();
   const states = new Map([
@@ -105,12 +137,17 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(main, /tabId[\s\S]{0,120}generation/);
   assert.match(main, /browserOverlay = \{ source: \[\], translation: \[\], mode: 'translation', offset: 0 \}/);
   assert.match(main, /browserLiveAsr\?\.tab === previous/);
-  assert.match(main, /async function activateBrowserTab[\s\S]{0,900}await withTimeout\(drainBrowserCaptureBeforeClose\(\)/);
+  assert.match(main, /async function activateBrowserTab[\s\S]{0,2200}await withTimeout\(drainBrowserCaptureBeforeClose\(\)/);
   assert.match(main, /function queueBrowserTabTransition[\s\S]{0,240}browserTabTransitionPromise/);
   assert.match(main, /ipcMain\.handle\('browser:tab:activate'[\s\S]{0,220}await activateBrowserTab/);
   assert.match(main, /persistedTrack: true/);
   assert.match(main, /browserCaptureEnabled === nextEnabled[\s\S]{0,180}unchanged: true/);
   assert.match(main, /resetBrowserCaptureState\(\{ preserveDiagnostics: true \}\)/);
+  const resetStart = main.indexOf('function resetBrowserCaptureState(');
+  const resetEnd = main.indexOf('function browserCaptureToggleScript(', resetStart);
+  const resetBody = main.slice(resetStart, resetEnd);
+  assert(resetBody.indexOf('publishBrowserDiagnostics()') < resetBody.indexOf('restorePersistedBrowserTracks(tab)'),
+    'yeni acquisition kimligi kayitli izlerden once renderer kapisina bildirilmelidir');
   assert.match(main, /ipcMain\.handle\('media:probeTracks'[\s\S]{0,180}event\.sender !== mainWindow\.webContents/);
   assert.match(main, /sweepBrowserLiveAsrTemp\(\)/);
   assert.match(preload, /createBrowserTab/);

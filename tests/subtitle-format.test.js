@@ -196,6 +196,31 @@ t('ASS: metin ICINDEKI etiket isaretlenir (uyari icin)', () => {
   ok(cues[2].assInner === false, 'yanlis tespit');              // duz metin
 });
 
+t('ASS tek haneli kesri onda bir saniye olarak okur', () => {
+  const raw = '[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'
+    + 'Dialogue: 0,0:00:01.5,0:00:02.5,Default,,0,0,0,,Kisa kesir';
+  const cue = F.parseSubtitles(raw)[0];
+  ok(cue && cue.start === 1.5 && cue.end === 2.5, `zaman yanlis: ${cue && cue.start}`);
+});
+
+t('ASS Events Format alan sırasını ayrıştırma ve düzenlemede izler', () => {
+  const raw = '[Events]\nFormat: Style, End, Start, Name, Text\n'
+    + 'Dialogue: Default,0:00:04.25,0:00:03.5,ANLATICI,Eski, virgullu metin';
+  const cue = F.parseSubtitles(raw)[0];
+  ok(cue && cue.start === 3.5 && cue.end === 4.25, 'özel alan sırası okunmadı');
+  const out = F.replaceAssDialogueText(raw, cue.line, 'Yeni, metin', cue.assLead,
+    cue.assTextIndex, cue.assFieldCount);
+  ok(out && out.includes('Dialogue: Default,0:00:04.25,0:00:03.5,ANLATICI,Yeni, metin'),
+    `özel Format düzenlemesi bozuk: ${out}`);
+});
+
+t('VTT üç haneli dakika cue metni düzenlenebilir', () => {
+  const raw = 'WEBVTT\n\n123:45.000 --> 123:46.000\nEski\n';
+  const cue = F.parseSubtitles(raw)[0];
+  const out = F.replaceVttCueText(raw, cue, 'Yeni');
+  ok(out && out.includes('Yeni') && !out.includes('Eski'), 'üç haneli dakika eşleşmedi');
+});
+
 // ---- ms yuvarlama tasmasi ----
 t('ms yuvarlamasi 1000 uretmez (tasma)', () => {
   const bad = [{ start: 1.9996, end: 2.9999, text: 'x' }];

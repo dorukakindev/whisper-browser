@@ -196,6 +196,25 @@ class WatchIndex {
       .all(String(mediaId || ''));
   }
 
+  listTrackAssetPaths() {
+    return this.db.prepare("SELECT asset_path FROM tracks WHERE asset_path <> ''")
+      .all().map((row) => String(row.asset_path || '')).filter(Boolean);
+  }
+
+  pruneTracks(options = {}) {
+    const maxTracks = Math.max(100, Number(options.maxTracks) || 3000);
+    const maxAgeMs = Math.max(24 * 60 * 60 * 1000, Number(options.maxAgeMs) || 180 * 24 * 60 * 60 * 1000);
+    const cutoff = Date.now() - maxAgeMs;
+    const rows = this.db.prepare(`
+      SELECT id, asset_path, updated_at FROM tracks
+      ORDER BY updated_at DESC
+    `).all();
+    const removed = rows.filter((row, index) => index >= maxTracks || Number(row.updated_at) < cutoff);
+    const remove = this.db.prepare('DELETE FROM tracks WHERE id = ?');
+    this.transaction(() => { for (const row of removed) remove.run(String(row.id)); });
+    return removed;
+  }
+
   replaceTrackCues(trackId, rawCues) {
     const cues = Array.isArray(rawCues) ? rawCues : [];
     return this.transaction(() => {

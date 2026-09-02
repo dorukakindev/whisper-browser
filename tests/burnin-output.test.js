@@ -2,7 +2,14 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { burninOutputPaths, removeFileQuietly, replaceBurninOutput } = require('../src/burnin-output');
+const {
+  burninOutputPaths,
+  burninRecoveryPathsMatch,
+  burninTempLooksComplete,
+  normalizeBurninRecovery,
+  removeFileQuietly,
+  replaceBurninOutput,
+} = require('../src/burnin-output');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-burnin-'));
 try {
@@ -23,6 +30,18 @@ try {
   removeFileQuietly(partial);
   removeFileQuietly(partial);
   assert.equal(fs.existsSync(partial), false);
+
+  const recovery = normalizeBurninRecovery({
+    id: 'recover-1', videoPath: video, subPath: path.join(dir, 'film.srt'),
+    tempPath: paths.tempPath, outPath: paths.outPath, pid: 42, totalSec: 100,
+  });
+  assert(recovery && recovery.pid === 42);
+  assert(burninRecoveryPathsMatch(recovery));
+  assert(!burninRecoveryPathsMatch({ ...recovery, tempPath: path.join(dir, 'baska.tmp.mp4') }));
+  assert.equal(normalizeBurninRecovery({ videoPath: video }), null);
+  assert(burninTempLooksComplete({ size: 4096, duration: 99.2, totalSec: 100 }));
+  assert(!burninTempLooksComplete({ size: 4096, duration: 70, totalSec: 100 }));
+  assert(!burninTempLooksComplete({ size: 10, duration: 100, totalSec: 100 }));
 
   console.log('  PASS  burn-in geçici çıktı güvenli biçimde tamamlanır veya temizlenir');
 } finally {

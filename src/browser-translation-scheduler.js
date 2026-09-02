@@ -93,7 +93,19 @@ function distributeTranslation(sentence, translatedText) {
   const pieces = Array.isArray(sentence && sentence.pieces) ? sentence.pieces : [];
   if (!pieces.length) return [];
   const words = String(translatedText || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
   if (pieces.length === 1) return [{ ...pieces[0], text: words.join(' ') }];
+  // Çeviri kaynak parçadan daha az kelimeye düştüğünde her kaynak cue için
+  // ayrı metin üretmek boş veya yinelenen balonlara yol açar. Komşu zaman
+  // aralıklarını birleştirerek her çıktı cue'sunun okunur metni olmasını sağla.
+  if (words.length < pieces.length) {
+    return words.map((word, index) => {
+      const firstIndex = Math.floor((index * pieces.length) / words.length);
+      const lastIndex = Math.max(firstIndex,
+        Math.floor(((index + 1) * pieces.length) / words.length) - 1);
+      return { ...pieces[firstIndex], end: pieces[lastIndex].end, text: word };
+    });
+  }
   const weights = pieces.map((piece) => Math.max(1, String(piece.text || '').replace(/\s/g, '').length));
   const totalWeight = weights.reduce((sum, value) => sum + value, 0);
   const result = [];
@@ -222,6 +234,10 @@ class BrowserTranslationScheduler {
 
   translateShared(sentence, cacheKey, jobController) {
     let shared = this.inFlightByCacheKey.get(cacheKey);
+    if (shared && (shared.settled || shared.controller.signal.aborted)) {
+      if (this.inFlightByCacheKey.get(cacheKey) === shared) this.inFlightByCacheKey.delete(cacheKey);
+      shared = null;
+    }
     if (!shared) {
       const controller = new AbortController();
       shared = { controller, consumers: new Set(), settled: false, promise: null };
@@ -268,6 +284,7 @@ class BrowserTranslationScheduler {
         .then((value) => ({ text: typeof value === 'string' ? value : String(value && value.text || ''), cached: false }));
     }).then(async (result) => {
       if (controller.signal.aborted || generation !== this.generation) return;
+      if (!String(result.text || '').trim()) throw new Error('Çeviri sağlayıcısı boş yanıt döndürdü.');
       if (!result.cached) await this.writeCache(cacheKey, result.text);
       const value = {
         sentenceId: sentence.id,

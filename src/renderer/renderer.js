@@ -31,6 +31,146 @@ let historyCache = [];
 
 // ===== Kuyruk yönetimi =====
 let _queueIdCounter = 0;
+let _queuePersistenceReady = false;
+let _queuePersistTimer = null;
+let _burninRecoveryPollTimer = null;
+let _burninRecoveryPromptOpen = false;
+let _burninRecoveryLoggedId = '';
+
+function queueSnapshotPayload() {
+  return {
+    version: 1,
+    queueRunning: state.queueRunning,
+    currentQueueId: state.currentQueueId,
+    items: state.queue.map((item) => ({
+      id: item.id, type: item.type, input: item.input, label: item.label,
+      status: item.status, files: item.files || [], warnings: item.warnings || [],
+      opts: item.opts || {}, recovered: !!item.recovered,
+    })),
+  };
+}
+
+async function persistQueueNow() {
+  if (!_queuePersistenceReady || !window.api.saveQueueState) return false;
+  clearTimeout(_queuePersistTimer);
+  _queuePersistTimer = null;
+  const result = await window.api.saveQueueState(queueSnapshotPayload()).catch(() => null);
+  return !!result?.ok;
+}
+
+function scheduleQueuePersist(delay = 80) {
+  if (!_queuePersistenceReady || !window.api.saveQueueState) return;
+  clearTimeout(_queuePersistTimer);
+  _queuePersistTimer = setTimeout(persistQueueNow, Math.max(0, delay));
+}
+
+function queueSecretsFromCurrentUi() {
+  const current = buildOptsFromUI();
+  return {
+    hfToken: current.hfToken || '',
+    translateApiKey: current.translateApiKey || '',
+    llmApiKey: current.llmApiKey || '',
+  };
+}
+
+async function restorePersistedQueue() {
+  const restored = await window.api.loadQueueState?.().catch(() => null);
+  if (restored?.ok && Array.isArray(restored.items)) {
+    state.queue = restored.items;
+    _queueIdCounter = state.queue.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
+    const activeId = Number(restored.activeQueueItemId);
+    const active = Number.isSafeInteger(activeId)
+      ? state.queue.find((item) => item.id === activeId && item.status === 'running') : null;
+    if (active) {
+      state.queueRunning = true;
+      state.currentQueueId = active.id;
+      state.running = true;
+      state.lastJobVideo = active.type === 'file' ? active.input : null;
+      state.startTime = Date.now();
+      setStatus('Çalışıyor', 'active');
+      $('startBtn').classList.add('hidden');
+      $('cancelBtn').classList.remove('hidden');
+      logLine(`Çalışan kuyruk işine yeniden bağlanıldı: ${active.label}`, 'success');
+    } else {
+      state.queueRunning = false;
+      state.currentQueueId = null;
+      const recovered = Number(restored.recoveredCount) || state.queue.filter((item) => item.recovered).length;
+      if (recovered) {
+        setJobsTab('queue');
+        logLine(`${recovered} yarım kuyruk işi kurtarıldı. Devam etmek için “Kuyruğu başlat”ı kullanın.`, 'warn');
+      }
+    }
+  }
+  _queuePersistenceReady = true;
+  renderQueue();
+}
+
+async function offerBurnInRecovery() {
+  if (!window.api.getBurnInRecovery) return;
+  clearTimeout(_burninRecoveryPollTimer);
+  _burninRecoveryPollTimer = null;
+  const status = await window.api.getBurnInRecovery().catch(() => null);
+  if (!status?.ok || !status.available || !status.recovery) {
+    _burninRecoveryLoggedId = '';
+    return;
+  }
+  const recovery = status.recovery;
+  const videoName = recovery.videoPath.split(/[\\/]/).pop();
+  if (status.externalRunning) {
+    if (_burninRecoveryLoggedId !== recovery.id) {
+      _burninRecoveryLoggedId = recovery.id;
+      logLine(`Önceki gömme süreci hâlâ çalışıyor: ${videoName}. Bittiğinde çıktı otomatik denetlenecek.`, 'warn');
+    }
+    _burninRecoveryPollTimer = setTimeout(offerBurnInRecovery, 5000);
+    return;
+  }
+  if (_burninRecoveryPromptOpen) return;
+  _burninRecoveryPromptOpen = true;
+  try {
+  if (!status.inputReady && !status.canFinalize) {
+    const discard = await openAppDialog({
+      title: 'Yarım gömme işi kullanılamıyor',
+      description: `${videoName} için kaynak video veya altyazı bulunamadı. Geçici kurtarma kaydı silinsin mi?`,
+      confirmLabel: 'Kaydı sil',
+    });
+    if (discard) await window.api.discardBurnInRecovery?.(recovery.id).catch(() => null);
+    return;
+  }
+  const accepted = await openAppDialog({
+    title: status.canFinalize ? 'Tamamlanan videoyu kurtar' : 'Yarım kalan gömmeyi sürdür',
+    description: status.canFinalize
+      ? `${videoName} için tamamlanmış geçici çıktı bulundu. Son video dosyasına dönüştürülsün mü?`
+      : `${videoName} gömme sırasında yarım kalmış. Güvenli biçimde baştan başlatılsın mı?`,
+    confirmLabel: status.canFinalize ? 'Çıktıyı kurtar' : 'Baştan başlat',
+    intent: 'primary',
+  });
+  if (!accepted) return;
+  const result = await window.api.recoverBurnIn(recovery.id).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    logLine(`Gömme kurtarılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  if (result.recovered) {
+    logLine(`Tamamlanmış gömme çıktısı kurtarıldı: ${result.file}`, 'success');
+    window.api.showInFolder(result.file);
+    return;
+  }
+  if (result.restart) {
+    state.lastJobVideo = result.videoPath;
+    if (!state.outputFiles.includes(result.subPath)) state.outputFiles.push(result.subPath);
+    const started = await window.api.burnInStart(result.videoPath, result.subPath, result.recoveryId)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!started?.ok) {
+      logLine(`Gömme yeniden başlatılamadı: ${started?.error || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    setBurninRunningUi();
+    logLine(`Yarım kalan gömme baştan yeniden başlatıldı: ${videoName}`, 'success');
+  }
+  } finally {
+    _burninRecoveryPromptOpen = false;
+  }
+}
 
 function buildOptsFromUI() {
   // Mevcut UI ayarlarından opts oluştur (single ve kuyruk için ortak)
@@ -253,6 +393,7 @@ const STATUS_TEXT = {
 };
 
 function renderQueue() {
+  scheduleQueuePersist();
   const card = $('queueCard');
   const list = $('queueList');
   const count = $('queueCount');
@@ -373,6 +514,10 @@ async function processNextQueueItem() {
   next.status = 'running';
   state.currentQueueId = next.id;
   renderQueue();
+  // Ana süreç başlatılmadan önce çalışan öğeyi diske geçir. Main süreç de
+  // spawn sonrasında aynı durumu tekrar yazar; iki katmanlı kayıt renderer'ın
+  // bu dar aralıkta yenilenmesi halinde işi kaybetmesini önler.
+  await persistQueueNow();
 
   // Tek-iş arayüzünü güncelle: kuyruk item'i mevcut iş gibi göster
   resetStages();
@@ -391,7 +536,21 @@ async function processNextQueueItem() {
   state.lastQualityReport = null;
 
   // Eklenirken dondurulmuş ayarları kullan (yoksa mevcut UI'dan üret — geriye uyum)
-  const opts = next.opts ? { ...next.opts } : buildOptsFromUI();
+  const opts = next.opts ? { ...next.opts, ...queueSecretsFromCurrentUi() } : buildOptsFromUI();
+  opts.queueItemId = next.id;
+  const problemInfo = optsProblemInfo(opts);
+  if (problemInfo) {
+    next.status = 'pending';
+    state.queueRunning = false;
+    state.currentQueueId = null;
+    state.running = false;
+    renderQueue();
+    showJobValidation(problemInfo);
+    logLine(`Kurtarılan kuyruk işi başlatılamadı — ${problemInfo.message}`, 'error');
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
+    return;
+  }
   if (next.type === 'youtube') { opts.youtube = next.input; state.lastJobVideo = null; }
   else { opts.input = next.input; state.lastJobVideo = next.input; }
 
@@ -458,6 +617,7 @@ function openManagedModal(modal, initialFocus) {
   modal.setAttribute('aria-hidden', 'false');
   setModalBackgroundInert(modal, true);
   document.body.classList.add('modal-open');
+  if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(true).catch(() => {});
   requestAnimationFrame(() => {
     const target = initialFocus || modalFocusable(modal)[0] || modal.querySelector('.modal-content');
     target?.focus();
@@ -470,6 +630,7 @@ function closeManagedModal(modal, restoreFocus = true) {
   modal.setAttribute('aria-hidden', 'true');
   setModalBackgroundInert(modal, false);
   document.body.classList.remove('modal-open');
+  if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(false).catch(() => {});
   if (_activeModal === modal) _activeModal = null;
   const restore = _modalReturnFocus;
   _modalReturnFocus = null;
@@ -1367,8 +1528,11 @@ $('applyAntiRepeat').addEventListener('click', () => {
   logLine('Tekrar-döngüsü koruması uygulandı: repetition_penalty=1.15, no_repeat_ngram_size=3', 'success');
 });
 
+let _settingsSaveWarningShown = false;
 async function saveAppSettings() {
-  await window.api.saveSettings({
+  let saved;
+  try {
+    saved = await window.api.saveSettings({
     glossary,
     hfToken: $('hfToken').value.trim(),
     outputDir: state.outputDir || '',
@@ -1386,6 +1550,13 @@ async function saveAppSettings() {
       endpointPreset: $('mangaEndpointPreset') ? $('mangaEndpointPreset').value : 'inherit',
       customBaseUrl: $('mangaBaseUrl') ? $('mangaBaseUrl').value.trim() : '',
       model: $('mangaModel') ? $('mangaModel').value.trim() : '',
+      targetLanguage: $('browserMangaTarget')?.value || 'tr',
+      workers: Number($('browserMangaWorkers')?.value) || 2,
+      maxImages: Number($('browserMangaMaxImages')?.value) || 48,
+      fontScale: (Number($('browserMangaFontScale')?.value) || 100) / 100,
+      autoTranslate: !!$('browserMangaAuto')?.checked,
+      verticalText: !!$('browserMangaVertical')?.checked,
+      sfxStyle: $('browserMangaSfx')?.checked !== false,
     },
     llm: {
       apiKey: $('llmApiKey') ? $('llmApiKey').value.trim() : '',
@@ -1394,8 +1565,26 @@ async function saveAppSettings() {
       model: $('llmModel') ? $('llmModel').value.trim() : '',
     },
     ui: collectUiSettings(),
-    playerPositions: player.positions,
-  });
+      playerPositions: player.positions,
+    });
+  } catch (_) {
+    saved = false;
+  }
+  if (saved === false || saved?.ok === false) {
+    if (!_settingsSaveWarningShown) {
+      _settingsSaveWarningShown = true;
+      const message = saved?.error
+        || 'Ayarlar güvenli biçimde kaydedilemedi. Güvenli anahtar deposunu ve disk erişimini kontrol edin.';
+      logLine(message, 'error');
+      if (player.workspaceMode === 'browser') {
+        setBrowserSignal(message, false,
+          { priority: 100, holdMs: 8000 });
+      }
+    }
+    return false;
+  }
+  _settingsSaveWarningShown = false;
+  return true;
 }
 
 // ===== Tüm UI ayarlarını kalıcı kıl (gizli anahtarlar hariç) =====
@@ -1410,6 +1599,8 @@ const PERSIST_VALUE_CONTROLS = [
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'youtubeCookieBrowser',
+  'browserMangaTarget', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
+  'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -1419,6 +1610,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'playerAutoNext',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
+  'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
 ];
 
 function collectUiSettings() {
@@ -1811,6 +2003,8 @@ if ($('deepseekKeyHelp')) {
       else if (s.preset && PRESETS[s.preset]) _presetReference = s.preset;
     }
   } catch (_) {}
+  await restorePersistedQueue();
+  await offerBurnInRecovery();
   renderGlossary();
   updateLlmEndpointUI();
 
@@ -2026,6 +2220,26 @@ $('cancelBtn').addEventListener('click', async () => {
   // Kuyruk öğeleri arası boşlukta running=false ama queueRunning=true olabilir — yine de iptal et
   if (!state.running && !state.queueRunning) return;
   state.cancelled = true;
+  const aiJob = state.aiJob && player.job && ['chat', 'explain'].includes(player.job.kind)
+    ? player.job : null;
+  if (aiJob) {
+    aiJob.cancelled = true;
+    aiJob.running = false;
+    aiJob.awaitingExit = true;
+    if (aiJob.bubble) {
+      aiJob.bubble.classList.remove('is-loading');
+      aiJob.bubble.classList.add('ai-msg-err');
+      aiJob.bubble.textContent = 'İptal edildi.';
+    } else if (aiJob.kind === 'explain') {
+      showAiAnswer(aiJob.explainTitle || 'AI', 'İptal edildi.');
+    }
+    state.running = false;
+    state.aiJob = false;
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
+    $('playerJobText').textContent = 'AI işi iptal edildi.';
+    $('playerJobBar').classList.add('hidden');
+  }
   const r = await window.api.cancelTranscribe();
   if (state.queueRunning) {
     // Kuyruk modunda iptal → tüm kuyruğu durdur
@@ -2042,6 +2256,7 @@ $('cancelBtn').addEventListener('click', async () => {
   if (!r || !r.ok) {
     // Backend'de çalışan iş yoktu → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
     state.cancelled = false;
+    if (aiJob && player.job === aiJob) player.job = null;
     finishRun(false);
   }
 });
@@ -2112,9 +2327,16 @@ function mergeLiveCues(existing, incoming) {
 
 function applyCueQuality(cues, qualityCues) {
   if (!qualityCues || !qualityCues.length) return cues;
+  const ordered = [...qualityCues].sort((a, b) => a.start - b.start || a.end - b.end);
+  let cursor = 0;
+  let previousStart = -Infinity;
   return cues.map((cue) => {
+    if (cue.start < previousStart) cursor = 0;
+    previousStart = cue.start;
+    while (cursor < ordered.length && ordered[cursor].end <= cue.start) cursor++;
     let best = null, overlap = 0;
-    for (const q of qualityCues) {
+    for (let index = cursor; index < ordered.length; index++) {
+      const q = ordered[index];
       if (q.start >= cue.end) break;
       const ov = Math.min(cue.end, q.end) - Math.max(cue.start, q.start);
       if (ov > overlap) { overlap = ov; best = q; }
@@ -2260,6 +2482,8 @@ function playerJobEvent(event) {
   if (job.cancelled) {
     if (event.type === 'exit') {
       job.awaitingExit = false;
+      state.running = false;
+      state.aiJob = false;
       state.cancelled = false;
       if (player.job === job) player.job = null;
     }
@@ -2279,6 +2503,11 @@ function playerJobEvent(event) {
   }
 
   if ((event.type === 'chat' || event.type === 'explain') && job.mediaKey !== player.mediaKey) {
+    if (job.bubble) {
+      job.bubble.classList.remove('is-loading');
+      job.bubble.classList.add('ai-msg-err');
+      job.bubble.textContent = 'Video değiştiği için önceki videonun yanıtı bu sohbete eklenmedi.';
+    }
     job.running = false;
     job.awaitingExit = true;
     state.running = false;
@@ -2403,6 +2632,13 @@ function playerJobEvent(event) {
       player.cueQualitySource = (job.liveSource || []).slice();
       addSubtitleOption(src);
       $('playerSubSelect').value = src;
+      if (isSyncJob) {
+        player.offset = 0;
+        if ($('subOffset')) {
+          $('subOffset').value = '0';
+          $('subOffset').dispatchEvent(new Event('input'));
+        }
+      }
       loadSubtitle(src);
     }
     if (tr) {
@@ -2748,6 +2984,12 @@ $('clearQueue').addEventListener('click', () => {
 
 $('startQueueBtn').addEventListener('click', startQueue);
 
+window.addEventListener('beforeunload', () => {
+  // invoke mesajı renderer yok edilmeden önce IPC kuyruğuna bırakılır. Asıl
+  // güvence her durum değişimindeki kısa debounce kaydıdır.
+  persistQueueNow();
+});
+
 // "Sırada dur" düğmesi: kuyruk çalışırken görünür; mevcut iş bitince durdurur
 function updateStopAfterBtn() {
   const btn = $('stopAfterCurrent');
@@ -2946,17 +3188,21 @@ $('applyShift').addEventListener('click', async () => {
   else logLine('Kaydırma başarısız: ' + ((r && r.error) || ''), 'error');
 });
 
+function setBurninRunningUi() {
+  $('burninProgress').classList.remove('hidden');
+  $('burnInBtn').classList.add('hidden');
+  $('burnInCancel').classList.remove('hidden');
+  $('burninFill').style.width = '0%';
+  $('burninText').textContent = 'Gömülüyor… 0%';
+}
+
 $('burnInBtn').addEventListener('click', async () => {
   const sub = pickOutput(['.srt', '.ass']);
   if (!state.lastJobVideo) { logLine('Gömme yalnızca yerel video girdisinde mümkün (YouTube değil).', 'warn'); return; }
   if (!sub) { logLine('Gömülecek SRT/ASS çıktısı yok.', 'warn'); return; }
   const r = await window.api.burnInStart(state.lastJobVideo, sub);
   if (!r || !r.ok) { logLine('Gömme başlatılamadı: ' + ((r && r.error) || ''), 'error'); return; }
-  $('burninProgress').classList.remove('hidden');
-  $('burnInBtn').classList.add('hidden');
-  $('burnInCancel').classList.remove('hidden');
-  $('burninFill').style.width = '0%';
-  $('burninText').textContent = 'Gömülüyor… 0%';
+  setBurninRunningUi();
 });
 
 $('burnInCancel').addEventListener('click', () => window.api.burnInCancel());
@@ -3037,6 +3283,8 @@ const player = {
   savedCues: [],         // bu video icin kaydedilen cümle imzalari
   savedOnly: false,      // transcript filtresi: yalnizca kaydedilenler
   qualityOnly: false,    // transcript filtresi: yalnizca dusuk guvenli satirlar
+  cueListPageStart: 0,
+  cueListQueryKey: '',
   savedWords: [],        // kelime koleksiyonu: kelime + cümle baglami
   selectedWord: null,     // { word, cueIndex, source }
   viewMode: 'reading',
@@ -3063,6 +3311,7 @@ const player = {
   playerLibrarySearchSeq: 0,
   playbackAudioLang: '',
   workspaceMode: 'player', // 'player' | 'browser'
+  localSubtitleWorkspace: null,
   browserTabs: [],
   browserActiveTabId: '',
   browserTabEventGate: new BrowserTabEventGate(),
@@ -3097,10 +3346,16 @@ const player = {
   browserMangaTotal: 0,
   browserMangaFailed: 0,
   browserMangaEmpty: 0,
+  browserMangaRetryable: 0,
   browserMangaError: '',
+  browserMangaAutoUrl: '',
+  browserMangaAutoTimer: null,
   browserTranslationTrackId: '',
   browserLiveTranslations: new Map(),
+  settingsPage: 'source',
   browserSignalVisible: true,
+  browserSignalState: null,
+  browserSignalHistory: [],
   browserChromeCollapsed: false,
   browserLiveAsrActive: false,
   browserLiveAsrStream: null,
@@ -3154,6 +3409,8 @@ function newBrowserTabState(snapshot = {}) {
     browserMangaBusy: !!snapshot.mangaBusy,
     browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
     browserMangaVisible: !!snapshot.mangaVisible,
+    browserMangaCompleted: 0, browserMangaTotal: 0, browserMangaFailed: 0,
+    browserMangaEmpty: 0, browserMangaRetryable: 0, browserMangaError: '',
     mediaKey: snapshot.mediaId ? `browser:${snapshot.mediaId}`
       : snapshot.url ? `browser:${browserPlaceKey(snapshot.url) || snapshot.url}` : '',
     watchSession: null,
@@ -3171,6 +3428,50 @@ function newBrowserTabState(snapshot = {}) {
 
 function browserTabState(tabId = player.browserActiveTabId) {
   return player.browserTabs.find((tab) => tab.id === tabId) || null;
+}
+
+function saveLocalSubtitleWorkspace() {
+  player.localSubtitleWorkspace = {
+    cues: player.cues.slice(), cues2: player.cues2.slice(),
+    subtitles: player.subtitles.map((item) => ({ ...item })),
+    subOrigins: { ...player.subOrigins }, subPath: player.subPath,
+    sub2Path: player.sub2Path, subFormat: player.subFormat, subRaw: player.subRaw,
+    offset: player.offset,
+  };
+}
+
+function restoreLocalSubtitleWorkspace() {
+  const saved = player.localSubtitleWorkspace;
+  if (!saved) return;
+  player.cues = saved.cues.slice();
+  player.cues2 = saved.cues2.slice();
+  player.subtitles = saved.subtitles.map((item) => ({ ...item }));
+  player.subOrigins = { ...saved.subOrigins };
+  player.subPath = saved.subPath;
+  player.sub2Path = saved.sub2Path;
+  player.subFormat = saved.subFormat;
+  player.subRaw = saved.subRaw;
+  player.offset = saved.offset;
+  for (const [id, path, emptyLabel] of [
+    ['playerSubSelect', saved.subPath, 'Altyazı yok'],
+    ['playerSubSelect2', saved.sub2Path, 'Kapalı'],
+  ]) {
+    const select = $(id);
+    if (!select) continue;
+    select.replaceChildren();
+    const empty = document.createElement('option');
+    empty.value = ''; empty.textContent = emptyLabel; select.appendChild(empty);
+  }
+  saved.subtitles.forEach((item) => addSubtitleOption(item.path, item.label));
+  if ($('playerSubSelect')) $('playerSubSelect').value = saved.subPath;
+  if ($('playerSubSelect2')) $('playerSubSelect2').value = saved.sub2Path;
+  if ($('subOffset')) $('subOffset').value = String(saved.offset);
+  player.activeIdx = -1;
+  player.activeIdx2 = -1;
+  syncSubtitleModeUi();
+  renderTranscript();
+  renderCue();
+  updateSubtitleChips();
 }
 
 function saveActiveBrowserTabWorkspace() {
@@ -3197,6 +3498,12 @@ function saveActiveBrowserTabWorkspace() {
     browserMangaBusy: player.browserMangaBusy,
     browserMangaTranslated: player.browserMangaTranslated,
     browserMangaVisible: player.browserMangaVisible,
+    browserMangaCompleted: player.browserMangaCompleted,
+    browserMangaTotal: player.browserMangaTotal,
+    browserMangaFailed: player.browserMangaFailed,
+    browserMangaEmpty: player.browserMangaEmpty,
+    browserMangaRetryable: player.browserMangaRetryable,
+    browserMangaError: player.browserMangaError,
     mediaKey: player.mediaKey,
     watchSession: player.watchSession ? { ...player.watchSession } : null,
     watchManualCompletedKey: player.watchManualCompletedKey,
@@ -3250,6 +3557,12 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserMangaBusy = !!tab.browserMangaBusy;
   player.browserMangaTranslated = Number(tab.browserMangaTranslated) || 0;
   player.browserMangaVisible = !!tab.browserMangaVisible;
+  player.browserMangaCompleted = Number(tab.browserMangaCompleted) || 0;
+  player.browserMangaTotal = Number(tab.browserMangaTotal) || 0;
+  player.browserMangaFailed = Number(tab.browserMangaFailed) || 0;
+  player.browserMangaEmpty = Number(tab.browserMangaEmpty) || 0;
+  player.browserMangaRetryable = Number(tab.browserMangaRetryable) || 0;
+  player.browserMangaError = tab.browserMangaError || '';
   player.watchSession = tab.watchSession ? { ...tab.watchSession, lastClock: 0 } : null;
   player.watchManualCompletedKey = tab.watchManualCompletedKey || '';
   player.watchManualCompleted = tab.watchManualCompleted ?? null;
@@ -3276,6 +3589,8 @@ function restoreActiveBrowserTabWorkspace(tab) {
   restoredSubtitles.forEach((item) => addSubtitleOption(item.path, item.label));
   if ($('playerSubSelect')) $('playerSubSelect').value = player.subPath;
   if ($('playerSubSelect2')) $('playerSubSelect2').value = player.sub2Path;
+  updateBrowserTranslationExportButton();
+  syncSubtitleModeUi();
   renderTranscript();
   updateSubtitleChips();
   renderBrowserTracks();
@@ -3333,8 +3648,10 @@ function navigateBrowser(url, tabId = player.browserActiveTabId) {
 }
 
 function browserTabLabel(tab) {
-  if (tab && tab.title) return tab.title;
-  try { return new URL(tab && tab.url || '').hostname; } catch (_) { return 'Yeni sekme'; }
+  let label = '';
+  if (tab && tab.title) label = tab.title;
+  else try { label = new URL(tab && tab.url || '').hostname; } catch (_) { label = 'Yeni sekme'; }
+  return label.length > 80 ? `${label.slice(0, 77)}…` : label;
 }
 
 function browserCloseIcon() {
@@ -3380,6 +3697,22 @@ function renderBrowserTabs() {
   }
 }
 
+function updateBrowserTabPresentation(tab) {
+  const strip = $('browserTabStrip');
+  if (!strip || !tab) return;
+  const item = [...strip.querySelectorAll('[data-browser-tab-id]')]
+    .find((candidate) => candidate.dataset.browserTabId === tab.id);
+  const open = item?.querySelector('[data-browser-tab-activate]');
+  if (!item || !open) {
+    renderBrowserTabs();
+    return;
+  }
+  const label = browserTabLabel(tab);
+  if (open.textContent !== label) open.textContent = label;
+  open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
+  item.classList.toggle('loading', !!tab.loading);
+}
+
 async function activateBrowserTab(tabId) {
   if (!tabId || tabId === player.browserActiveTabId) return browserTabState(tabId);
   await flushWatchState(false, true);
@@ -3401,9 +3734,17 @@ async function activateBrowserTab(tabId) {
 }
 
 async function createBrowserTab() {
-  await flushWatchState(false, true);
-  saveActiveBrowserTabWorkspace();
-  const result = await window.api.createBrowserTab().catch(() => null);
+  const button = $('browserTabNew');
+  if (button?.disabled) return null;
+  if (button) button.disabled = true;
+  let result;
+  try {
+    await flushWatchState(false, true);
+    saveActiveBrowserTabWorkspace();
+    result = await window.api.createBrowserTab().catch(() => null);
+  } finally {
+    if (button) button.disabled = false;
+  }
   if (!result || !result.ok) {
     setBrowserSignal(`Yeni sekme açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     return null;
@@ -3476,9 +3817,34 @@ function bindBrowserBoundsObserver() {
   player.browserBoundsObserver.observe(slot);
 }
 
-function setBrowserSignal(text, detected = false) {
-  if ($('browserSignalText')) $('browserSignalText').textContent = text;
+function setBrowserSignal(text, detected = false, options = {}) {
+  const message = String(text || '').trim();
+  if (!message) return false;
+  const now = Date.now();
+  const priority = Math.max(0, Number(options.priority) || 10);
+  const history = player.browserSignalHistory || (player.browserSignalHistory = []);
+  if (history[history.length - 1]?.text !== message) {
+    history.push({ text: message, at: now, priority });
+    if (history.length > 8) history.splice(0, history.length - 8);
+  }
+  const prior = player.browserSignalState;
+  const blocked = !options.force && prior && prior.until > now && priority < prior.priority;
+  const historyElement = $('browserSignalHistory');
+  if (historyElement) {
+    const previous = history.slice(-3, -1).map((item) => item.text);
+    historyElement.textContent = previous.join(' · ');
+    historyElement.title = history.slice(0, -1).map((item) => item.text).join('\n');
+  }
+  if (blocked) return false;
+  player.browserSignalState = {
+    text: message, priority,
+    until: now + Math.max(0, Number(options.holdMs) || 0),
+  };
+  if ($('browserSignalText')) $('browserSignalText').textContent = message;
   $('browserSignal')?.classList.toggle('detected', detected);
+  const action = $('browserSignalTranslateAction');
+  if (action) action.classList.toggle('hidden', options.action !== 'translate');
+  return true;
 }
 
 function updateBrowserMangaButton() {
@@ -3511,7 +3877,10 @@ function updateBrowserMangaButton() {
 
 function applyBrowserMangaState(event = {}) {
   player.browserMangaBusy = event.state === 'running';
-  if (event.state === 'error') player.browserMangaError = String(event.message || event.error || 'Manga çevirisi başarısız oldu.');
+  if (event.state === 'error') {
+    player.browserMangaError = String(event.message || event.error || 'Manga çevirisi başarısız oldu.');
+    player.browserMangaAutoUrl = '';
+  }
   else if (['running', 'ready', 'idle', 'empty'].includes(event.state)) player.browserMangaError = '';
   if (event.translated !== undefined) player.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
   if (event.visible !== undefined) player.browserMangaVisible = !!event.visible;
@@ -3521,16 +3890,37 @@ function applyBrowserMangaState(event = {}) {
   player.browserMangaTotal = Math.max(0, Number(event.total) || 0);
   player.browserMangaFailed = Math.max(0, Number(event.failed) || 0);
   player.browserMangaEmpty = Math.max(0, Number(event.empty) || 0);
+  if (event.retryable !== undefined) player.browserMangaRetryable = Math.max(0, Number(event.retryable) || 0);
+  else if (event.state === 'idle') player.browserMangaRetryable = 0;
   const tab = browserTabState();
   if (tab) Object.assign(tab, {
     browserMangaBusy: player.browserMangaBusy,
     browserMangaTranslated: player.browserMangaTranslated,
     browserMangaVisible: player.browserMangaVisible,
+    browserMangaCompleted: player.browserMangaCompleted,
+    browserMangaTotal: player.browserMangaTotal,
+    browserMangaFailed: player.browserMangaFailed,
+    browserMangaEmpty: player.browserMangaEmpty,
+    browserMangaRetryable: player.browserMangaRetryable,
+    browserMangaError: player.browserMangaError,
   });
   updateBrowserMangaButton();
-  if (event.message) setBrowserSignal(event.message, event.state === 'ready' && !event.error);
+  const retry = $('browserMangaRetryFailed');
+  if (retry) {
+    retry.disabled = player.browserMangaBusy || player.browserMangaRetryable < 1;
+    retry.textContent = player.browserMangaRetryable > 0
+      ? `Başarısızları yeniden dene (${player.browserMangaRetryable})` : 'Başarısızları yeniden dene';
+  }
+  if ($('browserMangaSummary')) {
+    $('browserMangaSummary').textContent = player.browserMangaTotal
+      ? `Toplam ${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · metinsiz ${player.browserMangaEmpty} · hatalı ${player.browserMangaFailed} · yeniden denenebilir ${player.browserMangaRetryable}`
+      : 'Henüz manga işi çalıştırılmadı.';
+  }
+  if (event.message) setBrowserSignal(event.message, event.state === 'ready' && !event.error,
+    { priority: event.state === 'error' ? 90 : 30, holdMs: event.state === 'error' ? 6000 : 1200 });
   else if (event.state === 'running') {
-    setBrowserSignal(`Manga görselleri işlendi: ${player.browserMangaCompleted}/${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · atlanan ${player.browserMangaFailed + player.browserMangaEmpty}`, true);
+    setBrowserSignal(`Manga görselleri işlendi: ${player.browserMangaCompleted}/${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · atlanan ${player.browserMangaFailed + player.browserMangaEmpty}`, true,
+      { priority: 25 });
   }
 }
 
@@ -3574,7 +3964,12 @@ async function handleBrowserMangaAction(clickEvent) {
   await saveAppSettings();
   applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
   const result = await window.api.startBrowserManga?.(player.browserActiveTabId, {
-    targetLanguage: $('translateTo')?.value || 'tr', maxImages: 64,
+    targetLanguage: $('browserMangaTarget')?.value || $('translateTo')?.value || 'tr',
+    maxImages: Number($('browserMangaMaxImages')?.value) || 48,
+    workers: Number($('browserMangaWorkers')?.value) || 2,
+    fontScale: (Number($('browserMangaFontScale')?.value) || 100) / 100,
+    verticalText: !!$('browserMangaVertical')?.checked,
+    sfxStyle: $('browserMangaSfx')?.checked !== false,
   }).catch((error) => ({ ok: false, error: error.message }));
   if (!result?.ok && !result?.canceled) {
     logLine(`Manga çevirisi: ${result?.error || 'bilinmeyen hata'}`, 'error');
@@ -3592,10 +3987,6 @@ function setBrowserSignalVisible(visible, persist = true) {
     button.setAttribute('aria-pressed', player.browserSignalVisible ? 'true' : 'false');
     button.title = player.browserSignalVisible ? 'Altyazı sinyalini gizle' : 'Altyazı sinyalini göster';
     button.setAttribute('aria-label', button.title);
-  }
-  if (!player.browserSignalVisible) {
-    $('browserDiagnosticsPanel')?.classList.add('hidden');
-    $('browserDiagnosticsToggle')?.setAttribute('aria-expanded', 'false');
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserSignalVisible', player.browserSignalVisible ? 'true' : 'false'); } catch (_) {}
@@ -3637,8 +4028,6 @@ function setBrowserChromeCollapsed(collapsed, persist = true) {
   }
   if (active) {
     setBrowserPlacesOpen(false);
-    $('browserDiagnosticsPanel')?.classList.add('hidden');
-    $('browserDiagnosticsToggle')?.setAttribute('aria-expanded', 'false');
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserChromeCollapsed', player.browserChromeCollapsed ? 'true' : 'false'); } catch (_) {}
@@ -3786,6 +4175,11 @@ function renderBrowserDiagnostics(diagnostics) {
       : errors ? `${errors} adaptör yüklenemedi` : 'Kullanıcı adaptörü yok';
     $('browserAdapterPluginStatus').title = (pluginStatus.errors || []).join('\n');
   }
+  if ($('browserAdapterPluginErrors')) {
+    const errors = Array.isArray(pluginStatus.errors) ? pluginStatus.errors.filter(Boolean).slice(0, 4) : [];
+    $('browserAdapterPluginErrors').textContent = errors.join('\n');
+    $('browserAdapterPluginErrors').classList.toggle('hidden', errors.length === 0);
+  }
   const recent = $('browserDiagnosticsRecent');
   if (!recent) return;
   recent.replaceChildren();
@@ -3880,18 +4274,32 @@ function renderBrowserAcquisition(acquisition) {
 }
 
 function clearBrowserTracks(message) {
+  if (player.browserTranslationTrackId && window.api.stopBrowserTranslation) {
+    window.api.stopBrowserTranslation(player.browserActiveTabId).catch(() => {});
+  }
   player.browserPrepareSeq += 1;
   player.browserTranslatePreparing = false;
   Object.values(player.browserTrackRefreshTimers).forEach((timer) => clearTimeout(timer));
   player.browserTrackRefreshTimers = {};
   player.browserLoadedTrackId = '';
   player.browserLoadedTrackId2 = '';
+  player.browserTranslationTrackId = '';
+  player.browserLiveTranslations = new Map();
   player.browserTracks = [];
+  player.cues = [];
+  player.cues2 = [];
+  player.subPath = '';
+  player.sub2Path = '';
+  player.subRaw = '';
+  player.activeIdx = -1;
+  player.activeIdx2 = -1;
   const select = $('browserTrackSelect');
   if (select) select.innerHTML = '';
   const select2 = $('browserTrackSelect2');
   if (select2) select2.innerHTML = '<option value="">İkinci iz yok</option>';
   $('browserTrackActions')?.classList.add('hidden');
+  updateBrowserTranslationExportButton();
+  syncSubtitleModeUi();
   setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
 }
 
@@ -3902,21 +4310,37 @@ function renderBrowserTracks(selectedId) {
   if (!select || !select2 || !actions) return;
   const previous = selectedId || select.value;
   const previous2 = select2.value;
-  select.innerHTML = '';
-  select2.innerHTML = '<option value="">İkinci iz yok</option>';
-  player.browserTracks.forEach((track) => {
-    const option = document.createElement('option');
-    option.value = track.id;
-    option.textContent = `${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
-    select.appendChild(option);
-    select2.appendChild(option.cloneNode(true));
-  });
+  const syncOptions = (target, includeEmpty) => {
+    const validIds = new Set(player.browserTracks.map((track) => String(track.id)));
+    for (const option of [...target.options]) {
+      if (includeEmpty && option.value === '') continue;
+      if (!validIds.has(option.value)) option.remove();
+    }
+    if (includeEmpty && !target.querySelector('option[value=""]')) {
+      const empty = document.createElement('option');
+      empty.value = ''; empty.textContent = 'İkinci iz yok';
+      target.prepend(empty);
+    }
+    for (const track of player.browserTracks) {
+      let option = [...target.options].find((item) => item.value === String(track.id));
+      if (!option) {
+        option = document.createElement('option');
+        option.value = track.id;
+      }
+      const label = `${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
+      if (option.textContent !== label) option.textContent = label;
+      target.appendChild(option);
+    }
+  };
+  syncOptions(select, false);
+  syncOptions(select2, true);
   if (player.browserTracks.some((track) => track.id === previous)) select.value = previous;
   if (player.browserTracks.some((track) => track.id === previous2)) select2.value = previous2;
   actions.classList.toggle('hidden', player.browserTracks.length === 0);
   if (player.browserTracks.length) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
-    setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true);
+    setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true,
+      { priority: 45, holdMs: 4000, action: 'translate' });
   }
 }
 
@@ -3985,7 +4409,13 @@ async function useBrowserTrack(translate) {
 }
 
 async function completeSelectedBrowserTranslation() {
-  await useBrowserTrack(true);
+  const selected = browserTrackSelection(false);
+  // Devam eden aynı izin scheduler'ını yeniden kurmak hazır sonuç Map'ini
+  // sıfırlıyor ve bazı cümleleri API'ye ikinci kez gönderiyordu. Yalnız yeni
+  // bir iz seçildiyse çeviri oturumunu başlat.
+  if (!selected || player.browserTranslationTrackId !== selected.id) {
+    await useBrowserTrack(true);
+  }
   if (!player.browserTranslationTrackId) return;
   const result = await window.api.completeBrowserTranslation?.(player.browserActiveTabId).catch(() => null);
   if (!result?.ok) {
@@ -4000,6 +4430,8 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   player.browserTranslationTrackId = track.id;
   player.browserLiveTranslations = new Map();
   player.cues2 = [];
+  updateBrowserTranslationExportButton();
+  syncSubtitleModeUi();
   const result = await window.api.startBrowserTranslation(player.browserActiveTabId, {
     trackId: track.id,
     cues: player.cues.map((cue, index) => ({
@@ -4009,14 +4441,17 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
     sourceLanguage,
     register: $('translateRegister')?.value || 'documentary',
     profanity: $('translateProfanity')?.value || 'medium',
+    completeTrack: true,
   }).catch((error) => ({ ok: false, error: error.message }));
   if (!result || !result.ok) {
     player.browserTranslationTrackId = '';
+    updateBrowserTranslationExportButton();
+    syncSubtitleModeUi();
     setBrowserSignal(`Canlı çeviri başlatılamadı: ${result?.error || 'bilinmeyen hata'}`, false);
     return;
   }
   setSubtitleMode('both', false);
-  setBrowserSignal(`${result.sentenceCount} cümle planlandı; oynatma konumunun 90 saniye ilerisi hazırlanıyor.`, true);
+  setBrowserSignal(`${result.sentenceCount} cümlenin tamamı kuyruğa alındı; oynatma çevresi öncelikli hazırlanıyor.`, true);
 }
 
 function applyBrowserTranslationResult(event) {
@@ -4026,14 +4461,18 @@ function applyBrowserTranslationResult(event) {
     return;
   }
   for (const cue of event.result.cues || []) {
+    const text = String(cue.text || '').trim();
+    if (!text) continue;
     const key = String(cue.cueId ?? `${cue.start}:${cue.end}`);
     player.browserLiveTranslations.set(key, {
       id: `web-tr-${key}`, start: Number(cue.start) || 0,
-      end: Number(cue.end) || Number(cue.start) || 0, text: String(cue.text || '').trim(),
+      end: Number(cue.end) || Number(cue.start) || 0, text,
     });
   }
   player.cues2 = [...player.browserLiveTranslations.values()]
     .filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
+  updateBrowserTranslationExportButton();
+  syncSubtitleModeUi();
   const tab = browserTabState();
   if (tab) {
     tab.browserTranslationTrackId = player.browserTranslationTrackId;
@@ -4101,6 +4540,34 @@ async function exportSelectedBrowserTrack() {
   const result = await window.api.exportBrowserSubtitle({ cues, title: label, format }).catch(() => null);
   if (result && result.ok) setBrowserSignal('Altyazı dosyası dışa aktarıldı.', true);
   else if (result && !result.canceled) setBrowserSignal(`Altyazı kaydedilemedi: ${result.error || 'bilinmeyen hata'}`, false);
+}
+
+function updateBrowserTranslationExportButton() {
+  const button = $('browserTranslationExport');
+  if (!button) return;
+  const count = player.browserLiveTranslations?.size || player.cues2.length || 0;
+  button.disabled = count === 0;
+  button.title = count
+    ? `${count} çevrilmiş altyazı satırını dışa aktar`
+    : 'Çeviri satırları hazır olduğunda kullanılabilir';
+}
+
+async function exportBrowserTranslation() {
+  const liveCues = [...(player.browserLiveTranslations?.values?.() || [])];
+  const cues = (liveCues.length ? liveCues : player.cues2)
+    .filter((cue) => String(cue.text || '').trim())
+    .sort((a, b) => Number(a.start) - Number(b.start) || Number(a.end) - Number(b.end));
+  if (!cues.length) {
+    setBrowserSignal('Dışa aktarılacak canlı çeviri henüz hazır değil.', false);
+    return;
+  }
+  const format = $('browserExportFormat')?.value === 'vtt' ? 'vtt' : 'srt';
+  const language = $('translateTo')?.value || 'tr';
+  const result = await window.api.exportBrowserSubtitle({
+    cues, title: `${player.browserPageTitle || 'web-altyazi'}-${language}-ceviri`, format,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) setBrowserSignal(`Çeviri dışa aktarıldı: ${result.path}`, true);
+  else if (!result?.canceled) setBrowserSignal(`Çeviri dışa aktarılamadı: ${result?.error || 'bilinmeyen hata'}`, false);
 }
 
 function abSubtitleExcerpt() {
@@ -4327,6 +4794,15 @@ function scheduleBrowserOverlaySync() {
       translation: player.cues2.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
       offset: player.offset,
+      style: {
+        scale: (Number($('browserOverlayScale')?.value) || 100) / 100,
+        opacity: (Number($('browserOverlayOpacity')?.value) || 100) / 100,
+        bottomOffset: Number($('browserOverlayBottom')?.value) || 0,
+        width: Number($('browserOverlayWidth')?.value) || 86,
+        maxLines: Number($('browserOverlayMaxLines')?.value) || 3,
+        sourceFirst: $('browserOverlaySourceFirst')?.checked !== false,
+        hideSiteCaptions: !!$('browserHideSiteCaptions')?.checked,
+      },
     }).catch(() => {});
   }, 120);
 }
@@ -4381,6 +4857,17 @@ function updateBrowserNavigation(data, options = {}) {
   if (player.workspaceMode === 'browser') {
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor' : 'Web videosu · altyazı algılama açık';
+  }
+  if (data.loading === false && data.url && $('browserMangaAuto')?.checked
+      && player.browserMangaAutoUrl !== data.url && !player.browserMangaBusy) {
+    clearTimeout(player.browserMangaAutoTimer);
+    const expectedUrl = data.url;
+    player.browserMangaAutoTimer = setTimeout(() => {
+      player.browserMangaAutoTimer = null;
+      if (player.browserPageUrl !== expectedUrl || !$('browserMangaAuto')?.checked || player.browserMangaBusy) return;
+      player.browserMangaAutoUrl = expectedUrl;
+      handleBrowserMangaAction().catch(() => {});
+    }, 1300);
   }
   return true;
 }
@@ -4450,8 +4937,12 @@ async function showBrowserWorkspace() {
 
 function setWorkspaceMode(mode, persist = true) {
   mode = mode === 'browser' ? 'browser' : 'player';
+  const previousMode = player.workspaceMode;
   if (mode !== player.workspaceMode) flushWatchState(false, true);
+  if (mode === 'browser' && previousMode !== 'browser') saveLocalSubtitleWorkspace();
+  if (mode !== 'browser' && previousMode === 'browser') saveActiveBrowserTabWorkspace();
   if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
+  if (mode !== 'browser' && player.settingsPage !== 'source') setSettingsPage('source');
   player.workspaceMode = mode;
   const layer = $('playerLayer');
   layer?.classList.toggle('workspace-browser', mode === 'browser');
@@ -4478,10 +4969,8 @@ function setWorkspaceMode(mode, persist = true) {
       : 'Bu video için altyazı oluştur';
   }
   if ($('shotBtn')) {
-    $('shotBtn').disabled = mode === 'browser';
-    $('shotBtn').title = mode === 'browser'
-      ? 'Ekran görüntüsü yalnız yerel oynatıcıda kullanılabilir'
-      : 'Ekran görüntüsü al (S)';
+    $('shotBtn').disabled = false;
+    $('shotBtn').title = mode === 'browser' ? 'Tarayıcı sayfasının ekran görüntüsünü al (S)' : 'Ekran görüntüsü al (S)';
   }
   if (mode === 'browser') {
     $('playerVideo')?.pause();
@@ -4491,6 +4980,7 @@ function setWorkspaceMode(mode, persist = true) {
     scheduleBrowserOverlaySync();
   } else {
     if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
+    if (previousMode === 'browser') restoreLocalSubtitleWorkspace();
     $('playerTitle').textContent = player.localPath
       ? player.localPath.split(/[\\/]/).pop() : (player.ytInfo && player.ytInfo.title) || 'Oynatıcı';
     $('playerMeta').textContent = 'Çift dilli izleme ve çalışma alanı';
@@ -4549,6 +5039,42 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (even
 });
 if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
 if ($('browserMangaTranslate')) $('browserMangaTranslate').addEventListener('click', handleBrowserMangaAction);
+const browserRangeOutputs = {
+  browserMangaWorkers: ['browserMangaWorkersVal', (value) => String(value)],
+  browserMangaFontScale: ['browserMangaFontScaleVal', (value) => `%${value}`],
+  browserOverlayScale: ['browserOverlayScaleVal', (value) => `%${value}`],
+  browserOverlayOpacity: ['browserOverlayOpacityVal', (value) => `%${value}`],
+  browserOverlayBottom: ['browserOverlayBottomVal', (value) => `%${value}`],
+  browserOverlayWidth: ['browserOverlayWidthVal', (value) => `%${value}`],
+};
+for (const [id, [outputId, format]] of Object.entries(browserRangeOutputs)) {
+  const control = $(id);
+  if (!control) continue;
+  const refresh = () => { if ($(outputId)) $(outputId).textContent = format(control.value); };
+  control.addEventListener('input', () => { refresh(); if (id.startsWith('browserOverlay')) scheduleBrowserOverlaySync(); });
+  refresh();
+}
+for (const id of ['browserOverlayMaxLines', 'browserOverlaySourceFirst', 'browserHideSiteCaptions']) {
+  $(id)?.addEventListener('change', scheduleBrowserOverlaySync);
+}
+$('browserMangaRetryFailed')?.addEventListener('click', async () => {
+  const result = await window.api.retryFailedBrowserManga?.(player.browserActiveTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok && !result?.canceled) setBrowserSignal(result?.error || 'Başarısız manga sayfaları yeniden denenemedi.', false);
+});
+for (const [id, format] of [['browserMangaExportJson', 'json'], ['browserMangaExportImage', 'png']]) {
+  $(id)?.addEventListener('click', async () => {
+    const result = await window.api.exportBrowserManga?.(player.browserActiveTabId, format)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (result?.ok) logLine(`Manga ${format === 'json' ? 'verisi' : 'görseli'} kaydedildi: ${result.path}`, 'success');
+    else if (!result?.canceled) setBrowserSignal(result?.error || 'Manga dışa aktarılamadı.', false);
+  });
+}
+$('browserPiP')?.addEventListener('click', () => {
+  browserCommand('pip').then((result) => {
+    if (!result?.ok) setBrowserSignal(result?.error || 'Resim içinde resim açılamadı.', false);
+  }).catch(() => {});
+});
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); navigateBrowserFromAddress(); }
 });
@@ -4663,8 +5189,10 @@ if ($('browserChromeToggle')) $('browserChromeToggle').addEventListener('click',
 if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () => useBrowserTrack(false));
 if ($('browserTrackLoadPair')) $('browserTrackLoadPair').addEventListener('click', useBrowserTrackPair);
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
+if ($('browserSignalTranslateAction')) $('browserSignalTranslateAction').addEventListener('click', () => useBrowserTrack(true));
 if ($('browserTrackTranslateAll')) $('browserTrackTranslateAll').addEventListener('click', completeSelectedBrowserTranslation);
 if ($('browserTrackExport')) $('browserTrackExport').addEventListener('click', exportSelectedBrowserTrack);
+if ($('browserTranslationExport')) $('browserTranslationExport').addEventListener('click', exportBrowserTranslation);
 if ($('browserQueuePage')) $('browserQueuePage').addEventListener('click', queueCurrentBrowserPage);
 if ($('browserExportClip')) $('browserExportClip').addEventListener('click', exportBrowserAbClip);
 if ($('browserLiveAsr')) $('browserLiveAsr').addEventListener('click', toggleBrowserLiveAsr);
@@ -4715,14 +5243,11 @@ if ($('browserSessionRestore')) $('browserSessionRestore').addEventListener('cha
   }
   setBrowserSignal(result.enabled
     ? 'Son sekmeler uygulama açılışında geri yüklenecek.'
-    : 'Son sekmeler diskte tutulmayacak ve açılışta geri yüklenmeyecek.', false);
+    : 'Son sekmeler güvenli kapanış için saklanacak ancak açılışta geri yüklenmeyecek.', false);
 });
 if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListener('click', () => {
-  const panel = $('browserDiagnosticsPanel');
-  if (!panel) return;
-  const open = panel.classList.toggle('hidden') === false;
-  $('browserDiagnosticsToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open && player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  toggleSettingsPage('browser-diagnostics');
+  if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
 });
 if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEventListener('click', async () => {
   const result = await window.api.openBrowserAdapterFolder?.().catch((error) => ({ ok: false, error: error.message }));
@@ -4731,6 +5256,16 @@ if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEv
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  // ASR tek, uygulama-geneli bir kaynaktır. Durdurma olayı kapanmış/eski bir
+  // sekmenin kimliğini taşısa bile aktif-sekme kapısında kaybolmamalı.
+  if (event.type === 'live-asr-state' && event.active === false) {
+    if (player.browserLiveAsrActive) {
+      stopBrowserLiveAsrCapture(false, event.message || 'Canlı Whisper durduruldu.');
+    } else if (event.message) {
+      updateBrowserLiveAsrButton(event.message);
+    }
+    return;
+  }
   if (event.tabId) {
     const tab = browserTabState(event.tabId);
     if (!tab || !player.browserTabEventGate.accept(event)) return;
@@ -4759,8 +5294,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'translation-result' && event.result && !event.result.error) {
         const translated = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
         for (const cue of event.result.cues || []) {
+          const text = String(cue.text || '').trim();
+          if (!text) continue;
           const key = String(cue.cueId ?? `${cue.start}:${cue.end}`);
-          translated.set(key, { id: `web-tr-${key}`, start: cue.start, end: cue.end, text: cue.text });
+          translated.set(key, { id: `web-tr-${key}`, start: cue.start, end: cue.end, text });
         }
         tab.browserTranslationTrackId = event.trackId || tab.browserTranslationTrackId;
         tab.browserLiveTranslations = [...translated.values()];
@@ -4771,10 +5308,16 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         if (event.translated !== undefined) tab.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
         if (event.visible !== undefined) tab.browserMangaVisible = !!event.visible;
         else if (event.state === 'idle' || event.state === 'error') tab.browserMangaVisible = false;
+        tab.browserMangaCompleted = Math.max(0, Number(event.completed) || 0);
+        tab.browserMangaTotal = Math.max(0, Number(event.total) || 0);
+        tab.browserMangaFailed = Math.max(0, Number(event.failed) || 0);
+        tab.browserMangaEmpty = Math.max(0, Number(event.empty) || 0);
+        if (event.retryable !== undefined) tab.browserMangaRetryable = Math.max(0, Number(event.retryable) || 0);
+        tab.browserMangaError = event.state === 'error' ? String(event.message || event.error || '') : '';
       } else if (event.type === 'load-error' || event.type === 'drm-playback-error') {
         tab.error = event.message || 'Tarayıcı hatası';
       }
-      renderBrowserTabs();
+      updateBrowserTabPresentation(tab);
       return;
     }
   }
@@ -4806,7 +5349,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     player.browserTime = Number(event.media.currentTime) || 0;
     player.browserDuration = Number(event.media.duration) || 0;
     player.browserPaused = !!event.media.paused;
-    player.browserVolume = Math.max(0, Math.min(1, Number(event.media.volume)));
+    const nextVolume = Number(event.media.volume);
+    if (Number.isFinite(nextVolume)) player.browserVolume = Math.max(0, Math.min(1, nextVolume));
     player.browserMuted = !!event.media.muted;
     const tab = browserTabState();
     if (tab) Object.assign(tab, {
@@ -4863,7 +5407,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (tab) tab.error = event.message || `hata ${event.code}`;
     updateBrowserNavigation({ ...event, loading: false });
     if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
-    setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false);
+    setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false,
+      { priority: 100, holdMs: 7000 });
   } else if (event.type === 'capture-warning') {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
   } else if (event.type === 'capture-enabled') {
@@ -4881,36 +5426,50 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       ? ` · ~${Number(progress.remaining)} istek / ~${Number(progress.estimatedTokens || 0).toLocaleString('tr-TR')} token`
       : '';
     if (progress.pending || progress.queued) {
-      setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true);
+      setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true,
+        { priority: 60 });
+    } else if (progress.total && Number(progress.completed) >= Number(progress.total)) {
+      setSubtitleMode('translation', false);
+      updateBrowserTranslationExportButton();
+      setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed)}/${Number(progress.total)} cümle. Çeviri ana altyazı olarak gösteriliyor.`, true,
+        { priority: 65, holdMs: 4000 });
+    } else if (progress.total && progress.failed) {
+      updateBrowserTranslationExportButton();
+      setBrowserSignal(`Canlı çeviri tamamlanamadı: ${Number(progress.completed || 0)}/${Number(progress.total)} cümle hazır · ${Number(progress.failed)} hata.`, false,
+        { priority: 90, holdMs: 6000 });
     } else if (progress.total) {
       setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle.`, true);
     }
-  } else if (event.type === 'live-asr-state') {
-    if (event.active === false && player.browserLiveAsrActive) {
-      stopBrowserLiveAsrCapture(false, event.message || 'Canlı Whisper durduruldu.');
-    } else {
-      updateBrowserLiveAsrButton(event.message || 'Canlı Whisper');
-      if (event.message) setBrowserSignal(event.message, !!event.active);
+  } else if (event.type === 'overlay-style') {
+    const bottomOffset = Number(event.style?.bottomOffset);
+    const control = $('browserOverlayBottom');
+    if (control && Number.isFinite(bottomOffset)) {
+      control.value = String(Math.max(0, Math.min(75, bottomOffset)));
+      if ($('browserOverlayBottomVal')) $('browserOverlayBottomVal').textContent = `%${Math.round(Number(control.value))}`;
+      scheduleSave();
     }
+  } else if (event.type === 'live-asr-state') {
+    updateBrowserLiveAsrButton(event.message || 'Canlı Whisper');
+    if (event.message) setBrowserSignal(event.message, !!event.active);
   } else if (event.type === 'live-asr-warning') {
     logLine(`Canlı Whisper: ${event.message || 'ses parçası işlenemedi'}`, 'warn');
   } else if (event.type === 'drm-status') {
     const message = event.supported
       ? 'Widevine modülü bulundu. Bu yalnızca teknik erişimi doğrular; Hulu, Discovery+ ve benzeri servisler ayrıca üretim lisansı/VMP imzası isteyebilir.'
       : 'Bu Electron derlemesinde Widevine kullanılamıyor; korumalı video oynatılamayabilir, ancak erişilebilen altyazı ağ izleri taranmaya devam eder.';
-    setBrowserSignal(message, !!event.supported);
+    setBrowserSignal(message, !!event.supported, { priority: event.supported ? 35 : 75, holdMs: 5000 });
     logLine(message, event.supported ? 'info' : 'warn');
   } else if (event.type === 'drm-wait') {
     setBrowserSignal(event.message || (event.waiting ? 'DRM bileşeni hazırlanıyor…' : 'Sayfa açılıyor…'), false);
   } else if (event.type === 'popup-opened') {
-    const message = `${event.host || 'Site'} için güvenli giriş penceresi açıldı.`;
-    setBrowserSignal(message, false);
-    logLine(message, 'info');
+    const message = `${event.host || 'Site'} için yeni pencere açıldı. Bu pencerede altyazı yakalama ve çeviri çalışmaz; videoyu ana sekmede açın.`;
+    setBrowserSignal(message, false, { priority: 70, holdMs: 5000 });
+    logLine(message, 'warn');
   } else if (event.type === 'drm-playback-error') {
     const tab = browserTabState();
     if (tab) tab.error = event.message || 'DRM hatası';
     const message = `Korumalı video lisans aşamasında reddedildi: ${event.message || 'DRM hatası'}`;
-    setBrowserSignal(message, false);
+    setBrowserSignal(message, false, { priority: 100, holdMs: 7000 });
     logLine(message, 'warn');
   }
 });
@@ -5192,6 +5751,14 @@ function bindCueListDelegation() {
     return card ? parseInt(card.dataset.idx, 10) : NaN;
   };
   box.addEventListener('click', (e) => {
+    const pageAction = e.target.closest?.('[data-cue-page]')?.dataset.cuePage;
+    if (pageAction) {
+      player.cueListPageStart += pageAction === 'next' ? 500 : -500;
+      player.cueListPageStart = Math.max(0, player.cueListPageStart);
+      renderCueList($('cueSearch')?.value || '');
+      box.scrollTop = 0;
+      return;
+    }
     const i = cardIndex(e);
     if (isNaN(i)) return;
     if (e.target.closest && e.target.closest('.cue-confidence')) {
@@ -5237,21 +5804,40 @@ function parseAss(text) {
   const out = [];
   const srcLines = String(text).split(/\r?\n/);
   let lineNo = -1;
+  let inEvents = false;
+  let fields = ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
   const toSec = (t) => {
     const m = String(t).trim().match(/(\d+):(\d{2}):(\d{2})[.,](\d{1,3})/);
     if (!m) return null;
-    return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (m[4].length === 2 ? 100 : 1000);
+    return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (10 ** m[4].length);
   };
   for (const line of srcLines) {
     lineNo++;
+    const section = line.trim().match(/^\[([^\]]+)\]$/);
+    if (section) {
+      inEvents = section[1].trim().toLowerCase() === 'events';
+      continue;
+    }
+    if (inEvents && /^Format\s*:/i.test(line)) {
+      const parsedFields = line.slice(line.indexOf(':') + 1)
+        .split(',').map((field) => field.trim().toLowerCase()).filter(Boolean);
+      if (parsedFields.includes('start') && parsedFields.includes('end') && parsedFields.includes('text')) {
+        fields = parsedFields;
+      }
+      continue;
+    }
     if (!/^Dialogue\s*:/i.test(line)) continue;
-    // Dialogue: Layer,Start,End,Style,Name,ML,MR,MV,Effect,Text  (metin virgül içerebilir)
+    // [Events] Format satırındaki alan sırasını izle. Text son alandır ve virgül
+    // içerebildiği için kalan parçalar tekrar birleştirilir.
     const parts = line.slice(line.indexOf(':') + 1).split(',');
-    if (parts.length < 10) continue;
-    const start = toSec(parts[1]);
-    const end = toSec(parts[2]);
+    const startIndex = fields.indexOf('start');
+    const endIndex = fields.indexOf('end');
+    const textIndex = fields.indexOf('text');
+    if (startIndex < 0 || endIndex < 0 || textIndex < 0 || textIndex >= parts.length) continue;
+    const start = toSec(parts[startIndex]);
+    const end = toSec(parts[endIndex]);
     if (start === null || end === null) continue;
-    const rawBody = parts.slice(9).join(',');
+    const rawBody = parts.slice(textIndex).join(',');
     // Bastaki bicim/konum etiketleri ({\\pos(960,100)} gibi) DUZENLEMEDE KORUNUR:
     // kullanici bir kelimeyi duzeltince konumlandirma/stil silinmesin.
     const lead = (rawBody.match(/^(?:\{[^}]*\})+/) || [''])[0];
@@ -5264,7 +5850,8 @@ function parseAss(text) {
     const hadInner = /\{[^}]*\}/.test(rawBody.slice(lead.length));
     // line: kaynak dosyadaki satir numarasi - duzenleme kaydinda O satirin metin
     // alani degistirilir, dosyanin geri kalanina (stiller, konumlar) dokunulmaz.
-    if (body) out.push({ start, end, text: body, line: lineNo, assLead: lead, assInner: hadInner });
+    if (body) out.push({ start, end, text: body, line: lineNo, assLead: lead,
+      assInner: hadInner, assTextIndex: textIndex, assFieldCount: fields.length });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -5426,6 +6013,27 @@ function translationFor(cue) {
   return bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25) ? best.text : '';
 }
 
+function translationsForCues(cues, translations) {
+  const matches = new Array(cues.length).fill('');
+  if (!translations.length) return matches;
+  let cursor = 0;
+  cues.forEach((cue, cueIndex) => {
+    while (cursor < translations.length && translations[cursor].end <= cue.start) cursor++;
+    let best = null;
+    let bestOverlap = 0;
+    for (let index = cursor; index < translations.length; index++) {
+      const translated = translations[index];
+      if (translated.start >= cue.end) break;
+      const overlap = Math.min(cue.end, translated.end) - Math.max(cue.start, translated.start);
+      if (overlap > bestOverlap) { bestOverlap = overlap; best = translated; }
+    }
+    if (best && bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25)) {
+      matches[cueIndex] = best.text;
+    }
+  });
+  return matches;
+}
+
 // Aramada eslesen kismi vurgula (metin duz eklenir, XSS yok)
 function appendHighlighted(el, text, q) {
   const flat = text.replace(/\n/g, ' ');
@@ -5455,17 +6063,40 @@ function renderCueList(filter = '') {
     box.innerHTML = '<div class="cue-list-empty">Altyazı yüklenince satırlar burada akar.</div>';
     return;
   }
-  const frag = document.createDocumentFragment();
-  let shown = 0;
+  const translations = translationsForCues(player.cues, player.cues2);
+  const indexes = [];
   player.cues.forEach((c, i) => {
-    const tr = translationFor(c);
+    const tr = translations[i];
     if (q && !c.text.toLocaleLowerCase('tr').includes(q)
         && !tr.toLocaleLowerCase('tr').includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = Number(c.lowConfidenceWords) > 0
       || (c.confidence !== undefined && Number(c.confidence) < 0.6);
     if (player.qualityOnly && !lowConfidence) return;
-    shown++;
+    indexes.push(i);
+  });
+  if (!indexes.length) {
+    box.innerHTML = '<div class="cue-list-empty">Eşleşen satır yok.</div>';
+    return;
+  }
+  const pageSize = 500;
+  const queryKey = `${q}|${player.savedOnly ? 1 : 0}|${player.qualityOnly ? 1 : 0}|${player.cues.length}|${player.cues2.length}`;
+  if (queryKey !== player.cueListQueryKey) {
+    player.cueListQueryKey = queryKey;
+    player.cueListPageStart = 0;
+  }
+  if (!q && !player.savedOnly && !player.qualityOnly && player.activeIdx >= 0
+      && (player.activeIdx < player.cueListPageStart
+        || player.activeIdx >= player.cueListPageStart + pageSize)) {
+    player.cueListPageStart = Math.floor(player.activeIdx / pageSize) * pageSize;
+  }
+  const maxStart = Math.max(0, Math.floor((indexes.length - 1) / pageSize) * pageSize);
+  player.cueListPageStart = Math.max(0, Math.min(maxStart, player.cueListPageStart));
+  const visibleIndexes = indexes.slice(player.cueListPageStart, player.cueListPageStart + pageSize);
+  const frag = document.createDocumentFragment();
+  visibleIndexes.forEach((i) => {
+    const c = player.cues[i];
+    const tr = translations[i];
     const card = document.createElement('div');
     card.className = 'cue-card';
     card.classList.toggle('saved', isCueSaved(i));
@@ -5503,9 +6134,19 @@ function renderCueList(filter = '') {
     // tiklama/cift tiklama listeye DELEGE edilir (bkz. bindCueListDelegation)
     frag.appendChild(card);
   });
-  if (!shown) {
-    box.innerHTML = '<div class="cue-list-empty">Eşleşen satır yok.</div>';
-    return;
+  if (indexes.length > pageSize) {
+    const nav = document.createElement('div');
+    nav.className = 'cue-list-pagination';
+    const previous = document.createElement('button');
+    previous.type = 'button'; previous.className = 'link-btn'; previous.dataset.cuePage = 'previous';
+    previous.textContent = 'Önceki satırlar'; previous.disabled = player.cueListPageStart === 0;
+    const status = document.createElement('span');
+    status.textContent = `${player.cueListPageStart + 1}–${Math.min(indexes.length, player.cueListPageStart + pageSize)} / ${indexes.length}`;
+    const next = document.createElement('button');
+    next.type = 'button'; next.className = 'link-btn'; next.dataset.cuePage = 'next';
+    next.textContent = 'Sonraki satırlar'; next.disabled = player.cueListPageStart >= maxStart;
+    nav.append(previous, status, next);
+    box.appendChild(nav);
   }
   box.appendChild(frag);
   setWordHighlight('hover', null);
@@ -5528,6 +6169,12 @@ function highlightCueRow() {
     return;
   }
   const row = box.querySelector(`.cue-card[data-idx="${player.activeIdx}"]`);
+  if (!row && player.autoFollow && !player.userScrolled
+      && !($('cueSearch')?.value || '').trim() && !player.savedOnly && !player.qualityOnly) {
+    player.cueListPageStart = Math.floor(player.activeIdx / 500) * 500;
+    renderCueList('');
+    return;
+  }
   if (!row) return;
   row.classList.add('active');
   const rb = row.getBoundingClientRect();
@@ -7151,7 +7798,10 @@ function renderAbMarkers() {
 // Videonun o anki karesini + ekrandaki altyaziyi PNG olarak kaydeder.
 async function capturePlayerFrame() {
   if (player.workspaceMode === 'browser') {
-    logLine('Tarayıcı videosunda ekran görüntüsü desteklenmiyor; yerel oynatıcıyı kullanın.', 'warn');
+    const result = await window.api.captureBrowserPage?.(player.browserActiveTabId)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (result?.ok) logLine(`Tarayıcı ekran görüntüsü kaydedildi: ${result.path}`, 'success');
+    else if (!result?.canceled) logLine(result?.error || 'Tarayıcı ekran görüntüsü alınamadı.', 'warn');
     return;
   }
   const v = $('playerVideo');
@@ -7588,6 +8238,8 @@ function maybeOfferResume() {
 function resetMediaBoundState(options = {}) {
   closeTimeline();
   resetEmbeddedSubtitleTracks();
+  clearTimeout(player.shadowResumeTimer);
+  player.shadowResumeTimer = null;
   player.cues = [];
   player.cues2 = [];
   player.cuesRaw = null;
@@ -7645,6 +8297,7 @@ function resetMediaBoundState(options = {}) {
     o.textContent = idx === 0 ? 'Altyazı yok' : 'Kapalı';
     sel.appendChild(o);
   });
+  syncSubtitleModeUi();
   if ($('cueSearch')) $('cueSearch').value = '';
   if (!options.preserveInspector) hideWordInspector();
   renderCueList('');
@@ -7720,6 +8373,18 @@ function syncSubtitleModeUi() {
     item.classList.toggle('active', active);
     item.setAttribute('aria-checked', active ? 'true' : 'false');
   });
+  const display = $('playerSubtitleDisplay');
+  if (display) {
+    const hasSource = player.cues.length > 0;
+    const hasTranslation = player.cues2.length > 0
+      || (player.workspaceMode === 'browser' && !!player.browserTranslationTrackId);
+    for (const option of display.options) {
+      if (option.value === 'source') option.disabled = !hasSource;
+      else if (option.value === 'translation') option.disabled = !hasTranslation;
+      else if (option.value === 'both') option.disabled = !hasSource || !hasTranslation;
+    }
+    display.value = mode;
+  }
   const hint = $('subHiddenHint');
   if (hint) hint.classList.toggle('hidden', mode !== 'off');
 }
@@ -7758,7 +8423,8 @@ function setSubtitleMode(mode, announce = true) {
   if (announce) {
     const text = mode === 'off' ? 'Altyazılar kapatıldı'
       : mode === 'source' ? 'Yalnızca kaynak altyazı'
-      : 'Yalnızca çeviri';
+      : mode === 'translation' ? 'Yalnızca çeviri'
+      : 'Kaynak ve çeviri';
     osd(text);
     logLine(text, 'info');
   }
@@ -7867,7 +8533,7 @@ function cuesToVtt(cues) {
 function replaceVttCueText(rawText, cue, newText) {
   const lines = String(rawText).split(/\r?\n/);
   const toSec = (t) => {
-    const m = String(t).match(/(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/);
+    const m = String(t).match(/(?:(\d+):)?(\d+):(\d{2})[.,](\d{1,3})/);
     if (!m) return null;
     return (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3])
       + (+String(m[4]).padEnd(3, '0')) / 1000;
@@ -7893,18 +8559,20 @@ function replaceVttCueText(rawText, cue, newText) {
 // ASS/SSA: dosyayi yeniden URETMEK yerine ilgili Dialogue satirinin METIN alanini
 // degistiririz. Yeniden uretim stilleri, konumlari, efektleri ve konusmaci
 // adlarini yok ederdi (eskiden .ass dosyasina duz SRT yaziliyordu).
-function replaceAssDialogueText(rawText, lineNo, newText, lead) {
+function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, fieldCount = 10) {
   const NL = '\n';
   const lines = String(rawText).split(/\r?\n/);
   if (!(lineNo >= 0) || lineNo >= lines.length) return null;
   const line = lines[lineNo];
   if (!/^Dialogue\s*:/i.test(line)) return null;
-  // "Dialogue:" sonrasi ilk 9 alan korunur, 10.'su (Text) degistirilir
+  // Alan sırası [Events] Format satırından gelir. Text pratik ASS/SSA
+  // sözleşmesindeki gibi son alan değilse virgüllü metni güvenle ayıramayız.
   const colon = line.indexOf(':');
   const parts = line.slice(colon + 1).split(',');
-  if (parts.length < 10) return null;
+  if (!(textIndex >= 0) || textIndex >= parts.length || textIndex !== fieldCount - 1
+      || parts.length < fieldCount) return null;
   const body = (lead || '') + String(newText).replace(/\n/g, '\\' + 'N');
-  lines[lineNo] = line.slice(0, colon + 1) + parts.slice(0, 9).join(',') + ',' + body;
+  lines[lineNo] = line.slice(0, colon + 1) + parts.slice(0, textIndex).join(',') + ',' + body;
   return lines.join(NL);
 }
 
@@ -8293,6 +8961,7 @@ function closePlayer() {
   player.pendingAutoOpen = null;
   player.pendingLibrarySeek = null;
   player.pendingSubs = null;
+  stopAmbient();
   if (video) video.pause();
   flushWatchState(false, true);
   destroyHls();
@@ -8459,6 +9128,44 @@ if ($('sideResizer')) {
 }
 
 // Ayar cekmecesi
+const SETTINGS_PAGE_TITLES = {
+  source: 'Kaynak ve altyazı ayarları',
+  'browser-view': 'Görünüm ve manga',
+  'browser-diagnostics': 'Yakalama ayrıntıları',
+};
+
+function initializeSettingsPages() {
+  const view = $('browserViewSettings');
+  const diagnostics = $('browserDiagnosticsPanel');
+  if (view && $('settingsPageBrowserView') && view.parentElement !== $('settingsPageBrowserView')) {
+    view.open = true;
+    $('settingsPageBrowserView').appendChild(view);
+  }
+  if (diagnostics && $('settingsPageBrowserDiagnostics')
+      && diagnostics.parentElement !== $('settingsPageBrowserDiagnostics')) {
+    diagnostics.classList.remove('hidden');
+    $('settingsPageBrowserDiagnostics').appendChild(diagnostics);
+  }
+  setSettingsPage(player.settingsPage || 'source');
+}
+
+function setSettingsPage(page) {
+  const next = SETTINGS_PAGE_TITLES[page] ? page : 'source';
+  player.settingsPage = next;
+  $$('[data-settings-page-panel]').forEach((panel) => {
+    const active = panel.dataset.settingsPagePanel === next;
+    panel.classList.toggle('hidden', !active);
+    panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+  });
+  $$('.drawer-page-tab[data-settings-page]').forEach((button) => {
+    const active = button.dataset.settingsPage === next;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+    button.tabIndex = active ? 0 : -1;
+  });
+  if ($('settingsDrawerTitle')) $('settingsDrawerTitle').textContent = SETTINGS_PAGE_TITLES[next];
+}
+
 function setSettingsDrawer(open) {
   const d = $('settingsDrawer');
   if (!d) return;
@@ -8479,7 +9186,34 @@ function setSettingsDrawer(open) {
   }
   const layout = $('playerLayoutQuick');
   if (layout) layout.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const viewOpen = open && player.settingsPage === 'browser-view';
+  const diagnosticsOpen = open && player.settingsPage === 'browser-diagnostics';
+  for (const id of ['browserViewSettingsToggle']) {
+    const button = $(id);
+    if (button) {
+      button.classList.toggle('active', viewOpen);
+      button.setAttribute('aria-expanded', viewOpen ? 'true' : 'false');
+    }
+  }
+  for (const id of ['browserDiagnosticsToggle', 'browserDiagnosticsToolbar']) {
+    const button = $(id);
+    if (button) {
+      button.classList.toggle('active', diagnosticsOpen);
+      button.setAttribute('aria-expanded', diagnosticsOpen ? 'true' : 'false');
+    }
+  }
 }
+
+function toggleSettingsPage(page) {
+  if (drawerIsOpen() && player.settingsPage === page) {
+    setSettingsDrawer(false);
+    return;
+  }
+  setSettingsPage(page);
+  setSettingsDrawer(true);
+}
+
+initializeSettingsPages();
 
 if ($('toggleSettings')) {
   $('toggleSettings').addEventListener('click', () => {
@@ -8502,8 +9236,10 @@ function drawerIsOpen() {
 
 function toggleDrawerAt(tabName, focusSel) {
   const tab = tabName ? document.querySelector(`.tabs .tab[data-ptab="${tabName}"]`) : null;
-  const hedefteyiz = !tabName || (tab && tab.classList.contains('active'));
+  const hedefteyiz = player.settingsPage === 'source'
+    && (!tabName || (tab && tab.classList.contains('active')));
   if (drawerIsOpen() && hedefteyiz) { setSettingsDrawer(false); return; }
+  setSettingsPage('source');
   setSettingsDrawer(true);
   if (tab) tab.click();
   if (focusSel) document.querySelector(focusSel)?.focus();
@@ -8517,6 +9253,24 @@ if ($('playerLayoutQuick')) {
     toggleDrawerAt(null, '.player-layout-section .vm');
   });
 }
+if ($('browserViewSettingsToggle')) {
+  $('browserViewSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-view'));
+}
+if ($('browserDiagnosticsToolbar')) {
+  $('browserDiagnosticsToolbar').addEventListener('click', () => {
+    toggleSettingsPage('browser-diagnostics');
+    if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  });
+}
+$$('.drawer-page-tab[data-settings-page]').forEach((button) => {
+  button.addEventListener('click', () => {
+    setSettingsPage(button.dataset.settingsPage);
+    setSettingsDrawer(true);
+    if (button.dataset.settingsPage === 'browser-diagnostics' && player.browserDiagnostics) {
+      renderBrowserDiagnostics(player.browserDiagnostics);
+    }
+  });
+});
 // Panel GERCEKTEN gorunuyor mu? Sinema modunda CSS `display:none` veriyor;
 // yalnizca 'sidebar-collapsed' sinifina bakmak yaniltir.
 function sidebarIsVisible() {
@@ -8725,16 +9479,25 @@ if ($('makeSubsBtn')) {
 
 if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async () => {
   if (!player.job || !state.running) return;
+  const job = player.job;
   state.cancelled = true;
-  player.job.cancelled = true;
-  player.job.running = false;
-  player.job.awaitingExit = true;
+  job.cancelled = true;
+  job.running = false;
+  job.awaitingExit = true;
+  if (job.bubble) {
+    job.bubble.classList.remove('is-loading');
+    job.bubble.classList.add('ai-msg-err');
+    job.bubble.textContent = 'İptal edildi.';
+  } else if (job.kind === 'explain') {
+    showAiAnswer(job.explainTitle || 'AI', 'İptal edildi.');
+  }
+  state.aiJob = false;
   const cancelResult = await window.api.cancelTranscribe();
   if (!cancelResult || !cancelResult.ok) {
-    player.job.awaitingExit = false;
-    player.job.cancelled = false;
+    job.awaitingExit = false;
+    job.cancelled = false;
     state.cancelled = false;
-    player.job = null;
+    if (player.job === job) player.job = null;
     logLine(`İptal isteği tamamlanamadı: ${(cancelResult && cancelResult.error) || 'çalışan süreç yok'}`, 'warn');
   }
   state.running = false;
@@ -9293,6 +10056,12 @@ if ($('playerVideo')) {
     $('resumeDismiss').addEventListener('click', () => $('resumeChip').classList.add('hidden'));
   }
   $('fullscreenBtn').addEventListener('click', () => {
+    if (player.workspaceMode === 'browser') {
+      browserCommand('fullscreen').then((result) => {
+        if (!result?.ok) setBrowserSignal(result?.error || 'Web videosu tam ekrana geçirilemedi.', false);
+      }).catch(() => {});
+      return;
+    }
     const stage = $('playerStage');
     if (!document.fullscreenElement) stage.requestFullscreen();
     else document.exitFullscreen();
@@ -9303,9 +10072,42 @@ if ($('playerVideo')) {
 document.addEventListener('keydown', (e) => {
   const layer = $('playerLayer');
   if (!layer || layer.classList.contains('hidden')) return;
+  const modifier = e.ctrlKey || e.metaKey;
+  if (player.workspaceMode === 'browser' && modifier && !e.altKey) {
+    const key = e.key.toLowerCase();
+    if (key === 'l') {
+      e.preventDefault();
+      $('browserAddress')?.focus();
+      $('browserAddress')?.select();
+      return;
+    }
+    if (key === 't') { e.preventDefault(); createBrowserTab(); return; }
+    if (key === 'w') { e.preventDefault(); closeBrowserTab(player.browserActiveTabId); return; }
+    if (e.key === 'Tab') {
+      const tabs = player.browserTabs || [];
+      if (tabs.length > 1) {
+        e.preventDefault();
+        const current = Math.max(0, tabs.findIndex((tab) => tab.id === player.browserActiveTabId));
+        const direction = e.shiftKey ? -1 : 1;
+        const next = tabs[(current + direction + tabs.length) % tabs.length];
+        activateBrowserTab(next.id);
+      }
+      return;
+    }
+    const zoomCommand = key === '0' ? 'zoom-reset'
+      : (key === '+' || key === '=' ? 'zoom-in' : (key === '-' || key === '_' ? 'zoom-out' : ''));
+    if (zoomCommand) {
+      e.preventDefault();
+      browserCommand(zoomCommand).then((result) => {
+        if (result?.ok) osd(`Sayfa yakınlaştırma %${Math.round((Number(result.zoom) || 1) * 100)}`);
+      }).catch(() => {});
+      return;
+    }
+  }
   const video = $('playerVideo');
   const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+  if (tag === 'input' || tag === 'select' || tag === 'textarea' || e.target.isContentEditable
+      || e.target.closest?.('[contenteditable="true"]')) return;
   if (player.editing) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
@@ -9336,9 +10138,29 @@ document.addEventListener('keydown', (e) => {
     else if (e.key === 'm' || e.key === 'M') command = 'mute';
     else if (e.key === 'ArrowUp') { command = 'volume-relative'; value = .05; }
     else if (e.key === 'ArrowDown') { command = 'volume-relative'; value = -.05; }
+    else if (e.key === 'f' || e.key === 'F') command = 'fullscreen';
+    else if (e.key === 'p' || e.key === 'P') command = 'pip';
     if (command) {
       e.preventDefault();
-      browserCommand(command, value).catch(() => {});
+      browserCommand(command, value).then((result) => {
+        if (!result?.ok) return;
+        const media = result.media || {};
+        if (command === 'seek-relative') osd(`${value > 0 ? '+' : ''}${value} sn`);
+        else if (command === 'volume-relative') osd(`Ses %${Math.round((Number(media.volume) || 0) * 100)}`);
+        else if (command === 'mute') osd(media.muted ? 'Ses kapalı' : 'Ses açık');
+        else if (command === 'play-pause') osd(media.paused ? 'Duraklatıldı' : 'Oynatılıyor');
+        else if (command === 'fullscreen') osd('Video tam ekran');
+        else if (command === 'pip') osd('Resim içinde resim');
+      }).catch(() => {});
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      const subMenu = $('subtitleModeMenu');
+      if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
+      else if (player.selectedWord) hideWordInspector();
+      else if (!$('shortcutHelp')?.classList.contains('hidden')) $('shortcutHelp').classList.add('hidden');
+      else if (!$('settingsDrawer')?.classList.contains('hidden')) setSettingsDrawer(false);
       return;
     }
   }
@@ -9510,6 +10332,9 @@ if ($('playerSubSelect')) {
 if ($('playerSubSelect2')) {
   $('playerSubSelect2').addEventListener('change', (e) => loadSubtitle(e.target.value, true));
 }
+if ($('playerSubtitleDisplay')) {
+  $('playerSubtitleDisplay').addEventListener('change', (e) => setSubtitleMode(e.target.value));
+}
 
 // ---- izlerken düzeltme ----
 function openCueEditor() {
@@ -9590,7 +10415,8 @@ async function saveCueEdit() {
   const targetGen = currentGeneration();
   let payload;
   if (player.subFormat === 'ass') {
-    payload = replaceAssDialogueText(player.subRaw, cue.line, text, cue.assLead);
+    payload = replaceAssDialogueText(player.subRaw, cue.line, text, cue.assLead,
+      cue.assTextIndex, cue.assFieldCount);
     if (payload === null) {
       logLine('ASS satırı bulunamadı — dosya biçimi bozulmasın diye kaydedilmedi.', 'error');
       return;
@@ -9605,6 +10431,10 @@ async function saveCueEdit() {
       return;
     }
   } else {
+    if (player.mergeCont && player.cuesRaw && player.cuesRaw.length !== player.cues.length) {
+      logLine('Birleştirilmiş görünümde düzenleme kaynak bloklarını belirsizleştirir. Önce “Cümleleri birleştir” seçeneğini kapatın.', 'warn');
+      return;
+    }
     // SRT'de korunacak metadata yok; blok listesinden yeniden uretmek guvenli
     const draft = player.cues.map((c, k) => (k === i ? { ...c, text } : c));
     payload = cuesToSrt(draft);
@@ -9650,11 +10480,13 @@ if ($('cueSearch')) {
   $('cueSearch').addEventListener('input', (e) => {
     const q = e.target.value.trim().toLocaleLowerCase('tr');
     renderCueList(e.target.value);
-    renderSeekMarkers(q
-      ? player.cues.filter((c) => c.text.toLocaleLowerCase('tr').includes(q)
-          || translationFor(c).toLocaleLowerCase('tr').includes(q))
-          .map((c) => c.start + player.offset)
-      : defaultMarkers());
+    if (q) {
+      const translations = translationsForCues(player.cues, player.cues2);
+      renderSeekMarkers(player.cues.filter((c, index) =>
+        c.text.toLocaleLowerCase('tr').includes(q)
+          || translations[index].toLocaleLowerCase('tr').includes(q))
+        .map((c) => c.start + player.offset));
+    } else renderSeekMarkers(defaultMarkers());
   });
 }
 if ($('autoPauseCue')) {

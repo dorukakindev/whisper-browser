@@ -1054,6 +1054,14 @@
                 </svg>
                 <span id="browserMangaLabel">Manga</span>
               </button>
+              <button class="btn-icon browser-place-button" id="browserViewSettingsToggle" type="button"
+                title="Görünüm ve manga ayarlarını aç" aria-label="Görünüm ve manga ayarlarını aç" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>
+              </button>
+              <button class="btn-icon browser-place-button" id="browserDiagnosticsToolbar" type="button"
+                title="Yakalama ayrıntılarını aç" aria-label="Yakalama ayrıntılarını aç" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
+              </button>
               <button class="btn-icon browser-place-button" id="browserBookmarkToggle" type="button"
                 title="Bu siteyi yer imlerine ekle" aria-label="Bu siteyi yer imlerine ekle" aria-pressed="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg>
@@ -1100,7 +1108,11 @@
             <div class="browser-signal-head">
               <div class="browser-signal-copy">
                 <span class="browser-signal-kicker">ALTYAZI SİNYALİ</span>
-                <span class="browser-signal-text" id="browserSignalText" role="status" aria-live="polite">Sayfadaki video ve altyazı izleri burada algılanır.</span>
+                <div class="browser-signal-status-row">
+                  <span class="browser-signal-text" id="browserSignalText" role="status" aria-live="polite">Sayfadaki video ve altyazı izleri burada algılanır.</span>
+                  <button class="btn btn-ghost btn-sm browser-signal-action hidden" id="browserSignalTranslateAction" type="button">Şimdi çevir</button>
+                </div>
+                <span class="browser-signal-history" id="browserSignalHistory" aria-hidden="true"></span>
               </div>
               <div class="browser-signal-state-actions" aria-label="Altyazı yakalama durumu">
                 <button class="btn btn-ghost btn-sm browser-capture-toggle" id="browserCaptureToggle"
@@ -1132,10 +1144,48 @@
                   <option value="srt">SRT</option>
                   <option value="vtt">VTT</option>
                 </select>
-                <button class="btn btn-ghost btn-sm" id="browserTrackExport" type="button">Dışa aktar</button>
+                <button class="btn btn-ghost btn-sm" id="browserTrackExport" type="button">Kaynağı dışa aktar</button>
+                <button class="btn btn-ghost btn-sm" id="browserTranslationExport" type="button" disabled>Çeviriyi dışa aktar</button>
                 <button class="btn-icon browser-dismiss" id="browserTrackDismiss" type="button"
                   title="Bu bildirimi kapat" aria-label="Bildirimi kapat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
               </div>
+              <details class="browser-view-settings" id="browserViewSettings">
+                <summary>Görünüm ve manga</summary>
+                <div class="browser-view-settings-grid">
+                  <label><span>Manga hedefi</span><select id="browserMangaTarget">
+                    <option value="tr" selected>Türkçe</option><option value="en">İngilizce</option>
+                    <option value="de">Almanca</option><option value="fr">Fransızca</option>
+                    <option value="es">İspanyolca</option><option value="it">İtalyanca</option>
+                    <option value="ru">Rusça</option><option value="ar">Arapça</option>
+                  </select></label>
+                  <label><span>Paralel istek <output id="browserMangaWorkersVal">2</output></span>
+                    <input type="range" id="browserMangaWorkers" min="1" max="6" step="1" value="2" /></label>
+                  <label><span>Azami görsel</span><input type="number" id="browserMangaMaxImages" min="1" max="120" value="48" /></label>
+                  <label><span>Manga yazısı <output id="browserMangaFontScaleVal">%100</output></span>
+                    <input type="range" id="browserMangaFontScale" min="70" max="170" step="5" value="100" /></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserMangaAuto" /><span>Okuma sayfasını otomatik çevir</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserMangaVertical" /><span>Dikey manga metni</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserMangaSfx" checked /><span>SFX için ayrı stil</span></label>
+                  <label><span>Altyazı boyutu <output id="browserOverlayScaleVal">%100</output></span>
+                    <input type="range" id="browserOverlayScale" min="65" max="180" step="5" value="100" /></label>
+                  <label><span>Altyazı opaklığı <output id="browserOverlayOpacityVal">%100</output></span>
+                    <input type="range" id="browserOverlayOpacity" min="20" max="100" step="5" value="100" /></label>
+                  <label><span>Alt boşluk <output id="browserOverlayBottomVal">%7</output></span>
+                    <input type="range" id="browserOverlayBottom" min="0" max="75" step="1" value="7" /></label>
+                  <label><span>Azami genişlik <output id="browserOverlayWidthVal">%86</output></span>
+                    <input type="range" id="browserOverlayWidth" min="40" max="98" step="2" value="86" /></label>
+                  <label><span>Azami satır</span><input type="number" id="browserOverlayMaxLines" min="1" max="6" value="3" /></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserOverlaySourceFirst" checked /><span>Kaynak üstte, çeviri altta</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" /><span>Sitenin kendi altyazısını gizle</span></label>
+                </div>
+                <div class="browser-view-actions">
+                  <button class="btn btn-ghost btn-sm" id="browserMangaRetryFailed" type="button" disabled>Başarısızları yeniden dene</button>
+                  <button class="btn btn-ghost btn-sm" id="browserMangaExportJson" type="button">Manga JSON</button>
+                  <button class="btn btn-ghost btn-sm" id="browserMangaExportImage" type="button">Manga görseli</button>
+                  <button class="btn btn-ghost btn-sm" id="browserPiP" type="button">Resim içinde resim</button>
+                </div>
+                <p class="browser-manga-summary" id="browserMangaSummary">Henüz manga işi çalıştırılmadı.</p>
+              </details>
             </div>
 
             <section class="browser-diagnostics hidden" id="browserDiagnosticsPanel" aria-label="Altyazı yakalama teşhisi">
@@ -1165,6 +1215,7 @@
                   <span id="browserAdapterPluginStatus">Kullanıcı adaptörü yok</span>
                   <button class="link-btn" id="browserAdapterFolder" type="button">Adaptör klasörünü aç</button>
                 </div>
+                <div class="browser-adapter-errors hidden" id="browserAdapterPluginErrors" role="status"></div>
               </details>
               <div class="browser-diagnostics-recent" id="browserDiagnosticsRecent">
                 Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.
@@ -1510,11 +1561,20 @@
           <!-- Cekmece tum paneli kapladigi icin KENDI kapatma dugmesi olmali:
                onu acan disli dugmesi altta kaliyor ve geri donulemiyordu. -->
           <div class="drawer-head">
-            <span>Kaynak ve altyazı ayarları</span>
+            <span id="settingsDrawerTitle">Kaynak ve altyazı ayarları</span>
             <button class="btn-icon" id="closeSettings" title="Kapat (Esc)" aria-label="Ayarları kapat">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
           </div>
+          <div class="drawer-page-tabs" role="tablist" aria-label="Ayar bölümü">
+            <button type="button" class="drawer-page-tab active" data-settings-page="source" role="tab"
+              aria-selected="true" aria-controls="settingsPageSource">Kaynak ve altyazı</button>
+            <button type="button" class="drawer-page-tab drawer-browser-tab" data-settings-page="browser-view" role="tab"
+              aria-selected="false" aria-controls="settingsPageBrowserView">Görünüm ve manga</button>
+            <button type="button" class="drawer-page-tab drawer-browser-tab" data-settings-page="browser-diagnostics" role="tab"
+              aria-selected="false" aria-controls="settingsPageBrowserDiagnostics">Yakalama</button>
+          </div>
+          <section class="settings-page" id="settingsPageSource" data-settings-page-panel="source" role="tabpanel">
           <div class="player-layout-section">
             <div class="player-panel-title">Düzen</div>
             <div class="view-modes" id="viewModes">
@@ -1621,6 +1681,16 @@
               <span class="field-label">İkinci altyazı (karşılaştırma)</span>
               <select id="playerSubSelect2"><option value="">Kapalı</option></select>
             </label>
+            <label class="field" style="margin-top:10px">
+              <span class="field-label">Gösterilecek altyazı</span>
+              <select id="playerSubtitleDisplay">
+                <option value="source">Yalnızca kaynak altyazı</option>
+                <option value="translation">Yalnızca çeviri</option>
+                <option value="both">Kaynak ve çeviri</option>
+                <option value="off">Altyazıları kapat</option>
+              </select>
+              <small>Web çevirisi hazırlanırken yeni satırlar bu seçime göre gösterilir.</small>
+            </label>
             <div class="player-panel-title" style="margin-top:14px">Görünüm</div>
             <label class="field switch-field">
               <input type="checkbox" id="playerMergeCont" />
@@ -1700,6 +1770,11 @@
             <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.<br>Altyazıyı <strong>basılı tutup yukarı/aşağı sürükleyerek</strong> konumunu değiştirebilirsin; konum hatırlanır.<br>İzlerken gecikme: <strong>G</strong>/<strong>H</strong> (0,1 sn), hız: <strong>&lt;</strong>/<strong>&gt;</strong>, altyazıyı gizle: <strong>V</strong>, 10 sn: <strong>J</strong>/<strong>L</strong>, ses: <strong>&uarr;</strong>/<strong>&darr;</strong>.</div>
           </div>
 
+          </section>
+          <section class="settings-page settings-page-browser-view hidden" id="settingsPageBrowserView"
+            data-settings-page-panel="browser-view" role="tabpanel"></section>
+          <section class="settings-page settings-page-browser-diagnostics hidden" id="settingsPageBrowserDiagnostics"
+            data-settings-page-panel="browser-diagnostics" role="tabpanel"></section>
           </div><!-- /settings-drawer -->
         </div>
       </div>

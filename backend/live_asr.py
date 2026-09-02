@@ -5,6 +5,7 @@ stdout NDJSON: ready, segment, chunk_done, error
 """
 import argparse
 import json
+import math
 import queue
 import sys
 import threading
@@ -31,6 +32,13 @@ def read_commands(commands, stop_event):
             break
         commands.put(command)
     stop_event.set()
+
+
+def parse_chunk_offset(command):
+    raw_offset = float(command.get("offset") or 0)
+    if not math.isfinite(raw_offset):
+        raise ValueError("offset sonlu bir sayı olmalı")
+    return max(0.0, raw_offset)
 
 
 def main():
@@ -62,8 +70,8 @@ def main():
         if command.get("type") != "chunk":
             continue
         file_path = str(command.get("path") or "")
-        offset = max(0.0, float(command.get("offset") or 0))
         try:
+            offset = parse_chunk_offset(command)
             segments, info = model.transcribe(
                 file_path,
                 language=args.language or None,

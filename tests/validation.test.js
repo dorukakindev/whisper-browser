@@ -148,6 +148,19 @@ t('kısmen okunabilen güvenli anahtarlar ayarlara geri yüklenir', () => {
   ok(/loaded\.ok\s*\|\|\s*loaded\.partial/.test(body), 'sağlam kalan gizli anahtarlar yüklemede atılıyor');
 });
 
+t('güvenli depo yokken genel ayarlar kaydedilir ve kısmi hata görünür kalır', () => {
+  const saveStart = msrc.indexOf('function saveSettings(s)');
+  const saveEnd = msrc.indexOf('// ---- İş geçmişi', saveStart);
+  const save = msrc.slice(saveStart, saveEnd);
+  ok(/secured\.unavailable[\s\S]*writeJsonAtomic\(settingsPath\(\), secured\.publicSettings\)/.test(save),
+    'güvenli depo yokken genel ayarlar da kayboluyor');
+  ok(/partial:\s*true/.test(save), 'kısmi kayıt sonucu çağırana bildirilmiyor');
+  const rendererStart = rsrc.indexOf('async function saveAppSettings()');
+  const rendererSave = rsrc.slice(rendererStart, rsrc.indexOf('// ===== Tüm UI ayarlarını', rendererStart));
+  ok(/saved\?\.ok === false/.test(rendererSave) && /saved\?\.error/.test(rendererSave),
+    'renderer ayar kayıt hatasını kullanıcıya göstermiyor');
+});
+
 t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte taşır', () => {
   const exportStart = msrc.indexOf("ipcMain.handle('settings:export'");
   const importStart = msrc.indexOf("ipcMain.handle('settings:import'", exportStart);
@@ -176,14 +189,124 @@ t('geçici sohbet verisi benzersiz dosyada tutulur ve tüm iş bitiş yollarınd
   const body = msrc.slice(start, end);
   ok(/chat-\$\{randomUUID\(\)\}\.json/.test(body), 'sohbet dosyası hâlâ sabit adlı');
   ok(/const cleanupChatFile\s*=/.test(body), 'sohbet temizleme yardımcısı yok');
-  ok(body.indexOf('chatFilePath = p') < body.indexOf('fs.writeFileSync(p, JSON.stringify(options.chat)'),
+  ok(body.indexOf('chatFilePath = p') < body.indexOf('fs.writeFileSync(p, chatPayload'),
     'kısmi yazma hatasında temizlenecek sohbet yolu önceden kaydedilmiyor');
+  ok(/Buffer\.byteLength\(chatPayload, 'utf8'\) > 8 \* 1024 \* 1024/.test(body),
+    'sohbet geçici dosyasında güvenli boyut sınırı yok');
+  ok(/mode:\s*0o600/.test(body), 'sohbet geçici dosyası kısıtlı izinle yazılmıyor');
   ok(/catch \(err\) \{\s*cleanupChatFile\(\);\s*return \{ ok: false, error: `Python başlatılamadı/s.test(body),
     'spawn hatasında sohbet dosyası silinmiyor');
   const closeBody = body.slice(body.indexOf("activeJob.on('close'"), body.indexOf("activeJob.on('error'"));
   const errorBody = body.slice(body.indexOf("activeJob.on('error'"), body.indexOf('startPowerBlocker()', body.indexOf("activeJob.on('error'")));
   ok(/cleanupChatFile\(\)/.test(closeBody), 'normal kapanışta sohbet dosyası silinmiyor');
   ok(/cleanupChatFile\(\)/.test(errorBody), 'child error yolunda sohbet dosyası silinmiyor');
+});
+
+t('çökmeden kalan sohbet dosyaları açılışta ve dar hedefle temizlenir', () => {
+  const sweepStart = msrc.indexOf('function sweepStaleChatFiles()');
+  const sweepEnd = msrc.indexOf('\n}', sweepStart) + 2;
+  const sweep = msrc.slice(sweepStart, sweepEnd);
+  ok(sweepStart >= 0, 'sohbet artık temizleyicisi yok');
+  ok(/\^chat-\[0-9a-f\]/.test(sweep), 'temizlik tüm tmp klasörünü hedefliyor');
+  ok(/sweepStaleChatFiles\(\);/.test(msrc.slice(msrc.indexOf('app.whenReady()'))),
+    'sohbet artığı açılışta temizlenmiyor');
+});
+
+t('ana pencere güvenliği açık ve IPC yalnız ana frame kabul ediyor', () => {
+  const create = msrc.slice(msrc.indexOf('mainWindow = new BrowserWindow'),
+    msrc.indexOf('installSystemAudioCaptureHandler()', msrc.indexOf('mainWindow = new BrowserWindow')));
+  ok(/sandbox:\s*true/.test(create), 'ana pencere sandbox açık değil');
+  ok(/webSecurity:\s*true/.test(create), 'ana pencere webSecurity açık değil');
+  ok(/webviewTag:\s*false/.test(create), 'ana pencere webviewTag açıkça kapalı değil');
+  const auth = msrc.slice(msrc.indexOf('function authorizedBrowserSender'),
+    msrc.indexOf("ipcMain.on('browser:trusted-bridge'"));
+  ok(/event\.senderFrame === contents\.mainFrame/.test(auth), 'IPC senderFrame ana frame ile doğrulanmıyor');
+});
+
+t('kapanış, manga ağ hataları ve atomik altyazı yazımı güvenli toparlanır', () => {
+  const atomic = msrc.slice(msrc.indexOf('function writeSubtitleAtomic'),
+    msrc.indexOf('function writeJsonAtomic'));
+  ok(/catch \(error\)[\s\S]*fs\.unlinkSync\(tmp\)/.test(atomic),
+    'başarısız altyazı rename işleminden sonra .tmp temizlenmiyor');
+  const beforeQuit = msrc.slice(msrc.indexOf("app.on('before-quit'"),
+    msrc.indexOf("app.on('window-all-closed'"));
+  ok(/persistBrowserSessionNow\(\)/.test(beforeQuit),
+    'before-quit son tarayıcı oturumunu yazmıyor');
+  const retryable = msrc.slice(msrc.indexOf('function mangaRetryableDownloadError'),
+    msrc.indexOf('function waitForMangaRetry'));
+  ok(/enotfound/.test(retryable) && /eai_again/.test(retryable) && /etimedout/.test(retryable),
+    'geçici DNS/timeout kodları yeniden denenebilir değil');
+  ok(/MAX_MANGA_IMAGE_BASE64_CHARS/.test(msrc.slice(msrc.indexOf('function dataUrlMangaImage') - 180,
+    msrc.indexOf('async function assertPublicMangaImageHost'))),
+    'data URL decode öncesi boyut sınırı yok');
+  ok(/const attempt = 2 - rateLimitRetries/.test(msrc), '429 backoff ilk denemede 2 kat uzun');
+});
+
+t('kapanışta sağlam sekmeler boş görünümle ikinci kez ezilmez', () => {
+  const closeStart = msrc.indexOf("mainWindow.on('close'");
+  const closeEnd = msrc.indexOf("mainWindow.on('closed'", closeStart);
+  const close = msrc.slice(closeStart, closeEnd);
+  const finalized = close.indexOf('browserSessionFinalizedForQuit = await flushBrowserSession()');
+  const destroyed = close.indexOf('destroyBrowserView()');
+  ok(finalized >= 0, 'kapanış oturum yazımının sonucunu işaretlemiyor');
+  ok(destroyed > finalized, 'tarayıcı sekmeleri oturum yazılmadan önce yok ediliyor');
+
+  const beforeQuit = msrc.slice(msrc.indexOf("app.on('before-quit'"),
+    msrc.indexOf("app.on('window-all-closed'"));
+  ok(/if \(!browserSessionFinalizedForQuit\) persistBrowserSessionNow\(\)/.test(beforeQuit),
+    'before-quit sağlam oturumu boş sekme listesiyle yeniden yazabilir');
+});
+
+t('çeviri endpointi tam rota verilince chat/completions ekini çoğaltmaz', () => {
+  const start = msrc.indexOf('function safeTranslationEndpoint(');
+  const end = msrc.indexOf('async function readResponseBufferLimited', start);
+  ok(start >= 0 && end > start, 'safeTranslationEndpoint bulunamadı');
+  const safeTranslationEndpoint = new Function(
+    `${msrc.slice(start, end)}; return safeTranslationEndpoint;`)();
+  ok(safeTranslationEndpoint('https://api.example.test/v1') ===
+    'https://api.example.test/v1/chat/completions', 'taban rota tamamlanmadı');
+  ok(safeTranslationEndpoint('https://api.example.test/v1/chat/completions') ===
+    'https://api.example.test/v1/chat/completions', 'tam rota iki kez tamamlandı');
+  ok(safeTranslationEndpoint('http://api.example.test/v1') === '',
+    'uzak güvensiz HTTP rota kabul edildi');
+});
+
+t('altyazıyı farklı kaydet kaynak biçimini ve uzantısını korur', () => {
+  const start = msrc.indexOf("ipcMain.handle('media:saveSubtitleCopy'");
+  const end = msrc.indexOf("ipcMain.handle('media:saveImage'", start);
+  const body = msrc.slice(start, end);
+  ok(/sourceExt = \/\^\\\.\(srt\|vtt\|ass\|ssa\)\$\/i/.test(body),
+    'kaynak altyazı uzantısı doğrulanmıyor');
+  ok(/`\$\{parsed\.name\}\.duzeltilmis\$\{sourceExt\}`/.test(body),
+    'farklı kaydet adı kaynak biçimini korumuyor');
+  ok(/WebVTT altyazı/.test(body) && /ASS\/SSA altyazı/.test(body),
+    'kaydet diyaloğu biçime uygun filtre kullanmıyor');
+});
+
+t('uzun çalışan süreçlerin NDJSON satır tamponları sınırlıdır', () => {
+  const mediaStart = msrc.indexOf('function runMediaCommand(');
+  const mediaEnd = msrc.indexOf("ipcMain.handle('media:probe'", mediaStart);
+  const media = msrc.slice(mediaStart, mediaEnd);
+  ok(/createNdjsonLineBuffer/.test(media) && /8 \* 1024 \* 1024/.test(media),
+    'medya yardımcı sürecinin stdout tamponu sınırsız');
+  const liveStart = msrc.indexOf('function startBrowserLiveAsr(');
+  const liveEnd = msrc.indexOf('function stopBrowserLiveAsr(', liveStart);
+  const live = msrc.slice(liveStart, liveEnd);
+  ok(/createNdjsonLineBuffer/.test(live) && /8 \* 1024 \* 1024/.test(live),
+    'canlı ASR stdout tamponu sınırsız');
+  ok(/job\.cues\.length > 20_?000/.test(live), 'canlı ASR cue belleği sınırsız');
+});
+
+t('AI işi ve oynatıcı kapanışı görünür durumu temizler', () => {
+  const cancel = rsrc.slice(rsrc.indexOf("$('cancelBtn').addEventListener"),
+    rsrc.indexOf('function finishRun'));
+  ok(/aiJob\.bubble[\s\S]*İptal edildi/.test(cancel), 'ana iptal AI sohbet balonunu temizlemiyor');
+  const events = rsrc.slice(rsrc.indexOf('function playerJobEvent'),
+    rsrc.indexOf('window.api.onEvent'));
+  ok(/Video değiştiği için önceki videonun yanıtı/.test(events),
+    'video değişince bekleyen AI sohbet balonu temizlenmiyor');
+  const close = rsrc.slice(rsrc.indexOf('function closePlayer'), rsrc.indexOf('async function playPlaylistDelta'));
+  ok(/stopAmbient\(\)/.test(close), 'oynatıcı kapanırken ambient zamanlayıcı durmuyor');
 });
 
 // ---------------------------------------------------------------- decodeSubtitleBuffer

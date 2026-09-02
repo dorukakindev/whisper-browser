@@ -99,14 +99,30 @@ function parseTimedBlocks(body) {
 
 function parseAss(body) {
   const out = [];
+  let eventFields = ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
+  let inEvents = false;
   for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
+    const section = line.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (section) {
+      inEvents = section[1].trim().toLowerCase() === 'events';
+      continue;
+    }
+    const format = inEvents && line.match(/^\s*Format\s*:\s*(.+)$/i);
+    if (format) {
+      const fields = format[1].split(',').map((field) => field.trim().toLowerCase());
+      if (fields.includes('start') && fields.includes('end') && fields.includes('text')) eventFields = fields;
+      continue;
+    }
     if (!/^\s*Dialogue\s*:/i.test(line)) continue;
-    const fields = line.replace(/^\s*Dialogue\s*:\s*/i, '').split(',');
-    if (fields.length < 10) continue;
-    const start = parseTime(fields[1]);
-    const end = parseTime(fields[2]);
-    // Text alanı virgül içerebilir; yalnızca ilk dokuz alan yapısaldır.
-    const text = fields.slice(9).join(',').replace(/\\N/gi, '\n').replace(/\\n/gi, '\n');
+    const rawFields = line.replace(/^\s*Dialogue\s*:\s*/i, '').split(',');
+    const textIndex = eventFields.indexOf('text');
+    const startIndex = eventFields.indexOf('start');
+    const endIndex = eventFields.indexOf('end');
+    if (textIndex < 0 || startIndex < 0 || endIndex < 0 || rawFields.length <= textIndex) continue;
+    const start = parseTime(rawFields[startIndex]);
+    const end = parseTime(rawFields[endIndex]);
+    // Text alanı son yapısal alandır ve virgül içerebilir.
+    const text = rawFields.slice(textIndex).join(',').replace(/\\N/gi, '\n').replace(/\\n/gi, '\n');
     if (start !== null) out.push({ start, end, text });
   }
   return normalizeCues(out);
@@ -170,14 +186,24 @@ function parseHlsSegmentUris(body, baseUrl = '') {
 
 function parseHlsSegments(body, baseUrl = '') {
   const out = [];
+  const text = String(body || '');
+  const mediaSequence = Math.max(0, Number(text.match(/#EXT-X-MEDIA-SEQUENCE\s*:\s*(\d+)/i)?.[1]) || 0);
+  const targetDuration = Math.max(0, Number(text.match(/#EXT-X-TARGETDURATION\s*:\s*([\d.]+)/i)?.[1]) || 0);
+  const discontinuitySequence = Math.max(0, Number(text.match(/#EXT-X-DISCONTINUITY-SEQUENCE\s*:\s*(\d+)/i)?.[1]) || 0);
   let elapsed = 0;
   let pendingDuration = 0;
-  for (const line of String(body || '').split(/\r?\n/)) {
+  let sequence = mediaSequence;
+  let discontinuity = discontinuitySequence;
+  for (const line of text.split(/\r?\n/)) {
     const value = line.trim();
     if (!value) continue;
     const duration = value.match(/^#EXTINF\s*:\s*([\d.]+)/i);
     if (duration) {
       pendingDuration = Math.max(0, Number(duration[1]) || 0);
+      continue;
+    }
+    if (/^#EXT-X-DISCONTINUITY(?:\s|$)/i.test(value)) {
+      discontinuity += 1;
       continue;
     }
     if (value.startsWith('#')) continue;
@@ -186,8 +212,13 @@ function parseHlsSegments(body, baseUrl = '') {
       // Aynı URI canlı/kayan bir listede yeniden kullanılabilir. URI'yi tekilleştirmek
       // sonraki parçaların zamanını geriye kaydırdığı gibi ikinci oluşumun kendi
       // zamanını da kaybettirir; her playlist satırı ayrı bir zaman örneğidir.
-      out.push({ url, start: elapsed, duration: pendingDuration });
-      elapsed += pendingDuration;
+      // Bazı canlı listeler geçici olarak EXTINF satırını düşürüyor. Sıfır
+      // süre sonraki bütün parçaları aynı zamana yığmasın; manifestin hedef
+      // süresi bu bozukluk için en güvenli yaklaşık değerdir.
+      const segmentDuration = pendingDuration > 0 ? pendingDuration : targetDuration;
+      out.push({ url, start: elapsed, duration: segmentDuration, sequence, discontinuity, targetDuration });
+      elapsed += segmentDuration;
+      sequence += 1;
     } catch (_) {}
     pendingDuration = 0;
   }
@@ -205,7 +236,7 @@ function isHlsSubtitlePlaylist(body, url = '') {
 }
 
 function resolveUrl(value, baseUrl) {
-  try { return new URL(decodeEntities(value).trim(), baseUrl).href; } catch (_) { return baseUrl; }
+  try { return new URL(decodeEntities(value).trim(), baseUrl).href; } catch (_) { return ''; }
 }
 
 function lastBaseUrl(xml, baseUrl) {
@@ -472,6 +503,16 @@ function parseXmlTime(value, xml) {
     if (multiplier && Number(multiplier[2])) rate *= Number(multiplier[1]) / Number(multiplier[2]);
     return Number(frame[1]) / rate;
   }
+  const clockFrame = raw.match(/^(\d+):(\d{2}):(\d{2}):(\d+(?:\.\d+)?)$/);
+  if (clockFrame) {
+    const rateMatch = String(xml || '').match(/(?:\b|:)frameRate\s*=\s*["']([\d.]+)["']/i);
+    const multiplier = String(xml || '').match(/(?:\b|:)frameRateMultiplier\s*=\s*["'](\d+)\s+(\d+)["']/i);
+    let rate = Math.max(1, Number(rateMatch && rateMatch[1]) || 30);
+    if (multiplier && Number(multiplier[2])) rate *= Number(multiplier[1]) / Number(multiplier[2]);
+    const result = Number(clockFrame[1]) * 3600 + Number(clockFrame[2]) * 60
+      + Number(clockFrame[3]) + Number(clockFrame[4]) / rate;
+    return Number.isFinite(result) ? result : null;
+  }
   return parseTime(raw);
 }
 
@@ -481,15 +522,17 @@ function parseXml(body) {
   // YouTube timedtext / srv biçimi.
   for (const match of xml.matchAll(/<(?:text|p)\b([^>]*)>([\s\S]*?)<\/(?:text|p)>/gi)) {
     const tag = match[1];
-    const startRaw = attr(tag, 'start') || attr(tag, 'begin') || attr(tag, 't');
-    const durRaw = attr(tag, 'dur') || attr(tag, 'd');
+    const timedTextStart = attr(tag, 't');
+    const timedTextDuration = attr(tag, 'd');
+    const startRaw = attr(tag, 'start') || attr(tag, 'begin') || timedTextStart;
+    const durRaw = attr(tag, 'dur') || timedTextDuration;
     const endRaw = attr(tag, 'end');
     let start = parseXmlTime(startRaw, xml);
     let duration = parseXmlTime(durRaw, xml);
     let end = parseXmlTime(endRaw, xml);
     // YouTube srv3 t/d değerleri milisaniyedir.
-    if (/\bt\s*=/.test(tag) && Number.isFinite(Number(startRaw))) start = Number(startRaw) / 1000;
-    if (/\bd\s*=/.test(tag) && Number.isFinite(Number(durRaw))) duration = Number(durRaw) / 1000;
+    if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) start = Number(startRaw) / 1000;
+    if (durRaw === timedTextDuration && timedTextDuration && Number.isFinite(Number(durRaw))) duration = Number(durRaw) / 1000;
     if (end === null && start !== null && duration !== null) end = start + duration;
     if (start !== null) out.push({ start, end, text: match[2] });
   }
@@ -650,38 +693,56 @@ function parseMp4WebVtt(buffer, matcher = {}) {
   const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
   if (data.length < 16) return [];
   const top = mp4Boxes(data);
-  const moof = mp4Child(top, 'moof');
-  const mdat = mp4Child(top, 'mdat');
-  if (!moof || !mdat) return [];
-  const trafs = mp4Boxes(data, moof.start, moof.end).filter((box) => box.type === 'traf');
   const timescale = Math.max(0, Number(matcher.timescale) || parseMp4Timescale(data));
   // Yanlış bir '1' varsayımı sessizce devasa zamanlar üretmektense, init
   // segmenti henüz bulunamadığında parçayı reddetmek daha güvenlidir.
   if (!timescale) return [];
-  for (const traf of trafs) {
-    const children = mp4Boxes(data, traf.start, traf.end);
-    const defaults = mp4Tfhd(data, mp4Child(children, 'tfhd'));
-    const baseTime = mp4Tfdt(data, mp4Child(children, 'tfdt'));
-    const samples = children.filter((box) => box.type === 'trun')
-      .flatMap((box) => mp4TrunSamples(data, box, defaults));
-    if (!samples.length || samples.reduce((sum, sample) => sum + sample.size, 0) > mdat.end - mdat.start) continue;
-    const cues = [];
-    let mediaCursor = mdat.start;
-    let decodeTime = baseTime;
-    for (const sample of samples) {
-      const sampleBuffer = data.subarray(mediaCursor, mediaCursor + sample.size);
-      const text = mp4PaylText(sampleBuffer);
-      if (text) cues.push({
-        start: (decodeTime + sample.composition) / timescale,
-        end: (decodeTime + sample.composition + sample.duration) / timescale,
-        text,
-      });
-      mediaCursor += sample.size;
-      decodeTime += sample.duration;
+  const cues = [];
+  for (let topIndex = 0; topIndex < top.length; topIndex++) {
+    const moof = top[topIndex];
+    if (moof.type !== 'moof') continue;
+    const mdat = top.slice(topIndex + 1).find((box) => box.type === 'mdat' || box.type === 'moof');
+    if (!mdat || mdat.type !== 'mdat') continue;
+    const trafs = mp4Boxes(data, moof.start, moof.end).filter((box) => box.type === 'traf');
+    for (const traf of trafs) {
+      const children = mp4Boxes(data, traf.start, traf.end);
+      const defaults = mp4Tfhd(data, mp4Child(children, 'tfhd'));
+      const baseTime = mp4Tfdt(data, mp4Child(children, 'tfdt'));
+      const samples = children.filter((box) => box.type === 'trun')
+        .flatMap((box) => mp4TrunSamples(data, box, defaults));
+      if (!samples.length || samples.reduce((sum, sample) => sum + sample.size, 0) > mdat.end - mdat.start) continue;
+      let mediaCursor = mdat.start;
+      let decodeTime = baseTime;
+      for (const sample of samples) {
+        const sampleBuffer = data.subarray(mediaCursor, mediaCursor + sample.size);
+        const text = mp4PaylText(sampleBuffer);
+        if (text) cues.push({
+          start: (decodeTime + sample.composition) / timescale,
+          end: (decodeTime + sample.composition + sample.duration) / timescale,
+          text,
+        });
+        mediaCursor += sample.size;
+        decodeTime += sample.duration;
+      }
     }
-    if (cues.length) return normalizeCues(cues);
   }
-  return [];
+  return normalizeCues(cues);
+}
+
+function decodeSubtitleBuffer(value) {
+  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value || '');
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return buffer.subarray(2).toString('utf16le');
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+    const swapped = Buffer.allocUnsafe(buffer.length - 2);
+    for (let index = 2; index + 1 < buffer.length; index += 2) {
+      swapped[index - 2] = buffer[index + 1];
+      swapped[index - 1] = buffer[index];
+    }
+    return swapped.toString('utf16le');
+  }
+  return buffer.toString('utf8').replace(/^\uFEFF/, '');
 }
 
 function parseSubtitlePayload(body, mimeType = '', url = '') {
@@ -739,9 +800,11 @@ function subtitleLanguage(response = {}) {
 }
 
 function cueFingerprint(cues) {
-  const compact = (cues || []).slice(0, 80)
+  const list = Array.isArray(cues) ? cues : [];
+  const sampled = list.length <= 160 ? list : [...list.slice(0, 80), ...list.slice(-80)];
+  const compact = sampled
     .map((cue) => `${Number(cue.start).toFixed(2)}|${cleanCueText(cue.text)}`).join('\n');
-  return crypto.createHash('sha256').update(compact).digest('hex').slice(0, 20);
+  return crypto.createHash('sha256').update(`${list.length}\n${compact}`).digest('hex').slice(0, 20);
 }
 
 function manifestFingerprint(body) {
@@ -811,5 +874,6 @@ module.exports = {
   parseSami,
   parseMp4WebVtt,
   parseMp4Timescale,
+  decodeSubtitleBuffer,
   subtitleLanguage,
 };

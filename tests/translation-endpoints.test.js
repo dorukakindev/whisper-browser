@@ -13,10 +13,10 @@ assert.deepEqual(new Set(routes), new Set(SHUAI_ROUTES));
 assert.deepEqual(resolveTranslationEndpoints('https://api.example.com/v1/'), ['https://api.example.com/v1']);
 assert.deepEqual(resolveTranslationEndpoints(''), SHUAI_ROUTES);
 
-for (const status of [0, 404, 408, 425, 429, 500, 502, 503]) {
+for (const status of [0, 404, 408, 425, 500, 502, 503]) {
   assert.equal(shouldFailoverTranslationStatus(status), true, `HTTP ${status}`);
 }
-for (const status of [400, 401, 403, 413, 422]) {
+for (const status of [400, 401, 403, 413, 422, 429]) {
   assert.equal(shouldFailoverTranslationStatus(status), false, `HTTP ${status}`);
 }
 assert.equal(shouldFailoverTranslationStatus(401, { sameProviderAliases: true }), true);

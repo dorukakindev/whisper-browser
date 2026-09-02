@@ -14,7 +14,8 @@ function normalizeCues(rawCues) {
     start: Math.max(0, Number(cue && cue.start) || 0),
     end: Math.max(0, Number(cue && cue.end) || 0),
     text: String(cue && cue.text || '').replace(/\r\n/g, '\n').trim().slice(0, 12000),
-  })).filter((cue) => cue.text && cue.end >= cue.start).sort((a, b) => a.start - b.start || a.end - b.end);
+  })).filter((cue) => cue.text && cue.end >= cue.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end).slice(-20000);
 }
 
 function srtTime(seconds) {
@@ -107,7 +108,16 @@ class BrowserAssetStore {
       if (!parsed || parsed.version !== ASSET_VERSION || parsed.assetId !== assetId) {
         return { ok: false, error: 'Altyazı varlığı biçimi desteklenmiyor.' };
       }
-      return { ok: true, document: { ...parsed, cues: normalizeCues(parsed.cues) }, ...paths };
+      const cues = normalizeCues(parsed.cues);
+      if (!cues.length) return { ok: false, error: 'Altyazı varlığında geçerli blok yok.' };
+      // JSON sağlamken SRT'nin elle veya eski bir sweep tarafından silinmesi
+      // dışa aktarma yolunu ölü bırakmasın; türetilebilir dosyayı geri kur.
+      if (!this.fs.existsSync(paths.srtPath)) {
+        const tempSrt = `${paths.srtPath}.${process.pid}.${Date.now()}.tmp`;
+        this.fs.writeFileSync(tempSrt, `\uFEFF${cuesToSrt(cues)}`, 'utf8');
+        this.fs.renameSync(tempSrt, paths.srtPath);
+      }
+      return { ok: true, document: { ...parsed, cues }, ...paths };
     } catch (error) {
       return { ok: false, error: error.message };
     }
@@ -148,6 +158,37 @@ class BrowserAssetStore {
       }
     };
     visit(this.rootDir);
+    return removed;
+  }
+
+  sweepOrphans(referencedAssetIds = new Set(), maxAgeMs = 30 * 24 * 60 * 60 * 1000, now = Date.now()) {
+    const referenced = referencedAssetIds instanceof Set
+      ? referencedAssetIds : new Set(referencedAssetIds || []);
+    let removed = 0;
+    let entries = [];
+    try { entries = this.fs.readdirSync(this.rootDir, { withFileTypes: true }); } catch (_) { return removed; }
+    for (const directory of entries) {
+      if (!directory.isDirectory() || !/^[a-f0-9]{24}$/i.test(directory.name)) continue;
+      const dirPath = path.join(this.rootDir, directory.name);
+      let files = [];
+      try { files = this.fs.readdirSync(dirPath, { withFileTypes: true }); } catch (_) { continue; }
+      const names = new Set(files.filter((entry) => entry.isFile()).map((entry) => entry.name));
+      const stems = new Set([...names].map((name) => name.match(/^([a-f0-9]{32})\.(?:json|srt)$/i)?.[1]).filter(Boolean));
+      for (const stem of stems) {
+        const assetId = `${directory.name.toLowerCase()}:${stem.toLowerCase()}`;
+        if (referenced.has(assetId)) continue;
+        const pair = [path.join(dirPath, `${stem}.json`), path.join(dirPath, `${stem}.srt`)];
+        let newest = 0;
+        for (const filePath of pair) {
+          try { newest = Math.max(newest, this.fs.statSync(filePath).mtimeMs); } catch (_) {}
+        }
+        if (!newest || now - newest < maxAgeMs) continue;
+        for (const filePath of pair) {
+          try { if (this.fs.existsSync(filePath)) { this.fs.unlinkSync(filePath); removed += 1; } } catch (_) {}
+        }
+      }
+      try { this.fs.rmdirSync(dirPath); } catch (_) {}
+    }
     return removed;
   }
 }

@@ -26,7 +26,10 @@ function shouldFailoverTranslationStatus(status, options = {}) {
   // isteğinde kimlik doğrulama yanıtını da diğer alias'la sınamak gerekir.
   // Varsayılan davranış değişmez; altyazı çağrıları 401/403'ü tekrarlamaz.
   if (options.sameProviderAliases && (code === 401 || code === 403)) return true;
-  return code === 0 || code === 404 || code === 408 || code === 425 || code === 429 || code >= 500;
+  // 429 bir rota arızası değil, sağlayıcı/anahtar kotasıdır. Aynı Shuai
+  // sağlayıcısının alias'larını art arda denemek kotayı daha da sıkıştırır;
+  // yeniden deneme gecikmesini çağrı scheduler'ı yönetir.
+  return code === 0 || code === 404 || code === 408 || code === 425 || code >= 500;
 }
 
 module.exports = {

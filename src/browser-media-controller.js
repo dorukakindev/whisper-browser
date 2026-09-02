@@ -5,6 +5,17 @@ function controllerBootstrap() {
     const observedRoots = new WeakSet();
     const observers = [];
 
+    function scanShadowHosts(node, depth = 0) {
+      if (!node || depth > 24) return;
+      for (const item of node.children || []) {
+        if (item.shadowRoot) {
+          observeRoot(item.shadowRoot);
+          scan(item.shadowRoot);
+        }
+        scanShadowHosts(item, depth + 1);
+      }
+    }
+
     const observeRoot = (root) => {
       if (!root || observedRoots.has(root)) return;
       observedRoots.add(root);
@@ -26,12 +37,9 @@ function controllerBootstrap() {
       if (node.nodeType === 1 && node.matches?.('video,audio')) media.add(node);
       if (!node.querySelectorAll) return;
       for (const item of node.querySelectorAll('video,audio')) media.add(item);
-      for (const item of node.querySelectorAll('*')) {
-        if (item.shadowRoot) {
-          observeRoot(item.shadowRoot);
-          scan(item.shadowRoot);
-        }
-      }
+      // Büyük SPA mutation'larında ikinci bir sınırsız evrensel seçici NodeList'i
+      // tahsis etme; yalnız shadow host aramasını derinliği sınırlı dolaş.
+      scanShadowHosts(node);
     }
 
     const select = () => {
@@ -97,6 +105,13 @@ function buildBrowserMediaCommandScript(command, value) {
       video.currentTime = Math.max(0, video.currentTime + ${safeValue});
     } else if (command === 'speed') {
       video.playbackRate = Math.max(.25, Math.min(4, ${safeValue} || 1));
+    } else if (command === 'fullscreen') {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await video.requestFullscreen();
+    } else if (command === 'pip') {
+      if (!('requestPictureInPicture' in video)) return false;
+      if (document.pictureInPictureElement) await document.exitPictureInPicture();
+      else await video.requestPictureInPicture();
     } else return false;
     return { handled: true, currentTime: Number(video.currentTime) || 0,
       playbackRate: Number(video.playbackRate) || 1, paused: !!video.paused,

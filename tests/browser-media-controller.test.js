@@ -20,6 +20,8 @@ test('her durum yoklaması bütün DOM ağacını yeniden taramaz', () => {
   const probe = script.slice(script.lastIndexOf('return controller.probe'));
   assert(!probe.includes('querySelectorAll'));
   assert.match(script, /scan\(document\)/);
+  assert.doesNotMatch(script, /querySelectorAll\('\*'\)/);
+  assert.match(script, /scanShadowHosts\(node, depth = 0\)/);
 });
 
 test('komutlar durum yoklamasıyla aynı medya seçicisini kullanır', () => {

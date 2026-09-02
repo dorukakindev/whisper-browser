@@ -51,6 +51,21 @@ const colored = sampleMangaRegionColors(whiteBitmap, 2, 2, [{
 }]);
 assert.equal(colored[0].backgroundColor, '#ffffff');
 assert.equal(colored[0].textColor, '#17130d');
+const borderedBitmap = Buffer.alloc(10 * 10 * 4, 255);
+for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
+  if (x === 0 || y === 0 || x === 9 || y === 9) {
+    const offset = (y * 10 + x) * 4;
+    borderedBitmap[offset] = 0; borderedBitmap[offset + 1] = 0; borderedBitmap[offset + 2] = 0;
+  }
+}
+const interiorColored = sampleMangaRegionColors(borderedBitmap, 10, 10, [{
+  text_box: [0, 0, 1000, 1000], bubble_box: [0, 0, 1000, 1000], translation: 'Test',
+}]);
+assert.equal(interiorColored[0].backgroundColor, '#ffffff');
+const boundedText = normalizeMangaRegions({ regions: [{ box: [0, 0, 100, 100],
+  source: 's'.repeat(2000), translation: 't'.repeat(2000) }] })[0];
+assert.equal(boundedText.source.length, 1200);
+assert.equal(boundedText.translation.length, 1200);
 
 assert.equal(isSafeMangaImageUrl('https://cdn.example.com/page.jpg?token=x'), true);
 for (const unsafe of ['file:///x.png', 'http://localhost/a.png', 'http://127.0.0.1/a', 'http://10.0.0.2/a',
@@ -70,11 +85,12 @@ assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x' }),
   mangaCacheKey(image, { targetLanguage: 'en', model: 'x' }));
 assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', glossary: ['A=B'] }),
   mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', glossary: ['A=C'] }));
-assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri A' }),
-  mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri B' }));
-assert.deepEqual(mangaGenerationParameters('gpt-5.4'), { max_completion_tokens: 12000 });
-assert.deepEqual(mangaGenerationParameters('o4-mini'), { max_completion_tokens: 12000 });
-assert.deepEqual(mangaGenerationParameters('gpt-4.1-mini'), { temperature: 0.1, max_tokens: 12000 });
+assert.equal(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri A' }),
+  mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri B' }),
+  'dinamik sayfa başlığı aynı görselin kalıcı düzenleme/cache anahtarını değiştirmemeli');
+assert.deepEqual(mangaGenerationParameters('gpt-5.4'), { max_completion_tokens: 8000 });
+assert.deepEqual(mangaGenerationParameters('o4-mini'), { max_completion_tokens: 8000 });
+assert.deepEqual(mangaGenerationParameters('gpt-4.1-mini'), { temperature: 0.1, max_tokens: 8000 });
 
 const ranked = selectMangaCandidates([
   { id: 'advert', url: 'https://ads.example/a.jpg', readerScore: -20, excluded: true, visible: true, order: 1 },
@@ -140,7 +156,7 @@ assert.doesNotMatch(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 2
   /overflowWrap: 'anywhere'/);
 const overlaySource = mangaOverlayScript({ id: 'x', regions: [{
   text_box: [10, 20, 80, 160], bubble_box: [1, 2, 100, 200], translation: 'Test',
-}] });
+}], bridgeToken: 'test-bridge' });
 assert.match(overlaySource, /position: 'fixed'/);
 assert.match(overlaySource, /data-whisper-manga-cleanup/);
 assert.match(overlaySource, /data-whisper-manga-frame/);
@@ -148,12 +164,15 @@ assert.match(overlaySource, /background: 'transparent'/);
 assert.doesNotMatch(overlaySource, /boxShadow: '0 1px 5px/);
 assert.doesNotMatch(overlaySource, /rect\.left \+ scrollX/);
 assert.match(overlaySource, /text\.dataset\.fitKey/);
+assert.match(overlaySource, /bridgeToken/);
+assert.doesNotMatch(overlaySource, /text\.textContent \+ ':' \+ group\.dataset\.fontScale/);
 assert.match(mangaSelectionScript(), /state\.selected/);
 assert.match(mangaRegionsStateScript('x'), /data-whisper-manga-region/);
 
 const root = path.join(__dirname, '..');
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
 const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
+const browserPreload = fs.readFileSync(path.join(root, 'src', 'browser-preload.js'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'src', 'renderer', 'index.html'), 'utf8');
 assert.match(main, /ipcMain\.handle\('browser:manga:start'/);
@@ -163,8 +182,9 @@ assert.match(main, /manga\.apiKey \|\| inherited\.apiKey/);
 assert.match(main, /manga\.model \|\| ui\.mangaModel \|\| inherited\.model/);
 assert.doesNotMatch(main, /config\.model = 'gpt-4\.1-mini'/);
 assert.doesNotMatch(main, /configuredModel\.toLowerCase\(\) === 'gemini-3\.7-flash'/);
-assert.match(main, /redirect: 'manual', credentials: 'include'[\s\S]{0,160}referrer:/);
-assert.doesNotMatch(main, /headers:\s*\{[^}]*Referer:/);
+assert.match(main, /lookup:\s*\(_hostname, options, callback\) => options\?\.all[\s\S]{0,140}callback\(null, pinned\.address, pinned\.family\)/);
+assert.match(main, /browserSession\.cookies\.get\(\{ url: imageUrl \}\)/);
+assert.match(main, /mangaRequestReferrer\(pageUrl, imageUrl\)/);
 assert.match(main, /attachSchema = useSchema && resolveTranslationEndpoints\(endpointBase\)\.length === 1/);
 assert.match(main, /resolveTranslationEndpoints\(config\.endpoint\)/);
 assert.match(main, /shouldFailoverTranslationStatus\(status\)/);
@@ -176,19 +196,39 @@ assert.match(main, /decoded\.crop\(\{ x: left, y: top/);
 assert.doesNotMatch(main, /sampleMangaRegionColors\(decoded\.toBitmap/);
 assert.match(main, /rateLimitRetries = 2/);
 assert.match(main, /await stopBrowserManga\(tab, true\)/);
-assert.match(main, /for \(let attempt = 0; attempt < 6/);
-assert.doesNotMatch(main, /candidates\.length >= 2\) break/);
+assert.match(main, /attempt < 6/);
+assert.match(main, /stableScans >= 2/);
 assert.match(main, /selectMangaCandidates\(candidates, limit\)/);
+assert.match(main, /error\.mangaImageDownload = true/);
+assert.match(main, /if \(error\?\.mangaImageDownload\) return false/);
+assert.match(main, /if \(\[401, 403, 404\]\.includes\(status\)\) return true/);
+assert.doesNotMatch(main, /\[401, 403, 404, 422\]/);
+assert.match(main, /retryFailedBrowserManga/);
+assert.match(main, /Math\.min\(config\.workers, selected\.length\)/);
+assert.match(main, /applyMangaEditFromPage/);
+assert.match(overlaySource, /__whisperTrustedBridgeSend\?\.\('manga-edit'/);
+assert.doesNotMatch(overlaySource, /__WHISPER_MANGA_EDIT__/);
+assert.match(browserPreload, /ipcRenderer\.send\('browser:trusted-bridge'/);
+assert.match(main, /executeJavaScriptInIsolatedWorld/);
+assert.match(main, /ipcMain\.on\('browser:trusted-bridge'/);
+assert.match(overlaySource, /pre:\s*previous\?\.translation/);
+assert.match(main, /previousTranslation !== currentTranslation/);
+assert.match(main, /payload\.bridgeToken !== tab\.bridgeToken/);
+assert.match(main, /await tab\.mangaClearPromise[\s\S]{0,500}if \(tab\.mangaJob\)/);
 assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /if \(!result\.length\)[\s\S]{0,240}focusRegion, true/);
 assert.match(main, /if \(result\.length\) browserMangaCache\(\)\.set/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
 assert.match(preload, /retrySelectedBrowserManga:[\s\S]{0,120}browser:manga:retrySelected/);
+assert.match(preload, /retryFailedBrowserManga:[\s\S]{0,120}browser:manga:retryFailed/);
 assert.match(renderer, /browserMangaTranslate.*addEventListener\('click', handleBrowserMangaAction\)/);
 assert.match(renderer, /ctrlKey[\s\S]{0,240}retrySelectedBrowserManga/);
 assert.match(renderer, /await saveAppSettings\(\);[\s\S]{0,160}startBrowserManga/);
-assert.match(renderer, /maxImages: 64/);
+assert.match(renderer, /maxImages: Number\(\$\('browserMangaMaxImages'\)\?\.value\) \|\| 48/);
+assert.match(renderer, /workers: Number\(\$\('browserMangaWorkers'\)\?\.value\) \|\| 2/);
+assert.match(renderer, /browserMangaRetryFailed/);
+assert.match(preload, /exportBrowserManga:[\s\S]{0,120}browser:manga:export/);
 assert.match(renderer, /Manga hata/);
 assert.match(renderer, /event\.state === 'ready' && !event\.error/);
 assert.match(html, /id="browserMangaTranslate"/);

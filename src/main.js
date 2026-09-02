@@ -3,6 +3,8 @@ const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const dns = require('dns').promises;
+const http = require('http');
+const https = require('https');
 const { isIP } = require('net');
 const { createHash, randomUUID } = require('crypto');
 const {
@@ -47,7 +49,20 @@ const {
   advanceWatchStability,
 } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
-const { burninOutputPaths, removeFileQuietly, replaceBurninOutput } = require('./burnin-output');
+const {
+  burninOutputPaths,
+  burninRecoveryPathsMatch,
+  burninTempLooksComplete,
+  normalizeBurninRecovery,
+  removeFileQuietly,
+  replaceBurninOutput,
+} = require('./burnin-output');
+const {
+  normalizeQueueSnapshot,
+  queueSnapshotForDisk,
+  updateQueueSnapshotRunning,
+  updateQueueSnapshotTerminal,
+} = require('./queue-persistence');
 const { withAbortTimeout, withTimeout } = require('./async-timeout');
 const { normalizeBrowserTabId } = require('./browser-tabs');
 const {
@@ -78,6 +93,7 @@ const {
   extractJsonPayload,
   isPublicMangaIpAddress,
   isSafeMangaImageUrl,
+  legacyMangaCacheKey,
   mangaCacheKey,
   mangaCandidateScanScript,
   mangaClearScript,
@@ -110,20 +126,42 @@ app.commandLine.appendSwitch('disable-quic');
 
 let mainWindow;
 let mainWindowClosing = false;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 let activeJob = null;
+let activeQueueItemId = null;
 let powerBlockerId = null;
 let browserView = null;
 let browserVisible = false;
+let browserModalOccluded = false;
 let browserBounds = null;
 const browserTabs = new Map();
 let browserActiveTabId = '';
 let browserTabSequence = 0;
 let browserTabTransitionPromise = Promise.resolve();
 let browserSessionSaveTimer = null;
+let browserSessionLastWriteAt = 0;
+// Pencere kapanırken sekmeler görünüm yok edilmeden önce diske yazılır. Electron
+// daha sonra before-quit yaydığında boşaltılmış Map'i ikinci kez yazıp sağlam
+// oturum dosyasını ezmemelidir.
+let browserSessionFinalizedForQuit = false;
+let browserPlacesCache = null;
+let browserPlacesSaveTimer = null;
+let browserPlacesDirty = false;
 let browserSessionRestoreEnabled = true;
 let browserTrackTimer = null;
 let browserMediaTimer = null;
 let browserCaptureTimer = null;
+let browserCaptureHookFrames = new WeakSet();
 let browserCaptureBusy = false;
 let browserCaptureFlushPromise = null;
 let browserTrackBusy = false;
@@ -131,14 +169,22 @@ let browserMediaBusy = false;
 let browserCaptureEnabled = true;
 const browserLastCaptureDropped = new Map();
 let browserDebuggerReady = false;
+let browserDebuggerAttachPromise = null;
 let browserStateGeneration = 0;
 const browserPendingResponses = new Map();
 const browserTrackBuffers = new Map();
 const browserTrackPublications = new Map();
+const browserTrackPublicationTimers = new Map();
+const browserTrackPendingPublications = new Map();
 const browserSeenManifests = new Map();
 const browserManifestInFlight = new Set();
 const browserHlsFetchedSegments = new Map();
+const browserHlsTimelines = new Map();
 const browserHlsInFlight = new Set();
+
+function trimInsertionCollection(collection, limit) {
+  while (collection && collection.size > limit) collection.delete(collection.keys().next().value);
+}
 let browserDashSubtitleMatchers = [];
 let browserLastDrmStatus = '';
 let browserLastDrmFailure = '';
@@ -199,13 +245,26 @@ function pruneOldLogs(keep = LOG_KEEP) {
     const dir = logsDir();
     const files = fs.readdirSync(dir)
       .filter((f) => f.endsWith('.log'))
-      .map((f) => {
-        const full = path.join(dir, f);
-        try { return { full, t: fs.statSync(full).mtimeMs }; } catch (_) { return null; }
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.t - a.t);
-    files.slice(keep).forEach((x) => { try { fs.unlinkSync(x.full); } catch (_) {} });
+      // Dosya adının başındaki YYYY-MM-DD_HH-mm-ss damgası kronolojiktir.
+      // Her iş başında tüm dosyalara statSync yapmak yerine tek dizin okuması
+      // ile sıralamak, yavaş/antivirüslü Windows disklerinde main thread'i korur.
+      .sort((a, b) => b.localeCompare(a));
+    files.slice(keep).forEach((file) => {
+      try { fs.unlinkSync(path.join(dir, file)); } catch (_) {}
+    });
+  } catch (_) {}
+}
+
+function sweepStaleChatFiles() {
+  // Uygulama çökünce normal child close/error temizliği çalışamayabilir. Tek
+  // örnek kilidi alındıktan sonra önceki sürece ait chat dosyalarının aktif
+  // olma ihtimali yoktur; yalnız kendi UUID biçimimizi hedefleyerek temizle.
+  try {
+    const dir = path.join(app.getPath('userData'), 'tmp');
+    for (const file of fs.readdirSync(dir)) {
+      if (!/^chat-[0-9a-f]{8}-[0-9a-f-]{27}\.json$/i.test(file)) continue;
+      try { fs.unlinkSync(path.join(dir, file)); } catch (_) {}
+    }
   } catch (_) {}
 }
 
@@ -293,27 +352,29 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
       return resolve({ ok: false, error: `Python başlatılamadı: ${err.message}` });
     }
     mediaJobs[kind] = proc;
-    let buf = '';
     let result = null;
     let errText = '';
+    const handleLine = (raw) => {
+      const line = String(raw || '').trim();
+      if (!line) return;
+      let ev;
+      try { ev = JSON.parse(line); } catch (_) { return; }
+      if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs' || ev.type === 'clip') result = ev;
+      else if (ev.type === 'error') errText = ev.message || 'bilinmeyen hata';
+      if (onEvent) onEvent(ev);
+    };
+    const stdoutLines = createNdjsonLineBuffer({
+      maxLineChars: 8 * 1024 * 1024,
+      onOverflow: () => { errText = 'Medya yardımcı süreci güvenli satır boyutu sınırını aştı.'; },
+    });
     proc.stdout.setEncoding('utf-8');
     proc.stderr.setEncoding('utf-8');
     proc.stdout.on('data', (chunk) => {
-      buf += chunk;
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const raw of lines) {
-        const line = raw.trim();
-        if (!line) continue;
-        let ev;
-        try { ev = JSON.parse(line); } catch (_) { continue; }
-        if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs' || ev.type === 'clip') result = ev;
-        else if (ev.type === 'error') errText = ev.message || 'bilinmeyen hata';
-        if (onEvent) onEvent(ev);
-      }
+      for (const line of stdoutLines.push(chunk)) handleLine(line);
     });
     proc.stderr.on('data', (c) => { errText = String(c).slice(-500); });
     proc.on('close', (code) => {
+      for (const line of stdoutLines.flush()) handleLine(line);
       if (mediaJobs[kind] === proc) mediaJobs[kind] = null;   // baskasinin isini silme
       if (result) resolve({ ok: true, data: result });
       else resolve({ ok: false, error: errText || `Süreç ${code} koduyla bitti` });
@@ -420,6 +481,17 @@ const CP1254_FIXUP = { 'Ð': 'Ğ', 'Ý': 'İ', 'Þ': 'Ş', 'ð': 'ğ', 'ý': 'ı
 const MOJIBAKE_MARKERS = ['Ã§', 'Ã¼', 'Ã¶', 'Ä±', 'ÄŸ', 'Ã‡', 'Ãœ', 'Ã–', 'Ä°'];
 
 function decodeSubtitleBuffer(buf) {
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    return { text: buf.subarray(2).toString('utf16le'), note: 'utf-16le' };
+  }
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+    const swapped = Buffer.allocUnsafe(buf.length - 2);
+    for (let index = 2; index + 1 < buf.length; index += 2) {
+      swapped[index - 2] = buf[index + 1];
+      swapped[index - 1] = buf[index];
+    }
+    return { text: swapped.toString('utf16le'), note: 'utf-16be' };
+  }
   let text = buf.toString('utf-8').replace(/^\uFEFF/, '');
   let note = '';
   // Geçersiz UTF-8 → U+FFFD çıkar; bu durumda cp1254/latin-1 varsay
@@ -589,8 +661,13 @@ function writeSubtitleAtomic(filePath, text) {
   const plain = String(text).replace(/^\uFEFF/, '');
   const data = /\.(srt|ass|ssa)$/i.test(filePath) ? '\uFEFF' + plain : plain;
   const tmp = filePath + '.tmp';
-  fs.writeFileSync(tmp, data, 'utf-8');
-  fs.renameSync(tmp, filePath);
+  try {
+    fs.writeFileSync(tmp, data, 'utf-8');
+    fs.renameSync(tmp, filePath);
+  } catch (error) {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+    throw error;
+  }
 }
 
 function writeJsonAtomic(filePath, value) {
@@ -603,6 +680,59 @@ function writeJsonAtomic(filePath, value) {
     try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
     throw error;
   }
+}
+
+function queueStatePath() {
+  return path.join(app.getPath('userData'), 'queue-state.json');
+}
+
+function readQueueStateRaw() {
+  const primary = queueStatePath();
+  for (const candidate of [primary, `${primary}.bak`]) {
+    try {
+      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 8 * 1024 * 1024) continue;
+      const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+  }
+  return { version: 1, items: [] };
+}
+
+function writeQueueState(raw) {
+  const target = queueStatePath();
+  const snapshot = queueSnapshotForDisk(raw);
+  try {
+    if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
+    writeJsonAtomic(target, snapshot);
+    return { ok: true, snapshot };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+function loadQueueState() {
+  const snapshot = normalizeQueueSnapshot(readQueueStateRaw(), activeQueueItemId);
+  // Uygulama çökmesinden kalan running öğelerini pending'e çeviren onarımı
+  // hemen kalıcılaştır; bir sonraki açılışta yine running görünmesin.
+  if (snapshot.recoveredCount) writeQueueState(snapshot);
+  return { ok: true, ...snapshot, activeQueueItemId };
+}
+
+function persistQueueTerminal(queueItemId, event) {
+  if (!queueItemId) return;
+  writeQueueState(updateQueueSnapshotTerminal(readQueueStateRaw(), queueItemId, event));
+}
+
+function persistQueueRunning(queueItemId, options) {
+  if (!queueItemId) return;
+  const input = String(options?.youtube || options?.input || '');
+  writeQueueState(updateQueueSnapshotRunning(readQueueStateRaw(), queueItemId, {
+    type: options?.youtube ? 'youtube' : 'file',
+    input,
+    label: options?.youtube ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
+      : path.basename(input),
+    opts: options || {},
+  }));
 }
 
 ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
@@ -632,10 +762,16 @@ ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
   const { sourcePath, text } = payload || {};
   if (typeof text !== 'string') return { ok: false, error: 'Altyazı metni eksik.' };
   const parsed = path.parse(sourcePath || 'altyazi.srt');
+  const sourceExt = /^\.(srt|vtt|ass|ssa)$/i.test(parsed.ext) ? parsed.ext.toLowerCase() : '.srt';
+  const format = sourceExt === '.vtt'
+    ? { name: 'WebVTT altyazı', extensions: ['vtt'] }
+    : (/^\.(ass|ssa)$/i.test(sourceExt)
+      ? { name: 'ASS/SSA altyazı', extensions: [sourceExt.slice(1)] }
+      : { name: 'SubRip altyazı', extensions: ['srt'] });
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Düzeltilmiş altyazıyı farklı kaydet',
-    defaultPath: path.join(parsed.dir || app.getPath('downloads'), `${parsed.name}.duzeltilmis.srt`),
-    filters: [{ name: 'SubRip altyazı', extensions: ['srt'] }],
+    defaultPath: path.join(parsed.dir || app.getPath('downloads'), `${parsed.name}.duzeltilmis${sourceExt}`),
+    filters: [format],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
@@ -740,11 +876,23 @@ function loadSettings() {
 function saveSettings(s) {
   try {
     const secured = getSettingsSecretStore().saveFromSettings(s);
-    if (!secured.ok) return false;
+    // Güvenli depo geçici olarak kullanılamadığında anahtarları düz metne
+    // düşürme; fakat tema/oynatıcı/tarayıcı gibi açık tercihleri de kaybetme.
+    if (!secured.ok) {
+      if (secured.unavailable && secured.publicSettings) {
+        writeJsonAtomic(settingsPath(), secured.publicSettings);
+        return {
+          ok: false,
+          partial: true,
+          error: 'Genel ayarlar kaydedildi; API anahtarları güvenli depo kullanılamadığı için kaydedilemedi.',
+        };
+      }
+      return { ok: false, error: secured.error || 'Ayarlar güvenli biçimde kaydedilemedi.' };
+    }
     writeJsonAtomic(settingsPath(), secured.publicSettings);
-    return true;
-  } catch (_) {
-    return false;
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message || 'Ayarlar kaydedilemedi.' };
   }
 }
 
@@ -817,6 +965,10 @@ function watchIndex() {
       watchIndexLegacyMigrated = true;
     }
     watchIndexInstance = candidate;
+    for (const row of candidate.pruneTracks()) {
+      if (row.asset_path) browserAssetStore().removeTrack(row.asset_path);
+    }
+    browserAssetStore().sweepOrphans(new Set(candidate.listTrackAssetPaths()));
     return watchIndexInstance;
   } catch (_) {
     try { candidate?.close(); } catch (_) {}
@@ -1098,9 +1250,13 @@ function installYoutubeStreamHeaders() {
 // hem de ziyaret edilen sayfanın uygulamanın preload/Node yetkilerine erişmesini
 // engeller. Görünüm yalnızca renderer'ın bildirdiği boş alana çizilir.
 const BROWSER_PARTITION = 'persist:whisper-browser';
+// Electron'ın contextIsolation preload dünyası 999'dur. Preload köprüsü ile
+// executeJavaScriptInIsolatedWorld aynı güvenilir dünyada buluşur; uzak sayfanın
+// ana dünyası bu globali göremez.
+const BROWSER_ISOLATED_WORLD_ID = 999;
 const BROWSER_PLACES_FILE = 'browser-places.json';
 const BROWSER_PLACE_LIMIT = 100;
-const BROWSER_SENSITIVE_PARAMS = /^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+const BROWSER_SENSITIVE_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 
 function nextBrowserTabId() {
   browserTabSequence += 1;
@@ -1114,6 +1270,7 @@ function createBrowserTabRecord(initial = {}) {
     id: requestedId && !browserTabs.has(requestedId) ? requestedId : nextBrowserTabId(),
     view: null,
     generation: 0,
+    bridgeToken: randomUUID(),
     captureEnabled: restored.captureEnabled !== false,
     diagnostics: null,
     acquisitionPlan: null,
@@ -1125,8 +1282,10 @@ function createBrowserTabRecord(initial = {}) {
     mangaJob: null,
     mangaClearPromise: Promise.resolve([]),
     mangaPages: new Map(),
+    mangaFailures: [],
     mangaTranslated: 0,
     mangaVisible: false,
+    lastMediaEventSignature: '',
     overlay: { source: [], translation: [], mode: 'translation', offset: restored.offset || 0 },
     restoredUrl: restored.url || '',
     restoredTitle: restored.title || '',
@@ -1201,16 +1360,28 @@ function persistBrowserSessionNow() {
   if (browserSessionSaveTimer) clearTimeout(browserSessionSaveTimer);
   browserSessionSaveTimer = null;
   persistActiveBrowserTabState();
-  return writeBrowserSessionAtomic(browserSessionPath(app), {
+  const result = writeBrowserSessionAtomic(browserSessionPath(app), {
     restoreEnabled: browserSessionRestoreEnabled,
     activeTabId: browserActiveTabId,
-    tabs: browserSessionRestoreEnabled ? browserTabsSnapshot() : [],
+    // Geri yuklemeyi kapatmak bir gizlilik/sifirlama islemi degildir. Sekme
+    // anlik goruntusunu koru; restoreEnabled=false acilista okunmasini engeller.
+    // Kullanici ayni oturumda tercihi yeniden acarsa sekmeler gereksiz yere
+    // kaybolmamis olur. Kalici temizlik ayri, onayli sifirlama eylemidir.
+    tabs: browserTabsSnapshot(),
   });
+  // Başarısız yazımda da yeniden-deneme fırtınası üretmemek için son deneme
+  // zamanını ilerlet; bir sonraki durum değişikliği en geç 10 sn içinde dener.
+  browserSessionLastWriteAt = Date.now();
+  return result;
 }
 
 function scheduleBrowserSessionSave(delay = 700) {
   if (browserSessionSaveTimer) clearTimeout(browserSessionSaveTimer);
-  browserSessionSaveTimer = setTimeout(() => persistBrowserSessionNow(), delay);
+  // Oynatma konumu yaklaşık 250 ms'de bir değişir. Yalnız trailing debounce
+  // kullanılırsa timer sürekli sıfırlanır ve çökme halinde son konum kaybolur.
+  const elapsed = Date.now() - browserSessionLastWriteAt;
+  const effectiveDelay = elapsed >= 10_000 ? 0 : Math.min(Math.max(0, delay), 10_000 - elapsed);
+  browserSessionSaveTimer = setTimeout(() => persistBrowserSessionNow(), effectiveDelay);
 }
 
 function restoreBrowserSessionState() {
@@ -1259,35 +1430,63 @@ function safeBrowserPlaceUrl(raw) {
   }
 }
 
+function normalizeBrowserPlaces(places) {
+  const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
+    url: safeBrowserPlaceUrl(item && item.url),
+    title: String(item && item.title || '').trim().slice(0, 240),
+    visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+  })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
+  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks) };
+}
+
+function cloneBrowserPlaces(places) {
+  return {
+    history: (places?.history || []).map((item) => ({ ...item })),
+    bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
+  };
+}
+
 function readBrowserPlaces() {
-  const empty = { history: [], bookmarks: [] };
+  if (!browserPlacesCache) {
+    try {
+      browserPlacesCache = normalizeBrowserPlaces(JSON.parse(fs.readFileSync(browserPlacesPath(), 'utf8')));
+    } catch (_) {
+      browserPlacesCache = { history: [], bookmarks: [] };
+    }
+  }
+  return cloneBrowserPlaces(browserPlacesCache);
+}
+
+function flushBrowserPlaces() {
+  if (browserPlacesSaveTimer) clearTimeout(browserPlacesSaveTimer);
+  browserPlacesSaveTimer = null;
+  if (!browserPlacesDirty || !browserPlacesCache) return true;
   try {
-    const raw = JSON.parse(fs.readFileSync(browserPlacesPath(), 'utf8'));
-    const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
-      url: safeBrowserPlaceUrl(item && item.url),
-      title: String(item && item.title || '').trim().slice(0, 240),
-      visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
-    })).filter((item) => item.url);
-    return {
-      history: clean(raw.history).slice(0, BROWSER_PLACE_LIMIT),
-      bookmarks: clean(raw.bookmarks).slice(0, BROWSER_PLACE_LIMIT),
-    };
-  } catch (_) { return empty; }
+    writeJsonAtomic(browserPlacesPath(), browserPlacesCache);
+    browserPlacesDirty = false;
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function writeBrowserPlaces(places) {
-  try {
-    const file = browserPlacesPath();
-    const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
-      url: safeBrowserPlaceUrl(item && item.url),
-      title: String(item && item.title || '').trim().slice(0, 240),
-      visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
-    })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
-    writeJsonAtomic(file, {
-      history: clean(places && places.history),
-      bookmarks: clean(places && places.bookmarks),
-    });
-  } catch (_) {}
+  browserPlacesCache = normalizeBrowserPlaces(places);
+  browserPlacesDirty = true;
+  return flushBrowserPlaces();
+}
+
+function setBrowserPlaces(places, { broadcast = true } = {}) {
+  const next = normalizeBrowserPlaces(places);
+  const previous = browserPlacesCache || readBrowserPlaces();
+  if (JSON.stringify(previous) === JSON.stringify(next)) return false;
+  browserPlacesCache = next;
+  browserPlacesDirty = true;
+  if (browserPlacesSaveTimer) clearTimeout(browserPlacesSaveTimer);
+  browserPlacesSaveTimer = setTimeout(() => flushBrowserPlaces(), 400);
+  if (typeof browserPlacesSaveTimer.unref === 'function') browserPlacesSaveTimer.unref();
+  if (broadcast) sendBrowserEvent({ type: 'places', places: browserPlacesSnapshot() });
+  return true;
 }
 
 function browserPlacesSnapshot() {
@@ -1342,12 +1541,14 @@ function rememberBrowserVisit(url, title = '') {
   const places = readBrowserPlaces();
   const now = Date.now();
   const previous = places.history.find((item) => item.url === safeUrl);
+  const nextTitle = String(title || (previous && previous.title) || '').trim().slice(0, 240);
+  const first = places.history[0];
+  if (first && first.url === safeUrl && first.title === nextTitle) return;
   places.history = [
-    { url: safeUrl, title: String(title || (previous && previous.title) || '').trim().slice(0, 240), visitedAt: now },
+    { url: safeUrl, title: nextTitle, visitedAt: now },
     ...places.history.filter((item) => item.url !== safeUrl),
   ].slice(0, BROWSER_PLACE_LIMIT);
-  writeBrowserPlaces(places);
-  sendBrowserEvent({ type: 'places', places: browserPlacesSnapshot() });
+  setBrowserPlaces(places);
 }
 
 function sendBrowserEvent(tabOrPayload, maybePayload) {
@@ -1519,6 +1720,12 @@ function browserLoadErrorMessage(code, description) {
   if (Number(code) === -356 || /ERR_QUIC_PROTOCOL_ERROR/i.test(raw)) {
     return 'VPN bağlantısı QUIC protokolünü tamamlayamadı; uygulamayı yeniden başlatıp tekrar deneyin.';
   }
+  if (Number(code) === -102 || /ERR_CONNECTION_REFUSED/i.test(raw)) {
+    return 'Site bağlantıyı reddetti. Adresi, VPN/proxy ayarını ve sitenin çalışır durumda olduğunu kontrol edin.';
+  }
+  if (Number(code) === -501 || /ERR_INSECURE_RESPONSE/i.test(raw)) {
+    return 'Site güvenli olmayan bir TLS/sertifika yanıtı verdi. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.';
+  }
   return raw;
 }
 
@@ -1528,7 +1735,28 @@ function browserSubtitleDir() {
   return dir;
 }
 
+function sweepBrowserSubtitleFiles(maxAgeMs = 30 * 24 * 60 * 60 * 1000, maxFiles = 1000) {
+  const dir = browserSubtitleDir();
+  let files = [];
+  try {
+    files = fs.readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^web-.*\.srt$/i.test(entry.name))
+      .map((entry) => {
+        const filePath = path.join(dir, entry.name);
+        try { return { filePath, mtimeMs: fs.statSync(filePath).mtimeMs }; } catch (_) { return null; }
+      }).filter(Boolean).sort((a, b) => b.mtimeMs - a.mtimeMs);
+  } catch (_) { return 0; }
+  const now = Date.now();
+  let removed = 0;
+  for (let index = 0; index < files.length; index++) {
+    if (index < maxFiles && now - files[index].mtimeMs < maxAgeMs) continue;
+    try { fs.unlinkSync(files[index].filePath); removed += 1; } catch (_) {}
+  }
+  return removed;
+}
+
 function resetBrowserCaptureState(options = {}) {
+  flushBrowserTrackPublications();
   browserStateGeneration += 1;
   const currentTab = activeBrowserTab();
   if (options.cancelTranslation && currentTab?.translationScheduler) {
@@ -1549,7 +1777,9 @@ function resetBrowserCaptureState(options = {}) {
   browserMediaBusy = false;
   browserLastCaptureDropped.clear();
   browserHlsFetchedSegments.clear();
+  browserHlsTimelines.clear();
   browserHlsInFlight.clear();
+  browserCaptureHookFrames = new WeakSet();
   browserLastDrmStatus = '';
   browserLastDrmFailure = '';
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
@@ -1568,11 +1798,17 @@ function resetBrowserCaptureState(options = {}) {
     acquisition: freshDiagnostics.acquisition,
     captureEnabled: browserCaptureEnabled,
   } : freshDiagnostics;
+  if (tab) tab.diagnostics = browserDiagnostics;
+  // Yeni acquisition kimliğini renderer'a, bu kimlikle gelecek kayıtlı izlerden
+  // önce bildir. Aksi halde BrowserTabEventGate kayıtlı subtitle-found olayını
+  // önceki sayfadan kalmış sayıp reddeder (özellikle Discovery gibi ilk izini
+  // çok erken sunan oynatıcılarda şerit "iz bekleniyor" durumunda kalıyordu).
+  publishBrowserDiagnostics();
   if (options.restorePersisted !== false && restorePersistedBrowserTracks(tab)) {
     browserDiagnostics.acquisition = tab.acquisitionPlan.snapshot();
+    if (tab) tab.diagnostics = browserDiagnostics;
+    publishBrowserDiagnostics();
   }
-  if (tab) tab.diagnostics = browserDiagnostics;
-  publishBrowserDiagnostics();
 }
 
 function browserCaptureToggleScript(enabled) {
@@ -1658,6 +1894,12 @@ function browserMangaTranslationConfig(overrides = {}) {
     apiKey: String(manga.apiKey || inherited.apiKey || ''),
     endpoint: endpoint || inherited.endpoint,
     model: String(manga.model || ui.mangaModel || inherited.model),
+    targetLanguage: String(overrides.targetLanguage || manga.targetLanguage || ui.browserMangaTarget || inherited.targetLanguage || 'tr').slice(0, 24),
+    workers: Math.max(1, Math.min(6, Number(overrides.workers || manga.workers || ui.browserMangaWorkers) || 2)),
+    maxImages: Math.max(1, Math.min(120, Number(overrides.maxImages || manga.maxImages || ui.browserMangaMaxImages) || 48)),
+    fontScale: Math.max(.7, Math.min(1.7, Number(overrides.fontScale || manga.fontScale || (Number(ui.browserMangaFontScale) / 100)) || 1)),
+    verticalText: overrides.verticalText === undefined ? !!(manga.verticalText ?? ui.browserMangaVertical) : !!overrides.verticalText,
+    sfxStyle: overrides.sfxStyle === undefined ? (manga.sfxStyle ?? ui.browserMangaSfx) !== false : !!overrides.sfxStyle,
   };
 }
 
@@ -1666,11 +1908,50 @@ function safeTranslationEndpoint(raw) {
     const url = new URL(String(raw || ''));
     const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
     if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) return '';
-    url.pathname = `${url.pathname.replace(/\/+$/, '')}/chat/completions`;
+    const pathname = url.pathname.replace(/\/+$/, '');
+    url.pathname = /\/chat\/completions$/i.test(pathname)
+      ? pathname : `${pathname}/chat/completions`;
     url.search = '';
     url.hash = '';
     return url.href;
   } catch (_) { return ''; }
+}
+
+async function readResponseBufferLimited(response, maxBytes, label = 'Servis yanıtı') {
+  const limit = Math.max(1024, Number(maxBytes) || 1024);
+  const declared = Number(response?.headers?.get?.('content-length') || 0);
+  if (declared > limit) throw new Error(`${label} güvenli boyut sınırını aşıyor.`);
+  if (!response?.body?.getReader) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > limit) throw new Error(`${label} güvenli boyut sınırını aşıyor.`);
+    return buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > limit) {
+        await reader.cancel().catch(() => {});
+        throw new Error(`${label} güvenli boyut sınırını aşıyor.`);
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+  return Buffer.concat(chunks, total);
+}
+
+async function readJsonResponseLimited(response, maxBytes, label) {
+  const text = (await readResponseBufferLimited(response, maxBytes, label)).toString('utf8')
+    .replace(/^\uFEFF/, '');
+  try { return JSON.parse(text); }
+  catch (_) { throw new Error(`${label || 'Servis yanıtı'} geçerli JSON değil.`); }
 }
 
 async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
@@ -1679,9 +1960,18 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint)) {
     throw new Error('Canlı web çevirisi için API anahtarı girilmemiş.');
   }
-  const glossary = config.glossary.map((item) => typeof item === 'string'
+  const glossaryEntries = config.glossary.map((item) => typeof item === 'string'
     ? item : `${item.source || item.from || ''}=${item.target || item.to || ''}`)
-    .filter(Boolean).join(' | ').slice(0, 6000);
+    .map((item) => String(item).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const acceptedGlossary = [];
+  let glossaryLength = 0;
+  for (const entry of glossaryEntries) {
+    const extra = entry.length + (acceptedGlossary.length ? 3 : 0);
+    if (glossaryLength + extra > 6000) break;
+    acceptedGlossary.push(entry);
+    glossaryLength += extra;
+  }
+  const glossary = acceptedGlossary.join(' | ');
   const system = [
     `Profesyonel bir altyazı çevirmenisin. Metni ${config.targetLanguage} diline doğal ve anlam odaklı çevir.`,
     'Yalnız çeviriyi döndür; açıklama, JSON veya Markdown ekleme.',
@@ -1696,6 +1986,7 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   const timeout = setTimeout(() => requestController.abort(new Error('Çeviri isteği 20 saniyede yanıt vermedi.')), 20000);
   timeout.unref?.();
   let response;
+  let data;
   try {
     response = await fetch(endpoint, {
       method: 'POST', signal: requestController.signal,
@@ -1712,16 +2003,16 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
         ],
       }),
     });
+    if (!response.ok) {
+      const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü.`);
+      error.httpStatus = response.status;
+      throw error;
+    }
+    data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', forwardAbort);
   }
-  if (!response.ok) {
-    const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü.`);
-    error.httpStatus = response.status;
-    throw error;
-  }
-  const data = await response.json();
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
   return text.trim().replace(/^```(?:text)?\s*|\s*```$/gi, '').trim();
@@ -1757,7 +2048,7 @@ function stopBrowserManga(tab, clearOverlay = true) {
   tab.mangaPages?.clear();
   let clearing = Promise.resolve([]);
   if (clearOverlay && tab.view && !tab.view.webContents.isDestroyed()) {
-    clearing = executeBrowserViewFrames(tab.view, mangaClearScript()).catch(() => []);
+    clearing = executeBrowserTrustedMain(tab.view, mangaClearScript()).catch(() => []);
     tab.mangaClearPromise = clearing;
     tab.mangaTranslated = 0;
     tab.mangaVisible = false;
@@ -1765,8 +2056,23 @@ function stopBrowserManga(tab, clearOverlay = true) {
   return clearing;
 }
 
+const MAX_MANGA_IMAGE_BYTES = 14 * 1024 * 1024;
+const MAX_MANGA_IMAGE_BASE64_CHARS = Math.ceil(MAX_MANGA_IMAGE_BYTES / 3) * 4;
+
+function supportedMangaDataUrl(raw) {
+  const value = String(raw || '');
+  const comma = value.indexOf(',');
+  // Buffer oluşturmadan önce reddet. Uzak sayfanın dev bir data URL ile ana
+  // sürecin belleğini geçici olarak şişirmesine izin verme.
+  return comma >= 0
+    && value.length - comma - 1 <= MAX_MANGA_IMAGE_BASE64_CHARS
+    && /^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=]+$/i.test(value);
+}
+
 function dataUrlMangaImage(raw) {
-  const match = String(raw || '').match(/^data:(image\/(?:png|jpe?g|webp));base64,([a-z0-9+/=]+)$/i);
+  const value = String(raw || '');
+  if (!supportedMangaDataUrl(value)) return null;
+  const match = value.match(/^data:(image\/(?:png|jpe?g|webp));base64,([a-z0-9+/=]+)$/i);
   if (!match) return null;
   const buffer = Buffer.from(match[2], 'base64');
   return buffer.length ? { buffer, mimeType: match[1].toLowerCase().replace('jpg', 'jpeg') } : null;
@@ -1777,24 +2083,89 @@ async function assertPublicMangaImageHost(rawUrl) {
   const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (isIP(host)) {
     if (!isPublicMangaIpAddress(host)) throw new Error('Görsel özel veya ayrılmış bir ağ adresine yöneliyor.');
-    return;
+    return { address: host, family: isIP(host) };
   }
   let addresses;
   try {
     addresses = await withTimeout(dns.lookup(host, { all: true, verbatim: true }), 3500,
       'Görsel alan adının ağ adresi doğrulanamadı.');
   } catch (error) {
-    throw new Error(error?.message || 'Görsel alan adı çözümlenemedi.');
+    const wrapped = new Error(error?.message || 'Görsel alan adı çözümlenemedi.');
+    if (error?.code) wrapped.code = error.code;
+    throw wrapped;
   }
   if (!addresses.length || addresses.some((item) => !isPublicMangaIpAddress(item.address))) {
     throw new Error('Görsel alan adı özel veya ayrılmış bir ağ adresine çözümleniyor.');
   }
+  return { address: addresses[0].address, family: Number(addresses[0].family) || isIP(addresses[0].address) };
+}
+
+function mangaRequestReferrer(pageUrl, imageUrl) {
+  try {
+    const page = new URL(pageUrl);
+    const image = new URL(imageUrl);
+    if (!/^https?:$/.test(page.protocol)) return '';
+    return page.origin === image.origin ? page.href : `${page.origin}/`;
+  } catch (_) { return ''; }
+}
+
+async function requestPinnedMangaImage(browserSession, imageUrl, pageUrl, signal) {
+  const pinned = await assertPublicMangaImageHost(imageUrl);
+  const parsed = new URL(imageUrl);
+  const cookies = await browserSession.cookies.get({ url: imageUrl }).catch(() => []);
+  const headers = {
+    Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5',
+    'User-Agent': sanitizeBrowserUserAgent(browserSession.getUserAgent?.() || app.userAgentFallback || ''),
+  };
+  const referrer = mangaRequestReferrer(pageUrl, imageUrl);
+  if (referrer) headers.Referer = referrer;
+  if (cookies.length) headers.Cookie = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
+  const transport = parsed.protocol === 'https:' ? https : http;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+      callback(value);
+    };
+    const request = transport.request(parsed, {
+      method: 'GET', headers, agent: false,
+      // DNS doğrulamasıyla bağlantı aynı IP'yi kullanır; yeniden çözümleme yoktur.
+      lookup: (_hostname, options, callback) => options?.all
+        ? callback(null, [pinned])
+        : callback(null, pinned.address, pinned.family),
+    }, (response) => {
+      const chunks = [];
+      let size = 0;
+      response.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > 14 * 1024 * 1024) {
+          request.destroy(new Error('Görsel 14 MB sınırını aşıyor.'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on('end', () => finish(resolve, {
+        status: Number(response.statusCode) || 0,
+        headers: response.headers || {},
+        buffer: Buffer.concat(chunks),
+      }));
+      response.on('error', (error) => finish(reject, error));
+    });
+    const onAbort = () => request.destroy(signal?.reason || new Error('Manga çevirisi iptal edildi.'));
+    request.setTimeout(30_000, () => request.destroy(new Error('Manga görseli 30 saniyede indirilemedi.')));
+    request.on('error', (error) => finish(reject, error));
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+    request.end();
+  });
 }
 
 function mangaRetryableDownloadError(error) {
   const status = Number(error?.httpStatus) || 0;
   if ([408, 425, 429].includes(status) || status >= 500) return true;
-  return !status && /(?:abort|timeout|timed out|network|fetch|socket|econn|dns|resolve)/i.test(
+  return !status && /(?:abort|timeout|timed out|etimedout|enotfound|eai_again|network|fetch|socket|econn|dns|resolve)/i.test(
     `${error?.name || ''} ${error?.code || ''} ${error?.message || ''}`);
 }
 
@@ -1834,37 +2205,32 @@ async function fetchMangaImageSource(sourceUrl, pageUrl, signal) {
     let response;
     try {
       for (let redirects = 0; redirects <= 4; redirects++) {
-        await assertPublicMangaImageHost(imageUrl);
-        response = await browserSession.fetch(imageUrl, {
-          method: 'GET', signal: downloadController.signal, redirect: 'manual', credentials: 'include',
-          cache: 'force-cache',
-          referrer: /^https?:\/\//i.test(pageUrl) ? pageUrl : undefined,
-          referrerPolicy: 'strict-origin-when-cross-origin',
-          headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.5' },
-        });
+        response = await requestPinnedMangaImage(
+          browserSession, imageUrl, pageUrl, downloadController.signal
+        );
         if (![301, 302, 303, 307, 308].includes(response.status)) break;
-        const location = response.headers.get('location');
+        const location = response.headers.location;
         if (!location || redirects === 4) throw new Error('Görsel çok fazla kez yönlendirildi.');
         imageUrl = new URL(location, imageUrl).href;
         if (!isSafeMangaImageUrl(imageUrl)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
       }
-      if (!response.ok) {
+      if (response.status < 200 || response.status >= 300) {
         const error = new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
         error.httpStatus = response.status;
+        error.mangaImageDownload = true;
         throw error;
       }
-      if (response.url && !isSafeMangaImageUrl(response.url)) throw new Error('Görsel güvenli olmayan bir adrese yönlendirildi.');
-      const length = Number(response.headers.get('content-length')) || 0;
-      if (length > 14 * 1024 * 1024) throw new Error('Görsel 14 MB sınırını aşıyor.');
-      mimeType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      const length = Number(response.headers['content-length']) || 0;
+      if (length > MAX_MANGA_IMAGE_BYTES) throw new Error('Görsel 14 MB sınırını aşıyor.');
+      mimeType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
       if (!/^image\/(?:png|jpe?g|webp|gif|avif)$/.test(mimeType)) throw new Error('Adres desteklenen bir görsel döndürmedi.');
-      buffer = Buffer.from(await response.arrayBuffer());
+      buffer = response.buffer;
     } finally {
       clearTimeout(downloadTimer);
       signal?.removeEventListener('abort', forwardAbort);
     }
   }
-  if (!buffer.length || buffer.length > 14 * 1024 * 1024) throw new Error('Görsel boş veya 14 MB sınırından büyük.');
+  if (!buffer.length || buffer.length > MAX_MANGA_IMAGE_BYTES) throw new Error('Görsel boş veya 14 MB sınırından büyük.');
 
   const decoded = nativeImage.createFromBuffer(buffer);
   if (decoded.isEmpty()) throw new Error('Görsel çözülemedi.');
@@ -2012,8 +2378,13 @@ async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signa
       headers: { 'Content-Type': 'application/json', ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}) },
       body: JSON.stringify(body),
     });
-    if (response.ok) data = await response.json();
-    else errorDetail = String(await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
+    if (response.ok) {
+      data = await readJsonResponseLimited(response, 8 * 1024 * 1024, 'Görsel çeviri servisi yanıtı');
+    } else {
+      errorDetail = String((await readResponseBufferLimited(response, 64 * 1024,
+        'Görsel çeviri hata yanıtı').catch(() => Buffer.alloc(0))).toString('utf8'))
+        .replace(/\s+/g, ' ').slice(0, 300);
+    }
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', forwardAbort);
@@ -2054,7 +2425,7 @@ async function requestMangaTranslation(image, config, pageTitle, signal, focusRe
         if (signal?.aborted) throw error;
         const status = Number(error?.httpStatus) || 0;
         if (status === 429 && rateLimitRetries > 0) {
-          const attempt = 3 - rateLimitRetries;
+          const attempt = 2 - rateLimitRetries;
           rateLimitRetries -= 1;
           await waitForMangaRetry(signal, Number(error.retryAfterMs) || 1200 * (2 ** attempt));
           continue;
@@ -2075,8 +2446,9 @@ async function requestMangaTranslation(image, config, pageTitle, signal, focusRe
 }
 
 function fatalMangaBatchError(error) {
+  if (error?.mangaImageDownload) return false;
   const status = Number(error?.httpStatus) || 0;
-  if ([401, 403, 404, 422].includes(status)) return true;
+  if ([401, 403, 404].includes(status)) return true;
   if (status !== 400) return false;
   const message = String(error?.message || '').toLowerCase();
   // Bozuk veya fazla büyük tek görsel diğer sayfaların çevrilmesini
@@ -2091,7 +2463,12 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   const pageTitle = tab.restoredTitle || tab.view.webContents.getTitle();
   const key = mangaCacheKey(image.buffer, { ...config, pageTitle });
   let regions;
-  const cached = browserMangaCache().get(key);
+  let cached = browserMangaCache().get(key);
+  if (!cached) {
+    const legacyKey = legacyMangaCacheKey(image.buffer, { ...config, pageTitle });
+    cached = browserMangaCache().get(legacyKey);
+    if (cached) browserMangaCache().set(key, cached);
+  }
   if (cached) {
     try { regions = normalizeMangaRegions(JSON.parse(cached)); } catch (_) {}
   }
@@ -2110,8 +2487,9 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   if (!mangaJobIsCurrent(tab, job)) return { stale: true };
   if (!regions.length) return { translated: false, empty: true };
   regions = decorateMangaRegionColors(image, regions);
-  const applied = await executeBrowserViewFrames(tab.view, mangaOverlayScript({
-    id: candidate.id, regions, lang: config.targetLanguage,
+  const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
+    id: candidate.id, regions, lang: config.targetLanguage, fontScale: config.fontScale,
+    verticalText: config.verticalText, sfxStyle: config.sfxStyle, bridgeToken: tab.bridgeToken,
   }));
   if (applied.some(Boolean)) {
     tab.mangaPages.set(candidate.id, { candidate, regions, pageTitle, cacheKey: key });
@@ -2131,12 +2509,51 @@ function nearestMangaRegion(regions, targetBox) {
   })[0] || null;
 }
 
+function applyMangaEditFromPage(tab, payload) {
+  if (!tab || !payload || typeof payload !== 'object') return false;
+  if (!tab.bridgeToken || payload.bridgeToken !== tab.bridgeToken) return false;
+  const page = tab.mangaPages?.get(String(payload.id || ''));
+  const index = Number(payload.index);
+  if (!page || !Number.isInteger(index) || index < 0 || index >= page.regions.length) return false;
+  const current = page.regions[index];
+  const currentTranslation = String(current.translation || '').trim().slice(0, 4000);
+  const previousTranslation = String(payload.pre ?? '').trim().slice(0, 4000);
+  // Bu bir güvenlik sınırı değildir: sayfa kendi overlay durumunu okuyabilir.
+  // Yine de kör/sırası geçmiş console mesajının güncel düzenlemeyi ezmesini önler.
+  if (previousTranslation !== currentTranslation
+      || (Object.hasOwn(payload, 'preHidden') && (payload.preHidden === true) !== (current.hidden === true))) return false;
+  const translation = String(payload.translation ?? current.translation ?? '').trim().slice(0, 4000);
+  page.regions[index] = { ...current, translation, hidden: payload.hidden === true };
+  browserMangaCache().set(page.cacheKey, JSON.stringify({ regions: page.regions }));
+  sendBrowserEvent(tab, {
+    type: 'manga-edit', imageId: String(payload.id || ''), index,
+    hidden: payload.hidden === true, translation,
+  });
+  return true;
+}
+
+function applyBrowserOverlayStyleFromPage(tab, payload) {
+  if (!tab || !payload || typeof payload !== 'object') return false;
+  if (!tab.bridgeToken || payload.bridgeToken !== tab.bridgeToken) return false;
+  const requested = Number(payload.bottomOffset);
+  if (!Number.isFinite(requested)) return false;
+  const bottomOffset = Math.max(0, Math.min(75, requested));
+  tab.overlay = {
+    ...(tab.overlay || {}),
+    style: { ...(tab.overlay?.style || {}), bottomOffset },
+  };
+  if (tab.id === browserActiveTabId) browserOverlay = tab.overlay;
+  sendBrowserEvent(tab, { type: 'overlay-style', style: { bottomOffset } });
+  scheduleBrowserSessionSave();
+  return true;
+}
+
 async function retrySelectedMangaRegion(tab) {
   if (!tab || tab.id !== browserActiveTabId || !tab.view || tab.view.webContents.isDestroyed()) {
     return { ok: false, error: 'Etkin tarayıcı sekmesi bulunamadı.' };
   }
   if (tab.mangaJob) return { ok: false, busy: true, error: 'Manga çevirisi zaten çalışıyor.' };
-  const selections = await executeBrowserViewFrames(tab.view, mangaSelectionScript()).catch(() => []);
+  const selections = await executeBrowserTrustedMain(tab.view, mangaSelectionScript()).catch(() => []);
   const selected = selections.find((item) => item && item.id && Number.isInteger(item.index));
   if (!selected) return { ok: false, error: 'Önce çevrilmiş bir manga metnine tıklayın.' };
   const page = tab.mangaPages.get(selected.id);
@@ -2157,18 +2574,23 @@ async function retrySelectedMangaRegion(tab) {
     });
     if (!fresh.length) throw new Error('Seçili bölgede çevrilecek metin bulunamadı.');
     const replacement = nearestMangaRegion(fresh, selected.bubbleBox);
-    const currentStates = await executeBrowserViewFrames(tab.view, mangaRegionsStateScript(selected.id)).catch(() => []);
+    const currentStates = await executeBrowserTrustedMain(tab.view, mangaRegionsStateScript(selected.id)).catch(() => []);
     const stateRows = currentStates.find((item) => Array.isArray(item) && item.length)
       || currentStates.find(Array.isArray) || [];
     const merged = page.regions.map((region, index) => {
       const local = stateRows.find((item) => item?.index === index);
-      return local?.translation ? { ...region, translation: local.translation } : region;
+      return local ? {
+        ...region,
+        translation: String(local.translation ?? region.translation ?? '').trim().slice(0, 4000),
+        hidden: local.hidden === true,
+      } : region;
     });
-    merged[selected.index] = replacement;
+    merged[selected.index] = { ...replacement, hidden: false };
     page.regions = decorateMangaRegionColors(image, merged);
     browserMangaCache().set(page.cacheKey, JSON.stringify({ regions: page.regions }));
-    const applied = await executeBrowserViewFrames(tab.view, mangaOverlayScript({
-      id: selected.id, regions: page.regions, lang: config.targetLanguage,
+    const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
+      id: selected.id, regions: page.regions, lang: config.targetLanguage, fontScale: config.fontScale,
+      verticalText: config.verticalText, sfxStyle: config.sfxStyle, bridgeToken: tab.bridgeToken,
     }));
     if (!applied.some(Boolean)) throw new Error('Güncellenen manga katmanı sayfaya uygulanamadı.');
     tab.mangaJob = null;
@@ -2193,35 +2615,52 @@ async function startBrowserManga(tab, options = {}) {
   if (tab.id !== browserActiveTabId || !tab.view || tab.view.webContents.isDestroyed()) {
     return { ok: false, error: 'Tarayıcı sekmesi manga taraması başlamadan değişti.' };
   }
-  const config = browserMangaTranslationConfig({ targetLanguage: options.targetLanguage });
+  // İki hızlı tıklama aynı temizleme promise'ini beklerken ilk kontrolü
+  // birlikte geçebilir. Bekleme sonrasında kilidi yeniden doğrula.
+  if (tab.mangaJob) return { ok: false, busy: true, error: 'Manga çevirisi zaten çalışıyor.' };
+  const config = browserMangaTranslationConfig(options);
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(safeTranslationEndpoint(config.endpoint))) {
     return { ok: false, error: 'Manga çevirisi için Gelişmiş ayarlar → Çeviri bölümünde API anahtarı girin.' };
   }
   const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
   tab.mangaJob = job;
-  tab.mangaTranslated = 0;
+  const retryCandidates = Array.isArray(options.retryCandidates) ? options.retryCandidates.filter(Boolean) : [];
+  const retryRun = retryCandidates.length > 0;
+  if (!retryRun) tab.mangaTranslated = 0;
   tab.mangaVisible = true;
-  tab.mangaPages.clear();
+  if (!retryRun) {
+    tab.mangaPages.clear();
+    tab.mangaFailures = [];
+  }
   sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: 0, translated: 0,
     message: 'Manga görsellerinin yüklenmesi bekleniyor…' });
-  await executeBrowserViewFrames(tab.view, mangaClearScript()).catch(() => {});
+  if (!retryRun) await executeBrowserTrustedMain(tab.view, mangaClearScript()).catch(() => {});
   const candidates = [];
   const ids = new Set();
   // MangaKatana gibi okuyucular gerçek src adresini sayfa açıldıktan sonra
   // JavaScript ile doldurur. Tek anlık tarama boş dönmesin; kısa süre boyunca
   // yüklenen adayları biriktir.
-  for (let attempt = 0; attempt < 6 && mangaJobIsCurrent(tab, job); attempt++) {
-    const frameResults = await executeBrowserViewFrames(tab.view, mangaCandidateScanScript()).catch(() => []);
+  let stableScans = 0;
+  let previousCount = -1;
+  for (let attempt = 0; !retryRun && attempt < 6 && mangaJobIsCurrent(tab, job); attempt++) {
+    // Aday taramasını da katmanı çizen güvenilir isolated world'de ve ana
+    // çerçevede çalıştır. Böylece alt çerçeveden seçilip üzerine katman
+    // yerleştirilemeyen görseller sonuç sayısını şişirmez.
+    const frameResult = await executeBrowserTrustedMain(tab.view, mangaCandidateScanScript()).catch(() => null);
+    const frameResults = frameResult ? [frameResult] : [];
     for (const frame of frameResults) for (const item of Array.isArray(frame) ? frame : []) {
       if (!item?.id || !item.url || ids.has(item.id)) continue;
-      if (!dataUrlMangaImage(item.url) && !isSafeMangaImageUrl(item.url)) continue;
+      if (!supportedMangaDataUrl(item.url) && !isSafeMangaImageUrl(item.url)) continue;
       ids.add(item.id); candidates.push(item);
     }
-    if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, 650));
+    stableScans = candidates.length === previousCount ? stableScans + 1 : 0;
+    previousCount = candidates.length;
+    if (stableScans >= 2 && candidates.length) break;
+    if (attempt < 5) await waitForMangaRetry(job.controller.signal, 650).catch(() => {});
   }
   if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
-  const limit = Math.max(1, Math.min(64, Number(options.maxImages) || 64));
-  const selected = selectMangaCandidates(candidates, limit);
+  const limit = Math.max(1, Math.min(120, Number(options.maxImages || config.maxImages) || 48));
+  const selected = retryRun ? retryCandidates.slice(0, limit) : selectMangaCandidates(candidates, limit);
   if (!selected.length) {
     tab.mangaJob = null;
     tab.mangaVisible = false;
@@ -2229,49 +2668,106 @@ async function startBrowserManga(tab, options = {}) {
     sendBrowserEvent(tab, { type: 'manga-state', state: 'error', completed: 0, total: 0, translated: 0, message: error });
     return { ok: false, error };
   }
-  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: 0, total: selected.length, translated: 0,
+  const baseTranslated = retryRun ? tab.mangaTranslated : 0;
+  const reportTotal = retryRun ? baseTranslated + selected.length : selected.length;
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: baseTranslated,
+    total: reportTotal, translated: baseTranslated, retryRun,
     message: `${selected.length} manga görseli bulundu; görsel çeviri servisine gönderiliyor…` });
   let cursor = 0;
   let completed = 0;
-  let translated = 0;
+  let translated = baseTranslated;
   let failed = 0;
   let empty = 0;
   let firstError = '';
+  const failures = [];
   const worker = async () => {
     while (mangaJobIsCurrent(tab, job) && !job.fatalError) {
       const index = cursor++;
       if (index >= selected.length) return;
       try {
-        const result = await translateMangaCandidate(tab, selected[index], config, job);
+        let result;
+        let lastError;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            result = await translateMangaCandidate(tab, selected[index], config, job);
+            lastError = null;
+            break;
+          } catch (error) {
+            lastError = error;
+            if (job.controller.signal.aborted || !mangaRetryableDownloadError(error) || attempt === 2) break;
+            await waitForMangaRetry(job.controller.signal,
+              Number(error?.retryAfterMs) || 1000 * (2 ** attempt));
+          }
+        }
+        if (lastError) throw lastError;
         if (result.translated) translated += 1;
         else if (result.empty) empty += 1;
       } catch (error) {
         if (job.controller.signal.aborted) return;
         failed += 1;
         if (!firstError) firstError = error?.message || 'Görsel çevrilemedi.';
+        failures.push({ candidate: selected[index], error: error?.message || 'Görsel çevrilemedi.',
+          retryable: mangaRetryableDownloadError(error) });
         if (fatalMangaBatchError(error)) job.fatalError = firstError;
       }
       completed += 1;
       if (mangaJobIsCurrent(tab, job)) {
         tab.mangaTranslated = translated;
-        sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed, total: selected.length, translated, failed, empty });
+        sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: baseTranslated + completed,
+          total: reportTotal, translated, failed, empty, retryRun });
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(2, selected.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(config.workers, selected.length) }, worker));
   if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
   tab.mangaJob = null;
   tab.mangaTranslated = translated;
+  tab.mangaFailures = failures;
   tab.mangaVisible = translated > 0;
   const state = translated ? 'ready' : (failed ? 'error' : 'empty');
   const skipped = failed + empty;
   const message = translated
     ? `${translated} manga görseli çevrildi${skipped ? `, ${skipped} görsel atlandı.` : '.'}`
     : (firstError || `${selected.length} görsel tarandı; çevrilecek metin bulunamadı.`);
-  sendBrowserEvent(tab, { type: 'manga-state', state, completed, total: selected.length, translated, failed,
-    empty, message });
-  return { ok: translated > 0 || (!failed && empty > 0), translated, failed, empty, total: selected.length,
+  sendBrowserEvent(tab, { type: 'manga-state', state, completed: baseTranslated + completed,
+    total: reportTotal, translated, failed, empty, retryRun,
+    retryable: failures.filter((item) => item.retryable).length, message });
+  return { ok: translated > 0 || (!failed && empty > 0), translated, failed, empty, total: reportTotal,
     error: translated || (!failed && empty > 0) ? '' : firstError || 'Görsellerde çevrilecek metin bulunamadı.' };
+}
+
+function retryFailedBrowserManga(tab) {
+  const candidates = (tab?.mangaFailures || []).filter((item) => item.retryable && item.candidate)
+    .map((item) => item.candidate);
+  if (!candidates.length) return Promise.resolve({ ok: false, error: 'Yeniden denenebilir manga sayfası yok.' });
+  return startBrowserManga(tab, { retryCandidates: candidates, maxImages: candidates.length });
+}
+
+function browserExportTitle(tab, fallback = 'web-sayfasi') {
+  return String(tab?.restoredTitle || tab?.view?.webContents?.getTitle?.() || fallback)
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || fallback;
+}
+
+async function saveBrowserPageCapture(tab, title = 'Tarayıcı ekran görüntüsünü kaydet') {
+  if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
+  let image;
+  try {
+    // Kullanıcı kayıt yerini seçerken video ve animasyon ilerleyebilir. Diyalog
+    // açılmadan önce anlık kareyi sabitle; iptal edilirse yalnız bellekten atılır.
+    image = await tab.view.webContents.capturePage();
+    if (image.isEmpty()) throw new Error('Sayfa görüntüsü boş döndü. DRM korumalı videolar görüntü yakalamayı engelleyebilir.');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title, defaultPath: path.join(app.getPath('pictures'), `${browserExportTitle(tab)}.png`),
+    filters: [{ name: 'PNG', extensions: ['png'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    fs.writeFileSync(result.filePath, image.toPNG());
+    return { ok: true, path: result.filePath };
+  } catch (error) { return { ok: false, error: error.message }; }
 }
 
 function startBrowserTranslation(tab, rawCues, options = {}) {
@@ -2312,7 +2808,15 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   tab.translationScheduler = scheduler;
   scheduler.setSentences(sentences);
   scheduler.updatePlayhead(tab.position || 0);
-  return { ok: true, sentenceCount: sentences.length, cueCount: cues.length, targetLanguage: config.targetLanguage };
+  // "Yukle ve cevir" bir onizleme degil, kullanicinin sectigi izin tamami
+  // icin verdigi bir komuttur. Oynatma penceresi updatePlayhead ile once
+  // siraya girdigi icin yakin cumleler yine onceliklidir; completeAll yalnizca
+  // geride kalan cumleleri ayni kuyruga ekler.
+  const queued = options.completeTrack === false ? scheduler.snapshot().queued : scheduler.completeAll();
+  return {
+    ok: true, sentenceCount: sentences.length, cueCount: cues.length,
+    targetLanguage: config.targetLanguage, completeTrack: options.completeTrack !== false, queued,
+  };
 }
 
 function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
@@ -2366,49 +2870,54 @@ function startBrowserLiveAsr(tab, options = {}) {
     { cwd: app.getAppPath(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (error) { return { ok: false, error: error.message }; }
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
-  const job = { proc, tab, context, cues: [], chunkFiles: new Set(), buffer: '', errorTail: '', ready: false, stopping: false };
+  const job = { proc, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false };
   browserLiveAsr = job;
   tab.acquisitionPlan?.updateConsent({ liveAsr: true });
   tab.acquisitionPlan?.start('live-asr');
   if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
   publishBrowserDiagnostics();
   proc.stdout.setEncoding('utf8');
-  proc.stdout.on('data', (chunk) => {
-    job.buffer += chunk;
-    const lines = job.buffer.split(/\r?\n/);
-    job.buffer = lines.pop() || '';
-    for (const line of lines) {
-      let event;
-      try { event = JSON.parse(line); } catch (_) { continue; }
-      if (browserLiveAsr !== job) continue;
-      if (event.type === 'ready') {
-        job.ready = true;
-        sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: true,
-          message: `Canlı Whisper hazır · ${event.model}` });
-      } else if (event.type === 'segment' && isCurrentBrowserContext(context)) {
-        job.cues.push({ id: `live-${job.cues.length}`, start: event.start, end: event.end, text: event.text });
-        const track = storeBrowserTrack(job.cues, {
-          language: event.language || language, label: 'Canlı sistem sesi · Whisper',
-          format: 'live-asr', sourceUrl: 'system-audio',
-          streamKey: `live-asr:${tab.id}:${tab.acquisitionId}`, context,
-        });
-        if (track && job.cues.length >= 2) {
-          tab.acquisitionPlan?.finish('live-asr', { success: true, trackCount: 1, reason: 'Sistem sesinden altyazı üretiliyor.' });
-          if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
-          publishBrowserDiagnostics();
-        }
-      } else if (event.type === 'chunk_done') {
-        const filePath = String(event.path || '');
-        job.chunkFiles.delete(filePath);
-        try { if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
-        if (event.error) sendBrowserEvent(tab, { type: 'live-asr-warning', message: event.error });
-      } else if (event.type === 'error') {
-        tab.acquisitionPlan?.finish('live-asr', { success: false, reason: event.message || 'Canlı Whisper hatası' });
+  const consumeLiveAsrLine = (line) => {
+    let event;
+    try { event = JSON.parse(line); } catch (_) { return; }
+    if (browserLiveAsr !== job) return;
+    if (event.type === 'ready') {
+      job.ready = true;
+      sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: true,
+        message: `Canlı Whisper hazır · ${event.model}` });
+    } else if (event.type === 'segment' && isCurrentBrowserContext(context)) {
+      const cue = { id: `live-${job.nextCueId++}`, start: event.start, end: event.end, text: event.text };
+      job.cues.push(cue);
+      if (job.cues.length > 20000) job.cues.splice(0, job.cues.length - 20000);
+      const track = storeBrowserTrack([cue], {
+        language: event.language || language, label: 'Canlı sistem sesi · Whisper',
+        format: 'live-asr', sourceUrl: 'system-audio',
+        streamKey: `live-asr:${tab.id}:${tab.acquisitionId}`, context,
+      });
+      if (track && job.cues.length >= 2) {
+        tab.acquisitionPlan?.finish('live-asr', { success: true, trackCount: 1, reason: 'Sistem sesinden altyazı üretiliyor.' });
         if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
         publishBrowserDiagnostics();
-        stopBrowserLiveAsr(event.message || 'Canlı Whisper hatası');
       }
+    } else if (event.type === 'chunk_done') {
+      const filePath = String(event.path || '');
+      job.chunkFiles.delete(filePath);
+      try { if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
+      if (event.error) sendBrowserEvent(tab, { type: 'live-asr-warning', message: event.error });
+    } else if (event.type === 'error') {
+      tab.acquisitionPlan?.finish('live-asr', { success: false, reason: event.message || 'Canlı Whisper hatası' });
+      if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
+      publishBrowserDiagnostics();
+      stopBrowserLiveAsr(event.message || 'Canlı Whisper hatası');
     }
+  };
+  const liveAsrLines = createNdjsonLineBuffer({
+    maxLineChars: 8 * 1024 * 1024,
+    onOverflow: () => sendBrowserEvent(tab, { type: 'live-asr-warning',
+      message: 'Canlı Whisper güvenli çıktı satırı sınırını aştı; olay atlandı.' }),
+  });
+  proc.stdout.on('data', (chunk) => {
+    for (const line of liveAsrLines.push(chunk)) consumeLiveAsrLine(line);
   });
   proc.stderr.setEncoding('utf8');
   proc.stderr.on('data', (chunk) => { job.errorTail = `${job.errorTail}${chunk}`.slice(-4000); });
@@ -2416,6 +2925,7 @@ function startBrowserLiveAsr(tab, options = {}) {
     if (browserLiveAsr === job) stopBrowserLiveAsr(`Canlı Whisper başlatılamadı: ${error.message}`);
   });
   proc.on('close', () => {
+    for (const line of liveAsrLines.flush()) consumeLiveAsrLine(line);
     for (const filePath of job.chunkFiles) {
       try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
     }
@@ -2524,22 +3034,81 @@ function restorePersistedBrowserTracks(tab) {
   return restored;
 }
 
+function publishBrowserTrackNow(entry) {
+  if (!entry) return null;
+  const { normalized, meta, tab, publicationKey, fingerprint } = entry;
+  const previousPublication = browserTrackPublications.get(publicationKey);
+  if (previousPublication?.fingerprint === fingerprint) return null;
+  const lang = String(meta.language || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
+  const suffix = lang ? `.${lang}` : '';
+  const stableId = previousPublication ? previousPublication.id : fingerprint;
+  const filePath = previousPublication?.path || path.join(browserSubtitleDir(), `web-${stableId}${suffix}.srt`);
+  fs.writeFileSync(filePath, `\uFEFF${cuesToSrt(normalized)}`, 'utf-8');
+  let track = {
+    id: stableId, path: filePath, language: lang,
+    label: String(meta.label || lang || 'Web altyazısı').slice(0, 120),
+    format: String(meta.format || 'web'), cueCount: normalized.length,
+    updatedAt: Date.now(),
+    pageUrl: tab && tab.view && !tab.view.webContents.isDestroyed() ? tab.view.webContents.getURL() : '',
+    sourceUrl: String(meta.sourceUrl || '').slice(0, 1000),
+  };
+  track = persistBrowserTrack(tab, track, normalized, meta);
+  browserTrackPublications.set(publicationKey, { fingerprint, id: stableId, path: filePath });
+  while (browserTrackPublications.size > 128) {
+    const oldestKey = browserTrackPublications.keys().next().value;
+    const oldest = browserTrackPublications.get(oldestKey);
+    browserTrackPublications.delete(oldestKey);
+    try { if (oldest?.path && fs.existsSync(oldest.path)) fs.unlinkSync(oldest.path); } catch (_) {}
+  }
+  sendBrowserEvent(tab, { type: 'subtitle-found', track });
+  return track;
+}
+
+function flushBrowserTrackPublication(publicationKey) {
+  const timer = browserTrackPublicationTimers.get(publicationKey);
+  if (timer) clearTimeout(timer);
+  browserTrackPublicationTimers.delete(publicationKey);
+  const entry = browserTrackPendingPublications.get(publicationKey);
+  browserTrackPendingPublications.delete(publicationKey);
+  return publishBrowserTrackNow(entry);
+}
+
+function flushBrowserTrackPublications() {
+  for (const key of [...browserTrackPendingPublications.keys()]) {
+    try { flushBrowserTrackPublication(key); } catch (_) {}
+  }
+}
+
 function storeBrowserTrack(cues, meta = {}) {
   const context = meta.context || null;
   if (context && !isCurrentBrowserContext(context)) return null;
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
-  let normalized = normalizeCues(cues).slice(0, 20000);
+  let normalized = normalizeCues(cues).slice(-20000);
   if (!normalized.length) return null;
   const streamKey = String(meta.streamKey || '');
   if (streamKey) {
     const previous = browserTrackBuffers.get(streamKey) || [];
-    const merged = [...previous, ...normalized]
-      .sort((a, b) => a.start - b.start || a.end - b.end)
-      .filter((cue, index, all) => index === 0
-        || Math.abs(cue.start - all[index - 1].start) > 0.015
-        || cue.text !== all[index - 1].text)
-      .slice(0, 20000);
+    let merged;
+    // Canlı ASR/HLS çoğunlukla tek, zaman sıralı cue ekler. Her eklemede bütün
+    // geçmişi kopyalayıp sıralamak uzun yayınlarda O(N²) olur; hızlı ekleme
+    // yolunda aynı sınırlı tamponu yerinde güncelle.
+    if (normalized.length === 1 && previous.length
+        && normalized[0].start >= previous[previous.length - 1].start) {
+      const cue = normalized[0];
+      const last = previous[previous.length - 1];
+      if (Math.abs(cue.start - last.start) > 0.015 || cue.text !== last.text) previous.push(cue);
+      if (previous.length > 20000) previous.splice(0, previous.length - 20000);
+      merged = previous;
+    } else {
+      merged = [...previous, ...normalized]
+        .sort((a, b) => a.start - b.start || a.end - b.end)
+        .filter((cue, index, all) => index === 0
+          || Math.abs(cue.start - all[index - 1].start) > 0.015
+          || cue.text !== all[index - 1].text)
+        .slice(-20000);
+    }
     browserTrackBuffers.set(streamKey, merged);
+    trimInsertionCollection(browserTrackBuffers, 64);
     normalized = merged;
   }
   if (normalized.length < 2) return null;
@@ -2548,43 +3117,59 @@ function storeBrowserTrack(cues, meta = {}) {
   const publicationKey = streamKey || fingerprint;
   const previousPublication = browserTrackPublications.get(publicationKey);
   if (previousPublication && previousPublication.fingerprint === fingerprint) return null;
-  const lang = String(meta.language || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
-  const suffix = lang ? `.${lang}` : '';
-  const stableId = previousPublication ? previousPublication.id : fingerprint;
-  const filePath = previousPublication?.path || path.join(browserSubtitleDir(), `web-${stableId}${suffix}.srt`);
-  fs.writeFileSync(filePath, `\uFEFF${cuesToSrt(normalized)}`, 'utf-8');
-  let track = {
-    id: stableId,
-    path: filePath,
-    language: lang,
-    label: String(meta.label || lang || 'Web altyazısı').slice(0, 120),
-    format: String(meta.format || 'web'),
-    cueCount: normalized.length,
-    // Renderer, segmentli bir akisin hâlâ büyüyüp büyümediğini bununla anlar;
-    // ilk küçük parça yazılır yazılmaz eksik dosyayı çevirmeye başlamaz.
-    updatedAt: Date.now(),
-    pageUrl: tab && tab.view && !tab.view.webContents.isDestroyed() ? tab.view.webContents.getURL() : '',
-    sourceUrl: String(meta.sourceUrl || '').slice(0, 1000),
-  };
-  track = persistBrowserTrack(tab, track, normalized, meta);
-  browserTrackPublications.set(publicationKey, { fingerprint, id: stableId, path: filePath });
-  sendBrowserEvent(tab, { type: 'subtitle-found', track });
-  return track;
+  const pending = browserTrackPendingPublications.get(publicationKey);
+  if (pending?.fingerprint === fingerprint) return null;
+  const entry = { normalized, meta: { ...meta }, tab, publicationKey, fingerprint };
+  if (!streamKey || meta.finalize === true) return publishBrowserTrackNow(entry);
+  browserTrackPendingPublications.set(publicationKey, entry);
+  const oldTimer = browserTrackPublicationTimers.get(publicationKey);
+  if (oldTimer) clearTimeout(oldTimer);
+  const timer = setTimeout(() => {
+    try { flushBrowserTrackPublication(publicationKey); } catch (_) {}
+  }, 650);
+  timer.unref?.();
+  browserTrackPublicationTimers.set(publicationKey, timer);
+  return null;
 }
 
 async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null) {
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
   if (context && !isCurrentBrowserContext(context)) throw new Error('Tarayıcı sekmesi değişti.');
   if (!tab || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Tarayıcı kapalı.');
-  const safe = normalizeBrowserUrl(url);
-  if (!safe) throw new Error('Geçersiz altyazı adresi.');
+  let safe;
+  try {
+    const parsed = new URL(String(url || ''));
+    if (!/^https?:$/.test(parsed.protocol) || parsed.username || parsed.password) throw new Error('Geçersiz protokol.');
+    parsed.hash = '';
+    // İstek URL'si kimlik/oturum URL'si değildir: imzalı CDN parametrelerini
+    // silmek kaynağı geçersiz kılar. Yalnız protokol ve kullanıcı bilgisi
+    // doğrulanır; sorgu dizesi yakalandığı biçimde korunur.
+    safe = parsed.href;
+  } catch (_) {
+    throw new Error('Geçersiz altyazı adresi.');
+  }
+  if (safe.length > 8192) throw new Error('Altyazı adresi güvenli uzunluk sınırını aşıyor.');
   // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
   // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
   // page-world fetch'e göre daha güvenilir.
   return withAbortTimeout(async (signal) => {
-    const response = await tab.view.webContents.session.fetch(safe, {
-      method: 'GET', credentials: 'include', redirect: 'follow', signal,
-    });
+    let requestUrl = safe;
+    let response;
+    for (let redirect = 0; redirect <= 5; redirect++) {
+      response = await tab.view.webContents.session.fetch(requestUrl, {
+        method: 'GET', credentials: 'include', redirect: 'manual', signal,
+      });
+      if (![301, 302, 303, 307, 308].includes(response.status)) break;
+      if (redirect === 5) throw new Error('Altyazı adresi çok fazla yönlendirme yaptı.');
+      const location = response.headers.get('location');
+      if (!location) throw new Error('Altyazı yönlendirmesi hedef adres içermiyor.');
+      const redirected = new URL(location, requestUrl);
+      if (!/^https?:$/.test(redirected.protocol) || redirected.username || redirected.password || redirected.href.length > 8192) {
+        throw new Error('Altyazı yönlendirmesi güvenli değil.');
+      }
+      redirected.hash = '';
+      requestUrl = redirected.href;
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const length = Number(response.headers.get('content-length') || 0);
     if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
@@ -2596,7 +3181,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
 }
 
 async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024, context = null) {
-  return (await fetchBrowserBuffer(url, maxBytes, context)).toString('utf-8');
+  return decodeSubtitleBuffer(await fetchBrowserBuffer(url, maxBytes, context)).text;
 }
 
 async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null) {
@@ -2646,8 +3231,32 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
   try {
     const fetched = browserHlsFetchedSegments.get(streamKey) || new Set();
     browserHlsFetchedSegments.set(streamKey, fetched);
-    const parts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600)
-      .filter((segment) => !fetched.has(segment.url));
+    trimInsertionCollection(browserHlsFetchedSegments, 64);
+    const parsedParts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600);
+    const timeline = browserHlsTimelines.get(streamKey) || { starts: new Map(), nextSequence: null, nextStart: 0 };
+    const anchor = parsedParts.find((segment) => timeline.starts.has(segment.sequence));
+    let timelineOffset = anchor ? timeline.starts.get(anchor.sequence) - anchor.start : 0;
+    if (!anchor && parsedParts.length && Number.isFinite(timeline.nextSequence)
+        && parsedParts[0].sequence >= timeline.nextSequence) {
+      const gap = parsedParts[0].sequence - timeline.nextSequence;
+      timelineOffset = timeline.nextStart + gap * (parsedParts[0].targetDuration || 0) - parsedParts[0].start;
+    }
+    for (const segment of parsedParts) {
+      segment.start += timelineOffset;
+      timeline.starts.set(segment.sequence, segment.start);
+    }
+    if (parsedParts.length) {
+      const last = parsedParts[parsedParts.length - 1];
+      timeline.nextSequence = last.sequence + 1;
+      timeline.nextStart = last.start + last.duration;
+      while (timeline.starts.size > 4000) timeline.starts.delete(timeline.starts.keys().next().value);
+      browserHlsTimelines.set(streamKey, timeline);
+      trimInsertionCollection(browserHlsTimelines, 64);
+    }
+    const parts = parsedParts.map((segment) => ({
+      ...segment,
+      fetchKey: `${segment.discontinuity}:${segment.sequence}:${segment.url}`,
+    })).filter((segment) => !fetched.has(segment.fetchKey));
     if (!parts.length) return false;
     const collected = [];
     // Yalnızca yeni segmentleri indir; canlı playlist her yenilendiğinde eski
@@ -2664,11 +3273,11 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
           collected.push(...part.cues.map((cue) => likelyLocalTimeline
             ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
             : cue));
-          fetched.add(segment.url);
+          fetched.add(segment.fetchKey);
           return true;
         } catch (_) {
           // Başarısız segmenti tekrar denenebilir bırak.
-          fetched.delete(segment.url);
+          fetched.delete(segment.fetchKey);
           return false;
         }
       }));
@@ -2699,7 +3308,7 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
   if (context && !isCurrentBrowserContext(context)) return CAPTURE_DISCARDED;
   if (context && !candidate.context) candidate = { ...candidate, context };
   try {
-    const body = responseBuffer.toString('utf-8');
+    const body = decodeSubtitleBuffer(responseBuffer).text;
     const mime = String(candidate.mimeType || '').toLowerCase();
     const isManifest = /mpegurl|dash\+xml/i.test(mime) || /\.(m3u8|mpd)(?:[?#]|$)/i.test(candidate.url || '');
     if (isManifest) {
@@ -2784,7 +3393,10 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
           // Geçici CDN/VPN hataları child fetch'lerde tekrar denenir; yine de
           // tamamen başarısız bir işleme durumunda aynı manifest yeniden ele
           // alınabilsin diye işaret ancak işlem tamamlandıktan sonra yazılır.
-          if (manifestHandled) browserSeenManifests.set(manifestKey, fingerprint);
+          if (manifestHandled) {
+            browserSeenManifests.set(manifestKey, fingerprint);
+            trimInsertionCollection(browserSeenManifests, 128);
+          }
           return manifestHandled ? CAPTURE_PROCESSED : CAPTURE_RETRY;
         } finally {
           browserManifestInFlight.delete(manifestToken);
@@ -2891,15 +3503,29 @@ async function attachBrowserDebugger() {
   }
 }
 
+function ensureBrowserDebugger() {
+  if (browserDebuggerReady) return Promise.resolve(true);
+  if (browserDebuggerAttachPromise) return browserDebuggerAttachPromise;
+  const attempt = attachBrowserDebugger().then(() => browserDebuggerReady).finally(() => {
+    if (browserDebuggerAttachPromise === attempt) browserDebuggerAttachPromise = null;
+  });
+  browserDebuggerAttachPromise = attempt;
+  return attempt;
+}
+
 function browserTrackProbeScript() {
   return `(async () => {
-    const roots = [document];
-    for (let i = 0; i < roots.length; i++) {
-      for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+    let video = window.__whisperMediaController?.select?.() || null;
+    if (!video) {
+      const roots = [document];
+      for (let i = 0; i < roots.length; i++) {
+        for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+      }
+      const videos = roots.flatMap(root => [...root.querySelectorAll('video')]);
+      video = videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
     }
-    const videos = roots.flatMap(root => [...root.querySelectorAll('video')]);
-    const video = videos.sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
     if (!video) return [];
+    const probeState = window.__whisperTrackProbeState || (window.__whisperTrackProbeState = { seen: new WeakMap() });
     const tracks = [];
     const changed = [];
     for (const track of [...(video.textTracks || [])]) {
@@ -2913,16 +3539,26 @@ function browserTrackProbeScript() {
     }
     if (changed.length) await new Promise(resolve => setTimeout(resolve, 450));
     for (const track of [...(video.textTracks || [])]) {
-      const list = track.cues ? [...track.cues].slice(0, 20000) : [];
+      const cueList = track.cues || null;
+      const count = cueList ? Math.min(cueList.length, 20000) : 0;
       if (changed.includes(track)) {
         try { track.mode = 'disabled'; } catch (_) {}
       }
-      if (list.length < 2) continue;
+      if (count < 2) continue;
+      const signature = (cue) => cue ? Number(cue.startTime).toFixed(3) + '|' + Number(cue.endTime).toFixed(3) + '|' + String(cue.text || '') : '';
+      const previous = probeState.seen.get(track);
+      const tail = signature(cueList[count - 1]);
+      if (previous && previous.length === count && previous.tail === tail) continue;
+      const list = Array.from({ length: count }, (_, index) => cueList[index]);
+      let emitted = list;
+      if (previous && list.length > previous.length && previous.length > 0
+          && signature(list[previous.length - 1]) === previous.tail) emitted = list.slice(previous.length);
+      probeState.seen.set(track, { length: list.length, tail });
       const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
       tracks.push({
         language: track.language || '', label: track.label || track.language || 'HTML5 altyazı',
         sourceUrl: element ? (element.src || '') : '',
-        cues: list.map(c => ({ start: c.startTime, end: c.endTime, text: c.text || '' }))
+        cues: emitted.map(c => ({ start: c.startTime, end: c.endTime, text: c.text || '' }))
       });
     }
     return tracks;
@@ -2944,7 +3580,6 @@ function browserCaptureHookScript() {
       ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
     window.__whisperCaptureSeq = 0;
     window.__whisperCaptureDeliverySeq = 0;
-    window.__whisperSourceOffsets = [];
     const MAX_TEXT = 2 * 1024 * 1024;
     const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
     const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
@@ -2960,10 +3595,8 @@ function browserCaptureHookScript() {
       if (window.__whisperCaptureSeen.has(key)) return;
       window.__whisperCaptureSeen.add(key);
       if (window.__whisperCaptureSeen.size > 120) window.__whisperCaptureSeen.delete(window.__whisperCaptureSeen.values().next().value);
-      const offsets = window.__whisperSourceOffsets || [];
-      const recent = offsets.length ? offsets[offsets.length - 1] : null;
       const captureId = String(window.__whisperCaptureFrameId) + ':' + (++window.__whisperCaptureSeq);
-      window.__whisperCaptureQueue.push({ ...entry, captureId, captureKey: key, sourceOffset: recent ? recent.offset : 0 });
+      window.__whisperCaptureQueue.push({ ...entry, captureId, captureKey: key, retryCount: 0, retryAt: 0 });
       const inFlight = window.__whisperCaptureInFlight instanceof Map
         ? window.__whisperCaptureInFlight : new Map();
       window.__whisperCaptureInFlight = inFlight;
@@ -3031,23 +3664,6 @@ function browserCaptureHookScript() {
       }
       return originalSend.apply(this, args);
     };
-    if (window.SourceBuffer && SourceBuffer.prototype && typeof SourceBuffer.prototype.appendBuffer === 'function') {
-      const originalAppend = SourceBuffer.prototype.appendBuffer;
-      SourceBuffer.prototype.appendBuffer = function(data) {
-        try {
-          const offset = Number(this.timestampOffset);
-          if (Number.isFinite(offset)) {
-            const list = window.__whisperSourceOffsets;
-            const last = list[list.length - 1];
-            if (!last || Math.abs(last.offset - offset) > 0.001) {
-              list.push({ offset, at: performance.now(), bytes: data && data.byteLength || 0 });
-              window.__whisperSourceOffsets = list.slice(-24);
-            }
-          }
-        } catch (_) {}
-        return originalAppend.call(this, data);
-      };
-    }
     return true;
   })()`;
 }
@@ -3061,7 +3677,7 @@ function browserCaptureDrainScript() {
     const now = Date.now();
     const batch = [];
     for (const entry of queue) {
-      if (!entry || !entry.captureId || batch.length >= 32) continue;
+      if (!entry || !entry.captureId || batch.length >= 32 || Number(entry.retryAt) > now) continue;
       const lease = inFlight.get(entry.captureId);
       const leasedAt = lease && typeof lease === 'object' ? Number(lease.at) : Number(lease);
       if (lease && Number.isFinite(leasedAt) && now - leasedAt <= 15000) continue;
@@ -3114,11 +3730,25 @@ function browserCaptureReleaseScript(receipts) {
   return `(() => {
     const receipts = ${encoded};
     let released = 0;
+    const queue = Array.isArray(window.__whisperCaptureQueue) ? window.__whisperCaptureQueue : [];
     if (window.__whisperCaptureInFlight instanceof Map) {
       for (const receipt of receipts) {
         const lease = window.__whisperCaptureInFlight.get(receipt.captureId);
         if (!lease || typeof lease !== 'object' || lease.deliveryId !== receipt.deliveryId) continue;
         window.__whisperCaptureInFlight.delete(receipt.captureId);
+        const entry = queue.find((item) => item && item.captureId === receipt.captureId);
+        if (entry) {
+          entry.retryCount = (Number(entry.retryCount) || 0) + 1;
+          if (entry.retryCount >= 4) {
+            const index = queue.indexOf(entry);
+            if (index >= 0) queue.splice(index, 1);
+            if (entry.captureKey && window.__whisperCaptureSeen instanceof Set) {
+              window.__whisperCaptureSeen.delete(entry.captureKey);
+            }
+          } else {
+            entry.retryAt = Date.now() + Math.min(15000, 900 * (2 ** (entry.retryCount - 1)));
+          }
+        }
         released++;
       }
     }
@@ -3155,8 +3785,28 @@ async function executeBrowserViewFrames(view, script) {
   }
 }
 
+async function executeBrowserTrustedMain(view, script) {
+  if (!view || view.webContents.isDestroyed()) return [];
+  const work = view.webContents.executeJavaScriptInIsolatedWorld(
+    BROWSER_ISOLATED_WORLD_ID, [{ code: script }], true
+  );
+  return [await withTimeout(work, 5000, 'Tarayıcı sayfası yanıt vermedi.')];
+}
+
 function executeBrowserFrames(script) {
   return executeBrowserViewFrames(browserView, script);
+}
+
+async function ensureBrowserCaptureHooks() {
+  const frames = browserFrames();
+  const pending = frames.filter((frame) => !browserCaptureHookFrames.has(frame));
+  if (!pending.length) return 0;
+  const installed = await Promise.all(pending.map(async (frame) => {
+    const ok = await frame.executeJavaScript(browserCaptureHookScript(), true).catch(() => false);
+    if (ok) browserCaptureHookFrames.add(frame);
+    return !!ok;
+  }));
+  return installed.filter(Boolean).length;
 }
 
 async function performBrowserCaptureFlush({ installHook = true } = {}) {
@@ -3168,7 +3818,7 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
   let pendingBeforeAck = 0;
   try {
     if (installHook) {
-      await withTimeout(executeBrowserFrames(browserCaptureHookScript()), BROWSER_SCRIPT_TIMEOUT,
+      await withTimeout(ensureBrowserCaptureHooks(), BROWSER_SCRIPT_TIMEOUT,
         'Yakalama kancası zaman aşımına uğradı.');
     }
     const batches = await withTimeout(executeBrowserFrames(browserCaptureDrainScript()),
@@ -3186,6 +3836,7 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
       if (dropped > previousDropped) {
         noteBrowserCapture('page', { context }, 'error', `${dropped - previousDropped} yanıt yakalama kuyruğu kapasitesi aşıldığı için düştü`);
         browserLastCaptureDropped.set(frameId, dropped);
+        trimInsertionCollection(browserLastCaptureDropped, 64);
       }
       for (const entry of entries) {
         const captureId = entry && entry.captureId ? String(entry.captureId) : '';
@@ -3208,7 +3859,6 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
           const outcome = await processBrowserCapturedPayload(payload, {
             url: String(entry.url || ''),
             mimeType: String(entry.mimeType || ''),
-            sourceOffset: Number(entry.sourceOffset) || 0,
           }, 'page', context);
           if (!isCurrentBrowserContext(context)) return { stale: true, attempted, retried, pendingBeforeAck };
           if (receipt) (outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push(receipt);
@@ -3247,6 +3897,7 @@ function flushBrowserCaptureQueue({ allowHidden = false, force = false, installH
 }
 
 function startBrowserPolling() {
+  if (browserTrackTimer && browserCaptureTimer && browserMediaTimer) return;
   stopBrowserPolling();
   browserTrackTimer = setInterval(async () => {
     if (!browserCaptureEnabled || browserTrackBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
@@ -3275,7 +3926,13 @@ function startBrowserPolling() {
       if (generation === browserStateGeneration) browserTrackBusy = false;
     }
   }, 2600);
-  browserCaptureTimer = setInterval(() => { void flushBrowserCaptureQueue(); }, 900);
+  browserCaptureTimer = setInterval(() => {
+    if (!browserDebuggerReady) void ensureBrowserDebugger();
+    // Tam kanca yalnız yeni oluşan iframe'e kurulur; mevcut karelerde bu tur
+    // yalnız kuyruk drain eder. Discovery+ oynatıcı iframe'ini geç kurduğu için
+    // sabit 30 sn yenileme altyazının ilk isteğini kaçırabiliyordu.
+    void flushBrowserCaptureQueue({ installHook: true });
+  }, 900);
   browserMediaTimer = setInterval(async () => {
     if (browserMediaBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     browserMediaBusy = true;
@@ -3302,8 +3959,13 @@ function startBrowserPolling() {
         tab.volume = Math.max(0, Math.min(1, Number(media.volume) || 0));
         tab.muted = !!media.muted;
         tab.translationScheduler?.updatePlayhead(tab.position);
-        sendBrowserEvent(tab, { type: 'media', media });
-        scheduleBrowserSessionSave(1500);
+        const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+          Math.round(tab.volume * 100), tab.muted, !!media.paused].join('|');
+        if (mediaSignature !== tab.lastMediaEventSignature) {
+          tab.lastMediaEventSignature = mediaSignature;
+          sendBrowserEvent(tab, { type: 'media', media });
+          scheduleBrowserSessionSave(1500);
+        }
       }
     } catch (_) {} finally {
       if (generation === browserStateGeneration) browserMediaBusy = false;
@@ -3323,14 +3985,15 @@ function stopBrowserPolling() {
   browserMediaBusy = false;
 }
 
-function browserOverlayScript(payload) {
-  return buildBrowserOverlayScript(payload, browserActiveCuesAt.toString());
+function browserOverlayScript(payload, tab) {
+  const currentTab = tab || (typeof activeBrowserTab === 'function' ? activeBrowserTab() : null);
+  return buildBrowserOverlayScript({ ...payload, bridgeToken: currentTab?.bridgeToken || '' }, browserActiveCuesAt.toString());
 }
 
 async function applyBrowserOverlay() {
   if (!browserView || browserView.webContents.isDestroyed()) return false;
   try {
-    const results = await executeBrowserFrames(browserOverlayScript(browserOverlay));
+    const results = await executeBrowserTrustedMain(browserView, browserOverlayScript(browserOverlay));
     return results.some(Boolean);
   } catch (_) { return false; }
 }
@@ -3432,6 +4095,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   const view = new WebContentsView({
     webPreferences: {
       partition: BROWSER_PARTITION,
+      preload: path.join(__dirname, 'browser-preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -3455,11 +4119,15 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (!safe) return { action: 'deny' };
     let host = '';
     try { host = new URL(safe).hostname; } catch (_) {}
-    sendBrowserEvent(tab, { type: 'popup-opened', host });
+    sendBrowserEvent(tab, { type: 'popup-opened', host, capture: false });
     return { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() };
   });
-  wc.on('did-create-window', (popup) => {
+  wc.on('did-create-window', (popup, details = {}) => {
     popup.setMenuBarVisibility(false);
+    try {
+      const host = new URL(details.url || popup.webContents.getURL()).hostname;
+      if (host) popup.setTitle(`Web girişi · ${host}`);
+    } catch (_) {}
     popup.webContents.setWindowOpenHandler(({ url }) => normalizeBrowserUrl(url)
       ? { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() }
       : { action: 'deny' });
@@ -3472,6 +4140,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.mangaTranslated = 0;
     tab.mangaVisible = false;
     tab.generation += 1;
+    tab.bridgeToken = randomUUID();
     sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
       browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
@@ -3537,8 +4206,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('dom-ready', () => {
     if (tab.id !== browserActiveTabId) return;
-    attachBrowserDebugger();
-    if (browserCaptureEnabled) executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+    ensureBrowserDebugger();
+    if (browserCaptureEnabled) ensureBrowserCaptureHooks().catch(() => {});
     applyBrowserOverlay();
     reportBrowserDrmSupport();
   });
@@ -3602,7 +4271,18 @@ function detachBrowserDebugger(view) {
 async function activateBrowserTab(rawId) {
   const next = browserTabById(rawId);
   if (!next) return null;
-  if (next.id === browserActiveTabId && next.view && !next.view.webContents.isDestroyed()) return next;
+  if (next.id === browserActiveTabId && next.view && !next.view.webContents.isDestroyed()) {
+    browserView = ensureBrowserView(next);
+    browserCaptureEnabled = next.captureEnabled !== false;
+    browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
+    browserDiagnostics = next.diagnostics;
+    if (browserBounds) browserView.setBounds(browserBounds);
+    browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
+    if (browserVisible) startBrowserPolling();
+    if (browserCaptureEnabled) attachBrowserDebugger();
+    applyBrowserOverlay();
+    return next;
+  }
   const previous = activeBrowserTab();
   persistActiveBrowserTabState();
   stopBrowserPolling();
@@ -3629,7 +4309,7 @@ async function activateBrowserTab(rawId) {
   browserDiagnostics = next.diagnostics;
   resetBrowserCaptureState({ preserveDiagnostics: true });
   if (browserView && browserBounds) browserView.setBounds(browserBounds);
-  if (browserView) browserView.setVisible(browserVisible && !!browserNavigationState().url);
+  if (browserView) browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
   if (browserVisible) startBrowserPolling();
   if (browserCaptureEnabled) attachBrowserDebugger();
   applyBrowserOverlay();
@@ -3661,11 +4341,16 @@ function destroyBrowserTab(tab) {
   scheduleBrowserSessionSave();
 }
 
-function hideBrowserView(pause = true) {
+async function hideBrowserView(pause = true) {
   browserVisible = false;
   stopBrowserPolling();
   if (!browserView || browserView.webContents.isDestroyed()) return;
   browserView.setVisible(false);
+  await executeBrowserFrames(browserCaptureToggleScript(false)).catch(() => {});
+  browserCaptureHookFrames = new WeakSet();
+  detachBrowserDebugger(browserView);
+  browserDebuggerReady = false;
+  await flushBrowserCaptureQueue({ allowHidden: true, force: true, installHook: false }).catch(() => {});
   if (pause) executeBrowserFrames(`(() => {
     const roots = [document];
     for (let i = 0; i < roots.length; i++) {
@@ -3708,37 +4393,44 @@ async function drainBrowserCaptureBeforeClose() {
   return status;
 }
 
-function browserCaptureCloseNeedsWarning(status) {
+function browserCaptureCloseNeedsWarning(status, includeUnverified = false) {
   // Bir alt kare kapanış sırasında yanıt vermeyebilir. Bu, tek başına veri
   // kaybı kanıtı değildir; kullanıcıyı yalnız gerçekten kuyrukta parça
-  // görüldüğünde durdur. Normal yakalama kuyruğu zaten 900 ms'de bir boşaltılır.
-  return Number(status && status.pending) > 0;
+  // görüldüğünde durdur. Ancak tek bir sekme yok edilirken ölçülemeyen durumun
+  // daha sonra toparlanma şansı yoktur; o çağrı açıkça includeUnverified ister.
+  return Number(status && status.pending) > 0 || (includeUnverified && status?.unverified === true);
 }
 
 async function browserTabCapturePending(tab, pause = false) {
-  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return 0;
+  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return { pending: 0, unverified: false };
   try {
     if (pause) await withTimeout(executeBrowserViewFrames(tab.view, browserCapturePauseScript()),
       BROWSER_SCRIPT_TIMEOUT, 'Arka plan sekmesinde yakalama durdurulamadı.');
     const frames = await withTimeout(executeBrowserViewFrames(tab.view, browserCaptureStatusScript()),
       BROWSER_SCRIPT_TIMEOUT, 'Arka plan sekmesinin yakalama kuyruğu ölçülemedi.');
-    return frames.reduce((total, frame) => total + (Number(frame && frame.pending) || 0), 0);
-  } catch (_) {
-    return 0;
+    return {
+      pending: frames.reduce((total, frame) => total + (Number(frame && frame.pending) || 0), 0),
+      unverified: false,
+    };
+  } catch (error) {
+    return { pending: 0, unverified: true, error: error?.message || 'Yakalama kuyruğu ölçülemedi.' };
   }
 }
 
 async function backgroundBrowserCapturePending(excludedTabId = '') {
   let pending = 0;
   for (const tab of browserTabs.values()) {
-    if (tab.id !== excludedTabId) pending += await browserTabCapturePending(tab, true);
+    if (tab.id !== excludedTabId) pending += (await browserTabCapturePending(tab, true)).pending;
   }
   return pending;
 }
 
-async function confirmBrowserCaptureDiscard(pending, subject = 'uygulama') {
-  if (!(Number(pending) > 0) || !mainWindow || mainWindow.isDestroyed()) return true;
-  const detail = `${pending} yakalanmış altyazı parçası henüz işlenemedi.`;
+async function confirmBrowserCaptureDiscard(pending, subject = 'uygulama', unverified = false) {
+  if (!(Number(pending) > 0) && !unverified) return true;
+  if (!mainWindow || mainWindow.isDestroyed()) return true;
+  const detail = Number(pending) > 0
+    ? `${pending} yakalanmış altyazı parçası henüz işlenemedi.`
+    : 'Yakalama kuyruğunun tamamen işlendiği doğrulanamadı.';
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'warning',
     title: 'Altyazı yakalama sürüyor',
@@ -3753,14 +4445,17 @@ async function confirmBrowserCaptureDiscard(pending, subject = 'uygulama') {
 
 async function flushBrowserSession() {
   try {
-    persistBrowserSessionNow();
+    const persisted = persistBrowserSessionNow();
     const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
     // localStorage / IndexedDB Chromium deposuna, kalıcı giriş çerezleri de
     // çerez deposuna yazılmış olsun. Böylece pencere kapanır kapanmaz süreç sona
     // erse bile sonraki açılış aynı site oturumuyla devam eder.
     browserSession.flushStorageData();
     await browserSession.cookies.flushStore();
-  } catch (_) {}
+    return persisted?.ok !== false;
+  } catch (_) {
+    return false;
+  }
 }
 
 function createWindow() {
@@ -3798,6 +4493,10 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      webviewTag: false,
+      allowRunningInsecureContent: false,
     },
   });
   installSystemAudioCaptureHandler();
@@ -3806,6 +4505,7 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindowClosing = false;
+  browserSessionFinalizedForQuit = false;
   mainWindow.on('close', (event) => {
     if (mainWindowClosing) {
       event.preventDefault();
@@ -3831,12 +4531,13 @@ function createWindow() {
           && mainWindow && !mainWindow.isDestroyed()) {
         if (!await confirmBrowserCaptureDiscard(captureStatus.pending)) {
           mainWindowClosing = false;
-          await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+          await executeBrowserFrames(browserCaptureEnabled
+            ? browserCaptureHookScript() : browserCaptureToggleScript(false)).catch(() => {});
           if (browserVisible) startBrowserPolling();
           return;
         }
       }
-      await flushBrowserSession();
+      browserSessionFinalizedForQuit = await flushBrowserSession();
       destroyBrowserView();
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
     })();
@@ -3863,9 +4564,11 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(async () => {
+if (hasSingleInstanceLock) app.whenReady().then(async () => {
   await prepareWidevineComponents();
+  sweepStaleChatFiles();
   sweepBrowserLiveAsrTemp();
+  sweepBrowserSubtitleFiles();
   browserAssetStore().sweepTempFiles();
   browserAdapterPluginStatus = ADAPTER_REGISTRY.loadJsonDirectory(
     path.join(app.getPath('userData'), 'browser-adapters'));
@@ -3876,12 +4579,27 @@ app.whenReady().then(async () => {
 let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
+  flushBrowserTrackPublications();
+  flushBrowserPlaces();
+  // Debounce süresi dolmadan gelen uygulama/işletim sistemi kapanışlarında son
+  // sekme, URL ve oynatma konumunu kaybetme.
+  if (!browserSessionFinalizedForQuit) persistBrowserSessionNow();
+  for (const tab of browserTabs.values()) {
+    tab.translationScheduler?.cancelAll('Uygulama kapatılıyor.');
+    tab.translationScheduler = null;
+  }
+  if (browserLiveAsr) stopBrowserLiveAsr('Uygulama kapatılıyor.');
   const caches = [browserTranslationCacheInstance, browserMangaCacheInstance].filter(Boolean);
   if (!caches.length || browserCacheQuitFlushComplete) return;
   event.preventDefault();
   if (browserCacheQuitFlushStarted) return;
   browserCacheQuitFlushStarted = true;
-  Promise.all(caches.map((cache) => cache.flush().catch(() => null))).finally(() => {
+  const flushes = Promise.all(caches.map((cache) => cache.flush().catch(() => null)));
+  const timeout = new Promise((resolve) => {
+    const timer = setTimeout(resolve, 5000);
+    timer.unref?.();
+  });
+  Promise.race([flushes, timeout]).finally(() => {
     browserCacheQuitFlushComplete = true;
     app.quit();
   });
@@ -3910,8 +4628,20 @@ app.on('activate', () => {
 // --- IPC handlers ---
 
 function authorizedBrowserSender(event) {
-  return !!mainWindow && event.sender === mainWindow.webContents;
+  if (!mainWindow || mainWindow.isDestroyed() || !event) return false;
+  const contents = mainWindow.webContents;
+  return event.sender === contents && event.senderFrame === contents.mainFrame;
 }
+
+ipcMain.on('browser:trusted-bridge', (event, message) => {
+  if (event.senderFrame !== event.sender.mainFrame) return;
+  const tab = [...browserTabs.values()].find((candidate) =>
+    candidate.view && !candidate.view.webContents.isDestroyed()
+      && candidate.view.webContents === event.sender);
+  if (!tab || tab.id !== browserActiveTabId || !message || typeof message !== 'object') return;
+  if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
+  else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
+});
 
 function activeRequestedBrowserTab(rawId) {
   const tab = browserTabById(rawId);
@@ -3943,23 +4673,29 @@ ipcMain.handle('browser:tab:close', (event, rawId) => queueBrowserTabTransition(
   const ordered = [...browserTabs.values()];
   const index = ordered.indexOf(tab);
   const wasActive = tab.id === browserActiveTabId;
-  let capturePending = 0;
+  let captureStatus = { pending: 0, unverified: false };
   if (wasActive) {
     persistActiveBrowserTabState();
     stopBrowserPolling();
     try {
       const status = await withTimeout(drainBrowserCaptureBeforeClose(), BROWSER_CLOSE_DRAIN_TIMEOUT,
         'Sekme kapanışında yakalama kuyruğu zamanında boşaltılamadı.');
-      capturePending = Number(status && status.pending) || 0;
-    } catch (_) {}
+      captureStatus.pending = Number(status && status.pending) || 0;
+    } catch (error) {
+      captureStatus = { pending: 0, unverified: true, error: error?.message || 'Yakalama kuyruğu ölçülemedi.' };
+    }
   } else {
-    capturePending = await browserTabCapturePending(tab, true);
+    captureStatus = await browserTabCapturePending(tab, true);
   }
-  if (browserCaptureCloseNeedsWarning({ pending: capturePending })
-      && !await confirmBrowserCaptureDiscard(capturePending, 'sekme')) {
+  if (browserCaptureCloseNeedsWarning(captureStatus, true)
+      && !await confirmBrowserCaptureDiscard(captureStatus.pending, 'sekme', captureStatus.unverified)) {
     if (wasActive) {
-      await executeBrowserFrames(browserCaptureHookScript()).catch(() => {});
+      await executeBrowserFrames(browserCaptureEnabled
+        ? browserCaptureHookScript() : browserCaptureToggleScript(false)).catch(() => {});
       if (browserVisible) startBrowserPolling();
+    } else if (tab.view && !tab.view.webContents.isDestroyed()) {
+      await executeBrowserViewFrames(tab.view, tab.captureEnabled !== false
+        ? browserCaptureHookScript() : browserCaptureToggleScript(false)).catch(() => {});
     }
     return { ok: false, canceled: true };
   }
@@ -3985,17 +4721,26 @@ ipcMain.handle('browser:show', async (event, payload) => {
   view.setBounds(bounds);
   browserVisible = true;
   const hasPage = !!browserNavigationState().url;
-  view.setVisible(hasPage);
+  view.setVisible(hasPage && !browserModalOccluded);
   startBrowserPolling();
   return { ok: true, hasPage, activeTabId: tab.id, tabs: browserTabsSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled,
     diagnostics: browserDiagnostics, ...browserNavigationState() };
 });
 
-ipcMain.handle('browser:hide', (event) => {
+ipcMain.handle('browser:hide', async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
-  hideBrowserView(true);
+  await hideBrowserView(true);
   return { ok: true };
+});
+
+ipcMain.handle('browser:setOccluded', (event, occluded) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
+  browserModalOccluded = !!occluded;
+  if (browserView && !browserView.webContents.isDestroyed()) {
+    browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
+  }
+  return { ok: true, occluded: browserModalOccluded };
 });
 
 ipcMain.handle('browser:setBounds', (event, payload) => {
@@ -4055,7 +4800,13 @@ ipcMain.handle('browser:command', async (event, payload) => {
       wc.stop();
     } else if (command === 'focus') {
       wc.focus();
-    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed'].includes(command)) {
+    } else if (['zoom-in', 'zoom-out', 'zoom-reset'].includes(command)) {
+      const current = Number(wc.getZoomFactor?.()) || 1;
+      const zoom = command === 'zoom-reset' ? 1
+        : Math.max(0.5, Math.min(3, current + (command === 'zoom-in' ? 0.1 : -0.1)));
+      wc.setZoomFactor(zoom);
+      return { ok: true, ...browserEventContext(tab), zoom, ...browserNavigationState() };
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
       // player on services that split their UI across frames.
@@ -4190,9 +4941,8 @@ ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
     places.bookmarks = places.bookmarks.slice(0, BROWSER_PLACE_LIMIT);
     bookmarked = true;
   }
-  writeBrowserPlaces(places);
+  setBrowserPlaces(places);
   const snapshot = browserPlacesSnapshot();
-  sendBrowserEvent({ type: 'places', places: snapshot });
   return { ok: true, bookmarked, places: snapshot };
 });
 
@@ -4202,9 +4952,8 @@ ipcMain.handle('browser:places:remove', (event, kind, rawUrl) => {
   if (!url || !['history', 'bookmarks'].includes(kind)) return { ok: false };
   const places = readBrowserPlaces();
   places[kind] = places[kind].filter((item) => item.url !== url);
-  writeBrowserPlaces(places);
+  setBrowserPlaces(places);
   const snapshot = browserPlacesSnapshot();
-  sendBrowserEvent({ type: 'places', places: snapshot });
   return { ok: true, places: snapshot };
 });
 
@@ -4212,9 +4961,8 @@ ipcMain.handle('browser:places:clearHistory', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return { ok: false };
   const places = readBrowserPlaces();
   places.history = [];
-  writeBrowserPlaces(places);
+  setBrowserPlaces(places);
   const snapshot = browserPlacesSnapshot();
-  sendBrowserEvent({ type: 'places', places: snapshot });
   return { ok: true, places: snapshot };
 });
 
@@ -4259,11 +5007,21 @@ ipcMain.handle('browser:setOverlay', async (event, request) => {
   const payload = request && request.payload;
   const mode = ['off', 'source', 'translation', 'both'].includes(payload && payload.mode)
     ? payload.mode : 'translation';
+  const rawStyle = payload && payload.style || {};
   browserOverlay = {
     source: normalizeCues(payload && payload.source).slice(0, 20000),
     translation: normalizeCues(payload && payload.translation).slice(0, 20000),
     mode,
     offset: Math.max(-30, Math.min(30, Number(payload && payload.offset) || 0)),
+    style: {
+      scale: Math.max(.65, Math.min(1.8, Number(rawStyle.scale) || 1)),
+      opacity: Math.max(.2, Math.min(1, Number(rawStyle.opacity) || 1)),
+      bottomOffset: Math.max(0, Math.min(75, Number.isFinite(Number(rawStyle.bottomOffset)) ? Number(rawStyle.bottomOffset) : 7)),
+      width: Math.max(40, Math.min(98, Number(rawStyle.width) || 86)),
+      maxLines: Math.max(1, Math.min(6, Number(rawStyle.maxLines) || 3)),
+      sourceFirst: rawStyle.sourceFirst !== false,
+      hideSiteCaptions: !!rawStyle.hideSiteCaptions,
+    },
   };
   tab.overlay = browserOverlay;
   scheduleBrowserSessionSave();
@@ -4277,6 +5035,10 @@ ipcMain.handle('browser:manga:start', async (event, request) => {
   return startBrowserManga(tab, {
     targetLanguage: request && request.targetLanguage,
     maxImages: request && request.maxImages,
+    workers: request && request.workers,
+    fontScale: request && request.fontScale,
+    verticalText: request && request.verticalText,
+    sfxStyle: request && request.sfxStyle,
   });
 });
 
@@ -4286,7 +5048,7 @@ ipcMain.handle('browser:manga:toggle', async (event, request) => {
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   if (!tab.mangaTranslated) return { ok: false, error: 'Bu sekmede gösterilecek manga çevirisi yok.' };
   tab.mangaVisible = request?.visible === undefined ? !tab.mangaVisible : !!request.visible;
-  const counts = await executeBrowserViewFrames(tab.view, mangaVisibilityScript(tab.mangaVisible));
+  const counts = await executeBrowserTrustedMain(tab.view, mangaVisibilityScript(tab.mangaVisible));
   if (!counts.some((count) => Number(count) > 0)) {
     tab.mangaTranslated = 0;
     tab.mangaVisible = false;
@@ -4312,6 +5074,42 @@ ipcMain.handle('browser:manga:retrySelected', async (event, request) => {
   return retrySelectedMangaRegion(tab);
 });
 
+ipcMain.handle('browser:manga:retryFailed', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  return retryFailedBrowserManga(tab);
+});
+
+ipcMain.handle('browser:manga:export', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  if (request?.format === 'png') return saveBrowserPageCapture(tab, 'Manga katmanını görsel olarak dışa aktar');
+  const pages = [...(tab.mangaPages || new Map()).entries()].map(([imageId, page]) => ({
+    imageId, width: Number(page.candidate?.width) || 0, height: Number(page.candidate?.height) || 0,
+    pageTitle: page.pageTitle || '', regions: normalizeMangaRegions(page.regions),
+  }));
+  if (!pages.length) return { ok: false, error: 'Dışa aktarılacak manga katmanı yok.' };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Manga katmanını JSON olarak dışa aktar',
+    defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab, 'manga-cevirisi')}.manga.json`),
+    filters: [{ name: 'Manga katmanı JSON', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    writeJsonAtomic(result.filePath, { version: 1, exportedAt: new Date().toISOString(), pages });
+    return { ok: true, path: result.filePath };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
+
+ipcMain.handle('browser:capturePage', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  return saveBrowserPageCapture(tab);
+});
+
 ipcMain.handle('browser:translation:start', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
@@ -4322,6 +5120,7 @@ ipcMain.handle('browser:translation:start', async (event, request) => {
     sourceLanguage: request && request.sourceLanguage,
     register: request && request.register,
     profanity: request && request.profanity,
+    completeTrack: request?.completeTrack !== false,
   });
 });
 
@@ -4620,12 +5419,13 @@ ipcMain.handle('shell:openExternal', async (_event, url) => {
   return shell.openExternal(url);
 });
 
-ipcMain.handle('notify', (_event, opts) => {
+ipcMain.handle('notify', (event, opts) => {
   try {
+    if (!authorizedBrowserSender(event)) return false;
     if (!Notification.isSupported()) return false;
     const n = new Notification({
-      title: (opts && opts.title) || 'Whisper Altyazı',
-      body: (opts && opts.body) || '',
+      title: String((opts && opts.title) || 'Whisper Altyazı').slice(0, 160),
+      body: String((opts && opts.body) || '').slice(0, 2000),
     });
     n.on('click', () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -4784,6 +5584,24 @@ ipcMain.handle('settings:save', (_event, s) => {
   return saveSettings({ ...loadSettings(), ...s });
 });
 
+// Renderer yenilense veya uygulama beklenmedik biçimde kapansa da toplu iş
+// listesi kaybolmaz. Kuyruk seçenekleri main tarafında ikinci kez süzülür;
+// API/HF anahtarları queue-state.json içine hiçbir zaman yazılmaz.
+ipcMain.handle('queue:load', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return loadQueueState();
+});
+ipcMain.handle('queue:save', (event, snapshot) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    return { ok: false, error: 'Geçersiz kuyruk durumu.' };
+  }
+  return writeQueueState({
+    ...snapshot,
+    currentQueueId: activeQueueItemId || snapshot.currentQueueId || null,
+  });
+});
+
 // ---- Ayarları dışa/içe aktar ----
 ipcMain.handle('settings:export', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
@@ -4828,8 +5646,9 @@ ipcMain.handle('settings:import', async () => {
     const bundled = Number(data.backupVersion) >= 2 && data.settings
       && typeof data.settings === 'object' && !Array.isArray(data.settings);
     const settings = bundled ? data.settings : data;
-    if (!saveSettings(settings)) {
-      return { ok: false, error: 'Ayarlar güvenli biçimde kaydedilemedi.' };
+    const saved = saveSettings(settings);
+    if (!saved?.ok) {
+      return { ok: false, error: saved?.error || 'Ayarlar güvenli biçimde kaydedilemedi.' };
     }
     if (bundled && data.browserPlaces && typeof data.browserPlaces === 'object') {
       writeBrowserPlaces(data.browserPlaces);
@@ -5074,12 +5893,92 @@ function ffSubtitlesArg(p) {
   return `subtitles='${fwd}'`;
 }
 
+function burninRecoveryStatePath() {
+  return path.join(app.getPath('userData'), 'burnin-recovery.json');
+}
+
+function readBurninRecoveryState() {
+  const primary = burninRecoveryStatePath();
+  for (const candidate of [primary, `${primary}.bak`]) {
+    try {
+      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 128 * 1024) continue;
+      const recovery = normalizeBurninRecovery(JSON.parse(fs.readFileSync(candidate, 'utf8')));
+      if (recovery && burninRecoveryPathsMatch(recovery)) return recovery;
+    } catch (_) {}
+  }
+  return null;
+}
+
+function writeBurninRecoveryState(recovery) {
+  const normalized = normalizeBurninRecovery(recovery);
+  if (!normalized || !burninRecoveryPathsMatch(normalized)) {
+    throw new Error('Gömme kurtarma yolları güvenli değil.');
+  }
+  const target = burninRecoveryStatePath();
+  if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
+  writeJsonAtomic(target, normalized);
+  return normalized;
+}
+
+function clearBurninRecoveryState(id, removeTemp = false) {
+  const recovery = readBurninRecoveryState();
+  if (id && recovery && recovery.id !== id) return false;
+  if (removeTemp && recovery) {
+    try { removeFileQuietly(recovery.tempPath); } catch (_) {}
+  }
+  for (const target of [burninRecoveryStatePath(), `${burninRecoveryStatePath()}.bak`]) {
+    try { removeFileQuietly(target); } catch (_) {}
+  }
+  return true;
+}
+
+function processIsAlive(pid) {
+  if (!Number.isSafeInteger(Number(pid)) || Number(pid) <= 0) return false;
+  try { process.kill(Number(pid), 0); return true; } catch (_) { return false; }
+}
+
+async function inspectBurninRecovery() {
+  const recovery = readBurninRecoveryState();
+  if (!recovery) return { ok: true, available: false };
+  const externalRunning = !!(burninJob && burninJob.pid === recovery.pid) || processIsAlive(recovery.pid);
+  const inputReady = fs.existsSync(recovery.videoPath) && fs.existsSync(recovery.subPath);
+  let tempSize = 0;
+  let tempDuration = 0;
+  try { tempSize = fs.statSync(recovery.tempPath).size; } catch (_) {}
+  if (tempSize && !externalRunning) {
+    try {
+      const ffprobe = resolveFfTool('ffprobe');
+      tempDuration = parseFloat(await probeCommand(ffprobe,
+        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', recovery.tempPath])) || 0;
+    } catch (_) {}
+  }
+  return {
+    ok: true,
+    available: true,
+    recovery,
+    externalRunning,
+    inputReady,
+    canFinalize: !externalRunning && burninTempLooksComplete({
+      size: tempSize, duration: tempDuration, totalSec: recovery.totalSec,
+    }),
+  };
+}
+
 let burninJob = null;
-ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
+ipcMain.handle('burnin:start', async (_event, videoPath, subPath, recoveryId = '') => {
   if (burninJob) return { ok: false, error: 'Gömme zaten çalışıyor.' };
   if (activeJob) return { ok: false, error: 'Transkripsiyon işi çalışırken gömme başlatılamaz.' };
   if (!videoPath || !subPath || !fs.existsSync(videoPath) || !fs.existsSync(subPath)) {
     return { ok: false, error: 'Video veya altyazı dosyası bulunamadı.' };
+  }
+  const previousRecovery = readBurninRecoveryState();
+  const resumingPrevious = !!previousRecovery
+    && previousRecovery.id === String(recoveryId || '')
+    && path.resolve(previousRecovery.videoPath) === path.resolve(videoPath)
+    && path.resolve(previousRecovery.subPath) === path.resolve(subPath);
+  if (previousRecovery && !resumingPrevious) {
+    return { ok: false, recovery: true,
+      error: 'Yarım kalan bir gömme işi var. Önce kurtarma bildiriminden tamamlayın veya yeniden başlatın.' };
   }
   const ext = path.extname(subPath).toLowerCase();
   if (ext !== '.srt' && ext !== '.ass') {
@@ -5110,7 +6009,23 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
     job.outPath = outPath;
     job.cancelled = false;
     job.settled = false;
+    job.previousRecovery = resumingPrevious ? previousRecovery : null;
     burninJob = job;
+    try {
+      job.recovery = writeBurninRecoveryState({
+        version: 1, id: randomUUID(), videoPath, subPath, tempPath, outPath,
+        pid: job.pid, totalSec, startedAt: Date.now(),
+      });
+      if (resumingPrevious && previousRecovery.tempPath !== tempPath) {
+        try { removeFileQuietly(previousRecovery.tempPath); } catch (_) {}
+      }
+    } catch (recoveryError) {
+      job.cancelled = true;
+      try { spawn('taskkill', ['/pid', String(job.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {}
+      burninJob = null;
+      try { removeFileQuietly(tempPath); } catch (_) {}
+      return { ok: false, error: `Gömme kurtarma kaydı oluşturulamadı: ${recoveryError.message}` };
+    }
   } catch (err) {
     burninJob = null;
     try { removeFileQuietly(tempPath); } catch (_) {}
@@ -5142,6 +6057,7 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
     if (ok && !job.cancelled) {
       try {
         replaceBurninOutput(tempPath, outPath);
+        clearBurninRecoveryState(job.recovery?.id, false);
         send({ type: 'done', file: outPath });
         return;
       } catch (error) {
@@ -5149,6 +6065,15 @@ ipcMain.handle('burnin:start', async (_event, videoPath, subPath) => {
       }
     }
     try { removeFileQuietly(tempPath); } catch (_) {}
+    if (job.previousRecovery && !job.cancelled) {
+      // Kurtarma üzerinden yeniden başlatılan FFmpeg hata verirse kullanıcıyı
+      // seçeneksiz bırakma. Eski geçici dosya silinmiş olsa bile kaynak video
+      // ve altyazı yolları bir sonraki güvenli yeniden deneme için yeterlidir.
+      try { writeBurninRecoveryState(job.previousRecovery); }
+      catch (_) { clearBurninRecoveryState(job.recovery?.id, false); }
+    } else {
+      clearBurninRecoveryState(job.recovery?.id, false);
+    }
     send({ type: 'error', message: job.cancelled ? 'Gömme iptal edildi.' : message });
   };
   job.on('error', (err) => {
@@ -5167,6 +6092,47 @@ ipcMain.handle('burnin:cancel', () => {
     return { ok: true };
   }
   return { ok: false };
+});
+
+ipcMain.handle('burnin:recovery:get', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return inspectBurninRecovery();
+});
+
+ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const inspected = await inspectBurninRecovery();
+  const recovery = inspected.recovery;
+  if (!inspected.available || !recovery || recovery.id !== String(recoveryId || '')) {
+    return { ok: false, error: 'Kurtarılacak gömme işi bulunamadı.' };
+  }
+  if (inspected.externalRunning) {
+    return { ok: false, running: true, error: 'Önceki FFmpeg süreci hâlâ çalışıyor; dosyaya dokunulmadı.' };
+  }
+  if (inspected.canFinalize) {
+    try {
+      replaceBurninOutput(recovery.tempPath, recovery.outPath);
+      clearBurninRecoveryState(recovery.id, false);
+      return { ok: true, recovered: true, file: recovery.outPath };
+    } catch (error) {
+      return { ok: false, error: `Tamamlanmış geçici çıktı kurtarılamadı: ${error.message}` };
+    }
+  }
+  if (!inspected.inputReady) {
+    return { ok: false, error: 'Kaynak video veya altyazı artık bulunamadığı için gömme yeniden başlatılamıyor.' };
+  }
+  return { ok: true, restart: true, recoveryId: recovery.id,
+    videoPath: recovery.videoPath, subPath: recovery.subPath };
+});
+
+ipcMain.handle('burnin:recovery:discard', (event, recoveryId) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const recovery = readBurninRecoveryState();
+  if (!recovery || recovery.id !== String(recoveryId || '')) {
+    return { ok: false, error: 'Kurtarma kaydı bulunamadı.' };
+  }
+  clearBurninRecoveryState(recovery.id, true);
+  return { ok: true };
 });
 
 function resolvePython() {
@@ -5378,7 +6344,11 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       fs.mkdirSync(dir, { recursive: true });
       const p = path.join(dir, `chat-${randomUUID()}.json`);
       chatFilePath = p;
-      fs.writeFileSync(p, JSON.stringify(options.chat), 'utf-8');
+      const chatPayload = JSON.stringify(options.chat);
+      if (Buffer.byteLength(chatPayload, 'utf8') > 8 * 1024 * 1024) {
+        throw new Error('Sohbet bağlamı 8 MB güvenli boyut sınırını aşıyor.');
+      }
+      fs.writeFileSync(p, chatPayload, { encoding: 'utf-8', mode: 0o600 });
       args.push('--chat', 'true', '--chat-file', p);
     } catch (err) {
       cleanupChatFile();
@@ -5417,10 +6387,15 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     model: options.model || '',
     engine: options.engine || '',
     skip: !!options.explain || !!options.skipHistory,
+    queueItemId: Number.isSafeInteger(Number(options.queueItemId)) && Number(options.queueItemId) > 0
+      ? Number(options.queueItemId) : null,
+    terminalSeen: false,
   };
 
   try {
     activeJob = spawn(pythonPath, args, { env, cwd: appDir });
+    activeQueueItemId = jobMeta.queueItemId;
+    persistQueueRunning(jobMeta.queueItemId, options);
   } catch (err) {
     cleanupChatFile();
     return { ok: false, error: `Python başlatılamadı: ${err.message}` };
@@ -5430,6 +6405,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!activeJob.stdout || !activeJob.stderr) {
     try { activeJob.kill(); } catch (_) {}
     activeJob = null;
+    activeQueueItemId = null;
     cleanupChatFile();
     return { ok: false, error: 'Python süreç akışları (stdout/stderr) oluşturulamadı.' };
   }
@@ -5457,6 +6433,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       if ((event.type === 'done' || event.type === 'error') && !jobMeta.skip) {
         recordJob(jobMeta, event);
         jobMeta.skip = true;              // tek is = tek kayit
+      }
+      if (event.type === 'done' || event.type === 'error') {
+        jobMeta.terminalSeen = true;
+        persistQueueTerminal(jobMeta.queueItemId, event);
       }
       writeJobLog(event);
       sendEvent(event);
@@ -5503,10 +6483,12 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     stopPowerBlocker();
     setTaskbarProgress(-1);
     const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000) };
+    if (!jobMeta.terminalSeen) persistQueueTerminal(jobMeta.queueItemId, exitEvent);
     writeJobLog(exitEvent);
     cleanupChatFile();
     endJobLog();
     activeJob = null;
+    activeQueueItemId = null;
     // Renderer kuyruktaki sonraki işi bu olaydan sonra başlatır; önce null yaparak
     // transcribe:start ile "Zaten bir iş çalışıyor" yarışını ortadan kaldır.
     sendEvent(exitEvent);
@@ -5520,10 +6502,12 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       message = 'Python bulunamadı. Python 3.10/3.11 kurup PATH\'e ekleyin veya install.bat ile venv oluşturun, sonra start.bat ile başlatın.';
     }
     writeJobLog({ type: 'error', message });
+    persistQueueTerminal(jobMeta.queueItemId, { type: 'error', message });
     cleanupChatFile();
     endJobLog();
     sendEvent({ type: 'error', message });
     activeJob = null;
+    activeQueueItemId = null;
   });
 
   startPowerBlocker();

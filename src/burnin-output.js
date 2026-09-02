@@ -36,4 +36,52 @@ function replaceBurninOutput(tempPath, outPath, fsImpl = fs, token = randomUUID(
   }
 }
 
-module.exports = { burninOutputPaths, removeFileQuietly, replaceBurninOutput };
+function normalizeBurninRecovery(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const videoPath = typeof raw.videoPath === 'string' ? raw.videoPath.trim() : '';
+  const subPath = typeof raw.subPath === 'string' ? raw.subPath.trim() : '';
+  const tempPath = typeof raw.tempPath === 'string' ? raw.tempPath.trim() : '';
+  const outPath = typeof raw.outPath === 'string' ? raw.outPath.trim() : '';
+  if (!videoPath || !subPath || !tempPath || !outPath) return null;
+  return {
+    version: 1,
+    id: String(raw.id || '').slice(0, 100) || randomUUID(),
+    videoPath: videoPath.slice(0, 8000),
+    subPath: subPath.slice(0, 8000),
+    tempPath: tempPath.slice(0, 8000),
+    outPath: outPath.slice(0, 8000),
+    pid: Number.isSafeInteger(Number(raw.pid)) && Number(raw.pid) > 0 ? Number(raw.pid) : null,
+    totalSec: Math.max(0, Number(raw.totalSec) || 0),
+    startedAt: Math.max(0, Number(raw.startedAt) || 0),
+  };
+}
+
+function burninTempLooksComplete({ size = 0, duration = 0, totalSec = 0 } = {}) {
+  const bytes = Number(size) || 0;
+  const actual = Number(duration) || 0;
+  const expected = Number(totalSec) || 0;
+  if (bytes < 1024 || actual <= 0) return false;
+  if (expected <= 0) return true;
+  return actual >= Math.max(expected * 0.99, expected - 1);
+}
+
+function burninRecoveryPathsMatch(recovery) {
+  const item = normalizeBurninRecovery(recovery);
+  if (!item) return false;
+  const expected = burninOutputPaths(item.videoPath, 'token');
+  if (path.resolve(item.outPath) !== path.resolve(expected.outPath)) return false;
+  if (path.dirname(path.resolve(item.tempPath)) !== path.dirname(path.resolve(expected.tempPath))) return false;
+  const base = path.basename(item.videoPath, path.extname(item.videoPath))
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^${base}\\.altyazili\\.[^.\\/]+\\.tmp\\.mp4$`, 'i')
+    .test(path.basename(item.tempPath));
+}
+
+module.exports = {
+  burninOutputPaths,
+  burninRecoveryPathsMatch,
+  burninTempLooksComplete,
+  normalizeBurninRecovery,
+  removeFileQuietly,
+  replaceBurninOutput,
+};
