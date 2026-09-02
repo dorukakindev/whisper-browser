@@ -124,9 +124,30 @@ test('tarayıcı modalı WebContentsView katmanını geçici olarak gizliyor', (
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
   assert((preload.match(/setBrowserOccluded:/g) || []).length === 1, 'modal okluzyon köprüsü yinelenmiş veya eksik');
-  assert(/openManagedModal[\s\S]{0,650}setBrowserOccluded\(true\)/.test(js), 'modal açılırken web görünümü gizlenmiyor');
+  assert(/openManagedModal[\s\S]{0,1100}setBrowserOccluded\(true\)/.test(js), 'modal açılırken web görünümü gizlenmiyor');
   assert(/closeManagedModal[\s\S]{0,500}setBrowserOccluded\(false\)/.test(js), 'modal kapanırken web görünümü geri açılmıyor');
   assert(/ipcMain\.handle\('browser:setOccluded'/.test(main), 'okluzyon IPC işleyicisi yok');
+});
+
+test('modal yarışı onay sözünü açıkta bırakmıyor ve genel kısayolları engelliyor', () => {
+  const modalOwner = js.slice(js.indexOf('// ===== Ortak modal/dialog sahibi ====='),
+    js.indexOf('// ===== Birleşik işler merkezi ====='));
+  assert(/let _queuedModalOpen = null/.test(modalOwner), 'ikinci modal için bekleme yuvası yok');
+  assert(/_queuedModalOpen = \{ modal, initialFocus \}/.test(modalOwner),
+    'ikinci modal açık modalı kapatmak yerine sıraya alınmıyor');
+  assert(/openManagedModal\(queued\.modal, queued\.initialFocus, restore\)/.test(modalOwner),
+    'bekleyen modal mevcut modal kapandıktan sonra açılmıyor');
+  const globalShortcuts = js.slice(js.indexOf('// ===== Klavye kısayolları ====='),
+    js.indexOf('// ===== Ayarları dışa/içe aktar ====='));
+  assert(/if \(_activeModal\) return;/.test(globalShortcuts),
+    'modal açıkken genel Ctrl+Enter/Escape kısayolları engellenmiyor');
+});
+
+test('sayfalı altyazı listesi düşük güven durumunu kendi kapsamında hesaplıyor', () => {
+  const cueList = js.slice(js.indexOf('function cueHasLowConfidence'), js.indexOf('function highlightCueRow'));
+  assert(/function cueHasLowConfidence\(cue\)/.test(cueList), 'düşük güven yardımcısı yok');
+  const uses = cueList.match(/const lowConfidence = cueHasLowConfidence\(c\)/g) || [];
+  assert(uses.length >= 2, 'filtreleme ve görünür satır çizimi aynı düşük güven hesabını kullanmıyor');
 });
 
 test('tarayıcı yaşam döngüsü yerel altyazıyı koruyor ve eski çeviriyi durduruyor', () => {

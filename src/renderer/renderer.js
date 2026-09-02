@@ -602,6 +602,7 @@ function setProgress(percent) {
 // ===== Ortak modal/dialog sahibi =====
 let _activeModal = null;
 let _modalReturnFocus = null;
+let _queuedModalOpen = null;
 let _dialogResolve = null;
 
 function modalFocusable(modal) {
@@ -618,10 +619,18 @@ function setModalBackgroundInert(modal, inert) {
   });
 }
 
-function openManagedModal(modal, initialFocus) {
+function openManagedModal(modal, initialFocus, returnFocus = null) {
   if (!modal) return;
-  if (_activeModal && _activeModal !== modal) closeManagedModal(_activeModal, false);
-  _modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  // Açık bir onay diyaloğunu yeni bir sonuç penceresiyle sessizce kapatmak,
+  // openAppDialog sözünü sonsuza dek beklemede bırakıyordu. İkinci modalı sıraya
+  // al; kullanıcı mevcut diyaloğu bitirince en son bekleyen modalı göster.
+  if (_activeModal && _activeModal !== modal) {
+    _queuedModalOpen = { modal, initialFocus };
+    return;
+  }
+  if (_activeModal === modal) return;
+  _modalReturnFocus = returnFocus
+    || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
   _activeModal = modal;
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
@@ -636,15 +645,22 @@ function openManagedModal(modal, initialFocus) {
 
 function closeManagedModal(modal, restoreFocus = true) {
   if (!modal) return;
+  const wasActive = _activeModal === modal;
+  const queued = wasActive ? _queuedModalOpen : null;
+  if (wasActive) _queuedModalOpen = null;
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
   setModalBackgroundInert(modal, false);
   document.body.classList.remove('modal-open');
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(false).catch(() => {});
-  if (_activeModal === modal) _activeModal = null;
+  if (wasActive) _activeModal = null;
   const restore = _modalReturnFocus;
   _modalReturnFocus = null;
-  if (restoreFocus && restore && document.contains(restore)) requestAnimationFrame(() => restore.focus());
+  if (queued) {
+    requestAnimationFrame(() => openManagedModal(queued.modal, queued.initialFocus, restore));
+  } else if (restoreFocus && restore && document.contains(restore)) {
+    requestAnimationFrame(() => restore.focus());
+  }
 }
 
 document.addEventListener('keydown', (event) => {
@@ -3033,6 +3049,9 @@ function offerOpenLastOutput() {
 
 // ===== Klavye kısayolları =====
 document.addEventListener('keydown', (e) => {
+  // Modalın capture dinleyicisi Escape/Tab'i yönetir. Diğer tuşların (özellikle
+  // Ctrl+Enter) aşağıdaki genel iş kısayollarına sızmasına izin verme.
+  if (_activeModal) return;
   // Oynatıcı açıkken kısayollar oynatıcıya aittir (Esc işi iptal etmesin)
   const pl = $('playerLayer');
   if (pl && !pl.classList.contains('hidden')) return;
@@ -6107,6 +6126,11 @@ function appendHighlighted(el, text, q) {
   el.appendChild(document.createTextNode(flat.slice(from)));
 }
 
+function cueHasLowConfidence(cue) {
+  return Number(cue && cue.lowConfidenceWords) > 0
+    || (cue && cue.confidence !== undefined && Number(cue.confidence) < 0.6);
+}
+
 function renderCueList(filter = '') {
   const box = $('cueList');
   if (!box) return;
@@ -6124,8 +6148,7 @@ function renderCueList(filter = '') {
     if (q && !c.text.toLocaleLowerCase('tr').includes(q)
         && !tr.toLocaleLowerCase('tr').includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
-    const lowConfidence = Number(c.lowConfidenceWords) > 0
-      || (c.confidence !== undefined && Number(c.confidence) < 0.6);
+    const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
     indexes.push(i);
   });
@@ -6151,6 +6174,7 @@ function renderCueList(filter = '') {
   visibleIndexes.forEach((i) => {
     const c = player.cues[i];
     const tr = translations[i];
+    const lowConfidence = cueHasLowConfidence(c);
     const card = document.createElement('div');
     card.className = 'cue-card';
     card.classList.toggle('saved', isCueSaved(i));
