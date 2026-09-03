@@ -5644,6 +5644,7 @@ ipcMain.handle('browser:liveAsr:chunk', async (event, request) => {
   const filePath = path.join(dir, `${job.tab.id}-${Date.now()}-${randomUUID().slice(0, 8)}.wav`);
   try {
     fs.writeFileSync(filePath, require('./browser-live-audio').pcm16Wav(data));
+    if (browserLiveAsr !== job || job.stopping) throw new Error('Ses oturumu durduruldu.');
     job.chunkFiles.add(filePath);
     job.proc.stdin.write(`${JSON.stringify({ type: 'chunk', path: filePath,
       offset, rate })}\n`);
@@ -6585,7 +6586,9 @@ let burninJob = null;
 ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = '') => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (burninJob) return { ok: false, error: 'Gömme zaten çalışıyor.' };
-  if (activeJob) return { ok: false, error: 'Transkripsiyon işi çalışırken gömme başlatılamaz.' };
+  if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
+  }
   if (!videoPath || !subPath || !fs.existsSync(videoPath) || !fs.existsSync(subPath)) {
     return { ok: false, error: 'Video veya altyazı dosyası bulunamadı.' };
   }
