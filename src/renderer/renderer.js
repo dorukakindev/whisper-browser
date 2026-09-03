@@ -110,6 +110,11 @@ async function restorePersistedQueue() {
         logLine(`${recovered} yarım kuyruk işi kurtarıldı. Devam etmek için “Kuyruğu başlat”ı kullanın.`, 'warn');
       }
     }
+    const invalid = Number(restored.invalidCount) || 0;
+    if (invalid) {
+      setJobsTab('queue');
+      logLine(`${invalid} kuyruk işi bozuk veya güvenli boyut sınırını aştığı için yüklenemedi. Disk kaydı sessizce değiştirilmedi.`, 'error');
+    }
   }
   _queuePersistenceReady = true;
   renderQueue();
@@ -1585,7 +1590,29 @@ document.addEventListener('change', (event) => {
 async function saveAppSettings() {
   let saved;
   try {
-    saved = await window.api.saveSettings({
+    saved = await window.api.saveSettings(appSettingsPayload());
+  } catch (_) {
+    saved = false;
+  }
+  if (saved === false || saved?.ok === false) {
+    if (!_settingsSaveWarningShown) {
+      _settingsSaveWarningShown = true;
+      const message = saved?.error
+        || 'Ayarlar güvenli biçimde kaydedilemedi. Güvenli anahtar deposunu ve disk erişimini kontrol edin.';
+      logLine(message, 'error');
+      if (player.workspaceMode === 'browser') {
+        setBrowserSignal(message, false,
+          { priority: 100, holdMs: 8000 });
+      }
+    }
+    return false;
+  }
+  _settingsSaveWarningShown = false;
+  return true;
+}
+
+function appSettingsPayload() {
+  return {
     glossary,
     hfToken: secretSettingValue('hfToken'),
     outputDir: state.outputDir || '',
@@ -1619,26 +1646,8 @@ async function saveAppSettings() {
       model: $('llmModel') ? $('llmModel').value.trim() : '',
     },
     ui: collectUiSettings(),
-      playerPositions: player.positions,
-    });
-  } catch (_) {
-    saved = false;
-  }
-  if (saved === false || saved?.ok === false) {
-    if (!_settingsSaveWarningShown) {
-      _settingsSaveWarningShown = true;
-      const message = saved?.error
-        || 'Ayarlar güvenli biçimde kaydedilemedi. Güvenli anahtar deposunu ve disk erişimini kontrol edin.';
-      logLine(message, 'error');
-      if (player.workspaceMode === 'browser') {
-        setBrowserSignal(message, false,
-          { priority: 100, holdMs: 8000 });
-      }
-    }
-    return false;
-  }
-  _settingsSaveWarningShown = false;
-  return true;
+    playerPositions: player.positions,
+  };
 }
 
 // ===== Tüm UI ayarlarını kalıcı kıl (gizli anahtarlar hariç) =====
@@ -3041,6 +3050,12 @@ $('clearQueue').addEventListener('click', () => {
 $('startQueueBtn').addEventListener('click', startQueue);
 
 window.addEventListener('beforeunload', () => {
+  clearTimeout(_saveTimer);
+  _saveTimer = null;
+  // Son kontrol değişikliği 400 ms debounce içindeyken pencere kapanırsa invoke
+  // cevabı beklenemez. Yalnız kapanış anında kullanılan senkron köprü, ana
+  // sürecin ayarı diske yazdığını renderer yok edilmeden önce doğrular.
+  try { window.api.saveSettingsSync?.(appSettingsPayload()); } catch (_) {}
   // invoke mesajı renderer yok edilmeden önce IPC kuyruğuna bırakılır. Asıl
   // güvence her durum değişimindeki kısa debounce kaydıdır.
   persistQueueNow();
@@ -5299,6 +5314,16 @@ function setWorkspaceMode(mode, persist = true) {
   mode = mode === 'browser' ? 'browser' : 'player';
   const previousMode = player.workspaceMode;
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
+  if (mode !== previousMode) {
+    player.abA = null;
+    player.abB = null;
+    $('abLoopBtn')?.classList.remove('active');
+    renderAbMarkers();
+    if (_liveCueRenderTimer) {
+      clearTimeout(_liveCueRenderTimer);
+      _liveCueRenderTimer = null;
+    }
+  }
   if (mode !== player.workspaceMode) flushWatchState(false, true);
   if (mode === 'browser' && previousMode !== 'browser') saveLocalSubtitleWorkspace();
   if (mode !== 'browser' && previousMode === 'browser') saveActiveBrowserTabWorkspace();
@@ -10320,6 +10345,10 @@ if ($('aiChatLog')) {
 }
 if ($('aiChatClear')) {
   $('aiChatClear').addEventListener('click', () => {
+    if (player.job?.running && player.job.kind === 'chat') {
+      aiChatAdd('ai', 'Yanıt hazırlanırken sohbet temizlenemez. Önce işlemi iptal edin veya yanıtın bitmesini bekleyin.', 'ai-msg-err');
+      return;
+    }
     player.chatHistory = [];
     const log = $('aiChatLog');
     [...log.querySelectorAll('.ai-msg')].forEach((e) => e.remove());
@@ -10602,7 +10631,8 @@ document.addEventListener('keydown', (e) => {
   }
   const video = $('playerVideo');
   const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'select' || tag === 'textarea' || e.target.isContentEditable
+  if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
+      || tag === 'a' || tag === 'summary' || e.target.isContentEditable
       || e.target.closest?.('[contenteditable="true"]')) return;
   if (player.editing) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }

@@ -572,11 +572,13 @@ function scanWatchFolder() {
   }
   const found = [];
   for (const ent of entries) {
+    if (ent.name.startsWith('.')) continue;
     const full = path.join(watchDir, ent.name);
     if (ent.isDirectory()) {
       // Bir seviye alt klasör (dizi bölümleri klasörlenmiş olabilir)
       try {
         for (const sub of fs.readdirSync(full, { withFileTypes: true })) {
+          if (sub.name.startsWith('.')) continue;
           if (sub.isFile()) found.push(path.join(full, sub.name));
         }
       } catch (_) {}
@@ -636,6 +638,7 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
   // bir daha hiç kuyruğa girmemesine neden oluyordu.
   try {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name.startsWith('.')) continue;
       const full = path.join(dir, ent.name);
       if (ent.isFile() && MEDIA_EXTS.has(path.extname(full).slice(1).toLowerCase())) {
         const hasOutput = hasConfiguredWatchOutput(full, watchOutputConfig, fs.existsSync);
@@ -643,6 +646,7 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
         watchSeen.set(full, { size, stableCount: 0, queued: hasOutput, hadOutput: hasOutput });
       } else if (ent.isDirectory()) {
         for (const sub of fs.readdirSync(full, { withFileTypes: true })) {
+          if (sub.name.startsWith('.')) continue;
           const nested = path.join(full, sub.name);
           if (sub.isFile() && MEDIA_EXTS.has(path.extname(nested).slice(1).toLowerCase())) {
             const hasOutput = hasConfiguredWatchOutput(nested, watchOutputConfig, fs.existsSync);
@@ -735,7 +739,9 @@ function loadQueueState() {
   const snapshot = normalizeQueueSnapshot(readQueueStateRaw(), activeQueueItemId);
   // Uygulama çökmesinden kalan running öğelerini pending'e çeviren onarımı
   // hemen kalıcılaştır; bir sonraki açılışta yine running görünmesin.
-  if (snapshot.recoveredCount) writeQueueState(snapshot);
+  // Geçerli işlerin yanında bozuk/aşırı büyük bir kayıt varsa kullanıcıya
+  // bildir ama özgün dosyayı yeniden yazarak adli/kurtarılabilir veriyi silme.
+  if (snapshot.recoveredCount && !snapshot.invalidCount) writeQueueState(snapshot);
   return { ok: true, ...snapshot, activeQueueItemId };
 }
 
@@ -5905,6 +5911,17 @@ ipcMain.handle('settings:save', (_event, s) => {
   // Renderer yalnızca arayüz ayarlarını yollar. Dosya seçicinin ana süreçte
   // tuttuğu lastInputDir gibi alanları bu kısmi kayıtla silme.
   return saveSettings({ ...loadSettings(), ...s });
+});
+ipcMain.on('settings:saveSync', (event, s) => {
+  if (!authorizedBrowserSender(event)) {
+    event.returnValue = { ok: false, error: 'Yetkisiz istek.' };
+    return;
+  }
+  if (!s || typeof s !== 'object' || Array.isArray(s)) {
+    event.returnValue = { ok: false, error: 'Geçersiz ayar verisi.' };
+    return;
+  }
+  event.returnValue = saveSettings({ ...loadSettings(), ...s });
 });
 
 // Renderer yenilense veya uygulama beklenmedik biçimde kapansa da toplu iş

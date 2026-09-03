@@ -45,7 +45,9 @@ function repositoryHasUsableSnapshot(repositoryPath) {
 function repositoryMatchesModel(repository, model) {
   const normalized = String(model || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const repo = String(repository || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  if (normalized === 'large-v3-turbo') return repo.includes('large-v3-turbo') || repo.includes('whisper-turbo');
+  if (normalized === 'large-v3-turbo') {
+    return repo.endsWith('-large-v3-turbo') || repo.endsWith('-whisper-turbo');
+  }
   return repo.endsWith(`-${normalized}`) || repo.includes(`faster-whisper-${normalized}`);
 }
 

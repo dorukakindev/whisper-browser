@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld('api', {
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
+  saveSettingsSync: (s) => ipcRenderer.sendSync('settings:saveSync', s),
   loadQueueState: () => ipcRenderer.invoke('queue:load'),
   saveQueueState: (snapshot) => ipcRenderer.invoke('queue:save', snapshot),
   saveImage: (payload) => ipcRenderer.invoke('media:saveImage', payload),

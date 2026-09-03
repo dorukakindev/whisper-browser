@@ -218,8 +218,9 @@ class SafeSecretStore {
     };
   }
 
-  forExport(settings, options = {}) {
-    if (options.includeSecrets === true) return cloneJson(settings);
+  forExport(settings) {
+    // Dışa aktarma yüzeyi hiçbir bayrakla sırları açamaz. Anahtarların taşınması
+    // gerekirse bunun açık kullanıcı onaylı, ayrı bir kasa akışı olması gerekir.
     return redactExport(splitSettingsSecrets(settings, this.fields).publicSettings);
   }
 }

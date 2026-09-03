@@ -759,7 +759,18 @@ function decodeSubtitleBuffer(value) {
     }
     return swapped.toString('utf16le');
   }
-  return buffer.toString('utf8').replace(/^\uFEFF/, '');
+  const utf8 = buffer.toString('utf8').replace(/^\uFEFF/, '');
+  if (!utf8.includes('\uFFFD')) return utf8;
+  // Ağdan yakalanan eski Türkçe SRT/VTT dosyaları hâlâ Windows-1254 olabilir.
+  // Buffer#toString('latin1') 0x80-0x9f aralığını yanlış eşlediği için standart
+  // TextDecoder kullan; desteklenmeyen eski Node sürümünde sınırlı harf
+  // eşlemesiyle güvenli bir geri dönüş yap.
+  try {
+    return new TextDecoder('windows-1254', { fatal: false }).decode(buffer).replace(/^\uFEFF/, '');
+  } catch (_) {
+    const cp1254 = { 0xd0: 'Ğ', 0xdd: 'İ', 0xde: 'Ş', 0xf0: 'ğ', 0xfd: 'ı', 0xfe: 'ş' };
+    return [...buffer].map((byte) => cp1254[byte] || String.fromCharCode(byte)).join('');
+  }
 }
 
 function parseSubtitlePayload(body, mimeType = '', url = '') {

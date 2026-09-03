@@ -27,6 +27,15 @@ test('büyük ayarlar boş varsayılana dönüşmez, snapshot reddedilir', () =>
   assert.equal(validateQueueOptions({ items: [{ opts: { model: 'small' } }] }).ok, true);
 });
 
+test('5000 öğeyi aşan seçenek dizisi sessizce kırpılmaz', () => {
+  assert.equal(clonePublicOptions({ glossary: Array.from({ length: 5001 }, (_, i) => String(i)) }), null);
+  const restored = normalizeQueueSnapshot({ items: [
+    { id: 11, type: 'file', input: 'D:\\film.mp4', opts: { glossary: Array(5001).fill('x') } },
+  ] });
+  assert.equal(restored.items.length, 0);
+  assert.equal(restored.invalidCount, 1);
+});
+
 test('mangaApiKey mevcut sonda eşleşen sır filtresiyle ayıklanır', () => {
   assert.deepEqual(clonePublicOptions({ mangaApiKey: 'fake-secret', nested: { mangaApiKey: 'fake' } }), { nested: {} });
 });

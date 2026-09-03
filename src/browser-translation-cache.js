@@ -43,7 +43,9 @@ class PersistentTranslationCache {
     if (!record || Date.now() - record.updatedAt > this.ttlMs) {
       this.map.delete(normalized);
       this.version += 1;
-      this.scheduleFlush();
+      // Süresi dolmuş bir kaydın okunması sıcak yolda disk yazımı başlatmasın.
+      // Sürüm artışı değişikliği korur; sonraki set/silme ya da kapanış flush'ı
+      // temizlenmiş haritayı kalıcılaştırır.
       return undefined;
     }
     this.map.delete(normalized);

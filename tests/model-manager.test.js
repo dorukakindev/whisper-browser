@@ -16,6 +16,7 @@ test('Hugging Face önbellek yollarını tekrarsız üretir', () => {
 test('model depo adları güvenli biçimde eşlenir', () => {
   assert(repositoryMatchesModel('models--Systran--faster-whisper-small', 'small'));
   assert(repositoryMatchesModel('models--mobiuslabsgmbh--faster-whisper-large-v3-turbo', 'large-v3-turbo'));
+  assert(!repositoryMatchesModel('models--example--large-v3-turbo-corrupt-copy', 'large-v3-turbo'));
   assert(!repositoryMatchesModel('models--Systran--faster-whisper-base', 'large-v3'));
 });
 

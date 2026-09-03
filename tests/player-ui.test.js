@@ -309,6 +309,26 @@ test('geciken tarayıcı görünümü oynatıcı modunun üzerine geri açılam�
     'başarısız sekme etkinleştirme eski sekmeye klavye odağı taşıyor');
 });
 
+test('kapanış son ayar değişikliğini senkron kaydeder ve çalışma alanı geçişini temizler', () => {
+  const unload = js.slice(js.indexOf("window.addEventListener('beforeunload'"),
+    js.indexOf('// "Sırada dur"'));
+  assert(/saveSettingsSync\?\.\(appSettingsPayload\(\)\)/.test(unload),
+    'kapanış anında debounce içindeki ayarlar kaydedilmiyor');
+  const mode = js.slice(js.indexOf('function setWorkspaceMode'),
+    js.indexOf('async function navigateBrowserFromAddress'));
+  assert(/player\.abA = null[\s\S]{0,80}player\.abB = null/.test(mode),
+    'çalışma alanı değişince eski A-B aralığı temizlenmiyor');
+  assert(/clearTimeout\(_liveCueRenderTimer\)/.test(mode),
+    'çalışma alanı değişince gecikmiş canlı altyazı çizimi iptal edilmiyor');
+});
+
+test('oynatıcı kısayolları odaklı düğme ve bağlantılarda çalışmaz', () => {
+  const shortcuts = js.slice(js.indexOf('// Klavye: oynatıcı açıkken'),
+    js.indexOf('// Gecikme/hiz/ses'));
+  assert(/tag === 'button'/.test(shortcuts) && /tag === 'a'/.test(shortcuts),
+    'etkileşimli öğe odağı genel oynatıcı kısayollarından korunmuyor');
+});
+
 test('sekme kapatma ve çalışma alanı açma eşzamanlı istekleri tekilleştiriliyor', () => {
   const close = js.slice(js.indexOf('async function closeBrowserTab'),
     js.indexOf('async function activateBrowserTabAndFocus'));

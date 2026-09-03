@@ -33,6 +33,8 @@ test('silinen anahtar kasa kapalı/açık döngüsünde dirilmez; yeni anahtar b
     const exported = store.forExport({ ui: { translateApiKey: 'hidden', HF_TOKEN: 'hidden', theme: 'dark' }, nested: [{ client_secret: 'hidden' }] });
     assert(!JSON.stringify(exported).includes('hidden'));
     assert.equal(exported.ui.theme, 'dark');
+    const forced = store.forExport({ translate: { apiKey: 'never-export' }, ui: { theme: 'dark' } }, { includeSecrets: true });
+    assert(!JSON.stringify(forced).includes('never-export'));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 test('ayar yolu prototipi değiştirmez', () => {

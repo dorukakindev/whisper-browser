@@ -103,6 +103,11 @@ test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
   assert.equal(decodeSubtitleBuffer(Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndianBody])), text);
 });
 
+test('Windows-1254 ağ altyazısı Türkçe karakterleriyle çözülür', () => {
+  const cp1254 = Buffer.from([0xde, 0x69, 0x6d, 0xfe, 0x65, 0x6b, 0x20, 0xfd, 0xfe, 0xfd, 0x6e, 0xfd]);
+  assert.equal(decodeSubtitleBuffer(cp1254), 'Şimşek ışını');
+});
+
 test('YouTube json3 olaylarını saniyeye çevirir', () => {
   const result = parseSubtitlePayload(JSON.stringify({ events: [
     { tStartMs: 1250, dDurationMs: 2250, segs: [{ utf8: 'Hello ' }, { utf8: 'world' }] },

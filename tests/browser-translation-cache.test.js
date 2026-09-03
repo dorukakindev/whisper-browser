@@ -42,6 +42,9 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   await quiet.flush();
   assert.equal(quiet.get('read'), 'Sessiz');
   assert.equal(quiet.timer, null, 'get() tek başına disk yazımı planlamamalı');
+  quiet.map.set('expired-live', { value: 'Eski', updatedAt: Date.now() - quiet.ttlMs - 1 });
+  assert.equal(quiet.get('expired-live'), undefined);
+  assert.equal(quiet.timer, null, 'süresi dolmuş get() sıcak yolda disk yazımı planlamamalı');
 
   const racingFile = path.join(dir, 'racing.json');
   let racing;

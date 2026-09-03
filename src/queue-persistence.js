@@ -38,7 +38,10 @@ function sanitizePublicValue(value, key = '', depth = 0) {
   if (value === null || typeof value === 'boolean' || typeof value === 'number') return value;
   if (typeof value === 'string') return sanitizeOptionUrl(value, key);
   if (Array.isArray(value)) {
-    return value.slice(0, 5000).map((item) => sanitizePublicValue(item, '', depth + 1))
+    // Kuyruk geri yüklenirken listenin kuyruğunu sessizce kaybetmek yerine
+    // bütün seçenek nesnesini reddet; kullanıcı kayıt hatasını açıkça görür.
+    if (value.length > 5000) throw new RangeError('Dizi sınırı aşıldı.');
+    return value.map((item) => sanitizePublicValue(item, '', depth + 1))
       .filter((item) => item !== undefined);
   }
   if (!value || typeof value !== 'object') return undefined;
@@ -52,13 +55,13 @@ function sanitizePublicValue(value, key = '', depth = 0) {
 
 function clonePublicOptions(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const publicOptions = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (['chat', 'explain', 'queueItemId', 'input', 'youtube'].includes(key)) continue;
-    const sanitized = sanitizePublicValue(value, key);
-    if (sanitized !== undefined) publicOptions[key] = sanitized;
-  }
   try {
+    const publicOptions = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (['chat', 'explain', 'queueItemId', 'input', 'youtube'].includes(key)) continue;
+      const sanitized = sanitizePublicValue(value, key);
+      if (sanitized !== undefined) publicOptions[key] = sanitized;
+    }
     const encoded = JSON.stringify(publicOptions);
     if (Buffer.byteLength(encoded, 'utf8') > MAX_QUEUE_OPTIONS_BYTES) return null;
     const parsed = JSON.parse(encoded);
@@ -135,9 +138,13 @@ function normalizeQueueSnapshot(raw, activeQueueItemId = null) {
     ? Number(activeQueueItemId) : null;
   const seen = new Set();
   let recoveredCount = 0;
+  let invalidCount = Math.max(0, (Array.isArray(source.items) ? source.items.length : 0) - MAX_QUEUE_ITEMS);
   const items = (Array.isArray(source.items) ? source.items : []).slice(0, MAX_QUEUE_ITEMS)
     .map(normalizeQueueItem).filter((item) => {
-      if (!item || seen.has(item.id)) return false;
+      if (!item || seen.has(item.id)) {
+        invalidCount += 1;
+        return false;
+      }
       seen.add(item.id);
       return true;
     }).map((item) => {
@@ -154,6 +161,7 @@ function normalizeQueueSnapshot(raw, activeQueueItemId = null) {
     queueRunning: activePresent,
     currentQueueId: activePresent ? activeId : null,
     recoveredCount,
+    invalidCount,
     items,
   };
 }
