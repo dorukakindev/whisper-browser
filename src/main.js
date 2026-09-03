@@ -1645,8 +1645,10 @@ async function clearBrowserSiteData(rawUrl) {
     failed++;
     console.warn('Site depolaması temizlenemedi:', error.message);
   });
-  await browserSession.cookies.flushStore().catch(() => {});
-  return { ok: true, host: parsed.hostname, origin: parsed.origin, removed, failed, total: targets.length };
+  await browserSession.cookies.flushStore().catch(() => { failed++; });
+  return { ok: failed === 0, partial: failed > 0 && removed > 0,
+    error: failed ? 'Site verilerinin bir kısmı temizlenemedi. HTTP önbelleği bu işlem kapsamında değildir.' : '',
+    host: parsed.hostname, origin: parsed.origin, removed, failed, total: targets.length };
 }
 
 async function clearAllBrowserCookies() {
@@ -1859,20 +1861,24 @@ function browserTabForWebContents(webContents) {
 }
 
 function browserCertificateErrorMessage(error) {
-  const detail = String(error || '').replace(/^net::/i, '').replace(/^ERR_/i, '').replace(/_/g, ' ').toLocaleLowerCase('tr-TR');
+  const detail = String(error || '').replace(/^net::/i, '').replace(/^ERR_/i, '').replace(/_/g, ' ').toLowerCase();
   return `Bu sitenin güvenlik sertifikası doğrulanamadı${detail ? ` (${detail})` : ''}. Bağlantı engellendi; sistem saatini, VPN/proxy ve antivirüs HTTPS denetimini kontrol edin.`;
 }
 
 async function openBrowserLinkInNewTab(rawUrl) {
   const url = normalizeBrowserUrl(rawUrl);
-  if (!url || browserTabs.size >= MAX_SESSION_TABS) return false;
+  if (!url || browserTabs.size >= MAX_SESSION_TABS) {
+    sendBrowserEvent({ type: 'notice', success: false, message: !url ? 'Bağlantı açılamadı.'
+      : `En fazla ${MAX_SESSION_TABS} sekme açılabilir. Önce bir sekmeyi kapatın.` });
+    return false;
+  }
   const tab = createBrowserTabRecord();
   const view = ensureBrowserView(tab);
-  if (!view) { destroyBrowserTab(tab); return false; }
-  await activateBrowserTab(tab.id);
-  sendBrowserEvent(tab, { type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: tab.id });
+  if (!view) { destroyBrowserTab(tab); throw new Error('Yeni sekme hazırlanamadı.'); }
+  tab.restoredUrl = url;
+  sendBrowserEvent(tab, { type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
   await waitForProtectedPlayback(url);
-  view.setVisible(browserVisible && !browserModalOccluded);
+  view.setVisible(tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
   try {
     await view.webContents.loadURL(url);
     tab.restoredUrl = url;
@@ -1901,8 +1907,9 @@ function browserImageFileName(rawUrl, contentType = '') {
 
 async function saveBrowserContextImage(tab, rawUrl) {
   let parsed;
-  try { parsed = new URL(String(rawUrl || '')); } catch (_) { return; }
-  if (!['http:', 'https:'].includes(parsed.protocol) || !tab?.view || tab.view.webContents.isDestroyed()) return;
+  try { parsed = new URL(String(rawUrl || '')); } catch (_) { throw new Error('Görsel adresi geçersiz.'); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Bu geçici veya gömülü görsel adresi henüz kaydedilemiyor. HTTP/HTTPS görseller destekleniyor.');
+  if (!tab?.view || tab.view.webContents.isDestroyed()) throw new Error('Görselin bulunduğu sekme kapandı.');
   const response = await tab.view.webContents.session.fetch(parsed.href, {
     headers: { Referer: tab.view.webContents.getURL() || parsed.origin },
   });
@@ -1934,8 +1941,12 @@ function installBrowserContextMenu(tab, wc) {
       { label: 'Yenile', click: () => wc.reload() },
       { type: 'separator' },
       { label: 'Bağlantıyı yeni sekmede aç', visible: !!linkUrl,
-        click: () => void openBrowserLinkInNewTab(linkUrl) },
+        click: () => void openBrowserLinkInNewTab(linkUrl).catch((error) =>
+          sendBrowserEvent({ type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
       { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
+      { label: 'Kes', visible: !!params.isEditable, enabled: !!params.editFlags?.canCut, click: () => wc.cut() },
+      { label: 'Yapıştır', visible: !!params.isEditable, enabled: !!params.editFlags?.canPaste, click: () => wc.paste() },
+      { label: 'Tümünü seç', visible: !!params.isEditable, enabled: !!params.editFlags?.canSelectAll, click: () => wc.selectAll() },
       { label: 'Görseli kaydet…', visible: !!imageUrl,
         click: () => void saveBrowserContextImage(tab, imageUrl).catch((error) =>
           sendBrowserEvent(tab, { type: 'notice', message: `Görsel kaydedilemedi: ${error.message}`, success: false })) },

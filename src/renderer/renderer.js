@@ -5658,7 +5658,7 @@ async function clearBrowserCookieScope(scope) {
   const confirmed = await openAppDialog({
     title: isSite ? 'Bu sitenin verilerini sil' : 'Tüm web çerezlerini sil',
     description: isSite
-      ? 'Bu siteye ait çerezler, yerel depolama, IndexedDB ve service worker verileri silinecek; sayfa yenilenecek. Site oturumunuz kapanabilir.'
+      ? 'Bu siteye ait çerezler, yerel depolama, IndexedDB ve service worker verileri silinecek; sayfa yenilenecek. Site oturumunuz kapanabilir. HTTP önbelleği silinmez; genel önbellek temizliği ayrı oturum sıfırlama işlemindedir.'
       : 'Whisper içindeki tüm web çerezleri silinecek. Açık site oturumlarınız kapanabilir.',
     confirmLabel: isSite ? 'Site verilerini sil' : 'Çerezleri sil',
   });
@@ -5879,7 +5879,10 @@ if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEv
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
   if (event.type === 'tabs-changed') {
+    const previousActiveId = player.browserActiveTabId;
+    saveActiveBrowserTabWorkspace();
     syncBrowserTabs(event.tabs || [], event.activeTabId || '');
+    if (previousActiveId === player.browserActiveTabId) return;
     const tab = browserTabState();
     if (tab) {
       restoreActiveBrowserTabWorkspace(tab);
