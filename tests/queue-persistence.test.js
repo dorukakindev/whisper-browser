@@ -87,6 +87,13 @@ test('çökmeden kalan çalışan iş beklemeye alınır', () => {
   assert.equal(restored.queueRunning, false);
 });
 
+test('izleme klasöründen gelen iş yeniden yüklemede kaynağını korur', () => {
+  const restored = normalizeQueueSnapshot({ items: [{
+    id: 12, type: 'file', input: 'D:\\izlenen\\film.mkv', status: 'pending', watchSource: true,
+  }] });
+  assert.equal(restored.items[0].watchSource, true);
+});
+
 test('renderer yenilenirken ana süreçte yaşayan işe yeniden bağlanılır', () => {
   const restored = normalizeQueueSnapshot({ items: [{ id: 3, type: 'file', input: 'D:\\a.mp4', status: 'running' }] }, 3);
   assert.equal(restored.items[0].status, 'running');

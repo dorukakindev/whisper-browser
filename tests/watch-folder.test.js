@@ -59,6 +59,13 @@ test('hedef dili farklı çeviri dosyası da tekrar kuyruğa girmez', () => {
   }
 });
 
+test('önceden okunmuş çıktı dizini dil ekli dosya aramasında yeniden kullanılabilir', () => {
+  const video = path.join('D:\\medya', 'film.mkv');
+  assert.equal(hasConfiguredWatchOutput(video, {
+    formats: 'srt,vtt', langSuffix: true, outputDir: 'D:\\cikti',
+  }, () => false, ['film.fr.vtt']), true);
+});
+
 test('sabit dosya yalnızca bir kez kuyruğa bildirilir', () => {
   const state = { size: 100, stableCount: 0, queued: false, hadOutput: false };
   assert.equal(advanceWatchStability(state, 100, 2), false);
@@ -74,6 +81,7 @@ test('izleme IPCsi renderer ayarlarını ana sürece taşır', () => {
   const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
   const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   assert.match(preload, /startWatchFolder: \(dir, options\)/);
+  assert.match(preload, /reportWatchFile:/);
   assert.match(renderer, /formats: opts\.formats/);
   assert.match(renderer, /langSuffix: opts\.langSuffix/);
   assert.match(renderer, /outputDir: opts\.outputDir/);
@@ -81,6 +89,9 @@ test('izleme IPCsi renderer ayarlarını ana sürece taşır', () => {
   assert.match(main, /prev\.queued && prev\.hadOutput/);
   assert.match(main, /advanceWatchStability\(prev, size, WATCH_STABLE_TICKS\)/);
   assert.match(main, /queued: hasOutput, hadOutput: hasOutput/);
+  assert.match(main, /ipcMain\.handle\('watch:report'/);
+  assert.match(renderer, /queueInputKey/);
+  assert.match(renderer, /reportWatchQueueResult/);
 });
 
 console.log(`watch-folder: ${passed} test`);

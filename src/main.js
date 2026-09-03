@@ -50,6 +50,7 @@ const {
   hasConfiguredWatchOutput,
   normalizeWatchOutputConfig,
   advanceWatchStability,
+  watchOutputNames,
 } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
 const {
@@ -588,11 +589,21 @@ function scanWatchFolder() {
   }
 
   const ready = [];
+  const outputDirectoryCache = new Map();
+  const outputEntriesFor = (file) => {
+    const outputDir = watchOutputNames(file, watchOutputConfig).outputDir;
+    if (!outputDirectoryCache.has(outputDir)) {
+      try { outputDirectoryCache.set(outputDir, fs.readdirSync(outputDir)); }
+      catch (_) { outputDirectoryCache.set(outputDir, []); }
+    }
+    return outputDirectoryCache.get(outputDir);
+  };
   for (const file of found) {
     const ext = path.extname(file).slice(1).toLowerCase();
     if (!MEDIA_EXTS.has(ext)) continue;
     // Yanında altyazı varsa zaten işlenmiş say (tekrar tekrar çevirmesin)
-    const hasOutput = hasConfiguredWatchOutput(file, watchOutputConfig, fs.existsSync);
+    const hasOutput = hasConfiguredWatchOutput(
+      file, watchOutputConfig, fs.existsSync, outputEntriesFor(file));
     if (hasOutput) {
       watchSeen.set(file, { queued: true, hadOutput: true });
       continue;
@@ -603,6 +614,11 @@ function scanWatchFolder() {
     if (!prev) {
       watchSeen.set(file, { size, stableCount: 0, queued: false, hadOutput: false });
       continue;
+    }
+    if (prev.retryAfter && Date.now() < prev.retryAfter) continue;
+    if (prev.retryAfter) {
+      prev.retryAfter = 0;
+      prev.stableCount = 0;
     }
     // Çıktı sonradan silindiyse eski "queued" damgasını kaldır; dosya yeniden
     // sabitlenince tekrar kuyruğa girebilsin.
@@ -669,6 +685,28 @@ ipcMain.handle('watch:stop', async (event) => {
   watchDir = null;
   watchOutputConfig = normalizeWatchOutputConfig();
   watchSeen.clear();
+  return { ok: true };
+});
+
+ipcMain.handle('watch:report', async (event, filePath, status) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (typeof filePath !== 'string' || !filePath || !['done', 'error'].includes(status)) {
+    return { ok: false, error: 'Geçersiz izleme sonucu.' };
+  }
+  const resolved = path.resolve(filePath);
+  const entry = watchSeen.get(resolved) || watchSeen.get(filePath);
+  if (!entry) return { ok: true, ignored: true };
+  if (status === 'done') {
+    entry.queued = true;
+    entry.hadOutput = true;
+    entry.retryAfter = 0;
+  } else {
+    entry.queued = false;
+    entry.hadOutput = false;
+    entry.stableCount = 0;
+    // Kalıcı bir hata sonsuz hızlı döngü yaratmasın; beş dakika sonra yeniden dene.
+    entry.retryAfter = Date.now() + 5 * 60 * 1000;
+  }
   return { ok: true };
 });
 
@@ -6250,6 +6288,22 @@ function ffSubtitlesArg(p) {
   return `subtitles='${fwd}'`;
 }
 
+function stageBurninSubtitle(subPath) {
+  const dir = path.join(app.getPath('userData'), 'burnin-temp');
+  fs.mkdirSync(dir, { recursive: true });
+  const cutoff = Date.now() - (48 * 60 * 60 * 1000);
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isFile() || !/^subtitle-[a-f0-9-]+\.(srt|ass)$/i.test(entry.name)) continue;
+      const candidate = path.join(dir, entry.name);
+      try { if (fs.statSync(candidate).mtimeMs < cutoff) removeFileQuietly(candidate); } catch (_) {}
+    }
+  } catch (_) {}
+  const stagedPath = path.join(dir, `subtitle-${randomUUID()}${path.extname(subPath).toLowerCase()}`);
+  fs.copyFileSync(subPath, stagedPath);
+  return stagedPath;
+}
+
 function burninRecoveryStatePath() {
   return path.join(app.getPath('userData'), 'burnin-recovery.json');
 }
@@ -6395,6 +6449,14 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
   const ffmpeg = resolveFfTool('ffmpeg');
   const ffprobe = resolveFfTool('ffprobe');
   const { outPath, tempPath } = burninOutputPaths(videoPath);
+  let filterSubPath;
+  try {
+    // libass'in Windows filtre ayrıştırıcısı kesme işaretli yolları bozabiliyor.
+    // İçeriği ASCII adlı özel geçici dosyaya al; özgün dosyaya dokunma.
+    filterSubPath = stageBurninSubtitle(subPath);
+  } catch (error) {
+    return { ok: false, error: `Altyazı gömme için hazırlanamadı: ${error.message}` };
+  }
 
   // Toplam süreyi al (ilerleme yüzdesi için)
   let totalSec = 0;
@@ -6403,8 +6465,13 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     totalSec = parseFloat(probe) || 0;
   } catch (_) {}
 
-  const vf = ffSubtitlesArg(subPath);
-  const args = ['-y', '-i', videoPath, '-vf', vf, '-c:a', 'copy', '-progress', 'pipe:1', '-nostats', tempPath];
+  const vf = ffSubtitlesArg(filterSubPath);
+  const args = ['-y', '-i', videoPath, '-vf', vf, '-map', '0:v:0', '-map', '0:a?',
+    '-map_metadata', '0', '-map_chapters', '0', '-c:a', 'copy'];
+  // MKV kaynağında ek altyazı izlerini de koru. MP4'e PGS/ASS gibi uyumsuz
+  // codec'leri kopyalamak tüm işi bozabileceği için MP4 çıktıda yalnız sesleri koruyoruz.
+  if (path.extname(outPath).toLowerCase() === '.mkv') args.push('-map', '0:s?', '-c:s', 'copy');
+  args.push('-progress', 'pipe:1', '-nostats', tempPath);
 
   const send = (payload) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('burnin:event', payload);
@@ -6422,6 +6489,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     job = spawn(ffmpeg, args, { windowsHide: true });
     job.tempPath = tempPath;
     job.outPath = outPath;
+    job.filterSubPath = filterSubPath;
     job.cancelled = false;
     job.settled = false;
     job.previousRecovery = resumingPrevious ? previousRecovery : null;
@@ -6440,6 +6508,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       job.once('close', () => {
         if (burninJob === job) burninJob = null;
         try { removeFileQuietly(tempPath); } catch (_) {}
+        try { removeFileQuietly(filterSubPath); } catch (_) {}
       });
       terminateProcessTree(job, { spawn });
       return { ok: false, error: `Gömme kurtarma kaydı oluşturulamadı: ${recoveryError.message}` };
@@ -6447,6 +6516,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
   } catch (err) {
     burninJob = null;
     try { removeFileQuietly(tempPath); } catch (_) {}
+    try { removeFileQuietly(filterSubPath); } catch (_) {}
     return { ok: false, error: err.message };
   }
   send({ type: 'start', total: totalSec });
@@ -6472,6 +6542,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     if (job.settled) return;
     job.settled = true;
     if (burninJob === job) burninJob = null;
+    try { removeFileQuietly(job.filterSubPath); } catch (_) {}
     // İptal isteği FFmpeg doğal olarak başarıyla kapandıktan hemen önce gelmiş
     // olabilir. Çıkış kodu 0 ise tamamlanmış dosyayı silmek yerine her zaman al.
     if (ok) {

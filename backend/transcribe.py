@@ -7,6 +7,7 @@ JSON satırları olarak basar (NDJSON), böylece UI gerçek zamanlı takip edebi
 """
 
 import argparse
+import hashlib
 import inspect
 import json
 import math
@@ -3811,8 +3812,12 @@ def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8):
 # kırpma yokken çalışır (film senaryosu). Kelime zaman damgaları da saklanır;
 # böylece devam sonrası JSON çıktısının eski bölümü kelimesiz kalmaz.
 
-def _checkpoint_path(input_path):
-    """Girdinin yanına deterministik checkpoint yolu."""
+def _checkpoint_path(input_path, cache_dir=None):
+    """GUI işlerinde checkpoint'i kullanıcı verisi altında, CLI'da geriye uyumlu yerde tut."""
+    if cache_dir:
+        normalized = os.path.normcase(os.path.realpath(str(input_path))).encode("utf-8", "surrogatepass")
+        digest = hashlib.sha256(normalized).hexdigest()
+        return str(Path(cache_dir) / "checkpoints" / f"{digest}.json")
     return str(input_path) + ".whisper.ckpt.json"
 
 
@@ -3884,16 +3889,18 @@ def job_signature(args):
 _CHECKPOINT_WRITE_WARNED = set()
 
 
-def write_checkpoint(path, signature, entries, last_time, words=None):
+def write_checkpoint(path, signature, entries, last_time, words=None, detected_language=None):
     """Checkpoint'i atomik yaz (önce .tmp, sonra replace) — yazım anında çökme bozmasın."""
     tmp = path + ".tmp"
     try:
         data = {
-            "version": 2,
+            "version": 3,
             "signature": signature,
             "last_time": round(float(last_time), 3),
             "entries": [[round(float(s), 3), round(float(e), 3), t] for (s, e, t) in entries],
             "words": list(words or []),
+            "detected_language": (str(detected_language).strip().lower()[:32]
+                                  if detected_language else None),
         }
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, allow_nan=False)
@@ -3918,7 +3925,7 @@ def write_checkpoint(path, signature, entries, last_time, words=None):
     return True
 
 
-def read_checkpoint(path, signature):
+def read_checkpoint(path, signature, include_metadata=False):
     """
     Geçerli + imzası eşleşen checkpoint'i (entries, last_time, words) olarak döndür.
     Yoksa/bozuksa/imza uymuyorsa None.
@@ -3928,7 +3935,7 @@ def read_checkpoint(path, signature):
             data = json.load(f)
     except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(data, dict) or data.get("version") not in (1, 2):
+    if not isinstance(data, dict) or data.get("version") not in (1, 2, 3):
         return None
     if data.get("signature") != signature:
         return None  # ayarlar değişmiş → temiz başla
@@ -3954,7 +3961,7 @@ def read_checkpoint(path, signature):
             return None
     if not entries:
         return None
-    words = data.get("words") if data.get("version") == 2 else []
+    words = data.get("words") if data.get("version") in (2, 3) else []
     if not isinstance(words, list):
         words = []
     valid_words = []
@@ -3975,7 +3982,13 @@ def read_checkpoint(path, signature):
             valid_words.append(parsed_word)
         except (KeyError, TypeError, ValueError):
             continue
-    return entries, float(last_time), valid_words
+    result = (entries, float(last_time), valid_words)
+    if not include_metadata:
+        return result
+    detected_language = data.get("detected_language") if data.get("version") == 3 else None
+    if not isinstance(detected_language, str) or not re.fullmatch(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})?", detected_language, re.I):
+        detected_language = None
+    return (*result, detected_language)
 
 
 def merge_resumed_entries(old_entries, new_entries, boundary):
@@ -4095,12 +4108,21 @@ def transcribe(args):
         resume_from = None
         resumed_entries = []
         resumed_words = []
+        resume_detected_language = None
         ckpt_sig = job_signature(args)
-        ckpt_path = _checkpoint_path(args.input) if (args.input and not user_clipped) else None
+        ckpt_path = _checkpoint_path(args.input, args.cache_dir) if (args.input and not user_clipped) else None
+        legacy_ckpt_path = _checkpoint_path(args.input) if ckpt_path else None
+        if ckpt_path and args.cache_dir:
+            try:
+                Path(ckpt_path).parent.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                # İlk periyodik yazım kullanıcıya tek, görünür uyarı verecek.
+                pass
         if args.resume and ckpt_path:
-            ck = read_checkpoint(ckpt_path, ckpt_sig)
+            ckpt_read_path = ckpt_path if os.path.exists(ckpt_path) else legacy_ckpt_path
+            ck = read_checkpoint(ckpt_read_path, ckpt_sig, include_metadata=True)
             if ck:
-                resumed_entries, last_time, resumed_words = ck
+                resumed_entries, last_time, resumed_words, resume_detected_language = ck
                 # Sınırı 2 sn geri al: son bloklar yeniden yazılır → hem sonuna ulaşmış
                 # checkpoint'te "boş ses" hatası olmaz, hem sınır temiz birleşir.
                 # Son checkpoint bloğu geri-alma sınırını kesiyorsa yalnız son iki
@@ -4152,7 +4174,11 @@ def transcribe(args):
         if args.vad_max_speech_s and args.vad_max_speech_s > 0:
             vad_parameters["max_speech_duration_s"] = args.vad_max_speech_s
 
-        language = None if args.language in (None, "", "auto") else args.language
+        language = (resume_detected_language
+                    if args.language in (None, "", "auto") and resume_detected_language
+                    else (None if args.language in (None, "", "auto") else args.language))
+        if resume_detected_language:
+            log(f"Checkpoint dili korunuyor: {resume_detected_language}")
 
         initial_prompt, hotwords, wx_initial_prompt = build_prompt_and_hotwords(args)
         if hotwords:
@@ -4354,6 +4380,7 @@ def transcribe(args):
                 write_checkpoint(
                     ckpt_path, ckpt_sig, snapshot, segment.end + time_offset,
                     words=word_snapshot,
+                    detected_language=info.language,
                 )
                 last_ckpt = now
 
@@ -4728,6 +4755,11 @@ def transcribe(args):
         if ckpt_path and os.path.exists(ckpt_path):
             try:
                 os.remove(ckpt_path)
+            except OSError:
+                pass
+        if legacy_ckpt_path and legacy_ckpt_path != ckpt_path and os.path.exists(legacy_ckpt_path):
+            try:
+                os.remove(legacy_ckpt_path)
             except OSError:
                 pass
 
@@ -5811,8 +5843,6 @@ def sync_subtitles(args):
         ref_sig, hz = audio_energy_signal(wav, HZ)
         if ref_sig.size == 0:
             raise RuntimeError("Ses analiz edilemedi (boş ses).")
-        sub_sig = build_binary_signal(spans, ref_sig.size, hz)
-
         warn = []
         emit("status", stage="sync", text="Kayma hesaplanıyor (korelasyon)...")
         if args.sync_fix_framerate:
@@ -5826,6 +5856,7 @@ def sync_subtitles(args):
                 log("Framerate sürüklenmesi yok, sabit kayma uygulanıyor")
         else:
             ratio = 1.0
+            sub_sig = build_binary_signal(spans, ref_sig.size, hz)
             offset, score = best_offset_scored(
                 ref_sig, sub_sig, hz, max_shift_sec=args.sync_max_shift)
         log(f"Tespit edilen kayma: {offset:+.2f} sn "

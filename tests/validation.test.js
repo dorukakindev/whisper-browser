@@ -125,6 +125,10 @@ t('burn-in nihai dosyaya değil benzersiz tmp.mp4 yoluna yazar ve tek kez finali
   ok(/replaceBurninOutput\(tempPath, outPath\)/.test(body), 'başarılı geçici çıktı nihai yola alınmıyor');
   ok(/if \(ok\) \{/.test(body), 'başarılı FFmpeg çıkışı geç iptal yarışında silinebilir');
   ok(/removeFileQuietly\(tempPath\)/.test(body), 'hata ve iptalde geçici çıktı temizlenmiyor');
+  ok(/stageBurninSubtitle\(subPath\)/.test(body), 'kesme işaretli altyazı yolu güvenli geçici ada alınmıyor');
+  ok(/'-map', '0:a\?'/u.test(body), 'birden fazla ses izi gömme çıktısında korunmuyor');
+  ok(/'-map_metadata', '0'/u.test(body), 'kaynak metadata gömme çıktısında korunmuyor');
+  ok(/removeFileQuietly\(job\.filterSubPath\)/.test(body), 'geçici altyazı kopyası iş bitiminde temizlenmiyor');
 });
 
 t('klasör izleme yalnız gerçek dizin yolunu kabul eder', () => {

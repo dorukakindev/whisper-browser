@@ -6,10 +6,12 @@ const { randomUUID } = require('crypto');
 
 function burninOutputPaths(videoPath, token = randomUUID()) {
   const dir = path.dirname(videoPath);
-  const base = path.basename(videoPath, path.extname(videoPath));
+  const sourceExt = path.extname(videoPath).toLowerCase();
+  const outputExt = sourceExt === '.mkv' ? '.mkv' : '.mp4';
+  const base = path.basename(videoPath, sourceExt);
   return {
-    outPath: path.join(dir, `${base}.altyazili.mp4`),
-    tempPath: path.join(dir, `${base}.altyazili.${token}.tmp.mp4`),
+    outPath: path.join(dir, `${base}.altyazili${outputExt}`),
+    tempPath: path.join(dir, `${base}.altyazili.${token}.tmp${outputExt}`),
   };
 }
 
@@ -131,7 +133,8 @@ function burninRecoveryPathsMatch(recovery) {
   if (path.dirname(path.resolve(item.tempPath)) !== path.dirname(path.resolve(expected.tempPath))) return false;
   const base = path.basename(item.videoPath, path.extname(item.videoPath))
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`^${base}\\.altyazili\\.[^.\\/]+\\.tmp\\.mp4$`, 'i')
+  const outputExt = path.extname(expected.outPath).replace('.', '\\.');
+  return new RegExp(`^${base}\\.altyazili\\.[^.\\/]+\\.tmp${outputExt}$`, 'i')
     .test(path.basename(item.tempPath));
 }
 

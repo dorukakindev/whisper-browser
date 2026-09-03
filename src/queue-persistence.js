@@ -128,6 +128,7 @@ function normalizeQueueItem(raw) {
       ? raw.warnings.filter((value) => typeof value === 'string').map((value) => value.slice(0, 2000)).slice(0, 100)
       : [],
     opts,
+    watchSource: raw.watchSource === true,
     recovered: !!raw.recovered,
   };
 }

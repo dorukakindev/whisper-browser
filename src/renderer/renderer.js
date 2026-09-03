@@ -366,8 +366,20 @@ async function startTranscribeSafe(opts) {
   }
 }
 
-function addToQueue(type, input) {
-  if (!input) return;
+function queueInputKey(type, input) {
+  const value = String(input || '').trim();
+  return type === 'file' ? value.replace(/\\/g, '/').toLowerCase() : value;
+}
+
+function addToQueue(type, input, { watchSource = false } = {}) {
+  if (!input) return false;
+  const inputKey = queueInputKey(type, input);
+  const existing = state.queue.find((item) => ['pending', 'running'].includes(item.status)
+    && queueInputKey(item.type, item.input) === inputKey);
+  if (existing) {
+    if (watchSource) existing.watchSource = true;
+    return false;
+  }
   const opts = buildOptsFromUI();
   // Oynaticinin ses kilidi yalnizca bu tek ise aittir; ana ekrandaki sonraki
   // YouTube isi yanlislikla ayni dublaji devralmasin.
@@ -377,7 +389,7 @@ function addToQueue(type, input) {
   if (problem) {
     logLine(`Kuyruğa eklenmedi — ${problem}`, 'error');
     showJobValidation(problemInfo);
-    return;
+    return false;
   }
   clearJobValidation();
   const id = ++_queueIdCounter;
@@ -385,9 +397,16 @@ function addToQueue(type, input) {
     ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
     : input.split(/[\\/]/).pop();
   // Ayarları EKLEME anında dondur: kuyruk işlenirken UI değişse bile bu iş eski ayarı kullanır
-  state.queue.push({ id, type, input, label, status: 'pending', files: [], opts });
+  state.queue.push({ id, type, input, label, status: 'pending', files: [], opts, watchSource });
   setJobsTab('queue');
   renderQueue();
+  return true;
+}
+
+function reportWatchQueueResult(item, status) {
+  if (!item?.watchSource || item.watchReported === status || !window.api.reportWatchFile) return;
+  item.watchReported = status;
+  window.api.reportWatchFile(item.input, status).catch(() => {});
 }
 
 function removeFromQueue(id) {
@@ -585,6 +604,7 @@ async function processNextQueueItem() {
   if (!r.ok) {
     logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${r.error}`, 'error');
     next.status = 'error';
+    reportWatchQueueResult(next, 'error');
     renderQueue();
     state.running = false;
     // Sonrakine geç
@@ -1217,9 +1237,13 @@ if ($('watchEnabled')) {
 if (window.api.onWatchFiles) {
   window.api.onWatchFiles((files) => {
     if (!Array.isArray(files) || !files.length) return;
-    files.forEach((f) => addToQueue('file', f));
-    logLine(`Klasörde ${files.length} yeni dosya bulundu, kuyruğa eklendi.`, 'success');
-    if (!state.queueRunning && !state.running) {
+    const added = files.reduce(
+      (count, file) => count + (addToQueue('file', file, { watchSource: true }) ? 1 : 0), 0);
+    if (added) logLine(`Klasörde ${added} yeni dosya bulundu, kuyruğa eklendi.`, 'success');
+    if (added < files.length) {
+      logLine(`${files.length - added} dosya zaten kuyrukta olduğu için yinelenmedi.`, 'info');
+    }
+    if (added && !state.queueRunning && !state.running) {
       logLine('Kuyruk otomatik başlatılıyor.', 'info');
       $('startQueueBtn').click();
     }
@@ -2861,6 +2885,7 @@ window.api.onEvent((event) => {
           item.files = event.files || [];
           // Uyarıları sakla: kuyruk bitince hangi dosyaların elle kontrol gerektirdiğini özetle
           item.warnings = Array.isArray(event.warnings) ? event.warnings : [];
+          reportWatchQueueResult(item, 'done');
           renderQueue();
         }
         // Python stdout'taki done, işletim sistemi süreci kapanmadan gelebilir.
@@ -2886,6 +2911,7 @@ window.api.onEvent((event) => {
         const item = state.queue.find(x => x.id === state.currentQueueId);
         if (item) {
           item.status = 'error';
+          reportWatchQueueResult(item, 'error');
           renderQueue();
         }
         // error olayından sonra da süreç kapanışını bekle (done ile aynı yarış).
@@ -2908,7 +2934,10 @@ window.api.onEvent((event) => {
       }
       if (state.queueRunning && state.currentQueueId !== null) {
         const item = state.queue.find(x => x.id === state.currentQueueId);
-        if (event.code !== 0 && item && item.status === 'running') item.status = 'error';
+        if (event.code !== 0 && item && item.status === 'running') {
+          item.status = 'error';
+          reportWatchQueueResult(item, 'error');
+        }
         if (event.code !== 0) {
           logLine(`İşlem çıkış kodu ${event.code} ile bitti.`, 'error');
           if (event.stderr) logLine(event.stderr, 'error');

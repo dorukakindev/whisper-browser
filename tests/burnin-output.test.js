@@ -20,8 +20,10 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-burnin-'));
 try {
   const video = path.join(dir, 'film.mkv');
   const paths = burninOutputPaths(video, 'test-token');
-  assert.equal(paths.outPath, path.join(dir, 'film.altyazili.mp4'));
-  assert.equal(paths.tempPath, path.join(dir, 'film.altyazili.test-token.tmp.mp4'));
+  assert.equal(paths.outPath, path.join(dir, 'film.altyazili.mkv'));
+  assert.equal(paths.tempPath, path.join(dir, 'film.altyazili.test-token.tmp.mkv'));
+  const mp4Paths = burninOutputPaths(path.join(dir, 'film.mp4'), 'mp4-token');
+  assert.equal(mp4Paths.outPath, path.join(dir, 'film.altyazili.mp4'));
 
   fs.writeFileSync(paths.outPath, 'eski');
   fs.writeFileSync(paths.tempPath, 'tamamlanmis');

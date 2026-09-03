@@ -1612,13 +1612,15 @@ def test_checkpoint_roundtrip():
     os.close(fd)
     try:
         words = [{"word": "Merhaba", "start": 0.1, "end": 0.8, "probability": 0.9}]
-        T.write_checkpoint(path, sig, entries, 4.0, words=words)
+        T.write_checkpoint(path, sig, entries, 4.0, words=words, detected_language="tr")
         got = T.read_checkpoint(path, sig)
         assert got is not None
         got_entries, last_time, got_words = got
         assert last_time == 4.0
         assert len(got_entries) == 2 and got_entries[0][2] == "Merhaba."
         assert got_words == words
+        detailed = T.read_checkpoint(path, sig, include_metadata=True)
+        assert detailed is not None and detailed[3] == "tr"
         # imza uymuyorsa reddet (ayar değişikliği → temiz başla)
         bad = dict(sig); bad["model"] = "medium"
         assert T.read_checkpoint(path, bad) is None
@@ -1631,6 +1633,19 @@ def test_checkpoint_roundtrip():
 
 def test_read_checkpoint_missing():
     assert T.read_checkpoint(os.path.join(tempfile.gettempdir(), "yok_boyle_bir_dosya.ckpt.json"), {}) is None
+
+
+def test_checkpoint_cache_path_is_stable_and_outside_media_folder():
+    with tempfile.TemporaryDirectory() as media_dir, tempfile.TemporaryDirectory() as cache_dir:
+        source = os.path.join(media_dir, "film.mkv")
+        with open(source, "wb") as handle:
+            handle.write(b"video")
+        first = T._checkpoint_path(source, cache_dir)
+        second = T._checkpoint_path(source, cache_dir)
+        assert first == second
+        assert os.path.commonpath([first, cache_dir]) == cache_dir
+        assert os.path.dirname(first).endswith("checkpoints")
+        assert T._checkpoint_path(source) == source + ".whisper.ckpt.json"
 
 
 def test_merge_resumed_entries():

@@ -43,7 +43,7 @@ function watchOutputNames(videoPath, config) {
   return { names, outputDir: normalized.outputDir || path.dirname(videoPath), stem };
 }
 
-function hasConfiguredWatchOutput(videoPath, config, exists = (filePath) => false) {
+function hasConfiguredWatchOutput(videoPath, config, exists = (filePath) => false, directoryEntries = null) {
   const { names, outputDir, stem } = watchOutputNames(videoPath, config);
   const normalized = normalizeWatchOutputConfig(config);
   const candidates = names
@@ -52,10 +52,12 @@ function hasConfiguredWatchOutput(videoPath, config, exists = (filePath) => fals
   if (candidates.some(exists)) return true;
   if (!normalized.langSuffix) return false;
   const escapedStem = stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let entries = Array.isArray(directoryEntries) ? directoryEntries : null;
+  if (!entries) {
+    try { entries = require('fs').readdirSync(outputDir); } catch (_) { return false; }
+  }
   return normalized.formats.some((format) => {
     const pattern = new RegExp(`^${escapedStem}\\.[a-z]{2,3}(?:-[a-z]{2,4})?\\.${format}$`, 'i');
-    let entries;
-    try { entries = require('fs').readdirSync(outputDir); } catch (_) { return false; }
     return entries.some((entry) => pattern.test(entry));
   });
 }
