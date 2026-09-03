@@ -1038,7 +1038,7 @@
                 aria-label="Yenile"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.35 5.65"/><path d="M20 4v7h-7"/></svg></button>
             </div>
             <div class="browser-address-wrap">
-              <span class="browser-security-mark" id="browserSecurityMark" aria-hidden="true"></span>
+              <span class="browser-security-mark" id="browserSecurityMark" role="img" aria-label="Adres bekleniyor" title="Adres bekleniyor"></span>
               <input type="url" id="browserAddress" autocomplete="off" spellcheck="false"
                 list="browserAddressSuggestions" placeholder="Bir video sitesi adresi girin" aria-label="Web adresi" />
               <datalist id="browserAddressSuggestions"></datalist>
@@ -1081,7 +1081,8 @@
             </div>
           </div>
 
-          <section class="browser-places hidden" id="browserPlacesPanel" aria-label="Yer imleri ve geçmiş">
+          <section class="browser-places hidden" id="browserPlacesPanel" role="dialog" aria-modal="false"
+            aria-hidden="true" aria-label="Yer imleri ve geçmiş">
             <div class="browser-places-head">
               <strong>Yer imleri ve geçmiş</strong>
               <button class="btn-icon browser-dismiss" id="browserPlacesClose" type="button" title="Kapat" aria-label="Kapat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>

@@ -451,7 +451,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /let browserPlacesCache = null/);
   assert.match(main, /setTimeout\(\(\) => flushBrowserPlaces\(\), 400\)/);
   assert.match(main, /app\.on\('before-quit'[\s\S]{0,180}flushBrowserPlaces\(\)/);
-  assert.match(main, /const cueList = track\.cues \|\| null[\s\S]{0,800}const list = Array\.from/);
+  assert.match(main, /const cueList = track\.cues \|\| null[\s\S]{0,1600}previous\.fingerprint === fingerprint[\s\S]{0,300}const list = Array\.from/,
+    'HTML5 iz probu tum cue degisikliklerini parmak iziyle izlemiyor');
   assert(main.indexOf('image = await tab.view.webContents.capturePage()')
     < main.indexOf('const result = await dialog.showSaveDialog(mainWindow', main.indexOf('async function saveBrowserPageCapture')),
   'sayfa görüntüsü kayıt diyaloğundan sonra alınıyor');

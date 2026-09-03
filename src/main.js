@@ -3661,15 +3661,32 @@ function browserTrackProbeScript() {
         try { track.mode = 'disabled'; } catch (_) {}
       }
       if (count < 2) continue;
-      const signature = (cue) => cue ? Number(cue.startTime).toFixed(3) + '|' + Number(cue.endTime).toFixed(3) + '|' + String(cue.text || '') : '';
       const previous = probeState.seen.get(track);
-      const tail = signature(cueList[count - 1]);
-      if (previous && previous.length === count && previous.tail === tail) continue;
+      // Yalnız son cue'ya bakmak, platform aynı sayıdaki listenin ortasındaki
+      // metni/zamanı düzelttiğinde güncellemeyi sonsuza dek kaçırıyordu. FNV-1a
+      // akış hash'i ikinci bir cue dizisi oluşturmadan tüm izin değişimini izler.
+      let fingerprint = 2166136261;
+      let previousPrefixFingerprint = 0;
+      const hashText = (value) => {
+        const text = String(value || '');
+        for (let index = 0; index < text.length; index++) {
+          fingerprint ^= text.charCodeAt(index);
+          fingerprint = Math.imul(fingerprint, 16777619) >>> 0;
+        }
+        fingerprint ^= 10;
+        fingerprint = Math.imul(fingerprint, 16777619) >>> 0;
+      };
+      for (let index = 0; index < count; index++) {
+        const cue = cueList[index];
+        hashText(cue ? Number(cue.startTime).toFixed(3) + '|' + Number(cue.endTime).toFixed(3) + '|' + String(cue.text || '') : '');
+        if (previous && index + 1 === previous.length) previousPrefixFingerprint = fingerprint;
+      }
+      if (previous && previous.length === count && previous.fingerprint === fingerprint) continue;
       const list = Array.from({ length: count }, (_, index) => cueList[index]);
       let emitted = list;
       if (previous && list.length > previous.length && previous.length > 0
-          && signature(list[previous.length - 1]) === previous.tail) emitted = list.slice(previous.length);
-      probeState.seen.set(track, { length: list.length, tail });
+          && previousPrefixFingerprint === previous.fingerprint) emitted = list.slice(previous.length);
+      probeState.seen.set(track, { length: list.length, fingerprint });
       const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
       tracks.push({
         language: track.language || '', label: track.label || track.language || 'HTML5 altyazı',

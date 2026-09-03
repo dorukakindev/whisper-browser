@@ -120,6 +120,45 @@ test('web medya probu üst üste binmiyor ve gezinme sonrası eski sonucu yayın
     'eski medya probu yeni probun busy durumunu temizleyebiliyor');
 });
 
+test('HTML5 altyazı probu aynı uzunluktaki orta cue düzeltmelerini kaçırmıyor', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const probe = main.slice(main.indexOf('function browserTrackProbeScript'),
+    main.indexOf('function browserCaptureHookScript'));
+  assert(/let fingerprint = 2166136261/.test(probe) && /previousPrefixFingerprint/.test(probe),
+    'izin tamamını izleyen parmak izi veya büyüyen iz kısa yolu yok');
+  assert(/previous\.length === count && previous\.fingerprint === fingerprint/.test(probe),
+    'aynı uzunluktaki değişmiş cue listesi yalnız kuyrukla karşılaştırılıyor');
+  assert(!/previous\.tail/.test(probe), 'eski yalnız-son-cue karşılaştırması hâlâ kullanılıyor');
+});
+
+test('tarayıcı sekmesi güncellenirken odak ve yüklenme durumu korunuyor', () => {
+  const render = js.slice(js.indexOf('function renderBrowserTabs()'),
+    js.indexOf('function updateBrowserTabPresentation'));
+  assert(/focusedTabId/.test(render) && /focus\(\{ preventScroll: true \}\)/.test(render),
+    'sekme çizimi klavye odağını geri yüklemiyor');
+  assert(/aria-busy/.test(render) && /activeButton\?\.isConnected/.test(render)
+    && /scrollIntoView/.test(render), 'yüklenme durumu veya aktif sekmenin görünürlüğü korunmuyor');
+  const navigation = js.slice(js.indexOf('function updateBrowserNavigation'),
+    js.indexOf('function renderBrowserCueAt'));
+  assert(/updateBrowserTabPresentation\(tab\)/.test(navigation),
+    'gezinti olayı tüm sekme şeridini gereksiz yere yeniden kuruyor');
+});
+
+test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşılır', () => {
+  assert(/browserPlacesPanel[^\n]*addEventListener\('keydown'/.test(js)
+    && /event\.key !== 'Escape'/.test(js), 'arama alanındayken Escape geçmiş panelini kapatmıyor');
+  const places = js.slice(js.indexOf('function setBrowserPlacesOpen'),
+    js.indexOf('function renderBrowserDiagnostics'));
+  assert(/aria-hidden/.test(places) && /browserPlacesSearch/.test(places) && /\.focus\(/.test(places),
+    'geçmiş panelinin erişilebilir görünürlük veya odak yönetimi eksik');
+  const navigation = js.slice(js.indexOf('function updateBrowserNavigation'),
+    js.indexOf('function renderBrowserCueAt'));
+  assert(/Yüklemeyi durdur/.test(navigation) && /HTTPS bağlantısı/.test(navigation),
+    'yenile/durdur veya bağlantı güvenliği kullanıcıya açıklanmıyor');
+  assert(/browser-reload-spin/.test(css) && /browser-tab-loading/.test(css),
+    'yüklenme geri bildiriminin görsel durumu eksik');
+});
+
 test('tarayıcı modalı WebContentsView katmanını geçici olarak gizliyor', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');

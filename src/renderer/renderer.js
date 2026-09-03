@@ -3748,7 +3748,9 @@ function browserCloseIcon() {
 function renderBrowserTabs() {
   const strip = $('browserTabStrip');
   if (!strip) return;
+  const focusedTabId = document.activeElement?.dataset?.browserTabActivate || '';
   strip.replaceChildren();
+  let activeButton = null;
   for (const tab of player.browserTabs) {
     const item = document.createElement('div');
     item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}`;
@@ -3759,6 +3761,7 @@ function renderBrowserTabs() {
     open.dataset.browserTabActivate = tab.id;
     open.setAttribute('role', 'tab');
     open.setAttribute('aria-selected', tab.id === player.browserActiveTabId ? 'true' : 'false');
+    open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
     open.tabIndex = tab.id === player.browserActiveTabId ? 0 : -1;
     open.textContent = browserTabLabel(tab);
     open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
@@ -3773,7 +3776,16 @@ function renderBrowserTabs() {
     close.appendChild(browserCloseIcon()); close.title = 'Sekmeyi kapat'; close.setAttribute('aria-label', 'Sekmeyi kapat');
     item.append(open, audio, close);
     strip.appendChild(item);
+    if (tab.id === player.browserActiveTabId) activeButton = open;
   }
+  const focusButton = focusedTabId
+    ? [...strip.querySelectorAll('[data-browser-tab-activate]')]
+      .find((button) => button.dataset.browserTabActivate === focusedTabId)
+    : null;
+  if (focusButton) focusButton.focus({ preventScroll: true });
+  requestAnimationFrame(() => {
+    if (activeButton?.isConnected) activeButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
 }
 
 function updateBrowserTabPresentation(tab) {
@@ -3790,6 +3802,7 @@ function updateBrowserTabPresentation(tab) {
   if (open.textContent !== label) open.textContent = label;
   open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
   item.classList.toggle('loading', !!tab.loading);
+  open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
   const audio = item.querySelector('[data-browser-tab-mute]');
   if (audio) {
     audio.hidden = !tab.audible && !tab.tabMuted; audio.textContent = tab.tabMuted ? '×' : '♪';
@@ -4247,10 +4260,14 @@ function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
   panel.classList.toggle('hidden', !open);
+  panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   syncBrowserOcclusion();
   $('browserPlacesToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) {
     loadBrowserPlaces(); renderBrowserPlaces();
+    requestAnimationFrame(() => $('browserPlacesSearch')?.focus({ preventScroll: true }));
+  } else if (panel.contains(document.activeElement)) {
+    $('browserPlacesToggle')?.focus({ preventScroll: true });
   }
 }
 
@@ -5038,8 +5055,21 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.url && document.activeElement !== address) address.value = data.url;
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
   if ($('browserForward')) $('browserForward').disabled = !data.canGoForward;
-  if ($('browserReload')) $('browserReload').classList.toggle('loading', !!data.loading);
-  $('browserSecurityMark')?.classList.toggle('secure', /^https:/i.test(data.url || ''));
+  const reload = $('browserReload');
+  if (reload) {
+    reload.classList.toggle('loading', !!data.loading);
+    reload.setAttribute('aria-busy', data.loading ? 'true' : 'false');
+    reload.title = data.loading ? 'Yüklemeyi durdur' : 'Yenile';
+    reload.setAttribute('aria-label', reload.title);
+  }
+  const securityMark = $('browserSecurityMark');
+  if (securityMark) {
+    const secure = /^https:/i.test(data.url || '');
+    const securityText = secure ? 'HTTPS bağlantısı' : (data.url ? 'HTTP bağlantısı' : 'Adres bekleniyor');
+    securityMark.classList.toggle('secure', secure);
+    securityMark.title = securityText;
+    securityMark.setAttribute('aria-label', securityText);
+  }
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
   if (!options.preserveWorkspace && data.url && data.url !== player.browserPageUrl) {
     // Anahtar degisimi eski kaydi diske yazar. Yeni URL'yi once state'e
@@ -5065,7 +5095,7 @@ function updateBrowserNavigation(data, options = {}) {
     tab.url = player.browserPageUrl || data.url || '';
     tab.title = player.browserPageTitle || data.title || '';
   }
-  renderBrowserTabs();
+  if (tab) updateBrowserTabPresentation(tab);
   updateBrowserBookmarkButton();
   if (player.workspaceMode === 'browser') {
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
@@ -5332,6 +5362,12 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
   setBrowserPlacesOpen(panel?.classList.contains('hidden'));
 });
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
+$('browserPlacesPanel')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  event.stopPropagation();
+  setBrowserPlacesOpen(false);
+});
 if ($('browserPlacesClear')) $('browserPlacesClear').addEventListener('click', async () => {
   if (player.browserPlaceTab !== 'history' || !window.api.clearBrowserHistory) return;
   const confirmed = await openAppDialog({
@@ -5431,7 +5467,10 @@ $('browserWorkspaceRemove')?.addEventListener('click', async () => {
 });
 if ($('browserBack')) $('browserBack').addEventListener('click', () => browserCommand('back'));
 if ($('browserForward')) $('browserForward').addEventListener('click', () => browserCommand('forward'));
-if ($('browserReload')) $('browserReload').addEventListener('click', () => browserCommand('reload'));
+if ($('browserReload')) $('browserReload').addEventListener('click', () => {
+  browserCommand($('browserReload').classList.contains('loading') ? 'stop' : 'reload')
+    .catch(() => setBrowserSignal('Tarayıcı komutu tamamlanamadı.', false));
+});
 if ($('browserCaptureToggle')) $('browserCaptureToggle').addEventListener('click', async () => {
   const button = $('browserCaptureToggle');
   if (button.disabled) return;
@@ -5595,7 +5634,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     player.browserPageTitle = event.title || '';
     const tab = browserTabState();
     if (tab) tab.title = player.browserPageTitle;
-    renderBrowserTabs();
+    if (tab) updateBrowserTabPresentation(tab);
     if (player.workspaceMode === 'browser') $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     loadBrowserPlaces();
   } else if (event.type === 'places' && event.places) {
@@ -10437,7 +10476,9 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       const subMenu = $('subtitleModeMenu');
-      if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
+      const places = $('browserPlacesPanel');
+      if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
+      else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
       else if (player.selectedWord) hideWordInspector();
       else if (!$('shortcutHelp')?.classList.contains('hidden')) $('shortcutHelp').classList.add('hidden');
       else if (!$('settingsDrawer')?.classList.contains('hidden')) setSettingsDrawer(false);
