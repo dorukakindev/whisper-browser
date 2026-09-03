@@ -3371,6 +3371,7 @@ const player = {
   workspaceMode: 'player', // 'player' | 'browser'
   localSubtitleWorkspace: null,
   browserTabs: [],
+  browserClosingTabs: new Set(),
   browserActiveTabId: '',
   browserTabEventGate: new BrowserTabEventGate(),
   browserTracks: [],
@@ -3775,6 +3776,8 @@ function renderBrowserTabs() {
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'browser-tab-close';
     close.dataset.browserTabClose = tab.id;
+    close.disabled = player.browserClosingTabs.has(tab.id);
+    close.setAttribute('aria-busy', close.disabled ? 'true' : 'false');
     close.appendChild(browserCloseIcon()); close.title = 'Sekmeyi kapat'; close.setAttribute('aria-label', 'Sekmeyi kapat');
     item.append(open, audio, close);
     strip.appendChild(item);
@@ -3864,27 +3867,42 @@ async function createBrowserTab() {
 }
 
 async function closeBrowserTab(tabId) {
-  if (!tabId) return;
+  if (!tabId || player.browserClosingTabs.has(tabId)) return;
+  player.browserClosingTabs.add(tabId);
+  const closeButton = $('browserTabStrip')?.querySelector(`[data-browser-tab-close="${CSS.escape(tabId)}"]`);
+  if (closeButton) {
+    closeButton.disabled = true;
+    closeButton.setAttribute('aria-busy', 'true');
+  }
   const wasActive = tabId === player.browserActiveTabId;
-  if (wasActive) {
-    await flushWatchState(false, true);
-    saveActiveBrowserTabWorkspace();
+  try {
+    if (wasActive) {
+      await flushWatchState(false, true);
+      saveActiveBrowserTabWorkspace();
+    }
+    const result = await window.api.closeBrowserTab(tabId).catch(() => null);
+    if (result && result.canceled) return;
+    if (!result || !result.ok) {
+      setBrowserSignal(`Sekme kapatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+      return;
+    }
+    player.browserTabEventGate.close(tabId);
+    syncBrowserTabs(result.tabs, result.activeTabId);
+    if (wasActive) {
+      const tab = browserTabState();
+      restoreActiveBrowserTabWorkspace(tab);
+      updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
+      scheduleBrowserOverlaySync();
+    }
+    scheduleBrowserBounds();
+  } finally {
+    player.browserClosingTabs.delete(tabId);
+    const currentButton = $('browserTabStrip')?.querySelector(`[data-browser-tab-close="${CSS.escape(tabId)}"]`);
+    if (currentButton) {
+      currentButton.disabled = false;
+      currentButton.setAttribute('aria-busy', 'false');
+    }
   }
-  const result = await window.api.closeBrowserTab(tabId).catch(() => null);
-  if (result && result.canceled) return;
-  if (!result || !result.ok) {
-    setBrowserSignal(`Sekme kapatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
-    return;
-  }
-  player.browserTabEventGate.close(tabId);
-  syncBrowserTabs(result.tabs, result.activeTabId);
-  if (wasActive) {
-    const tab = browserTabState();
-    restoreActiveBrowserTabWorkspace(tab);
-    updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
-    scheduleBrowserOverlaySync();
-  }
-  scheduleBrowserBounds();
 }
 
 async function activateBrowserTabAndFocus(tabId) {
@@ -5312,6 +5330,13 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (
   const open = event.target.closest('[data-browser-tab-activate]');
   if (open) activateBrowserTabAndFocus(open.dataset.browserTabActivate);
 });
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('auxclick', (event) => {
+  if (event.button !== 1) return;
+  const item = event.target.closest('[data-browser-tab-id]');
+  if (!item) return;
+  event.preventDefault();
+  closeBrowserTab(item.dataset.browserTabId);
+});
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (event) => {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   const tabs = [...$('browserTabStrip').querySelectorAll('[role="tab"]')];
@@ -5381,6 +5406,11 @@ $('browserPiP')?.addEventListener('click', () => {
 });
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); navigateBrowserFromAddress(); }
+  else if (event.key === 'Escape') {
+    event.preventDefault();
+    $('browserAddress').value = player.browserPageUrl || '';
+    $('browserAddress').select();
+  }
 });
 if ($('browserBookmarkToggle')) $('browserBookmarkToggle').addEventListener('click', async () => {
   if (!player.browserPageUrl || !window.api.toggleBrowserBookmark) return;
@@ -5392,6 +5422,8 @@ if ($('browserBookmarkToggle')) $('browserBookmarkToggle').addEventListener('cli
     player.browserPlaces = result.places;
     renderBrowserPlaces();
     setBrowserSignal(result.bookmarked ? 'Site yer imlerine eklendi.' : 'Site yer imlerinden kaldırıldı.', result.bookmarked);
+  } else {
+    setBrowserSignal(`Yer imi değiştirilemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
   }
 });
 if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click', () => {
@@ -5414,7 +5446,13 @@ if ($('browserPlacesClear')) $('browserPlacesClear').addEventListener('click', a
   });
   if (!confirmed) return;
   const result = await window.api.clearBrowserHistory().catch(() => null);
-  if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  if (result && result.ok && result.places) {
+    player.browserPlaces = result.places;
+    renderBrowserPlaces();
+    setBrowserSignal('Tarayıcı geçmişi temizlendi.', true);
+  } else {
+    setBrowserSignal(`Tarayıcı geçmişi temizlenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+  }
 });
 async function clearBrowserCookieScope(scope) {
   const site = player.browserPageUrl || '';
@@ -5463,6 +5501,7 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
     if (value === false) return;
     const result = await window.api.setBrowserBookmarkFolder(folder.dataset.placeFolder, value).catch(() => null);
     if (result?.ok) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+    else setBrowserSignal(`Yer imi klasörü kaydedilemedi: ${result?.error || 'bilinmeyen hata'}`, false);
     return;
   }
   const open = event.target.closest('[data-place-open]');
@@ -5477,6 +5516,7 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
   if (!remove || !window.api.removeBrowserPlace) return;
   const result = await window.api.removeBrowserPlace(player.browserPlaceTab, remove.dataset.placeRemove).catch(() => null);
   if (result && result.ok && result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  else setBrowserSignal(`Kayıt kaldırılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
 });
 for (const id of ['browserPlacesSearch', 'browserPlacesFolder']) $(id)?.addEventListener(id.endsWith('Search') ? 'input' : 'change', renderBrowserPlaces);
 $('browserWorkspaceSave')?.addEventListener('click', async () => {
@@ -5484,21 +5524,46 @@ $('browserWorkspaceSave')?.addEventListener('click', async () => {
     inputLabel: 'Çalışma alanı adı', confirmLabel: 'Kaydet', intent: 'primary' });
   if (name === false) return;
   const result = await window.api.saveBrowserWorkspace(name).catch(() => null);
-  if (result?.ok) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  if (result?.ok) {
+    player.browserPlaces = result.places;
+    renderBrowserPlaces();
+    setBrowserSignal(`“${String(name).trim()}” çalışma alanı kaydedildi.`, true);
+  }
   else setBrowserSignal(result?.error || 'Çalışma alanı kaydedilemedi.', false);
 });
 $('browserWorkspaceOpen')?.addEventListener('click', async () => {
   const name = $('browserWorkspaceSelect')?.value; if (!name) return;
-  const result = await window.api.openBrowserWorkspace(name).catch(() => null);
-  if (result?.ok) syncBrowserTabs(result.tabs, result.activeTabId);
-  else setBrowserSignal(result?.error || 'Çalışma alanı açılamadı.', false);
+  const button = $('browserWorkspaceOpen');
+  if (button.disabled) return;
+  button.disabled = true;
+  const beforeCount = player.browserTabs.length;
+  try {
+    const result = await window.api.openBrowserWorkspace(name).catch(() => null);
+    if (!result?.ok) {
+      setBrowserSignal(result?.error || 'Çalışma alanı açılamadı.', false);
+      return;
+    }
+    syncBrowserTabs(result.tabs, result.activeTabId);
+    setBrowserPlacesOpen(false);
+    const added = Math.max(0, player.browserTabs.length - beforeCount);
+    if (result.firstTabId) await activateBrowserTabAndFocus(result.firstTabId);
+    setBrowserSignal(`“${name}” çalışma alanından ${added} sekme açıldı.`, true);
+  } finally {
+    button.disabled = false;
+  }
 });
 $('browserWorkspaceRemove')?.addEventListener('click', async () => {
   const name = $('browserWorkspaceSelect')?.value; if (!name) return;
   const accepted = await openAppDialog({ title: 'Çalışma alanını sil', description: `“${name}” kaydı silinsin mi? Açık sekmeler kapanmaz.`, confirmLabel: 'Kaydı sil' });
   if (!accepted) return;
   const result = await window.api.removeBrowserWorkspace(name).catch(() => null);
-  if (result?.ok) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  if (result?.ok) {
+    player.browserPlaces = result.places;
+    renderBrowserPlaces();
+    setBrowserSignal(`“${name}” çalışma alanı kaydı silindi.`, true);
+  } else {
+    setBrowserSignal(result?.error || 'Çalışma alanı kaydı silinemedi.', false);
+  }
 });
 async function runBrowserChromeCommand(command) {
   const result = await browserCommand(command).catch(() => null);

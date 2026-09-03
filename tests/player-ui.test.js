@@ -269,6 +269,38 @@ test('geciken tarayıcı görünümü oynatıcı modunun üzerine geri açılam�
     'başarısız sekme etkinleştirme eski sekmeye klavye odağı taşıyor');
 });
 
+test('sekme kapatma ve çalışma alanı açma eşzamanlı istekleri tekilleştiriliyor', () => {
+  const close = js.slice(js.indexOf('async function closeBrowserTab'),
+    js.indexOf('async function activateBrowserTabAndFocus'));
+  assert(/player\.browserClosingTabs\.has\(tabId\)/.test(close)
+    && /player\.browserClosingTabs\.add\(tabId\)/.test(close)
+    && /finally[\s\S]*player\.browserClosingTabs\.delete\(tabId\)/.test(close),
+  'aynı sekme için yinelenen kapatma isteği engellenmiyor');
+  const workspace = js.slice(js.indexOf("$('browserWorkspaceOpen')?.addEventListener"),
+    js.indexOf("$('browserWorkspaceRemove')?.addEventListener"));
+  assert(/if \(button\.disabled\) return/.test(workspace)
+    && /button\.disabled = true/.test(workspace)
+    && /finally[\s\S]*button\.disabled = false/.test(workspace),
+  'çalışma alanı açma isteği sürerken düğme yeniden kullanılabiliyor');
+  assert(/activateBrowserTabAndFocus\(result\.firstTabId\)/.test(workspace),
+    'çalışma alanının eklenen ilk sekmesi görünür hale getirilmiyor');
+});
+
+test('tarayıcı adresi ve yerler işlemleri sessiz hata bırakmıyor', () => {
+  const address = js.slice(js.indexOf("if ($('browserAddress')) $('browserAddress').addEventListener"),
+    js.indexOf("if ($('browserBookmarkToggle'))"));
+  assert(/event\.key === 'Escape'/.test(address) && /player\.browserPageUrl/.test(address),
+    'adres düzenlemesi Escape ile mevcut sayfa adresine dönemiyor');
+  const places = js.slice(js.indexOf("if ($('browserBookmarkToggle'))"),
+    js.indexOf('async function runBrowserChromeCommand'));
+  for (const message of ['Yer imi değiştirilemedi', 'Tarayıcı geçmişi temizlenemedi',
+    'Kayıt kaldırılamadı', 'Çalışma alanı kaydı silinemedi']) {
+    assert(places.includes(message), `${message} hata geri bildirimi eksik`);
+  }
+  assert(/addEventListener\('auxclick'/.test(js) && /event\.button !== 1/.test(js),
+    'orta tıklamayla sekme kapatma davranışı eksik');
+});
+
 test('kuyruk sıradaki işi done değil süreç exit olayında başlatıyor', () => {
   const done = js.slice(js.indexOf("case 'done':"), js.indexOf("case 'error':"));
   const exit = js.slice(js.indexOf("case 'exit':"), js.indexOf('\n  }\n});', js.indexOf("case 'exit':")));
