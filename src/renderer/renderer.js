@@ -3503,8 +3503,10 @@ function newBrowserTabState(snapshot = {}) {
     canGoBack: !!snapshot.canGoBack,
     canGoForward: !!snapshot.canGoForward,
     captureEnabled: snapshot.captureEnabled !== false,
+    pinned: !!snapshot.pinned,
     diagnostics: snapshot.diagnostics || null,
     error: '',
+    errorKind: '', errorCode: '', errorUrl: '',
     browserTracks: [],
     browserTime: Number(snapshot.position) || 0,
     browserDuration: Number(snapshot.duration) || 0,
@@ -3722,6 +3724,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
   updateBrowserMangaButton();
   updateBrowserNavigation(tab, { preserveWorkspace: true });
+  showBrowserErrorSurface(tab.error ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
   void restoreBrowserTranslationSnapshot(tab);
 }
@@ -3736,6 +3739,7 @@ function syncBrowserTabs(snapshots, activeTabId) {
       url: snapshot.url || '', title: snapshot.title || '', loading: !!snapshot.loading,
       canGoBack: !!snapshot.canGoBack, canGoForward: !!snapshot.canGoForward,
       captureEnabled: snapshot.captureEnabled !== false,
+      pinned: snapshot.pinned !== undefined ? !!snapshot.pinned : !!tab.pinned,
       browserMangaBusy: !!snapshot.mangaBusy,
       browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
       browserMangaVisible: !!snapshot.mangaVisible,
@@ -3799,6 +3803,24 @@ function browserCloseIcon() {
   return svg;
 }
 
+function browserPinIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '13');
+  svg.setAttribute('height', '13');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.8');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6Zm4 11v7');
+  svg.appendChild(path);
+  return svg;
+}
+
 function renderBrowserTabs() {
   const strip = $('browserTabStrip');
   if (!strip) return;
@@ -3807,7 +3829,7 @@ function renderBrowserTabs() {
   let activeButton = null;
   for (const tab of player.browserTabs) {
     const item = document.createElement('div');
-    item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}`;
+    item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}${tab.pinned ? ' pinned' : ''}`;
     item.dataset.browserTabId = tab.id;
     item.setAttribute('role', 'presentation');
     const open = document.createElement('button');
@@ -3824,13 +3846,17 @@ function renderBrowserTabs() {
     audio.textContent = tab.tabMuted ? '×' : '♪'; audio.hidden = !tab.audible && !tab.tabMuted;
     audio.title = tab.tabMuted ? 'Sekmenin sesini aç' : 'Sekmeyi sessize al';
     audio.setAttribute('aria-label', audio.title); audio.setAttribute('aria-pressed', tab.tabMuted ? 'true' : 'false');
+    const pin = document.createElement('button');
+    pin.type = 'button'; pin.className = 'browser-tab-pin'; pin.dataset.browserTabPin = tab.id;
+    pin.appendChild(browserPinIcon()); pin.title = tab.pinned ? 'Sekmenin sabitlemesini kaldır' : 'Sekmeyi sabitle';
+    pin.setAttribute('aria-label', pin.title); pin.setAttribute('aria-pressed', tab.pinned ? 'true' : 'false');
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'browser-tab-close';
     close.dataset.browserTabClose = tab.id;
-    close.disabled = player.browserClosingTabs.has(tab.id);
+    close.disabled = player.browserClosingTabs.has(tab.id) || !!tab.pinned;
     close.setAttribute('aria-busy', close.disabled ? 'true' : 'false');
-    close.appendChild(browserCloseIcon()); close.title = 'Sekmeyi kapat'; close.setAttribute('aria-label', 'Sekmeyi kapat');
-    item.append(open, audio, close);
+    close.appendChild(browserCloseIcon()); close.title = tab.pinned ? 'Kapatmak için önce sabitlemeyi kaldır' : 'Sekmeyi kapat'; close.setAttribute('aria-label', close.title);
+    item.append(open, audio, pin, close);
     strip.appendChild(item);
     if (tab.id === player.browserActiveTabId) activeButton = open;
   }
@@ -3876,6 +3902,19 @@ function updateBrowserTabPresentation(tab) {
     audio.hidden = !tab.audible && !tab.tabMuted; audio.textContent = tab.tabMuted ? '×' : '♪';
     audio.title = tab.tabMuted ? 'Sekmenin sesini aç' : 'Sekmeyi sessize al';
     audio.setAttribute('aria-label', audio.title); audio.setAttribute('aria-pressed', tab.tabMuted ? 'true' : 'false');
+  }
+  item.classList.toggle('pinned', !!tab.pinned);
+  const pin = item.querySelector('[data-browser-tab-pin]');
+  if (pin) {
+    pin.title = tab.pinned ? 'Sekmenin sabitlemesini kaldır' : 'Sekmeyi sabitle';
+    pin.setAttribute('aria-label', pin.title);
+    pin.setAttribute('aria-pressed', tab.pinned ? 'true' : 'false');
+  }
+  const close = item.querySelector('[data-browser-tab-close]');
+  if (close) {
+    close.disabled = player.browserClosingTabs.has(tab.id) || !!tab.pinned;
+    close.title = tab.pinned ? 'Kapatmak için önce sabitlemeyi kaldır' : 'Sekmeyi kapat';
+    close.setAttribute('aria-label', close.title);
   }
 }
 
@@ -3949,7 +3988,18 @@ async function closeBrowserTab(tabId) {
       await flushWatchState(false, true);
       saveActiveBrowserTabWorkspace();
     }
-    const result = await window.api.closeBrowserTab(tabId).catch(() => null);
+    let result = await window.api.closeBrowserTab(tabId, false).catch(() => null);
+    if (result?.requiresConfirmation) {
+      const reasons = [result.pinned ? 'Sekme sabitlenmiş.' : '', result.activeWork ? 'Sekmede devam eden çeviri veya manga işi var.' : '']
+        .filter(Boolean).join(' ');
+      const confirmed = await openAppDialog({
+        title: 'Sekme korumalı',
+        description: `${reasons} Kapatırsanız devam eden iş ve sayfadaki geçici durum kaybolabilir.`,
+        confirmLabel: 'Yine de kapat',
+      });
+      if (!confirmed) return;
+      result = await window.api.closeBrowserTab(tabId, true).catch(() => null);
+    }
     if (result && result.canceled) return;
     if (!result || !result.ok) {
       setBrowserSignal(`Sekme kapatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
@@ -3968,7 +4018,7 @@ async function closeBrowserTab(tabId) {
     player.browserClosingTabs.delete(tabId);
     const currentButton = $('browserTabStrip')?.querySelector(`[data-browser-tab-close="${CSS.escape(tabId)}"]`);
     if (currentButton) {
-      currentButton.disabled = false;
+      currentButton.disabled = !!browserTabState(tabId)?.pinned;
       currentButton.setAttribute('aria-busy', 'false');
     }
   }
@@ -4518,6 +4568,18 @@ function clearBrowserTracks(message) {
   updateBrowserTranslationExportButton();
   syncSubtitleModeUi();
   setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
+}
+
+async function toggleBrowserTabPinned(tabId) {
+  const tab = browserTabState(tabId);
+  if (!tab || !window.api.setBrowserTabPinned) return;
+  const result = await window.api.setBrowserTabPinned(tabId, !tab.pinned).catch(() => null);
+  if (!result?.ok) {
+    setBrowserSignal(`Sekme sabitlenemedi: ${result?.error || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  syncBrowserTabs(result.tabs, result.activeTabId);
+  setBrowserSignal(result.pinned ? 'Sekme sabitlendi; yanlışlıkla kapatmaya karşı korundu.' : 'Sekme sabitlemesi kaldırıldı.', true);
 }
 
 function clearDeferredBrowserTrackAction() {
@@ -5240,6 +5302,10 @@ function updateBrowserNavigation(data, options = {}) {
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
     scheduleBrowserOverlaySync();
   }
+  if (data.loading) {
+    if (tab) { tab.error = ''; tab.errorKind = ''; tab.errorCode = ''; tab.errorUrl = ''; }
+    showBrowserErrorSurface(null);
+  }
   if (pageChanged) {
     player.browserPageUrl = data.url;
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
@@ -5441,6 +5507,8 @@ if ($('workspacePlayerMode')) $('workspacePlayerMode').addEventListener('click',
 if ($('workspaceBrowserMode')) $('workspaceBrowserMode').addEventListener('click', () => setWorkspaceMode('browser'));
 if ($('browserTabNew')) $('browserTabNew').addEventListener('click', createBrowserTab);
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (event) => {
+  const pin = event.target.closest('[data-browser-tab-pin]');
+  if (pin) { await toggleBrowserTabPinned(pin.dataset.browserTabPin); return; }
   const mute = event.target.closest('[data-browser-tab-mute]');
   if (mute) {
     const tabId = mute.dataset.browserTabMute;
@@ -5588,11 +5656,11 @@ async function clearBrowserCookieScope(scope) {
     return;
   }
   const confirmed = await openAppDialog({
-    title: isSite ? 'Bu sitenin çerezlerini sil' : 'Tüm web çerezlerini sil',
+    title: isSite ? 'Bu sitenin verilerini sil' : 'Tüm web çerezlerini sil',
     description: isSite
-      ? 'Bu siteye ait çerezler silinecek ve sayfa yenilenecek. Site oturumunuz kapanabilir.'
+      ? 'Bu siteye ait çerezler, yerel depolama, IndexedDB ve service worker verileri silinecek; sayfa yenilenecek. Site oturumunuz kapanabilir.'
       : 'Whisper içindeki tüm web çerezleri silinecek. Açık site oturumlarınız kapanabilir.',
-    confirmLabel: 'Çerezleri sil',
+    confirmLabel: isSite ? 'Site verilerini sil' : 'Çerezleri sil',
   });
   if (!confirmed) return;
   const apiCall = isSite
@@ -5600,15 +5668,15 @@ async function clearBrowserCookieScope(scope) {
     : window.api.clearBrowserCookies?.();
   const result = await (apiCall || Promise.resolve(null)).catch(() => null);
   if (!result || !result.ok) {
-    setBrowserSignal(`Çerezler temizlenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    setBrowserSignal(`${isSite ? 'Site verileri' : 'Çerezler'} temizlenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     return;
   }
   setBrowserPlacesOpen(false);
   const count = Number(result.removed) || 0;
   const failed = Number(result.failed) || 0;
-  const suffix = failed ? ` ${failed} çerez silinemedi.` : '';
+  const suffix = failed ? ` ${failed} veri öğesi temizlenemedi.` : '';
   setBrowserSignal(isSite
-    ? `${result.host || 'Bu site'} çerezleri temizlendi (${count}). Sayfa yenileniyor.${suffix}`
+    ? `${result.host || 'Bu site'} verileri temizlendi (${count} çerez). Sayfa yenileniyor.${suffix}`
     : `Tüm web çerezleri temizlendi (${count}). Sayfa yenileniyor.${suffix}`,
   true);
 }
@@ -5700,6 +5768,22 @@ if ($('browserBack')) $('browserBack').addEventListener('click', () => runBrowse
 if ($('browserForward')) $('browserForward').addEventListener('click', () => runBrowserChromeCommand('forward'));
 if ($('browserReload')) $('browserReload').addEventListener('click', () => {
   runBrowserChromeCommand($('browserReload').classList.contains('loading') ? 'stop' : 'reload');
+});
+if ($('browserErrorRetry')) $('browserErrorRetry').addEventListener('click', () => {
+  const tab = browserTabState();
+  const url = tab?.errorUrl || player.browserPageUrl;
+  if (url && $('browserAddress')) {
+    $('browserAddress').value = url;
+    navigateBrowserFromAddress();
+  }
+});
+if ($('browserErrorBack')) $('browserErrorBack').addEventListener('click', () => {
+  if (!browserTabState()?.canGoBack) {
+    setBrowserSignal('Bu sekmede geri dönülecek bir sayfa yok.', false);
+    return;
+  }
+  showBrowserErrorSurface(null);
+  runBrowserChromeCommand('back');
 });
 if ($('browserCaptureToggle')) $('browserCaptureToggle').addEventListener('click', async () => {
   const button = $('browserCaptureToggle');
@@ -5794,6 +5878,16 @@ if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEv
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.type === 'tabs-changed') {
+    syncBrowserTabs(event.tabs || [], event.activeTabId || '');
+    const tab = browserTabState();
+    if (tab) {
+      restoreActiveBrowserTabWorkspace(tab);
+      updateBrowserNavigation(tab, { preserveWorkspace: true });
+      scheduleBrowserBounds();
+    }
+    return;
+  }
   // ASR tek, uygulama-geneli bir kaynaktır. Durdurma olayı kapanmış/eski bir
   // sekmenin kimliğini taşısa bile aktif-sekme kapısında kaybolmamalı.
   if (event.type === 'live-asr-state' && event.active === false) {
@@ -5811,7 +5905,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (event.tabId !== player.browserActiveTabId) {
       if (event.type === 'navigation') {
         if (event.url && event.url !== tab.url) {
-          const fresh = newBrowserTabState({ ...event, id: tab.id, captureEnabled: tab.captureEnabled });
+          const fresh = newBrowserTabState({ ...event, id: tab.id, captureEnabled: tab.captureEnabled, pinned: tab.pinned });
           Object.assign(tab, fresh);
         }
         Object.assign(tab, {
@@ -5851,8 +5945,11 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.browserMangaEmpty = Math.max(0, Number(event.empty) || 0);
         if (event.retryable !== undefined) tab.browserMangaRetryable = Math.max(0, Number(event.retryable) || 0);
         tab.browserMangaError = event.state === 'error' ? String(event.message || event.error || '') : '';
-      } else if (event.type === 'load-error' || event.type === 'drm-playback-error') {
+      } else if (event.type === 'load-error' || event.type === 'security-error' || event.type === 'drm-playback-error') {
         tab.error = event.message || 'Tarayıcı hatası';
+        tab.errorKind = event.type === 'security-error' ? 'certificate' : 'connection';
+        tab.errorCode = event.code || '';
+        tab.errorUrl = event.url || tab.url || '';
       }
       updateBrowserTabPresentation(tab);
       return;
@@ -5950,13 +6047,21 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       }
     }
     if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
-  } else if (event.type === 'load-error') {
+  } else if (event.type === 'load-error' || event.type === 'security-error') {
     const tab = browserTabState();
-    if (tab) tab.error = event.message || `hata ${event.code}`;
+    if (tab) {
+      tab.error = event.message || `hata ${event.code}`;
+      tab.errorKind = event.type === 'security-error' ? 'certificate' : 'connection';
+      tab.errorCode = event.code || '';
+      tab.errorUrl = event.url || tab.url || player.browserPageUrl || '';
+    }
     updateBrowserNavigation({ ...event, loading: false });
     if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
+    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, message: event.message || `hata ${event.code}` });
     setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false,
       { priority: 100, holdMs: 7000 });
+  } else if (event.type === 'notice') {
+    setBrowserSignal(event.message || 'İşlem tamamlandı.', !!event.success);
   } else if (event.type === 'capture-warning') {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
   } else if (event.type === 'capture-enabled') {
@@ -8166,6 +8271,19 @@ function explainCacheKey(kind, index, word) {
     hash = Math.imul(hash, 16777619);
   }
   return `${player.subPath}|${kind}|${index}|${word || ''}|${(hash >>> 0).toString(36)}`;
+}
+
+function showBrowserErrorSurface(error) {
+  const surface = $('browserErrorSurface');
+  if (!surface) return;
+  const visible = !!(error && error.message);
+  surface.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  const secure = error.kind === 'certificate';
+  if ($('browserErrorKicker')) $('browserErrorKicker').textContent = secure ? 'Güvenlik bağlantısı engellendi' : 'Bağlantı kurulamadı';
+  if ($('browserErrorTitle')) $('browserErrorTitle').textContent = secure ? 'Sertifika doğrulanamadı' : 'Sayfa açılamadı';
+  if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
+  if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
 }
 
 async function askExplain(kind, index, word) {

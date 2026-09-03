@@ -52,6 +52,7 @@ function normalizeSessionTab(raw) {
     rate: finiteNumber(raw.rate, 1, 0.25, 4),
     volume: finiteNumber(raw.volume, 1, 0, 1),
     muted: !!raw.muted,
+    pinned: !!raw.pinned,
     offset: finiteNumber(raw.offset, 0, -30, 30),
     captureEnabled: raw.captureEnabled !== false,
     viewMode: ['cinema', 'reading', 'study'].includes(raw.viewMode) ? raw.viewMode : 'reading',

@@ -3798,7 +3798,7 @@ body::before {
   cursor: pointer;
 }
 .browser-tab.active .browser-tab-open { color: #e3e3e5; }
-.browser-tab-close, .browser-tab-audio, .browser-tab-new {
+.browser-tab-close, .browser-tab-audio, .browser-tab-pin, .browser-tab-new {
   border: 0;
   color: #77777c;
   background: transparent;
@@ -3809,6 +3809,9 @@ body::before {
 .browser-tab-close:disabled { opacity: .38; cursor: wait; }
 .browser-tab-audio { width: 22px; height: 23px; flex: 0 0 22px; padding: 0; border-radius: 5px; font-size: 12px; }
 .browser-tab-audio:hover, .browser-tab-audio[aria-pressed="true"] { color: var(--player-amber); background: #2a241a; }
+.browser-tab-pin { width: 22px; height: 23px; flex: 0 0 22px; display: grid; place-items: center; padding: 0; border-radius: 5px; }
+.browser-tab-pin:hover, .browser-tab-pin[aria-pressed="true"] { color: var(--player-amber); background: #2a241a; }
+.browser-tab.pinned { border-left-color: var(--player-amber); }
 .browser-tab-new {
   width: auto;
   height: 27px;
@@ -4155,6 +4158,25 @@ body::before {
 .browser-empty strong { color: #dedee1; font-size: 17px; font-weight: 650; }
 .browser-empty p { max-width: 510px; margin-top: 8px; color: #85858a; font-size: 12px; line-height: 1.6; }
 .browser-empty small { max-width: 520px; margin-top: 13px; color: #5f5f64; font-size: 10px; line-height: 1.5; }
+.browser-error-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 42px;
+  color: #d8d8dc;
+  text-align: center;
+  background: #09090a;
+}
+.browser-error-kicker { color: #d5a35c; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.browser-error-surface strong { font-size: 21px; font-weight: 680; }
+.browser-error-surface p { max-width: 650px; margin: 0; color: #a0a0a6; font-size: 13px; line-height: 1.65; }
+.browser-error-surface code { color: #77777e; font-size: 10px; }
+.browser-error-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .player-layer.workspace-browser .player-stage { display: none; }
 .player-layer:not(.workspace-browser) .browser-workspace { display: none !important; }

@@ -227,7 +227,7 @@ test('pencere kapanışı yalnız bekleyen parçayı, sekme kapanışı ölçül
   assert.match(main, /if \(browserCaptureCloseNeedsWarning\(captureStatus\)/);
   assert.match(main, /captureStatus\.pending \+= await backgroundBrowserCapturePending\(browserActiveTabId\)/,
     'arka plan sekmelerindeki doğrulanmış kuyruk kapanış hesabına katılmıyor');
-  assert.match(main, /browser:tab:close[\s\S]{0,1300}browserTabCapturePending\(tab, true\)[\s\S]{0,360}browserCaptureCloseNeedsWarning\(captureStatus, true\)[\s\S]{0,180}confirmBrowserCaptureDiscard\(captureStatus\.pending, 'sekme', captureStatus\.unverified\)/,
+  assert.match(main, /browser:tab:close[\s\S]{0,2200}browserTabCapturePending\(tab, true\)[\s\S]{0,360}browserCaptureCloseNeedsWarning\(captureStatus, true\)[\s\S]{0,180}confirmBrowserCaptureDiscard\(captureStatus\.pending, 'sekme', captureStatus\.unverified\)/,
     'sekme kapanışı bekleyen veya ölçülemeyen yakalama kuyruğunu korumuyor');
   assert.match(main, /else if \(tab\.view && !tab\.view\.webContents\.isDestroyed\(\)\)[\s\S]{0,260}executeBrowserViewFrames\(tab\.view, tab\.captureEnabled !== false[\s\S]{0,120}browserCaptureHookScript\(\) : browserCaptureToggleScript\(false\)\)/,
     'arka plan sekmesi kapanışı iptal edilince yakalama yeniden başlatılmıyor');

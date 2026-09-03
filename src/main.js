@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage, Menu } = require('electron');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -1353,6 +1353,7 @@ function createBrowserTabRecord(initial = {}) {
     generation: 0,
     bridgeToken: randomUUID(),
     captureEnabled: restored.captureEnabled !== false,
+    pinned: !!restored.pinned,
     diagnostics: null,
     acquisitionPlan: null,
     acquisitionId: '',
@@ -1416,6 +1417,7 @@ function browserTabSnapshot(tab) {
     canGoBack,
     canGoForward,
     captureEnabled: tab ? tab.captureEnabled !== false : true,
+    pinned: !!tab?.pinned,
     mangaBusy: !!tab?.mangaJob,
     mangaTranslated: Number(tab?.mangaTranslated) || 0,
     mangaVisible: !!tab?.mangaVisible,
@@ -1619,11 +1621,11 @@ function browserCookieMatchesHost(cookie, host) {
   return !!domain && !!normalizedHost && (domain === normalizedHost || normalizedHost.endsWith(`.${domain}`));
 }
 
-async function clearBrowserCookiesForSite(rawUrl) {
+async function clearBrowserSiteData(rawUrl) {
   let parsed;
   try { parsed = new URL(String(rawUrl || '')); } catch (_) { return { ok: false, error: 'Geçerli bir site adresi gerekli.' }; }
   if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
-    return { ok: false, error: 'Çerez temizlemek için http/https adresi gerekli.' };
+    return { ok: false, error: 'Site verilerini temizlemek için http/https adresi gerekli.' };
   }
   const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
   const cookies = await browserSession.cookies.get({});
@@ -1636,8 +1638,15 @@ async function clearBrowserCookiesForSite(rawUrl) {
       removed++;
     } catch (_) { failed++; }
   }
+  // Electron önbelleği origin bazında silemiyor; clearCache() bütün tarayıcı
+  // profilini etkiler. Burada yalnız seçili origin'in çerez, local/session
+  // storage, IndexedDB, service worker ve benzeri kalıcı verilerini temizle.
+  await browserSession.clearStorageData({ origin: parsed.origin }).catch((error) => {
+    failed++;
+    console.warn('Site depolaması temizlenemedi:', error.message);
+  });
   await browserSession.cookies.flushStore().catch(() => {});
-  return { ok: true, host: parsed.hostname, removed, failed, total: targets.length };
+  return { ok: true, host: parsed.hostname, origin: parsed.origin, removed, failed, total: targets.length };
 }
 
 async function clearAllBrowserCookies() {
@@ -1842,6 +1851,97 @@ function browserLoadErrorMessage(code, description) {
     return 'Site güvenli olmayan bir TLS/sertifika yanıtı verdi. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.';
   }
   return raw;
+}
+
+function browserTabForWebContents(webContents) {
+  return [...browserTabs.values()].find((tab) => tab.view
+    && !tab.view.webContents.isDestroyed() && tab.view.webContents === webContents) || null;
+}
+
+function browserCertificateErrorMessage(error) {
+  const detail = String(error || '').replace(/^net::/i, '').replace(/^ERR_/i, '').replace(/_/g, ' ').toLocaleLowerCase('tr-TR');
+  return `Bu sitenin güvenlik sertifikası doğrulanamadı${detail ? ` (${detail})` : ''}. Bağlantı engellendi; sistem saatini, VPN/proxy ve antivirüs HTTPS denetimini kontrol edin.`;
+}
+
+async function openBrowserLinkInNewTab(rawUrl) {
+  const url = normalizeBrowserUrl(rawUrl);
+  if (!url || browserTabs.size >= MAX_SESSION_TABS) return false;
+  const tab = createBrowserTabRecord();
+  const view = ensureBrowserView(tab);
+  if (!view) { destroyBrowserTab(tab); return false; }
+  await activateBrowserTab(tab.id);
+  sendBrowserEvent(tab, { type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: tab.id });
+  await waitForProtectedPlayback(url);
+  view.setVisible(browserVisible && !browserModalOccluded);
+  try {
+    await view.webContents.loadURL(url);
+    tab.restoredUrl = url;
+    scheduleBrowserSessionSave();
+    return true;
+  } catch (error) {
+    sendBrowserEvent(tab, { type: 'load-error', loading: false, code: error.errno,
+      message: browserLoadErrorMessage(error.errno, error.code || error.message), url });
+    return false;
+  }
+}
+
+function browserImageFileName(rawUrl, contentType = '') {
+  let name = 'gorsel';
+  try { name = path.basename(decodeURIComponent(new URL(rawUrl).pathname)) || name; } catch (_) {}
+  name = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 120) || 'gorsel';
+  const currentExt = path.extname(name).toLowerCase();
+  if (!['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'].includes(currentExt)) {
+    if (currentExt) name = path.basename(name, currentExt);
+    const ext = /png/i.test(contentType) ? '.png' : /webp/i.test(contentType) ? '.webp'
+      : /gif/i.test(contentType) ? '.gif' : /svg/i.test(contentType) ? '.svg' : '.jpg';
+    name += ext;
+  }
+  return name;
+}
+
+async function saveBrowserContextImage(tab, rawUrl) {
+  let parsed;
+  try { parsed = new URL(String(rawUrl || '')); } catch (_) { return; }
+  if (!['http:', 'https:'].includes(parsed.protocol) || !tab?.view || tab.view.webContents.isDestroyed()) return;
+  const response = await tab.view.webContents.session.fetch(parsed.href, {
+    headers: { Referer: tab.view.webContents.getURL() || parsed.origin },
+  });
+  if (!response.ok) throw new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
+  const type = response.headers.get('content-type') || '';
+  if (type && !/^image\//i.test(type)) throw new Error('Seçilen kaynak bir görsel değil.');
+  const declared = Number(response.headers.get('content-length')) || 0;
+  if (declared > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
+  const choice = await dialog.showSaveDialog(mainWindow, {
+    title: 'Görseli kaydet', defaultPath: browserImageFileName(parsed.href, type),
+    filters: [{ name: 'Görsel', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }],
+  });
+  if (choice.canceled || !choice.filePath) return;
+  await fs.promises.writeFile(choice.filePath, bytes);
+  sendBrowserEvent(tab, { type: 'notice', message: 'Görsel kaydedildi.', success: true });
+}
+
+function installBrowserContextMenu(tab, wc) {
+  wc.on('context-menu', (_event, params = {}) => {
+    const selection = String(params.selectionText || '').trim();
+    const linkUrl = String(params.linkURL || '');
+    const imageUrl = params.mediaType === 'image' ? String(params.srcURL || '') : '';
+    const { canGoBack, canGoForward } = browserNavigationCapabilities(wc);
+    const template = [
+      { label: 'Geri', enabled: canGoBack, click: () => wc.navigationHistory.goBack() },
+      { label: 'İleri', enabled: canGoForward, click: () => wc.navigationHistory.goForward() },
+      { label: 'Yenile', click: () => wc.reload() },
+      { type: 'separator' },
+      { label: 'Bağlantıyı yeni sekmede aç', visible: !!linkUrl,
+        click: () => void openBrowserLinkInNewTab(linkUrl) },
+      { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
+      { label: 'Görseli kaydet…', visible: !!imageUrl,
+        click: () => void saveBrowserContextImage(tab, imageUrl).catch((error) =>
+          sendBrowserEvent(tab, { type: 'notice', message: `Görsel kaydedilemedi: ${error.message}`, success: false })) },
+    ];
+    Menu.buildFromTemplate(template).popup({ window: mainWindow });
+  });
 }
 
 function browserSubtitleDir() {
@@ -4331,6 +4431,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   view.setVisible(false);
   mainWindow.contentView.addChildView(view);
   const wc = view.webContents;
+  installBrowserContextMenu(tab, wc);
   // Birçok yayın sitesi `Electron/x` belirtecini desteklenmeyen tarayıcı diye
   // reddediyor. Chromium sürümünü değiştirmeden yalnızca Electron ürün adını
   // kaldır; navigator.userAgent ve istek başlıkları aynı kimliği kullansın.
@@ -4357,6 +4458,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (!normalizeBrowserUrl(url)) event.preventDefault();
   });
   wc.on('did-start-loading', () => {
+    tab.loadError = null;
+    if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
     stopBrowserManga(tab, false);
     tab.mangaTranslated = 0;
     tab.mangaVisible = false;
@@ -4421,7 +4524,13 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
     if (isMainFrame && code !== -3) {
+      if (tab.loadError?.kind === 'certificate' && tab.loadError.url === url) {
+        sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
+        return;
+      }
       const message = browserLoadErrorMessage(code, description);
+      tab.loadError = { kind: 'connection', code, message, url };
+      if (tab.id === browserActiveTabId) view.setVisible(false);
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
       sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }), code, message, url });
     }
@@ -4507,7 +4616,7 @@ async function activateBrowserTab(rawId) {
     browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
     browserDiagnostics = next.diagnostics;
     if (browserBounds) browserView.setBounds(browserBounds);
-    browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
+    browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
     if (browserVisible) startBrowserPolling();
     if (browserCaptureEnabled) attachBrowserDebugger();
     applyBrowserOverlay();
@@ -4539,7 +4648,7 @@ async function activateBrowserTab(rawId) {
   browserDiagnostics = next.diagnostics;
   resetBrowserCaptureState({ preserveDiagnostics: true });
   if (browserView && browserBounds) browserView.setBounds(browserBounds);
-  if (browserView) browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
+  if (browserView) browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
   if (browserVisible) startBrowserPolling();
   if (browserCaptureEnabled) attachBrowserDebugger();
   applyBrowserOverlay();
@@ -4798,6 +4907,19 @@ function createWindow() {
   }
 }
 
+app.on('certificate-error', (event, webContents, url, error, _certificate, callback) => {
+  // Güvenlik hatalarında hiçbir koşulda sessiz geçiş yapma. Kullanıcıya
+  // anlaşılır hata yüzeyini gösterirken Chromium bağlantısını kesin reddet.
+  event.preventDefault();
+  callback(false);
+  const tab = browserTabForWebContents(webContents);
+  if (!tab) return;
+  const message = browserCertificateErrorMessage(error);
+  tab.loadError = { kind: 'certificate', code: error || 'CERTIFICATE_ERROR', message, url };
+  if (tab.id === browserActiveTabId && tab.view) tab.view.setVisible(false);
+  sendBrowserEvent(tab, { type: 'security-error', loading: false, code: error || 'CERTIFICATE_ERROR', message, url });
+});
+
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
   // Korumalı gezinme readiness promise'ini bekler; arayüz indirmeyi beklemez.
   void prepareWidevineComponents().catch((error) => {
@@ -4923,10 +5045,27 @@ ipcMain.handle('browser:tab:activate', (event, rawId) => queueBrowserTabTransiti
     captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
 }));
 
-ipcMain.handle('browser:tab:close', (event, rawId) => queueBrowserTabTransition(async () => {
+ipcMain.handle('browser:tab:setPinned', (event, rawId, pinned) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = browserTabById(rawId);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  tab.pinned = !!pinned;
+  scheduleBrowserSessionSave();
+  return { ok: true, pinned: tab.pinned, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot() };
+}));
+
+ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransition(async () => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const rawId = request && typeof request === 'object' ? request.tabId : request;
+  const force = !!(request && typeof request === 'object' && request.force);
+  const tab = browserTabById(rawId);
+  if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  const translationState = tab.translationScheduler?.snapshot();
+  const activeWork = !!tab.mangaJob || !!(translationState?.queued?.length || translationState?.pending?.length);
+  if (!force && (tab.pinned || activeWork)) {
+    return { ok: false, requiresConfirmation: true, pinned: !!tab.pinned, activeWork,
+      error: tab.pinned ? 'Bu sekme sabitlenmiş.' : 'Bu sekmede devam eden bir çeviri işi var.' };
+  }
   const ordered = [...browserTabs.values()];
   const index = ordered.indexOf(tab);
   const wasActive = tab.id === browserActiveTabId;
@@ -4978,7 +5117,7 @@ ipcMain.handle('browser:show', async (event, payload) => {
   view.setBounds(bounds);
   browserVisible = true;
   const hasPage = !!browserNavigationState().url;
-  view.setVisible(hasPage && !browserModalOccluded);
+  view.setVisible(hasPage && !browserModalOccluded && !tab.loadError);
   startBrowserPolling();
   return { ok: true, hasPage, activeTabId: tab.id, tabs: browserTabsSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled,
@@ -4995,7 +5134,7 @@ ipcMain.handle('browser:setOccluded', (event, occluded) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   browserModalOccluded = !!occluded;
   if (browserView && !browserView.webContents.isDestroyed()) {
-    browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url);
+    browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !activeBrowserTab()?.loadError);
   }
   return { ok: true, occluded: browserModalOccluded };
 });
@@ -5284,7 +5423,7 @@ ipcMain.handle('browser:places:clearHistory', (event) => {
 ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
-    const result = await clearBrowserCookiesForSite(rawUrl);
+    const result = await clearBrowserSiteData(rawUrl);
     if (result.ok && browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
     return result;
   } catch (err) { return { ok: false, error: err.message }; }

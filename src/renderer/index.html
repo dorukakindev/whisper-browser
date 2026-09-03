@@ -1092,7 +1092,7 @@
                 <input type="checkbox" id="browserSessionRestore" checked />
                 <span>Son sekmeleri açılışta geri yükle</span>
               </label>
-              <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserSiteCookiesClear" type="button">Bu sitenin çerezlerini temizle</button>
+              <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserSiteCookiesClear" type="button">Bu sitenin verilerini temizle</button>
               <button class="btn btn-ghost btn-sm browser-cookie-action" id="browserCookiesClear" type="button">Tüm çerezleri temizle</button>
               <button class="btn btn-ghost btn-sm browser-session-reset" id="browserSessionReset" type="button">Oturumu ve önbelleği sıfırla</button>
               <button class="btn btn-ghost btn-sm browser-places-clear hidden" id="browserPlacesClear" type="button">Geçmişi temizle</button>
@@ -1249,6 +1249,16 @@
               <small>Adresi ya da aramak istediğin ifadeyi üstteki alana yaz. Adres çubuğuna dönmek için Ctrl+L kullanabilirsin.</small>
               <small>Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır.</small>
               <small>DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</small>
+            </div>
+            <div class="browser-error-surface hidden" id="browserErrorSurface" role="alert" aria-live="assertive">
+              <span class="browser-error-kicker" id="browserErrorKicker">Bağlantı kurulamadı</span>
+              <strong id="browserErrorTitle">Sayfa açılamadı</strong>
+              <p id="browserErrorMessage"></p>
+              <code id="browserErrorCode"></code>
+              <div class="browser-error-actions">
+                <button class="btn btn-primary btn-sm" id="browserErrorRetry" type="button">Tekrar dene</button>
+                <button class="btn btn-ghost btn-sm" id="browserErrorBack" type="button">Geri dön</button>
+              </div>
             </div>
           </div>
         </section>
