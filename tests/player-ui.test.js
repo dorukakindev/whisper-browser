@@ -243,9 +243,13 @@ test('tarayıcı kontrol olayları sekme kapısından önce ve sayısal medya de
 
 test('yeni sekme isteği in-flight süresince tekilleştiriliyor', () => {
   const create = js.slice(js.indexOf('async function createBrowserTab'), js.indexOf('async function closeBrowserTab'));
-  assert(/if \(button\?\.disabled\) return null/.test(create), 'çift tıklama kısa devresi yok');
-  assert(/button\.disabled = true/.test(create) && /finally[\s\S]{0,120}button\.disabled = false/.test(create),
+  assert(/if \(player\.browserTabCreateBusy\) return null/.test(create), 'çift tıklama kısa devresi yok');
+  assert(/player\.browserTabCreateBusy = true/.test(create)
+    && /finally[\s\S]{0,180}player\.browserTabCreateBusy = false/.test(create),
     'yeni sekme düğmesi hata dahil tüm yollarda geri açılmıyor');
+  assert(/player\.browserTabs\.length >= MAX_BROWSER_TABS/.test(create)
+    && /updateBrowserNewTabAvailability/.test(create),
+  'sekme sınırı arayüzde uygulanmıyor veya kullanıcıya açıklanmıyor');
   assert(/createdTabId === player\.browserActiveTabId/.test(create)
     && /player\.workspaceMode === 'browser'/.test(create),
   'geciken yeni sekme cevabı gizli adres alanına odağı taşıyabiliyor');

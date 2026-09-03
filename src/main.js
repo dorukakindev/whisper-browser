@@ -82,6 +82,7 @@ const {
   splitSettingsSecrets,
 } = require('./secret-store');
 const {
+  MAX_SESSION_TABS,
   browserSessionPath,
   normalizeSessionTab,
   readBrowserSession,
@@ -1474,7 +1475,7 @@ function normalizeBrowserPlaces(places) {
   })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
   const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
     name: String(item?.name || '').trim().slice(0, 64),
-    tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, 24),
+    tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
   })).filter(item => item.name && item.tabs.length);
   return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks), workspaces };
 }
@@ -4815,6 +4816,10 @@ function activeRequestedBrowserTab(rawId) {
 
 ipcMain.handle('browser:tab:create', (event) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (browserTabs.size >= MAX_SESSION_TABS) {
+    return { ok: false, limitReached: true,
+      error: `En fazla ${MAX_SESSION_TABS} tarayıcı sekmesi açılabilir. Önce bir sekmeyi kapatın.` };
+  }
   const tab = createBrowserTabRecord();
   ensureBrowserView(tab);
   await activateBrowserTab(tab.id);
@@ -5113,7 +5118,9 @@ ipcMain.handle('browser:workspace:save', (event, rawName) => {
   const name = String(rawName || '').trim().slice(0, 64);
   const tabs = browserTabsSnapshot().map(normalizeSessionTab).filter(Boolean);
   if (!name || !tabs.length) return { ok: false, error: 'Bir ad ve en az bir açık site gerekli.' };
-  if (tabs.length > 24) return { ok: false, error: 'Bir çalışma alanına en fazla 24 sekme kaydedilebilir.' };
+  if (tabs.length > MAX_SESSION_TABS) {
+    return { ok: false, error: `Bir çalışma alanına en fazla ${MAX_SESSION_TABS} sekme kaydedilebilir.` };
+  }
   const places = readBrowserPlaces();
   places.workspaces = [{ name, tabs }, ...places.workspaces.filter(item => item.name !== name)].slice(0, 20);
   setBrowserPlaces(places);
@@ -5132,7 +5139,10 @@ ipcMain.handle('browser:workspace:open', (event, name) => queueBrowserTabTransit
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const workspace = readBrowserPlaces().workspaces.find(item => item.name === name);
   if (!workspace) return { ok: false, error: 'Çalışma alanı bulunamadı.' };
-  if (browserTabs.size + workspace.tabs.length > 24) return { ok: false, error: 'Toplam sekme sınırı 24. Önce birkaç sekmeyi kapatın.' };
+  if (browserTabs.size + workspace.tabs.length > MAX_SESSION_TABS) {
+    return { ok: false, limitReached: true,
+      error: `Toplam sekme sınırı ${MAX_SESSION_TABS}. Önce birkaç sekmeyi kapatın.` };
+  }
   // Append lazily. Never destroy the user's open tabs or start every site at once.
   const added = workspace.tabs.map(item => createBrowserTabRecord({ ...item, id: '' }));
   scheduleBrowserSessionSave();

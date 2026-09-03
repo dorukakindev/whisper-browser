@@ -3805,7 +3805,7 @@ body::before {
   cursor: pointer;
 }
 .browser-tab-close { width: 25px; height: 25px; flex: 0 0 25px; border-radius: 5px; }
-.browser-tab-close:hover { color: #d89082; background: #2a1d1b; }
+.browser-tab-close:not(:disabled):hover { color: #d89082; background: #2a1d1b; }
 .browser-tab-close:disabled { opacity: .38; cursor: wait; }
 .browser-tab-audio { width: 22px; height: 23px; flex: 0 0 22px; padding: 0; border-radius: 5px; font-size: 12px; }
 .browser-tab-audio:hover, .browser-tab-audio[aria-pressed="true"] { color: var(--player-amber); background: #2a241a; }
@@ -3825,7 +3825,8 @@ body::before {
   font-weight: 700;
   white-space: nowrap;
 }
-.browser-tab-new:hover { color: var(--player-amber); border-color: #5a4523; background: #211b12; }
+.browser-tab-new:not(:disabled):hover { color: var(--player-amber); border-color: #5a4523; background: #211b12; }
+.browser-tab-new:disabled { opacity: .42; cursor: not-allowed; }
 .browser-nav, .browser-address-wrap, .browser-toolbar-actions { grid-row: 2; }
 
 .browser-nav { display: flex; gap: 3px; }

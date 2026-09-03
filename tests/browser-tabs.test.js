@@ -132,6 +132,8 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
   assert.match(main, /const browserTabs = new Map\(\)/);
   assert.match(main, /ipcMain\.handle\('browser:tab:create'/);
+  assert.match(main, /browserTabs\.size >= MAX_SESSION_TABS/,
+    'normal yeni sekme yolu kalıcı oturum sınırını uygulamıyor');
   assert.match(main, /ipcMain\.handle\('browser:tab:activate'/);
   assert.match(main, /ipcMain\.handle\('browser:tab:close'/);
   assert.match(main, /tabId[\s\S]{0,120}generation/);

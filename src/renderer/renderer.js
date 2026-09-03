@@ -3371,6 +3371,7 @@ const player = {
   workspaceMode: 'player', // 'player' | 'browser'
   localSubtitleWorkspace: null,
   browserTabs: [],
+  browserTabCreateBusy: false,
   browserClosingTabs: new Set(),
   browserActiveTabId: '',
   browserTabEventGate: new BrowserTabEventGate(),
@@ -3791,6 +3792,18 @@ function renderBrowserTabs() {
   requestAnimationFrame(() => {
     if (activeButton?.isConnected) activeButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });
+  updateBrowserNewTabAvailability();
+}
+
+const MAX_BROWSER_TABS = 24;
+function updateBrowserNewTabAvailability() {
+  const button = $('browserTabNew');
+  if (!button) return;
+  const limitReached = player.browserTabs.length >= MAX_BROWSER_TABS;
+  button.disabled = player.browserTabCreateBusy || limitReached;
+  button.title = limitReached
+    ? `En fazla ${MAX_BROWSER_TABS} sekme açılabilir; önce bir sekmeyi kapatın.`
+    : (player.browserTabCreateBusy ? 'Yeni sekme açılıyor…' : 'Yeni sekme');
 }
 
 function updateBrowserTabPresentation(tab) {
@@ -3837,16 +3850,22 @@ async function activateBrowserTab(tabId) {
 }
 
 async function createBrowserTab() {
-  const button = $('browserTabNew');
-  if (button?.disabled) return null;
-  if (button) button.disabled = true;
+  if (player.browserTabCreateBusy) return null;
+  if (player.browserTabs.length >= MAX_BROWSER_TABS) {
+    setBrowserSignal(`En fazla ${MAX_BROWSER_TABS} tarayıcı sekmesi açılabilir. Önce bir sekmeyi kapatın.`, false);
+    updateBrowserNewTabAvailability();
+    return null;
+  }
+  player.browserTabCreateBusy = true;
+  updateBrowserNewTabAvailability();
   let result;
   try {
     await flushWatchState(false, true);
     saveActiveBrowserTabWorkspace();
     result = await window.api.createBrowserTab().catch(() => null);
   } finally {
-    if (button) button.disabled = false;
+    player.browserTabCreateBusy = false;
+    updateBrowserNewTabAvailability();
   }
   if (!result || !result.ok) {
     setBrowserSignal(`Yeni sekme açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
