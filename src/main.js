@@ -170,6 +170,7 @@ let browserSessionFinalizedForQuit = false;
 let browserPlacesCache = null;
 let browserPlacesSaveTimer = null;
 let browserPlacesDirty = false;
+let browserPlacesSaveErrorNotified = false;
 let browserSessionRestoreEnabled = true;
 let browserTrackTimer = null;
 let browserMediaTimer = null;
@@ -1490,13 +1491,30 @@ function cloneBrowserPlaces(places) {
 
 function readBrowserPlaces() {
   if (!browserPlacesCache) {
-    try {
-      browserPlacesCache = normalizeBrowserPlaces(JSON.parse(fs.readFileSync(browserPlacesPath(), 'utf8')));
-    } catch (_) {
-      browserPlacesCache = { history: [], bookmarks: [] };
+    const primary = browserPlacesPath();
+    for (const candidate of [primary, `${primary}.bak`]) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+        browserPlacesCache = normalizeBrowserPlaces(parsed);
+        break;
+      } catch (_) {}
     }
+    if (!browserPlacesCache) browserPlacesCache = normalizeBrowserPlaces({});
   }
   return cloneBrowserPlaces(browserPlacesCache);
+}
+
+function writeBrowserPlacesAtomic(places) {
+  const primary = browserPlacesPath();
+  const backup = `${primary}.bak`;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(primary, 'utf8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) fs.copyFileSync(primary, backup);
+  } catch (_) {
+    // Bozuk bir ana dosya sağlam yedeğin üstüne kopyalanmamalı.
+  }
+  writeJsonAtomic(primary, places);
 }
 
 function flushBrowserPlaces() {
@@ -1504,10 +1522,19 @@ function flushBrowserPlaces() {
   browserPlacesSaveTimer = null;
   if (!browserPlacesDirty || !browserPlacesCache) return true;
   try {
-    writeJsonAtomic(browserPlacesPath(), browserPlacesCache);
+    writeBrowserPlacesAtomic(browserPlacesCache);
     browserPlacesDirty = false;
+    browserPlacesSaveErrorNotified = false;
     return true;
-  } catch (_) {
+  } catch (error) {
+    if (!browserPlacesSaveErrorNotified) {
+      browserPlacesSaveErrorNotified = true;
+      sendBrowserEvent({
+        type: 'places-save-error',
+        message: 'Tarayıcı geçmişi ve yer imleri diske kaydedilemedi. Uygulamayı kapatmadan önce disk erişimini kontrol edin.',
+        detail: String(error?.message || error || ''),
+      });
+    }
     return false;
   }
 }

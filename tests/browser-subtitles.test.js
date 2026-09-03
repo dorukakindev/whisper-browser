@@ -451,6 +451,14 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /let browserPlacesCache = null/);
   assert.match(main, /setTimeout\(\(\) => flushBrowserPlaces\(\), 400\)/);
   assert.match(main, /app\.on\('before-quit'[\s\S]{0,180}flushBrowserPlaces\(\)/);
+  assert.match(main, /for \(const candidate of \[primary, `\$\{primary\}\.bak`\]\)/,
+    'bozuk browser places dosyasi yedekten kurtarilmiyor');
+  assert.match(main, /JSON\.parse\(fs\.readFileSync\(primary, 'utf8'\)\)[\s\S]{0,240}fs\.copyFileSync\(primary, backup\)/,
+    'browser places yazimindan once yalniz gecerli ana dosya yedeklenmiyor');
+  assert.match(main, /type: 'places-save-error'/,
+    'browser places yazma hatasi renderer tarafina bildirilmiyor');
+  assert.match(renderer, /event\.type === 'places-save-error'/,
+    'browser places yazma hatasi kullaniciya gosterilmiyor');
   assert.match(main, /const cueList = track\.cues \|\| null[\s\S]{0,1600}previous\.fingerprint === fingerprint[\s\S]{0,300}const list = Array\.from/,
     'HTML5 iz probu tum cue degisikliklerini parmak iziyle izlemiyor');
   assert(main.indexOf('image = await tab.view.webContents.capturePage()')

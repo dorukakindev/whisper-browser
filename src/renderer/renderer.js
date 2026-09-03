@@ -5763,6 +5763,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'places' && event.places) {
     player.browserPlaces = event.places;
     renderBrowserPlaces();
+  } else if (event.type === 'places-save-error') {
+    const message = event.message || 'Tarayıcı geçmişi ve yer imleri kaydedilemedi.';
+    setBrowserSignal(message, false, 10000);
+    logLine(`${message}${event.detail ? ` · ${event.detail}` : ''}`, 'warn');
   } else if (event.type === 'tab-audio') {
     const tab = browserTabState();
     if (tab) { tab.audible = !!event.audible; tab.tabMuted = !!event.tabMuted; updateBrowserTabPresentation(tab); }
