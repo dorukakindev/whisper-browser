@@ -9,15 +9,14 @@ function decodeEntities(value) {
     return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
       ? String.fromCodePoint(codePoint) : '\uFFFD';
   };
-  return String(value || '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_m, n) => decodeCodePoint(n))
-    .replace(/&#x([0-9a-f]+);/gi, (_m, n) => decodeCodePoint(n, 16));
+  const named = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+  // Üretilen & işaretini aynı geçişte yeniden çözme: &amp;#39; literal kalmalı.
+  return String(value || '').replace(/&(nbsp|amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi, (_match, entity) => {
+    const key = entity.toLowerCase();
+    if (key.startsWith('#x')) return decodeCodePoint(key.slice(2), 16);
+    if (key.startsWith('#')) return decodeCodePoint(key.slice(1));
+    return named[key];
+  });
 }
 
 function cleanCueText(value) {

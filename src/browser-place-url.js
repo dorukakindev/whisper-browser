@@ -4,8 +4,9 @@
   else root.BrowserPlaceUrl = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   const sensitive = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+  const tracking = /^(?:utm_.+|fbclid|gclid|dclid|msclkid|mc_[ce]id|ref_|referrer|source)$/i;
   function cleanQuery(params) {
-    for (const key of [...params.keys()]) if (sensitive.test(key)) params.delete(key);
+    for (const key of [...params.keys()]) if (sensitive.test(key) || tracking.test(key)) params.delete(key);
     return params;
   }
   function safePlaceUrl(raw) {
@@ -26,5 +27,5 @@
       return url.href.length <= 4000 ? url.href : '';
     } catch (_) { return ''; }
   }
-  return { safePlaceUrl };
+  return { safePlaceUrl, SENSITIVE_PARAM_RE: sensitive, TRACKING_PARAM_RE: tracking };
 });

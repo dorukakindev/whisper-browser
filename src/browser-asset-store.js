@@ -31,7 +31,7 @@ function srtTime(seconds) {
 
 function cuesToSrt(cues) {
   return normalizeCues(cues).map((cue, index) => (
-    `${index + 1}\r\n${srtTime(cue.start)} --> ${srtTime(cue.end)}\r\n${cue.text}\r\n`
+    `${index + 1}\r\n${srtTime(cue.start)} --> ${srtTime(cue.end)}\r\n${cue.text.replace(/\r/g, '').replace(/\n(?:[ \t]*\n)+/g, '\n')}\r\n`
   )).join('\r\n');
 }
 

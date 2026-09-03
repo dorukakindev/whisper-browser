@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 
-const SENSITIVE_PARAM_RE = /^(?:token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
-const TRACKING_PARAM_RE = /^(?:utm_.+|fbclid|gclid|dclid|msclkid|mc_[ce]id|ref_|referrer|source)$/i;
+const { SENSITIVE_PARAM_RE, TRACKING_PARAM_RE } = require('./browser-place-url');
 
 function cleanPart(value, max = 240) {
   return String(value == null ? '' : value).trim().slice(0, max);
