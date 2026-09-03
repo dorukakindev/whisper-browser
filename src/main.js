@@ -1314,6 +1314,7 @@ function createBrowserTabRecord(initial = {}) {
     translationTrackId: '',
     translationSourceCues: [],
     translationResults: new Map(),
+    translationPersistedSignature: '',
     mangaJob: null,
     mangaClearPromise: Promise.resolve([]),
     mangaPages: new Map(),
@@ -2850,6 +2851,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   tab.translationTrackId = String(options.trackId || '').slice(0, 180);
   tab.translationSourceCues = cues;
   tab.translationResults = new Map();
+  tab.translationPersistedSignature = '';
   const context = {
     targetLanguage: config.targetLanguage,
     model: config.model,
@@ -2872,6 +2874,9 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     onState: (state) => {
       if (tab.translationScheduler === scheduler) {
         sendBrowserEvent(tab, { type: 'translation-state', state, trackId: tab.translationTrackId });
+        if (state.total > 0 && state.completed >= state.total && !state.pending && !state.queued && !state.failed) {
+          persistCompletedBrowserTranslation(tab, scheduler, config, context);
+        }
       }
     },
   });
@@ -2887,6 +2892,36 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     ok: true, sentenceCount: sentences.length, cueCount: cues.length,
     targetLanguage: config.targetLanguage, completeTrack: options.completeTrack !== false, queued,
   };
+}
+
+function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
+  if (!tab || tab.translationScheduler !== scheduler) return null;
+  const cues = scheduler.snapshot().results.flatMap((result) => result.cues || []).map((cue, index) => ({
+    id: `web-tr-${String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, '')}`,
+    start: Number(cue.start) || 0,
+    end: Number(cue.end) || Number(cue.start) || 0,
+    text: String(cue.text || '').trim(),
+  })).filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
+  if (!cues.length) return null;
+  const identity = JSON.stringify({
+    sourceTrackId: tab.translationTrackId,
+    targetLanguage: config.targetLanguage,
+    model: config.model,
+    style: context.style,
+    glossaryVersion: context.glossaryVersion,
+  });
+  const trackId = `translation-${createHash('sha1').update(identity).digest('hex').slice(0, 24)}`;
+  const signature = createHash('sha1').update(JSON.stringify(cues)).digest('hex');
+  if (tab.translationPersistedSignature === signature) return null;
+  const track = persistBrowserTrack(tab, {
+    id: trackId,
+    language: config.targetLanguage,
+    label: `${String(config.targetLanguage || 'tr').toUpperCase()} çeviri`,
+  }, cues, { role: 'translation', format: 'translation' });
+  if (!track?.persisted) return null;
+  tab.translationPersistedSignature = signature;
+  sendBrowserEvent(tab, { type: 'subtitle-found', track: { ...track, role: 'translation', autoLoad: true } });
+  return track;
 }
 
 function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
@@ -3036,12 +3071,14 @@ function installSystemAudioCaptureHandler() {
 function persistBrowserTrack(tab, track, cues, meta = {}) {
   const mediaId = browserWatchMediaId(tab);
   if (!mediaId || !track || !Array.isArray(cues) || !cues.length) return track;
-  const source = meta.format === 'textTrack' || meta.format === 'html5-track' ? 'text-track'
+  const role = ['source', 'translation', 'secondary'].includes(meta.role) ? meta.role : 'source';
+  const source = role === 'translation' ? 'translation'
+    : meta.format === 'textTrack' || meta.format === 'html5-track' ? 'text-track'
     : meta.format === 'manifest' ? 'manifest'
       : meta.format === 'live-asr' ? 'live-asr' : 'network';
   const saved = browserAssetStore().putTrack({
     mediaId, trackId: track.id, language: track.language, label: track.label,
-    role: 'source', source, cues,
+    role, source, cues,
   });
   if (!saved.ok) return track;
   const indexedTrackId = `${mediaId}|${track.id}`;
@@ -3055,7 +3092,7 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
       prefs: { rate: tab.rate || 1, volume: tab.volume, muted: !!tab.muted, viewMode: tab.viewMode || 'reading' },
     });
     index?.upsertTrack({
-      id: indexedTrackId, mediaId, role: 'source', language: track.language,
+      id: indexedTrackId, mediaId, role, language: track.language,
       label: track.label, source, hash: saved.assetId.split(':')[1], assetPath: saved.assetId,
     });
     index?.replaceTrackCues(indexedTrackId, cues);
@@ -3064,11 +3101,11 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     }
   } catch (_) {}
   tab.trackRefs = [
-    { id: indexedTrackId, role: 'source', language: track.language },
+    { id: indexedTrackId, assetId: saved.assetId, role, language: track.language },
     ...(Array.isArray(tab.trackRefs) ? tab.trackRefs.filter((ref) => ref.id !== indexedTrackId) : []),
   ].slice(0, 12);
   scheduleBrowserSessionSave();
-  return { ...track, path: saved.srtPath, assetId: saved.assetId, persisted: true };
+  return { ...track, role, path: saved.srtPath, assetId: saved.assetId, persisted: true };
 }
 
 function restorePersistedBrowserTracks(tab) {
@@ -3078,12 +3115,15 @@ function restorePersistedBrowserTracks(tab) {
   const index = watchIndex();
   if (!index) return 0;
   let restored = 0;
+  let restoredTranslation = false;
   try {
     const rows = index.listTracks(mediaId).slice(0, 12);
     for (const row of rows) {
       const saved = browserAssetStore().getTrack(row.asset_path);
       if (!saved.ok || !saved.document.cues.length) continue;
       const document = saved.document;
+      const role = ['source', 'translation', 'secondary'].includes(document.role || row.role)
+        ? (document.role || row.role) : 'source';
       sendBrowserEvent(tab, {
         type: 'subtitle-found',
         track: {
@@ -3093,8 +3133,11 @@ function restorePersistedBrowserTracks(tab) {
           format: document.source || 'persisted', cueCount: document.cues.length,
           updatedAt: document.updatedAt || row.updated_at, pageUrl: tab.restoredUrl || '',
           sourceUrl: '', assetId: document.assetId, persisted: true,
+          role,
+          autoLoad: role === 'translation' && !restoredTranslation,
         },
       });
+      if (role === 'translation') restoredTranslation = true;
       restored++;
     }
     if (restored) {

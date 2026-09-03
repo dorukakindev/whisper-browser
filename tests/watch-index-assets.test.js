@@ -50,6 +50,25 @@ try {
     assert.equal(store.getTrack(result.assetId).ok, false);
   });
 
+  test('tamamlanan web çevirisi ayrı translation rolüyle kalıcı yazılır', () => {
+    const store = new BrowserAssetStore({ rootDir: path.join(dir, 'translation-assets') });
+    const result = store.putTrack({
+      mediaId: 'browser:discovery:episode-1',
+      trackId: 'translation-tr-main',
+      language: 'tr',
+      label: 'TR çeviri',
+      role: 'translation',
+      source: 'translation',
+      cues: [{ id: 'web-tr-1', start: 1, end: 3, text: 'Çeviri yeniden kullanılacak.' }],
+    });
+    assert(result.ok, result.error);
+    const loaded = store.getTrack(result.assetId);
+    assert(loaded.ok, loaded.error);
+    assert.equal(loaded.document.role, 'translation');
+    assert.equal(loaded.document.source, 'translation');
+    assert.equal(loaded.document.language, 'tr');
+  });
+
   test('eski yarım kalmış web altyazısı geçici dosyaları temizlenir', () => {
     const rootDir = path.join(dir, 'sweep-assets');
     const nested = path.join(rootDir, 'nested');

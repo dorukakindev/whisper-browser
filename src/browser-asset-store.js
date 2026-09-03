@@ -36,7 +36,7 @@ function cuesToSrt(cues) {
 }
 
 function safeMeta(raw = {}) {
-  const allowedSources = new Set(['text-track', 'network', 'manifest', 'persisted', 'manual', 'embedded', 'live-asr']);
+  const allowedSources = new Set(['text-track', 'network', 'manifest', 'persisted', 'manual', 'embedded', 'live-asr', 'translation']);
   return {
     mediaId: String(raw.mediaId || '').slice(0, 240),
     trackId: String(raw.trackId || raw.id || '').slice(0, 180),

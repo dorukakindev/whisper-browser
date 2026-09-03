@@ -1017,6 +1017,28 @@ test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçile
     'tamamlanan canlı çeviri otomatik olarak ana görünüm yapılmıyor');
 });
 
+test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const translation = main.slice(main.indexOf('function persistCompletedBrowserTranslation'),
+    main.indexOf('function stopBrowserLiveAsr'));
+  assert(/role:\s*'translation'/.test(translation), 'tamamlanan çeviri translation rolüyle kaydedilmiyor');
+  assert(/type:\s*'subtitle-found'[\s\S]*autoLoad:\s*true/.test(translation),
+    'kalıcı çeviri geri yükleme olayı yayımlanmıyor');
+  const restore = main.slice(main.indexOf('function restorePersistedBrowserTracks'),
+    main.indexOf('function publishBrowserTrackNow'));
+  assert(/role === 'translation' && !restoredTranslation/.test(restore),
+    'aynı bölümde en yeni kalıcı çeviri otomatik yükleme için seçilmiyor');
+  const renderer = js.slice(js.indexOf('async function loadPersistedBrowserTranslation'),
+    js.indexOf('function browserTrackSelection'));
+  assert(/loadSubtitle\(track\.path, false/.test(renderer), 'kalıcı çeviri ana altyazı kanalına yüklenmiyor');
+  assert(/setSubtitleMode\('source', false\)/.test(renderer), 'kalıcı çeviri ana altyazı görünümü yapılmıyor');
+});
+
+test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {
+  assert(/\.player-layer\.sidebar-collapsed\s+\.player-workspace-switch\s*\{\s*margin-left:\s*auto;\s*\}/.test(css),
+    'dar görünümde kapalı panel üst araç grubunu sağ kenara taşımıyor');
+});
+
 test('tarayıcı görünüm ve yakalama ayarları videoyu itmeden sağ çekmecede açılır', () => {
   for (const id of ['browserViewSettingsToggle', 'browserDiagnosticsToolbar',
     'settingsPageBrowserView', 'settingsPageBrowserDiagnostics']) {

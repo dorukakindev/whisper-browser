@@ -3579,8 +3579,14 @@ function saveActiveBrowserTabWorkspace() {
   });
   if (window.api.updateBrowserSessionTab) {
     const refs = [];
-    if (player.browserLoadedTrackId) refs.push({ id: player.browserLoadedTrackId, role: 'source' });
-    if (player.browserLoadedTrackId2) refs.push({ id: player.browserLoadedTrackId2, role: 'secondary' });
+    if (player.browserLoadedTrackId) {
+      const track = player.browserTracks.find((item) => item.id === player.browserLoadedTrackId);
+      refs.push({ id: player.browserLoadedTrackId, assetId: track?.assetId || '', role: track?.role || 'source' });
+    }
+    if (player.browserLoadedTrackId2) {
+      const track = player.browserTracks.find((item) => item.id === player.browserLoadedTrackId2);
+      refs.push({ id: player.browserLoadedTrackId2, assetId: track?.assetId || '', role: 'secondary' });
+    }
     window.api.updateBrowserSessionTab({
       id: tab.id, url: tab.url, title: tab.title,
       mediaId: tab.mediaId || '', service: tab.service || '',
@@ -3654,6 +3660,10 @@ function restoreActiveBrowserTabWorkspace(tab) {
   renderTranscript();
   updateSubtitleChips();
   renderBrowserTracks();
+  const savedTranslation = player.browserTracks.find((track) => track.role === 'translation' && track.autoLoad);
+  if (savedTranslation && (!player.cues.length || player.browserLoadedTrackId !== savedTranslation.id)) {
+    void loadPersistedBrowserTranslation(savedTranslation);
+  }
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
   setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
   updateBrowserMangaButton();
@@ -4421,7 +4431,8 @@ function renderBrowserTracks(selectedId) {
         option = document.createElement('option');
         option.value = track.id;
       }
-      const label = `${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
+      const roleLabel = track.role === 'translation' ? 'Çeviri · ' : '';
+      const label = `${roleLabel}${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
       if (option.textContent !== label) option.textContent = label;
       target.appendChild(option);
     }
@@ -4435,6 +4446,45 @@ function renderBrowserTracks(selectedId) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
     setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true,
       { priority: 45, holdMs: 4000, action: 'translate' });
+  }
+}
+
+async function loadPersistedBrowserTranslation(track) {
+  const tab = browserTabState();
+  if (!tab || !track?.path || track.role !== 'translation' || tab.persistedTranslationLoading) return;
+  if (player.browserLoadedTrackId === track.id && player.cues.length) return;
+  const tabId = tab.id;
+  tab.persistedTranslationLoading = true;
+  try {
+    addSubtitleOption(track.path, `Çeviri · ${track.language || track.label}`);
+    if ($('playerSubSelect')) $('playerSubSelect').value = track.path;
+    await loadSubtitle(track.path, false, { silent: true, preserveInspector: true });
+    if (player.browserActiveTabId !== tabId || player.subPath !== track.path) return;
+    player.browserLoadedTrackId = track.id;
+    player.browserLoadedTrackId2 = '';
+    player.browserTranslationTrackId = '';
+    player.browserLiveTranslations = new Map();
+    player.cues2 = [];
+    tab.browserLoadedTrackId = track.id;
+    tab.browserLoadedTrackId2 = '';
+    tab.browserTranslationTrackId = '';
+    tab.browserLiveTranslations = [];
+    tab.cues = player.cues.slice();
+    tab.cues2 = [];
+    tab.subPath = player.subPath;
+    tab.sub2Path = '';
+    tab.subtitles = player.subtitles.map((item) => ({ ...item }));
+    tab.subOrigins = { ...player.subOrigins };
+    setSubtitleMode('source', false);
+    updateBrowserTranslationExportButton();
+    renderBrowserTracks(track.id);
+    scheduleBrowserOverlaySync();
+    renderTranscript();
+    setBrowserSignal(`${track.language ? track.language.toUpperCase() + ' ' : ''}çevirisi bulundu ve ana altyazı olarak yüklendi.`, true,
+      { priority: 70, holdMs: 5000 });
+  } finally {
+    const current = browserTabState(tabId);
+    if (current) current.persistedTranslationLoading = false;
   }
 }
 
@@ -4474,6 +4524,10 @@ async function waitForBrowserTrackStable(trackId, prepareSeq, quietMs = 1200, ma
 async function useBrowserTrack(translate) {
   let track = browserTrackSelection();
   if (!track) return;
+  if (translate && track.role === 'translation') {
+    await loadPersistedBrowserTranslation(track);
+    return;
+  }
   if (state.running || state.queueRunning || player.browserTranslatePreparing) {
     setBrowserSignal('Başka bir iş çalışıyor; altyazı hazır tutuluyor.', true);
     logLine('Tarayıcı altyazısı bekliyor — çalışan iş bitince yeniden deneyin.', 'warn');
@@ -5559,7 +5613,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (tab) tab.browserTracks = player.browserTracks.slice();
     renderBrowserTracks(selectedBefore || event.track.id);
     scheduleActiveBrowserTrackRefresh(event.track);
-    if (index < 0) logLine(`Web altyazısı bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
+    if (event.track.role === 'translation' && event.track.autoLoad) {
+      void loadPersistedBrowserTranslation(event.track);
+    }
+    if (index < 0) logLine(`${event.track.role === 'translation' ? 'Web çevirisi' : 'Web altyazısı'} bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
   } else if (event.type === 'media' && event.media) {
     const previousTime = player.browserTime;
     const wasPaused = player.browserPaused;

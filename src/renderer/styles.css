@@ -4199,6 +4199,9 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
 
 @media (max-width: 1280px) {
   .player-workspace-switch { margin-left: 0; }
+  /* Sağ panel kapalıyken başlıkta boş bir panel sütunu yoktur. Çalışma alanı
+     seçicisi ve onu izleyen araçlar tek grup olarak sağ güvenli kenara yaslanır. */
+  .player-layer.sidebar-collapsed .player-workspace-switch { margin-left: auto; }
   .workspace-mode { padding: 0 10px; }
 }
 
