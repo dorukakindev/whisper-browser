@@ -15,7 +15,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
     .filter((end) => end.at >= 0).sort((a, b) => a.at - b.at);
   const end = ends[0];
   const lineEnd = main.indexOf('\n', match.index);
-  const oneLine = main.slice(match.index, lineEnd).endsWith(');');
+  const oneLine = main.slice(match.index, lineEnd).trimEnd().endsWith(');');
   handlers.set(match[1], main.slice(match.index, oneLine ? lineEnd : end.at + end.length));
 }
 function register(channel, context) {
