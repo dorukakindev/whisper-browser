@@ -246,6 +246,27 @@ test('yeni sekme isteği in-flight süresince tekilleştiriliyor', () => {
   assert(/if \(button\?\.disabled\) return null/.test(create), 'çift tıklama kısa devresi yok');
   assert(/button\.disabled = true/.test(create) && /finally[\s\S]{0,120}button\.disabled = false/.test(create),
     'yeni sekme düğmesi hata dahil tüm yollarda geri açılmıyor');
+  assert(/createdTabId === player\.browserActiveTabId/.test(create)
+    && /player\.workspaceMode === 'browser'/.test(create),
+  'geciken yeni sekme cevabı gizli adres alanına odağı taşıyabiliyor');
+});
+
+test('geciken tarayıcı görünümü oynatıcı modunun üzerine geri açılamıyor', () => {
+  const show = js.slice(js.indexOf('async function showBrowserWorkspace'),
+    js.indexOf('function setWorkspaceMode'));
+  const mode = js.slice(js.indexOf('function setWorkspaceMode'),
+    js.indexOf('async function navigateBrowserFromAddress'));
+  assert(/const workspaceSeq = \+\+player\.browserWorkspaceSeq/.test(show)
+    && /workspaceSeq === player\.browserWorkspaceSeq/.test(show),
+  'tarayıcı görünümü hazırlama isteğinin kuşak kontrolü yok');
+  assert(/player\.workspaceMode !== 'browser'[\s\S]{0,100}hideBrowser/.test(show),
+    'geciken görünüm oynatıcı modunda ana süreçten tekrar gizlenmiyor');
+  assert(/mode !== previousMode\) player\.browserWorkspaceSeq \+= 1/.test(mode),
+    'çalışma alanı değişimi bekleyen görünüm isteğini geçersiz kılmıyor');
+  const activate = js.slice(js.indexOf('async function activateBrowserTabAndFocus'),
+    js.indexOf('function browserSlotBounds'));
+  assert(/if \(!activated \|\| activated\.id !== tabId/.test(activate),
+    'başarısız sekme etkinleştirme eski sekmeye klavye odağı taşıyor');
 });
 
 test('kuyruk sıradaki işi done değil süreç exit olayında başlatıyor', () => {

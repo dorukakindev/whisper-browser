@@ -3386,6 +3386,7 @@ const player = {
   browserPositionTick: 0,
   browserBoundsFrame: 0,
   browserBoundsObserver: null,
+  browserWorkspaceSeq: 0,
   browserOverlayTimer: null,
   browserTrackRefreshTimers: {},
   browserLoadedTrackId: '',
@@ -3852,7 +3853,12 @@ async function createBrowserTab() {
   const tab = browserTabState();
   restoreActiveBrowserTabWorkspace(tab);
   updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
-  setTimeout(() => $('browserAddress')?.focus(), 0);
+  const createdTabId = tab?.id || '';
+  setTimeout(() => {
+    if (player.workspaceMode === 'browser' && createdTabId === player.browserActiveTabId) {
+      $('browserAddress')?.focus();
+    }
+  }, 0);
   scheduleBrowserBounds();
   return tab;
 }
@@ -3882,7 +3888,8 @@ async function closeBrowserTab(tabId) {
 }
 
 async function activateBrowserTabAndFocus(tabId) {
-  await activateBrowserTab(tabId);
+  const activated = await activateBrowserTab(tabId);
+  if (!activated || activated.id !== tabId || player.browserActiveTabId !== tabId) return;
   const tab = [...($('browserTabStrip')?.querySelectorAll('[role="tab"]') || [])]
     .find((item) => item.dataset.browserTabActivate === tabId);
   tab?.focus();
@@ -5162,8 +5169,14 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
 async function showBrowserWorkspace() {
   const bounds = browserSlotBounds();
   if (!bounds || !window.api.showBrowser) return;
+  const workspaceSeq = ++player.browserWorkspaceSeq;
+  const stillCurrent = () => workspaceSeq === player.browserWorkspaceSeq && player.workspaceMode === 'browser';
   const previousActive = player.browserActiveTabId;
-  const result = await window.api.showBrowser(player.browserActiveTabId, bounds);
+  const result = await window.api.showBrowser(player.browserActiveTabId, bounds).catch(() => null);
+  if (!stillCurrent()) {
+    if (player.workspaceMode !== 'browser') window.api.hideBrowser?.().catch(() => {});
+    return;
+  }
   if (!result || !result.ok) {
     setBrowserSignal((result && result.error) || 'Tarayıcı alanı açılamadı.', false);
     return;
@@ -5177,6 +5190,7 @@ async function showBrowserWorkspace() {
       && result.captureEnabled !== player.browserCaptureEnabled) {
     const captureResult = await window.api.setBrowserCaptureEnabled(
       player.browserActiveTabId, player.browserCaptureEnabled).catch(() => null);
+    if (!stillCurrent()) return;
     if (captureResult && typeof captureResult.enabled === 'boolean') result.captureEnabled = captureResult.enabled;
   }
   updateBrowserNavigation(result);
@@ -5188,13 +5202,16 @@ async function showBrowserWorkspace() {
   if (!result.hasPage) {
     const last = (() => { try { return localStorage.getItem('playerBrowserLastUrl') || ''; } catch (_) { return ''; } })();
     if (last && $('browserAddress') && !$('browserAddress').value) $('browserAddress').value = last;
-    setTimeout(() => $('browserAddress')?.focus(), 0);
+    setTimeout(() => {
+      if (stillCurrent()) $('browserAddress')?.focus();
+    }, 0);
   }
 }
 
 function setWorkspaceMode(mode, persist = true) {
   mode = mode === 'browser' ? 'browser' : 'player';
   const previousMode = player.workspaceMode;
+  if (mode !== previousMode) player.browserWorkspaceSeq += 1;
   if (mode !== player.workspaceMode) flushWatchState(false, true);
   if (mode === 'browser' && previousMode !== 'browser') saveLocalSubtitleWorkspace();
   if (mode !== 'browser' && previousMode === 'browser') saveActiveBrowserTabWorkspace();
