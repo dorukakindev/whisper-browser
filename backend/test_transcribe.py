@@ -1306,7 +1306,8 @@ def test_build_translate_prompt():
     assert "Sanhuber, Osterreich" in p          # sözlük prompta giriyor
     assert "21 karakter/saniye" in p            # CPS bütçesi
     assert "GUVENILMEZ" in p                    # prompt injection koruması
-    assert "YER DEGISTIRME" in p                # blok hizası kuralı
+    assert "GRUPLAR ARASINDA anlam tasima" in p  # sınır korunur; grup içinde doğal söz dizimi serbest
+    assert '"sentences"' in p and '"items"' in p
     # üslup ve küfür seçimi prompta yansır
     assert "Anlatici cumleleri" in p
     assert "sansursuz" in p.lower()
@@ -2112,6 +2113,182 @@ def test_ffmpeg_preparation_has_timeouts_without_running_ffmpeg():
             except RuntimeError as error:
                 assert "durduruldu" in str(error)
     assert observed == expected, observed
+
+
+_SENTENCE_SOURCE = [(0, 1.5, "I don't think"), (1.5, 3, "that he will survive"),
+                    (3, 5, "this heavy attack.")]
+_SENTENCE_PARTS = ['Bu ağır saldırıdan', 'sağ çıkacağını', 'sanmıyorum.']
+
+
+def _sentence_reply(payload):
+    items, sentences = {}, {}
+    for group in payload['sentence_groups']:
+        texts = _SENTENCE_PARTS if group['source'] == ' '.join(e[2] for e in _SENTENCE_SOURCE) \
+            else ['[TR] ' + payload['items'][i].get('t', payload['items'][i].get('src', '')) for i in group['ids']]
+        items.update({str(i): text for i, text in zip(group['ids'], texts)})
+        sentences[str(group['ids'][0])] = ' '.join(texts)
+    return {'items': items, 'sentences': sentences}
+
+
+def _sentence_translate(entries, args=None, answer=None):
+    """Gerçek llm_translate akışı; taşıma tamamen sahtedir, ağ/GPU kullanılmaz."""
+    seen, events, warnings = [], [], []
+
+    class Client:
+        def __init__(self, **_kw):
+            self.chat = types.SimpleNamespace(completions=self)
+
+        def create(self, **kw):
+            payload = json.loads(kw['messages'][-1]['content'])
+            seen.append((payload, kw))
+            data = (answer or _sentence_reply)(payload)
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(
+                message=types.SimpleNamespace(content=json.dumps(data, ensure_ascii=False)))])
+
+    with _fake_openai(Client), mock.patch.object(T, 'log'), \
+            mock.patch.object(T, 'emit', side_effect=lambda kind, **data: events.append((kind, data))):
+        result = T.llm_translate(entries, args or _TrArgs(translate_cache=False), warnings, source_lang='en')
+    return result, seen, events, warnings
+
+
+def test_sentence_group_boundaries_shared_with_browser():
+    from pathlib import Path
+    fixtures = json.loads((Path(__file__).resolve().parent.parent / 'tests/fixtures/sentence-groups.json').read_text(encoding='utf-8'))
+    for case in fixtures:
+        source = [tuple(e) for e in case['entries']]
+        before = list(source)
+        assert T.sentence_groups(source) == case['groups'], case['name']
+        assert source == before
+    assert T.sentence_groups([(0, 1, 'a' * 200), (1, 2, 'b' * 200)]) == [[0], [1]]
+
+
+def test_sentence_translation_natural_order_keeps_all_original_timings():
+    result, seen, events, warnings = _sentence_translate(_SENTENCE_SOURCE)
+    assert [e[2] for e in result] == _SENTENCE_PARTS
+    assert [e[:2] for e in result] == [e[:2] for e in _SENTENCE_SOURCE]
+    assert not warnings
+    payload, request = seen[0]
+    assert payload['sentence_groups'][0]['ids'] == [0, 1, 2]
+    assert payload['sentence_groups'][0]['source'] == ' '.join(e[2] for e in _SENTENCE_SOURCE)
+    assert request['model'] == 'test-model'
+    assert [item['max'] for item in payload['items']] == [30, 30, 40]
+    published = [data for kind, data in events if kind == 'translation_chunk'][0]['segments']
+    assert [e['text'] for e in published] == _SENTENCE_PARTS
+
+
+def test_sentence_translation_incomplete_or_mismatched_groups_are_atomic():
+    source = _SENTENCE_SOURCE + [(6, 7, 'Goodbye.')]
+    for defect in ('missing', 'empty', 'reordered', 'extra_word', 'legacy_flat'):
+        def answer(payload):
+            reply = _sentence_reply(payload)
+            if defect == 'missing':
+                del reply['items']['1']
+            elif defect == 'empty':
+                reply['items']['1'] = ''
+            elif defect == 'reordered':
+                reply['items']['0'], reply['items']['2'] = reply['items']['2'], reply['items']['0']
+            elif defect == 'extra_word':
+                reply['items']['1'] += ' Hayır.'
+            else:
+                return reply['items']
+            return reply
+        result, _, events, warnings = _sentence_translate(source, answer=answer)
+        assert result[:3] == _SENTENCE_SOURCE, defect
+        assert result[3][2] == '[TR] Goodbye.'
+        assert any('3/4' in message for message in warnings), (defect, warnings)
+        published = [item['index'] for kind, data in events if kind == 'translation_chunk' for item in data['segments']]
+        assert published == [3], (defect, published)
+
+
+def test_sentence_translation_refine_partial_preserves_whole_first_pass():
+    def answer(payload):
+        reply = _sentence_reply(payload)
+        if 'src' in payload['items'][0]:
+            reply['items']['0'] = 'DEĞİŞMEMELİ'
+            del reply['items']['2']
+        return reply
+    with tempfile.TemporaryDirectory() as tmp:
+        args = _TrArgs(translate_refine=True, cache_dir=tmp)
+        for _ in range(2):
+            result, seen, _, warnings = _sentence_translate(_SENTENCE_SOURCE, args, answer)
+            assert [e[2] for e in result] == _SENTENCE_PARTS
+            assert len(seen) == 2, 'eksik refine onaylı olarak önbelleğe yazıldı'
+            assert any('1. geçişi korundu' in warning for warning in warnings)
+            refine = seen[1][0]['sentence_groups'][0]
+            assert refine['translation'] == ' '.join(_SENTENCE_PARTS)
+
+
+def test_sentence_translation_failed_groups_never_reach_refine():
+    source = _SENTENCE_SOURCE + [(6, 7, 'Goodbye.')]
+    def answer(payload):
+        reply = _sentence_reply(payload)
+        if 'src' not in payload['items'][0]:
+            del reply['items']['1']
+        return reply
+    result, seen, _, _ = _sentence_translate(source, _TrArgs(translate_refine=True, translate_cache=False), answer)
+    assert result[:3] == _SENTENCE_SOURCE
+    assert len(seen) == 2
+    assert [item['src'] for item in seen[1][0]['items']] == ['Goodbye.']
+
+
+def test_sentence_translation_group_cache_roundtrip_and_corruption():
+    with tempfile.TemporaryDirectory() as tmp:
+        args = _TrArgs(cache_dir=tmp, translate_context=0)
+        result, seen, _, _ = _sentence_translate(_SENTENCE_SOURCE, args)
+        assert len(seen) == 1
+        cache_path = T.translate_cache_path(args)
+        cache = T.load_translate_cache(cache_path)
+        assert len(cache) == 1, 'üç blok ayrı kayıtlar olmamalı'
+        record = next(iter(cache.values()))
+        assert record['text'] == ' '.join(_SENTENCE_PARTS)
+        assert record['parts'] == _SENTENCE_PARTS
+        cached, seen, _, _ = _sentence_translate(_SENTENCE_SOURCE, args)
+        assert cached == result and not seen
+        record['parts'].pop()
+        T.save_translate_cache(cache_path, cache)
+        repaired, seen, _, _ = _sentence_translate(_SENTENCE_SOURCE, args)
+        assert repaired == result and len(seen) == 1
+        assert len(seen[0][0]['items']) == 3, 'bozuk grubun tümü yeniden istenmeli'
+
+
+def test_sentence_translation_group_cache_invalidated_by_timing_and_context():
+    with tempfile.TemporaryDirectory() as tmp:
+        args = _TrArgs(cache_dir=tmp, translate_context=1)
+        source = _SENTENCE_SOURCE + [(6, 7, 'Goodbye.')]
+        _sentence_translate(source, args)
+        changed = list(source)
+        changed[1] = (1.5, 2.8, changed[1][2])
+        _, seen, _, _ = _sentence_translate(changed, args)
+        assert len(seen) == 1 and len(seen[0][0]['items']) == 3
+        changed[3] = (6, 7, 'Farewell.')
+        _, seen, _, _ = _sentence_translate(changed, args)
+        assert len(seen) == 1 and len(seen[0][0]['items']) == 4
+
+
+def test_sentence_translation_refined_group_is_cached_together():
+    with tempfile.TemporaryDirectory() as tmp:
+        args = _TrArgs(cache_dir=tmp, translate_refine=True)
+        result, seen, _, warnings = _sentence_translate(_SENTENCE_SOURCE, args)
+        assert len(seen) == 2 and not warnings
+        cached, seen, _, warnings = _sentence_translate(_SENTENCE_SOURCE, args)
+        assert not seen and not warnings and result == cached
+
+
+def test_sentence_translation_chunk_limit_never_splits_group():
+    source = [(i, i + .8, f'Line {i}.') for i in range(19)]
+    source += [(s + 20, e + 20, text) for s, e, text in _SENTENCE_SOURCE]
+    result, seen, _, _ = _sentence_translate(source)
+    assert [len(payload['items']) for payload, _kw in seen] == [19, 3]
+    assert seen[1][0]['sentence_groups'][0]['ids'] == [0, 1, 2]
+    assert [e[2] for e in result[-3:]] == _SENTENCE_PARTS
+    assert [e[:2] for e in result] == [e[:2] for e in source]
+
+
+def test_sentence_reply_nfc_and_dialogue_line_breaks():
+    assert T.validate_sentence_parts('İyi günler.', ['I\u0307yi', 'günler.'], 2)
+    record = T.accept_sentence_reply({'0': '- Evet.\n- Hayır.'}, [0])
+    assert record['parts'] == ['- Evet.\n- Hayır.'], 'konuşmacı satırları kayboldu'
+    assert T.accept_sentence_reply({'0': 'bir', '1': 'iki'}, [0, 1]) is None
 
 
 def _run():

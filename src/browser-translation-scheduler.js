@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
+  decodeSentenceTranslation, fitTranslationParts } = require('./subtitle-sentence-layout');
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -11,12 +13,10 @@ function normalizeCues(rawCues) {
     start: Math.max(0, finiteNumber(cue && cue.start)),
     end: Math.max(0, finiteNumber(cue && cue.end)),
     text: String(cue && cue.text || '').replace(/\s+/g, ' ').trim(),
+    speaker: String(cue?.speaker || ''),
+    protected: Boolean(cue?.protected) || protectedCue(cue || {}),
   })).filter((cue) => cue.text && cue.end >= cue.start)
     .sort((a, b) => a.start - b.start || a.end - b.end);
-}
-
-function sentenceEnded(text) {
-  return /[.!?…]["'”’)}\]]*$/.test(String(text || '').trim());
 }
 
 function sentenceIdFor(cues) {
@@ -29,6 +29,8 @@ function assembleCueSentences(rawCues, options = {}) {
   const cues = normalizeCues(rawCues);
   const maxGap = Math.max(0, finiteNumber(options.maxGap, 1.2));
   const maxChars = Math.max(40, finiteNumber(options.maxChars, 280));
+  const maxDuration = Math.max(1, finiteNumber(options.maxDuration, 12));
+  const maxParts = Math.max(1, Math.min(12, Math.trunc(finiteNumber(options.maxParts, 6))));
   const sentences = [];
   let group = [];
 
@@ -49,9 +51,11 @@ function assembleCueSentences(rawCues, options = {}) {
   for (const cue of cues) {
     const previous = group[group.length - 1];
     const joinedLength = group.reduce((sum, item) => sum + item.text.length + 1, 0) + cue.text.length;
-    if (previous && (cue.start - previous.end > maxGap || joinedLength > maxChars)) flush();
+    if (previous && (cue.protected || previous.protected || cue.speaker !== previous.speaker
+      || cue.start - previous.end < -0.05 || cue.start - previous.end > maxGap
+      || cue.end - group[0].start > maxDuration || group.length >= maxParts || joinedLength > maxChars)) flush();
     group.push(cue);
-    if (sentenceEnded(cue.text) || joinedLength >= maxChars) flush();
+    if (cue.protected || sentenceEnded(cue.text)) flush();
   }
   flush();
   return sentences;
@@ -59,7 +63,12 @@ function assembleCueSentences(rawCues, options = {}) {
 
 function translationCacheKey(sentence, context = {}) {
   const material = JSON.stringify({
-    text: String(sentence && sentence.text || ''),
+    version: SENTENCE_PROTOCOL_VERSION,
+    text: normalizeText(sentence?.text),
+    pieces: (sentence?.pieces || []).map((piece) => [normalizeText(piece.text),
+      finiteNumber(piece.end) - finiteNumber(piece.start)]),
+    before: normalizeText(sentence?.contextBefore),
+    after: normalizeText(sentence?.contextAfter),
     contextHash: String(sentence && sentence.contextHash || context.contextHash || ''),
     targetLanguage: String(context.targetLanguage || ''),
     model: String(context.model || ''),
@@ -92,7 +101,9 @@ function planTranslationWindow(sentences, playhead, options = {}) {
 function distributeTranslation(sentence, translatedText) {
   const pieces = Array.isArray(sentence && sentence.pieces) ? sentence.pieces : [];
   if (!pieces.length) return [];
-  const words = String(translatedText || '').trim().split(/\s+/).filter(Boolean);
+  const translation = decodeSentenceTranslation(translatedText, pieces.length);
+  if (translation.parts) return pieces.map((piece, index) => ({ ...piece, text: translation.parts[index] }));
+  const words = translation.text.split(/\s+/).filter(Boolean);
   if (!words.length) return [];
   if (pieces.length === 1) return [{ ...pieces[0], text: words.join(' ') }];
   // Çeviri kaynak parçadan daha az kelimeye düştüğünde her kaynak cue için
@@ -106,27 +117,15 @@ function distributeTranslation(sentence, translatedText) {
       return { ...pieces[firstIndex], end: pieces[lastIndex].end, text: word };
     });
   }
-  const weights = pieces.map((piece) => Math.max(1, String(piece.text || '').replace(/\s/g, '').length));
-  const totalWeight = weights.reduce((sum, value) => sum + value, 0);
-  const result = [];
-  let cursor = 0;
-  let cumulativeWeight = 0;
-  for (let index = 0; index < pieces.length; index++) {
-    cumulativeWeight += weights[index];
-    let end = index === pieces.length - 1 ? words.length : Math.round((cumulativeWeight / totalWeight) * words.length);
-    if (words.length >= pieces.length) {
-      end = Math.max(cursor + 1, Math.min(words.length - (pieces.length - index - 1), end));
-    }
-    result.push({ ...pieces[index], text: words.slice(cursor, end).join(' ') });
-    cursor = end;
-  }
-  return result;
+  const parts = fitTranslationParts(translation.text, pieces);
+  return pieces.map((piece, index) => ({ ...piece, text: parts[index] }));
 }
 
 class BrowserTranslationScheduler {
   constructor(options = {}) {
     if (typeof options.translate !== 'function') throw new TypeError('translate fonksiyonu gerekli.');
     this.translate = options.translate;
+    this.requireSentenceParts = Boolean(options.requireSentenceParts);
     this.cache = options.cache || new Map();
     this.maxConcurrent = Math.max(1, Math.trunc(finiteNumber(options.maxConcurrent, 2)));
     this.lookBehind = Math.max(0, finiteNumber(options.lookBehind, 15));
@@ -279,18 +278,23 @@ class BrowserTranslationScheduler {
     const job = { sentence, controller, cacheKey, generation };
     this.pending.set(sentence.id, job);
     Promise.resolve(this.readCache(cacheKey)).then((cached) => {
-      if (cached !== undefined && cached !== null && cached !== '') return { text: String(cached), cached: true };
+      if (cached !== undefined && cached !== null && cached !== '') {
+        try { return { ...decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts), cached: true }; }
+        catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }
+      }
       return this.translateShared(sentence, cacheKey, controller)
-        .then((value) => ({ text: typeof value === 'string' ? value : String(value && value.text || ''), cached: false }));
+        .then((value) => ({ ...decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts), cached: false }));
     }).then(async (result) => {
       if (controller.signal.aborted || generation !== this.generation) return;
       if (!String(result.text || '').trim()) throw new Error('Çeviri sağlayıcısı boş yanıt döndürdü.');
-      if (!result.cached) await this.writeCache(cacheKey, result.text);
+      const cues = distributeTranslation(sentence, result);
+      if (!result.cached) await this.writeCache(cacheKey, JSON.stringify({ text: result.text, parts: result.parts }));
+      if (controller.signal.aborted || generation !== this.generation) return;
       const value = {
         sentenceId: sentence.id,
         text: result.text,
         cached: result.cached,
-        cues: distributeTranslation(sentence, result.text),
+        cues,
       };
       this.failures.delete(sentence.id);
       this.results.set(sentence.id, value);
