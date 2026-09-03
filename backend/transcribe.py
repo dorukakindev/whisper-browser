@@ -644,10 +644,12 @@ def find_script_contamination(entries, language):
     expected = _LANG_SCRIPT.get((language or "").lower().split("-")[0])
     hits = []
     for s, _e, t in entries:
+        letters = sum(1 for ch in (t or "") if ch.isalpha())
         for name, rng in _SCRIPT_RANGES.items():
             if name == expected:
                 continue
-            if re.search(f"[{rng}]", t or ""):
+            foreign = re.findall(f"[{rng}]", t or "")
+            if len(foreign) >= 2 and (len(foreign) >= 4 or len(foreign) / max(1, letters) >= 0.15):
                 hits.append((float(s), name, t))
                 break
     return hits
@@ -3258,17 +3260,27 @@ def strip_repeated_prefix(entries, max_gap=2.0):
     """
     out = []
     removed = 0
-    for s0, e0, text in entries:
+    raw_texts = [(item[2] or "").strip() for item in entries]
+    previous_raw = ""
+    chain_active = False
+    for index, (s0, e0, text) in enumerate(entries):
         t = (text or "").strip()
         if out:
-            prev = out[-1][2].strip()
+            prev = previous_raw
             gap = float(s0) - float(out[-1][1])
             if prev and gap <= max_gap and len(prev) >= 12 and t.startswith(prev):
                 rest = t[len(prev):].strip(" ,.;:-")
-                if len(rest.split()) >= 2:
+                chained = index + 1 < len(raw_texts) and raw_texts[index + 1].startswith(t)
+                if len(rest.split()) >= 2 or (rest and (chained or chain_active)):
                     t = rest
                     removed += 1
+                    chain_active = True
+                else:
+                    chain_active = False
+            else:
+                chain_active = False
         out.append((float(s0), float(e0), t))
+        previous_raw = raw_texts[index]
     return [(a, b, c) for a, b, c in out if c], removed
 
 
@@ -3708,6 +3720,14 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
             return None
 
     raw = [(finite_time(s), finite_time(e), t) for (s, e, t) in entries]
+    raw = [item for _index, item in sorted(
+        enumerate(raw),
+        key=lambda pair: (
+            pair[1][0] is None,
+            pair[1][0] if pair[1][0] is not None else 0,
+            pair[0],
+        ),
+    )]
     out = []
     for i, (start, end, text) in enumerate(raw):
         if start is None:

@@ -1767,7 +1767,8 @@ function normalizeBrowserUrl(raw) {
     || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/.*)?$/.test(value);
   if (isLikelyDomain) {
     try {
-      const parsed = new URL(`https://${value}`);
+      const localHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[?::1\]?|[^/]+\.local)(?::\d+)?(?:\/|$)/i.test(value);
+      const parsed = new URL(`${localHost ? 'http' : 'https'}://${value}`);
       return parsed.href;
     } catch (_) {}
   }
@@ -1959,7 +1960,7 @@ function browserTrackStreamKey(sourceUrl, language = '') {
     // İmzalı URL'lerde expire/sig/range gibi sorgular her parçada değişebilir;
     // aynı path'i tek akış olarak birleştiriyoruz.
     const params = [...u.searchParams.entries()]
-      .filter(([key]) => !/^(expire|expires|sig|signature|token|range|rn|rbuf|ms|mv|mt|ip|ipbits|start|end|segment|part|offset)$/i.test(key))
+      .filter(([key]) => !/^(expire|expires|sig|signature|token|range|rn|rbuf|ms|mv|mt|ip|ipbits|start|end|segment|seq|sequence|n|frag|fragment|index|chunk|part|offset)$/i.test(key))
       .sort(([a], [b]) => a.localeCompare(b));
     const query = params.map(([k, v]) => `${k}=${v}`).join('&');
     return `${u.origin}${pathname}${query ? `?${query}` : ''}|${String(language || '').toLowerCase()}`;
@@ -3320,7 +3321,7 @@ function storeBrowserTrack(cues, meta = {}) {
   return null;
 }
 
-async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null) {
+async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null, byteRange = null) {
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
   if (context && !isCurrentBrowserContext(context)) throw new Error('Tarayıcı sekmesi değişti.');
   if (!tab || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Tarayıcı kapalı.');
@@ -3346,6 +3347,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
     for (let redirect = 0; redirect <= 5; redirect++) {
       response = await tab.view.webContents.session.fetch(requestUrl, {
         method: 'GET', credentials: 'include', redirect: 'manual', signal,
+        ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
       });
       if (![301, 302, 303, 307, 308].includes(response.status)) break;
       if (redirect === 5) throw new Error('Altyazı adresi çok fazla yönlendirme yaptı.');
@@ -3368,8 +3370,8 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
   }, BROWSER_FETCH_TIMEOUT, 'Altyazı isteği zaman aşımına uğradı.');
 }
 
-async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024, context = null) {
-  return decodeSubtitleBuffer(await fetchBrowserBuffer(url, maxBytes, context)).text;
+async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024, context = null, byteRange = null) {
+  return decodeSubtitleBuffer(await fetchBrowserBuffer(url, maxBytes, context, byteRange)).text;
 }
 
 async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null) {
@@ -3452,7 +3454,7 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
     for (let index = 0; index < parts.length; index += 6) {
       const batch = await Promise.all(parts.slice(index, index + 6).map(async (segment) => {
         try {
-          const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024, context);
+          const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024, context, segment.byteRange);
           const part = parseSubtitlePayload(partBody, '', segment.url);
           if (!part.cues.length) return false;
           const hasTimestampMap = /X-TIMESTAMP-MAP/i.test(partBody);
@@ -5619,21 +5621,22 @@ const MEDIA_EXTS = new Set([
   'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma'
 ]);
 
-function scanMediaFromPaths(inputPaths) {
+async function scanMediaFromPaths(inputPaths, { maxDepth = 5, maxResults = 20000 } = {}) {
   const results = [];
   const visited = new Set();
 
-  function walk(targetPath, depth = 0) {
-    if (depth > 5) return;
+  async function walk(targetPath, depth = 0) {
+    if (depth > maxDepth || results.length >= maxResults) return;
     try {
-      if (!fs.existsSync(targetPath)) return;
-      const stat = fs.statSync(targetPath);
+      const stat = await fs.promises.stat(targetPath);
       if (stat.isDirectory()) {
-        const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+        const entries = await fs.promises.readdir(targetPath, { withFileTypes: true });
         // Doğal sayısal sıralama (S01E01, S01E02 vb.)
         entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         for (const entry of entries) {
-          walk(path.join(targetPath, entry.name), depth + 1);
+          if (entry.name.startsWith('.')) continue;
+          await walk(path.join(targetPath, entry.name), depth + 1);
+          if (results.length >= maxResults) break;
         }
       } else if (stat.isFile()) {
         const ext = path.extname(targetPath).slice(1).toLowerCase();
@@ -5651,7 +5654,8 @@ function scanMediaFromPaths(inputPaths) {
   }
 
   for (const p of inputPaths) {
-    walk(p);
+    await walk(p);
+    if (results.length >= maxResults) break;
   }
   return results;
 }
@@ -5671,19 +5675,19 @@ ipcMain.handle('dialog:openFolders', async (event) => {
     s.lastInputDir = path.dirname(result.filePaths[0]);
     saveSettings(s);
   } catch (_) {}
-  return scanMediaFromPaths(result.filePaths);
+  return await scanMediaFromPaths(result.filePaths);
 });
 
 ipcMain.handle('paths:scanMedia', async (_event, inputPaths) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!Array.isArray(inputPaths) || inputPaths.length === 0) return [];
-  return scanMediaFromPaths(inputPaths);
+  return await scanMediaFromPaths(inputPaths);
 });
 
 ipcMain.handle('media:listFolder', async (_event, filePath) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (typeof filePath !== 'string' || !filePath) return [];
-  try { return scanMediaFromPaths([path.dirname(path.normalize(filePath))]); }
+  try { return await scanMediaFromPaths([path.dirname(path.normalize(filePath))], { maxDepth: 0, maxResults: 5000 }); }
   catch (_) { return []; }
 });
 
@@ -5824,6 +5828,8 @@ ipcMain.handle('clipboard:write', (_event, text) => {
 function probeCommand(cmd, cmdArgs) {
   return new Promise((resolve) => {
     let out = '';
+    let timedOut = false;
+    let timeoutTimer = null;
     let p;
     try {
       p = spawn(cmd, cmdArgs, { windowsHide: true });
@@ -7076,6 +7082,12 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
         ['-m', 'pip', 'install', '--upgrade', '--pre', 'yt-dlp[default]'],
         { windowsHide: true },
       );
+      timeoutTimer = setTimeout(() => {
+        if (!updateJob) return;
+        timedOut = true;
+        terminateProcessTree(updateJob, { spawn });
+      }, 10 * 60 * 1000);
+      timeoutTimer.unref?.();
     } catch (err) {
       updateJob = null;
       return resolve({ ok: false, error: err.message });
@@ -7083,12 +7095,16 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
     if (updateJob.stdout) updateJob.stdout.on('data', appendOutput);
     if (updateJob.stderr) updateJob.stderr.on('data', appendOutput);
     updateJob.on('error', (err) => {
+      clearTimeout(timeoutTimer);
       updateJob = null;
       resolve({ ok: false, error: err.code === 'ENOENT' ? 'Python bulunamadı (install.bat ile venv oluşturun).' : err.message });
     });
     updateJob.on('close', (code) => {
+      clearTimeout(timeoutTimer);
       updateJob = null;
-      if (code === 0) {
+      if (timedOut) {
+        resolve({ ok: false, error: 'yt-dlp güncellemesi 10 dakika içinde tamamlanmadı ve durduruldu.' });
+      } else if (code === 0) {
         const m = out.match(/Successfully installed[^\r\n]*/i);
         const already = /Requirement already satisfied[^\r\n]*yt[-_]dlp/i.test(out);
         resolve({ ok: true, message: m ? m[0].trim() : (already ? 'yt-dlp zaten güncel.' : 'Güncelleme tamamlandı.') });

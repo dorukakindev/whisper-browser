@@ -70,6 +70,17 @@ t('ASS duzenlemede satir sonu ' + BS + 'N olarak yazilir', () => {
   ok(!line.includes('\r'), 'CR sizmis');
 });
 
+t('ASS duzenleme CRLF yapisini korur, komut parantezini metne cevirir ve hedef zamani dogrular', () => {
+  const raw = ASS.replace(/\n/g, '\r\n');
+  const cue = F.parseSubtitles(raw)[0];
+  const out = F.replaceAssDialogueText(raw, cue.line, 'Metin {yanlis}\n\nDevam', cue.assLead,
+    cue.assTextIndex, cue.assFieldCount, cue.start, cue.end, cue.assStartIndex, cue.assEndIndex);
+  ok(out && out.includes('\r\n') && !/(^|[^\r])\n/.test(out), 'CRLF korunmadi');
+  ok(out.includes('Metin ｛yanlis｝' + BS + 'NDevam'), 'ASS komutu veya bos satir sizdi');
+  ok(F.replaceAssDialogueText(raw, cue.line, 'Yanlis', cue.assLead,
+    cue.assTextIndex, cue.assFieldCount, cue.start + 1, cue.end) === null, 'zaman uyusmazligi kabul edildi');
+});
+
 t('gecersiz satir numarasinda null doner (dosya bozulmaz)', () => {
   ok(F.replaceAssDialogueText(ASS, 999, 'x') === null, '999');
   ok(F.replaceAssDialogueText(ASS, 0, 'x') === null, 'Dialogue olmayan satir');
@@ -157,6 +168,15 @@ t('VTT duzenleme STYLE/REGION/NOTE/cue ayarlarini korur', () => {
   ok(out.includes('Duzeltilmis metin'), 'yeni metin yok');
   ok(!out.includes('Ikinci satir.') && !out.includes('Devami.'), 'eski metin kalmis');
   ok(out.includes('Birinci satir.'), 'diger blok bozuldu');
+});
+
+t('VTT duzenleme CRLF yapisini korur ve bos satirin cue bolmesini engeller', () => {
+  const raw = VTT_RICH.replace(/\n/g, '\r\n');
+  const cue = F.parseSubtitles(raw)[0];
+  const out = F.replaceVttCueText(raw, cue, 'Bir\n\nIki');
+  ok(out && out.includes('Bir\r\nIki'), 'metin satirlari korunmadi');
+  ok(!out.includes('Bir\r\n\r\nIki'), 'bos satir yeni cue olusturdu');
+  ok(!/(^|[^\r])\n/.test(out), 'LF sizdi');
 });
 
 t('VTT zamanlamasi bellekte degisse de kaynak blok duzenlenir', () => {

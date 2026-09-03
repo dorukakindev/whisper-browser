@@ -290,6 +290,8 @@ def test_find_script_contamination():
     assert T.find_script_contamination(e, "ru") == []
     # Türkçe metin (ç, ğ, ş) latin alfabesidir → bulgu yok
     assert T.find_script_contamination([(0, 2, "Çağrışım güçlüydü.")], "tr") == []
+    # Tek yabancı harf kullanıcıyı bütün blok için uyarmaya yetmez.
+    assert T.find_script_contamination([(0, 2, "A harfi tek başına Ж olabilir.")], "en") == []
 
 
 def test_find_suspicious_gaps():
@@ -560,6 +562,13 @@ def test_strip_repeated_prefix():
            (30, 34, "The Addis continue to live according to their customs.")]
     _out, n2 = T.strip_repeated_prefix(far)
     assert n2 == 0
+    # Birer kelime büyüyen gerçek karaoke zinciri, kırpılmış önceki çıktıyla
+    # değil önceki ham blokla karşılaştırılmalıdır.
+    chain = [(0, 1, "This is a long"), (1, 2, "This is a long line"),
+             (2, 3, "This is a long line growing")]
+    chained, count = T.strip_repeated_prefix(chain)
+    assert [item[2] for item in chained] == ["This is a long", "line", "growing"]
+    assert count == 2
 
 
 def test_drop_micro_blocks():
@@ -1471,6 +1480,8 @@ def test_normalize_timings():
     # Whisper nadiren bütün kelime zamanlarını None döndürebilir; çıktı çökmemeli.
     out4 = T.normalize_timings([(None, None, "zamanı eksik")])
     assert out4[0][0] == 0.0 and out4[0][1] > out4[0][0]
+    unordered = T.normalize_timings([(5, 6, "son"), (1, 2, "ilk")], min_gap=0.08)
+    assert [item[2] for item in unordered] == ["ilk", "son"]
 
 
 def test_atomic_subtitle_write_preserves_existing_file_on_failure():

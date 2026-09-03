@@ -103,6 +103,12 @@ test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
   assert.equal(decodeSubtitleBuffer(Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndianBody])), text);
 });
 
+test('TTML kapsayıcı begin zamanını alt p cue zamanına ekler', () => {
+  const result = parseSubtitlePayload('<tt><body begin="10s"><div begin="2s"><p begin="1s" dur="2s">İç içe</p></div></body></tt>',
+    'application/ttml+xml', 'https://cdn.test/nested.ttml');
+  assert.deepEqual(result.cues, [{ start: 13, end: 15, text: 'İç içe' }]);
+});
+
 test('Windows-1254 ağ altyazısı Türkçe karakterleriyle çözülür', () => {
   const cp1254 = Buffer.from([0xde, 0x69, 0x6d, 0xfe, 0x65, 0x6b, 0x20, 0xfd, 0xfe, 0xfd, 0x6e, 0xfd]);
   assert.equal(decodeSubtitleBuffer(cp1254), 'Şimşek ışını');
@@ -115,6 +121,14 @@ test('YouTube json3 olaylarını saniyeye çevirir', () => {
   ] }), 'application/json', 'https://youtube.com/api/timedtext?fmt=json3');
   assert.equal(result.format, 'json3');
   assert.deepEqual(result.cues[0], { start: 1.25, end: 3.5, text: 'Hello world' });
+});
+
+test('YouTube json3 aAppend canlı metnini önceki cue ile birleştirir', () => {
+  const result = parseSubtitlePayload(JSON.stringify({ events: [
+    { tStartMs: 1000, dDurationMs: 1000, segs: [{ utf8: 'Merha' }] },
+    { tStartMs: 1800, dDurationMs: 1200, aAppend: 1, segs: [{ utf8: 'ba' }] },
+  ] }), 'application/json', 'https://youtube.com/api/timedtext?fmt=json3');
+  assert.deepEqual(result.cues, [{ start: 1, end: 3, text: 'Merhaba' }]);
 });
 
 test('YouTube srv3 kısa t/d değerlerini de milisaniye kabul eder', () => {
@@ -144,6 +158,8 @@ test('Altyazı ipucu olmayan genel metin yanıtını izlemez', () => {
   assert.equal(isLikelySubtitleResponse({ url: 'https://example.test/api/profile', mimeType: 'application/json' }), false);
   assert.equal(isLikelySubtitleResponse({ url: 'https://example.test/media/movie.vtt', mimeType: 'text/vtt' }), true);
   assert.equal(isLikelySubtitleResponse({ url: 'https://example.test/api/timedtext?lang=en', mimeType: 'application/json' }), true);
+  assert.equal(isLikelySubtitleResponse({ url: 'https://example.test/altyazi/seg-2.m4s', mimeType: 'application/mp4' }), true);
+  assert.equal(isLikelySubtitleResponse({ url: 'https://example.test/video/seg-2.m4s', mimeType: 'application/mp4' }), false);
 });
 
 test('Aynı cue içeriği kararlı parmak izi üretir', () => {
@@ -170,6 +186,12 @@ test('SRT çıktısı UTF-8 metni ve zamanları korur', () => {
   const srt = cuesToSrt([{ start: 1.005, end: 3.21, text: 'Türkçe metin' }]);
   assert.match(srt, /00:00:01,005 --> 00:00:03,210/);
   assert.match(srt, /Türkçe metin/);
+});
+
+test('SRT ve VTT dışa aktarımı cue metnindeki boş blok sınırını temizler', () => {
+  const cue = [{ start: 1, end: 2, text: 'Bir\n\nİki' }];
+  assert.doesNotMatch(cuesToSrt(cue), /Bir\r?\n\r?\nİki/);
+  assert.doesNotMatch(cuesToVtt(cue), /Bir\r?\n\r?\nİki/);
 });
 
 test('WebVTT dışa aktarımı başlık ve noktalı zaman damgası üretir', () => {
@@ -207,6 +229,11 @@ test('Hulu benzeri HLS manifestinden altyazı izlerini çıkarır', () => {
     .map(({ start, duration }) => ({ start, duration })), [
     { start: 0, duration: 6 },
     { start: 6, duration: 6 },
+  ]);
+  assert.deepEqual(parseHlsSegments('#EXTINF:2,\n#EXT-X-BYTERANGE:100@50\nshared.bin\n#EXTINF:2,\n#EXT-X-BYTERANGE:80\nshared.bin', 'https://cdn.test/live.m3u8')
+    .map(({ url, byteRange }) => ({ url, byteRange })), [
+    { url: 'https://cdn.test/shared.bin', byteRange: { start: 50, end: 149 } },
+    { url: 'https://cdn.test/shared.bin', byteRange: { start: 150, end: 229 } },
   ]);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\npart-1.vtt', 'https://cdn.test/master.m3u8'), true);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\nvideo-1.ts', 'https://cdn.test/video.m3u8'), false);
@@ -278,6 +305,14 @@ test('Aynı anda etkin olan çakışan altyazıların tamamını korur', () => {
   assert.deepEqual(browserActiveCuesAt(cues, 3).map((cue) => cue.text),
     ['Konuşmacı bir', 'Konuşmacı iki']);
   assert.deepEqual(browserActiveCuesAt(cues, 5.5), []);
+});
+
+test('64 kısa cue gerisindeki uzun süreli aktif altyazıyı kaybetmez', () => {
+  const cues = [{ start: 0, end: 100, text: 'Uzun açıklama' }]
+    .concat(Array.from({ length: 80 }, (_, index) => ({
+      start: index + 1, end: index + 1.2, text: `Kısa ${index}`,
+    })));
+  assert.deepEqual(browserActiveCuesAt(cues, 81).map((cue) => cue.text), ['Uzun açıklama']);
 });
 
 test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () => {
@@ -377,6 +412,16 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   const preload = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  const extractFunction = (name, nextName) => new Function(
+    `${main.slice(main.indexOf(`function ${name}(`), main.indexOf(`function ${nextName}(`))}; return ${name};`,
+  )();
+  const normalizeAddress = extractFunction('normalizeBrowserUrl', 'browserPopupWindowOptions');
+  assert.equal(normalizeAddress('localhost:8080/video'), 'http://localhost:8080/video');
+  assert.equal(normalizeAddress('example.com/video'), 'https://example.com/video');
+  const streamKey = extractFunction('browserTrackStreamKey', 'browserWatchMediaId');
+  assert.equal(streamKey('https://cdn.test/captions.vtt?seq=1&lang=tr'),
+    streamKey('https://cdn.test/captions.vtt?seq=2&lang=tr'));
+  assert.match(html, /base-uri 'none'; object-src 'none'; form-action 'none'/);
   assert.match(main, /new WebContentsView/);
   assert.match(main, /app\.commandLine\.appendSwitch\('disable-quic'\)/);
   assert.match(main, /partition: BROWSER_PARTITION/);
@@ -388,7 +433,11 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /contextIsolation: true/);
   assert.match(main, /sandbox: true/);
   assert.match(main, /ipcMain\.handle\('browser:navigate'/);
+  assert.match(main, /async function scanMediaFromPaths/);
+  assert.match(main, /maxDepth: 0, maxResults: 5000/);
+  assert.match(main, /yt-dlp güncellemesi 10 dakika içinde tamamlanmadı/);
   assert.match(main, /parseHlsSubtitleTracks/);
+  assert.match(main, /headers: \{ Range: `bytes=\$\{byteRange\.start\}-\$\{byteRange\.end\}` \}/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);
   assert.match(main, /Target\.setAutoAttach/);

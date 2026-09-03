@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(caption|captions|subtitle|subtitles|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3)(?:[\/?&_.=-]|$)/i;
+const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(caption|captions|subtitle|subtitles|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3|altyazi|altyazilar|sous-titres?|untertitel|subtitulos?|legendas?|sottotitoli)(?:[\/?&_.=-]|$)/i;
 
 function decodeEntities(value) {
   const decodeCodePoint = (raw, radix = 10) => {
@@ -210,12 +210,22 @@ function parseHlsSegments(body, baseUrl = '') {
   let pendingDuration = 0;
   let sequence = mediaSequence;
   let discontinuity = discontinuitySequence;
+  let pendingByteRange = null;
+  let previousByteRangeEnd = 0;
   for (const line of text.split(/\r?\n/)) {
     const value = line.trim();
     if (!value) continue;
     const duration = value.match(/^#EXTINF\s*:\s*([\d.]+)/i);
     if (duration) {
       pendingDuration = Math.max(0, Number(duration[1]) || 0);
+      continue;
+    }
+    const byteRange = value.match(/^#EXT-X-BYTERANGE\s*:\s*(\d+)(?:@(\d+))?/i);
+    if (byteRange) {
+      const length = Math.max(0, Number(byteRange[1]) || 0);
+      const start = byteRange[2] === undefined ? previousByteRangeEnd : Math.max(0, Number(byteRange[2]) || 0);
+      pendingByteRange = length ? { start, end: start + length - 1 } : null;
+      if (pendingByteRange) previousByteRangeEnd = pendingByteRange.end + 1;
       continue;
     }
     if (/^#EXT-X-DISCONTINUITY(?:\s|$)/i.test(value)) {
@@ -232,11 +242,13 @@ function parseHlsSegments(body, baseUrl = '') {
       // süre sonraki bütün parçaları aynı zamana yığmasın; manifestin hedef
       // süresi bu bozukluk için en güvenli yaklaşık değerdir.
       const segmentDuration = pendingDuration > 0 ? pendingDuration : targetDuration;
-      out.push({ url, start: elapsed, duration: segmentDuration, sequence, discontinuity, targetDuration });
+      out.push({ url, start: elapsed, duration: segmentDuration, sequence, discontinuity,
+        targetDuration, ...(pendingByteRange ? { byteRange: pendingByteRange } : {}) });
       elapsed += segmentDuration;
       sequence += 1;
     } catch (_) {}
     pendingDuration = 0;
+    pendingByteRange = null;
   }
   return out;
 }
@@ -414,7 +426,7 @@ function cuesUseLocalSegmentTimeline(cues, segmentDuration, segmentStart = 0) {
     && list[list.length - 1].end <= duration + 3;
 }
 
-function browserActiveCuesAt(cues, time, lookback = 64) {
+function browserActiveCuesAt(cues, time) {
   const list = Array.isArray(cues) ? cues : [];
   const t = Number(time);
   if (!Number.isFinite(t) || !list.length) return [];
@@ -431,8 +443,26 @@ function browserActiveCuesAt(cues, time, lookback = 64) {
     }
   }
   const active = [];
-  const limit = Math.max(1, Number(lookback) || 64);
-  for (let index = last; index >= 0 && index > last - limit; index--) {
+  // Uzun süre ekranda kalan bir cue (şarkı sözü, işaret dili açıklaması vb.)
+  // arada 64'ten fazla kısa cue olsa da hâlâ aktiftir. Sabit geri-bakış sınırı
+  // onu sessizce kaybediyordu. Liste zaman sıralı olduğundan yalnız son cue'ya
+  // kadar taranır; tipik izlerde bu birkaç yüz/bitmiş canlı izde birkaç bindir.
+  // Önek maksimum bitiş dizisi sayesinde uzun cue doğruluğu korunurken her
+  // video karesinde bütün geçmiş izi dolaşmayız. Aynı cue dizisi overlay açık
+  // kaldığı sürece WeakMap üzerinden yeniden kullanılır.
+  if (!browserActiveCuesAt._prefixCache) browserActiveCuesAt._prefixCache = new WeakMap();
+  let indexData = browserActiveCuesAt._prefixCache.get(list);
+  if (!indexData || indexData.length !== list.length) {
+    let maximum = -Infinity;
+    const prefix = list.map((cue) => {
+      maximum = Math.max(maximum, Number(cue.end));
+      return maximum;
+    });
+    indexData = { length: list.length, prefix };
+    browserActiveCuesAt._prefixCache.set(list, indexData);
+  }
+  for (let index = last; index >= 0; index--) {
+    if (indexData.prefix[index] < t) break;
     if (Number(list[index].end) >= t) active.push(list[index]);
   }
   return active.reverse();
@@ -536,6 +566,24 @@ function parseXmlTime(value, xml) {
 function parseXml(body) {
   const out = [];
   const xml = String(body || '');
+  const parentOffsets = new Map();
+  const stack = [{ name: 'root', offset: 0 }];
+  for (const token of xml.matchAll(/<\/?(?:body|div|p)\b[^>]*>/gi)) {
+    const rawTag = token[0];
+    const closing = /^<\//.test(rawTag);
+    const name = rawTag.match(/^<\/?\s*([\w:-]+)/)?.[1]?.toLowerCase() || '';
+    if (closing) {
+      for (let index = stack.length - 1; index > 0; index--) {
+        const popped = stack.pop();
+        if (popped.name === name) break;
+      }
+      continue;
+    }
+    const parentOffset = stack[stack.length - 1]?.offset || 0;
+    if (name === 'p') parentOffsets.set(token.index, parentOffset);
+    const begin = parseXmlTime(attr(rawTag, 'begin'), xml);
+    if (!/\/>$/.test(rawTag)) stack.push({ name, offset: parentOffset + (begin || 0) });
+  }
   // YouTube timedtext / srv biçimi.
   for (const match of xml.matchAll(/<(?:text|p)\b([^>]*)>([\s\S]*?)<\/(?:text|p)>/gi)) {
     const tag = match[1];
@@ -547,9 +595,12 @@ function parseXml(body) {
     let start = parseXmlTime(startRaw, xml);
     let duration = parseXmlTime(durRaw, xml);
     let end = parseXmlTime(endRaw, xml);
+    const parentOffset = parentOffsets.get(match.index) || 0;
     // YouTube srv3 t/d değerleri milisaniyedir.
     if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) start = Number(startRaw) / 1000;
     if (durRaw === timedTextDuration && timedTextDuration && Number.isFinite(Number(durRaw))) duration = Number(durRaw) / 1000;
+    if (start !== null) start += parentOffset;
+    if (end !== null) end += parentOffset;
     if (end === null && start !== null && duration !== null) end = start + duration;
     if (start !== null) out.push({ start, end, text: match[2] });
   }
@@ -572,7 +623,16 @@ function parseJson(body) {
     const d = Number.isFinite(duration)
       ? ((event.dDurationMs !== undefined || event.durationMs !== undefined) ? duration / 1000 : duration)
       : null;
-    out.push({ start: s, end: d === null ? null : s + d, text });
+    const end = d === null ? null : s + d;
+    // YouTube json3 canlı altyazısında aAppend olayı önceki ekrandaki metnin
+    // devamıdır. Ayrı cue üretmek kelimeleri böler ve çeviride tekrar yaratır.
+    if (event.aAppend && out.length) {
+      const previous = out[out.length - 1];
+      previous.text += text;
+      if (Number.isFinite(end)) previous.end = Math.max(Number(previous.end) || s, end);
+    } else {
+      out.push({ start: s, end, text });
+    }
   }
   if (out.length) return normalizeCues(out);
   const generic = [data && data.captions, data && data.subtitles, data && data.cues]
@@ -813,7 +873,10 @@ function isLikelySubtitleResponse(response = {}) {
   if (mime.includes('text/vtt') || mime.includes('application/ttml') || mime.includes('x-subrip')) return true;
   const hinted = SUBTITLE_URL_RE.test(url) || SUBTITLE_URL_RE.test(pathname);
   if (!hinted) return false;
-  return /(?:text|xml|json|octet-stream|unknown)/i.test(mime || 'unknown');
+  // wvtt/stpp altyazı parçaları video değil application/mp4 olarak sunulabilir.
+  // Yalnız URL açıkça altyazı ipucu taşıyorsa kabul ederek genel MP4 videolarını
+  // ağ yakalama kuyruğuna almıyoruz.
+  return /(?:text|xml|json|octet-stream|unknown|application\/mp4|video\/mp4)/i.test(mime || 'unknown');
 }
 
 function subtitleLanguage(response = {}) {
@@ -851,13 +914,13 @@ function formatSrtTime(seconds) {
 
 function cuesToSrt(cues) {
   return normalizeCues(cues).map((cue, index) => `${index + 1}\r\n${formatSrtTime(cue.start)} --> `
-    + `${formatSrtTime(cue.end)}\r\n${cue.text}\r\n`).join('\r\n');
+    + `${formatSrtTime(cue.end)}\r\n${cue.text.replace(/\r?\n[ \t]*\r?\n+/g, '\n')}\r\n`).join('\r\n');
 }
 
 function cuesToVtt(cues) {
   const stamp = (seconds) => formatSrtTime(seconds).replace(',', '.');
   const body = normalizeCues(cues).map((cue) => `${stamp(cue.start)} --> ${stamp(cue.end)}\r\n`
-    + `${cue.text}\r\n`).join('\r\n');
+    + `${cue.text.replace(/\r?\n[ \t]*\r?\n+/g, '\n')}\r\n`).join('\r\n');
   return `WEBVTT\r\n\r\n${body}`;
 }
 

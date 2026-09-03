@@ -198,10 +198,14 @@ def download(url, height, audio_lang, output_dir, cookie_browser=""):
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
             got = d.get("downloaded_bytes") or 0
             now = time.time()
-            if total and (now - last[0] > 0.3):
+            fragment_index = d.get("fragment_index") or 0
+            fragment_count = d.get("fragment_count") or 0
+            percent = (got / total * 100.0) if total else (
+                fragment_index / fragment_count * 100.0 if fragment_count else None)
+            if percent is not None and (now - last[0] > 0.3):
                 last[0] = now
                 emit("download_progress",
-                     percent=round(got / total * 100.0, 1),
+                     percent=round(percent, 1),
                      speed=d.get("speed") or 0,
                      eta=d.get("eta") or 0)
         elif d.get("status") == "finished":
@@ -225,13 +229,20 @@ def download(url, height, audio_lang, output_dir, cookie_browser=""):
     path = None
     if info.get("requested_downloads"):
         path = info["requested_downloads"][0].get("filepath")
-    if not path:
-        # Yedek: yt-dlp'nin ürettiği ada göre bul
+    if not path or not os.path.exists(path):
+        # Yedek: yt-dlp bazı sitelerde birleşmiş çıktıyı requested_downloads
+        # alanına geri yazmaz veya mp4 yerine mkv/webm bırakır.
         base = info.get("title") or ""
-        for p in outdir.glob("*.mp4"):
-            if base[:40] in p.name:
-                path = str(p)
-                break
+        playable = {".mp4", ".mkv", ".webm", ".mov", ".m4v"}
+        candidates = [p for p in outdir.iterdir()
+                      if p.is_file() and p.suffix.lower() in playable
+                      and (not base or base[:40] in p.name)]
+        if candidates:
+            candidates.sort(
+                key=lambda p: (p.suffix.lower() == ".mp4", p.stat().st_mtime),
+                reverse=True,
+            )
+            path = str(candidates[0])
     if not path or not os.path.exists(path):
         raise RuntimeError("İndirilen dosya bulunamadı")
 

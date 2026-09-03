@@ -4,7 +4,7 @@
  * Node testleri (tests/*.test.js) + Python testleri (backend/test_transcribe.py).
  * Python testleri venv yoksa atlanır (kurulum yapılmamış makinede npm test yine çalışsın).
  */
-const { execFileSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -24,15 +24,26 @@ for (const f of fs.readdirSync(__dirname).filter((x) => x.endsWith('.test.js')).
 }
 
 // ---- Python testleri (venv varsa)
-const py = ['backend/venv/Scripts/python.exe', 'backend/venv/bin/python', 'backend/.venv/Scripts/python.exe']
+const localPy = ['backend/venv/Scripts/python.exe', 'backend/venv/bin/python', 'backend/.venv/Scripts/python.exe']
   .map((p) => path.join(ROOT, p))
   .find((p) => fs.existsSync(p));
+let py = localPy ? { cmd: localPy, prefix: [] } : null;
+if (!py) {
+  const candidates = process.platform === 'win32'
+    ? [{ cmd: 'python', prefix: [] }, { cmd: 'py', prefix: ['-3'] }]
+    : [{ cmd: 'python3', prefix: [] }, { cmd: 'python', prefix: [] }];
+  py = candidates.find((candidate) => {
+    const probe = spawnSync(candidate.cmd, [...candidate.prefix, '--version'], { cwd: ROOT, stdio: 'ignore' });
+    return !probe.error && probe.status === 0;
+  }) || null;
+}
 
 if (py) {
-  run('python backend/test_transcribe.py', py, [path.join(ROOT, 'backend', 'test_transcribe.py')]);
+  run('python backend/test_transcribe.py', py.cmd,
+    [...py.prefix, path.join(ROOT, 'backend', 'test_transcribe.py')]);
 } else {
   console.log('\n=== python backend/test_transcribe.py ===');
-  console.log('  (venv bulunamadı — install.bat çalıştırılmamış; Python testleri atlandı)');
+  console.log('  (Python bulunamadı — Python testleri atlandı)');
 }
 
 console.log(failed ? `\n${failed} test dosyası BAŞARISIZ` : '\nTüm testler geçti');

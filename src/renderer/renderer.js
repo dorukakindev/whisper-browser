@@ -6399,7 +6399,8 @@ function parseAss(text) {
     // line: kaynak dosyadaki satir numarasi - duzenleme kaydinda O satirin metin
     // alani degistirilir, dosyanin geri kalanina (stiller, konumlar) dokunulmaz.
     if (body) out.push({ start, end, text: body, line: lineNo, assLead: lead,
-      assInner: hadInner, assTextIndex: textIndex, assFieldCount: fields.length });
+      assInner: hadInner, assTextIndex: textIndex, assFieldCount: fields.length,
+      assStartIndex: startIndex, assEndIndex: endIndex });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -7000,7 +7001,7 @@ function cuesToSrt(cues) {
          + `${p(Math.floor((t % 60000) / 1000))},${p(t % 1000, 3)}`;
   };
   return cues.map((c, i) =>
-    `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
+    `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${String(c.text || '').replace(/\r?\n[ \t]*\r?\n+/g, '\n')}\n`).join('\n');
 }
 
 // ---- Dalga biçimli zamanlama masası ----
@@ -9089,7 +9090,7 @@ function cuesToVtt(cues) {
          + `${p(Math.floor((t % 60000) / 1000))}.${p(t % 1000, 3)}`;
   };
   return 'WEBVTT' + NL + NL
-    + cues.map((c) => `${fmt(c.start)} --> ${fmt(c.end)}${NL}${c.text}${NL}`).join(NL);
+    + cues.map((c) => `${fmt(c.start)} --> ${fmt(c.end)}${NL}${String(c.text || '').replace(/\r?\n[ \t]*\r?\n+/g, '\n')}${NL}`).join(NL);
 }
 
 // VTT: dosyayi yeniden URETMEK yerine yalnizca hedef cue'nun METIN satirlarini
@@ -9097,7 +9098,9 @@ function cuesToVtt(cues) {
 // position, line, size), STYLE / REGION / NOTE bloklarini ve baslik
 // metadatasini yok ederdi.
 function replaceVttCueText(rawText, cue, newText) {
-  const lines = String(rawText).split(/\r?\n/);
+  const source = String(rawText);
+  const NL = source.includes('\r\n') ? '\r\n' : '\n';
+  const lines = source.split(/\r?\n/);
   const toSec = (t) => {
     const m = String(t).match(/(?:(\d+):)?(\d+):(\d{2})[.,](\d{1,3})/);
     if (!m) return null;
@@ -9116,8 +9119,13 @@ function replaceVttCueText(rawText, cue, newText) {
     // Metin satirlari: zaman satirindan sonra bos satira kadar
     let j = i + 1;
     while (j < lines.length && lines[j].trim() !== '') j++;
-    lines.splice(i + 1, j - (i + 1), ...String(newText).split(/\n/));
-    return lines.join('\n');
+    // Boş bir satır WebVTT'de cue sınırıdır. Düzenleme kutusundan gelen art
+    // arda satır sonlarını tek satır sonuna indirerek metnin yeni bir sahte cue
+    // oluşturmasını engelle; dosyanın özgün CRLF/LF biçimini de koru.
+    const safeLines = String(newText).replace(/\r\n?/g, '\n')
+      .replace(/\n[ \t]*\n+/g, '\n').split('\n');
+    lines.splice(i + 1, j - (i + 1), ...safeLines);
+    return lines.join(NL);
   }
   return null;
 }
@@ -9125,9 +9133,12 @@ function replaceVttCueText(rawText, cue, newText) {
 // ASS/SSA: dosyayi yeniden URETMEK yerine ilgili Dialogue satirinin METIN alanini
 // degistiririz. Yeniden uretim stilleri, konumlari, efektleri ve konusmaci
 // adlarini yok ederdi (eskiden .ass dosyasina duz SRT yaziliyordu).
-function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, fieldCount = 10) {
-  const NL = '\n';
-  const lines = String(rawText).split(/\r?\n/);
+function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, fieldCount = 10,
+                                expectedStart = null, expectedEnd = null,
+                                startIndex = 1, endIndex = 2) {
+  const source = String(rawText);
+  const NL = source.includes('\r\n') ? '\r\n' : '\n';
+  const lines = source.split(/\r?\n/);
   if (!(lineNo >= 0) || lineNo >= lines.length) return null;
   const line = lines[lineNo];
   if (!/^Dialogue\s*:/i.test(line)) return null;
@@ -9137,7 +9148,26 @@ function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, f
   const parts = line.slice(colon + 1).split(',');
   if (!(textIndex >= 0) || textIndex >= parts.length || textIndex !== fieldCount - 1
       || parts.length < fieldCount) return null;
-  const body = (lead || '') + String(newText).replace(/\n/g, '\\' + 'N');
+  // Satır numarası, dışarıdan gelen bir yeniden yükleme sonrasında başka bir
+  // Dialogue satırını gösterebilir. Beklenen zamanlar uyuşmuyorsa yanlış satırı
+  // değiştirmek yerine güvenli biçimde vazgeç.
+  if (Number.isFinite(expectedStart) && Number.isFinite(expectedEnd)) {
+    const toSec = (value) => {
+      const match = String(value).trim().match(/(\d+):(\d{2}):(\d{2})[.,](\d{1,3})/);
+      return match ? (+match[1]) * 3600 + (+match[2]) * 60 + (+match[3])
+        + (+match[4]) / (10 ** match[4].length) : null;
+    };
+    const start = toSec(parts[startIndex]);
+    const end = toSec(parts[endIndex]);
+    if (start === null || end === null || Math.abs(start - expectedStart) > 0.002
+        || Math.abs(end - expectedEnd) > 0.002) return null;
+  }
+  // ASS, süslü parantez içini libass komutu sayar. Kullanıcının yazdığı gerçek
+  // parantezleri görünür tam-genişlikli karşılıklarına çevirerek komut enjeksiyonu
+  // ve metnin kaybolmasını önle.
+  const safeText = String(newText).replace(/\r\n?/g, '\n')
+    .replace(/\n[ \t]*\n+/g, '\n').replace(/\{/g, '｛').replace(/\}/g, '｝');
+  const body = (lead || '') + safeText.replace(/\n/g, '\\' + 'N');
   lines[lineNo] = line.slice(0, colon + 1) + parts.slice(0, textIndex).join(',') + ',' + body;
   return lines.join(NL);
 }
@@ -10990,7 +11020,10 @@ async function saveCueEdit() {
   let payload;
   if (player.subFormat === 'ass') {
     payload = replaceAssDialogueText(player.subRaw, cue.line, text, cue.assLead,
-      cue.assTextIndex, cue.assFieldCount);
+      cue.assTextIndex, cue.assFieldCount,
+      Number.isFinite(cue.sourceStart) ? cue.sourceStart : cue.start,
+      Number.isFinite(cue.sourceEnd) ? cue.sourceEnd : cue.end,
+      cue.assStartIndex, cue.assEndIndex);
     if (payload === null) {
       logLine('ASS satırı bulunamadı — dosya biçimi bozulmasın diye kaydedilmedi.', 'error');
       return;
