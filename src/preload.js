@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { MAX_SESSION_TABS } = require('./browser-session-store');
 
 contextBridge.exposeInMainWorld('api', {
+  browserLimits: Object.freeze({ maxTabs: MAX_SESSION_TABS }),
   // Sürüklenen File nesnesinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)
   getFilePath: (file) => {
     try { return webUtils.getPathForFile(file); } catch (_) { return file && file.path; }

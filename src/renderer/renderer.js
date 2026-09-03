@@ -3796,7 +3796,7 @@ function renderBrowserTabs() {
   updateBrowserNewTabAvailability();
 }
 
-const MAX_BROWSER_TABS = 24;
+const MAX_BROWSER_TABS = Math.max(1, Number(window.api.browserLimits?.maxTabs) || 24);
 function updateBrowserNewTabAvailability() {
   const button = $('browserTabNew');
   if (!button) return;
