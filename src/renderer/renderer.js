@@ -2602,6 +2602,9 @@ function playerJobEvent(event) {
       $('aiChatLog').scrollTop = $('aiChatLog').scrollHeight;
     }
     player.chatHistory = player.chatHistory || [];
+    if (job.chatQuestion) {
+      player.chatHistory.push({ role: 'user', content: job.chatQuestion });
+    }
     player.chatHistory.push({ role: 'assistant', content: event.text });
     job.running = false;
     job.awaitingExit = true;
@@ -8044,7 +8047,6 @@ async function aiChatSend(soru) {
   // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
   // IKI KEZ giderdi.
   opts.chat = { question: q, history: (player.chatHistory || []).slice(), context: aiChatContext() };
-  opts.input = player.subPath || 'chat';      // argparse girdi bekliyor; sohbette kullanilmaz
   delete opts.youtube;
   if (!opts.translateApiKey) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
@@ -8056,11 +8058,12 @@ async function aiChatSend(soru) {
   $('aiChatText').value = '';
   autoGrowChatBox();
 
-  player.chatHistory = player.chatHistory || [];
-  player.chatHistory.push({ role: 'user', content: q });
   state.running = true;
   state.aiJob = true;
-  player.job = { running: true, mediaKey: player.mediaKey, kind: 'chat', bubble: bekleyen };
+  player.job = {
+    running: true, mediaKey: player.mediaKey, kind: 'chat', bubble: bekleyen,
+    chatQuestion: q,
+  };
 
   const r = await startTranscribeSafe(opts);
   if (!r || !r.ok) {
@@ -8119,7 +8122,20 @@ function showAiAnswer(title, text, loading) {
 }
 
 function explainCacheKey(kind, index, word) {
-  return `${player.subPath}|${kind}|${index}|${word || ''}`;
+  const cue = player.cues[index];
+  const material = [
+    player.subPath || '', kind, index, word || '',
+    cue ? `${cue.start}|${cue.end}|${cue.text}` : '',
+    cue ? translationFor(cue) || '' : '',
+  ].join('\u241f');
+  // Dosya ayni yolda yeniden uretildiginde eski AI aciklamasi sessizce
+  // kullanilmasin. FNV-1a burada guvenlik degil, kisa bir icerik parmak izidir.
+  let hash = 2166136261;
+  for (let i = 0; i < material.length; i++) {
+    hash ^= material.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${player.subPath}|${kind}|${index}|${word || ''}|${(hash >>> 0).toString(36)}`;
 }
 
 async function askExplain(kind, index, word) {

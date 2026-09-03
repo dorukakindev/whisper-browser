@@ -6627,6 +6627,7 @@ function recordJob(meta, event) {
     segments: event.segments || 0,
     language: event.language || '',
     perf: event.perf || null,
+    quality: event.quality || meta.quality || null,
     ok: event.type === 'done',
     error: event.type === 'error' ? String(event.message || '') : '',
   });
@@ -6667,6 +6668,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     args.push('--youtube', options.youtube);
   } else if (options.input) {
     args.push('--input', options.input);
+  } else if (options.chat) {
+    // Sohbet altyazi dosyasi degil, gecici JSON baglami kullanir.
   } else {
     return { ok: false, error: 'Bir dosya ya da YouTube linki gerekli.' };
   }
@@ -6840,7 +6843,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     video: options.youtube ? '' : (options.input || ''),
     model: options.model || '',
     engine: options.engine || '',
-    skip: !!options.explain || !!options.skipHistory,
+    skip: !!options.explain || !!options.chat || !!options.skipHistory,
     queueItemId: Number.isSafeInteger(Number(options.queueItemId)) && Number(options.queueItemId) > 0
       ? Number(options.queueItemId) : null,
     terminalSeen: false,
@@ -6876,6 +6879,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (!line) return;
     try {
       const event = { ...JSON.parse(line), queueItemId: jobMeta.queueItemId };
+      if (event.type === 'quality_report') {
+        const { type: _type, queueItemId: _queueItemId, ...quality } = event;
+        jobMeta.quality = quality;
+      }
       // Görev çubuğunda ilerleme göster; bitiş/hatada pencereyi vurgula
       if ((event.type === 'progress' || event.type === 'download_progress' || event.type === 'llm_progress')
           && typeof event.percent === 'number') {

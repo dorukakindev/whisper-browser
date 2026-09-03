@@ -2066,6 +2066,26 @@ def call_api_with_retry(operation, attempts=3, base_delay=0.75):
             time.sleep(min(4.0, max(0.0, base_delay) * (2 ** attempt)))
 
 
+def sanitize_glossary_terms(raw, max_terms=200, max_term_chars=120,
+                            max_total_chars=6000):
+    """Prompt'a girecek sozlugu sinirlar ve satir/talimat enjeksiyonunu azaltir."""
+    terms = []
+    seen = set()
+    total = 0
+    for value in str(raw or "").split("|"):
+        term = re.sub(r"[\x00-\x1f\x7f]+", " ", value)
+        term = re.sub(r"\s+", " ", term).strip()[:max_term_chars]
+        key = unicodedata.normalize("NFC", term).casefold()
+        if not term or key in seen:
+            continue
+        if len(terms) >= max_terms or total + len(term) > max_total_chars:
+            break
+        seen.add(key)
+        terms.append(term)
+        total += len(term)
+    return terms
+
+
 def llm_postprocess(entries, args, warn_list=None):
     """
     Transcribe edilmiş altyazıları OpenAI uyumlu bir LLM'e gönderip düzeltir.
@@ -2088,14 +2108,15 @@ def llm_postprocess(entries, args, warn_list=None):
         log("⚠ LLM düzeltme ATLANDI: API anahtarı boş. Gelişmiş ayarlar → 🤖 LLM ile düzeltme → API Key alanını doldurun.", "error")
         return entries
 
-    log(f"🤖 LLM düzeltme BAŞLIYOR — {len(entries)} blok, model: {args.llm_model}, endpoint: {args.llm_base_url}")
+    routes = resolve_translate_routes(args.llm_base_url)
+    log(f"🤖 LLM düzeltme BAŞLIYOR — {len(entries)} blok, model: {args.llm_model}, "
+        f"endpoint: {routes[0]}{' (+' + str(len(routes) - 1) + ' yedek rota)' if len(routes) > 1 else ''}")
     emit("status", stage="llm_postprocess", text=f"LLM düzeltiyor: {args.llm_model}")
 
-    client = OpenAI(
-        api_key=args.llm_api_key,
-        base_url=args.llm_base_url,
-        timeout=120,
-    )
+    clients = {
+        url: OpenAI(api_key=args.llm_api_key, base_url=url, timeout=120)
+        for url in routes
+    }
 
     # Düzeltme türlerini topla
     fixes = []
@@ -2115,7 +2136,7 @@ def llm_postprocess(entries, args, warn_list=None):
         return entries
 
     # Sözlükteki özel isimleri LLM'e de bildir — yanlış duyulmuş yazımları düzeltir
-    glossary_terms = [t.strip() for t in (getattr(args, "glossary", "") or "").split("|") if t.strip()]
+    glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
     glossary_lines = []
     if glossary_terms:
         glossary_lines = [
@@ -2160,36 +2181,52 @@ def llm_postprocess(entries, args, warn_list=None):
 
     def task(chunk_range):
         ci_start, ci_end = chunk_range
-        # Önceki bağlam (orijinal, çevrilmemiş)
+        # Her iki yöndeki bağlam orijinal dilde kalır; yalnız items düzenlenir.
         ctx_start = max(0, ci_start - CONTEXT_LINES)
         prev_ctx = [entries[k][2] for k in range(ctx_start, ci_start)]
+        next_ctx = [entries[k][2] for k in range(
+            ci_end, min(len(entries), ci_end + CONTEXT_LINES))]
         items = [{"i": i - ci_start, "t": entries[i][2]} for i in range(ci_start, ci_end)]
         payload = {"items": items}
         if prev_ctx:
             payload["context_before"] = prev_ctx
+        if next_ctx:
+            payload["context_after"] = next_ctx
+
+        def request(response_format=True):
+            last_error = None
+            for route in routes:
+                try:
+                    kwargs = {
+                        "model": args.llm_model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+                        ],
+                        "temperature": 0.1,
+                    }
+                    if response_format:
+                        kwargs["response_format"] = {"type": "json_object"}
+                    return call_api_with_retry(
+                        lambda client=clients[route], call_kwargs=kwargs:
+                            client.chat.completions.create(**call_kwargs),
+                        attempts=2,
+                    )
+                except Exception as error:
+                    last_error = error
+                    message = str(error).lower()
+                    if any(key in message for key in (
+                            "insufficient_quota", "invalid_api_key", "401", "403", "quota")):
+                        raise
+            raise last_error if last_error else RuntimeError("LLM düzeltme isteği başarısız")
 
         try:
-            resp = call_api_with_retry(lambda: client.chat.completions.create(
-                model=args.llm_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-                ],
-                temperature=0.1,
-                response_format={"type": "json_object"},
-            ))
+            resp = request(response_format=True)
         except Exception as e:
             # response_format desteklenmiyorsa (Ollama, LM Studio veya bazı API'lerde 400 hatası) fallback yap
             if json_mode_unsupported(e):
                 log("⚠ LLM JSON modu desteklenmiyor, normal modda yeniden deneniyor...", "warn")
-                resp = call_api_with_retry(lambda: client.chat.completions.create(
-                    model=args.llm_model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-                    ],
-                    temperature=0.1,
-                ))
+                resp = request(response_format=False)
             else:
                 raise
         content = (resp.choices[0].message.content or "").strip()
@@ -2575,7 +2612,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     routes = resolve_translate_routes(args.translate_base_url)
     target = (args.translate_to or "tr").lower()
     target_name = LANG_NAMES.get(target, target)
-    glossary_terms = [t.strip() for t in (getattr(args, "glossary", "") or "").split("|") if t.strip()]
+    glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
     # Cevrilen parcanin ONCE/SONRASINDA modele gosterilecek satir sayisi. 0 = kapali.
     # Baglam ozellikle Turkcede sen/siz secimi, cinsiyet ve devam eden cumleler icin
     # onemli; bu yuzden varsayilan ACIK (Film on ayarinda daha genis).
@@ -3431,7 +3468,8 @@ def strip_continuation(text, at_start=False):
 
 
 def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
-                             tail_chars=45, tail_max_chars=170, tail_max_dur=13.0):
+                             tail_chars=45, tail_max_chars=170, tail_max_dur=13.0,
+                             speakers=None, return_speakers=False):
     """Bir sonraki bloga tasan cumleleri tek blokta toplar.
 
     merge_incomplete_sentences'ten FARKI iki tane:
@@ -3451,16 +3489,19 @@ def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
     Bedeli: 8 sn'den uzun blok sayisi 0 -> 5. Bu yuzden OPSIYONEL.
     """
     if len(entries) < 2:
-        return entries
+        return (entries, dict(speakers or {})) if return_speakers else entries
 
     DIALOG_STARTS = ("-", "—", "–", "[", "(", "♪", "*")
     out = []
-    for s, e, txt in entries:
+    out_speakers = {}
+    for source_index, (s, e, txt) in enumerate(entries):
         s, e, txt = float(s), float(e), (txt or "").strip()
         if not txt:
             continue
         if not out:
             out.append([s, e, txt])
+            if speakers and source_index in speakers:
+                out_speakers[0] = speakers[source_index]
             continue
         prev = out[-1]
         gap = s - prev[1]
@@ -3472,7 +3513,10 @@ def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
         kisa_kuyruk = len(kuyruk) <= tail_chars
         ust_krk = tail_max_chars if kisa_kuyruk else max_chars
         ust_sure = tail_max_dur if kisa_kuyruk else max_dur
+        same_speaker = (not speakers
+                        or speakers.get(source_index) == out_speakers.get(len(out) - 1))
         if ((devam or yarim)
+                and same_speaker
                 and not txt.startswith(DIALOG_STARTS)
                 and not prev[2].startswith(DIALOG_STARTS)
                 and -0.05 <= gap <= max_gap
@@ -3482,7 +3526,18 @@ def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
             prev[2] = birlesik
         else:
             out.append([s, e, txt])
-    return [(o[0], o[1], o[2]) for o in out]
+            if speakers and source_index in speakers:
+                out_speakers[len(out) - 1] = speakers[source_index]
+    merged = [(o[0], o[1], o[2]) for o in out]
+    return (merged, out_speakers) if return_speakers else merged
+
+
+def label_entries_for_text_output(entries, speakers):
+    """Konusmaci etiketini yalniz metin tabanli cikti kopyasina ekler."""
+    return [
+        (s, e, f"[{speakers[i]}] {text}" if speakers.get(i) else text)
+        for i, (s, e, text) in enumerate(entries)
+    ]
 
 
 def _pcm_bytes_to_float32(raw, sample_width, channels):
@@ -4473,16 +4528,6 @@ def transcribe(args):
                 unique = sorted(set(speakers_map.values()))
                 log(f"{len(unique)} konuşmacı tespit edildi: {', '.join(unique)}", "success")
 
-                # Metnin başına konuşmacı etiketi ekle (SRT/VTT/TXT için)
-                if args.label_speakers and speakers_map:
-                    labeled = []
-                    for i, (s, e, t) in enumerate(entries):
-                        sp = speakers_map.get(i)
-                        if sp:
-                            labeled.append((s, e, f"[{sp}] {t}"))
-                        else:
-                            labeled.append((s, e, t))
-                    entries = labeled
             except Exception as e:
                 log(f"Diarization başarısız: {e}", "error")
                 warn_list.append("Konuşmacı tanıma başarısız oldu (etiketler eklenmedi).")
@@ -4549,6 +4594,7 @@ def transcribe(args):
         # Ceviri (opsiyonel): kaynak bloklarin AYNISI, metinler hedef dilde.
         # Ayri dosyaya yazilir - kaynak altyazinin uzerine asla yazilmaz.
         translated = None
+        translated_speakers_map = dict(speakers_map)
         if args.translate:
             try:
                 # None doner = ceviri hic yapilamadi; bu durumda ceviri dosyasi
@@ -4564,8 +4610,9 @@ def transcribe(args):
                 # sona geldigi icin cumle Ingilizce'den FARKLI yerden bolunur.
                 if translated and args.merge_continuation:
                     _o = len(translated)
-                    translated = merge_continuation_lines(
-                        translated, max_gap=args.continuation_gap)
+                    translated, translated_speakers_map = merge_continuation_lines(
+                        translated, max_gap=args.continuation_gap,
+                        speakers=speakers_map, return_speakers=True)
                     if len(translated) != _o:
                         log(f"Ceviri cumle birlestirme: {_o} -> {len(translated)} blok")
                 if translated:
@@ -4593,26 +4640,28 @@ def transcribe(args):
             fmt = fmt.strip().lower()
             out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
 
-            def _write(items, path, lang_code):
+            def _write(items, path, lang_code, speaker_map):
+                text_items = (label_entries_for_text_output(items, speaker_map)
+                              if args.label_speakers and speaker_map else items)
                 if fmt == "srt":
-                    write_srt(items, path, args.max_line_width, args.max_lines,
+                    write_srt(text_items, path, args.max_line_width, args.max_lines,
                               language=lang_code, wrap_mode=args.wrap_mode)
                 elif fmt == "vtt":
-                    write_vtt(items, path, args.max_line_width, args.max_lines,
+                    write_vtt(text_items, path, args.max_line_width, args.max_lines,
                               language=lang_code, wrap_mode=args.wrap_mode)
                 elif fmt == "txt":
-                    write_txt(items, path)
+                    write_txt(text_items, path)
                 elif fmt == "ass":
                     write_ass(items, path, max_line_width=args.max_line_width,
-                              language=lang_code, wrap_mode=args.wrap_mode, speakers=speakers_map)
+                              language=lang_code, wrap_mode=args.wrap_mode, speakers=speaker_map)
                 elif fmt == "json":
-                    write_json(items, path, info=info, speakers=speakers_map, all_words=all_words)
+                    write_json(items, path, info=info, speakers=speaker_map, all_words=all_words)
                 else:
                     return False
                 return True
 
             if write_source:
-                if not _write(entries, out_path, lang):
+                if not _write(entries, out_path, lang, speakers_map):
                     log(f"Bilinmeyen format atlandı: {fmt}", "warn")
                     continue
                 output_files.append(str(out_path))
@@ -4629,7 +4678,8 @@ def transcribe(args):
                     tr_path = output_dir / f"{base_name}{tgt_suffix}.ceviri.{fmt}"
                     log(f"Kaynak ve ceviri ayni ada denk geldi - ceviri {tr_path.name} "
                         f"olarak yazildi.", "warn")
-                if _write(translated, tr_path, (args.translate_to or "tr").lower()):
+                if _write(translated, tr_path, (args.translate_to or "tr").lower(),
+                          translated_speakers_map):
                     output_files.append(str(tr_path))
                     log(f"Çeviri yazıldı: {tr_path}")
 
@@ -4637,7 +4687,12 @@ def transcribe(args):
         if translated and args.dual_subtitle:
             try:
                 dual_path = output_dir / f"{base_name}.dual.srt"
-                write_dual_srt(entries, translated, dual_path,
+                dual_source = (label_entries_for_text_output(entries, speakers_map)
+                               if args.label_speakers and speakers_map else entries)
+                dual_translation = (label_entries_for_text_output(
+                    translated, translated_speakers_map)
+                    if args.label_speakers and translated_speakers_map else translated)
+                write_dual_srt(dual_source, dual_translation, dual_path,
                                translation_first=args.dual_translation_first,
                                max_line_width=args.max_line_width,
                                language=(args.translate_to or "tr").lower(),
@@ -4936,14 +4991,14 @@ def explain_subtitle(args):
     for url in routes:
         try:
             client = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=120)
-            resp = client.chat.completions.create(
+            resp = call_api_with_retry(lambda: client.chat.completions.create(
                 model=args.translate_model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                 ],
                 temperature=0.3,
-            )
+            ), attempts=3)
             answer = (resp.choices[0].message.content or "").strip()
             if not answer:
                 raise RuntimeError("Model bos cevap dondu")
@@ -5027,9 +5082,9 @@ def chat_about_video(args):
     for url in routes:
         try:
             client = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=120)
-            resp = client.chat.completions.create(
+            resp = call_api_with_retry(lambda: client.chat.completions.create(
                 model=args.translate_model, messages=messages, temperature=0.4,
-            )
+            ), attempts=3)
             answer = (resp.choices[0].message.content or "").strip()
             if not answer:
                 raise RuntimeError("Model bos cevap dondu")
@@ -5812,7 +5867,7 @@ def sync_subtitles(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Whisper Altyazı Backend")
-    src = parser.add_mutually_exclusive_group(required=True)
+    src = parser.add_mutually_exclusive_group(required=False)
     src.add_argument("--input", help="Yerel video/ses dosyası")
     src.add_argument("--youtube", help="YouTube URL'si")
 
@@ -6014,6 +6069,9 @@ def main():
                         help="(deprecated) --split-mode kullanın")
 
     args = parser.parse_args()
+
+    if not args.input and not args.youtube and not args.chat:
+        parser.error("--input veya --youtube gerekli")
 
     # Geriye dönük uyumluluk: eski --smart-split bayrağı kullanıldıysa map et
     if args.smart_split is not None:

@@ -658,6 +658,28 @@ test('sohbet geçmişi KOPYA olarak gönderiliyor', () => {
     + 'soru modele IKI KEZ gider');
 });
 
+test('başarısız sohbet turu kalıcı konuşma geçmişini kirletmiyor', () => {
+  const i = js.indexOf('async function aiChatSend');
+  const body = js.slice(i, js.indexOf('\nfunction autoGrowChatBox', i));
+  assert(!/chatHistory\.push\(\{ role: 'user'/.test(body),
+    'kullanıcı sorusu API başarısından önce geçmişe yazılıyor');
+  const eventStart = js.indexOf("if (event.type === 'chat')");
+  const eventBody = js.slice(eventStart, eventStart + 1200);
+  assert(/job\.chatQuestion/.test(eventBody)
+    && /chatHistory\.push\(\{ role: 'user'/.test(eventBody)
+    && /chatHistory\.push\(\{ role: 'assistant'/.test(eventBody),
+  'başarılı tur kullanıcı + asistan çifti olarak kaydedilmiyor');
+  assert(!/opts\.input\s*=\s*player\.subPath\s*\|\|\s*'chat'/.test(body),
+    'sohbet hâlâ sahte girdi yolu üretiyor');
+});
+
+test('AI açıklama önbelleği kaynak ve çeviri metnine bağlı', () => {
+  const i = js.indexOf('function explainCacheKey');
+  const body = js.slice(i, js.indexOf('\nasync function askExplain', i));
+  assert(/cue\.text/.test(body) && /translationFor\(cue\)/.test(body),
+    'açıklama anahtarı altyazı içeriğini izlemiyor');
+});
+
 test('tek tık "altyazı + çeviri" kalıcı ayarı değiştirmiyor', () => {
   const i = js.indexOf("$('quickSubsBtn').addEventListener");
   assert(i > 0, 'tek-tik dugmesi bagli degil');

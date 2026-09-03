@@ -37,6 +37,42 @@ def test_checkpoint_write_failure_warns_once_and_continues():
     assert 'checkpoint' in warnings[0]['message'].lower()
 
 
+def test_glossary_terms_are_bounded_deduplicated_and_single_line():
+    raw = "  Atatürk  |ATATÜRK|satır\nyeni|" + ("x" * 300) + "|son"
+    terms = T.sanitize_glossary_terms(raw, max_terms=3, max_term_chars=12,
+                                      max_total_chars=40)
+    assert terms == ["Atatürk", "satır yeni", "xxxxxxxxxxxx"], terms
+    assert all("\n" not in term and "\r" not in term for term in terms)
+
+
+def test_continuation_merge_never_crosses_speaker_and_remaps_indexes():
+    entries = [
+        (0.0, 1.0, "Bu cümle…"),
+        (1.1, 2.0, "...devam ediyor."),
+        (2.1, 3.0, "Başka biri…"),
+        (3.1, 4.0, "...yanıtlıyor."),
+    ]
+    merged, speakers = T.merge_continuation_lines(
+        entries, speakers={0: "A", 1: "A", 2: "B", 3: "B"},
+        return_speakers=True,
+    )
+    assert len(merged) == 2, merged
+    assert speakers == {0: "A", 1: "B"}, speakers
+    crossed, crossed_speakers = T.merge_continuation_lines(
+        entries[:2], speakers={0: "A", 1: "B"}, return_speakers=True,
+    )
+    assert len(crossed) == 2, crossed
+    assert crossed_speakers == {0: "A", 1: "B"}, crossed_speakers
+
+
+def test_speaker_labels_are_added_only_to_output_copy():
+    entries = [(0.0, 1.0, "Merhaba."), (1.0, 2.0, "Selam.")]
+    labeled = T.label_entries_for_text_output(entries, {0: "SPEAKER_00"})
+    assert labeled[0][2] == "[SPEAKER_00] Merhaba."
+    assert labeled[1][2] == "Selam."
+    assert entries[0][2] == "Merhaba.", "kaynak metin mutasyona ugramamali"
+
+
 # ---- faster-whisper segment/word arayüzünü taklit eden hafif sahte sınıflar ----
 class W:
     def __init__(self, word, start, end, probability=1.0):

@@ -119,6 +119,14 @@ test('perf özeti kayda geçer', () => {
   assert(api.loadHistory()[0].perf.rtf === 13.15, 'perf kaydedilmedi');
 });
 
+test('kalite raporu iş geçmişine kaydedilir', () => {
+  reset();
+  api.recordJob(meta({ quality: { blocks: 42, cps_violations: 3 } }), done());
+  const quality = api.loadHistory()[0].quality;
+  assert(quality && quality.blocks === 42 && quality.cps_violations === 3,
+    'kalite raporu kaydedilmedi');
+});
+
 test('YouTube işi kaynak etiketiyle kaydedilir, yerel video boş kalır', () => {
   reset();
   api.recordJob(
