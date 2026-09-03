@@ -151,12 +151,43 @@ test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşı
     js.indexOf('function renderBrowserDiagnostics'));
   assert(/aria-hidden/.test(places) && /browserPlacesSearch/.test(places) && /\.focus\(/.test(places),
     'geçmiş panelinin erişilebilir görünürlük veya odak yönetimi eksik');
-  const navigation = js.slice(js.indexOf('function updateBrowserNavigation'),
+  const navigation = js.slice(js.indexOf('function setBrowserLoadingState'),
     js.indexOf('function renderBrowserCueAt'));
   assert(/Yüklemeyi durdur/.test(navigation) && /HTTPS bağlantısı/.test(navigation),
     'yenile/durdur veya bağlantı güvenliği kullanıcıya açıklanmıyor');
   assert(/browser-reload-spin/.test(css) && /browser-tab-loading/.test(css),
     'yüklenme geri bildiriminin görsel durumu eksik');
+});
+
+test('hızlı tarayıcı gezinmesinde eski sonuç yeni sekme durumunu ezmiyor', () => {
+  const navigate = js.slice(js.indexOf('async function navigateBrowserFromAddress'),
+    js.indexOf("if ($('workspacePlayerMode'))"));
+  assert(/const navigateSeq = \+\+player\.browserNavigateSeq/.test(navigate),
+    'adres gezinmesinin yarış sırası yok');
+  assert(/navigateBrowser\(value, tabId\)/.test(navigate)
+    && /navigateSeq !== player\.browserNavigateSeq \|\| tabId !== player\.browserActiveTabId/.test(navigate),
+  'geciken gezinme cevabı istek ve sekme kimliğini doğrulamıyor');
+  assert(/setBrowserLoadingState\(true\)/.test(navigate)
+    && /setBrowserLoadingState\(false\)/.test(navigate),
+  'başarılı/başarısız gezinmede yüklenme durumu dengeli yönetilmiyor');
+});
+
+test('tarayıcı adres alanı URL yanında arama ifadesini de doğru tanımlıyor', () => {
+  assert(/<input type="text" id="browserAddress"/.test(html),
+    'arama destekleyen adres alanı yalnız URL kabul eden kontrol olarak tanımlanmış');
+  assert(/placeholder="Web adresi yazın veya arayın"/.test(html)
+    && /aria-label="Web adresi veya arama"/.test(html),
+  'adres alanı arama yeteneğini kullanıcıya veya ekran okuyucuya açıklamıyor');
+});
+
+test('sekme sesi ve tarayıcı gezinme düğmeleri görünür hata yoluna sahip', () => {
+  const handlers = js.slice(js.indexOf("if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click'"),
+    js.indexOf("if ($('browserCaptureToggle'))"));
+  assert(/muteBrowserTab\(tabId\)\.catch\(\(\) => null\)/.test(handlers)
+    && /Sekme sesi değiştirilemedi/.test(handlers), 'sekme sesi IPC hatası yakalanmıyor');
+  assert(/async function runBrowserChromeCommand/.test(handlers)
+    && /Tarayıcı komutu tamamlanamadı/.test(handlers),
+  'geri/ileri/yenile komutlarının çözümlenen hata sonucu kullanıcıya gösterilmiyor');
 });
 
 test('tarayıcı modalı WebContentsView katmanını geçici olarak gizliyor', () => {

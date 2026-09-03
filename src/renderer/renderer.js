@@ -3395,6 +3395,7 @@ const player = {
   browserPlaces: { history: [], bookmarks: [] },
   browserPlaceTab: 'bookmarks',
   browserPlacesSeq: 0,
+  browserNavigateSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
   browserMangaBusy: false,
@@ -5037,6 +5038,24 @@ function scheduleBrowserOverlaySync() {
   }, 120);
 }
 
+function setBrowserLoadingState(loading, updateTab = true) {
+  const active = !!loading;
+  const reload = $('browserReload');
+  if (reload) {
+    reload.classList.toggle('loading', active);
+    reload.setAttribute('aria-busy', active ? 'true' : 'false');
+    reload.title = active ? 'Yüklemeyi durdur' : 'Yenile';
+    reload.setAttribute('aria-label', reload.title);
+  }
+  if (updateTab) {
+    const tab = browserTabState();
+    if (tab) {
+      tab.loading = active;
+      updateBrowserTabPresentation(tab);
+    }
+  }
+}
+
 function updateBrowserNavigation(data, options = {}) {
   if (!data) return;
   if (data.tabId && (data.tabId !== player.browserActiveTabId || !player.browserTabEventGate.accept(data))) return false;
@@ -5055,17 +5074,12 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.url && document.activeElement !== address) address.value = data.url;
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
   if ($('browserForward')) $('browserForward').disabled = !data.canGoForward;
-  const reload = $('browserReload');
-  if (reload) {
-    reload.classList.toggle('loading', !!data.loading);
-    reload.setAttribute('aria-busy', data.loading ? 'true' : 'false');
-    reload.title = data.loading ? 'Yüklemeyi durdur' : 'Yenile';
-    reload.setAttribute('aria-label', reload.title);
-  }
+  setBrowserLoadingState(!!data.loading, false);
   const securityMark = $('browserSecurityMark');
   if (securityMark) {
     const secure = /^https:/i.test(data.url || '');
-    const securityText = secure ? 'HTTPS bağlantısı' : (data.url ? 'HTTP bağlantısı' : 'Adres bekleniyor');
+    const securityText = secure ? 'Güvenli HTTPS bağlantısı'
+      : (data.url ? 'Şifrelenmemiş HTTP bağlantısı' : 'Adres bekleniyor');
     securityMark.classList.toggle('secure', secure);
     securityMark.title = securityText;
     securityMark.setAttribute('aria-label', securityText);
@@ -5241,17 +5255,21 @@ async function navigateBrowserFromAddress() {
     $('browserAddress')?.focus();
     return null;
   }
+  const navigateSeq = ++player.browserNavigateSeq;
+  const tabId = player.browserActiveTabId;
   setBrowserSignal('Sayfa açılıyor; altyazı izi bekleniyor…', false);
+  setBrowserLoadingState(true);
   let result;
   try {
-    result = await navigateBrowser(value);
+    result = await navigateBrowser(value, tabId);
   } catch (error) {
     result = { ok: false, error: error && error.message ? error.message : 'Tarayıcı isteği tamamlanamadı.' };
   }
+  if (navigateSeq !== player.browserNavigateSeq || tabId !== player.browserActiveTabId) return result || null;
   if (!result || !result.ok) {
     setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
-    $('browserReload')?.classList.remove('loading');
+    setBrowserLoadingState(false);
     return result || null;
   }
   updateBrowserNavigation(result);
@@ -5261,13 +5279,15 @@ async function navigateBrowserFromAddress() {
 if ($('workspacePlayerMode')) $('workspacePlayerMode').addEventListener('click', () => setWorkspaceMode('player'));
 if ($('workspaceBrowserMode')) $('workspaceBrowserMode').addEventListener('click', () => setWorkspaceMode('browser'));
 if ($('browserTabNew')) $('browserTabNew').addEventListener('click', createBrowserTab);
-if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', (event) => {
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (event) => {
   const mute = event.target.closest('[data-browser-tab-mute]');
   if (mute) {
-    window.api.muteBrowserTab?.(mute.dataset.browserTabMute).then(result => {
-      const tab = browserTabState(mute.dataset.browserTabMute);
-      if (result?.ok && tab) { Object.assign(tab, result); updateBrowserTabPresentation(tab); }
-    });
+    const tabId = mute.dataset.browserTabMute;
+    const result = window.api.muteBrowserTab
+      ? await window.api.muteBrowserTab(tabId).catch(() => null) : null;
+    const tab = browserTabState(tabId);
+    if (result?.ok && tab) { Object.assign(tab, result); updateBrowserTabPresentation(tab); }
+    else if (tab) setBrowserSignal(`Sekme sesi değiştirilemedi: ${result?.error || 'bilinmeyen hata'}`, false);
     return;
   }
   const close = event.target.closest('[data-browser-tab-close]');
@@ -5433,9 +5453,7 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
     const url = open.dataset.placeOpen;
     setBrowserPlacesOpen(false);
     if ($('browserAddress')) $('browserAddress').value = url;
-    const result = await navigateBrowser(url).catch(() => null);
-    if (result && result.ok) updateBrowserNavigation(result);
-    else if (result) setBrowserSignal(`Sayfa açılamadı: ${result.error || 'bilinmeyen hata'}`, false);
+    await navigateBrowserFromAddress();
     return;
   }
   const remove = event.target.closest('[data-place-remove]');
@@ -5465,11 +5483,15 @@ $('browserWorkspaceRemove')?.addEventListener('click', async () => {
   const result = await window.api.removeBrowserWorkspace(name).catch(() => null);
   if (result?.ok) { player.browserPlaces = result.places; renderBrowserPlaces(); }
 });
-if ($('browserBack')) $('browserBack').addEventListener('click', () => browserCommand('back'));
-if ($('browserForward')) $('browserForward').addEventListener('click', () => browserCommand('forward'));
+async function runBrowserChromeCommand(command) {
+  const result = await browserCommand(command).catch(() => null);
+  if (!result?.ok) setBrowserSignal(`Tarayıcı komutu tamamlanamadı: ${result?.error || 'bilinmeyen hata'}`, false);
+  return result;
+}
+if ($('browserBack')) $('browserBack').addEventListener('click', () => runBrowserChromeCommand('back'));
+if ($('browserForward')) $('browserForward').addEventListener('click', () => runBrowserChromeCommand('forward'));
 if ($('browserReload')) $('browserReload').addEventListener('click', () => {
-  browserCommand($('browserReload').classList.contains('loading') ? 'stop' : 'reload')
-    .catch(() => setBrowserSignal('Tarayıcı komutu tamamlanamadı.', false));
+  runBrowserChromeCommand($('browserReload').classList.contains('loading') ? 'stop' : 'reload');
 });
 if ($('browserCaptureToggle')) $('browserCaptureToggle').addEventListener('click', async () => {
   const button = $('browserCaptureToggle');
