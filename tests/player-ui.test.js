@@ -164,6 +164,22 @@ test('aynı medyadaki SPA adres değişimi yakalanmış altyazıları sıfırlam
     'korunan SPA geçişinde yeni adres state içine yazılmıyor');
 });
 
+test('meşgulken seçilen web altyazısı iş bitince aynı sekmede otomatik devam ediyor', () => {
+  const flow = js.slice(js.indexOf('function clearDeferredBrowserTrackAction'),
+    js.indexOf('async function completeSelectedBrowserTranslation'));
+  assert(/browserDeferredTrackAction/.test(flow)
+    && /state\.running \|\| state\.queueRunning \|\| player\.browserTranslatePreparing/.test(flow),
+  'meşgul durumdaki web altyazısı eylemi beklemeye alınmıyor');
+  assert(/pending\.tabId !== player\.browserActiveTabId \|\| !trackExists/.test(flow),
+    'bekleyen altyazı eylemi sekme ve iz kimliğini yeniden doğrulamıyor');
+  assert(/await useBrowserTrack\(pending\.translate, pending\.trackId\)/.test(flow),
+    'iş bittikten sonra bekleyen altyazı eylemi otomatik sürdürülmüyor');
+  const clear = js.slice(js.indexOf('function clearBrowserTracks'),
+    js.indexOf('function renderBrowserTracks'));
+  assert(/clearDeferredBrowserTrackAction\(\)/.test(clear),
+    'medya değişiminde bekleyen eski altyazı eylemi iptal edilmiyor');
+});
+
 test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşılır', () => {
   assert(/browserPlacesPanel[^\n]*addEventListener\('keydown'/.test(js)
     && /event\.key !== 'Escape'/.test(js), 'arama alanındayken Escape geçmiş panelini kapatmıyor');

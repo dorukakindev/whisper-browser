@@ -3402,6 +3402,8 @@ const player = {
   browserNavigateSeq: 0,
   browserPrepareSeq: 0,
   browserTranslatePreparing: false,
+  browserDeferredTrackAction: null,
+  browserDeferredTrackTimer: null,
   browserMangaBusy: false,
   browserMangaTranslated: 0,
   browserMangaVisible: false,
@@ -4441,6 +4443,7 @@ function renderBrowserAcquisition(acquisition) {
 }
 
 function clearBrowserTracks(message) {
+  clearDeferredBrowserTrackAction();
   if (player.browserTranslationTrackId && window.api.stopBrowserTranslation) {
     window.api.stopBrowserTranslation(player.browserActiveTabId).catch(() => {});
   }
@@ -4468,6 +4471,32 @@ function clearBrowserTracks(message) {
   updateBrowserTranslationExportButton();
   syncSubtitleModeUi();
   setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
+}
+
+function clearDeferredBrowserTrackAction() {
+  if (player.browserDeferredTrackTimer) clearTimeout(player.browserDeferredTrackTimer);
+  player.browserDeferredTrackTimer = null;
+  player.browserDeferredTrackAction = null;
+}
+
+function scheduleDeferredBrowserTrackAction() {
+  if (player.browserDeferredTrackTimer || !player.browserDeferredTrackAction) return;
+  player.browserDeferredTrackTimer = setTimeout(async () => {
+    player.browserDeferredTrackTimer = null;
+    const pending = player.browserDeferredTrackAction;
+    if (!pending) return;
+    const trackExists = player.browserTracks.some((track) => track.id === pending.trackId);
+    if (pending.tabId !== player.browserActiveTabId || !trackExists) {
+      clearDeferredBrowserTrackAction();
+      return;
+    }
+    if (state.running || state.queueRunning || player.browserTranslatePreparing) {
+      scheduleDeferredBrowserTrackAction();
+      return;
+    }
+    player.browserDeferredTrackAction = null;
+    await useBrowserTrack(pending.translate, pending.trackId);
+  }, 750);
 }
 
 function renderBrowserTracks(selectedId) {
@@ -4584,18 +4613,27 @@ async function waitForBrowserTrackStable(trackId, prepareSeq, quietMs = 1200, ma
   return latest;
 }
 
-async function useBrowserTrack(translate) {
-  let track = browserTrackSelection();
+async function useBrowserTrack(translate, requestedTrackId = '') {
+  let track = requestedTrackId
+    ? player.browserTracks.find((item) => item.id === requestedTrackId)
+    : browserTrackSelection();
   if (!track) return;
   if (translate && track.role === 'translation') {
     await loadPersistedBrowserTranslation(track);
     return;
   }
   if (state.running || state.queueRunning || player.browserTranslatePreparing) {
-    setBrowserSignal('Başka bir iş çalışıyor; altyazı hazır tutuluyor.', true);
-    logLine('Tarayıcı altyazısı bekliyor — çalışan iş bitince yeniden deneyin.', 'warn');
+    player.browserDeferredTrackAction = {
+      tabId: player.browserActiveTabId,
+      trackId: track.id,
+      translate: !!translate,
+    };
+    scheduleDeferredBrowserTrackAction();
+    setBrowserSignal('Başka bir iş çalışıyor; bu iş bitince altyazı otomatik yüklenecek.', true);
+    logLine('Tarayıcı altyazısı beklemeye alındı — çalışan iş bitince otomatik devam edecek.', 'info');
     return;
   }
+  clearDeferredBrowserTrackAction();
   if (translate) {
     const prepareSeq = ++player.browserPrepareSeq;
     player.browserTranslatePreparing = true;
