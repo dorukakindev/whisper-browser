@@ -47,8 +47,15 @@ class CaptionAcquisitionPlan {
   updateConsent(next = {}) {
     this.consent = normalizeConsent({ ...this.consent, ...next });
     for (const definition of ACQUISITION_STAGES) {
-      if (!definition.consent || !this.consent[definition.consent]) continue;
+      if (!definition.consent) continue;
       const stage = this.stage(definition.id);
+      if (!this.consent[definition.consent]) {
+        if (stage && ['waiting', 'running'].includes(stage.status)) {
+          stage.status = 'blocked';
+          stage.reason = 'Kullanıcı onayı geri çekildi.';
+        }
+        continue;
+      }
       if (stage && stage.status === 'blocked') {
         stage.status = 'waiting';
         stage.reason = '';
@@ -99,7 +106,7 @@ class CaptionAcquisitionPlan {
     if (success) {
       this.winner = id;
       for (const other of this.stages) {
-        if (other.id !== id && other.status === 'waiting') {
+        if (other.id !== id && ['waiting', 'running'].includes(other.status)) {
           other.status = 'skipped';
           other.reason = 'Altyazı daha önceki bir basamakta bulundu.';
         }

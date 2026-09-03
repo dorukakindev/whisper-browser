@@ -14,12 +14,29 @@ function cloneJson(value) {
 }
 
 function pathParts(fieldPath) {
-  return String(fieldPath || '').split('.').map((part) => part.trim()).filter(Boolean);
+  const parts = String(fieldPath || '').split('.').map((part) => part.trim()).filter(Boolean);
+  return parts.some((part) => ['__proto__', 'constructor', 'prototype'].includes(part)) ? [] : parts;
+}
+
+function clearedFields(settings, fields) {
+  return new Set((Array.isArray(settings?.clearedSecretFields) ? settings.clearedSecretFields : [])
+    .filter((field) => fields.includes(field)));
+}
+
+function redactExport(value) {
+  if (Array.isArray(value)) return value.map(redactExport);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => !['__proto__', 'constructor', 'prototype'].includes(key)
+      && !/(?:api[_-]?key|token|password|passwd|secret|authorization|cookie|credential)$/i.test(key))
+    .map(([key, child]) => [key, redactExport(child)]));
 }
 
 function getPath(object, fieldPath) {
+  const parts = pathParts(fieldPath);
+  if (!parts.length) return undefined;
   let current = object;
-  for (const part of pathParts(fieldPath)) {
+  for (const part of parts) {
     if (!current || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, part)) return undefined;
     current = current[part];
   }
@@ -65,7 +82,9 @@ function splitSettingsSecrets(settings, fields = DEFAULT_SECRET_FIELDS) {
 
 function mergeSettingsSecrets(settings, secrets, fields = DEFAULT_SECRET_FIELDS) {
   const merged = cloneJson(settings);
+  const cleared = clearedFields(settings, fields);
   for (const field of fields) {
+    if (cleared.has(field)) { deletePath(merged, field); continue; }
     const value = secrets && secrets[field];
     if (typeof value === 'string' && value) setPath(merged, field, value);
   }
@@ -168,10 +187,26 @@ class SafeSecretStore {
 
   saveFromSettings(settings) {
     const { publicSettings, secrets } = splitSettingsSecrets(settings, this.fields);
+    const cleared = clearedFields(settings, this.fields);
+    for (const [field, value] of Object.entries(secrets)) if (value === '') cleared.add(field);
+    const recordClears = () => {
+      if (cleared.size) publicSettings.clearedSecretFields = [...cleared];
+      else delete publicSettings.clearedSecretFields;
+    };
+    recordClears();
     if (!Object.keys(secrets).length) return { ok: true, publicSettings, stored: [] };
     const current = this.load();
     if (!current.ok && !current.unavailable && !current.partial) return { ...current, publicSettings };
-    const saved = this.save({ ...(current.secrets || {}), ...secrets });
+    const next = { ...(current.secrets || {}) };
+    for (const field of cleared) delete next[field];
+    Object.assign(next, secrets);
+    const saved = this.save(next);
+    // Silme niyetini açık ayarlarda sakla: kasa kapalıyken eski şifreli kayıt
+    // kalabilir. Yeni anahtar BAŞARIYLA yazılmadan bu işareti kaldırma.
+    if (saved.ok) {
+      for (const [field, value] of Object.entries(secrets)) if (value) cleared.delete(field);
+      recordClears();
+    }
     return { ...saved, publicSettings };
   }
 
@@ -185,7 +220,7 @@ class SafeSecretStore {
 
   forExport(settings, options = {}) {
     if (options.includeSecrets === true) return cloneJson(settings);
-    return splitSettingsSecrets(settings, this.fields).publicSettings;
+    return redactExport(splitSettingsSecrets(settings, this.fields).publicSettings);
   }
 }
 

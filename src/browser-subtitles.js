@@ -186,7 +186,10 @@ function parseHlsSubtitleTracks(body, baseUrl = '') {
     try { tracks.push({
       url: new URL(attrs.URI, baseUrl).href,
       language: attrs.LANGUAGE || '',
-      label: attrs.NAME || attrs.LANGUAGE || 'HLS altyazısı',
+      // Etiket doğrudan iz kaydı/önbelleği ve seçiciye taşınır. Yalnız yabancı
+      // replikleri içeren forced izi tam altyazı sanılmasın.
+      label: (attrs.NAME || attrs.LANGUAGE || 'HLS altyazısı')
+        + (String(attrs.FORCED || '').toUpperCase() === 'YES' ? ' (zorunlu)' : ''),
       forced: String(attrs.FORCED || '').toUpperCase() === 'YES',
     }); } catch (_) {}
   }
@@ -815,10 +818,11 @@ function subtitleLanguage(response = {}) {
 
 function cueFingerprint(cues) {
   const list = Array.isArray(cues) ? cues : [];
-  const sampled = list.length <= 160 ? list : [...list.slice(0, 80), ...list.slice(-80)];
-  const compact = sampled
-    .map((cue) => `${Number(cue.start).toFixed(2)}|${cleanCueText(cue.text)}`).join('\n');
-  return crypto.createHash('sha256').update(`${list.length}\n${compact}`).digest('hex').slice(0, 20);
+  const hash = crypto.createHash('sha256').update(`${list.length}\n`);
+  // Orta satır, yalnız bitiş zamanı ve milisaniye düzeltmeleri de yayını yeniler.
+  // Akış halinde hash'le; tüm izin ikinci büyük metin kopyasını oluşturma.
+  for (const cue of list) hash.update(JSON.stringify([Number(cue.start), Number(cue.end), cleanCueText(cue.text)]) + '\n');
+  return hash.digest('hex').slice(0, 20);
 }
 
 function manifestFingerprint(body) {

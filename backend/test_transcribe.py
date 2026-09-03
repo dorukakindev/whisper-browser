@@ -15,6 +15,7 @@ import sys
 import tempfile
 import types
 import wave
+from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -1534,7 +1535,7 @@ def test_job_signature():
     }
     args = types.SimpleNamespace(**values)
     sig = T.job_signature(args)
-    assert sig["version"] == 2
+    assert sig["version"] == 3
     assert sig["model"] == "large-v3" and sig["audio_track"] == -1
     assert sig["audio_preprocess"] == "none" and sig["vad_filter"] is True
     assert sig["initial_prompt"] == "" and sig["glossary"] == ""
@@ -2289,6 +2290,85 @@ def test_sentence_reply_nfc_and_dialogue_line_breaks():
     record = T.accept_sentence_reply({'0': '- Evet.\n- Hayır.'}, [0])
     assert record['parts'] == ['- Evet.\n- Hayır.'], 'konuşmacı satırları kayboldu'
     assert T.accept_sentence_reply({'0': 'bir', '1': 'iki'}, [0, 1]) is None
+
+
+def test_emit_nonfinite_metrics_are_valid_json_and_invalid_cue_is_not_displayed():
+    from unittest import mock
+    with mock.patch('builtins.print') as output:
+        T.emit('progress', percent=float('nan'), metrics=[float('inf')])
+        T.emit('segment', start=0, end=float('inf'), text='invalid')
+        T.emit('segment', start=1.25, end=2.5, text='sağlam')
+    def reject(value):
+        raise AssertionError(f'Geçersiz JSON sayısı: {value}')
+    messages = [json.loads(call.args[0], parse_constant=reject) for call in output.call_args_list]
+    assert messages[0]['percent'] is None and messages[0]['metrics'] == [None]
+    assert messages[1]['type'] == 'log' and messages[1]['level'] == 'warn'
+    assert messages[2]['start'] == 1.25 and messages[2]['text'] == 'sağlam'
+
+
+def test_llm_postprocess_counts_only_accepted_replies():
+    from unittest import mock
+    class Client:
+        def __init__(self, **_kw):
+            self.chat = types.SimpleNamespace(completions=self)
+        def create(self, **_kw):
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(
+                message=types.SimpleNamespace(content='{"0":"Hello.","1":"", "2":17}'))])
+    args = types.SimpleNamespace(llm_api_key='fake', llm_model='fake', llm_base_url='https://example.invalid',
+        llm_fix_censorship=False, llm_fix_hallucination=False, llm_fix_punctuation=True,
+        llm_fix_consistency=False, llm_workers=1)
+    entries = [(0, 1, 'Hello'), (1, 2, 'Keep me'), (2, 3, 'Me too'), (3, 4, 'Missing')]
+    warnings = []
+    with _fake_openai(Client), mock.patch.object(T, 'emit') as events, mock.patch.object(T, 'log'):
+        out = T.llm_postprocess(entries, args, warnings)
+    assert out[0][2] == 'Hello.' and out[1:] == entries[1:]
+    progress = [c.kwargs for c in events.call_args_list if c.args[0] == 'llm_progress'][-1]
+    assert progress['done'] == 1 and progress['failed'] == 3 and warnings
+
+
+def test_checkpoint_input_changes_and_nonfinite_data_are_rejected():
+    from unittest import mock
+    with tempfile.TemporaryDirectory() as td:
+        source = Path(td) / 'movie.bin'
+        source.write_bytes(b'first')
+        identity = T.checkpoint_input_identity(source)
+        source.write_bytes(b'replacement')
+        assert T.checkpoint_input_identity(source) != identity
+        checkpoint = str(Path(td) / 'checkpoint.json')
+        valid = {'version': 2, 'signature': {}, 'last_time': 2,
+                 'entries': [[0, 2, 'source']], 'words': []}
+        for field, value in [('last_time', float('nan')), ('last_time', 'bad'),
+                             ('entries', [[0, float('inf'), 'source']]),
+                             ('entries', [[0, 2, 'source'], [2, 3, 12]]),
+                             ('words', [{'word': 'x', 'start': 0, 'end': float('nan')}])]:
+            Path(checkpoint).write_text(json.dumps({**valid, field: value}), encoding='utf-8')
+            assert T.read_checkpoint(checkpoint, {}) is None, (field, value)
+        Path(checkpoint).write_text(json.dumps(valid), encoding='utf-8')
+        before = Path(checkpoint).read_bytes()
+        with mock.patch.object(T, 'log'):
+            assert not T.write_checkpoint(checkpoint, {}, [(0, float('nan'), 'bad')], 2)
+        assert Path(checkpoint).read_bytes() == before
+        assert not Path(checkpoint + '.tmp').exists()
+
+
+def test_reexport_skips_malformed_records_with_visible_warning():
+    from unittest import mock
+    with tempfile.TemporaryDirectory() as td:
+        source = Path(td) / 'input.json'
+        source.write_text(json.dumps({'language': 17, 'duration': 'bad', 'language_probability': float('inf'),
+            'segments': [None, 7, {'start': 0, 'end': 1, 'text': 7},
+                         {'start': float('nan'), 'end': 1, 'text': 'bad'},
+                         {'start': 1.25, 'end': 2.5, 'text': 'Geçerli metin.', 'words': 8}]}), encoding='utf-8')
+        before = source.read_bytes()
+        args = types.SimpleNamespace(input=str(source), output_dir=td, formats='srt', lang_suffix=False,
+                                     max_line_width=42, max_lines=2, wrap_mode='sentence')
+        with mock.patch.object(T, 'emit') as events:
+            T.reexport_from_json(args)
+        text = (Path(td) / 'input.srt').read_text(encoding='utf-8-sig')
+        assert '00:00:01,250 --> 00:00:02,500' in text and 'Geçerli metin.' in text
+        done = [c.kwargs for c in events.call_args_list if c.args[0] == 'done'][-1]
+        assert done['segments'] == 1 and done['warnings'][0].startswith('4 ')
+        assert source.read_bytes() == before
 
 
 def _run():

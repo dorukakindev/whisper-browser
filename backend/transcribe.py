@@ -9,6 +9,7 @@ JSON satırları olarak basar (NDJSON), böylece UI gerçek zamanlı takip edebi
 import argparse
 import inspect
 import json
+import math
 import os
 import re
 import unicodedata
@@ -55,10 +56,26 @@ except Exception:
     pass
 
 
+def finite_json_value(value):
+    """NDJSON'da geçersiz NaN/Infinity yerine eksik ölçümü null ile belirt."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: finite_json_value(child) for key, child in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [finite_json_value(child) for child in value]
+    return value
+
+
 def emit(event_type, **payload):
     """Olayı stdout'a JSON satırı olarak yaz."""
     msg = {"type": event_type, **payload}
-    print(json.dumps(msg, ensure_ascii=False), flush=True)
+    if event_type == "segment" and any(
+        isinstance(payload.get(key), (int, float)) and not math.isfinite(payload[key])
+        for key in ("start", "end")
+    ):
+        msg = {"type": "log", "level": "warn", "message": "Geçersiz zamanlı altyazı bloğu gösterilmedi."}
+    print(json.dumps(finite_json_value(msg), ensure_ascii=False, allow_nan=False), flush=True)
 
 
 def log(message, level="info"):
@@ -2178,7 +2195,8 @@ def llm_postprocess(entries, args, warn_list=None):
         content = (resp.choices[0].message.content or "").strip()
         data = parse_llm_json_object(content)
 
-        # Sonuçları orijinal index'lere geri yaz
+        # Sonuçları orijinal index'lere geri yaz; eksik/reddedilen yanıt başarı değildir.
+        accepted = 0
         for local_i, item in enumerate(items):
             key = str(item["i"])
             if key not in data or not isinstance(data.get(key), str):
@@ -2198,7 +2216,8 @@ def llm_postprocess(entries, args, warn_list=None):
             if words_off and chars_off:
                 continue
             out_texts[ci_start + local_i] = new
-        return ci_end - ci_start
+            accepted += 1
+        return accepted
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
     with ThreadPoolExecutor(max_workers=args.llm_workers) as ex:
@@ -2208,6 +2227,7 @@ def llm_postprocess(entries, args, warn_list=None):
             try:
                 n = fut.result()
                 total_done += n
+                fail_count += (ch[1] - ch[0]) - n
             except Exception as e:
                 fail_count += (ch[1] - ch[0])
                 log(f"LLM chunk {ch[0]}-{ch[1]} hatası: {e}", "warn")
@@ -3741,6 +3761,18 @@ def _checkpoint_path(input_path):
     return str(input_path) + ".whisper.ckpt.json"
 
 
+def checkpoint_input_identity(input_path):
+    if not input_path:
+        return None
+    identity = {"path": os.path.normcase(os.path.realpath(input_path))}
+    try:
+        stat = os.stat(input_path)
+        identity.update(size=stat.st_size, mtime_ns=stat.st_mtime_ns)
+    except OSError:
+        identity["unavailable"] = True
+    return identity
+
+
 def job_signature(args):
     """
     Checkpoint yalnızca transkripsiyon çıktısını etkileyen ayarlar AYNIYSA geçerlidir.
@@ -3750,7 +3782,8 @@ def job_signature(args):
     yeniden çalışır.
     """
     return {
-        "version": 2,
+        "version": 3,
+        "input_identity": checkpoint_input_identity(getattr(args, "input", None)),
         "model": args.model,
         "engine": args.engine,
         "batch_size": args.batch_size,
@@ -3798,21 +3831,21 @@ _CHECKPOINT_WRITE_WARNED = set()
 
 def write_checkpoint(path, signature, entries, last_time, words=None):
     """Checkpoint'i atomik yaz (önce .tmp, sonra replace) — yazım anında çökme bozmasın."""
-    data = {
-        "version": 2,
-        "signature": signature,
-        "last_time": round(float(last_time), 3),
-        "entries": [[round(float(s), 3), round(float(e), 3), t] for (s, e, t) in entries],
-        "words": list(words or []),
-    }
     tmp = path + ".tmp"
     try:
+        data = {
+            "version": 2,
+            "signature": signature,
+            "last_time": round(float(last_time), 3),
+            "entries": [[round(float(s), 3), round(float(e), 3), t] for (s, e, t) in entries],
+            "words": list(words or []),
+        }
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
+            json.dump(data, f, ensure_ascii=False, allow_nan=False)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, path)
-    except OSError as exc:
+    except (OSError, ValueError, TypeError) as exc:
         try:
             if os.path.exists(tmp):
                 os.remove(tmp)
@@ -3845,6 +3878,12 @@ def read_checkpoint(path, signature):
     if data.get("signature") != signature:
         return None  # ayarlar değişmiş → temiz başla
     last_time = data.get("last_time")
+    try:
+        last_time = float(last_time)
+        if not math.isfinite(last_time) or last_time < 0:
+            return None
+    except (TypeError, ValueError):
+        return None
     raw = data.get("entries")
     if not isinstance(raw, list) or last_time is None:
         return None
@@ -3852,9 +3891,12 @@ def read_checkpoint(path, signature):
     for item in raw:
         try:
             s, e, t = item
-            entries.append((float(s), float(e), t))
+            s, e = float(s), float(e)
+            if not math.isfinite(s) or not math.isfinite(e) or s < 0 or e <= s or not isinstance(t, str):
+                return None
+            entries.append((s, e, t))
         except (ValueError, TypeError):
-            continue
+            return None
     if not entries:
         return None
     words = data.get("words") if data.get("version") == 2 else []
@@ -3865,12 +3907,17 @@ def read_checkpoint(path, signature):
         if not isinstance(word, dict):
             continue
         try:
-            valid_words.append({
+            parsed_word = {
                 "word": str(word.get("word", "")),
                 "start": float(word["start"]),
                 "end": float(word["end"]),
                 "probability": float(word.get("probability", 1.0)),
-            })
+            }
+            if not all(math.isfinite(parsed_word[key]) for key in ("start", "end", "probability")):
+                return None
+            if parsed_word["start"] < 0 or parsed_word["end"] < parsed_word["start"]:
+                return None
+            valid_words.append(parsed_word)
         except (KeyError, TypeError, ValueError):
             continue
     return entries, float(last_time), valid_words
@@ -5091,6 +5138,8 @@ def reexport_from_json(args):
     except Exception as e:
         raise RuntimeError(f"JSON okunamadı/çözümlenemedi: {e}")
 
+    if not isinstance(data, dict):
+        raise RuntimeError("JSON kökü bir nesne olmalı.")
     segments = data.get("segments")
     if not isinstance(segments, list) or not segments:
         raise RuntimeError("JSON içinde 'segments' bulunamadı — bu, uygulamanın JSON çıktısı olmalı.")
@@ -5099,19 +5148,32 @@ def reexport_from_json(args):
     speakers_map = {}
     all_words = []
     records = []
+    skipped = 0
     for seg in segments:
+        if not isinstance(seg, dict):
+            skipped += 1
+            continue
         try:
             s = float(seg.get("start"))
             e = float(seg.get("end"))
         except (TypeError, ValueError):
+            skipped += 1
             continue
-        text = (seg.get("text") or "").strip()
-        if not text:
+        text = seg.get("text")
+        if (not math.isfinite(s) or not math.isfinite(e) or s < 0 or e <= s
+                or not isinstance(text, str) or not text.strip()):
+            skipped += 1
             continue
-        records.append((s, e, text, seg.get("speaker")))
-        for w in (seg.get("words") or []):
+        speaker = seg.get("speaker")
+        records.append((s, e, text.strip(), speaker if isinstance(speaker, str) else None))
+        for w in (seg.get("words") if isinstance(seg.get("words"), list) else []):
             if isinstance(w, dict):
-                all_words.append(w)
+                try:
+                    ws, we = float(w["start"]), float(w["end"])
+                    if math.isfinite(ws) and math.isfinite(we) and 0 <= ws <= we and isinstance(w.get("word"), str):
+                        all_words.append(finite_json_value({**w, "start": ws, "end": we}))
+                except (KeyError, TypeError, ValueError):
+                    pass
 
     # Elle düzenlenmiş JSON'larda segmentler zaman sırasını kaybedebilir.
     # Yazıcılar ileri yönlü imleç kullandığı için önce sıralamak hem SRT'yi
@@ -5129,13 +5191,23 @@ def reexport_from_json(args):
     if not entries:
         raise RuntimeError("JSON'da yazılabilir segment yok.")
 
-    lang = data.get("language") or "tr"
+    export_warnings = []
+    if skipped:
+        export_warnings.append(f"{skipped} bozuk veya boş segment atlandı; {len(entries)} geçerli segment korundu.")
+        log(export_warnings[-1], "warn")
+    lang = data.get("language")
+    lang = lang if isinstance(lang, str) and re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*", lang) else "tr"
     set_language_conventions(lang)
-    stored_probability = data.get("language_probability")
+    def finite_metadata(key, fallback):
+        try:
+            value = float(data.get(key))
+            return value if math.isfinite(value) and value >= 0 else fallback
+        except (TypeError, ValueError):
+            return fallback
     info = _WxInfo(
         language=lang,
-        language_probability=1.0 if stored_probability is None else stored_probability,
-        duration=data.get("duration") or 0.0,
+        language_probability=min(1.0, finite_metadata("language_probability", 1.0)),
+        duration=finite_metadata("duration", max(e for _, e, _ in entries)),
     )
 
     emit("language", code=lang, probability=round(float(info.language_probability), 3),
@@ -5175,7 +5247,7 @@ def reexport_from_json(args):
         output_files.append(str(out_path))
         log(f"Yazıldı: {out_path}")
 
-    emit("done", files=output_files, segments=len(entries), language=lang, warnings=[])
+    emit("done", files=output_files, segments=len(entries), language=lang, warnings=export_warnings)
 
 
 # ===== Altyazı senkronlama (mevcut SRT'yi videoya hizala) =====

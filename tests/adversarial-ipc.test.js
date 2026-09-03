@@ -205,5 +205,56 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     sandbox.modelProcesses.add({}); complete({ filePaths: ['fake.mp4'], canceled: false });
     assert.equal((await pending).ok, false);
   });
+  await test('gömme sürerken kurtarma ve silme dosyalara dokunmadan reddedilir', async () => {
+    for (const channel of ['burnin:recovery:recover', 'burnin:recovery:discard']) {
+      const handler = register(channel, { authorizedBrowserSender: auth, burninJob: {} });
+      const result = await handler(authorized, 'test');
+      assert.equal(result.ok, false); assert.equal(result.running, true);
+    }
+    let finishInspect;
+    const context = vm.createContext({ authorizedBrowserSender: auth, burninJob: null,
+      inspectBurninRecovery: () => new Promise((resolve) => { finishInspect = resolve; }) });
+    context.ipcMain = { handle: (_channel, handler) => { context.recover = handler; } };
+    vm.runInContext(handlers.get('burnin:recovery:recover'), context);
+    const pending = context.recover(authorized, 'test');
+    context.burninJob = {};
+    finishInspect({ ok: true, recovery: { id: 'test' } });
+    assert.equal((await pending).running, true);
+    const discard = register('burnin:recovery:discard', { authorizedBrowserSender: auth, burninJob: null,
+      readBurninRecoveryState: () => ({ id: 'test' }), burninRecoveryProcessIsRunning: () => true });
+    assert.equal(discard(authorized, 'test').running, true);
+  });
+  await test('modal açıkken gezinme görünümü erkenden açmaz', async () => {
+    for (const occluded of [true, false]) {
+      const visibility = [];
+      const tab = { id: 't' };
+      const view = { setVisible: (v) => visibility.push(v), webContents: { loadURL: async () => {} } };
+      const navigate = register('browser:navigate', {
+        authorizedBrowserSender: auth, activeRequestedBrowserTab: () => tab,
+        normalizeBrowserUrl: (u) => u, waitForProtectedPlayback: async () => {},
+        ensureBrowserView: () => view, browserBounds: null, browserVisible: false,
+        browserModalOccluded: occluded, browserOverlay: {}, resetBrowserCaptureState: () => {},
+        startBrowserPolling: () => {}, scheduleBrowserSessionSave: () => {},
+        browserEventContext: () => ({}), browserNavigationState: () => ({}) });
+      assert((await navigate(authorized, { url: 'https://example.com', tabId: 't' })).ok);
+      assert.deepEqual(visibility, [!occluded]);
+    }
+  });
+  await test('pencere Widevine hazırlığı tamamlanmadan oluşturulur', async () => {
+    const start = main.indexOf('if (hasSingleInstanceLock) app.whenReady().then(');
+    const block = main.slice(start, main.indexOf('\n});', start) + 4);
+    const calls = []; let ready, finishDrm;
+    vm.runInNewContext(block, {
+      hasSingleInstanceLock: true,
+      app: { whenReady: () => ({ then: (fn) => { ready = fn; } }), getPath: () => 'test-profile' },
+      prepareWidevineComponents: () => { calls.push('prepare'); return new Promise((resolve) => { finishDrm = resolve; }); },
+      sweepStaleChatFiles() {}, sweepBrowserLiveAsrTemp() {}, sweepBrowserSubtitleFiles() {},
+      browserAssetStore: () => ({ sweepTempFiles() {} }),
+      ADAPTER_REGISTRY: { loadJsonDirectory() {} }, browserAdapterPluginStatus: null, path,
+      restoreBrowserSessionState() {}, createWindow: () => calls.push('window'), console });
+    await ready();
+    assert.deepEqual(calls, ['prepare', 'window']);
+    finishDrm();
+  });
   console.log(`adversarial-ipc: ${passed} test`);
 })().catch((error) => { console.error(error); process.exitCode = 1; });

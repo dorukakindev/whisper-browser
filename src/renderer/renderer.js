@@ -629,6 +629,12 @@ function setModalBackgroundInert(modal, inert) {
   });
 }
 
+function syncBrowserOcclusion() {
+  const places = $('browserPlacesPanel');
+  const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'));
+  if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
+}
+
 function openManagedModal(modal, initialFocus, returnFocus = null) {
   if (!modal) return;
   // Açık bir onay diyaloğunu yeni bir sonuç penceresiyle sessizce kapatmak,
@@ -646,7 +652,7 @@ function openManagedModal(modal, initialFocus, returnFocus = null) {
   modal.setAttribute('aria-hidden', 'false');
   setModalBackgroundInert(modal, true);
   document.body.classList.add('modal-open');
-  if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(true).catch(() => {});
+  syncBrowserOcclusion();
   requestAnimationFrame(() => {
     const target = initialFocus || modalFocusable(modal)[0] || modal.querySelector('.modal-content');
     target?.focus();
@@ -662,8 +668,8 @@ function closeManagedModal(modal, restoreFocus = true) {
   modal.setAttribute('aria-hidden', 'true');
   setModalBackgroundInert(modal, false);
   document.body.classList.remove('modal-open');
-  if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(false).catch(() => {});
   if (wasActive) _activeModal = null;
+  syncBrowserOcclusion();
   const restore = _modalReturnFocus;
   _modalReturnFocus = null;
   if (queued) {
@@ -1565,24 +1571,35 @@ $('applyAntiRepeat').addEventListener('click', () => {
 });
 
 let _settingsSaveWarningShown = false;
+function secretSettingValue(id) {
+  const control = $(id);
+  const value = control?.value.trim() || '';
+  // Kasa açılamadığı için boş gelen alan, kullanıcının silme isteği değildir.
+  return (value || control?.dataset.secretEdited === 'true') ? value : undefined;
+}
+document.addEventListener('change', (event) => {
+  if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey'].includes(event.target.id)) {
+    event.target.dataset.secretEdited = 'true';
+  }
+}, true);
 async function saveAppSettings() {
   let saved;
   try {
     saved = await window.api.saveSettings({
     glossary,
-    hfToken: $('hfToken').value.trim(),
+    hfToken: secretSettingValue('hfToken'),
     outputDir: state.outputDir || '',
     preset: $('presetSelect').value,
     presetReference: _presetReference,
     watchDir: state.watchDir || '',
     translate: {
-      apiKey: $('translateApiKey') ? $('translateApiKey').value.trim() : '',
+      apiKey: secretSettingValue('translateApiKey'),
       endpointPreset: $('translateEndpointPreset') ? $('translateEndpointPreset').value : '',
       customBaseUrl: $('translateBaseUrl') ? $('translateBaseUrl').value.trim() : '',
       model: $('translateModel') ? $('translateModel').value.trim() : '',
     },
     manga: {
-      apiKey: $('mangaApiKey') ? $('mangaApiKey').value.trim() : '',
+      apiKey: secretSettingValue('mangaApiKey'),
       endpointPreset: $('mangaEndpointPreset') ? $('mangaEndpointPreset').value : 'inherit',
       customBaseUrl: $('mangaBaseUrl') ? $('mangaBaseUrl').value.trim() : '',
       model: $('mangaModel') ? $('mangaModel').value.trim() : '',
@@ -1596,7 +1613,7 @@ async function saveAppSettings() {
       sfxStyle: $('browserMangaSfx')?.checked !== false,
     },
     llm: {
-      apiKey: $('llmApiKey') ? $('llmApiKey').value.trim() : '',
+      apiKey: secretSettingValue('llmApiKey'),
       endpointPreset: $('llmEndpointPreset') ? $('llmEndpointPreset').value : '',
       customBaseUrl: $('llmBaseUrl') ? $('llmBaseUrl').value.trim() : '',
       model: $('llmModel') ? $('llmModel').value.trim() : '',
@@ -4220,6 +4237,7 @@ function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
   panel.classList.toggle('hidden', !open);
+  syncBrowserOcclusion();
   $('browserPlacesToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) {
     loadBrowserPlaces(); renderBrowserPlaces();

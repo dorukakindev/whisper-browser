@@ -2,7 +2,8 @@
 
 // Keep ownership until the CHILD closes, not until taskkill exits. A failed
 // cancellation must never make a still-running process look idle.
-function terminateProcessTree(proc, { spawn, platform = process.platform, onWarning = () => {} }) {
+function terminateProcessTree(proc, { spawn, platform = process.platform, onWarning = () => {},
+  setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
   if (!proc || proc.exitCode != null || proc.signalCode != null) return false;
   let fallbackUsed = false;
   const fallback = () => {
@@ -18,8 +19,19 @@ function terminateProcessTree(proc, { spawn, platform = process.platform, onWarn
   }
   try {
     const killer = spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { windowsHide: true });
-    killer.once('error', fallback);
-    killer.once('exit', (code) => { if (code !== 0) fallback(); });
+    const timer = setTimeoutFn(() => {
+      cleanup();
+      fallback();
+      try { killer.kill?.(); } catch (_) {}
+    }, 5000);
+    timer?.unref?.();
+    const cleanup = () => {
+      clearTimeoutFn(timer);
+      proc.removeListener?.('close', cleanup);
+    };
+    proc.once?.('close', cleanup);
+    killer.once('error', () => { cleanup(); fallback(); });
+    killer.once('exit', (code) => { cleanup(); if (code !== 0) fallback(); });
   } catch (_) { fallback(); }
   return true;
 }

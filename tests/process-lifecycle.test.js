@@ -38,4 +38,15 @@ test('geç gelen taskkill hatası artık kapanmış çocuğa sinyal göndermez',
   f.proc.exitCode = 1; f.killer.emit('error', Error('late'));
   assert.equal(f.signals.length, 0);
 });
+test('yanıt vermeyen taskkill zaman aşımında bir kez yedek iptal yapar', () => {
+  const f = fixture(); let timeout, cleared = 0;
+  f.setTimeoutFn = (fn, ms) => { assert.equal(ms, 5000); timeout = fn; return 1; };
+  f.clearTimeoutFn = () => { cleared++; };
+  terminateProcessTree(f.proc, f);
+  timeout();
+  f.killer.emit('error', Error('late'));
+  assert.deepEqual(f.signals, ['SIGKILL']);
+  assert(cleared > 0);
+  assert.equal(f.proc.exitCode, null, 'çocuk kapanmadan işi bitmiş sayma');
+});
 console.log(`process-lifecycle: ${passed} test`);

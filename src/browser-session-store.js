@@ -62,9 +62,12 @@ function normalizeSessionTab(raw) {
 
 function normalizeBrowserSession(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const tabs = (Array.isArray(source.tabs) ? source.tabs : [])
-    .map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS);
+  const normalized = (Array.isArray(source.tabs) ? source.tabs : [])
+    .map(normalizeSessionTab).filter(Boolean);
+  const tabs = normalized.slice(0, MAX_SESSION_TABS);
   const activeTabId = cleanString(source.activeTabId, 128);
+  const active = normalized.find((tab) => tab.id === activeTabId);
+  if (active && !tabs.some((tab) => tab.id === activeTabId)) tabs[tabs.length - 1] = active;
   return {
     version: BROWSER_SESSION_VERSION,
     restoreEnabled: source.restoreEnabled !== false,
@@ -82,6 +85,8 @@ function readBrowserSession(filePath, fsModule = fs) {
   for (const candidate of [filePath, `${filePath}.bak`]) {
     try {
       const parsed = JSON.parse(fsModule.readFileSync(candidate, 'utf8'));
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.tabs)) continue;
+      if (parsed.tabs.length && !parsed.tabs.some((tab) => normalizeSessionTab(tab))) continue;
       return normalizeBrowserSession(parsed);
     } catch (_) {}
   }
@@ -96,7 +101,13 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs) {
   try {
     fsModule.writeFileSync(temp, `${JSON.stringify(session, null, 2)}\n`, 'utf8');
     if (fsModule.existsSync(filePath)) {
-      try { fsModule.copyFileSync(filePath, `${filePath}.bak`); } catch (_) {}
+      try {
+        const previous = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
+        if (previous && !Array.isArray(previous) && Array.isArray(previous.tabs)
+          && (!previous.tabs.length || previous.tabs.some((tab) => normalizeSessionTab(tab)))) {
+          fsModule.copyFileSync(filePath, `${filePath}.bak`);
+        }
+      } catch (_) {} // Bozuk ana kayıt sağlam yedeğin üstüne yazılmasın.
     }
     fsModule.renameSync(temp, filePath);
     return { ok: true, session };

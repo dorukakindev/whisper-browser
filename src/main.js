@@ -4651,7 +4651,10 @@ function createWindow() {
 }
 
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
-  await prepareWidevineComponents();
+  // Korumalı gezinme readiness promise'ini bekler; arayüz indirmeyi beklemez.
+  void prepareWidevineComponents().catch((error) => {
+    console.warn('Widevine hazırlığı başlatılamadı:', error.message);
+  });
   sweepStaleChatFiles();
   sweepBrowserLiveAsrTemp();
   sweepBrowserSubtitleFiles();
@@ -4870,7 +4873,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
   tab.overlay = browserOverlay;
   resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
-  view.setVisible(true);
+  view.setVisible(!browserModalOccluded);
   startBrowserPolling();
   try {
     await view.webContents.loadURL(url);
@@ -6392,7 +6395,9 @@ ipcMain.handle('burnin:recovery:get', (event) => {
 
 ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (burninJob) return { ok: false, running: true, error: 'Gömme sürerken kurtarma yapılamaz.' };
   const inspected = await inspectBurninRecovery();
+  if (burninJob) return { ok: false, running: true, error: 'Gömme başlatıldığı için kurtarma iptal edildi.' };
   const recovery = inspected.recovery;
   if (!inspected.available || !recovery || recovery.id !== String(recoveryId || '')) {
     return { ok: false, error: 'Kurtarılacak gömme işi bulunamadı.' };
@@ -6433,10 +6438,13 @@ ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
 
 ipcMain.handle('burnin:recovery:discard', (event, recoveryId) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (burninJob) return { ok: false, running: true, error: 'Gömme sürerken kurtarma dosyaları silinemez.' };
   const recovery = readBurninRecoveryState();
   if (!recovery || recovery.id !== String(recoveryId || '')) {
     return { ok: false, error: 'Kurtarma kaydı bulunamadı.' };
   }
+  if (burninRecoveryProcessIsRunning(recovery)) return { ok: false, running: true,
+    error: 'Önceki FFmpeg süreci hâlâ çalışıyor; kurtarma dosyaları korunuyor.' };
   try {
     if (!fs.existsSync(recovery.outPath)) restoreNewestBurninReplacementBackup(recovery.outPath);
     else cleanupBurninReplacementBackups(recovery.outPath);

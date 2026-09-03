@@ -124,8 +124,10 @@ test('tarayıcı modalı WebContentsView katmanını geçici olarak gizliyor', (
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
   assert((preload.match(/setBrowserOccluded:/g) || []).length === 1, 'modal okluzyon köprüsü yinelenmiş veya eksik');
-  assert(/openManagedModal[\s\S]{0,1100}setBrowserOccluded\(true\)/.test(js), 'modal açılırken web görünümü gizlenmiyor');
-  assert(/closeManagedModal[\s\S]{0,500}setBrowserOccluded\(false\)/.test(js), 'modal kapanırken web görünümü geri açılmıyor');
+  const open = js.slice(js.indexOf('function openManagedModal('), js.indexOf('function closeManagedModal('));
+  const close = js.slice(js.indexOf('function closeManagedModal('), js.indexOf("document.addEventListener('keydown'", js.indexOf('function closeManagedModal(')));
+  assert(open.includes('syncBrowserOcclusion();'), 'modal açılışı ortak katman kontrolüne bağlı değil');
+  assert(close.includes('syncBrowserOcclusion();'), 'modal kapanışı ortak katman kontrolüne bağlı değil');
   assert(/ipcMain\.handle\('browser:setOccluded'/.test(main), 'okluzyon IPC işleyicisi yok');
 });
 
