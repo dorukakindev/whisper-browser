@@ -5859,7 +5859,7 @@ def main():
     parser.add_argument("--translate-api-key", default="")
     parser.add_argument("--translate-base-url", default="https://api.shuaiapi.com/v1",
                         help="OpenAI uyumlu endpoint; shuaiapi rotalarinda otomatik yedekleme yapilir")
-    parser.add_argument("--translate-model", default="gpt-4.1-mini")
+    parser.add_argument("--translate-model", default="gemini-3.8-flash")
     parser.add_argument("--translate-workers", type=int, default=4)
     parser.add_argument("--translate-register", default="documentary",
                         choices=["documentary", "drama", "comedy", "action", "general"])

@@ -872,8 +872,25 @@ function readPublicSettings() {
   }
 }
 
+function migrateSubtitleModelDefault(settings) {
+  if (settings.subtitleModelDefault38Applied) return settings;
+  const translate = settings.translate || {};
+  const ui = settings.ui || {};
+  const preset = translate.endpointPreset || ui.translateEndpointPreset || 'https://api.shuaiapi.com/v1';
+  const endpoint = preset === 'custom' ? (translate.customBaseUrl || ui.translateBaseUrl || '') : preset;
+  let shuai = false;
+  try { shuai = ['api.shuaiapi.com', 'cdn.shuaiapi.com', 'oai.sb', 'api.oai.sb'].includes(new URL(endpoint).hostname); } catch (_) {}
+  const result = { ...settings, subtitleModelDefault38Applied: true };
+  if (shuai && (translate.model || ui.translateModel) === 'gemini-3.7-flash') {
+    result.translate = { ...translate, model: 'gemini-3.8-flash' };
+    result.ui = { ...ui, translateModel: 'gemini-3.8-flash' };
+  }
+  // İşaret normal ayar kaydında kalıcılaşır; sonradan elle seçilen 3.7'yi ezme.
+  return result;
+}
+
 function loadSettings() {
-  const settings = readPublicSettings();
+  const settings = migrateSubtitleModelDefault(readPublicSettings());
   const split = splitSettingsSecrets(settings);
   const legacySecretFields = Object.keys(split.secrets);
 
@@ -1893,7 +1910,7 @@ function browserTranslationConfig(overrides = {}) {
   return {
     apiKey: String(translate.apiKey || ''),
     endpoint: endpoint || 'https://api.shuaiapi.com/v1',
-    model: String(translate.model || ui.translateModel || 'gpt-4.1-mini'),
+    model: String(translate.model || ui.translateModel || 'gemini-3.8-flash'),
     targetLanguage: /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(requestedTargetLanguage) ? requestedTargetLanguage : 'tr',
     sourceLanguage: /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(requestedSourceLanguage) ? requestedSourceLanguage : '',
     register: String(overrides.register || ui.translateRegister || 'documentary').slice(0, 32),
