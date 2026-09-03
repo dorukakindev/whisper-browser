@@ -5105,6 +5105,15 @@ function updateBrowserNavigation(data, options = {}) {
   if (!data) return;
   if (data.tabId && (data.tabId !== player.browserActiveTabId || !player.browserTabEventGate.accept(data))) return false;
   const tab = browserTabState();
+  const previousMediaId = tab?.mediaId || '';
+  const nextMediaId = data.mediaId !== undefined ? (data.mediaId || '') : previousMediaId;
+  const nextMediaKey = nextMediaId
+    ? `browser:${nextMediaId}`
+    : `browser:${browserPlaceKey(data.url) || data.url || ''}`;
+  const pageChanged = !!data.url && data.url !== player.browserPageUrl;
+  // Aynı video içindeki hash/query/pushState geçişleri yalnız adresi günceller;
+  // altyazı çalışma alanını ancak kararlı medya kimliği değiştiğinde sıfırla.
+  const mediaChanged = pageChanged && (!previousMediaId || !nextMediaId || previousMediaId !== nextMediaId);
   if (tab) {
     tab.generation = Math.max(Number(tab.generation) || 0, Number(data.generation) || 0);
     if (data.url !== undefined) tab.url = data.url || '';
@@ -5130,11 +5139,10 @@ function updateBrowserNavigation(data, options = {}) {
     securityMark.setAttribute('aria-label', securityText);
   }
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
-  if (!options.preserveWorkspace && data.url && data.url !== player.browserPageUrl) {
+  if (!options.preserveWorkspace && mediaChanged) {
     // Anahtar degisimi eski kaydi diske yazar. Yeni URL'yi once state'e
     // koyarsak onceki sayfanin konumu yeni sayfanin basligi altinda kalir.
-    setMediaKey(data.mediaId ? `browser:${data.mediaId}` : `browser:${browserPlaceKey(data.url) || data.url}`);
-    player.browserPageUrl = data.url;
+    setMediaKey(nextMediaKey);
     player.browserPageTitle = data.title || '';
     player.browserTime = 0;
     player.browserDuration = 0;
@@ -5146,6 +5154,9 @@ function updateBrowserNavigation(data, options = {}) {
     applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
     scheduleBrowserOverlaySync();
+  }
+  if (pageChanged) {
+    player.browserPageUrl = data.url;
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
     loadBrowserPlaces();
   }

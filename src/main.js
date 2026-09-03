@@ -4341,19 +4341,28 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
     if (isMainFrame) {
-      stopBrowserManga(tab, true);
-      tab.mangaTranslated = 0;
-      tab.mangaVisible = false;
-      tab.generation += 1;
-      sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
-      rememberBrowserVisit(wc.getURL(), wc.getTitle());
-      tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
+      const nextUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
+      const identity = ADAPTER_REGISTRY.mediaIdentity(nextUrl);
+      // Oynatıcılar zaman, dil veya panel durumunu pushState/hash ile URL'ye
+      // yazabiliyor. Medya kimliği aynıysa bu bir kaynak değişimi değildir;
+      // yakalanmış izleri, canlı çeviriyi ve manga katmanını koru.
+      const mediaChanged = !tab.mediaId || tab.mediaId !== identity.key;
+      if (mediaChanged) {
+        stopBrowserManga(tab, true);
+        tab.mangaTranslated = 0;
+        tab.mangaVisible = false;
+        tab.generation += 1;
+        sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+      }
+      rememberBrowserVisit(nextUrl, wc.getTitle());
+      tab.restoredUrl = nextUrl;
       tab.restoredTitle = wc.getTitle() || '';
-      const identity = ADAPTER_REGISTRY.mediaIdentity(tab.restoredUrl);
       tab.mediaId = identity.key;
       tab.service = identity.service;
       tab.contentId = identity.contentId;
-      if (tab.id === browserActiveTabId) resetBrowserCaptureState({ cancelTranslation: true });
+      if (mediaChanged && tab.id === browserActiveTabId) {
+        resetBrowserCaptureState({ cancelTranslation: true });
+      }
       scheduleBrowserSessionSave();
     }
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab) });

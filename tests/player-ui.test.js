@@ -144,6 +144,26 @@ test('tarayıcı sekmesi güncellenirken odak ve yüklenme durumu korunuyor', ()
     'gezinti olayı tüm sekme şeridini gereksiz yere yeniden kuruyor');
 });
 
+test('aynı medyadaki SPA adres değişimi yakalanmış altyazıları sıfırlamıyor', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const inPage = main.slice(main.indexOf("wc.on('did-navigate-in-page'"),
+    main.indexOf("wc.on('page-title-updated'"));
+  assert(/const mediaChanged = !tab\.mediaId \|\| tab\.mediaId !== identity\.key/.test(inPage),
+    'ana süreç SPA geçişinde kararlı medya kimliğini karşılaştırmıyor');
+  assert(/if \(mediaChanged\) \{[\s\S]*stopBrowserManga/.test(inPage)
+    && /if \(mediaChanged && tab\.id === browserActiveTabId\)/.test(inPage),
+  'aynı medya içindeki SPA geçişi manga veya altyazı durumunu hâlâ sıfırlıyor');
+
+  const navigation = js.slice(js.indexOf('function updateBrowserNavigation'),
+    js.indexOf('function renderBrowserCueAt'));
+  assert(/previousMediaId/.test(navigation) && /previousMediaId !== nextMediaId/.test(navigation),
+    'renderer medya kimliği yerine yalnız URL değişimine bakıyor');
+  assert(/if \(!options\.preserveWorkspace && mediaChanged\)/.test(navigation),
+    'renderer aynı medyadaki adres değişiminde altyazı çalışma alanını temizliyor');
+  assert(/if \(pageChanged\) \{[\s\S]*player\.browserPageUrl = data\.url/.test(navigation),
+    'korunan SPA geçişinde yeni adres state içine yazılmıyor');
+});
+
 test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşılır', () => {
   assert(/browserPlacesPanel[^\n]*addEventListener\('keydown'/.test(js)
     && /event\.key !== 'Escape'/.test(js), 'arama alanındayken Escape geçmiş panelini kapatmıyor');
