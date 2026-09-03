@@ -4030,6 +4030,11 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
       }
     }
     retried = releaseReceipts.length;
+    // Son yanıt ayrıştırılırken gezinme/sekme değişmiş olabilir. Eski teslimat
+    // kimliklerini yeni belgenin ACK/RELEASE köprüsüne göndermeyelim.
+    if (!isCurrentBrowserContext(context)) {
+      return { stale: true, attempted, retried, pendingBeforeAck };
+    }
     if (ackReceipts.length) await withTimeout(executeBrowserFrames(browserCaptureAckScript(ackReceipts)),
       BROWSER_SCRIPT_TIMEOUT, 'Yakalama onayı zaman aşımına uğradı.');
     if (releaseReceipts.length) await withTimeout(executeBrowserFrames(browserCaptureReleaseScript(releaseReceipts)),

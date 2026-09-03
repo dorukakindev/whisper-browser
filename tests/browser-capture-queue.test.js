@@ -180,7 +180,7 @@ test('20.000 rastgele interleaving kuyruk ve kira invariantlarını korur', () =
   }
 });
 
-test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
+  test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
   const functionBody = (name, nextName) => {
     const start = main.indexOf(`function ${name}(`);
     const end = main.indexOf(`function ${nextName}(`, start + 1);
@@ -207,7 +207,13 @@ test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
     'gecikmiş işleme generation kontrolünden önce ACK/RELEASE üretiyor');
   assert.match(main, /responseType === 'json'[\s\S]{0,120}JSON\.stringify\(this\.response/);
   assert.match(main, /const browserLastCaptureDropped = new Map\(\)/);
-});
+  });
+
+  test('ana süreç ACK ve RELEASE öncesi bağlamı son kez doğrular', () => {
+    const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+    assert.match(main,
+      /retried = releaseReceipts\.length;[\s\S]{0,420}if \(!isCurrentBrowserContext\(context\)\)[\s\S]{0,260}browserCaptureAckScript/);
+  });
 
 test('pencere kapanışı yalnız bekleyen parçayı, sekme kapanışı ölçülemeyen kuyruğu da uyarır', () => {
   const drainBodyStart = main.indexOf('async function drainBrowserCaptureBeforeClose(');

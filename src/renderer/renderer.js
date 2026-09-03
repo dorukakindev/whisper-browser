@@ -2742,8 +2742,9 @@ function playerJobEvent(event) {
 }
 
 window.api.onEvent((event) => {
-  if (event.queueItemId != null && state.queueRunning
-      && event.queueItemId !== state.currentQueueId) return;
+  // Kuyruk durdurulmuş veya yeni bir tekil iş başlamış olsa bile eski Python
+  // sürecinden geç gelen terminal/progress olayı yeni arayüz durumuna sızmasın.
+  if (event.queueItemId != null && event.queueItemId !== state.currentQueueId) return;
   const playerConsumed = playerJobEvent(event);
   if (playerConsumed) return;
   // AI isleri (sohbet / acikla) yalnizca oynatici tarafinda islenir. Backend

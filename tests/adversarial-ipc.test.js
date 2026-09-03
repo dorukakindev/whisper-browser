@@ -141,6 +141,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     for (const type of ['exit', 'done', 'error', 'progress']) callback({ type, queueItemId: 41 });
     assert.equal(processed, 0);
     callback({ type: 'progress', queueItemId: 42 }); assert.equal(processed, 1);
+    state.queueRunning = false;
+    state.currentQueueId = null;
+    callback({ type: 'done', queueItemId: 42 }); assert.equal(processed, 1);
   });
   await test('büyük queue:save mevcut kayda dokunmaz', async () => {
     let writes = 0;
