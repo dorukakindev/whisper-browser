@@ -4809,6 +4809,8 @@ function renderBrowserAcquisition(acquisition) {
 }
 
 function clearBrowserTracks(message) {
+  const tab = browserTabState();
+  if (tab) tab.browserTrackNoticeKey = '';
   clearDeferredBrowserTrackAction();
   if (player.browserTranslationTrackId && window.api.stopBrowserTranslation) {
     window.api.stopBrowserTranslation(player.browserActiveTabId).catch(() => {});
@@ -4923,13 +4925,25 @@ function renderBrowserTracks(selectedId) {
   actions.classList.toggle('hidden', player.browserTracks.length === 0);
   if (player.browserTracks.length) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
-    if (chosen.role === 'translation') {
-      setBrowserSignal(`Daha önce hazırlanmış çeviri bulundu${chosen.language ? ` (${chosen.language})` : ''}.`, true,
-        { priority: 45, holdMs: 4000 });
-    } else {
-      setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true,
-        { priority: 45, holdMs: 4000, action: 'translate' });
-    }
+    announceBrowserTrack(chosen);
+  }
+}
+
+function announceBrowserTrack(track) {
+  const tab = browserTabState();
+  if (!tab || !track) return;
+  const key = `${track.id}|${track.role || 'source'}`;
+  // Yeni segmentler aynı izi tekrar tekrar yayınlar. Bu liste yenilemeleri
+  // çeviri ilerleme/hata bilgisinin yerine tekrar "Çevrilsin mi?" yazmamalı.
+  if (tab.browserTrackNoticeKey === key) return;
+  tab.browserTrackNoticeKey = key;
+  if (player.browserTranslationTrackId === track.id) return;
+  if (track.role === 'translation') {
+    setBrowserSignal(`Daha önce hazırlanmış çeviri bulundu${track.language ? ` (${track.language})` : ''}.`, true,
+      { priority: 45, holdMs: 4000 });
+  } else {
+    setBrowserSignal(`Altyazı bulundu${track.language ? ` (${track.language})` : ''}. Çevrilsin mi?`, true,
+      { priority: 45, holdMs: 4000, action: 'translate' });
   }
 }
 
@@ -5309,46 +5323,74 @@ async function useBrowserTrackPair() {
 }
 
 async function loadManualBrowserSubtitle() {
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
+  const isCurrent = () => player.workspaceMode === 'browser'
+    && player.browserActiveTabId === tabId && !staleGeneration(gen);
   const path = await window.api.selectFile('subtitle').catch(() => null);
-  if (!path) return;
+  if (!path || !isCurrent()) return;
   addSubtitleOption(path, `Dosya · ${String(path).split(/[\\/]/).pop()}`);
   $('playerSubSelect').value = path;
   await loadSubtitle(path);
-  if (player.subPath !== path) return;
+  if (!isCurrent() || player.subPath !== path) return;
   player.browserLoadedTrackId = '';
   setPlayerSidebarCollapsed(false);
   setBrowserSignal('Dosyadaki altyazı web videosunun üzerine yüklendi.', true);
 }
 
+async function runBrowserSubtitleExport(prepare, successLabel) {
+  if (player.browserSubtitleExportBusy || player.workspaceMode !== 'browser') return;
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
+  const isCurrent = () => player.workspaceMode === 'browser'
+    && player.browserActiveTabId === tabId && !staleGeneration(gen);
+  player.browserSubtitleExportBusy = true;
+  updateBrowserTranslationExportButton();
+  try {
+    const payload = await prepare();
+    if (!isCurrent()) return;
+    const result = await window.api.exportBrowserSubtitle(payload);
+    if (!isCurrent()) return;
+    if (result?.ok) setBrowserSignal(`${successLabel}${result.path ? `: ${result.path}` : '.'}`, true);
+    else if (!result?.canceled) throw new Error(result?.error || 'Kaydetme işleminden yanıt alınamadı.');
+  } catch (error) {
+    if (isCurrent()) setBrowserSignal(`Dışa aktarılamadı: ${error?.message || 'Beklenmeyen hata.'} Yeniden deneyin.`, false);
+  } finally {
+    player.browserSubtitleExportBusy = false;
+    updateBrowserTranslationExportButton();
+  }
+}
+
 async function exportSelectedBrowserTrack() {
   const track = browserTrackSelection(false);
-  const tabId = player.browserActiveTabId;
-  let cues = track ? [] : player.cues.slice();
-  let label = player.browserPageTitle || 'web-altyazi';
-  if (track && track.path) {
-    const result = await window.api.readSubtitle(track.path).catch(() => null);
-    if (player.browserActiveTabId !== tabId) return;
-    if (result && result.ok) {
-      cues = parseSubtitles(result.text);
-      label = `${label} ${track.language || track.label || ''}`.trim();
-    }
-  }
-  if (!cues.length) {
-    setBrowserSignal(track ? 'Seçilen altyazı okunamadı veya boş; başka bir iz dışa aktarılmadı.' : 'Dışa aktarılacak altyazı yüklenmedi.', false);
-    return;
-  }
   const format = $('browserExportFormat')?.value === 'vtt' ? 'vtt' : 'srt';
-  const result = await window.api.exportBrowserSubtitle({ cues, title: label, format }).catch(() => null);
-  if (result && result.ok) setBrowserSignal('Altyazı dosyası dışa aktarıldı.', true);
-  else if (result && !result.canceled) setBrowserSignal(`Altyazı kaydedilemedi: ${result.error || 'bilinmeyen hata'}`, false);
+  let cues = track ? [] : (player.cuesRaw || player.cues).slice();
+  let label = player.browserPageTitle || 'web-altyazi';
+  return runBrowserSubtitleExport(async () => {
+    if (track && track.path) {
+      const result = await window.api.readSubtitle(track.path);
+      if (result && result.ok) {
+        cues = parseSubtitles(result.text);
+        label = `${label} ${track.language || track.label || ''}`.trim();
+      }
+    }
+    if (!cues.length) throw new Error(track
+      ? 'Seçilen altyazı okunamadı veya boş; başka bir iz dışa aktarılmadı.'
+      : 'Dışa aktarılacak altyazı yüklenmedi.');
+    return { cues, title: label, format };
+  }, 'Altyazı dışa aktarıldı');
 }
 
 function updateBrowserTranslationExportButton() {
+  const busy = !!player.browserSubtitleExportBusy;
+  const sourceButton = $('browserTrackExport');
+  if (sourceButton) { sourceButton.disabled = busy; sourceButton.setAttribute('aria-busy', String(busy)); }
   const button = $('browserTranslationExport');
   if (!button) return;
   const count = player.browserLiveTranslations?.size || browserSubtitleRoleCues().translation.length || 0;
-  button.disabled = count === 0;
-  button.title = count
+  button.disabled = busy || count === 0;
+  button.setAttribute('aria-busy', String(busy));
+  button.title = busy ? 'Dışa aktarma işlemi sürüyor; kaydetme penceresini tamamlayın.' : count
     ? `${count} çevrilmiş altyazı satırını dışa aktar`
     : 'Çeviri satırları hazır olduğunda kullanılabilir';
 }
@@ -5364,20 +5406,25 @@ function updateBrowserTranslationRetryButton() {
 async function exportBrowserTranslation() {
   const liveCues = [...(player.browserLiveTranslations?.values?.() || [])];
   const roleCues = browserSubtitleRoleCues();
-  const cues = (liveCues.length ? liveCues : roleCues.translation)
+  // Dosyadan seçilmiş çeviride düzenlenmiş ham bloklar esastır. Canlı Map
+  // yükleme anının kopyası olabilir; onu seçmek kullanıcının düzeltmesini kaybettirir.
+  const primary = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId && track.role === 'translation');
+  const secondary = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId2 && track.role === 'translation');
+  const selected = secondary || primary;
+  const fileCues = secondary ? (player.cues2Raw || player.cues2) : primary ? (player.cuesRaw || player.cues) : null;
+  const cues = (fileCues || (liveCues.length ? liveCues : roleCues.translation))
     .filter((cue) => String(cue.text || '').trim())
+    .map((cue) => ({ ...cue }))
     .sort((a, b) => Number(a.start) - Number(b.start) || Number(a.end) - Number(b.end));
   if (!cues.length) {
     setBrowserSignal('Dışa aktarılacak canlı çeviri henüz hazır değil.', false);
     return;
   }
   const format = $('browserExportFormat')?.value === 'vtt' ? 'vtt' : 'srt';
-  const language = $('translateTo')?.value || 'tr';
-  const result = await window.api.exportBrowserSubtitle({
+  const language = selected?.language || $('translateTo')?.value || 'tr';
+  return runBrowserSubtitleExport(async () => ({
     cues, title: `${player.browserPageTitle || 'web-altyazi'}-${language}-ceviri`, format,
-  }).catch((error) => ({ ok: false, error: error.message }));
-  if (result?.ok) setBrowserSignal(`Çeviri dışa aktarıldı: ${result.path}`, true);
-  else if (!result?.canceled) setBrowserSignal(`Çeviri dışa aktarılamadı: ${result?.error || 'bilinmeyen hata'}`, false);
+  }), 'Çeviri dışa aktarıldı');
 }
 
 async function retryFailedBrowserTranslation() {

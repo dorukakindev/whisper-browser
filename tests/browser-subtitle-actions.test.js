@@ -16,14 +16,16 @@ function action(name, next, context) {
   let exported = 0;
   const signals = [];
   const exportContext = {
-    player: { browserActiveTabId: 'a', cues: [{ text: 'Başka iz' }] },
+    player: { workspaceMode: 'browser', browserActiveTabId: 'a', cues: [{ text: 'Başka iz' }] },
+    currentGeneration: () => 1, staleGeneration: () => false,
+    $: () => null, updateBrowserTranslationExportButton() {},
     browserTrackSelection: () => ({ id: 'missing', path: 'missing.srt' }),
     window: { api: { readSubtitle: async () => ({ ok: false }),
       exportBrowserSubtitle: async () => { exported++; return { ok: true }; } } },
     setBrowserSignal: (...args) => signals.push(args),
   };
   vm.createContext(exportContext);
-  vm.runInContext(source.slice(source.indexOf('async function exportSelectedBrowserTrack('),
+  vm.runInContext(source.slice(source.indexOf('async function runBrowserSubtitleExport('),
     source.indexOf('function updateBrowserTranslationExportButton(')), exportContext);
   await exportContext.exportSelectedBrowserTrack();
   assert.equal(exported, 0);
