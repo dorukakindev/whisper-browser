@@ -16,6 +16,7 @@ function runFunction(name, context) {
     [2, () => { throw Error('Unexpected render'); }]]);
   const ctx = {
     closeBrowserFind() {},
+    setBrowserDownloadsOpen() {},
     player: { shadowResumeTimer: 1, openIntent: 0, probeRequestSeq: 0 },
     _liveCueRenderTimer: 2, clearTimeout: (id) => pending.delete(id),
     $: (id) => id === 'playerVideo' ? { pause() {} } : { classList: { add() {} } },

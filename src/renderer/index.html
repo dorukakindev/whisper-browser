@@ -1067,6 +1067,11 @@
                 title="Bu siteyi yer imlerine ekle" aria-label="Bu siteyi yer imlerine ekle" aria-pressed="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg>
               </button>
+              <button class="btn-icon browser-place-button" id="browserDownloadsToggle" type="button"
+                title="Tarayıcı indirmeleri" aria-label="Tarayıcı indirmeleri" aria-expanded="false" aria-controls="browserDownloadsPanel">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>
+                <span id="browserDownloadsBadge" class="browser-download-badge hidden" aria-hidden="true"></span>
+              </button>
               <button class="btn-icon browser-place-button" id="browserPlacesToggle" type="button"
                 title="Yer imleri ve geçmiş" aria-label="Yer imleri ve geçmiş" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v13a.5.5 0 0 1-.8.4L12 14.6l-7.2 5.3a.5.5 0 0 1-.8-.4v-13Z"/><path d="M8 8h8M8 11h6"/></svg>
@@ -1089,6 +1094,17 @@
               <button class="btn-icon" id="browserFindClose" type="button" title="Aramayı kapat (Esc)" aria-label="Aramayı kapat">×</button>
             </div>
           </div>
+
+          <section class="browser-places browser-downloads hidden" id="browserDownloadsPanel" role="dialog" aria-modal="false"
+            aria-hidden="true" aria-labelledby="browserDownloadsTitle">
+            <div class="browser-places-head">
+              <strong id="browserDownloadsTitle">Tarayıcı indirmeleri</strong>
+              <button class="btn-icon browser-dismiss" id="browserDownloadsClose" type="button" title="Kapat (Esc)" aria-label="İndirme listesini kapat">×</button>
+            </div>
+            <p class="browser-download-note">Bu oturumdaki son 100 indirme. Dosyalar otomatik açılmaz.</p>
+            <p id="browserDownloadsStatus" class="browser-download-note" role="status" aria-live="polite"></p>
+            <div id="browserDownloadsList" class="browser-download-list"></div>
+          </section>
 
           <section class="browser-places hidden" id="browserPlacesPanel" role="dialog" aria-modal="false"
             aria-hidden="true" aria-label="Yer imleri ve geçmiş">

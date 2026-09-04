@@ -656,7 +656,9 @@ function setModalBackgroundInert(modal, inert) {
 
 function syncBrowserOcclusion() {
   const places = $('browserPlacesPanel');
-  const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'));
+  const downloads = $('browserDownloadsPanel');
+  const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
+    || !!(downloads && !downloads.classList.contains('hidden'));
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
 }
 
@@ -4395,6 +4397,7 @@ function setBrowserChromeCollapsed(collapsed, persist = true) {
   }
   if (active) {
     setBrowserPlacesOpen(false);
+    setBrowserDownloadsOpen(false);
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserChromeCollapsed', player.browserChromeCollapsed ? 'true' : 'false'); } catch (_) {}
@@ -4530,6 +4533,7 @@ async function loadBrowserPlaces() {
 function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
+  if (open) setBrowserDownloadsOpen(false);
   panel.classList.toggle('hidden', !open);
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   syncBrowserOcclusion();
@@ -4541,6 +4545,96 @@ function setBrowserPlacesOpen(open) {
     $('browserPlacesToggle')?.focus({ preventScroll: true });
   }
 }
+
+const browserDownloadState = { revision: -1, items: [], active: 0, message: '', rows: new Map() };
+
+function browserDownloadBytes(value) {
+  if (!(value > 0)) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const power = Math.min(4, Math.floor(Math.log(value) / Math.log(1024)));
+  return `${(value / 1024 ** power).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} ${units[power]}`;
+}
+
+function receiveBrowserDownloads(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.items) || snapshot.revision < browserDownloadState.revision) return;
+  Object.assign(browserDownloadState, snapshot);
+  const badge = $('browserDownloadsBadge');
+  if (badge) { badge.textContent = snapshot.active || ''; badge.classList.toggle('hidden', !snapshot.active); }
+  const title = snapshot.active ? `Tarayıcı indirmeleri (${snapshot.active} sürüyor)` : 'Tarayıcı indirmeleri';
+  $('browserDownloadsToggle')?.setAttribute('aria-label', title);
+  $('browserDownloadsToggle')?.setAttribute('title', title);
+  if (!$('browserDownloadsPanel')?.classList.contains('hidden')) renderBrowserDownloads();
+}
+
+function renderBrowserDownloads() {
+  const list = $('browserDownloadsList'), status = $('browserDownloadsStatus');
+  if (!list || !status) return;
+  status.textContent = browserDownloadState.message || (browserDownloadState.active
+    ? `${browserDownloadState.active} indirme sürüyor.` : browserDownloadState.items.length
+      ? 'Devam eden indirme yok.' : 'Henüz indirme yok. Bir web sayfasındaki indirme bağlantısını kullanın.');
+  const ids = new Set(browserDownloadState.items.map(item => item.id));
+  for (const [id, row] of browserDownloadState.rows) {
+    if (!ids.has(id)) { row.root.remove(); browserDownloadState.rows.delete(id); }
+  }
+  for (const item of [...browserDownloadState.items].reverse()) {
+    let row = browserDownloadState.rows.get(item.id);
+    if (!row) {
+      const root = document.createElement('article'); root.className = 'browser-download-row';
+      const name = document.createElement('h4'); name.className = 'browser-download-name'; name.dir = 'auto';
+      const info = document.createElement('p'); info.className = 'browser-download-note';
+      const progress = document.createElement('progress'); progress.max = 100; progress.setAttribute('aria-label', 'İndirme ilerlemesi');
+      const saved = document.createElement('span'); saved.className = 'browser-download-path'; saved.dir = 'auto';
+      const actions = document.createElement('div'); actions.className = 'browser-download-actions';
+      const buttons = {};
+      for (const [command, label] of [['cancel', 'İptal et'], ['resume', 'Devam et'], ['reveal', 'Klasörde göster']]) {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm'; button.textContent = label;
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          const result = await window.api.browserDownloads(command, item.id).catch(() => ({ ok: false, error: 'İndirme işlemi gerçekleştirilemedi.' }));
+          button.disabled = false;
+          if (!result?.ok) status.textContent = result?.error || 'İşlem gerçekleştirilemedi.';
+        });
+        actions.appendChild(button); buttons[command] = button;
+      }
+      root.append(name, info, progress, saved, actions); list.prepend(root);
+      row = { root, name, info, progress, saved, buttons }; browserDownloadState.rows.set(item.id, row);
+    }
+    row.name.textContent = item.filename;
+    const label = item.state === 'completed' ? 'Tamamlandı' : item.state === 'cancelled' ? 'İptal edildi'
+      : item.state === 'interrupted' ? (item.active ? 'Bağlantı kesildi' : 'İndirme başarısız') : 'İndiriliyor';
+    row.info.textContent = `${label} · ${browserDownloadBytes(item.received)}${item.total ? ` / ${browserDownloadBytes(item.total)}` : ' (toplam boyut bilinmiyor)'}`;
+    row.progress.hidden = !item.active;
+    if (item.total > 0) row.progress.value = Math.min(100, item.received / item.total * 100);
+    else row.progress.removeAttribute('value');
+    row.saved.textContent = item.path || 'Kaydetme konumu henüz seçilmedi.';
+    row.buttons.cancel.classList.toggle('hidden', !item.active);
+    row.buttons.resume.classList.toggle('hidden', !item.canResume);
+    row.buttons.reveal.classList.toggle('hidden', item.state !== 'completed' || !item.path);
+  }
+}
+
+function setBrowserDownloadsOpen(open) {
+  const panel = $('browserDownloadsPanel');
+  if (!panel) return;
+  if (open) setBrowserPlacesOpen(false);
+  panel.classList.toggle('hidden', !open);
+  panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  $('browserDownloadsToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  syncBrowserOcclusion();
+  if (open) {
+    renderBrowserDownloads();
+    $('browserDownloadsClose')?.focus({ preventScroll: true });
+    window.api.browserDownloads('list').then(result => {
+      if (result?.ok) receiveBrowserDownloads(result.downloads);
+    }).catch(() => { $('browserDownloadsStatus').textContent = 'İndirme listesi alınamadı.'; });
+  } else if (panel.contains(document.activeElement)) $('browserDownloadsToggle')?.focus({ preventScroll: true });
+}
+
+$('browserDownloadsToggle')?.addEventListener('click', () => setBrowserDownloadsOpen($('browserDownloadsPanel').classList.contains('hidden')));
+$('browserDownloadsClose')?.addEventListener('click', () => setBrowserDownloadsOpen(false));
+$('browserDownloadsPanel')?.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setBrowserDownloadsOpen(false); }
+});
 
 function renderBrowserDiagnostics(diagnostics) {
   if (!diagnostics || typeof diagnostics !== 'object') return;
@@ -5540,6 +5634,7 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
   if (mode !== previousMode) {
     closeBrowserFind(false);
+    setBrowserDownloadsOpen(false);
     player.abA = null;
     player.abB = null;
     $('abLoopBtn')?.classList.remove('active');
@@ -6011,6 +6106,8 @@ if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEv
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  // İndirme oturum genelindedir; kaynak sekme kapansa bile sonucu göster.
+  if (event.type === 'downloads') { receiveBrowserDownloads(event.downloads); return; }
   // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
   if (['find-open', 'find-result', 'find-reset'].includes(event.type)) { receiveBrowserFindEvent(event); return; }
   if (event.type === 'tabs-changed') {
@@ -9919,6 +10016,7 @@ function openPlayer() {
 
 function closePlayer() {
   closeBrowserFind(false);
+  setBrowserDownloadsOpen(false);
   player.cancelHoldSpeed?.();
   const video = $('playerVideo');
   player.seekDragging = false;
@@ -11205,7 +11303,9 @@ document.addEventListener('keydown', (e) => {
       e.preventDefault();
       const subMenu = $('subtitleModeMenu');
       const places = $('browserPlacesPanel');
-      if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
+      const downloads = $('browserDownloadsPanel');
+      if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
+      else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
       else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
       else if (player.selectedWord) hideWordInspector();
       else if (!$('shortcutHelp')?.classList.contains('hidden')) setShortcutHelpOpen(false);

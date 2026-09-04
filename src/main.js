@@ -9,6 +9,7 @@ const { isIP } = require('net');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createBrowserPageFind } = require('./browser-page-find');
+const { createBrowserDownloads } = require('./browser-downloads');
 const { canonicalLocalPath, SubtitleFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const subtitleFileAccess = new SubtitleFileAccess();
 const {
@@ -1710,6 +1711,13 @@ function rememberBrowserVisit(url, title = '') {
   ].slice(0, BROWSER_PLACE_LIMIT);
   setBrowserPlaces(places);
 }
+
+const browserDownloads = createBrowserDownloads({
+  publish: downloads => sendBrowserEvent({ type: 'downloads', downloads }),
+  canStart: () => !mainWindowClosing && !!mainWindow && !mainWindow.isDestroyed(),
+  exists: filePath => { try { return fs.statSync(filePath).isFile(); } catch (_) { return false; } },
+  reveal: filePath => shell.showItemInFolder(filePath),
+});
 
 function sendBrowserEvent(tabOrPayload, maybePayload) {
   const tab = maybePayload ? tabOrPayload : activeBrowserTab();
@@ -4497,6 +4505,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   browserSession.setPermissionRequestHandler((_wc, permission, callback) => {
     callback(permission === 'fullscreen' || permission === 'clipboard-sanitized-write');
   });
+  browserDownloads.attach(browserSession);
   const view = new WebContentsView({
     webPreferences: {
       partition: BROWSER_PARTITION,
@@ -4969,6 +4978,15 @@ function createWindow() {
     mainWindowClosing = true;
     saveWindowState();
     void (async () => {
+      if (browserDownloads.activeCount()) {
+        const choice = await dialog.showMessageBox(mainWindow, {
+          type: 'warning', title: 'İndirmeler sürüyor',
+          message: `${browserDownloads.activeCount()} indirme henüz bitmedi. Kapatırsanız bu indirmeler iptal edilir.`,
+          buttons: ['Kapatmayı iptal et', 'İndirmeleri iptal et ve kapat'],
+          defaultId: 0, cancelId: 0, noLink: true,
+        }).catch(() => ({ response: 0 }));
+        if (choice.response !== 1) { mainWindowClosing = false; return; }
+      }
       let captureStatus;
       try {
         captureStatus = await withTimeout(drainBrowserCaptureBeforeClose(), BROWSER_CLOSE_DRAIN_TIMEOUT,
@@ -4996,6 +5014,7 @@ function createWindow() {
       // yazarak onu silme.
       await flushBrowserSession();
       browserSessionFinalizedForQuit = true;
+      browserDownloads.cancelAll();
       destroyBrowserView();
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
     })();
@@ -5291,6 +5310,12 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
     if (isAbortedBrowserNavigation(err)) return { ok: false, aborted: true };
     return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message), url };
   }
+});
+
+ipcMain.handle('browser:downloads', (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!payload || payload.command === 'list') return { ok: true, downloads: browserDownloads.snapshot() };
+  return browserDownloads.action(payload.id, payload.command);
 });
 
 ipcMain.handle('browser:command', async (event, payload) => {

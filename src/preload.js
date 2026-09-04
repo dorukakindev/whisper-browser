@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('api', {
   setBrowserBounds: (tabId, bounds) => ipcRenderer.invoke('browser:setBounds', { tabId, bounds }),
   navigateBrowser: (tabId, url) => ipcRenderer.invoke('browser:navigate', { tabId, url }),
   browserCommand: (tabId, command, value) => ipcRenderer.invoke('browser:command', { tabId, command, value }),
+  browserDownloads: (command = 'list', id) => ipcRenderer.invoke('browser:downloads', { command, id }),
   setBrowserCaptureEnabled: (tabId, enabled) => ipcRenderer.invoke('browser:capture:setEnabled', { tabId, enabled }),
   createBrowserTab: () => ipcRenderer.invoke('browser:tab:create'),
   activateBrowserTab: (tabId) => ipcRenderer.invoke('browser:tab:activate', tabId),
