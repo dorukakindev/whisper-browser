@@ -303,7 +303,12 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       box.style.width = Math.max(0, rect.width) + 'px';
       const style = state.style || {};
       const bottomOffset = Math.max(0, Math.min(75, Number.isFinite(Number(style.bottomOffset)) ? Number(style.bottomOffset) : 8));
-      box.style.top = Math.max(rect.top, rect.bottom - Math.max(96, rect.height * (bottomOffset / 100 + .09))) + 'px';
+      // Kisa videolarda sabit 96 px taban, kaydiricinin ilk degerlerini ayni
+      // konuma kilitliyordu. Taban boslugu video boyuna uyar; her yuzde
+      // degisikligi artik ilk hareketten itibaren gorunur.
+      const baseMargin = Math.min(96, Math.max(20, rect.height * .09));
+      box.style.top = Math.max(rect.top,
+        rect.bottom - baseMargin - rect.height * (bottomOffset / 100)) + 'px';
       const time = finite(activeMedia.currentTime) - finite(state.offset);
       const sourceCues = findCues(state.source || [], time);
       const translationCues = findCues(state.translation || [], time);

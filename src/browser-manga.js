@@ -689,7 +689,10 @@ function mangaOverlayScript(payload) {
           try {
             const box = JSON.parse(group.dataset.bubbleBox);
             const y = Math.max(0, box[0] - 30), x = Math.max(0, box[1] - 30);
-            const h = Math.min(1000, box[2] + 30) - y, w = Math.min(1000, box[3] + 30) - x;
+            const h = Math.min(1000, Number(box[2]) + 30) - y;
+            const w = Math.min(1000, Number(box[3]) + 30) - x;
+            if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0
+                || !originalImage.naturalWidth || !originalImage.naturalHeight) throw new Error('Geçersiz manga bölgesi.');
             const preview = document.createElement('canvas');
             preview.width = 400; preview.height = Math.max(1, Math.min(800, Math.round(400 * h * originalImage.naturalHeight / (w * originalImage.naturalWidth))));
             preview.setAttribute('aria-label', 'Orijinal konuşma balonu');

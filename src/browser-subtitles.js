@@ -100,7 +100,11 @@ function parseTimedBlocks(body) {
         + Number(m[8].padEnd(3, '0')) / 1000;
       let until = indices[position + 1] ?? lines.length;
       // Ayraçsız SRT'de sonraki zaman kodunun önündeki sıra numarası metin değildir.
-      if (position + 1 < indices.length && /^\d+$/.test(lines[until - 1]?.trim())) until--;
+      if (position + 1 < indices.length) {
+        const candidate = lines[until - 1]?.trim() || '';
+        const separatedCueId = candidate && until > 1 && !lines[until - 2]?.trim();
+        if (/^\d+$/.test(candidate) || separatedCueId) until--;
+      }
       const text = lines.slice(idx + 1, until).join('\n');
       out.push({ start: start + timelineOffset, end: end + timelineOffset, text });
     }
@@ -478,8 +482,10 @@ function browserActiveCuesAt(cues, time) {
     browserActiveCuesAt._prefixCache.set(list, indexData);
   }
   for (let index = last; index >= 0; index--) {
-    if (indexData.prefix[index] < t) break;
-    if (Number(list[index].end) >= t) active.push(list[index]);
+    if (indexData.prefix[index] <= t) break;
+    // Zaman araliklari yari aciktir: biten cue ile ayni anda baslayan cue bir
+    // kare boyunca ust uste binmemeli.
+    if (Number(list[index].end) > t) active.push(list[index]);
   }
   return active.reverse();
 }
@@ -584,10 +590,11 @@ function parseXml(body) {
   const xml = String(body || '');
   const parentOffsets = new Map();
   const stack = [{ name: 'root', offset: 0 }];
-  for (const token of xml.matchAll(/<\/?(?:body|div|p)\b[^>]*>/gi)) {
+  const localName = (value) => String(value || '').toLowerCase().split(':').pop();
+  for (const token of xml.matchAll(/<\/?(?:[\w.-]+:)?(?:body|div|p)\b[^>]*>/gi)) {
     const rawTag = token[0];
     const closing = /^<\//.test(rawTag);
-    const name = rawTag.match(/^<\/?\s*([\w:-]+)/)?.[1]?.toLowerCase() || '';
+    const name = localName(rawTag.match(/^<\/?\s*([\w:.-]+)/)?.[1]);
     if (closing) {
       for (let index = stack.length - 1; index > 0; index--) {
         const popped = stack.pop();
@@ -601,8 +608,10 @@ function parseXml(body) {
     if (!/\/>$/.test(rawTag)) stack.push({ name, offset: parentOffset + (begin || 0) });
   }
   // YouTube timedtext / srv biçimi.
-  for (const match of xml.matchAll(/<(?:text|p)\b([^>]*)>([\s\S]*?)<\/(?:text|p)>/gi)) {
-    const tag = match[1];
+  for (const match of xml.matchAll(/<((?:[\w.-]+:)?(?:text|p))\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi)) {
+    const elementName = localName(match[1]);
+    const tag = match[2];
+    const inner = match[3];
     const timedTextStart = attr(tag, 't');
     const timedTextDuration = attr(tag, 'd');
     const startRaw = attr(tag, 'start') || attr(tag, 'begin') || timedTextStart;
@@ -612,13 +621,45 @@ function parseXml(body) {
     let duration = parseXmlTime(durRaw, xml);
     let end = parseXmlTime(endRaw, xml);
     const parentOffset = parentOffsets.get(match.index) || 0;
+    // TTML'de asil zaman kimi servislerde p yerine ic span'lere yazilir.
+    // Her zamanli span kendi cue'su olur; p baslangici varsa span ona gore
+    // ofsetlenir. Boylece farkli span sureleri tek buyuk cue'ya cokmez.
+    const timedSpans = elementName === 'p' ? [...inner.matchAll(
+      /<((?:[\w.-]+:)?span)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi,
+    )].filter((span) => /\b(?:begin|start|t|end|dur|d)\s*=/i.test(span[2])) : [];
+    if (timedSpans.length) {
+      let paragraphStart = parseXmlTime(startRaw, xml);
+      if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) {
+        paragraphStart = Number(startRaw) / 1000;
+      }
+      const spanBase = parentOffset + (paragraphStart || 0);
+      for (const span of timedSpans) {
+        const spanTag = span[2];
+        const spanTimedStart = attr(spanTag, 't');
+        const spanTimedDuration = attr(spanTag, 'd');
+        const spanStartRaw = attr(spanTag, 'start') || attr(spanTag, 'begin') || spanTimedStart;
+        const spanDurRaw = attr(spanTag, 'dur') || spanTimedDuration;
+        const spanEndRaw = attr(spanTag, 'end');
+        let spanStart = parseXmlTime(spanStartRaw, xml);
+        let spanDuration = parseXmlTime(spanDurRaw, xml);
+        let spanEnd = parseXmlTime(spanEndRaw, xml);
+        if (spanStartRaw === spanTimedStart && spanTimedStart && Number.isFinite(Number(spanStartRaw))) spanStart = Number(spanStartRaw) / 1000;
+        if (spanDurRaw === spanTimedDuration && spanTimedDuration && Number.isFinite(Number(spanDurRaw))) spanDuration = Number(spanDurRaw) / 1000;
+        if (spanStart === null) continue;
+        spanStart += spanBase;
+        if (spanEnd !== null) spanEnd += spanBase;
+        if (spanEnd === null && spanDuration !== null) spanEnd = spanStart + spanDuration;
+        out.push({ start: spanStart, end: spanEnd, text: span[3] });
+      }
+      continue;
+    }
     // YouTube srv3 t/d değerleri milisaniyedir.
     if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) start = Number(startRaw) / 1000;
     if (durRaw === timedTextDuration && timedTextDuration && Number.isFinite(Number(durRaw))) duration = Number(durRaw) / 1000;
     if (start !== null) start += parentOffset;
     if (end !== null) end += parentOffset;
     if (end === null && start !== null && duration !== null) end = start + duration;
-    if (start !== null) out.push({ start, end, text: match[2] });
+    if (start !== null) out.push({ start, end, text: inner });
   }
   return normalizeCues(out);
 }

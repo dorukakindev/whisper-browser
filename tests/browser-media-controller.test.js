@@ -74,7 +74,7 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
     clientWidth: 800, clientHeight: 450, currentTime: Infinity, duration: NaN,
     volume: Infinity, playbackRate: NaN };
   assert.deepEqual(probe([broken]), {
-    currentTime: 0, duration: 0, paused: false, muted: false,
+    currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
     volume: 0, playbackRate: 1, area: 360000,
   });
 });

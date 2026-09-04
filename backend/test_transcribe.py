@@ -1754,6 +1754,8 @@ def test_parse_and_shift_srt():
     compact = ("1\n00:00:01,000 --> 00:00:02,000\nBir\n"
                "2\n00:00:03,000 --> 00:00:04,000\nİki\n")
     assert T.parse_srt(compact) == [(1.0, 2.0, "Bir"), (3.0, 4.0, "İki")]
+    identified_vtt = "WEBVTT\n\ncue-a\n00:00:01.000 --> 00:00:02.000\nBir\n\ncue-b\n00:00:03.000 --> 00:00:04.000\nİki"
+    assert T.parse_srt(identified_vtt) == [(1.0, 2.0, "Bir"), (3.0, 4.0, "İki")]
 
     ass = "\n".join([
         "[Events]",

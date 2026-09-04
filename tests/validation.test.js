@@ -80,6 +80,9 @@ t('zaman kaydirma SRT ve VTT bicimlerini korur', () => {
   ok(shiftTimecodes(vtt, 1).includes('00:00:06.000 --> 00:00:08.500'), 'VTT ayraci bozuldu');
   const shortVtt = '05:23.500 --> 05:28.100 align:start';
   ok(shiftTimecodes(shortVtt, 1).includes('05:24.500 --> 05:29.100 align:start'), 'iki parçalı VTT kaymadı');
+  const longShortVtt = 'WEBVTT\n\n59:59.000 --> 59:59.500\nUzun';
+  ok(shiftTimecodes(longShortVtt, 2).includes('01:00:01.000 --> 01:00:01.500'),
+    'bir saati aşan kısa VTT zaman damgası saatli biçime yükseltilmedi');
 });
 
 t('negatif kaydirmada tamamen video disinda kalan blok atilir', () => {

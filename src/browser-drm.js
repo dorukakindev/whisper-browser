@@ -1,3 +1,5 @@
+const { isAmazonHost } = require('./browser-media-identity');
+
 function sanitizeBrowserUserAgent(value) {
   return String(value || '')
     .replace(/\sElectron\/[^\s]+/ig, '')
@@ -9,7 +11,8 @@ function isProtectedBrowserHost(value) {
   try {
     const raw = String(value || '').trim();
     const host = new URL(/^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
-    return /(^|\.)(netflix\.com|hulu\.com|hulu\.jp|max\.com|hbomax\.com|discoveryplus\.com|disneyplus\.com|primevideo\.com|amazon\.com)$/.test(host);
+    return isAmazonHost(host)
+      || /(^|\.)(netflix\.com|hulu\.com|hulu\.jp|max\.com|hbomax\.com|discoveryplus\.com|disneyplus\.com|primevideo\.com)$/.test(host);
   } catch (_) {
     return false;
   }

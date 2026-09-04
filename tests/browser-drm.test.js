@@ -45,6 +45,8 @@ test('korumalı servis alan adlarını doğru sınıflandırır', () => {
   assert.equal(isProtectedBrowserHost('https://www.disneyplus.com/play/abc'), true);
   assert.equal(isProtectedBrowserHost('https://www.primevideo.com/detail/abc'), true);
   assert.equal(isProtectedBrowserHost('https://www.amazon.com/gp/video/detail/abc'), true);
+  assert.equal(isProtectedBrowserHost('https://www.amazon.com.tr/gp/video/detail/abc'), true);
+  assert.equal(isProtectedBrowserHost('https://www.amazon.co.jp/gp/video/detail/abc'), true);
   assert.equal(isProtectedBrowserHost('https://example.com/video'), false);
   assert.equal(isProtectedBrowserHost('not a url'), false);
 });

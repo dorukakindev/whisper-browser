@@ -135,6 +135,13 @@ t('Bos satir ayraci olmayan SRT tum zaman satirlarini korur', () => {
   ok(cues[0].text === 'Bir' && cues[1].text === 'Iki', 'metin sinirlari bozuldu');
 });
 
+t('Alfanumerik VTT cue kimligi onceki metne sizmaz', () => {
+  const vtt = 'WEBVTT\n\ncue-a\n00:00:01.000 --> 00:00:02.000\nBir\n\ncue-b\n00:00:03.000 --> 00:00:04.000\nIki';
+  const cues = F.parseSubtitles(vtt);
+  ok(cues.length === 2, 'blok sayisi');
+  ok(cues[0].text === 'Bir' && cues[1].text === 'Iki', 'cue kimligi metne sizdi');
+});
+
 // ---- VTT metadata korunuyor mu (cerrahi duzenleme) ----
 const VTT_RICH = [
   'WEBVTT - Test dosyasi',

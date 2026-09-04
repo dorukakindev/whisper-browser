@@ -19,6 +19,7 @@ const {
   readBrowserSession,
   writeBrowserSessionAtomic,
 } = require('../src/browser-session-store');
+const { createBuiltinAdapterRegistry } = require('../src/browser-adapter-registry');
 
 let passed = 0;
 function test(name, fn) {
@@ -59,10 +60,13 @@ test('YouTube URL biçimleri aynı medya kimliğine birleşir', () => {
 });
 
 test('Amazon Prime bölgesel alan adları aynı servis olarak tanınır', () => {
+  const registry = createBuiltinAdapterRegistry();
   for (const host of ['amazon.com', 'amazon.co.uk', 'amazon.com.tr', 'amazon.de', 'amazon.co.jp']) {
     assert.equal(isAmazonHost(host), true, host);
     assert.equal(canonicalMediaIdentity(`https://www.${host}/gp/video/detail/ABC123`).service,
       'prime-video', host);
+    assert.equal(registry.forPage(`https://www.${host}/gp/video/detail/ABC123`)?.id,
+      'prime-video', `${host} adaptörü`);
   }
   assert.equal(isAmazonHost('amazon.example.com'), false);
 });

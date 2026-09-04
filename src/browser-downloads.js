@@ -36,7 +36,8 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
     item.setSaveDialogOptions({ title: 'İndirilen dosyayı kaydet', buttonLabel: 'Kaydet' });
     const id = randomUUID();
     const row = { id, filename: String(item.getFilename() || 'Dosya').slice(0, 300),
-      state: 'progressing', received: 0, total: 0, path: '', active: true, canResume: false };
+      state: 'progressing', received: 0, total: 0, path: '', active: true,
+      paused: false, canPause: true, canResume: false };
     records.set(id, row);
     live.set(id, item);
     message = '';
@@ -46,7 +47,9 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
       row.total = bytes(item.getTotalBytes());
       row.path = String(item.getSavePath() || '');
       if (row.path) row.filename = path.basename(row.path).slice(0, 300);
-      row.canResume = row.active && state === 'interrupted' && item.canResume();
+      row.paused = row.active && !!item.isPaused?.();
+      row.canPause = row.active && !row.paused && state === 'progressing';
+      row.canResume = row.active && (row.paused || (state === 'interrupted' && item.canResume()));
     }
     function updated(_event, state) { read(state); changed(); }
     function done(_event, state) {
@@ -72,10 +75,25 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
     const item = live.get(id);
     try {
       if (command === 'cancel' && item) item.cancel();
-      else if (command === 'resume' && item && row.canResume) item.resume();
+      else if (command === 'pause' && item && row.canPause) {
+        item.pause();
+        row.paused = true;
+        row.canPause = false;
+        row.canResume = true;
+        changed(true);
+      } else if (command === 'resume' && item && row.canResume) {
+        item.resume();
+        row.paused = false;
+        row.canPause = true;
+        row.canResume = false;
+        changed(true);
+      }
       else if (command === 'reveal' && row.state === 'completed' && row.path) {
         if (!exists(row.path)) return { ok: false, error: 'Dosya taşınmış veya silinmiş. Kayıtlı konumda bulunamadı.' };
         reveal(row.path);
+      } else if (command === 'clear' && !item) {
+        records.delete(id);
+        changed(true);
       } else return { ok: false, error: 'Bu indirme için işlem artık kullanılamıyor.' };
       return { ok: true };
     } catch (_) { return { ok: false, error: 'İndirme işlemi gerçekleştirilemedi.' }; }

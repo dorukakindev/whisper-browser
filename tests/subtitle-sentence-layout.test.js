@@ -54,6 +54,9 @@ async function run() {
   const fit = layout.fitTranslationParts('Bir iki üç dört beş altı yedi sekiz dokuz on.', fitPieces);
   assert(fit[1].length > fit[0].length, 'süre bütçesi dikkate alınmadı');
   assert.equal(fit.join(' '), 'Bir iki üç dört beş altı yedi sekiz dokuz on.');
+  const japaneseFit = layout.fitTranslationParts('これは自然な日本語です。', fitPieces);
+  assert.equal(japaneseFit.length, 2, 'boşluksuz dil çoklu cue için bölünmedi');
+  assert.equal(japaneseFit.join(''), 'これは自然な日本語です。', 'boşluksuz metin değiştirilmemeli');
 
   const key = translationCacheKey(sentence);
   assert.notEqual(key, translationCacheKey({ ...sentence, contextBefore: 'Different.' }));
@@ -103,8 +106,12 @@ async function run() {
   assert.equal(body.model, config.model, 'kullanıcının modeli değişti');
   assert.deepEqual(JSON.parse(body.messages[1].content).parts.map((p) => p.source), cues.map((c) => c.text));
   responseText = reply.text;
-  await assert.rejects(() => sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid'), /zaman bloklarına/);
+  const fittedOutput = await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
+  assert.equal(fittedOutput.parts.length, sentence.pieces.length, 'düz metin sağlayıcı yanıtı zaman bloklarına dağıtılmadı');
+  assert.equal(fittedOutput.parts.join(' '), reply.text);
   responseText = 'Merhaba.';
+  assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');
+  responseText = '{"translation":"Merhaba."}';
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');
   responseText = '{"örnek": 1}';
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: '{"example": 1}', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, responseText);

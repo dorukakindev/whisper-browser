@@ -107,6 +107,22 @@ test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
     'tek kalan bayt ayrılmamış bellekle doldurulmamalı');
 });
 
+test('WebVTT alfanümerik cue kimliğini önceki metne sızdırmaz', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\ncue-a\n00:01.000 --> 00:02.000\nBir\n\ncue-b\n00:03.000 --> 00:04.000\nİki',
+    'text/vtt', 'https://cdn.test/ids.vtt');
+  assert.deepEqual(result.cues.map(cue => cue.text), ['Bir', 'İki']);
+});
+
+test('namespace kullanan TTML p ve iç span zamanlarını ayrı cue olarak ayrıştırır', () => {
+  const namespaced = parseSubtitlePayload(
+    '<tt:tt xmlns:tt="urn:tt"><tt:body begin="2s"><tt:div><tt:p begin="1s"><tt:span begin="0.5s" dur="1s">Bir</tt:span><tt:span begin="1.5s" dur="1s">İki</tt:span></tt:p></tt:div></tt:body></tt:tt>',
+    'application/ttml+xml', 'https://cdn.test/namespaced.ttml');
+  assert.deepEqual(namespaced.cues, [
+    { start: 3.5, end: 4.5, text: 'Bir' },
+    { start: 4.5, end: 5.5, text: 'İki' },
+  ]);
+});
+
 test('yaygın adlandırılmış HTML entity değerlerini çözer', () => {
   const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:01.000\nTom&nbsp;&amp;&nbsp;Jerry &copy;',
     'text/vtt', 'https://cdn.test/entities.vtt');
@@ -315,6 +331,14 @@ test('Aynı anda etkin olan çakışan altyazıların tamamını korur', () => {
   assert.deepEqual(browserActiveCuesAt(cues, 3).map((cue) => cue.text),
     ['Konuşmacı bir', 'Konuşmacı iki']);
   assert.deepEqual(browserActiveCuesAt(cues, 5.5), []);
+});
+
+test('bitiş anında eski cue kapanır ve yalnız komşu cue etkin kalır', () => {
+  const cues = [
+    { start: 0, end: 2, text: 'Eski' },
+    { start: 2, end: 4, text: 'Yeni' },
+  ];
+  assert.deepEqual(browserActiveCuesAt(cues, 2).map((cue) => cue.text), ['Yeni']);
 });
 
 test('64 kısa cue gerisindeki uzun süreli aktif altyazıyı kaybetmez', () => {

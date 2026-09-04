@@ -1,4 +1,4 @@
-const { canonicalMediaIdentity } = require('./browser-media-identity');
+const { AMAZON_HOST_SUFFIXES, canonicalMediaIdentity } = require('./browser-media-identity');
 const fs = require('fs');
 const path = require('path');
 
@@ -136,7 +136,7 @@ const BUILTIN_ADAPTER_DEFINITIONS = Object.freeze([
   { id: 'discovery', label: 'Discovery+', hosts: ['discoveryplus.com', 'discovery.com'], pageHosts: ['discoveryplus.com'], help: 'Videoyu başlatın; HLS altyazı izi oynatma başlayınca görünür.' },
   { id: 'hulu', label: 'Hulu', hosts: ['hulu.com', 'hulu.jp'], responseHint: /caption|subtitle|texttrack|webvtt|ttml|dfxp|sami|\.vtt|\.m3u8|\.mpd/i, help: 'Videoyu başlatın ve Hulu oynatıcısında kaynak altyazıyı açın.' },
   { id: 'youtube', label: 'YouTube', hosts: ['youtube.com', 'googlevideo.com', 'youtu.be'], pageHosts: ['youtube.com', 'youtu.be'], responseHint: /timedtext|caption|subtitle|json3|srv3|\.vtt/i, help: 'Videoyu başlatın ve YouTube CC menüsünden kaynak altyazıyı seçin.', capabilities: { fullscreen: true } },
-  { id: 'prime-video', label: 'Prime Video', hosts: ['primevideo.com', 'amazon.com', 'media-amazon.com', 'aiv-cdn.net'], pageHosts: ['primevideo.com', 'amazon.com'], responseHint: /caption|subtitle|timedtext|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i, help: 'Videoyu başlatın ve Prime Video altyazı menüsünden kaynak dili seçin.' },
+  { id: 'prime-video', label: 'Prime Video', hosts: ['primevideo.com', ...AMAZON_HOST_SUFFIXES, 'media-amazon.com', 'aiv-cdn.net'], pageHosts: ['primevideo.com', ...AMAZON_HOST_SUFFIXES], responseHint: /caption|subtitle|timedtext|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i, help: 'Videoyu başlatın ve Prime Video altyazı menüsünden kaynak dili seçin.' },
   { id: 'crunchyroll', label: 'Crunchyroll', hosts: ['crunchyroll.com', 'crunchyrollcdn.com'], pageHosts: ['crunchyroll.com'], help: 'Videoyu başlatın ve Crunchyroll altyazı dilini açın.' },
   { id: 'bbc-iplayer', label: 'BBC iPlayer', hosts: ['bbc.co.uk', 'bbc.com', 'bbci.co.uk'], pageHosts: ['bbc.co.uk'], help: 'BBC iPlayer oynatıcısında altyazıları etkinleştirin.' },
   { id: 'arte', label: 'ARTE', hosts: ['arte.tv', 'arte-cdn.net'], pageHosts: ['arte.tv'], help: 'ARTE oynatıcısında istediğiniz altyazı dilini seçin.' },

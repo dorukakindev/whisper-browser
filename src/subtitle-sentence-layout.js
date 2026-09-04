@@ -80,14 +80,20 @@ function sentenceTranslationRequest(sentence) {
 // fitting. Model-supplied, losslessly validated phrase boundaries take precedence.
 // This fallback is a readability heuristic, not a semantic proof.
 function fitTranslationParts(text, pieces) {
-  const words = normalizeText(text).split(' ');
+  const normalized = normalizeText(text);
+  const spaceless = SPACELESS_SCRIPT.test(normalized) && !/\s/u.test(normalized);
+  // Japonca/Cince/Tayca gibi dillerde bosluga gore bolmek tek dev "kelime"
+  // uretir ve cok-cue fallback'ini tumden kapatir. Grapheme dizisi metni
+  // kayipsiz tutar; modelin verdigi dogrulanmis parts yine her zaman oncelikli.
+  const words = spaceless ? Array.from(normalized) : normalized.split(' ');
+  const separator = spaceless ? '' : ' ';
   const count = pieces.length;
   if (!count || words.length < count) return null;
   if (count === 1) return [normalizeText(text)];
   const durations = pieces.map((piece) => Math.max(0.1, Number(piece.end) - Number(piece.start) || 0.1));
   const total = durations.reduce((a, b) => a + b, 0);
   const prefix = [0];
-  for (const word of words) prefix.push(prefix.at(-1) + word.length + 1);
+  for (const word of words) prefix.push(prefix.at(-1) + word.length + separator.length);
   const glue = /^(?:ve|veya|ama|çünkü|eğer|bu|şu|o|bir|her|hiçbir|çok|daha|en|the|a|an|and|of|to)$/iu;
   const penalty = (position) => {
     if (position === words.length) return 0;
@@ -114,7 +120,7 @@ function fitTranslationParts(text, pieces) {
   }
   let start = 0;
   return states.get(words.length).cuts.map((end) => {
-    const part = words.slice(start, end).join(' '); start = end; return part;
+    const part = words.slice(start, end).join(separator); start = end; return part;
   });
 }
 

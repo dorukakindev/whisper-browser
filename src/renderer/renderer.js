@@ -4635,7 +4635,8 @@ function renderBrowserDownloads() {
       const saved = document.createElement('span'); saved.className = 'browser-download-path'; saved.dir = 'auto';
       const actions = document.createElement('div'); actions.className = 'browser-download-actions';
       const buttons = {};
-      for (const [command, label] of [['cancel', 'İptal et'], ['resume', 'Devam et'], ['reveal', 'Klasörde göster']]) {
+      for (const [command, label] of [['pause', 'Duraklat'], ['cancel', 'İptal et'], ['resume', 'Devam et'],
+        ['reveal', 'Klasörde göster'], ['clear', 'Listeden kaldır']]) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm'; button.textContent = label;
         button.addEventListener('click', async () => {
           button.disabled = true;
@@ -4649,16 +4650,18 @@ function renderBrowserDownloads() {
       row = { root, name, info, progress, saved, buttons }; browserDownloadState.rows.set(item.id, row);
     }
     row.name.textContent = item.filename;
-    const label = item.state === 'completed' ? 'Tamamlandı' : item.state === 'cancelled' ? 'İptal edildi'
+    const label = item.paused ? 'Duraklatıldı' : item.state === 'completed' ? 'Tamamlandı' : item.state === 'cancelled' ? 'İptal edildi'
       : item.state === 'interrupted' ? (item.active ? 'Bağlantı kesildi' : 'İndirme başarısız') : 'İndiriliyor';
     row.info.textContent = `${label} · ${browserDownloadBytes(item.received)}${item.total ? ` / ${browserDownloadBytes(item.total)}` : ' (toplam boyut bilinmiyor)'}`;
     row.progress.hidden = !item.active;
     if (item.total > 0) row.progress.value = Math.min(100, item.received / item.total * 100);
     else row.progress.removeAttribute('value');
     row.saved.textContent = item.path || 'Kaydetme konumu henüz seçilmedi.';
+    row.buttons.pause.classList.toggle('hidden', !item.canPause);
     row.buttons.cancel.classList.toggle('hidden', !item.active);
     row.buttons.resume.classList.toggle('hidden', !item.canResume);
     row.buttons.reveal.classList.toggle('hidden', item.state !== 'completed' || !item.path);
+    row.buttons.clear.classList.toggle('hidden', !!item.active);
   }
 }
 
@@ -7137,7 +7140,11 @@ function parseSubtitles(text) {
     const start = (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4].padEnd(3, '0')) / 1000;
     const end = (+(m[5] || 0)) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8].padEnd(3, '0')) / 1000;
     let until = indices[position + 1] ?? lines.length;
-    if (position + 1 < indices.length && /^\d+$/.test(lines[until - 1]?.trim())) until--;
+    if (position + 1 < indices.length) {
+      const candidate = lines[until - 1]?.trim() || '';
+      const separatedCueId = candidate && until > 1 && !lines[until - 2]?.trim();
+      if (/^\d+$/.test(candidate) || separatedCueId) until--;
+    }
     const body = lines.slice(idx + 1, until).join('\n').trim();
     if (body) out.push({ start, end, text: body, sourceStart: start, sourceEnd: end });
   }

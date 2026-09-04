@@ -2266,7 +2266,7 @@ async function readJsonResponseLimited(response, maxBytes, label) {
 }
 
 async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
-  const { sentenceTranslationRequest, decodeSentenceTranslation } = require('./subtitle-sentence-layout');
+  const { sentenceTranslationRequest, decodeSentenceTranslation, fitTranslationParts } = require('./subtitle-sentence-layout');
   const grouped = (sentence.pieces?.length || 0) > 1;
   const sentenceRequest = grouped ? sentenceTranslationRequest(sentence) : null;
   const endpoint = safeTranslationEndpoint(endpointBase);
@@ -2331,8 +2331,30 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
   // Tek blok hâlâ düz metin ister; eğitim altyazısındaki gerçek JSON/formülü
   // yeni çok-blok protokolü sanarak reddetme.
-  const raw = grouped ? text : { text: text.trim().replace(/^```(?:text)?\s*|\s*```$/gi, '').trim() };
-  return decodeSentenceTranslation(raw, sentence.pieces?.length || 1, grouped);
+  const cleaned = text.trim().replace(/^```(?:json|text)?\s*|\s*```$/gi, '').trim();
+  if (!grouped) {
+    // Bazi OpenAI-uyumlu saglayicilar tek cue icin bile bir JSON zarfi
+    // dondurur. Yalniz bilinen ceviri alanlarini acar; gercek altyazi metni
+    // olan keyfi JSON nesnelerini oldugu gibi korur.
+    let raw = { text: cleaned };
+    if (/^\{/.test(cleaned)) {
+      try {
+        const parsed = JSON.parse(cleaned);
+        const translated = parsed?.translation ?? parsed?.translated_text ?? parsed?.text;
+        if (typeof translated === 'string' && translated.trim()) raw = { text: translated };
+      } catch (_) {}
+    }
+    return decodeSentenceTranslation(raw, 1, false);
+  }
+  try {
+    return decodeSentenceTranslation(cleaned, sentence.pieces.length, true);
+  } catch (error) {
+    if (!/zaman bloklar/i.test(String(error?.message || ''))) throw error;
+    const loose = decodeSentenceTranslation(cleaned, sentence.pieces.length, false);
+    const parts = fitTranslationParts(loose.text, sentence.pieces);
+    if (!parts) throw error;
+    return { text: loose.text, parts };
+  }
 }
 
 async function requestBrowserSentenceTranslation(sentence, config, signal) {
@@ -5408,17 +5430,21 @@ ipcMain.handle('browser:command', async (event, payload) => {
         media: await frame.executeJavaScript(buildBrowserMediaProbeScript(), true).catch(() => null),
       })));
       let media = null;
+      let commandError = '';
       for (const candidate of rankBrowserMediaCandidates(candidates)) {
         const result = await candidate.frame
           .executeJavaScript(buildBrowserMediaCommandScript(command, value), true)
-          .catch(() => null);
+          .catch(() => ({ handled: false, error: 'Komut oynatıcı karesinde çalıştırılamadı.' }));
+        if (result?.error && !commandError) commandError = String(result.error).slice(0, 180);
         if (result && (result === true || result.handled)) {
           media = result;
           break;
         }
       }
       if (!isCurrentBrowserContext(context)) return { ok: false, stale: true, error: 'Sekme değiştiği için komut sonucu reddedildi.' };
-      if (!media) return { ok: false, error: 'Sayfada kontrol edilebilen video bulunamadı.' };
+      if (!media) return { ok: false, error: commandError
+        ? `Oynatıcı komutu reddetti: ${commandError}`
+        : 'Sayfada kontrol edilebilen video bulunamadı.' };
       return { ok: true, ...browserEventContext(tab), media: media === true ? null : media, ...browserNavigationState() };
     } else {
       return { ok: false, error: 'Bu tarayıcı komutu desteklenmiyor.' };
@@ -6651,7 +6677,7 @@ function shiftTimecodes(text, offsetSec) {
     const value = Math.max(0, Math.round(seconds * 1000));
     const p2 = (n) => String(n).padStart(2, '0');
     const ms = String(value % 1000).padStart(3, '0');
-    if (!shape.hours) {
+    if (!shape.hours && value < 3600000) {
       const minutes = Math.floor(value / 60000);
       return `${p2(minutes)}:${p2(Math.floor((value % 60000) / 1000))}${shape.sep}${ms}`;
     }

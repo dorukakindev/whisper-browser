@@ -5571,9 +5571,11 @@ def parse_srt(text):
         until = timing_indices[position + 1] if position + 1 < len(timing_indices) else len(lines)
         # Ayraçsız SRT'de sonraki zaman kodunun önündeki sıra numarası, önceki
         # cue'nun metni değildir.
-        if position + 1 < len(timing_indices) and until > timing_idx + 1 \
-                and lines[until - 1].strip().isdigit():
-            until -= 1
+        if position + 1 < len(timing_indices) and until > timing_idx + 1:
+            candidate = lines[until - 1].strip()
+            separated_cue_id = bool(candidate) and until > 1 and not lines[until - 2].strip()
+            if candidate.isdigit() or separated_cue_id:
+                until -= 1
         txt = "\n".join(lines[timing_idx + 1:until]).strip()
         entries.append((start, end, txt))
     return entries

@@ -29,14 +29,16 @@ function hostMatches(host, suffix) {
   return host === suffix || host.endsWith(`.${suffix}`);
 }
 
-function isAmazonHost(host) {
-  return [
+const AMAZON_HOST_SUFFIXES = Object.freeze([
     'amazon.com', 'amazon.ca', 'amazon.com.mx', 'amazon.com.br', 'amazon.co.uk',
     'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es', 'amazon.nl', 'amazon.se',
     'amazon.pl', 'amazon.com.be', 'amazon.ie', 'amazon.co.jp', 'amazon.in',
     'amazon.com.au', 'amazon.sg', 'amazon.ae', 'amazon.sa', 'amazon.com.tr',
     'amazon.eg', 'amazon.co.za',
-  ].some((suffix) => hostMatches(host, suffix));
+]);
+
+function isAmazonHost(host) {
+  return AMAZON_HOST_SUFFIXES.some((suffix) => hostMatches(host, suffix));
 }
 
 function firstMatch(value, expressions) {
@@ -126,6 +128,7 @@ function canonicalMediaIdentity(rawUrl, hints = {}) {
 }
 
 module.exports = {
+  AMAZON_HOST_SUFFIXES,
   SENSITIVE_PARAM_RE,
   TRACKING_PARAM_RE,
   canonicalMediaIdentity,

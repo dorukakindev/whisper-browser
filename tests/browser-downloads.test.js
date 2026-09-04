@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const { createBrowserDownloads } = require('../src/browser-downloads');
 
 class Item extends EventEmitter {
-  saved = ''; received = 0; total = 0; resumable = false;
+  saved = ''; received = 0; total = 0; resumable = false; paused = false;
   getFilename() { return '<img onerror=alert(1)>.zip'; }
   getSavePath() { return this.saved; }
   getReceivedBytes() { return this.received; }
@@ -16,7 +16,9 @@ class Item extends EventEmitter {
   setSavePath() { throw Error('Native save/overwrite consent must remain enabled'); }
   getURL() { throw Error('Private URL must not be read'); }
   cancel() { this.emit('done', {}, 'cancelled'); }
-  resume() { this.resumed = true; this.emit('updated', {}, 'progressing'); }
+  pause() { this.paused = true; }
+  isPaused() { return this.paused; }
+  resume() { this.paused = false; this.resumed = true; this.emit('updated', {}, 'progressing'); }
 }
 
 (async () => {
@@ -37,6 +39,11 @@ class Item extends EventEmitter {
   await new Promise(resolve => setTimeout(resolve, 15));
   assert.equal(events.length, 2);
   assert.equal(events.at(-1).items[0].received, 20);
+  assert.equal(manager.action(id, 'pause').ok, true);
+  assert.equal(manager.snapshot().items[0].paused, true);
+  assert.equal(manager.snapshot().items[0].canResume, true);
+  assert.equal(manager.action(id, 'resume').ok, true);
+  assert.equal(manager.snapshot().items[0].paused, false);
   one.resumable = true; one.emit('updated', {}, 'interrupted');
   assert.equal(manager.snapshot().items[0].active, true, 'interrupted update is not terminal');
   assert.equal(manager.action(id, 'resume').ok, true);
@@ -63,6 +70,8 @@ class Item extends EventEmitter {
   fileExists = true; assert.equal(manager.action(id, 'reveal').ok, true);
   assert.deepEqual(revealed, [one.saved]);
   assert.equal(manager.action(id, 'cancel').ok, false);
+  assert.equal(manager.action(id, 'clear').ok, true);
+  assert.equal(manager.snapshot().items.some(row => row.id === id), false);
   // Native object can now be destroyed: list/actions use metadata only.
   one.getSavePath = () => { throw Error('destroyed'); };
   manager.snapshot(); manager.action(id, 'reveal');
@@ -118,7 +127,8 @@ class Item extends EventEmitter {
   assert.equal(nodes.browserDownloadsList.children.length, 1, 'progress rebuilds button/focus DOM');
   ctx.receiveBrowserDownloads({ ...data, revision: 12, active: 0, items: [{ ...data.items[0], state: 'completed', active: false, total: 5, path: 'saved.zip' }] });
   assert.equal(row.children[2].hidden, true);
-  assert.equal(row.children[4].children[0].classList.contains('hidden'), true);
-  assert.equal(row.children[4].children[2].classList.contains('hidden'), false);
+  assert.equal(row.children[4].children[1].classList.contains('hidden'), true);
+  assert.equal(row.children[4].children[3].classList.contains('hidden'), false);
+  assert.equal(row.children[4].children[4].classList.contains('hidden'), false);
   console.log('Browser downloads lifecycle, limits, IPC and renderer tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

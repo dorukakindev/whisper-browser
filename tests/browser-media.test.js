@@ -10,13 +10,13 @@ function test(name, fn) {
   catch (err) { console.error(`  FAIL ${name}\n${err.stack}`); process.exitCode = 1; }
 }
 
-test('tarayıcı medya adaylarını alanı en büyük videodan başlayarak sıralar', () => {
+test('tarayıcı medya adaylarında oynayan görünür video duraklatılmış büyük videodan önce gelir', () => {
   const frames = [
     { frame: 'ad', media: { area: 1920, duration: 30, paused: false } },
     { frame: 'player', media: { area: 1280 * 720, duration: 3600, paused: true } },
     { frame: 'preview', media: { area: 0, duration: 10, paused: true } },
   ];
-  assert.deepEqual(rankBrowserMediaCandidates(frames).map((item) => item.frame), ['player', 'ad', 'preview']);
+  assert.deepEqual(rankBrowserMediaCandidates(frames).map((item) => item.frame), ['ad', 'player', 'preview']);
 });
 
 test('eşit alanlı videoda oynayan aday öne alınır, giriş sırası korunur', () => {
@@ -49,6 +49,13 @@ test('sayısal medya komutları NaN ve sonsuz değerleri sayfaya göndermeden re
     assert.equal(buildBrowserMediaCommandScript(command, Infinity), '(async () => false)()', command);
     assert.equal(buildBrowserMediaCommandScript(command, NaN), '(async () => false)()', command);
   }
+});
+
+test('medya komutu reddi ana süreçte video yok hatasına dönüştürülmez', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const script = buildBrowserMediaCommandScript('play', 0);
+  assert.match(script, /handled: false, error:/);
+  assert.match(main, /Oynatıcı komutu reddetti:/);
 });
 
 console.log(`browser-media: ${passed} test`);

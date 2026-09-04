@@ -65,6 +65,8 @@ function controllerBootstrap() {
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
           paused: !!item.paused,
+          ended: !!item.ended,
+          tagName: String(item.tagName || '').toLowerCase(),
           muted: !!item.muted,
           volume: finite(item.volume),
           playbackRate: finite(item.playbackRate, 1),
@@ -104,6 +106,7 @@ function buildBrowserMediaCommandScript(command, value) {
     const video = controller.select();
     if (!video) return false;
     const command = ${safeCommand};
+    try {
     if (command === 'seek') video.currentTime = Math.max(0, ${safeValue});
     else if (command === 'seek-relative') video.currentTime = Math.max(0, video.currentTime + ${safeValue});
     else if (command === 'play-pause') {
@@ -138,6 +141,10 @@ function buildBrowserMediaCommandScript(command, value) {
     return { handled: true, currentTime: finite(video.currentTime),
       playbackRate: finite(video.playbackRate, 1), paused: !!video.paused,
       volume: finite(video.volume), muted: !!video.muted };
+    } catch (error) {
+      const detail = String(error?.message || error?.name || '').replace(/https?:\/\/\S+/gi, '[adres gizlendi]').slice(0, 180);
+      return { handled: false, error: detail || 'Oynatıcı komutu reddetti.' };
+    }
   })()`;
 }
 
