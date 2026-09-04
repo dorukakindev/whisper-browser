@@ -3144,7 +3144,7 @@ function sweepBrowserLiveAsrTemp() {
 
 function startBrowserLiveAsr(tab, options = {}) {
   if (browserLiveAsr) return { ok: false, error: 'Canlı Whisper zaten çalışıyor.' };
-  if (activeJob || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
+  if (activeJob || burninJob || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
   if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
   const settings = loadSettings();
   const ui = settings.ui || {};
@@ -3173,11 +3173,15 @@ function startBrowserLiveAsr(tab, options = {}) {
     let event;
     try { event = JSON.parse(line); } catch (_) { return; }
     if (browserLiveAsr !== job) return;
+    if (!event || typeof event !== 'object') return;
     if (event.type === 'ready') {
       job.ready = true;
       sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: true,
         message: `Canlı Whisper hazır · ${event.model}` });
     } else if (event.type === 'segment' && isCurrentBrowserContext(context)) {
+      if (!Number.isFinite(event.start) || !Number.isFinite(event.end)
+          || event.start < 0 || event.end <= event.start
+          || typeof event.text !== 'string' || !event.text.trim()) return;
       const cue = { id: `live-${job.nextCueId++}`, start: event.start, end: event.end, text: event.text };
       job.cues.push(cue);
       if (job.cues.length > 20000) job.cues.splice(0, job.cues.length - 20000);
@@ -5731,7 +5735,7 @@ ipcMain.handle('dialog:openVideo', async (event) => {
     title: 'Video veya ses dosyası seç (çoklu seçim → kuyruk)',
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Video / Ses', extensions: ['mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'wmv', 'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus'] },
+      { name: 'Video / Ses', extensions: [...MEDIA_EXTS] },
       { name: 'Tüm Dosyalar', extensions: ['*'] },
     ],
   };
@@ -6035,7 +6039,7 @@ ipcMain.handle('models:status', (event) => {
 
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (activeJob || burninJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'GPU kullanan başka bir iş çalışırken benchmark başlatılamaz.' };
   }
   const picked = await dialog.showOpenDialog(mainWindow, {
@@ -6045,8 +6049,8 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   });
   if (picked.canceled || !picked.filePaths[0]) return { ok: false, canceled: true };
   // The native dialog yields; a different request may have acquired the GPU.
-  if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
-    return { ok: false, error: 'Dosya seçimi sırasında başka bir model işi başladı.' };
+  if (activeJob || burninJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return { ok: false, error: 'Dosya seçimi sırasında başka bir model veya gömme işi başladı.' };
   }
   const settings = loadSettings();
   const ui = settings.ui || {};
@@ -6070,9 +6074,16 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     let stdout = '';
     let stderr = '';
     let settled = false;
+    const timeoutTimer = setTimeout(() => {
+      terminateProcessTree(proc, { spawn });
+      finish({ ok: false, error: 'Model benchmarkı 20 dakikalık süre sınırını aştı ve durduruldu.' });
+      // İşlem gerçekten kapanana kadar modelProcesses kilidini koru.
+    }, 20 * 60 * 1000);
+    timeoutTimer.unref?.();
     const finish = (result) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeoutTimer);
       resolve(result);
     };
     proc.stdout?.setEncoding('utf8');

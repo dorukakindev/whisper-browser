@@ -197,7 +197,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     spawned[1].emit('close', 1);
   });
   await test('benchmark dosya diyaloğu sırasında başlayan model işi ikinci spawnı engeller', async () => {
-    const context = { authorizedBrowserSender: () => true, activeJob: null, browserLiveAsr: null,
+    const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender } };
     let complete;
     context.dialog = { showOpenDialog: () => new Promise((resolve) => { complete = resolve; }) };

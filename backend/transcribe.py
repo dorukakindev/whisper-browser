@@ -327,9 +327,11 @@ def probe_duration(media_path, ffmpeg_path):
             [str(ffprobe), "-v", "error", "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", str(media_path)],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30,
         )
-        return float(proc.stdout.strip())
-    except (ValueError, OSError):
+        duration = float(proc.stdout.strip())
+        return duration if proc.returncode == 0 and math.isfinite(duration) and duration >= 0 else None
+    except (ValueError, OSError, subprocess.TimeoutExpired):
         return None
 
 

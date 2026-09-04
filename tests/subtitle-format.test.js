@@ -254,5 +254,16 @@ t('ms yuvarlamasi 1000 uretmez (tasma)', () => {
   ok(edge.includes('00:01:00,000 --> 01:00:00,000'), 'sinir tasmasi: ' + edge.split('\n')[1]);
 });
 
+t('SRT içindeki Dialogue sözcüğü ASS algılamasını tetiklemez', () => {
+  const cues = F.parseSubtitles('1\n00:00:01,500 --> 00:00:03,000\nDialogue: yorum');
+  ok(cues.length === 1 && cues[0].text === 'Dialogue: yorum', 'SRT yanlışlıkla ASS sayıldı');
+  ok(F.parseSubtitles('Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Merhaba').length === 1,
+    'Başlıksız gerçek ASS diyaloğu korunmalı');
+});
+t('kesirli saniyeler sağdan tamamlanır: .5 yarım saniyedir', () => {
+  const cues = F.parseSubtitles('WEBVTT\n\n00:01.5 --> 00:02.05\nMetin');
+  ok(cues[0].start === 1.5 && cues[0].end === 2.05, 'Kesirli zaman ölçeği bozuldu');
+});
+
 console.log(`\n${pass} geçti, ${fails.length} başarısız (${pass + fails.length} test)`);
 if (fails.length) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

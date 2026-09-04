@@ -2486,6 +2486,18 @@ def test_download_paths_missing_audio_and_bracketed_clip():
         assert emitted.call_args.kwargs['path'] == str(actual)
 
 
+def test_probe_duration_timeout_and_invalid_results():
+    from unittest import mock
+    with mock.patch.object(T.Path, 'exists', return_value=True):
+        with mock.patch.object(T.subprocess, 'run', side_effect=T.subprocess.TimeoutExpired('ffprobe', 30)) as run:
+            assert T.probe_duration('synthetic.mkv', 'ffmpeg.exe') is None
+            assert run.call_args.kwargs['timeout'] == 30
+        for raw, code, expected in [('12.5', 0, 12.5), ('nan', 0, None), ('inf', 0, None),
+                                    ('-1', 0, None), ('bad', 0, None), ('12.5', 1, None)]:
+            with mock.patch.object(T.subprocess, 'run', return_value=types.SimpleNamespace(stdout=raw, returncode=code)):
+                assert T.probe_duration('synthetic.mkv', 'ffmpeg.exe') == expected
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0

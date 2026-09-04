@@ -653,7 +653,7 @@ test('sohbet geçmişi KOPYA olarak gönderiliyor', () => {
   const i = js.indexOf('opts.chat = {');
   assert(i > 0, 'sohbet yuku olusturulmuyor');
   const body = js.slice(i, i + 220);
-  assert(/history:\s*\(player\.chatHistory \|\| \[\]\)\.slice\(\)/.test(body),
+  assert(/history:\s*\(player\.chatHistory \|\| \[\]\)\.slice\(-8\)/.test(body),
     'gecmis referansla gonderiliyor — asagida ayni diziye soru eklenince '
     + 'soru modele IKI KEZ gider');
 });

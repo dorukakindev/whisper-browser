@@ -686,6 +686,9 @@ function openManagedModal(modal, initialFocus, returnFocus = null) {
 
 function closeManagedModal(modal, restoreFocus = true) {
   if (!modal) return;
+  // Sıradaki/gizli modal kapanınca aktif diyaloğun odağını ve inert durumunu koru.
+  if (_queuedModalOpen?.modal === modal) _queuedModalOpen = null;
+  if (_activeModal !== modal) return;
   const wasActive = _activeModal === modal;
   const queued = wasActive ? _queuedModalOpen : null;
   if (wasActive) _queuedModalOpen = null;
@@ -1382,7 +1385,9 @@ function setInputFile(filepath) {
 
 // Seçilen dosyanın ses kanallarını ffprobe ile listele; >1 kanal varsa dropdown göster.
 // Kanal seçimi dosyaya özgüdür — kalıcı ayara yazılmaz.
+let audioTrackProbeGeneration = 0;
 function resetAudioTracks() {
+  audioTrackProbeGeneration++;
   const field = $('audioTrackField');
   const sel = $('audioTrack');
   if (sel) sel.innerHTML = '<option value="-1">Otomatik (varsayılan kanal)</option>';
@@ -1391,11 +1396,13 @@ function resetAudioTracks() {
 
 async function refreshAudioTracks(filepath) {
   resetAudioTracks();
+  const generation = audioTrackProbeGeneration;
   const field = $('audioTrackField');
   const sel = $('audioTrack');
   if (!field || !sel) return;
   try {
     const res = await window.api.probeTracks(filepath);
+    if (generation !== audioTrackProbeGeneration) return;
     if (!res || !res.ok || !Array.isArray(res.tracks) || res.tracks.length <= 1) return;
     res.tracks.forEach((t) => {
       const parts = [];
@@ -3072,6 +3079,7 @@ $('queueAddBtn').addEventListener('click', () => {
     logLine(`+ Kuyruğa eklendi: ${state.inputFile.split(/[\\/]/).pop()}`);
     // Dosyayı temizle (kuyruğa eklendi, bir sonrakini seçebilsin)
     state.inputFile = null;
+    resetAudioTracks();
     $('fileInfo').classList.add('hidden');
     dropZone.classList.remove('hidden');
   }
@@ -6522,7 +6530,8 @@ function parseAss(text) {
 
 // SRT/VTT ayrıştırma — write_srt çıktımızla birebir uyumlu (BOM ve \r\n dahil)
 function parseSubtitles(text) {
-  if (/^\s*(\[Script Info\]|\[V4\+? Styles\])/im.test(text) || /^Dialogue\s*:/im.test(text)) {
+  if (/^\s*(\[Script Info\]|\[V4\+? Styles\]|\[Events\])/im.test(text)
+      || /^Dialogue\s*:\s*[^,\r\n]*,\s*\d+:\d{2}:\d{2}\.\d+,/im.test(text)) {
     return parseAss(text);
   }
   const out = [];
@@ -8190,7 +8199,7 @@ async function aiChatSend(soru) {
   // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
   // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
   // IKI KEZ giderdi.
-  opts.chat = { question: q, history: (player.chatHistory || []).slice(), context: aiChatContext() };
+  opts.chat = { question: q, history: (player.chatHistory || []).slice(-8), context: aiChatContext() };
   delete opts.youtube;
   if (!opts.translateApiKey) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
@@ -8466,8 +8475,9 @@ function renderAbMarkers() {
   const box = $('seekMarkers');
   const v = $('playerVideo');
   const duration = player.workspaceMode === 'browser' ? player.browserDuration : (v && v.duration);
-  if (!box || !v || !duration) return;
+  if (!box) return;
   box.querySelectorAll('.ab-marker, .ab-range').forEach((e) => e.remove());
+  if (!v || !duration) return;
   const pct = (t) => (t / duration) * 100;
   if (player.abA !== null) {
     const a = document.createElement('div');
@@ -8808,7 +8818,8 @@ function renderSeekMarkers(times) {
   const box = $('seekMarkers');
   const video = $('playerVideo');
   if (!box) return;
-  box.innerHTML = '';
+  // A-B döngüsünün işaretleri aynı kapsayıcıda; yalnız bölüm işaretlerini yenile.
+  box.querySelectorAll('.seek-marker').forEach((el) => el.remove());
   if (!video || !video.duration || !times || !times.length) return;
   // Sure disina dusenler cizilmez (negatif gecikme veya baska videonun bolumleri)
   times.filter((t) => t >= 0 && t <= video.duration).slice(0, 400).forEach((t) => {
@@ -9002,6 +9013,7 @@ function resetMediaBoundState(options = {}) {
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
   renderSeekMarkers([]);
+  renderAbMarkers(); // Medya değişince artık korunmaması gereken eski A-B işaretlerini temizle.
   // Gecikme ONCEKI dosyaya gore ayarlanmisti; yeni videoda anlamsiz - sifirla.
   // (Eskiden yalnizca "dosyaya isle" dugmesi gizleniyordu; +2.3 sn'lik bir
   // duzeltme sonraki butun videolara tasiniyordu.)
@@ -11748,6 +11760,7 @@ function setupRovingTablists() {
     if (tablist.dataset.keyboardReady === 'true') return;
     tablist.dataset.keyboardReady = 'true';
     tablist.addEventListener('keydown', (event) => {
+      if (event.defaultPrevented) return; // Özel sekme işleyicisi zaten etkinleştirdi.
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       const tabs = [...tablist.querySelectorAll('[role="tab"]:not(:disabled)')];
       if (!tabs.length) return;
