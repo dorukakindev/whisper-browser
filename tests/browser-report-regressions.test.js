@@ -56,4 +56,17 @@ const navigate = vm.runInNewContext(main.slice(start, end) + '\nnormalizeBrowser
 assert.strictEqual(navigate('youtube.com'), 'https://youtube.com/');
 assert.strictEqual(navigate('iki kelime'), 'https://www.google.com/search?q=iki%20kelime');
 assert.strictEqual(navigate('https://a.test/watch?sig=abc&token=xyz'), 'https://a.test/watch?sig=abc&token=xyz');
+for (const [input, expected] of [
+  ['example.com?sig=a%2Bb&token=x#part', 'https://example.com/?sig=a%2Bb&token=x#part'],
+  ['example.com#part', 'https://example.com/#part'],
+  ['localhost:3000?x=1', 'http://localhost:3000/?x=1'],
+  ['127.0.0.1:8080#part', 'http://127.0.0.1:8080/#part'],
+  ['[::1]:3000/watch', 'http://[::1]:3000/watch'],
+  ['[2001:db8::1]/watch', 'https://[2001:db8::1]/watch'],
+  ['//example.com/watch?sig=abc', 'https://example.com/watch?sig=abc'],
+  ['örnek.com/altyazı', new URL('https://örnek.com/altyazı').href],
+]) assert.strictEqual(navigate(input), expected, input);
+for (const input of ['javascript:alert(1)', 'data:text/html,secret', 'file:///C:/secret.txt', 'ftp://a.test/x', 'http://[bad']) {
+  assert.strictEqual(navigate(input), null, input);
+}
 console.log('Browser rapor regresyonları: SRT, entity, TTML, MP4, kalıcı URL ve gerçek gezinme doğrulandı.');

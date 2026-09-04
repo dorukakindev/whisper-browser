@@ -1798,26 +1798,30 @@ function noteBrowserCapture(strategy, candidate = {}, outcome = 'aday', detail =
 
 function normalizeBrowserUrl(raw) {
   const value = String(raw || '').trim();
-  if (!value) return null;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+  if (!value || value.length > 16000) return null;
+  if (/^https?:/i.test(value) || value.startsWith('//')) {
     try {
-      const parsed = new URL(value);
+      const parsed = new URL(value.startsWith('//') ? `https:${value}` : value);
       if (!['http:', 'https:'].includes(parsed.protocol)) return null;
       return parsed.href;
     } catch (_) {
       return null;
     }
   }
-  const isLikelyDomain = /^([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/.*)?$/i.test(value)
-    || /^localhost(:\d+)?(\/.*)?$/i.test(value)
-    || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/.*)?$/.test(value);
+  const isLikelyDomain = /^(?:[\p{L}\p{N}-]+\.)+[\p{L}]{2,}(?::\d+)?(?:[/?#].*)?$/iu.test(value)
+    || /^localhost(?::\d+)?(?:[/?#].*)?$/i.test(value)
+    || /^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:[/?#].*)?$/.test(value)
+    || /^\[[0-9a-f:.]+\](?::\d+)?(?:[/?#].*)?$/i.test(value);
   if (isLikelyDomain) {
     try {
-      const localHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[?::1\]?|[^/]+\.local)(?::\d+)?(?:\/|$)/i.test(value);
+      const localHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|[^/?#]+\.local)(?::\d+)?(?:[/?#]|$)/i.test(value);
       const parsed = new URL(`${localHost ? 'http' : 'https'}://${value}`);
       return parsed.href;
-    } catch (_) {}
+    } catch (_) { return null; }
   }
+  // Adres çubuğundaki metin aramaya gidebilir; çalıştırılabilir/dosya
+  // şemalarını ise arama sağlayıcısına dahi gönderme.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return null;
   return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
 }
 
@@ -1906,7 +1910,12 @@ function browserCertificateErrorMessage(error) {
 }
 
 async function openBrowserLinkInNewTab(rawUrl) {
-  const url = normalizeBrowserUrl(rawUrl);
+  // Sayfadan gelen link, kullanıcının yazdığı arama metni değildir.
+  let url = '';
+  try {
+    const parsed = new URL(String(rawUrl || ''));
+    if (['http:', 'https:'].includes(parsed.protocol)) url = parsed.href;
+  } catch (_) {}
   if (!url || browserTabs.size >= MAX_SESSION_TABS) {
     sendBrowserEvent({ type: 'notice', success: false, message: !url ? 'Bağlantı açılamadı.'
       : `En fazla ${MAX_SESSION_TABS} sekme açılabilir. Önce bir sekmeyi kapatın.` });
@@ -1986,6 +1995,10 @@ function installBrowserContextMenu(tab, wc) {
       { label: 'Bağlantıyı yeni sekmede aç', visible: !!linkUrl,
         click: () => void openBrowserLinkInNewTab(linkUrl).catch((error) =>
           sendBrowserEvent({ type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
+      { label: 'Bağlantı adresini kopyala', visible: !!linkUrl, click: () => clipboard.writeText(linkUrl) },
+      { label: 'Seçili metni ara', visible: !!selection,
+        click: () => void openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`)
+          .catch((error) => sendBrowserEvent({ type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
       { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
       { label: 'Kes', visible: !!params.isEditable, enabled: !!params.editFlags?.canCut, click: () => wc.cut() },
       { label: 'Yapıştır', visible: !!params.isEditable, enabled: !!params.editFlags?.canPaste, click: () => wc.paste() },

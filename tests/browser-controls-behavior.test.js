@@ -39,6 +39,11 @@ function extract(start, end, deps = {}) {
     sendBrowserEvent: (...args) => events.push(args.at(-1)),
     async waitForProtectedPlayback() {}, scheduleBrowserSessionSave() {},
   });
+  for (const url of ['javascript:alert(1)', 'data:text/html,a', 'file:///C:/x', 'iki kelime']) {
+    assert.equal(await links.openBrowserLinkInNewTab(url), false);
+    assert.equal(tabs.size, 1, 'geçersiz link sekme oluşturdu');
+  }
+  events.length = 0;
   assert.equal(await links.openBrowserLinkInNewTab('https://example.test/'), true);
   assert.equal(events[0].activeTabId, 'old');
   assert.deepEqual(visibility, [false]);
@@ -63,9 +68,12 @@ function extract(start, end, deps = {}) {
 
   let menu, handler;
   const actions = [];
+  const searches = [];
   const menuContext = extract('function installBrowserContextMenu(', 'function browserSubtitleDir', {
     mainWindow: {}, browserNavigationCapabilities: () => ({ canGoBack: false, canGoForward: false }),
     Menu: { buildFromTemplate(items) { menu = items; return { popup() {} }; } },
+    clipboard: { writeText(text) { actions.push(text); } },
+    openBrowserLinkInNewTab: async url => { searches.push(url); },
   });
   const wc = { on(_name, callback) { handler = callback; },
     cut() { actions.push('cut'); }, paste() { actions.push('paste'); }, selectAll() { actions.push('all'); } };
@@ -78,5 +86,11 @@ function extract(start, end, deps = {}) {
   assert.deepEqual(actions, ['cut', 'paste', 'all']);
   handler({}, { isEditable: false });
   assert.equal(menu.find(item => item.label === 'Yapıştır').visible, false);
+  assert.equal(menu.find(item => item.label === 'Seçili metni ara').visible, false);
+  handler({}, { linkURL: 'https://a.test/?sig=a%2Bb', selectionText: 'İstanbul & İzmir #1' });
+  menu.find(item => item.label === 'Bağlantı adresini kopyala').click();
+  assert.equal(actions.at(-1), 'https://a.test/?sig=a%2Bb');
+  menu.find(item => item.label === 'Seçili metni ara').click();
+  assert.equal(new URL(searches[0]).searchParams.get('q'), 'İstanbul & İzmir #1');
   console.log('browser-controls-behavior: sertifika, dosya adı, protokol, arka plan, limit, kısmi temizlik ve düzenleme menüsü geçti');
 })().catch(error => { console.error(error); process.exitCode = 1; });

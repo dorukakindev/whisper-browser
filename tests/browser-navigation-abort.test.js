@@ -18,6 +18,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
     const events = [];
     const view = { setVisible() {}, webContents: { loadURL: async () => { throw error; } } };
     const shared = {
+      URL,
       isAbortedBrowserNavigation: isAborted, normalizeBrowserUrl: url => url,
       browserLoadErrorMessage: (_, message) => message, waitForProtectedPlayback: async () => {},
       ensureBrowserView: () => view, browserActiveTabId: tab.id, browserVisible: true, browserModalOccluded: false,
