@@ -335,7 +335,12 @@ class BrowserTranslationScheduler {
       if (controller.signal.aborted || generation !== this.generation) return;
       if (!String(result.text || '').trim()) throw new Error('Çeviri sağlayıcısı boş yanıt döndürdü.');
       const cues = distributeTranslation(sentence, result);
-      if (!result.cached) await this.writeCache(cacheKey, JSON.stringify({ text: result.text, parts: result.parts }));
+      if (!result.cached) {
+        // Önbellek bir hızlandırmadır; disk/kasa yazımı başarısız olduğunda
+        // sağlayıcıdan başarıyla gelen çeviriyi kullanıcıdan saklama.
+        try { await this.writeCache(cacheKey, JSON.stringify({ text: result.text, parts: result.parts })); }
+        catch (_) { /* Sonuç kullanılabilir; yalnız bu tur kalıcılaştırılamadı. */ }
+      }
       if (controller.signal.aborted || generation !== this.generation) return;
       const value = {
         sentenceId: sentence.id,

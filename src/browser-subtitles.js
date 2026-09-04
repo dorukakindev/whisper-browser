@@ -114,6 +114,17 @@ function parseTimedBlocks(body) {
           && until > 1 && !lines[until - 2]?.trim();
         if (/^\d+$/.test(candidate) || separatedCueId) until--;
       }
+      // WebVTT NOTE/STYLE/REGION blokları cue değildir. Global zaman satırı
+      // taraması ayraçsız SRT'yi kurtarırken son cue'dan sonraki bu blokları
+      // yanlışlıkla konuşma metnine eklememeli.
+      for (let lineIndex = idx + 1; lineIndex < until; lineIndex++) {
+        const metadata = lines[lineIndex].trim();
+        if (lineIndex > idx + 1 && !lines[lineIndex - 1].trim()
+            && /^(?:NOTE(?:\s|$)|STYLE\s*$|REGION\s*$)/i.test(metadata)) {
+          until = lineIndex - 1;
+          break;
+        }
+      }
       const text = lines.slice(idx + 1, until).join('\n');
       out.push({ start: start + timelineOffset, end: end + timelineOffset, text });
   }
@@ -243,6 +254,8 @@ function parseHlsSegments(body, baseUrl = '') {
   let previousByteRangeUrl = '';
   let initializationUrl = '';
   let initializationByteRange = null;
+  let previousInitializationUrl = '';
+  let previousInitializationRangeEnd = 0;
   for (const line of text.split(/\r?\n/)) {
     const value = line.trim();
     if (!value) continue;
@@ -265,9 +278,21 @@ function parseHlsSegments(body, baseUrl = '') {
       try { initializationUrl = uri ? new URL(uri, baseUrl).href : ''; } catch (_) { initializationUrl = ''; }
       if (range) {
         const length = Math.max(0, Number(range[1]) || 0);
-        const start = Math.max(0, Number(range[2]) || 0);
+        // RFC 8216: @offset yoksa aynı URI'deki önceki init aralığının hemen
+        // ardından devam eder. Her örtük aralığı sıfıra sabitlemek ikinci
+        // init parçasını yanlış baytlardan indiriyordu.
+        const start = range[2] === undefined
+          ? (initializationUrl && initializationUrl === previousInitializationUrl
+            ? previousInitializationRangeEnd : 0)
+          : Math.max(0, Number(range[2]) || 0);
         initializationByteRange = length ? { start, end: start + length - 1 } : null;
-      } else initializationByteRange = null;
+        previousInitializationUrl = initializationUrl;
+        previousInitializationRangeEnd = initializationByteRange ? initializationByteRange.end + 1 : 0;
+      } else {
+        initializationByteRange = null;
+        previousInitializationUrl = '';
+        previousInitializationRangeEnd = 0;
+      }
       continue;
     }
     if (/^#EXT-X-DISCONTINUITY(?:\s|$)/i.test(value)) {

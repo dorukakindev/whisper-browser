@@ -4932,6 +4932,32 @@ function renderBrowserTracks(selectedId) {
   }
 }
 
+function replaceBrowserTrackSubtitlePath(previousTrack, nextTrack) {
+  const previousPath = String(previousTrack?.path || '');
+  const nextPath = String(nextTrack?.path || '');
+  if (!previousPath || !nextPath || previousPath === nextPath) return false;
+  const label = `${nextTrack.role === 'translation' ? 'Çeviri' : 'Web'} · ${nextTrack.language || nextTrack.label || 'altyazı'}`;
+  const nextExists = player.subtitles.some((item) => item.path === nextPath);
+  const previousIndex = player.subtitles.findIndex((item) => item.path === previousPath);
+  if (previousIndex >= 0) {
+    if (nextExists) player.subtitles.splice(previousIndex, 1);
+    else player.subtitles[previousIndex] = { ...player.subtitles[previousIndex], path: nextPath, label };
+  }
+  const origin = player.subOrigins[previousPath];
+  delete player.subOrigins[previousPath];
+  if (!player.subOrigins[nextPath]) player.subOrigins[nextPath] = origin || subtitleOrigin(nextPath, label);
+  for (const id of ['playerSubSelect', 'playerSubSelect2']) {
+    const select = $(id);
+    if (!select) continue;
+    for (const option of [...select.options]) {
+      if (option.value !== previousPath) continue;
+      if (nextExists || [...select.options].some((item) => item !== option && item.value === nextPath)) option.remove();
+      else { option.value = nextPath; option.textContent = label; }
+    }
+  }
+  return true;
+}
+
 function announceBrowserTrack(track) {
   const tab = browserTabState();
   if (!tab || !track) return;
@@ -5648,8 +5674,10 @@ async function toggleBrowserLiveAsr() {
 }
 
 function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
-  const primary = !!track && player.browserLoadedTrackId === track.id && player.subPath === track.path;
-  const secondary = !!track && player.browserLoadedTrackId2 === track.id && player.sub2Path === track.path;
+  // Aynı canlı iz her yayınlandığında içerik-hash'li yeni bir asset yolu alır.
+  // Etkinliği eski dosya yoluyla değil kararlı track kimliğiyle belirle.
+  const primary = !!track && player.browserLoadedTrackId === track.id;
+  const secondary = !!track && player.browserLoadedTrackId2 === track.id;
   if (!primary && !secondary) return;
   const tabId = player.browserActiveTabId;
   const gen = currentGeneration();
@@ -5658,8 +5686,8 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
     if (player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
     delete player.browserTrackRefreshTimers[track.id];
     const latest = player.browserTracks.find((item) => item.id === track.id);
-    const refreshPrimary = !!latest && player.browserLoadedTrackId === latest.id && player.subPath === latest.path;
-    const refreshSecondary = !!latest && player.browserLoadedTrackId2 === latest.id && player.sub2Path === latest.path;
+    const refreshPrimary = !!latest && player.browserLoadedTrackId === latest.id;
+    const refreshSecondary = !!latest && player.browserLoadedTrackId2 === latest.id;
     if (!refreshPrimary && !refreshSecondary) return;
     if (state.running || state.queueRunning) {
       // Uzun film çevirileri iki dakikayı aşabilir. Eski 120 deneme sınırı,
@@ -6541,7 +6569,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'subtitle-found' && event.track) {
     const selectedBefore = $('browserTrackSelect')?.value || '';
     const index = player.browserTracks.findIndex((track) => track.id === event.track.id);
-    if (index >= 0) player.browserTracks[index] = event.track;
+    if (index >= 0) {
+      replaceBrowserTrackSubtitlePath(player.browserTracks[index], event.track);
+      player.browserTracks[index] = event.track;
+    }
     else player.browserTracks.push(event.track);
     const tab = browserTabState();
     if (tab) tab.browserTracks = player.browserTracks.slice();

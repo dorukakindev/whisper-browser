@@ -115,6 +115,29 @@ function action(name, next, context) {
   assert.equal(reloads, 1);
   assert.equal(starts, 0, 'kayıtlı çeviri yeniden çeviriye gönderildi');
 
+  // Canlı iz aynı kimlikle yeni asset yoluna geçtiğinde eski yol artık diskte
+  // bulunmaz. Yenileme kararlı track kimliği üzerinden devam etmeli.
+  const updatedSaved = { ...saved, path: 'saved-v2.srt' };
+  Object.assign(refreshContext.player, { subPath: 'saved.srt', browserTracks: [updatedSaved] });
+  refreshContext.scheduleActiveBrowserTrackRefresh(updatedSaved);
+  await refresh();
+  assert.equal(reloads, 2, 'yolu değişen etkin iz yeniden yüklenmedi');
+
+  const option = { value: 'saved.srt', textContent: 'Eski' };
+  const pathContext = {
+    player: { subtitles: [{ path: 'saved.srt', label: 'Eski' }],
+      subOrigins: { 'saved.srt': 'Web' } },
+    subtitleOrigin: () => 'Web',
+    $: () => ({ options: [option] }),
+  };
+  vm.createContext(pathContext);
+  vm.runInContext(source.slice(source.indexOf('function replaceBrowserTrackSubtitlePath('),
+    source.indexOf('function announceBrowserTrack(')), pathContext);
+  assert.equal(pathContext.replaceBrowserTrackSubtitlePath(saved, updatedSaved), true);
+  assert.equal(pathContext.player.subtitles.length, 1, 'eski asset seçeneği birikti');
+  assert.equal(pathContext.player.subtitles[0].path, 'saved-v2.srt');
+  assert.equal(option.value, 'saved-v2.srt');
+
   // Artımlı yenileme renderer'daki sıfırlayıcı başlangıç yoluna dönmemeli.
   let refreshRequest;
   let snapshots = 0;

@@ -166,6 +166,24 @@ async function test(name, fn) {
     assert(cachedResults.every((result) => result.cached));
   });
 
+  await test('önbellek yazma hatası başarılı çeviriyi kullanıcıdan saklamaz', async () => {
+    const sentence = { id: 'cache-write', start: 0, end: 2, text: 'Hello.',
+      pieces: [{ cueId: 'cw', start: 0, end: 2, text: 'Hello.' }] };
+    const delivered = [];
+    const scheduler = new BrowserTranslationScheduler({
+      cache: { get: async () => undefined, set: async () => { throw new Error('disk dolu'); } },
+      translate: async () => 'Merhaba.',
+      onResult: (result) => delivered.push(result),
+    });
+    scheduler.setSentences([sentence]);
+    scheduler.updatePlayhead(0);
+    await scheduler.whenIdle();
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].error, undefined);
+    assert.equal(delivered[0].cues[0].text, 'Merhaba.');
+    assert.equal(scheduler.snapshot().completed, 1);
+  });
+
   await test('uzak seek pencere dışındaki çalışan çeviriyi iptal eder', async () => {
     const sentences = [
       { id: 'old', start: 0, end: 2, text: 'Old.', pieces: [{ cueId: 'o', start: 0, end: 2, text: 'Old.' }] },

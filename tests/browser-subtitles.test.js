@@ -120,6 +120,18 @@ test('WebVTT alfanümerik cue kimliğini önceki metne sızdırmaz', () => {
   assert.deepEqual(result.cues.map(cue => cue.text), ['Bir', 'İki']);
 });
 
+test('WebVTT sonundaki NOTE STYLE ve REGION bloklarını konuşmaya eklemez', () => {
+  for (const metadata of [
+    'NOTE editör notu\nkonuşma değildir',
+    'STYLE\n::cue { color: lime; }',
+    'REGION\nid:bottom\nwidth:80%',
+  ]) {
+    const result = parseSubtitlePayload(`WEBVTT\n\n00:01.000 --> 00:02.000\nGerçek metin\n\n${metadata}`,
+      'text/vtt', 'https://cdn.test/metadata.vtt');
+    assert.deepEqual(result.cues, [{ start: 1, end: 2, text: 'Gerçek metin' }]);
+  }
+});
+
 test('namespace kullanan TTML p ve iç span zamanlarını ayrı cue olarak ayrıştırır', () => {
   const namespaced = parseSubtitlePayload(
     '<tt:tt xmlns:tt="urn:tt"><tt:body begin="2s"><tt:div><tt:p begin="1s"><tt:span begin="0.5s" dur="1s">Bir</tt:span><tt:span begin="1.5s" dur="1s">İki</tt:span></tt:p></tt:div></tt:body></tt:tt>',
@@ -325,6 +337,12 @@ test('Hulu benzeri HLS manifestinden altyazı izlerini çıkarır', () => {
     discontinuity: 0, targetDuration: 0, initializationUrl: 'https://cdn.test/subs/init.mp4',
     initializationByteRange: { start: 20, end: 919 },
   });
+  assert.deepEqual(parseHlsSegments(
+    '#EXT-X-MAP:URI="init.mp4",BYTERANGE="100@20"\n#EXTINF:2,\npart-1.m4s\n#EXT-X-MAP:URI="init.mp4",BYTERANGE="50"\n#EXTINF:2,\npart-2.m4s',
+    'https://cdn.test/subs/index.m3u8').map(({ initializationByteRange }) => initializationByteRange), [
+    { start: 20, end: 119 },
+    { start: 120, end: 169 },
+  ]);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\npart-1.vtt', 'https://cdn.test/master.m3u8'), true);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\nvideo-1.ts', 'https://cdn.test/video.m3u8'), false);
 });
