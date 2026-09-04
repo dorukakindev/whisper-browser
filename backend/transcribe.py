@@ -1893,7 +1893,7 @@ def _load_pcm_waveform_for_pyannote(wav_path, torch_module):
         if frames * channels * 4 > PYANNOTE_MAX_WAVEFORM_BYTES:
             raise RuntimeError("Konuşmacı tanıma sesi 512 MB bellek sınırını aşıyor. Daha kısa bir zaman aralığı seçin veya konuşmacı tanımayı kapatın.")
         waveform = np.empty((channels, frames), dtype=np.float32)
-        chunk_frames = max(1, min(sample_rate * 60, 1024 * 1024 // channels))
+        chunk_frames = max(1, min(sample_rate * 60, 1024 * 1024 // (channels * sample_width)))
         for offset in range(0, frames, chunk_frames):
             count = min(chunk_frames, frames - offset)
             raw = wav.readframes(count)
@@ -2529,6 +2529,9 @@ def contiguous_index_chunks(indexes, limit):
 
 def translation_char_budget(entry, args):
     """API payload'indaki blok-suresine bagli karakter butcesini tek yerde hesaplar."""
+    if args.max_cps <= 0:
+        # CPS sınırı kapalıyken modele sıfır karakter emri gönderme.
+        return max(160, len(str(entry[2])) * 3)
     return int(max(0.4, float(entry[1]) - float(entry[0])) * args.max_cps)
 
 
@@ -3106,7 +3109,7 @@ def _norm_for_dedupe(text):
     """Tekrar karşılaştırması için metni normalize et (küçük harf, boşluk/noktalama sadeleştir)."""
     t = (text or "").lower().strip()
     t = re.sub(r"\s+", " ", t)
-    return t.strip(" .,!?…:;-\"'")
+    return unicodedata.normalize("NFC", t).strip(" .,!?…:;-\"'‘’“”«»")
 
 
 def dedupe_consecutive(entries, max_gap=2.0):
@@ -4107,6 +4110,7 @@ def transcribe(args):
         )
 
     workdir = tempfile.mkdtemp(prefix="whisper_altyazi_")
+    model = batched = segments_iter = None
 
     try:
         warn_list = []  # done event'ine taşınacak kısmi-başarısızlık uyarıları
@@ -4335,8 +4339,10 @@ def transcribe(args):
             # Bazı motorlar sessiz/bozuk karelerde sınırı None bırakabilir.
             # Bu kayıtlar zaman eksenine güvenle yerleştirilemediğinden atlanır;
             # None ile toplama yapıp tüm işi düşürmelerine izin verilmez.
-            if segment.start is None or segment.end is None:
-                log("Zaman damgası olmayan segment atlandı.", "warn")
+            if (segment.start is None or segment.end is None
+                    or not math.isfinite(segment.start) or not math.isfinite(segment.end)
+                    or segment.start < 0 or segment.end <= segment.start):
+                log("Geçersiz zaman damgalı segment atlandı.", "warn")
                 continue
             # Halüsinasyonları filtrele
             if is_hallucination(segment.text):
@@ -4352,12 +4358,21 @@ def transcribe(args):
                 for w in segment.words:
                     ws = w.start if w.start is not None else _prev_end
                     we = w.end if w.end is not None else ws
+                    if not math.isfinite(ws):
+                        ws = _prev_end
+                    if not math.isfinite(we):
+                        we = ws
+                    ws = max(segment.start, min(segment.end, ws))
+                    we = max(ws, min(segment.end, we))
                     _prev_end = we
+                    probability = getattr(w, "probability", 1.0)
+                    if probability is None or not math.isfinite(probability):
+                        probability = 0.0
                     word_row = {
                         "word": w.word,
                         "start": round(ws + time_offset, 3),
                         "end": round(we + time_offset, 3),
-                        "probability": round(getattr(w, "probability", 1.0), 3),
+                        "probability": round(max(0.0, min(1.0, probability)), 3),
                     }
                     all_words.append(word_row)
                     segment_words.append(word_row)
@@ -4377,6 +4392,9 @@ def transcribe(args):
                     start = segment.start
                 if end is None:
                     end = segment.end
+                if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
+                    log("Geçersiz zaman damgalı altyazı parçası atlandı.", "warn")
+                    continue
                 # Kırpma kullanıldıysa zamanları orijinal videoya göre kaydır
                 start += time_offset
                 end += time_offset
@@ -4443,11 +4461,8 @@ def transcribe(args):
         # model (~3GB) + pyannote (~2-3GB) aynı anda yüklenip 12GB GPU'da OOM verebilir.
         # (WhisperX kendi içinde temizliyor; burada yalnızca faster/batched yolu.)
         if batched is not None or model is not None:
-            try:
-                del batched
-                del model
-            except Exception:
-                pass
+            segments_iter = None
+            batched = model = None
             _wx_free_gpu()
 
         # Devam modu: korunan (checkpoint) + yeni blokları birleştir.
@@ -4838,6 +4853,10 @@ def transcribe(args):
 
     finally:
         # Geçici çalışma klasörünü tümüyle temizle (indirilen ses, audio.wav vb.)
+        if model is not None or batched is not None:
+            segments_iter = None
+            batched = model = None
+            _wx_free_gpu()
         shutil.rmtree(workdir, ignore_errors=True)
         if os.path.isdir(workdir):
             # Silinemedi (büyük olasılıkla model/ffmpeg dosya kilidi) — disk birikmesini görünür kıl

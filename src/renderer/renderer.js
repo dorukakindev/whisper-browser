@@ -956,7 +956,7 @@ function srtTime(seconds) {
 $('copyPreview').addEventListener('click', async () => {
   // Arama filtresi aktifse yalnızca görünen segmentleri kopyala
   const segs = state.previewSegs.filter(
-    (s) => !previewFilter || (s.text || '').toLowerCase().includes(previewFilter)
+    (s) => !previewFilter || (s.text || '').toLocaleLowerCase('tr').includes(previewFilter)
   );
   if (segs.length === 0) {
     logLine('Kopyalanacak segment yok', 'warn');
@@ -975,6 +975,11 @@ $('copyPreview').addEventListener('click', async () => {
 
 // Önizleme metin filtresi — büyük transkriptlerde arama
 let previewFilter = '';
+let playerPreviewUnmatchedEdits = [];
+$('copyPreviewEdits')?.addEventListener('click', async () => {
+  await window.api.copyText(JSON.stringify(playerPreviewUnmatchedEdits, null, 2));
+  logLine('Zaman aralığı değişen düzenlemelerin yedeği panoya kopyalandı.', 'success');
+});
 
 // Önizlemede en çok bu kadar DOM düğümü tutulur; veri (state.previewSegs) tam kalır
 // (kopyalama tümünü içerir). Uzun videolarda kaydırma takılmasını/bellek şişmesini önler.
@@ -996,7 +1001,7 @@ $('previewSearch').addEventListener('input', () => {
   clearTimeout(_searchTimer);
   $('previewSearchClear')?.classList.toggle('hidden', !$('previewSearch').value);
   _searchTimer = setTimeout(() => {
-    previewFilter = $('previewSearch').value.trim().toLowerCase();
+    previewFilter = $('previewSearch').value.trim().toLocaleLowerCase('tr');
     $$('#preview .segment').forEach(applySegmentFilter);
   }, 120);
 });
@@ -1015,7 +1020,8 @@ $('previewSearchClear')?.addEventListener('click', () => {
 function createSegmentEl(seg, idx) {
   const el = document.createElement('div');
   el.className = 'segment';
-  el.dataset.text = (seg.text || '').toLowerCase();
+  if (seg.previewEdited) el.classList.add('edited');
+  el.dataset.text = (seg.text || '').toLocaleLowerCase('tr');
   if (idx !== undefined) el.dataset.idx = String(idx);
   const start = formatTime(seg.start);
   const end = formatTime(seg.end);
@@ -1041,9 +1047,11 @@ function commitSegmentEdit(textEl) {
   const entry = state.previewSegs[idx];
   if (!entry) return;
   const newText = textEl.textContent.replace(/\s+/g, ' ').trim();
+  textEl.textContent = newText;
   if (newText === entry.text) return;
   entry.text = newText;
-  segEl.dataset.text = newText.toLowerCase();
+  entry.previewEdited = true;
+  segEl.dataset.text = newText.toLocaleLowerCase('tr');
   segEl.classList.add('edited');
 }
 
@@ -1085,9 +1093,31 @@ function addSegment(seg) {
 // Nihai segment listesini tek seferde göster — DocumentFragment ile (düğüm başına reflow yok)
 function renderFinalPreview(segs) {
   const preview = $('preview');
-  state.previewSegs = segs.map((s) => ({ ...s }));
+  // DOM sınırından çıkan düzenlemeler de modelde saklanır. İndekse değil zaman
+  // aralığına eşle; yeniden bölünmüş bir bloğa başka kullanıcının metnini taşıma.
+  const focused = document.activeElement;
+  if (focused?.matches?.('.segment-text[contenteditable="true"]') && preview.contains(focused)) commitSegmentEdit(focused);
+  const oldEdits = state.previewSegs.filter(s => s.previewEdited);
+  const edits = new Map();
+  oldEdits.forEach(s => { const key = `${s.start}|${s.end}`; edits.set(key, edits.has(key) ? null : s); });
+  const matched = new Set();
+  const counts = new Map();
+  segs.forEach(s => { const key = `${s.start}|${s.end}`; counts.set(key, (counts.get(key) || 0) + 1); });
+  state.previewSegs = segs.map(s => {
+    const key = `${s.start}|${s.end}`;
+    const edited = counts.get(key) === 1 ? edits.get(key) : null;
+    if (edited) matched.add(key);
+    return edited ? { ...s, text: edited.text, previewEdited: true } : { ...s };
+  });
+  // Sınırları değişen kullanıcı düzenlemesini sessizce kaybetme: ayrı kopya.
+  playerPreviewUnmatchedEdits = [...playerPreviewUnmatchedEdits,
+    ...oldEdits.filter(s => !matched.has(`${s.start}|${s.end}`)).map(s => ({ ...s }))];
+  if (playerPreviewUnmatchedEdits.length) {
+    logLine(`${playerPreviewUnmatchedEdits.length} düzenlenmiş bloğun zaman aralığı değişti; kopyası “Düzenleme yedeği” ile alınabilir.`, 'warn');
+  }
+  $('copyPreviewEdits')?.classList.toggle('hidden', !playerPreviewUnmatchedEdits.length);
   const offset = segs.length > PREVIEW_DOM_CAP ? segs.length - PREVIEW_DOM_CAP : 0;
-  const visible = offset > 0 ? segs.slice(-PREVIEW_DOM_CAP) : segs;
+  const visible = state.previewSegs.slice(offset);
   const frag = document.createDocumentFragment();
   visible.forEach((s, i) => {
     const el = createSegmentEl(s, offset + i);  // kalıcı previewSegs indeksi
@@ -3107,9 +3137,11 @@ window.addEventListener('beforeunload', () => {
   // cevabı beklenemez. Yalnız kapanış anında kullanılan senkron köprü, ana
   // sürecin ayarı diske yazdığını renderer yok edilmeden önce doğrular.
   try { window.api.saveSettingsSync?.(appSettingsPayload()); } catch (_) {}
-  // invoke mesajı renderer yok edilmeden önce IPC kuyruğuna bırakılır. Asıl
-  // güvence her durum değişimindeki kısa debounce kaydıdır.
-  persistQueueNow();
+  // Kapanışta son kuyruk değişikliğini senkron onayla; normal kullanımda
+  // kısa debounce ve ana sürecin iş yaşam döngüsü kayıtları devam eder.
+  if (_queuePersistenceReady && window.api.saveQueueStateSync) {
+    try { window.api.saveQueueStateSync(queueSnapshotPayload()); } catch (_) {}
+  } else persistQueueNow();
 });
 
 // "Sırada dur" düğmesi: kuyruk çalışırken görünür; mevcut iş bitince durdurur
@@ -3568,6 +3600,7 @@ function browserTabState(tabId = player.browserActiveTabId) {
 function saveLocalSubtitleWorkspace() {
   player.localSubtitleWorkspace = {
     cues: player.cues.slice(), cues2: player.cues2.slice(),
+    cuesRaw: (player.cuesRaw || player.cues).slice(), cues2Raw: (player.cues2Raw || player.cues2).slice(),
     subtitles: player.subtitles.map((item) => ({ ...item })),
     subOrigins: { ...player.subOrigins }, subPath: player.subPath,
     sub2Path: player.sub2Path, subFormat: player.subFormat, subRaw: player.subRaw,
@@ -3580,7 +3613,9 @@ function restoreLocalSubtitleWorkspace() {
   if (!saved) return;
   player.cues = saved.cues.slice();
   player.cues2 = saved.cues2.slice();
-  player.subtitles = saved.subtitles.map((item) => ({ ...item }));
+  player.cuesRaw = (saved.cuesRaw || saved.cues).slice();
+  player.cues2Raw = (saved.cues2Raw || saved.cues2).slice();
+  player.subtitles = [];
   player.subOrigins = { ...saved.subOrigins };
   player.subPath = saved.subPath;
   player.sub2Path = saved.sub2Path;
@@ -3601,6 +3636,7 @@ function restoreLocalSubtitleWorkspace() {
   if ($('playerSubSelect')) $('playerSubSelect').value = saved.subPath;
   if ($('playerSubSelect2')) $('playerSubSelect2').value = saved.sub2Path;
   if ($('subOffset')) $('subOffset').value = String(saved.offset);
+  if ($('subOffsetVal')) $('subOffsetVal').textContent = Number(saved.offset).toFixed(1);
   player.activeIdx = -1;
   player.activeIdx2 = -1;
   syncSubtitleModeUi();
@@ -3645,6 +3681,7 @@ function saveActiveBrowserTabWorkspace() {
     watchManualCompleted: player.watchManualCompleted,
     watchRemovedKey: player.watchRemovedKey,
     cues: player.cues.slice(), cues2: player.cues2.slice(),
+    cuesRaw: (player.cuesRaw || player.cues).slice(), cues2Raw: (player.cues2Raw || player.cues2).slice(),
     subtitles: player.subtitles.map((item) => ({ ...item })),
     subOrigins: { ...player.subOrigins },
     subPath: player.subPath, sub2Path: player.sub2Path,
@@ -3710,6 +3747,8 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.watchRemovedKey = tab.watchRemovedKey || '';
   player.cues = (tab.cues || []).slice();
   player.cues2 = (tab.cues2 || []).slice();
+  player.cuesRaw = (tab.cuesRaw || tab.cues || []).slice();
+  player.cues2Raw = (tab.cues2Raw || tab.cues2 || []).slice();
   const restoredSubtitles = (tab.subtitles || []).map((item) => ({ ...item }));
   player.subtitles = [];
   player.subOrigins = { ...(tab.subOrigins || {}) };
@@ -3791,6 +3830,10 @@ function syncBrowserTabs(snapshots, activeTabId) {
 }
 
 function browserCommand(command, value, tabId = player.browserActiveTabId) {
+  if (['play', 'pause', 'play-pause', 'seek', 'seek-relative'].includes(command)) {
+    clearTimeout(player.shadowResumeTimer);
+    player.shadowResumeTimer = null;
+  }
   return window.api.browserCommand(tabId, command, value);
 }
 
@@ -4366,6 +4409,7 @@ function renderBrowserPlaces() {
     const active = tab.dataset.placeTab === player.browserPlaceTab;
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    tab.tabIndex = active ? 0 : -1;
   });
   $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
@@ -4415,6 +4459,8 @@ async function loadBrowserPlaces() {
   const seq = ++player.browserPlacesSeq;
   const result = await window.api.listBrowserPlaces().catch(() => null);
   if (seq === player.browserPlacesSeq && result && result.ok && result.places) {
+    if (result.warning && result.warning !== player.browserPlacesLoadWarning) logLine(result.warning, 'warn');
+    player.browserPlacesLoadWarning = result.warning || '';
     player.browserPlaces = result.places;
     renderBrowserPlaces();
   }
@@ -5690,7 +5736,10 @@ async function clearBrowserCookieScope(scope) {
     : window.api.clearBrowserCookies?.();
   const result = await (apiCall || Promise.resolve(null)).catch(() => null);
   if (!result || !result.ok) {
-    setBrowserSignal(`${isSite ? 'Site verileri' : 'Çerezler'} temizlenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    const prefix = result?.partial
+      ? `Kısmen temizlendi (${Number(result.removed) || 0} çerez, ${Number(result.failed) || 0} hata)`
+      : `${isSite ? 'Site verileri' : 'Çerezler'} temizlenemedi`;
+    setBrowserSignal(`${prefix}: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     return;
   }
   setBrowserPlacesOpen(false);
@@ -6269,7 +6318,8 @@ function updateCueMeta() {
   const savedFilter = $('savedOnlyBtn');
   if (savedFilter) {
     savedFilter.classList.toggle('active', player.savedOnly);
-    const savedCount = player.savedCues.length;
+    const savedSet = new Set(player.savedCues);
+    const savedCount = player.cues.filter(cue => savedSet.has(cueSignature(cue))).length;
     savedFilter.title = player.savedOnly
       ? 'Tüm cümleleri göster'
       : `Kaydedilen cümleleri göster (${savedCount})`;
@@ -6316,6 +6366,35 @@ function persistSavedWords() {
   try { localStorage.setItem(key, JSON.stringify(player.savedWords.slice(-1000))); } catch (_) {}
 }
 
+function migrateSavedCueAssociation(before, after) {
+  const oldKey = cueSignature(before), nextKey = cueSignature(after);
+  if (!oldKey || oldKey === nextKey) return;
+  player.savedCues = [...new Set(player.savedCues.map(key => key === oldKey ? nextKey : key))];
+  player.savedWords.forEach(record => {
+    const marker = `|${oldKey}|`;
+    if (record.key.includes(marker)) {
+      record.key = record.key.replace(marker, `|${nextKey}|`);
+      record.cue = after.text;
+    }
+  });
+  persistSavedCues();
+  persistSavedWords();
+}
+
+function migrateTimelineAssociations() {
+  const before = player.timeline.annotationSnapshot || [];
+  player.timeline.annotationSnapshot = null;
+  const oldByText = new Map(), newByText = new Map();
+  // Yinelenen/bölünmüş metinde tahmin yapma: eski kaydı koru.
+  for (const [list, map] of [[before, oldByText], [player.cues, newByText]]) {
+    for (const cue of list) map.set(cue.text, map.has(cue.text) ? null : cue);
+  }
+  for (const [text, oldCue] of oldByText) {
+    const next = newByText.get(text);
+    if (oldCue && next) migrateSavedCueAssociation(oldCue, next);
+  }
+}
+
 function isWordSaved(word, cueIndex, source = 'source') {
   return !!word && player.savedWords.some((x) => x.key === wordRecordKey(word, cueIndex, source));
 }
@@ -6353,14 +6432,22 @@ function showWordInspector(word, cueIndex, source = 'source') {
   if (!cue || !String(word || '').trim()) return;
   player.selectedWord = { word: String(word).trim(), cueIndex, source };
   const panel = $('wordInspector');
-  if (panel) panel.classList.remove('hidden');
+  if (panel) {
+    if (panel.classList.contains('hidden')) player.wordInspectorReturnFocus = document.activeElement;
+    panel.classList.remove('hidden');
+    panel.focus();
+  }
   updateWordInspector();
 }
 
 function hideWordInspector() {
   player.selectedWord = null;
   const panel = $('wordInspector');
-  if (panel) panel.classList.add('hidden');
+  if (panel) {
+    const restore = panel.contains(document.activeElement);
+    panel.classList.add('hidden');
+    if (restore && player.wordInspectorReturnFocus?.isConnected) player.wordInspectorReturnFocus.focus();
+  }
   setWordHighlight('picked', null);
 }
 
@@ -6584,6 +6671,7 @@ function findCueAt(cues, t, hint) {
 }
 
 function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
+  if (player.editing || player.holdingSpeed || $('playerVideo')?.seeking) return;
   if (player.playbackPolicy === 'normal' || !player.cues.length || !window.WhisperPlaybackPolicy) return;
   const action = window.WhisperPlaybackPolicy.playbackLearningAction(
     player.cues, Number(time) - player.offset, Number(previousTime) - player.offset,
@@ -6608,7 +6696,7 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
     else $('playerVideo')?.pause();
     player.shadowResumeTimer = setTimeout(() => {
       player.shadowResumeTimer = null;
-      if (generation !== currentGeneration() || player.playbackPolicy !== 'shadowing') return;
+      if (generation !== currentGeneration() || player.playbackPolicy !== 'shadowing' || player.editing) return;
       if (browserMode) browserCommand('play').catch(() => {});
       else $('playerVideo')?.play().catch(() => {});
     }, action.durationMs);
@@ -6644,7 +6732,7 @@ function renderCue() {
     const dt = player.lastT === undefined ? -1 : t - player.lastT;
     applyPlaybackLearningPolicy(video.currentTime,
       player.lastT === undefined ? NaN : player.lastT + player.offset, video.paused, false);
-    if (player.autoPause && !video.paused && dt > 0 && dt < 1.0) {
+    if (player.autoPause && !video.paused && !video.seeking && dt > 0 && dt < 1.0) {
       // Bitisini gectigimiz blogu HER ZAMAN onceki zamana gore bul.
       // Eskiden `i >= 0 ? i : ...` yaziyordu: tik boslugu atlayip sonraki
       // blogun icine dustugunde (250 ms tik / 80 ms bosluk -> cogu zaman)
@@ -7163,16 +7251,27 @@ function timelineWindow() {
 }
 
 function timelineMarkDirty(message) {
+  migrateTimelineAssociations();
   const drawer = $('timelineDrawer');
   if (drawer) drawer.classList.add('dirty');
   if ($('timelineStatus')) $('timelineStatus').textContent = message || 'Kaydedilmemiş zamanlama değişiklikleri';
   if ($('timelineUndo')) $('timelineUndo').disabled = !player.timeline.undo.length;
+  if ($('timelineRedo')) $('timelineRedo').disabled = !player.timeline.redo?.length;
+  const selectedCue = player.cues[player.timeline.selected];
+  player.cues.sort((a, b) => a.start - b.start || a.end - b.end);
+  if (selectedCue) player.timeline.selected = player.cues.indexOf(selectedCue);
+  player.cuesRaw = player.cues.map(c => ({ ...c }));
+  player.activeIdx = -1;
+  scheduleBrowserOverlaySync();
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   renderCue();
   drawTimeline();
 }
 
 function timelinePushUndo() {
+  player.timeline.annotationSnapshot = player.cues.map(c => ({ ...c }));
+  player.timeline.redo = [];
+  if ($('timelineRedo')) $('timelineRedo').disabled = true;
   player.timeline.undo.push(player.cues.map((c) => ({ ...c })));
   if (player.timeline.undo.length > 30) player.timeline.undo.shift();
   if ($('timelineUndo')) $('timelineUndo').disabled = false;
@@ -7291,6 +7390,11 @@ async function openTimeline() {
 }
 
 function closeTimeline() {
+  const canvas = $('timelineCanvas');
+  const drag = player.timeline.drag;
+  player.timeline.drag = null;
+  if (drag && canvas?.hasPointerCapture?.(drag.pointerId)) canvas.releasePointerCapture(drag.pointerId);
+  if (drag?.changed) timelineMarkDirty('Sürüklenen bloğun zamanlaması korundu');
   player.timeline.open = false;
   player.timeline.drag = null;
   if ($('timelineDrawer')) $('timelineDrawer').classList.add('hidden');
@@ -7340,7 +7444,10 @@ function timelineMergeCue() {
 
 async function saveTimelineCopy() {
   if (!player.cues.length) return;
-  const result = await window.api.saveSubtitleCopy(player.subPath || 'altyazi.srt', cuesToSrt(player.cues));
+  // Zamanlama düzenleyicisi biçimsel ASS stillerini yeniden üretemez. SRT
+  // içeriğini ASS/VTT uzantısına yazmak yerine dönüşümü dosya adında açıkla.
+  const copyPath = (player.subPath || 'altyazi.srt').replace(/\.(?:srt|vtt|ass|ssa)$/i, '.srt');
+  const result = await window.api.saveSubtitleCopy(copyPath, cuesToSrt(player.cues));
   if (!result || !result.ok) {
     if (!(result && result.canceled)) logLine(`Zamanlama kopyası kaydedilemedi: ${(result && result.error) || 'bilinmeyen hata'}`, 'error');
     return;
@@ -7363,14 +7470,49 @@ if ($('timelineSave')) $('timelineSave').addEventListener('click', saveTimelineC
 if ($('timelineUndo')) $('timelineUndo').addEventListener('click', () => {
   const prior = player.timeline.undo.pop();
   if (!prior) return;
+  (player.timeline.redo ||= []).push(player.cues.map(c => ({ ...c })));
+  player.timeline.annotationSnapshot = player.cues.map(c => ({ ...c }));
   player.cues = prior;
   player.timeline.selected = Math.min(player.timeline.selected, player.cues.length - 1);
   $('timelineUndo').disabled = !player.timeline.undo.length;
   timelineMarkDirty('Son zamanlama değişikliği geri alındı');
 });
+if ($('timelineRedo')) $('timelineRedo').addEventListener('click', () => {
+  const next = player.timeline.redo?.pop();
+  if (!next) return;
+  player.timeline.undo.push(player.cues.map(c => ({ ...c })));
+  player.timeline.annotationSnapshot = player.cues.map(c => ({ ...c }));
+  player.cues = next;
+  timelineMarkDirty('Zamanlama değişikliği yinelendi');
+});
 
 if ($('timelineCanvas')) {
   const canvas = $('timelineCanvas');
+  canvas.addEventListener('keydown', e => {
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) return;
+    if (!player.cues.length) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      player.timeline.selected = Math.max(0, Math.min(player.cues.length - 1,
+        player.timeline.selected + (e.key === 'ArrowDown' ? 1 : -1)));
+      drawTimeline();
+    } else if (e.key === 'Enter') {
+      const cue = player.cues[player.timeline.selected];
+      if (cue) {
+        const target = Math.max(0, cue.start + player.offset);
+        if (player.workspaceMode === 'browser') browserCommand('seek', target).catch(() => {});
+        else if ($('playerVideo')) $('playerVideo').currentTime = target;
+      }
+    } else timelineNudge((e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 1 : .1));
+  });
+  canvas.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return; // Normal sayfa kaydırması korunur.
+    const zoom = $('timelineZoom');
+    if (!zoom) return;
+    e.preventDefault();
+    zoom.selectedIndex = Math.max(0, Math.min(zoom.options.length - 1, zoom.selectedIndex + Math.sign(e.deltaY)));
+    drawTimeline();
+  }, { passive: false });
   canvas.addEventListener('pointerdown', (e) => {
     const rect = canvas.getBoundingClientRect();
     const view = timelineWindow();
@@ -7403,9 +7545,8 @@ if ($('timelineCanvas')) {
     const cue = player.cues[hit];
     const mode = Math.abs(cueAt - cue.start) <= edgeSec ? 'start'
       : Math.abs(cueAt - cue.end) <= edgeSec ? 'end' : 'move';
-    timelinePushUndo();
     player.timeline.drag = { index: hit, mode, x, start: cue.start, end: cue.end,
-      center: (cue.start + cue.end) / 2 + player.offset, changed: false };
+      pointerId: e.pointerId, center: (cue.start + cue.end) / 2 + player.offset, changed: false };
     canvas.setPointerCapture(e.pointerId);
     drawTimeline();
   });
@@ -7417,6 +7558,8 @@ if ($('timelineCanvas')) {
     const delta = (e.clientX - rect.left - drag.x) / rect.width * (view.end - view.start);
     const cue = player.cues[drag.index];
     if (!cue) return;
+    if (!Number.isFinite(delta) || Math.abs(delta) < .001) return;
+    if (!drag.changed) timelinePushUndo();
     if (drag.mode === 'start') cue.start = Math.max(0, Math.min(cue.end - .15, drag.start + delta));
     else if (drag.mode === 'end') cue.end = Math.max(cue.start + .15, drag.end + delta);
     else {
@@ -7433,8 +7576,7 @@ if ($('timelineCanvas')) {
     const drag = player.timeline.drag;
     if (!drag) return;
     player.timeline.drag = null;
-    if (!drag.changed) player.timeline.undo.pop();
-    else timelineMarkDirty(`${drag.index + 1}. bloğun zamanlaması değiştirildi`);
+    if (drag.changed) timelineMarkDirty(`${drag.index + 1}. bloğun zamanlaması değiştirildi`);
     if ($('timelineUndo')) $('timelineUndo').disabled = !player.timeline.undo.length;
   };
   canvas.addEventListener('pointerup', endTimelineDrag);
@@ -7739,6 +7881,7 @@ async function restoreWatchProfile(key) {
     if (video && prefs.muted !== undefined) video.muted = !!prefs.muted;
   }
   if (prefs.speed) syncPlayerSpeedControl(prefs.speed);
+  if (prefs.speed) player.learningBaseRate = Math.max(.25, Math.min(4, Number(prefs.speed) || 1));
   if ($('playerVolume') && prefs.volume !== undefined) {
     $('playerVolume').value = String(Math.round(Number(prefs.volume) * 100));
     syncVolumeFill();
@@ -8417,6 +8560,7 @@ function bindHoldToSpeed() {
     timer = null;
     if (active) {
       active = false;
+      player.holdingSpeed = false;
       v.playbackRate = prevRate;
       stage.classList.remove('holding');
       player.suppressClick = true;          // birakinca duraklatma tetiklenmesin
@@ -8424,6 +8568,8 @@ function bindHoldToSpeed() {
     }
   };
 
+  player.cancelHoldSpeed = stop;
+  window.addEventListener('blur', stop);
   stage.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || !player.holdSpeed || player.editing) return;
     // Kontrol cubugu, altyazi ve panellerde degil; YALNIZCA videonun sag yarisi
@@ -8433,6 +8579,7 @@ function bindHoldToSpeed() {
     if (v.paused) return;                   // duraklatilmisken anlamsiz
     timer = setTimeout(() => {
       active = true;
+      player.holdingSpeed = true;
       prevRate = v.playbackRate;
       v.playbackRate = 2;
       stage.classList.add('holding');
@@ -8950,6 +9097,9 @@ function maybeOfferResume() {
 // devam ediyor, ustelik attachSiblingSubtitles "cues doluysa yukleme" dedigi icin
 // B'nin kendi altyazisi otomatik acilmiyordu. Bolum isaretleri de kaliyordu.
 function resetMediaBoundState(options = {}) {
+  player.cancelHoldSpeed?.();
+  player.lastT = undefined;
+  player.holdingSpeed = false;
   closeTimeline();
   resetEmbeddedSubtitleTracks();
   clearTimeout(player.shadowResumeTimer);
@@ -8980,6 +9130,7 @@ function resetMediaBoundState(options = {}) {
   player.timeline.waveformDuration = 0;
   player.timeline.selected = -1;
   player.timeline.undo = [];
+  player.timeline.redo = [];
   player.cueEditUndo = [];
   player.cueEditRedo = [];
   updateCueEditHistoryButtons();
@@ -9161,6 +9312,9 @@ function setSubtitleModeMenuOpen(open) {
 }
 
 function setMediaKey(key) {
+  // Devam eden sürüklemeyi eski medya anahtarı hâlâ geçerliyken tamamla;
+  // kayıtlı cümle/kelime göçü yeni videonun deposuna yazılmamalı.
+  closeTimeline();
   // Eski medyanın son konumunu ve tercihlerini anahtar değişmeden yakala.
   flushWatchState(false, true);
   const nextKey = key || '';
@@ -9574,12 +9728,14 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     // olmuyordu (hayalet liste).
     if (secondary) {
       player.cues2 = [];
+      player.cues2Raw = null;
       player.activeIdx2 = -1;
       player.sub2Path = '';
       const ov2 = $('subtitleOverlay2');
       if (ov2) ov2.textContent = '';
     } else {
       player.cues = [];
+      player.cuesRaw = null;
       player.activeIdx = -1;
       player.subPath = '';
       player.subRaw = '';
@@ -9698,7 +9854,9 @@ function openPlayer() {
 }
 
 function closePlayer() {
+  player.cancelHoldSpeed?.();
   const video = $('playerVideo');
+  player.seekDragging = false;
   clearTimeout(player.shadowResumeTimer);
   player.shadowResumeTimer = null;
   clearTimeout(_liveCueRenderTimer);
@@ -9716,6 +9874,39 @@ function closePlayer() {
   if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
   $('playerLayer').classList.add('hidden');
 }
+
+function setShortcutHelpOpen(open) {
+  const panel = $('shortcutHelp');
+  if (!panel) return;
+  if (open) {
+    player.helpReturnFocus = document.activeElement;
+    panel.classList.remove('hidden');
+    $('shortcutHelpClose')?.focus();
+  } else {
+    panel.classList.add('hidden');
+    if (player.helpReturnFocus?.isConnected) player.helpReturnFocus.focus();
+  }
+}
+
+document.addEventListener('keydown', event => {
+  const panel = $('shortcutHelp');
+  if (!panel || panel.classList.contains('hidden')) return;
+  event.stopImmediatePropagation();
+  if (event.key === 'Escape') { event.preventDefault(); setShortcutHelpOpen(false); }
+  if (event.key === 'Tab') { event.preventDefault(); event.stopImmediatePropagation(); $('shortcutHelpClose')?.focus(); }
+}, true);
+
+// Yalnız kullanıcı eylemleri shadowing'in bekleyen otomatik devamını iptal eder.
+document.addEventListener('keydown', event => {
+  if ([' ', 'e', 'E'].includes(event.key)) {
+    clearTimeout(player.shadowResumeTimer); player.shadowResumeTimer = null;
+  }
+}, true);
+document.addEventListener('pointerdown', event => {
+  if (event.target.closest?.('#playPause, #playerVideo, #subtitleEditBox, #playerSeek')) {
+    clearTimeout(player.shadowResumeTimer); player.shadowResumeTimer = null;
+  }
+}, true);
 
 async function playPlaylistDelta(delta) {
   const nextIndex = player.playlistIndex + delta;
@@ -9838,10 +10029,10 @@ $$('.view-modes .vm').forEach((b) => {
   if ($('abLoopBtn')) $('abLoopBtn').addEventListener('click', toggleAbLoop);
   if ($('shotBtn')) $('shotBtn').addEventListener('click', capturePlayerFrame);
   if ($('helpBtn')) {
-    $('helpBtn').addEventListener('click', () => $('shortcutHelp').classList.toggle('hidden'));
+    $('helpBtn').addEventListener('click', () => setShortcutHelpOpen($('shortcutHelp').classList.contains('hidden')));
   }
   if ($('shortcutHelp')) {
-    $('shortcutHelp').addEventListener('click', () => $('shortcutHelp').classList.add('hidden'));
+    $('shortcutHelp').addEventListener('click', () => setShortcutHelpOpen(false));
   }
   makeSubtitleDraggable($('subtitleOverlay'), 'bottom');
   makeSubtitleDraggable($('subtitleOverlay2'), 'top');
@@ -10417,7 +10608,11 @@ if ($('historyList')) {
 }
 renderQueue();
 refreshHistory();
-if ($('historySearch')) $('historySearch').addEventListener('input', renderHistory);
+let historySearchTimer = null;
+if ($('historySearch')) $('historySearch').addEventListener('input', e => {
+  clearTimeout(historySearchTimer);
+  if (!e.isComposing) historySearchTimer = setTimeout(renderHistory, 120);
+});
 if ($('historySearchClear')) {
   $('historySearchClear').addEventListener('click', () => {
     $('historySearch').value = '';
@@ -10481,7 +10676,13 @@ async function handleWatchLibraryAction(e) {
     });
     if (!confirmed) return;
     if (player.mediaKey === item.key) player.watchRemovedKey = item.key;
-    await window.api.removeWatchItem(item.key);
+    const removed = await window.api.removeWatchItem(item.key).catch(error => ({ ok: false, error: error.message }));
+    if (!removed?.ok) {
+      player.watchRemovedKey = '';
+      logLine(`Kütüphane kaydı kaldırılamadı: ${removed?.error || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    if (removed.keptAnnotations) logLine('Kayıt kaldırıldı; notlar ve kelime kartları korundu.', 'info');
     refreshWatchLibrary();
   }
 }
@@ -10619,7 +10820,7 @@ if ($('playerVideo')) {
       // Canli: toplam sure yok; gecen sureyi ve CANLI rozetini goster
       $('playerTime').textContent = `${pSecToTime(video.currentTime)} · CANLI`;
     } else if (video.duration) {
-      seek.value = String((video.currentTime / video.duration) * 1000);
+      if (!player.seekDragging) seek.value = String((video.currentTime / video.duration) * 1000);
       $('playerTime').textContent = `${pSecToTime(video.currentTime)} / ${pSecToTime(video.duration)}`;
       updateSeekVisuals();
     }
@@ -10715,6 +10916,20 @@ if ($('playerVideo')) {
     }
     updateSeekVisuals();
   });
+  $('playerSeek').addEventListener('pointerdown', () => { player.seekDragging = true; });
+  for (const type of ['pointerup', 'pointercancel', 'blur']) {
+    $('playerSeek').addEventListener(type, () => { player.seekDragging = false; });
+  }
+  video.addEventListener('seeking', () => { player.lastT = undefined; });
+  video.addEventListener('seeked', () => { player.lastT = undefined; });
+  for (const type of ['play', 'pause', 'emptied']) video.addEventListener(type, () => {
+    const button = $('playPause');
+    if (!button) return;
+    button.innerHTML = video.paused
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+    button.setAttribute('aria-label', video.paused ? 'Videoyu oynat' : 'Videoyu duraklat');
+  });
   $('playerVolume').addEventListener('input', (e) => {
     video.volume = e.target.value / 100;
     syncVolumeFill();
@@ -10751,7 +10966,17 @@ if ($('playerVideo')) {
       setSubtitleModeMenuOpen(!!menu && menu.classList.contains('hidden'));
     });
   }
-  if ($('subtitleModeMenu')) {
+if ($('subtitleModeMenu')) {
+    $('subtitleModeMenu').addEventListener('keydown', e => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+      const items = [...e.currentTarget.querySelectorAll('button:not(:disabled)')];
+      if (!items.length) return;
+      e.preventDefault(); e.stopPropagation();
+      const current = items.indexOf(document.activeElement);
+      const index = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1
+        : (current + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[index].focus();
+    });
     $('subtitleModeMenu').addEventListener('click', (e) => {
       e.stopPropagation();
       const item = e.target.closest('[data-subtitle-mode]');
@@ -10873,7 +11098,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'k' || e.key === 'K') { e.preventDefault(); toggleCueSaved(); return; }
   if ((e.key === 'w' || e.key === 'W') && player.selectedWord) { e.preventDefault(); toggleWordSaved(); return; }
   if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-    e.preventDefault(); $('shortcutHelp').classList.toggle('hidden'); return;
+    e.preventDefault(); setShortcutHelpOpen($('shortcutHelp').classList.contains('hidden')); return;
   }
   if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
@@ -10917,7 +11142,7 @@ document.addEventListener('keydown', (e) => {
       if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
       else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
       else if (player.selectedWord) hideWordInspector();
-      else if (!$('shortcutHelp')?.classList.contains('hidden')) $('shortcutHelp').classList.add('hidden');
+      else if (!$('shortcutHelp')?.classList.contains('hidden')) setShortcutHelpOpen(false);
       else if (!$('settingsDrawer')?.classList.contains('hidden')) setSettingsDrawer(false);
       return;
     }
@@ -10960,7 +11185,7 @@ document.addEventListener('keydown', (e) => {
     if (subMenu && !subMenu.classList.contains('hidden')) { setSubtitleModeMenuOpen(false); return; }
     if (player.selectedWord) { hideWordInspector(); return; }
     const help = $('shortcutHelp');
-    if (help && !help.classList.contains('hidden')) { help.classList.add('hidden'); return; }
+    if (help && !help.classList.contains('hidden')) { setShortcutHelpOpen(false); return; }
     const drawer = $('settingsDrawer');
     if (drawer && !drawer.classList.contains('hidden')) { setSettingsDrawer(false); return; }
     if (document.fullscreenElement) document.exitFullscreen();
@@ -11096,6 +11321,8 @@ if ($('playerSubtitleDisplay')) {
 
 // ---- izlerken düzeltme ----
 function openCueEditor() {
+  clearTimeout(player.shadowResumeTimer);
+  player.shadowResumeTimer = null;
   if (player.activeIdx < 0 || !player.cues.length) {
     logLine('Düzeltmek için altyazının göründüğü bir ana gel.', 'warn');
     return;
@@ -11136,6 +11363,8 @@ async function applyCueEditHistory(direction) {
   const entry = source[source.length - 1];
   if (!entry || entry.path !== player.subPath || entry.mediaKey !== player.mediaKey) return;
   const payload = direction === 'undo' ? entry.before : entry.after;
+  const generation = currentGeneration();
+  const oldCue = player.cues[entry.index] ? { ...player.cues[entry.index] } : null;
   const result = await window.api.writeSubtitle(entry.path, payload, {
     action: direction, cueIndex: entry.index, start: entry.start,
     before: direction === 'undo' ? entry.afterText : entry.beforeText,
@@ -11145,9 +11374,13 @@ async function applyCueEditHistory(direction) {
     logLine(`Düzenleme ${direction === 'undo' ? 'geri alınamadı' : 'yinelenemedi'}: ${result?.error || 'bilinmeyen hata'}`, 'error');
     return;
   }
+  if (staleGeneration(generation) || entry.path !== player.subPath || entry.mediaKey !== player.mediaKey) return;
   source.pop();
   target.push(entry);
+  if (result.warning) logLine(result.warning, 'warn');
   await loadSubtitle(entry.path, false, { silent: true, preserveInspector: true });
+  if (staleGeneration(generation) || entry.path !== player.subPath || entry.mediaKey !== player.mediaKey) return;
+  if (oldCue && player.cues[entry.index]) migrateSavedCueAssociation(oldCue, player.cues[entry.index]);
   player.activeIdx = Math.max(0, Math.min(player.cues.length - 1, entry.index));
   updateCueEditHistoryButtons();
   renderCueList($('cueSearch')?.value || '');
@@ -11216,7 +11449,10 @@ async function saveCueEdit() {
     logLine('Düzenleme önceki altyazı dosyasına kaydedildi; mevcut videoya uygulanmadı.', 'warn');
     return;
   }
+  const beforeCue = { ...cue };
+  if (res.warning) logLine(res.warning, 'warn');
   cue.text = text;                            // ANCAK yazma basarili olduysa
+  migrateSavedCueAssociation(beforeCue, cue);
   player.cueEditUndo.push({
     path: targetPath, mediaKey: targetKey, index: i, start: cue.start,
     before: player.subRaw, after: payload, beforeText: savedSignature.split('|').slice(2).join('|'),
@@ -11240,6 +11476,7 @@ if ($('cueSearch')) {
   // Arama yalniz listeyi degil zaman cubugunu da isaretler: "Kombai" yazinca
   // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
   $('cueSearch').addEventListener('input', (e) => {
+    if (e.isComposing) return;
     const q = e.target.value.trim().toLocaleLowerCase('tr');
     renderCueList(e.target.value);
     if (q) {
@@ -11290,12 +11527,6 @@ if ($('subtitleEditBox')) {
   });
 }
 
-if ($('subSize')) {
-  $('subSize').addEventListener('input', (e) => {
-    $('subSizeVal').textContent = e.target.value;
-    $('subtitleOverlay').style.fontSize = `${e.target.value}px`;
-  });
-}
 if ($('subOffset')) {
   $('subOffset').addEventListener('input', (e) => {
     player.offset = parseFloat(e.target.value);

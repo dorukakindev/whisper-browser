@@ -2457,10 +2457,15 @@ def test_strip_html_preserves_numeric_named_and_escaped_text():
 def test_download_paths_missing_audio_and_bracketed_clip():
     import media as M
     class FakeYdl:
-        def __init__(self, _opts): pass
+        completed = None
+        def __init__(self, opts): self.opts = opts
         def __enter__(self): return self
         def __exit__(self, *_args): pass
         def extract_info(self, *_args, **_kwargs):
+            if self.completed:
+                assert self.opts['postprocessors'][0]['key'] == 'FFmpegVideoRemuxer'
+                for hook in self.opts['post_hooks']:
+                    hook(self.completed)
             return {'id': 'example', 'title': 'Örnek'}
     fake = types.ModuleType('yt_dlp')
     fake.YoutubeDL = FakeYdl
@@ -2477,6 +2482,7 @@ def test_download_paths_missing_audio_and_bracketed_clip():
         target = Path(td) / 'Video [1080p].mp4'
         actual = target.with_suffix('.mkv')
         actual.write_bytes(b'fixture')
+        FakeYdl.completed = str(actual)
         # Geçici dosya ve dizin, tamamlanmış medya diye seçilmemeli.
         target.with_suffix('.part').write_bytes(b'partial')
         (Path(td) / 'Video [1080p] directory').mkdir()
@@ -2572,6 +2578,57 @@ def test_probe_duration_timeout_and_invalid_results():
                                     ('-1', 0, None), ('bad', 0, None), ('12.5', 1, None)]:
             with mock.patch.object(T.subprocess, 'run', return_value=types.SimpleNamespace(stdout=raw, returncode=code)):
                 assert T.probe_duration('synthetic.mkv', 'ffmpeg.exe') == expected
+
+
+def test_tur5_nonfinite_segments_and_exception_cleanup():
+    # Real parser + real transcribe loop; fake engine/audio only. No model,
+    # credentials, provider, GPU or real user files are used.
+    class StopFixture(Exception):
+        pass
+
+    def segments():
+        for start, end in [(None, 2), (float('nan'), 2), (1, float('inf')), (2, 1)]:
+            yield types.SimpleNamespace(start=start, end=end, text='Bad timing', words=[])
+        yield types.SimpleNamespace(start=1., end=2., text='The door is open.', words=[
+            types.SimpleNamespace(start=float('nan'), end=float('inf'), word='door', probability=None)])
+        raise StopFixture('segment iterator failed')
+
+    class Model:
+        def __init__(self, *_args, **_kwargs): pass
+        def transcribe(self, *_args, **_kwargs):
+            return segments(), types.SimpleNamespace(language='en', language_probability=1., duration=3.)
+
+    fake = types.ModuleType('faster_whisper')
+    fake.WhisperModel = Model
+    with tempfile.TemporaryDirectory() as td, mock.patch.dict(os.environ, {}, clear=True):
+        src = Path(td) / 'input.mp4'
+        src.write_bytes(b'fixture')
+        with mock.patch.object(sys, 'argv', ['transcribe.py', '--input', str(src), '--output-dir', td,
+                                           '--engine', 'faster', '--resume', 'false', '--split-mode', 'none']), \
+                mock.patch.object(T, 'transcribe') as capture:
+            T.main()
+        args = capture.call_args.args[0]
+        with mock.patch.dict(sys.modules, {'faster_whisper': fake}), \
+                mock.patch.object(T, 'find_ffmpeg', return_value='ffmpeg'), \
+                mock.patch.object(T, 'resolve_device_and_compute', return_value=('cpu', 'int8')), \
+                mock.patch.object(T, 'build_prompt_and_hotwords', return_value=('', '', '')), \
+                mock.patch.object(T, 'extract_audio'), mock.patch.object(T, 'log'), \
+                mock.patch.object(T, 'emit') as emitted, mock.patch.object(T, '_wx_free_gpu') as freed:
+            try:
+                T.transcribe(args)
+            except StopFixture:
+                pass
+            else:
+                raise AssertionError('Iterator exception was swallowed')
+            freed.assert_called_once()
+            cues = [call.kwargs for call in emitted.call_args_list if call.args[0] == 'segment']
+            assert len(cues) == 1, cues
+            assert cues[0]['start'] == 1 and cues[0]['end'] == 2
+
+
+def test_tur5_cps_disabled_and_unicode_dedupe():
+    assert T.translation_char_budget((0, 1, 'Hello'), types.SimpleNamespace(max_cps=0)) > 0
+    assert T._norm_for_dedupe('“Merhaba!”') == T._norm_for_dedupe('Merhaba!')
 
 
 def _run():

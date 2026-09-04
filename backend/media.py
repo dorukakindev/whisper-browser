@@ -255,25 +255,25 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
         raise ValueError("Tek klip en fazla 60 dakika olabilir")
     target = Path(output_file)
     target.parent.mkdir(parents=True, exist_ok=True)
+    completed_paths = []
     opts = _ydl_opts({
         "format": "bestvideo+bestaudio/best",
         "outtmpl": str(target),
         "merge_output_format": "mp4",
         "download_ranges": download_range_func(None, [(start, end)]),
+        "post_hooks": [completed_paths.append],
+        "postprocessors": [{"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}],
         "force_keyframes_at_cuts": True,
         "noplaylist": True,
     }, cookie_browser=cookie_browser)
     log(f"A-B klibi hazırlanıyor: {start:.2f}–{end:.2f} sn")
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
-    candidates = [target, target.with_suffix(".mp4")]
-    path = next((item for item in candidates if item.exists()), None)
+    candidates = list(reversed(completed_paths))
+    if isinstance(info, dict) and info.get("filepath"):
+        candidates.append(info["filepath"])
+    path = next((Path(item) for item in candidates if item and Path(item).is_file()), None)
     if path is None:
-        nearby = [item for item in target.parent.iterdir()
-                  if item.is_file() and item.name.startswith(target.stem)
-                  and item.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov", ".m4v"}]
-        path = max(nearby, key=lambda item: item.stat().st_mtime) if nearby else None
-    if path is None or not path.exists():
         raise RuntimeError("Oluşturulan klip dosyası bulunamadı")
     emit("clip", path=str(path), title=info.get("title") or "", start=start, end=end)
 

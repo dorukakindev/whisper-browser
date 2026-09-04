@@ -954,6 +954,7 @@
                 </button>
               </div>
               <button class="link-btn" id="copyPreview" title="Görünen segmentleri SRT olarak panoya kopyala">Kopyala</button>
+              <button class="link-btn hidden" id="copyPreviewEdits" title="Zaman aralığı değişen kullanıcı düzenlemelerini JSON olarak kopyala">Düzenleme yedeği</button>
               <button class="link-btn" id="clearPreview">Temizle</button>
             </div>
           </div>
@@ -1283,7 +1284,8 @@
           <div class="player-osd" id="playerOsd"></div>
           <div class="player-spinner hidden" id="playerSpinner"></div>
 
-          <div class="shortcut-help hidden" id="shortcutHelp">
+          <div class="shortcut-help hidden" id="shortcutHelp" role="dialog" aria-label="Klavye kısayolları" tabindex="-1">
+            <button class="tool-button" id="shortcutHelpClose" type="button">Yardımı kapat</button>
             <div class="shortcut-help-box">
               <h3>Klavye kısayolları</h3>
               <div class="shortcut-grid">
@@ -1492,7 +1494,7 @@
             <div class="player-library-list" id="playerLibraryList"></div>
           </div>
 
-          <div class="word-inspector hidden" id="wordInspector" role="dialog" aria-live="polite" aria-label="Kelime inceleme">
+          <div class="word-inspector hidden" id="wordInspector" role="dialog" tabindex="-1" aria-live="polite" aria-label="Kelime inceleme">
             <div class="word-inspector-head">
               <span class="side-kicker">KELİME İNCELEME</span>
               <button class="btn-icon side-tool" id="closeWordInspector" title="Kapat" aria-label="Kelime incelemeyi kapat">×</button>
@@ -1840,11 +1842,12 @@
               </select>
             </label>
             <button class="tool-button" id="timelineUndo" disabled>Geri al</button>
+            <button class="tool-button" id="timelineRedo" disabled>Yinele</button>
             <button class="tool-button tool-button-primary" id="timelineSave">Kopya olarak kaydet</button>
           </div>
         </div>
         <div class="timeline-canvas-wrap">
-          <canvas id="timelineCanvas" tabindex="0" aria-label="Ses dalga biçimi ve altyazı blokları"></canvas>
+          <canvas id="timelineCanvas" tabindex="0" aria-label="Altyazı zamanlaması: yukarı/aşağı ile blok seç, sağ/sol ile 100 ms kaydır, Enter ile oynatma konumuna git"></canvas>
           <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür.</div>
         </div>
       </section>

@@ -63,14 +63,73 @@ function runFunction(name, context) {
 
 // Full refresh preserves quality/speaker metadata without sharing mutable records.
 {
-  const ctx = { state: {}, PREVIEW_DOM_CAP: 1500,
-    $: () => ({ appendChild() {} }), document: { createDocumentFragment: () => ({ appendChild() {} }) },
+  const ctx = { state: { previewSegs: [] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500,
+    $: () => ({ appendChild() {}, classList: { toggle() {} } }), document: { createDocumentFragment: () => ({ appendChild() {} }) },
     createSegmentEl: () => ({ classList: { add() {} } }), applySegmentFilter() {} };
   const record = { start: 1, end: 2, text: 'Merhaba', speaker: 'A', confidence: 0 };
   runFunction('renderFinalPreview', ctx)([record]);
   assert.equal(ctx.state.previewSegs[0].speaker, 'A');
   assert.equal(ctx.state.previewSegs[0].confidence, 0);
   assert.notStrictEqual(ctx.state.previewSegs[0], record);
+}
+
+// Refresh retains edits by unambiguous interval, archives changed boundaries,
+// and never treats an untouched contenteditable node as an edit.
+{
+  const preview = { appendChild() {}, contains: () => true,
+    querySelectorAll() { throw Error('Unfocused nodes must not be committed'); } };
+  const ctx = { state: { previewSegs: [
+    { start: 1, end: 2, text: 'Benim metnim', previewEdited: true },
+    { start: 3, end: 4, text: 'Yeniden bölünen düzenleme', previewEdited: true },
+  ] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500,
+    $: id => id === 'preview' ? preview : { classList: { toggle() {} } },
+    document: { createDocumentFragment: () => ({ appendChild() {} }) },
+    createSegmentEl: () => ({ classList: { add() {} } }), applySegmentFilter() {}, logLine() {},
+  };
+  const refresh = runFunction('renderFinalPreview', ctx);
+  refresh([{ start: 1, end: 2, text: 'API metni' }, { start: 3, end: 3.5, text: 'Yeni parça' }]);
+  assert.equal(ctx.state.previewSegs[0].text, 'Benim metnim');
+  assert.equal(ctx.state.previewSegs[1].text, 'Yeni parça');
+  assert.equal(ctx.playerPreviewUnmatchedEdits[0].text, 'Yeniden bölünen düzenleme');
+  refresh([{ start: 1, end: 2, text: 'a' }, { start: 1, end: 2, text: 'b' }]);
+  assert.equal(ctx.state.previewSegs[0].text, 'a');
+  assert.equal(ctx.state.previewSegs[1].text, 'b');
+  assert.equal(ctx.playerPreviewUnmatchedEdits.length, 2);
+}
+
+// Switching between browser and local mode keeps the unmerged source lists.
+{
+  const raw = [{ start: 0, end: 1, text: 'a' }, { start: 1, end: 2, text: 'b' }];
+  const merged = [{ start: 0, end: 2, text: 'a b' }];
+  const ctx = { player: { cues: merged, cues2: [], cuesRaw: raw, cues2Raw: [],
+    subtitles: [], subOrigins: {}, offset: 1.5 }, $: () => null,
+    syncSubtitleModeUi() {}, renderTranscript() {}, renderCue() {}, updateSubtitleChips() {} };
+  runFunction('saveLocalSubtitleWorkspace', ctx)();
+  ctx.player.cuesRaw = null; ctx.player.cues = [];
+  runFunction('restoreLocalSubtitleWorkspace', ctx)();
+  assert.equal(ctx.player.cues.length, 1);
+  assert.equal(ctx.player.cuesRaw.length, 2);
+  assert.notStrictEqual(ctx.player.cuesRaw, raw);
+}
+
+// Timing and text edits migrate saved sentence/word identities; repeated text
+// is intentionally not matched to a potentially different subtitle.
+{
+  const signature = cue => `${cue.start}|${cue.end}|${cue.text}`;
+  const old = { start: 1, end: 2, text: 'Merhaba' };
+  const ctx = { player: { savedCues: [signature(old)],
+    savedWords: [{ key: `merhaba|${signature(old)}|source`, cue: old.text }],
+    timeline: { annotationSnapshot: [old] }, cues: [{ ...old, start: 1.5, end: 2.5 }] },
+    cueSignature: signature, persistSavedCues() {}, persistSavedWords() {} };
+  ctx.migrateSavedCueAssociation = runFunction('migrateSavedCueAssociation', ctx);
+  const migrate = runFunction('migrateTimelineAssociations', ctx);
+  migrate();
+  assert.equal(ctx.player.savedCues[0], '1.5|2.5|Merhaba');
+  assert.equal(ctx.player.savedWords[0].key, 'merhaba|1.5|2.5|Merhaba|source');
+  ctx.player.timeline.annotationSnapshot = ctx.player.cues.map(c => ({ ...c }));
+  ctx.player.cues = [{ ...old, start: 3 }, { ...old, start: 4 }];
+  migrate();
+  assert.equal(ctx.player.savedCues[0], '1.5|2.5|Merhaba');
 }
 
 // Run the real input handler: live/unknown duration must not assign Infinity.
@@ -92,3 +151,21 @@ function runFunction(name, context) {
   input({ target: { value: '2000' } }); assert.equal(video.currentTime, 100);
 }
 console.log('Tur 5 renderer davranış testleri geçti.');
+
+// Execute the actual beforeunload callback: the final queue snapshot must be
+// acknowledged synchronously, not left as an unawaited invoke.
+{
+  const start = source.indexOf("window.addEventListener('beforeunload'");
+  const end = source.indexOf('\n});', start) + 4;
+  let unload;
+  const calls = [];
+  vm.runInNewContext(source.slice(start, end), {
+    window: { addEventListener: (_, fn) => { unload = fn; }, api: {
+      saveSettingsSync: () => calls.push('settings'),
+      saveQueueStateSync: value => { assert.equal(value.queue[0].id, 7); calls.push('queue'); },
+    } }, _saveTimer: 1, clearTimeout() {}, _queuePersistenceReady: true,
+    appSettingsPayload: () => ({}), queueSnapshotPayload: () => ({ queue: [{ id: 7 }] }),
+    persistQueueNow: () => { throw Error('Async fallback used despite sync bridge'); },
+  });
+  unload(); assert.deepStrictEqual(calls, ['settings', 'queue']);
+}

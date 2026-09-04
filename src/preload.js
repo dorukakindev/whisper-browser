@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('api', {
   saveSettingsSync: (s) => ipcRenderer.sendSync('settings:saveSync', s),
   loadQueueState: () => ipcRenderer.invoke('queue:load'),
   saveQueueState: (snapshot) => ipcRenderer.invoke('queue:save', snapshot),
+  saveQueueStateSync: (snapshot) => ipcRenderer.sendSync('queue:saveSync', snapshot),
   saveImage: (payload) => ipcRenderer.invoke('media:saveImage', payload),
   exportSettings: () => ipcRenderer.invoke('settings:export'),
   importSettings: () => ipcRenderer.invoke('settings:import'),
