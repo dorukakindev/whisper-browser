@@ -135,6 +135,7 @@ function action(name, next, context) {
     player: { browserTranslationTrackId: 'live', browserLiveTranslations: new Map(),
       cues: [], cues2: [], cues2Raw: null, workspaceMode: 'browser', mergeCont: true },
     browserTabState: () => streamTab,
+    currentGeneration: () => 1, staleGeneration: () => false,
     mergeCueContinuation: (cues) => cues.map((item) => ({ ...item })),
     updateBrowserTranslationExportButton() {}, syncSubtitleModeUi() {}, scheduleBrowserOverlaySync() {},
     renderBrowserCueAt() {}, renderCueList() {}, renderCue() {}, updateCueMeta() {},
@@ -181,12 +182,26 @@ function action(name, next, context) {
   restoredMode = 'source'; // Kullanıcı tamamlanmadan sonra kaynağı seçti.
   await streamContext.restoreBrowserTranslationSnapshot(streamTab);
   assert.equal(restoredMode, 'source', 'yinelenen tamamlanma kullanıcının seçimini geri aldı');
+  let viewGeneration = 1;
+  streamContext.currentGeneration = () => viewGeneration;
+  streamContext.staleGeneration = (value) => value !== viewGeneration;
+  let finishSnapshot;
+  streamContext.window.api.getBrowserTranslationSnapshot = () => new Promise((resolve) => { finishSnapshot = resolve; });
+  const staleSnapshot = streamContext.restoreBrowserTranslationSnapshot(streamTab);
+  viewGeneration += 2; // Aynı sekmeye geri dönüldü; main kuşağı değişmeyebilir.
+  finishSnapshot({ ok: true, trackId: 'live', generation: 1,
+    sourceCues: [{ id: 'old', text: 'Eski kaynak', start: 0, end: 1 }],
+    results: [{ cueId: 'old', text: 'Eski çeviri', start: 0, end: 1 }], state: {} });
+  await staleSnapshot;
+  assert.equal(streamContext.player.cuesRaw[0].text, 'Source.', 'geç snapshot kaynak seçimini ezdi');
+  assert.equal(streamContext.player.cues2Raw[0].text, 'Yeni.', 'geç snapshot güncel çeviriyi ezdi');
   assert.equal(streamContext.browserTranslationJustCompleted(streamTab, { total: 2, completed: 1 }), false);
   assert.equal(streamContext.browserTranslationJustCompleted(streamTab, { total: 2, completed: 2 }), true,
     'yeni eklenen cümleler tamamlanınca geçiş algılanmadı');
 
   const loadedTrack = { id: 'saved', path: 'saved.srt', role: 'translation', autoLoad: true };
-  const autoContext = { player: { browserLoadedTrackId: 'saved', cues: [{}] }, browserTabState: () => ({ id: 'a' }) };
+  const autoContext = { player: { browserLoadedTrackId: 'saved', cues: [{}] },
+    currentGeneration: () => 1, browserTabState: () => ({ id: 'a' }) };
   vm.createContext(autoContext);
   vm.runInContext(source.slice(source.indexOf('async function loadPersistedBrowserTranslation('),
     source.indexOf('function browserTrackSelection(')), autoContext);

@@ -127,5 +127,61 @@ function harness() {
     await restored.ctx.restoreBrowserSubtitleSelection(restored.tab);
     assert.equal(saved, 1, 'aynı seçim tekrar yüklendi');
   }
-  console.log('Browser subtitle selection: pair refresh, channel reset, live replacement and failed reads passed.');
+  const returning = harness();
+  Object.assign(returning.tab, { id: 'a', subtitleSelection: { primaryId: 'tr', secondaryId: '' },
+    subtitleSelectionRestored: false, restoreSubtitleMode: 'translation' });
+  let generation = 1;
+  returning.ctx.currentGeneration = () => generation;
+  returning.ctx.staleGeneration = (value) => value !== generation;
+  returning.ctx.addSubtitleOption = () => {};
+  returning.ctx.saveActiveBrowserTabWorkspace = () => {};
+  const reads = [];
+  returning.ctx.window.api.readSubtitle = () => new Promise((resolve) => reads.push(resolve));
+  vm.runInContext(js.slice(js.indexOf('async function restoreBrowserSubtitleSelection('),
+    js.indexOf('async function loadPersistedBrowserTranslation(')), returning.ctx);
+  const oldRestore = returning.ctx.restoreBrowserSubtitleSelection(returning.tab);
+  generation += 2; // A -> B -> A, ilk A'nın dosya okuması hâlâ sürüyor.
+  const newRestore = returning.ctx.restoreBrowserSubtitleSelection(returning.tab);
+  assert.equal(reads.length, 2, 'eski okuma kilidi sekmeye dönüşte geri yüklemeyi engelledi');
+  reads[0]({ ok: true, text: 'Eski' });
+  await oldRestore;
+  assert.ok(returning.tab.subtitleSelectionLoading, 'eski finally yeni okumanın kilidini kaldırdı');
+  reads[1]({ ok: true, text: 'Güncel' });
+  await newRestore;
+  assert.equal(returning.ctx.player.cues[0].text, 'Güncel');
+  assert.equal(returning.tab.subtitleSelectionRestored, true);
+  assert.equal(returning.tab.subtitleSelectionLoading, false);
+
+  const automatic = harness();
+  automatic.tab.id = 'a';
+  let autoGeneration = 1;
+  automatic.ctx.currentGeneration = () => autoGeneration;
+  automatic.ctx.staleGeneration = (value) => value !== autoGeneration;
+  automatic.ctx.addSubtitleOption = () => {};
+  automatic.ctx.renderBrowserTracks = () => {};
+  automatic.ctx.renderTranscript = () => {};
+  automatic.ctx.player.subtitles = [];
+  automatic.ctx.player.subOrigins = {};
+  const autoReads = [];
+  automatic.ctx.window.api.readSubtitle = () => new Promise((resolve) => autoReads.push(resolve));
+  vm.runInContext(js.slice(js.indexOf('async function loadPersistedBrowserTranslation('),
+    js.indexOf('function browserTrackSelection(')), automatic.ctx);
+  const savedTrack = automatic.ctx.player.browserTracks.find((track) => track.id === 'tr');
+  const oldAuto = automatic.ctx.loadPersistedBrowserTranslation(savedTrack);
+  autoGeneration += 2;
+  const newAuto = automatic.ctx.loadPersistedBrowserTranslation(savedTrack);
+  assert.equal(autoReads.length, 2, 'otomatik çeviri yüklemesinin eski kilidi kaldı');
+  // Aynı dosya yolu sekmeye dönüşte zaten kaydedilmiş olabilir: sadece yol
+  // karşılaştırması eski loadSubtitle çağrısının son işlemlerini engellemez.
+  automatic.ctx.player.subPath = savedTrack.path;
+  autoReads[0]({ ok: true, text: 'Eski otomatik' });
+  await oldAuto;
+  assert.equal(automatic.modes.length, 0, 'iptal edilmiş yükleme görünümü değiştirdi');
+  assert.ok(automatic.tab.persistedTranslationLoading, 'eski finally yeni otomatik yüklemeyi kilitsiz bıraktı');
+  autoReads[1]({ ok: true, text: 'Yeni otomatik' });
+  await newAuto;
+  assert.equal(automatic.ctx.player.cues[0].text, 'Yeni otomatik');
+  assert.equal(automatic.tab.persistedTranslationLoading, false);
+
+  console.log('Browser subtitle selection: pair refresh, channel reset, live replacement, failed reads and return races passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -4934,7 +4934,8 @@ function renderBrowserTracks(selectedId) {
 }
 
 async function restoreBrowserSubtitleSelection(tab) {
-  if (!tab?.subtitleSelection || tab.subtitleSelectionRestored || tab.subtitleSelectionLoading
+  const gen = currentGeneration();
+  if (!tab?.subtitleSelection || tab.subtitleSelectionRestored || tab.subtitleSelectionLoading?.generation === gen
       || tab.id !== player.browserActiveTabId) return;
   const selection = tab.subtitleSelection;
   const primary = player.browserTracks.find((track) => track.id === selection.primaryId);
@@ -4942,10 +4943,10 @@ async function restoreBrowserSubtitleSelection(tab) {
   // İki kayıtlı iz de keşfedilmeden yarım seçim uygulama.
   if ((selection.primaryId && !primary) || (selection.secondaryId && !secondary)) return;
   const mode = tab.restoreSubtitleMode || tab.subtitleMode;
-  const gen = currentGeneration();
+  const request = { generation: gen };
   const isCurrent = () => tab.id === player.browserActiveTabId && !staleGeneration(gen)
-    && !tab.subtitleSelectionRestored;
-  tab.subtitleSelectionLoading = true;
+    && tab.subtitleSelectionLoading === request && !tab.subtitleSelectionRestored;
+  tab.subtitleSelectionLoading = request;
   try {
     if (primary) {
       addSubtitleOption(primary.path, `${primary.role === 'translation' ? 'Çeviri' : 'Web'} · ${primary.label || primary.language}`);
@@ -4964,21 +4965,25 @@ async function restoreBrowserSubtitleSelection(tab) {
     setSubtitleMode(mode, false);
     saveActiveBrowserTabWorkspace();
   } finally {
-    tab.subtitleSelectionLoading = false;
+    if (tab.subtitleSelectionLoading === request) tab.subtitleSelectionLoading = false;
   }
 }
 
 async function loadPersistedBrowserTranslation(track) {
   const tab = browserTabState();
-  if (!tab || !track?.path || track.role !== 'translation' || tab.persistedTranslationLoading) return;
+  const gen = currentGeneration();
+  if (!tab || !track?.path || track.role !== 'translation' || tab.persistedTranslationLoading?.generation === gen) return;
   if (player.browserLoadedTrackId === track.id && player.cues.length) { track.autoLoad = false; return; }
   const tabId = tab.id;
-  tab.persistedTranslationLoading = true;
+  const request = { generation: gen };
+  tab.persistedTranslationLoading = request;
   try {
     addSubtitleOption(track.path, `Çeviri · ${track.language || track.label}`);
     if ($('playerSubSelect')) $('playerSubSelect').value = track.path;
     await loadSubtitle(track.path, false, { silent: true, preserveInspector: true });
-    if (player.browserActiveTabId !== tabId || player.subPath !== track.path) return;
+    if (staleGeneration(gen) || player.browserActiveTabId !== tabId
+        || tab.persistedTranslationLoading !== request || player.subPath !== track.path
+        || $('playerSubSelect')?.value !== track.path) return;
     track.autoLoad = false;
     player.browserLoadedTrackId = track.id;
     player.browserLoadedTrackId2 = '';
@@ -5008,8 +5013,7 @@ async function loadPersistedBrowserTranslation(track) {
     setBrowserSignal(`${track.language ? track.language.toUpperCase() + ' ' : ''}çevirisi bulundu ve ana altyazı olarak yüklendi.`, true,
       { priority: 70, holdMs: 5000 });
   } finally {
-    const current = browserTabState(tabId);
-    if (current) current.persistedTranslationLoading = false;
+    if (tab.persistedTranslationLoading === request) tab.persistedTranslationLoading = false;
   }
 }
 
@@ -5208,10 +5212,12 @@ function browserTranslationJustCompleted(tab, progress) {
 
 async function restoreBrowserTranslationSnapshot(tab) {
   if (!tab?.id || !tab.browserTranslationTrackId || !window.api.getBrowserTranslationSnapshot) return;
+  const gen = currentGeneration();
   const tabId = tab.id;
   const result = await window.api.getBrowserTranslationSnapshot(tabId).catch(() => null);
   const current = browserTabState(tabId);
-  if (!result?.ok || !current || player.browserActiveTabId !== tabId
+  if (!result?.ok || !current || staleGeneration(gen) || player.workspaceMode !== 'browser'
+      || current !== tab || player.browserActiveTabId !== tabId
       || result.trackId !== current.browserTranslationTrackId
       || Number(result.generation) < Number(current.generation || 0)) return;
   // Snapshot ana sürecin güncel kümesidir; kaldırılan/değişen cümleleri
