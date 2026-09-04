@@ -701,13 +701,38 @@ function mp4Child(boxes, type) {
 function mp4Tfhd(buffer, box) {
   if (!box || box.start + 8 > box.end) return {};
   const flags = buffer.readUInt32BE(box.start) & 0x00ffffff;
+  const trackId = buffer.readUInt32BE(box.start + 4);
   let cursor = box.start + 8; // full-box + track_ID
   if (flags & 0x000001) cursor += 8;
   if (flags & 0x000002) cursor += 4;
-  const out = {};
+  const out = { trackId };
   if (flags & 0x000008 && cursor + 4 <= box.end) { out.duration = buffer.readUInt32BE(cursor); cursor += 4; }
   if (flags & 0x000010 && cursor + 4 <= box.end) out.size = buffer.readUInt32BE(cursor);
   return out;
+}
+
+function parseMp4SampleDefaults(buffer) {
+  const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
+  const defaults = {};
+  if (data.length < 16) return defaults;
+  const visit = (start, end, depth = 0) => {
+    if (depth > 6) return;
+    for (const box of mp4Boxes(data, start, end)) {
+      if (box.type === 'trex' && box.start + 24 <= box.end) {
+        // trex: version/flags, track_ID, description index, duration, size, flags.
+        const trackId = data.readUInt32BE(box.start + 4);
+        if (!trackId) continue;
+        defaults[String(trackId)] = {
+          duration: data.readUInt32BE(box.start + 12),
+          size: data.readUInt32BE(box.start + 16),
+        };
+      } else if (/^(moov|mvex)$/.test(box.type)) {
+        visit(box.start, box.end, depth + 1);
+      }
+    }
+  };
+  visit(0, data.length);
+  return defaults;
 }
 
 function mp4Tfdt(buffer, box) {
@@ -799,7 +824,13 @@ function parseMp4WebVtt(buffer, matcher = {}) {
     const trafs = mp4Boxes(data, moof.start, moof.end).filter((box) => box.type === 'traf');
     for (const traf of trafs) {
       const children = mp4Boxes(data, traf.start, traf.end);
-      const defaults = mp4Tfhd(data, mp4Child(children, 'tfhd'));
+      const fragmentDefaults = mp4Tfhd(data, mp4Child(children, 'tfhd'));
+      const initDefaults = matcher.sampleDefaults?.[String(fragmentDefaults.trackId)] || {};
+      const defaults = {
+        ...fragmentDefaults,
+        duration: fragmentDefaults.duration || Number(initDefaults.duration) || 0,
+        size: fragmentDefaults.size || Number(initDefaults.size) || 0,
+      };
       const baseTime = mp4Tfdt(data, mp4Child(children, 'tfdt'));
       const samples = children.filter((box) => box.type === 'trun')
         .flatMap((box) => mp4TrunSamples(data, box, defaults));
@@ -982,6 +1013,7 @@ module.exports = {
   parseLrc,
   parseSami,
   parseMp4WebVtt,
+  parseMp4SampleDefaults,
   parseMp4Timescale,
   decodeSubtitleBuffer,
   subtitleLanguage,

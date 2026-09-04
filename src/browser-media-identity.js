@@ -77,6 +77,12 @@ function serviceIdentity(url, hints = {}) {
     ]) || url.searchParams.get('asin');
     if (id) return { service: 'prime-video', contentId: cleanPart(id, 64).toUpperCase() };
   }
+  if (hostMatches(host, 'vimeo.com')) {
+    // Vimeo'nun yaygın paylaşım adresi /<sayısal-id> biçimindedir; genel
+    // /video/<id> deseni bunu yakalamadığında aynı video ayrı kayıtlara bölünür.
+    const id = firstMatch(url.pathname, [/^\/(\d{6,})(?:\/|$)/, /\/video\/(\d{6,})(?:\/|$)/i]);
+    if (id) return { service: 'vimeo', contentId: id };
+  }
 
   const knownHosts = [
     ['disneyplus.com', 'disney'],

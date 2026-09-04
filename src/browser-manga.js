@@ -406,6 +406,8 @@ function mangaClearScript() {
       if (state.onKeydown) removeEventListener('keydown', state.onKeydown, true);
       for (const image of state.images || []) image.removeEventListener('load', state.onLayout);
       state.overlays?.clear();
+      state.imageById?.clear();
+      state.images?.clear();
       state.undo = [];
       state.selected = null;
       state.editor = null;
@@ -493,7 +495,7 @@ function mangaOverlayScript(payload) {
     if (!image || !payload.regions.length) return false;
     let state = window.__whisperMangaOverlay;
     if (!state) {
-      state = { overlays: new Map(), visible: true, layoutQueued: false, onLayout: null, selected: null, editor: null,
+      state = { overlays: new Map(), imageById: new Map(), visible: true, layoutQueued: false, onLayout: null, selected: null, editor: null,
         undo: [], visibleImages: new Set(), images: new Set(), destroyed: false, layoutFrame: 0 };
       state.emitEdit = (group, previous) => {
         try {
@@ -531,8 +533,10 @@ function mangaOverlayScript(payload) {
         state.layoutFrame = 0;
         if (state.destroyed) return;
         for (const [id, overlay] of state.overlays) {
-          const target = [...(document.images || [])].find(item => item.getAttribute('data-whisper-manga-id') === id);
-          if (!target || !target.isConnected) { overlay.remove(); state.overlays.delete(id); continue; }
+          const target = state.imageById.get(id);
+          if (!target || !target.isConnected) {
+            overlay.remove(); state.overlays.delete(id); state.imageById.delete(id); state.visibleImages.delete(id); continue;
+          }
           const rect = target.getBoundingClientRect();
           // Viewport koordinatları iç kaydırmalı/transform uygulanmış manga
           // okuyucularında da görselle aynı referans düzlemini kullanır.
@@ -622,6 +626,8 @@ function mangaOverlayScript(payload) {
             state.resizeObserver?.unobserve(image);
             state.intersectionObserver?.unobserve(image);
             image.removeEventListener('load', state.onLayout);
+            const id = image.getAttribute('data-whisper-manga-id');
+            if (id && state.imageById.get(id) === image) state.imageById.delete(id);
             state.images.delete(image);
           }
         }
@@ -748,6 +754,9 @@ function mangaOverlayScript(payload) {
       };
       addEventListener('keydown', state.onKeydown, true);
     }
+    // Geliştirme sırasında aynı sayfada eski controller yaşamaya devam edebilir;
+    // yeni indeksin bulunmaması sonraki katman eklemesini kırmamalı.
+    if (!(state.imageById instanceof Map)) state.imageById = new Map();
     state.bridgeToken = payload.bridgeToken;
     const previous = state.overlays.get(payload.id);
     if (previous) previous.remove();
@@ -815,6 +824,7 @@ function mangaOverlayScript(payload) {
     });
     document.documentElement.appendChild(overlay);
     state.overlays.set(payload.id, overlay);
+    state.imageById.set(payload.id, image);
     state.images.add(image);
     state.resizeObserver?.observe(image);
     state.intersectionObserver?.observe(image);

@@ -84,8 +84,14 @@ function buildBrowserMediaProbeScript() {
 }
 
 function buildBrowserMediaCommandScript(command, value) {
-  // JSON.stringify(Infinity) null üretir; seek komutunda bu yanlışlıkla 0 olur.
-  if (['seek', 'seek-relative', 'speed', 'volume'].includes(command)
+  const allowedCommands = new Set([
+    'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
+    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip',
+  ]);
+  // Bilinmeyen komutlar sayfa denetleyicisini kurmadan reddedilir. Ayrıca
+  // JSON.stringify(Infinity) null ürettiği için sayısal komutlar finite olmalı.
+  if (!allowedCommands.has(command)) return '(async () => false)()';
+  if (['seek', 'seek-relative', 'speed', 'volume-relative', 'volume-set', 'frame-step'].includes(command)
       && !Number.isFinite(Number(value))) return '(async () => false)()';
   const safeCommand = JSON.stringify(String(command || ''));
   const safeValue = JSON.stringify(Number(value) || 0);

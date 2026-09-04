@@ -21,6 +21,7 @@ const {
   cuesUseLocalSegmentTimeline,
   browserActiveCuesAt,
   parseMp4WebVtt,
+  parseMp4SampleDefaults,
   parseMp4Timescale,
   decodeSubtitleBuffer,
   findSubtitleUrls,
@@ -365,6 +366,22 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
     { start: 6, end: 8, text: 'Bir' }, { start: 8, end: 10, text: 'İki' },
     { start: 10, end: 11, text: 'Bir' },
   ]);
+
+  const trexPayload = Buffer.alloc(20);
+  trexPayload.writeUInt32BE(1, 0); // track_ID
+  trexPayload.writeUInt32BE(1, 4); // default_sample_description_index
+  trexPayload.writeUInt32BE(2000, 8);
+  trexPayload.writeUInt32BE(first.length, 12);
+  const initWithDefaults = box('moov', box('mvex', box('trex', full(0, trexPayload))));
+  const sampleDefaults = parseMp4SampleDefaults(initWithDefaults);
+  assert.deepEqual(sampleDefaults, { 1: { duration: 2000, size: first.length } });
+  const defaultRows = Buffer.alloc(4); defaultRows.writeUInt32BE(1);
+  const defaultTraf = box('traf', Buffer.concat([
+    box('tfhd', full(0, tfhdPayload)), box('tfdt', full(0, tfdtPayload)), box('trun', full(0, defaultRows)),
+  ]));
+  assert.deepEqual(parseMp4WebVtt(Buffer.concat([box('moof', defaultTraf), box('mdat', first)]), {
+    timescale: 1000, sampleDefaults,
+  }), [{ start: 6, end: 8, text: 'Bir' }]);
 });
 
 test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bulur', () => {
@@ -489,6 +506,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /require\('\.\/browser-drm'\)/);
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /parseMp4Timescale\(init\)/);
+  assert.match(main, /parseMp4SampleDefaults\(init\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
   assert.match(main, /type: 'load-error'[\s\S]*browserNavigationState(?:ForTab)?\([^)]*\{ loading: false \}\)/);
   assert.match(main, /ERR_NETWORK_ACCESS_DENIED/);

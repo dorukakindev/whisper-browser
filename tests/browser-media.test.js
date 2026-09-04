@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { rankBrowserMediaCandidates } = require('../src/browser-media');
+const { buildBrowserMediaCommandScript } = require('../src/browser-media-controller');
 
 let passed = 0;
 function test(name, fn) {
@@ -41,6 +42,13 @@ test('medya zamanlayıcısı komutlarla aynı aday sıralamasını kullanır', (
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   assert.match(main, /const probed = await withTimeout\(executeBrowserFrames\(buildBrowserMediaProbeScript\(\)\)/);
   assert.match(main, /rankBrowserMediaCandidates\(\s*probed\.map\(\(item\) => \(\{ media: item \}\)\)/s);
+});
+
+test('sayısal medya komutları NaN ve sonsuz değerleri sayfaya göndermeden reddeder', () => {
+  for (const command of ['seek', 'seek-relative', 'speed', 'volume-relative', 'volume-set', 'frame-step']) {
+    assert.equal(buildBrowserMediaCommandScript(command, Infinity), '(async () => false)()', command);
+    assert.equal(buildBrowserMediaCommandScript(command, NaN), '(async () => false)()', command);
+  }
 });
 
 console.log(`browser-media: ${passed} test`);

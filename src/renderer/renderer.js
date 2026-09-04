@@ -11389,7 +11389,10 @@ async function stepBrowserFrame(dir) {
     osd('Web videoda kare adımı uygulanamadı', 900);
     return;
   }
-  if (result.media) player.browserTime = Number(result.media.currentTime) || player.browserTime;
+  if (result.media) {
+    const currentTime = Number(result.media.currentTime);
+    if (Number.isFinite(currentTime)) player.browserTime = Math.max(0, currentTime);
+  }
   osd(dir > 0 ? 'Kare ileri' : 'Kare geri', 600);
   showControls();
 }

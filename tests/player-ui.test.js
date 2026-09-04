@@ -76,6 +76,7 @@ test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
   assert(/stepBrowserFrame/.test(body), 'duraklatılmış web videosunda kare adımı bağlı değil');
   const frame = js.slice(js.indexOf('async function stepBrowserFrame'), js.indexOf('async function nudgeSpeed'));
   assert(/browserCommand\('frame-step'/.test(frame), 'kare adımı web videosu IPC komutunu kullanmıyor');
+  assert(/Number\.isFinite\(currentTime\)/.test(frame), '0. saniyedeki kare adımı eski konumu koruyor');
   const speed = js.slice(js.indexOf('async function nudgeSpeed'), js.indexOf('// Ses cubugu'));
   assert(/browserCommand\('speed', target\)/.test(speed), 'hız kısayolu web videosunu hedeflemiyor');
 });

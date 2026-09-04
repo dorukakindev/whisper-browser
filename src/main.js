@@ -31,6 +31,7 @@ const {
   cuesUseLocalSegmentTimeline,
   browserActiveCuesAt,
   parseMp4WebVtt,
+  parseMp4SampleDefaults,
   parseMp4Timescale,
   findSubtitleUrls,
   subtitleLanguage,
@@ -3709,17 +3710,20 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
           if (!isHls) {
             const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
             for (const matcher of discoveredMatchers) {
-              if (!matcher.timescale && matcher.initializationUrl) {
+              // MPD timescale verse bile wvtt örnek süre/boyutları yalnız init
+              // segmentindeki trex varsayılanlarında bulunabilir.
+              if (matcher.initializationUrl && (!matcher.timescale || matcher.format === 'vtt')) {
                 try {
                   const init = await fetchBrowserBufferWithRetry(matcher.initializationUrl, 4 * 1024 * 1024, 2, context);
-                  matcher.timescale = parseMp4Timescale(init);
+                  if (!matcher.timescale) matcher.timescale = parseMp4Timescale(init);
+                  matcher.sampleDefaults = parseMp4SampleDefaults(init);
                   if (!matcher.timescale) throw new Error('DASH timescale bulunamadı.');
                 } catch (_) {
                   // Timescale bilinmiyorsa MP4 cue'larını güvenli biçimde reddet;
                   // aynı manifesti işlenmiş saymayıp sonraki yanıtta yeniden dene.
-                  matcher.timescale = 0;
+                  if (!matcher.timescale) matcher.timescale = 0;
                   manifestRetryNeeded = true;
-                  noteBrowserCapture('manifest', candidate, 'error', 'DASH timescale bilinmiyor; init segmenti alınamadı');
+                  noteBrowserCapture('manifest', candidate, 'error', 'DASH init segmenti alınamadı; tekrar denenecek');
                 }
               }
               const existingIndex = browserDashSubtitleMatchers

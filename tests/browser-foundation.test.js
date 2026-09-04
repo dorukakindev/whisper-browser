@@ -67,6 +67,13 @@ test('Amazon Prime bölgesel alan adları aynı servis olarak tanınır', () => 
   assert.equal(isAmazonHost('amazon.example.com'), false);
 });
 
+test('Vimeo doğrudan paylaşım adresi sayısal video kimliğini korur', () => {
+  const direct = canonicalMediaIdentity('https://vimeo.com/123456789?share=copy');
+  const player = canonicalMediaIdentity('https://player.vimeo.com/video/123456789');
+  assert.equal(direct.key, 'vimeo:123456789');
+  assert.equal(player.key, 'vimeo:123456789');
+});
+
 test('bilinmeyen web adresi sabit ve hassas olmayan hash kimliği alır', () => {
   const a = canonicalMediaIdentity('https://media.example/show/1?token=a&lang=en');
   const b = canonicalMediaIdentity('https://media.example/show/1?lang=en&token=b');
