@@ -3761,7 +3761,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   if (!player.browserTranslationTrackId && restoredPrimaryTrack) {
     player.browserTranslationTrackId = restoredPrimaryTrack.id;
   }
-  player.browserLiveTranslations = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
+  player.browserLiveTranslations = browserTranslationMapFromCues(tab.browserLiveTranslations);
   player.browserTranslationFailed = Math.max(0, Number(tab.browserTranslationFailed) || 0);
   player.browserMangaBusy = !!tab.browserMangaBusy;
   player.browserMangaTranslated = Number(tab.browserMangaTranslated) || 0;
@@ -4923,7 +4923,7 @@ function renderBrowserTracks(selectedId) {
 async function loadPersistedBrowserTranslation(track) {
   const tab = browserTabState();
   if (!tab || !track?.path || track.role !== 'translation' || tab.persistedTranslationLoading) return;
-  if (player.browserLoadedTrackId === track.id && player.cues.length) return;
+  if (player.browserLoadedTrackId === track.id && player.cues.length) { track.autoLoad = false; return; }
   const tabId = tab.id;
   tab.persistedTranslationLoading = true;
   try {
@@ -4931,6 +4931,7 @@ async function loadPersistedBrowserTranslation(track) {
     if ($('playerSubSelect')) $('playerSubSelect').value = track.path;
     await loadSubtitle(track.path, false, { silent: true, preserveInspector: true });
     if (player.browserActiveTabId !== tabId || player.subPath !== track.path) return;
+    track.autoLoad = false;
     player.browserLoadedTrackId = track.id;
     player.browserLoadedTrackId2 = '';
     if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
@@ -5073,6 +5074,8 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   const tabId = player.browserActiveTabId;
   const gen = currentGeneration();
   const startSeq = ++player.browserTranslationStartSeq;
+  const translationTab = browserTabState(tabId);
+  if (translationTab) translationTab.browserTranslationComplete = false;
   player.browserTranslationTrackId = track.id;
   player.browserLiveTranslations = new Map();
   player.browserTranslationFailed = 0;
@@ -5088,7 +5091,7 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   syncSubtitleModeUi();
   const result = await window.api.startBrowserTranslation(tabId, {
     trackId: track.id,
-    cues: player.cues.map((cue, index) => ({
+    cues: (player.cuesRaw || player.cues).map((cue, index) => ({
       id: cue.id ?? index, start: cue.start, end: cue.end, text: cue.text,
     })),
     targetLanguage: $('translateTo')?.value || 'tr',
@@ -5148,6 +5151,13 @@ function mergeBrowserTranslationCues(target, cues) {
   return target;
 }
 
+function browserTranslationJustCompleted(tab, progress) {
+  const complete = Number(progress?.total) > 0 && Number(progress.completed) >= Number(progress.total);
+  const changed = complete && !tab?.browserTranslationComplete;
+  if (tab) tab.browserTranslationComplete = complete;
+  return changed;
+}
+
 async function restoreBrowserTranslationSnapshot(tab) {
   if (!tab?.id || !tab.browserTranslationTrackId || !window.api.getBrowserTranslationSnapshot) return;
   const tabId = tab.id;
@@ -5156,14 +5166,16 @@ async function restoreBrowserTranslationSnapshot(tab) {
   if (!result?.ok || !current || player.browserActiveTabId !== tabId
       || result.trackId !== current.browserTranslationTrackId
       || Number(result.generation) < Number(current.generation || 0)) return;
-  const translated = mergeBrowserTranslationCues(
-    new Map((current.browserLiveTranslations || []).map((cue) => [browserTranslationCueKey(cue), cue])),
-    result.results);
+  // Snapshot ana sürecin güncel kümesidir; kaldırılan/değişen cümleleri
+  // eski renderer haritasıyla birleştirerek geri getirme.
+  const translated = mergeBrowserTranslationCues(new Map(), result.results);
   if (Array.isArray(result.sourceCues) && result.sourceCues.length) {
-    player.cues = result.sourceCues.map((cue, index) => ({
+    player.cuesRaw = result.sourceCues.map((cue, index) => ({
       id: cue.id ?? index, start: Number(cue.start) || 0,
       end: Number(cue.end) || Number(cue.start) || 0, text: String(cue.text || ''),
     }));
+    player.cues = player.mergeCont ? mergeCueContinuation(player.cuesRaw) : player.cuesRaw;
+    current.cuesRaw = player.cuesRaw.slice();
     current.cues = player.cues.slice();
     if (!current.browserLoadedTrackId) current.browserLoadedTrackId = result.trackId;
     if (!player.browserLoadedTrackId) player.browserLoadedTrackId = result.trackId;
@@ -5174,11 +5186,14 @@ async function restoreBrowserTranslationSnapshot(tab) {
   player.browserTranslationFailed = Array.isArray(result.state?.failures)
     ? result.state.failures.filter((failure) => failure.terminal).length : 0;
   current.browserTranslationFailed = player.browserTranslationFailed;
-  player.cues2 = [...translated.values()].sort((a, b) => a.start - b.start || a.end - b.end);
+  player.cues2Raw = [...translated.values()].sort((a, b) => a.start - b.start || a.end - b.end);
+  player.cues2 = player.mergeCont ? mergeCueContinuation(player.cues2Raw) : player.cues2Raw;
+  current.cues2Raw = player.cues2Raw.slice();
+  current.cues2 = player.cues2.slice();
   updateBrowserTranslationExportButton();
   updateBrowserTranslationRetryButton();
   syncSubtitleModeUi();
-  if (result.state?.total && Number(result.state.completed) >= Number(result.state.total)) {
+  if (browserTranslationJustCompleted(current, result.state)) {
     setSubtitleMode('translation', false);
   }
   scheduleBrowserOverlaySync();
@@ -5195,14 +5210,17 @@ function applyBrowserTranslationResult(event) {
     return;
   }
   mergeBrowserTranslationCues(player.browserLiveTranslations, event.result.cues);
-  player.cues2 = [...player.browserLiveTranslations.values()]
+  player.cues2Raw = [...player.browserLiveTranslations.values()]
     .filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
+  player.cues2 = player.mergeCont ? mergeCueContinuation(player.cues2Raw) : player.cues2Raw;
   updateBrowserTranslationExportButton();
   syncSubtitleModeUi();
   const tab = browserTabState();
   if (tab) {
     tab.browserTranslationTrackId = player.browserTranslationTrackId;
     tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
+    tab.cues2Raw = player.cues2Raw.slice();
+    tab.cues2 = player.cues2.slice();
   }
   scheduleBrowserOverlaySync();
   if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
@@ -5548,7 +5566,13 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
       await loadSubtitle(latest.path, false, { silent: true, preserveInspector: true });
       if (player.browserActiveTabId !== tabId || staleGeneration(gen) || player.subPath !== latest.path) return;
       if (latest.role !== 'translation' && player.browserTranslationTrackId === latest.id) {
-        await startBrowserLiveTranslation(latest, browserTrackSourceLanguage(latest));
+        const result = await window.api.startBrowserTranslation(tabId, {
+          trackId: latest.id, cues: player.cuesRaw || player.cues, refresh: true,
+        }).catch((error) => ({ ok: false, error: error.message }));
+        if (player.browserActiveTabId !== tabId || staleGeneration(gen)
+            || player.browserTranslationTrackId !== latest.id) return;
+        if (result?.ok) await restoreBrowserTranslationSnapshot(browserTabState(tabId));
+        else setBrowserSignal(`Çeviri güncellenemedi: ${result?.error || 'bilinmeyen hata'}`, false);
       }
     }
     if (refreshSecondary) {
@@ -6348,7 +6372,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.tabMuted = !!event.tabMuted;
       } else if (event.type === 'capture-status') {
         tab.diagnostics = event.diagnostics || null;
-      } else if (event.type === 'translation-result' && event.result && !event.result.error) {
+      } else if (event.type === 'translation-result' && event.result && !event.result.error
+          && event.trackId === tab.browserTranslationTrackId) {
         const translated = mergeBrowserTranslationCues(
           new Map((tab.browserLiveTranslations || []).map((cue) => [browserTranslationCueKey(cue), cue])),
           event.result.cues);
@@ -6357,7 +6382,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'translation-state' && event.trackId === tab.browserTranslationTrackId) {
         const progress = event.state || {};
         tab.browserTranslationFailed = Math.max(0, Number(progress.failed) || 0);
-        if (progress.total && Number(progress.completed) >= Number(progress.total) && !tab.browserTranslationFailed) {
+        if (browserTranslationJustCompleted(tab, progress) && !tab.browserTranslationFailed) {
           tab.subtitleMode = 'translation';
         }
       } else if (event.type === 'capture-enabled') {
@@ -6507,6 +6532,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const progress = event.state || {};
     player.browserTranslationFailed = Math.max(0, Number(progress.failed) || 0);
     const translationTab = browserTabState();
+    const justCompleted = browserTranslationJustCompleted(translationTab, progress);
     if (translationTab) translationTab.browserTranslationFailed = player.browserTranslationFailed;
     updateBrowserTranslationRetryButton();
     const estimate = progress.remaining
@@ -6516,9 +6542,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true,
         { priority: 60 });
     } else if (progress.total && Number(progress.completed) >= Number(progress.total)) {
-      setSubtitleMode('translation', false);
+      if (justCompleted) setSubtitleMode('translation', false);
       updateBrowserTranslationExportButton();
-      setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed)}/${Number(progress.total)} cümle. Çeviri ana altyazı olarak gösteriliyor.`, true,
+      setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed)}/${Number(progress.total)} cümle.${justCompleted ? ' Çeviri ana altyazı olarak gösteriliyor.' : ''}`, true,
         { priority: 65, holdMs: 4000 });
     } else if (progress.total && progress.failed) {
       updateBrowserTranslationExportButton();

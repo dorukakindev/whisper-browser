@@ -165,6 +165,25 @@ class BrowserTranslationScheduler {
     return this.sentences.length;
   }
 
+  reconcileSentences(sentences) {
+    const next = (Array.isArray(sentences) ? sentences : []).map((sentence) => ({ ...sentence }));
+    const previous = new Map(this.sentences.map((sentence) => [sentence.id, sentence]));
+    // Aynı metnin zamanları, cue sınırları veya bağlamı değişmiş olabilir.
+    // Yalnız tamamen aynı cümlenin sonucu ve çalışan isteği korunur.
+    const unchanged = new Set(next.filter((sentence) =>
+      JSON.stringify(previous.get(sentence.id)) === JSON.stringify(sentence)).map((sentence) => sentence.id));
+    for (const [id, job] of this.pending) {
+      if (unchanged.has(id)) continue;
+      job.controller.abort('Kaynak cümle güncellendi.');
+      this.pending.delete(id);
+    }
+    for (const id of this.results.keys()) if (!unchanged.has(id)) this.results.delete(id);
+    for (const id of this.failures.keys()) if (!unchanged.has(id)) this.failures.delete(id);
+    this.sentences = next;
+    this.updatePlayhead(this.playhead);
+    return this.sentences.length;
+  }
+
   updatePlayhead(seconds) {
     const next = Math.max(0, finiteNumber(seconds));
     const farSeek = Math.abs(next - this.playhead) >= this.farSeekThreshold;
@@ -380,6 +399,10 @@ class BrowserTranslationScheduler {
   snapshot() {
     return {
       playhead: this.playhead,
+      total: this.sentences.length,
+      completed: this.results.size,
+      remaining: this.sentences.length - this.results.size,
+      completeTrack: this.completeTrack,
       queued: this.queue.map((sentence) => sentence.id),
       pending: [...this.pending.keys()],
       failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure })),

@@ -67,6 +67,7 @@ function action(name, next, context) {
       player: { browserActiveTabId: 'a', browserTranslationStartSeq: 0,
         cues: [{ start: 0, end: 1, text: 'Hello' }], cues2Raw: [{ text: 'old' }] },
       currentGeneration: () => generation, staleGeneration: (gen) => gen !== generation,
+      browserTabState: () => ({}),
       $: (id) => controls[id],
       window: { api: { startBrowserTranslation: () => new Promise((resolve) => { finishStart = resolve; }) } },
       updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {}, syncSubtitleModeUi() {},
@@ -111,6 +112,86 @@ function action(name, next, context) {
   await refresh();
   assert.equal(reloads, 1);
   assert.equal(starts, 0, 'kayıtlı çeviri yeniden çeviriye gönderildi');
+
+  // Artımlı yenileme renderer'daki sıfırlayıcı başlangıç yoluna dönmemeli.
+  let refreshRequest;
+  let snapshots = 0;
+  const live = { id: 'live', path: 'live.srt', role: 'source' };
+  Object.assign(refreshContext.player, { browserLoadedTrackId: 'live', subPath: 'live.srt',
+    browserTranslationTrackId: 'live', browserTracks: [live], cuesRaw: [live] });
+  refreshContext.window = { api: { startBrowserTranslation: async (_tabId, payload) => {
+    refreshRequest = payload; return { ok: true };
+  } } };
+  refreshContext.browserTabState = () => ({ id: 'a' });
+  refreshContext.restoreBrowserTranslationSnapshot = async () => { snapshots++; };
+  refreshContext.scheduleActiveBrowserTrackRefresh(live);
+  await refresh();
+  assert.equal(refreshRequest.refresh, true);
+  assert.equal(refreshRequest.cues, refreshContext.player.cuesRaw);
+  assert.equal(snapshots, 1);
+
+  const streamTab = {};
+  const streamContext = {
+    player: { browserTranslationTrackId: 'live', browserLiveTranslations: new Map(),
+      cues: [], cues2: [], cues2Raw: null, workspaceMode: 'browser', mergeCont: true },
+    browserTabState: () => streamTab,
+    mergeCueContinuation: (cues) => cues.map((item) => ({ ...item })),
+    updateBrowserTranslationExportButton() {}, syncSubtitleModeUi() {}, scheduleBrowserOverlaySync() {},
+    renderBrowserCueAt() {}, renderCueList() {}, renderCue() {}, updateCueMeta() {},
+  };
+  vm.createContext(streamContext);
+  vm.runInContext(source.slice(source.indexOf('function browserTranslationCueKey('),
+    source.indexOf('async function restoreBrowserTranslationSnapshot(')), streamContext);
+  vm.runInContext(source.slice(source.indexOf('function applyBrowserTranslationResult('),
+    source.indexOf('async function useBrowserTrackPair(')), streamContext);
+  vm.runInContext(source.slice(source.indexOf('function applyCueMerge('),
+    source.indexOf('// ---- AI sohbet')), streamContext);
+  const deliver = (id) => streamContext.applyBrowserTranslationResult({ trackId: 'live',
+    result: { cues: [{ cueId: id, start: id, end: id + 1, text: `Çeviri ${id}` }] } });
+  deliver(1);
+  streamContext.applyCueMerge();
+  deliver(2);
+  streamContext.player.mergeCont = false;
+  streamContext.applyCueMerge();
+  assert.equal(streamContext.player.cues2.length, 2, 'birleştirme kapatılınca yeni çeviri kayboldu');
+  assert.equal(streamTab.cues2Raw.length, 2);
+
+  // Snapshot eski satırları geri birleştirmemeli ve ham kaynak/çeviriyi yenilemeli.
+  Object.assign(streamTab, { id: 'a', browserTranslationTrackId: 'live', generation: 1,
+    browserLiveTranslations: [{ id: 'web-tr-old', text: 'Silinmiş', start: 0, end: 1 }] });
+  streamContext.player.browserActiveTabId = 'a';
+  streamContext.window = { api: { getBrowserTranslationSnapshot: async () => ({
+    ok: true, trackId: 'live', generation: 1,
+    sourceCues: [{ id: 'new', text: 'Source.', start: 5, end: 6 }],
+    results: [{ cueId: 'new', text: 'Yeni.', start: 5, end: 6 }],
+    state: { total: 1, completed: 1, failures: [] },
+  }) } };
+  let restoredMode;
+  streamContext.setSubtitleMode = (mode) => { restoredMode = mode; };
+  streamContext.updateBrowserTranslationRetryButton = () => {};
+  streamContext.renderTranscript = () => {};
+  vm.runInContext(source.slice(source.indexOf('async function restoreBrowserTranslationSnapshot('),
+    source.indexOf('function applyBrowserTranslationResult(')), streamContext);
+  await streamContext.restoreBrowserTranslationSnapshot(streamTab);
+  assert.equal(streamContext.player.browserLiveTranslations.size, 1);
+  assert.equal(streamContext.player.browserLiveTranslations.has('old'), false);
+  assert.equal(streamContext.player.cuesRaw[0].text, 'Source.');
+  assert.equal(streamContext.player.cues2Raw[0].text, 'Yeni.');
+  assert.equal(restoredMode, 'translation');
+  restoredMode = 'source'; // Kullanıcı tamamlanmadan sonra kaynağı seçti.
+  await streamContext.restoreBrowserTranslationSnapshot(streamTab);
+  assert.equal(restoredMode, 'source', 'yinelenen tamamlanma kullanıcının seçimini geri aldı');
+  assert.equal(streamContext.browserTranslationJustCompleted(streamTab, { total: 2, completed: 1 }), false);
+  assert.equal(streamContext.browserTranslationJustCompleted(streamTab, { total: 2, completed: 2 }), true,
+    'yeni eklenen cümleler tamamlanınca geçiş algılanmadı');
+
+  const loadedTrack = { id: 'saved', path: 'saved.srt', role: 'translation', autoLoad: true };
+  const autoContext = { player: { browserLoadedTrackId: 'saved', cues: [{}] }, browserTabState: () => ({ id: 'a' }) };
+  vm.createContext(autoContext);
+  vm.runInContext(source.slice(source.indexOf('async function loadPersistedBrowserTranslation('),
+    source.indexOf('function browserTrackSelection(')), autoContext);
+  await autoContext.loadPersistedBrowserTranslation(loadedTrack);
+  assert.equal(loadedTrack.autoLoad, false, 'otomatik yükleme işareti her sekme dönüşünde tekrarlandı');
 
   console.log('Browser subtitle actions: export, start/retry races and saved translation refresh passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

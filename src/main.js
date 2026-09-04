@@ -3104,7 +3104,6 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   const cues = normalizeCues(rawCues).slice(0, 20000);
   if (!cues.length) return { ok: false, error: 'Çevrilecek altyazı bloğu yok.' };
-  const config = browserTranslationConfig(options);
   const sentences = assembleCueSentences(cues);
   for (let index = 0; index < sentences.length; index++) {
     if (sentences[index].pieces.length < 2) continue;
@@ -3112,6 +3111,17 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     sentences[index].contextAfter = sentences[index + 1]?.text || '';
   }
   if (!sentences.length) return { ok: false, error: 'Tamamlanmış cümle bulunamadı.' };
+  if (options.refresh) {
+    if (!tab.translationScheduler || tab.translationTrackId !== options.trackId) {
+      return { ok: false, error: 'Güncellenecek çeviri oturumu bulunamadı.' };
+    }
+    tab.translationSourceCues = cues;
+    tab.translationScheduler.reconcileSentences(sentences);
+    tab.translationResults = new Map(tab.translationScheduler.snapshot().results
+      .flatMap((result) => result.cues || []).map((cue) => [String(cue.cueId), cue]));
+    return { ok: true, refreshed: true, sentenceCount: sentences.length };
+  }
+  const config = browserTranslationConfig(options);
   tab.translationScheduler?.cancelAll('Yeni çeviri oturumu başladı.');
   tab.translationTrackId = String(options.trackId || '').slice(0, 180);
   tab.translationSourceCues = cues;
@@ -5769,6 +5779,7 @@ ipcMain.handle('browser:translation:start', async (event, request) => {
     register: request && request.register,
     profanity: request && request.profanity,
     completeTrack: request?.completeTrack !== false,
+    refresh: request?.refresh === true,
   });
 });
 
