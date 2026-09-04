@@ -5229,6 +5229,8 @@ function applyBrowserTranslationResult(event) {
 async function useBrowserTrackPair() {
   const source = browserTrackSelection(false);
   const second = browserTrackSelection(true);
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
   if (!source || !second) {
     setBrowserSignal('İki altyazı için ikinci iz seçin.', false);
     return;
@@ -5240,11 +5242,11 @@ async function useBrowserTrackPair() {
   addSubtitleOption(source.path, `Web · ${source.language || source.label}`);
   addSubtitleOption(second.path, `Web · ${second.language || second.label}`);
   $('playerSubSelect').value = source.path;
-  $('playerSubSelect2').value = second.path;
   await loadSubtitle(source.path);
-  if (player.subPath !== source.path) return;
+  if (player.subPath !== source.path || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
+  $('playerSubSelect2').value = second.path;
   await loadSubtitle(second.path, true);
-  if (player.sub2Path !== second.path) return;
+  if (player.sub2Path !== second.path || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   player.browserLoadedTrackId = source.id;
   player.browserLoadedTrackId2 = second.id;
   setPlayerSidebarCollapsed(false);
@@ -10126,6 +10128,19 @@ function addSubtitleOption(path, label) {
   });
 }
 
+function clearBrowserSecondarySelection() {
+  player.cues2 = [];
+  player.cues2Raw = null;
+  player.activeIdx2 = -1;
+  player.sub2Path = '';
+  player.browserLoadedTrackId2 = '';
+  for (const id of ['playerSubSelect2', 'browserTrackSelect2']) {
+    if ($(id)) $(id).value = '';
+  }
+  const tab = browserTabState();
+  if (tab) Object.assign(tab, { cues2: [], cues2Raw: null, sub2Path: '', browserLoadedTrackId2: '' });
+}
+
 async function loadSubtitle(path, secondary = false, options = {}) {
   if (!path) {
     // Altyazi kapatilinca LISTE de temizlenmeli. Eskiden yalnizca overlay
@@ -10221,19 +10236,22 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   }
   const gen = currentGeneration();
   const previousPrimaryPath = player.subPath;
-  const res = await window.api.readSubtitle(path);
+  const res = await window.api.readSubtitle(path).catch((error) => ({ ok: false, error: error.message }));
   // Okuma sirasinda baska videoya gecildiyse sonucu AT (eski altyazi yenisine
   // baglanmasin). Ayni video icinde iki altyazi hizli secilirse de gec gelen
   // ilk okuma sonuncuyu ezmesin diye yol karsilastirilir.
   if (staleGeneration(gen)) return;
-  if (!res || !res.ok) {
-    logLine(`Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
-    return;
-  }
   const selNow = secondary ? $('playerSubSelect2') : $('playerSubSelect');
   // Bos secim de bilincli bir secimdir ("Altyazi yok" / "Kapali"). Okuma
   // surerken temizlendiyse gec kalan dosyayi tekrar yukleme.
   if (selNow && selNow.value !== path) return;
+  if (!res || !res.ok) {
+    if (selNow) selNow.value = (secondary ? player.sub2Path : player.subPath) || '';
+    const message = `Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`;
+    logLine(message, 'error');
+    if (player.workspaceMode === 'browser') setBrowserSignal(message, false);
+    return;
+  }
   let cues = parseSubtitles(res.text);
   if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
   if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
@@ -10245,6 +10263,20 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.sub2Path = path;
     const browserTrack = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) => track.path === path) : null;
+    if (player.workspaceMode === 'browser' && browserTrack?.role !== 'translation') {
+      const primaryTrack = player.browserTracks.find((track) =>
+        track.id === player.browserLoadedTrackId && track.role === 'translation');
+      stopReplacedBrowserTranslation(primaryTrack?.id || '');
+      player.browserTranslationTrackId = primaryTrack?.id || '';
+      player.browserLiveTranslations = primaryTrack ? browserTranslationMapFromCues(player.cues) : new Map();
+      player.browserTranslationFailed = 0;
+      const tab = browserTabState();
+      if (tab) {
+        tab.browserTranslationTrackId = player.browserTranslationTrackId;
+        tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
+        tab.browserTranslationFailed = 0;
+      }
+    }
     if (browserTrack) {
       if (browserTrack.role === 'translation') {
         stopReplacedBrowserTranslation(browserTrack.id);
@@ -10298,31 +10330,26 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.browserTranslationTrackId = browserTrack.id;
       player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
       player.browserTranslationFailed = 0;
-      player.cues2 = [];
-      player.cues2Raw = null;
-      player.sub2Path = '';
-      if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
+      if (previousPrimaryPath !== path) clearBrowserSecondarySelection();
       const tab = browserTabState();
       if (tab) {
         tab.browserLoadedTrackId = browserTrack.id;
-        tab.browserLoadedTrackId2 = '';
+        tab.browserLoadedTrackId2 = player.browserLoadedTrackId2;
         tab.browserTranslationTrackId = browserTrack.id;
         tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
         tab.browserTranslationFailed = 0;
-        tab.cues2 = [];
-        tab.sub2Path = '';
+        tab.cues2 = player.cues2.slice();
+        tab.sub2Path = player.sub2Path;
       }
       // Ayarlar panelinden çevri izini tek başına seçince mevcut görünüm
       // modu kaynakta kalıp boş bir katman göstermesin.
-      setSubtitleMode('translation', false);
-    } else if (previousTranslation && browserTrack?.id !== previousTranslation.id) {
+      if (!options.silent || previousPrimaryPath !== path) setSubtitleMode('translation', false);
+    } else if (previousPrimaryPath !== path && previousTranslation && browserTrack?.id !== previousTranslation.id) {
       stopReplacedBrowserTranslation('');
       player.browserTranslationTrackId = '';
       player.browserLiveTranslations = new Map();
       player.browserTranslationFailed = 0;
-      player.cues2 = [];
-      player.cues2Raw = null;
-      player.sub2Path = '';
+      clearBrowserSecondarySelection();
       const tab = browserTabState();
       if (tab) {
         tab.browserTranslationTrackId = '';
