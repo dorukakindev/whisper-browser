@@ -31,6 +31,10 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     const mutationObservers = [];
     ${browserMediaCandidateRank.toString()}
     const compareMedia = ${compareBrowserMediaCandidates.toString()};
+    const finite = (value, fallback = 0) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    };
 
     const bindDrag = (item) => {
       if (!item || item.dataset.whisperDragBound === 'true') return;
@@ -300,7 +304,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const style = state.style || {};
       const bottomOffset = Math.max(0, Math.min(75, Number.isFinite(Number(style.bottomOffset)) ? Number(style.bottomOffset) : 8));
       box.style.top = Math.max(rect.top, rect.bottom - Math.max(96, rect.height * (bottomOffset / 100 + .09))) + 'px';
-      const time = (Number(activeMedia.currentTime) || 0) - (Number(state.offset) || 0);
+      const time = finite(activeMedia.currentTime) - finite(state.offset);
       const sourceCues = findCues(state.source || [], time);
       const translationCues = findCues(state.translation || [], time);
       const source = box.querySelector('[data-kind="source"]');

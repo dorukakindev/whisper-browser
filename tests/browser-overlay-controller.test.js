@@ -21,6 +21,11 @@ test('kapalı, gizli ve duraklatılmış durumda sürekli frame planlamaz', () =
   assert.match(script, /requestVideoFrameCallback/);
 });
 
+test('oynatıcı zamanı ve ofseti finite olmayan sayfalı değerlerden korunur', () => {
+  assert.match(script, /const finite = \(value, fallback = 0\)/);
+  assert.match(script, /const time = finite\(activeMedia\.currentTime\) - finite\(state\.offset\)/);
+});
+
 test('ilk durum kapalıysa DOM katmanı ve medya taraması oluşturmaz', () => {
   let created = 0, scanned = 0;
   const window = { addEventListener() {} };
