@@ -715,6 +715,15 @@ test('araç bloğu gizlenip açılabiliyor', () => {
 });
 
 // ---- 13. işletim sistemi başlık çubuğu ve sade tarayıcı görünümü ----
+test('yan panel kapalıyken başlık sağa yaslanır ve pencere düğmelerinin altında kalır', () => {
+  assert(/\.player-layer\.sidebar-collapsed \.player-head\s*\{\s*padding-right:\s*14px;\s*\}/.test(css),
+    'kapalı panelde gereksiz native düğme sütunu kaldırılmalı');
+  assert(/\.player-layer\.sidebar-collapsed \.player-workspace-switch\s*\{[^}]*margin-left:\s*auto;[^}]*order:\s*0;/.test(css),
+    'dar pencerede seçici ikon grubunun önünde, sağa yaslı kalmalı');
+  assert(/padding-top:\s*calc\(12px \+ var\(--window-controls-safe-height\)\)/.test(css),
+    'native pencere düğmelerinin dikey güvenli alanı korunmalı');
+});
+
 test('native başlık gizlenirken pencere düğmeleri için güvenli alan korunur', () => {
   const main = fs.readFileSync(path.join(SRC, '..', 'main.js'), 'utf-8');
   assert(/titleBarStyle:\s*'hidden'/.test(main), 'ayrı Windows başlık şeridi hâlâ açık');
@@ -1240,7 +1249,7 @@ test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
 });
 
 test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {
-  assert(/\.player-layer\.sidebar-collapsed\s+\.player-workspace-switch\s*\{\s*margin-left:\s*auto;\s*\}/.test(css),
+  assert(/\.player-layer\.sidebar-collapsed\s+\.player-workspace-switch\s*\{[^}]*margin-left:\s*auto;[^}]*\}/.test(css),
     'dar görünümde kapalı panel üst araç grubunu sağ kenara taşımıyor');
 });
 

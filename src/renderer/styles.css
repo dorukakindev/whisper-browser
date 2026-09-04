@@ -4231,6 +4231,10 @@ body::before {
   padding-right: calc(22px + var(--window-controls-safe-width));
   background: #0a0d11;
 }
+/* Panel kapalıyken sağda hayalet bir başlık düğmeleri sütunu bırakma.
+   Native pencere düğmeleri için yukarıdaki 36px dikey güvenli alan korunur. */
+.player-layer.sidebar-collapsed .player-head { padding-right: 14px; }
+.player-layer.sidebar-collapsed .player-workspace-switch { margin-left: auto; order: 0; }
 /* Başlık gizli kompakt tarayıcı görünümünde araç çubuğu doğrudan pencerenin
    tepesine gelir; aynı güvenli yüksekliği bu durumda da koru. */
 .player-layer.browser-chrome-collapsed .browser-workspace {
@@ -4243,9 +4247,6 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
 
 @media (max-width: 1280px) {
   .player-workspace-switch { margin-left: 0; }
-  /* Sağ panel kapalıyken başlıkta boş bir panel sütunu yoktur. Çalışma alanı
-     seçicisi ve onu izleyen araçlar tek grup olarak sağ güvenli kenara yaslanır. */
-  .player-layer.sidebar-collapsed .player-workspace-switch { margin-left: auto; }
   .workspace-mode { padding: 0 10px; }
 }
 
