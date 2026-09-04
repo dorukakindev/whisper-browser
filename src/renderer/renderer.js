@@ -658,7 +658,8 @@ function syncBrowserOcclusion() {
   const places = $('browserPlacesPanel');
   const downloads = $('browserDownloadsPanel');
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
-    || !!(downloads && !downloads.classList.contains('hidden'));
+    || !!(downloads && !downloads.classList.contains('hidden'))
+    || (typeof player !== 'undefined' && !!player.pdfReader);
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
 }
 
@@ -11154,13 +11155,22 @@ async function renderPdfReaderPage(pageNumber) {
     const heading = document.createElement('h3'); heading.textContent = `Sayfa ${pageNumber}`; translation.appendChild(heading);
     article.append(source, translation); $('pdfReaderPages').appendChild(article); reader.rendered.set(pageNumber, article);
     reader.observer?.observe(article);
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    reader.renderStage = `rendering:${pageNumber}`;
+    article.dataset.state = 'rendering';
+    // `display` niyeti işi rAF karelerine böler; Windows'ta örtülü/minimize
+    // Electron penceresinde bu kareler tamamen durdurulabildiği için okuyucu
+    // sonsuza kadar "çiziliyor" durumunda kalıyordu. Print yolu aynı tuval
+    // çıktısını rAF bağımlılığı olmadan tamamlar.
+    await page.render({ canvas, viewport, intent: 'print' }).promise;
     if (player.pdfReader !== reader || (reader.renderGeneration || 0) !== generation) { article.remove(); return; }
+    reader.renderStage = `extracting:${pageNumber}`;
+    article.dataset.state = 'extracting';
     const blocks = await extractPdfReaderPage(pageNumber);
     if (player.pdfReader !== reader || (reader.renderGeneration || 0) !== generation) { article.remove(); return; }
     const entry = reader.pages.get(pageNumber) || { blocks };
     entry.article = article; entry.translation = translation; reader.pages.set(pageNumber, entry);
     article.dataset.state = 'ready';
+    reader.renderStage = `ready:${pageNumber}`;
     const saved = reader.state?.pages?.[String(pageNumber)];
     if (Array.isArray(saved)) renderPdfTranslation(pageNumber, saved);
   } catch (error) {
@@ -11224,14 +11234,39 @@ async function openPdfReader(filePath = '') {
   const opened = await window.api.openPdf?.(filePath).catch((error) => ({ ok: false, error: error.message }));
   if (!opened?.ok) { if (!opened?.canceled) setBrowserSignal(opened?.error || 'PDF açılamadı.', false); return; }
   let pdf;
+  let loadingTask;
   try {
     const pdfjs = await getPdfJs();
-    pdf = await pdfjs.getDocument({ url: opened.fileUrl }).promise;
+    const response = await fetch(opened.fileUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`PDF verisi alınamadı (HTTP ${response.status}).`);
+    const declaredSize = Number(response.headers.get('content-length'));
+    if (Number.isFinite(declaredSize) && declaredSize !== Number(opened.size)) {
+      throw new Error('PDF dosyası açılırken boyutu değişti; dosyayı yeniden seçin.');
+    }
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength !== Number(opened.size)) throw new Error('PDF verisi eksik alındı.');
+    // PDF.js Uint8Array sahipliğini worker'a aktarır; farklı sürücüdeki file://
+    // kısıtına girmeden ayrıştırma yapılır ve renderer'da ikinci kopya tutulmaz.
+    loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      isEvalSupported: false,
+      // Yerleşik PDF yazı tiplerinde worker'ın file:// altındaki font varlığını
+      // beklemesine gerek kalmasın. Paketlenmiş standard_fonts yine gömülü font
+      // eşlemeleri için geri dönüş olarak tutulur.
+      useSystemFonts: true,
+      cMapUrl: new URL('./vendor/cmaps/', location.href).href,
+      cMapPacked: true,
+      standardFontDataUrl: new URL('./vendor/standard_fonts/', location.href).href,
+      wasmUrl: new URL('./vendor/wasm/', location.href).href,
+      iccUrl: new URL('./vendor/iccs/', location.href).href,
+    });
+    pdf = await loadingTask.promise;
   } catch (error) {
+    try { await loadingTask?.destroy?.(); } catch (_) {}
     setBrowserSignal(`PDF okunamadı: ${error.message}`, false);
     return;
   }
-  player.pdfReader = { pdf, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
+  player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   const pageInput = $('pdfReaderPage');
   if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
   $('pdfReaderTitle').textContent = opened.title || 'PDF kitap'; $('pdfReaderPages').replaceChildren();
@@ -11251,7 +11286,7 @@ async function openPdfReader(filePath = '') {
       .forEach((entry) => { const number = Number(entry.target.dataset.page); void renderPdfReaderPage(number + 2); }), { root, rootMargin: '800px' });
   }
   for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
-  setBrowserModalOccluded(true);
+  syncBrowserOcclusion();
 }
 
 function readerPagesForVisibility() {
@@ -11273,12 +11308,12 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   reader?.observer?.disconnect();
   if (reader) reader.renderGeneration = (reader.renderGeneration || 0) + 1;
   if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash).catch(() => {});
-  try { Promise.resolve(reader?.pdf?.destroy?.()).catch(() => {}); } catch (_) {}
+  try { Promise.resolve(reader?.loadingTask?.destroy?.()).catch(() => {}); } catch (_) {}
   const root = $('pdfReaderPages');
   if (root) { root.onscroll = null; root.replaceChildren(); }
   player.pdfReader = null;
   $('pdfReader')?.classList.add('hidden'); $('playerStage')?.classList.remove('hidden');
-  setBrowserModalOccluded(false);
+  syncBrowserOcclusion();
 });
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
 $('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));

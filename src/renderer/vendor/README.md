@@ -30,4 +30,6 @@ Sürüm numarasını bu dosyada da güncelleyin.
 - Lisans: Apache-2.0 — tam metin: [`pdfjs-LICENSE.txt`](pdfjs-LICENSE.txt)
 
 `pdf.min.mjs` ile `pdf.worker.min.mjs`, PDF kitap okuyucusunda yerel dosyaları
-çizmek ve metin katmanını çıkarmak için kullanılır. CSP nedeniyle CDN kullanılmaz.
+çizmek ve metin katmanını çıkarmak için kullanılır. `standard_fonts/`, `cmaps/`,
+`wasm/` ve `iccs/` dizinleri standart font, çok dilli karakter haritası, görsel
+çözücü ve renk profili desteğidir. CSP nedeniyle CDN kullanılmaz.

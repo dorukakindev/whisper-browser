@@ -1,12 +1,12 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage, Menu } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage, Menu, protocol } = require('electron');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const dns = require('dns').promises;
 const http = require('http');
 const https = require('https');
-const { pathToFileURL } = require('url');
 const { isIP } = require('net');
+const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createBrowserPageFind } = require('./browser-page-find');
@@ -154,6 +154,13 @@ const {
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
 // tarayıcının aynı sayfada sonsuza kadar siyah ekranda kalmasını önler.
 app.commandLine.appendSwitch('disable-quic');
+// PDF kitapları rastgele file:// yollarından renderer'a açmak farklı sürücülerde
+// Chromium dosya-origin kısıtına takılır. Yalnız ana sürecin izin verdiği PDF
+// kimliklerini sunan dar, güvenli ve Range destekli bir akış protokolü kullan.
+protocol?.registerSchemesAsPrivileged?.([{
+  scheme: 'whisper-pdf',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+}]);
 // Bu Electron tercihi app.ready öncesinde uygulanmalıdır; çalışma sırasında
 // değiştirilen ayar sonraki açılışta geçerli olur. Python/CUDA'yı etkilemez.
 // Varsayılan açık: yalnız açıkça kaydedilmiş false hızlandırmayı kapatır.
@@ -2630,7 +2637,68 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
 }
 
 const pdfDocuments = new Map();
+const pdfDocumentsByResourceId = new Map();
 const pdfTranslationJobs = new Map();
+
+function pdfProtocolHeaders(contentLength, extra = {}) {
+  return {
+    'Accept-Ranges': 'bytes',
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'no-store',
+    'Content-Length': String(contentLength),
+    'Content-Type': 'application/pdf',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+    ...extra,
+  };
+}
+
+function installPdfDocumentProtocol() {
+  if (!protocol?.handle) return;
+  protocol.handle('whisper-pdf', async (request) => {
+    try {
+      const url = new URL(request.url);
+      if (url.hostname !== 'document' || !['GET', 'HEAD'].includes(request.method)) {
+        return new Response('İstek desteklenmiyor.', { status: 405 });
+      }
+      const resourceId = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+      if (!/^[a-f0-9]{64}$/u.test(resourceId)) return new Response('PDF bulunamadı.', { status: 404 });
+      const document = pdfDocumentsByResourceId.get(resourceId);
+      if (!document || !pdfFileAccess.has(document.filePath)
+          || pdfFileAccess.inspect(document.filePath) !== document.filePath) {
+        return new Response('PDF izni geçersiz.', { status: 404 });
+      }
+      const size = fs.statSync(document.filePath).size;
+      let start = 0;
+      let end = Math.max(0, size - 1);
+      let status = 200;
+      const range = request.headers.get('range');
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/u.exec(range.trim());
+        if (!match || (!match[1] && !match[2])) {
+          return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+        }
+        if (!match[1]) {
+          const suffix = Math.min(size, Number(match[2]));
+          if (!Number.isSafeInteger(suffix) || suffix < 1) return new Response(null, { status: 416 });
+          start = size - suffix;
+        } else {
+          start = Number(match[1]);
+          if (match[2]) end = Math.min(end, Number(match[2]));
+        }
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start > end || start >= size) {
+          return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+        }
+        status = 206;
+      }
+      const length = end - start + 1;
+      const headers = pdfProtocolHeaders(length, status === 206
+        ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {});
+      if (request.method === 'HEAD') return new Response(null, { status, headers });
+      const body = Readable.toWeb(fs.createReadStream(document.filePath, { start, end }));
+      return new Response(body, { status, headers });
+    } catch (_) { return new Response('PDF okunamadı.', { status: 500 }); }
+  });
+}
 
 function pdfTranslationDirectory() {
   return path.join(app.getPath('userData'), 'pdf-translations');
@@ -2670,12 +2738,19 @@ function inspectPdfDocument(filePath) {
     const pdfHash = pdfHashFromFirstChunk(stat.size, chunk);
     const document = {
       pdfHash,
+      resourceId: createHash('sha256').update(`pdf-resource:${pdfHash}`, 'utf8').digest('hex'),
       filePath: target,
-      fileUrl: pathToFileURL(target).href,
       title: path.basename(target, path.extname(target)),
       size: stat.size,
     };
     pdfDocuments.set(pdfHash, document);
+    pdfDocumentsByResourceId.set(document.resourceId, document);
+    while (pdfDocumentsByResourceId.size > 100) {
+      const oldestId = pdfDocumentsByResourceId.keys().next().value;
+      const oldest = pdfDocumentsByResourceId.get(oldestId);
+      pdfDocumentsByResourceId.delete(oldestId);
+      if (oldest && pdfDocuments.get(oldest.pdfHash) === oldest) pdfDocuments.delete(oldest.pdfHash);
+    }
     return document;
   } finally { fs.closeSync(descriptor); }
 }
@@ -5613,6 +5688,7 @@ app.on('certificate-error', (event, webContents, url, error, _certificate, callb
 });
 
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
+  if (typeof installPdfDocumentProtocol === 'function') installPdfDocumentProtocol();
   // Korumalı gezinme readiness promise'ini bekler; arayüz indirmeyi beklemez.
   void prepareWidevineComponents().catch((error) => {
     console.warn('Widevine hazırlığı başlatılamadı:', error.message);
@@ -6547,7 +6623,16 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
       targetLanguage: config.targetLanguage,
       model: config.model,
     });
-    return { ok: true, ...document, targetLanguage: config.targetLanguage, model: config.model, state };
+    return {
+      ok: true,
+      pdfHash: document.pdfHash,
+      fileUrl: `whisper-pdf://document/${document.resourceId}`,
+      title: document.title,
+      size: document.size,
+      targetLanguage: config.targetLanguage,
+      model: config.model,
+      state,
+    };
   } catch (error) { return { ok: false, error: error.message }; }
 });
 
