@@ -1212,6 +1212,11 @@ test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını b
   const tracks = js.slice(js.indexOf('function renderBrowserTracks'), js.indexOf('async function loadPersistedBrowserTranslation'));
   assert(/addSubtitleOption\(track\.path/.test(tracks),
     'yakalanan web izleri genel altyazı ayarlarına eklenmiyor');
+  const load = js.slice(js.indexOf('async function loadSubtitle'), js.indexOf('// Videonun yanindaki altyazilari bul'));
+  assert(/browserLoadedTrackId2 = browserTrack\.id/.test(load),
+    'genel ayarlardan seçilen ikinci web izi sekme state ine yazılmıyor');
+  assert(/const previousTranslation = player\.browserTracks\.find\(\(track\) =>[\s\S]{0,100}track\.id === player\.browserTranslationTrackId/.test(load),
+    'farklı web kaynağı seçilince aktif çeviri ilişkisi denetlenmiyor');
 });
 
 test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçilebilir', () => {

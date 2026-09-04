@@ -10057,7 +10057,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     const browserTrack = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) => track.path === path) : null;
     const previousTranslation = player.browserTracks.find((track) =>
-      track.id === player.browserTranslationTrackId && track.role === 'translation');
+      track.id === player.browserTranslationTrackId);
     if (player.workspaceMode === 'browser') {
       player.browserLoadedTrackId = browserTrack?.id || '';
       const tab = browserTabState();
@@ -10087,11 +10087,17 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     } else if (previousTranslation && browserTrack?.id !== previousTranslation.id) {
       player.browserTranslationTrackId = '';
       player.browserLiveTranslations = new Map();
+      player.cues2 = [];
+      player.cues2Raw = null;
+      player.sub2Path = '';
       const tab = browserTabState();
       if (tab) {
         tab.browserTranslationTrackId = '';
         tab.browserLiveTranslations = [];
+        tab.cues2 = [];
+        tab.sub2Path = '';
       }
+      if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
       // Kaynak izine geri dönüldüğünde, artık mevcut olmayan çeviri modu
       // yüzünden ekranın boş kalmasını önle.
       setSubtitleMode('source', false);
