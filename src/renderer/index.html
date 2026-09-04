@@ -1001,6 +1001,9 @@
           <div class="player-parse-status hidden" id="playerParseStatus">
             <span class="parse-spark" aria-hidden="true"></span><span id="playerParseText">Ses işleniyor…</span>
           </div>
+          <button class="btn-icon player-head-button" id="pdfReaderOpen" title="PDF kitap aç" aria-label="PDF kitap aç">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg>
+          </button>
           <button class="btn-icon player-head-button" id="playerQuickDownload" title="Videoyu indir" aria-label="Videoyu indir">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg>
           </button>
@@ -1046,6 +1049,11 @@
             </div>
             <div class="browser-toolbar-actions">
               <button class="btn btn-primary btn-sm browser-go" id="browserGo" type="button">Aç</button>
+              <button class="browser-manga-button browser-page-button" id="browserPageTranslate" type="button"
+                title="Web sayfasındaki metinleri çevir" aria-label="Sayfayı çevir" aria-pressed="false" data-state="idle">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h9M8.5 3v2c0 4-2 7-5 9M6 10c1 2 3 4 6 5M14 10h6l-3 9M15.5 15h3"/></svg>
+                <span id="browserPageLabel">Sayfayı çevir</span>
+              </button>
               <button class="browser-manga-button" id="browserMangaTranslate" type="button"
                 title="Sayfadaki manga ve webtoon görsellerini Türkçeye çevir; metni düzenlemek için çift tıkla" aria-label="Mangayı çevir"
                 aria-pressed="false" data-state="idle">
@@ -1056,7 +1064,7 @@
                 <span id="browserMangaLabel">Manga</span>
               </button>
               <button class="btn-icon browser-place-button" id="browserViewSettingsToggle" type="button"
-                title="Görünüm ve manga ayarlarını aç" aria-label="Görünüm ve manga ayarlarını aç" aria-expanded="false">
+                title="Görünüm, sayfa ve manga ayarlarını aç" aria-label="Görünüm, sayfa ve manga ayarlarını aç" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>
               </button>
               <button class="btn-icon browser-place-button" id="browserDiagnosticsToolbar" type="button"
@@ -1190,7 +1198,7 @@
                   title="Bu bildirimi kapat" aria-label="Bildirimi kapat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
               </div>
               <details class="browser-view-settings" id="browserViewSettings">
-                <summary>Görünüm ve manga</summary>
+                <summary>Görünüm, sayfa ve manga</summary>
                 <div class="browser-hardware-settings">
                   <label class="browser-view-switch">
                     <input type="checkbox" id="browserHardwareAcceleration" role="switch" checked aria-describedby="browserHardwareAccelerationHint" />
@@ -1199,6 +1207,17 @@
                   <p id="browserHardwareAccelerationHint">Değişiklik için uygulamayı tamamen kapatıp yeniden açın. Tarayıcı ve uygulama arayüzünü etkiler; Whisper’ın CUDA/GPU ayarını değiştirmez. Kapatmak video performansını düşürebilir.</p>
                 </div>
                 <div class="browser-view-settings-grid">
+                  <label><span>Sayfa çeviri hedefi</span><select id="browserPageTarget">
+                    <option value="tr" selected>Türkçe</option><option value="en">İngilizce</option>
+                    <option value="de">Almanca</option><option value="fr">Fransızca</option>
+                    <option value="es">İspanyolca</option><option value="it">İtalyanca</option>
+                    <option value="ru">Rusça</option><option value="ar">Arapça</option>
+                  </select></label>
+                  <label><span>Sayfa görünümü</span><select id="browserPageMode">
+                    <option value="bilingual">Kaynak + çeviri</option><option value="replace">Kaynağın yerine çeviri</option>
+                  </select></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserPageAuto" /><span>Bu sitedeki sayfaları otomatik çevir</span></label>
+                  <input type="hidden" id="browserPageAutoSites" value="[]" />
                   <label><span>Manga hedefi</span><select id="browserMangaTarget">
                     <option value="tr" selected>Türkçe</option><option value="en">İngilizce</option>
                     <option value="de">Almanca</option><option value="fr">Fransızca</option>
@@ -1230,6 +1249,9 @@
                   <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" /><span>Sitenin kendi altyazısını gizle</span></label>
                 </div>
                 <div class="browser-view-actions">
+                  <button class="btn btn-ghost btn-sm" id="browserPageRetryFailed" type="button" disabled>Sayfa hatalarını yeniden dene</button>
+                  <button class="btn btn-ghost btn-sm" id="browserPageExport" type="button">Sayfa çevirisini dışa aktar</button>
+                  <button class="btn btn-ghost btn-sm" id="browserPageClear" type="button">Sayfa çevirisini kaldır</button>
                   <button class="btn btn-ghost btn-sm" id="browserMangaRetryFailed" type="button" disabled>Başarısızları yeniden dene</button>
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportJson" type="button">Manga JSON</button>
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportImage" type="button">Manga görseli</button>
@@ -1294,6 +1316,24 @@
               </div>
             </div>
           </div>
+        </section>
+
+        <section class="pdf-reader hidden" id="pdfReader" aria-label="PDF kitap okuyucu">
+          <header class="pdf-reader-toolbar">
+            <div><strong id="pdfReaderTitle">PDF kitap</strong><span id="pdfReaderStatus" role="status" aria-live="polite">Hazır</span></div>
+            <label>Sayfa <input id="pdfReaderPage" type="number" min="1" value="1" aria-label="PDF sayfa numarası" /></label>
+            <button class="btn btn-ghost btn-sm" id="pdfZoomOut" type="button" aria-label="Uzaklaştır">−</button>
+            <output id="pdfZoomValue">%100</output>
+            <button class="btn btn-ghost btn-sm" id="pdfZoomIn" type="button" aria-label="Yakınlaştır">+</button>
+            <select id="pdfTargetLanguage" aria-label="PDF hedef dili"><option value="tr">Türkçe</option><option value="en">İngilizce</option><option value="de">Almanca</option><option value="fr">Fransızca</option><option value="es">İspanyolca</option></select>
+            <button class="btn btn-primary btn-sm" id="pdfTranslateVisible" type="button">Görünen + 2 sayfayı çevir</button>
+            <button class="btn btn-secondary btn-sm" id="pdfTranslateAll" type="button">Tüm kitabı çevir</button>
+            <button class="btn btn-ghost btn-sm" id="pdfTranslateCancel" type="button" disabled>İptal</button>
+            <select id="pdfExportFormat" aria-label="PDF dışa aktarma biçimi"><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option></select>
+            <button class="btn btn-ghost btn-sm" id="pdfExport" type="button">Dışa aktar</button>
+            <button class="btn-icon" id="pdfReaderClose" type="button" title="PDF okuyucuyu kapat" aria-label="PDF okuyucuyu kapat">×</button>
+          </header>
+          <div class="pdf-reader-pages" id="pdfReaderPages"></div>
         </section>
 
         <div class="player-stage" id="playerStage">

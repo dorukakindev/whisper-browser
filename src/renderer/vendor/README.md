@@ -22,3 +22,12 @@ cp node_modules/hls.js/LICENSE src/renderer/vendor/hls.js-LICENSE.txt
 ```
 
 Sürüm numarasını bu dosyada da güncelleyin.
+
+## pdf.js
+
+- Proje: [PDF.js](https://github.com/mozilla/pdf.js)
+- Sürüm: 6.3.289
+- Lisans: Apache-2.0 — tam metin: [`pdfjs-LICENSE.txt`](pdfjs-LICENSE.txt)
+
+`pdf.min.mjs` ile `pdf.worker.min.mjs`, PDF kitap okuyucusunda yerel dosyaları
+çizmek ve metin katmanını çıkarmak için kullanılır. CSP nedeniyle CDN kullanılmaz.

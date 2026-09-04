@@ -14,7 +14,8 @@
     "electron": "https://github.com/castlabs/electron-releases#v43.2.0+wvcus"
   },
   "dependencies": {
-    "hls.js": "^1.7.1"
+    "hls.js": "^1.7.1",
+    "pdfjs-dist": "6.3.289"
   },
   "keywords": [
     "whisper",
@@ -37,6 +38,6 @@
   },
   "homepage": "https://github.com/androiandot/whisper-altyazi#readme",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13.0"
   }
 }

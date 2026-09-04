@@ -15,10 +15,20 @@ async function run() {
   for (const { text, ended } of require('./fixtures/sentence-boundaries.json')) {
     assert.equal(layout.sentenceEnded(text), ended, text);
   }
+  for (const text of ['vb.', 'VB.', 'Örn.', 'L.A.', 'J.F.K.', '“L.A.”', '(L.A.)']) {
+    assert.equal(layout.sentenceEnded(text), false, `${text} kısaltması cümleyi bitirmemeli`);
+  }
+  for (const text of ['L.A.?', 'L.A.!', 'Bitti.', '“Bitti!”']) {
+    assert.equal(layout.sentenceEnded(text), true, `${text} gerçek cümle sonu olmalı`);
+  }
   assert.equal(assembleCueSentences([
     { id: 'a', start: 0, end: 1, text: 'Elma, armut vb.' },
     { id: 'b', start: 1, end: 2, text: 'meyveleri aldım.' },
   ]).length, 1);
+  assert.equal(assembleCueSentences([
+    { id: 'a', start: 0, end: 1, text: 'Los Angeles, yani L.A.' },
+    { id: 'b', start: 1, end: 2, text: 'kentinde buluştuk.' },
+  ]).length, 1, 'baş harfli kısaltma sonraki cue ile aynı cümlede kalmalı');
   for (const fixture of fixtures) {
     const input = fixture.entries.map(([start, end, text], id) => ({ id: String(id), start, end, text }));
     const before = JSON.stringify(input);
@@ -35,7 +45,8 @@ async function run() {
   assert.equal(layout.decodeSentenceTranslation('Merhaba dünya.', 1).text, 'Merhaba dünya.');
   for (const raw of ['["a","b"]', '[]', '[1,2]', '[true,null]', '[{"text":"a"}]',
     '[["a"]]', '```json\n["a","b"]\n```', '["bozuk', ['a', 'b']]) {
-    assert.throws(() => layout.decodeSentenceTranslation(raw, 2), String(raw));
+    assert.throws(() => layout.decodeSentenceTranslation(raw, 2),
+      /JSON (?:yanıtı okunamadı|dizisi döndürdü)/, String(raw));
   }
   for (const bad of ['', ' ', '{broken', { text: reply.text, parts: parts.slice(0, 2) },
     { text: reply.text, parts: [parts[0], '', parts[2]] }, { text: reply.text, parts: [...parts].reverse() },
@@ -90,6 +101,13 @@ async function run() {
   assert.equal(invalid.snapshot().results.length, 0, 'grubun yarısı yayımlandı');
   assert.equal(invalidCache.size, 0, 'hatalı grup önbelleğe yazıldı');
   assert.equal(invalid.snapshot().failures.length, 1);
+  const arrayReplyCache = new Map();
+  const arrayReply = new BrowserTranslationScheduler({ cache: arrayReplyCache, maxAttempts: 1,
+    translate: async () => '["ham","JSON"]' });
+  arrayReply.setSentences([sentence]); arrayReply.completeAll(); await arrayReply.whenIdle();
+  assert.equal(arrayReply.snapshot().results.length, 0, 'JSON dizisi kullanıcı metni olarak yayımlandı');
+  assert.equal(arrayReply.snapshot().failures.length, 1, 'JSON dizisi başarısızlık olarak bildirilmedi');
+  assert.equal(arrayReplyCache.size, 0, 'JSON dizisi önbelleğe yazıldı');
 
   // Main sürecinin GERÇEK istek fonksiyonunu, yalnız taşıma katmanı taklidiyle çalıştır.
   const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');

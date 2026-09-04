@@ -5,13 +5,15 @@ const fs = require('fs');
 const dns = require('dns').promises;
 const http = require('http');
 const https = require('https');
+const { pathToFileURL } = require('url');
 const { isIP } = require('net');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
-const { canonicalLocalPath, SubtitleFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
+const { canonicalLocalPath, SubtitleFileAccess, PdfFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const subtitleFileAccess = new SubtitleFileAccess();
+const pdfFileAccess = new PdfFileAccess();
 const {
   browserNavigationCapabilities,
   cueFingerprint,
@@ -123,6 +125,22 @@ const {
   sampleMangaRegionColors,
   selectMangaCandidates,
 } = require('./browser-manga');
+const {
+  pageBlockScanScript,
+  pageApplyScript,
+  pageRestoreScript,
+  pageVisibilityScript,
+  normalizePageBlocks,
+  planPageTranslationBatches,
+  pageBlockCacheKey,
+} = require('./browser-page-translate');
+const {
+  buildPdfParagraphPages,
+  createPdfTranslationState,
+  normalizePdfTranslationState,
+  recordPdfPageTranslation,
+  pdfHashFromFirstChunk,
+} = require('./pdf-translate');
 const { normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
 const {
@@ -1414,6 +1432,12 @@ function createBrowserTabRecord(initial = {}) {
     mangaFailures: [],
     mangaTranslated: 0,
     mangaVisible: false,
+    pageTranslateJob: null,
+    pageTranslateSession: null,
+    pageTranslated: 0,
+    pageTranslateFailed: 0,
+    pageTranslateError: '',
+    pageTranslateVisible: false,
     lastMediaEventSignature: '',
     overlay: { source: [], translation: [], mode: restored.subtitleMode || 'source', offset: restored.offset || 0 },
     restoredUrl: restored.url || '',
@@ -1467,6 +1491,11 @@ function browserTabSnapshot(tab) {
     mangaBusy: !!tab?.mangaJob,
     mangaTranslated: Number(tab?.mangaTranslated) || 0,
     mangaVisible: !!tab?.mangaVisible,
+    pageTranslateBusy: !!tab?.pageTranslateJob,
+    pageTranslated: Number(tab?.pageTranslated) || 0,
+    pageTranslateFailed: Number(tab?.pageTranslateFailed) || 0,
+    pageTranslateError: tab?.pageTranslateError || '',
+    pageTranslateVisible: !!tab?.pageTranslateVisible,
     diagnostics: tab ? tab.diagnostics : null,
     mediaId: tab?.mediaId || '',
     service: tab?.service || '',
@@ -2373,6 +2402,415 @@ async function requestBrowserSentenceTranslation(sentence, config, signal) {
     }
   }
   throw lastError || new Error('Çeviri servislerinin hiçbirine ulaşılamadı.');
+}
+
+function browserPageTranslationConfig(overrides = {}) {
+  const inherited = browserTranslationConfig(overrides);
+  return {
+    ...inherited,
+    targetLanguage: String(overrides.targetLanguage || inherited.targetLanguage || 'tr').slice(0, 24),
+    workers: Math.max(1, Math.min(4, Number(overrides.workers) || 2)),
+    mode: overrides.mode === 'replace' ? 'replace' : 'bilingual',
+  };
+}
+
+function pageTranslationJobIsCurrent(tab, job) {
+  return !!tab && tab.pageTranslateJob === job && !job.controller.signal.aborted
+    && tab.generation === job.generation && tab.view && !tab.view.webContents.isDestroyed();
+}
+
+function stopBrowserPageTranslation(tab, restore = true) {
+  if (!tab) return Promise.resolve(false);
+  if (tab.pageTranslateJob) {
+    tab.pageTranslateJob.controller.abort('Sayfa çevirisi durduruldu.');
+    tab.pageTranslateJob.scheduler?.cancelAll('Sayfa çevirisi durduruldu.');
+    if (tab.pageTranslateJob.applyTimer) clearTimeout(tab.pageTranslateJob.applyTimer);
+    tab.pageTranslateJob = null;
+  }
+  tab.pageTranslateSession = null;
+  tab.pageTranslated = 0;
+  tab.pageTranslateFailed = 0;
+  tab.pageTranslateError = '';
+  tab.pageTranslateVisible = false;
+  if (!restore || !tab.view || tab.view.webContents.isDestroyed()) return Promise.resolve(false);
+  return executeBrowserTrustedMain(tab.view, pageRestoreScript()).then(() => true).catch(() => false);
+}
+
+function queueBrowserPageApply(tab, job, item) {
+  job.applyQueue.push(item);
+  if (job.applyQueue.length >= 20) return flushBrowserPageApply(tab, job);
+  if (!job.applyTimer) {
+    job.applyTimer = setTimeout(() => {
+      job.applyTimer = null;
+      void flushBrowserPageApply(tab, job);
+    }, 45);
+    job.applyTimer.unref?.();
+  }
+  return job.applyChain;
+}
+
+function flushBrowserPageApply(tab, job) {
+  if (job.applyTimer) clearTimeout(job.applyTimer);
+  job.applyTimer = null;
+  const translations = job.applyQueue.splice(0, 20);
+  if (!translations.length || !pageTranslationJobIsCurrent(tab, job)) return job.applyChain;
+  job.applyChain = job.applyChain.then(async () => {
+    if (!pageTranslationJobIsCurrent(tab, job)) return null;
+    return executeBrowserTrustedMain(tab.view, pageApplyScript({
+      mode: job.session.mode,
+      targetLanguage: job.session.config.targetLanguage,
+      translations,
+    }));
+  }).catch(() => null);
+  if (job.applyQueue.length) return flushBrowserPageApply(tab, job);
+  return job.applyChain;
+}
+
+async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options = {}) {
+  const normalized = normalizePageBlocks(rawBlocks);
+  const candidates = normalized.filter((block) => options.retry
+    ? session.failures.has(block.id)
+    : !session.translations.has(block.id) && !session.blocks.has(block.id));
+  for (const block of candidates) session.blocks.set(block.id, block);
+  const batches = planPageTranslationBatches(candidates, {
+    maxBlocks: Math.max(0, 1500 - session.translations.size),
+    maxCharacters: Math.max(0, 400000 - session.translatedCharacters),
+  });
+  const blocks = batches.flat();
+  if (!blocks.length) return { ok: true, unchanged: true, translated: session.translations.size };
+
+  const controller = new AbortController();
+  const job = {
+    controller,
+    generation: tab.generation,
+    session,
+    scheduler: null,
+    applyQueue: [],
+    applyTimer: null,
+    applyChain: Promise.resolve(),
+  };
+  tab.pageTranslateJob?.controller.abort('Yeni sayfa çevirisi başladı.');
+  tab.pageTranslateJob?.scheduler?.cancelAll('Yeni sayfa çevirisi başladı.');
+  tab.pageTranslateJob = job;
+  const context = {
+    targetLanguage: session.config.targetLanguage,
+    model: session.config.model,
+    style: `${session.config.register}:${session.config.profanity}:web-page`,
+    glossaryVersion: createHash('sha1').update(JSON.stringify(session.config.glossary)).digest('hex').slice(0, 12),
+  };
+  const sentences = blocks.map((block, index) => ({
+    id: `page:${block.id}`,
+    start: index,
+    end: index + 0.5,
+    text: block.text,
+    contextHash: pageBlockCacheKey(block, context),
+    pieces: [{ cueId: block.id, text: block.text, start: index, end: index + 0.5 }],
+    contextBefore: blocks[index - 1]?.text || '',
+    contextAfter: blocks[index + 1]?.text || '',
+  }));
+  const scheduler = new BrowserTranslationScheduler({
+    cache: browserTranslationCache(),
+    requireSentenceParts: false,
+    maxConcurrent: session.config.workers,
+    lookBehind: 0,
+    lookAhead: Math.max(1, sentences.length + 1),
+    context,
+    translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, session.config, call.signal),
+    onResult: (result, sentence) => {
+      if (!pageTranslationJobIsCurrent(tab, job)) return;
+      const blockId = String(sentence.id).replace(/^page:/, '');
+      if (result.error) {
+        session.failures.set(blockId, { block: session.blocks.get(blockId), error: result.error });
+      } else {
+        const translation = String(result.cues?.[0]?.text || result.text || '').trim();
+        if (translation) {
+          session.failures.delete(blockId);
+          session.translations.set(blockId, translation);
+          session.translatedCharacters += String(session.blocks.get(blockId)?.text || '').length;
+          tab.pageTranslated = session.translations.size;
+          tab.pageTranslateVisible = true;
+          queueBrowserPageApply(tab, job, { id: blockId, translation });
+        }
+      }
+    },
+    onState: (state) => {
+      if (!pageTranslationJobIsCurrent(tab, job)) return;
+      sendBrowserEvent(tab, {
+        type: 'page-translate-progress', state: 'running', ...state,
+        translated: session.translations.size, visible: tab.pageTranslateVisible,
+      });
+    },
+  });
+  job.scheduler = scheduler;
+  scheduler.setSentences(sentences);
+  scheduler.completeAll();
+  await scheduler.whenIdle();
+  await flushBrowserPageApply(tab, job);
+  await job.applyChain;
+  if (!pageTranslationJobIsCurrent(tab, job)) return { ok: false, canceled: true };
+  const snapshot = scheduler.snapshot();
+  for (const failure of snapshot.failures) {
+    const id = String(failure.sentenceId || '').replace(/^page:/, '');
+    if (id) session.failures.set(id, { block: session.blocks.get(id), error: failure.error || 'Çeviri başarısız.' });
+  }
+  tab.pageTranslateJob = null;
+  tab.pageTranslated = session.translations.size;
+  tab.pageTranslateVisible = tab.pageTranslated > 0;
+  const failed = session.failures.size;
+  tab.pageTranslateFailed = failed;
+  tab.pageTranslateError = failed ? 'Bazı metin blokları çevrilemedi.' : '';
+  const result = {
+    ok: failed === 0,
+    partial: tab.pageTranslated > 0 && failed > 0,
+    translated: tab.pageTranslated,
+    failed,
+    total: session.blocks.size,
+    visible: tab.pageTranslateVisible,
+  };
+  sendBrowserEvent(tab, { type: 'page-translate-done', state: failed ? 'partial' : 'ready', ...result });
+  return result;
+}
+
+async function startBrowserPageTranslation(tab, options = {}) {
+  if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Aktif web sayfası bulunamadı.' };
+  const config = browserPageTranslationConfig(options);
+  if (!config.apiKey) return { ok: false, error: 'Sayfa çevirisi için Ayarlar bölümünde bir çeviri API anahtarı gerekli.' };
+  if (!options.incremental) await stopBrowserPageTranslation(tab, true);
+  const session = options.session || tab.pageTranslateSession || {
+    generation: tab.generation,
+    config,
+    mode: config.mode,
+    blocks: new Map(),
+    translations: new Map(),
+    failures: new Map(),
+    translatedCharacters: 0,
+  };
+  session.config = config;
+  session.mode = config.mode;
+  tab.pageTranslateSession = session;
+  const scan = await executeBrowserTrustedMain(tab.view, pageBlockScanScript({
+    bridgeToken: tab.bridgeToken,
+    observe: true,
+    maxBlocks: 1500,
+    maxCharacters: 400000,
+  })).catch((error) => [{ blocks: [], warning: error.message }]);
+  const payload = scan[0] || {};
+  if (payload.warning) sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: payload.warning });
+  const blocks = normalizePageBlocks(payload.blocks);
+  if (!blocks.length) {
+    const error = options.incremental ? '' : 'Bu sayfada çevrilebilir metin bloğu bulunamadı.';
+    if (error) sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error });
+    return error ? { ok: false, error } : { ok: true, unchanged: true, translated: session.translations.size };
+  }
+  return runBrowserPageTranslationBlocks(tab, blocks, session, options);
+}
+
+function acceptDynamicBrowserPageBlocks(tab, payload) {
+  const session = tab?.pageTranslateSession;
+  if (!session || session.generation !== tab.generation || !payload || payload.bridgeToken !== tab.bridgeToken) return;
+  const blocks = normalizePageBlocks(payload.blocks);
+  if (!blocks.length) return;
+  if (tab.pageTranslateJob) {
+    const job = tab.pageTranslateJob;
+    job.dynamicBlocks ||= new Map();
+    for (const block of blocks) job.dynamicBlocks.set(block.id, block);
+    void job.scheduler.whenIdle().then(() => {
+      const pending = [...(job.dynamicBlocks?.values() || [])];
+      job.dynamicBlocks?.clear();
+      if (pending.length && tab.pageTranslateSession === session && tab.generation === session.generation) {
+        return runBrowserPageTranslationBlocks(tab, pending, session, { incremental: true });
+      }
+      return null;
+    });
+    return;
+  }
+  void runBrowserPageTranslationBlocks(tab, blocks, session, { incremental: true }).catch((error) => {
+    sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error.message });
+  });
+}
+
+const pdfDocuments = new Map();
+const pdfTranslationJobs = new Map();
+
+function pdfTranslationDirectory() {
+  return path.join(app.getPath('userData'), 'pdf-translations');
+}
+
+function pdfTranslationStatePath(pdfHash) {
+  const name = createHash('sha256').update(String(pdfHash || ''), 'utf8').digest('hex');
+  return path.join(pdfTranslationDirectory(), `${name}.json`);
+}
+
+function readPdfTranslationState(identity) {
+  const primary = pdfTranslationStatePath(identity.pdfHash);
+  for (const candidate of [primary, `${primary}.bak`]) {
+    try {
+      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
+      return normalizePdfTranslationState(JSON.parse(fs.readFileSync(candidate, 'utf8')), identity);
+    } catch (_) {}
+  }
+  return createPdfTranslationState(identity);
+}
+
+function writePdfTranslationState(state) {
+  const target = pdfTranslationStatePath(state.pdfHash);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  try { if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`); } catch (_) {}
+  writeJsonAtomic(target, state);
+}
+
+function inspectPdfDocument(filePath) {
+  const target = pdfFileAccess.inspect(filePath);
+  const stat = fs.statSync(target);
+  const length = Math.min(stat.size, 1024 * 1024);
+  const descriptor = fs.openSync(target, 'r');
+  try {
+    const chunk = Buffer.alloc(length);
+    fs.readSync(descriptor, chunk, 0, length, 0);
+    const pdfHash = pdfHashFromFirstChunk(stat.size, chunk);
+    const document = {
+      pdfHash,
+      filePath: target,
+      fileUrl: pathToFileURL(target).href,
+      title: path.basename(target, path.extname(target)),
+      size: stat.size,
+    };
+    pdfDocuments.set(pdfHash, document);
+    return document;
+  } finally { fs.closeSync(descriptor); }
+}
+
+function pdfDocumentByHash(rawHash) {
+  const hash = String(rawHash || '');
+  const document = pdfDocuments.get(hash);
+  if (!document || !pdfFileAccess.has(document.filePath)) return null;
+  try { return pdfFileAccess.inspect(document.filePath) === document.filePath ? document : null; }
+  catch (_) { return null; }
+}
+
+function preparePdfPageRequests(rawPages) {
+  if (!Array.isArray(rawPages) || !rawPages.length || rawPages.length > 3) {
+    throw new Error('PDF çeviri paketi bir ile üç sayfa içermeli.');
+  }
+  let characterCount = 0;
+  let itemCount = 0;
+  const pages = rawPages.map((page) => {
+    const pageNumber = Number(page?.pageNumber);
+    if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) throw new Error('PDF sayfa numarası geçersiz.');
+    const rawItems = Array.isArray(page?.items) ? page.items : [];
+    const rawBlocks = Array.isArray(page?.blocks) ? page.blocks : [];
+    if (rawItems.length > 8000 || rawBlocks.length > 2000) throw new Error('PDF sayfası güvenli metin sınırını aşıyor.');
+    const items = rawItems.map((item) => {
+      const str = String(item?.str ?? '');
+      characterCount += str.length;
+      itemCount += 1;
+      return {
+        str,
+        width: Number(item?.width) || 0,
+        height: Number(item?.height) || 0,
+        transform: Array.isArray(item?.transform) ? item.transform.slice(0, 6).map(Number) : [],
+        hasEOL: item?.hasEOL === true,
+      };
+    });
+    const blocks = rawBlocks.map((block, index) => {
+      const source = String(block?.source ?? block?.text ?? '');
+      characterCount += source.length;
+      return { id: String(block?.id ?? `${pageNumber}:${index}`), source };
+    });
+    return {
+      pageNumber,
+      pageHeight: Number.isFinite(Number(page?.pageHeight)) ? Math.max(0, Number(page.pageHeight)) : 0,
+      items,
+      blocks,
+    };
+  });
+  if (itemCount > 16000 || characterCount > 400000) {
+    throw new Error('PDF çeviri paketi 16.000 metin parçası veya 400.000 karakter sınırını aşıyor.');
+  }
+
+  const itemPages = pages.filter((page) => page.items.length);
+  const paragraphsByPage = new Map(buildPdfParagraphPages(itemPages)
+    .map((page) => [page.pageNumber, page.paragraphs.map((paragraph) => ({
+      id: paragraph.id,
+      source: paragraph.text,
+    }))]));
+  return pages.map((page) => ({
+    pageNumber: page.pageNumber,
+    blocks: paragraphsByPage.get(page.pageNumber) || page.blocks,
+  }));
+}
+
+async function translatePdfPage(document, pageRequest, config, state, job) {
+  const pageNumber = Number(pageRequest?.pageNumber);
+  const rawBlocks = Array.isArray(pageRequest?.blocks) ? pageRequest.blocks : [];
+  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1 || rawBlocks.length > 2000) {
+    throw new Error('PDF sayfa isteği geçersiz.');
+  }
+  const blocks = rawBlocks.map((block, index) => ({
+    id: String(block?.id ?? `${pageNumber}:${index}`).slice(0, 200),
+    source: String(block?.source ?? block?.text ?? '').normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 12000),
+  })).filter((block) => block.source);
+  if (!blocks.length) {
+    const next = recordPdfPageTranslation(state, pageNumber, []);
+    writePdfTranslationState(next);
+    return next;
+  }
+  const results = new Map();
+  const failures = new Map();
+  const context = {
+    targetLanguage: config.targetLanguage,
+    model: config.model,
+    style: `${config.register}:${config.profanity}:pdf-book`,
+    glossaryVersion: createHash('sha1').update(JSON.stringify(config.glossary)).digest('hex').slice(0, 12),
+  };
+  const sentences = blocks.map((block, index) => ({
+    id: `pdf:${pageNumber}:${block.id}`,
+    start: index,
+    end: index + .5,
+    text: block.source,
+    pieces: [{ cueId: block.id, text: block.source, start: index, end: index + .5 }],
+    contextBefore: blocks[index - 1]?.source || '',
+    contextAfter: blocks[index + 1]?.source || '',
+  }));
+  const scheduler = new BrowserTranslationScheduler({
+    cache: browserTranslationCache(),
+    requireSentenceParts: false,
+    maxConcurrent: 2,
+    lookBehind: 0,
+    lookAhead: Math.max(1, sentences.length + 1),
+    context,
+    translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, config, call.signal),
+    onResult: (result, sentence) => {
+      const id = String(sentence.id).split(':').slice(2).join(':');
+      if (result.error) failures.set(id, result.error);
+      else {
+        const translation = String(result.cues?.[0]?.text || result.text || '').trim();
+        if (translation) results.set(id, translation);
+      }
+    },
+  });
+  job.schedulers.add(scheduler);
+  const abort = () => scheduler.cancelAll('PDF çevirisi iptal edildi.');
+  job.controller.signal.addEventListener('abort', abort, { once: true });
+  try {
+    scheduler.setSentences(sentences);
+    scheduler.completeAll();
+    await scheduler.whenIdle();
+    if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
+    const pageBlocks = blocks.map((block) => ({
+      id: block.id,
+      source: block.source,
+      translation: results.get(block.id) || '',
+      status: results.has(block.id) ? 'translated' : 'failed',
+      ...(failures.has(block.id) ? { error: failures.get(block.id) } : {}),
+    }));
+    const next = recordPdfPageTranslation(state, pageNumber, pageBlocks);
+    writePdfTranslationState(next);
+    return next;
+  } finally {
+    job.controller.signal.removeEventListener('abort', abort);
+    job.schedulers.delete(scheduler);
+  }
 }
 
 function mangaJobIsCurrent(tab, job) {
@@ -4669,11 +5107,13 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.loadError = null;
     if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
     stopBrowserManga(tab, false);
+    stopBrowserPageTranslation(tab, false);
     tab.mangaTranslated = 0;
     tab.mangaVisible = false;
     tab.generation += 1;
     tab.bridgeToken = randomUUID();
     sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+    sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
       const prior = browserOverlay || tab.overlay || {};
       const mode = ['source', 'translation', 'both'].includes(prior.mode) ? prior.mode : 'translation';
@@ -4711,10 +5151,12 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       if (mediaChanged) {
         tab.subtitleSelection = null;
         stopBrowserManga(tab, true);
+        stopBrowserPageTranslation(tab, true);
         tab.mangaTranslated = 0;
         tab.mangaVisible = false;
         tab.generation += 1;
         sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+        sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
       }
       rememberBrowserVisit(nextUrl, wc.getTitle());
       tab.restoredUrl = nextUrl;
@@ -4903,6 +5345,7 @@ function destroyBrowserTab(tab) {
   if (!tab) return;
   tab.pageFind?.stop();
   stopBrowserManga(tab, false);
+  stopBrowserPageTranslation(tab, false);
   tab.translationScheduler?.cancelAll('Sekme kapatıldı.');
   tab.translationScheduler = null;
   if (browserLiveAsr?.tab === tab) stopBrowserLiveAsr('Sekme kapatıldığı için canlı Whisper durduruldu.');
@@ -5195,7 +5638,13 @@ app.on('before-quit', (event) => {
   for (const tab of browserTabs.values()) {
     tab.translationScheduler?.cancelAll('Uygulama kapatılıyor.');
     tab.translationScheduler = null;
+    stopBrowserPageTranslation(tab, false);
   }
+  for (const job of pdfTranslationJobs.values()) {
+    job.controller.abort('Uygulama kapatılıyor.');
+    for (const scheduler of job.schedulers) scheduler.cancelAll('Uygulama kapatılıyor.');
+  }
+  pdfTranslationJobs.clear();
   if (browserLiveAsr) stopBrowserLiveAsr('Uygulama kapatılıyor.');
   const caches = [browserTranslationCacheInstance, browserMangaCacheInstance].filter(Boolean);
   if (!caches.length || browserCacheQuitFlushComplete) return;
@@ -5265,6 +5714,7 @@ ipcMain.on('browser:trusted-bridge', (event, message) => {
   if (!tab || tab.id !== browserActiveTabId || !message || typeof message !== 'object') return;
   if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
   else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
+  else if (message.type === 'page-blocks') acceptDynamicBrowserPageBlocks(tab, message.payload);
 });
 
 function activeRequestedBrowserTab(rawId) {
@@ -5311,7 +5761,7 @@ ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransitio
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   const translationState = tab.translationScheduler?.snapshot();
   const translationRetrying = translationState?.failures?.some((failure) => !failure.terminal);
-  const activeWork = !!tab.mangaJob
+  const activeWork = !!tab.mangaJob || !!tab.pageTranslateJob
     || !!(translationState?.queued?.length || translationState?.pending?.length || translationRetrying);
   if (!force && (tab.pinned || activeWork)) {
     return { ok: false, requiresConfirmation: true, pinned: !!tab.pinned, activeWork,
@@ -5839,6 +6289,79 @@ ipcMain.handle('browser:manga:export', async (event, request) => {
   } catch (error) { return { ok: false, error: error.message }; }
 });
 
+ipcMain.handle('browser:page:start', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  if (tab.pageTranslateJob) return { ok: false, busy: true, error: 'Sayfa çevirisi zaten çalışıyor.' };
+  try {
+    return await startBrowserPageTranslation(tab, {
+      targetLanguage: request?.targetLanguage,
+      mode: request?.mode,
+      workers: request?.workers,
+    });
+  } catch (error) {
+    sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error.message });
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle('browser:page:toggle', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  if (!tab.pageTranslated) return { ok: false, error: 'Bu sekmede gösterilecek sayfa çevirisi yok.' };
+  const visible = request?.visible === undefined ? !tab.pageTranslateVisible : !!request.visible;
+  const applied = await executeBrowserTrustedMain(tab.view, pageVisibilityScript(visible)).catch(() => []);
+  if (!applied.some(Boolean)) return { ok: false, stale: true, error: 'Sayfa çeviri katmanı artık mevcut değil.' };
+  tab.pageTranslateVisible = visible;
+  sendBrowserEvent(tab, { type: 'page-translate-done', state: 'ready', translated: tab.pageTranslated, visible });
+  return { ok: true, translated: tab.pageTranslated, visible };
+});
+
+ipcMain.handle('browser:page:clear', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  await stopBrowserPageTranslation(tab, true);
+  sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
+  return { ok: true };
+});
+
+ipcMain.handle('browser:page:retryFailed', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  const session = tab?.pageTranslateSession;
+  if (!tab || !session) return { ok: false, error: 'Yeniden denenecek sayfa çevirisi yok.' };
+  const blocks = [...session.failures.values()].map((failure) => failure.block).filter(Boolean);
+  if (!blocks.length) return { ok: false, error: 'Yeniden denenebilir metin bloğu yok.' };
+  return runBrowserPageTranslationBlocks(tab, blocks, session, { retry: true });
+});
+
+ipcMain.handle('browser:page:export', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  const session = tab?.pageTranslateSession;
+  if (!tab || !session?.translations?.size) return { ok: false, error: 'Dışa aktarılacak sayfa çevirisi yok.' };
+  const format = ['txt', 'md', 'html'].includes(request?.format) ? request.format : 'txt';
+  const rows = [...session.blocks.values()].filter((block) => session.translations.has(block.id))
+    .map((block) => ({ source: block.text, translation: session.translations.get(block.id) }));
+  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char]);
+  const content = format === 'html'
+    ? `<!doctype html><meta charset="utf-8"><title>${escapeHtml(browserExportTitle(tab))}</title><main>${rows.map((row) => `<section><p>${escapeHtml(row.source)}</p><p lang="${escapeHtml(session.config.targetLanguage)}"><strong>${escapeHtml(row.translation)}</strong></p></section>`).join('\n')}</main>`
+    : rows.map((row) => format === 'md' ? `${row.source}\n\n> ${row.translation}` : `${row.source}\n${row.translation}`).join('\n\n');
+  const selection = await dialog.showSaveDialog(mainWindow, {
+    title: 'Sayfa çevirisini dışa aktar',
+    defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}-ceviri.${format}`),
+    filters: [{ name: format.toUpperCase(), extensions: [format] }],
+  });
+  if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
+  try { fs.writeFileSync(selection.filePath, content, 'utf8'); return { ok: true, path: selection.filePath }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
+
 ipcMain.handle('browser:capturePage', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
@@ -6001,6 +6524,107 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
   ], (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('media:event', ev);
   }, 'download');
+});
+
+ipcMain.handle('pdf:open', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  let filePath = String(request.filePath || '');
+  if (!filePath) {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'PDF kitap seç', properties: ['openFile'],
+      filters: [{ name: 'PDF kitap', extensions: ['pdf'] }],
+    });
+    if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+    filePath = result.filePaths[0];
+  }
+  try {
+    const granted = pdfFileAccess.grant(filePath);
+    if (!granted) throw new Error('PDF dosyası açılamadı veya güvenlik denetiminden geçemedi.');
+    const document = inspectPdfDocument(granted);
+    const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
+    const state = readPdfTranslationState({
+      pdfHash: document.pdfHash,
+      targetLanguage: config.targetLanguage,
+      model: config.model,
+    });
+    return { ok: true, ...document, targetLanguage: config.targetLanguage, model: config.model, state };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
+
+ipcMain.handle('pdf:state', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const document = pdfDocumentByHash(request.pdfHash);
+  if (!document) return { ok: false, error: 'PDF oturumu bulunamadı; dosyayı yeniden açın.' };
+  const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
+  if (request.model && request.model !== config.model) config.model = String(request.model).slice(0, 120);
+  return { ok: true, state: readPdfTranslationState({
+    pdfHash: document.pdfHash,
+    targetLanguage: config.targetLanguage,
+    model: config.model,
+  }) };
+});
+
+ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const document = pdfDocumentByHash(request.pdfHash);
+  if (!document) return { ok: false, error: 'PDF oturumu bulunamadı; dosyayı yeniden açın.' };
+  if (pdfTranslationJobs.has(document.pdfHash)) return { ok: false, busy: true, error: 'Bu PDF için çeviri zaten çalışıyor.' };
+  let pages;
+  try { pages = preparePdfPageRequests(request.pages); }
+  catch (error) { return { ok: false, error: error.message }; }
+  const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
+  if (!config.apiKey) return { ok: false, error: 'PDF çevirisi için Ayarlar bölümünde bir çeviri API anahtarı gerekli.' };
+  const identity = { pdfHash: document.pdfHash, targetLanguage: config.targetLanguage, model: config.model };
+  let state = readPdfTranslationState(identity);
+  const job = { controller: new AbortController(), schedulers: new Set() };
+  pdfTranslationJobs.set(document.pdfHash, job);
+  try {
+    for (const page of pages) {
+      if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
+      state = await translatePdfPage(document, page, config, state, job);
+    }
+    const failed = Object.values(state.pages).flat().filter((block) => block.status === 'failed').length;
+    return { ok: failed === 0, partial: failed > 0, failed, state };
+  } catch (error) {
+    return { ok: false, canceled: job.controller.signal.aborted, error: error.message, state };
+  } finally {
+    if (pdfTranslationJobs.get(document.pdfHash) === job) pdfTranslationJobs.delete(document.pdfHash);
+  }
+});
+
+ipcMain.handle('pdf:cancel', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const job = pdfTranslationJobs.get(String(request.pdfHash || ''));
+  if (!job) return { ok: true, active: false };
+  job.controller.abort('PDF çevirisi kullanıcı tarafından iptal edildi.');
+  for (const scheduler of job.schedulers) scheduler.cancelAll('PDF çevirisi kullanıcı tarafından iptal edildi.');
+  return { ok: true, active: false };
+});
+
+ipcMain.handle('pdf:export', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const document = pdfDocumentByHash(request.pdfHash);
+  if (!document) return { ok: false, error: 'PDF oturumu bulunamadı; dosyayı yeniden açın.' };
+  const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
+  if (request.model && request.model !== config.model) config.model = String(request.model).slice(0, 120);
+  const state = readPdfTranslationState({ pdfHash: document.pdfHash, targetLanguage: config.targetLanguage, model: config.model });
+  const pages = Object.entries(state.pages).sort(([a], [b]) => Number(a) - Number(b));
+  if (!pages.length) return { ok: false, error: 'Dışa aktarılacak PDF çevirisi yok.' };
+  const format = ['txt', 'md', 'html'].includes(request.format) ? request.format : 'txt';
+  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char]);
+  const content = format === 'html'
+    ? `<!doctype html><meta charset="utf-8"><title>${escapeHtml(document.title)}</title><main>${pages.map(([page, blocks]) => `<section><h2>Sayfa ${page}</h2>${blocks.map((block) => `<p>${escapeHtml(block.translation || block.source)}</p>`).join('')}</section>`).join('\n')}</main>`
+    : pages.map(([page, blocks]) => `${format === 'md' ? '## ' : ''}Sayfa ${page}\n\n${blocks.map((block) => block.translation || block.source).join('\n\n')}`).join('\n\n');
+  const selection = await dialog.showSaveDialog(mainWindow, {
+    title: 'PDF çevirisini dışa aktar',
+    defaultPath: path.join(app.getPath('downloads'), `${document.title}-ceviri.${format}`),
+    filters: [{ name: format.toUpperCase(), extensions: [format] }],
+  });
+  if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
+  try { fs.writeFileSync(selection.filePath, content, 'utf8'); return { ok: true, path: selection.filePath }; }
+  catch (error) { return { ok: false, error: error.message }; }
 });
 
 ipcMain.handle('dialog:openVideo', async (event) => {

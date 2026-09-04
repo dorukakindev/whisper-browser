@@ -39,7 +39,10 @@ function decodeSentenceTranslation(raw, count, requireParts = false) {
       catch (_) { throw new Error('Cümle çevirisinin JSON yanıtı okunamadı.'); }
     } else raw = { text: value };
   }
-  if (!raw || Array.isArray(raw) || typeof raw.text !== 'string' || !normalizeText(raw.text) || raw.text.length > 12000) {
+  if (Array.isArray(raw)) {
+    throw new Error('Cümle çevirisi metin nesnesi yerine JSON dizisi döndürdü.');
+  }
+  if (!raw || typeof raw.text !== 'string' || !normalizeText(raw.text) || raw.text.length > 12000) {
     throw new Error('Cümle çevirisi boş veya geçersiz.');
   }
   if (raw.parts != null && !validParts(raw.text, raw.parts, count)) {

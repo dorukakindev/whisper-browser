@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.ass', '.ssa', '.json']);
 const MAX_SUBTITLE_BYTES = 32 * 1024 * 1024;
+const PDF_EXTENSIONS = new Set(['.pdf']);
+const MAX_PDF_BYTES = 300 * 1024 * 1024;
 
 function canonicalLocalPath(value) {
   if (typeof value !== 'string' || !value || value.length > 32760 || /[\x00-\x1f]/.test(value)
@@ -54,4 +56,43 @@ class SubtitleFileAccess {
   has(target) { return this.grants.has(this.key(target)); }
 }
 
-module.exports = { canonicalLocalPath, SubtitleFileAccess, MAX_SUBTITLE_BYTES };
+class PdfFileAccess {
+  constructor() { this.grants = new Map(); }
+  inspect(value) {
+    const target = canonicalLocalPath(value);
+    if (!PDF_EXTENSIONS.has(path.extname(target).toLowerCase())
+        || !PDF_EXTENSIONS.has(path.extname(value).toLowerCase())) {
+      throw new Error('Bu işlem yalnızca PDF dosyaları için kullanılabilir.');
+    }
+    const stat = fs.statSync(target);
+    if (!stat.isFile() || stat.size < 5 || stat.size > MAX_PDF_BYTES) {
+      throw new Error('PDF dosyası geçersiz veya 300 MB sınırını aşıyor.');
+    }
+    const descriptor = fs.openSync(target, 'r');
+    try {
+      const signature = Buffer.alloc(5);
+      if (fs.readSync(descriptor, signature, 0, 5, 0) !== 5 || signature.toString('ascii') !== '%PDF-') {
+        throw new Error('Dosyanın PDF imzası geçersiz.');
+      }
+    } finally { fs.closeSync(descriptor); }
+    return target;
+  }
+  key(target) { return process.platform === 'win32' ? target.toLowerCase() : target; }
+  grant(value) {
+    try {
+      const target = this.inspect(value);
+      this.grants.set(this.key(target), true);
+      if (this.grants.size > 1000) this.grants.delete(this.grants.keys().next().value);
+      return target;
+    } catch (_) { return null; }
+  }
+  has(target) { return this.grants.has(this.key(target)); }
+}
+
+module.exports = {
+  canonicalLocalPath,
+  SubtitleFileAccess,
+  PdfFileAccess,
+  MAX_SUBTITLE_BYTES,
+  MAX_PDF_BYTES,
+};

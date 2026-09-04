@@ -3927,6 +3927,7 @@ body::before {
 .browser-manga-button[data-state="error"] { color: #efb39f; border-color: #744032; background: #251714; }
 .browser-manga-button[data-state="error"]::after { background: #c9674e; }
 .browser-manga-button:disabled { opacity: .55; cursor: wait; }
+.browser-page-button { min-width: 108px; }
 @keyframes manga-scan-pulse { 50% { opacity: .25; transform: scaleY(.5); } }
 .browser-place-button {
   width: 36px;
@@ -4108,6 +4109,68 @@ body::before {
 .browser-view-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .browser-view-actions .btn { width: auto; min-height: 30px; padding: 0 9px; }
 .browser-manga-summary { margin: 7px 0 0; color: #77777c; line-height: 1.4; }
+
+.pdf-reader {
+  position: absolute;
+  z-index: 18;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #29292c;
+  border-radius: 18px;
+  background: #0c0d0f;
+  box-shadow: 0 20px 70px rgba(0,0,0,.5);
+}
+.pdf-reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-bottom: 1px solid #29292c;
+  background: #121418;
+}
+.pdf-reader-toolbar > div { min-width: 150px; margin-right: auto; display: grid; gap: 2px; }
+.pdf-reader-toolbar strong { color: #eceff3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-reader-toolbar span { color: #8e98a5; font-size: 10px; }
+.pdf-reader-toolbar label { display: flex; align-items: center; gap: 5px; color: #aeb5be; font-size: 11px; }
+.pdf-reader-toolbar input { width: 68px; height: 30px; }
+.pdf-reader-toolbar select { width: auto; min-width: 92px; height: 30px; }
+.pdf-reader-toolbar output { min-width: 42px; color: var(--player-amber); text-align: center; font-size: 11px; }
+.pdf-reader-pages {
+  overflow: auto;
+  padding: 22px;
+  scroll-behavior: smooth;
+  background: #17191d;
+}
+.pdf-page {
+  width: min(100%, 1380px);
+  margin: 0 auto 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .72fr);
+  align-items: start;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #30343a;
+  border-radius: 14px;
+  background: #101216;
+}
+.pdf-page-source { min-width: 0; overflow: auto; text-align: center; }
+.pdf-page-source canvas { max-width: 100%; height: auto; background: white; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+.pdf-page-translation { min-width: 0; color: #d9dde3; font: 16px/1.7 Georgia, 'Times New Roman', serif; }
+.pdf-page-translation h3 { margin: 0 0 14px; color: #d5a35c; font: 700 12px/1.2 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.pdf-page-translation p { margin: 0 0 1em; white-space: pre-wrap; }
+.pdf-page-translation .pdf-source-text { color: #8f969f; font-size: .88em; }
+.pdf-page[data-state="loading"] .pdf-page-translation::after { content: 'Sayfa hazırlanıyor…'; color: #8f969f; }
+
+@media (max-width: 1180px) {
+  .pdf-reader-toolbar { flex-wrap: wrap; }
+  .pdf-reader-toolbar > div { flex: 1 0 100%; }
+  .pdf-page { grid-template-columns: 1fr; }
+}
 
 .browser-diagnostics {
   position: absolute;

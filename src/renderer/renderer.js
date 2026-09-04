@@ -1353,6 +1353,12 @@ async function handleDropPayload(e) {
     .filter(Boolean);
 
   if (paths.length > 0) {
+    const pdfPaths = paths.filter((item) => /\.pdf$/i.test(item));
+    if (pdfPaths.length) {
+      await openPdfReader(pdfPaths[0]);
+      paths = paths.filter((item) => !pdfPaths.includes(item));
+      if (!paths.length) return;
+    }
     const subtitlePaths = paths.filter((item) => /\.(?:srt|vtt|ass|ssa)$/i.test(item));
     const playerLayer = $('playerLayer');
     if (subtitlePaths.length && playerLayer && !playerLayer.classList.contains('hidden')) {
@@ -1743,6 +1749,7 @@ const PERSIST_VALUE_CONTROLS = [
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
+  'browserPageTarget', 'browserPageMode',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -1753,6 +1760,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
+  'browserPageAuto',
   'browserHardwareAcceleration',
 ];
 
@@ -3527,6 +3535,13 @@ const player = {
   browserMangaAutoUrl: '',
   browserMangaAutoTimer: null,
   browserMangaLookaheadBusy: false,
+  browserPageTranslateBusy: false,
+  browserPageTranslated: 0,
+  browserPageFailed: 0,
+  browserPageVisible: false,
+  browserPageError: '',
+  browserPageAutoTimer: null,
+  pdfReader: null,
   browserTranslationTrackId: '',
   browserTranslationStartSeq: 0,
   browserLiveTranslations: new Map(),
@@ -3598,6 +3613,11 @@ function newBrowserTabState(snapshot = {}) {
     browserMangaVisible: !!snapshot.mangaVisible,
     browserMangaCompleted: 0, browserMangaTotal: 0, browserMangaFailed: 0,
     browserMangaEmpty: 0, browserMangaRetryable: 0, browserMangaError: '',
+    browserPageTranslateBusy: !!snapshot.pageTranslateBusy,
+    browserPageTranslated: Number(snapshot.pageTranslated) || 0,
+    browserPageFailed: Number(snapshot.pageTranslateFailed) || 0,
+    browserPageVisible: !!snapshot.pageTranslateVisible,
+    browserPageError: snapshot.pageTranslateError || '',
     mediaKey: snapshot.mediaId ? `browser:${snapshot.mediaId}`
       : snapshot.url ? `browser:${browserPlaceKey(snapshot.url) || snapshot.url}` : '',
     watchSession: null,
@@ -3705,6 +3725,11 @@ function saveActiveBrowserTabWorkspace() {
     browserMangaEmpty: player.browserMangaEmpty,
     browserMangaRetryable: player.browserMangaRetryable,
     browserMangaError: player.browserMangaError,
+    browserPageTranslateBusy: player.browserPageTranslateBusy,
+    browserPageTranslated: player.browserPageTranslated,
+    browserPageFailed: player.browserPageFailed,
+    browserPageVisible: player.browserPageVisible,
+    browserPageError: player.browserPageError,
     mediaKey: player.mediaKey,
     watchSession: player.watchSession ? { ...player.watchSession } : null,
     watchManualCompletedKey: player.watchManualCompletedKey,
@@ -3784,6 +3809,11 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserMangaEmpty = Number(tab.browserMangaEmpty) || 0;
   player.browserMangaRetryable = Number(tab.browserMangaRetryable) || 0;
   player.browserMangaError = tab.browserMangaError || '';
+  player.browserPageTranslateBusy = !!tab.browserPageTranslateBusy;
+  player.browserPageTranslated = Number(tab.browserPageTranslated) || 0;
+  player.browserPageFailed = Number(tab.browserPageFailed) || 0;
+  player.browserPageVisible = !!tab.browserPageVisible;
+  player.browserPageError = tab.browserPageError || '';
   player.watchSession = tab.watchSession ? { ...tab.watchSession, lastClock: 0 } : null;
   player.watchManualCompletedKey = tab.watchManualCompletedKey || '';
   player.watchManualCompleted = tab.watchManualCompleted ?? null;
@@ -3865,6 +3895,11 @@ function syncBrowserTabs(snapshots, activeTabId) {
         ? snapshot.subtitleMode : (tab.subtitleMode || 'source'),
       targetLanguage: snapshot.targetLanguage || tab.targetLanguage || '',
       browserTranslationTrackId: snapshot.translationTrackId || tab.browserTranslationTrackId || '',
+      browserPageTranslateBusy: snapshot.pageTranslateBusy !== undefined ? !!snapshot.pageTranslateBusy : !!tab.browserPageTranslateBusy,
+      browserPageTranslated: snapshot.pageTranslated !== undefined ? Number(snapshot.pageTranslated) || 0 : (tab.browserPageTranslated || 0),
+      browserPageFailed: snapshot.pageTranslateFailed !== undefined ? Number(snapshot.pageTranslateFailed) || 0 : (tab.browserPageFailed || 0),
+      browserPageError: snapshot.pageTranslateError !== undefined ? String(snapshot.pageTranslateError || '') : (tab.browserPageError || ''),
+      browserPageVisible: snapshot.pageTranslateVisible !== undefined ? !!snapshot.pageTranslateVisible : !!tab.browserPageVisible,
       trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : (tab.trackRefs || []),
       resumePending: !!snapshot.resumePending,
     });
@@ -5810,6 +5845,32 @@ function setBrowserLoadingState(loading, updateTab = true) {
   }
 }
 
+function browserPageAutoHosts() {
+  try {
+    const value = JSON.parse(localStorage.getItem('browserPageAutoHosts') || '[]');
+    return new Set(Array.isArray(value) ? value.filter((host) => typeof host === 'string') : []);
+  } catch (_) { return new Set(); }
+}
+
+function browserPageHost(url = player.browserPageUrl) {
+  try { return new URL(url).hostname.toLowerCase(); } catch (_) { return ''; }
+}
+
+function syncBrowserPageAutoControl(url = player.browserPageUrl) {
+  const control = $('browserPageAuto');
+  if (!control) return;
+  const host = browserPageHost(url);
+  control.checked = !!host && browserPageAutoHosts().has(host);
+}
+
+function saveBrowserPageAutoHost(enabled, url = player.browserPageUrl) {
+  const host = browserPageHost(url);
+  if (!host) return;
+  const hosts = browserPageAutoHosts();
+  if (enabled) hosts.add(host); else hosts.delete(host);
+  try { localStorage.setItem('browserPageAutoHosts', JSON.stringify([...hosts].slice(-100))); } catch (_) {}
+}
+
 function updateBrowserNavigation(data, options = {}) {
   if (!data) return;
   if (data.tabId && (data.tabId !== player.browserActiveTabId || !player.browserTabEventGate.accept(data))) return false;
@@ -5878,6 +5939,9 @@ function updateBrowserNavigation(data, options = {}) {
     try { localStorage.setItem('playerBrowserLastUrl', data.url); } catch (_) {}
     loadBrowserPlaces();
   }
+  if (typeof syncBrowserPageAutoControl === 'function') {
+    syncBrowserPageAutoControl(player.browserPageUrl || data.url || '');
+  }
   if (data.title) player.browserPageTitle = data.title;
   if (tab) {
     tab.url = player.browserPageUrl || data.url || '';
@@ -5899,6 +5963,17 @@ function updateBrowserNavigation(data, options = {}) {
       player.browserMangaAutoUrl = expectedUrl;
       handleBrowserMangaAction().catch(() => {});
     }, 1300);
+  }
+  if (data.loading === false && data.url && $('browserPageAuto')?.checked
+      && player.browserPageTranslated <= 0 && !player.browserPageTranslateBusy) {
+    clearTimeout(player.browserPageAutoTimer);
+    const expectedUrl = data.url;
+    player.browserPageAutoTimer = setTimeout(() => {
+      player.browserPageAutoTimer = null;
+      if (player.browserPageUrl !== expectedUrl || !$('browserPageAuto')?.checked
+          || player.browserPageTranslateBusy || player.browserPageTranslated > 0) return;
+      handleBrowserPageTranslationAction().catch(() => {});
+    }, 900);
   }
   return true;
 }
@@ -6454,6 +6529,10 @@ if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEv
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if ((event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error')
+      && (!event.tabId || event.tabId === player.browserActiveTabId)) {
+    applyBrowserPageTranslationState(event);
+  }
   // İndirme oturum genelindedir; kaynak sekme kapansa bile sonucu göster.
   if (event.type === 'downloads') { receiveBrowserDownloads(event.downloads); return; }
   // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
@@ -6537,6 +6616,13 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.browserMangaEmpty = Math.max(0, Number(event.empty) || 0);
         if (event.retryable !== undefined) tab.browserMangaRetryable = Math.max(0, Number(event.retryable) || 0);
         tab.browserMangaError = event.state === 'error' ? String(event.message || event.error || '') : '';
+      } else if (event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error') {
+        tab.browserPageTranslateBusy = event.state === 'running';
+        if (event.translated !== undefined) tab.browserPageTranslated = Math.max(0, Number(event.translated) || 0);
+        if (event.failed !== undefined) tab.browserPageFailed = Math.max(0, Number(event.failed) || 0);
+        if (event.visible !== undefined) tab.browserPageVisible = !!event.visible;
+        if (event.state === 'error') tab.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
+        else if (event.state === 'idle' || event.state === 'ready') tab.browserPageError = '';
       } else if (event.type === 'load-error' || event.type === 'security-error' || event.type === 'drm-playback-error') {
         tab.error = event.message || 'Tarayıcı hatası';
         tab.errorKind = event.type === 'security-error' ? 'certificate' : 'connection';
@@ -10583,6 +10669,7 @@ function openPlayer() {
 
 function closePlayer() {
   closeBrowserFind(false);
+  if (player.pdfReader) $('pdfReaderClose')?.click();
   setBrowserDownloadsOpen(false);
   player.cancelHoldSpeed?.();
   const video = $('playerVideo');
@@ -10925,6 +11012,304 @@ if ($('playerLayoutQuick')) {
 if ($('browserViewSettingsToggle')) {
   $('browserViewSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-view'));
 }
+
+function applyBrowserPageTranslationState(event = {}) {
+  player.browserPageTranslateBusy = event.state === 'running';
+  if (event.translated !== undefined) player.browserPageTranslated = Math.max(0, Number(event.translated) || 0);
+  if (event.failed !== undefined) player.browserPageFailed = Math.max(0, Number(event.failed) || 0);
+  if (event.visible !== undefined) player.browserPageVisible = !!event.visible;
+  if (event.state === 'error') player.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
+  else if (event.state === 'idle' || event.state === 'ready') player.browserPageError = '';
+  const activeTab = browserTabState();
+  if (activeTab) Object.assign(activeTab, {
+    browserPageTranslateBusy: player.browserPageTranslateBusy,
+    browserPageTranslated: player.browserPageTranslated,
+    browserPageFailed: player.browserPageFailed,
+    browserPageVisible: player.browserPageVisible,
+    browserPageError: player.browserPageError,
+  });
+  const button = $('browserPageTranslate');
+  const label = $('browserPageLabel');
+  if (button) {
+    const state = player.browserPageTranslateBusy ? 'running' : player.browserPageError ? 'error'
+      : player.browserPageTranslated && player.browserPageVisible ? 'ready'
+        : player.browserPageTranslated ? 'hidden' : 'idle';
+    button.dataset.state = state;
+    button.setAttribute('aria-pressed', state === 'running' || state === 'ready' ? 'true' : 'false');
+    button.title = state === 'running' ? 'Sayfa çevirisi sürüyor; durdurmak için tıklayın'
+      : state === 'ready' ? 'Sayfa çevirisini gizle' : state === 'hidden' ? 'Sayfa çevirisini göster' : 'Web sayfasındaki metinleri çevir';
+  }
+  if (label) label.textContent = player.browserPageTranslateBusy ? `${player.browserPageTranslated} çevrildi`
+    : player.browserPageTranslated && player.browserPageVisible ? 'Sayfa açık'
+      : player.browserPageTranslated ? 'Sayfa kapalı' : 'Sayfayı çevir';
+  const retry = $('browserPageRetryFailed');
+  if (retry) retry.disabled = player.browserPageTranslateBusy || player.browserPageFailed < 1;
+  if (event.message) setBrowserSignal(event.message, event.state !== 'error', { priority: event.state === 'error' ? 90 : 45 });
+}
+
+async function handleBrowserPageTranslationAction() {
+  if (!player.browserActiveTabId || !player.browserPageUrl) {
+    setBrowserSignal('Sayfa çevirisi için önce bir web sayfası açın.', false); return;
+  }
+  if (player.browserPageTranslateBusy) {
+    await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null); return;
+  }
+  if (player.browserPageTranslated > 0) {
+    const result = await window.api.toggleBrowserPageTranslation?.(player.browserActiveTabId, !player.browserPageVisible).catch(() => null);
+    if (!result?.ok) setBrowserSignal(result?.error || 'Sayfa çevirisi görünürlüğü değiştirilemedi.', false);
+    return;
+  }
+  await saveAppSettings();
+  applyBrowserPageTranslationState({ state: 'running', translated: 0 });
+  const result = await window.api.startBrowserPageTranslation?.(player.browserActiveTabId, {
+    targetLanguage: $('browserPageTarget')?.value || 'tr',
+    mode: $('browserPageMode')?.value || 'bilingual',
+    workers: 2,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok && !result?.partial) applyBrowserPageTranslationState({ state: 'error', message: result?.error || 'Sayfa çevirisi başlatılamadı.' });
+}
+
+$('browserPageTranslate')?.addEventListener('click', handleBrowserPageTranslationAction);
+$('browserPageAuto')?.addEventListener('change', (event) => {
+  saveBrowserPageAutoHost(!!event.target.checked);
+  if (event.target.checked && player.browserPageUrl && !player.browserPageTranslated && !player.browserPageTranslateBusy) {
+    handleBrowserPageTranslationAction().catch(() => {});
+  }
+});
+$('browserPageClear')?.addEventListener('click', async () => {
+  const result = await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
+  if (!result?.ok) setBrowserSignal(result?.error || 'Sayfa çevirisi kaldırılamadı.', false);
+});
+$('browserPageRetryFailed')?.addEventListener('click', async () => {
+  const result = await window.api.retryBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
+  if (!result?.ok && !result?.partial) setBrowserSignal(result?.error || 'Sayfa hataları yeniden denenemedi.', false);
+});
+$('browserPageExport')?.addEventListener('click', async () => {
+  const result = await window.api.exportBrowserPageTranslation?.(player.browserActiveTabId, 'txt').catch(() => null);
+  if (result?.ok) logLine(`Sayfa çevirisi kaydedildi: ${result.path}`, 'success');
+  else if (!result?.canceled) setBrowserSignal(result?.error || 'Sayfa çevirisi dışa aktarılamadı.', false);
+});
+
+let pdfJsPromise = null;
+async function getPdfJs() {
+  if (!pdfJsPromise) pdfJsPromise = import('./vendor/pdf.min.mjs').then((module) => {
+    module.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.mjs', location.href).href;
+    return module;
+  });
+  return pdfJsPromise;
+}
+
+function pdfReaderSetStatus(message, error = false) {
+  const node = $('pdfReaderStatus');
+  if (node) { node.textContent = message; node.style.color = error ? '#e48a74' : ''; }
+}
+
+async function extractPdfReaderPage(pageNumber) {
+  const reader = player.pdfReader;
+  if (!reader?.pdf) return null;
+  const existing = reader.pages.get(pageNumber);
+  if (existing?.blocks && existing?.items) return existing.blocks;
+  const page = await reader.pdf.getPage(pageNumber);
+  const content = await page.getTextContent();
+  const pageHeight = page.getViewport({ scale: 1 }).height;
+  const items = (content.items || []).map((item) => ({
+    str: String(item.str || ''),
+    width: Number(item.width) || 0,
+    height: Number(item.height) || 0,
+    transform: Array.isArray(item.transform) ? item.transform.slice(0, 6) : [],
+    hasEOL: item.hasEOL === true,
+  }));
+  const blocks = [];
+  let lines = [];
+  for (const item of items) {
+    const text = String(item.str || '').trim(); if (!text) continue;
+    lines.push({ text, x: item.transform?.[4] || 0, y: item.transform?.[5] || 0, width: item.width || 0, height: item.height || 1 });
+    if (item.hasEOL) { blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') }); lines = []; }
+  }
+  if (lines.length) blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') });
+  reader.pages.set(pageNumber, { blocks, items, pageHeight, article: null, translation: null });
+  return blocks;
+}
+
+async function renderPdfReaderPage(pageNumber) {
+  const reader = player.pdfReader;
+  if (!reader?.pdf) return;
+  const generation = reader.renderGeneration || 0;
+  const existing = reader.pages.get(pageNumber);
+  if (existing?.article) return;
+  reader.rendering ||= new Set();
+  const renderKey = `${generation}:${pageNumber}`;
+  if (reader.rendering.has(renderKey)) return;
+  reader.rendering.add(renderKey);
+  let article = null;
+  try {
+    const page = await reader.pdf.getPage(pageNumber);
+    if (player.pdfReader !== reader || (reader.renderGeneration || 0) !== generation) return;
+    const viewport = page.getViewport({ scale: reader.scale });
+    article = document.createElement('article');
+    article.className = 'pdf-page'; article.dataset.page = String(pageNumber); article.dataset.state = 'loading';
+    const source = document.createElement('div'); source.className = 'pdf-page-source';
+    const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height; source.appendChild(canvas);
+    const translation = document.createElement('div'); translation.className = 'pdf-page-translation';
+    const heading = document.createElement('h3'); heading.textContent = `Sayfa ${pageNumber}`; translation.appendChild(heading);
+    article.append(source, translation); $('pdfReaderPages').appendChild(article); reader.rendered.set(pageNumber, article);
+    reader.observer?.observe(article);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    if (player.pdfReader !== reader || (reader.renderGeneration || 0) !== generation) { article.remove(); return; }
+    const blocks = await extractPdfReaderPage(pageNumber);
+    if (player.pdfReader !== reader || (reader.renderGeneration || 0) !== generation) { article.remove(); return; }
+    const entry = reader.pages.get(pageNumber) || { blocks };
+    entry.article = article; entry.translation = translation; reader.pages.set(pageNumber, entry);
+    article.dataset.state = 'ready';
+    const saved = reader.state?.pages?.[String(pageNumber)];
+    if (Array.isArray(saved)) renderPdfTranslation(pageNumber, saved);
+  } catch (error) {
+    article?.remove();
+    if (player.pdfReader === reader && (reader.renderGeneration || 0) === generation) {
+      pdfReaderSetStatus(`PDF sayfası hazırlanamadı: ${error.message}`, true);
+    }
+  } finally {
+    reader.rendering.delete(renderKey);
+  }
+}
+
+function renderPdfTranslation(pageNumber, blocks) {
+  const entry = player.pdfReader?.pages.get(pageNumber); if (!entry) return;
+  if (!entry.translation) return;
+  entry.translation.querySelectorAll('p').forEach((node) => node.remove());
+  for (const block of blocks || []) {
+    const p = document.createElement('p'); p.textContent = block.translation || block.source || ''; entry.translation.appendChild(p);
+  }
+}
+
+async function translateVisiblePdfPages(all = false) {
+  const reader = player.pdfReader; if (!reader?.pdf) return;
+  const count = reader.pdf.numPages;
+  const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
+    : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
+  if (!pages.length) return;
+  if (all) {
+    for (const pageNumber of pages) await extractPdfReaderPage(pageNumber);
+  } else {
+    for (const pageNumber of pages) await renderPdfReaderPage(pageNumber);
+  }
+  $('pdfTranslateCancel').disabled = false; pdfReaderSetStatus(all ? `Kitap çevriliyor… (0/${pages.length})` : 'Görünen sayfalar çevriliyor…');
+  let completed = 0; let failed = 0; let lastError = ''; let canceled = false;
+  // Main process payloadını küçük tut ve "tüm kitap" seçeneğini gerçekten bütün
+  // sayfalara uygula. Her çağrı en fazla üç sayfa işler; aradaki çağrılarda iptal
+  // düğmesi çalışmaya devam eder.
+  for (let offset = 0; offset < pages.length; offset += 3) {
+    if (!player.pdfReader || reader.pdfHash !== player.pdfReader.pdfHash) break;
+    const batchPages = pages.slice(offset, offset + 3);
+    const requests = batchPages.map((pageNumber) => {
+      const entry = reader.pages.get(pageNumber) || {};
+      return { pageNumber, blocks: entry.blocks || [], items: entry.items || [], pageHeight: entry.pageHeight || 0 };
+    });
+    const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage: $('pdfTargetLanguage')?.value || 'tr', pages: requests }).catch((error) => ({ ok: false, error: error.message }));
+    if (result?.state) {
+      reader.state = result.state;
+      for (const page of batchPages) renderPdfTranslation(page, result.state.pages?.[String(page)]);
+    }
+    if (result?.ok || result?.partial) completed += batchPages.length;
+    else { failed += batchPages.length; lastError = result?.error || 'Çeviri başarısız'; }
+    pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
+    if (result?.canceled) { canceled = true; break; }
+  }
+  $('pdfTranslateCancel').disabled = true;
+  pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
+    : failed ? `${completed} sayfa hazır, ${failed} sayfa başarısız${lastError ? `: ${lastError}` : ''}` : 'Çeviri hazır', canceled || failed > 0);
+}
+
+async function openPdfReader(filePath = '') {
+  const opened = await window.api.openPdf?.(filePath).catch((error) => ({ ok: false, error: error.message }));
+  if (!opened?.ok) { if (!opened?.canceled) setBrowserSignal(opened?.error || 'PDF açılamadı.', false); return; }
+  let pdf;
+  try {
+    const pdfjs = await getPdfJs();
+    pdf = await pdfjs.getDocument({ url: opened.fileUrl }).promise;
+  } catch (error) {
+    setBrowserSignal(`PDF okunamadı: ${error.message}`, false);
+    return;
+  }
+  player.pdfReader = { pdf, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
+  const pageInput = $('pdfReaderPage');
+  if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
+  $('pdfReaderTitle').textContent = opened.title || 'PDF kitap'; $('pdfReaderPages').replaceChildren();
+  $('pdfReader').classList.remove('hidden'); $('playerStage')?.classList.add('hidden'); $('browserWorkspace')?.classList.add('hidden');
+  for (const pageNumber of [1, 2, 3].filter((number) => number <= pdf.numPages)) {
+    await renderPdfReaderPage(pageNumber);
+  }
+  const root = $('pdfReaderPages'); root.onscroll = () => {
+    const page = [...readerPagesForVisibility()].sort((a, b) => Math.abs(a.top) - Math.abs(b.top))[0];
+    if (page) {
+      player.pdfReader.currentPage = page.number;
+      if ($('pdfReaderPage')) $('pdfReaderPage').value = String(page.number);
+    }
+  };
+  if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
+    player.pdfReader.observer = new IntersectionObserver((entries) => entries.filter((entry) => entry.isIntersecting)
+      .forEach((entry) => { const number = Number(entry.target.dataset.page); void renderPdfReaderPage(number + 2); }), { root, rootMargin: '800px' });
+  }
+  for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
+  setBrowserModalOccluded(true);
+}
+
+function readerPagesForVisibility() {
+  const root = $('pdfReaderPages'); if (!root) return [];
+  return [...root.querySelectorAll('.pdf-page')].map((node) => ({ number: Number(node.dataset.page), top: node.getBoundingClientRect().top - root.getBoundingClientRect().top }));
+}
+
+$('pdfReaderOpen')?.addEventListener('click', () => openPdfReader());
+$('pdfReaderPage')?.addEventListener('change', (event) => {
+  const reader = player.pdfReader;
+  if (!reader?.pdf) return;
+  const page = Math.max(1, Math.min(reader.pdf.numPages, Number(event.target.value) || 1));
+  reader.currentPage = page; event.target.value = String(page);
+  document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  renderPdfReaderPage(page).catch(() => {});
+});
+$('pdfReaderClose')?.addEventListener('click', () => {
+  const reader = player.pdfReader;
+  reader?.observer?.disconnect();
+  if (reader) reader.renderGeneration = (reader.renderGeneration || 0) + 1;
+  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash).catch(() => {});
+  try { Promise.resolve(reader?.pdf?.destroy?.()).catch(() => {}); } catch (_) {}
+  const root = $('pdfReaderPages');
+  if (root) { root.onscroll = null; root.replaceChildren(); }
+  player.pdfReader = null;
+  $('pdfReader')?.classList.add('hidden'); $('playerStage')?.classList.remove('hidden');
+  setBrowserModalOccluded(false);
+});
+$('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
+$('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));
+$('pdfTranslateCancel')?.addEventListener('click', () => {
+  if (player.pdfReader?.pdfHash) window.api.cancelPdfTranslation?.(player.pdfReader.pdfHash);
+});
+$('pdfExport')?.addEventListener('click', async () => {
+  const result = await window.api.exportPdfTranslation?.(player.pdfReader?.pdfHash, $('pdfExportFormat')?.value || 'txt', $('pdfTargetLanguage')?.value || 'tr').catch(() => null);
+  if (result?.ok) logLine(`PDF çevirisi kaydedildi: ${result.path}`, 'success'); else if (!result?.canceled) pdfReaderSetStatus(result?.error || 'Dışa aktarma başarısız.', true);
+});
+function setPdfReaderZoom(nextScale) {
+  const reader = player.pdfReader;
+  if (!reader?.pdf) return;
+  const next = Math.min(2.5, Math.max(.5, Number(nextScale) || 1));
+  if (Math.abs(next - reader.scale) < .001) return;
+  reader.scale = next;
+  reader.renderGeneration = (reader.renderGeneration || 0) + 1;
+  reader.observer?.disconnect();
+  reader.rendered.clear();
+  reader.rendering.clear();
+  for (const entry of reader.pages.values()) {
+    entry.article = null;
+    entry.translation = null;
+  }
+  $('pdfReaderPages')?.replaceChildren();
+  if ($('pdfZoomValue')) $('pdfZoomValue').textContent = `%${Math.round(next * 100)}`;
+  for (const pageNumber of [reader.currentPage, reader.currentPage + 1, reader.currentPage + 2]
+    .filter((number) => number <= reader.pdf.numPages)) void renderPdfReaderPage(pageNumber);
+}
+$('pdfZoomIn')?.addEventListener('click', () => setPdfReaderZoom((player.pdfReader?.scale || 1) + .15));
+$('pdfZoomOut')?.addEventListener('click', () => setPdfReaderZoom((player.pdfReader?.scale || 1) - .15));
 if ($('browserDiagnosticsToolbar')) {
   $('browserDiagnosticsToolbar').addEventListener('click', () => {
     toggleSettingsPage('browser-diagnostics');
