@@ -128,6 +128,13 @@ t('SRT yolu aynen calisiyor (regresyon)', () => {
   ok(F.parseSubtitles(out).length === 2, 'tur-ici kararsiz');
 });
 
+t('Bos satir ayraci olmayan SRT tum zaman satirlarini korur', () => {
+  const srt = '1\n00:00:01,000 --> 00:00:02,000\nBir\n2\n00:00:03,000 --> 00:00:04,000\nIki\n';
+  const cues = F.parseSubtitles(srt);
+  ok(cues.length === 2, 'bloklar tek cue icine coktu');
+  ok(cues[0].text === 'Bir' && cues[1].text === 'Iki', 'metin sinirlari bozuldu');
+});
+
 // ---- VTT metadata korunuyor mu (cerrahi duzenleme) ----
 const VTT_RICH = [
   'WEBVTT - Test dosyasi',

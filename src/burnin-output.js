@@ -15,6 +15,18 @@ function burninOutputPaths(videoPath, token = randomUUID()) {
   };
 }
 
+function burninAudioArgs(videoPath, outPath) {
+  const sourceExt = path.extname(String(videoPath || '')).toLowerCase();
+  const outputExt = path.extname(String(outPath || '')).toLowerCase();
+  // WebM/Ogg kaynaklarinda Opus/Vorbis sesi MP4'e stream-copy etmek FFmpeg
+  // muxerinda basarisiz olabilir. Yalniz bu container gecisinde AAC'e cevir;
+  // diger kaynaklarda hizli ve kayipsiz copy davranisini koru.
+  if (outputExt === '.mp4' && ['.webm', '.ogg', '.oga', '.ogv'].includes(sourceExt)) {
+    return ['-c:a', 'aac', '-b:a', '192k'];
+  }
+  return ['-c:a', 'copy'];
+}
+
 function removeFileQuietly(filePath, fsImpl = fs) {
   if (!filePath) return;
   try { fsImpl.unlinkSync(filePath); }
@@ -139,6 +151,7 @@ function burninRecoveryPathsMatch(recovery) {
 }
 
 module.exports = {
+  burninAudioArgs,
   burninFinalOutputLooksComplete,
   burninOutputPaths,
   burninProcessNameMatches,

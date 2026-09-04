@@ -101,6 +101,15 @@ test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
     bigEndianBody[index + 1] = first;
   }
   assert.equal(decodeSubtitleBuffer(Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndianBody])), text);
+  const oddBigEndian = Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndianBody, Buffer.from([0x41])]);
+  assert.equal(decodeSubtitleBuffer(oddBigEndian), text,
+    'tek kalan bayt ayrılmamış bellekle doldurulmamalı');
+});
+
+test('yaygın adlandırılmış HTML entity değerlerini çözer', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:01.000\nTom&nbsp;&amp;&nbsp;Jerry &copy;',
+    'text/vtt', 'https://cdn.test/entities.vtt');
+  assert.equal(result.cues[0].text, 'Tom & Jerry ©');
 });
 
 test('TTML kapsayıcı begin zamanını alt p cue zamanına ekler', () => {

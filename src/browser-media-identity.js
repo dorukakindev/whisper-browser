@@ -29,6 +29,16 @@ function hostMatches(host, suffix) {
   return host === suffix || host.endsWith(`.${suffix}`);
 }
 
+function isAmazonHost(host) {
+  return [
+    'amazon.com', 'amazon.ca', 'amazon.com.mx', 'amazon.com.br', 'amazon.co.uk',
+    'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es', 'amazon.nl', 'amazon.se',
+    'amazon.pl', 'amazon.com.be', 'amazon.ie', 'amazon.co.jp', 'amazon.in',
+    'amazon.com.au', 'amazon.sg', 'amazon.ae', 'amazon.sa', 'amazon.com.tr',
+    'amazon.eg', 'amazon.co.za',
+  ].some((suffix) => hostMatches(host, suffix));
+}
+
 function firstMatch(value, expressions) {
   for (const expression of expressions) {
     const match = String(value || '').match(expression);
@@ -60,7 +70,7 @@ function serviceIdentity(url, hints = {}) {
     const id = firstMatch(url.pathname, [/\/watch\/([A-Z0-9]+)/i]);
     if (id) return { service: 'crunchyroll', contentId: id.toUpperCase() };
   }
-  if (hostMatches(host, 'amazon.com') || hostMatches(host, 'primevideo.com')) {
+  if (isAmazonHost(host) || hostMatches(host, 'primevideo.com')) {
     const id = firstMatch(url.pathname, [
       /\/(?:gp\/video\/detail|detail)\/([A-Z0-9]+)/i,
       /\/dp\/([A-Z0-9]+)/i,
@@ -114,6 +124,7 @@ module.exports = {
   TRACKING_PARAM_RE,
   canonicalMediaIdentity,
   normalizeBrowserUrl,
+  isAmazonHost,
   serviceIdentity,
   stableUrlHash,
 };

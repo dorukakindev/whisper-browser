@@ -56,6 +56,7 @@ const {
 } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
 const {
+  burninAudioArgs,
   burninFinalOutputLooksComplete,
   burninOutputPaths,
   burninRecoveryProcessMatches,
@@ -378,6 +379,13 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
     mediaJobs[kind] = proc;
     let result = null;
     let errText = '';
+    let stderrTail = '';
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
     const handleLine = (raw) => {
       const line = String(raw || '').trim();
       if (!line) return;
@@ -396,16 +404,16 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
     proc.stdout.on('data', (chunk) => {
       for (const line of stdoutLines.push(chunk)) handleLine(line);
     });
-    proc.stderr.on('data', (c) => { errText = String(c).slice(-500); });
+    proc.stderr.on('data', (c) => { stderrTail = `${stderrTail}${c}`.slice(-500); });
     proc.on('close', (code) => {
       for (const line of stdoutLines.flush()) handleLine(line);
       if (mediaJobs[kind] === proc) mediaJobs[kind] = null;   // baskasinin isini silme
-      if (result) resolve({ ok: true, data: result });
-      else resolve({ ok: false, error: errText || `Süreç ${code} koduyla bitti` });
+      if (result) finish({ ok: true, data: result });
+      else finish({ ok: false, error: errText || stderrTail || `Süreç ${code} koduyla bitti` });
     });
     proc.on('error', (err) => {
       // Keep the cancellation target until close, including failed spawn.
-      resolve({ ok: false, error: err.message });
+      finish({ ok: false, error: err.message });
     });
   });
 }
@@ -509,8 +517,11 @@ function decodeSubtitleBuffer(buf) {
     return { text: buf.subarray(2).toString('utf16le'), note: 'utf-16le' };
   }
   if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
-    const swapped = Buffer.allocUnsafe(buf.length - 2);
-    for (let index = 2; index + 1 < buf.length; index += 2) {
+    // Eksik son baytı yok say. allocUnsafe ile tek uzunlukta kalan son bayt
+    // önceki heap içeriğini altyazıya taşıyabiliyordu.
+    const bodyLength = (buf.length - 2) & ~1;
+    const swapped = Buffer.alloc(bodyLength);
+    for (let index = 2; index < 2 + bodyLength; index += 2) {
       swapped[index - 2] = buf[index + 1];
       swapped[index - 1] = buf[index];
     }
@@ -3256,7 +3267,7 @@ function startBrowserLiveAsr(tab, options = {}) {
         format: 'live-asr', sourceUrl: 'system-audio',
         streamKey: `live-asr:${tab.id}:${tab.acquisitionId}`, context,
       });
-      if (track && job.cues.length >= 2) {
+      if (track) {
         tab.acquisitionPlan?.finish('live-asr', { success: true, trackCount: 1, reason: 'Sistem sesinden altyazı üretiliyor.' });
         if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
         publishBrowserDiagnostics();
@@ -3482,7 +3493,8 @@ function storeBrowserTrack(cues, meta = {}) {
     trimInsertionCollection(browserTrackBuffers, 64);
     normalized = merged;
   }
-  if (normalized.length < 2) return null;
+  // Tek cümlelik dosya ve canlı ASR'nin ilk cümlesi de gerçek bir izdir.
+  if (!normalized.length) return null;
   const fingerprint = cueFingerprint(normalized);
   if (!fingerprint) return null;
   const publicationKey = streamKey || fingerprint;
@@ -6830,7 +6842,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
 
   const vf = ffSubtitlesArg(filterSubPath);
   const args = ['-y', '-i', videoPath, '-vf', vf, '-map', '0:v:0', '-map', '0:a?',
-    '-map_metadata', '0', '-map_chapters', '0', '-c:a', 'copy'];
+    '-map_metadata', '0', '-map_chapters', '0', ...burninAudioArgs(videoPath, outPath)];
   // MKV kaynağında ek altyazı izlerini de koru. MP4'e PGS/ASS gibi uyumsuz
   // codec'leri kopyalamak tüm işi bozabileceği için MP4 çıktıda yalnız sesleri koruyoruz.
   if (path.extname(outPath).toLowerCase() === '.mkv') args.push('-map', '0:s?', '-c:s', 'copy');

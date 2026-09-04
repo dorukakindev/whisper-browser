@@ -3,6 +3,13 @@
 const SENTENCE_PROTOCOL_VERSION = 1;
 const ABBREVIATIONS = new Set(require('../backend/subtitle-abbreviations.json'));
 const normalizeText = (value) => String(value ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
+const SPACELESS_SCRIPT = /[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/u;
+function sentencePartsMatch(text, parts) {
+  const joined = normalizeText(parts.join(' '));
+  const expected = normalizeText(text);
+  return joined === expected || (SPACELESS_SCRIPT.test(expected)
+    && joined.replace(/\s+/g, '') === expected.replace(/\s+/g, ''));
+}
 const protectedCue = (cue) => !Number.isFinite(Number(cue.start)) || !Number.isFinite(Number(cue.end))
   || Number(cue.end) <= Number(cue.start) || !normalizeText(cue.text)
   || /(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)/i.test(String(cue.text || '').trim());
@@ -18,7 +25,7 @@ function validParts(text, parts, count) {
   return typeof text === 'string' && text.length <= 12000 && normalizeText(text)
     && Array.isArray(parts) && parts.length === count
     && parts.every((part) => typeof part === 'string' && normalizeText(part))
-    && normalizeText(parts.join(' ')) === normalizeText(text);
+    && sentencePartsMatch(text, parts);
 }
 
 function decodeSentenceTranslation(raw, count, requireParts = false) {
@@ -112,4 +119,4 @@ function fitTranslationParts(text, pieces) {
 }
 
 module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
-  validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest };
+  sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest };

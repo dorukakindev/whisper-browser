@@ -242,7 +242,7 @@ class WatchIndex {
       SELECT m.id AS media_id, m.service, m.title, m.url,
              t.id AS track_id, t.language, t.role,
              c.cue_id, c.start, c.end, c.source_text, c.translation_text,
-             snippet(cue_fts, 0, '[', ']', ' … ', 18) AS snippet
+              snippet(cue_fts, -1, '[', ']', ' … ', 18) AS snippet
       FROM cue_fts
       JOIN cues c ON c.rowid = cue_fts.rowid
       JOIN tracks t ON t.id = c.track_id

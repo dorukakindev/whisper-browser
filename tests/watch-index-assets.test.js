@@ -160,6 +160,8 @@ try {
       assert.equal(result[0].cue_id, 'a');
       assert.equal(result[0].start, 10);
       assert.match(result[0].translation_text, /Merhaba/);
+      assert.match(result[0].snippet, /\[dünya\]/i,
+        'arama eşleşmesi çeviri sütunundayken snippet kaynak sütununa sabitlenmemeli');
     });
 
     test('cue değişimi eski FTS metnini kaldırır', () => {

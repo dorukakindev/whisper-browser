@@ -107,6 +107,9 @@ def test_live_asr_chunk_offset_is_validated_without_killing_worker():
             assert False, f"bozuk hız kabul edildi: {bad}"
         except (TypeError, ValueError):
             pass
+    assert L.segment_bounds(types.SimpleNamespace(start=0.5, end=1.5)) == (0.5, 1.5)
+    for start, end in ((None, 1), (0, None), (float("nan"), 1), (2, 1)):
+        assert L.segment_bounds(types.SimpleNamespace(start=start, end=end)) is None
 
 
 # ===== parse_timecode =====
@@ -151,6 +154,13 @@ def test_time_formatters():
     assert T.format_srt_time(-1) == "00:00:00,000"
     # yuvarlama taşması saniyeye/dakikaya doğru düzgün taşmalı
     assert T.format_srt_time(59.9996) == "00:01:00,000"
+    for formatter in (T.format_srt_time, T.format_vtt_time, T._ass_time):
+        for invalid in (None, float("nan"), float("inf")):
+            try:
+                formatter(invalid)
+                raise AssertionError(f"{formatter.__name__} geçersiz zamanı kabul etti")
+            except ValueError:
+                pass
 
 
 # ===== noktalama tespiti =====
@@ -374,6 +384,12 @@ def test_write_dual_srt():
     merged = open(p, encoding="utf-8-sig").read()
     assert "The Addis continue to live. He lived in the attic." in merged
 
+    # Bir taraf bos oldugunda cue metni bos satirla baslayip erken bitmemeli.
+    T.write_dual_srt([(0.0, 1.0, "Kaynak")], [(0.0, 1.0, "")], p,
+                     translation_first=True)
+    blank_side = open(p, encoding="utf-8-sig").read().splitlines()
+    assert blank_side[2] == "Kaynak"
+
 
 def test_write_json_keeps_word_overlapping_snapped_start():
     import tempfile, pathlib, json
@@ -499,6 +515,8 @@ def test_find_piecewise_offsets():
     fixed = T.apply_piecewise(bad, pieces, ratio)
     worst = max(abs(f[0] - o[0]) for f, o in zip(fixed, spans))
     assert worst < 0.1, worst
+    clamped = T.apply_piecewise([(-2.0, -1.0, "erken")], [(0, 0, 0.0)])
+    assert clamped == [(0.0, 0.001, "erken")]
 
 
 def test_piecewise_no_false_split():
@@ -1451,7 +1469,7 @@ def test_reexport_sorts_segments_before_writing():
             ]}, fh)
         args = types.SimpleNamespace(
             input=src, output_dir=td, formats="srt", lang_suffix=False,
-            max_line_width=42, max_lines=2, wrap_mode="sentence",
+            max_line_width=42, max_lines=2, wrap_mode="sentence", label_speakers=True,
         )
         emitted = []
         written = []
@@ -1462,7 +1480,7 @@ def test_reexport_sorts_segments_before_writing():
             T.reexport_from_json(args)
         finally:
             T.emit, T.write_srt = old_emit, old_write
-        assert written == [[(1.0, 2.0, "early"), (5.0, 6.0, "late")]]
+        assert written == [[(1.0, 2.0, "[A] early"), (5.0, 6.0, "[B] late")]]
 
 
 # ===== zamanlama normalizasyonu =====
@@ -1613,6 +1631,15 @@ def test_job_signature():
     })
     assert T.job_signature(no_words)["need_words"] is False
     assert T.job_signature(json_words)["need_words"] is True
+    confidence_words = types.SimpleNamespace(**{
+        **values, "split_mode": "none", "formats": "srt", "confidence_report": True,
+    })
+    repetition_words = types.SimpleNamespace(**{
+        **values, "split_mode": "none", "formats": "srt",
+        "drop_repeated_hallucinations": True,
+    })
+    assert T.job_signature(confidence_words)["need_words"] is True
+    assert T.job_signature(repetition_words)["need_words"] is True
 
 
 def test_checkpoint_roundtrip():
@@ -1724,6 +1751,10 @@ def test_parse_and_shift_srt():
     assert len(vtt_spans) == 1
     assert abs(vtt_spans[0][0] - 323.5) < 1e-6
 
+    compact = ("1\n00:00:01,000 --> 00:00:02,000\nBir\n"
+               "2\n00:00:03,000 --> 00:00:04,000\nİki\n")
+    assert T.parse_srt(compact) == [(1.0, 2.0, "Bir"), (3.0, 4.0, "İki")]
+
     ass = "\n".join([
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -1771,6 +1802,10 @@ def test_wrap_sentence_closing_quote_and_parenthesis():
         '(Gülüşmeler.)\nSon söz.'
     assert T.wrap_text("Bir. İki. Üç.", max_lines=2, wrap_mode="sentence") == \
         "Bir.\nİki. Üç."
+    words = [W(' "Gidelim', 0.0, 0.5), W(' mi?"', 0.5, 1.0),
+             W(' Sonra', 1.1, 1.6), W(' bakarız.', 1.6, 2.2)]
+    chunks = T.split_segment_sentence(Seg(0.0, 2.2, '"Gidelim mi?" Sonra bakarız.', words))
+    assert [text for _start, _end, text in chunks] == ['"Gidelim mi?"', 'Sonra bakarız.']
 
 
 def test_sync_output_path_respects_output_dir():
@@ -2349,6 +2384,10 @@ def test_sentence_translation_chunk_limit_never_splits_group():
 
 def test_sentence_reply_nfc_and_dialogue_line_breaks():
     assert T.validate_sentence_parts('İyi günler.', ['I\u0307yi', 'günler.'], 2)
+    assert T.validate_sentence_parts('こんにちは世界', ['こんにちは', '世界'], 2)
+    assert T.validate_sentence_parts('สวัสดีโลก', ['สวัสดี', 'โลก'], 2)
+    assert T.validate_sentence_parts('Merhaba dünya', ['Merhaba', 'dünya'], 2)
+    assert T.validate_sentence_parts('Merhabadünya', ['Merhaba', 'dünya'], 2) is None
     record = T.accept_sentence_reply({'0': '- Evet.\n- Hayır.'}, [0])
     assert record['parts'] == ['- Evet.\n- Hayır.'], 'konuşmacı satırları kayboldu'
     assert T.accept_sentence_reply({'0': 'bir', '1': 'iki'}, [0, 1]) is None

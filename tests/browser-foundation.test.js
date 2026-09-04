@@ -5,6 +5,7 @@ const path = require('path');
 
 const {
   canonicalMediaIdentity,
+  isAmazonHost,
   normalizeBrowserUrl,
 } = require('../src/browser-media-identity');
 const {
@@ -55,6 +56,15 @@ test('YouTube URL biçimleri aynı medya kimliğine birleşir', () => {
   const b = canonicalMediaIdentity('https://youtu.be/abc123?t=30');
   assert.equal(a.key, 'youtube:abc123');
   assert.equal(b.key, 'youtube:abc123');
+});
+
+test('Amazon Prime bölgesel alan adları aynı servis olarak tanınır', () => {
+  for (const host of ['amazon.com', 'amazon.co.uk', 'amazon.com.tr', 'amazon.de', 'amazon.co.jp']) {
+    assert.equal(isAmazonHost(host), true, host);
+    assert.equal(canonicalMediaIdentity(`https://www.${host}/gp/video/detail/ABC123`).service,
+      'prime-video', host);
+  }
+  assert.equal(isAmazonHost('amazon.example.com'), false);
 });
 
 test('bilinmeyen web adresi sabit ve hassas olmayan hash kimliği alır', () => {

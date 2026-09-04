@@ -541,7 +541,7 @@ async function processNextQueueItem() {
     if (warned.length) {
       logLine(`⚠ ${warned.length} dosyada uyarı var — elle kontrol edin:`, 'warn');
       warned.forEach((x) => {
-        const name = x.label || (x.input || '').split(/[\/]/).pop();
+        const name = x.label || (x.input || '').split(/[\\/]/).pop();
         x.warnings.forEach((w) => logLine(`   ${name}: ${w}`, 'warn'));
       });
     }
@@ -1348,11 +1348,22 @@ dropZone.addEventListener('dragleave', () => {
 
 async function handleDropPayload(e) {
   // webUtils üzerinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)
-  const paths = Array.from(e.dataTransfer.files)
+  let paths = Array.from(e.dataTransfer.files)
     .map((f) => window.api.getFilePath(f))
     .filter(Boolean);
 
   if (paths.length > 0) {
+    const subtitlePaths = paths.filter((item) => /\.(?:srt|vtt|ass|ssa)$/i.test(item));
+    const playerLayer = $('playerLayer');
+    if (subtitlePaths.length && playerLayer && !playerLayer.classList.contains('hidden')) {
+      const subtitlePath = subtitlePaths[0];
+      addSubtitleOption(subtitlePath);
+      if ($('playerSubSelect')) $('playerSubSelect').value = subtitlePath;
+      await loadSubtitle(subtitlePath);
+      logLine(`Altyazı oynatıcıya yüklendi: ${subtitlePath.split(/[\\/]/).pop()}`, 'success');
+      paths = paths.filter((item) => !subtitlePaths.includes(item));
+      if (!paths.length) return;
+    }
     const mediaFiles = await window.api.scanMediaPaths(paths);
     if (!mediaFiles || mediaFiles.length === 0) {
       logLine('Bırakılan dosya veya klasörlerde desteklenen video/ses dosyası bulunamadı.', 'warn');
@@ -6795,15 +6806,16 @@ function parseSubtitles(text) {
   // WebVTT bir saatin altinda HH alanini atlayabilir (MM:SS.mmm). SRT'nin
   // HH:MM:SS,mmm bicimini de kabul eden tek ifade kullan.
   const re = /(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
-  for (const block of clean.split(/\n\s*\n/)) {
-    const lines = block.split('\n').filter((l) => l.trim() !== '');
-    if (lines.length < 2) continue;
-    const idx = lines.findIndex((l) => re.test(l));
-    if (idx === -1) continue;
+  const lines = clean.split('\n');
+  const indices = lines.flatMap((line, index) => re.test(line) ? [index] : []);
+  for (let position = 0; position < indices.length; position++) {
+    const idx = indices[position];
     const m = lines[idx].match(re);
     const start = (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4].padEnd(3, '0')) / 1000;
     const end = (+(m[5] || 0)) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8].padEnd(3, '0')) / 1000;
-    const body = lines.slice(idx + 1).join('\n').trim();
+    let until = indices[position + 1] ?? lines.length;
+    if (position + 1 < indices.length && /^\d+$/.test(lines[until - 1]?.trim())) until--;
+    const body = lines.slice(idx + 1, until).join('\n').trim();
     if (body) out.push({ start, end, text: body, sourceStart: start, sourceEnd: end });
   }
   out.sort((a, b) => a.start - b.start);
@@ -11489,7 +11501,7 @@ if ($('playerSubtitleDisplay')) {
 function openCueEditor() {
   clearTimeout(player.shadowResumeTimer);
   player.shadowResumeTimer = null;
-  if (player.activeIdx < 0 || !player.cues.length) {
+  if (player.activeIdx < 0 || player.activeIdx >= player.cues.length || !player.cues.length) {
     logLine('Düzeltmek için altyazının göründüğü bir ana gel.', 'warn');
     return;
   }

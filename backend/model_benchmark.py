@@ -9,6 +9,9 @@ import tempfile
 import time
 import wave
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 def emit(payload):
     print(json.dumps(payload, ensure_ascii=False), flush=True)

@@ -48,6 +48,17 @@ def parse_chunk_rate(command):
     return rate
 
 
+def segment_bounds(segment):
+    try:
+        start = float(segment.start)
+        end = float(segment.end)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
+        return None
+    return start, end
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="small")
@@ -92,10 +103,12 @@ def main():
                 if stop_event.is_set():
                     break
                 text = str(segment.text or "").strip()
-                if not text:
+                bounds = segment_bounds(segment)
+                if not text or bounds is None:
                     continue
-                emit("segment", start=offset + float(segment.start) * rate,
-                     end=offset + float(segment.end) * rate, text=text,
+                start, end = bounds
+                emit("segment", start=offset + start * rate,
+                     end=offset + end * rate, text=text,
                      language=getattr(info, "language", "") or "")
                 count += 1
             if not stop_event.is_set():

@@ -232,6 +232,8 @@ test('shadowing cue bitişinde süreli duraklatma üretir', () => {
   assert.equal(action.type, 'pause-for-shadowing');
   assert.equal(action.cueId, 'a');
   assert.equal(action.durationMs, 3000);
+  assert.notEqual(playbackLearningAction(cues, 4.1, 0.2, 'shadowing', { shadowingFactor: 1.5 }).type,
+    'pause-for-shadowing', 'kullanıcı seek hareketi gölgeleme duraklatması sanıldı');
 });
 
 test('öğrenme notu medya ve zaman bağını korur', () => {

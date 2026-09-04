@@ -48,7 +48,9 @@ function repositoryMatchesModel(repository, model) {
   if (normalized === 'large-v3-turbo') {
     return repo.endsWith('-large-v3-turbo') || repo.endsWith('-whisper-turbo');
   }
-  return repo.endsWith(`-${normalized}`) || repo.includes(`faster-whisper-${normalized}`);
+  // `large-v3-turbo`, `large-v3` ile başladığı için includes() kullanmak yalnız
+  // turbo kurulu bir makinede normal large-v3'ü de kurulu gösteriyordu.
+  return repo.endsWith(`-${normalized}`);
 }
 
 function scanModelCache(appPath, env = process.env) {

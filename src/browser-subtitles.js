@@ -9,13 +9,20 @@ function decodeEntities(value) {
     return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
       ? String.fromCodePoint(codePoint) : '\uFFFD';
   };
-  const named = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+  const named = {
+    nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+    ndash: '–', mdash: '—', hellip: '…', laquo: '«', raquo: '»',
+    lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', copy: '©', reg: '®',
+    auml: 'ä', Auml: 'Ä', ouml: 'ö', Ouml: 'Ö', uuml: 'ü', Uuml: 'Ü',
+    ccedil: 'ç', Ccedil: 'Ç', szlig: 'ß', eacute: 'é', Eacute: 'É',
+  };
   // Üretilen & işaretini aynı geçişte yeniden çözme: &amp;#39; literal kalmalı.
-  return String(value || '').replace(/&(nbsp|amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi, (_match, entity) => {
+  return String(value || '').replace(/&([a-z][a-z0-9]+|#\d+|#x[0-9a-f]+);/gi, (match, entity) => {
     const key = entity.toLowerCase();
     if (key.startsWith('#x')) return decodeCodePoint(key.slice(2), 16);
     if (key.startsWith('#')) return decodeCodePoint(key.slice(1));
-    return named[key];
+    return Object.prototype.hasOwnProperty.call(named, entity) ? named[entity]
+      : (Object.prototype.hasOwnProperty.call(named, key) ? named[key] : match);
   });
 }
 
@@ -821,8 +828,9 @@ function decodeSubtitleBuffer(value) {
     return buffer.subarray(2).toString('utf16le');
   }
   if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
-    const swapped = Buffer.allocUnsafe(buffer.length - 2);
-    for (let index = 2; index + 1 < buffer.length; index += 2) {
+    const bodyLength = (buffer.length - 2) & ~1;
+    const swapped = Buffer.alloc(bodyLength);
+    for (let index = 2; index < 2 + bodyLength; index += 2) {
       swapped[index - 2] = buffer[index + 1];
       swapped[index - 1] = buffer[index];
     }

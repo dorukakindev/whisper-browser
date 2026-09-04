@@ -33,7 +33,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
-                                  validate_sentence_parts, normalized_text)
+                                  validate_sentence_parts, normalized_text,
+                                  uses_spaceless_script)
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
@@ -401,6 +402,9 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
 
 
 def format_srt_time(seconds):
+    if seconds is None or not math.isfinite(float(seconds)):
+        raise ValueError("SRT zaman damgası sonlu bir sayı olmalı")
+    seconds = float(seconds)
     if seconds < 0:
         seconds = 0
     # Tamsayı ms aritmetiği: yuvarlama taşması saniyeye/dakikaya doğru taşar
@@ -412,6 +416,9 @@ def format_srt_time(seconds):
 
 
 def format_vtt_time(seconds):
+    if seconds is None or not math.isfinite(float(seconds)):
+        raise ValueError("WebVTT zaman damgası sonlu bir sayı olmalı")
+    seconds = float(seconds)
     if seconds < 0:
         seconds = 0
     ms_total = int(round(seconds * 1000))
@@ -1280,7 +1287,7 @@ def split_segment_sentence(segment, hard_max_chars=220, soft_max_chars=84, **kwa
         word_str = w.word.strip()
         current_len += len(w.word)
 
-        ends_sentence = word_str.endswith(tuple(PUNCT_END))
+        ends_sentence = text_ends_sentence(word_str)
 
         if ends_sentence:
             # Yanlış nokta kontrolü: sonraki kelime küçük harf/bağlaç ise atla
@@ -1452,11 +1459,9 @@ def split_segment_by_punctuation(segment, max_chars=84):
         word_str = w.word
         current_words.append(w)
         current_text_len += len(word_str)
-        ends_sentence = (
-            word_str.strip().endswith(tuple(PUNCT_END))
-            and not is_abbreviation(word_str)
-        )
-        ends_soft = word_str.strip().endswith(tuple(PUNCT_SOFT))
+        terminal_word = word_str.strip().rstrip("\"'“”‘’)]}»")
+        ends_sentence = text_ends_sentence(word_str)
+        ends_soft = terminal_word.endswith(tuple(PUNCT_SOFT))
 
         too_long = current_text_len >= max_chars
         if ends_sentence or (ends_soft and current_text_len >= max_chars * 0.7) or too_long:
@@ -1512,7 +1517,9 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
         else:
             top = wrap_text(src_text, max_line_width, 2, language=source_lang, wrap_mode=wrap_mode)
             bottom = wrap_text(tr_text, max_line_width, 2, language=language, wrap_mode=wrap_mode)
-        body = top if not bottom else f"{top}\n{bottom}"
+        # Taraflardan biri bos kaldiginda dosyaya basa/sona bos satir ekleme;
+        # bazi oynaticilar bu satiri cue sonu olarak yorumlayabiliyor.
+        body = "\n".join(part for part in (top, bottom) if part)
         lines.append(f"{i + 1}")
         lines.append(f"{format_srt_time(s0)} --> {format_srt_time(e0)}")
         lines.append(body)
@@ -1538,6 +1545,9 @@ def write_txt(entries, output_path):
 
 
 def _ass_time(seconds):
+    if seconds is None or not math.isfinite(float(seconds)):
+        raise ValueError("ASS zaman damgası sonlu bir sayı olmalı")
+    seconds = float(seconds)
     if seconds < 0:
         seconds = 0
     # Tamsayı santisaniye aritmetiği: yuvarlama taşması doğru taşar
@@ -2278,7 +2288,11 @@ def llm_postprocess(entries, args, warn_list=None):
             # ("Hadigidelim"→"Hadi gidelim") kelime sayısını artırır; bu durumlarda KARAKTER
             # sayısı benzer kalır. Karakter sapması da büyükse gerçek yeniden yazımdır → reddet.
             oc, nc = len(orig), len(new)
-            words_off = ow >= 3 and (nw > ow * 2 or nw < ow * 0.5)
+            # CJK/Tayca gibi bosluksuz yazilarda split() her iki metni de tek
+            # kelime sayar. Bu dillerde karakter orani tek basina koruma olur;
+            # bosluklu dillerde eski kelime+karakter cift esigi korunur.
+            words_off = (uses_spaceless_script(orig)
+                         or (ow >= 3 and (nw > ow * 2 or nw < ow * 0.5)))
             chars_off = oc >= 1 and (nc > oc * 1.6 or nc < oc * 0.6)
             if words_off and chars_off:
                 continue
@@ -3931,10 +3945,15 @@ def job_signature(args):
         # split=none iken JSON istemek word_timestamps'i açar; bu bazı motorlarda
         # segment sınırlarını da etkileyebildiği için salt format adı yerine gerçek
         # davranışı imzalarız.
-        "need_words": args.split_mode != "none" or "json" in {
-            f.strip().lower() for f in (args.formats or "srt").split(",")
-        },
+        "need_words": requires_word_timestamps(args),
     }
+
+
+def requires_word_timestamps(args):
+    formats = {f.strip().lower() for f in (getattr(args, "formats", "srt") or "srt").split(",")}
+    return (getattr(args, "split_mode", "none") != "none" or "json" in formats
+            or bool(getattr(args, "confidence_report", False))
+            or bool(getattr(args, "drop_repeated_hallucinations", False)))
 
 
 _CHECKPOINT_WRITE_WARNED = set()
@@ -4247,8 +4266,7 @@ def transcribe(args):
 
         # word_timestamps yalnızca bölme (split) veya JSON çıktısı gerektiğinde gerekir;
         # varsayılan (split none + srt) için kapatmak transkripsiyonu hızlandırır
-        _fmts = [f.strip().lower() for f in (args.formats or "srt").split(",")]
-        need_words = (args.split_mode != "none") or ("json" in _fmts)
+        need_words = requires_word_timestamps(args)
 
         model = None      # faster/batched yolunda atanır; diarization öncesi serbest bırakılır
         batched = None
@@ -4611,6 +4629,7 @@ def transcribe(args):
 
         # Konuşmacı tanıma (opsiyonel)
         speakers_map = {}
+        diarization_spans = []
         if args.diarize:
             try:
                 emit("status", stage="diarize", text="Konuşmacılar tanımlanıyor...")
@@ -4624,9 +4643,7 @@ def transcribe(args):
                 # Diarization kırpılmış ses üzerinde çalışır — entries ile aynı eksene getir
                 if time_offset:
                     spans = [(s + time_offset, e + time_offset, sp) for (s, e, sp) in spans]
-                speakers_map = assign_speakers(entries, spans)
-                unique = sorted(set(speakers_map.values()))
-                log(f"{len(unique)} konuşmacı tespit edildi: {', '.join(unique)}", "success")
+                diarization_spans = spans
 
             except Exception as e:
                 log(f"Diarization başarısız: {e}", "error")
@@ -4654,6 +4671,14 @@ def transcribe(args):
                 max_cps=args.max_cps,
             )
             log(f"Zamanlama düzeltildi (maks {args.max_cps:.0f} CPS, min {args.min_duration:.2f}s, boşluk {args.min_gap:.2f}s)")
+
+        # snap/normalize başlangıçları değiştirebilir ve normalize sıralayabilir.
+        # İndeks tabanlı konuşmacı haritasını ancak nihai zamanlar belli olduktan
+        # sonra kur; aksi halde etiket başka diyaloğa taşınabilir.
+        if diarization_spans:
+            speakers_map = assign_speakers(entries, diarization_spans)
+            unique = sorted(set(speakers_map.values()))
+            log(f"{len(unique)} konuşmacı tespit edildi: {', '.join(unique)}", "success")
 
         # Önizlemeyi nihai metinle tazele (birleştirme/LLM/diarization/zamanlama/devam değişmiş olabilir)
         if (args.merge_short or args.merge_incomplete or args.merge_continuation
@@ -4844,6 +4869,8 @@ def transcribe(args):
         media_dur = float(getattr(info, "duration", 0.0) or 0.0)
         if clip_end is not None:
             media_dur = max(0.0, clip_end - (clip_start or 0.0))
+        elif clip_start is not None:
+            media_dur = max(0.0, media_dur - clip_start)
         rtf = (media_dur / elapsed) if media_dur else 0.0
         low_conf = 0
         try:
@@ -5395,12 +5422,16 @@ def reexport_from_json(args):
     for fmt in formats:
         fmt = fmt.strip().lower()
         out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
+        text_entries = (label_entries_for_text_output(entries, speakers_map)
+                        if getattr(args, "label_speakers", False) and speakers_map else entries)
         if fmt == "srt":
-            write_srt(entries, out_path, args.max_line_width, args.max_lines, language=lang, wrap_mode=args.wrap_mode)
+            write_srt(text_entries, out_path, args.max_line_width, args.max_lines,
+                      language=lang, wrap_mode=args.wrap_mode)
         elif fmt == "vtt":
-            write_vtt(entries, out_path, args.max_line_width, args.max_lines, language=lang, wrap_mode=args.wrap_mode)
+            write_vtt(text_entries, out_path, args.max_line_width, args.max_lines,
+                      language=lang, wrap_mode=args.wrap_mode)
         elif fmt == "txt":
-            write_txt(entries, out_path)
+            write_txt(text_entries, out_path)
         elif fmt == "ass":
             write_ass(entries, out_path, max_line_width=args.max_line_width, language=lang, wrap_mode=args.wrap_mode, speakers=speakers_map)
         elif fmt == "json":
@@ -5526,11 +5557,9 @@ def parse_srt(text):
     """SRT metnini [(start, end, text)] listesine çevir (iç satır sonlarını korur)."""
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     entries = []
-    for block in re.split(r"\n\s*\n", text.strip()):
-        lines = block.split("\n")
-        timing_idx = next((i for i, ln in enumerate(lines) if "-->" in ln), None)
-        if timing_idx is None:
-            continue
+    lines = text.strip().split("\n")
+    timing_indices = [i for i, line in enumerate(lines) if _SRT_TIMING.search(line)]
+    for position, timing_idx in enumerate(timing_indices):
         m = _SRT_TIMING.search(lines[timing_idx])
         if not m:
             continue
@@ -5539,7 +5568,13 @@ def parse_srt(text):
             end = srt_time_to_seconds(m.group(2))
         except (ValueError, IndexError):
             continue
-        txt = "\n".join(lines[timing_idx + 1:]).strip()
+        until = timing_indices[position + 1] if position + 1 < len(timing_indices) else len(lines)
+        # Ayraçsız SRT'de sonraki zaman kodunun önündeki sıra numarası, önceki
+        # cue'nun metni değildir.
+        if position + 1 < len(timing_indices) and until > timing_idx + 1 \
+                and lines[until - 1].strip().isdigit():
+            until -= 1
+        txt = "\n".join(lines[timing_idx + 1:until]).strip()
         entries.append((start, end, txt))
     return entries
 
@@ -5880,7 +5915,9 @@ def apply_piecewise(spans, pieces, ratio=1.0):
     out = []
     for (a_idx, b_idx, off) in pieces:
         for (s0, e0, t) in spans[a_idx:b_idx + 1]:
-            out.append((max(0.0, s0 * ratio + off), max(0.0, e0 * ratio + off), t))
+            start = max(0.0, s0 * ratio + off)
+            end = max(start + 0.001, e0 * ratio + off)
+            out.append((start, end, t))
     return out
 
 

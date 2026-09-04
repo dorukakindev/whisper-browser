@@ -3,6 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  burninAudioArgs,
   burninFinalOutputLooksComplete,
   burninOutputPaths,
   burninProcessNameMatches,
@@ -24,6 +25,10 @@ try {
   assert.equal(paths.tempPath, path.join(dir, 'film.altyazili.test-token.tmp.mkv'));
   const mp4Paths = burninOutputPaths(path.join(dir, 'film.mp4'), 'mp4-token');
   assert.equal(mp4Paths.outPath, path.join(dir, 'film.altyazili.mp4'));
+  assert.deepEqual(burninAudioArgs(path.join(dir, 'film.webm'), mp4Paths.outPath),
+    ['-c:a', 'aac', '-b:a', '192k']);
+  assert.deepEqual(burninAudioArgs(path.join(dir, 'film.mkv'), paths.outPath),
+    ['-c:a', 'copy']);
 
   fs.writeFileSync(paths.outPath, 'eski');
   fs.writeFileSync(paths.tempPath, 'tamamlanmis');

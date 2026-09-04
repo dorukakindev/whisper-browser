@@ -16,6 +16,29 @@ def normalized_text(text):
     return re.sub(r'\s+', ' ', unicodedata.normalize('NFC', str(text or ''))).strip()
 
 
+_SPACELESS_SCRIPT = re.compile(r'[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]')
+
+
+def uses_spaceless_script(text):
+    return bool(_SPACELESS_SCRIPT.search(normalized_text(text)))
+
+
+def sentence_parts_match(whole, parts):
+    """Parçaların tam cümleyi kayıpsız oluşturduğunu doğrula.
+
+    Latin dillerinde ayırıcı boşluk anlamlıdır. Çince/Japonca/Tayca gibi doğal
+    olarak boşluksuz yazılan hedeflerde sağlayıcı parça sınırına boşluk koymadan
+    tam cümle döndürebilir; o durumda yalnız boşluk farkını yok sayarız.
+    """
+    joined = normalized_text(' '.join(parts))
+    expected = normalized_text(whole)
+    if joined == expected:
+        return True
+    if uses_spaceless_script(expected):
+        return re.sub(r'\s+', '', joined) == re.sub(r'\s+', '', expected)
+    return False
+
+
 def sentence_ended(text):
     text = normalized_text(text).rstrip('\"\'“”‘’)}]»')
     if not _END.search(text):
@@ -37,20 +60,30 @@ def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_pa
 
     def protected(index):
         start, end, text = entries[index]
-        return (not math.isfinite(float(start)) or not math.isfinite(float(end))
-                or float(end) <= float(start) or not normalized_text(text)
+        try:
+            start, end = float(start), float(end)
+        except (TypeError, ValueError):
+            return True
+        return (not math.isfinite(start) or not math.isfinite(end)
+                or end <= start or not normalized_text(text)
                 or bool(_BOUNDARY.search(str(text).strip())))
 
     for index, (start, end, text) in enumerate(entries):
         size = len(normalized_text(text))
         if group:
             previous = group[-1]
-            gap = float(start) - float(entries[previous][1])
-            if (protected(index) or protected(previous) or not -0.05 <= gap <= max_gap
-                    or float(end) - float(entries[group[0]][0]) > max_duration
-                    or length + 1 + size > max_chars or len(group) >= max_parts):
+            current_protected = protected(index)
+            previous_protected = protected(previous)
+            if current_protected or previous_protected:
                 groups.append(group)
                 group, length = [], 0
+            else:
+                gap = float(start) - float(entries[previous][1])
+                if (not -0.05 <= gap <= max_gap
+                        or float(end) - float(entries[group[0]][0]) > max_duration
+                        or length + 1 + size > max_chars or len(group) >= max_parts):
+                    groups.append(group)
+                    group, length = [], 0
         group.append(index)
         length += size + (1 if len(group) > 1 else 0)
         if protected(index) or sentence_ended(text):
@@ -81,7 +114,7 @@ def validate_sentence_parts(whole, parts, count):
         return None
     # Sadece boşluk/NFC farkına izin ver: sözcük/noktalama ekleme, silme veya
     # yineleme yerleştirme aşamasında sessizce kabul edilmesin.
-    if normalized_text(' '.join(parts)) != normalized_text(whole):
+    if not sentence_parts_match(whole, parts):
         return None
     return {"text": normalized_text(whole), "parts": [part.strip() for part in parts]}
 
