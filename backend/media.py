@@ -256,9 +256,14 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
     target = Path(output_file)
     target.parent.mkdir(parents=True, exist_ok=True)
     completed_paths = []
+    # yt-dlp şablonu uzantı yer tutucusu olmadan kullanıldığında indirme
+    # aşamasındaki geçici webm/mp4 dosyası hedefin üzerine yazılır ve remux
+    # sonrası gerçek çıktı yolunu güvenilir biçimde bildiremez. Uzantıyı yt-dlp
+    # seçsin; sonrasında completed hook/info içinden gerçek yolu alıyoruz.
+    download_template = str(target.with_suffix('')) + '.%(ext)s'
     opts = _ydl_opts({
         "format": "bestvideo+bestaudio/best",
-        "outtmpl": str(target),
+        "outtmpl": download_template,
         "merge_output_format": "mp4",
         "download_ranges": download_range_func(None, [(start, end)]),
         "post_hooks": [completed_paths.append],

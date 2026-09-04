@@ -15,6 +15,8 @@ function decodeEntities(value) {
     lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', copy: '©', reg: '®',
     auml: 'ä', Auml: 'Ä', ouml: 'ö', Ouml: 'Ö', uuml: 'ü', Uuml: 'Ü',
     ccedil: 'ç', Ccedil: 'Ç', szlig: 'ß', eacute: 'é', Eacute: 'É',
+    scedil: 'ş', Scedil: 'Ş', gbreve: 'ğ', Gbreve: 'Ğ',
+    idot: 'ı', Idot: 'İ', inodot: 'ı', Inodot: 'İ', imath: 'ı', Imath: 'I',
   };
   // Üretilen & işaretini aynı geçişte yeniden çözme: &amp;#39; literal kalmalı.
   return String(value || '').replace(/&([a-z][a-z0-9]+|#\d+|#x[0-9a-f]+);/gi, (match, entity) => {
@@ -39,6 +41,7 @@ function cleanCueText(value) {
     .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{2,}/g, '\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }
@@ -66,6 +69,7 @@ function parseTime(value) {
 
 function normalizeCues(cues) {
   const clean = (cues || []).map((cue) => ({
+    ...cue,
     start: Number(cue.start),
     end: Number(cue.end),
     text: cleanCueText(cue.text),
@@ -92,27 +96,26 @@ function parseTimedBlocks(body) {
   const local = localMatch ? parseTime(localMatch[1]) : 0;
   const mapped = mpegMatch ? Number(mpegMatch[1]) / 90000 : 0;
   const timelineOffset = Number.isFinite(local) && Number.isFinite(mapped) ? mapped - local : 0;
-  const re = /(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
-  for (const block of clean.split(/\n\s*\n/)) {
-    const lines = block.split('\n');
-    const indices = lines.flatMap((line, index) => re.test(line) ? [index] : []);
-    for (let position = 0; position < indices.length; position++) {
+  const re = /(?:(\d+):)?(\d+):(\d{2})[,.](\d+)\s*-->\s*(?:(\d+):)?(\d+):(\d{2})[,.](\d+)/;
+  const lines = clean.split('\n');
+  const indices = lines.flatMap((line, index) => re.test(line) ? [index] : []);
+  for (let position = 0; position < indices.length; position++) {
       const idx = indices[position];
       const m = lines[idx].match(re);
       const start = Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3])
-        + Number(m[4].padEnd(3, '0')) / 1000;
+        + Number(`0.${m[4]}`);
       const end = Number(m[5] || 0) * 3600 + Number(m[6]) * 60 + Number(m[7])
-        + Number(m[8].padEnd(3, '0')) / 1000;
+        + Number(`0.${m[8]}`);
       let until = indices[position + 1] ?? lines.length;
       // Ayraçsız SRT'de sonraki zaman kodunun önündeki sıra numarası metin değildir.
       if (position + 1 < indices.length) {
         const candidate = lines[until - 1]?.trim() || '';
-        const separatedCueId = candidate && until > 1 && !lines[until - 2]?.trim();
+        const separatedCueId = /^[A-Za-z0-9_-]{1,128}$/.test(candidate)
+          && until > 1 && !lines[until - 2]?.trim();
         if (/^\d+$/.test(candidate) || separatedCueId) until--;
       }
       const text = lines.slice(idx + 1, until).join('\n');
       out.push({ start: start + timelineOffset, end: end + timelineOffset, text });
-    }
   }
   return normalizeCues(out);
 }
@@ -179,7 +182,9 @@ function parseLrc(body) {
   for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
     const tagPattern = /\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
     const tags = [...line.matchAll(tagPattern)];
-    const text = line.replace(new RegExp(`(?:${tagPattern.source})+`, 'g'), '').trim();
+    // Bir satırda birden çok zaman etiketi boşlukla ayrılabilir:
+    // [00:01.00] [00:02.00]Metin. Etiketler arasındaki boşluğu da tüket.
+    const text = line.replace(new RegExp(`(?:${tagPattern.source})+(?:\\s*)`, 'g'), '').trim();
     if (!text) continue;
     for (const tag of tags) {
       const fraction = String(tag[4] || '').padEnd(3, '0').slice(0, 3);
@@ -479,7 +484,9 @@ function cuesUseLocalSegmentTimeline(cues, segmentDuration, segmentStart = 0) {
   if (absoluteStart > 0 && list[0].start >= absoluteStart - 0.5) return false;
   return list[0].start >= 0
     && list[0].start < duration
-    && list[list.length - 1].end <= duration + 3;
+    // Bir cue segment sınırını aşabilir; yalnızca birden fazla segmentlik
+    // sıçramayı mutlak zaman işareti olarak kabul etmeye devam et.
+    && list[list.length - 1].end <= duration * 2 + 0.5;
 }
 
 function browserActiveCuesAt(cues, time) {
@@ -668,6 +675,10 @@ function parseXml(body) {
       if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) {
         paragraphStart = Number(startRaw) / 1000;
       }
+      const paragraphEnd = end !== null ? end
+        : (duration !== null && paragraphStart !== null ? paragraphStart + duration : null);
+      const paragraphDuration = paragraphEnd !== null && paragraphStart !== null
+        ? Math.max(0, paragraphEnd - paragraphStart) : 0;
       const spanBase = parentOffset + (paragraphStart || 0);
       for (const span of timedSpans) {
         const spanTag = span[2];
@@ -682,8 +693,15 @@ function parseXml(body) {
         if (spanStartRaw === spanTimedStart && spanTimedStart && Number.isFinite(Number(spanStartRaw))) spanStart = Number(spanStartRaw) / 1000;
         if (spanDurRaw === spanTimedDuration && spanTimedDuration && Number.isFinite(Number(spanDurRaw))) spanDuration = Number(spanDurRaw) / 1000;
         if (spanStart === null) continue;
-        spanStart += spanBase;
-        if (spanEnd !== null) spanEnd += spanBase;
+        // Bazı TTML üreticileri span zamanlarını p'ye göre göreli, bazıları
+        // doğrudan belge mutlakı yazar. Span p başlangıcına eşitse veya p'nin
+        // süresini belirgin biçimde aşıyorsa mutlak kabul et; normal göreli
+        // span'lerde geriye dönük uyumluluk için p ofsetini koru.
+        const absoluteSpan = (paragraphStart !== null && paragraphStart > 0
+          && (Math.abs(spanStart - paragraphStart) < 0.001
+            || (paragraphDuration > 0 && spanStart > paragraphDuration + 3)));
+        spanStart += absoluteSpan ? parentOffset : spanBase;
+        if (spanEnd !== null) spanEnd += absoluteSpan ? parentOffset : spanBase;
         if (spanEnd === null && spanDuration !== null) spanEnd = spanStart + spanDuration;
         out.push({ start: spanStart, end: spanEnd, text: span[3] });
       }
@@ -844,7 +862,7 @@ function mp4TrunSamples(buffer, box, defaults = {}) {
       composition = version === 1 ? buffer.readInt32BE(cursor) : buffer.readUInt32BE(cursor);
       cursor += 4;
     }
-    if (!duration || !size || cursor > box.end) return [];
+    if (!duration || size < 0 || cursor > box.end) return [];
     samples.push({ duration, size, composition });
   }
   return samples;

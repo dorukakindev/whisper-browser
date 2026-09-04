@@ -60,6 +60,8 @@ async function run() {
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('gemini-3.8-flash'), { temperature: 0.2 });
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('gpt-5.4-mini'), { max_completion_tokens: 4096 });
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('openai/o4-mini'), { max_completion_tokens: 4096 });
+  assert.equal(layout.sentenceTranslationMessageRole('gpt-5.4-mini'), 'developer');
+  assert.equal(layout.sentenceTranslationMessageRole('gemini-3.8-flash'), 'system');
 
   const key = translationCacheKey(sentence);
   assert.notEqual(key, translationCacheKey({ ...sentence, contextBefore: 'Different.' }));

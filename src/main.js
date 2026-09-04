@@ -2268,7 +2268,7 @@ async function readJsonResponseLimited(response, maxBytes, label) {
 
 async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
   const { sentenceTranslationRequest, decodeSentenceTranslation, fitTranslationParts,
-    sentenceTranslationGenerationParameters } = require('./subtitle-sentence-layout');
+    sentenceTranslationGenerationParameters, sentenceTranslationMessageRole } = require('./subtitle-sentence-layout');
   const grouped = (sentence.pieces?.length || 0) > 1;
   const sentenceRequest = grouped ? sentenceTranslationRequest(sentence) : null;
   const endpoint = safeTranslationEndpoint(endpointBase);
@@ -2314,7 +2314,7 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
         model: config.model,
         ...sentenceTranslationGenerationParameters(config.model),
         messages: [
-          { role: 'system', content: system },
+          { role: sentenceTranslationMessageRole(config.model), content: system },
           { role: 'user', content: sentenceRequest?.payload || String(sentence.text || '').slice(0, 12000) },
         ],
       }),
@@ -4019,7 +4019,7 @@ function browserTrackProbeScript() {
       if (changed.includes(track)) {
         try { track.mode = 'disabled'; } catch (_) {}
       }
-      if (count < 2) continue;
+      if (count < 1) continue;
       const previous = probeState.seen.get(track);
       // Yalnız son cue'ya bakmak, platform aynı sayıdaki listenin ortasındaki
       // metni/zamanı düzelttiğinde güncellemeyi sonsuza dek kaçırıyordu. FNV-1a
@@ -4651,6 +4651,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('did-create-window', (popup, details = {}) => {
     popup.setMenuBarVisibility(false);
+    // OAuth/ödeme açılır pencereleri ana görünümle aynı site uyumlu kimliği
+    // kullanmalı; aksi halde Electron UA'sı nedeniyle giriş akışı reddedilebiliyor.
+    try { popup.webContents.setUserAgent(sanitizeBrowserUserAgent(popup.webContents.getUserAgent())); } catch (_) {}
     try {
       const host = new URL(details.url || popup.webContents.getURL()).hostname;
       if (host) popup.setTitle(`Web girişi · ${host}`);
@@ -4672,7 +4675,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.bridgeToken = randomUUID();
     sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
-      browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
+      const prior = browserOverlay || tab.overlay || {};
+      const mode = ['source', 'translation', 'both'].includes(prior.mode) ? prior.mode : 'translation';
+      const offset = Number.isFinite(Number(prior.offset)) ? Number(prior.offset) : 0;
+      browserOverlay = { source: [], translation: [], mode, offset };
       tab.overlay = browserOverlay;
       resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
       applyBrowserOverlay();
@@ -6739,7 +6745,8 @@ function shiftTimecodes(text, offsetSec) {
     const shiftedEnd = end.seconds + offsetSec;
     if (shiftedEnd <= 0) {
       let from = index, to = index;
-      while (from > 0 && lines[from - 1].trim() !== '') from--;
+      while (from > 0 && lines[from - 1].trim() !== ''
+          && !/^\s*WEBVTT(?:\s|$)/i.test(lines[from - 1])) from--;
       while (to + 1 < lines.length && lines[to + 1].trim() !== '') to++;
       for (let i = from; i <= to; i++) removed.add(i);
       continue;

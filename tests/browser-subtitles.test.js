@@ -19,6 +19,7 @@ const {
   matchDashSubtitleUrl,
   dashSegmentOffset,
   cuesUseLocalSegmentTimeline,
+  normalizeCues,
   browserActiveCuesAt,
   parseMp4WebVtt,
   parseMp4SampleDefaults,
@@ -140,6 +141,34 @@ test('yaygın adlandırılmış HTML entity değerlerini çözer', () => {
   const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:01.000\nTom&nbsp;&amp;&nbsp;Jerry &copy;',
     'text/vtt', 'https://cdn.test/entities.vtt');
   assert.equal(result.cues[0].text, 'Tom & Jerry ©');
+});
+
+test('Türkçe HTML entityleri ve yüksek hassasiyetli zamanları çözer', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\n00:00:01.1234 --> 00:00:04.5678\nG&ouml;r&uuml;&scedil;mek &uuml;zere &gbreve;eldi: &Idot;stanbul.',
+    'text/vtt', 'https://cdn.test/tr.vtt');
+  assert.deepEqual(result.cues, [{ start: 1.1234, end: 4.5678, text: 'Görüşmek üzere ğeldi: İstanbul.' }]);
+});
+
+test('boş satırlı ve ayracı olmayan cue metinleri korunur', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nBirinci paragraf\n\nİkinci paragraf\n00:00:04.000 --> 00:00:05.000\nSon cue',
+    'text/vtt', 'https://cdn.test/paragraphs.vtt');
+  assert.equal(result.cues.length, 2);
+  assert.equal(result.cues[0].text, 'Birinci paragraf\nİkinci paragraf');
+  assert.equal(result.cues[1].text, 'Son cue');
+});
+
+test('cue normalizasyonu konuşmacı ve kimlik metadatasını korur', () => {
+  assert.deepEqual(normalizeCues([{ start: 1, end: 2, text: 'Merhaba', speaker: 'Alice', id: 'cue-1' }]),
+    [{ start: 1, end: 2, text: 'Merhaba', speaker: 'Alice', id: 'cue-1' }]);
+});
+
+test('LRC satırındaki aralıklı çoklu zaman etiketleri metne sızmaz', () => {
+  assert.deepEqual(parseLrc('[00:12.00] [00:15.00]Nakarat').map((cue) => ({ start: cue.start, text: cue.text })),
+    [{ start: 12, text: 'Nakarat' }, { start: 15, text: 'Nakarat' }]);
+});
+
+test('yerel segment zamanında komşu cue sınırını aşan son metin korunur', () => {
+  assert.equal(cuesUseLocalSegmentTimeline([{ start: 0.5, end: 9.5, text: 'Taşan replik' }], 6, 12), true);
 });
 
 test('TTML kapsayıcı begin zamanını alt p cue zamanına ekler', () => {
@@ -441,6 +470,16 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
   assert.deepEqual(parseMp4WebVtt(Buffer.concat([box('moof', defaultTraf), box('mdat', first)]), {
     timescale: 1000, sampleDefaults,
   }), [{ start: 6, end: 8, text: 'Bir' }]);
+
+  const emptyRows = Buffer.alloc(4 + 2 * 8); emptyRows.writeUInt32BE(2);
+  emptyRows.writeUInt32BE(2000, 4); emptyRows.writeUInt32BE(0, 8);
+  emptyRows.writeUInt32BE(2000, 12); emptyRows.writeUInt32BE(first.length, 16);
+  const emptyTraf = box('traf', Buffer.concat([
+    box('tfhd', full(0, tfhdPayload)), box('tfdt', full(0, tfdtPayload)), box('trun', full(0x300, emptyRows)),
+  ]));
+  assert.deepEqual(parseMp4WebVtt(Buffer.concat([box('moof', emptyTraf), box('mdat', first)]), {
+    timescale: 1000,
+  }), [{ start: 8, end: 10, text: 'Bir' }]);
 });
 
 test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bulur', () => {
@@ -627,6 +666,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
     < main.indexOf('const result = await dialog.showSaveDialog(mainWindow', main.indexOf('async function saveBrowserPageCapture')),
   'sayfa görüntüsü kayıt diyaloğundan sonra alınıyor');
   assert.match(main, /type: 'popup-opened', host, capture: false/);
+  assert.match(main, /did-create-window[\s\S]{0,260}popup\.webContents\.setUserAgent\(sanitizeBrowserUserAgent/);
+  assert.match(main, /if \(count < 1\) continue/);
+  assert.match(main, /const prior = browserOverlay \|\| tab\.overlay/);
   assert.match(preload, /navigateBrowser:/);
   assert.match(preload, /onBrowserEvent:/);
   assert.match(preload, /listBrowserPlaces:/);

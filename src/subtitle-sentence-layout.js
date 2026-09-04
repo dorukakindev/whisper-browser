@@ -86,6 +86,11 @@ function sentenceTranslationGenerationParameters(model) {
   return { temperature: 0.2 };
 }
 
+function sentenceTranslationMessageRole(model) {
+  return /(?:^|\/)(?:gpt-5(?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(String(model || '').trim())
+    ? 'developer' : 'system';
+}
+
 // Compatibility for plain-text providers: duration-weighted, bounded phrase
 // fitting. Model-supplied, losslessly validated phrase boundaries take precedence.
 // This fallback is a readability heuristic, not a semantic proof.
@@ -136,4 +141,4 @@ function fitTranslationParts(text, pieces) {
 
 module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
   sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest,
-  sentenceTranslationGenerationParameters };
+  sentenceTranslationGenerationParameters, sentenceTranslationMessageRole };

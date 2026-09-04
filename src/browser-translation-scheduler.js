@@ -103,9 +103,15 @@ function distributeTranslation(sentence, translatedText) {
   if (!pieces.length) return [];
   const translation = decodeSentenceTranslation(translatedText, pieces.length);
   if (translation.parts) return pieces.map((piece, index) => ({ ...piece, text: translation.parts[index] }));
-  const words = translation.text.split(/\s+/).filter(Boolean);
-  if (!words.length) return [];
-  if (pieces.length === 1) return [{ ...pieces[0], text: words.join(' ') }];
+  const normalized = String(translation.text || '').trim();
+  if (!normalized) return [];
+  // CJK/Tayca gibi boşluksuz yazılarda split() tek parça üretip diğer cue'ları
+  // sessizce düşürüyordu. Grapheme dizisiyle kayıpsız dağıtım yap.
+  const spaceless = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0e00-\u0e7f]/u.test(normalized)
+    && !/\s/u.test(normalized);
+  const words = spaceless ? Array.from(normalized) : normalized.split(/\s+/).filter(Boolean);
+  const separator = spaceless ? '' : ' ';
+  if (pieces.length === 1) return [{ ...pieces[0], text: words.join(separator) }];
   // Çeviri kaynak parçadan daha az kelimeye düştüğünde her kaynak cue için
   // ayrı metin üretmek boş veya yinelenen balonlara yol açar. Komşu zaman
   // aralıklarını birleştirerek her çıktı cue'sunun okunur metni olmasını sağla.
@@ -117,7 +123,7 @@ function distributeTranslation(sentence, translatedText) {
       return { ...pieces[firstIndex], end: pieces[lastIndex].end, text: word };
     });
   }
-  const parts = fitTranslationParts(translation.text, pieces);
+  const parts = fitTranslationParts(normalized, pieces);
   return pieces.map((piece, index) => ({ ...piece, text: parts[index] }));
 }
 
@@ -194,7 +200,12 @@ class BrowserTranslationScheduler {
     }).map((sentence) => sentence.id));
     if (farSeek) {
       for (const [id, job] of this.pending.entries()) {
-        if (!windowIds.has(id)) job.controller.abort('Oynatma konumu değişti.');
+        if (!windowIds.has(id)) {
+          job.controller.abort('Oynatma konumu değişti.');
+          // Abort sinyali sağlayıcıya göre asenkron gelebilir; işi hemen
+          // pending'den çıkarmak aynı cue'nun ikinci kez kuyruğa girmesini önler.
+          this.pending.delete(id);
+        }
       }
     }
     const now = Date.now();

@@ -1632,6 +1632,11 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
 def write_json(entries, output_path, info=None, speakers=None, all_words=None):
     """Ham veri JSON çıktısı — kelime zaman damgaları dahil."""
     speakers = speakers or {}
+    # Zaman damgası altyazının kimliğidir; geçersiz bir segmenti sessizce 0'a
+    # taşımak kullanıcıyı yanıltır. Dosyaya dokunmadan önce tüm girdiyi doğrula.
+    for start, end, _text in entries:
+        if not math.isfinite(float(start)) or not math.isfinite(float(end)):
+            raise ValueError("Geçersiz segment zaman damgası")
     payload = {
         "version": 1,
         "language": getattr(info, "language", None) if info else None,
@@ -1644,10 +1649,14 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None):
     n_words = len(all_words) if all_words else 0
     cursor = 0  # ileri-yönlü imleç — kelime eşlemesini O(n) tutar
     for i, (start, end, text) in enumerate(entries):
+        safe_start = round(float(start), 3)
+        safe_end = round(float(end), 3)
+        if safe_end < safe_start:
+            safe_end = safe_start
         seg = {
             "id": i + 1,
-            "start": round(start, 3),
-            "end": round(end, 3),
+            "start": safe_start,
+            "end": safe_end,
             "text": text,
             "speaker": speakers.get(i),
         }

@@ -306,6 +306,19 @@ async function test(name, fn) {
     assert.equal(scheduler.inFlightByCacheKey.size, 0);
   });
 
+  await test('boşluksuz çeviri metni çoklu cueya kayıpsız dağıtılır', async () => {
+    const sentence = {
+      id: 'cjk', text: 'Source',
+      pieces: [
+        { cueId: 'a', start: 0, end: 1, text: 'A' },
+        { cueId: 'b', start: 1, end: 2, text: 'B' },
+      ],
+    };
+    const cues = distributeTranslation(sentence, 'これはテストです');
+    assert.equal(cues.length, 2);
+    assert.equal(cues.map((cue) => cue.text).join(''), 'これはテストです');
+  });
+
   console.log(`browser-workflow-core: ${passed} test`);
 })().catch((error) => {
   console.error(error.stack || error);
