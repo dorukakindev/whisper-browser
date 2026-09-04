@@ -3528,6 +3528,7 @@ const player = {
   browserMangaAutoTimer: null,
   browserMangaLookaheadBusy: false,
   browserTranslationTrackId: '',
+  browserTranslationStartSeq: 0,
   browserLiveTranslations: new Map(),
   browserTranslationFailed: 0,
   settingsPage: 'source',
@@ -5017,20 +5018,23 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
     return;
   }
   clearDeferredBrowserTrackAction();
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
   if (translate) {
     const prepareSeq = ++player.browserPrepareSeq;
     player.browserTranslatePreparing = true;
     if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = true;
     setBrowserSignal('Altyazı parçaları tamamlanıyor; son sürüm bekleniyor…', true);
     track = await waitForBrowserTrackStable(track.id, prepareSeq);
+    if (prepareSeq !== player.browserPrepareSeq) return;
     player.browserTranslatePreparing = false;
     if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = false;
-    if (!track || prepareSeq !== player.browserPrepareSeq) return;
+    if (!track || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   }
   addSubtitleOption(track.path, `Web · ${track.language || track.label}`);
   $('playerSubSelect').value = track.path;
   await loadSubtitle(track.path);
-  if (player.subPath !== track.path) return;
+  if (player.subPath !== track.path || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   player.browserLoadedTrackId = track.id;
   setPlayerSidebarCollapsed(false);
   const sourceLanguage = browserTrackSourceLanguage(track);
@@ -5065,15 +5069,24 @@ async function completeSelectedBrowserTranslation() {
 }
 
 async function startBrowserLiveTranslation(track, sourceLanguage = '') {
-  if (!window.api.startBrowserTranslation || !track || !player.cues.length) return;
+  if (!window.api.startBrowserTranslation || !track || track.role === 'translation' || !player.cues.length) return;
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
+  const startSeq = ++player.browserTranslationStartSeq;
   player.browserTranslationTrackId = track.id;
   player.browserLiveTranslations = new Map();
   player.browserTranslationFailed = 0;
   player.cues2 = [];
+  player.cues2Raw = null;
+  player.activeIdx2 = -1;
+  player.sub2Path = '';
+  player.browserLoadedTrackId2 = '';
+  if ($('playerSubSelect2')) $('playerSubSelect2').value = '';
+  if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
   updateBrowserTranslationExportButton();
   updateBrowserTranslationRetryButton();
   syncSubtitleModeUi();
-  const result = await window.api.startBrowserTranslation(player.browserActiveTabId, {
+  const result = await window.api.startBrowserTranslation(tabId, {
     trackId: track.id,
     cues: player.cues.map((cue, index) => ({
       id: cue.id ?? index, start: cue.start, end: cue.end, text: cue.text,
@@ -5084,6 +5097,11 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
     profanity: $('translateProfanity')?.value || 'medium',
     completeTrack: true,
   }).catch((error) => ({ ok: false, error: error.message }));
+  // IPC yanıtı sekme/medya değişiminden veya aynı izi yeniden başlatan daha
+  // yeni bir istekten sonra gelebilir; yeni çalışma alanına dokunma.
+  if (player.browserActiveTabId !== tabId || staleGeneration(gen)
+      || player.browserTranslationStartSeq !== startSeq
+      || player.browserTranslationTrackId !== track.id) return;
   if (!result || !result.ok) {
     player.browserTranslationTrackId = '';
     updateBrowserTranslationExportButton();
@@ -5509,8 +5527,11 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
   const primary = !!track && player.browserLoadedTrackId === track.id && player.subPath === track.path;
   const secondary = !!track && player.browserLoadedTrackId2 === track.id && player.sub2Path === track.path;
   if (!primary && !secondary) return;
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
   clearTimeout(player.browserTrackRefreshTimers[track.id]);
   player.browserTrackRefreshTimers[track.id] = setTimeout(async () => {
+    if (player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
     delete player.browserTrackRefreshTimers[track.id];
     const latest = player.browserTracks.find((item) => item.id === track.id);
     const refreshPrimary = !!latest && player.browserLoadedTrackId === latest.id && player.subPath === latest.path;
@@ -5525,7 +5546,8 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
     if (refreshPrimary) {
       if ($('playerSubSelect')) $('playerSubSelect').value = latest.path;
       await loadSubtitle(latest.path, false, { silent: true, preserveInspector: true });
-      if (player.browserTranslationTrackId === latest.id) {
+      if (player.browserActiveTabId !== tabId || staleGeneration(gen) || player.subPath !== latest.path) return;
+      if (latest.role !== 'translation' && player.browserTranslationTrackId === latest.id) {
         await startBrowserLiveTranslation(latest, browserTrackSourceLanguage(latest));
       }
     }
@@ -10165,6 +10187,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     updateSubtitleChips();
     updateMakeTransState();
     updateBrowserTranslationExportButton();
+    updateBrowserTranslationRetryButton();
     renderCue();
     if (secondary) setSubtitleMode(player.cues.length ? 'source' : 'off', false);
     else setSubtitleMode(player.cues2.length ? 'translation' : 'off', false);

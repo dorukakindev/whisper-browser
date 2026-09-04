@@ -56,5 +56,61 @@ function action(name, next, context) {
   finishRetry({ ok: true, retried: 3 });
   await pending;
   assert.equal(retryContext.player.browserTranslationFailed, 3);
-  console.log('Browser subtitle actions: failed export, saved translation and stale retry guards passed.');
+
+  // Geciken başlangıç yanıtı ne başka sekmeyi ne daha yeni aynı-iz işini ezer.
+  for (const replacement of ['tab', 'track', 'request', 'generation', 'current']) {
+    let finishStart;
+    let generation = 1;
+    const modes = [];
+    const controls = { playerSubSelect2: { value: 'old.srt' }, browserTrackSelect2: { value: 'old' } };
+    const startContext = {
+      player: { browserActiveTabId: 'a', browserTranslationStartSeq: 0,
+        cues: [{ start: 0, end: 1, text: 'Hello' }], cues2Raw: [{ text: 'old' }] },
+      currentGeneration: () => generation, staleGeneration: (gen) => gen !== generation,
+      $: (id) => controls[id],
+      window: { api: { startBrowserTranslation: () => new Promise((resolve) => { finishStart = resolve; }) } },
+      updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {}, syncSubtitleModeUi() {},
+      setSubtitleMode: (mode) => modes.push(mode), setBrowserSignal: (...args) => modes.push(args),
+    };
+    vm.createContext(startContext);
+    vm.runInContext(source.slice(source.indexOf('async function startBrowserLiveTranslation('),
+      source.indexOf('function browserTranslationCueKey(')), startContext);
+    const starting = startContext.startBrowserLiveTranslation({ id: 'source', role: 'source' });
+    assert.equal(startContext.player.cues2Raw, null);
+    assert.equal(controls.playerSubSelect2.value, '');
+    if (replacement === 'tab') startContext.player.browserActiveTabId = 'b';
+    if (replacement === 'track') startContext.player.browserTranslationTrackId = 'other';
+    if (replacement === 'request') startContext.player.browserTranslationStartSeq++;
+    if (replacement === 'generation') generation++;
+    const selected = startContext.player.browserTranslationTrackId;
+    finishStart(replacement === 'current' ? { ok: true, sentenceCount: 1 }
+      : { ok: false, error: 'eski istek hatası' });
+    await starting;
+    assert.equal(startContext.player.browserTranslationTrackId, selected, replacement);
+    if (replacement === 'current') assert.equal(modes[0], 'both', 'güncel başarılı istek uygulanmadı');
+    else assert.equal(modes.length, 0, `${replacement}: eski yanıt görünümü değiştirdi`);
+  }
+
+  // Kaydedilmiş çeviri dosyası büyür/güncellenirse yalnız yeniden yüklenir.
+  let refresh;
+  let starts = 0;
+  let reloads = 0;
+  const saved = { id: 'saved', path: 'saved.srt', role: 'translation' };
+  const refreshContext = {
+    player: { browserActiveTabId: 'a', browserLoadedTrackId: 'saved', subPath: 'saved.srt',
+      browserTranslationTrackId: 'saved', browserTrackRefreshTimers: {}, browserTracks: [saved] },
+    currentGeneration: () => 1, staleGeneration: () => false,
+    clearTimeout() {}, setTimeout: (fn) => { refresh = fn; return 1; },
+    state: {}, $: () => null, loadSubtitle: async () => { reloads++; },
+    startBrowserLiveTranslation: async () => { starts++; }, browserTrackSourceLanguage: () => 'tr',
+  };
+  vm.createContext(refreshContext);
+  vm.runInContext(source.slice(source.indexOf('function scheduleActiveBrowserTrackRefresh('),
+    source.indexOf('function browserSubtitleMode(')), refreshContext);
+  refreshContext.scheduleActiveBrowserTrackRefresh(saved);
+  await refresh();
+  assert.equal(reloads, 1);
+  assert.equal(starts, 0, 'kayıtlı çeviri yeniden çeviriye gönderildi');
+
+  console.log('Browser subtitle actions: export, start/retry races and saved translation refresh passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
