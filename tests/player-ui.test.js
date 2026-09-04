@@ -590,10 +590,10 @@ test('Kaynak/Çeviri anahtarları VİDEO üzerindeki altyazıyı da etkiliyor', 
   assert(/showTranslation'\)\.addEventListener\('change',\s*onSubtitleTrackToggle\)/.test(js),
     'showTranslation ortak gorunurluk yoneticisine bagli degil');
   const i = js.indexOf('function applySubtitleTrackSelection');
-  const body = js.slice(i, i + 650);
-  assert(/classList\.toggle\('hide-src',\s*!source\)/.test(body),
+  const body = js.slice(i, i + 1000);
+  assert(/classList\.toggle\('hide-src',[\s\S]{0,120}!\(primaryTranslation \? translation : source\)/.test(body),
     "kaynak sinifi playerLayer'a uygulanmiyor");
-  assert(/classList\.toggle\('hide-tr',\s*!translation\)/.test(body),
+  assert(/classList\.toggle\('hide-tr',[\s\S]{0,120}!\(primaryTranslation \? source : translation\)/.test(body),
     "ceviri sinifi playerLayer'a uygulanmiyor");
   assert(/\.player-layer\.hide-src #subtitleOverlay\s*\{[^}]*display:\s*none/.test(css),
     'katmani gizleyen CSS kurali yok');
@@ -1209,6 +1209,9 @@ test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını b
     'sekme geri yüklemesinde çeviri dışa aktarımı hazır ikinci kanala düşmüyor');
   assert(/function abSubtitleExcerpt/.test(js) && /cuesToSrt\(cues\)/.test(js),
     'A-B altyazı metni zamanlı SRT olarak üretilmiyor');
+  const tracks = js.slice(js.indexOf('function renderBrowserTracks'), js.indexOf('async function loadPersistedBrowserTranslation'));
+  assert(/addSubtitleOption\(track\.path/.test(tracks),
+    'yakalanan web izleri genel altyazı ayarlarına eklenmiyor');
 });
 
 test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçilebilir', () => {
@@ -1246,7 +1249,9 @@ test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
   const renderer = js.slice(js.indexOf('async function loadPersistedBrowserTranslation'),
     js.indexOf('function browserTrackSelection'));
   assert(/loadSubtitle\(track\.path, false/.test(renderer), 'kalıcı çeviri ana altyazı kanalına yüklenmiyor');
-  assert(/setSubtitleMode\('source', false\)/.test(renderer), 'kalıcı çeviri ana altyazı görünümü yapılmıyor');
+  assert(/setSubtitleMode\('translation', false\)/.test(renderer), 'kalıcı çeviri görünümü yapılmıyor');
+  assert(/player\.browserTranslationTrackId = track\.id/.test(renderer),
+    'kalıcı çevirinin rolü seçim ayarlarında korunmuyor');
 });
 
 test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {

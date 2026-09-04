@@ -4846,6 +4846,13 @@ function renderBrowserTracks(selectedId) {
   if (!select || !select2 || !actions) return;
   const previous = selectedId || select.value;
   const previous2 = select2.value;
+  // Yakalanan web izleri yalnızca tarayıcı şeridinde değil, oynatıcı ayar
+  // panelindeki genel altyazı seçimlerinde de kullanılabilmeli.
+  for (const track of player.browserTracks) {
+    if (!track?.path) continue;
+    const role = track.role === 'translation' ? 'Çeviri' : 'Web';
+    addSubtitleOption(track.path, `${role} · ${track.language || track.label || 'altyazı'}`);
+  }
   const syncOptions = (target, includeEmpty) => {
     const validIds = new Set(player.browserTracks.map((track) => String(track.id)));
     for (const option of [...target.options]) {
@@ -4894,12 +4901,14 @@ async function loadPersistedBrowserTranslation(track) {
     if (player.browserActiveTabId !== tabId || player.subPath !== track.path) return;
     player.browserLoadedTrackId = track.id;
     player.browserLoadedTrackId2 = '';
-    player.browserTranslationTrackId = '';
+    // Kalıcı çeviri birincil kanala yüklense de rolünü kaybetmemeli; aksi
+    // halde ayarlardaki "Yalnızca çeviri" seçeneği devre dışı kalır.
+    player.browserTranslationTrackId = track.id;
     player.browserLiveTranslations = new Map();
     player.cues2 = [];
     tab.browserLoadedTrackId = track.id;
     tab.browserLoadedTrackId2 = '';
-    tab.browserTranslationTrackId = '';
+    tab.browserTranslationTrackId = track.id;
     tab.browserLiveTranslations = [];
     tab.cues = player.cues.slice();
     tab.cues2 = [];
@@ -4907,7 +4916,8 @@ async function loadPersistedBrowserTranslation(track) {
     tab.sub2Path = '';
     tab.subtitles = player.subtitles.map((item) => ({ ...item }));
     tab.subOrigins = { ...player.subOrigins };
-    setSubtitleMode('source', false);
+    setSubtitleMode('translation', false);
+    updateSubtitleChips();
     updateBrowserTranslationExportButton();
     renderBrowserTracks(track.id);
     scheduleBrowserOverlaySync();
@@ -5438,14 +5448,23 @@ function browserSubtitleMode() {
   return ['off', 'source', 'translation', 'both'].includes(mode) ? mode : 'both';
 }
 
+function browserPrimaryIsTranslation() {
+  if (player.workspaceMode !== 'browser' || player.cues2.length) return false;
+  const id = player.browserTranslationTrackId;
+  return !!id && player.browserLoadedTrackId === id
+    && player.browserTracks.some((track) => track.id === id && track.role === 'translation');
+}
+
 function scheduleBrowserOverlaySync() {
   clearTimeout(player.browserOverlayTimer);
   if (player.workspaceMode !== 'browser' || !window.api.setBrowserOverlay) return;
   player.browserOverlayTimer = setTimeout(() => {
     player.browserOverlayTimer = null;
     window.api.setBrowserOverlay(player.browserActiveTabId, {
-      source: player.cues.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
-      translation: player.cues2.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
+      source: (browserPrimaryIsTranslation() ? [] : player.cues)
+        .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
+      translation: (browserPrimaryIsTranslation() ? player.cues : player.cues2)
+        .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
       offset: player.offset,
       style: {
@@ -9382,8 +9401,12 @@ function applySubtitleTrackSelection(source, translation) {
   if ($('showTranslation')) $('showTranslation').checked = !!translation;
   const layer = $('playerLayer');
   if (layer) {
-    layer.classList.toggle('hide-src', !source);
-    layer.classList.toggle('hide-tr', !translation);
+    // Kalıcı web çevirisi birincil kanala yüklenebilir. Bu durumda görsel
+    // birincil overlay çeviri rolünü taşır; kaynak/çeviri anahtarlarını yine
+    // doğru katmana bağla ve boş ikinci overlay'i göstermeye çalışma.
+    const primaryTranslation = browserPrimaryIsTranslation();
+    layer.classList.toggle('hide-src', !(primaryTranslation ? translation : source));
+    layer.classList.toggle('hide-tr', !(primaryTranslation ? source : translation));
   }
   scheduleBrowserOverlaySync();
 }
@@ -9418,9 +9441,9 @@ function syncSubtitleModeUi() {
   });
   const display = $('playerSubtitleDisplay');
   if (display) {
-    const hasSource = player.cues.length > 0;
-    const hasTranslation = player.cues2.length > 0
-      || (player.workspaceMode === 'browser' && !!player.browserTranslationTrackId);
+    const primaryTranslation = browserPrimaryIsTranslation();
+    const hasSource = player.cues.length > 0 && !primaryTranslation;
+    const hasTranslation = player.cues2.length > 0 || primaryTranslation;
     for (const option of display.options) {
       if (option.value === 'source') option.disabled = !hasSource;
       else if (option.value === 'translation') option.disabled = !hasTranslation;
@@ -9450,6 +9473,7 @@ function setSubtitlesVisible(visible) {
 }
 
 function setSubtitleMode(mode, announce = true) {
+  if (mode === 'source' && browserPrimaryIsTranslation()) mode = 'translation';
   if (mode === 'off') {
     setSubtitlesVisible(false);
   } else if (mode === 'source' || mode === 'translation') {
@@ -9869,14 +9893,17 @@ function updateSubtitleChips() {
   const src = $('srcLangChip');
   const tr = $('trLangChip');
   const org = $('subOrigin');
+  const primaryTranslation = browserPrimaryIsTranslation();
   if (src) {
     const l = langFromPath(player.subPath);
-    src.textContent = l ? `Kaynak · ${l}` : 'Kaynak';
+    src.textContent = l ? `${primaryTranslation ? 'Çeviri' : 'Kaynak'} · ${l}` : (primaryTranslation ? 'Çeviri' : 'Kaynak');
+    // Birincil kanala yüklenen kalıcı çeviri de bir dil rozeti göstermeli;
+    // aksi halde iki rozet birden kaybolup hangi izin açık olduğu belirsizleşir.
     src.classList.toggle('hidden', !player.cues.length);
   }
   if (tr) {
     const l2 = langFromPath(player.sub2Path);
-    tr.textContent = l2 ? `Çeviri · ${l2}` : 'Çeviri';
+    tr.textContent = l2 ? `${primaryTranslation ? 'Kaynak' : 'Çeviri'} · ${l2}` : (primaryTranslation ? 'Kaynak' : 'Çeviri');
     tr.classList.toggle('hidden', !player.cues2.length);
   }
   if (org) org.textContent = player.subPath ? (player.subOrigins[player.subPath] || 'Dosya') : '';
@@ -9918,11 +9945,28 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.subRaw = '';
       renderSeekMarkers(defaultMarkers());
       if ($('applyOffsetToFile')) $('applyOffsetToFile').classList.add('hidden');
+      // Birincil web izi kaldırıldığında kalıcı çeviri kimliği boşta kalırsa
+      // sonraki kaynak seçimi yanlışlıkla eski çeviri olarak sınıflanabilir.
+      // İkinci kanalda gerçek bir iz varsa onu koru; yoksa sekme eşleşmesini
+      // birlikte temizle.
+      if (!player.cues2.length) {
+        player.browserLoadedTrackId = '';
+        player.browserTranslationTrackId = '';
+        player.browserLiveTranslations = new Map();
+        const tab = browserTabState();
+        if (tab) {
+          tab.browserLoadedTrackId = '';
+          tab.browserTranslationTrackId = '';
+          tab.browserLiveTranslations = [];
+        }
+      }
     }
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
     updateSubtitleChips();
     updateMakeTransState();
     renderCue();
+    if (secondary) setSubtitleMode(player.cues.length ? 'source' : 'off', false);
+    else setSubtitleMode(player.cues2.length ? 'translation' : 'off', false);
     return;
   }
   const gen = currentGeneration();
@@ -9963,6 +10007,41 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.subRaw = res.text;
     player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
+    const browserTrack = player.workspaceMode === 'browser'
+      ? player.browserTracks.find((track) => track.path === path) : null;
+    const previousTranslation = player.browserTracks.find((track) =>
+      track.id === player.browserTranslationTrackId && track.role === 'translation');
+    if (browserTrack?.role === 'translation') {
+      player.browserLoadedTrackId = browserTrack.id;
+      player.browserTranslationTrackId = browserTrack.id;
+      player.browserLiveTranslations = new Map();
+      player.cues2 = [];
+      player.cues2Raw = null;
+      player.sub2Path = '';
+      const tab = browserTabState();
+      if (tab) {
+        tab.browserLoadedTrackId = browserTrack.id;
+        tab.browserLoadedTrackId2 = '';
+        tab.browserTranslationTrackId = browserTrack.id;
+        tab.browserLiveTranslations = [];
+        tab.cues2 = [];
+        tab.sub2Path = '';
+      }
+      // Ayarlar panelinden çevri izini tek başına seçince mevcut görünüm
+      // modu kaynakta kalıp boş bir katman göstermesin.
+      setSubtitleMode('translation', false);
+    } else if (previousTranslation && browserTrack?.id !== previousTranslation.id) {
+      player.browserTranslationTrackId = '';
+      player.browserLiveTranslations = new Map();
+      const tab = browserTabState();
+      if (tab) {
+        tab.browserTranslationTrackId = '';
+        tab.browserLiveTranslations = [];
+      }
+      // Kaynak izine geri dönüldüğünde, artık mevcut olmayan çeviri modu
+      // yüzünden ekranın boş kalmasını önle.
+      setSubtitleMode('source', false);
+    }
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
   }
   // Kullanici altyaziyi acikca yukledi; gizliyken sessizce gizli kalmasi
