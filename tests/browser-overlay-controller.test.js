@@ -31,7 +31,7 @@ test('ilk durum kapalıysa DOM katmanı ve medya taraması oluşturmaz', () => {
     querySelectorAll() { scanned++; return []; },
   };
   const result = vm.runInNewContext(
-    buildBrowserOverlayScript({ mode: 'off', style: {} }, '() => []'),
+    buildBrowserOverlayScript({ mode: 'off', style: { hideSiteCaptions: true } }, '() => []'),
     { window, document, globalThis: window, cancelAnimationFrame() {}, requestAnimationFrame() { return 1; } });
   assert.equal(result, true);
   assert.equal(created, 0);

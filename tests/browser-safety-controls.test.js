@@ -46,6 +46,8 @@ test('site temizligi origin ile sinirli ve genel cache temizligi yapmiyor', () =
 test('pinleme ve aktif is kapatma korumasi main ve renderer boyunca tasinir', () => {
   assert.match(main, /ipcMain\.handle\('browser:tab:setPinned'/);
   assert.match(main, /!force && \(tab\.pinned \|\| activeWork\)/);
+  assert.match(main, /translationState\?\.failures\?\.some\(\(failure\) => !failure\.terminal\)/,
+    'backoff bekleyen web çevirisi aktif iş sayılmıyor');
   assert.match(preload, /setBrowserTabPinned/);
   assert.match(renderer, /browserTabPin/);
   assert.match(renderer, /result\?\.requiresConfirmation/);

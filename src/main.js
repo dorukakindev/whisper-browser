@@ -5211,7 +5211,9 @@ ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransitio
   const tab = browserTabById(rawId);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   const translationState = tab.translationScheduler?.snapshot();
-  const activeWork = !!tab.mangaJob || !!(translationState?.queued?.length || translationState?.pending?.length);
+  const translationRetrying = translationState?.failures?.some((failure) => !failure.terminal);
+  const activeWork = !!tab.mangaJob
+    || !!(translationState?.queued?.length || translationState?.pending?.length || translationRetrying);
   if (!force && (tab.pinned || activeWork)) {
     return { ok: false, requiresConfirmation: true, pinned: !!tab.pinned, activeWork,
       error: tab.pinned ? 'Bu sekme sabitlenmiş.' : 'Bu sekmede devam eden bir çeviri işi var.' };

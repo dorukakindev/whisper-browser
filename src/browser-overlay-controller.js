@@ -97,7 +97,9 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     const syncNativeCaptionVisibility = () => {
       const id = '__whisper_hide_native_captions';
       let sheet = document.getElementById(id);
-      if (state.style?.hideSiteCaptions) {
+      // Uygulama katmanı kapalıyken sitenin kendi altyazısını asla gizleme;
+      // aksi halde kullanıcı iki altyazı kaynağını da aynı anda kaybeder.
+      if (state.mode !== 'off' && state.style?.hideSiteCaptions) {
         if (!sheet) {
           sheet = document.createElement('style');
           sheet.id = id;

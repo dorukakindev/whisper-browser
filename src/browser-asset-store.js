@@ -9,17 +9,23 @@ function hash(value, length = 24) {
 }
 
 function normalizeCues(rawCues) {
-  return (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => ({
-    id: String(cue && (cue.id ?? cue.index ?? index)).slice(0, 180),
-    start: Math.max(0, Number(cue && cue.start) || 0),
-    end: Math.max(0, Number(cue && cue.end) || 0),
-    text: String(cue && cue.text || '').replace(/\r\n/g, '\n').trim().slice(0, 12000),
-  })).filter((cue) => cue.text && cue.end >= cue.start)
+  return (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
+    const start = Number(cue && cue.start);
+    const end = Number(cue && cue.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    return {
+      id: String(cue && (cue.id ?? cue.index ?? index)).slice(0, 180),
+      start: Math.max(0, start),
+      end: Math.max(0, end),
+      text: String(cue && cue.text || '').replace(/\r\n/g, '\n').trim().slice(0, 12000),
+    };
+  }).filter((cue) => cue && cue.text && cue.end >= cue.start)
     .sort((a, b) => a.start - b.start || a.end - b.end).slice(-20000);
 }
 
 function srtTime(seconds) {
-  const totalMs = Math.max(0, Math.round((Number(seconds) || 0) * 1000));
+  const value = Number(seconds);
+  const totalMs = Math.max(0, Math.round((Number.isFinite(value) ? value : 0) * 1000));
   const ms = totalMs % 1000;
   const totalSeconds = Math.floor(totalMs / 1000);
   const sec = totalSeconds % 60;

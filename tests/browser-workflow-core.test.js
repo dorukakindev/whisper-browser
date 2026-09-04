@@ -280,6 +280,21 @@ async function test(name, fn) {
     assert.equal(calls, 2);
   });
 
+  await test('cache beklerken iptal edilen tüketici yeni API isteği başlatmaz', async () => {
+    let calls = 0;
+    const scheduler = new BrowserTranslationScheduler({
+      translate: async () => { calls++; return 'Gereksiz sonuç'; },
+    });
+    const controller = new AbortController();
+    controller.abort('konum değişti');
+    await assert.rejects(
+      scheduler.translateShared({ id: 'late', text: 'Late.' }, 'late-key', controller),
+      /konum değişti/
+    );
+    assert.equal(calls, 0);
+    assert.equal(scheduler.inFlightByCacheKey.size, 0);
+  });
+
   console.log(`browser-workflow-core: ${passed} test`);
 })().catch((error) => {
   console.error(error.stack || error);

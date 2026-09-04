@@ -232,6 +232,12 @@ class BrowserTranslationScheduler {
   }
 
   translateShared(sentence, cacheKey, jobController) {
+    // Cache okuması sürerken seek/cancel gelmiş olabilir. AbortSignal, olay
+    // dinleyicisi sonradan eklenince geçmiş abort olayını yeniden yayımlamaz;
+    // bu kapı olmazsa artık tüketicisi olmayan pahalı bir API isteği başlar.
+    if (jobController.signal.aborted) {
+      return Promise.reject(new Error(String(jobController.signal.reason || 'Çeviri isteği iptal edildi.')));
+    }
     let shared = this.inFlightByCacheKey.get(cacheKey);
     if (shared && (shared.settled || shared.controller.signal.aborted)) {
       if (this.inFlightByCacheKey.get(cacheKey) === shared) this.inFlightByCacheKey.delete(cacheKey);

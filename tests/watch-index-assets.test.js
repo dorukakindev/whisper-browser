@@ -94,6 +94,15 @@ try {
     assert.equal(normalized[19999].text, 'Satır 20004');
   });
 
+  test('altyazı varlığı sonlu olmayan zamanlarla bozuk SRT üretmez', () => {
+    const normalized = normalizeAssetCues([
+      { id: 'valid', start: 0, end: 1, text: 'Sağlam' },
+      { id: 'infinite', start: Infinity, end: Infinity, text: 'Bozuk' },
+      { id: 'nan', start: 2, end: Number.NaN, text: 'Bozuk 2' },
+    ]);
+    assert.deepEqual(normalized.map((cue) => cue.id), ['valid']);
+  });
+
   test('JSON sağlamken eksik SRT yeniden üretilir', () => {
     const store = new BrowserAssetStore({ rootDir: path.join(dir, 'repair-assets') });
     const saved = store.putTrack({ mediaId: 'web:repair', trackId: 'tr', cues: [
