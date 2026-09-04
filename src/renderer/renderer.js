@@ -6164,8 +6164,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         const index = tab.browserTracks.findIndex((track) => track.id === event.track.id);
         if (index >= 0) tab.browserTracks[index] = event.track; else tab.browserTracks.push(event.track);
       } else if (event.type === 'media' && event.media) {
-        tab.browserTime = Number(event.media.currentTime) || 0;
-        tab.browserDuration = Number(event.media.duration) || 0;
+        const backgroundTime = Number(event.media.currentTime);
+        const backgroundDuration = Number(event.media.duration);
+        tab.browserTime = Number.isFinite(backgroundTime) ? Math.max(0, backgroundTime) : 0;
+        tab.browserDuration = Number.isFinite(backgroundDuration) ? Math.max(0, backgroundDuration) : 0;
         tab.browserPaused = !!event.media.paused;
       } else if (event.type === 'tab-audio') {
         tab.audible = !!event.audible;
@@ -6236,8 +6238,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'media' && event.media) {
     const previousTime = player.browserTime;
     const wasPaused = player.browserPaused;
-    player.browserTime = Number(event.media.currentTime) || 0;
-    player.browserDuration = Number(event.media.duration) || 0;
+    const currentTime = Number(event.media.currentTime);
+    const duration = Number(event.media.duration);
+    player.browserTime = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
+    player.browserDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0;
     player.browserPaused = !!event.media.paused;
     const nextVolume = Number(event.media.volume);
     if (Number.isFinite(nextVolume)) player.browserVolume = Math.max(0, Math.min(1, nextVolume));

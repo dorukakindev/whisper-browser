@@ -69,6 +69,16 @@ test('oynayan ses öğesi duraklatılmış dekoratif videodan önce seçilir', (
   assert.equal(probe([video, audio]).currentTime, 22);
 });
 
+test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () => {
+  const broken = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: Infinity, duration: NaN,
+    volume: Infinity, playbackRate: NaN };
+  assert.deepEqual(probe([broken]), {
+    currentTime: 0, duration: 0, paused: false, muted: false,
+    volume: 0, playbackRate: 1, area: 360000,
+  });
+});
+
 test('tam ekran ham video yerine altyazıyı taşıyabilen oynatıcı kapsayıcısını seçer', () => {
   const script = buildBrowserMediaCommandScript('fullscreen', 0);
   assert.match(script, /video\.closest\('\.html5-video-player/);

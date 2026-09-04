@@ -46,6 +46,10 @@ function controllerBootstrap() {
 
     ${browserMediaCandidateRank.toString()}
     const compareMedia = ${compareBrowserMediaCandidates.toString()};
+    const finite = (value, fallback = 0) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    };
     const select = () => {
       for (const item of [...media]) if (!item.isConnected) media.delete(item);
       return [...media].sort(compareMedia)[0] || null;
@@ -58,12 +62,12 @@ function controllerBootstrap() {
         const item = select();
         if (!item) return null;
         return {
-          currentTime: Number(item.currentTime) || 0,
-          duration: Number.isFinite(item.duration) ? item.duration : 0,
+          currentTime: finite(item.currentTime),
+          duration: finite(item.duration),
           paused: !!item.paused,
           muted: !!item.muted,
-          volume: Number(item.volume) || 0,
-          playbackRate: Number(item.playbackRate) || 1,
+          volume: finite(item.volume),
+          playbackRate: finite(item.playbackRate, 1),
           area: Math.max(0, item.clientWidth * item.clientHeight),
         };
       },
@@ -127,9 +131,13 @@ function buildBrowserMediaCommandScript(command, value) {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else await video.requestPictureInPicture();
     } else return false;
-    return { handled: true, currentTime: Number(video.currentTime) || 0,
-      playbackRate: Number(video.playbackRate) || 1, paused: !!video.paused,
-      volume: Number(video.volume) || 0, muted: !!video.muted };
+    const finite = (value, fallback = 0) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    };
+    return { handled: true, currentTime: finite(video.currentTime),
+      playbackRate: finite(video.playbackRate, 1), paused: !!video.paused,
+      volume: finite(video.volume), muted: !!video.muted };
   })()`;
 }
 

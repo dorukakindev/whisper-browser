@@ -4382,17 +4382,31 @@ function startBrowserPolling() {
         probed.map((item) => ({ media: item }))
       )[0]?.media;
       if (media) {
-        tab.position = Math.max(0, Number(media.currentTime) || 0);
-        tab.duration = Math.max(0, Number(media.duration) || 0);
-        tab.rate = Math.max(0.25, Math.min(4, Number(media.playbackRate) || 1));
-        tab.volume = Math.max(0, Math.min(1, Number(media.volume) || 0));
-        tab.muted = !!media.muted;
+        // Sayfa içindeki oynatıcı özellikleri güvenilmez olabilir (bozuk bir
+        // getter Infinity/NaN döndürebilir). Bu değerleri sekme durumuna veya
+        // IPC olayına taşımadan önce son kez finite hale getir.
+        const currentTime = Number(media.currentTime);
+        const duration = Number(media.duration);
+        const playbackRate = Number(media.playbackRate);
+        const volume = Number(media.volume);
+        const safeMedia = {
+          ...media,
+          currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
+          duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
+          playbackRate: Number.isFinite(playbackRate) ? Math.max(0.25, Math.min(4, playbackRate)) : 1,
+          volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0,
+        };
+        tab.position = safeMedia.currentTime;
+        tab.duration = safeMedia.duration;
+        tab.rate = safeMedia.playbackRate;
+        tab.volume = safeMedia.volume;
+        tab.muted = !!safeMedia.muted;
         tab.translationScheduler?.updatePlayhead(tab.position);
         const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
-          Math.round(tab.volume * 100), tab.muted, !!media.paused].join('|');
+          Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused].join('|');
         if (mediaSignature !== tab.lastMediaEventSignature) {
           tab.lastMediaEventSignature = mediaSignature;
-          sendBrowserEvent(tab, { type: 'media', media });
+          sendBrowserEvent(tab, { type: 'media', media: safeMedia });
           scheduleBrowserSessionSave(1500);
         }
       }
