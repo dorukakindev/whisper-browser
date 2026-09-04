@@ -1,14 +1,17 @@
 'use strict';
 
 const SENTENCE_PROTOCOL_VERSION = 1;
+const ABBREVIATIONS = new Set(require('../backend/subtitle-abbreviations.json'));
 const normalizeText = (value) => String(value ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
 const protectedCue = (cue) => !Number.isFinite(Number(cue.start)) || !Number.isFinite(Number(cue.end))
   || Number(cue.end) <= Number(cue.start) || !normalizeText(cue.text)
   || /(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)/i.test(String(cue.text || '').trim());
 function sentenceEnded(text) {
-  text = normalizeText(text);
-  return /[.!?…。！？]["'”’)}\]]*$/.test(text)
-    && !/\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|e\.g|i\.e)\.$/i.test(text);
+  text = normalizeText(text).replace(/["'“”‘’)}\]»]+$/u, '');
+  if (!/[.!?…。！？]$/u.test(text)) return false;
+  const last = text.split(' ').at(-1).replace(/^["'“”‘’(\[«]+/u, '');
+  return !(/^(?:\p{L}\.){2,}$/u.test(last) || /^\p{Lu}\.$/u.test(last)
+    || (last.endsWith('.') && ABBREVIATIONS.has(last.slice(0, -1).toLowerCase())));
 }
 
 function validParts(text, parts, count) {
@@ -21,13 +24,15 @@ function validParts(text, parts, count) {
 function decodeSentenceTranslation(raw, count, requireParts = false) {
   if (typeof raw === 'string') {
     const value = raw.trim().replace(/^```(?:json|text)?\s*|\s*```$/gi, '').trim();
-    if (/^\{/.test(value)) {
+    // JSON arrays are not subtitle text. Keep ordinary SDH such as [MÜZİK].
+    const arrayLike = /^\[\s*(?:["{\[\]\d-]|true\b|false\b|null\b)/u.test(value);
+    if (/^\{/.test(value) || arrayLike) {
       // A malformed JSON reply is not subtitle text and must not reach the screen.
       try { raw = JSON.parse(value); }
       catch (_) { throw new Error('Cümle çevirisinin JSON yanıtı okunamadı.'); }
     } else raw = { text: value };
   }
-  if (!raw || typeof raw.text !== 'string' || !normalizeText(raw.text) || raw.text.length > 12000) {
+  if (!raw || Array.isArray(raw) || typeof raw.text !== 'string' || !normalizeText(raw.text) || raw.text.length > 12000) {
     throw new Error('Cümle çevirisi boş veya geçersiz.');
   }
   if (raw.parts != null && !validParts(raw.text, raw.parts, count)) {

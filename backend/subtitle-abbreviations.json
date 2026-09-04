@@ -1,0 +1,12 @@
+[
+  "mr", "mrs", "ms", "dr", "prof", "st", "jr", "sr", "rev", "gen", "col",
+  "lt", "sgt", "capt", "cmdr", "det", "insp", "gov", "sen", "rep", "pres",
+  "hon", "atty", "supt", "messrs", "mt", "ft", "ave", "blvd", "rd",
+  "vs", "etc", "inc", "ltd", "co", "corp", "dept", "est", "approx",
+  "e.g", "i.e", "a.m", "p.m", "ph.d", "m.d", "b.a", "m.a",
+  "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct",
+  "nov", "dec",
+  "sn", "bay", "bn", "av", "doç", "yrd", "öğr", "gör", "arş", "müh",
+  "vb", "örn", "bkz", "yy", "cad", "sok", "mah", "apt", "tel", "çev",
+  "hz", "alb", "yzb", "tğm", "krş", "age"
+]

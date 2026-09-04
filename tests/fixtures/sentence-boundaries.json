@@ -1,0 +1,21 @@
+[
+  {"text":"Mrs.","ended":false},
+  {"text":"Elma, armut vb.","ended":false},
+  {"text":"bkz.","ended":false},
+  {"text":"örn.","ended":false},
+  {"text":"Sn.","ended":false},
+  {"text":"Av.","ended":false},
+  {"text":"L.A.","ended":false},
+  {"text":"J.F.K.","ended":false},
+  {"text":"J.","ended":false},
+  {"text":"Örn.","ended":false},
+  {"text":"“bkz.”","ended":false},
+  {"text":"(L.A.)","ended":false},
+  {"text":"Oh, no.","ended":true},
+  {"text":"1935.","ended":true},
+  {"text":"Bitti.","ended":true},
+  {"text":"“Bitti!”","ended":true},
+  {"text":"Gidelim mi?","ended":true},
+  {"text":"devam ediyor","ended":false},
+  {"text":"","ended":false}
+]

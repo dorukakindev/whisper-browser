@@ -1,13 +1,15 @@
 """Altyazı cümle haritası: kaynak bloklarını değiştirmeden grup bazlı kabul."""
 
 import math
+import json
 import re
 import unicodedata
+from pathlib import Path
 
 SENTENCE_PROTOCOL_VERSION = 1
 _BOUNDARY = re.compile(r'(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)', re.I)
 _END = re.compile(r'[.!?…。！？][\"\'”’)}\]]*$')
-_ABBREVIATION = re.compile(r'\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|e\.g|i\.e)\.$', re.I)
+ABBREVIATIONS = frozenset(json.loads(Path(__file__).with_name('subtitle-abbreviations.json').read_text(encoding='utf-8')))
 
 
 def normalized_text(text):
@@ -15,8 +17,13 @@ def normalized_text(text):
 
 
 def sentence_ended(text):
-    text = normalized_text(text)
-    return bool(_END.search(text) and not _ABBREVIATION.search(text))
+    text = normalized_text(text).rstrip('\"\'“”‘’)}]»')
+    if not _END.search(text):
+        return False
+    last = text.split()[-1].lstrip('\"\'“”‘’([«')
+    initialism = re.fullmatch(r'(?:[^\W\d_]\.){2,}', last)
+    initial = len(last) == 2 and last[0].isalpha() and last[0].isupper() and last[1] == '.'
+    return not (initialism or initial or (last.endswith('.') and last[:-1].lower() in ABBREVIATIONS))
 
 
 def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6):

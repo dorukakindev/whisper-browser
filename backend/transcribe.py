@@ -31,7 +31,7 @@ import traceback
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
-from sentence_translation import (SENTENCE_PROTOCOL_VERSION, sentence_groups,
+from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   validate_sentence_parts, normalized_text)
 
@@ -518,20 +518,7 @@ PUNCT_SOFT = ",;:،，؛"
 # Nokta ile biten ama cümleyi BİTİRMEYEN kısaltmalar. "Mrs. Dolly" / "L.A. County"
 # gibi yerlerde cümle bölmeyi engeller (sonraki kelime büyük harfle başladığı için
 # aksi halde yeni cümle sanılıyordu).
-ABBREVIATIONS = {
-    # İngilizce unvan / kısaltma
-    "mr", "mrs", "ms", "dr", "prof", "st", "jr", "sr", "rev", "gen", "col",
-    "lt", "sgt", "capt", "cmdr", "det", "insp", "gov", "sen", "rep", "pres",
-    "hon", "atty", "supt", "messrs", "mt", "ft", "ave", "blvd", "rd",
-    "vs", "etc", "inc", "ltd", "co", "corp", "dept", "est", "approx",
-    "e.g", "i.e", "a.m", "p.m", "ph.d", "m.d", "b.a", "m.a",
-    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct",
-    "nov", "dec",
-    # Türkçe unvan / kısaltma
-    "sn", "bay", "bn", "av", "doç", "yrd", "öğr", "gör", "arş", "müh",
-    "vb", "örn", "bkz", "yy", "cad", "sok", "mah", "apt", "tel", "çev",
-    "hz", "alb", "yzb", "tğm", "krş", "age",
-}
+# Liste sentence_translation üzerinden yüklenir; JS de aynı JSON'u kullanır.
 # NOT: "no." bilinçli olarak listede yok — "Oh, no." gibi gerçek cümle sonları var.
 
 # "L.A.", "U.S.", "J.F.K." gibi baş harf dizileri
@@ -2062,16 +2049,51 @@ def retryable_api_error(error):
     ))
 
 
+def api_retry_after_seconds(error, now=None):
+    """Retry-After saniye veya HTTP-tarih olabilir; bozuk başlık yok sayılır."""
+    from email.utils import parsedate_to_datetime
+    from datetime import timezone
+    headers = getattr(getattr(error, "response", None), "headers", None)
+    if not headers:
+        return None
+    value = next((value for key, value in headers.items() if str(key).lower() == 'retry-after'), None)
+    if value is None:
+        return None
+    try:
+        delay = float(value)
+    except (TypeError, ValueError):
+        try:
+            date = parsedate_to_datetime(str(value))
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=timezone.utc)
+            delay = date.timestamp() - (time.time() if now is None else now)
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return max(0.0, delay) if math.isfinite(delay) else None
+
+
 def call_api_with_retry(operation, attempts=3, base_delay=0.75):
-    """Geçici ağ/429/5xx hatalarını sınırlı üstel gecikmeyle yeniden dener."""
+    """Sınırlı retry: sunucu bekleme süresini kısaltmaz, kota için rota dolaşmaz."""
     attempts = max(1, int(attempts))
+    waited = 0.0
     for attempt in range(attempts):
         try:
             return operation()
         except Exception as error:
             if attempt + 1 >= attempts or not retryable_api_error(error):
                 raise
-            time.sleep(min(4.0, max(0.0, base_delay) * (2 ** attempt)))
+            delay = min(30.0, max(0.0, base_delay) * (2 ** min(attempt, 10)))
+            if api_error_status(error) == 429:
+                delay = max(delay, min(30.0, 5.0 * (2 ** min(attempt, 10))))
+            server_delay = api_retry_after_seconds(error)
+            if server_delay is not None:
+                delay = max(delay, server_delay)
+            # Uzun Retry-After'ı kırpıp erkenden tekrar vurmak yerine hatayı
+            # üst katmana bırak. Tek işlemde toplam bekleme en fazla 120 sn.
+            if waited + delay > 120.0:
+                raise
+            time.sleep(delay)
+            waited += delay
 
 
 def sanitize_glossary_terms(raw, max_terms=200, max_term_chars=120,

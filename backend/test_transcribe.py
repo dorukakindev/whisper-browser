@@ -2631,6 +2631,50 @@ def test_tur5_cps_disabled_and_unicode_dedupe():
     assert T._norm_for_dedupe('“Merhaba!”') == T._norm_for_dedupe('Merhaba!')
 
 
+def test_shared_sentence_boundaries():
+    from sentence_translation import sentence_ended, sentence_groups
+    fixtures = json.loads((Path(__file__).resolve().parents[1] / 'tests/fixtures/sentence-boundaries.json').read_text(encoding='utf-8'))
+    for case in fixtures:
+        assert sentence_ended(case['text']) == case['ended'], case
+        assert T.text_ends_sentence(case['text']) == case['ended'], case
+    assert len(sentence_groups([(0, 1, 'Elma, armut vb.'), (1, 2, 'meyveleri aldım.')])) == 1
+
+
+def test_retry_after_header_and_bounded_wait():
+    from unittest.mock import patch
+    class ApiError(Exception):
+        def __init__(self, status, headers):
+            self.status_code = status
+            self.response = types.SimpleNamespace(headers=headers)
+
+    for raw, expected in [('20', 20), ('0', 0), ('-2', 0), ('NaN', None),
+                          ('Infinity', None), ('bad', None),
+                          ('Thu, 01 Jan 1970 00:01:00 GMT', 60)]:
+        assert T.api_retry_after_seconds(ApiError(429, {'Retry-After': raw}), now=0) == expected
+    assert T.api_retry_after_seconds(ApiError(503, {'retry-after': '1.5'})) == 1.5
+    for status, headers, expected in [(429, {}, [5, 10]), (503, {}, [.75, 1.5]),
+                                      (429, {'retry-after': '30'}, [30, 30]),
+                                      (503, {'Retry-After': '60'}, [60, 60])]:
+        calls = []
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise ApiError(status, headers)
+            return 'ok'
+        with patch.object(T.time, 'sleep') as sleep:
+            assert T.call_api_with_retry(flaky) == 'ok'
+            assert [c.args[0] for c in sleep.call_args_list] == expected
+    for status, delay in [(429, '121'), (401, '20')]:
+        error = ApiError(status, {'Retry-After': delay})
+        with patch.object(T.time, 'sleep') as sleep:
+            try:
+                T.call_api_with_retry(lambda: (_ for _ in ()).throw(error))
+                raise AssertionError('Hata yutuldu')
+            except ApiError as caught:
+                assert caught is error
+            sleep.assert_not_called()
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0

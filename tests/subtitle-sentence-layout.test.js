@@ -12,6 +12,13 @@ const cues = fixtures[0].entries.map(([start, end, text], id) => ({ id: String(i
 const sentence = assembleCueSentences(cues)[0];
 
 async function run() {
+  for (const { text, ended } of require('./fixtures/sentence-boundaries.json')) {
+    assert.equal(layout.sentenceEnded(text), ended, text);
+  }
+  assert.equal(assembleCueSentences([
+    { id: 'a', start: 0, end: 1, text: 'Elma, armut vb.' },
+    { id: 'b', start: 1, end: 2, text: 'meyveleri aldım.' },
+  ]).length, 1);
   for (const fixture of fixtures) {
     const input = fixture.entries.map(([start, end, text], id) => ({ id: String(id), start, end, text }));
     const before = JSON.stringify(input);
@@ -25,6 +32,11 @@ async function run() {
   assert.deepEqual(distributeTranslation(sentence, reply).map((c) => c.cueId), cues.map((c) => c.id));
   assert.deepEqual(layout.decodeSentenceTranslation('```json\n' + JSON.stringify(reply) + '\n```', 3), reply);
   assert.equal(layout.decodeSentenceTranslation('[MÜZİK]', 1).text, '[MÜZİK]');
+  assert.equal(layout.decodeSentenceTranslation('Merhaba dünya.', 1).text, 'Merhaba dünya.');
+  for (const raw of ['["a","b"]', '[]', '[1,2]', '[true,null]', '[{"text":"a"}]',
+    '[["a"]]', '```json\n["a","b"]\n```', '["bozuk', ['a', 'b']]) {
+    assert.throws(() => layout.decodeSentenceTranslation(raw, 2), String(raw));
+  }
   for (const bad of ['', ' ', '{broken', { text: reply.text, parts: parts.slice(0, 2) },
     { text: reply.text, parts: [parts[0], '', parts[2]] }, { text: reply.text, parts: [...parts].reverse() },
     { text: reply.text, parts: [parts[0], parts[1], parts[2] + ' Hayır.'] }, { text: 42 }]) {
