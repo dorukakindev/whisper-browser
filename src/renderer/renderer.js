@@ -9946,6 +9946,11 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.sub2Path = '';
       const ov2 = $('subtitleOverlay2');
       if (ov2) ov2.textContent = '';
+      if (player.workspaceMode === 'browser') {
+        player.browserLoadedTrackId2 = '';
+        const tab = browserTabState();
+        if (tab) tab.browserLoadedTrackId2 = '';
+      }
     } else {
       player.cues = [];
       player.cuesRaw = null;
@@ -9954,6 +9959,11 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.subRaw = '';
       renderSeekMarkers(defaultMarkers());
       if ($('applyOffsetToFile')) $('applyOffsetToFile').classList.add('hidden');
+      if (player.workspaceMode === 'browser') {
+        player.browserLoadedTrackId = '';
+        const tab = browserTabState();
+        if (tab) tab.browserLoadedTrackId = '';
+      }
       // Birincil web izi kaldırıldığında kalıcı çeviri kimliği boşta kalırsa
       // sonraki kaynak seçimi yanlışlıkla eski çeviri olarak sınıflanabilir.
       // İkinci kanalda gerçek bir iz varsa onu koru; yoksa sekme eşleşmesini
@@ -10002,6 +10012,18 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.cues2 = player.mergeCont ? mergeCueContinuation(cues) : cues;
     player.activeIdx2 = -1;
     player.sub2Path = path;
+    const browserTrack = player.workspaceMode === 'browser'
+      ? player.browserTracks.find((track) => track.path === path) : null;
+    if (browserTrack) {
+      player.browserLoadedTrackId2 = browserTrack.id;
+      const tab = browserTabState();
+      if (tab) tab.browserLoadedTrackId2 = browserTrack.id;
+      if ($('browserTrackSelect2')) $('browserTrackSelect2').value = browserTrack.id;
+    } else if (player.workspaceMode === 'browser') {
+      player.browserLoadedTrackId2 = '';
+      const tab = browserTabState();
+      if (tab) tab.browserLoadedTrackId2 = '';
+    }
     renderCueList($('cueSearch') ? $('cueSearch').value : '');   // kartlara ceviri satiri gelsin
   } else {
     if (previousPrimaryPath && previousPrimaryPath !== path) {
@@ -10020,6 +10042,12 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       ? player.browserTracks.find((track) => track.path === path) : null;
     const previousTranslation = player.browserTracks.find((track) =>
       track.id === player.browserTranslationTrackId && track.role === 'translation');
+    if (player.workspaceMode === 'browser') {
+      player.browserLoadedTrackId = browserTrack?.id || '';
+      const tab = browserTabState();
+      if (tab) tab.browserLoadedTrackId = browserTrack?.id || '';
+      if (browserTrack && $('browserTrackSelect')) $('browserTrackSelect').value = browserTrack.id;
+    }
     if (browserTrack?.role === 'translation') {
       player.browserLoadedTrackId = browserTrack.id;
       player.browserTranslationTrackId = browserTrack.id;
