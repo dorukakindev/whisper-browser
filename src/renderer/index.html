@@ -1165,6 +1165,13 @@
               </div>
               <details class="browser-view-settings" id="browserViewSettings">
                 <summary>Görünüm ve manga</summary>
+                <div class="browser-hardware-settings">
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserHardwareAcceleration" role="switch" checked aria-describedby="browserHardwareAccelerationHint" />
+                    <span>Donanım hızlandırma</span>
+                  </label>
+                  <p id="browserHardwareAccelerationHint">Değişiklik için uygulamayı tamamen kapatıp yeniden açın. Tarayıcı ve uygulama arayüzünü etkiler; Whisper’ın CUDA/GPU ayarını değiştirmez. Kapatmak video performansını düşürebilir.</p>
+                </div>
                 <div class="browser-view-settings-grid">
                   <label><span>Manga hedefi</span><select id="browserMangaTarget">
                     <option value="tr" selected>Türkçe</option><option value="en">İngilizce</option>

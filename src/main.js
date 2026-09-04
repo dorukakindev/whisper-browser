@@ -132,10 +132,11 @@ const {
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
 // tarayıcının aynı sayfada sonsuza kadar siyah ekranda kalmasını önler.
 app.commandLine.appendSwitch('disable-quic');
-// Electron/Chromium donanım hızlandırması varsayılan olarak açıktır. Burada
-// disable-gpu / in-process-gpu kullanmayın: gömülü tarayıcı video çözme, WebGL
-// ve sayfa kompozisyonunu CPU'ya düşürerek özellikle yüksek çözünürlüklü web
-// videolarında takılmaya neden olur.
+// Bu Electron tercihi app.ready öncesinde uygulanmalıdır; çalışma sırasında
+// değiştirilen ayar sonraki açılışta geçerli olur. Python/CUDA'yı etkilemez.
+// Varsayılan açık: yalnız açıkça kaydedilmiş false hızlandırmayı kapatır.
+const browserHardwareAccelerationEnabled = readPublicSettings().ui?.browserHardwareAcceleration !== false;
+if (!browserHardwareAccelerationEnabled) app.disableHardwareAcceleration();
 
 let mainWindow;
 let mainWindowClosing = false;

@@ -1698,6 +1698,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
+  'browserHardwareAcceleration',
 ];
 
 function collectUiSettings() {

@@ -4072,6 +4072,9 @@ body::before {
   display: flex; flex-direction: row; align-items: center; gap: 7px; min-height: 30px;
 }
 .browser-view-switch input { flex: 0 0 auto; }
+.browser-hardware-settings { padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.browser-hardware-settings .browser-view-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.browser-hardware-settings p { margin: 8px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
 .browser-view-switch span { white-space: normal; line-height: 1.3; }
 .browser-view-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .browser-view-actions .btn { width: auto; min-height: 30px; padding: 0 9px; }

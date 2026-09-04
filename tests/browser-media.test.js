@@ -33,7 +33,7 @@ test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
   assert.doesNotMatch(main, /executeBrowserFrames\(buildBrowserMediaCommandScript/);
   assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('disable-gpu'\)/);
   assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('in-process-gpu'\)/);
-  assert.doesNotMatch(main, /app\.disableHardwareAcceleration\(\)/);
+  assert.match(main, /if \(!browserHardwareAccelerationEnabled\) app\.disableHardwareAcceleration\(\)/);
   assert.match(main, /gpuCompositing: st\.gpu_compositing/);
 });
 
