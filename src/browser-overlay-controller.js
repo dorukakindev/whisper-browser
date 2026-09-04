@@ -1,3 +1,5 @@
+const { compareBrowserMediaCandidates, browserMediaCandidateRank } = require('./browser-media-selection');
+
 function buildBrowserOverlayScript(payload, findCuesSource) {
   const encoded = JSON.stringify(payload || {})
     .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
@@ -24,8 +26,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     let appliedStyleKey = '';
     const mediaListeners = [];
     const mediaCandidates = new Set();
+    const candidateListeners = new Map();
     let observedRoots = new WeakSet();
     const mutationObservers = [];
+    ${browserMediaCandidateRank.toString()}
+    const compareMedia = ${compareBrowserMediaCandidates.toString()};
 
     const bindDrag = (item) => {
       if (!item || item.dataset.whisperDragBound === 'true') return;
@@ -165,9 +170,21 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
 
     const scanMediaNode = (node) => {
       if (!node) return;
-      if (node.nodeType === 1 && node.matches?.('video,audio')) mediaCandidates.add(node);
+      const addCandidate = (item) => {
+        if (!item || mediaCandidates.has(item)) return;
+        mediaCandidates.add(item);
+        const activity = () => {
+          mediaDirty = true;
+          if (state.mode !== 'off' && !document.hidden) render();
+        };
+        for (const type of ['play', 'pause', 'loadedmetadata', 'emptied']) {
+          item.addEventListener(type, activity, { passive: true });
+        }
+        candidateListeners.set(item, activity);
+      };
+      if (node.nodeType === 1 && node.matches?.('video,audio')) addCandidate(node);
       if (node.querySelectorAll) {
-        for (const item of node.querySelectorAll('video,audio')) mediaCandidates.add(item);
+        for (const item of node.querySelectorAll('video,audio')) addCandidate(item);
         // Mutation başına devasa bir '*' NodeList'i kurma. Shadow hostları
         // sınırlı derinlikte gezmek video sayfalarındaki ani düzen maliyetini keser.
         scanShadowHosts(node);
@@ -195,6 +212,12 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
 
     const stopObserving = () => {
       while (mutationObservers.length) mutationObservers.pop().disconnect();
+      for (const [item, listener] of candidateListeners) {
+        for (const type of ['play', 'pause', 'loadedmetadata', 'emptied']) {
+          try { item.removeEventListener(type, listener); } catch (_) {}
+        }
+      }
+      candidateListeners.clear();
       observedRoots = new WeakSet();
       mediaCandidates.clear();
       mediaDirty = true;
@@ -203,19 +226,25 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     const discoverMedia = () => {
       if (!mediaDirty && media && media.isConnected) return media;
       mediaDirty = false;
-      for (const item of [...mediaCandidates]) if (!item.isConnected) mediaCandidates.delete(item);
+      for (const item of [...mediaCandidates]) {
+        if (item.isConnected) continue;
+        const listener = candidateListeners.get(item);
+        if (listener) for (const type of ['play', 'pause', 'loadedmetadata', 'emptied']) {
+          try { item.removeEventListener(type, listener); } catch (_) {}
+        }
+        candidateListeners.delete(item);
+        mediaCandidates.delete(item);
+      }
       const candidates = [...mediaCandidates];
-      const selected = candidates.sort((a, b) => {
-        const area = (item) => Math.max(0, item.clientWidth * item.clientHeight);
-        return area(b) - area(a) || Number(!b.paused) - Number(!a.paused)
-          || (Number(b.duration) || 0) - (Number(a.duration) || 0);
-      })[0] || null;
+      const selected = candidates.sort(compareMedia)[0] || null;
       if (selected === media) return media;
       stopWatchingMedia();
       media = selected;
       if (!media) return null;
       const redraw = () => render();
-      const eventTypes = ['seeked', 'loadedmetadata', 'durationchange', 'play', 'pause', 'emptied'];
+      // Aday yaşam döngüsü dinleyicileri play/pause/metadata/emptied olaylarını
+      // zaten yeniden seçim için işler; seçili medyada bunları ikinci kez bağlama.
+      const eventTypes = ['seeked', 'durationchange'];
       // Oynayan videoda rVFC zaten her görüntü karesinde güncelliyor. Aynı anda
       // timeupdate dinlemek aynı cueyu iki kez çiziyordu; rVFC yoksa fallback.
       if (typeof media.requestVideoFrameCallback !== 'function') eventTypes.unshift('timeupdate');
@@ -248,12 +277,12 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
 
     function render() {
       syncNativeCaptionVisibility();
-      const box = ensureRoot();
       if (document.hidden || state.mode === 'off') {
-        box.style.display = 'none';
+        if (root) root.style.display = 'none';
         cancelFrame();
         return;
       }
+      const box = ensureRoot();
       const activeMedia = discoverMedia();
       if (!activeMedia) {
         box.style.display = 'none';
@@ -312,6 +341,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         state = value || {};
         if (state.mode === 'off') {
           cancelFrame();
+          stopWatchingMedia();
+          media = null;
           if (mutationFrame) cancelAnimationFrame(mutationFrame);
           mutationFrame = 0;
           stopObserving();
@@ -323,7 +354,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           mode: state.mode || 'off', observer: mutationObservers.length > 0 };
       },
     };
-    startObserving();
+    if (state.mode !== 'off') startObserving();
     render();
     return true;
   })()`;

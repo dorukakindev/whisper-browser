@@ -1,4 +1,5 @@
 const assert = require('assert');
+const vm = require('vm');
 const { buildBrowserOverlayScript } = require('../src/browser-overlay-controller');
 
 let passed = 0;
@@ -18,6 +19,36 @@ test('kapalı, gizli ve duraklatılmış durumda sürekli frame planlamaz', () =
   assert.match(script, /document\.hidden \|\| state\.mode === 'off' \|\| !media \|\| media\.paused/);
   assert.match(script, /state\.mode === 'off'\) \{[\s\S]*?cancelFrame/);
   assert.match(script, /requestVideoFrameCallback/);
+});
+
+test('ilk durum kapalıysa DOM katmanı ve medya taraması oluşturmaz', () => {
+  let created = 0, scanned = 0;
+  const window = { addEventListener() {} };
+  const document = {
+    hidden: false, documentElement: {},
+    addEventListener() {}, getElementById() { return null; },
+    createElement() { created++; return {}; },
+    querySelectorAll() { scanned++; return []; },
+  };
+  const result = vm.runInNewContext(
+    buildBrowserOverlayScript({ mode: 'off', style: {} }, '() => []'),
+    { window, document, globalThis: window, cancelAnimationFrame() {}, requestAnimationFrame() { return 1; } });
+  assert.equal(result, true);
+  assert.equal(created, 0);
+  assert.equal(scanned, 0);
+  assert.equal(window.__whisperBrowserOverlayController.diagnostics().hasMedia, false);
+});
+
+test('kapalı moda geçiş medya dinleyicilerini ve seçimi bırakır', () => {
+  assert.match(script, /state\.mode === 'off'\) \{[\s\S]*?stopWatchingMedia\(\);[\s\S]*?media = null/);
+  assert.match(script, /if \(state\.mode !== 'off'\) startObserving\(\)/);
+});
+
+test('mevcut başka bir medya oynayınca seçim önbelleği yenilenir', () => {
+  assert.match(script, /const candidateListeners = new Map\(\)/);
+  assert.match(script, /for \(const type of \['play', 'pause', 'loadedmetadata', 'emptied'\]\)/);
+  assert.match(script, /const activity = \(\) => \{[\s\S]*?mediaDirty = true;[\s\S]*?render\(\)/);
+  assert.match(script, /candidateListeners\.clear\(\)/);
 });
 
 test('doküman taraması frame callback içinde değil yalnız kirli keşifte yapılır', () => {

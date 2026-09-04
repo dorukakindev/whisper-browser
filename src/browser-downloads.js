@@ -53,6 +53,9 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
       row.active = false;
       read(state);
       live.delete(id);
+      // A previous concurrency warning is no longer actionable once a slot is
+      // free; do not leave the panel claiming the limit is still reached.
+      message = '';
       item.removeListener('updated', updated);
       trim();
       changed(true);

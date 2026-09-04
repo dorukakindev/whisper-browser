@@ -44,11 +44,13 @@ class Item extends EventEmitter {
   assert.equal(manager.action(id, 'reveal').ok, false);
   const two = new Item(); launch(two);
   assert.equal(launch(new Item()), true, 'active limit was ignored');
+  assert.match(manager.snapshot().message, /en fazla 2/);
   assert.equal(manager.action('invented-path.exe', 'reveal').ok, false);
   assert.equal(manager.action(id, 'open').ok, false, 'no automatic/executable open API');
   const twoId = manager.snapshot().items[0].id;
   manager.action(twoId, 'cancel');
   assert.equal(manager.snapshot().items[0].state, 'cancelled');
+  assert.equal(manager.snapshot().message, '', 'stale active-limit warning remained visible');
   assert.equal(two.listenerCount('updated'), 0);
   one.saved = path.join('example', 'renamed.zip'); one.received = 100;
   one.emit('done', {}, 'completed');

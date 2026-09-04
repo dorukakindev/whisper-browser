@@ -1,3 +1,5 @@
+const { compareBrowserMediaCandidates, browserMediaCandidateRank } = require('./browser-media-selection');
+
 function controllerBootstrap() {
   return `(() => {
     if (window.__whisperMediaController) return window.__whisperMediaController;
@@ -42,13 +44,11 @@ function controllerBootstrap() {
       scanShadowHosts(node);
     }
 
+    ${browserMediaCandidateRank.toString()}
+    const compareMedia = ${compareBrowserMediaCandidates.toString()};
     const select = () => {
       for (const item of [...media]) if (!item.isConnected) media.delete(item);
-      return [...media].sort((a, b) => {
-        const area = (item) => Math.max(0, item.clientWidth * item.clientHeight);
-        return area(b) - area(a) || Number(!b.paused) - Number(!a.paused)
-          || (Number(b.duration) || 0) - (Number(a.duration) || 0);
-      })[0] || null;
+      return [...media].sort(compareMedia)[0] || null;
     };
 
     scan(document);
