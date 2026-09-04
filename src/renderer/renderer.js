@@ -3744,6 +3744,14 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserLoadedTrackId = tab.browserLoadedTrackId || '';
   player.browserLoadedTrackId2 = tab.browserLoadedTrackId2 || '';
   player.browserTranslationTrackId = tab.browserTranslationTrackId || '';
+  // Eski oturum kayıtlarında çeviri izi yüklü olsa da rol kimliği boş
+  // kalabiliyordu. Kaydedilmiş izin rolünden güvenli biçimde yeniden çıkar;
+  // böylece yeniden açılışta çeviri seçicisi devre dışı kalmaz.
+  const restoredPrimaryTrack = player.browserTracks.find((track) =>
+    track.id === player.browserLoadedTrackId && track.role === 'translation');
+  if (!player.browserTranslationTrackId && restoredPrimaryTrack) {
+    player.browserTranslationTrackId = restoredPrimaryTrack.id;
+  }
   player.browserLiveTranslations = new Map((tab.browserLiveTranslations || []).map((cue) => [String(cue.id || `${cue.start}:${cue.end}`), cue]));
   player.browserMangaBusy = !!tab.browserMangaBusy;
   player.browserMangaTranslated = Number(tab.browserMangaTranslated) || 0;
@@ -3787,6 +3795,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   renderTranscript();
   updateSubtitleChips();
   renderBrowserTracks();
+  if (browserPrimaryIsTranslation()) setSubtitleMode('translation', false);
   const savedTranslation = player.browserTracks.find((track) => track.role === 'translation' && track.autoLoad);
   if (savedTranslation && (!player.cues.length || player.browserLoadedTrackId !== savedTranslation.id)) {
     void loadPersistedBrowserTranslation(savedTranslation);

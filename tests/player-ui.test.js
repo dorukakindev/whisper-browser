@@ -1252,6 +1252,13 @@ test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
   assert(/setSubtitleMode\('translation', false\)/.test(renderer), 'kalıcı çeviri görünümü yapılmıyor');
   assert(/player\.browserTranslationTrackId = track\.id/.test(renderer),
     'kalıcı çevirinin rolü seçim ayarlarında korunmuyor');
+  const restoreActive = js.slice(js.indexOf('function restoreActiveBrowserTabWorkspace'),
+    js.indexOf('function syncBrowserTabs'));
+  assert(/restoredPrimaryTrack/.test(restoreActive)
+    && /track\.role === 'translation'/.test(restoreActive),
+  'eski oturumlarda birincil çeviri rolü geri çıkarılmıyor');
+  assert(/if \(browserPrimaryIsTranslation\(\)\) setSubtitleMode\('translation', false\)/.test(restoreActive),
+    'kalıcı çeviri geri açılışta görünüm moduna alınmıyor');
 });
 
 test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {
