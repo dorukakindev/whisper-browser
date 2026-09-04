@@ -113,6 +113,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
       rate: 99,
       volume: -4,
       offset: 99,
+      subtitleMode: 'translation',
       requestHeaders: { Authorization: 'Bearer LEAK' },
       trackRefs: [{ id: 'source', role: 'source', language: 'EN' }],
     }],
@@ -123,6 +124,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   assert.equal(session.tabs[0].rate, 4);
   assert.equal(session.tabs[0].volume, 0);
   assert.equal(session.tabs[0].offset, 30);
+  assert.equal(session.tabs[0].subtitleMode, 'translation');
   assert.equal(session.tabs[0].trackRefs[0].language, 'en');
   const serialized = JSON.stringify(session);
   assert(!serialized.includes('LEAK'));
@@ -198,10 +200,10 @@ test('renderer sekme sınırını sandbox uyumlu preload köprüsünden alır', 
   assert.match(renderer, /Number\(window\.api\.browserLimits\?\.maxTabs\) \|\| 24/);
 });
 
-test('kalıcı sekme özeti konum, hız, medya ve iz referanslarını taşır', () => {
+test('kalıcı sekme özeti konum, hız, medya, altyazı görünümü ve iz referanslarını taşır', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   const snapshot = main.slice(main.indexOf('function browserTabSnapshot'), main.indexOf('function browserTabsSnapshot'));
-  for (const field of ['mediaId', 'position', 'duration', 'rate', 'volume', 'offset', 'trackRefs', 'resumePending']) {
+  for (const field of ['mediaId', 'position', 'duration', 'rate', 'volume', 'offset', 'subtitleMode', 'trackRefs', 'resumePending']) {
     assert(snapshot.includes(field), `eksik alan: ${field}`);
   }
 });

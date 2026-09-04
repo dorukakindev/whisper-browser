@@ -1262,10 +1262,24 @@ test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
   assert(/restoredPrimaryTrack/.test(restoreActive)
     && /track\.role === 'translation'/.test(restoreActive),
   'eski oturumlarda birincil çeviri rolü geri çıkarılmıyor');
-  assert(/if \(browserPrimaryIsTranslation\(\)\) setSubtitleMode\('translation', false\)/.test(restoreActive),
-    'kalıcı çeviri geri açılışta görünüm moduna alınmıyor');
+  assert(/setSubtitleMode\(bestAvailableSubtitleMode\(tab\.subtitleMode\), false\)/.test(restoreActive),
+    'kalıcı çeviri geri açılışta uygun görünüm moduna alınmıyor');
   assert(/browserTranslationMapFromCues\(player\.cues\)/.test(restoreActive),
     'kalıcı birincil çeviri dışa aktarma cue haritasına alınmıyor');
+});
+
+test('altyazı görünüm modu web sekmesine kaydedilir ve sekme değişiminde uygun iz ile geri gelir', () => {
+  const save = js.slice(js.indexOf('function saveActiveBrowserTabWorkspace'),
+    js.indexOf('function restoreActiveBrowserTabWorkspace'));
+  assert(/subtitleMode:\s*browserSubtitleMode\(\)/.test(save),
+    'kaynak/çeviri görünümü aktif web sekmesine kaydedilmiyor');
+  const restore = js.slice(js.indexOf('function restoreActiveBrowserTabWorkspace'),
+    js.indexOf('function syncBrowserTabs'));
+  assert(/setSubtitleMode\(bestAvailableSubtitleMode\(tab\.subtitleMode\), false\)/.test(restore),
+    'sekmenin altyazı görünümü kullanılabilir izlere göre geri yüklenmiyor');
+  const setter = js.slice(js.indexOf('function setSubtitleMode'), js.indexOf('function setSubtitleModeMenuOpen'));
+  assert(/tab\.subtitleMode = mode/.test(setter),
+    'altyazı görünümü değişince aktif web sekmesi güncellenmiyor');
 });
 
 test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {

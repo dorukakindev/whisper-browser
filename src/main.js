@@ -1414,7 +1414,7 @@ function createBrowserTabRecord(initial = {}) {
     mangaTranslated: 0,
     mangaVisible: false,
     lastMediaEventSignature: '',
-    overlay: { source: [], translation: [], mode: 'translation', offset: restored.offset || 0 },
+    overlay: { source: [], translation: [], mode: restored.subtitleMode || 'source', offset: restored.offset || 0 },
     restoredUrl: restored.url || '',
     restoredTitle: restored.title || '',
     mediaId: restored.mediaId || '',
@@ -1477,6 +1477,8 @@ function browserTabSnapshot(tab) {
     audible: wc ? !!wc.isCurrentlyAudible?.() : false,
     offset: Number(tab?.overlay?.offset) || 0,
     viewMode: tab?.viewMode || 'reading',
+    subtitleMode: ['off', 'source', 'translation', 'both'].includes(tab?.overlay?.mode)
+      ? tab.overlay.mode : 'source',
     targetLanguage: tab?.targetLanguage || '',
     translationTrackId: tab?.translationTrackId || '',
     trackRefs: Array.isArray(tab?.trackRefs) ? tab.trackRefs : [],
@@ -5485,9 +5487,10 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     muted: normalized.muted,
     captureEnabled: normalized.captureEnabled,
     viewMode: normalized.viewMode,
+    subtitleMode: normalized.subtitleMode,
     targetLanguage: normalized.targetLanguage,
     trackRefs: normalized.trackRefs,
-    overlay: { ...(tab.overlay || {}), offset: normalized.offset },
+    overlay: { ...(tab.overlay || {}), mode: normalized.subtitleMode, offset: normalized.offset },
   });
   scheduleBrowserSessionSave();
   return { ok: true, tab: browserTabSnapshot(tab) };

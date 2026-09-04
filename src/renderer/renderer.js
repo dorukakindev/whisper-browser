@@ -3600,7 +3600,10 @@ function newBrowserTabState(snapshot = {}) {
     cues: [], cues2: [], subtitles: [], subOrigins: {},
     subPath: '', sub2Path: '', subFormat: 'srt', subRaw: '', offset: Number(snapshot.offset) || 0,
     mediaId: snapshot.mediaId || '', service: snapshot.service || '',
-    viewMode: snapshot.viewMode || 'reading', targetLanguage: snapshot.targetLanguage || '',
+    viewMode: snapshot.viewMode || 'reading',
+    subtitleMode: ['off', 'source', 'translation', 'both'].includes(snapshot.subtitleMode)
+      ? snapshot.subtitleMode : 'source',
+    targetLanguage: snapshot.targetLanguage || '',
     trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : [],
     resumePending: !!snapshot.resumePending,
   };
@@ -3700,6 +3703,7 @@ function saveActiveBrowserTabWorkspace() {
     subPath: player.subPath, sub2Path: player.sub2Path,
     subFormat: player.subFormat, subRaw: player.subRaw, offset: player.offset,
     viewMode: player.viewMode,
+    subtitleMode: browserSubtitleMode(),
     targetLanguage: $('translateTo')?.value || tab.targetLanguage || '',
   });
   if (window.api.updateBrowserSessionTab) {
@@ -3718,7 +3722,8 @@ function saveActiveBrowserTabWorkspace() {
       position: tab.browserTime, duration: tab.browserDuration,
       rate: tab.browserRate, volume: tab.browserVolume, muted: tab.browserMuted,
       offset: tab.offset, captureEnabled: tab.captureEnabled,
-      viewMode: player.viewMode, targetLanguage: $('translateTo')?.value || '',
+      viewMode: player.viewMode, subtitleMode: browserSubtitleMode(),
+      targetLanguage: $('translateTo')?.value || '',
       trackRefs: refs,
     }).catch(() => {});
   }
@@ -3798,7 +3803,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   renderTranscript();
   updateSubtitleChips();
   renderBrowserTracks();
-  if (browserPrimaryIsTranslation()) setSubtitleMode('translation', false);
+  setSubtitleMode(bestAvailableSubtitleMode(tab.subtitleMode), false);
   const savedTranslation = player.browserTracks.find((track) => track.role === 'translation' && track.autoLoad);
   if (savedTranslation && (!player.cues.length || player.browserLoadedTrackId !== savedTranslation.id)) {
     void loadPersistedBrowserTranslation(savedTranslation);
@@ -3837,6 +3842,8 @@ function syncBrowserTabs(snapshots, activeTabId) {
       audible: snapshot.audible !== undefined ? !!snapshot.audible : tab.audible,
       offset: Number.isFinite(Number(snapshot.offset)) ? Number(snapshot.offset) : (tab.offset || 0),
       viewMode: snapshot.viewMode || tab.viewMode || 'reading',
+      subtitleMode: ['off', 'source', 'translation', 'both'].includes(snapshot.subtitleMode)
+        ? snapshot.subtitleMode : (tab.subtitleMode || 'source'),
       targetLanguage: snapshot.targetLanguage || tab.targetLanguage || '',
       browserTranslationTrackId: snapshot.translationTrackId || tab.browserTranslationTrackId || '',
       trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : (tab.trackRefs || []),
@@ -5478,6 +5485,20 @@ function browserPrimaryIsTranslation() {
   const id = player.browserTranslationTrackId;
   return !!id && player.browserLoadedTrackId === id
     && player.browserTracks.some((track) => track.id === id && track.role === 'translation');
+}
+
+function bestAvailableSubtitleMode(preferred) {
+  const wanted = ['off', 'source', 'translation', 'both'].includes(preferred) ? preferred : 'source';
+  if (wanted === 'off') return 'off';
+  const primaryTranslation = browserPrimaryIsTranslation();
+  const hasSource = player.cues.length > 0 && !primaryTranslation;
+  const hasTranslation = player.cues2.length > 0 || primaryTranslation;
+  if (wanted === 'both' && hasSource && hasTranslation) return 'both';
+  if (wanted === 'translation' && hasTranslation) return 'translation';
+  if (wanted === 'source' && hasSource) return 'source';
+  if (hasTranslation) return 'translation';
+  if (hasSource) return 'source';
+  return 'off';
 }
 
 function scheduleBrowserOverlaySync() {
@@ -9499,6 +9520,11 @@ function setSubtitlesVisible(visible) {
 
 function setSubtitleMode(mode, announce = true) {
   if (mode === 'source' && browserPrimaryIsTranslation()) mode = 'translation';
+  if (!['off', 'source', 'translation', 'both'].includes(mode)) return;
+  if (player.workspaceMode === 'browser') {
+    const tab = browserTabState();
+    if (tab) tab.subtitleMode = mode;
+  }
   if (mode === 'off') {
     setSubtitlesVisible(false);
   } else if (mode === 'source' || mode === 'translation') {
@@ -9508,8 +9534,6 @@ function setSubtitleMode(mode, announce = true) {
   } else if (mode === 'both') {
     applySubtitleTrackSelection(true, true);
     setSubtitlesVisible(true);
-  } else {
-    return;
   }
   setSubtitleModeMenuOpen(false);
   if (announce) {

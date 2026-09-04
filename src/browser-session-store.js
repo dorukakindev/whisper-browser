@@ -56,6 +56,8 @@ function normalizeSessionTab(raw) {
     offset: finiteNumber(raw.offset, 0, -30, 30),
     captureEnabled: raw.captureEnabled !== false,
     viewMode: ['cinema', 'reading', 'study'].includes(raw.viewMode) ? raw.viewMode : 'reading',
+    subtitleMode: ['off', 'source', 'translation', 'both'].includes(raw.subtitleMode)
+      ? raw.subtitleMode : 'source',
     targetLanguage: cleanString(raw.targetLanguage, 24).toLowerCase(),
     trackRefs,
   };
