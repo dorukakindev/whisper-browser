@@ -32,7 +32,7 @@ for (const gap of ['\n\n', '\n \n\t\n', '\r\n\r\n']) {
     [{ start: 1, end: 3, text: 'bir\niki' }, { start: 4, end: 5, text: 'son' }]);
 }
 assert.strictEqual(subtitles.cleanCueText('Tom &amp;#39;s &amp;amp; Jerry'), 'Tom &#39;s &amp; Jerry');
-assert.strictEqual(subtitles.cleanCueText('&lt;b&gt; &#x1F600; &#39; &unknown; &#99999999;'), "<b> 😀 ' &unknown; �");
+assert.strictEqual(subtitles.cleanCueText('&lt;b&gt; &#x1F600; &#39; &unknown; &#99999999;'), "😀 ' &unknown; �");
 const xml = '<tt xmlns:ttp="http://www.w3.org/ns/ttml#parameter" ttp:timeBase="smpte" ttp:frameRate="24"><body><div><p begin="00:00:01:12" end="00:00:03:00">Tom &amp;#39;s</p></div></body></tt>';
 assert.deepStrictEqual(subtitles.parseSubtitlePayload(xml, 'application/ttml+xml').cues,
   [{ start: 1.5, end: 3, text: 'Tom &#39;s' }]);

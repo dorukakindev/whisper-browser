@@ -76,6 +76,16 @@ function sentenceTranslationRequest(sentence) {
   };
 }
 
+function sentenceTranslationGenerationParameters(model) {
+  const normalized = String(model || '').trim();
+  // OpenAI reasoning aileleri sabit temperature değerini kabul etmeyebilir.
+  // Sağlayıcı öneki (openai/gpt-5.4 gibi) model ailesi denetimini bozmamalı.
+  if (/(?:^|\/)(?:gpt-5(?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(normalized)) {
+    return { max_completion_tokens: 4096 };
+  }
+  return { temperature: 0.2 };
+}
+
 // Compatibility for plain-text providers: duration-weighted, bounded phrase
 // fitting. Model-supplied, losslessly validated phrase boundaries take precedence.
 // This fallback is a readability heuristic, not a semantic proof.
@@ -125,4 +135,5 @@ function fitTranslationParts(text, pieces) {
 }
 
 module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
-  sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest };
+  sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest,
+  sentenceTranslationGenerationParameters };

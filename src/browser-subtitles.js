@@ -27,11 +27,16 @@ function decodeEntities(value) {
 }
 
 function cleanCueText(value) {
-  return decodeEntities(String(value || '')
+  const decoded = decodeEntities(String(value || '')
     // ASS/SSA biçimlendirme etiketleri görsel değil, altyazı metadatasıdır.
     .replace(/\{\\[^}]*\}/g, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ''))
+    .replace(/<br\s*\/?>/gi, '\n'));
+  // Yalnız bilinen altyazı biçimlendirme etiketlerini kaldır. Genel <...>
+  // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
+  return decoded
+    .replace(/<\/?(?:b|i|u|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
+    .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
+    .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/[ \t]{2,}/g, ' ')
@@ -150,7 +155,8 @@ function parseAss(body) {
     const start = parseTime(rawFields[startIndex]);
     const end = parseTime(rawFields[endIndex]);
     // Text alanı son yapısal alandır ve virgül içerebilir.
-    const text = stripAssDrawing(rawFields.slice(textIndex).join(',')).replace(/\\N/gi, '\n');
+    const text = stripAssDrawing(rawFields.slice(textIndex).join(','))
+      .replace(/\{[^}]*\}/g, '').replace(/\\N/gi, '\n').replace(/\\h/gi, ' ');
     if (start !== null) out.push({ start, end, text });
   }
   return normalizeCues(out);
@@ -162,7 +168,7 @@ function parseSami(body) {
   for (let i = 0; i < matches.length; i++) {
     const start = Number(matches[i][1]) / 1000;
     const end = i + 1 < matches.length ? Number(matches[i + 1][1]) / 1000 : null;
-    const text = matches[i][2].replace(/<p\b[^>]*>/gi, '').replace(/<\/p>/gi, '\n');
+    const text = matches[i][2].replace(/<p\b[^>]*>/gi, '\n').replace(/<\/p>/gi, '\n');
     out.push({ start, end, text });
   }
   return normalizeCues(out);
@@ -171,12 +177,14 @@ function parseSami(body) {
 function parseLrc(body) {
   const rows = [];
   for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
-    const tags = [...line.matchAll(/\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g)];
-    const text = line.replace(/(?:\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\])+/, '').trim();
+    const tagPattern = /\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+    const tags = [...line.matchAll(tagPattern)];
+    const text = line.replace(new RegExp(`(?:${tagPattern.source})+`, 'g'), '').trim();
     if (!text) continue;
     for (const tag of tags) {
-      const fraction = String(tag[3] || '').padEnd(3, '0').slice(0, 3);
-      rows.push({ start: Number(tag[1]) * 60 + Number(tag[2]) + Number(fraction) / 1000, text });
+      const fraction = String(tag[4] || '').padEnd(3, '0').slice(0, 3);
+      rows.push({ start: Number(tag[1] || 0) * 3600 + Number(tag[2]) * 60
+        + Number(tag[3]) + Number(fraction) / 1000, text });
     }
   }
   rows.sort((a, b) => a.start - b.start);
@@ -184,7 +192,7 @@ function parseLrc(body) {
     ...row,
     // LRC'nin son satırında bitiş damgası yoktur. Sıfıra düşürüp satırı
     // kaybetmek yerine okunabilir kısa bir varsayılan süre kullan.
-    end: rows[i + 1]?.start ?? row.start + 5,
+    end: rows[i + 1] ? Math.min(rows[i + 1].start, row.start + 7) : row.start + 5,
   })));
 }
 
@@ -227,6 +235,9 @@ function parseHlsSegments(body, baseUrl = '') {
   let discontinuity = discontinuitySequence;
   let pendingByteRange = null;
   let previousByteRangeEnd = 0;
+  let previousByteRangeUrl = '';
+  let initializationUrl = '';
+  let initializationByteRange = null;
   for (const line of text.split(/\r?\n/)) {
     const value = line.trim();
     if (!value) continue;
@@ -238,9 +249,20 @@ function parseHlsSegments(body, baseUrl = '') {
     const byteRange = value.match(/^#EXT-X-BYTERANGE\s*:\s*(\d+)(?:@(\d+))?/i);
     if (byteRange) {
       const length = Math.max(0, Number(byteRange[1]) || 0);
-      const start = byteRange[2] === undefined ? previousByteRangeEnd : Math.max(0, Number(byteRange[2]) || 0);
-      pendingByteRange = length ? { start, end: start + length - 1 } : null;
-      if (pendingByteRange) previousByteRangeEnd = pendingByteRange.end + 1;
+      pendingByteRange = length ? { length,
+        start: byteRange[2] === undefined ? null : Math.max(0, Number(byteRange[2]) || 0) } : null;
+      continue;
+    }
+    const map = value.match(/^#EXT-X-MAP\s*:\s*(.+)$/i);
+    if (map) {
+      const uri = map[1].match(/(?:^|,)\s*URI\s*=\s*"([^"]+)"/i)?.[1] || '';
+      const range = map[1].match(/(?:^|,)\s*BYTERANGE\s*=\s*"(\d+)(?:@(\d+))?"/i);
+      try { initializationUrl = uri ? new URL(uri, baseUrl).href : ''; } catch (_) { initializationUrl = ''; }
+      if (range) {
+        const length = Math.max(0, Number(range[1]) || 0);
+        const start = Math.max(0, Number(range[2]) || 0);
+        initializationByteRange = length ? { start, end: start + length - 1 } : null;
+      } else initializationByteRange = null;
       continue;
     }
     if (/^#EXT-X-DISCONTINUITY(?:\s|$)/i.test(value)) {
@@ -250,6 +272,18 @@ function parseHlsSegments(body, baseUrl = '') {
     if (value.startsWith('#')) continue;
     try {
       const url = new URL(value, baseUrl).href;
+      let byteRange = null;
+      if (pendingByteRange) {
+        const start = pendingByteRange.start === null
+          ? (url === previousByteRangeUrl ? previousByteRangeEnd : 0)
+          : pendingByteRange.start;
+        byteRange = { start, end: start + pendingByteRange.length - 1 };
+        previousByteRangeEnd = byteRange.end + 1;
+        previousByteRangeUrl = url;
+      } else {
+        previousByteRangeEnd = 0;
+        previousByteRangeUrl = '';
+      }
       // Aynı URI canlı/kayan bir listede yeniden kullanılabilir. URI'yi tekilleştirmek
       // sonraki parçaların zamanını geriye kaydırdığı gibi ikinci oluşumun kendi
       // zamanını da kaybettirir; her playlist satırı ayrı bir zaman örneğidir.
@@ -258,7 +292,9 @@ function parseHlsSegments(body, baseUrl = '') {
       // süresi bu bozukluk için en güvenli yaklaşık değerdir.
       const segmentDuration = pendingDuration > 0 ? pendingDuration : targetDuration;
       out.push({ url, start: elapsed, duration: segmentDuration, sequence, discontinuity,
-        targetDuration, ...(pendingByteRange ? { byteRange: pendingByteRange } : {}) });
+        targetDuration, ...(byteRange ? { byteRange } : {}),
+        ...(initializationUrl ? { initializationUrl } : {}),
+        ...(initializationByteRange ? { initializationByteRange } : {}) });
       elapsed += segmentDuration;
       sequence += 1;
     } catch (_) {}
@@ -531,8 +567,8 @@ function findSubtitleUrls(body, baseUrl = '') {
       if (!text || text.length > 2000) return;
       const hinted = /subtitle|subtitles|caption|captions|timedtext|texttrack|ttml|dfxp|webvtt|vtt|srt/i.test(context);
       const looksLikeResource = /^https?:\/\//i.test(text)
-        || text.startsWith('/') || text.includes('/')
-        || /\.(?:vtt|srt|ttml|dfxp|xml)(?:[?#]|$)/i.test(text);
+        || text.startsWith('/')
+        || /\.(?:vtt|srt|ttml|dfxp|srv3|json3|xml)(?:[?#]|$)/i.test(text);
       if (!looksLikeResource || (!hinted && !/\.(?:vtt|srt|ttml|dfxp|xml)(?:[?#]|$)/i.test(text))) return;
       try {
         const url = new URL(text, baseUrl).href;
@@ -702,9 +738,9 @@ function parseJson(body) {
     if (!startKey || typeof text !== 'string') continue;
     const endKey = ['endTimeMs', 'endMs', 'endTime', 'end', 'to'].find((key) => cue[key] !== undefined);
     const durationKey = ['durationMs', 'duration', 'dur'].find((key) => cue[key] !== undefined);
-    let start = Number(cue[startKey]);
-    let end = endKey ? Number(cue[endKey]) : null;
-    let duration = durationKey ? Number(cue[durationKey]) : null;
+    let start = parseTime(cue[startKey]);
+    let end = endKey ? parseTime(cue[endKey]) : null;
+    let duration = durationKey ? parseTime(cue[durationKey]) : null;
     if (!Number.isFinite(start)) continue;
     if (/Ms$|TimeMs$/i.test(startKey)) start /= 1000;
     if (Number.isFinite(end) && /Ms$|TimeMs$/i.test(endKey)) end /= 1000;
@@ -931,15 +967,16 @@ function parseSubtitlePayload(body, mimeType = '', url = '') {
     cues = parseJson(raw);
     if (cues.length) format = 'json3';
   }
-  if (!cues.length && /<(?:tt|transcript|timedtext|text|p)\b/i.test(raw)) {
+  if (!cues.length && /<(?:[\w.-]+:)?(?:tt|transcript|timedtext|text|p)\b/i.test(raw)) {
     cues = parseXml(raw);
-    if (cues.length) format = /<tt\b/i.test(raw) ? 'ttml' : 'timedtext';
+    if (cues.length) format = /<(?:[\w.-]+:)?tt\b/i.test(raw) ? 'ttml' : 'timedtext';
   }
   if (!cues.length && (raw.includes('-->') || /vtt|srt|subrip/i.test(mimeType + url))) {
     cues = parseTimedBlocks(raw);
     if (cues.length) format = /^WEBVTT/i.test(raw) || /vtt/i.test(mimeType + url) ? 'vtt' : 'srt';
   }
-  if (!cues.length && (/ass|ssa/i.test(mimeType + url) || /^\s*\[Script Info\]/i.test(raw))) {
+  if (!cues.length && (/ass|ssa/i.test(mimeType + url)
+      || /(?:^|\r?\n)\s*\[(?:Script Info|Events|V4\+? Styles)\]/i.test(raw))) {
     cues = parseAss(raw);
     if (cues.length) format = 'ass';
   }

@@ -107,6 +107,12 @@ test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
     'tek kalan bayt ayrılmamış bellekle doldurulmamalı');
 });
 
+test('entity ile kodlanmış etiketleri temizlerken matematik karşılaştırmasını korur', () => {
+  const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:02.000\n&lt;i&gt;5 &lt; 10 ve 20 &gt; 15&lt;/i&gt;',
+    'text/vtt', 'https://cdn.test/math.vtt');
+  assert.deepEqual(result.cues, [{ start: 0, end: 2, text: '5 < 10 ve 20 > 15' }]);
+});
+
 test('WebVTT alfanümerik cue kimliğini önceki metne sızdırmaz', () => {
   const result = parseSubtitlePayload('WEBVTT\n\ncue-a\n00:01.000 --> 00:02.000\nBir\n\ncue-b\n00:03.000 --> 00:04.000\nİki',
     'text/vtt', 'https://cdn.test/ids.vtt');
@@ -121,6 +127,13 @@ test('namespace kullanan TTML p ve iç span zamanlarını ayrı cue olarak ayrı
     { start: 3.5, end: 4.5, text: 'Bir' },
     { start: 4.5, end: 5.5, text: 'İki' },
   ]);
+});
+
+test('namespace kullanan TTML içerik MIME ipucu olmadan da tanınır', () => {
+  const result = parseSubtitlePayload('<tt:tt xmlns:tt="urn:tt"><tt:body><tt:p begin="1s" end="2s">Metin</tt:p></tt:body></tt:tt>',
+    'application/octet-stream', 'https://cdn.test/chunk.bin');
+  assert.equal(result.format, 'ttml');
+  assert.deepEqual(result.cues, [{ start: 1, end: 2, text: 'Metin' }]);
 });
 
 test('yaygın adlandırılmış HTML entity değerlerini çözer', () => {
@@ -214,6 +227,17 @@ test('SRT çıktısı UTF-8 metni ve zamanları korur', () => {
   assert.match(srt, /Türkçe metin/);
 });
 
+test('Genel altyazı JSON zaman kodlarını saat:dakika:saniye biçiminde ayrıştırır', () => {
+  const result = parseSubtitlePayload(JSON.stringify({ captions: [
+    { start: '01:02:03.500', end: '01:02:05.000', text: 'Uzun içerik' },
+    { start: '00:10.000', duration: '00:02.500', text: 'Kısa içerik' },
+  ] }), 'application/json', 'https://cdn.test/captions');
+  assert.deepEqual(result.cues, [
+    { start: 10, end: 12.5, text: 'Kısa içerik' },
+    { start: 3723.5, end: 3725, text: 'Uzun içerik' },
+  ]);
+});
+
 test('SRT ve VTT dışa aktarımı cue metnindeki boş blok sınırını temizler', () => {
   const cue = [{ start: 1, end: 2, text: 'Bir\n\nİki' }];
   assert.doesNotMatch(cuesToSrt(cue), /Bir\r?\n\r?\nİki/);
@@ -261,6 +285,17 @@ test('Hulu benzeri HLS manifestinden altyazı izlerini çıkarır', () => {
     { url: 'https://cdn.test/shared.bin', byteRange: { start: 50, end: 149 } },
     { url: 'https://cdn.test/shared.bin', byteRange: { start: 150, end: 229 } },
   ]);
+  assert.deepEqual(parseHlsSegments('#EXTINF:2,\n#EXT-X-BYTERANGE:100@50\na.bin\n#EXTINF:2,\n#EXT-X-BYTERANGE:80\nb.bin', 'https://cdn.test/live.m3u8')
+    .map(({ url, byteRange }) => ({ url, byteRange })), [
+    { url: 'https://cdn.test/a.bin', byteRange: { start: 50, end: 149 } },
+    { url: 'https://cdn.test/b.bin', byteRange: { start: 0, end: 79 } },
+  ]);
+  assert.deepEqual(parseHlsSegments('#EXT-X-MAP:URI="init.mp4",BYTERANGE="900@20"\n#EXTINF:2,\npart-1.m4s',
+    'https://cdn.test/subs/index.m3u8')[0], {
+    url: 'https://cdn.test/subs/part-1.m4s', start: 0, duration: 2, sequence: 0,
+    discontinuity: 0, targetDuration: 0, initializationUrl: 'https://cdn.test/subs/init.mp4',
+    initializationByteRange: { start: 20, end: 919 },
+  });
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\npart-1.vtt', 'https://cdn.test/master.m3u8'), true);
   assert.equal(isHlsSubtitlePlaylist('#EXTM3U\n#EXTINF:4,\nvideo-1.ts', 'https://cdn.test/video.m3u8'), false);
 });
@@ -412,6 +447,9 @@ test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bul
   const body = JSON.stringify({ movieId: 'x', timedtexttracks: [{ language: 'en', url: '/text/en.ttml' }], image: '/poster.jpg' });
   assert.deepEqual(findSubtitleUrls(body, 'https://media.test/playback/manifest'), ['https://media.test/text/en.ttml']);
   assert.deepEqual(findSubtitleUrls('{"status":"ok","url":"/api/profile"}', 'https://media.test/'), []);
+  assert.deepEqual(findSubtitleUrls(JSON.stringify({ language: 'en', value: 'en/US' }), 'https://media.test/'), []);
+  assert.deepEqual(findSubtitleUrls(JSON.stringify({ caption: 'captions/en.vtt' }), 'https://media.test/'),
+    ['https://media.test/captions/en.vtt']);
 });
 
 test('ASS, SAMI ve LRC metinleri ortak cue modeline dönüştürür', () => {
@@ -419,6 +457,19 @@ test('ASS, SAMI ve LRC metinleri ortak cue modeline dönüştürür', () => {
   assert.equal(parseSami('<SAMI><SYNC Start=1000><P>Bir</P><SYNC Start=3000><P>İki</P></SYNC>').length, 2);
   assert.deepEqual(parseLrc('[00:01.00]Bir\n[00:03.00]İki').map((cue) => cue.start), [1, 3]);
   assert.deepEqual(parseLrc('[00:01.00]Bir\n[00:03.00]İki').map((cue) => cue.end), [3, 8]);
+  assert.deepEqual(parseLrc('[01:02:03.50]Saatli\n[01:02:20.00]Sonraki'), [
+    { start: 3723.5, end: 3730.5, text: 'Saatli' },
+    { start: 3740, end: 3745, text: 'Sonraki' },
+  ]);
+  assert.deepEqual(parseSami('<SAMI><SYNC Start=1000><P>Bir<P>İki<SYNC Start=3000><P>Üç</SAMI>')[0].text,
+    'Bir\nİki');
+});
+
+test('ASS yalnız Events bölümüyle tanınır; yorum ve sabit boşlukları temizlenir', () => {
+  const result = parseSubtitlePayload('[Events]\nDialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Merhaba{çevirmen notu}\\h dünya',
+    'text/plain', 'https://cdn.test/subtitle.data');
+  assert.equal(result.format, 'ass');
+  assert.deepEqual(result.cues, [{ start: 1, end: 3, text: 'Merhaba dünya' }]);
 });
 
 test('ASS Events Format alan sırası değiştiğinde zaman ve metni korur', () => {
@@ -488,6 +539,10 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /yt-dlp güncellemesi 10 dakika içinde tamamlanmadı/);
   assert.match(main, /parseHlsSubtitleTracks/);
   assert.match(main, /headers: \{ Range: `bytes=\$\{byteRange\.start\}-\$\{byteRange\.end\}` \}/);
+  assert.match(main, /segment\.initializationUrl/);
+  assert.match(main, /parseMp4WebVtt\(partBuffer, matcher\)/);
+  assert.match(main, /fetchBrowserBufferWithRetry\(segment\.initializationUrl[\s\S]{0,160}range\)/);
+  assert.match(main, /const manifestHandled = storedCount > 0 \|\| \(!manifestRetryNeeded && noSubtitleWork\)/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);
   assert.match(main, /Target\.setAutoAttach/);
@@ -531,6 +586,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /parseMp4Timescale\(init\)/);
   assert.match(main, /parseMp4SampleDefaults\(init\)/);
+  assert.match(main, /ev\.type === 'subs'[\s\S]{0,100}subtitleFileAccess\.grant\(ev\.path\)/);
+  assert.match(main, /subtitleFileAccess\.grant\(outputPath\)/);
   assert.match(main, /browserNavigationCapabilities\(wc\)/);
   assert.match(main, /type: 'load-error'[\s\S]*browserNavigationState(?:ForTab)?\([^)]*\{ loading: false \}\)/);
   assert.match(main, /ERR_NETWORK_ACCESS_DENIED/);

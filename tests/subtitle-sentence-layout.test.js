@@ -57,6 +57,9 @@ async function run() {
   const japaneseFit = layout.fitTranslationParts('これは自然な日本語です。', fitPieces);
   assert.equal(japaneseFit.length, 2, 'boşluksuz dil çoklu cue için bölünmedi');
   assert.equal(japaneseFit.join(''), 'これは自然な日本語です。', 'boşluksuz metin değiştirilmemeli');
+  assert.deepEqual(layout.sentenceTranslationGenerationParameters('gemini-3.8-flash'), { temperature: 0.2 });
+  assert.deepEqual(layout.sentenceTranslationGenerationParameters('gpt-5.4-mini'), { max_completion_tokens: 4096 });
+  assert.deepEqual(layout.sentenceTranslationGenerationParameters('openai/o4-mini'), { max_completion_tokens: 4096 });
 
   const key = translationCacheKey(sentence);
   assert.notEqual(key, translationCacheKey({ ...sentence, contextBefore: 'Different.' }));
@@ -104,6 +107,7 @@ async function run() {
   const output = await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
   assert.deepEqual(output, reply);
   assert.equal(body.model, config.model, 'kullanıcının modeli değişti');
+  assert.equal(body.temperature, 0.2);
   assert.deepEqual(JSON.parse(body.messages[1].content).parts.map((p) => p.source), cues.map((c) => c.text));
   responseText = reply.text;
   const fittedOutput = await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
@@ -115,6 +119,11 @@ async function run() {
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');
   responseText = '{"örnek": 1}';
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: '{"example": 1}', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, responseText);
+  responseText = 'Merhaba.';
+  await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] },
+    { ...config, model: 'openai/gpt-5.4-mini' }, null, 'https://example.invalid');
+  assert.equal(body.temperature, undefined, 'reasoning modeline sabit temperature gönderildi');
+  assert.equal(body.max_completion_tokens, 4096);
   console.log('subtitle-sentence-layout: ortak sınırlar, kayıpsız yerleşim, atomik cache/ret ve gerçek main istek sözleşmesi geçti');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

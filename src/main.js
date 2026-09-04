@@ -394,6 +394,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
       try { ev = JSON.parse(line); } catch (_) { return; }
       if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs' || ev.type === 'clip') result = ev;
       else if (ev.type === 'error') errText = ev.message || 'bilinmeyen hata';
+      if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
       if (onEvent) onEvent(ev);
     };
     const stdoutLines = createNdjsonLineBuffer({
@@ -2266,7 +2267,8 @@ async function readJsonResponseLimited(response, maxBytes, label) {
 }
 
 async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
-  const { sentenceTranslationRequest, decodeSentenceTranslation, fitTranslationParts } = require('./subtitle-sentence-layout');
+  const { sentenceTranslationRequest, decodeSentenceTranslation, fitTranslationParts,
+    sentenceTranslationGenerationParameters } = require('./subtitle-sentence-layout');
   const grouped = (sentence.pieces?.length || 0) > 1;
   const sentenceRequest = grouped ? sentenceTranslationRequest(sentence) : null;
   const endpoint = safeTranslationEndpoint(endpointBase);
@@ -2310,7 +2312,7 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
       },
       body: JSON.stringify({
         model: config.model,
-        temperature: 0.2,
+        ...sentenceTranslationGenerationParameters(config.model),
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: sentenceRequest?.payload || String(sentence.text || '').slice(0, 12000) },
@@ -3618,10 +3620,10 @@ async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attem
   throw lastError || new Error('Altyazı isteği başarısız.');
 }
 
-async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null) {
+async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null, byteRange = null) {
   let lastError;
   for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
-    try { return await fetchBrowserBuffer(url, maxBytes, context); }
+    try { return await fetchBrowserBuffer(url, maxBytes, context, byteRange); }
     catch (error) {
       lastError = error;
       if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 150));
@@ -3645,7 +3647,14 @@ async function fetchAndStoreBrowserSubtitle(url, meta = {}, context = null) {
 }
 
 async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, context = null) {
-  if (!isHlsSubtitlePlaylist(playlistBody, playlistUrl)) return false;
+  const parsedParts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600);
+  // EXT-X-MAP + m4s altyazı playlistleri URL'de vtt ipucu taşımayabilir.
+  // Yalnız manifestten SUBTITLES izi olarak keşfedilmiş bir child playlistte
+  // bu daha geniş kabul uygulanır; rastgele video playlisti altyazı sanılmaz.
+  const trustedSubtitleChild = !!(meta.language || meta.label) && parsedParts.length > 0
+    && /^\s*#EXTM3U/m.test(String(playlistBody || ''))
+    && !/#EXT-X-STREAM-INF/i.test(String(playlistBody || ''));
+  if (!isHlsSubtitlePlaylist(playlistBody, playlistUrl) && !trustedSubtitleChild) return false;
   const language = meta.language || subtitleLanguage({ url: playlistUrl });
   const streamKey = browserTrackStreamKey(playlistUrl, language);
   if (browserHlsInFlight.has(streamKey)) return false;
@@ -3654,7 +3663,6 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
     const fetched = browserHlsFetchedSegments.get(streamKey) || new Set();
     browserHlsFetchedSegments.set(streamKey, fetched);
     trimInsertionCollection(browserHlsFetchedSegments, 64);
-    const parsedParts = parseHlsSegments(playlistBody, playlistUrl).slice(0, 1600);
     const timeline = browserHlsTimelines.get(streamKey) || { starts: new Map(), nextSequence: null, nextStart: 0 };
     const anchor = parsedParts.find((segment) => timeline.starts.has(segment.sequence));
     let timelineOffset = anchor ? timeline.starts.get(anchor.sequence) - anchor.start : 0;
@@ -3681,11 +3689,40 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
     })).filter((segment) => !fetched.has(segment.fetchKey));
     if (!parts.length) return false;
     const collected = [];
+    const initialization = new Map();
     // Yalnızca yeni segmentleri indir; canlı playlist her yenilendiğinde eski
     // parçaları tekrar istemek hem gereksiz trafik hem de servis yükü yaratır.
     for (let index = 0; index < parts.length; index += 6) {
       const batch = await Promise.all(parts.slice(index, index + 6).map(async (segment) => {
         try {
+          const binaryWebVtt = !!segment.initializationUrl || /\.(?:m4s|mp4)(?:[?#]|$)/i.test(segment.url);
+          if (binaryWebVtt) {
+            let matcher = { timescale: 0, sampleDefaults: {} };
+            if (segment.initializationUrl) {
+              const range = segment.initializationByteRange;
+              const initKey = `${segment.initializationUrl}|${range?.start ?? ''}-${range?.end ?? ''}`;
+              let pending = initialization.get(initKey);
+              if (!pending) {
+                pending = fetchBrowserBufferWithRetry(segment.initializationUrl, 4 * 1024 * 1024, 2,
+                  context, range).then((init) => ({
+                  timescale: parseMp4Timescale(init), sampleDefaults: parseMp4SampleDefaults(init),
+                }));
+                initialization.set(initKey, pending);
+              }
+              matcher = await pending;
+            }
+            const partBuffer = await fetchBrowserBufferWithRetry(segment.url, 2 * 1024 * 1024, 2,
+              context, segment.byteRange);
+            const cues = parseMp4WebVtt(partBuffer, matcher);
+            if (!cues.length) return false;
+            const likelyLocalTimeline = segment.start > 0
+              && cuesUseLocalSegmentTimeline(cues, segment.duration, segment.start);
+            collected.push(...cues.map((cue) => likelyLocalTimeline
+              ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
+              : cue));
+            fetched.add(segment.fetchKey);
+            return true;
+          }
           const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024, context, segment.byteRange);
           const part = parseSubtitlePayload(partBody, '', segment.url);
           if (!part.cues.length) return false;
@@ -3810,7 +3847,10 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
             else manifestRetryNeeded = true;
           }
           const noSubtitleWork = !tracks.length && !inlineHlsSubtitle;
-          const manifestHandled = !manifestRetryNeeded && (storedCount > 0 || noSubtitleWork);
+          // En az bir iz başarıyla saklandıysa manifest faydalı biçimde işlendi.
+          // Tek bir bozuk/erişilemeyen yan iz bütün manifesti tekrar tekrar
+          // çalıştırıp başarılı izleri çoğaltmamalı.
+          const manifestHandled = storedCount > 0 || (!manifestRetryNeeded && noSubtitleWork);
           noteBrowserCapture(strategy, candidate, storedCount ? 'parsed' : (manifestHandled ? 'rejected' : 'error'),
             storedCount ? `${storedCount} altyazı izi`
               : (manifestHandled ? 'Manifestte kullanılabilir altyazı izi bulunamadı'
@@ -6593,13 +6633,18 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
   return new Promise((resolve) => {
     let stderr = '';
     let proc;
+    let settled = false;
+    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
     try { proc = spawn(resolveFfTool('ffmpeg'), args, { windowsHide: true }); }
-    catch (error) { return resolve({ ok: false, error: error.message }); }
-    proc.on('error', (error) => resolve({ ok: false, error: error.message }));
+    catch (error) { return finish({ ok: false, error: error.message }); }
+    proc.on('error', (error) => finish({ ok: false, error: error.message }));
     proc.stderr?.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-2000); });
-    proc.on('close', (code) => resolve(code === 0 && fs.existsSync(outputPath)
-      ? { ok: true, path: outputPath, label: subtitleTrackLabel(track) }
-      : { ok: false, error: stderr.trim() || 'Gömülü altyazı çıkarılamadı.' }));
+    proc.on('close', (code) => {
+      if (code === 0 && fs.existsSync(outputPath)) {
+        subtitleFileAccess.grant(outputPath);
+        finish({ ok: true, path: outputPath, label: subtitleTrackLabel(track) });
+      } else finish({ ok: false, error: stderr.trim() || 'Gömülü altyazı çıkarılamadı.' });
+    });
   });
 });
 

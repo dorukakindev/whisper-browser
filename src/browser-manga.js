@@ -139,7 +139,15 @@ function sampleMangaRegionColors(bitmap, width, height, regions) {
     const addPixel = (x, y) => {
       const offset = (y * imageWidth + x) * 4;
       // Electron NativeImage.toBitmap() Windows'ta BGRA döndürür.
-      samples.push([pixels[offset + 2], pixels[offset + 1], pixels[offset]]);
+      const alpha = pixels[offset + 3] / 255;
+      if (alpha < .08) return;
+      // Kısmen saydam pikselleri beyaz zemin üzerinde bileşikleştir; saydam
+      // RGB=0 değerleri konuşma balonunu yapay biçimde siyaha çekmesin.
+      samples.push([
+        pixels[offset + 2] * alpha + 255 * (1 - alpha),
+        pixels[offset + 1] * alpha + 255 * (1 - alpha),
+        pixels[offset] * alpha + 255 * (1 - alpha),
+      ]);
     };
     for (let x = left; x <= right; x += step) {
       addPixel(x, top);
@@ -304,7 +312,7 @@ function mangaGenerationParameters(model) {
   // max_tokens alanını reddedebiliyor. Shuai gibi uyumluluk katmanları da
   // isteği model arka ucuna aynen ilettiği için modeli seçerken gövdeyi de
   // uyumlu tutmak gerekiyor.
-  if (/^(?:gpt-5(?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(String(model || '').trim())) {
+  if (/(?:^|\/)(?:gpt-5(?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(String(model || '').trim())) {
     return { max_completion_tokens: 8000 };
   }
   return { temperature: 0.1, max_tokens: 8000 };
@@ -528,6 +536,23 @@ function mangaOverlayScript(payload) {
         state.onLayout();
         return true;
       };
+      state.undoGroup = (target) => {
+        let index = -1;
+        for (let i = state.undo.length - 1; i >= 0; i--) {
+          if (state.undo[i]?.group === target) { index = i; break; }
+        }
+        if (index < 0) return false;
+        const [previous] = state.undo.splice(index, 1);
+        const current = { translation: target.dataset.translation || '', hidden: target.dataset.hidden === 'true' };
+        target.dataset.translation = previous.translation;
+        target.dataset.hidden = previous.hidden ? 'true' : 'false';
+        target.style.display = previous.hidden ? 'none' : '';
+        const text = target.querySelector('[data-whisper-manga-text]');
+        if (text) text.textContent = previous.translation;
+        state.emitEdit(target, current);
+        state.onLayout();
+        return true;
+      };
       state.layout = () => {
         state.layoutQueued = false;
         state.layoutFrame = 0;
@@ -722,7 +747,8 @@ function mangaOverlayScript(payload) {
         };
         const close = () => { editor.remove(); state.editor = null; frame.style.removeProperty('outline'); };
         buttons.appendChild(makeButton('Geri al', false, () => {
-          if (state.undoLast()) close();
+          if (state.undoGroup(group)) close();
+          else { area.value = group.dataset.translation || ''; area.focus(); }
         }));
         buttons.appendChild(makeButton('Sil', false, () => {
           const previous = state.remember(group);

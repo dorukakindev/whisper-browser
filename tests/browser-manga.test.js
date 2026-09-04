@@ -63,6 +63,14 @@ const interiorColored = sampleMangaRegionColors(borderedBitmap, 10, 10, [{
   text_box: [0, 0, 1000, 1000], bubble_box: [0, 0, 1000, 1000], translation: 'Test',
 }]);
 assert.equal(interiorColored[0].backgroundColor, '#ffffff');
+const transparentBitmap = Buffer.from([
+  0, 0, 0, 0, 255, 255, 255, 255,
+  0, 0, 0, 0, 255, 255, 255, 255,
+]);
+const transparentColored = sampleMangaRegionColors(transparentBitmap, 2, 2, [{
+  text_box: [0, 0, 1000, 1000], bubble_box: [0, 0, 1000, 1000], translation: 'Test',
+}]);
+assert.equal(transparentColored[0].backgroundColor, '#ffffff');
 const boundedText = normalizeMangaRegions({ regions: [{ box: [0, 0, 100, 100],
   source: 's'.repeat(2000), translation: 't'.repeat(2000) }] })[0];
 assert.equal(boundedText.source.length, 1200);
@@ -91,6 +99,7 @@ assert.equal(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle:
   'dinamik sayfa başlığı aynı görselin kalıcı düzenleme/cache anahtarını değiştirmemeli');
 assert.deepEqual(mangaGenerationParameters('gpt-5.4'), { max_completion_tokens: 8000 });
 assert.deepEqual(mangaGenerationParameters('o4-mini'), { max_completion_tokens: 8000 });
+assert.deepEqual(mangaGenerationParameters('openai/gpt-5.4-mini'), { max_completion_tokens: 8000 });
 assert.deepEqual(mangaGenerationParameters('gpt-4.1-mini'), { temperature: 0.1, max_tokens: 8000 });
 
 const ranked = selectMangaCandidates([
@@ -223,6 +232,8 @@ assert.match(browserPreload, /ipcRenderer\.send\('browser:trusted-bridge'/);
 assert.match(main, /executeJavaScriptInIsolatedWorld/);
 assert.match(main, /ipcMain\.on\('browser:trusted-bridge'/);
 assert.match(overlaySource, /pre:\s*previous\?\.translation/);
+assert.match(overlaySource, /state\.undoGroup = \(target\)/);
+assert.match(overlaySource, /if \(state\.undoGroup\(group\)\) close\(\)/);
 assert.match(main, /previousTranslation !== currentTranslation/);
 assert.match(main, /payload\.bridgeToken !== tab\.bridgeToken/);
 assert.match(main, /await tab\.mangaClearPromise[\s\S]{0,500}if \(tab\.mangaJob\)/);
