@@ -223,6 +223,17 @@ class BrowserTranslationScheduler {
     return this.queue.length + this.pending.size;
   }
 
+  retryFailed() {
+    const failedIds = [...this.failures.entries()]
+      .filter(([, failure]) => failure.terminal)
+      .map(([sentenceId]) => sentenceId);
+    if (!failedIds.length) return 0;
+    for (const sentenceId of failedIds) this.failures.delete(sentenceId);
+    this.completeTrack = true;
+    this.updatePlayhead(this.playhead);
+    return failedIds.length;
+  }
+
   async readCache(key) {
     return this.cache && typeof this.cache.get === 'function' ? this.cache.get(key) : undefined;
   }

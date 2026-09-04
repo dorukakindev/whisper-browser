@@ -5802,6 +5802,16 @@ ipcMain.handle('browser:translation:completeAll', async (event, request) => {
   return { ok: true, remaining: tab.translationScheduler.completeAll() };
 });
 
+ipcMain.handle('browser:translation:retryFailed', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab?.translationScheduler) return { ok: false, error: 'Yeniden denenecek web çevirisi bulunamadı.' };
+  const retried = tab.translationScheduler.retryFailed();
+  return retried > 0
+    ? { ok: true, retried }
+    : { ok: false, error: 'Yeniden denenecek hatalı cümle yok.' };
+});
+
 ipcMain.handle('browser:liveAsr:start', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);

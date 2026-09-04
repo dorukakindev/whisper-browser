@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld('api', {
   getBrowserTranslationSnapshot: (tabId) => ipcRenderer.invoke('browser:translation:snapshot', { tabId }),
   stopBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:stop', { tabId }),
   completeBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:completeAll', { tabId }),
+  retryFailedBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:retryFailed', { tabId }),
   startBrowserLiveAsr: (tabId, options) => ipcRenderer.invoke('browser:liveAsr:start', { ...options, tabId }),
   sendBrowserLiveAsrChunk: (tabId, payload) => ipcRenderer.invoke('browser:liveAsr:chunk', { ...payload, tabId }),
   stopBrowserLiveAsr: () => ipcRenderer.invoke('browser:liveAsr:stop'),

@@ -214,11 +214,16 @@ async function test(name, fn) {
     const sentence = { id: 'retry', start: 0, end: 2, text: 'Retry.', pieces: [{ cueId: 'r', start: 0, end: 2, text: 'Retry.' }] };
     const failures = [];
     let calls = 0;
+    let shouldFail = true;
     const scheduler = new BrowserTranslationScheduler({
       maxAttempts: 3,
       retryBaseMs: 10,
       retryMaxMs: 20,
-      translate: async () => { calls++; throw new Error('kalıcı hata'); },
+      translate: async () => {
+        calls++;
+        if (shouldFail) throw new Error('kalıcı hata');
+        return 'Başarılı.';
+      },
       onResult: (result) => { if (result.error) failures.push(result); },
     });
     scheduler.setSentences([sentence]);
@@ -231,6 +236,12 @@ async function test(name, fn) {
     scheduler.updatePlayhead(0);
     await new Promise((resolve) => setTimeout(resolve, 30));
     assert.equal(calls, 3, 'terminal hata yeniden kuyruğa girdi');
+    shouldFail = false;
+    assert.equal(scheduler.retryFailed(), 1, 'terminal hata elle yeniden kuyruğa alınmadı');
+    await scheduler.whenIdle();
+    assert.equal(calls, 4, 'elle yeniden deneme yeni bir istek başlatmadı');
+    assert.equal(scheduler.snapshot().failures.length, 0, 'başarılı yeniden deneme hata kaydını temizlemedi');
+    assert.equal(scheduler.snapshot().results.length, 1, 'başarılı yeniden deneme sonucu saklanmadı');
   });
 
   await test('aynı cache anahtarındaki eşzamanlı çeviriler tek isteği paylaşır', async () => {

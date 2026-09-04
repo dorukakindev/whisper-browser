@@ -1195,7 +1195,7 @@ test('web videosu konumu izleme kütüphanesine yazılır ve geri açılır', ()
 
 test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını bağlıyor', () => {
   for (const id of ['browserManualSubtitle', 'browserTrackSelect2', 'browserTrackLoadPair', 'browserTrackExport',
-    'browserTranslationExport', 'browserCopyAb']) {
+    'browserTranslationExport', 'browserTranslationRetryFailed', 'browserCopyAb']) {
     assert(layer.includes(`id="${id}"`), `${id} arayüzde yok`);
     assert(js.includes(`$('${id}')`), `${id} renderer'a bağlı değil`);
   }
@@ -1303,6 +1303,22 @@ test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçile
     js.indexOf("event.type === 'overlay-style'"));
   assert(/completed\) >= Number\(progress\.total\)[\s\S]*setSubtitleMode\('translation', false\)/.test(states),
     'tamamlanan canlı çeviri otomatik olarak ana görünüm yapılmıyor');
+});
+
+test('terminal web çeviri hataları kullanıcı tarafından yeniden kuyruğa alınabilir', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  assert(/retryFailedBrowserTranslation:[\s\S]*browser:translation:retryFailed/.test(preload),
+    'hatalı web çevirisi yeniden deneme IPC köprüsü yok');
+  assert(/ipcMain\.handle\('browser:translation:retryFailed'[\s\S]*translationScheduler\.retryFailed\(\)/.test(main),
+    'ana süreç terminal çeviri hatalarını scheduler üzerinden yeniden başlatmıyor');
+  assert(/browserTranslationRetryFailed['"]\)\.addEventListener\('click', retryFailedBrowserTranslation\)/.test(js),
+    'yeniden deneme düğmesi renderer işlevine bağlı değil');
+  const states = js.slice(js.indexOf("event.type === 'translation-state'"),
+    js.indexOf("event.type === 'overlay-style'"));
+  assert(/player\.browserTranslationFailed = Math\.max/.test(states)
+    && /updateBrowserTranslationRetryButton\(\)/.test(states),
+  'terminal hata sayısı çeviri ilerleme olayından düğmeye taşınmıyor');
 });
 
 test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
