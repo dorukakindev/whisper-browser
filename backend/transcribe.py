@@ -1639,9 +1639,9 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None):
         "version": 1,
         "language": getattr(info, "language", None) if info else None,
         "language_probability": (
-            round(getattr(info, "language_probability", 0), 4) if info else None
+            finite_json_value(round(getattr(info, "language_probability", 0), 4)) if info else None
         ),
-        "duration": round(getattr(info, "duration", 0), 3) if info else None,
+        "duration": finite_json_value(round(getattr(info, "duration", 0), 3)) if info else None,
         "segments": [],
     }
     n_words = len(all_words) if all_words else 0
@@ -1663,14 +1663,19 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None):
             seg_words = []
             while j < n_words and all_words[j]["start"] <= end + 0.05:
                 if all_words[j].get("end", all_words[j]["start"]) >= start - 0.05:
-                    seg_words.append(all_words[j])
+                    word = dict(all_words[j])
+                    if "probability" in word:
+                        word["probability"] = finite_json_value(word["probability"])
+                    seg_words.append(word)
                 j += 1
             if seg_words:
                 seg["words"] = seg_words
         payload["segments"].append(seg)
 
     with atomic_text_writer(output_path, encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        # Zaman alanları bozuksa mevcut dosyayı atomik yazıcının korumasıyla
+        # bırak; isteğe bağlı güven/süre ölçümlerindeki NaN ise yukarıda null olur.
+        json.dump(payload, f, ensure_ascii=False, indent=2, allow_nan=False)
 
 
 # Whisper'ın yaygın halüsinasyonları — eğitim verisindeki YouTube/altyazı
@@ -2991,7 +2996,8 @@ def _wrap_whisperx_segment(s):
         if prob is None:
             prob = w.get("probability", 1.0)
         # faster-whisper konvansiyonu: kelime metni baştaki boşlukla gelir
-        words.append(_WxWord(" " + wt, float(ws), float(we), float(prob or 1.0)))
+        words.append(_WxWord(" " + wt, float(ws), float(we),
+                             float(1.0 if prob is None else prob)))
         prev_end = float(we)
     return _WxSegment(seg_start, seg_end, text, words or None)
 

@@ -212,11 +212,14 @@ def download(url, height, audio_lang, output_dir, cookie_browser=""):
             emit("download_progress", percent=100.0, speed=0, eta=0)
             log("İndirme bitti, birleştiriliyor...")
 
+    completed_paths = []
     opts = _ydl_opts({
         "format": fmt,
         "outtmpl": str(outdir / "%(title).120s [%(id)s].%(ext)s"),
         "merge_output_format": "mp4",
         "progress_hooks": [hook],
+        # yt-dlp bu kancayı birleştirme/remux ve son taşıma bittikten sonra çağırır.
+        "post_hooks": [completed_paths.append],
         # Oynatıcı için tek dosya şart — birleştirme başarısızsa hata versin
         "postprocessors": [{"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}],
     }, cookie_browser=cookie_browser)
@@ -226,24 +229,13 @@ def download(url, height, audio_lang, output_dir, cookie_browser=""):
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
 
-    path = None
-    if info.get("requested_downloads"):
-        path = info["requested_downloads"][0].get("filepath")
-    if not path or not os.path.exists(path):
-        # Yedek: yt-dlp bazı sitelerde birleşmiş çıktıyı requested_downloads
-        # alanına geri yazmaz veya mp4 yerine mkv/webm bırakır.
-        base = info.get("title") or ""
-        playable = {".mp4", ".mkv", ".webm", ".mov", ".m4v"}
-        candidates = [p for p in outdir.iterdir()
-                      if p.is_file() and p.suffix.lower() in playable
-                      and (not base or base[:40] in p.name)]
-        if candidates:
-            candidates.sort(
-                key=lambda p: (p.suffix.lower() == ".mp4", p.stat().st_mtime),
-                reverse=True,
-            )
-            path = str(candidates[0])
-    if not path or not os.path.exists(path):
+    # requested_downloads bileşen (yalnız video/ses) yolları içerebilir.
+    # Başlık benzerliğiyle klasör taramak başka bir indirmeyi başarı sayar.
+    candidates = list(reversed(completed_paths))
+    if isinstance(info, dict) and info.get("filepath"):
+        candidates.append(info["filepath"])
+    path = next((p for p in candidates if p and Path(p).is_file()), None)
+    if not path:
         raise RuntimeError("İndirilen dosya bulunamadı")
 
     emit("downloaded", path=str(path), title=info.get("title") or "",

@@ -928,6 +928,11 @@ function escapeHtml(str) {
 }
 
 function clearPreview() {
+  clearTimeout(_searchTimer);
+  _searchTimer = null;
+  previewFilter = '';
+  if ($('previewSearch')) $('previewSearch').value = '';
+  $('previewSearchClear')?.classList.add('hidden');
   state.previewSegs = [];
   _previewCapWarned = false;
   $('preview').innerHTML = `
@@ -1080,7 +1085,7 @@ function addSegment(seg) {
 // Nihai segment listesini tek seferde göster — DocumentFragment ile (düğüm başına reflow yok)
 function renderFinalPreview(segs) {
   const preview = $('preview');
-  state.previewSegs = segs.map((s) => ({ start: s.start, end: s.end, text: s.text }));
+  state.previewSegs = segs.map((s) => ({ ...s }));
   const offset = segs.length > PREVIEW_DOM_CAP ? segs.length - PREVIEW_DOM_CAP : 0;
   const visible = offset > 0 ? segs.slice(-PREVIEW_DOM_CAP) : segs;
   const frag = document.createDocumentFragment();
@@ -7294,10 +7299,11 @@ function closeTimeline() {
 
 function timelineNudge(delta) {
   const i = player.timeline.selected;
-  if (i < 0 || !player.cues[i]) return;
-  timelinePushUndo();
+  if (i < 0 || !player.cues[i] || !Number.isFinite(delta)) return;
   const c = player.cues[i];
   const shift = Math.max(-c.start, delta);
+  if (!shift) return;
+  timelinePushUndo();
   c.start += shift; c.end += shift;
   timelineMarkDirty(`${i + 1}. blok ${delta < 0 ? 'geri' : 'ileri'} kaydırıldı`);
 }
@@ -9693,6 +9699,10 @@ function openPlayer() {
 
 function closePlayer() {
   const video = $('playerVideo');
+  clearTimeout(player.shadowResumeTimer);
+  player.shadowResumeTimer = null;
+  clearTimeout(_liveCueRenderTimer);
+  _liveCueRenderTimer = null;
   // Kapanirken suren klasor/probe istekleri katmani yeniden acmasin.
   player.openIntent++;
   player.probeRequestSeq++;
@@ -10699,7 +10709,10 @@ if ($('playerVideo')) {
     if (video.paused) video.play(); else video.pause();
   });
   $('playerSeek').addEventListener('input', (e) => {
-    if (video.duration) video.currentTime = (e.target.value / 1000) * video.duration;
+    const fraction = Number(e.target.value) / 1000;
+    if (Number.isFinite(video.duration) && video.duration > 0 && Number.isFinite(fraction)) {
+      video.currentTime = Math.max(0, Math.min(1, fraction)) * video.duration;
+    }
     updateSeekVisuals();
   });
   $('playerVolume').addEventListener('input', (e) => {

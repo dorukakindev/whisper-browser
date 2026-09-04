@@ -2486,6 +2486,82 @@ def test_download_paths_missing_audio_and_bracketed_clip():
         assert emitted.call_args.kwargs['path'] == str(actual)
 
 
+def test_media_download_uses_only_final_output_not_title_or_components():
+    class FakeYdl:
+        result = {}
+        completed = None
+
+        def __init__(self, opts): self.opts = opts
+        def __enter__(self): return self
+        def __exit__(self, *_args): pass
+        def extract_info(self, *_args, **_kwargs):
+            if self.completed:
+                for hook in self.opts['post_hooks']:
+                    hook(self.completed)
+            return dict(self.result)
+
+    fake = types.ModuleType('yt_dlp')
+    fake.YoutubeDL = FakeYdl
+    with tempfile.TemporaryDirectory() as td, mock.patch.dict(sys.modules, {'yt_dlp': fake}), \
+            mock.patch.object(M, '_ydl_opts', side_effect=lambda opts, **kw: opts), \
+            mock.patch.object(M, 'log'), mock.patch.object(M, 'emit') as emitted:
+        wrong = Path(td) / ('same-title-' + 'x' * 50 + ' [other].mp4')
+        wrong.write_bytes(b'other video')
+        component = Path(td) / 'video.f137.mp4'
+        component.write_bytes(b'video-only component')
+        for title in ['', 'same-title-' + 'x' * 50]:
+            FakeYdl.result = {'title': title, 'requested_downloads': [{'filepath': str(component)}]}
+            try:
+                M.download('https://example.test/video', 1080, '', td)
+            except RuntimeError as error:
+                assert 'dosya bulunamadı' in str(error)
+            else:
+                raise AssertionError('Başka video veya ham bileşen başarı sayıldı')
+        assert not emitted.called
+        final = Path(td) / 'finished.mp4'
+        final.write_bytes(b'final synthetic file')
+        FakeYdl.completed = str(final)
+        M.download('https://example.test/video', 1080, '', td)
+        assert emitted.call_args.kwargs['path'] == str(final)
+        FakeYdl.completed = None
+        FakeYdl.result = {'filepath': str(final)}
+        M.download('https://example.test/video', 1080, '', td)
+        assert emitted.call_args.kwargs['path'] == str(final)
+        assert wrong.read_bytes() == b'other video'
+
+
+def test_json_writer_nonfinite_metrics_and_invalid_timing_are_safe():
+    with tempfile.TemporaryDirectory() as td:
+        target = Path(td) / 'result.json'
+        info = types.SimpleNamespace(language='tr', language_probability=float('nan'), duration=float('inf'))
+        word = {'start': 0, 'end': 1, 'word': 'Merhaba', 'probability': float('nan')}
+        T.write_json([(0, 1, 'Merhaba')], target, info=info, all_words=[word])
+        content = target.read_bytes()
+        def reject_constant(value):
+            raise AssertionError(f'Geçersiz JSON sabiti: {value}')
+        result = json.loads(content, parse_constant=reject_constant)
+        assert result['duration'] is None and result['language_probability'] is None
+        assert result['segments'][0]['words'][0]['probability'] is None
+        assert str(word['probability']) == 'nan'  # kaynak girdisi değiştirilmedi
+        try:
+            T.write_json([(0, float('inf'), 'Bozuk zaman')], target)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('Sonsuz zaman kabul edildi')
+        assert target.read_bytes() == content
+
+
+def test_whisperx_zero_confidence_is_not_promoted_to_one():
+    for field in ('score', 'probability'):
+        seg = T._wrap_whisperx_segment({'start': 0, 'end': 1, 'text': 'test',
+            'words': [{'word': 'test', 'start': 0, 'end': 1, field: 0}]})
+        assert seg.words[0].probability == 0
+    seg = T._wrap_whisperx_segment({'start': 0, 'end': 1,
+        'words': [{'word': 'test', 'start': 0, 'end': 1, 'probability': None}]})
+    assert seg.words[0].probability == 1
+
+
 def test_probe_duration_timeout_and_invalid_results():
     from unittest import mock
     with mock.patch.object(T.Path, 'exists', return_value=True):
