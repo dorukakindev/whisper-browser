@@ -60,6 +60,10 @@ function normalizeSessionTab(raw) {
       ? raw.subtitleMode : 'source',
     targetLanguage: cleanString(raw.targetLanguage, 24).toLowerCase(),
     trackRefs,
+    // null eski kayıttır; iki boş kimlik ise kullanıcının bilinçli boş seçimidir.
+    subtitleSelection: raw.subtitleSelection && typeof raw.subtitleSelection === 'object' && !Array.isArray(raw.subtitleSelection)
+      ? { primaryId: cleanString(raw.subtitleSelection.primaryId, 180),
+        secondaryId: cleanString(raw.subtitleSelection.secondaryId, 180) } : null,
   };
 }
 

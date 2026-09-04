@@ -1352,7 +1352,8 @@ test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
 test('altyazı görünüm modu web sekmesine kaydedilir ve sekme değişiminde uygun iz ile geri gelir', () => {
   const save = js.slice(js.indexOf('function saveActiveBrowserTabWorkspace'),
     js.indexOf('function restoreActiveBrowserTabWorkspace'));
-  assert(/subtitleMode:\s*browserSubtitleMode\(\)/.test(save),
+  assert(/subtitleMode:\s*savedSubtitleMode/.test(save)
+    && /restoringSelection \? tab\.restoreSubtitleMode : browserSubtitleMode\(\)/.test(save),
     'kaynak/çeviri görünümü aktif web sekmesine kaydedilmiyor');
   const restore = js.slice(js.indexOf('function restoreActiveBrowserTabWorkspace'),
     js.indexOf('function syncBrowserTabs'));

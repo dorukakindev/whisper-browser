@@ -1428,6 +1428,7 @@ function createBrowserTabRecord(initial = {}) {
     viewMode: restored.viewMode || 'reading',
     targetLanguage: restored.targetLanguage || '',
     trackRefs: restored.trackRefs || [],
+    subtitleSelection: restored.subtitleSelection || null,
   };
   browserTabs.set(tab.id, tab);
   if (!browserActiveTabId) browserActiveTabId = tab.id;
@@ -1482,6 +1483,7 @@ function browserTabSnapshot(tab) {
     targetLanguage: tab?.targetLanguage || '',
     translationTrackId: tab?.translationTrackId || '',
     trackRefs: Array.isArray(tab?.trackRefs) ? tab.trackRefs : [],
+    subtitleSelection: tab?.subtitleSelection || null,
     resumePending: !!url && !(wc && wc.getURL() !== 'about:blank'),
   };
 }
@@ -3413,7 +3415,8 @@ function restorePersistedBrowserTracks(tab) {
           updatedAt: document.updatedAt || row.updated_at, pageUrl: tab.restoredUrl || '',
           sourceUrl: '', assetId: document.assetId, persisted: true,
           role,
-          autoLoad: role === 'translation' && !restoredTranslation,
+          autoLoad: role === 'translation' && !restoredTranslation
+            && !tab.subtitleSelection && tab.overlay?.mode !== 'off',
         },
       });
       if (role === 'translation') restoredTranslation = true;
@@ -4620,6 +4623,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
     tab.restoredTitle = wc.getTitle() || '';
     const identity = ADAPTER_REGISTRY.mediaIdentity(tab.restoredUrl);
+    if (tab.mediaId && tab.mediaId !== identity.key) tab.subtitleSelection = null;
     tab.mediaId = identity.key;
     tab.service = identity.service;
     tab.contentId = identity.contentId;
@@ -4637,6 +4641,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       // yakalanmış izleri, canlı çeviriyi ve manga katmanını koru.
       const mediaChanged = !tab.mediaId || tab.mediaId !== identity.key;
       if (mediaChanged) {
+        tab.subtitleSelection = null;
         stopBrowserManga(tab, true);
         tab.mangaTranslated = 0;
         tab.mangaVisible = false;
@@ -5500,6 +5505,7 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     subtitleMode: normalized.subtitleMode,
     targetLanguage: normalized.targetLanguage,
     trackRefs: normalized.trackRefs,
+    subtitleSelection: normalized.subtitleSelection,
     overlay: { ...(tab.overlay || {}), mode: normalized.subtitleMode, offset: normalized.offset },
   });
   scheduleBrowserSessionSave();

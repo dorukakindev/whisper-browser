@@ -3586,6 +3586,10 @@ function newBrowserTabState(snapshot = {}) {
     browserPositionTick: 0,
     browserLoadedTrackId: '',
     browserLoadedTrackId2: '',
+    subtitleSelection: snapshot.subtitleSelection || null,
+    subtitleSelectionRestored: !snapshot.subtitleSelection,
+    subtitleSelectionExplicit: !!snapshot.subtitleSelection,
+    restoreSubtitleMode: snapshot.subtitleMode || 'source',
     browserTranslationTrackId: snapshot.translationTrackId || '',
     browserLiveTranslations: [],
     browserTranslationFailed: 0,
@@ -3667,6 +3671,12 @@ function restoreLocalSubtitleWorkspace() {
 function saveActiveBrowserTabWorkspace() {
   const tab = browserTabState();
   if (!tab) return;
+  const restoringSelection = tab.subtitleSelection && !tab.subtitleSelectionRestored;
+  const selection = restoringSelection ? tab.subtitleSelection
+    : (tab.subtitleSelection || tab.subtitleSelectionExplicit || player.browserLoadedTrackId || player.browserLoadedTrackId2) ? {
+    primaryId: player.browserLoadedTrackId || '', secondaryId: player.browserLoadedTrackId2 || '',
+  } : null;
+  const savedSubtitleMode = restoringSelection ? tab.restoreSubtitleMode : browserSubtitleMode();
   Object.assign(tab, {
     url: player.browserPageUrl,
     title: player.browserPageTitle,
@@ -3707,7 +3717,8 @@ function saveActiveBrowserTabWorkspace() {
     subPath: player.subPath, sub2Path: player.sub2Path,
     subFormat: player.subFormat, subRaw: player.subRaw, offset: player.offset,
     viewMode: player.viewMode,
-    subtitleMode: browserSubtitleMode(),
+    subtitleMode: savedSubtitleMode,
+    subtitleSelection: selection,
     targetLanguage: $('translateTo')?.value || tab.targetLanguage || '',
   });
   if (window.api.updateBrowserSessionTab) {
@@ -3726,7 +3737,8 @@ function saveActiveBrowserTabWorkspace() {
       position: tab.browserTime, duration: tab.browserDuration,
       rate: tab.browserRate, volume: tab.browserVolume, muted: tab.browserMuted,
       offset: tab.offset, captureEnabled: tab.captureEnabled,
-      viewMode: player.viewMode, subtitleMode: browserSubtitleMode(),
+      viewMode: player.viewMode, subtitleMode: savedSubtitleMode,
+      subtitleSelection: selection,
       targetLanguage: $('translateTo')?.value || '',
       trackRefs: refs,
     }).catch(() => {});
@@ -3821,6 +3833,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   showBrowserErrorSurface(tab.error ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
   void restoreBrowserTranslationSnapshot(tab);
+  void restoreBrowserSubtitleSelection(tab);
 }
 
 function syncBrowserTabs(snapshots, activeTabId) {
@@ -4920,6 +4933,41 @@ function renderBrowserTracks(selectedId) {
   }
 }
 
+async function restoreBrowserSubtitleSelection(tab) {
+  if (!tab?.subtitleSelection || tab.subtitleSelectionRestored || tab.subtitleSelectionLoading
+      || tab.id !== player.browserActiveTabId) return;
+  const selection = tab.subtitleSelection;
+  const primary = player.browserTracks.find((track) => track.id === selection.primaryId);
+  const secondary = player.browserTracks.find((track) => track.id === selection.secondaryId);
+  // İki kayıtlı iz de keşfedilmeden yarım seçim uygulama.
+  if ((selection.primaryId && !primary) || (selection.secondaryId && !secondary)) return;
+  const mode = tab.restoreSubtitleMode || tab.subtitleMode;
+  const gen = currentGeneration();
+  const isCurrent = () => tab.id === player.browserActiveTabId && !staleGeneration(gen)
+    && !tab.subtitleSelectionRestored;
+  tab.subtitleSelectionLoading = true;
+  try {
+    if (primary) {
+      addSubtitleOption(primary.path, `${primary.role === 'translation' ? 'Çeviri' : 'Web'} · ${primary.label || primary.language}`);
+      $('playerSubSelect').value = primary.path;
+      await loadSubtitle(primary.path, false, { silent: true, restoringSelection: true });
+      if (!isCurrent() || player.subPath !== primary.path) return;
+    }
+    if (secondary) {
+      addSubtitleOption(secondary.path, `${secondary.role === 'translation' ? 'Çeviri' : 'Web'} · ${secondary.label || secondary.language}`);
+      $('playerSubSelect2').value = secondary.path;
+      await loadSubtitle(secondary.path, true, { silent: true, restoringSelection: true });
+      if (!isCurrent() || player.sub2Path !== secondary.path) return;
+    }
+    if (!isCurrent()) return;
+    tab.subtitleSelectionRestored = true;
+    setSubtitleMode(mode, false);
+    saveActiveBrowserTabWorkspace();
+  } finally {
+    tab.subtitleSelectionLoading = false;
+  }
+}
+
 async function loadPersistedBrowserTranslation(track) {
   const tab = browserTabState();
   if (!tab || !track?.path || track.role !== 'translation' || tab.persistedTranslationLoading) return;
@@ -5717,6 +5765,11 @@ function updateBrowserNavigation(data, options = {}) {
   }
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
   if (!options.preserveWorkspace && mediaChanged) {
+    if (tab) {
+      tab.subtitleSelection = null;
+      tab.subtitleSelectionRestored = true;
+      tab.subtitleSelectionExplicit = false;
+    }
     // Anahtar degisimi eski kaydi diske yazar. Yeni URL'yi once state'e
     // koyarsak onceki sayfanin konumu yeni sayfanin basligi altinda kalir.
     setMediaKey(nextMediaKey);
@@ -6441,6 +6494,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (event.track.role === 'translation' && event.track.autoLoad) {
       void loadPersistedBrowserTranslation(event.track);
     }
+    void restoreBrowserSubtitleSelection(tab);
     if (index < 0) logLine(`${event.track.role === 'translation' ? 'Web çevirisi' : 'Web altyazısı'} bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
   } else if (event.type === 'media' && event.media) {
     const previousTime = player.browserTime;
@@ -10142,6 +10196,10 @@ function clearBrowserSecondarySelection() {
 }
 
 async function loadSubtitle(path, secondary = false, options = {}) {
+  if (player.workspaceMode === 'browser' && !options.silent) {
+    const tab = browserTabState();
+    if (tab) { tab.subtitleSelectionRestored = true; tab.subtitleSelectionExplicit = true; }
+  }
   if (!path) {
     // Altyazi kapatilinca LISTE de temizlenmeli. Eskiden yalnizca overlay
     // siliniyordu; sagda 29 kart oldugu gibi kaliyor, tiklaninca hicbir sey
@@ -10343,7 +10401,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       }
       // Ayarlar panelinden çevri izini tek başına seçince mevcut görünüm
       // modu kaynakta kalıp boş bir katman göstermesin.
-      if (!options.silent || previousPrimaryPath !== path) setSubtitleMode('translation', false);
+      if (!options.restoringSelection && (!options.silent || previousPrimaryPath !== path)) setSubtitleMode('translation', false);
     } else if (previousPrimaryPath !== path && previousTranslation && browserTrack?.id !== previousTranslation.id) {
       stopReplacedBrowserTranslation('');
       player.browserTranslationTrackId = '';
@@ -10367,7 +10425,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   }
   // Kullanici altyaziyi acikca yukledi; gizliyken sessizce gizli kalmasi
   // "ekledim ama gorunmuyor" sikayetinin ta kendisiydi.
-  if (player.subsHidden) {
+  if (player.subsHidden && !options.restoringSelection) {
     setSubtitlesVisible(true);
     logLine('Altyazı gizliydi — otomatik açıldı.', 'warn');
   }

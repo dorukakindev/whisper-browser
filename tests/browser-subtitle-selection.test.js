@@ -102,5 +102,30 @@ function harness() {
   assert.equal(pair.ctx.player.subPath, 'src2.srt');
   assert.equal(pair.ctx.player.sub2Path, 'tr.srt', 'birincil değişimi çift yükleme isteğinin ikinci seçimini sildi');
   assert.equal(pair.controls.playerSubSelect2.value, 'tr.srt');
+
+  for (const mode of ['off', 'both']) {
+    const restored = harness();
+    Object.assign(restored.tab, { id: 'a', subtitleSelection: { primaryId: 'tr', secondaryId: 'src' },
+      subtitleSelectionRestored: false, restoreSubtitleMode: mode });
+    restored.ctx.player.subsHidden = mode === 'off';
+    restored.ctx.setSubtitlesVisible = () => { throw Error('geri yükleme kapalı altyazıyı erken açtı'); };
+    restored.ctx.addSubtitleOption = () => {};
+    let saved = 0;
+    restored.ctx.saveActiveBrowserTabWorkspace = () => { saved++; };
+    vm.runInContext(js.slice(js.indexOf('async function restoreBrowserSubtitleSelection('),
+      js.indexOf('async function loadPersistedBrowserTranslation(')), restored.ctx);
+    const sourceTrack = restored.ctx.player.browserTracks.shift();
+    await restored.ctx.restoreBrowserSubtitleSelection(restored.tab);
+    assert.equal(restored.ctx.player.subPath, '', 'ikinci iz gelmeden yarım seçim yüklendi');
+    restored.ctx.player.browserTracks.push(sourceTrack);
+    await restored.ctx.restoreBrowserSubtitleSelection(restored.tab);
+    assert.equal(restored.ctx.player.subPath, 'tr.srt');
+    assert.equal(restored.ctx.player.sub2Path, 'src.srt');
+    assert.equal(restored.modes.at(-1), mode);
+    assert.equal(restored.tab.subtitleSelectionRestored, true);
+    assert.equal(saved, 1);
+    await restored.ctx.restoreBrowserSubtitleSelection(restored.tab);
+    assert.equal(saved, 1, 'aynı seçim tekrar yüklendi');
+  }
   console.log('Browser subtitle selection: pair refresh, channel reset, live replacement and failed reads passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
