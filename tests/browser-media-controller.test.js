@@ -1,10 +1,18 @@
 const assert = require('assert');
+const vm = require('vm');
 const {
   buildBrowserMediaCommandScript,
   buildBrowserMediaProbeScript,
 } = require('../src/browser-media-controller');
 
 let passed = 0;
+// Geçersiz komut DOM'a/controller'a bile dokunmadan reddedilmeli.
+for (const command of ['seek', 'seek-relative', 'speed', 'volume']) {
+  for (const value of [Infinity, -Infinity, NaN, '1e999']) {
+    vm.runInNewContext(buildBrowserMediaCommandScript(command, value), {})
+      .then(result => assert.strictEqual(result, false));
+  }
+}
 function test(name, fn) { fn(); passed += 1; }
 
 test('medya adayları sayfada kalıcı bir controller ile izlenir', () => {

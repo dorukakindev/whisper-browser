@@ -84,6 +84,9 @@ function buildBrowserMediaProbeScript() {
 }
 
 function buildBrowserMediaCommandScript(command, value) {
+  // JSON.stringify(Infinity) null üretir; seek komutunda bu yanlışlıkla 0 olur.
+  if (['seek', 'seek-relative', 'speed', 'volume'].includes(command)
+      && !Number.isFinite(Number(value))) return '(async () => false)()';
   const safeCommand = JSON.stringify(String(command || ''));
   const safeValue = JSON.stringify(Number(value) || 0);
   return `(async () => {

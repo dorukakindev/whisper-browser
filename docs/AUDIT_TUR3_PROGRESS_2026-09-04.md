@@ -9,12 +9,16 @@ Bu belge tüm raporun kapatıldığı anlamına gelmez. Raporun “gerçek bug�
 
 Test: `tests/browser-report-regressions.test.js`. Gerçek Electron/DRM oturumu çalıştırılmadı.
 
-## Kaynakta gözlenen, henüz düzeltilmeyen
+## İkinci düzeltme grubu
 
-- BUG-127: İlk `mangaOverlayScript` çağrısında yaratılan `state.layout` ve `state.emitEdit` kapanımları ilk payload'a başvuruyor. Sonraki sayfa/ayar çağrıları için davranış testi ve bölgeye özel ayar çözümü gerekiyor; tek bir global payload atamak eski sayfaların farklı stillerini bozabilir.
+- BUG-127 düzeltildi: Güncel köprü anahtarı state'ten, yazı yönü bölgeden okunuyor. Aynı sayfada yatay ve dikey iki katman gerçek enjeksiyon betiğiyle test edildi.
+- BUG-142 düzeltildi: Metin değişince genişleme ve sığdırma durumu sıfırlanıyor. Uzun metin → genişleme → kısa metin → özgün boyut akışı test edildi.
+- BUG-155 düzeltildi: Sonlu olmayan sayısal medya komutları script üretilirken reddediliyor; Infinity'nin null üzerinden seek=0 olması engellendi.
+
+Yeni test: `tests/manga-layout-state.test.js`. Bu minimal DOM davranış testidir, piksel/gerçek Electron doğrulaması değildir. Tam `npm test` paketi geçti; Python alt grubu 126/126.
 
 ## Henüz bağımsız doğrulanmayan
 
-BUG-125 ve BUG-129–178 (BUG-127 yukarıda). Bu maddeler kapalı veya yanlış pozitif ilan edilmemiştir. Önceki turlardan tekrar edilen maddeler de yeni rapor bağlamında topluca kapanmış sayılmamıştır.
+BUG-125 ve BUG-129–178 içinden yukarıda açıkça düzeltilenler dışındaki maddeler. Bunlar kapalı veya yanlış pozitif ilan edilmemiştir. Önceki turlardan tekrar edilen maddeler de yeni rapor bağlamında topluca kapanmış sayılmamıştır.
 
 `BUG_REPORT.md` ve `b-search.txt` bu çalışma başlamadan önce izlenmeyen dosyalardı; değiştirilmedi.

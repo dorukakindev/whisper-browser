@@ -502,7 +502,7 @@ function mangaOverlayScript(payload) {
             translation: group.dataset.translation || '', hidden: group.dataset.hidden === 'true',
             pre: previous?.translation ?? group.dataset.translation ?? '',
             preHidden: previous?.hidden === true,
-            bridgeToken: payload.bridgeToken,
+            bridgeToken: state.bridgeToken,
           });
         } catch (_) {}
       };
@@ -547,6 +547,15 @@ function mangaOverlayScript(payload) {
             const region = group.querySelector('[data-whisper-manga-frame]');
             const text = group.querySelector('[data-whisper-manga-text]');
             if (!text) continue;
+            const verticalText = group.dataset.verticalText === 'true';
+            // Düzenleme/geri alma sonrasında eski genişlemeyi taşımadan yeniden sığdır.
+            if (region.dataset.fittedText !== text.textContent) {
+              region.style.width = region.dataset.baseWidth + '%';
+              region.style.height = region.dataset.baseHeight + '%';
+              region.dataset.expanded = 'false';
+              region.dataset.fittedText = text.textContent;
+              text.dataset.fitKey = '';
+            }
             const ellipse = group.dataset.shape === 'ellipse';
             const availableWidth = Math.max(1, region.clientWidth * (ellipse ? .82 : .94));
             const availableHeight = Math.max(1, region.clientHeight * (ellipse ? .76 : .9));
@@ -556,9 +565,9 @@ function mangaOverlayScript(payload) {
               textHash = Math.imul(textHash, 16777619);
             }
             const fitKey = Math.round(availableWidth * 10) + ':' + Math.round(availableHeight * 10)
-              + ':' + (textHash >>> 0).toString(36) + ':' + group.dataset.fontScale + ':' + (payload.verticalText ? 'v' : 'h');
+              + ':' + (textHash >>> 0).toString(36) + ':' + group.dataset.fontScale + ':' + (verticalText ? 'v' : 'h');
             if (text.dataset.fitKey === fitKey) continue;
-            if (payload.verticalText) {
+            if (verticalText) {
               text.style.width = 'auto';
               text.style.height = availableHeight + 'px';
               text.style.maxWidth = availableWidth + 'px';
@@ -571,8 +580,8 @@ function mangaOverlayScript(payload) {
             }
             const scale = Math.max(.7, Math.min(1.7, Number(group.dataset.fontScale) || 1));
             let low = Math.max(7, 8 * scale);
-            const viewportExtent = payload.verticalText ? rect.height : rect.width;
-            const regionExtent = payload.verticalText ? region.clientWidth : region.clientHeight;
+            const viewportExtent = verticalText ? rect.height : rect.width;
+            const regionExtent = verticalText ? region.clientWidth : region.clientHeight;
             let high = Math.max(low, Math.min(34 * scale, viewportExtent / 30 * scale, regionExtent * .52));
             let best = low;
             for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -739,6 +748,7 @@ function mangaOverlayScript(payload) {
       };
       addEventListener('keydown', state.onKeydown, true);
     }
+    state.bridgeToken = payload.bridgeToken;
     const previous = state.overlays.get(payload.id);
     if (previous) previous.remove();
     const overlay = document.createElement('div');
@@ -762,6 +772,7 @@ function mangaOverlayScript(payload) {
       group.dataset.bubbleBox = JSON.stringify(item.bubbleBox);
       group.dataset.shape = item.shape;
       group.dataset.fontScale = String(payload.fontScale);
+      group.dataset.verticalText = String(payload.verticalText);
       Object.assign(group.style, { position: 'absolute', inset: '0', pointerEvents: 'none', display: item.hidden ? 'none' : '' });
       cleanup.setAttribute('data-whisper-manga-cleanup', '');
       Object.assign(cleanup.style, { position: 'absolute', left: (tx1 / 10) + '%', top: (ty1 / 10) + '%',
