@@ -13,8 +13,19 @@ function canonicalLocalPath(value) {
   }
   const resolved = path.resolve(value);
   // Resolve aliases before checking extensions and permissions (symlink/ADS).
-  return fs.existsSync(resolved) ? fs.realpathSync(resolved)
-    : path.join(fs.realpathSync(path.dirname(resolved)), path.basename(resolved));
+  if (fs.existsSync(resolved)) return fs.realpathSync(resolved);
+  // Yeni/silinmiş bir dosyada parent henüz mevcut olmayabilir. Var olan en
+  // yakın üst dizini gerçekleyip eksik parçaları tekrar ekle.
+  const missing = [];
+  let cursor = path.dirname(resolved);
+  while (!fs.existsSync(cursor)) {
+    const parent = path.dirname(cursor);
+    if (parent === cursor) throw new Error('Yerel dosya yolu çözümlenemedi.');
+    missing.unshift(path.basename(cursor));
+    cursor = parent;
+  }
+  const canonicalParent = fs.realpathSync(cursor);
+  return path.join(canonicalParent, ...missing, path.basename(resolved));
 }
 
 class SubtitleFileAccess {

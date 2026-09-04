@@ -2812,8 +2812,11 @@ window.api.onEvent((event) => {
       break;
 
     case 'download_progress':
-      setProgress(event.percent);
-      $('progressText').textContent = `İndiriliyor ${event.percent.toFixed(0)}%`;
+      {
+        const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
+        setProgress(percent);
+        $('progressText').textContent = `İndiriliyor ${percent.toFixed(0)}%`;
+      }
       break;
 
     case 'language':
@@ -2821,15 +2824,16 @@ window.api.onEvent((event) => {
       break;
 
     case 'progress': {
-      setProgress(event.percent);
-      $('progressText').textContent = `${event.percent.toFixed(1)}%`;
+      const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
+      setProgress(percent);
+      $('progressText').textContent = `${percent.toFixed(1)}%`;
       const elapsed = (Date.now() - state.startTime) / 1000;
       // Hız (%/sn) üzerinde EMA — erken tahminlerdeki aşırı oynamayı yumuşatır
-      const speed = elapsed > 0.1 ? event.percent / elapsed : 0;
+      const speed = elapsed > 0.1 ? percent / elapsed : 0;
       if (speed > 0) {
         state._speedEma = state._speedEma > 0 ? state._speedEma * 0.7 + speed * 0.3 : speed;
       }
-      const remaining = state._speedEma > 0 ? (100 - event.percent) / state._speedEma : 0;
+      const remaining = state._speedEma > 0 ? (100 - percent) / state._speedEma : 0;
       $('progressTime').textContent = `${formatTime(event.current)} / ${formatTime(event.total)} · kalan ~${formatTime(remaining)}`;
       break;
     }
@@ -2840,10 +2844,11 @@ window.api.onEvent((event) => {
       break;
 
     case 'llm_progress': {
-      setProgress(event.percent);
+      const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
+      setProgress(percent);
       // Ayni kanal hem LLM duzeltmesi hem ceviri icin kullaniliyor (stage ayirir)
       const _lbl = event.stage === 'translate' ? 'Çevriliyor' : 'LLM düzeltiyor';
-      $('progressText').textContent = `${_lbl} ${event.percent.toFixed(1)}% (${event.done}/${event.total})`;
+      $('progressText').textContent = `${_lbl} ${percent.toFixed(1)}% (${event.done}/${event.total})`;
       if (event.failed) $('progressTime').textContent = `${event.failed} blokta hata`;
       break;
     }

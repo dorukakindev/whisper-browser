@@ -4326,6 +4326,12 @@ def transcribe(args):
         CKPT_INTERVAL = 20.0  # sn — checkpoint yazma sıklığı (çökme kaybını sınırlar)
 
         for segment in segments_iter:
+            # Bazı motorlar sessiz/bozuk karelerde sınırı None bırakabilir.
+            # Bu kayıtlar zaman eksenine güvenle yerleştirilemediğinden atlanır;
+            # None ile toplama yapıp tüm işi düşürmelerine izin verilmez.
+            if segment.start is None or segment.end is None:
+                log("Zaman damgası olmayan segment atlandı.", "warn")
+                continue
             # Halüsinasyonları filtrele
             if is_hallucination(segment.text):
                 log(f"Halüsinasyon atlandı: {segment.text.strip()[:60]}", "warn")
@@ -4493,7 +4499,11 @@ def transcribe(args):
         # Çok kısa parçaları komşusuyla birleştir (LLM/diarization öncesi — temiz birleşim)
         if args.merge_short:
             n0 = len(entries)
-            entries = merge_short_entries(entries)
+            entries = merge_short_entries(
+                entries,
+                max_chars=args.max_chars,
+                max_dur=args.max_duration,
+            )
             if len(entries) != n0:
                 log(f"Kısa parça birleştirme: {n0} → {len(entries)} blok")
 
