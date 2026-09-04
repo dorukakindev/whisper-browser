@@ -4910,6 +4910,7 @@ async function loadPersistedBrowserTranslation(track) {
     if (player.browserActiveTabId !== tabId || player.subPath !== track.path) return;
     player.browserLoadedTrackId = track.id;
     player.browserLoadedTrackId2 = '';
+    if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
     // Kalıcı çeviri birincil kanala yüklense de rolünü kaybetmemeli; aksi
     // halde ayarlardaki "Yalnızca çeviri" seçeneği devre dışı kalır.
     player.browserTranslationTrackId = track.id;
@@ -10055,6 +10056,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.cues2 = [];
       player.cues2Raw = null;
       player.sub2Path = '';
+      if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
       const tab = browserTabState();
       if (tab) {
         tab.browserLoadedTrackId = browserTrack.id;
