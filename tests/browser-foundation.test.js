@@ -171,10 +171,12 @@ test('ana süreç oturumu açılışta geri yükler ve kapanmadan önce yazar', 
   assert.match(preload, /updateBrowserSessionTab/);
 });
 
-test('renderer sekme sınırını oturum deposundaki tek kaynaktan alır', () => {
+test('renderer sekme sınırını sandbox uyumlu preload köprüsünden alır', () => {
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
-  assert.match(preload, /const \{ MAX_SESSION_TABS \} = require\('\.\/browser-session-store'\)/);
+  // Değerin oturum deposuyla eşitliği preload-sandbox.test.js içinde,
+  // preload bütünüyle çalıştırılarak doğrulanır.
+  assert.doesNotMatch(preload, /require\(['"]\.\.?\//);
   assert.match(preload, /browserLimits: Object\.freeze\(\{ maxTabs: MAX_SESSION_TABS \}\)/);
   assert.match(renderer, /Number\(window\.api\.browserLimits\?\.maxTabs\) \|\| 24/);
 });

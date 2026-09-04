@@ -1,5 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
-const { MAX_SESSION_TABS } = require('./browser-session-store');
+// Sandboxed preload yerel CommonJS dosyalarını yükleyemez. Burayı bağımsız
+// tut; ana süreçteki sınırla eşitlik preload-sandbox.test.js ile doğrulanır.
+const MAX_SESSION_TABS = 24;
 
 contextBridge.exposeInMainWorld('api', {
   browserLimits: Object.freeze({ maxTabs: MAX_SESSION_TABS }),
