@@ -8,6 +8,7 @@ const https = require('https');
 const { isIP } = require('net');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
+const { createBrowserPageFind } = require('./browser-page-find');
 const { canonicalLocalPath, SubtitleFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const subtitleFileAccess = new SubtitleFileAccess();
 const {
@@ -1991,6 +1992,8 @@ function installBrowserContextMenu(tab, wc) {
       { label: 'Geri', enabled: canGoBack, click: () => wc.navigationHistory.goBack() },
       { label: 'İleri', enabled: canGoForward, click: () => wc.navigationHistory.goForward() },
       { label: 'Yenile', click: () => wc.reload() },
+      { label: 'Sayfada bul', accelerator: 'CmdOrCtrl+F',
+        click: () => { mainWindow.webContents.focus(); sendBrowserEvent(tab, { type: 'find-open' }); } },
       { type: 'separator' },
       { label: 'Bağlantıyı yeni sekmede aç', visible: !!linkUrl,
         click: () => void openBrowserLinkInNewTab(linkUrl).catch((error) =>
@@ -4513,6 +4516,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   mainWindow.contentView.addChildView(view);
   const wc = view.webContents;
   installBrowserContextMenu(tab, wc);
+  tab.pageFind = createBrowserPageFind(wc, event => {
+    if (event.type === 'find-open') mainWindow.webContents.focus();
+    sendBrowserEvent(tab, event);
+  },
+    () => tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
   // Birçok yayın sitesi `Electron/x` belirtecini desteklenmeyen tarayıcı diye
   // reddediyor. Chromium sürümünü değiştirmeden yalnızca Electron ürün adını
   // kaldır; navigator.userAgent ve istek başlıkları aynı kimliği kullansın.
@@ -4727,6 +4735,7 @@ async function activateBrowserTab(rawId) {
     return next;
   }
   const previous = activeBrowserTab();
+  previous?.pageFind?.stop();
   persistActiveBrowserTabState();
   stopBrowserPolling();
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
@@ -4768,6 +4777,7 @@ function queueBrowserTabTransition(work) {
 
 function destroyBrowserTab(tab) {
   if (!tab) return;
+  tab.pageFind?.stop();
   stopBrowserManga(tab, false);
   tab.translationScheduler?.cancelAll('Sekme kapatıldı.');
   tab.translationScheduler = null;
@@ -5304,6 +5314,10 @@ ipcMain.handle('browser:command', async (event, payload) => {
       wc.stop();
     } else if (command === 'focus') {
       wc.focus();
+    } else if (command === 'find') {
+      return tab.pageFind.find(value);
+    } else if (command === 'find-stop') {
+      tab.pageFind.stop();
     } else if (['zoom-in', 'zoom-out', 'zoom-reset'].includes(command)) {
       const current = Number(wc.getZoomFactor?.()) || 1;
       const zoom = command === 'zoom-reset' ? 1

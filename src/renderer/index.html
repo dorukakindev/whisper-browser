@@ -1080,6 +1080,14 @@
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 14 5-5 5 5"/></svg>
               </button>
             </div>
+            <div class="browser-find hidden" id="browserFindBar" role="search" aria-label="Sayfada bul">
+              <input type="search" id="browserFindInput" maxlength="2000" placeholder="Sayfada bul"
+                aria-label="Sayfada aranacak metin" aria-describedby="browserFindCount" autocomplete="off" spellcheck="false" />
+              <span id="browserFindCount" role="status" aria-live="polite">Metin girin</span>
+              <button class="btn-icon" id="browserFindPrevious" type="button" title="Önceki eşleşme (Shift+Enter)" aria-label="Önceki eşleşme">↑</button>
+              <button class="btn-icon" id="browserFindNext" type="button" title="Sonraki eşleşme (Enter)" aria-label="Sonraki eşleşme">↓</button>
+              <button class="btn-icon" id="browserFindClose" type="button" title="Aramayı kapat (Esc)" aria-label="Aramayı kapat">×</button>
+            </div>
           </div>
 
           <section class="browser-places hidden" id="browserPlacesPanel" role="dialog" aria-modal="false"

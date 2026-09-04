@@ -3826,7 +3826,68 @@ function syncBrowserTabs(snapshots, activeTabId) {
   for (const id of previous.keys()) player.browserTabEventGate.close(id);
   player.browserTabs = next;
   player.browserActiveTabId = activeTabId || (next[0] && next[0].id) || '';
+  if (browserPageFind.tabId && browserPageFind.tabId !== player.browserActiveTabId) closeBrowserFind(false);
   renderBrowserTabs();
+}
+
+const browserPageFind = { tabId: '', token: 0, timer: null };
+function closeBrowserFind(focusPage = true) {
+  clearTimeout(browserPageFind.timer);
+  const tabId = browserPageFind.tabId;
+  browserPageFind.tabId = '';
+  browserPageFind.token++;
+  $('browserFindBar')?.classList.add('hidden');
+  if (tabId) window.api.browserCommand(tabId, 'find-stop').catch(() => {});
+  if (focusPage && tabId === player.browserActiveTabId) browserCommand('focus').catch(() => {});
+  scheduleBrowserBounds();
+}
+function openBrowserFind() {
+  if (player.workspaceMode !== 'browser' || !player.browserActiveTabId) return;
+  browserPageFind.tabId = player.browserActiveTabId;
+  $('browserFindBar').classList.remove('hidden');
+  $('browserFindInput').focus();
+  $('browserFindInput').select();
+  scheduleBrowserBounds();
+  runBrowserFind();
+}
+async function runBrowserFind(next = false, forward = true) {
+  clearTimeout(browserPageFind.timer);
+  const tabId = browserPageFind.tabId;
+  if (!tabId || tabId !== player.browserActiveTabId) return;
+  const token = ++browserPageFind.token;
+  const text = $('browserFindInput').value;
+  $('browserFindCount').textContent = text ? 'Aranıyor…' : 'Metin girin';
+  try {
+    const result = await browserCommand('find', { text, token, next, forward }, tabId);
+    if (token !== browserPageFind.token || tabId !== browserPageFind.tabId) return;
+    if (!result?.ok) $('browserFindCount').textContent = result?.error || 'Arama yapılamadı';
+  } catch (_) {
+    if (token === browserPageFind.token && tabId === browserPageFind.tabId) $('browserFindCount').textContent = 'Arama yapılamadı';
+  }
+}
+function receiveBrowserFindEvent(event) {
+  if (event.tabId !== player.browserActiveTabId) return;
+  if (event.type === 'find-open') { openBrowserFind(); return; }
+  if (event.type === 'find-reset') { closeBrowserFind(false); return; }
+  if (event.token !== browserPageFind.token || event.tabId !== browserPageFind.tabId) return;
+  const matches = Math.max(0, Number(event.matches) || 0);
+  $('browserFindCount').textContent = matches ? `${Math.max(0, Number(event.activeMatch) || 0)} / ${matches}` : 'Eşleşme yok';
+}
+if ($('browserFindInput')) {
+  $('browserFindInput').addEventListener('input', event => {
+    clearTimeout(browserPageFind.timer);
+    browserPageFind.token++; // Önceki sorgunun geciken sonucu debounce sırasında da eskidir.
+    if (!event.isComposing) browserPageFind.timer = setTimeout(() => runBrowserFind(), 180);
+  });
+  $('browserFindInput').addEventListener('compositionend', () => runBrowserFind());
+  $('browserFindBar').addEventListener('keydown', event => {
+    if (event.isComposing) return;
+    if (event.key === 'Enter' && event.target === $('browserFindInput')) { event.preventDefault(); event.stopPropagation(); runBrowserFind(true, !event.shiftKey); }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeBrowserFind(); }
+  });
+  $('browserFindNext').addEventListener('click', () => runBrowserFind(true));
+  $('browserFindPrevious').addEventListener('click', () => runBrowserFind(true, false));
+  $('browserFindClose').addEventListener('click', () => closeBrowserFind());
 }
 
 function browserCommand(command, value, tabId = player.browserActiveTabId) {
@@ -5478,6 +5539,7 @@ function setWorkspaceMode(mode, persist = true) {
   const previousMode = player.workspaceMode;
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
   if (mode !== previousMode) {
+    closeBrowserFind(false);
     player.abA = null;
     player.abB = null;
     $('abLoopBtn')?.classList.remove('active');
@@ -5949,6 +6011,8 @@ if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEv
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
+  if (['find-open', 'find-result', 'find-reset'].includes(event.type)) { receiveBrowserFindEvent(event); return; }
   if (event.type === 'tabs-changed') {
     const previousActiveId = player.browserActiveTabId;
     saveActiveBrowserTabWorkspace();
@@ -9854,6 +9918,7 @@ function openPlayer() {
 }
 
 function closePlayer() {
+  closeBrowserFind(false);
   player.cancelHoldSpeed?.();
   const video = $('playerVideo');
   player.seekDragging = false;
@@ -11055,6 +11120,7 @@ document.addEventListener('keydown', (e) => {
   const modifier = e.ctrlKey || e.metaKey;
   if (player.workspaceMode === 'browser' && modifier && !e.altKey) {
     const key = e.key.toLowerCase();
+    if (key === 'f') { e.preventDefault(); openBrowserFind(); return; }
     if (key === 'l') {
       e.preventDefault();
       $('browserAddress')?.focus();

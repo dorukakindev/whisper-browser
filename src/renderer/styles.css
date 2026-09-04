@@ -3833,6 +3833,24 @@ body::before {
 .browser-nav, .browser-address-wrap, .browser-toolbar-actions { grid-row: 2; }
 
 .browser-nav { display: flex; gap: 3px; }
+.browser-find {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 6px;
+  width: min(100%, 520px);
+  min-width: 0;
+  padding-top: 5px;
+  border-top: 1px solid #202022;
+  color: #e4e7ec;
+  -webkit-app-region: no-drag;
+}
+.browser-find input { flex: 1; min-width: 70px; width: 100%; font: inherit; font-size: 13px; }
+.browser-find [role="status"] { flex: 0 1 auto; max-width: 155px; color: #d5a35c; font-size: 12px; }
+.browser-find .btn-icon { flex: 0 0 30px; width: 30px; height: 30px; }
+.browser-find :focus-visible { outline: 2px solid #d5a35c; outline-offset: 2px; }
 .browser-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .browser-nav-button {
   width: 34px;
@@ -4243,6 +4261,10 @@ body::before {
 .player-layer.browser-chrome-collapsed .browser-toolbar {
   padding-top: calc(8px + var(--window-controls-safe-height));
 }
+.player-layer.browser-chrome-collapsed .browser-workspace:has(.browser-find:not(.hidden)) {
+  grid-template-rows: auto 0 minmax(0, 1fr);
+}
+.player-layer.browser-chrome-collapsed .browser-find { grid-row: 2; }
 button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-drag; }
 
 @media (max-width: 1280px) {
@@ -4280,6 +4302,7 @@ button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-dra
 }
 
 @container browser-workspace (max-width: 620px) {
+  .player-layer:not(.browser-chrome-collapsed) .browser-find { grid-row: 4; }
   .player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: 28px 36px 36px;
