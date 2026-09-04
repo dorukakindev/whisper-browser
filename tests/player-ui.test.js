@@ -1259,6 +1259,8 @@ test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {
   'eski oturumlarda birincil çeviri rolü geri çıkarılmıyor');
   assert(/if \(browserPrimaryIsTranslation\(\)\) setSubtitleMode\('translation', false\)/.test(restoreActive),
     'kalıcı çeviri geri açılışta görünüm moduna alınmıyor');
+  assert(/browserTranslationMapFromCues\(player\.cues\)/.test(restoreActive),
+    'kalıcı birincil çeviri dışa aktarma cue haritasına alınmıyor');
 });
 
 test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {

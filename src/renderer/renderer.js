@@ -3770,6 +3770,9 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.cues2 = (tab.cues2 || []).slice();
   player.cuesRaw = (tab.cuesRaw || tab.cues || []).slice();
   player.cues2Raw = (tab.cues2Raw || tab.cues2 || []).slice();
+  if (restoredPrimaryTrack && !player.browserLiveTranslations.size) {
+    player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
+  }
   const restoredSubtitles = (tab.subtitles || []).map((item) => ({ ...item }));
   player.subtitles = [];
   player.subOrigins = { ...(tab.subOrigins || {}) };
@@ -4919,7 +4922,8 @@ async function loadPersistedBrowserTranslation(track) {
     tab.browserLoadedTrackId = track.id;
     tab.browserLoadedTrackId2 = '';
     tab.browserTranslationTrackId = track.id;
-    tab.browserLiveTranslations = [];
+    player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
+    tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
     tab.cues = player.cues.slice();
     tab.cues2 = [];
     tab.subPath = player.subPath;
@@ -5066,6 +5070,17 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
 function browserTranslationCueKey(cue) {
   const raw = cue?.cueId ?? cue?.id ?? `${cue?.start}:${cue?.end}`;
   return String(raw).replace(/^web-tr-/, '');
+}
+
+function browserTranslationMapFromCues(cues) {
+  const map = new Map();
+  for (const cue of Array.isArray(cues) ? cues : []) {
+    const text = String(cue?.text || '').trim();
+    if (!text) continue;
+    const key = browserTranslationCueKey(cue);
+    map.set(key, { ...cue, id: cue.id || `web-tr-${key}`, text });
+  }
+  return map;
 }
 
 function mergeBrowserTranslationCues(target, cues) {
