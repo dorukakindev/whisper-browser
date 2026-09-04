@@ -1205,8 +1205,8 @@ test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını b
     && /browserLiveTranslations/.test(js.slice(js.indexOf('function exportBrowserTranslation'),
       js.indexOf('function abSubtitleExcerpt'))),
   'canlı çeviri ayrı olarak dışa aktarılamıyor');
-  assert(/liveCues\.length \? liveCues : player\.cues2/.test(js),
-    'sekme geri yüklemesinde çeviri dışa aktarımı hazır ikinci kanala düşmüyor');
+  assert(/liveCues\.length \? liveCues : roleCues\.translation/.test(js),
+    'sekme geri yüklemesinde çeviri dışa aktarımı rolü bilinen çeviri kanalına düşmüyor');
   assert(/function abSubtitleExcerpt/.test(js) && /cuesToSrt\(cues\)/.test(js),
     'A-B altyazı metni zamanlı SRT olarak üretilmiyor');
   const tracks = js.slice(js.indexOf('function renderBrowserTracks'), js.indexOf('async function loadPersistedBrowserTranslation'));
@@ -1217,6 +1217,51 @@ test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını b
     'genel ayarlardan seçilen ikinci web izi sekme state ine yazılmıyor');
   assert(/const previousTranslation = player\.browserTracks\.find\(\(track\) =>[\s\S]{0,100}track\.id === player\.browserTranslationTrackId/.test(load),
     'farklı web kaynağı seçilince aktif çeviri ilişkisi denetlenmiyor');
+});
+
+test('birincil web çevirisi tüm araçlarda çeviri rolünü korur', () => {
+  const role = js.slice(js.indexOf('function browserPrimaryIsTranslation'),
+    js.indexOf('function bestAvailableSubtitleMode'));
+  assert(!/player\.cues2\.length\) return false/.test(role),
+    'ikinci kaynak izi eklenince birincil çeviri rolü kayboluyor');
+  assert(/function browserSubtitleRoleCues/.test(role)
+    && /primaryTrack\?\.role === 'translation'/.test(role)
+    && /secondaryTrack\.role === 'translation'/.test(role),
+  'kaynak ve çeviri cue kanalları role göre eşlenmiyor');
+  const makeRoleCues = new Function('player', `${role}; return browserSubtitleRoleCues;`);
+  const translated = [{ start: 0, end: 1, text: 'Merhaba' }];
+  const source = [{ start: 0, end: 1, text: 'Hello' }];
+  const state = {
+    workspaceMode: 'browser', cues: translated, cues2: source,
+    browserTranslationTrackId: 'tr', browserLoadedTrackId: 'tr', browserLoadedTrackId2: 'src',
+    browserTracks: [{ id: 'tr', role: 'translation' }, { id: 'src', role: 'source' }],
+  };
+  const mapped = makeRoleCues(state)();
+  assert(mapped.translation === translated, 'birincil kalıcı çeviri yanlış kanala eşlendi');
+  assert(mapped.source === source, 'ikincil kaynak izi yanlış kanala eşlendi');
+  state.browserLoadedTrackId = '';
+  state.cues = [];
+  const remaining = makeRoleCues(state)();
+  assert(remaining.source === source, 'birincil iz temizlenince ikincil kaynak rolünü kaybetti');
+  assert(remaining.translation.length === 0, 'ikincil kaynak yanlışlıkla çeviri sayıldı');
+  const excerpt = js.slice(js.indexOf('function abSubtitleExcerpt'), js.indexOf('async function copyBrowserAbText'));
+  assert(/browserSubtitleRoleCues\(\)/.test(excerpt)
+    && /roleCues\.translation\.filter/.test(excerpt),
+  'A-B kopyası birincil çeviri kanalını kullanmıyor');
+  const overlay = js.slice(js.indexOf('function scheduleBrowserOverlaySync'), js.indexOf('function setBrowserLoadingState'));
+  assert(/source:\s*roleCues\.source/.test(overlay)
+    && /translation:\s*roleCues\.translation/.test(overlay),
+  'web overlay kaynak ve çeviriyi rol eşlemesiyle göndermiyor');
+});
+
+test('genel ayardan seçilen kalıcı web çevirisi dışa aktarılabilir kalır', () => {
+  const load = js.slice(js.indexOf('async function loadSubtitle'), js.indexOf('// Videonun yanindaki altyazilari bul'));
+  assert(/browserTrack\?\.role === 'translation'[\s\S]*browserTranslationMapFromCues\(player\.cues\)/.test(load),
+    'kalıcı çeviri elle yüklenince dışa aktarma haritası doldurulmuyor');
+  assert(/tab\.browserLiveTranslations = \[\.\.\.player\.browserLiveTranslations\.values\(\)\]/.test(load),
+    'elle yüklenen kalıcı çeviri sekme durumuna yazılmıyor');
+  assert(/updateBrowserTranslationExportButton\(\)/.test(load),
+    'altyazı yükleme ve temizleme sonrası çeviri dışa aktar düğmesi yenilenmiyor');
 });
 
 test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçilebilir', () => {

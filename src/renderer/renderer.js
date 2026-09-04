@@ -4902,8 +4902,13 @@ function renderBrowserTracks(selectedId) {
   actions.classList.toggle('hidden', player.browserTracks.length === 0);
   if (player.browserTracks.length) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
-    setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true,
-      { priority: 45, holdMs: 4000, action: 'translate' });
+    if (chosen.role === 'translation') {
+      setBrowserSignal(`Daha önce hazırlanmış çeviri bulundu${chosen.language ? ` (${chosen.language})` : ''}.`, true,
+        { priority: 45, holdMs: 4000 });
+    } else {
+      setBrowserSignal(`Altyazı bulundu${chosen.language ? ` (${chosen.language})` : ''}. Çevrilsin mi?`, true,
+        { priority: 45, holdMs: 4000, action: 'translate' });
+    }
   }
 }
 
@@ -5231,7 +5236,8 @@ function updateBrowserTranslationExportButton() {
 
 async function exportBrowserTranslation() {
   const liveCues = [...(player.browserLiveTranslations?.values?.() || [])];
-  const cues = (liveCues.length ? liveCues : player.cues2)
+  const roleCues = browserSubtitleRoleCues();
+  const cues = (liveCues.length ? liveCues : roleCues.translation)
     .filter((cue) => String(cue.text || '').trim())
     .sort((a, b) => Number(a.start) - Number(b.start) || Number(a.end) - Number(b.end));
   if (!cues.length) {
@@ -5252,8 +5258,9 @@ function abSubtitleExcerpt() {
   const start = player.abA - player.offset;
   const end = player.abB - player.offset;
   const mode = browserSubtitleMode();
-  const source = player.cues.filter((cue) => cue.end > start && cue.start < end);
-  const translation = player.cues2.filter((cue) => cue.end > start && cue.start < end);
+  const roleCues = browserSubtitleRoleCues();
+  const source = roleCues.source.filter((cue) => cue.end > start && cue.start < end);
+  const translation = roleCues.translation.filter((cue) => cue.end > start && cue.start < end);
   const base = mode === 'translation' ? translation : (source.length ? source : translation);
   return base.map((cue) => {
     let text = cue.text;
@@ -5481,18 +5488,42 @@ function browserSubtitleMode() {
 }
 
 function browserPrimaryIsTranslation() {
-  if (player.workspaceMode !== 'browser' || player.cues2.length) return false;
+  if (player.workspaceMode !== 'browser') return false;
   const id = player.browserTranslationTrackId;
   return !!id && player.browserLoadedTrackId === id
     && player.browserTracks.some((track) => track.id === id && track.role === 'translation');
 }
 
+function browserSubtitleRoleCues() {
+  if (player.workspaceMode !== 'browser') {
+    return { primaryTranslation: false, source: player.cues, translation: player.cues2 };
+  }
+  const primaryTranslation = browserPrimaryIsTranslation();
+  const primaryTrack = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId);
+  const secondaryTrack = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId2);
+  const primaryRole = primaryTrack?.role === 'translation' ? 'translation' : 'source';
+  const secondaryRole = secondaryTrack
+    ? (secondaryTrack.role === 'translation' ? 'translation' : 'source')
+    : (primaryRole === 'translation' ? 'source' : 'translation');
+  let source = primaryRole === 'source' ? player.cues : [];
+  let translation = primaryRole === 'translation' ? player.cues : [];
+  if (player.cues2.length) {
+    if (secondaryRole === 'source') source = player.cues2;
+    else translation = player.cues2;
+  }
+  return {
+    primaryTranslation,
+    source,
+    translation,
+  };
+}
+
 function bestAvailableSubtitleMode(preferred) {
   const wanted = ['off', 'source', 'translation', 'both'].includes(preferred) ? preferred : 'source';
   if (wanted === 'off') return 'off';
-  const primaryTranslation = browserPrimaryIsTranslation();
-  const hasSource = player.cues.length > 0 && !primaryTranslation;
-  const hasTranslation = player.cues2.length > 0 || primaryTranslation;
+  const roleCues = browserSubtitleRoleCues();
+  const hasSource = roleCues.source.length > 0;
+  const hasTranslation = roleCues.translation.length > 0;
   if (wanted === 'both' && hasSource && hasTranslation) return 'both';
   if (wanted === 'translation' && hasTranslation) return 'translation';
   if (wanted === 'source' && hasSource) return 'source';
@@ -5506,10 +5537,11 @@ function scheduleBrowserOverlaySync() {
   if (player.workspaceMode !== 'browser' || !window.api.setBrowserOverlay) return;
   player.browserOverlayTimer = setTimeout(() => {
     player.browserOverlayTimer = null;
+    const roleCues = browserSubtitleRoleCues();
     window.api.setBrowserOverlay(player.browserActiveTabId, {
-      source: (browserPrimaryIsTranslation() ? [] : player.cues)
+      source: roleCues.source
         .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
-      translation: (browserPrimaryIsTranslation() ? player.cues : player.cues2)
+      translation: roleCues.translation
         .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
       offset: player.offset,
@@ -7078,12 +7110,13 @@ function renderCueList(filter = '') {
     box.innerHTML = '<div class="cue-list-empty">Altyazı yüklenince satırlar burada akar.</div>';
     return;
   }
-  const translations = translationsForCues(player.cues, player.cues2);
+  const primaryTranslation = browserPrimaryIsTranslation();
+  const counterparts = translationsForCues(player.cues, player.cues2);
   const indexes = [];
   player.cues.forEach((c, i) => {
-    const tr = translations[i];
+    const counterpart = counterparts[i];
     if (q && !c.text.toLocaleLowerCase('tr').includes(q)
-        && !tr.toLocaleLowerCase('tr').includes(q)) return;
+        && !counterpart.toLocaleLowerCase('tr').includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
@@ -7110,7 +7143,7 @@ function renderCueList(filter = '') {
   const frag = document.createDocumentFragment();
   visibleIndexes.forEach((i) => {
     const c = player.cues[i];
-    const tr = translations[i];
+    const counterpart = counterparts[i];
     const lowConfidence = cueHasLowConfidence(c);
     const card = document.createElement('div');
     card.className = 'cue-card';
@@ -7133,15 +7166,21 @@ function renderCueList(filter = '') {
     }
 
     const body = document.createElement('div');
-    const src = document.createElement('div');
-    src.className = 'cue-card-src';
-    appendInteractiveText(src, c.text, q, i, 'source');
-    body.appendChild(src);
-    if (tr) {
-      const trEl = document.createElement('div');
-      trEl.className = 'cue-card-tr';
-      appendInteractiveText(trEl, tr, q, i, 'translation');
-      body.appendChild(trEl);
+    const primary = document.createElement('div');
+    primary.className = primaryTranslation ? 'cue-card-tr' : 'cue-card-src';
+    appendInteractiveText(primary, c.text, q, i, primaryTranslation ? 'translation' : 'source');
+    if (primaryTranslation && counterpart) {
+      const source = document.createElement('div');
+      source.className = 'cue-card-src';
+      appendInteractiveText(source, counterpart, q, i, 'source');
+      body.appendChild(source);
+    }
+    body.appendChild(primary);
+    if (!primaryTranslation && counterpart) {
+      const translation = document.createElement('div');
+      translation.className = 'cue-card-tr';
+      appendInteractiveText(translation, counterpart, q, i, 'translation');
+      body.appendChild(translation);
     }
 
     card.appendChild(time);
@@ -9487,9 +9526,9 @@ function syncSubtitleModeUi() {
   });
   const display = $('playerSubtitleDisplay');
   if (display) {
-    const primaryTranslation = browserPrimaryIsTranslation();
-    const hasSource = player.cues.length > 0 && !primaryTranslation;
-    const hasTranslation = player.cues2.length > 0 || primaryTranslation;
+    const roleCues = browserSubtitleRoleCues();
+    const hasSource = roleCues.source.length > 0;
+    const hasTranslation = roleCues.translation.length > 0;
     for (const option of display.options) {
       if (option.value === 'source') option.disabled = !hasSource;
       else if (option.value === 'translation') option.disabled = !hasTranslation;
@@ -9519,8 +9558,8 @@ function setSubtitlesVisible(visible) {
 }
 
 function setSubtitleMode(mode, announce = true) {
-  if (mode === 'source' && browserPrimaryIsTranslation()) mode = 'translation';
   if (!['off', 'source', 'translation', 'both'].includes(mode)) return;
+  if (player.workspaceMode === 'browser') mode = bestAvailableSubtitleMode(mode);
   if (player.workspaceMode === 'browser') {
     const tab = browserTabState();
     if (tab) tab.subtitleMode = mode;
@@ -10023,6 +10062,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
     updateSubtitleChips();
     updateMakeTransState();
+    updateBrowserTranslationExportButton();
     renderCue();
     if (secondary) setSubtitleMode(player.cues.length ? 'source' : 'off', false);
     else setSubtitleMode(player.cues2.length ? 'translation' : 'off', false);
@@ -10091,7 +10131,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     if (browserTrack?.role === 'translation') {
       player.browserLoadedTrackId = browserTrack.id;
       player.browserTranslationTrackId = browserTrack.id;
-      player.browserLiveTranslations = new Map();
+      player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
       player.cues2 = [];
       player.cues2Raw = null;
       player.sub2Path = '';
@@ -10101,7 +10141,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
         tab.browserLoadedTrackId = browserTrack.id;
         tab.browserLoadedTrackId2 = '';
         tab.browserTranslationTrackId = browserTrack.id;
-        tab.browserLiveTranslations = [];
+        tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
         tab.cues2 = [];
         tab.sub2Path = '';
       }
@@ -10136,6 +10176,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   }
   updateSubtitleChips();
   updateMakeTransState();
+  updateBrowserTranslationExportButton();
   updatePlayerAutoSyncState();
   renderCue();
   scheduleBrowserOverlaySync();
