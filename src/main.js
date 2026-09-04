@@ -1839,6 +1839,11 @@ function browserNavigationState(extra = {}) {
   return browserNavigationStateForTab(activeBrowserTab(), extra);
 }
 
+function isAbortedBrowserNavigation(error) {
+  return Number(error?.errno ?? error?.code) === -3
+    || ['ERR_ABORTED', 'net::ERR_ABORTED'].includes(error?.code);
+}
+
 function browserLoadErrorMessage(code, description) {
   const raw = String(description || 'Sayfa yüklenemedi.');
   if (Number(code) === -138 || /ERR_NETWORK_ACCESS_DENIED/i.test(raw)) {
@@ -1886,6 +1891,9 @@ async function openBrowserLinkInNewTab(rawUrl) {
     scheduleBrowserSessionSave();
     return true;
   } catch (error) {
+    // Yönlendirme/yeni gezinme önceki loadURL sözünü reddedebilir. Sonraki
+    // did-navigate/did-stop-loading olayları güncel sekme durumunu yayınlar.
+    if (isAbortedBrowserNavigation(error)) return true;
     sendBrowserEvent(tab, { type: 'load-error', loading: false, code: error.errno,
       message: browserLoadErrorMessage(error.errno, error.code || error.message), url });
     return false;
@@ -5188,6 +5196,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
     scheduleBrowserSessionSave();
     return { ok: true, ...browserEventContext(tab), ...browserNavigationState() };
   } catch (err) {
+    if (isAbortedBrowserNavigation(err)) return { ok: false, aborted: true };
     return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message), url };
   }
 });

@@ -5507,6 +5507,9 @@ async function navigateBrowserFromAddress() {
     result = { ok: false, error: error && error.message ? error.message : 'Tarayıcı isteği tamamlanamadı.' };
   }
   if (navigateSeq !== player.browserNavigateSeq || tabId !== player.browserActiveTabId) return result || null;
+  // Eski loadURL isteğinin iptali, açılmış yeni belgeyi başarısız yapmaz.
+  // Yükleme durumunu güncel navigation olayları belirlesin.
+  if (result?.aborted) return result;
   if (!result || !result.ok) {
     setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
