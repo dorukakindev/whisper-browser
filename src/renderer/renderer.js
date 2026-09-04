@@ -5095,6 +5095,12 @@ function browserTranslationMapFromCues(cues) {
   return map;
 }
 
+function stopReplacedBrowserTranslation(nextTrackId = '') {
+  if (player.workspaceMode !== 'browser' || !player.browserTranslationTrackId
+      || player.browserTranslationTrackId === nextTrackId || !window.api.stopBrowserTranslation) return;
+  void window.api.stopBrowserTranslation(player.browserActiveTabId).catch(() => {});
+}
+
 function mergeBrowserTranslationCues(target, cues) {
   for (const cue of Array.isArray(cues) ? cues : []) {
     const text = String(cue?.text || '').trim();
@@ -5227,7 +5233,7 @@ async function exportSelectedBrowserTrack() {
 function updateBrowserTranslationExportButton() {
   const button = $('browserTranslationExport');
   if (!button) return;
-  const count = player.browserLiveTranslations?.size || player.cues2.length || 0;
+  const count = player.browserLiveTranslations?.size || browserSubtitleRoleCues().translation.length || 0;
   button.disabled = count === 0;
   button.title = count
     ? `${count} çevrilmiş altyazı satırını dışa aktar`
@@ -10019,6 +10025,12 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     // siliniyordu; sagda 29 kart oldugu gibi kaliyor, tiklaninca hicbir sey
     // olmuyordu (hayalet liste).
     if (secondary) {
+      const secondaryTrack = player.browserTracks.find((track) =>
+        track.id === player.browserLoadedTrackId2);
+      const clearingTranslation = player.workspaceMode === 'browser'
+        && (secondaryTrack?.role === 'translation'
+          || (!secondaryTrack && !browserPrimaryIsTranslation()
+            && !!player.browserTranslationTrackId && player.cues2.length > 0));
       player.cues2 = [];
       player.cues2Raw = null;
       player.activeIdx2 = -1;
@@ -10030,7 +10042,21 @@ async function loadSubtitle(path, secondary = false, options = {}) {
         const tab = browserTabState();
         if (tab) tab.browserLoadedTrackId2 = '';
       }
+      if (clearingTranslation) {
+        stopReplacedBrowserTranslation('');
+        const primaryTrack = player.browserTracks.find((track) =>
+          track.id === player.browserLoadedTrackId && track.role === 'translation');
+        player.browserTranslationTrackId = primaryTrack?.id || '';
+        player.browserLiveTranslations = primaryTrack
+          ? browserTranslationMapFromCues(player.cues) : new Map();
+        const tab = browserTabState();
+        if (tab) {
+          tab.browserTranslationTrackId = player.browserTranslationTrackId;
+          tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
+        }
+      }
     } else {
+      const clearingPrimaryTranslation = browserPrimaryIsTranslation();
       player.cues = [];
       player.cuesRaw = null;
       player.activeIdx = -1;
@@ -10042,6 +10068,19 @@ async function loadSubtitle(path, secondary = false, options = {}) {
         player.browserLoadedTrackId = '';
         const tab = browserTabState();
         if (tab) tab.browserLoadedTrackId = '';
+      }
+      if (clearingPrimaryTranslation) {
+        stopReplacedBrowserTranslation('');
+        const remainingTrack = player.browserTracks.find((track) =>
+          track.id === player.browserLoadedTrackId2 && track.role === 'translation');
+        player.browserTranslationTrackId = remainingTrack?.id || '';
+        player.browserLiveTranslations = remainingTrack
+          ? browserTranslationMapFromCues(player.cues2) : new Map();
+        const tab = browserTabState();
+        if (tab) {
+          tab.browserTranslationTrackId = player.browserTranslationTrackId;
+          tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
+        }
       }
       // Birincil web izi kaldırıldığında kalıcı çeviri kimliği boşta kalırsa
       // sonraki kaynak seçimi yanlışlıkla eski çeviri olarak sınıflanabilir.
@@ -10095,9 +10134,20 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     const browserTrack = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) => track.path === path) : null;
     if (browserTrack) {
+      if (browserTrack.role === 'translation') {
+        stopReplacedBrowserTranslation(browserTrack.id);
+        player.browserTranslationTrackId = browserTrack.id;
+        player.browserLiveTranslations = browserTranslationMapFromCues(player.cues2);
+      }
       player.browserLoadedTrackId2 = browserTrack.id;
       const tab = browserTabState();
-      if (tab) tab.browserLoadedTrackId2 = browserTrack.id;
+      if (tab) {
+        tab.browserLoadedTrackId2 = browserTrack.id;
+        if (browserTrack.role === 'translation') {
+          tab.browserTranslationTrackId = browserTrack.id;
+          tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
+        }
+      }
       if ($('browserTrackSelect2')) $('browserTrackSelect2').value = browserTrack.id;
     } else if (player.workspaceMode === 'browser') {
       player.browserLoadedTrackId2 = '';
@@ -10129,6 +10179,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       if (browserTrack && $('browserTrackSelect')) $('browserTrackSelect').value = browserTrack.id;
     }
     if (browserTrack?.role === 'translation') {
+      stopReplacedBrowserTranslation(browserTrack.id);
       player.browserLoadedTrackId = browserTrack.id;
       player.browserTranslationTrackId = browserTrack.id;
       player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
@@ -10149,6 +10200,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       // modu kaynakta kalıp boş bir katman göstermesin.
       setSubtitleMode('translation', false);
     } else if (previousTranslation && browserTrack?.id !== previousTranslation.id) {
+      stopReplacedBrowserTranslation('');
       player.browserTranslationTrackId = '';
       player.browserLiveTranslations = new Map();
       player.cues2 = [];

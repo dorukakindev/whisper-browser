@@ -1264,6 +1264,26 @@ test('genel ayardan seçilen kalıcı web çevirisi dışa aktarılabilir kalır
     'altyazı yükleme ve temizleme sonrası çeviri dışa aktar düğmesi yenilenmiyor');
 });
 
+test('web çeviri izi değiştirilince eski scheduler ve dışa aktarma durumu temizlenir', () => {
+  const stop = js.slice(js.indexOf('function stopReplacedBrowserTranslation'),
+    js.indexOf('function mergeBrowserTranslationCues'));
+  assert(/stopBrowserTranslation\(player\.browserActiveTabId\)/.test(stop),
+    'değiştirilen web çevirisinin ana süreç schedulerı durdurulmuyor');
+  const load = js.slice(js.indexOf('async function loadSubtitle'), js.indexOf('// Videonun yanindaki altyazilari bul'));
+  assert(/const clearingPrimaryTranslation = browserPrimaryIsTranslation\(\)/.test(load)
+    && /clearingPrimaryTranslation[\s\S]*stopReplacedBrowserTranslation\(''\)/.test(load),
+  'birincil çeviri temizlenince eski canlı çeviri işi bırakılıyor');
+  assert(/const clearingTranslation =[\s\S]*secondaryTrack\?\.role === 'translation'/.test(load)
+    && /clearingTranslation[\s\S]*browserLiveTranslations = primaryTrack/.test(load),
+  'ikincil çeviri kapatılınca rol ve dışa aktarma haritası yenilenmiyor');
+  assert(/browserTrack\.role === 'translation'[\s\S]*stopReplacedBrowserTranslation\(browserTrack\.id\)[\s\S]*browserTranslationMapFromCues\(player\.cues2\)/.test(load),
+    'ikincil kayıtlı çeviri seçimi eski işi durdurup yeni iz haritasını kurmuyor');
+  const button = js.slice(js.indexOf('function updateBrowserTranslationExportButton'),
+    js.indexOf('async function exportBrowserTranslation'));
+  assert(/browserSubtitleRoleCues\(\)\.translation\.length/.test(button),
+    'çeviri dışa aktar düğmesi ikincil kanalın rolünü denetlemiyor');
+});
+
 test('web çevirisi tam izi kuyruğa alır ve görünümden tek başına seçilebilir', () => {
   assert(layer.includes('id="playerSubtitleDisplay"'), 'kaynak/çeviri görünüm seçicisi arayüzde yok');
   assert(layer.includes('<option value="both">Kaynak ve çeviri</option>'),
