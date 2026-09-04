@@ -2433,6 +2433,59 @@ def test_reexport_skips_malformed_records_with_visible_warning():
         assert source.read_bytes() == before
 
 
+def test_timecode_rejects_nonfinite_components_and_overflow():
+    for value in ('nan', 'inf', '-inf', '1:nan', 'inf:10', '1e308:0', '1:-1'):
+        try:
+            T.parse_timecode(value)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(f'Geçersiz zaman kabul edildi: {value}')
+    assert T.parse_timecode('1:30.5') == 90.5
+    assert T.parse_timecode('0') == 0
+    assert T.parse_timecode('') is None
+
+
+def test_strip_html_preserves_numeric_named_and_escaped_text():
+    assert T.strip_html('Bar&#305;&#351;') == 'Barış'
+    assert T.strip_html('&#x130; &ouml; &uuml; &ccedil; &mdash;') == 'İ ö ü ç —'
+    assert T.strip_html('&amp;#305;') == '&#305;'
+    assert T.strip_html('<i>Merhaba</i>').strip() == 'Merhaba'
+    assert T.strip_html('&lt;örnek&gt;') == '<örnek>'
+
+
+def test_download_paths_missing_audio_and_bracketed_clip():
+    import media as M
+    class FakeYdl:
+        def __init__(self, _opts): pass
+        def __enter__(self): return self
+        def __exit__(self, *_args): pass
+        def extract_info(self, *_args, **_kwargs):
+            return {'id': 'example', 'title': 'Örnek'}
+    fake = types.ModuleType('yt_dlp')
+    fake.YoutubeDL = FakeYdl
+    utils = types.ModuleType('yt_dlp.utils')
+    utils.download_range_func = lambda *_args: None
+    with tempfile.TemporaryDirectory() as td, mock.patch.dict(sys.modules, {'yt_dlp': fake, 'yt_dlp.utils': utils}):
+        with mock.patch.object(T, 'log'):
+            try:
+                T.download_youtube('https://example.test/video', td)
+            except RuntimeError as error:
+                assert 'ses dosyası bulunamadı' in str(error)
+            else:
+                raise AssertionError('Var olmayan dosya başarı sayıldı')
+        target = Path(td) / 'Video [1080p].mp4'
+        actual = target.with_suffix('.mkv')
+        actual.write_bytes(b'fixture')
+        # Geçici dosya ve dizin, tamamlanmış medya diye seçilmemeli.
+        target.with_suffix('.part').write_bytes(b'partial')
+        (Path(td) / 'Video [1080p] directory').mkdir()
+        with mock.patch.object(M, '_ydl_opts', side_effect=lambda opts, **kw: opts), \
+                mock.patch.object(M, 'log'), mock.patch.object(M, 'emit') as emitted:
+            M.download_clip('https://example.test/video', 1, 2, str(target))
+        assert emitted.call_args.kwargs['path'] == str(actual)
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0

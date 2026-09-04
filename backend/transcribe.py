@@ -8,6 +8,7 @@ JSON satırları olarak basar (NDJSON), böylece UI gerçek zamanlı takip edebi
 
 import argparse
 import hashlib
+import html
 import inspect
 import json
 import math
@@ -283,6 +284,8 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
                     if alt.exists():
                         wav_path = alt
                         break
+        if not wav_path.is_file():
+            raise RuntimeError("YouTube indirmesi tamamlandı ancak indirilen ses dosyası bulunamadı.")
         log(f"İndirme tamamlandı: {title}")
         return str(wav_path), title, ranged
     raise RuntimeError("YouTube indirme bilgisi alınamadı; yt-dlp boş sonuç döndürdü.")
@@ -306,8 +309,8 @@ def parse_timecode(value):
     seconds = 0.0
     for n in nums:
         seconds = seconds * 60 + n
-    if seconds < 0:
-        raise RuntimeError(f"Zaman negatif olamaz: '{value}'")
+    if not all(math.isfinite(n) and n >= 0 for n in nums) or not math.isfinite(seconds):
+        raise RuntimeError(f"Zaman sonlu ve negatif olmayan bir sayı olmalıdır: '{value}'")
     return seconds
 
 
@@ -1790,14 +1793,9 @@ def strip_html(text):
     """HTML/XML etiketlerini ve entity'lerini kaldır."""
     if not text:
         return text
-    # Önce yaygın entity'leri çöz
-    for k, v in _HTML_ENTITIES.items():
-        text = text.replace(k, v)
-    # Bilinen etiketleri çıkar
-    text = _HTML_TAG.sub(" ", text)
-    # Kalan & entity'lerini at
-    text = _HTML_ENTITY.sub("", text)
-    return text
+    # Önce etiketleri çıkar, sonra referansları tek geçişte çöz. Sayısal
+    # Türkçe harfler kaybolmasın, &lt;...&gt; düz metni etiket sayılmasın.
+    return html.unescape(_HTML_TAG.sub(" ", text))
 
 
 def clean_text(text, language="tr"):

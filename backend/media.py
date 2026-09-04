@@ -277,7 +277,9 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
     candidates = [target, target.with_suffix(".mp4")]
     path = next((item for item in candidates if item.exists()), None)
     if path is None:
-        nearby = list(target.parent.glob(f"{target.stem}*"))
+        nearby = [item for item in target.parent.iterdir()
+                  if item.is_file() and item.name.startswith(target.stem)
+                  and item.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov", ".m4v"}]
         path = max(nearby, key=lambda item: item.stat().st_mtime) if nearby else None
     if path is None or not path.exists():
         raise RuntimeError("Oluşturulan klip dosyası bulunamadı")
