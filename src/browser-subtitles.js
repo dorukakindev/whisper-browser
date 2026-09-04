@@ -83,15 +83,20 @@ function parseTimedBlocks(body) {
   const re = /(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
   for (const block of clean.split(/\n\s*\n/)) {
     const lines = block.split('\n');
-    const idx = lines.findIndex((line) => re.test(line));
-    if (idx < 0) continue;
-    const m = lines[idx].match(re);
-    const start = Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3])
-      + Number(m[4].padEnd(3, '0')) / 1000;
-    const end = Number(m[5] || 0) * 3600 + Number(m[6]) * 60 + Number(m[7])
-      + Number(m[8].padEnd(3, '0')) / 1000;
-    const text = lines.slice(idx + 1).join('\n');
-    out.push({ start: start + timelineOffset, end: end + timelineOffset, text });
+    const indices = lines.flatMap((line, index) => re.test(line) ? [index] : []);
+    for (let position = 0; position < indices.length; position++) {
+      const idx = indices[position];
+      const m = lines[idx].match(re);
+      const start = Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3])
+        + Number(m[4].padEnd(3, '0')) / 1000;
+      const end = Number(m[5] || 0) * 3600 + Number(m[6]) * 60 + Number(m[7])
+        + Number(m[8].padEnd(3, '0')) / 1000;
+      let until = indices[position + 1] ?? lines.length;
+      // Ayraçsız SRT'de sonraki zaman kodunun önündeki sıra numarası metin değildir.
+      if (position + 1 < indices.length && /^\d+$/.test(lines[until - 1]?.trim())) until--;
+      const text = lines.slice(idx + 1, until).join('\n');
+      out.push({ start: start + timelineOffset, end: end + timelineOffset, text });
+    }
   }
   return normalizeCues(out);
 }
@@ -374,7 +379,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         timescale: Math.max(0, Number(attr(templateTag, 'timescale')) || 0),
         initializationUrl,
         duration: Math.max(0, Number(attr(templateTag, 'duration')) || 0),
-        startNumber: Math.max(0, Number(attr(templateTag, 'startNumber')) || 1),
+        startNumber: dashStartNumber(attr(templateTag, 'startNumber')),
         language: attr(adaptation.tag, 'lang') || attr(rep.tag, 'lang') || '',
         label: attr(adaptation.tag, 'label') || representationId || attr(adaptation.tag, 'lang') || 'DASH altyazısı',
         format: /vtt|wvtt/i.test(adaptation.signature + rep.tag) ? 'vtt' : 'ttml',
@@ -394,6 +399,11 @@ function matchDashSubtitleUrl(url, matchers = []) {
   return null;
 }
 
+function dashStartNumber(raw) {
+  const value = raw == null || String(raw).trim() === '' ? NaN : Number(raw);
+  return Number.isFinite(value) ? Math.max(0, value) : 1;
+}
+
 function dashSegmentOffset(matcher) {
   const value = Number(matcher && matcher.segmentValue);
   // MPEG-DASH'te timescale verilmezse standart varsayılanı 1'dir. Manifest
@@ -403,7 +413,7 @@ function dashSegmentOffset(matcher) {
   if (matcher.variable === 'time') return Math.max(0, value / timescale);
   if (matcher.variable === 'number' || matcher.variable === 'subnumber') {
     const duration = Math.max(0, Number(matcher.duration) || 0);
-    const start = Math.max(0, Number(matcher.startNumber) || 1);
+    const start = dashStartNumber(matcher.startNumber);
     return duration ? Math.max(0, (value - start) * duration / timescale) : 0;
   }
   return 0;

@@ -7,6 +7,21 @@ const assets = require('../src/browser-asset-store');
 const places = require('../src/browser-place-url');
 const identity = require('../src/browser-media-identity');
 
+for (const start of ['0', '1', '', 'invalid']) {
+  const attribute = start ? ` startNumber="${start}"` : '';
+  const mpd = `<MPD><Period><AdaptationSet contentType="text" codecs="wvtt"><SegmentTemplate media="sub/$Number$.m4s" duration="6000" timescale="1000"${attribute}/><Representation id="tr"/></AdaptationSet></Period></MPD>`;
+  const matchers = subtitles.parseDashSubtitleMatchers(mpd, 'https://cdn.test/manifest.mpd');
+  const matched = subtitles.matchDashSubtitleUrl('https://cdn.test/sub/2.m4s', matchers);
+  assert.ok(matched);
+  assert.strictEqual(matched.startNumber, start === '0' ? 0 : 1);
+  assert.strictEqual(subtitles.dashSegmentOffset(matched), start === '0' ? 12 : 6);
+}
+for (const numbered of [true, false]) {
+  const srt = `${numbered ? '1\n' : ''}00:00:01,000 --> 00:00:02,000\nbir\n${numbered ? '2\n' : ''}00:00:03,000 --> 00:00:04,000\niki`;
+  assert.deepStrictEqual(subtitles.parseSubtitlePayload(srt, 'application/x-subrip').cues,
+    [{ start: 1, end: 2, text: 'bir' }, { start: 3, end: 4, text: 'iki' }]);
+}
+
 // Kaydet/yeniden aç yolu: boş satır cue ayıracı olup kalan diyaloğu yutmamalı.
 for (const gap of ['\n\n', '\n \n\t\n', '\r\n\r\n']) {
   const encoded = assets.cuesToSrt([
