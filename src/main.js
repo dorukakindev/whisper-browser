@@ -5688,6 +5688,17 @@ app.on('certificate-error', (event, webContents, url, error, _certificate, callb
 });
 
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
+  // Gerçek Electron smoke testi, native dosya seçiciye güvenmeden yalnızca
+  // kendi geçici altyazı fixture'larını okuyabilsin. Paketlenmiş uygulamada
+  // bu geliştirme kapısı tamamen kapalıdır; normal çalışmada izin modeli aynı
+  // kalır ve bilinmeyen dosya yine kullanıcı onayı ister.
+  if (!app.isPackaged && typeof process !== 'undefined'
+      && process.argv.includes('--electron-subtitle-smoke')) {
+    const prefix = '--electron-subtitle-fixture=';
+    for (const argument of process.argv) {
+      if (argument.startsWith(prefix)) subtitleFileAccess.grant(argument.slice(prefix.length));
+    }
+  }
   if (typeof installPdfDocumentProtocol === 'function') installPdfDocumentProtocol();
   // Korumalı gezinme readiness promise'ini bekler; arayüz indirmeyi beklemez.
   void prepareWidevineComponents().catch((error) => {
