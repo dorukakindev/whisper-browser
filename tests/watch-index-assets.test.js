@@ -59,7 +59,8 @@ try {
       label: 'TR çeviri',
       role: 'translation',
       source: 'translation',
-      cues: [{ id: 'web-tr-1', start: 1, end: 3, text: 'Çeviri yeniden kullanılacak.' }],
+      cues: [{ id: 'web-tr-1', cueId: 'source-1', sourceCueHash: 'deadbeef',
+        start: 1, end: 3, text: 'Çeviri yeniden kullanılacak.' }],
     });
     assert(result.ok, result.error);
     const loaded = store.getTrack(result.assetId);
@@ -67,6 +68,8 @@ try {
     assert.equal(loaded.document.role, 'translation');
     assert.equal(loaded.document.source, 'translation');
     assert.equal(loaded.document.language, 'tr');
+    assert.equal(loaded.document.cues[0].cueId, 'source-1');
+    assert.equal(loaded.document.cues[0].sourceCueHash, 'deadbeef');
   });
 
   test('çeviri varlığı kaynak kanıtını saklar ve yeniden açılışta doğrulanabilir', () => {

@@ -5249,3 +5249,13 @@ body.modal-open { overflow: hidden; }
   .browser-page-button, .browser-subtitle-settings-button { min-width: 44px; width: 44px; min-height: 44px; padding: 0; }
   #browserMangaTranslate { display: none; }
 }
+.browser-sync-settings { display: grid; gap: 12px; }
+.browser-sync-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--text-secondary); }
+.browser-sync-summary strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.browser-sync-dirty { color: var(--accent); font-size: 12px; font-weight: 700; }
+.browser-sync-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.browser-sync-actions, .browser-sync-save-actions { flex-wrap: wrap; }
+.browser-sync-points { padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.018); }
+.browser-sync-points p { margin: 0 0 9px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+.browser-export-timing { max-width: 420px; }
+@media (max-width: 760px) { .browser-sync-row { grid-template-columns: 1fr; } }

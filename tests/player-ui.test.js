@@ -104,6 +104,18 @@ test('tarayıcı A-B döngüsü ve otomatik dur web video zamanını kullanıyor
   assert(/workspaceMode === 'browser' \? player\.browserTime/.test(toggle), 'A/B noktaları web zamanından alınmıyor');
 });
 
+test('browser çevirisi her iki altyazı alanından da ayrı override olarak düzenleniyor', () => {
+  const start = js.indexOf('function openCueEditor');
+  const editor = js.slice(start, js.indexOf("if ($('cueSearch'))", start));
+  assert(/function openCueEditor\(secondary = false\)/.test(editor)
+    && /browserLoadedTrack\(secondary\)/.test(editor),
+  'editör ikincil çeviri kanalını seçemiyor');
+  assert(/browserLoadedTrack\(!!browserContext\.secondary\)/.test(editor),
+    'kaydetme veya modele dönme işlemi düzenlenen kanalı doğrulamıyor');
+  assert(/subtitleOverlay2[\s\S]*openCueEditor\(true\)/.test(js),
+    'ikincil çeviri katmanı editörü açmıyor');
+});
+
 test('web profil geri yükleme her asenkron komuttan sonra güncelliği denetliyor', () => {
   const restore = js.slice(js.indexOf('async function restoreWatchProfile'), js.indexOf('function makeWatchAction'));
   assert(/const stillCurrent =/.test(restore), 'profil güncellik yardımcısı yok');
@@ -1001,11 +1013,15 @@ test('AI zaman bağlantısı tarayıcı videosunu da ileri sarıyor', () => {
 
 test('zamanlama masası altyazı gecikmesini medya eksenine uygular', () => {
   const start = js.indexOf('function timelineDuration');
-  const end = js.indexOf('async function saveTimelineCopy', start);
+  const end = js.indexOf('// ---- geçmiş (kütüphane)', start);
   const block = js.slice(start, end);
-  assert(/\.end \+ player\.offset/.test(block), 'altyazı bitişi medya eksenine taşınmıyor');
-  assert(/mediaStart = cue\.start \+ player\.offset/.test(block), 'blok çizimi gecikmeyi kullanmıyor');
-  assert(/timelinePlaybackTime\(\) - player\.offset/.test(block), 'bölme noktası altyazı eksenine çevrilmiyor');
+  assert(/subtitleVideoTime\(player\.cues\[player\.cues\.length - 1\]\.end/.test(block),
+    'altyazı bitişi ölçek ve kaydırmayla medya eksenine taşınmıyor');
+  assert(/mediaStart = subtitleVideoTime\(cue\.start/.test(block),
+    'blok çizimi ortak senkron dönüşümünü kullanmıyor');
+  assert(/subtitleSourceTime\(timelinePlaybackTime\(\)/.test(block),
+    'bölme noktası kaynak altyazı eksenine çevrilmiyor');
+  assert(/videoDelta \/ scale/.test(block), 'ölçekli drift sürükleme mesafesine uygulanmıyor');
 });
 
 test('tarayıcı modunda sayfa ekran görüntüsü ayrı IPC yoluna gidiyor', () => {
@@ -1253,7 +1269,7 @@ test('birincil web çevirisi tüm araçlarda çeviri rolünü korur', () => {
   assert(remaining.translation.length === 0, 'ikincil kaynak yanlışlıkla çeviri sayıldı');
   const excerpt = js.slice(js.indexOf('function abSubtitleExcerpt'), js.indexOf('async function copyBrowserAbText'));
   assert(/browserSubtitleRoleCues\(\)/.test(excerpt)
-    && /roleCues\.translation\.filter/.test(excerpt),
+    && /inVideoTime\(roleCues\.translation, browserTransformForRole\('translation'\)\)/.test(excerpt),
   'A-B kopyası birincil çeviri kanalını kullanmıyor');
   const overlay = js.slice(js.indexOf('function scheduleBrowserOverlaySync'), js.indexOf('function setBrowserLoadingState'));
   assert(/source:\s*roleCues\.source/.test(overlay)
@@ -1263,7 +1279,9 @@ test('birincil web çevirisi tüm araçlarda çeviri rolünü korur', () => {
 
 test('genel ayardan seçilen kalıcı web çevirisi dışa aktarılabilir kalır', () => {
   const load = js.slice(js.indexOf('async function loadSubtitle'), js.indexOf('// Videonun yanindaki altyazilari bul'));
-  assert(/browserTrack\?\.role === 'translation'[\s\S]*browserTranslationMapFromCues\(player\.cues\)/.test(load),
+  const install = js.slice(js.indexOf('function applyLoadedBrowserTranslation'), js.indexOf('function replaceBrowserEditRecord'));
+  assert(/browserTrack\?\.role === 'translation'[\s\S]*applyLoadedBrowserTranslation\(browserTrack, false\)/.test(load)
+    && /browserLiveTranslations = browserTranslationMapFromCues\(base\)/.test(install),
     'kalıcı çeviri elle yüklenince dışa aktarma haritası doldurulmuyor');
   assert(/tab\.browserLiveTranslations = \[\.\.\.player\.browserLiveTranslations\.values\(\)\]/.test(load),
     'elle yüklenen kalıcı çeviri sekme durumuna yazılmıyor');
@@ -1283,7 +1301,7 @@ test('web çeviri izi değiştirilince eski scheduler ve dışa aktarma durumu t
   assert(/const clearingTranslation =[\s\S]*secondaryTrack\?\.role === 'translation'/.test(load)
     && /clearingTranslation[\s\S]*browserLiveTranslations = primaryTrack/.test(load),
   'ikincil çeviri kapatılınca rol ve dışa aktarma haritası yenilenmiyor');
-  assert(/browserTrack\.role === 'translation'[\s\S]*stopReplacedBrowserTranslation\(browserTrack\.id\)[\s\S]*browserTranslationMapFromCues\(player\.cues2\)/.test(load),
+  assert(/browserTrack\.role === 'translation'[\s\S]*applyLoadedBrowserTranslation\(browserTrack, true\)[\s\S]*stopReplacedBrowserTranslation\(browserTrack\.id\)/.test(load),
     'ikincil kayıtlı çeviri seçimi eski işi durdurup yeni iz haritasını kurmuyor');
   const button = js.slice(js.indexOf('function updateBrowserTranslationExportButton'),
     js.indexOf('async function exportBrowserTranslation'));

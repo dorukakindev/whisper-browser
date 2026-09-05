@@ -16,6 +16,11 @@ const baseSession = {
     title: 'Bölüm', pinned: true, subtitleMode: 'translation',
     trackRefs: [{ id: 'web:one|source', assetId: 'a'.repeat(24) + ':' + 'b'.repeat(32), role: 'source' }],
     recoveryJobs: [{ id: 'subtitle-translation:one', kind: 'subtitle-translation', trackId: 'source', total: 10, completed: 4 }],
+    subtitleSyncRecords: [{ mediaId: 'site:episode-one', sourceTrackId: 'source', sourceHash: 'hash-one',
+      scale: 1.002, offsetSeconds: 1.25, updatedAt: 10 }],
+    subtitleEdits: [{ mediaId: 'site:episode-one', variantId: 'translation-a', sourceHash: 'hash-one',
+      cueId: 'cue-1', sourceCueHash: 'deadbeef', baseTranslation: 'Temel', hasOverride: true,
+      userOverride: 'Kullanıcı düzeltmesi', revision: 2, userEditedAt: 11 }],
   }],
 };
 
@@ -33,6 +38,8 @@ assert.match(bundle.checksum, /^sha256:[a-f0-9]{64}$/);
 assert.equal(bundle.payload.session.version, BROWSER_SESSION_VERSION);
 assert.equal(bundle.payload.session.tabs[0].pinned, true);
 assert.equal(bundle.payload.session.tabs[0].recoveryJobs.length, 1);
+assert.equal(bundle.payload.session.tabs[0].subtitleSyncRecords[0].scale, 1.002);
+assert.equal(bundle.payload.session.tabs[0].subtitleEdits[0].userOverride, 'Kullanıcı düzeltmesi');
 assert.equal(bundle.payload.variants[0].cues.length, 2);
 assert.equal(bundle.payload.variants[0].provider, 'https://provider.test/v1?route=chat');
 const serialized = JSON.stringify(bundle);
@@ -42,6 +49,8 @@ assert(!serialized.includes('token='));
 
 const inspected = inspectBrowserSessionPackage(JSON.parse(serialized));
 assert.equal(inspected.session.tabs.length, 1);
+assert.equal(inspected.session.tabs[0].subtitleSyncRecords[0].offsetSeconds, 1.25);
+assert.equal(inspected.session.tabs[0].subtitleEdits[0].revision, 2);
 assert.equal(inspected.variants.length, 1);
 assert.equal(inspected.warnings.length, 0);
 

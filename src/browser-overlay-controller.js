@@ -35,6 +35,13 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const number = Number(value);
       return Number.isFinite(number) ? number : fallback;
     };
+    const videoToSource = (videoTime, rawTransform) => {
+      const scale = finite(rawTransform && rawTransform.scale, 1);
+      const offsetSeconds = finite(rawTransform && rawTransform.offsetSeconds,
+        finite(state.offset, 0));
+      if (scale <= 0) return finite(videoTime) - finite(state.offset, 0);
+      return (finite(videoTime) - offsetSeconds) / scale;
+    };
 
     const bindDrag = (item) => {
       if (!item || item.dataset.whisperDragBound === 'true') return;
@@ -326,9 +333,9 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const baseMargin = Math.min(96, Math.max(20, rect.height * .09));
       box.style.top = Math.max(rect.top,
         rect.bottom - baseMargin - rect.height * (bottomOffset / 100)) + 'px';
-      const time = finite(activeMedia.currentTime) - finite(state.offset);
-      const sourceCues = findCues(state.source || [], time);
-      const translationCues = findCues(state.translation || [], time);
+      const videoTime = finite(activeMedia.currentTime);
+      const sourceCues = findCues(state.source || [], videoToSource(videoTime, state.sourceTransform));
+      const translationCues = findCues(state.translation || [], videoToSource(videoTime, state.translationTransform));
       const source = box.querySelector('[data-kind="source"]');
       const translation = box.querySelector('[data-kind="translation"]');
       const sourceText = sourceCues.length && (state.mode === 'source' || state.mode === 'both')

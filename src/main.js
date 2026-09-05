@@ -39,6 +39,7 @@ const {
   subtitleLanguage,
 } = require('./browser-subtitles');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
+const { hashText: browserSubtitleIdentityHash, normalizeTransform } = require('./browser-subtitle-sync');
 const {
   ADAPTER_REGISTRY,
   adapterAcceptsResponse,
@@ -1453,7 +1454,9 @@ function createBrowserTabRecord(initial = {}) {
     pageTranslateError: '',
     pageTranslateVisible: false,
     lastMediaEventSignature: '',
-    overlay: { source: [], translation: [], mode: restored.subtitleMode || 'source', offset: restored.offset || 0 },
+    overlay: { source: [], translation: [], mode: restored.subtitleMode || 'source', offset: restored.offset || 0,
+      sourceTransform: { scale: 1, offsetSeconds: restored.offset || 0 },
+      translationTransform: { scale: 1, offsetSeconds: restored.offset || 0 } },
     restoredUrl: restored.url || '',
     restoredTitle: restored.title || '',
     favicon: restored.favicon || '',
@@ -1470,6 +1473,9 @@ function createBrowserTabRecord(initial = {}) {
     trackRefs: restored.trackRefs || [],
     subtitleSelection: restored.subtitleSelection || null,
     recoveryJobs: Array.isArray(restored.recoveryJobs) ? restored.recoveryJobs : [],
+    subtitleSyncRecords: Array.isArray(restored.subtitleSyncRecords) ? restored.subtitleSyncRecords : [],
+    subtitleEdits: Array.isArray(restored.subtitleEdits) ? restored.subtitleEdits : [],
+    subtitleRecordQuarantine: Array.isArray(restored.subtitleRecordQuarantine) ? restored.subtitleRecordQuarantine : [],
     zoom: 1,
     closing: false,
   };
@@ -1566,6 +1572,9 @@ function browserTabSnapshot(tab) {
     trackRefs: Array.isArray(tab?.trackRefs) ? tab.trackRefs : [],
     subtitleSelection: tab?.subtitleSelection || null,
     recoveryJobs: browserRecoveryJobsForTab(tab),
+    subtitleSyncRecords: Array.isArray(tab?.subtitleSyncRecords) ? tab.subtitleSyncRecords : [],
+    subtitleEdits: Array.isArray(tab?.subtitleEdits) ? tab.subtitleEdits : [],
+    subtitleRecordQuarantine: Array.isArray(tab?.subtitleRecordQuarantine) ? tab.subtitleRecordQuarantine : [],
     resumePending: !!url && !(wc && wc.getURL() !== 'about:blank'),
   };
 }
@@ -3851,9 +3860,12 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
   if (!tab || tab.translationScheduler !== scheduler) return null;
   const cues = scheduler.snapshot().results.flatMap((result) => result.cues || []).map((cue, index) => ({
     id: `web-tr-${String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, '')}`,
+    cueId: String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, ''),
     start: Number(cue.start) || 0,
     end: Number(cue.end) || Number(cue.start) || 0,
     text: String(cue.text || '').trim(),
+  })).map((cue) => ({ ...cue,
+    sourceCueHash: browserSubtitleIdentityHash(`${context.sourceHash || ''}|${cue.cueId}|${cue.start}|${cue.end}`),
   })).filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
   if (!cues.length) return null;
   const identity = JSON.stringify({
@@ -4075,6 +4087,8 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     ...track, role, path: saved.srtPath, assetId: saved.assetId, persisted: true,
     sourceHash, sourceTrackId: String(meta.sourceTrackId || ''),
     provider: String(meta.provider || ''), model: String(meta.model || ''),
+    cueIdentities: saved.document.cues.map((cue) => ({ id: cue.id, cueId: cue.cueId || '',
+      start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '' })),
   };
 }
 
@@ -4121,6 +4135,8 @@ function restorePersistedBrowserTracks(tab) {
           role,
           sourceHash: document.sourceHash || '', sourceTrackId: document.sourceTrackId || '',
           provider: document.provider || '', model: document.model || '', sourceMismatch,
+          cueIdentities: document.cues.map((cue) => ({ id: cue.id, cueId: cue.cueId || '',
+            start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '' })),
           // Metadata'sız eski çeviri dosyaları geriye dönük uyumlulukla açılır;
           // kaynak kanıtı bulunan yeni varlıklar yalnız eşleşen kaynakta açılır.
           autoLoad: role === 'translation' && !restoredTranslation && hasSourceProof
@@ -6408,6 +6424,9 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     trackRefs: normalized.trackRefs,
     subtitleSelection: normalized.subtitleSelection,
     recoveryJobs: normalized.recoveryJobs,
+    subtitleSyncRecords: normalized.subtitleSyncRecords,
+    subtitleEdits: normalized.subtitleEdits,
+    subtitleRecordQuarantine: normalized.subtitleRecordQuarantine,
     overlay: { ...(tab.overlay || {}), mode: normalized.subtitleMode, offset: normalized.offset },
   });
   scheduleBrowserSessionSave();
@@ -6687,11 +6706,18 @@ ipcMain.handle('browser:setOverlay', async (event, request) => {
   const mode = ['off', 'source', 'translation', 'both'].includes(payload && payload.mode)
     ? payload.mode : 'translation';
   const rawStyle = payload && payload.style || {};
+  const legacyOffset = Math.max(-30, Math.min(30, Number(payload && payload.offset) || 0));
+  const safeTransform = (raw) => {
+    try { return normalizeTransform(raw); }
+    catch (_) { return { scale: 1, offsetSeconds: legacyOffset }; }
+  };
   browserOverlay = {
     source: normalizeCues(payload && payload.source).slice(0, 20000),
     translation: normalizeCues(payload && payload.translation).slice(0, 20000),
     mode,
-    offset: Math.max(-30, Math.min(30, Number(payload && payload.offset) || 0)),
+    offset: legacyOffset,
+    sourceTransform: safeTransform(payload && payload.sourceTransform),
+    translationTransform: safeTransform(payload && payload.translationTransform),
     style: {
       scale: Math.max(.65, Math.min(1.8, Number(rawStyle.scale) || 1)),
       opacity: Math.max(.2, Math.min(1, Number(rawStyle.opacity) || 1)),

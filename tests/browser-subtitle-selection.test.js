@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const js = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+const browserSubtitleSync = require('../src/browser-subtitle-sync');
 
 function harness() {
   const tracks = [
@@ -17,6 +18,7 @@ function harness() {
   const modes = [];
   const signals = [];
   const ctx = {
+    browserSubtitleSync,
     player: { workspaceMode: 'browser', browserActiveTabId: 'a', browserTracks: tracks,
       browserTranslationTrackId: '', browserLiveTranslations: new Map(), cues: [], cues2: [],
       browserLoadedTrackId: '', browserLoadedTrackId2: '', subPath: '', sub2Path: '' },
@@ -25,6 +27,7 @@ function harness() {
     window: { api: { readSubtitle: async (file) => ({ ok: true, text: file }),
       stopBrowserTranslation: async (id) => { stops.push(id); } } },
     parseSubtitles: (text) => [{ id: '1', start: 0, end: 1, text }], applyCueQuality: (cues) => cues,
+    browserTranslationMapFromCues: (cues) => new Map((cues || []).map((cue) => [String(cue.id), cue])),
     hideWordInspector() {}, renderCueList() {}, updateSubtitleChips() {}, updateMakeTransState() {},
     updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {},
     updatePlayerAutoSyncState() {}, renderCue() {}, scheduleBrowserOverlaySync() {}, logLine() {},
@@ -55,6 +58,27 @@ function harness() {
   assert.equal(first.controls.playerSubSelect2.value, '');
   assert.equal(first.tab.browserLoadedTrackId2, '');
   assert.equal(first.ctx.player.cues2.length, 0);
+
+  const edited = harness();
+  edited.tab.mediaId = 'youtube:video-1';
+  const editedTrack = edited.ctx.player.browserTracks.find((track) => track.id === 'tr');
+  Object.assign(editedTrack, { sourceTrackId: 'src', sourceHash: 'a1b2c3d4',
+    cueIdentities: [{ id: 'web-tr-source-7', cueId: 'source-7', start: 0, end: 1,
+      sourceCueHash: 'deadbeef' }] });
+  edited.tab.subtitleEdits = [browserSubtitleSync.createEditRecord({
+    mediaId: edited.tab.mediaId, variantId: 'tr', sourceHash: editedTrack.sourceHash,
+    cueId: 'source-7', sourceCueHash: 'deadbeef', baseTranslation: 'tr.srt',
+    hasOverride: true, userOverride: 'Kullanıcının kalıcı düzeltmesi', revision: 1,
+  })];
+  await edited.load('tr.srt');
+  assert.equal(edited.ctx.player.cues[0].text, 'Kullanıcının kalıcı düzeltmesi');
+  assert.equal([...edited.ctx.player.browserLiveTranslations.values()][0].text, 'tr.srt',
+    'model temeli kullanıcı override metniyle kirletildi');
+  edited.ctx.window.api.readSubtitle = async () => ({ ok: true, text: 'Yeni model metni' });
+  await edited.load('tr.srt', false, { silent: true });
+  assert.equal(edited.ctx.player.cues[0].text, 'Kullanıcının kalıcı düzeltmesi',
+    'yenilenen model sonucu kullanıcı düzeltmesini ezdi');
+  assert.equal(edited.ctx.player.browserBaseCues.get('youtube:video-1|tr').get('source-7').text, 'Yeni model metni');
 
   const second = harness();
   await second.load('tr.srt');

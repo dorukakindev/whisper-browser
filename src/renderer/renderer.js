@@ -27,6 +27,8 @@ const state = {
   syncSrt: null,        // altyazı senkron aracı: hizalanacak SRT
 };
 
+const browserSubtitleSync = globalThis.BrowserSubtitleSync;
+
 // Kalıcı iş geçmişinin renderer önbelleği. İşler merkezi bu sayacı kuyruk
 // yönetiminden önce de okuyabildiği için tek üst-seviye sahibi burada durur.
 let historyCache = [];
@@ -3727,6 +3729,9 @@ const player = {
   browserTranslationStartSeq: 0,
   browserLiveTranslations: new Map(),
   browserTranslationFailed: 0,
+  browserSyncPreview: null,
+  browserCueEditContext: null,
+  browserBaseCues: new Map(),
   settingsPage: 'source',
   browserSignalVisible: true,
   browserSignalState: null,
@@ -3816,6 +3821,9 @@ function newBrowserTabState(snapshot = {}) {
     targetLanguage: snapshot.targetLanguage || '',
     trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : [],
     recoveryJobs: Array.isArray(snapshot.recoveryJobs) ? snapshot.recoveryJobs.map((job) => ({ ...job })) : [],
+    subtitleSyncRecords: Array.isArray(snapshot.subtitleSyncRecords) ? snapshot.subtitleSyncRecords.map((item) => ({ ...item })) : [],
+    subtitleEdits: Array.isArray(snapshot.subtitleEdits) ? snapshot.subtitleEdits.map((item) => ({ ...item })) : [],
+    subtitleRecordQuarantine: Array.isArray(snapshot.subtitleRecordQuarantine) ? snapshot.subtitleRecordQuarantine.map((item) => ({ ...item })) : [],
     resumePending: !!snapshot.resumePending,
   };
 }
@@ -3929,6 +3937,9 @@ function saveActiveBrowserTabWorkspace() {
     subtitleMode: savedSubtitleMode,
     subtitleSelection: selection,
     targetLanguage: $('translateTo')?.value || tab.targetLanguage || '',
+    subtitleSyncRecords: (tab.subtitleSyncRecords || []).map((item) => ({ ...item })),
+    subtitleEdits: (tab.subtitleEdits || []).map((item) => ({ ...item })),
+    subtitleRecordQuarantine: (tab.subtitleRecordQuarantine || []).map((item) => ({ ...item })),
   });
   if (window.api.updateBrowserSessionTab) {
     const refs = [];
@@ -3950,12 +3961,17 @@ function saveActiveBrowserTabWorkspace() {
       subtitleSelection: selection,
       targetLanguage: $('translateTo')?.value || '',
       trackRefs: refs,
+      subtitleSyncRecords: tab.subtitleSyncRecords || [],
+      subtitleEdits: tab.subtitleEdits || [],
+      subtitleRecordQuarantine: tab.subtitleRecordQuarantine || [],
     }).catch(() => {});
   }
 }
 
 function restoreActiveBrowserTabWorkspace(tab) {
   if (!tab) return;
+  player.browserSyncPreview = null;
+  player.browserCueEditContext = null;
   setMediaKey(tab.mediaKey || (tab.mediaId ? `browser:${tab.mediaId}`
     : tab.url ? `browser:${browserPlaceKey(tab.url) || tab.url}` : ''));
   player.browserPageUrl = tab.url || '';
@@ -3985,6 +4001,9 @@ function restoreActiveBrowserTabWorkspace(tab) {
   }
   player.browserLiveTranslations = browserTranslationMapFromCues(tab.browserLiveTranslations);
   player.browserTranslationFailed = Math.max(0, Number(tab.browserTranslationFailed) || 0);
+  tab.subtitleSyncRecords = Array.isArray(tab.subtitleSyncRecords) ? tab.subtitleSyncRecords.map((item) => ({ ...item })) : [];
+  tab.subtitleEdits = Array.isArray(tab.subtitleEdits) ? tab.subtitleEdits.map((item) => ({ ...item })) : [];
+  tab.subtitleRecordQuarantine = Array.isArray(tab.subtitleRecordQuarantine) ? tab.subtitleRecordQuarantine.map((item) => ({ ...item })) : [];
   player.browserMangaBusy = !!tab.browserMangaBusy;
   player.browserMangaTranslated = Number(tab.browserMangaTranslated) || 0;
   player.browserMangaVisible = !!tab.browserMangaVisible;
@@ -4007,8 +4026,24 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.cues2 = (tab.cues2 || []).slice();
   player.cuesRaw = (tab.cuesRaw || tab.cues || []).slice();
   player.cues2Raw = (tab.cues2Raw || tab.cues2 || []).slice();
+  player.browserBaseCues = new Map();
+  const restoredSecondaryTrack = player.browserTracks.find((track) =>
+    track.id === player.browserLoadedTrackId2 && track.role === 'translation');
+  if (restoredPrimaryTrack) rememberBrowserBaseCues(restoredPrimaryTrack,
+    player.browserLiveTranslations.size ? [...player.browserLiveTranslations.values()] : player.cuesRaw);
+  if (restoredSecondaryTrack) rememberBrowserBaseCues(restoredSecondaryTrack, player.cues2Raw);
   if (restoredPrimaryTrack && !player.browserLiveTranslations.size) {
     player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
+  }
+  if (restoredPrimaryTrack) {
+    const base = [...browserBaseCueMap(restoredPrimaryTrack.id).values()];
+    player.cuesRaw = effectiveBrowserTranslationCues(restoredPrimaryTrack, base);
+    player.cues = player.mergeCont ? mergeCueContinuation(player.cuesRaw) : player.cuesRaw;
+  }
+  if (restoredSecondaryTrack) {
+    const base = [...browserBaseCueMap(restoredSecondaryTrack.id).values()];
+    player.cues2Raw = effectiveBrowserTranslationCues(restoredSecondaryTrack, base);
+    player.cues2 = player.mergeCont ? mergeCueContinuation(player.cues2Raw) : player.cues2Raw;
   }
   const restoredSubtitles = (tab.subtitles || []).map((item) => ({ ...item }));
   player.subtitles = [];
@@ -4036,6 +4071,9 @@ function restoreActiveBrowserTabWorkspace(tab) {
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   updateSubtitleChips();
   renderBrowserTracks();
+  if (tab.subtitleRecordQuarantine?.length) {
+    refreshBrowserSyncPanel('Bazı eski senkron/düzeltme kayıtları okunamadı; nötr ayar kullanıldı ve kayıt kurtarma için korundu.');
+  }
   setSubtitleMode(bestAvailableSubtitleMode(tab.subtitleMode), false);
   const savedTranslation = player.browserTracks.find((track) => track.role === 'translation' && track.autoLoad);
   if (savedTranslation && (!player.cues.length || player.browserLoadedTrackId !== savedTranslation.id)) {
@@ -5277,6 +5315,9 @@ function clearBrowserTracks(message) {
   player.browserLoadedTrackId2 = '';
   player.browserTranslationTrackId = '';
   player.browserLiveTranslations = new Map();
+  player.browserBaseCues = new Map();
+  player.browserSyncPreview = null;
+  player.browserCueEditContext = null;
   player.browserTranslationFailed = 0;
   player.browserTracks = [];
   player.cues = [];
@@ -5408,6 +5449,7 @@ function renderBrowserTracks(selectedId) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
     announceBrowserTrack(chosen);
   }
+  refreshBrowserSyncPanel();
 }
 
 function replaceBrowserTrackSubtitlePath(previousTrack, nextTrack) {
@@ -5512,12 +5554,10 @@ async function loadPersistedBrowserTranslation(track) {
     // Kalıcı çeviri birincil kanala yüklense de rolünü kaybetmemeli; aksi
     // halde ayarlardaki "Yalnızca çeviri" seçeneği devre dışı kalır.
     player.browserTranslationTrackId = track.id;
-    player.browserLiveTranslations = new Map();
     player.cues2 = [];
     tab.browserLoadedTrackId = track.id;
     tab.browserLoadedTrackId2 = '';
     tab.browserTranslationTrackId = track.id;
-    player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
     tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
     tab.cues = player.cues.slice();
     tab.cues2 = [];
@@ -5705,6 +5745,129 @@ function browserTranslationMapFromCues(cues) {
   return map;
 }
 
+function attachBrowserCueIdentities(track, cues) {
+  const identities = Array.isArray(track?.cueIdentities) ? track.cueIdentities : [];
+  if (track?.role !== 'translation' || !identities.length) return cues;
+  const used = new Set();
+  return (Array.isArray(cues) ? cues : []).map((cue, index) => {
+    let identity = identities[index];
+    const sameTime = identity && Math.abs(Number(identity.start) - Number(cue.start)) < .002
+      && Math.abs(Number(identity.end) - Number(cue.end)) < .002;
+    if (!sameTime) {
+      const found = identities.findIndex((item, candidateIndex) => !used.has(candidateIndex)
+        && Math.abs(Number(item.start) - Number(cue.start)) < .002
+        && Math.abs(Number(item.end) - Number(cue.end)) < .002);
+      identity = found >= 0 ? identities[found] : null;
+      if (found >= 0) used.add(found);
+    } else used.add(index);
+    if (!identity) return cue;
+    return { ...cue, cueId: identity.cueId || identity.id || cue.cueId,
+      sourceCueHash: identity.sourceCueHash || cue.sourceCueHash };
+  });
+}
+
+function browserEditContextForCue(track, cue, index = 0) {
+  if (!track || track.role !== 'translation' || !cue || !browserSubtitleSync) return null;
+  const identity = browserTrackSourceIdentity(track, [cue]);
+  if (!identity) return null;
+  const cueId = browserTranslationCueKey(cue);
+  return {
+    mediaId: identity.mediaId,
+    variantId: track.id,
+    sourceHash: identity.sourceHash,
+    cueId,
+    // Varlik JSON'u bu hash'i taşır. Eski SRT'lerde ise çeviri metninden
+    // türetme: model metni değişince override kimliğini koparır. Kaynak hash,
+    // cue kimliği ve zamanlar birlikte aynı-zamanlı cue çakışmasını da önler.
+    sourceCueHash: cue.sourceCueHash || browserSubtitleSync.hashText(
+      `${identity.sourceHash}|${cueId}|${Number(cue.start)}|${Number(cue.end)}|${index}`),
+  };
+}
+
+function browserEditRecord(context) {
+  if (!context) return null;
+  return (browserTabState()?.subtitleEdits || []).find((record) => browserSubtitleSync.editRecordMatches(record, context)) || null;
+}
+
+function browserBaseCueMap(trackId) {
+  if (!(player.browserBaseCues instanceof Map)) player.browserBaseCues = new Map();
+  const key = `${browserTabState()?.mediaId || ''}|${String(trackId || '')}`;
+  if (!player.browserBaseCues.has(key)) player.browserBaseCues.set(key, new Map());
+  return player.browserBaseCues.get(key);
+}
+
+function rememberBrowserBaseCues(track, cues) {
+  if (!track?.id || track.role !== 'translation') return;
+  const map = browserBaseCueMap(track.id);
+  for (const cue of Array.isArray(cues) ? cues : []) {
+    const key = browserTranslationCueKey(cue);
+    map.set(key, { ...cue, text: String(cue.text ?? '') });
+    const context = browserEditContextForCue(track, cue);
+    const record = browserEditRecord(context);
+    if (record) record.baseTranslation = String(cue.text ?? '');
+  }
+}
+
+function effectiveBrowserTranslationCues(track, cues) {
+  if (!track || track.role !== 'translation') return (Array.isArray(cues) ? cues : []).map((cue) => ({ ...cue }));
+  if (!browserBaseCueMap(track.id).size) rememberBrowserBaseCues(track, cues);
+  return (Array.isArray(cues) ? cues : []).map((cue, index) => {
+    const context = browserEditContextForCue(track, cue, index);
+    return browserSubtitleSync.applyEditRecord(cue, browserEditRecord(context), context);
+  });
+}
+
+function applyLoadedBrowserTranslation(track, secondary = false) {
+  if (!track || track.role !== 'translation') return;
+  const base = (secondary ? (player.cues2Raw || player.cues2) : (player.cuesRaw || player.cues))
+    .map((cue) => ({ ...cue, text: String(cue.text ?? '') }));
+  rememberBrowserBaseCues(track, base);
+  const effective = effectiveBrowserTranslationCues(track, base);
+  if (secondary) {
+    player.cues2Raw = effective;
+    player.cues2 = player.mergeCont ? mergeCueContinuation(effective) : effective;
+  } else {
+    player.cuesRaw = effective;
+    player.cues = player.mergeCont ? mergeCueContinuation(effective) : effective;
+  }
+  // Canlı harita modelin temel çıktısını taşır; kullanıcı override'ı yalnız
+  // görünüm katmanında uygulanır ve gecikmiş model sonucu onu ezemez.
+  player.browserLiveTranslations = browserTranslationMapFromCues(base);
+}
+
+function replaceBrowserEditRecord(context, nextRecord) {
+  const tab = browserTabState();
+  if (!tab || !context) return false;
+  tab.subtitleEdits = (tab.subtitleEdits || []).filter((record) => !browserSubtitleSync.editRecordMatches(record, context));
+  if (nextRecord) tab.subtitleEdits.unshift(nextRecord);
+  tab.subtitleEdits = tab.subtitleEdits.slice(0, 2000);
+  return true;
+}
+
+function refreshBrowserEditedChannel(trackId) {
+  const primary = browserLoadedTrack(false);
+  const secondary = browserLoadedTrack(true);
+  const track = primary?.id === trackId ? primary : secondary?.id === trackId ? secondary : null;
+  if (!track) return;
+  const base = [...browserBaseCueMap(track.id).values()].sort((a, b) => a.start - b.start || a.end - b.end);
+  const effective = effectiveBrowserTranslationCues(track, base);
+  if (primary?.id === trackId) {
+    player.cuesRaw = effective;
+    player.cues = player.mergeCont ? mergeCueContinuation(effective) : effective;
+  } else {
+    player.cues2Raw = effective;
+    player.cues2 = player.mergeCont ? mergeCueContinuation(effective) : effective;
+  }
+  const tab = browserTabState();
+  if (tab) {
+    tab.cues = player.cues.slice(); tab.cuesRaw = (player.cuesRaw || player.cues).slice();
+    tab.cues2 = player.cues2.slice(); tab.cues2Raw = (player.cues2Raw || player.cues2).slice();
+  }
+  renderCueList($('cueSearch')?.value || '');
+  scheduleBrowserOverlaySync();
+  renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+}
+
 function stopReplacedBrowserTranslation(nextTrackId = '') {
   if (player.workspaceMode !== 'browser' || !player.browserTranslationTrackId
       || player.browserTranslationTrackId === nextTrackId || !window.api.stopBrowserTranslation) return;
@@ -5868,23 +6031,42 @@ async function runBrowserSubtitleExport(prepare, successLabel) {
   }
 }
 
+function browserExportFormat() {
+  const value = $('browserExportFormat')?.value;
+  return ['srt', 'vtt', 'ass'].includes(value) ? value : 'srt';
+}
+
+function prepareBrowserExportCues(track, cues) {
+  let prepared = (Array.isArray(cues) ? cues : []).map((cue) => ({ ...cue }));
+  if (track?.role === 'translation' && typeof effectiveBrowserTranslationCues === 'function') {
+    prepared = effectiveBrowserTranslationCues(track, prepared);
+  }
+  if ($('browserExportTiming')?.value !== 'synchronized') return prepared;
+  let transform;
+  if (track?.id && track.id === player.browserLoadedTrackId) transform = browserTransformForChannel(false);
+  else if (track?.id && track.id === player.browserLoadedTrackId2) transform = browserTransformForChannel(true);
+  else transform = browserSavedTransform(track, prepared);
+  return typeof browserSubtitleSync !== 'undefined' && browserSubtitleSync?.transformCuesForExport
+    ? browserSubtitleSync.transformCuesForExport(prepared, transform) : prepared;
+}
+
 async function exportSelectedBrowserTrack() {
   const track = browserTrackSelection(false);
-  const format = $('browserExportFormat')?.value === 'vtt' ? 'vtt' : 'srt';
+  const format = browserExportFormat();
   let cues = track ? [] : (player.cuesRaw || player.cues).slice();
   let label = player.browserPageTitle || 'web-altyazi';
   return runBrowserSubtitleExport(async () => {
     if (track && track.path) {
       const result = await window.api.readSubtitle(track.path);
       if (result && result.ok) {
-        cues = parseSubtitles(result.text);
+        cues = attachBrowserCueIdentities(track, parseSubtitles(result.text));
         label = `${label} ${track.language || track.label || ''}`.trim();
       }
     }
     if (!cues.length) throw new Error(track
       ? 'Seçilen altyazı okunamadı veya boş; başka bir iz dışa aktarılmadı.'
       : 'Dışa aktarılacak altyazı yüklenmedi.');
-    return { cues, title: label, format };
+    return { cues: prepareBrowserExportCues(track, cues), title: label, format };
   }, 'Altyazı dışa aktarıldı');
 }
 
@@ -5927,10 +6109,11 @@ async function exportBrowserTranslation() {
     setBrowserSignal('Dışa aktarılacak canlı çeviri henüz hazır değil.', false);
     return;
   }
-  const format = $('browserExportFormat')?.value === 'vtt' ? 'vtt' : 'srt';
+  const format = browserExportFormat();
   const language = selected?.language || $('translateTo')?.value || 'tr';
   return runBrowserSubtitleExport(async () => ({
-    cues, title: `${player.browserPageTitle || 'web-altyazi'}-${language}-ceviri`, format,
+    cues: prepareBrowserExportCues(selected, cues),
+    title: `${player.browserPageTitle || 'web-altyazi'}-${language}-ceviri`, format,
   }), 'Çeviri dışa aktarıldı');
 }
 
@@ -5955,28 +6138,35 @@ async function retryFailedBrowserTranslation() {
 
 function abSubtitleExcerpt() {
   if (player.abA === null || player.abB === null || player.abB <= player.abA) return [];
-  const start = player.abA - player.offset;
-  const end = player.abB - player.offset;
+  const start = player.abA;
+  const end = player.abB;
   const mode = browserSubtitleMode();
   const roleCues = browserSubtitleRoleCues();
-  const source = roleCues.source.filter((cue) => cue.end > start && cue.start < end);
-  const translation = roleCues.translation.filter((cue) => cue.end > start && cue.start < end);
+  const inVideoTime = (cues, transform) => cues.map((cue) => {
+    try {
+      return { ...cue,
+        videoStart: browserSubtitleSync.sourceToVideoTime(cue.start, transform),
+        videoEnd: browserSubtitleSync.sourceToVideoTime(cue.end, transform) };
+    } catch (_) { return null; }
+  }).filter((cue) => cue && cue.videoEnd > start && cue.videoStart < end);
+  const source = inVideoTime(roleCues.source, browserTransformForRole('source'));
+  const translation = inVideoTime(roleCues.translation, browserTransformForRole('translation'));
   const base = mode === 'translation' ? translation : (source.length ? source : translation);
   return base.map((cue) => {
     let text = cue.text;
     if (mode === 'both' && source.length && translation.length) {
-      const middle = (cue.start + cue.end) / 2;
-      const translated = translation.filter((item) => item.end > cue.start && item.start < cue.end)
+      const middle = (cue.videoStart + cue.videoEnd) / 2;
+      const translated = translation.filter((item) => item.videoEnd > cue.videoStart && item.videoStart < cue.videoEnd)
         .map((item) => item.text).join(' / ');
       if (translated && !text.includes(translated)) text = `${text}\n${translated}`;
       else if (!translated) {
-        const index = findCueAt(translation, middle, -1);
+        const index = translation.findIndex((item) => item.videoStart <= middle && item.videoEnd > middle);
         if (index >= 0) text = `${text}\n${translation[index].text}`;
       }
     }
     return {
-      start: Math.max(0, Math.max(cue.start, start) - start),
-      end: Math.max(0.05, Math.min(cue.end, end) - start),
+      start: Math.max(0, Math.max(cue.videoStart, start) - start),
+      end: Math.max(0.05, Math.min(cue.videoEnd, end) - start),
       text,
     };
   });
@@ -6237,6 +6427,236 @@ function browserSubtitleRoleCues() {
   };
 }
 
+function browserLoadedTrack(secondary = false) {
+  const id = secondary ? player.browserLoadedTrackId2 : player.browserLoadedTrackId;
+  return player.browserTracks.find((track) => track.id === id) || null;
+}
+
+function browserTrackSourceIdentity(track, cues = []) {
+  if (!track || !browserSubtitleSync) return null;
+  const sourceTrackId = track.role === 'translation' ? (track.sourceTrackId || '') : track.id;
+  if (!sourceTrackId) return null;
+  const sourceRole = browserSubtitleRoleCues().source;
+  const proofCues = sourceRole.length ? sourceRole : (track.role === 'source' ? cues : []);
+  const sourcePrefixCount = Math.min(32, proofCues.length);
+  const sourcePrefixHashes = {};
+  for (let count = 1; count <= sourcePrefixCount; count++) {
+    sourcePrefixHashes[count] = browserSubtitleSync.cuePrefixHash(proofCues, count);
+  }
+  return {
+    mediaId: browserTabState()?.mediaId || '',
+    sourceTrackId,
+    sourceHash: track.sourceHash || (proofCues.length ? browserSubtitleSync.cuePrefixHash(proofCues, proofCues.length) : ''),
+    sourcePrefixHash: sourcePrefixCount ? browserSubtitleSync.cuePrefixHash(proofCues, sourcePrefixCount) : '',
+    sourcePrefixCount,
+    sourcePrefixHashes,
+  };
+}
+
+function browserSavedTransform(track, cues = []) {
+  const tab = browserTabState();
+  const context = browserTrackSourceIdentity(track, cues);
+  if (!tab || !context) return { scale: 1, offsetSeconds: 0 };
+  const record = (tab.subtitleSyncRecords || []).find((item) => browserSubtitleSync.syncRecordMatches(item, context));
+  // Surum 2 oturumlarindaki tek offset, ilk kayda kadar davranis kaybi
+  // olmasin diye geri uyumluluk tabani olarak kullanilir.
+  if (!record) return { scale: 1, offsetSeconds: Number(tab.offset) || 0 };
+  try { return browserSubtitleSync.normalizeTransform(record); }
+  catch (_) { return { scale: 1, offsetSeconds: 0 }; }
+}
+
+function browserSavedSyncRecord(track, cues = []) {
+  const tab = browserTabState();
+  const context = browserTrackSourceIdentity(track, cues);
+  return tab && context
+    ? (tab.subtitleSyncRecords || []).find((item) => browserSubtitleSync.syncRecordMatches(item, context)) || null
+    : null;
+}
+
+function browserTransformForChannel(secondary = false) {
+  const track = browserLoadedTrack(secondary);
+  const cues = secondary ? player.cues2 : player.cues;
+  if (!track) return { scale: 1, offsetSeconds: 0 };
+  const context = browserTrackSourceIdentity(track, cues);
+  const preview = player.browserSyncPreview;
+  if (preview && context && preview.tabId === player.browserActiveTabId
+      && preview.mediaId === context.mediaId && preview.sourceTrackId === context.sourceTrackId
+      && preview.sourceHash === context.sourceHash && preview.channel === (secondary ? 'secondary' : 'primary')) {
+    return preview.transform;
+  }
+  return browserSavedTransform(track, cues);
+}
+
+function subtitleSourceTime(videoTime, secondary = false) {
+  const value = Number(videoTime);
+  if (!Number.isFinite(value)) return NaN;
+  if (player.workspaceMode !== 'browser') return value - player.offset;
+  try { return browserSubtitleSync.videoToSourceTime(value, browserTransformForChannel(secondary)); }
+  catch (_) { return value; }
+}
+
+function subtitleVideoTime(sourceTime, secondary = false) {
+  const value = Number(sourceTime);
+  if (!Number.isFinite(value)) return NaN;
+  if (player.workspaceMode !== 'browser') return value + player.offset;
+  try { return browserSubtitleSync.sourceToVideoTime(value, browserTransformForChannel(secondary)); }
+  catch (_) { return value; }
+}
+
+function browserTransformForRole(role) {
+  const primary = browserLoadedTrack(false);
+  if (primary && (primary.role === 'translation' ? 'translation' : 'source') === role) {
+    return browserTransformForChannel(false);
+  }
+  const secondary = browserLoadedTrack(true);
+  if (secondary && (secondary.role === 'translation' ? 'translation' : 'source') === role) {
+    return browserTransformForChannel(true);
+  }
+  return { scale: 1, offsetSeconds: 0 };
+}
+
+function browserSyncSelection() {
+  const secondary = $('browserSyncChannel')?.value === 'secondary';
+  const track = browserLoadedTrack(secondary);
+  const cues = secondary ? player.cues2 : player.cues;
+  const context = browserTrackSourceIdentity(track, cues);
+  return { secondary, channel: secondary ? 'secondary' : 'primary', track, cues, context };
+}
+
+function browserSyncEnsurePreview() {
+  const selected = browserSyncSelection();
+  if (!selected.track || !selected.context) return null;
+  const current = player.browserSyncPreview;
+  if (current && current.tabId === player.browserActiveTabId && current.channel === selected.channel
+      && current.mediaId === selected.context.mediaId && current.sourceTrackId === selected.context.sourceTrackId
+      && current.sourceHash === selected.context.sourceHash) return current;
+  const transform = browserSavedTransform(selected.track, selected.cues);
+  const savedRecord = browserSavedSyncRecord(selected.track, selected.cues);
+  const savedPoints = Array.isArray(savedRecord?.points) ? savedRecord.points.map((point) => ({ ...point })) : [];
+  player.browserSyncPreview = {
+    tabId: player.browserActiveTabId,
+    channel: selected.channel,
+    ...selected.context,
+    baseTransform: { ...transform }, transform: { ...transform }, points: savedPoints,
+    basePoints: savedPoints.map((point) => ({ ...point })), dirty: false,
+  };
+  return player.browserSyncPreview;
+}
+
+function formatSyncSeconds(value) {
+  return `${Number(value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} sn`;
+}
+
+function refreshBrowserSyncPanel(message = '') {
+  const selected = browserSyncSelection();
+  const preview = selected.track ? browserSyncEnsurePreview() : null;
+  const transform = preview?.transform || { scale: 1, offsetSeconds: 0 };
+  if ($('browserSyncTrackInfo')) $('browserSyncTrackInfo').textContent = selected.track
+    ? `${selected.track.label || selected.track.id} · ${(selected.track.language || 'dil belirsiz').toUpperCase()}`
+    : 'Önce bir browser altyazısı yükleyin.';
+  if ($('browserSyncCurrent')) $('browserSyncCurrent').textContent = formatSyncSeconds(transform.offsetSeconds);
+  if ($('browserSyncScale')) $('browserSyncScale').textContent = `${Number(transform.scale).toFixed(6)}×`;
+  if ($('browserSyncOffset') && document.activeElement !== $('browserSyncOffset')) {
+    $('browserSyncOffset').value = Number(transform.offsetSeconds).toFixed(3);
+  }
+  $('browserSyncDirty')?.classList.toggle('hidden', !preview?.dirty);
+  if ($('browserSyncPoints')) {
+    const points = preview?.points || [];
+    $('browserSyncPoints').textContent = points.length
+      ? points.map((point, index) => `${index + 1}. kaynak ${formatSyncSeconds(point.sourceTime)} → video ${formatSyncSeconds(point.videoTime)}`).join(' · ')
+      : 'Drift için iki uzak altyazı bloğunu videodaki doğru başlangıçlarıyla eşleştirin.';
+  }
+  if ($('browserSyncWarning')) $('browserSyncWarning').textContent = message || '';
+  for (const id of ['browserSyncEarlier', 'browserSyncLater', 'browserSyncEarlierStep', 'browserSyncLaterStep',
+    'browserSyncPoint1', 'browserSyncPoint2', 'browserSyncClearPoints', 'browserSyncSave', 'browserSyncCancel', 'browserSyncReset']) {
+    if ($(id)) $(id).disabled = !selected.track;
+  }
+}
+
+function applyBrowserSyncPreview(transform, points) {
+  const preview = browserSyncEnsurePreview();
+  if (!preview) return;
+  try { preview.transform = browserSubtitleSync.normalizeTransform(transform); }
+  catch (error) { refreshBrowserSyncPanel(error.message); return; }
+  if (points) preview.points = points.map((point) => ({ ...point }));
+  preview.dirty = preview.transform.scale !== preview.baseTransform.scale
+    || preview.transform.offsetSeconds !== preview.baseTransform.offsetSeconds
+    || JSON.stringify(preview.points) !== JSON.stringify(preview.basePoints || []);
+  refreshBrowserSyncPanel();
+  scheduleBrowserOverlaySync();
+  renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+}
+
+function nudgeBrowserSync(amount) {
+  const preview = browserSyncEnsurePreview();
+  if (!preview) return;
+  applyBrowserSyncPreview({ ...preview.transform, offsetSeconds: preview.transform.offsetSeconds + amount });
+}
+
+function captureBrowserSyncPoint(slot) {
+  const selected = browserSyncSelection();
+  const preview = browserSyncEnsurePreview();
+  const index = selected.secondary ? player.activeIdx2 : player.activeIdx;
+  const cue = selected.cues[index];
+  if (!preview || !cue) return refreshBrowserSyncPanel('Eşleşme için önce videoda görünen bir altyazı bloğu seçin.');
+  const points = preview.points.slice(0, 2);
+  points[slot] = { sourceTime: Number(cue.start), videoTime: Number(player.browserTime), cueId: browserSubtitleSync.cueKey(cue, index) };
+  preview.points = points;
+  if (points[0] && points[1]) {
+    try {
+      const result = browserSubtitleSync.calculateTwoPointTransform(points[0], points[1]);
+      const warning = Math.abs(result.scale - 1) > .02 || Math.abs(result.offsetSeconds) > 30
+        ? 'Düzeltme büyük görünüyor. Yanlış sürüm veya reklam kesintisi olabilir; doğrulamadan kaydetmeyin.' : '';
+      applyBrowserSyncPreview(result, result.points);
+      if (warning) refreshBrowserSyncPanel(warning);
+      return;
+    } catch (error) { return refreshBrowserSyncPanel(error.message); }
+  }
+  refreshBrowserSyncPanel();
+}
+
+function saveBrowserSync() {
+  const selected = browserSyncSelection();
+  const preview = browserSyncEnsurePreview();
+  const tab = browserTabState();
+  if (!selected.context || !preview || !tab) return;
+  try {
+    const record = browserSubtitleSync.createSyncRecord({ ...selected.context, ...preview.transform,
+      points: preview.points, updatedAt: Date.now() });
+    tab.subtitleSyncRecords = (tab.subtitleSyncRecords || []).filter((item) =>
+      !browserSubtitleSync.syncRecordMatches(item, selected.context));
+    tab.subtitleSyncRecords.unshift(record);
+    tab.subtitleSyncRecords = tab.subtitleSyncRecords.slice(0, 24);
+    preview.baseTransform = { ...preview.transform };
+    preview.basePoints = preview.points.map((point) => ({ ...point }));
+    preview.dirty = false;
+    saveActiveBrowserTabWorkspace();
+    refreshBrowserSyncPanel('Senkron bu video ve kaynak altyazı için kaydedildi.');
+  } catch (error) { refreshBrowserSyncPanel(error.message); }
+}
+
+function resetBrowserSync() {
+  const selected = browserSyncSelection();
+  const tab = browserTabState();
+  if (!selected.context || !tab) return;
+  tab.subtitleSyncRecords = (tab.subtitleSyncRecords || []).filter((item) => !(item.mediaId === selected.context.mediaId
+    && item.sourceTrackId === selected.context.sourceTrackId));
+  tab.offset = 0;
+  player.offset = 0;
+  player.browserSyncPreview = null;
+  saveActiveBrowserTabWorkspace();
+  refreshBrowserSyncPanel('Senkron düzeltmesi kaldırıldı; orijinal zamanlar kullanılıyor.');
+  scheduleBrowserOverlaySync();
+  renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+}
+
+function cancelBrowserSyncPreview() {
+  player.browserSyncPreview = null;
+  refreshBrowserSyncPanel('Kaydedilmemiş önizleme iptal edildi.');
+  scheduleBrowserOverlaySync();
+  renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+}
+
 function bestAvailableSubtitleMode(preferred) {
   const wanted = ['off', 'source', 'translation', 'both'].includes(preferred) ? preferred : 'source';
   if (wanted === 'off') return 'off';
@@ -6264,6 +6684,8 @@ function scheduleBrowserOverlaySync() {
         .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
       offset: player.offset,
+      sourceTransform: browserTransformForRole('source'),
+      translationTransform: browserTransformForRole('translation'),
       style: {
         scale: (Number($('browserOverlayScale')?.value) || 100) / 100,
         opacity: (Number($('browserOverlayOpacity')?.value) || 100) / 100,
@@ -6362,6 +6784,8 @@ function updateBrowserNavigation(data, options = {}) {
   }
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
   if (!options.preserveWorkspace && mediaChanged) {
+    player.browserSyncPreview = null;
+    player.browserCueEditContext = null;
     if (tab) {
       tab.subtitleSelection = null;
       tab.subtitleSelectionRestored = true;
@@ -6434,7 +6858,7 @@ function updateBrowserNavigation(data, options = {}) {
 }
 
 function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
-  const t = Number(time || 0) - player.offset;
+  const t = subtitleSourceTime(Number(time || 0), false);
   const previous = Number(previousTime);
   applyPlaybackLearningPolicy(time, previousTime, paused, true);
   if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
@@ -6449,7 +6873,7 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
       player.activeIdx = index;
       highlightCueRow();
     }
-    const prev = previous - player.offset;
+    const prev = subtitleSourceTime(previous, false);
     const dt = Number.isFinite(prev) ? t - prev : -1;
     if (player.autoPause && !paused && dt > 0 && dt < 1) {
       const priorIndex = findCueAt(player.cues, prev, player.activeIdx);
@@ -6458,7 +6882,10 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
       }
     }
   }
-  if (player.cues2.length) player.activeIdx2 = findCueAt(player.cues2, t, player.activeIdx2);
+  if (player.cues2.length) {
+    const secondaryTime = subtitleSourceTime(Number(time || 0), true);
+    player.activeIdx2 = findCueAt(player.cues2, secondaryTime, player.activeIdx2);
+  }
   updateCueMeta();
   if (!$('aiChat')?.classList.contains('hidden')) aiChatCtxLabel();
 }
@@ -7795,14 +8222,16 @@ function findCueAt(cues, t, hint) {
 function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
   if (player.editing || player.holdingSpeed || $('playerVideo')?.seeking) return;
   if (player.playbackPolicy === 'normal' || !player.cues.length || !window.WhisperPlaybackPolicy) return;
+  const currentSourceTime = browserMode ? subtitleSourceTime(time, false) : Number(time) - player.offset;
+  const previousSourceTime = browserMode ? subtitleSourceTime(previousTime, false) : Number(previousTime) - player.offset;
   const action = window.WhisperPlaybackPolicy.playbackLearningAction(
-    player.cues, Number(time) - player.offset, Number(previousTime) - player.offset,
+    player.cues, currentSourceTime, previousSourceTime,
     player.playbackPolicy,
     { baseRate: player.learningBaseRate, gapRate: Math.max(2, player.learningBaseRate), minGap: 2, lead: .15 },
   );
   if (!action) return;
   if (action.type === 'seek') {
-    const target = action.time + player.offset;
+    const target = browserMode ? subtitleVideoTime(action.time, false) : action.time + player.offset;
     if (browserMode) browserCommand('seek', target).catch(() => {});
     else if ($('playerVideo')) $('playerVideo').currentTime = target;
   } else if (action.type === 'set-rate') {
@@ -8138,7 +8567,8 @@ function bindTranscriptScroll() {
 function seekToCue(i) {
   const video = $('playerVideo');
   if (i < 0 || i >= player.cues.length) return;
-  const target = Math.max(0, player.cues[i].start + player.offset + 0.01);
+  let target = subtitleVideoTime(player.cues[i].start, false);
+  target = Math.max(0, target + 0.01);
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
     player.browserTime = target;
     browserCommand('seek', target).catch(() => {});
@@ -8155,7 +8585,8 @@ function seekToCue(i) {
 function stepCue(delta) {
   if (!player.cues.length) return;
   const video = $('playerVideo');
-  const t = (player.workspaceMode === 'browser' ? player.browserTime : (video && video.currentTime) || 0) - player.offset;
+  const t = subtitleSourceTime(player.workspaceMode === 'browser'
+    ? player.browserTime : ((video && video.currentTime) || 0), false);
   let i = player.activeIdx;
   if (i < 0) {
     if (delta < 0) {
@@ -8355,9 +8786,10 @@ function cuesToSrt(cues) {
 // ---- Dalga biçimli zamanlama masası ----
 function timelineDuration() {
   const video = $('playerVideo');
+  const cueEnd = player.cues.length ? subtitleVideoTime(player.cues[player.cues.length - 1].end, false) : 0;
   return Math.max(1,
     player.workspaceMode === 'browser' ? Number(player.browserDuration) || 0 : Number(video && video.duration) || 0,
-    player.cues.length ? player.cues[player.cues.length - 1].end + player.offset : 0,
+    Number.isFinite(cueEnd) ? cueEnd : 0,
     player.timeline.waveformDuration || 0);
 }
 
@@ -8374,7 +8806,7 @@ function timelineWindow() {
   if (!zoom || zoom >= duration) return { start: 0, end: duration };
   const selected = player.cues[player.timeline.selected];
   const center = player.timeline.drag ? player.timeline.drag.center
-    : (selected ? (selected.start + selected.end) / 2 + player.offset : timelinePlaybackTime());
+    : (selected ? subtitleVideoTime((selected.start + selected.end) / 2, false) : timelinePlaybackTime());
   const start = Math.max(0, Math.min(duration - zoom, center - zoom / 2));
   return { start, end: start + zoom };
 }
@@ -8452,8 +8884,8 @@ function drawTimeline() {
 
   const chosen = player.timeline.selected >= 0 ? player.timeline.selected : player.activeIdx;
   player.cues.forEach((cue, i) => {
-    const mediaStart = cue.start + player.offset;
-    const mediaEnd = cue.end + player.offset;
+    const mediaStart = subtitleVideoTime(cue.start, false);
+    const mediaEnd = subtitleVideoTime(cue.end, false);
     if (mediaEnd < view.start || mediaStart > view.end) return;
     const x1 = Math.max(0, xFor(mediaStart));
     const x2 = Math.min(w, xFor(mediaEnd));
@@ -8542,7 +8974,7 @@ function timelineNudge(delta) {
 }
 
 function timelineSplitCue() {
-  const at = timelinePlaybackTime() - player.offset;
+  const at = subtitleSourceTime(timelinePlaybackTime(), false);
   const i = player.timeline.selected;
   const cue = player.cues[i];
   if (!cue || !(at > cue.start + .2 && at < cue.end - .2)) {
@@ -8628,7 +9060,7 @@ if ($('timelineCanvas')) {
     } else if (e.key === 'Enter') {
       const cue = player.cues[player.timeline.selected];
       if (cue) {
-        const target = Math.max(0, cue.start + player.offset);
+        const target = Math.max(0, subtitleVideoTime(cue.start, false));
         if (player.workspaceMode === 'browser') browserCommand('seek', target).catch(() => {});
         else if ($('playerVideo')) $('playerVideo').currentTime = target;
       }
@@ -8648,8 +9080,9 @@ if ($('timelineCanvas')) {
     const span = view.end - view.start;
     const x = e.clientX - rect.left;
     const at = view.start + x / rect.width * span;
-    const cueAt = at - player.offset;
-    const edgeSec = Math.max(.08, span * 8 / rect.width);
+    const cueAt = subtitleSourceTime(at, false);
+    const scale = player.workspaceMode === 'browser' ? browserTransformForChannel(false).scale : 1;
+    const edgeSec = Math.max(.08, span * 8 / rect.width) / scale;
     let hit = e.offsetY >= 76 && e.offsetY <= 122
       ? player.cues.findIndex((c) => c.start <= cueAt && c.end >= cueAt) : -1;
     if (hit < 0 && e.offsetY >= 76 && e.offsetY <= 122) {
@@ -8675,7 +9108,7 @@ if ($('timelineCanvas')) {
     const mode = Math.abs(cueAt - cue.start) <= edgeSec ? 'start'
       : Math.abs(cueAt - cue.end) <= edgeSec ? 'end' : 'move';
     player.timeline.drag = { index: hit, mode, x, start: cue.start, end: cue.end,
-      pointerId: e.pointerId, center: (cue.start + cue.end) / 2 + player.offset, changed: false };
+      pointerId: e.pointerId, center: subtitleVideoTime((cue.start + cue.end) / 2, false), changed: false };
     canvas.setPointerCapture(e.pointerId);
     drawTimeline();
   });
@@ -8684,7 +9117,9 @@ if ($('timelineCanvas')) {
     if (!drag) return;
     const rect = canvas.getBoundingClientRect();
     const view = timelineWindow();
-    const delta = (e.clientX - rect.left - drag.x) / rect.width * (view.end - view.start);
+    const videoDelta = (e.clientX - rect.left - drag.x) / rect.width * (view.end - view.start);
+    const scale = player.workspaceMode === 'browser' ? browserTransformForChannel(false).scale : 1;
+    const delta = videoDelta / scale;
     const cue = player.cues[drag.index];
     if (!cue) return;
     if (!Number.isFinite(delta) || Math.abs(delta) < .001) return;
@@ -9370,8 +9805,8 @@ const AI_CHAT_CTX = 3;             // kac onceki/sonraki satir gonderilsin
 
 function aiChatContext() {
   const cues = player.cues || [];
-  const now = (player.workspaceMode === 'browser'
-    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0)) - player.offset;
+  const now = subtitleSourceTime(player.workspaceMode === 'browser'
+    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0), false);
   let i = player.activeIdx;
   if (i < 0 && cues.length) {
     i = cues.length - 1;
@@ -9400,8 +9835,8 @@ function aiChatContext() {
 function aiChatCtxLabel() {
   const el = $('aiChatCtx');
   if (!el) return;
-  const now = (player.workspaceMode === 'browser'
-    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0)) - player.offset;
+  const now = subtitleSourceTime(player.workspaceMode === 'browser'
+    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0), false);
   let i = player.activeIdx;
   if (i < 0 && player.cues.length) {
     i = player.cues.length - 1;
@@ -11039,6 +11474,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     return;
   }
   let cues = parseSubtitles(res.text);
+  const browserTrackForPath = player.workspaceMode === 'browser'
+    ? player.browserTracks.find((track) => track.path === path) : null;
+  cues = attachBrowserCueIdentities(browserTrackForPath, cues);
   if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
   if (res.note) logLine(`Altyazı kodlaması: ${res.note}`, 'warn');
   hideWordInspector();
@@ -11048,8 +11486,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.activeIdx2 = -1;
     player.sub2Path = path;
     player.sub2Role = requestedRole;
-    const browserTrack = player.workspaceMode === 'browser'
-      ? player.browserTracks.find((track) => track.path === path) : null;
+    const browserTrack = browserTrackForPath;
     if (player.workspaceMode === 'browser' && browserTrack?.role !== 'translation') {
       const primaryTrack = player.browserTracks.find((track) =>
         track.id === player.browserLoadedTrackId && track.role === 'translation');
@@ -11066,9 +11503,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     }
     if (browserTrack) {
       if (browserTrack.role === 'translation') {
+        applyLoadedBrowserTranslation(browserTrack, true);
         stopReplacedBrowserTranslation(browserTrack.id);
         player.browserTranslationTrackId = browserTrack.id;
-        player.browserLiveTranslations = browserTranslationMapFromCues(player.cues2);
         player.browserTranslationFailed = 0;
       }
       player.browserLoadedTrackId2 = browserTrack.id;
@@ -11103,8 +11540,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.subRaw = res.text;
     player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
-    const browserTrack = player.workspaceMode === 'browser'
-      ? player.browserTracks.find((track) => track.path === path) : null;
+    const browserTrack = browserTrackForPath;
     const previousTranslation = player.browserTracks.find((track) =>
       track.id === player.browserTranslationTrackId);
     if (player.workspaceMode === 'browser') {
@@ -11114,10 +11550,10 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       if (browserTrack && $('browserTrackSelect')) $('browserTrackSelect').value = browserTrack.id;
     }
     if (browserTrack?.role === 'translation') {
+      applyLoadedBrowserTranslation(browserTrack, false);
       stopReplacedBrowserTranslation(browserTrack.id);
       player.browserLoadedTrackId = browserTrack.id;
       player.browserTranslationTrackId = browserTrack.id;
-      player.browserLiveTranslations = browserTranslationMapFromCues(player.cues);
       player.browserTranslationFailed = 0;
       if (previousPrimaryPath !== path) clearBrowserSecondarySelection();
       const tab = browserTabState();
@@ -11487,7 +11923,32 @@ function setSettingsPage(page) {
     button.tabIndex = active ? 0 : -1;
   });
   if ($('settingsDrawerTitle')) $('settingsDrawerTitle').textContent = SETTINGS_PAGE_TITLES[next];
+  if (next === 'browser-subtitles') refreshBrowserSyncPanel();
 }
+
+if ($('browserSyncChannel')) $('browserSyncChannel').addEventListener('change', () => {
+  player.browserSyncPreview = null;
+  refreshBrowserSyncPanel();
+});
+if ($('browserSyncOffset')) $('browserSyncOffset').addEventListener('input', (event) => {
+  const value = Number(event.target.value);
+  if (!Number.isFinite(value)) return refreshBrowserSyncPanel('Kaydırma değeri geçersiz.');
+  const preview = browserSyncEnsurePreview();
+  if (preview) applyBrowserSyncPreview({ ...preview.transform, offsetSeconds: value });
+});
+if ($('browserSyncEarlier')) $('browserSyncEarlier').addEventListener('click', () => nudgeBrowserSync(-.1));
+if ($('browserSyncLater')) $('browserSyncLater').addEventListener('click', () => nudgeBrowserSync(.1));
+if ($('browserSyncEarlierStep')) $('browserSyncEarlierStep').addEventListener('click', () => nudgeBrowserSync(-(Number($('browserSyncStep')?.value) || 1)));
+if ($('browserSyncLaterStep')) $('browserSyncLaterStep').addEventListener('click', () => nudgeBrowserSync(Number($('browserSyncStep')?.value) || 1));
+if ($('browserSyncPoint1')) $('browserSyncPoint1').addEventListener('click', () => captureBrowserSyncPoint(0));
+if ($('browserSyncPoint2')) $('browserSyncPoint2').addEventListener('click', () => captureBrowserSyncPoint(1));
+if ($('browserSyncClearPoints')) $('browserSyncClearPoints').addEventListener('click', () => {
+  const preview = browserSyncEnsurePreview();
+  if (preview) { preview.points = []; preview.dirty = true; refreshBrowserSyncPanel(); }
+});
+if ($('browserSyncSave')) $('browserSyncSave').addEventListener('click', saveBrowserSync);
+if ($('browserSyncCancel')) $('browserSyncCancel').addEventListener('click', cancelBrowserSyncPreview);
+if ($('browserSyncReset')) $('browserSyncReset').addEventListener('click', resetBrowserSync);
 
 function setSettingsDrawer(open) {
   const d = $('settingsDrawer');
@@ -13374,26 +13835,52 @@ $$('[data-subtitle-display]').forEach((button) => {
 });
 
 // ---- izlerken düzeltme ----
-function openCueEditor() {
+function openCueEditor(secondary = false) {
   clearTimeout(player.shadowResumeTimer);
   player.shadowResumeTimer = null;
-  if (player.activeIdx < 0 || player.activeIdx >= player.cues.length || !player.cues.length) {
+  const cueList = secondary ? player.cues2 : player.cues;
+  const cueIndex = secondary ? player.activeIdx2 : player.activeIdx;
+  if (cueIndex < 0 || cueIndex >= cueList.length || !cueList.length) {
     logLine('Düzeltmek için altyazının göründüğü bir ana gel.', 'warn');
     return;
   }
-  if (!player.subPath) {
+  const browserTrack = player.workspaceMode === 'browser' ? browserLoadedTrack(secondary) : null;
+  const browserTranslationEdit = browserTrack?.role === 'translation';
+  if (secondary && !browserTranslationEdit) {
+    logLine('İkincil alanda yalnız browser çeviri izi doğrudan düzeltilebilir.', 'warn');
+    return;
+  }
+  const subtitlePath = secondary ? player.sub2Path : player.subPath;
+  if (!subtitlePath && !browserTranslationEdit) {
     logLine('Düzeltme kaydedilemez: altyazı bir dosyadan yüklenmemiş.', 'warn');
     return;
   }
-  const cue = player.cues[player.activeIdx];
+  const cue = cueList[cueIndex];
+  if (browserTranslationEdit) {
+    const context = browserEditContextForCue(browserTrack, cue, cueIndex);
+    const key = browserTranslationCueKey(cue);
+    const baseCue = browserBaseCueMap(browserTrack.id).get(key) || cue;
+    const record = browserEditRecord(context);
+    player.browserCueEditContext = context ? {
+      ...context, trackId: browserTrack.id, cueIndex, secondary,
+      baseTranslation: String(baseCue.text ?? ''), openedRevision: Number(record?.revision) || 0,
+    } : null;
+    $('subtitleEditRevertModel')?.classList.toggle('hidden', !record?.hasOverride);
+  } else {
+    player.browserCueEditContext = null;
+    $('subtitleEditRevertModel')?.classList.add('hidden');
+  }
   player.editing = true;
   $('playerStage').classList.add('editing');
   if (player.workspaceMode === 'browser') browserCommand('pause').catch(() => {});
   else $('playerVideo').pause();
   $('subtitleEdit').classList.remove('hidden');
   $('subtitleEditBox').value = cue.text;
+  const subtitleName = subtitlePath
+    ? subtitlePath.split(/[\\/]/).pop()
+    : (browserTrack?.label || 'browser çevirisi');
   $('subtitleEditHint').textContent =
-    `${pSecToTime(cue.start)} – ${pSecToTime(cue.end)} · ${player.subPath.split(/[\\/]/).pop()}`;
+    `${pSecToTime(cue.start)} – ${pSecToTime(cue.end)} · ${subtitleName}`;
   $('subtitleEditBox').focus();
   updateCueEditHistoryButtons();
   $('subtitleEditBox').select();
@@ -13403,6 +13890,8 @@ function closeCueEditor() {
   player.editing = false;
   $('playerStage').classList.remove('editing');
   $('subtitleEdit').classList.add('hidden');
+  player.browserCueEditContext = null;
+  $('subtitleEditRevertModel')?.classList.add('hidden');
   renderCue();
 }
 
@@ -13415,6 +13904,25 @@ async function applyCueEditHistory(direction) {
   const source = direction === 'undo' ? player.cueEditUndo : player.cueEditRedo;
   const target = direction === 'undo' ? player.cueEditRedo : player.cueEditUndo;
   const entry = source[source.length - 1];
+  if (entry?.kind === 'browser-override') {
+    const primary = browserLoadedTrack(false);
+    const secondary = browserLoadedTrack(true);
+    const track = primary?.id === entry.trackId ? primary : secondary?.id === entry.trackId ? secondary : null;
+    if (!track || player.mediaKey !== entry.mediaKey || track.id !== entry.trackId
+        || !browserSubtitleSync.editRecordMatches(entry.identity, entry.identity)) {
+      logLine('Bu düzeltme başka bir medya veya çeviri varyantına ait; uygulanmadı.', 'warn');
+      return;
+    }
+    const value = direction === 'undo' ? entry.before : entry.after;
+    replaceBrowserEditRecord(entry.identity, value ? { ...value } : null);
+    source.pop();
+    target.push(entry);
+    refreshBrowserEditedChannel(track.id);
+    saveActiveBrowserTabWorkspace();
+    updateCueEditHistoryButtons();
+    osd(direction === 'undo' ? 'Düzeltme geri alındı' : 'Düzeltme yinelendi');
+    return;
+  }
   if (!entry || entry.path !== player.subPath || entry.mediaKey !== player.mediaKey) return;
   const payload = direction === 'undo' ? entry.before : entry.after;
   const generation = currentGeneration();
@@ -13443,9 +13951,45 @@ async function applyCueEditHistory(direction) {
 }
 
 async function saveCueEdit() {
-  const i = player.activeIdx;
+  const browserContext = player.workspaceMode === 'browser' ? player.browserCueEditContext : null;
+  const i = browserContext ? Number(browserContext.cueIndex) : player.activeIdx;
   if (i < 0) return closeCueEditor();
   const text = $('subtitleEditBox').value.trim();
+  if (browserContext) {
+    const track = browserLoadedTrack(!!browserContext.secondary);
+    const cue = (browserContext.secondary ? player.cues2 : player.cues)[i];
+    if (!track || track.id !== browserContext.trackId || player.mediaKey !== `browser:${browserContext.mediaId}`
+        || !browserSubtitleSync.editRecordMatches(browserContext, browserContext)) {
+      logLine('Düzenleme sırasında medya veya çeviri varyantı değişti; taslak kaydedilmedi.', 'warn');
+      return;
+    }
+    const key = browserTranslationCueKey(cue);
+    const baseCue = browserBaseCueMap(track.id).get(key) || cue;
+    const currentBase = String(baseCue.text ?? '');
+    const currentRecord = browserEditRecord(browserContext);
+    if (currentBase !== browserContext.baseTranslation
+        || Number(currentRecord?.revision || 0) !== Number(browserContext.openedRevision || 0)) {
+      logLine('Bu satır siz düzenlerken güncellendi. Taslağınız korunuyor; yeni metni görüp yeniden kaydedin.', 'warn');
+      $('subtitleEditHint').textContent = `Çakışma: model metni artık “${currentBase.slice(0, 120)}”`;
+      return;
+    }
+    const before = currentRecord ? { ...currentRecord } : null;
+    if (!before && text === currentBase) return closeCueEditor();
+    const after = browserSubtitleSync.createEditRecord({ ...browserContext,
+      baseTranslation: currentBase, hasOverride: true, userOverride: text,
+      revision: Number(currentRecord?.revision || 0) + 1, userEditedAt: Date.now() });
+    if (before?.hasOverride && before.userOverride === after.userOverride) return closeCueEditor();
+    replaceBrowserEditRecord(browserContext, after);
+    player.cueEditUndo.push({ kind: 'browser-override', mediaKey: player.mediaKey, trackId: track.id,
+      identity: { ...browserContext }, before, after, at: Date.now() });
+    player.cueEditUndo = player.cueEditUndo.slice(-100);
+    player.cueEditRedo = [];
+    refreshBrowserEditedChannel(track.id);
+    saveActiveBrowserTabWorkspace();
+    updateCueEditHistoryButtons();
+    logLine(`Çeviri düzeltmesi varyanta kaydedildi (blok ${i + 1}).`, 'success');
+    return closeCueEditor();
+  }
   if (!text) { logLine('Boş altyazı kaydedilmez.', 'warn'); return; }
   // player.cues DISKE YAZMA BASARILI OLANA KADAR degistirilmez. Eskiden once
   // bellek guncelleniyordu; yazma hata verirse dosya eski, ekran yeni kaliyor,
@@ -13526,6 +14070,23 @@ async function saveCueEdit() {
   closeCueEditor();
 }
 
+function revertBrowserCueToModel() {
+  const context = player.browserCueEditContext;
+  const track = browserLoadedTrack(!!context?.secondary);
+  const before = browserEditRecord(context);
+  if (!context || !track || !before?.hasOverride) return;
+  replaceBrowserEditRecord(context, null);
+  player.cueEditUndo.push({ kind: 'browser-override', mediaKey: player.mediaKey, trackId: track.id,
+    identity: { ...context }, before: { ...before }, after: null, at: Date.now() });
+  player.cueEditUndo = player.cueEditUndo.slice(-100);
+  player.cueEditRedo = [];
+  refreshBrowserEditedChannel(track.id);
+  saveActiveBrowserTabWorkspace();
+  updateCueEditHistoryButtons();
+  closeCueEditor();
+  osd('Model çevirisine dönüldü');
+}
+
 if ($('cueSearch')) {
   // Arama yalniz listeyi degil zaman cubugunu da isaretler: "Kombai" yazinca
   // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
@@ -13538,7 +14099,7 @@ if ($('cueSearch')) {
       renderSeekMarkers(player.cues.filter((c, index) =>
         c.text.toLocaleLowerCase('tr').includes(q)
           || translations[index].toLocaleLowerCase('tr').includes(q))
-        .map((c) => c.start + player.offset));
+        .map((c) => subtitleVideoTime(c.start, false)));
     } else renderSeekMarkers(defaultMarkers());
   });
 }
@@ -13563,9 +14124,13 @@ if ($('playerPlaybackPolicy')) {
   });
 }
 if ($('subtitleOverlay')) {
-  $('subtitleOverlay').addEventListener('dblclick', openCueEditor);
+  $('subtitleOverlay').addEventListener('dblclick', () => openCueEditor(false));
+}
+if ($('subtitleOverlay2')) {
+  $('subtitleOverlay2').addEventListener('dblclick', () => openCueEditor(true));
 }
 if ($('subtitleEditSave')) $('subtitleEditSave').addEventListener('click', saveCueEdit);
+if ($('subtitleEditRevertModel')) $('subtitleEditRevertModel').addEventListener('click', revertBrowserCueToModel);
 if ($('subtitleEditCancel')) $('subtitleEditCancel').addEventListener('click', closeCueEditor);
 if ($('subtitleEditUndo')) $('subtitleEditUndo').addEventListener('click', () => applyCueEditHistory('undo'));
 if ($('subtitleEditRedo')) $('subtitleEditRedo').addEventListener('click', () => applyCueEditHistory('redo'));

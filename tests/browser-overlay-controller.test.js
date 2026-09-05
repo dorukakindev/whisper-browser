@@ -21,9 +21,11 @@ test('kapalı, gizli ve duraklatılmış durumda sürekli frame planlamaz', () =
   assert.match(script, /requestVideoFrameCallback/);
 });
 
-test('oynatıcı zamanı ve ofseti finite olmayan sayfalı değerlerden korunur', () => {
+test('oynatıcı zamanı ve iki bağımsız iz dönüşümü finite olmayan sayfalı değerlerden korunur', () => {
   assert.match(script, /const finite = \(value, fallback = 0\)/);
-  assert.match(script, /const time = finite\(activeMedia\.currentTime\) - finite\(state\.offset\)/);
+  assert.match(script, /videoToSource\(videoTime, state\.sourceTransform\)/);
+  assert.match(script, /videoToSource\(videoTime, state\.translationTransform\)/);
+  assert.match(script, /if \(scale <= 0\) return finite\(videoTime\) - finite\(state\.offset, 0\)/);
 });
 
 test('sıfır boyutlu ses öğesinde altyazı gerçek oynatıcı kapsayıcısına bağlanır', () => {

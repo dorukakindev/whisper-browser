@@ -13,12 +13,17 @@ function normalizeCues(rawCues) {
     const start = Number(cue && cue.start);
     const end = Number(cue && cue.end);
     if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-    return {
+    const normalized = {
       id: String(cue && (cue.id ?? cue.index ?? index)).slice(0, 180),
       start: Math.max(0, start),
       end: Math.max(0, end),
       text: String(cue && cue.text || '').replace(/\r\n/g, '\n').trim().slice(0, 12000),
     };
+    const cueId = String(cue && cue.cueId || '').replace(/^web-tr-/, '').slice(0, 180);
+    const sourceCueHash = String(cue && cue.sourceCueHash || '').replace(/[^a-f0-9]/gi, '').toLowerCase().slice(0, 64);
+    if (cueId) normalized.cueId = cueId;
+    if (sourceCueHash) normalized.sourceCueHash = sourceCueHash;
+    return normalized;
   }).filter((cue) => cue && cue.text && cue.end >= cue.start)
     .sort((a, b) => a.start - b.start || a.end - b.end).slice(-20000);
 }

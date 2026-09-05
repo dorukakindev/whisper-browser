@@ -1448,6 +1448,7 @@
             <textarea id="subtitleEditBox" class="resize-none" rows="2" spellcheck="false"></textarea>
             <div class="subtitle-edit-actions">
               <span class="subtitle-edit-hint" id="subtitleEditHint"></span>
+              <button class="btn btn-ghost btn-sm hidden" id="subtitleEditRevertModel" type="button">Model çevirisine dön</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditUndo" type="button" disabled>Geri al</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditRedo" type="button" disabled>Yinele</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditCancel">Vazgeç</button>
@@ -1979,6 +1980,50 @@
               <div class="browser-settings-section-head"><strong>Altyazı araçları</strong><span>Dosya, A-B aralığı ve canlı Whisper işlemleri.</span></div>
               <div id="browserSubtitleToolsHost"></div>
             </div>
+            <div class="browser-settings-section browser-sync-settings" id="browserSyncPanel">
+              <div class="browser-settings-section-head">
+                <strong>Senkron</strong><span id="browserSyncTrackInfo">Önce bir browser altyazısı yükleyin.</span>
+              </div>
+              <div class="browser-sync-summary">
+                <span>Geçerli kaydırma</span><strong id="browserSyncCurrent">0,000 sn</strong>
+                <span>Ölçek</span><strong id="browserSyncScale">1,000000×</strong>
+                <span class="browser-sync-dirty hidden" id="browserSyncDirty" role="status" aria-live="polite">Kaydedilmemiş önizleme</span>
+              </div>
+              <div class="browser-sync-row">
+                <label class="field"><span class="field-label">Düzenlenecek iz</span>
+                  <select id="browserSyncChannel"><option value="primary">Ana iz</option><option value="secondary">İkincil iz</option></select>
+                </label>
+                <label class="field"><span class="field-label">Büyük adım</span>
+                  <select id="browserSyncStep"><option value="0.5">0,5 saniye</option><option value="1">1 saniye</option><option value="5">5 saniye</option></select>
+                </label>
+                <label class="field"><span class="field-label">Kaydırma (saniye)</span>
+                  <input id="browserSyncOffset" type="number" min="-86400" max="86400" step="0.001" value="0" inputmode="decimal" />
+                </label>
+              </div>
+              <div class="browser-view-actions browser-sync-actions">
+                <button class="btn btn-secondary btn-sm" id="browserSyncEarlier" type="button">0,1 sn erken</button>
+                <button class="btn btn-secondary btn-sm" id="browserSyncLater" type="button">0,1 sn geç</button>
+                <button class="btn btn-ghost btn-sm" id="browserSyncEarlierStep" type="button">Büyük adım erken</button>
+                <button class="btn btn-ghost btn-sm" id="browserSyncLaterStep" type="button">Büyük adım geç</button>
+              </div>
+              <div class="browser-sync-points">
+                <p id="browserSyncPoints" role="status" aria-live="polite">Drift için iki uzak altyazı bloğunu videodaki doğru başlangıçlarıyla eşleştirin.</p>
+                <div class="browser-view-actions">
+                  <button class="btn btn-secondary btn-sm" id="browserSyncPoint1" type="button">1. eşleşmeyi kaydet</button>
+                  <button class="btn btn-secondary btn-sm" id="browserSyncPoint2" type="button">2. eşleşmeyi kaydet</button>
+                  <button class="btn btn-ghost btn-sm" id="browserSyncClearPoints" type="button">Noktaları temizle</button>
+                </div>
+              </div>
+              <label class="field browser-export-timing"><span class="field-label">Dışa aktarma zamanları</span>
+                <select id="browserExportTiming"><option value="original">Orijinal zamanlar</option><option value="synchronized">Senkron düzeltmesi uygulanmış zamanlar</option></select>
+              </label>
+              <div class="browser-view-actions browser-sync-save-actions">
+                <button class="btn btn-primary btn-sm" id="browserSyncSave" type="button">Bu video için kaydet</button>
+                <button class="btn btn-secondary btn-sm" id="browserSyncCancel" type="button">Önizlemeden vazgeç</button>
+                <button class="btn btn-ghost btn-sm" id="browserSyncReset" type="button">Senkronu sıfırla</button>
+              </div>
+              <p class="browser-manga-hint" id="browserSyncWarning" role="alert"></p>
+            </div>
           </section>
           <section class="settings-page settings-page-browser-view hidden" id="settingsPageBrowserView"
             data-settings-page-panel="browser-view" role="tabpanel"></section>
@@ -2102,7 +2147,8 @@
   <script src="../playback-policy.js"></script>
   <script src="../browser-tabs.js"></script>
 <script src="../browser-place-url.js"></script>
-<script src="../subtitle-output-contract.js"></script>
+  <script src="../subtitle-output-contract.js"></script>
+  <script src="../browser-subtitle-sync.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

@@ -16,6 +16,7 @@ function harness() {
     $: (id) => controls[id], currentGeneration: () => generation, staleGeneration: (gen) => gen !== generation,
     browserTrackSelection: () => ({ id: 'source', path: 'source.srt', language: 'en' }),
     browserSubtitleRoleCues: () => ({ translation: [] }),
+    attachBrowserCueIdentities: (_track, cues) => cues,
     parseSubtitles: (text) => [{ start: 0, end: 1, text }],
     setBrowserSignal: (message) => signals.push(message),
     window: { api: { readSubtitle: async () => ({ ok: true, text: 'Hello' }),
