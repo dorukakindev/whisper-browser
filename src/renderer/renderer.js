@@ -11842,6 +11842,9 @@ if ($('makeTransBtn')) {
     opts.translateOnly = true;
     opts.translate = true;
     opts.input = player.subPath;
+    // Önceki kısmi çeviri varsa backend tamamlanan cue'ları koruyup yalnız
+    // eksik/başarısız olanları yeniden işler.
+    if (player.sub2Path && player.sub2Path !== player.subPath) opts.translateExisting = player.sub2Path;
     delete opts.youtube;
     const browserTrack = player.browserTracks.find((track) =>
       track.id === player.browserLoadedTrackId && track.path === player.subPath) || null;

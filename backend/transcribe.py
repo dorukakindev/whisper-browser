@@ -5266,9 +5266,31 @@ def translate_existing_subtitle(args):
     log(f"{len(entries)} blok okundu: {src_path.name}")
 
     warn_list = []
+    existing_by_time = {}
+    existing_path = Path(getattr(args, "translate_existing", "") or "")
+    if existing_path and existing_path.exists() and existing_path.resolve() != src_path.resolve():
+        try:
+            old_text, _old_enc, _old_repaired = read_subtitle_text(existing_path)
+            for old in parse_subtitle_entries(old_text, existing_path.suffix):
+                if len(old) >= 3 and str(old[2]).strip():
+                    existing_by_time[(round(float(old[0]), 3), round(float(old[1]), 3))] = old[2]
+            if existing_by_time:
+                log(f"Mevcut çeviri bulundu: {len(existing_by_time)} blok korunacak.", "info")
+        except Exception as error:
+            log(f"Mevcut çeviri okunamadı; tüm bloklar yeniden denenecek: {error}", "warn")
     target = (args.translate_to or "tr").lower()
     emit("status", stage="translate", text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
-    translated = llm_translate(entries, args, warn_list, source_lang=args.language)
+    pending_entries = [entry for entry in entries
+                       if (round(float(entry[0]), 3), round(float(entry[1]), 3)) not in existing_by_time
+                       or str(existing_by_time[(round(float(entry[0]), 3), round(float(entry[1]), 3))]).strip() == str(entry[2]).strip()]
+    if existing_by_time and not pending_entries:
+        log("Eksik çeviri yok; API çağrısı yapılmadı.", "success")
+        translated = [(entry[0], entry[1], existing_by_time[(round(float(entry[0]), 3), round(float(entry[1]), 3))]) for entry in entries]
+    else:
+        translated = llm_translate(pending_entries, args, warn_list, source_lang=args.language)
+        translated_map = {(round(float(entry[0]), 3), round(float(entry[1]), 3)): entry[2] for entry in (translated or [])}
+        translated = [(entry[0], entry[1], translated_map.get((round(float(entry[0]), 3), round(float(entry[1]), 3)),
+                    existing_by_time.get((round(float(entry[0]), 3), round(float(entry[1]), 3)), entry[2]))) for entry in entries]
     if translated and getattr(args, "merge_continuation", False):
         translated = merge_continuation_lines(
             translated, max_gap=getattr(args, "continuation_gap", 3.0))
@@ -6167,6 +6189,8 @@ def main():
                         help="Varsa mevcut ceviri dosyasi (model ikisini birlikte gorsun)")
     parser.add_argument("--translate-only", type=lambda x: x.lower() == "true", default=False,
                         help="--input bir altyazi dosyasi: Whisper calistirmadan yalnizca cevir")
+    parser.add_argument("--translate-existing", default="",
+                        help="Kismi ceviriyi okuyup tamamlanan bloklari koru; yalniz eksikleri cevir")
     parser.add_argument("--translate-cache", type=lambda x: x.lower() == "true", default=True,
                         help="Cevrilmis bloklari onbellege al (ayni blok tekrar gonderilmez)")
     parser.add_argument("--cache-dir", default=None, help="Onbellek klasoru")
