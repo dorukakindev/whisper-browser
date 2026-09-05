@@ -130,6 +130,20 @@ async function test(name, fn) {
     const other = translationCacheKey(sentence, { targetLanguage: 'de', model: 'a', glossaryVersion: '1' });
     assert.equal(first, same);
     assert.notEqual(first, other);
+    const providerA = translationCacheKey(sentence, {
+      targetLanguage: 'tr', model: 'a', glossaryVersion: '1',
+      provider: 'https://one.example/chat/completions', sourceHash: 'source-a',
+    });
+    const providerB = translationCacheKey(sentence, {
+      targetLanguage: 'tr', model: 'a', glossaryVersion: '1',
+      provider: 'https://two.example/chat/completions', sourceHash: 'source-a',
+    });
+    const sourceB = translationCacheKey(sentence, {
+      targetLanguage: 'tr', model: 'a', glossaryVersion: '1',
+      provider: 'https://one.example/chat/completions', sourceHash: 'source-b',
+    });
+    assert.notEqual(providerA, providerB);
+    assert.notEqual(providerA, sourceB);
   });
 
   await test('zamanlayıcı pencereyi çevirir ve ikinci koşuda cache kullanır', async () => {

@@ -3744,6 +3744,8 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   const context = {
     targetLanguage: config.targetLanguage,
     model: config.model,
+    provider: safeTranslationEndpoint(config.endpoint),
+    sourceHash: createHash('sha256').update(JSON.stringify(cues.map((cue) => [cue.start, cue.end, cue.text])), 'utf8').digest('hex'),
     style: `${config.register}:${config.profanity}`,
     glossaryVersion: createHash('sha1').update(JSON.stringify(config.glossary)).digest('hex').slice(0, 12),
   };
@@ -3794,7 +3796,9 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
   if (!cues.length) return null;
   const identity = JSON.stringify({
     sourceTrackId: tab.translationTrackId,
+    sourceHash: context.sourceHash || '',
     targetLanguage: config.targetLanguage,
+    provider: context.provider || '',
     model: config.model,
     style: context.style,
     glossaryVersion: context.glossaryVersion,

@@ -19,6 +19,16 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   fs.writeFileSync(file, '{bozuk');
   const fromBackup = new PersistentTranslationCache(file);
   assert.equal(fromBackup.get('a'), 'Merhaba');
+  assert(fs.readdirSync(dir).some((name) => name.startsWith('cache.json.corrupt-')),
+    'bozuk ana cache geri dönüş için arşivlenmeli');
+
+  const bothBroken = path.join(dir, 'both-broken.json');
+  fs.writeFileSync(bothBroken, '{bozuk', 'utf8');
+  fs.writeFileSync(`${bothBroken}.bak`, '[bozuk', 'utf8');
+  const empty = new PersistentTranslationCache(bothBroken);
+  assert.equal(empty.get('a'), undefined);
+  assert(fs.readdirSync(dir).some((name) => name.startsWith('both-broken.json.corrupt-')));
+  assert(fs.readdirSync(dir).some((name) => name.startsWith('both-broken.json.bak.corrupt-')));
 
   const expiredFile = path.join(dir, 'expired.json');
   fs.writeFileSync(expiredFile, JSON.stringify({ version: 2, entries: [

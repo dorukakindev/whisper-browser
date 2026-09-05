@@ -72,6 +72,8 @@ function translationCacheKey(sentence, context = {}) {
     contextHash: String(sentence && sentence.contextHash || context.contextHash || ''),
     targetLanguage: String(context.targetLanguage || ''),
     model: String(context.model || ''),
+    provider: String(context.provider || ''),
+    sourceHash: String(context.sourceHash || ''),
     style: String(context.style || ''),
     glossaryVersion: String(context.glossaryVersion || ''),
   });

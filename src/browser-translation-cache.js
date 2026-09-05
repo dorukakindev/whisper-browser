@@ -18,10 +18,27 @@ class PersistentTranslationCache {
 
   load() {
     const loadFile = (filePath) => JSON.parse(this.fs.readFileSync(filePath, 'utf8'));
+    const archiveCorrupt = (filePath) => {
+      try {
+        if (!this.fs.existsSync(filePath)) return;
+        const archive = `${filePath}.corrupt-${process.pid}-${Date.now()}`;
+        this.fs.renameSync(filePath, archive);
+      } catch (_) { /* Kurtarma başarısız olsa bile bellekte temiz cache ile devam et. */ }
+    };
     try {
       let parsed;
       try { parsed = loadFile(this.filePath); }
-      catch (error) { parsed = loadFile(`${this.filePath}.bak`); }
+      catch (error) {
+        const primaryExists = this.fs.existsSync(this.filePath);
+        try {
+          parsed = loadFile(`${this.filePath}.bak`);
+          if (primaryExists) archiveCorrupt(this.filePath);
+        } catch (backupError) {
+          if (primaryExists) archiveCorrupt(this.filePath);
+          archiveCorrupt(`${this.filePath}.bak`);
+          throw backupError;
+        }
+      }
       const entries = parsed && [1, 2].includes(parsed.version) && Array.isArray(parsed.entries) ? parsed.entries : [];
       const now = Date.now();
       this.map = new Map(entries.filter((entry) => Array.isArray(entry) && entry.length === 2)
