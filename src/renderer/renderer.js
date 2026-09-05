@@ -576,6 +576,7 @@ async function processNextQueueItem() {
   state.cancelled = false;
   state._speedEma = 0;
   state.startTime = Date.now();
+  state.lastJobInput = opts.youtube || opts.input || '';
   state.outputFiles = [];
   state.lastQualityReport = null;
 
@@ -2332,6 +2333,14 @@ $('startBtn').addEventListener('click', async () => {
       return;
     }
     opts.youtube = url;
+    // Oynatıcıda aynı YouTube videosunun Whisper altyazısı zaten varsa,
+    // tekrar ses indirip transkripsiyon yapma. Çeviri isteğini mevcut cue'lar
+    // üzerinden doğrudan çalıştır.
+    if (opts.translate && player.mediaKey === mediaKeyFor('youtube', url)
+        && player.subPath && player.cues.length && $('makeTransBtn')) {
+      $('makeTransBtn').click();
+      return;
+    }
     state.lastJobVideo = null;  // YouTube → burn-in için yerel video yok
   } else {
     if (!state.inputFile) {
@@ -2854,6 +2863,35 @@ function playerJobEvent(event) {
   return event.type !== 'log';
 }
 
+async function attachCompletedJobSubtitles(files) {
+  if (!player.mediaKey || !state.lastJobInput || !Array.isArray(files) || !files.length) return;
+  const input = String(state.lastJobInput);
+  const sameMedia = input.startsWith('http')
+    ? player.mediaKey === mediaKeyFor('youtube', input)
+    : player.mediaKey === mediaKeyFor('local', input);
+  if (!sameMedia) return;
+  const subtitleFiles = files.filter((file) => /\.(srt|vtt|ass|ssa)$/i.test(file));
+  if (!subtitleFiles.length) return;
+  const translated = subtitleFiles.find((file) => /\.[a-z]{2,3}\.(srt|vtt|ass|ssa)$/i.test(file));
+  const source = subtitleFiles.find((file) => file !== translated) || subtitleFiles[0];
+  const gen = currentGeneration();
+  addSubtitleOption(source, translated ? 'Whisper · kaynak' : 'Whisper');
+  $('playerSubSelect').value = source;
+  await loadSubtitle(source, false, { silent: true });
+  if (staleGeneration(gen) || !sameMedia) return;
+  if (translated && translated !== source) {
+    addSubtitleOption(translated, 'Çeviri · Türkçe');
+    $('playerSubSelect2').value = translated;
+    await loadSubtitle(translated, true, { silent: true });
+    if (staleGeneration(gen)) return;
+    // Kullanıcı çeviriyi bekliyorsa ana görünümde yalnız çeviri göster.
+    if ($('translate')?.checked || state.forceTranslate) setSubtitleMode('translation', false);
+    logLine('YouTube altyazısı ve Türkçe çevirisi oynatıcıya bağlandı.', 'success');
+  } else if ($('translate')?.checked || state.forceTranslate) {
+    logLine('Altyazı hazırlandı; çeviri çıktısı oluşmadı. Çeviri oluştur düğmesini kullanın.', 'warn');
+  }
+}
+
 window.api.onEvent((event) => {
   // Kuyruk durdurulmuş veya yeni bir tekil iş başlamış olsa bile eski Python
   // sürecinden geç gelen terminal/progress olayı yeni arayüz durumuna sızmasın.
@@ -2951,6 +2989,7 @@ window.api.onEvent((event) => {
         el.classList.add('done');
       });
       state.outputFiles = event.files || [];
+      void attachCompletedJobSubtitles(state.outputFiles);
       setProgress(100);
       $('progressText').textContent = '100%';
       const elapsed = (Date.now() - state.startTime) / 1000;
