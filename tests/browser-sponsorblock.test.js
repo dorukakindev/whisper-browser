@@ -11,6 +11,7 @@ assert.equal(youtubeVideoId('https://youtube.com.evil.test/watch?v=abcdefghijk')
 assert.equal(hashPrefix('abcdefghijk').length, 4);
 
 assert.deepEqual(normalizeCategories(), ['sponsor']);
+assert.deepEqual(normalizeCategories([]), [], 'açık kategori seçimi varsayılan sponsora dönmemeli');
 const hashResponse = [
   { videoID: 'other-video', segments: [{ segment: [1, 2], category: 'sponsor', actionType: 'skip', UUID: 'wrong' }] },
   { videoID: 'abcdefghijk', segments: [
@@ -22,6 +23,8 @@ const hashResponse = [
 const checked = validateSegments(extractHashSegments(hashResponse, 'abcdefghijk'), 'abcdefghijk');
 assert.equal(checked.segments.length, 1);
 assert.equal(checked.invalid, 2);
+assert.equal(extractHashSegments([{ videoID: 'abcdefghijk', videoDuration: 123, segments: [{ segment: [1, 2], category: 'sponsor' }] }], 'abcdefghijk')[0].videoDuration, 123);
+assert.equal(validateSegments([{ videoID: 'abcdefghijk', videoDuration: '1e999', segment: [1, 2], category: 'sponsor' }], 'abcdefghijk').segments[0].videoDuration, null);
 assert.equal(extractHashSegments(hashResponse, 'missing').length, 0);
 assert.equal(validateSegments(extractHashSegments(hashResponse, 'abcdefghijk'), 'abcdefghijk', 80).segments.length, 0,
   'video süresini aşan segment kabul edildi');

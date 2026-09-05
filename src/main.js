@@ -6289,8 +6289,16 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:page-mutated', (event)
 
 function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
   const normalized = normalizeSponsorCategories(categories);
+  if (!normalized.length) {
+    return Promise.resolve({ ok: true, segments: [], invalid: 0, source: 'SponsorBlock', skipped: true });
+  }
+  const filterForDuration = (result) => {
+    const limit = Number(duration);
+    if (!Number.isFinite(limit) || limit <= 0 || !Array.isArray(result?.segments)) return result;
+    return { ...result, segments: result.segments.filter((segment) => Number(segment.end) <= limit) };
+  };
   const cached = sponsorBlockCache.get(videoId, normalized);
-  if (cached) return Promise.resolve({ ok: true, ...cached, cached: true });
+  if (cached) return Promise.resolve({ ok: true, ...filterForDuration(cached), cached: true });
   const key = sponsorBlockCache.key(videoId, normalized);
   if (sponsorBlockInFlight.has(key)) return sponsorBlockInFlight.get(key);
   const promise = new Promise((resolve) => {
@@ -6301,6 +6309,9 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
       path: `/api/skipSegments/${encodeURIComponent(prefix)}?categories=${encodeURIComponent(JSON.stringify(normalized))}`,
       method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
     });
+    let timeoutTimer = setTimeout(() => {
+      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' });
+    }, 7000);
     request.on('response', (response) => {
       clearTimeout(timeoutTimer);
       let total = 0; const chunks = [];
@@ -6321,12 +6332,18 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
           const checked = validateSponsorSegments(extractSponsorHashSegments(parsed, videoId), videoId, duration);
           const result = { segments: checked.segments, invalid: checked.invalid, source: 'SponsorBlock' };
           sponsorBlockCache.set(videoId, normalized, result, { negative: !result.segments.length });
-          resolve({ ok: true, ...result });
+          resolve({ ok: true, ...filterForDuration(result) });
         } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
       });
     });
-    const timeoutTimer = setTimeout(() => { request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' }); }, 7000);
-    request.on('error', (error) => { clearTimeout(timeoutTimer); resolve({ ok: false, errorKind: 'network', error: `SponsorBlock bağlantısı kurulamadı: ${error.message}` }); });
+    request.on('error', (error) => {
+      clearTimeout(timeoutTimer);
+      const message = String(error?.message || '');
+      const redirected = error?.code === 'ERR_TOO_MANY_REDIRECTS' || /redirect/i.test(message);
+      resolve({ ok: false, errorKind: redirected ? 'redirect' : 'network',
+        error: redirected ? 'SponsorBlock yönlendirmesi güvenlik nedeniyle reddedildi.'
+          : `SponsorBlock bağlantısı kurulamadı: ${message}` });
+    });
     request.end();
   }).finally(() => sponsorBlockInFlight.delete(key));
   sponsorBlockInFlight.set(key, promise);
@@ -6411,7 +6428,8 @@ ipcMain.handle('browser:sponsorBlock:get', async (event, payload = {}) => {
   const videoId = sponsorBlockVideoId(payload.url || tab.url);
   if (!videoId) return { ok: false, errorKind: 'unsupported', error: 'Bu sayfa bir YouTube videosu değil.' };
   const duration = Number(payload.duration);
-  const result = await fetchSponsorBlockSegments(videoId, payload.categories || SPONSORBLOCK_CATEGORIES,
+  const result = await fetchSponsorBlockSegments(videoId, Object.prototype.hasOwnProperty.call(payload, 'categories')
+    ? payload.categories : SPONSORBLOCK_CATEGORIES,
     Number.isFinite(duration) && duration > 0 ? duration : 0);
   return { ...result, videoId, tabId: tab.id, mediaGeneration: tab.generation };
 });

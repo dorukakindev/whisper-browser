@@ -3779,6 +3779,8 @@ const player = {
   browserSponsorVideoId: '',
   browserSponsorGeneration: 0,
   browserSponsorSkipped: new Set(),
+  browserSponsorExempt: new Set(),
+  browserSponsorPrompted: new Set(),
   browserSponsorFetchSeq: 0,
   browserSponsorMutedUntil: 0,
   browserSponsorTemporaryDisabled: false,
@@ -6992,11 +6994,18 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserSponsorSegments = [];
     player.browserSponsorVideoId = '';
     player.browserSponsorSkipped = new Set();
+    player.browserSponsorExempt = new Set();
+    player.browserSponsorPrompted = new Set();
     player.browserSponsorFetchSeq += 1;
     player.browserSponsorMutedUntil = 0;
     player.browserSponsorTemporaryDisabled = false;
     player.browserSponsorPendingAction = null;
     player.browserAdPlaying = false;
+    const sponsorButton = $('browserSponsorTemporary');
+    if (sponsorButton) {
+      sponsorButton.textContent = 'Bu videoda geçici kapat';
+      sponsorButton.setAttribute('aria-pressed', 'false');
+    }
     player.browserProfileKey = '';
     player.browserPositionTick = 0;
     applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
@@ -7084,12 +7093,20 @@ async function refreshBrowserSponsorSegments() {
     if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'SponsorBlock kapalı; ağ isteği gönderilmedi.';
     return;
   }
+  const categories = browserSponsorCategories();
+  if (!categories.length) {
+    player.browserSponsorSegments = [];
+    player.browserSponsorFetchSeq += 1;
+    renderBrowserSponsorSegments();
+    if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Kategori seçilmedi; ağ isteği gönderilmedi.';
+    return;
+  }
   const seq = ++player.browserSponsorFetchSeq;
   const requestedTabId = player.browserActiveTabId;
   const requestedGeneration = Number(browserTabState()?.generation) || 0;
   if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Sponsor bölümleri alınıyor…';
   const result = await window.api.getBrowserSponsorSegments(player.browserActiveTabId, player.browserPageUrl,
-    browserSponsorCategories(), player.browserDuration).catch(() => null);
+    categories, player.browserDuration).catch(() => null);
   if (seq !== player.browserSponsorFetchSeq || result?.tabId !== player.browserActiveTabId
       || player.browserActiveTabId !== requestedTabId
       || (requestedGeneration && Number(result?.mediaGeneration) !== requestedGeneration)) return;
@@ -7098,11 +7115,16 @@ async function refreshBrowserSponsorSegments() {
     if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Sponsor bilgileri alınamadı; video normal oynatılıyor.';
     renderBrowserSponsorSegments(); return;
   }
+  const previousVideoId = player.browserSponsorVideoId;
   player.browserSponsorVideoId = result.videoId || '';
   player.browserSponsorGeneration = Number(result.mediaGeneration) || 0;
   player.browserSponsorSegments = (Array.isArray(result.segments) ? result.segments : [])
     .filter((segment) => !Number.isFinite(player.browserDuration) || player.browserDuration <= 0 || segment.end <= player.browserDuration);
-  player.browserSponsorSkipped = new Set();
+  if (previousVideoId && previousVideoId !== player.browserSponsorVideoId) {
+    player.browserSponsorSkipped = new Set();
+    player.browserSponsorExempt = new Set();
+    player.browserSponsorPrompted = new Set();
+  }
   renderBrowserSponsorSegments();
   if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = player.browserSponsorSegments.length
     ? `${player.browserSponsorSegments.length} sponsor bölümü bulundu.` : 'Bu videoda sponsor bölümü bulunamadı.';
@@ -7113,16 +7135,25 @@ function seekBrowserSponsorSegment(segment, undo = false) {
   const target = undo ? segment.start : segment.end;
   if (!undo) player.browserSponsorSkipped.add(id);
   else {
+    player.browserSponsorExempt.add(id);
     player.browserSponsorSkipped.delete(id);
-    player.browserSponsorMutedUntil = Date.now() + 5000;
+    player.browserSponsorPrompted?.delete(id);
+    player.browserSponsorMutedUntil = Date.now() + 1000;
   }
   player.browserTime = target;
   browserCommand('seek', target).then((result) => {
-    if (!result?.ok) { if (!undo) player.browserSponsorSkipped.delete(id); return; }
+    if (!result?.ok) {
+      if (!undo) player.browserSponsorSkipped.delete(id);
+      else player.browserSponsorExempt.delete(id);
+      return;
+    }
     player.browserSponsorPendingAction = segment;
     setBrowserSignal(undo ? 'Sponsor bölümüne geri dönüldü.' : `Sponsor bölümü atlandı · ${pSecToTime(segment.end - segment.start)}`,
       true, undo ? { priority: 60, holdMs: 2500 } : { priority: 60, holdMs: 4500, action: 'sponsor-undo' });
-  }).catch(() => { if (!undo) player.browserSponsorSkipped.delete(id); });
+  }).catch(() => {
+    if (!undo) player.browserSponsorSkipped.delete(id);
+    else player.browserSponsorExempt.delete(id);
+  });
 }
 
 function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaused) {
@@ -7139,10 +7170,14 @@ function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaus
     return;
   }
   const segment = player.browserSponsorSegments.find((item) => time >= item.start && time < item.end
-    && !player.browserSponsorSkipped.has(item.uuid || `${item.start}:${item.end}`));
+    && !player.browserSponsorSkipped.has(item.uuid || `${item.start}:${item.end}`)
+    && !player.browserSponsorExempt?.has(item.uuid || `${item.start}:${item.end}`));
   if (!segment) return;
   player.browserSponsorPendingAction = segment;
   if (mode === 'ask') {
+    const id = segment.uuid || `${segment.start}:${segment.end}`;
+    if (player.browserSponsorPrompted?.has(id)) return;
+    player.browserSponsorPrompted?.add(id);
     setBrowserSignal(`Sponsor bölümü bulundu · ${pSecToTime(segment.end - segment.start)}`, true,
       { priority: 60, holdMs: 3500, action: 'sponsor-skip' });
     return;
