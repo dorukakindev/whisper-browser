@@ -6101,6 +6101,15 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:open-link', (event, pa
   });
 });
 
+// Sayfa bulma açıkken SPA/infinite-scroll yeni metin eklerse native Chromium
+// aramasını güncelle. Sender doğrulaması, web sayfasının bu kanalı taklit
+// ederek başka sekmenin aramasını yenilemesini engeller.
+if (typeof ipcMain.on === 'function') ipcMain.on('browser:page-mutated', (event) => {
+  const tab = browserTabForWebContents(event.sender);
+  if (!tab || tab.closing || !tab.pageFind) return;
+  tab.pageFind.refresh();
+});
+
 ipcMain.handle('browser:command', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const { command, value } = payload || {};

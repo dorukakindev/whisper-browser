@@ -46,3 +46,37 @@ function handleNewTabLink(event) {
 
 window.addEventListener('click', handleNewTabLink, true);
 window.addEventListener('auxclick', handleNewTabLink, true);
+
+// Native find-in-page does not always recalculate when an SPA appends text
+// after the initial search. Keep a small, opt-in observer: the main process
+// enables it only while the find bar has a live query, and the debounce keeps
+// infinite-scroll pages from flooding IPC.
+let pageFindObserver = null;
+let pageFindMutationTimer = null;
+let pageFindObserverEnabled = false;
+function stopPageFindObserver() {
+  pageFindObserverEnabled = false;
+  if (pageFindMutationTimer) clearTimeout(pageFindMutationTimer);
+  pageFindMutationTimer = null;
+  if (pageFindObserver) pageFindObserver.disconnect();
+  pageFindObserver = null;
+}
+function startPageFindObserver() {
+  if (pageFindObserverEnabled && pageFindObserver) return;
+  stopPageFindObserver();
+  const root = document.documentElement;
+  if (!root || typeof MutationObserver !== 'function') return;
+  pageFindObserverEnabled = true;
+  pageFindObserver = new MutationObserver(() => {
+    if (!pageFindObserverEnabled || pageFindMutationTimer) return;
+    pageFindMutationTimer = setTimeout(() => {
+      pageFindMutationTimer = null;
+      if (pageFindObserverEnabled) ipcRenderer.send('browser:page-mutated');
+    }, 350);
+  });
+  pageFindObserver.observe(root, { subtree: true, childList: true, characterData: true });
+}
+ipcRenderer.on('browser:find-state', (_event, payload = {}) => {
+  if (payload.active) startPageFindObserver();
+  else stopPageFindObserver();
+});

@@ -108,6 +108,13 @@ test('main preload ve renderer geri acma, cokme ve zoom sozlesmesini birlikte ta
   assert.match(main, /executeBrowserViewFrames\(previous\.view/);
   assert.match(browserPreload, /function handleNewTabLink/);
   assert.match(browserPreload, /ipcRenderer\.send\('browser:open-link'/);
+  assert.match(browserPreload, /browser:find-state/);
+  assert.match(browserPreload, /browser:page-mutated/);
+  assert.match(main, /ipcMain\.on\('browser:page-mutated'/);
+  assert.match(main, /pageFind\.refresh\(\)/);
+  assert.match(html, /id="browserQuickPlaces"/);
+  assert.match(renderer, /function renderBrowserQuickPlaces/);
+  assert.match(renderer, /data-browser-quick-place/);
 });
 
 console.log(`browser-experience: ${passed} test`);

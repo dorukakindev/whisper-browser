@@ -1341,6 +1341,13 @@
               <small>Adresi ya da aramak istediğin ifadeyi üstteki alana yaz. Adres çubuğuna dönmek için Ctrl+L kullanabilirsin.</small>
               <small>Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır.</small>
               <small>DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</small>
+              <div class="browser-quick-places hidden" id="browserQuickPlaces" aria-label="Hızlı erişim">
+                <div class="browser-quick-places-head">
+                  <span>Hızlı erişim</span>
+                  <button class="link-btn" id="browserQuickPlacesMore" type="button">Tümünü göster</button>
+                </div>
+                <div class="browser-quick-places-list" id="browserQuickPlacesList"></div>
+              </div>
             </div>
             <div class="browser-error-surface hidden" id="browserErrorSurface" role="alert" aria-live="assertive">
               <span class="browser-error-kicker" id="browserErrorKicker">Bağlantı kurulamadı</span>

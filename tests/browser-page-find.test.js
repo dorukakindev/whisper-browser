@@ -7,7 +7,9 @@ const { createBrowserPageFind } = require('../src/browser-page-find');
 
 class Contents extends EventEmitter {
   id = 0; calls = []; stopped = 0;
+  sent = [];
   isDestroyed() { return false; }
+  send(channel, payload) { this.sent.push({ channel, payload }); }
   stopFindInPage(action) { assert.equal(action, 'clearSelection'); this.stopped++; }
   findInPage(text, options) { this.calls.push({ text, options }); return ++this.id; }
 }
@@ -22,9 +24,14 @@ wc.emit('found-in-page', {}, { requestId: 1, matches: 9, activeMatchOrdinal: 1 }
 assert.equal(events.length, 0, 'eski istek sonucu yayımlandı');
 wc.emit('found-in-page', {}, { requestId: 2, matches: 3, activeMatchOrdinal: 2, finalUpdate: true });
 assert.deepEqual(events.pop(), { type: 'find-result', token: 2, matches: 3, activeMatch: 2, final: true });
+assert.equal(wc.sent.at(-1).channel, 'browser:find-state');
+assert.equal(wc.sent.at(-1).payload.active, true);
+assert.equal(find.refresh().refreshed, true, 'dinamik sayfa yenilemesi aramayi tazelemiyor');
+assert.equal(wc.calls.at(-1).text, 'İstanbul');
 find.find({ text: 'Ankara', token: 3, next: true });
 assert.equal(wc.calls.at(-1).options.findNext, true, 'yeni metin devam sanıldı');
 assert.equal(find.find({ text: '', token: 4 }).empty, true);
+assert.equal(wc.sent.at(-1).payload.active, false, 'arama kapaninca gozlemci durmuyor');
 wc.emit('found-in-page', {}, { requestId: 3, matches: 3 });
 assert.equal(events.length, 0);
 for (const value of [null, {}, { text: 'x'.repeat(2001), token: 1 }, { text: 'x', token: NaN }]) {

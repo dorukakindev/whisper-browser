@@ -4759,6 +4759,47 @@ function browserPlaceKey(raw) {
   return window.BrowserPlaceUrl.safePlaceUrl(raw);
 }
 
+function renderBrowserQuickPlaces() {
+  const root = $('browserQuickPlaces');
+  const list = $('browserQuickPlacesList');
+  if (!root || !list) return;
+  const places = player.browserPlaces || { history: [], bookmarks: [] };
+  const entries = [];
+  const seen = new Set();
+  for (const item of [...(places.bookmarks || []), ...(places.history || [])]) {
+    if (!item?.url) continue;
+    const key = browserPlaceKey(item.url) || item.url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push(item);
+    if (entries.length >= 8) break;
+  }
+  list.replaceChildren();
+  root.classList.toggle('hidden', entries.length === 0);
+  for (const item of entries) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'browser-quick-place';
+    button.dataset.browserQuickPlace = item.url;
+    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
+    const mark = document.createElement('span');
+    mark.className = 'browser-quick-place-mark';
+    mark.textContent = (places.bookmarks || []).some(bookmark => browserPlaceKey(bookmark.url) === browserPlaceKey(item.url)) ? 'Y' : 'G';
+    mark.setAttribute('aria-hidden', 'true');
+    const copy = document.createElement('span');
+    copy.className = 'browser-quick-place-copy';
+    const title = document.createElement('span');
+    title.className = 'browser-quick-place-title';
+    title.textContent = browserPlaceTitle(item);
+    const url = document.createElement('span');
+    url.className = 'browser-quick-place-url';
+    url.textContent = item.url;
+    copy.append(title, url);
+    button.append(mark, copy);
+    list.appendChild(button);
+  }
+}
+
 function browserPlaceList() {
   const places = player.browserPlaces || { history: [], bookmarks: [] };
   const query = String($('browserPlacesSearch')?.value || '').trim().toLocaleLowerCase('tr');
@@ -4785,6 +4826,7 @@ function renderBrowserPlaces() {
   const list = $('browserPlacesList');
   const datalist = $('browserAddressSuggestions');
   const places = player.browserPlaces || { history: [], bookmarks: [] };
+  renderBrowserQuickPlaces();
   if (datalist) {
     datalist.replaceChildren();
     const seen = new Set();
@@ -6540,6 +6582,15 @@ if ($('browserBookmarkToggle')) $('browserBookmarkToggle').addEventListener('cli
 if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click', () => {
   const panel = $('browserPlacesPanel');
   setBrowserPlacesOpen(panel?.classList.contains('hidden'));
+});
+if ($('browserQuickPlacesMore')) $('browserQuickPlacesMore').addEventListener('click', () => setBrowserPlacesOpen(true));
+if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('click', async (event) => {
+  const open = event.target.closest('[data-browser-quick-place]');
+  if (!open) return;
+  const url = open.dataset.browserQuickPlace;
+  if (!url || !$('browserAddress')) return;
+  $('browserAddress').value = url;
+  await navigateBrowserFromAddress();
 });
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
 $('browserPlacesPanel')?.addEventListener('keydown', (event) => {

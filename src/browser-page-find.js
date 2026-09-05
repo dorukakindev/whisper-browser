@@ -3,9 +3,17 @@
 // Native sayfa araması; DOM enjeksiyonu yok. Her WebContents kendi isteğini tutar.
 function createBrowserPageFind(wc, emit, isActive = () => true) {
   let requestId = null, query = '', token = 0;
+  function setObserverEnabled(enabled) {
+    try {
+      if (typeof wc.send === 'function' && !wc.isDestroyed()) {
+        wc.send('browser:find-state', { active: !!enabled });
+      }
+    } catch (_) {}
+  }
   function stop() {
     requestId = null;
     query = '';
+    setObserverEnabled(false);
     try { if (!wc.isDestroyed()) wc.stopFindInPage('clearSelection'); } catch (_) {}
   }
   wc.on('found-in-page', (_event, result) => {
@@ -37,9 +45,17 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
       const continuing = value.next === true && query === value.text;
       if (!continuing) stop();
       query = value.text;
+      setObserverEnabled(true);
       try {
         requestId = wc.findInPage(query, { forward: value.forward !== false, findNext: !continuing });
         return { ok: true, requestId };
+      } catch (error) { requestId = null; return { ok: false, error: error.message }; }
+    },
+    refresh() {
+      if (requestId === null || !query) return { ok: true, unchanged: true };
+      try {
+        requestId = wc.findInPage(query, { forward: true, findNext: false });
+        return { ok: true, requestId, refreshed: true };
       } catch (error) { requestId = null; return { ok: false, error: error.message }; }
     },
   };

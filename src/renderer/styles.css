@@ -4248,6 +4248,18 @@ body::before {
 .browser-place-remove { flex: 0 0 26px; width: 26px; height: 26px; color: #77777c; border-radius: 6px; }
 .browser-place-remove:hover { color: #d89082; background: #2a1d1b; }
 .browser-place-folder { max-width: 88px; padding: 5px 7px; overflow: hidden; color: #b9a682; border: 1px solid #3a3327; border-radius: 6px; background: #201c16; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.browser-quick-places { width: min(620px, 100%); margin: 18px auto 0; padding-top: 14px; border-top: 1px solid #27272b; text-align: left; }
+.browser-quick-places-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #b6a889; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.browser-quick-places-head .link-btn { padding: 2px 0; color: #b9a16e; font-size: 10px; letter-spacing: 0; text-transform: none; }
+.browser-quick-places-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
+.browser-quick-place { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 9px; color: #d8d8db; border: 1px solid #2d2d31; border-radius: 8px; background: #141416; text-align: left; cursor: pointer; }
+.browser-quick-place:hover, .browser-quick-place:focus-visible { color: #f0d18b; border-color: #675128; background: #1e1a13; outline: none; }
+.browser-quick-place-mark { flex: 0 0 24px; display: grid; width: 24px; height: 24px; place-items: center; color: #17130b; border-radius: 7px; background: var(--player-amber); font-size: 11px; font-weight: 800; }
+.browser-quick-place-copy { min-width: 0; display: block; }
+.browser-quick-place-title, .browser-quick-place-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-quick-place-title { font-size: 11px; font-weight: 600; }
+.browser-quick-place-url { margin-top: 3px; color: #77777d; font-family: Consolas, "Cascadia Mono", monospace; font-size: 9px; }
+@media (max-width: 640px) { .browser-quick-places-list { grid-template-columns: 1fr; } }
 .browser-workspaces { display: grid; gap: 7px; margin-top: 11px; padding-top: 10px; border-top: 1px solid #29292c; color: #98989d; font-size: 10px; }
 .browser-workspace-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .browser-workspace-actions .btn { width: auto; min-height: 29px; padding: 0 9px; }
