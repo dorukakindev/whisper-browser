@@ -3861,7 +3861,7 @@ function restoreLocalSubtitleWorkspace() {
   player.activeIdx = -1;
   player.activeIdx2 = -1;
   syncSubtitleModeUi();
-  renderTranscript();
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
   renderCue();
   updateSubtitleChips();
 }
@@ -4026,7 +4026,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   updateBrowserTranslationExportButton();
   updateBrowserTranslationRetryButton();
   syncSubtitleModeUi();
-  renderTranscript();
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
   updateSubtitleChips();
   renderBrowserTracks();
   setSubtitleMode(bestAvailableSubtitleMode(tab.subtitleMode), false);
@@ -5287,7 +5287,7 @@ async function loadPersistedBrowserTranslation(track) {
     updateBrowserTranslationExportButton();
     renderBrowserTracks(track.id);
     scheduleBrowserOverlaySync();
-    renderTranscript();
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
     setBrowserSignal(`${track.language ? track.language.toUpperCase() + ' ' : ''}çevirisi bulundu ve ana altyazı olarak yüklendi.`, true,
       { priority: 70, holdMs: 5000 });
   } finally {
@@ -5530,7 +5530,7 @@ async function restoreBrowserTranslationSnapshot(tab) {
   }
   scheduleBrowserOverlaySync();
   if (player.workspaceMode === 'browser') {
-    renderTranscript();
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
     renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
   }
 }

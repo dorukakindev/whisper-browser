@@ -105,7 +105,7 @@ function runFunction(name, context) {
   const merged = [{ start: 0, end: 2, text: 'a b' }];
   const ctx = { player: { cues: merged, cues2: [], cuesRaw: raw, cues2Raw: [],
     subtitles: [], subOrigins: {}, offset: 1.5 }, $: () => null,
-    syncSubtitleModeUi() {}, renderTranscript() {}, renderCue() {}, updateSubtitleChips() {} };
+    syncSubtitleModeUi() {}, renderCueList() {}, renderCue() {}, updateSubtitleChips() {} };
   runFunction('saveLocalSubtitleWorkspace', ctx)();
   ctx.player.cuesRaw = null; ctx.player.cues = [];
   runFunction('restoreLocalSubtitleWorkspace', ctx)();

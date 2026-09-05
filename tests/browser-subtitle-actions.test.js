@@ -161,6 +161,7 @@ function action(name, next, context) {
       cues: [], cues2: [], cues2Raw: null, workspaceMode: 'browser', mergeCont: true },
     browserTabState: () => streamTab,
     currentGeneration: () => 1, staleGeneration: () => false,
+    $: () => null,
     mergeCueContinuation: (cues) => cues.map((item) => ({ ...item })),
     updateBrowserTranslationExportButton() {}, syncSubtitleModeUi() {}, scheduleBrowserOverlaySync() {},
     renderBrowserCueAt() {}, renderCueList() {}, renderCue() {}, updateCueMeta() {},
@@ -195,7 +196,6 @@ function action(name, next, context) {
   let restoredMode;
   streamContext.setSubtitleMode = (mode) => { restoredMode = mode; };
   streamContext.updateBrowserTranslationRetryButton = () => {};
-  streamContext.renderTranscript = () => {};
   vm.runInContext(source.slice(source.indexOf('async function restoreBrowserTranslationSnapshot('),
     source.indexOf('function applyBrowserTranslationResult(')), streamContext);
   await streamContext.restoreBrowserTranslationSnapshot(streamTab);

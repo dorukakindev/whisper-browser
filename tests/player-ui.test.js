@@ -1364,6 +1364,17 @@ test('altyazı görünüm modu web sekmesine kaydedilir ve sekme değişiminde u
     'altyazı görünümü değişince aktif web sekmesi güncellenmiyor');
 });
 
+test('yerel ve web altyazı çalışma alanları tanımlı liste çizicisiyle geri yüklenir', () => {
+  assert(!/\brenderTranscript\s*\(/.test(js),
+    'renderer içinde tanımsız renderTranscript çağrısı çalışma alanını açarken akışı kırıyor');
+  const localRestore = js.slice(js.indexOf('function restoreLocalSubtitleWorkspace'),
+    js.indexOf('function saveActiveBrowserTabWorkspace'));
+  const browserRestore = js.slice(js.indexOf('function restoreActiveBrowserTabWorkspace'),
+    js.indexOf('function syncBrowserTabs'));
+  assert(/renderCueList\(/.test(localRestore), 'yerel altyazı listesi geri yüklemede çizilmiyor');
+  assert(/renderCueList\(/.test(browserRestore), 'web altyazı listesi sekme geri yüklemede çizilmiyor');
+});
+
 test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {
   assert(/\.player-layer\.sidebar-collapsed\s+\.player-workspace-switch\s*\{[^}]*margin-left:\s*auto;[^}]*\}/.test(css),
     'dar görünümde kapalı panel üst araç grubunu sağ kenara taşımıyor');
