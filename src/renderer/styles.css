@@ -3915,6 +3915,8 @@ body::before {
 .player-task-row strong { color: #d9d9dc; font-size: 11px; }
 .player-task-row span:not(.player-task-mark) { color: #8d8d93; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .player-task-mark { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--player-amber); box-shadow: 0 0 0 3px rgba(210,160,100,.12); }
+.player-task-action { margin-left: auto; flex: 0 0 auto; border: 1px solid #55452f; border-radius: 7px; padding: 5px 8px; color: #e0b66e; background: #211b14; font: inherit; font-size: 10px; cursor: pointer; }
+.player-task-action:hover { border-color: #b48647; background: #2a2117; }
 .player-task-empty { margin: 12px 2px 2px; color: #85858a; font-size: 11px; }
 
 .browser-workspace {

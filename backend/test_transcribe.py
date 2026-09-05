@@ -10,6 +10,7 @@ sarılı olduğu için `import transcribe` GPU/venv olmadan da çalışır.
 """
 
 import json
+import hashlib
 import os
 import sys
 import tempfile
@@ -2714,6 +2715,181 @@ def test_retry_after_header_and_bounded_wait():
             except ApiError as caught:
                 assert caught is error
             sleep.assert_not_called()
+
+
+def test_subtitle_output_contract_and_model_change_resume():
+    """Rol done olayından gelir; model değişimi Whisper'sız yalnız eksiği çevirir."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "video.en.srt"
+        original = "\n".join([
+            "1", "00:00:01,000 --> 00:00:02,000", "One.", "",
+            "2", "00:00:03,000 --> 00:00:04,000", "Two.", "",
+        ])
+        source.write_text(original, encoding="utf-8-sig")
+
+        def args_for(model, existing=""):
+            args = _TrArgs(translate_model=model, translate_cache=False)
+            args.input = str(source)
+            args.youtube = "https://www.youtube.com/watch?v=identity1"
+            args.output_dir = str(root)
+            args.language = "en"
+            args.max_lines = 2
+            args.wrap_mode = "sentence"
+            args.formats = "srt"
+            args.dual_subtitle = False
+            args.dual_translation_first = False
+            args.merge_continuation = True  # cue sayısını artık değiştirmemeli
+            args.translate_existing = existing
+            return args
+
+        events = []
+
+        def first_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+            status_out.update(completed=list(range(len(entries))), failed=[])
+            return [(s, e, "TR " + text) for s, e, text in entries]
+
+        with mock.patch.object(T, "llm_translate", side_effect=first_translate), \
+                mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
+            T.translate_existing_subtitle(args_for("model-old"))
+
+        translation = root / "video.tr.srt"
+        metadata_path = Path(f"{translation}.meta.json")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["cues"][1]["status"] = "failed"
+        metadata["cues"][1]["text"] = ""
+        metadata_path.write_text(json.dumps(metadata, ensure_ascii=False), encoding="utf-8")
+
+        pending_seen = []
+        events.clear()
+
+        def resume_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+            pending_seen.extend(entries)
+            status_out.update(completed=[0], failed=[])
+            return [(s, e, "YENİ " + text) for s, e, text in entries]
+
+        with mock.patch.object(T, "llm_translate", side_effect=resume_translate), \
+                mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
+            T.translate_existing_subtitle(args_for("model-new", str(translation)))
+
+        assert [row[2] for row in pending_seen] == ["Two."], pending_seen
+        done = [payload for kind, payload in events if kind == "done"][-1]
+        assert done["outputs"][0]["role"] == "translation"
+        assert done["outputs"][0]["language"] == "tr"
+        assert done["outputs"][0]["status"] == "complete"
+        assert done["sourceId"] and done["sourceHash"]
+        written = translation.read_text(encoding="utf-8-sig")
+        assert "TR One." in written and "YENİ Two." in written
+        assert "00:00:01,000 --> 00:00:02,000" in written
+        assert "00:00:03,000 --> 00:00:04,000" in written
+        assert source.read_text(encoding="utf-8-sig") == original
+
+        # Aynı videoda ikinci tıklama: metadata tamamlandığı için API/Whisper yok.
+        events.clear()
+        with mock.patch.object(T, "llm_translate") as translate_again, \
+                mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
+            T.translate_existing_subtitle(args_for("model-new", str(translation)))
+        translate_again.assert_not_called()
+        done_again = [payload for kind, payload in events if kind == "done"][-1]
+        assert done_again["outputs"][0]["status"] == "complete"
+        assert source.read_text(encoding="utf-8-sig") == original
+
+
+def test_translate_existing_total_failure_does_not_create_fake_translation():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "offline.en.srt"
+        source.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello.\n", encoding="utf-8-sig")
+        args = _TrArgs(translate_cache=False)
+        args.input = str(source)
+        args.output_dir = str(root)
+        args.language = "en"
+        args.max_lines = 2
+        args.wrap_mode = "sentence"
+        args.formats = "srt"
+        args.dual_subtitle = False
+        args.dual_translation_first = False
+        args.translate_existing = ""
+        with mock.patch.object(T, "llm_translate", return_value=None):
+            try:
+                T.translate_existing_subtitle(args)
+            except RuntimeError as error:
+                assert "çıktı yazılmadı" in str(error)
+            else:
+                raise AssertionError("tam API arızası başarı sayıldı")
+        assert not (root / "offline.tr.srt").exists()
+        assert source.exists() and "Hello." in source.read_text(encoding="utf-8-sig")
+
+
+def test_translate_existing_preserves_user_edit_made_while_api_runs():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "edited.en.srt"
+        existing = root / "edited.tr.srt"
+        source.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello.\n", encoding="utf-8-sig")
+        existing.write_text("1\n00:00:01,000 --> 00:00:02,000\nEski.\n", encoding="utf-8-sig")
+        args = _TrArgs(translate_cache=False)
+        args.input = str(source)
+        args.output_dir = str(root)
+        args.language = "en"
+        args.max_lines = 2
+        args.wrap_mode = "sentence"
+        args.formats = "srt"
+        args.dual_subtitle = False
+        args.dual_translation_first = False
+        args.translate_existing = str(existing)
+
+        # Eski dosyanın zaman çizelgesi uyumlu olsa da metadata olmadığından tümü
+        # korunabilir. Bir cue'yu failed yapmak için uyumlu metadata oluştur.
+        entries = [(1.0, 2.0, "Hello.")]
+        fingerprint_payload = json.dumps({"i": 0, "s": 1.0, "e": 2.0, "t": "Hello."},
+                                         ensure_ascii=False, separators=(",", ":"))
+        fingerprint = hashlib.sha256(fingerprint_payload.encode("utf-8")).hexdigest()
+        Path(f"{existing}.meta.json").write_text(json.dumps({
+            "sourceHash": T.subtitle_entries_hash(entries), "targetLanguage": "tr",
+            "cues": [{"key": fingerprint, "status": "failed", "text": ""}],
+        }), encoding="utf-8")
+
+        def translate_and_edit(pending, _args, _warnings, source_lang=None, status_out=None):
+            existing.write_text("1\n00:00:01,000 --> 00:00:02,000\nKullanıcı düzenledi.\n",
+                                encoding="utf-8-sig")
+            status_out.update(completed=[0], failed=[])
+            return [(pending[0][0], pending[0][1], "Yeni çeviri.")]
+
+        with mock.patch.object(T, "llm_translate", side_effect=translate_and_edit):
+            T.translate_existing_subtitle(args)
+        assert "Kullanıcı düzenledi." in existing.read_text(encoding="utf-8-sig")
+        separate = root / "edited.tr.yeni.srt"
+        assert separate.exists() and "Yeni çeviri." in separate.read_text(encoding="utf-8-sig")
+
+
+def test_successful_identical_translation_is_completed_not_failed():
+    descriptor = T.subtitle_output("same.tr.srt", "translation", "tr", "src", "hash",
+                                   total=1, completed=1, failed=0)
+    assert descriptor["status"] == "complete" and descriptor["failed"] == 0
+
+
+def test_translation_errors_are_classified_for_resume_metadata():
+    cases = {
+        "429 Too Many Requests": "rate_limit",
+        "insufficient_quota": "quota",
+        "401 invalid_api_key": "authentication",
+        "request timed out": "timeout",
+        "JSON nesnesi değil": "invalid_response",
+        "Model bos cevap dondu": "empty_response",
+        "503 server error": "server_error",
+        "connection reset": "network_error",
+    }
+    for message, expected in cases.items():
+        assert T.classify_translation_error(RuntimeError(message)) == expected
+
+
+def test_subtitle_output_descriptor_does_not_infer_role_from_filename():
+    descriptor = T.subtitle_output("film.tr.srt", "translation", "tr", "source", "hash",
+                                   total=100, completed=87, failed=13)
+    assert descriptor["role"] == "translation"
+    assert descriptor["status"] == "partial"
+    assert descriptor["completed"] == 87 and descriptor["failed"] == 13
 
 
 def _run():

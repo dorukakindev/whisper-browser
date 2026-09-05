@@ -2,6 +2,7 @@
 const state = {
   source: 'file',
   forceTranslate: false,   // kontrol cubugundaki tek-tik "altyazi + ceviri"
+  forceRetranslate: false, // acik kullanici eylemi: mevcut basarili satirlari da yenile
   aiJob: false,            // calisan is bir AI sorusu mu (sohbet / acikla)
 
   inputFile: null,
@@ -20,6 +21,7 @@ const state = {
   gpuVramMib: null,     // toplam GPU VRAM (MiB) — yetersizlik uyarısı için
   lastJobVideo: null,   // son işin yerel video yolu (burn-in için; YouTube ise null)
   lastQualityReport: null, // son işin kalite raporu (sonuç modalında gösterilir)
+  activeOutputJob: null, // done çıktısını doğru medya/rol ile bağlamak için iş anlık görüntüsü
   watchDir: null,       // izlenen klasör (yeni dosyalar kuyruğa eklenir)
   syncVideo: null,      // altyazı senkron aracı: referans video
   syncSrt: null,        // altyazı senkron aracı: hizalanacak SRT
@@ -576,7 +578,6 @@ async function processNextQueueItem() {
   state.cancelled = false;
   state._speedEma = 0;
   state.startTime = Date.now();
-  state.lastJobInput = opts.youtube || opts.input || '';
   state.outputFiles = [];
   state.lastQualityReport = null;
 
@@ -598,6 +599,17 @@ async function processNextQueueItem() {
   }
   if (next.type === 'youtube') { opts.youtube = next.input; state.lastJobVideo = null; }
   else { opts.input = next.input; state.lastJobVideo = next.input; }
+  state.lastJobInput = opts.youtube || opts.input || '';
+  state.activeOutputJob = {
+    input: state.lastJobInput,
+    mediaKey: opts.youtube ? mediaKeyFor('youtube', opts.youtube) : mediaKeyFor('local', opts.input),
+    generation: currentGeneration(),
+    translateRequested: !!opts.translate,
+    translateKeepSource: !!opts.translateKeepSource,
+    selectedSubPath: player.subPath || '',
+    secondSubPath: player.sub2Path || '',
+    kind: 'queue',
+  };
 
   logLine(`▶ Kuyruk: "${next.label}" başlıyor (${next.type})`);
 
@@ -2336,8 +2348,10 @@ $('startBtn').addEventListener('click', async () => {
     // Oynatıcıda aynı YouTube videosunun Whisper altyazısı zaten varsa,
     // tekrar ses indirip transkripsiyon yapma. Çeviri isteğini mevcut cue'lar
     // üzerinden doğrudan çalıştır.
+    const playerHasSource = (player.subRole === 'source' && player.subPath && player.cues.length)
+      || (player.sub2Role === 'source' && player.sub2Path && player.cues2.length);
     if (opts.translate && player.mediaKey === mediaKeyFor('youtube', url)
-        && player.subPath && player.cues.length && $('makeTransBtn')) {
+        && playerHasSource && $('makeTransBtn')) {
       $('makeTransBtn').click();
       return;
     }
@@ -2351,6 +2365,17 @@ $('startBtn').addEventListener('click', async () => {
     opts.input = state.inputFile;
     state.lastJobVideo = state.inputFile;
   }
+  state.lastJobInput = opts.youtube || opts.input || '';
+  state.activeOutputJob = {
+    input: state.lastJobInput,
+    mediaKey: opts.youtube ? mediaKeyFor('youtube', opts.youtube) : mediaKeyFor('local', opts.input),
+    generation: currentGeneration(),
+    translateRequested: !!opts.translate,
+    translateKeepSource: !!opts.translateKeepSource,
+    selectedSubPath: player.subPath || '',
+    secondSubPath: player.sub2Path || '',
+    kind: 'global',
+  };
   clearJobValidation();
 
   // Reset UI
@@ -2431,6 +2456,8 @@ function finishRun(success) {
   $('cancelBtn').classList.add('hidden');
   if (success) setStatus('Tamamlandı', 'success');
   else setStatus('Hazır');
+  if (!success) state.activeOutputJob = null;
+  updatePlayerTaskCenter();
 }
 
 function notifyDone(title, body) {
@@ -2544,28 +2571,30 @@ async function finishProgressiveJob(job) {
   const source = mergeLiveCues([], job.liveSource || []);
   const translated = mergeLiveCues([], [...(job.liveTranslation || new Map()).values()]);
   player.cueQualitySource = source.slice();
+  const selectionChanged = (job.selectedSubPath || '') !== (player.subPath || '')
+    || (job.secondSubPath || '') !== (player.sub2Path || '');
+  if (selectionChanged) {
+    job.running = false;
+    state.running = false;
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
+    rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
+      'Aşamalı iş sırasında altyazı seçimi değişti.');
+    return;
+  }
+  job.stage = 'Kaydediliyor';
   if (job.sourceFile && source.length) await window.api.writeSubtitle(job.sourceFile, cuesToSrt(source));
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (job.translationFile && translated.length) {
     await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
     if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   }
-  if (job.sourceFile) {
-    addSubtitleOption(job.sourceFile, 'Whisper · aşamalı');
-    $('playerSubSelect').value = job.sourceFile;
-    await loadSubtitle(job.sourceFile);
-    if (job !== player.job || job.mediaKey !== player.mediaKey) return;
-  } else {
-    player.cues = source;
-    renderCueList();
-    renderCue();
-  }
-  if (job.translationFile) {
-    addSubtitleOption(job.translationFile, 'Çeviri · aşamalı');
-    $('playerSubSelect2').value = job.translationFile;
-    await loadSubtitle(job.translationFile, true);
-    if (job !== player.job || job.mediaKey !== player.mediaKey) return;
-  }
+  job.stage = 'Oynatıcıya yükleniyor';
+  job.loading = true;
+  const terminalEvent = { files: job.outputFiles || [], outputs: job.outputDescriptors || [] };
+  const loaded = await attachCompletedJobSubtitles(terminalEvent, job);
+  job.loading = false;
+  if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   job.running = false;
   state.running = false;
   state.forceTranslate = false;
@@ -2574,7 +2603,9 @@ async function finishProgressiveJob(job) {
   $('startBtn').classList.remove('hidden');
   $('cancelBtn').classList.add('hidden');
   $('playerJobFill').style.width = '100%';
-  $('playerJobText').textContent = `Altyazı hazır · ${source.length} blok`;
+  $('playerJobText').textContent = loaded.loaded
+    ? `Altyazı oynatıcıya yüklendi · ${source.length} blok`
+    : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${loaded.reason}`;
   setTimeout(() => $('playerJobBar').classList.add('hidden'), 4000);
   logLine(`Öncelikli altyazı üretimi tamamlandı: ${source.length} blok`, 'success');
   refreshHistory();
@@ -2582,12 +2613,16 @@ async function finishProgressiveJob(job) {
 
 async function handleProgressiveTerminal(event, job) {
   if (event.type === 'done') {
-    const files = (event.files || []).filter((f) => /\.srt$/i.test(f));
-    const langSuffixed = (f) => /\.[a-z]{2,3}\.srt$/i.test(f);
-    const src = files.find((f) => !langSuffixed(f) && !/\.dual\./i.test(f)) || files[0];
-    const tr = files.find((f) => f !== src && langSuffixed(f) && !/\.dual\./i.test(f));
-    if (src) job.sourceFile = src;
-    if (tr) job.translationFile = tr;
+    const selected = completedSubtitleOutputs(event, 'source');
+    job.outputFiles = [...new Set([...(job.outputFiles || []), ...(event.files || [])])];
+    job.outputDescriptors = job.outputDescriptors || [];
+    for (const item of selected.items) {
+      const index = job.outputDescriptors.findIndex((old) => old.role === item.role);
+      if (index >= 0) job.outputDescriptors[index] = item;
+      else job.outputDescriptors.push(item);
+    }
+    if (selected.source) job.sourceFile = selected.source.path;
+    if (selected.translation) job.translationFile = selected.translation.path;
     job.awaitingExit = true;
     job.running = true;
     return true;
@@ -2722,7 +2757,10 @@ function playerJobEvent(event) {
     bar.classList.add('hidden');
     return true;
   }
-  if (event.type === 'status' && event.text) txt.textContent = event.text;
+  if (event.type === 'status' && event.text) {
+    job.stage = event.text;
+    txt.textContent = event.text;
+  }
   if (event.type === 'segment') {
     job.liveSource = mergeLiveCues(job.liveSource || [], liveSegments(event));
     if (job.mediaKey === player.mediaKey && job.kind !== 'translate') {
@@ -2770,11 +2808,13 @@ function playerJobEvent(event) {
     txt.textContent = job.kind === 'progressive'
       ? `İzleme konumundan hazırlanıyor · ${job.rangeIndex + 1}/${job.ranges.length} · %${event.percent.toFixed(0)}`
       : `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
+    job.stage = txt.textContent;
   } else if (event.type === 'llm_progress' && job.kind === 'translate') {
     const failed = Math.max(0, Number(event.failed) || 0);
     job.failedBlocks = failed;
     player.translationRetryAvailable = failed;
     txt.textContent = `Çeviri oluşturuluyor · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
+    job.stage = txt.textContent;
     fill.style.width = `${Math.min(100, Math.max(0, Number(event.percent) || 0))}%`;
     updateMakeTransState();
   } else if (event.type === 'done' && (job.kind === 'explain' || job.kind === 'chat')) {
@@ -2783,7 +2823,8 @@ function playerJobEvent(event) {
     bar.classList.add('hidden');
   } else if (event.type === 'done') {
     fill.style.width = '100%';
-    const files = (event.files || []).filter((f) => /\.(srt|vtt)$/i.test(f));
+    job.awaitingExit = true;
+    const files = (event.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
     // Oynatıcıdaki çeviri işi ana transkripsiyon akışından ayrı ilerler;
     // kaynak dosya listesini silmeden yeni çeviri çıktısını ekle.
     state.outputFiles = [...new Set([...(state.outputFiles || []), ...files])];
@@ -2792,39 +2833,32 @@ function playerJobEvent(event) {
       refreshHistory();
       return true;
     }
-    // "Ceviri olustur" isinde kaynak altyazi ZATEN yuklu; yalnizca ceviriyi
-    // ikinci altyaziya koy. Aksi halde .dual.srt yanlislikla ana altyazi olurdu.
     const isTranslateJob = job.kind === 'translate';
     const isSyncJob = job.kind === 'sync';
-    const langSuffixed = (f) => /\.[a-z]{2}\.(srt|vtt)$/i.test(f);
-    const src = isTranslateJob
-      ? null
-      : (isSyncJob ? files.find((f) => /\.synced\.srt$/i.test(f))
-        : (files.find((f) => !langSuffixed(f) && !/\.dual\./i.test(f)) || files[0]));
-    const tr = files.find((f) => f !== src && langSuffixed(f) && !/\.dual\./i.test(f));
-    if (src) {
-      player.cueQualitySource = (job.liveSource || []).slice();
-      addSubtitleOption(src);
-      $('playerSubSelect').value = src;
-      if (isSyncJob) {
+    player.cueQualitySource = (job.liveSource || []).slice();
+    job.loading = true;
+    job.stage = 'Oynatıcıya yükleniyor';
+    void attachCompletedJobSubtitles(event, job).then((result) => {
+      job.loading = false;
+      if (isSyncJob && result.loaded) {
         player.offset = 0;
         if ($('subOffset')) {
           $('subOffset').value = '0';
           $('subOffset').dispatchEvent(new Event('input'));
         }
       }
-      loadSubtitle(src);
-    }
-    if (tr) {
-      addSubtitleOption(tr);
-      $('playerSubSelect2').value = tr;
-      loadSubtitle(tr, true);
-    }
-    if (isTranslateJob) {
-      player.translationRetryAvailable = Math.max(0, Number(job.failedBlocks) || 0);
-      updateMakeTransState();
-      finish(tr ? 'Çeviri hazır ve ikinci altyazı olarak yüklendi.'
-                : 'Çeviri bitti ama dosya bulunamadı.', tr ? 'success' : 'warn');
+      if (isTranslateJob) {
+        const descriptor = completedSubtitleOutputs(event, 'translation').translation;
+        player.translationRetryAvailable = Math.max(0,
+          Number(descriptor?.failed) || Number(job.failedBlocks) || 0);
+        updateMakeTransState();
+      }
+      const successText = isTranslateJob ? 'Türkçe çeviri hazır ve oynatıcıya yüklendi.'
+        : isSyncJob ? 'Altyazı sese göre senkronlandı ve oynatıcıya yüklendi.'
+        : 'Altyazı hazır ve oynatıcıya yüklendi.';
+      finish(result.loaded ? successText
+        : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${result.reason}`,
+        result.loaded ? 'success' : 'warn');
       if (job.browserTrackId) {
         const latestTrack = player.browserTracks.find((track) => track.id === job.browserTrackId);
         if (latestTrack && Number(latestTrack.cueCount || 0) > Number(job.browserSourceCueCount || 0)) {
@@ -2834,14 +2868,9 @@ function playerJobEvent(event) {
         }
         if (latestTrack) scheduleActiveBrowserTrackRefresh(latestTrack);
       }
-    } else if (isSyncJob) {
-      finish(src ? 'Altyazı sese göre senkronlandı ve yüklendi.'
-                 : 'Senkron bitti ama çıktı bulunamadı.', src ? 'success' : 'warn');
-    } else {
-      finish(src ? 'Altyazı hazır ve yüklendi.' : 'İş bitti ama altyazı dosyası bulunamadı.',
-             src ? 'success' : 'warn');
-    }
-    refreshHistory();
+      refreshHistory();
+      updatePlayerTaskCenter();
+    });
   } else if (event.type === 'error' && job.kind === 'chat') {
     if (job.bubble) {
       job.bubble.classList.remove('is-loading');
@@ -2863,32 +2892,107 @@ function playerJobEvent(event) {
   return event.type !== 'log';
 }
 
-async function attachCompletedJobSubtitles(files) {
-  if (!player.mediaKey || !state.lastJobInput || !Array.isArray(files) || !files.length) return;
-  const input = String(state.lastJobInput);
-  const sameMedia = input.startsWith('http')
-    ? player.mediaKey === mediaKeyFor('youtube', input)
-    : player.mediaKey === mediaKeyFor('local', input);
-  if (!sameMedia) return;
-  const subtitleFiles = files.filter((file) => /\.(srt|vtt|ass|ssa)$/i.test(file));
-  if (!subtitleFiles.length) return;
-  const translated = subtitleFiles.find((file) => /\.[a-z]{2,3}\.(srt|vtt|ass|ssa)$/i.test(file));
-  const source = subtitleFiles.find((file) => file !== translated) || subtitleFiles[0];
+function completedSubtitleOutputs(event, fallbackRole = 'source') {
+  if (!subtitleOutputContract) return { explicit: false, source: null, translation: null, dual: null, items: [] };
+  return subtitleOutputContract.selectOutputs(event, { fallbackRole });
+}
+
+function rememberPendingPlayerLoad(event, job, reason) {
+  state.pendingPlayerLoad = { event, job: { ...job }, reason, label: 'Dosya kaydedildi' };
+  logLine(`${reason} “Oynatıcıya yeniden yükle” ile tekrar deneyebilirsiniz.`, 'warn');
+  updatePlayerTaskCenter();
+}
+
+async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, options = {}) {
+  if (!job || !player.mediaKey) return { loaded: false, reason: 'Oynatıcı açık değil.' };
+  const outputs = completedSubtitleOutputs(event, job.kind === 'translate' ? 'translation' : 'source');
+  if (!outputs.items.length) return { loaded: false, reason: 'Altyazı çıktısı bulunamadı.' };
+  if (player.mediaKey !== job.mediaKey) {
+    return { loaded: false, reason: 'Çıktı başka videoya ait olduğu için yüklenmedi.' };
+  }
+  const selectionChanged = !options.force && job.mediaKey === player.mediaKey
+    && ((job.selectedSubPath || '') !== (player.subPath || '')
+      || (job.secondSubPath || '') !== (player.sub2Path || ''));
+  if (selectionChanged) {
+    rememberPendingPlayerLoad(event, job, 'Altyazı seçimi işlem sırasında değişti; yeni seçim korunarak çıktı yüklenmedi.');
+    return { loaded: false, reason: 'Altyazı seçimi değişti.' };
+  }
   const gen = currentGeneration();
-  addSubtitleOption(source, translated ? 'Whisper · kaynak' : 'Whisper');
-  $('playerSubSelect').value = source;
-  await loadSubtitle(source, false, { silent: true });
-  if (staleGeneration(gen) || !sameMedia) return;
-  if (translated && translated !== source) {
-    addSubtitleOption(translated, 'Çeviri · Türkçe');
-    $('playerSubSelect2').value = translated;
-    await loadSubtitle(translated, true, { silent: true });
-    if (staleGeneration(gen)) return;
-    // Kullanıcı çeviriyi bekliyorsa ana görünümde yalnız çeviri göster.
-    if ($('translate')?.checked || state.forceTranslate) setSubtitleMode('translation', false);
-    logLine('YouTube altyazısı ve Türkçe çevirisi oynatıcıya bağlandı.', 'success');
-  } else if ($('translate')?.checked || state.forceTranslate) {
-    logLine('Altyazı hazırlandı; çeviri çıktısı oluşmadı. Çeviri oluştur düğmesini kullanın.', 'warn');
+  for (const item of outputs.items) {
+    addSubtitleOption(item.path, subtitleOutputContract.outputLabel(item), item);
+  }
+  const source = outputs.source;
+  const translation = outputs.translation;
+  let loadedPath = '';
+  try {
+    if (source) {
+      $('playerSubSelect').value = source.path;
+      await loadSubtitle(source.path, false, { silent: true, role: 'source' });
+      if (staleGeneration(gen) || player.mediaKey !== job.mediaKey) return { loaded: false, reason: 'Video değişti.' };
+      if (player.subPath !== source.path) throw new Error('kaynak altyazı seçilemedi');
+      loadedPath = source.path;
+    }
+    if (translation) {
+      const sourceInPrimary = player.subRole === 'source' && player.cues.length > 0;
+      if (source || sourceInPrimary) {
+        $('playerSubSelect2').value = translation.path;
+        await loadSubtitle(translation.path, true, { silent: true, role: 'translation' });
+        if (player.sub2Path !== translation.path) throw new Error('çeviri altyazısı seçilemedi');
+      } else {
+        // Yalnız çeviri çıktısında dosyayı kaynak sanma. Birincil kanalda
+        // açıkça translation rolüyle göster; dosyaya kaynak cue yazılmaz.
+        $('playerSubSelect').value = translation.path;
+        await loadSubtitle(translation.path, false, { silent: true, role: 'translation' });
+        if (player.subPath !== translation.path) throw new Error('çeviri altyazısı seçilemedi');
+      }
+      if (staleGeneration(gen) || player.mediaKey !== job.mediaKey) return { loaded: false, reason: 'Video değişti.' };
+      player.translationRetryAvailable = Math.max(0, Number(translation.failed) || 0);
+      setSubtitleMode('translation', false);
+      loadedPath = translation.path;
+    }
+  } catch (error) {
+    rememberPendingPlayerLoad(event, job, `Dosya kaydedildi ancak oynatıcıya yüklenemedi: ${error.message}`);
+    return { loaded: false, reason: error.message };
+  }
+  if (!loadedPath && outputs.dual) {
+    $('playerSubSelect').value = outputs.dual.path;
+    await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source' });
+    loadedPath = player.subPath === outputs.dual.path ? outputs.dual.path : '';
+  }
+  if (!loadedPath) return { loaded: false, reason: 'Yüklenebilir çıktı bulunamadı.' };
+  state.pendingPlayerLoad = null;
+  flushWatchState(false, true);
+  const detail = translation?.status === 'partial'
+    ? `${translation.completed}/${translation.total} çevrildi · ${translation.failed} eksik`
+      + (translation.lastError ? ` · ${subtitleOutputContract.errorLabel(translation.lastError)}` : '')
+    : translation ? 'Türkçe çeviri oynatıcıya yüklendi.' : 'Kaynak altyazı oynatıcıya yüklendi.';
+  logLine(detail, translation?.status === 'partial' ? 'warn' : 'success');
+  updatePlayerTaskCenter();
+  return { loaded: true, path: loadedPath };
+}
+
+async function retryPendingPlayerLoad() {
+  const pending = state.pendingPlayerLoad;
+  if (!pending) return;
+  const result = await attachCompletedJobSubtitles(pending.event, pending.job, { force: true });
+  if (!result.loaded) logLine(`Oynatıcıya yeniden yükleme başarısız: ${result.reason}`, 'error');
+}
+
+async function locateMissingSubtitle(missingPath, secondary, role) {
+  const replacement = await window.api.selectFile('subtitle').catch(() => null);
+  if (!replacement) return;
+  addSubtitleOption(replacement, `Bulunan dosya · ${role === 'translation' ? 'Çeviri' : 'Kaynak'}`,
+    { role });
+  const select = $(secondary ? 'playerSubSelect2' : 'playerSubSelect');
+  if (select) select.value = replacement;
+  await loadSubtitle(replacement, secondary, { role });
+  if ((secondary ? player.sub2Path : player.subPath) === replacement) {
+    state.pendingPlayerLoad = null;
+    flushWatchState(false, true);
+    updatePlayerTaskCenter();
+    logLine(`Taşınan altyazı bulundu: ${replacement}`, 'success');
+  } else {
+    logLine(`${missingPath.split(/[\\/]/).pop()} yerine seçilen dosya yüklenemedi.`, 'error');
   }
 }
 
@@ -2922,6 +3026,7 @@ window.api.onEvent((event) => {
       recordStageTiming(event.stage);
       markStagesDoneUpTo(event.stage);
       if (event.text) {
+        if (state.activeOutputJob) state.activeOutputJob.stage = event.text;
         logLine(event.text);
         $('progressTime').textContent = event.text;
       }
@@ -2930,6 +3035,7 @@ window.api.onEvent((event) => {
     case 'download_progress':
       {
         const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
+        if (state.activeOutputJob) state.activeOutputJob.stage = `İndiriliyor · %${percent.toFixed(0)}`;
         setProgress(percent);
         $('progressText').textContent = `İndiriliyor ${percent.toFixed(0)}%`;
       }
@@ -2941,6 +3047,7 @@ window.api.onEvent((event) => {
 
     case 'progress': {
       const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
+      if (state.activeOutputJob) state.activeOutputJob.stage = `Transkripsiyon · %${percent.toFixed(1)}`;
       setProgress(percent);
       $('progressText').textContent = `${percent.toFixed(1)}%`;
       const elapsed = (Date.now() - state.startTime) / 1000;
@@ -2964,6 +3071,12 @@ window.api.onEvent((event) => {
       setProgress(percent);
       // Ayni kanal hem LLM duzeltmesi hem ceviri icin kullaniliyor (stage ayirir)
       const _lbl = event.stage === 'translate' ? 'Çevriliyor' : 'LLM düzeltiyor';
+      if (state.activeOutputJob) {
+        state.activeOutputJob.stage = `${_lbl} · ${Number(event.done) || 0}/${Number(event.total) || 0}`;
+        state.activeOutputJob.completed = Number(event.done) || 0;
+        state.activeOutputJob.total = Number(event.total) || 0;
+        state.activeOutputJob.failed = Number(event.failed) || 0;
+      }
       $('progressText').textContent = `${_lbl} ${percent.toFixed(1)}% (${event.done}/${event.total})`;
       if (event.failed) $('progressTime').textContent = `${event.failed} blokta hata`;
       break;
@@ -2989,7 +3102,17 @@ window.api.onEvent((event) => {
         el.classList.add('done');
       });
       state.outputFiles = event.files || [];
-      void attachCompletedJobSubtitles(state.outputFiles);
+      const completedOutputJob = state.activeOutputJob;
+      if (completedOutputJob) {
+        completedOutputJob.stage = 'Oynatıcıya yükleniyor';
+        completedOutputJob.loading = true;
+        void attachCompletedJobSubtitles(event, completedOutputJob).then((result) => {
+          completedOutputJob.loading = false;
+          completedOutputJob.stage = result.loaded ? 'Oynatıcıya yüklendi' : result.reason;
+          if (state.activeOutputJob === completedOutputJob) state.activeOutputJob = null;
+          updatePlayerTaskCenter();
+        });
+      }
       setProgress(100);
       $('progressText').textContent = '100%';
       const elapsed = (Date.now() - state.startTime) / 1000;
@@ -3478,6 +3601,8 @@ const player = {
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
   cueQualitySource: [], // canli Whisper guveni; SRT yeniden okununca zamanla eslestirilir
   subPath: '',       // duzenleme kaydederken yazilacak dosya
+  subRole: 'source', // dosya adindan degil done/iz sozlesmesinden gelir
+  sub2Role: 'translation',
   subFormat: 'srt',  // 'srt' | 'vtt' | 'ass' - kaydederken AYNI bicim korunur
   subRaw: '',        // dosyanin ham metni (ASS'te cerrahi duzenleme icin)
   subOrigins: {},    // { yol: 'YouTube' | 'Whisper' | 'Dosya' } - panelde gosterilir
@@ -5832,7 +5957,7 @@ function browserSubtitleMode() {
 }
 
 function browserPrimaryIsTranslation() {
-  if (player.workspaceMode !== 'browser') return false;
+  if (player.workspaceMode !== 'browser') return player.subRole === 'translation';
   const id = player.browserTranslationTrackId;
   return !!id && player.browserLoadedTrackId === id
     && player.browserTracks.some((track) => track.id === id && track.role === 'translation');
@@ -5840,7 +5965,14 @@ function browserPrimaryIsTranslation() {
 
 function browserSubtitleRoleCues() {
   if (player.workspaceMode !== 'browser') {
-    return { primaryTranslation: false, source: player.cues, translation: player.cues2 };
+    const primaryTranslation = player.subRole === 'translation';
+    let source = primaryTranslation ? [] : player.cues;
+    let translation = primaryTranslation ? player.cues : [];
+    if (player.cues2.length) {
+      if (player.sub2Role === 'source') source = player.cues2;
+      else translation = player.cues2;
+    }
+    return { primaryTranslation, source, translation };
   }
   const primaryTranslation = browserPrimaryIsTranslation();
   const primaryTrack = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId);
@@ -8478,6 +8610,8 @@ function captureWatchPrefs() {
     sub2Top: player.sub2Top,
     selectedSubPath: player.subPath || '',
     secondSubPath: player.sub2Path || '',
+    selectedSubRole: player.subRole || 'source',
+    secondSubRole: player.sub2Role || 'translation',
     audioLang: $('playerAudioLang') ? $('playerAudioLang').value : '',
   };
 }
@@ -8616,16 +8750,19 @@ async function restoreWatchProfile(key) {
   if (prefs.sub2Top !== undefined) player.sub2Top = prefs.sub2Top;
   applySubtitlePos();
   if (prefs.audioLang && $('playerAudioLang') && !browserMode) $('playerAudioLang').value = prefs.audioLang;
-  const remembered = [prefs.selectedSubPath, prefs.secondSubPath].filter(Boolean);
-  remembered.forEach((p) => addSubtitleOption(p));
+  const remembered = [
+    [prefs.selectedSubPath, prefs.selectedSubRole || 'source'],
+    [prefs.secondSubPath, prefs.secondSubRole || 'translation'],
+  ].filter(([path]) => path);
+  remembered.forEach(([path, role]) => addSubtitleOption(path, '', { role }));
   if (prefs.selectedSubPath) {
     $('playerSubSelect').value = prefs.selectedSubPath;
-    await loadSubtitle(prefs.selectedSubPath);
+    await loadSubtitle(prefs.selectedSubPath, false, { role: prefs.selectedSubRole || 'source' });
     if (staleGeneration(gen) || player.mediaKey !== key) return;
   }
   if (prefs.secondSubPath) {
     $('playerSubSelect2').value = prefs.secondSubPath;
-    await loadSubtitle(prefs.secondSubPath, true);
+    await loadSubtitle(prefs.secondSubPath, true, { role: prefs.secondSubRole || 'translation' });
     if (staleGeneration(gen) || player.mediaKey !== key) return;
   }
 }
@@ -9813,6 +9950,8 @@ function resetMediaBoundState(options = {}) {
   player.activeIdx = -1;
   player.activeIdx2 = -1;
   player.subPath = '';
+  player.subRole = 'source';
+  player.sub2Role = 'translation';
   player.subRaw = '';
   player.sub2Path = '';
   player.subOrigins = {};
@@ -10414,24 +10553,39 @@ function updateSubtitleChips() {
   const org = $('subOrigin');
   const primaryTranslation = browserPrimaryIsTranslation();
   if (src) {
-    const l = langFromPath(player.subPath);
+    const l = player.subtitles.find((item) => item.path === player.subPath)?.language?.toUpperCase()
+      || langFromPath(player.subPath);
     src.textContent = l ? `${primaryTranslation ? 'Çeviri' : 'Kaynak'} · ${l}` : (primaryTranslation ? 'Çeviri' : 'Kaynak');
     // Birincil kanala yüklenen kalıcı çeviri de bir dil rozeti göstermeli;
     // aksi halde iki rozet birden kaybolup hangi izin açık olduğu belirsizleşir.
     src.classList.toggle('hidden', !player.cues.length);
   }
   if (tr) {
-    const l2 = langFromPath(player.sub2Path);
+    const l2 = player.subtitles.find((item) => item.path === player.sub2Path)?.language?.toUpperCase()
+      || langFromPath(player.sub2Path);
     tr.textContent = l2 ? `${primaryTranslation ? 'Kaynak' : 'Çeviri'} · ${l2}` : (primaryTranslation ? 'Kaynak' : 'Çeviri');
     tr.classList.toggle('hidden', !player.cues2.length);
   }
   if (org) org.textContent = player.subPath ? (player.subOrigins[player.subPath] || 'Dosya') : '';
 }
 
-function addSubtitleOption(path, label) {
+function addSubtitleOption(path, label, metadata = {}) {
   if (!path) return;
-  if (player.subtitles.some((x) => x.path === path)) return;
-  player.subtitles.push({ path, label: label || path.split(/[\\/]/).pop() });
+  const existing = player.subtitles.find((x) => x.path === path);
+  if (existing) {
+    if (label) existing.label = label;
+    if (metadata.role) existing.role = metadata.role;
+    if (metadata.language) existing.language = metadata.language;
+    if (metadata.status) existing.status = metadata.status;
+    const nextName = label || existing.label;
+    for (const id of ['playerSubSelect', 'playerSubSelect2']) {
+      const option = Array.from($(id)?.options || []).find((item) => item.value === path);
+      if (option && nextName) option.textContent = nextName;
+    }
+    return;
+  }
+  player.subtitles.push({ path, label: label || path.split(/[\\/]/).pop(),
+    role: metadata.role || '', language: metadata.language || '', status: metadata.status || '' });
   player.subOrigins[path] = subtitleOrigin(path, label);
   const name = label || path.split(/[\\/]/).pop();
   ['playerSubSelect', 'playerSubSelect2'].forEach((id) => {
@@ -10477,6 +10631,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.cues2Raw = null;
       player.activeIdx2 = -1;
       player.sub2Path = '';
+      player.sub2Role = 'translation';
       const ov2 = $('subtitleOverlay2');
       if (ov2) ov2.textContent = '';
       if (player.workspaceMode === 'browser') {
@@ -10505,6 +10660,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.cuesRaw = null;
       player.activeIdx = -1;
       player.subPath = '';
+      player.subRole = 'source';
       player.subRaw = '';
       renderSeekMarkers(defaultMarkers());
       if ($('applyOffsetToFile')) $('applyOffsetToFile').classList.add('hidden');
@@ -10555,6 +10711,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     return;
   }
   const gen = currentGeneration();
+  const knownSubtitle = (player.subtitles || []).find((item) => item.path === path);
+  const requestedRole = options.role || knownSubtitle?.role
+    || (secondary ? 'translation' : 'source');
   const previousPrimaryPath = player.subPath;
   const res = await window.api.readSubtitle(path).catch((error) => ({ ok: false, error: error.message }));
   // Okuma sirasinda baska videoya gecildiyse sonucu AT (eski altyazi yenisine
@@ -10569,6 +10728,14 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     if (selNow) selNow.value = (secondary ? player.sub2Path : player.subPath) || '';
     const message = `Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`;
     logLine(message, 'error');
+    if (typeof state !== 'undefined') {
+      state.pendingPlayerLoad = {
+        reason: `${path.split(/[\\/]/).pop()} bulunamadı veya okunamadı.`,
+        label: 'Altyazı dosyası eksik',
+        run: () => locateMissingSubtitle(path, secondary, requestedRole),
+      };
+      if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
+    }
     if (player.workspaceMode === 'browser') setBrowserSignal(message, false);
     return;
   }
@@ -10581,6 +10748,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.cues2 = player.mergeCont ? mergeCueContinuation(cues) : cues;
     player.activeIdx2 = -1;
     player.sub2Path = path;
+    player.sub2Role = requestedRole;
     const browserTrack = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) => track.path === path) : null;
     if (player.workspaceMode === 'browser' && browserTrack?.role !== 'translation') {
@@ -10632,6 +10800,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.translationRetryAvailable = 0;
     player.activeIdx = -1;
     player.subPath = path;
+    player.subRole = requestedRole;
     player.subRaw = res.text;
     player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
@@ -10977,6 +11146,8 @@ const SETTINGS_PAGE_TITLES = {
   'browser-diagnostics': 'Yakalama ayrıntıları',
 };
 
+const subtitleOutputContract = window.SubtitleOutputContract;
+
 function initializeSettingsPages() {
   const view = $('browserViewSettings');
   const diagnostics = $('browserDiagnosticsPanel');
@@ -11075,7 +11246,19 @@ function toggleSettingsPage(page) {
 function playerTaskSnapshot() {
   const rows = [];
   const localJob = player.job;
-  if (localJob?.running || localJob?.awaitingExit) rows.push({ label: 'Altyazı işi', detail: 'Ses işleniyor' });
+  if (localJob?.running || localJob?.awaitingExit || localJob?.loading) {
+    rows.push({ label: localJob.kind === 'translate' ? 'Altyazı çevirisi' : 'Altyazı işi',
+      detail: localJob.stage || 'Hazırlanıyor' });
+  } else if (state.activeOutputJob?.loading || (state.running && state.activeOutputJob)) {
+    rows.push({ label: state.activeOutputJob.translateRequested ? 'Altyazı + çeviri' : 'Altyazı işi',
+      detail: state.activeOutputJob.stage || 'Hazırlanıyor' });
+  }
+  if (state.pendingPlayerLoad) {
+    rows.push({ label: state.pendingPlayerLoad.label || 'Dosya kaydedildi',
+      detail: state.pendingPlayerLoad.reason || 'Oynatıcıya yüklenemedi',
+      action: state.pendingPlayerLoad.run ? 'Dosyayı bul' : 'Yeniden yükle',
+      run: state.pendingPlayerLoad.run || retryPendingPlayerLoad });
+  }
   const tab = browserTabState();
   if (player.browserTranslationTrackId && tab?.browserTranslationComplete === false) {
     rows.push({ label: 'Altyazı çevirisi', detail: player.browserTranslationFailed ? `${player.browserTranslationFailed} satır yeniden denenecek` : 'Çeviri sürüyor' });
@@ -11109,7 +11292,14 @@ function updatePlayerTaskCenter() {
     const copy = document.createElement('div');
     const label = document.createElement('strong'); label.textContent = row.label;
     const detail = document.createElement('span'); detail.textContent = row.detail;
-    copy.append(label, detail); item.append(mark, copy); list.appendChild(item);
+    copy.append(label, detail); item.append(mark, copy);
+    if (row.action && typeof row.run === 'function') {
+      const action = document.createElement('button');
+      action.type = 'button'; action.className = 'player-task-action'; action.textContent = row.action;
+      action.addEventListener('click', row.run);
+      item.appendChild(action);
+    }
+    list.appendChild(item);
   }
 }
 
@@ -11744,6 +11934,9 @@ async function startProgressivePlayerTranscription() {
   // Oynatici icin SRT zorunlu: farkli zaman araliklari en sonda tek, atomik
   // dosyada birlestirilir. Kullanici ana ekrandaki kalici format secimini kaybetmez.
   opts.formats = 'srt';
+  // Oynatıcı işi yeniden çeviri/karşılaştırma yapabilsin diye kaynak izi
+  // kalıcı olarak korur. "Yalnız çeviri" görünümü dosya rolünden bağımsızdır.
+  if (opts.translate) opts.translateKeepSource = true;
   opts.clipStart = '';
   opts.clipEnd = '';
   const problem = optsProblem(opts);
@@ -11753,7 +11946,9 @@ async function startProgressivePlayerTranscription() {
   const ranges = progressiveRanges(Number(video && video.duration), Number(video && video.currentTime));
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
     ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
-    sourceFile: '', translationFile: '', awaitingExit: false };
+    sourceFile: '', translationFile: '', awaitingExit: false,
+    outputFiles: [], outputDescriptors: [], stage: 'Başlatılıyor',
+    selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '' };
   state.running = true;
   state.cancelled = false;
   state.startTime = Date.now();
@@ -11811,7 +12006,8 @@ if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async (
 function updateMakeTransState() {
   const btn = $('makeTransBtn');
   if (!btn) return;
-  const ok = !!player.subPath && player.cues.length > 0;
+  const ok = (player.subRole === 'source' && !!player.subPath && player.cues.length > 0)
+    || (player.sub2Role === 'source' && !!player.sub2Path && player.cues2.length > 0);
   btn.disabled = !ok;
   const retry = Number(player.translationRetryAvailable) || 0;
   btn.textContent = retry > 0 ? `Eksik çevirileri tamamla (${retry})` : 'Çeviri oluştur';
@@ -11820,6 +12016,11 @@ function updateMakeTransState() {
       ? 'Başarısız kalan satırları yeniden dener; tamamlanan satırlar önbellekten korunur'
       : 'Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur')
     : 'Önce bir altyazı yükleyin (soldaki listeden veya dosyadan)';
+  if ($('retranslateAllBtn')) $('retranslateAllBtn').disabled = !ok || state.running;
+  if ($('exportTranslationBtn')) {
+    const roles = browserSubtitleRoleCues();
+    $('exportTranslationBtn').disabled = !roles.translation.length || state.running;
+  }
 }
 
 function updatePlayerAutoSyncState() {
@@ -11852,7 +12053,8 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   state.running = true;
   state.cancelled = false;
   state.startTime = Date.now();
-  player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [] };
+  player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [],
+    selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '' };
   $('playerJobBar').classList.remove('hidden');
   $('playerJobFill').style.width = '0%';
   $('playerJobText').textContent = 'Ses ritmi analiz ediliyor…';
@@ -11873,34 +12075,43 @@ if ($('makeTransBtn')) {
       logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
       return;
     }
-    if (!player.subPath || !player.cues.length) {
-      logLine('Önce bir altyazı yükleyin.', 'error');
+    const sourcePrimary = player.subRole === 'source' && player.subPath && player.cues.length;
+    const sourcePath = sourcePrimary ? player.subPath
+      : (player.sub2Role === 'source' && player.sub2Path && player.cues2.length ? player.sub2Path : '');
+    const sourceCues = sourcePrimary ? player.cues : player.cues2;
+    if (!sourcePath || !sourceCues.length) {
+      logLine('Önce kaynak rolünde bir altyazı yükleyin.', 'error');
       return;
     }
     const opts = buildOptsFromUI();
     opts.translateOnly = true;
     opts.translate = true;
-    opts.input = player.subPath;
+    opts.input = sourcePath;
     // Önceki kısmi çeviri varsa backend tamamlanan cue'ları koruyup yalnız
     // eksik/başarısız olanları yeniden işler.
     delete opts.youtube;
+    const sourceTrackId = sourcePrimary ? player.browserLoadedTrackId : player.browserLoadedTrackId2;
     const browserTrack = player.browserTracks.find((track) =>
-      track.id === player.browserLoadedTrackId && track.path === player.subPath) || null;
+      track.id === sourceTrackId && track.path === sourcePath) || null;
     // İkinci iz çoğu zaman kaynak/karşılaştırma altyazısıdır. Yalnızca açıkça
     // çeviri rolü taşıyan izi mevcut çıktı olarak ver; aksi halde backend
     // kaynak dili çeviri sanıp eksik iş kuyruğunu yanlış dosyadan tamamlar.
     const existingTranslation = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) =>
           track.id === player.browserLoadedTrackId2 && track.role === 'translation')?.path
-      : (player.sub2Path && player.sub2Path !== player.subPath ? player.sub2Path : '');
-    if (existingTranslation) opts.translateExisting = existingTranslation;
+      : (player.subRole === 'translation' ? player.subPath
+        : player.sub2Role === 'translation' ? player.sub2Path : '');
+    if (existingTranslation && !state.forceRetranslate) opts.translateExisting = existingTranslation;
     const browserLanguage = browserTrackSourceLanguage(browserTrack);
     // Tarayıcı altyazısının kendi dil bilgisi, ana ekranda önceki işten kalmış
     // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa
     // repliklerde yanlış anlam ve hitap seçimine yol açıyordu.
     if (browserLanguage) opts.language = browserLanguage;
     const problem = optsProblem(opts);
-    if (problem) { logLine(problem, 'error'); setSettingsDrawer(true); return; }
+    if (problem) {
+      state.forceRetranslate = false;
+      logLine(problem, 'error'); setSettingsDrawer(true); return;
+    }
 
     state.running = true;
     state.cancelled = false;
@@ -11910,7 +12121,8 @@ if ($('makeTransBtn')) {
     // itiyordu. Çeviri çıktısı done olayında ayrıca listeye eklenir.
     const previousOutputs = state.outputFiles.slice();
     player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
-      liveSource: player.cues.slice(), liveTranslation: new Map(),
+      liveSource: sourceCues.slice(), liveTranslation: new Map(),
+      selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '',
       browserTrackId: browserTrack ? browserTrack.id : '',
       browserSourceCueCount: browserTrack ? Number(browserTrack.cueCount || 0) : 0 };
     const bar = $('playerJobBar');
@@ -11919,10 +12131,11 @@ if ($('makeTransBtn')) {
       $('playerJobFill').style.width = '0%';
       $('playerJobText').textContent = `Çeviri başlatılıyor · önceki/sonraki ${Number(opts.translateContext || 0)} satır`;
     }
-    logLine(`Çeviri başlatıldı: ${player.subPath.split(/[\\/]/).pop()} → `
+    logLine(`Çeviri başlatıldı: ${sourcePath.split(/[\\/]/).pop()} → `
       + `${opts.translateTo || 'tr'} · kaynak ${opts.language || 'otomatik'} · `
       + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
     const r = await startTranscribeSafe(opts);
+    state.forceRetranslate = false;
     if (!r || !r.ok) {
       state.running = false;
       player.job = null;
@@ -11931,6 +12144,46 @@ if ($('makeTransBtn')) {
       if (bar) bar.classList.add('hidden');
       logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
     }
+  });
+}
+
+if ($('retranslateAllBtn')) {
+  $('retranslateAllBtn').addEventListener('click', async () => {
+    const hasSource = (player.subRole === 'source' && player.subPath && player.cues.length)
+      || (player.sub2Role === 'source' && player.sub2Path && player.cues2.length);
+    if (state.running || state.queueRunning || !hasSource) return;
+    const accepted = await openAppDialog({
+      title: 'Tüm çeviriyi yenile',
+      description: 'Başarılı satırlar da seçili modelle yeniden çevrilecek. Kaynak altyazı korunur.',
+      confirmLabel: 'Tamamını yeniden çevir', intent: 'primary',
+    });
+    if (!accepted) return;
+    state.forceRetranslate = true;
+    $('makeTransBtn').click();
+    if (!state.running) state.forceRetranslate = false;
+  });
+}
+
+if ($('exportTranslationBtn')) {
+  $('exportTranslationBtn').addEventListener('click', async () => {
+    const roles = browserSubtitleRoleCues();
+    if (!roles.translation.length) {
+      logLine('Dışa aktarılacak çeviri altyazısı yok.', 'warn');
+      return;
+    }
+    const translationPath = player.subRole === 'translation' ? player.subPath
+      : player.sub2Role === 'translation' ? player.sub2Path : '';
+    const suggested = (translationPath || 'turkce-ceviri.srt')
+      .replace(/\.(?:vtt|ass|ssa)$/i, '.srt');
+    const result = await window.api.saveSubtitleCopy(suggested, cuesToSrt(roles.translation));
+    if (!result || !result.ok) {
+      if (!(result && result.canceled)) {
+        logLine(`Çeviri dışa aktarılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, 'error');
+      }
+      return;
+    }
+    logLine(`Türkçe çeviri dışa aktarıldı: ${result.path}`, 'success');
+    osd('Çeviri dışa aktarıldı');
   });
 }
 
@@ -11949,6 +12202,13 @@ if ($('quickSubsBtn')) {
       logLine('Çeviri için API anahtarı gerekli. Gelişmiş ayarlar → Çeviri → API Key.', 'error');
       osd('Çeviri API anahtarı yok');
       toggleDrawerAt(null, '#translateApiKey');
+      return;
+    }
+    const hasSource = (player.subRole === 'source' && player.subPath && player.cues.length)
+      || (player.sub2Role === 'source' && player.sub2Path && player.cues2.length);
+    if (hasSource && $('makeTransBtn')) {
+      osd('Mevcut altyazı çevriliyor; Whisper çalıştırılmayacak', 1800);
+      $('makeTransBtn').click();
       return;
     }
     // Kullanicinin kalici ayarina DOKUNMA: yalnizca bu is icin ceviriyi ac.

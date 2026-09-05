@@ -85,6 +85,53 @@ def log(message, level="info"):
     emit("log", level=level, message=message)
 
 
+def subtitle_entries_hash(entries):
+    """Altyazi kaynagini dosya adindan bagimsiz, kararlı bicimde tanimla."""
+    payload = [
+        {
+            "s": round(float(entry[0]), 3),
+            "e": round(float(entry[1]), 3),
+            "t": unicodedata.normalize("NFC", str(entry[2])),
+        }
+        for entry in entries
+    ]
+    return hashlib.sha256(json.dumps(
+        payload, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
+
+
+def subtitle_source_id(args, source_hash):
+    """URL/yol ve gercek cue icerigini birlestiren is-kaynagi kimligi."""
+    youtube = str(getattr(args, "youtube", "") or "").strip()
+    source = youtube or str(getattr(args, "input", "") or "").strip()
+    kind = "youtube" if youtube else "file"
+    raw = json.dumps({"kind": kind, "source": source, "hash": source_hash},
+                     ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def subtitle_output(path, role, language, source_id, source_hash,
+                    total=0, completed=None, failed=0, last_error=""):
+    """Renderer'in dosya adindan rol tahmin etmesini engelleyen done sozlesmesi."""
+    total = max(0, int(total or 0))
+    failed = max(0, int(failed or 0))
+    if completed is None:
+        completed = max(0, total - failed)
+    completed = max(0, min(total, int(completed or 0))) if total else 0
+    return {
+        "path": str(path),
+        "role": role,
+        "language": str(language or ""),
+        "sourceId": str(source_id or ""),
+        "sourceHash": str(source_hash or ""),
+        "status": "partial" if failed else "complete",
+        "total": total,
+        "completed": completed,
+        "failed": failed,
+        "lastError": str(last_error or ""),
+    }
+
+
 @contextmanager
 def atomic_text_writer(output_path, encoding="utf-8", newline=None):
     """Aynı klasörde geçici dosyaya yazıp tek adımda nihai dosyanın yerine koyar."""
@@ -2638,6 +2685,28 @@ def save_translate_cache(path, cache, limit=200000):
         log(f"Ceviri onbellegi yazilamadi: {e}", "warn")
 
 
+def classify_translation_error(error):
+    """Sağlayıcı hatasını kullanıcıya ve devam metadata'sına kararlı kodla taşır."""
+    message = str(error or "").lower()
+    if any(token in message for token in ("insufficient_quota", "quota", "kota")):
+        return "quota"
+    if any(token in message for token in ("invalid_api_key", "unauthorized", "401", "403")):
+        return "authentication"
+    if any(token in message for token in ("429", "rate limit", "rate_limit", "too many requests")):
+        return "rate_limit"
+    if any(token in message for token in ("timeout", "timed out", "zaman aş", "zaman as")):
+        return "timeout"
+    if any(token in message for token in ("json", "tutarli bir cumle", "eksiksiz", "yanitta")):
+        return "invalid_response"
+    if any(token in message for token in ("bos cevap", "empty response", "content is empty")):
+        return "empty_response"
+    if any(token in message for token in ("500", "502", "503", "504", "server error")):
+        return "server_error"
+    if any(token in message for token in ("connection", "network", "dns", "socket")):
+        return "network_error"
+    return "api_failure"
+
+
 def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None):
     """
     Altyazilari OpenAI uyumlu bir API ile hedef dile cevirir.
@@ -2652,7 +2721,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     """
     if status_out is not None:
         status_out.clear()
-        status_out.update(completed=[], failed=[])
+        status_out.update(completed=[], failed=[], failedReasons={})
     if not entries:
         return entries
     try:
@@ -2661,11 +2730,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         log("! Ceviri ATLANDI: openai paketi yuklu degil ('pip install openai').", "error")
         if warn_list is not None:
             warn_list.append("Ceviri atlandi: openai paketi yuklu degil.")
+        if status_out is not None:
+            status_out["lastError"] = "client_missing"
         return None
     if not args.translate_api_key:
         log("! Ceviri ATLANDI: API anahtari bos (Gelismis ayarlar > Ceviri).", "error")
         if warn_list is not None:
             warn_list.append("Ceviri atlandi: API anahtari girilmedi.")
+        if status_out is not None:
+            status_out["lastError"] = "api_key_missing"
         return None
 
     routes = resolve_translate_routes(args.translate_base_url)
@@ -2790,6 +2863,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     route_state = {"preferred": routes[0]}
     lock = threading.Lock()
     counters = {"done": 0, "failed": 0}
+    failure_by_index = {}
     last_emit_ts = [time.time()]
 
     def call_api_with(prompt_text, payload):
@@ -2870,11 +2944,20 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 missing = len(ch) - got
                 if missing > 0:
                     counters["failed"] += missing
+                    with lock:
+                        for index in ch:
+                            if index not in done_idx:
+                                failure_by_index[index] = "invalid_response"
                     log("Ceviri {}-{}: {} blok eksik/tutarsiz cumle grubundaydi - o bloklarda orijinal "
                         "metin kaldi.".format(ch[0], ch[-1], missing), "warn")
             except Exception as e:
                 counters["failed"] += len(ch)
-                log("Ceviri {}-{} hatasi: {}".format(ch[0], ch[-1], e), "warn")
+                reason = classify_translation_error(e)
+                with lock:
+                    for index in ch:
+                        if index not in done_idx:
+                            failure_by_index[index] = reason
+                log("Ceviri {}-{} hatasi [{}]: {}".format(ch[0], ch[-1], reason, e), "warn")
             completed = [i for i in ch if i in done_idx]
             if completed:
                 emit("translation_chunk", segments=[
@@ -2902,6 +2985,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             warn_list.append(msg)
         if status_out is not None:
             status_out["failed"] = list(range(len(entries)))
+            status_out["failedReasons"] = {
+                str(index): failure_by_index.get(index, "api_failure")
+                for index in range(len(entries))
+            }
+            if failure_by_index:
+                status_out["lastError"] = next(iter(failure_by_index.values()))
         return None
 
     if counters["failed"]:
@@ -2998,6 +3087,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         status_out["completed"] = sorted(set(cached_idx).union(done_idx))
         status_out["failed"] = [i for i in range(len(entries))
                                  if i not in set(status_out["completed"])]
+        status_out["failedReasons"] = {
+            str(index): failure_by_index.get(index, "invalid_response")
+            for index in status_out["failed"]
+        }
+        if status_out["failedReasons"]:
+            status_out["lastError"] = next(iter(status_out["failedReasons"].values()))
     return result
 
 
@@ -4728,7 +4823,10 @@ def transcribe(args):
         emit("status", stage="write", text="Altyazı dosyası yazılıyor...")
         formats = args.formats.split(",") if args.formats else ["srt"]
         output_files = []
+        output_descriptors = []
         lang = info.language or "tr"
+        source_hash = subtitle_entries_hash(entries)
+        source_id = subtitle_source_id(args, source_hash)
         # Dil kodu eki: oynatıcılar video.tr.srt'yi dil etiketiyle otomatik yükler.
         # translate görevinde çıktı her zaman İngilizce'dir.
         if args.lang_suffix:
@@ -4739,6 +4837,7 @@ def transcribe(args):
         # Ceviri (opsiyonel): kaynak bloklarin AYNISI, metinler hedef dilde.
         # Ayri dosyaya yazilir - kaynak altyazinin uzerine asla yazilmaz.
         translated = None
+        translation_status = {}
         translated_speakers_map = dict(speakers_map)
         if args.translate:
             try:
@@ -4748,18 +4847,13 @@ def transcribe(args):
                 # dil olarak konusmanin ozgun dilini vermek modele celiskili
                 # talimat olurdu ("metin Ingilizce, kaynak dil Ispanyolca").
                 tr_source = "en" if args.task == "translate" else info.language
-                translated = llm_translate(entries, args, warn_list, source_lang=tr_source)
-                # Devam birlestirmesi CEVIRIDE ayrica calisir: "…" isaretlerini
-                # ceviri modeli koyuyor, kaynakta hic yok (olcum: kaynakta 0,
-                # ceviride 11 blok "…" ile bitiyor). Ayrica Turkce'de yuklem
-                # sona geldigi icin cumle Ingilizce'den FARKLI yerden bolunur.
-                if translated and args.merge_continuation:
-                    _o = len(translated)
-                    translated, translated_speakers_map = merge_continuation_lines(
-                        translated, max_gap=args.continuation_gap,
-                        speakers=speakers_map, return_speakers=True)
-                    if len(translated) != _o:
-                        log(f"Ceviri cumle birlestirme: {_o} -> {len(translated)} blok")
+                translated = llm_translate(
+                    entries, args, warn_list, source_lang=tr_source,
+                    status_out=translation_status,
+                )
+                # Çeviri izi kaynakla birebir cue sözleşmesini korur. Çeviri
+                # tarafında devam satırlarını birleştirmek cue sayısını ve zaman
+                # eşlemesini değiştirip oynatıcı/yeniden-deneme kimliğini bozuyordu.
                 if translated:
                     emit("translation_refresh", segments=[
                         {"start": s, "end": e, "text": t} for s, e, t in translated
@@ -4810,6 +4904,10 @@ def transcribe(args):
                     log(f"Bilinmeyen format atlandı: {fmt}", "warn")
                     continue
                 output_files.append(str(out_path))
+                output_descriptors.append(subtitle_output(
+                    out_path, "source", lang, source_id, source_hash,
+                    total=len(entries), completed=len(entries),
+                ))
                 log(f"Yazıldı: {out_path}")
 
             if translated:
@@ -4826,6 +4924,16 @@ def transcribe(args):
                 if _write(translated, tr_path, (args.translate_to or "tr").lower(),
                           translated_speakers_map):
                     output_files.append(str(tr_path))
+                    failed_count = len(set(translation_status.get("failed", [])))
+                    completed_count = len(set(translation_status.get("completed", [])))
+                    if not translation_status:
+                        completed_count = len(entries)
+                    output_descriptors.append(subtitle_output(
+                        tr_path, "translation", (args.translate_to or "tr").lower(),
+                        source_id, source_hash, total=len(entries),
+                        completed=completed_count, failed=failed_count,
+                        last_error=translation_status.get("lastError", ""),
+                    ))
                     log(f"Çeviri yazıldı: {tr_path}")
 
         # Çift dilli tek dosya (kaynak + çeviri üst üste) — herhangi bir oynatıcıda çalışır
@@ -4844,6 +4952,16 @@ def transcribe(args):
                                source_language=tr_source,
                                wrap_mode=args.wrap_mode)
                 output_files.append(str(dual_path))
+                failed_count = len(set(translation_status.get("failed", [])))
+                completed_count = len(set(translation_status.get("completed", [])))
+                if not translation_status:
+                    completed_count = len(entries)
+                output_descriptors.append(subtitle_output(
+                    dual_path, "dual", (args.translate_to or "tr").lower(),
+                    source_id, source_hash, total=len(entries),
+                    completed=completed_count, failed=failed_count,
+                    last_error=translation_status.get("lastError", ""),
+                ))
                 log(f"Çift dilli altyazı yazıldı: {dual_path}")
             except Exception as e:
                 log(f"Çift dilli dosya yazılamadı: {e}", "warn")
@@ -4917,7 +5035,9 @@ def transcribe(args):
                 perf["rtf"], perf["segments"],
                 f", {low_conf} dusuk guvenli kelime" if low_conf else ""))
 
-        emit("done", files=output_files, segments=len(entries), language=info.language,
+        emit("done", files=output_files, outputs=output_descriptors,
+             sourceId=source_id, sourceHash=source_hash,
+             segments=len(entries), language=info.language,
              warnings=warn_list, perf=perf)
 
     finally:
@@ -5286,22 +5406,33 @@ def translate_existing_subtitle(args):
                              ensure_ascii=False, separators=(",", ":"))
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    source_hash = hashlib.sha256(json.dumps(
-        [{"s": round(float(e[0]), 3), "e": round(float(e[1]), 3),
-          "t": unicodedata.normalize("NFC", str(e[2]))} for e in entries],
-        ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+    source_hash = subtitle_entries_hash(entries)
+    source_id = subtitle_source_id(args, source_hash)
+    target = (args.translate_to or "tr").lower()
     existing_by_key = {}
-    existing_path = Path(getattr(args, "translate_existing", "") or "")
+    existing_value = str(getattr(args, "translate_existing", "") or "").strip()
+    existing_path = Path(existing_value) if existing_value else None
+    existing_snapshot = None
+    if existing_path and existing_path.exists():
+        try:
+            existing_snapshot = hashlib.sha256(existing_path.read_bytes()).hexdigest()
+        except OSError:
+            existing_snapshot = None
     existing_meta = None
     meta_path = Path(f"{existing_path}.meta.json") if existing_path else None
     if meta_path and meta_path.exists():
         try:
             candidate = json.loads(meta_path.read_text(encoding="utf-8"))
             if (candidate.get("sourceHash") == source_hash
-                    and candidate.get("targetLanguage") == (args.translate_to or "tr").lower()
-                    and candidate.get("model", "") == str(getattr(args, "translate_model", "") or "")
-                    and candidate.get("provider", "") == str(getattr(args, "translate_base_url", "") or "")):
+                    and candidate.get("targetLanguage") == target
+                    and (not candidate.get("sourceId")
+                         or candidate.get("sourceId") == source_id)):
                 existing_meta = candidate
+                old_model = str(candidate.get("model", "") or "")
+                new_model = str(getattr(args, "translate_model", "") or "")
+                if old_model and new_model and old_model != new_model:
+                    log("Çeviri modeli değişti; tamamlanmış satırlar korunup yalnız eksikler "
+                        "yeni modelle tamamlanacak.", "info")
             else:
                 log("Mevcut çeviri metadata'sı kaynak/dil ile eşleşmiyor; kullanılmayacak.", "warn")
         except Exception as error:
@@ -5309,14 +5440,27 @@ def translate_existing_subtitle(args):
     if existing_path and existing_path.exists() and existing_path.resolve() != src_path.resolve():
         try:
             old_text, _old_enc, _old_repaired = read_subtitle_text(existing_path)
-            for old_index, old in enumerate(parse_subtitle_entries(old_text, existing_path.suffix)):
-                if len(old) >= 3 and str(old[2]).strip():
-                    existing_by_key[(round(float(old[0]), 3), round(float(old[1]), 3), old_index)] = old[2]
+            old_entries = parse_subtitle_entries(old_text, existing_path.suffix)
+            # Metadata'siz eski dosya ancak cue sayisi ve tum zaman cizelgesi
+            # birebir uyuyorsa kullanilir. Baslik benzerligi veya dil eki,
+            # baska bir videonun cevirisini kabul etmek icin yeterli degildir.
+            legacy_timeline_matches = len(old_entries) == len(entries) and all(
+                abs(float(old[0]) - float(entry[0])) <= 0.002
+                and abs(float(old[1]) - float(entry[1])) <= 0.002
+                for old, entry in zip(old_entries, entries)
+            )
+            if existing_meta or legacy_timeline_matches:
+                for old_index, old in enumerate(old_entries):
+                    if len(old) >= 3 and str(old[2]).strip():
+                        existing_by_key[(round(float(old[0]), 3), round(float(old[1]), 3), old_index)] = old[2]
+            elif old_entries:
+                log("Metadata'siz mevcut çevirinin zaman çizelgesi kaynakla eşleşmiyor; "
+                    "yanlış videoya ait olabileceği için kullanılmayacak.", "warn")
             if existing_meta and isinstance(existing_meta.get("cues"), list):
                 # Metadata varsa zaman/sıra yerine fingerprint ile eşleştir.
                 keyed = {str(c.get("key")): c for c in existing_meta["cues"] if isinstance(c, dict)}
                 existing_by_key = {}
-                for entry in entries:
+                for index, entry in enumerate(entries):
                     record = keyed.get(cue_fingerprint(entry, index))
                     if record and str(record.get("status")) == "completed" and str(record.get("text", "")).strip():
                         existing_by_key[(round(float(entry[0]), 3), round(float(entry[1]), 3), index)] = record["text"]
@@ -5324,13 +5468,16 @@ def translate_existing_subtitle(args):
                 log(f"Mevcut çeviri bulundu: {len(existing_by_key)} blok korunacak.", "info")
         except Exception as error:
             log(f"Mevcut çeviri okunamadı; tüm bloklar yeniden denenecek: {error}", "warn")
-    target = (args.translate_to or "tr").lower()
     emit("status", stage="translate", text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
     def existing_for(entry, index):
         return existing_by_key.get((round(float(entry[0]), 3), round(float(entry[1]), 3), index))
 
-    pending_entries = [entry for index, entry in enumerate(entries) if existing_for(entry, index) is None]
-    pending_positions = {id(entry): index for index, entry in enumerate(pending_entries)}
+    pending_pairs = [(index, entry) for index, entry in enumerate(entries)
+                     if existing_for(entry, index) is None]
+    pending_entries = [entry for _index, entry in pending_pairs]
+    pending_source_positions = {id(entry): source_index for source_index, entry in pending_pairs}
+    pending_status_positions = {id(entry): pending_index
+                                for pending_index, entry in enumerate(pending_entries)}
     translation_status = {}
     if existing_by_key and not pending_entries:
         log("Eksik çeviri yok; API çağrısı yapılmadı.", "success")
@@ -5352,15 +5499,14 @@ def translate_existing_subtitle(args):
         # eşleştirmek birinin metnini diğerine yazıyordu. llm_translate sıralı
         # liste döndürdüğü için pending nesnesinin kimliğini kullan.
         translated_map = {
-            pending_positions[id(source_entry)]: result_entry[2]
+            pending_source_positions[id(source_entry)]: result_entry[2]
             for source_entry, result_entry in zip(pending_entries, translated or [])
         }
         translated = [(entry[0], entry[1], translated_map.get(index,
                     existing_for(entry, index) or entry[2]))
                       for index, entry in enumerate(entries)]
-    if translated and getattr(args, "merge_continuation", False):
-        translated = merge_continuation_lines(
-            translated, max_gap=getattr(args, "continuation_gap", 3.0))
+    # Var olan altyazı çevirisinde cue sınırları ve zamanları birebir korunur;
+    # metin-birleştirme kaynak/çeviri eşlemesini ve kısmi devamı bozar.
     if not translated:
         raise RuntimeError("Ceviri yapilamadi - ayrintilar gunlukte.")
 
@@ -5380,10 +5526,24 @@ def translate_existing_subtitle(args):
         requested = ["srt"]
 
     files = []
+    outputs = []
     for fmt in requested:
         out_path = out_dir / f"{stem}.{target}.{fmt}"
         if out_path.resolve() == src_path.resolve():      # kaynagin uzerine yazma
             out_path = out_dir / f"{stem}.{target}.ceviri.{fmt}"
+        if (existing_snapshot and existing_path and existing_path.exists()
+                and out_path.resolve() == existing_path.resolve()):
+            try:
+                current_snapshot = hashlib.sha256(existing_path.read_bytes()).hexdigest()
+            except OSError:
+                current_snapshot = existing_snapshot
+            if current_snapshot != existing_snapshot:
+                # API çalışırken kullanıcı dosyayı düzenlediyse emeğini ezme.
+                # Yeni sonuç ayrı bir dosyaya yazılır ve renderer bunu yeni
+                # çeviri çıktısı olarak açıkça yükler.
+                out_path = out_dir / f"{stem}.{target}.yeni.{fmt}"
+                log("Mevcut çeviri işlem sırasında değişti; kullanıcı düzenlemesini "
+                    f"korumak için yeni sonuç ayrı yazılıyor: {out_path.name}", "warn")
         if fmt == "srt":
             write_srt(translated, out_path, args.max_line_width, args.max_lines,
                       language=target, wrap_mode=args.wrap_mode)
@@ -5398,6 +5558,16 @@ def translate_existing_subtitle(args):
         else:
             write_json(translated, out_path)
         files.append(str(out_path))
+        completed_count = sum(1 for index, entry in enumerate(entries)
+                              if existing_for(entry, index) is not None)
+        completed_count += len(set(translation_status.get("completed", [])))
+        completed_count = min(len(entries), completed_count)
+        failed_count = max(0, len(entries) - completed_count)
+        outputs.append(subtitle_output(
+            out_path, "translation", target, source_id, source_hash,
+            total=len(entries), completed=completed_count, failed=failed_count,
+            last_error=translation_status.get("lastError", ""),
+        ))
         log(f"Ceviri yazildi: {out_path}", "success")
         # Çıktının yanındaki metadata, sonraki denemede hangi cue'ların
         # gerçekten tamamlandığını kaynak hash'i ile doğrular. Kaynakla aynı
@@ -5407,22 +5577,27 @@ def translate_existing_subtitle(args):
             metadata_cues = []
             for index, entry in enumerate(entries):
                 preserved = existing_for(entry, index) is not None
-                pending_index = pending_positions.get(id(entry))
+                pending_index = pending_status_positions.get(id(entry))
                 completed = preserved or (pending_index in completed_pending)
+                failed_reasons = translation_status.get("failedReasons", {})
                 metadata_cues.append({
                     "key": cue_fingerprint(entry, index),
                     "status": "completed" if completed else "failed",
                     "text": translated[index][2],
-                    "error": "API yanıtı alınamadı" if not completed else "",
+                    "error": failed_reasons.get(str(pending_index), "api_failure")
+                    if not completed else "",
                 })
             try:
-                Path(f"{out_path}.meta.json").write_text(json.dumps({
+                metadata_text = json.dumps({
                     "version": 1, "sourceHash": source_hash,
+                    "sourceId": source_id,
                     "targetLanguage": target,
                     "model": str(getattr(args, "translate_model", "") or ""),
                     "provider": str(getattr(args, "translate_base_url", "") or ""),
                     "cues": metadata_cues,
-                }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                }, ensure_ascii=False, indent=2) + "\n"
+                with atomic_text_writer(Path(f"{out_path}.meta.json"), encoding="utf-8") as handle:
+                    handle.write(metadata_text)
             except OSError as error:
                 log(f"Çeviri metadata'sı yazılamadı: {error}", "warn")
 
@@ -5433,9 +5608,20 @@ def translate_existing_subtitle(args):
                        max_line_width=args.max_line_width,
                        language=target, source_language=args.language)
         files.append(str(dual_path))
+        completed_count = sum(1 for index, entry in enumerate(entries)
+                              if existing_for(entry, index) is not None)
+        completed_count += len(set(translation_status.get("completed", [])))
+        completed_count = min(len(entries), completed_count)
+        outputs.append(subtitle_output(
+            dual_path, "dual", target, source_id, source_hash,
+            total=len(entries), completed=completed_count,
+            failed=max(0, len(entries) - completed_count),
+            last_error=translation_status.get("lastError", ""),
+        ))
         log(f"Cift dilli altyazi yazildi: {dual_path}", "success")
 
-    emit("done", files=files, segments=len(translated), warnings=warn_list)
+    emit("done", files=files, outputs=outputs, sourceId=source_id,
+         sourceHash=source_hash, segments=len(translated), warnings=warn_list)
 
 
 def reexport_from_json(args):
@@ -5543,6 +5729,9 @@ def reexport_from_json(args):
     formats = args.formats.split(",") if args.formats else ["srt"]
     name_suffix = f".{lang}" if (args.lang_suffix and lang) else ""
     output_files = []
+    output_descriptors = []
+    source_hash = subtitle_entries_hash(entries)
+    source_id = subtitle_source_id(args, source_hash)
     for fmt in formats:
         fmt = fmt.strip().lower()
         out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
@@ -5564,9 +5753,16 @@ def reexport_from_json(args):
             log(f"Bilinmeyen format atlandı: {fmt}", "warn")
             continue
         output_files.append(str(out_path))
+        if fmt in {"srt", "vtt", "ass"}:
+            output_descriptors.append(subtitle_output(
+                out_path, "source", lang, source_id, source_hash,
+                total=len(entries), completed=len(entries),
+            ))
         log(f"Yazıldı: {out_path}")
 
-    emit("done", files=output_files, segments=len(entries), language=lang, warnings=export_warnings)
+    emit("done", files=output_files, outputs=output_descriptors,
+         sourceId=source_id, sourceHash=source_hash,
+         segments=len(entries), language=lang, warnings=export_warnings)
 
 
 # ===== Altyazı senkronlama (mevcut SRT'yi videoya hizala) =====
@@ -6130,7 +6326,15 @@ def sync_subtitles(args):
         if abs(ratio - 1.0) > 1e-9:
             warn.append(f"Framerate oranı {ratio:.5f} uygulandı (sürüklenme düzeltmesi) — "
                         "sonucu bir kez kontrol edin.")
-        emit("done", files=[str(out_path)], segments=len(shifted), language="",
+        source_hash = subtitle_entries_hash(spans)
+        source_id = subtitle_source_id(args, source_hash)
+        output = subtitle_output(
+            out_path, "source", str(getattr(args, "language", "") or ""),
+            source_id, source_hash, total=len(shifted), completed=len(shifted),
+        )
+        emit("done", files=[str(out_path)], outputs=[output],
+             sourceId=source_id, sourceHash=source_hash,
+             segments=len(shifted), language="",
              warnings=warn, sync_offset=round(offset, 2), sync_ratio=round(ratio, 6))
     finally:
         shutil.rmtree(workdir, ignore_errors=True)

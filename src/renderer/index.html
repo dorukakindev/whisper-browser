@@ -1686,6 +1686,10 @@
               <button class="btn btn-primary btn-sm action-button" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
               <button class="btn btn-sm action-button action-button-outline" id="makeTransBtn"
                 title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
+              <button class="btn btn-sm action-button action-button-outline" id="retranslateAllBtn"
+                title="Mevcut çeviriyi kullanmadan bütün satırları seçili modelle yeniden çevir">Tamamını yeni modelle çevir</button>
+              <button class="btn btn-sm action-button action-button-outline" id="exportTranslationBtn" disabled
+                title="Yüklü Türkçe çeviriyi yeniden işlem yapmadan SRT olarak kaydet">Çeviriyi dışa aktar</button>
             </div>
             </div>
           </div>
@@ -2052,6 +2056,7 @@
   <script src="../playback-policy.js"></script>
   <script src="../browser-tabs.js"></script>
 <script src="../browser-place-url.js"></script>
+<script src="../subtitle-output-contract.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>
