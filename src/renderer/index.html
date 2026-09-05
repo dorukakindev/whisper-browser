@@ -1227,6 +1227,7 @@
                 <select id="browserExportFormat" aria-label="Dışa aktarma biçimi" title="Dışa aktarma biçimi">
                   <option value="srt">SRT</option>
                   <option value="vtt">VTT</option>
+                  <option value="ass">ASS</option>
                 </select>
                 <button class="btn btn-ghost btn-sm" id="browserTrackExport" type="button" title="İz listesindeki seçili altyazıyı dosyaya kaydet">Seçili izi dışa aktar</button>
                 <button class="btn btn-ghost btn-sm" id="browserTranslationExport" type="button" disabled>Çeviriyi dışa aktar</button>
@@ -1293,6 +1294,18 @@
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportImage" type="button">Manga görseli</button>
                   <button class="btn btn-ghost btn-sm" id="browserPiP" type="button">Resim içinde resim</button>
                 </div>
+                <section class="browser-session-portability" aria-labelledby="browserSessionPortabilityTitle">
+                  <div class="browser-settings-section-head">
+                    <strong id="browserSessionPortabilityTitle">Oturum yedeği ve kurtarma</strong>
+                    <span>Sekmeleri, site görünümünü ve kayıtlı altyazı varyantlarını güvenli bir pakete taşı.</span>
+                  </div>
+                  <div class="browser-view-actions">
+                    <button class="btn btn-secondary btn-sm" id="browserSessionExport" type="button">Oturumu dışa aktar</button>
+                    <button class="btn btn-secondary btn-sm" id="browserSessionImport" type="button">Oturumu içe aktar</button>
+                  </div>
+                  <p id="browserSessionStatus" class="browser-session-status" role="status" aria-live="polite">API anahtarları, çerezler ve imzalı bağlantı parametreleri pakete eklenmez.</p>
+                  <div id="browserRecoveryList" class="browser-recovery-list" role="region" aria-live="polite" aria-label="Kurtarılabilir tarayıcı işleri"></div>
+                </section>
                 <p class="browser-manga-summary" id="browserMangaSummary">Henüz manga işi çalıştırılmadı.</p>
                 <p class="browser-manga-hint" id="browserMangaReadabilityHint" role="status" aria-live="polite">Balon metni sığmazsa otomatik genişletilir; düzenlemek için balona çift tıklayın.</p>
               </details>
@@ -1304,7 +1317,7 @@
                   <span class="browser-diagnostics-service" id="browserDiagnosticsService">Genel web videosu</span>
                   <span class="browser-diagnostics-help" id="browserDiagnosticsHelp">Videoyu başlatın ve sitenin altyazısını açın.</span>
                 </div>
-                <span class="browser-diagnostics-summary" id="browserDiagnosticsSummary">Henüz ağ izi yok</span>
+                <span class="browser-diagnostics-summary" id="browserDiagnosticsSummary" role="status" aria-live="polite">Henüz ağ izi yok</span>
               </div>
               <div class="browser-acquisition" aria-label="Altyazı edinme yolu">
                 <div class="browser-acquisition-head">
@@ -1313,6 +1326,11 @@
                 </div>
                 <ol class="browser-acquisition-stages" id="browserAcquisitionStages"></ol>
               </div>
+              <dl class="browser-diagnostics-activity" id="browserDiagnosticsActivity" aria-label="Son tarayıcı işlemleri">
+                <div><dt>Son altyazı yakalama</dt><dd id="browserDiagnosticsLastCapture">Henüz yok</dd></div>
+                <div><dt>Son çeviri</dt><dd id="browserDiagnosticsLastTranslation">Henüz yok</dd></div>
+                <div><dt>Son hata</dt><dd id="browserDiagnosticsLastError">Henüz yok</dd></div>
+              </dl>
               <details class="browser-capability-matrix">
                 <summary>Servis yetenek matrisi</summary>
                 <div class="browser-capability-scroll">

@@ -155,6 +155,7 @@ class BrowserTranslationScheduler {
     this.playhead = 0;
     this.generation = 0;
     this.completeTrack = false;
+    this.paused = Boolean(options.paused);
     this.idleWaiters = [];
   }
 
@@ -246,7 +247,15 @@ class BrowserTranslationScheduler {
       completeTrack: this.completeTrack,
       failed: [...this.failures.values()].filter((failure) => failure.terminal).length,
       retrying: [...this.failures.values()].filter((failure) => !failure.terminal).length,
+      paused: this.paused,
     });
+  }
+
+  setPaused(paused) {
+    this.paused = Boolean(paused);
+    this.emitState();
+    if (!this.paused) this.pump();
+    return this.paused;
   }
 
   completeAll() {
@@ -311,6 +320,10 @@ class BrowserTranslationScheduler {
   }
 
   pump() {
+    if (this.paused) {
+      this.emitState();
+      return;
+    }
     while (this.pending.size < this.maxConcurrent && this.queue.length) {
       const sentence = this.queue.shift();
       if (!sentence || this.pending.has(sentence.id) || this.results.has(sentence.id)) continue;
@@ -421,6 +434,7 @@ class BrowserTranslationScheduler {
       completed: this.results.size,
       remaining: this.sentences.length - this.results.size,
       completeTrack: this.completeTrack,
+      paused: this.paused,
       queued: this.queue.map((sentence) => sentence.id),
       pending: [...this.pending.keys()],
       failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure })),

@@ -38,6 +38,7 @@ const {
   findSubtitleUrls,
   subtitleLanguage,
 } = require('./browser-subtitles');
+const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
 const {
   ADAPTER_REGISTRY,
   adapterAcceptsResponse,
@@ -102,6 +103,7 @@ const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript } = require
 const { CaptionAcquisitionPlan } = require('./browser-acquisition');
 const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-event-envelope');
 const { BrowserAssetStore } = require('./browser-asset-store');
+const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('./browser-session-package');
 const { WatchIndex } = require('./watch-index');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
@@ -240,6 +242,7 @@ let browserLastDrmStatus = '';
 let browserLastDrmFailure = '';
 let browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
 let browserDiagnostics = null;
+let browserNetworkOnline = true;
 let browserLiveAsr = null;
 let modelBenchmarkJob = null;
 // Includes stopping Live ASR processes until their actual close event.
@@ -1453,6 +1456,7 @@ function createBrowserTabRecord(initial = {}) {
     overlay: { source: [], translation: [], mode: restored.subtitleMode || 'source', offset: restored.offset || 0 },
     restoredUrl: restored.url || '',
     restoredTitle: restored.title || '',
+    favicon: restored.favicon || '',
     mediaId: restored.mediaId || '',
     service: restored.service || '',
     contentId: restored.contentId || '',
@@ -1465,6 +1469,7 @@ function createBrowserTabRecord(initial = {}) {
     targetLanguage: restored.targetLanguage || '',
     trackRefs: restored.trackRefs || [],
     subtitleSelection: restored.subtitleSelection || null,
+    recoveryJobs: Array.isArray(restored.recoveryJobs) ? restored.recoveryJobs : [],
     zoom: 1,
     closing: false,
   };
@@ -1487,6 +1492,35 @@ function activeBrowserTab(create = false) {
   return tab;
 }
 
+function browserRecoveryJobsForTab(tab) {
+  const jobs = new Map((Array.isArray(tab?.recoveryJobs) ? tab.recoveryJobs : []).map((job) => [job.id, job]));
+  const now = Date.now();
+  const timestamps = (id) => ({ createdAt: Number(jobs.get(id)?.createdAt) || now, updatedAt: now });
+  const translation = tab?.translationScheduler?.snapshot?.();
+  if (translation && (translation.queued?.length || translation.pending?.length
+      || translation.failures?.some((failure) => !failure.terminal))) {
+    const id = `subtitle-translation:${tab.translationTrackId || tab.mediaId || tab.id}`;
+    jobs.set(id, { id, kind: 'subtitle-translation', trackId: tab.translationTrackId || '',
+      mediaId: tab.mediaId || '', state: 'interrupted',
+      completed: Number(translation.completed || tab.translationResults?.size) || 0,
+      total: Number(translation.total || tab.translationSourceCues?.length) || 0,
+      failed: Number(translation.failures?.length) || 0, ...timestamps(id) });
+  }
+  if (tab?.mangaJob) {
+    const id = `manga:${tab.mediaId || tab.id}`;
+    jobs.set(id, { id, kind: 'manga', trackId: '', mediaId: tab.mediaId || '', state: 'interrupted',
+      completed: Number(tab.mangaTranslated) || 0, total: Number(tab.mangaAttempted?.size) || 0,
+      failed: Number(tab.mangaFailures?.length) || 0, ...timestamps(id) });
+  }
+  if (tab?.pageTranslateJob) {
+    const id = `page-translation:${tab.mediaId || tab.id}`;
+    jobs.set(id, { id, kind: 'page-translation', trackId: '', mediaId: tab.mediaId || '', state: 'interrupted',
+      completed: Number(tab.pageTranslated) || 0, total: Number(tab.pageTranslateSession?.blocks?.size) || 0,
+      failed: Number(tab.pageTranslateFailed) || 0, ...timestamps(id) });
+  }
+  return [...jobs.values()].slice(0, 50);
+}
+
 function browserTabSnapshot(tab) {
   const wc = tab && tab.view && !tab.view.webContents.isDestroyed() ? tab.view.webContents : null;
   const { canGoBack, canGoForward } = wc ? browserNavigationCapabilities(wc) : { canGoBack: false, canGoForward: false };
@@ -1496,6 +1530,7 @@ function browserTabSnapshot(tab) {
     generation: tab ? tab.generation : 0,
     url,
     title: wc ? (wc.getTitle() || tab?.restoredTitle || '') : (tab?.restoredTitle || ''),
+    favicon: tab?.favicon || '',
     loading: wc ? wc.isLoading() : false,
     canGoBack,
     canGoForward,
@@ -1530,6 +1565,7 @@ function browserTabSnapshot(tab) {
     translationTrackId: tab?.translationTrackId || '',
     trackRefs: Array.isArray(tab?.trackRefs) ? tab.trackRefs : [],
     subtitleSelection: tab?.subtitleSelection || null,
+    recoveryJobs: browserRecoveryJobsForTab(tab),
     resumePending: !!url && !(wc && wc.getURL() !== 'about:blank'),
   };
 }
@@ -1848,6 +1884,7 @@ function freshBrowserDiagnostics(url = '', tab = activeBrowserTab()) {
     pageUrl: redactCaptureUrl(url),
     captureEnabled: browserCaptureEnabled,
     counts: { cdp: 0, page: 0, textTrack: 0, manifest: 0, parsed: 0, rejected: 0, errors: 0 },
+    activity: { lastCapture: null, lastTranslation: null, lastError: null },
     acquisition: acquisition ? acquisition.snapshot() : null,
     recent: [],
   };
@@ -1879,6 +1916,10 @@ function noteBrowserCapture(strategy, candidate = {}, outcome = 'aday', detail =
   if (outcome === 'parsed') browserDiagnostics.counts.parsed++;
   else if (outcome === 'rejected') browserDiagnostics.counts.rejected++;
   else if (outcome === 'error') browserDiagnostics.counts.errors++;
+  if (!browserDiagnostics.activity) browserDiagnostics.activity = { lastCapture: null, lastTranslation: null, lastError: null };
+  const activity = { at: Date.now(), message: String(detail || '').slice(0, 160) };
+  if (outcome === 'parsed') browserDiagnostics.activity.lastCapture = activity;
+  else if (outcome === 'error') browserDiagnostics.activity.lastError = activity;
   const adapter = browserResponseAdapter(browserDiagnostics.pageUrl, candidate.url || '');
   browserDiagnostics.recent.unshift({
     at: Date.now(), strategy, outcome,
@@ -1890,6 +1931,18 @@ function noteBrowserCapture(strategy, candidate = {}, outcome = 'aday', detail =
   });
   browserDiagnostics.recent = browserDiagnostics.recent.slice(0, 100);
   publishBrowserDiagnostics();
+}
+
+function noteBrowserDiagnosticActivity(tab, key, message) {
+  if (!tab || !['lastCapture', 'lastTranslation', 'lastError'].includes(key)) return;
+  const current = tab.diagnostics || (tab === activeBrowserTab() ? browserDiagnostics : null)
+    || freshBrowserDiagnostics(tab.restoredUrl || '', tab);
+  current.activity = current.activity && typeof current.activity === 'object'
+    ? current.activity : { lastCapture: null, lastTranslation: null, lastError: null };
+  current.activity[key] = { at: Date.now(), message: String(message || '').slice(0, 160) };
+  tab.diagnostics = current;
+  if (tab === activeBrowserTab()) browserDiagnostics = current;
+  sendBrowserEvent(tab, { type: 'capture-status', diagnostics: current });
 }
 
 function redactBrowserDiagnosticsText(value) {
@@ -1916,6 +1969,10 @@ function browserDiagnosticsExportSnapshot() {
       help: redactBrowserDiagnosticsText(adapter.help),
     },
     counts: Object.fromEntries(Object.entries(counts).map(([key, value]) => [key, Math.max(0, Math.trunc(Number(value) || 0))])),
+    activity: Object.fromEntries(['lastCapture', 'lastTranslation', 'lastError'].map((key) => {
+      const entry = source.activity?.[key];
+      return [key, entry ? { at: Number(entry.at) || null, message: redactBrowserDiagnosticsText(entry.message) } : null];
+    })),
     acquisition: source.acquisition && typeof source.acquisition === 'object' ? source.acquisition : null,
     recent: recent.map((entry) => ({
       at: Number.isFinite(Number(entry.at)) ? Number(entry.at) : null,
@@ -2597,6 +2654,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     lookBehind: 0,
     lookAhead: Math.max(1, sentences.length + 1),
     context,
+    paused: !browserNetworkOnline,
     translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, session.config, call.signal),
     onResult: (result, sentence) => {
       if (!pageTranslationJobIsCurrent(tab, job)) return;
@@ -3756,6 +3814,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     lookBehind: 15,
     lookAhead: 90,
     context,
+    paused: !browserNetworkOnline,
     translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, config, call.signal),
     onResult: (result) => {
       if (tab.translationScheduler !== scheduler) return;
@@ -3767,6 +3826,9 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
         sendBrowserEvent(tab, { type: 'translation-state', state, trackId: tab.translationTrackId });
         if (state.total > 0 && state.completed >= state.total && !state.pending && !state.queued && !state.failed) {
           persistCompletedBrowserTranslation(tab, scheduler, config, context);
+          noteBrowserDiagnosticActivity(tab, 'lastTranslation', `${state.completed}/${state.total} altyazı cümlesi çevrildi.`);
+        } else if (state.total > 0 && !state.pending && !state.queued && state.failed) {
+          noteBrowserDiagnosticActivity(tab, 'lastError', `${state.failed} altyazı cümlesi çevrilemedi.`);
         }
       }
     },
@@ -5425,6 +5487,13 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     });
     scheduleBrowserSessionSave();
   });
+  wc.on('page-favicon-updated', (_event, favicons = []) => {
+    const favicon = favicons.map(safeBrowserPlaceUrl).find(Boolean) || '';
+    if (favicon === tab.favicon) return;
+    tab.favicon = favicon;
+    sendBrowserEvent(tab, { type: 'favicon', favicon });
+    scheduleBrowserSessionSave();
+  });
   wc.on('console-message', (event, ...rest) => {
     const rawMsg = event && typeof event === 'object' && typeof event.message === 'string'
       ? event.message : (typeof rest[1] === 'string' ? rest[1] : (typeof event === 'string' ? event : ''));
@@ -6323,6 +6392,7 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
   Object.assign(tab, {
     restoredUrl: normalized.url,
     restoredTitle: normalized.title,
+    favicon: normalized.favicon,
     mediaId: normalized.mediaId,
     service: normalized.service,
     contentId: normalized.contentId,
@@ -6337,10 +6407,126 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     targetLanguage: normalized.targetLanguage,
     trackRefs: normalized.trackRefs,
     subtitleSelection: normalized.subtitleSelection,
+    recoveryJobs: normalized.recoveryJobs,
     overlay: { ...(tab.overlay || {}), mode: normalized.subtitleMode, offset: normalized.offset },
   });
   scheduleBrowserSessionSave();
   return { ok: true, tab: browserTabSnapshot(tab) };
+});
+
+function collectBrowserSessionVariants(sessionSnapshot) {
+  const variants = [];
+  const seen = new Set();
+  for (const tab of sessionSnapshot.tabs || []) {
+    const refs = [...(tab.trackRefs || [])];
+    try {
+      for (const row of watchIndex()?.listTracks(tab.mediaId) || []) {
+        refs.push({ assetId: row.asset_path });
+      }
+    } catch (_) {}
+    for (const ref of refs) {
+      if (!ref.assetId || seen.has(ref.assetId)) continue;
+      seen.add(ref.assetId);
+      const saved = browserAssetStore().getTrack(ref.assetId);
+      if (saved.ok) variants.push(saved.document);
+    }
+  }
+  return variants;
+}
+
+function importBrowserSessionVariants(inspection) {
+  const remapped = new Map();
+  const warnings = [];
+  for (const variant of inspection.variants) {
+    const saved = browserAssetStore().putTrack(variant);
+    if (!saved.ok) {
+      warnings.push(`${variant.label || variant.trackId} içe aktarılamadı: ${saved.error}`);
+      continue;
+    }
+    if (variant.assetId) remapped.set(variant.assetId, saved.assetId);
+    const indexedTrackId = `${variant.mediaId}|${variant.trackId}`;
+    try {
+      const index = watchIndex();
+      index?.upsertMedia({ id: variant.mediaId, service: variant.mediaId.split(':')[0],
+        title: variant.label || 'İçe aktarılan web altyazısı', url: '' });
+      index?.upsertTrack({ id: indexedTrackId, mediaId: variant.mediaId, role: variant.role,
+        language: variant.language, label: variant.label, source: variant.source,
+        hash: saved.assetId.split(':')[1], assetPath: saved.assetId, updatedAt: variant.updatedAt });
+      index?.replaceTrackCues(indexedTrackId, variant.cues);
+    } catch (error) {
+      warnings.push(`${variant.label || variant.trackId} dizine eklenemedi: ${error.message}`);
+    }
+  }
+  for (const tab of inspection.session.tabs) {
+    tab.trackRefs = tab.trackRefs.map((ref) => ({ ...ref,
+      assetId: remapped.get(ref.assetId) || ref.assetId }));
+  }
+  return warnings;
+}
+
+ipcMain.handle('browser:session:export', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  persistActiveBrowserTabState();
+  const sessionSnapshot = {
+    restoreEnabled: browserSessionRestoreEnabled,
+    activeTabId: browserActiveTabId,
+    tabs: browserTabsSnapshot(),
+  };
+  const bundle = createBrowserSessionPackage({ session: sessionSnapshot,
+    places: browserPlacesSnapshot(), variants: collectBrowserSessionVariants(sessionSnapshot) });
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Tarayıcı oturumunu dışa aktar',
+    defaultPath: 'whisper-browser-oturumu.json',
+    filters: [{ name: 'Whisper Local tarayıcı oturumu', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    fs.writeFileSync(result.filePath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf8');
+    return { ok: true, path: result.filePath, tabs: bundle.payload.session.tabs.length,
+      variants: bundle.payload.variants.length, checksum: bundle.checksum };
+  } catch (error) { return { ok: false, error: `Oturum paketi kaydedilemedi: ${error.message}` }; }
+});
+
+ipcMain.handle('browser:session:import', async (event) => queueBrowserTabTransition(async () => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Tarayıcı oturumunu içe aktar', properties: ['openFile'],
+    filters: [{ name: 'Whisper Local tarayıcı oturumu', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+  try {
+    const importPath = result.filePaths[0];
+    if (fs.statSync(importPath).size > 64 * 1024 * 1024) {
+      return { ok: false, error: 'Oturum paketi çok büyük (en fazla 64 MB).' };
+    }
+    const inspection = inspectBrowserSessionPackage(JSON.parse(fs.readFileSync(importPath, 'utf8')));
+    const warnings = [...inspection.warnings, ...importBrowserSessionVariants(inspection)];
+    destroyBrowserView();
+    browserSessionRestoreEnabled = inspection.session.restoreEnabled !== false;
+    writeBrowserPlaces(inspection.places);
+    for (const snapshot of inspection.session.tabs) createBrowserTabRecord(snapshot);
+    browserActiveTabId = inspection.session.activeTabId && browserTabs.has(inspection.session.activeTabId)
+      ? inspection.session.activeTabId : (browserTabs.keys().next().value || '');
+    const active = activeBrowserTab();
+    if (active) await activateBrowserTab(active.id);
+    const persisted = persistBrowserSessionNow();
+    if (!persisted.ok) return { ok: false, error: persisted.error || 'İçe aktarılan oturum kaydedilemedi.' };
+    return { ok: true, tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId,
+      places: browserPlacesSnapshot(), restoredTabs: browserTabs.size,
+      restoredVariants: inspection.variants.length - warnings.filter((item) => item.includes('içe aktarılamadı')).length,
+      warnings };
+  } catch (error) { return { ok: false, error: `Oturum paketi içe aktarılamadı: ${error.message}` }; }
+}));
+
+ipcMain.handle('browser:session:dismissRecovery', (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = browserTabById(request.tabId);
+  if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  const recoveryId = String(request.recoveryId || '');
+  tab.recoveryJobs = (Array.isArray(tab.recoveryJobs) ? tab.recoveryJobs : [])
+    .filter((job) => job.id !== recoveryId);
+  scheduleBrowserSessionSave(0);
+  return { ok: true, recoveryJobs: tab.recoveryJobs };
 });
 
 ipcMain.handle('browser:places:list', (event) => {
@@ -6733,6 +6919,20 @@ ipcMain.handle('browser:translation:retryFailed', async (event, request) => {
     : { ok: false, error: 'Yeniden denenecek hatalı cümle yok.' };
 });
 
+ipcMain.handle('browser:network:setOnline', (event, online) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  browserNetworkOnline = online !== false;
+  let retried = 0;
+  for (const tab of browserTabs.values()) {
+    for (const scheduler of [tab.translationScheduler, tab.pageTranslateJob?.scheduler]) {
+      if (!scheduler) continue;
+      scheduler.setPaused(!browserNetworkOnline);
+      if (browserNetworkOnline) retried += scheduler.retryFailed();
+    }
+  }
+  return { ok: true, online: browserNetworkOnline, retried };
+});
+
 ipcMain.handle('browser:liveAsr:start', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
@@ -6789,23 +6989,30 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
   if (!cues.length) return { ok: false, error: 'Dışa aktarılacak altyazı yok.' };
   const safeTitle = String(payload && payload.title || 'web-altyazi')
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'web-altyazi';
-  const preferredFormat = payload && payload.format === 'vtt' ? 'vtt' : 'srt';
+  const preferredFormat = ['srt', 'vtt', 'ass'].includes(payload && payload.format) ? payload.format : 'srt';
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Web altyazısını dışa aktar',
     defaultPath: `${safeTitle}.${preferredFormat}`,
     filters: [
       { name: 'SubRip altyazısı', extensions: ['srt'] },
       { name: 'WebVTT altyazısı', extensions: ['vtt'] },
+      { name: 'ASS altyazısı', extensions: ['ass'] },
     ],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
     const extension = path.extname(result.filePath).toLowerCase();
-    const outputPath = ['.srt', '.vtt'].includes(extension)
+    const outputPath = ['.srt', '.vtt', '.ass'].includes(extension)
       ? result.filePath : `${result.filePath}.${preferredFormat}`;
-    const vtt = path.extname(outputPath).toLowerCase() === '.vtt';
-    fs.writeFileSync(outputPath, vtt ? cuesToVtt(cues) : `\uFEFF${cuesToSrt(cues)}`, 'utf-8');
-    return { ok: true, path: outputPath };
+    const outputFormat = path.extname(outputPath).slice(1).toLowerCase();
+    const document = buildBrowserSubtitleDocument(cues, outputFormat);
+    backupOnce(outputPath);
+    writeSubtitleAtomic(outputPath, document.text);
+    const written = fs.readFileSync(outputPath, 'utf8');
+    const validation = validateBrowserSubtitleDocument(written, document.format, document.cues);
+    if (!validation.ok) throw new Error(`Dışa aktarılan dosya tekrar okuma doğrulamasından geçemedi: ${validation.error}`);
+    subtitleFileAccess.grant(outputPath);
+    return { ok: true, path: outputPath, cueCount: validation.cues.length, verified: true };
   } catch (err) {
     return { ok: false, error: err.message };
   }

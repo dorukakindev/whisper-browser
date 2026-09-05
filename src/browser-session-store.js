@@ -3,12 +3,18 @@ const path = require('path');
 const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media-identity');
 const { safePlaceUrl } = require('./browser-place-url');
 
-const BROWSER_SESSION_VERSION = 1;
+const BROWSER_SESSION_VERSION = 2;
 const MAX_SESSION_TABS = 24;
 const MAX_TRACK_REFS = 12;
+const MAX_RECOVERY_JOBS = 50;
 
 function cleanString(value, max = 300) {
   return String(value == null ? '' : value).trim().slice(0, max);
+}
+
+function cleanIdentifier(value, max = 240) {
+  const text = cleanString(value, max);
+  return /^https?:\/\//i.test(text) ? safePlaceUrl(text) : text;
 }
 
 function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
@@ -18,32 +24,75 @@ function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
 
 function normalizeTrackRef(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const id = cleanString(raw.id || raw.trackId, 180);
-  const assetId = cleanString(raw.assetId, 180);
+  const id = cleanIdentifier(raw.id || raw.trackId, 180);
+  const assetId = cleanIdentifier(raw.assetId, 180);
   if (!id && !assetId) return null;
   return {
     id,
     assetId,
     role: ['source', 'translation', 'secondary'].includes(raw.role) ? raw.role : 'source',
     language: cleanString(raw.language, 24).toLowerCase(),
+    label: cleanString(raw.label, 240),
+    sourceHash: cleanString(raw.sourceHash, 64).replace(/[^a-f0-9]/gi, '').toLowerCase(),
+    provider: cleanString(raw.provider, 120),
+    model: cleanString(raw.model, 120),
+    updatedAt: finiteNumber(raw.updatedAt, 0, 0),
   };
+}
+
+function normalizeRecoveryJob(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const kind = ['subtitle-translation', 'manga', 'page-translation'].includes(raw.kind) ? raw.kind : '';
+  if (!kind) return null;
+  return {
+    id: cleanIdentifier(raw.id, 180) || `${kind}:${cleanIdentifier(raw.trackId, 180)}`,
+    kind,
+    trackId: cleanIdentifier(raw.trackId, 180),
+    mediaId: cleanString(raw.mediaId, 240),
+    state: ['interrupted', 'queued', 'retryable'].includes(raw.state) ? raw.state : 'interrupted',
+    completed: finiteNumber(raw.completed, 0, 0, 20000),
+    total: finiteNumber(raw.total, 0, 0, 20000),
+    failed: finiteNumber(raw.failed, 0, 0, 20000),
+    createdAt: finiteNumber(raw.createdAt, Date.now(), 0),
+    updatedAt: finiteNumber(raw.updatedAt, Date.now(), 0),
+  };
+}
+
+function migrateBrowserSession(raw) {
+  let source = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+  let version = Number(source.version) || 1;
+  if (version < 2) {
+    source = { ...source, tabs: Array.isArray(source.tabs) ? source.tabs.map((tab) => ({
+      ...tab, recoveryJobs: Array.isArray(tab?.recoveryJobs) ? tab.recoveryJobs : [],
+    })) : [] };
+    version = 2;
+  }
+  // Yerel oturum gelecekte ek alanlar kazanırsa bilinmeyen alanları izinli
+  // şemaya indirerek aç; taşınabilir paket sürümü ayrıca katı doğrulanır.
+  return source;
 }
 
 function normalizeSessionTab(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const url = safePlaceUrl(raw.url);
   if (!url) return null;
+  const persistedMediaId = cleanString(raw.mediaId, 240);
+  const persistedParts = persistedMediaId && !persistedMediaId.includes(':url:')
+    ? persistedMediaId.split(':') : [];
   const identity = canonicalMediaIdentity(url, {
-    service: raw.service,
-    contentId: raw.contentId,
-    mediaId: raw.mediaId && !String(raw.mediaId).includes(':url:') ? String(raw.mediaId).split(':').slice(1).join(':') : '',
+    service: raw.service || (persistedParts.length > 1 ? persistedParts[0] : ''),
+    contentId: raw.contentId || (persistedParts.length > 1 ? persistedParts.slice(1).join(':') : ''),
   });
   const trackRefs = (Array.isArray(raw.trackRefs) ? raw.trackRefs : [])
     .map(normalizeTrackRef).filter(Boolean).slice(0, MAX_TRACK_REFS);
+  const recoveryJobs = (Array.isArray(raw.recoveryJobs) ? raw.recoveryJobs : [])
+    .map(normalizeRecoveryJob).filter(Boolean).slice(0, MAX_RECOVERY_JOBS);
+  const favicon = safePlaceUrl(raw.favicon);
   return {
     id: cleanString(raw.id, 128),
     url,
     title: cleanString(raw.title, 300),
+    favicon,
     service: identity.service,
     mediaId: identity.key,
     contentId: identity.contentId,
@@ -60,6 +109,7 @@ function normalizeSessionTab(raw) {
       ? raw.subtitleMode : 'source',
     targetLanguage: cleanString(raw.targetLanguage, 24).toLowerCase(),
     trackRefs,
+    recoveryJobs,
     // null eski kayıttır; iki boş kimlik ise kullanıcının bilinçli boş seçimidir.
     subtitleSelection: raw.subtitleSelection && typeof raw.subtitleSelection === 'object' && !Array.isArray(raw.subtitleSelection)
       ? { primaryId: cleanString(raw.subtitleSelection.primaryId, 180),
@@ -68,7 +118,7 @@ function normalizeSessionTab(raw) {
 }
 
 function normalizeBrowserSession(raw) {
-  const source = raw && typeof raw === 'object' ? raw : {};
+  const source = migrateBrowserSession(raw);
   const normalized = (Array.isArray(source.tabs) ? source.tabs : [])
     .map(normalizeSessionTab).filter(Boolean);
   const tabs = normalized.slice(0, MAX_SESSION_TABS);
@@ -127,7 +177,9 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs) {
 module.exports = {
   BROWSER_SESSION_VERSION,
   MAX_SESSION_TABS,
+  MAX_RECOVERY_JOBS,
   browserSessionPath,
+  migrateBrowserSession,
   normalizeBrowserSession,
   normalizeSessionTab,
   readBrowserSession,

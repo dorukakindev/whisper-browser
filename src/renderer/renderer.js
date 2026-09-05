@@ -3761,6 +3761,7 @@ function newBrowserTabState(snapshot = {}) {
     generation: Math.max(0, Number(snapshot.generation) || 0),
     url: snapshot.url || '',
     title: snapshot.title || '',
+    favicon: snapshot.favicon || '',
     loading: !!snapshot.loading,
     canGoBack: !!snapshot.canGoBack,
     canGoForward: !!snapshot.canGoForward,
@@ -3814,6 +3815,7 @@ function newBrowserTabState(snapshot = {}) {
       ? snapshot.subtitleMode : 'source',
     targetLanguage: snapshot.targetLanguage || '',
     trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : [],
+    recoveryJobs: Array.isArray(snapshot.recoveryJobs) ? snapshot.recoveryJobs.map((job) => ({ ...job })) : [],
     resumePending: !!snapshot.resumePending,
   };
 }
@@ -4057,7 +4059,7 @@ function syncBrowserTabs(snapshots, activeTabId) {
     const tab = previous.get(snapshot.id) || newBrowserTabState(snapshot);
     Object.assign(tab, {
       generation: Math.max(Number(tab.generation) || 0, Number(snapshot.generation) || 0),
-      url: snapshot.url || '', title: snapshot.title || '', loading: !!snapshot.loading,
+      url: snapshot.url || '', title: snapshot.title || '', favicon: snapshot.favicon || tab.favicon || '', loading: !!snapshot.loading,
       canGoBack: !!snapshot.canGoBack, canGoForward: !!snapshot.canGoForward,
       captureEnabled: snapshot.captureEnabled !== false,
       pinned: snapshot.pinned !== undefined ? !!snapshot.pinned : !!tab.pinned,
@@ -4086,6 +4088,8 @@ function syncBrowserTabs(snapshots, activeTabId) {
       browserPageError: snapshot.pageTranslateError !== undefined ? String(snapshot.pageTranslateError || '') : (tab.browserPageError || ''),
       browserPageVisible: snapshot.pageTranslateVisible !== undefined ? !!snapshot.pageTranslateVisible : !!tab.browserPageVisible,
       trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : (tab.trackRefs || []),
+      recoveryJobs: Array.isArray(snapshot.recoveryJobs)
+        ? snapshot.recoveryJobs.map((job) => ({ ...job })) : (tab.recoveryJobs || []),
       resumePending: !!snapshot.resumePending,
     });
     player.browserTabEventGate.open(tab.id, tab.generation, {
@@ -4100,6 +4104,9 @@ function syncBrowserTabs(snapshots, activeTabId) {
   player.browserActiveTabId = activeTabId || (next[0] && next[0].id) || '';
   if (browserPageFind.tabId && browserPageFind.tabId !== player.browserActiveTabId) closeBrowserFind(false);
   renderBrowserTabs();
+  renderBrowserRecoveryList();
+  updatePlayerTaskCenter();
+  maybeShowBrowserRecovery();
 }
 
 const browserPageFind = { tabId: '', token: 0, timer: null };
@@ -5032,6 +5039,72 @@ $('browserDownloadsPanel')?.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setBrowserDownloadsOpen(false); }
 });
 
+$('browserSessionExport')?.addEventListener('click', async () => {
+  const status = $('browserSessionStatus');
+  if (status) status.textContent = 'Oturum paketi hazırlanıyor…';
+  const result = await window.api.exportBrowserSession?.().catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) {
+    const message = `${result.tabs} sekme ve ${result.variants} altyazı varyantı güvenli pakete kaydedildi.`;
+    if (status) status.textContent = message;
+    logLine(`${message} ${result.path}`, 'success');
+  } else if (!result?.canceled) {
+    const message = result?.error || 'Tarayıcı oturumu dışa aktarılamadı.';
+    if (status) status.textContent = message; logLine(message, 'error');
+  } else if (status) status.textContent = 'Oturum dışa aktarma iptal edildi.';
+});
+
+$('browserSessionImport')?.addEventListener('click', async () => {
+  const accepted = await openAppDialog({
+    title: 'Tarayıcı oturumunu içe aktar',
+    description: 'Açık tarayıcı sekmeleri güvenli biçimde kapatılıp paketteki sekmelerle değiştirilecek. Çerezler ve API anahtarları içe aktarılmaz.',
+    confirmLabel: 'Dosya seç', intent: 'primary',
+  });
+  if (!accepted) return;
+  // Ana süreç paketi doğruladıktan sonra mevcut sekmeleri değiştirir. Eski aktif
+  // sekmenin son renderer durumu, içe aktarma IPC'sinden önce kaydedilmelidir.
+  saveActiveBrowserTabWorkspace();
+  const status = $('browserSessionStatus');
+  if (status) status.textContent = 'Paket doğrulanıyor ve sağlam kayıtlar kurtarılıyor…';
+  const result = await window.api.importBrowserSession?.().catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    if (!result?.canceled) {
+      const message = result?.error || 'Tarayıcı oturumu içe aktarılamadı.';
+      if (status) status.textContent = message; logLine(message, 'error');
+    } else if (status) status.textContent = 'Oturum içe aktarma iptal edildi.';
+    return;
+  }
+  player.browserTabs = [];
+  player.browserActiveTabId = '';
+  syncBrowserTabs(result.tabs, result.activeTabId);
+  if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
+  const active = browserTabState();
+  if (active) restoreActiveBrowserTabWorkspace(active);
+  const warning = result.warnings?.length ? ` · ${result.warnings.length} bozuk kayıt atlandı` : '';
+  const message = `${result.restoredTabs} sekme ve ${result.restoredVariants} altyazı varyantı geri yüklendi${warning}.`;
+  if (status) status.textContent = message;
+  logLine(message, result.warnings?.length ? 'warn' : 'success');
+});
+
+function syncBrowserNetworkState() {
+  if (!window.api.setBrowserNetworkOnline) return;
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  window.api.setBrowserNetworkOnline(online).then((result) => {
+    if (!result?.ok) return;
+    if (!online) {
+      setBrowserSignal('Ağ bağlantısı yok; yeni altyazı ve sayfa çevirileri çevrimdışı kuyrukta bekleyecek.', false,
+        { priority: 75, holdMs: 5000 });
+    } else if (result.retried) {
+      setBrowserSignal(`Bağlantı geri geldi; ${result.retried} eksik çeviri yeniden kuyruğa alındı.`, true,
+        { priority: 70, holdMs: 5000 });
+    }
+  }).catch(() => {});
+}
+if (typeof window.addEventListener === 'function') {
+  window.addEventListener('online', syncBrowserNetworkState);
+  window.addEventListener('offline', syncBrowserNetworkState);
+}
+syncBrowserNetworkState();
+
 let browserDiagnosticsFilter = '';
 
 function browserDiagnosticsCopyText(diagnostics) {
@@ -5063,6 +5136,17 @@ function renderBrowserDiagnostics(diagnostics) {
   if ($('browserDiagnosticsSummary')) $('browserDiagnosticsSummary').textContent = attempts
     ? `${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`
     : 'Henüz ağ izi yok';
+  const activity = diagnostics.activity || {};
+  for (const [id, key] of [['browserDiagnosticsLastCapture', 'lastCapture'],
+    ['browserDiagnosticsLastTranslation', 'lastTranslation'], ['browserDiagnosticsLastError', 'lastError']]) {
+    const target = $(id);
+    if (!target) continue;
+    const entry = activity[key];
+    const at = Number(entry?.at);
+    target.textContent = entry
+      ? `${entry.message || 'Kaydedildi'}${Number.isFinite(at) && at > 0 ? ` · ${new Date(at).toLocaleString('tr-TR')}` : ''}`
+      : 'Henüz yok';
+  }
   renderBrowserAcquisition(diagnostics.acquisition);
   renderBrowserCapabilityMatrix(diagnostics.capabilityMatrix);
   const pluginStatus = diagnostics.adapterPlugins || {};
@@ -5301,9 +5385,17 @@ function renderBrowserTracks(selectedId) {
         option = document.createElement('option');
         option.value = track.id;
       }
-      const roleLabel = track.role === 'translation' ? 'Çeviri · ' : '';
-      const label = `${roleLabel}${track.language ? track.language.toUpperCase() + ' · ' : ''}${track.label} · ${track.cueCount} satır`;
+      const roleLabel = track.role === 'translation' ? 'Çeviri' : 'Kaynak';
+      const variant = track.role === 'translation'
+        ? [track.provider, track.model].filter(Boolean).join(' / ') : (track.format || track.source || 'web');
+      const date = Number(track.updatedAt) ? new Date(Number(track.updatedAt)).toLocaleDateString('tr-TR') : '';
+      const label = [roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
+        variant, date, `${track.cueCount} satır`].filter(Boolean).join(' · ');
       if (option.textContent !== label) option.textContent = label;
+      option.title = track.sourceMismatch
+        ? 'Bu çeviri farklı bir kaynak altyazıya ait; otomatik yüklenmez.'
+        : `${roleLabel}${variant ? ` · ${variant}` : ''}${date ? ` · ${date}` : ''}`;
+      option.disabled = !!track.sourceMismatch;
       target.appendChild(option);
     }
   };
@@ -6469,6 +6561,7 @@ function setWorkspaceMode(mode, persist = true) {
     $('playerMeta').textContent = 'Web videosu · altyazı algılama açık';
     requestAnimationFrame(() => showBrowserWorkspace());
     scheduleBrowserOverlaySync();
+    maybeShowBrowserRecovery();
   } else {
     if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
     if (previousMode === 'browser') restoreLocalSubtitleWorkspace();
@@ -6921,6 +7014,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if ((event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error')
       && (!event.tabId || event.tabId === player.browserActiveTabId)) {
     applyBrowserPageTranslationState(event);
+    if (event.state === 'ready' && !Number(event.failed)) {
+      void completeBrowserRecovery(browserTabState(), 'page-translation');
+    }
   }
   // İndirme oturum genelindedir; kaynak sekme kapansa bile sonucu göster.
   if (event.type === 'downloads') { receiveBrowserDownloads(event.downloads); return; }
@@ -6965,6 +7061,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         });
       } else if (event.type === 'title') {
         tab.title = event.title || '';
+      } else if (event.type === 'favicon') {
+        tab.favicon = event.favicon || '';
       } else if (event.type === 'subtitle-found' && event.track) {
         const index = tab.browserTracks.findIndex((track) => track.id === event.track.id);
         if (index >= 0) tab.browserTracks[index] = event.track; else tab.browserTracks.push(event.track);
@@ -6991,6 +7089,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.browserTranslationFailed = Math.max(0, Number(progress.failed) || 0);
         if (browserTranslationJustCompleted(tab, progress) && !tab.browserTranslationFailed) {
           tab.subtitleMode = 'translation';
+          void completeBrowserRecovery(tab, 'subtitle-translation', event.trackId);
         }
       } else if (event.type === 'capture-enabled') {
         tab.captureEnabled = event.enabled !== false;
@@ -7005,6 +7104,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.browserMangaEmpty = Math.max(0, Number(event.empty) || 0);
         if (event.retryable !== undefined) tab.browserMangaRetryable = Math.max(0, Number(event.retryable) || 0);
         tab.browserMangaError = event.state === 'error' ? String(event.message || event.error || '') : '';
+        if (event.state === 'ready' && !tab.browserMangaFailed) void completeBrowserRecovery(tab, 'manga');
       } else if (event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error') {
         tab.browserPageTranslateBusy = event.state === 'running';
         if (event.translated !== undefined) tab.browserPageTranslated = Math.max(0, Number(event.translated) || 0);
@@ -7012,6 +7112,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         if (event.visible !== undefined) tab.browserPageVisible = !!event.visible;
         if (event.state === 'error') tab.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
         else if (event.state === 'idle' || event.state === 'ready') tab.browserPageError = '';
+        if (event.state === 'ready' && !tab.browserPageFailed) void completeBrowserRecovery(tab, 'page-translation');
       } else if (event.type === 'load-error' || event.type === 'security-error'
           || event.type === 'drm-playback-error' || event.type === 'tab-crashed') {
         tab.error = event.message || 'Tarayıcı hatası';
@@ -7033,6 +7134,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (tab) updateBrowserTabPresentation(tab);
     if (player.workspaceMode === 'browser') $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     loadBrowserPlaces();
+  } else if (event.type === 'favicon') {
+    const tab = browserTabState();
+    if (tab) tab.favicon = event.favicon || '';
   } else if (event.type === 'places' && event.places) {
     player.browserPlaces = event.places;
     renderBrowserPlaces();
@@ -7147,6 +7251,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     renderBrowserDiagnostics(event.diagnostics);
   } else if (event.type === 'manga-state') {
     applyBrowserMangaState(event);
+    if (event.state === 'ready' && !Number(event.failed)) void completeBrowserRecovery(browserTabState(), 'manga');
   } else if (event.type === 'translation-result') {
     applyBrowserTranslationResult(event);
   } else if (event.type === 'translation-state' && event.trackId === player.browserTranslationTrackId) {
@@ -7164,6 +7269,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         { priority: 60 });
     } else if (progress.total && Number(progress.completed) >= Number(progress.total)) {
       if (justCompleted) setSubtitleMode('translation', false);
+      if (!player.browserTranslationFailed) void completeBrowserRecovery(translationTab, 'subtitle-translation', event.trackId);
       updateBrowserTranslationExportButton();
       setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed)}/${Number(progress.total)} cümle.${justCompleted ? ' Çeviri ana altyazı olarak gösteriliyor.' : ''}`, true,
         { priority: 65, holdMs: 4000 });
@@ -11459,7 +11565,104 @@ function playerTaskSnapshot() {
   if (player.browserMangaBusy) rows.push({ label: 'Manga çevirisi', detail: `${player.browserMangaTranslated || 0} bölge hazır` });
   if (player.browserPageTranslateBusy) rows.push({ label: 'Sayfa çevirisi', detail: `${player.browserPageTranslated || 0} blok hazır` });
   if (player.pdfReader?.translating) rows.push({ label: 'PDF çevirisi', detail: $('pdfReaderStatus')?.textContent || 'Çeviri sürüyor' });
+  const recoverable = (Array.isArray(player.browserTabs) ? player.browserTabs : [])
+    .reduce((total, item) => total + (item.recoveryJobs?.length || 0), 0);
+  if (recoverable) rows.push({ label: 'Kurtarılabilir browser işi', detail: `${recoverable} yarım iş için işlem bekleniyor` });
   return rows;
+}
+
+function browserRecoveryLabel(job) {
+  if (job.kind === 'subtitle-translation') return 'Altyazı çevirisi';
+  if (job.kind === 'manga') return 'Manga çevirisi';
+  return 'Sayfa çevirisi';
+}
+
+function maybeShowBrowserRecovery() {
+  if (player.browserRecoveryAnnounced || player.workspaceMode !== 'browser') return;
+  const count = (Array.isArray(player.browserTabs) ? player.browserTabs : [])
+    .reduce((total, tab) => total + (tab.recoveryJobs?.length || 0), 0);
+  if (!count) return;
+  player.browserRecoveryAnnounced = true;
+  setSettingsPage('browser-view');
+  setSettingsDrawer(true);
+  if ($('browserSessionStatus')) {
+    $('browserSessionStatus').textContent = `Beklenmedik kapanıştan kalan ${count} browser işi bulundu. Devam edebilir, yeniden başlatabilir veya silebilirsiniz.`;
+  }
+}
+
+async function runBrowserRecovery(tabId, job, restart = false) {
+  const activated = await activateBrowserTab(tabId);
+  if (!activated || player.browserActiveTabId !== tabId) return;
+  const tab = browserTabState(tabId);
+  const track = job.kind === 'subtitle-translation'
+    ? player.browserTracks.find((item) => item.id === job.trackId || item.id === job.trackId?.split('|').pop()) : null;
+  if (job.kind === 'subtitle-translation' && !track) {
+    setBrowserSignal('Kaynak altyazı izi henüz bulunamadı. Sayfa yüklendikten sonra yeniden deneyin.', false);
+    return;
+  }
+  // İş gerçekten hazır olmadan kurtarma kaydını silme. Yeniden çökme halinde
+  // kullanıcı son devam noktasını korur; başarı olayları kaydı temizler.
+  if (tab) {
+    const stored = (tab.recoveryJobs || []).find((item) => item.id === job.id);
+    if (stored) { stored.state = 'queued'; stored.updatedAt = Date.now(); }
+  }
+  renderBrowserRecoveryList();
+  if (job.kind === 'subtitle-translation') {
+    if (restart) await window.api.stopBrowserTranslation?.(tabId).catch(() => null);
+    await useBrowserTrack(true, track.id);
+  } else if (job.kind === 'manga') {
+    if (restart && player.browserMangaTranslated) await window.api.clearBrowserManga?.(tabId).catch(() => null);
+    await handleBrowserMangaAction();
+  } else {
+    if (restart && player.browserPageTranslated) await window.api.clearBrowserPageTranslation?.(tabId).catch(() => null);
+    await handleBrowserPageTranslationAction();
+  }
+}
+
+async function completeBrowserRecovery(tab, kind, trackId = '') {
+  if (!tab?.id || !Array.isArray(tab.recoveryJobs)) return;
+  const matches = tab.recoveryJobs.filter((job) => job.kind === kind
+    && (!trackId || !job.trackId || job.trackId === trackId));
+  if (!matches.length) return;
+  tab.recoveryJobs = tab.recoveryJobs.filter((job) => !matches.includes(job));
+  for (const job of matches) {
+    await window.api.dismissBrowserRecovery?.(tab.id, job.id).catch(() => null);
+  }
+  renderBrowserRecoveryList();
+  updatePlayerTaskCenter();
+}
+
+function renderBrowserRecoveryList() {
+  const list = $('browserRecoveryList');
+  if (!list) return;
+  list.replaceChildren();
+  const jobs = player.browserTabs.flatMap((tab) => (tab.recoveryJobs || []).map((job) => ({ tab, job })));
+  if (!jobs.length) {
+    const empty = document.createElement('p'); empty.className = 'browser-recovery-empty';
+    empty.textContent = 'Kurtarılabilir yarım browser işi yok.'; list.appendChild(empty); return;
+  }
+  for (const { tab, job } of jobs) {
+    const row = document.createElement('article'); row.className = 'browser-recovery-row';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong'); title.textContent = `${browserRecoveryLabel(job)} · ${tab.title || 'Sekme'}`;
+    const detail = document.createElement('span');
+    detail.textContent = `${job.completed || 0}/${job.total || '?'} tamamlandı${job.failed ? ` · ${job.failed} hata` : ''}`;
+    copy.append(title, detail); row.appendChild(copy);
+    const actions = document.createElement('div'); actions.className = 'browser-recovery-actions';
+    for (const [label, handler] of [
+      ['Devam et', () => runBrowserRecovery(tab.id, job, false)],
+      ['Yeniden başlat', () => runBrowserRecovery(tab.id, job, true)],
+      ['Sil', async () => {
+        await window.api.dismissBrowserRecovery?.(tab.id, job.id).catch(() => null);
+        tab.recoveryJobs = (tab.recoveryJobs || []).filter((item) => item.id !== job.id);
+        renderBrowserRecoveryList(); updatePlayerTaskCenter();
+      }],
+    ]) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm';
+      button.textContent = label; button.addEventListener('click', handler); actions.appendChild(button);
+    }
+    row.appendChild(actions); list.appendChild(row);
+  }
 }
 
 function updatePlayerTaskCenter() {
@@ -11507,6 +11710,7 @@ function setPlayerTaskCenter(open) {
 }
 
 initializeSettingsPages();
+renderBrowserRecoveryList();
 
 if ($('toggleSettings')) {
   $('toggleSettings').addEventListener('click', () => {

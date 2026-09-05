@@ -2769,6 +2769,27 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .settings-page-browser-subtitles #browserTrackSelect,
 .settings-page-browser-subtitles #browserTrackSelect2 { grid-column: 1 / -1; }
 .settings-page-browser-subtitles .browser-signal-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.browser-session-portability { margin-top: 14px; padding-top: 14px; border-top: 1px solid #2b333a; }
+.browser-session-status, .browser-recovery-empty { margin: 9px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
+.browser-recovery-list { display: grid; gap: 8px; margin-top: 10px; }
+.browser-recovery-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 10px; border: 1px solid #303a42; border-radius: 9px; background: #11181e; }
+.browser-recovery-row > div:first-child { min-width: 0; display: grid; gap: 3px; }
+.browser-recovery-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-primary); font-size: 12px; }
+.browser-recovery-row span { color: var(--ink-muted); font-size: 11px; }
+.browser-recovery-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.browser-diagnostics-activity { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.browser-diagnostics-activity > div { min-width: 0; padding: 9px; border: 1px solid #303a42; border-radius: 8px; background: #11181e; }
+.browser-diagnostics-activity dt { color: var(--ink-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.browser-diagnostics-activity dd { margin: 5px 0 0; overflow-wrap: anywhere; color: var(--ink-primary); font-size: 11px; line-height: 1.4; }
+/* Browser gezinme kontrolleri dokunmatik ekran ve yüksek DPI'da da güvenilir
+   hedefler olarak kalır. Sekme içi minik kapatma düğmeleri masaüstü sekme
+   yoğunluğunu koruduğu için bu kurala dahil değildir. */
+.browser-nav-button, .browser-go, .browser-manga-button,
+.browser-toolbar-actions > .btn-icon, .browser-toolbar-actions > button,
+.browser-more > summary { min-width: 44px; min-height: 44px; }
+.browser-address-wrap { min-height: 44px; height: 44px; }
+.browser-toolbar { grid-template-rows: 28px 44px; }
 .browser-signal:has(.browser-signal-body:empty) { min-height: 42px; gap: 0; padding-block: 6px; }
 .browser-signal:has(.browser-signal-body:empty) .browser-signal-copy { flex-direction: row; align-items: center; gap: 9px; }
 .browser-signal:has(.browser-signal-body:empty) .browser-signal-kicker { flex: 0 0 auto; }
@@ -2786,8 +2807,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 }
 @container browser-workspace (max-width: 760px) {
   .browser-page-button span, .browser-subtitle-settings-button span { display: none; }
-  .browser-page-button, .browser-subtitle-settings-button { min-width: 36px; width: 36px; padding: 0; }
+  .browser-page-button, .browser-subtitle-settings-button { min-width: 44px; width: 44px; min-height: 44px; padding: 0; }
   #browserMangaTranslate { display: none; }
+}
+@container browser-workspace (max-width: 620px) {
+  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar { grid-template-rows: 28px 44px auto; }
+  .browser-recovery-row { grid-template-columns: minmax(0, 1fr); }
+  .browser-recovery-actions { justify-content: stretch; }
+  .browser-recovery-actions .btn { flex: 1 1 120px; min-height: 44px; }
+  .browser-diagnostics-activity { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Astra UX refinement: browser controls stay compact, while detailed subtitle
@@ -2991,7 +3019,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   .browser-page-button span,
   .browser-subtitle-settings-button span { display: none; }
   .browser-page-button,
-  .browser-subtitle-settings-button { min-width: 36px; width: 36px; padding: 0; }
+  .browser-subtitle-settings-button { min-width: 44px; width: 44px; min-height: 44px; padding: 0; }
   #browserMangaTranslate { display: none; }
 }
 @media (max-width: 1180px) {
@@ -5218,6 +5246,6 @@ body.modal-open { overflow: hidden; }
 }
 @container browser-workspace (max-width: 760px) {
   .browser-page-button span, .browser-subtitle-settings-button span { display: none; }
-  .browser-page-button, .browser-subtitle-settings-button { min-width: 36px; width: 36px; padding: 0; }
+  .browser-page-button, .browser-subtitle-settings-button { min-width: 44px; width: 44px; min-height: 44px; padding: 0; }
   #browserMangaTranslate { display: none; }
 }
