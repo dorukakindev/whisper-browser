@@ -71,6 +71,7 @@ function controllerBootstrap() {
           volume: finite(item.volume),
           playbackRate: finite(item.playbackRate, 1),
           area: Math.max(0, item.clientWidth * item.clientHeight),
+          adPlaying: !!document.querySelector?.('.html5-video-player.ad-showing'),
         };
       },
       diagnostics() {

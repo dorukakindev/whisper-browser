@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage, Menu, protocol } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage, Menu, protocol, net } = require('electron');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -60,6 +60,15 @@ const {
   watchOutputNames,
 } = require('./watch-folder');
 const { createNdjsonLineBuffer } = require('./ndjson-lines');
+const {
+  DEFAULT_CATEGORIES: SPONSORBLOCK_CATEGORIES,
+  youtubeVideoId: sponsorBlockVideoId,
+  hashPrefix: sponsorBlockHashPrefix,
+  normalizeCategories: normalizeSponsorCategories,
+  extractHashSegments: extractSponsorHashSegments,
+  validateSegments: validateSponsorSegments,
+  SponsorBlockCache,
+} = require('./browser-sponsorblock');
 const {
   burninAudioArgs,
   burninFinalOutputLooksComplete,
@@ -1415,6 +1424,10 @@ const BROWSER_PARTITION = 'persist:whisper-browser';
 const BROWSER_ISOLATED_WORLD_ID = 999;
 const BROWSER_PLACES_FILE = 'browser-places.json';
 const BROWSER_PLACE_LIMIT = 100;
+const sponsorBlockCache = new SponsorBlockCache();
+const sponsorBlockInFlight = new Map();
+const SPONSORBLOCK_HOST = 'sponsor.ajay.app';
+const MAX_SPONSORBLOCK_BYTES = 2 * 1024 * 1024;
 
 function nextBrowserTabId() {
   browserTabSequence += 1;
@@ -6274,6 +6287,52 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:page-mutated', (event)
   tab.pageFind.refresh();
 });
 
+function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
+  const normalized = normalizeSponsorCategories(categories);
+  const cached = sponsorBlockCache.get(videoId, normalized);
+  if (cached) return Promise.resolve({ ok: true, ...cached, cached: true });
+  const key = sponsorBlockCache.key(videoId, normalized);
+  if (sponsorBlockInFlight.has(key)) return sponsorBlockInFlight.get(key);
+  const promise = new Promise((resolve) => {
+    const prefix = sponsorBlockHashPrefix(videoId, 4);
+    const request = net.request({
+      protocol: 'https:',
+      hostname: SPONSORBLOCK_HOST,
+      path: `/api/skipSegments/${encodeURIComponent(prefix)}?categories=${encodeURIComponent(JSON.stringify(normalized))}`,
+      method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
+    });
+    request.on('response', (response) => {
+      clearTimeout(timeoutTimer);
+      let total = 0; const chunks = [];
+      response.on('data', (chunk) => {
+        total += chunk.length;
+        if (total > MAX_SPONSORBLOCK_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' }); }
+        chunks.push(chunk);
+      });
+      response.on('end', () => {
+        if (total > MAX_SPONSORBLOCK_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
+        if (response.statusCode === 404) {
+          const empty = { segments: [], invalid: 0, source: 'SponsorBlock' }; sponsorBlockCache.set(videoId, normalized, empty, { negative: true });
+          return resolve({ ok: true, ...empty });
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          const checked = validateSponsorSegments(extractSponsorHashSegments(parsed, videoId), videoId, duration);
+          const result = { segments: checked.segments, invalid: checked.invalid, source: 'SponsorBlock' };
+          sponsorBlockCache.set(videoId, normalized, result, { negative: !result.segments.length });
+          resolve({ ok: true, ...result });
+        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
+      });
+    });
+    const timeoutTimer = setTimeout(() => { request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' }); }, 7000);
+    request.on('error', (error) => { clearTimeout(timeoutTimer); resolve({ ok: false, errorKind: 'network', error: `SponsorBlock bağlantısı kurulamadı: ${error.message}` }); });
+    request.end();
+  }).finally(() => sponsorBlockInFlight.delete(key));
+  sponsorBlockInFlight.set(key, promise);
+  return promise;
+}
+
 ipcMain.handle('browser:command', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const { command, value } = payload || {};
@@ -6343,6 +6402,18 @@ ipcMain.handle('browser:command', async (event, payload) => {
   } catch (err) {
     return { ok: false, error: err.message };
   }
+});
+
+ipcMain.handle('browser:sponsorBlock:get', async (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(payload.tabId);
+  if (!tab) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
+  const videoId = sponsorBlockVideoId(payload.url || tab.url);
+  if (!videoId) return { ok: false, errorKind: 'unsupported', error: 'Bu sayfa bir YouTube videosu değil.' };
+  const duration = Number(payload.duration);
+  const result = await fetchSponsorBlockSegments(videoId, payload.categories || SPONSORBLOCK_CATEGORIES,
+    Number.isFinite(duration) && duration > 0 ? duration : 0);
+  return { ...result, videoId, tabId: tab.id, mediaGeneration: tab.generation };
 });
 
 ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {

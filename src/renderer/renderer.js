@@ -3775,6 +3775,15 @@ const player = {
   browserRate: 1,
   browserVolume: 1,
   browserMuted: false,
+  browserSponsorSegments: [],
+  browserSponsorVideoId: '',
+  browserSponsorGeneration: 0,
+  browserSponsorSkipped: new Set(),
+  browserSponsorFetchSeq: 0,
+  browserSponsorMutedUntil: 0,
+  browserSponsorTemporaryDisabled: false,
+  browserSponsorPendingAction: null,
+  browserAdPlaying: false,
   browserZoom: 1,
   browserProfileKey: '',
   browserPositionTick: 0,
@@ -4685,8 +4694,10 @@ function setBrowserSignal(text, detected = false, options = {}) {
   const action = $('browserSignalTranslateAction');
   if (action) {
     const actionName = options.action || '';
-    action.classList.toggle('hidden', !['translate', 'live-asr'].includes(actionName));
-    action.textContent = actionName === 'live-asr' ? 'Canlı Whisper' : 'Şimdi çevir';
+    action.classList.toggle('hidden', !['translate', 'live-asr', 'sponsor-skip', 'sponsor-undo'].includes(actionName));
+    action.textContent = actionName === 'live-asr' ? 'Canlı Whisper'
+      : actionName === 'sponsor-skip' ? 'Atla'
+        : actionName === 'sponsor-undo' ? 'Geri al' : 'Şimdi çevir';
   }
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   return true;
@@ -6978,6 +6989,14 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserRate = 1;
     player.browserVolume = 1;
     player.browserMuted = false;
+    player.browserSponsorSegments = [];
+    player.browserSponsorVideoId = '';
+    player.browserSponsorSkipped = new Set();
+    player.browserSponsorFetchSeq += 1;
+    player.browserSponsorMutedUntil = 0;
+    player.browserSponsorTemporaryDisabled = false;
+    player.browserSponsorPendingAction = null;
+    player.browserAdPlaying = false;
     player.browserProfileKey = '';
     player.browserPositionTick = 0;
     applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
@@ -7010,6 +7029,9 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.loading === false && data.url && player.workspaceMode === 'browser' && !player.browserTracks.length) {
     scheduleBrowserNoTrackSuggestion(data.url);
   }
+  if (data.loading === false && data.url && player.workspaceMode === 'browser' && browserSponsorMode() !== 'off') {
+    refreshBrowserSponsorSegments().catch(() => {});
+  }
   if (data.loading === false && data.url && $('browserMangaAuto')?.checked
       && player.browserMangaAutoUrl !== data.url && !player.browserMangaBusy) {
     clearTimeout(player.browserMangaAutoTimer);
@@ -7036,8 +7058,101 @@ function updateBrowserNavigation(data, options = {}) {
   return true;
 }
 
+function browserSponsorMode() {
+  const value = $('browserSponsorMode')?.value;
+  return ['off', 'ask', 'auto'].includes(value) ? value : 'off';
+}
+
+function browserSponsorCategories() {
+  return [...($('browserSponsorCategories')?.selectedOptions || [])].map((option) => option.value);
+}
+
+function renderBrowserSponsorSegments() {
+  const list = $('browserSponsorSegments');
+  if (!list) return;
+  list.replaceChildren();
+  for (const segment of player.browserSponsorSegments) {
+    const item = document.createElement('li');
+    item.textContent = `${segment.category} · ${pSecToTime(segment.start)}–${pSecToTime(segment.end)}`;
+    list.appendChild(item);
+  }
+}
+
+async function refreshBrowserSponsorSegments() {
+  if (player.workspaceMode !== 'browser' || !window.api.getBrowserSponsorSegments) return;
+  if (browserSponsorMode() === 'off' || player.browserSponsorTemporaryDisabled) {
+    if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'SponsorBlock kapalı; ağ isteği gönderilmedi.';
+    return;
+  }
+  const seq = ++player.browserSponsorFetchSeq;
+  const requestedTabId = player.browserActiveTabId;
+  const requestedGeneration = Number(browserTabState()?.generation) || 0;
+  if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Sponsor bölümleri alınıyor…';
+  const result = await window.api.getBrowserSponsorSegments(player.browserActiveTabId, player.browserPageUrl,
+    browserSponsorCategories(), player.browserDuration).catch(() => null);
+  if (seq !== player.browserSponsorFetchSeq || result?.tabId !== player.browserActiveTabId
+      || player.browserActiveTabId !== requestedTabId
+      || (requestedGeneration && Number(result?.mediaGeneration) !== requestedGeneration)) return;
+  if (!result?.ok) {
+    player.browserSponsorSegments = [];
+    if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Sponsor bilgileri alınamadı; video normal oynatılıyor.';
+    renderBrowserSponsorSegments(); return;
+  }
+  player.browserSponsorVideoId = result.videoId || '';
+  player.browserSponsorGeneration = Number(result.mediaGeneration) || 0;
+  player.browserSponsorSegments = (Array.isArray(result.segments) ? result.segments : [])
+    .filter((segment) => !Number.isFinite(player.browserDuration) || player.browserDuration <= 0 || segment.end <= player.browserDuration);
+  player.browserSponsorSkipped = new Set();
+  renderBrowserSponsorSegments();
+  if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = player.browserSponsorSegments.length
+    ? `${player.browserSponsorSegments.length} sponsor bölümü bulundu.` : 'Bu videoda sponsor bölümü bulunamadı.';
+}
+
+function seekBrowserSponsorSegment(segment, undo = false) {
+  const id = segment.uuid || `${segment.start}:${segment.end}`;
+  const target = undo ? segment.start : segment.end;
+  if (!undo) player.browserSponsorSkipped.add(id);
+  else {
+    player.browserSponsorSkipped.delete(id);
+    player.browserSponsorMutedUntil = Date.now() + 5000;
+  }
+  player.browserTime = target;
+  browserCommand('seek', target).then((result) => {
+    if (!result?.ok) { if (!undo) player.browserSponsorSkipped.delete(id); return; }
+    player.browserSponsorPendingAction = segment;
+    setBrowserSignal(undo ? 'Sponsor bölümüne geri dönüldü.' : `Sponsor bölümü atlandı · ${pSecToTime(segment.end - segment.start)}`,
+      true, undo ? { priority: 60, holdMs: 2500 } : { priority: 60, holdMs: 4500, action: 'sponsor-undo' });
+  }).catch(() => { if (!undo) player.browserSponsorSkipped.delete(id); });
+}
+
+function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaused) {
+  const mode = browserSponsorMode();
+  if (paused || mode === 'off' || player.browserSponsorTemporaryDisabled || player.browserAdPlaying
+      || (player.abA !== null && player.abB !== null) || !player.browserSponsorSegments.length
+      || !Number.isFinite(player.browserDuration) || player.browserDuration <= 0) return;
+  const currentTabGeneration = Number(browserTabState()?.generation) || 0;
+  if (player.browserSponsorGeneration && currentTabGeneration !== player.browserSponsorGeneration) return;
+  const now = Date.now();
+  if (now < player.browserSponsorMutedUntil) return;
+  if (Number.isFinite(previousTime) && previousTime - time > 1) {
+    player.browserSponsorMutedUntil = now + 3000;
+    return;
+  }
+  const segment = player.browserSponsorSegments.find((item) => time >= item.start && time < item.end
+    && !player.browserSponsorSkipped.has(item.uuid || `${item.start}:${item.end}`));
+  if (!segment) return;
+  player.browserSponsorPendingAction = segment;
+  if (mode === 'ask') {
+    setBrowserSignal(`Sponsor bölümü bulundu · ${pSecToTime(segment.end - segment.start)}`, true,
+      { priority: 60, holdMs: 3500, action: 'sponsor-skip' });
+    return;
+  }
+  seekBrowserSponsorSegment(segment, false);
+}
+
 function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   const t = subtitleSourceTime(Number(time || 0), false);
+  applyBrowserSponsorSkip(Number(time || 0), Number(previousTime), paused);
   const previous = Number(previousTime);
   applyPlaybackLearningPolicy(time, previousTime, paused, true);
   if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
@@ -7490,6 +7605,29 @@ if ($('browserForward')) $('browserForward').addEventListener('click', () => run
 if ($('browserReload')) $('browserReload').addEventListener('click', () => {
   runBrowserChromeCommand($('browserReload').classList.contains('loading') ? 'stop' : 'reload');
 });
+if ($('browserSponsorRefresh')) $('browserSponsorRefresh').addEventListener('click', () => refreshBrowserSponsorSegments().catch(() => {}));
+if ($('browserSponsorMode')) $('browserSponsorMode').addEventListener('change', () => {
+  const mode = browserSponsorMode();
+  if (mode === 'off') {
+    player.browserSponsorSegments = []; player.browserSponsorFetchSeq += 1; renderBrowserSponsorSegments();
+    if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'SponsorBlock kapalı; ağ isteği gönderilmez.';
+  } else {
+    setBrowserSignal(mode === 'auto' ? 'Sponsor bölümleri otomatik atlanacak.' : 'Sponsor bölümü bulunduğunda atlama seçeneği gösterilecek.', true);
+    refreshBrowserSponsorSegments().catch(() => {});
+  }
+});
+if ($('browserSponsorTemporary')) $('browserSponsorTemporary').addEventListener('click', () => {
+  player.browserSponsorTemporaryDisabled = !player.browserSponsorTemporaryDisabled;
+  const button = $('browserSponsorTemporary');
+  button.setAttribute('aria-pressed', player.browserSponsorTemporaryDisabled ? 'true' : 'false');
+  button.textContent = player.browserSponsorTemporaryDisabled ? 'Bu videoda yeniden aç' : 'Bu videoda geçici kapat';
+  if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = player.browserSponsorTemporaryDisabled
+    ? 'SponsorBlock bu video için geçici olarak kapatıldı.' : 'SponsorBlock bu video için yeniden açıldı.';
+  if (!player.browserSponsorTemporaryDisabled) refreshBrowserSponsorSegments().catch(() => {});
+});
+if ($('browserSponsorInfo')) $('browserSponsorInfo').addEventListener('click', () => {
+  window.api.openExternal?.('https://wiki.sponsor.ajay.app/w/API_Docs').catch(() => {});
+});
 if ($('browserErrorRetry')) $('browserErrorRetry').addEventListener('click', () => {
   const tab = browserTabState();
   const url = tab?.errorUrl || player.browserPageUrl;
@@ -7533,7 +7671,10 @@ if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () =>
 if ($('browserTrackLoadPair')) $('browserTrackLoadPair').addEventListener('click', useBrowserTrackPair);
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
 if ($('browserSignalTranslateAction')) $('browserSignalTranslateAction').addEventListener('click', () => {
+  const action = player.browserSignalState?.action;
   if (player.browserSignalState?.action === 'live-asr') toggleBrowserLiveAsr();
+  else if (action === 'sponsor-skip' && player.browserSponsorPendingAction) seekBrowserSponsorSegment(player.browserSponsorPendingAction, false);
+  else if (action === 'sponsor-undo' && player.browserSponsorPendingAction) seekBrowserSponsorSegment(player.browserSponsorPendingAction, true);
   else useBrowserTrack(true);
 });
 if ($('browserTrackTranslateAll')) $('browserTrackTranslateAll').addEventListener('click', completeSelectedBrowserTranslation);
@@ -7780,6 +7921,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     player.browserTime = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
     player.browserDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0;
     player.browserPaused = !!event.media.paused;
+    player.browserAdPlaying = !!event.media.adPlaying;
     const nextVolume = Number(event.media.volume);
     if (Number.isFinite(nextVolume)) player.browserVolume = Math.max(0, Math.min(1, nextVolume));
     player.browserMuted = !!event.media.muted;

@@ -75,7 +75,7 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
     volume: Infinity, playbackRate: NaN };
   assert.deepEqual(probe([broken]), {
     currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
-    volume: 0, playbackRate: 1, area: 360000,
+    volume: 0, playbackRate: 1, area: 360000, adPlaying: false,
   });
 });
 
