@@ -9,6 +9,7 @@ const {
   normalizeBrowserUrl,
 } = require('../src/browser-media-identity');
 const {
+  BROWSER_IPC_VERSION,
   browserEventMatches,
   createBrowserEventEnvelope,
   nextAcquisitionId,
@@ -94,6 +95,23 @@ test('olay zarfı tab, nesil, medya ve edinme kimliğini birlikte kapılar', () 
   assert(!browserEventMatches(event, { ...context, mediaId: 'youtube:b' }));
   assert(!browserEventMatches(event, { ...context, acquisitionId: 'cap-2' }));
   assert.equal(event.at, 123);
+  assert.equal(event.version, BROWSER_IPC_VERSION);
+  assert(!browserEventMatches({ ...event, version: BROWSER_IPC_VERSION + 1 }, context));
+});
+
+test('tarayıcı tanısı sınırlı geçmiş, filtre ve güvenli dışa aktarma yüzeyine sahip', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+  assert.match(main, /browserDiagnostics\.recent = browserDiagnostics\.recent\.slice\(0, 100\)/);
+  assert.match(main, /ipcMain\.handle\('browser:diagnostics:export'/);
+  assert.match(main, /operationId: nextAcquisitionId\('diagnostics'\)/);
+  assert.match(preload, /exportBrowserDiagnostics/);
+  assert.match(html, /id="browserDiagnosticsFilter"/);
+  assert.match(html, /id="browserDiagnosticsCopy"/);
+  assert.match(html, /id="browserDiagnosticsExport"/);
+  assert.match(renderer, /toLocaleLowerCase\('tr'\).*includes\(filter\)/s);
 });
 
 test('edinme kimlikleri tekrar etmez', () => {

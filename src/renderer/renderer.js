@@ -5031,6 +5031,23 @@ $('browserDownloadsPanel')?.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setBrowserDownloadsOpen(false); }
 });
 
+let browserDiagnosticsFilter = '';
+
+function browserDiagnosticsCopyText(diagnostics) {
+  const counts = diagnostics?.counts || {};
+  const operationId = String(diagnostics?.operationId || 'yok');
+  const recent = Array.isArray(diagnostics?.recent) ? diagnostics.recent.slice(0, 100) : [];
+  const lines = [
+    `Whisper Local tarayıcı tanısı`,
+    `İşlem kimliği: ${operationId}`,
+    `Sayfa: ${String(diagnostics?.pageUrl || 'yok')}`,
+    `Sonuç: ${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`,
+    'Son olaylar:',
+    ...recent.slice(0, 30).map((entry) => [entry.strategy, entry.outcome, entry.detail, entry.url].filter(Boolean).join(' · ')),
+  ];
+  return lines.join('\n');
+}
+
 function renderBrowserDiagnostics(diagnostics) {
   if (!diagnostics || typeof diagnostics !== 'object') return;
   player.browserDiagnostics = diagnostics;
@@ -5064,9 +5081,13 @@ function renderBrowserDiagnostics(diagnostics) {
   const recent = $('browserDiagnosticsRecent');
   if (!recent) return;
   recent.replaceChildren();
-  const entries = Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 8) : [];
+  const filter = String(browserDiagnosticsFilter || '').trim().toLocaleLowerCase('tr');
+  const entries = (Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 100) : [])
+    .filter((entry) => !filter || [entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
+      .filter(Boolean).join(' ').toLocaleLowerCase('tr').includes(filter));
   if (!entries.length) {
-    recent.textContent = 'Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.';
+    recent.textContent = filter ? 'Bu filtreyle eşleşen tanı kaydı yok.'
+      : 'Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.';
     return;
   }
   for (const entry of entries) {
@@ -6878,6 +6899,20 @@ if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListene
 if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEventListener('click', async () => {
   const result = await window.api.openBrowserAdapterFolder?.().catch((error) => ({ ok: false, error: error.message }));
   if (!result?.ok) logLine(`Adaptör klasörü açılamadı: ${result?.error || 'bilinmeyen hata'}`, 'warn');
+});
+if ($('browserDiagnosticsFilter')) $('browserDiagnosticsFilter').addEventListener('input', (event) => {
+  browserDiagnosticsFilter = String(event.target.value || '').slice(0, 120);
+  if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+});
+if ($('browserDiagnosticsCopy')) $('browserDiagnosticsCopy').addEventListener('click', async () => {
+  if (!player.browserDiagnostics || !window.api.copyText) return;
+  const ok = await window.api.copyText(browserDiagnosticsCopyText(player.browserDiagnostics)).catch(() => false);
+  logLine(ok ? 'Tarayıcı tanı özeti panoya kopyalandı.' : 'Tanı özeti panoya kopyalanamadı.', ok ? 'success' : 'warn');
+});
+if ($('browserDiagnosticsExport')) $('browserDiagnosticsExport').addEventListener('click', async () => {
+  const result = await window.api.exportBrowserDiagnostics?.().catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) logLine(`Tarayıcı tanı paketi kaydedildi: ${result.path}`, 'success');
+  else if (!result?.canceled) logLine(result?.error || 'Tarayıcı tanı paketi dışa aktarılamadı.', 'warn');
 });
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {

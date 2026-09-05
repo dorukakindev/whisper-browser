@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld('api', {
   stopBrowserLiveAsr: () => ipcRenderer.invoke('browser:liveAsr:stop'),
   openBrowserAdapterFolder: () => ipcRenderer.invoke('browser:adapters:openFolder'),
   exportBrowserSubtitle: (payload) => ipcRenderer.invoke('browser:subtitle:export', payload),
+  exportBrowserDiagnostics: () => ipcRenderer.invoke('browser:diagnostics:export'),
   exportBrowserClip: (payload) => ipcRenderer.invoke('browser:clip:export', payload),
   onBrowserEvent: (cb) => {
     const listener = (_event, payload) => cb(payload);

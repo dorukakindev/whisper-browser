@@ -4487,6 +4487,13 @@ body::before {
 .browser-capability-matrix thead th { position: sticky; top: 0; z-index: 1; color: #b7b7ba; background: #181819; }
 .browser-capability-matrix tbody th { color: #d0d0d3; font-weight: 650; }
 .browser-capability-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 7px; color: #77777c; font-size: 9px; }
+.browser-diagnostics-tools { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #29292c; }
+.browser-diagnostics-filter { min-width: 0; flex: 1 1 180px; color: #77777c; font-size: 9px; }
+.browser-diagnostics-filter span { display: block; margin-bottom: 4px; }
+.browser-diagnostics-filter input { width: 100%; min-height: 28px; box-sizing: border-box; padding: 5px 8px; border: 1px solid #303034; border-radius: 7px; color: #d8d8dc; background: #121214; font: inherit; }
+.browser-diagnostics-filter input:focus { border-color: var(--player-amber); outline: none; }
+.browser-diagnostics-actions { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
+.browser-diagnostics-actions .link-btn { font-size: 9px; white-space: nowrap; }
 .browser-session-memory { display: inline-flex; align-items: center; gap: 7px; padding: 0 6px; color: #a0a0a5; font-size: 10px; }
 .browser-session-memory input { accent-color: var(--player-amber); }
 .model-management-row { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 4px; }

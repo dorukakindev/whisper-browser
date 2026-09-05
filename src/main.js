@@ -1837,6 +1837,7 @@ function freshBrowserDiagnostics(url = '', tab = activeBrowserTab()) {
   const adapter = browserAdapterForUrl(url);
   const acquisition = tab && (tab.acquisitionPlan || createBrowserAcquisitionPlan(tab));
   return {
+    operationId: nextAcquisitionId('diagnostics'),
     adapter: { id: adapter.id, label: adapter.label, help: adapter.help },
     capabilityMatrix: ADAPTER_REGISTRY.capabilityMatrix(),
     adapterPlugins: browserAdapterPluginStatus,
@@ -1877,13 +1878,52 @@ function noteBrowserCapture(strategy, candidate = {}, outcome = 'aday', detail =
   const adapter = browserResponseAdapter(browserDiagnostics.pageUrl, candidate.url || '');
   browserDiagnostics.recent.unshift({
     at: Date.now(), strategy, outcome,
+    operationId: browserDiagnostics.operationId || '',
     service: adapter.label,
     mime: String(candidate.mimeType || candidate.mime || '').slice(0, 80),
     url: redactCaptureUrl(candidate.url || ''),
     detail: String(detail || '').slice(0, 160),
   });
-  browserDiagnostics.recent = browserDiagnostics.recent.slice(0, 12);
+  browserDiagnostics.recent = browserDiagnostics.recent.slice(0, 100);
   publishBrowserDiagnostics();
+}
+
+function redactBrowserDiagnosticsText(value) {
+  return String(value == null ? '' : value)
+    .replace(/https?:\/\/[^\s)]+/gi, (url) => redactCaptureUrl(url))
+    .replace(/\b(api[_-]?key|token|sig|signature|secret|authorization|cookie|password)\s*[=:]\s*[^\s,;]+/gi, '$1=[gizlendi]')
+    .slice(0, 400);
+}
+
+function browserDiagnosticsExportSnapshot() {
+  const source = browserDiagnostics && typeof browserDiagnostics === 'object' ? browserDiagnostics : {};
+  const counts = source.counts && typeof source.counts === 'object' ? source.counts : {};
+  const adapter = source.adapter && typeof source.adapter === 'object' ? source.adapter : {};
+  const recent = Array.isArray(source.recent) ? source.recent.slice(0, 100) : [];
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    operationId: String(source.operationId || '').slice(0, 160),
+    pageUrl: redactCaptureUrl(source.pageUrl || ''),
+    captureEnabled: !!source.captureEnabled,
+    adapter: {
+      id: redactBrowserDiagnosticsText(adapter.id),
+      label: redactBrowserDiagnosticsText(adapter.label),
+      help: redactBrowserDiagnosticsText(adapter.help),
+    },
+    counts: Object.fromEntries(Object.entries(counts).map(([key, value]) => [key, Math.max(0, Math.trunc(Number(value) || 0))])),
+    acquisition: source.acquisition && typeof source.acquisition === 'object' ? source.acquisition : null,
+    recent: recent.map((entry) => ({
+      at: Number.isFinite(Number(entry.at)) ? Number(entry.at) : null,
+      operationId: String(entry.operationId || source.operationId || '').slice(0, 160),
+      strategy: redactBrowserDiagnosticsText(entry.strategy),
+      outcome: redactBrowserDiagnosticsText(entry.outcome),
+      service: redactBrowserDiagnosticsText(entry.service),
+      mime: redactBrowserDiagnosticsText(entry.mime),
+      url: redactCaptureUrl(entry.url || ''),
+      detail: redactBrowserDiagnosticsText(entry.detail),
+    })),
+  };
 }
 
 function normalizeBrowserUrl(raw) {
@@ -2173,6 +2213,7 @@ function resetBrowserCaptureState(options = {}) {
     adapterPlugins: freshDiagnostics.adapterPlugins,
     acquisition: freshDiagnostics.acquisition,
     captureEnabled: browserCaptureEnabled,
+    operationId: freshDiagnostics.operationId,
   } : freshDiagnostics;
   if (tab) tab.diagnostics = browserDiagnostics;
   // Yeni acquisition kimliğini renderer'a, bu kimlikle gelecek kayıtlı izlerden
@@ -6729,6 +6770,25 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
     return { ok: true, path: outputPath };
   } catch (err) {
     return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('browser:diagnostics:export', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const snapshot = browserDiagnosticsExportSnapshot();
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Tarayıcı tanı paketini dışa aktar',
+    defaultPath: 'whisper-browser-diagnostics.json',
+    filters: [{ name: 'Tanı JSON paketi', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    const outputPath = path.extname(result.filePath).toLowerCase() === '.json'
+      ? result.filePath : `${result.filePath}.json`;
+    fs.writeFileSync(outputPath, JSON.stringify(snapshot, null, 2), 'utf8');
+    return { ok: true, path: outputPath, operationId: snapshot.operationId };
+  } catch (error) {
+    return { ok: false, error: `Tanı paketi kaydedilemedi: ${error.message}` };
   }
 });
 

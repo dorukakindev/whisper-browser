@@ -1,4 +1,5 @@
 let acquisitionSequence = 0;
+const BROWSER_IPC_VERSION = 1;
 
 function cleanString(value, max = 240) {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -22,6 +23,7 @@ function nextAcquisitionId(prefix = 'capture') {
 function createBrowserEventEnvelope(type, context = {}, payload = {}, at = Date.now()) {
   const normalized = normalizeBrowserEventContext(context);
   return {
+    version: BROWSER_IPC_VERSION,
     type: cleanString(type, 96),
     ...normalized,
     at: Number.isFinite(Number(at)) ? Number(at) : Date.now(),
@@ -31,6 +33,9 @@ function createBrowserEventEnvelope(type, context = {}, payload = {}, at = Date.
 
 function browserEventMatches(event, current, options = {}) {
   if (!event || !current) return false;
+  // Eski üreticiler sürüm alanı göndermeyebilir; açıkça desteklenmeyen bir
+  // sürüm geldiğinde olayın yeni renderer durumunu kirletmesine izin verme.
+  if (event.version != null && Number(event.version) !== BROWSER_IPC_VERSION) return false;
   const left = normalizeBrowserEventContext(event);
   const right = normalizeBrowserEventContext(current);
   if (!left.tabId || left.tabId !== right.tabId) return false;
@@ -43,6 +48,7 @@ function browserEventMatches(event, current, options = {}) {
 }
 
 module.exports = {
+  BROWSER_IPC_VERSION,
   browserEventMatches,
   createBrowserEventEnvelope,
   nextAcquisitionId,
