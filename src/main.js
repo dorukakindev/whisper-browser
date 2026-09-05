@@ -2018,7 +2018,7 @@ async function openBrowserLinkInNewTab(rawUrl) {
   if (!view) { destroyBrowserTab(tab); throw new Error('Yeni sekme hazırlanamadı.'); }
   tab.restoredUrl = url;
   sendBrowserEvent(tab, { type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
-  await waitForProtectedPlayback(url);
+  await waitForProtectedPlayback(url, tab);
   view.setVisible(tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
   try {
     await view.webContents.loadURL(url);
@@ -2087,12 +2087,12 @@ function installBrowserContextMenu(tab, wc) {
         click: () => { mainWindow.webContents.focus(); sendBrowserEvent(tab, { type: 'find-open' }); } },
       { type: 'separator' },
       { label: 'Bağlantıyı yeni sekmede aç', visible: !!linkUrl,
-        click: () => void openBrowserLinkInNewTab(linkUrl).catch((error) =>
-          sendBrowserEvent({ type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
+        click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(linkUrl)).catch((error) =>
+          sendBrowserEvent(tab, { type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
       { label: 'Bağlantı adresini kopyala', visible: !!linkUrl, click: () => clipboard.writeText(linkUrl) },
       { label: 'Seçili metni ara', visible: !!selection,
-        click: () => void openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`)
-          .catch((error) => sendBrowserEvent({ type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
+        click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`))
+          .catch((error) => sendBrowserEvent(tab, { type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
       { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
       { label: 'Kes', visible: !!params.isEditable, enabled: !!params.editFlags?.canCut, click: () => wc.cut() },
       { label: 'Yapıştır', visible: !!params.isEditable, enabled: !!params.editFlags?.canPaste, click: () => wc.paste() },
@@ -5475,6 +5475,20 @@ async function activateBrowserTab(rawId) {
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
     previous.view.setVisible(false);
     detachBrowserDebugger(previous.view);
+    // A hidden WebContentsView is still allowed to play media. Stop it when
+    // switching tabs so only the selected site can produce audio or advance
+    // playback in the background. This is best-effort: a hostile page cannot
+    // block the tab transition or make the renderer hang.
+    void executeBrowserViewFrames(previous.view, `(() => {
+      const roots = [document];
+      for (let i = 0; i < roots.length; i++) {
+        for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+      }
+      for (const root of roots) for (const media of root.querySelectorAll('video,audio')) {
+        try { media.pause(); } catch (_) {}
+      }
+      return true;
+    })()`).catch(() => {});
   }
   browserActiveTabId = next.id;
   browserView = ensureBrowserView(next);
@@ -6073,6 +6087,18 @@ ipcMain.handle('browser:downloads', (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!payload || payload.command === 'list') return { ok: true, downloads: browserDownloads.snapshot() };
   return browserDownloads.action(payload.id, payload.command);
+});
+
+// This channel is reachable only from a WebContentsView registered as one of
+// our browser tabs. The URL is validated again in openBrowserLinkInNewTab;
+// renderer/main-window senders and arbitrary subframes cannot open tabs.
+if (typeof ipcMain.on === 'function') ipcMain.on('browser:open-link', (event, payload) => {
+  const tab = browserTabForWebContents(event.sender);
+  if (!tab || tab.closing || !payload || typeof payload.url !== 'string') return;
+  void queueBrowserTabTransition(() => openBrowserLinkInNewTab(payload.url)).catch((error) => {
+    sendBrowserEvent(tab, { type: 'notice', success: false,
+      message: `Yeni sekme açılamadı: ${error?.message || 'geçersiz bağlantı'}` });
+  });
 });
 
 ipcMain.handle('browser:command', async (event, payload) => {

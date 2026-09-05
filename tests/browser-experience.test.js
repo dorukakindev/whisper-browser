@@ -10,6 +10,7 @@ const {
   normalizeBrowserSiteZooms,
   withBrowserSiteZoom,
 } = require('../src/browser-site-zoom');
+const { isNewTabLinkGesture } = require('../src/browser-link-intent');
 
 const ROOT = path.join(__dirname, '..');
 let passed = 0;
@@ -76,9 +77,18 @@ test('site zoom kaydi gecersiz host ve sinir disi degerleri kabul etmez', () => 
   assert.equal(withBrowserSiteZoom({}, 'https://a.test', Infinity).ok, false);
 });
 
+test('orta tik ve Ctrl/Cmd tik yeni sekme jesti, normal tik degil', () => {
+  assert.equal(isNewTabLinkGesture({ button: 1 }), true);
+  assert.equal(isNewTabLinkGesture({ button: 0, ctrlKey: true }), true);
+  assert.equal(isNewTabLinkGesture({ button: 0, metaKey: true }), true);
+  assert.equal(isNewTabLinkGesture({ button: 0 }), false);
+  assert.equal(isNewTabLinkGesture({ button: 2, ctrlKey: true }), false);
+});
+
 test('main preload ve renderer geri acma, cokme ve zoom sozlesmesini birlikte tasir', () => {
   const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(ROOT, 'src', 'preload.js'), 'utf8');
+  const browserPreload = fs.readFileSync(path.join(ROOT, 'src', 'browser-preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js'), 'utf8');
   const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
   assert.match(main, /ipcMain\.handle\('browser:tab:reopen'/);
@@ -94,6 +104,10 @@ test('main preload ve renderer geri acma, cokme ve zoom sozlesmesini birlikte ta
   assert.match(renderer, /event\.type === 'tab-crashed'/);
   assert.match(html, /id="browserZoomResetToolbar"/);
   assert.match(html, /id="browserReopenTab"/);
+  assert.match(main, /ipcMain\.on\('browser:open-link'/);
+  assert.match(main, /executeBrowserViewFrames\(previous\.view/);
+  assert.match(browserPreload, /function handleNewTabLink/);
+  assert.match(browserPreload, /ipcRenderer\.send\('browser:open-link'/);
 });
 
 console.log(`browser-experience: ${passed} test`);

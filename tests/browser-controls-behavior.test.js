@@ -29,6 +29,7 @@ function extract(start, end, deps = {}) {
   }
   const events = [];
   const visibility = [];
+  const drmTabs = [];
   const tabs = new Map([['old', { id: 'old' }]]);
   const links = extract('async function openBrowserLinkInNewTab(', 'function browserImageFileName', {
     normalizeBrowserUrl: value => value, browserTabs: tabs, MAX_SESSION_TABS: 2,
@@ -37,7 +38,7 @@ function extract(start, end, deps = {}) {
     createBrowserTabRecord() { const tab = { id: 'new' }; tabs.set('new', tab); return tab; },
     ensureBrowserView: () => ({ setVisible: value => visibility.push(value), webContents: { async loadURL() {} } }),
     sendBrowserEvent: (...args) => events.push(args.at(-1)),
-    async waitForProtectedPlayback() {}, scheduleBrowserSessionSave() {},
+    async waitForProtectedPlayback(_url, tab) { drmTabs.push(tab); }, scheduleBrowserSessionSave() {},
   });
   for (const url of ['javascript:alert(1)', 'data:text/html,a', 'file:///C:/x', 'iki kelime']) {
     assert.equal(await links.openBrowserLinkInNewTab(url), false);
@@ -47,6 +48,7 @@ function extract(start, end, deps = {}) {
   assert.equal(await links.openBrowserLinkInNewTab('https://example.test/'), true);
   assert.equal(events[0].activeTabId, 'old');
   assert.deepEqual(visibility, [false]);
+  assert.equal(drmTabs[0].id, 'new', 'DRM bekleme olayı yeni sekmeye bağlanmalı');
   assert.equal(await links.openBrowserLinkInNewTab('https://example.test/2'), false);
   assert.equal(events.at(-1).type, 'notice');
   assert.equal(events.at(-1).success, false);
@@ -74,6 +76,7 @@ function extract(start, end, deps = {}) {
     Menu: { buildFromTemplate(items) { menu = items; return { popup() {} }; } },
     clipboard: { writeText(text) { actions.push(text); } },
     openBrowserLinkInNewTab: async url => { searches.push(url); },
+    queueBrowserTabTransition: work => work(),
   });
   const wc = { on(_name, callback) { handler = callback; },
     cut() { actions.push('cut'); }, paste() { actions.push('paste'); }, selectAll() { actions.push('all'); } };
