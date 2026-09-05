@@ -3861,6 +3861,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
   setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
   updateBrowserMangaButton();
+  renderBrowserTabs();
   updateBrowserNavigation(tab, { preserveWorkspace: true });
   showBrowserErrorSurface(tab.error ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
@@ -4014,6 +4015,15 @@ function browserCloseIcon() {
   return svg;
 }
 
+function browserTabActivity(tab) {
+  const tasks = [];
+  if (tab?.loading) tasks.push('Sayfa yükleniyor');
+  if (tab?.browserMangaBusy) tasks.push('Manga çevirisi');
+  if (tab?.browserPageTranslateBusy) tasks.push('Sayfa çevirisi');
+  if (tab?.browserTranslationTrackId && tab?.browserTranslationComplete === false) tasks.push('Altyazı çevirisi');
+  return { busy: tasks.length > 0, label: tasks.join(' · ') };
+}
+
 function browserPinIcon() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -4039,8 +4049,9 @@ function renderBrowserTabs() {
   strip.replaceChildren();
   let activeButton = null;
   for (const tab of player.browserTabs) {
+    const activity = browserTabActivity(tab);
     const item = document.createElement('div');
-    item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}${tab.pinned ? ' pinned' : ''}`;
+    item.className = `browser-tab${tab.id === player.browserActiveTabId ? ' active' : ''}${tab.loading ? ' loading' : ''}${tab.pinned ? ' pinned' : ''}${activity.busy ? ' has-activity' : ''}`;
     item.dataset.browserTabId = tab.id;
     item.setAttribute('role', 'presentation');
     const open = document.createElement('button');
@@ -4051,7 +4062,8 @@ function renderBrowserTabs() {
     open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
     open.tabIndex = tab.id === player.browserActiveTabId ? 0 : -1;
     open.textContent = browserTabLabel(tab);
-    open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
+    open.title = [tab.title, tab.url, activity.label].filter(Boolean).join('\n') || 'Yeni sekme';
+    if (activity.busy) open.dataset.activity = activity.label;
     const audio = document.createElement('button');
     audio.type = 'button'; audio.className = 'browser-tab-audio'; audio.dataset.browserTabMute = tab.id;
     audio.textContent = tab.tabMuted ? '×' : '♪'; audio.hidden = !tab.audible && !tab.tabMuted;
@@ -4370,6 +4382,14 @@ function applyBrowserMangaState(event = {}) {
     $('browserMangaSummary').textContent = player.browserMangaTotal
       ? `Toplam ${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · metinsiz ${player.browserMangaEmpty} · hatalı ${player.browserMangaFailed} · yeniden denenebilir ${player.browserMangaRetryable}`
       : 'Henüz manga işi çalıştırılmadı.';
+  }
+  const readability = $('browserMangaReadabilityHint');
+  if (readability) {
+    const hasOverflowRisk = player.browserMangaFailed > 0 || player.browserMangaEmpty > 0;
+    readability.textContent = hasOverflowRisk
+      ? 'Bazı balonlar boş veya başarısız kaldı; yeniden denemeden önce balona çift tıklayıp metni düzenleyebilirsiniz.'
+      : 'Balon metni sığmazsa otomatik genişletilir; düzenlemek için balona çift tıklayın.';
+    readability.classList.toggle('is-attention', hasOverflowRisk);
   }
   if (event.message) setBrowserSignal(event.message, event.state === 'ready' && !event.error,
     { priority: event.state === 'error' ? 90 : 30, holdMs: event.state === 'error' ? 6000 : 1200 });
@@ -11199,7 +11219,19 @@ async function getPdfJs() {
 function pdfReaderSetStatus(message, error = false) {
   const node = $('pdfReaderStatus');
   if (node) { node.textContent = message; node.style.color = error ? '#e48a74' : ''; }
+  updatePdfReaderProgress();
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
+}
+
+function updatePdfReaderProgress() {
+  const node = $('pdfReaderProgress');
+  const reader = player.pdfReader;
+  if (!node) return;
+  const total = Number(reader?.pdf?.numPages) || 0;
+  const translated = reader?.state?.pages && typeof reader.state.pages === 'object'
+    ? Object.keys(reader.state.pages).length : 0;
+  node.textContent = total ? `${Math.min(translated, total)}/${total} sayfa` : '0/0 sayfa';
+  node.classList.toggle('is-complete', total > 0 && translated >= total);
 }
 
 function setPdfReaderView(mode = 'both') {
@@ -11334,6 +11366,7 @@ async function translateVisiblePdfPages(all = false) {
     if (result?.state) {
       reader.state = result.state;
       for (const page of batchPages) renderPdfTranslation(page, result.state.pages?.[String(page)]);
+      updatePdfReaderProgress();
     }
     if (result?.ok || result?.partial) completed += batchPages.length;
     else { failed += batchPages.length; lastError = result?.error || 'Çeviri başarısız'; }
@@ -11385,6 +11418,7 @@ async function openPdfReader(filePath = '') {
   let viewMode = 'both';
   try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'both'; } catch (_) {}
   player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
+  updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
   if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
   $('pdfReaderTitle').textContent = opened.title || 'PDF kitap'; $('pdfReaderPages').replaceChildren();

@@ -3972,6 +3972,12 @@ body::before {
   background: #151516;
 }
 .browser-tab.active { border-color: #5a4523; background: #211b12; }
+.browser-tab.has-activity .browser-tab-open::after {
+  content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px;
+  vertical-align: 1px; border-radius: 50%; background: var(--player-amber);
+  box-shadow: 0 0 0 2px rgba(213,163,92,.12); animation: browser-tab-pulse 1.8s ease-in-out infinite;
+}
+@keyframes browser-tab-pulse { 50% { opacity: .42; transform: scale(.78); } }
 .browser-tab.loading { overflow: hidden; border-bottom-color: #5a4523; }
 .browser-tab.loading::after {
   content: '';
@@ -4314,6 +4320,8 @@ body::before {
 .browser-view-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .browser-view-actions .btn { width: auto; min-height: 30px; padding: 0 9px; }
 .browser-manga-summary { margin: 7px 0 0; color: #77777c; line-height: 1.4; }
+.browser-manga-hint { margin: 5px 0 0; color: #8e98a5; font-size: 11px; line-height: 1.4; }
+.browser-manga-hint.is-attention { color: #d5a35c; }
 
 .pdf-reader {
   position: absolute;
@@ -4341,6 +4349,8 @@ body::before {
 .pdf-reader-toolbar > div { min-width: 150px; margin-right: auto; display: grid; gap: 2px; }
 .pdf-reader-toolbar strong { color: #eceff3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdf-reader-toolbar span { color: #8e98a5; font-size: 10px; }
+.pdf-reader-progress { display: inline-block; margin-left: 8px; color: var(--player-amber) !important; font-variant-numeric: tabular-nums; }
+.pdf-reader-progress.is-complete { color: #9ed0ad !important; }
 .pdf-reader-toolbar label { display: flex; align-items: center; gap: 5px; color: #aeb5be; font-size: 11px; }
 .pdf-reader-toolbar input { width: 68px; height: 30px; }
 .pdf-reader-toolbar select { width: auto; min-width: 92px; height: 30px; }
