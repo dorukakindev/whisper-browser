@@ -11844,10 +11844,17 @@ if ($('makeTransBtn')) {
     opts.input = player.subPath;
     // Önceki kısmi çeviri varsa backend tamamlanan cue'ları koruyup yalnız
     // eksik/başarısız olanları yeniden işler.
-    if (player.sub2Path && player.sub2Path !== player.subPath) opts.translateExisting = player.sub2Path;
     delete opts.youtube;
     const browserTrack = player.browserTracks.find((track) =>
       track.id === player.browserLoadedTrackId && track.path === player.subPath) || null;
+    // İkinci iz çoğu zaman kaynak/karşılaştırma altyazısıdır. Yalnızca açıkça
+    // çeviri rolü taşıyan izi mevcut çıktı olarak ver; aksi halde backend
+    // kaynak dili çeviri sanıp eksik iş kuyruğunu yanlış dosyadan tamamlar.
+    const existingTranslation = player.workspaceMode === 'browser'
+      ? player.browserTracks.find((track) =>
+          track.id === player.browserLoadedTrackId2 && track.role === 'translation')?.path
+      : (player.sub2Path && player.sub2Path !== player.subPath ? player.sub2Path : '');
+    if (existingTranslation) opts.translateExisting = existingTranslation;
     const browserLanguage = browserTrackSourceLanguage(browserTrack);
     // Tarayıcı altyazısının kendi dil bilgisi, ana ekranda önceki işten kalmış
     // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa

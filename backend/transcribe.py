@@ -5287,7 +5287,17 @@ def translate_existing_subtitle(args):
         log("Eksik çeviri yok; API çağrısı yapılmadı.", "success")
         translated = [(entry[0], entry[1], existing_by_time[(round(float(entry[0]), 3), round(float(entry[1]), 3))]) for entry in entries]
     else:
-        translated = llm_translate(pending_entries, args, warn_list, source_lang=args.language)
+        translated_pending = llm_translate(
+            pending_entries, args, warn_list, source_lang=args.language)
+        # Toplam API/kimlik/kota hatasında llm_translate None döndürür.
+        # None'ı boş liste gibi ele alıp kaynak metinleri "çeviri" dosyasına
+        # yazmak, kullanıcıya başarısız işi tamamlanmış gibi gösteriyordu.
+        if pending_entries and translated_pending is None:
+            raise RuntimeError(
+                "Eksik altyazı blokları çevrilemedi; mevcut çeviri korunarak "
+                "yeniden deneme için çıktı yazılmadı."
+            )
+        translated = translated_pending
         translated_map = {(round(float(entry[0]), 3), round(float(entry[1]), 3)): entry[2] for entry in (translated or [])}
         translated = [(entry[0], entry[1], translated_map.get((round(float(entry[0]), 3), round(float(entry[1]), 3)),
                     existing_by_time.get((round(float(entry[0]), 3), round(float(entry[1]), 3)), entry[2]))) for entry in entries]
