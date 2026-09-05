@@ -86,4 +86,10 @@ test('tam ekran ham video yerine altyazıyı taşıyabilen oynatıcı kapsayıc�
   assert.doesNotMatch(script, /else await video\.requestFullscreen/);
 });
 
+test('Picture-in-Picture desteklenmiyorsa kullanıcıya açık hata döner', () => {
+  const script = buildBrowserMediaCommandScript('pip', 0);
+  assert.match(script, /Picture-in-Picture desteklemiyor/);
+  assert.match(script, /handled: false, error/);
+});
+
 console.log(`browser-media-controller: ${passed} test`);

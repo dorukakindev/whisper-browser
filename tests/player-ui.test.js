@@ -787,6 +787,13 @@ test('tarayıcı altyazı şeridi panel genişliğine göre sarılıyor ve yard�
     'canlı durum bölgesi etkileşimli şeridin tamamını kapsamamalı');
 });
 
+test('altyazı izi bulunamadığında Canlı Whisper önerisi eyleme bağlanır', () => {
+  assert(/scheduleBrowserNoTrackSuggestion/.test(js), 'iz bulunamadı öneri zamanlayıcısı yok');
+  assert(/Canlı Whisper[’']ı deneyin/.test(js), 'Whisper önerisi Türkçe görünür değil');
+  assert(/actionName === 'live-asr'/.test(js), 'sinyal eylemi Canlı Whisper modunu desteklemiyor');
+  assert(/player\.browserSignalState\?\.action === 'live-asr'/.test(js), 'öneri düğmesi canlı Whisper eylemine bağlı değil');
+});
+
 test('tarayıcı araç çubuğu ve ayrıntılar yeniden boyutlanan paneli izliyor', () => {
   assert(/\.browser-workspace\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/.test(css),
     'araç çubuğu büyüdüğünde tarayıcı görünümü sabit 82px satıra sıkışıyor');

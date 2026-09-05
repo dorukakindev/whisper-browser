@@ -26,6 +26,14 @@ test('oynatıcı zamanı ve ofseti finite olmayan sayfalı değerlerden korunur'
   assert.match(script, /const time = finite\(activeMedia\.currentTime\) - finite\(state\.offset\)/);
 });
 
+test('sıfır boyutlu ses öğesinde altyazı gerçek oynatıcı kapsayıcısına bağlanır', () => {
+  assert.match(script, /resolveMediaRect/);
+  assert.match(script, /String\(item\?\.tagName \|\| ''\)\.toLowerCase\(\) === 'audio'/);
+  assert.match(script, /node = item\.parentElement/);
+  assert.match(script, /rect\.width > 120 && rect\.height > 60/);
+  assert.match(script, /return viewportRect\(\)/);
+});
+
 test('ilk durum kapalıysa DOM katmanı ve medya taraması oluşturmaz', () => {
   let created = 0, scanned = 0;
   const window = { addEventListener() {} };

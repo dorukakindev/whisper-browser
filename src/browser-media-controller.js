@@ -130,7 +130,9 @@ function buildBrowserMediaCommandScript(command, value) {
         await target.requestFullscreen();
       }
     } else if (command === 'pip') {
-      if (!('requestPictureInPicture' in video)) return false;
+      if (!('requestPictureInPicture' in video)) {
+        return { handled: false, error: 'Bu video Picture-in-Picture desteklemiyor.' };
+      }
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else await video.requestPictureInPicture();
     } else return false;

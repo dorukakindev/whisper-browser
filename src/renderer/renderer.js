@@ -3714,6 +3714,7 @@ const player = {
   browserMangaError: '',
   browserMangaAutoUrl: '',
   browserMangaAutoTimer: null,
+  browserNoTrackTimer: null,
   browserMangaLookaheadBusy: false,
   browserPageTranslateBusy: false,
   browserPageTranslated: 0,
@@ -4540,13 +4541,17 @@ function setBrowserSignal(text, detected = false, options = {}) {
   }
   if (blocked) return false;
   player.browserSignalState = {
-    text: message, priority,
+    text: message, priority, action: options.action || '',
     until: now + Math.max(0, Number(options.holdMs) || 0),
   };
   if ($('browserSignalText')) $('browserSignalText').textContent = message;
   $('browserSignal')?.classList.toggle('detected', detected);
   const action = $('browserSignalTranslateAction');
-  if (action) action.classList.toggle('hidden', options.action !== 'translate');
+  if (action) {
+    const actionName = options.action || '';
+    action.classList.toggle('hidden', !['translate', 'live-asr'].includes(actionName));
+    action.textContent = actionName === 'live-asr' ? 'Canlı Whisper' : 'Şimdi çevir';
+  }
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   return true;
 }
@@ -5152,6 +5157,8 @@ function renderBrowserAcquisition(acquisition) {
 function clearBrowserTracks(message) {
   const tab = browserTabState();
   if (tab) tab.browserTrackNoticeKey = '';
+  clearTimeout(player.browserNoTrackTimer);
+  player.browserNoTrackTimer = null;
   clearDeferredBrowserTrackAction();
   if (player.browserTranslationTrackId && window.api.stopBrowserTranslation) {
     window.api.stopBrowserTranslation(player.browserActiveTabId).catch(() => {});
@@ -5182,6 +5189,21 @@ function clearBrowserTracks(message) {
   updateBrowserTranslationRetryButton();
   syncSubtitleModeUi();
   setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
+}
+
+function scheduleBrowserNoTrackSuggestion(expectedUrl) {
+  clearTimeout(player.browserNoTrackTimer);
+  player.browserNoTrackTimer = null;
+  const url = String(expectedUrl || '');
+  if (!url || player.workspaceMode !== 'browser') return;
+  player.browserNoTrackTimer = setTimeout(() => {
+    player.browserNoTrackTimer = null;
+    const tab = browserTabState();
+    if (player.workspaceMode !== 'browser' || player.browserPageUrl !== url
+        || tab?.loading || player.browserTracks.length) return;
+    setBrowserSignal('Bu sayfada altyazı izi bulunamadı. Ses üzerinden altyazı üretmek için Canlı Whisper’ı deneyin.', false,
+      { action: 'live-asr', priority: 55, holdMs: 10000 });
+  }, 8000);
 }
 
 async function toggleBrowserTabPinned(tabId) {
@@ -5227,6 +5249,10 @@ function renderBrowserTracks(selectedId) {
   const select2 = $('browserTrackSelect2');
   const actions = $('browserTrackActions');
   if (!select || !select2 || !actions) return;
+  if (player.browserTracks.length) {
+    clearTimeout(player.browserNoTrackTimer);
+    player.browserNoTrackTimer = null;
+  }
   const previous = selectedId || select.value;
   const previous2 = select2.value;
   // Yakalanan web izleri yalnızca tarayıcı şeridinde değil, oynatıcı ayar
@@ -6265,6 +6291,9 @@ function updateBrowserNavigation(data, options = {}) {
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
     $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor' : 'Web videosu · altyazı algılama açık';
   }
+  if (data.loading === false && data.url && player.workspaceMode === 'browser' && !player.browserTracks.length) {
+    scheduleBrowserNoTrackSuggestion(data.url);
+  }
   if (data.loading === false && data.url && $('browserMangaAuto')?.checked
       && player.browserMangaAutoUrl !== data.url && !player.browserMangaBusy) {
     clearTimeout(player.browserMangaAutoTimer);
@@ -6782,7 +6811,10 @@ if ($('browserChromeToggle')) $('browserChromeToggle').addEventListener('click',
 if ($('browserTrackLoad')) $('browserTrackLoad').addEventListener('click', () => useBrowserTrack(false));
 if ($('browserTrackLoadPair')) $('browserTrackLoadPair').addEventListener('click', useBrowserTrackPair);
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
-if ($('browserSignalTranslateAction')) $('browserSignalTranslateAction').addEventListener('click', () => useBrowserTrack(true));
+if ($('browserSignalTranslateAction')) $('browserSignalTranslateAction').addEventListener('click', () => {
+  if (player.browserSignalState?.action === 'live-asr') toggleBrowserLiveAsr();
+  else useBrowserTrack(true);
+});
 if ($('browserTrackTranslateAll')) $('browserTrackTranslateAll').addEventListener('click', completeSelectedBrowserTranslation);
 if ($('browserTrackExport')) $('browserTrackExport').addEventListener('click', exportSelectedBrowserTrack);
 if ($('browserTranslationExport')) $('browserTranslationExport').addEventListener('click', exportBrowserTranslation);

@@ -295,9 +295,26 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         cancelFrame();
         return;
       }
-      const measured = activeMedia.getBoundingClientRect();
-      const rect = measured.width > 2 && measured.height > 2 ? measured
-        : { left: 0, right: innerWidth, width: innerWidth, top: 0, bottom: innerHeight, height: innerHeight };
+      // Ses öğeleri çoğu sitede 0x0 olarak gizlenir; altyazıyı tüm pencereye
+      // yaymak yerine gerçek oynatıcı kapsayıcısına sabitle. Böylece ses
+      // tabanlı oynatmada metin, video kontrollerinin/oynatıcının üzerinde
+      // kalır. Kullanılabilir bir kapsayıcı yoksa görünürlük kaybolmasın diye
+      // son çare olarak pencere dikdörtgenine dön.
+      const viewportRect = () => ({ left: 0, right: innerWidth, width: innerWidth,
+        top: 0, bottom: innerHeight, height: innerHeight });
+      const resolveMediaRect = (item) => {
+        const measured = item?.getBoundingClientRect?.();
+        if (measured && measured.width > 2 && measured.height > 2) return measured;
+        if (String(item?.tagName || '').toLowerCase() === 'audio') {
+          let node = item.parentElement;
+          for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
+            const rect = node.getBoundingClientRect?.();
+            if (rect && rect.width > 120 && rect.height > 60) return rect;
+          }
+        }
+        return viewportRect();
+      };
+      const rect = resolveMediaRect(activeMedia);
       box.style.display = 'flex';
       box.style.left = Math.max(0, rect.left) + 'px';
       box.style.width = Math.max(0, rect.width) + 'px';
