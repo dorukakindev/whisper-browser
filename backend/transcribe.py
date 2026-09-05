@@ -2638,7 +2638,7 @@ def save_translate_cache(path, cache, limit=200000):
         log(f"Ceviri onbellegi yazilamadi: {e}", "warn")
 
 
-def llm_translate(entries, args, warn_list=None, source_lang=None):
+def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None):
     """
     Altyazilari OpenAI uyumlu bir API ile hedef dile cevirir.
     entries: [(start, end, text), ...] -> ayni yapida cevrilmis liste (blok sayisi DEGISMEZ).
@@ -2650,6 +2650,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     dosyasi hic yazilmiyordu - yani gecersiz API anahtarinda tek ciktiniz sahte bir
     ceviri oluyordu.
     """
+    if status_out is not None:
+        status_out.clear()
+        status_out.update(completed=[], failed=[])
     if not entries:
         return entries
     try:
@@ -2778,6 +2781,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         emit("translation_refresh", segments=[
             {"start": s, "end": e, "text": t} for s, e, t in ready
         ])
+        if status_out is not None:
+            status_out["completed"] = list(range(len(entries)))
         return ready
 
     # Bir cümle ne istek sınırında ne kısmi önbellek isabetinde bölünür.
@@ -2895,6 +2900,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
         log("! " + msg, "error")
         if warn_list is not None:
             warn_list.append(msg)
+        if status_out is not None:
+            status_out["failed"] = list(range(len(entries)))
         return None
 
     if counters["failed"]:
@@ -2987,6 +2994,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None):
     emit("translation_refresh", segments=[
         {"start": s, "end": e, "text": t} for s, e, t in result
     ])
+    if status_out is not None:
+        status_out["completed"] = sorted(set(cached_idx).union(done_idx))
+        status_out["failed"] = [i for i in range(len(entries))
+                                 if i not in set(status_out["completed"])]
     return result
 
 
@@ -5266,29 +5277,68 @@ def translate_existing_subtitle(args):
     log(f"{len(entries)} blok okundu: {src_path.name}")
 
     warn_list = []
-    existing_by_time = {}
+
+    def cue_fingerprint(entry, index):
+        # Zaman + sıra + NFC metin: aynı zaman kodlu iki cue birbirine karışmaz.
+        payload = json.dumps({"i": index, "s": round(float(entry[0]), 3),
+                              "e": round(float(entry[1]), 3),
+                              "t": unicodedata.normalize("NFC", str(entry[2]))},
+                             ensure_ascii=False, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    source_hash = hashlib.sha256(json.dumps(
+        [{"s": round(float(e[0]), 3), "e": round(float(e[1]), 3),
+          "t": unicodedata.normalize("NFC", str(e[2]))} for e in entries],
+        ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+    existing_by_key = {}
     existing_path = Path(getattr(args, "translate_existing", "") or "")
+    existing_meta = None
+    meta_path = Path(f"{existing_path}.meta.json") if existing_path else None
+    if meta_path and meta_path.exists():
+        try:
+            candidate = json.loads(meta_path.read_text(encoding="utf-8"))
+            if (candidate.get("sourceHash") == source_hash
+                    and candidate.get("targetLanguage") == (args.translate_to or "tr").lower()
+                    and candidate.get("model", "") == str(getattr(args, "translate_model", "") or "")
+                    and candidate.get("provider", "") == str(getattr(args, "translate_base_url", "") or "")):
+                existing_meta = candidate
+            else:
+                log("Mevcut çeviri metadata'sı kaynak/dil ile eşleşmiyor; kullanılmayacak.", "warn")
+        except Exception as error:
+            log(f"Çeviri metadata'sı okunamadı; doğrulama ile yeniden denenecek: {error}", "warn")
     if existing_path and existing_path.exists() and existing_path.resolve() != src_path.resolve():
         try:
             old_text, _old_enc, _old_repaired = read_subtitle_text(existing_path)
-            for old in parse_subtitle_entries(old_text, existing_path.suffix):
+            for old_index, old in enumerate(parse_subtitle_entries(old_text, existing_path.suffix)):
                 if len(old) >= 3 and str(old[2]).strip():
-                    existing_by_time[(round(float(old[0]), 3), round(float(old[1]), 3))] = old[2]
-            if existing_by_time:
-                log(f"Mevcut çeviri bulundu: {len(existing_by_time)} blok korunacak.", "info")
+                    existing_by_key[(round(float(old[0]), 3), round(float(old[1]), 3), old_index)] = old[2]
+            if existing_meta and isinstance(existing_meta.get("cues"), list):
+                # Metadata varsa zaman/sıra yerine fingerprint ile eşleştir.
+                keyed = {str(c.get("key")): c for c in existing_meta["cues"] if isinstance(c, dict)}
+                existing_by_key = {}
+                for entry in entries:
+                    record = keyed.get(cue_fingerprint(entry, index))
+                    if record and str(record.get("status")) == "completed" and str(record.get("text", "")).strip():
+                        existing_by_key[(round(float(entry[0]), 3), round(float(entry[1]), 3), index)] = record["text"]
+            if existing_by_key:
+                log(f"Mevcut çeviri bulundu: {len(existing_by_key)} blok korunacak.", "info")
         except Exception as error:
             log(f"Mevcut çeviri okunamadı; tüm bloklar yeniden denenecek: {error}", "warn")
     target = (args.translate_to or "tr").lower()
     emit("status", stage="translate", text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
-    pending_entries = [entry for entry in entries
-                       if (round(float(entry[0]), 3), round(float(entry[1]), 3)) not in existing_by_time
-                       or str(existing_by_time[(round(float(entry[0]), 3), round(float(entry[1]), 3))]).strip() == str(entry[2]).strip()]
-    if existing_by_time and not pending_entries:
+    def existing_for(entry, index):
+        return existing_by_key.get((round(float(entry[0]), 3), round(float(entry[1]), 3), index))
+
+    pending_entries = [entry for index, entry in enumerate(entries) if existing_for(entry, index) is None]
+    pending_positions = {id(entry): index for index, entry in enumerate(pending_entries)}
+    translation_status = {}
+    if existing_by_key and not pending_entries:
         log("Eksik çeviri yok; API çağrısı yapılmadı.", "success")
-        translated = [(entry[0], entry[1], existing_by_time[(round(float(entry[0]), 3), round(float(entry[1]), 3))]) for entry in entries]
+        translated = [(entry[0], entry[1], existing_for(entry, index)) for index, entry in enumerate(entries)]
     else:
         translated_pending = llm_translate(
-            pending_entries, args, warn_list, source_lang=args.language)
+            pending_entries, args, warn_list, source_lang=args.language,
+            status_out=translation_status)
         # Toplam API/kimlik/kota hatasında llm_translate None döndürür.
         # None'ı boş liste gibi ele alıp kaynak metinleri "çeviri" dosyasına
         # yazmak, kullanıcıya başarısız işi tamamlanmış gibi gösteriyordu.
@@ -5298,9 +5348,16 @@ def translate_existing_subtitle(args):
                 "yeniden deneme için çıktı yazılmadı."
             )
         translated = translated_pending
-        translated_map = {(round(float(entry[0]), 3), round(float(entry[1]), 3)): entry[2] for entry in (translated or [])}
-        translated = [(entry[0], entry[1], translated_map.get((round(float(entry[0]), 3), round(float(entry[1]), 3)),
-                    existing_by_time.get((round(float(entry[0]), 3), round(float(entry[1]), 3)), entry[2]))) for entry in entries]
+        # Aynı zaman aralığına sahip cue'lar olabilir; yalnız zaman kodu ile
+        # eşleştirmek birinin metnini diğerine yazıyordu. llm_translate sıralı
+        # liste döndürdüğü için pending nesnesinin kimliğini kullan.
+        translated_map = {
+            pending_positions[id(source_entry)]: result_entry[2]
+            for source_entry, result_entry in zip(pending_entries, translated or [])
+        }
+        translated = [(entry[0], entry[1], translated_map.get(index,
+                    existing_for(entry, index) or entry[2]))
+                      for index, entry in enumerate(entries)]
     if translated and getattr(args, "merge_continuation", False):
         translated = merge_continuation_lines(
             translated, max_gap=getattr(args, "continuation_gap", 3.0))
@@ -5342,6 +5399,32 @@ def translate_existing_subtitle(args):
             write_json(translated, out_path)
         files.append(str(out_path))
         log(f"Ceviri yazildi: {out_path}", "success")
+        # Çıktının yanındaki metadata, sonraki denemede hangi cue'ların
+        # gerçekten tamamlandığını kaynak hash'i ile doğrular. Kaynakla aynı
+        # metin de API tarafından başarıyla döndüyse completed olarak korunur.
+        if fmt in {"srt", "vtt", "ass"} and len(translated) == len(entries):
+            completed_pending = set(translation_status.get("completed", []))
+            metadata_cues = []
+            for index, entry in enumerate(entries):
+                preserved = existing_for(entry, index) is not None
+                pending_index = pending_positions.get(id(entry))
+                completed = preserved or (pending_index in completed_pending)
+                metadata_cues.append({
+                    "key": cue_fingerprint(entry, index),
+                    "status": "completed" if completed else "failed",
+                    "text": translated[index][2],
+                    "error": "API yanıtı alınamadı" if not completed else "",
+                })
+            try:
+                Path(f"{out_path}.meta.json").write_text(json.dumps({
+                    "version": 1, "sourceHash": source_hash,
+                    "targetLanguage": target,
+                    "model": str(getattr(args, "translate_model", "") or ""),
+                    "provider": str(getattr(args, "translate_base_url", "") or ""),
+                    "cues": metadata_cues,
+                }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            except OSError as error:
+                log(f"Çeviri metadata'sı yazılamadı: {error}", "warn")
 
     if args.dual_subtitle:
         dual_path = out_dir / f"{stem}.dual.srt"
