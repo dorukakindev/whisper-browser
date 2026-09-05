@@ -106,7 +106,7 @@ test('tarayıcı tanısı sınırlı geçmiş, filtre ve güvenli dışa aktarma
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
   assert.match(main, /browserDiagnostics\.recent = browserDiagnostics\.recent\.slice\(0, 100\)/);
   assert.match(main, /ipcMain\.handle\('browser:diagnostics:export'/);
-  assert.match(main, /operationId: nextAcquisitionId\('diagnostics'\)/);
+  assert.match(main, /operationId: tab\?\.operationId \|\| nextAcquisitionId\('diagnostics'\)/);
   assert.match(preload, /exportBrowserDiagnostics/);
   assert.match(html, /id="browserDiagnosticsFilter"/);
   assert.match(html, /id="browserDiagnosticsCopy"/);

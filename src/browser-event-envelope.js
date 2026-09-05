@@ -11,6 +11,7 @@ function normalizeBrowserEventContext(raw = {}) {
     generation: Math.max(0, Math.trunc(Number(raw.generation) || 0)),
     mediaId: cleanString(raw.mediaId, 240),
     acquisitionId: cleanString(raw.acquisitionId, 160),
+    operationId: cleanString(raw.operationId, 160),
   };
 }
 
@@ -42,6 +43,7 @@ function browserEventMatches(event, current, options = {}) {
   if (left.generation !== right.generation) return false;
   if (right.mediaId && left.mediaId !== right.mediaId) return false;
   if (right.acquisitionId && left.acquisitionId !== right.acquisitionId) return false;
+  if (right.operationId && left.operationId !== right.operationId) return false;
   if (options.requireMediaId && !left.mediaId) return false;
   if (options.requireAcquisitionId && !left.acquisitionId) return false;
   return true;

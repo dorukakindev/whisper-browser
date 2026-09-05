@@ -1430,6 +1430,7 @@ function createBrowserTabRecord(initial = {}) {
     diagnostics: null,
     acquisitionPlan: null,
     acquisitionId: '',
+    operationId: randomUUID(),
     translationScheduler: null,
     translationTrackId: '',
     translationSourceCues: [],
@@ -1509,6 +1510,7 @@ function browserTabSnapshot(tab) {
     pageTranslateError: tab?.pageTranslateError || '',
     pageTranslateVisible: !!tab?.pageTranslateVisible,
     diagnostics: tab ? tab.diagnostics : null,
+    operationId: tab?.operationId || '',
     mediaId: tab?.mediaId || '',
     service: tab?.service || '',
     contentId: tab?.contentId || '',
@@ -1584,7 +1586,8 @@ function browserEventContext(tab = activeBrowserTab()) {
     mediaId: tab.mediaId || '',
     service: tab.service || '',
     acquisitionId: tab.acquisitionId || '',
-  } : { tabId: '', generation: 0, mediaId: '', service: '', acquisitionId: '' };
+    operationId: tab.operationId || '',
+  } : { tabId: '', generation: 0, mediaId: '', service: '', acquisitionId: '', operationId: '' };
 }
 
 function isCurrentBrowserContext(context) {
@@ -1818,6 +1821,7 @@ function sendBrowserEvent(tabOrPayload, maybePayload) {
 function createBrowserAcquisitionPlan(tab) {
   if (!tab) return null;
   tab.acquisitionId = nextAcquisitionId('caption');
+  tab.operationId = tab.acquisitionId;
   tab.acquisitionPlan = new CaptionAcquisitionPlan({
     mediaId: tab.mediaId || '',
     acquisitionId: tab.acquisitionId,
@@ -1837,7 +1841,7 @@ function freshBrowserDiagnostics(url = '', tab = activeBrowserTab()) {
   const adapter = browserAdapterForUrl(url);
   const acquisition = tab && (tab.acquisitionPlan || createBrowserAcquisitionPlan(tab));
   return {
-    operationId: nextAcquisitionId('diagnostics'),
+    operationId: tab?.operationId || nextAcquisitionId('diagnostics'),
     adapter: { id: adapter.id, label: adapter.label, help: adapter.help },
     capabilityMatrix: ADAPTER_REGISTRY.capabilityMatrix(),
     adapterPlugins: browserAdapterPluginStatus,

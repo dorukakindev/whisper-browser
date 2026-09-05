@@ -50,6 +50,14 @@ test('ayni kusakta eski medya ve edinme olaylari reddedilir', () => {
   assert.equal(gate.accept({ tabId: 'tab-1', generation: 5, mediaId: 'youtube:next', acquisitionId: 'cap-next' }), true);
 });
 
+test('aynı edinme kuşağında farklı işlem kimliği eski sonucu reddeder', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 1, { mediaId: 'youtube:new', acquisitionId: 'cap-1', operationId: 'op-1' });
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 1, mediaId: 'youtube:new', acquisitionId: 'cap-1', operationId: 'op-old' }), false);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 1, mediaId: 'youtube:new', acquisitionId: 'cap-1', operationId: 'op-1' }), true);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 1, mediaId: 'youtube:next', acquisitionId: 'cap-2', operationId: 'op-2', type: 'navigation' }), true);
+});
+
 test('yeni edinme durumu kayitli altyazi olayindan once kapida tanitilir', () => {
   const gate = new BrowserTabEventGate();
   gate.open('tab-1', 4, { mediaId: 'discovery:episode', acquisitionId: 'cap-old' });

@@ -4090,6 +4090,7 @@ function syncBrowserTabs(snapshots, activeTabId) {
     });
     player.browserTabEventGate.open(tab.id, tab.generation, {
       mediaId: tab.mediaId || '', acquisitionId: snapshot.acquisitionId || '',
+      operationId: snapshot.operationId || '',
     });
     previous.delete(tab.id);
     next.push(tab);

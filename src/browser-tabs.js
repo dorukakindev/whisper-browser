@@ -24,6 +24,7 @@ class BrowserTabEventGate {
       generation: Math.max(0, Number(generation) || 0),
       mediaId: String(context.mediaId || ''),
       acquisitionId: String(context.acquisitionId || ''),
+      operationId: String(context.operationId || ''),
     });
     return true;
   }
@@ -46,6 +47,7 @@ class BrowserTabEventGate {
       current.generation = incoming;
       current.mediaId = '';
       current.acquisitionId = '';
+      current.operationId = '';
     }
     const mediaId = String(event && event.mediaId || '');
     const acquisitionId = String(event && event.acquisitionId || '');
@@ -59,13 +61,18 @@ class BrowserTabEventGate {
       if (!establishesContext) return false;
       current.mediaId = '';
       current.acquisitionId = '';
+      current.operationId = '';
     }
     if (current.acquisitionId && acquisitionId && current.acquisitionId !== acquisitionId) {
       if (!establishesContext) return false;
       current.acquisitionId = '';
+      current.operationId = '';
     }
     if (mediaId) current.mediaId = mediaId;
     if (acquisitionId) current.acquisitionId = acquisitionId;
+    const operationId = String(event && event.operationId || '');
+    if (current.operationId && operationId && current.operationId !== operationId && !establishesContext) return false;
+    if (operationId) current.operationId = operationId;
     return true;
   }
 }
