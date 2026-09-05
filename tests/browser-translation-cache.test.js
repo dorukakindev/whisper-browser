@@ -30,6 +30,16 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   assert(fs.readdirSync(dir).some((name) => name.startsWith('both-broken.json.corrupt-')));
   assert(fs.readdirSync(dir).some((name) => name.startsWith('both-broken.json.bak.corrupt-')));
 
+  const invalidSchema = path.join(dir, 'invalid-schema.json');
+  fs.writeFileSync(invalidSchema, JSON.stringify({ version: 99, entries: [['a', 'yanlış']] }), 'utf8');
+  fs.writeFileSync(`${invalidSchema}.bak`, JSON.stringify({ version: 2, entries: [
+    ['a', { value: 'Yedekten geldi', updatedAt: Date.now() }],
+  ] }), 'utf8');
+  const recoveredSchema = new PersistentTranslationCache(invalidSchema);
+  assert.equal(recoveredSchema.get('a'), 'Yedekten geldi');
+  assert(fs.readdirSync(dir).some((name) => name.startsWith('invalid-schema.json.corrupt-')),
+    'geçerli JSON ama bozuk şema da yedek dönüşü için arşivlenmeli');
+
   const expiredFile = path.join(dir, 'expired.json');
   fs.writeFileSync(expiredFile, JSON.stringify({ version: 2, entries: [
     ['old', { value: 'Eski', updatedAt: Date.now() - 120_000 }],

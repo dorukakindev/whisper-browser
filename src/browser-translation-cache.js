@@ -18,6 +18,15 @@ class PersistentTranslationCache {
 
   load() {
     const loadFile = (filePath) => JSON.parse(this.fs.readFileSync(filePath, 'utf8'));
+    const parseCache = (filePath) => {
+      const parsed = loadFile(filePath);
+      // Geçerli JSON tek başına güvenilir cache anlamına gelmez. Şema bozuksa
+      // sağlam .bak dosyasına düşebilmek için bunu açıkça hata olarak bildir.
+      if (!parsed || ![1, 2].includes(parsed.version) || !Array.isArray(parsed.entries)) {
+        throw new Error('Çeviri önbelleği şeması geçersiz.');
+      }
+      return parsed;
+    };
     const archiveCorrupt = (filePath) => {
       try {
         if (!this.fs.existsSync(filePath)) return;
@@ -27,11 +36,11 @@ class PersistentTranslationCache {
     };
     try {
       let parsed;
-      try { parsed = loadFile(this.filePath); }
+      try { parsed = parseCache(this.filePath); }
       catch (error) {
         const primaryExists = this.fs.existsSync(this.filePath);
         try {
-          parsed = loadFile(`${this.filePath}.bak`);
+          parsed = parseCache(`${this.filePath}.bak`);
           if (primaryExists) archiveCorrupt(this.filePath);
         } catch (backupError) {
           if (primaryExists) archiveCorrupt(this.filePath);
