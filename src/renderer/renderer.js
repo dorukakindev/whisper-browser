@@ -2761,6 +2761,13 @@ function playerJobEvent(event) {
     txt.textContent = job.kind === 'progressive'
       ? `İzleme konumundan hazırlanıyor · ${job.rangeIndex + 1}/${job.ranges.length} · %${event.percent.toFixed(0)}`
       : `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
+  } else if (event.type === 'llm_progress' && job.kind === 'translate') {
+    const failed = Math.max(0, Number(event.failed) || 0);
+    job.failedBlocks = failed;
+    player.translationRetryAvailable = failed;
+    txt.textContent = `Çeviri oluşturuluyor · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
+    fill.style.width = `${Math.min(100, Math.max(0, Number(event.percent) || 0))}%`;
+    updateMakeTransState();
   } else if (event.type === 'done' && (job.kind === 'explain' || job.kind === 'chat')) {
     job.running = false;
     state.running = false;
@@ -2805,6 +2812,8 @@ function playerJobEvent(event) {
       loadSubtitle(tr, true);
     }
     if (isTranslateJob) {
+      player.translationRetryAvailable = Math.max(0, Number(job.failedBlocks) || 0);
+      updateMakeTransState();
       finish(tr ? 'Çeviri hazır ve ikinci altyazı olarak yüklendi.'
                 : 'Çeviri bitti ama dosya bulunamadı.', tr ? 'success' : 'warn');
       if (job.browserTrackId) {
@@ -10581,6 +10590,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     }
     player.cuesRaw = cues;
     player.cues = player.mergeCont ? mergeCueContinuation(cues) : cues;
+    player.translationRetryAvailable = 0;
     player.activeIdx = -1;
     player.subPath = path;
     player.subRaw = res.text;
@@ -11764,8 +11774,12 @@ function updateMakeTransState() {
   if (!btn) return;
   const ok = !!player.subPath && player.cues.length > 0;
   btn.disabled = !ok;
+  const retry = Number(player.translationRetryAvailable) || 0;
+  btn.textContent = retry > 0 ? `Eksik çevirileri tamamla (${retry})` : 'Çeviri oluştur';
   btn.title = ok
-    ? 'Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur'
+    ? (retry > 0
+      ? 'Başarısız kalan satırları yeniden dener; tamamlanan satırlar önbellekten korunur'
+      : 'Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur')
     : 'Önce bir altyazı yükleyin (soldaki listeden veya dosyadan)';
 }
 
