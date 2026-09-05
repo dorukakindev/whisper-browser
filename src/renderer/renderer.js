@@ -2847,6 +2847,7 @@ window.api.onEvent((event) => {
   // sürecinden geç gelen terminal/progress olayı yeni arayüz durumuna sızmasın.
   if (event.queueItemId != null && event.queueItemId !== state.currentQueueId) return;
   const playerConsumed = playerJobEvent(event);
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   if (playerConsumed) return;
   // AI isleri (sohbet / acikla) yalnizca oynatici tarafinda islenir. Backend
   // bunlarda da 'done' basiyor; asagidaki switch onu ALTYAZI isi sanip
@@ -4297,6 +4298,7 @@ function setBrowserSignal(text, detected = false, options = {}) {
   $('browserSignal')?.classList.toggle('detected', detected);
   const action = $('browserSignalTranslateAction');
   if (action) action.classList.toggle('hidden', options.action !== 'translate');
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   return true;
 }
 
@@ -4375,6 +4377,7 @@ function applyBrowserMangaState(event = {}) {
     setBrowserSignal(`Manga görselleri işlendi: ${player.browserMangaCompleted}/${player.browserMangaTotal} · çevrilen ${player.browserMangaTranslated} · atlanan ${player.browserMangaFailed + player.browserMangaEmpty}`, true,
       { priority: 25 });
   }
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
 }
 
 async function handleBrowserMangaAction(clickEvent) {
@@ -9871,11 +9874,11 @@ function syncSubtitleModeUi() {
     item.classList.toggle('active', active);
     item.setAttribute('aria-checked', active ? 'true' : 'false');
   });
+  const roleCues = browserSubtitleRoleCues();
+  const hasSource = roleCues.source.length > 0;
+  const hasTranslation = roleCues.translation.length > 0;
   const display = $('playerSubtitleDisplay');
   if (display) {
-    const roleCues = browserSubtitleRoleCues();
-    const hasSource = roleCues.source.length > 0;
-    const hasTranslation = roleCues.translation.length > 0;
     for (const option of display.options) {
       if (option.value === 'source') option.disabled = !hasSource;
       else if (option.value === 'translation') option.disabled = !hasTranslation;
@@ -9883,6 +9886,16 @@ function syncSubtitleModeUi() {
     }
     display.value = mode;
   }
+  $$('#subtitleDisplaySegments [data-subtitle-display]').forEach((item) => {
+    const value = item.dataset.subtitleDisplay;
+    const active = value === mode;
+    const unavailable = value === 'source' ? !hasSource
+      : value === 'translation' ? !hasTranslation
+      : value === 'both' ? !hasSource || !hasTranslation : false;
+    item.classList.toggle('active', active);
+    item.setAttribute('aria-checked', active ? 'true' : 'false');
+    item.disabled = unavailable;
+  });
   const hint = $('subHiddenHint');
   if (hint) hint.classList.toggle('hidden', mode !== 'off');
 }
@@ -10886,7 +10899,8 @@ if ($('sideResizer')) {
 
 // Ayar cekmecesi
 const SETTINGS_PAGE_TITLES = {
-  source: 'Kaynak ve altyazı ayarları',
+  source: 'Kaynak ayarları',
+  'browser-subtitles': 'Altyazı ve çeviri',
   'browser-view': 'Görünüm ve manga',
   'browser-diagnostics': 'Yakalama ayrıntıları',
 };
@@ -10894,6 +10908,16 @@ const SETTINGS_PAGE_TITLES = {
 function initializeSettingsPages() {
   const view = $('browserViewSettings');
   const diagnostics = $('browserDiagnosticsPanel');
+  const trackActions = $('browserTrackActions');
+  const signalTools = $('browserSignalTools');
+  if (trackActions && $('browserSubtitleControlsHost')
+      && trackActions.parentElement !== $('browserSubtitleControlsHost')) {
+    $('browserSubtitleControlsHost').appendChild(trackActions);
+  }
+  if (signalTools && $('browserSubtitleToolsHost')
+      && signalTools.parentElement !== $('browserSubtitleToolsHost')) {
+    $('browserSubtitleToolsHost').appendChild(signalTools);
+  }
   if (view && $('settingsPageBrowserView') && view.parentElement !== $('settingsPageBrowserView')) {
     view.open = true;
     $('settingsPageBrowserView').appendChild(view);
@@ -10943,6 +10967,7 @@ function setSettingsDrawer(open) {
   }
   const layout = $('playerLayoutQuick');
   if (layout) layout.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const subtitleOpen = open && player.settingsPage === 'browser-subtitles';
   const viewOpen = open && player.settingsPage === 'browser-view';
   const diagnosticsOpen = open && player.settingsPage === 'browser-diagnostics';
   for (const id of ['browserViewSettingsToggle']) {
@@ -10951,6 +10976,11 @@ function setSettingsDrawer(open) {
       button.classList.toggle('active', viewOpen);
       button.setAttribute('aria-expanded', viewOpen ? 'true' : 'false');
     }
+  }
+  const subtitleButton = $('browserSubtitleSettingsToggle');
+  if (subtitleButton) {
+    subtitleButton.classList.toggle('active', subtitleOpen);
+    subtitleButton.setAttribute('aria-expanded', subtitleOpen ? 'true' : 'false');
   }
   for (const id of ['browserDiagnosticsToggle', 'browserDiagnosticsToolbar']) {
     const button = $(id);
@@ -10970,6 +11000,57 @@ function toggleSettingsPage(page) {
   setSettingsDrawer(true);
 }
 
+function playerTaskSnapshot() {
+  const rows = [];
+  const localJob = player.job;
+  if (localJob?.running || localJob?.awaitingExit) rows.push({ label: 'Altyazı işi', detail: 'Ses işleniyor' });
+  const tab = browserTabState();
+  if (player.browserTranslationTrackId && tab?.browserTranslationComplete === false) {
+    rows.push({ label: 'Altyazı çevirisi', detail: player.browserTranslationFailed ? `${player.browserTranslationFailed} satır yeniden denenecek` : 'Çeviri sürüyor' });
+  }
+  if (player.browserMangaBusy) rows.push({ label: 'Manga çevirisi', detail: `${player.browserMangaTranslated || 0} bölge hazır` });
+  if (player.browserPageTranslateBusy) rows.push({ label: 'Sayfa çevirisi', detail: `${player.browserPageTranslated || 0} blok hazır` });
+  if (player.pdfReader?.translating) rows.push({ label: 'PDF çevirisi', detail: $('pdfReaderStatus')?.textContent || 'Çeviri sürüyor' });
+  return rows;
+}
+
+function updatePlayerTaskCenter() {
+  const rows = playerTaskSnapshot();
+  const badge = $('playerTaskBadge');
+  if (badge) {
+    badge.textContent = String(rows.length);
+    badge.classList.toggle('hidden', rows.length < 1);
+  }
+  const list = $('playerTaskCenterList');
+  if (!list) return;
+  list.replaceChildren();
+  if (!rows.length) {
+    const empty = document.createElement('p');
+    empty.className = 'player-task-empty';
+    empty.textContent = 'Şu anda çalışan bir işlem yok.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const row of rows) {
+    const item = document.createElement('div'); item.className = 'player-task-row';
+    const mark = document.createElement('span'); mark.className = 'player-task-mark';
+    const copy = document.createElement('div');
+    const label = document.createElement('strong'); label.textContent = row.label;
+    const detail = document.createElement('span'); detail.textContent = row.detail;
+    copy.append(label, detail); item.append(mark, copy); list.appendChild(item);
+  }
+}
+
+function setPlayerTaskCenter(open) {
+  const panel = $('playerTaskCenter');
+  const button = $('playerTaskCenterToggle');
+  if (!panel || !button) return;
+  panel.classList.toggle('hidden', !open);
+  button.classList.toggle('active', open);
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) updatePlayerTaskCenter();
+}
+
 initializeSettingsPages();
 
 if ($('toggleSettings')) {
@@ -10978,6 +11059,10 @@ if ($('toggleSettings')) {
   });
 }
 if ($('closeSettings')) $('closeSettings').addEventListener('click', () => setSettingsDrawer(false));
+if ($('playerTaskCenterToggle')) {
+  $('playerTaskCenterToggle').addEventListener('click', () => setPlayerTaskCenter($('playerTaskCenter').classList.contains('hidden')));
+}
+if ($('playerTaskCenterClose')) $('playerTaskCenterClose').addEventListener('click', () => setPlayerTaskCenter(false));
 
 // Trancy tarzı üst hızlı eylemler: aynı oynatıcı yeteneklerini daha görünür
 // noktalara taşır; mevcut alt araçlar ve klavye kısayolları aynen çalışmaya devam eder.
@@ -11013,6 +11098,16 @@ if ($('playerLayoutQuick')) {
 if ($('browserViewSettingsToggle')) {
   $('browserViewSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-view'));
 }
+if ($('browserSubtitleSettingsToggle')) {
+  $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
+}
+$$('[data-browser-proxy]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const target = $(button.dataset.browserProxy);
+    if (target && !target.disabled) target.click();
+    if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
+  });
+});
 
 function applyBrowserPageTranslationState(event = {}) {
   player.browserPageTranslateBusy = event.state === 'running';
@@ -11046,6 +11141,7 @@ function applyBrowserPageTranslationState(event = {}) {
   const retry = $('browserPageRetryFailed');
   if (retry) retry.disabled = player.browserPageTranslateBusy || player.browserPageFailed < 1;
   if (event.message) setBrowserSignal(event.message, event.state !== 'error', { priority: event.state === 'error' ? 90 : 45 });
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
 }
 
 async function handleBrowserPageTranslationAction() {
@@ -11103,6 +11199,23 @@ async function getPdfJs() {
 function pdfReaderSetStatus(message, error = false) {
   const node = $('pdfReaderStatus');
   if (node) { node.textContent = message; node.style.color = error ? '#e48a74' : ''; }
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
+}
+
+function setPdfReaderView(mode = 'both') {
+  const next = ['source', 'both', 'translation'].includes(mode) ? mode : 'both';
+  const reader = $('pdfReader');
+  if (reader) {
+    reader.classList.remove('mode-source', 'mode-both', 'mode-translation');
+    reader.classList.add(`mode-${next}`);
+  }
+  if (player.pdfReader) player.pdfReader.viewMode = next;
+  $$('[data-pdf-view]').forEach((button) => {
+    const active = button.dataset.pdfView === next;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-checked', active ? 'true' : 'false');
+  });
+  try { localStorage.setItem('whisper-local.pdf-view', next); } catch (_) {}
 }
 
 async function extractPdfReaderPage(pageNumber) {
@@ -11194,6 +11307,8 @@ function renderPdfTranslation(pageNumber, blocks) {
 
 async function translateVisiblePdfPages(all = false) {
   const reader = player.pdfReader; if (!reader?.pdf) return;
+  reader.translating = true;
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
@@ -11226,6 +11341,7 @@ async function translateVisiblePdfPages(all = false) {
     if (result?.canceled) { canceled = true; break; }
   }
   $('pdfTranslateCancel').disabled = true;
+  reader.translating = false;
   pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
     : failed ? `${completed} sayfa hazır, ${failed} sayfa başarısız${lastError ? `: ${lastError}` : ''}` : 'Çeviri hazır', canceled || failed > 0);
 }
@@ -11266,11 +11382,14 @@ async function openPdfReader(filePath = '') {
     setBrowserSignal(`PDF okunamadı: ${error.message}`, false);
     return;
   }
-  player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
+  let viewMode = 'both';
+  try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'both'; } catch (_) {}
+  player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   const pageInput = $('pdfReaderPage');
   if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
   $('pdfReaderTitle').textContent = opened.title || 'PDF kitap'; $('pdfReaderPages').replaceChildren();
   $('pdfReader').classList.remove('hidden'); $('playerStage')?.classList.add('hidden'); $('browserWorkspace')?.classList.add('hidden');
+  setPdfReaderView(viewMode);
   for (const pageNumber of [1, 2, 3].filter((number) => number <= pdf.numPages)) {
     await renderPdfReaderPage(pageNumber);
   }
@@ -11316,6 +11435,9 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   syncBrowserOcclusion();
 });
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
+$('[data-pdf-view]') && $$('[data-pdf-view]').forEach((button) => {
+  button.addEventListener('click', () => setPdfReaderView(button.dataset.pdfView));
+});
 $('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));
 $('pdfTranslateCancel')?.addEventListener('click', () => {
   if (player.pdfReader?.pdfHash) window.api.cancelPdfTranslation?.(player.pdfReader.pdfHash);
@@ -11556,6 +11678,7 @@ async function startProgressivePlayerTranscription() {
   $('playerJobFill').style.width = '0%';
   $('playerJobText').textContent = ranges.length > 1
     ? 'Önce izlediğin bölüm hazırlanıyor…' : 'Altyazı hazırlanıyor…';
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   logLine(`Altyazı izleme konumundan başlatıldı · ${ranges.length} aşama`, 'info');
   await startProgressiveChunk(player.job);
 }
@@ -12474,6 +12597,9 @@ if ($('playerSubSelect2')) {
 if ($('playerSubtitleDisplay')) {
   $('playerSubtitleDisplay').addEventListener('change', (e) => setSubtitleMode(e.target.value));
 }
+$$('[data-subtitle-display]').forEach((button) => {
+  button.addEventListener('click', () => setSubtitleMode(button.dataset.subtitleDisplay));
+});
 
 // ---- izlerken düzeltme ----
 function openCueEditor() {
