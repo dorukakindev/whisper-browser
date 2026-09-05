@@ -50,6 +50,12 @@ function safeMeta(raw = {}) {
     label: String(raw.label || '').slice(0, 240),
     role: ['source', 'translation', 'secondary'].includes(raw.role) ? raw.role : 'source',
     source: allowedSources.has(raw.source) ? raw.source : 'manual',
+    // Çeviri ile kaynak eşleşmesini yeniden açılışta doğrulamak için tutulur.
+    // Boş bırakılması eski varlıklarla geriye dönük uyumludur.
+    sourceHash: String(raw.sourceHash || '').replace(/[^a-f0-9]/gi, '').slice(0, 64),
+    sourceTrackId: String(raw.sourceTrackId || '').slice(0, 180),
+    provider: String(raw.provider || '').slice(0, 240),
+    model: String(raw.model || '').slice(0, 120),
   };
 }
 

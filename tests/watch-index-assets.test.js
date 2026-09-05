@@ -69,6 +69,23 @@ try {
     assert.equal(loaded.document.language, 'tr');
   });
 
+  test('çeviri varlığı kaynak kanıtını saklar ve yeniden açılışta doğrulanabilir', () => {
+    const store = new BrowserAssetStore({ rootDir: path.join(dir, 'identity-assets') });
+    const result = store.putTrack({
+      mediaId: 'browser:test:episode', trackId: 'translation-1', language: 'tr',
+      label: 'TR', role: 'translation', source: 'translation',
+      sourceHash: 'abc123', sourceTrackId: 'source-1',
+      provider: 'https://api.example.test/v1', model: 'gpt-test',
+      cues: [{ start: 0, end: 1, text: 'Merhaba' }],
+    });
+    assert(result.ok, result.error);
+    const loaded = store.getTrack(result.assetId);
+    assert.equal(loaded.document.sourceHash, 'abc123');
+    assert.equal(loaded.document.sourceTrackId, 'source-1');
+    assert.equal(loaded.document.provider, 'https://api.example.test/v1');
+    assert.equal(loaded.document.model, 'gpt-test');
+  });
+
   test('eski yarım kalmış web altyazısı geçici dosyaları temizlenir', () => {
     const rootDir = path.join(dir, 'sweep-assets');
     const nested = path.join(rootDir, 'nested');

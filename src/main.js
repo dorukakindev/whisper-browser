@@ -3810,7 +3810,10 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
     id: trackId,
     language: config.targetLanguage,
     label: `${String(config.targetLanguage || 'tr').toUpperCase()} çeviri`,
-  }, cues, { role: 'translation', format: 'translation' });
+  }, cues, {
+    role: 'translation', format: 'translation', sourceHash: context.sourceHash,
+    sourceTrackId: tab.translationTrackId, provider: context.provider, model: config.model,
+  });
   if (!track?.persisted) return null;
   tab.translationPersistedSignature = signature;
   sendBrowserEvent(tab, { type: 'subtitle-found', track: { ...track, role: 'translation', autoLoad: true } });
@@ -3969,13 +3972,17 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
   const mediaId = browserWatchMediaId(tab);
   if (!mediaId || !track || !Array.isArray(cues) || !cues.length) return track;
   const role = ['source', 'translation', 'secondary'].includes(meta.role) ? meta.role : 'source';
+  const sourceHash = String(meta.sourceHash || '').trim() || (role === 'source'
+    ? createHash('sha256').update(JSON.stringify(cues.map((cue) => [cue.start, cue.end, cue.text])), 'utf8').digest('hex')
+    : '');
   const source = role === 'translation' ? 'translation'
     : meta.format === 'textTrack' || meta.format === 'html5-track' ? 'text-track'
     : meta.format === 'manifest' ? 'manifest'
       : meta.format === 'live-asr' ? 'live-asr' : 'network';
   const saved = browserAssetStore().putTrack({
     mediaId, trackId: track.id, language: track.language, label: track.label,
-    role, source, cues,
+    role, source, cues, sourceHash,
+    sourceTrackId: meta.sourceTrackId || '', provider: meta.provider || '', model: meta.model || '',
   });
   if (!saved.ok) return track;
   const indexedTrackId = `${mediaId}|${track.id}`;
@@ -4002,7 +4009,11 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     ...(Array.isArray(tab.trackRefs) ? tab.trackRefs.filter((ref) => ref.id !== indexedTrackId) : []),
   ].slice(0, 12);
   scheduleBrowserSessionSave();
-  return { ...track, role, path: saved.srtPath, assetId: saved.assetId, persisted: true };
+  return {
+    ...track, role, path: saved.srtPath, assetId: saved.assetId, persisted: true,
+    sourceHash, sourceTrackId: String(meta.sourceTrackId || ''),
+    provider: String(meta.provider || ''), model: String(meta.model || ''),
+  };
 }
 
 function restorePersistedBrowserTracks(tab) {
@@ -4015,12 +4026,27 @@ function restorePersistedBrowserTracks(tab) {
   let restoredTranslation = false;
   try {
     const rows = index.listTracks(mediaId).slice(0, 12);
+    const restoredEntries = [];
     for (const row of rows) {
       const saved = browserAssetStore().getTrack(row.asset_path);
       if (!saved.ok || !saved.document.cues.length) continue;
+      restoredEntries.push({ row, saved });
+    }
+    const sourceHashes = new Set(restoredEntries
+      .filter(({ saved }) => saved.document.role === 'source' && saved.document.sourceHash)
+      .map(({ saved }) => saved.document.sourceHash));
+    for (const { row, saved } of restoredEntries) {
       const document = saved.document;
       const role = ['source', 'translation', 'secondary'].includes(document.role || row.role)
         ? (document.role || row.role) : 'source';
+      // Metadata'sız eski kayıtlar için önceki davranışı koru: kaynak kanıtı
+      // olmadığı için otomatik seçim yapılabilir, ancak yeni kayıtlar kaynak
+      // hash'i varken yalnız eşleşen çeviriyi otomatik açar.
+      const hasSourceProof = role === 'translation'
+        ? (!document.sourceHash || sourceHashes.size === 0 || sourceHashes.has(document.sourceHash))
+        : false;
+      const sourceMismatch = role === 'translation' && !!document.sourceHash
+        && sourceHashes.size > 0 && !hasSourceProof;
       sendBrowserEvent(tab, {
         type: 'subtitle-found',
         track: {
@@ -4031,7 +4057,11 @@ function restorePersistedBrowserTracks(tab) {
           updatedAt: document.updatedAt || row.updated_at, pageUrl: tab.restoredUrl || '',
           sourceUrl: '', assetId: document.assetId, persisted: true,
           role,
-          autoLoad: role === 'translation' && !restoredTranslation
+          sourceHash: document.sourceHash || '', sourceTrackId: document.sourceTrackId || '',
+          provider: document.provider || '', model: document.model || '', sourceMismatch,
+          // Metadata'sız eski çeviri dosyaları geriye dönük uyumlulukla açılır;
+          // kaynak kanıtı bulunan yeni varlıklar yalnız eşleşen kaynakta açılır.
+          autoLoad: role === 'translation' && !restoredTranslation && hasSourceProof
             && !tab.subtitleSelection && tab.overlay?.mode !== 'off',
         },
       });
