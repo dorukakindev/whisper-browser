@@ -2768,6 +2768,9 @@ function playerJobEvent(event) {
   } else if (event.type === 'done') {
     fill.style.width = '100%';
     const files = (event.files || []).filter((f) => /\.(srt|vtt)$/i.test(f));
+    // Oynatıcıdaki çeviri işi ana transkripsiyon akışından ayrı ilerler;
+    // kaynak dosya listesini silmeden yeni çeviri çıktısını ekle.
+    state.outputFiles = [...new Set([...(state.outputFiles || []), ...files])];
     if (job.mediaKey !== player.mediaKey) {
       finish('Altyazı hazır ama başka videoya geçildi — yüklenmedi.', 'warn');
       refreshHistory();
@@ -11838,7 +11841,11 @@ if ($('makeTransBtn')) {
 
     state.running = true;
     state.cancelled = false;
-    state.outputFiles = [];
+    // Yalnızca çeviri işi mevcut kaynak altyazıyı kullanır. Burada outputFiles'ı
+    // temizlemek, API/model hatasında daha önce başarıyla üretilmiş kaynak izi
+    // UI'dan koparıyor ve kullanıcıyı yanlışlıkla yeniden transkripsiyona
+    // itiyordu. Çeviri çıktısı done olayında ayrıca listeye eklenir.
+    const previousOutputs = state.outputFiles.slice();
     player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
       liveSource: player.cues.slice(), liveTranslation: new Map(),
       browserTrackId: browserTrack ? browserTrack.id : '',
@@ -11856,6 +11863,8 @@ if ($('makeTransBtn')) {
     if (!r || !r.ok) {
       state.running = false;
       player.job = null;
+      state.outputFiles = previousOutputs;
+      updateMakeTransState();
       if (bar) bar.classList.add('hidden');
       logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
     }
