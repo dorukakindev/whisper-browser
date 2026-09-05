@@ -2841,7 +2841,54 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   font: inherit;
   font-size: 11px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
 }
+.browser-more-popover button > span { margin-left: auto; color: #77777d; font-size: 9px; }
+.browser-more-zoom {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #303034;
+  border-radius: 8px;
+  background: #101012;
+}
+.browser-zoom-toolbar {
+  display: grid;
+  grid-template-columns: 27px 45px 27px;
+  height: 34px;
+  overflow: hidden;
+  border: 1px solid #313237;
+  border-radius: 8px;
+  background: #111214;
+}
+.browser-zoom-toolbar button {
+  min-width: 0;
+  padding: 0;
+  color: #aeb0b6;
+  border: 0;
+  border-right: 1px solid #292a2f;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.browser-zoom-toolbar button:last-child { border-right: 0; }
+.browser-zoom-toolbar button:hover { color: #171108; background: var(--player-amber); }
+.browser-zoom-toolbar button:focus-visible { outline: 2px solid var(--player-amber); outline-offset: -2px; }
+.browser-zoom-toolbar button:disabled { color: #515258; background: transparent; cursor: default; }
+.browser-more-popover .browser-more-zoom button {
+  min-height: 29px;
+  justify-content: center;
+  padding: 0 6px;
+  color: #d0d0d4;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+.browser-more-popover .browser-more-zoom button:disabled { color: #55555a; cursor: default; }
 .browser-more-popover button:hover { color: #f0d29a; background: #242018; }
 .browser-more-popover button:focus-visible { outline: 2px solid var(--player-amber); outline-offset: 1px; }
 
@@ -5147,6 +5194,7 @@ body.modal-open { overflow: hidden; }
 @container browser-workspace (max-width: 1380px) {
   #browserDiagnosticsToolbar, #browserBookmarkToggle, #browserDownloadsToggle,
   #browserPlacesToggle, #browserSignalToggle { display: none; }
+  .browser-zoom-toolbar { display: none; }
   .browser-more { display: block; }
 }
 @container browser-workspace (max-width: 760px) {

@@ -1105,11 +1105,22 @@
                 title="Sade izleme görünümüne geç" aria-label="Sade izleme görünümüne geç" aria-pressed="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 14 5-5 5 5"/></svg>
               </button>
+              <div class="browser-zoom-toolbar" role="group" aria-label="Sayfa yakınlaştırması">
+                <button type="button" id="browserZoomOutToolbar" title="Uzaklaştır (Ctrl+-)" aria-label="Sayfayı uzaklaştır">−</button>
+                <button type="button" id="browserZoomResetToolbar" title="Yakınlaştırmayı sıfırla (Ctrl+0)" aria-label="Yakınlaştırmayı sıfırla">100%</button>
+                <button type="button" id="browserZoomInToolbar" title="Yakınlaştır (Ctrl++)" aria-label="Sayfayı yakınlaştır">+</button>
+              </div>
               <details class="browser-more" id="browserMoreMenu">
                 <summary class="btn-icon browser-place-button" title="Diğer tarayıcı araçları" aria-label="Diğer tarayıcı araçları">
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                 </summary>
                 <div class="browser-more-popover" role="menu" aria-label="Diğer tarayıcı araçları">
+                  <button type="button" role="menuitem" id="browserReopenTab">Kapatılan sekmeyi aç <span>Ctrl+Shift+T</span></button>
+                  <div class="browser-more-zoom" role="group" aria-label="Sayfa yakınlaştırması">
+                    <button type="button" id="browserZoomOut" title="Uzaklaştır (Ctrl+-)" aria-label="Sayfayı uzaklaştır">−</button>
+                    <button type="button" id="browserZoomReset" title="Yakınlaştırmayı sıfırla (Ctrl+0)" aria-label="Yakınlaştırmayı sıfırla">100%</button>
+                    <button type="button" id="browserZoomIn" title="Yakınlaştır (Ctrl++)" aria-label="Sayfayı yakınlaştır">+</button>
+                  </div>
                   <button type="button" role="menuitem" data-browser-proxy="browserDiagnosticsToolbar">Yakalama ayrıntıları</button>
                   <button type="button" role="menuitem" data-browser-proxy="browserBookmarkToggle">Yer imine ekle / çıkar</button>
                   <button type="button" role="menuitem" data-browser-proxy="browserDownloadsToggle">İndirmeler</button>

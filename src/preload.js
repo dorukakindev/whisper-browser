@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('api', {
   createBrowserTab: () => ipcRenderer.invoke('browser:tab:create'),
   activateBrowserTab: (tabId) => ipcRenderer.invoke('browser:tab:activate', tabId),
   closeBrowserTab: (tabId, force = false) => ipcRenderer.invoke('browser:tab:close', { tabId, force: !!force }),
+  reopenBrowserTab: () => ipcRenderer.invoke('browser:tab:reopen'),
   setBrowserTabPinned: (tabId, pinned) => ipcRenderer.invoke('browser:tab:setPinned', tabId, !!pinned),
   getBrowserState: () => ipcRenderer.invoke('browser:getState'),
   setBrowserSessionRestore: (enabled) => ipcRenderer.invoke('browser:session:setRestore', enabled),

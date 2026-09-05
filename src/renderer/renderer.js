@@ -3670,6 +3670,7 @@ const player = {
   localSubtitleWorkspace: null,
   browserTabs: [],
   browserTabCreateBusy: false,
+  browserTabReopenBusy: false,
   browserClosingTabs: new Set(),
   browserActiveTabId: '',
   browserTabEventGate: new BrowserTabEventGate(),
@@ -3682,6 +3683,7 @@ const player = {
   browserRate: 1,
   browserVolume: 1,
   browserMuted: false,
+  browserZoom: 1,
   browserProfileKey: '',
   browserPositionTick: 0,
   browserBoundsFrame: 0,
@@ -3775,6 +3777,7 @@ function newBrowserTabState(snapshot = {}) {
     browserMuted: !!snapshot.muted,
     tabMuted: !!snapshot.tabMuted,
     audible: !!snapshot.audible,
+    browserZoom: Number.isFinite(Number(snapshot.zoom)) ? Number(snapshot.zoom) : 1,
     browserProfileKey: '',
     browserPositionTick: 0,
     browserLoadedTrackId: '',
@@ -3963,6 +3966,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserRate = Number(tab.browserRate) || 1;
   player.browserVolume = Number.isFinite(Number(tab.browserVolume)) ? Number(tab.browserVolume) : 1;
   player.browserMuted = !!tab.browserMuted;
+  updateBrowserZoomUi(tab.browserZoom || 1);
   player.browserProfileKey = tab.browserProfileKey || '';
   player.browserPositionTick = Number(tab.browserPositionTick) || 0;
   player.browserLoadedTrackId = tab.browserLoadedTrackId || '';
@@ -4068,6 +4072,7 @@ function syncBrowserTabs(snapshots, activeTabId) {
       browserMuted: snapshot.muted !== undefined ? !!snapshot.muted : tab.browserMuted,
       tabMuted: snapshot.tabMuted !== undefined ? !!snapshot.tabMuted : tab.tabMuted,
       audible: snapshot.audible !== undefined ? !!snapshot.audible : tab.audible,
+      browserZoom: Number.isFinite(Number(snapshot.zoom)) ? Number(snapshot.zoom) : (tab.browserZoom || 1),
       offset: Number.isFinite(Number(snapshot.offset)) ? Number(snapshot.offset) : (tab.offset || 0),
       viewMode: snapshot.viewMode || tab.viewMode || 'reading',
       subtitleMode: ['off', 'source', 'translation', 'both'].includes(snapshot.subtitleMode)
@@ -4161,6 +4166,36 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
     player.shadowResumeTimer = null;
   }
   return window.api.browserCommand(tabId, command, value);
+}
+
+function updateBrowserZoomUi(rawZoom = player.browserZoom) {
+  const zoom = Number.isFinite(Number(rawZoom)) ? Math.max(0.5, Math.min(3, Number(rawZoom))) : 1;
+  player.browserZoom = zoom;
+  const tab = browserTabState();
+  if (tab) tab.browserZoom = zoom;
+  const label = `${Math.round(zoom * 100)}%`;
+  for (const id of ['browserZoomReset', 'browserZoomResetToolbar']) {
+    const reset = $(id);
+    if (!reset) continue;
+    reset.textContent = label;
+    reset.title = `Yakınlaştırmayı sıfırla (şu an ${label})`;
+    reset.setAttribute('aria-label', reset.title);
+  }
+  for (const id of ['browserZoomOut', 'browserZoomOutToolbar']) if ($(id)) $(id).disabled = zoom <= 0.5;
+  for (const id of ['browserZoomIn', 'browserZoomInToolbar']) if ($(id)) $(id).disabled = zoom >= 3;
+}
+
+async function changeBrowserZoom(command) {
+  const result = await browserCommand(command).catch(() => null);
+  if (!result?.ok) {
+    setBrowserSignal(result?.error || 'Sayfa yakınlaştırması değiştirilemedi.', false);
+    return result;
+  }
+  updateBrowserZoomUi(result.zoom);
+  scheduleBrowserBounds();
+  scheduleBrowserOverlaySync();
+  osd(`Sayfa yakınlaştırma %${Math.round((Number(result.zoom) || 1) * 100)}`);
+  return result;
 }
 
 function navigateBrowser(url, tabId = player.browserActiveTabId) {
@@ -4371,6 +4406,32 @@ async function createBrowserTab() {
   }, 0);
   scheduleBrowserBounds();
   return tab;
+}
+
+async function reopenClosedBrowserTab() {
+  if (player.browserTabReopenBusy || !window.api.reopenBrowserTab) return null;
+  player.browserTabReopenBusy = true;
+  try {
+    await flushWatchState(false, true);
+    saveActiveBrowserTabWorkspace();
+    const result = await window.api.reopenBrowserTab().catch(() => null);
+    if (!result?.ok) {
+      setBrowserSignal(result?.error || 'Kapatılmış sekme yeniden açılamadı.', false);
+      return null;
+    }
+    syncBrowserTabs(result.tabs, result.activeTabId);
+    const tab = browserTabState();
+    restoreActiveBrowserTabWorkspace(tab);
+    if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
+    if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
+    updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
+    scheduleBrowserBounds();
+    scheduleBrowserOverlaySync();
+    setBrowserSignal('Son kapatılan sekme yeniden açıldı.', true);
+    return tab;
+  } finally {
+    player.browserTabReopenBusy = false;
+  }
 }
 
 async function closeBrowserTab(tabId) {
@@ -6100,7 +6161,9 @@ function updateBrowserNavigation(data, options = {}) {
     if (data.canGoForward !== undefined) tab.canGoForward = !!data.canGoForward;
     if (data.mediaId !== undefined) tab.mediaId = data.mediaId || '';
     if (data.service !== undefined) tab.service = data.service || '';
+    if (Number.isFinite(Number(data.zoom))) tab.browserZoom = Number(data.zoom);
   }
+  if (Number.isFinite(Number(data.zoom))) updateBrowserZoomUi(data.zoom);
   const address = $('browserAddress');
   if (data.url && document.activeElement !== address) address.value = data.url;
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
@@ -6830,10 +6893,12 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         if (event.visible !== undefined) tab.browserPageVisible = !!event.visible;
         if (event.state === 'error') tab.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
         else if (event.state === 'idle' || event.state === 'ready') tab.browserPageError = '';
-      } else if (event.type === 'load-error' || event.type === 'security-error' || event.type === 'drm-playback-error') {
+      } else if (event.type === 'load-error' || event.type === 'security-error'
+          || event.type === 'drm-playback-error' || event.type === 'tab-crashed') {
         tab.error = event.message || 'Tarayıcı hatası';
-        tab.errorKind = event.type === 'security-error' ? 'certificate' : 'connection';
-        tab.errorCode = event.code || '';
+        tab.errorKind = event.type === 'security-error' ? 'certificate'
+          : (event.type === 'tab-crashed' ? 'crash' : 'connection');
+        tab.errorCode = event.code || event.reason || '';
         tab.errorUrl = event.url || tab.url || '';
       }
       updateBrowserTabPresentation(tab);
@@ -6938,18 +7003,19 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       }
     }
     if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, previousTime, player.browserPaused);
-  } else if (event.type === 'load-error' || event.type === 'security-error') {
+  } else if (event.type === 'load-error' || event.type === 'security-error' || event.type === 'tab-crashed') {
     const tab = browserTabState();
     if (tab) {
       tab.error = event.message || `hata ${event.code}`;
-      tab.errorKind = event.type === 'security-error' ? 'certificate' : 'connection';
-      tab.errorCode = event.code || '';
+      tab.errorKind = event.type === 'security-error' ? 'certificate'
+        : (event.type === 'tab-crashed' ? 'crash' : 'connection');
+      tab.errorCode = event.code || event.reason || '';
       tab.errorUrl = event.url || tab.url || player.browserPageUrl || '';
     }
     updateBrowserNavigation({ ...event, loading: false });
-    if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
+    if (player.workspaceMode === 'browser') $('playerMeta').textContent = event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi';
     showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, message: event.message || `hata ${event.code}` });
-    setBrowserSignal(`Sayfa yüklenemedi: ${event.message || `hata ${event.code}`}`, false,
+    setBrowserSignal(`${event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi'}: ${event.message || `hata ${event.code}`}`, false,
       { priority: 100, holdMs: 7000 });
   } else if (event.type === 'notice') {
     setBrowserSignal(event.message || 'İşlem tamamlandı.', !!event.success);
@@ -7013,6 +7079,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'popup-opened') {
     const message = `${event.host || 'Site'} için yeni pencere açıldı. Bu pencerede altyazı yakalama ve çeviri çalışmaz; videoyu ana sekmede açın.`;
     setBrowserSignal(message, false, { priority: 70, holdMs: 5000 });
+    logLine(message, 'warn');
+  } else if (event.type === 'permission-denied') {
+    const message = event.message || `${event.host || 'Site'} izin isteği güvenli varsayılanla engellendi.`;
+    setBrowserSignal(message, false, { priority: 75, holdMs: 6000 });
     logLine(message, 'warn');
   } else if (event.type === 'drm-playback-error') {
     const tab = browserTabState();
@@ -9289,10 +9359,14 @@ function showBrowserErrorSurface(error) {
   surface.classList.toggle('hidden', !visible);
   if (!visible) return;
   const secure = error.kind === 'certificate';
-  if ($('browserErrorKicker')) $('browserErrorKicker').textContent = secure ? 'Güvenlik bağlantısı engellendi' : 'Bağlantı kurulamadı';
-  if ($('browserErrorTitle')) $('browserErrorTitle').textContent = secure ? 'Sertifika doğrulanamadı' : 'Sayfa açılamadı';
+  const crashed = error.kind === 'crash';
+  if ($('browserErrorKicker')) $('browserErrorKicker').textContent = secure ? 'Güvenlik bağlantısı engellendi'
+    : (crashed ? 'Web işlemi kapandı' : 'Bağlantı kurulamadı');
+  if ($('browserErrorTitle')) $('browserErrorTitle').textContent = secure ? 'Sertifika doğrulanamadı'
+    : (crashed ? 'Sekme çöktü' : 'Sayfa açılamadı');
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
+  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? 'Sekmeyi yeniden yükle' : 'Tekrar dene';
 }
 
 async function askExplain(kind, index, word) {
@@ -11363,6 +11437,16 @@ if ($('browserViewSettingsToggle')) {
 if ($('browserSubtitleSettingsToggle')) {
   $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
 }
+if ($('browserReopenTab')) $('browserReopenTab').addEventListener('click', () => {
+  if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
+  reopenClosedBrowserTab();
+});
+if ($('browserZoomOut')) $('browserZoomOut').addEventListener('click', () => changeBrowserZoom('zoom-out'));
+if ($('browserZoomReset')) $('browserZoomReset').addEventListener('click', () => changeBrowserZoom('zoom-reset'));
+if ($('browserZoomIn')) $('browserZoomIn').addEventListener('click', () => changeBrowserZoom('zoom-in'));
+if ($('browserZoomOutToolbar')) $('browserZoomOutToolbar').addEventListener('click', () => changeBrowserZoom('zoom-out'));
+if ($('browserZoomResetToolbar')) $('browserZoomResetToolbar').addEventListener('click', () => changeBrowserZoom('zoom-reset'));
+if ($('browserZoomInToolbar')) $('browserZoomInToolbar').addEventListener('click', () => changeBrowserZoom('zoom-in'));
 $$('[data-browser-proxy]').forEach((button) => {
   button.addEventListener('click', () => {
     const target = $(button.dataset.browserProxy);
@@ -12701,6 +12785,7 @@ document.addEventListener('keydown', (e) => {
       $('browserAddress')?.select();
       return;
     }
+    if (key === 't' && e.shiftKey) { e.preventDefault(); reopenClosedBrowserTab(); return; }
     if (key === 't') { e.preventDefault(); createBrowserTab(); return; }
     if (key === 'w') { e.preventDefault(); closeBrowserTab(player.browserActiveTabId); return; }
     if (e.key === 'Tab') {
@@ -12718,9 +12803,7 @@ document.addEventListener('keydown', (e) => {
       : (key === '+' || key === '=' ? 'zoom-in' : (key === '-' || key === '_' ? 'zoom-out' : ''));
     if (zoomCommand) {
       e.preventDefault();
-      browserCommand(zoomCommand).then((result) => {
-        if (result?.ok) osd(`Sayfa yakınlaştırma %${Math.round((Number(result.zoom) || 1) * 100)}`);
-      }).catch(() => {});
+      changeBrowserZoom(zoomCommand).catch(() => {});
       return;
     }
   }

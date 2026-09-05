@@ -83,6 +83,8 @@ const {
 } = require('./queue-persistence');
 const { withAbortTimeout, withTimeout } = require('./async-timeout');
 const { normalizeBrowserTabId } = require('./browser-tabs');
+const { BrowserClosedTabHistory, isReplaceableBlankBrowserTab } = require('./browser-tab-history');
+const { browserSiteZoomForUrl, normalizeBrowserSiteZooms, withBrowserSiteZoom } = require('./browser-site-zoom');
 const {
   SafeSecretStore,
   secretStorePath,
@@ -189,6 +191,7 @@ let browserVisible = false;
 let browserModalOccluded = false;
 let browserBounds = null;
 const browserTabs = new Map();
+const browserClosedTabs = new BrowserClosedTabHistory(20);
 let browserActiveTabId = '';
 let browserTabSequence = 0;
 let browserTabTransitionPromise = Promise.resolve();
@@ -1461,6 +1464,8 @@ function createBrowserTabRecord(initial = {}) {
     targetLanguage: restored.targetLanguage || '',
     trackRefs: restored.trackRefs || [],
     subtitleSelection: restored.subtitleSelection || null,
+    zoom: 1,
+    closing: false,
   };
   browserTabs.set(tab.id, tab);
   if (!browserActiveTabId) browserActiveTabId = tab.id;
@@ -1506,6 +1511,7 @@ function browserTabSnapshot(tab) {
     diagnostics: tab ? tab.diagnostics : null,
     mediaId: tab?.mediaId || '',
     service: tab?.service || '',
+    contentId: tab?.contentId || '',
     position: Number(tab?.position) || 0,
     duration: Number(tab?.duration) || 0,
     rate: Number(tab?.rate) || 1,
@@ -1513,6 +1519,7 @@ function browserTabSnapshot(tab) {
     muted: !!tab?.muted,
     tabMuted: wc ? !!wc.isAudioMuted?.() : !!tab?.tabMuted,
     audible: wc ? !!wc.isCurrentlyAudible?.() : false,
+    zoom: wc ? (Number(wc.getZoomFactor?.()) || 1) : (Number(tab?.zoom) || 1),
     offset: Number(tab?.overlay?.offset) || 0,
     viewMode: tab?.viewMode || 'reading',
     subtitleMode: ['off', 'source', 'translation', 'both'].includes(tab?.overlay?.mode)
@@ -1609,7 +1616,8 @@ function normalizeBrowserPlaces(places) {
     name: String(item?.name || '').trim().slice(0, 64),
     tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
   })).filter(item => item.name && item.tabs.length);
-  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks), workspaces };
+  const siteZooms = normalizeBrowserSiteZooms(places?.siteZooms);
+  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks), workspaces, siteZooms };
 }
 
 function cloneBrowserPlaces(places) {
@@ -1617,7 +1625,27 @@ function cloneBrowserPlaces(places) {
     history: (places?.history || []).map((item) => ({ ...item })),
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
     workspaces: (places?.workspaces || []).map(item => ({ ...item, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
+    siteZooms: { ...(places?.siteZooms || {}) },
   };
+}
+
+function browserZoomForUrl(rawUrl) {
+  return browserSiteZoomForUrl(rawUrl, readBrowserPlaces().siteZooms);
+}
+
+function rememberBrowserZoom(rawUrl, rawZoom) {
+  const places = readBrowserPlaces();
+  const updated = withBrowserSiteZoom(places.siteZooms, rawUrl, rawZoom);
+  if (!updated.ok) return false;
+  places.siteZooms = updated.siteZooms;
+  return setBrowserPlaces(places, { broadcast: false });
+}
+
+function applyStoredBrowserZoom(tab, wc, rawUrl) {
+  const zoom = browserZoomForUrl(rawUrl);
+  try { wc.setZoomFactor(zoom); } catch (_) {}
+  if (tab) tab.zoom = zoom;
+  return zoom;
 }
 
 function readBrowserPlaces() {
@@ -1920,7 +1948,8 @@ function browserNavigationStateForTab(tab, extra = {}) {
   if (!tab || !tab.view || tab.view.webContents.isDestroyed()) {
     return {
       url: tab?.restoredUrl || '', title: tab?.restoredTitle || '', loading: false,
-      canGoBack: false, canGoForward: false, resumePending: !!tab?.restoredUrl, ...extra,
+      canGoBack: false, canGoForward: false, resumePending: !!tab?.restoredUrl,
+      zoom: Number(tab?.zoom) || 1, ...extra,
     };
   }
   const wc = tab.view.webContents;
@@ -1931,6 +1960,7 @@ function browserNavigationStateForTab(tab, extra = {}) {
     loading: wc.isLoading(),
     canGoBack,
     canGoForward,
+    zoom: Number(wc.getZoomFactor?.()) || Number(tab.zoom) || 1,
     ...extra,
   };
 }
@@ -5122,8 +5152,24 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   }
   if (!mainWindow || mainWindow.isDestroyed()) return null;
   const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
-  browserSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(permission === 'fullscreen' || permission === 'clipboard-sanitized-write');
+  browserSession.setPermissionRequestHandler((requestingWebContents, permission, callback) => {
+    const allowed = permission === 'fullscreen' || permission === 'clipboard-sanitized-write';
+    if (!allowed) {
+      const permissionTab = browserTabForWebContents(requestingWebContents);
+      if (permissionTab) {
+        let host = '';
+        try { host = new URL(requestingWebContents.getURL()).hostname; } catch (_) {}
+        const label = {
+          media: 'kamera veya mikrofon', camera: 'kamera', microphone: 'mikrofon',
+          notifications: 'bildirim', geolocation: 'konum',
+        }[permission] || permission;
+        sendBrowserEvent(permissionTab, {
+          type: 'permission-denied', permission, host,
+          message: `${host || 'Bu site'} ${label} erişimi istedi; güvenli varsayılan olarak engellendi.`,
+        });
+      }
+    }
+    callback(allowed);
   });
   browserDownloads.attach(browserSession);
   const view = new WebContentsView({
@@ -5210,6 +5256,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.mediaId = identity.key;
     tab.service = identity.service;
     tab.contentId = identity.contentId;
+    applyStoredBrowserZoom(tab, wc, tab.restoredUrl);
     if (tab.id === browserActiveTabId) resetBrowserCaptureState({ cancelTranslation: true });
     rememberBrowserVisit(wc.getURL(), wc.getTitle());
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab) });
@@ -5239,6 +5286,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       tab.mediaId = identity.key;
       tab.service = identity.service;
       tab.contentId = identity.contentId;
+      applyStoredBrowserZoom(tab, wc, nextUrl);
       if (mediaChanged && tab.id === browserActiveTabId) {
         resetBrowserCaptureState({ cancelTranslation: true });
       }
@@ -5264,6 +5312,39 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
       sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }), code, message, url });
     }
+  });
+  wc.on('render-process-gone', (_event, details = {}) => {
+    if (tab.closing || mainWindowClosing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    const reason = String(details.reason || 'crashed');
+    if (reason === 'clean-exit') return;
+    const failedUrl = wc.getURL() && wc.getURL() !== 'about:blank' ? wc.getURL() : tab.restoredUrl;
+    tab.restoredUrl = failedUrl || tab.restoredUrl || '';
+    tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
+    tab.generation += 1;
+    tab.loadError = {
+      kind: 'crash', code: reason,
+      message: 'Bu sekmenin web işlemi beklenmedik biçimde kapandı. Diğer sekmeler korunuyor; sekmeyi yeniden yükleyebilirsiniz.',
+      url: tab.restoredUrl,
+    };
+    try { tab.pageFind?.stop(); } catch (_) {}
+    tab.pageFind = null;
+    detachBrowserDebugger(view);
+    try { view.setVisible(false); } catch (_) {}
+    try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(view); } catch (_) {}
+    tab.view = null;
+    if (tab.id === browserActiveTabId) {
+      browserView = null;
+      stopBrowserPolling();
+      browserDebuggerReady = false;
+      browserPendingResponses.clear();
+    }
+    try { if (!wc.isDestroyed()) wc.close({ waitForBeforeUnload: false }); } catch (_) {}
+    sendBrowserEvent(tab, {
+      type: 'tab-crashed', loading: false, reason,
+      url: tab.restoredUrl, title: tab.restoredTitle,
+      message: tab.loadError.message,
+    });
+    scheduleBrowserSessionSave();
   });
   wc.on('console-message', (event, ...rest) => {
     const rawMsg = event && typeof event === 'object' && typeof event.message === 'string'
@@ -5340,7 +5421,7 @@ function detachBrowserDebugger(view) {
 function resumeRestoredBrowserPage(tab) {
   const view = tab?.view;
   const url = tab?.restoredUrl;
-  if (!view || !url || tab.restoringPage || view.webContents.isDestroyed()
+  if (!view || !url || tab.loadError || tab.restoringPage || view.webContents.isDestroyed()
       || !['', 'about:blank'].includes(view.webContents.getURL())) return;
   tab.restoringPage = true;
   // Yalnız seçilen sekmeyi aç; ağ yüklemesini sekme geçiş kuyruğuna kilitleme.
@@ -5418,6 +5499,7 @@ function queueBrowserTabTransition(work) {
 
 function destroyBrowserTab(tab) {
   if (!tab) return;
+  tab.closing = true;
   tab.pageFind?.stop();
   stopBrowserManga(tab, false);
   stopBrowserPageTranslation(tab, false);
@@ -5883,6 +5965,7 @@ ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransitio
     }
     return { ok: false, canceled: true };
   }
+  browserClosedTabs.push(browserTabSnapshot(tab));
   destroyBrowserTab(tab);
   let next = null;
   if (browserTabs.size) next = ordered[index + 1] || ordered[index - 1] || [...browserTabs.values()][0];
@@ -5911,6 +5994,26 @@ ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(asy
   return { ok: true, hasPage, activeTabId: tab.id, tabs: browserTabsSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled,
     diagnostics: browserDiagnostics, ...browserNavigationState() };
+}));
+
+ipcMain.handle('browser:tab:reopen', (event) => queueBrowserTabTransition(async () => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const snapshot = browserClosedTabs.pop();
+  if (!snapshot) return { ok: false, empty: true, error: 'Yeniden açılabilecek kapatılmış sekme yok.' };
+  const current = activeBrowserTab();
+  const replaceBlank = current && isReplaceableBlankBrowserTab(browserTabSnapshot(current), browserTabs.size);
+  if (browserTabs.size >= MAX_SESSION_TABS && !replaceBlank) {
+    browserClosedTabs.push(snapshot);
+    return { ok: false, limitReached: true,
+      error: `En fazla ${MAX_SESSION_TABS} tarayıcı sekmesi açılabilir. Önce bir sekmeyi kapatın.` };
+  }
+  if (replaceBlank) destroyBrowserTab(current);
+  const tab = createBrowserTabRecord({ ...snapshot, id: '' });
+  ensureBrowserView(tab);
+  await activateBrowserTab(tab.id);
+  scheduleBrowserSessionSave();
+  return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), ...browserEventContext(tab),
+    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:hide', async (event) => {
@@ -5997,12 +6100,17 @@ ipcMain.handle('browser:command', async (event, payload) => {
       return tab.pageFind.find(value);
     } else if (command === 'find-stop') {
       tab.pageFind.stop();
-    } else if (['zoom-in', 'zoom-out', 'zoom-reset'].includes(command)) {
+    } else if (['zoom-in', 'zoom-out', 'zoom-reset', 'zoom-set'].includes(command)) {
       const current = Number(wc.getZoomFactor?.()) || 1;
+      const requested = Number(value);
       const zoom = command === 'zoom-reset' ? 1
-        : Math.max(0.5, Math.min(3, current + (command === 'zoom-in' ? 0.1 : -0.1)));
-      wc.setZoomFactor(zoom);
-      return { ok: true, ...browserEventContext(tab), zoom, ...browserNavigationState() };
+        : command === 'zoom-set' && Number.isFinite(requested) ? Math.max(0.5, Math.min(3, requested))
+          : Math.max(0.5, Math.min(3, current + (command === 'zoom-in' ? 0.1 : -0.1)));
+      const roundedZoom = Math.round(zoom * 10) / 10;
+      wc.setZoomFactor(roundedZoom);
+      tab.zoom = roundedZoom;
+      rememberBrowserZoom(wc.getURL(), roundedZoom);
+      return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, ...browserNavigationState() };
     } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
