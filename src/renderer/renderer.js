@@ -5030,6 +5030,8 @@ function renderBrowserPlaces() {
     tab.setAttribute('aria-selected', active ? 'true' : 'false');
     tab.tabIndex = active ? 0 : -1;
   });
+  list?.setAttribute('aria-labelledby', player.browserPlaceTab === 'history'
+    ? 'browserPlaceTabHistory' : 'browserPlaceTabBookmarks');
   $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
   list.replaceChildren();
@@ -10591,7 +10593,7 @@ function autoGrowChatBox() {
   t.style.height = Math.min(120, t.scrollHeight) + 'px';
 }
 
-function setSideTab(tab) {
+function setSideTab(tab, { focusContent = false } = {}) {
   const ai = tab === 'ai';
   const library = tab === 'library';
   $('playerSide').classList.toggle('ai-mode', ai);
@@ -10604,10 +10606,13 @@ function setSideTab(tab) {
     b.setAttribute('aria-selected', on ? 'true' : 'false');
     b.tabIndex = on ? 0 : -1;
   });
-  if (ai) { aiChatCtxLabel(); $('aiChatText')?.focus(); }
+  if (ai) {
+    aiChatCtxLabel();
+    if (focusContent) $('aiChatText')?.focus();
+  }
   if (library) {
     refreshWatchLibrary();
-    $('playerLibrarySearch')?.focus();
+    if (focusContent) $('playerLibrarySearch')?.focus();
   }
 }
 
@@ -14131,6 +14136,7 @@ $$('[data-library-view]').forEach((button) => button.addEventListener('click', a
     item.classList.toggle('active', active);
     item.setAttribute('aria-selected', active ? 'true' : 'false');
   });
+  $('playerLibraryList')?.setAttribute('aria-labelledby', button.id);
   $('libraryCollectionTools')?.classList.toggle('hidden', playerLibraryView !== 'collections');
   $('playerLibrarySearchScope')?.classList.toggle('hidden', playerLibraryView !== 'search');
   if (playerLibraryView === 'notes') await runPlayerLibrarySearch();
@@ -14259,7 +14265,10 @@ if ($('playerMergeCont')) {
 }
 
 // --- AI sohbet dinleyicileri ---
-$$('.side-tab').forEach((b) => b.addEventListener('click', () => setSideTab(b.dataset.stab)));
+$$('.side-tab').forEach((b) => b.addEventListener('click', () => {
+  const tablist = b.closest('[role="tablist"]');
+  setSideTab(b.dataset.stab, { focusContent: tablist?.dataset.rovingActivation !== 'true' });
+}));
 if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend($('aiChatText').value));
 if ($('aiChatText')) {
   $('aiChatText').addEventListener('input', autoGrowChatBox);
@@ -15641,7 +15650,8 @@ function setupRovingTablists() {
       else next = (current - 1 + tabs.length) % tabs.length;
       event.preventDefault();
       tabs[next].focus();
-      tabs[next].click();
+      tablist.dataset.rovingActivation = 'true';
+      try { tabs[next].click(); } finally { delete tablist.dataset.rovingActivation; }
       Promise.resolve().then(syncTabStops);
     });
   });

@@ -1167,14 +1167,16 @@
               <button class="btn btn-ghost btn-sm browser-places-clear hidden" id="browserPlacesClear" type="button">Geçmişi temizle</button>
             </div>
             <div class="browser-place-tabs" role="tablist" aria-label="Kayıt türü">
-              <button class="browser-place-tab active" type="button" data-place-tab="bookmarks" role="tab">Yer imleri</button>
-              <button class="browser-place-tab" type="button" data-place-tab="history" role="tab">Geçmiş</button>
+              <button class="browser-place-tab active" id="browserPlaceTabBookmarks" type="button" data-place-tab="bookmarks" role="tab"
+                aria-selected="true" aria-controls="browserPlacesList">Yer imleri</button>
+              <button class="browser-place-tab" id="browserPlaceTabHistory" type="button" data-place-tab="history" role="tab"
+                aria-selected="false" aria-controls="browserPlacesList">Geçmiş</button>
             </div>
             <div class="browser-place-filters">
               <input type="search" id="browserPlacesSearch" placeholder="Başlık veya adreste ara…" aria-label="Yer imleri ve geçmişte ara" />
               <select id="browserPlacesFolder" aria-label="Yer imi klasörü"><option value="">Tüm klasörler</option></select>
             </div>
-            <div class="browser-places-list" id="browserPlacesList"></div>
+            <div class="browser-places-list" id="browserPlacesList" role="tabpanel" aria-labelledby="browserPlaceTabBookmarks"></div>
             <div class="browser-workspaces">
               <label for="browserWorkspaceSelect">Kayıtlı çalışma alanları</label>
               <select id="browserWorkspaceSelect"><option value="">Henüz kayıt yok</option></select>
@@ -1552,13 +1554,13 @@
           <!-- UST: diller, kaynak rozeti, arama, ayar cekmecesi -->
           <div class="side-top">
             <div class="side-tabbar">
-              <div class="side-tabs" role="tablist">
+              <div class="side-tabs" role="tablist" aria-label="Yan panel bölümleri">
                 <button class="side-tab active" id="sideTabSubs" data-stab="subs" role="tab"
-                  aria-selected="true" tabindex="0"><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
+                  aria-selected="true" aria-controls="cueList" tabindex="0"><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
                 <button class="side-tab" id="sideTabAi" data-stab="ai" role="tab"
-                  aria-selected="false" tabindex="-1" title="Video hakkında soru sor (AI)"><span>AI'ye sor</span></button>
+                  aria-selected="false" aria-controls="aiChat" tabindex="-1" title="Video hakkında soru sor (AI)"><span>AI'ye sor</span></button>
                 <button class="side-tab" id="sideTabLibrary" data-stab="library" role="tab"
-                  aria-selected="false" tabindex="-1" title="İzleme geçmişi ve koleksiyonlar"><span>Kütüphane</span></button>
+                  aria-selected="false" aria-controls="playerLibraryPanel" tabindex="-1" title="İzleme geçmişi ve koleksiyonlar"><span>Kütüphane</span></button>
               </div>
               <div class="side-tab-actions">
                 <button class="btn-icon side-tool" id="sideSubtitleExport" title="Altyazı dosyasını aç" aria-label="Altyazı dosyasını aç">
@@ -1604,11 +1606,11 @@
           </div>
 
           <!-- ORTA: akan altyazi (kaynak + ceviri ayni kartta) -->
-          <div class="transcript" id="cueList">
+          <div class="transcript" id="cueList" role="tabpanel" aria-labelledby="sideTabSubs">
             <div class="cue-list-empty">Altyazı yüklenince satırlar burada akar.</div>
           </div>
           <!-- AI SOHBET: transkriptin yerine gecer -->
-          <div class="ai-chat hidden" id="aiChat">
+          <div class="ai-chat hidden" id="aiChat" role="tabpanel" aria-labelledby="sideTabAi">
             <div class="ai-chat-log" id="aiChatLog" role="log" aria-live="polite">
               <div class="ai-chat-empty" id="aiChatEmpty">
                 <div class="ai-chat-empty-title">Video hakkında soru sor</div>
@@ -1633,11 +1635,14 @@
           </div>
 
           <!-- İZLEME KÜTÜPHANESİ: oynatıcıdan çıkmadan geçmişe ve listelere erişim -->
-          <div class="player-library hidden" id="playerLibraryPanel">
+          <div class="player-library hidden" id="playerLibraryPanel" role="tabpanel" aria-labelledby="sideTabLibrary">
             <div class="library-view-tabs" role="tablist" aria-label="Kütüphane bölümleri">
-              <button class="library-view-tab active" type="button" data-library-view="search" role="tab" aria-selected="true">Ara</button>
-              <button class="library-view-tab" type="button" data-library-view="notes" role="tab" aria-selected="false">Notlar</button>
-              <button class="library-view-tab" type="button" data-library-view="collections" role="tab" aria-selected="false">Koleksiyonlar</button>
+              <button class="library-view-tab active" id="libraryViewSearch" type="button" data-library-view="search" role="tab"
+                aria-selected="true" aria-controls="playerLibraryList">Ara</button>
+              <button class="library-view-tab" id="libraryViewNotes" type="button" data-library-view="notes" role="tab"
+                aria-selected="false" aria-controls="playerLibraryList">Notlar</button>
+              <button class="library-view-tab" id="libraryViewCollections" type="button" data-library-view="collections" role="tab"
+                aria-selected="false" aria-controls="playerLibraryList">Koleksiyonlar</button>
             </div>
             <div class="player-library-controls">
               <div class="search-control library-search-control">
@@ -1673,7 +1678,8 @@
               <span id="playerLibraryUndoText">Not silindi.</span>
               <button class="link-btn" id="playerLibraryUndoBtn" type="button">Geri al</button>
             </div>
-            <div class="player-library-list" id="playerLibraryList" aria-label="Kütüphane sonuçları" aria-busy="false"></div>
+            <div class="player-library-list" id="playerLibraryList" role="tabpanel" aria-labelledby="libraryViewSearch"
+              aria-label="Kütüphane sonuçları" aria-busy="false"></div>
           </div>
 
           <div class="word-inspector hidden" id="wordInspector" role="dialog" tabindex="-1" aria-live="polite" aria-label="Kelime inceleme">
@@ -1791,16 +1797,16 @@
             </button>
           </div>
           <div class="drawer-page-tabs" role="tablist" aria-label="Ayar bölümü">
-            <button type="button" class="drawer-page-tab active" data-settings-page="source" role="tab"
+            <button type="button" class="drawer-page-tab active" id="settingsTabSource" data-settings-page="source" role="tab"
               aria-selected="true" aria-controls="settingsPageSource">Kaynak</button>
-            <button type="button" class="drawer-page-tab drawer-browser-tab" data-settings-page="browser-subtitles" role="tab"
+            <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserSubtitles" data-settings-page="browser-subtitles" role="tab"
               aria-selected="false" aria-controls="settingsPageBrowserSubtitles">Altyazı</button>
-            <button type="button" class="drawer-page-tab drawer-browser-tab" data-settings-page="browser-view" role="tab"
+            <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserView" data-settings-page="browser-view" role="tab"
               aria-selected="false" aria-controls="settingsPageBrowserView">Görünüm</button>
-            <button type="button" class="drawer-page-tab drawer-browser-tab" data-settings-page="browser-diagnostics" role="tab"
+            <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserDiagnostics" data-settings-page="browser-diagnostics" role="tab"
               aria-selected="false" aria-controls="settingsPageBrowserDiagnostics">Araçlar</button>
           </div>
-          <section class="settings-page" id="settingsPageSource" data-settings-page-panel="source" role="tabpanel">
+          <section class="settings-page" id="settingsPageSource" data-settings-page-panel="source" role="tabpanel" aria-labelledby="settingsTabSource">
           <div class="player-layout-section">
             <div class="player-panel-title">Düzen</div>
             <div class="view-modes" id="viewModes">
@@ -2004,7 +2010,7 @@
 
           </section>
           <section class="settings-page settings-page-browser-subtitles hidden" id="settingsPageBrowserSubtitles"
-            data-settings-page-panel="browser-subtitles" role="tabpanel">
+            data-settings-page-panel="browser-subtitles" role="tabpanel" aria-labelledby="settingsTabBrowserSubtitles">
             <div class="browser-settings-section">
               <div class="browser-settings-section-head"><strong>İzler ve çeviri</strong><span>Algılanan altyazıyı seç, yükle veya çevir.</span></div>
               <div class="subtitle-display-segments browser-subtitle-display" role="radiogroup" aria-label="Tarayıcıda gösterilecek altyazı">
@@ -2065,9 +2071,9 @@
             </div>
           </section>
           <section class="settings-page settings-page-browser-view hidden" id="settingsPageBrowserView"
-            data-settings-page-panel="browser-view" role="tabpanel"></section>
+            data-settings-page-panel="browser-view" role="tabpanel" aria-labelledby="settingsTabBrowserView"></section>
           <section class="settings-page settings-page-browser-diagnostics hidden" id="settingsPageBrowserDiagnostics"
-            data-settings-page-panel="browser-diagnostics" role="tabpanel"></section>
+            data-settings-page-panel="browser-diagnostics" role="tabpanel" aria-labelledby="settingsTabBrowserDiagnostics"></section>
           </div><!-- /settings-drawer -->
         </div>
       </div>

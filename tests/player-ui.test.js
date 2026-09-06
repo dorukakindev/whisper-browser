@@ -671,6 +671,37 @@ test('ayar çekmecesi klavye odağını içine alır ve açan kontrole geri veri
     'çekmece kapanınca odak açan kontrole dönmüyor');
 });
 
+test('yan panel sekmeleri panellerini açıklar ve okla geçiş odağı kaçırmaz', () => {
+  for (const [tabId, panelId] of [
+    ['sideTabSubs', 'cueList'], ['sideTabAi', 'aiChat'], ['sideTabLibrary', 'playerLibraryPanel'],
+  ]) {
+    assert(new RegExp(`id="${tabId}"[^>]*aria-controls="${panelId}"`).test(html), `${tabId} panelini açıklamıyor`);
+    assert(new RegExp(`id="${panelId}"[^>]*role="tabpanel"[^>]*aria-labelledby="${tabId}"`).test(html), `${panelId} sekmesine bağlı değil`);
+  }
+  assert(/dataset\.rovingActivation = 'true'/.test(js), 'ok tuşu etkinleştirmesi işaretlenmiyor');
+  assert(/focusContent: tablist\?\.dataset\.rovingActivation !== 'true'/.test(js),
+    'ok tuşuyla sekme geçişi panel içine odak kaçırıyor');
+});
+
+test('browser alt sekmeleri ve ayar sekmeleri denetledikleri panellerle bağlıdır', () => {
+  for (const [tabId, panelId] of [
+    ['browserPlaceTabBookmarks', 'browserPlacesList'],
+    ['browserPlaceTabHistory', 'browserPlacesList'],
+    ['libraryViewSearch', 'playerLibraryList'],
+    ['libraryViewNotes', 'playerLibraryList'],
+    ['libraryViewCollections', 'playerLibraryList'],
+    ['settingsTabSource', 'settingsPageSource'],
+    ['settingsTabBrowserSubtitles', 'settingsPageBrowserSubtitles'],
+    ['settingsTabBrowserView', 'settingsPageBrowserView'],
+    ['settingsTabBrowserDiagnostics', 'settingsPageBrowserDiagnostics'],
+  ]) {
+    assert(new RegExp(`id="${tabId}"[^>]*aria-controls="${panelId}"`).test(html), `${tabId} panelini açıklamıyor`);
+  }
+  assert(/setAttribute\('aria-labelledby', player\.browserPlaceTab/.test(js), 'yerler panel etiketi seçimle güncellenmiyor');
+  assert(/playerLibraryList['"]\)\?\.setAttribute\('aria-labelledby', button\.id\)/.test(js),
+    'kütüphane sonuç panel etiketi seçimle güncellenmiyor');
+});
+
 // ---- 10. AI işleri ana iş akışını tetiklemiyor ----
 test('AI işleri "Altyazı hazır" modalını açmıyor', () => {
   // Backend sohbet/aciklama modlarinda da 'done' basiyor; ana switch onu
