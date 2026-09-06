@@ -4270,8 +4270,12 @@ function storeBrowserTrack(cues, meta = {}) {
 
 async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null, byteRange = null) {
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
-  if (context && !isCurrentBrowserContext(context)) throw new Error('Tarayıcı sekmesi değişti.');
-  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Tarayıcı kapalı.');
+  if (context && !isCurrentBrowserContext(context)) {
+    throw browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.');
+  }
+  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) {
+    throw browserSubtitleStateError('EBROWSER_CLOSED', 'Tarayıcı kapalı.');
+  }
   let safe;
   try {
     const parsed = new URL(String(url || ''));
@@ -4282,9 +4286,11 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
     // doğrulanır; sorgu dizesi yakalandığı biçimde korunur.
     safe = parsed.href;
   } catch (_) {
-    throw new Error('Geçersiz altyazı adresi.');
+    throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Geçersiz altyazı adresi.');
   }
-  if (safe.length > 8192) throw new Error('Altyazı adresi güvenli uzunluk sınırını aşıyor.');
+  if (safe.length > 8192) {
+    throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi güvenli uzunluk sınırını aşıyor.');
+  }
   // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
   // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
   // page-world fetch'e göre daha güvenilir.
@@ -4297,22 +4303,36 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
         ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
       });
       if (![301, 302, 303, 307, 308].includes(response.status)) break;
-      if (redirect === 5) throw new Error('Altyazı adresi çok fazla yönlendirme yaptı.');
+      if (redirect === 5) {
+        throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi çok fazla yönlendirme yaptı.');
+      }
       const location = response.headers.get('location');
-      if (!location) throw new Error('Altyazı yönlendirmesi hedef adres içermiyor.');
-      const redirected = new URL(location, requestUrl);
+      if (!location) {
+        throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı yönlendirmesi hedef adres içermiyor.');
+      }
+      let redirected;
+      try { redirected = new URL(location, requestUrl); }
+      catch (_) {
+        throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı yönlendirmesi geçersiz bir adres içeriyor.');
+      }
       if (!/^https?:$/.test(redirected.protocol) || redirected.username || redirected.password || redirected.href.length > 8192) {
-        throw new Error('Altyazı yönlendirmesi güvenli değil.');
+        throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı yönlendirmesi güvenli değil.');
       }
       redirected.hash = '';
       requestUrl = redirected.href;
     }
     if (!response.ok) throw browserSubtitleHttpError(response.status);
     const length = Number(response.headers.get('content-length') || 0);
-    if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+    if (length > maxBytes) {
+      throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+    }
     const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
-    if (context && !isCurrentBrowserContext(context)) throw new Error('Tarayıcı sekmesi değişti.');
+    if (buffer.length > maxBytes) {
+      throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+    }
+    if (context && !isCurrentBrowserContext(context)) {
+      throw browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.');
+    }
     return buffer;
   }, BROWSER_FETCH_TIMEOUT, 'Altyazı isteği zaman aşımına uğradı.');
 }
@@ -4330,11 +4350,21 @@ function browserSubtitleHttpError(status) {
   return error;
 }
 
+function browserSubtitleStateError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  error.retryable = false;
+  return error;
+}
+
 function browserSubtitleRetryable(error) {
   if (!error) return true;
   if (error.code === 'EBROWSER_HTTP') return error.retryable === true;
-  if (error.code === 'ETIMEDOUT' || error.name === 'AbortError') return true;
-  if (/sekmesi değişti|tarayıcı kapalı|geçersiz|güvenli/i.test(String(error.message || ''))) return false;
+  if (['EBROWSER_STALE', 'EBROWSER_CLOSED', 'EBROWSER_UNSAFE_URL', 'EBROWSER_UNSAFE_RESPONSE'].includes(error.code)) return false;
+  if (error.code === 'ETIMEDOUT') return true;
+  // withAbortTimeout kendi zaman aşımını ETIMEDOUT olarak işaretler. Buraya
+  // ulaşan AbortError/ERR_ABORTED ise çoğunlukla gezinme veya kapanış iptalidir.
+  if (error.name === 'AbortError' || ['ERR_ABORTED', 'ABORT_ERR'].includes(error.code)) return false;
   return true;
 }
 
@@ -4343,9 +4373,10 @@ async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attem
   for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
     try { return await fetchBrowserText(url, maxBytes, context); }
     catch (error) {
-      lastError = error;
-      if (attempt + 1 < attempts && browserSubtitleRetryable(error)) {
-        await new Promise((resolve) => setTimeout(resolve, error?.status === 429 ? 500 : 150));
+      lastError = context && !isCurrentBrowserContext(context)
+        ? browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.') : error;
+      if (attempt + 1 < attempts && browserSubtitleRetryable(lastError)) {
+        await new Promise((resolve) => setTimeout(resolve, lastError?.status === 429 ? 500 : 150));
       } else break;
     }
   }
@@ -4357,9 +4388,10 @@ async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, att
   for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
     try { return await fetchBrowserBuffer(url, maxBytes, context, byteRange); }
     catch (error) {
-      lastError = error;
-      if (attempt + 1 < attempts && browserSubtitleRetryable(error)) {
-        await new Promise((resolve) => setTimeout(resolve, error?.status === 429 ? 500 : 150));
+      lastError = context && !isCurrentBrowserContext(context)
+        ? browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.') : error;
+      if (attempt + 1 < attempts && browserSubtitleRetryable(lastError)) {
+        await new Promise((resolve) => setTimeout(resolve, lastError?.status === 429 ? 500 : 150));
       } else break;
     }
   }
@@ -4737,7 +4769,9 @@ function browserTrackProbeScript() {
     const probeState = window.__whisperTrackProbeState || (window.__whisperTrackProbeState = { seen: new WeakMap() });
     const tracks = [];
     const changed = [];
+    const supportedKind = (track) => ['subtitles', 'captions', ''].includes(String(track?.kind || '').toLowerCase());
     for (const track of [...(video.textTracks || [])]) {
+      if (!supportedKind(track)) continue;
       const previousMode = track.mode;
       // Birçok platform iz kapalıyken cue listesini yüklemez. Kısa süreli
       // hidden modu cue'ları doldurur; sonra sitenin görünürlük tercihini geri
@@ -4748,6 +4782,7 @@ function browserTrackProbeScript() {
     }
     if (changed.length) await new Promise(resolve => setTimeout(resolve, 450));
     for (const track of [...(video.textTracks || [])]) {
+      if (!supportedKind(track)) continue;
       const cueList = track.cues || null;
       const count = cueList ? Math.min(cueList.length, 20000) : 0;
       if (changed.includes(track)) {

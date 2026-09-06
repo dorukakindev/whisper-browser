@@ -31,9 +31,21 @@ test('Kota ve sağlayıcı hataları sınırlı yeniden denemeye uygundur', () =
   }
 });
 
-test('Geçersiz veya eski sekme hataları tekrar kuyruğa alınmaz', () => {
-  assert.equal(context.browserSubtitleRetryable(new Error('Tarayıcı sekmesi değişti.')), false);
-  assert.equal(context.browserSubtitleRetryable(new Error('Geçersiz altyazı adresi.')), false);
+test('Durum hataları metinden bağımsız kodlarla yeniden deneme dışında kalır', () => {
+  for (const code of ['EBROWSER_STALE', 'EBROWSER_CLOSED', 'EBROWSER_UNSAFE_URL', 'EBROWSER_UNSAFE_RESPONSE']) {
+    const error = context.browserSubtitleStateError(code, 'İleride değişebilecek kullanıcı metni');
+    assert.equal(error.code, code);
+    assert.equal(context.browserSubtitleRetryable(error), false);
+  }
+});
+
+test('Zaman aşımı yeniden denenir; gezinme iptali yeniden denenmez', () => {
+  const timeout = new Error('Zaman aşımı'); timeout.code = 'ETIMEDOUT';
+  const navigationAbort = new Error('Gezinme'); navigationAbort.name = 'AbortError';
+  const electronAbort = new Error('net::ERR_ABORTED'); electronAbort.code = 'ERR_ABORTED';
+  assert.equal(context.browserSubtitleRetryable(timeout), true);
+  assert.equal(context.browserSubtitleRetryable(navigationAbort), false);
+  assert.equal(context.browserSubtitleRetryable(electronAbort), false);
 });
 
 console.log(`browser-subtitle-retry: ${passed} test`);

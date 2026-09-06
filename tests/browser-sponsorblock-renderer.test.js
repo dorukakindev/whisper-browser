@@ -9,6 +9,7 @@ const end = code.indexOf('function renderBrowserCueAt(', start);
 assert(start >= 0 && end > start);
 const nodes = { browserSponsorMode: { value: 'off' }, browserSponsorCategories: { selectedOptions: [] } };
 const commands = [], signals = [];
+let watchTimerCallback = null;
 let passed = 0;
 const context = {
   Date, Number, Array, Set, URL,
@@ -16,6 +17,7 @@ const context = {
     workspaceMode: 'browser', browserSponsorSegments: [{ start: 60, end: 90, category: 'sponsor', uuid: 'one' }],
     browserSponsorSkipped: new Set(), browserSponsorExempt: new Set(), browserSponsorPrompted: new Set(),
     browserSponsorMutedUntil: 0, browserSponsorTemporaryDisabled: false,
+    browserSponsorWatchTimer: null, browserSignalState: null,
     browserSponsorGeneration: 2, browserAdPlaying: false, browserDuration: 120, browserActiveTabId: 'tab',
     browserTime: 61, abA: null, abB: null, browserPaused: false,
   },
@@ -23,6 +25,8 @@ const context = {
   browserTabState: () => ({ generation: 2 }),
   browserCommand: async (command, value) => { commands.push([command, value]); return { ok: true }; },
   setBrowserSignal: (...args) => signals.push(args),
+  setTimeout: (callback) => { watchTimerCallback = callback; return 1; },
+  clearTimeout: () => { watchTimerCallback = null; },
   pSecToTime: value => String(value),
   currentGeneration: () => 2,
   document: { createElement: () => ({}) },
@@ -75,6 +79,10 @@ vm.runInContext(code.slice(start, end), context);
   context.applyBrowserSponsorSkip(61, 70, false);
   assert.equal(commands.length, 2, 'geri sarma ile aynı tick içinde yeniden atlandı');
   assert(context.player.browserSponsorMutedUntil > Date.now());
+  assert.equal(signals.at(-1)[2].action, 'sponsor-watch', 'geri sarmada doğrudan izleme eylemi sunulmadı');
+  assert.equal(typeof watchTimerCallback, 'function', 'izleme eylemi üç saniye sonra kapanmak üzere planlanmadı');
+  context.exemptBrowserSponsorSegment(context.player.browserSponsorSegments[0]);
+  assert(context.player.browserSponsorExempt.has('one'), 'Bu bölümü izle eylemi kalıcı video muafiyeti oluşturmadı');
   passed += 1;
   context.player.abA = context.player.abB = null;
   context.player.browserSponsorSkipped.clear();
