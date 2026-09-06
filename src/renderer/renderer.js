@@ -7946,6 +7946,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         }
       } else if (event.type === 'capture-enabled') {
         tab.captureEnabled = event.enabled !== false;
+      } else if (event.type === 'compatibility-status') {
+        tab.cloudflareChallengeActive = event.kind === 'cloudflare' && event.active === true;
+        tab.compatibilityMessage = String(event.message || '');
       } else if (event.type === 'manga-state') {
         tab.browserMangaBusy = event.state === 'running';
         if (event.translated !== undefined) tab.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
@@ -8101,6 +8104,20 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
   } else if (event.type === 'capture-enabled') {
     setBrowserCaptureEnabled(event.enabled !== false, false);
+  } else if (event.type === 'compatibility-status') {
+    const tab = browserTabState();
+    if (tab) {
+      tab.cloudflareChallengeActive = event.kind === 'cloudflare' && event.active === true;
+      tab.compatibilityMessage = String(event.message || '');
+    }
+    const message = event.message || (event.active
+      ? 'Site güvenlik doğrulaması sürerken altyazı yakalama geçici olarak durduruldu.'
+      : 'Site güvenlik doğrulaması tamamlandı; altyazı yakalama yeniden açıldı.');
+    setBrowserSignal(message, event.active !== true, {
+      priority: event.active ? 85 : 55,
+      holdMs: event.active ? (event.timedOut ? 12000 : 8000) : 4500,
+    });
+    logLine(message, event.active ? 'warn' : 'success');
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
