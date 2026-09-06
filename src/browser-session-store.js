@@ -3,8 +3,9 @@ const path = require('path');
 const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media-identity');
 const { safePlaceUrl } = require('./browser-place-url');
 const { createEditRecord, createSyncRecord } = require('./browser-subtitle-sync');
+const { normalizeMangaPosition } = require('./browser-library-tools');
 
-const BROWSER_SESSION_VERSION = 3;
+const BROWSER_SESSION_VERSION = 4;
 const MAX_SESSION_TABS = 24;
 const MAX_TRACK_REFS = 12;
 const MAX_RECOVERY_JOBS = 50;
@@ -125,6 +126,14 @@ function migrateBrowserSession(raw) {
     })) : [] };
     version = 3;
   }
+  if (version < 4) {
+    source = { ...source, tabs: Array.isArray(source.tabs) ? source.tabs.map((tab) => ({
+      ...tab,
+      mangaPosition: tab?.mangaPosition && typeof tab.mangaPosition === 'object'
+        ? tab.mangaPosition : null,
+    })) : [] };
+    version = 4;
+  }
   // Yerel oturum gelecekte ek alanlar kazanırsa bilinmeyen alanları izinli
   // şemaya indirerek aç; taşınabilir paket sürümü ayrıca katı doğrulanır.
   return source;
@@ -175,6 +184,8 @@ function normalizeSessionTab(raw) {
     subtitleMode: ['off', 'source', 'translation', 'both'].includes(raw.subtitleMode)
       ? raw.subtitleMode : 'source',
     targetLanguage: cleanString(raw.targetLanguage, 24).toLowerCase(),
+    mangaPosition: raw.mangaPosition && typeof raw.mangaPosition === 'object'
+      ? normalizeMangaPosition(raw.mangaPosition) : null,
     trackRefs,
     recoveryJobs,
     subtitleSyncRecords,

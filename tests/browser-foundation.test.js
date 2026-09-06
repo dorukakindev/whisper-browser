@@ -136,6 +136,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
       volume: -4,
       offset: 99,
       subtitleMode: 'translation',
+      mangaPosition: { documentId: 'netflix:81234567', imageId: 'page-4', ordinal: 3, ratio: 1.8 },
       requestHeaders: { Authorization: 'Bearer LEAK' },
       trackRefs: [{ id: 'source', role: 'source', language: 'EN' }],
     }],
@@ -148,6 +149,8 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   assert.equal(session.tabs[0].offset, 30);
   assert.equal(session.tabs[0].subtitleMode, 'translation');
   assert.equal(session.tabs[0].trackRefs[0].language, 'en');
+  assert.equal(session.tabs[0].mangaPosition.imageId, 'page-4');
+  assert.equal(session.tabs[0].mangaPosition.ratio, 1);
   const serialized = JSON.stringify(session);
   assert(!serialized.includes('LEAK'));
   assert(!serialized.includes('requestHeaders'));

@@ -127,7 +127,12 @@ class BrowserNoteStore {
     const annotation = normalizeStoredAnnotation(raw);
     if (!annotation.id || !annotation.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
     const previous = this.annotations.get(annotation.id);
-    if (previous) annotation.createdAt = previous.createdAt;
+    if (previous) {
+      annotation.createdAt = previous.createdAt;
+      // Model/altyazı katmanı kaynak ve çeviri bağlamını yenileyebilir; kullanıcı
+      // notu ancak çağıran açıkça `note` alanı gönderdiğinde değiştirilebilir.
+      if (!Object.prototype.hasOwnProperty.call(raw || {}, 'note')) annotation.note = previous.note;
+    }
     this.annotations.set(annotation.id, annotation);
     if (this.annotations.size > this.maxNotes) {
       if (previous) this.annotations.set(previous.id, previous);

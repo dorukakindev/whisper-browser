@@ -8,7 +8,7 @@ Object.defineProperty(globalThis, '__whisperTrustedBridgeSend', {
   enumerable: false,
   writable: false,
   value(type, payload) {
-    if (!['manga-edit', 'overlay-style', 'page-blocks'].includes(type)) return false;
+    if (!['manga-edit', 'overlay-style', 'page-blocks', 'reading-position'].includes(type)) return false;
     ipcRenderer.send('browser:trusted-bridge', { type, payload });
     return true;
   },
@@ -80,3 +80,14 @@ ipcRenderer.on('browser:find-state', (_event, payload = {}) => {
   if (payload.active) startPageFindObserver();
   else stopPageFindObserver();
 });
+
+// Yalnız konumun değiştiğini bildir. Görsel kimliği/oranı ana süreç,
+// güvenilir isolated world içinde yeniden okuyup doğrular.
+let readingPositionTimer = null;
+window.addEventListener('scroll', () => {
+  if (readingPositionTimer) return;
+  readingPositionTimer = setTimeout(() => {
+    readingPositionTimer = null;
+    ipcRenderer.send('browser:trusted-bridge', { type: 'reading-position', payload: null });
+  }, 700);
+}, { passive: true, capture: true });

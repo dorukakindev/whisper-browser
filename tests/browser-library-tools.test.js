@@ -1,4 +1,5 @@
 const assert = require('assert');
+const vm = require('vm');
 const {
   ReopenGuard,
   foldLibraryText,
@@ -6,8 +7,10 @@ const {
   renameCollection,
   resolveMangaPosition,
   resolveTextAnchor,
+  selectionAnchorCaptureScript,
   setCollectionMembership,
   unifiedLibrarySearch,
+  waitForMangaPosition,
 } = require('../src/browser-library-tools');
 
 let passed = 0;
@@ -72,6 +75,24 @@ test('kayıp alıntı notu silmek yerine missing döndürür', () => {
   assert.equal(result.status, 'missing');
 });
 
+test('HTML ve script görünümlü alıntı kod olarak çalıştırılmadan veri kalır', () => {
+  const quote = `</script><img src=x onerror="globalThis.pwned=true">`;
+  const block = {
+    nodeType: 1, id: 'quote', localName: 'p', parentElement: null,
+    textContent: `ön ${quote} son`,
+    closest(selector) { return selector.startsWith('input') ? null : this; },
+  };
+  const context = {
+    window: { getSelection: () => ({ rangeCount: 1, isCollapsed: false,
+      getRangeAt: () => ({ commonAncestorContainer: block }), toString: () => quote }) },
+    document: { documentElement: {}, }, CSS: { escape: (value) => value },
+  };
+  const result = vm.runInNewContext(selectionAnchorCaptureScript('doc-1'), context);
+  assert(result.ok);
+  assert.equal(result.anchor.exact, quote);
+  assert.equal(context.pwned, undefined);
+});
+
 test('manga konumu yanlış belgede ve kayıp görselde güvenli sonuç verir', () => {
   const saved = { documentId: 'chapter-a', imageId: 'img-2', ratio: .4, ordinal: 1 };
   assert.equal(resolveMangaPosition(saved, [], 'chapter-b').status, 'wrong-document');
@@ -91,3 +112,29 @@ test('yeniden açma bileti navigasyon veya medya değişince geçersizleşir', (
 });
 
 console.log(`browser-library-tools: ${passed} test`);
+
+(async () => {
+  let ready = false;
+  let canceled = false;
+  let scans = 0;
+  const restored = await waitForMangaPosition({
+    attempts: 5, delayMs: 0, sleep: async () => {}, isCanceled: () => canceled,
+    scan: async () => (++scans >= 3 && ready ? { status: 'found' } : (ready = true, { status: 'pending' })),
+  });
+  assert.equal(restored.status, 'found');
+  assert.equal(restored.attempts, 3, 'tembel görsel ölçülebilir olana dek sınırlı beklemeli');
+
+  scans = 0;
+  const stopped = await waitForMangaPosition({
+    attempts: 5, delayMs: 0,
+    sleep: async () => { canceled = true; },
+    isCanceled: () => canceled,
+    scan: async () => (++scans, { status: 'pending' }),
+  });
+  assert.equal(stopped.status, 'canceled');
+  assert.equal(scans, 1, 'kullanıcı kaydırınca tekrar konuma zıplamamalı');
+  console.log('  PASS  manga konumu tembel yüklemeyi bekler ve kullanıcı kaydırınca iptal olur');
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

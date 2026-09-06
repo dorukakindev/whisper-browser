@@ -654,6 +654,7 @@ let _activeModal = null;
 let _modalReturnFocus = null;
 let _queuedModalOpen = null;
 let _dialogResolve = null;
+let _dialogInputListener = null;
 
 function modalFocusable(modal) {
   return [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
@@ -747,11 +748,16 @@ document.addEventListener('keydown', (event) => {
 function resolveAppDialog(value) {
   const resolve = _dialogResolve;
   _dialogResolve = null;
+  if (_dialogInputListener) {
+    $('appDialogInput')?.removeEventListener('input', _dialogInputListener);
+    _dialogInputListener = null;
+  }
   closeManagedModal($('appDialog'));
   if (resolve) resolve(value);
 }
 
-function openAppDialog({ title, description, confirmLabel, intent = 'danger', inputLabel = '', inputValue = '' }) {
+function openAppDialog({ title, description, confirmLabel, intent = 'danger', inputLabel = '', inputValue = '', onInput = null }) {
+  if (_dialogResolve) resolveAppDialog(false);
   const modal = $('appDialog');
   const field = $('appDialogField');
   const input = $('appDialogInput');
@@ -762,10 +768,13 @@ function openAppDialog({ title, description, confirmLabel, intent = 'danger', in
   $('appDialogInputLabel').textContent = inputLabel || 'Değer';
   field.classList.toggle('hidden', !hasInput);
   input.value = hasInput ? inputValue : '';
+  if (_dialogInputListener) input.removeEventListener('input', _dialogInputListener);
+  _dialogInputListener = hasInput && typeof onInput === 'function'
+    ? () => onInput(input.value) : null;
+  if (_dialogInputListener) input.addEventListener('input', _dialogInputListener);
   confirm.textContent = confirmLabel;
   confirm.className = `btn ${intent === 'danger' ? 'btn-danger' : 'btn-primary'}`;
   modal.setAttribute('role', hasInput ? 'dialog' : 'alertdialog');
-  if (_dialogResolve) _dialogResolve(false);
   return new Promise((resolve) => {
     _dialogResolve = resolve;
     openManagedModal(modal, hasInput ? input : $('appDialogCancel'));
@@ -3751,6 +3760,8 @@ const player = {
   watchRemovedKey: '',
   watchSaveTick: 0,
   pendingLibrarySeek: null,
+  pendingLibraryAnchor: null,
+  libraryReopenSeq: 0,
   pendingAutoOpen: null,
   openIntent: 0,
   probeSeq: 0,
@@ -7966,6 +7977,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   }
   if (event.type === 'navigation') {
     updateBrowserNavigation(event);
+    void restorePendingLibraryAnchor(event);
   } else if (event.type === 'title') {
     player.browserPageTitle = event.title || '';
     const tab = browserTabState();
@@ -9055,10 +9067,40 @@ async function syncLearningAnnotation(type, cue, saved, options = {}) {
     mediaTitle: $('playerTitle')?.textContent || '',
     mediaType: player.workspaceMode === 'browser' ? 'browser'
       : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
+    mediaUrl: player.workspaceMode === 'browser' ? player.browserPageUrl : (player.originalUrl || player.localPath || ''),
+    trackId: String(options.trackId || ''),
+    cueId: String(options.cueId || ''),
   }, saved);
   } catch (error) {
     return { ok: false, error: error.message };
   }
+}
+
+async function learningAnnotationContext(cue) {
+  const mediaKey = player.mediaKey;
+  const fallback = {
+    source: String(cue?.text || ''), translation: String(translationFor(cue) || ''),
+    trackId: player.subPath || player.mediaKey, cueId: browserTranslationCueKey(cue),
+  };
+  if (player.workspaceMode !== 'browser') return fallback;
+  const track = player.browserTracks.find((item) => item.id === player.browserLoadedTrackId) || null;
+  if (!track) return fallback;
+  const context = { ...fallback, trackId: track.id, cueId: browserTranslationCueKey(cue) };
+  if (track.role !== 'translation') return context;
+  context.translation = String(cue?.text || '');
+  const sourceTrack = player.browserTracks.find((item) => item.id === track.sourceTrackId)
+    || player.browserTracks.find((item) => item.role !== 'translation' && item.sourceHash && item.sourceHash === track.sourceHash)
+    || null;
+  if (!sourceTrack?.path || !window.api.readSubtitle) return context;
+  const result = await window.api.readSubtitle(sourceTrack.path).catch(() => null);
+  if (!result?.ok || player.mediaKey !== mediaKey) return context;
+  const sourceCues = parseSubtitles(result.text);
+  const cueKeyValue = browserTranslationCueKey(cue);
+  const sourceCue = sourceCues.find((item) => browserTranslationCueKey(item) === cueKeyValue)
+    || sourceCues.find((item) => Math.abs(Number(item.start) - Number(cue.start)) < .002
+      && Math.abs(Number(item.end) - Number(cue.end)) < .002);
+  if (sourceCue) context.source = String(sourceCue.text || '');
+  return context;
 }
 
 async function loadLearningAnnotations() {
@@ -9097,25 +9139,40 @@ async function loadLearningAnnotations() {
 }
 
 async function saveCueNote() {
-  const cue = player.cues[player.activeIdx];
-  if (!cue || !player.mediaKey) {
-    logLine('Not eklemek için önce bir altyazı satırına gel.', 'warn');
+  if (!player.mediaKey) {
+    logLine('Not eklemek için önce bir video veya web içeriği açın.', 'warn');
+    return;
+  }
+  if (player.workspaceMode === 'browser' && player.browserAdPlaying) {
+    logLine('Reklam sırasında video zaman ekseni güvenilir olmadığı için not kaydedilmedi. Ana içerik başlayınca yeniden deneyin.', 'warn');
     return;
   }
   const mediaKey = player.mediaKey;
   const generation = currentGeneration();
+  const activeCue = player.cues[player.activeIdx] || null;
+  const currentTime = player.workspaceMode === 'browser'
+    ? Math.max(0, Number(player.browserTime) || 0)
+    : Math.max(0, Number($('playerVideo')?.currentTime) || 0);
+  const cue = activeCue || {
+    start: currentTime, end: currentTime,
+    text: '', cueId: `moment-${Math.round(currentTime * 10)}`,
+  };
+  const cueContext = await learningAnnotationContext(cue);
+  if (staleGeneration(generation) || player.mediaKey !== mediaKey) return;
   const annotations = await window.api.listLearningAnnotations(mediaKey).catch(() => null);
   if (staleGeneration(generation) || player.mediaKey !== mediaKey) return;
   const existing = (annotations?.annotations || []).find((item) => item.type === 'note'
-    && Math.abs(Number(item.start) - Number(cue.start)) < .05);
-  const draftKey = `browser-note-draft:${player.mediaKey}:${Number(cue.start).toFixed(3)}`;
+    && ((cueContext.trackId && cueContext.cueId && item.trackId === cueContext.trackId && item.cueId === cueContext.cueId)
+      || ((!item.trackId || !item.cueId) && Math.abs(Number(item.start) - Number(cue.start)) < .05)));
+  const draftKey = `browser-note-draft:${player.mediaKey}:${cueContext.trackId}:${cueContext.cueId}`;
   let draft = '';
   try { draft = localStorage.getItem(draftKey) || ''; } catch (_) {}
   const note = await openAppDialog({
-    title: existing ? 'Cümle notunu düzenle' : 'Cümleye not ekle',
-    description: `${pSecToTime(cue.start)} zamanındaki cümleye bağlı kalıcı bir not yaz.`,
+    title: existing ? 'Zaman notunu düzenle' : (activeCue ? 'Cümleye not ekle' : 'Bu ana not ekle'),
+    description: `${pSecToTime(cue.start)} zamanına${activeCue ? ' ve etkin altyazı satırına' : ''} bağlı kalıcı bir not yaz. Yazarken taslak bu içeriğe özel olarak yerelde korunur.${player.workspaceMode === 'browser' && player.browserDuration <= 0 ? ' Canlı/DVR akışında dönüş için satır kimliği kullanılır; yayın penceresi değişirse zaman konumu yaklaşık olabilir.' : ''}`,
     confirmLabel: 'Notu kaydet', intent: 'primary', inputLabel: 'Not',
     inputValue: draft || existing?.note || '',
+    onInput: (value) => { try { localStorage.setItem(draftKey, String(value)); } catch (_) {} },
   });
   if (note === false || !String(note).trim()) return;
   if (staleGeneration(generation) || player.mediaKey !== mediaKey) {
@@ -9125,6 +9182,8 @@ async function saveCueNote() {
   try { localStorage.setItem(draftKey, String(note)); } catch (_) {}
   const result = await syncLearningAnnotation('note', cue, true, {
     id: existing?.id, createdAt: existing?.createdAt, note: String(note).trim(),
+    source: cueContext.source, translation: cueContext.translation,
+    trackId: cueContext.trackId, cueId: cueContext.cueId,
   });
   if (!result?.ok) {
     logLine(`Not kaydedilemedi: ${result?.error || 'bilinmeyen hata'}. Taslak korundu.`, 'error');
@@ -9836,7 +9895,8 @@ function currentWatchPatch(completed) {
   if (session) delete session.lastClock;
   const manualCompleted = player.watchManualCompletedKey === player.mediaKey
     ? player.watchManualCompleted : null;
-  return {
+  const automaticCompleted = !!completed || watchCompletionReached(position, duration);
+  const patch = {
     key: player.mediaKey,
     type: browserMode ? 'browser' : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
     title: $('playerTitle') ? $('playerTitle').textContent : '',
@@ -9846,13 +9906,15 @@ function currentWatchPatch(completed) {
     localPath: player.localPath || '',
     duration: Math.round(duration),
     position: Math.round(position),
-    completed: manualCompleted === null
-      ? (!!completed || watchCompletionReached(position, duration)) : manualCompleted,
+    automaticCompleted,
+    completed: manualCompleted === null ? automaticCompleted : manualCompleted,
     lastWatched: Date.now(),
     subtitlePaths: [player.subPath, player.sub2Path, ...player.subtitles.map((s) => s.path)].filter(Boolean),
     prefs: captureWatchPrefs(),
     session,
   };
+  if (manualCompleted !== null) patch.manualCompleted = manualCompleted;
+  return patch;
 }
 
 async function flushWatchState(completed = false, refresh = false) {
@@ -9883,6 +9945,10 @@ async function restoreWatchProfile(key) {
   // Kutuphane okumasi surerken baska videoya gecilmis olabilir. Eski videonun
   // hizi, sesi ve altyazisi yeni videoya uygulanmasin.
   if (!item || staleGeneration(gen) || player.mediaKey !== key) return;
+  if (typeof item.manualCompleted === 'boolean') {
+    player.watchManualCompletedKey = key;
+    player.watchManualCompleted = item.manualCompleted;
+  }
   const prefs = item.prefs || {};
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
@@ -10026,7 +10092,7 @@ function renderPlayerLibrary() {
   let items = searching ? playerLibraryResults : watchLibraryCache;
   if (filter === 'continue') items = items.filter((x) => !x.completed && watchProgress(x) > 0);
   else if (filter === 'completed') items = items.filter((x) => x.completed);
-  else if (filter === 'has-notes') items = items.filter((x) => (x.matches || []).some((match) => match.annotationType));
+  else if (filter === 'has-notes') items = items.filter((x) => x.hasNotes || (x.matches || []).some((match) => match.annotationType));
   else if (filter.startsWith('collection:')) items = items.filter((x) => (x.collections || []).includes(filter.slice(11)));
   if (playerLibraryView === 'collections' && filter.startsWith('collection:')) {
     const collection = filter.slice(11);
@@ -10113,6 +10179,12 @@ function renderPlayerLibrary() {
       makeWatchAction('Koleksiyon', 'collection', item.key),
       makeWatchAction('Kaldır', 'remove', item.key),
     );
+    if (playerLibraryView === 'collections' && filter.startsWith('collection:')) {
+      actions.append(
+        makeWatchAction('Yukarı taşı', 'collection-up', item.key),
+        makeWatchAction('Aşağı taşı', 'collection-down', item.key),
+      );
+    }
     row.append(head, progress, meta);
     if (hits.childElementCount) row.appendChild(hits);
     row.appendChild(actions);
@@ -10572,16 +10644,25 @@ async function openUnifiedLibraryResult(result) {
     if (!activated) logLine('Açık sekme artık bulunamıyor; arama sonuçlarını yenileyin.', 'warn');
     return !!activated;
   }
+  const comparableMediaId = String(result.mediaId || '').replace(/^browser:/, '');
   const matchingTab = result.mediaId
-    ? player.browserTabs.find((tab) => tab.mediaId === result.mediaId)
+    ? player.browserTabs.find((tab) => tab.mediaId === comparableMediaId
+      || `browser:${tab.mediaId}` === result.mediaId)
     : player.browserTabs.find((tab) => tab.url && result.url && tab.url === result.url);
   if (matchingTab) {
     const activated = await activateBrowserTab(matchingTab.id);
     if (!activated) return false;
+    if (result.anchor && result.annotationId && window.api.restoreLearningAnnotationAnchor) {
+      const restored = await window.api.restoreLearningAnnotationAnchor(matchingTab.id, result.annotationId)
+        .catch((error) => ({ ok: false, error: error.message }));
+      if (!restored?.ok) logLine(restored?.error || 'Alıntı sayfada bulunamadı; not korunuyor.', 'warn');
+      return !!restored?.ok;
+    }
     if (Number(result.seconds) > 0) {
       const tab = browserTabState(matchingTab.id);
       player.pendingLibrarySeek = {
-        key: result.mediaId ? `browser:${result.mediaId}` : (tab?.mediaKey || ''),
+        key: result.mediaId ? (String(result.mediaId).startsWith('browser:')
+          ? result.mediaId : `browser:${result.mediaId}`) : (tab?.mediaKey || ''),
         generation: tab?.generation ?? null,
         seconds: Number(result.seconds),
       };
@@ -10599,8 +10680,45 @@ async function openUnifiedLibraryResult(result) {
     logLine('Bu kayıt için güvenli yeniden açma adresi yok. Not ve altyazı korunuyor.', 'warn');
     return false;
   }
+  if (result.anchor && result.annotationId) {
+    player.pendingLibraryAnchor = {
+      sequence: ++player.libraryReopenSeq,
+      annotationId: result.annotationId,
+      mediaId: comparableMediaId,
+      expiresAt: Date.now() + 60_000,
+      restoring: false,
+      loginNotified: false,
+    };
+  }
   await openWatchLibraryItem(item, Number(result.seconds) || 0);
   return true;
+}
+
+async function restorePendingLibraryAnchor(event = {}) {
+  const pending = player.pendingLibraryAnchor;
+  if (!pending || pending.restoring || !window.api.restoreLearningAnnotationAnchor) return;
+  if (Date.now() > pending.expiresAt) {
+    player.pendingLibraryAnchor = null;
+    logLine('Alıntının sayfası süre içinde açılamadı. Not korunuyor; giriş yaptıktan sonra yeniden deneyin.', 'warn');
+    return;
+  }
+  const currentMediaId = String(event.mediaId || browserTabState()?.mediaId || '').replace(/^browser:/, '');
+  if (!currentMediaId || currentMediaId !== pending.mediaId) {
+    if (event.loading === false && !pending.loginNotified) {
+      pending.loginNotified = true;
+      logLine('Alıntının içeriği henüz açılmadı. Giriş gerekiyorsa tamamlayın; hedef not beklemede.', 'info');
+    }
+    return;
+  }
+  pending.restoring = true;
+  const sequence = pending.sequence;
+  const tabId = player.browserActiveTabId;
+  const restored = await window.api.restoreLearningAnnotationAnchor(tabId, pending.annotationId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (player.pendingLibraryAnchor?.sequence !== sequence || player.browserActiveTabId !== tabId) return;
+  player.pendingLibraryAnchor = null;
+  if (!restored?.ok) logLine(restored?.error || 'Alıntı sayfada bulunamadı; not korunuyor.', 'warn');
+  else osd('Alıntı bulundu');
 }
 
 function showBrowserErrorSurface(error) {
@@ -13867,17 +13985,34 @@ async function handleWatchLibraryAction(e) {
     await window.api.updateWatchItem({ key: item.key, collections, lastWatched: item.lastWatched });
     refreshWatchLibrary();
   } else if (action === 'complete') {
+    const nextManual = !item.completed;
     if (player.mediaKey === item.key) {
       player.watchManualCompletedKey = item.key;
-      player.watchManualCompleted = !item.completed;
+      player.watchManualCompleted = nextManual;
     }
     await window.api.updateWatchItem({
       key: item.key,
-      completed: !item.completed,
-      position: item.completed ? 0 : item.duration,
+      completed: nextManual,
+      manualCompleted: nextManual,
+      automaticCompleted: !!item.automaticCompleted,
+      position: item.position,
       lastWatched: Date.now(),
     });
     refreshWatchLibrary();
+  } else if (action === 'collection-up' || action === 'collection-down') {
+    const filter = $('playerLibraryFilter')?.value || '';
+    const collection = filter.startsWith('collection:') ? filter.slice(11) : '';
+    if (!collection) return;
+    const ordered = watchLibraryCache.filter((entry) => (entry.collections || []).includes(collection))
+      .slice().sort((a, b) => Number(a.prefs?.collectionOrder?.[collection] ?? Number.MAX_SAFE_INTEGER)
+        - Number(b.prefs?.collectionOrder?.[collection] ?? Number.MAX_SAFE_INTEGER)
+        || Number(b.lastWatched || 0) - Number(a.lastWatched || 0));
+    const index = ordered.findIndex((entry) => entry.key === item.key);
+    const target = action === 'collection-up' ? index - 1 : index + 1;
+    if (index < 0 || target < 0 || target >= ordered.length) return;
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    await applyCollectionResult(await window.api.reorderLibraryCollection(collection, ordered.map((entry) => entry.key)),
+      action === 'collection-up' ? 'İçerik yukarı taşındı' : 'İçerik aşağı taşındı');
   } else if (action === 'remove') {
     const confirmed = await openAppDialog({
       title: 'Kütüphane kaydını kaldır',
@@ -13902,6 +14037,15 @@ async function runPlayerLibrarySearch() {
   const q = input?.value.trim() || '';
   const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
   const seq = ++player.playerLibrarySearchSeq;
+  if (playerLibraryView === 'collections') {
+    const folded = q.normalize('NFKC').toLocaleLowerCase('tr-TR');
+    playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
+      [item.title, item.sourceRef, ...(item.collections || [])]
+        .some((value) => String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').includes(folded)));
+    playerUnifiedLibraryResults = [];
+    renderPlayerLibrary();
+    return;
+  }
   if (!q && playerLibraryView === 'search') {
     playerLibraryResults = watchLibraryCache;
     playerUnifiedLibraryResults = [];

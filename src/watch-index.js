@@ -1,6 +1,6 @@
 const path = require('path');
 
-const WATCH_INDEX_VERSION = 2;
+const WATCH_INDEX_VERSION = 3;
 
 function databaseConstructor() {
   try { return require('node:sqlite').DatabaseSync; }
@@ -116,6 +116,9 @@ class WatchIndex {
         status TEXT NOT NULL DEFAULT 'new',
         screenshot_ref TEXT NOT NULL DEFAULT '',
         audio_ref TEXT NOT NULL DEFAULT '',
+        track_id TEXT NOT NULL DEFAULT '',
+        cue_id TEXT NOT NULL DEFAULT '',
+        anchor_json TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL DEFAULT 0,
         updated_at INTEGER NOT NULL DEFAULT 0
       );
@@ -125,6 +128,10 @@ class WatchIndex {
     if (!trackColumns.has('model')) this.db.exec("ALTER TABLE tracks ADD COLUMN model TEXT NOT NULL DEFAULT ''");
     if (!trackColumns.has('provider')) this.db.exec("ALTER TABLE tracks ADD COLUMN provider TEXT NOT NULL DEFAULT ''");
     if (!trackColumns.has('source_track_id')) this.db.exec("ALTER TABLE tracks ADD COLUMN source_track_id TEXT NOT NULL DEFAULT ''");
+    const annotationColumns = new Set(this.db.prepare('PRAGMA table_info(annotations)').all().map((row) => row.name));
+    if (!annotationColumns.has('track_id')) this.db.exec("ALTER TABLE annotations ADD COLUMN track_id TEXT NOT NULL DEFAULT ''");
+    if (!annotationColumns.has('cue_id')) this.db.exec("ALTER TABLE annotations ADD COLUMN cue_id TEXT NOT NULL DEFAULT ''");
+    if (!annotationColumns.has('anchor_json')) this.db.exec("ALTER TABLE annotations ADD COLUMN anchor_json TEXT NOT NULL DEFAULT ''");
   }
 
   transaction(fn) {
@@ -263,18 +270,20 @@ class WatchIndex {
     if (!annotation.id || !annotation.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
     this.db.prepare(`
       INSERT INTO annotations(id, media_id, type, start, end, source, translation, note, status,
-                              screenshot_ref, audio_ref, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              screenshot_ref, audio_ref, track_id, cue_id, anchor_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         media_id=excluded.media_id, type=excluded.type, start=excluded.start, end=excluded.end,
         source=excluded.source, translation=excluded.translation, note=excluded.note,
         status=excluded.status, screenshot_ref=excluded.screenshot_ref,
-        audio_ref=excluded.audio_ref, updated_at=excluded.updated_at
+        audio_ref=excluded.audio_ref, track_id=excluded.track_id, cue_id=excluded.cue_id,
+        anchor_json=excluded.anchor_json, updated_at=excluded.updated_at
     `).run(
       String(annotation.id), String(annotation.mediaId), String(annotation.type || 'note'),
       Math.max(0, Number(annotation.start) || 0), Math.max(0, Number(annotation.end) || 0),
       String(annotation.source || ''), String(annotation.translation || ''), String(annotation.note || ''),
       String(annotation.status || 'new'), String(annotation.screenshotRef || ''), String(annotation.audioRef || ''),
+      String(annotation.trackId || ''), String(annotation.cueId || ''), annotation.anchor ? json(annotation.anchor, null) : '',
       Number(annotation.createdAt) || Date.now(), Number(annotation.updatedAt) || Date.now(),
     );
     return this.db.prepare('SELECT * FROM annotations WHERE id = ?').get(String(annotation.id));

@@ -30,6 +30,7 @@ try {
       id: 'note:one', mediaId: 'youtube:abc', type: 'note', start: 12.5, end: 14,
       source: 'IŞIK üzerine bir cümle', translation: 'A sentence about light', note: 'İzmir notu',
       mediaTitle: 'Örnek video', mediaType: 'youtube', mediaUrl: 'https://youtube.com/watch?v=abc',
+      trackId: 'track:en', cueId: 'cue:12',
       createdAt: 100, updatedAt: 200,
     });
     assert.equal(note.mediaTitle, 'Örnek video');
@@ -37,6 +38,8 @@ try {
     assert.equal(disk.version, NOTE_STORE_VERSION);
     assert.equal(disk.annotations.length, 1);
     assert.equal(disk.annotations[0].note, 'İzmir notu');
+    assert.equal(disk.annotations[0].trackId, 'track:en');
+    assert.equal(disk.annotations[0].cueId, 'cue:12');
     assert.equal(store.needsLegacyImport, false);
     assert.equal(fs.existsSync(`${filePath}.bak`), true);
   });
@@ -54,6 +57,15 @@ try {
     });
     assert.equal(updated.createdAt, 100);
     assert.equal(updated.note, 'Yeni not');
+  });
+
+  test('altyazı bağlamı güncellenirken kullanıcı notu açıkça verilmedikçe korunur', () => {
+    const updated = store.upsert({
+      id: 'note:one', mediaId: 'youtube:abc', type: 'note', start: 12.5,
+      source: 'Güncel kaynak', translation: 'Güncel çeviri', updatedAt: 350,
+    });
+    assert.equal(updated.note, 'Yeni not');
+    assert.equal(updated.translation, 'Güncel çeviri');
   });
 
   test('silme diske yansır ve dönen kayıt geri alma için kullanılabilir', () => {

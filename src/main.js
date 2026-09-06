@@ -116,14 +116,21 @@ const { BrowserAssetStore } = require('./browser-asset-store');
 const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('./browser-session-package');
 const { WatchIndex } = require('./watch-index');
 const { BrowserNoteStore } = require('./browser-note-store');
+const { validateSubtitleExport } = require('./subtitle-export-validation');
 const {
   collectionNames,
+  mangaPositionCaptureScript,
+  mangaPositionRestoreScript,
   normalizeCollectionName,
+  normalizeMangaPosition,
   removeCollection,
   renameCollection,
   reorderCollection,
   setCollectionMembership,
+  selectionAnchorCaptureScript,
+  textAnchorRestoreScript,
   unifiedLibrarySearch,
+  waitForMangaPosition,
 } = require('./browser-library-tools');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
@@ -788,7 +795,7 @@ function backupOnce(filePath) {
   return bak;
 }
 
-function writeSubtitleAtomic(filePath, text) {
+function writeSubtitleAtomic(filePath, text, validateTemporary = null) {
   // Yalnız Windows oynatıcılarında gerekli SRT/ASS dosyaları BOM'lu. WebVTT ve
   // başka metin biçimlerine koşulsuz BOM ekleme (JSON.parse bunu kabul etmez).
   const plain = String(text).replace(/^\uFEFF/, '');
@@ -796,6 +803,7 @@ function writeSubtitleAtomic(filePath, text) {
   const tmp = filePath + '.tmp';
   try {
     fs.writeFileSync(tmp, data, 'utf-8');
+    if (typeof validateTemporary === 'function') validateTemporary(tmp);
     fs.renameSync(tmp, filePath);
   } catch (error) {
     try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
@@ -934,9 +942,21 @@ ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
-    writeSubtitleAtomic(result.filePath, text);
+    if (fs.existsSync(result.filePath)) {
+      const confirm = await dialog.showMessageBox(mainWindow, {
+        type: 'warning', title: 'Altyazı dosyasının üzerine yaz',
+        message: 'Seçtiğiniz dosya zaten var.',
+        detail: 'Mevcut dosya değiştirilmeden önce doğrulanmış yeni çıktı hazırlanacak. Üzerine yazılsın mı?',
+        buttons: ['İptal', 'Üzerine yaz'], defaultId: 0, cancelId: 0, noLink: true,
+      });
+      if (confirm.response !== 1) return { ok: false, canceled: true };
+    }
+    let verification = null;
+    writeSubtitleAtomic(result.filePath, text, (temporaryPath) => {
+      verification = validateSubtitleExport(text, fs.readFileSync(temporaryPath), result.filePath);
+    });
     subtitleFileAccess.grant(result.filePath);
-    return { ok: true, path: result.filePath };
+    return { ok: true, path: result.filePath, verification };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -1139,11 +1159,14 @@ function browserNoteStore() {
 }
 
 function annotationFromIndexRow(row = {}) {
+  let anchor = null;
+  try { anchor = row.anchor_json ? JSON.parse(row.anchor_json) : null; } catch (_) {}
   return normalizeAnnotation({
     id: row.id, mediaId: row.media_id, type: row.type,
     start: row.start, end: row.end, source: row.source,
     translation: row.translation, note: row.note, status: row.status,
     screenshotRef: row.screenshot_ref, audioRef: row.audio_ref,
+    trackId: row.track_id, cueId: row.cue_id, anchor,
     createdAt: row.created_at, updatedAt: row.updated_at,
     mediaTitle: row.title, mediaType: row.service, mediaUrl: row.url,
   });
@@ -1368,6 +1391,19 @@ function subtitleSearchBlocks(text) {
     plain: block.replace(/^\s*\d+\s*$/gm, '').replace(/^.*-->.*$/gm, '')
       .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
   }));
+}
+
+function watchLibraryForRenderer() {
+  const list = loadWatchLibrary();
+  let noteMediaIds = new Set();
+  try {
+    const store = ensureBrowserNotesReady();
+    const notes = (store.loadError || store.migrationError)
+      ? (watchIndex()?.listAllAnnotations(100000) || []).map(annotationFromIndexRow)
+      : store.list();
+    noteMediaIds = new Set(notes.map((note) => String(note.mediaId || '')).filter(Boolean));
+  } catch (_) {}
+  return list.map((item) => ({ ...item, hasNotes: noteMediaIds.has(String(item.key || '')) }));
 }
 
 function foldWatchSearchText(value) {
@@ -1597,6 +1633,10 @@ function createBrowserTabRecord(initial = {}) {
     mangaFailures: [],
     mangaTranslated: 0,
     mangaVisible: false,
+    mangaPosition: restored.mangaPosition || null,
+    mangaPositionCaptureBusy: false,
+    mangaManualScrollRevision: 0,
+    mangaRestoreAttemptedGeneration: -1,
     pageTranslateJob: null,
     pageTranslateSession: null,
     pageTranslated: 0,
@@ -1695,6 +1735,7 @@ function browserTabSnapshot(tab) {
     mangaBusy: !!tab?.mangaJob,
     mangaTranslated: Number(tab?.mangaTranslated) || 0,
     mangaVisible: !!tab?.mangaVisible,
+    mangaPosition: tab?.mangaPosition || null,
     pageTranslateBusy: !!tab?.pageTranslateJob,
     pageTranslated: Number(tab?.pageTranslated) || 0,
     pageTranslateFailed: Number(tab?.pageTranslateFailed) || 0,
@@ -2333,6 +2374,33 @@ async function saveBrowserContextImage(tab, rawUrl) {
   sendBrowserEvent(tab, { type: 'notice', message: 'Görsel kaydedildi.', success: true });
 }
 
+async function saveBrowserSelectionNote(tab, fallbackSelection = '') {
+  if (!tab?.view || tab.view.webContents.isDestroyed()) throw new Error('Alıntının bulunduğu sekme kapandı.');
+  const context = browserEventContext(tab);
+  const documentId = tab.mediaId || safeBrowserPlaceUrl(tab.view.webContents.getURL());
+  const [captured] = await executeBrowserTrustedMain(tab.view, selectionAnchorCaptureScript(documentId));
+  if (!captured?.ok) throw new Error(captured?.error || 'Seçili metnin sayfadaki bağlamı alınamadı.');
+  if (tab.id !== browserActiveTabId || tab.view !== browserView || tab.generation !== context.generation
+      || tab.view.webContents.isDestroyed()) throw new Error('Alıntı alınırken sekme veya sayfa değişti.');
+  const exact = String(captured.anchor?.exact || fallbackSelection || '').trim();
+  if (!exact) throw new Error('Seçili metin bulunamadı.');
+  let annotation = normalizeAnnotation({
+    type: 'quote', mediaId: documentId, source: exact, note: '', anchor: captured.anchor,
+    mediaTitle: tab.view.webContents.getTitle() || tab.restoredTitle || 'Web alıntısı',
+    mediaType: 'browser', mediaUrl: redactCaptureUrl(tab.view.webContents.getURL() || tab.restoredUrl || ''),
+  });
+  const store = ensureBrowserNotesReady();
+  if (store.loadError || store.migrationError) throw new Error(store.loadError || store.migrationError);
+  annotation = store.upsert(annotation);
+  try {
+    const index = watchIndex();
+    ensureIndexMediaForAnnotation(index, annotation);
+    index?.upsertAnnotation(annotation);
+  } catch (_) {}
+  sendBrowserEvent(tab, { type: 'notice', message: 'Alıntı notlara eklendi. Kütüphane → Notlar bölümünden açıklama yazabilirsiniz.', success: true });
+  return annotation;
+}
+
 function installBrowserContextMenu(tab, wc) {
   wc.on('context-menu', (_event, params = {}) => {
     const selection = String(params.selectionText || '').trim();
@@ -2354,6 +2422,9 @@ function installBrowserContextMenu(tab, wc) {
         click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`))
           .catch((error) => sendBrowserEvent(tab, { type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
       { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
+      { label: 'Alıntıyı notlara ekle', visible: !!selection && !params.isEditable,
+        click: () => void saveBrowserSelectionNote(tab, selection).catch((error) =>
+          sendBrowserEvent(tab, { type: 'notice', message: `Alıntı kaydedilemedi: ${error.message}`, success: false })) },
       { label: 'Kes', visible: !!params.isEditable, enabled: !!params.editFlags?.canCut, click: () => wc.cut() },
       { label: 'Yapıştır', visible: !!params.isEditable, enabled: !!params.editFlags?.canPaste, click: () => wc.paste() },
       { label: 'Tümünü seç', visible: !!params.isEditable, enabled: !!params.editFlags?.canSelectAll, click: () => wc.selectAll() },
@@ -3185,6 +3256,53 @@ function mangaJobIsCurrent(tab, job) {
     && tab.generation === job.generation && tab.view && !tab.view.webContents.isDestroyed();
 }
 
+async function captureBrowserMangaPosition(tab) {
+  if (!tab || tab.mangaPositionCaptureBusy || !tab.mangaPages?.size
+      || tab.id !== browserActiveTabId || !tab.view || tab.view.webContents.isDestroyed()) return null;
+  tab.mangaPositionCaptureBusy = true;
+  const generation = tab.generation;
+  const documentId = tab.mediaId || safeBrowserPlaceUrl(tab.restoredUrl) || '';
+  try {
+    const [raw] = await executeBrowserTrustedMain(tab.view, mangaPositionCaptureScript(documentId)).catch(() => []);
+    if (tab.id !== browserActiveTabId || tab.generation !== generation || !raw) return null;
+    const position = normalizeMangaPosition(raw);
+    if (!position || (position.documentId && documentId && position.documentId !== documentId)) return null;
+    tab.mangaPosition = position;
+    scheduleBrowserSessionSave(1000);
+    return position;
+  } finally {
+    tab.mangaPositionCaptureBusy = false;
+  }
+}
+
+async function restoreBrowserMangaPosition(tab) {
+  const position = normalizeMangaPosition(tab?.mangaPosition);
+  if (!tab || !position || tab.mangaRestoreAttemptedGeneration === tab.generation) return { status: 'skipped' };
+  tab.mangaRestoreAttemptedGeneration = tab.generation;
+  const generation = tab.generation;
+  const scrollRevision = tab.mangaManualScrollRevision;
+  const documentId = tab.mediaId || safeBrowserPlaceUrl(tab.restoredUrl) || '';
+  if (position.documentId && documentId && position.documentId !== documentId) return { status: 'wrong-document' };
+  const isCanceled = () => tab.id !== browserActiveTabId || tab.generation !== generation
+    || tab.mangaManualScrollRevision !== scrollRevision || !tab.view || tab.view.webContents.isDestroyed();
+  const result = await waitForMangaPosition({
+    attempts: 10,
+    delayMs: 250,
+    isCanceled,
+    scan: async () => {
+      const [value] = await executeBrowserTrustedMain(tab.view, mangaPositionRestoreScript(position)).catch(() => []);
+      return value || { status: 'pending' };
+    },
+  });
+  if (result.status === 'found') {
+    sendBrowserEvent(tab, { type: 'notice', level: 'info', message: 'Manga okuma konumu geri yüklendi.' });
+  } else if (result.status === 'missing' && !isCanceled()) {
+    sendBrowserEvent(tab, { type: 'notice', level: 'warn',
+      message: 'Kayıtlı manga konumu bu sayfada bulunamadı; mevcut konum korundu.' });
+  }
+  return result;
+}
+
 function stopBrowserManga(tab, clearOverlay = true) {
   if (!tab) return Promise.resolve([]);
   if (tab.mangaJob) {
@@ -3828,6 +3946,10 @@ async function startBrowserManga(tab, options = {}) {
     sendBrowserEvent(tab, { type: 'manga-state', state: 'error', completed: 0, total: 0, translated: 0, message: error });
     return { ok: false, error };
   }
+  // Aday taraması görsellere kararlı kimlikleri atadıktan sonra, tembel yüklenen
+  // görseller için sınırlı bekleyerek yalnız bir kez eski okuma konumunu dene.
+  // Kullanıcının bu sırada yaptığı kaydırma geri yüklemeyi iptal eder.
+  void restoreBrowserMangaPosition(tab).catch(() => {});
   const baseTranslated = retryRun || incremental ? tab.mangaTranslated : 0;
   const reportTotal = retryRun || incremental ? baseTranslated + selected.length : selected.length;
   sendBrowserEvent(tab, { type: 'manga-state', state: 'running', completed: baseTranslated,
@@ -5619,7 +5741,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
     tab.restoredTitle = wc.getTitle() || '';
     const identity = ADAPTER_REGISTRY.mediaIdentity(tab.restoredUrl);
-    if (tab.mediaId && tab.mediaId !== identity.key) tab.subtitleSelection = null;
+    if (tab.mediaId && tab.mediaId !== identity.key) {
+      tab.subtitleSelection = null;
+      tab.mangaPosition = null;
+      tab.mangaRestoreAttemptedGeneration = -1;
+    }
     tab.mediaId = identity.key;
     tab.service = identity.service;
     tab.contentId = identity.contentId;
@@ -5639,6 +5765,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       const mediaChanged = !tab.mediaId || tab.mediaId !== identity.key;
       if (mediaChanged) {
         tab.subtitleSelection = null;
+        tab.mangaPosition = null;
+        tab.mangaRestoreAttemptedGeneration = -1;
         stopBrowserManga(tab, true);
         stopBrowserPageTranslation(tab, true);
         tab.mangaTranslated = 0;
@@ -6272,6 +6400,10 @@ ipcMain.on('browser:trusted-bridge', (event, message) => {
   if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
   else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
   else if (message.type === 'page-blocks') acceptDynamicBrowserPageBlocks(tab, message.payload);
+  else if (message.type === 'reading-position') {
+    tab.mangaManualScrollRevision = (Number(tab.mangaManualScrollRevision) || 0) + 1;
+    void captureBrowserMangaPosition(tab).catch(() => {});
+  }
 });
 
 function activeRequestedBrowserTab(rawId) {
@@ -7629,7 +7761,7 @@ ipcMain.handle('history:clear', async (event) => {
   return { ok: true };
 });
 
-ipcMain.handle('library:list', async (event) => authorizedBrowserSender(event) ? loadWatchLibrary() : []);
+ipcMain.handle('library:list', async (event) => authorizedBrowserSender(event) ? watchLibraryForRenderer() : []);
 
 ipcMain.handle('library:upsert', async (_event, item) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
@@ -7749,6 +7881,33 @@ ipcMain.handle('library:annotations:toggle', async (_event, request) => {
       indexAvailable: !!index,
     };
   } catch (error) { return { ok: false, error: error.message }; }
+});
+
+ipcMain.handle('library:annotations:restoreAnchor', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Hedef tarayıcı sekmesi açık değil.' };
+  const annotation = ensureBrowserNotesReady().get(request?.annotationId);
+  if (!annotation?.anchor) return { ok: false, error: 'Bu notta yeniden bulunabilir sayfa alıntısı yok.' };
+  const tabWatchId = browserWatchMediaId(tab);
+  if (annotation.mediaId && tab.mediaId
+      && annotation.mediaId !== tab.mediaId && annotation.mediaId !== tabWatchId) {
+    return { ok: false, stale: true, error: 'Alıntı başka bir sayfaya ait; yanlış sayfada aranmadı.' };
+  }
+  const generation = tab.generation;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (tab.id !== browserActiveTabId || tab.generation !== generation || tab.view.webContents.isDestroyed()) {
+      return { ok: false, stale: true, error: 'Alıntı aranırken sekme veya sayfa değişti.' };
+    }
+    const [result] = await executeBrowserTrustedMain(tab.view, textAnchorRestoreScript(annotation.anchor)).catch(() => []);
+    if (result?.status === 'found') return { ok: true, status: 'found' };
+    if (result?.status === 'ambiguous') {
+      return { ok: false, status: 'ambiguous', error: 'Alıntı sayfada birden fazla yerde bulundu; yanlış yere kaydırma yapılmadı.' };
+    }
+    if (!tab.view.webContents.isLoading()) break;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return { ok: false, status: 'missing', error: 'Alıntı bu sayfanın güncel metninde bulunamadı. Not korunuyor.' };
 });
 
 ipcMain.handle('shell:openPath', async (_event, p) => {

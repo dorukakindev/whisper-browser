@@ -408,7 +408,7 @@ test('yerel oynatma sırası önceki/sonraki düğmelerine ve ended olayına ba�
 });
 
 test('izleme kütüphanesi gerçek kalıcı IPC yöntemlerini kullanıyor', () => {
-  for (const name of ['listWatchLibrary', 'updateWatchItem', 'removeWatchItem', 'searchWatchLibrary']) {
+  for (const name of ['listWatchLibrary', 'updateWatchItem', 'removeWatchItem', 'searchUnifiedLibrary']) {
     assert(js.includes(`window.api.${name}`), `${name} renderer tarafından kullanılmıyor`);
   }
   assert(html.includes('id="playerLibrarySearch"'), 'oynatıcı kütüphanesi arama alanı yok');
@@ -1480,7 +1480,7 @@ test('HLS medya ve ağ kurtarma bütçeleri ayrıdır ve kararlı oynatmada temi
 test('açık videoda elle tamamla/kaldır kararı otomatik flush tarafından ezilmiyor', () => {
   assert(/watchRemovedKey/.test(js) && /watchManualCompletedKey/.test(js), 'manuel kitaplık koruması yok');
   assert(/if \(player\.watchRemovedKey === player\.mediaKey\) return null/.test(js), 'kaldırılan kayıt yeniden yazılabiliyor');
-  assert(/manualCompleted === null[\s\S]*watchCompletionReached[\s\S]*: manualCompleted/.test(js),
+  assert(/const manualCompleted[\s\S]*const automaticCompleted[\s\S]*watchCompletionReached[\s\S]*completed:\s*manualCompleted === null \? automaticCompleted : manualCompleted/.test(js),
     'elle tamamla/tamamlanmadı kararı flush içinde korunmuyor');
 });
 

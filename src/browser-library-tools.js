@@ -153,6 +153,7 @@ function reorderCollection(items, name, orderedKeys) {
 }
 
 function normalizeTextAnchor(raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const exact = boundedText(raw.exact, 4000);
   if (!exact) return null;
   return {
@@ -165,6 +166,116 @@ function normalizeTextAnchor(raw = {}) {
     domPath: boundedText(raw.domPath, 800),
     documentId: boundedText(raw.documentId, 240),
   };
+}
+
+function selectionAnchorCaptureScript(documentId = '') {
+  return `(() => {
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return { ok: false, error: 'Seçili metin bulunamadı.' };
+    const range = selection.getRangeAt(0);
+    const node = range.commonAncestorContainer?.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer?.parentElement;
+    if (!node || node.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable=""]')) {
+      return { ok: false, error: 'Form ve düzenlenebilir alanlardaki metin notlara eklenemez.' };
+    }
+    const exact = String(selection.toString() || '').trim().slice(0, 4000);
+    if (!exact) return { ok: false, error: 'Seçili metin bulunamadı.' };
+    const block = node.closest?.('p, li, blockquote, figcaption, td, th, article, section, h1, h2, h3, h4, h5, h6, div') || node;
+    const blockText = String(block.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 16000);
+    const normalizedExact = exact.replace(/\\s+/g, ' ').trim();
+    const at = blockText.indexOf(normalizedExact);
+    const domPath = (element) => {
+      const parts = [];
+      let current = element;
+      while (current && current.nodeType === 1 && current !== document.documentElement && parts.length < 10) {
+        if (current.id) { parts.unshift('#' + CSS.escape(current.id)); break; }
+        const name = current.localName;
+        const peers = current.parentElement ? [...current.parentElement.children].filter((item) => item.localName === name) : [];
+        parts.unshift(name + (peers.length > 1 ? ':nth-of-type(' + (peers.indexOf(current) + 1) + ')' : ''));
+        current = current.parentElement;
+      }
+      return parts.join(' > ').slice(0, 800);
+    };
+    return { ok: true, anchor: {
+      version: 1, kind: 'text', exact,
+      prefix: at >= 0 ? blockText.slice(Math.max(0, at - 240), at) : '',
+      suffix: at >= 0 ? blockText.slice(at + normalizedExact.length, at + normalizedExact.length + 240) : '',
+      blockId: String(block.id || '').slice(0, 180), domPath: domPath(block),
+      documentId: ${JSON.stringify(String(documentId || '').slice(0, 240))}
+    }};
+  })()`;
+}
+
+function textAnchorRestoreScript(rawAnchor) {
+  const anchor = normalizeTextAnchor(rawAnchor);
+  return `(() => {
+    const anchor = ${JSON.stringify(anchor)};
+    if (!anchor) return { status: 'missing' };
+    const exact = String(anchor.exact || '').replace(/\\s+/g, ' ').trim();
+    const blocks = [...document.querySelectorAll('p, li, blockquote, figcaption, td, th, article, section, h1, h2, h3, h4, h5, h6, div')]
+      .filter((element) => !element.closest('[data-whisper-page-overlay], [data-whisper-manga-overlay], input, textarea, select, [contenteditable]'))
+      .slice(0, 12000);
+    const candidates = [];
+    for (const element of blocks) {
+      const text = String(element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 16000);
+      const at = text.indexOf(exact);
+      if (at < 0) continue;
+      let score = 10;
+      if (anchor.blockId && element.id === anchor.blockId) score += 100;
+      if (anchor.prefix && text.slice(Math.max(0, at - anchor.prefix.length), at).endsWith(anchor.prefix.replace(/\\s+/g, ' ').trim())) score += 8;
+      if (anchor.suffix && text.slice(at + exact.length).startsWith(anchor.suffix.replace(/\\s+/g, ' ').trim())) score += 8;
+      candidates.push({ element, at, score });
+    }
+    candidates.sort((a, b) => b.score - a.score);
+    if (!candidates.length) return { status: 'missing' };
+    if (candidates.length > 1 && candidates[0].score === candidates[1].score) return { status: 'ambiguous', count: candidates.length };
+    document.querySelectorAll('[data-whisper-note-highlight]').forEach((item) => {
+      item.removeAttribute('data-whisper-note-highlight'); item.style.removeProperty('outline'); item.style.removeProperty('outline-offset');
+    });
+    const target = candidates[0].element;
+    target.setAttribute('data-whisper-note-highlight', '');
+    target.style.setProperty('outline', '2px solid #e0a95b', 'important');
+    target.style.setProperty('outline-offset', '4px', 'important');
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+      if (!target.isConnected) return;
+      target.removeAttribute('data-whisper-note-highlight'); target.style.removeProperty('outline'); target.style.removeProperty('outline-offset');
+    }, 8000);
+    return { status: 'found', count: candidates.length };
+  })()`;
+}
+
+function mangaPositionCaptureScript(documentId = '') {
+  return `(() => {
+    const images = [...document.images].filter((image) => image.getAttribute('data-whisper-manga-id') && image.getBoundingClientRect().height > 1);
+    if (!images.length) return null;
+    const focusY = Math.max(0, Math.min(innerHeight, innerHeight * 0.38));
+    let best = null;
+    for (let ordinal = 0; ordinal < images.length; ordinal++) {
+      const image = images[ordinal]; const rect = image.getBoundingClientRect();
+      const distance = focusY < rect.top ? rect.top - focusY : focusY > rect.bottom ? focusY - rect.bottom : 0;
+      if (!best || distance < best.distance) best = { image, rect, ordinal, distance };
+    }
+    if (!best) return null;
+    return { version: 1, documentId: ${JSON.stringify(String(documentId || '').slice(0, 240))},
+      imageId: best.image.getAttribute('data-whisper-manga-id'), ordinal: best.ordinal,
+      ratio: Math.max(0, Math.min(1, (focusY - best.rect.top) / best.rect.height)), updatedAt: Date.now() };
+  })()`;
+}
+
+function mangaPositionRestoreScript(rawPosition) {
+  const position = normalizeMangaPosition(rawPosition);
+  return `(() => {
+    const saved = ${JSON.stringify(position)};
+    if (!saved || !saved.imageId) return { status: 'missing' };
+    const images = [...document.images].filter((image) => image.getAttribute('data-whisper-manga-id'));
+    const image = images.find((item) => item.getAttribute('data-whisper-manga-id') === saved.imageId) || images[saved.ordinal];
+    if (!image) return { status: 'pending' };
+    const rect = image.getBoundingClientRect();
+    if (rect.height < 2 || !image.complete) return { status: 'pending' };
+    const target = window.scrollY + rect.top + rect.height * saved.ratio - innerHeight * .38;
+    window.scrollTo({ top: Math.max(0, target), behavior: 'auto' });
+    return { status: 'found' };
+  })()`;
 }
 
 function resolveTextAnchor(anchor, rawBlocks) {
@@ -191,22 +302,39 @@ function resolveTextAnchor(anchor, rawBlocks) {
 }
 
 function normalizeMangaPosition(raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const ratio = Number(raw.ratio);
-  return {
+  const position = {
     version: 1, documentId: boundedText(raw.documentId, 240), imageId: boundedText(raw.imageId, 240),
     ratio: Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0,
     ordinal: Math.max(0, Math.min(100000, Math.trunc(Number(raw.ordinal) || 0))), updatedAt: Number(raw.updatedAt) || Date.now(),
   };
+  return position.imageId ? position : null;
 }
 
 function resolveMangaPosition(saved, candidates, documentId) {
   const position = normalizeMangaPosition(saved);
-  if (!position.imageId || (position.documentId && documentId && position.documentId !== documentId)) return { status: 'wrong-document' };
+  if (!position) return { status: 'missing' };
+  if (position.documentId && documentId && position.documentId !== documentId) return { status: 'wrong-document' };
   const list = Array.isArray(candidates) ? candidates : [];
   let match = list.find((item) => String(item.id || '') === position.imageId);
   if (!match && list[position.ordinal]) match = list[position.ordinal];
   if (!match) return { status: 'missing' };
   return { status: 'found', match, ratio: position.ratio };
+}
+
+async function waitForMangaPosition(options = {}) {
+  const scan = typeof options.scan === 'function' ? options.scan : async () => ({ status: 'missing' });
+  const sleep = typeof options.sleep === 'function' ? options.sleep : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const isCanceled = typeof options.isCanceled === 'function' ? options.isCanceled : () => false;
+  const attempts = Math.max(1, Math.min(20, Number(options.attempts) || 10));
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (isCanceled()) return { status: 'canceled', attempts: attempt };
+    const result = await scan(attempt);
+    if (result?.status === 'found' || result?.status === 'wrong-document') return { ...result, attempts: attempt + 1 };
+    if (attempt + 1 < attempts) await sleep(Math.max(0, Number(options.delayMs) || 250));
+  }
+  return { status: isCanceled() ? 'canceled' : 'missing', attempts };
 }
 
 class ReopenGuard {
@@ -232,11 +360,16 @@ module.exports = {
   normalizeMangaPosition,
   normalizeSearchScope,
   normalizeTextAnchor,
+  mangaPositionCaptureScript,
+  mangaPositionRestoreScript,
   removeCollection,
   renameCollection,
   reorderCollection,
   resolveMangaPosition,
   resolveTextAnchor,
+  selectionAnchorCaptureScript,
   setCollectionMembership,
   unifiedLibrarySearch,
+  textAnchorRestoreScript,
+  waitForMangaPosition,
 };

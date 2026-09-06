@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
   reorderLibraryCollection: (name, keys) => ipcRenderer.invoke('library:collections:reorder', { name, keys }),
   listLearningAnnotations: (mediaId) => ipcRenderer.invoke('library:annotations:list', mediaId),
   toggleLearningAnnotation: (annotation, saved) => ipcRenderer.invoke('library:annotations:toggle', { annotation, saved }),
+  restoreLearningAnnotationAnchor: (tabId, annotationId) => ipcRenderer.invoke('library:annotations:restoreAnchor', { tabId, annotationId }),
   openLogFolder: () => ipcRenderer.invoke('logs:openFolder'),
   probeYoutube: (url, cookieBrowser) => ipcRenderer.invoke('media:probe', { url, cookieBrowser }),
   downloadYoutube: (opts) => ipcRenderer.invoke('media:download', opts),

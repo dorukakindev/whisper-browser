@@ -205,12 +205,17 @@ try {
       const annotation = normalizeAnnotation({
         type: 'quote', mediaId: 'youtube:abc', start: 10, end: 12,
         source: 'Changed text.', translation: 'Değişmiş metin.', note: 'IŞIK önemli',
+        trackId: 'track:en', cueId: 'a',
+        anchor: { exact: 'Changed text.', prefix: 'before ', suffix: ' after' },
       });
       index.upsertAnnotation(annotation);
       const rows = index.listAnnotations('youtube:abc');
       assert.equal(rows.length, 1);
       assert.equal(rows[0].note, 'IŞIK önemli');
       assert.equal(rows[0].start, 10);
+      assert.equal(rows[0].track_id, 'track:en');
+      assert.equal(rows[0].cue_id, 'a');
+      assert.match(rows[0].anchor_json, /Changed text/);
       assert.equal(index.searchAnnotations('ışık').length, 1);
       const all = index.listAllAnnotations();
       assert.equal(all.length, 1);
