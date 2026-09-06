@@ -54,7 +54,12 @@ const {
 } = require('./browser-drm');
 const {
   browserCloudflareChallengeProbeScript,
+  browserCompatibilityEnabledForUrl,
+  browserCompatibilityHost,
   cloudflareCompatibilityMessage,
+  cloudflareProbeState,
+  normalizeBrowserCompatibilityHosts,
+  withBrowserCompatibilityHost,
 } = require('./browser-cloudflare-compat');
 const { rankBrowserMediaCandidates } = require('./browser-media');
 const {
@@ -1621,6 +1626,7 @@ function createBrowserTabRecord(initial = {}) {
     generation: 0,
     bridgeToken: randomUUID(),
     captureEnabled: restored.captureEnabled !== false,
+    compatibilityMode: restored.compatibilityMode === true,
     pinned: !!restored.pinned,
     diagnostics: null,
     acquisitionPlan: null,
@@ -1742,6 +1748,7 @@ function browserTabSnapshot(tab) {
     canGoBack,
     canGoForward,
     captureEnabled: tab ? tab.captureEnabled !== false : true,
+    compatibilityMode: !!tab?.compatibilityMode,
     pinned: !!tab?.pinned,
     mangaBusy: !!tab?.mangaJob,
     mangaTranslated: Number(tab?.mangaTranslated) || 0,
@@ -1867,7 +1874,9 @@ function normalizeBrowserPlaces(places) {
     tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
   })).filter(item => item.name && item.tabs.length);
   const siteZooms = normalizeBrowserSiteZooms(places?.siteZooms);
-  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks), workspaces, siteZooms };
+  const compatibilityHosts = normalizeBrowserCompatibilityHosts(places?.compatibilityHosts);
+  return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks),
+    workspaces, siteZooms, compatibilityHosts };
 }
 
 function cloneBrowserPlaces(places) {
@@ -1876,7 +1885,21 @@ function cloneBrowserPlaces(places) {
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
     workspaces: (places?.workspaces || []).map(item => ({ ...item, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
     siteZooms: { ...(places?.siteZooms || {}) },
+    compatibilityHosts: [...(places?.compatibilityHosts || [])],
   };
+}
+
+function browserCompatibilityModeForUrl(rawUrl) {
+  return browserCompatibilityEnabledForUrl(rawUrl, readBrowserPlaces().compatibilityHosts);
+}
+
+function rememberBrowserCompatibilityMode(rawUrl, enabled) {
+  const places = readBrowserPlaces();
+  const updated = withBrowserCompatibilityHost(places.compatibilityHosts, rawUrl, enabled);
+  if (!updated.ok) return updated;
+  places.compatibilityHosts = updated.hosts;
+  setBrowserPlaces(places);
+  return updated;
 }
 
 function browserZoomForUrl(rawUrl) {
@@ -2261,7 +2284,7 @@ function browserNavigationStateForTab(tab, extra = {}) {
     return {
       url: tab?.restoredUrl || '', title: tab?.restoredTitle || '', loading: false,
       canGoBack: false, canGoForward: false, resumePending: !!tab?.restoredUrl,
-      zoom: Number(tab?.zoom) || 1, ...extra,
+      zoom: Number(tab?.zoom) || 1, compatibilityMode: !!tab?.compatibilityMode, ...extra,
     };
   }
   const wc = tab.view.webContents;
@@ -2273,6 +2296,7 @@ function browserNavigationStateForTab(tab, extra = {}) {
     canGoBack,
     canGoForward,
     zoom: Number(wc.getZoomFactor?.()) || Number(tab.zoom) || 1,
+    compatibilityMode: !!tab.compatibilityMode,
     ...extra,
   };
 }
@@ -4997,6 +5021,7 @@ async function captureBrowserResponse(pendingKey) {
   const context = candidate && candidate.context;
   if (!candidate || !isCurrentBrowserContext(context) || !browserDebuggerReady) return;
   const tab = browserTabById(context.tabId);
+  if (tab?.compatibilityMode) return;
   try {
     const result = await tab.view.webContents.debugger.sendCommand(
       'Network.getResponseBody', { requestId: candidate.requestId }, candidate.sessionId || undefined);
@@ -5015,7 +5040,7 @@ async function captureBrowserResponse(pendingKey) {
 async function attachBrowserDebugger() {
   if (!browserCaptureEnabled || !browserView || browserView.webContents.isDestroyed()) return;
   const tab = activeBrowserTab();
-  if (tab?.cloudflareChallengeActive || tab?.browserInstrumentationPending) return;
+  if (tab?.compatibilityMode || tab?.cloudflareChallengeActive || tab?.browserInstrumentationPending) return;
   const context = tab ? { ...browserEventContext(tab), stateGeneration: browserStateGeneration } : null;
   const wc = browserView.webContents;
   const attempt = {};
@@ -5391,15 +5416,47 @@ async function uninstallBrowserCaptureHooks(view = browserView) {
   return true;
 }
 
+async function setBrowserTabCompatibilityMode(tab, enabled) {
+  if (!tab) return false;
+  const next = enabled === true;
+  tab.compatibilityMode = next;
+  clearBrowserCloudflareTimer(tab);
+  tab.cloudflareChallengeActive = false;
+  tab.cloudflareChallengeChecks = 0;
+  tab.cloudflareChallengeTimedOut = false;
+  tab.browserInstrumentationPending = !next;
+  if (!next) return true;
+  await uninstallBrowserCaptureHooks(tab.view);
+  detachBrowserDebugger(tab.view);
+  if (tab.id === browserActiveTabId) {
+    browserDebuggerReady = false;
+    browserPendingResponses.clear();
+    browserTrackBusy = false;
+  }
+  return true;
+}
+
+function syncBrowserTabCompatibilityForUrl(tab, rawUrl) {
+  const enabled = browserCompatibilityModeForUrl(rawUrl);
+  if (!!tab?.compatibilityMode === enabled) return enabled;
+  void setBrowserTabCompatibilityMode(tab, enabled);
+  return enabled;
+}
+
 function scheduleBrowserCloudflareProbe(tab) {
   clearBrowserCloudflareTimer(tab);
-  if (!tab?.cloudflareChallengeActive || !tab.view || tab.view.webContents.isDestroyed()) return;
+  if (tab?.compatibilityMode || (!tab?.cloudflareChallengeActive && !tab?.browserInstrumentationPending)
+      || !tab.view || tab.view.webContents.isDestroyed()) return;
   if (tab.cloudflareChallengeChecks >= 240) {
     if (!tab.cloudflareChallengeTimedOut) {
       tab.cloudflareChallengeTimedOut = true;
       sendBrowserEvent(tab, {
-        type: 'compatibility-status', kind: 'cloudflare', active: true, timedOut: true,
-        message: cloudflareCompatibilityMessage(true, true),
+        type: 'compatibility-status', kind: 'cloudflare',
+        active: tab.cloudflareChallengeActive === true, pending: tab.browserInstrumentationPending === true,
+        timedOut: true,
+        message: tab.cloudflareChallengeActive
+          ? cloudflareCompatibilityMessage(true, true)
+          : 'Sayfanın güvenlik durumu ölçülemedi. Sayfaya müdahale edilmemesi için altyazı yakalama kapalı tutuluyor; sayfayı yenileyin veya bu site için uyumluluk modunu açın.',
       });
     }
     return;
@@ -5409,7 +5466,8 @@ function scheduleBrowserCloudflareProbe(tab) {
   tab.cloudflareChallengeTimer = setTimeout(() => {
     tab.cloudflareChallengeTimer = null;
     if (browserTabById(tab.id) !== tab || tab.view !== view || view.webContents.isDestroyed()
-        || tab.generation !== generation || !tab.cloudflareChallengeActive) return;
+        || tab.generation !== generation || tab.compatibilityMode
+        || (!tab.cloudflareChallengeActive && !tab.browserInstrumentationPending)) return;
     tab.cloudflareChallengeChecks += 1;
     void prepareBrowserPageInstrumentation(tab);
   }, 1500);
@@ -5431,15 +5489,27 @@ async function performBrowserPageInstrumentation(tab) {
   if (!view || view.webContents.isDestroyed() || browserTabById(tab.id) !== tab) {
     return { active: false, stale: true };
   }
+  if (tab.compatibilityMode) {
+    clearBrowserCloudflareTimer(tab);
+    tab.browserInstrumentationPending = false;
+    return { active: false, compatibilityMode: true };
+  }
   const generation = tab.generation;
   const [probe] = await executeBrowserTrustedMain(view, browserCloudflareChallengeProbeScript())
     .catch(() => [null]);
   if (browserTabById(tab.id) !== tab || tab.view !== view || view.webContents.isDestroyed()
       || tab.generation !== generation) return { active: false, stale: true };
-  const active = probe?.active === true;
+  const probeState = cloudflareProbeState(probe);
   const wasActive = tab.cloudflareChallengeActive === true;
+  if (probeState === 'unknown') {
+    // Denetimin çalışmaması doğrulamanın bittiğini kanıtlamaz. Fail-closed
+    // davranıp sayfaya CDP/fetch kancası kurmadan kısa aralıkla tekrar ölç.
+    tab.browserInstrumentationPending = true;
+    scheduleBrowserCloudflareProbe(tab);
+    return { active: wasActive, unknown: true, probe: null };
+  }
   tab.browserInstrumentationPending = false;
-  if (active) {
+  if (probeState === 'active') {
     tab.cloudflareChallengeActive = true;
     if (!wasActive) {
       tab.cloudflareChallengeChecks = 0;
@@ -5481,7 +5551,8 @@ function executeBrowserFrames(script) {
 }
 
 async function ensureBrowserCaptureHooks() {
-  if (activeBrowserTab()?.cloudflareChallengeActive || activeBrowserTab()?.browserInstrumentationPending) return 0;
+  if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
+      || activeBrowserTab()?.browserInstrumentationPending) return 0;
   const frames = browserFrames();
   const pending = frames.filter((frame) => !browserCaptureHookFrames.has(frame));
   if (!pending.length) return 0;
@@ -5572,7 +5643,8 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
 
 function flushBrowserCaptureQueue({ allowHidden = false, force = false, installHook = true } = {}) {
   if (browserCaptureFlushPromise) return browserCaptureFlushPromise;
-  if (activeBrowserTab()?.cloudflareChallengeActive || activeBrowserTab()?.browserInstrumentationPending
+  if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
+      || activeBrowserTab()?.browserInstrumentationPending
       || (!force && !browserCaptureEnabled) || (!allowHidden && !browserVisible)
       || !browserView || browserView.webContents.isDestroyed()) {
     return Promise.resolve({ skipped: true, attempted: 0, retried: 0, pendingBeforeAck: 0 });
@@ -5590,7 +5662,8 @@ function startBrowserPolling() {
   if (browserTrackTimer && browserCaptureTimer && browserMediaTimer) return;
   stopBrowserPolling();
   browserTrackTimer = setInterval(async () => {
-    if (!browserCaptureEnabled || activeBrowserTab()?.cloudflareChallengeActive
+    if (!browserCaptureEnabled || activeBrowserTab()?.compatibilityMode
+        || activeBrowserTab()?.cloudflareChallengeActive
         || activeBrowserTab()?.browserInstrumentationPending
         || browserTrackBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
     browserTrackBusy = true;
@@ -5621,7 +5694,8 @@ function startBrowserPolling() {
     }
   }, 2600);
   browserCaptureTimer = setInterval(() => {
-    if (activeBrowserTab()?.cloudflareChallengeActive || activeBrowserTab()?.browserInstrumentationPending) return;
+    if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
+        || activeBrowserTab()?.browserInstrumentationPending) return;
     if (!browserDebuggerReady) void ensureBrowserDebugger();
     // Tam kanca yalnız yeni oluşan iframe'e kurulur; mevcut karelerde bu tur
     // yalnız kuyruk drain eder. Discovery+ oynatıcı iframe'ini geç kurduğu için
@@ -5638,7 +5712,8 @@ function startBrowserPolling() {
         sendBrowserEvent(item, { type: 'tab-audio', audible, tabMuted });
       }
     }
-    if (browserMediaBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
+    if (activeBrowserTab()?.compatibilityMode || browserMediaBusy || !browserVisible
+        || !browserView || browserView.webContents.isDestroyed()) return;
     browserMediaBusy = true;
     const generation = browserStateGeneration;
     const tab = activeBrowserTab();
@@ -5709,7 +5784,7 @@ function browserOverlayScript(payload, tab) {
 }
 
 async function applyBrowserOverlay() {
-  if (!browserView || browserView.webContents.isDestroyed()) return false;
+  if (activeBrowserTab()?.compatibilityMode || !browserView || browserView.webContents.isDestroyed()) return false;
   try {
     const results = await executeBrowserTrustedMain(browserView, browserOverlayScript(browserOverlay));
     return results.some(Boolean);
@@ -5771,7 +5846,7 @@ async function waitForProtectedPlayback(url, tab = activeBrowserTab()) {
 }
 
 async function reportBrowserDrmSupport() {
-  if (!browserView || browserView.webContents.isDestroyed()) return;
+  if (activeBrowserTab()?.compatibilityMode || !browserView || browserView.webContents.isDestroyed()) return;
   const tab = activeBrowserTab();
   const context = tab ? { ...browserEventContext(tab), stateGeneration: browserStateGeneration } : null;
   const pageUrl = browserView.webContents.getURL();
@@ -5886,12 +5961,18 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       ? { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() }
       : { action: 'deny' });
   });
-  wc.on('will-navigate', (event, url) => {
-    if (!normalizeBrowserUrl(url)) event.preventDefault();
-  });
+  const prepareNavigationCompatibility = (event, url) => {
+    if (!normalizeBrowserUrl(url)) {
+      event.preventDefault();
+      return;
+    }
+    syncBrowserTabCompatibilityForUrl(tab, url);
+  };
+  wc.on('will-navigate', prepareNavigationCompatibility);
+  wc.on('will-redirect', prepareNavigationCompatibility);
   wc.on('did-start-loading', () => {
     clearBrowserCloudflareTimer(tab);
-    tab.browserInstrumentationPending = true;
+    tab.browserInstrumentationPending = !tab.compatibilityMode;
     tab.loadError = null;
     if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
     stopBrowserManga(tab, false);
@@ -5909,12 +5990,13 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       browserOverlay = { source: [], translation: [], mode, offset };
       tab.overlay = browserOverlay;
       resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
-      applyBrowserOverlay();
+      if (!tab.compatibilityMode) applyBrowserOverlay();
     }
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: true }) });
   });
   wc.on('did-stop-loading', () => {
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
+    if (tab.compatibilityMode) return;
     // Bazı iç-frame yüklemelerinde Chromium did-start-loading gönderip ana
     // belge için yeni bir dom-ready göndermeyebilir. Bu durumda uyumluluk
     // kapısının kapalı kalmaması için son durum bir kez daha ölçülür.
@@ -5928,6 +6010,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('did-navigate', () => {
     tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
+    syncBrowserTabCompatibilityForUrl(tab, tab.restoredUrl);
     tab.restoredTitle = wc.getTitle() || '';
     const identity = ADAPTER_REGISTRY.mediaIdentity(tab.restoredUrl);
     if (tab.mediaId && tab.mediaId !== identity.key) {
@@ -5966,6 +6049,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       }
       rememberBrowserVisit(nextUrl, wc.getTitle());
       tab.restoredUrl = nextUrl;
+      syncBrowserTabCompatibilityForUrl(tab, nextUrl);
       tab.restoredTitle = wc.getTitle() || '';
       tab.mediaId = identity.key;
       tab.service = identity.service;
@@ -6050,7 +6134,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     sendBrowserEvent(tab, { type: 'drm-playback-error', message });
   });
   wc.on('dom-ready', () => {
-    if (tab.id !== browserActiveTabId) return;
+    if (tab.id !== browserActiveTabId || tab.compatibilityMode) return;
     void prepareBrowserPageInstrumentation(tab).then((status) => {
       if (status.stale || status.active || tab.id !== browserActiveTabId) return;
       applyBrowserOverlay();
@@ -6059,7 +6143,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.debugger.on('detach', () => { if (tab.id === browserActiveTabId) browserDebuggerReady = false; });
   wc.debugger.on('message', (_event, method, params, sessionId) => {
-    if (tab.id !== browserActiveTabId || tab.view !== browserView) return;
+    if (tab.id !== browserActiveTabId || tab.view !== browserView || tab.compatibilityMode) return;
     if (!browserCaptureEnabled && /^Network\./.test(method)) return;
     if (method === 'Target.attachedToTarget' && params && params.sessionId) {
       if (!browserCaptureEnabled) return;
@@ -6123,6 +6207,7 @@ function resumeRestoredBrowserPage(tab) {
   // Yalnız seçilen sekmeyi aç; ağ yüklemesini sekme geçiş kuyruğuna kilitleme.
   void (async () => {
     try {
+      await setBrowserTabCompatibilityMode(tab, browserCompatibilityModeForUrl(url));
       await waitForProtectedPlayback(url);
       if (browserTabById(tab.id) !== tab || tab.view !== view || view.webContents.isDestroyed()
           || tab.restoredUrl !== url || !['', 'about:blank'].includes(view.webContents.getURL())) return;
@@ -6147,8 +6232,9 @@ async function activateBrowserTab(rawId) {
     if (browserBounds) browserView.setBounds(browserBounds);
     browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
     if (browserVisible) startBrowserPolling();
-    if (browserCaptureEnabled && !next.cloudflareChallengeActive && !next.browserInstrumentationPending) attachBrowserDebugger();
-    applyBrowserOverlay();
+    if (browserCaptureEnabled && !next.compatibilityMode
+        && !next.cloudflareChallengeActive && !next.browserInstrumentationPending) attachBrowserDebugger();
+    if (!next.compatibilityMode) applyBrowserOverlay();
     resumeRestoredBrowserPage(next);
     return next;
   }
@@ -6195,8 +6281,9 @@ async function activateBrowserTab(rawId) {
   if (browserView && browserBounds) browserView.setBounds(browserBounds);
   if (browserView) browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
   if (browserVisible) startBrowserPolling();
-  if (browserCaptureEnabled && !next.cloudflareChallengeActive && !next.browserInstrumentationPending) attachBrowserDebugger();
-  applyBrowserOverlay();
+  if (browserCaptureEnabled && !next.compatibilityMode
+      && !next.cloudflareChallengeActive && !next.browserInstrumentationPending) attachBrowserDebugger();
+  if (!next.compatibilityMode) applyBrowserOverlay();
   resumeRestoredBrowserPage(next);
   return next;
 }
@@ -6264,6 +6351,7 @@ function destroyBrowserView() {
 async function drainBrowserCaptureBeforeClose() {
   stopBrowserPolling();
   if (!browserView || browserView.webContents.isDestroyed()) return { pending: 0, inFlight: 0 };
+  if (activeBrowserTab()?.compatibilityMode) return { pending: 0, inFlight: 0 };
   if (browserCaptureFlushPromise) await browserCaptureFlushPromise.catch(() => {});
   await withTimeout(executeBrowserFrames(browserCapturePauseScript()), BROWSER_SCRIPT_TIMEOUT,
     'Kapanışta yakalama durdurulamadı.');
@@ -6292,6 +6380,7 @@ function browserCaptureCloseNeedsWarning(status, includeUnverified = false) {
 
 async function browserTabCapturePending(tab, pause = false) {
   if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return { pending: 0, unverified: false };
+  if (tab.compatibilityMode) return { pending: 0, unverified: false };
   try {
     if (pause) await withTimeout(executeBrowserViewFrames(tab.view, browserCapturePauseScript()),
       BROWSER_SCRIPT_TIMEOUT, 'Arka plan sekmesinde yakalama durdurulamadı.');
@@ -6429,7 +6518,7 @@ function createWindow() {
           && mainWindow && !mainWindow.isDestroyed()) {
         if (!await confirmBrowserCaptureDiscard(captureStatus.pending)) {
           mainWindowClosing = false;
-          await executeBrowserFrames(browserCaptureEnabled
+          await executeBrowserFrames(browserCaptureEnabled && !activeBrowserTab()?.compatibilityMode
             ? browserCaptureHookScript() : browserCaptureToggleScript(false)).catch(() => {});
           if (browserVisible) startBrowserPolling();
           return;
@@ -6671,11 +6760,11 @@ ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransitio
   if (browserCaptureCloseNeedsWarning(captureStatus, true)
       && !await confirmBrowserCaptureDiscard(captureStatus.pending, 'sekme', captureStatus.unverified)) {
     if (wasActive) {
-      await executeBrowserFrames(browserCaptureEnabled
+      await executeBrowserFrames(browserCaptureEnabled && !tab.compatibilityMode
         ? browserCaptureHookScript() : browserCaptureToggleScript(false)).catch(() => {});
       if (browserVisible) startBrowserPolling();
     } else if (tab.view && !tab.view.webContents.isDestroyed()) {
-      await executeBrowserViewFrames(tab.view, tab.captureEnabled !== false
+      await executeBrowserViewFrames(tab.view, tab.captureEnabled !== false && !tab.compatibilityMode
         ? browserCaptureHookScript() : browserCaptureToggleScript(false)).catch(() => {});
     }
     return { ok: false, canceled: true };
@@ -6762,6 +6851,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   const url = normalizeBrowserUrl(payload && payload.url);
   if (!url) return { ok: false, error: 'Geçerli bir http veya https adresi girin.' };
+  await setBrowserTabCompatibilityMode(tab, browserCompatibilityModeForUrl(url));
   await waitForProtectedPlayback(url);
   if (!activeRequestedBrowserTab(tab.id)) return { ok: false, stale: true, error: 'Sekme değiştiği için gezinme iptal edildi.' };
   const view = ensureBrowserView(tab);
@@ -6975,7 +7065,7 @@ ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
   browserTrackBusy = false;
   browserMediaBusy = false;
   if (browserView && !browserView.webContents.isDestroyed()) {
-    if (browserCaptureEnabled && !tab.cloudflareChallengeActive) {
+    if (browserCaptureEnabled && !tab.compatibilityMode && !tab.cloudflareChallengeActive) {
       await withTimeout(ensureBrowserCaptureHooks(), BROWSER_SCRIPT_TIMEOUT,
         'Yakalama kancası zaman aşımına uğradı.').catch(() => {});
       attachBrowserDebugger();
@@ -6990,6 +7080,34 @@ ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
   sendBrowserEvent(tab, { type: 'capture-enabled', enabled: browserCaptureEnabled });
   publishBrowserDiagnostics();
   return { ok: true, enabled: browserCaptureEnabled };
+});
+
+ipcMain.handle('browser:compatibility:setEnabled', async (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(payload && payload.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const url = tab.view && !tab.view.webContents.isDestroyed()
+    ? (tab.view.webContents.getURL() || tab.restoredUrl) : tab.restoredUrl;
+  const updated = rememberBrowserCompatibilityMode(url, payload?.enabled === true);
+  if (!updated.ok) return { ok: false, error: 'Uyumluluk modu için geçerli bir site adresi bulunamadı.' };
+  const affected = [];
+  for (const item of browserTabs.values()) {
+    const itemUrl = item.view && !item.view.webContents.isDestroyed()
+      ? (item.view.webContents.getURL() || item.restoredUrl) : item.restoredUrl;
+    if (browserCompatibilityHost(itemUrl) !== updated.host) continue;
+    await setBrowserTabCompatibilityMode(item, payload?.enabled === true);
+    affected.push(item.id);
+    sendBrowserEvent(item, {
+      type: 'compatibility-mode', enabled: item.compatibilityMode, host: updated.host,
+      message: updated.host + (item.compatibilityMode
+        ? ' için uyumluluk modu açıldı. Altyazı yakalama ve sayfa enjeksiyonları durduruldu.'
+        : ' için uyumluluk modu kapatıldı. Sayfa yenilendikten sonra altyazı yakalama yeniden denenecek.'),
+    });
+  }
+  scheduleBrowserSessionSave(0);
+  const wc = tab.view?.webContents;
+  if (wc && !wc.isDestroyed() && wc.getURL() && wc.getURL() !== 'about:blank') wc.reload();
+  return { ok: true, enabled: tab.compatibilityMode, host: updated.host, affected, reloading: true };
 });
 
 ipcMain.handle('browser:getState', (event) => {

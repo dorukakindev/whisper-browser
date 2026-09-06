@@ -4,8 +4,18 @@ const path = require('node:path');
 const vm = require('node:vm');
 const {
   browserCloudflareChallengeProbeScript,
+  browserCompatibilityEnabledForUrl,
+  browserCompatibilityHost,
   cloudflareCompatibilityMessage,
+  cloudflareProbeState,
+  normalizeBrowserCompatibilityHosts,
+  withBrowserCompatibilityHost,
 } = require('../src/browser-cloudflare-compat');
+const { normalizeBrowserSession } = require('../src/browser-session-store');
+const {
+  createBrowserSessionPackage,
+  inspectBrowserSessionPackage,
+} = require('../src/browser-session-package');
 
 let passed = 0;
 function test(name, fn) {
@@ -75,6 +85,39 @@ test('kullanıcı mesajları duraklatma, zaman aşımı ve geri açılmayı ayı
   assert.match(cloudflareCompatibilityMessage(false), /yeniden açıldı/);
 });
 
+test('başarısız denetim temiz sayfa sayılmaz', () => {
+  assert.equal(cloudflareProbeState(null), 'unknown');
+  assert.equal(cloudflareProbeState({}), 'unknown');
+  assert.equal(cloudflareProbeState({ active: true }), 'active');
+  assert.equal(cloudflareProbeState({ active: false }), 'clear');
+});
+
+test('uyumluluk tercihi yalnız geçerli alan adlarına uygulanır', () => {
+  assert.equal(browserCompatibilityHost('https://WWW.Example.com/path?token=secret'), 'www.example.com');
+  const enabled = withBrowserCompatibilityHost([], 'https://www.example.com/private', true);
+  assert.deepEqual(enabled.hosts, ['www.example.com']);
+  assert.equal(browserCompatibilityEnabledForUrl('https://www.example.com/other', enabled.hosts), true);
+  assert.equal(browserCompatibilityEnabledForUrl('https://example.com/', enabled.hosts), false);
+  assert.deepEqual(normalizeBrowserCompatibilityHosts(['GOOD.example', 'good.example', 'bad host', '']),
+    ['good.example']);
+  assert.deepEqual(withBrowserCompatibilityHost(enabled.hosts, 'https://www.example.com/', false).hosts, []);
+});
+
+test('uyumluluk modu sekme oturumunda ve taşınabilir paket Places verisinde korunur', () => {
+  const session = normalizeBrowserSession({
+    tabs: [{ id: 'tab-1', url: 'https://challenge.example/', compatibilityMode: true }],
+    activeTabId: 'tab-1',
+  });
+  assert.equal(session.tabs[0].compatibilityMode, true);
+  const bundle = createBrowserSessionPackage({
+    session,
+    places: { compatibilityHosts: ['challenge.example', 'bad host'] },
+  });
+  const inspected = inspectBrowserSessionPackage(bundle);
+  assert.equal(inspected.session.tabs[0].compatibilityMode, true);
+  assert.deepEqual(inspected.places.compatibilityHosts, ['challenge.example']);
+});
+
 const mainSource = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const uninstallStart = mainSource.indexOf('function browserCaptureUninstallScript()');
 const uninstallEnd = mainSource.indexOf('function browserPageTranslationConfig(', uninstallStart);
@@ -141,6 +184,14 @@ test('oturum User-Agent kimliği WebContents yaratılmadan önce sabitlenir', ()
   const viewCreate = body.indexOf('new WebContentsView(');
   assert(sessionUa >= 0 && viewCreate > sessionUa);
   assert.match(body, /prepareBrowserPageInstrumentation\(tab\)/);
+});
+
+test('uyumluluk IPC köprüsü ve fail-closed denetim yolu bağlıdır', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.js'), 'utf8');
+  assert.match(preload, /setBrowserCompatibilityMode:[\s\S]*browser:compatibility:setEnabled/);
+  assert.match(mainSource, /cloudflareProbeState\(probe\)/);
+  assert.match(mainSource, /probeState === 'unknown'[\s\S]{0,260}browserInstrumentationPending = true/);
+  assert.match(mainSource, /browser:compatibility:setEnabled/);
 });
 
 if (!process.exitCode) console.log('browser-cloudflare-compat: ' + passed + ' test');

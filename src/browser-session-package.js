@@ -3,6 +3,7 @@ const { normalizeBrowserSession, normalizeSessionTab } = require('./browser-sess
 const { normalizeCues } = require('./browser-asset-store');
 const { safePlaceUrl } = require('./browser-place-url');
 const { normalizeBrowserSiteZooms } = require('./browser-site-zoom');
+const { normalizeBrowserCompatibilityHosts } = require('./browser-cloudflare-compat');
 
 const BROWSER_SESSION_PACKAGE_KIND = 'whisper-local-browser-session';
 const BROWSER_SESSION_PACKAGE_VERSION = 1;
@@ -38,6 +39,7 @@ function sanitizePlaces(raw = {}) {
     bookmarks: cleanEntries(raw.bookmarks),
     workspaces,
     siteZooms: normalizeBrowserSiteZooms(raw.siteZooms),
+    compatibilityHosts: normalizeBrowserCompatibilityHosts(raw.compatibilityHosts),
   };
 }
 

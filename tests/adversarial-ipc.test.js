@@ -235,6 +235,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       const navigate = register('browser:navigate', {
         authorizedBrowserSender: auth, activeRequestedBrowserTab: () => tab,
         normalizeBrowserUrl: (u) => u, waitForProtectedPlayback: async () => {},
+        setBrowserTabCompatibilityMode: async () => {},
+        browserCompatibilityModeForUrl: () => false,
         ensureBrowserView: () => view, browserBounds: null, browserVisible: false,
         browserModalOccluded: occluded, browserOverlay: {}, resetBrowserCaptureState: () => {},
         startBrowserPolling: () => {}, scheduleBrowserSessionSave: () => {},

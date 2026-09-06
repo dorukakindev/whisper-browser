@@ -21,6 +21,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       URL,
       isAbortedBrowserNavigation: isAborted, normalizeBrowserUrl: url => url,
       browserLoadErrorMessage: (_, message) => message, waitForProtectedPlayback: async () => {},
+      setBrowserTabCompatibilityMode: async () => {}, browserCompatibilityModeForUrl: () => false,
       ensureBrowserView: () => view, browserActiveTabId: tab.id, browserVisible: true, browserModalOccluded: false,
       scheduleBrowserSessionSave() {},
     };

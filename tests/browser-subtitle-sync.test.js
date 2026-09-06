@@ -12,7 +12,7 @@ const {
   transformCuesForExport,
   videoToSourceTime,
 } = require('../src/browser-subtitle-sync');
-const { normalizeBrowserSession } = require('../src/browser-session-store');
+const { BROWSER_SESSION_VERSION, normalizeBrowserSession } = require('../src/browser-session-store');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('../src/browser-subtitle-output');
 
 const cues = [
@@ -91,7 +91,7 @@ assert.equal(applyEditRecord({ ...cues[0], text: 'Model B' }, edit, { ...editCon
 const session = normalizeBrowserSession({ version: 2, tabs: [{ id: 't', url: 'https://example.com/watch/1',
   subtitleSyncRecords: [{ mediaId: 'x', sourceTrackId: 'y', sourceHash: 'z', scale: 0 }],
   subtitleEdits: [{ mediaId: 'x' }] }] });
-assert.equal(session.version, 4);
+assert.equal(session.version, BROWSER_SESSION_VERSION);
 assert.equal(session.tabs[0].subtitleSyncRecords.length, 0);
 assert.equal(session.tabs[0].subtitleEdits.length, 0);
 assert.equal(session.tabs[0].subtitleRecordQuarantine.length, 2);

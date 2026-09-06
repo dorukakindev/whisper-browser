@@ -33,7 +33,48 @@ function cloudflareCompatibilityMessage(active, timedOut = false) {
   return 'Cloudflare güvenlik doğrulaması algılandı. Sayfaya müdahale eden altyazı yakalama geçici olarak durduruldu; doğrulama bitince kendiliğinden yeniden açılacak.';
 }
 
+function cloudflareProbeState(probe) {
+  if (!probe || typeof probe !== 'object' || typeof probe.active !== 'boolean') return 'unknown';
+  return probe.active ? 'active' : 'clear';
+}
+
+function browserCompatibilityHost(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || ''));
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    return parsed.hostname.toLowerCase().replace(/^\.+|\.+$/g, '').slice(0, 253);
+  } catch (_) { return ''; }
+}
+
+function normalizeBrowserCompatibilityHosts(values, limit = 100) {
+  const unique = new Set();
+  for (const value of Array.isArray(values) ? values : []) {
+    const host = String(value || '').trim().toLowerCase().replace(/^\.+|\.+$/g, '');
+    if (!host || host.length > 253 || !/^[a-z0-9.-]+$/i.test(host)) continue;
+    unique.add(host);
+  }
+  return [...unique].slice(-Math.max(1, Number(limit) || 100));
+}
+
+function browserCompatibilityEnabledForUrl(rawUrl, hosts) {
+  const host = browserCompatibilityHost(rawUrl);
+  return !!host && normalizeBrowserCompatibilityHosts(hosts).includes(host);
+}
+
+function withBrowserCompatibilityHost(hosts, rawUrl, enabled) {
+  const host = browserCompatibilityHost(rawUrl);
+  if (!host) return { ok: false, host: '', hosts: normalizeBrowserCompatibilityHosts(hosts) };
+  const next = new Set(normalizeBrowserCompatibilityHosts(hosts));
+  if (enabled) next.add(host); else next.delete(host);
+  return { ok: true, host, hosts: normalizeBrowserCompatibilityHosts([...next]) };
+}
+
 module.exports = {
   browserCloudflareChallengeProbeScript,
+  browserCompatibilityEnabledForUrl,
+  browserCompatibilityHost,
   cloudflareCompatibilityMessage,
+  cloudflareProbeState,
+  normalizeBrowserCompatibilityHosts,
+  withBrowserCompatibilityHost,
 };

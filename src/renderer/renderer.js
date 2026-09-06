@@ -3885,6 +3885,9 @@ function newBrowserTabState(snapshot = {}) {
     canGoBack: !!snapshot.canGoBack,
     canGoForward: !!snapshot.canGoForward,
     captureEnabled: snapshot.captureEnabled !== false,
+    compatibilityMode: snapshot.compatibilityMode === true,
+    cloudflareChallengeActive: false,
+    compatibilityMessage: '',
     pinned: !!snapshot.pinned,
     diagnostics: snapshot.diagnostics || null,
     error: '',
@@ -4214,6 +4217,7 @@ function syncBrowserTabs(snapshots, activeTabId) {
       url: snapshot.url || '', title: snapshot.title || '', favicon: snapshot.favicon || tab.favicon || '', loading: !!snapshot.loading,
       canGoBack: !!snapshot.canGoBack, canGoForward: !!snapshot.canGoForward,
       captureEnabled: snapshot.captureEnabled !== false,
+      compatibilityMode: snapshot.compatibilityMode === true,
       pinned: snapshot.pinned !== undefined ? !!snapshot.pinned : !!tab.pinned,
       browserMangaBusy: !!snapshot.mangaBusy,
       browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
@@ -4888,12 +4892,28 @@ function setBrowserCaptureEnabled(enabled, persist = true) {
     button.setAttribute('aria-label', button.title);
   }
   if (player.workspaceMode === 'browser' && $('playerMeta')) {
-    $('playerMeta').textContent = player.browserCaptureEnabled
+    $('playerMeta').textContent = tab?.compatibilityMode
+      ? 'Web sayfası · site uyumluluk modu açık'
+      : player.browserCaptureEnabled
       ? 'Web videosu · altyazı algılama açık'
       : 'Web videosu · altyazı yakalama kapalı';
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserCaptureEnabled', player.browserCaptureEnabled ? 'true' : 'false'); } catch (_) {}
+  }
+}
+
+function syncBrowserCompatibilityControl(tab = browserTabState()) {
+  const checkbox = $('browserSiteCompatibility');
+  const hint = $('browserSiteCompatibilityHint');
+  if (!checkbox) return;
+  const hasSite = !!(tab?.url || player.browserPageUrl);
+  checkbox.disabled = !hasSite;
+  checkbox.checked = tab?.compatibilityMode === true;
+  if (hint) {
+    hint.textContent = checkbox.checked
+      ? 'Uyumluluk modu açık: bu alan adında sayfa enjeksiyonları ve altyazı yakalama kapalı. Kapatırsanız sayfa yeniden yüklenir.'
+      : 'Cloudflare veya benzeri güvenlik doğrulaması geçmiyorsa açın. Bu alan adında sayfa enjeksiyonları ve altyazı yakalama kapanır; sayfa temiz biçimde yeniden yüklenir.';
   }
 }
 
@@ -6970,6 +6990,7 @@ function updateBrowserNavigation(data, options = {}) {
     if (data.loading !== undefined) tab.loading = !!data.loading;
     if (data.canGoBack !== undefined) tab.canGoBack = !!data.canGoBack;
     if (data.canGoForward !== undefined) tab.canGoForward = !!data.canGoForward;
+    if (data.compatibilityMode !== undefined) tab.compatibilityMode = data.compatibilityMode === true;
     if (data.mediaId !== undefined) tab.mediaId = data.mediaId || '';
     if (data.service !== undefined) tab.service = data.service || '';
     if (Number.isFinite(Number(data.zoom))) tab.browserZoom = Number(data.zoom);
@@ -7045,6 +7066,7 @@ function updateBrowserNavigation(data, options = {}) {
   if (typeof syncBrowserPageAutoControl === 'function') {
     syncBrowserPageAutoControl(player.browserPageUrl || data.url || '');
   }
+  syncBrowserCompatibilityControl(tab);
   if (data.title) player.browserPageTitle = data.title;
   if (tab) {
     tab.url = player.browserPageUrl || data.url || '';
@@ -7054,7 +7076,9 @@ function updateBrowserNavigation(data, options = {}) {
   updateBrowserBookmarkButton();
   if (player.workspaceMode === 'browser') {
     $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
-    $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor' : 'Web videosu · altyazı algılama açık';
+    $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor'
+      : tab?.compatibilityMode ? 'Web sayfası · site uyumluluk modu açık'
+      : 'Web videosu · altyazı algılama açık';
   }
   if (data.loading === false && data.url && player.workspaceMode === 'browser' && !player.browserTracks.length) {
     scheduleBrowserNoTrackSuggestion(data.url);
@@ -7763,6 +7787,28 @@ if ($('browserCaptureToggle')) $('browserCaptureToggle').addEventListener('click
   setBrowserCaptureEnabled(result.enabled !== false);
   setBrowserSignal(result.enabled ? 'Altyazı yakalama yeniden başlatıldı.' : 'Altyazı yakalama durduruldu; tarayıcı kullanımı devam ediyor.', false);
 });
+if ($('browserSiteCompatibility')) $('browserSiteCompatibility').addEventListener('change', async () => {
+  const checkbox = $('browserSiteCompatibility');
+  if (checkbox.disabled) return;
+  const requested = checkbox.checked;
+  checkbox.disabled = true;
+  const result = await window.api.setBrowserCompatibilityMode?.(
+    player.browserActiveTabId, requested).catch(() => null);
+  checkbox.disabled = false;
+  if (!result?.ok) {
+    checkbox.checked = !requested;
+    setBrowserSignal(result?.error || 'Site uyumluluk modu değiştirilemedi.', false,
+      { priority: 90, holdMs: 6500 });
+    return;
+  }
+  const tab = browserTabState();
+  if (tab) tab.compatibilityMode = result.enabled === true;
+  syncBrowserCompatibilityControl(tab);
+  setBrowserSignal(result.enabled
+    ? 'Uyumluluk modu açıldı; sayfa müdahalesiz olarak yeniden yükleniyor.'
+    : 'Uyumluluk modu kapatıldı; altyazı yakalama yeniden hazırlanıyor.',
+  true, { priority: 75, holdMs: 6000 });
+});
 if ($('browserSignalToggle')) $('browserSignalToggle').addEventListener('click', () => {
   setBrowserSignalVisible(!player.browserSignalVisible);
 });
@@ -7949,6 +7995,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'compatibility-status') {
         tab.cloudflareChallengeActive = event.kind === 'cloudflare' && event.active === true;
         tab.compatibilityMessage = String(event.message || '');
+      } else if (event.type === 'compatibility-mode') {
+        tab.compatibilityMode = event.enabled === true;
+        tab.compatibilityMessage = String(event.message || '');
       } else if (event.type === 'manga-state') {
         tab.browserMangaBusy = event.state === 'running';
         if (event.translated !== undefined) tab.browserMangaTranslated = Math.max(0, Number(event.translated) || 0);
@@ -8104,6 +8153,17 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
   } else if (event.type === 'capture-enabled') {
     setBrowserCaptureEnabled(event.enabled !== false, false);
+  } else if (event.type === 'compatibility-mode') {
+    const tab = browserTabState();
+    if (tab) {
+      tab.compatibilityMode = event.enabled === true;
+      tab.compatibilityMessage = String(event.message || '');
+    }
+    syncBrowserCompatibilityControl(tab);
+    const message = event.message || (event.enabled
+      ? 'Site uyumluluk modu açıldı.' : 'Site uyumluluk modu kapatıldı.');
+    setBrowserSignal(message, true, { priority: 75, holdMs: 6500 });
+    logLine(message, 'info');
   } else if (event.type === 'compatibility-status') {
     const tab = browserTabState();
     if (tab) {
@@ -8113,11 +8173,12 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const message = event.message || (event.active
       ? 'Site güvenlik doğrulaması sürerken altyazı yakalama geçici olarak durduruldu.'
       : 'Site güvenlik doğrulaması tamamlandı; altyazı yakalama yeniden açıldı.');
-    setBrowserSignal(message, event.active !== true, {
-      priority: event.active ? 85 : 55,
-      holdMs: event.active ? (event.timedOut ? 12000 : 8000) : 4500,
+    const blocked = event.active === true || event.pending === true;
+    setBrowserSignal(message, !blocked, {
+      priority: blocked ? 85 : 55,
+      holdMs: blocked ? (event.timedOut ? 12000 : 8000) : 4500,
     });
-    logLine(message, event.active ? 'warn' : 'success');
+    logLine(message, blocked ? 'warn' : 'success');
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);

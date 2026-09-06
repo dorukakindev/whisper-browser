@@ -50,6 +50,7 @@ const nav = { player: { browserActiveTabId: 'a', browserPageUrl: 'https://exampl
   document: {}, localStorage: { setItem() {} },
   setMediaKey() {}, applyBrowserMangaState() {}, clearBrowserTracks() {},
   scheduleBrowserOverlaySync() {}, setBrowserLoadingState() {}, showBrowserErrorSurface() {},
+  syncBrowserCompatibilityControl() {},
   loadBrowserPlaces() {}, updateBrowserTabPresentation() {}, updateBrowserBookmarkButton() {},
   updateBrowserWhisperActions() {},
 };

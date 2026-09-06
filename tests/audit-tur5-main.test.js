@@ -54,6 +54,7 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
     } } };
     current = tab;
     const resume = fn('resumeRestoredBrowserPage', { waitForProtectedPlayback: () => ready,
+      setBrowserTabCompatibilityMode: async () => {}, browserCompatibilityModeForUrl: () => false,
       browserTabById: () => current, sendBrowserEvent() {}, isAbortedBrowserNavigation: () => false,
       browserLoadErrorMessage: () => 'hata' });
     resume(tab); resume(tab);
