@@ -117,6 +117,6 @@ assert.match(html, /id="browserSessionStatus"[^>]*role="status"[^>]*aria-live="p
 assert.match(html, /id="browserRecoveryList"[^>]*role="region"[^>]*aria-live="polite"/);
 assert.match(html, /id="browserDiagnosticsLastCapture"/);
 assert.match(renderer, /Kurtarılabilir browser işi/);
-assert.match(styles, /browser-page-button, \.browser-subtitle-settings-button \{ min-width: 44px; width: 44px; min-height: 44px/);
+assert.match(styles, /@container browser-workspace \(max-width: 760px\)[\s\S]*?\.browser-subtitle-settings-button \{ width: 38px; padding: 0; \}/);
 
 console.log(`Browser session package: checksum, redaction, migration, partial recovery and scale passed (${elapsed.toFixed(1)} ms, ${Math.max(0, memoryGrowth / 1048576).toFixed(1)} MiB).`);

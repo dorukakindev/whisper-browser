@@ -241,6 +241,75 @@ async function run() {
       + "); if(!wc)return false; globalThis.__experienceFs={entered:0,left:0}; globalThis.__experiencePage={unresponsive:0,responsive:0}; wc.on('enter-html-full-screen',()=>globalThis.__experienceFs.entered++); wc.on('leave-html-full-screen',()=>globalThis.__experienceFs.left++); wc.on('unresponsive',()=>globalThis.__experiencePage.unresponsive++); wc.on('responsive',()=>globalThis.__experiencePage.responsive++); return true; })()");
   assert.equal(fullscreenHooked, true, 'Fullscreen event instrumentation could not find the browser WebContents.');
 
+  const toolbar = await evaluate(renderer, `(() => {
+    const layer = document.getElementById('playerLayer');
+    const ids = [...layer.querySelectorAll('[id]')].map((node) => node.id);
+    const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+    const head = layer.querySelector('.player-head');
+    const actions = layer.querySelector('.player-head-actions');
+    const more = document.getElementById('browserMoreMenu');
+    const translate = document.getElementById('browserTranslateMenu');
+    const address = document.querySelector('.browser-address-wrap');
+    const proxy = more?.querySelector('[data-browser-proxy="playerBookmark"]');
+    return {
+      duplicates,
+      head: head ? { right: head.getBoundingClientRect().right, width: head.getBoundingClientRect().width } : null,
+      actions: actions ? { right: actions.getBoundingClientRect().right, width: actions.getBoundingClientRect().width } : null,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      addressBookmark: !!address?.querySelector('#browserBookmarkToggle'),
+      translateItems: translate ? translate.querySelectorAll('[role="menuitem"]').length : 0,
+      moreItems: more ? more.querySelectorAll('[role="menuitem"]').length : 0,
+      proxy: !!proxy,
+    };
+  })()`);
+  assert.deepEqual(toolbar.duplicates, [], 'Toolbar introduced duplicate DOM ids.');
+  assert.equal(toolbar.addressBookmark, true, 'Site bookmark is not inside the address control.');
+  assert.equal(toolbar.translateItems, 3, 'Translate split menu does not expose exactly three existing actions.');
+  assert.ok(toolbar.moreItems >= 10, 'Other menu is missing grouped browser actions.');
+  assert.equal(toolbar.proxy, true, 'Other menu proxy action was not rendered.');
+  assert.ok(toolbar.actions?.right <= toolbar.viewport.width - 10,
+    'Header action group is not kept inside the content edge.');
+
+  const visibilityHooked = await evaluate(main,
+    "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const electron=req('electron'); const wc=electron.webContents.getAllWebContents().find((entry)=>entry.getURL()==="
+      + JSON.stringify(siteUrl)
+      + "); const win=electron.BrowserWindow.getAllWindows()[0]; const view=win?.contentView?.children?.find((entry)=>entry.webContents?.id===wc?.id); if(!view||typeof view.setVisible!=='function')return false; globalThis.__smokeBrowserVisible=null; const original=view.setVisible.bind(view); view.setVisible=(visible)=>{globalThis.__smokeBrowserVisible=!!visible; return original(visible);}; return true; })()",
+    5000);
+  assert.equal(visibilityHooked, true, 'Could not instrument browser visibility for menu occlusion.');
+  const menuOcclusion = await evaluate(renderer, `(async () => {
+    const more = document.getElementById('browserMoreMenu');
+    more.open = true;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return { open: more.open };
+  })()`);
+  const menuVisibility = await evaluate(main,
+    "globalThis.__smokeBrowserVisible === false");
+  await evaluate(renderer, "(() => { const more=document.getElementById('browserMoreMenu'); more.open=false; return true; })()");
+  await delay(100);
+  const menuRestored = await evaluate(main,
+    "globalThis.__smokeBrowserVisible === true");
+  assert.equal(menuOcclusion.open, true, 'Other menu did not open.');
+  assert.equal(menuVisibility, true, 'Native browser view stayed visible behind the Other menu.');
+  assert.equal(menuRestored, true, 'Native browser view did not restore after closing the menu.');
+
+  const proxyCycles = await evaluate(renderer, `(async () => {
+    const more = document.getElementById('browserMoreMenu');
+    const proxy = more.querySelector('[data-browser-proxy="playerBookmark"]');
+    const target = document.getElementById('playerBookmark');
+    let clicks = 0;
+    target.addEventListener('click', () => { clicks += 1; });
+    for (let index = 0; index < 30; index += 1) {
+      more.open = true;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      proxy.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    more.open = false;
+    return { clicks, open: more.open };
+  })()`);
+  assert.equal(proxyCycles.clicks, 30, 'Repeated menu open/close cycles multiplied proxy listeners.');
+  assert.equal(proxyCycles.open, false, 'Other menu remained open after proxy cycle test.');
+
   const track = await waitFor(async () => evaluate(renderer,
     "(() => { const item=player.browserTracks.find((candidate)=>Number(candidate.cueCount)>0||(candidate.cues||[]).length>0); return item?{id:item.id,cueCount:item.cueCount}:null; })()",
     3000).catch(() => null), 25000);

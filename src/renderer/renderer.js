@@ -674,8 +674,13 @@ function setModalBackgroundInert(modal, inert) {
 function syncBrowserOcclusion() {
   const places = $('browserPlacesPanel');
   const downloads = $('browserDownloadsPanel');
+  const moreMenu = $('browserMoreMenu');
+  const translateMenu = $('browserTranslateMenu');
+  const commandPalette = $('browserCommandPalette');
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
+    || !!moreMenu?.open || !!translateMenu?.open
+    || !!(commandPalette && !commandPalette.classList.contains('hidden'))
     || (typeof player !== 'undefined' && !!player.pdfReader);
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
 }
@@ -4354,7 +4359,7 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
   return window.api.browserCommand(tabId, command, value);
 }
 
-const browserCommandPaletteState = { open: false, query: '', selected: 0, context: null, results: [] };
+const browserCommandPaletteState = { open: false, query: '', selected: 0, context: null, results: [], returnFocus: null };
 const browserWorkflowRecorder = window.BrowserWorkflowRecorder
   ? new window.BrowserWorkflowRecorder.BrowserWorkflowRecorder() : null;
 const browserWorkflowPlayer = window.BrowserWorkflowRecorder
@@ -4470,14 +4475,23 @@ function closeBrowserCommandPalette() {
   browserCommandPaletteState.open = false; browserCommandPaletteState.context = null; browserCommandPaletteState.results = [];
   const panel = $('browserCommandPalette');
   panel?.classList.add('hidden'); panel?.setAttribute('aria-hidden', 'true');
-  $('browserCommandPaletteToggle')?.focus({ preventScroll: true });
+  syncBrowserOcclusion();
+  const target = browserCommandPaletteState.returnFocus?.isConnected
+    ? browserCommandPaletteState.returnFocus
+    : $('browserMoreMenu')?.querySelector('summary');
+  browserCommandPaletteState.returnFocus = null;
+  target?.focus({ preventScroll: true });
 }
-function openBrowserCommandPalette() {
+function openBrowserCommandPalette(returnFocus = null) {
   if (player.workspaceMode !== 'browser' || !browserTabState()) return;
   browserCommandPaletteState.open = true; browserCommandPaletteState.query = ''; browserCommandPaletteState.selected = 0;
+  const activeElement = document.activeElement;
+  browserCommandPaletteState.returnFocus = returnFocus
+    || (activeElement instanceof HTMLElement && activeElement.offsetParent !== null ? activeElement : $('browserMoreMenu')?.querySelector('summary'));
   const tab = browserTabState();
   browserCommandPaletteState.context = { tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' };
   const panel = $('browserCommandPalette'); panel?.classList.remove('hidden'); panel?.setAttribute('aria-hidden', 'false');
+  syncBrowserOcclusion();
   renderBrowserCommandPalette();
   requestAnimationFrame(() => { const input = $('browserCommandPaletteInput'); input?.focus(); input?.select(); });
 }
@@ -4499,8 +4513,9 @@ async function executeBrowserCommandPalette(index = browserCommandPaletteState.s
   } catch (error) { setBrowserSignal(`Komut çalıştırılamadı: ${error.message}`, false); }
 }
 if ($('browserCommandPaletteToggle')) $('browserCommandPaletteToggle').addEventListener('click', () => {
-  if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
-  openBrowserCommandPalette();
+  const returnFocus = $('browserMoreMenu')?.querySelector('summary');
+  closeBrowserToolbarMenus();
+  openBrowserCommandPalette(returnFocus);
 });
 if ($('browserCommandPaletteClose')) $('browserCommandPaletteClose').addEventListener('click', closeBrowserCommandPalette);
 if ($('browserCommandPaletteInput')) $('browserCommandPaletteInput').addEventListener('input', (event) => {
@@ -13972,8 +13987,43 @@ if ($('browserViewSettingsToggle')) {
 if ($('browserSubtitleSettingsToggle')) {
   $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
 }
+const browserToolbarMenuIds = ['browserTranslateMenu', 'browserMoreMenu'];
+function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
+  let focusTarget = null;
+  for (const id of browserToolbarMenuIds) {
+    const menu = $(id);
+    if (!menu?.open || id === exceptId) continue;
+    if (restoreFocus && !focusTarget) focusTarget = menu.querySelector('summary');
+    menu.open = false;
+  }
+  syncBrowserOcclusion();
+  focusTarget?.focus();
+}
+for (const id of browserToolbarMenuIds) {
+  const menu = $(id);
+  if (!menu) continue;
+  menu.addEventListener('toggle', () => {
+    if (menu.open) closeBrowserToolbarMenus(id);
+    menu.querySelector('summary')?.setAttribute('aria-expanded', menu.open ? 'true' : 'false');
+    syncBrowserOcclusion();
+  });
+}
+document.addEventListener('pointerdown', (event) => {
+  if (event.target.closest?.('#browserTranslateMenu, #browserMoreMenu')) return;
+  closeBrowserToolbarMenus();
+}, true);
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !browserToolbarMenuIds.some((id) => $(id)?.open)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  closeBrowserToolbarMenus('', true);
+}, true);
+if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
+  closeBrowserToolbarMenus();
+  openBrowserFind();
+});
 if ($('browserReopenTab')) $('browserReopenTab').addEventListener('click', () => {
-  if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
+  closeBrowserToolbarMenus();
   reopenClosedBrowserTab();
 });
 if ($('browserZoomOut')) $('browserZoomOut').addEventListener('click', () => changeBrowserZoom('zoom-out'));
@@ -13986,9 +14036,16 @@ $$('[data-browser-proxy]').forEach((button) => {
   button.addEventListener('click', () => {
     const target = $(button.dataset.browserProxy);
     if (target && !target.disabled) target.click();
-    if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
+    closeBrowserToolbarMenus();
   });
 });
+
+const playerTitleNode = $('playerTitle');
+if (playerTitleNode && typeof MutationObserver === 'function') {
+  const syncPlayerTitleTooltip = () => { playerTitleNode.title = playerTitleNode.textContent.trim(); };
+  syncPlayerTitleTooltip();
+  new MutationObserver(syncPlayerTitleTooltip).observe(playerTitleNode, { childList: true, subtree: true });
+}
 
 function applyBrowserPageTranslationState(event = {}) {
   player.browserPageTranslateBusy = event.state === 'running';

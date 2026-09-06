@@ -779,12 +779,14 @@ test('araç bloğu gizlenip açılabiliyor', () => {
 });
 
 // ---- 13. işletim sistemi başlık çubuğu ve sade tarayıcı görünümü ----
-test('yan panel kapalıyken başlık sağa yaslanır ve pencere düğmelerinin altında kalır', () => {
-  assert(/\.player-layer\.sidebar-collapsed \.player-head\s*\{\s*padding-right:\s*14px;\s*\}/.test(css),
-    'kapalı panelde gereksiz native düğme sütunu kaldırılmalı');
-  assert(/\.player-layer\.sidebar-collapsed \.player-workspace-switch\s*\{[^}]*margin-left:\s*auto;[^}]*order:\s*0;/.test(css),
-    'dar pencerede seçici ikon grubunun önünde, sağa yaslı kalmalı');
-  assert(/padding-top:\s*calc\(12px \+ var\(--window-controls-safe-height\)\)/.test(css),
+test('başlık sidebar durumundan bağımsız esnek başlık ve sabit sağ araç grubu kullanır', () => {
+  assert(/\.player-head\s*\{[^}]*grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto auto/.test(css),
+    'başlık uzun metni daraltan dört sütunlu grid kullanmıyor');
+  assert(/\.player-head-actions\s*\{[^}]*min-width:\s*max-content[^}]*justify-self:\s*end/.test(css),
+    'sağ araç grubu içerik genişliğinde ve sağa yaslı değil');
+  assert(!/\.player-layer\.sidebar-collapsed \.player-head\s*\{[^}]*padding-right/.test(css),
+    'sidebar kapalıyken başlığın sağ hizası ayrı bir padding ile değişiyor');
+  assert(/padding-top:\s*calc\(8px \+ var\(--window-controls-safe-height\)\)/.test(css),
     'native pencere düğmelerinin dikey güvenli alanı korunmalı');
 });
 
@@ -793,8 +795,43 @@ test('native başlık gizlenirken pencere düğmeleri için güvenli alan korunu
   assert(/titleBarStyle:\s*'hidden'/.test(main), 'ayrı Windows başlık şeridi hâlâ açık');
   assert(/titleBarOverlay:\s*\{/.test(main), 'native küçült/büyüt/kapat düğmeleri korunmuyor');
   assert(/--window-controls-safe-width:\s*148px/.test(css), 'pencere düğmeleri için güvenli genişlik yok');
-  assert(/\.player-head\s*\{[\s\S]*?padding-right:\s*calc\((?:14|22)px \+ var\(--window-controls-safe-width\)\)/.test(css),
-    'oynatıcı başlığı native düğmelerden kaçınmıyor');
+  assert(/\.player-head\s*\{[\s\S]*?padding-top:\s*calc\(8px \+ var\(--window-controls-safe-height\)\)[\s\S]*?padding-right:\s*14px/.test(css),
+    'oynatıcı başlığı native düğmelerin altına inmiyor veya sağda 14px hizayı korumuyor');
+});
+
+test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında toplar', () => {
+  const ids = [...layer.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+  const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+  assert(duplicates.length === 0, `yinelenen id: ${duplicates.join(', ')}`);
+  const address = layer.slice(layer.indexOf('class="browser-address-wrap"'), layer.indexOf('class="browser-toolbar-actions"'));
+  assert(address.includes('id="browserBookmarkToggle"'), 'site yer imi adres alanının sağ iç kenarında değil');
+  for (const target of ['browserSubtitleSettingsToggle', 'browserPageTranslate', 'browserMangaTranslate']) {
+    assert(new RegExp(`data-browser-proxy="${target}"`).test(layer), `${target} Çeviri menüsüne bağlı değil`);
+  }
+  for (const label of ['Gezinme', 'İçerik', 'Kayıtlar', 'Görünüm ve yardım']) {
+    assert(layer.includes(`class="browser-menu-group-label">${label}</div>`), `${label} Diğer menüsünde yok`);
+  }
+  for (const target of ['playerQuickDownload', 'pdfReaderOpen', 'playerBookmark', 'browserDownloadsToggle',
+    'browserPlacesToggle', 'playerLayoutQuick', 'browserViewSettingsToggle', 'browserDiagnosticsToolbar']) {
+    assert(new RegExp(`data-browser-proxy="${target}"`).test(layer), `${target} Diğer menüsüne bağlı değil`);
+  }
+  assert(/\.browser-action-source\s*\{\s*display:\s*none\s*!important/.test(css),
+    'canonical kaynak kontrolleri Tab sırasından çıkarılmıyor');
+  assert(!/@container browser-workspace \(min-width:\s*1381px\)[\s\S]{0,120}\.browser-more\s*\{\s*display:\s*none/.test(css),
+    'Diğer menüsü geniş ekranda yeniden gizleniyor');
+});
+
+test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüsünü kullanır', () => {
+  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserMoreMenu'\]/.test(js),
+    'toolbar menüleri tek yaşam döngüsü listesinde değil');
+  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open/.test(js),
+    'native browser okluzyonu açık toolbar menülerini hesaba katmıyor');
+  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserMoreMenu'\)/.test(js),
+    'dış tıklama menüleri tek noktadan kapatmıyor');
+  assert(/event\.key !== 'Escape'[\s\S]{0,260}closeBrowserToolbarMenus\('', true\)/.test(js),
+    'Escape en üst toolbar menüsünü kapatıp odağı geri vermiyor');
+  assert(/\$\$\('\[data-browser-proxy\]'\)[\s\S]{0,260}closeBrowserToolbarMenus\(\)/.test(js),
+    'proxy eylemi sonrasında menü yaşam döngüsü kapanmıyor');
 });
 
 test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabilir', () => {
@@ -814,8 +851,9 @@ test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabil
     'sinyal gizlenince native tarayıcı yuvası sıfır yüksekliğe düşebilir');
   assert(/\.player-layer\.browser-chrome-collapsed \.player-head\s*\{[^}]*display:\s*none/.test(css),
     'sade görünüm üst oynatıcı başlığını gizlemiyor');
-  assert(/\.player-layer\.browser-chrome-collapsed #browserSignalToggle\s*\{[^}]*display:\s*none/.test(css),
-    'sade görünümde adres dışı araçlar tamamen çekilmiyor');
+  assert(/\.player-layer\.browser-chrome-collapsed \.browser-translate-split,[\s\S]*?\.player-layer\.browser-chrome-collapsed \.browser-more\s*\{[^}]*display:\s*none/.test(css)
+    && /\.player-layer\.browser-chrome-collapsed #browserChromeToggle\s*\{[^}]*display:\s*grid\s*!important/.test(css),
+    'sade görünümde adres ve görünümü geri açma dışındaki araçlar doğru çekilmiyor');
 });
 
 test('tarayıcı altyazı yakalaması normal gezinme için durdurulup yeniden başlatılabilir', () => {
@@ -1129,7 +1167,7 @@ test('Windows başlık düğmeleri içerik satırının üzerine binmiyor', () =
     'başlık düğmeleri için dikey güvenli alan yok');
   assert(/\.app-header\s*\{[\s\S]*?min-height:\s*calc\(72px \+ var\(--window-controls-safe-height\)\)/.test(css),
     'ana başlık güvenli yüksekliği ayırmıyor');
-  assert(/\.player-head\s*\{[\s\S]*?min-height:\s*calc\(70px \+ var\(--window-controls-safe-height\)\)/.test(css),
+  assert(/\.player-head\s*\{[\s\S]*?min-height:\s*calc\(56px \+ var\(--window-controls-safe-height\)\)/.test(css),
     'oynatıcı başlığı güvenli yüksekliği ayırmıyor');
   assert(/browser-chrome-collapsed \.browser-workspace\s*\{[\s\S]*?calc\(52px \+ var\(--window-controls-safe-height\)\)/.test(css),
     'başlık gizliyken tarayıcı araç çubuğu native düğmelerin altına taşınmıyor');
@@ -1451,9 +1489,11 @@ test('yerel ve web altyazı çalışma alanları tanımlı liste çizicisiyle ge
   assert(/renderCueList\(/.test(browserRestore), 'web altyazı listesi sekme geri yüklemede çizilmiyor');
 });
 
-test('yan panel kapalıyken üst çalışma alanı araç grubu sağa yaslanır', () => {
-  assert(/\.player-layer\.sidebar-collapsed\s+\.player-workspace-switch\s*\{[^}]*margin-left:\s*auto;[^}]*\}/.test(css),
-    'dar görünümde kapalı panel üst araç grubunu sağ kenara taşımıyor');
+test('üst çalışma alanı araç grubu sidebar açık ve kapalıyken aynı sütunda kalır', () => {
+  assert(/\.player-head\s*\{[^}]*grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto auto/.test(css),
+    'çalışma modu ile sağ araçlar başlık gridinde ayrı sabit sütunlarda değil');
+  assert(!/\.player-layer\.sidebar-collapsed\s+\.player-workspace-switch\s*\{/.test(css),
+    'sidebar kapalıyken çalışma modu anahtarı ayrı bir hizaya taşınıyor');
 });
 
 test('tarayıcı görünüm ve yakalama ayarları videoyu itmeden sağ çekmecede açılır', () => {
