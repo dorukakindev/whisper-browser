@@ -68,8 +68,6 @@ function translationCacheKey(sentence, context = {}) {
     mediaIdentity: String(context.mediaIdentity || ''),
     trackIdentity: String(context.trackIdentity || ''),
     sourceLineage: String(context.sourceLineage || ''),
-    sourceRevision: String(context.sourceRevision || context.sourceHash || ''),
-    cueIdentity: String(context.cueIdentity || ''),
     text: normalizeText(sentence?.text),
     pieces: (sentence?.pieces || []).map((piece) => [normalizeText(piece.text),
       finiteNumber(piece.end) - finiteNumber(piece.start)]),

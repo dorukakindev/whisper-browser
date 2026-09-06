@@ -236,18 +236,18 @@ async function test(name, fn) {
       translationCacheKey(sentence, { ...identityBase, trackIdentity: 'captions-de',
         sourceLineage: 'browser:youtube:video-a|captions-de' }),
       'aynı medya içindeki farklı kaynak izler cache paylaşmamalı');
-    assert.notEqual(
+    assert.equal(
       translationCacheKey(sentence, identityBase),
       translationCacheKey(sentence, { ...identityBase, sourceRevision: 'revision-b' }),
-      'kaynak revizyonu değişince eski çeviri hazır sayılmamalı');
+      'komşu cue değişse de değişmeyen cümlenin cache sonucu korunmalı');
     assert.notEqual(
       translationCacheKey(sentence, identityBase),
       translationCacheKey(sentence, { ...identityBase, promptVersion: 'prompt-v2' }),
       'prompt sözleşmesi değişince eski cache kullanılmamalı');
     assert.notEqual(
-      translationCacheKey(sentence, { ...identityBase, cueIdentity: 'cue-a' }),
-      translationCacheKey(sentence, { ...identityBase, cueIdentity: 'cue-b' }),
-      'açık cue kimliği değişince sonuç paylaşılmamalı');
+      translationCacheKey(sentence, identityBase),
+      translationCacheKey({ ...sentence, text: 'Hello again' }, identityBase),
+      'cümlenin kendi metni değişince cache sonucu paylaşılmamalı');
   });
 
   await test('zamanlayıcı pencereyi çevirir ve ikinci koşuda cache kullanır', async () => {
