@@ -413,6 +413,16 @@ test('izleme kütüphanesi gerçek kalıcı IPC yöntemlerini kullanıyor', () =
   }
   assert(html.includes('id="playerLibrarySearch"'), 'oynatıcı kütüphanesi arama alanı yok');
   assert(html.includes('id="playerLibraryFilter"'), 'oynatıcı kütüphanesi filtresi yok');
+  assert(/id="playerLibraryStatus"[^>]*role="status"[^>]*aria-live="polite"/.test(html),
+    'kütüphane sonuç durumu ekran okuyucuya bildirilmiyor');
+  assert(/id="playerLibraryList"[^>]*aria-busy="false"/.test(html),
+    'kütüphane sonuç listesinde başlangıç meşgul durumu yok');
+  assert(/progress\.setAttribute\('role', 'progressbar'\)/.test(js)
+    && /aria-valuenow/.test(js) && /aria-valuetext/.test(js),
+  'izleme ilerlemesi yalnız görsel renk şeridi olarak kalıyor');
+  assert(/\.player-library-status\s*\{[^}]*color:\s*#858589/.test(css)
+    && /\.player-library-meta\s*\{[^}]*color:\s*#858589/.test(css),
+  'kütüphane durum ve metadata metinleri AA kontrast eşiğinin altında');
 });
 
 test('izleme kütüphanesi yalnız oynatıcı-tarayıcı alanında bulunuyor', () => {
@@ -1447,6 +1457,8 @@ test('oynatıcı kütüphanesi geciken arama sonucunu reddediyor', () => {
   assert(/playerLibrarySearchTimer/.test(js), 'oynatıcı aramasının zamanlayıcısı yok');
   assert(/let playerLibraryResults/.test(js), 'oynatıcı aramasının sonuç dizisi yok');
   assert(/seq !== player\.playerLibrarySearchSeq/.test(js), 'geç arama cevabı reddedilmiyor');
+  assert(/setAttribute\('aria-busy', 'true'\)/.test(js)
+    && /setAttribute\('aria-busy', 'false'\)/.test(js), 'arama meşgul durumu erişilebilir değil');
 });
 
 test('video değişiminde A-B döngüsü ve AI sohbet bağlamı temizleniyor', () => {

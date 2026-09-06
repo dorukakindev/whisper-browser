@@ -10142,8 +10142,16 @@ function renderPlayerLibrary() {
     head.append(title, time);
     const progress = document.createElement('div');
     progress.className = 'watch-progress';
+    const progressValue = watchProgress(item);
+    progress.setAttribute('role', 'progressbar');
+    progress.setAttribute('aria-label', `${item.title || 'İçerik'} izleme ilerlemesi`);
+    progress.setAttribute('aria-valuemin', '0');
+    progress.setAttribute('aria-valuemax', '100');
+    progress.setAttribute('aria-valuenow', String(progressValue));
+    progress.setAttribute('aria-valuetext', item.completed ? 'Tamamlandı' : `%${progressValue} izlendi`);
     const fill = document.createElement('i');
-    fill.style.width = `${watchProgress(item)}%`;
+    fill.style.width = `${progressValue}%`;
+    fill.setAttribute('aria-hidden', 'true');
     progress.appendChild(fill);
     const meta = document.createElement('div');
     meta.className = 'player-library-meta';
@@ -14034,6 +14042,7 @@ async function handleWatchLibraryAction(e) {
 
 async function runPlayerLibrarySearch() {
   const input = $('playerLibrarySearch');
+  const list = $('playerLibraryList');
   const q = input?.value.trim() || '';
   const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
   const seq = ++player.playerLibrarySearchSeq;
@@ -14043,20 +14052,24 @@ async function runPlayerLibrarySearch() {
       [item.title, item.sourceRef, ...(item.collections || [])]
         .some((value) => String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').includes(folded)));
     playerUnifiedLibraryResults = [];
+    list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
     return;
   }
   if (!q && playerLibraryView === 'search') {
     playerLibraryResults = watchLibraryCache;
     playerUnifiedLibraryResults = [];
+    list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
     return;
   }
   if ($('playerLibraryStatus')) $('playerLibraryStatus').textContent = scope === 'notes' ? 'Notlar aranıyor…' : 'Kayıtlı içerikler aranıyor…';
+  list?.setAttribute('aria-busy', 'true');
   let response;
   try { response = await window.api.searchUnifiedLibrary(q, scope, 160); }
   catch (error) { response = { ok: false, error: error.message, results: [] }; }
   if (seq !== player.playerLibrarySearchSeq || (input?.value.trim() || '') !== q) return;
+  list?.setAttribute('aria-busy', 'false');
   playerUnifiedLibraryResults = response?.results || [];
   if (!response?.ok) logLine(`Kütüphane aranamadı: ${response?.error || 'bilinmeyen hata'}`, 'error');
   renderPlayerLibrary();
@@ -14136,6 +14149,7 @@ if ($('playerLibrarySearch')) {
     if (!q) {
       playerLibraryResults = watchLibraryCache;
       playerUnifiedLibraryResults = [];
+      $('playerLibraryList')?.setAttribute('aria-busy', 'false');
       renderPlayerLibrary();
       if (playerLibraryView === 'notes') playerLibrarySearchTimer = setTimeout(runPlayerLibrarySearch, 50);
       return;
@@ -14150,6 +14164,7 @@ if ($('playerLibrarySearchClear')) {
   $('playerLibrarySearchClear').addEventListener('click', () => {
     clearTimeout(playerLibrarySearchTimer);
     player.playerLibrarySearchSeq++;
+    $('playerLibraryList')?.setAttribute('aria-busy', 'false');
     $('playerLibrarySearch').value = '';
     playerLibraryResults = watchLibraryCache;
     playerUnifiedLibraryResults = [];
@@ -15589,6 +15604,14 @@ function setupRovingTablists() {
   $$('[role="tablist"]').forEach((tablist) => {
     if (tablist.dataset.keyboardReady === 'true') return;
     tablist.dataset.keyboardReady = 'true';
+    const syncTabStops = () => {
+      const tabs = [...tablist.querySelectorAll('[role="tab"]:not(:disabled)')];
+      const selected = tabs.find((tab) => tab.getAttribute?.('aria-selected') === 'true'
+        || tab.getAttribute?.('aria-pressed') === 'true' || tab.classList?.contains?.('active')) || tabs[0];
+      tabs.forEach((tab) => { tab.tabIndex = tab === selected ? 0 : -1; });
+    };
+    syncTabStops();
+    tablist.addEventListener('click', () => Promise.resolve().then(syncTabStops));
     tablist.addEventListener('keydown', (event) => {
       if (event.defaultPrevented) return; // Özel sekme işleyicisi zaten etkinleştirdi.
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -15603,6 +15626,7 @@ function setupRovingTablists() {
       event.preventDefault();
       tabs[next].focus();
       tabs[next].click();
+      Promise.resolve().then(syncTabStops);
     });
   });
 }

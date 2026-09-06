@@ -1668,12 +1668,12 @@
               <button class="link-btn" type="button" id="libraryCollectionAddSelected">Seçilenleri ekle</button>
               <button class="link-btn" type="button" id="libraryCollectionRemoveSelected">Seçilenleri çıkar</button>
             </div>
-            <div class="player-library-status" id="playerLibraryStatus">Henüz izleme kaydı yok.</div>
+            <div class="player-library-status" id="playerLibraryStatus" role="status" aria-live="polite" aria-atomic="true">Henüz izleme kaydı yok.</div>
             <div class="player-library-undo hidden" id="playerLibraryUndo" role="status" aria-live="polite">
               <span id="playerLibraryUndoText">Not silindi.</span>
               <button class="link-btn" id="playerLibraryUndoBtn" type="button">Geri al</button>
             </div>
-            <div class="player-library-list" id="playerLibraryList"></div>
+            <div class="player-library-list" id="playerLibraryList" aria-label="Kütüphane sonuçları" aria-busy="false"></div>
           </div>
 
           <div class="word-inspector hidden" id="wordInspector" role="dialog" tabindex="-1" aria-live="polite" aria-label="Kelime inceleme">
