@@ -251,6 +251,30 @@ async function test(name, fn) {
       'cümlenin kendi metni değişince cache sonucu paylaşılmamalı');
   });
 
+  await test('aynı kaynak izi edinim yolundan bağımsız cache anahtarını korur', () => {
+    const sentence = { text: 'Hello', pieces: [{ text: 'Hello', start: 0, end: 1 }] };
+    const base = { targetLanguage: 'tr', model: 'a', provider: 'p', mediaIdentity: 'm',
+      trackIdentity: 'track', sourceLineage: 'm|track' };
+    assert.equal(
+      translationCacheKey(sentence, { ...base, source: 'network' }),
+      translationCacheKey(sentence, { ...base, source: 'dom' }),
+      'aynı lineage network/dom/file edinimlerinde cache paylaşılmalı');
+  });
+
+  await test('boş track kimliği cache yazımını reddeder', async () => {
+    let writes = 0;
+    const scheduler = new BrowserTranslationScheduler({
+      context: { trackIdentity: '' },
+      cache: { get: async () => undefined, set: async () => { writes++; } },
+      translate: async () => 'Merhaba.',
+    });
+    scheduler.setSentences([{ id: 'no-track', start: 0, end: 1, text: 'Hello.',
+      pieces: [{ cueId: 'no-track', start: 0, end: 1, text: 'Hello.' }] }]);
+    scheduler.updatePlayhead(0);
+    await scheduler.whenIdle();
+    assert.equal(writes, 0);
+    assert.equal(scheduler.snapshot().completed, 1, 'kimlik kapısı çeviriyi değil yalnız cache yazımını engellemeli');
+  });
   await test('zamanlayıcı pencereyi çevirir ve ikinci koşuda cache kullanır', async () => {
     const sentences = assembleCueSentences(cues);
     const cache = new Map();

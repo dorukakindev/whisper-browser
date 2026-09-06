@@ -167,6 +167,14 @@ class BrowserTranslationScheduler {
     return this.context;
   }
 
+  hasStableCacheIdentity() {
+    // An explicitly empty track identity is unsafe for browser cache reuse.
+    // Legacy standalone scheduler callers without the field keep old behavior;
+    // the production entry point rejects an empty track id before scheduling.
+    if (!Object.prototype.hasOwnProperty.call(this.context, 'trackIdentity')) return true;
+    return String(this.context.trackIdentity || '').trim().length > 0;
+  }
+
   setSentences(sentences) {
     this.cancelAll('Kaynak altyazı değişti.');
     this.generation += 1;
@@ -279,10 +287,12 @@ class BrowserTranslationScheduler {
   }
 
   async readCache(key) {
+    if (!this.hasStableCacheIdentity()) return undefined;
     return this.cache && typeof this.cache.get === 'function' ? this.cache.get(key) : undefined;
   }
 
   async writeCache(key, value) {
+    if (!this.hasStableCacheIdentity()) return;
     if (this.cache && typeof this.cache.set === 'function') await this.cache.set(key, value);
   }
 

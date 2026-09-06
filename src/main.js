@@ -4252,6 +4252,8 @@ async function saveBrowserPageCapture(tab, title = 'Tarayıcı ekran görüntüs
 
 function startBrowserTranslation(tab, rawCues, options = {}) {
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  const requestedTrackId = String(options.trackId || '').trim();
+  if (!requestedTrackId) return { ok: false, error: 'Kaynak altyazı izi kimliği bulunamadı.' };
   const cues = normalizeCues(rawCues).slice(0, 20000);
   if (!cues.length) return { ok: false, error: 'Çevrilecek altyazı bloğu yok.' };
   const sentences = assembleCueSentences(cues);
@@ -4273,7 +4275,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   }
   const config = browserTranslationConfig(options);
   tab.translationScheduler?.cancelAll('Yeni çeviri oturumu başladı.');
-  tab.translationTrackId = String(options.trackId || '').slice(0, 180);
+  tab.translationTrackId = requestedTrackId.slice(0, 180);
   tab.translationSourceCues = cues;
   tab.translationResults = new Map();
   tab.translationPersistedSignature = '';
