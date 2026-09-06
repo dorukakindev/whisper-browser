@@ -180,3 +180,30 @@ window.addEventListener('scroll', () => {
     ipcRenderer.send('browser:trusted-bridge', { type: 'reading-position', payload: null });
   }, 700);
 }, { passive: true, capture: true });
+
+function browserPageResourceTelemetry() {
+  const activeTimers = [discoveryFlushTimer, pageFindMutationTimer, readingPositionTimer].filter(Boolean).length;
+  const mutationObservers = [discoveryObserver, pageFindObserver].filter(Boolean).length;
+  return {
+    measured: true,
+    activeTimers,
+    observerCount: mutationObservers,
+    mutationObservers,
+    resizeObservers: 0,
+    mediaListeners: 0,
+    overlayNodes: 0,
+    pendingFrames: 0,
+  };
+}
+
+ipcRenderer.on('browser:resource-snapshot-request', (_event, payload = {}) => {
+  const requestId = String(payload.requestId || '').slice(0, 96);
+  if (!requestId) return;
+  ipcRenderer.send('browser:resource-snapshot-response', { requestId, ...browserPageResourceTelemetry() });
+});
+
+window.addEventListener('pagehide', () => {
+  stopPageFindObserver();
+  if (readingPositionTimer) clearTimeout(readingPositionTimer);
+  readingPositionTimer = null;
+}, { once: true });

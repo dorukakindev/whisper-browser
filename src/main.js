@@ -121,7 +121,8 @@ const {
   withBrowserSiteProfileField,
   withoutBrowserSiteProfile,
 } = require('./browser-site-profiles');
-const { browserTabUnloadDecision, groupBrowserProcessMetrics } = require('./browser-tab-resources');
+const { browserTabUnloadDecision, groupBrowserProcessMetrics, normalizeBrowserPageResourceMetrics,
+  summarizeBrowserResourceBudgets } = require('./browser-tab-resources');
 const { browserShortcutForInput } = require('./browser-command-palette');
 const {
   SafeSecretStore,
@@ -290,6 +291,8 @@ const browserManifestInFlight = new Set();
 const browserHlsFetchedSegments = new Map();
 const browserHlsTimelines = new Map();
 const browserHlsInFlight = new Set();
+const browserResourceSnapshotRequests = new Map();
+let browserResourceSnapshotSequence = 0;
 
 function trimInsertionCollection(collection, limit) {
   while (collection && collection.size > limit) collection.delete(collection.keys().next().value);
@@ -1871,29 +1874,91 @@ function browserEventContext(tab = activeBrowserTab()) {
   } : { tabId: '', generation: 0, mediaId: '', service: '', acquisitionId: '', operationId: '' };
 }
 
-function browserResourceSnapshot() {
+function browserTabIpcFrequency(tab, now = Date.now()) {
+  if (!tab) return 0;
+  const cutoff = now - 60_000;
+  const recent = (Array.isArray(tab.resourceIpcTimestamps) ? tab.resourceIpcTimestamps : [])
+    .filter((at) => Number.isFinite(at) && at >= cutoff).slice(-1200);
+  tab.resourceIpcTimestamps = recent;
+  return recent.length;
+}
+
+function requestBrowserPageResourceMetrics(tab, timeoutMs = 450) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return Promise.resolve(normalizeBrowserPageResourceMetrics({ measured: false }));
+  const requestId = `resources-${Date.now().toString(36)}-${(++browserResourceSnapshotSequence).toString(36)}`;
+  return new Promise((resolve) => {
+    const finish = (value) => {
+      const pending = browserResourceSnapshotRequests.get(requestId);
+      if (!pending) return;
+      browserResourceSnapshotRequests.delete(requestId);
+      clearTimeout(pending.timer);
+      resolve(normalizeBrowserPageResourceMetrics(value));
+    };
+    const timer = setTimeout(() => finish({ measured: false }), Math.max(100, Number(timeoutMs) || 450));
+    timer.unref?.();
+    browserResourceSnapshotRequests.set(requestId, { tab, timer, finish });
+    try { wc.send('browser:resource-snapshot-request', { requestId }); }
+    catch (_) { finish({ measured: false }); }
+  });
+}
+
+async function browserOverlayResourceMetrics(tab) {
+  const view = tab?.view;
+  if (!view || view.webContents.isDestroyed() || tab.compatibilityMode) return null;
+  try {
+    const rows = await withTimeout(executeBrowserTrustedMain(view, `(() => {
+      const controller = window.__whisperBrowserOverlayController;
+      return controller && typeof controller.diagnostics === 'function' ? controller.diagnostics() : null;
+    })()`), 700, 'Katman kaynak ölçümü zaman aşımına uğradı.');
+    return rows.find((row) => row && typeof row === 'object') || null;
+  } catch (_) { return null; }
+}
+
+async function browserResourceSnapshot() {
   let appMetrics = [];
   try { appMetrics = app.getAppMetrics(); } catch (_) {}
-  const tabs = [...browserTabs.values()].map((tab) => {
+  const now = Date.now();
+  const rawTabs = await Promise.all([...browserTabs.values()].map(async (tab) => {
     const wc = tab.view?.webContents;
     let processId = 0;
     try { processId = wc && !wc.isDestroyed() ? wc.getOSProcessId() : 0; } catch (_) {}
-    return { id: tab.id, processId, lifecycle: tab.lifecycle || 'background' };
+    const [page, overlay] = await Promise.all([
+      requestBrowserPageResourceMetrics(tab), browserOverlayResourceMetrics(tab),
+    ]);
+    const resources = normalizeBrowserPageResourceMetrics({
+      measured: page.measured || !!overlay,
+      activeTimers: page.activeTimers,
+      mutationObservers: (page.mutationObservers || 0) + (Number(overlay?.mutationObservers) || 0),
+      resizeObservers: (page.resizeObservers || 0) + (Number(overlay?.resizeObservers) || 0),
+      observerCount: (page.observerCount || 0) + (Number(overlay?.mutationObservers) || 0)
+        + (Number(overlay?.resizeObservers) || 0),
+      mediaListeners: (page.mediaListeners || 0) + (Number(overlay?.mediaListeners) || 0),
+      overlayNodes: (page.overlayNodes || 0) + (Number(overlay?.overlayNodes) || 0),
+      pendingFrames: (page.pendingFrames || 0) + (Number(overlay?.pendingFrames) || 0),
+      ipcPerMinute: browserTabIpcFrequency(tab, now),
+    });
+    return { id: tab.id, processId, lifecycle: tab.lifecycle || 'background', resources };
+  }));
+  const tabs = groupBrowserProcessMetrics(rawTabs, appMetrics);
+  let networkSubscriptions = 0;
+  for (const tab of browserTabs.values()) {
+    try { if (tab.view?.webContents?.debugger?.isAttached()) networkSubscriptions++; } catch (_) {}
+  }
+  const budgets = summarizeBrowserResourceBudgets(tabs, {
+    activeTimers: [browserTrackTimer, browserCaptureTimer, browserMediaTimer].filter(Boolean).length
+      + [...browserTabs.values()].reduce((sum, tab) => sum
+        + (tab.discoveryProbeTimer ? 1 : 0) + (tab.cloudflareChallengeTimer ? 1 : 0), 0),
+    pendingResponses: browserPendingResponses.size + browserManifestInFlight.size
+      + browserHlsInFlight.size + browserTrackPendingPublications.size,
+    bufferedCues: [...browserTrackBuffers.values()].reduce((sum, cues) => sum + (Array.isArray(cues) ? cues.length : 0), 0),
+    networkSubscriptions,
+    networkCaptureActive: networkSubscriptions > 0,
   });
   return {
-    measuredAt: Date.now(),
-    tabs: groupBrowserProcessMetrics(tabs, appMetrics),
-    budgets: {
-      activeTimers: [browserTrackTimer, browserCaptureTimer, browserMediaTimer].filter(Boolean).length
-        + [...browserTabs.values()].reduce((sum, tab) => sum
-          + (tab.discoveryProbeTimer ? 1 : 0) + (tab.cloudflareChallengeTimer ? 1 : 0), 0),
-      pendingResponses: browserPendingResponses.size + browserManifestInFlight.size
-        + browserHlsInFlight.size + browserTrackPendingPublications.size,
-      bufferedCues: [...browserTrackBuffers.values()].reduce((sum, cues) => sum + (Array.isArray(cues) ? cues.length : 0), 0),
-      networkCaptureActive: !!browserDebuggerReady,
-      observerCount: null,
-      overlayNodes: null,
-    },
+    measuredAt: now,
+    tabs,
+    budgets,
   };
 }
 
@@ -2136,6 +2201,11 @@ const browserDownloads = createBrowserDownloads({
 function sendBrowserEvent(tabOrPayload, maybePayload) {
   const tab = maybePayload ? tabOrPayload : activeBrowserTab();
   const payload = maybePayload || tabOrPayload;
+  if (tab) {
+    const timestamps = Array.isArray(tab.resourceIpcTimestamps) ? tab.resourceIpcTimestamps : [];
+    timestamps.push(Date.now());
+    tab.resourceIpcTimestamps = timestamps.slice(-1200);
+  }
   if (payload?.type === 'subtitle-found') subtitleFileAccess.grant(payload.track?.path);
   if (mainWindow && !mainWindow.isDestroyed()) {
     const type = String(payload?.type || 'browser-event');
@@ -7063,6 +7133,16 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:page-mutated', (event)
   tab.pageFind.refresh();
 });
 
+if (typeof ipcMain.on === 'function') ipcMain.on('browser:resource-snapshot-response', (event, payload = {}) => {
+  if (event.senderFrame !== event.sender.mainFrame) return;
+  const requestId = String(payload.requestId || '').slice(0, 96);
+  const pending = browserResourceSnapshotRequests.get(requestId);
+  if (!pending) return;
+  const tab = browserTabForWebContents(event.sender);
+  if (!tab || tab !== pending.tab || tab.closing) return;
+  pending.finish(payload);
+});
+
 // Browser preload yalnız olay türü ve sayısal sayaçlar yollar; gerçek track
 // içeriği güvenilir isolated-world probe ile okunur. Sender doğrulaması ve
 // aktif sekme koşulu, arka/kapalı bir belgenin yeni sayfayı tetiklemesini
@@ -7402,9 +7482,9 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
   return { ok: true, tab: browserTabSnapshot(tab) };
 });
 
-ipcMain.handle('browser:resources:snapshot', (event) => {
+ipcMain.handle('browser:resources:snapshot', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  return { ok: true, resources: browserResourceSnapshot() };
+  return { ok: true, resources: await browserResourceSnapshot() };
 });
 
 function collectBrowserSessionVariants(sessionSnapshot) {

@@ -61,9 +61,49 @@ function groupBrowserProcessMetrics(tabs = [], appMetrics = []) {
   });
 }
 
+function finiteCount(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : null;
+}
+
+function normalizeBrowserPageResourceMetrics(value = {}) {
+  const measured = value && value.measured !== false;
+  return {
+    measured,
+    activeTimers: measured ? (finiteCount(value.activeTimers) ?? 0) : null,
+    observerCount: measured ? (finiteCount(value.observerCount) ?? 0) : null,
+    mutationObservers: measured ? (finiteCount(value.mutationObservers) ?? 0) : null,
+    resizeObservers: measured ? (finiteCount(value.resizeObservers) ?? 0) : null,
+    mediaListeners: measured ? (finiteCount(value.mediaListeners) ?? 0) : null,
+    overlayNodes: measured ? (finiteCount(value.overlayNodes) ?? 0) : null,
+    pendingFrames: measured ? (finiteCount(value.pendingFrames) ?? 0) : null,
+    ipcPerMinute: finiteCount(value.ipcPerMinute),
+  };
+}
+
+function summarizeBrowserResourceBudgets(tabs = [], globals = {}) {
+  const rows = Array.isArray(tabs) ? tabs : [];
+  const sum = (key) => rows.reduce((total, tab) => {
+    const value = finiteCount(tab?.resources?.[key]);
+    return total + (value == null ? 0 : value);
+  }, 0);
+  return {
+    activeTimers: (finiteCount(globals.activeTimers) ?? 0) + sum('activeTimers'),
+    observerCount: sum('observerCount'),
+    overlayNodes: sum('overlayNodes'),
+    ipcPerMinute: sum('ipcPerMinute'),
+    networkSubscriptions: finiteCount(globals.networkSubscriptions) ?? 0,
+    pendingResponses: finiteCount(globals.pendingResponses) ?? 0,
+    bufferedCues: finiteCount(globals.bufferedCues) ?? 0,
+    networkCaptureActive: !!globals.networkCaptureActive,
+  };
+}
+
 module.exports = {
   browserProtectionMessage,
   browserTabProtectionReasons,
   browserTabUnloadDecision,
   groupBrowserProcessMetrics,
+  normalizeBrowserPageResourceMetrics,
+  summarizeBrowserResourceBudgets,
 };

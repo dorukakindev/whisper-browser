@@ -1,5 +1,6 @@
 const assert = require('assert');
-const { browserTabUnloadDecision, groupBrowserProcessMetrics } = require('../src/browser-tab-resources');
+const { browserTabUnloadDecision, groupBrowserProcessMetrics, normalizeBrowserPageResourceMetrics,
+  summarizeBrowserResourceBudgets } = require('../src/browser-tab-resources');
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log(`  PASS  ${name}`); }
 
@@ -26,5 +27,21 @@ test('paylaşılan process belleği iki sekmeye bölünmez veya toplanmış gibi
 test('ölçülemeyen değer sıfır değil null olur', () => {
   const [row] = groupBrowserProcessMetrics([{ id: 'a', processId: 0 }], []);
   assert.equal(row.memoryKiB, null); assert.equal(row.cpuPercent, null);
+});
+test('sayfa telemetrisi negatif ve sonsuz sayaçları güvenli hale getirir', () => {
+  const row = normalizeBrowserPageResourceMetrics({ activeTimers: -4, observerCount: 2.9,
+    overlayNodes: Infinity, ipcPerMinute: 12 });
+  assert.equal(row.activeTimers, 0); assert.equal(row.observerCount, 2);
+  assert.equal(row.overlayNodes, 0); assert.equal(row.ipcPerMinute, 12);
+  assert.equal(normalizeBrowserPageResourceMetrics({ measured: false }).observerCount, null);
+});
+test('kaynak bütçesi sekme sayaçlarını ana süreç sayaçlarıyla bir kez toplar', () => {
+  const result = summarizeBrowserResourceBudgets([
+    { resources: { activeTimers: 2, observerCount: 3, overlayNodes: 4, ipcPerMinute: 5 } },
+    { resources: { activeTimers: 1, observerCount: 2, overlayNodes: 0, ipcPerMinute: 7 } },
+  ], { activeTimers: 3, pendingResponses: 8, bufferedCues: 90, networkSubscriptions: 2 });
+  assert.deepEqual(result, { activeTimers: 6, observerCount: 5, overlayNodes: 4,
+    ipcPerMinute: 12, networkSubscriptions: 2, pendingResponses: 8, bufferedCues: 90,
+    networkCaptureActive: false });
 });
 console.log(`browser-tab-resources: ${passed} test`);

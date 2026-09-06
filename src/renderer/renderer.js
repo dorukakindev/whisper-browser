@@ -5791,8 +5791,13 @@ function renderBrowserResources(resources) {
     ? `${(memoryKiB / 1024).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} MB${active.processShared ? ' · işlem paylaşılıyor' : ''}`
     : 'Electron bu işlem için ölçüm vermedi';
   const budgets = resources.budgets || {};
-  work.textContent = `${Number(budgets.activeTimers || 0)} zamanlayıcı · ${Number(budgets.pendingResponses || 0)} bekleyen yanıt`;
-  capture.textContent = `${Number(budgets.bufferedCues || 0)} cue · ${budgets.networkCaptureActive ? 'ağ yakalama açık' : 'ağ yakalama kapalı'}`;
+  const activeResources = active.resources || {};
+  const measured = activeResources.measured !== false;
+  work.textContent = measured
+    ? `${Number(activeResources.activeTimers || 0)} zamanlayıcı · ${Number(activeResources.observerCount || 0)} gözlemci · ${Number(activeResources.ipcPerMinute || 0)} olay/dk`
+    : 'Sayfa içi görevler ölçülemedi';
+  capture.textContent = `${Number(budgets.pendingResponses || 0)} bekleyen yanıt · ${Number(budgets.bufferedCues || 0)} cue · ${Number(activeResources.overlayNodes || 0)} katman düğümü`;
+  capture.title = `${Number(budgets.networkSubscriptions || 0)} ağ aboneliği · ${budgets.networkCaptureActive ? 'ağ yakalama açık' : 'ağ yakalama kapalı'}`;
 }
 
 async function refreshBrowserResourceDiagnostics() {

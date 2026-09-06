@@ -385,8 +385,17 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         render();
       },
       diagnostics() {
+        // Katman yapısı kasıtlı olarak tek seviyelidir. Telemetri için bile
+        // subtree querySelectorAll kullanmak, her tanı yenilemesinde gereksiz
+        // DOM taraması üretir.
+        const overlayNodes = root?.isConnected ? 1 + root.childElementCount : 0;
         return { hasMedia: !!media, running: !!frameToken, hidden: document.hidden,
-          mode: state.mode || 'off', observer: mutationObservers.length > 0 };
+          mode: state.mode || 'off', observer: mutationObservers.length > 0,
+          mutationObservers: mutationObservers.length,
+          resizeObservers: resizeObserver ? 1 : 0,
+          mediaListeners: mediaListeners.length + candidateListeners.size * 4,
+          overlayNodes,
+          pendingFrames: (frameToken ? 1 : 0) + (mutationFrame ? 1 : 0) + (dragFrame ? 1 : 0) };
       },
     };
     if (state.mode !== 'off') startObserving();
