@@ -48,6 +48,17 @@ const {
   redactCaptureUrl,
 } = require('./browser-adapters');
 const {
+  BROWSER_CAPTURE_BODY_LIMIT,
+  BROWSER_CAPTURE_CANDIDATE_LIMIT,
+  BROWSER_CAPTURE_CANDIDATE_TTL,
+  browserCaptureBodyAllowed,
+  browserCaptureContentKey,
+  isBrowserCaptureCandidateExpired,
+  normalizeBrowserNetworkRecord,
+  pruneBrowserCaptureCandidates,
+  pruneBrowserCaptureDedupe,
+} = require('./browser-network-capture');
+const {
   browserDrmFailureMessage,
   isProtectedBrowserHost,
   sanitizeBrowserUserAgent,
@@ -268,6 +279,8 @@ const browserDebuggerAttachAttempts = new WeakMap();
 let browserDebuggerAttachPromise = null;
 let browserStateGeneration = 0;
 const browserPendingResponses = new Map();
+const browserCapturePayloadInFlight = new Map();
+const browserCapturePayloadSeen = new Map();
 const browserTrackBuffers = new Map();
 const browserTrackPublications = new Map();
 const browserTrackPublicationTimers = new Map();
@@ -4904,7 +4917,38 @@ const CAPTURE_RETRY = 'retry';
 
 async function processBrowserCapturedPayload(responseBuffer, candidate = {}, strategy = 'cdp', context = null) {
   if (context && !isCurrentBrowserContext(context)) return CAPTURE_DISCARDED;
-  if (context && !candidate.context) candidate = { ...candidate, context };
+  const normalizedCandidate = normalizeBrowserNetworkRecord(candidate, {
+    context: context || candidate.context,
+    source: strategy === 'page' ? (candidate.source || candidate.via || 'page') : strategy,
+    bodyAvailable: true,
+  });
+  candidate = {
+    ...normalizedCandidate,
+    context: context || candidate.context || null,
+    sessionId: String(candidate.sessionId || ''),
+    ...(candidate.dashTrack ? { dashTrack: candidate.dashTrack } : {}),
+  };
+  const payloadKey = browserCaptureContentKey(candidate, responseBuffer);
+  pruneBrowserCaptureDedupe(browserCapturePayloadSeen);
+  if (browserCapturePayloadSeen.has(payloadKey)) {
+    noteBrowserCapture(strategy, candidate, 'rejected', 'Aynı altyazı yanıtı bu sayfada daha önce işlendi');
+    return CAPTURE_DISCARDED;
+  }
+  if (browserCapturePayloadInFlight.has(payloadKey)) return browserCapturePayloadInFlight.get(payloadKey);
+  const work = processBrowserCapturedPayloadOnce(responseBuffer, candidate, strategy, context)
+    .then((outcome) => {
+      if (outcome !== CAPTURE_RETRY) {
+        browserCapturePayloadSeen.set(payloadKey, Date.now());
+        pruneBrowserCaptureDedupe(browserCapturePayloadSeen);
+      }
+      return outcome;
+    })
+    .finally(() => browserCapturePayloadInFlight.delete(payloadKey));
+  browserCapturePayloadInFlight.set(payloadKey, work);
+  return work;
+}
+
+async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {}, strategy = 'cdp', context = null) {
   try {
     const body = decodeSubtitleBuffer(responseBuffer).text;
     const mime = String(candidate.mimeType || '').toLowerCase();
@@ -5069,6 +5113,14 @@ async function captureBrowserResponse(pendingKey) {
   browserPendingResponses.delete(pendingKey);
   const context = candidate && candidate.context;
   if (!candidate || !isCurrentBrowserContext(context) || !browserDebuggerReady) return;
+  if (isBrowserCaptureCandidateExpired(candidate)) {
+    noteBrowserCapture('cdp', candidate, 'error', 'Altyazı yanıtı zamanında tamamlanmadı; eski aday bırakıldı');
+    return;
+  }
+  if (!browserCaptureBodyAllowed(candidate)) {
+    noteBrowserCapture('cdp', candidate, 'error', 'Altyazı kaynağı 12 MB güvenli gövde sınırını aştı');
+    return;
+  }
   const tab = browserTabById(context.tabId);
   if (tab?.compatibilityMode) return;
   try {
@@ -5660,10 +5712,9 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
         try {
           const payload = typeof entry.bodyBase64 === 'string'
             ? Buffer.from(entry.bodyBase64, 'base64') : Buffer.from(entry.body, 'utf-8');
-          const outcome = await processBrowserCapturedPayload(payload, {
-            url: String(entry.url || ''),
-            mimeType: String(entry.mimeType || ''),
-          }, 'page', context);
+          const outcome = await processBrowserCapturedPayload(payload, normalizeBrowserNetworkRecord(entry, {
+            context, source: entry.via || 'page', bodyAvailable: true,
+          }), 'page', context);
           if (!isCurrentBrowserContext(context)) return { stale: true, attempted, retried, pendingBeforeAck };
           if (receipt) (outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push(receipt);
         } catch (_) {
@@ -6244,15 +6295,32 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         || (/json/i.test(String(response.mimeType || ''))
           && /manifest|playback|timedtext|texttrack|caption/i.test(String(response.url || '')))) {
         const pendingKey = `${sessionId || 'root'}:${params.requestId}`;
+        const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
+        const candidate = normalizeBrowserNetworkRecord({
+          url: response.url,
+          mimeType: response.mimeType,
+          headers: response.headers,
+          status: response.status,
+          encodedDataLength: response.encodedDataLength,
+          resourceType: params.type,
+          requestId: params.requestId,
+        }, { context, source: 'cdp', bodyAvailable: false });
+        if (!browserCaptureBodyAllowed(candidate, BROWSER_CAPTURE_BODY_LIMIT)) {
+          noteBrowserCapture('cdp', { ...candidate, context }, 'error',
+            'Altyazı kaynağı 12 MB güvenli gövde sınırını aştı');
+          return;
+        }
         browserPendingResponses.set(pendingKey, {
-          ...response, requestId: params.requestId, sessionId: sessionId || '',
-          context: { ...browserEventContext(tab), stateGeneration: browserStateGeneration },
+          ...candidate, sessionId: sessionId || '', context,
           ...(dashTrack ? { dashTrack } : {}),
         });
-        // loadingFinished gelmeyen istekler çok uzun oturumlarda belleği sınırsız
-        // büyütmesin. En eski adayları bırakmak, yeni altyazı izlerini korur.
-        while (browserPendingResponses.size > 320) {
-          browserPendingResponses.delete(browserPendingResponses.keys().next().value);
+        // loadingFinished gelmeyen yanıtları hem süre hem adet sınırıyla bırak.
+        const pruned = pruneBrowserCaptureCandidates(browserPendingResponses, {
+          ttl: BROWSER_CAPTURE_CANDIDATE_TTL, limit: BROWSER_CAPTURE_CANDIDATE_LIMIT,
+        });
+        if (pruned.expired || pruned.overflow) {
+          noteBrowserCapture('cdp', { ...candidate, context }, 'error',
+            `${pruned.expired + pruned.overflow} eski ağ adayı güvenli sınır nedeniyle bırakıldı`);
         }
       }
     } else if (method === 'Network.loadingFinished') {
