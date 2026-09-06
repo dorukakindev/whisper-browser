@@ -9718,6 +9718,9 @@ async function refreshHistory() {
 // tutar: kaldığın yer, video bazlı tercihler, koleksiyon ve altyazı içi arama.
 let watchLibraryCache = [];
 let playerLibraryResults = [];
+let playerUnifiedLibraryResults = [];
+let playerLibraryView = 'search';
+const playerLibrarySelected = new Set();
 let playerLibrarySearchTimer = null;
 let lastDeletedLibraryAnnotation = null;
 let playerLibraryUndoTimer = null;
@@ -9964,6 +9967,55 @@ function makeWatchAction(label, action, key, extra) {
   return button;
 }
 
+function libraryResultKindLabel(result) {
+  if (result.kind === 'tabs') return 'Açık sekme';
+  if (result.kind === 'bookmarks') return 'Yer imi';
+  if (result.kind === 'notes') return 'Not';
+  if (result.kind === 'subtitles') return result.role === 'translation' ? 'Çeviri altyazısı' : 'Kaynak altyazı';
+  return 'Kayıtlı içerik';
+}
+
+function renderUnifiedLibraryResults(list, results) {
+  for (const result of results.slice(0, 160)) {
+    const row = document.createElement('article');
+    row.className = 'player-library-item unified-library-result';
+    const head = document.createElement('div');
+    head.className = 'player-library-item-head';
+    const title = document.createElement('strong');
+    title.textContent = result.title || 'İsimsiz sonuç';
+    const kind = document.createElement('span');
+    kind.className = 'library-result-kind';
+    kind.textContent = libraryResultKindLabel(result);
+    head.append(title, kind);
+    const snippet = document.createElement('div');
+    snippet.className = 'player-library-meta';
+    snippet.textContent = result.snippet || result.url || 'Eşleşen kayıt';
+    const details = document.createElement('div');
+    details.className = 'player-library-meta';
+    const parts = [];
+    if (result.language) parts.push(result.language.toUpperCase());
+    if (result.model) parts.push(result.model);
+    if (result.provider) {
+      try { parts.push(new URL(result.provider).host); } catch (_) { parts.push(result.provider); }
+    }
+    if (Number.isFinite(Number(result.seconds)) && Number(result.seconds) > 0) parts.push(pSecToTime(result.seconds));
+    details.textContent = parts.join(' · ');
+    const actions = document.createElement('div');
+    actions.className = 'player-library-actions';
+    const open = document.createElement('button');
+    open.className = 'link-btn';
+    open.type = 'button';
+    open.textContent = result.kind === 'tabs' ? 'Sekmeye geç' : result.anchor ? 'Alıntıyı bul' : 'Aç';
+    open.dataset.unifiedAction = 'open';
+    open.dataset.resultId = result.id;
+    actions.appendChild(open);
+    row.append(head, snippet);
+    if (details.textContent) row.appendChild(details);
+    row.appendChild(actions);
+    list.appendChild(row);
+  }
+}
+
 function renderPlayerLibrary() {
   const panel = $('playerLibraryPanel');
   const list = $('playerLibraryList');
@@ -9974,26 +10026,51 @@ function renderPlayerLibrary() {
   let items = searching ? playerLibraryResults : watchLibraryCache;
   if (filter === 'continue') items = items.filter((x) => !x.completed && watchProgress(x) > 0);
   else if (filter === 'completed') items = items.filter((x) => x.completed);
+  else if (filter === 'has-notes') items = items.filter((x) => (x.matches || []).some((match) => match.annotationType));
   else if (filter.startsWith('collection:')) items = items.filter((x) => (x.collections || []).includes(filter.slice(11)));
+  if (playerLibraryView === 'collections' && filter.startsWith('collection:')) {
+    const collection = filter.slice(11);
+    items = items.slice().sort((a, b) => Number(a.prefs?.collectionOrder?.[collection] ?? Number.MAX_SAFE_INTEGER)
+      - Number(b.prefs?.collectionOrder?.[collection] ?? Number.MAX_SAFE_INTEGER));
+  }
+  const useUnified = playerLibraryView === 'notes' || (playerLibraryView === 'search' && searching);
+  const unified = useUnified ? playerUnifiedLibraryResults : [];
   const matches = items.reduce((sum, item) => sum + (item.matches || []).length, 0);
-  status.textContent = !watchLibraryCache.length
+  status.textContent = useUnified
+    ? `${unified.length} sonuç${unified.length >= 160 ? ' · ilk 160 gösteriliyor' : ''}`
+    : !watchLibraryCache.length
     ? 'Bir video oynattığında kaldığın yer burada görünecek.'
     : searching ? `${items.length} içerik · ${matches} metin/not eşleşmesi`
       : `${items.length} video · ${watchLibraryCache.filter((x) => !x.completed && watchProgress(x) > 0).length} devam eden`;
   list.innerHTML = '';
-  if (!items.length) {
+  if (useUnified) {
+    renderUnifiedLibraryResults(list, unified);
+  }
+  if ((useUnified && !unified.length) || (!useUnified && !items.length)) {
     const empty = document.createElement('div');
     empty.className = 'player-library-empty';
-    empty.textContent = searching ? 'Aramana uyan içerik, altyazı veya not bulunamadı.' : 'Bu filtrede video yok.';
+    empty.textContent = playerLibraryView === 'notes' ? 'Henüz kaydedilmiş not yok.'
+      : searching ? 'Aramana uyan sekme, altyazı, not veya yer imi bulunamadı.' : 'Bu filtrede video yok.';
     list.appendChild(empty);
   }
-  items.forEach((item) => {
+  if (useUnified) { updateCollectionOptions(); return; }
+  items.slice(0, 300).forEach((item) => {
     const row = document.createElement('article');
     row.className = 'player-library-item';
     const head = document.createElement('div');
     head.className = 'player-library-item-head';
     const title = document.createElement('strong');
     title.textContent = item.title || 'İsimsiz video';
+    if (playerLibraryView === 'collections') {
+      const select = document.createElement('input');
+      select.type = 'checkbox';
+      select.className = 'library-select';
+      select.checked = playerLibrarySelected.has(item.key);
+      select.dataset.librarySelect = item.key;
+      select.setAttribute('aria-label', `${item.title || 'İçerik'} seç`);
+      head.prepend(select);
+      head.style.gridTemplateColumns = 'auto minmax(0,1fr) auto';
+    }
     const time = document.createElement('span');
     time.textContent = item.completed ? 'Tamamlandı' : `${pSecToTime(item.position || 0)} / ${pSecToTime(item.duration || 0)}`;
     head.append(title, time);
@@ -10486,6 +10563,44 @@ function explainCacheKey(kind, index, word) {
     hash = Math.imul(hash, 16777619);
   }
   return `${player.subPath}|${kind}|${index}|${word || ''}|${(hash >>> 0).toString(36)}`;
+}
+
+async function openUnifiedLibraryResult(result) {
+  if (!result) return false;
+  if (result.kind === 'tabs' && result.tabId) {
+    const activated = await activateBrowserTab(result.tabId);
+    if (!activated) logLine('Açık sekme artık bulunamıyor; arama sonuçlarını yenileyin.', 'warn');
+    return !!activated;
+  }
+  const matchingTab = result.mediaId
+    ? player.browserTabs.find((tab) => tab.mediaId === result.mediaId)
+    : player.browserTabs.find((tab) => tab.url && result.url && tab.url === result.url);
+  if (matchingTab) {
+    const activated = await activateBrowserTab(matchingTab.id);
+    if (!activated) return false;
+    if (Number(result.seconds) > 0) {
+      const tab = browserTabState(matchingTab.id);
+      player.pendingLibrarySeek = {
+        key: result.mediaId ? `browser:${result.mediaId}` : (tab?.mediaKey || ''),
+        generation: tab?.generation ?? null,
+        seconds: Number(result.seconds),
+      };
+      await browserCommand('seek', Number(result.seconds));
+    }
+    return true;
+  }
+  const known = watchItemByKey(result.mediaId)
+    || playerLibraryResults.find((item) => item.key === result.mediaId);
+  const item = known || {
+    key: result.mediaId || `browser:${result.url || result.id}`,
+    type: result.mediaType || 'browser', title: result.title || 'Kayıtlı içerik', sourceRef: result.url || '',
+  };
+  if (!item.sourceRef && item.type !== 'local') {
+    logLine('Bu kayıt için güvenli yeniden açma adresi yok. Not ve altyazı korunuyor.', 'warn');
+    return false;
+  }
+  await openWatchLibraryItem(item, Number(result.seconds) || 0);
+  return true;
 }
 
 function showBrowserErrorSurface(error) {
@@ -13657,6 +13772,23 @@ if ($('historyClear')) {
 }
 
 async function handleWatchLibraryAction(e) {
+  const unifiedButton = e.target.closest('[data-unified-action]');
+  if (unifiedButton) {
+    const result = playerUnifiedLibraryResults.find((entry) => entry.id === unifiedButton.dataset.resultId);
+    if (!result) {
+      logLine('Arama sonucu artık güncel değil; yeniden arayın.', 'warn');
+      return;
+    }
+    await openUnifiedLibraryResult(result);
+    if ($('sideTabSubs')) setSideTab('subs');
+    return;
+  }
+  const selection = e.target.closest('[data-library-select]');
+  if (selection) {
+    if (selection.checked) playerLibrarySelected.add(selection.dataset.librarySelect);
+    else playerLibrarySelected.delete(selection.dataset.librarySelect);
+    return;
+  }
   const button = e.target.closest('[data-watch-action]');
   if (!button) return;
   const item = watchItemByKey(button.dataset.key)
@@ -13765,8 +13897,72 @@ async function handleWatchLibraryAction(e) {
   }
 }
 
+async function runPlayerLibrarySearch() {
+  const input = $('playerLibrarySearch');
+  const q = input?.value.trim() || '';
+  const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
+  const seq = ++player.playerLibrarySearchSeq;
+  if (!q && playerLibraryView === 'search') {
+    playerLibraryResults = watchLibraryCache;
+    playerUnifiedLibraryResults = [];
+    renderPlayerLibrary();
+    return;
+  }
+  if ($('playerLibraryStatus')) $('playerLibraryStatus').textContent = scope === 'notes' ? 'Notlar aranıyor…' : 'Kayıtlı içerikler aranıyor…';
+  let response;
+  try { response = await window.api.searchUnifiedLibrary(q, scope, 160); }
+  catch (error) { response = { ok: false, error: error.message, results: [] }; }
+  if (seq !== player.playerLibrarySearchSeq || (input?.value.trim() || '') !== q) return;
+  playerUnifiedLibraryResults = response?.results || [];
+  if (!response?.ok) logLine(`Kütüphane aranamadı: ${response?.error || 'bilinmeyen hata'}`, 'error');
+  renderPlayerLibrary();
+}
+
+async function chooseCollectionName(title, initial = '') {
+  const value = await openAppDialog({
+    title, description: 'Koleksiyon adı en fazla 80 karakter olabilir.', confirmLabel: 'Uygula',
+    intent: 'primary', inputLabel: 'Koleksiyon adı', inputValue: initial,
+  });
+  return value === false ? '' : String(value || '').trim();
+}
+
+async function selectedCollectionName() {
+  const filter = $('playerLibraryFilter')?.value || '';
+  if (filter.startsWith('collection:')) return filter.slice(11);
+  const names = [...new Set(watchLibraryCache.flatMap((item) => item.collections || []))];
+  if (!names.length) return '';
+  const value = await openAppDialog({
+    title: 'Koleksiyon seç', description: 'İşlem yapılacak koleksiyonun adını yazın.', confirmLabel: 'Seç',
+    intent: 'primary', inputLabel: 'Koleksiyon adı', inputValue: names[0],
+  });
+  return value === false ? '' : String(value || '').trim();
+}
+
+async function applyCollectionResult(result, successText) {
+  if (!result?.ok) {
+    logLine(`Koleksiyon güncellenemedi: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    return false;
+  }
+  playerLibrarySelected.clear();
+  await refreshWatchLibrary();
+  osd(successText);
+  return true;
+}
+
 refreshWatchLibrary();
 if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', handleWatchLibraryAction);
+$$('[data-library-view]').forEach((button) => button.addEventListener('click', async () => {
+  playerLibraryView = button.dataset.libraryView || 'search';
+  $$('[data-library-view]').forEach((item) => {
+    const active = item === button;
+    item.classList.toggle('active', active);
+    item.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  $('libraryCollectionTools')?.classList.toggle('hidden', playerLibraryView !== 'collections');
+  $('playerLibrarySearchScope')?.classList.toggle('hidden', playerLibraryView !== 'search');
+  if (playerLibraryView === 'notes') await runPlayerLibrarySearch();
+  else renderPlayerLibrary();
+}));
 if ($('playerLibraryUndoBtn')) $('playerLibraryUndoBtn').addEventListener('click', async () => {
   const annotation = lastDeletedLibraryAnnotation;
   if (!annotation) return;
@@ -13783,27 +13979,24 @@ if ($('playerLibraryUndoBtn')) $('playerLibraryUndoBtn').addEventListener('click
   osd('Not geri alındı');
 });
 if ($('playerLibraryFilter')) $('playerLibraryFilter').addEventListener('change', renderPlayerLibrary);
+if ($('playerLibrarySearchScope')) $('playerLibrarySearchScope').addEventListener('change', () => {
+  clearTimeout(playerLibrarySearchTimer);
+  playerLibrarySearchTimer = setTimeout(runPlayerLibrarySearch, 50);
+});
 if ($('playerLibrarySearch')) {
   $('playerLibrarySearch').addEventListener('input', (e) => {
     $('playerLibrarySearchClear')?.classList.toggle('hidden', !e.target.value);
     if (e.isComposing) return;
     clearTimeout(playerLibrarySearchTimer);
-    const seq = ++player.playerLibrarySearchSeq;
     const q = e.target.value.trim();
     if (!q) {
       playerLibraryResults = watchLibraryCache;
+      playerUnifiedLibraryResults = [];
       renderPlayerLibrary();
+      if (playerLibraryView === 'notes') playerLibrarySearchTimer = setTimeout(runPlayerLibrarySearch, 50);
       return;
     }
-    $('playerLibraryStatus').textContent = 'Başlıklar ve altyazılar aranıyor...';
-    playerLibrarySearchTimer = setTimeout(async () => {
-      let results = [];
-      try { results = (await window.api.searchWatchLibrary(q)) || []; }
-      catch (_) { results = []; }
-      if (seq !== player.playerLibrarySearchSeq || ($('playerLibrarySearch')?.value || '').trim() !== q) return;
-      playerLibraryResults = results;
-      renderPlayerLibrary();
-    }, 280);
+    playerLibrarySearchTimer = setTimeout(runPlayerLibrarySearch, 280);
   });
   $('playerLibrarySearch').addEventListener('compositionend', (e) => {
     e.target.dispatchEvent(new Event('input', { bubbles: true }));
@@ -13815,9 +14008,50 @@ if ($('playerLibrarySearchClear')) {
     player.playerLibrarySearchSeq++;
     $('playerLibrarySearch').value = '';
     playerLibraryResults = watchLibraryCache;
+    playerUnifiedLibraryResults = [];
     renderPlayerLibrary();
     $('playerLibrarySearchClear').classList.add('hidden');
     $('playerLibrarySearch').focus();
+  });
+}
+
+if ($('libraryCollectionCreate')) $('libraryCollectionCreate').addEventListener('click', async () => {
+  const name = await chooseCollectionName('Yeni koleksiyon');
+  if (!name) return;
+  if (!playerLibrarySelected.size) {
+    logLine('Koleksiyon oluşturmak için önce içerik kartlarındaki seçim kutularını işaretleyin.', 'warn');
+    return;
+  }
+  await applyCollectionResult(await window.api.setLibraryCollectionMembership([...playerLibrarySelected], name, true), 'Koleksiyon oluşturuldu');
+});
+if ($('libraryCollectionRename')) $('libraryCollectionRename').addEventListener('click', async () => {
+  const from = await selectedCollectionName();
+  if (!from) return;
+  const to = await chooseCollectionName('Koleksiyonu yeniden adlandır', from);
+  if (!to || to === from) return;
+  await applyCollectionResult(await window.api.renameLibraryCollection(from, to), 'Koleksiyon yeniden adlandırıldı');
+});
+if ($('libraryCollectionDelete')) $('libraryCollectionDelete').addEventListener('click', async () => {
+  const name = await selectedCollectionName();
+  if (!name) return;
+  const confirmed = await openAppDialog({
+    title: 'Koleksiyonu sil', description: `“${name}” yalnız listelerden kaldırılacak. İçerikler, notlar ve altyazılar silinmeyecek.`,
+    confirmLabel: 'Koleksiyonu sil',
+  });
+  if (!confirmed) return;
+  await applyCollectionResult(await window.api.removeLibraryCollection(name), 'Koleksiyon silindi; içerikler korundu');
+});
+for (const [id, member] of [['libraryCollectionAddSelected', true], ['libraryCollectionRemoveSelected', false]]) {
+  if ($(id)) $(id).addEventListener('click', async () => {
+    if (!playerLibrarySelected.size) {
+      logLine('Önce bir veya daha fazla içerik seçin.', 'warn');
+      return;
+    }
+    const name = await selectedCollectionName();
+    if (!name) return;
+    await applyCollectionResult(
+      await window.api.setLibraryCollectionMembership([...playerLibrarySelected], name, member),
+      member ? 'Seçilenler koleksiyona eklendi' : 'Seçilenler koleksiyondan çıkarıldı');
   });
 }
 

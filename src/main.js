@@ -116,6 +116,15 @@ const { BrowserAssetStore } = require('./browser-asset-store');
 const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('./browser-session-package');
 const { WatchIndex } = require('./watch-index');
 const { BrowserNoteStore } = require('./browser-note-store');
+const {
+  collectionNames,
+  normalizeCollectionName,
+  removeCollection,
+  renameCollection,
+  reorderCollection,
+  setCollectionMembership,
+  unifiedLibrarySearch,
+} = require('./browser-library-tools');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
 const {
@@ -1439,6 +1448,51 @@ function searchWatchLibrary(query) {
       item.matches = item.matches.slice(0, 5);
     }
   return results;
+}
+
+function searchUnifiedBrowserLibrary(request = {}) {
+  const query = typeof request === 'string' ? request : request.query;
+  const scope = typeof request === 'object' && request ? request.scope : 'all';
+  const value = String(query || '').trim();
+  if (!value && scope !== 'notes') return [];
+  let cueHits = [];
+  let notes = [];
+  if (scope === 'all' || scope === 'subtitles') {
+    try { cueHits = watchIndex()?.searchCues(value, 160) || []; } catch (_) {}
+  }
+  if (scope === 'all' || scope === 'notes') {
+    try {
+      const store = ensureBrowserNotesReady();
+      notes = (store.loadError || store.migrationError)
+        ? (value ? (watchIndex()?.searchAnnotations(value, 120) || []).map(annotationFromIndexRow)
+          : (watchIndex()?.listAllAnnotations(120) || []).map(annotationFromIndexRow))
+        : (value ? store.search(value, 120) : store.list().slice(-120).reverse());
+    } catch (_) {}
+  }
+  return unifiedLibrarySearch({
+    query: value || '*',
+    scope,
+    limit: Math.max(1, Math.min(300, Number(request?.limit) || 160)),
+    tabs: browserTabsSnapshot(),
+    bookmarks: browserPlacesSnapshot().bookmarks,
+    library: loadWatchLibrary(),
+    cueHits,
+    notes,
+  });
+}
+
+function saveWatchLibraryCollectionMutation(next) {
+  const previous = loadWatchLibrary().slice();
+  if (!saveWatchLibrary(next)) return { ok: false, error: 'Koleksiyon değişiklikleri diske kaydedilemedi.' };
+  try {
+    const index = watchIndex();
+    for (const item of next) {
+      index?.upsertMedia({ id: item.key, service: item.type || '', title: item.title || '', url: item.sourceRef || '',
+        duration: item.duration, position: item.position, completed: item.completed,
+        lastWatched: item.lastWatched, prefs: { ...(item.prefs || {}), collections: item.collections || [] } });
+    }
+  } catch (_) {}
+  return { ok: true, collections: collectionNames(next), items: next, previousCount: previous.length };
 }
 
 // ---- Pencere boyutu hatırlama (ayrı dosya — settings.json'a karışmaz) ----
@@ -4168,6 +4222,7 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     index?.upsertTrack({
       id: indexedTrackId, mediaId, role, language: track.language,
       label: track.label, source, hash: saved.assetId.split(':')[1], assetPath: saved.assetId,
+      model: meta.model || '', provider: meta.provider || '', sourceTrackId: meta.sourceTrackId || '',
     });
     index?.replaceTrackCues(indexedTrackId, cues);
     if (previous?.asset_path && previous.asset_path !== saved.assetId) {
@@ -7605,6 +7660,44 @@ ipcMain.handle('library:remove', async (_event, key) => {
 });
 
 ipcMain.handle('library:search', async (event, query) => authorizedBrowserSender(event) ? searchWatchLibrary(query) : []);
+
+ipcMain.handle('library:searchUnified', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.', results: [] };
+  try { return { ok: true, results: searchUnifiedBrowserLibrary(request) }; }
+  catch (error) { return { ok: false, error: error.message, results: [] }; }
+});
+
+ipcMain.handle('library:collections:list', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.', collections: [] };
+  return { ok: true, collections: collectionNames(loadWatchLibrary()) };
+});
+
+ipcMain.handle('library:collections:rename', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try { return saveWatchLibraryCollectionMutation(renameCollection(loadWatchLibrary(), request?.from, request?.to)); }
+  catch (error) { return { ok: false, error: error.message }; }
+});
+
+ipcMain.handle('library:collections:remove', async (event, name) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const normalized = normalizeCollectionName(name);
+  if (!normalized) return { ok: false, error: 'Koleksiyon adı gerekli.' };
+  return saveWatchLibraryCollectionMutation(removeCollection(loadWatchLibrary(), normalized));
+});
+
+ipcMain.handle('library:collections:membership', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    return saveWatchLibraryCollectionMutation(setCollectionMembership(
+      loadWatchLibrary(), request?.keys, request?.name, request?.member !== false));
+  } catch (error) { return { ok: false, error: error.message }; }
+});
+
+ipcMain.handle('library:collections:reorder', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try { return saveWatchLibraryCollectionMutation(reorderCollection(loadWatchLibrary(), request?.name, request?.keys)); }
+  catch (error) { return { ok: false, error: error.message }; }
+});
 
 ipcMain.handle('library:annotations:list', async (_event, mediaId) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };

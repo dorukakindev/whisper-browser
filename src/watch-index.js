@@ -1,6 +1,6 @@
 const path = require('path');
 
-const WATCH_INDEX_VERSION = 1;
+const WATCH_INDEX_VERSION = 2;
 
 function databaseConstructor() {
   try { return require('node:sqlite').DatabaseSync; }
@@ -121,6 +121,10 @@ class WatchIndex {
       );
       CREATE INDEX IF NOT EXISTS annotations_media_time_idx ON annotations(media_id, start);
     `);
+    const trackColumns = new Set(this.db.prepare('PRAGMA table_info(tracks)').all().map((row) => row.name));
+    if (!trackColumns.has('model')) this.db.exec("ALTER TABLE tracks ADD COLUMN model TEXT NOT NULL DEFAULT ''");
+    if (!trackColumns.has('provider')) this.db.exec("ALTER TABLE tracks ADD COLUMN provider TEXT NOT NULL DEFAULT ''");
+    if (!trackColumns.has('source_track_id')) this.db.exec("ALTER TABLE tracks ADD COLUMN source_track_id TEXT NOT NULL DEFAULT ''");
   }
 
   transaction(fn) {
@@ -173,16 +177,18 @@ class WatchIndex {
   upsertTrack(track = {}) {
     if (!track.id || !track.mediaId) throw new TypeError('İz ve medya kimliği gerekli.');
     this.db.prepare(`
-      INSERT INTO tracks(id, media_id, role, language, label, source, hash, asset_path, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tracks(id, media_id, role, language, label, source, hash, asset_path, updated_at, model, provider, source_track_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         media_id=excluded.media_id, role=excluded.role, language=excluded.language,
         label=excluded.label, source=excluded.source, hash=excluded.hash,
-        asset_path=excluded.asset_path, updated_at=excluded.updated_at
+        asset_path=excluded.asset_path, updated_at=excluded.updated_at,
+        model=excluded.model, provider=excluded.provider, source_track_id=excluded.source_track_id
     `).run(
       String(track.id), String(track.mediaId), String(track.role || 'source'), String(track.language || ''),
       String(track.label || ''), String(track.source || ''), String(track.hash || ''),
-      String(track.assetPath || ''), Number(track.updatedAt) || Date.now(),
+      String(track.assetPath || ''), Number(track.updatedAt) || Date.now(), String(track.model || ''),
+      String(track.provider || ''), String(track.sourceTrackId || ''),
     );
     return this.db.prepare('SELECT * FROM tracks WHERE id = ?').get(String(track.id));
   }
@@ -240,7 +246,7 @@ class WatchIndex {
     if (!match) return [];
     return this.db.prepare(`
       SELECT m.id AS media_id, m.service, m.title, m.url,
-             t.id AS track_id, t.language, t.role,
+             t.id AS track_id, t.language, t.role, t.model, t.provider, t.source_track_id, t.updated_at,
              c.cue_id, c.start, c.end, c.source_text, c.translation_text,
               snippet(cue_fts, -1, '[', ']', ' … ', 18) AS snippet
       FROM cue_fts

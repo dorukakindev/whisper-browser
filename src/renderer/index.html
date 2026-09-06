@@ -1634,6 +1634,11 @@
 
           <!-- İZLEME KÜTÜPHANESİ: oynatıcıdan çıkmadan geçmişe ve listelere erişim -->
           <div class="player-library hidden" id="playerLibraryPanel">
+            <div class="library-view-tabs" role="tablist" aria-label="Kütüphane bölümleri">
+              <button class="library-view-tab active" type="button" data-library-view="search" role="tab" aria-selected="true">Ara</button>
+              <button class="library-view-tab" type="button" data-library-view="notes" role="tab" aria-selected="false">Notlar</button>
+              <button class="library-view-tab" type="button" data-library-view="collections" role="tab" aria-selected="false">Koleksiyonlar</button>
+            </div>
             <div class="player-library-controls">
               <div class="search-control library-search-control">
                 <input type="search" id="playerLibrarySearch" placeholder="Başlık, altyazı veya notta ara..."
@@ -1646,7 +1651,22 @@
                 <option value="all">Tümü</option>
                 <option value="continue">Devam et</option>
                 <option value="completed">Tamamlananlar</option>
+                <option value="has-notes">Notu olanlar</option>
               </select>
+              <select id="playerLibrarySearchScope" aria-label="Arama kapsamı">
+                <option value="all">Her yerde</option>
+                <option value="tabs">Açık sekmeler</option>
+                <option value="subtitles">Altyazılar</option>
+                <option value="notes">Notlar</option>
+                <option value="bookmarks">Yer imleri</option>
+              </select>
+            </div>
+            <div class="library-collection-tools hidden" id="libraryCollectionTools">
+              <button class="link-btn" type="button" id="libraryCollectionCreate">Yeni koleksiyon</button>
+              <button class="link-btn" type="button" id="libraryCollectionRename">Yeniden adlandır</button>
+              <button class="link-btn" type="button" id="libraryCollectionDelete">Koleksiyonu sil</button>
+              <button class="link-btn" type="button" id="libraryCollectionAddSelected">Seçilenleri ekle</button>
+              <button class="link-btn" type="button" id="libraryCollectionRemoveSelected">Seçilenleri çıkar</button>
             </div>
             <div class="player-library-status" id="playerLibraryStatus">Henüz izleme kaydı yok.</div>
             <div class="player-library-undo hidden" id="playerLibraryUndo" role="status" aria-live="polite">
