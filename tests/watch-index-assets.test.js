@@ -212,6 +212,9 @@ try {
       assert.equal(rows[0].note, 'IŞIK önemli');
       assert.equal(rows[0].start, 10);
       assert.equal(index.searchAnnotations('ışık').length, 1);
+      const all = index.listAllAnnotations();
+      assert.equal(all.length, 1);
+      assert.equal(all[0].title, 'Deneme videosu');
     });
 
     test('eski watch-library kayıtları temel medya satırlarına göç eder', () => {

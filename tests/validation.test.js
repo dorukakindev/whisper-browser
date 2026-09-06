@@ -145,7 +145,7 @@ t('ayar içe aktarma JSON dizisini reddeder', () => {
   const start = msrc.indexOf("ipcMain.handle('settings:import'");
   const body = msrc.slice(start, msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", start));
   ok(/Array\.isArray\(data\)/.test(body), 'JSON dizisi ayar nesnesi olarak kabul ediliyor');
-  ok(/maxImportBytes\s*=\s*8\s*\*\s*1024\s*\*\s*1024/.test(body), 'ayar içe aktarma boyut sınırı yok');
+  ok(/maxImportBytes\s*=\s*40\s*\*\s*1024\s*\*\s*1024/.test(body), 'uygulama yedeği içe aktarma boyut sınırı yok');
   ok(/statSync\(importPath\)\.size\s*>\s*maxImportBytes/.test(body), 'dosya boyutu okumadan önce denetlenmiyor');
 });
 
@@ -175,7 +175,8 @@ t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte 
   const end = msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", importStart);
   const exported = msrc.slice(exportStart, importStart);
   const imported = msrc.slice(importStart, end);
-  ok(/backupVersion:\s*2/.test(exported), 'sürümlü yedek biçimi yok');
+  ok(/backupVersion:\s*3/.test(exported), 'sürümlü yedek biçimi yok');
+  ok(exported.includes('learningAnnotations'), 'kalıcı notlar uygulama yedeğine eklenmiyor');
   ok(/browserPlaces:\s*browserPlacesSnapshot\(\)/.test(exported), 'yer imleri ve geçmiş yedeklenmiyor');
   ok(/watchLibrary:\s*loadWatchLibrary\(\)/.test(exported), 'izleme kütüphanesi yedeklenmiyor');
   ok(/writeBrowserPlaces\(data\.browserPlaces\)/.test(imported), 'tarayıcı yerleri geri yüklenmiyor');

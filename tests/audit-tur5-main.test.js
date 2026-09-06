@@ -71,14 +71,16 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   // failures must not report success or leave the JSON cache prematurely empty.
   for (const scenario of ['notes', 'none', 'json-failure', 'commit-failure']) {
     let library = [{ key: 'a' }], removed = 0, writes = 0;
-    const index = { listAnnotations: () => scenario === 'notes' ? [{}] : [],
+    const index = {
       removeMedia() { removed++; }, transaction(work) {
         const old = removed;
         try { work(); if (scenario === 'commit-failure') throw Error('commit failed'); }
         catch (error) { removed = old; throw error; }
       } };
     const ctx = handler('library:remove', { authorizedBrowserSender: () => true,
-      loadWatchLibrary: () => library, watchIndex: () => index, saveWatchLibrary: value => {
+      loadWatchLibrary: () => library, watchIndex: () => index,
+      ensureBrowserNotesReady: () => ({ list: () => scenario === 'notes' ? [{}] : [] }),
+      saveWatchLibrary: value => {
         writes++; if (scenario === 'json-failure') return false; library = value; return true;
       } });
     const result = await ctx.run({}, 'a');

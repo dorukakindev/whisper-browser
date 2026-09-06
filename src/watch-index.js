@@ -279,6 +279,14 @@ class WatchIndex {
       .all(String(mediaId || ''));
   }
 
+  listAllAnnotations(limit = 50000) {
+    return this.db.prepare(`
+      SELECT a.*, m.service, m.title, m.url
+      FROM annotations a JOIN media m ON m.id = a.media_id
+      ORDER BY a.updated_at DESC LIMIT ?
+    `).all(Math.max(1, Math.min(50000, Number(limit) || 50000)));
+  }
+
   removeAnnotation(id) {
     return this.db.prepare('DELETE FROM annotations WHERE id = ?').run(String(id || ''));
   }

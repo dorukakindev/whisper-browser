@@ -115,6 +115,7 @@ const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-eve
 const { BrowserAssetStore } = require('./browser-asset-store');
 const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('./browser-session-package');
 const { WatchIndex } = require('./watch-index');
+const { BrowserNoteStore } = require('./browser-note-store');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
 const {
@@ -1105,6 +1106,8 @@ let watchLibraryCache = null;
 let watchIndexInstance = null;
 let watchIndexUnavailable = false;
 let watchIndexLegacyMigrated = false;
+let browserNoteStoreInstance = null;
+let browserNotesReady = false;
 let browserAssetStoreInstance = null;
 let browserTranslationCacheInstance = null;
 let browserMangaCacheInstance = null;
@@ -1115,6 +1118,69 @@ function watchLibraryPath() {
 
 function watchIndexPath() {
   return path.join(app.getPath('userData'), 'watch-index.sqlite');
+}
+
+function browserNoteStorePath() {
+  return path.join(app.getPath('userData'), 'browser-notes.json');
+}
+
+function browserNoteStore() {
+  if (!browserNoteStoreInstance) browserNoteStoreInstance = new BrowserNoteStore(browserNoteStorePath());
+  return browserNoteStoreInstance;
+}
+
+function annotationFromIndexRow(row = {}) {
+  return normalizeAnnotation({
+    id: row.id, mediaId: row.media_id, type: row.type,
+    start: row.start, end: row.end, source: row.source,
+    translation: row.translation, note: row.note, status: row.status,
+    screenshotRef: row.screenshot_ref, audioRef: row.audio_ref,
+    createdAt: row.created_at, updatedAt: row.updated_at,
+    mediaTitle: row.title, mediaType: row.service, mediaUrl: row.url,
+  });
+}
+
+function ensureIndexMediaForAnnotation(index, annotation) {
+  if (!index || index.getMedia(annotation.mediaId)) return;
+  const legacy = loadWatchLibrary().find((item) => item.key === annotation.mediaId) || {};
+  index.upsertMedia({
+    id: annotation.mediaId,
+    service: annotation.mediaType || legacy.type || '',
+    title: annotation.mediaTitle || legacy.title || 'İzlenen medya',
+    url: annotation.mediaUrl || legacy.sourceRef || '',
+    duration: legacy.duration || 0,
+    position: annotation.start,
+    lastWatched: legacy.lastWatched || annotation.updatedAt || Date.now(),
+    prefs: legacy.prefs || {},
+  });
+}
+
+function ensureBrowserNotesReady() {
+  const store = browserNoteStore();
+  if (browserNotesReady && !store.migrationError) return store;
+  const index = watchIndex();
+  if (index) {
+    if (store.needsLegacyImport) {
+      try {
+        store.importMissing(index.listAllAnnotations().map(annotationFromIndexRow));
+        store.migrationError = '';
+      } catch (error) {
+        // Birincil depo henüz kurulmadıysa göç hatasını yutup boş JSON yazmak,
+        // SQLite'daki gerçek notları sonraki açılışta görünmez kılardı.
+        store.migrationError = `Eski notlar taşınamadı: ${error.message}`;
+      }
+    }
+    // JSON not deposu birincil kaynaktır. SQLite yalnız hızlı arama gölgesidir;
+    // indeks silinse veya geçici olarak açılamasa bile kullanıcı notları kalır.
+    for (const annotation of store.list()) {
+      try {
+        ensureIndexMediaForAnnotation(index, annotation);
+        index.upsertAnnotation(annotation);
+      } catch (_) {}
+    }
+  }
+  browserNotesReady = true;
+  return store;
 }
 
 function watchIndex() {
@@ -1295,21 +1361,24 @@ function subtitleSearchBlocks(text) {
   }));
 }
 
+function foldWatchSearchText(value) {
+  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR');
+}
+
 function searchWatchLibrary(query) {
-  const q = String(query || '').trim().toLocaleLowerCase('tr');
+  const q = foldWatchSearchText(String(query || '').trim());
   const list = loadWatchLibrary();
   if (!q) return list.map((item) => ({ ...item, matches: [] }));
   const results = [];
   for (const item of list) {
-    const basic = [item.title, item.sourceRef, ...(item.collections || [])]
-      .join(' ').toLocaleLowerCase('tr').includes(q);
+    const basic = foldWatchSearchText([item.title, item.sourceRef, ...(item.collections || [])].join(' ')).includes(q);
     const matches = [];
     for (const subtitlePath of item.subtitlePaths || []) {
       const text = subtitleTextForSearch(subtitlePath);
       if (!text) continue;
       for (const block of subtitleSearchBlocks(text)) {
         const plain = block.plain;
-        if (!plain.toLocaleLowerCase('tr').includes(q)) continue;
+        if (!foldWatchSearchText(plain).includes(q)) continue;
         matches.push({ subtitlePath, seconds: subtitleSeconds(block.raw), snippet: plain.slice(0, 220) });
         if (matches.length >= 5) break;
       }
@@ -1317,9 +1386,9 @@ function searchWatchLibrary(query) {
     }
     if (basic || matches.length) results.push({ ...item, matches });
   }
-  try {
-    const indexed = watchIndex()?.searchCues(query, 80) || [];
-    for (const hit of indexed) {
+  let indexed = [];
+  try { indexed = watchIndex()?.searchCues(query, 80) || []; } catch (_) {}
+  for (const hit of indexed) {
       let item = results.find((entry) => entry.key === hit.media_id);
       if (!item) {
         const libraryItem = list.find((entry) => entry.key === hit.media_id);
@@ -1335,26 +1404,40 @@ function searchWatchLibrary(query) {
       }
       item.matches = item.matches.slice(0, 5);
     }
-    const annotations = watchIndex()?.searchAnnotations(query, 40) || [];
-    for (const annotation of annotations) {
-      let item = results.find((entry) => entry.key === annotation.media_id);
+  let annotations = [];
+  try {
+    const store = ensureBrowserNotesReady();
+    annotations = (store.loadError || store.migrationError)
+      ? (watchIndex()?.searchAnnotations(query, 40) || []).map(annotationFromIndexRow)
+      : store.search(query, 40);
+  } catch (_) {}
+  for (const annotation of annotations) {
+      let item = results.find((entry) => entry.key === annotation.mediaId);
       if (!item) {
-        const legacy = list.find((entry) => entry.key === annotation.media_id);
+        const legacy = list.find((entry) => entry.key === annotation.mediaId);
         item = legacy ? { ...legacy, matches: [] } : {
-          key: annotation.media_id, type: annotation.service || 'browser',
-          title: annotation.title || 'İzlenen medya', sourceRef: annotation.url || '',
+          key: annotation.mediaId, type: annotation.mediaType || 'browser',
+          title: annotation.mediaTitle || 'İzlenen medya', sourceRef: annotation.mediaUrl || '',
           duration: 0, position: annotation.start || 0, completed: false,
-          lastWatched: annotation.updated_at || 0, collections: [], prefs: {}, matches: [],
+          lastWatched: annotation.updatedAt || 0, collections: [], prefs: {}, matches: [],
         };
         results.push(item);
       }
       const snippet = [annotation.source, annotation.translation, annotation.note].filter(Boolean).join(' · ').slice(0, 220);
       if (!item.matches.some((match) => match.seconds === annotation.start && match.snippet === snippet)) {
-        item.matches.push({ seconds: annotation.start, snippet, annotationType: annotation.type });
+        item.matches.unshift({
+          seconds: annotation.start, snippet, annotationType: annotation.type,
+          annotationId: annotation.id,
+          annotation: {
+            id: annotation.id, mediaId: annotation.mediaId, type: annotation.type,
+            start: annotation.start, end: annotation.end, source: annotation.source,
+            translation: annotation.translation, note: annotation.note, status: annotation.status,
+            createdAt: annotation.createdAt, updatedAt: annotation.updatedAt,
+          },
+        });
       }
       item.matches = item.matches.slice(0, 5);
     }
-  } catch (_) {}
   return results;
 }
 
@@ -7507,7 +7590,7 @@ ipcMain.handle('library:remove', async (_event, key) => {
     const index = watchIndex();
     // Kütüphaneden kaldırmak öğrenme verisini silmek değildir. Notlar/kelimeler
     // varsa üst medya satırını koru; CASCADE silme yalnız notsuz kayıtta güvenli.
-    const keptAnnotations = index?.listAnnotations(key).length || 0;
+    const keptAnnotations = ensureBrowserNotesReady().list(key).length;
     const remove = () => {
       if (!keptAnnotations) index?.removeMedia(key);
       if (!saveWatchLibrary(previous.filter((item) => item.key !== key))) throw new Error('Kütüphane diske kaydedilemedi.');
@@ -7525,28 +7608,53 @@ ipcMain.handle('library:search', async (event, query) => authorizedBrowserSender
 
 ipcMain.handle('library:annotations:list', async (_event, mediaId) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  try { return { ok: true, annotations: watchIndex()?.listAnnotations(mediaId) || [] }; }
+  try {
+    const store = ensureBrowserNotesReady();
+    if (store.loadError || store.migrationError) {
+      let fallback = [];
+      try { fallback = (watchIndex()?.listAnnotations(mediaId) || []).map(annotationFromIndexRow); } catch (_) {}
+      return { ok: true, annotations: fallback, migrationError: store.loadError || store.migrationError };
+    }
+    return {
+      ok: true, annotations: store.list(mediaId),
+      recoveredFromBackup: store.recoveredFromBackup,
+      indexAvailable: !!watchIndex(),
+    };
+  }
   catch (error) { return { ok: false, error: error.message, annotations: [] }; }
 });
 
 ipcMain.handle('library:annotations:toggle', async (_event, request) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
-    const annotation = normalizeAnnotation(request && request.annotation);
+    let annotation = normalizeAnnotation(request && request.annotation);
     if (!annotation.mediaId) return { ok: false, error: 'Medya kimliği yok.' };
+    const legacy = loadWatchLibrary().find((item) => item.key === annotation.mediaId) || {};
+    const requestedMediaUrl = String(request?.annotation?.mediaUrl || legacy.sourceRef || '').slice(0, 2000);
+    annotation = {
+      ...annotation,
+      mediaTitle: String(request?.annotation?.mediaTitle || legacy.title || '').slice(0, 500),
+      mediaType: String(request?.annotation?.mediaType || legacy.type || '').slice(0, 40),
+      mediaUrl: /^https?:/i.test(requestedMediaUrl) ? redactCaptureUrl(requestedMediaUrl) : requestedMediaUrl,
+    };
+    const store = ensureBrowserNotesReady();
+    if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError };
     const index = watchIndex();
-    if (!index) return { ok: false, error: 'Kalıcı öğrenme indeksi kullanılamıyor.' };
-    if (!index.getMedia(annotation.mediaId)) {
-      const legacy = loadWatchLibrary().find((item) => item.key === annotation.mediaId) || {};
-      index.upsertMedia({
-        id: annotation.mediaId, service: legacy.type || '', title: legacy.title || 'İzlenen medya',
-        url: legacy.sourceRef || '', duration: legacy.duration || 0, position: annotation.start,
-        lastWatched: legacy.lastWatched || Date.now(), prefs: legacy.prefs || {},
-      });
+    let savedAnnotation = annotation;
+    if (request && request.saved === false) {
+      savedAnnotation = store.remove(annotation.id) || annotation;
+      try { index?.removeAnnotation(annotation.id); } catch (_) {}
+    } else {
+      savedAnnotation = store.upsert(annotation);
+      try {
+        ensureIndexMediaForAnnotation(index, savedAnnotation);
+        index?.upsertAnnotation(savedAnnotation);
+      } catch (_) {}
     }
-    if (request && request.saved === false) index.removeAnnotation(annotation.id);
-    else index.upsertAnnotation(annotation);
-    return { ok: true, annotation, saved: request?.saved !== false };
+    return {
+      ok: true, annotation: savedAnnotation, saved: request?.saved !== false,
+      indexAvailable: !!index,
+    };
   } catch (error) { return { ok: false, error: error.message }; }
 });
 
@@ -7819,13 +7927,22 @@ ipcMain.handle('settings:export', async (event) => {
   });
   if (result.canceled || !result.filePath) return { ok: false };
   try {
+    const noteStore = ensureBrowserNotesReady();
+    if (noteStore.loadError || noteStore.migrationError) {
+      return { ok: false, error: noteStore.loadError || noteStore.migrationError };
+    }
     const backup = {
-      backupVersion: 2,
+      backupVersion: 3,
       exportedAt: new Date().toISOString(),
       // Yedek dosyasının paylaşılması halinde API anahtarları sızmamalı.
       settings: getSettingsSecretStore().forExport(loadSettings()),
       browserPlaces: browserPlacesSnapshot(),
       watchLibrary: loadWatchLibrary(),
+      learningAnnotations: noteStore.list().map((annotation) => ({
+        ...annotation,
+        mediaUrl: /^https?:/i.test(annotation.mediaUrl || '')
+          ? redactCaptureUrl(annotation.mediaUrl) : annotation.mediaUrl,
+      })),
     };
     fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf-8');
     return { ok: true, path: result.filePath };
@@ -7844,9 +7961,9 @@ ipcMain.handle('settings:import', async (event) => {
   if (result.canceled || result.filePaths.length === 0) return { ok: false };
   try {
     const importPath = result.filePaths[0];
-    const maxImportBytes = 8 * 1024 * 1024;
+    const maxImportBytes = 40 * 1024 * 1024;
     if (fs.statSync(importPath).size > maxImportBytes) {
-      return { ok: false, error: 'Ayar dosyası çok büyük (en fazla 8 MB).' };
+      return { ok: false, error: 'Ayar dosyası çok büyük (en fazla 40 MB).' };
     }
     const data = JSON.parse(fs.readFileSync(importPath, 'utf-8'));
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -7875,12 +7992,30 @@ ipcMain.handle('settings:import', async (event) => {
       }));
       saveWatchLibrary(watchLibrary);
     }
+    let importedNotes = 0;
+    if (bundled && Array.isArray(data.learningAnnotations)) {
+      const noteStore = ensureBrowserNotesReady();
+      if (noteStore.loadError || noteStore.migrationError) {
+        return { ok: false, error: noteStore.loadError || noteStore.migrationError };
+      }
+      importedNotes = noteStore.importMissing(data.learningAnnotations.map((raw) => {
+        const annotation = normalizeAnnotation(raw);
+        const mediaUrl = String(raw?.mediaUrl || '').slice(0, 2000);
+        return {
+          ...annotation,
+          mediaTitle: String(raw?.mediaTitle || '').slice(0, 500),
+          mediaType: String(raw?.mediaType || '').slice(0, 40),
+          mediaUrl: /^https?:/i.test(mediaUrl) ? redactCaptureUrl(mediaUrl) : mediaUrl,
+        };
+      }));
+    }
     return {
       ok: true,
       settings: loadSettings(),
       restored: bundled ? {
         browserPlaces: browserPlacesSnapshot(),
         watchLibraryCount: loadWatchLibrary().length,
+        importedNotes,
       } : null,
     };
   } catch (err) {

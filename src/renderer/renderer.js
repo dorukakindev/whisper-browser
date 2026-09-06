@@ -6987,6 +6987,9 @@ function updateBrowserNavigation(data, options = {}) {
     // Anahtar degisimi eski kaydi diske yazar. Yeni URL'yi once state'e
     // koyarsak onceki sayfanin konumu yeni sayfanin basligi altinda kalir.
     setMediaKey(nextMediaKey);
+    if (player.pendingLibrarySeek && player.pendingLibrarySeek.key === player.mediaKey) {
+      player.pendingLibrarySeek.generation = currentGeneration();
+    }
     player.browserPageTitle = data.title || '';
     player.browserTime = 0;
     player.browserDuration = 0;
@@ -9032,9 +9035,13 @@ async function copyCue() {
   }
 }
 
-function syncLearningAnnotation(type, cue, saved, options = {}) {
-  if (!window.api.toggleLearningAnnotation || !player.mediaKey || !cue) return;
-  window.api.toggleLearningAnnotation({
+async function syncLearningAnnotation(type, cue, saved, options = {}) {
+  if (!window.api.toggleLearningAnnotation || !player.mediaKey || !cue) {
+    return { ok: false, error: 'Not için etkin medya veya altyazı satırı yok.' };
+  }
+  try {
+    return await window.api.toggleLearningAnnotation({
+    id: options.id,
     type,
     mediaId: player.mediaKey,
     start: Number(cue.start) || 0,
@@ -9043,7 +9050,15 @@ function syncLearningAnnotation(type, cue, saved, options = {}) {
     translation: String(options.translation ?? translationFor(cue) ?? ''),
     note: String(options.note || ''),
     status: options.status || (type === 'word' ? 'learning' : 'new'),
-  }, saved).catch(() => {});
+    createdAt: options.createdAt,
+    updatedAt: Date.now(),
+    mediaTitle: $('playerTitle')?.textContent || '',
+    mediaType: player.workspaceMode === 'browser' ? 'browser'
+      : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
+  }, saved);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 async function loadLearningAnnotations() {
@@ -9052,6 +9067,14 @@ async function loadLearningAnnotations() {
   const generation = currentGeneration();
   const result = await window.api.listLearningAnnotations(key).catch(() => null);
   if (!result?.ok || staleGeneration(generation) || player.mediaKey !== key) return;
+  if (result.migrationError && !player.noteMigrationWarned) {
+    player.noteMigrationWarned = true;
+    logLine(`${result.migrationError} Yeni not yazımı, eski notlar korunana kadar durduruldu.`, 'error');
+  }
+  if (result.recoveredFromBackup && !player.noteRecoveryWarned) {
+    player.noteRecoveryWarned = true;
+    logLine('Not deposunun ana kopyası bozuktu; sağlam yedekten kurtarıldı.', 'warn');
+  }
   for (const annotation of result.annotations || []) {
     if (annotation.type === 'quote') {
       const cue = player.cues.find((item) => Math.abs(item.start - annotation.start) < .05);
@@ -9079,14 +9102,36 @@ async function saveCueNote() {
     logLine('Not eklemek için önce bir altyazı satırına gel.', 'warn');
     return;
   }
+  const mediaKey = player.mediaKey;
+  const generation = currentGeneration();
+  const annotations = await window.api.listLearningAnnotations(mediaKey).catch(() => null);
+  if (staleGeneration(generation) || player.mediaKey !== mediaKey) return;
+  const existing = (annotations?.annotations || []).find((item) => item.type === 'note'
+    && Math.abs(Number(item.start) - Number(cue.start)) < .05);
+  const draftKey = `browser-note-draft:${player.mediaKey}:${Number(cue.start).toFixed(3)}`;
+  let draft = '';
+  try { draft = localStorage.getItem(draftKey) || ''; } catch (_) {}
   const note = await openAppDialog({
-    title: 'Cümleye not ekle',
+    title: existing ? 'Cümle notunu düzenle' : 'Cümleye not ekle',
     description: `${pSecToTime(cue.start)} zamanındaki cümleye bağlı kalıcı bir not yaz.`,
-    confirmLabel: 'Notu kaydet', intent: 'primary', inputLabel: 'Not', inputValue: '',
+    confirmLabel: 'Notu kaydet', intent: 'primary', inputLabel: 'Not',
+    inputValue: draft || existing?.note || '',
   });
   if (note === false || !String(note).trim()) return;
-  syncLearningAnnotation('note', cue, true, { note: String(note).trim() });
-  osd('Zaman bağlı not kaydedildi');
+  if (staleGeneration(generation) || player.mediaKey !== mediaKey) {
+    logLine('Video değiştiği için eski videonun notu yeni oynatıcıya kaydedilmedi.', 'warn');
+    return;
+  }
+  try { localStorage.setItem(draftKey, String(note)); } catch (_) {}
+  const result = await syncLearningAnnotation('note', cue, true, {
+    id: existing?.id, createdAt: existing?.createdAt, note: String(note).trim(),
+  });
+  if (!result?.ok) {
+    logLine(`Not kaydedilemedi: ${result?.error || 'bilinmeyen hata'}. Taslak korundu.`, 'error');
+    return;
+  }
+  try { localStorage.removeItem(draftKey); } catch (_) {}
+  osd(existing ? 'Zaman bağlı not güncellendi' : 'Zaman bağlı not kaydedildi');
 }
 
 function toggleCueSaved() {
@@ -9674,6 +9719,8 @@ async function refreshHistory() {
 let watchLibraryCache = [];
 let playerLibraryResults = [];
 let playerLibrarySearchTimer = null;
+let lastDeletedLibraryAnnotation = null;
+let playerLibraryUndoTimer = null;
 
 function watchProgress(item) {
   const d = Number(item && item.duration) || 0;
@@ -9931,13 +9978,13 @@ function renderPlayerLibrary() {
   const matches = items.reduce((sum, item) => sum + (item.matches || []).length, 0);
   status.textContent = !watchLibraryCache.length
     ? 'Bir video oynattığında kaldığın yer burada görünecek.'
-    : searching ? `${items.length} video · ${matches} altyazı eşleşmesi`
+    : searching ? `${items.length} içerik · ${matches} metin/not eşleşmesi`
       : `${items.length} video · ${watchLibraryCache.filter((x) => !x.completed && watchProgress(x) > 0).length} devam eden`;
   list.innerHTML = '';
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'player-library-empty';
-    empty.textContent = searching ? 'Aramana uyan video veya altyazı bulunamadı.' : 'Bu filtrede video yok.';
+    empty.textContent = searching ? 'Aramana uyan içerik, altyazı veya not bulunamadı.' : 'Bu filtrede video yok.';
     list.appendChild(empty);
   }
   items.forEach((item) => {
@@ -9961,9 +10008,25 @@ function renderPlayerLibrary() {
     const hits = document.createElement('div');
     hits.className = 'player-library-hits';
     (item.matches || []).forEach((match) => {
-      const hit = makeWatchAction(`${pSecToTime(match.seconds)} · ${match.snippet}`, 'hit', item.key, match.seconds);
+      const hit = makeWatchAction(`${match.annotationType === 'note' ? 'Not · ' : ''}${pSecToTime(match.seconds)} · ${match.snippet}`, 'hit', item.key, match.seconds);
       hit.className = 'watch-hit';
-      hits.appendChild(hit);
+      if (match.annotationId && match.annotationType === 'note') {
+        const hitRow = document.createElement('div');
+        hitRow.className = 'watch-hit-row';
+        hit.dataset.annotationId = match.annotationId;
+        const edit = makeWatchAction('Düzenle', 'annotation-edit', item.key);
+        edit.className = 'watch-hit-tool';
+        edit.dataset.annotationId = match.annotationId;
+        edit.setAttribute('aria-label', 'Zaman bağlı notu düzenle');
+        const remove = makeWatchAction('Sil', 'annotation-delete', item.key);
+        remove.className = 'watch-hit-tool';
+        remove.dataset.annotationId = match.annotationId;
+        remove.setAttribute('aria-label', 'Zaman bağlı notu sil');
+        hitRow.append(hit, edit, remove);
+        hits.appendChild(hitRow);
+      } else {
+        hits.appendChild(hit);
+      }
     });
     const actions = document.createElement('div');
     actions.className = 'player-library-actions';
@@ -10100,10 +10163,13 @@ async function openWatchLibraryItem(item, seconds) {
   if (item.type === 'browser') {
     $('playerLayer').classList.remove('hidden');
     setWorkspaceMode('browser');
+    player.pendingLibrarySeek = {
+      key: item.key, generation: null, seconds: Number(seconds) || 0,
+    };
     if ($('browserAddress')) $('browserAddress').value = item.sourceRef || '';
     const result = await navigateBrowserFromAddress();
-    if (result && result.ok && player.mediaKey === item.key) {
-      player.pendingLibrarySeek = { key: item.key, generation: currentGeneration(), seconds: Number(seconds) || 0 };
+    if (!result?.ok && player.pendingLibrarySeek?.key === item.key) {
+      player.pendingLibrarySeek = null;
     }
   } else if (item.type === 'youtube') {
     const intent = ++player.openIntent;
@@ -13593,12 +13659,68 @@ if ($('historyClear')) {
 async function handleWatchLibraryAction(e) {
   const button = e.target.closest('[data-watch-action]');
   if (!button) return;
-  const item = watchItemByKey(button.dataset.key);
+  const item = watchItemByKey(button.dataset.key)
+    || playerLibraryResults.find((entry) => entry.key === button.dataset.key);
   if (!item) return;
   const action = button.dataset.watchAction;
   if (action === 'open' || action === 'hit' || action === 'restart') {
     openWatchLibraryItem(item, Number(button.dataset.seconds) || 0);
     if ($('sideTabSubs')) setSideTab('subs');
+  } else if (action === 'annotation-edit' || action === 'annotation-delete') {
+    const annotationMatch = (item.matches || [])
+      .find((match) => match.annotation?.id === button.dataset.annotationId);
+    const annotation = annotationMatch?.annotation;
+    if (!annotation) {
+      logLine('Not artık bulunamıyor; arama sonuçlarını yenileyin.', 'warn');
+      return;
+    }
+    if (action === 'annotation-edit') {
+      const draftKey = `browser-note-edit-draft:${annotation.id}`;
+      let draft = '';
+      try { draft = localStorage.getItem(draftKey) || ''; } catch (_) {}
+      const note = await openAppDialog({
+        title: 'Zaman bağlı notu düzenle',
+        description: `${pSecToTime(annotation.start)} konumundaki notu güncelle.`,
+        confirmLabel: 'Değişiklikleri kaydet', intent: 'primary',
+        inputLabel: 'Not', inputValue: draft || annotation.note || '',
+      });
+      if (note === false || !String(note).trim()) return;
+      try { localStorage.setItem(draftKey, String(note)); } catch (_) {}
+      const updated = {
+        ...annotation, note: String(note).trim(), updatedAt: Date.now(),
+        mediaTitle: item.title || '', mediaType: item.type || '', mediaUrl: item.sourceRef || '',
+      };
+      const result = await window.api.toggleLearningAnnotation(updated, true)
+        .catch((error) => ({ ok: false, error: error.message }));
+      if (!result?.ok) {
+        logLine(`Not güncellenemedi: ${result?.error || 'bilinmeyen hata'}. Taslak korundu.`, 'error');
+        return;
+      }
+      try { localStorage.removeItem(draftKey); } catch (_) {}
+      button.closest('.watch-hit-row')?.querySelector('.watch-hit')
+        ?.replaceChildren(document.createTextNode(`${pSecToTime(updated.start)} · ${updated.source} · ${updated.translation} · ${updated.note}`));
+      annotation.note = updated.note;
+      annotation.updatedAt = updated.updatedAt;
+      annotationMatch.snippet = [updated.source, updated.translation, updated.note].filter(Boolean).join(' · ').slice(0, 220);
+      osd('Not güncellendi');
+    } else {
+      const result = await window.api.toggleLearningAnnotation(annotation, false)
+        .catch((error) => ({ ok: false, error: error.message }));
+      if (!result?.ok) {
+        logLine(`Not silinemedi: ${result?.error || 'bilinmeyen hata'}`, 'error');
+        return;
+      }
+      lastDeletedLibraryAnnotation = { ...annotation, mediaTitle: item.title || '', mediaType: item.type || '', mediaUrl: item.sourceRef || '' };
+      item.matches = (item.matches || []).filter((match) => match.annotation?.id !== annotation.id);
+      button.closest('.watch-hit-row')?.remove();
+      clearTimeout(playerLibraryUndoTimer);
+      $('playerLibraryUndo')?.classList.remove('hidden');
+      if ($('playerLibraryUndoText')) $('playerLibraryUndoText').textContent = 'Zaman bağlı not silindi.';
+      playerLibraryUndoTimer = setTimeout(() => {
+        lastDeletedLibraryAnnotation = null;
+        $('playerLibraryUndo')?.classList.add('hidden');
+      }, 10000);
+    }
   } else if (action === 'collection') {
     const name = await openAppDialog({
       title: 'Koleksiyonları düzenle',
@@ -13645,6 +13767,21 @@ async function handleWatchLibraryAction(e) {
 
 refreshWatchLibrary();
 if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', handleWatchLibraryAction);
+if ($('playerLibraryUndoBtn')) $('playerLibraryUndoBtn').addEventListener('click', async () => {
+  const annotation = lastDeletedLibraryAnnotation;
+  if (!annotation) return;
+  const result = await window.api.toggleLearningAnnotation(annotation, true)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    logLine(`Not geri alınamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  clearTimeout(playerLibraryUndoTimer);
+  lastDeletedLibraryAnnotation = null;
+  $('playerLibraryUndo')?.classList.add('hidden');
+  $('playerLibrarySearch')?.dispatchEvent(new Event('input', { bubbles: true }));
+  osd('Not geri alındı');
+});
 if ($('playerLibraryFilter')) $('playerLibraryFilter').addEventListener('change', renderPlayerLibrary);
 if ($('playerLibrarySearch')) {
   $('playerLibrarySearch').addEventListener('input', (e) => {

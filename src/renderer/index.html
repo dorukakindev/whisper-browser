@@ -1636,8 +1636,8 @@
           <div class="player-library hidden" id="playerLibraryPanel">
             <div class="player-library-controls">
               <div class="search-control library-search-control">
-                <input type="search" id="playerLibrarySearch" placeholder="Başlık veya altyazıda ara..."
-                       aria-label="Oynatıcı kütüphanesinde ara" />
+                <input type="search" id="playerLibrarySearch" placeholder="Başlık, altyazı veya notta ara..."
+                       aria-label="Başlık, altyazı veya notlarda ara" />
                 <button class="search-clear hidden" id="playerLibrarySearchClear" type="button" aria-label="Kütüphane aramasını temizle">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
                 </button>
@@ -1649,6 +1649,10 @@
               </select>
             </div>
             <div class="player-library-status" id="playerLibraryStatus">Henüz izleme kaydı yok.</div>
+            <div class="player-library-undo hidden" id="playerLibraryUndo" role="status" aria-live="polite">
+              <span id="playerLibraryUndoText">Not silindi.</span>
+              <button class="link-btn" id="playerLibraryUndoBtn" type="button">Geri al</button>
+            </div>
             <div class="player-library-list" id="playerLibraryList"></div>
           </div>
 

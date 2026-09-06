@@ -2034,6 +2034,20 @@ html, body {
 }
 .player-library-controls input:focus { border-color: rgba(243,189,79,.65); box-shadow: 0 0 0 3px rgba(243,189,79,.10); }
 .player-library-status { color: #77777b; font-size: 11px; line-height: 1.45; }
+.player-library-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  color: #c8c8cc;
+  background: rgba(223,168,86,.08);
+  border: 1px solid rgba(223,168,86,.26);
+  border-radius: 8px;
+  font-size: 11px;
+}
+.player-library-undo.hidden { display: none; }
+.player-library-undo .link-btn { flex: 0 0 auto; color: #efbd70; }
 .player-library-list { display: grid; gap: 8px; min-height: 0; overflow-y: auto; padding: 0 2px 10px 0; }
 .player-library-item {
   display: grid;
@@ -2051,6 +2065,20 @@ html, body {
 .player-library-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .player-library-actions .link-btn { padding: 0; color: #c39a5d; font-size: 11px; }
 .player-library-hits { display: grid; gap: 4px; }
+.watch-hit-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px; }
+.watch-hit-row .watch-hit { width: 100%; }
+.watch-hit-tool {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 4px 6px;
+  color: #9c9ca1;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.watch-hit-tool:hover,
+.watch-hit-tool:focus-visible { color: #f0c37c; border-color: rgba(228,168,93,.3); outline: none; }
 .player-library-empty { margin: auto; padding: 50px 20px; color: #707075; font-size: 12px; line-height: 1.6; text-align: center; }
 
 .player-layer.hide-src .cue-card-src { display: none; }

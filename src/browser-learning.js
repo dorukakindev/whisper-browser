@@ -21,6 +21,9 @@ function normalizeAnnotation(raw = {}) {
     audioRef: String(raw.audioRef || '').slice(0, 500),
     createdAt: Number(raw.createdAt) || Date.now(),
     updatedAt: Number(raw.updatedAt) || Date.now(),
+    mediaTitle: String(raw.mediaTitle || '').trim().slice(0, 500),
+    mediaType: String(raw.mediaType || '').trim().slice(0, 40),
+    mediaUrl: String(raw.mediaUrl || '').trim().slice(0, 2000),
   };
 }
 
