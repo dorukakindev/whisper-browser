@@ -52,6 +52,7 @@ const {
   BROWSER_CAPTURE_CANDIDATE_LIMIT,
   BROWSER_CAPTURE_CANDIDATE_TTL,
   browserCaptureBodyAllowed,
+  browserCapturePayloadAllowed,
   browserCaptureContentKey,
   isBrowserCaptureCandidateExpired,
   normalizeBrowserNetworkRecord,
@@ -4987,6 +4988,10 @@ const CAPTURE_RETRY = 'retry';
 
 async function processBrowserCapturedPayload(responseBuffer, candidate = {}, strategy = 'cdp', context = null) {
   if (context && !isCurrentBrowserContext(context)) return CAPTURE_DISCARDED;
+  if (!browserCapturePayloadAllowed(responseBuffer)) {
+    noteBrowserCapture(strategy, candidate, 'error', 'Altyazı kaynağı 12 MB güvenli gövde sınırını aştı');
+    return CAPTURE_DISCARDED;
+  }
   const normalizedCandidate = normalizeBrowserNetworkRecord(candidate, {
     context: context || candidate.context,
     source: strategy === 'page' ? (candidate.source || candidate.via || 'page') : strategy,
@@ -5197,9 +5202,19 @@ async function captureBrowserResponse(pendingKey) {
     const result = await tab.view.webContents.debugger.sendCommand(
       'Network.getResponseBody', { requestId: candidate.requestId }, candidate.sessionId || undefined);
     if (!isCurrentBrowserContext(context)) return;
+    if (!browserCapturePayloadAllowed(result.body, {
+      base64Encoded: !!result.base64Encoded, maxBytes: BROWSER_CAPTURE_BODY_LIMIT,
+    })) {
+      noteBrowserCapture('cdp', candidate, 'error', 'Altyazı kaynağı 12 MB güvenli gövde sınırını aştı');
+      return;
+    }
     const responseBuffer = result.base64Encoded
       ? Buffer.from(result.body || '', 'base64')
       : Buffer.from(String(result.body || ''), 'utf-8');
+    if (!browserCapturePayloadAllowed(responseBuffer, { maxBytes: BROWSER_CAPTURE_BODY_LIMIT })) {
+      noteBrowserCapture('cdp', candidate, 'error', 'Altyazı kaynağı 12 MB güvenli gövde sınırını aştı');
+      return;
+    }
     await processBrowserCapturedPayload(responseBuffer, candidate, 'cdp', context);
   } catch (error) {
     // Bazı önbellek/ServiceWorker yanıtlarının gövdesi CDP'den okunamaz. DOM

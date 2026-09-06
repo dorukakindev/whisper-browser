@@ -2,6 +2,7 @@ const assert = require('assert');
 const {
   BROWSER_CAPTURE_BODY_LIMIT,
   browserCaptureBodyAllowed,
+  browserCapturePayloadAllowed,
   browserCaptureContentKey,
   isBrowserCaptureCandidateExpired,
   normalizeBrowserNetworkRecord,
@@ -44,6 +45,18 @@ test('bilinen büyük gövde reddedilir, bilinmeyen boyut aday kalır', () => {
   assert.equal(browserCaptureBodyAllowed({ responseSize: BROWSER_CAPTURE_BODY_LIMIT }), true);
   assert.equal(browserCaptureBodyAllowed({ responseSize: BROWSER_CAPTURE_BODY_LIMIT + 1 }), false);
   assert.equal(browserCaptureBodyAllowed({ responseSize: 0 }), true);
+});
+
+test('boyutu başlıkta bilinmeyen CDP gövdesi decode öncesi ve sonrası sınırlanır', () => {
+  const limit = 12;
+  const exact = Buffer.alloc(limit, 1);
+  const tooLarge = Buffer.alloc(limit + 1, 1);
+  assert.equal(browserCapturePayloadAllowed(exact, { maxBytes: limit }), true);
+  assert.equal(browserCapturePayloadAllowed(tooLarge, { maxBytes: limit }), false);
+  assert.equal(browserCapturePayloadAllowed(exact.toString('base64'), { base64Encoded: true, maxBytes: limit }), true);
+  assert.equal(browserCapturePayloadAllowed('A'.repeat(25), { base64Encoded: true, maxBytes: limit }), false);
+  assert.equal(browserCapturePayloadAllowed('ç'.repeat(6), { maxBytes: limit }), true);
+  assert.equal(browserCapturePayloadAllowed('ç'.repeat(7), { maxBytes: limit }), false);
 });
 
 test('adaylar TTL ve kapasite sınırıyla temizlenir', () => {

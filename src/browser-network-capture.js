@@ -71,6 +71,20 @@ function browserCaptureBodyAllowed(record, maxBytes = BROWSER_CAPTURE_BODY_LIMIT
   return !size || size <= Math.max(1, finiteNumber(maxBytes, BROWSER_CAPTURE_BODY_LIMIT));
 }
 
+function browserCapturePayloadAllowed(value, options = {}) {
+  const limit = Math.max(1, finiteNumber(options.maxBytes, BROWSER_CAPTURE_BODY_LIMIT));
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array) return value.byteLength <= limit;
+  const text = String(value == null ? '' : value);
+  if (options.base64Encoded) {
+    // CDP base64 gövdeleri satır aralığı içermez. Decode etmeden önce üst
+    // sınır uygulamak, boyutu response başlıklarında bilinmeyen bir yanıt için
+    // ikinci büyük Buffer tahsisini engeller. Decode sonrası kesin byte sınırı
+    // ayrıca denetlenir.
+    return text.length <= Math.ceil(limit / 3) * 4 + 4;
+  }
+  return Buffer.byteLength(text, 'utf8') <= limit;
+}
+
 function isBrowserCaptureCandidateExpired(record, now = Date.now(), ttl = BROWSER_CAPTURE_CANDIDATE_TTL) {
   const timestamp = finiteNumber(record && record.timestamp, 0);
   return !timestamp || finiteNumber(now, Date.now()) - timestamp > Math.max(1, finiteNumber(ttl, BROWSER_CAPTURE_CANDIDATE_TTL));
@@ -123,6 +137,7 @@ module.exports = {
   BROWSER_CAPTURE_DEDUPE_LIMIT,
   BROWSER_CAPTURE_DEDUPE_TTL,
   browserCaptureBodyAllowed,
+  browserCapturePayloadAllowed,
   browserCaptureContentKey,
   isBrowserCaptureCandidateExpired,
   normalizeBrowserNetworkRecord,
