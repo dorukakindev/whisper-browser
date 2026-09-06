@@ -1686,6 +1686,7 @@ $('applyAntiRepeat').addEventListener('click', () => {
 });
 
 let _settingsSaveWarningShown = false;
+let browserWorkflowLibrary = [];
 function secretSettingValue(id) {
   const control = $(id);
   const value = control?.value.trim() || '';
@@ -1757,6 +1758,8 @@ function appSettingsPayload() {
     },
     ui: collectUiSettings(),
     playerPositions: player.positions,
+    browserWorkflows: window.BrowserWorkflowRecorder
+      ? window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(browserWorkflowLibrary) : [],
   };
 }
 
@@ -2140,6 +2143,9 @@ if ($('deepseekKeyHelp')) {
       }
       if (s.playerPositions && typeof s.playerPositions === 'object') {
         player.positions = s.playerPositions;
+      }
+      if (window.BrowserWorkflowRecorder) {
+        browserWorkflowLibrary = window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(s.browserWorkflows);
       }
       if (s.watchDir) {
         state.watchDir = s.watchDir;
@@ -3540,6 +3546,9 @@ $('importSettings').addEventListener('click', async () => {
     updateMangaEndpointUI();
   }
   if (s.ui) applyUiSettings(s.ui);
+  if (window.BrowserWorkflowRecorder) {
+    browserWorkflowLibrary = window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(s.browserWorkflows);
+  }
   if (s.preset && $('presetSelect').querySelector(`option[value="${s.preset}"]`)) $('presetSelect').value = s.preset;
   if (s.presetReference && PRESETS[s.presetReference]) _presetReference = s.presetReference;
   else if (s.preset && PRESETS[s.preset]) _presetReference = s.preset;
@@ -4335,15 +4344,90 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
 }
 
 const browserCommandPaletteState = { open: false, query: '', selected: 0, context: null, results: [] };
+const browserWorkflowRecorder = window.BrowserWorkflowRecorder
+  ? new window.BrowserWorkflowRecorder.BrowserWorkflowRecorder() : null;
+const browserWorkflowPlayer = window.BrowserWorkflowRecorder
+  ? new window.BrowserWorkflowRecorder.BrowserWorkflowPlayer() : null;
+function currentBrowserWorkflowContext() {
+  const tab = browserTabState();
+  return tab ? { tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' } : null;
+}
+function browserWorkflowStepForCommand(command) {
+  if (!command || command.recordable === false) return null;
+  if (command.workflowStep) return command.workflowStep();
+  return null;
+}
+async function executeRecordedBrowserWorkflowStep(step) {
+  if (!step) throw new Error('Workflow adımı eksik.');
+  if (step.command === 'openSettings') {
+    toggleSettingsPage(step.args.page);
+    return;
+  }
+  if (step.command === 'setSubtitleMode') {
+    setSubtitleMode(step.args.mode);
+    return;
+  }
+  const track = player.browserTracks.find((item) => item.id === step.args.trackId);
+  if (!track) throw new Error('Kaydedilen altyazı izi bu sayfada bulunamadı.');
+  const select = $('browserTrackSelect');
+  if (select) select.value = track.id;
+  if (step.command === 'loadSourceTrack') return useBrowserTrack(false, track.id);
+  if (step.command === 'translateTrack') return useBrowserTrack(true, track.id);
+  if (step.command === 'completeTranslation') return completeSelectedBrowserTranslation();
+  throw new Error('Desteklenmeyen workflow komutu.');
+}
+function startBrowserWorkflowRecording() {
+  if (!browserWorkflowRecorder || browserWorkflowPlayer?.playing) return;
+  browserWorkflowRecorder.start(currentBrowserWorkflowContext(), browserTabState()?.title || 'Tarayıcı iş akışı');
+  setBrowserSignal('Workflow kaydı başladı. Komut paletinden çalıştırdığınız uygun eylemler kaydedilecek.', true,
+    { priority: 70, holdMs: 6000 });
+}
+function stopBrowserWorkflowRecording() {
+  const workflow = browserWorkflowRecorder?.stop();
+  if (!workflow) { setBrowserSignal('Kaydedilecek workflow adımı bulunamadı.', false); return; }
+  browserWorkflowLibrary = window.BrowserWorkflowRecorder.normalizeWorkflowLibrary([...browserWorkflowLibrary, workflow]);
+  scheduleSave();
+  setBrowserSignal(`Workflow kaydedildi: ${workflow.steps.length} adım.`, true, { priority: 70, holdMs: 5000 });
+}
+async function playLastBrowserWorkflow() {
+  const workflow = browserWorkflowLibrary[browserWorkflowLibrary.length - 1];
+  if (!workflow || !browserWorkflowPlayer) return;
+  setBrowserSignal(`Workflow çalışıyor: 0/${workflow.steps.length}`, true, { priority: 70, holdMs: 5000 });
+  try {
+    const result = await browserWorkflowPlayer.play(workflow, {
+      getContext: currentBrowserWorkflowContext,
+      execute: async (step, progress) => {
+        setBrowserSignal(`Workflow çalışıyor: ${progress.index + 1}/${progress.total}`, true,
+          { priority: 70, holdMs: 5000, force: true });
+        await executeRecordedBrowserWorkflowStep(step);
+      },
+    });
+    setBrowserSignal(`Workflow tamamlandı: ${result.completed}/${result.total} adım.`, true,
+      { priority: 70, holdMs: 5000, force: true });
+  } catch (error) {
+    setBrowserSignal(`Workflow durduruldu: ${error.message}`, false,
+      { priority: 90, holdMs: 7000, force: true });
+  }
+}
 function browserCommandPaletteCommands() {
   return [
-    { id: 'subtitle-settings', title: 'Altyazı ve çeviri ayarlarını aç', keywords: ['altyazı', 'çeviri', 'kaynak'], category: 'ayarlar', run: () => toggleSettingsPage('browser-subtitles') },
+    { id: 'subtitle-settings', title: 'Altyazı ve çeviri ayarlarını aç', keywords: ['altyazı', 'çeviri', 'kaynak'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-subtitles' } }), run: () => toggleSettingsPage('browser-subtitles') },
     { id: 'site-profile', title: 'Bu sitenin profilini aç', keywords: ['site', 'profil', 'otomatik'], category: 'ayarlar', available: () => ({ enabled: !!effectiveBrowserProfile().origin, reason: 'Önce bir web sitesi açın.' }), run: () => { if ($('browserProfileScope')) $('browserProfileScope').value = 'site'; toggleSettingsPage('browser-view'); renderBrowserSiteProfile(); } },
-    { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', run: () => toggleSettingsPage('browser-view') },
-    { id: 'diagnostics', title: 'Yakalama ayrıntılarını göster', keywords: ['altyazı', 'tanı', 'hata'], category: 'inceleme', run: () => toggleSettingsPage('browser-diagnostics') },
-    { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), run: () => useBrowserTrack(false) },
-    { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), run: () => useBrowserTrack(true) },
-    { id: 'complete-translation', title: 'Eksik çevirileri tamamla', keywords: ['çeviri', 'eksik', 'tamamla'], category: 'çeviri', available: () => ({ enabled: !!player.browserTranslationTrackId, reason: 'Önce bir çeviri işi başlatın.' }), run: () => completeSelectedBrowserTranslation() },
+    { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-view' } }), run: () => toggleSettingsPage('browser-view') },
+    { id: 'diagnostics', title: 'Yakalama ayrıntılarını göster', keywords: ['altyazı', 'tanı', 'hata'], category: 'inceleme', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-diagnostics' } }), run: () => toggleSettingsPage('browser-diagnostics') },
+    { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'loadSourceTrack', args: { trackId: browserTrackSelection(false)?.id || '' } }), run: () => useBrowserTrack(false) },
+    { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'translateTrack', args: { trackId: browserTrackSelection(false)?.id || '' } }), run: () => useBrowserTrack(true) },
+    { id: 'complete-translation', title: 'Eksik çevirileri tamamla', keywords: ['çeviri', 'eksik', 'tamamla'], category: 'çeviri', available: () => ({ enabled: !!player.browserTranslationTrackId, reason: 'Önce bir çeviri işi başlatın.' }), workflowStep: () => ({ command: 'completeTranslation', args: { trackId: browserTrackSelection(false)?.id || player.browserTranslationTrackId } }), run: () => completeSelectedBrowserTranslation() },
+    ...['source', 'translation', 'both', 'off'].map((mode) => ({
+      id: `subtitle-mode-${mode}`,
+      title: ({ source: 'Yalnız kaynak altyazıyı göster', translation: 'Yalnız çeviriyi göster', both: 'Kaynak ve çeviriyi göster', off: 'Altyazıları kapat' })[mode],
+      keywords: ['altyazı', 'görünüm', mode], category: 'altyazı',
+      workflowStep: () => ({ command: 'setSubtitleMode', args: { mode } }), run: () => setSubtitleMode(mode),
+    })),
+    { id: 'workflow-record-start', title: 'Workflow kaydını başlat', keywords: ['iş akışı', 'otomasyon', 'kayıt'], category: 'workflow', recordable: false, available: () => ({ enabled: !!browserWorkflowRecorder && !browserWorkflowRecorder.recording && !browserWorkflowPlayer?.playing, reason: 'Kayıt veya oynatma zaten sürüyor.' }), run: startBrowserWorkflowRecording },
+    { id: 'workflow-record-stop', title: 'Workflow kaydını bitir', keywords: ['iş akışı', 'otomasyon', 'kayıt'], category: 'workflow', recordable: false, available: () => ({ enabled: !!browserWorkflowRecorder?.recording, reason: 'Açık workflow kaydı yok.' }), run: stopBrowserWorkflowRecording },
+    { id: 'workflow-play-last', title: 'Son workflow’u çalıştır', keywords: ['iş akışı', 'otomasyon', 'oynat'], category: 'workflow', recordable: false, available: () => ({ enabled: !!browserWorkflowLibrary.length && !browserWorkflowRecorder?.recording && !browserWorkflowPlayer?.playing, reason: 'Kayıtlı workflow yok veya başka işlem sürüyor.' }), run: playLastBrowserWorkflow },
+    { id: 'workflow-play-cancel', title: 'Workflow oynatmayı durdur', keywords: ['iş akışı', 'otomasyon', 'iptal'], category: 'workflow', recordable: false, available: () => ({ enabled: !!browserWorkflowPlayer?.playing, reason: 'Çalışan workflow yok.' }), run: () => browserWorkflowPlayer?.cancel() },
     { id: 'unload-tab', title: 'Etkin olmayan sekmeyi bellekten boşalt', keywords: ['sekme', 'bellek', 'hafiflet'], category: 'sekme', available: () => ({ enabled: (player.browserTabs || []).some((tab) => tab.id !== player.browserActiveTabId && tab.lifecycle === 'background'), reason: 'Güvenle boşaltılabilecek arka plan sekmesi yok.' }), run: () => $('browserTabUnload')?.click() },
   ];
 }
@@ -4389,13 +4473,19 @@ function openBrowserCommandPalette() {
 async function executeBrowserCommandPalette(index = browserCommandPaletteState.selected) {
   const command = browserCommandPaletteState.results[index];
   if (!command || command.enabled === false) return;
+  const recordedStep = browserWorkflowStepForCommand(command);
   const current = browserTabState();
   const valid = window.BrowserCommandPalette?.browserCommandContextMatches
     ? window.BrowserCommandPalette.browserCommandContextMatches(browserCommandPaletteState.context, current)
     : !!current && current.id === browserCommandPaletteState.context?.tabId;
   if (!valid) { setBrowserSignal('Sekme veya medya değişti; komut yeniden seçilmeli.', false); closeBrowserCommandPalette(); return; }
   closeBrowserCommandPalette();
-  try { await command.run(); } catch (error) { setBrowserSignal(`Komut çalıştırılamadı: ${error.message}`, false); }
+  try {
+    await command.run();
+    if (recordedStep && browserWorkflowRecorder?.recording) {
+      browserWorkflowRecorder.record(recordedStep.command, recordedStep.args);
+    }
+  } catch (error) { setBrowserSignal(`Komut çalıştırılamadı: ${error.message}`, false); }
 }
 if ($('browserCommandPaletteToggle')) $('browserCommandPaletteToggle').addEventListener('click', () => {
   if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
