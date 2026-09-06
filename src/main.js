@@ -4307,7 +4307,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
       redirected.hash = '';
       requestUrl = redirected.href;
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw browserSubtitleHttpError(response.status);
     const length = Number(response.headers.get('content-length') || 0);
     if (length > maxBytes) throw new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -4321,13 +4321,32 @@ async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024, context = null
   return decodeSubtitleBuffer(await fetchBrowserBuffer(url, maxBytes, context, byteRange)).text;
 }
 
+function browserSubtitleHttpError(status) {
+  const code = Number(status);
+  const error = new Error(`HTTP ${code}`);
+  error.code = 'EBROWSER_HTTP';
+  error.status = code;
+  error.retryable = code === 429 || code >= 500;
+  return error;
+}
+
+function browserSubtitleRetryable(error) {
+  if (!error) return true;
+  if (error.code === 'EBROWSER_HTTP') return error.retryable === true;
+  if (error.code === 'ETIMEDOUT' || error.name === 'AbortError') return true;
+  if (/sekmesi değişti|tarayıcı kapalı|geçersiz|güvenli/i.test(String(error.message || ''))) return false;
+  return true;
+}
+
 async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null) {
   let lastError;
   for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
     try { return await fetchBrowserText(url, maxBytes, context); }
     catch (error) {
       lastError = error;
-      if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 150));
+      if (attempt + 1 < attempts && browserSubtitleRetryable(error)) {
+        await new Promise((resolve) => setTimeout(resolve, error?.status === 429 ? 500 : 150));
+      } else break;
     }
   }
   throw lastError || new Error('Altyazı isteği başarısız.');
@@ -4339,7 +4358,9 @@ async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, att
     try { return await fetchBrowserBuffer(url, maxBytes, context, byteRange); }
     catch (error) {
       lastError = error;
-      if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 150));
+      if (attempt + 1 < attempts && browserSubtitleRetryable(error)) {
+        await new Promise((resolve) => setTimeout(resolve, error?.status === 429 ? 500 : 150));
+      } else break;
     }
   }
   throw lastError || new Error('Altyazı isteği başarısız.');
@@ -4762,6 +4783,7 @@ function browserTrackProbeScript() {
       const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
       tracks.push({
         language: track.language || '', label: track.label || track.language || 'HTML5 altyazı',
+        kind: track.kind || '', trackId: track.id || '',
         sourceUrl: element ? (element.src || '') : '',
         cues: emitted.map(c => ({ start: c.startTime, end: c.endTime, text: c.text || '' }))
       });
@@ -5123,7 +5145,9 @@ function startBrowserPolling() {
       for (const tracks of frameTracks) for (const track of tracks || []) {
         const stored = storeBrowserTrack(track.cues, {
           language: track.language, label: track.label, format: 'html5-track', sourceUrl: track.sourceUrl || 'dom:texttrack',
-          streamKey: browserTrackStreamKey(track.sourceUrl || `dom:${track.language}:${track.label}`, track.language),
+          kind: track.kind || '', trackId: track.trackId || '',
+          streamKey: browserTrackStreamKey(track.sourceUrl
+            || `dom:${track.language}:${track.label}:${track.kind || ''}:${track.trackId || ''}`, track.language),
           context,
         });
         if (stored) noteBrowserCapture('textTrack', {
