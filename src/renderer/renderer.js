@@ -5597,6 +5597,7 @@ function browserDiagnosticsCopyText(diagnostics) {
     `Whisper Local tarayıcı tanısı`,
     `İşlem kimliği: ${operationId}`,
     `Sayfa: ${String(diagnostics?.pageUrl || 'yok')}`,
+    `Sayfa durumu: ${String(diagnostics?.responsiveness?.message || 'ölçülmedi')}`,
     `Sonuç: ${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`,
     'Son olaylar:',
     ...recent.slice(0, 30).map((entry) => [entry.strategy, entry.outcome, entry.detail, entry.url].filter(Boolean).join(' · ')),
@@ -5619,6 +5620,15 @@ function renderBrowserDiagnostics(diagnostics) {
     ? `${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`
     : 'Henüz ağ izi yok';
   const activity = diagnostics.activity || {};
+  const responsiveness = diagnostics.responsiveness || {};
+  const pageStatus = $('browserDiagnosticsPageStatus');
+  if (pageStatus) {
+    const at = Number(responsiveness.at);
+    pageStatus.textContent = responsiveness.message
+      ? `${responsiveness.message}${Number.isFinite(at) && at > 0 ? ` · ${new Date(at).toLocaleString('tr-TR')}` : ''}`
+      : 'Ölçülmedi';
+    pageStatus.dataset.status = responsiveness.status === 'unresponsive' ? 'error' : 'ok';
+  }
   for (const [id, key] of [['browserDiagnosticsLastCapture', 'lastCapture'],
     ['browserDiagnosticsLastTranslation', 'lastTranslation'], ['browserDiagnosticsLastError', 'lastError']]) {
     const target = $(id);
@@ -8602,6 +8612,17 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
+  } else if (event.type === 'page-responsiveness') {
+    const tab = browserTabState();
+    if (tab) tab.pageResponsive = event.responsive !== false;
+    const message = event.message || (event.responsive === false
+      ? 'Sayfa yanıt vermiyor; altyazı yakalama geçici olarak durmuş olabilir.'
+      : 'Sayfa yeniden yanıt veriyor.');
+    setBrowserSignal(message, event.responsive !== false, {
+      priority: event.responsive === false ? 95 : 55,
+      holdMs: event.responsive === false ? 10000 : 4500,
+    });
+    logLine(message, event.responsive === false ? 'warn' : 'success');
   } else if (event.type === 'manga-state') {
     applyBrowserMangaState(event);
     if (event.state === 'ready' && !Number(event.failed)) void completeBrowserRecovery(browserTabState(), 'manga');

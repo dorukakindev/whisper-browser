@@ -1667,6 +1667,8 @@ function createBrowserTabRecord(initial = {}) {
     lifecycle: restored.lifecycle === 'unloaded' ? 'unloaded' : 'background',
     unloadedAt: Number(restored.unloadedAt) || 0,
     diagnostics: null,
+    htmlFullscreen: false,
+    pageResponsive: true,
     acquisitionPlan: null,
     acquisitionId: '',
     discoveryProbeTimer: null,
@@ -2261,6 +2263,11 @@ function freshBrowserDiagnostics(url = '', tab = activeBrowserTab()) {
     captureEnabled: browserCaptureEnabled,
     counts: { cdp: 0, page: 0, textTrack: 0, manifest: 0, parsed: 0, rejected: 0, errors: 0 },
     activity: { lastCapture: null, lastTranslation: null, lastError: null },
+    responsiveness: {
+      status: tab?.pageResponsive === false ? 'unresponsive' : 'responsive',
+      at: Date.now(),
+      message: tab?.pageResponsive === false ? 'Sayfa yanıt vermiyor.' : 'Sayfa yanıt veriyor.',
+    },
     acquisition: acquisition ? acquisition.snapshot() : null,
     recent: [],
   };
@@ -2321,6 +2328,29 @@ function noteBrowserDiagnosticActivity(tab, key, message) {
   sendBrowserEvent(tab, { type: 'capture-status', diagnostics: current });
 }
 
+function noteBrowserResponsiveness(tab, responsive) {
+  if (!tab || tab.closing) return;
+  const isResponsive = responsive !== false;
+  if (tab.pageResponsive === isResponsive) return;
+  tab.pageResponsive = isResponsive;
+  const current = tab.diagnostics || (tab === activeBrowserTab() ? browserDiagnostics : null)
+    || freshBrowserDiagnostics(tab.restoredUrl || '', tab);
+  current.responsiveness = {
+    status: isResponsive ? 'responsive' : 'unresponsive',
+    at: Date.now(),
+    message: isResponsive
+      ? 'Sayfa yeniden yanıt veriyor.'
+      : 'Sayfa yanıt vermiyor; altyazı yakalama geçici olarak durmuş olabilir.',
+  };
+  tab.diagnostics = current;
+  if (tab === activeBrowserTab()) browserDiagnostics = current;
+  sendBrowserEvent(tab, { type: 'capture-status', diagnostics: current });
+  sendBrowserEvent(tab, {
+    type: 'page-responsiveness', responsive: isResponsive,
+    message: current.responsiveness.message,
+  });
+}
+
 function redactBrowserDiagnosticsText(value) {
   return String(value == null ? '' : value)
     .replace(/https?:\/\/[^\s)]+/gi, (url) => redactCaptureUrl(url))
@@ -2349,6 +2379,11 @@ function browserDiagnosticsExportSnapshot() {
       const entry = source.activity?.[key];
       return [key, entry ? { at: Number(entry.at) || null, message: redactBrowserDiagnosticsText(entry.message) } : null];
     })),
+    responsiveness: source.responsiveness && typeof source.responsiveness === 'object' ? {
+      status: source.responsiveness.status === 'unresponsive' ? 'unresponsive' : 'responsive',
+      at: Number(source.responsiveness.at) || null,
+      message: redactBrowserDiagnosticsText(source.responsiveness.message),
+    } : null,
     acquisition: source.acquisition && typeof source.acquisition === 'object' ? source.acquisition : null,
     recent: recent.map((entry) => ({
       at: Number.isFinite(Number(entry.at)) ? Number(entry.at) : null,
@@ -2419,6 +2454,20 @@ function safeBrowserBounds(raw) {
   const height = Math.max(1, Math.min(Math.round(Number(raw.height) || 1), content.height - y));
   if (x >= content.width || y >= content.height) return null;
   return { x, y, width, height };
+}
+
+function browserFullscreenBounds() {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  const content = mainWindow.getContentBounds();
+  return { x: 0, y: 0, width: Math.max(1, content.width), height: Math.max(1, content.height) };
+}
+
+function applyBrowserViewBounds(tab, view = tab?.view) {
+  if (!view || view.webContents.isDestroyed()) return false;
+  const bounds = tab?.htmlFullscreen ? browserFullscreenBounds() : browserBounds;
+  if (!bounds) return false;
+  view.setBounds(bounds);
+  return true;
 }
 
 function browserNavigationStateForTab(tab, extra = {}) {
@@ -4908,7 +4957,9 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
     const fetched = browserHlsFetchedSegments.get(streamKey) || new Set();
     browserHlsFetchedSegments.set(streamKey, fetched);
     trimInsertionCollection(browserHlsFetchedSegments, 64);
-    const timeline = browserHlsTimelines.get(streamKey) || { starts: new Map(), nextSequence: null, nextStart: 0 };
+    const timeline = browserHlsTimelines.get(streamKey)
+      || { starts: new Map(), nextSequence: null, nextStart: 0, mpegTsStates: new Map() };
+    if (!(timeline.mpegTsStates instanceof Map)) timeline.mpegTsStates = new Map();
     const anchor = parsedParts.find((segment) => timeline.starts.has(segment.sequence));
     let timelineOffset = anchor ? timeline.starts.get(anchor.sequence) - anchor.start : 0;
     if (!anchor && parsedParts.length && Number.isFinite(timeline.nextSequence)
@@ -4959,33 +5010,45 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
             const partBuffer = await fetchBrowserBufferWithRetry(segment.url, 2 * 1024 * 1024, 2,
               context, segment.byteRange);
             const cues = parseMp4WebVtt(partBuffer, matcher);
-            if (!cues.length) return false;
-            const likelyLocalTimeline = segment.start > 0
-              && cuesUseLocalSegmentTimeline(cues, segment.duration, segment.start);
-            collected.push(...cues.map((cue) => likelyLocalTimeline
-              ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
-              : cue));
-            fetched.add(segment.fetchKey);
-            return true;
+            return cues.length ? { segment, cues, hasTimestampMap: false } : null;
           }
           const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024, context, segment.byteRange);
-          const part = parseSubtitlePayload(partBody, '', segment.url);
-          if (!part.cues.length) return false;
-          const hasTimestampMap = /X-TIMESTAMP-MAP/i.test(partBody);
-          const likelyLocalTimeline = !hasTimestampMap && segment.start > 0
-            && cuesUseLocalSegmentTimeline(part.cues, segment.duration, segment.start);
-          collected.push(...part.cues.map((cue) => likelyLocalTimeline
-            ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
-            : cue));
-          fetched.add(segment.fetchKey);
-          return true;
+          return { segment, partBody };
         } catch (_) {
           // Başarısız segmenti tekrar denenebilir bırak.
           fetched.delete(segment.fetchKey);
-          return false;
+          return null;
         }
       }));
-      void batch;
+      // İndirmeler paralel kalsın; MPEGTS sarma durumu ise playlist sırasıyla
+      // ilerlemeli. Ağ yanıtı sırasına göre güncellenirse sarma öncesindeki geç
+      // bir yanıt, yeni dönemi bir kez daha 2^33 ileri taşıyabilir.
+      for (const result of batch) {
+        if (!result) continue;
+        const { segment } = result;
+        let cues = result.cues || [];
+        const hasTimestampMap = result.partBody
+          ? /X-TIMESTAMP-MAP/i.test(result.partBody) : !!result.hasTimestampMap;
+        if (result.partBody) {
+          const discontinuityKey = String(segment.discontinuity || 0);
+          let mpegTsState = timeline.mpegTsStates.get(discontinuityKey);
+          if (!mpegTsState) {
+            mpegTsState = {};
+            timeline.mpegTsStates.set(discontinuityKey, mpegTsState);
+            while (timeline.mpegTsStates.size > 32) {
+              timeline.mpegTsStates.delete(timeline.mpegTsStates.keys().next().value);
+            }
+          }
+          cues = parseSubtitlePayload(result.partBody, '', segment.url, { mpegTsState }).cues;
+        }
+        if (!cues.length) continue;
+        const likelyLocalTimeline = !hasTimestampMap && segment.start > 0
+          && cuesUseLocalSegmentTimeline(cues, segment.duration, segment.start);
+        collected.push(...cues.map((cue) => likelyLocalTimeline
+          ? { ...cue, start: cue.start + segment.start, end: cue.end + segment.start }
+          : cue));
+        fetched.add(segment.fetchKey);
+      }
     }
     if (!collected.length) return false;
     storeBrowserTrack(collected, {
@@ -5913,6 +5976,72 @@ function scheduleBrowserDiscoveryProbe(tab, delay = 100) {
   tab.discoveryProbeTimer.unref?.();
 }
 
+function pollBrowserTabAudioStates() {
+  for (const item of browserTabs.values()) {
+    const wc = item.view?.webContents;
+    if (!wc || wc.isDestroyed()) continue;
+    const audible = !!wc.isCurrentlyAudible?.(), tabMuted = !!wc.isAudioMuted?.();
+    if (item.audible !== audible || item.tabMuted !== tabMuted) {
+      Object.assign(item, { audible, tabMuted });
+      sendBrowserEvent(item, { type: 'tab-audio', audible, tabMuted });
+    }
+  }
+}
+
+async function probeActiveBrowserMedia(requestedTab = null) {
+  const tab = activeBrowserTab();
+  if (!tab || (requestedTab && requestedTab !== tab) || tab.compatibilityMode
+      || browserMediaBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return false;
+  browserMediaBusy = true;
+  const generation = browserStateGeneration;
+  const context = { ...browserEventContext(tab), stateGeneration: generation };
+  const activeView = browserView;
+  const activeContents = activeView.webContents;
+  const pageUrl = activeContents.getURL();
+  try {
+    // Komut gönderiminde kullanılan sıralamayla aynı adayı seç. Böylece
+    // durum/altyazı yayını, komutların hedeflediği videodan kopmaz.
+    const probed = await withTimeout(executeBrowserFrames(buildBrowserMediaProbeScript()),
+      BROWSER_SCRIPT_TIMEOUT, 'Web video durumu zaman aşımına uğradı.');
+    if (!isCurrentBrowserContext(context) || browserView !== activeView
+        || activeContents.isDestroyed() || activeContents.getURL() !== pageUrl) return false;
+    const media = rankBrowserMediaCandidates(probed.map((item) => ({ media: item })))[0]?.media;
+    if (!media) return true;
+    // Sayfa içindeki oynatıcı özellikleri güvenilmez olabilir (bozuk bir
+    // getter Infinity/NaN döndürebilir). Bu değerleri sekme durumuna veya
+    // IPC olayına taşımadan önce son kez finite hale getir.
+    const currentTime = Number(media.currentTime);
+    const duration = Number(media.duration);
+    const playbackRate = Number(media.playbackRate);
+    const volume = Number(media.volume);
+    const safeMedia = {
+      ...media,
+      currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
+      duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
+      playbackRate: Number.isFinite(playbackRate) ? Math.max(0.25, Math.min(4, playbackRate)) : 1,
+      volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0,
+    };
+    tab.position = safeMedia.currentTime;
+    tab.duration = safeMedia.duration;
+    tab.rate = safeMedia.playbackRate;
+    tab.volume = safeMedia.volume;
+    tab.muted = !!safeMedia.muted;
+    tab.translationScheduler?.updatePlayhead(tab.position);
+    const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+      Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused].join('|');
+    if (mediaSignature !== tab.lastMediaEventSignature) {
+      tab.lastMediaEventSignature = mediaSignature;
+      sendBrowserEvent(tab, { type: 'media', media: safeMedia });
+      scheduleBrowserSessionSave(1500);
+    }
+    return true;
+  } catch (_) {
+    return false;
+  } finally {
+    if (generation === browserStateGeneration) browserMediaBusy = false;
+  }
+}
+
 function startBrowserPolling() {
   if (browserTrackTimer && browserCaptureTimer && browserMediaTimer) return;
   stopBrowserPolling();
@@ -5929,68 +6058,12 @@ function startBrowserPolling() {
     // sabit 30 sn yenileme altyazının ilk isteğini kaçırabiliyordu.
     void flushBrowserCaptureQueue({ installHook: true });
   }, 900);
-  browserMediaTimer = setInterval(async () => {
-    for (const item of browserTabs.values()) {
-      const wc = item.view?.webContents;
-      if (!wc || wc.isDestroyed()) continue;
-      const audible = !!wc.isCurrentlyAudible?.(), tabMuted = !!wc.isAudioMuted?.();
-      if (item.audible !== audible || item.tabMuted !== tabMuted) {
-        Object.assign(item, { audible, tabMuted });
-        sendBrowserEvent(item, { type: 'tab-audio', audible, tabMuted });
-      }
-    }
-    if (activeBrowserTab()?.compatibilityMode || browserMediaBusy || !browserVisible
-        || !browserView || browserView.webContents.isDestroyed()) return;
-    browserMediaBusy = true;
-    const generation = browserStateGeneration;
-    const tab = activeBrowserTab();
-    const context = tab ? { ...browserEventContext(tab), stateGeneration: generation } : null;
-    const activeView = browserView;
-    const activeContents = activeView.webContents;
-    const pageUrl = activeContents.getURL();
-    try {
-      // Komut gönderiminde kullanılan sıralamayla aynı adayı seç. Böylece
-      // durum/altyazı yayını, komutların hedeflediği videodan kopmaz.
-      const probed = await withTimeout(executeBrowserFrames(buildBrowserMediaProbeScript()),
-        BROWSER_SCRIPT_TIMEOUT, 'Web video durumu zaman aşımına uğradı.');
-      if (!isCurrentBrowserContext(context) || browserView !== activeView
-          || activeContents.isDestroyed() || activeContents.getURL() !== pageUrl) return;
-      const media = rankBrowserMediaCandidates(
-        probed.map((item) => ({ media: item }))
-      )[0]?.media;
-      if (media) {
-        // Sayfa içindeki oynatıcı özellikleri güvenilmez olabilir (bozuk bir
-        // getter Infinity/NaN döndürebilir). Bu değerleri sekme durumuna veya
-        // IPC olayına taşımadan önce son kez finite hale getir.
-        const currentTime = Number(media.currentTime);
-        const duration = Number(media.duration);
-        const playbackRate = Number(media.playbackRate);
-        const volume = Number(media.volume);
-        const safeMedia = {
-          ...media,
-          currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
-          duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
-          playbackRate: Number.isFinite(playbackRate) ? Math.max(0.25, Math.min(4, playbackRate)) : 1,
-          volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0,
-        };
-        tab.position = safeMedia.currentTime;
-        tab.duration = safeMedia.duration;
-        tab.rate = safeMedia.playbackRate;
-        tab.volume = safeMedia.volume;
-        tab.muted = !!safeMedia.muted;
-        tab.translationScheduler?.updatePlayhead(tab.position);
-        const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
-          Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused].join('|');
-        if (mediaSignature !== tab.lastMediaEventSignature) {
-          tab.lastMediaEventSignature = mediaSignature;
-          sendBrowserEvent(tab, { type: 'media', media: safeMedia });
-          scheduleBrowserSessionSave(1500);
-        }
-      }
-    } catch (_) {} finally {
-      if (generation === browserStateGeneration) browserMediaBusy = false;
-    }
-  }, 500);
+  // Oynatma/duraklatma geçişleri WebContents olaylarıyla anında ölçülür. Bu
+  // daha seyrek tur yalnız ilerleme, ses ve olay vermeyen siteler için fallback.
+  browserMediaTimer = setInterval(() => {
+    pollBrowserTabAudioStates();
+    void probeActiveBrowserMedia();
+  }, 1000);
 }
 
 function stopBrowserPolling() {
@@ -6101,6 +6174,10 @@ async function reportBrowserDrmSupport() {
   });
 }
 
+function browserPermissionAllowed(permission) {
+  return permission === 'fullscreen' || permission === 'clipboard-sanitized-write';
+}
+
 function ensureBrowserView(tab = activeBrowserTab(true)) {
   if (!tab) return null;
   if (tab.view && !tab.view.webContents.isDestroyed()) {
@@ -6119,8 +6196,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   } else {
     browserUserAgent = sanitizeBrowserUserAgent(browserSession.getUserAgent());
   }
+  browserSession.setPermissionCheckHandler((_requestingWebContents, permission) => (
+    browserPermissionAllowed(permission)
+  ));
   browserSession.setPermissionRequestHandler((requestingWebContents, permission, callback) => {
-    const allowed = permission === 'fullscreen' || permission === 'clipboard-sanitized-write';
+    const allowed = browserPermissionAllowed(permission);
     if (!allowed) {
       const permissionTab = browserTabForWebContents(requestingWebContents);
       if (permissionTab) {
@@ -6167,6 +6247,31 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     event.preventDefault();
     sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
   });
+  wc.on('enter-html-full-screen', () => {
+    if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    tab.htmlFullscreen = true;
+    if (tab.id === browserActiveTabId) applyBrowserViewBounds(tab, view);
+    sendBrowserEvent(tab, { type: 'html-full-screen', active: true });
+  });
+  wc.on('leave-html-full-screen', () => {
+    if (tab.view !== view || browserTabById(tab.id) !== tab) return;
+    tab.htmlFullscreen = false;
+    if (tab.id === browserActiveTabId) applyBrowserViewBounds(tab, view);
+    sendBrowserEvent(tab, { type: 'html-full-screen', active: false });
+  });
+  wc.on('media-started-playing', () => {
+    if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    if (tab.id === browserActiveTabId) {
+      scheduleBrowserDiscoveryProbe(tab, 0);
+      void probeActiveBrowserMedia(tab);
+    }
+  });
+  wc.on('media-paused', () => {
+    if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    if (tab.id === browserActiveTabId) void probeActiveBrowserMedia(tab);
+  });
+  wc.on('unresponsive', () => noteBrowserResponsiveness(tab, false));
+  wc.on('responsive', () => noteBrowserResponsiveness(tab, true));
   tab.pageFind = createBrowserPageFind(wc, event => {
     if (event.type === 'find-open') mainWindow.webContents.focus();
     sendBrowserEvent(tab, event);
@@ -6208,6 +6313,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('will-redirect', prepareNavigationCompatibility);
   wc.on('did-start-loading', () => {
     clearBrowserCloudflareTimer(tab);
+    // Yeni belge önceki sayfanın donma durumunu devralmaz. Bu değer, aşağıda
+    // oluşturulan yeni tanı anlık görüntüsüne başlangıç durumu olarak girer.
+    tab.pageResponsive = true;
     tab.browserInstrumentationPending = !tab.compatibilityMode;
     tab.loadError = null;
     if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
@@ -6327,6 +6435,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     const failedUrl = wc.getURL() && wc.getURL() !== 'about:blank' ? wc.getURL() : tab.restoredUrl;
     tab.restoredUrl = failedUrl || tab.restoredUrl || '';
     tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
+    tab.htmlFullscreen = false;
     tab.generation += 1;
     if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
     tab.discoveryProbeTimer = null;
@@ -6487,7 +6596,7 @@ async function activateBrowserTab(rawId) {
     browserCaptureEnabled = next.captureEnabled !== false;
     browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
     browserDiagnostics = next.diagnostics;
-    if (browserBounds) browserView.setBounds(browserBounds);
+    applyBrowserViewBounds(next, browserView);
     browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
     if (browserVisible) startBrowserPolling();
     if (browserCaptureEnabled && !next.compatibilityMode
@@ -6539,7 +6648,7 @@ async function activateBrowserTab(rawId) {
   browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
   browserDiagnostics = next.diagnostics;
   resetBrowserCaptureState({ preserveDiagnostics: true });
-  if (browserView && browserBounds) browserView.setBounds(browserBounds);
+  applyBrowserViewBounds(next, browserView);
   if (browserView) browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
   if (browserVisible) startBrowserPolling();
   if (browserCaptureEnabled && !next.compatibilityMode
@@ -7058,7 +7167,7 @@ ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(asy
   const bounds = safeBrowserBounds(payload && payload.bounds);
   if (!view || !bounds) return { ok: false, error: 'Tarayıcı alanı hazırlanamadı.' };
   browserBounds = bounds;
-  view.setBounds(bounds);
+  if (!tab.htmlFullscreen) view.setBounds(bounds);
   browserVisible = true;
   resumeRestoredBrowserPage(tab);
   const hasPage = !!browserNavigationState().url;
@@ -7110,7 +7219,10 @@ ipcMain.handle('browser:setBounds', (event, payload) => {
   const bounds = safeBrowserBounds(payload && payload.bounds);
   if (!bounds) return { ok: false };
   browserBounds = bounds;
-  if (browserView && !browserView.webContents.isDestroyed()) browserView.setBounds(bounds);
+  const tab = activeBrowserTab();
+  if (browserView && !browserView.webContents.isDestroyed() && !tab?.htmlFullscreen) {
+    browserView.setBounds(bounds);
+  }
   return { ok: true };
 });
 
@@ -7125,7 +7237,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   if (!activeRequestedBrowserTab(tab.id)) return { ok: false, stale: true, error: 'Sekme değiştiği için gezinme iptal edildi.' };
   const view = ensureBrowserView(tab);
   if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
-  if (browserBounds) view.setBounds(browserBounds);
+  if (!tab.htmlFullscreen && browserBounds) view.setBounds(browserBounds);
   browserVisible = true;
   browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
   tab.overlay = browserOverlay;

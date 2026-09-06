@@ -87,14 +87,34 @@ function normalizeCues(cues) {
   return clean;
 }
 
-function parseTimedBlocks(body) {
+const MPEGTS_CLOCK_RATE = 90000;
+const MPEGTS_ROLLOVER = 2 ** 33;
+const MPEGTS_ROLLOVER_THRESHOLD = MPEGTS_ROLLOVER / 2;
+
+function unwrapMpegTs(rawValue, state = null) {
+  const raw = Number(rawValue);
+  if (!Number.isFinite(raw)) return 0;
+  if (!state || typeof state !== 'object') return raw / MPEGTS_CLOCK_RATE;
+  const previous = Number(state.lastRaw);
+  let wraps = Math.trunc(Number(state.wraps) || 0);
+  if (Number.isFinite(previous)) {
+    const delta = raw - previous;
+    if (delta < -MPEGTS_ROLLOVER_THRESHOLD) wraps += 1;
+    else if (delta > MPEGTS_ROLLOVER_THRESHOLD) wraps -= 1;
+  }
+  state.lastRaw = raw;
+  state.wraps = wraps;
+  return (raw + wraps * MPEGTS_ROLLOVER) / MPEGTS_CLOCK_RATE;
+}
+
+function parseTimedBlocks(body, timing = {}) {
   const out = [];
   const clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
   const timestampMap = (clean.match(/X-TIMESTAMP-MAP\s*=\s*[^\n]*/i) || [])[0] || '';
   const localMatch = timestampMap.match(/LOCAL:([^,\s]+)/i);
   const mpegMatch = timestampMap.match(/MPEGTS:(\d+)/i);
   const local = localMatch ? parseTime(localMatch[1]) : 0;
-  const mapped = mpegMatch ? Number(mpegMatch[1]) / 90000 : 0;
+  const mapped = mpegMatch ? unwrapMpegTs(mpegMatch[1], timing.mpegTsState) : 0;
   const timelineOffset = Number.isFinite(local) && Number.isFinite(mapped) ? mapped - local : 0;
   const re = /(?:(\d+):)?(\d+):(\d{2})[,.](\d+)\s*-->\s*(?:(\d+):)?(\d+):(\d{2})[,.](\d+)/;
   const lines = clean.split('\n');
@@ -909,14 +929,17 @@ function mp4PaylText(buffer) {
 function parseMp4Timescale(buffer) {
   const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
   if (data.length < 16) return 0;
+  let movieTimescale = 0;
+  const readTimescale = (box) => {
+    const version = data[box.start];
+    const offset = box.start + (version === 1 ? 20 : 12);
+    return offset + 4 <= box.end ? data.readUInt32BE(offset) || 0 : 0;
+  };
   const visit = (start, end, depth = 0) => {
     if (depth > 6) return 0;
     for (const box of mp4Boxes(data, start, end)) {
-      if (box.type === 'mdhd') {
-        const version = data[box.start];
-        const offset = box.start + (version === 1 ? 20 : 12);
-        if (offset + 4 <= box.end) return data.readUInt32BE(offset) || 0;
-      }
+      if (box.type === 'mdhd') return readTimescale(box);
+      if (box.type === 'mvhd' && !movieTimescale) movieTimescale = readTimescale(box);
       if (/^(moov|trak|mdia)$/.test(box.type)) {
         const nested = visit(box.start, box.end, depth + 1);
         if (nested) return nested;
@@ -924,7 +947,7 @@ function parseMp4Timescale(buffer) {
     }
     return 0;
   };
-  return visit(0, data.length);
+  return visit(0, data.length) || movieTimescale;
 }
 
 function parseMp4WebVtt(buffer, matcher = {}) {
@@ -1001,7 +1024,7 @@ function decodeSubtitleBuffer(value) {
   }
 }
 
-function parseSubtitlePayload(body, mimeType = '', url = '') {
+function parseSubtitlePayload(body, mimeType = '', url = '', timing = {}) {
   const raw = String(body || '').trim();
   if (!raw || raw.length > 12 * 1024 * 1024) return { cues: [], format: '' };
   let cues = [];
@@ -1015,7 +1038,7 @@ function parseSubtitlePayload(body, mimeType = '', url = '') {
     if (cues.length) format = /<(?:[\w.-]+:)?tt\b/i.test(raw) ? 'ttml' : 'timedtext';
   }
   if (!cues.length && (raw.includes('-->') || /vtt|srt|subrip/i.test(mimeType + url))) {
-    cues = parseTimedBlocks(raw);
+    cues = parseTimedBlocks(raw, timing);
     if (cues.length) format = /^WEBVTT/i.test(raw) || /vtt/i.test(mimeType + url) ? 'vtt' : 'srt';
   }
   if (!cues.length && (/ass|ssa/i.test(mimeType + url)
@@ -1136,6 +1159,7 @@ module.exports = {
   parseMp4WebVtt,
   parseMp4SampleDefaults,
   parseMp4Timescale,
+  parseTimedBlocks,
   decodeSubtitleBuffer,
   subtitleLanguage,
 };

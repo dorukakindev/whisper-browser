@@ -93,6 +93,14 @@ test('main preload ve renderer geri acma, cokme ve zoom sozlesmesini birlikte ta
   const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
   assert.match(main, /ipcMain\.handle\('browser:tab:reopen'/);
   assert.match(main, /wc\.on\('render-process-gone'/);
+  assert.match(main, /wc\.on\('enter-html-full-screen'/);
+  assert.match(main, /wc\.on\('leave-html-full-screen'/);
+  assert.match(main, /applyBrowserViewBounds\(tab, view\)/);
+  assert.match(main, /wc\.on\('media-started-playing'/);
+  assert.match(main, /wc\.on\('media-paused'/);
+  assert.match(main, /setPermissionCheckHandler/);
+  assert.match(main, /wc\.on\('unresponsive'/);
+  assert.match(main, /wc\.on\('responsive'/);
   assert.match(main, /type: 'tab-crashed'/);
   assert.match(main, /type: 'permission-denied'/);
   assert.match(main, /\['zoom-in', 'zoom-out', 'zoom-reset', 'zoom-set'\]/);
@@ -102,6 +110,8 @@ test('main preload ve renderer geri acma, cokme ve zoom sozlesmesini birlikte ta
   const plain = renderer.indexOf("if (key === 't')", shift);
   assert(shift >= 0 && plain > shift, 'Ctrl+Shift+T duz Ctrl+T dalindan once ele alinmiyor');
   assert.match(renderer, /event\.type === 'tab-crashed'/);
+  assert.match(renderer, /event\.type === 'page-responsiveness'/);
+  assert.match(html, /id="browserDiagnosticsPageStatus"/);
   assert.match(html, /id="browserZoomResetToolbar"/);
   assert.match(html, /id="browserReopenTab"/);
   assert.match(main, /ipcMain\.on\('browser:open-link'/);

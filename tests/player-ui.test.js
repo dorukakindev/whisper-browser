@@ -125,7 +125,7 @@ test('web profil geri yükleme her asenkron komuttan sonra güncelliği denetliy
 
 test('web medya probu üst üste binmiyor ve gezinme sonrası eski sonucu yayınlamıyor', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
-  const poll = main.slice(main.indexOf('function startBrowserPolling'), main.indexOf('function stopBrowserPolling'));
+  const poll = main.slice(main.indexOf('async function probeActiveBrowserMedia'), main.indexOf('function stopBrowserPolling'));
   assert(/browserMediaBusy/.test(poll), 'medya probunda busy koruması yok');
   assert(/generation !== browserStateGeneration|isCurrentBrowserContext\(context\)/.test(poll), 'eski tarama kuşağı elenmiyor');
   assert(/activeContents\.getURL\(\) !== pageUrl/.test(poll), 'gezinme sonrası eski medya sonucu elenmiyor');

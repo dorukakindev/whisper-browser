@@ -24,6 +24,7 @@ const {
   parseMp4WebVtt,
   parseMp4SampleDefaults,
   parseMp4Timescale,
+  parseTimedBlocks,
   decodeSubtitleBuffer,
   findSubtitleUrls,
   parseLrc,
@@ -106,6 +107,18 @@ test('UTF-16 BOM altyazı gövdelerini metne dönüştürür', () => {
   const oddBigEndian = Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndianBody, Buffer.from([0x41])]);
   assert.equal(decodeSubtitleBuffer(oddBigEndian), text,
     'tek kalan bayt ayrılmamış bellekle doldurulmamalı');
+});
+
+test('MPEGTS 33-bit rollover sonrasında parçalı WebVTT zaman çizelgesini sürekli tutar', () => {
+  const rollover = 2 ** 33;
+  const mpegTsState = {};
+  const before = parseTimedBlocks(`WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:${rollover - 180000}\n\n00:00.250 --> 00:01.000\nÖnce`, { mpegTsState });
+  const after = parseTimedBlocks('WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:90000\n\n00:00.250 --> 00:01.000\nSonra', { mpegTsState });
+  assert.equal(before.length, 1);
+  assert.equal(after.length, 1);
+  assert(Math.abs(after[0].start - before[0].start - 3) < 1e-6,
+    `rollover sonrası cue sürekliliği bozuldu: ${before[0].start} -> ${after[0].start}`);
+  assert(after[0].start > 95000, 'sarma sonrası cue önceki 33-bit döneme geri düştü');
 });
 
 test('entity ile kodlanmış etiketleri temizlerken matematik karşılaştırmasını korur', () => {
@@ -457,6 +470,13 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
   const mdhd = Buffer.alloc(20); mdhd.writeUInt32BE(1000, 12);
   const init = box('moov', box('trak', box('mdia', box('mdhd', mdhd))));
   assert.equal(parseMp4Timescale(init), 1000);
+  const mvhd = Buffer.alloc(20); mvhd.writeUInt32BE(48000, 12);
+  const movieOnlyInit = box('moov', box('mvhd', mvhd));
+  assert.equal(parseMp4Timescale(movieOnlyInit), 48000);
+  const movieAndTrackInit = box('moov', Buffer.concat([
+    box('mvhd', mvhd), box('trak', box('mdia', box('mdhd', mdhd))),
+  ]));
+  assert.equal(parseMp4Timescale(movieAndTrackInit), 1000);
   assert.deepEqual(parseMp4WebVtt(fragment, {}), []);
   const secondTfdt = Buffer.alloc(4); secondTfdt.writeUInt32BE(10000);
   const secondRows = Buffer.alloc(12); secondRows.writeUInt32BE(1);
