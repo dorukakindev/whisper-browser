@@ -10,7 +10,7 @@
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf-8');
 const body = src.slice(src.indexOf('function parseAss'), src.indexOf('function setPlayerSource'));
-const F = new Function(body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceVttCueText};')();
+const F = new Function(body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceTimedCueTexts, replaceVttCueTexts, replaceVttCueText};')();
 
 const BS = String.fromCharCode(92);
 let pass = 0; const fails = [];
@@ -253,6 +253,45 @@ t('VTT üç haneli dakika cue metni düzenlenebilir', () => {
   const cue = F.parseSubtitles(raw)[0];
   const out = F.replaceVttCueText(raw, cue, 'Yeni');
   ok(out && out.includes('Yeni') && !out.includes('Eski'), 'üç haneli dakika eşleşmedi');
+});
+
+t('VTT aynı zamanlı blokları kaynak sırasıyla ayrı ayrı değiştirir', () => {
+  const raw = 'WEBVTT\n\ncue-a\n00:00:01.000 --> 00:00:02.000\nBirinci\n\n'
+    + 'cue-b\n00:00:01.000 --> 00:00:02.000\nİkinci\n';
+  const cues = F.parseSubtitles(raw);
+  ok(cues[0].subtitleSourceIndex === 0 && cues[1].subtitleSourceIndex === 1,
+    'kaynak sıra kimliği korunmadı');
+  const out = F.replaceVttCueTexts(raw, [{ cue: cues[1], newText: 'Yalnız ikinci' }]);
+  ok(out && out.includes('Birinci') && out.includes('Yalnız ikinci') && !out.includes('İkinci'),
+    'aynı zamanlı yanlış cue değişti');
+  ok(out.includes('cue-a') && out.includes('cue-b'), 'cue kimlikleri kayboldu');
+});
+
+t('VTT toplu değiştirme iki cue için tek belgede metadata ve satır sonunu korur', () => {
+  const raw = VTT_RICH.replace(/\n/g, '\r\n');
+  const cues = F.parseSubtitles(raw);
+  const out = F.replaceTimedCueTexts(raw, [
+    { cue: cues[0], newText: 'Yeni bir' },
+    { cue: cues[1], newText: 'Yeni iki\nDevam' },
+  ]);
+  ok(out.includes('STYLE\r\n') && out.includes('REGION\r\n') && out.includes('NOTE Bu bir yorum satiri'),
+    'VTT metadata kayboldu');
+  ok(out.includes('Yeni bir') && out.includes('Yeni iki\r\nDevam'), 'iki değişiklik uygulanmadı');
+  ok(!/(^|[^\r])\n/.test(out), 'CRLF yapısı bozuldu');
+});
+
+t('SRT cerrahi toplu değiştirme BOM, numara ve aynı zamanlı blokları korur', () => {
+  const raw = '\uFEFF1\r\n00:00:01,000 --> 00:00:02,000\r\nBir\r\n\r\n'
+    + '2\r\n00:00:01,000 --> 00:00:02,000\r\nİki\r\n';
+  const cues = F.parseSubtitles(raw);
+  const out = F.replaceTimedCueTexts(raw, [
+    { cue: cues[0], newText: 'Bir yeni' },
+    { cue: cues[1], newText: 'İki yeni' },
+  ]);
+  ok(out.startsWith('\uFEFF1\r\n'), 'BOM veya ilk sıra numarası kayboldu');
+  ok(out.includes('\r\n2\r\n00:00:01,000'), 'ikinci sıra numarası kayboldu');
+  ok(out.includes('Bir yeni') && out.includes('İki yeni'), 'SRT değişiklikleri uygulanmadı');
+  ok(!/(^|[^\r])\n/.test(out), 'SRT CRLF yapısı bozuldu');
 });
 
 // ---- ms yuvarlama tasmasi ----

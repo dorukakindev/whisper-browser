@@ -28,6 +28,7 @@ const state = {
 };
 
 const browserSubtitleSync = globalThis.BrowserSubtitleSync;
+const subtitleFindReplace = globalThis.SubtitleFindReplace;
 
 // Kalıcı iş geçmişinin renderer önbelleği. İşler merkezi bu sayacı kuyruk
 // yönetiminden önce de okuyabildiği için tek üst-seviye sahibi burada durur.
@@ -3716,6 +3717,8 @@ const player = {
   sub2Role: 'translation',
   subFormat: 'srt',  // 'srt' | 'vtt' | 'ass' - kaydederken AYNI bicim korunur
   subRaw: '',        // dosyanin ham metni (ASS'te cerrahi duzenleme icin)
+  sub2Format: 'srt',
+  sub2Raw: '',
   subOrigins: {},    // { yol: 'YouTube' | 'Whisper' | 'Dosya' } - panelde gosterilir
   editing: false,
   autoPause: false,
@@ -3871,6 +3874,7 @@ const player = {
   shadowResumeTimer: null,
   cueEditUndo: [],
   cueEditRedo: [],
+  subtitleFindReplace: { generation: 0, timer: null, matches: [], selected: new Set() },
 };
 
 try { player.audioLocks = JSON.parse(localStorage.getItem('playerAudioLocks') || '{}') || {}; }
@@ -3940,7 +3944,8 @@ function newBrowserTabState(snapshot = {}) {
     watchManualCompleted: null,
     watchRemovedKey: '',
     cues: [], cues2: [], subtitles: [], subOrigins: {},
-    subPath: '', sub2Path: '', subFormat: 'srt', subRaw: '', offset: Number(snapshot.offset) || 0,
+    subPath: '', sub2Path: '', subFormat: 'srt', subRaw: '', sub2Format: 'srt', sub2Raw: '',
+    offset: Number(snapshot.offset) || 0,
     mediaId: snapshot.mediaId || '', service: snapshot.service || '',
     viewMode: snapshot.viewMode || 'reading',
     subtitleMode: ['off', 'source', 'translation', 'both'].includes(snapshot.subtitleMode)
@@ -3966,6 +3971,7 @@ function saveLocalSubtitleWorkspace() {
     subtitles: player.subtitles.map((item) => ({ ...item })),
     subOrigins: { ...player.subOrigins }, subPath: player.subPath,
     sub2Path: player.sub2Path, subFormat: player.subFormat, subRaw: player.subRaw,
+    sub2Format: player.sub2Format, sub2Raw: player.sub2Raw,
     offset: player.offset,
   };
 }
@@ -3983,6 +3989,8 @@ function restoreLocalSubtitleWorkspace() {
   player.sub2Path = saved.sub2Path;
   player.subFormat = saved.subFormat;
   player.subRaw = saved.subRaw;
+  player.sub2Format = saved.sub2Format || 'srt';
+  player.sub2Raw = saved.sub2Raw || '';
   player.offset = saved.offset;
   for (const [id, path, emptyLabel] of [
     ['playerSubSelect', saved.subPath, 'Altyazı yok'],
@@ -4059,7 +4067,8 @@ function saveActiveBrowserTabWorkspace() {
     subtitles: player.subtitles.map((item) => ({ ...item })),
     subOrigins: { ...player.subOrigins },
     subPath: player.subPath, sub2Path: player.sub2Path,
-    subFormat: player.subFormat, subRaw: player.subRaw, offset: player.offset,
+    subFormat: player.subFormat, subRaw: player.subRaw,
+    sub2Format: player.sub2Format, sub2Raw: player.sub2Raw, offset: player.offset,
     viewMode: player.viewMode,
     subtitleMode: savedSubtitleMode,
     subtitleSelection: selection,
@@ -4179,6 +4188,8 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.sub2Path = tab.sub2Path || '';
   player.subFormat = tab.subFormat || 'srt';
   player.subRaw = tab.subRaw || '';
+  player.sub2Format = tab.sub2Format || 'srt';
+  player.sub2Raw = tab.sub2Raw || '';
   player.offset = Number(tab.offset) || 0;
   if ($('translateTo') && tab.targetLanguage) $('translateTo').value = tab.targetLanguage;
   ['playerSubSelect', 'playerSubSelect2'].forEach((id, index) => {
@@ -6388,6 +6399,7 @@ function refreshBrowserEditedChannel(trackId) {
   renderCueList($('cueSearch')?.value || '');
   scheduleBrowserOverlaySync();
   renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+  if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
 }
 
 function stopReplacedBrowserTranslation(nextTrackId = '') {
@@ -9107,7 +9119,8 @@ function parseSubtitles(text) {
       if (/^\d+$/.test(candidate) || separatedCueId) until--;
     }
     const body = lines.slice(idx + 1, until).join('\n').trim();
-    if (body) out.push({ start, end, text: body, sourceStart: start, sourceEnd: end });
+    if (body) out.push({ start, end, text: body, sourceStart: start, sourceEnd: end,
+      subtitleSourceIndex: position });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -10918,6 +10931,7 @@ function applyCueMerge() {
   renderCue();
   updateCueMeta();
   scheduleBrowserOverlaySync();
+  if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
 }
 
 // ---- AI sohbet (yan panel sekmesi) ----
@@ -11898,8 +11912,10 @@ function resetMediaBoundState(options = {}) {
   player.sub2Role = 'translation';
   player.subRaw = '';
   player.sub2Path = '';
+  player.sub2Raw = '';
   player.subOrigins = {};
   player.subFormat = 'srt';
+  player.sub2Format = 'srt';
   player.pausedAt = -1;
   player.chapters = [];
   player.savedCues = [];
@@ -11959,6 +11975,7 @@ function resetMediaBoundState(options = {}) {
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
   renderSeekMarkers([]);
   renderAbMarkers(); // Medya değişince artık korunmaması gereken eski A-B işaretlerini temizle.
+  if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
   // Gecikme ONCEKI dosyaya gore ayarlanmisti; yeni videoda anlamsiz - sifirla.
   // (Eskiden yalnizca "dosyaya isle" dugmesi gizleniyordu; +2.3 sn'lik bir
   // duzeltme sonraki butun videolara tasiniyordu.)
@@ -12202,7 +12219,7 @@ function cuesToVtt(cues) {
 // degistiririz. Yeniden uretim cue kimliklerini, satir ayarlarini (align,
 // position, line, size), STYLE / REGION / NOTE bloklarini ve baslik
 // metadatasini yok ederdi.
-function replaceVttCueText(rawText, cue, newText) {
+function replaceTimedCueTexts(rawText, edits) {
   const source = String(rawText);
   const NL = source.includes('\r\n') ? '\r\n' : '\n';
   const lines = source.split(/\r?\n/);
@@ -12212,27 +12229,57 @@ function replaceVttCueText(rawText, cue, newText) {
     return (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3])
       + (+String(m[4]).padEnd(3, '0')) / 1000;
   };
-  for (let i = 0; i < lines.length; i++) {
-    if (!lines[i].includes('-->')) continue;
-    const half = lines[i].split('-->');
-    const st = toSec(half[0]);
-    const en = toSec(half[1]);
-    if (st === null || en === null) continue;
+  const timingLines = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    if (!lines[lineIndex].includes('-->')) continue;
+    const half = lines[lineIndex].split('-->');
+    const start = toSec(half[0]);
+    const end = toSec(half[1]);
+    if (start !== null && end !== null) timingLines.push({ lineIndex, start, end });
+  }
+  const resolved = [];
+  const occupied = new Set();
+  for (const edit of Array.isArray(edits) ? edits : []) {
+    const cue = edit?.cue || {};
     const sourceStart = Number.isFinite(cue.sourceStart) ? cue.sourceStart : cue.start;
     const sourceEnd = Number.isFinite(cue.sourceEnd) ? cue.sourceEnd : cue.end;
-    if (Math.abs(st - sourceStart) > 0.002 || Math.abs(en - sourceEnd) > 0.002) continue;
-    // Metin satirlari: zaman satirindan sonra bos satira kadar
-    let j = i + 1;
-    while (j < lines.length && lines[j].trim() !== '') j++;
-    // Boş bir satır WebVTT'de cue sınırıdır. Düzenleme kutusundan gelen art
-    // arda satır sonlarını tek satır sonuna indirerek metnin yeni bir sahte cue
-    // oluşturmasını engelle; dosyanın özgün CRLF/LF biçimini de koru.
-    const safeLines = String(newText).replace(/\r\n?/g, '\n')
-      .replace(/\n[ \t]*\n+/g, '\n').split('\n');
-    lines.splice(i + 1, j - (i + 1), ...safeLines);
-    return lines.join(NL);
+    let sourceIndex = Number.isInteger(cue.subtitleSourceIndex) ? cue.subtitleSourceIndex : -1;
+    if (sourceIndex < 0 || sourceIndex >= timingLines.length
+        || Math.abs(timingLines[sourceIndex].start - sourceStart) > .002
+        || Math.abs(timingLines[sourceIndex].end - sourceEnd) > .002) {
+      sourceIndex = timingLines.findIndex((item, index) => !occupied.has(index)
+        && Math.abs(item.start - sourceStart) <= .002 && Math.abs(item.end - sourceEnd) <= .002);
+    }
+    if (sourceIndex < 0 || occupied.has(sourceIndex)) return null;
+    occupied.add(sourceIndex);
+    resolved.push({ ...edit, sourceIndex, lineIndex: timingLines[sourceIndex].lineIndex });
   }
-  return null;
+  // Aşağıdan yukarı değiştir: bir cue daha çok/az satıra dönüşse bile henüz
+  // işlenmemiş zaman satırlarının özgün indeksleri kaymaz.
+  resolved.sort((a, b) => b.lineIndex - a.lineIndex);
+  for (const edit of resolved) {
+    const nextTiming = timingLines[edit.sourceIndex + 1]?.lineIndex ?? lines.length;
+    let bodyEnd = nextTiming;
+    if (edit.sourceIndex + 1 < timingLines.length) {
+      const candidate = lines[nextTiming - 1]?.trim() || '';
+      const separatedCueId = candidate && nextTiming > 1 && !lines[nextTiming - 2]?.trim();
+      if (/^\d+$/.test(candidate) || separatedCueId) bodyEnd--;
+    }
+    while (bodyEnd > edit.lineIndex + 1 && !lines[bodyEnd - 1].trim()) bodyEnd--;
+    const normalized = String(edit.newText ?? '').replace(/\r\n?/g, '\n')
+      .replace(/\n[ \t]*\n+/g, '\n');
+    const safeLines = normalized ? normalized.split('\n') : [];
+    lines.splice(edit.lineIndex + 1, bodyEnd - (edit.lineIndex + 1), ...safeLines);
+  }
+  return resolved.length ? lines.join(NL) : source;
+}
+
+function replaceVttCueTexts(rawText, edits) {
+  return replaceTimedCueTexts(rawText, edits);
+}
+
+function replaceVttCueText(rawText, cue, newText) {
+  return replaceVttCueTexts(rawText, [{ cue, newText }]);
 }
 
 // ASS/SSA: dosyayi yeniden URETMEK yerine ilgili Dialogue satirinin METIN alanini
@@ -12547,12 +12594,16 @@ function clearBrowserSecondarySelection() {
   player.cues2Raw = null;
   player.activeIdx2 = -1;
   player.sub2Path = '';
+  player.sub2Raw = '';
+  player.sub2Format = 'srt';
   player.browserLoadedTrackId2 = '';
   for (const id of ['playerSubSelect2', 'browserTrackSelect2']) {
     if ($(id)) $(id).value = '';
   }
   const tab = browserTabState();
-  if (tab) Object.assign(tab, { cues2: [], cues2Raw: null, sub2Path: '', browserLoadedTrackId2: '' });
+  if (tab) Object.assign(tab, { cues2: [], cues2Raw: null, sub2Path: '',
+    sub2Raw: '', sub2Format: 'srt', browserLoadedTrackId2: '' });
+  if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
 }
 
 async function loadSubtitle(path, secondary = false, options = {}) {
@@ -12575,6 +12626,8 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.cues2Raw = null;
       player.activeIdx2 = -1;
       player.sub2Path = '';
+      player.sub2Raw = '';
+      player.sub2Format = 'srt';
       player.sub2Role = 'translation';
       const ov2 = $('subtitleOverlay2');
       if (ov2) ov2.textContent = '';
@@ -12650,6 +12703,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     updateBrowserTranslationExportButton();
     updateBrowserTranslationRetryButton();
     renderCue();
+    if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
     if (secondary) setSubtitleMode(player.cues.length ? 'source' : 'off', false);
     else setSubtitleMode(player.cues2.length ? 'translation' : 'off', false);
     return;
@@ -12701,6 +12755,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.cues2 = player.mergeCont ? mergeCueContinuation(cues) : cues;
     player.activeIdx2 = -1;
     player.sub2Path = path;
+    player.sub2Raw = res.text;
+    player.sub2Format = /\.(ass|ssa)$/i.test(path) ? 'ass'
+                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
     player.sub2Role = requestedRole;
     const browserTrack = browserTrackForPath;
     if (player.workspaceMode === 'browser' && browserTrack?.role !== 'translation') {
@@ -12819,6 +12876,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   updatePlayerAutoSyncState();
   renderCue();
   scheduleBrowserOverlaySync();
+  if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
   if (!options.silent) {
     logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
       + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
@@ -12842,6 +12900,444 @@ async function attachSiblingSubtitles(videoPath, autoLoad = true) {
   if (files.length > 1) {
     logLine(`${files.length} altyazı bulundu (ikinci altyazı listesinden seçebilirsin).`, 'info');
   }
+}
+
+// ---- altyazıda düz metin ara / değiştir ----
+const SUBTITLE_FIND_RESULT_LIMIT = 300;
+
+function subtitleFindDescriptors() {
+  return [
+    { channel: 'primary', secondary: false, cues: player.cuesRaw || player.cues,
+      path: player.subPath, raw: player.subRaw, format: player.subFormat,
+      role: browserLoadedTrack(false)?.role || player.subRole,
+      track: player.workspaceMode === 'browser' ? browserLoadedTrack(false) : null },
+    { channel: 'secondary', secondary: true, cues: player.cues2Raw || player.cues2,
+      path: player.sub2Path, raw: player.sub2Raw, format: player.sub2Format,
+      role: browserLoadedTrack(true)?.role || player.sub2Role,
+      track: player.workspaceMode === 'browser' ? browserLoadedTrack(true) : null },
+  ].map((item) => ({
+    ...item,
+    role: item.role === 'translation' ? 'translation' : 'source',
+    browserOverride: player.workspaceMode === 'browser' && item.track?.role === 'translation',
+  })).filter((item) => Array.isArray(item.cues) && item.cues.length);
+}
+
+function subtitleFindEntries() {
+  return subtitleFindDescriptors().flatMap((descriptor) =>
+    descriptor.cues.map((cue, index) => ({
+      field: descriptor.role,
+      channel: descriptor.channel,
+      index,
+      cueId: cue.cueId || cue.id || (descriptor.channel + '-' + (cue.subtitleSourceIndex ?? index)),
+      start: Number(cue.start) || 0,
+      end: Number(cue.end) || 0,
+      text: String(cue.text ?? ''),
+    })));
+}
+
+function subtitleFindFieldLabel(value = $('subtitleFindField')?.value) {
+  if (value === 'source') return 'Kaynak';
+  if (value === 'translation') return 'Çeviri';
+  return 'Kaynak ve çeviri';
+}
+
+function updateSubtitleFindSummary() {
+  const summary = $('subtitleFindSummary');
+  if (!summary) return;
+  const query = $('subtitleFindText')?.value || '';
+  const matches = player.subtitleFindReplace.matches;
+  const selected = player.subtitleFindReplace.selected;
+  const applying = !!player.subtitleFindReplace.applying;
+  const blockCount = new Set(matches.map((item) => item.channel + ':' + item.index)).size;
+  summary.textContent = !query
+    ? 'Aranacak metni yazın.'
+    : matches.length + ' eşleşme · ' + blockCount + ' blok · ' + selected.size
+      + ' seçili · Alan: ' + subtitleFindFieldLabel();
+  if (matches.length > SUBTITLE_FIND_RESULT_LIMIT) {
+    summary.textContent += ' · İlk ' + SUBTITLE_FIND_RESULT_LIMIT + ' sonuç listeleniyor';
+  }
+  if ($('subtitleReplaceOne')) $('subtitleReplaceOne').disabled = applying || !matches.length;
+  if ($('subtitleReplaceSelected')) $('subtitleReplaceSelected').disabled = applying || !selected.size;
+  if ($('subtitleReplaceAll')) $('subtitleReplaceAll').disabled = applying || !matches.length;
+}
+
+function seekToSubtitleFindMatch(match) {
+  if (!match) return;
+  const secondary = match.channel === 'secondary';
+  const time = subtitleVideoTime(match.start, secondary);
+  if (!Number.isFinite(time)) return;
+  if (player.workspaceMode === 'browser') {
+    browserCommand('seek', time).catch(() => {});
+  } else if ($('playerVideo')) {
+    $('playerVideo').currentTime = Math.max(0, time);
+  }
+  if (secondary) player.activeIdx2 = match.index;
+  else player.activeIdx = match.index;
+  renderCue();
+}
+
+function renderSubtitleFindMatches(searchGeneration, mediaGeneration) {
+  if (searchGeneration !== player.subtitleFindReplace.generation
+      || mediaGeneration !== currentGeneration()) return;
+  const query = $('subtitleFindText')?.value || '';
+  const options = {
+    field: $('subtitleFindField')?.value || 'both',
+    caseSensitive: !!$('subtitleFindCase')?.checked,
+    wholeWord: !!$('subtitleFindWhole')?.checked,
+  };
+  const matches = subtitleFindReplace?.findLiteralMatches(
+    subtitleFindEntries(), query, options) || [];
+  if (searchGeneration !== player.subtitleFindReplace.generation
+      || mediaGeneration !== currentGeneration()) return;
+  player.subtitleFindReplace.matches = matches;
+  player.subtitleFindReplace.selected = new Set(matches.map((item) => item.id));
+  const box = $('subtitleFindResults');
+  if (box) {
+    box.textContent = '';
+    for (const match of matches.slice(0, SUBTITLE_FIND_RESULT_LIMIT)) {
+      const row = document.createElement('div');
+      row.className = 'subtitle-find-result';
+      row.setAttribute('role', 'listitem');
+      row.tabIndex = 0;
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = true;
+      check.setAttribute('aria-label', 'Bu eşleşmeyi seç');
+      check.addEventListener('change', () => {
+        if (check.checked) player.subtitleFindReplace.selected.add(match.id);
+        else player.subtitleFindReplace.selected.delete(match.id);
+        updateSubtitleFindSummary();
+      });
+      const role = document.createElement('span');
+      role.className = 'subtitle-find-result-role';
+      role.textContent = match.field === 'translation' ? 'Çeviri' : 'Kaynak';
+      const time = document.createElement('span');
+      time.className = 'subtitle-find-result-time';
+      time.textContent = pSecToTime(match.start);
+      const preview = document.createElement('span');
+      preview.className = 'subtitle-find-result-preview';
+      preview.append(document.createTextNode(match.text.slice(0, match.range.start)));
+      const mark = document.createElement('mark');
+      mark.textContent = match.text.slice(match.range.start, match.range.end);
+      preview.append(mark, document.createTextNode(match.text.slice(match.range.end)));
+      row.append(check, role, time, preview);
+      row.addEventListener('click', (event) => {
+        if (event.target !== check) seekToSubtitleFindMatch(match);
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); seekToSubtitleFindMatch(match); }
+      });
+      box.appendChild(row);
+    }
+  }
+  updateSubtitleFindSummary();
+}
+
+function scheduleSubtitleFindReplace(delay = 120) {
+  if (!player.subtitleFindReplace) return;
+  clearTimeout(player.subtitleFindReplace.timer);
+  player.subtitleFindReplace.timer = null;
+  const searchGeneration = ++player.subtitleFindReplace.generation;
+  if ($('subtitleFindReplacePanel')?.classList.contains('hidden')) return;
+  const mediaGeneration = currentGeneration();
+  player.subtitleFindReplace.timer = setTimeout(() => {
+    player.subtitleFindReplace.timer = null;
+    renderSubtitleFindMatches(searchGeneration, mediaGeneration);
+  }, Math.max(0, Number(delay) || 0));
+}
+
+function setSubtitleFindReplaceOpen(open) {
+  const panel = $('subtitleFindReplacePanel');
+  const toggle = $('subtitleFindReplaceToggle');
+  if (!panel || !toggle) return;
+  panel.classList.toggle('hidden', !open);
+  toggle.classList.toggle('active', open);
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) {
+    scheduleSubtitleFindReplace(0);
+    $('subtitleFindText')?.focus();
+  } else {
+    clearTimeout(player.subtitleFindReplace.timer);
+    player.subtitleFindReplace.timer = null;
+  }
+}
+
+function prepareSubtitleBulkOperations(plans) {
+  const descriptors = new Map(subtitleFindDescriptors().map((item) => [item.channel, item]));
+  const fileMap = new Map();
+  const browserEdits = [];
+  for (const plan of plans) {
+    const descriptor = descriptors.get(plan.channel);
+    const cue = descriptor?.cues?.[plan.index];
+    if (!descriptor || !cue || String(cue.text ?? '') !== plan.before) {
+      return { error: 'Altyazı arama sonucundan sonra değişti; sonuçlar yenilendi.' };
+    }
+    if (descriptor.browserOverride) {
+      const context = browserEditContextForCue(descriptor.track, cue, plan.index);
+      const key = browserTranslationCueKey(cue);
+      const baseCue = browserBaseCueMap(descriptor.track.id).get(key) || cue;
+      const before = browserEditRecord(context);
+      const baseTranslation = String(baseCue.text ?? '');
+      if (!context || (before?.hasOverride ? String(before.userOverride ?? '') : baseTranslation) !== plan.before) {
+        return { error: 'Browser çevirisi arama sırasında güncellendi; sonuçlar yenilendi.' };
+      }
+      const after = browserSubtitleSync.createEditRecord({
+        ...context, baseTranslation, hasOverride: true, userOverride: plan.after,
+        revision: Number(before?.revision || 0) + 1, userEditedAt: Date.now(),
+      });
+      browserEdits.push({ trackId: descriptor.track.id, identity: { ...context },
+        before: before ? { ...before } : null, after,
+        expectedBase: baseTranslation, expectedRevision: Number(before?.revision || 0),
+        change: { field: plan.field, channel: plan.channel, cueIndex: plan.index,
+          start: cue.start, before: plan.before, after: plan.after } });
+      continue;
+    }
+    if (!descriptor.path || typeof descriptor.raw !== 'string') {
+      return { error: (plan.field === 'translation' ? 'Çeviri' : 'Kaynak')
+        + ' altyazısı yazılabilir bir dosyaya bağlı değil.' };
+    }
+    let operation = fileMap.get(descriptor.path);
+    if (!operation) {
+      operation = { path: descriptor.path, format: descriptor.format || 'srt',
+        before: descriptor.raw, after: descriptor.raw, channels: new Set(), changes: [] };
+      fileMap.set(descriptor.path, operation);
+    }
+    if (operation.before !== descriptor.raw || operation.format !== (descriptor.format || 'srt')) {
+      return { error: 'Aynı altyazı dosyası iki farklı durumla açık; güvenli biçimde değiştirilemedi.' };
+    }
+    operation.channels.add(descriptor.channel);
+    operation.changes.push({ field: plan.field, channel: plan.channel,
+      cueIndex: plan.index, start: cue.start, before: plan.before, after: plan.after,
+      cue: { ...cue } });
+  }
+
+  const files = [...fileMap.values()];
+  for (const operation of files) {
+    const unique = new Map();
+    for (const change of operation.changes) {
+      const cueKey = operation.format === 'ass'
+        ? 'line:' + change.cue.line
+        : 'cue:' + (change.cue.subtitleSourceIndex ?? (change.channel + ':' + change.cueIndex));
+      const earlier = unique.get(cueKey);
+      if (earlier && earlier.after !== change.after) {
+        return { error: 'Aynı altyazı bloğu için çelişen iki değiştirme oluştu.' };
+      }
+      if (!earlier) unique.set(cueKey, change);
+    }
+    operation.changes = [...unique.values()];
+    let payload = operation.before;
+    if (operation.format === 'ass') {
+      for (const change of operation.changes) {
+        const cue = change.cue;
+        payload = replaceAssDialogueText(payload, cue.line, change.after, cue.assLead,
+          cue.assTextIndex, cue.assFieldCount,
+          Number.isFinite(cue.sourceStart) ? cue.sourceStart : cue.start,
+          Number.isFinite(cue.sourceEnd) ? cue.sourceEnd : cue.end,
+          cue.assStartIndex, cue.assEndIndex);
+        if (payload === null) break;
+      }
+    } else {
+      payload = replaceTimedCueTexts(operation.before,
+        operation.changes.map((change) => ({ cue: change.cue, newText: change.after })));
+    }
+    if (payload === null) {
+      return { error: operation.format.toUpperCase()
+        + ' bloğu bulunamadı; dosya biçimi korunmak için işlem iptal edildi.' };
+    }
+    operation.after = payload;
+    operation.channels = [...operation.channels];
+  }
+  if (browserEdits.length) {
+    const existing = browserTabState()?.subtitleEdits || [];
+    const untouched = existing.filter((record) => !browserEdits.some((edit) =>
+      browserSubtitleSync.editRecordMatches(record, edit.identity)));
+    if (untouched.length + browserEdits.length > 2000) {
+      return { error: 'Browser çevirisi düzeltme sınırı 2.000 satırdır; hiçbir değişiklik uygulanmadı.' };
+    }
+  }
+  return { files, browserEdits };
+}
+
+function subtitleBulkLogChanges(operation, desired) {
+  return operation.changes.map((change) => ({
+    field: change.field, channel: change.channel, cueIndex: change.cueIndex,
+    start: change.start,
+    before: desired === 'after' ? change.before : change.after,
+    after: desired === 'after' ? change.after : change.before,
+  }));
+}
+
+async function writeSubtitleBulkFiles(files, desired, action) {
+  const completed = [];
+  const warnings = [];
+  for (const operation of files) {
+    let result;
+    try {
+      const changes = subtitleBulkLogChanges(operation, desired);
+      result = await window.api.writeSubtitle(operation.path, operation[desired], {
+        action, changeCount: changes.length, changes: changes.slice(0, 200),
+      });
+    } catch (error) { result = { ok: false, error: error?.message }; }
+    if (!result?.ok) {
+      let rollbackFailed = false;
+      const rollbackSide = desired === 'after' ? 'before' : 'after';
+      for (const written of completed.reverse()) {
+        try {
+          const changes = subtitleBulkLogChanges(written, rollbackSide);
+          const rollback = await window.api.writeSubtitle(written.path, written[rollbackSide], {
+            action: 'bulk-rollback', changeCount: changes.length, changes: changes.slice(0, 200),
+          });
+          if (!rollback?.ok) rollbackFailed = true;
+        } catch (_) { rollbackFailed = true; }
+      }
+      return { ok: false, error: result?.error || 'bilinmeyen hata', rollbackFailed };
+    }
+    completed.push(operation);
+    if (result.warning) warnings.push(result.warning);
+  }
+  return { ok: true, warnings };
+}
+
+function subtitleBulkFileStateStillMatches(files, side) {
+  return files.every((operation) => operation.channels.every((channel) => {
+    const secondary = channel === 'secondary';
+    return (secondary ? player.sub2Path : player.subPath) === operation.path
+      && (secondary ? player.sub2Raw : player.subRaw) === operation[side];
+  }));
+}
+
+function browserBulkStateStillMatches(edits, side = 'before', checkBase = true) {
+  return edits.every((edit) => {
+    const track = [browserLoadedTrack(false), browserLoadedTrack(true)]
+      .find((item) => item?.id === edit.trackId);
+    if (!track) return false;
+    const current = browserEditRecord(edit.identity);
+    const expected = edit[side];
+    const sameRecord = (!current && !expected)
+      || (!!current && !!expected && Number(current.revision) === Number(expected.revision)
+        && current.hasOverride === expected.hasOverride
+        && String(current.userOverride ?? '') === String(expected.userOverride ?? ''));
+    const cue = browserBaseCueMap(edit.trackId).get(edit.identity.cueId);
+    return sameRecord && (!checkBase
+      || String(cue?.text ?? '') === String(edit.expectedBase ?? ''));
+  });
+}
+
+function applySubtitleBulkMemory(files, desired) {
+  for (const operation of files) {
+    const raw = operation[desired];
+    for (const channel of operation.channels) {
+      const secondary = channel === 'secondary';
+      const previousVisible = secondary ? [] : player.cues.map((cue) => ({ ...cue }));
+      const track = player.workspaceMode === 'browser' ? browserLoadedTrack(secondary) : null;
+      let cues = attachBrowserCueIdentities(track, parseSubtitles(raw));
+      if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
+      if (secondary) {
+        player.cues2Raw = cues;
+        player.cues2 = player.mergeCont ? mergeCueContinuation(cues) : cues;
+        player.sub2Raw = raw;
+        player.activeIdx2 = Math.min(player.activeIdx2, player.cues2.length - 1);
+      } else {
+        player.cuesRaw = cues;
+        player.cues = player.mergeCont ? mergeCueContinuation(cues) : cues;
+        player.subRaw = raw;
+        player.activeIdx = Math.min(player.activeIdx, player.cues.length - 1);
+        for (const oldCue of previousVisible) {
+          const candidates = player.cues.filter((nextCue) =>
+            Math.abs(Number(nextCue.start) - Number(oldCue.start)) <= .002
+            && Math.abs(Number(nextCue.end) - Number(oldCue.end)) <= .002);
+          if (candidates.length === 1 && candidates[0].text !== oldCue.text) {
+            migrateSavedCueAssociation(oldCue, candidates[0]);
+          }
+        }
+      }
+      if (track) track.cueCount = cues.length;
+    }
+  }
+}
+
+function applyBrowserBulkMemory(edits, desired) {
+  const trackIds = new Set();
+  for (const edit of edits) {
+    const value = edit[desired];
+    const base = browserBaseCueMap(edit.trackId).get(edit.identity.cueId);
+    replaceBrowserEditRecord(edit.identity, value
+      ? { ...value, baseTranslation: String(base?.text ?? value.baseTranslation ?? '') } : null);
+    trackIds.add(edit.trackId);
+  }
+  for (const trackId of trackIds) refreshBrowserEditedChannel(trackId);
+}
+
+function refreshAfterSubtitleBulkEdit() {
+  if (player.workspaceMode === 'browser') saveActiveBrowserTabWorkspace();
+  else saveLocalSubtitleWorkspace();
+  updateSubtitleChips();
+  updateCueMeta();
+  updateCueEditHistoryButtons();
+  renderCueList($('cueSearch')?.value || '');
+  renderCue();
+  scheduleBrowserOverlaySync();
+  scheduleSubtitleFindReplace(0);
+}
+
+async function applySubtitleFindReplacement(mode) {
+  if (player.subtitleFindReplace.applying || !subtitleFindReplace) return;
+  const matches = player.subtitleFindReplace.matches.slice();
+  let selected;
+  if (mode === 'one') selected = new Set(matches.length ? [matches[0].id] : []);
+  else if (mode === 'selected') selected = new Set(player.subtitleFindReplace.selected);
+  else selected = new Set(matches.map((item) => item.id));
+  const plans = subtitleFindReplace.buildReplacementPlan(
+    matches, selected, $('subtitleReplaceText')?.value ?? '');
+  if (!plans.length) {
+    osd('Değişecek bir eşleşme yok');
+    return;
+  }
+  const prepared = prepareSubtitleBulkOperations(plans);
+  if (prepared.error) {
+    logLine(prepared.error, 'warn');
+    scheduleSubtitleFindReplace(0);
+    return;
+  }
+  const mediaKey = player.mediaKey;
+  const generation = currentGeneration();
+  player.subtitleFindReplace.applying = true;
+  ++player.subtitleFindReplace.generation;
+  clearTimeout(player.subtitleFindReplace.timer);
+  updateSubtitleFindSummary();
+  const writeResult = await writeSubtitleBulkFiles(prepared.files, 'after', 'bulk-edit');
+  if (!writeResult.ok) {
+    player.subtitleFindReplace.applying = false;
+    const suffix = writeResult.rollbackFailed ? ' Önceki dosyalardan biri de geri yüklenemedi.' : '';
+    logLine('Toplu değiştirme kaydedilemedi: ' + writeResult.error + '.' + suffix, 'error');
+    updateSubtitleFindSummary();
+    return;
+  }
+  if (generation !== currentGeneration() || mediaKey !== player.mediaKey
+      || !subtitleBulkFileStateStillMatches(prepared.files, 'before')
+      || !browserBulkStateStillMatches(prepared.browserEdits, 'before')) {
+    const rollback = await writeSubtitleBulkFiles(prepared.files, 'before', 'bulk-rollback');
+    player.subtitleFindReplace.applying = false;
+    logLine('Altyazı işlem sırasında güncellendi; değiştirme uygulanmadı'
+      + (rollback.ok ? '.' : ' ve yazılan dosya geri yüklenemedi.'), rollback.ok ? 'warn' : 'error');
+    scheduleSubtitleFindReplace(0);
+    return;
+  }
+  applySubtitleBulkMemory(prepared.files, 'after');
+  applyBrowserBulkMemory(prepared.browserEdits, 'after');
+  player.cueEditUndo.push({ kind: 'subtitle-bulk', mediaKey, files: prepared.files,
+    browserEdits: prepared.browserEdits, at: Date.now() });
+  player.cueEditUndo = player.cueEditUndo.slice(-100);
+  player.cueEditRedo = [];
+  player.subtitleFindReplace.applying = false;
+  for (const warning of writeResult.warnings) logLine(warning, 'warn');
+  if (prepared.files.some((operation) =>
+    operation.format === 'ass' && operation.changes.some((change) => change.cue.assInner))) {
+    logLine('Uyarı: değiştirilen bazı ASS satırlarının metin içindeki biçim etiketleri kaldırıldı.', 'warn');
+  }
+  refreshAfterSubtitleBulkEdit();
+  const changedMatches = plans.reduce((sum, item) => sum + item.matchCount, 0);
+  logLine(changedMatches + ' eşleşme ' + plans.length + ' altyazı bloğunda değiştirildi.', 'success');
 }
 
 function openPlayer() {
@@ -13975,6 +14471,41 @@ if ($('cueSaveBtn')) $('cueSaveBtn').addEventListener('click', toggleCueSaved);
 if ($('cueNoteBtn')) $('cueNoteBtn').addEventListener('click', saveCueNote);
 if ($('savedOnlyBtn')) $('savedOnlyBtn').addEventListener('click', toggleSavedOnly);
 if ($('qualityOnlyBtn')) $('qualityOnlyBtn').addEventListener('click', toggleQualityOnly);
+if ($('subtitleFindReplaceToggle')) {
+  $('subtitleFindReplaceToggle').addEventListener('click', () => {
+    const panel = $('subtitleFindReplacePanel');
+    setSubtitleFindReplaceOpen(!!panel?.classList.contains('hidden'));
+  });
+}
+for (const id of ['subtitleFindText', 'subtitleFindField', 'subtitleFindCase', 'subtitleFindWhole']) {
+  const control = $(id);
+  if (!control) continue;
+  const eventName = control.matches('input[type="search"]') ? 'input' : 'change';
+  control.addEventListener(eventName, (event) => {
+    if (event.isComposing) return;
+    scheduleSubtitleFindReplace();
+  });
+}
+if ($('subtitleReplaceOne')) {
+  $('subtitleReplaceOne').addEventListener('click', () => applySubtitleFindReplacement('one'));
+}
+if ($('subtitleReplaceSelected')) {
+  $('subtitleReplaceSelected').addEventListener('click', () => applySubtitleFindReplacement('selected'));
+}
+if ($('subtitleReplaceAll')) {
+  $('subtitleReplaceAll').addEventListener('click', () => applySubtitleFindReplacement('all'));
+}
+if ($('subtitleFindUndo')) {
+  $('subtitleFindUndo').addEventListener('click', () => applyCueEditHistory('undo'));
+}
+if ($('subtitleFindRedo')) {
+  $('subtitleFindRedo').addEventListener('click', () => applyCueEditHistory('redo'));
+}
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || $('subtitleFindReplacePanel')?.classList.contains('hidden')) return;
+  if (!$('subtitleEdit')?.classList.contains('hidden')) return;
+  setSubtitleFindReplaceOpen(false);
+});
 if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
   const search = $('cueSearch');
   if (!search) return;
@@ -15399,12 +15930,57 @@ function closeCueEditor() {
 function updateCueEditHistoryButtons() {
   if ($('subtitleEditUndo')) $('subtitleEditUndo').disabled = !player.cueEditUndo.length;
   if ($('subtitleEditRedo')) $('subtitleEditRedo').disabled = !player.cueEditRedo.length;
+  if ($('subtitleFindUndo')) $('subtitleFindUndo').disabled = !player.cueEditUndo.length;
+  if ($('subtitleFindRedo')) $('subtitleFindRedo').disabled = !player.cueEditRedo.length;
 }
 
 async function applyCueEditHistory(direction) {
+  if (player.subtitleFindReplace.applying) {
+    logLine('Toplu altyazı yazımı sürerken geçmiş işlemi başlatılamaz.', 'warn');
+    return;
+  }
   const source = direction === 'undo' ? player.cueEditUndo : player.cueEditRedo;
   const target = direction === 'undo' ? player.cueEditRedo : player.cueEditUndo;
   const entry = source[source.length - 1];
+  if (entry?.kind === 'subtitle-bulk') {
+    if (entry.mediaKey !== player.mediaKey) {
+      logLine('Bu toplu düzeltme başka bir medyaya ait; uygulanmadı.', 'warn');
+      return;
+    }
+    const desired = direction === 'undo' ? 'before' : 'after';
+    const currentSide = direction === 'undo' ? 'after' : 'before';
+    const fileStateMatches = subtitleBulkFileStateStillMatches(entry.files, currentSide);
+    if (!fileStateMatches || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)) {
+      logLine('Altyazı toplu düzeltmeden sonra değişti; geri alma yanlış metni ezmemek için uygulanmadı.', 'warn');
+      scheduleSubtitleFindReplace(0);
+      return;
+    }
+    const generation = currentGeneration();
+    const result = await writeSubtitleBulkFiles(entry.files, desired,
+      direction === 'undo' ? 'bulk-undo' : 'bulk-redo');
+    if (!result.ok) {
+      const suffix = result.rollbackFailed ? ' Kısmi yazım da geri yüklenemedi.' : '';
+      logLine('Toplu düzenleme ' + (direction === 'undo' ? 'geri alınamadı: ' : 'yinelenemedi: ')
+        + result.error + '.' + suffix, 'error');
+      return;
+    }
+    if (generation !== currentGeneration() || entry.mediaKey !== player.mediaKey
+        || !subtitleBulkFileStateStillMatches(entry.files, currentSide)
+        || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)) {
+      const rollback = await writeSubtitleBulkFiles(entry.files, currentSide, 'bulk-rollback');
+      logLine('Altyazı işlem sırasında değişti; geçmiş işlemi uygulanmadı'
+        + (rollback.ok ? '.' : ' ve dosya geri yüklenemedi.'), rollback.ok ? 'warn' : 'error');
+      return;
+    }
+    applySubtitleBulkMemory(entry.files, desired);
+    applyBrowserBulkMemory(entry.browserEdits, desired);
+    source.pop();
+    target.push(entry);
+    for (const warning of result.warnings) logLine(warning, 'warn');
+    refreshAfterSubtitleBulkEdit();
+    osd(direction === 'undo' ? 'Toplu değiştirme geri alındı' : 'Toplu değiştirme yinelendi');
+    return;
+  }
   if (entry?.kind === 'browser-override') {
     const primary = browserLoadedTrack(false);
     const secondary = browserLoadedTrack(true);
@@ -15452,6 +16028,10 @@ async function applyCueEditHistory(direction) {
 }
 
 async function saveCueEdit() {
+  if (player.subtitleFindReplace.applying) {
+    logLine('Toplu altyazı yazımı bitmeden tekil düzeltme kaydedilemez.', 'warn');
+    return;
+  }
   const browserContext = player.workspaceMode === 'browser' ? player.browserCueEditContext : null;
   const i = browserContext ? Number(browserContext.cueIndex) : player.activeIdx;
   if (i < 0) return closeCueEditor();

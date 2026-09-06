@@ -1636,10 +1636,33 @@
               <button class="btn-icon side-tool" id="qualityOnlyBtn" title="Düşük güvenli cümleleri göster" aria-label="Düşük güvenli cümleleri göster">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 16H3L12 3Z"/><path d="M12 9v4m0 3h.01" stroke-linecap="round"/></svg>
               </button>
+              <button class="btn-icon side-tool" id="subtitleFindReplaceToggle" title="Altyazıda ara ve değiştir" aria-label="Altyazıda ara ve değiştir" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="5"/><path d="m13 13 4 4m0-5v5h-5M5 19h6"/></svg>
+              </button>
               <button class="btn-icon side-tool" id="toggleSettings" title="Kaynak ve altyazı ayarları" aria-label="Kaynak ve altyazı ayarlarını aç">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
             </div>
+            <section class="subtitle-find-replace hidden" id="subtitleFindReplacePanel" aria-label="Altyazıda ara ve değiştir">
+              <div class="subtitle-find-row">
+                <label><span>Bul</span><input type="search" id="subtitleFindText" autocomplete="off" spellcheck="false" /></label>
+                <label><span>Değiştir</span><input type="text" id="subtitleReplaceText" autocomplete="off" spellcheck="false" /></label>
+              </div>
+              <div class="subtitle-find-options">
+                <label><span>Alan</span><select id="subtitleFindField"><option value="both">Kaynak ve çeviri</option><option value="source">Yalnız kaynak</option><option value="translation">Yalnız çeviri</option></select></label>
+                <label class="mini-toggle"><input type="checkbox" id="subtitleFindCase" /><span>Büyük/küçük harf</span></label>
+                <label class="mini-toggle"><input type="checkbox" id="subtitleFindWhole" /><span>Tam kelime</span></label>
+              </div>
+              <div class="subtitle-find-summary" id="subtitleFindSummary" aria-live="polite">Aranacak metni yazın.</div>
+              <div class="subtitle-find-results" id="subtitleFindResults" role="list" aria-label="Ara ve değiştir eşleşmeleri"></div>
+              <div class="subtitle-find-actions">
+                <button class="btn btn-ghost btn-sm subtitle-find-history" id="subtitleFindUndo" type="button" disabled>Geri al</button>
+                <button class="btn btn-ghost btn-sm" id="subtitleFindRedo" type="button" disabled>Yinele</button>
+                <button class="btn btn-secondary btn-sm" id="subtitleReplaceOne" type="button" disabled>İlkini değiştir</button>
+                <button class="btn btn-secondary btn-sm" id="subtitleReplaceSelected" type="button" disabled>Seçilenleri değiştir</button>
+                <button class="btn btn-primary btn-sm" id="subtitleReplaceAll" type="button" disabled>Tümünü değiştir</button>
+              </div>
+            </section>
             <div class="transcript-progress" aria-hidden="true"><span id="cueProgressFill"></span></div>
           </div>
 
@@ -2236,6 +2259,7 @@
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>
   <script src="../browser-command-palette.js"></script>
+  <script src="../subtitle-find-replace.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

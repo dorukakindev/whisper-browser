@@ -945,11 +945,22 @@ ipcMain.handle('media:writeSubtitle', async (_e, payload) => {
     if (change && typeof change === 'object') {
       const logDir = path.join(app.getPath('userData'), 'subtitle-edits');
       const fileId = createHash('sha256').update(path.resolve(filePath)).digest('hex').slice(0, 24);
+      const changes = Array.isArray(change.changes) ? change.changes.slice(0, 200).map((item) => ({
+        field: ['source', 'translation'].includes(item?.field) ? item.field : '',
+        channel: ['primary', 'secondary'].includes(item?.channel) ? item.channel : '',
+        cueIndex: Math.max(0, Number(item?.cueIndex) || 0),
+        start: Math.max(0, Number(item?.start) || 0),
+        before: String(item?.before || '').slice(0, 1000),
+        after: String(item?.after || '').slice(0, 1000),
+      })) : [];
       try { warning = appendSubtitleEditLog(logDir, fileId, {
         at: Date.now(), action: String(change.action || 'edit').slice(0, 24),
         file: path.basename(filePath), cueIndex: Math.max(0, Number(change.cueIndex) || 0),
         start: Math.max(0, Number(change.start) || 0),
         before: String(change.before || '').slice(0, 12000), after: String(change.after || '').slice(0, 12000),
+        changeCount: Math.max(0, Number(change.changeCount)
+          || (Array.isArray(change.changes) ? change.changes.length : 0)),
+        changes,
       }); } catch (_) { warning = 'Altyazı kaydedildi ancak düzenleme günlüğü yazılamadı.'; }
     }
     return { ok: true, backup: bak, warning };
