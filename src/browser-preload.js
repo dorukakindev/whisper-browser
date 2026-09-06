@@ -47,6 +47,95 @@ function handleNewTabLink(event) {
 window.addEventListener('click', handleNewTabLink, true);
 window.addEventListener('auxclick', handleNewTabLink, true);
 
+// Altyazı keşfinin normal yolu sayfa olaylarıdır. Preload yalnız küçük ve
+// içeriksiz sinyaller yollar; cue metni, URL veya sayfa HTML'i IPC'ye taşınmaz.
+// Ana süreç sender + güncel sekme/generation denetiminden sonra gerçek probe'u
+// kendi izole betiğiyle yapar. Olay vermeyen siteler için düşük frekanslı
+// fallback probe main süreçte ayrıca korunur.
+let discoveryObserver = null;
+let discoveryFlushTimer = null;
+const discoveryPending = new Map();
+const observedMedia = new WeakSet();
+const observedTracks = new WeakSet();
+
+function discoveryCounts(video, track) {
+  const tracks = video?.textTracks ? [...video.textTracks] : [];
+  return {
+    mediaCount: Math.min(1000, document.querySelectorAll('video').length),
+    trackCount: Math.min(1000, tracks.length),
+    cueCount: Math.min(20000, Number(track?.cues?.length) || 0),
+  };
+}
+
+function signalBrowserDiscovery(type, details = {}) {
+  discoveryPending.set(type, { type, ...details });
+  if (discoveryFlushTimer) return;
+  discoveryFlushTimer = setTimeout(() => {
+    discoveryFlushTimer = null;
+    for (const payload of discoveryPending.values()) ipcRenderer.send('browser:discovery-signal', payload);
+    discoveryPending.clear();
+  }, 80);
+}
+
+function observeTextTrack(video, track) {
+  if (!track || observedTracks.has(track)) return;
+  observedTracks.add(track);
+  const report = () => signalBrowserDiscovery(
+    track.cues && track.cues.length ? 'cue_list_growing' : 'track_candidate_found',
+    discoveryCounts(video, track));
+  try { track.addEventListener('cuechange', report); } catch (_) {}
+  report();
+}
+
+function observeVideo(video) {
+  if (!video || observedMedia.has(video)) return;
+  observedMedia.add(video);
+  signalBrowserDiscovery('video_found', discoveryCounts(video));
+  const metadata = () => {
+    const details = discoveryCounts(video);
+    signalBrowserDiscovery('media_metadata_ready', details);
+    for (const track of [...(video.textTracks || [])]) observeTextTrack(video, track);
+  };
+  for (const eventName of ['loadedmetadata', 'durationchange', 'canplay', 'loadeddata', 'progress']) {
+    video.addEventListener(eventName, metadata, { passive: true });
+  }
+  try {
+    video.textTracks?.addEventListener('addtrack', (event) => {
+      signalBrowserDiscovery('track_candidate_found', discoveryCounts(video, event.track));
+      observeTextTrack(video, event.track);
+    });
+  } catch (_) {}
+  if (video.readyState >= 1) metadata();
+}
+
+function scanAddedVideos(node) {
+  if (!node || node.nodeType !== 1) return;
+  if (node.tagName === 'VIDEO') observeVideo(node);
+  for (const video of node.querySelectorAll?.('video') || []) observeVideo(video);
+}
+
+function startBrowserDiscoveryObserver() {
+  signalBrowserDiscovery('document_ready', { mediaCount: document.querySelectorAll('video').length });
+  for (const video of document.querySelectorAll('video')) observeVideo(video);
+  if (!document.documentElement || typeof MutationObserver !== 'function') return;
+  discoveryObserver = new MutationObserver((records) => {
+    for (const record of records) for (const node of record.addedNodes) scanAddedVideos(node);
+  });
+  discoveryObserver.observe(document.documentElement, { subtree: true, childList: true });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startBrowserDiscoveryObserver, { once: true });
+} else startBrowserDiscoveryObserver();
+
+window.addEventListener('pagehide', () => {
+  discoveryObserver?.disconnect();
+  discoveryObserver = null;
+  if (discoveryFlushTimer) clearTimeout(discoveryFlushTimer);
+  discoveryFlushTimer = null;
+  discoveryPending.clear();
+}, { once: true });
+
 // Native find-in-page does not always recalculate when an SPA appends text
 // after the initial search. Keep a small, opt-in observer: the main process
 // enables it only while the find bar has a live query, and the debounce keeps

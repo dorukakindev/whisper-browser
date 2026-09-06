@@ -5529,6 +5529,7 @@ function renderBrowserDiagnostics(diagnostics) {
       : 'Henüz yok';
   }
   renderBrowserAcquisition(diagnostics.acquisition);
+  renderBrowserResources(diagnostics.resources);
   renderBrowserCapabilityMatrix(diagnostics.capabilityMatrix);
   const pluginStatus = diagnostics.adapterPlugins || {};
   if ($('browserAdapterPluginStatus')) {
@@ -5622,8 +5623,9 @@ function renderBrowserAcquisition(acquisition) {
   const winner = stages.find((stage) => stage.status === 'success');
   const running = stages.find((stage) => stage.status === 'running');
   summary.textContent = winner ? `${winner.label} bulundu`
-    : running ? `${running.label} aranıyor`
-      : acquisition.needsConsent && acquisition.needsConsent.length ? 'Ek yöntemler onay bekliyor' : 'Kaynak bekleniyor';
+    : acquisition.discovery?.message
+      || (running ? `${running.label} aranıyor`
+        : acquisition.needsConsent && acquisition.needsConsent.length ? 'Ek yöntemler onay bekliyor' : 'Kaynak bekleniyor');
   for (const stage of stages) {
     const item = document.createElement('li');
     item.className = 'browser-acquisition-stage';
@@ -5679,6 +5681,36 @@ function clearBrowserTracks(message) {
   updateBrowserTranslationRetryButton();
   syncSubtitleModeUi();
   setBrowserSignal(message || 'Sayfadaki video ve altyazı izleri burada algılanır.', false);
+}
+
+function renderBrowserResources(resources) {
+  const memory = $('browserResourceMemory');
+  const work = $('browserResourceWork');
+  const capture = $('browserResourceCapture');
+  if (!memory || !work || !capture) return;
+  const tabs = Array.isArray(resources?.tabs) ? resources.tabs : [];
+  const active = tabs.find((tab) => tab.id === player.browserActiveTabId);
+  if (!resources || !active) {
+    memory.textContent = 'Ölçülemedi';
+    work.textContent = 'Ölçülemedi';
+    capture.textContent = 'Ölçülemedi';
+    return;
+  }
+  const memoryKiB = active.memoryKiB == null ? Number.NaN : Number(active.memoryKiB);
+  memory.textContent = Number.isFinite(memoryKiB)
+    ? `${(memoryKiB / 1024).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} MB${active.processShared ? ' · işlem paylaşılıyor' : ''}`
+    : 'Electron bu işlem için ölçüm vermedi';
+  const budgets = resources.budgets || {};
+  work.textContent = `${Number(budgets.activeTimers || 0)} zamanlayıcı · ${Number(budgets.pendingResponses || 0)} bekleyen yanıt`;
+  capture.textContent = `${Number(budgets.bufferedCues || 0)} cue · ${budgets.networkCaptureActive ? 'ağ yakalama açık' : 'ağ yakalama kapalı'}`;
+}
+
+async function refreshBrowserResourceDiagnostics() {
+  const result = await window.api.getBrowserResources?.().catch(() => null);
+  if (!result?.ok || !result.resources) return;
+  const diagnostics = player.browserDiagnostics || {};
+  diagnostics.resources = result.resources;
+  renderBrowserDiagnostics(diagnostics);
 }
 
 function scheduleBrowserNoTrackSuggestion(expectedUrl) {
@@ -8146,6 +8178,7 @@ if ($('browserSessionRestore')) $('browserSessionRestore').addEventListener('cha
 if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListener('click', () => {
   toggleSettingsPage('browser-diagnostics');
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  void refreshBrowserResourceDiagnostics();
 });
 if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEventListener('click', async () => {
   const result = await window.api.openBrowserAdapterFolder?.().catch((error) => ({ ok: false, error: error.message }));
@@ -13013,6 +13046,7 @@ function setSettingsPage(page) {
   });
   if ($('settingsDrawerTitle')) $('settingsDrawerTitle').textContent = SETTINGS_PAGE_TITLES[next];
   if (next === 'browser-subtitles') refreshBrowserSyncPanel();
+  if (next === 'browser-diagnostics') void refreshBrowserResourceDiagnostics();
 }
 
 if ($('browserSyncChannel')) $('browserSyncChannel').addEventListener('change', () => {

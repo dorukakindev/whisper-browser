@@ -9,6 +9,67 @@ const ACQUISITION_STAGES = Object.freeze([
 
 const TERMINAL_STATUSES = new Set(['success', 'failed', 'skipped', 'blocked']);
 
+const DISCOVERY_PHASES = Object.freeze({
+  navigation_started: { order: 0, message: 'Sayfa açılıyor.' },
+  document_ready: { order: 1, message: 'Sayfa hazır; video aranıyor.' },
+  video_found: { order: 2, message: 'Video bulundu; medya bilgileri bekleniyor.' },
+  media_metadata_ready: { order: 3, message: 'Video hazır; altyazı izi aranıyor.' },
+  track_candidate_found: { order: 4, message: 'Altyazı izi bulundu; cue\'lar okunuyor.' },
+  cue_list_growing: { order: 5, message: 'Altyazı cue listesi büyüyor.' },
+  source_verified: { order: 6, message: 'Altyazı kaynağı doğrulandı.' },
+  capture_ready: { order: 7, message: 'Altyazı yakalamaya hazır.' },
+  capture_failed: { order: 8, message: 'Altyazı yakalama tamamlanamadı.' },
+});
+
+function normalizeDiscoveryDetails(raw = {}) {
+  const count = (value) => Math.max(0, Math.min(20000, Math.trunc(Number(value) || 0)));
+  return {
+    mediaCount: count(raw.mediaCount),
+    trackCount: count(raw.trackCount),
+    cueCount: count(raw.cueCount),
+  };
+}
+
+class CaptionDiscoveryState {
+  constructor() { this.reset(); }
+
+  reset(at = Date.now()) {
+    this.phase = 'navigation_started';
+    this.message = DISCOVERY_PHASES.navigation_started.message;
+    this.updatedAt = Number(at) || Date.now();
+    this.details = normalizeDiscoveryDetails();
+    return this.snapshot();
+  }
+
+  observe(phase, details = {}, at = Date.now()) {
+    const next = DISCOVERY_PHASES[String(phase || '')];
+    if (!next) return false;
+    if (phase === 'navigation_started') {
+      this.reset(at);
+      return true;
+    }
+    const current = DISCOVERY_PHASES[this.phase] || DISCOVERY_PHASES.navigation_started;
+    // DOMContentLoaded gibi geç gelen düşük seviyeli bir olay, zaten bulunan
+    // track/cue durumunu geriye taşımamalı. Yeni gezinme yalnız açık reset ile
+    // başlar.
+    if (next.order < current.order && this.phase !== 'capture_failed') return false;
+    this.phase = phase;
+    this.updatedAt = Number(at) || Date.now();
+    this.details = normalizeDiscoveryDetails({ ...this.details, ...details });
+    if (details.message) this.message = String(details.message).trim().slice(0, 240);
+    else if (phase === 'media_metadata_ready' && this.details.trackCount === 0) {
+      this.message = 'Video hazır; henüz okunabilir bir altyazı izi görünmüyor.';
+    } else if (phase === 'track_candidate_found' && this.details.cueCount === 0) {
+      this.message = 'Altyazı izi bulundu; cue verisi bekleniyor.';
+    } else this.message = next.message;
+    return true;
+  }
+
+  snapshot() {
+    return { phase: this.phase, message: this.message, updatedAt: this.updatedAt, ...this.details };
+  }
+}
+
 function normalizeCapabilities(raw = {}) {
   return {
     nativeTextTrack: !!raw.nativeTextTrack,
@@ -42,6 +103,7 @@ class CaptionAcquisitionPlan {
     this.acquisitionId = String(options.acquisitionId || '');
     this.stages = ACQUISITION_STAGES.map((stage) => initialStageState(stage, this.capabilities, this.consent));
     this.winner = '';
+    this.discovery = new CaptionDiscoveryState();
   }
 
   updateConsent(next = {}) {
@@ -105,6 +167,7 @@ class CaptionAcquisitionPlan {
     stage.trackCount = Math.max(0, Math.trunc(Number(result.trackCount) || 0));
     if (success) {
       this.winner = id;
+      this.discovery.observe('capture_ready', { trackCount: result.trackCount });
       for (const other of this.stages) {
         if (other.id !== id && ['waiting', 'running'].includes(other.status)) {
           other.status = 'skipped';
@@ -121,6 +184,7 @@ class CaptionAcquisitionPlan {
     if (options.mediaId !== undefined) this.mediaId = String(options.mediaId || '');
     if (options.acquisitionId !== undefined) this.acquisitionId = String(options.acquisitionId || '');
     this.winner = '';
+    this.discovery.reset();
     this.stages = ACQUISITION_STAGES.map((stage) => initialStageState(stage, this.capabilities, this.consent));
     return this.snapshot();
   }
@@ -132,6 +196,7 @@ class CaptionAcquisitionPlan {
       winner: this.winner,
       complete: !!this.winner || this.stages.every((stage) => TERMINAL_STATUSES.has(stage.status)),
       needsConsent: this.stages.filter((stage) => stage.status === 'blocked').map((stage) => stage.id),
+      discovery: this.discovery.snapshot(),
       stages: this.stages.map((stage) => ({ ...stage })),
     };
   }
@@ -154,6 +219,7 @@ function capabilityMatrixEntry(service, capabilities = {}, verifiedAt = '') {
 
 module.exports = {
   ACQUISITION_STAGES,
+  CaptionDiscoveryState,
   CaptionAcquisitionPlan,
   capabilityMatrixEntry,
   normalizeCapabilities,

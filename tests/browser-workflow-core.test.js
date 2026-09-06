@@ -1,6 +1,10 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const {
   CaptionAcquisitionPlan,
+  CaptionDiscoveryState,
   capabilityMatrixEntry,
 } = require('../src/browser-acquisition');
 const {
@@ -23,6 +27,77 @@ async function test(name, fn) {
 }
 
 (async () => {
+  await test('browser preload medya ve cue olaylarını içerik sızdırmadan yayınlar', async () => {
+    class Events {
+      constructor() { this.listeners = new Map(); }
+      addEventListener(type, fn) {
+        if (!this.listeners.has(type)) this.listeners.set(type, []);
+        this.listeners.get(type).push(fn);
+      }
+      emit(type, payload = {}) {
+        for (const fn of this.listeners.get(type) || []) fn({ type, target: this, ...payload });
+      }
+    }
+    const trackEvents = new Events();
+    const track = Object.assign(trackEvents, { cues: [] });
+    const trackListEvents = new Events();
+    const textTracks = [];
+    textTracks.addEventListener = trackListEvents.addEventListener.bind(trackListEvents);
+    textTracks.emit = trackListEvents.emit.bind(trackListEvents);
+    const videoEvents = new Events();
+    const video = Object.assign(videoEvents, { tagName: 'VIDEO', readyState: 0, textTracks,
+      querySelectorAll: () => [] });
+    const windowEvents = new Events();
+    const documentEvents = new Events();
+    const sent = [];
+    const context = {
+      require: (name) => {
+        assert.equal(name, 'electron');
+        return { ipcRenderer: { send: (channel, payload) => sent.push({ channel, payload }), on: () => {} } };
+      },
+      window: windowEvents,
+      document: Object.assign(documentEvents, {
+        readyState: 'complete', documentElement: {},
+        querySelectorAll: (selector) => selector === 'video' ? [video] : [],
+      }),
+      location: { href: 'https://example.test/watch' },
+      MutationObserver: class { observe() {} disconnect() {} },
+      URL, setTimeout, clearTimeout, console,
+    };
+    context.globalThis = context;
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/browser-preload.js'), 'utf8'), context);
+    video.readyState = 1;
+    video.emit('loadedmetadata');
+    textTracks.push(track);
+    textTracks.emit('addtrack', { track });
+    track.cues.push({ startTime: 0, endTime: 1, text: 'gizli cue metni' });
+    track.emit('cuechange');
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const discovery = sent.filter((entry) => entry.channel === 'browser:discovery-signal').map((entry) => entry.payload);
+    assert(discovery.some((entry) => entry.type === 'document_ready'));
+    assert(discovery.some((entry) => entry.type === 'video_found'));
+    assert(discovery.some((entry) => entry.type === 'media_metadata_ready'));
+    assert(discovery.some((entry) => entry.type === 'track_candidate_found'));
+    assert(discovery.some((entry) => entry.type === 'cue_list_growing' && entry.cueCount === 1));
+    assert(!JSON.stringify(discovery).includes('gizli cue metni'));
+  });
+
+  await test('olay tabanlı keşif ilerler ve geç gelen düşük seviye olay geriye taşımaz', () => {
+    const discovery = new CaptionDiscoveryState();
+    assert(discovery.observe('document_ready', { mediaCount: 0 }, 10));
+    assert(discovery.observe('video_found', { mediaCount: 1 }, 20));
+    assert(discovery.observe('media_metadata_ready', { trackCount: 0 }, 30));
+    assert.match(discovery.snapshot().message, /henüz okunabilir/);
+    assert(discovery.observe('track_candidate_found', { trackCount: 1, cueCount: 0 }, 40));
+    assert(discovery.observe('cue_list_growing', { cueCount: 12 }, 50));
+    assert.equal(discovery.observe('document_ready', {}, 60), false);
+    assert.equal(discovery.snapshot().phase, 'cue_list_growing');
+    assert.equal(discovery.snapshot().cueCount, 12);
+    discovery.observe('navigation_started', {}, 70);
+    assert.equal(discovery.snapshot().phase, 'navigation_started');
+    assert.equal(discovery.snapshot().cueCount, 0);
+  });
+
   await test('edinme merdiveni otomatik basamakları sırayla yürütür', () => {
     const plan = new CaptionAcquisitionPlan({
       mediaId: 'youtube:1',

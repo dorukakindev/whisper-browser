@@ -110,7 +110,7 @@ const {
   withBrowserSiteProfileField,
   withoutBrowserSiteProfile,
 } = require('./browser-site-profiles');
-const { browserTabUnloadDecision } = require('./browser-tab-resources');
+const { browserTabUnloadDecision, groupBrowserProcessMetrics } = require('./browser-tab-resources');
 const { browserShortcutForInput } = require('./browser-command-palette');
 const {
   SafeSecretStore,
@@ -1641,6 +1641,7 @@ function createBrowserTabRecord(initial = {}) {
     diagnostics: null,
     acquisitionPlan: null,
     acquisitionId: '',
+    discoveryProbeTimer: null,
     operationId: randomUUID(),
     translationScheduler: null,
     translationTrackId: '',
@@ -1855,6 +1856,32 @@ function browserEventContext(tab = activeBrowserTab()) {
     acquisitionId: tab.acquisitionId || '',
     operationId: tab.operationId || '',
   } : { tabId: '', generation: 0, mediaId: '', service: '', acquisitionId: '', operationId: '' };
+}
+
+function browserResourceSnapshot() {
+  let appMetrics = [];
+  try { appMetrics = app.getAppMetrics(); } catch (_) {}
+  const tabs = [...browserTabs.values()].map((tab) => {
+    const wc = tab.view?.webContents;
+    let processId = 0;
+    try { processId = wc && !wc.isDestroyed() ? wc.getOSProcessId() : 0; } catch (_) {}
+    return { id: tab.id, processId, lifecycle: tab.lifecycle || 'background' };
+  });
+  return {
+    measuredAt: Date.now(),
+    tabs: groupBrowserProcessMetrics(tabs, appMetrics),
+    budgets: {
+      activeTimers: [browserTrackTimer, browserCaptureTimer, browserMediaTimer].filter(Boolean).length
+        + [...browserTabs.values()].reduce((sum, tab) => sum
+          + (tab.discoveryProbeTimer ? 1 : 0) + (tab.cloudflareChallengeTimer ? 1 : 0), 0),
+      pendingResponses: browserPendingResponses.size + browserManifestInFlight.size
+        + browserHlsInFlight.size + browserTrackPendingPublications.size,
+      bufferedCues: [...browserTrackBuffers.values()].reduce((sum, cues) => sum + (Array.isArray(cues) ? cues.length : 0), 0),
+      networkCaptureActive: !!browserDebuggerReady,
+      observerCount: null,
+      overlayNodes: null,
+    },
+  };
 }
 
 function isCurrentBrowserContext(context) {
@@ -2521,6 +2548,8 @@ function resetBrowserCaptureState(options = {}) {
   flushBrowserTrackPublications();
   browserStateGeneration += 1;
   const currentTab = activeBrowserTab();
+  if (currentTab?.discoveryProbeTimer) clearTimeout(currentTab.discoveryProbeTimer);
+  if (currentTab) currentTab.discoveryProbeTimer = null;
   if (options.cancelTranslation && currentTab?.translationScheduler) {
     currentTab.translationScheduler.cancelAll('Sayfa değişti.');
     currentTab.translationScheduler = null;
@@ -5678,41 +5707,61 @@ function flushBrowserCaptureQueue({ allowHidden = false, force = false, installH
   return work;
 }
 
+async function probeActiveBrowserTracks(trigger = 'fallback', requestedTab = null) {
+  const tab = activeBrowserTab();
+  if (!tab || (requestedTab && tab !== requestedTab) || !browserCaptureEnabled
+      || tab.compatibilityMode || tab.cloudflareChallengeActive || tab.browserInstrumentationPending
+      || browserTrackBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return false;
+  browserTrackBusy = true;
+  const generation = browserStateGeneration;
+  const context = { ...browserEventContext(tab), stateGeneration: generation };
+  try {
+    const frameTracks = await withTimeout(
+      executeBrowserFrames(browserTrackProbeScript()), BROWSER_SCRIPT_TIMEOUT,
+      'Altyazı izi taraması zaman aşımına uğradı.');
+    if (!isCurrentBrowserContext(context)) return false;
+    for (const tracks of frameTracks) for (const track of tracks || []) {
+      const stored = storeBrowserTrack(track.cues, {
+        language: track.language, label: track.label, format: 'html5-track', sourceUrl: track.sourceUrl || 'dom:texttrack',
+        kind: track.kind || '', trackId: track.trackId || '',
+        streamKey: browserTrackStreamKey(track.sourceUrl
+          || `dom:${track.language}:${track.label}:${track.kind || ''}:${track.trackId || ''}`, track.language),
+        context,
+      });
+      if (stored) noteBrowserCapture('textTrack', {
+        url: track.sourceUrl || 'dom:texttrack', mimeType: 'text/html5-track', context,
+      }, 'parsed', `${track.cues.length} satır · ${trigger === 'event' ? 'sayfa olayı' : 'yedek tarama'}`);
+    }
+    return true;
+  } catch (error) {
+    if (error && error.code === 'ETIMEDOUT') noteBrowserCapture('textTrack', { context }, 'error', error.message);
+    return false;
+  } finally {
+    if (generation === browserStateGeneration) browserTrackBusy = false;
+  }
+}
+
+function scheduleBrowserDiscoveryProbe(tab, delay = 100) {
+  if (!tab || tab.closing || tab.id !== browserActiveTabId) return;
+  if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
+  tab.discoveryProbeTimer = setTimeout(() => {
+    tab.discoveryProbeTimer = null;
+    if (browserTrackBusy) {
+      scheduleBrowserDiscoveryProbe(tab, 120);
+      return;
+    }
+    void probeActiveBrowserTracks('event', tab);
+  }, Math.max(0, Math.min(500, Number(delay) || 0)));
+  tab.discoveryProbeTimer.unref?.();
+}
+
 function startBrowserPolling() {
   if (browserTrackTimer && browserCaptureTimer && browserMediaTimer) return;
   stopBrowserPolling();
-  browserTrackTimer = setInterval(async () => {
-    if (!browserCaptureEnabled || activeBrowserTab()?.compatibilityMode
-        || activeBrowserTab()?.cloudflareChallengeActive
-        || activeBrowserTab()?.browserInstrumentationPending
-        || browserTrackBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return;
-    browserTrackBusy = true;
-    const generation = browserStateGeneration;
-    const tab = activeBrowserTab();
-    const context = tab ? { ...browserEventContext(tab), stateGeneration: generation } : null;
-    try {
-      const frameTracks = await withTimeout(
-        executeBrowserFrames(browserTrackProbeScript()), BROWSER_SCRIPT_TIMEOUT,
-        'Altyazı izi taraması zaman aşımına uğradı.');
-      if (!isCurrentBrowserContext(context)) return;
-      for (const tracks of frameTracks) for (const track of tracks || []) {
-        const stored = storeBrowserTrack(track.cues, {
-          language: track.language, label: track.label, format: 'html5-track', sourceUrl: track.sourceUrl || 'dom:texttrack',
-          kind: track.kind || '', trackId: track.trackId || '',
-          streamKey: browserTrackStreamKey(track.sourceUrl
-            || `dom:${track.language}:${track.label}:${track.kind || ''}:${track.trackId || ''}`, track.language),
-          context,
-        });
-        if (stored) noteBrowserCapture('textTrack', {
-          url: track.sourceUrl || 'dom:texttrack', mimeType: 'text/html5-track',
-        }, 'parsed', `${track.cues.length} satır`);
-      }
-    } catch (error) {
-      if (error && error.code === 'ETIMEDOUT') noteBrowserCapture('textTrack', { context }, 'error', error.message);
-    } finally {
-      if (generation === browserStateGeneration) browserTrackBusy = false;
-    }
-  }, 2600);
+  // Normal yol preload'dan gelen DOM/media/text-track olaylarıdır. Bu daha
+  // seyrek tur yalnız olay vermeyen veya kapalı shadow DOM kullanan siteler
+  // için güvenlik ağıdır.
+  browserTrackTimer = setInterval(() => { void probeActiveBrowserTracks('fallback'); }, 6500);
   browserCaptureTimer = setInterval(() => {
     if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
         || activeBrowserTab()?.browserInstrumentationPending) return;
@@ -6033,6 +6082,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (tab.id === browserActiveTabId && tab.browserInstrumentationPending) {
       void prepareBrowserPageInstrumentation(tab).then((status) => {
         if (status.stale || status.active || tab.id !== browserActiveTabId) return;
+        scheduleBrowserDiscoveryProbe(tab, 0);
         applyBrowserOverlay();
         reportBrowserDrmSupport();
       });
@@ -6120,6 +6170,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.restoredUrl = failedUrl || tab.restoredUrl || '';
     tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
     tab.generation += 1;
+    if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
+    tab.discoveryProbeTimer = null;
     clearBrowserCloudflareTimer(tab);
     tab.cloudflareChallengeActive = false;
     tab.browserInstrumentationPending = false;
@@ -6167,6 +6219,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (tab.id !== browserActiveTabId || tab.compatibilityMode) return;
     void prepareBrowserPageInstrumentation(tab).then((status) => {
       if (status.stale || status.active || tab.id !== browserActiveTabId) return;
+      scheduleBrowserDiscoveryProbe(tab, 0);
       applyBrowserOverlay();
       reportBrowserDrmSupport();
     });
@@ -6330,6 +6383,8 @@ function queueBrowserTabTransition(work) {
 function destroyBrowserTab(tab) {
   if (!tab) return;
   tab.closing = true;
+  if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
+  tab.discoveryProbeTimer = null;
   clearBrowserCloudflareTimer(tab);
   tab.pageFind?.stop();
   stopBrowserManga(tab, false);
@@ -6940,6 +6995,36 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:page-mutated', (event)
   tab.pageFind.refresh();
 });
 
+// Browser preload yalnız olay türü ve sayısal sayaçlar yollar; gerçek track
+// içeriği güvenilir isolated-world probe ile okunur. Sender doğrulaması ve
+// aktif sekme koşulu, arka/kapalı bir belgenin yeni sayfayı tetiklemesini
+// engeller. Art arda gelen progress/cuechange olayları sekme bazında debounce
+// edilir.
+if (typeof ipcMain.on === 'function') ipcMain.on('browser:discovery-signal', (event, payload = {}) => {
+  if (event.senderFrame !== event.sender.mainFrame) return;
+  const tab = browserTabForWebContents(event.sender);
+  if (!tab || tab.closing || tab.id !== browserActiveTabId || tab.view !== browserView
+      || tab.compatibilityMode || tab.cloudflareChallengeActive) return;
+  const plan = tab.acquisitionPlan || createBrowserAcquisitionPlan(tab);
+  if (!plan?.discovery?.observe(payload.type, payload)) return;
+  if (['track_candidate_found', 'cue_list_growing'].includes(payload.type)) {
+    plan.start('native-text-track');
+  }
+  const diagnostics = tab.diagnostics || freshBrowserDiagnostics(tab.restoredUrl || '', tab);
+  diagnostics.acquisition = plan.snapshot();
+  tab.diagnostics = diagnostics;
+  browserDiagnostics = diagnostics;
+  sendBrowserEvent(tab, { type: 'capture-status', diagnostics });
+  // Cloudflare/uyumluluk ölçümü bitene kadar sayfaya betik enjekte etme; sinyal
+  // state'i tutulur ve instrumentation tamamlandığında tek probe planlanır.
+  if (tab.browserInstrumentationPending) return;
+  if (payload.type === 'document_ready') {
+    if (!browserDebuggerReady) void ensureBrowserDebugger();
+    void flushBrowserCaptureQueue({ installHook: true });
+  }
+  scheduleBrowserDiscoveryProbe(tab, payload.type === 'cue_list_growing' ? 40 : 100);
+});
+
 function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
   const normalized = normalizeSponsorCategories(categories);
   if (!normalized.length) {
@@ -7039,6 +7124,8 @@ async function unloadBrowserTab(rawId) {
     tab.lifecycle = 'background'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
     return { ok: false, protected: true, reason: finalCheck.reason || 'stale', error: finalCheck.message || 'Sekme durumu değişti.' };
   }
+  if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
+  tab.discoveryProbeTimer = null;
   tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
   try { mainWindow.contentView.removeChildView(view); } catch (_) {}
   tab.view = null; try { wc.close({ waitForBeforeUnload: false }); } catch (_) {}
@@ -7245,6 +7332,11 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
   });
   scheduleBrowserSessionSave();
   return { ok: true, tab: browserTabSnapshot(tab) };
+});
+
+ipcMain.handle('browser:resources:snapshot', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, resources: browserResourceSnapshot() };
 });
 
 function collectBrowserSessionVariants(sessionSnapshot) {
