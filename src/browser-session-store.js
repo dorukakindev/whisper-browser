@@ -5,7 +5,7 @@ const { safePlaceUrl } = require('./browser-place-url');
 const { createEditRecord, createSyncRecord } = require('./browser-subtitle-sync');
 const { normalizeMangaPosition } = require('./browser-library-tools');
 
-const BROWSER_SESSION_VERSION = 5;
+const BROWSER_SESSION_VERSION = 6;
 const MAX_SESSION_TABS = 24;
 const MAX_TRACK_REFS = 12;
 const MAX_RECOVERY_JOBS = 50;
@@ -140,6 +140,13 @@ function migrateBrowserSession(raw) {
     })) : [] };
     version = 5;
   }
+  if (version < 6) {
+    source = { ...source, tabs: Array.isArray(source.tabs) ? source.tabs.map((tab) => ({
+      ...tab, keepAwake: tab?.keepAwake === true,
+      lifecycle: tab?.lifecycle === 'unloaded' ? 'unloaded' : 'background',
+    })) : [] };
+    version = 6;
+  }
   // Yerel oturum gelecekte ek alanlar kazanırsa bilinmeyen alanları izinli
   // şemaya indirerek aç; taşınabilir paket sürümü ayrıca katı doğrulanır.
   return source;
@@ -184,6 +191,9 @@ function normalizeSessionTab(raw) {
     volume: finiteNumber(raw.volume, 1, 0, 1),
     muted: !!raw.muted,
     pinned: !!raw.pinned,
+    keepAwake: !!raw.keepAwake,
+    lifecycle: raw.lifecycle === 'unloaded' ? 'unloaded' : 'background',
+    unloadedAt: finiteNumber(raw.unloadedAt, 0, 0),
     offset: finiteNumber(raw.offset, 0, -30, 30),
     captureEnabled: raw.captureEnabled !== false,
     compatibilityMode: raw.compatibilityMode === true,

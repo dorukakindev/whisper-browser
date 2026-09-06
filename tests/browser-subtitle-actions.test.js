@@ -70,6 +70,7 @@ function action(name, next, context) {
         cues: [{ start: 0, end: 1, text: 'Hello' }], cues2Raw: [{ text: 'old' }] },
       currentGeneration: () => generation, staleGeneration: (gen) => gen !== generation,
       browserTabState: () => ({}),
+      effectiveBrowserProfile: () => ({ values: { targetLanguage: 'tr' } }),
       $: (id) => controls[id],
       window: { api: { startBrowserTranslation: () => new Promise((resolve) => { finishStart = resolve; }) } },
       updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {}, syncSubtitleModeUi() {},

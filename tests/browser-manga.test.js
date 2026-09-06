@@ -246,7 +246,7 @@ assert.match(preload, /retrySelectedBrowserManga:[\s\S]{0,120}browser:manga:retr
 assert.match(preload, /retryFailedBrowserManga:[\s\S]{0,120}browser:manga:retryFailed/);
 assert.match(renderer, /browserMangaTranslate.*addEventListener\('click', handleBrowserMangaAction\)/);
 assert.match(renderer, /ctrlKey[\s\S]{0,240}retrySelectedBrowserManga/);
-assert.match(renderer, /await saveAppSettings\(\);[\s\S]{0,160}startBrowserManga/);
+// Ayar kaydı/iş başlangıcı sırası browser-profile-jobs davranış testinde sınanır.
 assert.match(renderer, /maxImages: Number\(\$\('browserMangaMaxImages'\)\?\.value\) \|\| 48/);
 assert.match(renderer, /workers: Number\(\$\('browserMangaWorkers'\)\?\.value\) \|\| 2/);
 assert.match(renderer, /browserMangaRetryFailed/);

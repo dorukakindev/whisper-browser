@@ -2996,6 +2996,24 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .browser-more-popover button:hover { color: #f0d29a; background: #242018; }
 .browser-more-popover button:focus-visible { outline: 2px solid var(--player-amber); outline-offset: 1px; }
 
+.browser-command-palette {
+  position: absolute; z-index: 40; top: 72px; left: 50%; transform: translateX(-50%);
+  width: min(560px, calc(100% - 28px)); padding: 14px; border: 1px solid #3a4148;
+  border-radius: 14px; background: rgba(17, 21, 25, .98); box-shadow: 0 18px 50px rgba(0,0,0,.45);
+}
+.browser-command-palette.hidden { display: none; }
+.browser-command-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.browser-command-head strong { color: #f0d29a; font-size: 14px; }
+.browser-command-palette > input { width: 100%; min-height: 40px; padding: 8px 11px; border: 1px solid #3a4148; border-radius: 8px; background: #0e1216; color: #f3f5f6; }
+.browser-command-palette > input:focus-visible { outline: 2px solid var(--player-amber); outline-offset: 1px; }
+.browser-command-list { display: grid; gap: 3px; max-height: 330px; overflow: auto; margin-top: 10px; }
+.browser-command-item { display: grid; grid-template-columns: 1fr auto; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: #d6dde1; text-align: left; cursor: pointer; }
+.browser-command-item:hover, .browser-command-item[aria-selected="true"] { background: #252a2f; color: #fff; }
+.browser-command-item:disabled { color: #727c83; cursor: not-allowed; }
+.browser-command-item small { color: #89949c; font-size: 10px; }
+.browser-command-item em { grid-column: 1 / -1; color: #c68b72; font-size: 10px; font-style: normal; }
+.browser-command-hint { margin: 9px 2px 0; color: #7e8a92; font-size: 10px; }
+
 .browser-signal-body:empty { display: none; }
 .browser-signal:has(.browser-signal-body:empty) { min-height: 42px; gap: 0; padding-block: 6px; }
 .browser-signal:has(.browser-signal-body:empty) .browser-signal-copy { flex-direction: row; align-items: center; gap: 9px; }
@@ -4465,6 +4483,11 @@ body::before {
   display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 8px 10px;
   margin-top: 8px; padding: 10px; border: 1px solid #29292c; border-radius: 9px; background: #121213;
 }
+.browser-profile-field { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.browser-profile-field label { display: grid; gap: 5px; flex: 1 1 180px; min-width: 0; }
+.browser-profile-field select, .browser-profile-field input[type="number"] { width: 100%; min-height: 32px; }
+.browser-profile-field input[type="checkbox"] { justify-self: start; }
+.browser-profile-field button { min-height: 32px; }
 .browser-view-settings-grid label { min-width: 0; display: grid; align-content: center; gap: 5px; }
 .browser-view-settings-grid label > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-view-settings-grid select,

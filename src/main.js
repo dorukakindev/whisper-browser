@@ -104,7 +104,14 @@ const {
 const { withAbortTimeout, withTimeout } = require('./async-timeout');
 const { normalizeBrowserTabId } = require('./browser-tabs');
 const { BrowserClosedTabHistory, isReplaceableBlankBrowserTab } = require('./browser-tab-history');
-const { browserSiteZoomForUrl, normalizeBrowserSiteZooms, withBrowserSiteZoom } = require('./browser-site-zoom');
+const {
+  browserSiteOrigin,
+  normalizeBrowserSiteProfiles,
+  withBrowserSiteProfileField,
+  withoutBrowserSiteProfile,
+} = require('./browser-site-profiles');
+const { browserTabUnloadDecision } = require('./browser-tab-resources');
+const { browserShortcutForInput } = require('./browser-command-palette');
 const {
   SafeSecretStore,
   secretStorePath,
@@ -1628,6 +1635,9 @@ function createBrowserTabRecord(initial = {}) {
     captureEnabled: restored.captureEnabled !== false,
     compatibilityMode: restored.compatibilityMode === true,
     pinned: !!restored.pinned,
+    keepAwake: !!restored.keepAwake,
+    lifecycle: restored.lifecycle === 'unloaded' ? 'unloaded' : 'background',
+    unloadedAt: Number(restored.unloadedAt) || 0,
     diagnostics: null,
     acquisitionPlan: null,
     acquisitionId: '',
@@ -1750,6 +1760,9 @@ function browserTabSnapshot(tab) {
     captureEnabled: tab ? tab.captureEnabled !== false : true,
     compatibilityMode: !!tab?.compatibilityMode,
     pinned: !!tab?.pinned,
+    keepAwake: !!tab?.keepAwake,
+    lifecycle: tab?.lifecycle || (wc ? (tab?.id === browserActiveTabId ? 'active' : 'background') : 'unloaded'),
+    unloadedAt: Number(tab?.unloadedAt) || 0,
     mangaBusy: !!tab?.mangaJob,
     mangaTranslated: Number(tab?.mangaTranslated) || 0,
     mangaVisible: !!tab?.mangaVisible,
@@ -1873,10 +1886,10 @@ function normalizeBrowserPlaces(places) {
     name: String(item?.name || '').trim().slice(0, 64),
     tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
   })).filter(item => item.name && item.tabs.length);
-  const siteZooms = normalizeBrowserSiteZooms(places?.siteZooms);
+  const siteProfiles = normalizeBrowserSiteProfiles(places?.siteProfiles, places?.siteZooms);
   const compatibilityHosts = normalizeBrowserCompatibilityHosts(places?.compatibilityHosts);
   return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks),
-    workspaces, siteZooms, compatibilityHosts };
+    workspaces, siteZooms: {}, siteProfiles, compatibilityHosts };
 }
 
 function cloneBrowserPlaces(places) {
@@ -1884,7 +1897,8 @@ function cloneBrowserPlaces(places) {
     history: (places?.history || []).map((item) => ({ ...item })),
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
     workspaces: (places?.workspaces || []).map(item => ({ ...item, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
-    siteZooms: { ...(places?.siteZooms || {}) },
+    siteZooms: {},
+    siteProfiles: Object.fromEntries(Object.entries(places?.siteProfiles || {}).map(([key, value]) => [key, { ...value }])),
     compatibilityHosts: [...(places?.compatibilityHosts || [])],
   };
 }
@@ -1903,14 +1917,20 @@ function rememberBrowserCompatibilityMode(rawUrl, enabled) {
 }
 
 function browserZoomForUrl(rawUrl) {
-  return browserSiteZoomForUrl(rawUrl, readBrowserPlaces().siteZooms);
+  const places = readBrowserPlaces();
+  const origin = browserSiteOrigin(rawUrl);
+  const zoom = Number(origin && places.siteProfiles?.[origin]?.zoom);
+  return Number.isFinite(zoom) && zoom >= 0.5 && zoom <= 3 ? zoom : 1;
 }
 
 function rememberBrowserZoom(rawUrl, rawZoom) {
   const places = readBrowserPlaces();
-  const updated = withBrowserSiteZoom(places.siteZooms, rawUrl, rawZoom);
+  const zoom = Number(rawZoom);
+  if (!Number.isFinite(zoom) || zoom < 0.5 || zoom > 3) return false;
+  const updated = withBrowserSiteProfileField(places.siteProfiles, rawUrl, 'zoom',
+    Math.abs(zoom - 1) >= 0.001 ? zoom : null);
   if (!updated.ok) return false;
-  places.siteZooms = updated.siteZooms;
+  places.siteProfiles = updated.profiles;
   return setBrowserPlaces(places, { broadcast: false });
 }
 
@@ -5931,6 +5951,15 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   mainWindow.contentView.addChildView(view);
   const wc = view.webContents;
   installBrowserContextMenu(tab, wc);
+  // WebContentsView odaktayken klavye olayları uygulama renderer'ına ulaşmaz.
+  // Yalnızca açıkça desteklenen kısayolları köprüle; sitenin geri kalan
+  // klavyesini ele geçirme.
+  wc.on('before-input-event', (event, input = {}) => {
+    const key = browserShortcutForInput(input);
+    if (!key) return;
+    event.preventDefault();
+    sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
+  });
   tab.pageFind = createBrowserPageFind(wc, event => {
     if (event.type === 'find-open') mainWindow.webContents.focus();
     sendBrowserEvent(tab, event);
@@ -5995,6 +6024,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: true }) });
   });
   wc.on('did-stop-loading', () => {
+    tab.lifecycle = tab.id === browserActiveTabId ? 'active' : 'background';
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     if (tab.compatibilityMode) return;
     // Bazı iç-frame yüklemelerinde Chromium did-start-loading gönderip ana
@@ -6255,6 +6285,7 @@ async function activateBrowserTab(rawId) {
   }
   if (browserLiveAsr?.tab === previous) stopBrowserLiveAsr('Sekme değiştiği için canlı Whisper durduruldu.');
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
+    previous.lifecycle = 'background';
     previous.view.setVisible(false);
     detachBrowserDebugger(previous.view);
     // A hidden WebContentsView is still allowed to play media. Stop it when
@@ -6273,6 +6304,8 @@ async function activateBrowserTab(rawId) {
     })()`).catch(() => {});
   }
   browserActiveTabId = next.id;
+  if (next.lifecycle === 'unloaded' || next.lifecycle === 'restore_failed') next.lifecycle = 'restoring';
+  else next.lifecycle = 'active';
   browserView = ensureBrowserView(next);
   browserCaptureEnabled = next.captureEnabled !== false;
   browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
@@ -6726,6 +6759,12 @@ ipcMain.handle('browser:tab:setPinned', (event, rawId, pinned) => queueBrowserTa
   return { ok: true, pinned: tab.pinned, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot() };
 }));
 
+ipcMain.handle('browser:tab:unload', (event, rawId) => queueBrowserTabTransition(async () => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const result = await unloadBrowserTab(rawId);
+  return result;
+}));
+
 ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const rawId = request && typeof request === 'object' ? request.tabId : request;
@@ -6962,6 +7001,50 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
   }).finally(() => sponsorBlockInFlight.delete(key));
   sponsorBlockInFlight.set(key, promise);
   return promise;
+}
+
+async function browserTabRuntimeState(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return { stateKnown: false };
+  try {
+    return { stateKnown: true, ...(await withTimeout(wc.executeJavaScript(`(() => {
+      const media = [...document.querySelectorAll('video,audio')];
+      const fields = [...document.querySelectorAll('input,textarea,select')];
+      return { mediaPlaying: media.some((item) => !item.paused && !item.ended),
+        fullscreen: !!document.fullscreenElement, pictureInPicture: !!document.pictureInPictureElement,
+        formOrLogin: fields.some((item) => item.type === 'password' ||
+          (!['button','submit','reset','checkbox','radio'].includes(item.type) && String(item.value || '').trim())),
+        dirtyDraft: !!document.querySelector('[contenteditable="true"]:not(:empty)') };
+    })()`, true), 1800, 'Sekme durumu ölçülemedi.')) };
+  } catch (_) { return { stateKnown: false }; }
+}
+
+async function unloadBrowserTab(rawId) {
+  const tab = browserTabById(rawId);
+  if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  const initial = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
+  if (!initial.allowed) return { ok: false, protected: true, reason: initial.reason, error: initial.message };
+  const action = tab.resourceActionSeq = (Number(tab.resourceActionSeq) || 0) + 1;
+  Object.assign(tab, await browserTabRuntimeState(tab));
+  const checked = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
+  if (!checked.allowed) return { ok: false, protected: true, reason: checked.reason, error: checked.message };
+  const view = tab.view; const wc = view?.webContents;
+  if (!view || !wc || wc.isDestroyed()) return { ok: false, error: 'Sekme görünümü kullanılamıyor.' };
+  tab.restoredUrl = safeBrowserPlaceUrl(wc.getURL()) || tab.restoredUrl || '';
+  tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
+  tab.lifecycle = 'unloading'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
+  Object.assign(tab, await browserTabRuntimeState(tab));
+  const finalCheck = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
+  if (browserTabById(tab.id) !== tab || tab.resourceActionSeq !== action || !finalCheck.allowed) {
+    tab.lifecycle = 'background'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
+    return { ok: false, protected: true, reason: finalCheck.reason || 'stale', error: finalCheck.message || 'Sekme durumu değişti.' };
+  }
+  tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
+  try { mainWindow.contentView.removeChildView(view); } catch (_) {}
+  tab.view = null; try { wc.close({ waitForBeforeUnload: false }); } catch (_) {}
+  tab.lifecycle = 'unloaded'; tab.unloadedAt = Date.now(); scheduleBrowserSessionSave(0);
+  sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
+  return { ok: true, tab: browserTabSnapshot(tab) };
 }
 
 ipcMain.handle('browser:command', async (event, payload) => {
@@ -7539,6 +7622,35 @@ ipcMain.handle('browser:manga:export', async (event, request) => {
     writeJsonAtomic(result.filePath, { version: 1, exportedAt: new Date().toISOString(), pages });
     return { ok: true, path: result.filePath };
   } catch (error) { return { ok: false, error: error.message }; }
+});
+
+ipcMain.handle('browser:profile:update', (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!request || typeof request !== 'object' || Array.isArray(request)) return { ok: false, error: 'Geçersiz site ayarı isteği.' };
+  const tab = activeRequestedBrowserTab(request.tabId);
+  if (!tab || tab.generation !== request.generation) return { ok: false, error: 'Sekme değişti. Site ayarlarını yeniden açın.' };
+  const url = browserTabSnapshot(tab).url;
+  const origin = browserSiteOrigin(url);
+  if (!origin || request.origin !== origin) return { ok: false, error: 'Site değişti. Ayar kaydedilmedi.' };
+  const places = readBrowserPlaces();
+  const previousProfiles = places.siteProfiles;
+  const updated = request.reset === true ? withoutBrowserSiteProfile(places.siteProfiles, url)
+    : withBrowserSiteProfileField(places.siteProfiles, url, request.field, request.value);
+  if (!updated.ok) return { ok: false, error: 'Geçersiz site ayarı.' };
+  places.siteProfiles = updated.profiles;
+  setBrowserPlaces(places, { broadcast: false });
+  if (!flushBrowserPlaces()) {
+    setBrowserPlaces({ ...places, siteProfiles: previousProfiles }, { broadcast: false });
+    return { ok: false, error: 'Site ayarı diske kaydedilemedi. Önceki ayarlar korundu.' };
+  }
+  sendBrowserEvent({ type: 'places', places: browserPlacesSnapshot() });
+  if (request.field === 'zoom' || request.reset === true) {
+    for (const item of browserTabs.values()) {
+      if (browserSiteOrigin(browserTabSnapshot(item).url) !== origin) continue;
+      if (item.view && !item.view.webContents.isDestroyed()) applyStoredBrowserZoom(item, item.view.webContents, url);
+    }
+  }
+  return { ok: true, origin, places: browserPlacesSnapshot() };
 });
 
 ipcMain.handle('browser:page:start', async (event, request) => {

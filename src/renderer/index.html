@@ -1126,6 +1126,7 @@
                   <button type="button" role="menuitem" data-browser-proxy="browserDownloadsToggle">İndirmeler</button>
                   <button type="button" role="menuitem" data-browser-proxy="browserPlacesToggle">Yer imleri ve geçmiş</button>
                   <button type="button" role="menuitem" data-browser-proxy="browserSignalToggle">Altyazı sinyalini göster / gizle</button>
+                  <button type="button" role="menuitem" id="browserCommandPaletteToggle">Komut paleti <span>Ctrl+K</span></button>
                 </div>
               </details>
             </div>
@@ -1242,6 +1243,17 @@
               </div>
               <details class="browser-view-settings" id="browserViewSettings">
                 <summary>Görünüm, sayfa ve manga</summary>
+                <section class="browser-settings-section" aria-label="Site profili">
+                  <div class="browser-view-settings-grid">
+                    <label><span>Altyazı otomasyonu</span><select id="browserSubtitleAutomation"><option value="off">Kapalı</option><option value="ask">Önce sor</option><option value="auto">Otomatik çevir</option></select></label>
+                    <label><span>Çeviri sonrası görünüm</span><select id="browserPreferredSubtitleMode"><option value="translation">Yalnız çeviri</option><option value="both">Kaynak + çeviri</option><option value="source">Yalnız kaynak</option><option value="off">Kapalı</option></select></label>
+                  </div>
+                  <label>Ayar kapsamı <select id="browserProfileScope"><option value="general">Genel ayarlar</option><option value="site">Bu site</option><option value="tab">Yalnız bu sekme</option></select></label>
+                  <p id="browserProfileOrigin" class="browser-session-status"></p>
+                  <div id="browserProfileFields"></div>
+                  <button type="button" class="btn btn-ghost btn-sm" id="browserProfileReset">Bu sitenin özelleştirmelerini sıfırla</button>
+                  <p id="browserProfileStatus" role="status" aria-live="polite">Dil değişiklikleri sonraki işe uygulanır. Devam eden iş kendi ayarlarını korur.</p>
+                </section>
                 <div class="browser-hardware-settings">
                   <label class="browser-view-switch">
                     <input type="checkbox" id="browserHardwareAcceleration" role="switch" checked aria-describedby="browserHardwareAccelerationHint" />
@@ -1378,6 +1390,7 @@
                 <div class="browser-diagnostics-actions">
                   <button class="link-btn" id="browserDiagnosticsCopy" type="button">Özeti kopyala</button>
                   <button class="link-btn" id="browserDiagnosticsExport" type="button">Tanı paketini dışa aktar</button>
+                  <button class="link-btn" id="browserTabUnload" type="button">Sekmeyi bellekten boşalt</button>
                 </div>
               </div>
               <div class="browser-diagnostics-recent" id="browserDiagnosticsRecent">
@@ -1413,6 +1426,18 @@
               </div>
             </div>
           </div>
+          <section class="browser-command-palette hidden" id="browserCommandPalette" role="dialog" aria-modal="false"
+            aria-labelledby="browserCommandPaletteTitle" aria-hidden="true">
+            <div class="browser-command-head">
+              <strong id="browserCommandPaletteTitle">Tarayıcı komutları</strong>
+              <button class="btn-icon browser-dismiss" id="browserCommandPaletteClose" type="button" aria-label="Komut paletini kapat">×</button>
+            </div>
+            <input id="browserCommandPaletteInput" type="search" autocomplete="off" spellcheck="false"
+              placeholder="Altyazı, site, çeviri veya sekme ara…" aria-label="Tarayıcı komutlarında ara"
+              aria-controls="browserCommandPaletteList" />
+            <div id="browserCommandPaletteList" class="browser-command-list" role="listbox" aria-label="Tarayıcı komutları"></div>
+            <p id="browserCommandPaletteHint" class="browser-command-hint">↑↓ seç · Enter çalıştır · Esc kapat</p>
+          </section>
         </section>
 
         <section class="pdf-reader hidden" id="pdfReader" aria-label="PDF kitap okuyucu">
@@ -2202,6 +2227,9 @@
 <script src="../browser-place-url.js"></script>
   <script src="../subtitle-output-contract.js"></script>
   <script src="../browser-subtitle-sync.js"></script>
+  <script src="../browser-site-profiles.js"></script>
+  <script src="../browser-automation-rules.js"></script>
+  <script src="../browser-command-palette.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

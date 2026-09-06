@@ -1775,6 +1775,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserPageTarget', 'browserPageMode',
+  'browserSubtitleAutomation', 'browserPreferredSubtitleMode',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -4333,6 +4334,86 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
   return window.api.browserCommand(tabId, command, value);
 }
 
+const browserCommandPaletteState = { open: false, query: '', selected: 0, context: null, results: [] };
+function browserCommandPaletteCommands() {
+  return [
+    { id: 'subtitle-settings', title: 'Altyazı ve çeviri ayarlarını aç', keywords: ['altyazı', 'çeviri', 'kaynak'], category: 'ayarlar', run: () => toggleSettingsPage('browser-subtitles') },
+    { id: 'site-profile', title: 'Bu sitenin profilini aç', keywords: ['site', 'profil', 'otomatik'], category: 'ayarlar', available: () => ({ enabled: !!effectiveBrowserProfile().origin, reason: 'Önce bir web sitesi açın.' }), run: () => { if ($('browserProfileScope')) $('browserProfileScope').value = 'site'; toggleSettingsPage('browser-view'); renderBrowserSiteProfile(); } },
+    { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', run: () => toggleSettingsPage('browser-view') },
+    { id: 'diagnostics', title: 'Yakalama ayrıntılarını göster', keywords: ['altyazı', 'tanı', 'hata'], category: 'inceleme', run: () => toggleSettingsPage('browser-diagnostics') },
+    { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), run: () => useBrowserTrack(false) },
+    { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), run: () => useBrowserTrack(true) },
+    { id: 'complete-translation', title: 'Eksik çevirileri tamamla', keywords: ['çeviri', 'eksik', 'tamamla'], category: 'çeviri', available: () => ({ enabled: !!player.browserTranslationTrackId, reason: 'Önce bir çeviri işi başlatın.' }), run: () => completeSelectedBrowserTranslation() },
+    { id: 'unload-tab', title: 'Etkin olmayan sekmeyi bellekten boşalt', keywords: ['sekme', 'bellek', 'hafiflet'], category: 'sekme', available: () => ({ enabled: (player.browserTabs || []).some((tab) => tab.id !== player.browserActiveTabId && tab.lifecycle === 'background'), reason: 'Güvenle boşaltılabilecek arka plan sekmesi yok.' }), run: () => $('browserTabUnload')?.click() },
+  ];
+}
+function renderBrowserCommandPalette() {
+  const list = $('browserCommandPaletteList');
+  if (!list) return;
+  const context = browserTabState();
+  browserCommandPaletteState.results = window.BrowserCommandPalette
+    ? window.BrowserCommandPalette.rankBrowserCommands(browserCommandPaletteCommands(), browserCommandPaletteState.query, context || {})
+    : browserCommandPaletteCommands();
+  browserCommandPaletteState.selected = Math.max(0, Math.min(browserCommandPaletteState.selected, browserCommandPaletteState.results.length - 1));
+  list.replaceChildren();
+  if (!browserCommandPaletteState.results.length) {
+    const empty = document.createElement('div'); empty.className = 'browser-command-item'; empty.textContent = 'Eşleşen komut yok.'; list.appendChild(empty); return;
+  }
+  browserCommandPaletteState.results.forEach((command, index) => {
+    const item = document.createElement('button'); item.type = 'button'; item.className = 'browser-command-item';
+    item.setAttribute('role', 'option'); item.setAttribute('aria-selected', index === browserCommandPaletteState.selected ? 'true' : 'false');
+    item.disabled = command.enabled === false;
+    const title = document.createElement('span'); title.textContent = command.title;
+    const category = document.createElement('small'); category.textContent = command.category || '';
+    item.append(title, category);
+    if (command.disabledReason) { const reason = document.createElement('em'); reason.textContent = command.disabledReason; item.appendChild(reason); }
+    item.addEventListener('click', () => executeBrowserCommandPalette(index));
+    list.appendChild(item);
+  });
+}
+function closeBrowserCommandPalette() {
+  browserCommandPaletteState.open = false; browserCommandPaletteState.context = null; browserCommandPaletteState.results = [];
+  const panel = $('browserCommandPalette');
+  panel?.classList.add('hidden'); panel?.setAttribute('aria-hidden', 'true');
+  $('browserCommandPaletteToggle')?.focus({ preventScroll: true });
+}
+function openBrowserCommandPalette() {
+  if (player.workspaceMode !== 'browser' || !browserTabState()) return;
+  browserCommandPaletteState.open = true; browserCommandPaletteState.query = ''; browserCommandPaletteState.selected = 0;
+  const tab = browserTabState();
+  browserCommandPaletteState.context = { tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' };
+  const panel = $('browserCommandPalette'); panel?.classList.remove('hidden'); panel?.setAttribute('aria-hidden', 'false');
+  renderBrowserCommandPalette();
+  requestAnimationFrame(() => { const input = $('browserCommandPaletteInput'); input?.focus(); input?.select(); });
+}
+async function executeBrowserCommandPalette(index = browserCommandPaletteState.selected) {
+  const command = browserCommandPaletteState.results[index];
+  if (!command || command.enabled === false) return;
+  const current = browserTabState();
+  const valid = window.BrowserCommandPalette?.browserCommandContextMatches
+    ? window.BrowserCommandPalette.browserCommandContextMatches(browserCommandPaletteState.context, current)
+    : !!current && current.id === browserCommandPaletteState.context?.tabId;
+  if (!valid) { setBrowserSignal('Sekme veya medya değişti; komut yeniden seçilmeli.', false); closeBrowserCommandPalette(); return; }
+  closeBrowserCommandPalette();
+  try { await command.run(); } catch (error) { setBrowserSignal(`Komut çalıştırılamadı: ${error.message}`, false); }
+}
+if ($('browserCommandPaletteToggle')) $('browserCommandPaletteToggle').addEventListener('click', () => {
+  if ($('browserMoreMenu')) $('browserMoreMenu').open = false;
+  openBrowserCommandPalette();
+});
+if ($('browserCommandPaletteClose')) $('browserCommandPaletteClose').addEventListener('click', closeBrowserCommandPalette);
+if ($('browserCommandPaletteInput')) $('browserCommandPaletteInput').addEventListener('input', (event) => {
+  browserCommandPaletteState.query = String(event.target.value || '').slice(0, 120); browserCommandPaletteState.selected = 0; renderBrowserCommandPalette();
+});
+if ($('browserCommandPalette')) $('browserCommandPalette').addEventListener('keydown', (event) => {
+  if (event.isComposing) return;
+  const count = browserCommandPaletteState.results.length;
+  if (event.key === 'Escape') { event.preventDefault(); closeBrowserCommandPalette(); }
+  else if (event.key === 'ArrowDown' && count) { event.preventDefault(); browserCommandPaletteState.selected = (browserCommandPaletteState.selected + 1) % count; renderBrowserCommandPalette(); }
+  else if (event.key === 'ArrowUp' && count) { event.preventDefault(); browserCommandPaletteState.selected = (browserCommandPaletteState.selected - 1 + count) % count; renderBrowserCommandPalette(); }
+  else if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); executeBrowserCommandPalette(); }
+});
+
 function updateBrowserZoomUi(rawZoom = player.browserZoom) {
   const zoom = Number.isFinite(Number(rawZoom)) ? Math.max(0.5, Math.min(3, Number(rawZoom))) : 1;
   player.browserZoom = zoom;
@@ -4846,17 +4927,24 @@ async function handleBrowserMangaAction(clickEvent) {
   }
   // Yeni girilen ayrı manga anahtarı/modeli blur-save yarışına takılmadan
   // ana sürecin okuyacağı ayar dosyasına ulaşsın.
-  await saveAppSettings();
-  applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
-  const result = await window.api.startBrowserManga?.(player.browserActiveTabId, {
-    targetLanguage: $('browserMangaTarget')?.value || $('translateTo')?.value || 'tr',
+  const jobTabId = player.browserActiveTabId;
+  const jobGeneration = browserTabState()?.generation;
+  const profile = effectiveBrowserProfile().values;
+  const jobOptions = {
+    targetLanguage: profile.mangaTargetLanguage ?? 'tr',
     maxImages: Number($('browserMangaMaxImages')?.value) || 48,
     workers: Number($('browserMangaWorkers')?.value) || 2,
-    fontScale: (Number($('browserMangaFontScale')?.value) || 100) / 100,
+    fontScale: profile.mangaFontScale,
     fontFamily: $('browserMangaFont')?.value || 'comic',
     verticalText: !!$('browserMangaVertical')?.checked,
     sfxStyle: $('browserMangaSfx')?.checked !== false,
-  }).catch((error) => ({ ok: false, error: error.message }));
+  };
+  await saveAppSettings();
+  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
+  applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
+  const result = await window.api.startBrowserManga?.(jobTabId, jobOptions)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
   if (!result?.ok && !result?.canceled) {
     logLine(`Manga çevirisi: ${result?.error || 'bilinmeyen hata'}`, 'error');
     applyBrowserMangaState({ state: 'error', translated: 0, visible: false,
@@ -5095,6 +5183,120 @@ function renderBrowserPlaces() {
   });
 }
 
+function browserProfileControls() {
+  return [
+    ['targetLanguage', 'translateTo', 'Altyazı hedef dili', 'tr'],
+    ['subtitleAutomation', 'browserSubtitleAutomation', 'Altyazı otomasyonu', 'off'],
+    ['subtitleMode', 'browserPreferredSubtitleMode', 'Çeviri sonrası görünüm', 'translation'],
+    ['pageTargetLanguage', 'browserPageTarget', 'Sayfa hedef dili', 'tr'],
+    ['pageMode', 'browserPageMode', 'Sayfa görünümü', 'bilingual'],
+    ['mangaTargetLanguage', 'browserMangaTarget', 'Manga hedef dili', 'tr'],
+    ['mangaFontScale', 'browserMangaFontScale', 'Manga yazı ölçeği (%)', 1, 100],
+    ['overlayScale', 'browserOverlayScale', 'Altyazı ölçeği (%)', 1, 100],
+    ['overlayOpacity', 'browserOverlayOpacity', 'Altyazı opaklığı (%)', 1, 100],
+    ['overlayBottom', 'browserOverlayBottom', 'Alt boşluk (%)', 7],
+    ['overlayWidth', 'browserOverlayWidth', 'Altyazı genişliği (%)', 86],
+    ['overlayMaxLines', 'browserOverlayMaxLines', 'Azami satır', 3],
+    ['overlaySourceFirst', 'browserOverlaySourceFirst', 'Kaynak üstte', true],
+    ['hideSiteCaptions', 'browserHideSiteCaptions', 'Site altyazısını gizle', false],
+  ];
+}
+
+function effectiveBrowserProfile() {
+  const api = window.BrowserSiteProfiles;
+  const origin = api.browserSiteOrigin(player.browserPageUrl);
+  const tab = browserTabState();
+  const defaults = {}, general = {};
+  for (const [field, id, , fallback, scale = 1] of browserProfileControls()) {
+    defaults[field] = fallback;
+    const control = $(id);
+    if (control) general[field] = typeof fallback === 'boolean' ? control.checked
+      : typeof fallback === 'number' ? Number(control.value) / scale : control.value;
+  }
+  const transient = tab?.siteOverrideOrigin === origin ? tab.siteOverrides : {};
+  return { origin, ...api.resolveEffectiveBrowserSettings({ defaults, general,
+    profile: player.browserPlaces?.siteProfiles?.[origin], tab: transient }) };
+}
+
+function renderBrowserSiteProfile() {
+  const box = $('browserProfileFields');
+  if (!box || !window.BrowserSiteProfiles) return;
+  const effective = effectiveBrowserProfile();
+  const scope = $('browserProfileScope')?.value || 'general';
+  const editContext = { tabId: player.browserActiveTabId, generation: browserTabState()?.generation, origin: effective.origin };
+  $('browserProfileOrigin').textContent = effective.origin || 'Önce bir web sitesi açın.';
+  $('browserProfileReset').disabled = !effective.origin || scope === 'general';
+  $('browserProfileReset').textContent = scope === 'tab' ? 'Sekme özelleştirmelerini sıfırla' : 'Site özelleştirmelerini sıfırla';
+  box.replaceChildren();
+  const names = { default: 'Varsayılan', general: 'Genel', site: 'Site', tab: 'Sekme' };
+  for (const [field, id, title, fallback, scale = 1] of browserProfileControls()) {
+    const original = $(id);
+    if (!original) continue;
+    const row = document.createElement('div');
+    row.className = 'browser-profile-field';
+    const label = document.createElement('label');
+    label.textContent = `${title} · ${names[effective.sources[field]] || 'Genel'}`;
+    const input = original.cloneNode(true);
+    input.id = `profile-${field}`;
+    input.removeAttribute('aria-describedby');
+    if (input.type === 'range') input.type = 'number';
+    if (field === 'overlayOpacity') input.min = '0';
+    input.disabled = scope !== 'general' && !effective.origin;
+    const value = scope === 'general' ? (typeof fallback === 'boolean' ? original.checked : original.value)
+      : typeof fallback === 'number' ? effective.values[field] * scale : effective.values[field];
+    if (typeof fallback === 'boolean') input.checked = !!value;
+    else input.value = String(value ?? '');
+    label.appendChild(input);
+    const reset = document.createElement('button');
+    reset.type = 'button'; reset.className = 'btn btn-ghost btn-sm';
+    reset.textContent = 'Üst kapsamdan al'; reset.disabled = scope === 'general' || !effective.origin;
+    reset.setAttribute('aria-label', `${title}: üst kapsamdan al`);
+    input.addEventListener('change', () => {
+      if (scope === 'general') {
+        if (typeof fallback === 'boolean') original.checked = input.checked;
+        else original.value = input.value;
+        original.dispatchEvent(new Event('input', { bubbles: true }));
+        original.dispatchEvent(new Event('change', { bubbles: true }));
+        scheduleSave(); scheduleBrowserOverlaySync(); renderBrowserSiteProfile();
+      } else updateBrowserProfileField(field, typeof fallback === 'boolean' ? input.checked
+        : typeof fallback === 'number' ? Number(input.value) / scale : input.value, false, editContext);
+    });
+    reset.addEventListener('click', () => updateBrowserProfileField(field, null, false, editContext));
+    row.append(label, reset); box.appendChild(row);
+  }
+}
+
+async function updateBrowserProfileField(field, value, reset = false, expected = null) {
+  const tab = browserTabState();
+  const origin = window.BrowserSiteProfiles.browserSiteOrigin(player.browserPageUrl);
+  if (!tab || !origin) return;
+  if (expected && (expected.tabId !== player.browserActiveTabId || expected.generation !== tab.generation || expected.origin !== origin)) {
+    renderBrowserSiteProfile();
+    $('browserProfileStatus').textContent = 'Sekme veya sayfa değişti. Ayarı yeniden seçin.';
+    return;
+  }
+  const scope = $('browserProfileScope')?.value;
+  const tabId = player.browserActiveTabId;
+  const generation = tab.generation;
+  if (scope === 'tab') {
+    const existing = tab.siteOverrideOrigin === origin ? tab.siteOverrides : {};
+    const result = reset ? { ok: true, profile: {} } : window.BrowserSiteProfiles.withBrowserSiteProfileField({ [origin]: existing }, origin, field, value);
+    if (!result.ok) return;
+    tab.siteOverrideOrigin = origin; tab.siteOverrides = result.profile;
+  } else if (scope === 'site') {
+    const result = await window.api.updateBrowserSiteProfile({ tabId, generation, origin, field, value, reset })
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) {
+      if ($('browserProfileStatus')) $('browserProfileStatus').textContent = result?.error || 'Site ayarı kaydedilemedi.';
+      return;
+    }
+    player.browserPlaces = result.places;
+  } else return;
+  if (player.browserActiveTabId !== tabId || browserTabState()?.generation !== generation) return;
+  renderBrowserSiteProfile(); scheduleBrowserOverlaySync();
+  $('browserProfileStatus').textContent = 'Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.';
+}
+
 async function loadBrowserPlaces() {
   if (!window.api.listBrowserPlaces) return;
   const seq = ++player.browserPlacesSeq;
@@ -5104,6 +5306,8 @@ async function loadBrowserPlaces() {
     player.browserPlacesLoadWarning = result.warning || '';
     player.browserPlaces = result.places;
     renderBrowserPlaces();
+    renderBrowserSiteProfile();
+    scheduleBrowserOverlaySync();
   }
 }
 
@@ -5630,9 +5834,60 @@ function announceBrowserTrack(track) {
     setBrowserSignal(`Daha önce hazırlanmış çeviri bulundu${track.language ? ` (${track.language})` : ''}.`, true,
       { priority: 45, holdMs: 4000 });
   } else {
-    setBrowserSignal(`Altyazı bulundu${track.language ? ` (${track.language})` : ''}. Çevrilsin mi?`, true,
-      { priority: 45, holdMs: 4000, action: 'translate' });
+    const decision = handleBrowserSubtitleAutomation(track);
+    if (decision.state === 'requires_confirmation') {
+      setBrowserSignal(`${decision.message}${track.language ? ` (${track.language})` : ''}`, true,
+        { priority: 45, holdMs: 6000, action: 'translate' });
+    } else if (decision.state !== 'eligible') {
+      // Otomasyon kapalıyken keşfedilen kaynak izi yine de elle çevrilebilir
+      // olmalı; yalnızca bilgilendirme gösterip eylemi kaybetmeyelim.
+      const action = decision.reason === 'automation_off' ? 'translate' : undefined;
+      setBrowserSignal(`Altyazı bulundu${track.language ? ` (${track.language})` : ''}.`, true,
+        { priority: 35, holdMs: 3500, ...(action ? { action } : {}) });
+    }
   }
+}
+
+const browserSubtitleAutomationGate = window.BrowserAutomationRules?.createBrowserAutomationGate();
+function browserSubtitleAutomationInput(track) {
+  const profile = effectiveBrowserProfile().values;
+  const tab = browserTabState();
+  const sourceLineage = String(track?.sourceLineage || track?.streamKey || track?.sourceHash || track?.id || '');
+  const targetLanguage = profile.targetLanguage ?? 'tr';
+  const operationKey = window.BrowserAutomationRules.browserAutomationOperationKey({
+    ruleId: effectiveBrowserProfile().origin, ruleRevision: '1', mediaId: tab?.mediaId,
+    sourceLineage, targetLanguage, translationProfile: 'browser-sentence-v1',
+  });
+  const translated = player.browserTracks.some((item) => item.role === 'translation'
+    && (item.sourceTrackId === track.id || (item.sourceHash && item.sourceHash === track.sourceHash))
+    && String(item.language || '').toLowerCase().startsWith(String(targetLanguage).toLowerCase()));
+  return { operationKey, mode: profile.subtitleAutomation ?? 'off', tabCurrent: !!tab,
+    mediaId: tab?.mediaId || '', sourceReady: Number(track?.cueCount) > 0,
+    advertisementUncertain: !!player.browserAdPlaying,
+    sourceCharacters: Math.max(0, Number(track?.characterCount) || Number(track?.cueCount) * 80),
+    newCharacters: Math.max(0, Number(track?.appendedCharacters) || 0), targetLanguage,
+    completed: translated, running: player.browserTranslationTrackId === track?.id && tab?.browserTranslationComplete === false,
+    sessionJobs: Number(player.browserAutomationSessionJobs) || 0,
+    liveCharacters: Number(player.browserAutomationLiveCharacters) || 0,
+  };
+}
+
+function handleBrowserSubtitleAutomation(track) {
+  const api = window.BrowserAutomationRules;
+  if (!api || !browserSubtitleAutomationGate || !track || track.role === 'translation') return { state: 'unsupported' };
+  const input = browserSubtitleAutomationInput(track);
+  const decision = api.browserAutomationDecision(input);
+  const tab = browserTabState();
+  if (tab) { tab.browserAutomationDecision = decision; tab.browserAutomationOperationKey = input.operationKey; }
+  if (decision.state === 'eligible' && browserSubtitleAutomationGate.claim(input.operationKey)) {
+    player.browserAutomationSessionJobs = (Number(player.browserAutomationSessionJobs) || 0) + 1;
+    player.browserAutomationLiveCharacters = (Number(player.browserAutomationLiveCharacters) || 0) + input.newCharacters;
+    queueMicrotask(() => useBrowserTrack(true, track.id).catch((error) => {
+      browserSubtitleAutomationGate.finish(input.operationKey);
+      setBrowserSignal(`Otomatik altyazı çevirisi başlatılamadı: ${error.message}`, false);
+    }));
+  }
+  return decision;
 }
 
 async function restoreBrowserSubtitleSelection(tab) {
@@ -5846,7 +6101,7 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
     cues: (player.cuesRaw || player.cues).map((cue, index) => ({
       id: cue.id ?? index, start: cue.start, end: cue.end, text: cue.text,
     })),
-    targetLanguage: $('translateTo')?.value || 'tr',
+    targetLanguage: effectiveBrowserProfile().values.targetLanguage ?? 'tr',
     sourceLanguage,
     register: $('translateRegister')?.value || 'documentary',
     profanity: $('translateProfanity')?.value || 'medium',
@@ -5864,7 +6119,8 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
     setBrowserSignal(`Canlı çeviri başlatılamadı: ${result?.error || 'bilinmeyen hata'}`, false);
     return;
   }
-  setSubtitleMode('both', false);
+  // Eski oturumlarda profil alanı yoktur; önceki iki-iz görünümünü koru.
+  setSubtitleMode(effectiveBrowserProfile().values.subtitleMode ?? 'both', false);
   setBrowserSignal(`${result.sentenceCount} cümlenin tamamı kuyruğa alındı; oynatma çevresi öncelikli hazırlanıyor.`, true);
 }
 
@@ -6914,13 +7170,13 @@ function scheduleBrowserOverlaySync() {
       sourceTransform: browserTransformForRole('source'),
       translationTransform: browserTransformForRole('translation'),
       style: {
-        scale: (Number($('browserOverlayScale')?.value) || 100) / 100,
-        opacity: (Number($('browserOverlayOpacity')?.value) || 100) / 100,
-        bottomOffset: Number($('browserOverlayBottom')?.value) || 0,
-        width: Number($('browserOverlayWidth')?.value) || 86,
-        maxLines: Number($('browserOverlayMaxLines')?.value) || 3,
-        sourceFirst: $('browserOverlaySourceFirst')?.checked !== false,
-        hideSiteCaptions: !!$('browserHideSiteCaptions')?.checked,
+        scale: effectiveBrowserProfile().values.overlayScale,
+        opacity: effectiveBrowserProfile().values.overlayOpacity,
+        bottomOffset: effectiveBrowserProfile().values.overlayBottom,
+        width: effectiveBrowserProfile().values.overlayWidth,
+        maxLines: effectiveBrowserProfile().values.overlayMaxLines,
+        sourceFirst: effectiveBrowserProfile().values.overlaySourceFirst,
+        hideSiteCaptions: effectiveBrowserProfile().values.hideSiteCaptions,
       },
     }).catch(() => {});
   }, 120);
@@ -7502,15 +7758,17 @@ setInterval(async () => {
   player.browserMangaLookaheadBusy = true;
   try {
     await window.api.startBrowserManga?.(player.browserActiveTabId, {
-      incremental: true, targetLanguage: $('browserMangaTarget')?.value || 'tr',
+      incremental: true, targetLanguage: effectiveBrowserProfile().values.mangaTargetLanguage ?? 'tr',
       maxImages: Number($('browserMangaMaxImages')?.value) || 48,
       workers: Number($('browserMangaWorkers')?.value) || 2,
-      fontScale: (Number($('browserMangaFontScale')?.value) || 100) / 100,
+      fontScale: effectiveBrowserProfile().values.mangaFontScale,
       fontFamily: $('browserMangaFont')?.value || 'comic',
       verticalText: !!$('browserMangaVertical')?.checked, sfxStyle: $('browserMangaSfx')?.checked !== false,
     });
   } finally { player.browserMangaLookaheadBusy = false; }
 }, 5000);
+$('browserProfileScope')?.addEventListener('change', renderBrowserSiteProfile);
+$('browserProfileReset')?.addEventListener('click', () => updateBrowserProfileField('', null, true));
 const browserRangeOutputs = {
   browserMangaWorkers: ['browserMangaWorkersVal', (value) => String(value)],
   browserMangaFontScale: ['browserMangaFontScaleVal', (value) => `%${value}`],
@@ -7907,6 +8165,18 @@ if ($('browserDiagnosticsExport')) $('browserDiagnosticsExport').addEventListene
   if (result?.ok) logLine(`Tarayıcı tanı paketi kaydedildi: ${result.path}`, 'success');
   else if (!result?.canceled) logLine(result?.error || 'Tarayıcı tanı paketi dışa aktarılamadı.', 'warn');
 });
+if ($('browserTabUnload')) $('browserTabUnload').addEventListener('click', async () => {
+  const tab = (Array.isArray(player.browserTabs) ? player.browserTabs : [])
+    .find((item) => item.id !== player.browserActiveTabId
+      && (item.lifecycle === 'background' || item.lifecycle === 'unloaded' || item.lifecycle === 'restore_failed'));
+  if (!tab) {
+    setBrowserSignal('Boşaltılabilecek etkin olmayan sekme bulunamadı.', false);
+    return;
+  }
+  const result = await window.api.unloadBrowserTab?.(tab.id).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) setBrowserSignal(result?.error || 'Sekme bellekten boşaltılamadı.', false);
+  else setBrowserSignal('Sekme güvenli biçimde bellekten boşaltıldı; açıldığında sayfa geri getirilecek.', true);
+});
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
@@ -7921,6 +8191,14 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (event.type === 'downloads') { receiveBrowserDownloads(event.downloads); return; }
   // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
   if (['find-open', 'find-result', 'find-reset'].includes(event.type)) { receiveBrowserFindEvent(event); return; }
+  if (event.type === 'browser-shortcut') {
+    if (event.tabId !== player.browserActiveTabId) return;
+    if (event.key === 'k') openBrowserCommandPalette();
+    else if (event.key === 'f') openBrowserFind();
+    else if (event.key === 'l') { $('browserAddress')?.focus(); $('browserAddress')?.select(); }
+    else if (event.key === 't' && event.shift) reopenClosedBrowserTab();
+    return;
+  }
   if (event.type === 'tabs-changed') {
     const previousActiveId = player.browserActiveTabId;
     saveActiveBrowserTabWorkspace();
@@ -8046,6 +8324,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'places' && event.places) {
     player.browserPlaces = event.places;
     renderBrowserPlaces();
+    renderBrowserSiteProfile();
+    scheduleBrowserOverlaySync();
   } else if (event.type === 'places-save-error') {
     const message = event.message || 'Tarayıcı geçmişi ve yer imleri kaydedilemedi.';
     setBrowserSignal(message, false, 10000);
@@ -8201,6 +8481,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true,
         { priority: 60 });
     } else if (progress.total && Number(progress.completed) >= Number(progress.total)) {
+      if (translationTab?.browserAutomationOperationKey) browserSubtitleAutomationGate?.complete(translationTab.browserAutomationOperationKey);
       if (justCompleted) setSubtitleMode('translation', false);
       if (!player.browserTranslationFailed) void completeBrowserRecovery(translationTab, 'subtitle-translation', event.trackId);
       updateBrowserTranslationExportButton();
@@ -12716,6 +12997,7 @@ function initializeSettingsPages() {
 }
 
 function setSettingsPage(page) {
+  if (page === 'browser-view') renderBrowserSiteProfile();
   const next = SETTINGS_PAGE_TITLES[page] ? page : 'source';
   player.settingsPage = next;
   $$('[data-settings-page-panel]').forEach((panel) => {
@@ -13109,13 +13391,20 @@ async function handleBrowserPageTranslationAction() {
     if (!result?.ok) setBrowserSignal(result?.error || 'Sayfa çevirisi görünürlüğü değiştirilemedi.', false);
     return;
   }
-  await saveAppSettings();
-  applyBrowserPageTranslationState({ state: 'running', translated: 0 });
-  const result = await window.api.startBrowserPageTranslation?.(player.browserActiveTabId, {
-    targetLanguage: $('browserPageTarget')?.value || 'tr',
-    mode: $('browserPageMode')?.value || 'bilingual',
+  const jobTabId = player.browserActiveTabId;
+  const jobGeneration = browserTabState()?.generation;
+  const profile = effectiveBrowserProfile().values;
+  const jobOptions = {
+    targetLanguage: profile.pageTargetLanguage ?? 'tr',
+    mode: profile.pageMode ?? 'bilingual',
     workers: 2,
-  }).catch((error) => ({ ok: false, error: error.message }));
+  };
+  await saveAppSettings();
+  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
+  applyBrowserPageTranslationState({ state: 'running', translated: 0 });
+  const result = await window.api.startBrowserPageTranslation?.(jobTabId, jobOptions)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
   if (!result?.ok && !result?.partial) applyBrowserPageTranslationState({ state: 'error', message: result?.error || 'Sayfa çevirisi başlatılamadı.' });
 }
 
@@ -14644,6 +14933,7 @@ document.addEventListener('keydown', (e) => {
   const modifier = e.ctrlKey || e.metaKey;
   if (player.workspaceMode === 'browser' && modifier && !e.altKey) {
     const key = e.key.toLowerCase();
+    if (key === 'k') { e.preventDefault(); openBrowserCommandPalette(); return; }
     if (key === 'f') { e.preventDefault(); openBrowserFind(); return; }
     if (key === 'l') {
       e.preventDefault();
