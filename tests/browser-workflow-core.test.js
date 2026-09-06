@@ -218,7 +218,8 @@ async function test(name, fn) {
       provider: 'https://one.example/chat/completions', sourceHash: 'source-b',
     });
     assert.notEqual(providerA, providerB);
-    assert.notEqual(providerA, sourceB);
+    assert.equal(providerA, sourceB,
+      'yalnız tam iz sourceHash değişince değişmeyen cümlenin cache sonucu korunmalı');
 
     const identityBase = {
       targetLanguage: 'tr', model: 'a', provider: 'https://one.example/chat/completions',
@@ -238,8 +239,8 @@ async function test(name, fn) {
       'aynı medya içindeki farklı kaynak izler cache paylaşmamalı');
     assert.equal(
       translationCacheKey(sentence, identityBase),
-      translationCacheKey(sentence, { ...identityBase, sourceRevision: 'revision-b' }),
-      'komşu cue değişse de değişmeyen cümlenin cache sonucu korunmalı');
+      translationCacheKey(sentence, { ...identityBase, sourceRevision: 'revision-b', sourceHash: 'source-b' }),
+      'sourceRevision ve sourceHash birlikte değişse de değişmeyen cümlenin cache sonucu korunmalı');
     assert.notEqual(
       translationCacheKey(sentence, identityBase),
       translationCacheKey(sentence, { ...identityBase, promptVersion: 'prompt-v2' }),
