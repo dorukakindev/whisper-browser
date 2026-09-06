@@ -661,6 +661,16 @@ test('ayarları açmak yan paneli zorla açmıyor', () => {
     'panel daraltilmisken cekmeceyi gosteren kural yok — ayarlar hic acilmaz');
 });
 
+test('ayar çekmecesi klavye odağını içine alır ve açan kontrole geri verir', () => {
+  assert(/id="settingsDrawer"[^>]*role="dialog"[^>]*aria-modal="false"[^>]*aria-labelledby="settingsDrawerTitle"/.test(html),
+    'ayar çekmecesinin erişilebilir dialog adı yok');
+  const drawer = js.slice(js.indexOf('function setSettingsDrawer'), js.indexOf('function toggleSettingsPage'));
+  assert(/settingsReturnFocus = active/.test(drawer), 'çekmece açılırken çağıran odak saklanmıyor');
+  assert(/closeSettings['"]\)\?\.focus\(\)/.test(drawer), 'çekmece açılınca klavye odağı içine taşınmıyor');
+  assert(/restoreFocus\?\.isConnected/.test(drawer) && /restoreFocus\.focus\(\)/.test(drawer),
+    'çekmece kapanınca odak açan kontrole dönmüyor');
+});
+
 // ---- 10. AI işleri ana iş akışını tetiklemiyor ----
 test('AI işleri "Altyazı hazır" modalını açmıyor', () => {
   // Backend sohbet/aciklama modlarinda da 'done' basiyor; ana switch onu

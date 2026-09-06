@@ -3758,6 +3758,7 @@ const player = {
   watchManualCompletedKey: '',
   watchManualCompleted: null,
   watchRemovedKey: '',
+  settingsReturnFocus: null,
   watchSaveTick: 0,
   pendingLibrarySeek: null,
   pendingLibraryAnchor: null,
@@ -12677,6 +12678,13 @@ function setSettingsDrawer(open) {
   const d = $('settingsDrawer');
   if (!d) return;
   const layer = $('playerLayer');
+  const wasOpen = !d.classList.contains('hidden');
+  if (open && !wasOpen) {
+    const active = document.activeElement;
+    player.settingsReturnFocus = active && typeof active.focus === 'function' ? active : null;
+  }
+  const restoreFocus = !open && wasOpen && d.contains?.(document.activeElement)
+    ? player.settingsReturnFocus : null;
   if (open) hideWordInspector();
   // Panel daraltilmisken ayarlari acmak ARTIK paneli zorla acmiyor: cekmece
   // (sinema modundaki gibi) videonun ustunde bagimsiz bir katman olarak cikar.
@@ -12714,6 +12722,14 @@ function setSettingsDrawer(open) {
       button.classList.toggle('active', diagnosticsOpen);
       button.setAttribute('aria-expanded', diagnosticsOpen ? 'true' : 'false');
     }
+  }
+  if (open && !wasOpen) {
+    requestAnimationFrame(() => {
+      if (!d.classList.contains('hidden') && !d.contains?.(document.activeElement)) $('closeSettings')?.focus();
+    });
+  } else if (!open) {
+    player.settingsReturnFocus = null;
+    if (restoreFocus?.isConnected) requestAnimationFrame(() => restoreFocus.focus());
   }
 }
 
