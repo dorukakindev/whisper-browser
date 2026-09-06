@@ -4277,11 +4277,20 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   tab.translationSourceCues = cues;
   tab.translationResults = new Map();
   tab.translationPersistedSignature = '';
+  const sourceHash = createHash('sha256')
+    .update(JSON.stringify(cues.map((cue) => [cue.start, cue.end, cue.text])), 'utf8').digest('hex');
+  const mediaIdentity = browserWatchMediaId(tab);
+  const trackIdentity = tab.translationTrackId;
   const context = {
+    promptVersion: 'browser-sentence-v1',
+    mediaIdentity,
+    trackIdentity,
+    sourceLineage: `${mediaIdentity}|${trackIdentity}`,
+    sourceRevision: sourceHash,
     targetLanguage: config.targetLanguage,
     model: config.model,
     provider: safeTranslationEndpoint(config.endpoint),
-    sourceHash: createHash('sha256').update(JSON.stringify(cues.map((cue) => [cue.start, cue.end, cue.text])), 'utf8').digest('hex'),
+    sourceHash,
     style: `${config.register}:${config.profanity}`,
     glossaryVersion: createHash('sha1').update(JSON.stringify(config.glossary)).digest('hex').slice(0, 12),
   };

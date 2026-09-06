@@ -64,6 +64,12 @@ function assembleCueSentences(rawCues, options = {}) {
 function translationCacheKey(sentence, context = {}) {
   const material = JSON.stringify({
     version: SENTENCE_PROTOCOL_VERSION,
+    promptVersion: String(context.promptVersion || SENTENCE_PROTOCOL_VERSION),
+    mediaIdentity: String(context.mediaIdentity || ''),
+    trackIdentity: String(context.trackIdentity || ''),
+    sourceLineage: String(context.sourceLineage || ''),
+    sourceRevision: String(context.sourceRevision || context.sourceHash || ''),
+    cueIdentity: String(context.cueIdentity || ''),
     text: normalizeText(sentence?.text),
     pieces: (sentence?.pieces || []).map((piece) => [normalizeText(piece.text),
       finiteNumber(piece.end) - finiteNumber(piece.start)]),

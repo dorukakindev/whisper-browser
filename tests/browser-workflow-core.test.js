@@ -219,6 +219,35 @@ async function test(name, fn) {
     });
     assert.notEqual(providerA, providerB);
     assert.notEqual(providerA, sourceB);
+
+    const identityBase = {
+      targetLanguage: 'tr', model: 'a', provider: 'https://one.example/chat/completions',
+      sourceHash: 'source-a', sourceRevision: 'revision-a', promptVersion: 'prompt-v1',
+      mediaIdentity: 'browser:youtube:video-a', trackIdentity: 'captions-en',
+      sourceLineage: 'browser:youtube:video-a|captions-en',
+    };
+    assert.notEqual(
+      translationCacheKey(sentence, identityBase),
+      translationCacheKey(sentence, { ...identityBase, mediaIdentity: 'browser:youtube:video-b',
+        sourceLineage: 'browser:youtube:video-b|captions-en' }),
+      'aynı metin farklı medyada cache paylaşmamalı');
+    assert.notEqual(
+      translationCacheKey(sentence, identityBase),
+      translationCacheKey(sentence, { ...identityBase, trackIdentity: 'captions-de',
+        sourceLineage: 'browser:youtube:video-a|captions-de' }),
+      'aynı medya içindeki farklı kaynak izler cache paylaşmamalı');
+    assert.notEqual(
+      translationCacheKey(sentence, identityBase),
+      translationCacheKey(sentence, { ...identityBase, sourceRevision: 'revision-b' }),
+      'kaynak revizyonu değişince eski çeviri hazır sayılmamalı');
+    assert.notEqual(
+      translationCacheKey(sentence, identityBase),
+      translationCacheKey(sentence, { ...identityBase, promptVersion: 'prompt-v2' }),
+      'prompt sözleşmesi değişince eski cache kullanılmamalı');
+    assert.notEqual(
+      translationCacheKey(sentence, { ...identityBase, cueIdentity: 'cue-a' }),
+      translationCacheKey(sentence, { ...identityBase, cueIdentity: 'cue-b' }),
+      'açık cue kimliği değişince sonuç paylaşılmamalı');
   });
 
   await test('zamanlayıcı pencereyi çevirir ve ikinci koşuda cache kullanır', async () => {
