@@ -145,7 +145,7 @@ function buildBrowserMediaCommandScript(command, value) {
       playbackRate: finite(video.playbackRate, 1), paused: !!video.paused,
       volume: finite(video.volume), muted: !!video.muted };
     } catch (error) {
-      const detail = String(error?.message || error?.name || '').replace(/https?:\/\/\S+/gi, '[adres gizlendi]').slice(0, 180);
+      const detail = String(error?.message || error?.name || '').replace(/https?:\\/\\/\\S+/gi, '[adres gizlendi]').slice(0, 180);
       return { handled: false, error: detail || 'Oynatıcı komutu reddetti.' };
     }
   })()`;

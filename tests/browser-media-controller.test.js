@@ -45,6 +45,15 @@ test('komutlar durum yoklamasıyla aynı medya seçicisini kullanır', () => {
   assert.match(script, /1\.5/);
 });
 
+test('every supported media command produces valid JavaScript', () => {
+  for (const command of [
+    'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
+    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip',
+  ]) {
+    assert.doesNotThrow(() => new vm.Script(buildBrowserMediaCommandScript(command, 1)), command);
+  }
+});
+
 test('oynayan görünür video büyük ama duraklatılmış videodan önce seçilir', () => {
   const paused = { isConnected: true, tagName: 'VIDEO', paused: true, ended: false,
     clientWidth: 1920, clientHeight: 1080, currentTime: 11, duration: 500 };
