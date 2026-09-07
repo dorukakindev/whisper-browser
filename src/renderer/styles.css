@@ -3085,6 +3085,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 }
 .browser-menu-popover .browser-more-zoom button:disabled { color: #55555a; cursor: default; }
 .browser-menu-popover button:hover { color: #e7edf2; background: #1d242b; }
+.browser-menu-popover button:disabled { color: #5c6872; opacity: .72; cursor: default; }
+.browser-menu-popover button:disabled:hover { color: #5c6872; background: transparent; }
 .browser-menu-popover button:hover .browser-menu-icon { color: #d5a35c; }
 .browser-menu-popover button:focus-visible { outline: 2px solid #d5a35c; outline-offset: 1px; }
 
@@ -4721,6 +4723,10 @@ body::before {
   display: flex; flex-direction: row; align-items: center; gap: 7px; min-height: 30px;
 }
 .browser-view-switch input { flex: 0 0 auto; }
+.browser-adblock-settings { padding: 12px 0; margin-top: 12px; border-top: 1px solid var(--border); }
+.browser-adblock-settings .browser-view-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.browser-adblock-settings:has(input:checked) #browserAdblockStatus { color: var(--green); }
+.browser-adblock-settings:has(input:disabled) #browserAdblockStatus { color: var(--amber); }
 .browser-hardware-settings { padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
 .browser-hardware-settings .browser-view-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .browser-hardware-settings p { margin: 8px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }

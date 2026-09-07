@@ -1080,6 +1080,18 @@
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h9M8.5 3v2c0 4-2 7-5 9M6 10c1 2 3 4 6 5M14 10h6l-3 9M15.5 15h3"/></svg></span>
                       <span class="browser-menu-label">Sayfayı çevir</span>
                     </button>
+                    <div class="browser-menu-separator" role="separator"></div>
+                    <div class="browser-menu-group-label">Whisper altyazı</div>
+                    <button type="button" id="browserWhisperSubtitlesMenu" role="menuitem" data-browser-proxy="browserWhisperSubtitles"
+                      title="Açık YouTube videosunun sesini Whisper ile yazıya çevir">
+                      <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 8v8M16 8v8M5 11v2M19 11v2"/></svg></span>
+                      <span class="browser-menu-label">Whisper ile altyazı çıkar</span>
+                    </button>
+                    <button type="button" id="browserWhisperTranslateMenu" role="menuitem" data-browser-proxy="browserWhisperTranslate"
+                      title="Açık YouTube videosunu Whisper ile yazıya çevir ve Türkçeye çevir">
+                      <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h8M8 3v2c0 4-2 7-5 9M6 10c1 2 3 4 6 5M14 10h6l-3 9M15.5 15h3"/></svg></span>
+                      <span class="browser-menu-label">Whisper + çeviri</span>
+                    </button>
                     <button type="button" role="menuitem" data-browser-proxy="browserMangaTranslate">
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h10.5A3.5 3.5 0 0 1 19 7.5V18H8.5A3.5 3.5 0 0 1 5 14.5V4Z"/><path d="M9 9h6M9 12h4"/></svg></span>
                       <span class="browser-menu-label">Mangayı çevir</span>
@@ -1393,6 +1405,18 @@
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportImage" type="button">Manga görseli</button>
                   <button class="btn btn-ghost btn-sm" id="browserPiP" type="button">Resim içinde resim</button>
                 </div>
+                <section class="browser-adblock-settings" aria-labelledby="browserAdblockTitle">
+                  <div class="browser-settings-section-head">
+                    <strong id="browserAdblockTitle">YouTube reklam engelleme</strong>
+                    <span>Video öncesi ve video arası platform reklamlarını Ghostery filtreleriyle engeller.</span>
+                  </div>
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserAdblockEnabled" role="switch" checked aria-describedby="browserAdblockHint browserAdblockStatus" />
+                    <span>Tarayıcı reklam koruması</span>
+                  </label>
+                  <p id="browserAdblockStatus" class="browser-session-status" role="status" aria-live="polite">Reklam filtreleri hazırlanıyor…</p>
+                  <p id="browserAdblockHint" class="browser-manga-hint">YouTube ve diğer sitelerdeki reklam istekleri ile reklam öğelerini engeller. SponsorBlock video içine gömülü sponsor bölümlerini ayrıca atlar.</p>
+                </section>
                 <section class="browser-sponsor-settings" aria-labelledby="browserSponsorTitle">
                   <div class="browser-settings-section-head"><strong id="browserSponsorTitle">SponsorBlock</strong><span>Yalnızca YouTube için sponsor bölümlerini gösterir veya atlar.</span></div>
                   <div class="browser-view-settings-grid">

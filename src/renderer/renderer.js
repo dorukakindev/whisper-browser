@@ -1806,6 +1806,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
   'browserPageAuto',
   'browserHardwareAcceleration',
+  'browserAdblockEnabled',
 ];
 
 function collectUiSettings() {
@@ -2201,6 +2202,7 @@ if ($('deepseekKeyHelp')) {
       else if (s.preset && PRESETS[s.preset]) _presetReference = s.preset;
     }
   } catch (_) {}
+  void refreshBrowserAdblockState();
   await restorePersistedQueue();
   await offerBurnInRecovery();
   renderGlossary();
@@ -6824,9 +6826,16 @@ function updateBrowserWhisperActions() {
   };
   for (const [id, title] of Object.entries(descriptions)) {
     const button = $(id);
-    if (!button) continue;
-    button.disabled = !url || busy;
-    button.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
+    if (button) {
+      button.disabled = !url || busy;
+      button.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
+    }
+    const menuButton = $(`${id}Menu`);
+    if (menuButton) {
+      menuButton.disabled = !url || busy;
+      menuButton.setAttribute?.('aria-disabled', menuButton.disabled ? 'true' : 'false');
+      menuButton.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
+    }
   }
 }
 
@@ -7573,6 +7582,40 @@ function updateBrowserNavigation(data, options = {}) {
   return true;
 }
 
+function renderBrowserAdblockState(result = {}) {
+  const status = $('browserAdblockStatus');
+  if (!status) return;
+  if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
+  else if (result.enabled) {
+    const cacheNote = result.stale ? ' · ağ kullanılamadığı için son kayıtlı filtreler' : '';
+    const blockedNote = Number(result.blocked) > 0 ? ` · ${result.blocked} istek engellendi` : '';
+    status.textContent = `Reklam koruması etkin${blockedNote}${cacheNote}.`;
+  } else if (result.requested && result.error) status.textContent = result.error;
+  else status.textContent = 'Reklam koruması kapalı.';
+}
+
+async function refreshBrowserAdblockState() {
+  if (!window.api.getBrowserAdblockState) return;
+  const result = await window.api.getBrowserAdblockState().catch(() => null);
+  if (result) renderBrowserAdblockState(result);
+}
+
+async function setBrowserAdblockEnabled(enabled) {
+  const control = $('browserAdblockEnabled');
+  if (!control || !window.api.setBrowserAdblockEnabled) return;
+  control.disabled = true;
+  renderBrowserAdblockState({ state: 'loading' });
+  const result = await window.api.setBrowserAdblockEnabled(enabled).catch((error) => ({
+    ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${error.message}`,
+  }));
+  control.disabled = false;
+  renderBrowserAdblockState(result);
+  if (result?.ok && result.reloadRequired && player.workspaceMode === 'browser' && player.browserPageUrl) {
+    setBrowserSignal(enabled ? 'Reklam koruması açıldı; sayfa filtrelerle yenileniyor.' : 'Reklam koruması kapatıldı; sayfa yenileniyor.', true);
+    await runBrowserChromeCommand('reload');
+  }
+}
+
 function browserSponsorMode() {
   const value = $('browserSponsorMode')?.value;
   return ['off', 'ask', 'auto'].includes(value) ? value : 'off';
@@ -8211,6 +8254,9 @@ if ($('browserForward')) $('browserForward').addEventListener('click', () => run
 if ($('browserReload')) $('browserReload').addEventListener('click', () => {
   runBrowserChromeCommand($('browserReload').classList.contains('loading') ? 'stop' : 'reload');
 });
+if ($('browserAdblockEnabled')) $('browserAdblockEnabled').addEventListener('change', (event) => {
+  void setBrowserAdblockEnabled(event.target.checked);
+});
 if ($('browserSponsorRefresh')) $('browserSponsorRefresh').addEventListener('click', () => refreshBrowserSponsorSegments().catch(() => {}));
 if ($('browserSponsorMode')) $('browserSponsorMode').addEventListener('change', () => {
   const mode = browserSponsorMode();
@@ -8404,6 +8450,7 @@ if ($('browserTabUnload')) $('browserTabUnload').addEventListener('click', async
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.type === 'adblock-status') { renderBrowserAdblockState(event); return; }
   if ((event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error')
       && (!event.tabId || event.tabId === player.browserActiveTabId)) {
     applyBrowserPageTranslationState(event);

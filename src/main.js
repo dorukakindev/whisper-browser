@@ -11,6 +11,7 @@ const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
+const { createBrowserAdblock } = require('./browser-adblock');
 const { canonicalLocalPath, SubtitleFileAccess, PdfFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const subtitleFileAccess = new SubtitleFileAccess();
 const pdfFileAccess = new PdfFileAccess();
@@ -235,6 +236,7 @@ protocol?.registerSchemesAsPrivileged?.([{
 // Varsayılan açık: yalnız açıkça kaydedilmiş false hızlandırmayı kapatır.
 const browserHardwareAccelerationEnabled = readPublicSettings().ui?.browserHardwareAcceleration !== false;
 if (!browserHardwareAccelerationEnabled) app.disableHardwareAcceleration();
+const browserAdblockInitiallyEnabled = readPublicSettings().ui?.browserAdblockEnabled !== false;
 
 let mainWindow;
 let mainWindowClosing = false;
@@ -1646,6 +1648,51 @@ function installYoutubeStreamHeaders() {
 // hem de ziyaret edilen sayfanın uygulamanın preload/Node yetkilerine erişmesini
 // engeller. Görünüm yalnızca renderer'ın bildirdiği boş alana çizilir.
 const BROWSER_PARTITION = 'persist:whisper-browser';
+let browserAdblockController = null;
+let browserAdblockReadyPromise = null;
+
+function publishBrowserAdblockState(result) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('browser:event', { type: 'adblock-status', ...(result || {}) });
+}
+
+function ensureBrowserAdblockController() {
+  if (!browserAdblockController) {
+    browserAdblockController = createBrowserAdblock({
+      cachePath: path.join(app.getPath('userData'), 'browser-adblock-engine.bin'),
+      initialEnabled: browserAdblockInitiallyEnabled,
+      logger: console,
+    });
+  }
+  return browserAdblockController;
+}
+
+async function configureBrowserAdblock(enabled) {
+  const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  const result = await ensureBrowserAdblockController().setEnabled(browserSession, enabled);
+  publishBrowserAdblockState(result);
+  return result;
+}
+
+function startBrowserAdblock() {
+  if (!browserAdblockReadyPromise) {
+    browserAdblockReadyPromise = configureBrowserAdblock(browserAdblockInitiallyEnabled).catch((error) => {
+      const result = {
+        ok: false, requested: browserAdblockInitiallyEnabled, enabled: false, state: 'error',
+        error: `Reklam engelleme hazırlanamadı: ${String(error?.message || error)}`,
+        engine: 'Ghostery', changed: false,
+      };
+      publishBrowserAdblockState(result);
+      return result;
+    });
+  }
+  return browserAdblockReadyPromise;
+}
+
+async function waitForBrowserAdblockReady() {
+  await startBrowserAdblock();
+  return ensureBrowserAdblockController().waitUntilReady();
+}
 // Electron'ın contextIsolation preload dünyası 999'dur. Preload köprüsü ile
 // executeJavaScriptInIsolatedWorld aynı güvenilir dünyada buluşur; uzak sayfanın
 // ana dünyası bu globali göremez.
@@ -2555,6 +2602,7 @@ async function openBrowserLinkInNewTab(rawUrl) {
   if (!view) { destroyBrowserTab(tab); throw new Error('Yeni sekme hazırlanamadı.'); }
   tab.restoredUrl = url;
   sendBrowserEvent(tab, { type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
+  if (typeof waitForBrowserAdblockReady === 'function') await waitForBrowserAdblockReady();
   await waitForProtectedPlayback(url, tab);
   view.setVisible(tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
   try {
@@ -6627,6 +6675,7 @@ function resumeRestoredBrowserPage(tab) {
   void (async () => {
     try {
       await setBrowserTabCompatibilityMode(tab, browserCompatibilityModeForUrl(url));
+      if (typeof waitForBrowserAdblockReady === 'function') await waitForBrowserAdblockReady();
       await waitForProtectedPlayback(url);
       if (browserTabById(tab.id) !== tab || tab.view !== view || view.webContents.isDestroyed()
           || tab.restoredUrl !== url || !['', 'about:blank'].includes(view.webContents.getURL())) return;
@@ -7016,6 +7065,7 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
   browserAssetStore().sweepTempFiles();
   browserAdapterPluginStatus = ADAPTER_REGISTRY.loadJsonDirectory(
     path.join(app.getPath('userData'), 'browser-adapters'));
+  if (typeof startBrowserAdblock === 'function') startBrowserAdblock();
   restoreBrowserSessionState();
   createWindow();
 });
@@ -7288,6 +7338,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   const url = normalizeBrowserUrl(payload && payload.url);
   if (!url) return { ok: false, error: 'Geçerli bir http veya https adresi girin.' };
   await setBrowserTabCompatibilityMode(tab, browserCompatibilityModeForUrl(url));
+  if (typeof waitForBrowserAdblockReady === 'function') await waitForBrowserAdblockReady();
   await waitForProtectedPlayback(url);
   if (!activeRequestedBrowserTab(tab.id)) return { ok: false, stale: true, error: 'Sekme değiştiği için gezinme iptal edildi.' };
   const view = ensureBrowserView(tab);
@@ -7557,6 +7608,17 @@ ipcMain.handle('browser:command', async (event, payload) => {
   }
 });
 
+ipcMain.handle('browser:adblock:getState', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return ensureBrowserAdblockController().getState();
+});
+
+ipcMain.handle('browser:adblock:setEnabled', async (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const enabled = payload.enabled !== false;
+  const result = await configureBrowserAdblock(enabled);
+  return { ...result, reloadRequired: result.changed };
+});
 ipcMain.handle('browser:sponsorBlock:get', async (event, payload = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(payload.tabId);
