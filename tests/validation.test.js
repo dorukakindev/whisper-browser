@@ -203,7 +203,7 @@ t('geçici sohbet verisi benzersiz dosyada tutulur ve tüm iş bitiş yollarınd
   ok(/Buffer\.byteLength\(chatPayload, 'utf8'\) > 8 \* 1024 \* 1024/.test(body),
     'sohbet geçici dosyasında güvenli boyut sınırı yok');
   ok(/mode:\s*0o600/.test(body), 'sohbet geçici dosyası kısıtlı izinle yazılmıyor');
-  ok(/catch \(err\) \{\s*cleanupChatFile\(\);\s*return \{ ok: false, error: `Python başlatılamadı/s.test(body),
+  ok(/catch \(err\) \{[\s\S]{0,320}cleanupChatFile\(\);\s*return \{ ok: false, error: `Python başlatılamadı/.test(body),
     'spawn hatasında sohbet dosyası silinmiyor');
   const closeBody = body.slice(body.indexOf("activeJob.on('close'"), body.indexOf("activeJob.on('error'"));
   const errorBody = body.slice(body.indexOf("activeJob.on('error'"), body.indexOf('startPowerBlocker()', body.indexOf("activeJob.on('error'")));
@@ -323,7 +323,7 @@ t('AI işi ve oynatıcı kapanışı görünür durumu temizler', () => {
   ok(/aiJob\.bubble[\s\S]*İptal edildi/.test(cancel), 'ana iptal AI sohbet balonunu temizlemiyor');
   const events = rsrc.slice(rsrc.indexOf('function playerJobEvent'),
     rsrc.indexOf('window.api.onEvent'));
-  ok(/Video değiştiği için önceki videonun yanıtı/.test(events),
+  ok(/Video veya sohbet oturumu değiştiği için önceki yanıt/.test(events),
     'video değişince bekleyen AI sohbet balonu temizlenmiyor');
   const close = rsrc.slice(rsrc.indexOf('function closePlayer'), rsrc.indexOf('async function playPlaylistDelta'));
   ok(/stopAmbient\(\)/.test(close), 'oynatıcı kapanırken ambient zamanlayıcı durmuyor');

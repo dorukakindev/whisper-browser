@@ -20,6 +20,8 @@ const context = {
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'live-asr-worklet.js'), 'utf8');
 vm.runInNewContext(source, context);
 const processor = new Processor();
+assert.doesNotThrow(() => processor.port.onmessage({ data: null }));
+assert.doesNotThrow(() => processor.port.onmessage({}));
 processor.port.onmessage({ data: { type: 'sync', time: 42, contextTime: 0, paused: false, rate: 1.5 } });
 for (let block = 0; block < 1000; block += 1) {
   context.currentTime = block * 128 / 16000;

@@ -2770,11 +2770,12 @@ function playerJobEvent(event) {
     return true;
   }
 
-  if ((event.type === 'chat' || event.type === 'explain') && job.mediaKey !== player.mediaKey) {
+  if ((event.type === 'chat' || event.type === 'explain')
+      && (job.mediaKey !== player.mediaKey || (job.kind === 'chat' && job.generation !== player.generation))) {
     if (job.bubble) {
       job.bubble.classList.remove('is-loading');
       job.bubble.classList.add('ai-msg-err');
-      job.bubble.textContent = 'Video değiştiği için önceki videonun yanıtı bu sohbete eklenmedi.';
+      job.bubble.textContent = 'Video veya sohbet oturumu değiştiği için önceki yanıt eklenmedi.';
     }
     job.running = false;
     job.awaitingExit = true;
@@ -2812,6 +2813,7 @@ function playerJobEvent(event) {
       player.chatHistory.push({ role: 'user', content: job.chatQuestion });
     }
     player.chatHistory.push({ role: 'assistant', content: event.text });
+    if (player.chatHistory.length > 128) player.chatHistory.splice(0, player.chatHistory.length - 128);
     job.running = false;
     job.awaitingExit = true;
     state.running = false;
@@ -11205,6 +11207,8 @@ function aiChatAdd(role, text, cls) {
   if (role === 'ai' && !cls?.includes('is-loading')) renderAiText(d, text);
   else d.textContent = text;
   log.appendChild(d);
+  const messages = log.querySelectorAll('.ai-msg');
+  for (let i = 0; i < Math.max(0, messages.length - 200); i++) messages[i].remove();
   log.scrollTop = log.scrollHeight;
   return d;
 }
@@ -11236,8 +11240,8 @@ async function aiChatSend(soru) {
   state.running = true;
   state.aiJob = true;
   player.job = {
-    running: true, mediaKey: player.mediaKey, kind: 'chat', bubble: bekleyen,
-    chatQuestion: q,
+    running: true, mediaKey: player.mediaKey, generation: player.generation,
+    kind: 'chat', bubble: bekleyen, chatQuestion: q,
   };
 
   const r = await startTranscribeSafe(opts);
@@ -12092,6 +12096,7 @@ function resetMediaBoundState(options = {}) {
   player.abA = null;
   player.abB = null;
   player.chatHistory = [];
+  if ($('aiChatText')) { $('aiChatText').value = ''; autoGrowChatBox(); }
   player.timeline.waveform = [];
   player.timeline.waveformDuration = 0;
   player.timeline.selected = -1;
@@ -13797,6 +13802,7 @@ function captureSettingsPanelSnapshot() {
     cueSearch: $('cueSearch')?.value || '',
     aiDraft: $('aiChatText')?.value || '',
     librarySearch: $('playerLibrarySearch')?.value || '',
+    mediaKey: player.mediaKey || '',
     libraryFilter: $('playerLibraryFilter')?.value || 'all',
     libraryScope: $('playerLibrarySearchScope')?.value || 'all',
   };
@@ -13806,7 +13812,8 @@ function restoreSettingsPanelSnapshot() {
   const snapshot = player.settingsPanelSnapshot;
   if (!snapshot) return;
   if ($('cueSearch') && $('cueSearch').value !== snapshot.cueSearch) $('cueSearch').value = snapshot.cueSearch;
-  if ($('aiChatText') && $('aiChatText').value !== snapshot.aiDraft) {
+  if ($('aiChatText') && snapshot.mediaKey === (player.mediaKey || '')
+      && $('aiChatText').value !== snapshot.aiDraft) {
     $('aiChatText').value = snapshot.aiDraft;
     autoGrowChatBox();
   }
@@ -15628,6 +15635,7 @@ if ($('aiChatClear')) {
       return;
     }
     player.chatHistory = [];
+    if ($('aiChatText')) { $('aiChatText').value = ''; autoGrowChatBox(); }
     const log = $('aiChatLog');
     [...log.querySelectorAll('.ai-msg')].forEach((e) => e.remove());
     $('aiChatEmpty')?.classList.remove('hidden');

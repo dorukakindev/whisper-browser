@@ -2949,6 +2949,23 @@ def test_subtitle_output_descriptor_does_not_infer_role_from_filename():
     assert descriptor["completed"] == 87 and descriptor["failed"] == 13
 
 
+def test_chat_reasoning_model_uses_supported_generation_contract():
+    for model in ("gpt-5", "openai/gpt-5.4-mini", "o1", "openai/o4-mini"):
+        assert T.chat_generation_kwargs(model) == {"max_completion_tokens": 4096}
+        assert T.chat_instruction_role(model) == "developer"
+    assert T.chat_generation_kwargs("gpt-4.1-mini") == {"temperature": 0.4}
+    assert T.chat_instruction_role("gpt-4.1-mini") == "system"
+
+
+def test_write_ass_escapes_untrusted_override_syntax():
+    with tempfile.TemporaryDirectory() as folder:
+        target = Path(folder) / "untrusted.ass"
+        T.write_ass([(0.0, 1.0, r"{\an8}Metin {literal}")], target)
+        output = target.read_text(encoding="utf-8-sig")
+        assert r"{\an8}" not in output
+        assert "｛\\an8｝Metin ｛literal｝" in output
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0

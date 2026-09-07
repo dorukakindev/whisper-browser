@@ -33,7 +33,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
     proc.stdout = new EventEmitter(); proc.stderr = new EventEmitter();
     proc.stdout.setEncoding = proc.stderr.setEncoding = () => {};
     const ctx = {
-      authorizedBrowserSender: () => true, activeJob: null, burninJob: null, browserLiveAsr: null,
+      authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: {},
       dialog: { showOpenDialog: async () => ({ filePaths: ['synthetic.mp4'] }) },
       loadSettings: () => ({}), KNOWN_MODELS: ['small'], app: { getAppPath: () => '/synthetic' },

@@ -10,6 +10,7 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
     this.silence = 0;
     this.clock = null;
     this.port.onmessage = ({ data }) => {
+      if (!data || typeof data !== 'object') return;
       if (data.type === 'flush') { this.flush(); this.clock = null; this.port.postMessage({ type: 'flushed' }); return; }
       if (data.type !== 'sync' || !Number.isFinite(data.time) || !Number.isFinite(data.contextTime)) return;
       const next = { ...data, rate: Math.max(.25, Math.min(4, Number(data.rate) || 1)) };

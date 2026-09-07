@@ -3,7 +3,13 @@
 const QUEUE_SNAPSHOT_VERSION = 1;
 const MAX_QUEUE_ITEMS = 500;
 const MAX_QUEUE_OPTIONS_BYTES = 512 * 1024;
-const SECRET_OPTION_KEYS = new Set(['hfToken', 'translateApiKey', 'llmApiKey']);
+const SECRET_OPTION_KEYS = new Set([
+  'hfToken', 'translateApiKey', 'llmApiKey',
+  // Eklenti/özel sağlayıcı seçenekleri kuyruk snapshot'ına düz metin olarak
+  // girmemeli; kısa ve CamelCase anahtarlar regex'ten kaçabilir.
+  'bearerToken', 'csrfToken', 'xsrfToken', 'privateKey', 'authToken',
+  'sessionId', 'sid', 'sig', 'signature', 'oauthBearerToken',
+]);
 const ALLOWED_STATUS = new Set(['pending', 'running', 'done', 'error']);
 const TERMINAL_STATUS = new Set(['done', 'error']);
 const SENSITIVE_URL_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;

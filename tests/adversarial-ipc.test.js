@@ -20,7 +20,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { ...context, ipcMain: { handle: (name, fn) => {
+  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, ...context, ipcMain: { handle: (name, fn) => {
     assert.equal(name, channel); assert.equal(callback, undefined); callback = fn;
   } } });
   return callback;
@@ -158,7 +158,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const emitted = [], terminals = [], spawned = [];
     const context = {
       authorizedBrowserSender: () => true, clonePublicOptions, createNdjsonLineBuffer,
-      activeJob: null, activeQueueItemId: null, burninJob: null, browserLiveAsr: null,
+      activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer,
       process: { env: {} }, resolvePython: () => 'mock-python',
@@ -197,7 +197,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     spawned[1].emit('close', 1);
   });
   await test('benchmark dosya diyaloğu sırasında başlayan model işi ikinci spawnı engeller', async () => {
-    const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, browserLiveAsr: null,
+    const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender } };
     let complete;
     context.dialog = { showOpenDialog: () => new Promise((resolve) => { complete = resolve; }) };
@@ -215,7 +215,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       assert.equal(result.ok, false); assert.equal(result.running, true);
     }
     let finishInspect;
-    const context = vm.createContext({ authorizedBrowserSender: auth, burninJob: null,
+    const context = vm.createContext({ authorizedBrowserSender: auth, burninJob: null, burninStartPending: false,
       inspectBurninRecovery: () => new Promise((resolve) => { finishInspect = resolve; }) });
     context.ipcMain = { handle: (_channel, handler) => { context.recover = handler; } };
     vm.runInContext(handlers.get('burnin:recovery:recover'), context);

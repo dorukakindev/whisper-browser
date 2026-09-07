@@ -49,4 +49,12 @@ test('yanıt vermeyen taskkill zaman aşımında bir kez yedek iptal yapar', () 
   assert(cleared > 0);
   assert.equal(f.proc.exitCode, null, 'çocuk kapanmadan işi bitmiş sayma');
 });
+test('aynı canlı süreç için art arda iptal yalnız bir sonlandırma zinciri başlatır', () => {
+  const f = fixture();
+  assert.equal(terminateProcessTree(f.proc, f), true);
+  assert.equal(terminateProcessTree(f.proc, f), false);
+  assert.equal(f.calls.length, 1);
+  f.killer.emit('error', Error('fallback'));
+  assert.deepEqual(f.signals, ['SIGKILL']);
+});
 console.log(`process-lifecycle: ${passed} test`);

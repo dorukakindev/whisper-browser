@@ -486,12 +486,16 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
     let errText = '';
     let stderrTail = '';
     let settled = false;
+    const timeoutMs = kind === 'probe' ? 30_000 : kind === 'subs' ? 5 * 60_000 : 2 * 60 * 60_000;
+    let timeoutTimer = null;
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       resolve(value);
     };
     const handleLine = (raw) => {
+      if (settled) return;
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
@@ -511,9 +515,16 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
       for (const line of stdoutLines.push(chunk)) handleLine(line);
     });
     proc.stderr.on('data', (c) => { stderrTail = `${stderrTail}${c}`.slice(-500); });
+    timeoutTimer = setTimeout(() => {
+      if (mediaJobs[kind] !== proc || settled) return;
+      terminateProcessTree(proc, { spawn });
+      finish({ ok: false, error: 'Medya ' + kind + ' işlemi zaman sınırını aştı ve durduruldu.' });
+    }, timeoutMs);
+    timeoutTimer.unref?.();
     proc.on('close', (code) => {
-      for (const line of stdoutLines.flush()) handleLine(line);
       if (mediaJobs[kind] === proc) mediaJobs[kind] = null;   // baskasinin isini silme
+      if (settled) return;
+      for (const line of stdoutLines.flush()) handleLine(line);
       if (result) finish({ ok: true, data: result });
       else finish({ ok: false, error: errText || stderrTail || `Süreç ${code} koduyla bitti` });
     });
@@ -4432,6 +4443,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     sourceHash,
     style: `${config.register}:${config.profanity}`,
     glossaryVersion: createHash('sha1').update(JSON.stringify(config.glossary)).digest('hex').slice(0, 12),
+    terminologyVersion: '',
   };
   const scheduler = new BrowserTranslationScheduler({
     cache: browserTranslationCache(),
@@ -4450,6 +4462,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
           if (config.terminologyEnabled) {
             const sourcePiece = (sentence?.pieces || []).find((piece) => String(piece.cueId) === String(cue.cueId));
             learnTerminology(config.terminologyMap, sourcePiece?.text || '', cue.text, cue.cueId, 1);
+            context.terminologyVersion = createHash('sha1').update(terminologyPrompt(config.terminologyMap), 'utf8').digest('hex').slice(0, 12);
           }
         }
       }
@@ -4554,7 +4567,7 @@ function sweepBrowserLiveAsrTemp() {
 
 function startBrowserLiveAsr(tab, options = {}) {
   if (browserLiveAsr) return { ok: false, error: 'Canlı Whisper zaten çalışıyor.' };
-  if (activeJob || burninJob || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
+  if (activeJob || burninJob || burninStartPending || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
   if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
   const settings = loadSettings();
   const ui = settings.ui || {};
@@ -4894,6 +4907,23 @@ function storeBrowserTrack(cues, meta = {}) {
   return null;
 }
 
+async function assertPublicBrowserSubtitleUrl(rawUrl) {
+  const parsed = new URL(String(rawUrl || ""));
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (isIP(host)) {
+    if (!isPublicMangaIpAddress(host)) throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", "Altyazı adresi özel veya ayrılmış bir ağ adresine yöneliyor.");
+    return;
+  }
+  let addresses;
+  try {
+    addresses = await withTimeout(dns.lookup(host, { all: true, verbatim: true }), 3500, "Altyazı alan adının ağ adresi doğrulanamadı.");
+  } catch (error) {
+    throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", error?.message || "Altyazı alan adı çözümlenemedi.");
+  }
+  if (!addresses.length || addresses.some((item) => !isPublicMangaIpAddress(item.address))) {
+    throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", "Altyazı alan adı özel veya ayrılmış bir ağ adresine çözümleniyor.");
+  }
+}
 async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null, byteRange = null) {
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
   if (context && !isCurrentBrowserContext(context)) {
@@ -4917,6 +4947,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
   if (safe.length > 8192) {
     throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi güvenli uzunluk sınırını aşıyor.');
   }
+  await assertPublicBrowserSubtitleUrl(safe);
   // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
   // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
   // page-world fetch'e göre daha güvenilir.
@@ -4945,6 +4976,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
         throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı yönlendirmesi güvenli değil.');
       }
       redirected.hash = '';
+      await assertPublicBrowserSubtitleUrl(redirected.href);
       requestUrl = redirected.href;
     }
     if (!response.ok) throw browserSubtitleHttpError(response.status);
@@ -8923,19 +8955,30 @@ ipcMain.handle('clipboard:write', (_event, text) => {
 function probeCommand(cmd, cmdArgs) {
   return new Promise((resolve) => {
     let out = '';
-    let timedOut = false;
     let timeoutTimer = null;
     let p;
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      resolve(value);
+    };
     try {
       p = spawn(cmd, cmdArgs, { windowsHide: true });
     } catch (_) {
-      return resolve(null);
+      return finish(null);
     }
-    p.on('error', () => resolve(null));
+    timeoutTimer = setTimeout(() => {
+      terminateProcessTree(p, { spawn });
+      finish(null);
+    }, 30_000);
+    timeoutTimer.unref?.();
+    p.on('error', () => finish(null));
     if (p.stdout) p.stdout.on('data', (d) => { out += d; });
     p.on('close', (code) => {
-      if (code !== 0) return resolve(null);
-      resolve((out.split(/\r?\n/)[0] || '').trim() || null);
+      if (code !== 0) return finish(null);
+      finish((out.split(/\r?\n/)[0] || '').trim() || null);
     });
   });
 }
@@ -8978,7 +9021,7 @@ ipcMain.handle('models:status', (event) => {
 
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (activeJob || burninJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'GPU kullanan başka bir iş çalışırken benchmark başlatılamaz.' };
   }
   const picked = await dialog.showOpenDialog(mainWindow, {
@@ -8988,7 +9031,7 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   });
   if (picked.canceled || !picked.filePaths[0]) return { ok: false, canceled: true };
   // The native dialog yields; a different request may have acquired the GPU.
-  if (activeJob || burninJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Dosya seçimi sırasında başka bir model veya gömme işi başladı.' };
   }
   const settings = loadSettings();
@@ -9309,12 +9352,25 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
     let stderr = '';
     let proc;
     let settled = false;
-    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
+    let timedOut = false;
+    let timeoutTimer = null;
+    const finish = (value) => { if (!settled) { settled = true; if (timeoutTimer) clearTimeout(timeoutTimer); resolve(value); } };
     try { proc = spawn(resolveFfTool('ffmpeg'), args, { windowsHide: true }); }
     catch (error) { return finish({ ok: false, error: error.message }); }
     proc.on('error', (error) => finish({ ok: false, error: error.message }));
     proc.stderr?.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-2000); });
+    timeoutTimer = setTimeout(() => {
+      timedOut = true;
+      terminateProcessTree(proc, { spawn });
+      finish({ ok: false, error: 'Gömülü altyazı çıkarma işlemi 2 dakikada tamamlanamadı.' });
+    }, 120_000);
+    timeoutTimer.unref?.();
     proc.on('close', (code) => {
+      if (timedOut) {
+        try { removeFileQuietly(outputPath); } catch (_) {}
+        return;
+      }
+      if (settled) return;
       if (code === 0 && fs.existsSync(outputPath)) {
         subtitleFileAccess.grant(outputPath);
         finish({ ok: true, path: outputPath, label: subtitleTrackLabel(track) });
@@ -9429,7 +9485,7 @@ function shiftTimecodes(text, offsetSec) {
 
 ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (!filePath || typeof offsetSec !== 'number' || !isFinite(offsetSec) || Math.abs(offsetSec) > 86400) {
+  if (typeof filePath !== 'string' || !filePath || typeof offsetSec !== 'number' || !isFinite(offsetSec) || Math.abs(offsetSec) > 86400) {
     return { ok: false, error: 'Geçersiz parametre.' };
   }
   const ext = path.extname(filePath).toLowerCase();
@@ -9596,9 +9652,10 @@ async function inspectBurninRecovery() {
 }
 
 let burninJob = null;
+let burninStartPending = false;
 ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = '') => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (burninJob) return { ok: false, error: 'Gömme zaten çalışıyor.' };
+  if (burninJob || burninStartPending) return { ok: false, error: 'Gömme zaten çalışıyor.' };
   if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   }
@@ -9630,12 +9687,15 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     return { ok: false, error: `Altyazı gömme için hazırlanamadı: ${error.message}` };
   }
 
+  // İlk await öncesi kilidi al; iki IPC çağrısı aynı preflight penceresine giremesin.
+  burninStartPending = true;
   // Toplam süreyi al (ilerleme yüzdesi için)
   let totalSec = 0;
   try {
     const probe = await probeCommand(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', videoPath]);
     totalSec = parseFloat(probe) || 0;
   } catch (_) {}
+  burninStartPending = false;
 
   const vf = ffSubtitlesArg(filterSubPath);
   const args = ['-y', '-i', videoPath, '-vf', vf, '-map', '0:v:0', '-map', '0:a?',
@@ -9686,6 +9746,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       return { ok: false, error: `Gömme kurtarma kaydı oluşturulamadı: ${recoveryError.message}` };
     }
   } catch (err) {
+    burninStartPending = false;
     burninJob = null;
     try { removeFileQuietly(tempPath); } catch (_) {}
     try { removeFileQuietly(filterSubPath); } catch (_) {}
@@ -9766,9 +9827,9 @@ ipcMain.handle('burnin:recovery:get', (event) => {
 
 ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (burninJob) return { ok: false, running: true, error: 'Gömme sürerken kurtarma yapılamaz.' };
+  if (burninJob || burninStartPending) return { ok: false, running: true, error: 'Gömme sürerken kurtarma yapılamaz.' };
   const inspected = await inspectBurninRecovery();
-  if (burninJob) return { ok: false, running: true, error: 'Gömme başlatıldığı için kurtarma iptal edildi.' };
+  if (burninJob || burninStartPending) return { ok: false, running: true, error: 'Gömme başlatıldığı için kurtarma iptal edildi.' };
   const recovery = inspected.recovery;
   if (!inspected.available || !recovery || recovery.id !== String(recoveryId || '')) {
     return { ok: false, error: 'Kurtarılacak gömme işi bulunamadı.' };
@@ -9809,7 +9870,7 @@ ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
 
 ipcMain.handle('burnin:recovery:discard', (event, recoveryId) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (burninJob) return { ok: false, running: true, error: 'Gömme sürerken kurtarma dosyaları silinemez.' };
+  if (burninJob || burninStartPending) return { ok: false, running: true, error: 'Gömme sürerken kurtarma dosyaları silinemez.' };
   const recovery = readBurninRecoveryState();
   if (!recovery || recovery.id !== String(recoveryId || '')) {
     return { ok: false, error: 'Kurtarma kaydı bulunamadı.' };
@@ -9883,7 +9944,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (activeJob) {
     return { ok: false, error: 'Zaten bir iş çalışıyor.' };
   }
-  if (burninJob) {
+  if (burninJob || burninStartPending) {
     return { ok: false, error: 'Gömme işi çalışırken transkripsiyon başlatılamaz.' };
   }
   if (browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
@@ -10027,16 +10088,16 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.translateTo) args.push('--translate-to', options.translateTo);
   if (options.translateBaseUrl) args.push('--translate-base-url', options.translateBaseUrl);
   if (options.translateModel) args.push('--translate-model', options.translateModel);
-  if (options.translateWorkers) args.push('--translate-workers', String(options.translateWorkers));
-  if (options.translateRegister) args.push('--translate-register', options.translateRegister);
-  if (options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
-  args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
-  if (options.translateContext !== undefined && options.translateContext !== '') {
+  if (!options.chat && options.translateWorkers) args.push('--translate-workers', String(options.translateWorkers));
+  if (!options.chat && options.translateRegister) args.push('--translate-register', options.translateRegister);
+  if (!options.chat && options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
+  if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
+  if (!options.chat && options.translateContext !== undefined && options.translateContext !== '') {
     args.push('--translate-context', String(options.translateContext));
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
-  if (options.translateOnly) args.push('--translate-only', 'true');
-  if (options.translateExisting) args.push('--translate-existing', options.translateExisting);
+  if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
+  if (!options.chat && options.translateExisting) args.push('--translate-existing', options.translateExisting);
   // Sohbet: soru + gecmis + baglam TEK dosyaya yazilir. argv'ye koymak uzun
   // metinlerde sinira takilir ve surec listesinde gorunur.
   if (options.chat) {
@@ -10100,15 +10161,24 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     activeQueueItemId = jobMeta.queueItemId;
     persistQueueRunning(jobMeta.queueItemId, options);
   } catch (err) {
+    const failedJob = activeJob;
+    activeJob = null;
+    activeQueueItemId = null;
+    if (failedJob) {
+      failedJob.once?.('error', () => {});
+      terminateProcessTree(failedJob, { spawn });
+    }
     cleanupChatFile();
     return { ok: false, error: `Python başlatılamadı: ${err.message}` };
   }
 
   // Nadiren stdio akışları oluşmayabilir — null erişip handler'ları patlatmaktansa erken dön
   if (!activeJob.stdout || !activeJob.stderr) {
-    try { activeJob.kill(); } catch (_) {}
+    const failedJob = activeJob;
     activeJob = null;
     activeQueueItemId = null;
+    failedJob.once?.('error', () => {});
+    terminateProcessTree(failedJob, { spawn });
     cleanupChatFile();
     return { ok: false, error: 'Python süreç akışları (stdout/stderr) oluşturulamadı.' };
   }

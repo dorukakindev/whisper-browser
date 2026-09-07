@@ -79,6 +79,9 @@ function translationCacheKey(sentence, context = {}) {
     provider: String(context.provider || ''),
     style: String(context.style || ''),
     glossaryVersion: String(context.glossaryVersion || ''),
+    // Oturum içinde öğrenilen terimler değiştikçe eski çeviri cache'i
+    // yeni prompt'a yanlışlıkla yeniden kullanılmamalı.
+    terminologyVersion: String(context.terminologyVersion || ''),
   });
   return crypto.createHash('sha256').update(material, 'utf8').digest('hex');
 }

@@ -121,4 +121,10 @@ test('bozuk ve yinelenen öğeler atılır, kalıcı görüntü sınırlanır', 
   assert.equal(disk.items[0].opts.translateApiKey, undefined);
 });
 
+test('kısa ve CamelCase oturum sırları iç içe seçeneklerden ayıklanır', () => {
+  const secretKeys = ['bearerToken', 'csrfToken', 'xsrfToken', 'privateKey',
+    'authToken', 'sessionId', 'sid', 'sig', 'signature', 'oauthBearerToken'];
+  const nested = Object.fromEntries(secretKeys.map((key) => [key, 'secret']));
+  assert.deepEqual(clonePublicOptions({ safe: 'kalır', nested }), { safe: 'kalır', nested: {} });
+});
 console.log(`queue-persistence: ${passed} test`);

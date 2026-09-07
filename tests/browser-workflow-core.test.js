@@ -262,6 +262,14 @@ async function test(name, fn) {
       'cümlenin kendi metni değişince cache sonucu paylaşılmamalı');
   });
 
+  await test('öğrenilen terminoloji değişince eski cümle çevirisi cacheten kullanılmaz', () => {
+    const sentence = { text: 'Hello', contextHash: 'ctx' };
+    const base = { targetLanguage: 'tr', model: 'a', provider: 'p', terminologyVersion: 'v1' };
+    assert.notEqual(
+      translationCacheKey(sentence, base),
+      translationCacheKey(sentence, { ...base, terminologyVersion: 'v2' })
+    );
+  });
   await test('aynı kaynak izi edinim yolundan bağımsız cache anahtarını korur', () => {
     const sentence = { text: 'Hello', pieces: [{ text: 'Hello', start: 0, end: 1 }] };
     const base = { targetLanguage: 'tr', model: 'a', provider: 'p', mediaIdentity: 'm',

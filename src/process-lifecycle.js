@@ -4,7 +4,10 @@
 // cancellation must never make a still-running process look idle.
 function terminateProcessTree(proc, { spawn, platform = process.platform, onWarning = () => {},
   setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }) {
-  if (!proc || proc.exitCode != null || proc.signalCode != null) return false;
+  if (!proc || proc.exitCode != null || proc.signalCode != null || proc._terminating) return false;
+  // UI iptali ile ust sure siniri ayni anda calisabilir. Ilk cagri sahiplenir;
+  // sonraki cagri yeni taskkill/fallback zinciri baslatmaz.
+  proc._terminating = true;
   let fallbackUsed = false;
   const fallback = () => {
     if (fallbackUsed || proc.exitCode != null || proc.signalCode != null) return;

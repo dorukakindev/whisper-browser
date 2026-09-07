@@ -1665,8 +1665,9 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
             if sp and text.startswith(f"[{sp}] "):
                 text = text[len(f"[{sp}] "):]
             wrapped = wrap_text(text, max_line_width, 2, language=language, wrap_mode=wrap_mode)
-            # ASS'de { } override-tag baslangicidir; metindeki gercek suslu parantezleri
-            # tam-genislik Unicode esleriyle degistir ki render bozulmasin
+            # ASS'de { } override-tag baslangicidir; transkripsiyon/ceviri metni
+            # guvenilir bicimlendirme kodu degildir. Literal parantezleri kacirarak
+            # metnin istemeden ASS komutu olarak yorumlanmasini engelle.
             wrapped = wrapped.replace("{", "｛").replace("}", "｝")
             wrapped = wrapped.replace("\n", "\\N")
             style = speaker_styles.get(sp, "Default") if sp else "Default"
@@ -5397,6 +5398,22 @@ def build_chat_prompt(target_lang="tr"):
     ])
 
 
+def is_reasoning_chat_model(model):
+    name = str(model or "").strip().lower()
+    return bool(re.search(r"(?:^|/)(?:gpt-5(?:[.-]|$)|o[1-9](?:[.-]|$))", name))
+
+
+def chat_generation_kwargs(model):
+    """Reasoning modelleri temperature parametresini kabul etmeyebilir."""
+    if is_reasoning_chat_model(model):
+        return {"max_completion_tokens": 4096}
+    return {"temperature": 0.4}
+
+
+def chat_instruction_role(model):
+    return "developer" if is_reasoning_chat_model(model) else "system"
+
+
 def chat_about_video(args):
     """Cok turlu sohbet. Soru, gecmis ve baglam TEK BIR JSON dosyasindan gelir.
 
@@ -5428,7 +5445,7 @@ def chat_about_video(args):
     context = payload.get("context") or {}
     user_content = json.dumps({"baglam": context, "soru": soru}, ensure_ascii=False)
 
-    messages = [{"role": "system", "content": build_chat_prompt(
+    messages = [{"role": chat_instruction_role(args.translate_model), "content": build_chat_prompt(
         (args.translate_to or "tr").lower())}]
     for m in history:
         messages.append({"role": m["role"], "content": str(m.get("content", ""))[:4000]})
@@ -5440,7 +5457,7 @@ def chat_about_video(args):
         try:
             client = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=120)
             resp = call_api_with_retry(lambda: client.chat.completions.create(
-                model=args.translate_model, messages=messages, temperature=0.4,
+                model=args.translate_model, messages=messages, **chat_generation_kwargs(args.translate_model),
             ), attempts=3)
             answer = (resp.choices[0].message.content or "").strip()
             if not answer:
