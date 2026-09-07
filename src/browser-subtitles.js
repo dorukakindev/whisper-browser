@@ -147,9 +147,12 @@ function parseTimedBlocks(body, timing = {}) {
       // Ayraçsız SRT'de sonraki zaman kodunun önündeki sıra numarası metin değildir.
       if (position + 1 < indices.length) {
         const candidate = lines[until - 1]?.trim() || '';
+        const currentCueId = idx > 0 ? lines[idx - 1]?.trim() || '' : '';
+        const sequentialNumericId = /^\d+$/.test(candidate) && /^\d+$/.test(currentCueId)
+          && Number(candidate) === Number(currentCueId) + 1;
         const separatedCueId = /^[A-Za-z0-9_-]{1,128}$/.test(candidate)
           && until > 1 && !lines[until - 2]?.trim();
-        if (/^\d+$/.test(candidate) || separatedCueId) until--;
+        if (sequentialNumericId || separatedCueId) until--;
       }
       // WebVTT NOTE/STYLE/REGION blokları cue değildir. Global zaman satırı
       // taraması ayraçsız SRT'yi kurtarırken son cue'dan sonraki bu blokları
@@ -219,7 +222,9 @@ function parseSami(body) {
   for (let i = 0; i < matches.length; i++) {
     const start = Number(matches[i][1]) / 1000;
     const end = i + 1 < matches.length ? Number(matches[i + 1][1]) / 1000 : null;
-    const text = matches[i][2].replace(/<p\b[^>]*>/gi, '\n').replace(/<\/p>/gi, '\n');
+    const text = matches[i][2]
+      .replace(/<\/?(?:body|sami|head|title)\b[^>]*>/gi, '')
+      .replace(/<p\b[^>]*>/gi, '\n').replace(/<\/p>/gi, '\n');
     out.push({ start, end, text });
   }
   return normalizeCues(out);
@@ -233,7 +238,6 @@ function parseLrc(body) {
     // Bir satırda birden çok zaman etiketi boşlukla ayrılabilir:
     // [00:01.00] [00:02.00]Metin. Etiketler arasındaki boşluğu da tüket.
     const text = line.replace(new RegExp(`(?:${tagPattern.source})+(?:\\s*)`, 'g'), '').trim();
-    if (!text) continue;
     for (const tag of tags) {
       const fraction = String(tag[4] || '').padEnd(3, '0').slice(0, 3);
       rows.push({ start: Number(tag[1] || 0) * 3600 + Number(tag[2]) * 60
@@ -246,7 +250,7 @@ function parseLrc(body) {
     // LRC'nin son satırında bitiş damgası yoktur. Sıfıra düşürüp satırı
     // kaybetmek yerine okunabilir kısa bir varsayılan süre kullan.
     end: rows[i + 1] ? Math.min(rows[i + 1].start, row.start + 7) : row.start + 5,
-  })));
+  })).filter((row) => row.text));
 }
 
 function parseHlsSubtitleTracks(body, baseUrl = '') {
@@ -657,8 +661,8 @@ function findSubtitleUrls(body, baseUrl = '') {
 }
 
 function attr(tag, name) {
-  const match = String(tag).match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i'));
-  return match ? match[2] : '';
+  const match = String(tag).match(new RegExp(`\\b${name}\\s*=\\s*(?:(["'])(.*?)\\1|([^\\s>]+))`, 'i'));
+  return match ? (match[2] ?? match[3] ?? '') : '';
 }
 
 function parseXmlTime(value, xml) {
@@ -733,14 +737,23 @@ function parseXml(body) {
       /<((?:[\w.-]+:)?span)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi,
     )].filter((span) => /\b(?:begin|start|t|end|dur|d)\s*=/i.test(span[2])) : [];
     if (timedSpans.length) {
+      const outsideText = cleanCueText(inner.replace(
+        /<((?:[\w.-]+:)?span)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ''));
       let paragraphStart = parseXmlTime(startRaw, xml);
       if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) {
         paragraphStart = Number(startRaw) / 1000;
       }
-      const paragraphEnd = end !== null ? end
-        : (duration !== null && paragraphStart !== null ? paragraphStart + duration : null);
+      if (durRaw === timedTextDuration && timedTextDuration && Number.isFinite(Number(durRaw))) {
+        duration = Number(durRaw) / 1000;
+      }
+      const paragraphEnd = end !== null ? parentOffset + end
+        : (duration !== null && paragraphStart !== null ? parentOffset + paragraphStart + duration : null);
+      if (outsideText && paragraphStart !== null) {
+        out.push({ start: parentOffset + paragraphStart, end: paragraphEnd, text: inner });
+        continue;
+      }
       const paragraphDuration = paragraphEnd !== null && paragraphStart !== null
-        ? Math.max(0, paragraphEnd - paragraphStart) : 0;
+        ? Math.max(0, paragraphEnd - parentOffset - paragraphStart) : 0;
       const spanBase = parentOffset + (paragraphStart || 0);
       for (const span of timedSpans) {
         const spanTag = span[2];

@@ -401,7 +401,10 @@ function mangaCandidateScanScript() {
       // lazy-loader'ın seçtiği nihai adresi taşır. data-src bazı sitelerde
       // yalnız bir ara rota olduğundan onu alternatif olarak sakla.
       const renderedUrl = absoluteUrl(image.currentSrc || image.src);
-      const urls = [...new Set([renderedUrl, pictureUrl, srcsetUrl, lazyUrl].filter(Boolean))];
+      const placeholder = /^data:image\\/(?:gif|png|webp);base64,/i.test(renderedUrl) && renderedUrl.length < 500;
+      const urls = [...new Set((placeholder
+        ? [lazyUrl, srcsetUrl, pictureUrl, renderedUrl]
+        : [renderedUrl, pictureUrl, srcsetUrl, lazyUrl]).filter(Boolean))];
       const url = urls[0] || '';
       if (!url) continue;
       let id = image.getAttribute('data-whisper-manga-id');

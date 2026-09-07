@@ -6868,7 +6868,7 @@ async function exportBrowserAbClip() {
   }
   const result = await window.api.exportBrowserClip({
     url: player.browserPageUrl, title: player.browserPageTitle || 'web-klip',
-    start: player.abA, end: player.abB,
+    start: player.abA, end: player.abB, cookieBrowser: youtubeCookieBrowser(),
   }).catch((error) => ({ ok: false, error: error.message }));
   if (result?.type === 'clip' || result?.ok) {
     setBrowserSignal('A-B klibi dışa aktarıldı.', true);

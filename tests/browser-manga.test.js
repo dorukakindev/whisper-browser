@@ -170,6 +170,15 @@ assert.equal(scanned[0].url, 'data:image/png;base64,AA==');
 assert.equal(scanned[1].url, 'https://reader.example/large.jpg');
 assert.equal(scanned[2].url, 'https://cdn.example/rendered.jpg');
 assert.deepEqual([...scanned[2].urls], ['https://cdn.example/rendered.jpg', 'https://reader.example/blocked-loader']);
+const placeholder = vm.runInNewContext(mangaCandidateScanScript(), {
+  ...scanContext,
+  window: { __whisperMangaSequence: 0 },
+  document: { ...scanContext.document, images: [fakeImage({
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    'data-src': '/real-page.jpg',
+  }, 0)] },
+});
+assert.equal(placeholder[0].url, 'https://reader.example/real-page.jpg');
 assert.match(mangaOverlayScript({ id: 'x', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),
   /data-whisper-manga-overlay/);
 assert.match(mangaOverlayScript({ id: 'x', lang: 'en-US', regions: [{ box: [1, 2, 100, 200], translation: 'Test' }] }),

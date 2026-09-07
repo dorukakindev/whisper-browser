@@ -215,6 +215,13 @@ test('boş satırlı ve ayracı olmayan cue metinleri korunur', () => {
   assert.equal(result.cues[1].text, 'Son cue');
 });
 
+test('ayraçsız zaman bloklarında rakamdan oluşan diyalog satırı kaybolmaz', () => {
+  const result = parseSubtitlePayload(
+    '00:00:01.000 --> 00:00:02.000\nGeri sayım:\n3\n00:00:03.000 --> 00:00:04.000\nBitti',
+    'text/vtt', 'https://cdn.test/countdown.vtt');
+  assert.deepEqual(result.cues.map((cue) => cue.text), ['Geri sayım:\n3', 'Bitti']);
+});
+
 test('cue normalizasyonu konuşmacı ve kimlik metadatasını korur', () => {
   assert.deepEqual(normalizeCues([{ start: 1, end: 2, text: 'Merhaba', speaker: 'Alice', id: 'cue-1' }]),
     [{ start: 1, end: 2, text: 'Merhaba', speaker: 'Alice', id: 'cue-1' }]);
@@ -223,6 +230,32 @@ test('cue normalizasyonu konuşmacı ve kimlik metadatasını korur', () => {
 test('LRC satırındaki aralıklı çoklu zaman etiketleri metne sızmaz', () => {
   assert.deepEqual(parseLrc('[00:12.00] [00:15.00]Nakarat').map((cue) => ({ start: cue.start, text: cue.text })),
     [{ start: 12, text: 'Nakarat' }, { start: 15, text: 'Nakarat' }]);
+});
+
+test('boş LRC zaman etiketi önceki sözün kesin bitişini belirler', () => {
+  const cues = parseLrc('[00:01.00]Merhaba\n[00:03.00]\n[00:20.00]Sonraki söz');
+  assert.deepEqual(cues.map(({ start, end, text }) => ({ start, end, text })), [
+    { start: 1, end: 3, text: 'Merhaba' },
+    { start: 20, end: 25, text: 'Sonraki söz' },
+  ]);
+});
+
+test('karışık TTML p içeriği zamanlı span dışındaki metni de korur', () => {
+  const result = parseSubtitlePayload(
+    '<tt><body><div><p begin="00:01.00" end="00:05.00">Ahmet: <span begin="00:02.00" dur="00:01.00">Selam</span> nasılsın?</p></div></body></tt>',
+    'application/ttml+xml', 'https://cdn.test/mixed.ttml');
+  assert.equal(result.cues.map((cue) => cue.text).join(' '), 'Ahmet: Selam nasılsın?');
+});
+
+test('SAMI kapanış etiketleri son diyalog metnine sızmaz', () => {
+  const cues = parseSami('<SAMI><BODY><SYNC Start=1000><P>İlk<SYNC Start=3000><P>Son</BODY></SAMI>');
+  assert.equal(cues.at(-1).text, 'Son');
+});
+
+test('tırnaksız timed-text nitelikleri zaman damgasını korur', () => {
+  const result = parseSubtitlePayload('<tt><body><div><p t=1500 d=2000>Tırnaksız</p></div></body></tt>',
+    'application/ttml+xml', 'https://cdn.test/unquoted.ttml');
+  assert.deepEqual(result.cues, [{ start: 1.5, end: 3.5, text: 'Tırnaksız' }]);
 });
 
 test('yerel segment zamanında komşu cue sınırını aşan son metin korunur', () => {

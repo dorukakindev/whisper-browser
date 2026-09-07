@@ -85,9 +85,12 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const consumeCode = main.slice(consumeStart, main.indexOf('  const liveAsrLines =', consumeStart));
   const job = { nextCueId: 0, cues: [] };
   const stored = [];
+  let acquisitionFinished = 0;
   const consume = vm.runInNewContext(consumeCode + '\nconsumeLiveAsrLine', {
     job, browserLiveAsr: job, context: {}, isCurrentBrowserContext: () => true,
-    tab: { id: 'test', acquisitionId: 'test' }, language: 'en',
+    tab: { id: 'test', acquisitionId: 'test',
+      acquisitionPlan: { finish: () => { acquisitionFinished++; return true; }, snapshot: () => ({}) } },
+    language: 'en', browserDiagnostics: null, publishBrowserDiagnostics() {},
     storeBrowserTrack: (cues) => { stored.push(cues); },
   });
   consume('null');
@@ -98,6 +101,19 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   consume('{"type":"segment","start":1,"end":2,"text":"Test"}');
   assert.strictEqual(stored.length, 1);
   assert.strictEqual(job.cues.length, 1);
+  assert.strictEqual(acquisitionFinished, 1, 'ilk geçerli canlı segment edinme planını tamamlamalı');
+
+  const sponsorCall = main.slice(main.indexOf('const parsed = JSON.parse(Buffer.concat(chunks)'),
+    main.indexOf('} catch (_)', main.indexOf('const parsed = JSON.parse(Buffer.concat(chunks)')));
+  assert.doesNotMatch(sponsorCall, /validateSponsorSegments\([^\n]+duration\)/,
+    'erken/eksik oynatıcı süresi kalıcı SponsorBlock cache sonucunu daraltmamalı');
+
+  const clipStart = main.indexOf("ipcMain.handle('browser:clip:export'");
+  const clipHandler = main.slice(clipStart, main.indexOf('\n});', clipStart));
+  assert.match(clipHandler, /--cookie-browser/);
+  const clipCallerStart = renderer.indexOf('async function exportBrowserAbClip()');
+  const clipCaller = renderer.slice(clipCallerStart, renderer.indexOf('\n}', clipCallerStart) + 2);
+  assert.match(clipCaller, /cookieBrowser:\s*youtubeCookieBrowser\(\)/);
 
   // BUG-193: dispatch one key through both actual handlers.
   const listeners = [], activations = [];

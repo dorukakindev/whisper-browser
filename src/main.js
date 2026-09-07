@@ -4541,13 +4541,14 @@ function startBrowserLiveAsr(tab, options = {}) {
       const cue = { id: `live-${job.nextCueId++}`, start: event.start, end: event.end, text: event.text };
       job.cues.push(cue);
       if (job.cues.length > 20000) job.cues.splice(0, job.cues.length - 20000);
-      const track = storeBrowserTrack([cue], {
+      storeBrowserTrack([cue], {
         language: event.language || language, label: 'Canlı sistem sesi · Whisper',
         format: 'live-asr', sourceUrl: 'system-audio',
         streamKey: `live-asr:${tab.id}:${tab.acquisitionId}`, context,
       });
-      if (track) {
-        tab.acquisitionPlan?.finish('live-asr', { success: true, trackCount: 1, reason: 'Sistem sesinden altyazı üretiliyor.' });
+      if (tab.acquisitionPlan?.finish('live-asr', {
+        success: true, trackCount: 1, reason: 'Sistem sesinden altyazı üretiliyor.',
+      })) {
         if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
         publishBrowserDiagnostics();
       }
@@ -7425,7 +7426,7 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
         if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-          const checked = validateSponsorSegments(extractSponsorHashSegments(parsed, videoId), videoId, duration);
+          const checked = validateSponsorSegments(extractSponsorHashSegments(parsed, videoId), videoId);
           const result = { segments: checked.segments, invalid: checked.invalid, source: 'SponsorBlock' };
           sponsorBlockCache.set(videoId, normalized, result, { negative: !result.segments.length });
           resolve({ ok: true, ...filterForDuration(result) });
@@ -8372,10 +8373,14 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
     filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
-  return runMediaCommand([
+  const args = [
     'clip', '--url', url, '--clip-start', String(start), '--clip-end', String(end),
     '--output-file', selection.filePath,
-  ], (ev) => {
+  ];
+  if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(payload?.cookieBrowser)) {
+    args.push('--cookie-browser', payload.cookieBrowser);
+  }
+  return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('media:event', ev);
   }, 'download');
 });
