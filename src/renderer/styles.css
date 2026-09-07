@@ -5559,3 +5559,18 @@ body.modal-open { overflow: hidden; }
 .browser-sync-points p { margin: 0 0 9px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
 .browser-export-timing { max-width: 420px; }
 @media (max-width: 760px) { .browser-sync-row { grid-template-columns: 1fr; } }
+
+/* Tarayıcı ayarları sekmesi: native BrowserView'in üstünde yaşayan sahte yüzey. */
+.browser-settings-surface { position:absolute; inset:0; z-index:4; display:flex; flex-direction:column; overflow:auto; padding:24px clamp(18px,4vw,56px) 48px; color:var(--player-text,#dedee2); background:var(--player-bg,#0b0b0c); }
+.browser-settings-surface.hidden { display:none; }
+.browser-settings-surface-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; border-bottom:1px solid #29292c; padding-bottom:16px; }
+.browser-settings-surface-head h2 { margin:4px 0 0; font-size:22px; }
+.browser-settings-surface-tools { margin:16px 0 10px; }
+.browser-settings-surface-tools input { width:min(620px,100%); height:38px; padding:0 12px; color:inherit; background:#151517; border:1px solid #303035; border-radius:9px; }
+.browser-settings-categories { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
+.browser-settings-categories button { min-height:32px; padding:0 12px; color:#a6a6ac; background:#171719; border:1px solid #2c2c30; border-radius:8px; cursor:pointer; }
+.browser-settings-categories button.active,.browser-settings-categories button:hover { color:#1d170e; background:var(--player-amber,#d5a35c); border-color:var(--player-amber,#d5a35c); }
+.browser-settings-surface-content { min-width:0; }
+.browser-settings-surface-content .browser-view-settings { display:block; }
+.browser-settings-surface-content .browser-view-settings > summary { display:none; }
+.browser-settings-filter-hidden { display:none !important; }

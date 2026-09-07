@@ -122,6 +122,7 @@ const { withAbortTimeout, withTimeout } = require('./async-timeout');
 const { normalizeBrowserTabId } = require('./browser-tabs');
 const { BrowserClosedTabHistory, isReplaceableBlankBrowserTab } = require('./browser-tab-history');
 const {
+  MAX_BROWSER_SITE_PROFILES,
   browserSiteOrigin,
   normalizeBrowserSiteProfiles,
   withBrowserSiteProfileField,
@@ -2129,12 +2130,14 @@ function browserZoomForUrl(rawUrl) {
 function rememberBrowserZoom(rawUrl, rawZoom) {
   const places = readBrowserPlaces();
   const zoom = Number(rawZoom);
-  if (!Number.isFinite(zoom) || zoom < 0.5 || zoom > 3) return false;
+  if (!Number.isFinite(zoom) || zoom < 0.5 || zoom > 3) return { ok: false, reason: 'invalid' };
   const updated = withBrowserSiteProfileField(places.siteProfiles, rawUrl, 'zoom',
     Math.abs(zoom - 1) >= 0.001 ? zoom : null);
-  if (!updated.ok) return false;
+  if (!updated.ok) return updated;
   places.siteProfiles = updated.profiles;
-  return setBrowserPlaces(places, { broadcast: false });
+  return setBrowserPlaces(places, { broadcast: false })
+    ? { ok: true }
+    : { ok: false, reason: 'write' };
 }
 
 function applyStoredBrowserZoom(tab, wc, rawUrl) {
@@ -7628,8 +7631,11 @@ ipcMain.handle('browser:command', async (event, payload) => {
       const roundedZoom = Math.round(zoom * 10) / 10;
       wc.setZoomFactor(roundedZoom);
       tab.zoom = roundedZoom;
-      rememberBrowserZoom(wc.getURL(), roundedZoom);
-      return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, ...browserNavigationState() };
+      const persisted = rememberBrowserZoom(wc.getURL(), roundedZoom);
+      const persistenceWarning = persisted.ok ? '' : persisted.reason === 'limit'
+        ? `Yakınlaştırma uygulandı ancak site ayarı sınırına ulaşıldığı için kaydedilemedi (${MAX_BROWSER_SITE_PROFILES}).`
+        : 'Yakınlaştırma uygulandı ancak site tercihi diske kaydedilemedi.';
+      return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, persistenceWarning, ...browserNavigationState() };
     } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
@@ -8203,7 +8209,9 @@ ipcMain.handle('browser:profile:update', (event, request = {}) => {
   const previousProfiles = places.siteProfiles;
   const updated = request.reset === true ? withoutBrowserSiteProfile(places.siteProfiles, url)
     : withBrowserSiteProfileField(places.siteProfiles, url, request.field, request.value);
-  if (!updated.ok) return { ok: false, error: 'Geçersiz site ayarı.' };
+  if (!updated.ok) return { ok: false, error: updated.reason === 'limit'
+    ? `Site ayarı sınırına ulaşıldı (${MAX_BROWSER_SITE_PROFILES}). Bu sitenin profilini kaydetmek için kullanılmayan bir site profilini sıfırlayın.`
+    : 'Geçersiz site ayarı.' };
   places.siteProfiles = updated.profiles;
   setBrowserPlaces(places, { broadcast: false });
   if (!flushBrowserPlaces()) {

@@ -82,16 +82,16 @@ function normalizeBrowserSiteProfiles(raw, legacyZooms = {}) {
 function withBrowserSiteProfileField(rawProfiles, rawUrl, field, rawValue) {
   const profiles = normalizeBrowserSiteProfiles(rawProfiles);
   const origin = browserSiteOrigin(rawUrl);
-  if (!origin || !PROFILE_FIELDS[field]) return { ok: false, origin, profiles };
+  if (!origin || !PROFILE_FIELDS[field]) return { ok: false, reason: 'invalid', origin, profiles };
   const current = { ...(profiles[origin] || {}) };
   if (rawValue === undefined || rawValue === null) delete current[field];
   else {
     const value = normalizeProfileValue(field, rawValue);
-    if (value === undefined) return { ok: false, origin, profiles };
+    if (value === undefined) return { ok: false, reason: 'invalid', origin, profiles };
     current[field] = value;
   }
   if (Object.keys(current).length && !profiles[origin] && Object.keys(profiles).length >= MAX_BROWSER_SITE_PROFILES) {
-    return { ok: false, origin, profiles };
+    return { ok: false, reason: 'limit', origin, profiles };
   }
   if (Object.keys(current).length) profiles[origin] = current;
   else delete profiles[origin];

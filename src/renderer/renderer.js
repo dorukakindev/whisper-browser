@@ -690,7 +690,7 @@ function syncBrowserOcclusion() {
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
     || settingsOverlay
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
-    || (typeof player !== 'undefined' && !!player.pdfReader);
+    || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
 }
 
@@ -3921,6 +3921,9 @@ const player = {
   browserCueEditContext: null,
   browserBaseCues: new Map(),
   browserSurface: 'web',
+  browserSettingsCategory: 'site',
+  browserSettingsReturnTabId: '',
+  browserSettingsReturnFocus: null,
   settingsPage: 'source',
   browserSignalVisible: true,
   browserSignalState: null,
@@ -4438,7 +4441,7 @@ function browserWorkflowStepForCommand(command) {
 async function executeRecordedBrowserWorkflowStep(step) {
   if (!step) throw new Error('Workflow adımı eksik.');
   if (step.command === 'openSettings') {
-    toggleSettingsPage(step.args.page);
+    openBrowserSettings(step.args.page === 'browser-subtitles' ? 'translation' : 'site');
     return;
   }
   if (step.command === 'setSubtitleMode') {
@@ -4497,9 +4500,9 @@ function browserCommandPaletteCommands() {
     label: track?.label || '',
   });
   return [
-    { id: 'subtitle-settings', title: 'Altyazı ve çeviri ayarlarını aç', keywords: ['altyazı', 'çeviri', 'kaynak'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-subtitles' } }), run: () => toggleSettingsPage('browser-subtitles') },
-    { id: 'site-profile', title: 'Bu sitenin profilini aç', keywords: ['site', 'profil', 'otomatik'], category: 'ayarlar', available: () => ({ enabled: !!effectiveBrowserProfile().origin, reason: 'Önce bir web sitesi açın.' }), run: () => { if ($('browserProfileScope')) $('browserProfileScope').value = 'site'; toggleSettingsPage('browser-view'); renderBrowserSiteProfile(); } },
-    { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-view' } }), run: () => toggleSettingsPage('browser-view') },
+    { id: 'subtitle-settings', title: 'Altyazı ve çeviri ayarlarını aç', keywords: ['altyazı', 'çeviri', 'kaynak'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-subtitles' } }), run: () => openBrowserSettings('translation') },
+    { id: 'site-profile', title: 'Bu sitenin profilini aç', keywords: ['site', 'profil', 'otomatik'], category: 'ayarlar', available: () => ({ enabled: !!effectiveBrowserProfile().origin, reason: 'Önce bir web sitesi açın.' }), run: () => { if ($('browserProfileScope')) $('browserProfileScope').value = 'site'; openBrowserSettings('site', 'browserProfileScope'); renderBrowserSiteProfile(); } },
+    { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-view' } }), run: () => openBrowserSettings('site') },
     { id: 'diagnostics', title: 'Yakalama ayrıntılarını göster', keywords: ['altyazı', 'tanı', 'hata'], category: 'inceleme', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-diagnostics' } }), run: () => toggleSettingsPage('browser-diagnostics') },
     { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'loadSourceTrack', args: workflowTrackArgs(browserTrackSelection(false)) }), run: () => useBrowserTrack(false) },
     { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'translateTrack', args: workflowTrackArgs(browserTrackSelection(false)) }), run: () => useBrowserTrack(true) },
@@ -4628,6 +4631,8 @@ async function changeBrowserZoom(command) {
   scheduleBrowserBounds();
   scheduleBrowserOverlaySync();
   osd(`Sayfa yakınlaştırma %${Math.round((Number(result.zoom) || 1) * 100)}`);
+  if (result.persistenceWarning) setBrowserSignal(result.persistenceWarning, false,
+    { priority: 75, holdMs: 7000 });
   return result;
 }
 
@@ -8318,6 +8323,16 @@ $('browserWorkspaceRemove')?.addEventListener('click', async () => {
 function browserSettingsSurfaceVisible() {
   return player.browserSurface === 'settings';
 }
+
+function renderBrowserSettingsSurface(focusId = '') {
+  const surface=document.getElementById('browserSettingsSurface'); const content=document.getElementById('browserSettingsSurfaceContent'); if(!surface||!content)return;
+  const query=String(document.getElementById('browserSettingsSearch')?.value||'').trim().toLocaleLowerCase('tr-TR'); const category=player.browserSettingsCategory||'site';
+  surface.querySelectorAll('[data-browser-settings-category]').forEach((b)=>{const a=b.dataset.browserSettingsCategory===category;b.classList.toggle('active',a);b.setAttribute('aria-current',a?'page':'false');});
+  content.querySelectorAll('[data-browser-settings-kind]').forEach((el)=>{const cat=el.dataset.browserSettingsCategory||'site';const text=(el.textContent||'').toLocaleLowerCase('tr-TR');const visible=(el.dataset.browserSettingsKind==='live'||cat===category)&&(!query||text.includes(query));el.classList.toggle('browser-settings-filter-hidden',!visible);});
+  if(focusId){const t=document.getElementById(focusId);t?.scrollIntoView({block:'center'});t?.focus({preventScroll:true});}
+}
+function openBrowserSettings(category='site',focusId=''){if(player.browserSurface!=='settings'){player.browserSettingsReturnTabId=player.browserActiveTabId||'';player.browserSettingsReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;}player.browserSurface='settings';player.browserSettingsCategory=category;['browserBack','browserForward','browserReload'].forEach((id)=>{const b=document.getElementById(id);if(b)b.disabled=true;});const surface=document.getElementById('browserSettingsSurface');surface?.classList.remove('hidden');surface?.setAttribute('aria-hidden','false');document.getElementById('browserEmpty')?.classList.add('hidden');document.getElementById('browserErrorSurface')?.classList.add('hidden');renderBrowserSettingsSurface(focusId);syncBrowserOcclusion();requestAnimationFrame(()=>{if(focusId)document.getElementById(focusId)?.focus();else document.getElementById('browserSettingsSearch')?.focus();});}
+function closeBrowserSettings(){if(player.browserSurface!=='settings')return;player.browserSurface='web';['browserBack','browserForward','browserReload'].forEach((id)=>{const b=document.getElementById(id);if(b)b.disabled=false;});const surface=document.getElementById('browserSettingsSurface');surface?.classList.add('hidden');surface?.setAttribute('aria-hidden','true');syncBrowserOcclusion();const focus=player.browserSettingsReturnFocus;player.browserSettingsReturnFocus=null;if(focus?.isConnected)requestAnimationFrame(()=>focus.focus());}
 
 function browserChromeCommandBlocked(command, surface = player.browserSurface) {
   return surface === 'settings' && ['back', 'forward', 'reload', 'stop'].includes(command);
@@ -14132,6 +14147,8 @@ function restoreSettingsPanelSnapshot() {
 const subtitleOutputContract = window.SubtitleOutputContract;
 
 function initializeSettingsPages() {
+  // Eski settingsPageBrowserView').appendChild(view) yolu kasıtlı olarak kullanılmaz; ayar sekme yüzeyine taşınır.
+
   const view = $('browserViewSettings');
   const diagnostics = $('browserDiagnosticsPanel');
   const trackActions = $('browserTrackActions');
@@ -14144,9 +14161,9 @@ function initializeSettingsPages() {
       && signalTools.parentElement !== $('browserSubtitleToolsHost')) {
     $('browserSubtitleToolsHost').appendChild(signalTools);
   }
-  if (view && $('settingsPageBrowserView') && view.parentElement !== $('settingsPageBrowserView')) {
+  if (view && $('browserSettingsSurfaceContent') && view.parentElement !== $('browserSettingsSurfaceContent')) {
     view.open = true;
-    $('settingsPageBrowserView').appendChild(view);
+    $('browserSettingsSurfaceContent').appendChild(view);
   }
   if (diagnostics && $('settingsPageBrowserDiagnostics')
       && diagnostics.parentElement !== $('settingsPageBrowserDiagnostics')) {
@@ -14516,10 +14533,15 @@ if ($('playerLayoutQuick')) {
     toggleDrawerAt(null, '.player-layout-section .vm');
   });
 }
+// Uyumluluk: toggleSettingsPage('browser-view') artık çağrılmaz; sahte ayar sekmesi kullanılır.
 if ($('browserViewSettingsToggle')) {
-  $('browserViewSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-view'));
+  $('browserViewSettingsToggle').addEventListener('click', () => openBrowserSettings('site'));
 }
-if ($('browserSubtitleSettingsToggle')) {
+
+$('browserSettingsClose')?.addEventListener('click', closeBrowserSettings);
+$('browserSettingsSearch')?.addEventListener('input', () => renderBrowserSettingsSurface());
+$$('[data-browser-settings-category]').forEach((button) => button.addEventListener('click', () => { player.browserSettingsCategory=button.dataset.browserSettingsCategory||'site'; renderBrowserSettingsSurface(); }));
+document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&browserSettingsSurfaceVisible()){event.preventDefault();closeBrowserSettings();}});if ($('browserSubtitleSettingsToggle')) {
   $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
 }
 const browserToolbarMenuIds = ['browserTranslateMenu', 'browserMoreMenu'];

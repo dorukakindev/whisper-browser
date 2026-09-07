@@ -1510,7 +1510,21 @@
             </section>
           </div>
 
-          <div class="browser-view-slot" id="browserViewSlot">
+          <div class="browser-view-slot" id="browserViewSlot">            <section class="browser-settings-surface hidden" id="browserSettingsSurface" aria-label="Tarayıcı ayarları" aria-hidden="true">
+              <header class="browser-settings-surface-head">
+                <div><span class="browser-signal-kicker">TARAYICI AYARLARI</span><h2>Bu sekmenin ayarları</h2></div>
+                <button class="btn-icon browser-dismiss" id="browserSettingsClose" type="button" aria-label="Ayarlar sekmesini kapat" title="Ayarlar sekmesini kapat">×</button>
+              </header>
+              <div class="browser-settings-surface-tools"><input id="browserSettingsSearch" type="search" autocomplete="off" placeholder="Ayar ara…" aria-label="Tarayıcı ayarlarında ara"></div>
+              <nav class="browser-settings-categories" id="browserSettingsCategories" aria-label="Ayar kategorileri">
+                <button type="button" data-browser-settings-category="privacy">Gizlilik</button>
+                <button type="button" data-browser-settings-category="session">Oturum</button>
+                <button type="button" data-browser-settings-category="site">Site ve görünüm</button>
+                <button type="button" data-browser-settings-category="translation">Çeviri</button>
+                <button type="button" data-browser-settings-category="system">Sistem</button>
+              </nav>
+              <div class="browser-settings-surface-content" id="browserSettingsSurfaceContent"></div>
+            </section>
             <div class="browser-empty" id="browserEmpty">
               <span class="browser-empty-rule" aria-hidden="true"></span>
               <strong>Web sayfasını burada aç</strong>
@@ -2381,6 +2395,7 @@
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>
   <script src="../browser-command-palette.js"></script>
+  <script src="../browser-settings-registry.js"></script>
   <script src="../subtitle-find-replace.js"></script>
 <script src="renderer.js"></script>
 </body>
