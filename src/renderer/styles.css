@@ -5461,3 +5461,91 @@ body.modal-open { overflow: hidden; }
 .browser-sync-points p { margin: 0 0 9px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
 .browser-export-timing { max-width: 420px; }
 @media (max-width: 760px) { .browser-sync-row { grid-template-columns: 1fr; } }
+
+/* Stage B: çalışma paneli ile ayar görünümü aynı sağ alanı paylaşır. */
+.settings-drawer {
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  padding: 0 16px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: #151a1f;
+  border: 0;
+  border-left: 1px solid #303b45;
+  border-radius: 0;
+  box-shadow: none;
+}
+.drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 9px;
+  min-height: 62px;
+  margin: 0 -16px;
+  padding: 9px 12px;
+  color: #e7edf2;
+  background: #151a1f;
+  border-bottom: 1px solid #303b45;
+}
+.drawer-head-copy { min-width: 0; display: grid; gap: 2px; }
+.drawer-head-copy > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-head-kicker { color: #d5a35c; font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+.drawer-head-copy #settingsDrawerTitle { color: #e7edf2; font-size: 16px; font-weight: 650; }
+.drawer-head-copy #settingsDrawerBreadcrumb { color: #7f8d99; font-size: 10px; font-weight: 400; }
+.drawer-head .drawer-back,
+.drawer-head > .btn-icon { width: 34px; height: 34px; border: 1px solid transparent; border-radius: 6px; }
+.drawer-head .drawer-back { color: #a8b5c1; }
+.drawer-head .drawer-back:hover,
+.drawer-head .drawer-back:focus-visible { color: #17130c; background: #d5a35c; }
+.drawer-head > .btn-icon:last-child { justify-self: end; }
+.drawer-page-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 14px 0 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.drawer-page-tab {
+  min-width: 0;
+  min-height: 42px;
+  padding: 7px 10px;
+  color: #a8b5c1;
+  text-align: left;
+  background: #1d242b;
+  border: 1px solid #303b45;
+  border-radius: 6px;
+}
+.drawer-page-tab:hover { color: #e7edf2; background: #252e37; border-color: #465462; }
+.drawer-page-tab.active { color: #17130c; background: #d5a35c; border-color: #d5a35c; }
+.settings-page { padding-bottom: 6px; }
+.settings-drawer .player-panel,
+.settings-drawer .browser-settings-section,
+.settings-drawer .browser-sync-points { background: #1d242b; border-color: #303b45; border-radius: 6px; }
+.settings-drawer .player-panel { padding: 12px; }
+.settings-drawer .browser-settings-section { padding: 12px; }
+.settings-drawer .browser-settings-section + .browser-settings-section { margin-top: 10px; }
+.settings-drawer .field-label,
+.settings-drawer .hint,
+.settings-drawer .browser-settings-section-head span { color: #a8b5c1; }
+.settings-drawer :focus-visible { outline-color: #d5a35c; }
+.player-layer.sidebar-collapsed.settings-open .settings-drawer,
+.player-layer.mode-cinema.settings-open .settings-drawer {
+  width: min(430px, 100vw);
+  border-left: 1px solid #303b45;
+}
+@media (max-width: 520px) {
+  .drawer-page-tabs { grid-template-columns: 1fr; }
+  .settings-drawer { padding-inline: 12px; }
+  .drawer-head { margin-inline: -12px; padding-inline: 10px; }
+}

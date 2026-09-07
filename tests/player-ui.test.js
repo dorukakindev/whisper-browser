@@ -834,6 +834,40 @@ test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüs
     'proxy eylemi sonrasında menü yaşam döngüsü kapanmıyor');
 });
 
+test('Aşama B ayarları aynı sağ alanı kullanır ve çalışma paneli durumunu korur', () => {
+  assert(layer.includes('id="settingsBackToPanel"'), 'ayar görünümünde çalışma paneline dönüş düğmesi yok');
+  assert(layer.includes('id="settingsDrawerBreadcrumb"'), 'ayar görünümünde breadcrumb yok');
+  for (const label of ['Kaynak ve oynatma', 'Altyazı ve çeviri', 'Görünüm ve manga', 'Sorun giderme']) {
+    assert(layer.includes('>' + label + '</button>'), label + ' ayar kategorisi yok');
+  }
+  assert(/function captureSettingsPanelSnapshot/.test(js)
+    && /cueScrollTop/.test(js)
+    && /aiDraft/.test(js)
+    && /function restoreSettingsPanelSnapshot/.test(js),
+  'ayar geçişinde transkript/arama/AI durumu korunmuyor');
+  assert(/player\.settingsReturnTab/.test(js)
+    && js.includes("settingsBackToPanel').addEventListener('click'"),
+  'Geri düğmesi önceki çalışma sekmesine bağlı değil');
+  assert(js.includes("settingsDrawer').addEventListener('keydown'"),
+    'ayar drawer focus trap klavye ile bağlı değil');
+  const drawerFn = js.slice(js.indexOf('function setSettingsDrawer'), js.indexOf('function toggleSettingsPage'));
+  assert(/scheduleBrowserBounds\(\)/.test(drawerFn) && /syncBrowserOcclusion\(\)/.test(drawerFn),
+    'ayar görünümü native browser bounds/oklüzyon güncellemesini tetiklemiyor');
+  const occlusionFn = js.slice(js.indexOf('function syncBrowserOcclusion'), js.indexOf('function openManagedModal'));
+  assert(/settingsOverlay/.test(occlusionFn)
+    && /sidebar-collapsed/.test(occlusionFn)
+    && /mode-cinema/.test(occlusionFn),
+  'ayar görünümü yalnızca oynatıcının üstüne bindiğinde native browserı gizlemiyor');
+  const viewModeFn = js.slice(js.indexOf('function setViewMode'), js.indexOf('function setSideWidth'));
+  assert(/syncBrowserOcclusion\(\)/.test(viewModeFn),
+    'açık ayarlarda sinema/okuma geçişi native browser oklüzyonunu yenilemiyor');
+  assert(/\.settings-drawer\s*\{[\s\S]*?overscroll-behavior:\s*contain/.test(css)
+    && /\.drawer-page-tabs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/.test(css),
+  'ayar paneli aynı sağ alanda sakin, taşmasız kategori düzeni kullanmıyor');
+  assert(/\.player-layer\.sidebar-collapsed\.settings-open \.settings-drawer,[\s\S]*?width:\s*min\(430px,\s*100vw\)/.test(css),
+    'sidebar kapalıyken ayar alanı güvenli genişlikte açılmıyor');
+});
+
 test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabilir', () => {
   for (const id of ['browserSignalToggle', 'browserSignalClose', 'browserChromeToggle']) {
     assert(layer.includes(`id="${id}"`), `${id} kontrolü yok`);

@@ -677,10 +677,18 @@ function syncBrowserOcclusion() {
   const moreMenu = $('browserMoreMenu');
   const translateMenu = $('browserTranslateMenu');
   const commandPalette = $('browserCommandPalette');
+  const settings = $('settingsDrawer');
+  const playerLayer = $('playerLayer');
+  // Ayarlar normal duzende native gorunumun yanindaki sag sutunu devralir.
+  // Yalnizca panel gizliyken veya sinema modundayken videonun ustune biner;
+  // WebContentsView DOM katmanlarinin ustunde oldugu icin o durumda gizlenmeli.
+  const settingsOverlay = !!(settings && !settings.classList.contains('hidden') && playerLayer
+    && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')));
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
+    || settingsOverlay
     || (typeof player !== 'undefined' && !!player.pdfReader);
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
 }
@@ -3777,6 +3785,9 @@ const player = {
   watchManualCompleted: null,
   watchRemovedKey: '',
   settingsReturnFocus: null,
+  settingsReturnTab: 'subs',
+  settingsPanelSnapshot: null,
+  settingsPageScroll: {},
   watchSaveTick: 0,
   pendingLibrarySeek: null,
   pendingLibraryAnchor: null,
@@ -11133,6 +11144,7 @@ function autoGrowChatBox() {
 function setSideTab(tab, { focusContent = false } = {}) {
   const ai = tab === 'ai';
   const library = tab === 'library';
+  player.sideTab = ai ? 'ai' : library ? 'library' : 'subs';
   $('playerSide').classList.toggle('ai-mode', ai);
   $('playerSide').classList.toggle('library-mode', library);
   $('aiChat').classList.toggle('hidden', !ai);
@@ -13509,6 +13521,7 @@ function setViewMode(mode) {
   }
   snapGridColumns();
   scheduleBrowserBounds();
+  syncBrowserOcclusion();
   $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const sidebarButton = $('playerSidebarToggle');
   if (sidebarButton) {
@@ -13623,11 +13636,45 @@ if ($('sideResizer')) {
 
 // Ayar cekmecesi
 const SETTINGS_PAGE_TITLES = {
-  source: 'Kaynak ayarları',
+  source: 'Kaynak ve oynatma',
   'browser-subtitles': 'Altyazı ve çeviri',
   'browser-view': 'Görünüm ve manga',
-  'browser-diagnostics': 'Yakalama ayrıntıları',
+  'browser-diagnostics': 'Sorun giderme',
 };
+
+function captureSettingsPanelSnapshot() {
+  const cueList = $('cueList');
+  const aiLog = $('aiChatLog');
+  const libraryList = $('playerLibraryList');
+  player.settingsPanelSnapshot = {
+    cueScrollTop: cueList?.scrollTop || 0,
+    aiScrollTop: aiLog?.scrollTop || 0,
+    libraryScrollTop: libraryList?.scrollTop || 0,
+    cueSearch: $('cueSearch')?.value || '',
+    aiDraft: $('aiChatText')?.value || '',
+    librarySearch: $('playerLibrarySearch')?.value || '',
+    libraryFilter: $('playerLibraryFilter')?.value || 'all',
+    libraryScope: $('playerLibrarySearchScope')?.value || 'all',
+  };
+}
+
+function restoreSettingsPanelSnapshot() {
+  const snapshot = player.settingsPanelSnapshot;
+  if (!snapshot) return;
+  if ($('cueSearch') && $('cueSearch').value !== snapshot.cueSearch) $('cueSearch').value = snapshot.cueSearch;
+  if ($('aiChatText') && $('aiChatText').value !== snapshot.aiDraft) {
+    $('aiChatText').value = snapshot.aiDraft;
+    autoGrowChatBox();
+  }
+  if ($('playerLibrarySearch') && $('playerLibrarySearch').value !== snapshot.librarySearch) $('playerLibrarySearch').value = snapshot.librarySearch;
+  if ($('playerLibraryFilter') && snapshot.libraryFilter) $('playerLibraryFilter').value = snapshot.libraryFilter;
+  if ($('playerLibrarySearchScope') && snapshot.libraryScope) $('playerLibrarySearchScope').value = snapshot.libraryScope;
+  requestAnimationFrame(() => {
+    if ($('cueList')) $('cueList').scrollTop = snapshot.cueScrollTop;
+    if ($('aiChatLog')) $('aiChatLog').scrollTop = snapshot.aiScrollTop;
+    if ($('playerLibraryList')) $('playerLibraryList').scrollTop = snapshot.libraryScrollTop;
+  });
+}
 
 const subtitleOutputContract = window.SubtitleOutputContract;
 
@@ -13657,8 +13704,12 @@ function initializeSettingsPages() {
 }
 
 function setSettingsPage(page) {
-  if (page === 'browser-view') renderBrowserSiteProfile();
   const next = SETTINGS_PAGE_TITLES[page] ? page : 'source';
+  const drawer = $('settingsDrawer');
+  if (drawer && !drawer.classList.contains('hidden') && player.settingsPage && player.settingsPage !== next) {
+    player.settingsPageScroll[player.settingsPage] = drawer.scrollTop;
+  }
+  if (next === 'browser-view') renderBrowserSiteProfile();
   player.settingsPage = next;
   $$('[data-settings-page-panel]').forEach((panel) => {
     const active = panel.dataset.settingsPagePanel === next;
@@ -13672,8 +13723,10 @@ function setSettingsPage(page) {
     button.tabIndex = active ? 0 : -1;
   });
   if ($('settingsDrawerTitle')) $('settingsDrawerTitle').textContent = SETTINGS_PAGE_TITLES[next];
+  if ($('settingsDrawerBreadcrumb')) $('settingsDrawerBreadcrumb').textContent = 'Ayarlar / ' + SETTINGS_PAGE_TITLES[next];
   if (next === 'browser-subtitles') refreshBrowserSyncPanel();
   if (next === 'browser-diagnostics') void refreshBrowserResourceDiagnostics();
+  if (drawer) requestAnimationFrame(() => { drawer.scrollTop = player.settingsPageScroll[next] || 0; });
 }
 
 if ($('browserSyncChannel')) $('browserSyncChannel').addEventListener('change', () => {
@@ -13708,6 +13761,8 @@ function setSettingsDrawer(open) {
   if (open && !wasOpen) {
     const active = document.activeElement;
     player.settingsReturnFocus = active && typeof active.focus === 'function' ? active : null;
+    player.settingsReturnTab = document.querySelector('.side-tab.active')?.dataset.stab || 'subs';
+    captureSettingsPanelSnapshot();
   }
   const restoreFocus = !open && wasOpen && d.contains?.(document.activeElement)
     ? player.settingsReturnFocus : null;
@@ -13755,8 +13810,11 @@ function setSettingsDrawer(open) {
     });
   } else if (!open) {
     player.settingsReturnFocus = null;
+    restoreSettingsPanelSnapshot();
     if (restoreFocus?.isConnected) requestAnimationFrame(() => restoreFocus.focus());
   }
+  scheduleBrowserBounds();
+  syncBrowserOcclusion();
 }
 
 function toggleSettingsPage(page) {
@@ -13945,6 +14003,31 @@ if ($('toggleSettings')) {
   });
 }
 if ($('closeSettings')) $('closeSettings').addEventListener('click', () => setSettingsDrawer(false));
+if ($('settingsBackToPanel')) {
+  $('settingsBackToPanel').addEventListener('click', () => {
+    const returnTab = player.settingsReturnTab || 'subs';
+    const canReturnToPanel = sidebarIsVisible();
+    setSettingsDrawer(false);
+    if (canReturnToPanel) requestAnimationFrame(() => setSideTab(returnTab));
+  });
+}
+if ($('settingsDrawer')) {
+  $('settingsDrawer').addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab' || $('settingsDrawer').classList.contains('hidden')) return;
+    const focusable = [...$('settingsDrawer').querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
+      .filter((element) => !element.classList.contains('hidden') && element.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+}
 if ($('playerTaskCenterToggle')) {
   $('playerTaskCenterToggle').addEventListener('click', () => setPlayerTaskCenter($('playerTaskCenter').classList.contains('hidden')));
 }
