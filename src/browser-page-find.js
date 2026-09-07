@@ -47,7 +47,10 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
       query = value.text;
       setObserverEnabled(true);
       try {
-        requestId = wc.findInPage(query, { forward: value.forward !== false, findNext: !continuing });
+        // Electron keeps the current find session only when findNext is true.
+        // A new query starts a fresh session; repeated next/previous actions
+        // must advance the existing session instead of resetting to match one.
+        requestId = wc.findInPage(query, { forward: value.forward !== false, findNext: continuing });
         return { ok: true, requestId };
       } catch (error) { requestId = null; return { ok: false, error: error.message }; }
     },
