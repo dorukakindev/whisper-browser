@@ -3920,6 +3920,7 @@ const player = {
   browserSyncPreview: null,
   browserCueEditContext: null,
   browserBaseCues: new Map(),
+  browserSurface: 'web',
   settingsPage: 'source',
   browserSignalVisible: true,
   browserSignalState: null,
@@ -8314,7 +8315,20 @@ $('browserWorkspaceRemove')?.addEventListener('click', async () => {
     setBrowserSignal(result?.error || 'Çalışma alanı kaydı silinemedi.', false);
   }
 });
+function browserSettingsSurfaceVisible() {
+  return player.browserSurface === 'settings';
+}
+
+function browserChromeCommandBlocked(command, surface = player.browserSurface) {
+  return surface === 'settings' && ['back', 'forward', 'reload', 'stop'].includes(command);
+}
+
 async function runBrowserChromeCommand(command) {
+  if (browserChromeCommandBlocked(command)) {
+    setBrowserSignal('Tarayıcı ayarları açıkken gezinme komutları sayfaya gönderilmez.', true,
+      { priority: 45, holdMs: 2600 });
+    return { ok: false, blocked: true, reason: 'settings-visible' };
+  }
   const result = await browserCommand(command).catch(() => null);
   if (!result?.ok) setBrowserSignal(`Tarayıcı komutu tamamlanamadı: ${result?.error || 'bilinmeyen hata'}`, false);
   return result;
