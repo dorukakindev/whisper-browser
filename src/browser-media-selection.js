@@ -9,7 +9,8 @@ function browserMediaCandidateRank(item) {
   // Playing visible media wins; audible audio wins over paused video; then the
   // largest usable paused video. Hidden playing videos are a last resort.
   const tier = playing && area > 16 ? 4 : playing && audio ? 3 : area > 16 ? 2 : playing ? 1 : 0;
-  return [tier, area, Number(item.readyState) || 0, Number(item.duration) || 0];
+  const duration = Number(item.duration);
+  return [tier, area, Number(item.readyState) || 0, Number.isFinite(duration) ? duration : 0];
 }
 
 function compareBrowserMediaCandidates(a, b) {

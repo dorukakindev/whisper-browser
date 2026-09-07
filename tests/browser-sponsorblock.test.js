@@ -14,6 +14,7 @@ test('YouTube adreslerinden güvenli video kimliği çıkarılır', () => {
   assert.equal(youtubeVideoId('https://youtu.be/abcdefghijk?t=4'), 'abcdefghijk');
   assert.equal(youtubeVideoId('https://www.youtube.com/shorts/abcdefghijk'), 'abcdefghijk');
   assert.equal(youtubeVideoId('https://www.youtube.com/embed/abcdefghijk'), 'abcdefghijk');
+  assert.equal(youtubeVideoId('https://www.youtube-nocookie.com/embed/abcdefghijk'), 'abcdefghijk');
   assert.equal(youtubeVideoId('https://youtube.com.evil.test/watch?v=abcdefghijk'), '');
   assert.equal(hashPrefix('abcdefghijk').length, 4);
 });

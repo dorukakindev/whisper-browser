@@ -11,7 +11,7 @@ function youtubeVideoId(input) {
     const url = new URL(String(input || '').trim());
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
     if (host === 'youtu.be') return (url.pathname.split('/').filter(Boolean)[0] || '').match(/^[A-Za-z0-9_-]{11}$/)?.[0] || '';
-    if (!['youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) return '';
+    if (!['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(host)) return '';
     if (url.pathname === '/watch') return (url.searchParams.get('v') || '').match(/^[A-Za-z0-9_-]{11}$/)?.[0] || '';
     const match = url.pathname.match(/^\/(?:shorts|embed|live)\/([A-Za-z0-9_-]{11})(?:$|\/)/);
     return match ? match[1] : '';

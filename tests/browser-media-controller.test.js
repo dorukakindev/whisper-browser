@@ -78,6 +78,34 @@ test('oynayan ses öğesi duraklatılmış dekoratif videodan önce seçilir', (
   assert.equal(probe([video, audio]).currentTime, 22);
 });
 
+test('canlı yayının sonsuz süresi eşit görünür adaylarda sıralamayı çalmaz', () => {
+  const recorded = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 11, readyState: 4, duration: 500 };
+  const live = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 22, readyState: 4, duration: Infinity };
+  assert.equal(probe([recorded, live]).currentTime, 11);
+});
+
+test('bağlantısı kopmuş shadow kökü observerını controller bırakır', () => {
+  const observers = [];
+  class MutationObserver {
+    observe(root) { this.root = root; observers.push(this); }
+    disconnect() { this.disconnected = true; }
+  }
+  const shadow = { nodeType: 11, children: [], querySelectorAll: () => [] };
+  const host = { nodeType: 1, children: [], shadowRoot: shadow, isConnected: true,
+    matches: () => false, querySelectorAll: () => [] };
+  shadow.host = host;
+  const document = { nodeType: 9, children: [host], querySelectorAll: () => [] };
+  const context = { window: {}, document, MutationObserver };
+  vm.runInNewContext(buildBrowserMediaProbeScript(), context);
+  assert.equal(context.window.__whisperMediaController.diagnostics().observerCount, 2);
+  host.isConnected = false;
+  context.window.__whisperMediaController.select();
+  assert.equal(context.window.__whisperMediaController.diagnostics().observerCount, 1);
+  assert.equal(observers.find((observer) => observer.root === shadow).disconnected, true);
+});
+
 test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () => {
   const broken = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
     clientWidth: 800, clientHeight: 450, currentTime: Infinity, duration: NaN,

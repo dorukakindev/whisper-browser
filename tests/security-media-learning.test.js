@@ -245,6 +245,16 @@ test('shadowing cue bitişinde süreli duraklatma üretir', () => {
     'pause-for-shadowing', 'kullanıcı seek hareketi gölgeleme duraklatması sanıldı');
 });
 
+test('shadowing örtüşen başka konuşmacının aktif cue sunu ortasında duraklatmaz', () => {
+  const overlapping = [
+    { id: 'speaker-a', start: 10, end: 14, text: 'Birinci konuşmacı' },
+    { id: 'speaker-b', start: 13.5, end: 17, text: 'İkinci konuşmacı' },
+  ];
+  const action = playbackLearningAction(overlapping, 14.05, 13.95, 'shadowing');
+  assert.equal(action.type, 'set-rate');
+  assert.equal(action.cueId, 'speaker-b');
+});
+
 test('öğrenme notu medya ve zaman bağını korur', () => {
   const annotation = normalizeAnnotation({
     type: 'word', mediaId: 'netflix:1', start: 12.5, end: 14,

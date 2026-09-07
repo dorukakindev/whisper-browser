@@ -9226,14 +9226,28 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
   if (!action) return;
   if (action.type === 'seek') {
     const target = browserMode ? subtitleVideoTime(action.time, false) : action.time + player.offset;
-    if (browserMode) browserCommand('seek', target).catch(() => {});
+    if (browserMode) {
+      if (Date.now() < Number(player.browserLearningSeekUntil || 0)) return;
+      player.browserLearningSeekUntil = Date.now() + 750;
+      browserCommand('seek', target).catch(() => {});
+    }
     else if ($('playerVideo')) $('playerVideo').currentTime = target;
   } else if (action.type === 'set-rate') {
     const current = browserMode ? player.browserRate : Number($('playerVideo')?.playbackRate || 1);
     if (Math.abs(current - action.rate) < .01) return;
-    if (browserMode) browserCommand('speed', action.rate).then((result) => {
-      if (result?.ok) player.browserRate = Number(result.media?.playbackRate) || action.rate;
-    }).catch(() => {});
+    if (browserMode) {
+      const previous = current;
+      const sequence = (Number(player.browserLearningRateSequence) || 0) + 1;
+      player.browserLearningRateSequence = sequence;
+      player.browserRate = action.rate;
+      browserCommand('speed', action.rate).then((result) => {
+        if (sequence !== player.browserLearningRateSequence) return;
+        if (result?.ok) player.browserRate = Number(result.media?.playbackRate) || action.rate;
+        else player.browserRate = previous;
+      }).catch(() => {
+        if (sequence === player.browserLearningRateSequence) player.browserRate = previous;
+      });
+    }
     else if ($('playerVideo')) $('playerVideo').playbackRate = action.rate;
   } else if (action.type === 'pause-for-shadowing' && !paused && !player.shadowResumeTimer) {
     const generation = currentGeneration();

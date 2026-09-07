@@ -347,6 +347,13 @@ test('SRT çıktısı UTF-8 metni ve zamanları korur', () => {
   assert.match(srt, /Türkçe metin/);
 });
 
+test('Genel JSON altyazısının sağlayıcı cue kimliğini korur', () => {
+  const result = parseSubtitlePayload(JSON.stringify({ cues: [
+    { cueId: 'provider-42', start: 1, end: 2, text: 'Kimlikli satır' },
+  ] }), 'application/json', 'https://cdn.test/captions.json');
+  assert.equal(result.cues[0].id, 'provider-42');
+});
+
 test('Genel altyazı JSON zaman kodlarını saat:dakika:saniye biçiminde ayrıştırır', () => {
   const result = parseSubtitlePayload(JSON.stringify({ captions: [
     { start: '01:02:03.500', end: '01:02:05.000', text: 'Uzun içerik' },

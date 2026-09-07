@@ -839,7 +839,8 @@ function parseJson(body) {
     if (Number.isFinite(end) && /Ms$|TimeMs$/i.test(endKey)) end /= 1000;
     if (Number.isFinite(duration) && /Ms$/i.test(durationKey)) duration /= 1000;
     if (!Number.isFinite(end)) end = Number.isFinite(duration) ? start + duration : null;
-    out.push({ start, end, text });
+    const id = cue.id ?? cue.cueId ?? cue.identifier;
+    out.push({ ...(id === undefined || id === null ? {} : { id }), start, end, text });
   }
   return normalizeCues(out);
 }

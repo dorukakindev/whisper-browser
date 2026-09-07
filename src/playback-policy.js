@@ -30,7 +30,7 @@
     // Büyük zaman sıçraması kullanıcı seek'idir; cue sonunu doğal oynatmayla
     // geçti sanıp kullanıcıyı istemsiz duraklatma.
     const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < 1;
-    if (policy === PLAYBACK_POLICIES.shadowing.id && naturalAdvance) {
+    if (policy === PLAYBACK_POLICIES.shadowing.id && naturalAdvance && !active) {
       const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < 1);
       if (ended) {
         const duration = Math.max(0.5, ended.end - ended.start);

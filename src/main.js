@@ -7112,10 +7112,11 @@ async function authorizeSubtitleFile(filePath) {
 
 ipcMain.on('browser:trusted-bridge', (event, message) => {
   if (event.senderFrame !== event.sender.mainFrame) return;
+  if (!message || typeof message !== 'object') return;
   const tab = [...browserTabs.values()].find((candidate) =>
     candidate.view && !candidate.view.webContents.isDestroyed()
       && candidate.view.webContents === event.sender);
-  if (!tab || tab.id !== browserActiveTabId || !message || typeof message !== 'object') return;
+  if (!tab || (message.type !== 'page-blocks' && tab.id !== browserActiveTabId)) return;
   if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
   else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
   else if (message.type === 'page-blocks') acceptDynamicBrowserPageBlocks(tab, message.payload);

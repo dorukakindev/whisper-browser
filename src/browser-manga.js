@@ -427,7 +427,8 @@ function mangaClearScript() {
   return `(() => {
     const state = window.__whisperMangaOverlay;
     if (state && state.overlays) for (const overlay of state.overlays.values()) overlay.remove();
-    if (state && state.editor) state.editor.remove();
+    if (state?.editorClose) state.editorClose();
+    else if (state?.editor) state.editor.remove();
     if (state) {
       state.destroyed = true;
       if (state.layoutFrame) cancelAnimationFrame(state.layoutFrame);
@@ -439,6 +440,7 @@ function mangaClearScript() {
       state.undo = [];
       state.selected = null;
       state.editor = null;
+      state.editorClose = null;
     }
     if (state && state.onLayout) {
       removeEventListener('scroll', state.onLayout, true);
@@ -699,7 +701,8 @@ function mangaOverlayScript(payload) {
         state.selected = group;
         const frame = group.querySelector('[data-whisper-manga-frame]');
         frame.style.outline = '2px solid #e0a84f';
-        if (state.editor) state.editor.remove();
+        if (state.editorClose) state.editorClose();
+        else if (state.editor) state.editor.remove();
         const editor = document.createElement('div');
         editor.setAttribute('data-whisper-manga-editor', '');
         Object.assign(editor.style, { position: 'fixed', right: '18px', bottom: '18px', zIndex: '2147483646',
@@ -766,7 +769,23 @@ function mangaOverlayScript(payload) {
           button.addEventListener('click', (event) => { if (event.isTrusted) action(event); });
           return button;
         };
-        const close = () => { editor.remove(); state.editor = null; frame.style.removeProperty('outline'); };
+        let onOutsidePointerDown = null;
+        const close = () => {
+          if (onOutsidePointerDown) document.removeEventListener('pointerdown', onOutsidePointerDown, true);
+          editor.remove();
+          if (state.editor === editor) state.editor = null;
+          if (state.editorClose === close) state.editorClose = null;
+          frame.style.removeProperty('outline');
+        };
+        onOutsidePointerDown = (event) => {
+          if (event.isTrusted && !editor.contains(event.target)) close();
+        };
+        document.addEventListener('pointerdown', onOutsidePointerDown, true);
+        editor.addEventListener('keydown', (event) => {
+          if (event.isTrusted && event.key === 'Escape') {
+            event.preventDefault(); event.stopPropagation(); close();
+          }
+        });
         buttons.appendChild(makeButton('Geri al', false, () => {
           if (state.undoGroup(group)) close();
           else { area.value = group.dataset.translation || ''; area.focus(); }
@@ -793,6 +812,7 @@ function mangaOverlayScript(payload) {
         editor.append(label, columns, buttons);
         document.documentElement.appendChild(editor);
         state.editor = editor;
+        state.editorClose = close;
         area.focus();
         area.select();
       };

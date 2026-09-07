@@ -4,8 +4,16 @@ function controllerBootstrap() {
   return `(() => {
     if (window.__whisperMediaController) return window.__whisperMediaController;
     const media = new Set();
-    const observedRoots = new WeakSet();
-    const observers = [];
+    const observers = new Map();
+
+    const cleanupDetachedRoots = () => {
+      for (const [root, observer] of observers) {
+        if (root !== document && root.host?.isConnected === false) {
+          observer.disconnect();
+          observers.delete(root);
+        }
+      }
+    };
 
     function scanShadowHosts(node, depth = 0) {
       if (!node || depth > 24) return;
@@ -19,18 +27,18 @@ function controllerBootstrap() {
     }
 
     const observeRoot = (root) => {
-      if (!root || observedRoots.has(root)) return;
-      observedRoots.add(root);
+      if (!root || observers.has(root)) return;
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) scan(node);
           if (mutation.removedNodes.length) {
             for (const item of [...media]) if (!item.isConnected) media.delete(item);
+            cleanupDetachedRoots();
           }
         }
       });
       observer.observe(root, { childList: true, subtree: true });
-      observers.push(observer);
+      observers.set(root, observer);
     };
 
     function scan(node) {
@@ -51,6 +59,7 @@ function controllerBootstrap() {
       return Number.isFinite(number) ? number : fallback;
     };
     const select = () => {
+      cleanupDetachedRoots();
       for (const item of [...media]) if (!item.isConnected) media.delete(item);
       return [...media].sort(compareMedia)[0] || null;
     };
@@ -75,7 +84,7 @@ function controllerBootstrap() {
         };
       },
       diagnostics() {
-        return { candidateCount: media.size, observerCount: observers.length, persistent: true };
+        return { candidateCount: media.size, observerCount: observers.size, persistent: true };
       },
     };
     window.__whisperMediaController = controller;

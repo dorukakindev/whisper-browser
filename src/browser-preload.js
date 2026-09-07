@@ -177,6 +177,7 @@ window.addEventListener('scroll', () => {
   if (readingPositionTimer) return;
   readingPositionTimer = setTimeout(() => {
     readingPositionTimer = null;
+    if (!document.querySelector('[data-whisper-manga-id]')) return;
     ipcRenderer.send('browser:trusted-bridge', { type: 'reading-position', payload: null });
   }, 700);
 }, { passive: true, capture: true });
