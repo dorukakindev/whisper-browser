@@ -3173,6 +3173,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 /* Trancy-benzeri kelime katmanı: transcript yalnızca pasif bir metin değil,
    satırın içindeki her kelime ayrı ayrı incelenebilir bir yüzeydir. */
 /* Kelime vurgulari DOM'suz: CSS Custom Highlight API */
+::highlight(cue-word-active) {
+  color: color-mix(in srgb, var(--sub-color, #fff) 82%, white 18%);
+  text-decoration: underline 2px;
+  text-decoration-color: var(--accent);
+  text-underline-offset: .14em;
+  text-shadow: var(--sub-shadow), 0 0 1px currentColor;
+}
 ::highlight(cue-word-hover) {
   color: var(--accent-hover);
   text-decoration: underline;

@@ -13,6 +13,7 @@ const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
 const { canonicalLocalPath, SubtitleFileAccess, PdfFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
+const { readAdjacentWordSegments } = require('./subtitle-word-sidecar');
 const subtitleFileAccess = new SubtitleFileAccess();
 const pdfFileAccess = new PdfFileAccess();
 const {
@@ -679,7 +680,14 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   try {
     filePath = await authorizeSubtitleFile(filePath);
     const { text, note } = decodeSubtitleBuffer(fs.readFileSync(filePath));
-    return { ok: true, text, note };
+    let wordSegments;
+    try {
+      const adjacent = readAdjacentWordSegments(filePath);
+      if (adjacent.length) wordSegments = adjacent;
+    } catch (_) {
+      // Bozuk/okunamayan yan JSON, altyazının kendisini açmayı engellemez.
+    }
+    return { ok: true, text, note, wordSegments };
   } catch (err) {
     return { ok: false, error: err.message };
   }
