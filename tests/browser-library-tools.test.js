@@ -9,6 +9,7 @@ const {
   resolveTextAnchor,
   selectionAnchorCaptureScript,
   setCollectionMembership,
+  textAnchorRestoreScript,
   unifiedLibrarySearch,
   waitForMangaPosition,
 } = require('../src/browser-library-tools');
@@ -55,6 +56,19 @@ test('koleksiyon yeniden adlandırma ve toplu üyelik yinelenmez', () => {
   assert.deepEqual(items.map((item) => item.collections), [['Yeni'], ['Yeni']]);
 });
 
+test('koleksiyon yeniden adlandırma özel sıralamayı yeni ada taşır', () => {
+  const [renamed] = renameCollection([{ key: 'a', collections: [' Eski '],
+    prefs: { collectionOrder: { Eski: 3, Başka: 1 } } }], 'Eski', 'Yeni');
+  assert.deepEqual(renamed.collections, ['Yeni']);
+  assert.deepEqual(renamed.prefs.collectionOrder, { Yeni: 3, Başka: 1 });
+});
+
+test('koleksiyon sıralama üyelik adını normalize eder', () => {
+  const [ordered] = require('../src/browser-library-tools').reorderCollection(
+    [{ key: 'a', collections: [' Ders '], prefs: {} }], 'Ders', ['a']);
+  assert.equal(ordered.prefs.collectionOrder.Ders, 0);
+});
+
 test('tekrarlanan alıntı bağlam eşitken belirsiz raporlanır', () => {
   const result = resolveTextAnchor({ exact: 'aynı söz' }, [
     { text: 'Burada aynı söz var.' }, { text: 'Başka yerde aynı söz var.' },
@@ -91,6 +105,24 @@ test('HTML ve script görünümlü alıntı kod olarak çalıştırılmadan veri
   assert(result.ok);
   assert.equal(result.anchor.exact, quote);
   assert.equal(context.pwned, undefined);
+});
+
+test('iç içe bloklarda en özgül metin düğümü belirsiz sayılmaz', () => {
+  const makeElement = (name, text, parent = null) => ({
+    localName: name, textContent: text, parentElement: parent, id: '', nodeType: 1,
+    style: { setProperty() {}, removeProperty() {} },
+    closest: () => null, setAttribute() {}, removeAttribute() {}, scrollIntoView() {},
+    contains(other) { for (let node = other; node; node = node.parentElement) if (node === this) return true; return false; },
+  });
+  const section = makeElement('section', 'ön hedef son');
+  const paragraph = makeElement('p', 'ön hedef son', section);
+  const context = {
+    document: { querySelectorAll: (selector) => selector.includes('data-whisper') ? [] : [section, paragraph] },
+    setTimeout() {}, String, Array,
+  };
+  const result = vm.runInNewContext(textAnchorRestoreScript({ exact: 'hedef', prefix: 'ön ', suffix: ' son' }), context);
+  assert.equal(result.status, 'found');
+  assert.equal(result.count, 2);
 });
 
 test('manga konumu yanlış belgede ve kayıp görselde güvenli sonuç verir', () => {

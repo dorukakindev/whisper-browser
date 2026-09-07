@@ -10,7 +10,7 @@
   // watch-index.js ile ayni arama semantigi: NFKC + Turkce case-fold.
   function foldSearchText(value, caseSensitive = false) {
     const normalized = String(value == null ? '' : value).normalize('NFKC');
-    return caseSensitive ? normalized : normalized.toLocaleLowerCase('tr-TR');
+    return caseSensitive ? normalized : normalized.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
   }
 
   function codePointBoundaries(text) {

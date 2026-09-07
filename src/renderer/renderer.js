@@ -9761,20 +9761,28 @@ async function saveCueNote() {
   osd(existing ? 'Zaman bağlı not güncellendi' : 'Zaman bağlı not kaydedildi');
 }
 
-function toggleCueSaved() {
+async function toggleCueSaved() {
   if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
     logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
     return;
   }
   const sig = cueSignature(player.cues[player.activeIdx]);
   const at = player.savedCues.indexOf(sig);
+  const cue = player.cues[player.activeIdx];
+  const generation = currentGeneration();
+  const mediaKey = player.mediaKey;
+  const context = await learningAnnotationContext(cue);
+  if (staleGeneration(generation) || player.mediaKey !== mediaKey || player.cues[player.activeIdx] !== cue) return;
+  const result = await syncLearningAnnotation('quote', cue, at < 0, context);
+  if (!result?.ok) {
+    logLine('Cümle kaydı güncellenemedi: ' + (result?.error || 'bilinmeyen hata'), 'error');
+    return;
+  }
   if (at >= 0) {
     player.savedCues.splice(at, 1);
-    syncLearningAnnotation('quote', player.cues[player.activeIdx], false);
     osd('Cümle kayıtlardan çıkarıldı');
   } else {
     player.savedCues.push(sig);
-    syncLearningAnnotation('quote', player.cues[player.activeIdx], true);
     osd('Cümle kaydedildi');
   }
   persistSavedCues();

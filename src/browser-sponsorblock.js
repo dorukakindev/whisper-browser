@@ -61,14 +61,22 @@ function validateSegments(payload, videoId, duration = 0) {
     const effectiveDuration = Number.isFinite(duration) && duration > 0
       ? duration
       : (validApiDuration ? apiDuration : 0);
-    if (id !== videoId || !Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start
-      || end - start > 2 * 60 * 60 || (effectiveDuration > 0 && end > effectiveDuration)
+    const boundedEnd = effectiveDuration > 0 ? Math.min(end, effectiveDuration) : end;
+    if (id !== videoId || !Number.isFinite(start) || !Number.isFinite(end) || start < 0 || boundedEnd <= start
+      || end - start > 2 * 60 * 60
       || !normalizeCategories([category]).includes(category) || actionType !== 'skip') { invalid += 1; continue; }
-    segments.push({ videoId, start, end, category, actionType, uuid,
+    segments.push({ videoId, start, end: boundedEnd, category, actionType, uuid,
       videoDuration: validApiDuration ? apiDuration : (duration > 0 ? duration : null) });
   }
   segments.sort((a, b) => a.start - b.start || a.end - b.end || a.uuid.localeCompare(b.uuid));
   return { segments, invalid, error: '' };
+}
+
+function clampSegmentsToDuration(segments, duration) {
+  const limit = Number(duration);
+  if (!Number.isFinite(limit) || limit <= 0 || !Array.isArray(segments)) return Array.isArray(segments) ? segments : [];
+  return segments.map((segment) => ({ ...segment, end: Math.min(Number(segment.end), limit) }))
+    .filter((segment) => Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start);
 }
 
 class SponsorBlockCache {
@@ -87,4 +95,4 @@ class SponsorBlockCache {
   }
 }
 
-module.exports = { SPONSORBLOCK_VERSION, DEFAULT_CATEGORIES, KNOWN_CATEGORIES, youtubeVideoId, hashPrefix, normalizeCategories, extractHashSegments, validateSegments, SponsorBlockCache };
+module.exports = { SPONSORBLOCK_VERSION, DEFAULT_CATEGORIES, KNOWN_CATEGORIES, youtubeVideoId, hashPrefix, normalizeCategories, extractHashSegments, validateSegments, clampSegmentsToDuration, SponsorBlockCache };

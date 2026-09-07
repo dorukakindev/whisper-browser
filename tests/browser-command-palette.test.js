@@ -20,6 +20,9 @@ test('native görünüm yalnız desteklenen kısayolları köprüler', () => {
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'f', meta: true }), 'f');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'l', control: true }), 'l');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 't', control: true, shift: true }), 't');
+  assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'k', control: true, shift: true }), '');
+  assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'f', control: true, shift: true }), '');
+  assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'l', control: true, shift: true }), '');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'a', control: true }), '');
   assert.equal(browserShortcutForInput({ type: 'keyUp', key: 'k', control: true }), '');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'k', control: true, alt: true }), '');

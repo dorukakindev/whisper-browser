@@ -31,8 +31,23 @@ function normalizeAnnotation(raw = {}) {
   };
 }
 
+function matchingLearningAnnotation(annotations, type, raw = {}) {
+  const target = normalizeAnnotation({ ...raw, type });
+  const rows = (Array.isArray(annotations) ? annotations : []).filter((item) =>
+    item && item.type === target.type && item.mediaId === target.mediaId);
+  const exact = rows.find((item) => item.id === target.id);
+  if (exact) return exact;
+  if (target.trackId && target.cueId) {
+    const identified = rows.find((item) => item.trackId === target.trackId && item.cueId === target.cueId);
+    if (identified) return identified;
+  }
+  const timed = rows.filter((item) => Math.abs(Number(item.start) - target.start) < .05);
+  return timed.length === 1 ? timed[0] : null;
+}
+
 module.exports = {
   PLAYBACK_POLICIES,
+  matchingLearningAnnotation,
   normalizeAnnotation,
   playbackLearningAction,
 };

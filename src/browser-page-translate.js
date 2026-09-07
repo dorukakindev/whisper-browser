@@ -8,6 +8,7 @@ const MAX_PAGE_BLOCK_TEXT = 2000;
 const MAX_PAGE_CHARACTERS = 400000;
 const MAX_PAGE_BATCH_BLOCKS = 20;
 const PAGE_CACHE_VERSION = 1;
+const MEANINGFUL_CJK = /[ぁ-ヿ㐀-鿿豈-﫿]/u;
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -25,7 +26,7 @@ function normalizeOnePageBlock(raw, index) {
   if (!raw || typeof raw !== 'object') return null;
   const id = String(raw.id ?? '').trim().slice(0, 240);
   const text = normalizeText(raw.text).slice(0, MAX_PAGE_BLOCK_TEXT);
-  if (!id || text.length < 2 || /^[\p{P}\p{S}\p{N}\s]+$/u.test(text)) return null;
+  if (!id || (text.length < 2 && !MEANINGFUL_CJK.test(text)) || /^[\p{P}\p{S}\p{N}\s]+$/u.test(text)) return null;
   const rawNodes = Array.isArray(raw.nodes) ? raw.nodes : raw.nodeLengths;
   const nodes = (Array.isArray(rawNodes) ? rawNodes : [])
     .map((value) => Math.max(0, Math.min(1000000, Math.trunc(finiteNumber(value)))))
@@ -139,7 +140,8 @@ function pageBlockScanScript(options = {}) {
     const MAX_TEXT = ${MAX_PAGE_BLOCK_TEXT};
     const MAX_CHARS = ${MAX_PAGE_CHARACTERS};
     const normalize = (value) => String(value == null ? '' : value).normalize('NFC').replace(/\\s+/g, ' ').trim();
-    const meaningful = (value) => value.length >= 2 && !/^[\\p{P}\\p{S}\\p{N}\\s]+$/u.test(value);
+    const meaningful = (value) => (value.length >= 2 || /[ぁ-ヿ㐀-鿿豈-﫿]/u.test(value))
+      && !/^[\\p{P}\\p{S}\\p{N}\\s]+$/u.test(value);
     const hashText = (value) => {
       let hash = 2166136261;
       for (let index = 0; index < value.length; index++) {
@@ -473,8 +475,18 @@ function pageVisibilityScript(visible) {
       let cumulative = 0;
       ref.nodes.forEach((node, index) => {
         cumulative += weights[index] || 1;
-        const end = index === ref.nodes.length - 1 ? chars.length
+        let end = index === ref.nodes.length - 1 ? chars.length
           : Math.max(cursor, Math.min(chars.length, Math.round(chars.length * cumulative / total)));
+        if (end > cursor && end < chars.length) {
+          let best = end;
+          for (let offset = 0; offset <= 12; offset++) {
+            const forward = end + offset;
+            const backward = end - offset;
+            if (forward < chars.length && /\\s/u.test(chars[forward])) { best = forward + 1; break; }
+            if (backward > cursor && /\\s/u.test(chars[backward - 1])) { best = backward; break; }
+          }
+          end = best;
+        }
         if (node && node.isConnected !== false) node.nodeValue = chars.slice(cursor, end).join('');
         cursor = end;
       });

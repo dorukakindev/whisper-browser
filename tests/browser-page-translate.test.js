@@ -150,6 +150,7 @@ vm.runInNewContext(pageVisibilityScript(false), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 vm.runInNewContext(pageVisibilityScript(true), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Hello world.');
+assert.equal(firstNode.nodeValue, 'Hello ', 'görünürlük dönüşü kelimeyi DOM düğümleri arasında bölmemeli');
 const bilingual = vm.runInNewContext(pageApplyScript({
   mode: 'bilingual', targetLanguage: 'en', translations: [{ id: '0:key', text: 'Hello world.' }],
 }), pageContext);

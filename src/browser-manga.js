@@ -58,6 +58,21 @@ function unionMangaBoxes(first, second) {
   ];
 }
 
+function mangaRegionSampleBox(region = {}) {
+  return region.bubbleBox || region.box || region.textBox || [0, 0, 0, 0];
+}
+
+function mangaResultState(result = {}) {
+  if (result.stale) return 'stale';
+  if (result.resultState) return String(result.resultState);
+  return result.empty ? 'no_regions' : (result.translated ? 'translated' : 'request_failed');
+}
+
+function mangaFailureState(error = {}) {
+  if (error.mangaResultState) return String(error.mangaResultState);
+  return Number(error.httpStatus) ? 'http_failed' : 'request_failed';
+}
+
 function normalizeMangaRegions(input) {
   const source = Array.isArray(input) ? input : Array.isArray(input?.regions) ? input.regions : [];
   const normalized = [];
@@ -877,8 +892,11 @@ module.exports = {
   mangaCacheKey,
   mangaCandidateScanScript,
   mangaClearScript,
+  mangaFailureState,
   mangaOverlayScript,
   mangaGenerationParameters,
+  mangaRegionSampleBox,
+  mangaResultState,
   mangaRegionsStateScript,
   mangaSelectionScript,
   mangaVisibilityScript,

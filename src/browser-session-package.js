@@ -35,12 +35,13 @@ function sanitizePlaces(raw = {}) {
     tabs: (Array.isArray(workspace?.tabs) ? workspace.tabs : [])
       .map(normalizeSessionTab).filter(Boolean).slice(0, 24),
   })).filter((workspace) => workspace.name && workspace.tabs.length).slice(0, 20);
+  const siteZooms = normalizeBrowserSiteZooms(raw.siteZooms);
   return {
     history: cleanEntries(raw.history),
     bookmarks: cleanEntries(raw.bookmarks),
     workspaces,
-    siteZooms: {},
-    siteProfiles: normalizeBrowserSiteProfiles(raw.siteProfiles, normalizeBrowserSiteZooms(raw.siteZooms)),
+    siteZooms,
+    siteProfiles: normalizeBrowserSiteProfiles(raw.siteProfiles, siteZooms),
     compatibilityHosts: normalizeBrowserCompatibilityHosts(raw.compatibilityHosts),
   };
 }

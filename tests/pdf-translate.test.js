@@ -31,7 +31,7 @@ assert.equal(sameLine.length, 2);
 assert.equal(sameLine[0].text, 'Merhaba dünya.');
 assert.equal(sameLine[1].text, 'İkinci satır');
 
-// Tireli satır sonu kayıpsız birleşir; normal satır ve cümle sınırları ayrılır.
+// Tireli satır sonu kayıpsız birleşir; yalnız geometrik paragraf aralığı ayırır.
 const paragraphs = mergePdfTextItems([
   item('olağan-', 0, 700),
   item('üstü bir durum', 0, 688),
@@ -41,11 +41,19 @@ const paragraphs = mergePdfTextItems([
 ], { pageNumber: 3, pageHeight: 800 });
 assert.deepEqual(paragraphs.map((paragraph) => paragraph.text), [
   'olağanüstü bir durum devam ediyor',
-  've burada bitiyor.',
-  'Yeni paragraf.',
+  've burada bitiyor. Yeni paragraf.',
 ]);
 assert(paragraphs.every((paragraph) => paragraph.id.startsWith('3:')));
 assert.equal(paragraphs[0].lineCount, 3, 'tire kaldırılırken kaynak satır geometrisi korunmalı');
+
+// Normal satır aralığında nokta paragrafı bölmez; CJK gliflerine yapay boşluk eklenmez.
+assert.deepEqual(mergePdfLines([
+  { text: 'Birinci cümle.', x: 0, y: 100, width: 80, height: 10 },
+  { text: 'Aynı paragrafın devamı.', x: 0, y: 90, width: 100, height: 10 },
+]).map((paragraph) => paragraph.text), ['Birinci cümle. Aynı paragrafın devamı.']);
+assert.equal(textItemsToLines([
+  item('这', 0, 100, 8), item('是', 10, 100, 8), item('测', 20, 100, 8), item('试', 30, 100, 8),
+])[0].text, '这是测试');
 
 // Ortak sentenceEnded Türkçe ve noktalı kısaltmaları paragraf sonu saymaz.
 assert.deepEqual(mergePdfLines([
@@ -54,8 +62,7 @@ assert.deepEqual(mergePdfLines([
   { text: 'L.A.', x: 0, y: 80, width: 20, height: 10 },
   { text: 'kentinde yaşadı.', x: 0, y: 70, width: 50, height: 10 },
 ], { pageNumber: 1 }).map((paragraph) => paragraph.text), [
-  'Elma, armut vb. meyveleri aldım.',
-  'L.A. kentinde yaşadı.',
+  'Elma, armut vb. meyveleri aldım. L.A. kentinde yaşadı.',
 ]);
 
 // Üst/alt %7 içindeki tekrar eden kısa satırlar ve sayfa numaraları elenir.

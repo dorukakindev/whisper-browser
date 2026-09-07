@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const {
-  youtubeVideoId, hashPrefix, normalizeCategories, extractHashSegments, validateSegments, SponsorBlockCache,
+  youtubeVideoId, hashPrefix, normalizeCategories, extractHashSegments, validateSegments,
+  clampSegmentsToDuration, SponsorBlockCache,
 } = require('../src/browser-sponsorblock');
 
 let passed = 0;
@@ -48,8 +49,16 @@ test('API video süresi korunur ve geçersiz süre güvenle yok sayılır', () =
 });
 
 test('Yerel video süresi segmentleri sınırlar', () => {
-  assert.equal(validateSegments(extractHashSegments(hashResponse, 'abcdefghijk'), 'abcdefghijk', 80).segments.length, 0,
-    'video süresini aşan segment kabul edildi');
+  const checked = validateSegments(extractHashSegments(hashResponse, 'abcdefghijk'), 'abcdefghijk', 80);
+  assert.deepEqual(checked.segments.map(({ start, end }) => [start, end]), [[60, 80]],
+    'video süresini aşan segment güvenli süreye kırpılmadı');
+});
+
+test('video sonundaki küçük süre farkı segmenti silmek yerine kırpar', () => {
+  const payload = [{ videoID: 'abcdefghijk', segment: [75, 80.2], category: 'outro', actionType: 'skip' }];
+  const checked = validateSegments(payload, 'abcdefghijk', 80);
+  assert.deepEqual(checked.segments.map(({ start, end }) => [start, end]), [[75, 80]]);
+  assert.deepEqual(clampSegmentsToDuration([{ start: 75, end: 80.2 }], 80), [{ start: 75, end: 80 }]);
 });
 
 test('UUID boyutu sınırlanır', () => {

@@ -126,6 +126,17 @@ async function test(name, fn) {
     assert.equal(plan.stage('network-capture').status, 'skipped');
   });
 
+  await test('son otomatik edinme basamağı başarısızsa keşif açıkça başarısız olur', () => {
+    const plan = new CaptionAcquisitionPlan({ capabilities: {
+      nativeTextTrack: false, networkCapture: true, manifestCapture: false,
+      persistedTrack: false, manualTrack: true, liveAsr: false,
+    } });
+    assert(plan.start('network-capture'));
+    assert(plan.finish('network-capture', { success: false, reason: 'İz bulunamadı.' }));
+    assert.equal(plan.snapshot().discovery.phase, 'capture_failed');
+    assert.match(plan.snapshot().discovery.message, /dosya seçin|bulunamadı/i);
+  });
+
   await test('geç kalan eşzamanlı edinme sonucu ilk kazananı değiştirmez', () => {
     const plan = new CaptionAcquisitionPlan({
       capabilities: { nativeTextTrack: true, networkCapture: true },

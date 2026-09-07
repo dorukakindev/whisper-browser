@@ -174,6 +174,14 @@ class CaptionAcquisitionPlan {
           other.reason = 'Altyazı daha önceki bir basamakta bulundu.';
         }
       }
+    } else {
+      const automatic = this.stages.filter((candidate) =>
+        ACQUISITION_STAGES.find((definition) => definition.id === candidate.id)?.automatic);
+      if (!this.winner && automatic.every((candidate) => TERMINAL_STATUSES.has(candidate.status))) {
+        this.discovery.observe('capture_failed', {
+          message: 'Altyazı bulunamadı; dosya seçin veya canlı Whisper kullanın.',
+        });
+      }
     }
     return true;
   }

@@ -15,6 +15,12 @@ function browserTabProtectionReasons(tab = {}, { activeTabId = '' } = {}) {
   return [...new Set(reasons)];
 }
 
+function updateBrowserPlaybackState(tab, playing) {
+  if (!tab || typeof tab !== 'object') return false;
+  tab.mediaPlaying = playing === true;
+  return tab.mediaPlaying;
+}
+
 function browserTabUnloadDecision(tab, context = {}) {
   if (!tab || !tab.id) return { allowed: false, reason: 'missing', message: 'Sekme bulunamadı.' };
   if (tab.lifecycle === 'unloaded') return { allowed: false, reason: 'already_unloaded', message: 'Sekme zaten bellekten boşaltılmış.' };
@@ -106,4 +112,5 @@ module.exports = {
   groupBrowserProcessMetrics,
   normalizeBrowserPageResourceMetrics,
   summarizeBrowserResourceBudgets,
+  updateBrowserPlaybackState,
 };

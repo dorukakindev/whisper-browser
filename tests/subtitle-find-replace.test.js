@@ -28,6 +28,11 @@ test('Türkçe büyük küçük harf NFKC fold ile eşleşir', () => {
   assert.equal(foldSearchText('İ'), 'i');
 });
 
+test('İngilizce büyük I küçük i sorgusuyla eşleşir', () => {
+  assert.deepEqual(literalRanges('It is inside', 'it'), [{ start: 0, end: 2 }]);
+  assert.equal(literalRanges('I think so', 'i', { wholeWord: true }).length, 1);
+});
+
 test('özel karakterler regex değil düz metindir', () => {
   assert.equal(literalRanges('a.*b ve a.*b', '.*').length, 2);
 });

@@ -16,6 +16,7 @@ const {
   subtitleTrackLabel,
 } = require('../src/media-subtitle-tracks');
 const {
+  matchingLearningAnnotation,
   normalizeAnnotation,
   playbackLearningAction,
 } = require('../src/browser-learning');
@@ -30,6 +31,14 @@ function test(name, fn) {
     throw error;
   }
 }
+
+test('düzenlenmiş cue eski kalıcı alıntıyı track ve cue kimliğiyle bulur', () => {
+  const found = matchingLearningAnnotation([
+    { id: 'annotation:old', type: 'quote', mediaId: 'm1', trackId: 'track-1',
+      cueId: 'cue-1', start: 1, source: 'Eski metin' },
+  ], 'quote', { mediaId: 'm1', trackId: 'track-1', cueId: 'cue-1', start: 1, source: 'Yeni metin' });
+  assert.equal(found.id, 'annotation:old');
+});
 
 const fakeSafeStorage = {
   isEncryptionAvailable: () => true,

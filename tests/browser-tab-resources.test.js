@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { browserTabUnloadDecision, groupBrowserProcessMetrics, normalizeBrowserPageResourceMetrics,
-  summarizeBrowserResourceBudgets } = require('../src/browser-tab-resources');
+  summarizeBrowserResourceBudgets, updateBrowserPlaybackState } = require('../src/browser-tab-resources');
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log(`  PASS  ${name}`); }
 
@@ -13,6 +13,13 @@ test('aktif, oynayan, sabit ve çalışan işli sekmeler korunur', () => {
 test('kontrolden sonra başlayan iş ikinci kontrolde boşaltmayı engeller', () => {
   const tab = { id: 'a' }; assert.equal(browserTabUnloadDecision(tab).allowed, true);
   tab.pageTranslateJob = {}; assert.equal(browserTabUnloadDecision(tab).allowed, false);
+});
+test('Electron medya olayları arka plan sekmesinin oynatma korumasını günceller', () => {
+  const tab = { id: 'a', mediaPlaying: false };
+  updateBrowserPlaybackState(tab, true);
+  assert.equal(browserTabUnloadDecision(tab).reason, 'media_playing');
+  updateBrowserPlaybackState(tab, false);
+  assert.equal(browserTabUnloadDecision(tab).allowed, true);
 });
 test('form, giriş ve ölçülemeyen sayfa güvenli varsayılanla korunur', () => {
   assert.equal(browserTabUnloadDecision({ id: 'a', formOrLogin: true }).reason, 'form_or_login');

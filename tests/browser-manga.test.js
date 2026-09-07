@@ -16,9 +16,20 @@ const {
   mangaRegionsStateScript,
   mangaSelectionScript,
   normalizeMangaRegions,
+  mangaFailureState,
+  mangaRegionSampleBox,
+  mangaResultState,
   sampleMangaRegionColors,
   selectMangaCandidates,
 } = require('../src/browser-manga');
+
+assert.deepEqual(mangaRegionSampleBox({
+  textBox: [200, 300, 260, 420], bubbleBox: [150, 250, 340, 500],
+}), [150, 250, 340, 500]);
+assert.equal(mangaResultState({ stale: true }), 'stale');
+assert.equal(mangaResultState({ translated: true }), 'translated');
+assert.equal(mangaFailureState({ mangaResultState: 'invalid_response' }), 'invalid_response');
+assert.equal(mangaFailureState({ httpStatus: 429 }), 'http_failed');
 
 assert.deepEqual(extractJsonPayload('```json\n{"regions":[]}\n```'), { regions: [] });
 assert.deepEqual(extractJsonPayload('Yanıt: {"regions":[{"translation":"Merhaba"}]} bitti').regions[0].translation, 'Merhaba');

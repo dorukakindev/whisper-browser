@@ -41,6 +41,7 @@ assert.equal(bundle.payload.session.tabs[0].recoveryJobs.length, 1);
 assert.equal(bundle.payload.session.tabs[0].subtitleSyncRecords[0].scale, 1.002);
 assert.equal(bundle.payload.session.tabs[0].subtitleEdits[0].userOverride, 'Kullanıcı düzeltmesi');
 assert.equal(bundle.payload.variants[0].cues.length, 2);
+assert.equal(bundle.payload.places.siteZooms['example.test'], 1.3);
 assert.equal(bundle.payload.variants[0].provider, 'https://provider.test/v1?route=chat');
 const serialized = JSON.stringify(bundle);
 assert(!serialized.includes('SECRET'));

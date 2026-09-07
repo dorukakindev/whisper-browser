@@ -115,10 +115,23 @@ function renameCollection(items, previousName, nextName) {
   const previous = normalizeCollectionName(previousName);
   const next = normalizeCollectionName(nextName);
   if (!previous || !next) throw new TypeError('Eski ve yeni koleksiyon adı gerekli.');
-  return (Array.isArray(items) ? items : []).map((item) => ({
-    ...item,
-    collections: [...new Set((item.collections || []).map((name) => normalizeCollectionName(name) === previous ? next : normalizeCollectionName(name)).filter(Boolean))],
-  }));
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const prefs = { ...(item.prefs || {}) };
+    const collectionOrder = { ...(prefs.collectionOrder || {}) };
+    if (Object.prototype.hasOwnProperty.call(collectionOrder, previous)) {
+      collectionOrder[next] = collectionOrder[previous];
+      delete collectionOrder[previous];
+    }
+    if (prefs.collectionOrder || Object.keys(collectionOrder).length) prefs.collectionOrder = collectionOrder;
+    return {
+      ...item,
+      prefs,
+      collections: [...new Set((item.collections || []).map((name) => {
+        const normalized = normalizeCollectionName(name);
+        return normalized === previous ? next : normalized;
+      }).filter(Boolean))],
+    };
+  });
 }
 
 function removeCollection(items, name) {
@@ -146,7 +159,8 @@ function reorderCollection(items, name, orderedKeys) {
   return (Array.isArray(items) ? items : []).map((item) => {
     const prefs = { ...(item.prefs || {}) };
     const positions = { ...(prefs.collectionOrder || {}) };
-    if ((item.collections || []).includes(collection) && order.has(String(item.key))) positions[collection] = order.get(String(item.key));
+    const collections = (item.collections || []).map(normalizeCollectionName).filter(Boolean);
+    if (collections.includes(collection) && order.has(String(item.key))) positions[collection] = order.get(String(item.key));
     prefs.collectionOrder = positions;
     return { ...item, prefs };
   });
@@ -223,15 +237,23 @@ function textAnchorRestoreScript(rawAnchor) {
       if (anchor.blockId && element.id === anchor.blockId) score += 100;
       if (anchor.prefix && text.slice(Math.max(0, at - anchor.prefix.length), at).endsWith(anchor.prefix.replace(/\\s+/g, ' ').trim())) score += 8;
       if (anchor.suffix && text.slice(at + exact.length).startsWith(anchor.suffix.replace(/\\s+/g, ' ').trim())) score += 8;
+      if (anchor.domPath) {
+        try {
+          const matched = document.querySelector(anchor.domPath);
+          if (matched === element) score += 20;
+        } catch (_) {}
+      }
       candidates.push({ element, at, score });
     }
-    candidates.sort((a, b) => b.score - a.score);
+    const specific = candidates.filter((candidate) => !candidates.some((other) =>
+      other !== candidate && candidate.score <= other.score && candidate.element.contains?.(other.element)));
+    specific.sort((a, b) => b.score - a.score);
     if (!candidates.length) return { status: 'missing' };
-    if (candidates.length > 1 && candidates[0].score === candidates[1].score) return { status: 'ambiguous', count: candidates.length };
+    if (specific.length > 1 && specific[0].score === specific[1].score) return { status: 'ambiguous', count: specific.length };
     document.querySelectorAll('[data-whisper-note-highlight]').forEach((item) => {
       item.removeAttribute('data-whisper-note-highlight'); item.style.removeProperty('outline'); item.style.removeProperty('outline-offset');
     });
-    const target = candidates[0].element;
+    const target = specific[0].element;
     target.setAttribute('data-whisper-note-highlight', '');
     target.style.setProperty('outline', '2px solid #e0a95b', 'important');
     target.style.setProperty('outline-offset', '4px', 'important');

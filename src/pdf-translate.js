@@ -1,12 +1,13 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
-const { normalizeText, sentenceEnded } = require('./subtitle-sentence-layout');
+const { normalizeText } = require('./subtitle-sentence-layout');
 
 const PDF_TRANSLATION_STATE_VERSION = 1;
 const PDF_HASH_CHUNK_BYTES = 1024 * 1024;
 const DEFAULT_MARGIN_RATIO = 0.07;
 const DEFAULT_SHORT_LINE_LENGTH = 120;
+const SPACELESS_SCRIPT = /[ぁ-ヿ㐀-鿿豈-﫿]/u;
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -37,6 +38,7 @@ function shouldInsertItemSpace(previous, current) {
   if (/\s$/u.test(previous.raw) || /^\s/u.test(current.raw)) return true;
   if (/^[,.;:!?…。！？%)\]}»”’]/u.test(current.text)) return false;
   if (/[(\[{«“‘]$/u.test(previous.text)) return false;
+  if (SPACELESS_SCRIPT.test(previous.text) && SPACELESS_SCRIPT.test(current.text)) return false;
   if (!previous.width) return true;
   const gap = current.x - (previous.x + previous.width);
   return gap > Math.max(previous.height, current.height) * 0.14;
@@ -152,8 +154,7 @@ function mergePdfLines(rawLines, options = {}) {
     const next = { ...lines[index] };
     const hyphenated = /[-\u00ad\u2010]\s*$/u.test(previous.text);
     const gap = Number(previous.y) - Number(next.y);
-    const startsNewParagraph = !hyphenated
-      && (gap > paragraphGap || sentenceEnded(previous.text));
+    const startsNewParagraph = !hyphenated && gap > paragraphGap;
     if (startsNewParagraph) {
       paragraphs.push(paragraphFrom(current, pageNumber, paragraphs.length));
       current = [next];

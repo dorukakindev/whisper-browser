@@ -89,6 +89,7 @@ const {
   normalizeCategories: normalizeSponsorCategories,
   extractHashSegments: extractSponsorHashSegments,
   validateSegments: validateSponsorSegments,
+  clampSegmentsToDuration: clampSponsorSegmentsToDuration,
   SponsorBlockCache,
 } = require('./browser-sponsorblock');
 const {
@@ -124,7 +125,7 @@ const {
   withoutBrowserSiteProfile,
 } = require('./browser-site-profiles');
 const { browserTabUnloadDecision, groupBrowserProcessMetrics, normalizeBrowserPageResourceMetrics,
-  summarizeBrowserResourceBudgets } = require('./browser-tab-resources');
+  summarizeBrowserResourceBudgets, updateBrowserPlaybackState } = require('./browser-tab-resources');
 const { browserShortcutForInput } = require('./browser-command-palette');
 const {
   SafeSecretStore,
@@ -180,7 +181,10 @@ const {
   mangaCandidateScanScript,
   mangaClearScript,
   mangaGenerationParameters,
+  mangaFailureState,
   mangaOverlayScript,
+  mangaRegionSampleBox,
+  mangaResultState,
   mangaRegionsStateScript,
   mangaSelectionScript,
   mangaVisibilityScript,
@@ -204,7 +208,7 @@ const {
   recordPdfPageTranslation,
   pdfHashFromFirstChunk,
 } = require('./pdf-translate');
-const { normalizeAnnotation } = require('./browser-learning');
+const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
 const {
   buildSubtitleExtractionArgs,
@@ -3822,7 +3826,7 @@ function decorateMangaRegionColors(image, regions) {
     if (decoded.isEmpty()) return normalizeMangaRegions(regions);
     const size = decoded.getSize();
     return normalizeMangaRegions(regions).map((region) => {
-      const [y1, x1, y2, x2] = region.textBox;
+      const [y1, x1, y2, x2] = mangaRegionSampleBox(region);
       const left = Math.max(0, Math.min(size.width - 1, Math.floor(x1 * size.width / 1000)));
       const top = Math.max(0, Math.min(size.height - 1, Math.floor(y1 * size.height / 1000)));
       const right = Math.max(left + 1, Math.min(size.width, Math.ceil(x2 * size.width / 1000)));
@@ -4252,7 +4256,8 @@ async function startBrowserManga(tab, options = {}) {
           }
         }
         if (lastError) throw lastError;
-        const resultState = result.resultState || (result.empty ? "no_regions" : "translated");
+        const resultState = mangaResultState(result);
+        if (resultState === 'stale') return;
         resultStates[resultState] = (resultStates[resultState] || 0) + 1;
         if (result.translated) translated += 1;
         else if (result.empty) empty += 1;
@@ -4260,10 +4265,11 @@ async function startBrowserManga(tab, options = {}) {
         if (job.controller.signal.aborted) return;
         failed += 1;
         if (!firstError) firstError = error?.message || 'Görsel çevrilemedi.';
+        const failureState = mangaFailureState(error);
         failures.push({ candidate: selected[index], error: error?.message || 'Görsel çevrilemedi.',
-          resultState: error?.mangaResultState || (Number(error?.httpStatus) ? "request_failed" : "request_failed"),
+          resultState: failureState,
           retryable: mangaRetryableDownloadError(error) });
-        resultStates.request_failed = (resultStates.request_failed || 0) + 1;
+        resultStates[failureState] = (resultStates[failureState] || 0) + 1;
         if (fatalMangaBatchError(error)) job.fatalError = firstError;
       }
       completed += 1;
@@ -6314,6 +6320,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('media-started-playing', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    updateBrowserPlaybackState(tab, true);
     if (tab.id === browserActiveTabId) {
       scheduleBrowserDiscoveryProbe(tab, 0);
       void probeActiveBrowserMedia(tab);
@@ -6321,6 +6328,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('media-paused', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    updateBrowserPlaybackState(tab, false);
     if (tab.id === browserActiveTabId) void probeActiveBrowserMedia(tab);
   });
   wc.on('unresponsive', () => noteBrowserResponsiveness(tab, false));
@@ -7383,7 +7391,7 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
   const filterForDuration = (result) => {
     const limit = Number(duration);
     if (!Number.isFinite(limit) || limit <= 0 || !Array.isArray(result?.segments)) return result;
-    return { ...result, segments: result.segments.filter((segment) => Number(segment.end) <= limit) };
+    return { ...result, segments: clampSponsorSegmentsToDuration(result.segments, limit) };
   };
   const cached = sponsorBlockCache.get(videoId, normalized);
   if (cached) return Promise.resolve({ ok: true, ...filterForDuration(cached), cached: true });
@@ -8734,8 +8742,9 @@ ipcMain.handle('library:annotations:toggle', async (_event, request) => {
     const index = watchIndex();
     let savedAnnotation = annotation;
     if (request && request.saved === false) {
-      savedAnnotation = store.remove(annotation.id) || annotation;
-      try { index?.removeAnnotation(annotation.id); } catch (_) {}
+      const existing = matchingLearningAnnotation(store.list(annotation.mediaId), annotation.type, annotation);
+      savedAnnotation = store.remove(existing?.id || annotation.id) || annotation;
+      try { index?.removeAnnotation(existing?.id || annotation.id); } catch (_) {}
     } else {
       savedAnnotation = store.upsert(annotation);
       try {

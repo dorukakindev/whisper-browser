@@ -29,7 +29,8 @@ function browserCommandContextMatches(opened, current) {
 function browserShortcutForInput(input = {}) {
   if (input.type !== 'keyDown' || input.alt || !(input.control || input.meta)) return '';
   const key = String(input.key || '').toLowerCase();
-  return key === 'k' || key === 'f' || key === 'l' || (key === 't' && input.shift) ? key : '';
+  if (input.shift) return key === 't' ? key : '';
+  return key === 'k' || key === 'f' || key === 'l' ? key : '';
 }
 
 const browserCommandPaletteApi = { browserCommandContextMatches, browserShortcutForInput, normalizeTurkishSearch, rankBrowserCommands };
