@@ -17,7 +17,11 @@ function runFunction(name, context) {
   const ctx = {
     closeBrowserFind() {},
     setBrowserDownloadsOpen() {},
-    player: { shadowResumeTimer: 1, openIntent: 0, probeRequestSeq: 0 },
+    player: {
+      shadowResumeTimer: 1, openIntent: 0, probeRequestSeq: 0,
+      editing: true, cueEditUndo: [{ before: 1 }], cueEditRedo: [{ after: 1 }],
+      abA: 10, abB: 20, cuesRaw: [{ text: 'eski' }], cues2Raw: [{ text: 'eski çeviri' }],
+    },
     _liveCueRenderTimer: 2, clearTimeout: (id) => pending.delete(id),
     $: (id) => id === 'playerVideo' ? { pause() {} } : { classList: { add() {} } },
     stopAmbient() {}, flushWatchState() {}, destroyHls() {},
@@ -27,6 +31,13 @@ function runFunction(name, context) {
   assert.equal(pending.size, 0);
   assert.equal(ctx.player.shadowResumeTimer, null);
   assert.equal(ctx._liveCueRenderTimer, null);
+  assert.equal(ctx.player.editing, false);
+  assert.deepEqual(ctx.player.cueEditUndo, []);
+  assert.deepEqual(ctx.player.cueEditRedo, []);
+  assert.equal(ctx.player.abA, null);
+  assert.equal(ctx.player.abB, null);
+  assert.equal(ctx.player.cuesRaw, null);
+  assert.equal(ctx.player.cues2Raw, null);
 }
 
 // A clamped/zero nudge must not consume undo or mark the document dirty.

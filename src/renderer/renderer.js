@@ -13556,6 +13556,13 @@ function closePlayer() {
   player.pendingAutoOpen = null;
   player.pendingLibrarySeek = null;
   player.pendingSubs = null;
+  player.editing = false;
+  player.cueEditUndo = [];
+  player.cueEditRedo = [];
+  player.abA = null;
+  player.abB = null;
+  player.cuesRaw = null;
+  player.cues2Raw = null;
   stopAmbient();
   if (video) video.pause();
   flushWatchState(false, true);
