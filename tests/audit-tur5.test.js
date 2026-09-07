@@ -166,8 +166,9 @@ console.log('Tur 5 renderer davranış testleri geçti.');
       saveSettingsSync: () => calls.push('settings'),
       saveQueueStateSync: value => { assert.equal(value.queue[0].id, 7); calls.push('queue'); },
     } }, _saveTimer: 1, clearTimeout() {}, _queuePersistenceReady: true,
+    stopBrowserMangaLookaheadTimer: () => calls.push('manga-timer'),
     appSettingsPayload: () => ({}), queueSnapshotPayload: () => ({ queue: [{ id: 7 }] }),
     persistQueueNow: () => { throw Error('Async fallback used despite sync bridge'); },
   });
-  unload(); assert.deepStrictEqual(calls, ['settings', 'queue']);
+  unload(); assert.deepStrictEqual(calls, ['manga-timer', 'settings', 'queue']);
 }
