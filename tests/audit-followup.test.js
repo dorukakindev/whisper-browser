@@ -97,7 +97,9 @@ test('yer imleri ve modal birlikte görünürken birini kapatmak webi açmaz', (
   let placesOpen = false;
   const calls = [];
   const context = { _activeModal: null,
-    $: () => ({ classList: { contains: () => !placesOpen } }),
+    $: (id) => ({ classList: { contains: (name) => id === 'playerLayer'
+      ? name !== 'narrow-panel-takeover' && !placesOpen
+      : !placesOpen } }),
     window: { api: { setBrowserOccluded: (value) => { calls.push(value); return Promise.resolve(); } } } };
   vm.createContext(context);
   vm.runInContext(source.slice(start, source.indexOf('function openManagedModal(', start)), context);

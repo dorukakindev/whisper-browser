@@ -553,11 +553,15 @@ test('tarayıcı görünümü panel ve sürükleme değişikliklerinde gerçek a
   const observer = js.slice(js.indexOf('function bindBrowserBoundsObserver'), js.indexOf('function setBrowserSignal'));
   assert(/new ResizeObserver/.test(observer) && /observe\(slot\)/.test(observer),
     'browserViewSlot ResizeObserver ile izlenmiyor — Electron görünümü eski genişlikte kalır');
+  const responsive = js.slice(js.indexOf('function syncResponsivePlayerLayout'),
+    js.indexOf('function setViewMode'));
+  assert(/scheduleBrowserBounds\(\)/.test(responsive),
+    'ortak duyarlı yerleşim güncellemesi tarayıcı sınırlarını yenilemiyor');
   for (const fn of ['setViewMode', 'setSideWidth', 'setPlayerSidebarCollapsed']) {
     const i = js.indexOf(`function ${fn}(`);
     const body = js.slice(i, js.indexOf('\n}', i));
-    assert(/scheduleBrowserBounds\(\)/.test(body),
-      `${fn} tarayici gorunumu sinirlarini yenilemiyor`);
+    assert(/syncResponsivePlayerLayout\(\)/.test(body),
+      `${fn} ortak duyarlı yerleşimi yenilemiyor`);
   }
 });
 
@@ -851,20 +855,23 @@ test('Aşama B ayarları aynı sağ alanı kullanır ve çalışma paneli durumu
   assert(js.includes("settingsDrawer').addEventListener('keydown'"),
     'ayar drawer focus trap klavye ile bağlı değil');
   const drawerFn = js.slice(js.indexOf('function setSettingsDrawer'), js.indexOf('function toggleSettingsPage'));
-  assert(/scheduleBrowserBounds\(\)/.test(drawerFn) && /syncBrowserOcclusion\(\)/.test(drawerFn),
-    'ayar görünümü native browser bounds/oklüzyon güncellemesini tetiklemiyor');
+  const responsiveFn = js.slice(js.indexOf('function syncResponsivePlayerLayout'), js.indexOf('function setViewMode'));
+  assert(/syncResponsivePlayerLayout\(\)/.test(drawerFn)
+    && /scheduleBrowserBounds\(\)/.test(responsiveFn)
+    && /syncBrowserOcclusion\(\)/.test(responsiveFn),
+  'ayar görünümü ortak native browser bounds/oklüzyon güncellemesini tetiklemiyor');
   const occlusionFn = js.slice(js.indexOf('function syncBrowserOcclusion'), js.indexOf('function openManagedModal'));
   assert(/settingsOverlay/.test(occlusionFn)
     && /sidebar-collapsed/.test(occlusionFn)
     && /mode-cinema/.test(occlusionFn),
   'ayar görünümü yalnızca oynatıcının üstüne bindiğinde native browserı gizlemiyor');
   const viewModeFn = js.slice(js.indexOf('function setViewMode'), js.indexOf('function setSideWidth'));
-  assert(/syncBrowserOcclusion\(\)/.test(viewModeFn),
+  assert(/syncResponsivePlayerLayout\(\)/.test(viewModeFn),
     'açık ayarlarda sinema/okuma geçişi native browser oklüzyonunu yenilemiyor');
   assert(/\.settings-drawer\s*\{[\s\S]*?overscroll-behavior:\s*contain/.test(css)
     && /\.drawer-page-tabs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/.test(css),
   'ayar paneli aynı sağ alanda sakin, taşmasız kategori düzeni kullanmıyor');
-  assert(/\.player-layer\.sidebar-collapsed\.settings-open \.settings-drawer,[\s\S]*?width:\s*min\(430px,\s*100vw\)/.test(css),
+  assert(/\.player-layer\.sidebar-collapsed\.settings-open \.player-side,[\s\S]*?width:\s*min\(430px,\s*100vw\)/.test(css),
     'sidebar kapalıyken ayar alanı güvenli genişlikte açılmıyor');
 });
 
@@ -1628,6 +1635,49 @@ test('izleme kütüphanesi elle tamamlandı/tamamlanmadı eylemini görünür su
   const body = js.slice(start, end);
   assert(/makeWatchAction\(item\.completed \? 'Tamamlanmadı' : 'Tamamlandı', 'complete', item\.key\)/.test(body),
     'tamamlanma işleyicisi var fakat kullanıcıya düğme sunulmuyor');
+});
+
+test('dar pencerede yan panel içerik alanını erişilebilir biçimde devralıyor', () => {
+  assert(layer.includes('id="narrowPanelBack"') && layer.includes('Videoya dön'),
+    'dar panelden videoya dönüş kontrolü yok');
+  const responsive = js.slice(js.indexOf('function responsivePanelTakeoverActive'),
+    js.indexOf('function setViewMode'));
+  assert(/matchMedia\('\(max-width: 1020px\)'\)/.test(responsive),
+    'desteklenen dar pencere eşiği JavaScript yerleşiminde yok');
+  assert(/classList\.toggle\('narrow-panel-takeover', takeover\)/.test(responsive),
+    'tam alan panel durumu oyuncu katmanına uygulanmıyor');
+  for (const id of ['playerStage', 'browserWorkspace', 'pdfReader']) {
+    assert(responsive.includes(`'${id}'`), `${id} panel açıkken inert yapılmıyor`);
+  }
+  assert(/surface\.inert = takeover/.test(responsive),
+    'arka yüzeylerin klavye ve işaretçi etkileşimi kapatılmıyor');
+  assert(/narrow-panel-takeover/.test(js.slice(js.indexOf('function syncBrowserOcclusion'),
+    js.indexOf('function openManagedModal'))),
+  'native tarayıcı görünümü tam alan panelin arkasında gizlenmiyor');
+  assert(/narrowPanelBack['"]\)\.addEventListener\('click', \(\) => setPlayerSidebarCollapsed\(true\)\)/.test(js),
+    'Videoya dön düğmesi paneli kapatmıyor');
+});
+
+test('yan panel genişliği ve duyarlı CSS C aşaması sınırlarını koruyor', () => {
+  const width = js.slice(js.indexOf('function setSideWidth'), js.indexOf('// ---- olay bağlantıları', js.indexOf('function setSideWidth')));
+  assert(/Math\.max\(320, Math\.min\(520/.test(width),
+    'yan panel 320-520 px sınırlarında tutulmuyor');
+  assert(/total > 1020 \? total - 480 : 520/.test(width),
+    'geniş ekranda içerik için 480 px alan ayrılmıyor');
+  const mediaStart = css.indexOf('@media (max-width: 1020px)');
+  const mediaEnd = css.indexOf('@media (max-width: 860px)', mediaStart);
+  const narrow = css.slice(mediaStart, mediaEnd);
+  assert(mediaStart > 0 && mediaEnd > mediaStart, '1020 px duyarlı yerleşim bloğu yok');
+  assert(/\.player-layer\.narrow-panel-takeover \.player-side[\s\S]*grid-column:\s*1 \/ -1/.test(narrow)
+    && /position:\s*absolute/.test(narrow), 'yan panel dar pencerede tüm içerik sütunlarını kaplamıyor');
+  assert(/\.narrow-panel-takeover \.narrow-panel-back\s*\{\s*display:\s*inline-flex/.test(narrow),
+    'dar görünüm geri düğmesi yalnız devralma halinde gösterilmiyor');
+  assert(/scrollbar-gutter:\s*stable/.test(css), 'kaydırma çubuğu yerleşim sıçraması engellenmiyor');
+  assert(/\.player-layer :is\(button, input, select, textarea\):disabled/.test(css),
+    'oynatıcı kontrollerinin devre dışı durumu ortaklaştırılmamış');
+  assert(!css.includes('Stage B:'), 'geçici Stage B son-dosya override bloğu kaldırılmamış');
+  assert(!html.includes('drawer-head-kicker') && !html.includes('CANLI TRANSKRİPT'),
+    'yinelenen görsel etiketler hâlâ arayüzde');
 });
 
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);

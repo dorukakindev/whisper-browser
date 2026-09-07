@@ -280,6 +280,155 @@ async function run() {
       + "); const win=electron.BrowserWindow.getAllWindows()[0]; const view=win?.contentView?.children?.find((entry)=>entry.webContents?.id===wc?.id); if(!view||typeof view.setVisible!=='function')return false; globalThis.__smokeBrowserVisible=null; const original=view.setVisible.bind(view); view.setVisible=(visible)=>{globalThis.__smokeBrowserVisible=!!visible; return original(visible);}; return true; })()",
     5000);
   assert.equal(visibilityHooked, true, 'Could not instrument browser visibility for menu occlusion.');
+
+  const responsiveMatrix = [];
+  const targetSizes = [
+    { name: '1366x768', width: 1366, height: 768 },
+    { name: '1920x1080', width: 1920, height: 1080 },
+    { name: '940x680', width: 940, height: 680 },
+  ];
+  const stateSetups = [
+    {
+      name: 'sidebar-closed',
+      setup: "setSettingsDrawer(false); setViewMode('reading'); setPlayerSidebarCollapsed(true);",
+      nativeVisible: true,
+    },
+    {
+      name: 'transcript',
+      setup: "setSettingsDrawer(false); setViewMode('reading'); setPlayerSidebarCollapsed(false);",
+    },
+    {
+      name: 'settings',
+      setup: "setViewMode('reading'); setPlayerSidebarCollapsed(false); setSettingsPage('browser-subtitles'); setSettingsDrawer(true);",
+    },
+    {
+      name: 'other-menu',
+      setup: "setSettingsDrawer(false); setPlayerSidebarCollapsed(true); document.getElementById('browserMoreMenu').open=true;",
+      nativeVisible: false,
+    },
+    {
+      name: 'long-title-job',
+      setup: "document.getElementById('browserMoreMenu').open=false; setSettingsDrawer(false); setViewMode('reading'); setPlayerSidebarCollapsed(true); document.getElementById('playerTitle').textContent='Çok uzun bir video başlığı · '.repeat(24); document.getElementById('playerParseText').textContent='Uzun video işleniyor · kalan süre hesaplanıyor'; document.getElementById('playerParseStatus').classList.remove('hidden');",
+      nativeVisible: true,
+    },
+  ];
+  for (const target of targetSizes) {
+    await evaluate(main,
+      "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize("
+        + target.width + ',' + target.height + "); return win.getBounds(); })()");
+    await delay(180);
+    for (const stateSpec of stateSetups) {
+      await evaluate(main, 'globalThis.__smokeBrowserVisible=null');
+      const snapshot = await evaluate(renderer, `(async () => {
+        document.getElementById('browserMoreMenu').open = false;
+        document.getElementById('playerParseStatus').classList.add('hidden');
+        document.getElementById('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
+        ${stateSpec.setup}
+        syncResponsivePlayerLayout();
+        await new Promise((resolve) => setTimeout(resolve, 140));
+        const box = (node) => {
+          if (!node) return null;
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return {
+            left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom,
+            width: rect.width, height: rect.height,
+            visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
+          };
+        };
+        const layer = document.getElementById('playerLayer');
+        const body = layer.querySelector('.player-body');
+        const title = document.getElementById('playerTitle');
+        const slot = document.getElementById('browserViewSlot');
+        const side = document.getElementById('playerSide');
+        const drawer = document.getElementById('settingsDrawer');
+        const menu = document.querySelector('#browserMoreMenu .browser-menu-popover');
+        const headCopy = layer.querySelector('.player-head-copy');
+        const workspaceSwitch = layer.querySelector('.player-workspace-switch');
+        const actions = layer.querySelector('.player-head-actions');
+        return {
+          viewport: { width: innerWidth, height: innerHeight },
+          takeover: layer.classList.contains('narrow-panel-takeover'),
+          overflowX: document.documentElement.scrollWidth > innerWidth + 1 || layer.scrollWidth > layer.clientWidth + 1,
+          surfacesInert: ['playerStage','browserWorkspace','pdfReader'].every((id) => document.getElementById(id).inert),
+          backVisible: box(document.getElementById('narrowPanelBack')).visible,
+          parseVisible: box(document.getElementById('playerParseStatus')).visible,
+          head: box(layer.querySelector('.player-head')),
+          body: box(body),
+          slot: box(slot),
+          side: box(side),
+          drawer: box(drawer),
+          menu: box(menu),
+          title: { ...box(title), clipped: title.scrollWidth > title.clientWidth, textOverflow: getComputedStyle(title).textOverflow },
+          headCopy: box(headCopy),
+          workspaceSwitch: box(workspaceSwitch),
+          actions: box(actions),
+        };
+      })()`, 10000);
+      const nativeVisible = await evaluate(main, 'globalThis.__smokeBrowserVisible');
+      const narrow = snapshot.viewport.width <= 1020;
+      assert.equal(snapshot.overflowX, false,
+        `${target.name} / ${stateSpec.name}: horizontal overflow detected.`);
+      assert.ok(snapshot.actions.right <= snapshot.viewport.width - 8,
+        `${target.name} / ${stateSpec.name}: header actions crossed the content edge.`);
+      assert.ok(snapshot.headCopy.right <= snapshot.workspaceSwitch.left + 1
+        && snapshot.workspaceSwitch.right <= snapshot.actions.left + 1,
+      `${target.name} / ${stateSpec.name}: header groups overlap.`);
+      if (stateSpec.name === 'transcript' || stateSpec.name === 'settings') {
+        assert.equal(snapshot.takeover, narrow,
+          `${target.name} / ${stateSpec.name}: unexpected panel takeover state.`);
+        assert.equal(snapshot.surfacesInert, narrow,
+          `${target.name} / ${stateSpec.name}: background inert state is incorrect.`);
+        assert.equal(snapshot.backVisible, narrow,
+          `${target.name} / ${stateSpec.name}: narrow return control visibility is incorrect.`);
+        assert.equal(nativeVisible, !narrow,
+          `${target.name} / ${stateSpec.name}: native browser visibility is incorrect.`);
+        if (narrow) {
+          assert.ok(Math.abs(snapshot.side.left - snapshot.body.left) <= 2
+            && Math.abs(snapshot.side.right - snapshot.body.right) <= 2,
+          `${target.name} / ${stateSpec.name}: panel does not cover the content area: ${JSON.stringify({ side: snapshot.side, body: snapshot.body })}`);
+        } else {
+          assert.ok(snapshot.side.width >= 320 && snapshot.side.width <= 520,
+            `${target.name} / ${stateSpec.name}: panel width left the 320-520 px range.`);
+          assert.ok(snapshot.side.left >= snapshot.slot.right - 1,
+            `${target.name} / ${stateSpec.name}: side panel overlaps the browser slot.`);
+        }
+      }
+      if (stateSpec.name === 'settings') {
+        assert.equal(snapshot.drawer.visible, true,
+          `${target.name}: settings drawer is not visible.`);
+      }
+      if (stateSpec.name === 'other-menu') {
+        assert.equal(snapshot.menu.visible, true, `${target.name}: Other menu is not visible.`);
+        assert.ok(snapshot.menu.left >= 0 && snapshot.menu.right <= snapshot.viewport.width
+          && snapshot.menu.top >= 0 && snapshot.menu.bottom <= snapshot.viewport.height - 8,
+          `${target.name}: Other menu leaves the viewport.`);
+      }
+      if (stateSpec.name === 'long-title-job') {
+        assert.equal(snapshot.parseVisible, !narrow,
+          `${target.name}: long job status does not follow the narrow-header rule.`);
+        if (snapshot.title.clipped) assert.equal(snapshot.title.textOverflow, 'ellipsis',
+          `${target.name}: long title is clipped without ellipsis.`);
+      }
+      if (typeof stateSpec.nativeVisible === 'boolean') {
+        assert.equal(nativeVisible, stateSpec.nativeVisible,
+          `${target.name} / ${stateSpec.name}: native browser visibility is incorrect.`);
+      }
+      responsiveMatrix.push({
+        size: target.name,
+        state: stateSpec.name,
+        narrow,
+        takeover: snapshot.takeover,
+        panelWidth: snapshot.side.visible ? Math.round(snapshot.side.width) : 0,
+        overflowX: snapshot.overflowX,
+        nativeVisible,
+      });
+    }
+  }
+  await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(1280,820); return win.getBounds(); })()");
+  await evaluate(renderer, "(() => { document.getElementById('browserMoreMenu').open=false; document.getElementById('playerParseStatus').classList.add('hidden'); document.getElementById('playerTitle').textContent=player.browserPageTitle||'Tarayıcı'; setSettingsDrawer(false); setViewMode('reading'); setPlayerSidebarCollapsed(false); syncResponsivePlayerLayout(); return true; })()");
+  await delay(220);
+
   const menuOcclusion = await evaluate(renderer, `(async () => {
     const more = document.getElementById('browserMoreMenu');
     more.open = true;
@@ -484,6 +633,7 @@ async function run() {
     tabId,
     panel,
     settings: { panel: settingsPanel, back: settingsBack, close: settingsClose, overlay: settingsOverlay },
+    responsiveMatrix,
     fullscreen: {
       command: fullscreenCommand,
       direct: directFullscreen,

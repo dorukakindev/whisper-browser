@@ -689,6 +689,7 @@ function syncBrowserOcclusion() {
     || !!moreMenu?.open || !!translateMenu?.open
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
     || settingsOverlay
+    || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && !!player.pdfReader);
   if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
 }
@@ -7850,7 +7851,7 @@ function setWorkspaceMode(mode, persist = true) {
     try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
   }
   snapGridColumns();
-  scheduleBrowserBounds();
+  syncResponsivePlayerLayout();
 }
 
 async function navigateBrowserFromAddress() {
@@ -8719,7 +8720,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   }
 });
 
-window.addEventListener('resize', scheduleBrowserBounds);
+window.addEventListener('resize', syncResponsivePlayerLayout);
 bindBrowserBoundsObserver();
 
 function normalizeAudioLang(value) {
@@ -13492,9 +13493,13 @@ function pathToFileUrl(p) {
 }
 
 // ---- gorunum modlari: Sinema / Okuma / Calisma ----
-// Ayni oynatici, farkli hiyerarsi: sinemada panel kapali, okumada ~%38,
-// calismada ~%48 ve daha buyuk metin.
-const VIEW_MODES = { cinema: '0%', reading: '38%', study: '48%' };
+// Ayni oynatici, farkli hiyerarsi: sinemada panel kapali; diger modlarda
+// okunabilirlik icin panel genisligi sabit bir aralikta kalir.
+const VIEW_MODES = {
+  cinema: '0px',
+  reading: 'clamp(360px, 28vw, 460px)',
+  study: 'clamp(400px, 34vw, 520px)',
+};
 
 // Grid sutun SEKLI degistiginde (mod gecisi, panel daraltma) gecisi tek kare
 // kapat: Chrome farkli bicimdeki track listelerini interpolate edemiyor ve
@@ -13505,6 +13510,27 @@ function snapGridColumns() {
   body.classList.add('no-grid-anim');
   void body.offsetWidth;                    // reflow: yeni deger gecissiz uygulansin
   setTimeout(() => body.classList.remove('no-grid-anim'), 50);
+}
+
+function responsivePanelTakeoverActive() {
+  const layer = $('playerLayer');
+  if (!layer || !window.matchMedia('(max-width: 1020px)').matches) return false;
+  return drawerIsOpen() || sidebarIsVisible();
+}
+
+function syncResponsivePlayerLayout() {
+  const layer = $('playerLayer');
+  if (!layer) return;
+  const takeover = responsivePanelTakeoverActive();
+  layer.classList.toggle('narrow-panel-takeover', takeover);
+  for (const id of ['playerStage', 'browserWorkspace', 'pdfReader']) {
+    const surface = $(id);
+    if (surface) surface.inert = takeover;
+  }
+  const back = $('narrowPanelBack');
+  if (back) back.setAttribute('aria-hidden', takeover ? 'false' : 'true');
+  scheduleBrowserBounds();
+  syncBrowserOcclusion();
 }
 
 function setViewMode(mode) {
@@ -13520,8 +13546,7 @@ function setViewMode(mode) {
     try { localStorage.setItem('playerLastSideMode', mode); } catch (_) {}
   }
   snapGridColumns();
-  scheduleBrowserBounds();
-  syncBrowserOcclusion();
+  syncResponsivePlayerLayout();
   $$('.view-modes .vm').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   const sidebarButton = $('playerSidebarToggle');
   if (sidebarButton) {
@@ -13538,10 +13563,12 @@ function setViewMode(mode) {
 function setSideWidth(px) {
   const layer = $('playerLayer');
   const total = layer.getBoundingClientRect().width || window.innerWidth;
-  // Rapordaki sinirlar: en az 420px, en cok ~720px (ve videoya yer kalsin)
-  const w = Math.max(420, Math.min(720, Math.min(px, total - 360)));
+  // Panel 320-520 px araliginda kalir; genis ekranda video icin en az 480 px
+  // birakilir. Dar pencerede panel zaten tam alan devralir.
+  const available = total > 1020 ? total - 480 : 520;
+  const w = Math.max(320, Math.min(520, Math.min(px, available)));
   layer.style.setProperty('--side-w', `${w}px`);
-  scheduleBrowserBounds();
+  syncResponsivePlayerLayout();
   try { localStorage.setItem('playerSideWidth', String(w)); } catch (_) {}
 }
 
@@ -13813,8 +13840,7 @@ function setSettingsDrawer(open) {
     restoreSettingsPanelSnapshot();
     if (restoreFocus?.isConnected) requestAnimationFrame(() => restoreFocus.focus());
   }
-  scheduleBrowserBounds();
-  syncBrowserOcclusion();
+  syncResponsivePlayerLayout();
 }
 
 function toggleSettingsPage(page) {
@@ -14539,7 +14565,6 @@ function setPlayerSidebarCollapsed(collapsed) {
   const next = !!collapsed;
   layer.classList.toggle('sidebar-collapsed', next);
   snapGridColumns();
-  scheduleBrowserBounds();
   if (button) {
     const shown = sidebarIsVisible();
     button.classList.toggle('active', shown);
@@ -14547,6 +14572,7 @@ function setPlayerSidebarCollapsed(collapsed) {
     button.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   if (next) setSettingsDrawer(false);
+  else syncResponsivePlayerLayout();
   setTimeout(highlightCueRow, 80);
 }
 if ($('playerSidebarToggle')) {
@@ -14637,6 +14663,9 @@ if ($('subtitleFindReplaceToggle')) {
     const panel = $('subtitleFindReplacePanel');
     setSubtitleFindReplaceOpen(!!panel?.classList.contains('hidden'));
   });
+}
+if ($('narrowPanelBack')) {
+  $('narrowPanelBack').addEventListener('click', () => setPlayerSidebarCollapsed(true));
 }
 for (const id of ['subtitleFindText', 'subtitleFindField', 'subtitleFindCase', 'subtitleFindWhole']) {
   const control = $(id);
