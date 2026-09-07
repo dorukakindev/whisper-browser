@@ -960,6 +960,13 @@ function logLine(message, level = 'info') {
   return line;
 }
 
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event?.reason;
+  const detail = reason instanceof Error ? reason.message
+    : (typeof reason === 'string' ? reason : 'Bilinmeyen hata');
+  logLine(`İşlenmeyen işlem hatası: ${String(detail).slice(0, 2000)}`, 'error');
+});
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -1702,6 +1709,27 @@ $('applyAntiRepeat').addEventListener('click', () => {
 
 let _settingsSaveWarningShown = false;
 let browserWorkflowLibrary = [];
+let browserSponsorExemptions = {};
+
+function normalizeBrowserSponsorExemptions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const records = [];
+  for (const [rawKey, rawRecord] of Object.entries(value)) {
+    const mediaKey = String(rawKey || '').trim().slice(0, 512);
+    if (!mediaKey) continue;
+    const rawIds = Array.isArray(rawRecord) ? rawRecord : rawRecord?.ids;
+    if (!Array.isArray(rawIds)) continue;
+    const ids = [...new Set(rawIds.map((id) => String(id || '').trim().slice(0, 256)).filter(Boolean))]
+      .slice(0, 200);
+    if (!ids.length) continue;
+    const updatedAt = Number.isFinite(Number(rawRecord?.updatedAt))
+      ? Math.max(0, Number(rawRecord.updatedAt)) : 0;
+    records.push([mediaKey, { ids, updatedAt }]);
+  }
+  records.sort((left, right) => right[1].updatedAt - left[1].updatedAt);
+  return Object.fromEntries(records.slice(0, 100));
+}
+
 function secretSettingValue(id) {
   const control = $(id);
   const value = control?.value.trim() || '';
@@ -1773,6 +1801,7 @@ function appSettingsPayload() {
     },
     ui: collectUiSettings(),
     playerPositions: player.positions,
+    browserSponsorExemptions: normalizeBrowserSponsorExemptions(browserSponsorExemptions),
     browserWorkflows: window.BrowserWorkflowRecorder
       ? window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(browserWorkflowLibrary) : [],
   };
@@ -2160,6 +2189,7 @@ if ($('deepseekKeyHelp')) {
       if (s.playerPositions && typeof s.playerPositions === 'object') {
         player.positions = s.playerPositions;
       }
+      browserSponsorExemptions = normalizeBrowserSponsorExemptions(s.browserSponsorExemptions);
       if (window.BrowserWorkflowRecorder) {
         browserWorkflowLibrary = window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(s.browserWorkflows);
       }
@@ -4509,6 +4539,7 @@ function renderBrowserCommandPalette() {
     item.addEventListener('click', () => executeBrowserCommandPalette(index));
     list.appendChild(item);
   });
+  list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
 }
 function closeBrowserCommandPalette() {
   browserCommandPaletteState.open = false; browserCommandPaletteState.context = null; browserCommandPaletteState.results = [];
@@ -7640,6 +7671,28 @@ function browserSponsorCategories() {
   return [...($('browserSponsorCategories')?.selectedOptions || [])].map((option) => option.value);
 }
 
+function browserSponsorExemptionMediaKey() {
+  return String(player.mediaKey || '').trim().slice(0, 512);
+}
+
+function restoreBrowserSponsorExemptions() {
+  const key = browserSponsorExemptionMediaKey();
+  const record = key ? browserSponsorExemptions[key] : null;
+  player.browserSponsorExempt = new Set(Array.isArray(record?.ids) ? record.ids : []);
+}
+
+function persistBrowserSponsorExemption(id) {
+  const key = browserSponsorExemptionMediaKey();
+  const normalizedId = String(id || '').trim().slice(0, 256);
+  if (!key || !normalizedId) return;
+  const ids = new Set(Array.isArray(browserSponsorExemptions[key]?.ids)
+    ? browserSponsorExemptions[key].ids : []);
+  ids.add(normalizedId);
+  browserSponsorExemptions[key] = { ids: [...ids].slice(-200), updatedAt: Date.now() };
+  browserSponsorExemptions = normalizeBrowserSponsorExemptions(browserSponsorExemptions);
+  scheduleSave();
+}
+
 function renderBrowserSponsorSegments() {
   const list = $('browserSponsorSegments');
   if (!list) return;
@@ -7686,9 +7739,9 @@ async function refreshBrowserSponsorSegments() {
     .filter((segment) => !Number.isFinite(player.browserDuration) || player.browserDuration <= 0 || segment.end <= player.browserDuration);
   if (previousVideoId && previousVideoId !== player.browserSponsorVideoId) {
     player.browserSponsorSkipped = new Set();
-    player.browserSponsorExempt = new Set();
     player.browserSponsorPrompted = new Set();
   }
+  restoreBrowserSponsorExemptions();
   renderBrowserSponsorSegments();
   if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = player.browserSponsorSegments.length
     ? `${player.browserSponsorSegments.length} sponsor bölümü bulundu.` : 'Bu videoda sponsor bölümü bulunamadı.';
@@ -7713,6 +7766,7 @@ function seekBrowserSponsorSegment(segment, undo = false) {
       return;
     }
     player.browserSponsorPendingAction = segment;
+    if (undo) persistBrowserSponsorExemption(id);
     setBrowserSignal(undo ? 'Sponsor bölümüne geri dönüldü.' : `Sponsor bölümü atlandı · ${pSecToTime(segment.end - segment.start)}`,
       true, undo ? { priority: 60, holdMs: 2500 } : { priority: 60, holdMs: 4500, action: 'sponsor-undo' });
   }).catch(() => {
@@ -7739,6 +7793,7 @@ function exemptBrowserSponsorSegment(segment) {
   player.browserSponsorPrompted?.delete(id);
   player.browserSponsorPendingAction = segment;
   player.browserSponsorMutedUntil = 0;
+  persistBrowserSponsorExemption(id);
   setBrowserSignal('Bu sponsor bölümü video boyunca atlanmayacak.', true,
     { priority: 60, holdMs: 2500 });
 }

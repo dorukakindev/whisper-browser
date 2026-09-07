@@ -455,6 +455,14 @@ function writeJobLog(event) {
   try { jobLog.stream.write(`${line}\n`); } catch (_) {}
 }
 
+process.on('unhandledRejection', (reason) => {
+  const detail = reason instanceof Error ? reason.message
+    : (typeof reason === 'string' ? reason : 'Bilinmeyen hata');
+  const message = `İşlenmeyen Promise reddi: ${String(detail).slice(0, 2000)}`;
+  console.error(message);
+  writeJobLog({ type: 'log', level: 'error', message });
+});
+
 function endJobLog() {
   if (!jobLog) return;
   try { jobLog.stream.end(); } catch (_) {}
@@ -2970,6 +2978,8 @@ async function readJsonResponseLimited(response, maxBytes, label) {
   catch (_) { throw new Error(`${label || 'Servis yanıtı'} geçerli JSON değil.`); }
 }
 
+let browserGlossaryTruncationNotified = false;
+
 async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
   const { sentenceTranslationRequest, decodeSentenceTranslation, fitTranslationParts,
     sentenceTranslationGenerationParameters, sentenceTranslationMessageRole } = require('./subtitle-sentence-layout');
@@ -2990,6 +3000,13 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
     if (glossaryLength + extra > 6000) break;
     acceptedGlossary.push(entry);
     glossaryLength += extra;
+  }
+  if (acceptedGlossary.length < glossaryEntries.length && !browserGlossaryTruncationNotified) {
+    browserGlossaryTruncationNotified = true;
+    const message = `Sözlük ${acceptedGlossary.length} terimden sonra kesildi.`;
+    const event = { type: 'log', level: 'info', message };
+    sendEvent(event);
+    writeJobLog(event);
   }
   const glossary = acceptedGlossary.join(' | ');
   const accumulatedTerminology = config.terminologyEnabled ? terminologyPrompt(config.terminologyMap) : "";
