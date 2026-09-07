@@ -4972,7 +4972,7 @@ body::before {
   grid-template-rows: auto 0 minmax(0, 1fr);
 }
 .player-layer.browser-chrome-collapsed .browser-find { grid-row: 2; }
-button, input, select, textarea, a, [role="button"] { -webkit-app-region: no-drag; }
+button, input, select, textarea, a, summary, [role="button"] { -webkit-app-region: no-drag; }
 
 @media (max-width: 1280px) {
   .workspace-mode { padding: 0 10px; }
