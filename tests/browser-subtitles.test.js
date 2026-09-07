@@ -80,6 +80,20 @@ test('örtüşen kaydırılmış web caption kopyasını siler, gerçek tekrarı
     { start: .5, end: 2, text: 'Hayır.', speaker: 'B' },
   ]).length, 2);
 });
+
+test('Whisper ve WhisperX segments JSON çıktısını doğrudan ayrıştırır', () => {
+  const result = parseSubtitlePayload(JSON.stringify({ segments: [
+    { start: 1.2, end: 3.4, text: 'İlk satır' },
+    { start: 3.4, end: 5.1, text: 'İkinci satır' },
+  ] }), 'application/json', 'whisper.json');
+  assert.equal(result.format, 'json3');
+  assert.deepEqual(result.cues, [
+    { start: 1.2, end: 3.4, text: 'İlk satır' },
+    { start: 3.4, end: 5.1, text: 'İkinci satır' },
+  ]);
+  assert.deepEqual(parseSubtitlePayload(JSON.stringify({ segments: [] }),
+    'application/json', 'empty-whisper.json'), { cues: [], format: '' });
+});
 test('Parçalı WebVTT MPEGTS zaman haritasını video zamanına uygular', () => {
   const result = parseSubtitlePayload('WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:900000\n\n00:00.500 --> 00:02.000\nMapped cue', 'text/vtt', 'https://cdn.test/seg-1.vtt');
   assert.deepEqual(result.cues, [{ start: 10.5, end: 12, text: 'Mapped cue' }]);

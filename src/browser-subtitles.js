@@ -808,7 +808,7 @@ function parseJson(body) {
     }
   }
   if (out.length) return normalizeCues(out);
-  const generic = [data && data.captions, data && data.subtitles, data && data.cues]
+  const generic = [data && data.segments, data && data.captions, data && data.subtitles, data && data.cues]
     .find((value) => Array.isArray(value)) || (Array.isArray(data) ? data : []);
   for (const cue of generic.slice(0, 20000)) {
     if (!cue || typeof cue !== 'object') continue;

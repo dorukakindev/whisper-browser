@@ -132,16 +132,35 @@
       && Number(context?.sourcePrefixCount) >= recordedCount;
   }
 
-  function transformCuesForExport(cues, transform) {
+  function transformCuesForExport(cues, transform, onWarning) {
     const normalized = normalizeTransform(transform);
-    return (Array.isArray(cues) ? cues : []).map((cue) => {
+    const source = Array.isArray(cues) ? cues : [];
+    const output = [];
+    let clamped = 0;
+    let skipped = 0;
+    for (const cue of source) {
       const start = sourceToVideoTime(cue.start, normalized);
       const end = sourceToVideoTime(cue.end, normalized);
-      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) {
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
         throw new RangeError('Senkron uygulanınca geçersiz altyazı zamanı oluştu.');
       }
-      return { ...cue, start, end };
-    });
+      if (end <= 0) {
+        skipped++;
+        continue;
+      }
+      if (start < 0) clamped++;
+      output.push({ ...cue, start: Math.max(0, start), end });
+    }
+    if (source.length && !output.length) {
+      throw new RangeError('Senkron uygulanınca dışa aktarılacak geçerli altyazı kalmadı.');
+    }
+    if ((clamped || skipped) && typeof onWarning === 'function') {
+      const details = [];
+      if (clamped) details.push(`${clamped} altyazı video başlangıcında kırpıldı`);
+      if (skipped) details.push(`${skipped} altyazı video başlamadan bittiği için atlandı`);
+      onWarning(`${details.join('; ')}.`);
+    }
+    return output;
   }
 
   function createEditRecord(raw) {

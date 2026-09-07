@@ -111,7 +111,20 @@ for (const format of ['srt', 'vtt', 'ass']) {
   assert.equal(cues[0].start, 10, `${format}: aktif kaynak cue iki kez dönüştürüldü`);
 }
 
-assert.throws(() => transformCuesForExport([{ start: 1, end: 2, text: 'x' }], { scale: 1, offsetSeconds: -5 }), /geçersiz/);
+const exportWarnings = [];
+const clippedAtStart = transformCuesForExport([
+  { start: 0.25, end: 1.25, text: 'Başı kırpılan' },
+  { start: 1.5, end: 2.5, text: 'Korunan' },
+], { scale: 1, offsetSeconds: -0.5 }, (message) => exportWarnings.push(message));
+assert.deepEqual(clippedAtStart.map(({ start, end, text }) => ({ start, end, text })), [
+  { start: 0, end: 0.75, text: 'Başı kırpılan' },
+  { start: 1, end: 2, text: 'Korunan' },
+]);
+assert.equal(exportWarnings.length, 1, 'video başlangıcında kırpılan cue kullanıcıya bildirilmedi');
+assert.match(exportWarnings[0], /1.*başlangıcında/i);
+assert.throws(() => transformCuesForExport([
+  { start: 0.25, end: 0.4, text: 'Tamamen video öncesi' },
+], { scale: 1, offsetSeconds: -0.5 }), /geçerli.*kalmadı/i);
 const onePoint = [];
 onePoint[1] = { sourceTime: 10, videoTime: 11, cueId: 'b' };
 assert.equal(createSyncRecord({ mediaId: 'm', sourceTrackId: 's', sourceHash: 'h',

@@ -6620,7 +6620,9 @@ function prepareBrowserExportCues(track, cues) {
   else if (track?.id && track.id === player.browserLoadedTrackId2) transform = browserTransformForChannel(true);
   else transform = browserSavedTransform(track, prepared);
   return typeof browserSubtitleSync !== 'undefined' && browserSubtitleSync?.transformCuesForExport
-    ? browserSubtitleSync.transformCuesForExport(prepared, transform) : prepared;
+    ? browserSubtitleSync.transformCuesForExport(prepared, transform, (message) => {
+      setBrowserSignal(message, false, { priority: 60, holdMs: 5000 });
+    }) : prepared;
 }
 
 async function exportSelectedBrowserTrack() {
