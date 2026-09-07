@@ -52,6 +52,7 @@ Sıra: girdi (yerel dosya / yt-dlp ile YouTube) → ffmpeg ile 16kHz mono WAV ç
 - **`need_words`:** Kelime zaman damgaları yalnızca `split_mode != none` veya JSON çıktısı istendiğinde hesaplanır (hız için).
 - **Bölme & sarma ayrı kavramlar:** `split_*` fonksiyonları bir segmenti birden çok altyazı bloğuna böler (zaman); `wrap_text` tek bloğu satırlara sarar (görsel). `wrap_mode="sentence"` cümleyi asla ortadan kırmaz.
 - **Halüsinasyon savunması:** `HALLUCINATION_PATTERNS` (regex) + `has_repetition_loop`/`collapse_repetition` (tekrar döngüleri). Filtre segment metnine hem bölmeden önce hem temizlikten sonra uygulanır.
+- **Çeviri önbelleği:** `translate_cache_key` v5; metin ve model ayarlarının yanında `context_before`/`context_after` değerlerini de anahtara katar. Bu bağlamı çıkarma: kısa repliklerin farklı sahnelerde yanlış çeviriyi paylaşmasını önler. Önbellek yalnız `--cache-dir` verilince açılır.
 
 ### Ek modlar ve kanallar
 - **Re-export (`--reexport true`):** `--input` bir `.json` çıktısıdır; `reexport_from_json()` transkripsiyonu atlayıp JSON segmentlerinden formatları yeniden yazar (aynı `write_*` yazıcıları, mevcut `--formats/--wrap-mode/--max-line-width`). main()'de `transcribe()` yerine bu çağrılır.
@@ -74,3 +75,4 @@ HF token ve LLM API key **argv'den değil ortam değişkeninden** geçer (`WHISP
 - SRT ve ASS çıktıları **UTF-8 BOM** (`utf-8-sig`) ile yazılır (Windows oynatıcılarında Türkçe karakter sorunu için); JSON bilinçli olarak BOM'suz.
 - CSP `index.html`'de katı (`script-src 'self'`); inline script ekleme, harici CDN kullanma.
 - Renderer'dan dış kaynağa erişim yok — dosya yolu (`webUtils.getPathForFile`), pano, harici link, ortam bilgisi hepsi preload `api` + main IPC üzerinden gider.
+- Arayüzün kanonik paleti mürekkep/grafit zeminli “ses çalışma istasyonu” düzenidir; tek vurgu rengi sıcak amber `--accent: #d5a35c` değeridir. Yeni stillerde eski sabit mavi yerine mevcut tasarım token'larını kullan; dekoratif emoji ve işlevsiz parıltı ekleme.
