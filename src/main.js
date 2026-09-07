@@ -45,6 +45,7 @@ const {
   adapterAcceptsResponse,
   browserAdapterForUrl,
   browserResponseAdapter,
+  persistentBrowserMediaUrl,
   redactCaptureUrl,
 } = require('./browser-adapters');
 const {
@@ -2616,7 +2617,7 @@ async function saveBrowserSelectionNote(tab, fallbackSelection = '') {
   let annotation = normalizeAnnotation({
     type: 'quote', mediaId: documentId, source: exact, note: '', anchor: captured.anchor,
     mediaTitle: tab.view.webContents.getTitle() || tab.restoredTitle || 'Web alıntısı',
-    mediaType: 'browser', mediaUrl: redactCaptureUrl(tab.view.webContents.getURL() || tab.restoredUrl || ''),
+    mediaType: 'browser', mediaUrl: persistentBrowserMediaUrl(tab.view.webContents.getURL() || tab.restoredUrl || ''),
   });
   const store = ensureBrowserNotesReady();
   if (store.loadError || store.migrationError) throw new Error(store.loadError || store.migrationError);
@@ -8717,7 +8718,7 @@ ipcMain.handle('library:annotations:toggle', async (_event, request) => {
       ...annotation,
       mediaTitle: String(request?.annotation?.mediaTitle || legacy.title || '').slice(0, 500),
       mediaType: String(request?.annotation?.mediaType || legacy.type || '').slice(0, 40),
-      mediaUrl: /^https?:/i.test(requestedMediaUrl) ? redactCaptureUrl(requestedMediaUrl) : requestedMediaUrl,
+      mediaUrl: /^https?:/i.test(requestedMediaUrl) ? persistentBrowserMediaUrl(requestedMediaUrl) : requestedMediaUrl,
     };
     const store = ensureBrowserNotesReady();
     if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError };
@@ -9050,7 +9051,7 @@ ipcMain.handle('settings:export', async (event) => {
       learningAnnotations: noteStore.list().map((annotation) => ({
         ...annotation,
         mediaUrl: /^https?:/i.test(annotation.mediaUrl || '')
-          ? redactCaptureUrl(annotation.mediaUrl) : annotation.mediaUrl,
+          ? persistentBrowserMediaUrl(annotation.mediaUrl) : annotation.mediaUrl,
       })),
     };
     fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf-8');
@@ -9114,7 +9115,7 @@ ipcMain.handle('settings:import', async (event) => {
           ...annotation,
           mediaTitle: String(raw?.mediaTitle || '').slice(0, 500),
           mediaType: String(raw?.mediaType || '').slice(0, 40),
-          mediaUrl: /^https?:/i.test(mediaUrl) ? redactCaptureUrl(mediaUrl) : mediaUrl,
+          mediaUrl: /^https?:/i.test(mediaUrl) ? persistentBrowserMediaUrl(mediaUrl) : mediaUrl,
         };
       }));
     }

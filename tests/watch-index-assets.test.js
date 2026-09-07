@@ -201,6 +201,19 @@ try {
       assert.equal(index.searchCues('değişmiş').length, 1);
     });
 
+    test('boş ve yinelenen cue kimlikleri toplu yazımı çökertmez', () => {
+      assert.equal(index.replaceTrackCues('track:en', [
+        { id: '', start: 1, end: 2, sourceText: 'Birinci boş kimlik' },
+        { id: '', start: 2, end: 3, sourceText: 'İkinci boş kimlik' },
+      ]), 2);
+      assert.deepEqual(index.searchCues('boş').map((row) => row.cue_id).sort(), ['0', '1']);
+      assert.equal(index.replaceTrackCues('track:en', [
+        { id: 'dup', start: 3, end: 4, sourceText: 'Birinci tekrar kimlik' },
+        { id: 'dup', start: 4, end: 5, sourceText: 'İkinci tekrar kimlik' },
+      ]), 2);
+      assert.deepEqual(index.searchCues('tekrar').map((row) => row.cue_id).sort(), ['dup', 'dup#2']);
+    });
+
     test('notlar medya ve zamana bağlı saklanır', () => {
       const annotation = normalizeAnnotation({
         type: 'quote', mediaId: 'youtube:abc', start: 10, end: 12,

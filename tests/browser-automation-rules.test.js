@@ -43,4 +43,12 @@ test('açık sıfır yeni karakter tüm kaynağa dönüşmez', () => {
   assert.equal(browserAutomationDecision({ ...base, sourceCharacters: 999999, newCharacters: 0,
     limits: { maxSourceCharacters: 1000000, maxSessionJobs: 10, maxLiveCharacters: 1 }, liveCharacters: 0 }).state, 'eligible');
 });
+test('canlı karakter sayacı yokken harcama sınırı atlanmaz', () => {
+  assert.equal(browserAutomationDecision({
+    ...base,
+    sourceCharacters: 2,
+    newCharacters: 2,
+    limits: { maxSourceCharacters: 1000000, maxSessionJobs: 10, maxLiveCharacters: 1 },
+  }).state, 'blocked_by_limit');
+});
 console.log(`browser-automation-rules: ${passed} test`);

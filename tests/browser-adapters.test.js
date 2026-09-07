@@ -1,8 +1,11 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const {
   adapterAcceptsResponse,
   browserAdapterForUrl,
   browserResponseAdapter,
+  persistentBrowserMediaUrl,
   redactCaptureUrl,
 } = require('../src/browser-adapters');
 
@@ -55,6 +58,21 @@ test('teşhis URLsi imza, token ve fragmentleri göstermez', () => {
   const value = redactCaptureUrl('https://cdn.test/subs/en.vtt?token=secret&sig=abc&lang=en#private');
   assert.equal(value, 'https://cdn.test/subs/en.vtt?lang=en');
   assert.doesNotMatch(value, /secret|sig|private/);
+});
+
+test('kalıcı medya URLsi video kimliğini korur, sırları ayıklar', () => {
+  const value = persistentBrowserMediaUrl(
+    'https://www.youtube.com/watch?v=abc123XYZ_9&t=30&token=secret&sig=private#sensitive');
+  assert.equal(value, 'https://www.youtube.com/watch?v=abc123XYZ_9&t=30');
+  assert.doesNotMatch(value, /secret|private|token|sig|#/);
+
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const selection = main.slice(main.indexOf('async function saveBrowserSelectionNote'),
+    main.indexOf('function captureBrowserMangaPosition'));
+  const toggle = main.slice(main.indexOf("ipcMain.handle('library:annotations:toggle'"),
+    main.indexOf("ipcMain.handle('library:annotations:restoreAnchor'"));
+  assert.match(selection, /mediaUrl:\s*persistentBrowserMediaUrl\(/);
+  assert.match(toggle, /mediaUrl:[^\n]+persistentBrowserMediaUrl\(requestedMediaUrl\)/);
 });
 
 if (!process.exitCode) console.log(`\n${passed} tarayıcı adaptörü testi geçti.`);

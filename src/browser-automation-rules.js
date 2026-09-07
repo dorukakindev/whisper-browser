@@ -40,8 +40,10 @@ function browserAutomationDecision(input = {}) {
   const sourceCharacters = Math.max(0, Number(input.sourceCharacters) || 0);
   const parsedNewCharacters = Number(input.newCharacters);
   const newCharacters = Math.max(0, Number.isFinite(parsedNewCharacters) ? parsedNewCharacters : sourceCharacters);
+  const parsedLiveCharacters = Number(input.liveCharacters);
+  const liveCharacters = Math.max(0, Number.isFinite(parsedLiveCharacters) ? parsedLiveCharacters : 0);
   if (sourceCharacters > limits.maxSourceCharacters || Number(input.sessionJobs) >= limits.maxSessionJobs
-      || Number(input.liveCharacters) + newCharacters > limits.maxLiveCharacters) {
+      || liveCharacters + newCharacters > limits.maxLiveCharacters) {
     return decision('blocked_by_limit', 'limit_reached',
       `Otomatik işlem sınırına ulaşıldı (${sourceCharacters} kaynak karakteri). Kullanıcı onayı gerekiyor.`);
   }

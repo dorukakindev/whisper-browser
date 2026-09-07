@@ -45,6 +45,22 @@ function redactCaptureUrl(value) {
   }
 }
 
+const SENSITIVE_MEDIA_URL_PARAM = /^(?:access_?token|auth(?:orization)?|api_?key|code|credential|expires?|jwt|key|key-pair-id|pass(?:code|word)?|policy|secret|session(?:id)?|sig(?:nature)?|state|token|x-amz-.+)$/i;
+
+function persistentBrowserMediaUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    for (const key of [...url.searchParams.keys()]) {
+      if (SENSITIVE_MEDIA_URL_PARAM.test(key)) url.searchParams.delete(key);
+    }
+    url.hash = '';
+    return url.href.slice(0, 2000);
+  } catch (_) {
+    return '';
+  }
+}
+
 module.exports = {
   ADAPTER_REGISTRY,
   GENERIC_ADAPTER,
@@ -53,5 +69,6 @@ module.exports = {
   browserAdapterForUrl,
   browserResponseAdapter,
   hostnameOf,
+  persistentBrowserMediaUrl,
   redactCaptureUrl,
 };

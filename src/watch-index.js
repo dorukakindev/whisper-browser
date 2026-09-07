@@ -236,10 +236,16 @@ class WatchIndex {
         INSERT INTO cues(cue_id, track_id, start, end, source_text, translation_text)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
+      const usedIds = new Set();
       for (let index = 0; index < cues.length; index++) {
         const cue = cues[index] || {};
+        const baseId = String(cue.id ?? '').trim() || String(index);
+        let cueId = baseId;
+        let occurrence = 1;
+        while (usedIds.has(cueId)) cueId = `${baseId}#${++occurrence}`;
+        usedIds.add(cueId);
         insert.run(
-          String(cue.id ?? index), String(trackId), Math.max(0, Number(cue.start) || 0),
+          cueId, String(trackId), Math.max(0, Number(cue.start) || 0),
           Math.max(0, Number(cue.end) || 0), String(cue.sourceText ?? cue.text ?? ''),
           String(cue.translationText ?? cue.translation ?? ''),
         );
