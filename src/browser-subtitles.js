@@ -6,8 +6,12 @@ function decodeEntities(value) {
   const decodeCodePoint = (raw, radix = 10) => {
     const codePoint = parseInt(String(raw), radix);
     // Kötü niyetli/bozuk altyazı yanıtı String.fromCodePoint'u patlatmasın.
-    return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
-      ? String.fromCodePoint(codePoint) : '\uFFFD';
+    if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10FFFF) return '\uFFFD';
+    // NULL ve diğer dosya/protokol kontrol karakterlerini altyazıya taşıma.
+    // Yatay sekme ve LF, altyazı metninde anlamlı olan iki istisnadır.
+    if ((codePoint < 0x20 && codePoint !== 0x09 && codePoint !== 0x0A)
+        || (codePoint >= 0x7F && codePoint <= 0x9F)) return '';
+    return String.fromCodePoint(codePoint);
   };
   const named = {
     nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
@@ -603,13 +607,30 @@ function browserActiveCuesAt(cues, time) {
   // kaldığı sürece WeakMap üzerinden yeniden kullanılır.
   if (!browserActiveCuesAt._prefixCache) browserActiveCuesAt._prefixCache = new WeakMap();
   let indexData = browserActiveCuesAt._prefixCache.get(list);
-  if (!indexData || indexData.length !== list.length) {
+  const canExtend = indexData && indexData.length > 0 && indexData.length < list.length
+    && list[indexData.length - 1] === indexData.tailCue
+    && Number(indexData.tailCue?.end) === indexData.tailEnd;
+  if (canExtend) {
+    let maximum = indexData.prefix[indexData.length - 1];
+    for (let index = indexData.length; index < list.length; index++) {
+      maximum = Math.max(maximum, Number(list[index].end));
+      indexData.prefix.push(maximum);
+    }
+    indexData.length = list.length;
+    indexData.tailCue = list[list.length - 1];
+    indexData.tailEnd = Number(indexData.tailCue?.end);
+  } else if (!indexData || indexData.length !== list.length) {
     let maximum = -Infinity;
     const prefix = list.map((cue) => {
       maximum = Math.max(maximum, Number(cue.end));
       return maximum;
     });
-    indexData = { length: list.length, prefix };
+    indexData = {
+      length: list.length,
+      prefix,
+      tailCue: list[list.length - 1],
+      tailEnd: Number(list[list.length - 1]?.end),
+    };
     browserActiveCuesAt._prefixCache.set(list, indexData);
   }
   for (let index = last; index >= 0; index--) {

@@ -208,6 +208,14 @@ test('Türkçe HTML entityleri ve yüksek hassasiyetli zamanları çözer', () =
   assert.deepEqual(result.cues, [{ start: 1.1234, end: 4.5678, text: 'Görüşmek üzere ğeldi: İstanbul.' }]);
 });
 
+test('sayısal entity kontrol karakterlerini altyazı metnine taşımaz', () => {
+  const result = parseSubtitlePayload(
+    'WEBVTT\n\n00:00.000 --> 00:01.000\nA&#x0;B&#9;C&#10;D&#13;E&#x7f;F',
+    'text/vtt', 'https://cdn.test/control.vtt');
+  assert.equal(result.cues[0].text, 'AB\tC\nDEF');
+  assert(!/[\x00-\x08\x0b-\x1f\x7f]/.test(result.cues[0].text));
+});
+
 test('boş satırlı ve ayracı olmayan cue metinleri korunur', () => {
   const result = parseSubtitlePayload('WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nBirinci paragraf\n\nİkinci paragraf\n00:00:04.000 --> 00:00:05.000\nSon cue',
     'text/vtt', 'https://cdn.test/paragraphs.vtt');
@@ -524,6 +532,21 @@ test('64 kısa cue gerisindeki uzun süreli aktif altyazıyı kaybetmez', () => 
       start: index + 1, end: index + 1.2, text: `Kısa ${index}`,
     })));
   assert.deepEqual(browserActiveCuesAt(cues, 81).map((cue) => cue.text), ['Uzun açıklama']);
+});
+
+test('canlı cue dizisi sona büyürken prefix önbelleğini artımlı genişletir', () => {
+  let endReads = 0;
+  const cue = (start, end, text) => ({
+    start, text,
+    get end() { endReads++; return end; },
+  });
+  const cues = Array.from({ length: 1000 }, (_, index) => cue(index, index + .75, String(index)));
+  browserActiveCuesAt(cues, 999.5);
+  const initialReads = endReads;
+  cues.push(cue(1000, 1000.75, 'yeni'));
+  browserActiveCuesAt(cues, 1000.5);
+  assert(initialReads >= 1000);
+  assert(endReads - initialReads < 12, 'sona ekleme bütün prefix dizisini yeniden kurdu');
 });
 
 test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () => {
