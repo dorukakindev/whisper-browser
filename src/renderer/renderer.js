@@ -3453,6 +3453,7 @@ $('startQueueBtn').addEventListener('click', startQueue);
 window.addEventListener('beforeunload', () => {
   clearTimeout(_saveTimer);
   _saveTimer = null;
+  stopBrowserMangaLookaheadTimer();
   // Son kontrol değişikliği 400 ms debounce içindeyken pencere kapanırsa invoke
   // cevabı beklenemez. Yalnız kapanış anında kullanılan senkron köprü, ana
   // sürecin ayarı diske yazdığını renderer yok edilmeden önce doğrular.
@@ -3862,6 +3863,7 @@ const player = {
   browserMangaAutoTimer: null,
   browserNoTrackTimer: null,
   browserMangaLookaheadBusy: false,
+  browserMangaLookaheadTimer: null,
   browserPageTranslateBusy: false,
   browserPageTranslated: 0,
   browserPageFailed: 0,
@@ -7799,12 +7801,14 @@ function setWorkspaceMode(mode, persist = true) {
       _liveCueRenderTimer = null;
     }
   }
+  if (mode !== 'browser') stopBrowserMangaLookaheadTimer();
   if (mode !== player.workspaceMode) flushWatchState(false, true);
   if (mode === 'browser' && previousMode !== 'browser') saveLocalSubtitleWorkspace();
   if (mode !== 'browser' && previousMode === 'browser') saveActiveBrowserTabWorkspace();
   if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
   if (mode !== 'browser' && player.settingsPage !== 'source') setSettingsPage('source');
   player.workspaceMode = mode;
+  if (mode === 'browser') startBrowserMangaLookaheadTimer();
   const layer = $('playerLayer');
   layer?.classList.toggle('workspace-browser', mode === 'browser');
   layer?.classList.toggle('browser-chrome-collapsed', mode === 'browser' && player.browserChromeCollapsed);
@@ -7927,7 +7931,7 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (even
 });
 if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
 if ($('browserMangaTranslate')) $('browserMangaTranslate').addEventListener('click', handleBrowserMangaAction);
-setInterval(async () => {
+async function runBrowserMangaLookahead() {
   if (document.hidden || player.workspaceMode !== 'browser' || !$('browserMangaAuto')?.checked
       || player.browserMangaBusy || player.browserMangaLookaheadBusy || player.browserMangaTranslated <= 0
       || !player.browserMangaVisible) return;
@@ -7942,7 +7946,18 @@ setInterval(async () => {
       verticalText: !!$('browserMangaVertical')?.checked, sfxStyle: $('browserMangaSfx')?.checked !== false,
     });
   } finally { player.browserMangaLookaheadBusy = false; }
-}, 5000);
+}
+
+function startBrowserMangaLookaheadTimer() {
+  if (player.browserMangaLookaheadTimer) return;
+  player.browserMangaLookaheadTimer = setInterval(() => { void runBrowserMangaLookahead(); }, 5000);
+}
+
+function stopBrowserMangaLookaheadTimer() {
+  if (!player.browserMangaLookaheadTimer) return;
+  clearInterval(player.browserMangaLookaheadTimer);
+  player.browserMangaLookaheadTimer = null;
+}
 $('browserProfileScope')?.addEventListener('change', renderBrowserSiteProfile);
 $('browserProfileReset')?.addEventListener('click', () => updateBrowserProfileField('', null, true));
 const browserRangeOutputs = {
