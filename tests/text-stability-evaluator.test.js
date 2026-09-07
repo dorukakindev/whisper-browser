@@ -1,0 +1,12 @@
+const assert = require('assert');
+const { TextStabilityEvaluator } = require('../src/text-stability-evaluator');
+const e = new TextStabilityEvaluator({ settleDelayMs: 100, maxWaitMs: 300, duplicateWindowMs: 200 });
+assert.equal(e.observe({ scopeId: 'a', text: 'ilk', revision: 1 }, 0).state, 'waiting');
+assert.equal(e.observe({ scopeId: 'a', text: 'ikinci', revision: 2 }, 50).reason, 'changed');
+assert.equal(e.observe({ scopeId: 'a', text: 'ikinci', revision: 2 }, 120).state, 'waiting');
+assert.equal(e.observe({ scopeId: 'a', text: 'ikinci', revision: 2 }, 160).state, 'stable');
+assert.equal(e.observe({ scopeId: 'a', text: 'ikinci', revision: 2 }, 200).state, 'duplicate');
+assert.equal(e.observe({ scopeId: 'empty', text: '   ' }, 0).reason, 'empty_text');
+assert.equal(e.observe({ scopeId: 'b', text: 'x', revision: 1 }, 0).state, 'waiting');
+assert.equal(e.observe({ scopeId: 'b', text: 'x', revision: 1 }, 300).reason, 'max_wait');
+console.log('text-stability-evaluator: 7 test');

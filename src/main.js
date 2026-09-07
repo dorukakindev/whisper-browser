@@ -163,6 +163,7 @@ const {
 } = require('./browser-library-tools');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
 const { createTerminologyMap, learnTerminology, terminologyPrompt } = require('./browser-terminology');
+const { TextStabilityEvaluator } = require('./text-stability-evaluator');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
 const {
   resolveTranslationEndpoints,
@@ -267,6 +268,7 @@ let browserPlacesDirty = false;
 let browserPlacesSaveErrorNotified = false;
 let browserSessionRestoreEnabled = true;
 let browserTrackTimer = null;
+const browserTextStability = new TextStabilityEvaluator();
 let browserMediaTimer = null;
 let browserCaptureTimer = null;
 let browserCaptureHookFrames = new WeakSet();
@@ -4742,6 +4744,17 @@ function publishBrowserTrackNow(entry) {
 
 function flushBrowserTrackPublication(publicationKey) {
   const timer = browserTrackPublicationTimers.get(publicationKey);
+  const pending = browserTrackPendingPublications.get(publicationKey);
+  if (pending && pending.meta?.finalize !== true) {
+    const decision = browserTextStability.observe({
+      scopeId: publicationKey, fingerprint: pending.fingerprint,
+      text: pending.normalized?.map((cue) => cue.text).join(" "),
+      revision: pending.normalized?.length || 0,
+    });
+    if (decision.state !== "stable") {
+      return null;
+    }
+  }
   if (timer) clearTimeout(timer);
   browserTrackPublicationTimers.delete(publicationKey);
   const entry = browserTrackPendingPublications.get(publicationKey);
@@ -4796,6 +4809,14 @@ function storeBrowserTrack(cues, meta = {}) {
   if (previousPublication && previousPublication.fingerprint === fingerprint) return null;
   const pending = browserTrackPendingPublications.get(publicationKey);
   if (pending?.fingerprint === fingerprint) return null;
+  if (meta.finalize !== true) {
+    const decision = browserTextStability.observe({
+      scopeId: publicationKey, fingerprint,
+      text: normalized.map((cue) => cue.text).join(" "),
+      revision: normalized.length,
+    });
+    if (decision.state === "duplicate") return null;
+  }
   const entry = { normalized, meta: { ...meta }, tab, publicationKey, fingerprint };
   if (!streamKey || meta.finalize === true) return publishBrowserTrackNow(entry);
   browserTrackPendingPublications.set(publicationKey, entry);
