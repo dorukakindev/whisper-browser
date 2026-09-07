@@ -1676,7 +1676,8 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
             )
 
 
-def write_json(entries, output_path, info=None, speakers=None, all_words=None):
+def write_json(entries, output_path, info=None, speakers=None, all_words=None,
+               segment_metrics=None):
     """Ham veri JSON çıktısı — kelime zaman damgaları dahil."""
     speakers = speakers or {}
     # Zaman damgası altyazının kimliğidir; geçersiz bir segmenti sessizce 0'a
@@ -1707,6 +1708,12 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None):
             "text": text,
             "speaker": speakers.get(i),
         }
+        if isinstance(segment_metrics, (list, tuple)) and i < len(segment_metrics):
+            metrics = segment_metrics[i]
+            if isinstance(metrics, dict):
+                for key in ('avg_logprob', 'no_speech_prob', 'compression_ratio'):
+                    if key in metrics:
+                        seg[key] = finite_json_value(metrics.get(key))
         if n_words:
             # Bu segmentin zaman aralığına düşen kelimeleri ekle
             while cursor < n_words and all_words[cursor].get(
@@ -3455,7 +3462,7 @@ def drop_micro_blocks(entries, min_dur=0.08, max_words=2):
 
 
 def find_repeated_hallucinations(entries, all_words, min_count=4, max_words=8,
-                                 conf_thr=0.55, spread_ratio=0.25):
+                                 conf_thr=0.55, spread_ratio=0.25, segment_metrics=None):
     """
     "Bag of Hallucinations" yaklaşımı: sabit regex listesi yalnızca BİLİNEN uydurmaları
     yakalar ("Thanks for watching" vb.). Bilinmeyenler (kanal adı, çevirmen imzası,
@@ -3504,26 +3511,47 @@ def find_repeated_hallucinations(entries, all_words, min_count=4, max_words=8,
         if spread < total_span * spread_ratio:
             continue                      # ardışık diyalog tekrarı - gerçek olabilir
         conf = mean_conf(idxs)
-        if conf is None or conf >= conf_thr:
+        metric_rows = []
+        if isinstance(segment_metrics, (list, tuple)):
+            metric_rows = [segment_metrics[i] for i in idxs if i < len(segment_metrics)
+                           and isinstance(segment_metrics[i], dict)]
+        def metric_at_least(row, key, threshold):
+            try:
+                value = float(row.get(key))
+            except (TypeError, ValueError):
+                return False
+            return math.isfinite(value) and value >= threshold
+
+        metric_risk = any(
+            metric_at_least(row, "no_speech_prob", 0.6)
+            or metric_at_least(row, "compression_ratio", 2.4)
+            for row in metric_rows
+        )
+        # Kelime güveni tek başına yeterli değildir; sessizlik/tekrar sinyali
+        # varsa yüksek kelime güveninde bile kullanıcıya inceleme uyarısı ver.
+        if conf is None and not metric_risk:
+            continue
+        if conf is not None and conf >= conf_thr and not metric_risk:
             continue
         out.append({"text": entries[idxs[0]][2], "count": len(idxs),
-                    "conf": round(conf, 3), "indices": idxs})
+                    "conf": round(conf, 3) if conf is not None else 0.0,
+                    "metricRisk": metric_risk, "indices": idxs})
     out.sort(key=lambda d: -d["count"])
     return out
 
 
-def drop_repeated_hallucinations(entries, all_words, warn_list=None, conf_drop=0.4):
+def drop_repeated_hallucinations(entries, all_words, warn_list=None, conf_drop=0.4, segment_metrics=None):
     """
     Bulunan tekrarlı uydurmalardan güveni ÇOK düşük olanları (conf_drop altı) siler,
     kalanları uyarı olarak bildirir — silmek riskliyken karar kullanıcıya bırakılır.
     Döner: (entries, silinen_blok_sayısı)
     """
-    found = find_repeated_hallucinations(entries, all_words)
+    found = find_repeated_hallucinations(entries, all_words, segment_metrics=segment_metrics)
     if not found:
         return entries, 0
     drop_idx = set()
     for item in found:
-        if item["conf"] < conf_drop:
+        if item["conf"] < conf_drop and not item.get("metricRisk"):
             drop_idx.update(item["indices"])
             log(f"Tekrarlı uydurma silindi ({item['count']}x, güven {item['conf']:.2f}): "
                 f"\"{item['text'][:60]}\"", "warn")
@@ -3945,7 +3973,7 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
     return [(s, e, t) for (s, e, t) in out]
 
 
-def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8):
+def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8, segment_metrics=None):
     """
     Altyazı kalite metrikleri (pür fonksiyon; zamana göre sıralı entries varsayar).
     Yazımdan hemen önce çağrılır — kullanıcıya "her şey yolunda mı" özeti verir.
@@ -3962,6 +3990,13 @@ def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8):
         "longest_dur": 0.0,    # en uzun blok süresi (sn)
         "longest_at": 0.0,     # o bloğun başlangıç zamanı (sn)
     }
+    if isinstance(segment_metrics, (list, tuple)):
+        report["low_confidence_segments"] = sum(1 for metric in segment_metrics
+            if isinstance(metric, dict) and metric.get("avg_logprob") is not None
+            and float(metric["avg_logprob"]) < -1.0)
+        report["high_no_speech_segments"] = sum(1 for metric in segment_metrics
+            if isinstance(metric, dict) and metric.get("no_speech_prob") is not None
+            and float(metric["no_speech_prob"]) >= 0.6)
     if n == 0:
         return report
     for i, (s, e, t) in enumerate(entries):
@@ -4486,6 +4521,7 @@ def transcribe(args):
         total_duration = max(info.duration, 0.001)
         entries = []
         all_words = []  # tüm kelime damgaları (JSON için)
+        segment_metrics = []  # motorun segment düzeyi güven sinyalleri
         last_emit = 0.0
         last_ckpt = time.time()
         CKPT_INTERVAL = 20.0  # sn — checkpoint yazma sıklığı (çökme kaybını sınırlar)
@@ -4499,6 +4535,12 @@ def transcribe(args):
                     or segment.start < 0 or segment.end <= segment.start):
                 log("Geçersiz zaman damgalı segment atlandı.", "warn")
                 continue
+            # Segment düzeyi güven sinyalleri: eski motorlar alanları vermeyebilir.
+            segment_metric = {
+                "avg_logprob": finite_json_value(getattr(segment, "avg_logprob", None)),
+                "no_speech_prob": finite_json_value(getattr(segment, "no_speech_prob", None)),
+                "compression_ratio": finite_json_value(getattr(segment, "compression_ratio", None)),
+            }
             # Halüsinasyonları filtrele
             if is_hallucination(segment.text):
                 log(f"Halüsinasyon atlandı: {segment.text.strip()[:60]}", "warn")
@@ -4554,6 +4596,7 @@ def transcribe(args):
                 start += time_offset
                 end += time_offset
                 entries.append((start, end, cleaned))
+                segment_metrics.append(dict(segment_metric))
                 # Oynatici, tum is bitmeden dusuk-guvenli satiri gosterebilsin.
                 # Yalnizca bu parcayla zaman olarak ortusen kelimeler kullanilir;
                 # segment ortalamasi uzun cumledeki tek sorunlu kelimeyi gizlemesin.
@@ -4567,6 +4610,9 @@ def transcribe(args):
                     text=cleaned,
                     confidence=round(chunk_confidence, 3),
                     lowConfidenceWords=low_word_count,
+                    avgLogprob=segment_metric["avg_logprob"],
+                    noSpeechProb=segment_metric["no_speech_prob"],
+                    compressionRatio=segment_metric["compression_ratio"],
                 )
 
             # İlerleme yayını
@@ -4652,8 +4698,8 @@ def transcribe(args):
 
         # Tekrarlı halüsinasyon (bilinmeyen uydurmalar; regex listesi yalnızca bilinenleri
         # yakalıyor). Kelime güveni gerektiği için yalnızca kelime damgaları varsa çalışır.
-        if args.drop_repeated_hallucinations and all_words:
-            entries, n_drop = drop_repeated_hallucinations(entries, all_words, warn_list)
+        if args.drop_repeated_hallucinations and (all_words or segment_metrics):
+            entries, n_drop = drop_repeated_hallucinations(entries, all_words, warn_list, segment_metrics=segment_metrics)
             if n_drop:
                 log(f"Tekrarlı uydurma temizliği: {n_drop} blok silindi", "warn")
 
@@ -4810,6 +4856,7 @@ def transcribe(args):
             qr = compute_quality_report(
                 entries, max_cps=args.max_cps,
                 max_dur=args.max_duration, min_dur=args.min_duration,
+                segment_metrics=(segment_metrics if len(segment_metrics) == len(entries) else None),
             )
             emit("quality_report", **qr)
             log(
@@ -4894,7 +4941,8 @@ def transcribe(args):
                     write_ass(items, path, max_line_width=args.max_line_width,
                               language=lang_code, wrap_mode=args.wrap_mode, speakers=speaker_map)
                 elif fmt == "json":
-                    write_json(items, path, info=info, speakers=speaker_map, all_words=all_words)
+                    write_json(items, path, info=info, speakers=speaker_map, all_words=all_words,
+                              segment_metrics=(segment_metrics if len(segment_metrics) == len(items) else None))
                 else:
                     return False
                 return True

@@ -1523,6 +1523,40 @@ def test_atomic_subtitle_write_preserves_existing_file_on_failure():
 
 
 # ===== kalite raporu =====
+def test_segment_metrics_quality_and_json():
+    entries = [(0.0, 1.0, "Tekrar"), (1.2, 2.2, "Tekrar"), (2.4, 3.4, "Tekrar"), (3.6, 4.6, "Tekrar")]
+    metrics = [
+        {"avg_logprob": -1.2, "no_speech_prob": 0.7, "compression_ratio": 2.8},
+        {"avg_logprob": -0.2, "no_speech_prob": 0.1, "compression_ratio": 1.1},
+        {"avg_logprob": -1.1, "no_speech_prob": 0.2, "compression_ratio": 1.0},
+        {"avg_logprob": -0.4, "no_speech_prob": 0.2, "compression_ratio": 1.0},
+    ]
+    report = T.compute_quality_report(entries, segment_metrics=metrics)
+    assert report["low_confidence_segments"] == 2
+    assert report["high_no_speech_segments"] == 1
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "metrics.json"
+        T.write_json(entries[:1], target, segment_metrics=metrics[:1])
+        payload = json.loads(target.read_text(encoding="utf-8-sig"))
+        assert payload["segments"][0]["no_speech_prob"] == 0.7
+        assert payload["segments"][0]["compression_ratio"] == 2.8
+
+
+def test_repeated_hallucination_metric_risk_warns_without_word_confidence():
+    entries = [(0.0, 1.0, "Aynı"), (1.2, 2.2, "Aynı"), (2.4, 3.4, "Aynı"), (3.6, 4.6, "Aynı")]
+    metrics = [{"no_speech_prob": 0.8}] * 4
+    found = T.find_repeated_hallucinations(entries, [], segment_metrics=metrics)
+    assert found and found[0]["metricRisk"] is True
+    warnings = []
+    out, dropped = T.drop_repeated_hallucinations(entries, [], warnings, segment_metrics=metrics)
+    assert dropped == 0
+    assert len(out) == len(entries)
+    assert warnings
+
+
+def test_repeated_hallucination_without_metrics_keeps_legacy_behavior():
+    entries = [(0.0, 1.0, "Aynı"), (1.2, 2.2, "Aynı"), (2.4, 3.4, "Aynı"), (3.6, 4.6, "Aynı")]
+    assert T.find_repeated_hallucinations(entries, []) == []
 def test_compute_quality_report():
     entries = [
         (0.0, 1.0, "a" * 30),       # 30 KPS → hızlı okuma
