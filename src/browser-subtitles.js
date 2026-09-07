@@ -84,7 +84,24 @@ function normalizeCues(cues) {
     }
     clean[i].end = Math.max(clean[i].start + 0.08, clean[i].end);
   }
-  return clean;
+  // YouTube ve bazı canlı caption sağlayıcıları aynı ekran metnini birkaç yüz
+  // milisaniye kaymış, örtüşen ikinci bir cue olarak yineler. Başlangıcı aynı
+  // saniye içinde kalan birebir metni tek cue yap; bitişik/uzak gerçek tekrarları
+  // ve farklı konuşmacı metadata'sı taşıyan kayıtları koru.
+  const deduped = [];
+  for (const cue of clean) {
+    const previous = deduped[deduped.length - 1];
+    const differentSpeaker = previous && cue.speaker && previous.speaker
+      && String(cue.speaker) !== String(previous.speaker);
+    const rollingDuplicate = previous && !differentSpeaker && cue.text === previous.text
+      && cue.start < previous.end && cue.start - previous.start <= 1.0;
+    if (rollingDuplicate) {
+      previous.end = Math.max(previous.end, cue.end);
+      continue;
+    }
+    deduped.push(cue);
+  }
+  return deduped;
 }
 
 const MPEGTS_CLOCK_RATE = 90000;

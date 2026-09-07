@@ -61,6 +61,25 @@ test('Bozuk HTML sayısal entity altyazı yakalamayı çökertmez', () => {
   assert.match(result.cues[0].text, /Geçersiz .* değer/);
 });
 
+test('örtüşen kaydırılmış web caption kopyasını siler, gerçek tekrarı korur', () => {
+  const text = 'Welcome to the Sea of Silt.';
+  assert.deepEqual(normalizeCues([
+    { start: 1.300, end: 9.520, text },
+    { start: 1.664, end: 9.520, text },
+  ]), [{ start: 1.3, end: 9.52, text }]);
+  assert.equal(normalizeCues([
+    { start: 0, end: 1, text: 'Hayır.' },
+    { start: 1, end: 2, text: 'Hayır.' },
+  ]).length, 2);
+  assert.equal(normalizeCues([
+    { start: 0, end: 4, text: 'Hayır.' },
+    { start: 1.2, end: 2, text: 'Hayır.' },
+  ]).length, 2);
+  assert.equal(normalizeCues([
+    { start: 0, end: 2, text: 'Hayır.', speaker: 'A' },
+    { start: .5, end: 2, text: 'Hayır.', speaker: 'B' },
+  ]).length, 2);
+});
 test('Parçalı WebVTT MPEGTS zaman haritasını video zamanına uygular', () => {
   const result = parseSubtitlePayload('WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:900000\n\n00:00.500 --> 00:02.000\nMapped cue', 'text/vtt', 'https://cdn.test/seg-1.vtt');
   assert.deepEqual(result.cues, [{ start: 10.5, end: 12, text: 'Mapped cue' }]);

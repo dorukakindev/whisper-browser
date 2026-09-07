@@ -3296,6 +3296,31 @@ def dedupe_consecutive(entries, max_gap=2.0):
     return [(o[0], o[1], o[2]) for o in out]
 
 
+def apply_dedupe_policy(entries, extended=False):
+    """Whisper örtüşme artefaktlarını zorunlu, yakın tekrarları isteğe bağlı temizle.
+
+    Whisper/VAD bazen aynı konuşmayı örtüşen iki segment olarak döndürür. Bu,
+    kullanıcı tercihinden bağımsız bir üretim artefaktıdır. ``extended`` açıkken
+    önceki davranış korunur ve aralarında en fazla iki saniye olan yakın tekrarlar
+    da birleştirilir; kapalıyken uzaktaki veya yalnızca bitişik gerçek tekrarlar
+    korunur.
+    """
+    cleaned = []
+    for start, end, text in entries:
+        if cleaned:
+            prev_start, prev_end, prev_text = cleaned[-1]
+            same_rolling_cue = (
+                float(start) < float(prev_end)
+                and float(start) - float(prev_start) <= 1.0
+                and _norm_for_dedupe(text) == _norm_for_dedupe(prev_text)
+            )
+            if same_rolling_cue:
+                cleaned[-1] = (prev_start, max(float(prev_end), float(end)), prev_text)
+                continue
+        cleaned.append((start, end, text))
+    return dedupe_consecutive(cleaned) if extended else cleaned
+
+
 def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6,
                         max_chars=84, max_dur=6.5, flash_dur=0.8):
     """
@@ -4680,13 +4705,14 @@ def transcribe(args):
         # Altyazıları zaman damgasına göre sırala (Whisper çıktıları nadiren de olsa sırasız gelebilir)
         entries.sort(key=lambda x: x[0])
 
-        # Ardışık tekrarları temizle (kısa parça birleştirmeden ÖNCE — yoksa birleştirme
-        # dup'ları yan yana ekleyip kötüleştirir)
-        if args.dedupe:
-            n0 = len(entries)
-            entries = dedupe_consecutive(entries)
-            if len(entries) != n0:
-                log(f"Tekrar temizleme: {n0} → {len(entries)} blok")
+        # Whisper/VAD aynı konuşmayı bazen örtüşen iki segment olarak döndürür. Bu
+        # üretim artefaktı kullanıcı seçeneğinden bağımsız temizlenir. Ayar açıksa
+        # ayrıca örtüşmeyen fakat iki saniyeden yakın ardışık tekrarlar da birleştirilir.
+        n0 = len(entries)
+        entries = apply_dedupe_policy(entries, extended=args.dedupe)
+        if len(entries) != n0:
+            label = "Tekrar temizleme" if args.dedupe else "Örtüşen tekrar güvenlik filtresi"
+            log(f"{label}: {n0} → {len(entries)} blok")
 
         # Yaygın altyazı hataları (tekrar eden ön ek, mikro blok, noktalama boşluğu,
         # cümle başı büyük harf) — birleştirmelerden ÖNCE, metin temiz girsin
@@ -4787,6 +4813,13 @@ def transcribe(args):
             if len(entries) != _once:
                 log(f"Cumle birlestirme: {_once} -> {len(entries)} blok "
                     f"({_once - len(entries)} devam satiri onceki bloga katildi)")
+
+        # Metin değiştiren geçişlerden sonra güvenlik kuralını yeniden uygula. Böylece
+        # LLM/noktalama onarımı iki örtüşen bloğu aynı metne dönüştürse de çıktı çiftlenmez.
+        n0 = len(entries)
+        entries = apply_dedupe_policy(entries, extended=False)
+        if len(entries) != n0:
+            log(f"Örtüşen tekrar güvenlik filtresi (son geçiş): {n0} → {len(entries)} blok", "warn")
 
         # Konuşmacı tanıma (opsiyonel)
         speakers_map = {}

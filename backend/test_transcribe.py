@@ -1458,6 +1458,27 @@ def test_dedupe_consecutive():
     assert len(T.dedupe_consecutive(far)) == 2
 
 
+def test_dedupe_policy_always_removes_overlapping_whisper_artifacts():
+    # Gerçek ham SRT biçimi: ikinci Whisper segmenti ilkinin içinde başlıyor ve
+    # aynı bitişi taşıyor. Kullanıcı geniş dedupe'ı kapatsa bile bu tek diyalogdur.
+    overlapping = [
+        (1.300, 9.520, "Welcome to the Sea of Silt."),
+        (1.664, 9.520, "Welcome to the Sea of Silt."),
+    ]
+    assert T.apply_dedupe_policy(overlapping, extended=False) == [overlapping[0]]
+
+    # Örtüşmeyen yakın tekrar yalnız geniş seçenek açıkken; uzaktaki gerçek tekrar
+    # ise iki modda da korunur.
+    touching = [(0.0, 1.0, "Hayır."), (1.0, 2.0, "Hayır.")]
+    assert T.apply_dedupe_policy(touching, extended=False) == touching
+    delayed_overlap = [(0.0, 4.0, "Hayır."), (1.2, 2.0, "Hayır.")]
+    assert T.apply_dedupe_policy(delayed_overlap, extended=False) == delayed_overlap
+    near = [(0.0, 1.0, "Hayır."), (1.2, 2.0, "Hayır.")]
+    assert T.apply_dedupe_policy(near, extended=False) == near
+    assert len(T.apply_dedupe_policy(near, extended=True)) == 1
+    far = [(0.0, 1.0, "Hayır."), (10.0, 11.0, "Hayır.")]
+    assert T.apply_dedupe_policy(far, extended=True) == far
+
 def test_reexport_sorts_segments_before_writing():
     # JSON elle düzenlendiğinde sıra bozulabilir; re-export çıktısı kronolojik
     # olmalı ve konuşmacı etiketi segmentle birlikte taşınmalı.
