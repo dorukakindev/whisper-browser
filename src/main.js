@@ -3871,6 +3871,7 @@ async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signa
       source: { type: 'string' }, translation: { type: 'string' },
       kind: { type: 'string', enum: ['speech', 'narration', 'sfx'] },
       shape: { type: 'string', enum: ['ellipse', 'rect', 'free'] },
+      regionId: { type: 'string', maxLength: 120 },
     },
   };
   const schema = {
@@ -3934,7 +3935,10 @@ async function requestMangaTranslationAtEndpoint(image, config, pageTitle, signa
   }
   let content = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (Array.isArray(content)) content = content.map((part) => part?.text || part?.content || '').join('');
-  return normalizeMangaRegions(extractJsonPayload(content));
+  try { return normalizeMangaRegions(extractJsonPayload(content)); } catch (error) {
+    error.mangaResultState = "invalid_response";
+    throw error;
+  }
 }
 
 async function requestMangaTranslation(image, config, pageTitle, signal, focusRegion = null) {
@@ -4013,7 +4017,7 @@ async function translateMangaCandidate(tab, candidate, config, job) {
     regions = await request;
   }
   if (!mangaJobIsCurrent(tab, job)) return { stale: true };
-  if (!regions.length) return { translated: false, empty: true };
+  if (!regions.length) return { translated: false, empty: true, resultState: "no_regions" };
   regions = decorateMangaRegionColors(image, regions);
   const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
     id: candidate.id, regions, lang: config.targetLanguage, fontScale: config.fontScale, fontFamily: config.fontFamily,
@@ -4022,7 +4026,7 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   if (applied.some(Boolean)) {
     tab.mangaPages.set(candidate.id, { candidate, regions, pageTitle, cacheKey: key });
   }
-  return { translated: applied.some(Boolean), regions: regions.length, cached: !!cached };
+  return { translated: applied.some(Boolean), regions: regions.length, cached: !!cached, resultState: applied.some(Boolean) ? "translated" : "request_failed" };
 }
 
 function nearestMangaRegion(regions, targetBox) {
@@ -4225,6 +4229,7 @@ async function startBrowserManga(tab, options = {}) {
   let empty = 0;
   let firstError = '';
   const failures = [];
+  const resultStates = {};
   if (!retryRun) for (const candidate of selected) tab.mangaAttempted.add(candidate.id);
   const worker = async () => {
     while (mangaJobIsCurrent(tab, job) && !job.fatalError) {
@@ -4246,6 +4251,8 @@ async function startBrowserManga(tab, options = {}) {
           }
         }
         if (lastError) throw lastError;
+        const resultState = result.resultState || (result.empty ? "no_regions" : "translated");
+        resultStates[resultState] = (resultStates[resultState] || 0) + 1;
         if (result.translated) translated += 1;
         else if (result.empty) empty += 1;
       } catch (error) {
@@ -4253,7 +4260,9 @@ async function startBrowserManga(tab, options = {}) {
         failed += 1;
         if (!firstError) firstError = error?.message || 'Görsel çevrilemedi.';
         failures.push({ candidate: selected[index], error: error?.message || 'Görsel çevrilemedi.',
+          resultState: error?.mangaResultState || (Number(error?.httpStatus) ? "request_failed" : "request_failed"),
           retryable: mangaRetryableDownloadError(error) });
+        resultStates.request_failed = (resultStates.request_failed || 0) + 1;
         if (fatalMangaBatchError(error)) job.fatalError = firstError;
       }
       completed += 1;
@@ -4277,9 +4286,9 @@ async function startBrowserManga(tab, options = {}) {
     : (firstError || `${selected.length} görsel tarandı; çevrilecek metin bulunamadı.`);
   sendBrowserEvent(tab, { type: 'manga-state', state, completed: baseTranslated + completed,
     total: reportTotal, translated, failed, empty, retryRun,
-    retryable: failures.filter((item) => item.retryable).length, message });
+    retryable: failures.filter((item) => item.retryable).length, message, resultStates });
   return { ok: translated > 0 || (!failed && empty > 0), translated, failed, empty, total: reportTotal,
-    error: translated || (!failed && empty > 0) ? '' : firstError || 'Görsellerde çevrilecek metin bulunamadı.' };
+    error: translated || (!failed && empty > 0) ? '' : firstError || 'Görsellerde çevrilecek metin bulunamadı.' , resultStates };
 }
 
 function retryFailedBrowserManga(tab) {

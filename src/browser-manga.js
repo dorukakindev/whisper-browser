@@ -76,6 +76,7 @@ function normalizeMangaRegions(input) {
     const hidden = raw?.hidden === true;
     if (!translation && !hidden) continue;
     const original = String(raw?.source || raw?.source_text || '').trim().slice(0, MAX_MANGA_REGION_TEXT);
+    const regionId = /^[A-Za-z0-9:_-]{1,120}$/.test(String(raw?.regionId || "")) ? String(raw.regionId) : `region-${createHash("sha1").update(JSON.stringify([textBox, bubbleBox, original])).digest("hex").slice(0, 16)}`;
     const nextLength = responseTextLength + original.length + translation.length;
     if (nextLength > MAX_MANGA_RESPONSE_TEXT) break;
     responseTextLength = nextLength;
@@ -84,6 +85,7 @@ function normalizeMangaRegions(input) {
       textBox,
       bubbleBox,
       source: original,
+      regionId,
       translation,
       kind: ['speech', 'narration', 'sfx'].includes(raw?.kind) ? raw.kind : 'speech',
       shape: ['ellipse', 'rect', 'free'].includes(raw?.shape) ? raw.shape : (raw?.kind === 'narration' ? 'rect' : 'ellipse'),
@@ -458,6 +460,7 @@ function mangaSelectionScript() {
     return {
       id: selected.dataset.imageId || '',
       index: Number(selected.dataset.index),
+      regionId: selected.dataset.regionId || "",
       source: selected.dataset.source || '',
       translation: text ? text.textContent : '',
       textBox: readBox(selected.dataset.textBox),
@@ -803,6 +806,7 @@ function mangaOverlayScript(payload) {
       group.setAttribute('data-whisper-manga-region', '');
       group.dataset.imageId = payload.id;
       group.dataset.index = String(index);
+      group.dataset.regionId = item.regionId || ("region-" + index);
       group.dataset.source = item.source || '';
       group.dataset.translation = item.translation;
       group.dataset.hidden = item.hidden ? 'true' : 'false';

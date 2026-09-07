@@ -28,6 +28,9 @@ const normalizedLegacy = normalizeMangaRegions({ regions: [
   { box: [0, 0, 100, 100], translation: '' },
 ] });
 assert.equal(normalizedLegacy.length, 1);
+assert.match(normalizedLegacy[0].regionId, /^region-[a-f0-9]{16}$/);
+assert.equal(normalizeMangaRegions({ regions: [{ box: [900, 800, 100, 200], source: "Hi", translation: "Merhaba", kind: "speech" }] })[0].regionId, normalizedLegacy[0].regionId);
+assert.equal(normalizeMangaRegions({ regions: [{ regionId: "custom-1", box: [0, 0, 100, 100], source: "Hi", translation: "Merhaba" }] })[0].regionId, "custom-1");
 assert.deepEqual(normalizedLegacy[0].textBox, [100, 200, 900, 800]);
 assert.deepEqual(normalizedLegacy[0].bubbleBox, [100, 200, 900, 800]);
 assert.equal(normalizedLegacy[0].shape, 'ellipse');
