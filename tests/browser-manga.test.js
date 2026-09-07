@@ -8,6 +8,7 @@ const {
   extractJsonPayload,
   isPublicMangaIpAddress,
   isSafeMangaImageUrl,
+  detectMangaImageMime,
   mangaCacheKey,
   mangaGenerationParameters,
   mangaCandidateScanScript,
@@ -100,6 +101,9 @@ for (const unsafe of ['file:///x.png', 'http://localhost/a.png', 'http://127.0.0
 assert.equal(isPublicMangaIpAddress('8.8.8.8'), true);
 assert.equal(isPublicMangaIpAddress('2606:4700:4700::1111'), true);
 assert.equal(isPublicMangaIpAddress('::ffff:7f00:1'), false);
+assert.equal(detectMangaImageMime(Buffer.from([0xff, 0xd8, 0xff, 0xe0])), 'image/jpeg');
+assert.equal(detectMangaImageMime(Buffer.from('\x89PNG\r\n\x1a\n', 'binary')), 'image/png');
+assert.equal(detectMangaImageMime(Buffer.from('not-an-image')), '');
 
 const image = Buffer.from('same-image');
 assert.equal(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x' }),
@@ -170,6 +174,19 @@ assert.equal(scanned[0].url, 'data:image/png;base64,AA==');
 assert.equal(scanned[1].url, 'https://reader.example/large.jpg');
 assert.equal(scanned[2].url, 'https://cdn.example/rendered.jpg');
 assert.deepEqual([...scanned[2].urls], ['https://cdn.example/rendered.jpg', 'https://reader.example/blocked-loader']);
+const blobScanned = vm.runInNewContext(mangaCandidateScanScript(), {
+  ...scanContext,
+  window: { __whisperMangaSequence: 0 },
+  document: {
+    ...scanContext.document,
+    images: [fakeImage({ currentSrc: 'blob:https://reader.example/object-1' }, 0)],
+    createElement: () => ({ width: 0, height: 0,
+      getContext: () => ({ drawImage() {} }),
+      toDataURL: () => 'data:image/jpeg;base64,AA==',
+    }),
+  },
+});
+assert.equal(blobScanned[0].url, 'data:image/jpeg;base64,AA==');
 const placeholder = vm.runInNewContext(mangaCandidateScanScript(), {
   ...scanContext,
   window: { __whisperMangaSequence: 0 },
@@ -238,6 +255,7 @@ assert.match(main, /Manga görseli 30 saniyede indirilemedi/);
 assert.match(main, /assertPublicMangaImageHost\(imageUrl\)/);
 assert.match(main, /dns\.lookup\(host, \{ all: true, verbatim: true \}\)/);
 assert.match(main, /buffer\.length > 7_500_000/);
+assert.match(main, /detectMangaImageMime\(buffer\)/);
 assert.match(main, /decoded\.crop\(\{ x: left, y: top/);
 assert.doesNotMatch(main, /sampleMangaRegionColors\(decoded\.toBitmap/);
 assert.match(main, /rateLimitRetries = 2/);

@@ -25,6 +25,7 @@ const {
   parseMp4SampleDefaults,
   parseMp4Timescale,
   parseTimedBlocks,
+  mergeBrowserStreamCues,
   decodeSubtitleBuffer,
   findSubtitleUrls,
   parseLrc,
@@ -352,6 +353,14 @@ test('Genel JSON altyazısının sağlayıcı cue kimliğini korur', () => {
     { cueId: 'provider-42', start: 1, end: 2, text: 'Kimlikli satır' },
   ] }), 'application/json', 'https://cdn.test/captions.json');
   assert.equal(result.cues[0].id, 'provider-42');
+});
+
+test('Canlı ASR aynı başlangıçlı düzeltme hipotezini son cue üzerine yazar', () => {
+  const previous = [{ id: 'live-1', start: 10, end: 11, text: 'Merhaba' }];
+  const merged = mergeBrowserStreamCues(previous,
+    [{ id: 'live-1b', start: 10.005, end: 12, text: 'Merhaba dünya' }]);
+  assert.equal(merged, previous, 'hızlı yol aynı sınırlı tamponu yerinde kullanmalı');
+  assert.deepEqual(merged, [{ id: 'live-1b', start: 10.005, end: 12, text: 'Merhaba dünya' }]);
 });
 
 test('Genel altyazı JSON zaman kodlarını saat:dakika:saniye biçiminde ayrıştırır', () => {
@@ -778,6 +787,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /clearStorageData\(\{ storages: \['cookies'\] \}\)/);
   assert.match(main, /browserCookieMatchesHost/);
   assert.match(main, /browser:session:reset/);
+  assert.match(main, /mergeBrowserStreamCues\(previous, normalized, 20000\)/);
   assert.match(main, /browser:subtitle:export/);
   assert.match(main, /rememberBrowserVisit\(wc\.getURL\(\)/);
   assert.match(main, /let browserSessionLastWriteAt = 0/);

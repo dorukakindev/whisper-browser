@@ -104,6 +104,28 @@ function normalizeCues(cues) {
   return deduped;
 }
 
+function mergeBrowserStreamCues(previousCues, incomingCues, limit = 20000) {
+  const previous = Array.isArray(previousCues) ? previousCues : [];
+  const incoming = Array.isArray(incomingCues) ? incomingCues : [];
+  const maximum = Math.max(1, Math.min(20000, Math.trunc(Number(limit) || 20000)));
+  if (incoming.length === 1 && previous.length
+      && Number(incoming[0]?.start) >= Number(previous[previous.length - 1]?.start) - 0.015) {
+    const cue = incoming[0];
+    const lastIndex = previous.length - 1;
+    const last = previous[lastIndex];
+    if (Math.abs(Number(cue.start) - Number(last.start)) <= 0.015) previous[lastIndex] = cue;
+    else if (cue.text !== last.text || Number(cue.end) !== Number(last.end)) previous.push(cue);
+    if (previous.length > maximum) previous.splice(0, previous.length - maximum);
+    return previous;
+  }
+  return [...previous, ...incoming]
+    .sort((a, b) => a.start - b.start || a.end - b.end)
+    .filter((cue, index, all) => index === 0
+      || Math.abs(cue.start - all[index - 1].start) > 0.015
+      || cue.text !== all[index - 1].text)
+    .slice(-maximum);
+}
+
 const MPEGTS_CLOCK_RATE = 90000;
 const MPEGTS_ROLLOVER = 2 ** 33;
 const MPEGTS_ROLLOVER_THRESHOLD = MPEGTS_ROLLOVER / 2;
@@ -1194,6 +1216,7 @@ module.exports = {
   cuesToVtt,
   isLikelySubtitleResponse,
   manifestFingerprint,
+  mergeBrowserStreamCues,
   normalizeCues,
   parseSubtitlePayload,
   parseTime,

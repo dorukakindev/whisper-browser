@@ -14,6 +14,12 @@ test('kontrolden sonra başlayan iş ikinci kontrolde boşaltmayı engeller', ()
   const tab = { id: 'a' }; assert.equal(browserTabUnloadDecision(tab).allowed, true);
   tab.pageTranslateJob = {}; assert.equal(browserTabUnloadDecision(tab).allowed, false);
 });
+test('tamamlanmış çeviri schedulerı sekmeyi sonsuza dek korumaz', () => {
+  const completed = { snapshot: () => ({ pending: [], queued: [], completed: 4, total: 4 }) };
+  assert.equal(browserTabUnloadDecision({ id: 'a', translationScheduler: completed }).allowed, true);
+  const running = { snapshot: () => ({ pending: ['s1'], queued: [], completed: 3, total: 4 }) };
+  assert.equal(browserTabUnloadDecision({ id: 'a', translationScheduler: running }).reason, 'active_job');
+});
 test('Electron medya olayları arka plan sekmesinin oynatma korumasını günceller', () => {
   const tab = { id: 'a', mediaPlaying: false };
   updateBrowserPlaybackState(tab, true);

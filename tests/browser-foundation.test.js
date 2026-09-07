@@ -56,8 +56,12 @@ test('ana süreç tek örnek kilidi, yetkili bildirim ve izole sayfa köprüsü 
 test('YouTube URL biçimleri aynı medya kimliğine birleşir', () => {
   const a = canonicalMediaIdentity('https://www.youtube.com/watch?v=abc123&utm_source=test');
   const b = canonicalMediaIdentity('https://youtu.be/abc123?t=30');
+  const c = canonicalMediaIdentity('https://www.youtube-nocookie.com/embed/abc123?rel=0');
   assert.equal(a.key, 'youtube:abc123');
   assert.equal(b.key, 'youtube:abc123');
+  assert.equal(c.key, 'youtube:abc123');
+  assert.equal(canonicalMediaIdentity('https://www.youtube.com/clip/UgkxClipToken').key,
+    'youtube:clip:UgkxClipToken');
 });
 
 test('Amazon Prime bölgesel alan adları aynı servis olarak tanınır', () => {
@@ -146,7 +150,9 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   assert.equal(session.tabs[0].mediaId, 'netflix:81234567');
   assert.equal(session.tabs[0].rate, 4);
   assert.equal(session.tabs[0].volume, 0);
-  assert.equal(session.tabs[0].offset, 30);
+  assert.equal(session.tabs[0].offset, 99);
+  assert.equal(normalizeBrowserSession({ tabs: [{ id: 'far', url: 'https://example.test', offset: 90000 }] })
+    .tabs[0].offset, 86400);
   assert.equal(session.tabs[0].subtitleMode, 'translation');
   assert.equal(session.tabs[0].trackRefs[0].language, 'en');
   assert.equal(session.tabs[0].mangaPosition.imageId, 'page-4');

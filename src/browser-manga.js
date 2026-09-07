@@ -282,6 +282,19 @@ function isSafeMangaImageUrl(raw) {
   } catch (_) { return false; }
 }
 
+function detectMangaImageMime(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 4) return '';
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (buffer.length >= 8
+      && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  const head = buffer.toString('ascii', 0, Math.min(buffer.length, 16));
+  if (/^GIF8[79]a/.test(head)) return 'image/gif';
+  if (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') return 'image/webp';
+  if (buffer.length >= 12 && buffer.toString('ascii', 4, 8) === 'ftyp'
+      && /^(?:avif|avis)$/.test(buffer.toString('ascii', 8, 12))) return 'image/avif';
+  return '';
+}
+
 function buildMangaPrompt(options = {}) {
   const glossaryEntries = (Array.isArray(options.glossary) ? options.glossary : [])
     .map((item) => typeof item === 'string' ? item : `${item?.source || item?.from || ''}=${item?.target || item?.to || ''}`)
@@ -365,6 +378,23 @@ function mangaCandidateScanScript() {
       if (/^data:image\\//i.test(value)) return value;
       try { return new URL(value, document.baseURI).href; } catch (_) { return ''; }
     };
+    const inlineBlobImage = (image, raw) => {
+      if (!/^blob:/i.test(String(raw || '')) || !image?.naturalWidth || !image?.naturalHeight) return '';
+      try {
+        const maxPixels = 8_000_000;
+        const maxDimension = 4096;
+        const scale = Math.min(1, maxDimension / image.naturalWidth, maxDimension / image.naturalHeight,
+          Math.sqrt(maxPixels / (image.naturalWidth * image.naturalHeight)));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext('2d');
+        if (!context) return '';
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const value = canvas.toDataURL('image/jpeg', .9);
+        return value.length <= 18_000_000 ? value : '';
+      } catch (_) { return ''; }
+    };
     for (const image of document.images || []) {
       order += 1;
       const rect = image.getBoundingClientRect();
@@ -400,7 +430,8 @@ function mangaCandidateScanScript() {
       // Sayfanın gerçekten yüklediği currentSrc, CDN/hotlink dönüşümlerini ve
       // lazy-loader'ın seçtiği nihai adresi taşır. data-src bazı sitelerde
       // yalnız bir ara rota olduğundan onu alternatif olarak sakla.
-      const renderedUrl = absoluteUrl(image.currentSrc || image.src);
+      const renderedSource = image.currentSrc || image.src;
+      const renderedUrl = inlineBlobImage(image, renderedSource) || absoluteUrl(renderedSource);
       const placeholder = /^data:image\\/(?:gif|png|webp);base64,/i.test(renderedUrl) && renderedUrl.length < 500;
       const urls = [...new Set((placeholder
         ? [lazyUrl, srcsetUrl, pictureUrl, renderedUrl]
@@ -908,6 +939,7 @@ function mangaOverlayScript(payload) {
 module.exports = {
   buildMangaPrompt,
   compactMangaOverlayBox,
+  detectMangaImageMime,
   extractJsonPayload,
   isPublicMangaIpAddress,
   isSafeMangaImageUrl,

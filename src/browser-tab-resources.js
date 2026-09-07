@@ -1,5 +1,16 @@
 function clean(value, max = 240) { return String(value == null ? '' : value).trim().slice(0, max); }
 
+function translationSchedulerBusy(scheduler) {
+  if (!scheduler) return false;
+  try {
+    const state = scheduler.snapshot();
+    return (Array.isArray(state?.pending) && state.pending.length > 0)
+      || (Array.isArray(state?.queued) && state.queued.length > 0);
+  } catch (_) {
+    return true;
+  }
+}
+
 function browserTabProtectionReasons(tab = {}, { activeTabId = '' } = {}) {
   const reasons = [];
   if (tab.id && tab.id === activeTabId) reasons.push('active');
@@ -8,7 +19,8 @@ function browserTabProtectionReasons(tab = {}, { activeTabId = '' } = {}) {
   if (tab.audible || tab.mediaPlaying) reasons.push('media_playing');
   if (tab.fullscreen || tab.pictureInPicture) reasons.push('fullscreen_or_pip');
   if (tab.loading || tab.restoringPage) reasons.push('navigation');
-  if (tab.mangaJob || tab.pageTranslateJob || tab.translationScheduler || tab.downloadActive) reasons.push('active_job');
+  if (tab.mangaJob || tab.pageTranslateJob || translationSchedulerBusy(tab.translationScheduler)
+      || tab.downloadActive) reasons.push('active_job');
   if (tab.dirtyDraft) reasons.push('unsaved_draft');
   if (tab.formOrLogin) reasons.push('form_or_login');
   if (tab.stateKnown === false) reasons.push('unknown_state');
@@ -112,5 +124,6 @@ module.exports = {
   groupBrowserProcessMetrics,
   normalizeBrowserPageResourceMetrics,
   summarizeBrowserResourceBudgets,
+  translationSchedulerBusy,
   updateBrowserPlaybackState,
 };

@@ -65,4 +65,18 @@ test('bildirimsel kullanıcı adaptörü kod çalıştırmadan yüklenir', () =>
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
+test('bildirimsel kullanıcı adaptörü yerleşik tanımı güvenle güncelleyebilir', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-adapter-override-'));
+  fs.writeFileSync(path.join(directory, 'youtube.json'), JSON.stringify({
+    version: 1, id: 'youtube', label: 'Güncel YouTube',
+    hosts: ['youtube.com', 'youtube-nocookie.com'], pageHosts: ['youtube.com', 'youtube-nocookie.com'],
+  }));
+  const registry = createBuiltinAdapterRegistry();
+  const result = registry.loadJsonDirectory(directory);
+  assert.deepEqual(result.errors, []);
+  assert.equal(registry.get('youtube').label, 'Güncel YouTube');
+  assert.equal(registry.get('youtube').source, 'user');
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
 console.log(`browser-adapter-registry: ${passed} test`);

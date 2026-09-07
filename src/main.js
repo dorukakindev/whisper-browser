@@ -21,6 +21,7 @@ const {
   cuesToVtt,
   isLikelySubtitleResponse,
   manifestFingerprint,
+  mergeBrowserStreamCues,
   normalizeCues,
   parseSubtitlePayload,
   parseHlsSubtitleTracks,
@@ -173,6 +174,7 @@ const {
 } = require('./translation-endpoints');
 const {
   buildMangaPrompt,
+  detectMangaImageMime,
   extractJsonPayload,
   isPublicMangaIpAddress,
   isSafeMangaImageUrl,
@@ -3756,9 +3758,12 @@ async function fetchMangaImageSource(sourceUrl, pageUrl, signal) {
       }
       const length = Number(response.headers['content-length']) || 0;
       if (length > MAX_MANGA_IMAGE_BYTES) throw new Error('Görsel 14 MB sınırını aşıyor.');
-      mimeType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-      if (!/^image\/(?:png|jpe?g|webp|gif|avif)$/.test(mimeType)) throw new Error('Adres desteklenen bir görsel döndürmedi.');
       buffer = response.buffer;
+      mimeType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      if (!/^image\/(?:png|jpe?g|webp|gif|avif)$/.test(mimeType)) {
+        mimeType = detectMangaImageMime(buffer);
+        if (!mimeType) throw new Error('Adres desteklenen bir görsel döndürmedi.');
+      }
     } finally {
       clearTimeout(downloadTimer);
       signal?.removeEventListener('abort', forwardAbort);
@@ -4804,25 +4809,9 @@ function storeBrowserTrack(cues, meta = {}) {
   const streamKey = String(meta.streamKey || '');
   if (streamKey) {
     const previous = browserTrackBuffers.get(streamKey) || [];
-    let merged;
-    // Canlı ASR/HLS çoğunlukla tek, zaman sıralı cue ekler. Her eklemede bütün
-    // geçmişi kopyalayıp sıralamak uzun yayınlarda O(N²) olur; hızlı ekleme
-    // yolunda aynı sınırlı tamponu yerinde güncelle.
-    if (normalized.length === 1 && previous.length
-        && normalized[0].start >= previous[previous.length - 1].start) {
-      const cue = normalized[0];
-      const last = previous[previous.length - 1];
-      if (Math.abs(cue.start - last.start) > 0.015 || cue.text !== last.text) previous.push(cue);
-      if (previous.length > 20000) previous.splice(0, previous.length - 20000);
-      merged = previous;
-    } else {
-      merged = [...previous, ...normalized]
-        .sort((a, b) => a.start - b.start || a.end - b.end)
-        .filter((cue, index, all) => index === 0
-          || Math.abs(cue.start - all[index - 1].start) > 0.015
-          || cue.text !== all[index - 1].text)
-        .slice(-20000);
-    }
+    // Canlı ASR aynı başlangıç için giderek olgunlaşan hipotezler yollar.
+    // Son hipotez öncekinin yerini alır; farklı zamanlı cue hızlı yoldan eklenir.
+    const merged = mergeBrowserStreamCues(previous, normalized, 20000);
     browserTrackBuffers.set(streamKey, merged);
     trimInsertionCollection(browserTrackBuffers, 64);
     normalized = merged;

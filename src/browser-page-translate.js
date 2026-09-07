@@ -332,6 +332,7 @@ function pageBlockScanScript(options = {}) {
         state.refs.set(candidate.id, {
           id: candidate.id, root: group.owner, nodes: group.nodes,
           originals: group.originals, translation: '', mode: '', active: false, applied: false,
+          rootDisplay: (() => { try { return getComputedStyle(group.owner).display; } catch (_) { return ''; } })(),
         });
         state.latestIdByRoot.set(group.owner, candidate.id);
         state.knownIds.add(candidate.id);
@@ -448,7 +449,13 @@ function pageApplyScript(payload = {}) {
         span.textContent = translation;
         span.hidden = state.visible === false;
         span.style.setProperty('display', state.visible === false ? 'none' : 'block', 'important');
-        ref.root.appendChild(span);
+        const layoutRoot = /^(?:flex|grid|inline-flex|inline-grid)$/.test(String(ref.rootDisplay || ''))
+          && ref.root !== document.body && ref.root !== document.documentElement;
+        if (layoutRoot && ref.root.parentNode?.insertBefore) {
+          ref.root.parentNode.insertBefore(span, ref.root.nextSibling || null);
+        } else {
+          ref.root.appendChild(span);
+        }
         ref.overlay = span;
       }
       applied++;

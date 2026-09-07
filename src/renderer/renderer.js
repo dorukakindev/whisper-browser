@@ -4397,7 +4397,9 @@ async function executeRecordedBrowserWorkflowStep(step) {
     setSubtitleMode(step.args.mode);
     return;
   }
-  const track = player.browserTracks.find((item) => item.id === step.args.trackId);
+  const track = window.BrowserWorkflowRecorder?.resolveWorkflowTrack
+    ? window.BrowserWorkflowRecorder.resolveWorkflowTrack(step, player.browserTracks)
+    : player.browserTracks.find((item) => item.id === step.args.trackId);
   if (!track) throw new Error('Kaydedilen altyazı izi bu sayfada bulunamadı.');
   const select = $('browserTrackSelect');
   if (select) select.value = track.id;
@@ -4440,14 +4442,20 @@ async function playLastBrowserWorkflow() {
   }
 }
 function browserCommandPaletteCommands() {
+  const workflowTrackArgs = (track, fallbackId = '') => ({
+    trackId: track?.id || fallbackId,
+    language: track?.language || '',
+    role: track?.role || (track?.format === 'translation' ? 'translation' : 'source'),
+    label: track?.label || '',
+  });
   return [
     { id: 'subtitle-settings', title: 'Altyazı ve çeviri ayarlarını aç', keywords: ['altyazı', 'çeviri', 'kaynak'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-subtitles' } }), run: () => toggleSettingsPage('browser-subtitles') },
     { id: 'site-profile', title: 'Bu sitenin profilini aç', keywords: ['site', 'profil', 'otomatik'], category: 'ayarlar', available: () => ({ enabled: !!effectiveBrowserProfile().origin, reason: 'Önce bir web sitesi açın.' }), run: () => { if ($('browserProfileScope')) $('browserProfileScope').value = 'site'; toggleSettingsPage('browser-view'); renderBrowserSiteProfile(); } },
     { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-view' } }), run: () => toggleSettingsPage('browser-view') },
     { id: 'diagnostics', title: 'Yakalama ayrıntılarını göster', keywords: ['altyazı', 'tanı', 'hata'], category: 'inceleme', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-diagnostics' } }), run: () => toggleSettingsPage('browser-diagnostics') },
-    { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'loadSourceTrack', args: { trackId: browserTrackSelection(false)?.id || '' } }), run: () => useBrowserTrack(false) },
-    { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'translateTrack', args: { trackId: browserTrackSelection(false)?.id || '' } }), run: () => useBrowserTrack(true) },
-    { id: 'complete-translation', title: 'Eksik çevirileri tamamla', keywords: ['çeviri', 'eksik', 'tamamla'], category: 'çeviri', available: () => ({ enabled: !!player.browserTranslationTrackId, reason: 'Önce bir çeviri işi başlatın.' }), workflowStep: () => ({ command: 'completeTranslation', args: { trackId: browserTrackSelection(false)?.id || player.browserTranslationTrackId } }), run: () => completeSelectedBrowserTranslation() },
+    { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'loadSourceTrack', args: workflowTrackArgs(browserTrackSelection(false)) }), run: () => useBrowserTrack(false) },
+    { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'translateTrack', args: workflowTrackArgs(browserTrackSelection(false)) }), run: () => useBrowserTrack(true) },
+    { id: 'complete-translation', title: 'Eksik çevirileri tamamla', keywords: ['çeviri', 'eksik', 'tamamla'], category: 'çeviri', available: () => ({ enabled: !!player.browserTranslationTrackId, reason: 'Önce bir çeviri işi başlatın.' }), workflowStep: () => ({ command: 'completeTranslation', args: workflowTrackArgs(browserTrackSelection(false), player.browserTranslationTrackId) }), run: () => completeSelectedBrowserTranslation() },
     ...['source', 'translation', 'both', 'off'].map((mode) => ({
       id: `subtitle-mode-${mode}`,
       title: ({ source: 'Yalnız kaynak altyazıyı göster', translation: 'Yalnız çeviriyi göster', both: 'Kaynak ve çeviriyi göster', off: 'Altyazıları kapat' })[mode],

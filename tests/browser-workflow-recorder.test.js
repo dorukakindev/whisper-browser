@@ -1,9 +1,12 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const {
   BrowserWorkflowPlayer,
   BrowserWorkflowRecorder,
   MAX_SAVED_WORKFLOWS,
   normalizeStep,
+  resolveWorkflowTrack,
   normalizeWorkflowLibrary,
 } = require('../src/browser-workflow-recorder');
 
@@ -17,9 +20,26 @@ async function test(name, fn) {
   await test('yalnız semantik izinli alanlar kaydedilir; sır ve URL atılır', () => {
     assert.deepEqual(normalizeStep({ command: 'loadSourceTrack', args: {
       trackId: 'track-en', token: 'secret', cookie: 'sid=x', url: 'https://x.test/?sig=secret', x: 99,
-    } }), { command: 'loadSourceTrack', args: { trackId: 'track-en' } });
+      language: 'EN-us', role: 'source', label: 'English',
+    } }), { command: 'loadSourceTrack', args: {
+      trackId: 'track-en', language: 'en-us', role: 'source', label: 'English',
+    } });
     assert.equal(normalizeStep({ command: 'clickSelector', args: { selector: '.buy' } }), null);
     assert.equal(normalizeStep({ command: 'openSettings', args: { page: 'secrets' } }), null);
+  });
+
+  await test('değişen geçici iz kimliği dil ve rolle yeniden bağlanır', () => {
+    const step = normalizeStep({ command: 'translateTrack', args: {
+      trackId: 'old-network-id', language: 'en', role: 'source', label: 'English CC',
+    } });
+    const tracks = [
+      { id: 'new-tr-id', language: 'tr', role: 'source', label: 'Türkçe' },
+      { id: 'new-network-id', language: 'en', role: 'source', label: 'English CC' },
+    ];
+    assert.equal(resolveWorkflowTrack(step, tracks).id, 'new-network-id');
+    const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+    assert.match(renderer, /resolveWorkflowTrack\(step, player\.browserTracks\)/);
+    assert.match(renderer, /workflowTrackArgs\(browserTrackSelection\(false\)\)/);
   });
 
   await test('kayıt kalıcı iz kimliğini ve güvenli komutları korur', () => {

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media-identity');
 const { safePlaceUrl } = require('./browser-place-url');
-const { createEditRecord, createSyncRecord } = require('./browser-subtitle-sync');
+const { MAX_ABS_OFFSET_SECONDS, createEditRecord, createSyncRecord } = require('./browser-subtitle-sync');
 const { normalizeMangaPosition } = require('./browser-library-tools');
 
 const BROWSER_SESSION_VERSION = 6;
@@ -194,7 +194,7 @@ function normalizeSessionTab(raw) {
     keepAwake: !!raw.keepAwake,
     lifecycle: raw.lifecycle === 'unloaded' ? 'unloaded' : 'background',
     unloadedAt: finiteNumber(raw.unloadedAt, 0, 0),
-    offset: finiteNumber(raw.offset, 0, -30, 30),
+    offset: finiteNumber(raw.offset, 0, -MAX_ABS_OFFSET_SECONDS, MAX_ABS_OFFSET_SECONDS),
     captureEnabled: raw.captureEnabled !== false,
     compatibilityMode: raw.compatibilityMode === true,
     viewMode: ['cinema', 'reading', 'study'].includes(raw.viewMode) ? raw.viewMode : 'reading',

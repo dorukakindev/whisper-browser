@@ -58,11 +58,13 @@ function serviceIdentity(url, hints = {}) {
   if (hostMatches(host, 'youtu.be')) {
     return { service: 'youtube', contentId: cleanPart(url.pathname.split('/').filter(Boolean)[0], 64) };
   }
-  if (hostMatches(host, 'youtube.com')) {
+  if (hostMatches(host, 'youtube.com') || hostMatches(host, 'youtube-nocookie.com')) {
+    const clipId = firstMatch(url.pathname, [/^\/clip\/([^/?#]+)/i]);
     const id = url.searchParams.get('v') || firstMatch(url.pathname, [
       /^\/(?:shorts|live|embed)\/([^/?#]+)/i,
     ]);
     if (id) return { service: 'youtube', contentId: cleanPart(id, 64) };
+    if (clipId) return { service: 'youtube', contentId: `clip:${cleanPart(clipId, 59)}` };
   }
   if (hostMatches(host, 'netflix.com')) {
     const id = firstMatch(url.pathname, [/\/watch\/(\d+)/i, /\/title\/(\d+)/i]);

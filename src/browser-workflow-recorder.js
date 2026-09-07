@@ -42,9 +42,32 @@
     } else {
       const trackId = clean(input.trackId, 256);
       if (!trackId) return null;
-      args = { trackId };
+      const language = clean(input.language, 35).toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const role = clean(input.role, 32).toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const label = clean(input.label, 120);
+      args = { trackId, ...(language ? { language } : {}), ...(role ? { role } : {}),
+        ...(label ? { label } : {}) };
     }
     return { command, args };
+  }
+
+  function resolveWorkflowTrack(rawStep, rawTracks) {
+    const step = normalizeStep(rawStep);
+    const tracks = Array.isArray(rawTracks) ? rawTracks : [];
+    if (!step || !['loadSourceTrack', 'translateTrack', 'completeTranslation'].includes(step.command)) return null;
+    const exact = tracks.find((track) => String(track?.id || '') === step.args.trackId);
+    if (exact) return exact;
+    const language = clean(step.args.language, 35).toLowerCase();
+    const role = clean(step.args.role, 32).toLowerCase();
+    const label = clean(step.args.label, 120).toLowerCase();
+    if (!language && !label) return null;
+    const candidates = tracks.filter((track) => !role
+      || clean(track?.role || (track?.format === 'translation' ? 'translation' : 'source'), 32).toLowerCase() === role);
+    return candidates.find((track) => language && clean(track?.language, 35).toLowerCase() === language
+      && label && clean(track?.label, 120).toLowerCase() === label)
+      || candidates.find((track) => language && clean(track?.language, 35).toLowerCase() === language)
+      || candidates.find((track) => label && clean(track?.label, 120).toLowerCase() === label)
+      || null;
   }
 
   function normalizeWorkflow(raw = {}) {
@@ -168,6 +191,7 @@
     normalizeStep,
     normalizeWorkflow,
     normalizeWorkflowLibrary,
+    resolveWorkflowTrack,
   };
   if (typeof module !== 'undefined') module.exports = api;
   if (root) root.BrowserWorkflowRecorder = api;

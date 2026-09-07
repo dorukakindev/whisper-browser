@@ -45,9 +45,12 @@ class BrowserAdapterRegistry {
     for (const adapter of adapters) this.register(adapter);
   }
 
-  register(raw) {
+  register(raw, { allowOverride = false } = {}) {
     const adapter = normalizeAdapter(raw);
-    if (this.adapters.has(adapter.id)) throw new Error(`Tarayıcı adaptörü zaten kayıtlı: ${adapter.id}`);
+    const existing = this.adapters.get(adapter.id);
+    if (existing && !(allowOverride && existing.source === 'builtin' && adapter.source === 'user')) {
+      throw new Error(`Tarayıcı adaptörü zaten kayıtlı: ${adapter.id}`);
+    }
     this.adapters.set(adapter.id, adapter);
     return adapter;
   }
@@ -120,7 +123,7 @@ class BrowserAdapterRegistry {
           verificationStatus: 'unverified',
           verifiedAt: '',
         };
-        loaded.push(this.register(safeDefinition).id);
+        loaded.push(this.register(safeDefinition, { allowOverride: true }).id);
       } catch (error) {
         errors.push(`${name}: ${error.message}`);
       }
@@ -135,7 +138,7 @@ const BUILTIN_ADAPTER_DEFINITIONS = Object.freeze([
   { id: 'max', label: 'Max', hosts: ['max.com', 'hbomax.com', 'hbo.com'], pageHosts: ['max.com', 'hbomax.com'], responseHint: /manifest|playback|caption|subtitle|texttrack|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i, help: 'Videoyu başlatın ve Max oynatıcısında kaynak altyazıyı açın.' },
   { id: 'discovery', label: 'Discovery+', hosts: ['discoveryplus.com', 'discovery.com'], pageHosts: ['discoveryplus.com'], help: 'Videoyu başlatın; HLS altyazı izi oynatma başlayınca görünür.' },
   { id: 'hulu', label: 'Hulu', hosts: ['hulu.com', 'hulu.jp'], responseHint: /caption|subtitle|texttrack|webvtt|ttml|dfxp|sami|\.vtt|\.m3u8|\.mpd/i, help: 'Videoyu başlatın ve Hulu oynatıcısında kaynak altyazıyı açın.' },
-  { id: 'youtube', label: 'YouTube', hosts: ['youtube.com', 'googlevideo.com', 'youtu.be'], pageHosts: ['youtube.com', 'youtu.be'], responseHint: /timedtext|caption|subtitle|json3|srv3|\.vtt/i, help: 'Videoyu başlatın ve YouTube CC menüsünden kaynak altyazıyı seçin.', capabilities: { fullscreen: true } },
+  { id: 'youtube', label: 'YouTube', hosts: ['youtube.com', 'youtube-nocookie.com', 'googlevideo.com', 'youtu.be'], pageHosts: ['youtube.com', 'youtube-nocookie.com', 'youtu.be'], responseHint: /timedtext|caption|subtitle|json3|srv3|\.vtt/i, help: 'Videoyu başlatın ve YouTube CC menüsünden kaynak altyazıyı seçin.', capabilities: { fullscreen: true } },
   { id: 'prime-video', label: 'Prime Video', hosts: ['primevideo.com', ...AMAZON_HOST_SUFFIXES, 'media-amazon.com', 'aiv-cdn.net'], pageHosts: ['primevideo.com', ...AMAZON_HOST_SUFFIXES], responseHint: /caption|subtitle|timedtext|webvtt|ttml|dfxp|\.vtt|\.m3u8|\.mpd/i, help: 'Videoyu başlatın ve Prime Video altyazı menüsünden kaynak dili seçin.' },
   { id: 'crunchyroll', label: 'Crunchyroll', hosts: ['crunchyroll.com', 'crunchyrollcdn.com'], pageHosts: ['crunchyroll.com'], help: 'Videoyu başlatın ve Crunchyroll altyazı dilini açın.' },
   { id: 'bbc-iplayer', label: 'BBC iPlayer', hosts: ['bbc.co.uk', 'bbc.com', 'bbci.co.uk'], pageHosts: ['bbc.co.uk'], help: 'BBC iPlayer oynatıcısında altyazıları etkinleştirin.' },

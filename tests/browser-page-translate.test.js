@@ -158,6 +158,27 @@ assert.equal(bilingual.applied, 1);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 assert.equal(applyRoot.children.at(-1).className, 'whisper-page-tr');
 assert.equal(applyRoot.children.at(-1).translate, 'no');
+
+const layoutParent = {
+  children: [],
+  insertBefore(node, before) {
+    const index = before ? this.children.indexOf(before) : -1;
+    if (index < 0) this.children.push(node); else this.children.splice(index, 0, node);
+    node.parentNode = this;
+  },
+};
+const flexRoot = { parentNode: layoutParent, nextSibling: null, children: [],
+  appendChild(node) { this.children.push(node); node.parentNode = this; } };
+layoutParent.children.push(flexRoot);
+const flexState = {
+  refs: new Map([['flex:key', { id: 'flex:key', root: flexRoot, rootDisplay: 'flex',
+    nodes: [{ nodeValue: 'Kart metni', isConnected: true }], originals: ['Kart metni'], active: false, applied: false }]]),
+  latestIdByRoot: new WeakMap([[flexRoot, 'flex:key']]), activeByRoot: new WeakMap(), visible: true,
+};
+const flexContext = { ...pageContext, window: { __whisperPageTranslateState: flexState } };
+vm.runInNewContext(pageApplyScript({ mode: 'bilingual', id: 'flex:key', translation: 'Card text' }), flexContext);
+assert.equal(flexRoot.children.length, 0, 'çeviri flex/grid kapsayıcıda yeni düzen öğesi olmamalı');
+assert.equal(layoutParent.children[1].className, 'whisper-page-tr');
 vm.runInNewContext(pageRestoreScript(), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 
