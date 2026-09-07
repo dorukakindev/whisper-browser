@@ -50,6 +50,11 @@ try {
     assert.equal(store.search('yok').length, 0);
   });
 
+  test('İngilizce büyük I küçük i sorgusuyla bulunur', () => {
+    store.upsert({ id: 'note:important', mediaId: 'browser:english', source: 'Important context' });
+    assert.equal(store.search('important').length, 1);
+  });
+
   test('güncelleme oluşturulma zamanını korur', () => {
     const updated = store.upsert({
       id: 'note:one', mediaId: 'youtube:abc', type: 'note', start: 12.5,

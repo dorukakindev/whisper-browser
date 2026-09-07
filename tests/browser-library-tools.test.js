@@ -21,8 +21,9 @@ function test(name, fn) {
   console.log(`  PASS  ${name}`);
 }
 
-test('Türkçe Unicode araması NFKC ve Türkçe harf katlaması kullanır', () => {
-  assert.equal(foldLibraryText('IŞIK İZMİR'), 'ışık izmir');
+test('Unicode araması Türkçe ve İngilizce I varyantlarını birlikte katlar', () => {
+  assert.equal(foldLibraryText('IŞIK İZMİR'), 'işik izmir');
+  assert.equal(foldLibraryText('Instagram'), foldLibraryText('instagram'));
 });
 
 test('birleşik arama açık sekme, yer imi, kaynak ve çeviri izlerini ayırır', () => {
@@ -132,6 +133,16 @@ test('manga konumu yanlış belgede ve kayıp görselde güvenli sonuç verir', 
   const result = resolveMangaPosition(saved, [{ id: 'img-1' }, { id: 'img-2' }], 'chapter-a');
   assert.equal(result.status, 'found');
   assert.equal(result.ratio, .4);
+});
+
+test('manga ordinal yedeği aday puanı yerine DOM sırasını kullanır', () => {
+  const saved = { documentId: 'chapter-a', imageId: 'eski-geçici-id', ratio: .25, ordinal: 1 };
+  const result = resolveMangaPosition(saved, [
+    { id: 'puan-birinci', order: 2, readerScore: 99 },
+    { id: 'dom-birinci', order: 0, readerScore: 10 },
+    { id: 'dom-ikinci', order: 1, readerScore: 5 },
+  ], 'chapter-a');
+  assert.equal(result.match.id, 'dom-ikinci');
 });
 
 test('yeniden açma bileti navigasyon veya medya değişince geçersizleşir', () => {

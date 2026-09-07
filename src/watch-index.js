@@ -18,7 +18,7 @@ function ftsQuery(raw) {
 }
 
 function foldSearchText(value) {
-  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR');
+  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
 }
 
 class WatchIndex {

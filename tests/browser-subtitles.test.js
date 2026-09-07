@@ -575,6 +575,30 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
     timescale: 1000, sampleDefaults,
   }), [{ start: 6, end: 8, text: 'Bir' }]);
 
+  // trun data_offset örnek yükünü mdat başından değil moof tabanından
+  // işaretleyebilir; mdat içindeki dolgu altyazı olarak okunmamalıdır.
+  const offsetRows = Buffer.alloc(4 + 4 + 8); offsetRows.writeUInt32BE(1);
+  offsetRows.writeInt32BE(0, 4); // moof uzunluğu bilindikten sonra yamalanacak
+  offsetRows.writeUInt32BE(1000, 8); offsetRows.writeUInt32BE(first.length, 12);
+  const offsetTraf = box('traf', Buffer.concat([
+    box('tfhd', full(0, tfhdPayload)), box('tfdt', full(0, tfdtPayload)),
+    box('trun', full(0x301, offsetRows)),
+  ]));
+  const offsetMoof = box('moof', offsetTraf);
+  const padding = Buffer.from('not-a-vtt-sample');
+  // data_offset kutu başındaki moof konumuna görelidir; mdat başlığını da geçer.
+  offsetRows.writeInt32BE(offsetMoof.length + 8 + padding.length, 4);
+  const patchedTraf = box('traf', Buffer.concat([
+    box('tfhd', full(0, tfhdPayload)), box('tfdt', full(0, tfdtPayload)),
+    box('trun', full(0x301, offsetRows)),
+  ]));
+  const offsetFragment = Buffer.concat([
+    box('moof', patchedTraf), box('mdat', Buffer.concat([padding, first])),
+  ]);
+  assert.deepEqual(parseMp4WebVtt(offsetFragment, { timescale: 1000 }), [
+    { start: 6, end: 7, text: 'Bir' },
+  ]);
+
   const emptyRows = Buffer.alloc(4 + 2 * 8); emptyRows.writeUInt32BE(2);
   emptyRows.writeUInt32BE(2000, 4); emptyRows.writeUInt32BE(0, 8);
   emptyRows.writeUInt32BE(2000, 12); emptyRows.writeUInt32BE(first.length, 16);

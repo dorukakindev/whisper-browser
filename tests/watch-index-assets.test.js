@@ -159,9 +159,10 @@ try {
     assert.equal(ftsQuery('" OR *'), '"OR"*');
   });
 
-  test('Türkçe büyük-küçük harf araması I ve İ ayrımını doğru katlar', () => {
-    assert.equal(foldSearchText('IŞIK'), 'ışık');
+  test('Türkçe ve İngilizce I varyantları aynı arama anahtarına katlanır', () => {
+    assert.equal(foldSearchText('IŞIK'), 'işik');
     assert.equal(foldSearchText('İZMİR'), 'izmir');
+    assert.equal(foldSearchText('Important'), foldSearchText('important'));
   });
 
   const index = new WatchIndex(path.join(dir, 'watch.db'));
@@ -230,9 +231,14 @@ try {
       assert.equal(rows[0].cue_id, 'a');
       assert.match(rows[0].anchor_json, /Changed text/);
       assert.equal(index.searchAnnotations('ışık').length, 1);
+      index.upsertAnnotation(normalizeAnnotation({
+        id: 'note:english-i', type: 'note', mediaId: 'youtube:abc', start: 20,
+        source: 'Important context', note: 'English note',
+      }));
+      assert.equal(index.searchAnnotations('important').length, 1);
       const all = index.listAllAnnotations();
-      assert.equal(all.length, 1);
-      assert.equal(all[0].title, 'Deneme videosu');
+      assert.equal(all.length, 2);
+      assert(all.every((row) => row.title === 'Deneme videosu'));
     });
 
     test('eski watch-library kayıtları temel medya satırlarına göç eder', () => {

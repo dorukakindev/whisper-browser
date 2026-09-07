@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const SEARCH_SCOPES = new Set(['all', 'tabs', 'subtitles', 'notes', 'bookmarks']);
 
 function foldLibraryText(value) {
-  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR');
+  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
 }
 
 function boundedText(value, limit) {
@@ -340,7 +340,13 @@ function resolveMangaPosition(saved, candidates, documentId) {
   if (position.documentId && documentId && position.documentId !== documentId) return { status: 'wrong-document' };
   const list = Array.isArray(candidates) ? candidates : [];
   let match = list.find((item) => String(item.id || '') === position.imageId);
-  if (!match && list[position.ordinal]) match = list[position.ordinal];
+  if (!match) {
+    const domOrdered = list.map((item, index) => ({
+      item, index,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
+    })).sort((a, b) => a.order - b.order || a.index - b.index);
+    match = domOrdered[position.ordinal]?.item;
+  }
   if (!match) return { status: 'missing' };
   return { status: 'found', match, ratio: position.ratio };
 }

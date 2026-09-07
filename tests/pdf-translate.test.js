@@ -55,6 +55,19 @@ assert.equal(textItemsToLines([
   item('这', 0, 100, 8), item('是', 10, 100, 8), item('测', 20, 100, 8), item('试', 30, 100, 8),
 ])[0].text, '这是测试');
 
+// İki sütun aynı Y koordinatlarını kullansa da okuma sırası önce sol sütunu,
+// sonra sağ sütunu tamamlar; satırlar yatayda birbirine yapışmaz.
+const columns = mergePdfTextItems([
+  item('Sol sütun satır 1.', 50, 700, 100, 12),
+  item('Sağ sütun satır 1.', 300, 700, 100, 12),
+  item('Sol sütun satır 2.', 50, 685, 100, 12),
+  item('Sağ sütun satır 2.', 300, 685, 100, 12),
+], { pageNumber: 1, pageHeight: 800, pageWidth: 500 });
+assert.deepEqual(columns.map((paragraph) => paragraph.text), [
+  'Sol sütun satır 1. Sol sütun satır 2.',
+  'Sağ sütun satır 1. Sağ sütun satır 2.',
+]);
+
 // Ortak sentenceEnded Türkçe ve noktalı kısaltmaları paragraf sonu saymaz.
 assert.deepEqual(mergePdfLines([
   { text: 'Elma, armut vb.', x: 0, y: 100, width: 50, height: 10 },
@@ -120,6 +133,22 @@ const completed = recordPdfPageTranslation(partial, 2, [
 ]);
 assert.deepEqual(translatedPdfPages(completed), [1, 2]);
 assert.equal(partial.pages['2'][0].status, 'failed', 'durum güncellemesi girdiyi değiştirmemeli');
+
+// Tek bozuk/ayraç blok, aynı sayfadaki sağlam çevirileri geçersiz kılmaz.
+const salvaged = recordPdfPageTranslation(partial, 3, [
+  { id: 'ok', source: 'Korunan paragraf.', translation: 'Preserved paragraph.' },
+  { id: 'blank', source: '   ', translation: '' },
+]);
+assert.deepEqual(salvaged.pages['3'].map((block) => block.id), ['ok']);
+const restoredSalvage = normalizePdfTranslationState({
+  version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  pages: { 4: [
+    { id: 'ok-2', source: 'Diskteki paragraf.', translation: 'Stored paragraph.' },
+    { id: 'blank-2', source: '  ' },
+  ] },
+}, identity);
+assert.deepEqual(restoredSalvage.pages['4'].map((block) => block.id), ['ok-2']);
+assert.throws(() => recordPdfPageTranslation(partial, 4, [{ source: ' ' }]), /geçersiz/u);
 
 // Karma yalnız dosya boyutu ve ilk 1 MiB üzerinden planlanır/üretilir.
 assert.deepEqual(pdfHashPlan(2 * 1024 * 1024), {

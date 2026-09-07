@@ -6323,7 +6323,8 @@ function attachBrowserCueIdentities(track, cues) {
   const used = new Set();
   return (Array.isArray(cues) ? cues : []).map((cue, index) => {
     let identity = identities[index];
-    const sameTime = identity && Math.abs(Number(identity.start) - Number(cue.start)) < .002
+    const sameTime = !used.has(index) && identity
+      && Math.abs(Number(identity.start) - Number(cue.start)) < .002
       && Math.abs(Number(identity.end) - Number(cue.end)) < .002;
     if (!sameTime) {
       const found = identities.findIndex((item, candidateIndex) => !used.has(candidateIndex)
@@ -6371,10 +6372,10 @@ function browserBaseCueMap(trackId) {
 function rememberBrowserBaseCues(track, cues) {
   if (!track?.id || track.role !== 'translation') return;
   const map = browserBaseCueMap(track.id);
-  for (const cue of Array.isArray(cues) ? cues : []) {
+  for (const [index, cue] of (Array.isArray(cues) ? cues : []).entries()) {
     const key = browserTranslationCueKey(cue);
     map.set(key, { ...cue, text: String(cue.text ?? '') });
-    const context = browserEditContextForCue(track, cue);
+    const context = browserEditContextForCue(track, cue, index);
     const record = browserEditRecord(context);
     if (record) record.baseTranslation = String(cue.text ?? '');
   }
@@ -14316,7 +14317,9 @@ async function extractPdfReaderPage(pageNumber) {
   if (existing?.blocks && existing?.items) return existing.blocks;
   const page = await reader.pdf.getPage(pageNumber);
   const content = await page.getTextContent();
-  const pageHeight = page.getViewport({ scale: 1 }).height;
+  const pageViewport = page.getViewport({ scale: 1 });
+  const pageHeight = pageViewport.height;
+  const pageWidth = pageViewport.width;
   const items = (content.items || []).map((item) => ({
     str: String(item.str || ''),
     width: Number(item.width) || 0,
@@ -14332,7 +14335,9 @@ async function extractPdfReaderPage(pageNumber) {
     if (item.hasEOL) { blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') }); lines = []; }
   }
   if (lines.length) blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') });
-  reader.pages.set(pageNumber, { blocks, items, pageHeight, article: null, translation: null });
+  reader.pages.set(pageNumber, {
+    blocks, items, pageHeight, pageWidth, article: null, translation: null,
+  });
   return blocks;
 }
 
@@ -14419,7 +14424,8 @@ async function translateVisiblePdfPages(all = false) {
     const batchPages = pages.slice(offset, offset + 3);
     const requests = batchPages.map((pageNumber) => {
       const entry = reader.pages.get(pageNumber) || {};
-      return { pageNumber, blocks: entry.blocks || [], items: entry.items || [], pageHeight: entry.pageHeight || 0 };
+      return { pageNumber, blocks: entry.blocks || [], items: entry.items || [],
+        pageHeight: entry.pageHeight || 0, pageWidth: entry.pageWidth || 0 };
     });
     const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage: $('pdfTargetLanguage')?.value || 'tr', pages: requests }).catch((error) => ({ ok: false, error: error.message }));
     if (result?.state) {

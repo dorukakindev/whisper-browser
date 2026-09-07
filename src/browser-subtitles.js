@@ -858,7 +858,7 @@ function mp4Boxes(buffer, start = 0, end = buffer.length) {
       size = Number(large); header = 16;
     } else if (size === 0) size = end - offset;
     if (size < header || offset + size > end) break;
-    boxes.push({ type, start: offset + header, end: offset + size });
+    boxes.push({ type, offset, header, start: offset + header, end: offset + size });
     offset += size;
   }
   return boxes;
@@ -873,9 +873,14 @@ function mp4Tfhd(buffer, box) {
   const flags = buffer.readUInt32BE(box.start) & 0x00ffffff;
   const trackId = buffer.readUInt32BE(box.start + 4);
   let cursor = box.start + 8; // full-box + track_ID
-  if (flags & 0x000001) cursor += 8;
+  const out = { trackId, defaultBaseIsMoof: !!(flags & 0x020000) };
+  if (flags & 0x000001) {
+    if (cursor + 8 > box.end) return {};
+    const base = buffer.readBigUInt64BE(cursor);
+    if (base <= BigInt(Number.MAX_SAFE_INTEGER)) out.baseDataOffset = Number(base);
+    cursor += 8;
+  }
   if (flags & 0x000002) cursor += 4;
-  const out = { trackId };
   if (flags & 0x000008 && cursor + 4 <= box.end) { out.duration = buffer.readUInt32BE(cursor); cursor += 4; }
   if (flags & 0x000010 && cursor + 4 <= box.end) out.size = buffer.readUInt32BE(cursor);
   return out;
@@ -916,31 +921,36 @@ function mp4Tfdt(buffer, box) {
 }
 
 function mp4TrunSamples(buffer, box, defaults = {}) {
-  if (!box || box.start + 8 > box.end) return [];
+  if (!box || box.start + 8 > box.end) return { samples: [], dataOffset: null };
   const version = buffer[box.start];
   const flags = buffer.readUInt32BE(box.start) & 0x00ffffff;
   const count = buffer.readUInt32BE(box.start + 4);
-  if (count > 20000) return [];
+  if (count > 20000) return { samples: [], dataOffset: null };
   let cursor = box.start + 8;
-  if (flags & 0x000001) cursor += 4;
+  let dataOffset = null;
+  if (flags & 0x000001) {
+    if (cursor + 4 > box.end) return { samples: [], dataOffset: null };
+    dataOffset = buffer.readInt32BE(cursor);
+    cursor += 4;
+  }
   if (flags & 0x000004) cursor += 4;
   const samples = [];
   for (let index = 0; index < count; index++) {
     let duration = defaults.duration || 0;
     let size = defaults.size || 0;
     let composition = 0;
-    if (flags & 0x000100) { if (cursor + 4 > box.end) return []; duration = buffer.readUInt32BE(cursor); cursor += 4; }
-    if (flags & 0x000200) { if (cursor + 4 > box.end) return []; size = buffer.readUInt32BE(cursor); cursor += 4; }
+    if (flags & 0x000100) { if (cursor + 4 > box.end) return { samples: [], dataOffset }; duration = buffer.readUInt32BE(cursor); cursor += 4; }
+    if (flags & 0x000200) { if (cursor + 4 > box.end) return { samples: [], dataOffset }; size = buffer.readUInt32BE(cursor); cursor += 4; }
     if (flags & 0x000400) cursor += 4;
     if (flags & 0x000800) {
-      if (cursor + 4 > box.end) return [];
+      if (cursor + 4 > box.end) return { samples: [], dataOffset };
       composition = version === 1 ? buffer.readInt32BE(cursor) : buffer.readUInt32BE(cursor);
       cursor += 4;
     }
-    if (!duration || size < 0 || cursor > box.end) return [];
+    if (!duration || size < 0 || cursor > box.end) return { samples: [], dataOffset };
     samples.push({ duration, size, composition });
   }
-  return samples;
+  return { samples, dataOffset };
 }
 
 function mp4PaylText(buffer) {
@@ -1005,21 +1015,35 @@ function parseMp4WebVtt(buffer, matcher = {}) {
         size: fragmentDefaults.size || Number(initDefaults.size) || 0,
       };
       const baseTime = mp4Tfdt(data, mp4Child(children, 'tfdt'));
-      const samples = children.filter((box) => box.type === 'trun')
-        .flatMap((box) => mp4TrunSamples(data, box, defaults));
-      if (!samples.length || samples.reduce((sum, sample) => sum + sample.size, 0) > mdat.end - mdat.start) continue;
-      let mediaCursor = mdat.start;
+      const runs = children.filter((box) => box.type === 'trun')
+        .map((box) => mp4TrunSamples(data, box, defaults))
+        .filter((run) => run.samples.length);
+      if (!runs.length) continue;
+      let implicitCursor = mdat.start;
       let decodeTime = baseTime;
-      for (const sample of samples) {
-        const sampleBuffer = data.subarray(mediaCursor, mediaCursor + sample.size);
-        const text = mp4PaylText(sampleBuffer);
-        if (text) cues.push({
-          start: (decodeTime + sample.composition) / timescale,
-          end: (decodeTime + sample.composition + sample.duration) / timescale,
-          text,
-        });
-        mediaCursor += sample.size;
-        decodeTime += sample.duration;
+      for (const run of runs) {
+        const baseOffset = Number.isFinite(defaults.baseDataOffset)
+          ? defaults.baseDataOffset : moof.offset;
+        let mediaCursor = Number.isInteger(run.dataOffset)
+          ? baseOffset + run.dataOffset : implicitCursor;
+        for (const sample of run.samples) {
+          const sampleEnd = mediaCursor + sample.size;
+          if (mediaCursor < mdat.start || sampleEnd > mdat.end) {
+            mediaCursor = sampleEnd;
+            decodeTime += sample.duration;
+            continue;
+          }
+          const sampleBuffer = data.subarray(mediaCursor, sampleEnd);
+          const text = mp4PaylText(sampleBuffer);
+          if (text) cues.push({
+            start: (decodeTime + sample.composition) / timescale,
+            end: (decodeTime + sample.composition + sample.duration) / timescale,
+            text,
+          });
+          mediaCursor = sampleEnd;
+          decodeTime += sample.duration;
+        }
+        implicitCursor = mediaCursor;
       }
     }
   }

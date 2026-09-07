@@ -3426,6 +3426,7 @@ function preparePdfPageRequests(rawPages) {
     return {
       pageNumber,
       pageHeight: Number.isFinite(Number(page?.pageHeight)) ? Math.max(0, Number(page.pageHeight)) : 0,
+      pageWidth: Number.isFinite(Number(page?.pageWidth)) ? Math.max(0, Number(page.pageWidth)) : 0,
       items,
       blocks,
     };
@@ -7721,6 +7722,9 @@ function collectBrowserSessionVariants(sessionSnapshot) {
 function importBrowserSessionVariants(inspection) {
   const remapped = new Map();
   const warnings = [];
+  const mediaUrls = new Map((inspection.session?.tabs || [])
+    .filter((tab) => tab?.mediaId && tab?.url)
+    .map((tab) => [String(tab.mediaId), String(tab.url)]));
   for (const variant of inspection.variants) {
     const saved = browserAssetStore().putTrack(variant);
     if (!saved.ok) {
@@ -7732,7 +7736,8 @@ function importBrowserSessionVariants(inspection) {
     try {
       const index = watchIndex();
       index?.upsertMedia({ id: variant.mediaId, service: variant.mediaId.split(':')[0],
-        title: variant.label || 'İçe aktarılan web altyazısı', url: '' });
+        title: variant.label || 'İçe aktarılan web altyazısı',
+        url: mediaUrls.get(String(variant.mediaId)) || '' });
       index?.upsertTrack({ id: indexedTrackId, mediaId: variant.mediaId, role: variant.role,
         language: variant.language, label: variant.label, source: variant.source,
         hash: saved.assetId.split(':')[1], assetPath: saved.assetId, updatedAt: variant.updatedAt });

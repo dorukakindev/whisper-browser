@@ -18,6 +18,10 @@ function pageHeightFrom(options = {}) {
   return Math.max(0, finiteNumber(options.pageHeight ?? options.viewport?.height));
 }
 
+function pageWidthFrom(options = {}) {
+  return Math.max(0, finiteNumber(options.pageWidth ?? options.viewport?.width));
+}
+
 function itemGeometry(item, index) {
   const transform = Array.isArray(item?.transform) ? item.transform : [];
   const transformHeight = Math.hypot(finiteNumber(transform[2]), finiteNumber(transform[3]));
@@ -60,6 +64,7 @@ function joinLineItems(items) {
 function textItemsToLines(items, options = {}) {
   if (!Array.isArray(items)) return [];
   const geometries = items.map(itemGeometry).filter((item) => item.text);
+  if (!geometries.length) return [];
   geometries.sort((a, b) => b.y - a.y || a.x - b.x || a.index - b.index);
 
   const groups = [];
@@ -79,22 +84,88 @@ function textItemsToLines(items, options = {}) {
   }
 
   const pageHeight = pageHeightFrom(options);
-  return groups
-    .map((line) => {
-      line.items.sort((a, b) => a.x - b.x || a.index - b.index);
-      const first = line.items[0];
-      const last = line.items.at(-1);
-      return {
-        text: joinLineItems(line.items),
+  const measuredLeft = Math.min(...geometries.map((item) => item.x));
+  const measuredRight = Math.max(...geometries.map((item) => item.x + item.width));
+  const pageWidth = pageWidthFrom(options) || Math.max(0, measuredRight - Math.min(0, measuredLeft));
+  const lines = [];
+  const gutters = [];
+  for (const [groupIndex, line] of groups.entries()) {
+    line.items.sort((a, b) => a.x - b.x || a.index - b.index);
+    const fragments = [[]];
+    for (const item of line.items) {
+      const fragment = fragments.at(-1);
+      const previous = fragment.at(-1);
+      const gap = previous ? item.x - (previous.x + previous.width) : 0;
+      const splitGap = Math.max(pageWidth * 0.06,
+        Math.max(previous?.height || 0, item.height) * 3);
+      if (previous && gap > splitGap) fragments.push([]);
+      fragments.at(-1).push(item);
+    }
+    for (const [partIndex, fragment] of fragments.entries()) {
+      const first = fragment[0];
+      const last = fragment.at(-1);
+      if (partIndex > 0) {
+        const previous = fragments[partIndex - 1].at(-1);
+        gutters.push({
+          groupIndex,
+          left: previous.x + previous.width,
+          right: first.x,
+          midpoint: (previous.x + previous.width + first.x) / 2,
+        });
+      }
+      const text = joinLineItems(fragment);
+      if (text) lines.push({
+        text,
         x: first.x,
         y: line.y,
         width: Math.max(0, last.x + last.width - first.x),
         height: line.height,
         pageHeight,
-      };
-    })
-    .filter((line) => line.text)
-    .sort((a, b) => b.y - a.y || a.x - b.x);
+        pageWidth,
+        rowGroup: groupIndex,
+        rowPart: partIndex,
+      });
+    }
+  }
+
+  // Aynı geniş yatay boşluğun birden çok satırda tekrarlanması sütun
+  // sınırıdır. Tek bir satırdaki olağandışı boşluk satırı bölebilir ama bütün
+  // sayfanın okuma sırasını tek başına değiştiremez.
+  const tolerance = Math.max(8, pageWidth * 0.04);
+  const clusters = [];
+  for (const gutter of gutters) {
+    let cluster = clusters.find((item) => Math.abs(item.midpoint - gutter.midpoint) <= tolerance);
+    if (!cluster) {
+      cluster = { midpoint: gutter.midpoint, values: [], groups: new Set() };
+      clusters.push(cluster);
+    }
+    cluster.values.push(gutter.midpoint);
+    cluster.groups.add(gutter.groupIndex);
+    cluster.midpoint = cluster.values.reduce((sum, value) => sum + value, 0) / cluster.values.length;
+  }
+  const boundaries = clusters.filter((cluster) => cluster.groups.size >= 2)
+    .map((cluster) => cluster.midpoint).sort((a, b) => a - b);
+  if (!boundaries.length) return lines.sort((a, b) => b.y - a.y || a.x - b.x);
+
+  for (const line of lines) {
+    const right = line.x + line.width;
+    const spanning = boundaries.some((boundary) => line.x < boundary && right > boundary);
+    const center = line.x + line.width / 2;
+    line.column = spanning ? -1 : boundaries.filter((boundary) => center > boundary).length;
+  }
+  const spanning = lines.filter((line) => line.column < 0).sort((a, b) => b.y - a.y || a.x - b.x);
+  let remaining = lines.filter((line) => line.column >= 0);
+  const ordered = [];
+  const appendColumnOrder = (batch) => ordered.push(...batch.sort((a, b) =>
+    a.column - b.column || b.y - a.y || a.x - b.x));
+  for (const separator of spanning) {
+    const above = remaining.filter((line) => line.y > separator.y);
+    remaining = remaining.filter((line) => line.y <= separator.y);
+    appendColumnOrder(above);
+    ordered.push(separator);
+  }
+  appendColumnOrder(remaining);
+  return ordered;
 }
 
 function median(values) {
@@ -124,8 +195,9 @@ function paragraphFrom(lines, pageNumber, index) {
 function mergePdfLines(rawLines, options = {}) {
   if (!Array.isArray(rawLines)) return [];
   const lines = rawLines
-    .map((line) => ({
+    .map((line, readingOrder) => ({
       ...line,
+      readingOrder,
       text: normalizeText(line?.text),
       x: finiteNumber(line?.x),
       y: finiteNumber(line?.y, Number.NaN),
@@ -133,7 +205,12 @@ function mergePdfLines(rawLines, options = {}) {
       height: Math.max(0.01, finiteNumber(line?.height, 1)),
     }))
     .filter((line) => line.text && Number.isFinite(line.y))
-    .sort((a, b) => b.y - a.y || a.x - b.x);
+    .sort((a, b) => {
+      if (Number.isInteger(a.column) && Number.isInteger(b.column)) {
+        return a.readingOrder - b.readingOrder;
+      }
+      return b.y - a.y || a.x - b.x;
+    });
   if (!lines.length) return [];
 
   const gaps = [];
@@ -154,7 +231,10 @@ function mergePdfLines(rawLines, options = {}) {
     const next = { ...lines[index] };
     const hyphenated = /[-\u00ad\u2010]\s*$/u.test(previous.text);
     const gap = Number(previous.y) - Number(next.y);
-    const startsNewParagraph = !hyphenated && gap > paragraphGap;
+    const columnChanged = Number.isInteger(previous.column) && Number.isInteger(next.column)
+      && previous.column !== next.column;
+    const splitRow = previous.rowGroup === next.rowGroup && previous.rowPart !== next.rowPart;
+    const startsNewParagraph = !hyphenated && (columnChanged || splitRow || gap > paragraphGap);
     if (startsNewParagraph) {
       paragraphs.push(paragraphFrom(current, pageNumber, paragraphs.length));
       current = [next];
@@ -206,8 +286,11 @@ function filterRepeatedMarginalLines(rawPages, options = {}) {
       ...page,
       pageNumber,
       pageHeight,
+      pageWidth: pageWidthFrom(page),
       lines: Array.isArray(page?.lines) ? page.lines
-        : textItemsToLines(page?.items, { pageHeight, pageNumber }),
+        : textItemsToLines(page?.items, {
+          pageHeight, pageWidth: pageWidthFrom(page), pageNumber,
+        }),
     };
   });
 
@@ -296,7 +379,7 @@ function normalizePdfTranslationState(raw, identity) {
   for (const [pageKey, blocks] of Object.entries(raw.pages)) {
     if (!/^[1-9]\d*$/u.test(pageKey) || !Array.isArray(blocks)) continue;
     const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
-    if (normalizedBlocks.length === blocks.length) fresh.pages[String(Number(pageKey))] = normalizedBlocks;
+    if (!blocks.length || normalizedBlocks.length) fresh.pages[String(Number(pageKey))] = normalizedBlocks;
   }
   return fresh;
 }
@@ -330,7 +413,7 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
     model: state.model,
   });
   const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
-  if (normalizedBlocks.length !== blocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');
+  if (blocks.length && !normalizedBlocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');
   normalized.pages[String(page)] = normalizedBlocks;
   return normalized;
 }
