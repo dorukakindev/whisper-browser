@@ -65,8 +65,8 @@ assert.equal(intervals.get(player.browserMangaLookaheadTimer).delay, 5000);
 
   const workspaceBody = source.slice(source.indexOf('function setWorkspaceMode('),
     source.indexOf('async function navigateBrowserFromAddress'));
-  assert.match(workspaceBody, /if \(mode !== 'browser'\) stopBrowserMangaLookaheadTimer\(\)/);
-  assert.match(workspaceBody, /if \(mode === 'browser'\) startBrowserMangaLookaheadTimer\(\)/);
+  assert.match(workspaceBody, /if \(mode === 'browser'\) \{[\s\S]*startBrowserMangaLookaheadTimer\(\)/);
+  assert.match(workspaceBody, /else \{\s*stopBrowserMangaLookaheadTimer\(\)/);
   const unloadStart = source.indexOf("window.addEventListener('beforeunload'");
   const unloadBody = source.slice(unloadStart, source.indexOf('\n});', unloadStart) + 4);
   assert.match(unloadBody, /stopBrowserMangaLookaheadTimer\(\)/);

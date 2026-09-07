@@ -5083,7 +5083,7 @@ body,
 
 textarea { resize: none; }
 
-:where(button, input, select, textarea, a, [role="button"], [role="tab"]):focus-visible {
+:where(button, input, select, textarea, a, summary, [contenteditable="true"], [role="button"], [role="tab"]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

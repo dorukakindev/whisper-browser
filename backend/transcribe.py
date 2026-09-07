@@ -5978,6 +5978,8 @@ def parse_srt(text):
             if candidate.isdigit() or separated_cue_id:
                 until -= 1
         txt = "\n".join(lines[timing_idx + 1:until]).strip()
+        if not txt:
+            continue
         entries.append((start, end, txt))
     return entries
 

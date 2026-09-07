@@ -45,7 +45,11 @@ contextBridge.exposeInMainWorld('api', {
   startWatchFolder: (dir, options) => ipcRenderer.invoke('watch:start', dir, options),
   stopWatchFolder: () => ipcRenderer.invoke('watch:stop'),
   reportWatchFile: (filePath, status) => ipcRenderer.invoke('watch:report', filePath, status),
-  onWatchFiles: (cb) => ipcRenderer.on('watch:newFiles', (_e, files) => cb(files)),
+  onWatchFiles: (cb) => {
+    const listener = (_event, files) => cb(files);
+    ipcRenderer.on('watch:newFiles', listener);
+    return () => ipcRenderer.removeListener('watch:newFiles', listener);
+  },
   onMediaEvent: (cb) => ipcRenderer.on('media:event', (_e, data) => cb(data)),
   showBrowser: (tabId, bounds) => ipcRenderer.invoke('browser:show', { tabId, bounds }),
   hideBrowser: () => ipcRenderer.invoke('browser:hide'),

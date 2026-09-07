@@ -20,7 +20,8 @@ function runFunction(name, context) {
     player: { shadowResumeTimer: 1, openIntent: 0, probeRequestSeq: 0 },
     _liveCueRenderTimer: 2, clearTimeout: (id) => pending.delete(id),
     $: (id) => id === 'playerVideo' ? { pause() {} } : { classList: { add() {} } },
-    stopAmbient() {}, flushWatchState() {}, destroyHls() {}, window: { api: {} },
+    stopAmbient() {}, flushWatchState() {}, destroyHls() {},
+    disconnectBrowserBoundsObserver() {}, window: { api: {} },
   };
   runFunction('closePlayer', ctx)();
   assert.equal(pending.size, 0);

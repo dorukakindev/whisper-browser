@@ -4904,6 +4904,13 @@ function bindBrowserBoundsObserver() {
   player.browserBoundsObserver.observe(slot);
 }
 
+function disconnectBrowserBoundsObserver() {
+  cancelAnimationFrame(player.browserBoundsFrame);
+  player.browserBoundsFrame = 0;
+  player.browserBoundsObserver?.disconnect();
+  player.browserBoundsObserver = null;
+}
+
 function setBrowserSignal(text, detected = false, options = {}) {
   const message = String(text || '').trim();
   if (!message) return false;
@@ -7534,10 +7541,15 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.loading === false && data.url && $('browserMangaAuto')?.checked
       && player.browserMangaAutoUrl !== data.url && !player.browserMangaBusy) {
     clearTimeout(player.browserMangaAutoTimer);
+    const expectedTabId = player.browserActiveTabId;
+    const expectedGeneration = browserTabState(expectedTabId)?.generation;
     const expectedUrl = data.url;
     player.browserMangaAutoTimer = setTimeout(() => {
       player.browserMangaAutoTimer = null;
-      if (player.browserPageUrl !== expectedUrl || !$('browserMangaAuto')?.checked || player.browserMangaBusy) return;
+      if (player.browserActiveTabId !== expectedTabId
+          || browserTabState(expectedTabId)?.generation !== expectedGeneration
+          || player.browserPageUrl !== expectedUrl || !$('browserMangaAuto')?.checked
+          || player.browserMangaBusy) return;
       player.browserMangaAutoUrl = expectedUrl;
       handleBrowserMangaAction().catch(() => {});
     }, 1300);
@@ -7545,10 +7557,14 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.loading === false && data.url && $('browserPageAuto')?.checked
       && player.browserPageTranslated <= 0 && !player.browserPageTranslateBusy) {
     clearTimeout(player.browserPageAutoTimer);
+    const expectedTabId = player.browserActiveTabId;
+    const expectedGeneration = browserTabState(expectedTabId)?.generation;
     const expectedUrl = data.url;
     player.browserPageAutoTimer = setTimeout(() => {
       player.browserPageAutoTimer = null;
-      if (player.browserPageUrl !== expectedUrl || !$('browserPageAuto')?.checked
+      if (player.browserActiveTabId !== expectedTabId
+          || browserTabState(expectedTabId)?.generation !== expectedGeneration
+          || player.browserPageUrl !== expectedUrl || !$('browserPageAuto')?.checked
           || player.browserPageTranslateBusy || player.browserPageTranslated > 0) return;
       handleBrowserPageTranslationAction().catch(() => {});
     }, 900);
@@ -7812,14 +7828,19 @@ function setWorkspaceMode(mode, persist = true) {
       _liveCueRenderTimer = null;
     }
   }
-  if (mode !== 'browser') stopBrowserMangaLookaheadTimer();
   if (mode !== player.workspaceMode) flushWatchState(false, true);
   if (mode === 'browser' && previousMode !== 'browser') saveLocalSubtitleWorkspace();
   if (mode !== 'browser' && previousMode === 'browser') saveActiveBrowserTabWorkspace();
   if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
   if (mode !== 'browser' && player.settingsPage !== 'source') setSettingsPage('source');
   player.workspaceMode = mode;
-  if (mode === 'browser') startBrowserMangaLookaheadTimer();
+  if (mode === 'browser') {
+    startBrowserMangaLookaheadTimer();
+    bindBrowserBoundsObserver();
+  } else {
+    stopBrowserMangaLookaheadTimer();
+    disconnectBrowserBoundsObserver();
+  }
   const layer = $('playerLayer');
   layer?.classList.toggle('workspace-browser', mode === 'browser');
   layer?.classList.toggle('browser-chrome-collapsed', mode === 'browser' && player.browserChromeCollapsed);
@@ -13487,6 +13508,7 @@ function closePlayer() {
   if (video) video.pause();
   flushWatchState(false, true);
   destroyHls();
+  disconnectBrowserBoundsObserver();
   if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
   $('playerLayer').classList.add('hidden');
 }
@@ -15625,6 +15647,7 @@ if ($('playerVideo')) {
   video.addEventListener('timeupdate', () => {
     if (player.abA !== null && player.abB !== null && video.currentTime >= player.abB) {
       video.currentTime = player.abA;
+      renderCue();
     }
   });
   // Yukleniyor halkasi: tamponlama veya acilis sirasinda
@@ -15684,7 +15707,14 @@ if ($('playerVideo')) {
     if (player.autoNext) await playPlaylistDelta(1);
   });
   video.addEventListener('error', () => {
-    logLine('Video açılamadı (format desteklenmiyor olabilir).', 'error');
+    const code = video.error?.code;
+    const messages = {
+      [MediaError.MEDIA_ERR_ABORTED]: 'Video yüklemesi iptal edildi.',
+      [MediaError.MEDIA_ERR_NETWORK]: 'Video ağ veya dosya okuma hatası nedeniyle açılamadı.',
+      [MediaError.MEDIA_ERR_DECODE]: 'Video çözülemedi; codec veya dosya bozuk olabilir.',
+      [MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED]: 'Video biçimi veya kaynak adresi desteklenmiyor.',
+    };
+    logLine(messages[code] || 'Video bilinmeyen bir medya hatası nedeniyle açılamadı.', 'error');
   });
 
   $('playPause').addEventListener('click', () => {

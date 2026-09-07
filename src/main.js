@@ -7023,6 +7023,8 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
 let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
+  if (watchTimer) clearInterval(watchTimer);
+  watchTimer = null;
   flushBrowserTrackPublications(true);
   flushBrowserPlaces();
   // Debounce süresi dolmadan gelen uygulama/işletim sistemi kapanışlarında son
@@ -10176,6 +10178,8 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
   }
   return new Promise((resolve) => {
     let out = '';
+    let timedOut = false;
+    let timeoutTimer = null;
     const appendOutput = (chunk) => {
       out = (out + chunk).slice(-64 * 1024);
     };
