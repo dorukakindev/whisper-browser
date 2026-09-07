@@ -13,27 +13,69 @@ function createTerminologyMap(options = {}) {
   };
 }
 
-function candidateTokens(text) {
+const AMBIGUOUS_SENTENCE_STARTERS = new Set([
+  'a', 'an', 'the', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they',
+  'bir', 'bu', 'şu', 'o', 'ben', 'sen', 'biz', 'siz', 'onlar',
+]);
+
+function candidatePhrases(text) {
   const raw = clean(text, 12000);
-  const tokens = raw.match(/[\p{L}][\p{L}\p{M}'’-]{2,}/gu) || [];
-  return tokens.map((token) => token.replace(/^['’]+|['’]+$/g, ''))
-    .filter((token) => token.length >= 3 && token[0] === token[0].toLocaleUpperCase('tr-TR'));
+  const words = [...raw.matchAll(/[\p{L}][\p{L}\p{M}'’-]*/gu)];
+  const phrases = [];
+  let run = [];
+  const flush = () => {
+    if (!run.length) return;
+    const source = run.map((item) => item.word).join(' ');
+    const key = source.normalize('NFC').toLocaleLowerCase('tr-TR');
+    const atSentenceStart = /^[^\p{L}\p{N}]*$/u.test(raw.slice(0, run[0].index));
+    if (!(run.length === 1 && atSentenceStart && AMBIGUOUS_SENTENCE_STARTERS.has(key))) {
+      phrases.push({ source, key });
+    }
+    run = [];
+  };
+  for (const match of words) {
+    const word = match[0].replace(/^['’]+|['’]+$/g, '');
+    const gap = run.length ? raw.slice(run.at(-1).end, match.index) : '';
+    if (run.length && !/^\s+$/.test(gap)) flush();
+    const titleCase = word && word[0] === word[0].toLocaleUpperCase('tr-TR');
+    const shortSuffix = run.length && /^[\p{Lu}\d]{1,2}$/u.test(word);
+    if (titleCase && (word.length >= 3 || shortSuffix)) {
+      run.push({ word, index: match.index, end: match.index + match[0].length });
+    } else {
+      flush();
+    }
+  }
+  flush();
+  return phrases.filter((item, index, all) => all.findIndex((other) => other.key === item.key) === index);
+}
+
+function standaloneCandidate(sourceText, phrase) {
+  const source = clean(sourceText, 12000)
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+    .normalize('NFC').toLocaleLowerCase('tr-TR');
+  return source === phrase.key;
 }
 
 function learnTerminology(map, sourceText, translatedText, cueId, confidence = 1) {
   if (!map || !(map.terms instanceof Map) || Number(confidence) < 0.8) return 0;
-  const source = candidateTokens(sourceText);
-  if (!source.length) return 0;
-  const sourcePhrase = source.join(" ");
-  const key = sourcePhrase.normalize("NFC").toLocaleLowerCase("tr-TR");
-  const target = clean(translatedText, 180);
-  const row = map.terms.get(key) || { source: sourcePhrase, target: "", count: 0, cueIds: [] };
-  row.count += 1;
-  if (target && !row.target) row.target = target;
-  if (cueId != null && row.cueIds.length < 8 && !row.cueIds.includes(String(cueId))) row.cueIds.push(String(cueId));
-  map.terms.set(key, row);
+  const phrases = candidatePhrases(sourceText);
+  if (!phrases.length) return 0;
+  const target = phrases.length === 1 && standaloneCandidate(sourceText, phrases[0])
+    ? clean(translatedText, 180) : '';
+  let qualified = 0;
+  for (const phrase of phrases) {
+    const row = map.terms.get(phrase.key)
+      || { source: phrase.source, target: '', count: 0, cueIds: [] };
+    row.count += 1;
+    if (target && !row.target) row.target = target;
+    if (cueId != null && row.cueIds.length < 8 && !row.cueIds.includes(String(cueId))) {
+      row.cueIds.push(String(cueId));
+    }
+    map.terms.set(phrase.key, row);
+    if (row.count >= map.minOccurrences) qualified += 1;
+  }
   trimTerminologyMap(map);
-  return row.count >= map.minOccurrences ? 1 : 0;
+  return qualified;
 }
 
 function trimTerminologyMap(map) {

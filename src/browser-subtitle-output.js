@@ -13,7 +13,7 @@ function assTime(seconds) {
 }
 
 function escapeAssText(value) {
-  return String(value || '').replace(/\r?\n/g, '\\N').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+  return String(value || '').replace(/\r?\n/g, '\\N').replace(/\{/g, '｛').replace(/\}/g, '｝');
 }
 
 function cuesToAss(cues) {
@@ -37,8 +37,12 @@ function validateBrowserSubtitleDocument(text, format, expectedCues) {
   const timingsMatch = parsed.every((cue, index) => Math.abs(cue.start - expected[index].start) <= tolerance
     && Math.abs(cue.end - expected[index].end) <= tolerance);
   if (!timingsMatch) return { ok: false, error: 'Altyazı zaman kodları doğrulanamadı.', cues: parsed };
-  const normalizeText = (value) => String(value == null ? '' : value)
-    .replace(/\\N/g, '\n').replace(/\r\n?/g, '\n').normalize('NFC');
+  const normalizeText = (value) => {
+    let normalized = String(value == null ? '' : value)
+      .replace(/\\N/g, '\n').replace(/\r\n?/g, '\n');
+    if (format === 'ass') normalized = normalized.replace(/｛/g, '{').replace(/｝/g, '}');
+    return normalized.normalize('NFC');
+  };
   const textMatches = parsed.every((cue, index) => normalizeText(cue.text) === normalizeText(expected[index].text));
   if (!textMatches) return { ok: false, error: 'Altyazı metni veya Türkçe karakterler doğrulanamadı.', cues: parsed };
   return { ok: true, cues: parsed };

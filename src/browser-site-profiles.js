@@ -33,8 +33,9 @@ function normalizeProfileValue(field, value) {
   if (value === null || value === undefined) return undefined;
   if (rule.type === 'boolean') return value === true || value === false ? value : undefined;
   if (rule.type === 'string') {
-    const text = String(value == null ? '' : value).trim().toLowerCase().slice(0, rule.max);
-    return text === '' || /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(text) ? text : undefined;
+    const text = String(value == null ? '' : value).trim().toLowerCase();
+    if (text.length > rule.max) return undefined;
+    return text === '' || /^[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,3}$/i.test(text) ? text : undefined;
   }
   if (rule.type === 'enum') return rule.values.includes(value) ? value : undefined;
   if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return undefined;

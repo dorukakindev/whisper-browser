@@ -74,6 +74,14 @@ test('profil sınırında yeni kayıt sessizce kaybolmaz ve eski kayıt güncell
 test('zoom migration açık yeni profil değerini ezmez', () => {
   assert.equal(normalizeBrowserSiteProfiles({ 'https://s.test': { zoom: 1.7 } }, { 's.test': 1.2 })['https://s.test'].zoom, 1.7);
 });
+test('çok alt etiketli BCP 47 dili kabul eder; traversal ve uzun etiketi reddeder', () => {
+  const accepted = withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage', 'zh-Hant-TW');
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.profile.targetLanguage, 'zh-hant-tw');
+  assert.equal(withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage', 'en-../../secret').ok, false);
+  assert.equal(withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage',
+    'en-abcdefgh-abcdefgh-abcdefgh-extra').ok, false);
+});
 test('profil paketinde yalnız izinli ayarlar kalır ve import aynı değerleri korur', () => {
   const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('../src/browser-session-package');
   const bundle = createBrowserSessionPackage({ session: { tabs: [] }, places: { siteProfiles: {
