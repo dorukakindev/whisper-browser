@@ -46,7 +46,10 @@ function decodeSentenceTranslation(raw, count, requireParts = false) {
     throw new Error('Cümle çevirisi boş veya geçersiz.');
   }
   if (raw.parts != null && !validParts(raw.text, raw.parts, count)) {
-    throw new Error('Çeviri parçaları tam cümleyle eşleşmiyor; cümle uygulanmadı.');
+    if (requireParts) {
+      throw new Error('Çeviri parçaları tam cümleyle eşleşmiyor; cümle uygulanmadı.');
+    }
+    raw = { ...raw, parts: null };
   }
   if (requireParts && count > 1 && !raw.parts) {
     throw new Error('Çeviri servisi cümlenin zaman bloklarına ayrılmış halini göndermedi.');

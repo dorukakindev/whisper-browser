@@ -43,15 +43,24 @@ async function run() {
   assert.deepEqual(layout.decodeSentenceTranslation('```json\n' + JSON.stringify(reply) + '\n```', 3), reply);
   assert.equal(layout.decodeSentenceTranslation('[MÜZİK]', 1).text, '[MÜZİK]');
   assert.equal(layout.decodeSentenceTranslation('Merhaba dünya.', 1).text, 'Merhaba dünya.');
+  const looseMismatch = { text: 'Merhaba nasılsınız?', parts: ['Merhaba,', 'nasılsınız?'] };
+  assert.deepEqual(layout.decodeSentenceTranslation(looseMismatch, 2, false), {
+    text: 'Merhaba nasılsınız?', parts: null,
+  });
+  assert.throws(() => layout.decodeSentenceTranslation(looseMismatch, 2, true), /eşleşmiyor/);
   for (const raw of ['["a","b"]', '[]', '[1,2]', '[true,null]', '[{"text":"a"}]',
     '[["a"]]', '```json\n["a","b"]\n```', '["bozuk', ['a', 'b']]) {
     assert.throws(() => layout.decodeSentenceTranslation(raw, 2),
       /JSON (?:yanıtı okunamadı|dizisi döndürdü)/, String(raw));
   }
-  for (const bad of ['', ' ', '{broken', { text: reply.text, parts: parts.slice(0, 2) },
-    { text: reply.text, parts: [parts[0], '', parts[2]] }, { text: reply.text, parts: [...parts].reverse() },
-    { text: reply.text, parts: [parts[0], parts[1], parts[2] + ' Hayır.'] }, { text: 42 }]) {
+  for (const bad of ['', ' ', '{broken', { text: 42 }]) {
     assert.throws(() => layout.decodeSentenceTranslation(bad, 3));
+  }
+  for (const badParts of [parts.slice(0, 2), [parts[0], '', parts[2]], [...parts].reverse(),
+    [parts[0], parts[1], parts[2] + ' Hayır.']]) {
+    assert.equal(layout.decodeSentenceTranslation({ text: reply.text, parts: badParts }, 3, false).parts, null);
+    assert.throws(() => layout.decodeSentenceTranslation({ text: reply.text, parts: badParts }, 3, true),
+      /eşleşmiyor/);
   }
   assert(layout.validParts('İyi günler.', ['I\u0307yi', 'günler.'], 2), 'NFC eşdeğerliği');
   assert(layout.validParts('こんにちは世界', ['こんにちは', '世界'], 2), 'Japonca boşluksuz parça');
@@ -95,7 +104,7 @@ async function run() {
   scheduler.setSentences([sentence]); scheduler.completeAll(); await scheduler.whenIdle();
   assert.equal(calls, 3, 'parçaları kaybolmuş cache geçerli sayıldı');
   const invalidCache = new Map();
-  const invalid = new BrowserTranslationScheduler({ cache: invalidCache, maxAttempts: 1,
+  const invalid = new BrowserTranslationScheduler({ cache: invalidCache, requireSentenceParts: true, maxAttempts: 1,
     translate: async () => ({ text: reply.text, parts: parts.slice(1) }) });
   invalid.setSentences([sentence]); invalid.completeAll(); await invalid.whenIdle();
   assert.equal(invalid.snapshot().results.length, 0, 'grubun yarısı yayımlandı');

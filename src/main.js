@@ -2693,7 +2693,7 @@ function sweepBrowserSubtitleFiles(maxAgeMs = 30 * 24 * 60 * 60 * 1000, maxFiles
 }
 
 function resetBrowserCaptureState(options = {}) {
-  flushBrowserTrackPublications();
+  flushBrowserTrackPublications(true);
   browserStateGeneration += 1;
   const currentTab = activeBrowserTab();
   if (currentTab?.discoveryProbeTimer) clearTimeout(currentTab.discoveryProbeTimer);
@@ -4752,29 +4752,38 @@ function publishBrowserTrackNow(entry) {
   return track;
 }
 
-function flushBrowserTrackPublication(publicationKey) {
+function flushBrowserTrackPublication(publicationKey, force = false) {
   const timer = browserTrackPublicationTimers.get(publicationKey);
+  if (timer) clearTimeout(timer);
+  browserTrackPublicationTimers.delete(publicationKey);
   const pending = browserTrackPendingPublications.get(publicationKey);
-  if (pending && pending.meta?.finalize !== true) {
+  if (pending && pending.meta?.finalize !== true && !force) {
     const decision = browserTextStability.observe({
       scopeId: publicationKey, fingerprint: pending.fingerprint,
       text: pending.normalized?.map((cue) => cue.text).join(" "),
       revision: pending.normalized?.length || 0,
     });
     if (decision.state !== "stable") {
+      if (decision.state === "duplicate" || decision.state === "cancelled") {
+        browserTrackPendingPublications.delete(publicationKey);
+        return null;
+      }
+      const retryTimer = setTimeout(() => {
+        try { flushBrowserTrackPublication(publicationKey); } catch (_) {}
+      }, 650);
+      retryTimer.unref?.();
+      browserTrackPublicationTimers.set(publicationKey, retryTimer);
       return null;
     }
   }
-  if (timer) clearTimeout(timer);
-  browserTrackPublicationTimers.delete(publicationKey);
   const entry = browserTrackPendingPublications.get(publicationKey);
   browserTrackPendingPublications.delete(publicationKey);
   return publishBrowserTrackNow(entry);
 }
 
-function flushBrowserTrackPublications() {
+function flushBrowserTrackPublications(force = false) {
   for (const key of [...browserTrackPendingPublications.keys()]) {
-    try { flushBrowserTrackPublication(key); } catch (_) {}
+    try { flushBrowserTrackPublication(key, force); } catch (_) {}
   }
 }
 
@@ -7015,7 +7024,7 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
 let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
-  flushBrowserTrackPublications();
+  flushBrowserTrackPublications(true);
   flushBrowserPlaces();
   // Debounce süresi dolmadan gelen uygulama/işletim sistemi kapanışlarında son
   // sekme, URL ve oynatma konumunu kaybetme.
