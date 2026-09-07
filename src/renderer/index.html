@@ -1328,7 +1328,8 @@
               </div>
               <details class="browser-view-settings" id="browserViewSettings">
                 <summary>Görünüm, sayfa ve manga</summary>
-                <section class="browser-settings-section" aria-label="Site profili">
+                <section class="browser-settings-section" aria-label="Site profili"
+                  data-browser-settings-kind="persistent" data-browser-settings-category="site">
                   <div class="browser-view-settings-grid">
                     <label><span>Altyazı otomasyonu</span><select id="browserSubtitleAutomation"><option value="off">Kapalı</option><option value="ask">Önce sor</option><option value="auto">Otomatik çevir</option></select></label>
                     <label><span>Çeviri sonrası görünüm</span><select id="browserPreferredSubtitleMode"><option value="translation">Yalnız çeviri</option><option value="both">Kaynak + çeviri</option><option value="source">Yalnız kaynak</option><option value="off">Kapalı</option></select></label>
@@ -1339,14 +1340,14 @@
                   <button type="button" class="btn btn-ghost btn-sm" id="browserProfileReset">Bu sitenin özelleştirmelerini sıfırla</button>
                   <p id="browserProfileStatus" role="status" aria-live="polite">Dil değişiklikleri sonraki işe uygulanır. Devam eden iş kendi ayarlarını korur.</p>
                 </section>
-                <div class="browser-hardware-settings">
+                <div class="browser-hardware-settings" data-browser-settings-kind="persistent" data-browser-settings-category="system">
                   <label class="browser-view-switch">
                     <input type="checkbox" id="browserHardwareAcceleration" role="switch" checked aria-describedby="browserHardwareAccelerationHint" />
                     <span>Donanım hızlandırma</span>
                   </label>
                   <p id="browserHardwareAccelerationHint">Değişiklik için uygulamayı tamamen kapatıp yeniden açın. Tarayıcı ve uygulama arayüzünü etkiler; Whisper’ın CUDA/GPU ayarını değiştirmez. Kapatmak video performansını düşürebilir.</p>
                 </div>
-                <div class="browser-compatibility-settings">
+                <div class="browser-compatibility-settings" data-browser-settings-kind="persistent" data-browser-settings-category="site">
                   <label class="browser-view-switch">
                     <input type="checkbox" id="browserSiteCompatibility" role="switch"
                       aria-describedby="browserSiteCompatibilityHint" />
@@ -1354,7 +1355,7 @@
                   </label>
                   <p id="browserSiteCompatibilityHint">Cloudflare veya benzeri güvenlik doğrulaması geçmiyorsa açın. Bu alan adında sayfa enjeksiyonları ve altyazı yakalama kapanır; sayfa temiz biçimde yeniden yüklenir.</p>
                 </div>
-                <div class="browser-view-settings-grid">
+                <div class="browser-view-settings-grid" data-browser-settings-kind="persistent" data-browser-settings-category="translation">
                   <label><span>Sayfa çeviri hedefi</span><select id="browserPageTarget">
                     <option value="tr" selected>Türkçe</option><option value="en">İngilizce</option>
                     <option value="de">Almanca</option><option value="fr">Fransızca</option>
@@ -1384,6 +1385,8 @@
                   <label class="browser-view-switch"><input type="checkbox" id="browserMangaAuto" /><span>Okuma sayfasını otomatik çevir</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserMangaVertical" /><span>Dikey manga metni</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserMangaSfx" checked /><span>SFX için ayrı stil</span></label>
+                </div>
+                <div class="browser-view-settings-grid" data-browser-settings-kind="live">
                   <label><span>Altyazı boyutu <output id="browserOverlayScaleVal">%100</output></span>
                     <input type="range" id="browserOverlayScale" min="65" max="180" step="5" value="100" /></label>
                   <label><span>Altyazı opaklığı <output id="browserOverlayOpacityVal">%100</output></span>
@@ -1396,7 +1399,7 @@
                   <label class="browser-view-switch"><input type="checkbox" id="browserOverlaySourceFirst" checked /><span>Kaynak üstte, çeviri altta</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" /><span>Sitenin kendi altyazısını gizle</span></label>
                 </div>
-                <div class="browser-view-actions">
+                <div class="browser-view-actions" data-browser-settings-kind="live">
                   <button class="btn btn-ghost btn-sm" id="browserPageRetryFailed" type="button" disabled>Sayfa hatalarını yeniden dene</button>
                   <button class="btn btn-ghost btn-sm" id="browserPageExport" type="button">Sayfa çevirisini dışa aktar</button>
                   <button class="btn btn-ghost btn-sm" id="browserPageClear" type="button">Sayfa çevirisini kaldır</button>
@@ -1405,7 +1408,8 @@
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportImage" type="button">Manga görseli</button>
                   <button class="btn btn-ghost btn-sm" id="browserPiP" type="button">Resim içinde resim</button>
                 </div>
-                <section class="browser-adblock-settings" aria-labelledby="browserAdblockTitle">
+                <section class="browser-adblock-settings" aria-labelledby="browserAdblockTitle"
+                  data-browser-settings-kind="persistent" data-browser-settings-category="privacy">
                   <div class="browser-settings-section-head">
                     <strong id="browserAdblockTitle">YouTube reklam engelleme</strong>
                     <span>Video öncesi ve video arası platform reklamlarını Ghostery filtreleriyle engeller.</span>
@@ -1417,7 +1421,8 @@
                   <p id="browserAdblockStatus" class="browser-session-status" role="status" aria-live="polite">Reklam filtreleri hazırlanıyor…</p>
                   <p id="browserAdblockHint" class="browser-manga-hint">YouTube ve diğer sitelerdeki reklam istekleri ile reklam öğelerini engeller. SponsorBlock video içine gömülü sponsor bölümlerini ayrıca atlar.</p>
                 </section>
-                <section class="browser-sponsor-settings" aria-labelledby="browserSponsorTitle">
+                <section class="browser-sponsor-settings" aria-labelledby="browserSponsorTitle"
+                  data-browser-settings-kind="persistent" data-browser-settings-category="privacy">
                   <div class="browser-settings-section-head"><strong id="browserSponsorTitle">SponsorBlock</strong><span>Yalnızca YouTube için sponsor bölümlerini gösterir veya atlar.</span></div>
                   <div class="browser-view-settings-grid">
                     <label><span>Sponsor atlama</span><select id="browserSponsorMode"><option value="off">Kapalı</option><option value="ask">Sor</option><option value="auto" selected>Otomatik</option></select></label>
@@ -1428,7 +1433,8 @@
                   <p class="browser-manga-hint">Video kimliğinin SHA-256 hash öneki SponsorBlock hizmetine gönderilir. IP adresiniz hizmet tarafından görülebilir. Veriler CC BY-NC-SA 4.0 lisanslıdır.</p>
                   <ol id="browserSponsorSegments" class="browser-sponsor-segments" aria-label="Sponsor bölümleri"></ol>
                 </section>
-                <section class="browser-session-portability" aria-labelledby="browserSessionPortabilityTitle">
+                <section class="browser-session-portability" aria-labelledby="browserSessionPortabilityTitle"
+                  data-browser-settings-kind="persistent" data-browser-settings-category="session">
                   <div class="browser-settings-section-head">
                     <strong id="browserSessionPortabilityTitle">Oturum yedeği ve kurtarma</strong>
                     <span>Sekmeleri, site görünümünü ve kayıtlı altyazı varyantlarını güvenli bir pakete taşı.</span>
@@ -1438,10 +1444,12 @@
                     <button class="btn btn-secondary btn-sm" id="browserSessionImport" type="button">Oturumu içe aktar</button>
                   </div>
                   <p id="browserSessionStatus" class="browser-session-status" role="status" aria-live="polite">API anahtarları, çerezler ve imzalı bağlantı parametreleri pakete eklenmez.</p>
-                  <div id="browserRecoveryList" class="browser-recovery-list" role="region" aria-live="polite" aria-label="Kurtarılabilir tarayıcı işleri"></div>
                 </section>
-                <p class="browser-manga-summary" id="browserMangaSummary">Henüz manga işi çalıştırılmadı.</p>
-                <p class="browser-manga-hint" id="browserMangaReadabilityHint" role="status" aria-live="polite">Balon metni sığmazsa otomatik genişletilir; düzenlemek için balona çift tıklayın.</p>
+                <div data-browser-settings-kind="diagnostic">
+                  <div id="browserRecoveryList" class="browser-recovery-list" role="region" aria-live="polite" aria-label="Kurtarılabilir tarayıcı işleri"></div>
+                  <p class="browser-manga-summary" id="browserMangaSummary">Henüz manga işi çalıştırılmadı.</p>
+                  <p class="browser-manga-hint" id="browserMangaReadabilityHint" role="status" aria-live="polite">Balon metni sığmazsa otomatik genişletilir; düzenlemek için balona çift tıklayın.</p>
+                </div>
               </details>
             </div>
 
