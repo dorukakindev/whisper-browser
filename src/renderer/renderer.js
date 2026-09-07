@@ -1822,7 +1822,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserPageTarget', 'browserPageMode',
-  'browserSubtitleAutomation', 'browserPreferredSubtitleMode',
+  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -7664,7 +7664,7 @@ async function setBrowserAdblockEnabled(enabled) {
 
 function browserSponsorMode() {
   const value = $('browserSponsorMode')?.value;
-  return ['off', 'ask', 'auto'].includes(value) ? value : 'off';
+  return ['off', 'ask', 'auto'].includes(value) ? value : 'auto';
 }
 
 function browserSponsorCategories() {

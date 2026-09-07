@@ -4,6 +4,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const code = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8');
+assert.match(html, /<select id="browserSponsorMode">[\s\S]*?<option value="auto" selected>Otomatik<\/option>/,
+  'SponsorBlock yeni kurulumda otomatik başlamalı');
+assert.match(code, /PERSIST_VALUE_CONTROLS\s*=\s*\[[\s\S]*?'browserSponsorMode'[\s\S]*?\];/,
+  'SponsorBlock modu kullanıcı değişiklikleri için kalıcı olmalı');
+assert.match(code, /return \['off', 'ask', 'auto'\]\.includes\(value\) \? value : 'auto';/,
+  'geçersiz veya eksik SponsorBlock modu otomatik moda dönmeli');
 const normalizeStart = code.indexOf('function normalizeBrowserSponsorExemptions(');
 const normalizeEnd = code.indexOf('function secretSettingValue(', normalizeStart);
 assert(normalizeStart >= 0 && normalizeEnd > normalizeStart);
