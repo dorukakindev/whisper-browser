@@ -26,6 +26,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from ndjson_utils import json_dumps_finite
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -33,7 +34,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 def emit(event_type, **kwargs):
     payload = {"type": event_type}
     payload.update(kwargs)
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+    print(json_dumps_finite(payload), flush=True)
 
 
 def log(message, level="info"):

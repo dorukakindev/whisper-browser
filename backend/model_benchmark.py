@@ -8,13 +8,14 @@ import sys
 import tempfile
 import time
 import wave
+from ndjson_utils import json_dumps_finite
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def emit(payload):
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+    print(json_dumps_finite(payload), flush=True)
 
 
 def wav_duration(path):

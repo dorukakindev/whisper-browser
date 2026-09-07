@@ -9,12 +9,13 @@ import math
 import queue
 import sys
 import threading
+from ndjson_utils import json_dumps_finite
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def emit(event_type, **payload):
-    print(json.dumps({"type": event_type, **payload}, ensure_ascii=False), flush=True)
+    print(json_dumps_finite({"type": event_type, **payload}), flush=True)
 
 
 def read_commands(commands, stop_event):

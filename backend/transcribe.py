@@ -31,6 +31,7 @@ import traceback
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
+from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   validate_sentence_parts, normalized_text,
@@ -38,8 +39,8 @@ from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sent
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
-sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
-sys.stderr.reconfigure(encoding="utf-8", line_buffering=True)
+sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
 # HuggingFace sembolik bağlantı uyarısı (Windows'ta gereksiz)
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
@@ -59,17 +60,6 @@ except Exception:
     pass
 
 
-def finite_json_value(value):
-    """NDJSON'da geçersiz NaN/Infinity yerine eksik ölçümü null ile belirt."""
-    if isinstance(value, float) and not math.isfinite(value):
-        return None
-    if isinstance(value, dict):
-        return {key: finite_json_value(child) for key, child in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [finite_json_value(child) for child in value]
-    return value
-
-
 def emit(event_type, **payload):
     """Olayı stdout'a JSON satırı olarak yaz."""
     msg = {"type": event_type, **payload}
@@ -78,7 +68,7 @@ def emit(event_type, **payload):
         for key in ("start", "end")
     ):
         msg = {"type": "log", "level": "warn", "message": "Geçersiz zamanlı altyazı bloğu gösterilmedi."}
-    print(json.dumps(finite_json_value(msg), ensure_ascii=False, allow_nan=False), flush=True)
+    print(json_dumps_finite(msg), flush=True)
 
 
 def log(message, level="info"):

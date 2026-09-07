@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transcribe as T  # noqa: E402
 import media as M  # noqa: E402
 import live_asr as L  # noqa: E402
+import model_benchmark as B  # noqa: E402
 
 
 def test_checkpoint_write_failure_warns_once_and_continues():
@@ -2465,6 +2466,21 @@ def test_emit_nonfinite_metrics_are_valid_json_and_invalid_cue_is_not_displayed(
     assert messages[0]['percent'] is None and messages[0]['metrics'] == [None]
     assert messages[1]['type'] == 'log' and messages[1]['level'] == 'warn'
     assert messages[2]['start'] == 1.25 and messages[2]['text'] == 'sağlam'
+
+
+def test_all_backend_emitters_replace_nonfinite_ndjson_values():
+    with mock.patch('builtins.print') as output:
+        L.emit('progress', values=[float('nan'), {'rate': float('inf')}])
+        M.emit('progress', percent=float('-inf'))
+        B.emit({'type': 'done', 'seconds': float('nan')})
+    def reject(value):
+        raise AssertionError(f'Geçersiz JSON sayısı: {value}')
+    messages = [json.loads(call.args[0], parse_constant=reject) for call in output.call_args_list]
+    assert messages == [
+        {'type': 'progress', 'values': [None, {'rate': None}]},
+        {'type': 'progress', 'percent': None},
+        {'type': 'done', 'seconds': None},
+    ]
 
 
 def test_llm_postprocess_counts_only_accepted_replies():
