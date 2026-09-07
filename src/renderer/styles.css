@@ -1,33 +1,6 @@
 /* ===== Base ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  /* Nötr grafit taban — renk yalnızca durum bildirmek için kullanılır */
-  --bg-0: #0e0f11;
-  --bg-1: #141619;
-  --bg-2: #1a1d21;
-  --bg-3: #22262b;
-  --border: #2a2e34;
-  --border-strong: #3a3f47;
-  --text: #e8eaed;
-  --text-dim: #a4abb5;
-  --text-muted: #6b7280;
-  /* Tek, sakin vurgu rengi (çelik mavisi) — gradyan/parıltı yok */
-  --accent: #4a7ba7;
-  --accent-hover: #5a8cb8;
-  --accent-soft: rgba(74, 123, 167, 0.14);
-  --success: #4f9d69;
-  --danger: #c9564b;
-  --warning: #c99a4a;
-  --info: #4a7ba7;
-  --radius: 6px;
-  --radius-sm: 4px;
-  --window-controls-safe-width: 148px;
-  /* Electron titleBarOverlay, Windows'ta istemci alanının ilk 36px'ini
-     pencere düğmelerine ayırır. İçerik bu şeridin altından başlamalı. */
-  --window-controls-safe-height: 36px;
-}
-
 /* Genel gizleme yardımcısı — elemana özel .hidden kuralları yetmiyordu
    (ör. .field.hidden, .player-layer.hidden gizlenmiyordu) */
 .hidden { display: none !important; }
@@ -3201,12 +3174,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
    satırın içindeki her kelime ayrı ayrı incelenebilir bir yüzeydir. */
 /* Kelime vurgulari DOM'suz: CSS Custom Highlight API */
 ::highlight(cue-word-hover) {
-  background: rgba(74, 123, 167, .30);
-  color: #fff;
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-hover);
 }
 ::highlight(cue-word-picked) {
-  background: rgba(240, 180, 41, .38);
-  color: #fff;
+  color: var(--accent);
+  text-decoration: underline double;
+  text-decoration-color: var(--accent);
 }
 .cue-card-src, .cue-card-tr { cursor: text; }
 
@@ -3843,7 +3818,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   --border-strong: #3a4652;
   --text: #edf1f3;
   --text-dim: #a1adb7;
-  --text-muted: #687681;
+  --text-muted: #84929c;
   --accent: #d5a35c;
   --accent-hover: #efbd73;
   --accent-soft: rgba(213,163,92,.14);
@@ -3853,6 +3828,24 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   --info: #83b8c8;
   --radius: 12px;
   --radius-sm: 8px;
+  --window-controls-safe-width: 148px;
+  /* Electron titleBarOverlay, Windows'ta istemci alanının ilk 36px'ini
+     pencere düğmelerine ayırır. İçerik bu şeridin altından başlamalı. */
+  --window-controls-safe-height: 36px;
+  --surface-canvas: var(--bg-0);
+  --surface-panel: var(--bg-2);
+  --surface-control: var(--bg-3);
+  --ink-primary: var(--text);
+  --ink-secondary: var(--text-dim);
+  --ink-muted: var(--text-muted);
+  --scrollbar-track: #0c1116;
+  --scrollbar-thumb: #34414c;
+  --scrollbar-thumb-hover: #4b5a66;
+  --scrollbar-thumb-active: #61717d;
+  --z-sticky: 120;
+  --z-backdrop: 500;
+  --z-dialog: 600;
+  --z-toast: 900;
 }
 
 html, body { background: #090b0e; }
@@ -5050,25 +5043,7 @@ button, input, select, textarea, a, summary, [role="button"] { -webkit-app-regio
 }
 
 /* ===== Signal Desk / üretim davranış katmanı =====
-   UI-DESIGN-SYSTEM.md içindeki Model B sahipliği: çalışan semantik token'lar
-   burada tanımlanır; taşınabilir wl-* tema bunları isim eşlemesiyle izler. */
-:root {
-  --text-muted: #84929c;
-  --surface-canvas: var(--bg-0);
-  --surface-panel: var(--bg-2);
-  --surface-control: var(--bg-3);
-  --ink-primary: var(--text);
-  --ink-secondary: var(--text-dim);
-  --ink-muted: var(--text-muted);
-  --scrollbar-track: #0c1116;
-  --scrollbar-thumb: #34414c;
-  --scrollbar-thumb-hover: #4b5a66;
-  --scrollbar-thumb-active: #61717d;
-  --z-sticky: 120;
-  --z-backdrop: 500;
-  --z-dialog: 600;
-  --z-toast: 900;
-}
+   Semantik token'lar yukarıdaki tek kanonik :root kümesinde tanımlıdır. */
 
 html,
 body,
