@@ -39,8 +39,20 @@ if (!py) {
 }
 
 if (py) {
-  run('python backend/test_transcribe.py', py.cmd,
-    [...py.prefix, path.join(ROOT, 'backend', 'test_transcribe.py')]);
+  // backend/ altındaki TÜM test_*.py dosyaları otomatik keşfedilir — yeni bir Python
+  // testi eklendiğinde burayı güncellemek gerekmesin (eskiden yalnız test_transcribe.py
+  // koşuyordu ve eklenen testler sessizce atlanıyordu).
+  const backendDir = path.join(ROOT, 'backend');
+  const pyTests = fs.readdirSync(backendDir)
+    .filter((x) => x.startsWith('test_') && x.endsWith('.py'))
+    .sort();
+  if (!pyTests.length) {
+    console.log('\n=== Python testleri ===');
+    console.log('  (backend/ altında test_*.py bulunamadı)');
+  }
+  for (const f of pyTests) {
+    run(`python backend/${f}`, py.cmd, [...py.prefix, path.join(backendDir, f)]);
+  }
 } else {
   console.log('\n=== python backend/test_transcribe.py ===');
   console.log('  (Python bulunamadı — Python testleri atlandı)');
