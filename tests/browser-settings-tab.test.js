@@ -65,4 +65,9 @@ assert.match(css, /\.browser-settings-main\s*\{[\s\S]*?width:\s*min\(100%,\s*104
 assert.match(css, /\.browser-profile-field select[\s\S]*?appearance:\s*none[\s\S]*?background(?:-color)?:\s*var\(--surface-control\)/,
   'Üretilen profil selectleri koyu tema kontrol tokenını kullanmalı.');
 
+assert.match(html, /<input[^>]*id="browserAutoSkipAds"[^>]*role="switch"[^>]*checked/,
+  'Otomatik video reklamı atlama anahtarı varsayılan açık olmalı.');
+assert.match(renderer, /PERSIST_CHECKBOX_CONTROLS\s*=\s*\[[\s\S]*?'browserAutoSkipAds'/,
+  'Otomatik reklam atlama tercihi kalıcı ayarlara dahil edilmeli.');
+
 console.log('browser-settings-tab: özel sekme ve tek-yol sözleşmesi geçti.');

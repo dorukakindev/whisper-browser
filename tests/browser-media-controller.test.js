@@ -14,6 +14,10 @@ for (const command of ['seek', 'seek-relative', 'speed', 'volume']) {
   }
 }
 function test(name, fn) { fn(); passed += 1; }
+const pending = [];
+function asyncTest(name, fn) {
+  pending.push(Promise.resolve().then(fn).then(() => { passed += 1; }));
+}
 
 function probe(items, selectors = {}) {
   const document = {
@@ -28,6 +32,20 @@ function probe(items, selectors = {}) {
 
 function visibleAdElement(textContent = '') {
   return { isConnected: true, textContent, getClientRects: () => [{}] };
+}
+
+function mediaCommandHarness(video, selectors = {}) {
+  const document = {
+    nodeType: 9,
+    children: [],
+    querySelectorAll: () => [video],
+    querySelector: selector => selectors[selector] || null,
+  };
+  class MutationObserver { observe() {} }
+  return {
+    context: { window: {}, document, MutationObserver },
+    selectors,
+  };
 }
 
 test('medya adayları sayfada kalıcı bir controller ile izlenir', () => {
@@ -57,7 +75,7 @@ test('komutlar durum yoklamasıyla aynı medya seçicisini kullanır', () => {
 test('every supported media command produces valid JavaScript', () => {
   for (const command of [
     'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
-    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip',
+    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd',
   ]) {
     assert.doesNotThrow(() => new vm.Script(buildBrowserMediaCommandScript(command, 1)), command);
   }
@@ -161,6 +179,49 @@ test('açık reklam sayacı kalan saniyeye çevrilir', () => {
   assert.equal(result.adRemaining, 67);
 });
 
+asyncTest('skipAd reklam yokken normal içeriğe ve sese dokunmaz', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 20, duration: 300, volume: .45, muted: false };
+  const { context } = mediaCommandHarness(video);
+  const result = await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd', 0), context);
+  assert.equal(result.handled, false);
+  assert.equal(video.currentTime, 20);
+  assert.equal(video.muted, false);
+});
+
+asyncTest('skipAd görünür Atla düğmesini kullanır ve reklam bitince sesi geri yükler', async () => {
+  let clicks = 0;
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15, volume: .4, muted: false };
+  const button = visibleAdElement();
+  button.click = () => { clicks += 1; };
+  const harness = mediaCommandHarness(video, { '.ytp-ad-skip-button': button });
+  const result = await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd', 0), harness.context);
+  assert.equal(result.adAction, 'clicked');
+  assert.equal(clicks, 1);
+  assert.equal(video.muted, true);
+  delete harness.selectors['.ytp-ad-skip-button'];
+  vm.runInNewContext(buildBrowserMediaProbeScript(), harness.context);
+  assert.equal(video.muted, false);
+  assert.equal(video.volume, .4);
+});
+
+asyncTest('reklam sırasında kullanıcının değiştirdiği ses kararı geri yüklenerek ezilmez', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15, volume: .4, muted: false };
+  const harness = mediaCommandHarness(video, {
+    '.html5-video-player.ad-showing': visibleAdElement(),
+  });
+  const result = await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd', 0), harness.context);
+  assert.equal(result.adAction, 'seeked');
+  video.muted = false;
+  video.volume = .8;
+  delete harness.selectors['.html5-video-player.ad-showing'];
+  vm.runInNewContext(buildBrowserMediaProbeScript(), harness.context);
+  assert.equal(video.muted, false);
+  assert.equal(video.volume, .8);
+});
+
 test('tam ekran ham video yerine altyazıyı taşıyabilen oynatıcı kapsayıcısını seçer', () => {
   const script = buildBrowserMediaCommandScript('fullscreen', 0);
   assert.match(script, /video\.closest\('\.html5-video-player/);
@@ -174,4 +235,7 @@ test('Picture-in-Picture desteklenmiyorsa kullanıcıya açık hata döner', () 
   assert.match(script, /handled: false, error/);
 });
 
-console.log(`browser-media-controller: ${passed} test`);
+Promise.all(pending).then(() => console.log(`browser-media-controller: ${passed} test`)).catch((error) => {
+  console.error(error.stack || error);
+  process.exitCode = 1;
+});

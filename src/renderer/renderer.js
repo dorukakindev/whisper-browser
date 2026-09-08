@@ -1836,6 +1836,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserPageAuto',
   'browserHardwareAcceleration',
   'browserAdblockEnabled',
+  'browserAutoSkipAds',
 ];
 
 function collectUiSettings() {
@@ -3874,6 +3875,9 @@ const player = {
   browserAdPlaying: false,
   browserAdSkippable: false,
   browserAdRemaining: null,
+  browserAdSkipPending: false,
+  browserAdLastSkipAt: 0,
+  browserAdLastNoticeAction: '',
   browserZoom: 1,
   browserProfileKey: '',
   browserPositionTick: 0,
@@ -4425,6 +4429,36 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
     player.shadowResumeTimer = null;
   }
   return window.api.browserCommand(tabId, command, value);
+}
+
+async function maybeAutoSkipBrowserAd(event, media) {
+  if (!media?.adPlaying) {
+    player.browserAdLastNoticeAction = '';
+    return;
+  }
+  const control = $('browserAutoSkipAds');
+  if (!control?.checked || !window.api.browserCommand) return;
+  const tabId = String(event?.tabId || player.browserActiveTabId || '');
+  if (!tabId) return;
+  const now = Date.now();
+  if (player.browserAdSkipPending || now - player.browserAdLastSkipAt < 750) return;
+  player.browserAdSkipPending = true;
+  player.browserAdLastSkipAt = now;
+  try {
+    const result = await browserCommand('skipAd', 0, tabId).catch(() => null);
+    const action = result?.ok ? String(result.media?.adAction || '') : '';
+    if (!action || action === player.browserAdLastNoticeAction) return;
+    player.browserAdLastNoticeAction = action;
+    const notices = {
+      clicked: 'YouTube reklamındaki Atla düğmesi otomatik çalıştırıldı.',
+      seeked: 'YouTube reklamı otomatik olarak sona sarıldı.',
+      muted: 'YouTube reklamı sessize alındı; atlama sinyali bekleniyor.',
+    };
+    setBrowserSignal(notices[action] || 'YouTube reklamı için otomatik atlama uygulandı.', true,
+      { priority: 55, holdMs: 2200 });
+  } finally {
+    player.browserAdSkipPending = false;
+  }
 }
 
 const browserCommandPaletteState = { open: false, query: '', selected: 0, context: null, results: [], returnFocus: null };
@@ -7622,6 +7656,9 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserAdPlaying = false;
     player.browserAdSkippable = false;
     player.browserAdRemaining = null;
+    player.browserAdSkipPending = false;
+    player.browserAdLastSkipAt = 0;
+    player.browserAdLastNoticeAction = '';
     const sponsorButton = $('browserSponsorTemporary');
     if (sponsorButton) {
       sponsorButton.textContent = 'Bu videoda geçici kapat';
@@ -8998,6 +9035,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const adRemaining = event.media.adRemaining === null || event.media.adRemaining === undefined
       ? NaN : Number(event.media.adRemaining);
     player.browserAdRemaining = Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null;
+    void maybeAutoSkipBrowserAd(event, event.media);
     const nextVolume = Number(event.media.volume);
     if (Number.isFinite(nextVolume)) player.browserVolume = Math.max(0, Math.min(1, nextVolume));
     player.browserMuted = !!event.media.muted;

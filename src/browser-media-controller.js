@@ -5,6 +5,7 @@ function controllerBootstrap() {
     if (window.__whisperMediaController) return window.__whisperMediaController;
     const media = new Set();
     const observers = new Map();
+    let adAudioSnapshot = null;
 
     const cleanupDetachedRoots = () => {
       for (const [root, observer] of observers) {
@@ -111,6 +112,30 @@ function controllerBootstrap() {
         skipButton,
       };
     };
+    const muteForAd = (item) => {
+      if (!adAudioSnapshot || adAudioSnapshot.video !== item) {
+        adAudioSnapshot = {
+          video: item,
+          muted: !!item.muted,
+          volume: Math.max(0, Math.min(1, finite(item.volume))),
+        };
+      }
+      item.muted = true;
+      return true;
+    };
+    const restoreAdAudioIfEnded = (item, adPlaying) => {
+      if (!adAudioSnapshot || adPlaying) return false;
+      const snapshot = adAudioSnapshot;
+      adAudioSnapshot = null;
+      const target = snapshot.video?.isConnected ? snapshot.video : item;
+      if (!target) return false;
+      const currentVolume = Math.max(0, Math.min(1, finite(target.volume)));
+      const unchangedSinceAutoMute = !!target.muted && Math.abs(currentVolume - snapshot.volume) < .001;
+      if (!unchangedSinceAutoMute) return false;
+      target.volume = snapshot.volume;
+      target.muted = snapshot.muted;
+      return true;
+    };
     const select = () => {
       cleanupDetachedRoots();
       for (const item of [...media]) if (!item.isConnected) media.delete(item);
@@ -126,10 +151,12 @@ function controllerBootstrap() {
           adRemaining: state.adRemaining };
       },
       findAdSkipButton() { return detectAd().skipButton; },
+      muteForAd(item) { return muteForAd(item); },
       probe() {
         const item = select();
         if (!item) return null;
         const ad = detectAd();
+        restoreAdAudioIfEnded(item, ad.adPlaying);
         return {
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
@@ -164,7 +191,7 @@ function buildBrowserMediaProbeScript() {
 function buildBrowserMediaCommandScript(command, value) {
   const allowedCommands = new Set([
     'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
-    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip',
+    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd',
   ]);
   // Bilinmeyen komutlar sayfa denetleyicisini kurmadan reddedilir. Ayrıca
   // JSON.stringify(Infinity) null ürettiği için sayısal komutlar finite olmalı.
@@ -178,7 +205,32 @@ function buildBrowserMediaCommandScript(command, value) {
     const video = controller.select();
     if (!video) return false;
     const command = ${safeCommand};
+    const finite = (value, fallback = 0) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    };
     try {
+    if (command === 'skipAd') {
+      const ad = controller.adState();
+      if (!ad.adPlaying) return { handled: false };
+      controller.muteForAd(video);
+      let adAction = 'muted';
+      const skipButton = controller.findAdSkipButton();
+      if (skipButton) {
+        skipButton.click();
+        adAction = 'clicked';
+      } else {
+        const duration = Number(video.duration);
+        if (Number.isFinite(duration) && duration > 0) {
+          video.currentTime = duration;
+          adAction = 'seeked';
+        }
+      }
+      return { handled: true, currentTime: finite(video.currentTime),
+        playbackRate: finite(video.playbackRate, 1), paused: !!video.paused,
+        volume: finite(video.volume), muted: !!video.muted,
+        adPlaying: true, adSkippable: ad.adSkippable, adRemaining: ad.adRemaining, adAction };
+    }
     if (command === 'seek') video.currentTime = Math.max(0, ${safeValue});
     else if (command === 'seek-relative') video.currentTime = Math.max(0, video.currentTime + ${safeValue});
     else if (command === 'play-pause') {
@@ -208,10 +260,6 @@ function buildBrowserMediaCommandScript(command, value) {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else await video.requestPictureInPicture();
     } else return false;
-    const finite = (value, fallback = 0) => {
-      const number = Number(value);
-      return Number.isFinite(number) ? number : fallback;
-    };
     return { handled: true, currentTime: finite(video.currentTime),
       playbackRate: finite(video.playbackRate, 1), paused: !!video.paused,
       volume: finite(video.volume), muted: !!video.muted };

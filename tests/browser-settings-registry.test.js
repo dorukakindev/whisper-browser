@@ -46,4 +46,9 @@ assert.equal(registry.browserSettingScopeStatus('site-profile', {
 assert.equal(registry.browserSettingScopeStatus('site-profile', { selectedScope: 'site' }),
   'Önce bir site açın');
 
+const autoSkip = registry.list().find((entry) => entry.id === 'browserAutoSkipAds');
+assert(autoSkip && autoSkip.category === 'privacy' && autoSkip.scope === 'global',
+  'Otomatik video reklamı atlama ayarı global Gizlilik kaydı olmalı.');
+assert(registry.search('otomatik atla').some((entry) => entry.id === 'browserAutoSkipAds'));
+
 console.log('browser-settings-registry: Türkçe arama ve kapsam testleri geçti.');

@@ -58,4 +58,17 @@ test('medya komutu reddi ana süreçte video yok hatasına dönüştürülmez', 
   assert.match(main, /Oynatıcı komutu reddetti:/);
 });
 
+test('otomatik reklam atlama yeni poller kurmadan mevcut medya olayına bağlanır', () => {
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const start = renderer.indexOf('async function maybeAutoSkipBrowserAd');
+  const end = renderer.indexOf('const browserCommandPaletteState', start);
+  assert(start >= 0 && end > start);
+  const helper = renderer.slice(start, end);
+  assert.match(helper, /browserCommand\('skipAd'/);
+  assert.doesNotMatch(helper, /setInterval|setTimeout|MutationObserver/);
+  assert.match(renderer, /event\.type === 'media'[\s\S]*?maybeAutoSkipBrowserAd\(event, event\.media\)/);
+  assert.match(main, /'fullscreen', 'pip', 'skipAd'/);
+});
+
 console.log(`browser-media: ${passed} test`);

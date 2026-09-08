@@ -7642,7 +7642,7 @@ ipcMain.handle('browser:command', async (event, payload) => {
         ? `Yakınlaştırma uygulandı ancak site ayarı sınırına ulaşıldığı için kaydedilemedi (${MAX_BROWSER_SITE_PROFILES}).`
         : 'Yakınlaştırma uygulandı ancak site tercihi diske kaydedilemedi.';
       return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, persistenceWarning, ...browserNavigationState() };
-    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip'].includes(command)) {
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
       // player on services that split their UI across frames.

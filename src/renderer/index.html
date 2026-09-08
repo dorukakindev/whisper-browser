@@ -1416,7 +1416,7 @@
                   data-browser-settings-kind="persistent" data-browser-settings-category="privacy">
                   <div class="browser-settings-section-head">
                     <strong id="browserAdblockTitle">YouTube reklam engelleme</strong>
-                    <span>Video öncesi ve video arası platform reklamlarını Ghostery filtreleriyle engeller.</span>
+                    <span>Ağ filtresi ile oynatıcı reklam atlamasını ayrı ayrı yönetir.</span>
                   </div>
                   <label class="browser-view-switch">
                     <input type="checkbox" id="browserAdblockEnabled" role="switch" checked aria-describedby="browserAdblockHint browserAdblockStatus" />
@@ -1424,6 +1424,11 @@
                   </label>
                   <p id="browserAdblockStatus" class="browser-session-status" role="status" aria-live="polite">Reklam filtreleri hazırlanıyor…</p>
                   <p id="browserAdblockHint" class="browser-manga-hint">YouTube ve diğer sitelerdeki reklam istekleri ile reklam öğelerini engeller. SponsorBlock video içine gömülü sponsor bölümlerini ayrıca atlar.</p>
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserAutoSkipAds" role="switch" checked aria-describedby="browserAutoSkipAdsHint" />
+                    <span>Video reklamlarını otomatik atla</span>
+                  </label>
+                  <p id="browserAutoSkipAdsHint" class="browser-manga-hint">Gömülü YouTube oynatıcısında kesin olarak algılanan reklamı sessize alır; Atla düğmesini kullanır veya reklamı sona sarar. Normal videoya dokunmaz.</p>
                 </section>
                 <section class="browser-sponsor-settings" aria-labelledby="browserSponsorTitle"
                   data-browser-settings-kind="persistent" data-browser-settings-category="privacy">

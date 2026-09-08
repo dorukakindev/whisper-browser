@@ -144,6 +144,14 @@ const entries = Object.freeze([
     scope: 'global',
   },
   {
+    id: 'browserAutoSkipAds',
+    label: 'Video reklamlarını otomatik atla',
+    description: 'Gömülü YouTube oynatıcısında algılanan video reklamlarını sessize alıp güvenle atla.',
+    category: 'privacy',
+    keywords: ['reklam', 'video reklamı', 'youtube', 'otomatik', 'atla', 'sessize al'],
+    scope: 'global',
+  },
+  {
     id: 'browserSponsorMode',
     label: 'SponsorBlock atlama modu',
     description: 'YouTube sponsor bölümlerini göster, sorarak atla veya otomatik atla.',
