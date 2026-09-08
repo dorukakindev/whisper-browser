@@ -11,9 +11,15 @@ Bu dosya, başka bir AI ajanına verilecek **tam ve kendine yeten** iş tanımı
 git log --oneline -1
 ```
 
-Beklenen: `6c23c5d docs: dal kurtarma calismasi icin devir notu`. Ayrıca
+Beklenen: `840f661 docs: entegrasyon plani durum tablosuyla guncellendi`. Ayrıca
 `git status --short` boş olmalı ve `npm test` "Tüm testler geçti" demeli
-(116 test dosyası). Bu üçü tutmuyorsa dur ve bildir.
+(**120 test dosyası**: 112 Node + 8 Python). Bu üçü tutmuyorsa dur ve bildir.
+
+Tam takım artık **~10 dakika** sürüyor (10.000 kayıtlık kütüphane performansı,
+10.000 altyazı dosyalı arama ölçümü, 52.000 vakalık ayrıştırıcı fuzz). Kural
+"commit öncesi yeşil" olarak kalıyor; geliştirme sırasında hedefli testleri
+koşmak makul. Koşuyu yarıda kesersen o koşu **geçerli sayılmaz** — sonuna kadar
+bekle ve gerçek çıkış kodunu gör.
 
 Uygulamayı çalıştırman gerekirse `start.bat` kullan — `npm start` tek başına
 çalışmaz, cuDNN/cuBLAS DLL'leri PATH'e `start.bat` tarafından ekleniyor.
