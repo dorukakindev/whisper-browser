@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { createWatchLibraryStore } = require('../src/watch-library-store');
 
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
 const start = main.indexOf('const WATCH_LIBRARY_LIMIT');
@@ -18,7 +19,10 @@ const app = { getPath: () => tmp };
 const decodeStart = main.indexOf('const CP1254_FIXUP');
 const decodeEnd = main.indexOf("ipcMain.handle('media:readSubtitle'", decodeStart);
 const decodeSource = main.slice(decodeStart, decodeEnd);
-const api = new Function('fs', 'path', 'app', `${decodeSource}\n${jsonSource}\n${source}\nreturn { loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath };`)(fs, path, app);
+const api = new Function('fs', 'path', 'app', 'createWatchLibraryStore',
+  `${decodeSource}\n${jsonSource}\n${source}\nreturn {
+    loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath,
+  };`)(fs, path, app, createWatchLibraryStore);
 
 let pass = 0;
 const failures = [];

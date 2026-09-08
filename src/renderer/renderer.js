@@ -11214,7 +11214,7 @@ function currentWatchPatch(completed) {
     prefs: captureWatchPrefs(),
     session,
   };
-  if (manualCompleted !== null) patch.manualCompleted = manualCompleted;
+  if (manualCompleted !== null) patch.completionOverride = manualCompleted;
   return patch;
 }
 
@@ -11246,9 +11246,9 @@ async function restoreWatchProfile(key) {
   // Kutuphane okumasi surerken baska videoya gecilmis olabilir. Eski videonun
   // hizi, sesi ve altyazisi yeni videoya uygulanmasin.
   if (!item || staleGeneration(gen) || player.mediaKey !== key) return;
-  if (typeof item.manualCompleted === 'boolean') {
+  if (typeof item.completionOverride === 'boolean') {
     player.watchManualCompletedKey = key;
-    player.watchManualCompleted = item.manualCompleted;
+    player.watchManualCompleted = item.completionOverride;
   }
   const prefs = item.prefs || {};
   const video = $('playerVideo');
@@ -16069,7 +16069,7 @@ async function handleWatchLibraryAction(e) {
     await window.api.updateWatchItem({
       key: item.key,
       completed: nextManual,
-      manualCompleted: nextManual,
+      completionOverride: nextManual,
       automaticCompleted: !!item.automaticCompleted,
       position: item.position,
       lastWatched: Date.now(),

@@ -178,9 +178,11 @@ t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte 
   ok(/backupVersion:\s*3/.test(exported), 'sürümlü yedek biçimi yok');
   ok(exported.includes('learningAnnotations'), 'kalıcı notlar uygulama yedeğine eklenmiyor');
   ok(/browserPlaces:\s*browserPlacesSnapshot\(\)/.test(exported), 'yer imleri ve geçmiş yedeklenmiyor');
-  ok(/watchLibrary:\s*loadWatchLibrary\(\)/.test(exported), 'izleme kütüphanesi yedeklenmiyor');
+  ok(/watchLibrary:\s*loadWatchLibraryAll\(\)/.test(exported),
+    'taşma kayıtları dahil izleme kütüphanesi yedeklenmiyor');
   ok(/writeBrowserPlaces\(data\.browserPlaces\)/.test(imported), 'tarayıcı yerleri geri yüklenmiyor');
-  ok(/saveWatchLibrary\(watchLibrary\)/.test(imported), 'izleme kütüphanesi geri yüklenmiyor');
+  ok(/saveWatchLibrary\(watchLibrary,\s*\{\s*restoreRemoved:\s*true\s*\}\)/.test(imported),
+    'izleme kütüphanesi açık restore kararıyla geri yüklenmiyor');
   ok(/const settings = bundled \? data\.settings : data/.test(imported), 'eski ayar dosyası uyumluluğu korunmuyor');
 });
 

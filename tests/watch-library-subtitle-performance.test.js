@@ -4,6 +4,7 @@ const os = require('os');
 const path = require('path');
 const { performance } = require('perf_hooks');
 const { sortByLastWatched } = require('../src/watch-library-view');
+const { createWatchLibraryStore } = require('../src/watch-library-store');
 
 const root = path.join(__dirname, '..');
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
@@ -42,11 +43,28 @@ measuredPromises.readFile = async (...args) => {
 };
 Object.defineProperty(measuredFs, 'promises', { value: measuredPromises });
 const app = { getPath: () => temp };
-const api = new Function('fs', 'path', 'app', 'decodeSubtitleBuffer', 'writeJsonAtomic', 'sortByLastWatched',
-  `${source}\nreturn { searchWatchLibrary };`)(
-  measuredFs, path, app, (buffer) => ({ text: buffer.toString('utf8') }), () => {}, sortByLastWatched);
+const api = new Function('fs', 'path', 'app', 'decodeSubtitleBuffer', 'writeJsonAtomic',
+  'sortByLastWatched', 'createWatchLibraryStore',
+  `${source}\nreturn {
+    searchWatchLibrary,
+    removeWatchItem: (key) => watchLibraryStore().remove(key),
+  };`)(
+  measuredFs, path, app, (buffer) => ({ text: buffer.toString('utf8') }), () => {},
+  sortByLastWatched, createWatchLibraryStore);
 
 async function mainTest() {
+  const cacheSearchMs = [];
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const startedAt = performance.now();
+    const all = await api.searchWatchLibrary('');
+    cacheSearchMs.push(performance.now() - startedAt);
+    assert.equal(all.length, records, `boş arama ${attempt + 1}. çağrıda taşma kayıtlarını kaybetti`);
+  }
+  const warmCacheMaxMs = Math.max(...cacheSearchMs.slice(1));
+  assert(warmCacheMaxMs < 100, `sıcak store yükü ${warmCacheMaxMs.toFixed(1)} ms`);
+  assert(cacheSearchMs[0] > warmCacheMaxMs * 2,
+    `ilk göç ${cacheSearchMs[0].toFixed(1)} ms, sıcak yük ${warmCacheMaxMs.toFixed(1)} ms; cache ayrışmıyor`);
+
   let timerFiredAt = 0;
   const timerScheduledAt = performance.now();
   setTimeout(() => { timerFiredAt = performance.now(); }, 0);
@@ -59,6 +77,11 @@ async function mainTest() {
   assert.equal(results[0].matches[0].seconds, 1);
   assert(inputDelayMs < 100, `ana event-loop gecikmesi ${inputDelayMs.toFixed(1)} ms`);
   assert.equal(subtitleReads, records, `tam tarama okuması ${subtitleReads}`);
+
+  assert(api.removeWatchItem('video:9999'), 'silme tombstone üretemedi');
+  const afterRemoval = await api.searchWatchLibrary('');
+  assert(!afterRemoval.some((item) => item.key === 'video:9999'),
+    'tombstone ile silinen kayıt loadAll tabanlı aramada yeniden göründü');
 
   const readsBeforeCancel = subtitleReads;
   let cancelled = false;
@@ -83,6 +106,8 @@ async function mainTest() {
   const metrics = {
     environment: `${process.platform} ${process.arch} · Node ${process.version}`,
     records,
+    cacheSearchMs: cacheSearchMs.map((value) => Number(value.toFixed(3))),
+    warmCacheMaxMs: Number(warmCacheMaxMs.toFixed(3)),
     searchMs: Number(searchMs.toFixed(3)),
     inputDelayMs: Number(inputDelayMs.toFixed(3)),
     subtitleReads: readsBeforeCancel,
@@ -90,7 +115,7 @@ async function mainTest() {
   };
   fs.rmSync(temp, { recursive: true, force: true });
   console.log(`watch-library-subtitle-performance metrics ${JSON.stringify(metrics)}`);
-  console.log('watch-library-subtitle-performance: 5 geçti, 0 başarısız');
+  console.log('watch-library-subtitle-performance: 8 geçti, 0 başarısız');
 }
 
 mainTest().catch((error) => {

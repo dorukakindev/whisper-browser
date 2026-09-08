@@ -1624,6 +1624,13 @@ test('açık videoda elle tamamla/kaldır kararı otomatik flush tarafından ezi
   assert(/if \(player\.watchRemovedKey === player\.mediaKey\) return null/.test(js), 'kaldırılan kayıt yeniden yazılabiliyor');
   assert(/const manualCompleted[\s\S]*const automaticCompleted[\s\S]*watchCompletionReached[\s\S]*completed:\s*manualCompleted === null \? automaticCompleted : manualCompleted/.test(js),
     'elle tamamla/tamamlanmadı kararı flush içinde korunmuyor');
+  assert(/if \(manualCompleted !== null\) patch\.completionOverride = manualCompleted/.test(js),
+    'manuel karar store completionOverride alanına aktarılmıyor');
+  assert(/typeof item\.completionOverride === 'boolean'[\s\S]*player\.watchManualCompleted = item\.completionOverride/.test(js),
+    'store completionOverride alanı oynatıcıya geri yüklenmiyor');
+  assert(/completionOverride:\s*nextManual[\s\S]*automaticCompleted:\s*!!item\.automaticCompleted/.test(js),
+    'manuel eylem otomatik durumdan ayrı store alanlarını göndermiyor');
+  assert(!/patch\.manualCompleted\s*=/.test(js), 'eski manualCompleted alanı hâlâ yazılıyor');
 });
 
 test('tüm izi tamamla aynı çeviri oturumunu yeniden başlatmaz', () => {

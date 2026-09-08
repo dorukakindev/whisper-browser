@@ -4,6 +4,8 @@ const path = require('path');
 const CURRENT_SCHEMA_VERSION = 3;
 const DEFAULT_ITEM_LIMIT = 1000;
 const DEFAULT_TOMBSTONE_LIMIT = 2000;
+const DEFAULT_MAX_PATCH_BYTES = 128 * 1024;
+const DEFAULT_MAX_ITEM_BYTES = 256 * 1024;
 const SECRET_QUERY_KEY = /^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 
 function isObject(value) {
@@ -118,6 +120,16 @@ function normalizeItem(raw) {
     rememberLegacy(result, 'automaticCompleted', result.automaticCompleted);
   }
   result.automaticCompleted = automaticCompleted;
+  if (typeof result.completionOverride !== 'boolean' && typeof result.manualCompleted === 'boolean') {
+    if (result.completionOverride !== undefined && result.completionOverride !== null) {
+      rememberLegacy(result, 'completionOverride', result.completionOverride);
+    }
+    result.completionOverride = result.manualCompleted;
+  }
+  if (Object.prototype.hasOwnProperty.call(result, 'manualCompleted')) {
+    rememberLegacy(result, 'manualCompleted', result.manualCompleted);
+    delete result.manualCompleted;
+  }
   if (typeof result.completionOverride === 'boolean') result.completed = result.completionOverride;
   else {
     if (result.completionOverride !== undefined && result.completionOverride !== null) {
@@ -426,6 +438,10 @@ function createWatchLibraryStore(options) {
   const io = options.fsImpl || fs;
   const now = typeof options.now === 'function' ? options.now : Date.now;
   const fault = typeof options.fault === 'function' ? options.fault : () => {};
+  const maxPatchBytes = Number.isFinite(options.maxPatchBytes)
+    ? Math.max(0, options.maxPatchBytes) : DEFAULT_MAX_PATCH_BYTES;
+  const maxItemBytes = Number.isFinite(options.maxItemBytes)
+    ? Math.max(0, options.maxItemBytes) : DEFAULT_MAX_ITEM_BYTES;
   const migrationOptions = {
     itemLimit: options.itemLimit || DEFAULT_ITEM_LIMIT,
     tombstoneLimit: options.tombstoneLimit || DEFAULT_TOMBSTONE_LIMIT,
@@ -506,6 +522,11 @@ function createWatchLibraryStore(options) {
 
   function upsert(patch, upsertOptions = {}) {
     if (!isObject(patch)) return null;
+    try {
+      if (Buffer.byteLength(JSON.stringify(patch), 'utf8') > maxPatchBytes) return null;
+    } catch (_) {
+      return null;
+    }
     const key = canonicalWatchKey(patch.key);
     if (!key) return null;
     const current = loadDocument();
@@ -530,8 +551,9 @@ function createWatchLibraryStore(options) {
       && (typeof patch.completionOverride === 'boolean' || patch.completionOverride === null);
     const previousAutomatic = typeof previous.automaticCompleted === 'boolean'
       ? previous.automaticCompleted : !!previous.completed;
-    const automaticCompleted = !changesOverride && typeof patch.completed === 'boolean'
-      ? patch.completed : previousAutomatic;
+    const automaticCompleted = typeof patch.automaticCompleted === 'boolean'
+      ? patch.automaticCompleted
+      : (!changesOverride && typeof patch.completed === 'boolean' ? patch.completed : previousAutomatic);
     const completionOverride = changesOverride
       ? patch.completionOverride
       : (typeof previous.completionOverride === 'boolean' ? previous.completionOverride : null);
@@ -553,6 +575,11 @@ function createWatchLibraryStore(options) {
     else merged.completionOverride = completionOverride;
     delete merged.session;
     merged.totalWatchSeconds = sessions.reduce((total, session) => total + Math.max(0, Number(session.watchSeconds) || 0), 0);
+    try {
+      if (Buffer.byteLength(JSON.stringify(merged), 'utf8') > maxItemBytes) return null;
+    } catch (_) {
+      return null;
+    }
     if (index >= 0) items.splice(index, 1);
     items.unshift(merged);
     const migrated = migrateWatchDocument({

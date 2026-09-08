@@ -80,11 +80,19 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
         try { work(); if (scenario === 'commit-failure') throw Error('commit failed'); }
         catch (error) { removed = old; throw error; }
       } };
+    const store = {
+      remove(key) {
+        writes++;
+        if (scenario === 'json-failure') throw Error('json failed');
+        library = library.filter(item => item.key !== key);
+        return true;
+      },
+    };
     const ctx = handler('library:remove', { authorizedBrowserSender: () => true,
-      loadWatchLibrary: () => library, watchIndex: () => index,
+      loadWatchLibraryAll: () => library.slice(), watchLibraryStore: () => store, watchIndex: () => index,
       ensureBrowserNotesReady: () => ({ list: () => scenario === 'notes' ? [{}] : [] }),
       saveWatchLibrary: value => {
-        writes++; if (scenario === 'json-failure') return false; library = value; return true;
+        writes++; library = value; return true;
       } });
     const result = await ctx.run({}, 'a');
     assert.equal(result.ok, ['notes', 'none'].includes(scenario));

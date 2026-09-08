@@ -9,6 +9,7 @@ const { isIP } = require('net');
 const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
+const { createWatchLibraryStore } = require('./watch-library-store');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
@@ -1234,7 +1235,7 @@ function addHistory(rec) {
 const WATCH_LIBRARY_LIMIT = 1000;
 const subtitleSearchCache = new Map();
 const SUBTITLE_SEARCH_CACHE_LIMIT = 32;
-let watchLibraryCache = null;
+let watchLibraryStoreInstance = null;
 let watchIndexInstance = null;
 let watchIndexUnavailable = false;
 let watchIndexLegacyMigrated = false;
@@ -1246,6 +1247,21 @@ let browserMangaCacheInstance = null;
 
 function watchLibraryPath() {
   return path.join(app.getPath('userData'), 'watch-library.json');
+}
+
+function watchLibraryTombstonePath() {
+  return path.join(app.getPath('userData'), 'watch-library-tombstones.json');
+}
+
+function watchLibraryStore() {
+  if (!watchLibraryStoreInstance) {
+    watchLibraryStoreInstance = createWatchLibraryStore({
+      filePath: watchLibraryPath(),
+      tombstonePath: watchLibraryTombstonePath(),
+      itemLimit: WATCH_LIBRARY_LIMIT,
+    });
+  }
+  return watchLibraryStoreInstance;
 }
 
 function watchIndexPath() {
@@ -1371,23 +1387,16 @@ function browserMangaCache() {
 }
 
 function loadWatchLibrary() {
-  if (Array.isArray(watchLibraryCache)) return watchLibraryCache;
-  try {
-    const list = JSON.parse(fs.readFileSync(watchLibraryPath(), 'utf-8'));
-    watchLibraryCache = Array.isArray(list) ? list : [];
-    return watchLibraryCache;
-  } catch (_) {
-    watchLibraryCache = [];
-    return watchLibraryCache;
-  }
+  return watchLibraryStore().load();
 }
 
-function saveWatchLibrary(list) {
+function loadWatchLibraryAll() {
+  return watchLibraryStore().loadAll();
+}
+
+function saveWatchLibrary(list, options = {}) {
   try {
-    const ordered = list.slice().sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0));
-    const next = ordered.slice(0, WATCH_LIBRARY_LIMIT);
-    writeJsonAtomic(watchLibraryPath(), next);
-    watchLibraryCache = next;
+    watchLibraryStore().replaceItems(list, options);
     return true;
   } catch (_) {
     return false;
@@ -1399,39 +1408,8 @@ function uniqueStrings(values) {
 }
 
 function upsertWatchItem(patch) {
-  if (!patch || typeof patch.key !== 'string' || !patch.key.trim()) return null;
-  // IPC kaydı sabit kayıt sınırını aşan tek dev nesneyle diski dolduramasın.
-  try { if (Buffer.byteLength(JSON.stringify(patch), 'utf8') > 128 * 1024) return null; }
-  catch (_) { return null; }
-  const list = loadWatchLibrary().slice();
-  const index = list.findIndex((item) => item.key === patch.key);
-  const previous = index >= 0 ? list[index] : {};
-  const sessions = Array.isArray(previous.sessions) ? previous.sessions.slice(-39) : [];
-  if (patch.session && patch.session.id) {
-    const sessionIndex = sessions.findIndex((s) => s.id === patch.session.id);
-    if (sessionIndex >= 0) sessions[sessionIndex] = { ...sessions[sessionIndex], ...patch.session };
-    else sessions.push(patch.session);
-  }
-  const now = Date.now();
-  const merged = {
-    ...previous,
-    ...patch,
-    key: patch.key,
-    firstWatched: previous.firstWatched || patch.firstWatched || now,
-    lastWatched: Number.isFinite(patch.lastWatched) && patch.lastWatched >= 0 ? patch.lastWatched : now,
-    collections: patch.collections === undefined
-      ? uniqueStrings(previous.collections)
-      : uniqueStrings(patch.collections),
-    subtitlePaths: uniqueStrings([...(previous.subtitlePaths || []), ...(patch.subtitlePaths || [])]),
-    prefs: { ...(previous.prefs || {}), ...(patch.prefs || {}) },
-    sessions,
-  };
-  delete merged.session;
-  merged.totalWatchSeconds = sessions.reduce((total, s) => total + Math.max(0, Number(s.watchSeconds) || 0), 0);
-  if (Buffer.byteLength(JSON.stringify(merged), 'utf8') > 256 * 1024) return null;
-  if (index >= 0) list.splice(index, 1);
-  list.unshift(merged);
-  if (!saveWatchLibrary(list)) return null;
+  const merged = watchLibraryStore().upsert(patch);
+  if (!merged) return null;
   try {
     watchIndex()?.upsertMedia({
       id: merged.key, service: merged.type || '', title: merged.title || '', url: merged.sourceRef || '',
@@ -1520,11 +1498,18 @@ function foldWatchSearchText(value) {
 // yarida kesilebiliyor; kullanici yazmaya devam ederken eski tarama durur.
 const WATCH_SEARCH_YIELD_EVERY = 16;
 const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+const yieldToPendingInput = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function searchWatchLibrary(query, isCancelled) {
   const cancelled = () => { try { return !!(isCancelled && isCancelled()); } catch (_) { return false; } };
   const q = foldWatchSearchText(String(query || '').trim());
-  const list = loadWatchLibrary();
+  // İlk store yükü büyük bir tarihsel dosyayı göç ettirebilir. Önce bir kez
+  // event-loop'a dön ki yeni tuş vuruşu eski aramayı yükleme başlamadan iptal etsin.
+  await yieldToPendingInput();
+  if (cancelled()) return [];
+  // Görünür kütüphane 1.000 kayıtla sınırlı olsa da göçte korunan taşma
+  // kayıtları aranabilir kalmalı; aksi halde eski büyük arşiv sessizce kaybolur.
+  const list = loadWatchLibraryAll();
   if (!q) return list.map((item) => ({ ...item, matches: [] }));
   const results = [];
   let scanned = 0;
@@ -1635,7 +1620,7 @@ function searchUnifiedBrowserLibrary(request = {}) {
 }
 
 function saveWatchLibraryCollectionMutation(next) {
-  const previous = loadWatchLibrary().slice();
+  const previous = loadWatchLibraryAll().slice();
   if (!saveWatchLibrary(next)) return { ok: false, error: 'Koleksiyon değişiklikleri diske kaydedilemedi.' };
   try {
     const index = watchIndex();
@@ -1645,7 +1630,12 @@ function saveWatchLibraryCollectionMutation(next) {
         lastWatched: item.lastWatched, prefs: { ...(item.prefs || {}), collections: item.collections || [] } });
     }
   } catch (_) {}
-  return { ok: true, collections: collectionNames(next), items: next, previousCount: previous.length };
+  return {
+    ok: true,
+    collections: collectionNames(next),
+    items: watchLibraryStore().load(),
+    previousCount: previous.length,
+  };
 }
 
 // ---- Pencere boyutu hatırlama (ayrı dosya — settings.json'a karışmaz) ----
@@ -8969,28 +8959,32 @@ ipcMain.handle('library:list', async (event) => authorizedBrowserSender(event) ?
 
 ipcMain.handle('library:upsert', async (_event, item) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const saved = upsertWatchItem(item);
-  return saved ? { ok: true, item: saved } : { ok: false, error: 'Geçersiz kütüphane kaydı' };
+  try {
+    const saved = upsertWatchItem(item);
+    return saved ? { ok: true, item: saved } : { ok: false, error: 'Geçersiz veya silinmiş kütüphane kaydı' };
+  } catch (error) {
+    return { ok: false, error: `İzleme kütüphanesi diske yazılamadı: ${error.message}` };
+  }
 });
 
 ipcMain.handle('library:remove', async (_event, key) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   let previous, written = false;
   try {
-    previous = loadWatchLibrary().slice();
+    previous = loadWatchLibraryAll().slice();
     const index = watchIndex();
     // Kütüphaneden kaldırmak öğrenme verisini silmek değildir. Notlar/kelimeler
     // varsa üst medya satırını koru; CASCADE silme yalnız notsuz kayıtta güvenli.
     const keptAnnotations = ensureBrowserNotesReady().list(key).length;
     const remove = () => {
       if (!keptAnnotations) index?.removeMedia(key);
-      if (!saveWatchLibrary(previous.filter((item) => item.key !== key))) throw new Error('Kütüphane diske kaydedilemedi.');
+      if (!watchLibraryStore().remove(key)) throw new Error('Geçersiz kütüphane anahtarı.');
       written = true;
     };
     if (index) index.transaction(remove); else remove();
     return { ok: true, keptAnnotations };
   } catch (error) {
-    const restored = !written || saveWatchLibrary(previous);
+    const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
     return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; veritabanındaki kayıt korundu.'}` };
   }
 });
@@ -9016,12 +9010,12 @@ ipcMain.handle('library:searchUnified', async (event, request) => {
 
 ipcMain.handle('library:collections:list', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.', collections: [] };
-  return { ok: true, collections: collectionNames(loadWatchLibrary()) };
+  return { ok: true, collections: collectionNames(loadWatchLibraryAll()) };
 });
 
 ipcMain.handle('library:collections:rename', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  try { return saveWatchLibraryCollectionMutation(renameCollection(loadWatchLibrary(), request?.from, request?.to)); }
+  try { return saveWatchLibraryCollectionMutation(renameCollection(loadWatchLibraryAll(), request?.from, request?.to)); }
   catch (error) { return { ok: false, error: error.message }; }
 });
 
@@ -9029,20 +9023,20 @@ ipcMain.handle('library:collections:remove', async (event, name) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const normalized = normalizeCollectionName(name);
   if (!normalized) return { ok: false, error: 'Koleksiyon adı gerekli.' };
-  return saveWatchLibraryCollectionMutation(removeCollection(loadWatchLibrary(), normalized));
+  return saveWatchLibraryCollectionMutation(removeCollection(loadWatchLibraryAll(), normalized));
 });
 
 ipcMain.handle('library:collections:membership', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     return saveWatchLibraryCollectionMutation(setCollectionMembership(
-      loadWatchLibrary(), request?.keys, request?.name, request?.member !== false));
+      loadWatchLibraryAll(), request?.keys, request?.name, request?.member !== false));
   } catch (error) { return { ok: false, error: error.message }; }
 });
 
 ipcMain.handle('library:collections:reorder', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  try { return saveWatchLibraryCollectionMutation(reorderCollection(loadWatchLibrary(), request?.name, request?.keys)); }
+  try { return saveWatchLibraryCollectionMutation(reorderCollection(loadWatchLibraryAll(), request?.name, request?.keys)); }
   catch (error) { return { ok: false, error: error.message }; }
 });
 
@@ -9416,7 +9410,7 @@ ipcMain.handle('settings:export', async (event) => {
       // Yedek dosyasının paylaşılması halinde API anahtarları sızmamalı.
       settings: getSettingsSecretStore().forExport(loadSettings()),
       browserPlaces: browserPlacesSnapshot(),
-      watchLibrary: loadWatchLibrary(),
+      watchLibrary: loadWatchLibraryAll(),
       learningAnnotations: noteStore.list().map((annotation) => ({
         ...annotation,
         mediaUrl: /^https?:/i.test(annotation.mediaUrl || '')
@@ -9469,7 +9463,9 @@ ipcMain.handle('settings:import', async (event) => {
         subtitlePaths: uniqueStrings(item.subtitlePaths),
         collections: uniqueStrings(item.collections),
       }));
-      saveWatchLibrary(watchLibrary);
+      if (!saveWatchLibrary(watchLibrary, { restoreRemoved: true })) {
+        return { ok: false, error: 'İzleme kütüphanesi güvenli biçimde geri yüklenemedi.' };
+      }
     }
     let importedNotes = 0;
     if (bundled && Array.isArray(data.learningAnnotations)) {

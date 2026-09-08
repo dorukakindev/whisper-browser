@@ -214,6 +214,90 @@ test('yanlış tipli IPC patch tek kaydı veya store işlemini çökertmez', () 
   assert.deepStrictEqual(item.prefs, {});
 }));
 
+test('IPC patch ve birleşmiş kayıt boyut sınırları store içinde uygulanır', () => withTemp('size-limits', (dir) => {
+  const filePath = path.join(dir, 'watch-library.json');
+  const store = createWatchLibraryStore({ filePath });
+  assert(store.upsert({ key: 'file:small', title: 'sağlam' }));
+  assert.strictEqual(store.upsert({
+    key: 'file:oversized-patch', title: 'x'.repeat(129 * 1024),
+  }), null, '128 KB üstü IPC patch reddedilmedi');
+  assert(store.upsert({ key: 'file:merge', futureA: 'a'.repeat(110 * 1024) }));
+  assert(store.upsert({ key: 'file:merge', futureB: 'b'.repeat(110 * 1024) }));
+  assert.strictEqual(store.upsert({
+    key: 'file:merge', futureC: 'c'.repeat(50 * 1024),
+  }), null, '256 KB üstüne birleşen kayıt reddedilmedi');
+  assert.strictEqual(store.loadAll().find((item) => item.key === 'file:merge').futureC, undefined);
+  assert(!store.loadAll().some((item) => item.key === 'file:oversized-patch'));
+}));
+
+test('eski manualCompleted kararı kanonik override olur ve otomatik ilerleme onu ezmez', () => withTemp('legacy-manual', (dir) => {
+  const filePath = path.join(dir, 'watch-library.json');
+  fs.writeFileSync(filePath, stableJson([{
+    key: 'file:C:\\Medya\\Film.mkv',
+    type: 'local',
+    title: 'Göç edilen gerçek şekilli kayıt',
+    sourceRef: 'C:\\Medya\\Film.mkv',
+    localPath: 'C:\\Medya\\Film.mkv',
+    duration: 7200,
+    position: 6800,
+    firstWatched: 100,
+    lastWatched: 900,
+    completed: false,
+    automaticCompleted: true,
+    manualCompleted: false,
+    revision: 3,
+    collections: ['Bilimkurgu', 'Arşiv'],
+    subtitlePaths: ['C:\\Medya\\Film.tr.srt'],
+    prefs: { speed: 1.25, volume: 0.7, selectedSubRole: 'translation' },
+    sessions: [
+      { id: 'oturum-1', watchSeconds: 1200, startPosition: 0, endPosition: 1200 },
+      { id: 'oturum-2', watchSeconds: 900, startPosition: 5900, endPosition: 6800 },
+    ],
+    totalWatchSeconds: 2100,
+    futureUserField: { keep: true },
+  }]), 'utf-8');
+  const store = createWatchLibraryStore({ filePath, now: () => 20 });
+  const migrated = store.loadAll()[0];
+  assert.strictEqual(migrated.completionOverride, false);
+  assert.strictEqual(migrated.completed, false);
+  assert.strictEqual(migrated.manualCompleted, undefined);
+  assert.strictEqual(migrated.migrationLegacy.manualCompleted, false);
+  assert.deepStrictEqual(migrated.collections, ['Bilimkurgu', 'Arşiv']);
+  assert.deepStrictEqual(migrated.subtitlePaths, ['C:\\Medya\\Film.tr.srt']);
+  assert.deepStrictEqual(migrated.prefs, { speed: 1.25, volume: 0.7, selectedSubRole: 'translation' });
+  assert.strictEqual(migrated.sessions.length, 2);
+  assert.deepStrictEqual(migrated.futureUserField, { keep: true });
+  const updated = store.upsert({
+    key: migrated.key, automaticCompleted: true, completed: true, position: 999,
+  });
+  assert.strictEqual(updated.automaticCompleted, true);
+  assert.strictEqual(updated.completionOverride, false);
+  assert.strictEqual(updated.completed, false);
+  assert.strictEqual(updated.revision, 4);
+  assert.deepStrictEqual(updated.collections, ['Bilimkurgu', 'Arşiv']);
+  assert.deepStrictEqual(updated.subtitlePaths, ['C:\\Medya\\Film.tr.srt']);
+  assert.deepStrictEqual(updated.prefs, { speed: 1.25, volume: 0.7, selectedSubRole: 'translation' });
+  assert.strictEqual(updated.sessions.length, 2);
+  assert.strictEqual(updated.totalWatchSeconds, 2100);
+  assert.deepStrictEqual(updated.futureUserField, { keep: true });
+}));
+
+test('main store bağlantısı boyut, tombstone ve açık geri yükleme sözleşmesini korur', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  assert(source.includes("const { createWatchLibraryStore } = require('./watch-library-store');"));
+  assert(source.includes('watchLibraryStore().upsert(patch)'));
+  assert(source.includes('watchLibraryStore().remove(key)'));
+  assert(source.includes('saveWatchLibrary(previous, { restoreRemoved: true })'));
+  assert(source.includes('watchLibrary: loadWatchLibraryAll()'));
+  assert(source.includes('saveWatchLibrary(watchLibrary, { restoreRemoved: true })'));
+  assert(source.includes('renameCollection(loadWatchLibraryAll()'));
+  assert(source.includes('previous = loadWatchLibraryAll().slice()'));
+  assert(/async function searchWatchLibrary[\s\S]*const list = loadWatchLibraryAll\(\)/.test(source));
+  assert(/const yieldToPendingInput = \(\) => new Promise\(\(resolve\) => setTimeout\(resolve, 0\)\)/.test(source));
+  assert(/async function searchWatchLibrary[\s\S]*await yieldToPendingInput\(\);[\s\S]*if \(cancelled\(\)\) return \[\];[\s\S]*loadWatchLibraryAll\(\)/.test(source));
+  assert(!source.includes('let watchLibraryCache = null'));
+});
+
 test('40 oturum sıradan güncellemede korunur; yalnız 41. oturum en eskiyi döndürür', () => withTemp('sessions-limit', (dir) => {
   const filePath = path.join(dir, 'watch-library.json');
   const store = createWatchLibraryStore({ filePath, now: () => 2 });
