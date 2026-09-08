@@ -19,7 +19,7 @@ const MAIN = path.join(__dirname, '..', 'src', 'main.js');
 const src = fs.readFileSync(MAIN, 'utf-8');
 
 const START = '  const args = [scriptPath];';
-const END = '  const env = { ...process.env, PYTHONIOENCODING';
+const END = '  const env = buildSecretEnv(process.env, options);';
 const i = src.indexOf(START);
 const j = src.indexOf(END);
 if (i < 0 || j < 0 || j < i) {

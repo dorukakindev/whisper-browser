@@ -12,7 +12,9 @@
   function safePlaceUrl(raw) {
     try {
       const url = new URL(String(raw || ''));
-      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return '';
+      if (!['http:', 'https:'].includes(url.protocol)) return '';
+      url.username = '';
+      url.password = '';
       cleanQuery(url.searchParams);
       const hash = url.hash.slice(1);
       url.hash = '';

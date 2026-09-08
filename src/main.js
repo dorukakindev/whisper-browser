@@ -1,6 +1,6 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notification, powerSaveBlocker, clipboard, screen, session, components, safeStorage, desktopCapturer, nativeImage, Menu, protocol, net } = require('electron');
 const path = require('path');
-const { spawn, spawnSync } = require('child_process');
+const { spawn: rawSpawn, spawnSync: rawSpawnSync } = require('child_process');
 const fs = require('fs');
 const dns = require('dns').promises;
 const http = require('http');
@@ -144,12 +144,37 @@ const {
   splitSettingsSecrets,
 } = require('./secret-store');
 const {
+  SettingsValidationError,
+  buildSecretEnv,
+  createBackupPayload,
+  parseImportText,
+  readImportFile,
+  recoverJsonTransaction,
+  sanitizeAbsolutePath,
+  sanitizeSettings,
+  withoutSecretEnv,
+  writeJsonTransaction,
+} = require('./settings-security');
+const {
   MAX_SESSION_TABS,
   browserSessionPath,
   normalizeSessionTab,
   readBrowserSession,
   writeBrowserSessionAtomic,
 } = require('./browser-session-store');
+
+// Ebeveyn süreç ortamında gizli anahtarlar bulunabilir. Yalnız transkripsiyon
+// işi açıkça buildSecretEnv ile gereken anahtarı alır; diğer tüm alt süreçler
+// varsayılan olarak temiz bir ortamla başlar.
+function spawn(command, args, options = {}) {
+  const env = options.env || withoutSecretEnv(process.env);
+  return rawSpawn(command, args, { ...options, env });
+}
+
+function spawnSync(command, args, options = {}) {
+  const env = options.env || withoutSecretEnv(process.env);
+  return rawSpawnSync(command, args, { ...options, env });
+}
 const { buildBrowserOverlayScript } = require('./browser-overlay-controller');
 const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript } = require('./browser-media-controller');
 const { CaptionAcquisitionPlan } = require('./browser-acquisition');
@@ -502,7 +527,7 @@ const mediaJobs = { probe: null, download: null, subs: null };
 
 function pythonRuntimeEnv(extra = {}) {
   return pythonEnvWithRuntime(
-    { ...process.env, ...extra },
+    { ...withoutSecretEnv(process.env), ...extra },
     ytdlpRuntimeRoot(app.getPath('userData')),
   );
 }
@@ -1172,6 +1197,11 @@ function migrateSubtitleModelDefault(settings) {
 }
 
 function loadSettings() {
+  try {
+    recoverJsonTransaction(path.join(app.getPath('userData'), '.whisper-settings-transaction.json'));
+  } catch (_) {
+    return { settingsVersion: 3, glossary: [], hfToken: '' };
+  }
   const settings = migrateSubtitleModelDefault(readPublicSettings());
   const split = splitSettingsSecrets(settings);
   const legacySecretFields = Object.keys(split.secrets);
@@ -1193,7 +1223,8 @@ function loadSettings() {
 
 function saveSettings(s) {
   try {
-    const secured = getSettingsSecretStore().saveFromSettings(s);
+    const clean = sanitizeSettings(s, { allowSecrets: true });
+    const secured = getSettingsSecretStore().saveFromSettings(clean);
     // Güvenli depo geçici olarak kullanılamadığında anahtarları düz metne
     // düşürme; fakat tema/oynatıcı/tarayıcı gibi açık tercihleri de kaybetme.
     if (!secured.ok) {
@@ -9425,20 +9456,19 @@ ipcMain.handle('settings:export', async (event) => {
     if (noteStore.loadError || noteStore.migrationError) {
       return { ok: false, error: noteStore.loadError || noteStore.migrationError };
     }
-    const backup = {
-      backupVersion: 3,
-      exportedAt: new Date().toISOString(),
-      // Yedek dosyasının paylaşılması halinde API anahtarları sızmamalı.
-      settings: getSettingsSecretStore().forExport(loadSettings()),
-      browserPlaces: browserPlacesSnapshot(),
-      watchLibrary: loadWatchLibraryAll(),
-      learningAnnotations: noteStore.list().map((annotation) => ({
+    const learningAnnotations = noteStore.list().map((annotation) => ({
         ...annotation,
         mediaUrl: /^https?:/i.test(annotation.mediaUrl || '')
           ? persistentBrowserMediaUrl(annotation.mediaUrl) : annotation.mediaUrl,
-      })),
-    };
-    fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf-8');
+      }));
+    const backup = createBackupPayload(
+      loadSettings(),
+      browserPlacesSnapshot(),
+      loadWatchLibraryAll(),
+      new Date(),
+      { learningAnnotations },
+    );
+    writeJsonTransaction([{ filePath: result.filePath, value: backup }]);
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -9454,47 +9484,56 @@ ipcMain.handle('settings:import', async (event) => {
   });
   if (result.canceled || result.filePaths.length === 0) return { ok: false };
   try {
-    const importPath = result.filePaths[0];
-    const maxImportBytes = 40 * 1024 * 1024;
-    if (fs.statSync(importPath).size > maxImportBytes) {
-      return { ok: false, error: 'Ayar dosyası çok büyük (en fazla 40 MB).' };
+    const currentSettings = loadSettings();
+    const imported = parseImportText(readImportFile(result.filePaths[0]), currentSettings);
+    const entries = [{
+      filePath: settingsPath(),
+      value: getSettingsSecretStore().forExport(imported.settings),
+    }];
+    let importedBrowserPlaces = null;
+    let importedWatchLibrary = null;
+    if (imported.bundled && imported.browserPlaces !== undefined) {
+      if (!imported.browserPlaces || typeof imported.browserPlaces !== 'object'
+          || Array.isArray(imported.browserPlaces)) {
+        throw new SettingsValidationError('Tarayıcı yerleri bölümü geçersiz.');
+      }
+      importedBrowserPlaces = normalizeBrowserPlaces(imported.browserPlaces);
+      entries.push({ filePath: browserPlacesPath(), value: importedBrowserPlaces });
     }
-    const data = JSON.parse(fs.readFileSync(importPath, 'utf-8'));
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return { ok: false, error: 'Geçersiz ayar dosyası.' };
-    }
-    const bundled = Number(data.backupVersion) >= 2 && data.settings
-      && typeof data.settings === 'object' && !Array.isArray(data.settings);
-    const settings = bundled ? data.settings : data;
-    const saved = saveSettings(settings);
-    if (!saved?.ok) {
-      return { ok: false, error: saved?.error || 'Ayarlar güvenli biçimde kaydedilemedi.' };
-    }
-    if (bundled && data.browserPlaces && typeof data.browserPlaces === 'object') {
-      writeBrowserPlaces(data.browserPlaces);
-    }
-    if (bundled && Array.isArray(data.watchLibrary)) {
-      const watchLibrary = data.watchLibrary.filter((item) => item && typeof item === 'object'
+    if (imported.bundled && imported.watchLibrary !== undefined) {
+      if (!Array.isArray(imported.watchLibrary) || imported.watchLibrary.length > 10000) {
+        throw new SettingsValidationError('İzleme kütüphanesi bölümü geçersiz veya çok büyük.');
+      }
+      importedWatchLibrary = imported.watchLibrary.filter((item) => item && typeof item === 'object'
         && typeof item.key === 'string' && item.key.trim()).map((item) => ({
         ...item,
         key: item.key.trim().slice(0, 2200),
         title: String(item.title || '').slice(0, 500),
         sourceRef: String(item.sourceRef || '').slice(0, 4000),
-        localPath: String(item.localPath || '').slice(0, 4000),
-        subtitlePaths: uniqueStrings(item.subtitlePaths),
-        collections: uniqueStrings(item.collections),
+        localPath: sanitizeAbsolutePath(item.localPath || '', 'İzleme kütüphanesi medya yolu'),
+        subtitlePaths: uniqueStrings(item.subtitlePaths).slice(0, 500)
+          .map((filePath) => sanitizeAbsolutePath(filePath, 'İzleme kütüphanesi altyazı yolu')),
+        collections: uniqueStrings(item.collections).slice(0, 100),
       }));
-      if (!saveWatchLibrary(watchLibrary, { restoreRemoved: true })) {
-        return { ok: false, error: 'İzleme kütüphanesi güvenli biçimde geri yüklenemedi.' };
-      }
+    }
+    // Önce bütün bölümleri doğrula, sonra settings + browser dosyalarını tek
+    // transaction ile kur. Watch verisi K1'in sürümlü/tombstone'lu deposundan
+    // geçer; düz JSON yazarak store zarfını bypass etme.
+    writeJsonTransaction(entries);
+    if (importedBrowserPlaces) {
+      browserPlacesCache = importedBrowserPlaces;
+      browserPlacesDirty = false;
+    }
+    if (importedWatchLibrary && !saveWatchLibrary(importedWatchLibrary, { restoreRemoved: true })) {
+      throw new SettingsValidationError('İzleme kütüphanesi güvenli biçimde geri yüklenemedi.');
     }
     let importedNotes = 0;
-    if (bundled && Array.isArray(data.learningAnnotations)) {
+    if (imported.bundled && Array.isArray(imported.learningAnnotations)) {
       const noteStore = ensureBrowserNotesReady();
       if (noteStore.loadError || noteStore.migrationError) {
         return { ok: false, error: noteStore.loadError || noteStore.migrationError };
       }
-      importedNotes = noteStore.importMissing(data.learningAnnotations.map((raw) => {
+      importedNotes = noteStore.importMissing(imported.learningAnnotations.map((raw) => {
         const annotation = normalizeAnnotation(raw);
         const mediaUrl = String(raw?.mediaUrl || '').slice(0, 2000);
         return {
@@ -9508,7 +9547,8 @@ ipcMain.handle('settings:import', async (event) => {
     return {
       ok: true,
       settings: loadSettings(),
-      restored: bundled ? {
+      ignoredSecrets: imported.ignoredSecretCount,
+      restored: imported.bundled ? {
         browserPlaces: browserPlacesSnapshot(),
         watchLibraryCount: loadWatchLibraryAll().length,
         importedNotes,
@@ -10392,11 +10432,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
   if (options.audioPreprocess) args.push('--audio-preprocess', options.audioPreprocess);
 
-  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' };
-  // Gizli anahtarları argv yerine ortam değişkeniyle geçir (process listesinde görünmesin)
-  if (options.diarize && options.hfToken) env.WHISPER_HF_TOKEN = options.hfToken;
-  if (options.llmPostprocess && options.llmApiKey) env.WHISPER_LLM_API_KEY = options.llmApiKey;
-  if (options.translate && options.translateApiKey) env.WHISPER_TRANSLATE_API_KEY = options.translateApiKey;
+  // Gizli anahtarları argv yerine ortam değişkeniyle ve yalnız onları kullanan
+  // özellikler açıkken geçir (process listesinde ve ilgisiz child env'lerinde görünmesin).
+  const env = buildSecretEnv(process.env, options);
 
   startJobLog(options.youtube || options.input || 'is', args);
 

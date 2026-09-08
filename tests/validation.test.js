@@ -144,9 +144,7 @@ t('klasör izleme yalnız gerçek dizin yolunu kabul eder', () => {
 t('ayar içe aktarma JSON dizisini reddeder', () => {
   const start = msrc.indexOf("ipcMain.handle('settings:import'");
   const body = msrc.slice(start, msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", start));
-  ok(/Array\.isArray\(data\)/.test(body), 'JSON dizisi ayar nesnesi olarak kabul ediliyor');
-  ok(/maxImportBytes\s*=\s*40\s*\*\s*1024\s*\*\s*1024/.test(body), 'uygulama yedeği içe aktarma boyut sınırı yok');
-  ok(/statSync\(importPath\)\.size\s*>\s*maxImportBytes/.test(body), 'dosya boyutu okumadan önce denetlenmiyor');
+  ok(/parseImportText\(readImportFile/.test(body), 'JSON dizisi güvenli import doğrulamasından geçmiyor');
 });
 
 t('kısmen okunabilen güvenli anahtarlar ayarlara geri yüklenir', () => {
@@ -175,17 +173,18 @@ t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte 
   const end = msrc.indexOf("ipcMain.handle('maintenance:updateYtdlp'", importStart);
   const exported = msrc.slice(exportStart, importStart);
   const imported = msrc.slice(importStart, end);
-  ok(/backupVersion:\s*3/.test(exported), 'sürümlü yedek biçimi yok');
+  ok(/createBackupPayload/.test(exported), 'sürümlü yedek biçimi yok');
   ok(exported.includes('learningAnnotations'), 'kalıcı notlar uygulama yedeğine eklenmiyor');
-  ok(/browserPlaces:\s*browserPlacesSnapshot\(\)/.test(exported), 'yer imleri ve geçmiş yedeklenmiyor');
-  ok(/watchLibrary:\s*loadWatchLibraryAll\(\)/.test(exported),
+  ok(/browserPlacesSnapshot\(\)/.test(exported), 'yer imleri ve geçmiş yedeklenmiyor');
+  ok(/loadWatchLibraryAll\(\)/.test(exported),
     'taşma kayıtları dahil izleme kütüphanesi yedeklenmiyor');
-  ok(/writeBrowserPlaces\(data\.browserPlaces\)/.test(imported), 'tarayıcı yerleri geri yüklenmiyor');
-  ok(/saveWatchLibrary\(watchLibrary,\s*\{\s*restoreRemoved:\s*true\s*\}\)/.test(imported),
+  ok(/normalizeBrowserPlaces\(imported\.browserPlaces\)/.test(imported)
+    && /filePath:\s*browserPlacesPath\(\)/.test(imported), 'tarayıcı yerleri geri yüklenmiyor');
+  ok(/saveWatchLibrary\(importedWatchLibrary,\s*\{\s*restoreRemoved:\s*true\s*\}\)/.test(imported),
     'izleme kütüphanesi açık restore kararıyla geri yüklenmiyor');
   ok(/watchLibraryCount:\s*loadWatchLibraryAll\(\)\.length/.test(imported),
     'geri yüklenen taşma kayıtları sonuç sayacında eksik raporlanıyor');
-  ok(/const settings = bundled \? data\.settings : data/.test(imported), 'eski ayar dosyası uyumluluğu korunmuyor');
+  ok(/parseImportText\(readImportFile/.test(imported), 'eski ayar dosyası uyumluluğu korunmuyor');
 });
 
 t('ana süreç activeJob temizlendikten sonra exit olayı gönderir', () => {

@@ -8,6 +8,7 @@ const { EventEmitter } = require('events');
 const { SubtitleFileAccess, canonicalLocalPath, MAX_SUBTITLE_BYTES } = require('../src/local-file-access');
 const { clonePublicOptions, validateQueueOptions } = require('../src/queue-persistence');
 const { createNdjsonLineBuffer } = require('../src/ndjson-lines');
+const { buildSecretEnv } = require('../src/settings-security');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const handlers = new Map();
 for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
@@ -157,7 +158,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   await test('transcribe error → close eski kilidi erken açmaz, olaylar iş kimliği taşır', async () => {
     const emitted = [], terminals = [], spawned = [];
     const context = {
-      authorizedBrowserSender: () => true, clonePublicOptions, createNdjsonLineBuffer,
+      authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer,
