@@ -11,7 +11,7 @@ function test(name, fn) {
 
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
 const queueFactoryStart = main.indexOf('function browserCaptureDrainScript(');
-const queueFactoryEnd = main.indexOf('function browserMediaProbeScript(', queueFactoryStart);
+const queueFactoryEnd = main.indexOf('function browserFrames(', queueFactoryStart);
 assert(queueFactoryStart >= 0 && queueFactoryEnd > queueFactoryStart, 'Yakalama kuyruğu script fabrikaları bulunamadı');
 const factories = vm.runInNewContext(`(() => {
   ${main.slice(queueFactoryStart, queueFactoryEnd)}
@@ -53,6 +53,7 @@ test('drain yalnız kiralar; doğru ACK gelmeden öğeyi silmez', () => {
   const first = h.drain().entries;
   assert.deepEqual(h.queueIds(), ['a', 'b']);
   assert.equal(first.length, 2);
+  assert.equal(h.drain().frameId, 'frame-a');
   assert.equal(h.drain().entries.length, 0, 'aktif kira ikinci kez teslim edildi');
   assert.equal(h.ack([receipt(first[0])]), 1);
   assert.deepEqual(h.queueIds(), ['b']);
@@ -78,9 +79,24 @@ test('RELEASE yalnız kendi teslimatını iade eder ve yeni teslimat kimliği ü
   h.enqueue('a');
   const first = receipt(h.drain().entries[0]);
   assert.equal(h.release([first]), 1);
+  h.now += 900;
   const second = receipt(h.drain().entries[0]);
   assert.notEqual(second.deliveryId, first.deliveryId);
   assert.equal(h.ack([second]), 1);
+});
+
+test('tekrarlanan RELEASE sonsuz döngü yerine sınırlı denemeden sonra öğeyi bırakır', () => {
+  const h = createHarness();
+  h.enqueue('a');
+  for (const delay of [900, 1800, 3600]) {
+    const current = receipt(h.drain().entries[0]);
+    assert.equal(h.release([current]), 1);
+    h.now += delay;
+  }
+  const last = receipt(h.drain().entries[0]);
+  assert.equal(h.release([last]), 1);
+  assert.deepEqual(h.queueIds(), []);
+  assert.equal(h.drain().entries.length, 0);
 });
 
 test('renderer/frame yenilenmesinden kalan onay yeni frame kuyruğuna dokunmaz', () => {
@@ -164,25 +180,65 @@ test('20.000 rastgele interleaving kuyruk ve kira invariantlarını korur', () =
   }
 });
 
-test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
+  test('ana süreç generation değişiminde paralel flush başlatmaz', () => {
   const functionBody = (name, nextName) => {
     const start = main.indexOf(`function ${name}(`);
     const end = main.indexOf(`function ${nextName}(`, start + 1);
     assert(start >= 0 && end > start, `${name} bulunamadı`);
     return main.slice(start, end);
   };
-  assert.doesNotMatch(main, /browserCaptureBusy/);
+  assert.doesNotMatch(functionBody('resetBrowserCaptureState', 'browserCaptureToggleScript'), /browserCaptureBusy\s*=\s*false/);
+  assert.doesNotMatch(functionBody('stopBrowserPolling', 'browserOverlayScript'), /browserCaptureBusy\s*=\s*false/);
+  const captureHandlerStart = main.indexOf("ipcMain.handle('browser:capture:setEnabled'");
+  const captureHandlerEnd = main.indexOf("ipcMain.handle('browser:getState'", captureHandlerStart);
+  assert.doesNotMatch(main.slice(captureHandlerStart, captureHandlerEnd), /browserCaptureBusy\s*=\s*false/);
   const flushBody = functionBody('flushBrowserCaptureQueue', 'startBrowserPolling');
   assert.match(flushBody, /browserCaptureFlushPromise/);
-  assert.match(flushBody, /if \(browserCaptureFlushPromise\) return browserCaptureFlushPromise/);
-  assert.match(flushBody, /finally\(\(\) => \{[\s\S]*?browserCaptureFlushPromise = null/);
+  assert.match(flushBody, /finally\(\(\) => \{[\s\S]*?browserCaptureBusy = false/);
   assert.match(functionBody('startBrowserPolling', 'stopBrowserPolling'),
-    /setInterval\(\(\) => \{ void flushBrowserCaptureQueue\(\); \}, 900\)/);
+    /setInterval\(\(\) => \{[\s\S]{0,560}flushBrowserCaptureQueue\(\{ installHook: true \}\)[\s\S]{0,40}\}, 900\)/);
+  assert.match(main, /browserCaptureHookFrames = new WeakSet\(\)/);
+  assert.match(functionBody('ensureBrowserCaptureHooks', 'performBrowserCaptureFlush'),
+    /frames\.filter\(\(frame\) => !browserCaptureHookFrames\.has\(frame\)\)[\s\S]{0,420}browserCaptureHookFrames\.add\(frame\)/);
   const processAt = main.indexOf('const outcome = await processBrowserCapturedPayload');
-  const generationCheckAt = main.indexOf('if (generation !== browserStateGeneration) return', processAt);
+  const generationCheckAt = main.indexOf('if (!isCurrentBrowserContext(context)) return', processAt);
   const receiptAt = main.indexOf('(outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push', processAt);
   assert(processAt >= 0 && generationCheckAt > processAt && receiptAt > generationCheckAt,
     'gecikmiş işleme generation kontrolünden önce ACK/RELEASE üretiyor');
+  assert.match(main, /responseType === 'json'[\s\S]{0,120}JSON\.stringify\(this\.response/);
+  assert.match(main, /const browserLastCaptureDropped = new Map\(\)/);
+  });
+
+  test('ana süreç ACK ve RELEASE öncesi bağlamı son kez doğrular', () => {
+    const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+    assert.match(main,
+      /retried = releaseReceipts\.length;[\s\S]{0,420}if \(!isCurrentBrowserContext\(context\)\)[\s\S]{0,260}browserCaptureAckScript/);
+  });
+
+test('pencere kapanışı yalnız bekleyen parçayı, sekme kapanışı ölçülemeyen kuyruğu da uyarır', () => {
+  const drainBodyStart = main.indexOf('async function drainBrowserCaptureBeforeClose(');
+  const drainBodyEnd = main.indexOf('async function flushBrowserSession(', drainBodyStart);
+  const drainBody = main.slice(drainBodyStart, drainBodyEnd);
+  assert.match(drainBody, /executeBrowserFrames\(browserCapturePauseScript\(\)\)/);
+  assert.match(drainBody, /pass < 4/);
+  assert.match(drainBody, /flushBrowserCaptureQueue\(\{ allowHidden: true, force: true, installHook: false \}\)/);
+  assert.match(main, /captureStatus = await withTimeout\(drainBrowserCaptureBeforeClose\(\), BROWSER_CLOSE_DRAIN_TIMEOUT/);
+  assert.match(main, /function browserCaptureCloseNeedsWarning\(status, includeUnverified = false\)[\s\S]*?Number\(status && status\.pending\) > 0/);
+  assert.match(main, /if \(browserCaptureCloseNeedsWarning\(captureStatus\)/);
+  assert.match(main, /captureStatus\.pending \+= await backgroundBrowserCapturePending\(browserActiveTabId\)/,
+    'arka plan sekmelerindeki doğrulanmış kuyruk kapanış hesabına katılmıyor');
+  assert.match(main, /browser:tab:close[\s\S]{0,2200}browserTabCapturePending\(tab, true\)[\s\S]{0,360}browserCaptureCloseNeedsWarning\(captureStatus, true\)[\s\S]{0,180}confirmBrowserCaptureDiscard\(captureStatus\.pending, 'sekme', captureStatus\.unverified\)/,
+    'sekme kapanışı bekleyen veya ölçülemeyen yakalama kuyruğunu korumuyor');
+  assert.match(main, /else if \(tab\.view && !tab\.view\.webContents\.isDestroyed\(\)\)[\s\S]{0,260}executeBrowserViewFrames\(tab\.view, tab\.captureEnabled !== false[\s\S]{0,120}browserCaptureHookScript\(\) : browserCaptureToggleScript\(false\)\)/,
+    'arka plan sekmesi kapanışı iptal edilince yakalama yeniden başlatılmıyor');
+  assert.doesNotMatch(main, /captureStatus\.pending !== 0/,
+    'ölçüm zaman aşımı gerçek bekleyen parça gibi uyarı açıyor');
+  assert.match(main, /pending:\s*0,[\s\S]{0,100}unverified:\s*true/,
+    'ölçülemeyen kuyruk gerçek bekleyen parça olarak işaretleniyor');
+  assert.match(main, /buttons: \['Kapatmayı iptal et', 'Yine de kapat'\]/);
+  assert.ok(main.indexOf('captureStatus = await withTimeout(drainBrowserCaptureBeforeClose()')
+    < main.indexOf('destroyBrowserView();', main.indexOf("mainWindow.on('close'")),
+  'browser görünümü drain tamamlanmadan yok ediliyor');
 });
 
 if (!process.exitCode) console.log(`\n${passed} yakalama kuyruğu testi geçti (20.000 rastgele interleaving).`);

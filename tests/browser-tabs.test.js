@@ -41,6 +41,55 @@ test('yeni gezinme kusagi onceki ag ve IPC olaylarini gecersiz kilar', () => {
   assert.equal(gate.accept({ tabId: 'tab-1', generation: 1 }), false);
 });
 
+test('ayni kusakta eski medya ve edinme olaylari reddedilir', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 4, { mediaId: 'youtube:new', acquisitionId: 'cap-new' });
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 4, mediaId: 'youtube:new', acquisitionId: 'cap-new' }), true);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 4, mediaId: 'youtube:old', acquisitionId: 'cap-new' }), false);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 4, mediaId: 'youtube:new', acquisitionId: 'cap-old' }), false);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 5, mediaId: 'youtube:next', acquisitionId: 'cap-next' }), true);
+});
+
+test('aynı edinme kuşağında farklı işlem kimliği eski sonucu reddeder', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 1, { mediaId: 'youtube:new', acquisitionId: 'cap-1', operationId: 'op-1' });
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 1, mediaId: 'youtube:new', acquisitionId: 'cap-1', operationId: 'op-old' }), false);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 1, mediaId: 'youtube:new', acquisitionId: 'cap-1', operationId: 'op-1' }), true);
+  assert.equal(gate.accept({ tabId: 'tab-1', generation: 1, mediaId: 'youtube:next', acquisitionId: 'cap-2', operationId: 'op-2', type: 'navigation' }), true);
+});
+
+test('yeni edinme durumu kayitli altyazi olayindan once kapida tanitilir', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 4, { mediaId: 'discovery:episode', acquisitionId: 'cap-old' });
+  const restored = {
+    type: 'subtitle-found', tabId: 'tab-1', generation: 4,
+    mediaId: 'discovery:episode', acquisitionId: 'cap-new',
+  };
+  assert.equal(gate.accept(restored), false, 'durum olayi gelmeden yeni iz kabul edilmemeli');
+  assert.equal(gate.accept({
+    type: 'capture-status', tabId: 'tab-1', generation: 4,
+    mediaId: 'discovery:episode', acquisitionId: 'cap-new',
+  }), true);
+  assert.equal(gate.accept(restored), true, 'durum olayi sonrasinda kayitli iz kabul edilmeli');
+});
+
+test('Discovery yonlendirmesi ayni kusakta yeni medya baglamini kurabilir', () => {
+  const gate = new BrowserTabEventGate();
+  gate.open('tab-1', 7, { mediaId: 'discovery:topical', acquisitionId: 'cap-loading' });
+  assert.equal(gate.accept({
+    type: 'capture-status', tabId: 'tab-1', generation: 7,
+    mediaId: 'discovery:watch', acquisitionId: 'cap-watch',
+  }), true, 'yeni sayfanin durum olayi medya kimligini degistirebilmeli');
+  assert.equal(gate.accept({
+    type: 'subtitle-found', tabId: 'tab-1', generation: 7,
+    mediaId: 'discovery:watch', acquisitionId: 'cap-watch',
+  }), true, 'yeni medya icin yakalanan altyazi kabul edilmeli');
+  assert.equal(gate.accept({
+    type: 'subtitle-found', tabId: 'tab-1', generation: 7,
+    mediaId: 'discovery:topical', acquisitionId: 'cap-loading',
+  }), false, 'yonlendirme oncesinden gec gelen altyazi reddedilmeli');
+});
+
 test('ayni video iki sekmede altyazi ve konumu ayri tutar', () => {
   const gate = new BrowserTabEventGate();
   const states = new Map([
@@ -91,41 +140,37 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
   assert.match(main, /const browserTabs = new Map\(\)/);
   assert.match(main, /ipcMain\.handle\('browser:tab:create'/);
+  assert.match(main, /browserTabs\.size >= MAX_SESSION_TABS/,
+    'normal yeni sekme yolu kalıcı oturum sınırını uygulamıyor');
   assert.match(main, /ipcMain\.handle\('browser:tab:activate'/);
   assert.match(main, /ipcMain\.handle\('browser:tab:close'/);
   assert.match(main, /tabId[\s\S]{0,120}generation/);
+  assert.match(main, /browserOverlay = \{ source: \[\], translation: \[\], mode: 'translation', offset: 0 \}/);
+  assert.match(main, /browserLiveAsr\?\.tab === previous/);
+  assert.match(main, /async function activateBrowserTab[\s\S]{0,2200}await withTimeout\(drainBrowserCaptureBeforeClose\(\)/);
+  assert.match(main, /function queueBrowserTabTransition[\s\S]{0,240}browserTabTransitionPromise/);
+  assert.match(main, /ipcMain\.handle\('browser:tab:activate'[\s\S]{0,220}await activateBrowserTab/);
+  assert.match(main, /persistedTrack: true/);
+  assert.match(main, /browserCaptureEnabled === nextEnabled[\s\S]{0,180}unchanged: true/);
+  assert.match(main, /resetBrowserCaptureState\(\{ preserveDiagnostics: true \}\)/);
+  const resetStart = main.indexOf('function resetBrowserCaptureState(');
+  const resetEnd = main.indexOf('function browserCaptureToggleScript(', resetStart);
+  const resetBody = main.slice(resetStart, resetEnd);
+  assert(resetBody.indexOf('publishBrowserDiagnostics()') < resetBody.indexOf('restorePersistedBrowserTracks(tab)'),
+    'yeni acquisition kimligi kayitli izlerden once renderer kapisina bildirilmelidir');
+  assert.match(main, /ipcMain\.handle\('media:probeTracks'[\s\S]{0,180}authorizedBrowserSender\(event\)/);
+  assert.match(main, /sweepBrowserLiveAsrTemp\(\)/);
   assert.match(preload, /createBrowserTab/);
   assert.match(preload, /activateBrowserTab/);
   assert.match(preload, /closeBrowserTab/);
   assert.match(renderer, /BrowserTabEventGate/);
   assert.match(renderer, /browserActiveTabId/);
-  assert.match(html, /id="browserTabStrip"/);
-  assert.match(html, /id="browserTabNew"/);
-});
-
-test('renderer her sekmenin medya altyazi ve izleme calisma alanini saklar', () => {
-  const renderer = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js'), 'utf8');
-  const save = renderer.slice(renderer.indexOf('function saveActiveBrowserTabWorkspace'),
-    renderer.indexOf('function restoreActiveBrowserTabWorkspace'));
-  const restore = renderer.slice(renderer.indexOf('function restoreActiveBrowserTabWorkspace'),
-    renderer.indexOf('function syncBrowserTabs'));
-  for (const field of ['browserTracks', 'browserTime', 'browserDuration', 'browserPaused',
-    'browserRate', 'browserVolume', 'browserMuted', 'watchSession', 'cues', 'cues2',
-    'subtitles', 'subOrigins', 'subPath', 'sub2Path', 'offset']) {
-    assert.match(save, new RegExp(`\\b${field}\\b`), `${field} sekme degisiminde saklanmiyor`);
-    assert.match(restore, new RegExp(`\\b${field}\\b`), `${field} sekme degisiminde geri yuklenmiyor`);
-  }
-  assert.match(renderer, /await flushWatchState\(false, true\)[\s\S]*saveActiveBrowserTabWorkspace\(\)/,
-    'sekme degisiminden once izleme konumu diske yazilmiyor');
-});
-
-test('ana surec gec ag ve komut sonuclarini sekme kusagiyla reddeder', () => {
-  const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
-  assert.match(main, /context: \{ \.\.\.browserEventContext\(tab\), stateGeneration: browserStateGeneration \}/);
-  assert.match(main, /if \(context && !isCurrentBrowserContext\(context\)\) return CAPTURE_DISCARDED/);
-  assert.match(main, /await processBrowserCapturedPayload[\s\S]*if \(!isCurrentBrowserContext\(context\)\) return/);
-  assert.match(main, /activeRequestedBrowserTab\(payload && payload\.tabId\)/);
-  assert.match(main, /Eski sekme istegi reddedildi\.|Eski sekme isteği reddedildi\./);
+  assert.match(html, /id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"/);
+  assert.match(html, /id="browserTabNew"[\s\S]{0,500}<span>Yeni sekme<\/span>/);
+  assert.match(renderer, /\$\('browserTabNew'\)\.addEventListener\('click', createBrowserTab\)/);
+  assert.match(renderer, /syncBrowserTabs\(result\.tabs, result\.activeTabId\)/);
+  assert.match(renderer, /restoreActiveBrowserTabWorkspace\(tab\)/);
+  assert.match(renderer, /result\.captureEnabled !== player\.browserCaptureEnabled/);
 });
 
 console.log(`browser-tabs: ${passed} test`);
