@@ -9,11 +9,14 @@ Bu dosya, başka bir AI ajanına verilecek **tam ve kendine yeten** iş tanımı
 
 ```bash
 git log --oneline -1
+git merge-base --is-ancestor 058d5d5 HEAD
 ```
 
-Beklenen: `840f661 docs: entegrasyon plani durum tablosuyla guncellendi`. Ayrıca
+Asgari doğrulanmış taban `058d5d5`'tir; ikinci komut 0 çıkış kodu vermeli.
+`HEAD` bu commit veya onu içeren daha yeni bir commit olabilir. Ayrıca
 `git status --short` boş olmalı ve `npm test` "Tüm testler geçti" demeli
-(**120 test dosyası**: 112 Node + 8 Python). Bu üçü tutmuyorsa dur ve bildir.
+(**120 test dosyası**: 112 Node + 8 Python). Taban commit bulunmuyorsa, çalışma
+ağacı temiz değilse veya tam test başarısızsa dur ve bildir.
 
 Tam takım artık **~10 dakika** sürüyor (10.000 kayıtlık kütüphane performansı,
 10.000 altyazı dosyalı arama ölçümü, 52.000 vakalık ayrıştırıcı fuzz). Kural
