@@ -1675,7 +1675,7 @@ $('updateYtdlp').addEventListener('click', async () => {
   if (btn.disabled) return;
   btn.disabled = true;
   btn.textContent = 'güncelleniyor...';
-  logLine('yt-dlp güncelleniyor (pip install --upgrade yt-dlp)...');
+  logLine('yt-dlp güvenli, sürümlü runtime alanında güncelleniyor...');
   try {
     const r = await window.api.updateYtdlp();
     if (r.ok) logLine(`✓ ${r.message}`, 'success');

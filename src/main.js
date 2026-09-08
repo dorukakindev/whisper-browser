@@ -10,6 +10,7 @@ const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createWatchLibraryStore } = require('./watch-library-store');
+const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
@@ -499,6 +500,13 @@ function endJobLog() {
 // null yaptigi icin "Indirme yok" deniyordu.
 const mediaJobs = { probe: null, download: null, subs: null };
 
+function pythonRuntimeEnv(extra = {}) {
+  return pythonEnvWithRuntime(
+    { ...process.env, ...extra },
+    ytdlpRuntimeRoot(app.getPath('userData')),
+  );
+}
+
 function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir medya işi zaten çalışıyor; önce bitmesini bekleyin.' });
@@ -506,9 +514,15 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
     const script = path.join(appDir, 'backend', 'media.py');
     let proc;
     try {
-      proc = spawn(resolvePython(), [script, ...cmdArgs], { cwd: appDir, windowsHide: true });
+      proc = spawn(resolvePython(), [script, ...cmdArgs], {
+        cwd: appDir,
+        windowsHide: true,
+        env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }),
+      });
     } catch (err) {
-      return resolve({ ok: false, error: `Python başlatılamadı: ${err.message}` });
+      return resolve({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı (install.bat ile venv oluşturun).'
+        : 'Medya yardımcı süreci başlatılamadı.' });
     }
     mediaJobs[kind] = proc;
     let result = null;
@@ -555,11 +569,18 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
       if (settled) return;
       for (const line of stdoutLines.flush()) handleLine(line);
       if (result) finish({ ok: true, data: result });
-      else finish({ ok: false, error: errText || stderrTail || `Süreç ${code} koduyla bitti` });
+      else {
+        if (!errText && stderrTail) {
+          writeJobLog({ type: 'log', level: 'warn', message: `Medya yardımcı süreç ayrıntısı: ${stderrTail}` });
+        }
+        finish({ ok: false, error: errText || `Medya yardımcı süreci ${code} koduyla tamamlanamadı.` });
+      }
     });
     proc.on('error', (err) => {
       // Keep the cancellation target until close, including failed spawn.
-      finish({ ok: false, error: err.message });
+      finish({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı (install.bat ile venv oluşturun).'
+        : 'Medya yardımcı süreci çalışırken hata oluştu.' });
     });
   });
 }
@@ -10549,49 +10570,78 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
     return { ok: false, error: 'Python sanal ortamı (venv) bulunamadı. Önce install.bat çalıştırın.' };
   }
   return new Promise((resolve) => {
+    const appDir = app.getAppPath();
+    const script = path.join(appDir, 'backend', 'update_ytdlp.py');
+    const root = ytdlpRuntimeRoot(app.getPath('userData'));
     let out = '';
+    let stderrTail = '';
     let timedOut = false;
     let timeoutTimer = null;
-    const appendOutput = (chunk) => {
-      out = (out + chunk).slice(-64 * 1024);
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
+      updateJob = null;
+      resolve(value);
     };
     try {
-      // Nightly kanal, YouTube'un sık değişen istemci/PO-token davranışlarına
-      // stable sürümden önce uyum sağlar; [default] EJS çözücüsünü de getirir.
       updateJob = spawn(
         pythonPath,
-        ['-m', 'pip', 'install', '--upgrade', '--pre', 'yt-dlp[default]'],
-        { windowsHide: true },
+        [script, '--runtime-root', root],
+        {
+          cwd: appDir,
+          windowsHide: true,
+          env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }),
+        },
       );
+      const spawnedJob = updateJob;
       timeoutTimer = setTimeout(() => {
-        if (!updateJob) return;
+        if (settled || updateJob !== spawnedJob) return;
         timedOut = true;
-        terminateProcessTree(updateJob, { spawn });
+        terminateProcessTree(spawnedJob, { spawn });
       }, 10 * 60 * 1000);
       timeoutTimer.unref?.();
     } catch (err) {
       updateJob = null;
-      return resolve({ ok: false, error: err.message });
+      return resolve({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı (install.bat ile venv oluşturun).'
+        : 'yt-dlp güncelleyicisi başlatılamadı.' });
     }
-    if (updateJob.stdout) updateJob.stdout.on('data', appendOutput);
-    if (updateJob.stderr) updateJob.stderr.on('data', appendOutput);
+    if (!updateJob.stdout || !updateJob.stderr) {
+      try { updateJob.kill(); } catch (_) {}
+      return finish({ ok: false, error: 'Güncelleme süreç akışları oluşturulamadı.' });
+    }
+    updateJob.stdout.setEncoding('utf-8');
+    updateJob.stderr.setEncoding('utf-8');
+    updateJob.stdout.on('data', (chunk) => { out = (out + chunk).slice(-64 * 1024); });
+    updateJob.stderr.on('data', (chunk) => { stderrTail = (stderrTail + chunk).slice(-2000); });
     updateJob.on('error', (err) => {
-      clearTimeout(timeoutTimer);
-      updateJob = null;
-      resolve({ ok: false, error: err.code === 'ENOENT' ? 'Python bulunamadı (install.bat ile venv oluşturun).' : err.message });
+      finish({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı (install.bat ile venv oluşturun).'
+        : 'yt-dlp güncelleyicisi başlatılamadı.' });
     });
     updateJob.on('close', (code) => {
-      clearTimeout(timeoutTimer);
-      updateJob = null;
+      if (settled) return;
       if (timedOut) {
-        resolve({ ok: false, error: 'yt-dlp güncellemesi 10 dakika içinde tamamlanmadı ve durduruldu.' });
-      } else if (code === 0) {
-        const m = out.match(/Successfully installed[^\r\n]*/i);
-        const already = /Requirement already satisfied[^\r\n]*yt[-_]dlp/i.test(out);
-        resolve({ ok: true, message: m ? m[0].trim() : (already ? 'yt-dlp zaten güncel.' : 'Güncelleme tamamlandı.') });
-      } else {
-        resolve({ ok: false, error: (out.slice(-400).trim() || `pip çıkış kodu ${code}`) });
+        return finish({ ok: false, error: 'yt-dlp güncellemesi 10 dakika içinde tamamlanmadı ve durduruldu.' });
       }
+      let result = null;
+      for (const line of out.split(/\r?\n/).reverse()) {
+        if (!line.trim()) continue;
+        try { result = JSON.parse(line); break; } catch (_) {}
+      }
+      if (code === 0 && result && result.ok && typeof result.version === 'string') {
+        return finish({ ok: true, message: `yt-dlp ${result.version} güvenli biçimde etkinleştirildi.` });
+      }
+      if (stderrTail) {
+        writeJobLog({ type: 'log', level: 'warn', message: `yt-dlp güncelleyici ayrıntısı: ${stderrTail}` });
+      }
+      return finish({
+        ok: false,
+        error: (result && typeof result.error === 'string' && result.error)
+          || `yt-dlp güncelleyicisi ${code} koduyla kapandı.`,
+      });
     });
   });
 });
