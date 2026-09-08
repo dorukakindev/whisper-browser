@@ -249,6 +249,11 @@ class YtdlpUpdateTests(unittest.TestCase):
             self.assertTrue((self.temp / "update.lock").exists())
         self.assertFalse((self.temp / "update.lock").exists())
 
+    def test_process_alive_probe_is_safe_for_self_and_rejects_missing_pid(self):
+        self.assertTrue(U._process_alive(os.getpid()))
+        self.assertFalse(U._process_alive(999_999_999))
+        self.assertFalse(U._process_alive(0))
+
     def test_package_versions_are_bounded_after_success(self):
         packages = self.temp / "packages"
         packages.mkdir(parents=True)

@@ -249,7 +249,32 @@ def cleanup_stale_staging(runtime_root):
 
 def _process_alive(pid):
     try:
-        os.kill(int(pid), 0)
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        # Windows'ta os.kill(pid, 0) POSIX'teki zararsız varlık sorgusu
+        # değildir; hedefe CTRL_C_EVENT gönderip güncelleyiciyi kesebilir.
+        import ctypes
+
+        process_query_limited_information = 0x1000
+        error_access_denied = 5
+        still_active = 259
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
+        if not handle:
+            return ctypes.get_last_error() == error_access_denied
+        try:
+            exit_code = ctypes.c_ulong()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                return True
+            return exit_code.value == still_active
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
         return True
     except ProcessLookupError:
         return False
