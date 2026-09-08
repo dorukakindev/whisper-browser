@@ -11105,6 +11105,43 @@ async function refreshHistory() {
 // İş geçmişi yalnızca çıktı üretimini anlatır. Bu katman gerçek izleme davranışını
 // tutar: kaldığın yer, video bazlı tercihler, koleksiyon ve altyazı içi arama.
 let watchLibraryCache = [];
+// Izleme kaydi yazimlari SIRAYA alinir. Eskiden her flushWatchState kendi
+// invoke'unu baslatiyordu; iki yazim ic ice girdiginde ikincisi birincinin
+// yazdigini eziyordu (ilerleme geri gidiyordu). Kuyruk + baseItemRevision
+// ikilisi hem sirayi hem de "yazarken kayit degisti mi" sorusunu cozer.
+let watchMutationQueue = Promise.resolve();
+let watchMutationSequence = 0;
+const watchWriterId = `renderer-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+function serializeWatchMutation(run) {
+  const result = watchMutationQueue.then(run, run);
+  watchMutationQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+function watchMutationRequest(patch, kind) {
+  const current = watchItemByKey(patch.key);
+  return {
+    ...patch,
+    _watchMutation: {
+      kind,
+      writerId: watchWriterId,
+      sequence: ++watchMutationSequence,
+      at: Number(patch.lastWatched) || Date.now(),
+      baseItemRevision: Math.max(0, Number(current && current.revision) || 0),
+      allowCreate: !current,
+    },
+  };
+}
+
+function applyWatchMutationResult(res) {
+  if (res && res.ok && res.item) {
+    const index = watchLibraryCache.findIndex((item) => item.key === res.item.key);
+    if (index >= 0) watchLibraryCache.splice(index, 1);
+    watchLibraryCache.unshift(res.item);
+  }
+  return res;
+}
 let playerLibraryResults = [];
 let playerUnifiedLibraryResults = [];
 let playerLibraryView = 'search';
@@ -11249,16 +11286,15 @@ function currentWatchPatch(completed) {
 async function flushWatchState(completed = false, refresh = false) {
   const patch = currentWatchPatch(completed);
   if (!patch || !window.api.updateWatchItem) return;
-  try {
-    const res = await window.api.updateWatchItem(patch);
-    if (res && res.ok && res.item) {
-      const i = watchLibraryCache.findIndex((x) => x.key === res.item.key);
-      if (i >= 0) watchLibraryCache.splice(i, 1);
-      watchLibraryCache.unshift(res.item);
-      if (refresh) renderPlayerLibrary();
-    }
-  } catch (_) {}
+  return serializeWatchMutation(async () => {
+    try {
+      const res = applyWatchMutationResult(
+        await window.api.updateWatchItem(watchMutationRequest(patch, 'progress')));
+      if (res && res.ok && res.item && refresh) renderPlayerLibrary();
+    } catch (_) {}
+  });
 }
+
 
 async function restoreWatchProfile(key) {
   const gen = currentGeneration();
@@ -13183,6 +13219,25 @@ function setPlayerSource(src, title, key, meta) {
   if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma';
   beginWatchSession();
   restoreWatchProfile(player.mediaKey);
+}
+
+// Kapanista promise tabanli invoke yarida kalabilir; son anlik goruntu SENKRON
+// IPC ile yazilir. ACK her durumda gonderilir ki ana surec 750 ms sinirini
+// gereksiz yere beklemesin.
+if (window.api.onWatchFlushBeforeClose) {
+  window.api.onWatchFlushBeforeClose((token) => {
+    try {
+      const patch = currentWatchPatch(false);
+      if (patch && window.api.saveWatchItemBeforeClose) {
+        applyWatchMutationResult(window.api.saveWatchItemBeforeClose(
+          watchMutationRequest(patch, 'close-progress')));
+      }
+    } catch (_) {
+      // Kapanis yine sinirli surede ilerler; main timeout'u son guvenlik agi.
+    } finally {
+      if (window.api.finishWatchFlushBeforeClose) window.api.finishWatchFlushBeforeClose(token);
+    }
+  });
 }
 
 // ---- HLS ile indirmeden izleme ----

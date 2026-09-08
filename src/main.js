@@ -275,8 +275,9 @@ const browserAdblockInitiallyEnabled = readPublicSettings().ui?.browserAdblockEn
 const browserPlayerResponseAdPruneInitiallyEnabled =
   readPublicSettings().ui?.browserPlayerResponseAdPrune === true;
 
-let mainWindow;
-let mainWindowClosing = false;
+// Kutuphane dosyasina AYNI ANDA iki surec yazarsa biri digerinin yazdigini
+// ezer. Tek-writer garantisi burada baslar: ikinci surec hic pencere acmadan
+// kapanir, kilidi tutan surecin penceresi one getirilir.
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   app.quit();
@@ -288,6 +289,12 @@ if (!hasSingleInstanceLock) {
     mainWindow.focus();
   });
 }
+let mainWindow;
+let mainWindowClosing = false;
+// Kapanista renderer'in son izleme kaydini yazmasi icin verilen sure. Sinirsiz
+// beklemek uygulamayi kilitler; hic beklememek son ilerlemeyi kaybettirir.
+const WATCH_CLOSE_FLUSH_TIMEOUT_MS = 750;
+const pendingWatchCloseFlushes = new Map();
 let activeJob = null;
 let activeQueueItemId = null;
 const queueTerminalGuards = new Set();
@@ -7158,6 +7165,54 @@ async function flushBrowserSession() {
   }
 }
 
+// Kapanista promise tabanli invoke yarida kalabilir; son anlik goruntu SENKRON
+// IPC ile yazilir ki sira garantisi bozulmasin.
+ipcMain.on('library:upsert-before-close', (event, item) => {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) {
+    event.returnValue = { ok: false, error: 'Yetkisiz istek.' };
+    return;
+  }
+  try {
+    const saved = upsertWatchItem(item);
+    event.returnValue = saved ? { ok: true, item: saved } : { ok: false, error: 'Gecersiz kayit' };
+  } catch (error) {
+    event.returnValue = { ok: false, error: error.message };
+  }
+});
+
+// Renderer'in bekleyen izleme yazimini kapanmadan once linearize et. ACK
+// gelirse hemen, gelmezse 750 ms sonra devam edilir -- kapanis her durumda
+// sinirli surede tamamlanir.
+function flushWatchLibraryBeforeClose() {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+    return Promise.resolve();
+  }
+  const sender = mainWindow.webContents;
+  const token = randomUUID();
+  return new Promise((resolve) => {
+    const finish = () => {
+      const pending = pendingWatchCloseFlushes.get(token);
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      pendingWatchCloseFlushes.delete(token);
+      resolve();
+    };
+    const timer = setTimeout(finish, WATCH_CLOSE_FLUSH_TIMEOUT_MS);
+    pendingWatchCloseFlushes.set(token, { sender, timer, finish });
+    try { sender.send('library:flush-before-close', token); }
+    catch (_) { finish(); }
+  });
+}
+
+ipcMain.on('library:flush-before-close-complete', (event, token) => {
+  const pending = pendingWatchCloseFlushes.get(token);
+  // Yalnizca handshake'i baslattigimiz renderer ACK verebilir; pending.sender
+  // flush aninda yakalanan mainWindow.webContents'tir.
+  if (!pending) return;
+  if (event.sender !== pending.sender) return;
+  pending.finish();
+});
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
@@ -7250,6 +7305,8 @@ function createWindow() {
       // üzere. Başarısızlıkta eski sağlam dosyayı koru; boş Map'i ikinci kez
       // yazarak onu silme.
       await flushBrowserSession();
+      // Renderer'in bekleyen son izleme yazimi da diske insin (sinirli sure).
+      await flushWatchLibraryBeforeClose();
       browserSessionFinalizedForQuit = true;
       browserDownloads.cancelAll();
       destroyBrowserView();
@@ -7370,7 +7427,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('activate', () => {
+if (hasSingleInstanceLock) app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
