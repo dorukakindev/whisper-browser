@@ -1845,7 +1845,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserPageTarget', 'browserPageMode',
-  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode',
+  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -1907,6 +1907,19 @@ function scheduleSave() {
   const el = $(id);
   if (el) el.addEventListener('change', scheduleSave);
 });
+
+const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
+function applyUiTheme(mode = $('uiTheme')?.value || 'system') {
+  const normalized = ['system', 'dark', 'light'].includes(mode) ? mode : 'system';
+  const resolved = normalized === 'system' ? (themeMedia.matches ? 'light' : 'dark') : normalized;
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.themeMode = normalized;
+}
+$('uiTheme')?.addEventListener('change', (event) => applyUiTheme(event.target.value));
+themeMedia.addEventListener?.('change', () => {
+  if (($('uiTheme')?.value || 'system') === 'system') applyUiTheme('system');
+});
+applyUiTheme();
 
 // ===== Hazır ayar profilleri =====
 // Hız/kalite çekirdeğini değiştirir (model, motor, beam...). "Film" ayrıca film
@@ -8067,18 +8080,30 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   if (!$('aiChat')?.classList.contains('hidden')) aiChatCtxLabel();
 }
 
-async function showBrowserWorkspace() {
+async function showBrowserWorkspaceAttempt(retry = 0) {
   const bounds = browserSlotBounds();
-  if (!bounds || !window.api.showBrowser) return;
+  if (!bounds || !window.api.showBrowser) {
+    if (retry < 2 && player.workspaceMode === 'browser') {
+      setTimeout(() => { if (player.workspaceMode === 'browser') void showBrowserWorkspace(retry + 1); }, 100);
+    }
+    return;
+  }
   const workspaceSeq = ++player.browserWorkspaceSeq;
   const stillCurrent = () => workspaceSeq === player.browserWorkspaceSeq && player.workspaceMode === 'browser';
   const previousActive = player.browserActiveTabId;
   const result = await window.api.showBrowser(player.browserActiveTabId, bounds).catch(() => null);
   if (!stillCurrent()) {
     if (player.workspaceMode !== 'browser') window.api.hideBrowser?.().catch(() => {});
+    else if (retry < 2) {
+      setTimeout(() => { if (player.workspaceMode === 'browser') void showBrowserWorkspace(retry + 1); }, 80);
+    }
     return;
   }
   if (!result || !result.ok) {
+    if (retry < 2) {
+      setTimeout(() => { if (player.workspaceMode === 'browser') void showBrowserWorkspace(retry + 1); }, 120);
+      return;
+    }
     setBrowserSignal((result && result.error) || 'Tarayıcı alanı açılamadı.', false);
     return;
   }
@@ -8106,6 +8131,16 @@ async function showBrowserWorkspace() {
     setTimeout(() => {
       if (stillCurrent()) $('browserAddress')?.focus();
     }, 0);
+  }
+}
+
+async function showBrowserWorkspace(retry = 0) {
+  if (player.browserWorkspaceShowBusy) return;
+  player.browserWorkspaceShowBusy = true;
+  try {
+    return await showBrowserWorkspaceAttempt(retry);
+  } finally {
+    player.browserWorkspaceShowBusy = false;
   }
 }
 

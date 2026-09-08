@@ -214,7 +214,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     playerSpeed: '1.25', playerPlaybackPolicy: 'accelerate-gaps', youtubeCookieBrowser: 'firefox',
     browserMangaTarget: 'tr', browserMangaFont: 'comic', browserPageTarget: 'en',
     browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
-    browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto',
+    browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', uiTheme: 'light',
   };
   const numericValues = {
     beamSize: '5', bestOf: '5', batchSize: '8', vadThreshold: '0.5', maxLineWidth: '42',

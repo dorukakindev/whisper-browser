@@ -98,8 +98,12 @@ async function waitFor(predicate, timeoutMs, intervalMs = 250) {
 }
 
 async function run() {
-  const wav = silentWav();
-  const vtt = 'WEBVTT\n\n00:00:00.000 --> 00:00:11.500\nElectron tarayıcı altyazısı\n';
+  // Smoke akışı altyazıyı yükledikten sonra gerçek overlay'i de denetler.
+  // 12 saniyelik autoplay medya, Electron hazırlığı uzadığında cue'yu test
+  // bitmeden tüketebiliyordu; uzun sentetik medya bu kontrolü deterministik
+  // tutar.
+  const wav = silentWav(90);
+  const vtt = 'WEBVTT\n\n00:00:00.000 --> 00:01:30.000\nElectron tarayıcı altyazısı\n';
   server = http.createServer((request, response) => {
     if (request.url === '/captions.vtt') {
       response.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Cache-Control': 'no-store' });
