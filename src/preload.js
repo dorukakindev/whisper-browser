@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   updateWatchItem: (item) => ipcRenderer.invoke('library:upsert', item),
   removeWatchItem: (key) => ipcRenderer.invoke('library:remove', key),
   searchWatchLibrary: (query) => ipcRenderer.invoke('library:search', query),
+  cancelWatchLibrarySearch: () => ipcRenderer.send('library:search-cancel'),
   searchUnifiedLibrary: (query, scope = 'all', limit = 160) => ipcRenderer.invoke('library:searchUnified', { query, scope, limit }),
   listLibraryCollections: () => ipcRenderer.invoke('library:collections:list'),
   renameLibraryCollection: (from, to) => ipcRenderer.invoke('library:collections:rename', { from, to }),

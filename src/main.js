@@ -1513,12 +1513,26 @@ function foldWatchSearchText(value) {
   return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR');
 }
 
-function searchWatchLibrary(query) {
+// Kutuphane aramasi her altyazi dosyasini ana surecte okur. 10k kayitla bu
+// dongu olculdu: ana event-loop 1711 ms boyunca blokeydi, yani tum Electron
+// arayuzu (IPC ve pencere olaylari ana surecte islenir) donuyordu. Artik
+// belirli araliklarla dongu event-loop'a birakiliyor ve `isCancelled` ile
+// yarida kesilebiliyor; kullanici yazmaya devam ederken eski tarama durur.
+const WATCH_SEARCH_YIELD_EVERY = 16;
+const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+
+async function searchWatchLibrary(query, isCancelled) {
+  const cancelled = () => { try { return !!(isCancelled && isCancelled()); } catch (_) { return false; } };
   const q = foldWatchSearchText(String(query || '').trim());
   const list = loadWatchLibrary();
   if (!q) return list.map((item) => ({ ...item, matches: [] }));
   const results = [];
+  let scanned = 0;
   for (const item of list) {
+    if (++scanned % WATCH_SEARCH_YIELD_EVERY === 0) {
+      await yieldToEventLoop();
+      if (cancelled()) return [];
+    }
     const basic = foldWatchSearchText([item.title, item.sourceRef, ...(item.collections || [])].join(' ')).includes(q);
     const matches = [];
     for (const subtitlePath of item.subtitlePaths || []) {
@@ -8981,7 +8995,18 @@ ipcMain.handle('library:remove', async (_event, key) => {
   }
 });
 
-ipcMain.handle('library:search', async (event, query) => authorizedBrowserSender(event) ? searchWatchLibrary(query) : []);
+// Hizli yazimda her tus vurusu yeni bir tarama baslatir; kusak sayaci eskisini
+// ilk yield noktasinda durdurur, boylece 10k kayitlik kutuphane ust uste
+// taranmaz. Renderer da debounce suresince 'library:search-cancel' gonderir.
+let watchLibrarySearchGeneration = 0;
+ipcMain.on('library:search-cancel', (event) => {
+  if (authorizedBrowserSender(event)) watchLibrarySearchGeneration++;
+});
+ipcMain.handle('library:search', async (event, query) => {
+  if (!authorizedBrowserSender(event)) return [];
+  const generation = ++watchLibrarySearchGeneration;
+  return searchWatchLibrary(query, () => generation !== watchLibrarySearchGeneration);
+});
 
 ipcMain.handle('library:searchUnified', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.', results: [] };

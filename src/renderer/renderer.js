@@ -16214,6 +16214,9 @@ if ($('playerLibrarySearch')) {
     $('playerLibrarySearchClear')?.classList.toggle('hidden', !e.target.value);
     if (e.isComposing) return;
     clearTimeout(playerLibrarySearchTimer);
+    // Onceki ana-surec taramasi debounce boyunca calismaya devam ediyordu;
+    // buyuk kutuphanede her tus vurusu ustune yeni bir tam tarama biniyordu.
+    window.api.cancelWatchLibrarySearch();
     const q = e.target.value.trim();
     if (!q) {
       playerLibraryResults = watchLibraryCache;
