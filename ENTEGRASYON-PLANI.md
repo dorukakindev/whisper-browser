@@ -71,7 +71,41 @@ kaldır.
 **Beklenti:** Her kalemin saf mantık testleri master'da zaten geçiyor (ölçüldü).
 Kalan tek şey bağlantı. Asıl iş orada.
 
-## 4. Kalemler — öncelik sırasıyla
+## 4. DURUM (2026-09-08)
+
+| Kalem | Durum |
+|---|---|
+| K1 kütüphane deposu bağlantısı | ✅ `34c807d` |
+| K2 yt-dlp atomik runtime | ✅ `1d697ae` |
+| K3 ayar güvenliği | ✅ `98f8369` |
+| K4 kuyruk yaşam döngüsü | ✅ `b7d7ffc` |
+| K5 tek-yazar + kapanış flush'ı | ✅ `6392461` |
+| K8 CDP sızıntısı + izole ölçüm | ✅ `da0c4c6` (kısmi — aşağıya bak) |
+| **K6 pipeline iptal/temizlik** | ⛔ **açık** |
+| **K7 renderer durum modeli / a11y** | ⛔ **açık** |
+
+**K6 neden açık:** Kaynak dal `backend/transcribe.py`'de 146 satırlık boru hattı
+değişikliği ve 35 checkpoint noktası (`("stage", "point")`) gerektiriyor; ayrıca
+`OutputTransaction` ile çok-dosyalı işlem yazımı. Bu bir bağlantı işi değil, boru
+hattı yeniden yazımı — ve `transcribe.py` master'da o daldan bu yana epey değişti.
+Kendi oturumunda, adım adım yapılmalı. Not: master zaten dosya BAŞINA atomik yazıyor
+(`atomic_text_writer`, `writeSubtitleAtomic`), eksik olan çok-dosyalı işlem ve
+checkpoint'li iptal.
+
+**K7 neden açık:** Bir erişilebilirlik + responsive tasarım geçişi (ARIA rolleri,
+tablist semantiği, `:focus-visible`, üç kırılma noktası) — hata düzeltmesi değil.
+`index.html` ve `styles.css` master'da en çok değişen dosyalar; testin aradığı
+işaretlerin güncel karşılıkları tek tek bulunmalı.
+
+**K8 kısmi:** İçindeki iki gerçek düzeltme alındı (yarış tabanlı CDP zaman aşımının
+sızdırdığı zamanlayıcı; ölçümün gerçek kullanıcı profilini kirletmesi).
+`src/resource-soak.js` ve testi ALINMADI: testin üçüncü iddiası tarayıcı yer imi
+deposunu harness'ta çalıştırıyor ve master'ın güncel `normalizeBrowserPlaces`
+zinciriyle (site profilleri, uyumluluk host'ları, `browser-place-url`) uyuşmuyor.
+Modülü testsiz almak istemedim. Devam edecek kişi harness'a bu bağımlılıkları
+enjekte edip fixture'ı güncel normalizasyona uyarlamalı.
+
+## 4b. Kalemler — öncelik sırasıyla
 
 ### K1. `src/watch-library-store.js` bağlantısı — EN DİKKATLİ OLUNACAK
 
