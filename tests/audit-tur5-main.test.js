@@ -1,9 +1,11 @@
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const vm = require('vm');
 const { EventEmitter } = require('events');
+const { createWatchLibraryStore } = require('../src/watch-library-store');
 const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 function fn(name, ctx) {
   let start = source.indexOf(`function ${name}(`);
@@ -99,6 +101,42 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
     assert.equal(removed, scenario === 'none' ? 1 : 0);
     assert.equal(library.length, result.ok ? 0 : 1);
     if (scenario === 'commit-failure') assert.equal(writes, 2);
+  }
+
+  // Security limits are an external behavior contract, not a source-location
+  // assertion: run the real main.js upsert function and IPC callback against
+  // the real store so the test survives moving the guard to another helper.
+  {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-library-ipc-size-'));
+    try {
+      const store = createWatchLibraryStore({ filePath: path.join(temp, 'watch-library.json') });
+      const upsertWatchItem = fn('upsertWatchItem', {
+        watchLibraryStore: () => store,
+        watchIndex: () => null,
+      });
+      const ipc = handler('library:upsert', {
+        authorizedBrowserSender: () => true,
+        upsertWatchItem,
+      });
+      assert.equal((await ipc.run({}, { key: 'file:small', title: 'sağlam' })).ok, true);
+      assert.equal((await ipc.run({}, {
+        key: 'file:oversized-patch', title: 'x'.repeat(129 * 1024),
+      })).ok, false, '128 KB üstü dış library:upsert isteği kabul edildi');
+      assert.equal((await ipc.run({}, {
+        key: 'file:merge', futureA: 'a'.repeat(110 * 1024),
+      })).ok, true);
+      assert.equal((await ipc.run({}, {
+        key: 'file:merge', futureB: 'b'.repeat(110 * 1024),
+      })).ok, true);
+      assert.equal((await ipc.run({}, {
+        key: 'file:merge', futureC: 'c'.repeat(50 * 1024),
+      })).ok, false, '256 KB üstüne birleşen dış library:upsert kaydı kabul edildi');
+      const persisted = store.loadAll();
+      assert(!persisted.some((item) => item.key === 'file:oversized-patch'));
+      assert.equal(persisted.find((item) => item.key === 'file:merge').futureC, undefined);
+    } finally {
+      fs.rmSync(temp, { recursive: true, force: true });
+    }
   }
 
   // Invalid image data is rejected before a file dialog or allocation-heavy IO.
