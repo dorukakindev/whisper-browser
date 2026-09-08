@@ -45,7 +45,7 @@ function cleanCueText(value) {
   // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
 
   return decoded
-    .replace(/<\/?(?:b|i|u|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
+    .replace(/<\/?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
     .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
     .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
     .replace(/[ \t]+\n/g, '\n')
@@ -58,7 +58,7 @@ function cleanCueText(value) {
 function parseTime(value) {
   const raw = String(value || '').trim();
   if (!raw) return null;
-  const unit = raw.match(/^(-?\d+(?:\.\d+)?)(ms|s|m|h)$/i);
+  const unit = raw.match(/^(-?(?:\d+(?:\.\d*)?|\.\d+))(ms|s|m|h)$/i);
   if (unit) {
     const n = Number(unit[1]);
     const mult = unit[2].toLowerCase() === 'ms' ? 0.001
@@ -66,7 +66,7 @@ function parseTime(value) {
       : unit[2].toLowerCase() === 'h' ? 3600 : 1;
     return Number.isFinite(n) ? n * mult : null;
   }
-  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return Number(raw);
+  if (/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) return Number(raw);
   const parts = raw.replace(',', '.').split(':');
   if (parts.length < 2 || parts.length > 3 || parts.some((x) => !/^\d+(?:\.\d+)?$/.test(x))) return null;
   const seconds = Number(parts.pop());
@@ -873,7 +873,7 @@ function parseXml(body) {
     if (start !== null) start += parentOffset;
     if (end !== null) end += parentOffset;
     if (end === null && start !== null && duration !== null) end = start + duration;
-    if (start !== null) out.push({ start, end, text: inner });
+    if (start !== null) out.push({ start, end, text: cleanCueText(inner) });
   }
   return normalizeCues(out);
 }
