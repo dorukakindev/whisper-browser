@@ -392,7 +392,7 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
     Filmlerde birden çok ses kanalı (orijinal dil / dublaj / yorum) olabilir; -1
     ffmpeg'in varsayılan kanalını kullanır.
     """
-    log(f"Ses çıkarılıyor: {Path(input_path).name}")
+    log("Ses çıkarılıyor")
     cmd = [
         ffmpeg_path,
         "-y",
@@ -802,7 +802,7 @@ def _cut_wav(src_wav, dst_wav, start, end, ffmpeg_path):
     ]
     proc = _run_ffmpeg_bounded(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg kesme hatası: {proc.stderr[-300:]}")
+        raise RuntimeError("Ses kesilemedi: ffmpeg işlemi başarısız oldu.")
     out = Path(dst_wav)
     if not out.exists() or out.stat().st_size < 1000:
         raise RuntimeError("Kesilen ses boş çıktı")
