@@ -26,6 +26,9 @@ async function test(name, fn) {
     } });
     assert.equal(normalizeStep({ command: 'clickSelector', args: { selector: '.buy' } }), null);
     assert.equal(normalizeStep({ command: 'openSettings', args: { page: 'secrets' } }), null);
+    assert.deepEqual(normalizeStep({ command: 'openSettings', args: { page: 'browser-view' } }), {
+      command: 'openSettings', args: { page: 'browser-settings' },
+    }, 'Eski browser-view kayıtları tek Ayarlar sekmesi rotasına taşınmalı.');
   });
 
   await test('değişen geçici iz kimliği dil ve rolle yeniden bağlanır', () => {

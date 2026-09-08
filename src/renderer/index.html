@@ -1037,7 +1037,7 @@
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
             <div class="browser-tabbar">
-              <div class="browser-tab-strip" id="browserTabStrip" role="tablist" aria-label="Web sekmeleri"></div>
+              <div class="browser-tab-strip" id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"></div>
               <button class="browser-tab-new" id="browserTabNew" type="button" title="Yeni sekme"
                 aria-label="Yeni sekme"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>Yeni sekme</span></button>
             </div>
@@ -1510,20 +1510,30 @@
             </section>
           </div>
 
-          <div class="browser-view-slot" id="browserViewSlot">            <section class="browser-settings-surface hidden" id="browserSettingsSurface" aria-label="Tarayıcı ayarları" aria-hidden="true">
+          <div class="browser-view-slot" id="browserViewSlot">
+            <section class="browser-settings-surface hidden" id="browserSettingsSurface"
+              aria-label="Tarayıcı ayarları" aria-hidden="true">
               <header class="browser-settings-surface-head">
-                <div><span class="browser-signal-kicker">TARAYICI AYARLARI</span><h2>Bu sekmenin ayarları</h2></div>
-                <button class="btn-icon browser-dismiss" id="browserSettingsClose" type="button" aria-label="Ayarlar sekmesini kapat" title="Ayarlar sekmesini kapat">×</button>
+                <div>
+                  <span class="browser-signal-kicker">TARAYICI AYARLARI</span>
+                  <h2>Tarayıcı ayarları</h2>
+                </div>
+                <button class="btn-icon browser-dismiss" id="browserSettingsClose" type="button"
+                  aria-label="Ayarlar sekmesini kapat" title="Ayarlar sekmesini kapat">×</button>
               </header>
-              <div class="browser-settings-surface-tools"><input id="browserSettingsSearch" type="search" autocomplete="off" placeholder="Ayar ara…" aria-label="Tarayıcı ayarlarında ara"></div>
-              <nav class="browser-settings-categories" id="browserSettingsCategories" aria-label="Ayar kategorileri">
-                <button type="button" data-browser-settings-category="privacy">Gizlilik</button>
-                <button type="button" data-browser-settings-category="session">Oturum</button>
-                <button type="button" data-browser-settings-category="site">Site ve görünüm</button>
-                <button type="button" data-browser-settings-category="translation">Çeviri</button>
-                <button type="button" data-browser-settings-category="system">Sistem</button>
-              </nav>
-              <div class="browser-settings-surface-content" id="browserSettingsSurfaceContent"></div>
+              <div class="browser-settings-surface-tools">
+                <input id="browserSettingsSearch" type="search" autocomplete="off"
+                  placeholder="Ayar ara…" aria-label="Tarayıcı ayarlarında ara" />
+              </div>
+              <div class="browser-settings-body">
+                <nav class="browser-settings-categories" id="browserSettingsCategories"
+                  aria-label="Ayar kategorileri"></nav>
+                <div class="browser-settings-main">
+                  <div class="browser-settings-results hidden" id="browserSettingsResults"
+                    aria-label="Ayar arama sonuçları" aria-live="polite"></div>
+                  <div class="browser-settings-surface-content" id="browserSettingsSurfaceContent"></div>
+                </div>
+              </div>
             </section>
             <div class="browser-empty" id="browserEmpty">
               <span class="browser-empty-rule" aria-hidden="true"></span>
@@ -1991,8 +2001,6 @@
               aria-selected="true" aria-controls="settingsPageSource">Kaynak ve oynatma</button>
             <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserSubtitles" data-settings-page="browser-subtitles" role="tab"
               aria-selected="false" aria-controls="settingsPageBrowserSubtitles">Altyazı ve çeviri</button>
-            <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserView" data-settings-page="browser-view" role="tab"
-              aria-selected="false" aria-controls="settingsPageBrowserView">Görünüm ve manga</button>
             <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserDiagnostics" data-settings-page="browser-diagnostics" role="tab"
               aria-selected="false" aria-controls="settingsPageBrowserDiagnostics">Sorun giderme</button>
           </div>
@@ -2267,8 +2275,6 @@
               <p class="browser-manga-hint" id="browserSyncWarning" role="alert"></p>
             </div>
           </section>
-          <section class="settings-page settings-page-browser-view hidden" id="settingsPageBrowserView"
-            data-settings-page-panel="browser-view" role="tabpanel" aria-labelledby="settingsTabBrowserView"></section>
           <section class="settings-page settings-page-browser-diagnostics hidden" id="settingsPageBrowserDiagnostics"
             data-settings-page-panel="browser-diagnostics" role="tabpanel" aria-labelledby="settingsTabBrowserDiagnostics"></section>
           </div><!-- /settings-drawer -->

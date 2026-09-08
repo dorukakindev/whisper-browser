@@ -19,6 +19,7 @@ const SRC = path.join(__dirname, '..', 'src', 'renderer');
 const js = fs.readFileSync(path.join(SRC, 'renderer.js'), 'utf-8');
 const html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf-8');
 const css = fs.readFileSync(path.join(SRC, 'styles.css'), 'utf-8');
+const browserSettingsRegistry = require('../src/browser-settings-registry');
 
 // oynatıcı katmanını ayır
 const li = html.indexOf('id="playerLayer"');
@@ -696,7 +697,6 @@ test('browser alt sekmeleri ve ayar sekmeleri denetledikleri panellerle bağlıd
     ['libraryViewCollections', 'playerLibraryList'],
     ['settingsTabSource', 'settingsPageSource'],
     ['settingsTabBrowserSubtitles', 'settingsPageBrowserSubtitles'],
-    ['settingsTabBrowserView', 'settingsPageBrowserView'],
     ['settingsTabBrowserDiagnostics', 'settingsPageBrowserDiagnostics'],
   ]) {
     assert(new RegExp(`id="${tabId}"[^>]*aria-controls="${panelId}"`).test(html), `${tabId} panelini açıklamıyor`);
@@ -838,12 +838,17 @@ test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüs
     'proxy eylemi sonrasında menü yaşam döngüsü kapanmıyor');
 });
 
-test('Aşama B ayarları aynı sağ alanı kullanır ve çalışma paneli durumunu korur', () => {
+test('Aşama B çalışma çekmecesini korur, tarayıcı kalıcı ayarlarını özel sekmeye ayırır', () => {
   assert(layer.includes('id="settingsBackToPanel"'), 'ayar görünümünde çalışma paneline dönüş düğmesi yok');
   assert(layer.includes('id="settingsDrawerBreadcrumb"'), 'ayar görünümünde breadcrumb yok');
-  for (const label of ['Kaynak ve oynatma', 'Altyazı ve çeviri', 'Görünüm ve manga', 'Sorun giderme']) {
+  for (const label of ['Kaynak ve oynatma', 'Altyazı ve çeviri', 'Sorun giderme']) {
     assert(layer.includes('>' + label + '</button>'), label + ' ayar kategorisi yok');
   }
+  assert(!layer.includes('>Görünüm ve manga</button>'),
+    'kalıcı tarayıcı ayarları için ikinci çekmece yolu kalmış');
+  assert(JSON.stringify(browserSettingsRegistry.categories().map((item) => item.label))
+    === JSON.stringify(['Site ve altyazı', 'Çeviri ve manga', 'Gizlilik', 'Oturum', 'Sistem']),
+  'özel Ayarlar sekmesi kategorileri registry kaynağından gelmiyor');
   assert(/function captureSettingsPanelSnapshot/.test(js)
     && /cueScrollTop/.test(js)
     && /aiDraft/.test(js)
@@ -952,7 +957,8 @@ test('tarayıcı araç çubuğu ve ayrıntılar yeniden boyutlanan paneli izliyo
 
 test('tarayıcı sekmeleri erişilebilir tab modeli ve SVG kapatma ikonları kullanıyor', () => {
   assert(/open\.setAttribute\('role', 'tab'\)/.test(js)
-    && /open\.tabIndex = tab\.id === player\.browserActiveTabId \? 0 : -1/.test(js),
+    && /open\.tabIndex = webActive \? 0 : -1/.test(js)
+    && /open\.tabIndex = settingsActive \? 0 : -1/.test(js),
     'sekme odağı ve seçimi gerçek tab düğmesinde değil');
   assert(/\['ArrowLeft', 'ArrowRight', 'Home', 'End'\]/.test(js),
     'tarayıcı sekmelerinde ok ve Home\/End klavye dolaşımı yok');
@@ -1537,22 +1543,24 @@ test('üst çalışma alanı araç grubu sidebar açık ve kapalıyken aynı sü
     'sidebar kapalıyken çalışma modu anahtarı ayrı bir hizaya taşınıyor');
 });
 
-test('tarayıcı görünüm ve yakalama ayarları videoyu itmeden sağ çekmecede açılır', () => {
-  for (const id of ['browserViewSettingsToggle', 'browserDiagnosticsToolbar',
-    'settingsPageBrowserView', 'settingsPageBrowserDiagnostics']) {
+test('tarayıcı kalıcı ayarları özel sekmede, yakalama ayrıntıları ayrı çekmecede açılır', () => {
+  for (const id of ['browserViewSettingsToggle', 'browserSettingsSurface',
+    'browserDiagnosticsToolbar', 'settingsPageBrowserDiagnostics']) {
     assert(layer.includes(`id="${id}"`), `${id} arayüzde yok`);
   }
   const setup = js.slice(js.indexOf('function initializeSettingsPages'),
     js.indexOf('function setSettingsDrawer'));
-  assert(/settingsPageBrowserView['"]\)\.appendChild\(view\)/.test(setup),
-    'görünüm ve manga ayarları sağ çekmeceye taşınmıyor');
+  assert(/child\.dataset\.browserSettingsKind === 'persistent'[\s\S]*?browserSettingsSurfaceContent['"]\)\.appendChild\(child\)/.test(setup),
+    'kalıcı tarayıcı ayarları özel sekme yüzeyine taşınmıyor');
+  assert(!layer.includes('settingsPageBrowserView') && !layer.includes('settingsTabBrowserView'),
+    'eski Görünüm ve manga çekmece rotası hâlâ arayüzde');
   assert(/settingsPageBrowserDiagnostics['"]\)\.appendChild\(diagnostics\)/.test(setup),
     'yakalama ayrıntıları sağ çekmeceye taşınmıyor');
   assert(/\.settings-page-browser-diagnostics \.browser-diagnostics\s*\{[^}]*position:\s*static/.test(css),
     'yakalama paneli çekmecede hâlâ yüzen mutlak panel');
-  assert(/toggleSettingsPage\('browser-view'\)/.test(js)
+  assert(/openBrowserSettings\('site'\)/.test(js)
     && /toggleSettingsPage\('browser-diagnostics'\)/.test(js),
-  'tarayıcı üst çubuğu sağ çekmece sayfalarını açmıyor');
+  'tarayıcı üst çubuğu özel ayar sekmesini veya tanı çekmecesini açmıyor');
 });
 
 test('ses dili bölge kodlarını güvenli biçimde eşleştiriyor', () => {

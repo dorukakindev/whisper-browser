@@ -2,7 +2,7 @@
   const WORKFLOW_VERSION = 1;
   const MAX_WORKFLOW_STEPS = 100;
   const MAX_SAVED_WORKFLOWS = 12;
-  const ALLOWED_SETTINGS_PAGES = new Set(['browser-subtitles', 'browser-view', 'browser-diagnostics']);
+  const ALLOWED_SETTINGS_PAGES = new Set(['browser-subtitles', 'browser-settings', 'browser-diagnostics']);
   const ALLOWED_SUBTITLE_MODES = new Set(['off', 'source', 'translation', 'both']);
   const STEP_COMMANDS = new Set([
     'openSettings', 'loadSourceTrack', 'translateTrack', 'completeTranslation', 'setSubtitleMode',
@@ -32,7 +32,8 @@
     const input = raw.args && typeof raw.args === 'object' && !Array.isArray(raw.args) ? raw.args : {};
     let args = {};
     if (command === 'openSettings') {
-      const page = clean(input.page, 64);
+      const requestedPage = clean(input.page, 64);
+      const page = requestedPage === 'browser-view' ? 'browser-settings' : requestedPage;
       if (!ALLOWED_SETTINGS_PAGES.has(page)) return null;
       args = { page };
     } else if (command === 'setSubtitleMode') {

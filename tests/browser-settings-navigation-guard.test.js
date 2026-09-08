@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
-const start = source.indexOf('function browserSettingsSurfaceVisible(');
+const start = source.indexOf('function browserChromeCommandBlocked(');
 const end = source.indexOf("if ($('browserBack'))", start);
 assert(start >= 0 && end > start, 'Tarayıcı gezinme komutu koruması bulunamadı.');
 

@@ -268,7 +268,7 @@ async function run() {
   })()`);
   assert.deepEqual(toolbar.duplicates, [], 'Toolbar introduced duplicate DOM ids.');
   assert.equal(toolbar.addressBookmark, true, 'Site bookmark is not inside the address control.');
-  assert.equal(toolbar.translateItems, 3, 'Translate split menu does not expose exactly three existing actions.');
+  assert.equal(toolbar.translateItems, 5, 'Translate split menu does not expose all five existing actions.');
   assert.ok(toolbar.moreItems >= 10, 'Other menu is missing grouped browser actions.');
   assert.equal(toolbar.proxy, true, 'Other menu proxy action was not rendered.');
   assert.ok(toolbar.actions?.right <= toolbar.viewport.width - 10,
@@ -280,6 +280,96 @@ async function run() {
       + "); const win=electron.BrowserWindow.getAllWindows()[0]; const view=win?.contentView?.children?.find((entry)=>entry.webContents?.id===wc?.id); if(!view||typeof view.setVisible!=='function')return false; globalThis.__smokeBrowserVisible=null; const original=view.setVisible.bind(view); view.setVisible=(visible)=>{globalThis.__smokeBrowserVisible=!!visible; return original(visible);}; return true; })()",
     5000);
   assert.equal(visibilityHooked, true, 'Could not instrument browser visibility for menu occlusion.');
+
+  const settingsTabFlow = await evaluate(renderer, `(async () => {
+    const beforeTabIds = player.browserTabs.map((tab) => tab.id);
+    const toggle = document.getElementById('browserViewSettingsToggle');
+    toggle.focus();
+    toggle.click();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    const blockedReload = await runBrowserChromeCommand('reload');
+    const search = document.getElementById('browserSettingsSearch');
+    search.value = 'SponsorBlock';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    const resultIds = [...document.querySelectorAll('#browserSettingsResults [data-browser-setting-open]')]
+      .map((item) => item.dataset.browserSettingOpen);
+    const opened = openBrowserSetting('browserSponsorMode');
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const special = document.querySelector('#browserTabStrip [data-browser-settings-tab]');
+    const specialOpen = special?.querySelector('[data-browser-settings-tab-activate]');
+    return {
+      beforeTabIds,
+      modelTabIds: player.browserTabs.map((tab) => tab.id),
+      webTabCount: document.querySelectorAll('#browserTabStrip [data-browser-tab-id]').length,
+      specialTabCount: document.querySelectorAll('#browserTabStrip [data-browser-settings-tab]').length,
+      specialActive: special?.classList.contains('active') === true,
+      specialSelected: specialOpen?.getAttribute('aria-selected') || '',
+      surfaceVisible: !document.getElementById('browserSettingsSurface').classList.contains('hidden'),
+      settingsOpen: player.browserSettingsOpen,
+      returnTabId: player.browserSettingsReturnTabId,
+      categoryCount: document.querySelectorAll('#browserSettingsCategories [data-browser-settings-category]').length,
+      activeCategory: document.querySelector('#browserSettingsCategories .active')?.dataset.browserSettingsCategory || '',
+      resultIds,
+      opened,
+      focusedId: document.activeElement?.id || '',
+      persistentInSurface: document.querySelectorAll('#browserSettingsSurfaceContent [data-browser-settings-kind="persistent"]').length,
+      liveInOriginal: document.querySelectorAll('#browserViewSettings [data-browser-settings-kind="live"]').length,
+      diagnosticInPanel: document.querySelectorAll('#browserDiagnosticsPanel [data-browser-settings-kind="diagnostic"]').length,
+      blockedReload,
+      toggleExpanded: toggle.getAttribute('aria-expanded'),
+    };
+  })()`, 10000);
+  const settingsNativeHidden = await waitFor(async () => evaluate(main,
+    'globalThis.__smokeBrowserVisible === false').catch(() => false), 3000, 50);
+  assert.deepEqual(settingsTabFlow.beforeTabIds, settingsTabFlow.modelTabIds,
+    'Opening Settings changed the real browser tab model.');
+  assert.equal(settingsTabFlow.webTabCount, settingsTabFlow.modelTabIds.length,
+    'Settings was counted as a real web tab.');
+  assert.equal(settingsTabFlow.specialTabCount, 1, 'Settings did not render exactly one special tab.');
+  assert.equal(settingsTabFlow.specialActive, true, 'The special Settings tab is not active.');
+  assert.equal(settingsTabFlow.specialSelected, 'true', 'The Settings tab ARIA selection is incorrect.');
+  assert.equal(settingsTabFlow.surfaceVisible, true, 'The Settings surface is not visible.');
+  assert.equal(settingsTabFlow.settingsOpen, true, 'The Settings tab lifecycle flag was not set.');
+  assert.equal(settingsTabFlow.returnTabId, tabId, 'Settings did not remember the invoking web tab.');
+  assert.equal(settingsTabFlow.categoryCount, 5, 'The registry did not render all five settings categories.');
+  assert.equal(settingsTabFlow.activeCategory, 'privacy', 'Opening a registry result did not select its category.');
+  assert.deepEqual(settingsTabFlow.resultIds,
+    ['browserSponsorMode', 'browserSponsorCategories'],
+    'SponsorBlock search did not return the two exact registry settings.');
+  assert.equal(settingsTabFlow.opened, true, 'The registry setting could not be opened.');
+  assert.equal(settingsTabFlow.focusedId, 'browserSponsorMode',
+    'Opening a registry result did not focus the real setting control.');
+  assert.ok(settingsTabFlow.persistentInSurface >= 6,
+    'Persistent settings were not moved into the Settings surface.');
+  assert.ok(settingsTabFlow.liveInOriginal >= 2,
+    'Live page controls were incorrectly moved into the Settings surface.');
+  assert.ok(settingsTabFlow.diagnosticInPanel >= 1,
+    'Diagnostic controls were not kept in the diagnostics panel.');
+  assert.equal(settingsTabFlow.blockedReload?.blocked, true,
+    'Reload reached the hidden web page while Settings was active.');
+  assert.equal(settingsTabFlow.toggleExpanded, 'true',
+    'The Settings toolbar button did not reflect the open tab.');
+  assert.equal(settingsNativeHidden, true, 'The native browser view remained visible behind Settings.');
+
+  const settingsTabClose = await evaluate(renderer, `(async () => {
+    await closeBrowserSettings();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    return {
+      browserSurface: player.browserSurface,
+      settingsOpen: player.browserSettingsOpen,
+      activeTabId: player.browserActiveTabId,
+      specialTabCount: document.querySelectorAll('#browserTabStrip [data-browser-settings-tab]').length,
+      surfaceHidden: document.getElementById('browserSettingsSurface').classList.contains('hidden'),
+      toggleExpanded: document.getElementById('browserViewSettingsToggle').getAttribute('aria-expanded'),
+    };
+  })()`, 10000);
+  const settingsNativeRestored = await waitFor(async () => evaluate(main,
+    'globalThis.__smokeBrowserVisible === true').catch(() => false), 3000, 50);
+  assert.deepEqual(settingsTabClose, {
+    browserSurface: 'web', settingsOpen: false, activeTabId: tabId,
+    specialTabCount: 0, surfaceHidden: true, toggleExpanded: 'false',
+  }, 'Closing Settings did not return to the invoking web tab cleanly.');
+  assert.equal(settingsNativeRestored, true, 'Closing Settings did not restore the native browser view.');
 
   const responsiveMatrix = [];
   const targetSizes = [
@@ -632,7 +722,10 @@ async function run() {
   const result = {
     tabId,
     panel,
-    settings: { panel: settingsPanel, back: settingsBack, close: settingsClose, overlay: settingsOverlay },
+    settings: {
+      tab: settingsTabFlow, tabClose: settingsTabClose,
+      panel: settingsPanel, back: settingsBack, close: settingsClose, overlay: settingsOverlay,
+    },
     responsiveMatrix,
     fullscreen: {
       command: fullscreenCommand,
