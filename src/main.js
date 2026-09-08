@@ -6172,12 +6172,17 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     const duration = Number(media.duration);
     const playbackRate = Number(media.playbackRate);
     const volume = Number(media.volume);
+    const adRemaining = media.adRemaining === null || media.adRemaining === undefined
+      ? NaN : Number(media.adRemaining);
     const safeMedia = {
       ...media,
       currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
       duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
       playbackRate: Number.isFinite(playbackRate) ? Math.max(0.25, Math.min(4, playbackRate)) : 1,
       volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0,
+      adPlaying: !!media.adPlaying,
+      adSkippable: !!media.adSkippable,
+      adRemaining: Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null,
     };
     tab.position = safeMedia.currentTime;
     tab.duration = safeMedia.duration;
@@ -6186,7 +6191,8 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     tab.muted = !!safeMedia.muted;
     tab.translationScheduler?.updatePlayhead(tab.position);
     const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
-      Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused].join('|');
+      Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
+      !!safeMedia.adSkippable, safeMedia.adRemaining ?? ''].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {
       tab.lastMediaEventSignature = mediaSignature;
       sendBrowserEvent(tab, { type: 'media', media: safeMedia });

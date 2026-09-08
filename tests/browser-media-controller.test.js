@@ -15,10 +15,19 @@ for (const command of ['seek', 'seek-relative', 'speed', 'volume']) {
 }
 function test(name, fn) { fn(); passed += 1; }
 
-function probe(items) {
-  const document = { nodeType: 9, children: [], querySelectorAll: () => items };
+function probe(items, selectors = {}) {
+  const document = {
+    nodeType: 9,
+    children: [],
+    querySelectorAll: () => items,
+    querySelector: selector => selectors[selector] || null,
+  };
   class MutationObserver { observe() {} }
   return vm.runInNewContext(buildBrowserMediaProbeScript(), { window: {}, document, MutationObserver });
+}
+
+function visibleAdElement(textContent = '') {
+  return { isConnected: true, textContent, getClientRects: () => [{}] };
 }
 
 test('medya adayları sayfada kalıcı bir controller ile izlenir', () => {
@@ -113,7 +122,43 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
   assert.deepEqual(probe([broken]), {
     currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
     volume: 0, playbackRate: 1, area: 360000, adPlaying: false,
+    adSkippable: false, adRemaining: null,
   });
+});
+
+test('yalnız ad-showing sınıfı reklamı kesin olarak işaretler', () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15 };
+  const result = probe([video], { '.html5-video-player.ad-showing': visibleAdElement() });
+  assert.equal(result.adPlaying, true);
+  assert.equal(result.adSkippable, false);
+});
+
+test('yalnız görünür atla düğmesi reklamı ve atlanabilirliği işaretler', () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15 };
+  const result = probe([video], { '.ytp-ad-skip-button-modern': visibleAdElement() });
+  assert.equal(result.adPlaying, true);
+  assert.equal(result.adSkippable, true);
+});
+
+test('reklam sinyali yokken normal içerik reklam sayılmaz', () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 20, duration: 300 };
+  const result = probe([video]);
+  assert.equal(result.adPlaying, false);
+  assert.equal(result.adSkippable, false);
+  assert.equal(result.adRemaining, null);
+});
+
+test('açık reklam sayacı kalan saniyeye çevrilir', () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15 };
+  const result = probe([video], {
+    '.ytp-ad-text': visibleAdElement('Reklam 1:07 içinde sona erecek'),
+  });
+  assert.equal(result.adPlaying, true);
+  assert.equal(result.adRemaining, 67);
 });
 
 test('tam ekran ham video yerine altyazıyı taşıyabilen oynatıcı kapsayıcısını seçer', () => {

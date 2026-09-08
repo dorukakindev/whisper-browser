@@ -3872,6 +3872,8 @@ const player = {
   browserSponsorPendingAction: null,
   browserSponsorWatchTimer: null,
   browserAdPlaying: false,
+  browserAdSkippable: false,
+  browserAdRemaining: null,
   browserZoom: 1,
   browserProfileKey: '',
   browserPositionTick: 0,
@@ -7618,6 +7620,8 @@ function updateBrowserNavigation(data, options = {}) {
     if (player.browserSponsorWatchTimer) clearTimeout(player.browserSponsorWatchTimer);
     player.browserSponsorWatchTimer = null;
     player.browserAdPlaying = false;
+    player.browserAdSkippable = false;
+    player.browserAdRemaining = null;
     const sponsorButton = $('browserSponsorTemporary');
     if (sponsorButton) {
       sponsorButton.textContent = 'Bu videoda geçici kapat';
@@ -8990,6 +8994,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     player.browserDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0;
     player.browserPaused = !!event.media.paused;
     player.browserAdPlaying = !!event.media.adPlaying;
+    player.browserAdSkippable = !!event.media.adSkippable;
+    const adRemaining = event.media.adRemaining === null || event.media.adRemaining === undefined
+      ? NaN : Number(event.media.adRemaining);
+    player.browserAdRemaining = Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null;
     const nextVolume = Number(event.media.volume);
     if (Number.isFinite(nextVolume)) player.browserVolume = Math.max(0, Math.min(1, nextVolume));
     player.browserMuted = !!event.media.muted;

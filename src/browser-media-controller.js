@@ -58,6 +58,59 @@ function controllerBootstrap() {
       const number = Number(value);
       return Number.isFinite(number) ? number : fallback;
     };
+    const adPlayingSelectors = [
+      '.html5-video-player.ad-showing',
+      '.html5-video-player.ad-interrupting',
+      '.ad-interrupting',
+      '.ytp-ad-player-overlay',
+      '.ytp-ad-text',
+      '.ytp-preview-ad',
+    ];
+    const adSkipSelectors = [
+      '.ytp-ad-skip-button',
+      '.ytp-skip-ad-button',
+      '.ytp-ad-skip-button-modern',
+    ];
+    const adCountdownSelectors = [
+      '.ytp-ad-duration-remaining',
+      '.ytp-ad-preview-text',
+      '.ytp-ad-text',
+    ];
+    const visibleElement = (selector) => {
+      const element = document.querySelector?.(selector) || null;
+      if (!element || element.isConnected === false) return null;
+      if (typeof element.getClientRects === 'function' && element.getClientRects().length === 0) return null;
+      if (typeof getComputedStyle === 'function') {
+        const style = getComputedStyle(element);
+        if (style?.display === 'none' || style?.visibility === 'hidden' || style?.visibility === 'collapse') return null;
+      }
+      return element;
+    };
+    const firstVisible = (selectors) => {
+      for (const selector of selectors) {
+        const element = visibleElement(selector);
+        if (element) return element;
+      }
+      return null;
+    };
+    const explicitAdRemaining = () => {
+      const text = String(firstVisible(adCountdownSelectors)?.textContent || '');
+      const match = /(?:^|\\D)(\\d{1,2}):(\\d{2})(?:\\D|$)/.exec(text);
+      if (!match) return null;
+      const minutes = Number(match[1]);
+      const seconds = Number(match[2]);
+      return Number.isFinite(minutes) && seconds >= 0 && seconds < 60 ? minutes * 60 + seconds : null;
+    };
+    const detectAd = () => {
+      const skipButton = firstVisible(adSkipSelectors);
+      const adSignal = firstVisible(adPlayingSelectors);
+      return {
+        adPlaying: !!(adSignal || skipButton),
+        adSkippable: !!skipButton,
+        adRemaining: explicitAdRemaining(),
+        skipButton,
+      };
+    };
     const select = () => {
       cleanupDetachedRoots();
       for (const item of [...media]) if (!item.isConnected) media.delete(item);
@@ -67,9 +120,16 @@ function controllerBootstrap() {
     scan(document);
     const controller = {
       select,
+      adState() {
+        const state = detectAd();
+        return { adPlaying: state.adPlaying, adSkippable: state.adSkippable,
+          adRemaining: state.adRemaining };
+      },
+      findAdSkipButton() { return detectAd().skipButton; },
       probe() {
         const item = select();
         if (!item) return null;
+        const ad = detectAd();
         return {
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
@@ -80,7 +140,9 @@ function controllerBootstrap() {
           volume: finite(item.volume),
           playbackRate: finite(item.playbackRate, 1),
           area: Math.max(0, item.clientWidth * item.clientHeight),
-          adPlaying: !!document.querySelector?.('.html5-video-player.ad-showing'),
+          adPlaying: ad.adPlaying,
+          adSkippable: ad.adSkippable,
+          adRemaining: ad.adRemaining,
         };
       },
       diagnostics() {
