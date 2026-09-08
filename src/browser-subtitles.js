@@ -33,12 +33,17 @@ function decodeEntities(value) {
 }
 
 function cleanCueText(value) {
-  const decoded = decodeEntities(String(value || '')
-    // ASS/SSA biçimlendirme etiketleri görsel değil, altyazı metadatasıdır.
-    .replace(/\{\\[^}]*\}/g, '')
-    .replace(/<br\s*\/?>/gi, '\n'));
+  let source = String(value || '');
+  // Eksik kapanışlı ASS etiketlerinde `\{\\[^}]*\}` regex'i O(n²) olabilir.
+  // Kapanış yoksa metni olduğu gibi bırak; geçerli blokları mevcut temizleyici
+  // ile kaldır.
+  if (source.includes('{\\') && source.includes('}')) {
+    source = source.replace(/\{\\[^}]*\}/g, '');
+  }
+  const decoded = decodeEntities(source.replace(/<br\s*\/?>/gi, '\n'));
   // Yalnız bilinen altyazı biçimlendirme etiketlerini kaldır. Genel <...>
   // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
+
   return decoded
     .replace(/<\/?(?:b|i|u|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
     .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
@@ -197,9 +202,28 @@ function parseTimedBlocks(body, timing = {}) {
   return normalizeCues(out);
 }
 
+function stripAssOverrideBlocks(text) {
+  // Regex `\{[^}]*\}` her açılış için kapanışı dosya sonuna kadar arayabilir.
+  // Bozuk/eksik kapanışlı ASS girdilerinde doğrusal tarama kullan.
+  const value = String(text || '');
+  let out = '';
+  let cursor = 0;
+  while (cursor < value.length) {
+    const open = value.indexOf('{', cursor);
+    if (open < 0) { out += value.slice(cursor); break; }
+    out += value.slice(cursor, open);
+    const close = value.indexOf('}', open + 1);
+    if (close < 0) { out += value.slice(open); break; }
+    cursor = close + 1;
+  }
+  return out;
+}
 function stripAssDrawing(text) {
   let drawing = false;
-  return String(text || '').split(/(\{[^}]*\})/g).map((part) => {
+  const value = String(text || '');
+  // Kapanış yoksa aşağıdaki split/regex taramasını hiç çalıştırma.
+  if (!value.includes('}')) return value;
+  return value.split(/(\{[^}]*\})/g).map((part) => {
     if (part.startsWith('{') && part.endsWith('}')) {
       for (const tag of part.matchAll(/\\(p\s*\d+|r[^\\}]*)/gi)) {
         drawing = /^p/i.test(tag[1]) && Number(tag[1].slice(1).trim()) > 0;
@@ -235,13 +259,16 @@ function parseAss(body) {
     const start = parseTime(rawFields[startIndex]);
     const end = parseTime(rawFields[endIndex]);
     // Text alanı son yapısal alandır ve virgül içerebilir.
-    const text = stripAssDrawing(rawFields.slice(textIndex).join(','))
-      .replace(/\{[^}]*\}/g, '').replace(/\\N/gi, '\n').replace(/\\h/gi, ' ');
+    const rawText = rawFields.slice(textIndex).join(',');
+    const cleanedText = rawText.includes('}')
+      ? stripAssOverrideBlocks(stripAssDrawing(rawText))
+      : rawText;
+    const text = cleanedText
+      .replace(/\\N/gi, '\n').replace(/\\h/gi, ' ');
     if (start !== null) out.push({ start, end, text });
   }
   return normalizeCues(out);
 }
-
 function parseSami(body) {
   const out = [];
   const matches = [...String(body || '').matchAll(/<sync\b[^>]*\bstart\s*=\s*["']?(\d+)["']?[^>]*>([\s\S]*?)(?=<sync\b|$)/gi)];
@@ -740,6 +767,21 @@ function parseXmlTime(value, xml) {
 function parseXml(body) {
   const out = [];
   const xml = String(body || '');
+  // Eksik kapanışlı TTML'de tembel `([\s\S]*?)` regex’i her `<p>` için
+  // belgenin sonuna kadar yeniden deneyerek O(n²) davranabilir. Önce tek
+  // doğrusal etiket taramasıyla kapanmamış paragraph/text öğelerini reddet.
+  const openTimed = new Map();
+  const closeTimed = new Map();
+  for (const token of xml.matchAll(/<\/?((?:[\w.-]+:)?(?:text|p))\b[^>]*>/gi)) {
+    const name = token[1].toLowerCase().split(':').pop();
+    const isClosing = /^<\//.test(token[0]);
+    if (!isClosing && /\/\s*>$/.test(token[0])) continue;
+    const counts = isClosing ? closeTimed : openTimed;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  for (const [name, count] of openTimed) {
+    if (count > (closeTimed.get(name) || 0)) return [];
+  }
   const parentOffsets = new Map();
   const stack = [{ name: 'root', offset: 0 }];
   const localName = (value) => String(value || '').toLowerCase().split(':').pop();

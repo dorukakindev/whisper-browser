@@ -427,7 +427,13 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
     ]
     proc = _run_ffmpeg_bounded(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600)
     if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg hatası: {proc.stderr[-500:]}")
+        # ffmpeg stderr'i dosya yollarını ve makineye özgü ayrıntıları içerebilir;
+        # bu metin hem UI log'una hem de kalıcı job log'una gider. Kullanıcıya
+        # yararlı ama yol/ham araç çıktısı sızdırmayan sabit bir hata ver.
+        raise RuntimeError(
+            "Ses çıkarma başarısız: ffmpeg işlemi tamamlanamadı. "
+            "Dosyada ses akışı veya desteklenen bir format bulunduğunu kontrol edin."
+        )
     # ffmpeg 0 dönse bile çıktı boş olabilir (ör. dosyada ses akışı yoksa)
     out = Path(output_wav)
     if not out.exists() or out.stat().st_size < 1000:
@@ -478,7 +484,10 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     wrap_mode="balanced": Eski davranış — max_line_width'i aşan cümleleri
     dengeli iki satıra böler (Knuth-Plass tarzı puanlama).
     """
-    text = text.strip()
+    # Dosya/harici API girdileri platforma göre CR, CRLF veya LF taşıyabilir.
+    # Özellikle kısa metinlerde erken dönüşe giden yolların ham CR bırakmaması
+    # için normalizasyonu tüm sarma kiplerinden önce yap.
+    text = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     if not text:
         return text
 
@@ -1658,10 +1667,18 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
             # ASS'de { } override-tag baslangicidir; transkripsiyon/ceviri metni
             # guvenilir bicimlendirme kodu degildir. Literal parantezleri kacirarak
             # metnin istemeden ASS komutu olarak yorumlanmasini engelle.
+            # ASS ters bölüyü override komutu başlangıcı kabul eder. Metin
+            # içindeki literal yolları görünmez word-joiner ile ayır; böylece
+            # `\N`, `\h` vb. diziler oyuncu komutuna dönüşmez. Kendi satır
+            # ayracımızı aşağıda eklediğimiz için bu işlemden önce uygulanır.
+            wrapped = wrapped.replace("\\", "\\⁠")
             wrapped = wrapped.replace("{", "｛").replace("}", "｝")
             wrapped = wrapped.replace("\n", "\\N")
             style = speaker_styles.get(sp, "Default") if sp else "Default"
-            name = sp if sp else ""
+            # Name alanı virgülle ayrılmış ASS kolonudur; kontrol karakterleri
+            # ve virgül satırı/alan sayısını bozamaz.
+            name = re.sub(r"[\r\n]+", " ", str(sp)) if sp else ""
+            name = name.replace(",", "，")
             f.write(
                 f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},{style},{name},0,0,0,,{wrapped}\n"
             )
@@ -5823,6 +5840,14 @@ def reexport_from_json(args):
     for fmt in formats:
         fmt = fmt.strip().lower()
         out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
+        if out_path.resolve() == src.resolve():
+            # Kaynak JSON'ı üzerine yazmak veri kaybıdır; ayrı ad üret ve
+            # uyarıyı hem olay çıktısına hem kalıcı job log'una taşı.
+            out_path = output_dir / f"{base_name}{name_suffix}.reexport.{fmt}"
+            export_warnings.append(
+                f"Kaynak JSON korunması için yeniden dışa aktarma ayrı dosyaya yazıldı: {out_path.name}"
+            )
+            log(export_warnings[-1], "warn")
         text_entries = (label_entries_for_text_output(entries, speakers_map)
                         if getattr(args, "label_speakers", False) and speakers_map else entries)
         if fmt == "srt":
@@ -5836,7 +5861,10 @@ def reexport_from_json(args):
         elif fmt == "ass":
             write_ass(entries, out_path, max_line_width=args.max_line_width, language=lang, wrap_mode=args.wrap_mode, speakers=speakers_map)
         elif fmt == "json":
-            write_json(entries, out_path, info=info, speakers=speakers_map, all_words=all_words)
+            # Segment başına kelime dizileri zaten eşlenmiştir. Yeniden
+            # zaman penceresi eşlemesi sınır kelimelerini çoğaltabilir; JSON'ı
+            # ham olarak taşımak bu kaymayı ve biçim değişimini önler.
+            shutil.copyfile(src, out_path)
         else:
             log(f"Bilinmeyen format atlandı: {fmt}", "warn")
             continue
