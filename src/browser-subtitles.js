@@ -766,22 +766,25 @@ function parseXmlTime(value, xml) {
 
 function parseXml(body) {
   const out = [];
-  const xml = String(body || '');
-  // Eksik kapanışlı TTML'de tembel `([\s\S]*?)` regex’i her `<p>` için
-  // belgenin sonuna kadar yeniden deneyerek O(n²) davranabilir. Önce tek
-  // doğrusal etiket taramasıyla kapanmamış paragraph/text öğelerini reddet.
-  const openTimed = new Map();
-  const closeTimed = new Map();
+  let xml = String(body || '');
+  // Eksik kapanışlı TTML'de tembel `([\s\S]*?)` regex’i her `<p>` için belgenin
+  // sonuna kadar yeniden deneyerek O(n²) davranabilir. Tek doğrusal taramayla
+  // kapanmayan İLK zamanlı öğeyi bul ve belgeyi oradan kes. Belgenin tamamını
+  // reddetmek, sondaki tek bozuk etiket yüzünden öncesindeki geçerli tüm
+  // cue'ları da siliyordu — gerçek altyazı dosyalarında bu sık görülür.
+  const openStack = [];
   for (const token of xml.matchAll(/<\/?((?:[\w.-]+:)?(?:text|p))\b[^>]*>/gi)) {
     const name = token[1].toLowerCase().split(':').pop();
-    const isClosing = /^<\//.test(token[0]);
-    if (!isClosing && /\/\s*>$/.test(token[0])) continue;
-    const counts = isClosing ? closeTimed : openTimed;
-    counts.set(name, (counts.get(name) || 0) + 1);
+    if (token[0].startsWith('</')) {
+      for (let i = openStack.length - 1; i >= 0; i--) {
+        if (openStack[i].name === name) { openStack.splice(i, 1); break; }
+      }
+      continue;
+    }
+    if (/\/\s*>$/.test(token[0])) continue;
+    openStack.push({ name, index: token.index });
   }
-  for (const [name, count] of openTimed) {
-    if (count > (closeTimed.get(name) || 0)) return [];
-  }
+  if (openStack.length) xml = xml.slice(0, openStack[0].index);
   const parentOffsets = new Map();
   const stack = [{ name: 'root', offset: 0 }];
   const localName = (value) => String(value || '').toLowerCase().split(':').pop();
@@ -873,7 +876,7 @@ function parseXml(body) {
     if (start !== null) start += parentOffset;
     if (end !== null) end += parentOffset;
     if (end === null && start !== null && duration !== null) end = start + duration;
-    if (start !== null) out.push({ start, end, text: cleanCueText(inner) });
+    if (start !== null) out.push({ start, end, text: inner });
   }
   return normalizeCues(out);
 }

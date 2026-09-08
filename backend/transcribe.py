@@ -392,7 +392,7 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
     Filmlerde birden çok ses kanalı (orijinal dil / dublaj / yorum) olabilir; -1
     ffmpeg'in varsayılan kanalını kullanır.
     """
-    log("Ses çıkarılıyor")
+    log(f"Ses çıkarılıyor: {Path(input_path).name}")
     cmd = [
         ffmpeg_path,
         "-y",
@@ -430,6 +430,13 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
         # ffmpeg stderr'i dosya yollarını ve makineye özgü ayrıntıları içerebilir;
         # bu metin hem UI log'una hem de kalıcı job log'una gider. Kullanıcıya
         # yararlı ama yol/ham araç çıktısı sızdırmayan sabit bir hata ver.
+        # Kullanıcıya giden istisna sabit ve Türkçe; ham araç çıktısı ve tam yol
+        # taşımaz. Teşhis için gereken stderr AYRI bir log satırıyla kalıcı iş
+        # günlüğüne düşer — aksi halde "başarısız" dışında ipucu kalmaz (tam yol
+        # zaten günlük başlığında yazılı).
+        detail = (proc.stderr or "").strip().splitlines()[-20:]
+        if detail:
+            log("ffmpeg ayrıntısı: " + " | ".join(detail), "warn")
         raise RuntimeError(
             "Ses çıkarma başarısız: ffmpeg işlemi tamamlanamadı. "
             "Dosyada ses akışı veya desteklenen bir format bulunduğunu kontrol edin."
@@ -802,6 +809,9 @@ def _cut_wav(src_wav, dst_wav, start, end, ffmpeg_path):
     ]
     proc = _run_ffmpeg_bounded(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     if proc.returncode != 0:
+        detail = (proc.stderr or "").strip().splitlines()[-20:]
+        if detail:
+            log("ffmpeg kesme ayrıntısı: " + " | ".join(detail), "warn")
         raise RuntimeError("Ses kesilemedi: ffmpeg işlemi başarısız oldu.")
     out = Path(dst_wav)
     if not out.exists() or out.stat().st_size < 1000:
@@ -1667,11 +1677,13 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
             # ASS'de { } override-tag baslangicidir; transkripsiyon/ceviri metni
             # guvenilir bicimlendirme kodu degildir. Literal parantezleri kacirarak
             # metnin istemeden ASS komutu olarak yorumlanmasini engelle.
-            # ASS ters bölüyü override komutu başlangıcı kabul eder. Metin
-            # içindeki literal yolları görünmez word-joiner ile ayır; böylece
-            # `\N`, `\h` vb. diziler oyuncu komutuna dönüşmez. Kendi satır
-            # ayracımızı aşağıda eklediğimiz için bu işlemden önce uygulanır.
-            wrapped = wrapped.replace("\\", "\\⁠")
+            # ASS süslü parantez dışında da `\N` (satır sonu), `\n` ve `\h`
+            # dizilerini de komut sayar; metindeki literal bir yol (`C:\Notlar`)
+            # bu yüzden ekranda ortadan bölünüyordu. Yalnız bu üç diziyi görünmez
+            # word-joiner ile ayır: `{\an8}` gibi override bloklarına dokunulmaz
+            # ve ikinci yazımda ters bölüyü artık N/n/h izlemediği için işaret
+            # BİRİKMEZ. Kendi satır ayracımızı aşağıda eklediğimiz için önce uygulanır.
+            wrapped = re.sub(r"\\(?=[NnhH])", lambda _m: "\\⁠", wrapped)
             wrapped = wrapped.replace("{", "｛").replace("}", "｝")
             wrapped = wrapped.replace("\n", "\\N")
             style = speaker_styles.get(sp, "Default") if sp else "Default"
@@ -1685,7 +1697,7 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
 
 
 def write_json(entries, output_path, info=None, speakers=None, all_words=None,
-               segment_metrics=None):
+               segment_metrics=None, segment_words=None):
     """Ham veri JSON çıktısı — kelime zaman damgaları dahil."""
     speakers = speakers or {}
     # Zaman damgası altyazının kimliğidir; geçersiz bir segmenti sessizce 0'a
@@ -1722,7 +1734,14 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None,
                 for key in ('avg_logprob', 'no_speech_prob', 'compression_ratio'):
                     if key in metrics:
                         seg[key] = finite_json_value(metrics.get(key))
-        if n_words:
+        if isinstance(segment_words, (list, tuple)):
+            # Kelimeler ZATEN bu segmente eşlenmiş (ör. re-export). Yeniden zaman
+            # penceresiyle eşlemek iki bloğa birden düşen sınır kelimelerini her
+            # geçişte çoğaltıyordu; hazır listeyi olduğu gibi taşı.
+            ready = segment_words[i] if i < len(segment_words) else None
+            if ready:
+                seg["words"] = [dict(w) for w in ready]
+        elif n_words:
             # Bu segmentin zaman aralığına düşen kelimeleri ekle
             while cursor < n_words and all_words[cursor].get(
                     "end", all_words[cursor]["start"]) < start - 0.05:
@@ -5771,22 +5790,28 @@ def reexport_from_json(args):
             skipped += 1
             continue
         speaker = seg.get("speaker")
-        records.append((s, e, text.strip(), speaker if isinstance(speaker, str) else None))
+        own_words = []
         for w in (seg.get("words") if isinstance(seg.get("words"), list) else []):
             if isinstance(w, dict):
                 try:
                     ws, we = float(w["start"]), float(w["end"])
                     if math.isfinite(ws) and math.isfinite(we) and 0 <= ws <= we and isinstance(w.get("word"), str):
-                        all_words.append(finite_json_value({**w, "start": ws, "end": we}))
+                        clean = finite_json_value({**w, "start": ws, "end": we})
+                        own_words.append(clean)
+                        all_words.append(clean)
                 except (KeyError, TypeError, ValueError):
                     pass
+        records.append((s, e, text.strip(), speaker if isinstance(speaker, str) else None,
+                        own_words))
 
     # Elle düzenlenmiş JSON'larda segmentler zaman sırasını kaybedebilir.
     # Yazıcılar ileri yönlü imleç kullandığı için önce sıralamak hem SRT'yi
     # hem de kelime eşlemesini doğru tutar; konuşmacı eşlemesi de birlikte taşınır.
     records.sort(key=lambda row: (row[0], row[1]))
-    entries = [(s, e, text) for s, e, text, _speaker in records]
-    speakers_map = {i: speaker for i, (_s, _e, _text, speaker) in enumerate(records) if speaker}
+    entries = [(s, e, text) for s, e, text, _speaker, _words in records]
+    speakers_map = {i: speaker for i, (_s, _e, _text, speaker, _words) in enumerate(records) if speaker}
+    # Segment başına kelimeler kaynakta zaten eşlenmiş; sıralamayla birlikte taşı.
+    segment_words = [words for _s, _e, _text, _speaker, words in records]
     def _word_start(word):
         try:
             return float(word.get("start", 0) or 0)
@@ -5861,10 +5886,12 @@ def reexport_from_json(args):
         elif fmt == "ass":
             write_ass(entries, out_path, max_line_width=args.max_line_width, language=lang, wrap_mode=args.wrap_mode, speakers=speakers_map)
         elif fmt == "json":
-            # Segment başına kelime dizileri zaten eşlenmiştir. Yeniden
-            # zaman penceresi eşlemesi sınır kelimelerini çoğaltabilir; JSON'ı
-            # ham olarak taşımak bu kaymayı ve biçim değişimini önler.
-            shutil.copyfile(src, out_path)
+            # Kelimeler kaynakta segmentlere zaten eşlenmiş. Yeniden zaman
+            # penceresiyle eşlemek sınır kelimelerini her geçişte çoğaltıyordu;
+            # hazır listeyi ver. (Kaynağı kopyalamak da çözerdi ama bozuk
+            # segment ayıklamasını ve şema normalizasyonunu atlardı.)
+            write_json(entries, out_path, info=info, speakers=speakers_map,
+                       segment_words=segment_words)
         else:
             log(f"Bilinmeyen format atlandı: {fmt}", "warn")
             continue
