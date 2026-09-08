@@ -1837,6 +1837,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserHardwareAcceleration',
   'browserAdblockEnabled',
   'browserAutoSkipAds',
+  'browserPlayerResponseAdPrune',
 ];
 
 function collectUiSettings() {
@@ -2234,6 +2235,7 @@ if ($('deepseekKeyHelp')) {
     }
   } catch (_) {}
   void refreshBrowserAdblockState();
+  void refreshBrowserPlayerAdPruneState();
   await restorePersistedQueue();
   await offerBurnInRecovery();
   renderGlossary();
@@ -7771,6 +7773,51 @@ async function setBrowserAdblockEnabled(enabled) {
   }
 }
 
+function renderBrowserPlayerAdPruneState(result = {}) {
+  const control = $('browserPlayerResponseAdPrune');
+  const status = $('browserPlayerResponseAdPruneStatus');
+  if (control && typeof result.enabled === 'boolean') control.checked = result.enabled;
+  if (!status) return;
+  if (result.state === 'loading') {
+    status.textContent = 'Deneysel oynatıcı yanıtı koruması hazırlanıyor…';
+  } else if (result.ok === false) {
+    status.textContent = result.error
+      || 'Deneysel koruma etkinleştirilemedi; video değiştirilmeden devam edecek.';
+  } else if (!result.enabled) {
+    status.textContent = 'Deneysel koruma kapalı.';
+  } else if (result.active) {
+    const modified = Math.max(0, Number(result.modified) || 0);
+    const fields = Array.isArray(result.removedFields) && result.removedFields.length
+      ? ' · ' + result.removedFields.join(', ') : '';
+    status.textContent = 'Deneysel koruma etkin · ' + modified
+      + ' oynatıcı yanıtı temizlendi' + fields + '.';
+  } else {
+    status.textContent = 'Deneysel koruma açık; etkin YouTube sekmesinde oynatıcı yanıtı bekleniyor.';
+  }
+}
+
+async function refreshBrowserPlayerAdPruneState() {
+  if (!window.api.getBrowserPlayerAdPruneState) return;
+  const result = await window.api.getBrowserPlayerAdPruneState().catch(() => null);
+  if (result) renderBrowserPlayerAdPruneState(result);
+}
+
+async function setBrowserPlayerAdPruneEnabled(enabled) {
+  const control = $('browserPlayerResponseAdPrune');
+  if (!control || !window.api.setBrowserPlayerAdPruneEnabled) return;
+  control.disabled = true;
+  renderBrowserPlayerAdPruneState({ state: 'loading' });
+  const result = await window.api.setBrowserPlayerAdPruneEnabled(enabled).catch((error) => ({
+    ok: false,
+    enabled: false,
+    failOpen: true,
+    error: 'Deneysel koruma değiştirilemedi: ' + error.message,
+  }));
+  control.disabled = false;
+  renderBrowserPlayerAdPruneState(result);
+  if (result?.enabled !== enabled) scheduleSave();
+}
+
 function browserSponsorMode() {
   const value = $('browserSponsorMode')?.value;
   return ['off', 'ask', 'auto'].includes(value) ? value : 'auto';
@@ -8658,6 +8705,9 @@ if ($('browserReload')) $('browserReload').addEventListener('click', () => {
 if ($('browserAdblockEnabled')) $('browserAdblockEnabled').addEventListener('change', (event) => {
   void setBrowserAdblockEnabled(event.target.checked);
 });
+if ($('browserPlayerResponseAdPrune')) $('browserPlayerResponseAdPrune').addEventListener('change', (event) => {
+  void setBrowserPlayerAdPruneEnabled(event.target.checked);
+});
 if ($('browserSponsorRefresh')) $('browserSponsorRefresh').addEventListener('click', () => refreshBrowserSponsorSegments().catch(() => {}));
 if ($('browserSponsorMode')) $('browserSponsorMode').addEventListener('change', () => {
   const mode = browserSponsorMode();
@@ -8852,6 +8902,7 @@ if ($('browserTabUnload')) $('browserTabUnload').addEventListener('click', async
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
   if (event.type === 'adblock-status') { renderBrowserAdblockState(event); return; }
+  if (event.type === 'player-ad-prune-status') { renderBrowserPlayerAdPruneState(event); return; }
   if ((event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error')
       && (!event.tabId || event.tabId === player.browserActiveTabId)) {
     applyBrowserPageTranslationState(event);

@@ -152,6 +152,14 @@ const entries = Object.freeze([
     scope: 'global',
   },
   {
+    id: 'browserPlayerResponseAdPrune',
+    label: 'Reklamları oynatıcı yanıtından temizle (deneysel)',
+    description: 'YouTube oynatıcı JSON yanıtındaki reklam alanlarını CDP üzerinden fail-open biçimde temizle.',
+    category: 'privacy',
+    keywords: ['reklam', 'youtube', 'oynatıcı', 'yanıt', 'json', 'cdp', 'deneysel', 'temizle'],
+    scope: 'global',
+  },
+  {
     id: 'browserSponsorMode',
     label: 'SponsorBlock atlama modu',
     description: 'YouTube sponsor bölümlerini göster, sorarak atla veya otomatik atla.',

@@ -12,6 +12,11 @@ const { terminateProcessTree } = require('./process-lifecycle');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
+const {
+  isYoutubePlayerResponseUrl,
+  pruneYoutubePlayerResponseBody,
+  responseHeadersWithoutEntityEncoding,
+} = require('./youtube-player-response-pruner');
 const { canonicalLocalPath, SubtitleFileAccess, PdfFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const { readAdjacentWordSegments } = require('./subtitle-word-sidecar');
 const subtitleFileAccess = new SubtitleFileAccess();
@@ -239,6 +244,8 @@ protocol?.registerSchemesAsPrivileged?.([{
 const browserHardwareAccelerationEnabled = readPublicSettings().ui?.browserHardwareAcceleration !== false;
 if (!browserHardwareAccelerationEnabled) app.disableHardwareAcceleration();
 const browserAdblockInitiallyEnabled = readPublicSettings().ui?.browserAdblockEnabled !== false;
+const browserPlayerResponseAdPruneInitiallyEnabled =
+  readPublicSettings().ui?.browserPlayerResponseAdPrune === true;
 
 let mainWindow;
 let mainWindowClosing = false;
@@ -289,6 +296,17 @@ let browserCaptureFlushPromise = null;
 let browserTrackBusy = false;
 let browserMediaBusy = false;
 let browserCaptureEnabled = true;
+let browserPlayerResponseAdPruneEnabled = browserPlayerResponseAdPruneInitiallyEnabled;
+const YOUTUBE_PLAYER_RESPONSE_FETCH_PATTERNS = Object.freeze([Object.freeze({
+  urlPattern: '*://*.youtube.com/youtubei/v1/player*',
+  requestStage: 'Response',
+})]);
+const browserPlayerResponsePruneStats = {
+  intercepted: 0, modified: 0, continued: 0, errors: 0,
+  removedFields: new Set(),
+  serviceWorkerExcluded: true,
+};
+
 const browserLastCaptureDropped = new Map();
 let browserDebuggerReady = false;
 const browserDebuggerAttachAttempts = new WeakMap();
@@ -5466,8 +5484,95 @@ async function captureBrowserResponse(pendingKey) {
   }
 }
 
+function browserDebuggerNeeded() {
+  return browserCaptureEnabled || browserPlayerResponseAdPruneEnabled;
+}
+
+function browserPlayerResponsePruneSnapshot(extra = {}) {
+  const wc = browserView?.webContents;
+  return {
+    ok: true,
+    enabled: browserPlayerResponseAdPruneEnabled,
+    active: !!(browserPlayerResponseAdPruneEnabled && browserDebuggerReady
+      && wc && !wc.isDestroyed() && wc.debugger.isAttached()),
+    intercepted: browserPlayerResponsePruneStats.intercepted,
+    modified: browserPlayerResponsePruneStats.modified,
+    continued: browserPlayerResponsePruneStats.continued,
+    errors: browserPlayerResponsePruneStats.errors,
+    removedFields: [...browserPlayerResponsePruneStats.removedFields],
+    serviceWorkerExcluded: browserPlayerResponsePruneStats.serviceWorkerExcluded,
+    ...extra,
+  };
+}
+
+async function handleYoutubePlayerResponsePaused(wc, tab, params, sessionId = '') {
+  const requestId = String(params?.requestId || '');
+  if (!requestId || !wc || wc.isDestroyed()) return;
+  const expectedTabId = tab.id;
+  const expectedGeneration = tab.generation;
+  const send = (method, payload) => wc.debugger.sendCommand(method, payload, sessionId || undefined);
+  let continued = false;
+  const continueOriginal = async () => {
+    if (continued) return;
+    continued = true;
+    browserPlayerResponsePruneStats.continued += 1;
+    await send('Fetch.continueRequest', { requestId }).catch(() => {});
+  };
+  browserPlayerResponsePruneStats.intercepted += 1;
+  if (!browserPlayerResponseAdPruneEnabled || tab.id !== browserActiveTabId
+      || tab.view !== browserView || tab.compatibilityMode
+      || sessionId
+      || !isYoutubePlayerResponseUrl(params?.request?.url)
+      || !Number.isFinite(Number(params?.responseStatusCode))) {
+    await continueOriginal();
+    return;
+  }
+  try {
+    const response = await send('Fetch.getResponseBody', { requestId });
+    const originalBody = response?.base64Encoded
+      ? Buffer.from(String(response.body || ''), 'base64').toString('utf8')
+      : String(response?.body || '');
+    const pruned = pruneYoutubePlayerResponseBody(originalBody);
+    if (!pruned.changed) {
+      await continueOriginal();
+      return;
+    }
+    if (!browserPlayerResponseAdPruneEnabled || tab.id !== expectedTabId
+        || tab.generation !== expectedGeneration || tab.id !== browserActiveTabId
+        || tab.view !== browserView || wc.isDestroyed()) {
+      await continueOriginal();
+      return;
+    }
+    const fulfill = {
+      requestId,
+      responseCode: Number(params.responseStatusCode),
+      responseHeaders: responseHeadersWithoutEntityEncoding(params.responseHeaders),
+      body: Buffer.from(pruned.body, 'utf8').toString('base64'),
+    };
+    if (params.responseStatusText) fulfill.responsePhrase = String(params.responseStatusText);
+    await send('Fetch.fulfillRequest', fulfill);
+    browserPlayerResponsePruneStats.modified += 1;
+    pruned.removedFields.forEach((field) => browserPlayerResponsePruneStats.removedFields.add(field));
+    sendBrowserEvent(tab, {
+      type: 'player-ad-prune-status',
+      ...browserPlayerResponsePruneSnapshot(),
+      responseModified: true,
+      lastRemovedFields: pruned.removedFields,
+    });
+  } catch (_) {
+    browserPlayerResponsePruneStats.errors += 1;
+    await continueOriginal();
+    sendBrowserEvent(tab, {
+      type: 'player-ad-prune-status',
+      ...browserPlayerResponsePruneSnapshot(),
+      responseModified: false,
+      failOpen: true,
+    });
+  }
+}
+
 async function attachBrowserDebugger() {
-  if (!browserCaptureEnabled || !browserView || browserView.webContents.isDestroyed()) return;
+  if (!browserDebuggerNeeded() || !browserView || browserView.webContents.isDestroyed()) return;
   const tab = activeBrowserTab();
   if (tab?.compatibilityMode || tab?.cloudflareChallengeActive || tab?.browserInstrumentationPending) return;
   const context = tab ? { ...browserEventContext(tab), stateGeneration: browserStateGeneration } : null;
@@ -5475,7 +5580,7 @@ async function attachBrowserDebugger() {
   const attempt = {};
   browserDebuggerAttachAttempts.set(wc, attempt);
   const ownsAttempt = () => browserDebuggerAttachAttempts.get(wc) === attempt;
-  const current = () => ownsAttempt() && browserCaptureEnabled && isCurrentBrowserContext(context);
+  const current = () => ownsAttempt() && browserDebuggerNeeded() && isCurrentBrowserContext(context);
   try {
     if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
     const withTimeout = (promise, ms = 1500) => {
@@ -5484,11 +5589,20 @@ async function attachBrowserDebugger() {
         new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('CDP timeout')), ms); }),
       ]).finally(() => clearTimeout(timer));
     };
-    await withTimeout(wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }));
+    if (browserCaptureEnabled) {
+      await withTimeout(wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }));
+    }
     if (!current()) return;
-    await withTimeout(wc.debugger.sendCommand('Target.setAutoAttach', {
-      autoAttach: true, waitForDebuggerOnStart: false, flatten: true,
-    })).catch(() => {});
+    if (browserPlayerResponseAdPruneEnabled) {
+      await withTimeout(wc.debugger.sendCommand('Fetch.enable', {
+        patterns: YOUTUBE_PLAYER_RESPONSE_FETCH_PATTERNS,
+      }));
+    }
+    if (browserCaptureEnabled) {
+      await withTimeout(wc.debugger.sendCommand('Target.setAutoAttach', {
+        autoAttach: true, waitForDebuggerOnStart: false, flatten: true,
+      })).catch(() => {});
+    }
     if (current()) browserDebuggerReady = true;
   } catch (err) {
     if (current()) browserDebuggerReady = false;
@@ -5962,9 +6076,9 @@ async function performBrowserPageInstrumentation(tab) {
   tab.cloudflareChallengeActive = false;
   tab.cloudflareChallengeChecks = 0;
   tab.cloudflareChallengeTimedOut = false;
-  if (tab.id === browserActiveTabId && browserCaptureEnabled) {
+  if (tab.id === browserActiveTabId && browserDebuggerNeeded()) {
     await ensureBrowserDebugger();
-    await ensureBrowserCaptureHooks().catch(() => 0);
+    if (browserCaptureEnabled) await ensureBrowserCaptureHooks().catch(() => 0);
   }
   if (wasActive) {
     sendBrowserEvent(tab, {
@@ -6216,11 +6330,11 @@ function startBrowserPolling() {
   browserCaptureTimer = setInterval(() => {
     if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
         || activeBrowserTab()?.browserInstrumentationPending) return;
-    if (!browserDebuggerReady) void ensureBrowserDebugger();
+    if (browserDebuggerNeeded() && !browserDebuggerReady) void ensureBrowserDebugger();
     // Tam kanca yalnız yeni oluşan iframe'e kurulur; mevcut karelerde bu tur
     // yalnız kuyruk drain eder. Discovery+ oynatıcı iframe'ini geç kurduğu için
     // sabit 30 sn yenileme altyazının ilk isteğini kaçırabiliyordu.
-    void flushBrowserCaptureQueue({ installHook: true });
+    if (browserCaptureEnabled) void flushBrowserCaptureQueue({ installHook: true });
   }, 900);
   // Oynatma/duraklatma geçişleri WebContents olaylarıyla anında ölçülür. Bu
   // daha seyrek tur yalnız ilerleme, ses ve olay vermeyen siteler için fallback.
@@ -6659,6 +6773,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.debugger.on('detach', () => { if (tab.id === browserActiveTabId) browserDebuggerReady = false; });
   wc.debugger.on('message', (_event, method, params, sessionId) => {
+    if (method === 'Fetch.requestPaused') {
+      void handleYoutubePlayerResponsePaused(wc, tab, params, sessionId);
+      return;
+    }
     if (tab.id !== browserActiveTabId || tab.view !== browserView || tab.compatibilityMode) return;
     if (!browserCaptureEnabled && /^Network\./.test(method)) return;
     if (method === 'Target.attachedToTarget' && params && params.sessionId) {
@@ -6766,7 +6884,7 @@ async function activateBrowserTab(rawId) {
     applyBrowserViewBounds(next, browserView);
     browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
     if (browserVisible) startBrowserPolling();
-    if (browserCaptureEnabled && !next.compatibilityMode
+    if (browserDebuggerNeeded() && !next.compatibilityMode
         && !next.cloudflareChallengeActive && !next.browserInstrumentationPending) attachBrowserDebugger();
     if (!next.compatibilityMode) applyBrowserOverlay();
     resumeRestoredBrowserPage(next);
@@ -6818,7 +6936,7 @@ async function activateBrowserTab(rawId) {
   applyBrowserViewBounds(next, browserView);
   if (browserView) browserView.setVisible(browserVisible && !browserModalOccluded && !!browserNavigationState().url && !next.loadError);
   if (browserVisible) startBrowserPolling();
-  if (browserCaptureEnabled && !next.compatibilityMode
+  if (browserDebuggerNeeded() && !next.compatibilityMode
       && !next.cloudflareChallengeActive && !next.browserInstrumentationPending) attachBrowserDebugger();
   if (!next.compatibilityMode) applyBrowserOverlay();
   resumeRestoredBrowserPage(next);
@@ -7688,6 +7806,57 @@ ipcMain.handle('browser:adblock:setEnabled', async (event, payload = {}) => {
   const result = await configureBrowserAdblock(enabled);
   return { ...result, reloadRequired: result.changed };
 });
+ipcMain.handle('browser:playerAdPrune:getState', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return browserPlayerResponsePruneSnapshot();
+});
+
+ipcMain.handle('browser:playerAdPrune:setEnabled', async (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const nextEnabled = payload.enabled === true;
+  if (browserPlayerResponseAdPruneEnabled === nextEnabled) {
+    return browserPlayerResponsePruneSnapshot({ unchanged: true });
+  }
+  browserPlayerResponseAdPruneEnabled = nextEnabled;
+  const tab = activeBrowserTab();
+  const wc = browserView?.webContents;
+  try {
+    if (wc && !wc.isDestroyed() && !tab?.compatibilityMode && !tab?.cloudflareChallengeActive) {
+      if (nextEnabled) {
+        if (!wc.debugger.isAttached()) {
+          browserDebuggerReady = false;
+          await ensureBrowserDebugger();
+        } else {
+          await wc.debugger.sendCommand('Fetch.enable', {
+            patterns: YOUTUBE_PLAYER_RESPONSE_FETCH_PATTERNS,
+          });
+          browserDebuggerReady = true;
+        }
+      } else if (wc.debugger.isAttached()) {
+        await wc.debugger.sendCommand('Fetch.disable').catch(() => {});
+        if (!browserCaptureEnabled) {
+          detachBrowserDebugger(browserView);
+          browserDebuggerReady = false;
+        }
+      }
+    }
+    return browserPlayerResponsePruneSnapshot({ changed: true });
+  } catch (_) {
+    browserPlayerResponseAdPruneEnabled = false;
+    if (wc && !wc.isDestroyed() && wc.debugger.isAttached()) {
+      await wc.debugger.sendCommand('Fetch.disable').catch(() => {});
+      if (!browserCaptureEnabled) detachBrowserDebugger(browserView);
+    }
+    browserDebuggerReady = !!(browserCaptureEnabled && wc && !wc.isDestroyed() && wc.debugger.isAttached());
+    return browserPlayerResponsePruneSnapshot({
+      ok: false,
+      changed: false,
+      failOpen: true,
+      error: 'Deneysel oynatıcı yanıtı koruması etkinleştirilemedi; video değiştirilmeden devam edecek.',
+    });
+  }
+});
+
 ipcMain.handle('browser:sponsorBlock:get', async (event, payload = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(payload.tabId);
@@ -7721,12 +7890,23 @@ ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
     if (browserCaptureEnabled && !tab.compatibilityMode && !tab.cloudflareChallengeActive) {
       await withTimeout(ensureBrowserCaptureHooks(), BROWSER_SCRIPT_TIMEOUT,
         'Yakalama kancası zaman aşımına uğradı.').catch(() => {});
-      attachBrowserDebugger();
+      await attachBrowserDebugger();
     } else {
       await withTimeout(executeBrowserFrames(browserCaptureToggleScript(false)), BROWSER_SCRIPT_TIMEOUT,
         'Yakalama kapatma işlemi zaman aşımına uğradı.').catch(() => {});
-      try { if (browserView.webContents.debugger.isAttached()) browserView.webContents.debugger.detach(); } catch (_) {}
-      browserDebuggerReady = false;
+      const wc = browserView.webContents;
+      if (wc.debugger.isAttached()) {
+        await wc.debugger.sendCommand('Network.disable').catch(() => {});
+        await wc.debugger.sendCommand('Target.setAutoAttach', {
+          autoAttach: false, waitForDebuggerOnStart: false, flatten: true,
+        }).catch(() => {});
+      }
+      if (!browserPlayerResponseAdPruneEnabled) {
+        detachBrowserDebugger(browserView);
+        browserDebuggerReady = false;
+      } else {
+        browserDebuggerReady = wc.debugger.isAttached();
+      }
     }
   }
   if (browserDiagnostics) browserDiagnostics.captureEnabled = browserCaptureEnabled;

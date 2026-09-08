@@ -30,10 +30,12 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
       detach() { detached++; }, sendCommand(name) {
         return name === 'Network.enable' ? new Promise(resolve => network.push(resolve)) : Promise.resolve();
       } } };
-    const ctx = vm.createContext({ browserCaptureEnabled: true, browserView: { webContents: wc },
+    const ctx = vm.createContext({ browserCaptureEnabled: true, browserPlayerResponseAdPruneEnabled: false,
+      browserView: { webContents: wc },
       activeBrowserTab: () => ({}), browserEventContext: () => ({}), browserStateGeneration: 1,
       browserDebuggerReady: false, browserDebuggerAttachAttempts: new WeakMap(),
       setTimeout: () => 1, clearTimeout() {} });
+    ctx.browserDebuggerNeeded = () => ctx.browserCaptureEnabled;
     ctx.isCurrentBrowserContext = context => context.stateGeneration === ctx.browserStateGeneration;
     const attach = fn('attachBrowserDebugger', ctx);
     const old = attach(); ctx.browserStateGeneration++;
