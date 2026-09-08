@@ -1330,11 +1330,15 @@
                 <summary>Görünüm, sayfa ve manga</summary>
                 <section class="browser-settings-section" aria-label="Site profili"
                   data-browser-settings-kind="persistent" data-browser-settings-category="site">
-                  <div class="browser-view-settings-grid">
+                  <div class="browser-settings-section-head">
+                    <strong>Site profili</strong>
+                    <span>Bu sayfada altyazı, çeviri ve görünüm davranışını genel, site veya sekme düzeyinde belirleyin.</span>
+                  </div>
+                  <div class="browser-view-settings-grid browser-profile-primary">
                     <label><span>Altyazı otomasyonu</span><select id="browserSubtitleAutomation"><option value="off">Kapalı</option><option value="ask">Önce sor</option><option value="auto">Otomatik çevir</option></select></label>
                     <label><span>Çeviri sonrası görünüm</span><select id="browserPreferredSubtitleMode"><option value="translation">Yalnız çeviri</option><option value="both">Kaynak + çeviri</option><option value="source">Yalnız kaynak</option><option value="off">Kapalı</option></select></label>
                   </div>
-                  <label>Ayar kapsamı <select id="browserProfileScope"><option value="general">Genel ayarlar</option><option value="site">Bu site</option><option value="tab">Yalnız bu sekme</option></select></label>
+                  <label class="browser-profile-scope-control">Ayar kapsamı <select id="browserProfileScope"><option value="general">Genel ayarlar</option><option value="site">Bu site</option><option value="tab">Yalnız bu sekme</option></select></label>
                   <p id="browserProfileOrigin" class="browser-session-status"></p>
                   <div id="browserProfileFields"></div>
                   <button type="button" class="btn btn-ghost btn-sm" id="browserProfileReset">Bu sitenin özelleştirmelerini sıfırla</button>

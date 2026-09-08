@@ -288,6 +288,20 @@ async function run() {
     toggle.click();
     await new Promise((resolve) => setTimeout(resolve, 160));
     const blockedReload = await runBrowserChromeCommand('reload');
+    const profileSelect = document.getElementById('profile-targetLanguage');
+    const profileScope = document.getElementById('browserProfileScope');
+    const profileRow = profileSelect?.closest('.browser-profile-field');
+    const settingsMain = document.querySelector('.browser-settings-main');
+    const selectStyle = getComputedStyle(profileSelect);
+    const scopeStyle = getComputedStyle(profileScope);
+    const formTheme = {
+      selectBackground: selectStyle.backgroundColor,
+      selectColor: selectStyle.color,
+      selectAppearance: selectStyle.appearance,
+      scopeBackground: scopeStyle.backgroundColor,
+      mainWidth: Math.round(settingsMain.getBoundingClientRect().width),
+      rowWidth: Math.round(profileRow.getBoundingClientRect().width),
+    };
     const search = document.getElementById('browserSettingsSearch');
     search.value = 'SponsorBlock';
     search.dispatchEvent(new Event('input', { bubbles: true }));
@@ -317,6 +331,7 @@ async function run() {
       diagnosticInPanel: document.querySelectorAll('#browserDiagnosticsPanel [data-browser-settings-kind="diagnostic"]').length,
       blockedReload,
       toggleExpanded: toggle.getAttribute('aria-expanded'),
+      formTheme,
     };
   })()`, 10000);
   const settingsNativeHidden = await waitFor(async () => evaluate(main,
@@ -349,6 +364,14 @@ async function run() {
     'Reload reached the hidden web page while Settings was active.');
   assert.equal(settingsTabFlow.toggleExpanded, 'true',
     'The Settings toolbar button did not reflect the open tab.');
+  assert.notEqual(settingsTabFlow.formTheme.selectBackground, 'rgb(255, 255, 255)',
+    'Generated profile selects fell back to the native white theme.');
+  assert.notEqual(settingsTabFlow.formTheme.scopeBackground, 'rgb(255, 255, 255)',
+    'The profile scope select fell back to the native white theme.');
+  assert.equal(settingsTabFlow.formTheme.selectAppearance, 'none',
+    'Generated profile selects did not use the application control style.');
+  assert.ok(settingsTabFlow.formTheme.mainWidth <= 1042 && settingsTabFlow.formTheme.rowWidth <= 882,
+    'Settings fields stretched beyond their readable measure.');
   assert.equal(settingsNativeHidden, true, 'The native browser view remained visible behind Settings.');
 
   const settingsTabClose = await evaluate(renderer, `(async () => {
@@ -525,12 +548,11 @@ async function run() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return { open: more.open };
   })()`);
-  const menuVisibility = await evaluate(main,
-    "globalThis.__smokeBrowserVisible === false");
+  const menuVisibility = await waitFor(async () => evaluate(main,
+    "globalThis.__smokeBrowserVisible === false").catch(() => false), 3000, 50);
   await evaluate(renderer, "(() => { const more=document.getElementById('browserMoreMenu'); more.open=false; return true; })()");
-  await delay(100);
-  const menuRestored = await evaluate(main,
-    "globalThis.__smokeBrowserVisible === true");
+  const menuRestored = await waitFor(async () => evaluate(main,
+    "globalThis.__smokeBrowserVisible === true").catch(() => false), 3000, 50);
   assert.equal(menuOcclusion.open, true, 'Other menu did not open.');
   assert.equal(menuVisibility, true, 'Native browser view stayed visible behind the Other menu.');
   assert.equal(menuRestored, true, 'Native browser view did not restore after closing the menu.');
@@ -562,7 +584,7 @@ async function run() {
   assert.equal(loaded, true, 'Captured track was not loaded into the player.');
 
   await evaluate(main, 'globalThis.__smokeBrowserVisible=null');
-  const settingsPanel = await evaluate(renderer, "(async () => { setSideTab('ai'); document.getElementById('cueSearch').value='electron acceptance search'; document.getElementById('aiChatText').value='Korunacak AI taslağı'; document.getElementById('sideTabAi').focus(); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); const drawer=document.getElementById('settingsDrawer'); const slot=document.getElementById('browserViewSlot'); const dr=drawer.getBoundingClientRect(); const sr=slot.getBoundingClientRect(); return {open:!drawer.classList.contains('hidden'),focusId:document.activeElement?.id||'',breadcrumb:document.getElementById('settingsDrawerBreadcrumb').textContent,drawer:{left:dr.left,top:dr.top,right:dr.right,bottom:dr.bottom},slot:{left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom},overlap:!(dr.right<=sr.left||dr.left>=sr.right||dr.bottom<=sr.top||dr.top>=sr.bottom)}; })()", 10000);
+  const settingsPanel = await evaluate(renderer, "(async () => { setSideTab('ai'); document.getElementById('cueSearch').value='electron acceptance search'; document.getElementById('aiChatText').value='Korunacak AI taslağı'; document.getElementById('sideTabAi').focus(); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); const drawer=document.getElementById('settingsDrawer'); const slot=document.getElementById('browserViewSlot'); const dr=drawer.getBoundingClientRect(); const sr=slot.getBoundingClientRect(); return {open:!drawer.classList.contains('hidden'),focusId:document.activeElement?.id||'',breadcrumb:document.getElementById('settingsDrawerBreadcrumb').textContent,drawer:{left:dr.left,top:dr.top,right:dr.right,bottom:dr.bottom},slot:{left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom},overlap:!(dr.right<=sr.left||dr.left>=sr.right||dr.bottom<=sr.top||dr.top>=sr.bottom)}; })()", 15000);
   const settingsAlongsideVisible = await evaluate(main, 'globalThis.__smokeBrowserVisible===true');
   assert.equal(settingsPanel.open, true, 'Settings did not open in the right workspace panel.');
   assert.equal(settingsPanel.focusId, 'closeSettings', 'Settings did not move focus into the panel.');

@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '../src/renderer/styles.css'), 'utf8');
 
 const renderTabs = renderer.slice(renderer.indexOf('function renderBrowserTabs('),
   renderer.indexOf('const MAX_BROWSER_TABS', renderer.indexOf('function renderBrowserTabs(')));
@@ -56,5 +57,12 @@ assert.match(renderer, /browserSettingsRegistry\(\)\?\.list\(\)\.find/,
   'Ayar navigasyonu registry kaydından hedef kontrolü çözmeli.');
 assert.match(renderer, /\.\.\.browserSettingsPaletteCommands\(\)/,
   'Komut paleti ayar girdilerini registry üzerinden üretmeli.');
+
+assert.match(html, /class="browser-profile-scope-control"[^>]*>\s*Ayar kapsamı/,
+  'Profil kapsamı yerel tarayıcı select görünümüne düşmemeli.');
+assert.match(css, /\.browser-settings-main\s*\{[\s\S]*?width:\s*min\(100%,\s*1040px\)/,
+  'Ayar formu geniş ekranda okunamayacak kadar uzamamalı.');
+assert.match(css, /\.browser-profile-field select[\s\S]*?appearance:\s*none[\s\S]*?background(?:-color)?:\s*var\(--surface-control\)/,
+  'Üretilen profil selectleri koyu tema kontrol tokenını kullanmalı.');
 
 console.log('browser-settings-tab: özel sekme ve tek-yol sözleşmesi geçti.');
