@@ -36,7 +36,10 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
       browserView: { webContents: wc },
       activeBrowserTab: () => ({}), browserEventContext: () => ({}), browserStateGeneration: 1,
       browserDebuggerReady: false, browserDebuggerAttachAttempts: new WeakMap(),
-      setTimeout: () => 1, clearTimeout() {} });
+      setTimeout: () => 1, clearTimeout() {},
+      // attachBrowserDebugger artik ortak zaman asimi yardimcisini kullaniyor
+      // (yaris tabanli yerel surum kaybeden tarafi iptal etmiyordu).
+      withTimeout: require('../src/async-timeout').withTimeout });
     ctx.browserDebuggerNeeded = () => ctx.browserCaptureEnabled;
     ctx.isCurrentBrowserContext = context => context.stateGeneration === ctx.browserStateGeneration;
     const attach = fn('attachBrowserDebugger', ctx);

@@ -278,6 +278,13 @@ const browserPlayerResponseAdPruneInitiallyEnabled =
 // Kutuphane dosyasina AYNI ANDA iki surec yazarsa biri digerinin yazdigini
 // ezer. Tek-writer garantisi burada baslar: ikinci surec hic pencere acmadan
 // kapanir, kilidi tutan surecin penceresi one getirilir.
+// Kaynak sizinti olcumu (tests/run-resource-soak.js) uygulamayi gercek
+// kullanici profiliyle degil, kendi verdigi gecici klasorle calistirir:
+// olcum ne kullanicinin ayarlarini/gecmisini kirletir ne de onlardan etkilenir.
+if (process.env.WHISPER_RESOURCE_SOAK_USER_DATA) {
+  try { app.setPath('userData', process.env.WHISPER_RESOURCE_SOAK_USER_DATA); } catch (_) {}
+}
+
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   app.quit();
@@ -314,9 +321,6 @@ let browserSessionLastWriteAt = 0;
 // daha sonra before-quit yaydığında boşaltılmış Map'i ikinci kez yazıp sağlam
 // oturum dosyasını ezmemelidir.
 let browserSessionFinalizedForQuit = false;
-let browserPlacesCache = null;
-let browserPlacesLoadWarning = '';
-let browserPlacesSaveTimer = null;
 let browserPlacesDirty = false;
 let browserPlacesSaveErrorNotified = false;
 let browserSessionRestoreEnabled = true;
@@ -1816,11 +1820,12 @@ async function waitForBrowserAdblockReady() {
 // ana dünyası bu globali göremez.
 const BROWSER_ISOLATED_WORLD_ID = 999;
 const BROWSER_PLACES_FILE = 'browser-places.json';
+// Yer imi/gecmis deposu diskten YALNIZ BIR KEZ okunur; her cagrida dosyaya
+// gitmek uzun oturumlarda olculebilir bir yuk. Yazim onbellegi tazeler.
+let browserPlacesSaveTimer = null;
+let browserPlacesCache = null;
+let browserPlacesLoadWarning = '';
 const BROWSER_PLACE_LIMIT = 100;
-const sponsorBlockCache = new SponsorBlockCache();
-const sponsorBlockInFlight = new Map();
-const SPONSORBLOCK_HOST = 'sponsor.ajay.app';
-const MAX_SPONSORBLOCK_BYTES = 2 * 1024 * 1024;
 
 function nextBrowserTabId() {
   browserTabSequence += 1;
@@ -2320,6 +2325,13 @@ function browserCookieUrl(cookie) {
   const cookiePath = String(cookie && cookie.path || '/');
   return `${protocol}://${domain}${cookiePath.startsWith('/') ? cookiePath : `/${cookiePath}`}`;
 }
+
+// SponsorBlock durumu tarayici yer imi/gecmis deposundan bagimsizdir.
+const sponsorBlockCache = new SponsorBlockCache();
+const sponsorBlockInFlight = new Map();
+const SPONSORBLOCK_HOST = 'sponsor.ajay.app';
+const MAX_SPONSORBLOCK_BYTES = 2 * 1024 * 1024;
+
 
 function browserCookieMatchesHost(cookie, host) {
   const domain = String(cookie && cookie.domain || '').replace(/^\.+/, '').toLowerCase();
@@ -5655,25 +5667,24 @@ async function attachBrowserDebugger() {
   const current = () => ownsAttempt() && browserDebuggerNeeded() && isCurrentBrowserContext(context);
   try {
     if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
-    const withTimeout = (promise, ms = 1500) => {
-      let timer;
-      return Promise.race([promise,
-        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('CDP timeout')), ms); }),
-      ]).finally(() => clearTimeout(timer));
-    };
+    // Yaris (race) tabanli eski yardimci kaybeden tarafi iptal etmiyordu: CDP
+    // komutu arka planda calismaya devam ediyor ve her cagrida yeni bir
+    // zamanlayici birikiyordu. Ortak yardimci tek kez sonuclanir ve
+    // zamanlayiciyi her durumda temizler.
     if (browserCaptureEnabled) {
-      await withTimeout(wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }));
+      await withTimeout(wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }),
+        1500, 'CDP frame hazırlığı zaman aşımına uğradı.');
     }
     if (!current()) return;
     if (browserPlayerResponseAdPruneEnabled) {
       await withTimeout(wc.debugger.sendCommand('Fetch.enable', {
         patterns: YOUTUBE_PLAYER_RESPONSE_FETCH_PATTERNS,
-      }));
+      }), 1500, 'CDP frame hazırlığı zaman aşımına uğradı.');
     }
     if (browserCaptureEnabled) {
       await withTimeout(wc.debugger.sendCommand('Target.setAutoAttach', {
         autoAttach: true, waitForDebuggerOnStart: false, flatten: true,
-      })).catch(() => {});
+      }), 1500, 'CDP frame hazırlığı zaman aşımına uğradı.').catch(() => {});
     }
     if (current()) browserDebuggerReady = true;
   } catch (err) {

@@ -103,6 +103,11 @@ Sıra: girdi (yerel dosya / yt-dlp ile YouTube) → ffmpeg ile 16kHz mono WAV ç
 - **Diğer bakım/araç IPC'leri:** `subs:shift` (SRT/VTT zaman kaydırma, saf Node), `settings:export`/`settings:import`, `maintenance:updateYtdlp`, `dialog:openFile` (uzantı filtreli tek-dosya), `app:getEnvInfo` (venv/ffmpeg/GPU adı + `vramMib`). `maintenance:updateYtdlp`, venv içine `pip install` yapmak yerine `backend/update_ytdlp.py` ile kullanıcı profilindeki sürümlü/atomik `yt-dlp-runtime` dizinini günceller; doğrulanmış aktif sürüm Python süreçlerine `PYTHONPATH` üzerinden taşınır ve bozuk/eksik aktif sürümde önceki sürüme düşülür.
 - **VRAM:** start.bat ile yüklenen büyük model + pyannote 12GB'da OOM verebilir; `transcribe()` segment döngüsünden sonra modeli `del`+`empty_cache` ile boşaltır (diarization öncesi). Renderer `estimateVramMib()` ile rozette önceden uyarır.
 
+### Kaynak sızıntısı
+
+- **CDP hazırlığında ortak `withTimeout` kullanılır** (`src/async-timeout.js`). Eski yerel yardımcı yarış (race) tabanlıydı: kaybeden taraf iptal edilmediği için CDP komutu arka planda çalışmaya devam ediyor ve her sekme değişiminde yeni bir zamanlayıcı birikiyordu. Ortak yardımcı tek kez sonuçlanır ve zamanlayıcıyı her durumda temizler. Yeni bir CDP çağrısı eklerken yerel bir race yazma.
+- **Soak/ölçüm çalıştırmaları izole profil kullanır:** `WHISPER_RESOURCE_SOAK_USER_DATA` verilirse main `app.setPath('userData', ...)` ile o klasöre geçer — ölçüm kullanıcının gerçek ayar/geçmiş dosyalarını ne kirletir ne de onlardan etkilenir.
+
 ### Gizli anahtarlar
 HF token, LLM API key, çeviri API key ve manga API key `settings.json` içine yazılmaz; `secret-store.js` bunları işletim sisteminin `safeStorage` şifrelemesiyle ayrı kasada tutar. Transkripsiyonun kullandığı anahtarlar **argv'den değil ortam değişkeninden** geçer (`WHISPER_HF_TOKEN`, `WHISPER_LLM_API_KEY`, `WHISPER_TRANSLATE_API_KEY`) — süreç listesinde görünmesin diye. `settings-security.js` içindeki `buildSecretEnv()` yalnız ilgili özellik açıkken gereken anahtarı Python sürecine ekler; diğer bütün alt süreçler `withoutSecretEnv()` ile temizlenmiş ortam alır. Yeni gizli alan eklerken secret-store alan listesini, redaksiyon şemasını ve bu en-az-yetki ortam sözleşmesini birlikte güncelle.
 
