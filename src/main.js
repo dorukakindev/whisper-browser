@@ -9,6 +9,7 @@ const { isIP } = require('net');
 const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
+const { createProcessTerminalLatch } = require('./renderer/queue-lifecycle');
 const { createWatchLibraryStore } = require('./watch-library-store');
 const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
 const { createBrowserPageFind } = require('./browser-page-find');
@@ -1148,8 +1149,16 @@ ipcMain.handle('logs:openFolder', async (event) => {
   return err ? { ok: false, error: err } : { ok: true, path: dir };
 });
 
+let activeJobLatch = null;
+
 function killActiveJob() {
   if (!activeJob) return;
+  // Uygulama kapanırken süreci öldürmek Python'dan gecikmeli bir terminal olayı
+  // getirebilir. İptali önce latch'e işaretle: aynı iş için ikinci bir terminal
+  // olayı kabul edilmesin, yoksa kuyruk aynı işi iki kez bitmiş sayıp bir
+  // sonrakini iki kez başlatır.
+  const lifecycle = activeJobLatch;
+  if (lifecycle) lifecycle.requestCancel();
   terminateProcessTree(activeJob, { spawn, onWarning: (message) => sendEvent({ type: 'log', level: 'warn', message }) });
 }
 
@@ -10485,9 +10494,30 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   let stderrBuf = '';
   const jobProc = activeJob;
   modelProcesses.add(jobProc);
+  // Her işin kendi kimliği ve terminal mandalı var. Renderer gelen olayın hâlâ
+  // aktif işe ait olduğunu bu kimlikle doğrular; mandal da bir iş için yalnız
+  // TEK terminal olayı (done/error) geçmesine izin verir.
+  const jobId = String(options.jobId || `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+  const lifecycle = createProcessTerminalLatch(jobId);
+  activeJobLatch = lifecycle;
+  const sendJobEvent = (event) => sendEvent({ ...event, jobId });
 
   activeJob.stdout.setEncoding('utf-8');
   activeJob.stderr.setEncoding('utf-8');
+
+  // Bir iş için YALNIZ bir terminal olayı geçer. Python hem 'error' hem 'done'
+  // basarsa ya da iptalden sonra gecikmeli bir terminal gelirse, renderer
+  // kuyruğu iki kez ilerletiyordu (aynı iş iki kez "bitti" sayılıyordu).
+  const acceptTerminalEvent = (type) => {
+    if (lifecycle.acceptTerminal(type)) return true;
+    writeJobLog({
+      type: 'log', level: 'warn', jobId,
+      message: lifecycle.state.cancelRequested
+        ? `İptal isteğinden sonra gelen terminal olayı yok sayıldı: ${type}`
+        : `Yinelenen terminal olayı yok sayıldı: ${type} (ilk: ${lifecycle.state.terminalType})`,
+    });
+    return false;
+  };
 
   const handleLine = (raw) => {
     const line = raw.trim();
@@ -10508,20 +10538,21 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
           mainWindow.flashFrame(true);
         }
       }
-      if ((event.type === 'done' || event.type === 'error') && !jobMeta.skip) {
-        recordJob(jobMeta, event);
-        jobMeta.skip = true;              // tek is = tek kayit
-      }
       if (event.type === 'done' || event.type === 'error') {
+        if (!acceptTerminalEvent(event.type)) return;
         jobMeta.terminalSeen = true;
         persistQueueTerminal(jobMeta.queueItemId, event);
+        if (!jobMeta.skip) {
+          recordJob(jobMeta, event);
+          jobMeta.skip = true;              // tek is = tek kayit
+        }
       }
-      writeJobLog(event);
+      writeJobLog({ ...event, jobId });
       const { traceback, ...publicEvent } = event;
-      sendEvent(publicEvent);
+      sendJobEvent(publicEvent);
     } catch (_) {
-      writeJobLog({ type: 'log', level: 'info', message: line });
-      sendEvent({ type: 'log', level: 'info', message: line });
+      writeJobLog({ type: 'log', level: 'info', message: line, jobId });
+      sendJobEvent({ type: 'log', level: 'info', message: line });
     }
   };
 
@@ -10562,16 +10593,32 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     for (const raw of stdoutLines.flush()) handleLine(raw);
     stopPowerBlocker();
     setTaskbarProgress(-1);
-    const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000), queueItemId: jobMeta.queueItemId };
+    // Süreç hiç terminal olayı basmadan kapandıysa mandal sentetik bir 'error'
+    // üretir: iş sessizce kaybolmasın. İptal edilmişse üretmez.
+    const closing = lifecycle.close(code, stderrBuf.slice(-1000));
+    if (closing.syntheticTerminal) {
+      const synthetic = { ...closing.syntheticTerminal, queueItemId: jobMeta.queueItemId };
+      if (!jobMeta.skip) {
+        recordJob(jobMeta, synthetic);
+        jobMeta.skip = true;
+      }
+      jobMeta.terminalSeen = true;
+      persistQueueTerminal(jobMeta.queueItemId, synthetic);
+      writeJobLog({ ...synthetic, jobId });
+      sendJobEvent(synthetic);
+    }
+    const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000),
+      queueItemId: jobMeta.queueItemId, cancelled: lifecycle.state.cancelRequested };
     if (!jobMeta.terminalSeen) persistQueueTerminal(jobMeta.queueItemId, exitEvent);
-    writeJobLog(exitEvent);
+    writeJobLog({ ...exitEvent, jobId });
     cleanupChatFile();
     endJobLog();
     activeJob = null;
     activeQueueItemId = null;
+    if (activeJobLatch === lifecycle) activeJobLatch = null;
     // Renderer kuyruktaki sonraki işi bu olaydan sonra başlatır; önce null yaparak
     // transcribe:start ile "Zaten bir iş çalışıyor" yarışını ortadan kaldır.
-    sendEvent(exitEvent);
+    sendJobEvent(exitEvent);
   });
 
   activeJob.on('error', (err) => {
@@ -10581,18 +10628,20 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (err.code === 'ENOENT') {
       message = 'Python bulunamadı. Python 3.10/3.11 kurup PATH\'e ekleyin veya install.bat ile venv oluşturun, sonra start.bat ile başlatın.';
     }
-    writeJobLog({ type: 'error', message });
-    persistQueueTerminal(jobMeta.queueItemId, { type: 'error', message });
-    jobMeta.terminalSeen = true;
-    cleanupChatFile();
-    endJobLog();
-    sendEvent({ type: 'error', message, queueItemId: jobMeta.queueItemId });
+    if (acceptTerminalEvent('error')) {
+      writeJobLog({ type: 'error', message, jobId });
+      persistQueueTerminal(jobMeta.queueItemId, { type: 'error', message });
+      jobMeta.terminalSeen = true;
+      cleanupChatFile();
+      endJobLog();
+      sendJobEvent({ type: 'error', message, queueItemId: jobMeta.queueItemId });
+    }
     // Node emits close after error. Keep ownership until then, otherwise the
     // old close callback can clear a newly started job and its log/power lock.
   });
 
   startPowerBlocker();
-  return { ok: true };
+  return { ok: true, jobId };
 });
 
 // yt-dlp güncelleme — YouTube indirme hatalarının başlıca nedeni eski yt-dlp sürümüdür

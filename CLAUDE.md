@@ -114,7 +114,7 @@ Kalıcı durum `app.getPath('userData')` altında ayrı dosyalardadır: `setting
 İzleme tamamlanmasında kanonik manuel alan `completionOverride`'dır; `manualCompleted` yalnız eski kayıt göçünde okunur ve yeniden yazılmaz. `automaticCompleted` oynatma ilerlemesinden ayrı tutulur, etkili `completed` değerini store bu iki alandan üretir ve `revision` değerini yalnız store artırır. Renderer veya başka bir yazma yolu bu alanları ikinci kez yönetmemeli.
 
 ### Kuyruk
-`renderer.js`'te `state.queue`. Her item EKLENME anında `buildOptsFromUI()` ile ayarlarını **dondurur** (`item.opts`) — kuyruk işlenirken UI değişse bile her iş kendi ayarıyla çalışır. Kuyruk ilerleyişi tek-iş UI'ını yeniden kullanır; `done`/`error`/`exit` olaylarında `processNextQueueItem()` tetiklenir.
+`renderer.js`'te `state.queue`. **Her işin bir `jobId`'si vardır** (`createJobId`, `src/renderer/queue-lifecycle.js`; index.html'de renderer.js'ten ÖNCE yüklenir). main.js her iş için bir terminal mandalı (`createProcessTerminalLatch`) tutar: bir iş için YALNIZ bir `done`/`error` geçer, süreç hiç terminal basmadan kapanırsa mandal sentetik bir `error` üretir (iş sessizce kaybolmasın), iptal edilmişse üretmez. `killActiveJob` önce `requestCancel()` işaretler — kapanışta gelen gecikmeli terminal olayı kuyruğu ikinci kez ilerletmesin. Renderer `eventMatchesActiveJob` ile etiketli olayları eşler; ETİKETSİZ olaylar (genel uyarı/günlük) geçmeye devam eder. Her item EKLENME anında `buildOptsFromUI()` ile ayarlarını **dondurur** (`item.opts`) — kuyruk işlenirken UI değişse bile her iş kendi ayarıyla çalışır. Kuyruk ilerleyişi tek-iş UI'ını yeniden kullanır; `done`/`error`/`exit` olaylarında `processNextQueueItem()` tetiklenir.
 
 ## Konvansiyonlar
 

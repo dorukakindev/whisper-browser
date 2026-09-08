@@ -191,7 +191,11 @@ t('ana süreç activeJob temizlendikten sonra exit olayı gönderir', () => {
   const start = msrc.indexOf("activeJob.on('close'");
   const body = msrc.slice(start, msrc.indexOf("activeJob.on('error'", start));
   ok(body.indexOf('activeJob = null') >= 0, 'activeJob temizlenmiyor');
-  ok(body.indexOf('activeJob = null') < body.indexOf('sendEvent(exitEvent)'),
+  // Olay gönderimi iş kimliğiyle etiketleyen sendJobEvent üzerinden de gidebilir;
+  // sınanan şey ADI değil SIRASI: activeJob önce temizlenmeli.
+  const emitIndex = body.search(/send(?:Job)?Event\(exitEvent\)/);
+  ok(emitIndex >= 0, 'exit olayı gönderilmiyor');
+  ok(body.indexOf('activeJob = null') < emitIndex,
     'exit olayı activeJob temizlenmeden gönderiliyor');
 });
 

@@ -1,3 +1,14 @@
+// queue-lifecycle.js index.html'de renderer.js'ten ÖNCE yüklenir.
+// Her transkripsiyon işine benzersiz bir kimlik verilir ve gelen olaylar bu
+// kimlikle eşleştirilir: eskiden yalnız queueItemId vardı, tekil (kuyruksuz)
+// işlerde o null olduğu için iptal edilmiş eski bir işten gecikmeli gelen
+// terminal olayı yeni işin arayüzüne sızabiliyordu.
+const {
+  createJobId,
+  eventMatchesActiveJob,
+  snapshotOptions: snapshotQueueOptions,
+} = window.QueueLifecycle;
+
 // ===== State =====
 const state = {
   source: 'file',
@@ -362,11 +373,23 @@ function showJobValidation(problem) {
 // IPC çağrısı Electron kapanışı, kanal hatası veya süreç çökmesi nedeniyle
 // reddedilirse UI kilitli kalmasın. Tüm başlatma akışları aynı güvenli sonucu
 // kullanır ve mevcut !result.ok hata yollarına düşer.
-async function startTranscribeSafe(opts) {
+async function startTranscribeSafe(opts, requestedJobId = null) {
+  const jobId = requestedJobId || createJobId();
+  if (state.activeJobId && state.activeJobId !== jobId) {
+    return { ok: false, error: 'Başka bir transkripsiyon işi hâlâ kapanıyor.', jobId };
+  }
+  state.activeJobId = jobId;
   try {
-    const result = await window.api.startTranscribe(opts);
-    return result || { ok: false, error: 'Transkripsiyon başlatılamadı.' };
+    const result = await window.api.startTranscribe(snapshotQueueOptions({ ...(opts || {}), jobId }));
+    const normalized = result || { ok: false, error: 'Transkripsiyon başlatılamadı.' };
+    if (normalized.ok && normalized.jobId && normalized.jobId !== jobId) {
+      if (state.activeJobId === jobId) state.activeJobId = null;
+      return { ok: false, error: 'Transkripsiyon süreç kimliği doğrulanamadı.', jobId };
+    }
+    if (!normalized.ok && state.activeJobId === jobId) state.activeJobId = null;
+    return { ...normalized, jobId };
   } catch (err) {
+    if (state.activeJobId === jobId) state.activeJobId = null;
     return { ok: false, error: err && err.message ? err.message : 'Transkripsiyon IPC çağrısı başarısız.' };
   }
 }
@@ -3160,6 +3183,11 @@ window.api.onEvent((event) => {
   // Kuyruk durdurulmuş veya yeni bir tekil iş başlamış olsa bile eski Python
   // sürecinden geç gelen terminal/progress olayı yeni arayüz durumuna sızmasın.
   if (event.queueItemId != null && event.queueItemId !== state.currentQueueId) return;
+  // Etiketli olaylarda iş kimliği eşleşmiyorsa olay ölmüş bir işe aittir;
+  // arayüze sızmasın. Etiketsiz olaylar (genel uyarı/günlük satırları) geçer —
+  // aksi halde transkripsiyon dışı bildirimleri de düşürürdük.
+  if (event.jobId && !eventMatchesActiveJob(state, event)) return;
+  if (event.type === 'exit' && event.jobId && state.activeJobId === event.jobId) state.activeJobId = null;
   const playerConsumed = playerJobEvent(event);
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   if (playerConsumed) return;
