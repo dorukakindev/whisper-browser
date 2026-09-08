@@ -8533,7 +8533,7 @@ function showBrowserWebSurface() {
   showBrowserErrorSurface(tab?.error
     ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
   renderBrowserTabs();
-  syncBrowserOcclusion();
+  syncResponsivePlayerLayout();
 }
 
 function openBrowserSettings(category = 'site', focusId = '') {
@@ -8559,7 +8559,7 @@ function openBrowserSettings(category = 'site', focusId = '') {
   $('browserErrorSurface')?.classList.add('hidden');
   renderBrowserSettingsSurface(focusId);
   renderBrowserTabs();
-  syncBrowserOcclusion();
+  syncResponsivePlayerLayout();
   requestAnimationFrame(() => {
     if (focusId) $(focusId)?.focus();
     else $('browserSettingsSearch')?.focus();
@@ -14215,6 +14215,7 @@ function snapGridColumns() {
 function responsivePanelTakeoverActive() {
   const layer = $('playerLayer');
   if (!layer || !window.matchMedia('(max-width: 1020px)').matches) return false;
+  if (browserSettingsSurfaceVisible()) return false;
   return drawerIsOpen() || sidebarIsVisible();
 }
 

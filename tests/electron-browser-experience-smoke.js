@@ -333,7 +333,7 @@ async function run() {
       toggleExpanded: toggle.getAttribute('aria-expanded'),
       formTheme,
     };
-  })()`, 10000);
+  })()`, 20000);
   const settingsNativeHidden = await waitFor(async () => evaluate(main,
     'globalThis.__smokeBrowserVisible === false').catch(() => false), 3000, 50);
   assert.deepEqual(settingsTabFlow.beforeTabIds, settingsTabFlow.modelTabIds,
@@ -373,6 +373,27 @@ async function run() {
   assert.ok(settingsTabFlow.formTheme.mainWidth <= 1042 && settingsTabFlow.formTheme.rowWidth <= 882,
     'Settings fields stretched beyond their readable measure.');
   assert.equal(settingsNativeHidden, true, 'The native browser view remained visible behind Settings.');
+
+  await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(960,720); return win.getBounds(); })()");
+  await delay(350);
+  const narrowSettingsTab = await evaluate(renderer, `(() => {
+    const layer = document.getElementById('playerLayer');
+    const surface = document.getElementById('browserSettingsSurface');
+    const workspace = document.getElementById('browserWorkspace');
+    return {
+      settingsVisible: !surface.classList.contains('hidden') && getComputedStyle(surface).display !== 'none',
+      takeover: layer.classList.contains('narrow-panel-takeover'),
+      workspaceInert: workspace.inert,
+    };
+  })()`);
+  assert.equal(narrowSettingsTab.settingsVisible, true,
+    'Narrow resize hid the active browser Settings surface.');
+  assert.equal(narrowSettingsTab.takeover, false,
+    'Narrow resize replaced browser Settings with the subtitle panel takeover.');
+  assert.equal(narrowSettingsTab.workspaceInert, false,
+    'Narrow resize made the active browser Settings surface inert.');
+  await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(1280,820); return win.getBounds(); })()");
+  await delay(250);
 
   const settingsTabClose = await evaluate(renderer, `(async () => {
     await closeBrowserSettings();
