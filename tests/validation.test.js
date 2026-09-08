@@ -183,6 +183,8 @@ t('uygulama yedeği ayar, tarayıcı yerleri ve izleme kütüphanesini birlikte 
   ok(/writeBrowserPlaces\(data\.browserPlaces\)/.test(imported), 'tarayıcı yerleri geri yüklenmiyor');
   ok(/saveWatchLibrary\(watchLibrary,\s*\{\s*restoreRemoved:\s*true\s*\}\)/.test(imported),
     'izleme kütüphanesi açık restore kararıyla geri yüklenmiyor');
+  ok(/watchLibraryCount:\s*loadWatchLibraryAll\(\)\.length/.test(imported),
+    'geri yüklenen taşma kayıtları sonuç sayacında eksik raporlanıyor');
   ok(/const settings = bundled \? data\.settings : data/.test(imported), 'eski ayar dosyası uyumluluğu korunmuyor');
 });
 

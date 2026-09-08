@@ -9489,7 +9489,7 @@ ipcMain.handle('settings:import', async (event) => {
       settings: loadSettings(),
       restored: bundled ? {
         browserPlaces: browserPlacesSnapshot(),
-        watchLibraryCount: loadWatchLibrary().length,
+        watchLibraryCount: loadWatchLibraryAll().length,
         importedNotes,
       } : null,
     };
