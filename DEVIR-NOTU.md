@@ -1,6 +1,9 @@
 # Devir Notu — dal kurtarma çalışması
 
-Son güncelleme: 2026-09-08 · master = `1eabdfb` · `npm test` **yeşil** (116 dosya)
+Son güncelleme: 2026-09-08 · master = `ebe582d` · `npm test` **yeşil** (120 dosya)
+
+> **Bu not tarihsel kayıttır** — dal kurtarma çalışmasının nasıl yapıldığını anlatır.
+> Kalan iş ve nereden devam edileceği için `ENTEGRASYON-PLANI.md` dosyasına bak.
 
 ## Durum
 
@@ -23,7 +26,16 @@ o konuda gereksiz.
 | `f8daf8f` | `src/watch-library-store.js` + 158 göç/fault-injection testi |
 | `1eabdfb` | `backend/io_errors.py`, `backend/update_ytdlp.py`, `src/process-io.js` + 20 test |
 
-## Bilerek bağlanmadı (sıradaki iş)
+## Sonradan yapılanlar
+
+Bu not yazıldıktan sonra `ENTEGRASYON-PLANI.md` üzerinden 6 kalem daha girdi:
+K1 kütüphane deposu bağlantısı (`34c807d`), K2 yt-dlp atomik runtime (`1d697ae`),
+K3 ayar güvenliği (`98f8369`), K4 kuyruk yaşam döngüsü (`b7d7ffc`),
+K5 tek-yazar + kapanış flush'ı (`6392461`), K8 CDP sızıntısı (`da0c4c6`, kısmi).
+**Açık kalan: K6 ve K7.** Aşağıdaki iki madde artık ÇÖZÜLDÜ, tarihsel kayıt
+olarak duruyor:
+
+## Bilerek bağlanmadı (o gün — ikisi de sonradan çözüldü)
 
 ### 1. `src/watch-library-store.js` main.js'e bağlı değil
 Bağlamadan önce master'daki iki koruma depoya taşınmalı, yoksa kaybolur:
