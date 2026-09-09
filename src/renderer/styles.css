@@ -365,18 +365,30 @@
   color: var(--text);
   font-weight: 500;
   overflow: hidden;
+  min-width: 0;
+}
+
+.queue-title {
+  display: block;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .queue-name small {
+  display: block;
   color: var(--text-muted);
   font-weight: 400;
-  margin-left: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  margin: 3px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 10px;
 }
+
+.queue-meta { letter-spacing: 0.02em; }
+.queue-error { color: var(--danger) !important; }
+.queue-note { color: var(--warning) !important; }
 
 .queue-status {
   font-size: 11px;

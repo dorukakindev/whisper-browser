@@ -102,6 +102,7 @@ function mergeQueueSnapshotForSave(diskRaw, incomingRaw, activeQueueItemId = nul
     item.status = authoritative.status;
     item.files = authoritative.files.slice();
     item.warnings = authoritative.warnings.slice();
+    item.error = authoritative.error;
     item.recovered = false;
   }
   return queueSnapshotForDisk({
@@ -133,6 +134,7 @@ function normalizeQueueItem(raw) {
     warnings: Array.isArray(raw.warnings)
       ? raw.warnings.filter((value) => typeof value === 'string').map((value) => value.slice(0, 2000)).slice(0, 100)
       : [],
+    error: String(raw.error || '').trim().slice(0, 500),
     opts,
     watchSource: raw.watchSource === true,
     recovered: !!raw.recovered,
@@ -191,6 +193,7 @@ function updateQueueSnapshotTerminal(raw, queueItemId, event) {
   if (!item) return queueSnapshotForDisk(snapshot);
   if (event?.type === 'done') {
     item.status = 'done';
+    item.error = '';
     item.files = Array.isArray(event.files)
       ? event.files.filter((value) => typeof value === 'string').map((value) => value.slice(0, 8000)).slice(0, 20)
       : [];
@@ -199,6 +202,9 @@ function updateQueueSnapshotTerminal(raw, queueItemId, event) {
       : [];
   } else if (event?.type === 'error' || event?.type === 'exit') {
     if (item.status === 'running') item.status = 'error';
+    const fallback = event?.type === 'exit' && event?.code
+      ? `İşlem çıkış kodu ${event.code}` : 'Bilinmeyen hata';
+    item.error = String(event?.message || event?.stderr || fallback).trim().slice(0, 500);
   }
   item.recovered = false;
   return queueSnapshotForDisk({ ...snapshot, currentQueueId: null, queueRunning: false });

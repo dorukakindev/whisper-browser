@@ -61,7 +61,7 @@ function queueSnapshotPayload() {
     items: state.queue.map((item) => ({
       id: item.id, type: item.type, input: item.input, label: item.label,
       status: item.status, files: item.files || [], warnings: item.warnings || [],
-      opts: item.opts || {}, recovered: !!item.recovered,
+      error: item.error || '', opts: item.opts || {}, recovered: !!item.recovered,
     })),
   };
 }
@@ -458,6 +458,16 @@ const STATUS_TEXT = {
   error: 'Hata',
 };
 
+function queueItemMeta(item) {
+  const opts = item?.opts && typeof item.opts === 'object' ? item.opts : {};
+  const source = item?.type === 'youtube' ? 'YouTube' : 'Dosya';
+  const model = String(opts.model || 'varsayılan').trim().slice(0, 40);
+  const engine = String(opts.engine || 'faster').trim().slice(0, 32);
+  const formats = String(opts.formats || 'srt').split(',').map((value) => value.trim().toUpperCase()).filter((value) => /^[A-Z0-9+_-]{1,12}$/.test(value)).join('+') || 'SRT';
+  const language = opts.translate ? 'Çeviri ' + String(opts.translateTo || 'tr').trim().slice(0, 12).toUpperCase() : 'Kaynak ' + String(opts.language || 'otomatik').trim().slice(0, 12);
+  return [source, model, engine, formats, language].filter(Boolean).join(' · ');
+}
+
 function renderQueue() {
   scheduleQueuePersist();
   const card = $('queueCard');
@@ -485,8 +495,9 @@ function renderQueue() {
     div.innerHTML = `
       <span class="queue-icon">${icon}</span>
       <div class="queue-name" title="${escapeHtml(item.input)}">
-        ${escapeHtml(item.label)}
-        <small>${item.type === 'youtube' ? 'youtube' : 'dosya'}</small>
+        <span class="queue-title">${escapeHtml(item.label)}</span>
+        <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
+        ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
       </div>
       <span class="queue-status">${STATUS_TEXT[item.status] || item.status}</span>
       <span class="queue-actions">
@@ -511,6 +522,7 @@ function renderQueue() {
       const item = state.queue.find(x => x.id === parseInt(btn.dataset.retry, 10));
       if (!item || item.status !== 'error') return;
       item.status = 'pending';
+      item.error = '';
       renderQueue();
       logLine(`"${item.label}" yeniden kuyruğa alındı`, 'info');
     });
@@ -3328,6 +3340,7 @@ window.api.onEvent((event) => {
         const item = state.queue.find(x => x.id === state.currentQueueId);
         if (item) {
           item.status = 'done';
+          item.error = '';
           item.files = event.files || [];
           // Uyarıları sakla: kuyruk bitince hangi dosyaların elle kontrol gerektirdiğini özetle
           item.warnings = Array.isArray(event.warnings) ? event.warnings : [];
@@ -3357,6 +3370,7 @@ window.api.onEvent((event) => {
         const item = state.queue.find(x => x.id === state.currentQueueId);
         if (item) {
           item.status = 'error';
+          item.error = String(event.message || 'Bilinmeyen hata').slice(0, 500);
           reportWatchQueueResult(item, 'error');
           renderQueue();
         }
@@ -3382,6 +3396,7 @@ window.api.onEvent((event) => {
         const item = state.queue.find(x => x.id === state.currentQueueId);
         if (event.code !== 0 && item && item.status === 'running') {
           item.status = 'error';
+          item.error = String(event.message || (event.stderr || ('İşlem çıkış kodu ' + event.code))).trim().slice(0, 500);
           reportWatchQueueResult(item, 'error');
         }
         if (event.code !== 0) {

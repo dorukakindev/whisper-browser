@@ -109,6 +109,11 @@ test('terminal olay renderer yokken kalıcı kuyruğu günceller', () => {
   assert.deepEqual(done.items[0].warnings, ['bak']);
   const failed = updateQueueSnapshotTerminal(raw, 3, { type: 'exit' });
   assert.equal(failed.items[0].status, 'error');
+  assert.equal(failed.items[0].error, 'Bilinmeyen hata');
+  const failedWithMessage = updateQueueSnapshotTerminal(raw, 3, { type: 'error', message: 'model yüklenemedi' });
+  assert.equal(failedWithMessage.items[0].error, 'model yüklenemedi');
+  const recoveredDone = updateQueueSnapshotTerminal({ items: [{ id: 3, type: 'file', input: 'D:\\a.mp4', status: 'running', error: 'eski hata' }] }, 3, { type: 'done' });
+  assert.equal(recoveredDone.items[0].error, '');
 });
 
 test('bozuk ve yinelenen öğeler atılır, kalıcı görüntü sınırlanır', () => {
