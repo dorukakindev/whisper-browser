@@ -69,6 +69,18 @@ async function run() {
   await capture(client, 'whisper-theme-dark.png');
   await evaluate(client, "applyUiTheme('light'); document.getElementById('uiTheme').value='light'; true");
   await capture(client, 'whisper-theme-light.png');
+  await evaluate(client, "applyUiTheme('dark'); const panel=document.querySelector('.panel-left'); const card=document.querySelector('.settings-card'); panel.scrollTop=Math.max(0, card.offsetTop - panel.offsetTop - 12); true");
+  await capture(client, 'whisper-settings-dark.png');
+  await evaluate(client, "document.getElementById('primarySettingsOpen').open=true; true");
+  await capture(client, 'whisper-settings-open-dark.png');
+  await evaluate(client, "applyUiTheme('light'); document.getElementById('primarySettingsOpen').open=false; true");
+  await capture(client, 'whisper-settings-light.png');
+  await client.call('Emulation.setDeviceMetricsOverride', { width: 560, height: 900, deviceScaleFactor: 1, mobile: false });
+  await evaluate(client, "document.querySelector('.settings-card').scrollIntoView({block:'start'}); true");
+  const settingsLayout = await evaluate(client, "(() => { const rect=(selector)=>{const r=document.querySelector(selector).getBoundingClientRect(); return {left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}; return {overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, viewport:document.documentElement.clientWidth, card:rect('.settings-card'), tools:rect('.settings-head-tools'), restore:rect('#importSettings')}; })()");
+  await capture(client, 'whisper-settings-light-560.png');
+  await client.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await evaluate(client, "window.scrollTo(0,0); document.querySelector('.panel-left').scrollTop=0; true");
   await evaluate(client, "applyUiTheme('dark'); const layer=document.getElementById('playerLayer'); layer.classList.remove('hidden'); layer.classList.add('workspace-browser'); document.getElementById('browserWorkspace').classList.remove('hidden'); true");
   await capture(client, 'whisper-browser-dark.png');
   await evaluate(client, "applyUiTheme('light'); true");
@@ -76,7 +88,7 @@ async function run() {
   await client.call('Emulation.setDeviceMetricsOverride', { width: 560, height: 900, deviceScaleFactor: 1, mobile: false });
   const metrics = await evaluate(client, "(() => ({theme:document.documentElement.dataset.theme, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, body:getComputedStyle(document.body).backgroundColor, panel:getComputedStyle(document.querySelector('.browser-workspace')).backgroundColor, text:getComputedStyle(document.querySelector('.browser-signal-kicker')).color}))()");
   await capture(client, 'whisper-browser-light-560.png');
-  console.log(JSON.stringify(metrics));
+  console.log(JSON.stringify({ ...metrics, settingsLayout }));
   client.socket.close();
 }
 

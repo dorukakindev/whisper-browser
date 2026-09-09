@@ -1864,6 +1864,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
   'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'dualSubtitle', 'watchEnabled',
+  'primarySettingsOpen',
   'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
@@ -1878,7 +1879,10 @@ const PERSIST_CHECKBOX_CONTROLS = [
 function collectUiSettings() {
   const ui = {};
   PERSIST_VALUE_CONTROLS.forEach((id) => { const el = $(id); if (el) ui[id] = el.value; });
-  PERSIST_CHECKBOX_CONTROLS.forEach((id) => { const el = $(id); if (el) ui[id] = el.checked; });
+  PERSIST_CHECKBOX_CONTROLS.forEach((id) => {
+    const el = $(id);
+    if (el) ui[id] = el.tagName === 'DETAILS' ? el.open : el.checked;
+  });
   return ui;
 }
 
@@ -1899,8 +1903,11 @@ function applyUiSettings(ui) {
       if (ui[id] === undefined) return;
       const el = $(id);
       if (!el) return;
-      el.checked = !!ui[id];
-      el.dispatchEvent(new Event('change'));
+      if (el.tagName === 'DETAILS') el.open = !!ui[id];
+      else {
+        el.checked = !!ui[id];
+        el.dispatchEvent(new Event('change'));
+      }
     });
   } finally {
     _applyingSettings = false;
@@ -1919,6 +1926,7 @@ function scheduleSave() {
   const el = $(id);
   if (el) el.addEventListener('change', scheduleSave);
 });
+$('primarySettingsOpen')?.addEventListener('toggle', scheduleSave);
 
 const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
 function applyUiTheme(mode = $('uiTheme')?.value || 'system') {
@@ -2042,7 +2050,17 @@ function updatePresetDiff() {
   });
 }
 
+function updateSettingsOverview() {
+  if (!$('settingsOverviewModel')) return;
+  $('settingsOverviewModel').textContent = $('model').selectedOptions[0]?.textContent.trim() || $('model').value;
+  const language = $('language').selectedOptions[0]?.textContent.trim() || $('language').value;
+  $('settingsOverviewLanguage').textContent = language.replace(/\s+algıla$/i, '');
+  const formats = $('formats').value.split(',').map((value) => value.toUpperCase()).join(' + ');
+  $('settingsOverviewOutput').textContent = formats;
+}
+
 function updateSignalDesk() {
+  updateSettingsOverview();
   if (!$('signalDesk')) return;
   const source = state.source === 'youtube'
     ? ($('youtubeUrl').value.trim() ? 'YouTube bağlantısı' : 'YouTube bekleniyor')

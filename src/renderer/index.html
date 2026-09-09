@@ -197,7 +197,7 @@
         </div>
 
         <!-- SETTINGS -->
-        <div class="card">
+        <div class="card settings-card">
           <div class="card-head">
             <h2>Ayarlar</h2>
             <div class="settings-head-tools">
@@ -213,7 +213,22 @@
             </div>
           </div>
 
-          <div class="settings-grid">
+          <details class="settings-overview" id="primarySettingsOpen">
+            <summary>
+              <span class="settings-overview-copy">
+                <strong>Temel ayarlar</strong>
+                <small>Model, motor, dil, görev ve çıktı</small>
+              </span>
+              <span class="settings-overview-values" aria-label="Seçili temel ayarlar">
+                <span id="settingsOverviewModel">large-v3-turbo</span>
+                <span id="settingsOverviewLanguage">Otomatik</span>
+                <span id="settingsOverviewOutput">SRT</span>
+              </span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+
+            <div class="settings-overview-body">
+              <div class="settings-grid">
             <div class="field">
               <label class="field-label" for="model">Model</label>
               <select id="model">
@@ -309,11 +324,13 @@
               </span>
               <div class="path-display" id="outputDir">Video ile aynı klasör</div>
             </div>
-          </div>
+              </div>
 
-          <div class="hint" style="margin-top:6px">
-            <strong>Motor:</strong> <em>faster-whisper</em> dengeli (varsayılan); <em>batched</em> uzun videolarda çok daha hızlı; <em>WhisperX</em> wav2vec2 ile &lt;100ms kelime hizalaması verir (ilk seçimde <code>install-whisperx.bat</code> gerekir). Batch boyutu yalnızca batched/WhisperX'te, sözlük/başlangıç ipucu faster modlarında etkilidir.
-          </div>
+              <div class="hint" style="margin-top:6px">
+                <strong>Motor:</strong> <em>faster-whisper</em> dengeli (varsayılan); <em>batched</em> uzun videolarda çok daha hızlı; <em>WhisperX</em> wav2vec2 ile &lt;100ms kelime hizalaması verir (ilk seçimde <code>install-whisperx.bat</code> gerekir). Batch boyutu yalnızca batched/WhisperX'te, sözlük/başlangıç ipucu faster modlarında etkilidir.
+              </div>
+            </div>
+          </details>
 
           <details class="advanced">
             <summary>

@@ -78,6 +78,19 @@ ok('tema kontrolü güvenli ayar şemasıyla birlikte kalıcı', () => {
   assert.match(security, /uiTheme:\s*\['system', 'dark', 'light'\]/);
 });
 
+ok('ilk açılışta temel ayarlar sade ve kullanıcı tercihiyle kalıcı', () => {
+  assert.match(html, /<details class="settings-overview" id="primarySettingsOpen">/);
+  assert.doesNotMatch(html, /<details class="settings-overview" id="primarySettingsOpen"[^>]*\sopen(?:\s|>)/);
+  for (const id of ['settingsOverviewModel', 'settingsOverviewLanguage', 'settingsOverviewOutput']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.match(css, /\.settings-overview\s*\{/);
+  assert.match(renderer, /'primarySettingsOpen'/);
+  assert.match(renderer, /el\.tagName === 'DETAILS' \? el\.open : el\.checked/);
+  assert.match(security, /'primarySettingsOpen'/);
+  assert.match(css, /\.panel\s*\{[^}]*min-width:\s*0/);
+});
+
 ok('eski ve etkin CSS bölgeleri arasında gölge seçici kalmadı', () => {
   const split = css.indexOf(':root {');
   assert(split > 0, 'etkin tema sınırı bulunamadı');

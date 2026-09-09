@@ -46,6 +46,9 @@ Yeni ve dokunulan kurallarda gelişigüzel ara değer yerine bu ölçek kullanı
   güvenilmez.
 - Yeni seçici önce etkin tasarım bölgesine eklenir. Aynı seçicinin dosyanın eski ve
   etkin bölgelerinde tekrar tanımlanması yasaktır.
+- Ana çalışma alanında sık değişmeyen temel ayarlar kapalı bir açıklama satırında
+  başlar; model, dil ve çıktı özeti kapalıyken de görünür. Kullanıcının açık/kapalı
+  tercihi güvenli `ui` ayarlarıyla korunur.
 - Dekoratif emoji, gradyan, neon/parıltı ve işlevsiz animasyon eklenmez.
 - `prefers-reduced-motion`, klavye odağı ve dar ekran davranışı korunur.
 
@@ -53,4 +56,5 @@ Yeni ve dokunulan kurallarda gelişigüzel ara değer yerine bu ölçek kullanı
 
 Değişiklikten sonra `node --check src/renderer/renderer.js`, ilgili tasarım sistemi testi,
 tam `npm test` ve iki temada gerçek render kontrolü çalıştırılır. Ana çalışma masası
-980px ve 560px; oynatıcı 860px kırılma noktalarında ayrıca kontrol edilir.
+980px ve 560px; oynatıcı 860px kırılma noktalarında ayrıca kontrol edilir. Temel ayar
+katmanı `tests/manual/theme-preview.js` ile kapalı ve açık durumda ayrıca görüntülenir.
