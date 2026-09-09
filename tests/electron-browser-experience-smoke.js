@@ -274,12 +274,15 @@ async function run() {
   assert.ok(toolbar.actions?.right <= toolbar.viewport.width - 10,
     'Header action group is not kept inside the content edge.');
 
-  const visibilityHooked = await evaluate(main,
+  const browserViewVisibleExpression =
     "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const electron=req('electron'); const wc=electron.webContents.getAllWebContents().find((entry)=>entry.getURL()==="
       + JSON.stringify(siteUrl)
-      + "); const win=electron.BrowserWindow.getAllWindows()[0]; const view=win?.contentView?.children?.find((entry)=>entry.webContents?.id===wc?.id); if(!view||typeof view.setVisible!=='function')return false; globalThis.__smokeBrowserVisible=null; const original=view.setVisible.bind(view); view.setVisible=(visible)=>{globalThis.__smokeBrowserVisible=!!visible; return original(visible);}; return true; })()",
-    5000);
-  assert.equal(visibilityHooked, true, 'Could not instrument browser visibility for menu occlusion.');
+      + "); const win=electron.BrowserWindow.getAllWindows()[0]; const view=win?.contentView?.children?.find((entry)=>entry.webContents?.id===wc?.id); return view&&typeof view.getVisible==='function'?view.getVisible():null; })()";
+  // Görünürlük okuması senkron bir View getter'ıdır. Tek bir CDP isteğinin
+  // dış waitFor bütçesini tüketmesine izin verme; kısa denemelerle yeniden oku.
+  const browserViewVisible = () => evaluate(main, browserViewVisibleExpression, 750);
+  assert.equal(typeof await browserViewVisible(), 'boolean',
+    'Could not read native browser visibility for occlusion checks.');
 
   const settingsTabFlow = await evaluate(renderer, `(async () => {
     const beforeTabIds = player.browserTabs.map((tab) => tab.id);
@@ -308,7 +311,10 @@ async function run() {
     const resultIds = [...document.querySelectorAll('#browserSettingsResults [data-browser-setting-open]')]
       .map((item) => item.dataset.browserSettingOpen);
     const opened = openBrowserSetting('browserSponsorMode');
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await Promise.race([
+      new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      new Promise((resolve) => setTimeout(resolve, 250)),
+    ]);
     const special = document.querySelector('#browserTabStrip [data-browser-settings-tab]');
     const specialOpen = special?.querySelector('[data-browser-settings-tab-activate]');
     return {
@@ -327,15 +333,15 @@ async function run() {
       opened,
       focusedId: document.activeElement?.id || '',
       persistentInSurface: document.querySelectorAll('#browserSettingsSurfaceContent [data-browser-settings-kind="persistent"]').length,
-      liveInOriginal: document.querySelectorAll('#browserViewSettings [data-browser-settings-kind="live"]').length,
+      liveInDrawer: document.querySelectorAll('#browserLiveViewToolsHost [data-browser-settings-kind="live"]').length,
       diagnosticInPanel: document.querySelectorAll('#browserDiagnosticsPanel [data-browser-settings-kind="diagnostic"]').length,
       blockedReload,
       toggleExpanded: toggle.getAttribute('aria-expanded'),
       formTheme,
     };
   })()`, 20000);
-  const settingsNativeHidden = await waitFor(async () => evaluate(main,
-    'globalThis.__smokeBrowserVisible === false').catch(() => false), 3000, 50);
+  const settingsNativeHidden = await waitFor(async () => browserViewVisible()
+    .then((visible) => visible === false).catch(() => false), 3000, 50);
   assert.deepEqual(settingsTabFlow.beforeTabIds, settingsTabFlow.modelTabIds,
     'Opening Settings changed the real browser tab model.');
   assert.equal(settingsTabFlow.webTabCount, settingsTabFlow.modelTabIds.length,
@@ -356,8 +362,8 @@ async function run() {
     'Opening a registry result did not focus the real setting control.');
   assert.ok(settingsTabFlow.persistentInSurface >= 6,
     'Persistent settings were not moved into the Settings surface.');
-  assert.ok(settingsTabFlow.liveInOriginal >= 2,
-    'Live page controls were incorrectly moved into the Settings surface.');
+  assert.ok(settingsTabFlow.liveInDrawer >= 2,
+    'Live page controls were not moved into the subtitle helper drawer.');
   assert.ok(settingsTabFlow.diagnosticInPanel >= 1,
     'Diagnostic controls were not kept in the diagnostics panel.');
   assert.equal(settingsTabFlow.blockedReload?.blocked, true,
@@ -407,8 +413,8 @@ async function run() {
       toggleExpanded: document.getElementById('browserViewSettingsToggle').getAttribute('aria-expanded'),
     };
   })()`, 10000);
-  const settingsNativeRestored = await waitFor(async () => evaluate(main,
-    'globalThis.__smokeBrowserVisible === true').catch(() => false), 3000, 50);
+  const settingsNativeRestored = await waitFor(async () => browserViewVisible()
+    .then((visible) => visible === true).catch(() => false), 3000, 50);
   assert.deepEqual(settingsTabClose, {
     browserSurface: 'web', settingsOpen: false, activeTabId: tabId,
     specialTabCount: 0, surfaceHidden: true, toggleExpanded: 'false',
@@ -452,7 +458,6 @@ async function run() {
         + target.width + ',' + target.height + "); return win.getBounds(); })()");
     await delay(180);
     for (const stateSpec of stateSetups) {
-      await evaluate(main, 'globalThis.__smokeBrowserVisible=null');
       const snapshot = await evaluate(renderer, `(async () => {
         document.getElementById('browserMoreMenu').open = false;
         document.getElementById('playerParseStatus').classList.add('hidden');
@@ -499,7 +504,7 @@ async function run() {
           actions: box(actions),
         };
       })()`, 10000);
-      const nativeVisible = await evaluate(main, 'globalThis.__smokeBrowserVisible');
+      const nativeVisible = await browserViewVisible();
       const narrow = snapshot.viewport.width <= 1020;
       assert.equal(snapshot.overflowX, false,
         `${target.name} / ${stateSpec.name}: horizontal overflow detected.`);
@@ -569,11 +574,11 @@ async function run() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return { open: more.open };
   })()`);
-  const menuVisibility = await waitFor(async () => evaluate(main,
-    "globalThis.__smokeBrowserVisible === false").catch(() => false), 3000, 50);
-  await evaluate(renderer, "(() => { const more=document.getElementById('browserMoreMenu'); more.open=false; return true; })()");
-  const menuRestored = await waitFor(async () => evaluate(main,
-    "globalThis.__smokeBrowserVisible === true").catch(() => false), 3000, 50);
+  const menuVisibility = await waitFor(async () => browserViewVisible()
+    .then((visible) => visible === false).catch(() => false), 3000, 50);
+  await evaluate(renderer, "(() => { closeBrowserToolbarMenus(); return !document.getElementById('browserMoreMenu').open; })()");
+  const menuRestored = await waitFor(async () => browserViewVisible()
+    .then((visible) => visible === true).catch(() => false), 3000, 50);
   assert.equal(menuOcclusion.open, true, 'Other menu did not open.');
   assert.equal(menuVisibility, true, 'Native browser view stayed visible behind the Other menu.');
   assert.equal(menuRestored, true, 'Native browser view did not restore after closing the menu.');
@@ -604,41 +609,38 @@ async function run() {
     20000);
   assert.equal(loaded, true, 'Captured track was not loaded into the player.');
 
-  await evaluate(main, 'globalThis.__smokeBrowserVisible=null');
-  const settingsPanel = await evaluate(renderer, "(async () => { setSideTab('ai'); document.getElementById('cueSearch').value='electron acceptance search'; document.getElementById('aiChatText').value='Korunacak AI taslağı'; document.getElementById('sideTabAi').focus(); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); const drawer=document.getElementById('settingsDrawer'); const slot=document.getElementById('browserViewSlot'); const dr=drawer.getBoundingClientRect(); const sr=slot.getBoundingClientRect(); return {open:!drawer.classList.contains('hidden'),focusId:document.activeElement?.id||'',breadcrumb:document.getElementById('settingsDrawerBreadcrumb').textContent,drawer:{left:dr.left,top:dr.top,right:dr.right,bottom:dr.bottom},slot:{left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom},overlap:!(dr.right<=sr.left||dr.left>=sr.right||dr.bottom<=sr.top||dr.top>=sr.bottom)}; })()", 15000);
-  const settingsAlongsideVisible = await evaluate(main, 'globalThis.__smokeBrowserVisible===true');
+  const settingsPanel = await evaluate(renderer, "(async () => { setSideTab('ai'); document.getElementById('cueSearch').value='electron acceptance search'; document.getElementById('aiChatText').value='Korunacak AI taslağı'; document.getElementById('sideTabAi').focus(); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await Promise.race([new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))),new Promise((resolve)=>setTimeout(resolve,250))]); const drawer=document.getElementById('settingsDrawer'); const slot=document.getElementById('browserViewSlot'); const dr=drawer.getBoundingClientRect(); const sr=slot.getBoundingClientRect(); return {open:!drawer.classList.contains('hidden'),focusId:document.activeElement?.id||'',breadcrumb:document.getElementById('settingsDrawerBreadcrumb').textContent,drawer:{left:dr.left,top:dr.top,right:dr.right,bottom:dr.bottom},slot:{left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom},overlap:!(dr.right<=sr.left||dr.left>=sr.right||dr.bottom<=sr.top||dr.top>=sr.bottom)}; })()", 15000);
+  const settingsAlongsideVisible = await browserViewVisible();
   assert.equal(settingsPanel.open, true, 'Settings did not open in the right workspace panel.');
   assert.equal(settingsPanel.focusId, 'closeSettings', 'Settings did not move focus into the panel.');
   assert.equal(settingsPanel.breadcrumb, 'Ayarlar / Altyazı ve çeviri', 'Settings breadcrumb did not identify the active page.');
   assert.equal(settingsPanel.overlap, false, 'Normal right-panel settings overlap the native browser slot.');
   assert.equal(settingsAlongsideVisible, true, 'Normal right-panel settings unnecessarily hid the native browser view.');
 
-  await evaluate(main, 'globalThis.__smokeBrowserVisible=null');
   await evaluate(renderer, "(async () => { setViewMode('cinema'); await new Promise((resolve)=>setTimeout(resolve,120)); return true; })()", 10000);
-  const settingsCinemaHidden = await evaluate(main, 'globalThis.__smokeBrowserVisible===false');
-  assert.equal(settingsCinemaHidden, true, 'Changing to cinema mode left the settings overlay behind the native browser view.');
+  const settingsCinemaVisible = await browserViewVisible();
+  assert.equal(settingsCinemaVisible, false, 'Changing to cinema mode left the settings overlay behind the native browser view.');
   await evaluate(renderer, "(async () => { setViewMode('reading'); await new Promise((resolve)=>setTimeout(resolve,120)); return true; })()", 10000);
-  const settingsReadingRestored = await evaluate(main, 'globalThis.__smokeBrowserVisible===true');
+  const settingsReadingRestored = await browserViewVisible();
   assert.equal(settingsReadingRestored, true, 'Returning to reading mode did not restore the native browser beside settings.');
 
-  const settingsBack = await evaluate(renderer, "(async () => { document.getElementById('settingsBackToPanel').click(); await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); return {closed:document.getElementById('settingsDrawer').classList.contains('hidden'),sideTab:player.sideTab,aiDraft:document.getElementById('aiChatText').value,cueSearch:document.getElementById('cueSearch').value}; })()");
+  const settingsBack = await evaluate(renderer, "(async () => { document.getElementById('settingsBackToPanel').click(); await Promise.race([new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))),new Promise((resolve)=>setTimeout(resolve,250))]); return {closed:document.getElementById('settingsDrawer').classList.contains('hidden'),sideTab:player.sideTab,aiDraft:document.getElementById('aiChatText').value,cueSearch:document.getElementById('cueSearch').value}; })()");
   assert.equal(settingsBack.closed, true, 'Settings Back did not close the settings view.');
   assert.equal(settingsBack.sideTab, 'ai', 'Settings Back did not return to the prior workspace tab.');
   assert.equal(settingsBack.aiDraft, 'Korunacak AI taslağı', 'Settings transition discarded the AI draft.');
   assert.equal(settingsBack.cueSearch, 'electron acceptance search', 'Settings transition discarded transcript search.');
 
-  const settingsClose = await evaluate(renderer, "(async () => { setSideTab('subs'); const search=document.getElementById('cueSearch'); search.focus(); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); document.getElementById('closeSettings').click(); await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); return {closed:document.getElementById('settingsDrawer').classList.contains('hidden'),sideTab:player.sideTab,focusId:document.activeElement?.id||''}; })()");
+  const settingsClose = await evaluate(renderer, "(async () => { setSideTab('subs'); const search=document.getElementById('cueSearch'); search.focus(); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await Promise.race([new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))),new Promise((resolve)=>setTimeout(resolve,250))]); document.getElementById('closeSettings').click(); await Promise.race([new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve))),new Promise((resolve)=>setTimeout(resolve,250))]); return {closed:document.getElementById('settingsDrawer').classList.contains('hidden'),sideTab:player.sideTab,focusId:document.activeElement?.id||''}; })()");
   assert.equal(settingsClose.closed, true, 'Settings Close did not close the settings view.');
   assert.equal(settingsClose.sideTab, 'subs', 'Settings Close unexpectedly changed the workspace tab.');
   assert.equal(settingsClose.focusId, 'cueSearch', 'Settings Close did not restore the invoking focus.');
 
-  await evaluate(main, 'globalThis.__smokeBrowserVisible=null');
   const settingsOverlay = await evaluate(renderer, "(async () => { setPlayerSidebarCollapsed(true); setSettingsPage('browser-subtitles'); setSettingsDrawer(true); await new Promise((resolve)=>setTimeout(resolve,120)); const layer=document.getElementById('playerLayer'); return {open:layer.classList.contains('settings-open'),collapsed:layer.classList.contains('sidebar-collapsed')}; })()", 10000);
-  const settingsOverlayHidden = await evaluate(main, 'globalThis.__smokeBrowserVisible===false');
+  const settingsOverlayVisible = await browserViewVisible();
   assert.deepEqual(settingsOverlay, { open: true, collapsed: true }, 'Collapsed-sidebar settings did not become an overlay.');
-  assert.equal(settingsOverlayHidden, true, 'Settings overlay stayed behind the native browser view.');
+  assert.equal(settingsOverlayVisible, false, 'Settings overlay stayed behind the native browser view.');
   await evaluate(renderer, "(async () => { setSettingsDrawer(false); setPlayerSidebarCollapsed(false); await new Promise((resolve)=>setTimeout(resolve,120)); return true; })()", 10000);
-  const settingsOverlayRestored = await evaluate(main, 'globalThis.__smokeBrowserVisible===true');
+  const settingsOverlayRestored = await browserViewVisible();
   assert.equal(settingsOverlayRestored, true, 'Native browser view did not return after closing the settings overlay.');
 
   const panel = await evaluate(renderer, "(() => { const toggle=document.getElementById('subtitleFindReplaceToggle'); if(document.getElementById('subtitleFindReplacePanel').classList.contains('hidden'))toggle.click(); const panel=document.getElementById('subtitleFindReplacePanel'); const slot=document.getElementById('browserViewSlot'); const pr=panel.getBoundingClientRect(); const sr=slot.getBoundingClientRect(); const hit=document.elementFromPoint(pr.left+Math.min(20,pr.width/2),pr.top+Math.min(20,pr.height/2)); return {visible:!panel.classList.contains('hidden')&&getComputedStyle(panel).display!=='none',focusId:document.activeElement?.id||'',panel:{left:pr.left,top:pr.top,right:pr.right,bottom:pr.bottom,width:pr.width,height:pr.height},slot:{left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom,width:sr.width,height:sr.height},overlap:!(pr.right<=sr.left||pr.left>=sr.right||pr.bottom<=sr.top||pr.top>=sr.bottom),hitInside:!!hit?.closest('#subtitleFindReplacePanel')}; })()");

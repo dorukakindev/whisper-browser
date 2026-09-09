@@ -63,7 +63,8 @@ async function run() {
   const client = cdp(target.webSocketDebuggerUrl); await client.opened;
   await client.call('Runtime.enable'); await client.call('Page.enable');
   await client.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-  const ready = await waitFor(() => evaluate(client, "document.readyState === 'complete' && typeof applyUiTheme === 'function'"));
+  const ready = await waitFor(() => evaluate(client,
+    "document.readyState === 'complete' && typeof applyUiTheme === 'function' && !document.getElementById('browserViewSettings')"));
   if (!ready) throw new Error('Renderer hazır olmadı.');
   await evaluate(client, "applyUiTheme('dark'); document.getElementById('uiTheme').value='dark'; true");
   await capture(client, 'whisper-theme-dark.png');

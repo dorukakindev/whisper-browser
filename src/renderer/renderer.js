@@ -726,7 +726,10 @@ function syncBrowserOcclusion() {
     || settingsOverlay
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
-  if (window.api.setBrowserOccluded) window.api.setBrowserOccluded(occluded).catch(() => {});
+  if (window.api.setBrowserOccluded) {
+    return window.api.setBrowserOccluded(occluded).catch(() => null);
+  }
+  return Promise.resolve(null);
 }
 
 function openManagedModal(modal, initialFocus, returnFocus = null) {
@@ -8835,7 +8838,7 @@ function showBrowserWebSurface() {
   showBrowserErrorSurface(tab?.error
     ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
   renderBrowserTabs();
-  syncResponsivePlayerLayout();
+  return syncResponsivePlayerLayout();
 }
 
 function openBrowserSettings(category = 'site', focusId = '') {
@@ -8881,7 +8884,7 @@ async function closeBrowserSettings() {
   const returnTabId = player.browserSettingsReturnTabId;
   const returnFocus = player.browserSettingsReturnFocus;
   player.browserSettingsOpen = false;
-  if (wasVisible) showBrowserWebSurface();
+  if (wasVisible) await showBrowserWebSurface();
   else {
     setBrowserSettingsToggleState(false);
     renderBrowserTabs();
@@ -8893,7 +8896,14 @@ async function closeBrowserSettings() {
     await activateBrowserTab(returnTabId);
   }
   if (wasVisible && returnFocus?.isConnected) {
-    requestAnimationFrame(() => returnFocus.focus());
+    let focusSettled = false;
+    const restoreFocus = () => {
+      if (focusSettled || !returnFocus.isConnected) return;
+      focusSettled = true;
+      returnFocus.focus();
+    };
+    requestAnimationFrame(restoreFocus);
+    setTimeout(restoreFocus, 120);
   }
 }
 
@@ -14597,7 +14607,7 @@ function syncResponsivePlayerLayout() {
   const back = $('narrowPanelBack');
   if (back) back.setAttribute('aria-hidden', takeover ? 'false' : 'true');
   scheduleBrowserBounds();
-  syncBrowserOcclusion();
+  return syncBrowserOcclusion();
 }
 
 function setViewMode(mode) {
@@ -14778,6 +14788,7 @@ function initializeSettingsPages() {
   const diagnostics = $('browserDiagnosticsPanel');
   const trackActions = $('browserTrackActions');
   const signalTools = $('browserSignalTools');
+  const liveViewToolsHost = $('browserLiveViewToolsHost');
   if (trackActions && $('browserSubtitleControlsHost')
       && trackActions.parentElement !== $('browserSubtitleControlsHost')) {
     $('browserSubtitleControlsHost').appendChild(trackActions);
@@ -14793,8 +14804,14 @@ function initializeSettingsPages() {
         $('browserSettingsSurfaceContent').appendChild(child);
       } else if (child.dataset.browserSettingsKind === 'diagnostic' && diagnostics) {
         diagnostics.appendChild(child);
+      } else if (child.dataset.browserSettingsKind === 'live' && liveViewToolsHost) {
+        liveViewToolsHost.appendChild(child);
       }
     }
+    // Bütün işlevsel gruplar kendi yüzeyine taşındıysa eski details kabuğu
+    // yalnız summary ile sinyal satırında kalmasın. Böylece sinyal gövdesi
+    // gerçekten boş olur ve kompakt varsayılan düzen çalışır.
+    if (![...view.children].some((child) => child.dataset.browserSettingsKind)) view.remove();
   }
   if (diagnostics && $('settingsPageBrowserDiagnostics')
       && diagnostics.parentElement !== $('settingsPageBrowserDiagnostics')) {
@@ -14900,13 +14917,27 @@ function setSettingsDrawer(open) {
     }
   }
   if (open && !wasOpen) {
-    requestAnimationFrame(() => {
+    let focusSettled = false;
+    const focusClose = () => {
+      if (focusSettled) return;
+      focusSettled = true;
       if (!d.classList.contains('hidden') && !d.contains?.(document.activeElement)) $('closeSettings')?.focus();
-    });
+    };
+    requestAnimationFrame(focusClose);
+    setTimeout(focusClose, 120);
   } else if (!open) {
     player.settingsReturnFocus = null;
     restoreSettingsPanelSnapshot();
-    if (restoreFocus?.isConnected) requestAnimationFrame(() => restoreFocus.focus());
+    if (restoreFocus?.isConnected) {
+      let focusSettled = false;
+      const restoreDrawerFocus = () => {
+        if (focusSettled || !restoreFocus.isConnected) return;
+        focusSettled = true;
+        restoreFocus.focus();
+      };
+      requestAnimationFrame(restoreDrawerFocus);
+      setTimeout(restoreDrawerFocus, 120);
+    }
   }
   syncResponsivePlayerLayout();
 }

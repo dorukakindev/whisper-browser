@@ -672,7 +672,10 @@ test('ayar çekmecesi klavye odağını içine alır ve açan kontrole geri veri
   const drawer = js.slice(js.indexOf('function setSettingsDrawer'), js.indexOf('function toggleSettingsPage'));
   assert(/settingsReturnFocus = active/.test(drawer), 'çekmece açılırken çağıran odak saklanmıyor');
   assert(/closeSettings['"]\)\?\.focus\(\)/.test(drawer), 'çekmece açılınca klavye odağı içine taşınmıyor');
-  assert(/restoreFocus\?\.isConnected/.test(drawer) && /restoreFocus\.focus\(\)/.test(drawer),
+  assert(/requestAnimationFrame\(focusClose\)/.test(drawer) && /setTimeout\(focusClose,\s*120\)/.test(drawer),
+    'arka planda paint durursa çekmece odağının zaman yedeği yok');
+  assert(/restoreFocus\?\.isConnected/.test(drawer) && /restoreFocus\.focus\(\)/.test(drawer)
+    && /setTimeout\(restoreDrawerFocus,\s*120\)/.test(drawer),
     'çekmece kapanınca odak açan kontrole dönmüyor');
 });
 
@@ -1545,13 +1548,21 @@ test('üst çalışma alanı araç grubu sidebar açık ve kapalıyken aynı sü
 
 test('tarayıcı kalıcı ayarları özel sekmede, yakalama ayrıntıları ayrı çekmecede açılır', () => {
   for (const id of ['browserViewSettingsToggle', 'browserSettingsSurface',
-    'browserDiagnosticsToolbar', 'settingsPageBrowserDiagnostics']) {
+    'browserDiagnosticsToolbar', 'settingsPageBrowserDiagnostics', 'browserLiveViewToolsHost']) {
     assert(layer.includes(`id="${id}"`), `${id} arayüzde yok`);
   }
   const setup = js.slice(js.indexOf('function initializeSettingsPages'),
     js.indexOf('function setSettingsDrawer'));
   assert(/child\.dataset\.browserSettingsKind === 'persistent'[\s\S]*?browserSettingsSurfaceContent['"]\)\.appendChild\(child\)/.test(setup),
     'kalıcı tarayıcı ayarları özel sekme yüzeyine taşınmıyor');
+  assert(/child\.dataset\.browserSettingsKind === 'live'[\s\S]*?liveViewToolsHost\.appendChild\(child\)/.test(setup),
+    'canlı sayfa ve altyazı görünüm araçları yardımcı çekmeceye taşınmıyor');
+  assert(/browserSettingsKind[^\n]*\)\) view\.remove\(\)/.test(setup),
+    'taşınan ayarların boş details kabuğu varsayılan altyazı sinyalinde kalıyor');
+  const closeSettings = js.slice(js.indexOf('async function closeBrowserSettings'),
+    js.indexOf('function browserChromeCommandBlocked'));
+  assert(/await showBrowserWebSurface\(\)/.test(closeSettings),
+    'ayar sekmesi kapanışı native tarayıcı görünürlüğünün geri dönmesini beklemiyor');
   assert(!layer.includes('settingsPageBrowserView') && !layer.includes('settingsTabBrowserView'),
     'eski Görünüm ve manga çekmece rotası hâlâ arayüzde');
   assert(/settingsPageBrowserDiagnostics['"]\)\.appendChild\(diagnostics\)/.test(setup),
