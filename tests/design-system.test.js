@@ -86,6 +86,10 @@ ok('eski ve etkin CSS bölgeleri arasında gölge seçici kalmadı', () => {
   assert.deepStrictEqual(duplicates, []);
 });
 
+ok('odak göstergeleri bileşen kuralları tarafından kapatılmıyor', () => {
+  assert.doesNotMatch(css, /:focus-visible[^{}]*\{[^}]*outline\s*:\s*none/i);
+});
+
 ok('rapordaki kontrast düzeltmeleri kaynakta sabit', () => {
   assert.match(css, /\.btn-icon-add\s*\{[\s\S]*?color:\s*var\(--accent-contrast\)/);
   assert.match(css, /a\s*\{[\s\S]*?color:\s*var\(--accent-hover\)/);
