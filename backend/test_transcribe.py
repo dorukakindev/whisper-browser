@@ -924,6 +924,47 @@ def test_translate_returns_list_on_success():
     assert [(s, e) for s, e, _ in out] == [(s, e) for s, e, _ in ENTRIES]
 
 
+def test_translate_uses_speakers_only_for_local_boundaries():
+    entries = [
+        (0, 1, "Will you"),
+        (1, 2, "come?"),
+        (2, 3, "I will."),
+        (3, 4, "Winterfell waits."),
+        (4, 5, "Winterfell remembers."),
+    ]
+    captured = []
+
+    def _create(**kwargs):
+        captured.append(kwargs)
+        payload = json.loads(kwargs["messages"][-1]["content"])
+        items = {str(item["i"]): "[TR] " + item["t"] for item in payload["items"]}
+        sentences = {
+            str(group["ids"][0]): " ".join(items[str(index)] for index in group["ids"])
+            for group in payload["sentence_groups"]
+        }
+        answer = {"items": items, "sentences": sentences}
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(answer)))])
+
+    class _Ok:
+        def __init__(self, *args, **kwargs):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    with _fake_openai(_Ok):
+        out = T.llm_translate(
+            entries, _TrArgs(translate_cache=False), [], source_lang="en",
+            speakers={0: "CHAR_A", 1: "CHAR_A", 2: "CHAR_B"},
+        )
+    assert out is not None and captured
+    serialized = json.dumps(captured, ensure_ascii=False)
+    assert "CHAR_A" not in serialized and "CHAR_B" not in serialized
+    assert "Winterfell" in serialized
+    first_payload = json.loads(captured[0]["messages"][-1]["content"])
+    assert first_payload["sentence_groups"][0]["ids"] == [0, 1]
+    assert first_payload["sentence_groups"][1]["ids"] == [2]
+
+
 def test_translate_refine_processes_full_index_chunks():
     """İkinci geçiş, birinci geçişin indeks listelerini aralık çifti sanmamalı."""
     import json, types
@@ -1382,6 +1423,27 @@ def test_build_translate_prompt():
     automatic = T.build_translate_prompt("tr", "auto", [])
     assert "auto altyaziyi" not in automatic.lower()
     assert "kaynak dil altyaziyi" in automatic.lower()
+    contextual = T.build_translate_prompt(
+        "tr", "en", ["UserTerm=KullanıcıTerimi"], auto_glossary_terms=["Winterfell"])
+    assert "FILM-GENELI OTOMATIK TERIM" in contextual and "Winterfell" in contextual
+    assert "kullanici sozlugu her zaman onceliklidir" in contextual.lower()
+
+
+def test_extract_auto_glossary_is_local_bounded_and_frequency_based():
+    entries = [
+        (0, 1, "Winterfell is quiet."),
+        (1, 2, "We returned to Winterfell."),
+        (2, 3, "The Order called us."),
+        (3, 4, "Nobody defies the Order."),
+        (4, 5, "This ordinary sentence starts with This."),
+        (5, 6, "Welcome back."),
+        (6, 7, "Welcome home."),
+    ]
+    terms = T.extract_auto_glossary(entries)
+    assert "Winterfell" in terms
+    assert "Order" in terms
+    assert "This" not in terms and "We" not in terms and "Welcome" not in terms
+    assert len(T.extract_auto_glossary(entries * 100, max_terms=1)) == 1
 
 
 def test_download_youtube_rejects_empty_info():
@@ -2319,6 +2381,9 @@ def test_sentence_group_boundaries_shared_with_browser():
         assert T.sentence_groups(source) == case['groups'], case['name']
         assert source == before
     assert T.sentence_groups([(0, 1, 'a' * 200), (1, 2, 'b' * 200)]) == [[0], [1]]
+    unfinished = [(0, 1, 'Will you'), (1, 2, 'come with me?')]
+    assert T.sentence_groups(unfinished) == [[0, 1]]
+    assert T.sentence_groups(unfinished, speakers={0: 'A', 1: 'B'}) == [[0], [1]]
 
 
 def test_sentence_translation_natural_order_keeps_all_original_timings():

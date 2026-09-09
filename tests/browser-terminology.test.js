@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { createTerminologyMap, learnTerminology, terminologyPrompt } = require('../src/browser-terminology');
+const { createTerminologyMap, learnTerminology, seedTerminology, terminologyPrompt } = require('../src/browser-terminology');
 
 (() => {
   const map = createTerminologyMap({ maxTerms: 2, maxChars: 80 });
@@ -28,5 +28,15 @@ const { createTerminologyMap, learnTerminology, terminologyPrompt } = require('.
   learnTerminology(bounded, 'Professor X', 'Profesör X', '3');
   learnTerminology(bounded, 'Professor X', 'Profesör X', '4');
   assert.equal(bounded.terms.size, 1);
+
+  const seeded = createTerminologyMap({ minOccurrences: 2 });
+  assert.equal(seedTerminology(seeded, [
+    'Winterfell is quiet.', 'We returned to Winterfell.', 'A generic sentence.',
+  ]), 1);
+  assert.match(terminologyPrompt(seeded), /Winterfell/);
+  assert.equal(seeded.terms.get('winterfell').target, '');
+  const generic = createTerminologyMap({ minOccurrences: 2 });
+  seedTerminology(generic, ['Welcome back.', 'Welcome home.']);
+  assert.equal(terminologyPrompt(generic), '');
   console.log('  PASS terminology map');
 })();

@@ -13,7 +13,7 @@ function normalizeCues(rawCues) {
     start: Math.max(0, finiteNumber(cue && cue.start)),
     end: Math.max(0, finiteNumber(cue && cue.end)),
     text: String(cue && cue.text || '').replace(/\s+/g, ' ').trim(),
-    speaker: String(cue?.speaker || ''),
+    speaker: String(cue?.speaker || '').replace(/\s+/g, ' ').trim().slice(0, 80),
     protected: Boolean(cue?.protected) || protectedCue(cue || {}),
   })).filter((cue) => cue.text && cue.end >= cue.start)
     .sort((a, b) => a.start - b.start || a.end - b.end);
@@ -43,7 +43,9 @@ function assembleCueSentences(rawCues, options = {}) {
       end: group[group.length - 1].end,
       text,
       cueIds: group.map((cue) => cue.id),
-      pieces: group.map((cue) => ({ cueId: cue.id, text: cue.text, start: cue.start, end: cue.end })),
+      speaker: group[0].speaker,
+      pieces: group.map((cue) => ({ cueId: cue.id, text: cue.text, start: cue.start, end: cue.end,
+        speaker: cue.speaker })),
     });
     group = [];
   };
@@ -62,6 +64,9 @@ function assembleCueSentences(rawCues, options = {}) {
 }
 
 function translationCacheKey(sentence, context = {}) {
+  const contextIdentity = (value) => (Array.isArray(value) ? value : value ? [value] : []).map((row) => (
+    typeof row === 'string' ? [normalizeText(row), ''] : [normalizeText(row?.text), normalizeText(row?.speaker)]
+  ));
   const material = JSON.stringify({
     version: SENTENCE_PROTOCOL_VERSION,
     promptVersion: String(context.promptVersion || SENTENCE_PROTOCOL_VERSION),
@@ -70,9 +75,10 @@ function translationCacheKey(sentence, context = {}) {
     sourceLineage: String(context.sourceLineage || ''),
     text: normalizeText(sentence?.text),
     pieces: (sentence?.pieces || []).map((piece) => [normalizeText(piece.text),
-      finiteNumber(piece.end) - finiteNumber(piece.start)]),
-    before: normalizeText(sentence?.contextBefore),
-    after: normalizeText(sentence?.contextAfter),
+      finiteNumber(piece.end) - finiteNumber(piece.start), normalizeText(piece.speaker)]),
+    speaker: normalizeText(sentence?.speaker),
+    before: contextIdentity(sentence?.contextBefore),
+    after: contextIdentity(sentence?.contextAfter),
     contextHash: String(sentence && sentence.contextHash || context.contextHash || ''),
     targetLanguage: String(context.targetLanguage || ''),
     model: String(context.model || ''),

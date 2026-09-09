@@ -13,19 +13,25 @@ const {
   normalizePageBlocks,
   planPageTranslationBatches,
   pageBlockCacheKey,
+  pageBlockLooksIncomplete,
+  buildPageTranslationUnits,
+  pageTranslationRequest,
+  decodePageTranslation,
 } = require('../src/browser-page-translate');
 
 const normalized = normalizePageBlocks([
   null,
   { id: 'empty', text: '   ' },
   { id: 'symbols', text: '123?!' },
-  { id: 'same', text: '  Merhaba   dünya  ', nodes: [8, 5] },
+  { id: 'same', text: '  Merhaba   dünya  ', nodes: [8, 5], tagName: 'H2', role: 'Heading' },
   { id: 'same', text: 'yinelenen kimlik atlanır' },
   { id: 'long', text: 'x'.repeat(MAX_PAGE_BLOCK_TEXT + 50), nodeLengths: [2100] },
 ]);
 assert.deepEqual(normalized.map((block) => block.id), ['same', 'long']);
 assert.equal(normalized[0].text, 'Merhaba dünya');
 assert.deepEqual(normalized[0].nodes, [8, 5]);
+assert.equal(normalized[0].tag, 'h2');
+assert.equal(normalized[0].role, 'heading');
 assert.equal(normalized[1].text.length, MAX_PAGE_BLOCK_TEXT);
 
 const tooMany = Array.from({ length: MAX_PAGE_BLOCKS + 10 }, (_, index) => ({
@@ -55,6 +61,48 @@ assert.equal(pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x' })
   pageBlockCacheKey({ ...cacheBlock, id: 'başka-id' }, { targetLanguage: 'TR', model: 'x' }));
 assert.notEqual(pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
   pageBlockCacheKey(cacheBlock, { targetLanguage: 'de', model: 'x' }));
+assert.notEqual(pageBlockCacheKey({ ...cacheBlock, tag: 'a' }, { targetLanguage: 'tr', model: 'x', contextBefore: ['Önce'] }),
+  pageBlockCacheKey({ ...cacheBlock, tag: 'p' }, { targetLanguage: 'tr', model: 'x', contextBefore: ['Önce'] }));
+assert.notEqual(pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x', contextBefore: ['Önce'] }),
+  pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x', contextBefore: ['Başka'] }));
+
+const ordered = Array.from({ length: 12 }, (_, order) => ({
+  id: `ordered-${order}`, text: order === 5 ? 'Unfinished thought' : `Complete block ${order}.`,
+  tag: order === 2 ? 'h2' : 'p', order,
+}));
+const units = buildPageTranslationUnits(ordered, ordered.slice(2, 9), { maxTargets: 3 });
+assert(units.length >= 3);
+assert(units.every((unit) => unit.targets.length <= 3));
+assert.deepEqual(units[0].contextBefore.map((item) => item.text), ['Complete block 0.', 'Complete block 1.']);
+assert(units.some((unit) => unit.contextAfter.length >= 3));
+assert.equal(pageBlockLooksIncomplete({ text: 'Read more', tag: 'a' }), false);
+assert.equal(pageBlockLooksIncomplete({ text: 'The unfinished clause', tag: 'p' }), true);
+
+const pageSentence = {
+  pieces: [
+    { cueId: 'heading', text: 'Home', tag: 'a', role: 'navigation' },
+    { cueId: 'body', text: 'Hello {{name}} &amp;', tag: 'p', role: '' },
+  ],
+  contextBefore: [{ text: 'Previous context only.', tag: 'p', role: '' }],
+  contextAfter: [{ text: 'Following context only.', tag: 'p', role: '' }],
+  continuitySummary: 'Earlier section summary.',
+};
+const pageRequest = pageTranslationRequest(pageSentence);
+const pagePayload = JSON.parse(pageRequest.payload);
+assert.deepEqual(pagePayload.targets.map((row) => [row.id, row.tag]), [['heading', 'a'], ['body', 'p']]);
+assert.match(pageRequest.instruction, /yalnız targets/i);
+const decodedPage = decodePageTranslation({ translations: [
+  { id: 'body', translation: 'Merhaba {{name}} &amp;' },
+  { id: 'heading', translation: 'Ana sayfa' },
+] }, pageSentence);
+assert.deepEqual(decodedPage.parts, ['Ana sayfa', 'Merhaba {{name}} &amp;']);
+assert.throws(() => decodePageTranslation({ translations: [
+  { id: 'heading', translation: 'Ana sayfa' },
+  { id: 'body', translation: 'Merhaba ad' },
+] }, pageSentence), /korumalı işaretleri/);
+assert.throws(() => decodePageTranslation({ translations: [
+  { id: 'heading', translation: 'Ana sayfa' },
+] }, pageSentence), /blok sayısıyla/);
 
 const hostile = `tırnak ' " ve \${ifade} </script> \u2028 \u2029`;
 const scripts = [
@@ -76,10 +124,12 @@ assert.match(pageBlockScanScript(), /MutationObserver/);
 assert.match(pageBlockScanScript(), /setTimeout\([\s\S]*400/);
 assert.match(pageApplyScript({}), /whisper-page-tr/);
 
-function fakeElement(display, rect = { top: 10, bottom: 40, left: 5, right: 200 }) {
+function fakeElement(display, rect = { top: 10, bottom: 40, left: 5, right: 200 },
+  tagName = 'DIV', role = '') {
   return {
-    display, parentElement: null, shadowRoot: null, offsetParent: {}, children: [],
+    display, tagName, parentElement: null, shadowRoot: null, offsetParent: {}, children: [],
     matches: () => false,
+    getAttribute(name) { return name === 'role' ? role : null; },
     getRootNode() { return fakeDocument; },
     getClientRects: () => [rect],
     getBoundingClientRect: () => rect,
@@ -87,7 +137,7 @@ function fakeElement(display, rect = { top: 10, bottom: 40, left: 5, right: 200 
   };
 }
 const body = fakeElement('block');
-const paragraph = fakeElement('block');
+const paragraph = fakeElement('block', undefined, 'P', 'article');
 const bold = fakeElement('inline');
 paragraph.parentElement = body;
 bold.parentElement = paragraph;
@@ -113,6 +163,8 @@ const scanResult = vm.runInNewContext(pageBlockScanScript({ observe: false }), {
 assert.equal(scanResult.blocks.length, 1);
 assert.equal(scanResult.blocks[0].text, 'Merhaba dünya.');
 assert.deepEqual([...scanResult.blocks[0].nodes], [8, 5, 1]);
+assert.equal(scanResult.blocks[0].tag, 'p');
+assert.equal(scanResult.blocks[0].role, 'article');
 
 const firstNode = { nodeValue: 'Merhaba ', isConnected: true };
 const secondNode = { nodeValue: 'dünya.', isConnected: true };
@@ -182,4 +234,4 @@ assert.equal(layoutParent.children[1].className, 'whisper-page-tr');
 vm.runInNewContext(pageRestoreScript(), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 
-console.log('browser-page-translate: 32 test');
+console.log('browser-page-translate: semantik bağlam, atomik çıktı ve DOM geri yükleme testleri geçti');

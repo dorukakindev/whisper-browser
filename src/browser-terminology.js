@@ -25,11 +25,16 @@ function candidatePhrases(text) {
   let run = [];
   const flush = () => {
     if (!run.length) return;
+    const atSentenceStart = /^[^\p{L}\p{N}]*$/u.test(raw.slice(0, run[0].index));
+    if (run.length > 1 && atSentenceStart
+        && AMBIGUOUS_SENTENCE_STARTERS.has(run[0].word.normalize('NFC').toLocaleLowerCase('tr-TR'))) {
+      run = run.slice(1);
+    }
     const source = run.map((item) => item.word).join(' ');
     const key = source.normalize('NFC').toLocaleLowerCase('tr-TR');
-    const atSentenceStart = /^[^\p{L}\p{N}]*$/u.test(raw.slice(0, run[0].index));
     if (!(run.length === 1 && atSentenceStart && AMBIGUOUS_SENTENCE_STARTERS.has(key))) {
-      phrases.push({ source, key });
+      phrases.push({ source, key,
+        strong: run.length > 1 || !atSentenceStart || source === source.toLocaleUpperCase('tr-TR') });
     }
     run = [];
   };
@@ -78,6 +83,29 @@ function learnTerminology(map, sourceText, translatedText, cueId, confidence = 1
   return qualified;
 }
 
+function seedTerminology(map, sourceTexts) {
+  if (!map || !(map.terms instanceof Map)) return 0;
+  const counts = new Map();
+  for (const text of Array.isArray(sourceTexts) ? sourceTexts : []) {
+    for (const phrase of candidatePhrases(text)) {
+      const row = counts.get(phrase.key) || { source: phrase.source, count: 0, strong: 0 };
+      row.count += 1;
+      if (phrase.strong) row.strong += 1;
+      counts.set(phrase.key, row);
+    }
+  }
+  let added = 0;
+  for (const [key, candidate] of counts) {
+    if (candidate.count < map.minOccurrences || !candidate.strong) continue;
+    const row = map.terms.get(key) || { source: candidate.source, target: '', count: 0, cueIds: [] };
+    row.count = Math.max(row.count, candidate.count);
+    map.terms.set(key, row);
+    added += 1;
+  }
+  trimTerminologyMap(map);
+  return added;
+}
+
 function trimTerminologyMap(map) {
   if (!map || !(map.terms instanceof Map)) return map;
   const rows = [...map.terms.values()]
@@ -102,4 +130,5 @@ function terminologyPrompt(map) {
   return rows.map((row) => `${clean(row.source, 80)}${row.target ? `=${clean(row.target, 120)}` : ''}`).join(' | ');
 }
 
-module.exports = { createTerminologyMap, learnTerminology, terminologyPrompt, trimTerminologyMap };
+module.exports = { createTerminologyMap, learnTerminology, seedTerminology,
+  terminologyPrompt, trimTerminologyMap };

@@ -2216,6 +2216,64 @@ def sanitize_glossary_terms(raw, max_terms=200, max_term_chars=120,
     return terms
 
 
+_AUTO_TERM_STARTERS = frozenset({
+    "a", "an", "the", "this", "that", "these", "those", "i", "you", "he", "she",
+    "it", "we", "they", "yes", "no", "what", "where", "when", "why", "how",
+    "bir", "bu", "su", "şu", "o", "ben", "sen", "biz", "siz", "onlar", "evet", "hayir", "hayır",
+})
+
+
+def extract_auto_glossary(entries, max_terms=60, min_occurrences=2):
+    """Tum transkriptten tekrarlanan ozel ad/kurum adaylarini yerelde cikarir.
+
+    Bu bir ceviri modeli degildir: hedef karsilik uydurmaz. Yalnizca buyuk harfli
+    ad dizilerini ve kisaltmalari modele film-geneli tutarlilik ipucu olarak verir.
+    """
+    counts = {}
+    strong_counts = {}
+    spellings = {}
+    word_re = re.compile(r"[^\W\d_][\w'’-]*", re.UNICODE)
+    for _start, _end, raw_text in entries or []:
+        text = normalized_text(raw_text)
+        words = list(word_re.finditer(text))
+        run = []
+
+        def flush():
+            nonlocal run
+            if not run:
+                return
+            at_start = not text[:run[0].start()].strip(" \t\r\n-–—([{\"'“‘")
+            first_key = unicodedata.normalize("NFC", run[0].group(0).strip("'’")).casefold()
+            if len(run) > 1 and at_start and first_key in _AUTO_TERM_STARTERS:
+                run = run[1:]
+            phrase = " ".join(item.group(0).strip("'’") for item in run).strip()
+            key = unicodedata.normalize("NFC", phrase).casefold()
+            if phrase and not (len(run) == 1 and at_start and key in _AUTO_TERM_STARTERS):
+                counts[key] = counts.get(key, 0) + 1
+                if len(run) > 1 or not at_start or phrase.isupper():
+                    strong_counts[key] = strong_counts.get(key, 0) + 1
+                spellings.setdefault(key, phrase)
+            run = []
+
+        for match in words:
+            word = match.group(0).strip("'’")
+            gap = text[run[-1].end():match.start()] if run else ""
+            if run and not gap.isspace():
+                flush()
+            is_name = bool(word) and (word[0].isupper() or (len(word) >= 2 and word.isupper()))
+            if is_name and len(word) >= 2:
+                run.append(match)
+                if len(run) >= 4:
+                    flush()
+            else:
+                flush()
+        flush()
+    ranked = sorted((count, spellings[key], key) for key, count in counts.items()
+                    if count >= max(1, int(min_occurrences)) and strong_counts.get(key, 0))
+    ranked.sort(key=lambda row: (-row[0], row[1].casefold()))
+    return [spelling for _count, spelling, _key in ranked[:max(1, int(max_terms))]]
+
+
 def llm_postprocess(entries, args, warn_list=None):
     """
     Transcribe edilmiş altyazıları OpenAI uyumlu bir LLM'e gönderip düzeltir.
@@ -2506,7 +2564,7 @@ def resolve_translate_routes(base_url):
 
 def build_translate_prompt(target_lang, source_lang, glossary_terms, register="documentary",
                            profanity="medium", max_cps=21, max_line_width=42,
-                           use_context=True):
+                           use_context=True, auto_glossary_terms=None):
     """Ceviri sistem promptu - ceviri hattindaki kurallarin damitilmis hali."""
     target_name = LANG_NAMES.get((target_lang or "tr").lower(), target_lang)
     source_code = (source_lang or "").lower()
@@ -2533,6 +2591,8 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme.",
         "- Blok ekleme, silme veya birlestirme YAPMA. Girdideki her ID icin tam bir cikti ver.",
         "- Konusmaci tiresi (-), muzik isareti ve koseli parantezli efektler korunur.",
+        "- Iki asamali dusun: once baglamdan ozne, zamir, zaman, hitap ve terimleri coz;",
+        "  sonra YALNIZ items alanindaki hedef bloklarin cevirisini yaz.",
     ]
     if use_context:
         # Bu bolum EKSIKTI: context_before/context_after gonderiliyordu ama modele
@@ -2560,6 +2620,15 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             "",
             "## SOZLUK (ozel isimler - bu yazimlari aynen koru, cevirme)",
             "  " + ", ".join(glossary_terms),
+        ]
+    if auto_glossary_terms:
+        lines += [
+            "",
+            "## FILM-GENELI OTOMATIK TERIM ADAYLARI",
+            "- Bunlar tum transkriptten yerel olarak cikarildi. Ozel adlarin yazimini koru;",
+            "  cevrilecek kavramlar icin tek bir dogal hedef karsilik secip butun partilerde ayni kullan.",
+            "- Kullanici SOZLUGU ile catisirsa kullanici sozlugu her zaman onceliklidir.",
+            "  " + ", ".join(auto_glossary_terms),
         ]
     lines += [
         "",
@@ -2662,7 +2731,8 @@ def translation_char_budget(entry, args):
 
 
 def translate_cache_key(text, args, target, source_lang=None,
-                        context_before=None, context_after=None, max_chars=None, group_shape=None):
+                        context_before=None, context_after=None, max_chars=None, group_shape=None,
+                        speaker_shape=None, auto_glossary_terms=None):
     """Ayni metin + ayni ceviri AYARLARI + ayni sahne baglami -> ayni anahtar.
 
     Ceviri baglama gore uretiliyorsa onbellek de baglama gore ayrilmalidir.
@@ -2674,8 +2744,18 @@ def translate_cache_key(text, args, target, source_lang=None,
     def nfc(value):
         return unicodedata.normalize("NFC", str(value or ""))
 
+    def context_rows(values):
+        result = []
+        for value in values or []:
+            if isinstance(value, dict):
+                result.append({"t": nfc(value.get("t", value.get("text", ""))),
+                               "sp": nfc(value.get("sp", value.get("speaker", "")))})
+            else:
+                result.append({"t": nfc(value), "sp": ""})
+        return result
+
     raw = json.dumps({
-        "v": 5,
+        "v": 6,
         "sentence_protocol": SENTENCE_PROTOCOL_VERSION,
         "group_shape": group_shape,
         "target": nfc(target).lower(),
@@ -2688,10 +2768,12 @@ def translate_cache_key(text, args, target, source_lang=None,
         "max_cps": int(getattr(args, "max_cps", 0) or 0),
         "max_line_width": int(getattr(args, "max_line_width", 0) or 0),
         "glossary": nfc(getattr(args, "glossary", "")),
+        "auto_glossary": [nfc(value) for value in (auto_glossary_terms or [])],
+        "speakers": [nfc(value) for value in (speaker_shape or [])],
         "text": nfc(text),
         "max_chars": int(max_chars or 0),
-        "context_before": [nfc(value) for value in (context_before or [])],
-        "context_after": [nfc(value) for value in (context_after or [])],
+        "context_before": context_rows(context_before),
+        "context_after": context_rows(context_after),
     }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -2741,7 +2823,8 @@ def classify_translation_error(error):
     return "api_failure"
 
 
-def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None):
+def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None,
+                  speakers=None):
     """
     Altyazilari OpenAI uyumlu bir API ile hedef dile cevirir.
     entries: [(start, end, text), ...] -> ayni yapida cevrilmis liste (blok sayisi DEGISMEZ).
@@ -2779,6 +2862,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     target = (args.translate_to or "tr").lower()
     target_name = LANG_NAMES.get(target, target)
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
+    auto_glossary_terms = extract_auto_glossary(entries)
+    speaker_map = {
+        int(index): str(label).strip()[:80]
+        for index, label in (speakers or {}).items()
+        if isinstance(index, int) and 0 <= index < len(entries) and str(label).strip()
+    }
     # Cevrilen parcanin ONCE/SONRASINDA modele gosterilecek satir sayisi. 0 = kapali.
     # Baglam ozellikle Turkcede sen/siz secimi, cinsiyet ve devam eden cumleler icin
     # onemli; bu yuzden varsayilan ACIK (Film on ayarinda daha genis).
@@ -2789,6 +2878,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         use_context=CONTEXT_LINES > 0,
         register=args.translate_register, profanity=args.translate_profanity,
         max_cps=args.max_cps, max_line_width=args.max_line_width,
+        auto_glossary_terms=auto_glossary_terms,
     )
 
     log("Ceviri BASLIYOR - {} blok -> {}, model: {}, endpoint: {}{}".format(
@@ -2809,7 +2899,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
     CHUNK_SIZE = 20      # ceviride blok basina token yuksek - duzeltmeden kucuk tutulur
     out_texts = [e[2] for e in entries]
-    groups = sentence_groups(entries)
+    groups = sentence_groups(entries, speakers=speaker_map)
     group_at = {i: group for group in groups for i in group}
     records = {}
 
@@ -2817,8 +2907,22 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         return [group_at[i] for i in indexes if group_at[i][0] == i]
 
     def source_context(lo, hi):
-        return ([entries[k][2] for k in range(max(0, lo - CONTEXT_LINES), lo)],
-                [entries[k][2] for k in range(hi + 1, min(len(entries), hi + 1 + CONTEXT_LINES))])
+        before = []
+        left_speaker = speaker_map.get(lo)
+        for index in range(lo - 1, max(-1, lo - CONTEXT_LINES - 1), -1):
+            neighbor_speaker = speaker_map.get(index)
+            if left_speaker and neighbor_speaker and neighbor_speaker != left_speaker:
+                break
+            before.append(entries[index][2])
+        before.reverse()
+        after = []
+        right_speaker = speaker_map.get(hi)
+        for index in range(hi + 1, min(len(entries), hi + 1 + CONTEXT_LINES)):
+            neighbor_speaker = speaker_map.get(index)
+            if right_speaker and neighbor_speaker and neighbor_speaker != right_speaker:
+                break
+            after.append(entries[index][2])
+        return before, after
 
     def group_key(group):
         before, after = source_context(group[0], group[-1])
@@ -2827,7 +2931,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         shape = [[normalized_text(entries[i][2]), float(entries[i][1]) - float(entries[i][0]), budget]
                  for i, budget in zip(group, budgets)] if len(group) > 1 else None
         return translate_cache_key(source, args, target, source_lang, before, after,
-                                   sum(budgets), group_shape=shape)
+                                   sum(budgets), group_shape=shape,
+                                   speaker_shape=[speaker_map.get(i, "") for i in group],
+                                   auto_glossary_terms=auto_glossary_terms)
 
     def translation_payload(chunk_idx, refine=False):
         positions = {index: pos for pos, index in enumerate(chunk_idx)}
@@ -4957,6 +5063,7 @@ def transcribe(args):
                 translated = llm_translate(
                     entries, args, warn_list, source_lang=tr_source,
                     status_out=translation_status,
+                    speakers=speakers_map,
                 )
                 # Çeviri izi kaynakla birebir cue sözleşmesini korur. Çeviri
                 # tarafında devam satırlarını birleştirmek cue sayısını ve zaman

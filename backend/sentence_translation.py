@@ -49,7 +49,8 @@ def sentence_ended(text):
     return not (initialism or initial or (last.endswith('.') and last[:-1].lower() in ABBREVIATIONS))
 
 
-def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6):
+def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6,
+                    speakers=None):
     """Her giriş tam bir gruba aittir; zamanlar/sıra/kelimeler değiştirilmez.
 
     Konuşmacı/SDH işareti taşıyan, örtüşen veya zamanı bozuk bloklar tek kalır.
@@ -79,7 +80,10 @@ def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_pa
                 group, length = [], 0
             else:
                 gap = float(start) - float(entries[previous][1])
-                if (not -0.05 <= gap <= max_gap
+                speaker_changed = bool(speakers and speakers.get(index)
+                                       and speakers.get(previous)
+                                       and speakers.get(index) != speakers.get(previous))
+                if (speaker_changed or not -0.05 <= gap <= max_gap
                         or float(end) - float(entries[group[0]][0]) > max_duration
                         or length + 1 + size > max_chars or len(group) >= max_parts):
                     groups.append(group)

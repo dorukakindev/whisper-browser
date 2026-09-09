@@ -59,6 +59,17 @@ function decodeSentenceTranslation(raw, count, requireParts = false) {
 
 function sentenceTranslationRequest(sentence) {
   const pieces = sentence.pieces || [];
+  const contextRows = (value, edge) => {
+    const rows = Array.isArray(value) ? value : value ? [value] : [];
+    const bounded = rows.map((row) => typeof row === 'string'
+      ? { text: row }
+      : { text: String(row?.text || '') })
+      .filter((row) => normalizeText(row.text));
+    let used = bounded;
+    if (JSON.stringify(used).length > 1200) used = edge === 'before' ? used.slice(-3) : used.slice(0, 3);
+    used = used.map((row) => ({ text: String(row.text).slice(0, 600) }));
+    return used;
+  };
   return {
     instruction: [
       'Önce source içindeki bütün cümleyi anlamı, olumsuzluğu, özneyi ve özel adları koruyarak çevir.',
@@ -76,8 +87,8 @@ function sentenceTranslationRequest(sentence) {
         const duration = Math.max(0.1, Number(piece.end) - Number(piece.start) || 0.1);
         return { i: index, source: piece.text, seconds: duration, max_chars: Math.round(duration * 21) };
       }),
-      context_before: String(sentence.contextBefore || '').slice(-600),
-      context_after: String(sentence.contextAfter || '').slice(0, 600),
+      context_before: contextRows(sentence.contextBefore, 'before'),
+      context_after: contextRows(sentence.contextAfter, 'after'),
     }),
   };
 }
