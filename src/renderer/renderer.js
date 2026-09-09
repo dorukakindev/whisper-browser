@@ -12155,7 +12155,15 @@ function autoGrowChatBox() {
   const t = $('aiChatText');
   if (!t) return;
   t.style.height = 'auto';
-  t.style.height = Math.min(120, t.scrollHeight) + 'px';
+  const measured = t.scrollHeight;
+  // Gizli AI sekmesinde scrollHeight 0 döner. Bu durumda 0px'i satır içi
+  // stile yazmak, sekme açıldığında soru alanını tek çizgiye sıkıştırıyordu.
+  // Ölçülebilir olana kadar CSS'in asgari kontrol yüksekliğini koru.
+  if (!measured) {
+    t.style.removeProperty('height');
+    return;
+  }
+  t.style.height = Math.max(38, Math.min(120, measured)) + 'px';
 }
 
 function setSideTab(tab, { focusContent = false } = {}) {

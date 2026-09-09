@@ -381,7 +381,12 @@ async function run() {
   assert.equal(settingsNativeHidden, true, 'The native browser view remained visible behind Settings.');
 
   await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(960,720); return win.getBounds(); })()");
-  await delay(350);
+  const narrowSettingsSettled = await waitFor(async () => evaluate(renderer, `(() => {
+    const side = document.getElementById('playerSide');
+    return innerWidth <= 1020 && !side?.getClientRects().length;
+  })()`).catch(() => false), 3000, 50);
+  assert.equal(narrowSettingsSettled, true,
+    'Narrow browser Settings resize did not settle before validation.');
   const narrowSettingsTab = await evaluate(renderer, `(() => {
     const layer = document.getElementById('playerLayer');
     const surface = document.getElementById('browserSettingsSurface');

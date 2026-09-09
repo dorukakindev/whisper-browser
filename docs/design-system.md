@@ -56,5 +56,8 @@ Yeni ve dokunulan kurallarda gelişigüzel ara değer yerine bu ölçek kullanı
 
 Değişiklikten sonra `node --check src/renderer/renderer.js`, ilgili tasarım sistemi testi,
 tam `npm test` ve iki temada gerçek render kontrolü çalıştırılır. Ana çalışma masası
-980px ve 560px; oynatıcı 860px kırılma noktalarında ayrıca kontrol edilir. Temel ayar
-katmanı `tests/manual/theme-preview.js` ile kapalı ve açık durumda ayrıca görüntülenir.
+980px ve 560px; oynatıcı ve tarayıcı 1020px devralma eşiğinin iki yanında ayrıca
+kontrol edilir. `tests/manual/theme-preview.js` ana masa ve temel ayar katmanına ek
+olarak tarayıcı, tarayıcı ayarları, transkript, AI sohbeti, izleme kütüphanesi,
+oynatıcı ayarları ve İşler merkezini 1440px ile 940px genişliklerde görüntüler ve
+yatay taşma ölçümlerini raporlar.

@@ -744,6 +744,32 @@ test('başarısız sohbet turu kalıcı konuşma geçmişini kirletmiyor', () =>
     'sohbet hâlâ sahte girdi yolu üretiyor');
 });
 
+test('AI soru alanı gizli sekmede sıfır yüksekliğe kilitlenmiyor', () => {
+  const start = js.indexOf('function autoGrowChatBox');
+  const end = js.indexOf('function setSideTab', start);
+  assert(start > 0 && end > start, 'AI soru alanı büyütme işlevi bulunamadı');
+  const style = {
+    height: '19px',
+    removeProperty(name) { if (name === 'height') this.height = ''; },
+  };
+  const textarea = { scrollHeight: 0, style };
+  const grow = new Function('$', `${js.slice(start, end)}; return autoGrowChatBox;`)
+    ((id) => id === 'aiChatText' ? textarea : null);
+  grow();
+  assert(style.height === '', 'gizli sekmedeki 0 scrollHeight satır içi yükseklik olarak korunuyor');
+  textarea.scrollHeight = 22;
+  grow();
+  assert(style.height === '38px', 'tek satırlı soru alanı 38 px asgari yüksekliği korumuyor');
+  textarea.scrollHeight = 180;
+  grow();
+  assert(style.height === '120px', 'çok satırlı soru alanı 120 px üst sınırında durmuyor');
+  assert(/\.ai-chat-input textarea\s*\{[\s\S]*?min-height:\s*38px/.test(css),
+    'AI soru alanının görünür CSS asgari yüksekliği yok');
+  assert(/#aiChatCtx\s*\{[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/.test(css)
+    && /\.ai-chat-foot \.link-btn\s*\{[^}]*white-space:\s*nowrap/.test(css),
+  'dar yan panelde bağlam eylemi yerine eylem metni satıra bölünüyor');
+});
+
 test('AI açıklama önbelleği kaynak ve çeviri metnine bağlı', () => {
   const i = js.indexOf('function explainCacheKey');
   const body = js.slice(i, js.indexOf('\nasync function askExplain', i));
@@ -1689,6 +1715,19 @@ test('dar pencerede yan panel içerik alanını erişilebilir biçimde devralıy
   'native tarayıcı görünümü tam alan panelin arkasında gizlenmiyor');
   assert(/narrowPanelBack['"]\)\.addEventListener\('click', \(\) => setPlayerSidebarCollapsed\(true\)\)/.test(js),
     'Videoya dön düğmesi paneli kapatmıyor');
+});
+
+test('Electron dar ayar smoke ölçümü pencere yeniden boyutlanmasını bekliyor', () => {
+  const smoke = fs.readFileSync(path.join(__dirname, 'electron-browser-experience-smoke.js'), 'utf-8');
+  const start = smoke.indexOf('const narrowSettingsSettled');
+  const end = smoke.indexOf('const narrowSettingsTab', start);
+  const block = smoke.slice(start, end);
+  assert(start > 0 && end > start, 'dar ayar resize bekleme kapısı bulunamadı');
+  assert(/waitFor\(async \(\) => evaluate\(renderer/.test(block)
+    && /innerWidth <= 1020/.test(block)
+    && /!side\?\.getClientRects\(\)\.length/.test(block)
+    && /3000, 50/.test(block),
+  'smoke testi sabit gecikmeyle erken ölçüm yapabilir');
 });
 
 test('yan panel genişliği ve duyarlı CSS C aşaması sınırlarını koruyor', () => {

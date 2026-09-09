@@ -1423,14 +1423,15 @@
 
 .ai-chat-input { display: flex; gap: 6px; align-items: flex-end; }
 .ai-chat-input textarea {
-  flex: 1; min-width: 0; max-height: 120px; padding: 9px 11px; resize: none;
+  flex: 1; min-width: 0; min-height: 38px; max-height: 120px; padding: 9px 11px; resize: none;
   color: var(--text); font: inherit; font-size: 13px; line-height: 1.45;
   background: var(--bg-3); border: 1px solid var(--border); border-radius: 10px; outline: none;
 }
 .ai-chat-input textarea:focus { border-color: var(--player-amber); }
 .ai-chat-input .btn { flex: 0 0 auto; min-height: 38px; }
 .ai-chat-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
-#aiChatCtx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#aiChatCtx { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-chat-foot .link-btn { flex: 0 0 auto; white-space: nowrap; }
 
 .side-toolrow { display: flex; gap: 6px; align-items: center; }
 .side-toolrow input[type="search"] { flex: 1; min-width: 0; }

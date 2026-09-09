@@ -95,6 +95,71 @@ async function layoutMetrics(client) {
   `);
 }
 
+async function productSurfaceMetrics(client) {
+  return evaluate(client, `
+    (() => {
+      const roundRect = (element) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          top: Math.round(rect.top), bottom: Math.round(rect.bottom),
+          left: Math.round(rect.left), right: Math.round(rect.right),
+          width: Math.round(rect.width), height: Math.round(rect.height)
+        };
+      };
+      const side = document.getElementById('playerSide');
+      const visiblePanel = ['cueList', 'aiChat', 'playerLibraryPanel']
+        .map((id) => document.getElementById(id))
+        .find((element) => element && !element.classList.contains('hidden')
+          && getComputedStyle(element).display !== 'none');
+      const aiInput = document.getElementById('aiChatText');
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        documentOverflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        layerClasses: document.getElementById('playerLayer')?.className || '',
+        sideTab: player.sideTab,
+        side: roundRect(side),
+        visiblePanel: roundRect(visiblePanel),
+        aiInput: roundRect(aiInput),
+        aiInputHeight: aiInput ? getComputedStyle(aiInput).height : '',
+        aiClearLines: (() => {
+          const clear = document.getElementById('aiChatClear');
+          if (!clear) return 0;
+          const range = document.createRange();
+          range.selectNodeContents(clear);
+          return range.getClientRects().length;
+        })(),
+        cueRows: document.querySelectorAll('#cueList .cue-card').length,
+        cueListOverflowX: (() => {
+          const list = document.getElementById('cueList');
+          return !!list && list.scrollWidth > list.clientWidth + 1;
+        })(),
+        settings: roundRect(document.getElementById('settingsDrawer')),
+        settingsHidden: document.getElementById('settingsDrawer')?.classList.contains('hidden') ?? true
+      };
+    })()
+  `);
+}
+
+async function jobsSurfaceMetrics(client) {
+  return evaluate(client, `
+    (() => {
+      const card = document.getElementById('jobsCard');
+      const rows = [...document.querySelectorAll('.queue-item, .review-item')]
+        .filter((row) => row.getClientRects().length > 0);
+      const rect = card?.getBoundingClientRect();
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        documentOverflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        card: rect ? { left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width), height: Math.round(rect.height) } : null,
+        activeTab: document.querySelector('.jobs-tab.active')?.dataset.jobsTab || '',
+        visibleRows: rows.length,
+        rowOverflow: rows.some((row) => row.scrollWidth > row.clientWidth + 1)
+      };
+    })()
+  `);
+}
+
 async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.mkdirSync(outputDir, { recursive: true });
@@ -179,10 +244,166 @@ async function run() {
   await delay(160);
   const browserSettingsMinMetrics = await layoutMetrics(client);
   await capture(client, 'whisper-browser-settings-dark-940.png');
+
+  await evaluate(client, "closeBrowserSettings(); true");
+  await delay(140);
+  await setViewport(client, 1440);
+  await evaluate(client, `
+    (() => {
+      setWorkspaceMode('player', false);
+      document.getElementById('playerLayer').classList.remove('hidden');
+      player.localPath = 'D:\\Arşiv\\Kayıp Sinyaller - Bölüm 04.mkv';
+      player.mediaKey = 'theme-preview-local';
+      player.subPath = 'D:\\Arşiv\\Kayıp Sinyaller - Bölüm 04.en.srt';
+      player.sub2Path = 'D:\\Arşiv\\Kayıp Sinyaller - Bölüm 04.tr.srt';
+      player.subRole = 'source';
+      player.sub2Role = 'translation';
+      player.savedOnly = false;
+      player.qualityOnly = false;
+      player.autoFollow = true;
+      player.userScrolled = false;
+      player.cues = [
+        { start: 41.2, end: 44.1, text: 'The signal was never meant to reach this valley.' },
+        { start: 45.0, end: 48.7, text: 'Someone redirected it before the storm arrived.' },
+        { start: 49.1, end: 52.5, text: 'Listen. There is another voice beneath the static.', confidence: .47, lowConfidenceWords: 2 },
+        { start: 53.0, end: 56.4, text: 'If we follow it now, we may still find the transmitter.' },
+        { start: 57.1, end: 60.8, text: 'And if the warning was meant for us?' },
+        { start: 61.4, end: 65.2, text: 'Then we are already too late.' }
+      ];
+      player.cues2 = [
+        { start: 41.2, end: 44.1, text: 'Bu sinyalin bu vadiye ulaşması hiç amaçlanmamıştı.' },
+        { start: 45.0, end: 48.7, text: 'Fırtına gelmeden önce biri yönünü değiştirmiş.' },
+        { start: 49.1, end: 52.5, text: 'Dinle. Parazitin altında başka bir ses var.' },
+        { start: 53.0, end: 56.4, text: 'Şimdi izini sürersek vericiyi hâlâ bulabiliriz.' },
+        { start: 57.1, end: 60.8, text: 'Ya uyarı bizim için gönderildiyse?' },
+        { start: 61.4, end: 65.2, text: 'O zaman zaten çok geç kaldık.' }
+      ];
+      player.activeIdx = 2;
+      player.activeIdx2 = 2;
+      document.getElementById('playerTitle').textContent = 'Kayıp Sinyaller · Bölüm 04';
+      document.getElementById('playerMeta').textContent = 'Yerel video · 48:12 · EN + TR';
+      setSideTab('subs');
+      updateSubtitleChips();
+      renderCueList();
+      highlightCueRow();
+      syncResponsivePlayerLayout();
+      return true;
+    })()
+  `);
+  await delay(160);
+  const playerTranscriptWideMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-transcript-dark.png');
+  await setViewport(client, 940);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await delay(160);
+  const playerTranscriptMinMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-transcript-dark-940.png');
+
+  await setViewport(client, 1440);
+  await evaluate(client, "syncResponsivePlayerLayout(); setSideTab('ai'); true");
+  await delay(120);
+  const playerAiMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-ai-empty-dark.png');
+  await setViewport(client, 940);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await delay(120);
+  const playerAiMinMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-ai-empty-dark-940.png');
+
+  await setViewport(client, 1440);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await evaluate(client, "setSideTab('library'); true");
+  await delay(220);
+  await evaluate(client, `
+    (() => {
+      const now = Date.now();
+      watchLibraryCache = [
+        {
+          key: 'local:lost-signals', title: 'Kayıp Sinyaller · Bölüm 04', type: 'local',
+          position: 1042, duration: 2892, completed: false, lastWatched: now - 18 * 60 * 1000,
+          collections: ['İnceleme'], matches: [
+            { seconds: 49.1, snippet: 'Parazitin altında başka bir ses var.', annotationType: 'note', annotationId: 'preview-note' }
+          ], prefs: {}
+        },
+        {
+          key: 'youtube:field-recording', title: 'Gece Kaydı: Terk Edilmiş Radyo İstasyonu', type: 'youtube',
+          position: 128, duration: 754, completed: false, lastWatched: now - 2 * 86400000,
+          collections: ['Araştırma'], matches: [], prefs: {}
+        }
+      ];
+      playerLibraryResults = watchLibraryCache;
+      playerUnifiedLibraryResults = [];
+      playerLibraryView = 'search';
+      document.getElementById('playerLibrarySearch').value = '';
+      document.getElementById('playerLibraryFilter').value = 'all';
+      renderPlayerLibrary();
+      return true;
+    })()
+  `);
+  await delay(100);
+  const playerLibraryMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-library-dark.png');
+  await setViewport(client, 940);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await delay(120);
+  const playerLibraryMinMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-library-dark-940.png');
+
+  await setViewport(client, 1440);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await evaluate(client, "setSideTab('subs'); setSettingsPage('source'); setSettingsDrawer(true); true");
+  await delay(180);
+  const playerSettingsMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-settings-dark.png');
+  await setViewport(client, 940);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await delay(160);
+  const playerSettingsMinMetrics = await productSurfaceMetrics(client);
+  await capture(client, 'whisper-player-settings-dark-940.png');
+
+  await evaluate(client, "setSettingsDrawer(false); document.getElementById('playerLayer').classList.add('hidden'); true");
+  await setViewport(client, 1440);
+  await evaluate(client, `
+    (() => {
+      state.queue = [
+        { id: 9101, type: 'local', input: 'D:\\Arşiv\\Kayıp Sinyaller 04.mkv', label: 'Kayıp Sinyaller 04.mkv', status: 'running', opts: { model: 'large-v3', engine: 'faster', formats: 'srt,json', language: 'en', translate: true, translateTo: 'tr' } },
+        { id: 9102, type: 'youtube', input: 'https://www.youtube.com/watch?v=preview', label: 'Saha Kaydı · Radyo İstasyonu', status: 'pending', opts: { model: 'large-v3-turbo', engine: 'faster-batched', formats: 'srt', language: 'auto' } },
+        { id: 9103, type: 'local', input: 'D:\\Arşiv\\Arşiv Görüşmesi.mov', label: 'Arşiv Görüşmesi.mov', status: 'done', warnings: ['2 blokta okuma hızı yüksek; elle kontrol önerilir.'], files: ['D:\\Çıktı\\Arşiv Görüşmesi.srt'], opts: { model: 'medium', engine: 'faster', formats: 'srt,vtt', language: 'tr' } }
+      ];
+      state.lastQualityReport = { blocks: 86, cps_violations: 2, overlaps: 1, too_long: 0 };
+      state.queueRunning = true;
+      renderQueue();
+      setJobsTab('queue');
+      document.getElementById('jobsCard').scrollIntoView({ block: 'start' });
+      return true;
+    })()
+  `);
+  await delay(160);
+  const jobsQueueMetrics = await jobsSurfaceMetrics(client);
+  await capture(client, 'whisper-jobs-queue-dark.png');
+  await evaluate(client, "setJobsTab('review'); document.getElementById('jobsCard').scrollIntoView({ block: 'start' }); true");
+  await delay(100);
+  const jobsReviewMetrics = await jobsSurfaceMetrics(client);
+  await capture(client, 'whisper-jobs-review-dark.png');
+  await setViewport(client, 940);
+  await evaluate(client, "setJobsTab('queue'); document.getElementById('jobsCard').scrollIntoView({ block: 'start' }); true");
+  await delay(120);
+  const jobsQueueMinMetrics = await jobsSurfaceMetrics(client);
+  await capture(client, 'whisper-jobs-queue-dark-940.png');
+  await evaluate(client, "setJobsTab('review'); document.getElementById('jobsCard').scrollIntoView({ block: 'start' }); true");
+  await delay(100);
+  const jobsReviewMinMetrics = await jobsSurfaceMetrics(client);
+  await capture(client, 'whisper-jobs-review-dark-940.png');
   console.log(JSON.stringify({
     settingsLayout, previewStates, mainWideMetrics, mainNarrowMetrics,
     browserWideMetrics, browserMinMetrics,
-    browserSettingsWideMetrics, browserSettingsMinMetrics
+    browserSettingsWideMetrics, browserSettingsMinMetrics,
+    playerTranscriptWideMetrics, playerTranscriptMinMetrics,
+    playerAiMetrics, playerAiMinMetrics,
+    playerLibraryMetrics, playerLibraryMinMetrics,
+    playerSettingsMetrics, playerSettingsMinMetrics,
+    jobsQueueMetrics, jobsReviewMetrics,
+    jobsQueueMinMetrics, jobsReviewMinMetrics
   }));
   client.socket.close();
 }
