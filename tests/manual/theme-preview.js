@@ -48,6 +48,53 @@ async function capture(client, name) {
   fs.writeFileSync(path.join(outputDir, name), Buffer.from(shot.data, 'base64'));
 }
 
+async function setViewport(client, width, height = 900) {
+  await client.call('Emulation.setDeviceMetricsOverride', {
+    width, height, deviceScaleFactor: 1, mobile: false,
+  });
+  await delay(80);
+}
+
+async function layoutMetrics(client) {
+  return evaluate(client, `
+    (() => {
+      const roundRect = (element) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          top: Math.round(rect.top), bottom: Math.round(rect.bottom),
+          left: Math.round(rect.left), right: Math.round(rect.right),
+          width: Math.round(rect.width), height: Math.round(rect.height)
+        };
+      };
+      const left = document.querySelector('.panel-left');
+      const actions = document.querySelector('.actions');
+      const summary = document.getElementById('jobsCard');
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        documentOverflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        leftPanel: left ? {
+          clientHeight: left.clientHeight, scrollHeight: left.scrollHeight, scrollTop: left.scrollTop,
+          paddingBottom: getComputedStyle(left).paddingBottom,
+          rect: roundRect(left)
+        } : null,
+        actions: roundRect(actions),
+        jobSummary: roundRect(summary),
+        browser: {
+          workspaceMode: player.workspaceMode,
+          surface: player.browserSurface,
+          settingsOpen: player.browserSettingsOpen,
+          layerClasses: document.getElementById('playerLayer')?.className || '',
+          workspace: roundRect(document.getElementById('browserWorkspace')),
+          toolbar: roundRect(document.querySelector('.browser-toolbar')),
+          side: roundRect(document.querySelector('.player-side')),
+          settings: roundRect(document.getElementById('browserSettingsSurface'))
+        }
+      };
+    })()
+  `);
+}
+
 async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.mkdirSync(outputDir, { recursive: true });
@@ -62,7 +109,7 @@ async function run() {
   if (!target) throw new Error('Renderer hedefi bulunamadı.');
   const client = cdp(target.webSocketDebuggerUrl); await client.opened;
   await client.call('Runtime.enable'); await client.call('Page.enable');
-  await client.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await setViewport(client, 1440);
   const ready = await waitFor(() => evaluate(client,
     "document.readyState === 'complete' && typeof applyUiTheme === 'function' && !document.getElementById('browserViewSettings')"));
   if (!ready) throw new Error('Renderer hazır olmadı.');
@@ -103,20 +150,40 @@ async function run() {
   await capture(client, 'whisper-settings-open-dark.png');
   await evaluate(client, "applyUiTheme('light'); document.getElementById('primarySettingsOpen').open=false; true");
   await capture(client, 'whisper-settings-light.png');
-  await client.call('Emulation.setDeviceMetricsOverride', { width: 560, height: 900, deviceScaleFactor: 1, mobile: false });
+  await setViewport(client, 560);
   await evaluate(client, "document.querySelector('.settings-card').scrollIntoView({block:'start'}); true");
   const settingsLayout = await evaluate(client, "(() => { const rect=(selector)=>{const r=document.querySelector(selector).getBoundingClientRect(); return {left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}; return {overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, viewport:document.documentElement.clientWidth, card:rect('.settings-card'), tools:rect('.settings-head-tools'), restore:rect('#importSettings')}; })()");
   await capture(client, 'whisper-settings-light-560.png');
-  await client.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  const mainNarrowMetrics = await layoutMetrics(client);
+  await setViewport(client, 1440);
   await evaluate(client, "window.scrollTo(0,0); document.querySelector('.panel-left').scrollTop=0; true");
-  await evaluate(client, "applyUiTheme('dark'); const layer=document.getElementById('playerLayer'); layer.classList.remove('hidden'); layer.classList.add('workspace-browser'); document.getElementById('browserWorkspace').classList.remove('hidden'); true");
+  const mainWideMetrics = await layoutMetrics(client);
+  await evaluate(client, "applyUiTheme('dark'); document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('browser', false); true");
+  await waitFor(() => evaluate(client, "player.workspaceMode === 'browser' && !document.getElementById('browserWorkspace').classList.contains('hidden')"));
+  await delay(250);
+  const browserWideMetrics = await layoutMetrics(client);
   await capture(client, 'whisper-browser-dark.png');
-  await evaluate(client, "applyUiTheme('light'); true");
-  await capture(client, 'whisper-browser-light.png');
-  await client.call('Emulation.setDeviceMetricsOverride', { width: 560, height: 900, deviceScaleFactor: 1, mobile: false });
-  const metrics = await evaluate(client, "(() => ({theme:document.documentElement.dataset.theme, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, body:getComputedStyle(document.body).backgroundColor, panel:getComputedStyle(document.querySelector('.browser-workspace')).backgroundColor, text:getComputedStyle(document.querySelector('.browser-signal-kicker')).color}))()");
-  await capture(client, 'whisper-browser-light-560.png');
-  console.log(JSON.stringify({ ...metrics, settingsLayout, previewStates }));
+  await setViewport(client, 940);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await delay(180);
+  const browserMinMetrics = await layoutMetrics(client);
+  await capture(client, 'whisper-browser-dark-940.png');
+  await setViewport(client, 1440);
+  await evaluate(client, "syncResponsivePlayerLayout(); openBrowserSettings('site'); true");
+  await waitFor(() => evaluate(client, "player.browserSurface === 'settings' && !document.getElementById('browserSettingsSurface').classList.contains('hidden')"));
+  await delay(120);
+  const browserSettingsWideMetrics = await layoutMetrics(client);
+  await capture(client, 'whisper-browser-settings-dark.png');
+  await setViewport(client, 940);
+  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await delay(160);
+  const browserSettingsMinMetrics = await layoutMetrics(client);
+  await capture(client, 'whisper-browser-settings-dark-940.png');
+  console.log(JSON.stringify({
+    settingsLayout, previewStates, mainWideMetrics, mainNarrowMetrics,
+    browserWideMetrics, browserMinMetrics,
+    browserSettingsWideMetrics, browserSettingsMinMetrics
+  }));
   client.socket.close();
 }
 

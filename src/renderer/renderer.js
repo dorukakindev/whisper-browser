@@ -14599,13 +14599,22 @@ function syncResponsivePlayerLayout() {
   const layer = $('playerLayer');
   if (!layer) return;
   const takeover = responsivePanelTakeoverActive();
+  const browserSettingsOpen = player.workspaceMode === 'browser' && browserSettingsSurfaceVisible();
   layer.classList.toggle('narrow-panel-takeover', takeover);
+  layer.classList.toggle('browser-settings-open', browserSettingsOpen);
   for (const id of ['playerStage', 'browserWorkspace', 'pdfReader']) {
     const surface = $(id);
     if (surface) surface.inert = takeover;
   }
   const back = $('narrowPanelBack');
-  if (back) back.setAttribute('aria-hidden', takeover ? 'false' : 'true');
+  if (back) {
+    const label = player.workspaceMode === 'browser' ? 'Sayfaya dön' : 'Videoya dön';
+    back.setAttribute('aria-hidden', takeover ? 'false' : 'true');
+    back.setAttribute('aria-label', label);
+    back.title = label;
+    const copy = back.querySelector('span');
+    if (copy) copy.textContent = label;
+  }
   scheduleBrowserBounds();
   return syncBrowserOcclusion();
 }

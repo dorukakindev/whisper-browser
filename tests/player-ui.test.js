@@ -1672,11 +1672,18 @@ test('dar pencerede yan panel içerik alanını erişilebilir biçimde devralıy
     'desteklenen dar pencere eşiği JavaScript yerleşiminde yok');
   assert(/classList\.toggle\('narrow-panel-takeover', takeover\)/.test(responsive),
     'tam alan panel durumu oyuncu katmanına uygulanmıyor');
+  assert(/player\.workspaceMode === 'browser' && browserSettingsSurfaceVisible\(\)/.test(responsive)
+    && /classList\.toggle\('browser-settings-open', browserSettingsOpen\)/.test(responsive),
+  'dar tarayıcı ayar belgesinin bağımsız tam alan durumu uygulanmıyor');
   for (const id of ['playerStage', 'browserWorkspace', 'pdfReader']) {
     assert(responsive.includes(`'${id}'`), `${id} panel açıkken inert yapılmıyor`);
   }
   assert(/surface\.inert = takeover/.test(responsive),
     'arka yüzeylerin klavye ve işaretçi etkileşimi kapatılmıyor');
+  assert(/player\.workspaceMode === 'browser' \? 'Sayfaya dön' : 'Videoya dön'/.test(responsive)
+    && /back\.setAttribute\('aria-label', label\)/.test(responsive)
+    && /copy\.textContent = label/.test(responsive),
+  'dar panel geri düğmesi tarayıcıda sayfaya, oynatıcıda videoya döndüğünü söylemiyor');
   assert(/narrow-panel-takeover/.test(js.slice(js.indexOf('function syncBrowserOcclusion'),
     js.indexOf('function openManagedModal'))),
   'native tarayıcı görünümü tam alan panelin arkasında gizlenmiyor');
@@ -1698,6 +1705,13 @@ test('yan panel genişliği ve duyarlı CSS C aşaması sınırlarını koruyor'
     && /position:\s*absolute/.test(narrow), 'yan panel dar pencerede tüm içerik sütunlarını kaplamıyor');
   assert(/\.narrow-panel-takeover \.narrow-panel-back\s*\{\s*display:\s*inline-flex/.test(narrow),
     'dar görünüm geri düğmesi yalnız devralma halinde gösterilmiyor');
+  assert(/\.player-layer\.browser-settings-open \.player-side[\s\S]*?display:\s*none/.test(narrow)
+    && /\.player-layer\.browser-settings-open \.player-body\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(narrow),
+  'dar tarayıcı ayarlarında sıfır sütuna sıkışan yan panel tamamen kaldırılmıyor');
+  const compactTools = css.slice(css.indexOf('@container player-sidebar (max-width: 500px)'),
+    css.indexOf('/* ===== İki çalışma alanı', css.indexOf('@container player-sidebar (max-width: 500px)')));
+  assert(/\.tool-row-main\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(compactTools),
+    'dar yan panelde üretim eylemleri okunabilir iki sütunlu düzene geçmiyor');
   assert(/scrollbar-gutter:\s*stable/.test(css), 'kaydırma çubuğu yerleşim sıçraması engellenmiyor');
   assert(/\.player-layer :is\(button, input, select, textarea\):disabled/.test(css),
     'oynatıcı kontrollerinin devre dışı durumu ortaklaştırılmamış');

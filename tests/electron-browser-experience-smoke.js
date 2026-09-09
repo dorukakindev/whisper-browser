@@ -386,10 +386,12 @@ async function run() {
     const layer = document.getElementById('playerLayer');
     const surface = document.getElementById('browserSettingsSurface');
     const workspace = document.getElementById('browserWorkspace');
+    const side = document.getElementById('playerSide');
     return {
       settingsVisible: !surface.classList.contains('hidden') && getComputedStyle(surface).display !== 'none',
       takeover: layer.classList.contains('narrow-panel-takeover'),
       workspaceInert: workspace.inert,
+      sideVisible: !!side?.getClientRects().length,
     };
   })()`);
   assert.equal(narrowSettingsTab.settingsVisible, true,
@@ -398,6 +400,8 @@ async function run() {
     'Narrow resize replaced browser Settings with the subtitle panel takeover.');
   assert.equal(narrowSettingsTab.workspaceInert, false,
     'Narrow resize made the active browser Settings surface inert.');
+  assert.equal(narrowSettingsTab.sideVisible, false,
+    'Narrow browser Settings left a clipped subtitle-panel strip visible.');
   await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(1280,820); return win.getBounds(); })()");
   await delay(250);
 
