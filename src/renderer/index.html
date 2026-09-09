@@ -1388,6 +1388,17 @@
                   </select></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserPageAuto" /><span>Bu sitedeki sayfaları otomatik çevir</span></label>
                   <input type="hidden" id="browserPageAutoSites" value="[]" />
+                  <div class="browser-page-translation-tools" aria-labelledby="browserPageToolsTitle">
+                    <div class="browser-settings-section-head"><strong id="browserPageToolsTitle">Sayfa çevirisi kontrolü</strong><span>Terimleri sabitle, bölümleri dışarıda bırak ve sonucu izle.</span></div>
+                    <label class="browser-page-terms-label"><span>Kilitli terimler <small>(her satır: kaynak=Türkçe karşılık)</small></span>
+                      <textarea id="browserPageLockedTerms" rows="3" maxlength="2400" placeholder="ör. playback=oynatma"></textarea></label>
+                    <div class="browser-view-actions">
+                      <button class="btn btn-ghost btn-sm" id="browserPageSaveTerms" type="button">Terimleri kilitle</button>
+                      <button class="btn btn-ghost btn-sm" id="browserPageUndo" type="button" disabled>Çeviriyi geri al</button>
+                    </div>
+                    <div id="browserPageSectionProgress" class="browser-page-section-progress" aria-live="polite"></div>
+                    <div id="browserPageFailures" class="browser-page-failures" role="status" aria-live="polite"></div>
+                  </div>
                   <label><span>Manga hedefi</span><select id="browserMangaTarget">
                     <option value="tr" selected>Türkçe</option><option value="en">İngilizce</option>
                     <option value="de">Almanca</option><option value="fr">Fransızca</option>

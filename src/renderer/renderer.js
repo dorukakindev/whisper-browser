@@ -4114,6 +4114,9 @@ const player = {
   browserPageFailed: 0,
   browserPageVisible: false,
   browserPageError: '',
+  browserPageSections: [],
+  browserPageFailures: [],
+  browserPageExcludedSections: [],
   browserPageAutoTimer: null,
   pdfReader: null,
   browserTranslationTrackId: '',
@@ -15298,10 +15301,71 @@ if (playerTitleNode && typeof MutationObserver === 'function') {
   new MutationObserver(syncPlayerTitleTooltip).observe(playerTitleNode, { childList: true, subtree: true });
 }
 
+function browserPagePrefsKey() {
+  const host = browserPageHost(player.browserPageUrl || '');
+  return host ? 'browserPagePrefs:' + host : '';
+}
+function loadBrowserPagePrefs() {
+  const key = browserPagePrefsKey();
+  if (!key) return { lockedTerms: [], excludedSections: [] };
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '{}');
+    return { lockedTerms: Array.isArray(value.lockedTerms) ? value.lockedTerms.slice(0, 40) : [], excludedSections: Array.isArray(value.excludedSections) ? value.excludedSections.slice(0, 80) : [] };
+  } catch (_) { return { lockedTerms: [], excludedSections: [] }; }
+}
+function saveBrowserPagePrefs(prefs) {
+  const key = browserPagePrefsKey();
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify({ lockedTerms: prefs.lockedTerms || [], excludedSections: prefs.excludedSections || [] })); } catch (_) {}
+}
+function renderBrowserPageReport(event = {}) {
+  if (Array.isArray(event.sections)) player.browserPageSections = event.sections;
+  if (Array.isArray(event.failures)) player.browserPageFailures = event.failures;
+  const prefs = loadBrowserPagePrefs();
+  player.browserPageExcludedSections = prefs.excludedSections;
+  const terms = $('browserPageLockedTerms');
+  if (terms && document.activeElement !== terms) terms.value = prefs.lockedTerms.join('\n');
+  const sections = $('browserPageSectionProgress');
+  if (sections) {
+    const rows = player.browserPageSections || [];
+    sections.innerHTML = rows.length ? '<strong>Bölüm ilerlemesi</strong>' + rows.map((row) => {
+      const pct = row.total ? Math.round((row.translated / row.total) * 100) : 0;
+      const checked = prefs.excludedSections.includes(row.section) ? ' checked' : '';
+      return '<label class="browser-page-section-row"><input type="checkbox" data-page-exclude="' + escapeHtml(row.section) + '"' + checked + '><span>' + escapeHtml(row.section) + '</span><output>' + row.translated + '/' + row.total + ' · %' + pct + '</output></label>';
+    }).join('') + '<button class="btn btn-ghost btn-sm" id="browserPageApplyExclusions" type="button">Seçili bölümleri dışla ve yeniden çevir</button>' : '';
+    sections.querySelector('#browserPageApplyExclusions')?.addEventListener('click', applyBrowserPageExclusions);
+  }
+  const failures = $('browserPageFailures');
+  if (failures) {
+    const rows = player.browserPageFailures || [];
+    failures.innerHTML = rows.length ? '<strong>Çevrilmeyen metinler</strong>' + rows.map((row) => '<div class="browser-page-failure"><span>' + escapeHtml(row.text) + '</span><small>' + escapeHtml(row.section || 'Genel') + ': ' + escapeHtml(row.error || 'Bilinmeyen hata') + '</small></div>').join('') : (player.browserPageFailed ? '<strong>Çevrilemeyen metinler</strong><span>Detay alınamadı; yeniden denemeyi kullanın.</span>' : '');
+  }
+  const undo = $('browserPageUndo');
+  if (undo) undo.disabled = !player.browserPageTranslated || player.browserPageTranslateBusy;
+}
+async function applyBrowserPageExclusions() {
+  const selected = [...document.querySelectorAll('[data-page-exclude]:checked')].map((node) => node.getAttribute('data-page-exclude')).filter(Boolean);
+  const prefs = loadBrowserPagePrefs(); prefs.excludedSections = selected; saveBrowserPagePrefs(prefs);
+  const tabId = player.browserActiveTabId; if (!tabId) return;
+  await window.api.clearBrowserPageTranslation?.(tabId).catch(() => null);
+  await startBrowserPageTranslationFromPrefs();
+}
+async function startBrowserPageTranslationFromPrefs() {
+  if (!player.browserActiveTabId || !player.browserPageUrl) return;
+  const prefs = loadBrowserPagePrefs();
+  const profile = effectiveBrowserProfile().values;
+  applyBrowserPageTranslationState({ state: 'running', translated: 0, failed: 0, sections: [], failures: [] });
+  const result = await window.api.startBrowserPageTranslation?.(player.browserActiveTabId, { targetLanguage: profile.pageTargetLanguage ?? 'tr', mode: profile.pageMode ?? 'bilingual', workers: 2, lockedTerms: prefs.lockedTerms, excludedSections: prefs.excludedSections }).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok && !result?.partial) applyBrowserPageTranslationState({ state: 'error', message: result?.error || 'Sayfa çevirisi başlatılamadı.' });
+}
+
 function applyBrowserPageTranslationState(event = {}) {
   player.browserPageTranslateBusy = event.state === 'running';
   if (event.translated !== undefined) player.browserPageTranslated = Math.max(0, Number(event.translated) || 0);
   if (event.failed !== undefined) player.browserPageFailed = Math.max(0, Number(event.failed) || 0);
+  if (Array.isArray(event.sections)) player.browserPageSections = event.sections;
+  if (Array.isArray(event.failures)) player.browserPageFailures = event.failures;
+  renderBrowserPageReport(event);
   if (event.visible !== undefined) player.browserPageVisible = !!event.visible;
   if (event.state === 'error') player.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
   else if (event.state === 'idle' || event.state === 'ready') player.browserPageError = '';
@@ -15352,6 +15416,7 @@ async function handleBrowserPageTranslationAction() {
     targetLanguage: profile.pageTargetLanguage ?? 'tr',
     mode: profile.pageMode ?? 'bilingual',
     workers: 2,
+    ...(typeof loadBrowserPagePrefs === 'function' ? loadBrowserPagePrefs() : { lockedTerms: [], excludedSections: [] }),
   };
   await saveAppSettings();
   if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
@@ -15368,6 +15433,17 @@ $('browserPageAuto')?.addEventListener('change', (event) => {
   if (event.target.checked && player.browserPageUrl && !player.browserPageTranslated && !player.browserPageTranslateBusy) {
     handleBrowserPageTranslationAction().catch(() => {});
   }
+});
+$('browserPageSaveTerms')?.addEventListener('click', async () => {
+  const lockedTerms = String($('browserPageLockedTerms')?.value || '').split(/\r?\n/).map((line) => line.replace(/\s+/g, ' ').trim()).filter((line) => /^[^=]{1,120}=[^=]{1,120}$/u.test(line)).slice(0, 40);
+  const prefs = loadBrowserPagePrefs(); prefs.lockedTerms = lockedTerms; saveBrowserPagePrefs(prefs);
+  setBrowserSignal(lockedTerms.length ? lockedTerms.length + ' terim kilitlendi; çeviri yeniden başlatılıyor.' : 'Kilitli terimler temizlendi; çeviri yeniden başlatılıyor.', true);
+  await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
+  await startBrowserPageTranslationFromPrefs();
+});
+$('browserPageUndo')?.addEventListener('click', async () => {
+  const result = await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
+  if (!result?.ok) setBrowserSignal(result?.error || 'Çeviri geri alınamadı.', false);
 });
 $('browserPageClear')?.addEventListener('click', async () => {
   const result = await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);

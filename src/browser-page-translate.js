@@ -42,6 +42,7 @@ function normalizeOnePageBlock(raw, index) {
   const distance = Math.max(0, finiteNumber(raw.distance, visible ? 0 : Number.MAX_SAFE_INTEGER));
   const tag = String(raw.tag || raw.tagName || '').trim().toLowerCase().slice(0, 24);
   const role = String(raw.role || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 48);
+  const section = normalizeText(raw.section || '').slice(0, 160) || 'Genel';
   return {
     id,
     text,
@@ -55,6 +56,7 @@ function normalizeOnePageBlock(raw, index) {
     order: Math.max(0, Math.trunc(finiteNumber(raw.order ?? raw.blockIndex, index))),
     tag: PAGE_TAG.test(tag) ? tag : '',
     role,
+    section,
   };
 }
 
@@ -346,6 +348,20 @@ function pageBlockScanScript(options = {}) {
       try { rectCount = typeof element.getClientRects === 'function' ? element.getClientRects().length : 1; } catch (_) {}
       return !(element.offsetParent === null && rectCount === 0);
     };
+    const sectionLabel = (owner) => {
+      let element = owner;
+      while (element) {
+        try {
+          const tag = String(element.tagName || '').toLowerCase();
+          if (/^h[1-6]$/u.test(tag)) {
+            const text = normalize(String(element.textContent || '')).slice(0, 160);
+            if (text) return text;
+          }
+        } catch (_) {}
+        element = parentAcrossShadow(element);
+      }
+      return 'Genel';
+    };
     const blockRoot = (node) => {
       let element = node?.parentElement || node?.getRootNode?.()?.host || null;
       const fallback = element;
@@ -442,6 +458,8 @@ function pageBlockScanScript(options = {}) {
       }
 
       const candidates = [];
+      const excludedSections = new Set((Array.isArray(state.config.excludedSections)
+        ? state.config.excludedSections : []).map((value) => normalize(String(value)).slice(0, 160)).filter(Boolean));
       let foundCharacters = 0;
       for (const group of groups.values()) {
         const text = normalize(group.originals.join(''));
@@ -452,6 +470,8 @@ function pageBlockScanScript(options = {}) {
           state.blockIndexes.set(group.owner, blockIndex);
         }
         const boundedText = text.slice(0, MAX_TEXT);
+        const section = sectionLabel(group.owner);
+        if (excludedSections.has(section)) continue;
         const id = blockIndex + ':' + hashText(boundedText);
         if (state.knownIds.has(id)) continue;
         let rect = { top: 0, bottom: 0, left: 0, right: 0 };
@@ -468,6 +488,7 @@ function pageBlockScanScript(options = {}) {
           visible: isVisible, distance: Math.max(0, distance), order: group.order,
           tag: String(group.owner.tagName || '').toLowerCase().slice(0, 24),
           role: String(group.owner.getAttribute?.('role') || '').toLowerCase().slice(0, 48),
+          section,
           _group: group,
         });
       }

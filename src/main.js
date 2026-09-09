@@ -3248,6 +3248,11 @@ function browserPageTranslationConfig(overrides = {}) {
     workers: Math.max(1, Math.min(4, Number(overrides.workers) || 2)),
     mode: overrides.mode === 'replace' ? 'replace' : 'bilingual',
     terminologyEnabled: true,
+    lockedTerms: (Array.isArray(overrides.lockedTerms) ? overrides.lockedTerms : [])
+      .map((value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 240))
+      .filter((value) => /^[^=]{1,120}=[^=]{1,120}$/u.test(value)).slice(0, 40),
+    excludedSections: [...new Set((Array.isArray(overrides.excludedSections) ? overrides.excludedSections : [])
+      .map((value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 160)).filter(Boolean))].slice(0, 80),
   };
 }
 
@@ -3301,6 +3306,19 @@ function flushBrowserPageApply(tab, job) {
   }).catch(() => null);
   if (job.applyQueue.length) return flushBrowserPageApply(tab, job);
   return job.applyChain;
+}
+
+function pageTranslationSectionProgress(session) {
+  const sectionMap = new Map();
+  for (const block of session?.blocks?.values?.() || []) {
+    const section = block.section || 'Genel';
+    const item = sectionMap.get(section) || { section, total: 0, translated: 0, failed: 0 };
+    item.total++;
+    if (session.translations.has(block.id)) item.translated++;
+    if (session.failures.has(block.id)) item.failed++;
+    sectionMap.set(section, item);
+  }
+  return [...sectionMap.values()];
 }
 
 async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options = {}) {
@@ -3401,6 +3419,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
       sendBrowserEvent(tab, {
         type: 'page-translate-progress', state: 'running', ...state,
         translated: session.translations.size, visible: tab.pageTranslateVisible,
+        sections: pageTranslationSectionProgress(session),
       });
     },
   });
@@ -3425,6 +3444,10 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   const failed = session.failures.size;
   tab.pageTranslateFailed = failed;
   tab.pageTranslateError = failed ? 'Bazı metin blokları çevrilemedi.' : '';
+  const failureDetails = [...session.failures.values()].slice(0, 80).map((failure) => ({
+    id: failure.block?.id || '', text: String(failure.block?.text || '').slice(0, 180),
+    section: failure.block?.section || 'Genel', error: String(failure.error || 'Bilinmeyen hata').slice(0, 240),
+  }));
   const result = {
     ok: failed === 0,
     partial: tab.pageTranslated > 0 && failed > 0,
@@ -3432,6 +3455,8 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     failed,
     total: session.blocks.size,
     visible: tab.pageTranslateVisible,
+    sections: pageTranslationSectionProgress(session),
+    failures: failureDetails,
   };
   sendBrowserEvent(tab, { type: 'page-translate-done', state: failed ? 'partial' : 'ready', ...result });
   return result;
@@ -3440,6 +3465,12 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
 async function startBrowserPageTranslation(tab, options = {}) {
   if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Aktif web sayfası bulunamadı.' };
   const config = browserPageTranslationConfig(options);
+  if (config.lockedTerms.length) {
+    config.glossary = [...config.glossary, ...config.lockedTerms.map((value) => {
+      const [source, target] = value.split('=');
+      return { source: source.trim(), target: target.trim(), locked: true };
+    })].slice(0, 240);
+  }
   if (!config.apiKey) return { ok: false, error: 'Sayfa çevirisi için Ayarlar bölümünde bir çeviri API anahtarı gerekli.' };
   if (!options.incremental) await stopBrowserPageTranslation(tab, true);
   const session = options.session || tab.pageTranslateSession || {
@@ -3451,6 +3482,8 @@ async function startBrowserPageTranslation(tab, options = {}) {
     failures: new Map(),
     translatedCharacters: 0,
     terminologyMap: createTerminologyMap({ maxTerms: 60, maxChars: 2400 }),
+    excludedSections: config.excludedSections,
+    lockedTerms: config.lockedTerms,
   };
   session.config = config;
   session.mode = config.mode;
@@ -3460,6 +3493,7 @@ async function startBrowserPageTranslation(tab, options = {}) {
     observe: true,
     maxBlocks: 1500,
     maxCharacters: 400000,
+    excludedSections: session.excludedSections || session.config.excludedSections || [],
   })).catch((error) => [{ blocks: [], warning: error.message }]);
   const payload = scan[0] || {};
   if (payload.warning) sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: payload.warning });
@@ -8608,6 +8642,9 @@ ipcMain.handle('browser:page:start', async (event, request) => {
       targetLanguage: request?.targetLanguage,
       mode: request?.mode,
       workers: request?.workers,
+      lockedTerms: request?.lockedTerms,
+      excludedSections: request?.excludedSections,
+      incremental: request?.incremental === true,
     });
   } catch (error) {
     sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error.message });
