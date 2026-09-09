@@ -77,14 +77,47 @@ function runFunction(name, context) {
 
 // Full refresh preserves quality/speaker metadata without sharing mutable records.
 {
-  const ctx = { state: { previewSegs: [] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500,
+  const ctx = { state: { previewSegs: [
+    { start: 1, end: 2, text: 'Canlı metin', speaker: 'A', confidence: 0.25,
+      lowConfidenceWords: 2, translationText: 'Live text', previewActive: true },
+  ] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500,
     $: () => ({ appendChild() {}, classList: { toggle() {} } }), document: { createDocumentFragment: () => ({ appendChild() {} }) },
     createSegmentEl: () => ({ classList: { add() {} } }), applySegmentFilter() {} };
-  const record = { start: 1, end: 2, text: 'Merhaba', speaker: 'A', confidence: 0 };
+  const record = { start: 1, end: 2, text: 'Merhaba' };
   runFunction('renderFinalPreview', ctx)([record]);
   assert.equal(ctx.state.previewSegs[0].speaker, 'A');
-  assert.equal(ctx.state.previewSegs[0].confidence, 0);
+  assert.equal(ctx.state.previewSegs[0].confidence, 0.25);
+  assert.equal(ctx.state.previewSegs[0].lowConfidenceWords, 2);
+  assert.equal(ctx.state.previewSegs[0].translationText, 'Live text');
+  assert.equal(ctx.state.previewSegs[0].previewActive, false);
   assert.notStrictEqual(ctx.state.previewSegs[0], record);
+}
+
+// Preview status derivation is independent from color, and translation refreshes
+// resolve rows by timestamp while clearing translations absent from the final set.
+{
+  const states = runFunction('previewSegmentStates', {})({
+    previewActive: true, confidence: 0.4, lowConfidenceWords: 1,
+    previewEdited: true, translationText: 'Translated',
+  });
+  assert.equal(states.map((state) => state.key).join(','),
+    'active,low-confidence,edited,translation');
+
+  const rendered = [];
+  const ctx = {
+    state: { previewSegs: [
+      { start: 1, end: 2, text: 'Bir', translationText: 'One' },
+      { start: 3, end: 4, text: 'İki' },
+    ] },
+    previewTimeKey: (seg) => `${Number(seg.start).toFixed(3)}|${Number(seg.end).toFixed(3)}`,
+    $: () => ({ querySelector: (selector) => ({ selector }) }),
+    syncPreviewTranslation: (el, seg) => rendered.push(['translation', el.selector, seg.translationText]),
+    syncPreviewSegmentState: (el, seg) => rendered.push(['state', el.selector, seg.translationText]),
+  };
+  runFunction('applyPreviewTranslations', ctx)([{ start: 3, end: 4, text: 'Two' }], true);
+  assert.equal(ctx.state.previewSegs[0].translationText, undefined);
+  assert.equal(ctx.state.previewSegs[1].translationText, 'Two');
+  assert.equal(rendered.length, 4);
 }
 
 // Refresh retains edits by unambiguous interval, archives changed boundaries,

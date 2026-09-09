@@ -1080,6 +1080,101 @@ function applySegmentFilter(el) {
   el.classList.toggle('filtered', !txt.includes(previewFilter));
 }
 
+function previewSegmentStates(seg) {
+  const states = [];
+  if (seg.previewActive) states.push({ key: 'active', label: 'Aktif' });
+  if (Number(seg.lowConfidenceWords) > 0
+      || (seg.confidence !== undefined && Number(seg.confidence) < 0.6)) {
+    states.push({ key: 'low-confidence', label: 'Düşük güven' });
+  }
+  if (seg.previewEdited) states.push({ key: 'edited', label: 'Düzenlenmiş' });
+  if (String(seg.translationText || '').trim()) states.push({ key: 'translation', label: 'Çeviri var' });
+  return states;
+}
+
+function syncPreviewSegmentState(el, seg) {
+  const states = previewSegmentStates(seg);
+  const keys = new Set(states.map((state) => state.key));
+  for (const key of ['active', 'low-confidence', 'edited', 'has-translation']) {
+    el.classList.toggle(key, keys.has(key === 'has-translation' ? 'translation' : key));
+  }
+  el.dataset.states = states.map((state) => state.key).join(' ');
+  const rail = el.querySelector('.segment-state-rail');
+  if (rail) {
+    rail.replaceChildren(...states.map((state) => {
+      const marker = document.createElement('span');
+      marker.className = `segment-state-marker segment-state-${state.key}`;
+      marker.dataset.state = state.key;
+      return marker;
+    }));
+    rail.title = states.length ? `Satır durumu: ${states.map((state) => state.label).join(', ')}` : '';
+  }
+  const summary = el.querySelector('.segment-state-summary');
+  if (summary) summary.textContent = states.length
+    ? `Satır durumu: ${states.map((state) => state.label).join(', ')}.` : '';
+}
+
+function syncPreviewTranslation(el, seg) {
+  const copy = el.querySelector('.segment-copy');
+  if (!copy) return;
+  const text = String(seg.translationText || '').trim();
+  let translation = copy.querySelector('.segment-translation');
+  if (!text) {
+    translation?.remove();
+    return;
+  }
+  if (!translation) {
+    translation = document.createElement('span');
+    translation.className = 'segment-translation';
+    const label = document.createElement('span');
+    label.className = 'segment-translation-label';
+    label.textContent = 'Çeviri';
+    const value = document.createElement('span');
+    value.className = 'segment-translation-text';
+    translation.append(label, value);
+    copy.insertBefore(translation, copy.querySelector('.segment-state-summary'));
+  }
+  translation.querySelector('.segment-translation-text').textContent = text;
+}
+
+function previewTimeKey(seg) {
+  return `${Number(seg.start).toFixed(3)}|${Number(seg.end).toFixed(3)}`;
+}
+
+function applyPreviewTranslations(segments, replaceAll = false) {
+  const translated = Array.isArray(segments) ? segments : [];
+  if (replaceAll) state.previewSegs.forEach((seg) => { delete seg.translationText; });
+  const byTime = new Map(state.previewSegs.map((seg, index) => [previewTimeKey(seg), index]));
+  const changed = new Set();
+  translated.forEach((segment, fallbackIndex) => {
+    const eventIndex = Number(segment.index);
+    let index = Number.isInteger(eventIndex) && eventIndex >= 0 && eventIndex < state.previewSegs.length
+      ? eventIndex : byTime.get(previewTimeKey(segment));
+    if (index === undefined && fallbackIndex < state.previewSegs.length
+        && previewTimeKey(state.previewSegs[fallbackIndex]) === previewTimeKey(segment)) index = fallbackIndex;
+    if (index === undefined) return;
+    state.previewSegs[index].translationText = String(segment.text || '');
+    changed.add(index);
+  });
+  if (replaceAll) state.previewSegs.forEach((_seg, index) => changed.add(index));
+  changed.forEach((index) => {
+    const el = $('preview').querySelector(`.segment[data-idx="${index}"]`);
+    if (!el) return;
+    syncPreviewTranslation(el, state.previewSegs[index]);
+    syncPreviewSegmentState(el, state.previewSegs[index]);
+  });
+}
+
+function clearPreviewActiveSegment() {
+  for (let index = state.previewSegs.length - 1; index >= 0; index--) {
+    if (!state.previewSegs[index].previewActive) continue;
+    state.previewSegs[index].previewActive = false;
+    const previous = $('preview').querySelector(`.segment[data-idx="${index}"]`);
+    if (previous) syncPreviewSegmentState(previous, state.previewSegs[index]);
+    break;
+  }
+}
+
 let _searchTimer = null;
 $('previewSearch').addEventListener('input', () => {
   clearTimeout(_searchTimer);
@@ -1104,7 +1199,6 @@ $('previewSearchClear')?.addEventListener('click', () => {
 function createSegmentEl(seg, idx) {
   const el = document.createElement('div');
   el.className = 'segment';
-  if (seg.previewEdited) el.classList.add('edited');
   el.dataset.text = (seg.text || '').toLocaleLowerCase('tr');
   if (idx !== undefined) el.dataset.idx = String(idx);
   const start = formatTime(seg.start);
@@ -1117,9 +1211,15 @@ function createSegmentEl(seg, idx) {
   const fast = limit > 0 && cps > limit;
   if (fast) el.classList.add('segment-fast');
   el.innerHTML = `
+    <span class="segment-state-rail" aria-hidden="true"></span>
     <span class="segment-time">${start} → ${end}${fast ? ` · ${cps.toFixed(0)} CPS` : ''}</span>
-    <span class="segment-text" contenteditable="true" spellcheck="false" title="Düzenlemek için tıkla — Kopyala/JSON yeniden-üret bu metni kullanır">${escapeHtml(seg.text)}</span>
+    <span class="segment-copy">
+      <span class="segment-text" contenteditable="true" spellcheck="false" title="Düzenlemek için tıkla — Kopyala/JSON yeniden-üret bu metni kullanır">${escapeHtml(seg.text)}</span>
+      <span class="segment-state-summary"></span>
+    </span>
   `;
+  syncPreviewTranslation(el, seg);
+  syncPreviewSegmentState(el, seg);
   return el;
 }
 
@@ -1136,7 +1236,7 @@ function commitSegmentEdit(textEl) {
   entry.text = newText;
   entry.previewEdited = true;
   segEl.dataset.text = newText.toLocaleLowerCase('tr');
-  segEl.classList.add('edited');
+  syncPreviewSegmentState(segEl, entry);
 }
 
 // Önizleme metni düzenleme olayları (delegasyon)
@@ -1163,11 +1263,13 @@ function enforcePreviewCap(preview) {
 }
 
 function addSegment(seg) {
-  const idx = state.previewSegs.push({ start: seg.start, end: seg.end, text: seg.text }) - 1;
   const preview = $('preview');
+  clearPreviewActiveSegment();
+  const entry = { ...seg, previewActive: true };
+  const idx = state.previewSegs.push(entry) - 1;
   if (preview.querySelector('.empty-state')) preview.innerHTML = '';
   const stick = isNearBottom(preview);
-  const el = createSegmentEl(seg, idx);
+  const el = createSegmentEl(entry, idx);
   applySegmentFilter(el);
   preview.appendChild(el);
   enforcePreviewCap(preview);
@@ -1182,6 +1284,11 @@ function renderFinalPreview(segs) {
   const focused = document.activeElement;
   if (focused?.matches?.('.segment-text[contenteditable="true"]') && preview.contains(focused)) commitSegmentEdit(focused);
   const oldEdits = state.previewSegs.filter(s => s.previewEdited);
+  const previous = new Map();
+  state.previewSegs.forEach((s) => {
+    const key = `${s.start}|${s.end}`;
+    previous.set(key, previous.has(key) ? null : s);
+  });
   const edits = new Map();
   oldEdits.forEach(s => { const key = `${s.start}|${s.end}`; edits.set(key, edits.has(key) ? null : s); });
   const matched = new Set();
@@ -1190,8 +1297,10 @@ function renderFinalPreview(segs) {
   state.previewSegs = segs.map(s => {
     const key = `${s.start}|${s.end}`;
     const edited = counts.get(key) === 1 ? edits.get(key) : null;
+    const prior = counts.get(key) === 1 ? previous.get(key) : null;
     if (edited) matched.add(key);
-    return edited ? { ...s, text: edited.text, previewEdited: true } : { ...s };
+    const next = prior ? { ...prior, ...s, previewActive: false } : { ...s, previewActive: false };
+    return edited ? { ...next, text: edited.text, previewEdited: true } : next;
   });
   // Sınırları değişen kullanıcı düzenlemesini sessizce kaybetme: ayrı kopya.
   playerPreviewUnmatchedEdits = [...playerPreviewUnmatchedEdits,
@@ -3246,6 +3355,7 @@ window.api.onEvent((event) => {
   if (event.type === 'done' || event.type === 'error' || event.type === 'exit') {
     // Tek-tik bayragi ISE OZELDIR: bir sonraki ise sizmasin.
     state.forceTranslate = false;
+    clearPreviewActiveSegment();
     if (event.type !== 'exit') refreshHistory();
   }
   switch (event.type) {
@@ -3295,6 +3405,14 @@ window.api.onEvent((event) => {
     case 'segment':
       if (state.cancelled) break;  // iptal sonrası gelen geç segmentleri yok say
       addSegment(event);
+      break;
+
+    case 'translation_chunk':
+      applyPreviewTranslations(event.segments || []);
+      break;
+
+    case 'translation_refresh':
+      applyPreviewTranslations(event.segments || [], true);
       break;
 
     case 'llm_progress': {

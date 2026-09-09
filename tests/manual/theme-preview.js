@@ -67,6 +67,33 @@ async function run() {
   if (!ready) throw new Error('Renderer hazır olmadı.');
   await evaluate(client, "applyUiTheme('dark'); document.getElementById('uiTheme').value='dark'; true");
   await capture(client, 'whisper-theme-dark.png');
+  await evaluate(client, `
+    (() => {
+      const preview = document.getElementById('preview');
+      const samples = [
+        { start: 4.2, end: 7.4, text: 'Normal satır, ek bir durum işareti taşımaz.' },
+        { start: 8.1, end: 11.8, text: 'Şu anda işlenen aktif satır.', previewActive: true },
+        { start: 12.3, end: 15.6, text: 'Bu satırın güven değeri denetim gerektiriyor.', confidence: .41, lowConfidenceWords: 2 },
+        { start: 16.2, end: 20.1, text: 'Kullanıcının düzelttiği metin burada korunur.', previewEdited: true },
+        { start: 20.8, end: 25.2, text: 'The translation stays attached to its source.', translationText: 'Çeviri, kaynak satırın altında ve adıyla görünür.' },
+      ];
+      state.previewSegs = samples.map((sample) => ({ ...sample }));
+      preview.replaceChildren(...state.previewSegs.map((sample, index) => createSegmentEl(sample, index)));
+      return true;
+    })()
+  `);
+  const previewStates = await evaluate(client, `
+    (() => {
+      const rows = [...document.querySelectorAll('#preview .segment')];
+      return {
+        rows: rows.length,
+        states: rows.map((row) => row.dataset.states),
+        overflow: document.getElementById('preview').scrollWidth > document.getElementById('preview').clientWidth + 1,
+        translationLabel: document.querySelector('.segment-translation-label')?.textContent || ''
+      };
+    })()
+  `);
+  await capture(client, 'whisper-preview-states-dark.png');
   await evaluate(client, "applyUiTheme('light'); document.getElementById('uiTheme').value='light'; true");
   await capture(client, 'whisper-theme-light.png');
   await evaluate(client, "applyUiTheme('dark'); const panel=document.querySelector('.panel-left'); const card=document.querySelector('.settings-card'); panel.scrollTop=Math.max(0, card.offsetTop - panel.offsetTop - 12); true");
@@ -88,7 +115,7 @@ async function run() {
   await client.call('Emulation.setDeviceMetricsOverride', { width: 560, height: 900, deviceScaleFactor: 1, mobile: false });
   const metrics = await evaluate(client, "(() => ({theme:document.documentElement.dataset.theme, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, body:getComputedStyle(document.body).backgroundColor, panel:getComputedStyle(document.querySelector('.browser-workspace')).backgroundColor, text:getComputedStyle(document.querySelector('.browser-signal-kicker')).color}))()");
   await capture(client, 'whisper-browser-light-560.png');
-  console.log(JSON.stringify({ ...metrics, settingsLayout }));
+  console.log(JSON.stringify({ ...metrics, settingsLayout, previewStates }));
   client.socket.close();
 }
 

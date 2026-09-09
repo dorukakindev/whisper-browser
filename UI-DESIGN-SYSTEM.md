@@ -267,6 +267,11 @@ iş bağlamını farklı zaman ölçeklerinde göstermesini sağlar:
 Signal Desk yeni bir parlak kart ailesi değildir. Mevcut grafit yüzeyi, tek
 amber sinyal çizgisini ve yoğun tipografi ritmini kullanır.
 
+Canlı önizleme satırları da aynı ilkeyi izler. Aktif, düşük güvenli,
+düzenlenmiş ve çevirisi bulunan satırlar yalnız renkle değil; sol durum
+kanalındaki ayrı geometriler ve ekran okuyucu durum metniyle ayrılır. Çeviri,
+kaynak satırın altında adı yazılı ikincil bir satırdır; ayrı bir kart üretmez.
+
 ### 6.10 İşler merkezi ve sonuç masası
 
 Kuyruk, geçmiş ve elle kontrol kayıtları ayrı kartlar yerine `İşler` yüzeyinin

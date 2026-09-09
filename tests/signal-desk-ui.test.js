@@ -77,6 +77,22 @@ test('sonuç masası kalite ölçülerini ayrıştırıyor ve oynatıcı incelem
   }
 });
 
+test('canlı önizleme durumları renk dışı işaret ve erişilebilir metin taşıyor', () => {
+  for (const state of ['active', 'low-confidence', 'edited', 'translation']) {
+    assert(js.includes(`key: '${state}'`), `${state} önizleme durumu üretilmiyor`);
+    assert(css.includes(`.segment-state-${state}`), `${state} için yapısal işaret yok`);
+  }
+  assert(/segment-state-summary[\s\S]*Satır durumu/.test(js), 'durumlar ekran okuyucu metnine dönüşmüyor');
+  assert(/case 'translation_chunk':[\s\S]*applyPreviewTranslations/.test(js)
+    && /case 'translation_refresh':[\s\S]*applyPreviewTranslations/.test(js),
+  'çeviri olayları önizleme satırlarına bağlanmıyor');
+  assert(/event\.type === 'done' \|\| event\.type === 'error' \|\| event\.type === 'exit'[\s\S]*clearPreviewActiveSegment/.test(js),
+    'terminal olay aktif satır işaretini temizlemiyor');
+  assert(/segment-translation-label[\s\S]*Çeviri/.test(js), 'çeviri satırı yalnız renkle anlatılıyor');
+  assert(/forced-colors:\s*active[\s\S]*segment-state-active[\s\S]*CanvasText/.test(css),
+    'durum geometrileri yüksek kontrast modunda korunmuyor');
+});
+
 test('tüm aramalar uygulamaya ait temizleme düğmesine sahip', () => {
   for (const id of ['previewSearchClear', 'historySearchClear', 'clearCueSearch', 'playerLibrarySearchClear']) {
     assert(html.includes(`id="${id}"`), `${id} eksik`);
