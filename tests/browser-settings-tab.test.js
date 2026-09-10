@@ -8,7 +8,7 @@ const css = fs.readFileSync(path.join(__dirname, '../src/renderer/styles.css'), 
 
 const renderTabs = renderer.slice(renderer.indexOf('function renderBrowserTabs('),
   renderer.indexOf('const MAX_BROWSER_TABS', renderer.indexOf('function renderBrowserTabs(')));
-assert.match(renderTabs, /for \(const tab of player\.browserTabs\)/,
+assert.match(renderTabs, /for \(const display of browserTabDisplayRows\(\)\)/,
   'Web sekmeleri gerçek sekme modelinden çizilmeli.');
 assert.match(renderTabs, /if \(player\.browserSettingsOpen\)/,
   'Ayarlar yalnız açıkken özel sekme olarak çizilmeli.');

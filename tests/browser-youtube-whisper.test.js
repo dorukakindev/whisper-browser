@@ -16,7 +16,8 @@ const ctx = {
   state: {}, $: node, browserTabState: () => ({ id: 'a', service: 'youtube' }),
   buildOptsFromUI: () => ({ input: 'old.mp4', translate: true, translateTo: 'tr' }),
   optsProblem: () => '', logLine() {}, setBrowserSignal() {}, setSubtitleMode() {},
-  updatePlayerTaskCenter() {}, startProgressiveChunk: async job => calls.push(job),
+  updatePlayerTaskCenter() {}, updateBrowserSubtitleSummary() {}, syncSubtitlePrimaryAction() {},
+  startProgressiveChunk: async job => calls.push(job),
   useBrowserTrack: async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; },
 };
 vm.createContext(ctx);

@@ -4,6 +4,7 @@ const path = require('path');
 
 const { normalizeAnnotation } = require('./browser-learning');
 const { foldSearchText } = require('./watch-index');
+const { filterResearchAnnotations } = require('./browser-research-notebook');
 
 const NOTE_STORE_VERSION = 1;
 const DEFAULT_MAX_NOTES = 50000;
@@ -194,10 +195,18 @@ class BrowserNoteStore {
     return [...this.annotations.values()]
       .filter((annotation) => foldSearchText([
         annotation.source, annotation.translation, annotation.note,
-        annotation.mediaTitle,
+        annotation.mediaTitle, ...(annotation.tags || []),
+        ...(annotation.links || []).flatMap((link) => [link.label, link.url]),
       ].join(' ')).includes(folded))
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, Math.max(1, Math.min(200, Number(limit) || 50)))
+      .map((annotation) => ({ ...annotation }));
+  }
+
+  filter(filters = {}, limit = 500) {
+    return filterResearchAnnotations([...this.annotations.values()], filters)
+      .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
+      .slice(0, Math.max(1, Math.min(5000, Number(limit) || 500)))
       .map((annotation) => ({ ...annotation }));
   }
 }

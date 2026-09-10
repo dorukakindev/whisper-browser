@@ -87,9 +87,10 @@ class Item extends EventEmitter {
   const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
   const start = main.indexOf("ipcMain.handle('browser:downloads'");
   const end = main.indexOf("ipcMain.handle('browser:command'", start);
-  let handler;
-  vm.runInNewContext(main.slice(start, end), { ipcMain: { handle: (_name, fn) => { handler = fn; } },
+  const handlers = new Map();
+  vm.runInNewContext(main.slice(start, end), { ipcMain: { handle: (name, fn) => { handlers.set(name, fn); } },
     authorizedBrowserSender: e => e?.trusted === true, browserDownloads: manager });
+  const handler = handlers.get('browser:downloads');
   assert.equal(handler({}, { command: 'list' }).ok, false);
   assert.equal(handler({ trusted: true }, { command: 'list' }).ok, true);
   assert.equal(handler({ trusted: true }, { command: 'reveal', id: 'arbitrary.exe' }).ok, false);

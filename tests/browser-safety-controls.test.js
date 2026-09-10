@@ -49,7 +49,8 @@ test('pinleme ve aktif is kapatma korumasi main ve renderer boyunca tasinir', ()
   assert.match(main, /translationState\?\.failures\?\.some\(\(failure\) => !failure\.terminal\)/,
     'backoff bekleyen web çevirisi aktif iş sayılmıyor');
   assert.match(preload, /setBrowserTabPinned/);
-  assert.match(renderer, /browserTabPin/);
+  assert.match(html, /id="browserPinActiveTab"/);
+  assert.match(renderer, /browserPinActiveTab[\s\S]*toggleBrowserTabPinned/);
   assert.match(renderer, /result\?\.requiresConfirmation/);
   assert.match(renderer, /Sekme korumalı/);
 });

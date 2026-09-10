@@ -54,6 +54,11 @@ assert.equal(intervals.get(player.browserMangaLookaheadTimer).delay, 5000);
   await intervals.get(player.browserMangaLookaheadTimer).callback();
   assert.equal(calls.length, 1, 'Manga lookahead did not run in browser mode.');
 
+  context.window.api.startBrowserManga = async () => { throw new Error('IPC kapandı'); };
+  await assert.doesNotReject(() => context.runBrowserMangaLookahead(),
+    'Zamanlayıcı IPC reddini sahipsiz Promise olarak bıraktı.');
+  assert.equal(player.browserMangaLookaheadBusy, false, 'Reddedilen ön-okuma busy kilidini açık bıraktı.');
+
   const firstTimer = player.browserMangaLookaheadTimer;
   context.stopBrowserMangaLookaheadTimer();
   assert.deepEqual(cleared, [firstTimer]);
@@ -70,7 +75,7 @@ assert.equal(intervals.get(player.browserMangaLookaheadTimer).delay, 5000);
   const unloadStart = source.indexOf("window.addEventListener('beforeunload'");
   const unloadBody = source.slice(unloadStart, source.indexOf('\n});', unloadStart) + 4);
   assert.match(unloadBody, /stopBrowserMangaLookaheadTimer\(\)/);
-  console.log('browser-manga-lookahead-lifecycle: 8 tests');
+  console.log('browser-manga-lookahead-lifecycle: 10 tests');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

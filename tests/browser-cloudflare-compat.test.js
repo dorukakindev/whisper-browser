@@ -29,6 +29,17 @@ function test(name, fn) {
   }
 }
 
+async function asyncTest(name, fn) {
+  try {
+    await fn();
+    passed += 1;
+    console.log('  PASS  ' + name);
+  } catch (error) {
+    console.error('  FAIL  ' + name + '\n' + error.stack);
+    process.exitCode = 1;
+  }
+}
+
 function probe({ title = '', text = '', url = 'https://example.com/', selectors = [] } = {}) {
   const document = {
     title,
@@ -191,7 +202,163 @@ test('uyumluluk IPC köprüsü ve fail-closed denetim yolu bağlıdır', () => {
   assert.match(preload, /setBrowserCompatibilityMode:[\s\S]*browser:compatibility:setEnabled/);
   assert.match(mainSource, /cloudflareProbeState\(probe\)/);
   assert.match(mainSource, /probeState === 'unknown'[\s\S]{0,260}browserInstrumentationPending = true/);
+  assert.match(mainSource, /if \(wasActive \|\| wasPending\)[\s\S]{0,180}pending: false/);
   assert.match(mainSource, /browser:compatibility:setEnabled/);
 });
 
-if (!process.exitCode) console.log('browser-cloudflare-compat: ' + passed + ' test');
+test('ana gezinme öncesi debugger ve bekleyen yakalama durumu askıya alınır', () => {
+  const start = mainSource.indexOf('function invalidateBrowserCloudflareProbe(');
+  const end = mainSource.indexOf('async function uninstallBrowserCaptureHooks(', start);
+  assert(start >= 0 && end > start);
+  let cleared = 0;
+  let detached = 0;
+  const wc = { isDestroyed: () => false };
+  const view = { webContents: wc };
+  const tab = { id: 'active', view, compatibilityMode: false, browserInstrumentationPending: false };
+  const attachAttempts = new WeakMap([[wc, Promise.resolve()]]);
+  const pendingResponses = new Map([['request', {}]]);
+  const context = vm.createContext({
+    browserActiveTabId: tab.id,
+    browserView: view,
+    browserDebuggerReady: true,
+    browserTrackBusy: true,
+    browserDebuggerAttachAttempts: attachAttempts,
+    browserPendingResponses: pendingResponses,
+    clearBrowserCloudflareTimer: () => { cleared += 1; },
+    detachBrowserDebugger: () => { detached += 1; },
+  });
+  vm.runInContext(mainSource.slice(start, end), context);
+  assert.equal(context.suspendBrowserInstrumentationForNavigation(tab, view), true);
+  assert.equal(tab.browserInstrumentationPending, true);
+  assert.equal(attachAttempts.has(wc), false);
+  assert.equal(pendingResponses.size, 0);
+  assert.equal(context.browserDebuggerReady, false);
+  assert.equal(context.browserTrackBusy, false);
+  assert.equal(cleared, 1);
+  assert.equal(detached, 1);
+
+  const recordStart = mainSource.indexOf('function createBrowserTabRecord(');
+  const recordEnd = mainSource.indexOf('function browserTabById(', recordStart);
+  assert.match(mainSource.slice(recordStart, recordEnd),
+    /browserInstrumentationPending:\s*restored\.compatibilityMode !== true/);
+});
+
+void (async () => {
+  await asyncTest('gezinme eski Cloudflare denetimini geçersiz kılar ve yeni denetimi bekletmez', async () => {
+    const start = mainSource.indexOf('function clearBrowserCloudflareTimer(');
+    const end = mainSource.indexOf('function executeBrowserFrames(', start);
+    assert(start >= 0 && end > start);
+
+    let tab;
+    let executeCalls = 0;
+    let uninstallCalls = 0;
+    let detachCalls = 0;
+    let releaseUninstall;
+    let releaseSecondProbe;
+    let markUninstallEntered;
+    const uninstallEntered = new Promise((resolve) => { markUninstallEntered = resolve; });
+    const uninstallRelease = new Promise((resolve) => { releaseUninstall = resolve; });
+    const secondProbe = new Promise((resolve) => { releaseSecondProbe = resolve; });
+    const events = [];
+    const webContents = { isDestroyed: () => false };
+    const view = { webContents };
+    const context = vm.createContext({
+      browserActiveTabId: 'tab-1',
+      browserView: view,
+      browserDebuggerReady: true,
+      browserTrackBusy: true,
+      browserCaptureEnabled: false,
+      browserCaptureHookFrames: new WeakSet(),
+      browserDebuggerAttachAttempts: new WeakMap([[webContents, Promise.resolve()]]),
+      browserPendingResponses: new Map([['old-request', {}]]),
+      browserTabById: (id) => id === tab?.id ? tab : null,
+      browserCloudflareChallengeProbeScript: () => 'probe',
+      browserCaptureUninstallScript: () => 'uninstall',
+      cloudflareCompatibilityMessage,
+      cloudflareProbeState,
+      executeBrowserTrustedMain: async () => {
+        executeCalls += 1;
+        if (executeCalls === 1) return [{ active: true }];
+        return secondProbe;
+      },
+      executeBrowserViewFrames: async () => {
+        uninstallCalls += 1;
+        markUninstallEntered();
+        return uninstallRelease;
+      },
+      detachBrowserDebugger: () => { detachCalls += 1; },
+      sendBrowserEvent: (_tab, event) => { events.push(event); },
+      browserDebuggerNeeded: () => false,
+      ensureBrowserDebugger: async () => true,
+      ensureBrowserCaptureHooks: async () => 0,
+      browserCompatibilityModeForUrl: () => false,
+      setTimeout: () => ({ unref() {} }),
+      clearTimeout: () => {},
+      Promise, WeakMap, WeakSet, Map, Number,
+    });
+    vm.runInContext(mainSource.slice(start, end), context);
+
+    tab = {
+      id: 'tab-1', view, generation: 1, compatibilityMode: false,
+      cloudflareProbeSeq: 0, cloudflareProbePromise: null,
+      cloudflareChallengeActive: false, cloudflareChallengeChecks: 0,
+      cloudflareChallengeTimedOut: false, cloudflareChallengeTimer: null,
+      browserInstrumentationPending: true,
+    };
+    const oldProbe = context.prepareBrowserPageInstrumentation(tab);
+    await uninstallEntered;
+    assert.equal(tab.cloudflareChallengeActive, true);
+
+    assert.equal(context.suspendBrowserInstrumentationForNavigation(tab, view), true);
+    tab.generation += 1;
+    const newProbe = context.prepareBrowserPageInstrumentation(tab);
+    assert.notEqual(newProbe, oldProbe);
+    assert.equal(tab.cloudflareProbePromise, newProbe);
+    assert.equal(executeCalls, 2);
+
+    releaseSecondProbe([{ active: false }]);
+    const newResult = await newProbe;
+    assert.equal(newResult.active, false);
+    assert.equal(tab.cloudflareProbePromise, null);
+
+    releaseUninstall([]);
+    const oldResult = await oldProbe;
+    assert.equal(oldResult.stale, true);
+    assert.equal(uninstallCalls, 1);
+    assert.equal(detachCalls, 1, 'eski denetim yeni sayfanın debugger\'ını yeniden ayırdı');
+    assert.equal(events.some((event) => event.active === true), false);
+  });
+
+  await asyncTest('sayfa çevirisi Cloudflare denetimi sonuçlanmadan DOM kancası kurmaz', async () => {
+    const start = mainSource.indexOf('async function startBrowserPageTranslation(');
+    const end = mainSource.indexOf('function acceptDynamicBrowserPageBlocks(', start);
+    assert(start >= 0 && end > start);
+    const scenarios = [
+      [{ compatibilityMode: true }, {}, /uyumluluk modu/i],
+      [{ active: true }, {}, /Cloudflare doğrulaması/i],
+      [{ stale: true }, {}, /Sekme gezinirken/i],
+      [{ unknown: true }, {}, /güvenlik durumu henüz ölçülemedi/i],
+      [{}, { browserInstrumentationPending: true }, /güvenlik durumu henüz ölçülemedi/i],
+    ];
+    for (const [safety, tabPatch, message] of scenarios) {
+      let configCalls = 0;
+      const translate = vm.runInNewContext(mainSource.slice(start, end)
+        + '\nstartBrowserPageTranslation', {
+        prepareBrowserPageInstrumentation: async () => safety,
+        browserPageTranslationConfig: () => { configCalls += 1; return {}; },
+      });
+      const tab = {
+        view: { webContents: { isDestroyed: () => false } },
+        compatibilityMode: false,
+        cloudflareChallengeActive: false,
+        browserInstrumentationPending: false,
+        ...tabPatch,
+      };
+      const result = await translate(tab, {});
+      assert.equal(result.ok, false);
+      assert.match(result.error, message);
+      assert.equal(configCalls, 0, 'güvenlik denetiminden önce çeviri yapılandırması okundu');
+    }
+  });
+  if (!process.exitCode) console.log('browser-cloudflare-compat: ' + passed + ' test');
+})().catch((error) => { console.error(error); process.exitCode = 1; });

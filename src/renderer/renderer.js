@@ -711,6 +711,9 @@ function syncBrowserOcclusion() {
   const downloads = $('browserDownloadsPanel');
   const moreMenu = $('browserMoreMenu');
   const translateMenu = $('browserTranslateMenu');
+  const splitMenu = $('browserSplitMenu');
+  const addressResults = $('browserAddressResults');
+  const permissionPrompt = $('browserPermissionPrompt');
   const commandPalette = $('browserCommandPalette');
   const settings = $('settingsDrawer');
   const playerLayer = $('playerLayer');
@@ -721,7 +724,9 @@ function syncBrowserOcclusion() {
     && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')));
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
-    || !!moreMenu?.open || !!translateMenu?.open
+    || !!moreMenu?.open || !!translateMenu?.open || !!splitMenu?.open
+    || !!(addressResults && !addressResults.classList.contains('hidden'))
+    || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
     || settingsOverlay
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
@@ -1883,6 +1888,10 @@ function secretSettingValue(id) {
   // Kasa açılamadığı için boş gelen alan, kullanıcının silme isteği değildir.
   return (value || control?.dataset.secretEdited === 'true') ? value : undefined;
 }
+function secretSettingPatch(id, key = 'apiKey') {
+  const value = secretSettingValue(id);
+  return value === undefined ? {} : { [key]: value };
+}
 document.addEventListener('change', (event) => {
   if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey'].includes(event.target.id)) {
     event.target.dataset.secretEdited = 'true';
@@ -1915,19 +1924,19 @@ async function saveAppSettings() {
 function appSettingsPayload() {
   return {
     glossary,
-    hfToken: secretSettingValue('hfToken'),
+    ...secretSettingPatch('hfToken', 'hfToken'),
     outputDir: state.outputDir || '',
     preset: $('presetSelect').value,
     presetReference: _presetReference,
     watchDir: state.watchDir || '',
     translate: {
-      apiKey: secretSettingValue('translateApiKey'),
+      ...secretSettingPatch('translateApiKey'),
       endpointPreset: $('translateEndpointPreset') ? $('translateEndpointPreset').value : '',
       customBaseUrl: $('translateBaseUrl') ? $('translateBaseUrl').value.trim() : '',
       model: $('translateModel') ? $('translateModel').value.trim() : '',
     },
     manga: {
-      apiKey: secretSettingValue('mangaApiKey'),
+      ...secretSettingPatch('mangaApiKey'),
       endpointPreset: $('mangaEndpointPreset') ? $('mangaEndpointPreset').value : 'inherit',
       customBaseUrl: $('mangaBaseUrl') ? $('mangaBaseUrl').value.trim() : '',
       model: $('mangaModel') ? $('mangaModel').value.trim() : '',
@@ -1941,7 +1950,7 @@ function appSettingsPayload() {
       sfxStyle: $('browserMangaSfx')?.checked !== false,
     },
     llm: {
-      apiKey: secretSettingValue('llmApiKey'),
+      ...secretSettingPatch('llmApiKey'),
       endpointPreset: $('llmEndpointPreset') ? $('llmEndpointPreset').value : '',
       customBaseUrl: $('llmBaseUrl') ? $('llmBaseUrl').value.trim() : '',
       model: $('llmModel') ? $('llmModel').value.trim() : '',
@@ -2965,6 +2974,8 @@ function playerJobEvent(event) {
       state.aiJob = false;
       state.cancelled = false;
       if (player.job === job) player.job = null;
+      aiChatCtxLabel();
+      updateMakeTransState();
     }
     return event.type !== 'log';
   }
@@ -2978,6 +2989,8 @@ function playerJobEvent(event) {
     job.awaitingExit = false;
     state.aiJob = false;
     if (player.job === job) player.job = null;
+    aiChatCtxLabel();
+    updateMakeTransState();
     return true;
   }
 
@@ -3016,6 +3029,7 @@ function playerJobEvent(event) {
     const bubble = job.bubble;
     if (bubble) {
       bubble.classList.remove('is-loading');
+      if (job.sourcePageTabId) bubble.dataset.pageSourceTabId = job.sourcePageTabId;
       renderAiText(bubble, event.text);
       $('aiChatLog').scrollTop = $('aiChatLog').scrollHeight;
     }
@@ -3030,6 +3044,7 @@ function playerJobEvent(event) {
     state.running = false;
     state.aiJob = false;
     bar.classList.add('hidden');
+    updateMakeTransState();
     return true;
   }
   if (event.type === 'explain') {
@@ -3751,7 +3766,7 @@ document.addEventListener('keydown', (e) => {
 
 // ===== Ayarları dışa/içe aktar =====
 $('exportSettings').addEventListener('click', async () => {
-  await saveAppSettings();  // önce mevcut UI'yi diske yaz
+  if (!await saveAppSettings()) return;  // önce mevcut UI'yi diske yaz
   const r = await window.api.exportSettings();
   if (r && r.ok) logLine(`Uygulama yedeği oluşturuldu: ${r.path}`, 'success');
   else if (r && r.error) logLine('Dışa aktarma başarısız: ' + r.error, 'error');
@@ -4048,6 +4063,14 @@ const player = {
   browserTabReopenBusy: false,
   browserClosingTabs: new Set(),
   browserActiveTabId: '',
+  browserSplit: { active: false, secondaryTabId: '', ratio: .5 },
+  browserCollapsedGroups: new Set(),
+  browserReaderActive: false,
+  browserPermissionRequest: null,
+  browserAddressResults: [],
+  browserAddressSelected: -1,
+  narrowPanelTakeover: false,
+  narrowViewport: false,
   browserTabEventGate: new BrowserTabEventGate(),
   browserTracks: [],
   browserPageUrl: '',
@@ -4113,6 +4136,11 @@ const player = {
   browserPageTranslated: 0,
   browserPageFailed: 0,
   browserPageVisible: false,
+  browserPageView: 'original',
+  browserPageScope: 'article',
+  browserPageAutoContinue: true,
+  browserPageStats: null,
+  browserPageCompletion: null,
   browserPageError: '',
   browserPageSections: [],
   browserPageFailures: [],
@@ -4175,6 +4203,9 @@ function newBrowserTabState(snapshot = {}) {
     cloudflareChallengeActive: false,
     compatibilityMessage: '',
     pinned: !!snapshot.pinned,
+    group: window.BrowserTabLayout?.normalizeTabGroup(snapshot.group) || null,
+    readerActive: !!snapshot.readerActive,
+    readerPreferences: snapshot.readerPreferences || null,
     diagnostics: snapshot.diagnostics || null,
     error: '',
     errorKind: '', errorCode: '', errorUrl: '',
@@ -4208,6 +4239,11 @@ function newBrowserTabState(snapshot = {}) {
     browserPageTranslated: Number(snapshot.pageTranslated) || 0,
     browserPageFailed: Number(snapshot.pageTranslateFailed) || 0,
     browserPageVisible: !!snapshot.pageTranslateVisible,
+    browserPageView: snapshot.pageTranslateView || (snapshot.pageTranslateVisible ? 'both' : 'original'),
+    browserPageScope: snapshot.pageTranslateScope || 'article',
+    browserPageAutoContinue: snapshot.pageTranslateAutoContinue !== false,
+    browserPageStats: snapshot.pageTranslateStats || null,
+    browserPageCompletion: snapshot.pageTranslateCompletion || null,
     browserPageError: snapshot.pageTranslateError || '',
     mediaKey: snapshot.mediaId ? `browser:${snapshot.mediaId}`
       : snapshot.url ? `browser:${browserPlaceKey(snapshot.url) || snapshot.url}` : '',
@@ -4332,6 +4368,11 @@ function saveActiveBrowserTabWorkspace() {
     browserPageFailed: player.browserPageFailed,
     browserPageVisible: player.browserPageVisible,
     browserPageError: player.browserPageError,
+    browserPageView: player.browserPageView,
+    browserPageScope: player.browserPageScope,
+    browserPageAutoContinue: player.browserPageAutoContinue,
+    browserPageStats: player.browserPageStats,
+    browserPageCompletion: player.browserPageCompletion,
     mediaKey: player.mediaKey,
     watchSession: player.watchSession ? { ...player.watchSession } : null,
     watchManualCompletedKey: player.watchManualCompletedKey,
@@ -4429,6 +4470,11 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserPageFailed = Number(tab.browserPageFailed) || 0;
   player.browserPageVisible = !!tab.browserPageVisible;
   player.browserPageError = tab.browserPageError || '';
+  player.browserPageView = tab.browserPageView || (tab.browserPageVisible ? 'both' : 'original');
+  player.browserPageScope = tab.browserPageScope || 'article';
+  player.browserPageAutoContinue = tab.browserPageAutoContinue !== false;
+  player.browserPageStats = tab.browserPageStats || null;
+  player.browserPageCompletion = tab.browserPageCompletion || null;
   player.watchSession = tab.watchSession ? { ...tab.watchSession, lastClock: 0 } : null;
   player.watchManualCompletedKey = tab.watchManualCompletedKey || '';
   player.watchManualCompleted = tab.watchManualCompleted ?? null;
@@ -4505,7 +4551,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   void restoreBrowserSubtitleSelection(tab);
 }
 
-function syncBrowserTabs(snapshots, activeTabId) {
+function syncBrowserTabs(snapshots, activeTabId, split) {
   const previous = new Map(player.browserTabs.map((tab) => [tab.id, tab]));
   const next = [];
   for (const snapshot of Array.isArray(snapshots) ? snapshots : []) {
@@ -4517,6 +4563,9 @@ function syncBrowserTabs(snapshots, activeTabId) {
       captureEnabled: snapshot.captureEnabled !== false,
       compatibilityMode: snapshot.compatibilityMode === true,
       pinned: snapshot.pinned !== undefined ? !!snapshot.pinned : !!tab.pinned,
+      group: window.BrowserTabLayout?.normalizeTabGroup(snapshot.group) || null,
+      readerActive: snapshot.readerActive !== undefined ? !!snapshot.readerActive : !!tab.readerActive,
+      readerPreferences: snapshot.readerPreferences || tab.readerPreferences || null,
       browserMangaBusy: !!snapshot.mangaBusy,
       browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
       browserMangaVisible: !!snapshot.mangaVisible,
@@ -4541,6 +4590,11 @@ function syncBrowserTabs(snapshots, activeTabId) {
       browserPageFailed: snapshot.pageTranslateFailed !== undefined ? Number(snapshot.pageTranslateFailed) || 0 : (tab.browserPageFailed || 0),
       browserPageError: snapshot.pageTranslateError !== undefined ? String(snapshot.pageTranslateError || '') : (tab.browserPageError || ''),
       browserPageVisible: snapshot.pageTranslateVisible !== undefined ? !!snapshot.pageTranslateVisible : !!tab.browserPageVisible,
+      browserPageView: snapshot.pageTranslateView || tab.browserPageView || (snapshot.pageTranslateVisible ? 'both' : 'original'),
+      browserPageScope: snapshot.pageTranslateScope || tab.browserPageScope || 'article',
+      browserPageAutoContinue: snapshot.pageTranslateAutoContinue !== undefined ? snapshot.pageTranslateAutoContinue !== false : tab.browserPageAutoContinue !== false,
+      browserPageStats: snapshot.pageTranslateStats || tab.browserPageStats || null,
+      browserPageCompletion: snapshot.pageTranslateCompletion || tab.browserPageCompletion || null,
       trackRefs: Array.isArray(snapshot.trackRefs) ? snapshot.trackRefs.slice() : (tab.trackRefs || []),
       recoveryJobs: Array.isArray(snapshot.recoveryJobs)
         ? snapshot.recoveryJobs.map((job) => ({ ...job })) : (tab.recoveryJobs || []),
@@ -4556,6 +4610,15 @@ function syncBrowserTabs(snapshots, activeTabId) {
   for (const id of previous.keys()) player.browserTabEventGate.close(id);
   player.browserTabs = next;
   player.browserActiveTabId = activeTabId || (next[0] && next[0].id) || '';
+  if (split && typeof split === 'object') {
+    player.browserSplit = { active: !!split.active, secondaryTabId: String(split.secondaryTabId || ''),
+      ratio: Math.max(.25, Math.min(.75, Number(split.ratio) || .5)) };
+  } else if (!next.some((tab) => tab.id === player.browserSplit.secondaryTabId)
+      || player.browserSplit.secondaryTabId === player.browserActiveTabId) {
+    player.browserSplit = { ...player.browserSplit, active: false, secondaryTabId: '' };
+  }
+  syncBrowserSplitControls();
+  syncBrowserReaderControl(browserTabState());
   if (browserPageFind.tabId && browserPageFind.tabId !== player.browserActiveTabId) closeBrowserFind(false);
   renderBrowserTabs();
   renderBrowserRecoveryList();
@@ -4924,22 +4987,48 @@ function browserTabActivity(tab) {
   return { busy: tasks.length > 0, label: tasks.join(' · ') };
 }
 
-function browserPinIcon() {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('width', '13');
-  svg.setAttribute('height', '13');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '1.8');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', 'M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6Zm4 11v7');
-  svg.appendChild(path);
-  return svg;
+function browserTabDisplayRows() {
+  const grouped = new Map();
+  for (const tab of player.browserTabs) {
+    const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
+    if (group) {
+      const key = `${group.name.toLocaleLowerCase('tr-TR')}|${group.color}`;
+      if (!grouped.has(key)) grouped.set(key, { group, tabs: [] });
+      grouped.get(key).tabs.push(tab);
+    }
+  }
+  const emitted = new Set();
+  const rows = [];
+  for (const tab of player.browserTabs) {
+    const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
+    if (!group) { rows.push({ kind: 'tab', tab }); continue; }
+    const key = `${group.name.toLocaleLowerCase('tr-TR')}|${group.color}`;
+    if (emitted.has(key)) continue;
+    emitted.add(key);
+    rows.push({ kind: 'group', key, group, count: grouped.get(key).tabs.length });
+    if (!player.browserCollapsedGroups.has(key)) {
+      for (const groupedTab of grouped.get(key).tabs) rows.push({ kind: 'tab', tab: groupedTab, groupKey: key });
+    }
+  }
+  return rows;
+}
+
+async function editBrowserTabGroup(tabId) {
+  const tab = browserTabState(tabId);
+  if (!tab || !window.api.setBrowserTabGroup) return;
+  const current = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
+  const value = await openAppDialog({
+    title: 'Sekme grubunu düzenle',
+    description: 'Grup adını yazın. Renk için adın sonuna “| amber”, “| cyan”, “| green” veya “| gray” ekleyin. Boş bırakırsanız sekme gruptan çıkar.',
+    confirmLabel: 'Uygula', intent: 'primary', inputLabel: 'Grup adı ve rengi',
+    inputValue: current ? `${current.name} | ${current.color}` : '',
+  });
+  if (value === false) return;
+  const [name = '', rawColor = 'amber'] = String(value || '').split('|').map((part) => part.trim());
+  const group = name ? { name, color: ['amber', 'cyan', 'green', 'gray'].includes(rawColor) ? rawColor : 'amber' } : null;
+  const result = await window.api.setBrowserTabGroup(tabId, group).catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) { setBrowserSignal(result?.error || 'Sekme grubu güncellenemedi.', false); return; }
+  syncBrowserTabs(result.tabs, player.browserActiveTabId, player.browserSplit);
 }
 
 function renderBrowserTabs() {
@@ -4950,12 +5039,26 @@ function renderBrowserTabs() {
   const settingsActive = browserSettingsSurfaceVisible();
   strip.replaceChildren();
   let activeButton = null;
-  for (const tab of player.browserTabs) {
+  for (const display of browserTabDisplayRows()) {
+    if (display.kind === 'group') {
+      const groupButton = document.createElement('button');
+      groupButton.type = 'button'; groupButton.className = 'browser-tab-group-label';
+      groupButton.dataset.browserGroupToggle = display.key;
+      groupButton.dataset.groupColor = display.group.color;
+      const collapsed = player.browserCollapsedGroups.has(display.key);
+      groupButton.textContent = `${collapsed ? '›' : '⌄'} ${display.group.name} · ${display.count}`;
+      groupButton.title = collapsed ? 'Grubu genişlet' : 'Grubu daralt';
+      groupButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      strip.appendChild(groupButton);
+      continue;
+    }
+    const tab = display.tab;
     const activity = browserTabActivity(tab);
     const webActive = !settingsActive && tab.id === player.browserActiveTabId;
     const item = document.createElement('div');
-    item.className = `browser-tab${webActive ? ' active' : ''}${tab.loading ? ' loading' : ''}${tab.pinned ? ' pinned' : ''}${activity.busy ? ' has-activity' : ''}`;
+    item.className = `browser-tab${webActive ? ' active' : ''}${tab.loading ? ' loading' : ''}${tab.pinned ? ' pinned' : ''}${activity.busy ? ' has-activity' : ''}${tab.id === player.browserSplit.secondaryTabId ? ' is-split-secondary' : ''}`;
     item.dataset.browserTabId = tab.id;
+    item.draggable = !tab.pinned;
     item.setAttribute('role', 'presentation');
     const open = document.createElement('button');
     open.type = 'button'; open.className = 'browser-tab-open';
@@ -4972,17 +5075,14 @@ function renderBrowserTabs() {
     audio.textContent = tab.tabMuted ? '×' : '♪'; audio.hidden = !tab.audible && !tab.tabMuted;
     audio.title = tab.tabMuted ? 'Sekmenin sesini aç' : 'Sekmeyi sessize al';
     audio.setAttribute('aria-label', audio.title); audio.setAttribute('aria-pressed', tab.tabMuted ? 'true' : 'false');
-    const pin = document.createElement('button');
-    pin.type = 'button'; pin.className = 'browser-tab-pin'; pin.dataset.browserTabPin = tab.id;
-    pin.appendChild(browserPinIcon()); pin.title = tab.pinned ? 'Sekmenin sabitlemesini kaldır' : 'Sekmeyi sabitle';
-    pin.setAttribute('aria-label', pin.title); pin.setAttribute('aria-pressed', tab.pinned ? 'true' : 'false');
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'browser-tab-close';
     close.dataset.browserTabClose = tab.id;
+    close.dataset.pinned = tab.pinned ? 'true' : 'false';
     close.disabled = player.browserClosingTabs.has(tab.id) || !!tab.pinned;
-    close.setAttribute('aria-busy', close.disabled ? 'true' : 'false');
+    close.setAttribute('aria-busy', player.browserClosingTabs.has(tab.id) ? 'true' : 'false');
     close.appendChild(browserCloseIcon()); close.title = tab.pinned ? 'Kapatmak için önce sabitlemeyi kaldır' : 'Sekmeyi kapat'; close.setAttribute('aria-label', close.title);
-    item.append(open, audio, pin, close);
+    item.append(open, audio, close);
     strip.appendChild(item);
     if (webActive) activeButton = open;
   }
@@ -5020,6 +5120,79 @@ function renderBrowserTabs() {
     if (activeButton?.isConnected) activeButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });
   updateBrowserNewTabAvailability();
+  updateBrowserPinMenu();
+}
+
+function updateBrowserPinMenu() {
+  const button = $('browserPinActiveTab');
+  if (!button) return;
+  const tab = browserTabState();
+  const pinned = !!tab?.pinned;
+  button.disabled = !tab;
+  button.setAttribute('aria-checked', pinned ? 'true' : 'false');
+  const label = button.querySelector('.browser-menu-label');
+  if (label) label.textContent = pinned ? 'Sekme sabitlemesini kaldır' : 'Etkin sekmeyi sabitle';
+  button.title = !tab ? 'Önce bir web sekmesi açın.'
+    : pinned ? 'Etkin sekmenin sabitlemesini kaldır' : 'Etkin sekmeyi yanlışlıkla kapatmaya karşı koru';
+}
+
+function syncBrowserSplitControls() {
+  const split = player.browserSplit || { active: false, secondaryTabId: '', ratio: .5 };
+  const select = $('browserSplitSecondary');
+  const ratio = $('browserSplitRatio');
+  const divider = $('browserSplitDivider');
+  if (select) {
+    const selected = split.active ? split.secondaryTabId : '';
+    select.replaceChildren(new Option('Kapalı', ''), ...player.browserTabs
+      .filter((tab) => tab.id !== player.browserActiveTabId)
+      .map((tab) => new Option(browserTabLabel(tab), tab.id)));
+    select.value = [...select.options].some((option) => option.value === selected) ? selected : '';
+    select.disabled = player.browserTabs.length < 2;
+  }
+  const percent = Math.round((Number(split.ratio) || .5) * 100);
+  if (ratio) ratio.value = String(percent);
+  if ($('browserSplitRatioValue')) $('browserSplitRatioValue').textContent = `%${percent}`;
+  if (divider) {
+    divider.classList.toggle('hidden', !split.active);
+    divider.style.left = `${percent}%`;
+    divider.setAttribute('aria-valuemin', '25'); divider.setAttribute('aria-valuemax', '75');
+    divider.setAttribute('aria-valuenow', String(percent));
+  }
+}
+
+function syncBrowserReaderControl(tab = browserTabState()) {
+  const button = $('browserReaderToggle');
+  const active = !!tab?.readerActive;
+  player.browserReaderActive = active;
+  if (!button) return;
+  button.classList.toggle('active', active);
+  button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  button.disabled = !tab || !tab.url || !!tab.compatibilityMode;
+  button.title = active ? 'Okuma görünümünü kapat'
+    : tab?.compatibilityMode ? 'Uyumluluk modunda okuma görünümü kullanılamaz'
+      : 'Makaleyi dikkat dağıtmayan okuma görünümünde aç';
+  button.setAttribute('aria-label', button.title);
+}
+
+async function setBrowserSplit(secondaryTabId = $('browserSplitSecondary')?.value || '', ratioValue = $('browserSplitRatio')?.value || 50) {
+  if (!window.api.setBrowserSplit) return;
+  const ratio = Math.max(.25, Math.min(.75, Number(ratioValue) / (Number(ratioValue) > 1 ? 100 : 1) || .5));
+  const result = await window.api.setBrowserSplit(secondaryTabId, ratio, !!secondaryTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) { setBrowserSignal(result?.error || 'Bölünmüş görünüm değiştirilemedi.', false); syncBrowserSplitControls(); return; }
+  if (result.tabs) syncBrowserTabs(result.tabs, player.browserActiveTabId, result.split);
+  else { player.browserSplit = result.split || { active: false, secondaryTabId: '', ratio }; syncBrowserSplitControls(); renderBrowserTabs(); }
+  scheduleBrowserBounds();
+}
+
+async function toggleBrowserReader() {
+  const tab = browserTabState();
+  if (!tab || !window.api.setBrowserReader) return;
+  const result = await window.api.setBrowserReader(tab.id, 'toggle', tab.readerPreferences || {})
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) { setBrowserSignal(result?.error || 'Okuma görünümü açılamadı.', false); return; }
+  tab.readerActive = !!result.active; tab.readerPreferences = result.preferences || tab.readerPreferences;
+  syncBrowserReaderControl(tab);
 }
 
 const MAX_BROWSER_TABS = Math.max(1, Number(window.api.browserLimits?.maxTabs) || 24);
@@ -5030,7 +5203,7 @@ function updateBrowserNewTabAvailability() {
   button.disabled = player.browserTabCreateBusy || limitReached;
   button.title = limitReached
     ? `En fazla ${MAX_BROWSER_TABS} sekme açılabilir; önce bir sekmeyi kapatın.`
-    : (player.browserTabCreateBusy ? 'Yeni sekme açılıyor…' : 'Yeni sekme');
+    : (player.browserTabCreateBusy ? 'Yeni sekme açılıyor…' : 'Yeni sekme · Ctrl+T');
 }
 
 function updateBrowserTabPresentation(tab) {
@@ -5055,18 +5228,15 @@ function updateBrowserTabPresentation(tab) {
     audio.setAttribute('aria-label', audio.title); audio.setAttribute('aria-pressed', tab.tabMuted ? 'true' : 'false');
   }
   item.classList.toggle('pinned', !!tab.pinned);
-  const pin = item.querySelector('[data-browser-tab-pin]');
-  if (pin) {
-    pin.title = tab.pinned ? 'Sekmenin sabitlemesini kaldır' : 'Sekmeyi sabitle';
-    pin.setAttribute('aria-label', pin.title);
-    pin.setAttribute('aria-pressed', tab.pinned ? 'true' : 'false');
-  }
   const close = item.querySelector('[data-browser-tab-close]');
   if (close) {
     close.disabled = player.browserClosingTabs.has(tab.id) || !!tab.pinned;
+    close.dataset.pinned = tab.pinned ? 'true' : 'false';
+    close.setAttribute('aria-busy', player.browserClosingTabs.has(tab.id) ? 'true' : 'false');
     close.title = tab.pinned ? 'Kapatmak için önce sabitlemeyi kaldır' : 'Sekmeyi kapat';
     close.setAttribute('aria-label', close.title);
   }
+  if (tab.id === player.browserActiveTabId) updateBrowserPinMenu();
 }
 
 async function activateBrowserTab(tabId) {
@@ -5080,7 +5250,7 @@ async function activateBrowserTab(tabId) {
     setBrowserSignal(`Sekme açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     return null;
   }
-  syncBrowserTabs(result.tabs, result.activeTabId);
+  syncBrowserTabs(result.tabs, result.activeTabId, result.split);
   const tab = browserTabState();
   restoreActiveBrowserTabWorkspace(tab);
   if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
@@ -5114,7 +5284,7 @@ async function createBrowserTab() {
     setBrowserSignal(`Yeni sekme açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     return null;
   }
-  syncBrowserTabs(result.tabs, result.activeTabId);
+  syncBrowserTabs(result.tabs, result.activeTabId, result.split);
   const tab = browserTabState();
   restoreActiveBrowserTabWorkspace(tab);
   updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
@@ -5140,7 +5310,7 @@ async function reopenClosedBrowserTab() {
       setBrowserSignal(result?.error || 'Kapatılmış sekme yeniden açılamadı.', false);
       return null;
     }
-    syncBrowserTabs(result.tabs, result.activeTabId);
+    syncBrowserTabs(result.tabs, result.activeTabId, result.split);
     const tab = browserTabState();
     restoreActiveBrowserTabWorkspace(tab);
     if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
@@ -5187,7 +5357,7 @@ async function closeBrowserTab(tabId) {
       return;
     }
     player.browserTabEventGate.close(tabId);
-    syncBrowserTabs(result.tabs, result.activeTabId);
+    syncBrowserTabs(result.tabs, result.activeTabId, result.split);
     if (wasActive) {
       const tab = browserTabState();
       restoreActiveBrowserTabWorkspace(tab);
@@ -5383,7 +5553,7 @@ async function handleBrowserMangaAction(clickEvent) {
     return;
   }
   if (player.browserMangaTranslated > 0 && (clickEvent?.ctrlKey || clickEvent?.metaKey)) {
-    await saveAppSettings();
+    if (!await saveAppSettings()) return;
     const retried = await window.api.retrySelectedBrowserManga?.(player.browserActiveTabId)
       .catch((error) => ({ ok: false, error: error.message }));
     if (!retried?.ok) setBrowserSignal(retried?.error || 'Seçili manga bölgesi yeniden çevrilemedi.', false);
@@ -5421,7 +5591,7 @@ async function handleBrowserMangaAction(clickEvent) {
     verticalText: !!$('browserMangaVertical')?.checked,
     sfxStyle: $('browserMangaSfx')?.checked !== false,
   };
-  await saveAppSettings();
+  if (!await saveAppSettings()) return;
   if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
   applyBrowserMangaState({ state: 'running', completed: 0, total: 0, translated: 0 });
   const result = await window.api.startBrowserManga?.(jobTabId, jobOptions)
@@ -5665,6 +5835,84 @@ function renderBrowserPlaces() {
   });
 }
 
+let browserAddressSearchTimer = null;
+let browserAddressSearchSeq = 0;
+function closeBrowserAddressResults() {
+  const panel = $('browserAddressResults');
+  panel?.classList.add('hidden');
+  $('browserAddress')?.setAttribute('aria-expanded', 'false');
+  player.browserAddressSelected = -1;
+  syncBrowserOcclusion();
+}
+
+function renderBrowserAddressResults(results) {
+  const panel = $('browserAddressResults');
+  const input = $('browserAddress');
+  if (!panel || !input) return;
+  player.browserAddressResults = results;
+  player.browserAddressSelected = results.length ? 0 : -1;
+  panel.replaceChildren();
+  for (const [index, result] of results.entries()) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
+    button.dataset.addressResult = String(index); button.setAttribute('role', 'option');
+    button.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+    const mark = document.createElement('span'); mark.className = 'browser-address-result-mark'; mark.textContent = result.mark || '•';
+    const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
+    const title = document.createElement('strong'); title.textContent = result.title;
+    const detail = document.createElement('small'); detail.textContent = result.detail || '';
+    copy.append(title, detail);
+    const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = result.kindLabel || '';
+    button.append(mark, copy, kind); panel.appendChild(button);
+  }
+  panel.classList.toggle('hidden', !results.length);
+  input.setAttribute('aria-expanded', results.length ? 'true' : 'false');
+  syncBrowserOcclusion();
+}
+
+async function refreshBrowserAddressResults() {
+  const query = String($('browserAddress')?.value || '').trim();
+  if (!$('browserAddress')?.matches(':focus') || !query) { closeBrowserAddressResults(); return; }
+  const folded = query.toLocaleLowerCase('tr-TR');
+  const results = [];
+  const seen = new Set();
+  const add = (row) => { const key = `${row.action}:${row.id || row.url || row.title}`; if (!seen.has(key) && results.length < 14) { seen.add(key); results.push(row); } };
+  for (const tab of player.browserTabs) {
+    if (`${tab.title} ${tab.url}`.toLocaleLowerCase('tr-TR').includes(folded)) add({ action: 'tab', id: tab.id,
+      title: browserTabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S' });
+  }
+  const places = player.browserPlaces || { bookmarks: [], history: [] };
+  for (const [kind, label, mark] of [['bookmarks', 'Yer imi', 'Y'], ['history', 'Geçmiş', 'G']]) {
+    for (const item of places[kind] || []) {
+      if (`${item.title} ${item.url}`.toLocaleLowerCase('tr-TR').includes(folded)) add({ action: 'url', url: item.url,
+        title: browserPlaceTitle(item), detail: item.url, kindLabel: label, mark });
+    }
+  }
+  add({ action: 'navigate', value: query, title: `“${query.slice(0, 120)}” için git veya ara`,
+    detail: 'Adresse doğrudan açılır; değilse web araması yapılır.', kindLabel: 'Web', mark: 'A' });
+  const seq = ++browserAddressSearchSeq;
+  renderBrowserAddressResults(results);
+  if (query.length < 2 || !window.api.searchUnifiedLibrary) return;
+  const response = await window.api.searchUnifiedLibrary(query, 'all', 8).catch(() => null);
+  if (seq !== browserAddressSearchSeq || String($('browserAddress')?.value || '').trim() !== query) return;
+  for (const item of response?.results || []) add({ action: 'unified', id: item.id, result: item,
+    title: item.title || 'Kütüphane sonucu', detail: item.snippet || item.url || '',
+    kindLabel: libraryResultKindLabel(item), mark: 'K' });
+  renderBrowserAddressResults(results);
+}
+
+async function useBrowserAddressResult(index) {
+  const result = player.browserAddressResults[index];
+  if (!result) return;
+  closeBrowserAddressResults();
+  if (result.action === 'tab') await activateBrowserTab(result.id);
+  else if (result.action === 'unified') await openUnifiedLibraryResult(result.result);
+  else {
+    $('browserAddress').value = result.url || result.value || '';
+    await navigateBrowserFromAddress();
+  }
+}
+
 function browserProfileControls() {
   return [
     ['targetLanguage', 'translateTo', 'Altyazı hedef dili', 'tr'],
@@ -5761,6 +6009,7 @@ function renderBrowserSiteProfile() {
     reset.addEventListener('click', () => updateBrowserProfileField(field, null, false, editContext));
     row.append(label, reset); box.appendChild(row);
   }
+  void renderBrowserPermissions();
 }
 
 async function updateBrowserProfileField(field, value, reset = false, expected = null) {
@@ -5865,13 +6114,17 @@ function renderBrowserDownloads() {
       const actions = document.createElement('div'); actions.className = 'browser-download-actions';
       const buttons = {};
       for (const [command, label] of [['pause', 'Duraklat'], ['cancel', 'İptal et'], ['resume', 'Devam et'],
-        ['reveal', 'Klasörde göster'], ['clear', 'Listeden kaldır']]) {
+        ['open-player', 'Oynatıcıda aç'], ['reveal', 'Klasörde göster'], ['clear', 'Listeden kaldır']]) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm'; button.textContent = label;
         button.addEventListener('click', async () => {
           button.disabled = true;
           const result = await window.api.browserDownloads(command, item.id).catch(() => ({ ok: false, error: 'İndirme işlemi gerçekleştirilemedi.' }));
           button.disabled = false;
           if (!result?.ok) status.textContent = result?.error || 'İşlem gerçekleştirilemedi.';
+          else if (command === 'open-player' && result.path) {
+            setBrowserDownloadsOpen(false);
+            await openLocalMedia(result.path, 0);
+          }
         });
         actions.appendChild(button); buttons[command] = button;
       }
@@ -5889,6 +6142,7 @@ function renderBrowserDownloads() {
     row.buttons.pause.classList.toggle('hidden', !item.canPause);
     row.buttons.cancel.classList.toggle('hidden', !item.active);
     row.buttons.resume.classList.toggle('hidden', !item.canResume);
+    row.buttons['open-player'].classList.toggle('hidden', item.state !== 'completed' || !item.path);
     row.buttons.reveal.classList.toggle('hidden', item.state !== 'completed' || !item.path);
     row.buttons.clear.classList.toggle('hidden', !!item.active);
   }
@@ -5953,7 +6207,7 @@ $('browserSessionImport')?.addEventListener('click', async () => {
   }
   player.browserTabs = [];
   player.browserActiveTabId = '';
-  syncBrowserTabs(result.tabs, result.activeTabId);
+  syncBrowserTabs(result.tabs, result.activeTabId, result.split);
   if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
   const active = browserTabState();
   if (active) restoreActiveBrowserTabWorkspace(active);
@@ -6150,6 +6404,30 @@ function renderBrowserAcquisition(acquisition) {
   }
 }
 
+function updateBrowserSubtitleSummary() {
+  const button = $('browserSubtitleSettingsToggle');
+  const label = $('browserSubtitleLabel');
+  if (!button || !label) return;
+  const tab = browserTabState();
+  const count = player.browserTracks.length;
+  const ownedPlayerJob = !!(state.running && player.job
+    && player.job.workspaceMode === 'browser'
+    && (!player.job.browserTabId || player.job.browserTabId === player.browserActiveTabId)
+    && ['progressive', 'translate'].includes(player.job.kind));
+  const liveTranslationBusy = !!(player.browserTranslationTrackId
+    && tab?.browserTranslationComplete === false);
+  const busy = !!(player.browserTranslatePreparing || ownedPlayerJob || liveTranslationBusy);
+  const stateName = busy ? 'busy' : count ? 'ready' : 'idle';
+  label.textContent = `Altyazı${count ? ` · ${count}` : ''}`;
+  button.dataset.state = stateName;
+  button.setAttribute('aria-busy', busy ? 'true' : 'false');
+  button.title = busy
+    ? `${label.textContent} · işlem sürüyor; ayrıntıları aç`
+    : count
+      ? `${label.textContent} · izleri ve çeviri seçeneklerini aç`
+      : 'Henüz altyazı izi yok; altyazı ve çeviri ayarlarını aç';
+}
+
 function clearBrowserTracks(message) {
   const tab = browserTabState();
   if (tab) tab.browserTrackNoticeKey = '';
@@ -6179,6 +6457,7 @@ function clearBrowserTracks(message) {
   player.subRaw = '';
   player.activeIdx = -1;
   player.activeIdx2 = -1;
+  updateBrowserSubtitleSummary();
   const select = $('browserTrackSelect');
   if (select) select.innerHTML = '';
   const select2 = $('browserTrackSelect2');
@@ -6248,7 +6527,7 @@ async function toggleBrowserTabPinned(tabId) {
     setBrowserSignal(`Sekme sabitlenemedi: ${result?.error || 'bilinmeyen hata'}`, false);
     return;
   }
-  syncBrowserTabs(result.tabs, result.activeTabId);
+  syncBrowserTabs(result.tabs, result.activeTabId, result.split);
   setBrowserSignal(result.pinned ? 'Sekme sabitlendi; yanlışlıkla kapatmaya karşı korundu.' : 'Sekme sabitlemesi kaldırıldı.', true);
 }
 
@@ -6336,6 +6615,7 @@ function renderBrowserTracks(selectedId) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
     announceBrowserTrack(chosen);
   }
+  updateBrowserSubtitleSummary();
   refreshBrowserSyncPanel();
 }
 
@@ -7025,6 +7305,10 @@ function updateBrowserTranslationExportButton() {
   button.title = busy ? 'Dışa aktarma işlemi sürüyor; kaydetme penceresini tamamlayın.' : count
     ? `${count} çevrilmiş altyazı satırını dışa aktar`
     : 'Çeviri satırları hazır olduğunda kullanılabilir';
+  const playerExport = $('exportTranslationBtn');
+  if (playerExport) playerExport.disabled = busy || count === 0 || state.running || state.queueRunning;
+  updateBrowserSubtitleSummary();
+  syncSubtitlePrimaryAction();
 }
 
 function updateBrowserTranslationRetryButton() {
@@ -7033,6 +7317,7 @@ function updateBrowserTranslationRetryButton() {
   const count = Math.max(0, Number(player.browserTranslationFailed) || 0);
   button.disabled = count < 1;
   button.textContent = count ? `Hatalıları yeniden dene (${count})` : 'Hatalıları yeniden dene';
+  updateBrowserSubtitleSummary();
 }
 
 async function exportBrowserTranslation() {
@@ -7187,6 +7472,8 @@ function updateBrowserWhisperActions() {
       menuButton.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
     }
   }
+  updateBrowserSubtitleSummary();
+  syncSubtitlePrimaryAction();
 }
 
 async function startBrowserYoutubeWhisper(translate) {
@@ -7781,6 +8068,24 @@ function saveBrowserPageAutoHost(enabled, url = player.browserPageUrl) {
   try { localStorage.setItem('browserPageAutoHosts', JSON.stringify([...hosts].slice(-100))); } catch (_) {}
 }
 
+function scheduleBrowserPageAutoTranslation(delayMs = 900) {
+  if (!$('browserPageAuto')?.checked || !player.browserPageUrl
+      || player.browserPageTranslated > 0 || player.browserPageTranslateBusy) return false;
+  clearTimeout(player.browserPageAutoTimer);
+  const expectedTabId = player.browserActiveTabId;
+  const expectedGeneration = browserTabState(expectedTabId)?.generation;
+  const expectedUrl = player.browserPageUrl;
+  player.browserPageAutoTimer = setTimeout(() => {
+    player.browserPageAutoTimer = null;
+    if (player.browserActiveTabId !== expectedTabId
+        || browserTabState(expectedTabId)?.generation !== expectedGeneration
+        || player.browserPageUrl !== expectedUrl || !$('browserPageAuto')?.checked
+        || player.browserPageTranslateBusy || player.browserPageTranslated > 0) return;
+    handleBrowserPageTranslationAction().catch(() => {});
+  }, Math.max(0, Number(delayMs) || 0));
+  return true;
+}
+
 function updateBrowserNavigation(data, options = {}) {
   if (!data) return;
   if (data.tabId && (data.tabId !== player.browserActiveTabId || !player.browserTabEventGate.accept(data))) return false;
@@ -7871,7 +8176,11 @@ function updateBrowserNavigation(data, options = {}) {
     scheduleBrowserOverlaySync();
   }
   if (data.loading) {
-    if (tab) { tab.error = ''; tab.errorKind = ''; tab.errorCode = ''; tab.errorUrl = ''; }
+    if (tab) {
+      tab.error = ''; tab.errorKind = ''; tab.errorCode = ''; tab.errorUrl = '';
+      tab.cloudflareChallengeActive = false;
+      tab.compatibilityMessage = '';
+    }
     showBrowserErrorSurface(null);
   }
   if (pageChanged) {
@@ -7920,20 +8229,12 @@ function updateBrowserNavigation(data, options = {}) {
   }
   if (data.loading === false && data.url && $('browserPageAuto')?.checked
       && player.browserPageTranslated <= 0 && !player.browserPageTranslateBusy) {
-    clearTimeout(player.browserPageAutoTimer);
-    const expectedTabId = player.browserActiveTabId;
-    const expectedGeneration = browserTabState(expectedTabId)?.generation;
-    const expectedUrl = data.url;
-    player.browserPageAutoTimer = setTimeout(() => {
-      player.browserPageAutoTimer = null;
-      if (player.browserActiveTabId !== expectedTabId
-          || browserTabState(expectedTabId)?.generation !== expectedGeneration
-          || player.browserPageUrl !== expectedUrl || !$('browserPageAuto')?.checked
-          || player.browserPageTranslateBusy || player.browserPageTranslated > 0) return;
-      handleBrowserPageTranslationAction().catch(() => {});
-    }, 900);
+    scheduleBrowserPageAutoTranslation(900);
   }
   updateBrowserWhisperActions();
+  syncBrowserAddressAction();
+  syncBrowserReaderControl(tab);
+  if (pageChanged || data.loading === false) void renderBrowserPermissions();
   return true;
 }
 
@@ -8264,7 +8565,7 @@ async function showBrowserWorkspaceAttempt(retry = 0) {
     setBrowserSignal((result && result.error) || 'Tarayıcı alanı açılamadı.', false);
     return;
   }
-  if (result.tabs) syncBrowserTabs(result.tabs, result.activeTabId);
+  if (result.tabs) syncBrowserTabs(result.tabs, result.activeTabId, result.split);
   if ($('browserSessionRestore') && typeof result.restoreEnabled === 'boolean') {
     $('browserSessionRestore').checked = result.restoreEnabled;
   }
@@ -8376,7 +8677,21 @@ function setWorkspaceMode(mode, persist = true) {
     try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
   }
   snapGridColumns();
+  syncPlayerSourceQuick();
+  syncBrowserAddressAction();
   syncResponsivePlayerLayout();
+}
+
+function syncBrowserAddressAction() {
+  const address = $('browserAddress');
+  const button = $('browserGo');
+  if (!address || !button) return;
+  const editing = document.activeElement === address;
+  const dirty = String(address.value || '').trim() !== String(player.browserPageUrl || '').trim();
+  const visible = player.workspaceMode === 'browser' && editing && dirty;
+  button.hidden = !visible;
+  button.tabIndex = visible ? 0 : -1;
+  address.closest('.browser-address-wrap')?.classList.toggle('is-editing', editing);
 }
 
 async function navigateBrowserFromAddress() {
@@ -8404,9 +8719,11 @@ async function navigateBrowserFromAddress() {
     setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
     if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
     setBrowserLoadingState(false);
+    syncBrowserAddressAction();
     return result || null;
   }
   updateBrowserNavigation(result);
+  syncBrowserAddressAction();
   return result;
 }
 
@@ -8414,12 +8731,18 @@ if ($('workspacePlayerMode')) $('workspacePlayerMode').addEventListener('click',
 if ($('workspaceBrowserMode')) $('workspaceBrowserMode').addEventListener('click', () => setWorkspaceMode('browser'));
 if ($('browserTabNew')) $('browserTabNew').addEventListener('click', createBrowserTab);
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (event) => {
+  const groupToggle = event.target.closest('[data-browser-group-toggle]');
+  if (groupToggle) {
+    const key = groupToggle.dataset.browserGroupToggle;
+    if (player.browserCollapsedGroups.has(key)) player.browserCollapsedGroups.delete(key);
+    else player.browserCollapsedGroups.add(key);
+    renderBrowserTabs();
+    return;
+  }
   const settingsClose = event.target.closest('[data-browser-settings-tab-close]');
   if (settingsClose) { closeBrowserSettings(); return; }
   const settingsOpen = event.target.closest('[data-browser-settings-tab-activate]');
   if (settingsOpen) { openBrowserSettings(player.browserSettingsCategory); return; }
-  const pin = event.target.closest('[data-browser-tab-pin]');
-  if (pin) { await toggleBrowserTabPinned(pin.dataset.browserTabPin); return; }
   const mute = event.target.closest('[data-browser-tab-mute]');
   if (mute) {
     const tabId = mute.dataset.browserTabMute;
@@ -8434,6 +8757,44 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (
   if (close) { closeBrowserTab(close.dataset.browserTabClose); return; }
   const open = event.target.closest('[data-browser-tab-activate]');
   if (open) activateBrowserTabAndFocus(open.dataset.browserTabActivate);
+});
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dblclick', (event) => {
+  const item = event.target.closest('[data-browser-tab-id]');
+  if (item) editBrowserTabGroup(item.dataset.browserTabId);
+});
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('contextmenu', (event) => {
+  const item = event.target.closest('[data-browser-tab-id]');
+  if (!item) return;
+  event.preventDefault();
+  editBrowserTabGroup(item.dataset.browserTabId);
+});
+let browserDraggedTabId = '';
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dragstart', (event) => {
+  const item = event.target.closest('[data-browser-tab-id]');
+  if (!item || item.getAttribute('draggable') !== 'true') { event.preventDefault(); return; }
+  browserDraggedTabId = item.dataset.browserTabId;
+  item.classList.add('is-dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', browserDraggedTabId);
+});
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dragover', (event) => {
+  if (browserDraggedTabId && event.target.closest('[data-browser-tab-id]')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
+});
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('drop', async (event) => {
+  const target = event.target.closest('[data-browser-tab-id]');
+  if (!target || !browserDraggedTabId || target.dataset.browserTabId === browserDraggedTabId) return;
+  event.preventDefault();
+  const ids = player.browserTabs.map((tab) => tab.id);
+  const from = ids.indexOf(browserDraggedTabId), to = ids.indexOf(target.dataset.browserTabId);
+  if (from < 0 || to < 0) return;
+  const [moved] = ids.splice(from, 1); ids.splice(to, 0, moved);
+  const result = await window.api.reorderBrowserTabs?.(ids).catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) syncBrowserTabs(result.tabs, result.activeTabId, result.split || player.browserSplit);
+  else setBrowserSignal(result?.error || 'Sekme sırası değiştirilemedi.', false);
+});
+if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dragend', () => {
+  browserDraggedTabId = '';
+  $('browserTabStrip').querySelectorAll('.is-dragging').forEach((item) => item.classList.remove('is-dragging'));
 });
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('auxclick', (event) => {
   if (event.button !== 1) return;
@@ -8468,20 +8829,51 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (even
 });
 if ($('browserGo')) $('browserGo').addEventListener('click', navigateBrowserFromAddress);
 if ($('browserMangaTranslate')) $('browserMangaTranslate').addEventListener('click', handleBrowserMangaAction);
+if ($('browserReaderToggle')) $('browserReaderToggle').addEventListener('click', toggleBrowserReader);
+if ($('browserSplitSecondary')) $('browserSplitSecondary').addEventListener('change', (event) => setBrowserSplit(event.target.value));
+if ($('browserSplitRatio')) $('browserSplitRatio').addEventListener('input', (event) => {
+  const value = Math.max(25, Math.min(75, Number(event.target.value) || 50));
+  $('browserSplitRatioValue').textContent = `%${value}`;
+  if ($('browserSplitDivider')) $('browserSplitDivider').style.left = `${value}%`;
+});
+if ($('browserSplitRatio')) $('browserSplitRatio').addEventListener('change', (event) => {
+  if (player.browserSplit.active) setBrowserSplit(player.browserSplit.secondaryTabId, event.target.value);
+});
+if ($('browserSplitClose')) $('browserSplitClose').addEventListener('click', () => setBrowserSplit('', $('browserSplitRatio')?.value || 50));
+if ($('browserSplitDivider')) {
+  const divider = $('browserSplitDivider');
+  let dragging = false;
+  const update = (clientX) => {
+    const rect = $('browserViewSlot')?.getBoundingClientRect();
+    if (!rect?.width) return;
+    const value = Math.round(Math.max(25, Math.min(75, (clientX - rect.left) / rect.width * 100)));
+    $('browserSplitRatio').value = String(value); $('browserSplitRatioValue').textContent = `%${value}`;
+    divider.style.left = `${value}%`; divider.setAttribute('aria-valuenow', String(value));
+  };
+  divider.addEventListener('pointerdown', (event) => { dragging = true; divider.classList.add('is-dragging'); divider.setPointerCapture(event.pointerId); update(event.clientX); });
+  divider.addEventListener('pointermove', (event) => { if (dragging) update(event.clientX); });
+  divider.addEventListener('pointerup', (event) => { if (!dragging) return; dragging = false; divider.classList.remove('is-dragging'); divider.releasePointerCapture(event.pointerId); setBrowserSplit(player.browserSplit.secondaryTabId, $('browserSplitRatio').value); });
+  divider.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    const value = Math.max(25, Math.min(75, Number($('browserSplitRatio').value) + (event.key === 'ArrowLeft' ? -2 : 2)));
+    $('browserSplitRatio').value = String(value); setBrowserSplit(player.browserSplit.secondaryTabId, value);
+  });
+}
 async function runBrowserMangaLookahead() {
   if (document.hidden || player.workspaceMode !== 'browser' || !$('browserMangaAuto')?.checked
       || player.browserMangaBusy || player.browserMangaLookaheadBusy || player.browserMangaTranslated <= 0
       || !player.browserMangaVisible) return;
   player.browserMangaLookaheadBusy = true;
   try {
-    await window.api.startBrowserManga?.(player.browserActiveTabId, {
+    return await window.api.startBrowserManga?.(player.browserActiveTabId, {
       incremental: true, targetLanguage: effectiveBrowserProfile().values.mangaTargetLanguage ?? 'tr',
       maxImages: Number($('browserMangaMaxImages')?.value) || 48,
       workers: Number($('browserMangaWorkers')?.value) || 2,
       fontScale: effectiveBrowserProfile().values.mangaFontScale,
       fontFamily: $('browserMangaFont')?.value || 'comic',
       verticalText: !!$('browserMangaVertical')?.checked, sfxStyle: $('browserMangaSfx')?.checked !== false,
-    });
+    }).catch(() => null);
   } finally { player.browserMangaLookaheadBusy = false; }
 }
 
@@ -8534,12 +8926,37 @@ $('browserPiP')?.addEventListener('click', () => {
   }).catch(() => {});
 });
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); navigateBrowserFromAddress(); }
+  if (['ArrowDown', 'ArrowUp'].includes(event.key) && player.browserAddressResults.length) {
+    event.preventDefault();
+    const length = player.browserAddressResults.length;
+    player.browserAddressSelected = (player.browserAddressSelected + (event.key === 'ArrowDown' ? 1 : -1) + length) % length;
+    [...$('browserAddressResults').children].forEach((item, index) => {
+      item.classList.toggle('is-selected', index === player.browserAddressSelected);
+      item.setAttribute('aria-selected', index === player.browserAddressSelected ? 'true' : 'false');
+    });
+  } else if (event.key === 'Enter' && !event.isComposing) {
+    event.preventDefault();
+    if (!$('browserAddressResults')?.classList.contains('hidden') && player.browserAddressSelected >= 0) useBrowserAddressResult(player.browserAddressSelected);
+    else navigateBrowserFromAddress();
+  }
   else if (event.key === 'Escape') {
     event.preventDefault();
+    closeBrowserAddressResults();
     $('browserAddress').value = player.browserPageUrl || '';
     $('browserAddress').select();
+    syncBrowserAddressAction();
   }
+});
+for (const eventName of ['input', 'focus', 'blur']) $('browserAddress')?.addEventListener(eventName, syncBrowserAddressAction);
+$('browserAddress')?.addEventListener('input', () => { clearTimeout(browserAddressSearchTimer); browserAddressSearchTimer = setTimeout(refreshBrowserAddressResults, 130); });
+$('browserAddress')?.addEventListener('focus', refreshBrowserAddressResults);
+$('browserAddress')?.addEventListener('blur', () => setTimeout(() => {
+  if (!$('browserAddressResults')?.contains(document.activeElement)) closeBrowserAddressResults();
+}, 120));
+$('browserAddressResults')?.addEventListener('mousedown', (event) => event.preventDefault());
+$('browserAddressResults')?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-address-result]');
+  if (button) useBrowserAddressResult(Number(button.dataset.addressResult));
 });
 if ($('browserBookmarkToggle')) $('browserBookmarkToggle').addEventListener('click', async () => {
   if (!player.browserPageUrl || !window.api.toggleBrowserBookmark) return;
@@ -8684,7 +9101,7 @@ $('browserWorkspaceOpen')?.addEventListener('click', async () => {
       setBrowserSignal(result?.error || 'Çalışma alanı açılamadı.', false);
       return;
     }
-    syncBrowserTabs(result.tabs, result.activeTabId);
+    syncBrowserTabs(result.tabs, result.activeTabId, result.split);
     setBrowserPlacesOpen(false);
     const added = Math.max(0, player.browserTabs.length - beforeCount);
     if (result.firstTabId) await activateBrowserTabAndFocus(result.firstTabId);
@@ -9067,7 +9484,7 @@ if ($('browserSessionReset')) $('browserSessionReset').addEventListener('click',
   player.browserPageTitle = '';
   player.browserTime = 0;
   player.browserDuration = 0;
-  syncBrowserTabs(result.tabs || [], result.activeTabId || '');
+  syncBrowserTabs(result.tabs || [], result.activeTabId || '', result.split);
   try { localStorage.removeItem('playerBrowserLastUrl'); } catch (_) {}
   if ($('browserAddress')) $('browserAddress').value = '';
   $('browserEmpty')?.classList.remove('hidden');
@@ -9126,8 +9543,125 @@ if ($('browserTabUnload')) $('browserTabUnload').addEventListener('click', async
   else setBrowserSignal('Sekme güvenli biçimde bellekten boşaltıldı; açıldığında sayfa geri getirilecek.', true);
 });
 
+const BROWSER_PERMISSION_LABELS = {
+  camera: 'Kamera', microphone: 'Mikrofon', media: 'Kamera ve mikrofon',
+  geolocation: 'Konum', notifications: 'Bildirimler', 'clipboard-read': 'Pano okuma',
+  'clipboard-sanitized-write': 'Panoya yazma', fullscreen: 'Tam ekran',
+  'display-capture': 'Ekran paylaşımı', midi: 'MIDI', midiSysex: 'MIDI sistem mesajları',
+  pointerLock: 'İşaretçi kilidi', 'idle-detection': 'Boşta kalma bilgisi',
+  serial: 'Seri aygıtlar', usb: 'USB aygıtları',
+};
+let browserPermissionRenderSeq = 0;
+
+function closeBrowserPermissionPrompt(requestId = '') {
+  if (requestId && player.browserPermissionRequest?.requestId !== requestId) return;
+  player.browserPermissionRequest = null;
+  $('browserPermissionPrompt')?.classList.add('hidden');
+  syncBrowserOcclusion();
+}
+
+async function respondToBrowserPermission(decision) {
+  const request = player.browserPermissionRequest;
+  if (!request?.requestId || !window.api.respondBrowserPermission) return;
+  closeBrowserPermissionPrompt(request.requestId);
+  const result = await window.api.respondBrowserPermission(request.requestId, decision)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok && !result?.stale) {
+    setBrowserSignal(result?.error || 'Site izin isteği yanıtlanamadı.', false);
+  }
+  if (decision === 'allow' || decision === 'block') void renderBrowserPermissions();
+}
+
+function showBrowserPermissionPrompt(event) {
+  const previous = player.browserPermissionRequest;
+  if (previous?.requestId && previous.requestId !== event.requestId) {
+    void window.api.respondBrowserPermission?.(previous.requestId, 'block-once').catch(() => null);
+  }
+  player.browserPermissionRequest = {
+    requestId: String(event.requestId || ''), tabId: String(event.tabId || ''),
+    origin: String(event.origin || ''), permission: String(event.permission || ''),
+  };
+  const prompt = $('browserPermissionPrompt');
+  if (!prompt) return;
+  const label = event.label || BROWSER_PERMISSION_LABELS[event.permission] || event.permission || 'hassas erişim';
+  $('browserPermissionPromptText').textContent = event.message
+    || `${event.host || event.origin || 'Bu site'} ${label} erişimi istiyor.`;
+  prompt.classList.remove('hidden');
+  syncBrowserOcclusion();
+  prompt.querySelector('[data-permission-decision="block-once"]')?.focus();
+}
+
+async function renderBrowserPermissions() {
+  const list = $('browserPermissionsList');
+  const originLabel = $('browserPermissionsOrigin');
+  if (!list || !originLabel || !window.api.getBrowserPermissions) return;
+  const tab = browserTabState();
+  const seq = ++browserPermissionRenderSeq;
+  if (!tab?.id || !tab.url) {
+    originLabel.textContent = 'Önce bir web sitesi açın.';
+    list.replaceChildren();
+    return;
+  }
+  originLabel.textContent = 'Site izinleri yükleniyor…';
+  const result = await window.api.getBrowserPermissions(tab.id, tab.url)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (seq !== browserPermissionRenderSeq || player.browserActiveTabId !== tab.id) return;
+  list.replaceChildren();
+  if (!result?.ok) {
+    originLabel.textContent = result?.error || 'Site izinleri okunamadı.';
+    return;
+  }
+  originLabel.textContent = result.origin;
+  for (const [permission, state] of Object.entries(result.permissions || {})) {
+    const row = document.createElement('div'); row.className = 'browser-permission-row';
+    const label = document.createElement('label');
+    label.textContent = BROWSER_PERMISSION_LABELS[permission] || permission;
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', `${label.textContent} izni`);
+    select.append(new Option('Her seferinde sor', 'ask'), new Option('İzin ver', 'allow'), new Option('Engelle', 'block'));
+    select.value = ['allow', 'block'].includes(state?.stored) ? state.stored : 'ask';
+    select.addEventListener('change', async () => {
+      const previous = ['allow', 'block'].includes(state?.stored) ? state.stored : 'ask';
+      const decision = select.value;
+      select.disabled = true;
+      const updated = await window.api.updateBrowserPermission(tab.id, result.origin, permission, decision)
+        .catch((error) => ({ ok: false, error: error.message }));
+      select.disabled = false;
+      if (!updated?.ok) {
+        select.value = previous;
+        setBrowserSignal(updated?.error || 'Site izni kaydedilemedi.', false);
+      } else {
+        state.stored = decision;
+        setBrowserSignal(`${label.textContent} tercihi kaydedildi.`, true, { priority: 25 });
+      }
+    });
+    row.append(label, select); list.appendChild(row);
+  }
+}
+
+$('browserPermissionPrompt')?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-permission-decision]');
+  if (button) void respondToBrowserPermission(button.dataset.permissionDecision);
+});
+
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.type === 'permission-request') { showBrowserPermissionPrompt(event); return; }
+  if (event.type === 'navigation' && event.loading && event.tabId) {
+    const navigatingTab = browserTabState(event.tabId);
+    if (navigatingTab) navigatingTab.readerActive = false;
+    if (event.tabId === player.browserActiveTabId) syncBrowserReaderControl(navigatingTab);
+    if (player.browserPermissionRequest?.tabId === event.tabId) void respondToBrowserPermission('block-once');
+  }
+  if (event.type === 'reader-state') {
+    const tab = browserTabState(event.tabId);
+    if (tab) {
+      tab.readerActive = !!event.active;
+      tab.readerPreferences = event.preferences || tab.readerPreferences;
+      if (tab.id === player.browserActiveTabId) syncBrowserReaderControl(tab);
+    }
+    return;
+  }
   if (event.type === 'adblock-status') { renderBrowserAdblockState(event); return; }
   if (event.type === 'player-ad-prune-status') { renderBrowserPlayerAdPruneState(event); return; }
   if ((event.type === 'page-translate-progress' || event.type === 'page-translate-done' || event.type === 'page-translate-error')
@@ -9243,6 +9777,11 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         if (event.translated !== undefined) tab.browserPageTranslated = Math.max(0, Number(event.translated) || 0);
         if (event.failed !== undefined) tab.browserPageFailed = Math.max(0, Number(event.failed) || 0);
         if (event.visible !== undefined) tab.browserPageVisible = !!event.visible;
+        if (event.view) tab.browserPageView = event.view;
+        if (event.scope) tab.browserPageScope = event.scope;
+        if (event.autoContinue !== undefined) tab.browserPageAutoContinue = event.autoContinue !== false;
+        if (event.stats) tab.browserPageStats = event.stats;
+        if (Object.prototype.hasOwnProperty.call(event, 'completion')) tab.browserPageCompletion = event.completion || null;
         if (event.state === 'error') tab.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
         else if (event.state === 'idle' || event.state === 'ready') tab.browserPageError = '';
         if (event.state === 'ready' && !tab.browserPageFailed) void completeBrowserRecovery(tab, 'page-translation');
@@ -9414,6 +9953,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       holdMs: blocked ? (event.timedOut ? 12000 : 8000) : 4500,
     });
     logLine(message, blocked ? 'warn' : 'success');
+    if (!blocked) scheduleBrowserPageAutoTranslation(250);
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
@@ -9486,6 +10026,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     setBrowserSignal(message, false, { priority: 70, holdMs: 5000 });
     logLine(message, 'warn');
   } else if (event.type === 'permission-denied') {
+    if (player.browserPermissionRequest?.requestId === event.requestId
+        || (player.browserPermissionRequest && player.browserPermissionRequest.tabId === event.tabId)) {
+      closeBrowserPermissionPrompt();
+    }
     const message = event.message || `${event.host || 'Site'} izin isteği güvenli varsayılanla engellendi.`;
     setBrowserSignal(message, false, { priority: 75, holdMs: 6000 });
     logLine(message, 'warn');
@@ -9634,6 +10178,13 @@ function updateCueMeta() {
   }
   const clear = $('clearCueSearch');
   if (clear) clear.classList.toggle('hidden', !$('cueSearch')?.value);
+  const cueActions = $('selectedCueActions');
+  if (cueActions) {
+    const selected = player.activeIdx >= 0 && player.activeIdx < player.cues.length;
+    cueActions.classList.toggle('is-empty', !selected);
+    cueActions.setAttribute('aria-hidden', selected ? 'false' : 'true');
+    cueActions.querySelectorAll('button').forEach((button) => { button.disabled = !selected; });
+  }
 }
 
 function savedWordStorageKey() {
@@ -11348,6 +11899,9 @@ const playerLibrarySelected = new Set();
 let playerLibrarySearchTimer = null;
 let lastDeletedLibraryAnnotation = null;
 let playerLibraryUndoTimer = null;
+let researchAnnotations = [];
+let researchLoadSeq = 0;
+let researchSearchTimer = null;
 
 function watchProgress(item) {
   const d = Number(item && item.duration) || 0;
@@ -11646,11 +12200,152 @@ function renderUnifiedLibraryResults(list, results) {
   }
 }
 
+function researchLibraryFilters() {
+  return {
+    query: String($('researchQuery')?.value || '').trim(),
+    tag: String($('researchTag')?.value || '').trim(),
+    type: $('researchType')?.value || 'all',
+    status: $('researchStatus')?.value || 'all',
+    dueOnly: playerLibraryView === 'reviews',
+  };
+}
+
+function researchTypeLabel(type) {
+  return ({ quote: 'Alıntı', word: 'Kelime', note: 'Not' })[type] || 'Not';
+}
+
+function researchStatusLabel(status) {
+  return ({ new: 'Yeni', learning: 'Öğreniliyor', known: 'Biliniyor' })[status] || 'Yeni';
+}
+
+function researchLinksFromText(value) {
+  return String(value || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+    const parts = line.split('|');
+    if (parts.length > 1) return { label: parts.slice(0, -1).join('|').trim(), url: parts.at(-1).trim() };
+    return { label: '', url: line };
+  });
+}
+
+function renderResearchLibrary() {
+  const list = $('playerLibraryList');
+  const status = $('playerLibraryStatus');
+  if (!list || !status) return;
+  list.replaceChildren();
+  const reviewMode = playerLibraryView === 'reviews';
+  status.textContent = reviewMode
+    ? `${researchAnnotations.length} tekrar kartı şimdi çalışılabilir.`
+    : `${researchAnnotations.length} araştırma kaydı.`;
+  if (!researchAnnotations.length) {
+    const empty = document.createElement('div'); empty.className = 'player-library-empty';
+    empty.textContent = reviewMode
+      ? 'Şu anda tekrar zamanı gelmiş kart yok.'
+      : 'Kaydettiğiniz replikler, kelimeler ve notlar burada görünecek.';
+    list.appendChild(empty); return;
+  }
+  for (const annotation of researchAnnotations) {
+    const card = document.createElement('article'); card.className = 'research-card'; card.dataset.researchId = annotation.id;
+    const head = document.createElement('div'); head.className = 'research-card-head';
+    const title = document.createElement('strong'); title.textContent = annotation.mediaTitle || annotation.mediaId || 'İsimsiz içerik';
+    const meta = document.createElement('span');
+    meta.textContent = `${researchTypeLabel(annotation.type)} · ${researchStatusLabel(annotation.status)} · ${pSecToTime(annotation.start || 0)}`;
+    head.append(title, meta); card.appendChild(head);
+    if (annotation.source) {
+      const quote = document.createElement('blockquote'); quote.textContent = annotation.source; card.appendChild(quote);
+    }
+    if (annotation.translation) {
+      const translation = document.createElement('p'); translation.className = 'research-card-translation';
+      translation.textContent = annotation.translation; card.appendChild(translation);
+    }
+    const note = document.createElement('textarea'); note.rows = 2; note.dataset.researchField = 'note';
+    note.value = annotation.note || ''; note.placeholder = 'Bu alıntı veya kelime hakkında notunuz…';
+    const tags = document.createElement('input'); tags.type = 'text'; tags.dataset.researchField = 'tags';
+    tags.value = (annotation.tags || []).join(', '); tags.placeholder = 'Etiketler (virgülle ayırın)';
+    const links = document.createElement('textarea'); links.rows = 2; links.dataset.researchField = 'links';
+    links.value = (annotation.links || []).map((link) => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
+    links.placeholder = 'Kaynak bağlantıları — her satıra bir URL';
+    card.append(note, tags, links);
+    if ((annotation.tags || []).length) {
+      const tagList = document.createElement('div');
+      for (const tag of annotation.tags) {
+        const chip = document.createElement('span'); chip.className = 'research-tag'; chip.textContent = tag; tagList.appendChild(chip);
+      }
+      card.appendChild(tagList);
+    }
+    const actions = document.createElement('div'); actions.className = 'research-card-actions';
+    for (const [action, label] of [['save', 'Kaydet'], ['open', annotation.anchor ? 'Alıntıyı bul' : 'Kaynağı aç']]) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'link-btn';
+      button.dataset.researchAction = action; button.textContent = label; actions.appendChild(button);
+    }
+    card.appendChild(actions);
+    if (reviewMode) {
+      const due = document.createElement('small'); due.className = 'research-card-due';
+      due.textContent = annotation.reviewCount
+        ? `Son tekrar ${historyWhen(annotation.lastReviewedAt)} · aralık ${Number(annotation.intervalDays || 0).toFixed(1)} gün`
+        : 'İlk tekrar';
+      const reviews = document.createElement('div'); reviews.className = 'research-review-actions';
+      for (const [rating, label] of [['again', 'Yine'], ['hard', 'Zor'], ['good', 'İyi'], ['easy', 'Kolay']]) {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm';
+        button.dataset.researchReview = rating; button.textContent = label; reviews.appendChild(button);
+      }
+      card.append(due, reviews);
+    }
+    list.appendChild(card);
+  }
+}
+
+async function loadResearchLibrary() {
+  if (!window.api.listResearchAnnotations) return;
+  const seq = ++researchLoadSeq;
+  $('playerLibraryList')?.setAttribute('aria-busy', 'true');
+  const result = await window.api.listResearchAnnotations(researchLibraryFilters(), 1000)
+    .catch((error) => ({ ok: false, error: error.message, annotations: [] }));
+  if (seq !== researchLoadSeq || !['research', 'reviews'].includes(playerLibraryView)) return;
+  $('playerLibraryList')?.setAttribute('aria-busy', 'false');
+  researchAnnotations = result?.annotations || [];
+  if (!result?.ok) logLine(`Araştırma defteri okunamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+  renderResearchLibrary();
+}
+
+async function handleResearchLibraryAction(event) {
+  const card = event.target.closest('[data-research-id]');
+  if (!card) return;
+  const annotation = researchAnnotations.find((item) => item.id === card.dataset.researchId);
+  if (!annotation) return;
+  const rating = event.target.closest('[data-research-review]')?.dataset.researchReview;
+  if (rating) {
+    const result = await window.api.reviewResearchAnnotation(annotation.id, rating)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) logLine(`Tekrar kaydedilemedi: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    else { osd('Tekrar planı güncellendi'); await loadResearchLibrary(); }
+    return;
+  }
+  const action = event.target.closest('[data-research-action]')?.dataset.researchAction;
+  if (action === 'save') {
+    const note = card.querySelector('[data-research-field="note"]')?.value || '';
+    const tags = card.querySelector('[data-research-field="tags"]')?.value || '';
+    const links = researchLinksFromText(card.querySelector('[data-research-field="links"]')?.value || '');
+    const result = await window.api.upsertResearchAnnotation({ ...annotation, note, tags, links })
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) logLine(`Araştırma notu kaydedilemedi: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    else { osd('Araştırma notu kaydedildi'); await loadResearchLibrary(); }
+  } else if (action === 'open') {
+    await openUnifiedLibraryResult({
+      id: annotation.id, annotationId: annotation.id, kind: 'notes', anchor: annotation.anchor,
+      mediaId: annotation.mediaId, mediaType: annotation.mediaType, title: annotation.mediaTitle,
+      url: annotation.mediaUrl, seconds: annotation.start,
+    });
+  }
+}
+
 function renderPlayerLibrary() {
   const panel = $('playerLibraryPanel');
   const list = $('playerLibraryList');
   const status = $('playerLibraryStatus');
   if (!panel || !list || !status) return;
+  if (playerLibraryView === 'research' || playerLibraryView === 'reviews') {
+    renderResearchLibrary();
+    return;
+  }
   const searching = !!($('playerLibrarySearch') && $('playerLibrarySearch').value.trim());
   const filter = $('playerLibraryFilter') ? $('playerLibraryFilter').value : 'all';
   let items = searching ? playerLibraryResults : watchLibraryCache;
@@ -12005,6 +12700,22 @@ function applyCueMerge() {
 // satir, cevirisi, komsulari, zaman ve video basligi zaten elimizde.
 const AI_CHAT_CTX = 3;             // kac onceki/sonraki satir gonderilsin
 
+function subtitleContextLanguage(role) {
+  const browserTrack = player.workspaceMode === 'browser'
+    ? [player.browserLoadedTrackId, player.browserLoadedTrackId2]
+      .map((id) => player.browserTracks.find((track) => track.id === id))
+      .find((track) => track && (track.role === 'translation' ? 'translation' : 'source') === role)
+    : null;
+  if (browserTrack?.language) return String(browserTrack.language).toUpperCase();
+  const channel = [
+    { path: player.subPath, role: player.subRole },
+    { path: player.sub2Path, role: player.sub2Role },
+  ].find((item) => item.path && item.role === role);
+  if (!channel) return '';
+  return String(player.subtitles.find((item) => item.path === channel.path)?.language
+    || langFromPath(channel.path) || '').toUpperCase();
+}
+
 function aiChatContext() {
   const cues = player.cues || [];
   const now = subtitleSourceTime(player.workspaceMode === 'browser'
@@ -12018,6 +12729,11 @@ function aiChatContext() {
     video: (document.getElementById('playerTitle') || {}).textContent || '',
     zaman: pSecToTime(player.workspaceMode === 'browser'
       ? player.browserTime : (($('playerVideo') || {}).currentTime || 0)),
+  };
+  const roles = browserSubtitleRoleCues();
+  ctx.diller = {
+    kaynak: roles.source.length ? (subtitleContextLanguage('source') || 'belirtilmedi') : 'yok',
+    ceviri: roles.translation.length ? (subtitleContextLanguage('translation') || 'belirtilmedi') : 'yok',
   };
   if (i >= 0 && cues[i]) {
     ctx.cumle = cues[i].text;
@@ -12034,19 +12750,75 @@ function aiChatContext() {
   return ctx;
 }
 
-function aiChatCtxLabel() {
-  const el = $('aiChatCtx');
-  if (!el) return;
-  const now = subtitleSourceTime(player.workspaceMode === 'browser'
-    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0), false);
-  let i = player.activeIdx;
-  if (i < 0 && player.cues.length) {
-    i = player.cues.length - 1;
-    while (i >= 0 && player.cues[i].end > now) i--;
+function aiTranscriptEvidence(question) {
+  if (!window.BrowserTranscriptSearch?.buildTranscriptEvidence) return null;
+  const roles = browserSubtitleRoleCues();
+  const source = roles.source.length ? roles.source : roles.translation;
+  if (!source.length) return null;
+  const translations = roles.source.length && roles.translation.length
+    ? translationsForCues(source, roles.translation) : new Array(source.length).fill('');
+  const rows = source.map((cue, index) => ({
+    start: cue.start, end: cue.end, text: cue.text,
+    translation: translations[index] || (roles.source.length ? '' : cue.text),
+  }));
+  const scope = ['nearby', 'watched', 'full'].includes($('aiTranscriptScope')?.value)
+    ? $('aiTranscriptScope').value : 'watched';
+  const playerPosition = player.workspaceMode === 'browser'
+    ? player.browserTime : (($('playerVideo') || {}).currentTime || 0);
+  return window.BrowserTranscriptSearch.buildTranscriptEvidence(rows, question, {
+    scope,
+    position: subtitleSourceTime(playerPosition, false),
+    limit: scope === 'full' ? 40 : 32,
+  });
+}
+
+function renderAiChatContext(context, frozen = false) {
+  const label = $('aiChatCtx');
+  const body = $('aiContextPreviewBody');
+  if (!label || !body) return;
+  const ctx = context || {};
+  label.textContent = ctx.cumle
+    ? `${frozen ? 'Gönderilen' : ctx.zaman} · ${String(ctx.cumle).slice(0, 46)}`
+    : ctx.page?.blocks?.length ? `${frozen ? 'Gönderilen' : 'Sayfa'} · ${ctx.page.blocks.length} blok`
+      : `${frozen ? 'Gönderilen bağlam' : 'Genel soru'} · altyazı yok`;
+  body.replaceChildren();
+  const addRow = (kind, time, text) => {
+    if (!text) return;
+    const row = document.createElement('div');
+    row.className = `ai-context-row ai-context-${kind}`;
+    const meta = document.createElement('span');
+    const names = { current: 'Hedef', previous: 'Önceki', translation: 'Çeviri', next: 'Sonraki', page: 'Sayfa', transcript: 'Transkript kanıtı' };
+    meta.textContent = [names[kind] || 'Bağlam', time]
+      .filter(Boolean).join(' · ');
+    const copy = document.createElement('p');
+    copy.textContent = text;
+    row.append(meta, copy);
+    body.appendChild(row);
+  };
+  const meta = document.createElement('div');
+  meta.className = 'ai-context-meta';
+  const sourceLanguage = ctx.diller?.kaynak || 'yok';
+  const translationLanguage = ctx.diller?.ceviri || 'yok';
+  meta.textContent = `${ctx.video || 'İsimsiz içerik'} · ${ctx.zaman || '—'} · Kaynak: ${sourceLanguage} · Çeviri: ${translationLanguage}`;
+  body.appendChild(meta);
+  for (const item of ctx.onceki || []) addRow('previous', item.zaman, item.metin);
+  addRow('current', ctx.zaman, ctx.cumle || ctx.not || 'Altyazı bağlamı yok.');
+  if (ctx.mevcut_ceviri) addRow('translation', '', `Mevcut çeviri: ${ctx.mevcut_ceviri}`);
+  for (const item of ctx.sonraki || []) addRow('next', item.zaman, item.metin);
+  if (ctx.page?.blocks?.length) {
+    for (const item of ctx.page.blocks.slice(0, 80)) addRow('page', '', item.text);
   }
-  el.textContent = (i >= 0 && player.cues[i])
-    ? `Bağlam: ${pSecToTime(player.cues[i].start)} · ${player.cues[i].text.slice(0, 46)}`
-    : 'Bağlam: altyazı yok — genel soru sorabilirsin';
+  if (ctx.transcript_evidence?.evidence?.length) {
+    for (const item of ctx.transcript_evidence.evidence) {
+      addRow('transcript', `${item.id} · ${item.zaman}`, [item.metin, item.ceviri].filter(Boolean).join(' / '));
+    }
+  }
+}
+
+function aiChatCtxLabel() {
+  const frozenJob = player.job?.kind === 'chat' && player.job?.chatContext
+    && (player.job.running || player.job.awaitingExit) ? player.job : null;
+  renderAiChatContext(frozenJob ? frozenJob.chatContext : aiChatContext(), !!frozenJob);
 }
 
 function aiTimeToSeconds(value) {
@@ -12061,35 +12833,70 @@ function renderAiText(el, text) {
   if (!el) return;
   el.textContent = '';
   const raw = String(text || '');
-  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)/g;
+  const sourceTabId = String(el.dataset?.pageSourceTabId || '');
+  const transcriptEvidence = Array.isArray(el._transcriptEvidence) ? el._transcriptEvidence : [];
+  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)|\[((?:S|T)\d{1,5})\]/g;
   let last = 0, match;
   while ((match = re.exec(raw))) {
-    const prefixEnd = match.index + match[1].length;
-    el.appendChild(document.createTextNode(raw.slice(last, prefixEnd)));
-    const seconds = aiTimeToSeconds(match[2]);
-    if (seconds === null) {
-      el.appendChild(document.createTextNode(match[2]));
-    } else {
+    const tokenStart = match[3] ? match.index : match.index + match[1].length;
+    el.appendChild(document.createTextNode(raw.slice(last, tokenStart)));
+    if (match[3]) {
+      const sourceId = match[3];
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'ai-time-link';
-      button.textContent = match[2];
-      button.title = `${match[2]} konumuna git`;
-      button.addEventListener('click', () => {
-        if (player.workspaceMode === 'browser' && window.api.browserCommand) {
-          player.browserTime = Math.max(0, seconds);
-          browserCommand('seek', player.browserTime).catch(() => {});
-          renderBrowserCueAt(player.browserTime);
-          showControls();
+      button.className = sourceId.startsWith('T') ? 'ai-source-link ai-transcript-link' : 'ai-source-link';
+      button.textContent = `[${sourceId}]`;
+      button.title = sourceId.startsWith('T') ? 'Transkriptteki kaynak repliğe git' : 'Sayfadaki kaynak paragrafa git';
+      button.addEventListener('click', async () => {
+        if (sourceId.startsWith('T')) {
+          const evidence = transcriptEvidence.find((item) => item.id === sourceId);
+          if (!evidence) { setBrowserSignal('Bu transkript kanıtı artık bulunamıyor.', false); return; }
+          const seconds = Math.max(0, Number(evidence.baslangic) || 0);
+          if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+            player.browserTime = seconds;
+            await browserCommand('seek', seconds).catch(() => null);
+            renderBrowserCueAt(seconds); showControls();
+          } else if ($('playerVideo')) {
+            $('playerVideo').currentTime = Math.min(Number($('playerVideo').duration) || seconds, seconds);
+            showControls(); renderCue();
+          }
           return;
         }
-        const video = $('playerVideo');
-        if (!video) return;
-        video.currentTime = Math.max(0, Math.min(Number(video.duration) || seconds, seconds));
-        showControls();
-        renderCue();
+        const tabId = sourceTabId || (player.workspaceMode === 'browser' ? player.browserActiveTabId : '');
+        if (!tabId || !window.api.revealBrowserPageContext) {
+          setBrowserSignal('Bu kaynak sayfa artık açık değil.', false);
+          return;
+        }
+        const result = await window.api.revealBrowserPageContext(tabId, sourceId).catch(() => null);
+        if (!result?.ok) setBrowserSignal(result?.error || 'Kaynak paragraf artık bulunamıyor.', false);
       });
       el.appendChild(button);
+    } else {
+      const seconds = aiTimeToSeconds(match[2]);
+      if (seconds === null) {
+        el.appendChild(document.createTextNode(match[2]));
+      } else {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ai-time-link';
+        button.textContent = match[2];
+        button.title = `${match[2]} konumuna git`;
+        button.addEventListener('click', () => {
+          if (player.workspaceMode === 'browser' && window.api.browserCommand) {
+            player.browserTime = Math.max(0, seconds);
+            browserCommand('seek', player.browserTime).catch(() => {});
+            renderBrowserCueAt(player.browserTime);
+            showControls();
+            return;
+          }
+          const video = $('playerVideo');
+          if (!video) return;
+          video.currentTime = Math.max(0, Math.min(Number(video.duration) || seconds, seconds));
+          showControls();
+          renderCue();
+        });
+        el.appendChild(button);
+      }
     }
     last = re.lastIndex;
   }
@@ -12124,7 +12931,22 @@ async function aiChatSend(soru) {
   // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
   // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
   // IKI KEZ giderdi.
-  opts.chat = { question: q, history: (player.chatHistory || []).slice(-8), context: aiChatContext() };
+  const chatContext = aiChatContext();
+  let chatSourceTabId = '';
+  if (player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.getBrowserPageContext) {
+    const requestedPageTabId = player.browserActiveTabId;
+    const page = await window.api.getBrowserPageContext(requestedPageTabId).catch(() => null);
+    if (page?.ok) chatContext.page = {
+      title: String(page.title || '').slice(0, 300),
+      url: String(page.url || '').slice(0, 1000),
+      blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 80) : [],
+      characters: Number(page.characters) || 0,
+    };
+    if (page?.ok) chatSourceTabId = requestedPageTabId;
+  }
+  const transcriptEvidence = aiTranscriptEvidence(q);
+  if (transcriptEvidence?.evidence?.length) chatContext.transcript_evidence = transcriptEvidence;
+  opts.chat = { question: q, history: (player.chatHistory || []).slice(-8), context: chatContext };
   delete opts.youtube;
   if (!opts.translateApiKey) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
@@ -12140,8 +12962,11 @@ async function aiChatSend(soru) {
   state.aiJob = true;
   player.job = {
     running: true, mediaKey: player.mediaKey, generation: player.generation,
-    kind: 'chat', bubble: bekleyen, chatQuestion: q,
+    kind: 'chat', bubble: bekleyen, chatQuestion: q, chatContext, sourcePageTabId: chatSourceTabId,
   };
+  bekleyen._transcriptEvidence = chatContext.transcript_evidence?.evidence || [];
+  renderAiChatContext(chatContext, true);
+  updateMakeTransState();
 
   const r = await startTranscribeSafe(opts);
   if (!r || !r.ok) {
@@ -12151,6 +12976,8 @@ async function aiChatSend(soru) {
     bekleyen.classList.remove('is-loading');
     bekleyen.classList.add('ai-msg-err');
     bekleyen.textContent = (r && r.error) || 'Cevap alınamadı.';
+    aiChatCtxLabel();
+    updateMakeTransState();
   }
 }
 
@@ -12304,12 +13131,18 @@ async function restorePendingLibraryAnchor(event = {}) {
   pending.restoring = true;
   const sequence = pending.sequence;
   const tabId = player.browserActiveTabId;
-  const restored = await window.api.restoreLearningAnnotationAnchor(tabId, pending.annotationId)
-    .catch((error) => ({ ok: false, error: error.message }));
-  if (player.pendingLibraryAnchor?.sequence !== sequence || player.browserActiveTabId !== tabId) return;
-  player.pendingLibraryAnchor = null;
-  if (!restored?.ok) logLine(restored?.error || 'Alıntı sayfada bulunamadı; not korunuyor.', 'warn');
-  else osd('Alıntı bulundu');
+  try {
+    const restored = await window.api.restoreLearningAnnotationAnchor(tabId, pending.annotationId)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (player.pendingLibraryAnchor?.sequence !== sequence || player.browserActiveTabId !== tabId) return;
+    player.pendingLibraryAnchor = null;
+    if (!restored?.ok) logLine(restored?.error || 'Alıntı sayfada bulunamadı; not korunuyor.', 'warn');
+    else osd('Alıntı bulundu');
+  } finally {
+    // İstek sürerken başka sekmeye geçildiyse aynı bekleyen ankraj daha sonra
+    // yeniden denenebilsin. Eski dönüş yeni bir ankrajın kilidini değiştiremez.
+    if (player.pendingLibraryAnchor === pending) pending.restoring = false;
+  }
 }
 
 function showBrowserErrorSurface(error) {
@@ -13138,7 +13971,7 @@ function syncSubtitleModeUi() {
     }
     display.value = mode;
   }
-  $$('#subtitleDisplaySegments [data-subtitle-display]').forEach((item) => {
+  $$('[data-subtitle-display]').forEach((item) => {
     const value = item.dataset.subtitleDisplay;
     const active = value === mode;
     const unavailable = value === 'source' ? !hasSource
@@ -13147,6 +13980,11 @@ function syncSubtitleModeUi() {
     item.classList.toggle('active', active);
     item.setAttribute('aria-checked', active ? 'true' : 'false');
     item.disabled = unavailable;
+    item.title = unavailable
+      ? (value === 'translation' ? 'Çeviri altyazısı henüz hazır değil.'
+        : value === 'source' ? 'Kaynak altyazı henüz hazır değil.'
+          : 'Kaynak ve çeviri birlikte hazır olduğunda kullanılabilir.')
+      : labels[value] || '';
   });
   const hint = $('subHiddenHint');
   if (hint) hint.classList.toggle('hidden', mode !== 'off');
@@ -13271,6 +14109,9 @@ function setMediaKey(key) {
   loadSavedCues();
   loadSavedWords();
   updateCueMeta();
+  syncPlayerSourceQuick();
+  syncSubtitlePrimaryAction();
+  if (!$('aiChat')?.classList.contains('hidden')) aiChatCtxLabel();
 }
 
 function currentGeneration() {
@@ -13405,6 +14246,13 @@ function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, f
   return lines.join(NL);
 }
 
+function syncPlayerSourceQuick() {
+  const row = document.querySelector('.side-source-quick');
+  if (!row) return;
+  const sourceReady = !!(player.localPath || player.originalUrl);
+  row.classList.toggle('hidden', player.workspaceMode === 'browser' || sourceReady);
+}
+
 function setPlayerSource(src, title, key, meta) {
   const video = $('playerVideo');
   if (!video) return;
@@ -13415,6 +14263,8 @@ function setPlayerSource(src, title, key, meta) {
   // state.lastJobVideo'ya dusuyordu ve o ONCEKI ise ait olabiliyordu -
   // oynaticida B videosu acikken A transkribe edilebilirdi.
   player.localPath = (meta && meta.localPath) || player.localPath || '';
+  syncPlayerSourceQuick();
+  syncSubtitlePrimaryAction();
   updatePlayerAutoSyncState();
   if (meta && meta.chapters) setChapters(meta.chapters);
   destroyHls();
@@ -14603,12 +15453,25 @@ function responsivePanelTakeoverActive() {
   const layer = $('playerLayer');
   if (!layer || !window.matchMedia('(max-width: 1020px)').matches) return false;
   if (browserSettingsSurfaceVisible()) return false;
-  return drawerIsOpen() || sidebarIsVisible();
+  return !!player.narrowPanelTakeover && (drawerIsOpen() || sidebarIsVisible());
 }
 
 function syncResponsivePlayerLayout() {
   const layer = $('playerLayer');
   if (!layer) return;
+  const narrow = window.matchMedia('(max-width: 1020px)').matches;
+  if (narrow !== player.narrowViewport) {
+    if (narrow) {
+      const side = $('playerSide');
+      const focused = document.activeElement;
+      const focusInsidePanel = !!(side?.contains(focused)
+        && focused?.matches?.('input, textarea, select, [contenteditable="true"]'));
+      player.narrowPanelTakeover = drawerIsOpen() || focusInsidePanel || !!player.editing;
+    } else {
+      player.narrowPanelTakeover = false;
+    }
+    player.narrowViewport = narrow;
+  }
   const takeover = responsivePanelTakeoverActive();
   const browserSettingsOpen = player.workspaceMode === 'browser' && browserSettingsSurfaceVisible();
   layer.classList.toggle('narrow-panel-takeover', takeover);
@@ -14625,6 +15488,13 @@ function syncResponsivePlayerLayout() {
     back.title = label;
     const copy = back.querySelector('span');
     if (copy) copy.textContent = label;
+  }
+  const sidebarButton = $('playerSidebarToggle');
+  if (sidebarButton) {
+    const shown = narrow ? takeover : sidebarIsVisible();
+    sidebarButton.classList.toggle('active', shown);
+    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   scheduleBrowserBounds();
   return syncBrowserOcclusion();
@@ -14912,6 +15782,9 @@ function setSettingsDrawer(open) {
   // Eskiden 'sidebar-collapsed' kaldiriliyordu ve dislye basinca arkada
   // istenmeden transkript paneli de aciliyordu.
   d.classList.toggle('hidden', !open);
+  if (window.matchMedia('(max-width: 1020px)').matches) {
+    player.narrowPanelTakeover = !!open;
+  }
   if (layer) layer.classList.toggle('settings-open', open);
   const g = $('toggleSettings');
   if (g) g.classList.toggle('active', open);
@@ -15241,7 +16114,7 @@ document.addEventListener('keydown', (event) => {
 if ($('browserSubtitleSettingsToggle')) {
   $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
 }
-const browserToolbarMenuIds = ['browserTranslateMenu', 'browserMoreMenu'];
+const browserToolbarMenuIds = ['browserTranslateMenu', 'browserMoreMenu', 'browserSplitMenu'];
 function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
   let focusTarget = null;
   for (const id of browserToolbarMenuIds) {
@@ -15257,13 +16130,16 @@ for (const id of browserToolbarMenuIds) {
   const menu = $(id);
   if (!menu) continue;
   menu.addEventListener('toggle', () => {
-    if (menu.open) closeBrowserToolbarMenus(id);
+    if (menu.open) {
+      closeBrowserToolbarMenus(id);
+      if (id === 'browserMoreMenu') updateBrowserPinMenu();
+    }
     menu.querySelector('summary')?.setAttribute('aria-expanded', menu.open ? 'true' : 'false');
     syncBrowserOcclusion();
   });
 }
 document.addEventListener('pointerdown', (event) => {
-  if (event.target.closest?.('#browserTranslateMenu, #browserMoreMenu')) return;
+  if (event.target.closest?.('#browserTranslateMenu, #browserMoreMenu, #browserSplitMenu')) return;
   closeBrowserToolbarMenus();
 }, true);
 document.addEventListener('keydown', (event) => {
@@ -15279,6 +16155,11 @@ if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
 if ($('browserReopenTab')) $('browserReopenTab').addEventListener('click', () => {
   closeBrowserToolbarMenus();
   reopenClosedBrowserTab();
+});
+if ($('browserPinActiveTab')) $('browserPinActiveTab').addEventListener('click', async () => {
+  const tabId = player.browserActiveTabId;
+  closeBrowserToolbarMenus();
+  if (tabId) await toggleBrowserTabPinned(tabId);
 });
 if ($('browserZoomOut')) $('browserZoomOut').addEventListener('click', () => changeBrowserZoom('zoom-out'));
 if ($('browserZoomReset')) $('browserZoomReset').addEventListener('click', () => changeBrowserZoom('zoom-reset'));
@@ -15307,32 +16188,43 @@ function browserPagePrefsKey() {
 }
 function loadBrowserPagePrefs() {
   const key = browserPagePrefsKey();
-  if (!key) return { lockedTerms: [], excludedSections: [] };
+  if (!key) return { lockedTerms: [], excludedSections: [], excludedSelectors: [], pageCharacterBudget: 0 };
   try {
     const value = JSON.parse(localStorage.getItem(key) || '{}');
-    return { lockedTerms: Array.isArray(value.lockedTerms) ? value.lockedTerms.slice(0, 40) : [], excludedSections: Array.isArray(value.excludedSections) ? value.excludedSections.slice(0, 80) : [] };
-  } catch (_) { return { lockedTerms: [], excludedSections: [] }; }
+    return { lockedTerms: Array.isArray(value.lockedTerms) ? value.lockedTerms.slice(0, 40) : [], excludedSections: Array.isArray(value.excludedSections) ? value.excludedSections.slice(0, 80) : [], excludedSelectors: Array.isArray(value.excludedSelectors) ? value.excludedSelectors.slice(0, 40) : [], pageCharacterBudget: [0, 50000, 100000, 200000].includes(Number(value.pageCharacterBudget)) ? Number(value.pageCharacterBudget) : 0 };
+  } catch (_) { return { lockedTerms: [], excludedSections: [], excludedSelectors: [], pageCharacterBudget: 0 }; }
 }
 function saveBrowserPagePrefs(prefs) {
   const key = browserPagePrefsKey();
   if (!key) return;
-  try { localStorage.setItem(key, JSON.stringify({ lockedTerms: prefs.lockedTerms || [], excludedSections: prefs.excludedSections || [] })); } catch (_) {}
+  try { localStorage.setItem(key, JSON.stringify({ lockedTerms: prefs.lockedTerms || [], excludedSections: prefs.excludedSections || [], excludedSelectors: prefs.excludedSelectors || [], pageCharacterBudget: Number(prefs.pageCharacterBudget) || 0 })); } catch (_) {}
 }
 function renderBrowserPageReport(event = {}) {
   if (Array.isArray(event.sections)) player.browserPageSections = event.sections;
   if (Array.isArray(event.failures)) player.browserPageFailures = event.failures;
+  if (event.stats) player.browserPageStats = event.stats;
+  if (Object.prototype.hasOwnProperty.call(event, 'completion')) player.browserPageCompletion = event.completion || null;
   const prefs = loadBrowserPagePrefs();
   player.browserPageExcludedSections = prefs.excludedSections;
   const terms = $('browserPageLockedTerms');
   if (terms && document.activeElement !== terms) terms.value = prefs.lockedTerms.join('\n');
+  const selectors = $('browserPageExcludedSelectors');
+  if (selectors && document.activeElement !== selectors) selectors.value = prefs.excludedSelectors.join('\n');
+  const budget = $('browserPageBudget');
+  if (budget) budget.value = String(prefs.pageCharacterBudget || 0);
   const sections = $('browserPageSectionProgress');
   if (sections) {
     const rows = player.browserPageSections || [];
-    sections.innerHTML = rows.length ? '<strong>Bölüm ilerlemesi</strong>' + rows.map((row) => {
+    const completion = player.browserPageCompletion;
+    const completionHtml = completion?.total ? '<strong>Sayfa durumu</strong><div class="browser-page-completion">'
+      + `${Number(completion.translated) || 0}/${Number(completion.total) || 0} çevrildi · ${Number(completion.pending) || 0} bekliyor · ${Number(completion.failed) || 0} başarısız · ${Number(completion.excluded) || 0} dışlandı`
+      + (completion.budgetReached ? '<small>Blok veya karakter sınırına ulaşıldı.</small>' : '') + '</div>' : '';
+    const sectionHtml = rows.length ? '<strong>Bölüm ilerlemesi</strong>' + rows.map((row) => {
       const pct = row.total ? Math.round((row.translated / row.total) * 100) : 0;
       const checked = prefs.excludedSections.includes(row.section) ? ' checked' : '';
       return '<label class="browser-page-section-row"><input type="checkbox" data-page-exclude="' + escapeHtml(row.section) + '"' + checked + '><span>' + escapeHtml(row.section) + '</span><output>' + row.translated + '/' + row.total + ' · %' + pct + '</output></label>';
     }).join('') + '<button class="btn btn-ghost btn-sm" id="browserPageApplyExclusions" type="button">Seçili bölümleri dışla ve yeniden çevir</button>' : '';
+    sections.innerHTML = completionHtml + sectionHtml;
     sections.querySelector('#browserPageApplyExclusions')?.addEventListener('click', applyBrowserPageExclusions);
   }
   const failures = $('browserPageFailures');
@@ -15342,6 +16234,24 @@ function renderBrowserPageReport(event = {}) {
   }
   const undo = $('browserPageUndo');
   if (undo) undo.disabled = !player.browserPageTranslated || player.browserPageTranslateBusy;
+  const quickProgress = $('browserPageQuickProgress');
+  if (quickProgress) {
+    const completion = player.browserPageCompletion;
+    quickProgress.textContent = completion?.total
+      ? `${Number(completion.translated) || 0}/${Number(completion.total) || 0} çevrildi · ${Number(completion.pending) || 0} bekliyor · ${Number(completion.failed) || 0} başarısız · ${Number(completion.excluded) || 0} dışlandı`
+      : `${player.browserPageTranslated} blok hazır`;
+  }
+  document.querySelectorAll('[data-page-view]').forEach((button) => {
+    button.dataset.active = button.getAttribute('data-page-view') === player.browserPageView ? 'true' : 'false';
+  });
+  const autoContinue = $('browserPageAutoContinue');
+  if (autoContinue) autoContinue.textContent = player.browserPageAutoContinue ? 'Otomatik devamı durdur' : 'Otomatik devamı aç';
+  const quickTarget = $('browserPageQuickTarget');
+  if (quickTarget) quickTarget.value = effectiveBrowserProfile().values.pageTargetLanguage || $('browserPageTarget')?.value || 'tr';
+  const scope = $('browserPageScope');
+  if (scope) scope.value = player.browserPageScope || 'article';
+  const quickAuto = $('browserPageQuickAuto');
+  if (quickAuto) quickAuto.checked = !!$('browserPageAuto')?.checked;
 }
 async function applyBrowserPageExclusions() {
   const selected = [...document.querySelectorAll('[data-page-exclude]:checked')].map((node) => node.getAttribute('data-page-exclude')).filter(Boolean);
@@ -15354,8 +16264,13 @@ async function startBrowserPageTranslationFromPrefs() {
   if (!player.browserActiveTabId || !player.browserPageUrl) return;
   const prefs = loadBrowserPagePrefs();
   const profile = effectiveBrowserProfile().values;
-  applyBrowserPageTranslationState({ state: 'running', translated: 0, failed: 0, sections: [], failures: [] });
-  const result = await window.api.startBrowserPageTranslation?.(player.browserActiveTabId, { targetLanguage: profile.pageTargetLanguage ?? 'tr', mode: profile.pageMode ?? 'bilingual', workers: 2, lockedTerms: prefs.lockedTerms, excludedSections: prefs.excludedSections }).catch((error) => ({ ok: false, error: error.message }));
+  applyBrowserPageTranslationState({ state: 'running', translated: 0, failed: 0, sections: [], failures: [], completion: null });
+  const result = await window.api.startBrowserPageTranslation?.(player.browserActiveTabId, {
+    targetLanguage: profile.pageTargetLanguage ?? 'tr', mode: profile.pageMode ?? 'bilingual',
+    view: player.browserPageView === 'original' ? (profile.pageMode === 'replace' ? 'translation' : 'both') : player.browserPageView,
+    scope: player.browserPageScope || 'article', autoContinue: player.browserPageAutoContinue !== false,
+    workers: 2, lockedTerms: prefs.lockedTerms, excludedSections: prefs.excludedSections, excludedSelectors: prefs.excludedSelectors, pageCharacterBudget: prefs.pageCharacterBudget,
+  }).catch((error) => ({ ok: false, error: error.message }));
   if (!result?.ok && !result?.partial) applyBrowserPageTranslationState({ state: 'error', message: result?.error || 'Sayfa çevirisi başlatılamadı.' });
 }
 
@@ -15365,6 +16280,11 @@ function applyBrowserPageTranslationState(event = {}) {
   if (event.failed !== undefined) player.browserPageFailed = Math.max(0, Number(event.failed) || 0);
   if (Array.isArray(event.sections)) player.browserPageSections = event.sections;
   if (Array.isArray(event.failures)) player.browserPageFailures = event.failures;
+  if (event.view) player.browserPageView = event.view;
+  if (event.scope) player.browserPageScope = event.scope;
+  if (event.autoContinue !== undefined) player.browserPageAutoContinue = event.autoContinue !== false;
+  if (event.stats) player.browserPageStats = event.stats;
+  if (Object.prototype.hasOwnProperty.call(event, 'completion')) player.browserPageCompletion = event.completion || null;
   renderBrowserPageReport(event);
   if (event.visible !== undefined) player.browserPageVisible = !!event.visible;
   if (event.state === 'error') player.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
@@ -15376,6 +16296,11 @@ function applyBrowserPageTranslationState(event = {}) {
     browserPageFailed: player.browserPageFailed,
     browserPageVisible: player.browserPageVisible,
     browserPageError: player.browserPageError,
+    browserPageView: player.browserPageView,
+    browserPageScope: player.browserPageScope,
+    browserPageAutoContinue: player.browserPageAutoContinue,
+    browserPageStats: player.browserPageStats,
+    browserPageCompletion: player.browserPageCompletion,
   });
   const button = $('browserPageTranslate');
   const label = $('browserPageLabel');
@@ -15415,12 +16340,14 @@ async function handleBrowserPageTranslationAction() {
   const jobOptions = {
     targetLanguage: profile.pageTargetLanguage ?? 'tr',
     mode: profile.pageMode ?? 'bilingual',
+    view: player.browserPageView === 'original' ? (profile.pageMode === 'replace' ? 'translation' : 'both') : player.browserPageView,
+    scope: player.browserPageScope || 'article', autoContinue: player.browserPageAutoContinue !== false,
     workers: 2,
-    ...(typeof loadBrowserPagePrefs === 'function' ? loadBrowserPagePrefs() : { lockedTerms: [], excludedSections: [] }),
+    ...(typeof loadBrowserPagePrefs === 'function' ? loadBrowserPagePrefs() : { lockedTerms: [], excludedSections: [], excludedSelectors: [], pageCharacterBudget: 0 }),
   };
-  await saveAppSettings();
+  if (!await saveAppSettings()) return;
   if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
-  applyBrowserPageTranslationState({ state: 'running', translated: 0 });
+  applyBrowserPageTranslationState({ state: 'running', translated: 0, completion: null });
   const result = await window.api.startBrowserPageTranslation?.(jobTabId, jobOptions)
     .catch((error) => ({ ok: false, error: error.message }));
   if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
@@ -15428,6 +16355,41 @@ async function handleBrowserPageTranslationAction() {
 }
 
 $('browserPageTranslate')?.addEventListener('click', handleBrowserPageTranslationAction);
+$('browserPageQuickMenu')?.addEventListener('toggle', () => renderBrowserPageReport());
+document.querySelectorAll('[data-page-view]').forEach((button) => button.addEventListener('click', async () => {
+  const view = button.getAttribute('data-page-view');
+  player.browserPageView = view;
+  if (!player.browserActiveTabId || !player.browserPageTranslated) { renderBrowserPageReport(); return; }
+  const result = await window.api.setBrowserPageView?.(player.browserActiveTabId, view).catch(() => null);
+  if (!result?.ok) setBrowserSignal(result?.error || 'Sayfa görünümü değiştirilemedi.', false);
+  renderBrowserPageReport();
+}));
+$('browserPageScope')?.addEventListener('change', (event) => {
+  player.browserPageScope = ['article', 'whole', 'selection'].includes(event.target.value) ? event.target.value : 'article';
+  setBrowserSignal('Yeni çeviri bu kapsamla başlatılacak.', true, { priority: 25 });
+});
+$('browserPageQuickTarget')?.addEventListener('change', (event) => {
+  const target = String(event.target.value || 'tr');
+  const main = $('browserPageTarget');
+  if (main) { main.value = target; main.dispatchEvent(new Event('change', { bubbles: true })); }
+  setBrowserSignal('Hedef dil sonraki çeviride kullanılacak.', true, { priority: 25 });
+});
+$('browserPageQuickAuto')?.addEventListener('change', (event) => {
+  const main = $('browserPageAuto');
+  if (main && main.checked !== event.target.checked) { main.checked = event.target.checked; main.dispatchEvent(new Event('change', { bubbles: true })); }
+});
+$('browserPageBudget')?.addEventListener('change', (event) => {
+  const value = [0, 50000, 100000, 200000].includes(Number(event.target.value)) ? Number(event.target.value) : 0;
+  const prefs = loadBrowserPagePrefs(); prefs.pageCharacterBudget = value; saveBrowserPagePrefs(prefs);
+  setBrowserSignal(value ? `Bu site için karakter sınırı: ${value.toLocaleString('tr-TR')}.` : 'Karakter sınırı kaldırıldı.', true, { priority: 25 });
+});
+$('browserPageAutoContinue')?.addEventListener('click', async () => {
+  if (!player.browserActiveTabId) return;
+  const enabled = player.browserPageAutoContinue === false;
+  const result = await window.api.setBrowserPageAutoContinue?.(player.browserActiveTabId, enabled).catch(() => null);
+  if (result?.ok) { player.browserPageAutoContinue = enabled; renderBrowserPageReport(); }
+  else setBrowserSignal(result?.error || 'Otomatik devam ayarlanamadı.', false);
+});
 $('browserPageAuto')?.addEventListener('change', (event) => {
   saveBrowserPageAutoHost(!!event.target.checked);
   if (event.target.checked && player.browserPageUrl && !player.browserPageTranslated && !player.browserPageTranslateBusy) {
@@ -15436,8 +16398,9 @@ $('browserPageAuto')?.addEventListener('change', (event) => {
 });
 $('browserPageSaveTerms')?.addEventListener('click', async () => {
   const lockedTerms = String($('browserPageLockedTerms')?.value || '').split(/\r?\n/).map((line) => line.replace(/\s+/g, ' ').trim()).filter((line) => /^[^=]{1,120}=[^=]{1,120}$/u.test(line)).slice(0, 40);
-  const prefs = loadBrowserPagePrefs(); prefs.lockedTerms = lockedTerms; saveBrowserPagePrefs(prefs);
-  setBrowserSignal(lockedTerms.length ? lockedTerms.length + ' terim kilitlendi; çeviri yeniden başlatılıyor.' : 'Kilitli terimler temizlendi; çeviri yeniden başlatılıyor.', true);
+  const excludedSelectors = String($('browserPageExcludedSelectors')?.value || '').split(/\r?\n/).map((line) => line.trim().slice(0, 180)).filter((line) => line && !/[<>]/u.test(line)).slice(0, 40);
+  const prefs = loadBrowserPagePrefs(); prefs.lockedTerms = lockedTerms; prefs.excludedSelectors = excludedSelectors; saveBrowserPagePrefs(prefs);
+  setBrowserSignal(`${lockedTerms.length} terim, ${excludedSelectors.length} dışlama seçicisi kaydedildi; çeviri yeniden başlatılıyor.`, true);
   await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
   await startBrowserPageTranslationFromPrefs();
 });
@@ -15446,7 +16409,7 @@ $('browserPageUndo')?.addEventListener('click', async () => {
   if (!result?.ok) setBrowserSignal(result?.error || 'Çeviri geri alınamadı.', false);
 });
 $('browserPageClear')?.addEventListener('click', async () => {
-  const result = await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
+  const result = await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId, true).catch(() => null);
   if (!result?.ok) setBrowserSignal(result?.error || 'Sayfa çevirisi kaldırılamadı.', false);
 });
 $('browserPageRetryFailed')?.addEventListener('click', async () => {
@@ -15457,6 +16420,16 @@ $('browserPageExport')?.addEventListener('click', async () => {
   const result = await window.api.exportBrowserPageTranslation?.(player.browserActiveTabId, 'txt').catch(() => null);
   if (result?.ok) logLine(`Sayfa çevirisi kaydedildi: ${result.path}`, 'success');
   else if (!result?.canceled) setBrowserSignal(result?.error || 'Sayfa çevirisi dışa aktarılamadı.', false);
+});
+$('browserTranslationArchiveOpen')?.addEventListener('click', async () => {
+  const paths = await window.api.getPaths?.().catch(() => null);
+  if (!paths?.translationArchive) {
+    setBrowserSignal('Çeviri arşivi klasörü bulunamadı.', false);
+    return;
+  }
+  const result = await window.api.openPath?.(paths.translationArchive).catch(() => 'Klasör açılamadı.');
+  if (typeof result === 'string' && result) setBrowserSignal(`Çeviri arşivi açılamadı: ${result}`, false);
+  else setBrowserSignal('Çeviri arşivi açıldı.', true);
 });
 
 let pdfJsPromise = null;
@@ -15786,6 +16759,14 @@ function setPlayerSidebarCollapsed(collapsed) {
   const button = $('playerSidebarToggle');
   if (!layer) return;
   const next = !!collapsed;
+  if (window.matchMedia('(max-width: 1020px)').matches) {
+    // Bu yardımcı panelin açık/kapalı durumunu temsil eder. Dar ekranda paneli
+    // programlı olarak açan yollar da tıpkı başlık düğmesi gibi çalışma
+    // alanını devralmalı; aksi halde panel CSS'te açık olsa da erişilemez kalır.
+    player.narrowPanelTakeover = !next;
+  } else if (next) {
+    player.narrowPanelTakeover = false;
+  }
   layer.classList.toggle('sidebar-collapsed', next);
   snapGridColumns();
   if (button) {
@@ -15800,6 +16781,19 @@ function setPlayerSidebarCollapsed(collapsed) {
 }
 if ($('playerSidebarToggle')) {
   $('playerSidebarToggle').addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 1020px)').matches) {
+      if (responsivePanelTakeoverActive()) {
+        player.narrowPanelTakeover = false;
+        if (drawerIsOpen()) setSettingsDrawer(false);
+        else syncResponsivePlayerLayout();
+        return;
+      }
+      if (player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
+      $('playerLayer')?.classList.remove('sidebar-collapsed');
+      player.narrowPanelTakeover = true;
+      syncResponsivePlayerLayout();
+      return;
+    }
     if (sidebarIsVisible()) { setPlayerSidebarCollapsed(true); return; }
     // Sinema modunda panel CSS ile gizli: sinifi temizlemek YETMEZ, moddan
     // cikmak gerekir. Eskiden dugme sinifi bir acip bir kapatiyor ama ekranda
@@ -15888,7 +16882,11 @@ if ($('subtitleFindReplaceToggle')) {
   });
 }
 if ($('narrowPanelBack')) {
-  $('narrowPanelBack').addEventListener('click', () => setPlayerSidebarCollapsed(true));
+  $('narrowPanelBack').addEventListener('click', () => {
+    player.narrowPanelTakeover = false;
+    if (drawerIsOpen()) setSettingsDrawer(false);
+    else syncResponsivePlayerLayout();
+  });
 }
 for (const id of ['subtitleFindText', 'subtitleFindField', 'subtitleFindCase', 'subtitleFindWhole']) {
   const control = $(id);
@@ -16087,24 +17085,53 @@ if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async (
 
 // "Ceviri olustur": EKRANDA YUKLU altyaziyi cevirir. Ses indirme ve Whisper
 // calismaz; zaman kodlarina dokunulmaz. Sonuc ikinci altyazi olarak yuklenir.
+function syncSubtitlePrimaryAction() {
+  const row = document.querySelector('.tool-row-main');
+  const create = $('makeSubsBtn');
+  const translate = $('makeTransBtn');
+  const exportButton = $('exportTranslationBtn');
+  if (!row || !create || !translate || !exportButton) return;
+  const roles = browserSubtitleRoleCues();
+  const busy = !!(state.running || state.queueRunning);
+  const canCreate = player.workspaceMode === 'browser'
+    ? !!currentBrowserYoutubeUrl()
+    : !!(player.localPath || player.originalUrl || player.mediaKey);
+  let primary = null;
+  if (!busy && roles.translation.length && !exportButton.disabled) primary = exportButton;
+  else if (!busy && roles.source.length && !roles.translation.length && !translate.disabled) primary = translate;
+  else if (!busy && !roles.source.length && canCreate && !create.disabled) primary = create;
+  for (const button of [create, translate, exportButton]) {
+    const active = button === primary;
+    button.classList.toggle('btn-primary', active);
+    button.classList.toggle('action-button-outline', !active);
+    button.dataset.primaryAction = active ? 'true' : 'false';
+  }
+  row.dataset.actionState = busy ? 'busy'
+    : primary === exportButton ? 'ready'
+      : primary === translate ? 'translate'
+        : primary === create ? 'create' : 'idle';
+}
+
 function updateMakeTransState() {
   const btn = $('makeTransBtn');
   if (!btn) return;
   const ok = (player.subRole === 'source' && !!player.subPath && player.cues.length > 0)
     || (player.sub2Role === 'source' && !!player.sub2Path && player.cues2.length > 0);
-  btn.disabled = !ok;
+  const busy = !!(state.running || state.queueRunning);
+  btn.disabled = !ok || busy;
   const retry = Number(player.translationRetryAvailable) || 0;
   btn.textContent = retry > 0 ? `Eksik çevirileri tamamla (${retry})` : 'Çeviri oluştur';
-  btn.title = ok
+  btn.title = busy ? 'Başka bir altyazı veya AI işi sürüyor.' : ok
     ? (retry > 0
       ? 'Başarısız kalan satırları yeniden dener; tamamlanan satırlar önbellekten korunur'
       : 'Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur')
     : 'Önce bir altyazı yükleyin (soldaki listeden veya dosyadan)';
-  if ($('retranslateAllBtn')) $('retranslateAllBtn').disabled = !ok || state.running;
+  if ($('retranslateAllBtn')) $('retranslateAllBtn').disabled = !ok || busy;
   if ($('exportTranslationBtn')) {
     const roles = browserSubtitleRoleCues();
-    $('exportTranslationBtn').disabled = !roles.translation.length || state.running;
+    $('exportTranslationBtn').disabled = !roles.translation.length || busy;
   }
+  syncSubtitlePrimaryAction();
 }
 
 function updatePlayerAutoSyncState() {
@@ -16258,7 +17285,7 @@ if ($('exportTranslationBtn')) {
     }
     const translationPath = player.subRole === 'translation' ? player.subPath
       : player.sub2Role === 'translation' ? player.sub2Path : '';
-    const suggested = (translationPath || 'turkce-ceviri.srt')
+    const suggested = (translationPath || 'ceviri.srt')
       .replace(/\.(?:vtt|ass|ssa)$/i, '.srt');
     const result = await window.api.saveSubtitleCopy(suggested, cuesToSrt(roles.translation));
     if (!result || !result.ok) {
@@ -16267,7 +17294,7 @@ if ($('exportTranslationBtn')) {
       }
       return;
     }
-    logLine(`Türkçe çeviri dışa aktarıldı: ${result.path}`, 'success');
+    logLine(`Çeviri dışa aktarıldı: ${result.path}`, 'success');
     osd('Çeviri dışa aktarıldı');
   });
 }
@@ -16569,6 +17596,7 @@ async function applyCollectionResult(result, successText) {
 
 refreshWatchLibrary();
 if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', handleWatchLibraryAction);
+if ($('playerLibraryPanel')) $('playerLibraryPanel').addEventListener('click', handleResearchLibraryAction);
 $$('[data-library-view]').forEach((button) => button.addEventListener('click', async () => {
   playerLibraryView = button.dataset.libraryView || 'search';
   $$('[data-library-view]').forEach((item) => {
@@ -16578,10 +17606,28 @@ $$('[data-library-view]').forEach((button) => button.addEventListener('click', a
   });
   $('playerLibraryList')?.setAttribute('aria-labelledby', button.id);
   $('libraryCollectionTools')?.classList.toggle('hidden', playerLibraryView !== 'collections');
+  $('standardLibraryControls')?.classList.toggle('hidden', ['research', 'reviews'].includes(playerLibraryView));
+  $('researchLibraryControls')?.classList.toggle('hidden', !['research', 'reviews'].includes(playerLibraryView));
   $('playerLibrarySearchScope')?.classList.toggle('hidden', playerLibraryView !== 'search');
-  if (playerLibraryView === 'notes') await runPlayerLibrarySearch();
+  if (playerLibraryView === 'research' || playerLibraryView === 'reviews') await loadResearchLibrary();
+  else if (playerLibraryView === 'notes') await runPlayerLibrarySearch();
   else renderPlayerLibrary();
 }));
+
+for (const id of ['researchQuery', 'researchTag']) {
+  $(id)?.addEventListener('input', (event) => {
+    if (event.isComposing) return;
+    clearTimeout(researchSearchTimer);
+    researchSearchTimer = setTimeout(loadResearchLibrary, 250);
+  });
+}
+for (const id of ['researchType', 'researchStatus']) $(id)?.addEventListener('change', loadResearchLibrary);
+$('researchExport')?.addEventListener('click', async () => {
+  const result = await window.api.exportResearchAnnotations(researchLibraryFilters(), 'Whisper Local araştırma defteri')
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) logLine(`${result.count} araştırma kaydı Markdown olarak dışa aktarıldı: ${result.path}`, 'success');
+  else if (!result?.canceled) logLine(`Araştırma defteri dışa aktarılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+});
 if ($('playerLibraryUndoBtn')) $('playerLibraryUndoBtn').addEventListener('click', async () => {
   const annotation = lastDeletedLibraryAnnotation;
   if (!annotation) return;
@@ -16718,6 +17764,10 @@ if ($('playerWordHighlight')) {
 // --- AI sohbet dinleyicileri ---
 $$('.side-tab').forEach((b) => b.addEventListener('click', () => {
   const tablist = b.closest('[role="tablist"]');
+  if (window.matchMedia('(max-width: 1020px)').matches) {
+    player.narrowPanelTakeover = true;
+    syncResponsivePlayerLayout();
+  }
   setSideTab(b.dataset.stab, { focusContent: tablist?.dataset.rovingActivation !== 'true' });
 }));
 if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend($('aiChatText').value));
@@ -17764,6 +18814,8 @@ if ($('playerProbe')) {
     info.videoKey = mediaKeyFor('youtube', url);
     player.ytInfo = info;
     player.originalUrl = url;
+    syncPlayerSourceQuick();
+    syncSubtitlePrimaryAction();
     $('playerYtInfo').classList.remove('hidden');
     $('playerYtTitle').textContent = `${info.title} · ${pSecToTime(info.duration)}`;
 

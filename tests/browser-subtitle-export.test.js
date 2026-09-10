@@ -19,6 +19,7 @@ function harness() {
     attachBrowserCueIdentities: (_track, cues) => cues,
     parseSubtitles: (text) => [{ start: 0, end: 1, text }],
     setBrowserSignal: (message) => signals.push(message),
+    updateBrowserSubtitleSummary() {}, syncSubtitlePrimaryAction() {},
     window: { api: { readSubtitle: async () => ({ ok: true, text: 'Hello' }),
       exportBrowserSubtitle: async (payload) => { exports.push(payload); return { ok: true, path: 'test.vtt' }; } } },
   };

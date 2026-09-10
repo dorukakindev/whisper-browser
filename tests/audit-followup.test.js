@@ -52,10 +52,14 @@ test('boş ama dokunulmamış anahtar silme isteği sayılmaz', () => {
   const start = source.indexOf('function secretSettingValue(');
   vm.runInContext(source.slice(start, source.indexOf("document.addEventListener('change'", start)), context);
   assert.equal(context.secretSettingValue('key'), undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.secretSettingPatch('key'))), {},
+    'dokunulmamış gizli alan payload içinde own-property olarak kaldı');
   control.dataset.secretEdited = 'true';
   assert.equal(context.secretSettingValue('key'), '');
+  assert.deepEqual(JSON.parse(JSON.stringify(context.secretSettingPatch('key'))), { apiKey: '' });
   control.value = ' test-value ';
   assert.equal(context.secretSettingValue('key'), 'test-value');
+  assert.deepEqual(JSON.parse(JSON.stringify(context.secretSettingPatch('key', 'hfToken'))), { hfToken: 'test-value' });
 });
 test('parmak izi ortadaki metni, bitişi ve milisaniyeyi kapsar', () => {
   const cues = Array.from({ length: 300 }, (_, i) => ({ start: i, end: i + .9, text: `satır ${i}` }));

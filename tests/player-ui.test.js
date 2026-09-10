@@ -483,11 +483,14 @@ test('sinema modunda yan panel CSS ile gizleniyor (varsayımın dayanağı)', ()
 test('yan panel düğmesi görünürlüğü mod ile birlikte değerlendiriyor', () => {
   const i = js.indexOf("$('playerSidebarToggle').addEventListener('click'");
   assert(i > 0, 'playerSidebarToggle dinleyicisi yok');
-  const body = js.slice(i, i + 500);
+  const body = js.slice(i, js.indexOf("if ($('playerHeadFullscreen'))", i));
   assert(/sidebarIsVisible\(\)/.test(body),
     'dugme yalnizca sinifa bakiyor — sinema modunda ekranda hicbir sey degismez');
   assert(/setViewMode\(/.test(body),
     'sinema modundan cikmiyor — panel geri getirilemez');
+  assert(/player\.narrowPanelTakeover = true/.test(body)
+    && /responsivePanelTakeoverActive\(\)/.test(body),
+  'dar görünümde panel yalnız açık kullanıcı eylemiyle devralınmıyor');
 });
 
 test('sidebarIsVisible sinema modunu hesaba katıyor', () => {
@@ -855,11 +858,11 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
 });
 
 test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüsünü kullanır', () => {
-  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserMoreMenu'\]/.test(js),
+  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserMoreMenu', 'browserSplitMenu'\]/.test(js),
     'toolbar menüleri tek yaşam döngüsü listesinde değil');
-  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open/.test(js),
+  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open \|\| !!splitMenu\?\.open/.test(js),
     'native browser okluzyonu açık toolbar menülerini hesaba katmıyor');
-  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserMoreMenu'\)/.test(js),
+  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserMoreMenu, #browserSplitMenu'\)/.test(js),
     'dış tıklama menüleri tek noktadan kapatmıyor');
   assert(/event\.key !== 'Escape'[\s\S]{0,260}closeBrowserToolbarMenus\('', true\)/.test(js),
     'Escape en üst toolbar menüsünü kapatıp odağı geri vermiyor');
@@ -1174,6 +1177,18 @@ test('AI zaman bağlantısı tarayıcı videosunu da ileri sarıyor', () => {
   const block = js.slice(start, end);
   assert(/player\.workspaceMode === 'browser'/.test(block), 'tarayıcı modu ayrılmıyor');
   assert(/browserCommand\('seek', player\.browserTime\)/.test(block), 'web videosuna seek gönderilmiyor');
+});
+
+test('AI sayfa kaynakları tıklanınca ilgili paragrafa gidiyor', () => {
+  const start = js.indexOf('function renderAiText');
+  const end = js.indexOf('function aiChatAdd', start);
+  const block = js.slice(start, end);
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
+  assert(block.includes('\\[((?:S|T)\\d{1,5})\\]'), 'AI kaynak kimliği ayrıştırılmıyor');
+  assert(/className = [^\n]*'ai-source-link'/.test(block), 'AI kaynak düğmesi üretilmiyor');
+  assert(/revealBrowserPageContext\(tabId, sourceId\)/.test(block), 'kaynak paragraf IPC çağrısı yok');
+  assert(/\.ai-source-link/.test(css), 'AI kaynak bağlantısı stili yok');
+  assert(/revealBrowserPageContext: \(tabId, sourceId\)/.test(preload), 'kaynak paragraf preload köprüsü yok');
 });
 
 test('zamanlama masası altyazı gecikmesini medya eksenine uygular', () => {
@@ -1713,8 +1728,13 @@ test('dar pencerede yan panel içerik alanını erişilebilir biçimde devralıy
   assert(/narrow-panel-takeover/.test(js.slice(js.indexOf('function syncBrowserOcclusion'),
     js.indexOf('function openManagedModal'))),
   'native tarayıcı görünümü tam alan panelin arkasında gizlenmiyor');
-  assert(/narrowPanelBack['"]\)\.addEventListener\('click', \(\) => setPlayerSidebarCollapsed\(true\)\)/.test(js),
-    'Videoya dön düğmesi paneli kapatmıyor');
+  const backStart = js.indexOf("if ($('narrowPanelBack'))");
+  const backBody = js.slice(backStart, js.indexOf("for (const id of ['subtitleFindText'", backStart));
+  assert(/player\.narrowPanelTakeover = false/.test(backBody)
+    && /syncResponsivePlayerLayout\(\)/.test(backBody),
+  'Videoya dön düğmesi geçici panel devralmasını kapatmıyor');
+  assert(!/setPlayerSidebarCollapsed\(true\)/.test(backBody),
+    'Videoya dön kalıcı geniş ekran panel tercihini bozmamalı');
 });
 
 test('Electron dar ayar smoke ölçümü pencere yeniden boyutlanmasını bekliyor', () => {

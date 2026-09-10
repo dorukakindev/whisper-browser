@@ -168,7 +168,7 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(html, /id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"/);
   assert.match(html, /id="browserTabNew"[\s\S]{0,500}<span>Yeni sekme<\/span>/);
   assert.match(renderer, /\$\('browserTabNew'\)\.addEventListener\('click', createBrowserTab\)/);
-  assert.match(renderer, /syncBrowserTabs\(result\.tabs, result\.activeTabId\)/);
+  assert.match(renderer, /syncBrowserTabs\(result\.tabs, result\.activeTabId, result\.split\)/);
   assert.match(renderer, /restoreActiveBrowserTabWorkspace\(tab\)/);
   assert.match(renderer, /result\.captureEnabled !== player\.browserCaptureEnabled/);
 });

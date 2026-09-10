@@ -11,6 +11,7 @@ const { randomUUID } = require('node:crypto');
 let electronProcess = null;
 let server = null;
 let userDataDir = '';
+const stalledResponses = new Set();
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -108,6 +109,52 @@ function near(left, right, tolerance = 3) {
   return Math.abs(Number(left) - Number(right)) <= tolerance;
 }
 
+async function resizeAppWindow(main, renderer, width, height, timeoutMs = 5000) {
+  await evaluate(main, `(async () => {
+    const req = process.getBuiltinModule('module').createRequire(process.execPath);
+    const win = req('electron').BrowserWindow.getAllWindows()[0];
+    if (!win) return null;
+    if (!win.isVisible() || !win.isFocused()) {
+      // Windows'ta gizli/odaksız başlatılan bir Electron penceresinin native
+      // bounds'u değişse bile Chromium renderer viewportunu güncellemeyebilir.
+      // Etkileşimli yerleşim kabul testi gerçek kullanıcı penceresini ölçer.
+      win.show();
+      win.focus();
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    if (win.isMaximized()) {
+      win.unmaximize();
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    // Test renderer ve WebContentsView istemci alanını ölçüyor; Windows dış
+    // çerçevesini hedefleyen setSize() titlebar overlay altında renderer'a
+    // geç ulaşabiliyor. İstemci alanını doğrudan boyutlandır.
+    win.setContentSize(${width}, ${height});
+    return win.getBounds();
+  })()`);
+  const settled = await waitFor(async () => {
+    const size = await evaluate(renderer,
+      "({ width: window.innerWidth, height: window.innerHeight })", 1000).catch(() => null);
+    return size && near(size.width, width) && near(size.height, height) ? size : null;
+  }, timeoutMs, 50);
+  if (settled) return settled;
+  const diagnostic = await evaluate(main, `(() => {
+    const req = process.getBuiltinModule('module').createRequire(process.execPath);
+    return req('electron').BrowserWindow.getAllWindows().map((win) => ({
+      id: win.id,
+      url: win.webContents.getURL(),
+      bounds: win.getBounds(),
+      maximized: win.isMaximized(),
+      fullscreen: win.isFullScreen(),
+      visible: win.isVisible(),
+    }));
+  })()`).catch(() => null);
+  const rendererSize = await evaluate(renderer,
+    "({ width: window.innerWidth, height: window.innerHeight })", 1000).catch(() => null);
+  throw new Error(`Electron window did not settle at ${width}x${height}: `
+    + JSON.stringify({ rendererSize, windows: diagnostic }));
+}
+
 async function openBrowserWorkspace(renderer, siteUrl) {
   const ready = await waitFor(async () => evaluate(renderer,
     "document.readyState === 'complete' && typeof setWorkspaceMode === 'function' && typeof browserCommand === 'function'",
@@ -129,10 +176,83 @@ async function openBrowserWorkspace(renderer, siteUrl) {
   return tabId;
 }
 
+async function verifyBrowserLoadingLifecycle(renderer, main, siteUrl) {
+  const stalledUrl = siteUrl + 'stalled-load';
+  await evaluate(main, "(() => { globalThis.__browserLifecycleAudit={warnings:[],rejections:[]}; globalThis.__browserLifecycleWarning=(warning)=>globalThis.__browserLifecycleAudit.warnings.push(String(warning?.message||warning)); globalThis.__browserLifecycleRejection=(reason)=>globalThis.__browserLifecycleAudit.rejections.push(String(reason?.message||reason)); process.on('warning',globalThis.__browserLifecycleWarning); process.on('unhandledRejection',globalThis.__browserLifecycleRejection); return true; })()");
+  await evaluate(renderer, "(() => { document.getElementById('browserAddress').value="
+    + JSON.stringify(stalledUrl) + "; void navigateBrowserFromAddress(); return true; })()");
+  const stalledLoading = await waitFor(async () => evaluate(main,
+    "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const wc=req('electron').webContents.getAllWebContents().find((entry)=>entry.getURL()==="
+      + JSON.stringify(stalledUrl) + "); return !!wc?.isLoading(); })()", 3000).catch(() => false), 10000);
+  assert.equal(stalledLoading, true, 'The stalled navigation did not start.');
+  await evaluate(renderer, "(() => { const payload={source:[],translation:[],mode:'source',offset:0}; globalThis.__overlayFlood=Array.from({length:16},()=>window.api.setBrowserOverlay(player.browserActiveTabId,payload).catch(()=>null)); return globalThis.__overlayFlood.length; })()");
+  await delay(1200);
+  const duringLoad = await evaluate(main,
+    "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const wc=req('electron').webContents.getAllWebContents().find((entry)=>entry.getURL()==="
+      + JSON.stringify(stalledUrl)
+      + "); return wc?{listeners:wc.listenerCount('did-stop-loading'),loading:wc.isLoading(),audit:globalThis.__browserLifecycleAudit}:null; })()");
+  assert.ok(duringLoad?.loading, 'The stalled page completed before lifecycle measurement.');
+  assert.ok(duringLoad.listeners <= 3,
+    'did-stop-loading listeners accumulated during navigation: ' + JSON.stringify(duringLoad));
+  assert.equal(duringLoad.audit.warnings.some((item) => /MaxListenersExceededWarning/u.test(item)), false,
+    'MaxListenersExceededWarning was emitted: ' + JSON.stringify(duringLoad.audit));
+  const closed = await evaluate(renderer, "(async () => { const started=performance.now(); const result=await window.api.closeBrowserTab(player.browserActiveTabId,false); return {result,elapsed:performance.now()-started}; })()", 10000);
+  assert.equal(closed.result?.ok, true, 'The loading tab could not close: ' + JSON.stringify(closed));
+  assert.ok(closed.elapsed < 2500,
+    'Closing the loading tab waited for script timeouts: ' + JSON.stringify(closed));
+  const recovery = await evaluate(renderer, "(async () => { const navigation=await window.api.navigateBrowser("
+    + JSON.stringify(closed.result.activeTabId) + "," + JSON.stringify(siteUrl)
+    + "); const started=performance.now(); const created=await window.api.createBrowserTab(); return {navigation,created,createElapsed:performance.now()-started}; })()", 12000);
+  assert.equal(recovery.navigation?.ok, true,
+    'A normal page did not open after closing the stalled tab: ' + JSON.stringify(recovery));
+  assert.equal(recovery.created?.ok, true,
+    'A new tab could not be created after recovery: ' + JSON.stringify(recovery));
+  assert.ok(recovery.createElapsed < 2500,
+    'Creating a new tab waited for script timeouts: ' + JSON.stringify(recovery));
+  const audit = await evaluate(main, "(() => { const value=globalThis.__browserLifecycleAudit; process.off('warning',globalThis.__browserLifecycleWarning); process.off('unhandledRejection',globalThis.__browserLifecycleRejection); return value; })()");
+  assert.equal(audit.rejections.some((item) => /Script failed to execute/u.test(item)), false,
+    'An unhandled script rejection escaped during navigation: ' + JSON.stringify(audit));
+  return {
+    listenersDuringLoad: duringLoad.listeners,
+    closeElapsedMs: Math.round(closed.elapsed),
+    pageRecovered: recovery.navigation.ok,
+    newTabElapsedMs: Math.round(recovery.createElapsed),
+  };
+}
+
+async function verifySubframeNavigationIsolation(renderer, page, siteUrl) {
+  const before = await evaluate(renderer,
+    "(() => { const tab=browserTabState(); return {generation:tab?.generation||0,url:tab?.url||''}; })()");
+  await evaluate(page, `(async () => {
+    const frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    const loaded = () => new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
+    frame.src = ${JSON.stringify(siteUrl + 'frame-one')};
+    const first = loaded(); document.body.appendChild(frame); await first;
+    const second = loaded(); frame.src = ${JSON.stringify(siteUrl + 'frame-two')}; await second;
+    frame.remove(); return true;
+  })()`, 12000);
+  await delay(250);
+  const after = await evaluate(renderer,
+    "(() => { const tab=browserTabState(); return {generation:tab?.generation||0,url:tab?.url||''}; })()");
+  assert.equal(after.generation, before.generation,
+    'Subframe navigation reset the top-level subtitle/media generation: ' + JSON.stringify({ before, after }));
+  assert.equal(after.url, before.url,
+    'Subframe navigation replaced the top-level address: ' + JSON.stringify({ before, after }));
+  return { beforeGeneration: before.generation, afterGeneration: after.generation };
+}
+
 async function run() {
   const wav = silentWav();
   const vtt = 'WEBVTT\n\n00:00:00.000 --> 00:01:20.000\nElectron browser acceptance cue\n';
   server = http.createServer((request, response) => {
+    if (request.url === '/stalled-load') {
+      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      response.write('<!doctype html><title>Takılan yükleme</title><main>yükleniyor</main>');
+      stalledResponses.add(response);
+      response.once('close', () => stalledResponses.delete(response));
+      return;
+    }
     if (request.url === '/captions.vtt') {
       response.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Cache-Control': 'no-store' });
       response.end(vtt);
@@ -190,7 +310,12 @@ async function run() {
     projectRoot,
     '--remote-debugging-port=' + devtoolsPort,
     '--user-data-dir=' + userDataDir,
-  ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore' });
+  ], {
+    cwd: projectRoot,
+    windowsHide: true,
+    stdio: 'ignore',
+    env: { ...process.env, WHISPER_RESOURCE_SOAK_USER_DATA: userDataDir },
+  });
 
   const targets = await waitFor(async () => {
     if (electronProcess.exitCode != null) throw new Error('Electron exited early: ' + electronProcess.exitCode);
@@ -222,8 +347,8 @@ async function run() {
   const main = createCdpClient(mainTarget.webSocketDebuggerUrl);
   await main.opened;
   await main.call('Runtime.enable');
-  const windowInfo = await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(1280,820); return win.getBounds(); })()");
-  await delay(400);
+  const windowInfo = await resizeAppWindow(main, renderer, 1280, 820);
+  assert.ok(windowInfo, 'Initial Electron window size did not settle.');
 
   const tabId = await openBrowserWorkspace(renderer, siteUrl);
   const browserTargets = await waitFor(async () => {
@@ -239,6 +364,15 @@ async function run() {
   const page = createCdpClient(browserTargets.webSocketDebuggerUrl);
   await page.opened;
   await page.call('Runtime.enable');
+  const subframeNavigation = await verifySubframeNavigationIsolation(renderer, page, siteUrl);
+  if (process.argv.includes('--lifecycle-only')) {
+    const lifecycle = await verifyBrowserLoadingLifecycle(renderer, main, siteUrl);
+    console.log('electron-browser-lifecycle-smoke: ' + JSON.stringify({ subframeNavigation, ...lifecycle }));
+    page.socket.close();
+    renderer.socket.close();
+    main.socket.close();
+    return;
+  }
   const fullscreenHooked = await evaluate(main,
     "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const wc=req('electron').webContents.getAllWebContents().find((entry)=>entry.getURL()==="
       + JSON.stringify(siteUrl)
@@ -380,7 +514,8 @@ async function run() {
     'Settings fields stretched beyond their readable measure.');
   assert.equal(settingsNativeHidden, true, 'The native browser view remained visible behind Settings.');
 
-  await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(960,720); return win.getBounds(); })()");
+  assert.ok(await resizeAppWindow(main, renderer, 960, 720),
+    'Narrow browser Settings window size did not settle.');
   const narrowSettingsSettled = await waitFor(async () => evaluate(renderer, `(() => {
     const side = document.getElementById('playerSide');
     return innerWidth <= 1020 && !side?.getClientRects().length;
@@ -407,8 +542,8 @@ async function run() {
     'Narrow resize made the active browser Settings surface inert.');
   assert.equal(narrowSettingsTab.sideVisible, false,
     'Narrow browser Settings left a clipped subtitle-panel strip visible.');
-  await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(1280,820); return win.getBounds(); })()");
-  await delay(250);
+  assert.ok(await resizeAppWindow(main, renderer, 1280, 820),
+    'Browser Settings restore window size did not settle.');
 
   const settingsTabClose = await evaluate(renderer, `(async () => {
     await closeBrowserSettings();
@@ -462,10 +597,8 @@ async function run() {
     },
   ];
   for (const target of targetSizes) {
-    await evaluate(main,
-      "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize("
-        + target.width + ',' + target.height + "); return win.getBounds(); })()");
-    await delay(180);
+    assert.ok(await resizeAppWindow(main, renderer, target.width, target.height),
+      `${target.name}: Electron window size did not settle.`);
     for (const stateSpec of stateSetups) {
       const snapshot = await evaluate(renderer, `(async () => {
         document.getElementById('browserMoreMenu').open = false;
@@ -573,24 +706,48 @@ async function run() {
       });
     }
   }
-  await evaluate(main, "(() => { const req=process.getBuiltinModule('module').createRequire(process.execPath); const win=req('electron').BrowserWindow.getAllWindows()[0]; win.setSize(1280,820); return win.getBounds(); })()");
+  assert.ok(await resizeAppWindow(main, renderer, 1280, 820),
+    'Post-matrix Electron window size did not settle.');
   await evaluate(renderer, "(() => { document.getElementById('browserMoreMenu').open=false; document.getElementById('playerParseStatus').classList.add('hidden'); document.getElementById('playerTitle').textContent=player.browserPageTitle||'Tarayıcı'; setSettingsDrawer(false); setViewMode('reading'); setPlayerSidebarCollapsed(false); syncResponsivePlayerLayout(); return true; })()");
   await delay(220);
 
-  const menuOcclusion = await evaluate(renderer, `(async () => {
+  const menuOpened = await waitFor(async () => evaluate(renderer, `(() => {
     const more = document.getElementById('browserMoreMenu');
-    more.open = true;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    return { open: more.open };
-  })()`);
+    if (!more.open) more.querySelector('summary')?.click();
+    return more.open;
+  })()`).catch(() => false), 3000, 50);
+  const menuOcclusion = { open: menuOpened === true };
   const menuVisibility = await waitFor(async () => browserViewVisible()
     .then((visible) => visible === false).catch(() => false), 3000, 50);
   await evaluate(renderer, "(() => { closeBrowserToolbarMenus(); return !document.getElementById('browserMoreMenu').open; })()");
   const menuRestored = await waitFor(async () => browserViewVisible()
     .then((visible) => visible === true).catch(() => false), 3000, 50);
+  const menuRestoreDiagnostics = menuRestored ? null : {
+    renderer: await evaluate(renderer, `(() => ({
+      workspaceMode: player.workspaceMode,
+      surface: player.browserSurface,
+      activeTabId: player.browserActiveTabId,
+      pageUrl: player.browserPageUrl,
+      menuOpen: document.getElementById('browserMoreMenu').open,
+      takeover: document.getElementById('playerLayer').classList.contains('narrow-panel-takeover'),
+      settingsOpen: !document.getElementById('settingsDrawer').classList.contains('hidden'),
+    }))()`),
+    main: await evaluate(main, `(() => {
+      const req=process.getBuiltinModule('module').createRequire(process.execPath);
+      const electron=req('electron');
+      const win=electron.BrowserWindow.getAllWindows()[0];
+      return (win?.contentView?.children || []).map((view) => ({
+        id: view.webContents?.id || null,
+        url: view.webContents?.getURL?.() || '',
+        visible: typeof view.getVisible === 'function' ? view.getVisible() : null,
+        destroyed: view.webContents?.isDestroyed?.() ?? null,
+      }));
+    })()`),
+  };
   assert.equal(menuOcclusion.open, true, 'Other menu did not open.');
   assert.equal(menuVisibility, true, 'Native browser view stayed visible behind the Other menu.');
-  assert.equal(menuRestored, true, 'Native browser view did not restore after closing the menu.');
+  assert.equal(menuRestored, true,
+    'Native browser view did not restore after closing the menu: ' + JSON.stringify(menuRestoreDiagnostics));
 
   const proxyCycles = await evaluate(renderer, `(async () => {
     const more = document.getElementById('browserMoreMenu');
@@ -659,16 +816,36 @@ async function run() {
   assert.equal(panel.hitInside, true, 'Find/replace panel is not hit-testable.');
   assert.ok(panel.panel.width > 100 && panel.panel.height > 40, 'Find/replace panel has unusable bounds.');
 
-  await evaluate(renderer, "(() => { setSubtitleFindReplaceOpen(false); scheduleBrowserBounds(); return true; })()");
+  const initialBoundsSync = await evaluate(renderer, `(async () => {
+    setSubtitleFindReplaceOpen(false);
+    const bounds = browserSlotBounds();
+    if (!bounds || !window.api.setBrowserBounds) return null;
+    return window.api.setBrowserBounds(player.browserActiveTabId, bounds);
+  })()`);
+  assert.equal(initialBoundsSync?.ok, true,
+    'Initial browser bounds could not be applied before fullscreen validation.');
+  let lastInitialPair = null;
   const initialPair = await waitFor(async () => {
     const layout = await evaluate(renderer,
       "(() => { const slot=browserSlotBounds(); return {slot,window:{width:window.innerWidth,height:window.innerHeight}}; })()", 3000);
     const viewport = await evaluate(page,
       "({width:window.innerWidth,height:window.innerHeight,fullscreen:!!document.fullscreenElement})", 3000);
+    lastInitialPair = { layout, viewport };
     return near(viewport.width, layout.slot.width) && near(viewport.height, layout.slot.height)
       ? { layout, viewport } : null;
   }, 5000);
-  assert.ok(initialPair, 'Initial browser viewport did not settle on its current slot.');
+  const initialNativeViews = initialPair ? null : await evaluate(main, `(() => {
+    const req = process.getBuiltinModule('module').createRequire(process.execPath);
+    const win = req('electron').BrowserWindow.getAllWindows()[0];
+    return (win?.contentView?.children || []).map((view) => ({
+      url: view.webContents?.getURL?.() || '',
+      bounds: view.getBounds?.() || null,
+      visible: view.getVisible?.() ?? null,
+    }));
+  })()`).catch(() => null);
+  assert.ok(initialPair,
+    'Initial browser viewport did not settle on its current slot: '
+      + JSON.stringify({ ...lastInitialPair, nativeViews: initialNativeViews }));
   const initialLayout = initialPair.layout;
   const initialViewport = initialPair.viewport;
 
@@ -703,7 +880,12 @@ async function run() {
   }, 10000);
   assert.ok(resizedFullscreen, 'Fullscreen view did not stay full-window after the browser slot changed.');
 
-  await evaluate(page, "document.exitFullscreen()", 8000, { userGesture: true });
+  const exitRequested = await evaluate(page, `(() => {
+    const work = document.exitFullscreen();
+    work?.catch?.(() => {});
+    return true;
+  })()`, 3000, { userGesture: true });
+  assert.equal(exitRequested, true, 'Fullscreen exit request could not be dispatched.');
   const restoredLayout = await waitFor(async () => {
     const layout = await evaluate(renderer, "(() => { const slot=browserSlotBounds(); return {slot,window:{width:window.innerWidth,height:window.innerHeight}}; })()", 3000);
     const viewport = await evaluate(page, "({width:window.innerWidth,height:window.innerHeight,fullscreen:!!document.fullscreenElement})", 3000);
@@ -771,6 +953,8 @@ async function run() {
     3000).catch(() => false), 15000, 100);
   assert.equal(responsiveAgain, true, 'The recovered page did not produce a responsive diagnostic.');
 
+  const lifecycle = await verifyBrowserLoadingLifecycle(renderer, main, siteUrl);
+
   assert.equal(renderer.exceptions.length, 0, 'Main renderer exceptions: ' + renderer.exceptions.join(' | '));
   assert.equal(page.exceptions.length, 0, 'Browser page exceptions: ' + page.exceptions.join(' | '));
   const result = {
@@ -792,6 +976,8 @@ async function run() {
     mediaEvents: { playLatencyMs, pauseLatencyMs },
     permission,
     responsiveness: { mode: 'event-path', unresponsive, responsiveAgain },
+    subframeNavigation,
+    lifecycle,
   };
   console.log('electron-browser-experience-smoke: ' + JSON.stringify(result));
   page.socket.close();
@@ -800,6 +986,8 @@ async function run() {
 }
 
 async function cleanup() {
+  for (const response of stalledResponses) response.destroy();
+  stalledResponses.clear();
   if (electronProcess && electronProcess.exitCode == null) {
     spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
       windowsHide: true,
@@ -808,7 +996,10 @@ async function cleanup() {
     });
   }
   electronProcess = null;
-  if (server) await new Promise((resolve) => server.close(resolve));
+  if (server) {
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+  }
   server = null;
   if (userDataDir) {
     try {

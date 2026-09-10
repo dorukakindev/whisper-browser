@@ -4,8 +4,10 @@ const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media
 const { safePlaceUrl } = require('./browser-place-url');
 const { MAX_ABS_OFFSET_SECONDS, createEditRecord, createSyncRecord } = require('./browser-subtitle-sync');
 const { normalizeMangaPosition } = require('./browser-library-tools');
+const { normalizeTabGroup } = require('./browser-tab-layout');
+const { normalizeReaderPreferences } = require('./browser-reader');
 
-const BROWSER_SESSION_VERSION = 6;
+const BROWSER_SESSION_VERSION = 7;
 const MAX_SESSION_TABS = 24;
 const MAX_TRACK_REFS = 12;
 const MAX_RECOVERY_JOBS = 50;
@@ -147,6 +149,12 @@ function migrateBrowserSession(raw) {
     })) : [] };
     version = 6;
   }
+  if (version < 7) {
+    source = { ...source, tabs: Array.isArray(source.tabs) ? source.tabs.map((tab) => ({
+      ...tab, group: normalizeTabGroup(tab?.group),
+    })) : [], splitSecondaryTabId: '', splitRatio: 0.5 };
+    version = 7;
+  }
   // Yerel oturum gelecekte ek alanlar kazanırsa bilinmeyen alanları izinli
   // şemaya indirerek aç; taşınabilir paket sürümü ayrıca katı doğrulanır.
   return source;
@@ -191,6 +199,8 @@ function normalizeSessionTab(raw) {
     volume: finiteNumber(raw.volume, 1, 0, 1),
     muted: !!raw.muted,
     pinned: !!raw.pinned,
+    group: normalizeTabGroup(raw.group),
+    readerPreferences: normalizeReaderPreferences(raw.readerPreferences),
     keepAwake: !!raw.keepAwake,
     lifecycle: raw.lifecycle === 'unloaded' ? 'unloaded' : 'background',
     unloadedAt: finiteNumber(raw.unloadedAt, 0, 0),
@@ -223,10 +233,14 @@ function normalizeBrowserSession(raw) {
   const activeTabId = cleanString(source.activeTabId, 128);
   const active = normalized.find((tab) => tab.id === activeTabId);
   if (active && !tabs.some((tab) => tab.id === activeTabId)) tabs[tabs.length - 1] = active;
+  const splitSecondaryTabId = cleanString(source.splitSecondaryTabId, 128);
   return {
     version: BROWSER_SESSION_VERSION,
     restoreEnabled: source.restoreEnabled !== false,
     activeTabId: tabs.some((tab) => tab.id === activeTabId) ? activeTabId : (tabs[0] ? tabs[0].id : ''),
+    splitSecondaryTabId: splitSecondaryTabId !== activeTabId && tabs.some((tab) => tab.id === splitSecondaryTabId)
+      ? splitSecondaryTabId : '',
+    splitRatio: finiteNumber(source.splitRatio, 0.5, 0.25, 0.75),
     savedAt: finiteNumber(source.savedAt, Date.now(), 0),
     tabs,
   };

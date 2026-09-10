@@ -225,9 +225,40 @@ async function run() {
   const mainWideMetrics = await layoutMetrics(client);
   await evaluate(client, "applyUiTheme('dark'); document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('browser', false); true");
   await waitFor(() => evaluate(client, "player.workspaceMode === 'browser' && !document.getElementById('browserWorkspace').classList.contains('hidden')"));
+  await evaluate(client, `
+    (() => {
+      player.browserTabs = [
+        { id: 'preview-pinned', title: 'Belgesel Arşivi', url: 'https://arsiv.example/belgesel', pinned: true },
+        { id: 'preview-active', title: 'Kayıp Sinyaller · Bölüm 04', url: 'https://video.example/watch/04', audible: true },
+        { id: 'preview-reference', title: 'Kaynak Notları', url: 'https://notlar.example/sinyaller' }
+      ];
+      player.browserActiveTabId = 'preview-active';
+      player.browserPageUrl = 'https://video.example/watch/04';
+      player.browserPageTitle = 'Kayıp Sinyaller · Bölüm 04';
+      player.browserTracks = [
+        { id: 'preview-source', label: 'English', role: 'source' },
+        { id: 'preview-translation', label: 'Türkçe', role: 'translation' }
+      ];
+      renderBrowserTabs();
+      updateBrowserSubtitleSummary();
+      const address = document.getElementById('browserAddress');
+      address.value = player.browserPageUrl + '?sahne=verici';
+      address.focus();
+      syncBrowserAddressAction();
+      setBrowserSignal('2 altyazı izi hazır · kaynak ve çeviri eşleştirildi', false);
+      return true;
+    })()
+  `);
   await delay(250);
   const browserWideMetrics = await layoutMetrics(client);
   await capture(client, 'whisper-browser-dark.png');
+  const browserResponsiveMetrics = {};
+  for (const width of [1920, 1366, 1024]) {
+    await setViewport(client, width);
+    await evaluate(client, "syncResponsivePlayerLayout(); syncBrowserAddressAction(); true");
+    browserResponsiveMetrics[width] = await layoutMetrics(client);
+    await capture(client, `whisper-browser-reading-dark-${width}.png`);
+  }
   await setViewport(client, 940);
   await evaluate(client, "syncResponsivePlayerLayout(); true");
   await delay(180);
@@ -283,7 +314,10 @@ async function run() {
       document.getElementById('playerTitle').textContent = 'Kayıp Sinyaller · Bölüm 04';
       document.getElementById('playerMeta').textContent = 'Yerel video · 48:12 · EN + TR';
       setSideTab('subs');
+      setSubtitleMode('both', false);
       updateSubtitleChips();
+      syncPlayerSourceQuick();
+      updateMakeTransState();
       renderCueList();
       highlightCueRow();
       syncResponsivePlayerLayout();
@@ -293,6 +327,13 @@ async function run() {
   await delay(160);
   const playerTranscriptWideMetrics = await productSurfaceMetrics(client);
   await capture(client, 'whisper-player-transcript-dark.png');
+  const playerTranscriptResponsiveMetrics = {};
+  for (const width of [1920, 1366, 1024]) {
+    await setViewport(client, width);
+    await evaluate(client, "syncResponsivePlayerLayout(); true");
+    playerTranscriptResponsiveMetrics[width] = await productSurfaceMetrics(client);
+    await capture(client, `whisper-player-reading-dark-${width}.png`);
+  }
   await setViewport(client, 940);
   await evaluate(client, "syncResponsivePlayerLayout(); true");
   await delay(160);
@@ -300,15 +341,22 @@ async function run() {
   await capture(client, 'whisper-player-transcript-dark-940.png');
 
   await setViewport(client, 1440);
-  await evaluate(client, "syncResponsivePlayerLayout(); setSideTab('ai'); true");
+  await evaluate(client, "syncResponsivePlayerLayout(); setSideTab('ai'); renderAiChatContext(aiChatContext(), false); document.getElementById('aiContextPreview').open = true; true");
   await delay(120);
   const playerAiMetrics = await productSurfaceMetrics(client);
-  await capture(client, 'whisper-player-ai-empty-dark.png');
+  await capture(client, 'whisper-player-ai-context-dark.png');
+  const playerAiResponsiveMetrics = {};
+  for (const width of [1920, 1366, 1024]) {
+    await setViewport(client, width);
+    await evaluate(client, "syncResponsivePlayerLayout(); renderAiChatContext(aiChatContext(), false); document.getElementById('aiContextPreview').open = true; true");
+    playerAiResponsiveMetrics[width] = await productSurfaceMetrics(client);
+    await capture(client, `whisper-player-ai-context-dark-${width}.png`);
+  }
   await setViewport(client, 940);
-  await evaluate(client, "syncResponsivePlayerLayout(); true");
+  await evaluate(client, "syncResponsivePlayerLayout(); player.narrowPanelTakeover = true; syncResponsivePlayerLayout(); renderAiChatContext(aiChatContext(), true); document.getElementById('aiContextPreview').open = true; true");
   await delay(120);
   const playerAiMinMetrics = await productSurfaceMetrics(client);
-  await capture(client, 'whisper-player-ai-empty-dark-940.png');
+  await capture(client, 'whisper-player-ai-context-dark-940.png');
 
   await setViewport(client, 1440);
   await evaluate(client, "syncResponsivePlayerLayout(); true");
@@ -396,10 +444,10 @@ async function run() {
   await capture(client, 'whisper-jobs-review-dark-940.png');
   console.log(JSON.stringify({
     settingsLayout, previewStates, mainWideMetrics, mainNarrowMetrics,
-    browserWideMetrics, browserMinMetrics,
+    browserWideMetrics, browserMinMetrics, browserResponsiveMetrics,
     browserSettingsWideMetrics, browserSettingsMinMetrics,
-    playerTranscriptWideMetrics, playerTranscriptMinMetrics,
-    playerAiMetrics, playerAiMinMetrics,
+    playerTranscriptWideMetrics, playerTranscriptMinMetrics, playerTranscriptResponsiveMetrics,
+    playerAiMetrics, playerAiMinMetrics, playerAiResponsiveMetrics,
     playerLibraryMetrics, playerLibraryMinMetrics,
     playerSettingsMetrics, playerSettingsMinMetrics,
     jobsQueueMetrics, jobsReviewMetrics,

@@ -7,12 +7,19 @@ const {
   MAX_PAGE_BLOCK_TEXT,
   MAX_PAGE_CHARACTERS,
   pageBlockScanScript,
+  pageContextScript,
+  pageContextRevealScript,
   pageApplyScript,
   pageRestoreScript,
+  pageMemoryClearScript,
   pageVisibilityScript,
+  pageViewScript,
+  pageAutoContinueScript,
+  pageExcludeScript,
   normalizePageBlocks,
   planPageTranslationBatches,
   pageBlockCacheKey,
+  pageTranslationMemoryKey,
   pageBlockLooksIncomplete,
   buildPageTranslationUnits,
   pageTranslationRequest,
@@ -55,6 +62,8 @@ assert.equal(batches.length, 2);
 assert.deepEqual(batches[0].map((block) => block.id), ['visible-1', 'visible-2']);
 assert.deepEqual(batches[1].map((block) => block.id), ['after', 'far-before']);
 assert.ok(planPageTranslationBatches(tooMany).every((batch) => batch.length <= 20));
+assert.deepEqual(planPageTranslationBatches(tooMany, { maxBlocks: 0 }), []);
+assert.deepEqual(planPageTranslationBatches(tooMany, { maxCharacters: 0 }), []);
 
 const cacheBlock = { id: 'değişebilir', text: 'Aynı kaynak metin' };
 assert.equal(pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
@@ -65,6 +74,10 @@ assert.notEqual(pageBlockCacheKey({ ...cacheBlock, tag: 'a' }, { targetLanguage:
   pageBlockCacheKey({ ...cacheBlock, tag: 'p' }, { targetLanguage: 'tr', model: 'x', contextBefore: ['Önce'] }));
 assert.notEqual(pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x', contextBefore: ['Önce'] }),
   pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x', contextBefore: ['Başka'] }));
+assert.equal(pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
+  pageTranslationMemoryKey({ ...cacheBlock, id: 'başka-id' }, { targetLanguage: 'TR', model: 'x' }));
+assert.notEqual(pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
+  pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'de', model: 'x' }));
 
 const ordered = Array.from({ length: 12 }, (_, order) => ({
   id: `ordered-${order}`, text: order === 5 ? 'Unfinished thought' : `Complete block ${order}.`,
@@ -107,10 +120,16 @@ assert.throws(() => decodePageTranslation({ translations: [
 const hostile = `tırnak ' " ve \${ifade} </script> \u2028 \u2029`;
 const scripts = [
   pageBlockScanScript({ bridgeToken: hostile }),
+  pageContextScript(),
+  pageContextRevealScript(hostile),
   pageApplyScript({ mode: 'bilingual', translations: [{ id: hostile, translation: hostile }] }),
   pageRestoreScript(),
+  pageMemoryClearScript(),
   pageVisibilityScript(true),
   pageVisibilityScript(false),
+  pageViewScript('both'),
+  pageAutoContinueScript(false),
+  pageExcludeScript([hostile]),
 ];
 for (const script of scripts) {
   assert.doesNotThrow(() => new vm.Script(script));
@@ -123,6 +142,31 @@ assert.match(pageBlockScanScript(), /shadowRoot/);
 assert.match(pageBlockScanScript(), /MutationObserver/);
 assert.match(pageBlockScanScript(), /setTimeout\([\s\S]*400/);
 assert.match(pageApplyScript({}), /whisper-page-tr/);
+assert.match(pageBlockScanScript({ scope: 'selection', visibleOnly: true, autoContinue: false }), /intersectsNode/);
+assert.match(pageBlockScanScript({ scope: 'article' }), /article,main/);
+assert.match(pageContextScript(), /querySelectorAll/);
+assert.match(pageContextScript(), /maxCharacters/);
+assert.match(pageContextScript(), /__whisperPageContextState/);
+assert.match(pageBlockScanScript({ excludedSelectors: ['.comments', '.ads'] }), /matchesExtraExcluded/);
+assert.match(pageApplyScript({ targetLanguage: 'tr' }), /sessionStorage/);
+assert.match(pageMemoryClearScript(), /removeItem/);
+assert.match(pageApplyScript({}), /hideTools/);
+assert.match(pageApplyScript({}), /pointerout/);
+
+let emitted = 0;
+const viewState = {
+  refs: new Map([['view:key', { active: true }]]), view: 'both', lastVisibleView: 'both',
+  setView(next) { this.view = next; return 1; }, emitNewBlocks() { emitted++; },
+};
+const viewContext = { window: { __whisperPageTranslateState: viewState }, globalThis: {
+  scrollX: 12, scrollY: 340, scrollTo(x, y) { this.restored = [x, y]; },
+}, Number, Map, Set };
+const viewResult = vm.runInNewContext(pageViewScript('translation'), viewContext);
+assert.deepEqual(viewResult, { ok: true, view: 'translation', visible: true, applied: 1 });
+assert.deepEqual(viewContext.globalThis.restored, [12, 340]);
+const autoResult = vm.runInNewContext(pageAutoContinueScript(false), viewContext);
+assert.deepEqual(autoResult, { ok: true, autoContinue: false });
+assert.equal(emitted, 0);
 
 function fakeElement(display, rect = { top: 10, bottom: 40, left: 5, right: 200 },
   tagName = 'DIV', role = '') {
@@ -165,6 +209,31 @@ assert.equal(scanResult.blocks[0].text, 'Merhaba dünya.');
 assert.deepEqual([...scanResult.blocks[0].nodes], [8, 5, 1]);
 assert.equal(scanResult.blocks[0].tag, 'p');
 assert.equal(scanResult.blocks[0].role, 'article');
+
+const sourceElement = {
+  tagName: 'P', textContent: 'Kaynak paragraf metni.', isConnected: true, style: {},
+  matches: () => false, closest: () => null, getAttribute: () => '',
+  getClientRects: () => [{}], getBoundingClientRect: () => ({ width: 320, height: 60 }),
+  scrollIntoView(options) { this.scrollOptions = options; },
+};
+const sourceRoot = { querySelectorAll: () => [sourceElement] };
+const sourceWindow = {};
+const sourceCapture = vm.runInNewContext(pageContextScript(), {
+  window: sourceWindow,
+  document: { title: 'Test', body: sourceRoot, querySelectorAll: () => [sourceRoot] },
+  location: { origin: 'https://example.com', pathname: '/article' },
+  Map, Set, Math, Number, String,
+});
+assert.equal(sourceCapture.blocks[0].id, 'S1');
+assert.equal(sourceWindow.__whisperPageContextState.refs.get('S1'), sourceElement);
+const sourceReveal = vm.runInNewContext(pageContextRevealScript('S1'), {
+  window: sourceWindow, Map, String, clearTimeout() {}, setTimeout() { return 1; },
+});
+assert.deepEqual(sourceReveal, { ok: true, id: 'S1' });
+assert.equal(sourceElement.style.outline, '3px solid #d5a35c');
+assert.equal(sourceElement.scrollOptions.block, 'center');
+assert.deepEqual(vm.runInNewContext(pageContextRevealScript('bad'), { window: sourceWindow }),
+  { ok: false, message: 'Geçersiz sayfa kaynağı.' });
 
 const firstNode = { nodeValue: 'Merhaba ', isConnected: true };
 const secondNode = { nodeValue: 'dünya.', isConnected: true };

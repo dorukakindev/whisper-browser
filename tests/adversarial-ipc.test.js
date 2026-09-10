@@ -241,10 +241,12 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       const navigate = register('browser:navigate', {
         authorizedBrowserSender: auth, activeRequestedBrowserTab: () => tab,
         normalizeBrowserUrl: (u) => u, waitForProtectedPlayback: async () => {},
-        setBrowserTabCompatibilityMode: async () => {},
+        setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
         browserCompatibilityModeForUrl: () => false,
+        suspendBrowserInstrumentationForNavigation: () => {},
         ensureBrowserView: () => view, browserBounds: null, browserVisible: false,
         browserModalOccluded: occluded, browserOverlay: {}, resetBrowserCaptureState: () => {},
+        applyBrowserViewBounds: () => {},
         startBrowserPolling: () => {}, scheduleBrowserSessionSave: () => {},
         browserEventContext: () => ({}), browserNavigationState: () => ({}) });
       assert((await navigate(authorized, { url: 'https://example.com', tabId: 't' })).ok);

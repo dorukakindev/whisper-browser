@@ -27,6 +27,64 @@ function extract(start, end, deps = {}) {
   for (const url of ['blob:https://example.test/id', 'data:image/png;base64,AA==']) {
     await assert.rejects(images.saveBrowserContextImage(null, url), /henüz kaydedilemiyor/);
   }
+
+  // Programatik history.goBack will-navigate üretmediği için uyumluluk tercihi
+  // hedef sayfanın ağ isteğinden önce, burada açıkça uygulanmalı.
+  {
+    let releaseCompatibility;
+    let markCompatibilityStarted;
+    let compatibilityAccepted = true;
+    const compatibilityGate = new Promise(resolve => { releaseCompatibility = resolve; });
+    const compatibilityStarted = new Promise(resolve => { markCompatibilityStarted = resolve; });
+    let wentBack = 0;
+    let reloaded = 0;
+    let suspensions = 0;
+    const wc = {
+      isDestroyed: () => false,
+      reload() { reloaded += 1; },
+      navigationHistory: {
+        getActiveIndex: () => 1,
+        getEntryAtIndex: index => ({ url: index === 0 ? 'https://protected.test/watch' : 'https://normal.test/' }),
+        goBack() {
+          assert.equal(tab.compatibilityMode, true, 'geçmiş hedefinin uyumluluk tercihi beklenmedi');
+          wentBack += 1;
+        },
+      },
+    };
+    const view = { webContents: wc };
+    const tab = { id: 'history', view, navigationRequestSeq: 0, compatibilityMode: false };
+    const history = extract('function browserHistoryTargetUrl(', 'function installBrowserContextMenu', {
+      normalizeBrowserUrl: value => value,
+      browserCompatibilityModeForUrl: url => url.includes('protected'),
+      setBrowserTabCompatibilityMode: async (item, enabled) => {
+        markCompatibilityStarted();
+        await compatibilityGate;
+        if (compatibilityAccepted) item.compatibilityMode = enabled;
+        return compatibilityAccepted;
+      },
+      browserTabById: id => id === tab.id ? tab : null,
+      browserActiveTabId: tab.id,
+      browserView: view,
+      suspendBrowserInstrumentationForNavigation: () => { suspensions += 1; },
+    });
+    const goingBack = history.navigateBrowserHistory(tab, wc, 'back');
+    await compatibilityStarted;
+    assert.equal(wentBack, 0, 'uyumluluk hazırlığı sürerken geçmiş gezinmesi başladı');
+    releaseCompatibility();
+    assert.equal(await goingBack, true);
+    assert.equal(wentBack, 1);
+    assert.equal(suspensions, 1, 'geçmiş gezinmesinden önce debugger askıya alınmadı');
+    compatibilityAccepted = false;
+    tab.compatibilityMode = false;
+    assert.equal(await history.navigateBrowserHistory(tab, wc, 'back'), false,
+      'geçersiz kalan uyumluluk işi geçmiş gezinmesini durdurmadı');
+    assert.equal(wentBack, 1);
+    const previousSeq = tab.navigationRequestSeq;
+    assert.equal(history.reloadBrowserTab(tab, wc), true);
+    assert.equal(reloaded, 1);
+    assert.equal(suspensions, 2, 'yenilemeden önce debugger askıya alınmadı');
+    assert.equal(tab.navigationRequestSeq, previousSeq + 1, 'sağ tık yenile eski adres isteğini geçersiz kılmadı');
+  }
   const events = [];
   const visibility = [];
   const drmTabs = [];
@@ -36,8 +94,18 @@ function extract(start, end, deps = {}) {
     browserTabsSnapshot: () => [...tabs.values()],
     browserActiveTabId: 'old', browserVisible: true, browserModalOccluded: false,
     createBrowserTabRecord() { const tab = { id: 'new' }; tabs.set('new', tab); return tab; },
-    ensureBrowserView: () => ({ setVisible: value => visibility.push(value), webContents: { async loadURL() {} } }),
+    ensureBrowserView: tab => {
+      const view = { setVisible: value => visibility.push(value),
+        webContents: { isDestroyed: () => false, async loadURL() {
+          assert.equal(tab.compatibilityMode, true, 'uyumluluk tercihi yüklemeden önce uygulanmadı');
+        } } };
+      tab.view = view;
+      return view;
+    },
     sendBrowserEvent: (...args) => events.push(args.at(-1)),
+    setBrowserTabCompatibilityMode: async (tab, enabled) => { tab.compatibilityMode = enabled; return true; },
+    browserCompatibilityModeForUrl: () => true,
+    suspendBrowserInstrumentationForNavigation() {},
     async waitForProtectedPlayback(_url, tab) { drmTabs.push(tab); }, scheduleBrowserSessionSave() {},
   });
   for (const url of ['javascript:alert(1)', 'data:text/html,a', 'file:///C:/x', 'iki kelime']) {
@@ -49,6 +117,8 @@ function extract(start, end, deps = {}) {
   assert.equal(events[0].activeTabId, 'old');
   assert.deepEqual(visibility, [false]);
   assert.equal(drmTabs[0].id, 'new', 'DRM bekleme olayı yeni sekmeye bağlanmalı');
+  assert.equal(drmTabs[0].compatibilityMode, true,
+    'programatik yeni sekme kayıtlı uyumluluk tercihini yüklemeden önce almalı');
   assert.equal(await links.openBrowserLinkInNewTab('https://example.test/2'), false);
   assert.equal(events.at(-1).type, 'notice');
   assert.equal(events.at(-1).success, false);
@@ -95,5 +165,5 @@ function extract(start, end, deps = {}) {
   assert.equal(actions.at(-1), 'https://a.test/?sig=a%2Bb');
   menu.find(item => item.label === 'Seçili metni ara').click();
   assert.equal(new URL(searches[0]).searchParams.get('q'), 'İstanbul & İzmir #1');
-  console.log('browser-controls-behavior: sertifika, dosya adı, protokol, arka plan, limit, kısmi temizlik ve düzenleme menüsü geçti');
+  console.log('browser-controls-behavior: sertifika, dosya adı, protokol, geçmiş uyumluluğu, arka plan, limit, kısmi temizlik ve düzenleme menüsü geçti');
 })().catch(error => { console.error(error); process.exitCode = 1; });

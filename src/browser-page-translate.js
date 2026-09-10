@@ -96,10 +96,11 @@ function planPageTranslationBatches(rawBlocks, options = {}) {
   const viewportTop = finiteNumber(options.viewportTop, 0);
   const viewportHeight = Math.max(1, finiteNumber(options.viewportHeight, 900));
   const viewportBottom = finiteNumber(options.viewportBottom, viewportTop + viewportHeight);
-  const maxBlocks = Math.max(1, Math.min(MAX_PAGE_BLOCKS,
-    Math.trunc(finiteNumber(options.maxBlocks, MAX_PAGE_BLOCKS))));
-  const maxCharacters = Math.max(1, Math.min(MAX_PAGE_CHARACTERS,
-    Math.trunc(finiteNumber(options.maxCharacters, MAX_PAGE_CHARACTERS))));
+  const requestedMaxBlocks = Math.trunc(finiteNumber(options.maxBlocks, MAX_PAGE_BLOCKS));
+  const requestedMaxCharacters = Math.trunc(finiteNumber(options.maxCharacters, MAX_PAGE_CHARACTERS));
+  if (requestedMaxBlocks <= 0 || requestedMaxCharacters <= 0) return [];
+  const maxBlocks = Math.max(1, Math.min(MAX_PAGE_BLOCKS, requestedMaxBlocks));
+  const maxCharacters = Math.max(1, Math.min(MAX_PAGE_CHARACTERS, requestedMaxCharacters));
   const batchSize = Math.max(1, Math.min(MAX_PAGE_BATCH_BLOCKS,
     Math.trunc(finiteNumber(options.batchSize, MAX_PAGE_BATCH_BLOCKS))));
   const excluded = options.excluded instanceof Set ? options.excluded : new Set(options.excluded || []);
@@ -142,6 +143,17 @@ function pageBlockCacheKey(block, context = {}) {
     contextBefore: context.contextBefore || block?.contextBefore || [],
     contextAfter: context.contextAfter || block?.contextAfter || [],
     continuitySummary: String(context.continuitySummary || block?.continuitySummary || ''),
+  });
+  return crypto.createHash('sha256').update(material, 'utf8').digest('hex');
+}
+
+function pageTranslationMemoryKey(block, context = {}) {
+  const material = JSON.stringify({
+    version: 'page-memory-v1',
+    text: normalizeText(block?.text),
+    targetLanguage: String(context.targetLanguage || '').trim().toLowerCase(),
+    sourceLanguage: String(context.sourceLanguage || '').trim().toLowerCase(),
+    model: String(context.model || '').trim(),
   });
   return crypto.createHash('sha256').update(material, 'utf8').digest('hex');
 }
@@ -304,6 +316,12 @@ function pageBlockScanScript(options = {}) {
       return (hash >>> 0).toString(36);
     };
     const excludedSelector = 'script,style,noscript,code,pre,kbd,samp,textarea,svg,math,[contenteditable],input,select,[translate="no"],.notranslate,[aria-hidden="true"],.whisper-page-tr';
+    const extraExcludedSelectors = Array.isArray(incoming.excludedSelectors) ? incoming.excludedSelectors : [];
+    const matchesExtraExcluded = (element) => extraExcludedSelectors.some((value) => {
+      const selector = String(value || '').trim();
+      if (!selector) return false;
+      try { return !!element.matches?.(selector); } catch (_) { return false; }
+    });
     const blockedDisplays = new Set(['block', 'list-item', 'table-cell', 'flex', 'grid', 'inline-block']);
     const semanticSelector = 'h1,h2,h3,h4,h5,h6,p,button,a,li,label,summary,[role]';
     const state = window.__whisperPageTranslateState || {
@@ -320,6 +338,7 @@ function pageBlockScanScript(options = {}) {
       emittedCharacters: 0,
       timer: 0,
       visible: true,
+      view: 'both',
       destroyed: false,
     };
     window.__whisperPageTranslateState = state;
@@ -329,14 +348,30 @@ function pageBlockScanScript(options = {}) {
       maxBlocks: Math.max(1, Math.min(MAX_BLOCKS, Math.trunc(Number(incoming.maxBlocks) || MAX_BLOCKS))),
       maxCharacters: Math.max(1, Math.min(MAX_CHARS, Math.trunc(Number(incoming.maxCharacters) || MAX_CHARS))),
       bridgeToken: String(incoming.bridgeToken || state.config?.bridgeToken || ''),
+      scope: ['article', 'whole', 'selection'].includes(incoming.scope)
+        ? incoming.scope : (state.config?.scope || 'article'),
+      visibleOnly: incoming.visibleOnly !== undefined
+        ? incoming.visibleOnly !== false : state.config?.visibleOnly !== false,
+      autoContinue: incoming.autoContinue !== undefined
+        ? incoming.autoContinue !== false : state.config?.autoContinue !== false,
     };
     state.destroyed = false;
+    const pageMemoryKey = () => String(location.origin || '') + String(location.pathname || '');
+    const pageMemory = (() => {
+      try {
+        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v1') || '[]');
+        return Array.isArray(rows) ? rows.filter((row) => row && row.page === pageMemoryKey()
+          && row.target === String(state.config.targetLanguage || '')).slice(-1500) : [];
+      } catch (_) { return []; }
+    })();
+    const restoredTranslations = [];
 
     const parentAcrossShadow = (element) => element?.parentElement || element?.getRootNode?.()?.host || null;
     const excluded = (node) => {
       let element = node?.parentElement || node?.getRootNode?.()?.host || null;
       while (element) {
         try { if (element.matches?.(excludedSelector)) return true; } catch (_) {}
+        if (matchesExtraExcluded(element)) return true;
         element = parentAcrossShadow(element);
       }
       return false;
@@ -347,6 +382,34 @@ function pageBlockScanScript(options = {}) {
       let rectCount = 1;
       try { rectCount = typeof element.getClientRects === 'function' ? element.getClientRects().length : 1; } catch (_) {}
       return !(element.offsetParent === null && rectCount === 0);
+    };
+    const articleRoots = (() => {
+      if (state.config.scope !== 'article') return [];
+      try { return [...document.querySelectorAll('article,main,[role="main"]')]; }
+      catch (_) { return []; }
+    })();
+    const selectedRanges = (() => {
+      if (state.config.scope !== 'selection') return [];
+      try {
+        const selection = globalThis.getSelection?.();
+        return selection && !selection.isCollapsed
+          ? Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index)) : [];
+      } catch (_) { return []; }
+    })();
+    const inScope = (node) => {
+      if (state.config.scope === 'whole') return true;
+      if (state.config.scope === 'selection') {
+        return selectedRanges.some((range) => {
+          try { return range.intersectsNode(node); } catch (_) { return false; }
+        });
+      }
+      if (!articleRoots.length) return true;
+      let element = node?.parentElement || node?.getRootNode?.()?.host || null;
+      while (element) {
+        if (articleRoots.includes(element)) return true;
+        element = parentAcrossShadow(element);
+      }
+      return false;
     };
     const sectionLabel = (owner) => {
       let element = owner;
@@ -404,7 +467,7 @@ function pageBlockScanScript(options = {}) {
       state.timer = 0;
     };
     const emitNewBlocks = () => {
-      if (state.destroyed || document.hidden) return;
+      if (state.destroyed || document.hidden || state.config.autoContinue === false) return;
       const result = state.scan();
       if (result.blocks.length) {
         globalThis.__whisperTrustedBridgeSend?.('page-blocks', {
@@ -413,6 +476,7 @@ function pageBlockScanScript(options = {}) {
         });
       }
     };
+    state.emitNewBlocks = emitNewBlocks;
     const observeRoots = () => {
       if (state.destroyed || document.hidden || typeof MutationObserver !== 'function') return;
       for (const root of discoverRoots()) {
@@ -434,6 +498,18 @@ function pageBlockScanScript(options = {}) {
         observer.observe(root, { childList: true, subtree: true });
         state.observers.set(root, observer);
       }
+      if (!state.scrollListening) {
+        state.onScroll = () => {
+          if (state.destroyed || state.config.autoContinue === false) return;
+          if (state.scrollTimer) clearTimeout(state.scrollTimer);
+          state.scrollTimer = setTimeout(() => {
+            state.scrollTimer = 0;
+            emitNewBlocks();
+          }, 160);
+        };
+        globalThis.addEventListener?.('scroll', state.onScroll, true);
+        state.scrollListening = true;
+      }
     };
     state.scan = () => {
       const groups = new Map();
@@ -443,7 +519,7 @@ function pageBlockScanScript(options = {}) {
         try { walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); } catch (_) { continue; }
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
           const raw = String(state.originalValues.has(node) ? state.originalValues.get(node) : node.nodeValue || '');
-          if (!raw || excluded(node) || !visibleNode(node)) continue;
+          if (!raw || excluded(node) || !visibleNode(node) || !inScope(node)) continue;
           const owner = blockRoot(node);
           if (!owner) continue;
           let group = groups.get(owner);
@@ -474,6 +550,8 @@ function pageBlockScanScript(options = {}) {
         if (excludedSections.has(section)) continue;
         const id = blockIndex + ':' + hashText(boundedText);
         if (state.knownIds.has(id)) continue;
+        const restored = pageMemory.find((row) => row.source === boundedText);
+        if (restored && restored.translation) restoredTranslations.push({ id, translation: String(restored.translation).slice(0, 12000) });
         let rect = { top: 0, bottom: 0, left: 0, right: 0 };
         try { rect = group.owner.getBoundingClientRect?.() || rect; } catch (_) {}
         const top = Number(rect.top) || 0;
@@ -499,6 +577,7 @@ function pageBlockScanScript(options = {}) {
       const characterBudget = Math.max(0, state.config.maxCharacters - state.emittedCharacters);
       let usedCharacters = 0;
       for (const candidate of candidates) {
+        if (state.config.visibleOnly && !candidate.visible) continue;
         if (blocks.length >= blockBudget) break;
         if (usedCharacters + candidate.text.length > characterBudget) continue;
         const { _group: group, ...serializable } = candidate;
@@ -517,15 +596,21 @@ function pageBlockScanScript(options = {}) {
       }
       state.emittedCount += blocks.length;
       state.emittedCharacters += usedCharacters;
+      const pending = Math.max(0, candidates.length - blocks.length);
+      const offscreen = candidates.filter((candidate) => !candidate.visible).length;
       const overflow = candidates.length > blocks.length;
       return {
         blocks,
         overflow,
+        selectionEmpty: state.config.scope === 'selection' && selectedRanges.length === 0,
+        autoContinue: state.config.autoContinue !== false,
+        scope: state.config.scope,
         warning: overflow
-          ? 'Sayfa çok büyük: 1500 bloktan fazlası çevrilmiyor. Görünen kısımdan başlanacak.'
+          ? 'Sayfadaki bazı metinler blok veya karakter sınırı nedeniyle bu turda seçilemedi.'
           : '',
-        stats: { found: candidates.length, foundCharacters, selected: blocks.length,
-          selectedCharacters: usedCharacters },
+        stats: { found: candidates.length, discovered: state.knownIds.size + pending,
+          pending, offscreen, foundCharacters, selected: blocks.length, selectedCharacters: usedCharacters },
+        restoredTranslations,
       };
     };
     state.onVisibilityChange ||= () => {
@@ -540,6 +625,95 @@ function pageBlockScanScript(options = {}) {
   })()`;
 }
 
+function pageContextScript(options = {}) {
+  const encoded = safeJsonForScript({ maxBlocks: 80, maxCharacters: 14000, ...options });
+  return `(() => {
+    const incoming = ${encoded};
+    const normalize = (value) => String(value == null ? '' : value).normalize('NFC').replace(/\\s+/g, ' ').trim();
+    const maxBlocks = Math.max(10, Math.min(120, Math.trunc(Number(incoming.maxBlocks) || 80)));
+    const maxCharacters = Math.max(2000, Math.min(20000, Math.trunc(Number(incoming.maxCharacters) || 14000)));
+    const blocked = 'script,style,noscript,code,pre,textarea,svg,math,input,select,[contenteditable],[aria-hidden="true"],.notranslate';
+    const visible = (element) => { try { const rect = element.getBoundingClientRect?.(); return element.getClientRects?.().length !== 0 && rect && rect.width >= 1 && rect.height >= 1; } catch (_) { return true; } };
+    const state = window.__whisperPageContextState || { refs: new Map(), highlightTimer: 0, activeHighlight: null };
+    window.__whisperPageContextState = state;
+    state.refs.clear();
+    const rows = [];
+    const seen = new Set();
+    let used = 0;
+    let roots = [];
+    try { roots = [...document.querySelectorAll('article,main,[role="main"]')]; } catch (_) {}
+    if (!roots.length && document.body) roots = [document.body];
+    let elements = [];
+    for (const root of roots) {
+      try { elements.push(...root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,button,a,[role="heading"]')); } catch (_) {}
+    }
+    for (const element of elements) {
+      if (rows.length >= maxBlocks || !visible(element)) continue;
+      try { if (element.matches(blocked) || element.closest?.(blocked)) continue; } catch (_) {}
+      const text = normalize(element.textContent || '').slice(0, 2000);
+      if (text.length < 2 || seen.has(text) || /^[\\p{P}\\p{S}\\p{N}\\s]+$/u.test(text)) continue;
+      if (used + text.length > maxCharacters) break;
+      seen.add(text); used += text.length;
+      const id = 'S' + (rows.length + 1);
+      state.refs.set(id, element);
+      rows.push({ id, kind: /^h[1-6]$/i.test(element.tagName || '') || element.getAttribute?.('role') === 'heading' ? 'heading' : 'text', text });
+    }
+    if (!rows.length) {
+      const fallback = normalize(document.body?.innerText || '').slice(0, maxCharacters);
+      if (fallback) {
+        state.refs.set('S1', document.body);
+        rows.push({ id: 'S1', kind: 'text', text: fallback });
+        used = fallback.length;
+      }
+    }
+    return { ok: true, title: normalize(document.title || '').slice(0, 300), url: String(location.origin || '') + String(location.pathname || ''), blocks: rows, characters: used };
+  })()`;
+}
+
+function pageContextRevealScript(sourceId) {
+  const encoded = safeJsonForScript(String(sourceId || ''));
+  return `(() => {
+    const id = ${encoded};
+    if (!/^S\\d{1,3}$/u.test(id)) return { ok: false, message: 'Geçersiz sayfa kaynağı.' };
+    const state = window.__whisperPageContextState;
+    const element = state?.refs?.get?.(id);
+    if (!element || element.isConnected === false) return { ok: false, stale: true, message: 'Sayfa kaynağı artık bulunamıyor.' };
+    const restore = (active) => {
+      const target = active?.element;
+      if (!target?.style) return;
+      target.style.outline = active.outline;
+      target.style.outlineOffset = active.outlineOffset;
+      target.style.backgroundColor = active.backgroundColor;
+      target.style.transition = active.transition;
+    };
+    if (state.highlightTimer) clearTimeout(state.highlightTimer);
+    restore(state.activeHighlight);
+    const active = {
+      element,
+      outline: element.style?.outline || '',
+      outlineOffset: element.style?.outlineOffset || '',
+      backgroundColor: element.style?.backgroundColor || '',
+      transition: element.style?.transition || '',
+    };
+    state.activeHighlight = active;
+    element.scrollIntoView?.({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    if (element.style) {
+      element.style.transition = 'outline-color 140ms ease, background-color 140ms ease';
+      element.style.outline = '3px solid #d5a35c';
+      element.style.outlineOffset = '4px';
+      element.style.backgroundColor = 'rgba(213, 163, 92, 0.18)';
+    }
+    state.highlightTimer = setTimeout(() => {
+      if (state.activeHighlight === active) {
+        restore(active);
+        state.activeHighlight = null;
+        state.highlightTimer = 0;
+      }
+    }, 2200);
+    return { ok: true, id };
+  })()`;
+}
+
 function pageApplyScript(payload = {}) {
   const encoded = safeJsonForScript(payload);
   return `(() => {
@@ -547,6 +721,8 @@ function pageApplyScript(payload = {}) {
     const state = window.__whisperPageTranslateState;
     if (!state?.refs) return { ok: false, applied: 0, missing: 0, message: 'Sayfa metni taranmamış.' };
     const mode = input?.mode === 'replace' ? 'replace' : 'bilingual';
+    const requestedView = ['original', 'translation', 'both'].includes(input?.view)
+      ? input.view : (mode === 'replace' ? 'translation' : 'both');
     const source = Array.isArray(input) ? input
       : Array.isArray(input?.translations) ? input.translations
         : Array.isArray(input?.blocks) ? input.blocks
@@ -560,7 +736,14 @@ function pageApplyScript(payload = {}) {
       sheet = document.createElement('style');
       sheet.id = styleId;
       sheet.className = 'whisper-page-tr';
-      sheet.textContent = '.whisper-page-tr{display:block;margin:.35em 0;color:inherit;font:inherit;line-height:inherit;opacity:.88}.whisper-page-tr[hidden]{display:none!important}';
+      sheet.textContent = [
+        '.whisper-page-tr{display:block;margin:.35em 0;color:inherit;font:inherit;line-height:inherit;opacity:.9}',
+        '.whisper-page-tr[hidden]{display:none!important}',
+        '.whisper-page-tr-tools{position:fixed;z-index:2147483646;display:flex;gap:2px;padding:3px;border:1px solid #6d5738;border-radius:7px;background:#17191c;color:#e6e0d6;box-shadow:0 8px 24px #0009;font:11px/1.2 system-ui,sans-serif}',
+        '.whisper-page-tr-tools button,.whisper-page-tr-failure{border:0;border-radius:4px;background:transparent;color:inherit;font:inherit;cursor:pointer}',
+        '.whisper-page-tr-tools button{padding:5px 7px}.whisper-page-tr-tools button:hover,.whisper-page-tr-tools button:focus-visible{background:#d5a35c;color:#17130c;outline:none}',
+        '.whisper-page-tr-failure{display:inline-flex!important;margin:.25em 0;padding:4px 7px;background:#352019;color:#f1b09d;box-shadow:inset 0 0 0 1px #7c493b}',
+      ].join('');
       (document.head || document.documentElement).appendChild(sheet);
     }
     const restoreRef = (ref) => {
@@ -592,6 +775,181 @@ function pageApplyScript(payload = {}) {
         cursor = end;
       });
     };
+    const insertAfterRoot = (ref, element) => {
+      const layoutRoot = /^(?:flex|grid|inline-flex|inline-grid)$/.test(String(ref.rootDisplay || ''))
+        && ref.root !== document.body && ref.root !== document.documentElement;
+      if (layoutRoot && ref.root.parentNode?.insertBefore) {
+        ref.root.parentNode.insertBefore(element, ref.root.nextSibling || null);
+      } else {
+        ref.root.appendChild?.(element);
+      }
+    };
+    const ensureOverlay = (ref) => {
+      if (ref.overlay && ref.overlay.isConnected !== false) return ref.overlay;
+      const span = document.createElement('span');
+      span.className = 'whisper-page-tr';
+      span.setAttribute('data-whisper-tr', ref.id);
+      span.setAttribute('translate', 'no');
+      if (input?.targetLanguage) span.lang = String(input.targetLanguage).slice(0, 35);
+      span.textContent = ref.translation;
+      insertAfterRoot(ref, span);
+      ref.overlay = span;
+      return span;
+    };
+    const renderRef = (ref, view = state.view) => {
+      if (!ref?.active) return;
+      ref.previewOriginal = false;
+      if (view === 'translation') {
+        ref.overlay && (ref.overlay.hidden = true);
+        ref.overlay?.style?.setProperty('display', 'none', 'important');
+        distribute(ref, ref.translation);
+      } else {
+        restoreRef(ref);
+        if (view === 'both') {
+          const overlay = ensureOverlay(ref);
+          overlay.textContent = ref.translation;
+          overlay.hidden = false;
+          overlay.style?.setProperty('display', 'block', 'important');
+        } else if (ref.overlay) {
+          ref.overlay.hidden = true;
+          ref.overlay.style?.setProperty('display', 'none', 'important');
+        }
+      }
+    };
+    state.renderRef = renderRef;
+    state.setView = (view) => {
+      state.view = ['original', 'translation', 'both'].includes(view) ? view : 'both';
+      state.visible = state.view !== 'original';
+      if (state.view !== 'original') state.lastVisibleView = state.view;
+      let count = 0;
+      for (const ref of state.refs.values()) {
+        if (!ref.active) continue;
+        renderRef(ref, state.view);
+        count++;
+      }
+      return count;
+    };
+    const clearFailure = (ref) => { ref.failureBadge?.remove?.(); ref.failureBadge = null; };
+    const persistTranslation = (ref) => {
+      try {
+        const page = String(location.origin || '') + String(location.pathname || '');
+        const target = String(input?.targetLanguage || state.config?.targetLanguage || '');
+        const sourceText = String(ref.originals.join('')).normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 2000);
+        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v1') || '[]');
+        const next = Array.isArray(rows) ? rows.filter((row) => !(row?.page === page && row?.target === target && row?.source === sourceText)) : [];
+        next.push({ page, target, source: sourceText, translation: String(ref.translation || '').slice(0, 12000) });
+        sessionStorage.setItem('whisperPageTranslate:v1', JSON.stringify(next.slice(-1500)));
+      } catch (_) {}
+    };
+    state.markFailure = (id, message = '') => {
+      const ref = state.refs.get(String(id || ''));
+      if (!ref || state.latestIdByRoot?.get(ref.root) !== ref.id) return false;
+      clearFailure(ref);
+      restoreRef(ref);
+      ref.overlay && (ref.overlay.hidden = true);
+      ref.overlay?.style?.setProperty('display', 'none', 'important');
+      const badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'whisper-page-tr whisper-page-tr-failure';
+      badge.setAttribute('data-whisper-action', 'retry');
+      badge.setAttribute('data-whisper-id', ref.id);
+      badge.title = String(message || 'Çeviri başarısız oldu; yeniden denemek için tıklayın.').slice(0, 240);
+      badge.textContent = 'Çeviri başarısız · Yeniden dene';
+      insertAfterRoot(ref, badge);
+      ref.failureBadge = badge;
+      return true;
+    };
+    state.clearFailure = clearFailure;
+    state.refByRoot ||= new WeakMap();
+    if (!state.actionsInstalled && document.body?.appendChild) {
+      const tools = document.createElement('div');
+      tools.className = 'whisper-page-tr whisper-page-tr-tools';
+      tools.hidden = true;
+      tools.setAttribute('translate', 'no');
+      tools.innerHTML = '<button type="button" data-whisper-action="original">Orijinali gör</button><button type="button" data-whisper-action="retry">Yeniden çevir</button><button type="button" data-whisper-action="edit">Düzelt</button><button type="button" data-whisper-action="exclude">Bu bölümü çevirme</button>';
+      document.body.appendChild(tools);
+      state.tools = tools;
+      const send = (action, ref, extra = {}) => globalThis.__whisperTrustedBridgeSend?.('page-action', {
+        action, id: ref.id, pre: ref.translation, bridgeToken: state.config?.bridgeToken || '', ...extra,
+      });
+      const showOriginal = (ref) => {
+        if (!ref || state.view !== 'translation') return;
+        ref.previewOriginal = true;
+        restoreRef(ref);
+      };
+      const restoreView = (ref) => {
+        if (!ref?.previewOriginal) return;
+        ref.previewOriginal = false;
+        renderRef(ref, state.view);
+      };
+      const showTools = (ref) => {
+        if (!ref?.active) return;
+        state.hoveredRef = ref;
+        let rect = { top: 8, right: 8 };
+        try { rect = ref.root.getBoundingClientRect?.() || rect; } catch (_) {}
+        tools.hidden = false;
+        tools.style.top = Math.max(6, Number(rect.top) - 32) + 'px';
+        tools.style.left = Math.max(6, Math.min((globalThis.innerWidth || 1000) - 410, Number(rect.right) - 390)) + 'px';
+      };
+      const hideTools = () => {
+        tools.hidden = true;
+        state.hoveredRef = null;
+      };
+      document.addEventListener?.('pointerover', (event) => {
+        for (const node of event.composedPath?.() || []) {
+          const ref = state.refByRoot.get(node);
+          if (ref?.active) { showTools(ref); break; }
+        }
+      }, true);
+      document.addEventListener?.('pointermove', (event) => {
+        if (tools.hidden) return;
+        const path = event.composedPath?.() || [];
+        if (path.includes(tools) || (state.hoveredRef?.root && path.includes(state.hoveredRef.root))) return;
+        hideTools();
+      }, true);
+      document.addEventListener?.('pointerout', (event) => {
+        if (tools.hidden) return;
+        const next = event.relatedTarget;
+        if (next && (tools.contains?.(next) || state.hoveredRef?.root?.contains?.(next))) return;
+        hideTools();
+      }, true);
+      document.addEventListener?.('click', (event) => {
+        const button = event.target?.closest?.('[data-whisper-action]');
+        if (!button) return;
+        const ref = button.getAttribute?.('data-whisper-id')
+          ? state.refs.get(button.getAttribute('data-whisper-id')) : state.hoveredRef;
+        if (!ref) return;
+        event.preventDefault?.(); event.stopPropagation?.();
+        const action = button.getAttribute('data-whisper-action');
+        if (action === 'original') {
+          showOriginal(ref);
+          clearTimeout(state.previewTimer);
+          state.previewTimer = setTimeout(() => restoreView(ref), 2500);
+        } else if (action === 'edit') {
+          const value = globalThis.prompt?.('Çeviriyi düzeltin', ref.translation);
+          if (value != null && String(value).trim() && String(value).trim() !== ref.translation) {
+            send('edit', ref, { translation: String(value).trim().slice(0, 12000) });
+          }
+          hideTools();
+        } else if (action === 'exclude') {
+          send('exclude', ref); ref.active = false; restoreRef(ref); ref.overlay?.remove?.(); clearFailure(ref); hideTools();
+        } else if (action === 'retry') {
+          send('retry', ref); button.disabled = true; button.textContent = 'Yeniden deneniyor…'; hideTools();
+        }
+      }, true);
+      globalThis.addEventListener?.('keydown', (event) => {
+        if (event.key === 'Alt' && !event.repeat && !/^(?:INPUT|TEXTAREA|SELECT)$/u.test(document.activeElement?.tagName || '')) {
+          showOriginal(state.hoveredRef);
+        }
+      }, true);
+      globalThis.addEventListener?.('keyup', (event) => {
+        if (event.key === 'Alt') restoreView(state.hoveredRef);
+      }, true);
+      state.actionsInstalled = true;
+    }
+    state.view = requestedView;
+    state.visible = requestedView !== 'original';
+    if (requestedView !== 'original') state.lastVisibleView = requestedView;
     let applied = 0;
     let missing = 0;
     for (const item of source) {
@@ -613,30 +971,17 @@ function pageApplyScript(payload = {}) {
       ref.mode = mode;
       ref.active = true;
       ref.applied = true;
+      state.refByRoot.set(ref.root, ref);
       state.activeByRoot?.set(ref.root, ref);
-      if (mode === 'replace') {
-        if (state.visible !== false) distribute(ref, translation);
-      } else {
-        const span = document.createElement('span');
-        span.className = 'whisper-page-tr';
-        span.setAttribute('data-whisper-tr', id);
-        span.setAttribute('translate', 'no');
-        if (input?.targetLanguage) span.lang = String(input.targetLanguage).slice(0, 35);
-        span.textContent = translation;
-        span.hidden = state.visible === false;
-        span.style.setProperty('display', state.visible === false ? 'none' : 'block', 'important');
-        const layoutRoot = /^(?:flex|grid|inline-flex|inline-grid)$/.test(String(ref.rootDisplay || ''))
-          && ref.root !== document.body && ref.root !== document.documentElement;
-        if (layoutRoot && ref.root.parentNode?.insertBefore) {
-          ref.root.parentNode.insertBefore(span, ref.root.nextSibling || null);
-        } else {
-          ref.root.appendChild(span);
-        }
-        ref.overlay = span;
-      }
+      clearFailure(ref);
+      renderRef(ref, requestedView);
+      persistTranslation(ref);
       applied++;
     }
-    return { ok: missing === 0, partial: applied > 0 && missing > 0, applied, missing, mode };
+    for (const failure of Array.isArray(input?.failures) ? input.failures : []) {
+      state.markFailure(failure?.id, failure?.error);
+    }
+    return { ok: missing === 0, partial: applied > 0 && missing > 0, applied, missing, mode, view: state.view };
   })()`;
 }
 
@@ -646,6 +991,10 @@ function pageVisibilityScript(visible) {
     const visible = ${encoded};
     const state = window.__whisperPageTranslateState;
     if (!state?.refs) return false;
+    if (typeof state.setView === 'function') {
+      state.setView(visible ? (state.lastVisibleView || 'both') : 'original');
+      return true;
+    }
     state.visible = visible;
     const restoreRef = (ref) => ref.nodes.forEach((node, index) => {
       if (node && node.isConnected !== false) node.nodeValue = ref.originals[index];
@@ -688,14 +1037,64 @@ function pageVisibilityScript(visible) {
   })()`;
 }
 
+function pageViewScript(view) {
+  const encoded = safeJsonForScript(['original', 'translation', 'both'].includes(view) ? view : 'both');
+  return `(() => {
+    const view = ${encoded};
+    const state = window.__whisperPageTranslateState;
+    if (!state?.refs || typeof state.setView !== 'function') return { ok: false, stale: true };
+    const x = Number(globalThis.scrollX) || 0;
+    const y = Number(globalThis.scrollY) || 0;
+    const applied = state.setView(view);
+    try { globalThis.scrollTo?.(x, y); } catch (_) {}
+    return { ok: true, view: state.view, visible: state.view !== 'original', applied };
+  })()`;
+}
+
+function pageAutoContinueScript(enabled) {
+  const encoded = safeJsonForScript(Boolean(enabled));
+  return `(() => {
+    const enabled = ${encoded};
+    const state = window.__whisperPageTranslateState;
+    if (!state?.refs) return { ok: false, stale: true };
+    state.config = { ...(state.config || {}), autoContinue: enabled };
+    if (enabled) state.emitNewBlocks?.();
+    return { ok: true, autoContinue: enabled };
+  })()`;
+}
+
+function pageExcludeScript(ids = []) {
+  const encoded = safeJsonForScript((Array.isArray(ids) ? ids : [ids]).map(String).slice(0, 100));
+  return `(() => {
+    const ids = ${encoded};
+    const state = window.__whisperPageTranslateState;
+    if (!state?.refs) return { ok: false, excluded: 0 };
+    let excluded = 0;
+    for (const id of ids) {
+      const ref = state.refs.get(id);
+      if (!ref) continue;
+      ref.active = false;
+      ref.nodes.forEach((node, index) => {
+        if (node && node.isConnected !== false) node.nodeValue = ref.originals[index];
+      });
+      ref.overlay?.remove?.(); ref.overlay = null;
+      ref.failureBadge?.remove?.(); ref.failureBadge = null;
+      excluded++;
+    }
+    return { ok: true, excluded };
+  })()`;
+}
+
 function pageRestoreScript() {
   return `(() => {
     const state = window.__whisperPageTranslateState;
     if (state) {
       state.destroyed = true;
       if (state.timer) clearTimeout(state.timer);
+      if (state.scrollTimer) clearTimeout(state.scrollTimer);
       for (const observer of state.observers?.values?.() || []) observer.disconnect();
       if (state.onVisibilityChange) document.removeEventListener?.('visibilitychange', state.onVisibilityChange);
+      if (state.onScroll) globalThis.removeEventListener?.('scroll', state.onScroll, true);
       const restored = new Set();
       for (const ref of state.refs?.values?.() || []) {
         if (!ref.applied) continue;
@@ -726,6 +1125,10 @@ function pageRestoreScript() {
   })()`;
 }
 
+function pageMemoryClearScript() {
+  return `(() => { try { sessionStorage.removeItem('whisperPageTranslate:v1'); } catch (_) {} return true; })()`;
+}
+
 module.exports = {
   MAX_PAGE_BLOCKS,
   MAX_PAGE_BLOCK_TEXT,
@@ -733,12 +1136,19 @@ module.exports = {
   MAX_PAGE_BATCH_BLOCKS,
   MAX_PAGE_TARGETS_PER_REQUEST,
   pageBlockScanScript,
+  pageContextScript,
+  pageContextRevealScript,
   pageApplyScript,
   pageRestoreScript,
+  pageMemoryClearScript,
   pageVisibilityScript,
+  pageViewScript,
+  pageAutoContinueScript,
+  pageExcludeScript,
   normalizePageBlocks,
   planPageTranslationBatches,
   pageBlockCacheKey,
+  pageTranslationMemoryKey,
   pageBlockLooksIncomplete,
   buildPageTranslationUnits,
   pageTranslationRequest,

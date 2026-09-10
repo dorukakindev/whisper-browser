@@ -163,6 +163,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const history = Array.from({ length: 100 }, (_, i) => ({ role: 'user', content: String(i) }));
   const chat = vm.runInNewContext(chatCode + '\naiChatSend', {
     state: {}, player: { chatHistory: history }, buildOptsFromUI: () => ({}), aiChatContext: () => ({}),
+    aiTranscriptEvidence: () => null,
   });
   assert.deepStrictEqual([...(await chat('Test')).history], history.slice(-8));
   assert.strictEqual(history.length, 100);

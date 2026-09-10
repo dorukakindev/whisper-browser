@@ -51,8 +51,10 @@ const nav = { player: { browserActiveTabId: 'a', browserPageUrl: 'https://exampl
   setMediaKey() {}, applyBrowserMangaState() {}, clearBrowserTracks() {},
   scheduleBrowserOverlaySync() {}, setBrowserLoadingState() {}, showBrowserErrorSurface() {},
   syncBrowserCompatibilityControl() {},
+  syncBrowserReaderControl() {},
+  renderBrowserPermissions() {},
   loadBrowserPlaces() {}, updateBrowserTabPresentation() {}, updateBrowserBookmarkButton() {},
-  updateBrowserWhisperActions() {},
+  updateBrowserWhisperActions() {}, syncBrowserAddressAction() {},
 };
 vm.createContext(nav);
 const navSource = renderer.slice(renderer.indexOf('function updateBrowserNavigation('));

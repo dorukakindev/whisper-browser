@@ -61,7 +61,9 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
     } } };
     current = tab;
     const resume = fn('resumeRestoredBrowserPage', { waitForProtectedPlayback: () => ready,
-      setBrowserTabCompatibilityMode: async () => {}, browserCompatibilityModeForUrl: () => false,
+      setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
+      browserCompatibilityModeForUrl: () => false,
+      suspendBrowserInstrumentationForNavigation() {},
       browserTabById: () => current, sendBrowserEvent() {}, isAbortedBrowserNavigation: () => false,
       browserLoadErrorMessage: () => 'hata' });
     resume(tab); resume(tab);

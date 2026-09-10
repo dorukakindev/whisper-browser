@@ -1,6 +1,11 @@
 const crypto = require('crypto');
 const { PLAYBACK_POLICIES, playbackLearningAction } = require('./playback-policy');
 const { normalizeTextAnchor } = require('./browser-library-tools');
+const {
+  normalizeResearchLinks,
+  normalizeResearchTags,
+  normalizeReviewState,
+} = require('./browser-research-notebook');
 
 function normalizeAnnotation(raw = {}) {
   const type = ['quote', 'word', 'note'].includes(raw.type) ? raw.type : 'note';
@@ -8,6 +13,7 @@ function normalizeAnnotation(raw = {}) {
   const start = Math.max(0, Number(raw.start) || 0);
   const source = String(raw.source || '').trim().slice(0, 4000);
   const fingerprint = crypto.createHash('sha1').update(`${mediaId}|${start}|${type}|${source}`, 'utf8').digest('hex').slice(0, 16);
+  const review = normalizeReviewState(raw);
   return {
     id: String(raw.id || `annotation:${fingerprint}`).slice(0, 180),
     type,
@@ -28,6 +34,9 @@ function normalizeAnnotation(raw = {}) {
     trackId: String(raw.trackId || '').trim().slice(0, 300),
     cueId: String(raw.cueId || '').trim().slice(0, 180),
     anchor: normalizeTextAnchor(raw.anchor),
+    tags: normalizeResearchTags(raw.tags),
+    links: normalizeResearchLinks(raw.links),
+    ...review,
   };
 }
 
