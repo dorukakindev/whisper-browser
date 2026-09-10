@@ -103,6 +103,24 @@ ok('odak göstergeleri bileşen kuralları tarafından kapatılmıyor', () => {
   assert.doesNotMatch(css, /:focus-visible[^{}]*\{[^}]*outline\s*:\s*none/i);
 });
 
+// Amber dolgu uzerindeki metin rengi TEMAYA GORE donmek zorunda. Sabit bir renk
+// (ya da baska bir token) yazildiginda bir tema mutlaka kaybediyor: beyaz metin
+// koyu temanin acik amberi uzerinde 2,28:1; sabit koyu metin acik temanin koyu
+// amberi uzerinde 3,2-3,4:1 -- ikisi de WCAG AA'nin (4,5:1) altinda.
+// var(--accent-contrast) her iki temada da 5,2:1 ve uzerini garanti eder.
+ok('amber dolgu üzerindeki metin her zaman --accent-contrast kullanır', () => {
+  const offenders = [];
+  for (const match of css.matchAll(/(?:^|\n)([^{}\n]{1,160})\{([^}]*)\}/g)) {
+    const [, selector, body] = match;
+    if (!/background(?:-color)?\s*:\s*(?:var\(--accent\)|#d5a35c)/i.test(body)) continue;
+    const color = body.match(/(?<!-)color\s*:\s*([^;]+);/i);
+    if (color && !color[1].includes('accent-contrast')) {
+      offenders.push(`${selector.trim()} -> color: ${color[1].trim()}`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'amber dolgu üzerinde tema dışı metin rengi: ' + offenders.join(' | '));
+});
+
 ok('rapordaki kontrast düzeltmeleri kaynakta sabit', () => {
   assert.match(css, /\.btn-icon-add\s*\{[\s\S]*?color:\s*var\(--accent-contrast\)/);
   assert.match(css, /a\s*\{[\s\S]*?color:\s*var\(--accent-hover\)/);
