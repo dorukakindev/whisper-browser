@@ -8,6 +8,7 @@ const { EventEmitter } = require('events');
 const { SubtitleFileAccess, canonicalLocalPath, MAX_SUBTITLE_BYTES } = require('../src/local-file-access');
 const { clonePublicOptions, validateQueueOptions } = require('../src/queue-persistence');
 const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle');
+const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
 const { createNdjsonLineBuffer } = require('../src/ndjson-lines');
 const { buildSecretEnv } = require('../src/settings-security');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
@@ -178,6 +179,10 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // GERCEK mandali enjekte eder, sahte bir cift degil -- yoksa "tek is =
       // tek terminal" garantisi burada sinanmamis olur.
       createProcessTerminalLatch,
+      // transcribe:start artik is basina sahipli bir gecici klasor aciyor;
+      // harness GERCEK randomUUID'yi verir.
+      randomUUID: require('crypto').randomUUID,
+      createIdempotentCancel, recoverOutputTransactions,
     };
     // Unlike register(), keep one context so assignments remain observable.
     const sandbox = vm.createContext(context);

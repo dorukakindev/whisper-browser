@@ -10,6 +10,7 @@ const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createProcessTerminalLatch } = require('./renderer/queue-lifecycle');
+const { createIdempotentCancel, recoverOutputTransactions } = require('./pipeline-job');
 const { createWatchLibraryStore } = require('./watch-library-store');
 const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
 const { createBrowserPageFind } = require('./browser-page-find');
@@ -1191,6 +1192,10 @@ ipcMain.handle('logs:openFolder', async (event) => {
 });
 
 let activeJobLatch = null;
+// Iptal birden cok yerden tetiklenebiliyor: dugme, uygulama kapanisi, kuyruk
+// durdurma. Idempotent sarmalayici ayni is icin ikinci kez sinyal gondermez.
+let activeJobCancel = null;
+let activeJobTempDir = null;
 
 function killActiveJob() {
   if (!activeJob) return;
@@ -1200,6 +1205,7 @@ function killActiveJob() {
   // sonrakini iki kez başlatır.
   const lifecycle = activeJobLatch;
   if (lifecycle) lifecycle.requestCancel();
+  if (activeJobCancel) { void activeJobCancel(); return; }
   terminateProcessTree(activeJob, { spawn, onWarning: (message) => sendEvent({ type: 'log', level: 'warn', message }) });
 }
 
@@ -8224,6 +8230,10 @@ app.on('before-quit', (event) => {
   watchTimer = null;
   flushBrowserTrackPublications(true);
   flushBrowserPlaces();
+  // Calisan is oldurulmeden ONCE duzgun iptal edilir: aksi halde yarim cikti
+  // islemi diskte kalir. Yer imi/gecmis flush'indan sonra gelir ki kapanis
+  // sirasi bozulmasin.
+  if (activeJobCancel) void activeJobCancel();
   // Debounce süresi dolmadan gelen uygulama/işletim sistemi kapanışlarında son
   // sekme, URL ve oynatma konumunu kaybetme.
   if (!browserSessionFinalizedForQuit) persistBrowserSessionNow();
@@ -11589,6 +11599,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Gizli anahtarları argv yerine ortam değişkeniyle ve yalnız onları kullanan
   // özellikler açıkken geçir (process listesinde ve ilgisiz child env'lerinde görünmesin).
   const env = buildSecretEnv(process.env, options);
+  // Backend'in tum gecici dosyalari ana surecin sahip oldugu TEK klasorde
+  // toplanir; iptal veya cokme sonrasi neyin silinecegi belirsiz kalmiyor.
+  // Iptal dosyasi ise sinyal gondermeden once yazilir: backend kontrol
+  // noktalarinda onu gorup temiz cikar (surec oldurulunce yarim dosya kalmaz).
+  activeJobTempDir = path.join(app.getPath('userData'), 'tmp',
+    `job-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`);
+  try { fs.mkdirSync(activeJobTempDir, { recursive: true }); }
+  catch (_) { activeJobTempDir = null; }
+  const cancelFilePath = activeJobTempDir ? path.join(activeJobTempDir, 'cancel.flag') : '';
+  if (activeJobTempDir) {
+    env.WHISPER_JOB_TEMP_DIR = activeJobTempDir;
+    env.WHISPER_CANCEL_FILE = cancelFilePath;
+  }
 
   startJobLog(options.youtube || options.input || 'is', args);
 
@@ -11637,8 +11660,34 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
 
   let stderrBuf = '';
-  const jobProc = activeJob;
+  const job = activeJob;
+  const jobProc = job;
   modelProcesses.add(jobProc);
+  const pipelineOutputDir = options.outputDir
+    ? path.resolve(options.outputDir)
+    : (options.input ? path.dirname(path.resolve(options.input)) : null);
+  // Iptal edilen isten kalan yarim cikti islemleri geri alinir. ownerPid ile
+  // BASKA bir surecin devam eden islemine dokunulmaz.
+  const recoverInterruptedOutputs = () => {
+    if (!pipelineOutputDir) return { recovered: 0, errors: [] };
+    const recovery = recoverOutputTransactions(pipelineOutputDir, { ownerPid: job.pid });
+    if (recovery.recovered) {
+      writeJobLog({ type: 'log', level: 'warn', jobId,
+        message: `${recovery.recovered} yarım çıktı işlemi geri alındı.` });
+    }
+    for (const message of recovery.errors) {
+      writeJobLog({ type: 'log', level: 'error', jobId,
+        message: `Çıktı geri alma hatası: ${message}` });
+    }
+    return recovery;
+  };
+  activeJobCancel = createIdempotentCancel(async () => {
+    // Once iptal bayragi: backend bir sonraki kontrol noktasinda kendi temiz
+    // cikisini yapabilsin. Ancak bundan sonra surec agaci sonlandirilir.
+    try { if (cancelFilePath) fs.writeFileSync(cancelFilePath, 'cancel', 'utf-8'); } catch (_) {}
+    terminateProcessTree(job, { spawn, onWarning: (message) => sendJobEvent({ type: 'log', level: 'warn', message }) });
+    return { ok: true };
+  });
   // Her işin kendi kimliği ve terminal mandalı var. Renderer gelen olayın hâlâ
   // aktif işe ait olduğunu bu kimlikle doğrular; mandal da bir iş için yalnız
   // TEK terminal olayı (done/error) geçmesine izin verir.
@@ -11758,9 +11807,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     writeJobLog({ ...exitEvent, jobId });
     cleanupChatFile();
     endJobLog();
-    activeJob = null;
-    activeQueueItemId = null;
+    // Gec kalan eski bir close, YENI baslamis isin durumunu temizlemesin.
+    if (activeJob === job) activeJob = null;
+    if (activeJob === null) activeQueueItemId = null;
     if (activeJobLatch === lifecycle) activeJobLatch = null;
+    if (activeJobCancel && activeJob === null) activeJobCancel = null;
+    // Terminal olay hic gelmediyse (iptal/cokme) yarim cikti islemi geri alinir.
+    if (!jobMeta.terminalSeen) recoverInterruptedOutputs();
+    if (activeJobTempDir && activeJob === null) {
+      try { fs.rmSync(activeJobTempDir, { recursive: true, force: true }); } catch (_) {}
+      activeJobTempDir = null;
+    }
     // Renderer kuyruktaki sonraki işi bu olaydan sonra başlatır; önce null yaparak
     // transcribe:start ile "Zaten bir iş çalışıyor" yarışını ortadan kaldır.
     sendJobEvent(exitEvent);

@@ -91,6 +91,16 @@ Sıra: girdi (yerel dosya / yt-dlp ile YouTube) → ffmpeg ile 16kHz mono WAV ç
 - **Bölme & sarma ayrı kavramlar:** `split_*` fonksiyonları bir segmenti birden çok altyazı bloğuna böler (zaman); `wrap_text` tek bloğu satırlara sarar (görsel). `wrap_mode="sentence"` cümleyi asla ortadan kırmaz.
 - **Halüsinasyon savunması:** `HALLUCINATION_PATTERNS` (regex) + `has_repetition_loop`/`collapse_repetition` (tekrar döngüleri). Filtre segment metnine hem bölmeden önce hem temizlikten sonra uygulanır.
 
+### İptal ve çıktı bütünlüğü
+
+- **Çıktılar tek bir işlem olarak yazılır** (`backend/pipeline_control.py` → `OutputTransaction`). Tüm formatlar önce yan dosyaya yazılır, `commit()` hepsini tek seferde yerine koyar. Eskiden her dosya tek tek yazıldığı için iptal/çökme "srt var, ass yok" gibi tutarsız bir küme bırakabiliyordu. Yeni bir çıktı dosyası eklerken doğrudan yazma — `output_tx.stage(path, writer)` kullan.
+- **İptal kontrol noktalarla çalışır** (`cancellation_checkpoint(stage, point)`): 7 aşama × 5 nokta. Uzun döngülerin İÇİNDE de nokta var (segment akışı, ffmpeg, yt-dlp) — yoksa iptal, aşama bitene kadar (dakikalar) beklerdi. Yeni bir uzun aşama eklersen kendi noktalarını koy.
+- **Geçici dosyalar ana sürecin sahip olduğu klasörde:** main.js her işe `userData/tmp/job-*` açar ve `WHISPER_JOB_TEMP_DIR` ile geçirir; backend `job_temp_directory()` ile oraya yazar. İş kapanınca klasör silinir.
+- **İptal önce dosyayla bildirilir:** `WHISPER_CANCEL_FILE` yazılır (backend bir sonraki kontrol noktasında temiz çıkar), sonra süreç ağacı sonlandırılır. `createIdempotentCancel` aynı iş için ikinci sinyali engeller — düğme, kapanış ve kuyruk durdurma aynı yolu kullanır.
+- **Terminal olay gelmeden kapanan iş yarım işlem bırakır:** `recoverOutputTransactions(dir, { ownerPid })` bunları geri alır. `ownerPid` başka bir sürecin devam eden işlemine dokunulmasını engeller.
+- **`if (activeJob === job)`** — geç kalan bir `close`, yeni başlamış işin durumunu temizlemesin.
+- Renderer `event.cancelled` (ana süreçten gelen iptal işareti), `event.cancelTooLate` (iptal işin bitişine yetişemedi, çıktılar üretildi) ve `event.cleanupError` olaylarını ayrı ayrı bildirir.
+
 ### Ek modlar ve kanallar
 - **Re-export (`--reexport true`):** `--input` bir `.json` çıktısıdır; `reexport_from_json()` transkripsiyonu atlayıp JSON segmentlerinden formatları yeniden yazar (aynı `write_*` yazıcıları, mevcut `--formats/--wrap-mode/--max-line-width`). main()'de `transcribe()` yerine bu çağrılır.
 - **Burn-in:** main.js'te `burnin:start`/`burnin:cancel` IPC + ayrı `burnin:event` kanalı (transcribe:event'ten bağımsız). ffmpeg `subtitles=` filtresi; Windows yolu `ffSubtitlesArg` ile tek tırnağa alınır. Yalnızca yerel video girdisinde.

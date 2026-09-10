@@ -30,6 +30,13 @@ import time
 import traceback
 import warnings
 from contextlib import contextmanager
+from pipeline_control import (
+    OutputTransaction,
+    PipelineCancelled,
+    cancellation_checkpoint,
+    job_temp_directory,
+    recover_output_transactions,
+)
 from pathlib import Path
 from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
@@ -188,6 +195,8 @@ def find_ffmpeg():
 
 def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_end=None,
                      audio_lang=None, cookie_browser=None):
+    # Uzun indirmelerde iptal, indirme bitene kadar beklemesin.
+    cancellation_checkpoint("download", "during")
     """
     yt-dlp ile YouTube'dan ses indir (en yüksek kalite, wav formatında).
 
@@ -425,6 +434,7 @@ def extract_audio(input_path, output_wav, ffmpeg_path, clip_start=None, clip_end
         "-c:a", "pcm_s16le",
         str(output_wav),
     ]
+    cancellation_checkpoint("extract", "during")
     proc = _run_ffmpeg_bounded(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600)
     if proc.returncode != 0:
         # ffmpeg stderr'i dosya yollarını ve makineye özgü ayrıntıları içerebilir;
@@ -4465,7 +4475,7 @@ def transcribe(args):
             "ffmpeg bulunamadı. Lütfen ffmpeg'i PATH'e ekleyin veya backend/bin/ klasörüne koyun."
         )
 
-    workdir = tempfile.mkdtemp(prefix="whisper_altyazi_")
+    workdir = job_temp_directory("whisper_altyazi_")  # ana surec WHISPER_JOB_TEMP_DIR ile sahiplenir
     model = batched = segments_iter = None
 
     try:
@@ -4524,13 +4534,17 @@ def transcribe(args):
         # 1) Girdi: YouTube URL mi yoksa yerel dosya mı?
         youtube_ranged = False  # aralık doğrudan indirme sırasında uygulandı mı?
         if args.youtube:
+            cancellation_checkpoint("download", "before")
             emit("status", stage="download", text="YouTube'dan indiriliyor...")
+            cancellation_checkpoint("download", "start")
             source_path, title, youtube_ranged = download_youtube(
                 args.youtube, workdir, ffmpeg_path,
                 clip_start=clip_start, clip_end=clip_end,
                 audio_lang=args.youtube_audio_lang,
                 cookie_browser=args.youtube_cookie_browser,
             )
+            cancellation_checkpoint("download", "after")
+            cancellation_checkpoint("download", "handoff")
             base_name = re.sub(r'[\\/:*?"<>|]', "_", title).strip()[:120] or "altyazi"
         else:
             source_path = args.input
@@ -4540,15 +4554,19 @@ def transcribe(args):
 
         # 2) Ses çıkar. Aralık YouTube indirmesinde uygulandıysa burada tekrar kırpma
         #    (indirilen dosya zaten 0'a sıfırlanmış); aksi halde ffmpeg ile kırp.
+        cancellation_checkpoint("extract", "before")
         emit("status", stage="extract", text="Ses çıkarılıyor...")
         wav_path = str(Path(workdir) / "audio.wav")
         ex_start = None if youtube_ranged else clip_start
         ex_end = None if youtube_ranged else clip_end
         # Ses kanalı seçimi yalnızca yerel dosyada anlamlı (YouTube tek akış indirir)
         ex_track = -1 if args.youtube else args.audio_track
+        cancellation_checkpoint("extract", "start")
         extract_audio(source_path, wav_path, ffmpeg_path, clip_start=ex_start, clip_end=ex_end,
                       audio_track=ex_track, audio_filter=args.audio_preprocess)
 
+        cancellation_checkpoint("extract", "after")
+        cancellation_checkpoint("extract", "handoff")
         # 3-4) Transkripsiyon hazırlığı (tüm motorlar için ortak)
         # Detaylı VAD ayarları
         vad_parameters = {
@@ -4594,6 +4612,8 @@ def transcribe(args):
             )
         else:
             # faster-whisper modeli yükle (sıralı veya batched)
+            cancellation_checkpoint("load_model", "before")
+            cancellation_checkpoint("load_model", "start")
             emit("status", stage="load_model",
                  text=f"Model yükleniyor: {args.model} ({compute_type})")
             log(f"Model yükleniyor: {args.model} — ilk kez kullanılıyorsa indirme birkaç dakika sürebilir")
@@ -4613,6 +4633,11 @@ def transcribe(args):
                 raise
             log(f"Model yüklendi ({time.time() - load_start:.1f}s)")
 
+            cancellation_checkpoint("load_model", "during")
+            cancellation_checkpoint("load_model", "after")
+            cancellation_checkpoint("load_model", "handoff")
+            cancellation_checkpoint("transcribe", "before")
+            cancellation_checkpoint("transcribe", "start")
             emit("status", stage="transcribe", text="Transkripsiyon başladı...")
             log(
                 f"Decoding [{args.engine}]: beam={args.beam_size}, best_of={args.best_of}, "
@@ -4692,6 +4717,8 @@ def transcribe(args):
         CKPT_INTERVAL = 20.0  # sn — checkpoint yazma sıklığı (çökme kaybını sınırlar)
 
         for segment in segments_iter:
+            # Iptal, segment akisi bitene kadar beklemesin (uzun filmde dakikalar).
+            cancellation_checkpoint("transcribe", "during")
             # Bazı motorlar sessiz/bozuk karelerde sınırı None bırakabilir.
             # Bu kayıtlar zaman eksenine güvenle yerleştirilemediğinden atlanır;
             # None ile toplama yapıp tüm işi düşürmelerine izin verilmez.
@@ -4920,10 +4947,17 @@ def transcribe(args):
             log(f"⚠ {msg}", "warn")
             warn_list.append(msg)
 
+        cancellation_checkpoint("transcribe", "after")
+        cancellation_checkpoint("transcribe", "handoff")
         # LLM post-processing (opsiyonel — DeepSeek vb.)
         if args.llm_postprocess:
             try:
+                cancellation_checkpoint("llm", "before")
+                cancellation_checkpoint("llm", "start")
+                cancellation_checkpoint("llm", "during")
                 entries = llm_postprocess(entries, args, warn_list)
+                cancellation_checkpoint("llm", "after")
+                cancellation_checkpoint("llm", "handoff")
             except Exception as e:
                 log(f"❌ LLM düzeltme HATA verdi: {type(e).__name__}: {e}", "error")
                 import traceback as _tb
@@ -4966,7 +5000,10 @@ def transcribe(args):
         diarization_spans = []
         if args.diarize:
             try:
+                cancellation_checkpoint("diarize", "before")
+                cancellation_checkpoint("diarize", "start")
                 emit("status", stage="diarize", text="Konuşmacılar tanımlanıyor...")
+                cancellation_checkpoint("diarize", "during")
                 log("Diarization başladı (pyannote.audio)")
                 spans = run_diarization(
                     wav_path,
@@ -4978,6 +5015,8 @@ def transcribe(args):
                 if time_offset:
                     spans = [(s + time_offset, e + time_offset, sp) for (s, e, sp) in spans]
                 diarization_spans = spans
+                cancellation_checkpoint("diarize", "after")
+                cancellation_checkpoint("diarize", "handoff")
 
             except Exception as e:
                 log(f"Diarization başarısız: {e}", "error")
@@ -5040,7 +5079,18 @@ def transcribe(args):
             )
 
         # 5) Çıktıyı yaz
+        cancellation_checkpoint("write", "before")
         emit("status", stage="write", text="Altyazı dosyası yazılıyor...")
+        # Onceki bir kosunun yarida kalmis cikti islemi varsa once geri alinir:
+        # yoksa yarim .tmp dosyalari ve eksik yedekler klasorde birikiyordu.
+        recovered_transactions = recover_output_transactions(output_dir)
+        if recovered_transactions:
+            log(f"Yarım kalmış {recovered_transactions} çıktı işlemi geri alındı.", "warn")
+        # TUM formatlar once yan dosyaya yazilir, sonra tek seferde yerine konur.
+        # Eskiden her dosya tek tek yazildigi icin iptal/cokme "srt var, ass yok"
+        # gibi TUTARSIZ bir cikti kumesi birakabiliyordu.
+        output_tx = OutputTransaction(output_dir, checkpoint=cancellation_checkpoint)
+        cancellation_checkpoint("write", "start")
         formats = args.formats.split(",") if args.formats else ["srt"]
         output_files = []
         output_descriptors = []
@@ -5101,6 +5151,12 @@ def transcribe(args):
             out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
 
             def _write(items, path, lang_code, speaker_map):
+                if fmt not in ("srt", "vtt", "txt", "ass", "json"):
+                    return False
+                return output_tx.stage(path, lambda staged: _write_format(
+                    items, staged, lang_code, speaker_map))
+
+            def _write_format(items, path, lang_code, speaker_map):
                 text_items = (label_entries_for_text_output(items, speaker_map)
                               if args.label_speakers and speaker_map else items)
                 if fmt == "srt":
@@ -5167,12 +5223,13 @@ def transcribe(args):
                 dual_translation = (label_entries_for_text_output(
                     translated, translated_speakers_map)
                     if args.label_speakers and translated_speakers_map else translated)
-                write_dual_srt(dual_source, dual_translation, dual_path,
-                               translation_first=args.dual_translation_first,
-                               max_line_width=args.max_line_width,
-                               language=(args.translate_to or "tr").lower(),
-                               source_language=tr_source,
-                               wrap_mode=args.wrap_mode)
+                output_tx.stage(dual_path, lambda staged: write_dual_srt(
+                    dual_source, dual_translation, staged,
+                    translation_first=args.dual_translation_first,
+                    max_line_width=args.max_line_width,
+                    language=(args.translate_to or "tr").lower(),
+                    source_language=tr_source,
+                    wrap_mode=args.wrap_mode))
                 output_files.append(str(dual_path))
                 failed_count = len(set(translation_status.get("failed", [])))
                 completed_count = len(set(translation_status.get("completed", [])))
@@ -5192,8 +5249,9 @@ def transcribe(args):
         if args.confidence_report and all_words:
             try:
                 rep_path = output_dir / f"{base_name}{name_suffix}.dusuk-guven.txt"
-                ok, n_low, frequent = write_confidence_report(
-                    rep_path, entries, all_words, threshold=args.confidence_threshold)
+                ok, n_low, frequent = output_tx.stage(
+                    rep_path, lambda staged: write_confidence_report(
+                        staged, entries, all_words, threshold=args.confidence_threshold))
                 if ok:
                     output_files.append(str(rep_path))
                     total_words = len(all_words)
@@ -5250,6 +5308,10 @@ def transcribe(args):
             "segments": len(entries),
             "lowConfidenceWords": low_conf,
         }
+        # Tum ciktilar hazir: tek seferde yerine koy. Bu noktaya kadar hicbir
+        # nihai dosyaya dokunulmadi, yani iptal/cokme yarim kume birakmaz.
+        output_tx.commit()
+
         log("Performans: {} / {} / {} — {} ses, {} islem, {}x gercek zaman, "
             "{} segment{}".format(
                 args.model, args.engine, device,

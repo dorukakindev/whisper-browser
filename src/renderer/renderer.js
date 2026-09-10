@@ -3402,6 +3402,15 @@ window.api.onEvent((event) => {
   // Oynatici ve AI isleri yukarida tuketildigi icin kapi onlari etkilemez.
   if (!RendererUiModel.shouldAcceptRunEvent(state, event.type)) return;
   if (event.type === 'done' || event.type === 'error') state.awaitingExit = true;
+  // Iptal istegi is bitmeye cok yakin geldiyse cikti YINE DE uretilmis olabilir;
+  // kullaniciya "iptal edildi" demek yaniltici olurdu.
+  if (event.cancelTooLate) {
+    logLine('İptal isteği işin bitişine yetişemedi; çıktılar üretildi.', 'warn');
+    state.cancelled = false;
+  }
+  if (event.cleanupError) {
+    logLine(`İptal sonrası temizlik tamamlanamadı: ${event.cleanupError}`, 'error');
+  }
   if (event.type === 'done' || event.type === 'error' || event.type === 'exit') {
     // Tek-tik bayragi ISE OZELDIR: bir sonraki ise sizmasin.
     state.forceTranslate = false;
@@ -3568,7 +3577,10 @@ window.api.onEvent((event) => {
       break;
 
     case 'exit':
-      if (state.cancelled) {
+      // Iptali yalniz renderer bayragindan okumak yetmiyordu: uygulama kapanisi
+      // veya kuyruk durdurma ana surecte iptal ettiginde renderer bunu hata
+      // saniyordu. Ana surec artik exit olayini cancelled ile isaretliyor.
+      if (state.cancelled || event.cancelled) {
         // Kullanıcı iptal etti — hata gibi gösterme
         state.cancelled = false;
         state.running = false;
