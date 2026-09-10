@@ -95,7 +95,7 @@
             aria-labelledby="sourceTabYoutube">
             <div class="yt-input-wrap">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3 3 0 0 0 2.6 19.9C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
-              <input type="url" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
+              <input type="url" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." aria-label="YouTube video adresi"/>
             </div>
             <label class="field youtube-session-field">
               <span class="field-label">YouTube oturumu <small>Yalnızca bot/yaş doğrulaması gerekiyorsa</small></span>
@@ -201,7 +201,7 @@
           <div class="card-head">
             <h2>Ayarlar</h2>
             <div class="settings-head-tools">
-              <select class="preset-select" id="presetSelect" title="Hazır ayar profili">
+              <select class="preset-select" id="presetSelect" title="Hazır ayar profili" aria-label="Hazır ayar seçimi">
                 <option value="film" selected>Film (önerilen)</option>
                 <option value="custom">Özel ayarlar</option>
                 <option value="fast">Hızlı (turbo + batched)</option>
@@ -311,7 +311,7 @@
 
             <div class="field hidden" id="audioTrackField">
               <span class="field-label">Ses kanalı</span>
-              <select id="audioTrack">
+              <select id="audioTrack" aria-label="Ses parçası seçimi">
                 <option value="-1">Otomatik (varsayılan kanal)</option>
               </select>
             </div>
@@ -621,7 +621,7 @@
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
             <div class="glossary-controls">
-              <input type="text" id="glossaryInput" placeholder="Yeni terim ekle (örn: Anthropic, Kubernetes, Atatürk)" />
+              <input type="text" id="glossaryInput" placeholder="Yeni terim ekle (örn: Anthropic, Kubernetes, Atatürk)" aria-label="Sözlük terimleri"/>
               <button class="btn-icon-add" id="glossaryAdd" title="Terimi ekle" aria-label="Terimi sözlüğe ekle">+</button>
             </div>
             <div class="glossary-list" id="glossaryList"></div>
@@ -1310,9 +1310,9 @@
             </div>
             <div class="browser-place-tabs" role="tablist" aria-label="Kayıt türü">
               <button class="browser-place-tab active" id="browserPlaceTabBookmarks" type="button" data-place-tab="bookmarks" role="tab"
-                aria-selected="true" aria-controls="browserPlacesList">Yer imleri</button>
+                aria-selected="true" aria-controls="browserPlacesList" tabindex="0">Yer imleri</button>
               <button class="browser-place-tab" id="browserPlaceTabHistory" type="button" data-place-tab="history" role="tab"
-                aria-selected="false" aria-controls="browserPlacesList">Geçmiş</button>
+                aria-selected="false" aria-controls="browserPlacesList" tabindex="-1">Geçmiş</button>
             </div>
             <div class="browser-place-filters">
               <input type="search" id="browserPlacesSearch" placeholder="Başlık veya adreste ara…" aria-label="Yer imleri ve geçmişte ara" />
@@ -1718,7 +1718,7 @@
             </div>
           </div>
           <div class="subtitle-edit hidden" id="subtitleEdit">
-            <textarea id="subtitleEditBox" class="resize-none" rows="2" spellcheck="false"></textarea>
+            <textarea id="subtitleEditBox" class="resize-none" rows="2" spellcheck="false" aria-label="Altyazı metnini düzenle"></textarea>
             <div class="subtitle-edit-actions">
               <span class="subtitle-edit-hint" id="subtitleEditHint"></span>
               <button class="btn btn-ghost btn-sm hidden" id="subtitleEditRevertModel" type="button">Model çevirisine dön</button>
@@ -1759,7 +1759,7 @@
               <div class="seek-played" id="seekPlayed"></div>
               <div class="seek-markers" id="seekMarkers"></div>
               <div class="seek-tip hidden" id="seekTip">0:00</div>
-              <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" />
+              <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" aria-label="Video konumu"/>
             </div>
             <div class="subtitle-mode-wrap" id="subtitleModeWrap">
               <button class="btn-icon" id="subToggle" title="Altyazı görünümünü seç (V)"
@@ -1776,7 +1776,7 @@
                   aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Altyazıları kapat</span></button>
               </div>
             </div>
-            <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)">
+            <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)" aria-label="Oynatma hızı">
               <option value="0.5">0.5&times;</option>
               <option value="0.75">0.75&times;</option>
               <option value="1" selected>1&times;</option>
@@ -1788,7 +1788,7 @@
             <button class="btn-icon" id="muteBtn" title="Sessize al (M)" aria-label="Sesi aç veya kapat">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
             </button>
-            <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" />
+            <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" aria-label="Ses düzeyi"/>
             <button class="btn-icon" id="abLoopBtn" title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat (B)" aria-label="A-B döngüsü noktalarını ayarla">A-B</button>
             <button class="btn-icon" id="shotBtn" title="Ekran görüntüsü al (S)" aria-label="Ekran görüntüsü al">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -1832,7 +1832,7 @@
               </div>
             </div>
             <div class="side-source-quick" aria-label="YouTube kaynağı">
-              <input type="url" id="playerQuickYtUrl" placeholder="YouTube URL'sini yapıştır" autocomplete="off" />
+              <input type="url" id="playerQuickYtUrl" placeholder="YouTube URL'sini yapıştır" autocomplete="off" aria-label="Hızlı YouTube adresi"/>
               <button class="btn btn-primary btn-sm" id="playerQuickYtLoad" type="button">Yükle</button>
             </div>
             <div class="side-heading">
@@ -1852,7 +1852,7 @@
               <button type="button" data-subtitle-display="translation" role="radio" aria-checked="false">Çeviri</button>
             </div>
             <div class="side-toolrow">
-              <input type="search" id="cueSearch" placeholder="Altyazıda ara..." />
+              <input type="search" id="cueSearch" placeholder="Altyazıda ara..." aria-label="Altyazıda ara"/>
               <button class="btn-icon side-tool hidden" id="clearCueSearch" title="Aramayı temizle" aria-label="Aramayı temizle">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
               </button>
@@ -1921,7 +1921,7 @@
               </div>
             </div>
             <div class="ai-chat-input">
-              <textarea id="aiChatText" class="resize-none" rows="1" placeholder="Sorunu yaz… (Enter: gönder, Shift+Enter: alt satır)"></textarea>
+              <textarea id="aiChatText" class="resize-none" rows="1" placeholder="Sorunu yaz… (Enter: gönder, Shift+Enter: alt satır)" aria-label="Yapay zekâya soru yaz"></textarea>
               <button class="btn btn-primary btn-sm" id="aiChatSend" title="Gönder (Enter)">Sor</button>
             </div>
             <div class="ai-chat-foot">
@@ -1948,15 +1948,15 @@
           <div class="player-library hidden" id="playerLibraryPanel" role="tabpanel" aria-labelledby="sideTabLibrary">
             <div class="library-view-tabs" role="tablist" aria-label="Kütüphane bölümleri">
               <button class="library-view-tab active" id="libraryViewSearch" type="button" data-library-view="search" role="tab"
-                aria-selected="true" aria-controls="playerLibraryList">Ara</button>
+                aria-selected="true" aria-controls="playerLibraryList" tabindex="0">Ara</button>
               <button class="library-view-tab" id="libraryViewNotes" type="button" data-library-view="notes" role="tab"
-                aria-selected="false" aria-controls="playerLibraryList">Notlar</button>
+                aria-selected="false" aria-controls="playerLibraryList" tabindex="-1">Notlar</button>
               <button class="library-view-tab" id="libraryViewCollections" type="button" data-library-view="collections" role="tab"
-                aria-selected="false" aria-controls="playerLibraryList">Koleksiyonlar</button>
+                aria-selected="false" aria-controls="playerLibraryList" tabindex="-1">Koleksiyonlar</button>
               <button class="library-view-tab" id="libraryViewResearch" type="button" data-library-view="research" role="tab"
-                aria-selected="false" aria-controls="playerLibraryList">Araştırma</button>
+                aria-selected="false" aria-controls="playerLibraryList" tabindex="-1">Araştırma</button>
               <button class="library-view-tab" id="libraryViewReviews" type="button" data-library-view="reviews" role="tab"
-                aria-selected="false" aria-controls="playerLibraryList">Tekrar</button>
+                aria-selected="false" aria-controls="playerLibraryList" tabindex="-1">Tekrar</button>
             </div>
             <div class="player-library-controls" id="standardLibraryControls">
               <div class="search-control library-search-control">
@@ -2116,11 +2116,11 @@
           </div>
           <div class="drawer-page-tabs" role="tablist" aria-label="Ayar bölümü">
             <button type="button" class="drawer-page-tab active" id="settingsTabSource" data-settings-page="source" role="tab"
-              aria-selected="true" aria-controls="settingsPageSource">Kaynak ve oynatma</button>
+              aria-selected="true" aria-controls="settingsPageSource" tabindex="0">Kaynak ve oynatma</button>
             <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserSubtitles" data-settings-page="browser-subtitles" role="tab"
-              aria-selected="false" aria-controls="settingsPageBrowserSubtitles">Altyazı ve çeviri</button>
+              aria-selected="false" aria-controls="settingsPageBrowserSubtitles" tabindex="-1">Altyazı ve çeviri</button>
             <button type="button" class="drawer-page-tab drawer-browser-tab" id="settingsTabBrowserDiagnostics" data-settings-page="browser-diagnostics" role="tab"
-              aria-selected="false" aria-controls="settingsPageBrowserDiagnostics">Sorun giderme</button>
+              aria-selected="false" aria-controls="settingsPageBrowserDiagnostics" tabindex="-1">Sorun giderme</button>
           </div>
           <section class="settings-page" id="settingsPageSource" data-settings-page-panel="source" role="tabpanel" aria-labelledby="settingsTabSource">
           <div class="player-layout-section">
@@ -2166,7 +2166,7 @@
 
             <div class="ptab-content hidden" id="playerSourcePanelYoutube" data-pcontent="yt" role="tabpanel"
               aria-labelledby="playerSourceTabYoutube">
-              <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." />
+              <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." aria-label="Oynatıcı YouTube adresi"/>
               <label class="field youtube-session-field">
                 <span class="field-label">YouTube oturumu</span>
                 <select id="playerCookieBrowser">
@@ -2220,12 +2220,12 @@
 
           <div class="player-panel hidden" id="playerChaptersPanel">
             <div class="player-panel-title">Bölümler</div>
-            <select id="playerChapters"></select>
+            <select id="playerChapters" aria-label="Bölüm seçimi"></select>
           </div>
 
           <div class="player-panel">
             <div class="player-panel-title">Altyazı</div>
-            <select id="playerSubSelect"><option value="">Altyazı yok</option></select>
+            <select id="playerSubSelect" aria-label="Altyazı dosyası seçimi"><option value="">Altyazı yok</option></select>
             <button class="btn btn-secondary btn-sm" id="playerPickSub" style="margin-top:8px">Altyazı dosyası seç</button>
             <label class="field hidden" id="playerEmbeddedSubField" style="margin-top:10px">
               <span class="field-label">Videodaki gömülü altyazı</span>
@@ -2536,6 +2536,7 @@
   <script src="../browser-settings-registry.js"></script>
   <script src="../subtitle-find-replace.js"></script>
   <script src="queue-lifecycle.js"></script>
+  <script src="../renderer-ui-model.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

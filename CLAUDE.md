@@ -111,6 +111,14 @@ Sıra: girdi (yerel dosya / yt-dlp ile YouTube) → ffmpeg ile 16kHz mono WAV ç
 ### Gizli anahtarlar
 HF token, LLM API key, çeviri API key ve manga API key `settings.json` içine yazılmaz; `secret-store.js` bunları işletim sisteminin `safeStorage` şifrelemesiyle ayrı kasada tutar. Transkripsiyonun kullandığı anahtarlar **argv'den değil ortam değişkeninden** geçer (`WHISPER_HF_TOKEN`, `WHISPER_LLM_API_KEY`, `WHISPER_TRANSLATE_API_KEY`) — süreç listesinde görünmesin diye. `settings-security.js` içindeki `buildSecretEnv()` yalnız ilgili özellik açıkken gereken anahtarı Python sürecine ekler; diğer bütün alt süreçler `withoutSecretEnv()` ile temizlenmiş ortam alır. Yeni gizli alan eklerken secret-store alan listesini, redaksiyon şemasını ve bu en-az-yetki ortam sözleşmesini birlikte güncelle.
 
+### Erişilebilirlik ve durum modeli
+
+- **`src/renderer-ui-model.js` renderer.js'ten ÖNCE yüklenir** (index.html). İçinde saf durum mantığı var: `shouldAcceptRunEvent` (olay kapısı), `cycleFocusIndex`, `isElementVisibleForFocus`, `effectiveViewport`.
+- **Olay kapısı `playerJobEvent`'ten SONRA uygulanır.** Oynatıcı ve AI işleri `state.running` olmadan çalışır; kapı yukarıda olsaydı onların olaylarını da düşürürdü. `state.awaitingExit`, terminal olay (`done`/`error`) ile süreç kapanışı (`exit`) arasındaki aralığı işaretler — bu aralıkta gelen geç `progress`/`segment` olayları reddedilir, yoksa iş bitmiş görünürken ilerleme çubuğu geri gidiyordu.
+- **Modal odak çevrimi `isElementVisibleForFocus` kullanır.** `offsetParent` tek başına kapalı `<details>` içindeki öğeyi yakalamıyordu; Tab tuşu görünmeyen bir düğmede kayboluyordu.
+- **Sekme şeritlerinde roving tabindex:** aktif sekme `tabindex="0"`, diğerleri `-1`; ok tuşları/Home/End `handleRovingTabKey` ile dolaşır. Yeni bir `role="tab"` eklerken tabindex'i unutma.
+- **Kütüphane yeniden çizimi odağı ve kaydırmayı korur** (`libraryUiRestore`): her kart `data-watch-key` taşır ve `tabIndex = -1` ile odaklanabilir. Listeyi yeniden çizen yeni bir yol eklersen `captureLibraryUiState`/`restoreLibraryUiState` çiftini kullan.
+
 ### Kalıcılık
 **Tek yazar garantisi (izleme kütüphanesi):** İkinci uygulama örneği `requestSingleInstanceLock` ile hiç pencere açmadan kapanır (`app.whenReady` ve `app.on('activate')` ikisi de kilide bağlı) — aksi halde iki süreç aynı `watch-library.json`'a yazıp birbirini eziyordu. Renderer'daki yazımlar `watchMutationQueue` ile SIRAYA alınır ve `baseItemRevision` taşır; iç içe giren iki yazımda ikincisi birincinin ilerlemesini geri almıyordu. Kapanışta `flushWatchLibraryBeforeClose` renderer'a bir token gönderir, renderer son kaydı **senkron** IPC (`library:upsert-before-close`) ile yazıp ACK döner; ACK gelmezse `WATCH_CLOSE_FLUSH_TIMEOUT_MS = 750` sonra devam edilir — kapanış her durumda sınırlı sürede biter. Kapanış IPC'leri göndereni `mainWindow.webContents` ile doğrular.
 

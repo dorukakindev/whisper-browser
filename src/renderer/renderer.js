@@ -9,6 +9,29 @@ const {
   snapshotOptions: snapshotQueueOptions,
 } = window.QueueLifecycle;
 
+// renderer-ui-model.js index.html'de renderer.js'ten ÖNCE yüklenir.
+const RendererUiModel = window.RendererUiModel;
+
+// Sekme şeritlerinde ok tuşlarıyla gezinme (WAI-ARIA "roving tabindex").
+// Eskiden yalnız Tab ile tek tek dolaşılabiliyordu; ok tuşları hiçbir şey
+// yapmıyordu ve klavye kullanıcısı sekmeler arasında dolaşamıyordu.
+function handleRovingTabKey(event, items) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return false;
+  const list = [...items].filter((el) => el && !el.disabled);
+  if (!list.length) return false;
+  const current = list.indexOf(document.activeElement);
+  let next;
+  if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = list.length - 1;
+  else next = RendererUiModel.cycleFocusIndex(current, list.length, event.key === 'ArrowLeft');
+  const candidate = list[next];
+  if (!candidate) return false;
+  event.preventDefault();
+  candidate.focus();
+  candidate.click();
+  return true;
+}
+
 // ===== State =====
 const state = {
   source: 'file',
@@ -693,8 +716,11 @@ let _dialogResolve = null;
 let _dialogInputListener = null;
 
 function modalFocusable(modal) {
+  // Görünürlük kuralı modülde: gizli ata VEYA kapalı <details> içindeki öğe
+  // odak çevrimine girmemeli. offsetParent tek başına kapalı details'i
+  // yakalamıyordu; Tab tuşu görünmeyen bir düğmede kayboluyordu.
   return [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
-    .filter((el) => !el.classList.contains('hidden') && el.offsetParent !== null);
+    .filter(window.RendererUiModel.isElementVisibleForFocus);
 }
 
 function setModalBackgroundInert(modal, inert) {
@@ -3370,6 +3396,12 @@ window.api.onEvent((event) => {
     state.forceTranslate = false;
     return;
   }
+  // Bu noktadan sonrasi YALNIZ ana transkripsiyon isine ait. Terminal olaydan
+  // (done/error) sonra, exit gelmeden once suzulen ilerleme/segment olaylari
+  // arayuze yaziyordu: is bitmis gorunurken ilerleme cubugu geri gidiyordu.
+  // Oynatici ve AI isleri yukarida tuketildigi icin kapi onlari etkilemez.
+  if (!RendererUiModel.shouldAcceptRunEvent(state, event.type)) return;
+  if (event.type === 'done' || event.type === 'error') state.awaitingExit = true;
   if (event.type === 'done' || event.type === 'error' || event.type === 'exit') {
     // Tek-tik bayragi ISE OZELDIR: bir sonraki ise sizmasin.
     state.forceTranslate = false;
@@ -3541,6 +3573,7 @@ window.api.onEvent((event) => {
         state.cancelled = false;
         state.running = false;
         state.currentQueueId = null;
+        state.awaitingExit = false;
         $('startBtn').classList.remove('hidden');
         $('cancelBtn').classList.add('hidden');
         setStatus('İptal edildi');
@@ -3563,10 +3596,21 @@ window.api.onEvent((event) => {
         renderQueue();
         state.currentQueueId = null;
         state.running = false;
+        state.awaitingExit = false;
         $('startBtn').classList.remove('hidden');
         $('cancelBtn').classList.add('hidden');
         setTimeout(processNextQueueItem, 250);
         break;
+      }
+      // Tekil (kuyruksuz) is: 'done'/'error' geldiginde arayuz zaten bitmis
+      // gorunur ama surec henuz kapanmamistir. awaitingExit bu araligi isaretler;
+      // aradaki gec ilerleme olaylari yukaridaki kapiyla reddedilir ve exit
+      // geldiginde durum tek noktada temizlenir.
+      if (state.awaitingExit) {
+        state.awaitingExit = false;
+        state.running = false;
+        $('startBtn').classList.remove('hidden');
+        $('cancelBtn').classList.add('hidden');
       }
       if (event.code !== 0 && state.running) {
         logLine(`İşlem çıkış kodu ${event.code} ile bitti.`, 'error');
@@ -3580,6 +3624,20 @@ window.api.onEvent((event) => {
 });
 
 // ===== Result modal =====
+// Adlandirilmis kapanis: modal birden cok yerden kapatiliyordu ve Escape
+// yalnizca bazi yollarda calisiyordu. Tek fonksiyon + tek dinleyici.
+function closeResultModal() {
+  closeManagedModal($('resultModal'));
+}
+if ($('resultModal')) {
+  $('resultModal').addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeResultModal();
+    }
+  });
+}
+
 function showResultModal(event) {
   let stats;
   if (event.sync_offset !== undefined) {
@@ -12337,11 +12395,39 @@ async function handleResearchLibraryAction(event) {
   }
 }
 
+// Kutuphane her yazim/arama sonrasi bastan ciziliyor. Eskiden liste basa
+// kayiyor ve klavye odagi body'ye dusuyordu: kullanicinin bulundugu yer ve
+// odagi kayboluyordu. Cizimden once anahtar + kaydirma saklanir, sonra
+// mumkunse ayni karta geri konur.
+let libraryUiRestore = null;
+
+function captureLibraryUiState(list) {
+  const focused = document.activeElement;
+  const card = focused && typeof focused.closest === 'function'
+    ? focused.closest('[data-watch-key]') : null;
+  libraryUiRestore = {
+    scrollTop: list.scrollTop,
+    key: card ? card.dataset.watchKey : null,
+    hadFocus: !!(card && list.contains(focused)),
+  };
+}
+
+function restoreLibraryUiState(list) {
+  const saved = libraryUiRestore;
+  libraryUiRestore = null;
+  if (!saved) return;
+  list.scrollTop = Math.max(0, Math.min(saved.scrollTop, list.scrollHeight));
+  if (!saved.hadFocus || !saved.key) return;
+  const candidate = list.querySelector(`[data-watch-key="${CSS.escape(saved.key)}"]`);
+  if (candidate) candidate.focus();
+}
+
 function renderPlayerLibrary() {
   const panel = $('playerLibraryPanel');
   const list = $('playerLibraryList');
   const status = $('playerLibraryStatus');
   if (!panel || !list || !status) return;
+  captureLibraryUiState(list);
   if (playerLibraryView === 'research' || playerLibraryView === 'reviews') {
     renderResearchLibrary();
     return;
@@ -12378,10 +12464,13 @@ function renderPlayerLibrary() {
       : searching ? 'Aramana uyan sekme, altyazı, not veya yer imi bulunamadı.' : 'Bu filtrede video yok.';
     list.appendChild(empty);
   }
-  if (useUnified) { updateCollectionOptions(); return; }
+  if (useUnified) { updateCollectionOptions(); restoreLibraryUiState(list); return; }
   items.slice(0, 300).forEach((item) => {
     const row = document.createElement('article');
     row.className = 'player-library-item';
+    // Yeniden cizimde ayni karti bulabilmek icin kararli anahtar + odaklanabilirlik.
+    row.dataset.watchKey = item.key;
+    row.tabIndex = -1;
     const head = document.createElement('div');
     head.className = 'player-library-item-head';
     const title = document.createElement('strong');
@@ -12458,6 +12547,7 @@ function renderPlayerLibrary() {
     list.appendChild(row);
   });
   updateCollectionOptions();
+  restoreLibraryUiState(list);
 }
 
 function updateCollectionOptions() {
@@ -17762,6 +17852,12 @@ if ($('playerWordHighlight')) {
 }
 
 // --- AI sohbet dinleyicileri ---
+$$('.side-tab').forEach((b) => b.addEventListener('keydown', (event) => {
+  handleRovingTabKey(event, $$('.side-tab'));
+}));
+$$('.tab[data-tab]').forEach((b) => b.addEventListener('keydown', (event) => {
+  handleRovingTabKey(event, $$('.tab[data-tab]'));
+}));
 $$('.side-tab').forEach((b) => b.addEventListener('click', () => {
   const tablist = b.closest('[role="tablist"]');
   if (window.matchMedia('(max-width: 1020px)').matches) {
