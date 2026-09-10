@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+setlocal
 cd /d "%~dp0"
 
 echo.
@@ -9,29 +10,21 @@ echo   pyannote.audio + onceki gereksinimler
 echo ========================================================
 echo.
 
-if not exist "backend\venv\Scripts\activate.bat" (
-    echo HATA: Once install.bat'i calistirin.
-    pause
-    exit /b 1
-)
-
-call backend\venv\Scripts\activate.bat
-pip install "pyannote.audio>=3.1.0"
+where node >nul 2>nul
 if errorlevel 1 (
-    echo Kurulum basarisiz.
+    echo HATA: Node.js bulunamadi. Once install.bat'i calistirin.
+    pause
+    exit /b 1
+)
+
+node "%~dp0tools\install-orchestrator.js" diarize
+if errorlevel 1 (
+    echo Kurulum basarisiz. Hata giderildikten sonra yeniden deneyin.
     pause
     exit /b 1
 )
 
 echo.
-echo ========================================================
-echo   Kurulum tamamlandi!
-echo.
-echo   ONEMLI: pyannote modelini kullanmak icin:
-echo   1. https://hf.co/pyannote/speaker-diarization-3.1 sayfasini acip onay verin.
-echo   2. https://hf.co/pyannote/segmentation-3.0 sayfasini acip onay verin (gerekli alt model).
-echo   3. https://hf.co/settings/tokens adresinden Token olusturun (Read yetkili)
-echo   4. Token'i Whisper Altyazi uygulamasinda Konusmaci ayarlarina yapistirin.
-echo ========================================================
+echo Konusmaci tanima kuruldu. Hugging Face model onaylari ve Read token gereklidir.
 echo.
 pause

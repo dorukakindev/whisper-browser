@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+setlocal
 cd /d "%~dp0"
 
 echo.
@@ -9,27 +10,21 @@ echo   wav2vec2 zorunlu hizalama (<100ms kelime zaman damgalari)
 echo ========================================================
 echo.
 
-if not exist "backend\venv\Scripts\activate.bat" (
-    echo HATA: Once install.bat'i calistirin.
-    pause
-    exit /b 1
-)
-
-call backend\venv\Scripts\activate.bat
-pip install whisperx
+where node >nul 2>nul
 if errorlevel 1 (
-    echo Kurulum basarisiz.
+    echo HATA: Node.js bulunamadi. Once install.bat'i calistirin.
+    pause
+    exit /b 1
+)
+
+node "%~dp0tools\install-orchestrator.js" whisperx
+if errorlevel 1 (
+    echo Kurulum basarisiz. Hata giderildikten sonra yeniden deneyin.
     pause
     exit /b 1
 )
 
 echo.
-echo ========================================================
-echo   Kurulum tamamlandi!
-echo.
-echo   - Uygulamada Motor olarak "WhisperX" secin.
-echo   - Ilk calistirmada model + dile ozel hizalama modeli indirilir.
-echo   - Konusmaci tanima icin ayrica install-diarize.bat gerekir.
-echo ========================================================
+echo WhisperX kuruldu. Ilk kullanimda hizalama modeli ayrica indirilir.
 echo.
 pause

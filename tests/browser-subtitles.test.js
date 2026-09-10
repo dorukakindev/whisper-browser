@@ -896,7 +896,16 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
   const installBat = fs.readFileSync(path.join(__dirname, '..', 'install.bat'), 'utf8');
-  assert.match(installBat, /castlabs-evs>=1\.3\.2/, 'drm-kur.bat bağımlılığı temiz kurulumda eksik');
+  assert.match(
+    installBat,
+    /tools[\\/]install-orchestrator\.js"? core/,
+    'install.bat çekirdek kurulum orkestratörünü çağırmıyor',
+  );
+  const coreLock = fs.readFileSync(
+    path.join(__dirname, '..', 'backend', 'requirements-core.lock'),
+    'utf8',
+  );
+  assert.match(coreLock, /^castlabs-evs==1\.3\.2$/m, 'DRM EVS bağımlılığı kilit dosyasında eksik');
 });
 
 if (!process.exitCode) console.log(`\n${passed} tarayıcı altyazısı testi geçti.`);

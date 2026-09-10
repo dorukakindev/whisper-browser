@@ -125,7 +125,7 @@ oynatıcı, böylece çıkardığınız altyazıyı programın içinde izleyebil
 Gereksinimler:
 - Windows 10/11
 - Python 3.10 veya 3.11
-- Node.js 22.12+
+- Node.js 22.13+
 - NVIDIA CUDA destekli GPU (RTX 4070 Ti önerilen)
 - ffmpeg (PATH'de veya `backend/bin/` içinde)
 
@@ -136,9 +136,14 @@ install.bat
 ```
 
 Bu script otomatik olarak:
-1. Python sanal ortamı oluşturur
-2. PyTorch CUDA 12.1 + faster-whisper + yt-dlp yükler
-3. Electron'u kurar
+1. Python/Node/Git/ffmpeg sürümlerini ve kilit dosyalarını doğrular
+2. Paketleri geçici bir sanal ortama tam sürüm pinleriyle kurup `pip check` çalıştırır
+3. Başarılı ortamı atomik olarak devreye alır; hata olursa eski kurulumu geri getirir
+4. Node paketlerini `npm ci --ignore-scripts` ile kilitten kurar ve Castlabs ikilisini yerel, checksum kullanan kurucuyla indirir
+
+İkinci çalıştırma aynı manifest sağlıklıysa indirmeleri atlar. Yarım veya bozuk
+kurulum korumalı staging alanında yeniden kurulur. Ayrıntılı kilit, lisans ve
+güncelleme sözleşmesi: [`docs/KURULUM_TEDARIK_ZINCIRI.md`](docs/KURULUM_TEDARIK_ZINCIRI.md).
 
 ## Kullanım
 

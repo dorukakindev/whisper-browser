@@ -2,6 +2,11 @@
 node_modules/
 backend/venv/
 backend/.venv/
+backend/.venv-installing-*/
+backend/.venv-backup-*/
+backend/install-state.json
+.node_modules-backup-*/
+.whisper-install.lock
 backend/__pycache__/
 *.pyc
 __pycache__/

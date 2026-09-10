@@ -1,0 +1,7 @@
+# Opsiyonel kurulumlar ana motorun ABI'sini sessizce degistiremez.
+torch==2.5.1+cu121
+torchaudio==2.5.1+cu121
+faster-whisper==1.2.1
+ctranslate2==4.4.0
+whisperx==3.4.2
+pyannote.audio==3.3.2
