@@ -252,6 +252,9 @@ async function run() {
   await delay(250);
   const browserWideMetrics = await layoutMetrics(client);
   await capture(client, 'whisper-browser-dark.png');
+  await evaluate(client, "applyUiTheme('light'); true");
+  await capture(client, 'whisper-browser-light.png');
+  await evaluate(client, "applyUiTheme('dark'); true");
   const browserResponsiveMetrics = {};
   for (const width of [1920, 1366, 1024]) {
     await setViewport(client, width);
@@ -270,6 +273,9 @@ async function run() {
   await delay(120);
   const browserSettingsWideMetrics = await layoutMetrics(client);
   await capture(client, 'whisper-browser-settings-dark.png');
+  await evaluate(client, "applyUiTheme('light'); true");
+  await capture(client, 'whisper-browser-settings-light.png');
+  await evaluate(client, "applyUiTheme('dark'); true");
   await setViewport(client, 940);
   await evaluate(client, "syncResponsivePlayerLayout(); true");
   await delay(160);

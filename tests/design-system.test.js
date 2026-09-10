@@ -121,6 +121,14 @@ ok('amber dolgu üzerindeki metin her zaman --accent-contrast kullanır', () => 
   assert.deepEqual(offenders, [], 'amber dolgu üzerinde tema dışı metin rengi: ' + offenders.join(' | '));
 });
 
+ok('kanonik amber hex yalnız --accent token tanımında kalır', () => {
+  const declaration = /--accent\s*:\s*#d5a35c\s*;/i;
+  assert.match(css, declaration, 'kanonik koyu tema --accent tanımı kayıp');
+  const remaining = css.replace(declaration, '').match(/#d5a35c/gi) || [];
+  assert.equal(remaining.length, 0,
+    `${remaining.length} ham #d5a35c bulundu; kullanım amacına uygun semantik token kullan`);
+});
+
 ok('rapordaki kontrast düzeltmeleri kaynakta sabit', () => {
   assert.match(css, /\.btn-icon-add\s*\{[\s\S]*?color:\s*var\(--accent-contrast\)/);
   assert.match(css, /a\s*\{[\s\S]*?color:\s*var\(--accent-hover\)/);
