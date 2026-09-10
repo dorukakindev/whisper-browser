@@ -924,7 +924,7 @@ def test_translate_returns_list_on_success():
     assert [(s, e) for s, e, _ in out] == [(s, e) for s, e, _ in ENTRIES]
 
 
-def test_translate_uses_speakers_only_for_local_boundaries():
+def test_translate_sends_speakers_for_boundaries_and_register_choices():
     entries = [
         (0, 1, "Will you"),
         (1, 2, "come?"),
@@ -957,12 +957,15 @@ def test_translate_uses_speakers_only_for_local_boundaries():
             speakers={0: "CHAR_A", 1: "CHAR_A", 2: "CHAR_B"},
         )
     assert out is not None and captured
-    serialized = json.dumps(captured, ensure_ascii=False)
-    assert "CHAR_A" not in serialized and "CHAR_B" not in serialized
-    assert "Winterfell" in serialized
     first_payload = json.loads(captured[0]["messages"][-1]["content"])
+    assert [item.get("sp") for item in first_payload["items"]] == [
+        "CHAR_A", "CHAR_A", "CHAR_B", None, None,
+    ]
     assert first_payload["sentence_groups"][0]["ids"] == [0, 1]
     assert first_payload["sentence_groups"][1]["ids"] == [2]
+    prompt = captured[0]["messages"][0]["content"]
+    assert "'sp' alani o blogun konusmacisidir" in prompt
+    assert "etiketi ceviriye ekleme" in prompt
 
 
 def test_translate_refine_processes_full_index_chunks():
@@ -971,12 +974,14 @@ def test_translate_refine_processes_full_index_chunks():
 
     entries = [(i * 2.0, i * 2.0 + 1.8, f"Line {i}.") for i in range(21)]
     seen = {"translate": 0, "refine": 0}
+    payloads = {"translate": [], "refine": []}
 
     def _create(**kw):
         payload = json.loads(kw["messages"][-1]["content"])
         is_refine = bool(payload["items"] and "src" in payload["items"][0])
         stage = "refine" if is_refine else "translate"
         seen[stage] += 1
+        payloads[stage].append((payload, kw["messages"][0]["content"]))
         out = {}
         for item in payload["items"]:
             source = item["tr"] if is_refine else item["t"]
@@ -995,9 +1000,15 @@ def test_translate_refine_processes_full_index_chunks():
             _TrArgs(translate_refine=True, translate_cache=False, translate_context=0),
             [],
             source_lang="en",
+            speakers={i: "NARRATOR" for i in range(len(entries))},
         )
 
     assert seen == {"translate": 2, "refine": 2}, seen
+    assert all(item["sp"] == "NARRATOR"
+               for stage in payloads.values() for payload, _prompt in stage
+               for item in payload["items"])
+    assert all("'sp'" in prompt and "etiketi ceviriye ekleme" in prompt
+               for stage in payloads.values() for _payload, prompt in stage)
     assert out is not None and len(out) == len(entries)
     assert all(text.startswith("[R] [TR] ") for _s, _e, text in out), out
 
@@ -1427,6 +1438,7 @@ def test_build_translate_prompt():
         "tr", "en", ["UserTerm=KullanıcıTerimi"], auto_glossary_terms=["Winterfell"])
     assert "FILM-GENELI OTOMATIK TERIM" in contextual and "Winterfell" in contextual
     assert "kullanici sozlugu her zaman onceliklidir" in contextual.lower()
+    assert "'sp' alani o blogun konusmacisidir" in contextual
 
 
 def test_extract_auto_glossary_is_local_bounded_and_frequency_based():
