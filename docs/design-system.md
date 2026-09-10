@@ -27,7 +27,11 @@ eşiği olan 4.5:1'in altına düşmemelidir.
 ## Ölçü ve köşe
 
 Boşluk ölçeği 4px tabanlıdır: `--space-1` (4px) ile `--space-6` (24px).
-Yeni ve dokunulan kurallarda gelişigüzel ara değer yerine bu ölçek kullanılır.
+Bu ölçek **hedef mimaridir**; mevcut CSS'in tamamının ölçeğe taşındığını anlatmaz.
+Eski kurallar görsel davranışları doğrulanarak aşamalı biçimde taşınır; yalnız token
+kullanım sayısını artırmak için toplu `px` dönüşümü yapılmaz. Yeni kurallarda ve başka
+bir işlevsel ya da görsel değişiklik nedeniyle zaten dokunulan kurallarda gelişigüzel
+ara değer yerine bu ölçek kullanılır.
 
 | Kullanım | Token |
 |---|---|
