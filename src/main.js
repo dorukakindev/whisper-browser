@@ -143,6 +143,7 @@ const {
   updateQueueSnapshotTerminal,
 } = require('./queue-persistence');
 const { withAbortTimeout, withTimeout } = require('./async-timeout');
+const { createBrowserSubtitleFileStore } = require('./browser-subtitle-files');
 const { normalizeBrowserTabId } = require('./browser-tabs');
 const { BrowserClosedTabHistory, isReplaceableBlankBrowserTab } = require('./browser-tab-history');
 const {
@@ -443,6 +444,7 @@ let widevineReadinessPromise = null;
 const BROWSER_FETCH_TIMEOUT = 12000;
 const BROWSER_SCRIPT_TIMEOUT = 6000;
 const BROWSER_CLOSE_DRAIN_TIMEOUT = 15000;
+const BROWSER_SUBTITLE_FILE_LIMIT = 64;
 
 // İş çalışırken sistemin uykuya geçmesini engelle (uzun transkripsiyon yarıda kalmasın)
 function startPowerBlocker() {
@@ -3175,6 +3177,22 @@ function sweepBrowserSubtitleFiles(maxAgeMs = 30 * 24 * 60 * 60 * 1000, maxFiles
   return removed;
 }
 
+let browserSubtitleFileStore = null;
+function trackBrowserSubtitleFile(filePath) {
+  if (!browserSubtitleFileStore) {
+    browserSubtitleFileStore = createBrowserSubtitleFileStore({
+      fs,
+      path,
+      directory: browserSubtitleDir(),
+      limit: BROWSER_SUBTITLE_FILE_LIMIT,
+    });
+  }
+  // Aynı sayfada kullanıcıya sunulan izler seçilebilir kalır. Önceki sayfa ve
+  // oturumlardan kalan sahipsiz geçici dosyalar LRU sırasıyla temizlenir.
+  const activePaths = [...browserTrackPublications.values()].map((publication) => publication.path);
+  return browserSubtitleFileStore.touch(filePath, activePaths);
+}
+
 function resetBrowserCaptureState(options = {}) {
   flushBrowserTrackPublications(true);
   browserStateGeneration += 1;
@@ -5800,6 +5818,7 @@ function publishBrowserTrackNow(entry) {
   };
   track = persistBrowserTrack(tab, track, normalized, meta);
   browserTrackPublications.set(publicationKey, { fingerprint, id: stableId, path: filePath });
+  trackBrowserSubtitleFile(filePath);
   while (browserTrackPublications.size > 128) {
     const oldestKey = browserTrackPublications.keys().next().value;
     const oldest = browserTrackPublications.get(oldestKey);
