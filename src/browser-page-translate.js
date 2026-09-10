@@ -149,13 +149,56 @@ function pageBlockCacheKey(block, context = {}) {
 
 function pageTranslationMemoryKey(block, context = {}) {
   const material = JSON.stringify({
-    version: 'page-memory-v1',
+    version: 'page-memory-v2',
     text: normalizeText(block?.text),
     targetLanguage: String(context.targetLanguage || '').trim().toLowerCase(),
     sourceLanguage: String(context.sourceLanguage || '').trim().toLowerCase(),
     model: String(context.model || '').trim(),
+    tag: String(block?.tag || '').trim().toLowerCase(),
+    role: String(block?.role || '').trim().toLowerCase(),
+    section: normalizeText(block?.section || 'Genel'),
   });
   return crypto.createHash('sha256').update(material, 'utf8').digest('hex');
+}
+
+function pagePreviewSummary(rawBlocks, options = {}) {
+  const blocks = normalizePageBlocks(rawBlocks);
+  const excludedSections = new Set((Array.isArray(options.excludedSections) ? options.excludedSections : [])
+    .map((value) => normalizeText(value)).filter(Boolean));
+  const eligible = blocks.filter((block) => !excludedSections.has(block.section));
+  const translatedIds = options.translatedIds instanceof Set
+    ? options.translatedIds : new Set(Array.isArray(options.translatedIds) ? options.translatedIds : []);
+  const memoryIds = options.memoryIds instanceof Set
+    ? options.memoryIds : new Set(Array.isArray(options.memoryIds) ? options.memoryIds : []);
+  const budget = Math.max(0, Math.trunc(finiteNumber(options.characterBudget, 0)));
+  const usedCharacters = Math.max(0, Math.trunc(finiteNumber(options.apiCharactersUsed, 0)));
+  const candidates = eligible.filter((block) => !translatedIds.has(block.id) && !memoryIds.has(block.id));
+  const remainingBudget = budget ? Math.max(0, budget - usedCharacters) : MAX_PAGE_CHARACTERS;
+  const selected = planPageTranslationBatches(candidates, {
+    viewportTop: options.viewportTop,
+    viewportBottom: options.viewportBottom,
+    viewportHeight: options.viewportHeight,
+    maxBlocks: options.maxBlocks ?? MAX_PAGE_BLOCKS,
+    maxCharacters: remainingBudget,
+  }).flat();
+  const apiCharacters = selected.reduce((sum, block) => sum + block.text.length, 0);
+  const apiBlocks = selected.length;
+  const pendingBlocks = Math.max(0, candidates.length - apiBlocks);
+  const sourceCharacters = eligible.reduce((sum, block) => sum + block.text.length, 0);
+  return {
+    totalBlocks: blocks.length,
+    eligibleBlocks: eligible.length,
+    translatedBlocks: eligible.filter((block) => translatedIds.has(block.id)).length,
+    memoryBlocks: eligible.filter((block) => memoryIds.has(block.id)).length,
+    excludedBlocks: Math.max(0, blocks.length - eligible.length),
+    apiBlocks,
+    pendingBlocks,
+    sourceCharacters,
+    apiCharacters,
+    apiCharactersUsed: usedCharacters,
+    remainingCharacters: budget ? Math.max(0, budget - usedCharacters - apiCharacters) : 0,
+    characterBudget: budget,
+  };
 }
 
 function pageBlockLooksIncomplete(block) {
@@ -324,7 +367,8 @@ function pageBlockScanScript(options = {}) {
     });
     const blockedDisplays = new Set(['block', 'list-item', 'table-cell', 'flex', 'grid', 'inline-block']);
     const semanticSelector = 'h1,h2,h3,h4,h5,h6,p,button,a,li,label,summary,[role]';
-    const state = window.__whisperPageTranslateState || {
+    const previewOnly = incoming.preview === true;
+    const createState = () => ({
       refs: new Map(),
       knownIds: new Set(),
       originalValues: new WeakMap(),
@@ -340,8 +384,9 @@ function pageBlockScanScript(options = {}) {
       visible: true,
       view: 'both',
       destroyed: false,
-    };
-    window.__whisperPageTranslateState = state;
+    });
+    const state = previewOnly ? createState() : (window.__whisperPageTranslateState || createState());
+    if (!previewOnly) window.__whisperPageTranslateState = state;
     state.config = {
       ...state.config,
       ...incoming,
@@ -359,9 +404,10 @@ function pageBlockScanScript(options = {}) {
     const pageMemoryKey = () => String(location.origin || '') + String(location.pathname || '');
     const pageMemory = (() => {
       try {
-        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v1') || '[]');
+        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v2') || '[]');
         return Array.isArray(rows) ? rows.filter((row) => row && row.page === pageMemoryKey()
-          && row.target === String(state.config.targetLanguage || '')).slice(-1500) : [];
+          && row.target === String(state.config.targetLanguage || '')
+          && row.memoryVersion === String(state.config.memoryVersion || '')).slice(-1500) : [];
       } catch (_) { return []; }
     })();
     const restoredTranslations = [];
@@ -411,7 +457,7 @@ function pageBlockScanScript(options = {}) {
       }
       return false;
     };
-    const sectionLabel = (owner) => {
+    const ancestorSectionLabel = (owner) => {
       let element = owner;
       while (element) {
         try {
@@ -423,7 +469,7 @@ function pageBlockScanScript(options = {}) {
         } catch (_) {}
         element = parentAcrossShadow(element);
       }
-      return 'Genel';
+      return '';
     };
     const blockRoot = (node) => {
       let element = node?.parentElement || node?.getRootNode?.()?.host || null;
@@ -512,6 +558,9 @@ function pageBlockScanScript(options = {}) {
       }
     };
     state.scan = () => {
+      const excludedSections = new Set((Array.isArray(state.config.excludedSections)
+        ? state.config.excludedSections : [])
+        .map((value) => normalize(value).slice(0, 160)).filter(Boolean));
       const groups = new Map();
       let order = 0;
       for (const root of discoverRoots()) {
@@ -534,9 +583,8 @@ function pageBlockScanScript(options = {}) {
       }
 
       const candidates = [];
-      const excludedSections = new Set((Array.isArray(state.config.excludedSections)
-        ? state.config.excludedSections : []).map((value) => normalize(String(value)).slice(0, 160)).filter(Boolean));
       let foundCharacters = 0;
+      let currentSection = 'Genel';
       for (const group of groups.values()) {
         const text = normalize(group.originals.join(''));
         if (!meaningful(text)) continue;
@@ -546,11 +594,17 @@ function pageBlockScanScript(options = {}) {
           state.blockIndexes.set(group.owner, blockIndex);
         }
         const boundedText = text.slice(0, MAX_TEXT);
-        const section = sectionLabel(group.owner);
+        const tag = String(group.owner.tagName || '').toLowerCase().slice(0, 24);
+        const ownHeading = /^h[1-6]$/u.test(tag) ? boundedText.slice(0, 160) : '';
+        const section = ownHeading || ancestorSectionLabel(group.owner) || currentSection;
+        if (ownHeading) currentSection = ownHeading;
         if (excludedSections.has(section)) continue;
         const id = blockIndex + ':' + hashText(boundedText);
         if (state.knownIds.has(id)) continue;
-        const restored = pageMemory.find((row) => row.source === boundedText);
+        const role = String(group.owner.getAttribute?.('role') || '').toLowerCase().slice(0, 48);
+        const restored = pageMemory.find((row) => row.source === boundedText
+          && String(row.tag || '') === tag && String(row.role || '') === role
+          && String(row.section || 'Genel') === section);
         if (restored && restored.translation) restoredTranslations.push({ id, translation: String(restored.translation).slice(0, 12000) });
         let rect = { top: 0, bottom: 0, left: 0, right: 0 };
         try { rect = group.owner.getBoundingClientRect?.() || rect; } catch (_) {}
@@ -564,8 +618,8 @@ function pageBlockScanScript(options = {}) {
           id, text: boundedText, nodes: group.originals.map((value) => value.length),
           top, bottom, left: Number(rect.left) || 0, right: Number(rect.right) || 0,
           visible: isVisible, distance: Math.max(0, distance), order: group.order,
-          tag: String(group.owner.tagName || '').toLowerCase().slice(0, 24),
-          role: String(group.owner.getAttribute?.('role') || '').toLowerCase().slice(0, 48),
+          tag,
+          role,
           section,
           _group: group,
         });
@@ -587,6 +641,7 @@ function pageBlockScanScript(options = {}) {
         state.refs.set(candidate.id, {
           id: candidate.id, root: group.owner, nodes: group.nodes,
           originals: group.originals, translation: '', mode: '', active: false, applied: false,
+          tag: candidate.tag, role: candidate.role, section: candidate.section,
           rootDisplay: (() => { try { return getComputedStyle(group.owner).display; } catch (_) { return ''; } })(),
         });
         state.latestIdByRoot.set(group.owner, candidate.id);
@@ -617,10 +672,12 @@ function pageBlockScanScript(options = {}) {
       if (document.hidden) disconnectObservers();
       else { observeRoots(); emitNewBlocks(); }
     };
-    document.removeEventListener?.('visibilitychange', state.onVisibilityChange);
-    document.addEventListener?.('visibilitychange', state.onVisibilityChange);
+    if (!previewOnly) {
+      document.removeEventListener?.('visibilitychange', state.onVisibilityChange);
+      document.addEventListener?.('visibilitychange', state.onVisibilityChange);
+    }
     const result = state.scan();
-    if (incoming.observe !== false) observeRoots();
+    if (!previewOnly && incoming.observe !== false) observeRoots();
     return result;
   })()`;
 }
@@ -720,6 +777,9 @@ function pageApplyScript(payload = {}) {
     const input = ${encoded};
     const state = window.__whisperPageTranslateState;
     if (!state?.refs) return { ok: false, applied: 0, missing: 0, message: 'Sayfa metni taranmamış.' };
+    state.config = { ...(state.config || {}),
+      targetLanguage: String(input?.targetLanguage || state.config?.targetLanguage || ''),
+      memoryVersion: String(input?.memoryVersion || state.config?.memoryVersion || '') };
     const mode = input?.mode === 'replace' ? 'replace' : 'bilingual';
     const requestedView = ['original', 'translation', 'both'].includes(input?.view)
       ? input.view : (mode === 'replace' ? 'translation' : 'both');
@@ -835,10 +895,14 @@ function pageApplyScript(payload = {}) {
         const page = String(location.origin || '') + String(location.pathname || '');
         const target = String(input?.targetLanguage || state.config?.targetLanguage || '');
         const sourceText = String(ref.originals.join('')).normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 2000);
-        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v1') || '[]');
-        const next = Array.isArray(rows) ? rows.filter((row) => !(row?.page === page && row?.target === target && row?.source === sourceText)) : [];
-        next.push({ page, target, source: sourceText, translation: String(ref.translation || '').slice(0, 12000) });
-        sessionStorage.setItem('whisperPageTranslate:v1', JSON.stringify(next.slice(-1500)));
+        const memoryVersion = String(input?.memoryVersion || state.config?.memoryVersion || '');
+        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v2') || '[]');
+        const next = Array.isArray(rows) ? rows.filter((row) => !(row?.page === page && row?.target === target
+          && row?.memoryVersion === memoryVersion && row?.source === sourceText && row?.tag === ref.tag
+          && row?.role === ref.role && row?.section === ref.section)) : [];
+        next.push({ page, target, memoryVersion, source: sourceText, tag: ref.tag || '', role: ref.role || '',
+          section: ref.section || 'Genel', translation: String(ref.translation || '').slice(0, 12000) });
+        sessionStorage.setItem('whisperPageTranslate:v2', JSON.stringify(next.slice(-1500)));
       } catch (_) {}
     };
     state.markFailure = (id, message = '') => {
@@ -866,7 +930,7 @@ function pageApplyScript(payload = {}) {
       tools.className = 'whisper-page-tr whisper-page-tr-tools';
       tools.hidden = true;
       tools.setAttribute('translate', 'no');
-      tools.innerHTML = '<button type="button" data-whisper-action="original">Orijinali gör</button><button type="button" data-whisper-action="retry">Yeniden çevir</button><button type="button" data-whisper-action="edit">Düzelt</button><button type="button" data-whisper-action="exclude">Bu bölümü çevirme</button>';
+      tools.innerHTML = '<button type="button" data-whisper-action="original">Orijinali gör</button><button type="button" data-whisper-action="retry">Yeniden çevir</button><button type="button" data-whisper-action="edit">Düzelt</button><button type="button" data-whisper-action="edit-site">Düzeltmeyi sitede hatırla</button><button type="button" data-whisper-action="exclude">Bu bölümü çevirme</button>';
       document.body.appendChild(tools);
       state.tools = tools;
       const send = (action, ref, extra = {}) => globalThis.__whisperTrustedBridgeSend?.('page-action', {
@@ -925,16 +989,22 @@ function pageApplyScript(payload = {}) {
           showOriginal(ref);
           clearTimeout(state.previewTimer);
           state.previewTimer = setTimeout(() => restoreView(ref), 2500);
-        } else if (action === 'edit') {
+        } else if (action === 'edit' || action === 'edit-site') {
           const value = globalThis.prompt?.('Çeviriyi düzeltin', ref.translation);
           if (value != null && String(value).trim() && String(value).trim() !== ref.translation) {
-            send('edit', ref, { translation: String(value).trim().slice(0, 12000) });
+            send('edit', ref, { translation: String(value).trim().slice(0, 12000), memoryScope: action === 'edit-site' ? 'site' : 'exact' });
           }
           hideTools();
         } else if (action === 'exclude') {
           send('exclude', ref); ref.active = false; restoreRef(ref); ref.overlay?.remove?.(); clearFailure(ref); hideTools();
         } else if (action === 'retry') {
-          send('retry', ref); button.disabled = true; button.textContent = 'Yeniden deneniyor…'; hideTools();
+          const accepted = send('retry', ref);
+          if (accepted !== false) {
+            button.dataset.whisperPendingId = ref.id;
+            button.disabled = true;
+            button.textContent = 'Yeniden deneniyor…';
+          }
+          hideTools();
         }
       }, true);
       globalThis.addEventListener?.('keydown', (event) => {
@@ -967,6 +1037,7 @@ function pageApplyScript(payload = {}) {
       ref.overlay?.remove?.();
       ref.overlay = null;
       restoreRef(ref);
+      try { ref.originalRect ||= ref.root.getBoundingClientRect?.(); } catch (_) {}
       ref.translation = translation;
       ref.mode = mode;
       ref.active = true;
@@ -981,7 +1052,38 @@ function pageApplyScript(payload = {}) {
     for (const failure of Array.isArray(input?.failures) ? input.failures : []) {
       state.markFailure(failure?.id, failure?.error);
     }
-    return { ok: missing === 0, partial: applied > 0 && missing > 0, applied, missing, mode, view: state.view };
+    const layoutWarnings = [];
+    for (const item of source) {
+      const ref = state.refs.get(String(item?.id ?? ''));
+      if (!ref?.active || !ref.root?.getBoundingClientRect) continue;
+      try {
+        const rect = ref.root.getBoundingClientRect();
+        const before = ref.originalRect;
+        if (before && ((before.width > 80 && rect.width > before.width * 1.8)
+          || (before.height > 30 && rect.height > before.height * 2.2)
+          || (rect.right > (globalThis.innerWidth || rect.right) + 8))) {
+          layoutWarnings.push({ id: ref.id, section: ref.section || 'Genel',
+            source: String(ref.originals.join('')).normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 140),
+            message: 'Bu blokta olası yerleşim büyümesi algılandı.' });
+        }
+      } catch (_) {}
+    }
+    return { ok: missing === 0, partial: applied > 0 && missing > 0, applied, missing, mode, view: state.view, layoutWarnings };
+  })()`;
+}
+
+function pageActionResultScript(payload = {}) {
+  const encoded = safeJsonForScript(payload);
+  return `(() => {
+    const input = ${encoded};
+    const state = window.__whisperPageTranslateState;
+    const button = state?.tools?.querySelector?.('[data-whisper-action="retry"]');
+    const id = String(input?.id || '');
+    if (!button || String(button.dataset?.whisperPendingId || '') !== id) return false;
+    button.disabled = false;
+    button.textContent = input?.ok === false ? 'Yeniden dene' : 'Yeniden çevir';
+    delete button.dataset.whisperPendingId;
+    return true;
   })()`;
 }
 
@@ -1126,7 +1228,7 @@ function pageRestoreScript() {
 }
 
 function pageMemoryClearScript() {
-  return `(() => { try { sessionStorage.removeItem('whisperPageTranslate:v1'); } catch (_) {} return true; })()`;
+  return `(() => { try { sessionStorage.removeItem('whisperPageTranslate:v1'); sessionStorage.removeItem('whisperPageTranslate:v2'); } catch (_) {} return true; })()`;
 }
 
 module.exports = {
@@ -1139,6 +1241,7 @@ module.exports = {
   pageContextScript,
   pageContextRevealScript,
   pageApplyScript,
+  pageActionResultScript,
   pageRestoreScript,
   pageMemoryClearScript,
   pageVisibilityScript,
@@ -1149,6 +1252,7 @@ module.exports = {
   planPageTranslationBatches,
   pageBlockCacheKey,
   pageTranslationMemoryKey,
+  pagePreviewSummary,
   pageBlockLooksIncomplete,
   buildPageTranslationUnits,
   pageTranslationRequest,

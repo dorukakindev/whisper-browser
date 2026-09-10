@@ -67,6 +67,11 @@ test('gecikmiş renderer snapshotı ana sürecin terminal sonucunu geri alamaz',
   assert.equal(merged.items[0].status, 'done');
   assert.deepEqual(merged.items[0].files, ['D:\\a.srt']);
   assert.deepEqual(merged.items[0].warnings, ['uyarı']);
+
+  const cancelledDisk = { items: [{ id: 4, type: 'file', input: 'D:\\a.mp4', status: 'pending' }] };
+  const cancelledMerged = mergeQueueSnapshotForSave(cancelledDisk, stale, 4, [4]);
+  assert.equal(cancelledMerged.items[0].status, 'pending',
+    'iptalden önce zamanlanan running snapshotı yeniden denenebilir durumu geri alamamalı');
 });
 
 test('ana süreç eksik veya gecikmiş renderer kaydında çalışan öğeyi kurar', () => {
@@ -99,6 +104,15 @@ test('renderer yenilenirken ana süreçte yaşayan işe yeniden bağlanılır', 
   assert.equal(restored.items[0].status, 'running');
   assert.equal(restored.currentQueueId, 3);
   assert.equal(restored.queueRunning, true);
+  const fs = require('fs');
+  const path = require('path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+  assert.match(main, /activeJobId:\s*activeQueueItemId\s*\?\s*activeTranscriptionJobId\s*:\s*null/);
+  assert.match(renderer, /state\.activeJobId\s*=\s*typeof restored\.activeJobId/);
+  const safeStart = renderer.slice(renderer.indexOf('async function startTranscribeSafe'),
+    renderer.indexOf('\n}', renderer.indexOf('async function startTranscribeSafe')) + 2);
+  assert.match(safeStart, /state\.awaitingExit\s*=\s*false/);
 });
 
 test('terminal olay renderer yokken kalıcı kuyruğu günceller', () => {
@@ -112,6 +126,9 @@ test('terminal olay renderer yokken kalıcı kuyruğu günceller', () => {
   assert.equal(failed.items[0].error, 'Bilinmeyen hata');
   const failedWithMessage = updateQueueSnapshotTerminal(raw, 3, { type: 'error', message: 'model yüklenemedi' });
   assert.equal(failedWithMessage.items[0].error, 'model yüklenemedi');
+  const cancelled = updateQueueSnapshotTerminal(raw, 3, { type: 'exit', code: 1, cancelled: true });
+  assert.equal(cancelled.items[0].status, 'pending');
+  assert.equal(cancelled.items[0].error, '');
   const recoveredDone = updateQueueSnapshotTerminal({ items: [{ id: 3, type: 'file', input: 'D:\\a.mp4', status: 'running', error: 'eski hata' }] }, 3, { type: 'done' });
   assert.equal(recoveredDone.items[0].error, '');
 });

@@ -3,7 +3,7 @@ const { normalizeBrowserSession, normalizeSessionTab } = require('./browser-sess
 const { normalizeCues } = require('./browser-asset-store');
 const { safePlaceUrl } = require('./browser-place-url');
 const { normalizeBrowserSiteZooms } = require('./browser-site-zoom');
-const { normalizeBrowserSiteProfiles } = require('./browser-site-profiles');
+const { normalizeBrowserSiteProfiles, normalizeBrowserPathProfiles } = require('./browser-site-profiles');
 const { normalizeBrowserCompatibilityHosts } = require('./browser-cloudflare-compat');
 
 const BROWSER_SESSION_PACKAGE_KIND = 'whisper-local-browser-session';
@@ -34,6 +34,13 @@ function sanitizePlaces(raw = {}) {
     name: clean(workspace?.name, 64),
     tabs: (Array.isArray(workspace?.tabs) ? workspace.tabs : [])
       .map(normalizeSessionTab).filter(Boolean).slice(0, 24),
+    activeTabId: clean(workspace?.activeTabId, 128),
+    splitSecondaryTabId: clean(workspace?.splitSecondaryTabId, 128),
+    splitRatio: Math.max(0.25, Math.min(0.75, Number(workspace?.splitRatio) || 0.5)),
+  })).map((workspace) => ({ ...workspace,
+    activeTabId: workspace.tabs.some((tab) => tab.id === workspace.activeTabId) ? workspace.activeTabId : (workspace.tabs[0]?.id || ''),
+    splitSecondaryTabId: workspace.tabs.some((tab) => tab.id === workspace.splitSecondaryTabId)
+      && workspace.splitSecondaryTabId !== workspace.activeTabId ? workspace.splitSecondaryTabId : '',
   })).filter((workspace) => workspace.name && workspace.tabs.length).slice(0, 20);
   const siteZooms = normalizeBrowserSiteZooms(raw.siteZooms);
   return {
@@ -42,6 +49,7 @@ function sanitizePlaces(raw = {}) {
     workspaces,
     siteZooms,
     siteProfiles: normalizeBrowserSiteProfiles(raw.siteProfiles, siteZooms),
+    pathProfiles: normalizeBrowserPathProfiles(raw.pathProfiles),
     compatibilityHosts: normalizeBrowserCompatibilityHosts(raw.compatibilityHosts),
   };
 }

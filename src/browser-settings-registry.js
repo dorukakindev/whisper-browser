@@ -232,7 +232,7 @@ function search(query) {
 
 function browserSettingScopeStatus(scope, context = {}) {
   if (scope !== 'site-profile') return '';
-  const selectedScope = ['general', 'site', 'tab'].includes(context.selectedScope)
+  const selectedScope = ['general', 'site', 'path', 'tab'].includes(context.selectedScope)
     ? context.selectedScope : 'general';
   const origin = String(context.origin || '').trim();
   const value = context.value === undefined || context.value === null || context.value === ''
@@ -240,7 +240,7 @@ function browserSettingScopeStatus(scope, context = {}) {
   if (selectedScope === 'general') return `Genel değer${value}`;
   if (!origin) return 'Önce bir site açın';
   if (context.hasOverride) {
-    return `${selectedScope === 'tab' ? 'Bu sekme' : 'Bu site'} için özel${value}`;
+    return `${selectedScope === 'tab' ? 'Bu sekme' : selectedScope === 'path' ? 'Bu sayfa yolu' : 'Bu site'} için özel${value}`;
   }
   return `Varsayılanı izliyor${value}`;
 }

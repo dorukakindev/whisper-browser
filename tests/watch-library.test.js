@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { createWatchLibraryStore } = require('../src/watch-library-store');
+const { decodeSubtitleBuffer } = require('../src/browser-textutil');
 
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
 const start = main.indexOf('const WATCH_LIBRARY_LIMIT');
@@ -15,14 +16,10 @@ if (jsonStart < 0 || jsonEnd < 0) throw new Error('Atomik JSON yazıcı kaynak b
 const jsonSource = main.slice(jsonStart, jsonEnd);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-watch-'));
 const app = { getPath: () => tmp };
-// Kutuphane blogu decodeSubtitleBuffer'i main.js'in onceki bolumunden kullanir.
-const decodeStart = main.indexOf('const CP1254_FIXUP');
-const decodeEnd = main.indexOf("ipcMain.handle('media:readSubtitle'", decodeStart);
-const decodeSource = main.slice(decodeStart, decodeEnd);
-const api = new Function('fs', 'path', 'app', 'createWatchLibraryStore',
-  `${decodeSource}\n${jsonSource}\n${source}\nreturn {
-    loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath,
-  };`)(fs, path, app, createWatchLibraryStore);
+const api = new Function('fs', 'path', 'app', 'createWatchLibraryStore', 'decodeSubtitleBuffer',
+  `${jsonSource}\n${source}\nreturn {
+     loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath,
+   };`)(fs, path, app, createWatchLibraryStore, decodeSubtitleBuffer);
 
 let pass = 0;
 const failures = [];

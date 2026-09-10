@@ -927,7 +927,16 @@ async function run() {
   const pauseLatencyMs = Date.now() - startedAt;
   assert.equal(pauseObserved, true, 'Pause state waited for the one-second fallback poll.');
 
-  const permission = await evaluate(page, "(async () => { let query='unavailable'; try { query=(await navigator.permissions.query({name:'camera'})).state; } catch (error) { query=error.name; } try { await navigator.mediaDevices.getUserMedia({audio:true,video:true}); return {query,granted:true,error:''}; } catch (error) { return {query,granted:false,error:error.name}; } })()", 12000, { userGesture: true });
+  const permissionQuery = await evaluate(page, "(async () => { let query='unavailable'; try { const result=await Promise.race([navigator.permissions.query({name:'camera'}),new Promise((resolve)=>setTimeout(()=>resolve({timeout:'query-timeout'}),1500))]); query=result.timeout||result.state||'unavailable'; } catch (error) { query=error.name; } window.__permissionProbe=navigator.mediaDevices.getUserMedia({audio:true,video:true}).then(()=>({granted:true,error:''})).catch((error)=>({granted:false,error:error.name})); return query; })()", 5000, { userGesture: true });
+  const permissionPrompt = await waitFor(async () => evaluate(renderer,
+    "(() => { const prompt=document.getElementById('browserPermissionPrompt'); return !prompt?.classList.contains('hidden')&&/kamera|mikrofon/u.test(document.getElementById('browserPermissionPromptText')?.textContent||''); })()",
+    3000).catch(() => false), 5000);
+  assert.equal(permissionPrompt, true, 'Camera/microphone permission request did not reach the application prompt.');
+  const permissionBlocked = await evaluate(renderer,
+    "(() => { const button=document.querySelector('#browserPermissionPrompt [data-permission-decision=\"block-once\"]'); if(!button)return false; button.click(); return true; })()");
+  assert.equal(permissionBlocked, true, 'The one-time permission denial control was unavailable.');
+  const permissionResult = await evaluate(page, "Promise.race([window.__permissionProbe,new Promise((resolve)=>setTimeout(()=>resolve({granted:false,error:'media-timeout'}),5000))])", 8000);
+  const permission = { query: permissionQuery, ...permissionResult };
   assert.equal(permission.granted, false, 'Camera/microphone permission was unexpectedly granted.');
   assert.notEqual(permission.query, 'granted', 'Permission check handler reported camera as granted.');
   const permissionSignal = await waitFor(async () => evaluate(renderer,

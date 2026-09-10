@@ -96,6 +96,7 @@ function createBrowserAdblock(options = {}) {
   let browserSession = null;
   let engine = null;
   let loadPromise = null;
+  let enablePromise = null;
   let requested = options.initialEnabled !== false;
   let enabled = false;
   let state = requested ? 'loading' : 'disabled';
@@ -159,27 +160,38 @@ function createBrowserAdblock(options = {}) {
       return snapshot(false);
     }
     if (enabled) return snapshot(false);
-    try {
-      const loaded = await ensureLoaded();
-      if (!requested) return snapshot(false);
-      try {
-        loaded.enableBlockingInSession(browserSession);
-      } catch (enableError) {
-        // Ghostery context'i dinleyiciler tamamen kurulmadan kaydetmiş olabilir.
-        // Kısmi kurulumu temizle ki sonraki deneme etkin görünmesin.
-        try { loaded.disableBlockingInSession(browserSession); } catch (_) {}
-        throw enableError;
-      }
-      enabled = true;
-      state = 'enabled';
-      error = '';
-      return snapshot(true);
-    } catch (loadError) {
-      enabled = false;
-      state = 'error';
-      error = `Reklam filtreleri hazırlanamadı: ${safeErrorMessage(loadError)}`;
-      options.logger?.warn?.(error);
+    if (enablePromise) {
+      await enablePromise;
       return snapshot(false);
+    }
+    enablePromise = (async () => {
+      try {
+        const loaded = await ensureLoaded();
+        if (!requested) return snapshot(false);
+        try {
+          loaded.enableBlockingInSession(browserSession);
+        } catch (enableError) {
+          // Ghostery context'i dinleyiciler tamamen kurulmadan kaydetmiş olabilir.
+          // Kısmi kurulumu temizle ki sonraki deneme etkin görünmesin.
+          try { loaded.disableBlockingInSession(browserSession); } catch (_) {}
+          throw enableError;
+        }
+        enabled = true;
+        state = 'enabled';
+        error = '';
+        return snapshot(true);
+      } catch (loadError) {
+        enabled = false;
+        state = 'error';
+        error = `Reklam filtreleri hazırlanamadı: ${safeErrorMessage(loadError)}`;
+        options.logger?.warn?.(error);
+        return snapshot(false);
+      }
+    })();
+    try {
+      return await enablePromise;
+    } finally {
+      enablePromise = null;
     }
   };
 

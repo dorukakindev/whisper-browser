@@ -23,6 +23,7 @@ const {
 } = require('./youtube-player-response-pruner');
 const { canonicalLocalPath, SubtitleFileAccess, PdfFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const { readAdjacentWordSegments } = require('./subtitle-word-sidecar');
+const { decodeSubtitleBuffer } = require('./browser-textutil');
 const subtitleFileAccess = new SubtitleFileAccess();
 const pdfFileAccess = new PdfFileAccess();
 const {
@@ -133,8 +134,12 @@ const { BrowserClosedTabHistory, isReplaceableBlankBrowserTab } = require('./bro
 const {
   MAX_BROWSER_SITE_PROFILES,
   browserSiteOrigin,
+  browserPathKey,
   normalizeBrowserSiteProfiles,
+  normalizeBrowserPathProfiles,
   withBrowserSiteProfileField,
+  withBrowserPathProfileField,
+  withoutBrowserPathProfile,
   withoutBrowserSiteProfile,
 } = require('./browser-site-profiles');
 const { browserTabUnloadDecision, groupBrowserProcessMetrics, normalizeBrowserPageResourceMetrics,
@@ -177,7 +182,7 @@ const {
   MAX_SESSION_TABS,
   browserSessionPath,
   normalizeSessionTab,
-  readBrowserSession,
+  readBrowserSessionWithStatus,
   writeBrowserSessionAtomic,
 } = require('./browser-session-store');
 
@@ -218,10 +223,12 @@ const {
   waitForMangaPosition,
 } = require('./browser-library-tools');
 const { BrowserTranslationScheduler, assembleCueSentences } = require('./browser-translation-scheduler');
-const { createTerminologyMap, learnTerminology, seedTerminology, terminologyPrompt } = require('./browser-terminology');
+const { createTerminologyMap, learnTerminology, seedTerminology, terminologyPrompt,
+  terminologySuggestions } = require('./browser-terminology');
 const { TextStabilityEvaluator } = require('./text-stability-evaluator');
 const { PersistentTranslationCache } = require('./browser-translation-cache');
-const { BrowserTranslationArchive } = require('./browser-translation-archive');
+const { BrowserTranslationArchive, canonicalPageUrl, canonicalPageSite,
+  buildPageTranslationExport } = require('./browser-translation-archive');
 const {
   resolveTranslationEndpoints,
   shouldFailoverTranslationStatus,
@@ -253,6 +260,7 @@ const {
   pageContextScript,
   pageContextRevealScript,
   pageApplyScript,
+  pageActionResultScript,
   pageRestoreScript,
   pageMemoryClearScript,
   pageVisibilityScript,
@@ -263,6 +271,7 @@ const {
   planPageTranslationBatches,
   pageBlockCacheKey,
   pageTranslationMemoryKey,
+  pagePreviewSummary,
   buildPageTranslationUnits,
   pageTranslationRequest,
   decodePageTranslation,
@@ -332,6 +341,7 @@ const WATCH_CLOSE_FLUSH_TIMEOUT_MS = 750;
 const pendingWatchCloseFlushes = new Map();
 let activeJob = null;
 let activeQueueItemId = null;
+let activeTranscriptionJobId = null;
 const queueTerminalGuards = new Set();
 let powerBlockerId = null;
 let browserView = null;
@@ -740,58 +750,6 @@ ipcMain.handle('media:cancelDownload', async (event) => {
   return { ok: true };
 });
 
-// Altyazı dosyasını oynatıcı için oku (renderer'ın dosya sistemine erişimi yok)
-// cp1254 (Türkçe Windows) dosya latin-1 okunmuşsa Türkçe harfler "Ð Ý Þ ð ý þ"
-// olarak donar. Backend'deki read_subtitle_text ile aynı mantık — oynatıcı da dış
-// altyazı dosyalarını (indirilmiş, eski) doğru göstersin.
-const CP1254_FIXUP = { 'Ð': 'Ğ', 'Ý': 'İ', 'Þ': 'Ş', 'ð': 'ğ', 'ý': 'ı', 'þ': 'ş' };
-const MOJIBAKE_MARKERS = ['Ã§', 'Ã¼', 'Ã¶', 'Ä±', 'ÄŸ', 'Ã‡', 'Ãœ', 'Ã–', 'Ä°'];
-
-function decodeSubtitleBuffer(buf) {
-  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
-    return { text: buf.subarray(2).toString('utf16le'), note: 'utf-16le' };
-  }
-  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
-    // Eksik son baytı yok say. allocUnsafe ile tek uzunlukta kalan son bayt
-    // önceki heap içeriğini altyazıya taşıyabiliyordu.
-    const bodyLength = (buf.length - 2) & ~1;
-    const swapped = Buffer.alloc(bodyLength);
-    for (let index = 2; index < 2 + bodyLength; index += 2) {
-      swapped[index - 2] = buf[index + 1];
-      swapped[index - 1] = buf[index];
-    }
-    return { text: swapped.toString('utf16le'), note: 'utf-16be' };
-  }
-  let text = buf.toString('utf-8').replace(/^\uFEFF/, '');
-  let note = '';
-  // Geçersiz UTF-8 → U+FFFD çıkar; bu durumda cp1254/latin-1 varsay
-  if (text.includes('\uFFFD')) {
-    text = buf.toString('latin1');
-    for (const [bad, good] of Object.entries(CP1254_FIXUP)) {
-      text = text.split(bad).join(good);
-    }
-    note = 'cp1254';
-  }
-  // Çift kodlanmış UTF-8 ("Ã§ocuk")
-  const marks = MOJIBAKE_MARKERS.reduce((a, m) => a + text.split(m).length - 1, 0);
-  if (marks > 0) {
-    const fixed = Buffer.from(text, 'latin1').toString('utf-8');
-    const after = MOJIBAKE_MARKERS.reduce((a, m) => a + fixed.split(m).length - 1, 0);
-    if (after < marks) { text = fixed; note = 'çift kodlama onarıldı'; }
-  }
-  // cp1254'ün latin-1 okunup UTF-8 kaydedilmiş hali (geçerli UTF-8 ama harfler bozuk)
-  const suspicious = 'ÐÝÞðýþ'.split('').reduce((a, c) => a + text.split(c).length - 1, 0);
-  const hasTurkish = /[ğışİĞŞ]/.test(text);
-  const hasForeign = /[áéíóúÁÉÍÓÚæÆøåÅ]/.test(text);
-  if (suspicious >= 3 && !hasTurkish && !hasForeign) {
-    for (const [bad, good] of Object.entries(CP1254_FIXUP)) {
-      text = text.split(bad).join(good);
-    }
-    note = 'Türkçe karakterler onarıldı';
-  }
-  return { text, note };
-}
-
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
@@ -1040,7 +998,12 @@ function loadQueueState() {
   // Geçerli işlerin yanında bozuk/aşırı büyük bir kayıt varsa kullanıcıya
   // bildir ama özgün dosyayı yeniden yazarak adli/kurtarılabilir veriyi silme.
   if (snapshot.recoveredCount && !snapshot.invalidCount) writeQueueState(snapshot);
-  return { ok: true, ...snapshot, activeQueueItemId };
+  return {
+    ok: true,
+    ...snapshot,
+    activeQueueItemId,
+    activeJobId: activeQueueItemId ? activeTranscriptionJobId : null,
+  };
 }
 
 function persistQueueTerminal(queueItemId, event) {
@@ -1874,6 +1837,7 @@ const BROWSER_DOWNLOADS_FILE = 'browser-downloads.json';
 let browserPlacesSaveTimer = null;
 let browserPlacesCache = null;
 let browserPlacesLoadWarning = '';
+let browserSessionLoadWarning = '';
 const BROWSER_PLACE_LIMIT = 100;
 
 function nextBrowserTabId() {
@@ -1939,6 +1903,8 @@ function createBrowserTabRecord(initial = {}) {
     pageTranslateView: 'original',
     pageTranslateScope: 'article',
     pageTranslateAutoContinue: true,
+    pageTranslatePaused: false,
+    pageTranslatePauseReason: '',
     pageTranslateStats: null,
     pageTranslateCompletion: null,
     pageArchiveRestoreTimer: null,
@@ -1996,29 +1962,54 @@ function browserRecoveryJobsForTab(tab) {
   const jobs = new Map((Array.isArray(tab?.recoveryJobs) ? tab.recoveryJobs : []).map((job) => [job.id, job]));
   const now = Date.now();
   const timestamps = (id) => ({ createdAt: Number(jobs.get(id)?.createdAt) || now, updatedAt: now });
-  const translation = tab?.translationScheduler?.snapshot?.();
-  if (translation && (translation.queued?.length || translation.pending?.length
-      || translation.failures?.some((failure) => !failure.terminal))) {
+  const translation = tab?.translationScheduler?.recoverySummary?.();
+  if (translation && (translation.queued || translation.pending || translation.retryableFailures)) {
     const id = `subtitle-translation:${tab.translationTrackId || tab.mediaId || tab.id}`;
     jobs.set(id, { id, kind: 'subtitle-translation', trackId: tab.translationTrackId || '',
-      mediaId: tab.mediaId || '', state: 'interrupted',
+      mediaId: tab.mediaId || '', tabId: tab.id, generation: tab.generation,
+      sourceHash: tab.translationSourceHash || '', operationId: tab.operationId || '', state: 'interrupted',
       completed: Number(translation.completed || tab.translationResults?.size) || 0,
       total: Number(translation.total || tab.translationSourceCues?.length) || 0,
-      failed: Number(translation.failures?.length) || 0, ...timestamps(id) });
+      failed: Number(translation.failed) || 0, ...timestamps(id) });
   }
   if (tab?.mangaJob) {
     const id = `manga:${tab.mediaId || tab.id}`;
-    jobs.set(id, { id, kind: 'manga', trackId: '', mediaId: tab.mediaId || '', state: 'interrupted',
+    jobs.set(id, { id, kind: 'manga', trackId: '', mediaId: tab.mediaId || '', tabId: tab.id, generation: tab.generation,
+      sourceHash: tab.mangaSourceHash || '', operationId: tab.operationId || '', state: 'interrupted',
       completed: Number(tab.mangaTranslated) || 0, total: Number(tab.mangaAttempted?.size) || 0,
       failed: Number(tab.mangaFailures?.length) || 0, ...timestamps(id) });
   }
   if (tab?.pageTranslateJob) {
     const id = `page-translation:${tab.mediaId || tab.id}`;
-    jobs.set(id, { id, kind: 'page-translation', trackId: '', mediaId: tab.mediaId || '', state: 'interrupted',
+    jobs.set(id, { id, kind: 'page-translation', trackId: '', mediaId: tab.mediaId || '', tabId: tab.id, generation: tab.generation,
+      sourceHash: tab.pageTranslateSourceHash || '', operationId: tab.operationId || '', state: 'interrupted',
       completed: Number(tab.pageTranslated) || 0, total: Number(tab.pageTranslateSession?.blocks?.size) || 0,
       failed: Number(tab.pageTranslateFailed) || 0, ...timestamps(id) });
   }
   return [...jobs.values()].slice(0, 50);
+}
+
+function browserUnifiedJobsSnapshot() {
+  const jobs = [];
+  for (const tab of browserTabs.values()) {
+    const recovery = browserRecoveryJobsForTab(tab);
+    const add = (kind, state, summary, actions = []) => jobs.push({
+      id: kind + ':' + tab.id + ':' + tab.generation, kind, tabId: tab.id, generation: tab.generation,
+      mediaId: tab.mediaId || '', title: browserTabSnapshot(tab).title || tab.restoredTitle || 'Sekme',
+      status: state, completed: Number(summary?.completed) || 0, total: Number(summary?.total) || 0,
+      failed: Number(summary?.failed) || 0, actions,
+    });
+    const subtitle = tab.translationScheduler?.recoverySummary?.();
+    if (tab.translationScheduler || subtitle) add('subtitle-translation', !browserNetworkOnline ? 'offline' : tab.translationScheduler ? 'running' : 'partial', subtitle, ['pause', 'cancel', 'retry']);
+    if (tab.mangaJob) add('manga', tab.mangaJob.controller?.signal?.aborted ? 'cancelled' : 'running', { completed: tab.mangaTranslated, total: tab.mangaAttempted?.size, failed: tab.mangaFailures?.length }, []);
+    if (tab.pageTranslateJob) add('page-translation', tab.pageTranslatePaused ? 'paused' : (!browserNetworkOnline ? 'offline' : 'running'), { completed: tab.pageTranslated, total: tab.pageTranslateSession?.blocks?.size, failed: tab.pageTranslateFailed }, ['pause']);
+    for (const item of recovery) if (!jobs.some((job) => job.tabId === tab.id && job.kind === item.kind)) jobs.push({ ...item, title: browserTabSnapshot(tab).title || tab.restoredTitle || 'Sekme', actions: ['resume', 'restart', 'dismiss'] });
+  }
+  for (const item of readBrowserDownloadRecords()) {
+    if (!item || typeof item !== 'object' || !item.id) continue;
+    jobs.push({ id: 'download:' + item.id, kind: 'download', tabId: item.tabId || '', title: String(item.title || item.filename || 'İndirme'), status: ['completed','failed','cancelled'].includes(item.status) ? item.status : 'running', completed: Number(item.receivedBytes) || 0, total: Number(item.totalBytes) || 0, failed: item.status === 'failed' ? 1 : 0, actions: item.status === 'running' ? ['cancel'] : ['open'] });
+  }
+  return jobs.slice(0, 200);
 }
 
 function browserTabSnapshot(tab) {
@@ -2055,6 +2046,8 @@ function browserTabSnapshot(tab) {
     pageTranslateView: tab?.pageTranslateView || (tab?.pageTranslateVisible ? 'both' : 'original'),
     pageTranslateScope: tab?.pageTranslateScope || 'article',
     pageTranslateAutoContinue: tab?.pageTranslateAutoContinue !== false,
+    pageTranslatePaused: !!tab?.pageTranslatePaused,
+    pageTranslatePauseReason: tab?.pageTranslatePauseReason || '',
     pageTranslateStats: tab?.pageTranslateStats || null,
     pageTranslateCompletion: tab?.pageTranslateCompletion || null,
     diagnostics: tab ? tab.diagnostics : null,
@@ -2133,7 +2126,9 @@ function scheduleBrowserSessionSave(delay = 700) {
 }
 
 function restoreBrowserSessionState() {
-  const saved = readBrowserSession(browserSessionPath(app));
+  const loaded = readBrowserSessionWithStatus(browserSessionPath(app));
+  const saved = loaded.session;
+  browserSessionLoadWarning = loaded.warning;
   browserSessionRestoreEnabled = saved.restoreEnabled !== false;
   if (!browserSessionRestoreEnabled || !saved.tabs.length) return;
   for (const snapshot of saved.tabs) createBrowserTabRecord(snapshot);
@@ -2293,20 +2288,29 @@ function normalizeBrowserPlaces(places) {
   const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
     name: String(item?.name || '').trim().slice(0, 64),
     tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
+    activeTabId: String(item?.activeTabId || '').trim().slice(0, 128),
+    splitSecondaryTabId: String(item?.splitSecondaryTabId || '').trim().slice(0, 128),
+    splitRatio: Math.max(0.25, Math.min(0.75, Number(item?.splitRatio) || 0.5)),
+  })).map(item => ({ ...item,
+    activeTabId: item.tabs.some(tab => tab.id === item.activeTabId) ? item.activeTabId : (item.tabs[0]?.id || ''),
+    splitSecondaryTabId: item.tabs.some(tab => tab.id === item.splitSecondaryTabId)
+      && item.splitSecondaryTabId !== item.activeTabId ? item.splitSecondaryTabId : '',
   })).filter(item => item.name && item.tabs.length);
   const siteProfiles = normalizeBrowserSiteProfiles(places?.siteProfiles, places?.siteZooms);
+  const pathProfiles = normalizeBrowserPathProfiles(places?.pathProfiles);
   const compatibilityHosts = normalizeBrowserCompatibilityHosts(places?.compatibilityHosts);
   const sitePermissions = normalizeBrowserSitePermissions(places?.sitePermissions);
   return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks),
-    workspaces, siteZooms: {}, siteProfiles, compatibilityHosts, sitePermissions };
+    workspaces, siteZooms: {}, siteProfiles, pathProfiles, compatibilityHosts, sitePermissions };
 }
 
 function cloneBrowserPlaces(places) {
   return {
     history: (places?.history || []).map((item) => ({ ...item })),
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
-    workspaces: (places?.workspaces || []).map(item => ({ ...item, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
+    workspaces: (places?.workspaces || []).map(item => ({ ...item, activeTabId: item.activeTabId || item.tabs?.[0]?.id || '', splitSecondaryTabId: item.splitSecondaryTabId || '', splitRatio: Number(item.splitRatio) || 0.5, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
     siteZooms: {},
+    pathProfiles: Object.fromEntries(Object.entries(places?.pathProfiles || {}).map(([key, value]) => [key, { ...value }])),
     siteProfiles: Object.fromEntries(Object.entries(places?.siteProfiles || {}).map(([key, value]) => [key, { ...value }])),
     compatibilityHosts: [...(places?.compatibilityHosts || [])],
     sitePermissions: Object.fromEntries(Object.entries(places?.sitePermissions || {}).map(([origin, value]) =>
@@ -3482,6 +3486,41 @@ function browserPageTranslationConfig(overrides = {}) {
   };
 }
 
+function browserPageMemoryVersion(config = {}) {
+  return createHash('sha1').update(JSON.stringify({ version: 2,
+    targetLanguage: config.targetLanguage || '', sourceLanguage: config.sourceLanguage || '',
+    model: config.model || '', glossary: config.glossary || [], lockedTerms: config.lockedTerms || [],
+  }), 'utf8').digest('hex').slice(0, 16);
+}
+
+function browserPageUrl(tab) {
+  const wc = tab?.view?.webContents;
+  if (wc && !wc.isDestroyed()) {
+    const liveUrl = String(wc.getURL?.() || '');
+    if (liveUrl && liveUrl !== 'about:blank') return liveUrl;
+  }
+  return String(tab?.restoredUrl || '');
+}
+
+function browserPageMemoryKeys(tab, block, config = {}) {
+  const url = canonicalPageUrl(browserPageUrl(tab));
+  const site = canonicalPageSite(url);
+  const key = pageTranslationMemoryKey(block, { targetLanguage: config.targetLanguage,
+    sourceLanguage: config.sourceLanguage, model: config.model });
+  return {
+    exact: url ? `page-memory:v2:${url}:${key}` : '',
+    site: site ? `page-site-memory:v2:${site}:${key}` : '',
+  };
+}
+
+function browserPageTerminologySuggestions(session) {
+  return terminologySuggestions(session?.terminologyMap, session?.lockedTerms || session?.config?.lockedTerms || []);
+}
+
+function browserPageExcludedIds(session) {
+  return new Set([...(session?.excludedBlockIds || []), ...(session?.sectionExcludedBlockIds || [])]);
+}
+
 function pageTranslationJobIsCurrent(tab, job) {
   return !!tab && tab.pageTranslateJob === job && !job.controller.signal.aborted
     && tab.generation === job.generation && tab.view && !tab.view.webContents.isDestroyed();
@@ -3505,6 +3544,8 @@ function stopBrowserPageTranslation(tab, restore = true) {
   tab.pageTranslateError = '';
   tab.pageTranslateVisible = false;
   tab.pageTranslateView = 'original';
+  tab.pageTranslatePaused = false;
+  tab.pageTranslatePauseReason = '';
   tab.pageTranslateStats = null;
   tab.pageTranslateCompletion = null;
   if (!restore || !tab.view || tab.view.webContents.isDestroyed()) return Promise.resolve(false);
@@ -3531,25 +3572,42 @@ function flushBrowserPageApply(tab, job) {
   if (!translations.length || !pageTranslationJobIsCurrent(tab, job)) return job.applyChain;
   job.applyChain = job.applyChain.then(async () => {
     if (!pageTranslationJobIsCurrent(tab, job)) return null;
-    return executeBrowserTrustedMain(tab.view, pageApplyScript({
+    const result = await executeBrowserTrustedMain(tab.view, pageApplyScript({
       mode: job.session.mode,
       view: job.session.view,
       targetLanguage: job.session.config.targetLanguage,
+      memoryVersion: job.session.memoryVersion,
       translations,
     }));
+    const warnings = result.flatMap((item) => Array.isArray(item?.layoutWarnings) ? item.layoutWarnings : []);
+    if (warnings.length) {
+      job.session.layoutWarnings ||= new Map();
+      for (const warning of warnings.slice(0, 40)) {
+        const id = String(warning.id || '');
+        if (id) job.session.layoutWarnings.set(id, { id,
+          message: String(warning.message || 'Yerleşim uyarısı.'),
+          section: String(warning.section || job.session.blocks.get(id)?.section || 'Genel'),
+          source: String(warning.source || job.session.blocks.get(id)?.text || '').slice(0, 140) });
+      }
+      sendBrowserEvent(tab, { type: 'page-translate-layout', state: 'warning',
+        warnings: [...job.session.layoutWarnings.values()].slice(0, 40) });
+    }
+    return result;
   }).catch(() => null);
   if (job.applyQueue.length) return flushBrowserPageApply(tab, job);
   return job.applyChain;
 }
 
 function pageTranslationSectionProgress(session) {
+  const excludedIds = browserPageExcludedIds(session);
   const sectionMap = new Map();
   for (const block of session?.blocks?.values?.() || []) {
     const section = block.section || 'Genel';
-    const item = sectionMap.get(section) || { section, total: 0, translated: 0, failed: 0 };
+    const item = sectionMap.get(section) || { section, total: 0, translated: 0, failed: 0, excluded: 0 };
     item.total++;
-    if (session.translations.has(block.id)) item.translated++;
-    if (session.failures.has(block.id)) item.failed++;
+    if (excludedIds.has(block.id)) item.excluded++;
+    else if (session.translations.has(block.id)) item.translated++;
+    else if (session.failures.has(block.id)) item.failed++;
     sectionMap.set(section, item);
   }
   return [...sectionMap.values()];
@@ -3557,10 +3615,11 @@ function pageTranslationSectionProgress(session) {
 
 function pageTranslationCompletion(session) {
   const ids = new Set(session?.blocks?.keys?.() || []);
-  const translated = [...ids].filter((id) => session.translations.has(id)).length;
-  const excluded = [...ids].filter((id) => session.excludedBlockIds?.has(id)).length;
+  const excludedIds = browserPageExcludedIds(session);
+  const excluded = [...ids].filter((id) => excludedIds.has(id)).length;
+  const translated = [...ids].filter((id) => !excludedIds.has(id) && session.translations.has(id)).length;
   const failed = [...ids].filter((id) => !session.translations.has(id)
-    && !session.excludedBlockIds?.has(id) && session.failures.has(id)).length;
+    && !excludedIds.has(id) && session.failures.has(id)).length;
   const pending = Math.max(0, ids.size - translated - failed - excluded);
   const budgetReached = !!(session?.budgetReached || session?.deferredBlockIds?.size);
   return {
@@ -3571,25 +3630,39 @@ function pageTranslationCompletion(session) {
     pending,
     budgetReached,
     characters: Math.max(0, Number(session?.translatedCharacters) || 0),
-    budget: Math.max(0, Number(session?.config?.pageCharacterBudget) || 400000),
+    apiCharacters: Math.max(0, Number(session?.apiCharacters) || 0),
+    budget: Math.max(0, Number(session?.config?.pageCharacterBudget) || 0),
+    layoutWarnings: session?.layoutWarnings?.size || 0,
   };
+}
+
+function browserPageTranslatedCount(session) {
+  return pageTranslationCompletion(session).translated;
+}
+
+function browserPageFailedCount(session) {
+  return pageTranslationCompletion(session).failed;
 }
 
 function persistBrowserPageTranslationArchive(tab, session) {
   if (!tab || !session?.translations?.size) return null;
   try {
     const completion = pageTranslationCompletion(session);
+    const excludedIds = browserPageExcludedIds(session);
+    const translations = new Map([...session.translations.entries()].filter(([id]) => !excludedIds.has(id)));
+    if (!translations.size) return null;
     return browserTranslationArchive().savePage({
-      url: tab.restoredUrl || tab.view?.webContents?.getURL?.() || '',
+      url: browserPageUrl(tab),
       title: tab.restoredTitle || tab.view?.webContents?.getTitle?.() || 'Sayfa çevirisi',
       targetLanguage: session.config?.targetLanguage || 'tr',
       sourceLanguage: session.config?.sourceLanguage || '',
       model: session.config?.model || '',
       mode: session.mode,
       scope: session.scope,
+      excludedSections: session.excludedSections || [],
       complete: completion.failed === 0 && completion.pending === 0,
       blocks: [...session.blocks.values()],
-      translations: session.translations,
+      translations,
     });
   } catch (_) { return null; }
 }
@@ -3599,7 +3672,7 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
       || tab.pageTranslateJob || tab.pageTranslateSession
       || (Number(tab.pageArchiveRestoreSeq) || 0) !== expectedSeq) return { ok: false, skipped: true };
   const generation = tab.generation;
-  const url = tab.restoredUrl || tab.view.webContents.getURL();
+  const url = browserPageUrl(tab);
   const ui = loadSettings().ui || {};
   const targetLanguage = String(ui.browserPageTarget || ui.translateTo || 'tr').toLowerCase();
   const archive = browserTranslationArchive();
@@ -3637,6 +3710,7 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
     mode: restored.record.mode,
     scope: restored.record.scope,
     autoContinue: false,
+    excludedSections: restored.record.excludedSections,
   });
   const translations = new Map(restored.matches.map((row) => [row.id, row.translation]));
   const session = {
@@ -3650,14 +3724,22 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
     translations,
     failures: new Map(),
     translatedCharacters: restored.matches.reduce((sum, row) => sum + row.source.length, 0),
+    apiCharacters: 0,
     terminologyMap: createTerminologyMap({ maxTerms: 60, maxChars: 2400 }),
-    excludedSections: [],
+    excludedSections: config.excludedSections,
     lockedTerms: [],
     excludedBlockIds: new Set(),
+    sectionExcludedBlockIds: new Set(blocks.filter((block) => config.excludedSections.includes(block.section))
+      .map((block) => block.id)),
     deferredBlockIds: new Set(),
+    layoutWarnings: new Map(),
+    manualEditIds: new Set(),
+    userPaused: false,
+    pausedReason: '',
     budgetReached: false,
     archivePath: restored.path,
   };
+  session.memoryVersion = browserPageMemoryVersion(config);
   let appliedCount = 0;
   for (let offset = 0; offset < restored.matches.length; offset += 20) {
     if (tab.generation !== generation || (Number(tab.pageArchiveRestoreSeq) || 0) !== expectedSeq
@@ -3666,6 +3748,7 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
       mode: session.mode,
       view: session.view,
       targetLanguage,
+      memoryVersion: session.memoryVersion,
       translations: restored.matches.slice(offset, offset + 20),
     })).catch(() => []);
     appliedCount += results.reduce((sum, result) => sum + Math.max(0, Number(result?.applied) || 0), 0);
@@ -3684,6 +3767,8 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
   tab.pageTranslateView = session.view;
   tab.pageTranslateScope = session.scope;
   tab.pageTranslateAutoContinue = false;
+  tab.pageTranslatePaused = false;
+  tab.pageTranslatePauseReason = '';
   const completion = pageTranslationCompletion(session);
   tab.pageTranslateCompletion = completion;
   const result = {
@@ -3699,6 +3784,8 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
     autoContinue: false,
     completion,
     sections: pageTranslationSectionProgress(session),
+    excludedSections: session.excludedSections,
+    terminology: browserPageTerminologySuggestions(session),
     message: completion.pending
       ? `Kayıtlı çevirinin ${translations.size} bloğu arşivden yüklendi; değişen bölümler çevrilmedi.`
       : `Kayıtlı sayfa çevirisi arşivden yüklendi; yeniden çeviri yapılmadı.`,
@@ -3733,14 +3820,22 @@ function scheduleArchivedBrowserPageTranslationRestore(tab, delay = 350) {
 
 async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options = {}) {
   const normalized = normalizePageBlocks(rawBlocks);
-  let candidates = normalized.filter((block) => options.retry
-    ? session.failures.has(block.id)
-    : !session.translations.has(block.id) && !session.blocks.has(block.id))
-    .filter((block) => !session.excludedBlockIds?.has(block.id));
+  const retryIds = new Set(Array.isArray(options.retryIds) ? options.retryIds.map(String) : []);
+  const previousIds = new Set(session.blocks.keys());
   for (const block of normalized) session.blocks.set(block.id, block);
+  session.sectionExcludedBlockIds ||= new Set();
+  for (const block of normalized) {
+    if ((session.excludedSections || []).includes(block.section)) session.sectionExcludedBlockIds.add(block.id);
+    else session.sectionExcludedBlockIds.delete(block.id);
+  }
+  const excludedIds = browserPageExcludedIds(session);
+  let candidates = normalized.filter((block) => retryIds.size ? retryIds.has(block.id)
+    : options.retry ? session.failures.has(block.id)
+      : !session.translations.has(block.id) && !previousIds.has(block.id))
+    .filter((block) => !excludedIds.has(block.id));
   const memoryApplied = [];
   for (const [id, translation] of session.restoredTranslations || []) {
-    if (session.blocks.has(id) && !session.translations.has(id)) {
+    if (session.blocks.has(id) && !session.translations.has(id) && !excludedIds.has(id)) {
       session.translations.set(id, translation);
       session.translatedCharacters += session.blocks.get(id).text.length;
       session.deferredBlockIds?.delete(id);
@@ -3748,12 +3843,12 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     }
   }
   session.restoredTranslations?.clear?.();
-  candidates = candidates.filter((block) => !session.translations.has(block.id));
+  candidates = candidates.filter((block) => retryIds.has(block.id) || !session.translations.has(block.id));
   if (!options.retry) {
     const cache = browserTranslationCache();
-    const memoryContext = { targetLanguage: session.config.targetLanguage, model: session.config.model };
     candidates = candidates.filter((block) => {
-      const value = cache.get(`page-memory:v1:${pageTranslationMemoryKey(block, memoryContext)}`);
+      const keys = browserPageMemoryKeys(tab, block, session.config);
+      const value = (keys.exact && cache.get(keys.exact)) || (keys.site && cache.get(keys.site));
       if (!value) return true;
       session.translations.set(block.id, value);
       session.failures.delete(block.id);
@@ -3767,8 +3862,10 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   seedTerminology(session.terminologyMap, [...session.blocks.values()].map((block) => block.text));
   session.config.terminologyMap = session.terminologyMap;
   const batches = planPageTranslationBatches(candidates, {
-    maxBlocks: Math.max(0, 1500 - session.translations.size),
-    maxCharacters: Math.max(0, (session.config.pageCharacterBudget || 400000) - session.translatedCharacters),
+    maxBlocks: Math.min(1500, candidates.length),
+    maxCharacters: session.config.pageCharacterBudget
+      ? Math.max(0, session.config.pageCharacterBudget - (Number(session.apiCharacters) || 0))
+      : 400000,
   });
   const blocks = batches.flat();
   session.deferredBlockIds ||= new Set();
@@ -3781,8 +3878,8 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   if (!blocks.length && memoryApplied.length === 0 && candidates.length) {
     const completion = pageTranslationCompletion(session);
     tab.pageTranslateCompletion = completion;
-    sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: 'Karakter sınırına ulaşıldı; kalan bloklar çevrilmedi.', translated: session.translations.size, failed: session.failures.size, budgetReached: true, completion, sections: pageTranslationSectionProgress(session) });
-    return { ok: true, unchanged: true, budgetReached: true, translated: session.translations.size, completion };
+    sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: 'Karakter sınırına ulaşıldı; kalan bloklar çevrilmedi.', translated: browserPageTranslatedCount(session), failed: browserPageFailedCount(session), budgetReached: true, completion, sections: pageTranslationSectionProgress(session) });
+    return { ok: true, unchanged: true, budgetReached: true, translated: browserPageTranslatedCount(session), completion };
   }
   const units = buildPageTranslationUnits([...session.blocks.values()], blocks);
 
@@ -3795,6 +3892,8 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     applyQueue: [],
     applyTimer: null,
     applyChain: Promise.resolve(),
+    retryIds,
+    retryFailures: new Map(),
   };
   tab.pageTranslateJob?.controller.abort('Yeni sayfa çevirisi başladı.');
   tab.pageTranslateJob?.scheduler?.cancelAll('Yeni sayfa çevirisi başladı.');
@@ -3836,31 +3935,38 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     lookBehind: 0,
     lookAhead: Math.max(1, sentences.length + 1),
     context,
-    paused: !browserNetworkOnline,
+    paused: !browserNetworkOnline || session.userPaused === true,
     translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, session.config, call.signal),
     onResult: (result, sentence) => {
       if (!pageTranslationJobIsCurrent(tab, job)) return;
       if (result.error) {
         for (const piece of sentence.pieces || []) {
           const blockId = String(piece.cueId);
-          session.failures.set(blockId, { block: session.blocks.get(blockId), error: result.error });
+          const failure = { block: session.blocks.get(blockId), error: result.error };
+          if (job.retryIds.has(blockId) && session.translations.has(blockId)) job.retryFailures.set(blockId, failure);
+          else session.failures.set(blockId, failure);
         }
       } else {
+        if (result.cached === false) {
+          session.apiCharacters = (Number(session.apiCharacters) || 0)
+            + (sentence.pieces || []).reduce((sum, piece) => sum + String(piece.text || '').length, 0);
+        }
         for (const cue of result.cues || []) {
           const blockId = String(cue.cueId);
           const translation = String(cue.text || '').trim();
           if (!translation) continue;
           const source = session.blocks.get(blockId);
-          session.failures.delete(blockId);
+          const wasTranslated = session.translations.has(blockId);
+          session.failures.delete(blockId); job.retryFailures.delete(blockId);
           session.translations.set(blockId, translation);
           session.deferredBlockIds?.delete(blockId);
-          session.translatedCharacters += String(source?.text || '').length;
+          if (!wasTranslated) session.translatedCharacters += String(source?.text || '').length;
           learnTerminology(session.terminologyMap, source?.text || '', translation, blockId, 1);
           queueBrowserPageApply(tab, job, { id: blockId, translation });
         }
         context.terminologyVersion = createHash('sha1').update(terminologyPrompt(session.terminologyMap), 'utf8').digest('hex').slice(0, 12);
         scheduler.setContext({ terminologyVersion: context.terminologyVersion });
-        tab.pageTranslated = session.translations.size;
+        tab.pageTranslated = browserPageTranslatedCount(session);
         tab.pageTranslateVisible = session.view !== 'original' && tab.pageTranslated > 0;
         tab.pageTranslateView = session.view;
       }
@@ -3869,13 +3975,19 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
       if (!pageTranslationJobIsCurrent(tab, job)) return;
       const completion = pageTranslationCompletion(session);
       tab.pageTranslateCompletion = completion;
+      const paused = state.paused === true;
+      session.pausedReason = paused ? (session.userPaused ? 'Kullanıcı tarafından duraklatıldı.' : 'Ağ bağlantısı bekleniyor.') : '';
+      tab.pageTranslatePaused = paused;
+      tab.pageTranslatePauseReason = session.pausedReason;
       sendBrowserEvent(tab, {
-        type: 'page-translate-progress', state: 'running', ...state,
-        translated: session.translations.size, visible: tab.pageTranslateVisible,
+        type: 'page-translate-progress', state: paused ? 'paused' : 'running', ...state,
+        translated: browserPageTranslatedCount(session), visible: tab.pageTranslateVisible,
         view: session.view, autoContinue: session.autoContinue !== false,
+        paused, pauseReason: session.pausedReason,
         stats: tab.pageTranslateStats,
         completion,
         sections: pageTranslationSectionProgress(session),
+        terminology: browserPageTerminologySuggestions(session),
       });
     },
   });
@@ -3891,23 +4003,34 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     const sentence = sentences.find((item) => item.id === failure.sentenceId);
     for (const piece of sentence?.pieces || []) {
       const id = String(piece.cueId);
-      session.failures.set(id, { block: session.blocks.get(id), error: failure.error || 'Çeviri başarısız.' });
+      const detail = { block: session.blocks.get(id), error: failure.error || 'Çeviri başarısız.' };
+      if (job.retryIds.has(id) && session.translations.has(id)) job.retryFailures.set(id, detail);
+      else session.failures.set(id, detail);
     }
   }
   tab.pageTranslateJob = null;
-  tab.pageTranslated = session.translations.size;
+  tab.pageTranslatePaused = false;
+  tab.pageTranslatePauseReason = '';
+  tab.pageTranslated = browserPageTranslatedCount(session);
   tab.pageTranslateVisible = session.view !== 'original' && tab.pageTranslated > 0;
   tab.pageTranslateView = session.view;
-  const failed = session.failures.size;
+  const failed = browserPageFailedCount(session);
   tab.pageTranslateFailed = failed;
   tab.pageTranslateError = failed ? 'Bazı metin blokları çevrilemedi.' : '';
-  const failureDetails = [...session.failures.values()].slice(0, 80).map((failure) => ({
+  const activeExcludedIds = browserPageExcludedIds(session);
+  const failureDetails = [...session.failures.entries()].filter(([id]) => !activeExcludedIds.has(id))
+    .slice(0, 80).map(([, failure]) => ({
+    id: failure.block?.id || '', text: String(failure.block?.text || '').slice(0, 180),
+    section: failure.block?.section || 'Genel', error: String(failure.error || 'Bilinmeyen hata').slice(0, 240),
+  }));
+  const retryFailureDetails = [...job.retryFailures.values()].slice(0, 80).map((failure) => ({
     id: failure.block?.id || '', text: String(failure.block?.text || '').slice(0, 180),
     section: failure.block?.section || 'Genel', error: String(failure.error || 'Bilinmeyen hata').slice(0, 240),
   }));
   if (failureDetails.length) {
     await executeBrowserTrustedMain(tab.view, pageApplyScript({
       mode: session.mode, view: session.view, targetLanguage: session.config.targetLanguage,
+      memoryVersion: session.memoryVersion,
       translations: [], failures: failureDetails,
     })).catch(() => []);
   }
@@ -3927,8 +4050,11 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     completion,
     budgetReached: completion.budgetReached,
     sections: pageTranslationSectionProgress(session),
+    terminology: browserPageTerminologySuggestions(session),
     failures: failureDetails,
+    retryFailures: retryFailureDetails,
   };
+  if (retryFailureDetails.length) result.message = `${retryFailureDetails.length} blok yeniden çevrilemedi; önceki çeviriler korundu.`;
   const archived = persistBrowserPageTranslationArchive(tab, session);
   if (archived?.ok) result.archivePath = archived.path;
   sendBrowserEvent(tab, { type: 'page-translate-done', state: failed || completion.pending ? 'partial' : 'ready', ...result });
@@ -3972,11 +4098,17 @@ async function startBrowserPageTranslation(tab, options = {}) {
     translations: new Map(),
     failures: new Map(),
     translatedCharacters: 0,
+    apiCharacters: 0,
     terminologyMap: createTerminologyMap({ maxTerms: 60, maxChars: 2400 }),
     excludedSections: config.excludedSections,
     lockedTerms: config.lockedTerms,
     excludedBlockIds: new Set(),
+    sectionExcludedBlockIds: new Set(),
     deferredBlockIds: new Set(),
+    layoutWarnings: new Map(),
+    manualEditIds: new Set(),
+    userPaused: false,
+    pausedReason: '',
     budgetReached: false,
   };
   session.config = config;
@@ -3984,18 +4116,25 @@ async function startBrowserPageTranslation(tab, options = {}) {
   session.view = config.view;
   session.scope = config.scope;
   session.autoContinue = config.autoContinue;
+  session.excludedSections = config.excludedSections;
+  session.lockedTerms = config.lockedTerms;
+  session.memoryVersion = browserPageMemoryVersion(config);
   tab.pageTranslateView = session.view;
   tab.pageTranslateScope = session.scope;
   tab.pageTranslateAutoContinue = session.autoContinue;
+  tab.pageTranslatePaused = !!session.userPaused || !browserNetworkOnline;
+  tab.pageTranslatePauseReason = session.userPaused ? 'Kullanıcı tarafından duraklatıldı.'
+    : (!browserNetworkOnline ? 'Ağ bağlantısı bekleniyor.' : '');
   tab.pageTranslateSession = session;
   const scan = await executeBrowserTrustedMain(tab.view, pageBlockScanScript({
     bridgeToken: tab.bridgeToken,
     observe: true,
     maxBlocks: 1500,
     maxCharacters: 400000,
-    excludedSections: session.excludedSections || session.config.excludedSections || [],
     excludedSelectors: session.config.excludedSelectors || [],
+    excludedSections: session.excludedSections || [],
     targetLanguage: session.config.targetLanguage,
+    memoryVersion: session.memoryVersion,
     scope: session.scope,
     visibleOnly: false,
     autoContinue: session.autoContinue,
@@ -4015,7 +4154,7 @@ async function startBrowserPageTranslation(tab, options = {}) {
       ? 'Seçili metin bulunamadı. Önce sayfada çevrilecek metni seçin.'
       : 'Bu görünür alanda çevrilebilir metin bloğu bulunamadı.';
     if (error) sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error });
-    return error ? { ok: false, error } : { ok: true, unchanged: true, translated: session.translations.size };
+    return error ? { ok: false, error } : { ok: true, unchanged: true, translated: browserPageTranslatedCount(session) };
   }
   return runBrowserPageTranslationBlocks(tab, blocks, session, options);
 }
@@ -4027,11 +4166,13 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
   const completion = pageTranslationCompletion(session);
   tab.pageTranslateCompletion = completion;
   sendBrowserEvent(tab, { type: 'page-translate-progress', state: tab.pageTranslateJob ? 'running' : 'ready',
-    translated: session.translations.size, failed: session.failures.size, total: session.blocks.size,
+    translated: browserPageTranslatedCount(session), failed: browserPageFailedCount(session), total: session.blocks.size,
     visible: tab.pageTranslateVisible, view: session.view, scope: session.scope,
     autoContinue: session.autoContinue !== false, stats: tab.pageTranslateStats,
     completion,
-    sections: pageTranslationSectionProgress(session) });
+    sections: pageTranslationSectionProgress(session),
+    terminology: browserPageTerminologySuggestions(session),
+    paused: !!tab.pageTranslatePaused, pauseReason: tab.pageTranslatePauseReason });
   if (session.autoContinue === false) return;
   const blocks = normalizePageBlocks(payload.blocks);
   if (!blocks.length) return;
@@ -6687,6 +6828,7 @@ async function handleBrowserPageAction(tab, payload = {}) {
   const session = tab?.pageTranslateSession;
   if (!tab || !session || session.generation !== tab.generation || !payload
       || payload.bridgeToken !== tab.bridgeToken) return;
+  const generation = tab.generation;
   const id = String(payload.id || '');
   const block = session.blocks.get(id);
   if (!block || session.excludedBlockIds?.has(id)) return;
@@ -6698,25 +6840,46 @@ async function handleBrowserPageAction(tab, payload = {}) {
     if (!translation || pre !== current) return;
     session.translations.set(id, translation);
     session.failures.delete(id);
-    browserTranslationCache().set(`page-memory:v1:${pageTranslationMemoryKey(block, {
-      targetLanguage: session.config.targetLanguage, model: session.config.model,
-    })}`, translation);
+    session.manualEditIds ||= new Set(); session.manualEditIds.add(id);
+    const memoryKeys = browserPageMemoryKeys(tab, block, session.config);
+    if (memoryKeys.exact) browserTranslationCache().set(memoryKeys.exact, translation);
+    if (payload.memoryScope === 'site') {
+      if (memoryKeys.site) browserTranslationCache().set(memoryKeys.site, translation);
+    }
     await executeBrowserTrustedMain(tab.view, pageApplyScript({ mode: session.mode, view: session.view,
-      targetLanguage: session.config.targetLanguage, translations: [{ id, translation }] })).catch(() => []);
+      targetLanguage: session.config.targetLanguage, memoryVersion: session.memoryVersion,
+      translations: [{ id, translation }] })).catch(() => []);
   } else if (action === 'exclude') {
-    session.excludedBlockIds ||= new Set(); session.excludedBlockIds.add(id);
-    session.deferredBlockIds?.delete(id);
+    const section = block.section || 'Genel';
+    session.excludedSections = [...new Set([...(session.excludedSections || []), section])].slice(0, 80);
+    session.config.excludedSections = session.excludedSections;
+    session.sectionExcludedBlockIds ||= new Set();
+    const ids = [...session.blocks.values()].filter((item) => (item.section || 'Genel') === section)
+      .map((item) => item.id);
+    for (const blockId of ids) { session.sectionExcludedBlockIds.add(blockId); session.deferredBlockIds?.delete(blockId); }
     session.budgetReached = !!session.deferredBlockIds?.size;
-    session.translations.delete(id); session.failures.delete(id);
-    await executeBrowserTrustedMain(tab.view, pageExcludeScript([id])).catch(() => []);
+    await executeBrowserTrustedMain(tab.view, pageExcludeScript(ids)).catch(() => []);
   } else if (action === 'retry') {
-    session.translations.delete(id);
-    session.failures.set(id, { block, error: 'Kullanıcı yeniden denedi.' });
-    const result = await runBrowserPageTranslationBlocks(tab, [block], session, { retry: true });
+    if (tab.pageTranslateJob) {
+      await executeBrowserTrustedMain(tab.view, pageActionResultScript({ id, ok: false })).catch(() => []);
+      return;
+    }
+    let result = null;
+    try {
+      result = await runBrowserPageTranslationBlocks(tab, [block], session, { retry: true, retryIds: [id] });
+    } finally {
+      const retryOk = (result?.ok || result?.partial) && !(result?.retryFailures?.length);
+      if (tab.generation === generation && tab.pageTranslateSession === session) {
+        await executeBrowserTrustedMain(tab.view, pageActionResultScript({ id, ok: retryOk })).catch(() => []);
+      }
+    }
     if (result?.ok || result?.partial) return;
   }
-  tab.pageTranslated = session.translations.size;
-  tab.pageTranslateFailed = session.failures.size;
+  // DOM çağrısı sürerken gezinme olduysa eski sayfanın düzenleme/dışlama sonucu
+  // yeni kuşağın sekme durumuna veya olay akışına taşınamaz.
+  if (tab.generation !== generation || tab.pageTranslateSession !== session) return;
+  tab.pageTranslated = browserPageTranslatedCount(session);
+  tab.pageTranslateFailed = browserPageFailedCount(session);
   tab.pageTranslateVisible = session.view !== 'original' && tab.pageTranslated > 0;
   const completion = pageTranslationCompletion(session);
   tab.pageTranslateCompletion = completion;
@@ -6725,8 +6888,11 @@ async function handleBrowserPageAction(tab, payload = {}) {
     translated: tab.pageTranslated, failed: tab.pageTranslateFailed, total: session.blocks.size,
     visible: tab.pageTranslateVisible, view: session.view, scope: session.scope,
     autoContinue: session.autoContinue !== false, completion, sections: pageTranslationSectionProgress(session),
+    excludedSections: session.excludedSections,
+    terminology: browserPageTerminologySuggestions(session),
     archivePath: archived?.ok ? archived.path : '',
-    failures: [...session.failures.values()].slice(0, 80).map((failure) => ({
+    failures: [...session.failures.entries()].filter(([failureId]) => !browserPageExcludedIds(session).has(failureId))
+      .slice(0, 80).map(([, failure]) => ({
       id: failure.block?.id || '', text: String(failure.block?.text || '').slice(0, 180),
       section: failure.block?.section || 'Genel', error: String(failure.error || '').slice(0, 240),
     })) });
@@ -7306,6 +7472,13 @@ function settleBrowserPermissionRequest(requestId, allowed, persistDecision = ''
     if (updated.ok) { places.sitePermissions = updated.sitePermissions; setBrowserPlaces(places); }
   }
   try { pending.callback(allowed === true); } catch (_) {}
+  if (allowed !== true) {
+    sendBrowserEvent(pending.tab, {
+      type: 'permission-denied', requestId: pending.id,
+      permission: pending.permission, host: pending.host,
+      message: `${pending.host || 'Bu site'} ${browserPermissionLabel(pending.permission)} erişimi istedi; kullanıcı seçimiyle engellendi.`,
+    });
+  }
   return { ok: true, allowed: allowed === true, origin: pending.origin,
     permission: pending.permission, persisted: ['allow', 'block'].includes(persistDecision) };
 }
@@ -7358,7 +7531,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         message: `${host || 'Bu site'} için ${browserPermissionLabel(normalizedPermission)} isteği zaman aşımında engellendi.` });
     }, 30000);
     timer.unref?.();
-    browserPermissionRequests.set(id, { id, tab: permissionTab, origin,
+    browserPermissionRequests.set(id, { id, tab: permissionTab, origin, host,
       permission: normalizedPermission, callback, timer });
     sendBrowserEvent(permissionTab, { type: 'permission-request', requestId: id,
       permission: normalizedPermission, label: browserPermissionLabel(normalizedPermission), origin, host,
@@ -8480,11 +8653,12 @@ ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(asy
   browserVisible = true;
   resumeRestoredBrowserPage(tab);
   const hasPage = !!browserNavigationState().url;
+  const sessionWarning = browserSessionLoadWarning;
   applyBrowserViewsLayout();
   startBrowserPolling();
   return { ok: true, hasPage, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled,
-    diagnostics: browserDiagnostics, ...browserNavigationState() };
+    diagnostics: browserDiagnostics, sessionWarning, ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:tab:reopen', (event) => queueBrowserTabTransition(async () => {
@@ -9038,6 +9212,11 @@ ipcMain.handle('browser:compatibility:setEnabled', async (event, payload) => {
   return { ok: true, enabled: tab.compatibilityMode, host: updated.host, affected, reloading: true };
 });
 
+ipcMain.handle('browser:jobs:list', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, jobs: browserUnifiedJobsSnapshot(), online: browserNetworkOnline };
+});
+
 ipcMain.handle('browser:getState', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, visible: browserVisible, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(activeBrowserTab()),
@@ -9058,10 +9237,16 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = browserTabById(raw && raw.id);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  const wc = tab.view?.webContents;
+  const liveUrl = wc && !wc.isDestroyed() && wc.getURL() && wc.getURL() !== 'about:blank'
+    ? wc.getURL() : '';
   const normalized = normalizeSessionTab({
     ...browserTabSnapshot(tab),
     ...(raw && typeof raw === 'object' ? raw : {}),
     id: tab.id,
+    // Canlı webContents SPA gezinmesinin yetkili kaynağıdır. Renderer'daki
+    // gecikmiş sekme kopyası güncel URL'yi geriye saramaz.
+    url: liveUrl || raw?.url || tab.restoredUrl,
   });
   if (!normalized) return { ok: false, error: 'Geçersiz tarayıcı oturum verisi.' };
   Object.assign(tab, {
@@ -9256,10 +9441,15 @@ ipcMain.handle('browser:workspace:save', (event, rawName) => {
   const tabs = browserTabsSnapshot().map(normalizeSessionTab).filter(Boolean);
   if (!name || !tabs.length) return { ok: false, error: 'Bir ad ve en az bir açık site gerekli.' };
   if (tabs.length > MAX_SESSION_TABS) {
-    return { ok: false, error: `Bir çalışma alanına en fazla ${MAX_SESSION_TABS} sekme kaydedilebilir.` };
+    return { ok: false, error: 'Bir çalışma alanına en fazla ' + MAX_SESSION_TABS + ' sekme kaydedilebilir.' };
   }
+  const tabIds = new Set(tabs.map((tab) => tab.id));
+  const activeTabId = tabIds.has(browserActiveTabId) ? browserActiveTabId : (tabs[0]?.id || '');
+  const splitSecondaryTabId = tabIds.has(browserSplitSecondaryTabId) && browserSplitSecondaryTabId !== activeTabId
+    ? browserSplitSecondaryTabId : '';
   const places = readBrowserPlaces();
-  places.workspaces = [{ name, tabs }, ...places.workspaces.filter(item => item.name !== name)].slice(0, 20);
+  places.workspaces = [{ name, tabs, activeTabId, splitSecondaryTabId,
+    splitRatio: browserSplitRatio }, ...places.workspaces.filter(item => item.name !== name)].slice(0, 20);
   setBrowserPlaces(places);
   return { ok: true, places: browserPlacesSnapshot() };
 });
@@ -9274,16 +9464,21 @@ ipcMain.handle('browser:workspace:remove', (event, name) => {
 
 ipcMain.handle('browser:workspace:open', (event, name) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const workspace = readBrowserPlaces().workspaces.find(item => item.name === name);
+  const workspace = readBrowserPlaces().workspaces.find((item) => item.name === String(name || ''));
   if (!workspace) return { ok: false, error: 'Çalışma alanı bulunamadı.' };
   if (browserTabs.size + workspace.tabs.length > MAX_SESSION_TABS) {
-    return { ok: false, limitReached: true,
-      error: `Toplam sekme sınırı ${MAX_SESSION_TABS}. Önce birkaç sekmeyi kapatın.` };
+    return { ok: false, limitReached: true, error: 'Toplam sekme sınırı ' + MAX_SESSION_TABS + '. Önce birkaç sekmeyi kapatın.' };
   }
-  // Append lazily. Never destroy the user's open tabs or start every site at once.
-  const added = workspace.tabs.map(item => createBrowserTabRecord({ ...item, id: '' }));
+  const idMap = new Map();
+  const added = workspace.tabs.map((item) => { const created = createBrowserTabRecord({ ...item, id: '' }); idMap.set(item.id, created.id); return created; });
+  const activeId = idMap.get(workspace.activeTabId) || added[0]?.id || '';
+  const splitId = idMap.get(workspace.splitSecondaryTabId) || '';
+  if (activeId) await activateBrowserTab(activeId);
+  browserSplitSecondaryTabId = splitId && splitId !== browserActiveTabId ? splitId : '';
+  browserSplitRatio = Math.max(0.25, Math.min(0.75, Number(workspace.splitRatio) || browserSplitRatio));
+  applyBrowserViewsLayout();
   scheduleBrowserSessionSave();
-  return { ok: true, tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId, firstTabId: added[0].id };
+  return { ok: true, tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId, split: browserSplitSnapshot(), firstTabId: added[0]?.id || '' };
 }));
 
 ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
@@ -9322,13 +9517,22 @@ ipcMain.handle('browser:places:remove', (event, kind, rawUrl) => {
   return { ok: true, places: snapshot };
 });
 
-ipcMain.handle('browser:places:clearHistory', (event) => {
+ipcMain.handle('browser:places:clearHistory', (event, request = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const places = readBrowserPlaces();
-  places.history = [];
+  const origin = browserSiteOrigin(typeof request === 'string' ? request : request?.site || request?.url || '');
+  const before = Number(typeof request === 'object' ? request?.before : 0);
+  if (origin || Number.isFinite(before) && before > 0) {
+    places.history = places.history.filter((item) => {
+      let itemOrigin = ''; try { itemOrigin = browserSiteOrigin(item.url); } catch (_) {}
+      const siteMatch = origin ? itemOrigin === origin : true;
+      const dateMatch = Number.isFinite(before) && before > 0 ? (Number(item.visitedAt) || 0) < before : true;
+      return !(siteMatch && dateMatch);
+    });
+  } else places.history = [];
   setBrowserPlaces(places);
   const snapshot = browserPlacesSnapshot();
-  return { ok: true, places: snapshot };
+  return { ok: true, places: snapshot, removed: true, scope: origin || 'all', before: before > 0 ? before : null };
 });
 
 ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
@@ -9494,16 +9698,19 @@ ipcMain.handle('browser:profile:update', (event, request = {}) => {
   const origin = browserSiteOrigin(url);
   if (!origin || request.origin !== origin) return { ok: false, error: 'Site değişti. Ayar kaydedilmedi.' };
   const places = readBrowserPlaces();
-  const previousProfiles = places.siteProfiles;
-  const updated = request.reset === true ? withoutBrowserSiteProfile(places.siteProfiles, url)
-    : withBrowserSiteProfileField(places.siteProfiles, url, request.field, request.value);
+  const scope = request.scope === 'path' ? 'path' : 'site';
+  const previousProfiles = scope === 'path' ? places.pathProfiles : places.siteProfiles;
+  const updated = request.reset === true
+    ? (scope === 'path' ? withoutBrowserPathProfile(places.pathProfiles, url) : withoutBrowserSiteProfile(places.siteProfiles, url))
+    : (scope === 'path' ? withBrowserPathProfileField(places.pathProfiles, url, request.field, request.value)
+      : withBrowserSiteProfileField(places.siteProfiles, url, request.field, request.value));
   if (!updated.ok) return { ok: false, error: updated.reason === 'limit'
     ? `Site ayarı sınırına ulaşıldı (${MAX_BROWSER_SITE_PROFILES}). Bu sitenin profilini kaydetmek için kullanılmayan bir site profilini sıfırlayın.`
     : 'Geçersiz site ayarı.' };
-  places.siteProfiles = updated.profiles;
+  if (scope === 'path') places.pathProfiles = updated.profiles; else places.siteProfiles = updated.profiles;
   setBrowserPlaces(places, { broadcast: false });
   if (!flushBrowserPlaces()) {
-    setBrowserPlaces({ ...places, siteProfiles: previousProfiles }, { broadcast: false });
+    setBrowserPlaces({ ...places, ...(scope === 'path' ? { pathProfiles: previousProfiles } : { siteProfiles: previousProfiles }) }, { broadcast: false });
     return { ok: false, error: 'Site ayarı diske kaydedilemedi. Önceki ayarlar korundu.' };
   }
   sendBrowserEvent({ type: 'places', places: browserPlacesSnapshot() });
@@ -9539,6 +9746,43 @@ ipcMain.handle('browser:page:start', async (event, request) => {
     sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error.message });
     return { ok: false, error: error.message };
   }
+});
+
+ipcMain.handle('browser:page:preview', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const generation = tab.generation;
+  const pageUrl = tab.view.webContents.getURL();
+  const config = browserPageTranslationConfig(request);
+  const memoryVersion = browserPageMemoryVersion(config);
+  const [payload] = await executeBrowserTrustedMain(tab.view, pageBlockScanScript({
+    bridgeToken: tab.bridgeToken, preview: true, observe: false, maxBlocks: 1500, maxCharacters: 400000,
+    scope: request?.scope, visibleOnly: false, autoContinue: false,
+    excludedSelectors: request?.excludedSelectors,
+    excludedSections: request?.excludedSections,
+    targetLanguage: config.targetLanguage, memoryVersion,
+  })).catch(() => []);
+  if (tab.generation !== generation || tab.view.webContents.isDestroyed()
+      || tab.view.webContents.getURL() !== pageUrl) return { ok: false, stale: true, error: 'Sayfa önizleme sırasında değişti.' };
+  const blocks = normalizePageBlocks(payload?.blocks);
+  const session = tab.pageTranslateSession;
+  const sameSession = session?.generation === generation
+    && session?.config?.targetLanguage === config.targetLanguage;
+  const translatedIds = sameSession && session?.translations ? new Set(session.translations.keys()) : new Set();
+  const memoryIds = new Set();
+  const cache = browserTranslationCache();
+  for (const block of blocks) {
+    const keys = browserPageMemoryKeys(tab, block, config);
+    if ((keys.exact && cache.get(keys.exact)) || (keys.site && cache.get(keys.site))) memoryIds.add(block.id);
+  }
+  const summary = pagePreviewSummary(blocks, {
+    excludedSections: request?.excludedSections,
+    translatedIds, memoryIds,
+    characterBudget: request?.pageCharacterBudget,
+    apiCharactersUsed: sameSession ? session.apiCharacters : 0,
+  });
+  return { ok: true, ...summary, stats: payload?.stats || null };
 });
 
 ipcMain.handle('browser:page:toggle', async (event, request) => {
@@ -9577,11 +9821,14 @@ ipcMain.handle('browser:page:reveal', async (event, request) => {
 ipcMain.handle('browser:page:view', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request?.tabId);
-  if (!tab?.pageTranslateSession || !tab.pageTranslated) return { ok: false, error: 'Bu sekmede gösterilecek sayfa çevirisi yok.' };
+  const session = tab?.pageTranslateSession;
+  if (!session || !tab.pageTranslated) return { ok: false, error: 'Bu sekmede gösterilecek sayfa çevirisi yok.' };
+  const generation = tab.generation;
   const view = ['original', 'translation', 'both'].includes(request?.view) ? request.view : 'both';
   const [result] = await executeBrowserTrustedMain(tab.view, pageViewScript(view)).catch(() => []);
   if (!result?.ok) return { ok: false, stale: true, error: 'Sayfa çeviri katmanı artık mevcut değil.' };
-  tab.pageTranslateView = view; tab.pageTranslateVisible = view !== 'original';
+  if (tab.generation !== generation || tab.pageTranslateSession !== session) return { ok: false, stale: true, error: 'Sekme değişti.' };
+  session.view = view; tab.pageTranslateView = view; tab.pageTranslateVisible = view !== 'original';
   sendBrowserEvent(tab, { type: 'page-translate-done', state: 'ready', translated: tab.pageTranslated,
     failed: tab.pageTranslateFailed, total: tab.pageTranslateSession.blocks.size,
     visible: tab.pageTranslateVisible, view, scope: tab.pageTranslateSession.scope,
@@ -9608,6 +9855,102 @@ ipcMain.handle('browser:page:autoContinue', async (event, request) => {
   return { ok: true, autoContinue: enabled };
 });
 
+ipcMain.handle('browser:page:pause', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  const session = tab?.pageTranslateSession;
+  const scheduler = tab?.pageTranslateJob?.scheduler;
+  if (!tab || !session || !scheduler) return { ok: false, error: 'Etkin sayfa çeviri işi yok.' };
+  session.userPaused = request?.paused !== false;
+  const paused = session.userPaused || !browserNetworkOnline;
+  const pauseReason = session.userPaused ? 'Kullanıcı tarafından duraklatıldı.'
+    : (!browserNetworkOnline ? 'Ağ bağlantısı bekleniyor.' : '');
+  scheduler.setPaused(paused);
+  session.pausedReason = pauseReason; tab.pageTranslatePaused = paused; tab.pageTranslatePauseReason = pauseReason;
+  sendBrowserEvent(tab, { type: 'page-translate-progress', state: paused ? 'paused' : 'running',
+    translated: tab.pageTranslated, failed: tab.pageTranslateFailed, paused, pauseReason,
+    completion: pageTranslationCompletion(session), sections: pageTranslationSectionProgress(session) });
+  return { ok: true, paused, userPaused: session.userPaused, pauseReason };
+});
+
+ipcMain.handle('browser:page:retrySection', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  const session = tab?.pageTranslateSession;
+  if (!tab || !session) return { ok: false, error: 'Yeniden denenecek sayfa çevirisi yok.' };
+  if (tab.pageTranslateJob) return { ok: false, busy: true, error: 'Sayfa çevirisi çalışırken bölüm yenilenemez.' };
+  const section = String(request?.section || '').trim().slice(0, 160);
+  const blocks = [...session.blocks.values()].filter((block) => block.section === section
+    && !session.excludedBlockIds?.has(block.id));
+  if (!blocks.length) return { ok: false, error: 'Bu bölümde yeniden denenecek blok yok.' };
+  if ((session.excludedSections || []).includes(section)) return { ok: false, error: 'Bu bölüm dışlanmış; önce bölüm dışlamasını kaldırın.' };
+  return runBrowserPageTranslationBlocks(tab, blocks, session, { retry: true,
+    retryIds: blocks.map((block) => block.id) });
+});
+
+ipcMain.handle('browser:page:exclusions', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  const session = tab?.pageTranslateSession;
+  if (!tab || !session) return { ok: false, error: 'Etkin sayfa çevirisi yok.' };
+  if (tab.pageTranslateJob) return { ok: false, busy: true, error: 'Sayfa çevirisi çalışırken bölüm dışlamaları değiştirilemez.' };
+  const nextSections = [...new Set((Array.isArray(request.sections) ? request.sections : [])
+    .map((value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 160)).filter(Boolean))].slice(0, 80);
+  const previousExcluded = new Set(session.sectionExcludedBlockIds || []);
+  session.excludedSections = nextSections; session.config.excludedSections = nextSections;
+  const [scanPayload] = await executeBrowserTrustedMain(tab.view, pageBlockScanScript({
+    bridgeToken: tab.bridgeToken, observe: true, maxBlocks: 1500, maxCharacters: 400000,
+    scope: session.scope, visibleOnly: false, autoContinue: session.autoContinue !== false,
+    excludedSelectors: session.config.excludedSelectors || [], excludedSections: nextSections,
+    targetLanguage: session.config.targetLanguage, memoryVersion: session.memoryVersion,
+  })).catch(() => []);
+  const rescanned = normalizePageBlocks(scanPayload?.blocks);
+  for (const block of rescanned) session.blocks.set(block.id, block);
+  session.sectionExcludedBlockIds = new Set([...session.blocks.values()]
+    .filter((block) => nextSections.includes(block.section)).map((block) => block.id));
+  const newlyExcluded = [...session.sectionExcludedBlockIds].filter((id) => !previousExcluded.has(id));
+  const newlyIncluded = [...new Set([
+    ...[...previousExcluded].filter((id) => !session.sectionExcludedBlockIds.has(id)),
+    ...rescanned.map((block) => block.id),
+  ])];
+  if (newlyExcluded.length) await executeBrowserTrustedMain(tab.view, pageExcludeScript(newlyExcluded)).catch(() => []);
+  for (const id of newlyExcluded) session.deferredBlockIds?.delete(id);
+  session.budgetReached = !!session.deferredBlockIds?.size;
+  const translations = newlyIncluded.filter((id) => session.translations.has(id))
+    .map((id) => ({ id, translation: session.translations.get(id) }));
+  if (translations.length) await executeBrowserTrustedMain(tab.view, pageApplyScript({
+    mode: session.mode, view: session.view, targetLanguage: session.config.targetLanguage,
+    memoryVersion: session.memoryVersion, translations,
+  })).catch(() => []);
+  const pending = newlyIncluded.filter((id) => !session.translations.has(id) && !session.excludedBlockIds?.has(id))
+    .map((id) => session.blocks.get(id)).filter(Boolean);
+  const completion = pageTranslationCompletion(session); tab.pageTranslateCompletion = completion;
+  tab.pageTranslated = completion.translated; tab.pageTranslateFailed = completion.failed;
+  tab.pageTranslateVisible = session.view !== 'original' && completion.translated > 0;
+  sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'ready', translated: browserPageTranslatedCount(session),
+    failed: browserPageFailedCount(session), visible: tab.pageTranslateVisible, view: session.view, scope: session.scope,
+    autoContinue: session.autoContinue !== false, completion, sections: pageTranslationSectionProgress(session),
+    excludedSections: session.excludedSections,
+    terminology: browserPageTerminologySuggestions(session) });
+  if (pending.length) return runBrowserPageTranslationBlocks(tab, pending, session, { incremental: true,
+    retryIds: pending.map((block) => block.id) });
+  persistBrowserPageTranslationArchive(tab, session);
+  return { ok: true, completion, sections: pageTranslationSectionProgress(session) };
+});
+
+ipcMain.handle('browser:page:history', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request?.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const url = browserPageUrl(tab);
+  const entries = browserTranslationArchive().listPages({ url, limit: 20 })
+    .map((entry) => ({ id: String(entry.id || ''), title: String(entry.title || 'Sayfa çevirisi'),
+      targetLanguage: String(entry.targetLanguage || ''), scope: String(entry.scope || ''),
+      complete: entry.complete === true, updatedAt: Number(entry.updatedAt) || 0,
+      count: Number(entry.count) || 0 }));
+  return { ok: true, entries };
+});
+
 ipcMain.handle('browser:page:clear', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request?.tabId);
@@ -9623,7 +9966,10 @@ ipcMain.handle('browser:page:retryFailed', async (event, request) => {
   const tab = activeRequestedBrowserTab(request?.tabId);
   const session = tab?.pageTranslateSession;
   if (!tab || !session) return { ok: false, error: 'Yeniden denenecek sayfa çevirisi yok.' };
-  const blocks = [...session.failures.values()].map((failure) => failure.block).filter(Boolean);
+  if (tab.pageTranslateJob) return { ok: false, busy: true, error: 'Sayfa çevirisi zaten çalışıyor.' };
+  const excludedIds = browserPageExcludedIds(session);
+  const blocks = [...session.failures.values()].map((failure) => failure.block)
+    .filter((block) => block && !excludedIds.has(block.id));
   if (!blocks.length) return { ok: false, error: 'Yeniden denenebilir metin bloğu yok.' };
   return runBrowserPageTranslationBlocks(tab, blocks, session, { retry: true });
 });
@@ -9633,22 +9979,29 @@ ipcMain.handle('browser:page:export', async (event, request) => {
   const tab = activeRequestedBrowserTab(request?.tabId);
   const session = tab?.pageTranslateSession;
   if (!tab || !session?.translations?.size) return { ok: false, error: 'Dışa aktarılacak sayfa çevirisi yok.' };
-  const format = ['txt', 'md', 'html'].includes(request?.format) ? request.format : 'txt';
-  const rows = [...session.blocks.values()].filter((block) => session.translations.has(block.id))
-    .map((block) => ({ source: block.text, translation: session.translations.get(block.id) }));
-  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[char]);
-  const content = format === 'html'
-    ? `<!doctype html><meta charset="utf-8"><title>${escapeHtml(browserExportTitle(tab))}</title><main>${rows.map((row) => `<section><p>${escapeHtml(row.source)}</p><p lang="${escapeHtml(session.config.targetLanguage)}"><strong>${escapeHtml(row.translation)}</strong></p></section>`).join('\n')}</main>`
-    : rows.map((row) => format === 'md' ? `${row.source}\n\n> ${row.translation}` : `${row.source}\n${row.translation}`).join('\n\n');
+  const format = ['txt', 'md', 'html', 'json'].includes(request?.format) ? request.format : 'txt';
+  const snapshot = {
+    format, url: browserPageUrl(tab), title: browserExportTitle(tab),
+    targetLanguage: session.config.targetLanguage, sourceLanguage: session.config.sourceLanguage,
+    scope: session.scope, mode: session.mode, blocks: [...session.blocks.values()].map((block) => ({ ...block })),
+    translations: new Map(session.translations), failures: new Map(session.failures),
+    excludedIds: browserPageExcludedIds(session), manualEditIds: new Set(session.manualEditIds || []),
+  };
+  const document = buildPageTranslationExport(snapshot);
   const selection = await dialog.showSaveDialog(mainWindow, {
     title: 'Sayfa çevirisini dışa aktar',
     defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}-ceviri.${format}`),
     filters: [{ name: format.toUpperCase(), extensions: [format] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
-  try { fs.writeFileSync(selection.filePath, content, 'utf8'); return { ok: true, path: selection.filePath }; }
+  const selectedExtension = path.extname(selection.filePath).toLowerCase();
+  const expectedExtension = `.${document.extension}`;
+  const outputPath = selectedExtension === expectedExtension ? selection.filePath
+    : ['.txt', '.md', '.html', '.json'].includes(selectedExtension)
+      ? `${selection.filePath.slice(0, -selectedExtension.length)}${expectedExtension}`
+      : `${selection.filePath}${expectedExtension}`;
+  try { writeSubtitleAtomic(outputPath, document.text); return { ok: true, path: outputPath,
+    complete: document.complete, counts: document.counts }; }
   catch (error) { return { ok: false, error: error.message }; }
 });
 
@@ -9719,10 +10072,15 @@ ipcMain.handle('browser:network:setOnline', (event, online) => {
   browserNetworkOnline = online !== false;
   let retried = 0;
   for (const tab of browserTabs.values()) {
-    for (const scheduler of [tab.translationScheduler, tab.pageTranslateJob?.scheduler]) {
-      if (!scheduler) continue;
-      scheduler.setPaused(!browserNetworkOnline);
-      if (browserNetworkOnline) retried += scheduler.retryFailed();
+    if (tab.translationScheduler) {
+      tab.translationScheduler.setPaused(!browserNetworkOnline);
+      if (browserNetworkOnline) retried += tab.translationScheduler.retryFailed();
+    }
+    const pageScheduler = tab.pageTranslateJob?.scheduler;
+    if (pageScheduler) {
+      const userPaused = tab.pageTranslateSession?.userPaused === true;
+      pageScheduler.setPaused(!browserNetworkOnline || userPaused);
+      if (browserNetworkOnline) retried += pageScheduler.retryFailed();
     }
   }
   return { ok: true, online: browserNetworkOnline, retried };
@@ -11694,6 +12052,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const jobId = String(options.jobId || `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
   const lifecycle = createProcessTerminalLatch(jobId);
   activeJobLatch = lifecycle;
+  activeTranscriptionJobId = jobId;
   const sendJobEvent = (event) => sendEvent({ ...event, jobId });
 
   activeJob.stdout.setEncoding('utf-8');
@@ -11810,6 +12169,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     // Gec kalan eski bir close, YENI baslamis isin durumunu temizlemesin.
     if (activeJob === job) activeJob = null;
     if (activeJob === null) activeQueueItemId = null;
+    if (activeTranscriptionJobId === jobId) activeTranscriptionJobId = null;
     if (activeJobLatch === lifecycle) activeJobLatch = null;
     if (activeJobCancel && activeJob === null) activeJobCancel = null;
     // Terminal olay hic gelmediyse (iptal/cokme) yarim cikti islemi geri alinir.

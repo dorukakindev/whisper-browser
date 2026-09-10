@@ -37,6 +37,13 @@ function canonicalPageUrl(raw) {
   } catch (_) { return ''; }
 }
 
+function canonicalPageSite(raw) {
+  const canonical = canonicalPageUrl(raw);
+  if (!canonical) return '';
+  try { return new URL(canonical).origin; }
+  catch (_) { return ''; }
+}
+
 function safeName(value, fallback) {
   const normalized = String(value || '').normalize('NFKC')
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, ' ')
@@ -70,6 +77,58 @@ function normalizePageRows(blocks, translations) {
         order: Math.max(0, Number.isFinite(Number(block?.order)) ? Math.trunc(Number(block.order)) : order),
       };
     }).filter(Boolean).sort((left, right) => left.order - right.order);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+}
+
+function buildPageTranslationExport(raw = {}) {
+  const format = ['txt', 'md', 'html', 'json'].includes(raw.format) ? raw.format : 'txt';
+  const blocks = (Array.isArray(raw.blocks) ? raw.blocks : [...(raw.blocks?.values?.() || [])])
+    .map((block, index) => ({ ...block,
+      id: String(block?.id || '').slice(0, 240),
+      text: normalizeText(block?.text).slice(0, 12000),
+      order: Number.isFinite(Number(block?.order)) ? Math.max(0, Math.trunc(Number(block.order))) : index,
+      section: normalizeText(block?.section || 'Genel').slice(0, 160) || 'Genel',
+    })).filter((block) => block.id && block.text).sort((left, right) => left.order - right.order);
+  const failures = raw.failures instanceof Map ? raw.failures : new Map(Object.entries(raw.failures || {}));
+  const excludedIds = raw.excludedIds instanceof Set ? raw.excludedIds : new Set(raw.excludedIds || []);
+  const manualEditIds = raw.manualEditIds instanceof Set ? raw.manualEditIds : new Set(raw.manualEditIds || []);
+  const rows = blocks.map((block) => {
+    const translation = normalizeText(translationFor(raw.translations, block.id)).slice(0, 12000);
+    const status = excludedIds.has(block.id) ? 'excluded' : translation ? 'translated'
+      : failures.has(block.id) ? 'failed' : 'pending';
+    return { id: block.id, source: block.text, translation, section: block.section,
+      tag: String(block.tag || '').slice(0, 24), role: String(block.role || '').slice(0, 48),
+      status, manualEdit: manualEditIds.has(block.id), order: block.order };
+  });
+  const translatedRows = rows.filter((row) => row.status === 'translated');
+  const counts = { total: rows.length, translated: translatedRows.length,
+    failed: rows.filter((row) => row.status === 'failed').length,
+    excluded: rows.filter((row) => row.status === 'excluded').length,
+    pending: rows.filter((row) => row.status === 'pending').length };
+  const complete = counts.failed === 0 && counts.pending === 0;
+  const title = normalizeText(raw.title || 'Sayfa çevirisi').slice(0, 300) || 'Sayfa çevirisi';
+  const url = canonicalPageUrl(raw.url);
+  const targetLanguage = languageCode(raw.targetLanguage);
+  const notice = complete ? '' : `KISMİ ÇEVİRİ: ${counts.translated}/${counts.total} blok çevrildi; ${counts.failed} başarısız, ${counts.pending} bekliyor, ${counts.excluded} dışlandı.`;
+  let text;
+  if (format === 'json') {
+    text = `${JSON.stringify({ version: 1, title, url, targetLanguage,
+      sourceLanguage: languageCode(raw.sourceLanguage, ''), scope: raw.scope || 'article',
+      mode: raw.mode === 'replace' ? 'replace' : 'bilingual', complete, counts, blocks: rows }, null, 2)}\n`;
+  } else if (format === 'html') {
+    const warning = notice ? `<p class="partial"><strong>${escapeHtml(notice)}</strong></p>` : '';
+    text = `<!doctype html>\n<html lang="${escapeHtml(targetLanguage)}"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body><main><h1>${escapeHtml(title)}</h1>${warning}\n${translatedRows.map((row) => `<section data-status="${row.status}"><h2>${escapeHtml(row.section)}</h2><p class="source">${escapeHtml(row.source)}</p><p class="translation" lang="${escapeHtml(targetLanguage)}">${escapeHtml(row.translation)}</p></section>`).join('\n')}\n</main></body></html>\n`;
+  } else if (format === 'md') {
+    text = `# ${title}\n\n${notice ? `> **${notice}**\n\n` : ''}${translatedRows.map((row) => `## ${row.section}\n\n${row.source}\n\n> ${row.translation}`).join('\n\n')}\n`;
+  } else {
+    text = `${notice ? `${notice}\n\n` : ''}${translatedRows.map((row) => `${row.source}\n${row.translation}`).join('\n\n')}${translatedRows.length ? '\n' : ''}`;
+  }
+  return { format, extension: format, text, complete, counts };
 }
 
 function pageRowKey(row) {
@@ -182,6 +241,8 @@ class BrowserTranslationArchive {
       originalUrl: url, title, targetLanguage,
       sourceLanguage: languageCode(raw.sourceLanguage, ''), model: String(raw.model || '').slice(0, 160),
       mode: raw.mode === 'replace' ? 'replace' : 'bilingual', scope, complete: raw.complete === true,
+      excludedSections: [...new Set((Array.isArray(raw.excludedSections) ? raw.excludedSections : [])
+        .map((value) => normalizeText(value).slice(0, 160)).filter(Boolean))].slice(0, 80),
       createdAt: Number(raw.createdAt) || now, updatedAt: now, rows };
     const contentDigest = hash(JSON.stringify(rows), 16);
     const stem = `${title}-${targetLanguage}-${id.slice(-10)}-${contentDigest}`;
@@ -200,6 +261,17 @@ class BrowserTranslationArchive {
     const targetLanguage = languageCode(rawTargetLanguage);
     return !!url && this._readIndex().entries.some((entry) =>
       entry.kind === 'page' && entry.url === url && entry.targetLanguage === targetLanguage);
+  }
+
+  listPages(raw = {}) {
+    const url = raw.url ? canonicalPageUrl(raw.url) : '';
+    const targetLanguage = raw.targetLanguage ? languageCode(raw.targetLanguage) : '';
+    const limit = Math.max(1, Math.min(100, Math.trunc(Number(raw.limit) || 20)));
+    return this._readIndex().entries
+      .filter((entry) => entry.kind === 'page' && (!url || entry.url === url)
+        && (!targetLanguage || entry.targetLanguage === targetLanguage))
+      .sort((left, right) => Number(right.updatedAt) - Number(left.updatedAt))
+      .slice(0, limit).map((entry) => ({ ...entry }));
   }
 
   findPage(raw = {}) {
@@ -255,5 +327,5 @@ class BrowserTranslationArchive {
   }
 }
 
-module.exports = { ARCHIVE_VERSION, BrowserTranslationArchive, canonicalPageUrl,
-  matchArchivedPage, normalizePageRows };
+module.exports = { ARCHIVE_VERSION, BrowserTranslationArchive, canonicalPageUrl, canonicalPageSite,
+  buildPageTranslationExport, matchArchivedPage, normalizePageRows };

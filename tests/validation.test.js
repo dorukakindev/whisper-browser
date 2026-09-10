@@ -337,12 +337,7 @@ t('AI işi ve oynatıcı kapanışı görünür durumu temizler', () => {
 });
 
 // ---------------------------------------------------------------- decodeSubtitleBuffer
-const dStart = msrc.indexOf('function decodeSubtitleBuffer(');
-const dEnd = msrc.indexOf("ipcMain.handle('media:readSubtitle'");
-ok(dStart >= 0 && dEnd > dStart, 'decodeSubtitleBuffer bulunamadi');
-const cpStart = msrc.indexOf('const CP1254_FIXUP');
-const decodeSubtitleBuffer = new Function(
-  'Buffer', msrc.slice(cpStart, dEnd) + '; return decodeSubtitleBuffer;')(Buffer);
+const { decodeSubtitleBuffer } = require('../src/browser-textutil');
 
 t('cp1254 altyazi dogru cozulur (kaydirma yolu icin)', () => {
   const tr = 'Çocuk güzel şeyler öğrendi.';

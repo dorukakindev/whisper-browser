@@ -79,6 +79,8 @@ test('çok alt etiketli BCP 47 dili kabul eder; traversal ve uzun etiketi redded
   assert.equal(accepted.ok, true);
   assert.equal(accepted.profile.targetLanguage, 'zh-hant-tw');
   assert.equal(withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage', 'en-../../secret').ok, false);
+  assert.equal(withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage', 'tr-9x').ok, false);
+  assert.equal(withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage', 'es-419').ok, true);
   assert.equal(withBrowserSiteProfileField({}, 'https://language.test', 'targetLanguage',
     'en-abcdefgh-abcdefgh-abcdefgh-extra').ok, false);
 });

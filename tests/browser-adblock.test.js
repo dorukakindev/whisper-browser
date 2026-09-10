@@ -96,6 +96,34 @@ class FakeEngine extends EventEmitter {
     assert.equal(disabled.changed, true);
     assert.equal(lastEngine.enabledSessions.has(session), false);
 
+    let concurrentEnables = 0;
+    let releaseEnable;
+    let signalEnableEntered;
+    const enableEntered = new Promise((resolve) => { signalEnableEntered = resolve; });
+    class SlowEngine extends FakeEngine {
+      enableBlockingInSession(target) {
+        concurrentEnables += 1;
+        super.enableBlockingInSession(target);
+      }
+    }
+    const slowController = createBrowserAdblock({
+      cachePath: path.join(tempRoot, 'slow.bin'),
+      blockerClass: class SlowBlocker {
+        static async fromPrebuiltAdsOnly() {
+          signalEnableEntered();
+          await new Promise((resolve) => { releaseEnable = resolve; });
+          return new SlowEngine('slow');
+        }
+      },
+      fetchImpl: async () => ({ ok: true }),
+    });
+    const readinessA = slowController.setEnabled(session, true);
+    const readinessB = slowController.waitUntilReady();
+    await enableEntered;
+    releaseEnable();
+    await Promise.all([readinessA, readinessB]);
+    assert.equal(concurrentEnables, 1, 'eşzamanlı hazırlık tek etkinleştirme paylaşmalı');
+
     const failedController = createBrowserAdblock({
       cachePath: path.join(tempRoot, 'missing', 'engine.bin'),
       blockerClass: class BrokenBlocker {

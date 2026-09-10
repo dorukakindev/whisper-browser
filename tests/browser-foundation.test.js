@@ -18,6 +18,7 @@ const {
   BROWSER_SESSION_VERSION,
   normalizeBrowserSession,
   readBrowserSession,
+  readBrowserSessionWithStatus,
   writeBrowserSessionAtomic,
 } = require('../src/browser-session-store');
 const { createBuiltinAdapterRegistry } = require('../src/browser-adapter-registry');
@@ -212,13 +213,50 @@ test('bozuk ana oturum dosyasında sağlam yedek kullanılır', () => {
   }
 });
 
+test('ana ve yedek oturum birlikte bozuksa kullanıcı uyarısı üretilir', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-session-damaged-'));
+  const file = path.join(dir, 'browser-session.json');
+  try {
+    fs.writeFileSync(file, '{bozuk', 'utf8');
+    fs.writeFileSync(`${file}.bak`, '[]', 'utf8');
+    const loaded = readBrowserSessionWithStatus(file);
+    assert.equal(loaded.session.tabs.length, 0);
+    assert.match(loaded.warning, /ana dosya ve yedek kullanılabilir değil/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('kısmen bozuk oturumdaki düşürülen sekmeler kullanıcıya bildirilir', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-session-partial-'));
+  const file = path.join(dir, 'browser-session.json');
+  try {
+    fs.writeFileSync(file, JSON.stringify({ tabs: [
+      { id: 'ok', url: 'https://example.test/read' },
+      { id: 'bad', url: 'javascript:alert(1)' },
+    ] }), 'utf8');
+    const loaded = readBrowserSessionWithStatus(file);
+    assert.equal(loaded.session.tabs.length, 1);
+    assert.equal(loaded.droppedTabs, 1);
+    assert.match(loaded.warning, /1 sekme/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('ana süreç oturumu açılışta geri yükler ve kapanmadan önce yazar', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   assert.match(main, /restoreBrowserSessionState\(\);\s*\r?\n\s*createWindow\(\)/);
   assert.match(main, /persistBrowserSessionNow\(\);[\s\S]*cookies\.flushStore/);
   assert.match(main, /ipcMain\.handle\('browser:session:updateTab'/);
+  assert.match(main, /sessionWarning, \.\.\.browserNavigationState\(\)/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8'),
+    /if \(result\.sessionWarning &&[\s\S]{0,220}setBrowserSignal\(result\.sessionWarning/);
   assert.match(preload, /updateBrowserSessionTab/);
+  const updateTab = main.slice(main.indexOf("ipcMain.handle('browser:session:updateTab'"),
+    main.indexOf("ipcMain.handle('browser:resources:snapshot'"));
+  assert.match(updateTab, /const liveUrl = wc[\s\S]*url: liveUrl \|\| raw\?\.url \|\| tab\.restoredUrl/);
 });
 
 test('renderer sekme sınırını sandbox uyumlu preload köprüsünden alır', () => {

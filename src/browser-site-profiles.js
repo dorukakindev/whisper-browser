@@ -35,7 +35,14 @@ function normalizeProfileValue(field, value) {
   if (rule.type === 'string') {
     const text = String(value == null ? '' : value).trim().toLowerCase();
     if (text.length > rule.max) return undefined;
-    return text === '' || /^[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,3}$/i.test(text) ? text : undefined;
+    if (text === '') return text;
+    try {
+      // Intl.Locale dil, script, bölge ve varyant alt etiketlerini BCP 47
+      // dilbilgisine göre doğrular; "tr-9x" gibi geniş regex kaçaklarını reddeder.
+      return new Intl.Locale(text).baseName.toLowerCase();
+    } catch (_) {
+      return undefined;
+    }
   }
   if (rule.type === 'enum') return rule.values.includes(value) ? value : undefined;
   if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return undefined;
@@ -106,9 +113,49 @@ function withoutBrowserSiteProfile(rawProfiles, rawUrl) {
   return { ok: true, origin, profiles };
 }
 
-function resolveEffectiveBrowserSettings({ defaults = {}, general = {}, profile = {}, tab = {} } = {}) {
+function browserPathKey(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || ''));
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) return '';
+    const pathname = parsed.pathname.replace(/\/{2,}/g, '/').replace(/\/$/, '') || '/';
+    return parsed.origin.toLowerCase() + pathname;
+  } catch (_) { return ''; }
+}
+
+function normalizeBrowserPathProfiles(raw) {
+  const profiles = {};
+  for (const [rawKey, rawProfile] of Object.entries(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {})) {
+    const key = browserPathKey(rawKey);
+    const profile = normalizeBrowserSiteProfile(rawProfile);
+    if (!key || key.endsWith('/') || !Object.keys(profile).length || profiles[key]) continue;
+    profiles[key] = profile;
+    if (Object.keys(profiles).length >= MAX_BROWSER_SITE_PROFILES) break;
+  }
+  return profiles;
+}
+
+function withBrowserPathProfileField(rawProfiles, rawUrl, field, rawValue) {
+  const profiles = normalizeBrowserPathProfiles(rawProfiles);
+  const key = browserPathKey(rawUrl);
+  if (!key || key.endsWith('/') || !PROFILE_FIELDS[field]) return { ok: false, reason: 'invalid', key, profiles };
+  const current = { ...(profiles[key] || {}) };
+  if (rawValue === undefined || rawValue === null) delete current[field];
+  else { const value = normalizeProfileValue(field, rawValue); if (value === undefined) return { ok: false, reason: 'invalid', key, profiles }; current[field] = value; }
+  if (Object.keys(current).length) profiles[key] = current; else delete profiles[key];
+  return { ok: true, key, profile: current, profiles };
+}
+
+function withoutBrowserPathProfile(rawProfiles, rawUrl) {
+  const profiles = normalizeBrowserPathProfiles(rawProfiles);
+  const key = browserPathKey(rawUrl);
+  if (!key || key.endsWith('/')) return { ok: false, key, profiles };
+  delete profiles[key];
+  return { ok: true, key, profiles };
+}
+
+function resolveEffectiveBrowserSettings({ defaults = {}, general = {}, profile = {}, pathProfile = {}, tab = {} } = {}) {
   const layers = [['default', defaults], ['general', general],
-    ['site', normalizeBrowserSiteProfile(profile)], ['tab', normalizeBrowserSiteProfile(tab)]];
+    ['site', normalizeBrowserSiteProfile(profile)], ['path', normalizeBrowserSiteProfile(pathProfile)], ['tab', normalizeBrowserSiteProfile(tab)]];
   const values = {};
   const sources = {};
   for (const field of Object.keys(PROFILE_FIELDS)) {
@@ -127,7 +174,11 @@ const browserSiteProfilesApi = {
   MAX_BROWSER_SITE_PROFILES,
   PROFILE_FIELDS,
   browserSiteOrigin,
+  browserPathKey,
   normalizeBrowserSiteProfile,
+  normalizeBrowserPathProfiles,
+  withBrowserPathProfileField,
+  withoutBrowserPathProfile,
   normalizeBrowserSiteProfiles,
   resolveEffectiveBrowserSettings,
   withBrowserSiteProfileField,

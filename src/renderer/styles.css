@@ -4741,11 +4741,19 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-page-terms-label { display: grid; gap: 5px; }
 .browser-page-terms-label small { color: var(--text-muted); font-weight: 400; }
 .browser-page-terms-label textarea { width: 100%; min-height: 64px; resize: vertical; padding: 7px 8px; color: var(--text-primary); border: 1px solid var(--border); border-radius: 7px; background: var(--bg-2); font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
-.browser-page-section-progress, .browser-page-failures { display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
-.browser-page-section-progress > strong, .browser-page-failures > strong { color: var(--ink-primary); }
+.browser-page-section-progress, .browser-page-failures, .browser-page-terminology,
+.browser-page-layout-warnings, .browser-page-history, .browser-page-preview-panel { display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+.browser-page-section-progress > strong, .browser-page-failures > strong, .browser-page-terminology > strong,
+.browser-page-layout-warnings > strong, .browser-page-history > strong, .browser-page-preview-panel > strong { color: var(--ink-primary); }
+.browser-page-preview-panel { margin-top: 4px; padding: 7px; border-left: 2px solid var(--accent); background: var(--bg-2); }
+.browser-page-terminology > div, .browser-page-layout-warnings > div, .browser-page-history > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); }
+.browser-page-terminology code { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-primary); }
+.browser-page-terminology button { flex: 0 0 auto; border: 0; border-radius: 5px; padding: 3px 6px; color: var(--accent); background: transparent; cursor: pointer; }
+.browser-page-layout-warnings > div { align-items: flex-start; flex-direction: column; border-left: 2px solid var(--amber); }
+.browser-page-layout-warnings small, .browser-page-history small { color: var(--text-muted); }
 .browser-page-completion { display: flex; flex-wrap: wrap; gap: 3px 8px; padding: 6px 7px; border-left: 2px solid var(--accent); background: var(--bg-2); color: var(--ink-primary); font-variant-numeric: tabular-nums; }
 .browser-page-completion small { flex-basis: 100%; color: var(--amber); }
-.browser-page-section-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 4px 6px; border: 1px solid transparent; border-radius: 6px; }
+.browser-page-section-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 7px; padding: 4px 6px; border: 1px solid transparent; border-radius: 6px; }
 .browser-page-section-row:hover { border-color: var(--border); background: var(--bg-2); }
 .browser-page-section-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-page-section-row output { color: var(--player-amber); font-variant-numeric: tabular-nums; }

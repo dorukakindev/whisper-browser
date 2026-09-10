@@ -1,5 +1,6 @@
 const assert = require('assert');
-const { createTerminologyMap, learnTerminology, seedTerminology, terminologyPrompt } = require('../src/browser-terminology');
+const { createTerminologyMap, learnTerminology, seedTerminology, terminologyPrompt,
+  terminologySuggestions } = require('../src/browser-terminology');
 
 (() => {
   const map = createTerminologyMap({ maxTerms: 2, maxChars: 80 });
@@ -7,6 +8,8 @@ const { createTerminologyMap, learnTerminology, seedTerminology, terminologyProm
   assert.equal(learnTerminology(map, 'Captain Mira', 'Kaptan Mira', '2', 1), 1);
   assert.match(terminologyPrompt(map), /Captain Mira/);
   assert.deepEqual(map.terms.get('captain mira').cueIds, ['1', '2']);
+  assert.deepEqual(terminologySuggestions(map), [{ source: 'Captain Mira', target: 'Kaptan Mira', count: 2 }]);
+  assert.deepEqual(terminologySuggestions(map, ['Captain Mira=Kaptan Mira']), []);
 
   const inferred = createTerminologyMap();
   learnTerminology(inferred, 'The cat sat by Winterfell.', 'Kedi Kışyarı yanında oturdu.', '1');

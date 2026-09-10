@@ -22,6 +22,9 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   scheduler.completeAll();
   await tick();
   assert.equal(scheduler.snapshot().completed, 1);
+  assert.deepEqual(scheduler.recoverySummary(), {
+    total: 2, completed: 1, queued: 0, pending: 1, failed: 0, retryableFailures: 0,
+  });
   scheduler.reconcileSentences(assembleCueSentences([first, pending, cue('c', 'New.', 4)]));
   await tick();
   assert.equal(waiting.get('pending').signal.aborted, false, 'değişmeyen uçuşan istek iptal edildi');
@@ -59,6 +62,9 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   failed.setSentences(failedSentences);
   failed.completeAll();
   await failed.whenIdle();
+  assert.deepEqual(failed.recoverySummary(), {
+    total: 1, completed: 0, queued: 0, pending: 0, failed: 1, retryableFailures: 0,
+  });
   failed.reconcileSentences(failedSentences);
   await failed.whenIdle();
   assert.equal(failures, 1, 'aynı kaynak terminal hatayı tekrar tekrar denedi');
@@ -78,5 +84,21 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   assert.equal(tab.translationResults.has('old'), false);
   assert.equal(tab.translationResults.size, 1);
   assert.equal(context.startBrowserTranslation(tab, [first], { trackId: 'wrong', refresh: true }).ok, false);
+
+  const recoveryContext = { Map, Date, Number, Array };
+  vm.createContext(recoveryContext);
+  vm.runInContext(main.slice(main.indexOf('function browserRecoveryJobsForTab('),
+    main.indexOf('function browserTabSnapshot(')), recoveryContext);
+  const recovery = recoveryContext.browserRecoveryJobsForTab({
+    id: 'tab-1', mediaId: 'site:video', translationTrackId: 'track-1', recoveryJobs: [],
+    translationScheduler: {
+      recoverySummary: () => ({ total: 8, completed: 3, queued: 2, pending: 1,
+        failed: 1, retryableFailures: 1 }),
+      snapshot: () => { throw new Error('Kurtarma özeti tam sonuç snapshotı almamalı.'); },
+    },
+  });
+  assert.equal(recovery.length, 1);
+  assert.deepEqual({ completed: recovery[0].completed, total: recovery[0].total, failed: recovery[0].failed },
+    { completed: 3, total: 8, failed: 1 });
   console.log('Browser translation refresh: incremental requests, timing changes, stale results, failure budget and main reuse passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

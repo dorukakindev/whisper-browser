@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { decodeSubtitleBuffer: decodeSubtitleBufferWithMetadata } = require('./browser-textutil');
 
 const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(caption|captions|subtitle|subtitles|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3|altyazi|altyazilar|sous-titres?|untertitel|subtitulos?|legendas?|sottotitoli)(?:[\/?&_.=-]|$)/i;
 
@@ -1140,31 +1141,7 @@ function parseMp4WebVtt(buffer, matcher = {}) {
 }
 
 function decodeSubtitleBuffer(value) {
-  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value || '');
-  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
-    return buffer.subarray(2).toString('utf16le');
-  }
-  if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
-    const bodyLength = (buffer.length - 2) & ~1;
-    const swapped = Buffer.alloc(bodyLength);
-    for (let index = 2; index < 2 + bodyLength; index += 2) {
-      swapped[index - 2] = buffer[index + 1];
-      swapped[index - 1] = buffer[index];
-    }
-    return swapped.toString('utf16le');
-  }
-  const utf8 = buffer.toString('utf8').replace(/^\uFEFF/, '');
-  if (!utf8.includes('\uFFFD')) return utf8;
-  // Ağdan yakalanan eski Türkçe SRT/VTT dosyaları hâlâ Windows-1254 olabilir.
-  // Buffer#toString('latin1') 0x80-0x9f aralığını yanlış eşlediği için standart
-  // TextDecoder kullan; desteklenmeyen eski Node sürümünde sınırlı harf
-  // eşlemesiyle güvenli bir geri dönüş yap.
-  try {
-    return new TextDecoder('windows-1254', { fatal: false }).decode(buffer).replace(/^\uFEFF/, '');
-  } catch (_) {
-    const cp1254 = { 0xd0: 'Ğ', 0xdd: 'İ', 0xde: 'Ş', 0xf0: 'ğ', 0xfd: 'ı', 0xfe: 'ş' };
-    return [...buffer].map((byte) => cp1254[byte] || String.fromCharCode(byte)).join('');
-  }
+  return decodeSubtitleBufferWithMetadata(value).text;
 }
 
 function parseSubtitlePayload(body, mimeType = '', url = '', timing = {}) {

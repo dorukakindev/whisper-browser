@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node tests/run-all.js"
+    "test": "node tests/run-all.js",
+    "test:electron-bridge": "electron tests/electron-browser-trusted-bridge.smoke.js --disable-gpu"
   },
   "author": "Whisper Altyazı",
   "license": "MIT",

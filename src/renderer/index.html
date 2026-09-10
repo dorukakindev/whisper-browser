@@ -1141,7 +1141,10 @@
                   <label class="browser-page-quick-field"><span>Karakter sınırı</span><select id="browserPageBudget"><option value="0">Sınırsız</option><option value="50000">50 bin</option><option value="100000">100 bin</option><option value="200000">200 bin</option></select></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserPageQuickAuto" /><span>Bu sitede otomatik çevir</span></label>
                   <button class="browser-page-auto-continue" id="browserPageAutoContinue" type="button">Otomatik devamı durdur</button>
+                  <button class="browser-page-auto-continue" id="browserPagePause" type="button">Çeviriyi duraklat</button>
+                  <button class="browser-page-auto-continue" id="browserPagePreview" type="button">Önizlemeyi göster</button>
                   <small id="browserPageQuickProgress" class="browser-page-quick-progress" aria-live="polite"></small>
+                  <div id="browserPagePreviewPanel" class="browser-page-preview-panel" hidden></div>
                 </div>
               </details>
               <button class="browser-manga-button browser-action-source" id="browserMangaTranslate" type="button"
@@ -1394,7 +1397,7 @@
                     <label><span>Altyazı otomasyonu</span><select id="browserSubtitleAutomation"><option value="off">Kapalı</option><option value="ask">Önce sor</option><option value="auto">Otomatik çevir</option></select></label>
                     <label><span>Çeviri sonrası görünüm</span><select id="browserPreferredSubtitleMode"><option value="translation">Yalnız çeviri</option><option value="both">Kaynak + çeviri</option><option value="source">Yalnız kaynak</option><option value="off">Kapalı</option></select></label>
                   </div>
-                  <label class="browser-profile-scope-control">Ayar kapsamı <select id="browserProfileScope"><option value="general">Genel ayarlar</option><option value="site">Bu site</option><option value="tab">Yalnız bu sekme</option></select></label>
+                  <label class="browser-profile-scope-control">Ayar kapsamı <select id="browserProfileScope"><option value="general">Genel ayarlar</option><option value="site">Bu site</option><option value="path">Bu sayfa yolu</option><option value="tab">Yalnız bu sekme</option></select></label>
                   <p id="browserProfileOrigin" class="browser-session-status"></p>
                   <div id="browserProfileFields"></div>
                   <button type="button" class="btn btn-ghost btn-sm" id="browserProfileReset">Bu sitenin özelleştirmelerini sıfırla</button>
@@ -1436,13 +1439,18 @@
                     <div class="browser-settings-section-head"><strong id="browserPageToolsTitle">Sayfa çevirisi kontrolü</strong><span>Terimleri sabitle, bölümleri dışarıda bırak ve sonucu izle.</span></div>
                     <label class="browser-page-terms-label"><span>Kilitli terimler <small>(her satır: kaynak=Türkçe karşılık)</small></span>
                       <textarea id="browserPageLockedTerms" rows="3" maxlength="2400" placeholder="ör. playback=oynatma"></textarea></label>
-                    <label class="browser-page-terms-label"><span>Dışlanacak seçiciler <small>(her satır: ör. .comments, .ads)</small></span>
+                  <label class="browser-page-terms-label"><span>Dışlanacak seçiciler <small>(her satır: ör. .comments, .ads)</small></span>
                       <textarea id="browserPageExcludedSelectors" rows="2" maxlength="7200" placeholder=".comments&#10;.recommendations"></textarea></label>
+                    <label class="browser-page-terms-label"><span>Sayfa karakter bütçesi</span>
+                      <select id="browserPageSettingsBudget"><option value="0">Sınırsız</option><option value="50000">50 bin</option><option value="100000">100 bin</option><option value="200000">200 bin</option></select></label>
                     <div class="browser-view-actions">
                       <button class="btn btn-ghost btn-sm" id="browserPageSaveTerms" type="button">Terimleri kilitle</button>
                       <button class="btn btn-ghost btn-sm" id="browserPageUndo" type="button" disabled>Çeviriyi geri al</button>
                     </div>
                     <div id="browserPageSectionProgress" class="browser-page-section-progress" aria-live="polite"></div>
+                    <div id="browserPageTerminology" class="browser-page-terminology" aria-live="polite"></div>
+                    <div id="browserPageLayoutWarnings" class="browser-page-layout-warnings" aria-live="polite"></div>
+                    <div id="browserPageHistory" class="browser-page-history" aria-live="polite"></div>
                     <div id="browserPageFailures" class="browser-page-failures" role="status" aria-live="polite"></div>
                   </div>
                   <label><span>Manga hedefi</span><select id="browserMangaTarget">
@@ -1479,6 +1487,7 @@
                 </div>
                 <div class="browser-view-actions" data-browser-settings-kind="live">
                   <button class="btn btn-ghost btn-sm" id="browserPageRetryFailed" type="button" disabled>Sayfa hatalarını yeniden dene</button>
+                  <label class="browser-page-export-format"><span>Dışa aktarma</span><select id="browserPageExportFormat"><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option><option value="json">JSON</option></select></label>
                   <button class="btn btn-ghost btn-sm" id="browserPageExport" type="button">Sayfa çevirisini dışa aktar</button>
                   <button class="btn btn-ghost btn-sm" id="browserTranslationArchiveOpen" type="button">Çeviri arşivini aç</button>
                   <button class="btn btn-ghost btn-sm" id="browserPageClear" type="button">Sayfa çevirisini kaldır</button>

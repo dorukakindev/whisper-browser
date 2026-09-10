@@ -8,7 +8,7 @@ Object.defineProperty(globalThis, '__whisperTrustedBridgeSend', {
   enumerable: false,
   writable: false,
   value(type, payload) {
-    if (!['manga-edit', 'overlay-style', 'page-blocks', 'reading-position'].includes(type)) return false;
+    if (!['manga-edit', 'overlay-style', 'page-blocks', 'page-action', 'reading-position'].includes(type)) return false;
     ipcRenderer.send('browser:trusted-bridge', { type, payload });
     return true;
   },

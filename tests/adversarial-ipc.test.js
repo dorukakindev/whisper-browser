@@ -11,6 +11,7 @@ const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle'
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
 const { createNdjsonLineBuffer } = require('../src/ndjson-lines');
 const { buildSecretEnv } = require('../src/settings-security');
+const { decodeSubtitleBuffer } = require('../src/browser-textutil');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const handlers = new Map();
 for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
@@ -89,10 +90,10 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       fs.writeFileSync(file, original);
       const access = new SubtitleFileAccess(); access.grant(file);
       const context = vm.createContext({ fs, path, Buffer, MAX_SUBTITLE_BYTES,
+        decodeSubtitleBuffer,
         authorizedBrowserSender: auth, subtitleFileAccess: access,
         dialog: { showMessageBox: async () => ({ response: 0 }) }, mainWindow: {} });
       const snippets = [
-        main.slice(main.indexOf('const CP1254_FIXUP'), main.indexOf("ipcMain.handle('media:readSubtitle'")),
         main.slice(main.indexOf('function backupOnce'), main.indexOf('function queueStatePath')),
         main.slice(main.indexOf('function shiftTimecodes'), main.indexOf("ipcMain.handle('subs:shift'")),
         main.slice(main.indexOf('async function authorizeSubtitleFile'), main.indexOf("\nipcMain.on('browser:trusted-bridge'")),

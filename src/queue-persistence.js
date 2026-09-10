@@ -94,10 +94,11 @@ function mergeQueueSnapshotForSave(diskRaw, incomingRaw, activeQueueItemId = nul
   for (const item of incoming.items) {
     if (!protectedIds.has(item.id)) continue;
     const authoritative = diskById.get(item.id);
-    if (!authoritative || !TERMINAL_STATUS.has(authoritative.status)
-        || TERMINAL_STATUS.has(item.status)) continue;
-    // Ana süreç terminal olayı diske yazdıktan sonra gecikmiş renderer
-    // snapshot'ı hâlâ "running" olabilir. Yalnız terminal alanlarını koru;
+    const protectedStatus = authoritative
+      && (TERMINAL_STATUS.has(authoritative.status) || authoritative.status === 'pending');
+    if (!protectedStatus) continue;
+    // Ana süreç terminal/iptal sonucunu diske yazdıktan sonra gecikmiş renderer
+    // snapshot'ı hâlâ "running" veya başka bir sonuç taşıyabilir. Yalnız sonuç alanlarını koru;
     // kullanıcının diğer kuyruk düzenlemelerini kaybetme.
     item.status = authoritative.status;
     item.files = authoritative.files.slice();
@@ -200,6 +201,11 @@ function updateQueueSnapshotTerminal(raw, queueItemId, event) {
     item.warnings = Array.isArray(event.warnings)
       ? event.warnings.filter((value) => typeof value === 'string').map((value) => value.slice(0, 2000)).slice(0, 100)
       : [];
+  } else if (event?.type === 'exit' && event?.cancelled) {
+    // Kullanıcı iptalinde iş yeniden denenebilir kalır; uygulama kapanıp
+    // renderer olayı alamasa bile disk snapshot'ı sahte bir hata taşımaz.
+    if (item.status === 'running') item.status = 'pending';
+    item.error = '';
   } else if (event?.type === 'error' || event?.type === 'exit') {
     if (item.status === 'running') item.status = 'error';
     const fallback = event?.type === 'exit' && event?.code

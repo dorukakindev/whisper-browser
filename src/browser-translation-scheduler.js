@@ -449,6 +449,21 @@ class BrowserTranslationScheduler {
     return new Promise((resolve) => this.idleWaiters.push(resolve));
   }
 
+  recoverySummary() {
+    let retryableFailures = 0;
+    for (const failure of this.failures.values()) {
+      if (!failure?.terminal) retryableFailures++;
+    }
+    return {
+      total: this.sentences.length,
+      completed: this.results.size,
+      queued: this.queue.length,
+      pending: this.pending.size,
+      failed: this.failures.size,
+      retryableFailures,
+    };
+  }
+
   snapshot() {
     return {
       playhead: this.playhead,

@@ -66,6 +66,14 @@ async function test(name, fn) {
     };
     context.globalThis = context;
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/browser-preload.js'), 'utf8'), context);
+    assert.equal(context.__whisperTrustedBridgeSend('page-action', {
+      action: 'retry', id: 'block-1', bridgeToken: 'test-token',
+    }), true);
+    assert.equal(sent.some((entry) => entry.channel === 'browser:trusted-bridge'
+      && entry.payload.type === 'page-action' && entry.payload.payload.action === 'retry'), true);
+    const trustedCount = sent.filter((entry) => entry.channel === 'browser:trusted-bridge').length;
+    assert.equal(context.__whisperTrustedBridgeSend('unknown-action', {}), false);
+    assert.equal(sent.filter((entry) => entry.channel === 'browser:trusted-bridge').length, trustedCount);
     video.readyState = 1;
     video.emit('loadedmetadata');
     textTracks.push(track);

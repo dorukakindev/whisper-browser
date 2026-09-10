@@ -36,6 +36,7 @@ const bundle = createBrowserSessionPackage({
 assert.equal(bundle.kind, BROWSER_SESSION_PACKAGE_KIND);
 assert.match(bundle.checksum, /^sha256:[a-f0-9]{64}$/);
 assert.equal(bundle.payload.session.version, BROWSER_SESSION_VERSION);
+assert.equal(bundle.payload.session.splitSecondaryTabId, '', 'aktif olmayan sekme yoksa split ikincilisi temizlenir');
 assert.equal(bundle.payload.session.tabs[0].pinned, true);
 assert.equal(bundle.payload.session.tabs[0].recoveryJobs.length, 1);
 assert.equal(bundle.payload.session.tabs[0].subtitleSyncRecords[0].scale, 1.002);

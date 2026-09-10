@@ -38,6 +38,8 @@ assert(watched.evidence.every((row) => row.baslangic <= 35.75));
 const full = buildTranscriptEvidence(cues, 'Tüm videoyu özetle', { scope: 'full', position: 5 });
 assert.equal(full.coverage, 'distributed');
 assert(full.evidence.some((row) => row.baslangic > 35.75));
+const turkishStopwords = buildTranscriptEvidence(cues, 'aslında çok şey diye', { scope: 'full', position: 5 });
+assert.deepEqual(turkishStopwords.queryTerms, ['sey']);
 
 assert.deepEqual(normalizeResearchTags(' mitoloji,  Dil ,mitoloji '), ['mitoloji', 'Dil']);
 assert.deepEqual(normalizeResearchLinks(['javascript:alert(1)', 'https://example.com/x']),

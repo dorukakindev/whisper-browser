@@ -130,5 +130,19 @@ function terminologyPrompt(map) {
   return rows.map((row) => `${clean(row.source, 80)}${row.target ? `=${clean(row.target, 120)}` : ''}`).join(' | ');
 }
 
+function terminologySuggestions(map, lockedTerms = []) {
+  if (!map || !(map.terms instanceof Map)) return [];
+  const locked = new Set((Array.isArray(lockedTerms) ? lockedTerms : [])
+    .map((value) => clean(value, 260).split('=')[0].normalize('NFC').toLocaleLowerCase('tr-TR'))
+    .filter(Boolean));
+  return [...map.terms.values()]
+    .filter((row) => row && row.source && row.target && row.count >= map.minOccurrences
+      && !locked.has(clean(row.source).normalize('NFC').toLocaleLowerCase('tr-TR')))
+    .sort((left, right) => right.count - left.count || left.source.localeCompare(right.source))
+    .slice(0, map.maxTerms)
+    .map((row) => ({ source: clean(row.source, 80), target: clean(row.target, 120),
+      count: Math.max(0, Math.trunc(Number(row.count) || 0)) }));
+}
+
 module.exports = { createTerminologyMap, learnTerminology, seedTerminology,
-  terminologyPrompt, trimTerminologyMap };
+  terminologyPrompt, terminologySuggestions, trimTerminologyMap };

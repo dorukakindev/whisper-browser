@@ -8,6 +8,8 @@ const vm = require('vm');
 const {
   BrowserTranslationArchive,
   canonicalPageUrl,
+  canonicalPageSite,
+  buildPageTranslationExport,
   matchArchivedPage,
 } = require('../src/browser-translation-archive');
 
@@ -18,11 +20,13 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
   assert.equal(canonicalPageUrl('https://user:pass@example.com/yazi?id=7&token=gizli&X-Amz-Signature=imza'),
     'https://example.com/yazi?id=7');
   assert.equal(canonicalPageUrl('file:///private.txt'), '');
+  assert.equal(canonicalPageSite('https://example.com/yazi?id=7'), 'https://example.com');
 
   const archive = new BrowserTranslationArchive(root);
   const page = archive.savePage({
     url: 'https://example.com/yazi?utm_source=test', title: 'Örnek: Yazı',
     targetLanguage: 'tr', mode: 'bilingual', scope: 'article', complete: true,
+    excludedSections: ['Yorumlar'],
     blocks: [
       { id: 'old-a', text: 'Hello world.', tag: 'p', role: '', section: 'Giriş', order: 0 },
       { id: 'old-b', text: 'Read more', tag: 'a', role: 'link', section: 'Giriş', order: 1 },
@@ -38,6 +42,30 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
   assert(fs.existsSync(page.path));
   assert(fs.existsSync(path.join(root, 'index.json')));
   assert.match(fs.readFileSync(page.path, 'utf8'), /Merhaba dünya/);
+  assert.equal(archive.listPages({ url: 'https://example.com/yazi#x' }).length, 1);
+  assert.equal(archive.listPages({ url: 'https://example.com/başka' }).length, 0);
+
+  const exportData = {
+    title: '<Örnek>', url: 'https://example.com/yazi?token=gizli', targetLanguage: 'tr',
+    blocks: [
+      { id: 'a', text: 'Hello <world>.', section: 'Giriş', order: 2 },
+      { id: 'b', text: 'Pending', section: 'Son', order: 3 },
+      { id: 'first', text: 'First', section: 'Giriş', order: 1 },
+    ], translations: new Map([['a', 'Merhaba & dünya.'], ['first', 'İlk']]),
+    manualEditIds: new Set(['a']), failures: new Map([['b', { error: 'x' }]]), excludedIds: new Set(['first']),
+  };
+  const jsonExport = buildPageTranslationExport({ ...exportData, format: 'json' });
+  const parsedExport = JSON.parse(jsonExport.text);
+  assert.deepEqual(parsedExport.blocks.map((row) => row.id), ['first', 'a', 'b']);
+  assert.equal(parsedExport.blocks.find((row) => row.id === 'a').manualEdit, true);
+  assert.equal(parsedExport.blocks.find((row) => row.id === 'b').status, 'failed');
+  assert.equal(parsedExport.blocks.find((row) => row.id === 'first').status, 'excluded');
+  assert.equal(parsedExport.counts.translated, 1);
+  assert.equal(parsedExport.complete, false);
+  assert.match(buildPageTranslationExport({ ...exportData, format: 'txt' }).text, /KISMİ ÇEVİRİ/);
+  const htmlExport = buildPageTranslationExport({ ...exportData, format: 'html' }).text;
+  assert.match(htmlExport, /&lt;Örnek&gt;/); assert.match(htmlExport, /Merhaba &amp; dünya/);
+  assert.doesNotMatch(htmlExport, /<world>/);
 
   const restored = archive.findPage({
     url: 'https://example.com/yazi/', targetLanguage: 'tr',
@@ -48,6 +76,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
     ],
   });
   assert(restored);
+  assert.deepEqual(restored.record.excludedSections, ['Yorumlar']);
   assert.equal(restored.exact, true);
   assert.deepEqual(restored.matches.map((row) => [row.id, row.translation]), [
     ['new-a', 'Merhaba dünya.'], ['new-b', 'Devamını oku'], ['new-c', 'Daha fazlası'],
@@ -93,7 +122,9 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
     loadSettings: () => ({ ui: { browserPageTarget: 'tr' } }),
     browserTranslationArchive: () => ({
       hasPage: () => true,
-      findPage: () => ({ path: 'arşiv.md', record: { mode: 'bilingual', scope: 'article' },
+      findPage: () => ({ path: 'arşiv.md', record: {
+        mode: 'bilingual', scope: 'article', excludedSections: ['Yorumlar'],
+      },
         matches: [{ id: 'live-a', translation: 'Merhaba dünya.', source: 'Hello world.' },
           { id: 'live-b', translation: 'Devamını oku', source: 'Read more' }] }),
     }),
@@ -108,11 +139,15 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
     normalizePageBlocks: (blocks) => blocks,
     browserPageTranslationConfig: (options) => ({ ...options, sourceLanguage: '', model: 'yerel-test' }),
     createTerminologyMap: () => ({}),
+    terminologySuggestions: () => [],
+    browserPageMemoryVersion: () => 'test-memory-v2',
+    browserPageExcludedIds: () => new Set(),
+    browserPageTerminologySuggestions: () => [],
     sendBrowserEvent: (_tab, event) => events.push(event),
     setTimeout, clearTimeout, Map, Set, Number, String, Math, Promise,
   };
   vm.createContext(integration);
-  const helpers = main.slice(main.indexOf('function pageTranslationSectionProgress('),
+  const helpers = main.slice(main.indexOf('function browserPageUrl('),
     main.indexOf('async function runBrowserPageTranslationBlocks('));
   vm.runInContext(helpers, integration);
   const tab = { generation: 4, restoredUrl: 'https://example.com/yazi', restoredTitle: 'Yazı',
@@ -121,6 +156,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
   const loaded = await integration.restoreArchivedBrowserPageTranslation(tab);
   assert.equal(loaded.restored, true);
   assert.equal(tab.pageTranslated, 2);
+  assert.deepEqual(tab.pageTranslateSession.excludedSections, ['Yorumlar']);
   assert.equal(tab.pageTranslateSession.translations.get('live-b'), 'Devamını oku');
   assert.deepEqual(applied[0].translations.map((row) => row.id), ['live-a', 'live-b']);
   assert.equal(events.at(-1).message, 'Kayıtlı sayfa çevirisi arşivden yüklendi; yeniden çeviri yapılmadı.');

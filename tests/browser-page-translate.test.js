@@ -10,6 +10,7 @@ const {
   pageContextScript,
   pageContextRevealScript,
   pageApplyScript,
+  pageActionResultScript,
   pageRestoreScript,
   pageMemoryClearScript,
   pageVisibilityScript,
@@ -20,6 +21,7 @@ const {
   planPageTranslationBatches,
   pageBlockCacheKey,
   pageTranslationMemoryKey,
+  pagePreviewSummary,
   pageBlockLooksIncomplete,
   buildPageTranslationUnits,
   pageTranslationRequest,
@@ -78,6 +80,21 @@ assert.equal(pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'tr', model:
   pageTranslationMemoryKey({ ...cacheBlock, id: 'başka-id' }, { targetLanguage: 'TR', model: 'x' }));
 assert.notEqual(pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
   pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'de', model: 'x' }));
+assert.notEqual(pageTranslationMemoryKey({ ...cacheBlock, tag: 'a', section: 'Menü' }, { targetLanguage: 'tr', model: 'x' }),
+  pageTranslationMemoryKey({ ...cacheBlock, tag: 'p', section: 'Gövde' }, { targetLanguage: 'tr', model: 'x' }));
+
+const preview = pagePreviewSummary([
+  { id: 'far', text: 'Uzak blok metni', top: 900, bottom: 950, order: 0, section: 'Gövde' },
+  { id: 'visible', text: 'Görünen blok metni', top: 10, bottom: 30, order: 1, section: 'Gövde' },
+  { id: 'memory', text: 'Bellekte olan blok', top: 50, bottom: 80, order: 2, section: 'Gövde' },
+  { id: 'excluded', text: 'Dışlanan bölüm', top: 100, bottom: 120, order: 3, section: 'Yorumlar' },
+], { viewportTop: 0, viewportBottom: 500, excludedSections: ['Yorumlar'], memoryIds: new Set(['memory']),
+  characterBudget: 30, apiCharactersUsed: 12 });
+assert.equal(preview.apiBlocks, 1, 'önizleme kalan bütçede görünür bloğu öncelemeli');
+assert.equal(preview.pendingBlocks, 1);
+assert.equal(preview.memoryBlocks, 1);
+assert.equal(preview.excludedBlocks, 1);
+assert.equal(preview.apiCharactersUsed, 12);
 
 const ordered = Array.from({ length: 12 }, (_, order) => ({
   id: `ordered-${order}`, text: order === 5 ? 'Unfinished thought' : `Complete block ${order}.`,
@@ -123,6 +140,7 @@ const scripts = [
   pageContextScript(),
   pageContextRevealScript(hostile),
   pageApplyScript({ mode: 'bilingual', translations: [{ id: hostile, translation: hostile }] }),
+  pageActionResultScript({ id: hostile, ok: true }),
   pageRestoreScript(),
   pageMemoryClearScript(),
   pageVisibilityScript(true),
@@ -152,6 +170,20 @@ assert.match(pageApplyScript({ targetLanguage: 'tr' }), /sessionStorage/);
 assert.match(pageMemoryClearScript(), /removeItem/);
 assert.match(pageApplyScript({}), /hideTools/);
 assert.match(pageApplyScript({}), /pointerout/);
+assert.match(pageApplyScript({}), /whisperPendingId/);
+
+const retryButton = {
+  disabled: true,
+  textContent: 'Yeniden deneniyor…',
+  dataset: { whisperPendingId: 'retry-id' },
+};
+const retryState = { tools: { querySelector: () => retryButton } };
+assert.equal(vm.runInNewContext(pageActionResultScript({ id: 'retry-id', ok: true }), {
+  window: { __whisperPageTranslateState: retryState }, String,
+}), true);
+assert.equal(retryButton.disabled, false);
+assert.equal(retryButton.textContent, 'Yeniden çevir');
+assert.equal(retryButton.dataset.whisperPendingId, undefined);
 
 let emitted = 0;
 const viewState = {
@@ -209,6 +241,35 @@ assert.equal(scanResult.blocks[0].text, 'Merhaba dünya.');
 assert.deepEqual([...scanResult.blocks[0].nodes], [8, 5, 1]);
 assert.equal(scanResult.blocks[0].tag, 'p');
 assert.equal(scanResult.blocks[0].role, 'article');
+
+const previewWindow = {};
+const previewScan = vm.runInNewContext(pageBlockScanScript({ preview: true, observe: false }), {
+  window: previewWindow, document: fakeDocument, NodeFilter: { SHOW_TEXT: 4 }, innerHeight: 600,
+  getComputedStyle: (element) => ({ display: element.display }), Map, Set, WeakMap, Math, Number, String,
+});
+assert.equal(previewScan.blocks.length, 1);
+assert.equal(previewWindow.__whisperPageTranslateState, undefined,
+  'önizleme kalıcı tarama durumu oluşturmamalı');
+
+const excludedWindow = {};
+const excludedContext = {
+  window: excludedWindow, document: fakeDocument, NodeFilter: { SHOW_TEXT: 4 }, innerHeight: 600,
+  getComputedStyle: (element) => ({ display: element.display }), Map, Set, WeakMap, Math, Number, String,
+};
+const excludedScan = vm.runInNewContext(pageBlockScanScript({
+  observe: false, excludedSections: ['Genel'],
+}), excludedContext);
+assert.equal(excludedScan.blocks.length, 0, 'dışlanan bölüm DOM taramasından çıkmalı');
+assert.equal(excludedScan.stats.found, 0, 'dışlanan bölüm keşif sayısına girmemeli');
+assert.equal(excludedWindow.__whisperPageTranslateState.knownIds.size, 0,
+  'dışlanan bölüm yeniden dahil edildiğinde keşfedilebilmek için knownIds içine yazılmamalı');
+assert.equal(excludedWindow.__whisperPageTranslateState.emittedCharacters, 0,
+  'dışlanan bölüm tarama karakter bütçesini tüketmemeli');
+const reIncludedScan = vm.runInContext(pageBlockScanScript({
+  observe: false, excludedSections: [],
+}), vm.createContext(excludedContext));
+assert.equal(reIncludedScan.blocks.length, 1,
+  'dışlama kaldırılınca daha önce bütçeye alınmamış bölüm keşfedilmeli');
 
 const sourceElement = {
   tagName: 'P', textContent: 'Kaynak paragraf metni.', isConnected: true, style: {},

@@ -3,11 +3,12 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.BrowserTranscriptSearch = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  const STOP = new Set('acaba ama ancak aslinda ben bir bu cok da de daha diye en gibi icin ile ise mi mu ne nasil neden o olan olarak sen su ve veya ya'.split(' '));
   function fold(value) {
     return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
       .toLocaleLowerCase('tr-TR').replace(/[^a-z0-9çğıöşü]+/gi, ' ').trim();
   }
+  const STOP = new Set('acaba ama ancak aslında ben bir bu çok da de daha diye en gibi için ile ise mi mu ne nasıl neden o olan olarak sen şu ve veya ya'
+    .split(' ').map(fold));
   function tokens(value) {
     return [...new Set(fold(value).split(/\s+/).filter((token) => token.length > 1 && !STOP.has(token)))].slice(0, 40);
   }
@@ -27,7 +28,9 @@
     })).filter((cue) => cue.text || cue.translation).slice(0, 50000);
   }
   function wholeTranscriptIntent(question) {
-    return /\b(ozet|özet|tamam[iı]|butun|bütün|genel|ana fikir|konu|arguman|argüman|tum|tüm)\b/iu.test(String(question || ''));
+    const query = ` ${fold(question)} `;
+    return ['ozet', 'özet', 'tamamı', 'butun', 'bütün', 'genel', 'ana fikir', 'konu', 'arguman',
+      'argüman', 'tum', 'tüm'].some((intent) => query.includes(` ${intent} `));
   }
   function buildTranscriptEvidence(cues, question, options = {}) {
     const rows = normalizedRows(cues);

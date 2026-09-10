@@ -55,6 +55,11 @@ function normalizeRecoveryJob(raw) {
     kind,
     trackId: cleanIdentifier(raw.trackId, 180),
     mediaId: cleanString(raw.mediaId, 240),
+    workspaceId: cleanIdentifier(raw.workspaceId, 128),
+    tabId: cleanIdentifier(raw.tabId, 128),
+    generation: finiteNumber(raw.generation, 0, 0),
+    sourceHash: cleanString(raw.sourceHash, 128),
+    operationId: cleanIdentifier(raw.operationId, 180),
     state: ['interrupted', 'queued', 'retryable'].includes(raw.state) ? raw.state : 'interrupted',
     completed: finiteNumber(raw.completed, 0, 0, 20000),
     total: finiteNumber(raw.total, 0, 0, 20000),
@@ -250,16 +255,43 @@ function browserSessionPath(app) {
   return path.join(app.getPath('userData'), 'browser-session.json');
 }
 
-function readBrowserSession(filePath, fsModule = fs) {
+function readBrowserSessionWithStatus(filePath, fsModule = fs) {
+  let damaged = false;
   for (const candidate of [filePath, `${filePath}.bak`]) {
     try {
       const parsed = JSON.parse(fsModule.readFileSync(candidate, 'utf8'));
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.tabs)) continue;
-      if (parsed.tabs.length && !parsed.tabs.some((tab) => normalizeSessionTab(tab))) continue;
-      return normalizeBrowserSession(parsed);
-    } catch (_) {}
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.tabs)) {
+        damaged = true;
+        continue;
+      }
+      if (parsed.tabs.length && !parsed.tabs.some((tab) => normalizeSessionTab(tab))) {
+        damaged = true;
+        continue;
+      }
+      const session = normalizeBrowserSession(parsed);
+      const droppedTabs = Math.max(0, parsed.tabs.length - session.tabs.length);
+      return {
+        session,
+        droppedTabs,
+        warning: droppedTabs
+          ? `Tarayıcı oturumundaki ${droppedTabs} sekme geçersiz olduğu veya ${MAX_SESSION_TABS} sekme sınırını aştığı için kurtarılamadı.`
+          : '',
+      };
+    } catch (error) {
+      if (error?.code !== 'ENOENT') damaged = true;
+    }
   }
-  return normalizeBrowserSession({});
+  return {
+    session: normalizeBrowserSession({}),
+    droppedTabs: 0,
+    warning: damaged
+      ? 'Tarayıcı oturumu okunamadı; ana dosya ve yedek kullanılabilir değil. Eski sekmeler kurtarılamadı.'
+      : '',
+  };
+}
+
+function readBrowserSession(filePath, fsModule = fs) {
+  return readBrowserSessionWithStatus(filePath, fsModule).session;
 }
 
 function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs) {
@@ -297,5 +329,6 @@ module.exports = {
   normalizeBrowserSession,
   normalizeSessionTab,
   readBrowserSession,
+  readBrowserSessionWithStatus,
   writeBrowserSessionAtomic,
 };
