@@ -35,9 +35,9 @@ const {
 } = require('../src/browser-subtitles');
 
 let passed = 0;
+const tests = [];
 function test(name, fn) {
-  try { fn(); passed++; console.log(`  OK  ${name}`); }
-  catch (err) { console.error(`  FAIL ${name}\n${err.stack}`); process.exitCode = 1; }
+  tests.push({ name, fn });
 }
 
 test('WebVTT satırlarını ve HTML etiketlerini ayrıştırır', () => {
@@ -711,7 +711,7 @@ test('Tarayıcı geri/ileri durumu yeni Electron API ve eski API ile güvenli ok
   assert.deepEqual(unavailable, { canGoBack: false, canGoForward: false });
 });
 
-test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', () => {
+test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', async () => {
   const root = path.join(__dirname, '..', 'src');
   const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   const overlayController = fs.readFileSync(path.join(root, 'browser-overlay-controller.js'), 'utf8');
@@ -733,8 +733,13 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /app\.commandLine\.appendSwitch\('disable-quic'\)/);
   assert.match(main, /partition: BROWSER_PARTITION/);
   assert.match(main, /BROWSER_PARTITION = 'persist:whisper-browser'/);
-  assert.match(main, /browserSession\.flushStorageData\(\)/);
-  assert.match(main, /browserSession\.cookies\.flushStore\(\)/);
+  const shutdownCalls = [];
+  await require('../src/browser-session-privacy').shutdownBrowserSession({
+    closeAllConnections: async () => shutdownCalls.push('close'),
+    flushStorageData: () => shutdownCalls.push('storage'),
+    cookies: { flushStore: async () => shutdownCalls.push('cookies') },
+  });
+  assert.deepEqual(shutdownCalls, ['close', 'storage', 'cookies']);
   assert.match(main, /await flushBrowserSession\(\)/);
   assert.match(main, /nodeIntegration: false/);
   assert.match(main, /contextIsolation: true/);
@@ -807,8 +812,27 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browser:places:clearHistory/);
   assert.match(main, /browser:cookies:clearSite/);
   assert.match(main, /browser:cookies:clearAll/);
-  assert.match(main, /clearStorageData\(\{ storages: \['cookies'\] \}\)/);
-  assert.match(main, /browserCookieMatchesHost/);
+  const { clearAllBrowserCookies } = require('../src/browser-session-privacy');
+  let valuesRead = false;
+  const maintenance = [];
+  const cleared = await clearAllBrowserCookies({
+    closeAllConnections: async () => maintenance.push('close'),
+    clearData: async options => maintenance.push(['clear', options]),
+    cookies: {
+      get: async () => { valuesRead = true; return []; },
+      flushStore: async () => maintenance.push('flush'),
+    },
+  });
+  assert.equal(cleared.ok, true);
+  assert.equal(valuesRead, false);
+  assert.deepEqual(maintenance, [
+    'close',
+    ['clear', { dataTypes: ['cookies'] }],
+    'flush',
+  ]);
+  assert.match(main, /clearAllBrowserCookiesInSession\(browserSession\)/);
+  assert.match(main, /trackBrowserSessionMutation/);
+  assert.match(main, /shutdownPersistentBrowserSession/);
   assert.match(main, /browser:session:reset/);
   assert.match(main, /mergeBrowserStreamCues\(previous, normalized, 20000\)/);
   assert.match(main, /browser:subtitle:export/);
@@ -908,4 +932,16 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(coreLock, /^castlabs-evs==1\.3\.2$/m, 'DRM EVS bağımlılığı kilit dosyasında eksik');
 });
 
-if (!process.exitCode) console.log(`\n${passed} tarayıcı altyazısı testi geçti.`);
+(async () => {
+  for (const { name, fn } of tests) {
+    try {
+      await fn();
+      passed++;
+      console.log(`  OK  ${name}`);
+    } catch (err) {
+      console.error(`  FAIL ${name}\n${err.stack}`);
+      process.exitCode = 1;
+    }
+  }
+  if (!process.exitCode) console.log(`\n${passed} tarayıcı altyazısı testi geçti.`);
+})();

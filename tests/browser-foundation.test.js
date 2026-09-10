@@ -24,14 +24,9 @@ const {
 const { createBuiltinAdapterRegistry } = require('../src/browser-adapter-registry');
 
 let passed = 0;
+const tests = [];
 function test(name, fn) {
-  try {
-    fn();
-    passed++;
-  } catch (error) {
-    error.message = `${name}: ${error.message}`;
-    throw error;
-  }
+  tests.push({ name, fn });
 }
 
 test('hassas ve takip parametreleri kanonik URL’den çıkarılır', () => {
@@ -244,11 +239,24 @@ test('kısmen bozuk oturumdaki düşürülen sekmeler kullanıcıya bildirilir',
   }
 });
 
-test('ana süreç oturumu açılışta geri yükler ve kapanmadan önce yazar', () => {
+test('ana süreç oturumu açılışta geri yükler ve kapanmadan önce yazar', async () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   assert.match(main, /restoreBrowserSessionState\(\);\s*\r?\n\s*createWindow\(\)/);
-  assert.match(main, /persistBrowserSessionNow\(\);[\s\S]*cookies\.flushStore/);
+  const calls = [];
+  await require('../src/browser-session-privacy').shutdownBrowserSession({
+    closeAllConnections: async () => calls.push('close'),
+    flushStorageData: () => calls.push('storage'),
+    cookies: { flushStore: async () => calls.push('cookies') },
+  });
+  assert.deepEqual(calls, ['close', 'storage', 'cookies']);
+  const close = main.slice(main.indexOf("mainWindow.on('close'"),
+    main.indexOf("mainWindow.on('closed'"));
+  assert.match(close, /await flushBrowserSession\(\)/);
+  const flush = main.slice(main.indexOf('async function flushBrowserSession'),
+    main.indexOf('async function shutdownPersistentBrowserSession'));
+  assert.match(flush, /persistBrowserSessionNow\(\)/);
+  assert.match(close, /destroyBrowserView\(\)[\s\S]*await shutdownPersistentBrowserSession\(mainWindow\)/);
   assert.match(main, /ipcMain\.handle\('browser:session:updateTab'/);
   assert.match(main, /sessionWarning, \.\.\.browserNavigationState\(\)/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8'),
@@ -296,4 +304,18 @@ test('renderer yenilenince süren web çevirisine ana süreç snapshotından yen
   assert.match(renderer, /void restoreBrowserTranslationSnapshot\(tab\)/);
 });
 
-console.log(`browser-foundation: ${passed} test`);
+(async () => {
+  for (const { name, fn } of tests) {
+    try {
+      await fn();
+      passed++;
+    } catch (error) {
+      error.message = `${name}: ${error.message}`;
+      throw error;
+    }
+  }
+  console.log(`browser-foundation: ${passed} test`);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

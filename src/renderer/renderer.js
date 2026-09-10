@@ -9152,12 +9152,14 @@ async function clearBrowserCookieScope(scope) {
     return;
   }
   setBrowserPlacesOpen(false);
-  const count = Number(result.removed) || 0;
+  const countKnown = result.removed !== null && result.removed !== undefined
+    && Number.isFinite(Number(result.removed));
+  const count = countKnown ? Number(result.removed) : 0;
   const failed = Number(result.failed) || 0;
   const suffix = failed ? ` ${failed} veri öğesi temizlenemedi.` : '';
   setBrowserSignal(isSite
-    ? `${result.host || 'Bu site'} verileri temizlendi (${count} çerez). Sayfa yenileniyor.${suffix}`
-    : `Tüm web çerezleri temizlendi (${count}). Sayfa yenileniyor.${suffix}`,
+    ? `${result.host || 'Bu site'} verileri temizlendi${countKnown ? ` (${count} çerez)` : ''}. Sayfa yenileniyor.${suffix}`
+    : `Tüm web çerezleri temizlendi${countKnown ? ` (${count})` : ''}. Sayfa yenileniyor.${suffix}`,
   true);
 }
 if ($('browserSiteCookiesClear')) $('browserSiteCookiesClear').addEventListener('click', () => clearBrowserCookieScope('site'));

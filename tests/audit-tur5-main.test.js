@@ -207,13 +207,14 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   const events = [];
   const queue = work => { const result = chain.then(work); chain = result.catch(() => {}); return result; };
   const reset = handler('browser:session:reset', { authorizedBrowserSender: () => true,
-    queueBrowserTabTransition: queue, browserSessionSaveTimer: 10, clearTimeout: () => events.push('clear-timer'),
-    destroyBrowserView: () => events.push('destroy'), session: { fromPartition: () => ({
-      clearStorageData: () => new Promise(resolve => { finishStorage = resolve; }),
-      clearCache: async () => {}, clearAuthCache: async () => {},
-    }) }, BROWSER_PARTITION: 'synthetic', browserSessionPath: () => 'test', app: {},
-    browserSessionRestoreEnabled: true, browserPlacesSnapshot: () => ({}),
-    writeBrowserSessionAtomic: () => { events.push('write-empty'); return { ok: true }; } });
+    queueBrowserTabTransition: queue, mainWindowClosing: false,
+    browserSessionMutationPromise: null, browserSessionResetPromise: null,
+    resetPersistentBrowserSession: async () => {
+      events.push('destroy');
+      await new Promise(resolve => { finishStorage = resolve; });
+      events.push('write-empty');
+      return { ok: true };
+    } });
   const resetting = reset.run({});
   const create = queue(() => events.push('create-tab'));
   await turn(); assert(!events.includes('create-tab'));
@@ -224,16 +225,20 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   let finishClear, oldReload = 0, newReload = 0;
   const oldView = { webContents: { isDestroyed: () => false, getURL: () => 'https://a.test/watch', reload: () => oldReload++ } };
   const cookies = handler('browser:cookies:clearSite', { authorizedBrowserSender: () => true, URL,
+    mainWindowClosing: false, browserSessionMutationPromise: null,
     browserView: oldView, clearBrowserSiteData: () => new Promise(resolve => { finishClear = resolve; }) });
   const clearing = cookies.run({}, 'https://a.test/watch');
   cookies.browserView = { webContents: { isDestroyed: () => false, getURL: () => 'https://b.test/', reload: () => newReload++ } };
   finishClear({ ok: true }); await clearing;
   assert.equal(oldReload, 1); assert.equal(newReload, 0);
 
-  const partial = fn('clearBrowserSiteData', { URL, console, BROWSER_PARTITION: 'test',
-    session: { fromPartition: () => ({ cookies: { get: async () => [], flushStore: async () => { throw Error('flush'); } },
-      clearStorageData: async () => {} }) } });
-  const partialResult = await partial('https://a.test');
+  const { clearBrowserSiteData } = require('../src/browser-session-privacy');
+  const partialResult = await clearBrowserSiteData({
+    closeAllConnections: async () => {},
+    clearData: async () => {},
+    clearStorageData: async () => { throw Error('cache-storage'); },
+    cookies: { get: async () => { throw Error('values-read'); }, flushStore: async () => {} },
+  }, 'https://a.test');
   assert.equal(partialResult.ok, false); assert.equal(partialResult.partial, true);
 
   // Bounded edit history does not delete old records and never prevents saving

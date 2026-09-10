@@ -10,7 +10,8 @@ const renderer = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js
 const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
 
 let passed = 0;
-function test(name, fn) { fn(); passed++; console.log(`  ok - ${name}`); }
+const tests = [];
+function test(name, fn) { tests.push({ name, fn }); }
 
 test('sabit sekme bilgisi oturum kaydinda korunur', () => {
   const tab = normalizeSessionTab({ id: 'tab-1', url: 'https://example.com/watch/1', pinned: true });
@@ -34,12 +35,28 @@ test('sertifika hatasi kesin reddedilir ve Turkce hata yuzeyine gider', () => {
   assert.match(renderer, /event\.type === 'load-error' \|\| event\.type === 'security-error'/);
 });
 
-test('site temizligi origin ile sinirli ve genel cache temizligi yapmiyor', () => {
-  const start = main.indexOf('async function clearBrowserSiteData');
-  const end = main.indexOf('async function clearAllBrowserCookies', start);
-  const body = main.slice(start, end);
-  assert.match(body, /clearStorageData\(\{ origin: parsed\.origin \}\)/);
-  assert.doesNotMatch(body, /await browserSession\.clearCache\(/);
+test('site temizligi origin ile sinirli ve genel cache temizligi yapmiyor', async () => {
+  const { clearBrowserSiteData } = require('../src/browser-session-privacy');
+  const calls = [];
+  const result = await clearBrowserSiteData({
+    closeAllConnections: async () => calls.push('close'),
+    clearData: async options => calls.push(['data', options]),
+    clearStorageData: async options => calls.push(['storage', options]),
+    clearCache: async () => calls.push('global-cache'),
+    cookies: {
+      get: async () => { throw new Error('Çerez değerleri okunmamalı'); },
+      flushStore: async () => calls.push('flush'),
+    },
+  }, 'https://user:secret@example.test/path?token=secret#secret');
+  assert.equal(result.ok, true);
+  assert.equal(result.origin, 'https://example.test');
+  assert.deepEqual(calls[1][1].origins, ['https://example.test']);
+  assert.deepEqual(calls[2][1], {
+    origin: 'https://example.test',
+    storages: ['cachestorage'],
+  });
+  assert.equal(calls.includes('global-cache'), false);
+  assert.equal(JSON.stringify({ result, calls }).includes('secret'), false);
   assert.match(html, /Bu sitenin verilerini temizle/);
 });
 
@@ -55,4 +72,16 @@ test('pinleme ve aktif is kapatma korumasi main ve renderer boyunca tasinir', ()
   assert.match(renderer, /Sekme korumalı/);
 });
 
-console.log(`browser-safety-controls: ${passed} test`);
+(async () => {
+  for (const { name, fn } of tests) {
+    try {
+      await fn();
+      passed++;
+      console.log(`  ok - ${name}`);
+    } catch (error) {
+      console.error(`  fail - ${name}\n${error.stack}`);
+      process.exitCode = 1;
+    }
+  }
+  if (!process.exitCode) console.log(`browser-safety-controls: ${passed} test`);
+})();

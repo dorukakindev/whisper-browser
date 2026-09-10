@@ -123,17 +123,21 @@ function extract(start, end, deps = {}) {
   assert.equal(events.at(-1).type, 'notice');
   assert.equal(events.at(-1).success, false);
 
+  const { clearBrowserSiteData } = require('../src/browser-session-privacy');
   for (const fail of [false, true]) {
     let origin;
-    const clear = extract('async function clearBrowserSiteData(', 'async function clearAllBrowserCookies', {
-      BROWSER_PARTITION: 'test', browserCookieMatchesHost: () => true, browserCookieUrl: () => 'https://example.test/',
-      session: { fromPartition: () => ({
-        cookies: { async get() { return [{ name: 'test' }]; }, async remove() {}, async flushStore() {} },
-        async clearStorageData(options) { origin = options.origin; if (fail) throw new Error('disk'); },
-      }) },
-    });
-    const result = await clear.clearBrowserSiteData('https://example.test/page');
+    let valuesRead = false;
+    const result = await clearBrowserSiteData({
+      closeAllConnections: async () => {},
+      clearData: async options => { origin = options.origins[0]; },
+      clearStorageData: async () => { if (fail) throw new Error('disk'); },
+      cookies: {
+        get: async () => { valuesRead = true; return []; },
+        flushStore: async () => {},
+      },
+    }, 'https://example.test/page');
     assert.equal(origin, 'https://example.test');
+    assert.equal(valuesRead, false);
     assert.equal(result.ok, !fail);
     if (fail) { assert.equal(result.partial, true); assert(result.error); }
   }

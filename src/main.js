@@ -79,6 +79,13 @@ const {
   sanitizeBrowserUserAgent,
 } = require('./browser-drm');
 const {
+  clearAllBrowserCookies: clearAllBrowserCookiesInSession,
+  clearBrowserSiteData: clearBrowserSiteDataInSession,
+  destroyBrowserSessionWindows,
+  resetBrowserSessionData,
+  shutdownBrowserSession,
+} = require('./browser-session-privacy');
+const {
   browserCloudflareChallengeProbeScript,
   browserCompatibilityEnabledForUrl,
   browserCompatibilityHost,
@@ -358,6 +365,8 @@ let browserTabSequence = 0;
 let browserTabTransitionPromise = Promise.resolve();
 let browserSessionSaveTimer = null;
 let browserSessionLastWriteAt = 0;
+let browserSessionResetPromise = null;
+let browserSessionMutationPromise = null;
 // Pencere kapanırken sekmeler görünüm yok edilmeden önce diske yazılır. Electron
 // daha sonra before-quit yaydığında boşaltılmış Map'i ikinci kez yazıp sağlam
 // oturum dosyasını ezmemelidir.
@@ -2435,13 +2444,6 @@ function browserPlacesSnapshot() {
   return readBrowserPlaces();
 }
 
-function browserCookieUrl(cookie) {
-  const domain = String(cookie && cookie.domain || '').replace(/^\.+/, '');
-  const protocol = cookie && cookie.secure ? 'https' : 'http';
-  const cookiePath = String(cookie && cookie.path || '/');
-  return `${protocol}://${domain}${cookiePath.startsWith('/') ? cookiePath : `/${cookiePath}`}`;
-}
-
 // SponsorBlock durumu tarayici yer imi/gecmis deposundan bagimsizdir.
 const sponsorBlockCache = new SponsorBlockCache();
 const sponsorBlockInFlight = new Map();
@@ -2449,49 +2451,71 @@ const SPONSORBLOCK_HOST = 'sponsor.ajay.app';
 const MAX_SPONSORBLOCK_BYTES = 2 * 1024 * 1024;
 
 
-function browserCookieMatchesHost(cookie, host) {
-  const domain = String(cookie && cookie.domain || '').replace(/^\.+/, '').toLowerCase();
-  const normalizedHost = String(host || '').toLowerCase();
-  return !!domain && !!normalizedHost && (domain === normalizedHost || normalizedHost.endsWith(`.${domain}`));
+function trackBrowserSessionMutation(task) {
+  if (browserSessionMutationPromise) {
+    throw new Error('Tarayıcı oturumunda başka bir bakım işlemi sürüyor.');
+  }
+  let pending;
+  pending = Promise.resolve().then(task).finally(() => {
+    if (browserSessionMutationPromise === pending) browserSessionMutationPromise = null;
+  });
+  browserSessionMutationPromise = pending;
+  return pending;
 }
 
 async function clearBrowserSiteData(rawUrl) {
-  let parsed;
-  try { parsed = new URL(String(rawUrl || '')); } catch (_) { return { ok: false, error: 'Geçerli bir site adresi gerekli.' }; }
-  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
-    return { ok: false, error: 'Site verilerini temizlemek için http/https adresi gerekli.' };
-  }
   const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
-  const cookies = await browserSession.cookies.get({});
-  const targets = cookies.filter((cookie) => browserCookieMatchesHost(cookie, parsed.hostname));
-  let removed = 0;
-  let failed = 0;
-  let storageCleared = false;
-  for (const cookie of targets) {
-    try {
-      await browserSession.cookies.remove(browserCookieUrl(cookie), cookie.name);
-      removed++;
-    } catch (_) { failed++; }
-  }
-  // Electron önbelleği origin bazında silemiyor; clearCache() bütün tarayıcı
-  // profilini etkiler. Burada yalnız seçili origin'in çerez, local/session
-  // storage, IndexedDB, service worker ve benzeri kalıcı verilerini temizle.
-  await browserSession.clearStorageData({ origin: parsed.origin }).then(() => { storageCleared = true; }).catch((error) => {
-    failed++;
-    console.warn('Site depolaması temizlenemedi:', error.message);
-  });
-  await browserSession.cookies.flushStore().catch(() => { failed++; });
-  return { ok: failed === 0, partial: failed > 0 && (removed > 0 || storageCleared),
-    error: failed ? 'Site verilerinin bir kısmı temizlenemedi. HTTP önbelleği bu işlem kapsamında değildir.' : '',
-    host: parsed.hostname, origin: parsed.origin, removed, failed, total: targets.length };
+  return trackBrowserSessionMutation(
+    () => clearBrowserSiteDataInSession(browserSession, rawUrl),
+  );
 }
 
 async function clearAllBrowserCookies() {
   const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
-  const before = await browserSession.cookies.get({}).catch(() => []);
-  await browserSession.clearStorageData({ storages: ['cookies'] });
-  await browserSession.cookies.flushStore().catch(() => {});
-  return { ok: true, removed: before.length };
+  return trackBrowserSessionMutation(() => clearAllBrowserCookiesInSession(browserSession));
+}
+
+function resetPersistentBrowserSession() {
+  if (browserSessionResetPromise) return browserSessionResetPromise;
+  if (browserSessionMutationPromise) {
+    throw new Error('Tarayıcı oturumunda başka bir bakım işlemi sürüyor.');
+  }
+  const mutation = trackBrowserSessionMutation(async () => {
+    clearTimeout(browserSessionSaveTimer);
+    browserSessionSaveTimer = null;
+    destroyBrowserView();
+    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+    const popups = destroyBrowserSessionWindows(
+      BrowserWindow.getAllWindows(),
+      browserSession,
+      mainWindow,
+    );
+    if (popups.failed) {
+      throw new Error('Tarayıcı popup pencereleri kapatılamadığı için oturum sıfırlanmadı.');
+    }
+    await resetBrowserSessionData(browserSession);
+    browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
+    clearTimeout(browserSessionSaveTimer);
+    browserSessionSaveTimer = null;
+    const saved = writeBrowserSessionAtomic(browserSessionPath(app), {
+      restoreEnabled: browserSessionRestoreEnabled,
+      tabs: [],
+    });
+    if (!saved.ok) throw new Error(saved.error || 'Sıfırlanan oturum diske yazılamadı.');
+    return {
+      ok: true,
+      activeTabId: '',
+      tabs: [],
+      closedWindows: popups.destroyed,
+      places: browserPlacesSnapshot(),
+    };
+  });
+  let reset;
+  reset = mutation.finally(() => {
+    if (browserSessionResetPromise === reset) browserSessionResetPromise = null;
+  });
+  browserSessionResetPromise = reset;
+  return reset;
 }
 
 function rememberBrowserVisit(url, title = '') {
@@ -7484,6 +7508,7 @@ function settleBrowserPermissionRequest(requestId, allowed, persistDecision = ''
 }
 
 function ensureBrowserView(tab = activeBrowserTab(true)) {
+  if (mainWindowClosing || browserSessionMutationPromise) return null;
   if (!tab) return null;
   if (tab.view && !tab.view.webContents.isDestroyed()) {
     if (tab.id === browserActiveTabId) browserView = tab.view;
@@ -8171,18 +8196,33 @@ async function confirmBrowserCaptureDiscard(pending, subject = 'uygulama', unver
 }
 
 async function flushBrowserSession() {
+  // Kapanış, yarım kalmış bir cookie/storage temizliğini kesip aynı partition
+  // üzerinde paralel flush başlatmasın. Bakım başarısız olsa bile son sekme
+  // snapshot'ını kaydetmeyi deneriz.
+  const activeMutation = browserSessionMutationPromise;
+  if (activeMutation) {
+    try { await activeMutation; } catch (_) {}
+  }
   try {
     const persisted = persistBrowserSessionNow();
-    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
-    // localStorage / IndexedDB Chromium deposuna, kalıcı giriş çerezleri de
-    // çerez deposuna yazılmış olsun. Böylece pencere kapanır kapanmaz süreç sona
-    // erse bile sonraki açılış aynı site oturumuyla devam eder.
-    browserSession.flushStorageData();
-    await browserSession.cookies.flushStore();
     return persisted?.ok !== false;
   } catch (_) {
     return false;
   }
+}
+
+async function shutdownPersistentBrowserSession(closingWindow = mainWindow) {
+  const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  return shutdownBrowserSession(browserSession, {
+    activeReset: browserSessionResetPromise,
+    activeMutation: browserSessionMutationPromise,
+    // Sekme WebContentsView'ları sağlam snapshot alındıktan sonra kapanış
+    // akışında yok edilir. Burada aynı partition'a ait popup BrowserWindow'ları
+    // da susturup ardından bağlantı/storage/cookie sırasını tamamla.
+    destroyView: () => true,
+    listWindows: () => BrowserWindow.getAllWindows(),
+    excludedWindow: closingWindow,
+  });
 }
 
 // Kapanista promise tabanli invoke yarida kalabilir; son anlik goruntu SENKRON
@@ -8330,6 +8370,14 @@ function createWindow() {
       browserSessionFinalizedForQuit = true;
       browserDownloads.cancelAll();
       destroyBrowserView();
+      try {
+        const shutdown = await shutdownPersistentBrowserSession(mainWindow);
+        if (shutdown.failedWindows) {
+          console.warn(`Tarayıcı oturumuna ait ${shutdown.failedWindows} popup kapatılamadı.`);
+        }
+      } catch (error) {
+        console.warn('Tarayıcı oturumu güvenli biçimde kapatılamadı:', error.message);
+      }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
     })();
   });
@@ -9537,6 +9585,10 @@ ipcMain.handle('browser:places:clearHistory', (event, request = {}) => {
 
 ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (mainWindowClosing) return { ok: false, error: 'Uygulama kapanıyor.' };
+  if (browserSessionMutationPromise) {
+    return { ok: false, error: 'Tarayıcı oturumunda bakım işlemi sürüyor.' };
+  }
   try {
     const view = browserView;
     const originalUrl = view && !view.webContents.isDestroyed() ? view.webContents.getURL() : '';
@@ -9549,6 +9601,10 @@ ipcMain.handle('browser:cookies:clearSite', async (event, rawUrl) => {
 
 ipcMain.handle('browser:cookies:clearAll', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (mainWindowClosing) return { ok: false, error: 'Uygulama kapanıyor.' };
+  if (browserSessionMutationPromise) {
+    return { ok: false, error: 'Tarayıcı oturumunda bakım işlemi sürüyor.' };
+  }
   try {
     const result = await clearAllBrowserCookies();
     if (browserView && !browserView.webContents.isDestroyed()) browserView.webContents.reload();
@@ -9558,20 +9614,12 @@ ipcMain.handle('browser:cookies:clearAll', async (event) => {
 
 ipcMain.handle('browser:session:reset', (event) => queueBrowserTabTransition(async () => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (mainWindowClosing) return { ok: false, error: 'Uygulama kapanıyor.' };
+  if (browserSessionMutationPromise && !browserSessionResetPromise) {
+    return { ok: false, error: 'Tarayıcı oturumunda bakım işlemi sürüyor.' };
+  }
   try {
-    clearTimeout(browserSessionSaveTimer);
-    browserSessionSaveTimer = null;
-    destroyBrowserView();
-    const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
-    await browserSession.clearStorageData();
-    await browserSession.clearCache();
-    if (typeof browserSession.clearAuthCache === 'function') await browserSession.clearAuthCache();
-    browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
-    clearTimeout(browserSessionSaveTimer);
-    browserSessionSaveTimer = null;
-    const saved = writeBrowserSessionAtomic(browserSessionPath(app), { restoreEnabled: browserSessionRestoreEnabled, tabs: [] });
-    if (!saved.ok) return { ok: false, error: saved.error || 'Sıfırlanan oturum diske yazılamadı.' };
-    return { ok: true, activeTabId: '', tabs: [], places: browserPlacesSnapshot() };
+    return await resetPersistentBrowserSession();
   } catch (err) {
     return { ok: false, error: err.message };
   }

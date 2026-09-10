@@ -265,8 +265,11 @@ t('kapanışta sağlam sekmeler boş görünümle ikinci kez ezilmez', () => {
   const flushed = close.indexOf('await flushBrowserSession()');
   const finalized = close.indexOf('browserSessionFinalizedForQuit = true');
   const destroyed = close.indexOf('destroyBrowserView()');
+  const sessionShutdown = close.indexOf('await shutdownPersistentBrowserSession(mainWindow)');
   ok(flushed >= 0 && finalized > flushed, 'kapanış oturum yazımını finalize etmiyor');
   ok(destroyed > finalized, 'tarayıcı sekmeleri oturum yazılmadan önce yok ediliyor');
+  ok(sessionShutdown > destroyed,
+    'partition bağlantıları web yüzeyleri kapatılmadan önce flush ediliyor');
 
   const beforeQuit = msrc.slice(msrc.indexOf("app.on('before-quit'"),
     msrc.indexOf("app.on('window-all-closed'"));
