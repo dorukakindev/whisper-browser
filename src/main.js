@@ -86,6 +86,13 @@ const {
   shutdownBrowserSession,
 } = require('./browser-session-privacy');
 const {
+  attachNavigationGuard,
+  createWindowRegistry,
+  decideUrlPolicy,
+  safeWebContentsUrl,
+  securePopupWebPreferences,
+} = require('./browser-navigation-policy');
+const {
   browserCloudflareChallengeProbeScript,
   browserCompatibilityEnabledForUrl,
   browserCompatibilityHost,
@@ -352,6 +359,7 @@ let activeTranscriptionJobId = null;
 const queueTerminalGuards = new Set();
 let powerBlockerId = null;
 let browserView = null;
+const browserPopupWindows = createWindowRegistry();
 let browserVisible = false;
 let browserModalOccluded = false;
 let browserBounds = null;
@@ -2736,6 +2744,7 @@ function normalizeBrowserUrl(raw) {
     try {
       const parsed = new URL(value.startsWith('//') ? `https:${value}` : value);
       if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+      if (parsed.username || parsed.password) return null;
       return parsed.href;
     } catch (_) {
       return null;
@@ -2749,6 +2758,7 @@ function normalizeBrowserUrl(raw) {
     try {
       const localHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|[^/?#]+\.local)(?::\d+)?(?:[/?#]|$)/i.test(value);
       const parsed = new URL(`${localHost ? 'http' : 'https'}://${value}`);
+      if (parsed.username || parsed.password) return null;
       return parsed.href;
     } catch (_) { return null; }
   }
@@ -2758,6 +2768,30 @@ function normalizeBrowserUrl(raw) {
   return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
 }
 
+function openExternalByPolicy(rawUrl, surface = 'renderer-external') {
+  const decision = decideUrlPolicy(rawUrl, surface);
+  if (decision.action !== 'external') return Promise.resolve(false);
+  try { return Promise.resolve(shell.openExternal(decision.url)).then(() => true, () => false); }
+  catch (_) { return Promise.resolve(false); }
+}
+
+function browserWindowOpenHandler(sourceContents, tab = null) {
+  return ({ url }) => {
+    const decision = decideUrlPolicy(url, 'browser-window-open', safeWebContentsUrl(sourceContents));
+    if (decision.action === 'external') {
+      void openExternalByPolicy(decision.url);
+      return { action: 'deny' };
+    }
+    if (decision.action !== 'allow') return { action: 'deny' };
+    if (tab) sendBrowserEvent(tab, { type: 'popup-opened', host: decision.hostname || '', capture: false });
+    return {
+      action: 'allow',
+      outlivesOpener: false,
+      overrideBrowserWindowOptions: browserPopupWindowOptions(),
+    };
+  };
+}
+
 function browserPopupWindowOptions() {
   return {
     width: 980,
@@ -2765,15 +2799,28 @@ function browserPopupWindowOptions() {
     show: true,
     autoHideMenuBar: true,
     backgroundColor: '#08090a',
-    webPreferences: {
-      partition: BROWSER_PARTITION,
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true,
-      spellcheck: false,
-    },
+    webPreferences: securePopupWebPreferences(BROWSER_PARTITION),
   };
+}
+
+function configureBrowserPopup(popup, tab, details = {}) {
+  if (!browserPopupWindows.add(popup) || !popup.webContents || popup.webContents.isDestroyed()) return;
+  try { popup.setMenuBarVisibility(false); } catch (_) {}
+  const contents = popup.webContents;
+  // OAuth/ödeme pencereleri ana görünümle aynı site uyumlu kimliği kullanmalı.
+  try { contents.setUserAgent(sanitizeBrowserUserAgent(contents.getUserAgent())); } catch (_) {}
+  try {
+    const host = new URL(details.url || safeWebContentsUrl(contents)).hostname;
+    if (host) popup.setTitle(`Web girişi · ${host}`);
+  } catch (_) {}
+  contents.setWindowOpenHandler(browserWindowOpenHandler(contents, tab));
+  const detachNavigationGuard = attachNavigationGuard(contents, {
+    surface: 'browser-navigation',
+    sourceUrl: () => safeWebContentsUrl(contents),
+    openExternal: (url) => openExternalByPolicy(url),
+  });
+  contents.on('did-create-window', (child, childDetails = {}) => configureBrowserPopup(child, tab, childDetails));
+  popup.once('closed', detachNavigationGuard);
 }
 
 function safeBrowserBounds(raw) {
@@ -7627,34 +7674,23 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   // reddediyor. Chromium sürümünü değiştirmeden yalnızca Electron ürün adını
   // kaldır; navigator.userAgent ve istek başlıkları aynı kimliği kullansın.
   wc.setUserAgent(browserUserAgent || sanitizeBrowserUserAgent(wc.getUserAgent()));
-  wc.setWindowOpenHandler(({ url }) => {
-    const safe = normalizeBrowserUrl(url);
-    if (!safe) return { action: 'deny' };
-    let host = '';
-    try { host = new URL(safe).hostname; } catch (_) {}
-    sendBrowserEvent(tab, { type: 'popup-opened', host, capture: false });
-    return { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() };
-  });
-  wc.on('did-create-window', (popup, details = {}) => {
-    popup.setMenuBarVisibility(false);
-    // OAuth/ödeme açılır pencereleri ana görünümle aynı site uyumlu kimliği
-    // kullanmalı; aksi halde Electron UA'sı nedeniyle giriş akışı reddedilebiliyor.
-    try { popup.webContents.setUserAgent(sanitizeBrowserUserAgent(popup.webContents.getUserAgent())); } catch (_) {}
-    try {
-      const host = new URL(details.url || popup.webContents.getURL()).hostname;
-      if (host) popup.setTitle(`Web girişi · ${host}`);
-    } catch (_) {}
-    popup.webContents.setWindowOpenHandler(({ url }) => normalizeBrowserUrl(url)
-      ? { action: 'allow', overrideBrowserWindowOptions: browserPopupWindowOptions() }
-      : { action: 'deny' });
+  wc.setWindowOpenHandler(browserWindowOpenHandler(wc, tab));
+  wc.on('did-create-window', (popup, details = {}) => configureBrowserPopup(popup, tab, details));
+  attachNavigationGuard(wc, {
+    surface: 'browser-navigation',
+    sourceUrl: () => safeWebContentsUrl(wc),
+    openExternal: (url) => openExternalByPolicy(url),
   });
   const prepareNavigationCompatibility = (event, legacyUrl) => {
     const url = typeof event?.url === 'string' ? event.url : legacyUrl;
-    if (!normalizeBrowserUrl(url)) {
+    const decision = decideUrlPolicy(url, 'browser-navigation', safeWebContentsUrl(wc));
+    if (decision.action !== 'allow') {
       event.preventDefault();
       return;
     }
-    syncBrowserTabCompatibilityForUrl(tab, url);
+    if (decision.protocol === 'http:' || decision.protocol === 'https:') {
+      syncBrowserTabCompatibilityForUrl(tab, decision.url);
+    }
   };
   wc.on('will-navigate', (event, url) => {
     // Sayfanın/kullanıcının başlattığı ana-frame gezinmesi, DRM veya reklam
@@ -8115,6 +8151,7 @@ function destroyBrowserView() {
   stopBrowserPolling();
   resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
   browserDebuggerReady = false;
+  browserPopupWindows.closeAll();
   for (const tab of [...browserTabs.values()]) destroyBrowserTab(tab);
   browserTabs.clear();
   browserActiveTabId = '';
@@ -8388,10 +8425,10 @@ function createWindow() {
   // İş bitince yanıp sönen taskbar vurgusunu odaklanınca temizle
   mainWindow.on('focus', () => mainWindow.flashFrame(false));
 
-  // Harici http(s) linkleri (target="_blank" vb.) varsayılan tarayıcıda aç,
+  // Açıkça izinli harici bağlantıları (http, https, mailto) varsayılan uygulamada aç,
   // uygulama içinde yeni pencere açılmasını engelle
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    void openExternalByPolicy(url, 'app-window-open');
     return { action: 'deny' };
   });
 
@@ -10754,9 +10791,7 @@ ipcMain.handle('shell:openPath', async (_event, p) => {
 
 ipcMain.handle('shell:openExternal', async (_event, url) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  // Sadece http(s) — keyfi protokol açılmasını engelle
-  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
-  return shell.openExternal(url);
+  return openExternalByPolicy(url);
 });
 
 const notificationTimes = new WeakMap();

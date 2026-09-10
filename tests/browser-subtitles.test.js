@@ -725,6 +725,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   const normalizeAddress = extractFunction('normalizeBrowserUrl', 'browserPopupWindowOptions');
   assert.equal(normalizeAddress('localhost:8080/video'), 'http://localhost:8080/video');
   assert.equal(normalizeAddress('example.com/video'), 'https://example.com/video');
+  assert.equal(normalizeAddress('https://guvenli.test@kotu.invalid/video'), null);
+  assert.equal(normalizeAddress('https://user:secret@example.test/video'), null);
   const streamKey = extractFunction('browserTrackStreamKey', 'browserWatchMediaId');
   assert.equal(streamKey('https://cdn.test/captions.vtt?seq=1&lang=tr'),
     streamKey('https://cdn.test/captions.vtt?seq=2&lang=tr'));
@@ -857,8 +859,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert(main.indexOf('image = await tab.view.webContents.capturePage()')
     < main.indexOf('const result = await dialog.showSaveDialog(mainWindow', main.indexOf('async function saveBrowserPageCapture')),
   'sayfa görüntüsü kayıt diyaloğundan sonra alınıyor');
-  assert.match(main, /type: 'popup-opened', host, capture: false/);
-  assert.match(main, /did-create-window[\s\S]{0,260}popup\.webContents\.setUserAgent\(sanitizeBrowserUserAgent/);
+  assert.match(main, /type: 'popup-opened', host: decision\.hostname \|\| '', capture: false/);
+  assert.match(main, /did-create-window[\s\S]{0,180}configureBrowserPopup\(popup, tab, details\)/);
+  assert.match(main, /function configureBrowserPopup[\s\S]{0,700}setUserAgent\(sanitizeBrowserUserAgent/);
   assert.match(main, /if \(count < 1\) continue/);
   assert.match(main, /const prior = browserOverlay \|\| tab\.overlay/);
   assert.match(preload, /navigateBrowser:/);
