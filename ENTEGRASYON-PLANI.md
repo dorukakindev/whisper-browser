@@ -90,21 +90,11 @@ Kalan tek şey bağlantı. Asıl iş orada.
 | K4 kuyruk yaşam döngüsü | ✅ `b7d7ffc` |
 | K5 tek-yazar + kapanış flush'ı | ✅ `6392461` |
 | K8 CDP sızıntısı + izole ölçüm | ✅ `da0c4c6` (kısmi — aşağıya bak) |
-| **K6 pipeline iptal/temizlik** | ⛔ **açık** |
-| **K7 renderer durum modeli / a11y** | ⛔ **açık** |
+| K6 pipeline iptal/temizlik | ✅ `bd02410` |
+| K7 renderer durum modeli / a11y | ✅ `e8ce6b4` |
 
-**K6 neden açık:** Kaynak dal `backend/transcribe.py`'de 146 satırlık boru hattı
-değişikliği ve 35 checkpoint noktası (`("stage", "point")`) gerektiriyor; ayrıca
-`OutputTransaction` ile çok-dosyalı işlem yazımı. Bu bir bağlantı işi değil, boru
-hattı yeniden yazımı — ve `transcribe.py` master'da o daldan bu yana epey değişti.
-Kendi oturumunda, adım adım yapılmalı. Not: master zaten dosya BAŞINA atomik yazıyor
-(`atomic_text_writer`, `writeSubtitleAtomic`), eksik olan çok-dosyalı işlem ve
-checkpoint'li iptal.
-
-**K7 neden açık:** Bir erişilebilirlik + responsive tasarım geçişi (ARIA rolleri,
-tablist semantiği, `:focus-visible`, üç kırılma noktası) — hata düzeltmesi değil.
-`index.html` ve `styles.css` master'da en çok değişen dosyalar; testin aradığı
-işaretlerin güncel karşılıkları tek tek bulunmalı.
+**Sekiz kalemin tamamı master'da.** Kalan tek şey K8'in soak ölçüm aracı
+(`src/resource-soak.js` + testi) — aşağıdaki "K8 kısmi" notuna bak.
 
 **K8 kısmi:** İçindeki iki gerçek düzeltme alındı (yarış tabanlı CDP zaman aşımının
 sızdırdığı zamanlayıcı; ölçümün gerçek kullanıcı profilini kirletmesi).
