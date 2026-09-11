@@ -3326,6 +3326,16 @@ function installBrowserContextMenu(tab, wc) {
       { label: 'Seçili metni ara', visible: !!selection,
         click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`))
           .catch((error) => sendBrowserEvent(tab, { type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
+      { label: 'Bu satırı çevir', visible: !!selection && !params.isEditable, enabled: !tab.pageTranslateJob,
+        click: () => void startBrowserPageTranslation(tab, { scope: 'selection', autoContinue: false })
+          .then((result) => {
+            if (!result?.ok && result?.error) {
+              sendBrowserEvent(tab, { type: 'notice', message: result.error, success: false });
+            }
+          })
+          .catch((error) => sendBrowserEvent(tab, {
+            type: 'notice', message: `Seçili metin çevrilemedi: ${error.message}`, success: false,
+          })) },
       { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
       { label: 'Alıntıyı notlara ekle', visible: !!selection && !params.isEditable,
         click: () => void saveBrowserSelectionNote(tab, selection).catch((error) =>
@@ -3744,13 +3754,15 @@ function browserCaptureUninstallScript() {
 
 function browserPageTranslationConfig(overrides = {}) {
   const inherited = browserTranslationConfig(overrides);
+  const ui = loadSettings().ui || {};
+  const preferredMode = overrides.mode || ui.browserPageMode;
   return {
     ...inherited,
-    targetLanguage: String(overrides.targetLanguage || inherited.targetLanguage || 'tr').slice(0, 24),
+    targetLanguage: String(overrides.targetLanguage || ui.browserPageTarget || inherited.targetLanguage || 'tr').slice(0, 24),
     workers: Math.max(1, Math.min(4, Number(overrides.workers) || 2)),
-    mode: overrides.mode === 'replace' ? 'replace' : 'bilingual',
+    mode: preferredMode === 'replace' ? 'replace' : 'bilingual',
     view: ['original', 'translation', 'both'].includes(overrides.view)
-      ? overrides.view : (overrides.mode === 'replace' ? 'translation' : 'both'),
+      ? overrides.view : (preferredMode === 'replace' ? 'translation' : 'both'),
     scope: ['article', 'whole', 'selection'].includes(overrides.scope) ? overrides.scope : 'article',
     autoContinue: overrides.autoContinue !== false,
     terminologyEnabled: true,

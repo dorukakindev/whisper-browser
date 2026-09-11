@@ -28,6 +28,21 @@ function extract(start, end, deps = {}) {
     await assert.rejects(images.saveBrowserContextImage(null, url), /henüz kaydedilemiyor/);
   }
 
+  const pageConfig = extract('function browserPageTranslationConfig(', 'function browserPageMemoryVersion', {
+    browserTranslationConfig: () => ({ targetLanguage: 'de', workers: 2 }),
+    loadSettings: () => ({ ui: { browserPageTarget: 'fr', browserPageMode: 'replace' } }),
+  });
+  const preferredPageConfig = pageConfig.browserPageTranslationConfig({});
+  assert.equal(preferredPageConfig.targetLanguage, 'fr');
+  assert.equal(preferredPageConfig.mode, 'replace');
+  assert.equal(preferredPageConfig.view, 'translation');
+  const overriddenPageConfig = pageConfig.browserPageTranslationConfig({
+    targetLanguage: 'tr', mode: 'bilingual', view: 'original',
+  });
+  assert.equal(overriddenPageConfig.targetLanguage, 'tr');
+  assert.equal(overriddenPageConfig.mode, 'bilingual');
+  assert.equal(overriddenPageConfig.view, 'original');
+
   // Programatik history.goBack will-navigate üretmediği için uyumluluk tercihi
   // hedef sayfanın ağ isteğinden önce, burada açıkça uygulanmalı.
   {
@@ -145,12 +160,16 @@ function extract(start, end, deps = {}) {
   let menu, handler;
   const actions = [];
   const searches = [];
+  const pageStarts = [];
+  const browserEvents = [];
   const menuContext = extract('function installBrowserContextMenu(', 'function browserSubtitleDir', {
     mainWindow: {}, browserNavigationCapabilities: () => ({ canGoBack: false, canGoForward: false }),
     Menu: { buildFromTemplate(items) { menu = items; return { popup() {} }; } },
     clipboard: { writeText(text) { actions.push(text); } },
     openBrowserLinkInNewTab: async url => { searches.push(url); },
     queueBrowserTabTransition: work => work(),
+    startBrowserPageTranslation: async (tab, options) => { pageStarts.push({ tab, options }); return { ok: true }; },
+    sendBrowserEvent: (tab, event) => browserEvents.push({ tab, event }),
   });
   const wc = { on(_name, callback) { handler = callback; },
     cut() { actions.push('cut'); }, paste() { actions.push('paste'); }, selectAll() { actions.push('all'); } };
@@ -164,10 +183,34 @@ function extract(start, end, deps = {}) {
   handler({}, { isEditable: false });
   assert.equal(menu.find(item => item.label === 'Yapıştır').visible, false);
   assert.equal(menu.find(item => item.label === 'Seçili metni ara').visible, false);
+  assert.equal(menu.find(item => item.label === 'Bu satırı çevir').visible, false);
+  const tab = {};
+  menuContext.installBrowserContextMenu(tab, wc);
   handler({}, { linkURL: 'https://a.test/?sig=a%2Bb', selectionText: 'İstanbul & İzmir #1' });
   menu.find(item => item.label === 'Bağlantı adresini kopyala').click();
   assert.equal(actions.at(-1), 'https://a.test/?sig=a%2Bb');
   menu.find(item => item.label === 'Seçili metni ara').click();
   assert.equal(new URL(searches[0]).searchParams.get('q'), 'İstanbul & İzmir #1');
+  const translate = menu.find(item => item.label === 'Bu satırı çevir');
+  assert.equal(translate.visible, true);
+  assert.equal(translate.enabled, true);
+  translate.click();
+  await Promise.resolve();
+  assert.equal(pageStarts.length, 1);
+  assert.equal(pageStarts[0].tab, tab);
+  assert.equal(pageStarts[0].options.scope, 'selection');
+  assert.equal(pageStarts[0].options.autoContinue, false);
+  assert.deepEqual(browserEvents, []);
+  menuContext.startBrowserPageTranslation = async () => ({ ok: false, error: 'API anahtarı gerekli.' });
+  handler({}, { selectionText: 'yeniden dene' });
+  menu.find(item => item.label === 'Bu satırı çevir').click();
+  await Promise.resolve();
+  assert.equal(browserEvents.at(-1).event.message, 'API anahtarı gerekli.');
+  assert.equal(browserEvents.at(-1).event.success, false);
+  handler({}, { isEditable: true, selectionText: 'düzenlenen metin' });
+  assert.equal(menu.find(item => item.label === 'Bu satırı çevir').visible, false);
+  tab.pageTranslateJob = {};
+  handler({}, { selectionText: 'meşgul' });
+  assert.equal(menu.find(item => item.label === 'Bu satırı çevir').enabled, false);
   console.log('browser-controls-behavior: sertifika, dosya adı, protokol, geçmiş uyumluluğu, arka plan, limit, kısmi temizlik ve düzenleme menüsü geçti');
 })().catch(error => { console.error(error); process.exitCode = 1; });

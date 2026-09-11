@@ -20,7 +20,7 @@ test('sabit sekme bilgisi oturum kaydinda korunur', () => {
 
 test('sag tik menusu istenen bes islemi sunar', () => {
   assert.match(main, /wc\.on\('context-menu'/);
-  for (const label of ['Geri', 'İleri', 'Yenile', 'Bağlantıyı yeni sekmede aç', 'Metni kopyala', 'Görseli kaydet…']) {
+  for (const label of ['Geri', 'İleri', 'Yenile', 'Bağlantıyı yeni sekmede aç', 'Bu satırı çevir', 'Metni kopyala', 'Görseli kaydet…']) {
     assert(main.includes(`label: '${label}'`), `${label} menüde yok`);
   }
   assert.match(main, /session\.fetch\(parsed\.href/);
