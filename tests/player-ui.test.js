@@ -61,7 +61,11 @@ test('VRAM uyarısı motor ve batch boyutunu hesaba katıyor', () => {
 
 test('Chromium donanım hızlandırma durumu açılış günlüğünde görünür', () => {
   const init = js.slice(js.indexOf('// Ortam kontrolü:'), js.indexOf('// Seçili model+motor'));
-  assert(/env\.gpuFeatures/.test(init), 'Chromium GPU özellikleri okunmuyor');
+  assert(/env\.gpuDiagnostics/.test(init), 'doğrulanmış Chromium GPU tanılaması okunmuyor');
+  assert(/renderBrowserGpuDiagnostics\(env\.gpuDiagnostics\)/.test(init),
+    'GPU tanılama paneli açılış verisiyle güncellenmiyor');
+  assert(!/gpuFeatures[\s\S]{0,300}\.some\(/.test(init),
+    'tek bir etkin özellik tüm GPU hattını etkin gösteriyor');
   assert(/video çözme:/.test(init) && /WebGL:/.test(init) && /kompozisyon:/.test(init),
     'video decode, WebGL ve kompozisyon durumu kullanıcıya gösterilmiyor');
 });

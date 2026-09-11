@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   onMediaEvent: (cb) => ipcRenderer.on('media:event', (_e, data) => cb(data)),
   showBrowser: (tabId, bounds) => ipcRenderer.invoke('browser:show', { tabId, bounds }),
+  getBrowserGpuDiagnostics: () => ipcRenderer.invoke('browser:gpuDiagnostics'),
   hideBrowser: () => ipcRenderer.invoke('browser:hide'),
   setBrowserOccluded: (occluded) => ipcRenderer.invoke('browser:setOccluded', !!occluded),
   setBrowserBounds: (tabId, bounds) => ipcRenderer.invoke('browser:setBounds', { tabId, bounds }),

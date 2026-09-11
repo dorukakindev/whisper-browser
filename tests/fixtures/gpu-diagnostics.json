@@ -1,0 +1,132 @@
+{
+  "beforeGpuInfo": {
+    "featureReady": false,
+    "featureStatus": {
+      "video_decode": "enabled",
+      "webgl": "enabled",
+      "gpu_compositing": "enabled"
+    },
+    "metrics": [
+      {
+        "type": "GPU",
+        "pid": 4100,
+        "creationTime": 1000,
+        "cpu": { "percentCPUUsage": 1.25 },
+        "memory": { "workingSetSize": 65536 }
+      }
+    ]
+  },
+  "healthy": {
+    "featureReady": true,
+    "hardwareAcceleration": true,
+    "featureStatus": {
+      "video_decode": "enabled",
+      "webgl": "enabled",
+      "gpu_compositing": "enabled",
+      "2d_canvas": "enabled"
+    },
+    "metrics": [
+      {
+        "type": "GPU",
+        "pid": 4200,
+        "creationTime": 2000,
+        "cpu": { "percentCPUUsage": 4.25 },
+        "memory": { "workingSetSize": 98304 },
+        "sandboxed": true
+      }
+    ],
+    "gpuInfo": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "vendorId": 4318,
+          "deviceId": 100,
+          "driverVendor": "NVIDIA",
+          "driverVersion": "fixture-driver"
+        }
+      ],
+      "auxAttributes": {
+        "glRenderer": "ANGLE (NVIDIA GeForce RTX fixture)"
+      }
+    },
+    "generation": 1
+  },
+  "driverFallback": {
+    "featureReady": true,
+    "hardwareAcceleration": true,
+    "featureStatus": {
+      "video_decode": "disabled_software",
+      "webgl": "enabled",
+      "gpu_compositing": "enabled"
+    },
+    "metrics": [
+      {
+        "type": "GPU",
+        "pid": 4300,
+        "cpu": { "percentCPUUsage": 8 },
+        "memory": { "workingSetSize": 131072 }
+      }
+    ]
+  },
+  "remoteDesktop": {
+    "featureReady": true,
+    "hardwareAcceleration": true,
+    "featureStatus": {
+      "video_decode": "enabled",
+      "webgl": "enabled",
+      "gpu_compositing": "enabled"
+    },
+    "metrics": [
+      {
+        "type": "GPU",
+        "pid": 4400,
+        "cpu": { "percentCPUUsage": 2 },
+        "memory": { "workingSetSize": 65536 }
+      }
+    ],
+    "gpuInfo": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "driverVendor": "Microsoft Remote Display Adapter",
+          "driverVersion": "fixture"
+        }
+      ]
+    }
+  },
+  "processGone": {
+    "featureReady": false,
+    "generation": 2,
+    "lastProcessEvent": {
+      "reason": "crashed",
+      "exitCode": -1,
+      "at": 3000,
+      "generation": 2
+    }
+  },
+  "recovered": {
+    "featureReady": true,
+    "hardwareAcceleration": true,
+    "featureStatus": {
+      "video_decode": "enabled",
+      "webgl": "enabled",
+      "gpu_compositing": "enabled"
+    },
+    "metrics": [
+      {
+        "type": "GPU",
+        "pid": 4500,
+        "creationTime": 4000,
+        "cpu": { "percentCPUUsage": 3 },
+        "memory": { "workingSetSize": 81920 }
+      }
+    ],
+    "generation": 3,
+    "lastProcessEvent": {
+      "reason": "crashed",
+      "exitCode": -1,
+      "at": 3000,
+      "generation": 2
+    }
+  }
+}

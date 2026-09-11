@@ -4846,6 +4846,27 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-diagnostics-service { color: var(--text); font-size: 12px; font-weight: 700; }
 .browser-diagnostics-help { color: var(--text-muted); font-size: 10px; line-height: 1.45; }
 .browser-diagnostics-summary { flex: 0 0 auto; color: var(--player-amber); font-size: 10px; white-space: nowrap; }
+.browser-gpu-diagnostics {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  gap: 9px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-2);
+}
+.browser-gpu-dot { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: var(--text-muted); }
+.browser-gpu-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.browser-gpu-copy strong { color: var(--text); font-size: 10px; }
+.browser-gpu-copy span { color: var(--text-muted); font-size: 10px; line-height: 1.4; }
+.browser-gpu-copy small { overflow: hidden; color: var(--text-dim); font: 9px/1.45 Consolas, "Cascadia Mono", monospace; text-overflow: ellipsis; white-space: nowrap; }
+.browser-gpu-diagnostics.is-healthy { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.browser-gpu-diagnostics.is-healthy .browser-gpu-dot { background: var(--success); }
+.browser-gpu-diagnostics.is-fallback { border-color: color-mix(in srgb, var(--warning) 50%, var(--border)); }
+.browser-gpu-diagnostics.is-fallback .browser-gpu-dot,
+.browser-gpu-diagnostics.is-recovering .browser-gpu-dot { background: var(--player-amber); }
+.browser-gpu-diagnostics.is-recovering .browser-gpu-dot { animation: pulse 1.2s ease-in-out infinite; }
 .browser-acquisition { margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--border); }
 .browser-acquisition-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 #browserAcquisitionSummary { overflow: hidden; color: var(--text-dim); font-weight: 600; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }

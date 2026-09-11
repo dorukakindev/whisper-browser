@@ -83,6 +83,7 @@ const {
   isPlaybackProbeContextCurrent,
   redactDiagnosticText,
 } = require('./browser-playback-diagnostics');
+const { summarizeGpuDiagnostics } = require('./gpu-diagnostics');
 const {
   clearAllBrowserCookies: clearAllBrowserCookiesInSession,
   clearBrowserSiteData: clearBrowserSiteDataInSession,
@@ -451,6 +452,14 @@ const modelProcesses = new Set();
 let browserAdapterPluginStatus = { loaded: [], errors: [] };
 let widevineComponentStatus = { available: false, ready: false, detail: 'Castlabs bileşen API’si bulunamadı' };
 let widevineReadinessPromise = null;
+let browserGpuDiagnostics = summarizeGpuDiagnostics({ trigger: 'başlangıç' });
+let gpuFeatureReady = false;
+let gpuInfoCache = null;
+let gpuInfoRequest = null;
+let gpuGeneration = 0;
+let gpuLastProcessEvent = null;
+let gpuRefreshSequence = 0;
+const gpuReadyWaiters = new Set();
 const BROWSER_FETCH_TIMEOUT = 12000;
 const BROWSER_SCRIPT_TIMEOUT = 6000;
 const BROWSER_CLOSE_DRAIN_TIMEOUT = 15000;
@@ -2628,6 +2637,113 @@ function configureBrowserPlaybackWebRequest(browserSession) {
   );
   if (configured) browserPlaybackConfiguredSessions.add(browserSession);
 }
+
+function publishBrowserGpuDiagnostics() {
+  sendBrowserEvent({ type: 'gpu-status', diagnostics: browserGpuDiagnostics });
+}
+
+function settleGpuReadyWaiters() {
+  for (const resolve of gpuReadyWaiters) resolve();
+  gpuReadyWaiters.clear();
+}
+
+function waitForGpuInfo(timeoutMs) {
+  if (gpuFeatureReady || !timeoutMs) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      gpuReadyWaiters.delete(finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    gpuReadyWaiters.add(finish);
+  });
+}
+
+async function refreshBrowserGpuDiagnostics(trigger, queryInfo = false) {
+  const sequence = ++gpuRefreshSequence;
+  const generation = gpuGeneration;
+  let gpuInfo = gpuInfoCache;
+  if (queryInfo && app.isReady()) {
+    try {
+      if (!gpuInfoRequest) {
+        gpuInfoRequest = app.getGPUInfo('complete').finally(() => { gpuInfoRequest = null; });
+      }
+      gpuInfo = await gpuInfoRequest;
+      if (generation === gpuGeneration) gpuInfoCache = gpuInfo;
+    } catch (_) {}
+  }
+  if (sequence !== gpuRefreshSequence || generation !== gpuGeneration) return browserGpuDiagnostics;
+
+  let metrics = [];
+  let featureStatus = {};
+  let hardwareAcceleration = true;
+  if (app.isReady()) {
+    try { metrics = app.getAppMetrics() || []; } catch (_) {}
+    if (gpuFeatureReady) {
+      try { featureStatus = app.getGPUFeatureStatus() || {}; } catch (_) {}
+      try { hardwareAcceleration = app.isHardwareAccelerationEnabled(); } catch (_) {}
+    }
+  }
+  browserGpuDiagnostics = summarizeGpuDiagnostics({
+    featureReady: gpuFeatureReady,
+    featureStatus,
+    hardwareAcceleration,
+    metrics,
+    gpuInfo,
+    generation,
+    lastProcessEvent: gpuLastProcessEvent,
+    capturedAt: Date.now(),
+    trigger,
+  });
+  publishBrowserGpuDiagnostics();
+  return browserGpuDiagnostics;
+}
+
+async function collectBrowserGpuDiagnostics(trigger, waitMs = 0) {
+  if (!gpuFeatureReady && app.isReady()) {
+    // getGPUInfo Chromium GPU sorgusunu başlatır. Feature status ancak
+    // gpu-info-update olayından sonra güvenilir sayılır.
+    refreshBrowserGpuDiagnostics('gpu-info-probe', true).catch(() => {});
+    await waitForGpuInfo(waitMs);
+  }
+  return refreshBrowserGpuDiagnostics(trigger, gpuInfoCache === null);
+}
+
+app.on('gpu-info-update', () => {
+  gpuFeatureReady = true;
+  gpuGeneration += 1;
+  settleGpuReadyWaiters();
+  refreshBrowserGpuDiagnostics('gpu-info-update', gpuInfoCache === null || gpuInfoRequest !== null).catch(() => {});
+});
+
+app.on('child-process-gone', (_event, details) => {
+  if (!details || details.type !== 'GPU') return;
+  gpuFeatureReady = false;
+  gpuInfoCache = null;
+  gpuGeneration += 1;
+  gpuLastProcessEvent = {
+    reason: details.reason || 'bilinmiyor',
+    exitCode: details.exitCode,
+    at: Date.now(),
+    generation: gpuGeneration,
+  };
+  browserGpuDiagnostics = summarizeGpuDiagnostics({
+    featureReady: false,
+    generation: gpuGeneration,
+    lastProcessEvent: gpuLastProcessEvent,
+    capturedAt: Date.now(),
+    trigger: 'gpu-process-gone',
+  });
+  publishBrowserGpuDiagnostics();
+  const retryTimer = setTimeout(() => {
+    if (!gpuFeatureReady) refreshBrowserGpuDiagnostics('gpu-restart-wait', false).catch(() => {});
+  }, 1000);
+  retryTimer.unref?.();
+});
 
 function createBrowserAcquisitionPlan(tab) {
   if (!tab) return null;
@@ -9168,6 +9284,7 @@ ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(asy
   return { ok: true, hasPage, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled,
     diagnostics: browserDiagnostics, playbackDiagnostics: browserPlaybackSnapshot(tab),
+    gpuDiagnostics: browserGpuDiagnostics,
     sessionWarning, ...browserNavigationState() };
 }));
 
@@ -9733,7 +9850,14 @@ ipcMain.handle('browser:getState', (event) => {
   return { ok: true, visible: browserVisible, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(activeBrowserTab()),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled, diagnostics: browserDiagnostics,
     playbackDiagnostics: browserPlaybackSnapshot(activeBrowserTab()),
+    gpuDiagnostics: browserGpuDiagnostics,
     places: browserPlacesSnapshot(), ...browserNavigationState() };
+});
+
+ipcMain.handle('browser:gpuDiagnostics', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const diagnostics = await collectBrowserGpuDiagnostics('browser-request', 500);
+  return { ok: true, diagnostics };
 });
 
 ipcMain.handle('browser:session:setRestore', (event, enabled) => {
@@ -11322,18 +11446,12 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
     const m = gpuLine.match(/(\d+)\s*MiB/i);
     if (m) vramMib = parseInt(m[1], 10);
   }
-  // Chromium'un donanim hizlandirma durumu: video GERCEKTEN GPU'da mi coozuluyor?
-  let gpuFeatures = null;
-  try {
-    const st = app.getGPUFeatureStatus() || {};
-    gpuFeatures = {
-      videoDecode: st.video_decode || 'bilinmiyor',
-      canvas: st['2d_canvas'] || 'bilinmiyor',
-      webgl: st.webgl || 'bilinmiyor',
-      gpuCompositing: st.gpu_compositing || 'bilinmiyor',
-    };
-  } catch (_) {}
-  return { venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib, gpuFeatures };
+  const gpuDiagnostics = await collectBrowserGpuDiagnostics('environment-request', 1200);
+  return {
+    venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib,
+    gpuFeatures: gpuDiagnostics.features,
+    gpuDiagnostics,
+  };
 });
 
 ipcMain.handle('models:status', (event) => {

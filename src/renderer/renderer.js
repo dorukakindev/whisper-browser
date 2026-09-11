@@ -2473,14 +2473,17 @@ if ($('deepseekKeyHelp')) {
         updateGpuBadge();
         logLine(`GPU: ${env.gpu.trim()}`, 'info');
       }
-      if (env.gpuFeatures) {
-        const featureLabel = (value) => String(value || 'bilinmiyor').replace(/_/g, ' ');
-        const accelerated = [env.gpuFeatures.videoDecode, env.gpuFeatures.webgl,
-          env.gpuFeatures.gpuCompositing].some((value) => String(value || '').startsWith('enabled'));
-        logLine(`Tarayıcı GPU ${accelerated ? 'etkin' : 'sınırlı'} · video çözme: ${featureLabel(env.gpuFeatures.videoDecode)}`
-          + ` · WebGL: ${featureLabel(env.gpuFeatures.webgl)}`
-          + ` · kompozisyon: ${featureLabel(env.gpuFeatures.gpuCompositing)}`,
-        accelerated ? 'success' : 'warn');
+      if (env.gpuDiagnostics) {
+        renderBrowserGpuDiagnostics(env.gpuDiagnostics);
+        const diagnostics = env.gpuDiagnostics;
+        const features = diagnostics.features || {};
+        const processEvidence = diagnostics.gpuProcesses?.length
+          ? ` · GPU süreci: ${diagnostics.gpuProcesses[0].pid}` : ' · GPU süreci yok';
+        logLine(`Tarayıcı GPU ${diagnostics.accelerated ? 'doğrulandı' : 'doğrulanmadı'} · ${diagnostics.summary}`
+          + ` · video çözme: ${gpuFeatureLabel(features.videoDecode)}`
+          + ` · WebGL: ${gpuFeatureLabel(features.webgl)}`
+          + ` · kompozisyon: ${gpuFeatureLabel(features.gpuCompositing)}${processEvidence}`,
+        diagnostics.accelerated ? 'success' : 'warn');
       }
       if (!env.venv) logLine('⚠ Python sanal ortamı bulunamadı — önce install.bat çalıştırın.', 'warn');
       if (!env.ffmpeg) logLine('⚠ ffmpeg bulunamadı — PATH\'e ekleyin veya backend/bin/ içine koyun.', 'warn');
@@ -4187,6 +4190,7 @@ const player = {
   browserLoadedTrackId2: '',
   browserDiagnostics: null,
   browserPlaybackDiagnostics: null,
+  browserGpuDiagnostics: null,
   browserCaptureEnabled: true,
   browserPlaces: { history: [], bookmarks: [] },
   browserJobs: [],
@@ -6450,6 +6454,48 @@ function renderBrowserDiagnostics(diagnostics) {
     row.append(strategy, result, detail);
     recent.appendChild(row);
   }
+}
+
+function gpuFeatureLabel(value) {
+  return String(value || 'bilinmiyor').replace(/_/g, ' ');
+}
+
+function renderBrowserGpuDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== 'object') return;
+  player.browserGpuDiagnostics = diagnostics;
+  const box = $('browserGpuDiagnostics');
+  if (!box) return;
+  for (const stateName of ['pending', 'healthy', 'fallback', 'recovering']) {
+    box.classList.toggle(`is-${stateName}`, diagnostics.state === stateName);
+  }
+  const labels = {
+    healthy: 'Tarayıcı GPU hızlandırma hattı etkin',
+    fallback: 'Tarayıcı yazılım fallback kullanıyor',
+    recovering: 'GPU süreci toparlanıyor',
+    pending: 'GPU bilgisi bekleniyor',
+  };
+  $('browserGpuStatus').textContent = labels[diagnostics.state] || 'GPU durumu bilinmiyor';
+  $('browserGpuSummary').textContent = diagnostics.summary || 'Hızlandırma durumu doğrulanamadı.';
+  const features = diagnostics.features || {};
+  const process = Array.isArray(diagnostics.gpuProcesses) ? diagnostics.gpuProcesses[0] : null;
+  const adapter = diagnostics.adapter || {};
+  const adapterText = adapter.renderer || [adapter.driverVendor, adapter.driverVersion].filter(Boolean).join(' ');
+  const processText = process
+    ? `PID ${process.pid} · CPU %${Number(process.cpuPercent || 0).toFixed(1)} · ${Number(process.memoryMiB || 0).toFixed(0)} MiB`
+    : 'GPU süreci yok';
+  $('browserGpuEvidence').textContent = [
+    adapterText,
+    `decode ${gpuFeatureLabel(features.videoDecode)}`,
+    `WebGL ${gpuFeatureLabel(features.webgl)}`,
+    `kompozisyon ${gpuFeatureLabel(features.gpuCompositing)}`,
+    processText,
+  ].filter(Boolean).join(' · ');
+}
+
+async function refreshBrowserGpuDiagnostics() {
+  if (!window.api.getBrowserGpuDiagnostics) return;
+  const result = await window.api.getBrowserGpuDiagnostics().catch(() => null);
+  if (result?.ok && result.diagnostics) renderBrowserGpuDiagnostics(result.diagnostics);
 }
 
 function renderBrowserPlaybackDiagnostics(diagnostics) {
@@ -8758,6 +8804,8 @@ async function showBrowserWorkspaceAttempt(retry = 0) {
   if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
   if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
   if (result.playbackDiagnostics) renderBrowserPlaybackDiagnostics(result.playbackDiagnostics);
+  if (result.gpuDiagnostics) renderBrowserGpuDiagnostics(result.gpuDiagnostics);
+  void refreshBrowserGpuDiagnostics();
   if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
   else loadBrowserPlaces();
   scheduleBrowserBounds();
@@ -9691,6 +9739,7 @@ if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListene
   toggleSettingsPage('browser-diagnostics');
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
   if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
+  void refreshBrowserGpuDiagnostics();
   void refreshBrowserResourceDiagnostics();
 });
 if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEventListener('click', async () => {
@@ -9845,6 +9894,15 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   }
   if (event.type === 'adblock-status') { renderBrowserAdblockState(event); return; }
   if (event.type === 'player-ad-prune-status') { renderBrowserPlayerAdPruneState(event); return; }
+  if (event.type === 'gpu-status' && event.diagnostics) {
+    const previousState = player.browserGpuDiagnostics?.state;
+    renderBrowserGpuDiagnostics(event.diagnostics);
+    if (previousState && previousState !== event.diagnostics.state) {
+      logLine(`Tarayıcı GPU: ${event.diagnostics.summary}`,
+        event.diagnostics.accelerated ? 'success' : 'warn');
+    }
+    return;
+  }
   // İndirme oturum genelindedir; kaynak sekme kapansa bile sonucu göster.
   if (event.type === 'downloads') { receiveBrowserDownloads(event.downloads); return; }
   // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
@@ -17134,6 +17192,7 @@ if ($('browserDiagnosticsToolbar')) {
     toggleSettingsPage('browser-diagnostics');
     if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
     if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
+    void refreshBrowserGpuDiagnostics();
   });
 }
 $$('.drawer-page-tab[data-settings-page]').forEach((button) => {
@@ -17143,6 +17202,7 @@ $$('.drawer-page-tab[data-settings-page]').forEach((button) => {
     if (button.dataset.settingsPage === 'browser-diagnostics') {
       if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
       if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
+      void refreshBrowserGpuDiagnostics();
     }
   });
 });

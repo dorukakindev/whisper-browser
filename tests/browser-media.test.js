@@ -35,7 +35,8 @@ test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
   assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('disable-gpu'\)/);
   assert.doesNotMatch(main, /app\.commandLine\.appendSwitch\('in-process-gpu'\)/);
   assert.match(main, /if \(!browserHardwareAccelerationEnabled\) app\.disableHardwareAcceleration\(\)/);
-  assert.match(main, /gpuCompositing: st\.gpu_compositing/);
+  assert.match(main, /summarizeGpuDiagnostics/);
+  assert.match(main, /featureStatus = app\.getGPUFeatureStatus\(\)/);
 });
 
 test('medya zamanlayıcısı komutlarla aynı aday sıralamasını kullanır', () => {
