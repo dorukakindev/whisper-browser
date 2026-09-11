@@ -151,6 +151,18 @@ class FakeEngine extends EventEmitter {
     assert.match(preload, /getBrowserAdblockState/);
     assert.match(preload, /setBrowserAdblockEnabled/);
     assert.match(html, /id="browserAdblockEnabled"[^>]*checked/);
+    const newTabIndex = html.indexOf('id="browserTabNew"');
+    const quickToggleIndex = html.indexOf('id="browserAdblockQuick"');
+    assert.ok(newTabIndex >= 0 && quickToggleIndex > newTabIndex && quickToggleIndex - newTabIndex < 900,
+      'üst reklam koruması anahtarı yeni sekme düğmesinin yanında değil');
+    assert.ok(html.slice(quickToggleIndex, quickToggleIndex + 220).includes('aria-pressed="true"'),
+      'üst reklam koruması anahtarı erişilebilir basılı durumunu taşımıyor');
+    assert.ok(renderer.includes("quick.setAttribute('aria-pressed', String(enabled))"),
+      'üst anahtar gerçek reklam koruması durumuyla senkron değil');
+    const quickBinding = renderer.slice(renderer.indexOf("if ($('browserAdblockQuick'))"), renderer.indexOf("if ($('browserPlayerResponseAdPrune'))"));
+    assert.ok(quickBinding.includes('control.checked = !control.checked;')
+      && quickBinding.includes("dispatchEvent(new Event('change'"),
+      'üst anahtar kalıcı ayar kontrolünün ortak değişiklik yolunu kullanmıyor');
     const persisted = renderer.slice(renderer.indexOf('const PERSIST_CHECKBOX_CONTROLS'), renderer.indexOf('function collectUiSettings'));
     assert.match(persisted, /browserAdblockEnabled/);
     assert.ok(renderer.indexOf("event.type === 'adblock-status'") < renderer.indexOf('if (event.tabId)', renderer.indexOf('if (window.api.onBrowserEvent)')),

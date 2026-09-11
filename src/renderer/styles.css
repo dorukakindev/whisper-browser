@@ -4340,7 +4340,7 @@ html[data-theme="light"] .header-actions #openPlayer:hover {
   cursor: pointer;
 }
 .browser-tab.active .browser-tab-open { color: var(--text); }
-.browser-tab-close, .browser-tab-audio, .browser-tab-pin, .browser-tab-new {
+.browser-tab-close, .browser-tab-audio, .browser-tab-pin, .browser-tab-new, .browser-adblock-quick {
   border: 0;
   color: var(--text-muted);
   background: transparent;
@@ -4373,8 +4373,39 @@ html[data-theme="light"] .header-actions #openPlayer:hover {
 }
 .browser-tab-new:not(:disabled):hover { color: var(--player-amber); border-color: #5a4523; background: #211b12; }
 .browser-tab-new:disabled { opacity: .42; cursor: not-allowed; }
+.browser-adblock-quick {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.browser-adblock-quick .browser-adblock-off-mark { display: none; }
+.browser-adblock-quick[aria-pressed="true"] {
+  color: var(--player-amber);
+  border-color: #5a4523;
+  background: #211b12;
+}
+.browser-adblock-quick[aria-pressed="false"] .browser-adblock-on-mark { display: none; }
+.browser-adblock-quick[aria-pressed="false"] .browser-adblock-off-mark { display: block; }
+.browser-adblock-quick:not(:disabled):hover {
+  color: var(--player-amber);
+  border-color: #5a4523;
+  background: #211b12;
+}
+.browser-adblock-quick.has-error { color: #d89082; border-color: #684038; }
+.browser-adblock-quick:disabled { opacity: .46; cursor: wait; }
 html[data-theme="light"] .browser-tab-new { color: var(--text-dim); }
 html[data-theme="light"] .browser-tab-new:not(:disabled):hover {
+  color: var(--accent-hover);
+  border-color: var(--accent-dim);
+  background: var(--accent-soft);
+}
+html[data-theme="light"] .browser-adblock-quick[aria-pressed="true"],
+html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
   color: var(--accent-hover);
   border-color: var(--accent-dim);
   background: var(--accent-soft);
@@ -4385,6 +4416,7 @@ html[data-theme="light"] .subtitle-display-segments button:disabled,
 html[data-theme="light"] .browser-nav-button:disabled,
 html[data-theme="light"] .browser-tab-close:disabled,
 html[data-theme="light"] .browser-tab-new:disabled,
+html[data-theme="light"] .browser-adblock-quick:disabled,
 html[data-theme="light"] .browser-profile-field .btn:disabled {
   opacity: .58;
 }

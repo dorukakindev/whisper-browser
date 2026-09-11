@@ -8456,6 +8456,26 @@ function updateBrowserNavigation(data, options = {}) {
 
 function renderBrowserAdblockState(result = {}) {
   const status = $('browserAdblockStatus');
+  const control = $('browserAdblockEnabled');
+  const quick = $('browserAdblockQuick');
+  const knownState = typeof result.enabled === 'boolean';
+  const enabled = knownState ? result.enabled : !!control?.checked;
+  const busy = result.state === 'loading';
+  if (knownState && control) control.checked = enabled;
+  if (control) control.disabled = busy;
+  if (quick) {
+    quick.disabled = busy;
+    quick.setAttribute('aria-pressed', String(enabled));
+    quick.classList.toggle('has-error', result.state === 'error' || result.ok === false);
+    const action = enabled ? 'kapat' : 'aç';
+    const label = busy ? 'Reklam koruması değiştiriliyor'
+      : result.state === 'error' || result.ok === false
+        ? `Reklam koruması kapalı; ayarlarda hata ayrıntısı var`
+        : `Reklam koruması ${enabled ? 'açık' : 'kapalı'}; ${action}`;
+    quick.title = busy ? 'Reklam koruması değiştiriliyor…'
+      : `Reklam koruması ${enabled ? 'açık' : 'kapalı'} · ${enabled ? 'Kapat' : 'Aç'}`;
+    quick.setAttribute('aria-label', label);
+  }
   if (!status) return;
   if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
   else if (result.enabled) {
@@ -8475,13 +8495,12 @@ async function refreshBrowserAdblockState() {
 async function setBrowserAdblockEnabled(enabled) {
   const control = $('browserAdblockEnabled');
   if (!control || !window.api.setBrowserAdblockEnabled) return;
-  control.disabled = true;
   renderBrowserAdblockState({ state: 'loading' });
   const result = await window.api.setBrowserAdblockEnabled(enabled).catch((error) => ({
     ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${error.message}`,
   }));
-  control.disabled = false;
   renderBrowserAdblockState(result);
+  if (result?.enabled !== enabled) scheduleSave();
   if (result?.ok && result.reloadRequired && player.workspaceMode === 'browser' && player.browserPageUrl) {
     setBrowserSignal(enabled ? 'Reklam koruması açıldı; sayfa filtrelerle yenileniyor.' : 'Reklam koruması kapatıldı; sayfa yenileniyor.', true);
     await runBrowserChromeCommand('reload');
@@ -9574,6 +9593,12 @@ if ($('browserReload')) $('browserReload').addEventListener('click', () => {
 });
 if ($('browserAdblockEnabled')) $('browserAdblockEnabled').addEventListener('change', (event) => {
   void setBrowserAdblockEnabled(event.target.checked);
+});
+if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => {
+  const control = $('browserAdblockEnabled');
+  if (!control || control.disabled) return;
+  control.checked = !control.checked;
+  control.dispatchEvent(new Event('change', { bubbles: true }));
 });
 if ($('browserPlayerResponseAdPrune')) $('browserPlayerResponseAdPrune').addEventListener('change', (event) => {
   void setBrowserPlayerAdPruneEnabled(event.target.checked);

@@ -166,6 +166,8 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(renderer, /BrowserTabEventGate/);
   assert.match(renderer, /browserActiveTabId/);
   assert.match(html, /id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"/);
+  assert.ok(html.indexOf('id="browserAdblockQuick"') > html.indexOf('id="browserTabNew"'),
+    'reklam koruması hızlı anahtarı yeni sekme düğmesinin yanında değil');
   assert.match(html, /id="browserTabNew"[\s\S]{0,500}<span>Yeni sekme<\/span>/);
   assert.match(renderer, /\$\('browserTabNew'\)\.addEventListener\('click', createBrowserTab\)/);
   assert.match(renderer, /syncBrowserTabs\(result\.tabs, result\.activeTabId, result\.split\)/);
