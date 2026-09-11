@@ -157,6 +157,25 @@ function controllerBootstrap() {
         if (!item) return null;
         const ad = detectAd();
         restoreAdAudioIfEnded(item, ad.adPlaying);
+        let totalVideoFrames = null;
+        try {
+          const quality = typeof item.getVideoPlaybackQuality === 'function'
+            ? item.getVideoPlaybackQuality() : null;
+          const frames = Number(quality?.totalVideoFrames);
+          if (Number.isFinite(frames) && frames >= 0) totalVideoFrames = frames;
+        } catch (_) {}
+        let errorCode = 0;
+        let errorMessage = '';
+        try {
+          errorCode = Math.max(0, finite(item.error?.code));
+          errorMessage = String(item.error?.message || '').slice(0, 180);
+        } catch (_) {}
+        const spinnerVisible = !!firstVisible([
+          '.html5-video-player.buffering .ytp-spinner',
+          '.jwplayer.jw-state-buffering .jw-display-icon-container',
+          '.vjs-waiting .vjs-loading-spinner',
+          '[data-testid="player-spinner"]',
+        ]);
         return {
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
@@ -167,6 +186,13 @@ function controllerBootstrap() {
           volume: finite(item.volume),
           playbackRate: finite(item.playbackRate, 1),
           area: Math.max(0, item.clientWidth * item.clientHeight),
+          readyState: Math.max(0, Math.min(4, finite(item.readyState))),
+          videoWidth: Math.max(0, finite(item.videoWidth)),
+          videoHeight: Math.max(0, finite(item.videoHeight)),
+          totalVideoFrames,
+          spinnerVisible,
+          errorCode,
+          errorMessage,
           adPlaying: ad.adPlaying,
           adSkippable: ad.adSkippable,
           adRemaining: ad.adRemaining,

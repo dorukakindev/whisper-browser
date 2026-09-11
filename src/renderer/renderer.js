@@ -4186,6 +4186,7 @@ const player = {
   browserLoadedTrackId: '',
   browserLoadedTrackId2: '',
   browserDiagnostics: null,
+  browserPlaybackDiagnostics: null,
   browserCaptureEnabled: true,
   browserPlaces: { history: [], bookmarks: [] },
   browserJobs: [],
@@ -4429,6 +4430,7 @@ function saveActiveBrowserTabWorkspace() {
     title: player.browserPageTitle,
     captureEnabled: player.browserCaptureEnabled,
     diagnostics: player.browserDiagnostics,
+    playbackDiagnostics: player.browserPlaybackDiagnostics,
     browserTracks: player.browserTracks.slice(),
     browserTime: player.browserTime,
     browserDuration: player.browserDuration,
@@ -4527,6 +4529,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserPageTitle = tab.title || '';
   player.browserCaptureEnabled = tab.captureEnabled !== false;
   player.browserDiagnostics = tab.diagnostics || null;
+  player.browserPlaybackDiagnostics = tab.playbackDiagnostics || null;
   player.browserTracks = (tab.browserTracks || []).slice();
   player.browserTime = Number(tab.browserTime) || 0;
   player.browserDuration = Number(tab.browserDuration) || 0;
@@ -4646,6 +4649,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
     void loadPersistedBrowserTranslation(savedTranslation);
   }
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
   renderBrowserPageReport();
   setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
   updateBrowserMangaButton();
@@ -5364,6 +5368,7 @@ async function activateBrowserTab(tabId) {
   restoreActiveBrowserTabWorkspace(tab);
   if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
   if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
+  if (result.playbackDiagnostics) renderBrowserPlaybackDiagnostics(result.playbackDiagnostics);
   updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
   scheduleBrowserBounds();
   scheduleBrowserOverlaySync();
@@ -5424,6 +5429,7 @@ async function reopenClosedBrowserTab() {
     restoreActiveBrowserTabWorkspace(tab);
     if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
     if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
+    if (result.playbackDiagnostics) renderBrowserPlaybackDiagnostics(result.playbackDiagnostics);
     updateBrowserNavigation({ ...tab, ...result }, { preserveWorkspace: true });
     scheduleBrowserBounds();
     scheduleBrowserOverlaySync();
@@ -6443,6 +6449,61 @@ function renderBrowserDiagnostics(diagnostics) {
     detail.title = detail.textContent;
     row.append(strategy, result, detail);
     recent.appendChild(row);
+  }
+}
+
+function renderBrowserPlaybackDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== 'object') return;
+  player.browserPlaybackDiagnostics = diagnostics;
+  const tab = browserTabState();
+  if (tab) tab.playbackDiagnostics = diagnostics;
+  const recent = Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 8) : [];
+  const capabilities = diagnostics.capabilities || {};
+  const component = capabilities.component || {};
+  const eme = capabilities.eme || {};
+  const gpu = capabilities.gpu || {};
+  const capabilityParts = [];
+  if (Object.keys(component).length) {
+    capabilityParts.push(`CDM: ${component.ready ? 'hazır' : component.available ? 'bekliyor/hatalı' : 'yok'}`);
+  }
+  if (Object.keys(eme).length) {
+    capabilityParts.push(`EME: ${eme.probeFailed ? 'ölçülemedi' : eme.supported ? 'uygun'
+      : eme.apiAvailable === false ? 'API yok' : 'uygun değil'}`);
+  }
+  if (eme.videoSupported === false || eme.audioSupported === false) capabilityParts.push('codec: uygun değil');
+  else if (eme.videoSupported === true && eme.audioSupported === true) capabilityParts.push('codec: uygun');
+  if (gpu.videoDecode) {
+    const decodeStatus = String(gpu.videoDecode);
+    const decodeLabel = /^(?:bilinmiyor|unknown|unavailable)$/i.test(decodeStatus)
+      ? 'bilinmiyor' : decodeStatus.startsWith('enabled') ? 'etkin' : 'sınırlı';
+    capabilityParts.push(`GPU video: ${decodeLabel}`);
+  }
+  const capability = $('browserPlaybackCapability');
+  if (capability) capability.textContent = capabilityParts.join(' · ')
+    || 'Yetenek ölçümü korumalı bir sayfa açıldığında yapılır.';
+  const summary = $('browserPlaybackSummary');
+  if (summary) summary.textContent = recent.length
+    ? `${recent.length} tanı · ${Object.keys(diagnostics.counts || {}).length} sınıf`
+    : 'Oynatma hatası gözlenmedi';
+  const list = $('browserPlaybackRecent');
+  if (!list) return;
+  list.replaceChildren();
+  if (!recent.length) {
+    list.textContent = 'EME, codec, lisans ağı, HTTP ve medya belirtileri burada kanıt düzeyiyle gösterilir.';
+    return;
+  }
+  for (const entry of recent) {
+    const row = document.createElement('div');
+    row.className = `browser-playback-row confidence-${entry.confidence || 'düşük'}`;
+    const confidence = document.createElement('span');
+    confidence.textContent = String(entry.confidence || 'düşük').toUpperCase();
+    const label = document.createElement('strong');
+    label.textContent = entry.label || entry.code || 'Oynatma tanısı';
+    const message = document.createElement('span');
+    message.textContent = entry.message || '';
+    message.title = [entry.message, entry.evidence].filter(Boolean).join(' · ');
+    row.append(confidence, label, message);
+    list.appendChild(row);
   }
 }
 
@@ -8696,6 +8757,7 @@ async function showBrowserWorkspaceAttempt(retry = 0) {
   updateBrowserNavigation(result);
   if (typeof result.captureEnabled === 'boolean') setBrowserCaptureEnabled(result.captureEnabled, false);
   if (result.diagnostics) renderBrowserDiagnostics(result.diagnostics);
+  if (result.playbackDiagnostics) renderBrowserPlaybackDiagnostics(result.playbackDiagnostics);
   if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
   else loadBrowserPlaces();
   scheduleBrowserBounds();
@@ -9628,6 +9690,7 @@ if ($('browserSessionRestore')) $('browserSessionRestore').addEventListener('cha
 if ($('browserDiagnosticsToggle')) $('browserDiagnosticsToggle').addEventListener('click', () => {
   toggleSettingsPage('browser-diagnostics');
   if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
   void refreshBrowserResourceDiagnostics();
 });
 if ($('browserAdapterFolder')?.addEventListener) $('browserAdapterFolder').addEventListener('click', async () => {
@@ -9903,8 +9966,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         if (event.state === 'error') tab.browserPageError = String(event.message || event.error || 'Sayfa çevirisi başarısız oldu.');
         else if (event.state === 'idle' || event.state === 'ready') tab.browserPageError = '';
         if (event.state === 'ready' && !tab.browserPageFailed) void completeBrowserRecovery(tab, 'page-translation');
+      } else if (event.type === 'playback-diagnostics' && event.diagnostics) {
+        tab.playbackDiagnostics = event.diagnostics;
       } else if (event.type === 'load-error' || event.type === 'security-error'
-          || event.type === 'drm-playback-error' || event.type === 'tab-crashed') {
+          || event.type === 'tab-crashed') {
         tab.error = event.message || 'Tarayıcı hatası';
         tab.errorKind = event.type === 'security-error' ? 'certificate'
           : (event.type === 'tab-crashed' ? 'crash' : 'connection');
@@ -10083,6 +10148,16 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'capture-status' && event.diagnostics) {
     if (typeof event.diagnostics.captureEnabled === 'boolean') setBrowserCaptureEnabled(event.diagnostics.captureEnabled, false);
     renderBrowserDiagnostics(event.diagnostics);
+  } else if (event.type === 'playback-diagnostics' && event.diagnostics) {
+    renderBrowserPlaybackDiagnostics(event.diagnostics);
+    if (event.diagnostic) {
+      const message = `${event.diagnostic.label || 'Oynatma tanısı'}: ${event.diagnostic.message || ''}`;
+      setBrowserSignal(message, false, {
+        priority: event.diagnostic.confidence === 'yüksek' ? 90 : event.diagnostic.confidence === 'orta' ? 75 : 45,
+        holdMs: event.diagnostic.confidence === 'düşük' ? 4500 : 6500,
+      });
+      logLine(message, event.diagnostic.confidence === 'düşük' ? 'info' : 'warn');
+    }
   } else if (event.type === 'page-responsiveness') {
     const tab = browserTabState();
     if (tab) tab.pageResponsive = event.responsive !== false;
@@ -10141,8 +10216,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     logLine(`Canlı Whisper: ${event.message || 'ses parçası işlenemedi'}`, 'warn');
   } else if (event.type === 'drm-status') {
     const message = event.supported
-      ? 'Widevine modülü bulundu. Bu yalnızca teknik erişimi doğrular; Hulu, Discovery+ ve benzeri servisler ayrıca üretim lisansı/VMP imzası isteyebilir.'
-      : 'Bu Electron derlemesinde Widevine kullanılamıyor; korumalı video oynatılamayabilir, ancak erişilebilen altyazı ağ izleri taranmaya devam eder.';
+      ? 'Widevine teknik erişimi doğrulandı. Bu sonuç servis lisansı, abonelik veya bölge erişimini garanti etmez.'
+      : 'Widevine teknik erişimi doğrulanamadı. EME, codec ve bileşen kanıtlarını oynatma tanısı panelinde birlikte değerlendirin; bu sonuç tek başına lisans veya bölge engeli değildir.';
     setBrowserSignal(message, !!event.supported, { priority: event.supported ? 35 : 75, holdMs: 5000 });
     logLine(message, event.supported ? 'info' : 'warn');
   } else if (event.type === 'drm-wait') {
@@ -10158,12 +10233,6 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     }
     const message = event.message || `${event.host || 'Site'} izin isteği güvenli varsayılanla engellendi.`;
     setBrowserSignal(message, false, { priority: 75, holdMs: 6000 });
-    logLine(message, 'warn');
-  } else if (event.type === 'drm-playback-error') {
-    const tab = browserTabState();
-    if (tab) tab.error = event.message || 'DRM hatası';
-    const message = `Korumalı video lisans aşamasında reddedildi: ${event.message || 'DRM hatası'}`;
-    setBrowserSignal(message, false, { priority: 100, holdMs: 7000 });
     logLine(message, 'warn');
   }
 });
@@ -17064,14 +17133,16 @@ if ($('browserDiagnosticsToolbar')) {
   $('browserDiagnosticsToolbar').addEventListener('click', () => {
     toggleSettingsPage('browser-diagnostics');
     if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+    if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
   });
 }
 $$('.drawer-page-tab[data-settings-page]').forEach((button) => {
   button.addEventListener('click', () => {
     setSettingsPage(button.dataset.settingsPage);
     setSettingsDrawer(true);
-    if (button.dataset.settingsPage === 'browser-diagnostics' && player.browserDiagnostics) {
-      renderBrowserDiagnostics(player.browserDiagnostics);
+    if (button.dataset.settingsPage === 'browser-diagnostics') {
+      if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+      if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
     }
   });
 });

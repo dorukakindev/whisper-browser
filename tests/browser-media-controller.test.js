@@ -140,6 +140,8 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
   assert.deepEqual(probe([broken]), {
     currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
     volume: 0, playbackRate: 1, area: 360000, adPlaying: false,
+    readyState: 0, videoWidth: 0, videoHeight: 0, totalVideoFrames: null,
+    spinnerVisible: false, errorCode: 0, errorMessage: '',
     adSkippable: false, adRemaining: null,
   });
 });

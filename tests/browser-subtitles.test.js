@@ -794,7 +794,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /type: 'drm-wait'/);
   assert.match(main, /widevineReadinessPromise = readiness/);
   assert.match(main, /setUserAgent\(sanitizeBrowserUserAgent\(/);
-  assert.match(main, /drm-playback-error/);
+  assert.match(main, /type: 'playback-diagnostics'/);
+  assert.doesNotMatch(main, /browserDrmFailureMessage\(rawMsg\)/);
   assert.match(main, /require\('\.\/browser-drm'\)/);
   assert.match(main, /matchDashSubtitleUrl/);
   assert.match(main, /parseMp4Timescale\(init\)/);

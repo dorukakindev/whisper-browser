@@ -21,15 +21,14 @@ test('Electron ürün adını kaldırırken gerçek Chromium sürümünü korur'
   assert.match(ua, /Safari\/537\.36/);
 });
 
-test('DRM lisans hatasını yakalar ve hassas sorgu parametrelerini gizler', () => {
+test('DRM lisans hatasını kanıt düzeyini aşmadan kullanıcı mesajına çevirir', () => {
   const message = browserDrmFailureMessage('Widevine license request failed: https://license.test/v1/key?token=secret&sig=private');
-  assert.match(message, /Widevine license request failed/i);
-  assert.match(message, /https:\/\/license\.test\/v1\/key/);
+  assert.match(message, /lisans aşamasında bir hata/i);
   assert.doesNotMatch(message, /secret|private|token=|sig=/i);
 });
 
-test('Discovery hata kodunu güçlü DRM sinyali olarak gösterir', () => {
-  assert.equal(browserDrmFailureMessage('Playback error 2312400'), 'Playback error 2312400');
+test('Discovery hata kodunu düşük güvenli korumalı oynatma tanısı olarak gösterir', () => {
+  assert.match(browserDrmFailureMessage('Playback error 2312400'), /nedenini ayırmıyor/i);
 });
 
 test('normal lisans bilgisi ve ilgisiz JavaScript hatası false positive üretmez', () => {

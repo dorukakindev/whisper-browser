@@ -74,10 +74,15 @@ const {
   pruneBrowserCaptureDedupe,
 } = require('./browser-network-capture');
 const {
-  browserDrmFailureMessage,
   isProtectedBrowserHost,
   sanitizeBrowserUserAgent,
 } = require('./browser-drm');
+const {
+  createPlaybackDiagnosticTracker,
+  installPlaybackWebRequestDiagnostics,
+  isPlaybackProbeContextCurrent,
+  redactDiagnosticText,
+} = require('./browser-playback-diagnostics');
 const {
   clearAllBrowserCookies: clearAllBrowserCookiesInSession,
   clearBrowserSiteData: clearBrowserSiteDataInSession,
@@ -394,6 +399,7 @@ let browserMediaTimer = null;
 let browserCaptureTimer = null;
 let browserCaptureHookFrames = new WeakSet();
 const browserConfiguredSessions = new WeakSet();
+const browserPlaybackConfiguredSessions = new WeakSet();
 let browserCaptureBusy = false;
 let browserCaptureFlushPromise = null;
 let browserTrackBusy = false;
@@ -435,7 +441,6 @@ function trimInsertionCollection(collection, limit) {
 }
 let browserDashSubtitleMatchers = [];
 let browserLastDrmStatus = '';
-let browserLastDrmFailure = '';
 let browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
 let browserDiagnostics = null;
 let browserNetworkOnline = true;
@@ -1890,6 +1895,7 @@ function createBrowserTabRecord(initial = {}) {
     lifecycle: restored.lifecycle === 'unloaded' ? 'unloaded' : 'background',
     unloadedAt: Number(restored.unloadedAt) || 0,
     diagnostics: null,
+    playbackDiagnostics: createPlaybackDiagnosticTracker(),
     htmlFullscreen: false,
     pageResponsive: true,
     acquisitionPlan: null,
@@ -2581,6 +2587,48 @@ function sendBrowserEvent(tabOrPayload, maybePayload) {
   }
 }
 
+function browserPlaybackSnapshot(tab = activeBrowserTab()) {
+  return tab?.playbackDiagnostics?.snapshot?.() || {
+    classCount: 0, dedupeEntries: 0, counts: {}, capabilities: {}, recent: [],
+  };
+}
+
+function publishBrowserPlaybackDiagnostics(tab = activeBrowserTab(), diagnostic = null) {
+  if (!tab) return;
+  sendBrowserEvent(tab, {
+    type: 'playback-diagnostics',
+    diagnostic,
+    diagnostics: browserPlaybackSnapshot(tab),
+  });
+}
+
+function recordBrowserPlaybackEvidence(tab, evidence, at = Date.now()) {
+  const diagnostic = tab?.playbackDiagnostics?.record?.(evidence, at) || null;
+  if (diagnostic) publishBrowserPlaybackDiagnostics(tab, diagnostic);
+  return diagnostic;
+}
+
+function configureBrowserPlaybackWebRequest(browserSession) {
+  if (!browserSession?.webRequest || browserPlaybackConfiguredSessions.has(browserSession)) return;
+  const configured = installPlaybackWebRequestDiagnostics(
+    browserSession.webRequest,
+    (evidence) => recordBrowserPlaybackEvidence(activeBrowserTab(), evidence),
+    {
+      // Kalıcı partition popup ve arka plan sekmeleriyle paylaşılır. Bir
+      // popup'ın veya görünmeyen sekmenin 401/403 yanıtını etkin videonun
+      // kanıtı saymamak için yalnız etkin WebContentsView kimliğini kabul et.
+      acceptDetails(details) {
+        const active = activeBrowserTab();
+        const activeContents = active?.view?.webContents;
+        const activeId = activeContents && !activeContents.isDestroyed() ? activeContents.id : 0;
+        const observedId = Number(details && details.webContentsId) || 0;
+        return activeId > 0 && observedId === activeId;
+      },
+    }
+  );
+  if (configured) browserPlaybackConfiguredSessions.add(browserSession);
+}
+
 function createBrowserAcquisitionPlan(tab) {
   if (!tab) return null;
   tab.acquisitionId = nextAcquisitionId('caption');
@@ -3229,7 +3277,6 @@ function resetBrowserCaptureState(options = {}) {
   browserHlsInFlight.clear();
   browserCaptureHookFrames = new WeakSet();
   browserLastDrmStatus = '';
-  browserLastDrmFailure = '';
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
   const tab = activeBrowserTab();
   const preservedDiagnostics = options.preserveDiagnostics && tab?.diagnostics
@@ -7379,6 +7426,12 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     const duration = Number(media.duration);
     const playbackRate = Number(media.playbackRate);
     const volume = Number(media.volume);
+    const readyState = Number(media.readyState);
+    const videoWidth = Number(media.videoWidth);
+    const videoHeight = Number(media.videoHeight);
+    const errorCode = Number(media.errorCode);
+    const totalVideoFrames = media.totalVideoFrames === null || media.totalVideoFrames === undefined
+      ? NaN : Number(media.totalVideoFrames);
     const adRemaining = media.adRemaining === null || media.adRemaining === undefined
       ? NaN : Number(media.adRemaining);
     const safeMedia = {
@@ -7387,6 +7440,13 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
       playbackRate: Number.isFinite(playbackRate) ? Math.max(0.25, Math.min(4, playbackRate)) : 1,
       volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0,
+      readyState: Number.isFinite(readyState) ? Math.max(0, Math.min(4, readyState)) : 0,
+      videoWidth: Number.isFinite(videoWidth) ? Math.max(0, videoWidth) : 0,
+      videoHeight: Number.isFinite(videoHeight) ? Math.max(0, videoHeight) : 0,
+      totalVideoFrames: Number.isFinite(totalVideoFrames) ? Math.max(0, totalVideoFrames) : null,
+      spinnerVisible: !!media.spinnerVisible,
+      errorCode: Number.isFinite(errorCode) ? Math.max(0, errorCode) : 0,
+      errorMessage: redactDiagnosticText(media.errorMessage || ''),
       adPlaying: !!media.adPlaying,
       adSkippable: !!media.adSkippable,
       adRemaining: Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null,
@@ -7397,6 +7457,8 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     tab.volume = safeMedia.volume;
     tab.muted = !!safeMedia.muted;
     tab.translationScheduler?.updatePlayhead(tab.position);
+    const playbackDiagnostics = tab.playbackDiagnostics.observeMediaSample(safeMedia);
+    for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
     const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
       !!safeMedia.adSkippable, safeMedia.adRemaining ?? ''].join('|');
@@ -7473,7 +7535,8 @@ async function prepareWidevineComponents() {
   }).catch((error) => {
     const message = error && error.message
       ? error.message : (error && error.errors ? 'Widevine bileşeni kurulamadı' : String(error || 'Bilinmeyen hata'));
-    widevineComponentStatus = { available: true, ready: false, detail: message.slice(0, 240) };
+    widevineComponentStatus = { available: true, ready: false, failed: true, detail: message.slice(0, 240) };
+    if (browserView && !browserView.webContents.isDestroyed()) setTimeout(() => reportBrowserDrmSupport(), 0);
     return widevineComponentStatus;
   });
   // Başlangıçta 15 saniyelik genel açılış sınırı olsa bile bu promise'i sakla.
@@ -7520,24 +7583,81 @@ async function reportBrowserDrmSupport() {
   if (activeBrowserTab()?.compatibilityMode || !browserView
       || !browserScriptExecutionReady(browserView.webContents)) return;
   const tab = activeBrowserTab();
-  const context = tab ? { ...browserEventContext(tab), stateGeneration: browserStateGeneration } : null;
-  const pageUrl = browserView.webContents.getURL();
+  if (!tab || tab.view !== browserView) return;
+  const activeView = browserView;
+  const activeContents = activeView.webContents;
+  const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
+  const probeContext = {
+    generation: browserStateGeneration,
+    webContentsId: activeContents.id,
+    url: activeContents.getURL(),
+  };
+  const pageUrl = probeContext.url;
   if (!isProtectedBrowserHost(pageUrl)) return;
   let host = '';
   try { host = new URL(pageUrl).hostname.toLowerCase(); } catch (_) {}
-  const result = await browserView.webContents.executeJavaScript(`(async () => {
-    if (!navigator.requestMediaKeySystemAccess) return { supported: false, reason: 'EME yok' };
+  const rawResult = await activeContents.executeJavaScript(`(async () => {
+    const videoType = 'video/mp4; codecs="avc1.42E01E"';
+    const audioType = 'audio/mp4; codecs="mp4a.40.2"';
+    const media = document.createElement('video');
+    const videoSupported = !!media.canPlayType(videoType)
+      || !!(window.MediaSource && MediaSource.isTypeSupported && MediaSource.isTypeSupported(videoType));
+    const audioSupported = !!media.canPlayType(audioType)
+      || !!(window.MediaSource && MediaSource.isTypeSupported && MediaSource.isTypeSupported(audioType));
+    if (!navigator.requestMediaKeySystemAccess) {
+      return { apiAvailable: false, supported: false, reason: 'EME yok', videoSupported, audioSupported };
+    }
     try {
       await navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{
         initDataTypes: ['cenc'],
-        audioCapabilities: [{ contentType: 'audio/mp4; codecs="mp4a.40.2"' }],
-        videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }]
+        audioCapabilities: [{ contentType: audioType }],
+        videoCapabilities: [{ contentType: videoType }]
       }]);
-      return { supported: true };
-    } catch (error) { return { supported: false, reason: error && error.name || 'desteklenmiyor' }; }
-  })()`, true).catch((error) => ({ supported: false, reason: error.message }));
-  if (!isCurrentBrowserContext(context)) return;
-  const statusKey = `${host}:${result.supported}:${result.reason || ''}`;
+      return { apiAvailable: true, supported: true, videoSupported, audioSupported };
+    } catch (error) {
+      return { apiAvailable: true, supported: false,
+        reason: error && error.name || 'desteklenmiyor', videoSupported, audioSupported };
+    }
+  })()`, true).catch((error) => ({
+    probeFailed: true, apiAvailable: null, supported: null,
+    reason: error && (error.name || error.message) || 'probe-hatası',
+    videoSupported: null, audioSupported: null,
+  }));
+  const currentTab = activeBrowserTab();
+  const currentContents = browserView && !browserView.webContents.isDestroyed()
+    ? browserView.webContents : null;
+  if (!isCurrentBrowserContext(context) || currentTab !== tab
+      || !isPlaybackProbeContextCurrent(probeContext, {
+        generation: browserStateGeneration,
+        webContentsId: currentContents ? currentContents.id : 0,
+        url: currentContents ? currentContents.getURL() : '',
+        destroyed: !currentContents,
+      })) return;
+  const result = { ...rawResult, reason: redactDiagnosticText(rawResult?.reason || '') };
+  let gpu = {};
+  try {
+    const status = app.getGPUFeatureStatus() || {};
+    gpu = {
+      videoDecode: status.video_decode || 'bilinmiyor',
+      webgl: status.webgl || 'bilinmiyor',
+      gpuCompositing: status.gpu_compositing || 'bilinmiyor',
+    };
+  } catch (_) {}
+  tab.playbackDiagnostics.setCapabilities({
+    component: {
+      available: !!widevineComponentStatus.available,
+      ready: !!widevineComponentStatus.ready,
+      failed: !!widevineComponentStatus.failed,
+      detail: redactDiagnosticText(widevineComponentStatus.detail || ''),
+    },
+    eme: result,
+    gpu,
+  });
+  recordBrowserPlaybackEvidence(tab, { kind: 'component', ...widevineComponentStatus });
+  recordBrowserPlaybackEvidence(tab, { kind: 'eme', ...result });
+  if (gpu.videoDecode) recordBrowserPlaybackEvidence(tab, { kind: 'gpu', videoDecode: gpu.videoDecode });
+  publishBrowserPlaybackDiagnostics(tab);
+  const statusKey = `${tab.id}:${host}:${result.supported}:${result.reason || ''}`;
   if (statusKey === browserLastDrmStatus) return;
   browserLastDrmStatus = statusKey;
   sendBrowserEvent(tab, {
@@ -7603,6 +7723,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   } else {
     browserUserAgent = sanitizeBrowserUserAgent(browserSession.getUserAgent());
   }
+  configureBrowserPlaybackWebRequest(browserSession);
   browserSession.setPermissionCheckHandler((requestingWebContents, permission, _origin, details = {}) => {
     const rawUrl = details.requestingUrl || requestingWebContents?.getURL?.() || '';
     return browserPermissionAllowed(permission, rawUrl);
@@ -7748,6 +7869,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.mangaVisible = false;
     tab.generation += 1;
     tab.bridgeToken = randomUUID();
+    tab.playbackDiagnostics.reset({ clearCapabilities: true });
+    publishBrowserPlaybackDiagnostics(tab);
     sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
     sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
@@ -7816,6 +7939,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         tab.mangaTranslated = 0;
         tab.mangaVisible = false;
         tab.generation += 1;
+        tab.playbackDiagnostics.reset({ clearCapabilities: true });
+        publishBrowserPlaybackDiagnostics(tab);
         sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
         sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
       }
@@ -7829,6 +7954,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       applyStoredBrowserZoom(tab, wc, nextUrl);
       if (mediaChanged && tab.id === browserActiveTabId) {
         resetBrowserCaptureState({ cancelTranslation: true });
+        void reportBrowserDrmSupport();
       }
       scheduleBrowserSessionSave();
     }
@@ -7847,11 +7973,15 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
         return;
       }
-      const message = browserLoadErrorMessage(code, description);
+      const diagnostic = recordBrowserPlaybackEvidence(tab, {
+        kind: 'network', resourceKind: 'document', error: description || code,
+      });
+      const message = diagnostic ? diagnostic.message : browserLoadErrorMessage(code, description);
       tab.loadError = { kind: 'connection', code, message, url };
       if (tab.id === browserActiveTabId) view.setVisible(false);
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
-      sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }), code, message, url });
+      sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
+        code, message, url: redactDiagnosticText(url) });
     }
   });
   wc.on('render-process-gone', (_event, details = {}) => {
@@ -7903,10 +8033,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('console-message', (event, ...rest) => {
     const rawMsg = event && typeof event === 'object' && typeof event.message === 'string'
       ? event.message : (typeof rest[1] === 'string' ? rest[1] : (typeof event === 'string' ? event : ''));
-    const message = browserDrmFailureMessage(rawMsg);
-    if (!message || message === browserLastDrmFailure) return;
-    browserLastDrmFailure = message;
-    sendBrowserEvent(tab, { type: 'drm-playback-error', message });
+    recordBrowserPlaybackEvidence(tab, { kind: 'console', message: rawMsg });
   });
   wc.on('dom-ready', () => {
     if (tab.id !== browserActiveTabId || tab.compatibilityMode) return;
@@ -8894,7 +9021,8 @@ ipcMain.handle('browser:tab:create', (event) => queueBrowserTabTransition(async 
   ensureBrowserView(tab);
   await activateBrowserTab(tab.id);
   scheduleBrowserSessionSave();
-  return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(tab), ...browserNavigationState() };
+  return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(),
+    ...browserEventContext(tab), playbackDiagnostics: browserPlaybackSnapshot(tab), ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:tab:activate', (event, rawId) => queueBrowserTabTransition(async () => {
@@ -8903,7 +9031,8 @@ ipcMain.handle('browser:tab:activate', (event, rawId) => queueBrowserTabTransiti
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   scheduleBrowserSessionSave();
   return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(tab),
-    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
+    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics,
+    playbackDiagnostics: browserPlaybackSnapshot(tab), ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:tab:setPinned', (event, rawId, pinned) => queueBrowserTabTransition(async () => {
@@ -9017,7 +9146,8 @@ ipcMain.handle('browser:tab:close', (event, request) => queueBrowserTabTransitio
   if (wasActive || !browserActiveTabId) await activateBrowserTab(next.id);
   scheduleBrowserSessionSave();
   return { ok: true, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(activeBrowserTab()),
-    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
+    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics,
+    playbackDiagnostics: browserPlaybackSnapshot(activeBrowserTab()), ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(async () => {
@@ -9037,7 +9167,8 @@ ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(asy
   startBrowserPolling();
   return { ok: true, hasPage, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(tab),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled,
-    diagnostics: browserDiagnostics, sessionWarning, ...browserNavigationState() };
+    diagnostics: browserDiagnostics, playbackDiagnostics: browserPlaybackSnapshot(tab),
+    sessionWarning, ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:tab:reopen', (event) => queueBrowserTabTransition(async () => {
@@ -9057,7 +9188,8 @@ ipcMain.handle('browser:tab:reopen', (event) => queueBrowserTabTransition(async 
   await activateBrowserTab(tab.id);
   scheduleBrowserSessionSave();
   return { ok: true, activeTabId: tab.id, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(tab),
-    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics, ...browserNavigationState() };
+    captureEnabled: browserCaptureEnabled, diagnostics: browserDiagnostics,
+    playbackDiagnostics: browserPlaybackSnapshot(tab), ...browserNavigationState() };
 }));
 
 ipcMain.handle('browser:hide', async (event) => {
@@ -9600,6 +9732,7 @@ ipcMain.handle('browser:getState', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, visible: browserVisible, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(activeBrowserTab()),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled, diagnostics: browserDiagnostics,
+    playbackDiagnostics: browserPlaybackSnapshot(activeBrowserTab()),
     places: browserPlacesSnapshot(), ...browserNavigationState() };
 });
 
