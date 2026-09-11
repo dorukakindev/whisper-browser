@@ -270,7 +270,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       sweepStaleChatFiles() {}, sweepBrowserLiveAsrTemp() {}, sweepBrowserSubtitleFiles() {},
       browserAssetStore: () => ({ sweepTempFiles() {} }),
       ADAPTER_REGISTRY: { loadJsonDirectory() {} }, browserAdapterPluginStatus: null, path,
-      restoreBrowserSessionState() {}, createWindow: () => calls.push('window'), console });
+      restoreBrowserSessionState() {}, createWindow: () => calls.push('window'),
+      RESOURCE_SOAK_MODE: false, console });
     await ready();
     assert.deepEqual(calls, ['prepare', 'window']);
     finishDrm();

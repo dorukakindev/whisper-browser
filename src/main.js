@@ -144,6 +144,7 @@ const {
 } = require('./queue-persistence');
 const { withAbortTimeout, withTimeout } = require('./async-timeout');
 const { createBrowserSubtitleFileStore } = require('./browser-subtitle-files');
+const { createResourceTracker, evaluateResourceSoak } = require('./resource-soak');
 const { normalizeBrowserTabId } = require('./browser-tabs');
 const { BrowserClosedTabHistory, isReplaceableBlankBrowserTab } = require('./browser-tab-history');
 const {
@@ -333,9 +334,13 @@ const browserPlayerResponseAdPruneInitiallyEnabled =
 // Kaynak sizinti olcumu (tests/run-resource-soak.js) uygulamayi gercek
 // kullanici profiliyle degil, kendi verdigi gecici klasorle calistirir:
 // olcum ne kullanicinin ayarlarini/gecmisini kirletir ne de onlardan etkilenir.
+const RESOURCE_SOAK_MODE = process.env.WHISPER_RESOURCE_SOAK === '1';
 if (process.env.WHISPER_RESOURCE_SOAK_USER_DATA) {
   try { app.setPath('userData', process.env.WHISPER_RESOURCE_SOAK_USER_DATA); } catch (_) {}
 }
+if (RESOURCE_SOAK_MODE) app.commandLine.appendSwitch('js-flags', '--expose-gc');
+const resourceSoakTracker = RESOURCE_SOAK_MODE ? createResourceTracker() : null;
+let resourceSoakPublicationCount = 0;
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
@@ -445,6 +450,9 @@ const BROWSER_FETCH_TIMEOUT = 12000;
 const BROWSER_SCRIPT_TIMEOUT = 6000;
 const BROWSER_CLOSE_DRAIN_TIMEOUT = 15000;
 const BROWSER_SUBTITLE_FILE_LIMIT = 64;
+const BROWSER_POLL_INTERVALS = RESOURCE_SOAK_MODE
+  ? { track: 75, capture: 35, media: 45 }
+  : { track: 6500, capture: 900, media: 1000 };
 
 // İş çalışırken sistemin uykuya geçmesini engelle (uzun transkripsiyon yarıda kalmasın)
 function startPowerBlocker() {
@@ -5808,6 +5816,9 @@ function publishBrowserTrackNow(entry) {
   const stableId = previousPublication ? previousPublication.id : fingerprint;
   const filePath = previousPublication?.path || path.join(browserSubtitleDir(), `web-${stableId}${suffix}.srt`);
   fs.writeFileSync(filePath, `\uFEFF${cuesToSrt(normalized)}`, 'utf-8');
+  if (typeof RESOURCE_SOAK_MODE !== 'undefined' && RESOURCE_SOAK_MODE) {
+    resourceSoakPublicationCount += 1;
+  }
   let track = {
     id: stableId, path: filePath, language: lang,
     label: String(meta.label || lang || 'Web altyazısı').slice(0, 120),
@@ -7408,7 +7419,7 @@ function startBrowserPolling() {
   // Normal yol preload'dan gelen DOM/media/text-track olaylarıdır. Bu daha
   // seyrek tur yalnız olay vermeyen veya kapalı shadow DOM kullanan siteler
   // için güvenlik ağıdır.
-  browserTrackTimer = setInterval(() => { void probeActiveBrowserTracks('fallback'); }, 6500);
+  browserTrackTimer = setInterval(() => { void probeActiveBrowserTracks('fallback'); }, BROWSER_POLL_INTERVALS.track);
   browserCaptureTimer = setInterval(() => {
     if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
         || activeBrowserTab()?.browserInstrumentationPending) return;
@@ -7417,13 +7428,13 @@ function startBrowserPolling() {
     // yalnız kuyruk drain eder. Discovery+ oynatıcı iframe'ini geç kurduğu için
     // sabit 30 sn yenileme altyazının ilk isteğini kaçırabiliyordu.
     if (browserCaptureEnabled) void flushBrowserCaptureQueue({ installHook: true });
-  }, 900);
+  }, BROWSER_POLL_INTERVALS.capture);
   // Oynatma/duraklatma geçişleri WebContents olaylarıyla anında ölçülür. Bu
   // daha seyrek tur yalnız ilerleme, ses ve olay vermeyen siteler için fallback.
   browserMediaTimer = setInterval(() => {
     pollBrowserTabAudioStates();
     void probeActiveBrowserMedia();
-  }, 1000);
+  }, BROWSER_POLL_INTERVALS.media);
 }
 
 function stopBrowserPolling() {
@@ -8329,6 +8340,249 @@ ipcMain.on('library:flush-before-close-complete', (event, token) => {
   pending.finish();
 });
 
+function resourceEmitterListenerCount(emitter) {
+  if (!emitter || typeof emitter.eventNames !== 'function' || typeof emitter.listenerCount !== 'function') return 0;
+  try { return emitter.eventNames().reduce((total, name) => total + emitter.listenerCount(name), 0); }
+  catch (_) { return 0; }
+}
+
+async function resourceCdpHeap(webContents) {
+  if (!webContents || webContents.isDestroyed()) return { heapUsedBytes: 0, heapTotalBytes: 0 };
+  const client = webContents.debugger;
+  let attachedHere = false;
+  try {
+    if (!client.isAttached()) { client.attach('1.3'); attachedHere = true; }
+    await client.sendCommand('HeapProfiler.collectGarbage');
+    const usage = await client.sendCommand('Runtime.getHeapUsage');
+    return {
+      heapUsedBytes: Math.max(0, Number(usage && usage.usedSize) || 0),
+      heapTotalBytes: Math.max(0, Number(usage && usage.totalSize) || 0),
+    };
+  } catch (_) {
+    try {
+      return await webContents.executeJavaScript(`(() => ({
+        heapUsedBytes: Number(performance.memory && performance.memory.usedJSHeapSize) || 0,
+        heapTotalBytes: Number(performance.memory && performance.memory.totalJSHeapSize) || 0
+      }))()`, true);
+    } catch (_) { return { heapUsedBytes: 0, heapTotalBytes: 0 }; }
+  } finally {
+    if (attachedHere) { try { client.detach(); } catch (_) {} }
+  }
+}
+
+function resourceDirectoryUsage(dir, extension = '') {
+  try {
+    const files = fs.readdirSync(dir, { withFileTypes: true })
+      .filter(entry => entry.isFile() && (!extension || entry.name.toLowerCase().endsWith(extension)));
+    let bytes = 0;
+    for (const entry of files) {
+      try { bytes += fs.statSync(path.join(dir, entry.name)).size; } catch (_) {}
+    }
+    return { count: files.length, bytes };
+  } catch (_) { return { count: 0, bytes: 0 }; }
+}
+
+async function collectResourceSoakSnapshot(label, cycle) {
+  const browserContents = browserView && !browserView.webContents.isDestroyed()
+    ? browserView.webContents : null;
+  const [rendererHeap, browserHeap, rendererRuntime, fixtureRuntime] = await Promise.all([
+    resourceCdpHeap(mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null),
+    resourceCdpHeap(browserContents),
+    mainWindow && !mainWindow.isDestroyed()
+      ? mainWindow.webContents.executeJavaScript(
+        'window.__whisperResourceSoakSnapshot ? window.__whisperResourceSoakSnapshot() : null', true
+      ).catch(() => null) : null,
+    browserContents
+      ? browserContents.executeJavaScript(
+        'window.__fixtureResourceSnapshot ? window.__fixtureResourceSnapshot() : null', true
+      ).catch(() => null) : null,
+  ]);
+  const metrics = app.getAppMetrics().map(metric => ({
+    pid: metric.pid,
+    type: String(metric.type || ''),
+    workingSetBytes: Math.max(0, Number(metric.memory && metric.memory.workingSetSize) || 0) * 1024,
+    peakWorkingSetBytes: Math.max(0, Number(metric.memory && metric.memory.peakWorkingSetSize) || 0) * 1024,
+  }));
+  const gpuMetrics = metrics.filter(metric => /gpu/i.test(metric.type));
+  const mainMemory = process.memoryUsage();
+  const tracker = resourceSoakTracker ? resourceSoakTracker.snapshot() : {
+    timers: { active: 0, projectActive: 0, internalActive: 0, owners: {} },
+    io: { readOps: 0, readBytes: 0, writeOps: 0, writeBytes: 0, byFile: {} },
+  };
+  const listenerParts = {
+    mainWindow: resourceEmitterListenerCount(mainWindow),
+    mainContents: resourceEmitterListenerCount(mainWindow && mainWindow.webContents),
+    browserContents: resourceEmitterListenerCount(browserContents),
+    browserDebugger: resourceEmitterListenerCount(browserContents && browserContents.debugger),
+    renderer: Number(rendererRuntime && rendererRuntime.listeners) || 0,
+    fixture: Number(fixtureRuntime && fixtureRuntime.listeners) || 0,
+  };
+  const subtitleUsage = resourceDirectoryUsage(path.join(app.getPath('userData'), 'browser-subtitles'), '.srt');
+  return {
+    label,
+    cycle,
+    at: Date.now(),
+    main: { rssBytes: mainMemory.rss, heapUsedBytes: mainMemory.heapUsed, heapTotalBytes: mainMemory.heapTotal },
+    renderer: {
+      ...rendererHeap,
+      pid: mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents.getOSProcessId() : 0,
+    },
+    browser: { ...browserHeap, pid: browserContents ? browserContents.getOSProcessId() : 0 },
+    processes: {
+      totalWorkingSetBytes: metrics.reduce((total, metric) => total + metric.workingSetBytes, 0),
+      metrics,
+    },
+    gpu: {
+      processCount: gpuMetrics.length,
+      workingSetBytes: gpuMetrics.reduce((total, metric) => total + metric.workingSetBytes, 0),
+    },
+    listeners: { ...listenerParts, total: Object.values(listenerParts).reduce((sum, value) => sum + value, 0) },
+    timers: {
+      main: tracker.timers,
+      renderer: {
+        timeouts: Number(rendererRuntime && rendererRuntime.timeouts) || 0,
+        intervals: Number(rendererRuntime && rendererRuntime.intervals) || 0,
+        total: Number(rendererRuntime && rendererRuntime.totalTimers) || 0,
+      },
+    },
+    state: {
+      pendingResponses: browserPendingResponses.size,
+      trackBuffers: browserTrackBuffers.size,
+      trackPublications: browserTrackPublications.size,
+      seenManifests: browserSeenManifests.size,
+      manifestInFlight: browserManifestInFlight.size,
+      hlsFetchedStreams: browserHlsFetchedSegments.size,
+      hlsInFlight: browserHlsInFlight.size,
+      subtitleSearchCache: subtitleSearchCache.size,
+      watchLibraryEntries: loadWatchLibrary().length,
+    },
+    disk: { browserSubtitleFiles: subtitleUsage.count, browserSubtitleBytes: subtitleUsage.bytes },
+    io: tracker.io,
+  };
+}
+
+function resourceSoakSleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function resourceSoakCycle(cycle, fixtureRoot) {
+  const tab = activeBrowserTab(true);
+  const view = ensureBrowserView(tab);
+  if (!view) throw new Error('Soak tarayıcı görünümü oluşturulamadı.');
+  browserVisible = true;
+  view.setVisible(true);
+  if (!browserTrackTimer || !browserCaptureTimer || !browserMediaTimer) startBrowserPolling();
+  const pageUrl = `${fixtureRoot}/page?cycle=${cycle}`;
+  await view.webContents.loadURL(pageUrl);
+  const instrumentation = await prepareBrowserPageInstrumentation(tab);
+  if (instrumentation.stale || instrumentation.active) {
+    throw new Error('Soak sayfası yakalama için hazırlanamadı.');
+  }
+  const publicationsBefore = resourceSoakPublicationCount;
+  await ensureBrowserDebugger();
+  await executeBrowserFrames(browserCaptureHookScript());
+  await view.webContents.executeJavaScript(
+    `fetch(${JSON.stringify(`${fixtureRoot}/captions.vtt?cycle=${cycle}&manual=1`)})`
+      + '.then((response) => response.text()).then(() => true)', true
+  );
+  let lastFlush = null;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    await resourceSoakSleep(25);
+    lastFlush = await flushBrowserCaptureQueue({ force: true, installHook: true });
+    flushBrowserTrackPublications(true);
+    if (resourceSoakPublicationCount > publicationsBefore) break;
+  }
+  upsertWatchItem({
+    key: `soak:${cycle % 32}`,
+    title: `Soak fixture ${cycle % 32}`,
+    type: 'browser',
+    sourceRef: pageUrl,
+    position: cycle % 120,
+    duration: 120,
+    lastWatched: Date.now(),
+    session: { id: `soak-session-${cycle}`, watchSeconds: 1, endPosition: cycle % 120 },
+  });
+  if (cycle % 8 === 0 && mainWindow && !mainWindow.isDestroyed()) {
+    await mainWindow.webContents.executeJavaScript(
+      "document.getElementById('workspacePlayerMode')?.click(); true", true
+    );
+    await resourceSoakSleep(10);
+    await mainWindow.webContents.executeJavaScript(
+      "document.getElementById('workspaceBrowserMode')?.click(); true", true
+    );
+    await resourceSoakSleep(30);
+  }
+  // Tanı nesnesi sekme/alan geçişlerinde yenilenebilir; yayın haritası ise bu
+  // belge için gerçekten yazılmış ve UI'a sunulmuş izi temsil eder.
+  const captured = resourceSoakPublicationCount > publicationsBefore;
+  if (!captured) {
+    console.warn(`[resource-soak] ${cycle}. döngü yakalanamadı:`,
+      JSON.stringify({ lastFlush, diagnostics: browserDiagnostics?.counts || null }));
+  }
+  return captured;
+}
+
+async function runResourceSoakSession() {
+  const fixtureRoot = String(process.env.WHISPER_RESOURCE_SOAK_FIXTURE_URL || '').replace(/\/$/, '');
+  const outputPath = path.resolve(process.env.WHISPER_RESOURCE_SOAK_OUTPUT
+    || path.join(app.getPath('temp'), 'whisper-resource-soak.json'));
+  const rawCycles = Number(process.env.WHISPER_RESOURCE_SOAK_CYCLES);
+  const rawWarmup = Number(process.env.WHISPER_RESOURCE_SOAK_WARMUP);
+  const cycles = Math.max(1, Number.isFinite(rawCycles) && rawCycles > 0 ? rawCycles : 400);
+  const warmup = Math.max(0, Number.isFinite(rawWarmup) ? rawWarmup : 20);
+  if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(fixtureRoot)) {
+    throw new Error('Soak fixture yalnız 127.0.0.1 üzerindeki geçici sunucudan çalıştırılabilir.');
+  }
+  await mainWindow.webContents.executeJavaScript(
+    "document.getElementById('workspaceBrowserMode')?.click(); true", true
+  );
+  await resourceSoakSleep(100);
+  let captureAttempts = 0;
+  let captureSuccesses = 0;
+  for (let cycle = 1; cycle <= warmup; cycle++) await resourceSoakCycle(-cycle, fixtureRoot);
+  await resourceSoakSleep(500);
+  const samples = [await collectResourceSoakSnapshot('start', 0)];
+  resourceSoakTracker?.resetPeaks();
+  const checkpoint = Math.max(1, Math.floor(cycles / 4));
+  for (let cycle = 1; cycle <= cycles; cycle++) {
+    captureAttempts++;
+    if (await resourceSoakCycle(cycle, fixtureRoot)) captureSuccesses++;
+    const isFinal = cycle === cycles;
+    if (cycle % checkpoint === 0 || isFinal) {
+      if (isFinal) await resourceSoakSleep(500);
+      samples.push(await collectResourceSoakSnapshot(isFinal ? 'final' : `stable-${cycle}`, cycle));
+      console.log(`[resource-soak] ${cycle}/${cycles} · yakalama ${captureSuccesses}/${captureAttempts}`);
+    }
+  }
+  const peaks = resourceSoakTracker ? resourceSoakTracker.peaks() : {
+    mainTimers: 0, mainProjectTimers: 0, mainInternalTimers: 0, mainTimerOwners: {},
+  };
+  const captureDiagnostics = browserDiagnosticsExportSnapshot();
+  stopBrowserPolling();
+  destroyBrowserView();
+  await resourceSoakSleep(300);
+  samples.push(await collectResourceSoakSnapshot('cleanup', cycles));
+  const report = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    cycles,
+    warmup,
+    fixtureOrigin: fixtureRoot,
+    userData: app.getPath('userData'),
+    capture: { attempts: captureAttempts, successes: captureSuccesses },
+    captureDiagnostics,
+    peaks,
+    samples,
+  };
+  report.verdict = evaluateResourceSoak(report);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf8');
+  console.log(`[resource-soak] rapor: ${outputPath}`);
+  console.log(`[resource-soak] sonuç: ${report.verdict.pass ? 'GEÇTİ' : 'KALDI'}`);
+  resourceSoakTracker?.close();
+  app.exit(0);
+}
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
@@ -8359,6 +8613,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#0b0f17',
     title: 'Whisper Altyazı',
+    show: !RESOURCE_SOAK_MODE,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -8498,6 +8753,26 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
   if (typeof startBrowserAdblock === 'function') startBrowserAdblock();
   restoreBrowserSessionState();
   createWindow();
+  if (RESOURCE_SOAK_MODE) {
+    const startSoak = () => runResourceSoakSession().catch(error => {
+      const outputPath = path.resolve(process.env.WHISPER_RESOURCE_SOAK_OUTPUT
+        || path.join(app.getPath('temp'), 'whisper-resource-soak.json'));
+      try {
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+        fs.writeFileSync(outputPath, JSON.stringify({
+          schemaVersion: 1,
+          generatedAt: new Date().toISOString(),
+          error: error && error.stack || String(error),
+          verdict: { pass: false, checks: [] },
+        }, null, 2), 'utf8');
+      } catch (_) {}
+      console.error('[resource-soak] başarısız:', error);
+      resourceSoakTracker?.close();
+      app.exit(0);
+    });
+    if (mainWindow.webContents.isLoading()) mainWindow.webContents.once('did-finish-load', startSoak);
+    else startSoak();
+  }
 });
 
 let browserCacheQuitFlushStarted = false;

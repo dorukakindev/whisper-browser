@@ -195,8 +195,10 @@ test('20.000 rastgele interleaving kuyruk ve kira invariantlarını korur', () =
   const flushBody = functionBody('flushBrowserCaptureQueue', 'startBrowserPolling');
   assert.match(flushBody, /browserCaptureFlushPromise/);
   assert.match(flushBody, /finally\(\(\) => \{[\s\S]*?browserCaptureBusy = false/);
-  assert.match(functionBody('startBrowserPolling', 'stopBrowserPolling'),
-    /setInterval\(\(\) => \{[\s\S]{0,560}flushBrowserCaptureQueue\(\{ installHook: true \}\)[\s\S]{0,40}\}, 900\)/);
+  const pollingBody = functionBody('startBrowserPolling', 'stopBrowserPolling');
+  assert.match(pollingBody,
+    /setInterval\(\(\) => \{[\s\S]{0,560}flushBrowserCaptureQueue\(\{ installHook: true \}\)[\s\S]{0,80}\}, BROWSER_POLL_INTERVALS\.capture\)/);
+  assert.match(main, /: \{ track: 6500, capture: 900, media: 1000 \}/);
   assert.match(main, /browserCaptureHookFrames = new WeakSet\(\)/);
   assert.match(functionBody('ensureBrowserCaptureHooks', 'performBrowserCaptureFlush'),
     /frames\.filter\(\(frame\) => !browserCaptureHookFrames\.has\(frame\)\)[\s\S]{0,420}browserCaptureHookFrames\.add\(frame\)/);
