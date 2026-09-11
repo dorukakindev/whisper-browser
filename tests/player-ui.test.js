@@ -1669,10 +1669,18 @@ test('dalga biçimi ve altyazı düzenleme sonuçları medya değişimini doğru
     'geç altyazı kaydı mevcut videonun belleğini değiştirebiliyor');
 });
 
-test('HLS medya ve ağ kurtarma bütçeleri ayrıdır ve kararlı oynatmada temizlenir', () => {
-  assert(/hlsMediaRecover/.test(js) && /hlsNetRecover/.test(js), 'HLS hata sayaçları ortak kalmış');
-  assert(/hlsMediaRecover < 2/.test(js) && /hlsNetRecover < 2/.test(js), 'kurtarma sınırı korunmuyor');
-  assert(/hlsMediaRecover = 0[\s\S]*hlsNetRecover = 0/.test(js), 'kararlı oynatmada sayaçlar sıfırlanmıyor');
+test('HLS kurtarma durum makinesi oynatıcı olaylarına bağlıdır', () => {
+  assert(html.indexOf('../hls-recovery.js') > html.indexOf('vendor/hls.min.js')
+    && html.indexOf('../hls-recovery.js') < html.indexOf('renderer.js'), 'durum makinesi renderer öncesinde yüklenmiyor');
+  assert(/beginRecovery\('media'\)/.test(js) && /beginRecovery\('network'\)/.test(js),
+    'fatal medya ve ağ yolları durum makinesini kullanmıyor');
+  assert(/data\.fatal/.test(js), 'fatal olmayan HLS hataları kurtarma hakkı tüketebilir');
+  assert(/playbackProgress\(video\.currentTime/.test(js), 'kararlılık gerçek medya ilerlemesiyle ölçülmüyor');
+  assert(/Hls\.Events\.LEVEL_SWITCHING[\s\S]*interruptStability/.test(js), 'seviye geçişi kararlılığı kesmiyor');
+  assert(/addEventListener\('stalled',[\s\S]*interruptHlsStability/.test(js), 'stall kararlılığı kesmiyor');
+  assert(/player\.hls !== refreshedHls \|\| staleGeneration\(gen\)/.test(js),
+    'geç loadedmetadata olayı yeni kaynağı eski konuma çekebilir');
+  assert(!/hlsRecoveryTimer/.test(js), 'yarışa açık eski kararlılık timerı hâlâ etkin');
 });
 
 test('açık videoda elle tamamla/kaldır kararı otomatik flush tarafından ezilmiyor', () => {

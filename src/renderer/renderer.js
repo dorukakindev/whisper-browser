@@ -4067,9 +4067,7 @@ const player = {
   ytInfo: null,
   chapters: [],
   hls: null,
-  hlsMediaRecover: 0, // medya kurtarma denemeleri (kaynak degisince sifirlanir)
-  hlsNetRecover: 0,   // ağ adresi yenileme denemeleri (kaynak degisince sifirlanir)
-  hlsRecoveryTimer: null,
+  hlsRecovery: window.WhisperHlsRecovery.createHlsRecoveryState(),
   isLive: false,
   downloading: false,
   mediaKey: '',      // konum hatirlamada KARARLI anahtar (bkz. mediaKeyFor)
@@ -14358,10 +14356,7 @@ function setMediaKey(key) {
   }
   player.localPath = '';
   player.generation++;
-  player.hlsMediaRecover = 0;
-  player.hlsNetRecover = 0;
-  clearTimeout(player.hlsRecoveryTimer);
-  player.hlsRecoveryTimer = null;
+  player.hlsRecovery.sourceChanged(nextKey);
   player.isLive = false;
   player.playbackAudioLang = '';
   player.resumeOffered = false;
@@ -14586,9 +14581,8 @@ if (window.api.onWatchFlushBeforeClose) {
 // YouTube 1080p+ icin video ve sesi AYRI verir; duz <video> bunlari birlestiremez.
 // Ama YouTube ayni zamanda bir HLS manifesti sunuyor (tum cozunurlukler + ayri ses).
 // hls.js bunu MSE ile birlestirip oynatiyor: indirme yok, ileri-geri sarma calisiyor.
-function destroyHls() {
-  clearTimeout(player.hlsRecoveryTimer);
-  player.hlsRecoveryTimer = null;
+function destroyHls(preserveRecovery = false) {
+  if (!preserveRecovery) player.hlsRecovery.deactivate();
   if (player.hls) {
     try { player.hls.destroy(); } catch (_) {}
     player.hls = null;
@@ -14619,7 +14613,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   const parseText = $('playerParseText');
   if (parseStatus) parseStatus.classList.remove('hidden');
   if (parseText) parseText.textContent = 'Yayın hazırlanıyor…';
-  destroyHls();
+  destroyHls(true);
   video.removeAttribute('src');
   const hls = new Hls({ maxBufferLength: 30, enableWorker: true });
   player.hls = hls;
@@ -14666,6 +14660,17 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
     player.playbackAudioLang = normalizeAudioLang(track && track.lang);
     updateAudioLockStatus();
   });
+  hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+    if (player.hls === hls) player.hlsRecovery.completeKind('media');
+  });
+  hls.on(Hls.Events.LEVEL_SWITCHING, () => {
+    if (player.hls === hls) player.hlsRecovery.interruptStability();
+  });
+  hls.on(Hls.Events.LEVEL_SWITCHED, () => {
+    if (player.hls === hls && !video.paused) {
+      player.hlsRecovery.playbackStarted(video.currentTime || 0, performance.now());
+    }
+  });
 
   hls.on(Hls.Events.MANIFEST_PARSED, () => {
     syncAudioTracks();
@@ -14707,38 +14712,50 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   // konumdan yukle. Medya ve ağ hatalarının ayrı ayrı en fazla 2 kurtarma
   // denemesi vardır; başarılı oynatma sonrasında sayaçlar temizlenir.
   hls.on(Hls.Events.ERROR, async (_e, data) => {
-    if (!data || !data.fatal) return;
+    if (!data || !data.fatal || player.hls !== hls) return;
     const at = video.currentTime || 0;
     const wasPlaying = !video.paused;
-    if (data.type === Hls.ErrorTypes.MEDIA_ERROR && player.hlsMediaRecover < 2) {
-      player.hlsMediaRecover++;
-      logLine('Görüntü hatası — kurtarılıyor...', 'warn');
-      try { hls.recoverMediaError(); return; } catch (_) {}
+    if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+      const attempt = player.hlsRecovery.beginRecovery('media');
+      if (attempt.reason === 'in-flight') return;
+      if (attempt.ok) {
+        logLine('Görüntü hatası — kurtarılıyor...', 'warn');
+        try { hls.recoverMediaError(); return; } catch (_) {
+          player.hlsRecovery.completeRecovery(attempt.token);
+        }
+      }
     }
-    if (data.type === Hls.ErrorTypes.NETWORK_ERROR && player.hlsNetRecover < 2) {
-      player.hlsNetRecover++;
+    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
       const info = player.ytInfo;
       if (info && info.sourceUrl) {
-        logLine('Yayın bağlantısı koptu (adres zaman aşımına uğramış olabilir) — yenileniyor...', 'warn');
-        const gen = currentGeneration();
-        const res = await window.api.probeYoutube(info.sourceUrl, youtubeCookieBrowser());
-        if (staleGeneration(gen)) return;               // baska videoya gecilmis
-        if (res && res.ok && res.data && res.data.hls) {
-          const fresh = res.data;
-          fresh.sourceUrl = info.sourceUrl;
-          fresh.videoKey = info.videoKey;
-          player.ytInfo = fresh;
-          destroyHls();
-          if (setPlayerHls(fresh.hls, fresh.title, fresh.videoKey, fresh, true)) {
-            const resume = () => {
-              video.removeEventListener('loadedmetadata', resume);
-              if (at > 0) video.currentTime = at;
-              if (wasPlaying) video.play().catch(() => {});
-            };
-            video.addEventListener('loadedmetadata', resume);
-            logLine(`Yayın yenilendi — ${pSecToTime(at)} konumundan devam.`, 'success');
-            return;
+        const attempt = player.hlsRecovery.beginRecovery('network');
+        if (attempt.reason === 'in-flight') return;
+        if (attempt.ok) {
+          logLine('Yayın bağlantısı koptu (adres zaman aşımına uğramış olabilir) — yenileniyor...', 'warn');
+          const gen = currentGeneration();
+          let res = null;
+          try { res = await window.api.probeYoutube(info.sourceUrl, youtubeCookieBrowser()); } catch (_) {}
+          if (!player.hlsRecovery.isCurrent(attempt.token) || staleGeneration(gen) || player.hls !== hls) return;
+          if (res && res.ok && res.data && res.data.hls) {
+            const fresh = res.data;
+            fresh.sourceUrl = info.sourceUrl;
+            fresh.videoKey = info.videoKey;
+            player.ytInfo = fresh;
+            if (setPlayerHls(fresh.hls, fresh.title, fresh.videoKey, fresh, true)) {
+              const refreshedHls = player.hls;
+              player.hlsRecovery.completeRecovery(attempt.token);
+              const resume = () => {
+                video.removeEventListener('loadedmetadata', resume);
+                if (player.hls !== refreshedHls || staleGeneration(gen)) return;
+                if (at > 0) video.currentTime = at;
+                if (wasPlaying) video.play().catch(() => {});
+              };
+              video.addEventListener('loadedmetadata', resume);
+              logLine(`Yayın yenilendi — ${pSecToTime(at)} konumundan devam.`, 'success');
+              return;
+            }
           }
+          player.hlsRecovery.completeRecovery(attempt.token);
         }
       }
     }
@@ -18296,6 +18313,9 @@ if ($('playerVideo')) {
     // Oynarken rVFC her görüntü karesini çizer; destek yoksa veya video
     // duruyorsa timeupdate güvenli geri dönüş yoludur.
     if (typeof video.requestVideoFrameCallback !== 'function' || video.paused || document.hidden) renderCue();
+    if (player.hls) {
+      player.hlsRecovery.playbackProgress(video.currentTime || 0, performance.now(), video.playbackRate);
+    }
     const seek = $('playerSeek');
     if (player.isLive || !isFinite(video.duration)) {
       // Canli: toplam sure yok; gecen sureyi ve CANLI rozetini goster
@@ -18330,21 +18350,23 @@ if ($('playerVideo')) {
   });
   // Yukleniyor halkasi: tamponlama veya acilis sirasinda
   const spin = (on) => { const s = $('playerSpinner'); if (s) s.classList.toggle('hidden', !on); };
-  video.addEventListener('waiting', () => spin(true));
-  video.addEventListener('stalled', () => spin(true));
-  video.addEventListener('loadstart', () => spin(true));
+  const interruptHlsStability = () => {
+    if (player.hls) player.hlsRecovery.interruptStability();
+  };
+  video.addEventListener('waiting', () => { interruptHlsStability(); spin(true); });
+  video.addEventListener('stalled', () => { interruptHlsStability(); spin(true); });
+  video.addEventListener('loadstart', () => { interruptHlsStability(); spin(true); });
+  video.addEventListener('seeking', interruptHlsStability);
+  video.addEventListener('seeked', () => {
+    if (player.hls && !video.paused) {
+      player.hlsRecovery.playbackStarted(video.currentTime || 0, performance.now());
+    }
+  });
   video.addEventListener('playing', () => {
     spin(false);
     queuePlayerVideoFrame();
     if (player.hls) {
-      const activeHls = player.hls;
-      clearTimeout(player.hlsRecoveryTimer);
-      player.hlsRecoveryTimer = setTimeout(() => {
-        if (player.hls === activeHls && !video.paused) {
-          player.hlsMediaRecover = 0;
-          player.hlsNetRecover = 0;
-        }
-      }, 10000);
+      player.hlsRecovery.playbackStarted(video.currentTime || 0, performance.now());
     }
   });
   video.addEventListener('canplay', () => spin(false));
@@ -18375,6 +18397,7 @@ if ($('playerVideo')) {
     if (player.watchSession) player.watchSession.lastClock = Date.now();
   });
   video.addEventListener('pause', () => {
+    interruptHlsStability();
     stopPlayerVideoFrameLoop();
     renderCue();
     clearTimeout(player.idleTimer);
