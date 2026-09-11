@@ -51,22 +51,24 @@ class MockXhr {
     this.responseType = '';
     this.responseText = '';
     this.responseURL = '';
+    this.mimeType = 'text/vtt';
     this.listeners = new Map();
   }
 
   open() {}
   send() {}
   addEventListener(name, listener) { this.listeners.set(name, listener); }
-  getResponseHeader(name) { return name === 'content-type' ? 'text/vtt' : ''; }
-  emitLoadEnd(body, url) {
+  getResponseHeader(name) { return name === 'content-type' ? this.mimeType : ''; }
+  emitLoadEnd(body, url, mimeType = this.mimeType) {
     this.responseText = body;
     this.responseURL = url;
+    this.mimeType = mimeType;
     this.listeners.get('loadend')?.();
   }
 }
 
 const pageContext = {
-  window: {},
+  window: { location: { hostname: 'www.hulu.com' } },
   XMLHttpRequest: MockXhr,
   crypto: { randomUUID: () => 'frame-test' },
   performance: { now: () => 0 },
@@ -83,6 +85,28 @@ for (const body of [first, corrected]) {
 }
 assert.equal(pageContext.window.__whisperCaptureQueue.length, 2,
   'ortası düzeltilen aynı boylu ikinci gövde sayfa kancasında elendi');
+
+const huluPlaylistUrl = 'https://play.hulu.com/v6/playlist';
+const huluPlaylistXhr = new pageContext.XMLHttpRequest();
+huluPlaylistXhr.open('POST', huluPlaylistUrl);
+huluPlaylistXhr.send();
+huluPlaylistXhr.emitLoadEnd('{"transcripts":[]}', huluPlaylistUrl, 'application/json');
+assert.equal(pageContext.window.__whisperCaptureQueue.length, 3,
+  'Hulu playlist JSON yanıtı sayfa içi XHR kancasında yakalanmadı');
+
+const genericContext = {
+  window: { location: { hostname: 'example.com' } },
+  XMLHttpRequest: MockXhr,
+  crypto: { randomUUID: () => 'generic-frame' },
+  performance: { now: () => 0 },
+};
+vm.runInNewContext(hookFactory(), genericContext);
+const genericPlaylistXhr = new genericContext.XMLHttpRequest();
+genericPlaylistXhr.open('GET', 'https://example.com/v6/playlist');
+genericPlaylistXhr.send();
+genericPlaylistXhr.emitLoadEnd('{"items":[]}', 'https://example.com/v6/playlist', 'application/json');
+assert.equal(genericContext.window.__whisperCaptureQueue.length, 0,
+  'Hulu dışındaki genel playlist JSON yanıtı sayfa kancasında yakalandı');
 
 pageContext.window.__whisperCaptureInFlight.set('frame-test:1', {
   deliveryId: 'old-delivery', at: 1,

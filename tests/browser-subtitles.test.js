@@ -653,6 +653,11 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
 test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bulur', () => {
   const body = JSON.stringify({ movieId: 'x', timedtexttracks: [{ language: 'en', url: '/text/en.ttml' }], image: '/poster.jpg' });
   assert.deepEqual(findSubtitleUrls(body, 'https://media.test/playback/manifest'), ['https://media.test/text/en.ttml']);
+  const huluPlaylist = JSON.stringify({
+    transcripts_urls: { webvtt: { en: 'https://cdn.test/signed/english?token=private' } },
+  });
+  assert.deepEqual(findSubtitleUrls(huluPlaylist, 'https://play.hulu.com/v6/playlist'),
+    ['https://cdn.test/signed/english?token=private']);
   assert.deepEqual(findSubtitleUrls('{"status":"ok","url":"/api/profile"}', 'https://media.test/'), []);
   assert.deepEqual(findSubtitleUrls(JSON.stringify({ language: 'en', value: 'en/US' }), 'https://media.test/'), []);
   assert.deepEqual(findSubtitleUrls(JSON.stringify({ caption: 'captions/en.vtt' }), 'https://media.test/'),

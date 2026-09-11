@@ -7040,6 +7040,8 @@ function browserCaptureHookScript() {
     const MAX_TEXT = 2 * 1024 * 1024;
     const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
     const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
+    const huluPage = /(^|\\.)hulu\\.(?:com|jp)$/i.test(String(window.location?.hostname || ''));
+    const huluPlaylist = (url) => huluPage && /\\/v\\d+\\/playlist(?:[/?#]|$)/i.test(String(url || ''));
     const bodyFingerprint = ${captureBodyFingerprint.toString()};
     const push = (entry) => {
       if (!window.__whisperCaptureEnabled) return;
@@ -7070,7 +7072,7 @@ function browserCaptureHookScript() {
       if (!window.__whisperCaptureEnabled) return;
       try {
         const mime = response.headers && response.headers.get ? (response.headers.get('content-type') || '') : '';
-        if (!hinted.test(String(url || '')) && !acceptedMime.test(mime)) return;
+        if (!hinted.test(String(url || '')) && !acceptedMime.test(mime) && !huluPlaylist(url)) return;
         const length = Number(response.headers && response.headers.get ? response.headers.get('content-length') : 0) || 0;
         if (length > MAX_TEXT) return;
         response.clone().text().then((body) => push({ url: String(url || response.url || ''), mimeType: mime, body, via: 'fetch' })).catch(() => {});
@@ -7099,7 +7101,8 @@ function browserCaptureHookScript() {
         this.addEventListener('loadend', async () => {
           try {
             const mime = this.getResponseHeader('content-type') || '';
-            if (!hinted.test(this.__whisperUrl || '') && !acceptedMime.test(mime)) return;
+            if (!hinted.test(this.__whisperUrl || '') && !acceptedMime.test(mime)
+                && !huluPlaylist(this.__whisperUrl)) return;
             const base = { url: this.responseURL || this.__whisperUrl || '', mimeType: mime, via: 'xhr' };
             if (this.responseType === 'arraybuffer' && this.response) {
               const bytes = new Uint8Array(this.response);

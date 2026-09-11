@@ -40,6 +40,19 @@ test('gerçek altyazı ve manifest adaylarını kabul eder', () => {
   }), true);
 });
 
+test('Hulu v6 playlist JSON yanıtını servis bağlamında kabul eder', () => {
+  const hulu = browserResponseAdapter(
+    'https://www.hulu.com/watch/abc',
+    'https://play.hulu.com/v6/playlist');
+  assert.equal(hulu.id, 'hulu');
+  assert.equal(adapterAcceptsResponse(hulu, {
+    url: 'https://play.hulu.com/v6/playlist', mimeType: 'application/json',
+  }), true);
+  assert.equal(adapterAcceptsResponse(browserAdapterForUrl('https://example.com/movie'), {
+    url: 'https://example.com/v6/playlist', mimeType: 'application/json',
+  }), false, 'genel playlist JSON yanıtı altyazı adayı sayıldı');
+});
+
 test('genel JSON ve resim yanıtlarını altyazı diye kabul etmez', () => {
   const generic = browserAdapterForUrl('https://example.com/movie');
   assert.equal(adapterAcceptsResponse(generic, {
