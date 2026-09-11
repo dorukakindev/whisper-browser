@@ -755,7 +755,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /segment\.initializationUrl/);
   assert.match(main, /parseMp4WebVtt\(partBuffer, matcher\)/);
   assert.match(main, /fetchBrowserBufferWithRetry\(segment\.initializationUrl[\s\S]{0,160}range\)/);
-  assert.match(main, /const manifestHandled = storedCount > 0 \|\| \(!manifestRetryNeeded && noSubtitleWork\)/);
+  assert.match(main, /const manifestHandled = !manifestRetryNeeded && \(storedCount > 0 \|\| noSubtitleWork\)/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);
   assert.match(main, /Target\.setAutoAttach/);
@@ -766,14 +766,16 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /now - leasedAt <= 15000/);
   assert.match(main, /lease\.deliveryId !== receipt\.deliveryId/);
   assert.match(main, /window\.__whisperCaptureQueue\.length > 128/);
-  assert.match(main, /outcome === CAPTURE_RETRY \? releaseReceipts : ackReceipts/);
+  assert.match(main, /captureOutcomeStatus\(outcome\) === CAPTURE_RETRY/);
   assert.ok(main.indexOf('const outcome = await processBrowserCapturedPayload')
-    < main.indexOf('(outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push'),
+    < main.indexOf('(captureOutcomeStatus(outcome) === CAPTURE_RETRY'),
   'ack kararı payload işlenmeden veriliyor');
-  assert.match(main, /browserManifestInFlight/);
+  assert.match(main, /browserManifestTransactions\.begin/);
   assert.match(main, /fetchBrowserTextWithRetry/);
   assert.match(main, /manifestRetryNeeded = true/);
-  assert.match(main, /if \(manifestHandled\) \{[\s\S]{0,120}browserSeenManifests\.set/);
+  assert.match(main, /browserManifestTransactions\.commit\(transaction\)/);
+  assert.match(main, /!\[CAPTURE_RETRY, CAPTURE_ABANDONED\]\.includes\(captureOutcomeStatus\(outcome\)\)/);
+  assert.match(main, /browserTrackPendingPublications\.has\(streamKey\)/);
   assert.match(main, /browserDashSubtitleMatchers\[existingIndex\]/);
   assert.match(main, /const bodyBase64 = String\(entry\.bodyBase64/);
   assert.match(main, /\(!body && !bodyBase64\)/);
@@ -787,7 +789,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(overlayController, /document\.fullscreenElement/);
   assert.match(overlayController, /fullscreenchange/);
   assert.match(overlayController, /state\.offset/);
-  assert.match(main, /browserSeenManifests = new Map/);
+  assert.match(main, /browserManifestTransactions = new ManifestTransactionRegistry/);
   assert.match(main, /requestMediaKeySystemAccess\('com\.widevine\.alpha'/);
   assert.match(main, /components\.whenReady\(\)/);
   assert.match(main, /waitForProtectedPlayback\(url\)/);

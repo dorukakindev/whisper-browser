@@ -204,7 +204,7 @@ test('20.000 rastgele interleaving kuyruk ve kira invariantlarını korur', () =
     /frames\.filter\(\(frame\) => !browserCaptureHookFrames\.has\(frame\)\)[\s\S]{0,420}browserCaptureHookFrames\.add\(frame\)/);
   const processAt = main.indexOf('const outcome = await processBrowserCapturedPayload');
   const generationCheckAt = main.indexOf('if (!isCurrentBrowserContext(context)) return', processAt);
-  const receiptAt = main.indexOf('(outcome === CAPTURE_RETRY ? releaseReceipts : ackReceipts).push', processAt);
+  const receiptAt = main.indexOf('(captureOutcomeStatus(outcome) === CAPTURE_RETRY', processAt);
   assert(processAt >= 0 && generationCheckAt > processAt && receiptAt > generationCheckAt,
     'gecikmiş işleme generation kontrolünden önce ACK/RELEASE üretiyor');
   assert.match(main, /responseType === 'json'[\s\S]{0,120}JSON\.stringify\(this\.response/);
