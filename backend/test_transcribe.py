@@ -1126,6 +1126,43 @@ def test_translate_partial_response_counts_as_failed():
     assert any("2/3" in w for w in warns), warns
 
 
+def test_translate_invalid_large_chunk_retries_smaller_groups():
+    import sys, types, importlib.machinery, json
+
+    entries = [(i * 2.0, i * 2.0 + 1.5, f"Line {i}.") for i in range(6)]
+    calls = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        calls.append(len(payload["items"]))
+        if len(payload["items"]) > 2:
+            raise RuntimeError("yanıt JSON olarak çözülemedi")
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps({
+                str(item["i"]): "[TR] " + item["t"] for item in payload["items"]
+            })))])
+
+    class _Split:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Split
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    try:
+        out = T.llm_translate(entries, _TrArgs(), [], source_lang="en")
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+    assert all(text.startswith("[TR] ") for _s, _e, text in out)
+    assert calls[0] == 6 and max(calls[1:]) <= 2, calls
+
+
 def _capture_translate_payloads(entries, args):
     """llm_translate'i taklit API ile kosturur; modele giden istekleri dondurur."""
     import sys, types, json, importlib.machinery

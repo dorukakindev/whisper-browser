@@ -3058,7 +3058,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
-    def task(chunk_idx):
+    def task_once(chunk_idx):
         payload = translation_payload(chunk_idx)
 
         resp, used_url = call_api_with(system_prompt, payload)
@@ -3088,6 +3088,25 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # metin olarak kaliyordu; eskiden parca uzunlugu dondugu icin ilerleme
         # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
         return filled
+
+    def task(chunk_idx):
+        """Geçersiz/boş yanıtı daha küçük cümle gruplarıyla kurtar."""
+        try:
+            return task_once(chunk_idx)
+        except Exception:
+            starts = [index for index in chunk_idx if group_at[index][0] == index]
+            if len(starts) <= 1:
+                raise
+            log("Çeviri grubu geçersiz yanıt verdi; daha küçük gruplarla yeniden deneniyor.", "warn")
+            recovered = 0
+            # Büyük grubun her alt isteği en fazla iki cümle grubu taşısın;
+            # bu, uzun bağlamlı JSON yanıtlarında tek arızanın yayılmasını önler.
+            for offset in range(0, len(starts), 2):
+                start_pos = chunk_idx.index(starts[offset])
+                end_pos = (chunk_idx.index(starts[offset + 2])
+                           if offset + 2 < len(starts) else len(chunk_idx))
+                recovered += task(chunk_idx[start_pos:end_pos])
+            return recovered
 
     done_idx = set()
     with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
