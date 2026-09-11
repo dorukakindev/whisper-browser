@@ -91,7 +91,12 @@ function normalizeMangaRegions(input) {
     const hidden = raw?.hidden === true;
     if (!translation && !hidden) continue;
     const original = String(raw?.source || raw?.source_text || '').trim().slice(0, MAX_MANGA_REGION_TEXT);
-    const regionId = /^[A-Za-z0-9:_-]{1,120}$/.test(String(raw?.regionId || "")) ? String(raw.regionId) : `region-${createHash("sha1").update(JSON.stringify([textBox, bubbleBox, original])).digest("hex").slice(0, 16)}`;
+    let regionId = /^[A-Za-z0-9:_-]{1,120}$/.test(String(raw?.regionId || "")) ? String(raw.regionId) : `region-${createHash("sha1").update(JSON.stringify([textBox, bubbleBox, original])).digest("hex").slice(0, 16)}`;
+    const duplicate = normalized.find((item) => JSON.stringify(item.textBox) === JSON.stringify(textBox) && item.source === original);
+    if (duplicate) { if (translation.length > duplicate.translation.length) duplicate.translation = translation; continue; }
+    const usedIds = new Set(normalized.map((item) => item.regionId));
+    let suffix = 2;
+    while (usedIds.has(regionId)) regionId = `${regionId}-${suffix++}`;
     const nextLength = responseTextLength + original.length + translation.length;
     if (nextLength > MAX_MANGA_RESPONSE_TEXT) break;
     responseTextLength = nextLength;

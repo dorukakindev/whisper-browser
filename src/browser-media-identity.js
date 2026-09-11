@@ -19,7 +19,7 @@ function normalizeBrowserUrl(rawUrl) {
     }
     url.searchParams.sort();
     if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
-    return url.href.slice(0, 2048);
+    return url.href.slice(0, 16384);
   } catch (_) {
     return '';
   }

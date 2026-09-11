@@ -49,19 +49,27 @@ function readAdjacentWordSegments(subtitlePath) {
   if (path.extname(subtitlePath).toLowerCase() === '.json') return [];
   const directory = path.dirname(subtitlePath);
   const stem = path.basename(subtitlePath, path.extname(subtitlePath));
-  const candidate = path.join(directory, `${stem}.json`);
-  if (!fs.existsSync(candidate)) return [];
+  const candidates = [path.join(directory, `${stem}.json`)];
+  const languageSuffix = stem.match(/^(.*)\.([a-z]{2,3}(?:-[a-z0-9]{2,8})?)$/i);
+  if (languageSuffix?.[1]) candidates.push(path.join(directory, `${languageSuffix[1]}.json`));
 
   // Yan dosya, yetkilendirilmiş altyazının gerçek klasöründen symlink ile
-  // dışarı çıkamaz. Böylece bitişik JSON için ikinci izin istemeden yalnız
-  // beklenen aynı-gövdeli çıktıyı okuyabiliriz.
-  const realDirectory = fs.realpathSync(directory);
-  const realCandidate = fs.realpathSync(candidate);
-  if (!sameLocalPath(path.dirname(realCandidate), realDirectory)) return [];
-  const stat = fs.statSync(realCandidate);
-  if (!stat.isFile() || stat.size > MAX_SUBTITLE_BYTES) return [];
-  const raw = fs.readFileSync(realCandidate, 'utf8').replace(/^\uFEFF/, '');
-  return sanitizeWordSegments(JSON.parse(raw));
+  // dışarı çıkamaz. Bozuk veya erişilemeyen isteğe bağlı yan dosya altyazının
+  // kendisinin açılmasını engellememelidir.
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const realDirectory = fs.realpathSync(directory);
+      const realCandidate = fs.realpathSync(candidate);
+      if (!sameLocalPath(path.dirname(realCandidate), realDirectory)) continue;
+      const stat = fs.statSync(realCandidate);
+      if (!stat.isFile() || stat.size > MAX_SUBTITLE_BYTES) continue;
+      const raw = fs.readFileSync(realCandidate, 'utf8').replace(/^\uFEFF/, '');
+      const segments = sanitizeWordSegments(JSON.parse(raw));
+      if (segments.length) return segments;
+    } catch (_) {}
+  }
+  return [];
 }
 
 module.exports = { readAdjacentWordSegments, sanitizeWordSegments };

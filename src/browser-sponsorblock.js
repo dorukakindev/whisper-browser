@@ -63,7 +63,7 @@ function validateSegments(payload, videoId, duration = 0) {
       : (validApiDuration ? apiDuration : 0);
     const boundedEnd = effectiveDuration > 0 ? Math.min(end, effectiveDuration) : end;
     if (id !== videoId || !Number.isFinite(start) || !Number.isFinite(end) || start < 0 || boundedEnd <= start
-      || end - start > 2 * 60 * 60
+      || (effectiveDuration <= 2 * 60 * 60 && end - start > 2 * 60 * 60)
       || !normalizeCategories([category]).includes(category) || actionType !== 'skip') { invalid += 1; continue; }
     segments.push({ videoId, start, end: boundedEnd, category, actionType, uuid,
       videoDuration: validApiDuration ? apiDuration : (duration > 0 ? duration : null) });

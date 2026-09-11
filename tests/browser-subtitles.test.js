@@ -368,7 +368,8 @@ test('Canlı ASR aynı başlangıçlı düzeltme hipotezini son cue üzerine yaz
   const previous = [{ id: 'live-1', start: 10, end: 11, text: 'Merhaba' }];
   const merged = mergeBrowserStreamCues(previous,
     [{ id: 'live-1b', start: 10.005, end: 12, text: 'Merhaba dünya' }]);
-  assert.equal(merged, previous, 'hızlı yol aynı sınırlı tamponu yerinde kullanmalı');
+  assert.notEqual(merged, previous, 'önceki dizi korunmalı');
+  assert.deepEqual(previous, [{ id: 'live-1', start: 10, end: 11, text: 'Merhaba' }]);
   assert.deepEqual(merged, [{ id: 'live-1b', start: 10.005, end: 12, text: 'Merhaba dünya' }]);
 });
 

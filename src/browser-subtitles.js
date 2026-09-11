@@ -47,7 +47,7 @@ function cleanCueText(value) {
 
   return decoded
     .replace(/<\/?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
-    .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
+    .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\.[\w-]+)*(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
     .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n[ \t]+/g, '\n')
@@ -57,7 +57,7 @@ function cleanCueText(value) {
 }
 
 function parseTime(value) {
-  const raw = String(value || '').trim();
+  const raw = String(value ?? '').trim();
   if (!raw) return null;
   const unit = raw.match(/^(-?(?:\d+(?:\.\d*)?|\.\d+))(ms|s|m|h)$/i);
   if (unit) {
@@ -120,13 +120,13 @@ function mergeBrowserStreamCues(previousCues, incomingCues, limit = 20000) {
   const maximum = Math.max(1, Math.min(20000, Math.trunc(Number(limit) || 20000)));
   if (incoming.length === 1 && previous.length
       && Number(incoming[0]?.start) >= Number(previous[previous.length - 1]?.start) - 0.015) {
+    const merged = previous.slice();
     const cue = incoming[0];
-    const lastIndex = previous.length - 1;
-    const last = previous[lastIndex];
-    if (Math.abs(Number(cue.start) - Number(last.start)) <= 0.015) previous[lastIndex] = cue;
-    else if (cue.text !== last.text || Number(cue.end) !== Number(last.end)) previous.push(cue);
-    if (previous.length > maximum) previous.splice(0, previous.length - maximum);
-    return previous;
+    const lastIndex = merged.length - 1;
+    const last = merged[lastIndex];
+    if (Math.abs(Number(cue.start) - Number(last.start)) <= 0.015) merged[lastIndex] = cue;
+    else if (cue.text !== last.text || Number(cue.end) !== Number(last.end)) merged.push(cue);
+    return merged.slice(-maximum);
   }
   return [...previous, ...incoming]
     .sort((a, b) => a.start - b.start || a.end - b.end)
@@ -162,10 +162,11 @@ function parseTimedBlocks(body, timing = {}) {
   const timestampMap = (clean.match(/X-TIMESTAMP-MAP\s*=\s*[^\n]*/i) || [])[0] || '';
   const localMatch = timestampMap.match(/LOCAL:([^,\s]+)/i);
   const mpegMatch = timestampMap.match(/MPEGTS:(\d+)/i);
-  const local = localMatch ? parseTime(localMatch[1]) : 0;
-  const mapped = mpegMatch ? unwrapMpegTs(mpegMatch[1], timing.mpegTsState) : 0;
-  const timelineOffset = Number.isFinite(local) && Number.isFinite(mapped) ? mapped - local : 0;
-  const re = /(?:(\d+):)?(\d+):(\d{2})[,.](\d+)\s*-->\s*(?:(\d+):)?(\d+):(\d{2})[,.](\d+)/;
+  const local = localMatch ? parseTime(localMatch[1]) : null;
+  const mapped = mpegMatch ? unwrapMpegTs(mpegMatch[1], timing.mpegTsState) : null;
+  const timelineOffset = localMatch && mpegMatch && Number.isFinite(local) && Number.isFinite(mapped)
+    ? mapped - local : 0;
+  const re = /^\s*(?:(\d+):)?(\d+):(\d{2})[,.](\d+)\s*-->\s*(?:(\d+):)?(\d+):(\d{2})[,.](\d+)/;
   const lines = clean.split('\n');
   const indices = lines.flatMap((line, index) => re.test(line) ? [index] : []);
   for (let position = 0; position < indices.length; position++) {
@@ -277,7 +278,7 @@ function parseSami(body) {
     const start = Number(matches[i][1]) / 1000;
     const end = i + 1 < matches.length ? Number(matches[i + 1][1]) / 1000 : null;
     const text = matches[i][2]
-      .replace(/<\/?(?:body|sami|head|title)\b[^>]*>/gi, '')
+      .replace(/<\/?(?:body|sami|head|title|sync)\b[^>]*>/gi, '')
       .replace(/<p\b[^>]*>/gi, '\n').replace(/<\/p>/gi, '\n');
     out.push({ start, end, text });
   }
@@ -678,24 +679,27 @@ function parseDashSubtitleTracks(body, baseUrl = '') {
     const tag = match.tag;
     const inner = match.inner;
     const signature = match.signature;
-    const representation = dashRepresentations(inner)[0];
-    const repTag = representation ? representation.tag : '';
-    const repInner = representation ? representation.inner : '';
     const outerBase = dashOuterBase(xml, match, baseUrl);
     const adaptationPrefix = inner.split(/<Representation\b/i)[0];
     const adaptationValue = firstBaseValue(adaptationPrefix);
     const adaptationBase = adaptationValue ? resolveUrl(adaptationValue, outerBase) : outerBase;
-    const repValue = firstBaseValue(repInner);
-    const directValue = repValue || (/(?:vtt|webvtt|srt|ttml|dfxp|xml)(?:[?#]|$)/i.test(adaptationValue) ? adaptationValue : '');
-    if (!directValue) continue;
-    try {
-      tracks.push({
-        url: repValue ? resolveUrl(repValue, adaptationBase) : resolveUrl(directValue, outerBase),
-        language: attr(tag, 'lang') || attr(repTag, 'lang') || '',
-        label: attr(tag, 'label') || attr(repTag, 'id') || attr(tag, 'lang') || 'DASH altyazısı',
-        format: /vtt|wvtt/i.test(signature + repTag) ? 'vtt' : 'ttml',
-      });
-    } catch (_) {}
+    for (const representation of dashRepresentations(inner)) {
+      const repTag = representation.tag || '';
+      const repValue = firstBaseValue(representation.inner || '');
+      const directValue = repValue
+        || (/(?:vtt|webvtt|srt|ttml|dfxp|xml)(?:[?#]|$)/i.test(adaptationValue) ? adaptationValue : '');
+      if (!directValue) continue;
+      try {
+        const url = repValue ? resolveUrl(repValue, adaptationBase) : resolveUrl(directValue, outerBase);
+        if (tracks.some((track) => track.url === url)) continue;
+        tracks.push({
+          url,
+          language: attr(tag, 'lang') || attr(repTag, 'lang') || '',
+          label: attr(tag, 'label') || attr(repTag, 'id') || attr(tag, 'lang') || 'DASH altyazısı',
+          format: /vtt|wvtt/i.test(signature + repTag) ? 'vtt' : 'ttml',
+        });
+      } catch (_) {}
+    }
   }
   return tracks;
 }
@@ -712,6 +716,7 @@ function findSubtitleUrls(body, baseUrl = '') {
       const hinted = /subtitle|subtitles|caption|captions|timedtext|texttrack|ttml|dfxp|webvtt|vtt|srt/i.test(context);
       const looksLikeResource = /^https?:\/\//i.test(text)
         || text.startsWith('/')
+        || (hinted && /^(?:\.{1,2}\/|(?:captions?|subtitles?|timedtext|texttracks?|transcripts?)\/)/i.test(text))
         || /\.(?:vtt|srt|ttml|dfxp|srv3|json3|xml)(?:[?#]|$)/i.test(text);
       if (!looksLikeResource || (!hinted && !/\.(?:vtt|srt|ttml|dfxp|xml)(?:[?#]|$)/i.test(text))) return;
       try {

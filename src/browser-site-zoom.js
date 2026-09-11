@@ -34,7 +34,10 @@ function withBrowserSiteZoom(siteZooms, rawUrl, rawZoom) {
   }
   const rounded = Math.round(zoom * 10) / 10;
   if (Math.abs(rounded - 1) < 0.001) delete next[host];
-  else next[host] = rounded;
+  else {
+    if (!Object.prototype.hasOwnProperty.call(next, host) && Object.keys(next).length >= MAX_BROWSER_ZOOM_SITES) delete next[Object.keys(next)[0]];
+    next[host] = rounded;
+  }
   return { ok: true, host, zoom: rounded, siteZooms: normalizeBrowserSiteZooms(next) };
 }
 

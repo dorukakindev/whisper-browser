@@ -38,6 +38,7 @@ class TextStabilityEvaluator {
       previous.revision = revision;
       previous.lastChangedAt = time;
       previous.stableSince = time;
+      delete previous.publishedAt;
       return { state: 'waiting', reason: 'changed', explanation: 'Yeni sürüm geldi; son metin bekleniyor.', revision };
     }
     const age = Math.max(0, time - previous.stableSince);
@@ -46,8 +47,8 @@ class TextStabilityEvaluator {
       return { state: 'waiting', reason: 'settle_delay', explanation: 'Metin henüz yeterince uzun süre değişmeden kalmadı.', revision };
     }
     if (age >= this.settleDelayMs || waited >= this.maxWaitMs) {
-      if (previous.publishedAt != null && time - previous.publishedAt <= this.duplicateWindowMs) {
-        return { state: 'duplicate', reason: 'duplicate_window', explanation: 'Aynı sabit metin zaten işlendi.', revision };
+      if (previous.publishedAt != null) {
+        return { state: 'duplicate', reason: 'already_published', explanation: 'Aynı sabit metin zaten işlendi.', revision };
       }
       previous.publishedAt = time;
       return { state: 'stable', reason: waited >= this.maxWaitMs ? 'max_wait' : 'settled', explanation: 'Metin sabitlendi; işlenebilir.', revision };

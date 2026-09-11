@@ -35,8 +35,22 @@ function decodeSubtitleBuffer(value) {
   let text = buffer.toString('utf8').replace(/^\uFEFF/, '');
   let note = '';
   if (text.includes('\uFFFD')) {
-    text = decodeWindows1254(buffer);
-    note = 'cp1254';
+    const replacementCount = (text.match(/\uFFFD/g) || []).length;
+    let hasUtf8Multibyte = false;
+    for (let index = 0; index + 1 < buffer.length; index++) {
+      if (buffer[index] >= 0xc2 && buffer[index] <= 0xdf
+          && buffer[index + 1] >= 0x80 && buffer[index + 1] <= 0xbf) { hasUtf8Multibyte = true; break; }
+      if (buffer[index] >= 0xe0 && buffer[index] <= 0xef
+          && index + 2 < buffer.length && buffer[index + 1] >= 0x80 && buffer[index + 1] <= 0xbf
+          && buffer[index + 2] >= 0x80 && buffer[index + 2] <= 0xbf) { hasUtf8Multibyte = true; break; }
+    }
+    if (hasUtf8Multibyte && replacementCount <= Math.max(2, Math.floor(text.length * 0.01))) {
+      text = text.replace(/\uFFFD/g, '');
+      note = 'utf-8 bozuk bayt atlandı';
+    } else {
+      text = decodeWindows1254(buffer);
+      note = 'cp1254';
+    }
   }
 
   const marks = markerCount(text);
