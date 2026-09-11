@@ -936,6 +936,9 @@ test('tarayıcı sinyali ve sade görünüm ayrı ayrı gizlenip geri açılabil
   assert(/\.player-layer\.browser-chrome-collapsed \.browser-translate-split,[\s\S]*?\.player-layer\.browser-chrome-collapsed \.browser-more\s*\{[^}]*display:\s*none/.test(css)
     && /\.player-layer\.browser-chrome-collapsed #browserChromeToggle\s*\{[^}]*display:\s*grid\s*!important/.test(css),
     'sade görünümde adres ve görünümü geri açma dışındaki araçlar doğru çekilmiyor');
+  assert(/\.player-layer\.browser-chrome-collapsed \.browser-address-wrap\s*\{[^}]*grid-column:\s*1/.test(css)
+    && /\.player-layer\.browser-chrome-collapsed \.browser-toolbar-actions\s*\{[^}]*grid-column:\s*2/.test(css),
+    'sade görünüm toolbar görünmeyen ilk grid sütununu boşuna ayırıyor');
 });
 
 test('tarayıcı altyazı yakalaması normal gezinme için durdurulup yeniden başlatılabilir', () => {
@@ -1617,6 +1620,17 @@ test('tarayıcı kalıcı ayarları özel sekmede, yakalama ayrıntıları ayrı
   assert(/openBrowserSettings\('site'\)/.test(js)
     && /toggleSettingsPage\('browser-diagnostics'\)/.test(js),
   'tarayıcı üst çubuğu özel ayar sekmesini veya tanı çekmecesini açmıyor');
+});
+
+test('canlı görünüm ve altyazı biçimi dar çekmecede taşmadan ızgaralanır', () => {
+  assert(layer.includes('class="field subtitle-style-field"'), 'altyazı biçim alanları açık sınıf taşımıyor');
+  assert(/#browserLiveViewToolsHost\s*\{[\s\S]*?display:\s*grid/.test(css)
+    && /#browserLiveViewToolsHost \.browser-view-settings-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/.test(css)
+    && /#browserLiveViewToolsHost \.browser-view-actions\s*\{[\s\S]*?display:\s*grid/.test(css),
+    'canlı görünüm araçları dengeli iki sütunlu düzene sahip değil');
+  assert(/\.browser-page-quick-popover\s*\{[\s\S]*?max-height:\s*min\(430px/.test(css)
+    && /\.browser-page-quick-popover \.browser-page-auto-continue\s*\{[^}]*width:\s*100%/.test(css),
+    'sayfa çeviri popoverı içerik yüksekliğini ve eylem genişliğini sınırlamıyor');
 });
 
 test('ses dili bölge kodlarını güvenli biçimde eşleştiriyor', () => {

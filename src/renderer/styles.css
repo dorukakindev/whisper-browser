@@ -6179,3 +6179,110 @@ body.modal-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .browser-subtitle-settings-button[data-state="busy"]::after { animation: none; }
 }
+
+/* Son düzen: sade izleme kromu ve dar ayar çekmeceleri.  Bu kurallar, eski
+   iki satırlı toolbar katmanlarının görünmeyen sütun bırakmasını engeller. */
+.player-layer.browser-chrome-collapsed .browser-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 38px;
+  gap: 6px;
+}
+.player-layer.browser-chrome-collapsed .browser-address-wrap {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.player-layer.browser-chrome-collapsed .browser-toolbar-actions {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.player-layer.browser-chrome-collapsed .browser-subtitle-settings-button {
+  min-width: 38px;
+  padding-inline: 10px;
+}
+
+/* Kaydırıcılar: başlık/değer tek satırda, ray her zaman tam genişlikte. */
+.settings-drawer .subtitle-style-field {
+  display: grid;
+  gap: 7px;
+  padding: 9px 0;
+  margin-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.settings-drawer .subtitle-style-field:last-of-type { border-bottom: 0; }
+.settings-drawer .subtitle-style-field .field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.settings-drawer .subtitle-style-field .value {
+  margin-left: auto;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.settings-drawer .subtitle-style-field input[type="range"] { width: 100%; min-width: 0; }
+
+/* Canlı görünüm araçları: iki dengeli sütun; dışa aktarma kendi satırında. */
+#browserLiveViewToolsHost {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+#browserLiveViewToolsHost .browser-view-settings-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 12px;
+  margin-top: 0;
+  padding: 10px;
+}
+#browserLiveViewToolsHost .browser-view-settings-grid label { min-width: 0; }
+#browserLiveViewToolsHost .browser-view-settings-grid input[type="range"] { min-width: 0; }
+#browserLiveViewToolsHost .browser-view-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 0;
+}
+#browserLiveViewToolsHost .browser-view-actions .btn,
+#browserLiveViewToolsHost .browser-page-export-format { min-width: 0; width: 100%; }
+#browserLiveViewToolsHost .browser-page-export-format {
+  display: grid;
+  grid-template-columns: auto minmax(88px, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 0 2px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+#browserLiveViewToolsHost .browser-page-export-format select { min-width: 0; }
+
+/* Sayfa çevirisi menüsü tek bakışta taranır; boşluğu içeriğe göre kalsın. */
+.browser-page-quick-popover {
+  width: min(260px, calc(100vw - 28px));
+  max-height: min(430px, calc(100vh - 92px));
+  overflow-y: auto;
+  gap: 8px;
+  padding: 10px;
+}
+.browser-page-quick-popover .browser-menu-group-label { padding: 1px 2px 2px; }
+.browser-page-quick-popover .browser-page-view-options { gap: 4px; }
+.browser-page-quick-popover .browser-page-view-options button,
+.browser-page-quick-popover .browser-page-auto-continue {
+  min-height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-3);
+}
+.browser-page-quick-popover .browser-page-view-options button[data-active="true"] {
+  border-color: var(--player-amber);
+  background: var(--player-amber);
+}
+.browser-page-quick-popover .browser-page-auto-continue { width: 100%; }
+.browser-page-quick-popover .browser-page-quick-progress {
+  min-height: 18px;
+  padding-top: 3px;
+  border-top: 1px solid var(--border);
+}
