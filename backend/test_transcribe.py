@@ -868,11 +868,15 @@ def test_translate_returns_none_when_every_chunk_fails():
     # Tum API cagrilari patlarsa out_texts KAYNAK metin olarak kalir; None donmeli.
     import sys, types, importlib.machinery
 
+    calls = []
+    def fail_auth(**_kwargs):
+        calls.append(1)
+        raise RuntimeError("401 gecersiz anahtar")
+
     class _Boom:
         def __init__(self, *a, **k):
             self.chat = types.SimpleNamespace(
-                completions=types.SimpleNamespace(
-                    create=lambda **kw: (_ for _ in ()).throw(RuntimeError("401 gecersiz anahtar"))))
+                completions=types.SimpleNamespace(create=fail_auth))
 
     fake = types.ModuleType("openai")
     fake.OpenAI = _Boom
@@ -889,6 +893,7 @@ def test_translate_returns_none_when_every_chunk_fails():
             sys.modules.pop("openai", None)
     assert out is None, f"None bekleniyordu, {out!r} geldi"
     assert any("Hicbir blok cevrilemedi" in w for w in warns), warns
+    assert calls == [1], "kimlik hatası küçük gruplarla yeniden denenmemeli"
 
 
 def test_translate_returns_list_on_success():
@@ -1162,6 +1167,43 @@ def test_translate_invalid_large_chunk_retries_smaller_groups():
     assert all(text.startswith("[TR] ") for _s, _e, text in out)
     assert calls[0] == 6 and max(calls[1:]) <= 2, calls
 
+
+def test_translate_invalid_two_group_retry_terminates_as_single_groups():
+    import sys, types, importlib.machinery, json
+
+    entries = [(0.0, 1.0, "First."), (2.0, 3.0, "Second.")]
+    calls = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        calls.append(len(payload["items"]))
+        if len(payload["items"]) > 1:
+            raise RuntimeError("yanıt JSON olarak çözülemedi")
+        item = payload["items"][0]
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps({
+                str(item["i"]): "[TR] " + item["t"]
+            })))])
+
+    class _Split:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Split
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    try:
+        out = T.llm_translate(entries, _TrArgs(), [], source_lang="en")
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+    assert [row[2] for row in out] == ["[TR] First.", "[TR] Second."]
+    assert calls == [2, 1, 1], calls
 
 def _capture_translate_payloads(entries, args):
     """llm_translate'i taklit API ile kosturur; modele giden istekleri dondurur."""
@@ -2946,6 +2988,8 @@ def test_subtitle_output_contract_and_model_change_resume():
         metadata["cues"][1]["status"] = "failed"
         metadata["cues"][1]["text"] = ""
         metadata_path.write_text(json.dumps(metadata, ensure_ascii=False), encoding="utf-8")
+        translation.write_text(translation.read_text(encoding="utf-8-sig").replace("TR One.", "Elle One."),
+                               encoding="utf-8-sig")
 
         pending_seen = []
         events.clear()
@@ -2966,7 +3010,7 @@ def test_subtitle_output_contract_and_model_change_resume():
         assert done["outputs"][0]["status"] == "complete"
         assert done["sourceId"] and done["sourceHash"]
         written = translation.read_text(encoding="utf-8-sig")
-        assert "TR One." in written and "YENİ Two." in written
+        assert "Elle One." in written and "YENİ Two." in written
         assert "00:00:01,000 --> 00:00:02,000" in written
         assert "00:00:03,000 --> 00:00:04,000" in written
         assert source.read_text(encoding="utf-8-sig") == original
@@ -2981,6 +3025,80 @@ def test_subtitle_output_contract_and_model_change_resume():
         assert done_again["outputs"][0]["status"] == "complete"
         assert source.read_text(encoding="utf-8-sig") == original
 
+
+def test_translate_quality_gate_marks_long_source_echo_for_retry():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "echo.en.srt"
+        source_text = "This line was not translated."
+        source.write_text(
+            "1\n00:00:01,000 --> 00:00:03,000\n" + source_text + "\n",
+            encoding="utf-8-sig",
+        )
+        args = _TrArgs(translate_cache=False)
+        args.input = str(source)
+        args.output_dir = str(root)
+        args.language = "en"
+        args.max_lines = 2
+        args.wrap_mode = "sentence"
+        args.formats = "srt"
+        args.dual_subtitle = False
+        args.dual_translation_first = False
+        args.translate_existing = ""
+        events = []
+
+        def echo_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+            status_out.update(completed=[0], failed=[])
+            return list(entries)
+
+        with mock.patch.object(T, "llm_translate", side_effect=echo_translate),                 mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
+            T.translate_existing_subtitle(args)
+
+        done = [payload for kind, payload in events if kind == "done"][-1]
+        assert done["outputs"][0]["status"] == "partial"
+        assert done["outputs"][0]["failed"] == 1
+        report = [payload for kind, payload in events if kind == "quality_report"][-1]
+        assert report["translation_untranslated_indices"] == [0]
+        metadata = json.loads((root / "echo.tr.srt.meta.json").read_text(encoding="utf-8"))
+        assert metadata["cues"][0]["status"] == "failed"
+        assert metadata["cues"][0]["error"] == "untranslated_source"
+
+def test_translate_existing_rejects_mismatched_metadata_even_when_timeline_matches():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "bound.en.srt"
+        existing = root / "bound.tr.srt"
+        source.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello there.\n", encoding="utf-8-sig")
+        existing.write_text("1\n00:00:01,000 --> 00:00:02,000\nEski çeviri.\n", encoding="utf-8-sig")
+        Path(f"{existing}.meta.json").write_text(json.dumps({
+            "sourceHash": "0" * 64, "targetLanguage": "tr",
+            "cues": [{"key": "wrong", "status": "completed", "text": "Eski çeviri."}],
+        }), encoding="utf-8")
+        args = _TrArgs(translate_cache=False)
+        args.input = str(source)
+        args.output_dir = str(root)
+        args.language = "en"
+        args.max_lines = 2
+        args.wrap_mode = "sentence"
+        args.formats = "srt"
+        args.dual_subtitle = False
+        args.dual_translation_first = False
+        args.translate_existing = str(existing)
+        seen = []
+        events = []
+
+        def translate_all(entries, _args, _warnings, source_lang=None, status_out=None):
+            seen.extend(entries)
+            status_out.update(completed=[0], failed=[])
+            return [(entries[0][0], entries[0][1], "Yeni çeviri.")]
+
+        with mock.patch.object(T, "llm_translate", side_effect=translate_all), \
+                mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
+            T.translate_existing_subtitle(args)
+        assert len(seen) == 1
+        assert "Yeni çeviri." in existing.read_text(encoding="utf-8-sig")
+        logs = [payload.get("message", "") for kind, payload in events if kind == "log"]
+        assert any("metadata" in message.lower() and "kullanılmayacak" in message for message in logs)
 
 def test_translate_existing_total_failure_does_not_create_fake_translation():
     with tempfile.TemporaryDirectory() as tmp:
@@ -3095,6 +3213,27 @@ def test_write_ass_escapes_untrusted_override_syntax():
         assert r"{\an8}" not in output
         assert "｛\\an8｝Metin ｛literal｝" in output
 
+
+def test_canonicalize_subtitle_entries_only_merges_nearby_exact_text():
+    merged, removed = T.canonicalize_subtitle_entries([
+        (0.0, 1.0, "Hello   world."), (0.02, 1.1, "Hello world."),
+        (1.2, 2.0, "Different line."), (1.21, 2.1, "Different line 2."),
+    ])
+    assert removed == 1
+    assert len(merged) == 3
+    assert merged[0][:2] == (0.0, 1.1)
+
+
+def test_compute_translation_quality_report_separates_empty_and_timing():
+    report = T.compute_translation_quality_report(
+        [(0.0, 1.0, "This is a source sentence."), (2.0, 3.0, "Next line.")],
+        [(0.1, 1.1, "This is a source sentence."), (2.0, 3.0, "")],
+        failed_count=1,
+    )
+    assert report["translation_untranslated"] == 1
+    assert report["translation_empty"] == 1
+    assert report["translation_timing_mismatch"] == 1
+    assert report["translation_failed"] == 1
 
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

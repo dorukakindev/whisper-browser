@@ -98,6 +98,13 @@ test('ceviri yan ayarlari da gider', () => {
   assert(argValue(args, '--dual-subtitle') === 'true', 'dual yok');
 });
 
+test('cue tekilleştirme yalnızca çeviri-only işinde açıkça gider', () => {
+  const on = build(base({ translate: true, translateOnly: true, dedupeCues: true }));
+  assert(on.includes('--dedupe-cues'), '--dedupe-cues yok');
+  const normal = build(base({ translate: true, translateOnly: false, dedupeCues: true }));
+  assert(!normal.includes('--dedupe-cues'), 'normal transkripsiyona dedupe sızdı');
+});
+
 // ---- 2) LLM bayraklari YALNIZCA LLM acikken ----
 test('LLM bayraklari LLM kapaliyken gonderilmez', () => {
   const args = build(base({ llmPostprocess: false, translate: true }));

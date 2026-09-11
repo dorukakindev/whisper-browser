@@ -312,6 +312,7 @@ function buildOptsFromUI() {
     translateRegister: $('translateRegister').value,
     translateContext: $('translateContext') ? $('translateContext').value : '4',
     translateCache: $('translateCache') ? $('translateCache').checked : true,
+    dedupeCues: $('translateDedupe') ? $('translateDedupe').checked : true,
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
@@ -2016,7 +2017,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'dualSubtitle', 'watchEnabled',
+  'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
   'primarySettingsOpen',
   'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
@@ -3506,6 +3507,12 @@ window.api.onEvent((event) => {
 
     case 'quality_report':
       state.lastQualityReport = event;
+      if (Number(event.translation_issues || 0) > 0) {
+        const cueNumbers = (Array.isArray(event.translation_issue_indices) ? event.translation_issue_indices : [])
+          .slice(0, 8).map((index) => Number(index) + 1).filter(Number.isFinite);
+        const cueHint = cueNumbers.length ? ' · cue: ' + cueNumbers.join(', ') + (Number(event.translation_issues) > cueNumbers.length ? '…' : '') : '';
+        logLine('Çeviri kalite kontrolü: ' + Number(event.translation_untranslated || 0) + ' kaynak metin, ' + Number(event.translation_empty || 0) + ' boş, ' + Number(event.translation_timing_mismatch || 0) + ' zaman uyumsuz' + cueHint + '.', 'warn');
+      }
       renderReviewCenter();
       break;
 
@@ -3669,6 +3676,10 @@ function showResultModal(event) {
   }
   if (Array.isArray(event.warnings) && event.warnings.length) {
     stats += ` · ${event.warnings.length} uyarı (Günlük'e bakın)`;
+  }
+  if (state.lastQualityReport && Number(state.lastQualityReport.translation_blocks || 0)) {
+    const tq = state.lastQualityReport;
+    stats += ` · çeviri: ${Number(tq.translation_blocks || 0) - Number(tq.translation_failed || 0)}/${Number(tq.translation_blocks || 0)} hazır`;
   }
   $('modalStats').textContent = stats;
 

@@ -12794,6 +12794,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
   if (!options.chat && options.translateExisting) args.push('--translate-existing', options.translateExisting);
+  if (!options.chat && options.translateOnly && options.dedupeCues) args.push('--dedupe-cues');
   // Sohbet: soru + gecmis + baglam TEK dosyaya yazilir. argv'ye koymak uzun
   // metinlerde sinira takilir ve surec listesinde gorunur.
   if (options.chat) {

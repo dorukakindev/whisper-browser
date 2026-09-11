@@ -3093,18 +3093,25 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         """Geçersiz/boş yanıtı daha küçük cümle gruplarıyla kurtar."""
         try:
             return task_once(chunk_idx)
-        except Exception:
+        except Exception as error:
+            reason = classify_translation_error(error)
+            # Kimlik, kota, hız sınırı ve ağ hataları payload küçülünce düzelmez;
+            # aynı maliyetli isteği çoğaltmadan üst katmanın hata durumuna bırak.
+            if reason not in {"invalid_response", "empty_response"}:
+                raise
             starts = [index for index in chunk_idx if group_at[index][0] == index]
             if len(starts) <= 1:
                 raise
             log("Çeviri grubu geçersiz yanıt verdi; daha küçük gruplarla yeniden deneniyor.", "warn")
             recovered = 0
-            # Büyük grubun her alt isteği en fazla iki cümle grubu taşısın;
-            # bu, uzun bağlamlı JSON yanıtlarında tek arızanın yayılmasını önler.
-            for offset in range(0, len(starts), 2):
+            # İki gruplu isteği yine iki grup çağırmak sonsuz özyineleme üretirdi.
+            # 3+ grupta ikişer, tam iki grupta birer grup dene.
+            retry_size = 2 if len(starts) > 2 else 1
+            for offset in range(0, len(starts), retry_size):
                 start_pos = chunk_idx.index(starts[offset])
-                end_pos = (chunk_idx.index(starts[offset + 2])
-                           if offset + 2 < len(starts) else len(chunk_idx))
+                next_offset = offset + retry_size
+                end_pos = (chunk_idx.index(starts[next_offset])
+                           if next_offset < len(starts) else len(chunk_idx))
                 recovered += task(chunk_idx[start_pos:end_pos])
             return recovered
 
@@ -4211,6 +4218,82 @@ def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8, segm
             report["too_short"] += 1
         if i + 1 < n and float(e) > float(entries[i + 1][0]) + 0.001:
             report["overlaps"] += 1
+    return report
+
+
+
+def canonicalize_subtitle_entries(entries, max_start_delta=0.08, max_gap=0.12):
+    """Conservative optional cue deduplication."""
+    source = list(entries or [])
+    if not source:
+        return [], 0
+    def key(text):
+        value = unicodedata.normalize("NFC", str(text or ""))
+        return re.sub(r"\s+", " ", value).strip()
+    out = []
+    removed = 0
+    for item in source:
+        if len(item) < 3:
+            continue
+        current = (float(item[0]), float(item[1]), item[2])
+        if out:
+            previous = out[-1]
+            same_text = key(previous[2]) and key(previous[2]) == key(current[2])
+            overlap = min(previous[1], current[1]) - max(previous[0], current[0])
+            close_start = abs(previous[0] - current[0]) <= max_start_delta
+            close_gap = abs(current[0] - previous[1]) <= max_gap
+            if same_text and (overlap >= -0.01 or (close_start and close_gap)):
+                out[-1] = (min(previous[0], current[0]), max(previous[1], current[1]), previous[2])
+                removed += 1
+                continue
+        out.append(current)
+    return out, removed
+
+
+def compute_translation_quality_report(source_entries, translated_entries,
+                                       failed_count=0, timing_tolerance=0.002):
+    """Kaynak/hedef cue'larını değiştirmeden muhafazakâr kalite kapısı."""
+    source = list(source_entries or [])
+    target = list(translated_entries or [])
+    total = max(len(source), len(target))
+    untranslated_indices = []
+    empty_indices = []
+    timing_mismatch_indices = []
+    for index in range(total):
+        src = source[index] if index < len(source) else None
+        dst = target[index] if index < len(target) else None
+        if src is None or dst is None:
+            timing_mismatch_indices.append(index)
+            if dst is None or not str(dst[2] if len(dst) > 2 else "").strip():
+                empty_indices.append(index)
+            continue
+        src_text = unicodedata.normalize("NFC", str(src[2] or "")).strip()
+        dst_text = unicodedata.normalize("NFC", str(dst[2] or "")).strip()
+        if not dst_text:
+            empty_indices.append(index)
+        # Kısa özel adlar, sayılar ve URL'ler aynı kalabilir. Uzun ve harf
+        # içeren birebir kaynak yankısı ise yeniden denemeye açık tutulur.
+        if (len(src_text) >= 12 and src_text.casefold() == dst_text.casefold()
+                and re.search(r"[A-Za-zÇĞİÖŞÜçğıöşü]", src_text)):
+            untranslated_indices.append(index)
+        if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
+                or abs(float(src[1]) - float(dst[1])) > timing_tolerance):
+            timing_mismatch_indices.append(index)
+    issue_indices = sorted(set(
+        untranslated_indices + empty_indices + timing_mismatch_indices
+    ))
+    report = {
+        "translation_blocks": total,
+        "translation_untranslated": len(untranslated_indices),
+        "translation_empty": len(empty_indices),
+        "translation_timing_mismatch": len(timing_mismatch_indices),
+        "translation_failed": max(0, int(failed_count or 0)),
+        "translation_untranslated_indices": untranslated_indices,
+        "translation_empty_indices": empty_indices,
+        "translation_timing_mismatch_indices": timing_mismatch_indices,
+        "translation_issue_indices": issue_indices,
+    }
+    report["translation_issues"] = max(len(issue_indices), report["translation_failed"])
     return report
 
 
@@ -5720,6 +5803,10 @@ def translate_existing_subtitle(args):
             "Altyazi okunamadi veya bos. Desteklenen bicimler: SRT, VTT, ASS/SSA."
         )
     log(f"{len(entries)} blok okundu: {src_path.name}")
+    if getattr(args, "dedupe_cues", False):
+        entries, deduped = canonicalize_subtitle_entries(entries)
+        if deduped:
+            log(f"Guvenli cue tekillestirme: {deduped} yinelenen blok elendi.", "warn")
 
     warn_list = []
 
@@ -5766,29 +5853,38 @@ def translate_existing_subtitle(args):
         try:
             old_text, _old_enc, _old_repaired = read_subtitle_text(existing_path)
             old_entries = parse_subtitle_entries(old_text, existing_path.suffix)
-            # Metadata'siz eski dosya ancak cue sayisi ve tum zaman cizelgesi
-            # birebir uyuyorsa kullanilir. Baslik benzerligi veya dil eki,
-            # baska bir videonun cevirisini kabul etmek icin yeterli degildir.
-            legacy_timeline_matches = len(old_entries) == len(entries) and all(
+            timeline_matches = len(old_entries) == len(entries) and all(
                 abs(float(old[0]) - float(entry[0])) <= 0.002
                 and abs(float(old[1]) - float(entry[1])) <= 0.002
                 for old, entry in zip(old_entries, entries)
             )
-            if existing_meta or legacy_timeline_matches:
-                for old_index, old in enumerate(old_entries):
-                    if len(old) >= 3 and str(old[2]).strip():
-                        existing_by_key[(round(float(old[0]), 3), round(float(old[1]), 3), old_index)] = old[2]
-            elif old_entries:
-                log("Metadata'siz mevcut çevirinin zaman çizelgesi kaynakla eşleşmiyor; "
-                    "yanlış videoya ait olabileceği için kullanılmayacak.", "warn")
-            if existing_meta and isinstance(existing_meta.get("cues"), list):
-                # Metadata varsa zaman/sıra yerine fingerprint ile eşleştir.
-                keyed = {str(c.get("key")): c for c in existing_meta["cues"] if isinstance(c, dict)}
-                existing_by_key = {}
-                for index, entry in enumerate(entries):
+            metadata_present = bool(meta_path and meta_path.exists())
+            if existing_meta and not timeline_matches:
+                log("Metadata doğru kaynağı gösterse de mevcut çeviri dosyasının zaman "
+                    "çizelgesi değişmiş; kullanıcı verisini yanlış cue'ya taşımamak için "
+                    "dosya devralınmayacak.", "warn")
+            elif existing_meta and isinstance(existing_meta.get("cues"), list):
+                # Durumu metadata belirler; korunacak metin diskteki güncel
+                # dosyadan gelir. Böylece önceki elle düzeltmeler ezilmez.
+                keyed = {str(c.get("key")): c for c in existing_meta["cues"]
+                         if isinstance(c, dict)}
+                for index, (entry, old) in enumerate(zip(entries, old_entries)):
                     record = keyed.get(cue_fingerprint(entry, index))
-                    if record and str(record.get("status")) == "completed" and str(record.get("text", "")).strip():
-                        existing_by_key[(round(float(entry[0]), 3), round(float(entry[1]), 3), index)] = record["text"]
+                    if (record and str(record.get("status")) == "completed"
+                            and len(old) >= 3 and str(old[2]).strip()):
+                        existing_by_key[(
+                            round(float(entry[0]), 3), round(float(entry[1]), 3), index
+                        )] = old[2]
+            elif not metadata_present and timeline_matches:
+                for index, (entry, old) in enumerate(zip(entries, old_entries)):
+                    if len(old) >= 3 and str(old[2]).strip():
+                        existing_by_key[(
+                            round(float(entry[0]), 3), round(float(entry[1]), 3), index
+                        )] = old[2]
+            elif old_entries:
+                reason = ("metadata kaynak/dil uyuşmazlığı" if metadata_present
+                          else "zaman çizelgesi uyuşmazlığı")
+                log(f"Mevcut çeviri {reason} nedeniyle kullanılmayacak.", "warn")
             if existing_by_key:
                 log(f"Mevcut çeviri bulundu: {len(existing_by_key)} blok korunacak.", "info")
         except Exception as error:
@@ -5834,6 +5930,30 @@ def translate_existing_subtitle(args):
     # metin-birleştirme kaynak/çeviri eşlemesini ve kısmi devamı bozar.
     if not translated:
         raise RuntimeError("Ceviri yapilamadi - ayrintilar gunlukte.")
+
+    provisional_completed = {
+        index for index, entry in enumerate(entries)
+        if existing_for(entry, index) is not None
+    }
+    for pending_index in set(translation_status.get("completed", [])):
+        if isinstance(pending_index, int) and 0 <= pending_index < len(pending_pairs):
+            provisional_completed.add(pending_pairs[pending_index][0])
+    translation_report = compute_translation_quality_report(
+        entries, translated,
+        failed_count=max(0, len(entries) - len(provisional_completed)),
+    )
+    untranslated_indices = set(translation_report["translation_untranslated_indices"])
+    empty_translation_indices = set(translation_report["translation_empty_indices"])
+    timing_mismatch_indices = set(translation_report["translation_timing_mismatch_indices"])
+    quality_failed_indices = set(translation_report["translation_issue_indices"])
+    completed_source_indices = provisional_completed - quality_failed_indices
+    completed_count = len(completed_source_indices)
+    failed_count = max(0, len(entries) - completed_count)
+    translation_report["translation_failed"] = failed_count
+    translation_report["translation_issues"] = max(
+        translation_report["translation_issues"], failed_count)
+    quality_last_error = (translation_status.get("lastError", "")
+                          or ("untranslated_source" if quality_failed_indices else ""))
 
     out_dir = Path(args.output_dir) if args.output_dir else src_path.parent
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -5883,34 +6003,31 @@ def translate_existing_subtitle(args):
         else:
             write_json(translated, out_path)
         files.append(str(out_path))
-        completed_count = sum(1 for index, entry in enumerate(entries)
-                              if existing_for(entry, index) is not None)
-        completed_count += len(set(translation_status.get("completed", [])))
-        completed_count = min(len(entries), completed_count)
-        failed_count = max(0, len(entries) - completed_count)
         outputs.append(subtitle_output(
             out_path, "translation", target, source_id, source_hash,
             total=len(entries), completed=completed_count, failed=failed_count,
-            last_error=translation_status.get("lastError", ""),
+            last_error=quality_last_error,
         ))
         log(f"Ceviri yazildi: {out_path}", "success")
         # Çıktının yanındaki metadata, sonraki denemede hangi cue'ların
-        # gerçekten tamamlandığını kaynak hash'i ile doğrular. Kaynakla aynı
-        # metin de API tarafından başarıyla döndüyse completed olarak korunur.
+        # gerçekten tamamlandığını kaynak hash'i ile doğrular. Kalite kapısında
+        # kaynak yankısı/boş/zaman uyumsuz cue başarısız kalır ve yeniden denenir.
         if fmt in {"srt", "vtt", "ass"} and len(translated) == len(entries):
-            completed_pending = set(translation_status.get("completed", []))
             metadata_cues = []
             for index, entry in enumerate(entries):
-                preserved = existing_for(entry, index) is not None
                 pending_index = pending_status_positions.get(id(entry))
-                completed = preserved or (pending_index in completed_pending)
+                completed = index in completed_source_indices
                 failed_reasons = translation_status.get("failedReasons", {})
                 metadata_cues.append({
                     "key": cue_fingerprint(entry, index),
                     "status": "completed" if completed else "failed",
                     "text": translated[index][2],
-                    "error": failed_reasons.get(str(pending_index), "api_failure")
-                    if not completed else "",
+                    "error": (
+                        "empty_translation" if index in empty_translation_indices
+                        else "timeline_mismatch" if index in timing_mismatch_indices
+                        else "untranslated_source" if index in untranslated_indices
+                        else failed_reasons.get(str(pending_index), "api_failure")
+                    ) if not completed else "",
                 })
             try:
                 metadata_text = json.dumps({
@@ -5933,18 +6050,22 @@ def translate_existing_subtitle(args):
                        max_line_width=args.max_line_width,
                        language=target, source_language=args.language)
         files.append(str(dual_path))
-        completed_count = sum(1 for index, entry in enumerate(entries)
-                              if existing_for(entry, index) is not None)
-        completed_count += len(set(translation_status.get("completed", [])))
-        completed_count = min(len(entries), completed_count)
         outputs.append(subtitle_output(
             dual_path, "dual", target, source_id, source_hash,
             total=len(entries), completed=completed_count,
             failed=max(0, len(entries) - completed_count),
-            last_error=translation_status.get("lastError", ""),
+            last_error=quality_last_error,
         ))
         log(f"Cift dilli altyazi yazildi: {dual_path}", "success")
 
+    emit("quality_report", **translation_report)
+    if translation_report["translation_issues"]:
+        warn_list.append(
+            "Ceviri kalite kontrolu: "
+            f"{translation_report['translation_untranslated']} kaynak metinli cue, "
+            f"{translation_report['translation_empty']} bos, "
+            f"{translation_report['translation_timing_mismatch']} zaman uyumsuz cue."
+        )
     emit("done", files=files, outputs=outputs, sourceId=source_id,
          sourceHash=source_hash, segments=len(translated), warnings=warn_list)
 
@@ -6834,6 +6955,7 @@ def main():
                         help="--input bir altyazi dosyasi: Whisper calistirmadan yalnizca cevir")
     parser.add_argument("--translate-existing", default="",
                         help="Kismi ceviriyi okuyup tamamlanan bloklari koru; yalniz eksikleri cevir")
+    parser.add_argument("--dedupe-cues", action="store_true", help="Yalnızca yakın ve aynı metinli cue tekrarlarını güvenle tekilleştir")
     parser.add_argument("--translate-cache", type=lambda x: x.lower() == "true", default=True,
                         help="Cevrilmis bloklari onbellege al (ayni blok tekrar gonderilmez)")
     parser.add_argument("--cache-dir", default=None, help="Onbellek klasoru")

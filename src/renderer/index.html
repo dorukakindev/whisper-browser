@@ -657,6 +657,11 @@
                 <input type="checkbox" id="translateCache" checked />
                 <span>Çeviri önbelleği (aynı satır ikinci kez gönderilmez)</span>
               </label>
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="translateDedupe" checked />
+                <span>Yakın ve birebir aynı yinelenen cue'ları çeviriden önce tekilleştir</span>
+              </label>
+              <div class="hint field-full">Yalnızca aynı metinli, üst üste binen veya neredeyse bitişik kayıtlar birleştirilir. Aynı zamandaki farklı konuşmacı/metin satırları korunur.</div>
               <div class="hint">Çevrilen her blok saklanır; aynı videoyu yeniden çalıştırdığınızda
                 veya yalnızca birkaç satırı düzelttiğinizde <strong>yalnızca değişenler</strong>
                 API'ye gider. Ölçüm: 50 bloklu bir dosyada ikinci çalıştırma <strong>0 istek</strong>,

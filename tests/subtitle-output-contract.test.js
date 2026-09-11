@@ -22,6 +22,8 @@ assert.equal(selected.source.role, 'source');
 assert.equal(selected.translation.role, 'translation');
 assert.match(contract.outputLabel(selected.translation), /87\/100 hazır/);
 assert.match(contract.outputLabel({ ...selected.translation, lastError: 'rate_limit' }), /hız sınırı/);
+assert.match(contract.outputLabel({ ...selected.translation, lastError: 'untranslated_source' }), /kaynak metin çevrilmemiş/);
+assert.match(contract.outputLabel({ ...selected.translation, lastError: 'timeline_mismatch' }), /zaman çizelgesi uyuşmuyor/);
 
 selected = contract.selectOutputs({ files: ['C:\\out\\legacy.tr.srt'] }, { fallbackRole: 'translation' });
 assert.equal(selected.translation.path, 'C:\\out\\legacy.tr.srt');

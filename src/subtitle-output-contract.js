@@ -83,6 +83,8 @@
       quota: 'kota dolu', authentication: 'API anahtarı/izin hatası', rate_limit: 'hız sınırı',
       timeout: 'zaman aşımı', invalid_response: 'bozuk yanıt', empty_response: 'boş yanıt',
       server_error: 'sağlayıcı sunucu hatası', network_error: 'ağ hatası',
+      untranslated_source: 'kaynak metin çevrilmemiş', empty_translation: 'çeviri boş',
+      timeline_mismatch: 'zaman çizelgesi uyuşmuyor',
       client_missing: 'API istemcisi eksik', api_key_missing: 'API anahtarı eksik',
       api_failure: 'API hatası',
     })[code] || 'çeviri hatası';
