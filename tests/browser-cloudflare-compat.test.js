@@ -16,6 +16,7 @@ const {
   createBrowserSessionPackage,
   inspectBrowserSessionPackage,
 } = require('../src/browser-session-package');
+const { captureBodyFingerprint } = require('../src/browser-capture-recovery');
 
 let passed = 0;
 function test(name, fn) {
@@ -138,7 +139,9 @@ assert(uninstallStart >= 0 && uninstallEnd > uninstallStart && hookStart >= 0 &&
 const factories = vm.runInNewContext('(() => {\n'
   + mainSource.slice(uninstallStart, uninstallEnd) + '\n'
   + mainSource.slice(hookStart, hookEnd) + '\n'
-  + 'return { browserCaptureHookScript, browserCaptureUninstallScript };\n})()');
+  + 'return { browserCaptureHookScript, browserCaptureUninstallScript };\n})()', {
+  captureBodyFingerprint,
+});
 
 function captureHarness() {
   function FakeXhr() {}

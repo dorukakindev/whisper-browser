@@ -74,6 +74,10 @@ const {
   pruneBrowserCaptureDedupe,
 } = require('./browser-network-capture');
 const {
+  captureBodyFingerprint,
+  shouldRetryCaptureResponseBody,
+} = require('./browser-capture-recovery');
+const {
   ManifestTransactionRegistry,
   hasExpectedManifestRoot,
   isCompleteManifestBody,
@@ -410,6 +414,7 @@ const browserConfiguredSessions = new WeakSet();
 const browserPlaybackConfiguredSessions = new WeakSet();
 let browserCaptureBusy = false;
 let browserCaptureFlushPromise = null;
+let browserCaptureResetPromise = null;
 let browserTrackBusy = false;
 let browserMediaBusy = false;
 let browserCaptureEnabled = true;
@@ -6721,8 +6726,7 @@ function scheduleBrowserManifestRetry(responseBuffer, candidate, strategy, outco
 }
 
 async function getBrowserCapturedResponseBody(candidate, context) {
-  const mimeAndUrl = String(candidate.mimeType || '') + String(candidate.url || '');
-  const attempts = /mpegurl|dash\+xml|\.(?:m3u8|mpd)(?:[?#]|$)/i.test(mimeAndUrl) ? 3 : 1;
+  const attempts = shouldRetryCaptureResponseBody(candidate) ? 3 : 1;
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (!isCurrentBrowserContext(context)) {
@@ -6733,7 +6737,7 @@ async function getBrowserCapturedResponseBody(candidate, context) {
       const result = await withTimeout(tab.view.webContents.debugger.sendCommand(
         'Network.getResponseBody', { requestId: candidate.requestId },
         candidate.sessionId || undefined),
-      BROWSER_SCRIPT_TIMEOUT, 'Manifest yanıt gövdesi zaman aşımına uğradı.');
+      BROWSER_SCRIPT_TIMEOUT, 'Altyazı yanıt gövdesi zaman aşımına uğradı.');
       if (!isCurrentBrowserContext(context)) {
         throw browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.');
       }
@@ -7024,6 +7028,7 @@ function browserCaptureHookScript() {
     const MAX_TEXT = 2 * 1024 * 1024;
     const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
     const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
+    const bodyFingerprint = ${captureBodyFingerprint.toString()};
     const push = (entry) => {
       if (!window.__whisperCaptureEnabled) return;
       const body = String(entry.body || '');
@@ -7031,8 +7036,7 @@ function browserCaptureHookScript() {
       const binaryBytes = bodyBase64 ? Math.floor(bodyBase64.length * 3 / 4) : 0;
       if ((!body && !bodyBase64) || body.length > MAX_TEXT || binaryBytes > MAX_TEXT) return;
       const sample = body || bodyBase64;
-      const key = String(entry.url || '') + '|' + sample.length + '|'
-        + sample.slice(0, 96) + '|' + sample.slice(-96);
+      const key = String(entry.url || '') + '|' + bodyFingerprint(sample);
       if (window.__whisperCaptureSeen.has(key)) return;
       window.__whisperCaptureSeen.add(key);
       if (window.__whisperCaptureSeen.size > 120) window.__whisperCaptureSeen.delete(window.__whisperCaptureSeen.values().next().value);
@@ -7214,6 +7218,25 @@ function browserCaptureReleaseScript(receipts) {
       }
     }
     return released;
+  })()`;
+}
+
+function browserCaptureResetScript() {
+  return `(() => {
+    window.__whisperCaptureQueue = [];
+    if (window.__whisperCaptureSeen && typeof window.__whisperCaptureSeen.clear === 'function') {
+      window.__whisperCaptureSeen.clear();
+    } else {
+      window.__whisperCaptureSeen = new Set();
+    }
+    if (window.__whisperCaptureInFlight
+        && typeof window.__whisperCaptureInFlight.clear === 'function') {
+      window.__whisperCaptureInFlight.clear();
+    } else {
+      window.__whisperCaptureInFlight = new Map();
+    }
+    window.__whisperCaptureDropped = 0;
+    return true;
   })()`;
 }
 
@@ -7529,6 +7552,19 @@ function executeBrowserFrames(script) {
   return executeBrowserViewFrames(browserView, script);
 }
 
+function resetBrowserPageCaptureState(view = browserView) {
+  browserCaptureBusy = true;
+  let work;
+  work = executeBrowserViewFrames(view, browserCaptureResetScript()).catch(() => [])
+    .finally(() => {
+      if (browserCaptureResetPromise !== work) return;
+      browserCaptureResetPromise = null;
+      browserCaptureBusy = !!browserCaptureFlushPromise;
+    });
+  browserCaptureResetPromise = work;
+  return work;
+}
+
 async function ensureBrowserCaptureHooks() {
   if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
       || activeBrowserTab()?.browserInstrumentationPending) return 0;
@@ -7624,6 +7660,10 @@ async function performBrowserCaptureFlush({ installHook = true } = {}) {
 
 function flushBrowserCaptureQueue({ allowHidden = false, force = false, installHook = true } = {}) {
   if (browserCaptureFlushPromise) return browserCaptureFlushPromise;
+  if (browserCaptureResetPromise) {
+    return Promise.resolve({ skipped: true, resetting: true,
+      attempted: 0, retried: 0, pendingBeforeAck: 0 });
+  }
   if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
       || activeBrowserTab()?.browserInstrumentationPending
       || (!force && !browserCaptureEnabled) || (!allowHidden && !browserVisible)
@@ -8253,6 +8293,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       applyStoredBrowserZoom(tab, wc, nextUrl);
       if (mediaChanged && tab.id === browserActiveTabId) {
         resetBrowserCaptureState({ cancelTranslation: true });
+        void resetBrowserPageCaptureState(tab.view);
         void reportBrowserDrmSupport();
       }
       scheduleBrowserSessionSave();
@@ -9970,9 +10011,12 @@ ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
   browserTrackBusy = false;
   browserMediaBusy = false;
   if (browserView && !browserView.webContents.isDestroyed()) {
+    await resetBrowserPageCaptureState(browserView);
     if (browserCaptureEnabled && !tab.compatibilityMode && !tab.cloudflareChallengeActive) {
       await withTimeout(ensureBrowserCaptureHooks(), BROWSER_SCRIPT_TIMEOUT,
         'Yakalama kancası zaman aşımına uğradı.').catch(() => {});
+      await withTimeout(executeBrowserFrames(browserCaptureToggleScript(true)), BROWSER_SCRIPT_TIMEOUT,
+        'Yakalama açma işlemi zaman aşımına uğradı.').catch(() => {});
       await attachBrowserDebugger();
     } else {
       await withTimeout(executeBrowserFrames(browserCaptureToggleScript(false)), BROWSER_SCRIPT_TIMEOUT,

@@ -33,6 +33,7 @@ const {
   parseSubtitlePayload,
   parseTime,
 } = require('../src/browser-subtitles');
+const { captureBodyFingerprint } = require('../src/browser-capture-recovery');
 
 let passed = 0;
 const tests = [];
@@ -762,6 +763,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /browserCaptureHookScript/);
   assert.match(main, /browserCaptureAckScript/);
   assert.match(main, /browserCaptureReleaseScript/);
+  assert.match(main, /browserCaptureResetScript/);
+  assert.match(main, /bodyFingerprint\(sample\)/);
+  assert.match(main, /shouldRetryCaptureResponseBody\(candidate\)/);
   assert.match(main, /__whisperCaptureInFlight instanceof Map/);
   assert.match(main, /now - leasedAt <= 15000/);
   assert.match(main, /lease\.deliveryId !== receipt\.deliveryId/);
@@ -916,6 +920,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
     assert(start >= 0 && end > start, `${name} kaynakta bulunamadı`);
     const factory = vm.runInNewContext(`(${main.slice(start, end)})`, {
       browserActiveCuesAt,
+      captureBodyFingerprint,
       buildBrowserOverlayScript: require('../src/browser-overlay-controller').buildBrowserOverlayScript,
     });
     const generated = name === 'browserOverlayScript'

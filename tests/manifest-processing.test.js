@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { shouldRetryCaptureResponseBody } = require('../src/browser-capture-recovery');
 
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
 
@@ -122,7 +123,7 @@ function hlsContext(fetchResults) {
     assert.equal(harness.publications.size, 0);
   });
 
-  await test('CDP manifest gövdesi sınırlı yeniden denenir ve sekme değişince kesilir', async () => {
+  await test('CDP timed-text gövdesi sınırlı yeniden denenir ve sekme değişince kesilir', async () => {
     let current = true;
     let calls = 0;
     const tab = {
@@ -138,14 +139,15 @@ function hlsContext(fetchResults) {
       browserTabById: () => tab,
       isCurrentBrowserContext: () => current,
       setTimeout: (callback) => { callback(); return 1; },
+      shouldRetryCaptureResponseBody,
       withTimeout: (task) => task,
     };
     const readBody = extractFunction('async function getBrowserCapturedResponseBody(',
       'async function captureBrowserResponse(', context);
     const browserContext = { tabId: 'tab-1', generation: 7, stateGeneration: 9 };
     const result = await readBody({
-      url: 'https://cdn.test/master.m3u8',
-      mimeType: 'application/vnd.apple.mpegurl',
+      url: 'https://cdn.test/subtitle.vtt',
+      mimeType: 'text/vtt',
       requestId: 'one',
     }, browserContext);
     assert.equal(result.body, '#EXTM3U');
@@ -159,8 +161,8 @@ function hlsContext(fetchResults) {
       return { body: '#EXTM3U', base64Encoded: false };
     };
     await assert.rejects(() => readBody({
-      url: 'https://cdn.test/master.m3u8',
-      mimeType: 'application/vnd.apple.mpegurl',
+      url: 'https://cdn.test/subtitle.vtt',
+      mimeType: 'text/vtt',
       requestId: 'cancelled',
     }, browserContext), (error) => error.code === 'EBROWSER_STALE');
     assert.equal(calls, 1, 'iptal edilmiş gövde isteği yeniden denendi');
