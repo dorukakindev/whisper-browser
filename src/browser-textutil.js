@@ -17,6 +17,30 @@ function decodeWindows1254(buffer) {
   }
 }
 
+function countUtf8MultibyteSequences(buffer) {
+  let count = 0;
+  for (let index = 0; index < buffer.length;) {
+    const first = buffer[index];
+    let width = 0;
+    if (first >= 0xc2 && first <= 0xdf) width = 2;
+    else if (first >= 0xe0 && first <= 0xef) width = 3;
+    else if (first >= 0xf0 && first <= 0xf4) width = 4;
+    if (!width || index + width > buffer.length) { index++; continue; }
+    const continuation = buffer.subarray(index + 1, index + width);
+    if (![...continuation].every((byte) => byte >= 0x80 && byte <= 0xbf)
+        || (width === 3 && first === 0xe0 && continuation[0] < 0xa0)
+        || (width === 3 && first === 0xed && continuation[0] > 0x9f)
+        || (width === 4 && first === 0xf0 && continuation[0] < 0x90)
+        || (width === 4 && first === 0xf4 && continuation[0] > 0x8f)) {
+      index++;
+      continue;
+    }
+    count++;
+    index += width;
+  }
+  return count;
+}
+
 function decodeSubtitleBuffer(value) {
   const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value || '');
   if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
@@ -36,19 +60,23 @@ function decodeSubtitleBuffer(value) {
   let note = '';
   if (text.includes('\uFFFD')) {
     const replacementCount = (text.match(/\uFFFD/g) || []).length;
-    let hasUtf8Multibyte = false;
-    for (let index = 0; index + 1 < buffer.length; index++) {
-      if (buffer[index] >= 0xc2 && buffer[index] <= 0xdf
-          && buffer[index + 1] >= 0x80 && buffer[index + 1] <= 0xbf) { hasUtf8Multibyte = true; break; }
-      if (buffer[index] >= 0xe0 && buffer[index] <= 0xef
-          && index + 2 < buffer.length && buffer[index + 1] >= 0x80 && buffer[index + 1] <= 0xbf
-          && buffer[index + 2] >= 0x80 && buffer[index + 2] <= 0xbf) { hasUtf8Multibyte = true; break; }
-    }
-    if (hasUtf8Multibyte && replacementCount <= Math.max(2, Math.floor(text.length * 0.01))) {
+    const utf8SequenceCount = countUtf8MultibyteSequences(buffer);
+    const cp1254 = decodeWindows1254(buffer);
+    // Az sayıda CP1254 baytı tesadüfen geçerli bir UTF-8 dizisi oluşturabilir
+    // (örn. C7 85 = "Ç…" iken U+01C5 olur). Bu dar bölgede CP1254 çözümü
+    // doğal Türkçe içeriyor ve bilinen UTF-8 mojibake izlerini taşımıyorsa onu
+    // seç; gerçek UTF-8 Türkçe ise CP1254 adayındaki "Ã¼/Ã‡" izleri bu dalı
+    // engeller.
+    const cp1254LooksNative = /[ÇĞİÖŞÜçğıöşü]/u.test(cp1254) && markerCount(cp1254) === 0;
+    const sparseUtf8Evidence = utf8SequenceCount <= Math.max(2, replacementCount);
+    if (cp1254LooksNative && sparseUtf8Evidence) {
+      text = cp1254;
+      note = 'cp1254';
+    } else if (utf8SequenceCount > 0 && replacementCount <= Math.max(2, Math.floor(text.length * 0.01))) {
       text = text.replace(/\uFFFD/g, '');
       note = 'utf-8 bozuk bayt atlandı';
     } else {
-      text = decodeWindows1254(buffer);
+      text = cp1254;
       note = 'cp1254';
     }
   }

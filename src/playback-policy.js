@@ -32,7 +32,7 @@
     const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < 1;
     if (policy === PLAYBACK_POLICIES.shadowing.id && naturalAdvance && !active) {
       const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < 1);
-      if (ended) {
+      if (ended && String(options.lastShadowCueId || '') !== ended.id) {
         const duration = Math.max(0.5, ended.end - ended.start);
         return { type: 'pause-for-shadowing', cueId: ended.id,
           durationMs: Math.round(Math.max(1000, Math.min(8000, duration * 1000 * (Number(options.shadowingFactor) || 1.2)))) };

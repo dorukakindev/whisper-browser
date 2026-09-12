@@ -27,7 +27,18 @@ test('sor modu onay ister; otomatik mod uygun döner', () => {
   assert.equal(browserAutomationDecision(base).state, 'eligible');
 });
 test('harcama sınırı başarılı kaynağı silmeden onaya geçirir', () => {
-  assert.equal(browserAutomationDecision({ ...base, sourceCharacters: 200001 }).state, 'blocked_by_limit');
+  assert.match(browserAutomationDecision({ ...base, sourceCharacters: 200001 }).message, /Kaynak altyazı/);
+  assert.match(browserAutomationDecision({ ...base, sessionJobs: 10 }).message, /Oturum otomasyon/);
+  assert.match(browserAutomationDecision({ ...base, liveCharacters: 299950 }).message, /Canlı çeviri/);
+});
+test('tamamlanan ve iptal edilen geçmişleri sınırlı tutar', () => {
+  const gate = createBrowserAutomationGate(2);
+  for (const key of ['a', 'b', 'c']) { assert.equal(gate.claim(key), true); gate.complete(key); }
+  assert.equal(gate.state('a').completed, false);
+  assert.equal(gate.state('b').completed, true);
+  for (const key of ['x', 'y', 'z']) { assert.equal(gate.claim(key), true); gate.cancel(key); }
+  assert.equal(gate.state('x').canceled, false);
+  assert.equal(gate.state('z').canceled, true);
 });
 test('append-only kaynak aynı lineage için yeni iş kimliği üretmez', () => {
   const first = browserAutomationOperationKey({ ...base, sourceLineage: 'stream-1', sourceFingerprint: 'old' });

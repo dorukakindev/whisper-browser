@@ -23,7 +23,8 @@
     const bounds = { x: Math.round(Number(rawBounds.x) || 0), y: Math.round(Number(rawBounds.y) || 0),
       width: Math.max(1, Math.round(Number(rawBounds.width) || 1)), height: Math.max(1, Math.round(Number(rawBounds.height) || 1)) };
     const ratio = Math.max(0.25, Math.min(0.75, Number(rawRatio) || 0.5));
-    const safeGap = Math.max(0, Math.min(24, Math.round(Number(gap) || 0)));
+    const safeGap = Math.max(0, Math.min(24, bounds.width - 2,
+      Math.round(Number(gap) || 0)));
     const available = Math.max(2, bounds.width - safeGap);
     const firstWidth = Math.max(1, Math.min(available - 1, Math.round(available * ratio)));
     return {

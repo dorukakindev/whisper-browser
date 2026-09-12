@@ -6,7 +6,7 @@ function cleanPart(value, max = 240) {
   return String(value == null ? '' : value).trim().slice(0, max);
 }
 
-function normalizeBrowserUrl(rawUrl) {
+function normalizeBrowserUrl(rawUrl, maxLength = 16384) {
   try {
     const url = new URL(String(rawUrl || ''));
     if (!/^https?:$/.test(url.protocol)) return '';
@@ -19,7 +19,7 @@ function normalizeBrowserUrl(rawUrl) {
     }
     url.searchParams.sort();
     if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
-    return url.href.slice(0, 16384);
+    return url.href.slice(0, Math.max(1, Number(maxLength) || 16384));
   } catch (_) {
     return '';
   }
@@ -63,11 +63,12 @@ function serviceIdentity(url, hints = {}) {
     const id = url.searchParams.get('v') || firstMatch(url.pathname, [
       /^\/(?:shorts|live|embed)\/([^/?#]+)/i,
     ]);
-    if (id) return { service: 'youtube', contentId: cleanPart(id, 64) };
     if (clipId) return { service: 'youtube', contentId: `clip:${cleanPart(clipId, 59)}` };
+    if (id) return { service: 'youtube', contentId: cleanPart(id, 64) };
   }
   if (hostMatches(host, 'netflix.com')) {
-    const id = firstMatch(url.pathname, [/\/watch\/(\d+)/i, /\/title\/(\d+)/i]);
+    const id = firstMatch(url.pathname, [/\/watch\/(\d+)/i, /\/title\/(\d+)/i])
+      || (/^\/browse\/?$/i.test(url.pathname) ? url.searchParams.get('jbv') : '');
     if (id) return { service: 'netflix', contentId: id };
   }
   if (hostMatches(host, 'crunchyroll.com')) {
@@ -119,13 +120,17 @@ function stableUrlHash(value) {
 }
 
 function canonicalMediaIdentity(rawUrl, hints = {}) {
-  const canonicalUrl = normalizeBrowserUrl(rawUrl);
-  if (!canonicalUrl) return { key: '', service: '', contentId: '', canonicalUrl: '' };
-  const url = new URL(canonicalUrl);
+  // Depolanan URL'yi sınırlı tut, fakat kimliği tam normalize edilmiş URL'den
+  // üret. Aksi halde aynı 16 KiB öneke sahip iki ayrı adres aynı içeriğe
+  // birleşir ve izleme/çeviri kayıtlarını paylaşır.
+  const identityUrl = normalizeBrowserUrl(rawUrl, Number.MAX_SAFE_INTEGER);
+  if (!identityUrl) return { key: '', service: '', contentId: '', canonicalUrl: '' };
+  const canonicalUrl = identityUrl.slice(0, 16384);
+  const url = new URL(identityUrl);
   const identity = serviceIdentity(url, hints);
   const contentId = cleanPart(identity.contentId, 180);
   const service = cleanPart(identity.service || 'web', 48).toLowerCase();
-  const key = contentId ? `${service}:${contentId}` : `${service}:url:${stableUrlHash(canonicalUrl)}`;
+  const key = contentId ? `${service}:${contentId}` : `${service}:url:${stableUrlHash(identityUrl)}`;
   return { key, service, contentId, canonicalUrl };
 }
 

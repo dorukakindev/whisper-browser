@@ -42,11 +42,12 @@ function browserAutomationDecision(input = {}) {
   const newCharacters = Math.max(0, Number.isFinite(parsedNewCharacters) ? parsedNewCharacters : sourceCharacters);
   const parsedLiveCharacters = Number(input.liveCharacters);
   const liveCharacters = Math.max(0, Number.isFinite(parsedLiveCharacters) ? parsedLiveCharacters : 0);
-  if (sourceCharacters > limits.maxSourceCharacters || Number(input.sessionJobs) >= limits.maxSessionJobs
-      || liveCharacters + newCharacters > limits.maxLiveCharacters) {
-    return decision('blocked_by_limit', 'limit_reached',
-      `Otomatik işlem sınırına ulaşıldı (${sourceCharacters} kaynak karakteri). Kullanıcı onayı gerekiyor.`);
-  }
+  if (sourceCharacters > limits.maxSourceCharacters) return decision('blocked_by_limit', 'limit_reached',
+    `Kaynak altyazı sınırı aşıldı (${sourceCharacters}/${limits.maxSourceCharacters} karakter). Kullanıcı onayı gerekiyor.`);
+  if (Number(input.sessionJobs) >= limits.maxSessionJobs) return decision('blocked_by_limit', 'limit_reached',
+    `Oturum otomasyon sınırına ulaşıldı (${Number(input.sessionJobs) || 0}/${limits.maxSessionJobs} iş). Kullanıcı onayı gerekiyor.`);
+  if (liveCharacters + newCharacters > limits.maxLiveCharacters) return decision('blocked_by_limit', 'limit_reached',
+    `Canlı çeviri sınırı aşıldı (${liveCharacters + newCharacters}/${limits.maxLiveCharacters} karakter). Kullanıcı onayı gerekiyor.`);
   return mode === 'ask'
     ? decision('requires_confirmation', 'confirmation_required', 'Altyazı bulundu. Çeviri başlatılsın mı?')
     : decision('eligible', 'eligible', 'Altyazı bulundu; bu site kuralına göre çeviri başlatılabilir.');
@@ -54,10 +55,17 @@ function browserAutomationDecision(input = {}) {
 
 function decision(state, reason, message) { return { state, reason, message }; }
 
-function createBrowserAutomationGate() {
+function createBrowserAutomationGate(historyLimit = 1000) {
   const started = new Set();
   const stopped = new Set();
   const completed = new Set();
+  const limit = Math.max(1, Math.min(10000, Math.trunc(Number(historyLimit) || 1000)));
+  const remember = (collection, value) => {
+    if (!value) return;
+    collection.delete(value);
+    collection.add(value);
+    while (collection.size > limit) collection.delete(collection.keys().next().value);
+  };
   return {
     claim(key) {
       const cleanKey = clean(key, 128);
@@ -65,8 +73,8 @@ function createBrowserAutomationGate() {
       started.add(cleanKey); return true;
     },
     finish(key) { started.delete(clean(key, 128)); },
-    complete(key) { const value = clean(key, 128); started.delete(value); if (value) completed.add(value); },
-    cancel(key) { const value = clean(key, 128); started.delete(value); if (value) stopped.add(value); },
+    complete(key) { const value = clean(key, 128); started.delete(value); remember(completed, value); },
+    cancel(key) { const value = clean(key, 128); started.delete(value); remember(stopped, value); },
     allowAgain(key) { const value = clean(key, 128); stopped.delete(value); completed.delete(value); },
     state(key) { const value = clean(key, 128); return { running: started.has(value), canceled: stopped.has(value), completed: completed.has(value) }; },
   };

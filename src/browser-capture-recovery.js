@@ -1,6 +1,6 @@
 'use strict';
 
-const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(?:caption|captions|subtitle|subtitles|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3|altyazi|altyazilar)(?:[\/?&_.=-]|$)/i;
+const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(?:caption|captions|subtitle|subtitles|transcript|transcripts|closedcaption|closedcaptions|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3|altyazi|altyazilar)(?:[\/?&_.=-]|$)|\/(?:sub|cc)(?:[\/?#_.=-]|$)/i;
 
 function captureBodyFingerprint(value) {
   const text = String(value || '');

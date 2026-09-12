@@ -3958,6 +3958,9 @@ body::before {
   .app-main { grid-template-columns: 1fr; overflow: visible; padding: 14px; }
   .panel, .panel-right { overflow: visible; }
   .panel-right > .card-flex { min-height: 360px; }
+  .panel-right { order: -1; }
+  .preview { max-height: 40vh; }
+  .log { max-height: 28vh; overflow-y: auto; }
 }
 @media (max-width: 560px) {
   .app-header { padding: 11px 14px; }
@@ -4327,6 +4330,9 @@ html[data-theme="light"] .header-actions #openPlayer:hover {
 .browser-tab-open {
   min-width: 0;
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 0 7px;
   overflow: hidden;
   color: var(--text-dim);
@@ -4338,6 +4344,19 @@ html[data-theme="light"] .header-actions #openPlayer:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+}
+.browser-tab-favicon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border-radius: 2px;
+  object-fit: contain;
+}
+.browser-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .browser-tab.active .browser-tab-open { color: var(--text); }
 .browser-tab-close, .browser-tab-audio, .browser-tab-pin, .browser-tab-new, .browser-adblock-quick {
@@ -6286,3 +6305,5 @@ body.modal-open { overflow: hidden; }
   padding-top: 3px;
   border-top: 1px solid var(--border);
 }
+
+.drop-zone.processing-locked { pointer-events: none; opacity: .62; }

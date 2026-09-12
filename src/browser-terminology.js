@@ -18,6 +18,11 @@ const AMBIGUOUS_SENTENCE_STARTERS = new Set([
   'bir', 'bu', 'şu', 'o', 'ben', 'sen', 'biz', 'siz', 'onlar',
 ]);
 
+function ambiguousStarterKey(value) {
+  return String(value || '').normalize('NFKD').replace(/\u0307/g, '')
+    .toLowerCase().normalize('NFC');
+}
+
 function candidatePhrases(text) {
   const raw = clean(text, 12000);
   const words = [...raw.matchAll(/[\p{L}][\p{L}\p{M}'’-]*/gu)];
@@ -27,14 +32,15 @@ function candidatePhrases(text) {
     if (!run.length) return;
     const atSentenceStart = /^[^\p{L}\p{N}]*$/u.test(raw.slice(0, run[0].index));
     if (run.length > 1 && atSentenceStart
-        && AMBIGUOUS_SENTENCE_STARTERS.has(run[0].word.normalize('NFC').toLocaleLowerCase('tr-TR'))) {
+        && AMBIGUOUS_SENTENCE_STARTERS.has(ambiguousStarterKey(run[0].word))) {
       run = run.slice(1);
     }
     const source = run.map((item) => item.word).join(' ');
     const key = source.normalize('NFC').toLocaleLowerCase('tr-TR');
-    if (!(run.length === 1 && atSentenceStart && AMBIGUOUS_SENTENCE_STARTERS.has(key))) {
+    if (!(run.length === 1 && atSentenceStart && AMBIGUOUS_SENTENCE_STARTERS.has(ambiguousStarterKey(source)))) {
       phrases.push({ source, key,
-        strong: run.length > 1 || !atSentenceStart || source === source.toLocaleUpperCase('tr-TR') });
+        strong: run.length > 1 || !atSentenceStart || source === source.toLocaleUpperCase('tr-TR')
+          || /\p{Ll}\p{Lu}/u.test(source) });
     }
     run = [];
   };
@@ -43,8 +49,9 @@ function candidatePhrases(text) {
     const gap = run.length ? raw.slice(run.at(-1).end, match.index) : '';
     if (run.length && !/^\s+$/.test(gap)) flush();
     const titleCase = word && word[0] === word[0].toLocaleUpperCase('tr-TR');
+    const internalUpper = /\p{Ll}\p{Lu}/u.test(word);
     const shortSuffix = run.length && /^[\p{Lu}\d]{1,2}$/u.test(word);
-    if (titleCase && (word.length >= 3 || shortSuffix)) {
+    if ((titleCase || internalUpper) && (word.length >= 2 || shortSuffix)) {
       run.push({ word, index: match.index, end: match.index + match[0].length });
     } else {
       flush();

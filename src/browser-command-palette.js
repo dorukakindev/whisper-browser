@@ -17,7 +17,8 @@ function rankBrowserCommands(commands, query, context = {}) {
     if (!enabled) score -= 5;
     return { ...command, enabled, disabledReason, score, index };
   }).filter((command) => command.score >= 0)
-    .sort((a, b) => b.score - a.score || a.index - b.index);
+    .sort((a, b) => Number(b.enabled) - Number(a.enabled)
+      || b.score - a.score || a.index - b.index);
 }
 
 function browserCommandContextMatches(opened, current) {
@@ -29,8 +30,9 @@ function browserCommandContextMatches(opened, current) {
 function browserShortcutForInput(input = {}) {
   if (input.type !== 'keyDown' || input.alt || !(input.control || input.meta)) return '';
   const key = String(input.key || '').toLowerCase();
-  if (input.shift) return key === 't' ? key : '';
-  return key === 'k' || key === 'f' || key === 'l' ? key : '';
+  if (input.shift) return ['p', 't', 'tab', '+', '='].includes(key) ? key : '';
+  return ['k', 'p', 'f', 'l', 't', 'w', 'r', 'tab', '0', '+', '=', '-', '_',
+    '1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(key) ? key : '';
 }
 
 const browserCommandPaletteApi = { browserCommandContextMatches, browserShortcutForInput, normalizeTurkishSearch, rankBrowserCommands };

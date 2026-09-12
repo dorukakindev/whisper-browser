@@ -211,6 +211,12 @@ test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşı
     'yenile/durdur veya bağlantı güvenliği kullanıcıya açıklanmıyor');
   assert(/browser-reload-spin/.test(css) && /browser-tab-loading/.test(css),
     'yüklenme geri bildiriminin görsel durumu eksik');
+  const tabs = js.slice(js.indexOf('function renderBrowserTabs()'),
+    js.indexOf('function updateBrowserPinMenu()'));
+  assert(/browser-tab-favicon/.test(tabs) && /referrerPolicy\s*=\s*'no-referrer'/.test(tabs),
+    'sekme favicon verisi güvenli biçimde çizilmiyor');
+  assert(/\.browser-tab-favicon\s*\{/.test(css) && /\.browser-tab-label\s*\{/.test(css),
+    'favicon veya uzun sekme etiketi yerleşimi eksik');
 });
 
 test('hızlı tarayıcı gezinmesinde eski sonuç yeni sekme durumunu ezmiyor', () => {
@@ -224,6 +230,16 @@ test('hızlı tarayıcı gezinmesinde eski sonuç yeni sekme durumunu ezmiyor', 
   assert(/setBrowserLoadingState\(true\)/.test(navigate)
     && /setBrowserLoadingState\(false\)/.test(navigate),
   'başarılı/başarısız gezinmede yüklenme durumu dengeli yönetilmiyor');
+  assert(navigate.indexOf('closeBrowserAddressResults()') >= 0
+    && navigate.indexOf('closeBrowserAddressResults()') < navigate.indexOf('navigateBrowser(value, tabId)'),
+  'gezinme başlarken eski adres önerileri native web görünümünü örtmeye devam ediyor');
+  assert(navigate.indexOf("$('browserAddress')?.blur?.()") >= 0,
+    'gezinme adres odağını sayfaya bırakmadığı için öneriler yeniden açılabilir');
+  const addressClose = js.slice(js.indexOf('function closeBrowserAddressResults()'),
+    js.indexOf('function renderBrowserAddressResults('));
+  assert(/clearTimeout\(browserAddressSearchTimer\)/.test(addressClose)
+    && /browserAddressSearchSeq \+= 1/.test(addressClose),
+  'adres önerisi kapanışı bekleyen timer ve async arama sonucunu geçersiz kılmıyor');
 });
 
 test('tarayıcı adres alanı URL yanında arama ifadesini de doğru tanımlıyor', () => {
@@ -1142,6 +1158,18 @@ test('canli Whisper ve ceviri olaylari oynatici altyazilarini guncelliyor', () =
     'canli ceviri olaylari oynaticida dinlenmiyor');
 });
 
+test('nihai preview ham segmentleri aynı aralıkta biriktirmek yerine değiştiriyor', () => {
+  const refresh = js.slice(js.indexOf("} else if (event.type === 'preview_refresh')"),
+    js.indexOf("} else if (event.type === 'translation_chunk')"));
+  assert(/replaceLiveCuesForRefresh\(job\.liveSource/.test(refresh),
+    'preview_refresh ham ve nihai cue listelerini biriktiriyor');
+  assert(!/job\.liveSource\s*=\s*mergeLiveCues/.test(refresh),
+    'preview_refresh eski ham cue listesini doğrudan merge ediyor');
+  assert(/const outside = previous\.filter/.test(js)
+    && /Number\(cue\.end\) <= start \|\| Number\(cue\.start\) >= end/.test(js),
+  'progressive parçada yalnız yenilenen zaman aralığı değiştirilmiyor');
+});
+
 test('uzun videoda transkripsiyon izlenen konumdan parçalara ayrılıyor', () => {
   assert(/function progressiveRanges\(duration, current, windowSec = 600\)/.test(js),
     'progressiveRanges yok');
@@ -1298,7 +1326,7 @@ test('iş çıktısı kardeş altyazı taramasında birincil seçimi kaybetmiyor
     'kardeş taramasında otomatik yükleme kontrolü yok');
   assert(/if \(autoLoad && !player\.cues\.length\)/.test(attach),
     'kardeş altyazı her durumda birincil seçilebiliyor');
-  assert(/attachSiblingSubtitles\(state\.lastJobVideo, outputs\.length === 0\)/.test(open),
+  assert(/attachSiblingSubtitles\(jobVideo, outputs\.length === 0\)/.test(open),
     'iş çıktısı varken kardeş otomatik yüklemesi kapatılmıyor');
 });
 

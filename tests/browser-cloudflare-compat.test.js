@@ -90,6 +90,13 @@ test('normal Cloudflare arkasındaki sayfa false positive üretmez', () => {
     url: 'https://example.com/news',
   }).active, false);
 });
+test('Turnstile betiği ve makale içindeki doğrulama sözü tek başına ara sayfa değildir', () => {
+  assert.equal(probe({
+    title: 'Cloudflare rehberi',
+    text: 'Bu yazı insan olduğunuzu doğrulayın mesajının nedenini açıklar.',
+    selectors: ['script[src*="challenges.cloudflare.com/turnstile"]'],
+  }).active, false);
+});
 
 test('kullanıcı mesajları duraklatma, zaman aşımı ve geri açılmayı ayırır', () => {
   assert.match(cloudflareCompatibilityMessage(true), /geçici olarak durduruldu/);

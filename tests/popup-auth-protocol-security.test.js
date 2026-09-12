@@ -226,8 +226,23 @@ test('popup registry kapananları çıkarır, başarısız kapanışı yeniden d
   assert.deepEqual(registry.closeAll(), { attempted: 1, closed: 1, remaining: 0 });
 });
 
+test('popup registry sınırı aşıldığında yeni pencereyi reddeder ve kapanınca yer açar', () => {
+  const registry = createWindowRegistry(2);
+  const first = new FakeWindow();
+  const second = new FakeWindow();
+  const third = new FakeWindow();
+  assert.equal(registry.add(first), true);
+  assert.equal(registry.add(second), true);
+  assert.equal(registry.canAdd(), false);
+  assert.equal(registry.add(third), false);
+  first.close();
+  assert.equal(registry.canAdd(), true);
+  assert.equal(registry.add(third), true);
+});
+
 test('üretim bağlantısı popup, nested popup, alt-frame ve kapanış kapılarını birlikte kurar', () => {
-  assert.match(mainSource, /const browserPopupWindows = createWindowRegistry\(\)/);
+  assert.match(mainSource, /const browserPopupWindows = createWindowRegistry\(MAX_BROWSER_POPUPS\)/);
+  assert.match(mainSource, /if \(!browserPopupWindows\.canAdd\(\)\)[\s\S]{0,260}action: 'deny'/);
   assert.match(mainSource, /wc\.setWindowOpenHandler\(browserWindowOpenHandler\(wc, tab\)\)/);
   assert.match(mainSource, /outlivesOpener: false/);
   assert.match(mainSource, /function configureBrowserPopup[\s\S]*did-create-window[\s\S]*configureBrowserPopup\(child, tab, childDetails\)/);

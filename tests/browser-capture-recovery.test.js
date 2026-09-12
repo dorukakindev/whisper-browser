@@ -36,12 +36,18 @@ for (const candidate of [
   { mimeType: 'application/octet-stream', url: 'https://cdn.test/subtitle.srt?x=1' },
   { mimeType: 'application/dash+xml', url: 'https://cdn.test/video' },
   { mimeType: 'application/json', url: 'https://cdn.test/api/timedtext?v=1&fmt=json3' },
+  { mimeType: 'application/json', url: 'https://cdn.test/transcripts/tr' },
+  { mimeType: 'text/plain', url: 'https://cdn.test/cc/tr' },
+  { mimeType: 'application/octet-stream', url: 'https://cdn.test/sub/en' },
 ]) {
   assert.equal(shouldRetryCaptureResponseBody(candidate), true);
 }
 assert.equal(shouldRetryCaptureResponseBody({
   mimeType: 'application/json', url: 'https://cdn.test/catalog',
 }), false, 'genel JSON gövdesi gereksiz CDP retry sınıfına girdi');
+assert.equal(shouldRetryCaptureResponseBody({
+  mimeType: 'application/json', url: 'https://cdn.test/api?cc=US',
+}), false, 'ülke kodu sorgusu altyazı rotası sanıldı');
 assert.equal(shouldRetryCaptureResponseBody({
   mimeType: 'video/mp4', url: 'https://cdn.test/video.mp4',
 }), false, 'video gövdesi timed-text retry sınıfına girdi');

@@ -7,16 +7,19 @@ function browserCloudflareChallengeProbeScript() {
       '#challenge-running', '#challenge-stage', '#challenge-form',
       '[data-cf-challenge]', '[data-ray][data-translate="checking_browser"]'
     ].join(','));
-    const turnstile = !!document.querySelector([
+    const turnstileWidget = !!document.querySelector([
       'iframe[src*="challenges.cloudflare.com"]',
-      'script[src*="challenges.cloudflare.com/turnstile"]',
       'input[name="cf-turnstile-response"]'
     ].join(','));
+    const turnstileScript = !!document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]');
+    const turnstile = turnstileWidget || turnstileScript;
     const challengeText = /(?:just a moment|checking (?:your )?browser|verify (?:you are|that you are) human|security verification|performing security verification|bir dakika|tarayıcınız kontrol ediliyor|insan olduğunuzu doğrulayın|güvenlik doğrulaması)/i
       .test(title + ' ' + bodyText);
+    const titleChallengeText = /(?:just a moment|checking (?:your )?browser|security verification|bir dakika|tarayıcınız kontrol ediliyor|güvenlik doğrulaması)/i.test(title);
     const challengeFrame = /\\/cdn-cgi\\/challenge-platform\\//i.test(url);
     return {
-      active: strongMarker || challengeFrame || (turnstile && challengeText),
+      active: strongMarker || challengeFrame || (turnstileWidget && challengeText)
+        || (turnstileScript && titleChallengeText),
       strongMarker, turnstile, challengeText,
       title: title.slice(0, 180), url: url.slice(0, 2048),
     };

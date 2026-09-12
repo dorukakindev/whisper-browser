@@ -55,7 +55,8 @@ function scheduleReview(raw = {}, rating = 'good', now = Date.now()) {
   interval = Math.min(3650, Math.round(interval * 10000) / 10000);
   return {
     ...previous,
-    status: rating === 'again' ? 'learning' : rating === 'easy' && interval >= 21 ? 'known' : (raw.status || 'learning'),
+    status: rating === 'again' ? 'learning'
+      : (rating === 'good' || rating === 'easy') && interval >= 21 ? 'known' : (raw.status || 'learning'),
     dueAt: Math.round(now + interval * 86400000),
     intervalDays: interval,
     ease,
@@ -85,7 +86,10 @@ function filterResearchAnnotations(rows, filters = {}, now = Date.now()) {
 }
 
 function markdownEscape(value) {
-  return String(value || '').replace(/\\/g, '\\\\').replace(/([\[\]*_`>])/g, '\\$1').trim();
+  return String(value || '').replace(/\\/g, '\\\\').replace(/([\[\]*_`>])/g, '\\$1')
+    .replace(/(^|\n)([ \t]{0,3})([#\-+])(?=\s)/g, '$1$2\\$3')
+    .replace(/(^|\n)([ \t]{0,3})(\d+)\.(?=\s)/g, '$1$2$3\\.')
+    .trim();
 }
 
 function researchAnnotationsToMarkdown(rows, title = 'Whisper Local arastirma defteri') {

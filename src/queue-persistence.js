@@ -5,6 +5,7 @@ const MAX_QUEUE_ITEMS = 500;
 const MAX_QUEUE_OPTIONS_BYTES = 512 * 1024;
 const SECRET_OPTION_KEYS = new Set([
   'hfToken', 'translateApiKey', 'llmApiKey',
+  'translateBaseUrl', 'llmBaseUrl', 'mangaBaseUrl',
   // Eklenti/özel sağlayıcı seçenekleri kuyruk snapshot'ına düz metin olarak
   // girmemeli; kısa ve CamelCase anahtarlar regex'ten kaçabilir.
   'bearerToken', 'csrfToken', 'xsrfToken', 'privateKey', 'authToken',

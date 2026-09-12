@@ -56,6 +56,41 @@ class SubtitleFileAccess {
   has(target) { return this.grants.has(this.key(target)); }
 }
 
+class MediaFileAccess {
+  constructor(extensions) {
+    this.extensions = new Set([...(extensions || [])].map((value) => String(value).replace(/^\./, '').toLowerCase()));
+    this.grants = new Map();
+  }
+  inspect(value) {
+    const target = canonicalLocalPath(value);
+    const originalExt = path.extname(String(value)).slice(1).toLowerCase();
+    const targetExt = path.extname(target).slice(1).toLowerCase();
+    if (!this.extensions.has(originalExt) || !this.extensions.has(targetExt)) {
+      throw new Error('Bu işlem yalnızca desteklenen medya dosyaları için kullanılabilir.');
+    }
+    const stat = fs.statSync(target);
+    if (!stat.isFile()) throw new Error('Geçersiz medya dosyası.');
+    return target;
+  }
+  key(target) { return process.platform === 'win32' ? target.toLowerCase() : target; }
+  grant(value) {
+    try {
+      const target = this.inspect(value);
+      this.grants.set(this.key(target), true);
+      if (this.grants.size > 20000) this.grants.delete(this.grants.keys().next().value);
+      return target;
+    } catch (_) { return null; }
+  }
+  authorize(value) {
+    const target = this.inspect(value);
+    if (!this.grants.has(this.key(target))) throw new Error('Bu medya dosyası kullanıcı tarafından seçilmedi.');
+    return target;
+  }
+  has(value) {
+    try { return this.grants.has(this.key(this.inspect(value))); } catch (_) { return false; }
+  }
+}
+
 class PdfFileAccess {
   constructor() { this.grants = new Map(); }
   inspect(value) {
@@ -70,8 +105,9 @@ class PdfFileAccess {
     }
     const descriptor = fs.openSync(target, 'r');
     try {
-      const signature = Buffer.alloc(5);
-      if (fs.readSync(descriptor, signature, 0, 5, 0) !== 5 || signature.toString('ascii') !== '%PDF-') {
+      const signature = Buffer.alloc(Math.min(1024, stat.size));
+      const bytesRead = fs.readSync(descriptor, signature, 0, signature.length, 0);
+      if (bytesRead < 5 || !signature.subarray(0, bytesRead).includes(Buffer.from('%PDF-', 'ascii'))) {
         throw new Error('Dosyanın PDF imzası geçersiz.');
       }
     } finally { fs.closeSync(descriptor); }
@@ -92,6 +128,7 @@ class PdfFileAccess {
 module.exports = {
   canonicalLocalPath,
   SubtitleFileAccess,
+  MediaFileAccess,
   PdfFileAccess,
   MAX_SUBTITLE_BYTES,
   MAX_PDF_BYTES,

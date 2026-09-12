@@ -19,6 +19,16 @@ const { createTerminologyMap, learnTerminology, seedTerminology, terminologyProm
     'tek kaynak terimine bütün cümlenin çevirisi yanlış eşlendi');
   assert.match(terminologyPrompt(inferred), /(?:^| \| )Winterfell(?: \||$)/);
   assert.doesNotMatch(terminologyPrompt(inferred), /Winterfell=/);
+  const englishPronouns = createTerminologyMap();
+  learnTerminology(englishPronouns, 'I arrived.', 'Geldim.', 'p1');
+  learnTerminology(englishPronouns, 'It changed.', 'Değişti.', 'p2');
+  assert.equal(englishPronouns.terms.has('ı'), false);
+  assert.equal(englishPronouns.terms.has('ıt'), false);
+  const branded = createTerminologyMap({ minOccurrences: 2 });
+  seedTerminology(branded, ['iPhone uses iOS.', 'iPhone updated iOS.', 'eBay supports gRPC.', 'eBay tests gRPC.']);
+  for (const key of ['iphone', 'ios', 'ebay', 'grpc']) {
+    assert.equal(branded.terms.has(key), true, `${key} iç büyük harfli terim olarak öğrenilmeli`);
+  }
 
   const disabled = createTerminologyMap();
   assert.equal(terminologyPrompt(disabled), '');

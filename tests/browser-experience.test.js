@@ -27,6 +27,9 @@ test('kapatilan sekmeler LIFO sirayla ve kullanici durumuyla geri gelir', () => 
     url: 'https://video.test/watch/1', title: 'Bir', pinned: true,
     position: 42, volume: 0.4, subtitleMode: 'translation',
     trackRefs: [{ id: 'track-1', role: 'translation' }],
+    offset: 3600,
+    subtitleSyncRecords: [{ id: 'sync-1', offset: 3600 }],
+    subtitleEdits: [{ id: 'edit-1', text: 'Düzeltme' }],
   });
   history.push({ url: 'https://video.test/watch/2', title: 'Iki' });
   const second = history.pop();
@@ -36,6 +39,9 @@ test('kapatilan sekmeler LIFO sirayla ve kullanici durumuyla geri gelir', () => 
   assert.equal(first.position, 42);
   assert.equal(first.subtitleMode, 'translation');
   assert.deepEqual(first.trackRefs, [{ id: 'track-1', role: 'translation' }]);
+  assert.equal(first.offset, 3600);
+  assert.equal(first.subtitleSyncRecords[0].id, 'sync-1');
+  assert.equal(first.subtitleEdits[0].id, 'edit-1');
 });
 
 test('kapatilan sekme gecmisi sinirli ve dis mutasyondan bagimsizdir', () => {
@@ -106,8 +112,10 @@ test('main preload ve renderer geri acma, cokme ve zoom sozlesmesini birlikte ta
   assert.match(main, /\['zoom-in', 'zoom-out', 'zoom-reset', 'zoom-set'\]/);
   assert.match(preload, /reopenBrowserTab/);
   assert.match(renderer, /async function reopenClosedBrowserTab/);
-  const shift = renderer.indexOf("if (key === 't' && e.shiftKey)");
-  const plain = renderer.indexOf("if (key === 't')", shift);
+  const shortcut = renderer.slice(renderer.indexOf('function runBrowserShortcut('),
+    renderer.indexOf('if (window.api.onBrowserEvent)'));
+  const shift = shortcut.indexOf("normalized === 't' && shift");
+  const plain = shortcut.indexOf("normalized === 't'", shift + 1);
   assert(shift >= 0 && plain > shift, 'Ctrl+Shift+T duz Ctrl+T dalindan once ele alinmiyor');
   assert.match(renderer, /event\.type === 'tab-crashed'/);
   assert.match(renderer, /event\.type === 'page-responsiveness'/);

@@ -11,6 +11,13 @@ test('devre dışı komut nedeni ile görünür kalır', () => {
   const [row] = rankBrowserCommands([{ id: 'a', title: 'Not ekle', available: () => ({ enabled: false, reason: 'Video yok.' }) }], 'not');
   assert.equal(row.enabled, false); assert.equal(row.disabledReason, 'Video yok.');
 });
+test('çalıştırılabilir komut devre dışı tam eşleşmenin önünde kalır', () => {
+  const rows = rankBrowserCommands([
+    { id: 'disabled', title: 'Altyazı', available: () => ({ enabled: false }) },
+    { id: 'enabled', title: 'Altyazı ayarları' },
+  ], 'altyazı');
+  assert.deepEqual(rows.map((row) => row.id), ['enabled', 'disabled']);
+});
 test('palet açıkken sekme veya medya değişirse eski bağlam reddedilir', () => {
   assert.equal(browserCommandContextMatches({ tabId: 'a', generation: 1, mediaId: 'x' }, { tabId: 'a', generation: 1, mediaId: 'x' }), true);
   assert.equal(browserCommandContextMatches({ tabId: 'a', generation: 1, mediaId: 'x' }, { tabId: 'b', generation: 1, mediaId: 'x' }), false);
@@ -20,6 +27,11 @@ test('native görünüm yalnız desteklenen kısayolları köprüler', () => {
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'f', meta: true }), 'f');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'l', control: true }), 'l');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 't', control: true, shift: true }), 't');
+  assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'p', control: true, shift: true }), 'p');
+  for (const key of ['p', 't', 'w', 'r', 'Tab', '0', '+', '=', '-', '1', '9']) {
+    assert.equal(browserShortcutForInput({ type: 'keyDown', key, control: true }), key.toLowerCase());
+  }
+  assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'Tab', control: true, shift: true }), 'tab');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'k', control: true, shift: true }), '');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'f', control: true, shift: true }), '');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'l', control: true, shift: true }), '');

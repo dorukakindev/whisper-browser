@@ -136,18 +136,22 @@ function securePopupWebPreferences(partition) {
   };
 }
 
-function createWindowRegistry() {
+function createWindowRegistry(max = Infinity) {
   const windows = new Set();
+  const limit = Number.isFinite(Number(max)) ? Math.max(1, Math.trunc(Number(max))) : Infinity;
   return {
     add(window) {
       if (!window || typeof window.isDestroyed !== 'function' || window.isDestroyed()) return false;
       if (windows.has(window)) return true;
+      if (windows.size >= limit) return false;
       windows.add(window);
       const remove = () => windows.delete(window);
       if (typeof window.once === 'function') window.once('closed', remove);
       else if (typeof window.on === 'function') window.on('closed', remove);
       return true;
     },
+    canAdd() { return windows.size < limit; },
+    limit() { return limit; },
     closeAll() {
       const snapshot = [...windows];
       let closed = 0;

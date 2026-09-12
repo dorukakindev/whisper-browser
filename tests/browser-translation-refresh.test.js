@@ -71,11 +71,15 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
 
   // Gerçek main işlevinin refresh dalı yeni sağlayıcı/scheduler yaratmamalı.
   const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const translationSource = main.slice(main.indexOf('function startBrowserTranslation('),
+    main.indexOf('function persistCompletedBrowserTranslation('));
+  assert.match(translationSource,
+    /if \(terminologyVersion !== context\.terminologyVersion\)[\s\S]{0,180}scheduler\.setContext\(\{ terminologyVersion \}\)/,
+    'öğrenilen terminoloji yeni cümlelerin önbellek bağlamına aktarılmalı');
   const context = { normalizeCues, assembleCueSentences,
     browserTranslationConfig: () => { throw Error('güncellemede sağlayıcı yeniden kuruldu'); } };
   vm.createContext(context);
-  vm.runInContext(main.slice(main.indexOf('function startBrowserTranslation('),
-    main.indexOf('function persistCompletedBrowserTranslation(')), context);
+  vm.runInContext(translationSource, context);
   const tab = { translationTrackId: 'source', translationScheduler: scheduler,
     translationResults: new Map([['old', cue('old', 'Eski')]]) };
   const result = context.startBrowserTranslation(tab, [cue('a', 'Corrected.', 10)], { trackId: 'source', refresh: true });

@@ -57,7 +57,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
     const renderNavigate = vm.runInNewContext(navCode + '\nnavigateBrowserFromAddress', {
       $: id => nodes[id], player, window: { api: { navigateBrowser() {} } },
       navigateBrowser: async () => result, setBrowserSignal: text => signals.push(text), setBrowserLoadingState() {},
-      syncBrowserAddressAction() {},
+      syncBrowserAddressAction() {}, closeBrowserAddressResults() {},
     });
     await renderNavigate();
     assert.strictEqual(signals.some(text => text.startsWith('Sayfa açılamadı')), !aborted);

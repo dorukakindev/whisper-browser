@@ -1,3 +1,5 @@
+const { MAX_ABS_OFFSET_SECONDS } = require('./browser-subtitle-sync');
+
 const DEFAULT_CLOSED_TAB_LIMIT = 20;
 
 function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
@@ -22,7 +24,7 @@ function normalizeClosedBrowserTab(snapshot) {
     rate: finiteNumber(snapshot.rate, 1, 0.25, 4),
     volume: finiteNumber(snapshot.volume, 1, 0, 1),
     muted: !!snapshot.muted,
-    offset: finiteNumber(snapshot.offset, 0, -30, 30),
+    offset: finiteNumber(snapshot.offset, 0, -MAX_ABS_OFFSET_SECONDS, MAX_ABS_OFFSET_SECONDS),
     viewMode: ['cinema', 'reading', 'study'].includes(snapshot.viewMode)
       ? snapshot.viewMode : 'reading',
     subtitleMode: ['off', 'source', 'translation', 'both'].includes(snapshot.subtitleMode)
@@ -32,6 +34,12 @@ function normalizeClosedBrowserTab(snapshot) {
       ? snapshot.trackRefs.slice(0, 12).map((item) => ({ ...item })) : [],
     subtitleSelection: snapshot.subtitleSelection && typeof snapshot.subtitleSelection === 'object'
       ? { ...snapshot.subtitleSelection } : null,
+    subtitleSyncRecords: Array.isArray(snapshot.subtitleSyncRecords)
+      ? snapshot.subtitleSyncRecords.slice(-500).map((item) => ({ ...item })) : [],
+    subtitleEdits: Array.isArray(snapshot.subtitleEdits)
+      ? snapshot.subtitleEdits.slice(-2000).map((item) => ({ ...item })) : [],
+    subtitleRecordQuarantine: Array.isArray(snapshot.subtitleRecordQuarantine)
+      ? snapshot.subtitleRecordQuarantine.slice(-100).map((item) => ({ ...item })) : [],
   };
 }
 
