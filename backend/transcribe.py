@@ -945,7 +945,9 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
             new_entries = []
             new_words = []
             for segment in seg_iter:
-                if is_hallucination(segment.text):
+                if should_skip_hallucination(
+                        segment.text, getattr(segment, "avg_logprob", None),
+                        getattr(segment, "no_speech_prob", None)):
                     continue
                 if getattr(segment, "words", None):
                     _prev = segment.start
@@ -965,7 +967,9 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
                     if e is None:
                         e = segment.end
                     cleaned = clean_text(text, language=language or "tr")
-                    if not cleaned or is_hallucination(cleaned):
+                    if not cleaned or should_skip_hallucination(
+                            cleaned, getattr(segment, "avg_logprob", None),
+                            getattr(segment, "no_speech_prob", None)):
                         continue
                     # Bölge sınırına kırp: run-up'tan taşan blok eski bloklarla çakışmasın
                     ns, ne = s + base, e + base
@@ -1876,6 +1880,39 @@ def is_hallucination(text):
     if len(words) >= 5 and len(set(words)) == 1:
         return True
     return False
+
+
+def should_skip_hallucination(text, avg_logprob=None, no_speech_prob=None):
+    """Yalnız güven sinyali de destekliyorsa konuşulabilir kalıpları eler."""
+    if not is_hallucination(text):
+        return False
+    t = str(text or "").strip()
+    words = t.split()
+    hard_marker = (
+        not t
+        or re.fullmatch(r"(?:\[.*?\]|\(.*?\)|♪+|[.…\s]+)", t) is not None
+        or (len(words) >= 5 and len(set(words)) == 1)
+    )
+    if hard_marker:
+        return True
+    # YouTube kapanış/promosyon kalıpları bazen gerçek konuşmadır. Model hem
+    # güçlü log olasılığı hem düşük sessizlik olasılığı veriyorsa metni koru.
+    strong_speech = (
+        isinstance(avg_logprob, (int, float)) and math.isfinite(avg_logprob)
+        and isinstance(no_speech_prob, (int, float)) and math.isfinite(no_speech_prob)
+        and avg_logprob >= -0.65 and no_speech_prob <= 0.35
+    )
+    return not strong_speech
+
+
+def hallucination_skip_warning(count):
+    """Filtre kararını done.warnings içinde kullanıcıya görünür kıl."""
+    if count <= 0:
+        return ""
+    return (
+        f"Halüsinasyon filtresi {count} segment/parçayı atladı; "
+        "gerçek konuşma olabileceği için iş günlüğünü kontrol edin."
+    )
 
 
 # ===== Türkçe metin temizleme =====
@@ -2807,13 +2844,17 @@ def save_translate_cache(path, cache, limit=200000):
     if not path:
         return
     try:
-        if len(cache) > limit:                      # dosya sismesin
+        disk_cache = load_translate_cache(path)
+        if isinstance(disk_cache, dict):
+            merged = dict(disk_cache)
+            merged.update(cache)
+            cache = merged
+        if len(cache) > limit:
             cache = dict(list(cache.items())[-limit:])
         with atomic_text_writer(path, encoding="utf-8", newline="") as f:
             json.dump(cache, f, ensure_ascii=False)
     except Exception as e:
-        log(f"Ceviri onbellegi yazilamadi: {e}", "warn")
-
+        log(f"Çeviri önbelleği yazılamadı: {e}", "warn")
 
 def classify_translation_error(error):
     """Sağlayıcı hatasını kullanıcıya ve devam metadata'sına kararlı kodla taşır."""
@@ -2835,6 +2876,17 @@ def classify_translation_error(error):
     if any(token in message for token in ("connection", "network", "dns", "socket")):
         return "network_error"
     return "api_failure"
+
+
+def translation_is_source_echo(source_text, translated_text):
+    """Uzun bir kaynak cümlesinin hedef diye aynen dönmesini başarısız say."""
+    source = unicodedata.normalize("NFC", str(source_text or "")).strip()
+    translated = unicodedata.normalize("NFC", str(translated_text or "")).strip()
+    return (
+        len(source) >= 12
+        and source.casefold() == translated.casefold()
+        and bool(re.search(r"[A-Za-zÇĞİÖŞÜçğıöşü]", source))
+    )
 
 
 def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None,
@@ -3075,6 +3127,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             record = accept_sentence_reply(data, row['ids'])
             if not record:
                 continue
+            # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
+            # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki
+            # "eksikleri tamamla" çalışması da İngilizce satırı atlar.
+            if translation_is_source_echo(row['source'], record['text']):
+                continue
             with lock:
                 for index, part in zip(group, record['parts']):
                     out_texts[index] = part
@@ -3089,31 +3146,44 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
         return filled
 
+    def retry_groups_once(groups_to_retry):
+        """Eksik her cümle grubunu bir kez tek başına yeniden iste."""
+        recovered = 0
+        for group in groups_to_retry:
+            try:
+                recovered += task_once(group)
+            except Exception as retry_error:
+                reason = classify_translation_error(retry_error)
+                with lock:
+                    for index in group:
+                        if index not in done_idx:
+                            failure_by_index.setdefault(index, reason)
+        return recovered
+
     def task(chunk_idx):
-        """Geçersiz/boş yanıtı daha küçük cümle gruplarıyla kurtar."""
+        """Geçersiz, eksik veya kaynak-yankısı yanıtı grup bazında kurtar."""
+        groups_in_chunk = chunk_groups(chunk_idx)
         try:
-            return task_once(chunk_idx)
+            recovered = task_once(chunk_idx)
         except Exception as error:
             reason = classify_translation_error(error)
-            # Kimlik, kota, hız sınırı ve ağ hataları payload küçülünce düzelmez;
-            # aynı maliyetli isteği çoğaltmadan üst katmanın hata durumuna bırak.
             if reason not in {"invalid_response", "empty_response"}:
                 raise
-            starts = [index for index in chunk_idx if group_at[index][0] == index]
-            if len(starts) <= 1:
-                raise
-            log("Çeviri grubu geçersiz yanıt verdi; daha küçük gruplarla yeniden deneniyor.", "warn")
-            recovered = 0
-            # İki gruplu isteği yine iki grup çağırmak sonsuz özyineleme üretirdi.
-            # 3+ grupta ikişer, tam iki grupta birer grup dene.
-            retry_size = 2 if len(starts) > 2 else 1
-            for offset in range(0, len(starts), retry_size):
-                start_pos = chunk_idx.index(starts[offset])
-                next_offset = offset + retry_size
-                end_pos = (chunk_idx.index(starts[next_offset])
-                           if next_offset < len(starts) else len(chunk_idx))
-                recovered += task(chunk_idx[start_pos:end_pos])
-            return recovered
+            log("Çeviri grubu geçersiz yanıt verdi; cümleler tek tek yeniden deneniyor.", "warn")
+            return retry_groups_once(groups_in_chunk)
+
+        missing_groups = [
+            group for group in groups_in_chunk
+            if not all(index in done_idx for index in group)
+        ]
+        if missing_groups:
+            log(
+                f"Çeviri yanıtı {len(missing_groups)} cümle grubunu eksik veya "
+                "kaynak dilde bıraktı; gruplar tek tek yeniden deneniyor.",
+                "warn",
+            )
+            recovered += retry_groups_once(missing_groups)
+        return recovered
 
     done_idx = set()
     with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
@@ -3130,7 +3200,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     with lock:
                         for index in ch:
                             if index not in done_idx:
-                                failure_by_index[index] = "invalid_response"
+                                failure_by_index.setdefault(index, "invalid_response")
                     log("Ceviri {}-{}: {} blok eksik/tutarsiz cumle grubundaydi - o bloklarda orijinal "
                         "metin kaldi.".format(ch[0], ch[-1], missing), "warn")
             except Exception as e:
@@ -3350,7 +3420,7 @@ def _wx_free_gpu():
         pass
 
 
-def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=None, device="cuda", compute_type="float16"):
+def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=None, device="cuda", compute_type="float16", warn_list=None):
     """
     WhisperX motoru: faster-whisper transkripsiyon + wav2vec2 zorunlu hizalama
     (kelime zaman damgaları <100ms). Çıktıyı faster-whisper boru hattıyla uyumlu
@@ -3367,6 +3437,8 @@ def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=
     # Sessiz değiştirmek yerine gerçek çalışma biçimini kullanıcıya bildir.
     if compute_type == "int8_float16":
         log("WhisperX int8_float16 desteklemiyor; hesaplama tipi int8 olarak kullanılacak.", "warn")
+        if warn_list is not None:
+            warn_list.append("WhisperX int8_float16 desteklenmedi; hesaplama tipi int8'e düşürüldü.")
         compute_type = "int8"
 
     emit("status", stage="load_model", text=f"WhisperX modeli yükleniyor: {args.model}")
@@ -3430,6 +3502,8 @@ def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=
             )
         except Exception as e:
             log(f"WhisperX hizalama atlandı (dil={detected}): {e}", "warn")
+            if warn_list is not None:
+                warn_list.append("WhisperX kelime hizalaması başarısız oldu; kelime zaman damgaları eksik olabilir.")
         finally:
             model_a = None
             _wx_free_gpu()
@@ -4273,8 +4347,7 @@ def compute_translation_quality_report(source_entries, translated_entries,
             empty_indices.append(index)
         # Kısa özel adlar, sayılar ve URL'ler aynı kalabilir. Uzun ve harf
         # içeren birebir kaynak yankısı ise yeniden denemeye açık tutulur.
-        if (len(src_text) >= 12 and src_text.casefold() == dst_text.casefold()
-                and re.search(r"[A-Za-zÇĞİÖŞÜçğıöşü]", src_text)):
+        if translation_is_source_echo(src_text, dst_text):
             untranslated_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
                 or abs(float(src[1]) - float(dst[1])) > timing_tolerance):
@@ -4814,6 +4887,7 @@ def transcribe(args):
         entries = []
         all_words = []  # tüm kelime damgaları (JSON için)
         segment_metrics = []  # motorun segment düzeyi güven sinyalleri
+        hallucination_skipped = 0
         last_emit = 0.0
         last_ckpt = time.time()
         CKPT_INTERVAL = 20.0  # sn — checkpoint yazma sıklığı (çökme kaybını sınırlar)
@@ -4836,7 +4910,10 @@ def transcribe(args):
                 "compression_ratio": finite_json_value(getattr(segment, "compression_ratio", None)),
             }
             # Halüsinasyonları filtrele
-            if is_hallucination(segment.text):
+            if should_skip_hallucination(
+                    segment.text, segment_metric["avg_logprob"],
+                    segment_metric["no_speech_prob"]):
+                hallucination_skipped += 1
                 log(f"Halüsinasyon atlandı: {segment.text.strip()[:60]}", "warn")
                 continue
 
@@ -4872,10 +4949,20 @@ def transcribe(args):
             chunks = segment_to_chunks(segment, args, language=info.language)
 
             for start, end, text in chunks:
-                if is_hallucination(text):
+                if should_skip_hallucination(
+                        text, segment_metric["avg_logprob"],
+                        segment_metric["no_speech_prob"]):
+                    hallucination_skipped += 1
+                    log(f"Halüsinasyon parçası atlandı: {text.strip()[:60]}", "warn")
                     continue
                 cleaned = clean_text(text, language=info.language or "tr")
-                if not cleaned or is_hallucination(cleaned):
+                if not cleaned:
+                    continue
+                if should_skip_hallucination(
+                        cleaned, segment_metric["avg_logprob"],
+                        segment_metric["no_speech_prob"]):
+                    hallucination_skipped += 1
+                    log(f"Halüsinasyon parçası atlandı: {cleaned[:60]}", "warn")
                     continue
                 # None zaman damgası (nadir) → segment sınırlarına düş; aksi halde
                 # alttaki offset/normalize/format adımları çökerdi.
@@ -5410,6 +5497,10 @@ def transcribe(args):
             "segments": len(entries),
             "lowConfidenceWords": low_conf,
         }
+        hallucination_warning = hallucination_skip_warning(hallucination_skipped)
+        if hallucination_warning:
+            warn_list.append(hallucination_warning)
+
         # Tum ciktilar hazir: tek seferde yerine koy. Bu noktaya kadar hicbir
         # nihai dosyaya dokunulmadi, yani iptal/cokme yarim kume birakmaz.
         output_tx.commit()
@@ -5877,7 +5968,8 @@ def translate_existing_subtitle(args):
                         )] = old[2]
             elif not metadata_present and timeline_matches:
                 for index, (entry, old) in enumerate(zip(entries, old_entries)):
-                    if len(old) >= 3 and str(old[2]).strip():
+                    if (len(old) >= 3 and str(old[2]).strip()
+                            and not translation_is_source_echo(entry[2], old[2])):
                         existing_by_key[(
                             round(float(entry[0]), 3), round(float(entry[1]), 3), index
                         )] = old[2]

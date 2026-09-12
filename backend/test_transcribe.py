@@ -1085,19 +1085,16 @@ def test_translate_refine_caches_valid_unchanged_answers():
     assert calls["count"] == 2, "ikinci çalıştırma geçerli refine cache'ini kullanmadı"
 
 
-def test_translate_partial_response_counts_as_failed():
-    """Model 3 blok istenip 1 tanesini dondurse: kalan 2 blok BASARISIZ sayilmali.
-
-    Eskiden parca uzunlugu dondugu icin ilerleme 3/3, failed=0 ve "Ceviri
-    tamamlandi" yaziliyordu; hedef dosyada kaynak dilde kalan satirlar icin
-    hicbir uyari uretilmiyordu.
-    """
+def test_translate_partial_response_retries_missing_groups():
+    """Toplu yanıtta atlanan cümleler tek başına yeniden istenir."""
     import sys, types, importlib.machinery, json
 
     entries = [(0.0, 2.0, "One."), (2.0, 4.0, "Two."), (4.0, 6.0, "Three.")]
 
+    calls = []
     def _create(**kw):
         payload = json.loads(kw["messages"][-1]["content"])
+        calls.append(len(payload["items"]))
         first = payload["items"][0]
         return types.SimpleNamespace(choices=[types.SimpleNamespace(
             message=types.SimpleNamespace(
@@ -1123,12 +1120,37 @@ def test_translate_partial_response_counts_as_failed():
             sys.modules.pop("openai", None)
 
     assert out is not None and len(out) == 3
-    assert out[0][2].startswith("[TR] "), out[0]
-    # gelmeyen bloklar KAYNAK metin olarak kalir ...
-    assert out[1][2] == "Two." and out[2][2] == "Three."
-    # ... ama sessizce degil: uyari uretilmeli
-    assert any("cevrilemedi" in w for w in warns), warns
-    assert any("2/3" in w for w in warns), warns
+    assert all(text.startswith("[TR] ") for _start, _end, text in out), out
+    assert calls == [3, 1, 1], calls
+    assert not warns, warns
+
+
+def test_translate_source_echo_is_retried_before_it_can_enter_cache():
+    entries = [(0.0, 2.0, "This sentence must be translated.")]
+    calls = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        calls.append(payload)
+        item = payload["items"][0]
+        text = item["t"] if len(calls) == 1 else "Bu cümle çevrilmelidir."
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps({str(item["i"]): text})))])
+
+    class _EchoOnce:
+        def __init__(self, *args, **kwargs):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    status = {}
+    with _fake_openai(_EchoOnce):
+        out = T.llm_translate(
+            entries, _TrArgs(translate_cache=False), [], source_lang="en",
+            status_out=status,
+        )
+    assert out[0][2] == "Bu cümle çevrilmelidir."
+    assert len(calls) == 2
+    assert status["completed"] == [0] and status["failed"] == []
 
 
 def test_translate_invalid_large_chunk_retries_smaller_groups():
@@ -1583,6 +1605,26 @@ def test_is_hallucination():
     assert T.is_hallucination("https://example.edu/course/week-3") is False
     assert T.is_hallucination("http://www.example.org/lesson") is False
     assert T.is_hallucination("Merhaba dünya, bugün güzel bir gün.") is False
+
+
+def test_hallucination_confidence_gate_preserves_real_spoken_lines():
+    for text in [
+        "İzlediğiniz için teşekkürler.",
+        "Abone olmayı unutmayın arkadaşlar",
+        "Thanks for watching.",
+    ]:
+        assert T.is_hallucination(text) is True
+        assert T.should_skip_hallucination(text, -0.2, 0.05) is False
+        assert T.should_skip_hallucination(text, -1.4, 0.8) is True
+    assert T.should_skip_hallucination("[Müzik]", -0.1, 0.0) is True
+    assert T.should_skip_hallucination("evet evet evet evet evet", -0.1, 0.0) is True
+
+
+def test_hallucination_skip_warning_exposes_filtered_content():
+    assert T.hallucination_skip_warning(0) == ""
+    warning = T.hallucination_skip_warning(3)
+    assert "3 segment/parçayı atladı" in warning
+    assert "gerçek konuşma" in warning
 
 
 # ===== metin temizleme =====
@@ -2542,8 +2584,49 @@ def test_sentence_translation_failed_groups_never_reach_refine():
         return reply
     result, seen, _, _ = _sentence_translate(source, _TrArgs(translate_refine=True, translate_cache=False), answer)
     assert result[:3] == _SENTENCE_SOURCE
-    assert len(seen) == 2
-    assert [item['src'] for item in seen[1][0]['items']] == ['Goodbye.']
+    assert len(seen) == 3
+    assert [item['src'] for item in seen[2][0]['items']] == ['Goodbye.']
+
+
+def test_translate_existing_without_metadata_retries_source_echo_only():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "legacy.en.srt"
+        existing = root / "legacy.tr.srt"
+        source.write_text(
+            "1\n00:00:01,000 --> 00:00:02,000\nThis stayed in English.\n\n"
+            "2\n00:00:03,000 --> 00:00:04,000\nSecond source line.\n",
+            encoding="utf-8-sig",
+        )
+        existing.write_text(
+            "1\n00:00:01,000 --> 00:00:02,000\nThis stayed in English.\n\n"
+            "2\n00:00:03,000 --> 00:00:04,000\nİkinci satır çevrildi.\n",
+            encoding="utf-8-sig",
+        )
+        args = _TrArgs(translate_cache=False)
+        args.input = str(source)
+        args.output_dir = str(root)
+        args.language = "en"
+        args.max_lines = 2
+        args.wrap_mode = "sentence"
+        args.formats = "srt"
+        args.dual_subtitle = False
+        args.dual_translation_first = False
+        args.translate_existing = str(existing)
+        seen = []
+
+        def translate_missing(entries, _args, _warnings, source_lang=None, status_out=None):
+            seen.extend(entries)
+            status_out.update(completed=[0], failed=[])
+            return [(entries[0][0], entries[0][1], "Bu satır artık çevrildi.")]
+
+        with mock.patch.object(T, "llm_translate", side_effect=translate_missing), \
+                mock.patch.object(T, "emit"):
+            T.translate_existing_subtitle(args)
+        assert [entry[2] for entry in seen] == ["This stayed in English."]
+        written = existing.read_text(encoding="utf-8-sig")
+        assert "Bu satır artık çevrildi." in written
+        assert "İkinci satır çevrildi." in written
 
 
 def test_sentence_translation_group_cache_roundtrip_and_corruption():
