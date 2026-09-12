@@ -15,6 +15,10 @@ const smoke = process.argv.includes('--smoke');
 const requestedCycles = Number(option('cycles', smoke ? 8 : 400));
 const cycles = smoke ? Math.max(1, requestedCycles || 8) : Math.max(200, requestedCycles || 400);
 const warmup = Math.max(0, Number(option('warmup', smoke ? 2 : 20)) || 0);
+const requestedHibernationCycles = Number(option('hibernation-cycles', smoke ? 2 : 50));
+const hibernationCycles = smoke
+  ? Math.max(1, requestedHibernationCycles || 2)
+  : Math.max(50, requestedHibernationCycles || 50);
 const explicitOutput = option('output', '');
 const keepProfile = process.argv.includes('--keep-profile');
 const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-resource-soak-'));
@@ -76,7 +80,7 @@ server.listen(0, '127.0.0.1', () => {
   const fixtureUrl = `http://127.0.0.1:${server.address().port}`;
   console.log(`Soak fixture: ${fixtureUrl}`);
   console.log(`Geçici userData: ${profileDir}`);
-  console.log(`Döngü: ${cycles} (+ ${warmup} ısınma)${smoke ? ' · kısa smoke' : ''}`);
+  console.log(`Döngü: ${cycles} (+ ${warmup} ısınma) · hibernasyon: ${hibernationCycles}${smoke ? ' · kısa smoke' : ''}`);
   const child = spawn('cmd.exe', ['/d', '/s', '/c', 'start.bat'], {
     cwd: ROOT,
     env: {
@@ -84,6 +88,7 @@ server.listen(0, '127.0.0.1', () => {
       WHISPER_RESOURCE_SOAK: '1',
       WHISPER_RESOURCE_SOAK_CYCLES: String(cycles),
       WHISPER_RESOURCE_SOAK_WARMUP: String(warmup),
+      WHISPER_RESOURCE_SOAK_HIBERNATION_CYCLES: String(hibernationCycles),
       WHISPER_RESOURCE_SOAK_FIXTURE_URL: fixtureUrl,
       WHISPER_RESOURCE_SOAK_OUTPUT: reportPath,
       WHISPER_RESOURCE_SOAK_USER_DATA: profileDir,
@@ -107,7 +112,8 @@ server.listen(0, '127.0.0.1', () => {
     try { report = JSON.parse(fs.readFileSync(reportPath, 'utf8')); }
     catch (error) { console.error(`Soak raporu okunamadı: ${error.message}`); }
     if (report) {
-      report.meaningful = !smoke && cycles >= 200;
+      report.meaningful = !smoke && cycles >= 200
+        && Number(report.hibernation?.attempts) >= 50;
       fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');
       console.log(`Soak raporu: ${reportPath}`);
       console.log(`Sonuç: ${report.verdict && report.verdict.pass ? 'GEÇTİ' : 'KALDI'}`);

@@ -20,6 +20,12 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     let frameToken = 0;
     let frameKind = '';
     let boundaryTimer = 0;
+    let boundaryCallbacks = 0;
+    let renderCount = 0;
+    let renderTotalMs = 0;
+    let renderMaxMs = 0;
+    const monotonicNow = () => typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now() : Date.now();
     let mutationFrame = 0;
     let resizeObserver = null;
     let drag = null;
@@ -323,6 +329,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       boundaryTimer = setTimeout(() => {
         boundaryTimer = 0;
         if (document.hidden || state.mode === 'off' || !media || media.paused) return;
+        boundaryCallbacks += 1;
         if (typeof media.requestVideoFrameCallback === 'function') {
           frameKind = 'video';
           frameToken = media.requestVideoFrameCallback(callback);
@@ -334,10 +341,18 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     function render() {
+      const renderStarted = monotonicNow();
+      renderCount += 1;
+      const finishRender = () => {
+        const elapsed = Math.max(0, monotonicNow() - renderStarted);
+        renderTotalMs += elapsed;
+        renderMaxMs = Math.max(renderMaxMs, elapsed);
+      };
       syncNativeCaptionVisibility();
       if (document.hidden || state.mode === 'off') {
         if (root) root.style.display = 'none';
         cancelFrame();
+        finishRender();
         return;
       }
       const box = ensureRoot();
@@ -345,6 +360,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (!activeMedia) {
         box.style.display = 'none';
         cancelFrame();
+        finishRender();
         return;
       }
       // Ses öğeleri çoğu sitede 0x0 olarak gizlenir; altyazıyı tüm pencereye
@@ -411,6 +427,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       source.style.display = source.textContent ? '' : 'none';
       translation.style.display = translation.textContent ? '' : 'none';
       queueFrame();
+      finishRender();
     }
 
     document.addEventListener('fullscreenchange', render);
@@ -444,6 +461,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           resizeObservers: resizeObserver ? 1 : 0,
           mediaListeners: mediaListeners.length + candidateListeners.size * 4,
           overlayNodes,
+          renderCount,
+          renderTotalMs,
+          renderAverageMs: renderCount ? renderTotalMs / renderCount : 0,
+          renderMaxMs,
+          boundaryCallbacks,
           pendingFrames: (frameToken ? 1 : 0) + (boundaryTimer ? 1 : 0)
             + (mutationFrame ? 1 : 0) + (dragFrame ? 1 : 0) };
       },

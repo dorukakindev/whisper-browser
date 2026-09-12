@@ -7,6 +7,7 @@ const path = require('path');
 const MIB = 1024 * 1024;
 const DEFAULT_RESOURCE_SOAK_BUDGETS = Object.freeze({
   captureSuccessRateMin: 0.98,
+  hibernationSuccessRateMin: 1,
   mainRssDeltaBytesMax: 64 * MIB,
   mainHeapDeltaBytesMax: 24 * MIB,
   rendererHeapDeltaBytesMax: 16 * MIB,
@@ -26,6 +27,8 @@ const DEFAULT_RESOURCE_SOAK_BUDGETS = Object.freeze({
   browserPlacesReadOpsPerCycleMax: 1.1,
   watchLibraryReadOpsPerCycleMax: 1.1,
   diskWriteOpsPerCycleMax: 10,
+  overlayRenderAverageMsMax: 8,
+  overlayRenderMaxMsMax: 50,
 });
 
 function finite(value, fallback = 0) {
@@ -73,8 +76,14 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
   const finalLibrary = fileCounter(final, 'watch-library.json');
   const captureRate = finite(report && report.capture && report.capture.successes)
     / Math.max(1, finite(report && report.capture && report.capture.attempts));
+  const hibernationAttempts = Math.max(0, finite(report && report.hibernation && report.hibernation.attempts));
+  const hibernationRate = finite(report && report.hibernation && report.hibernation.successes)
+    / Math.max(1, hibernationAttempts);
+  const stableSamples = samples.filter(sample => sample.label !== 'cleanup');
+  const maximum = key => stableSamples.reduce((value, sample) => Math.max(value, finite(readPath(sample, key))), 0);
   const values = {
     captureSuccessRate: captureRate,
+    hibernationSuccessRate: hibernationRate,
     mainRssDeltaBytes: delta('main.rssBytes'),
     mainHeapDeltaBytes: delta('main.heapUsedBytes'),
     rendererHeapDeltaBytes: delta('renderer.heapUsedBytes'),
@@ -98,6 +107,9 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     watchLibraryReadOpsPerCycle: Math.max(0,
       finite(finalLibrary.readOps) - finite(startLibrary.readOps)) / cycles,
     diskWriteOpsPerCycle: Math.max(0, delta('io.writeOps')) / cycles,
+    overlayRenderAverageMsMaxObserved: maximum('performance.overlay.renderAverageMs'),
+    overlayRenderMaxMsObserved: maximum('performance.overlay.renderMaxMs'),
+    overlayBoundaryCallbacksMaxObserved: maximum('performance.overlay.boundaryCallbacks'),
   };
   const specs = [
     ['capture-success-rate', values.captureSuccessRate, 'min', budgets.captureSuccessRateMin],
@@ -122,7 +134,15 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     ['watch-library-read-ops-per-cycle', values.watchLibraryReadOpsPerCycle,
       'max', budgets.watchLibraryReadOpsPerCycleMax],
     ['disk-write-ops-per-cycle', values.diskWriteOpsPerCycle, 'max', budgets.diskWriteOpsPerCycleMax],
+    ['overlay-render-average-ms', values.overlayRenderAverageMsMaxObserved,
+      'max', budgets.overlayRenderAverageMsMax],
+    ['overlay-render-max-ms', values.overlayRenderMaxMsObserved,
+      'max', budgets.overlayRenderMaxMsMax],
   ];
+  if (hibernationAttempts > 0) {
+    specs.splice(1, 0, ['hibernation-success-rate', values.hibernationSuccessRate,
+      'min', budgets.hibernationSuccessRateMin]);
+  }
   const checks = specs.map(([name, value, direction, budget]) => ({
     name,
     value,
