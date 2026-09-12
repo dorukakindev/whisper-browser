@@ -183,7 +183,7 @@ Bu son turda birleşik rapordan sonra gelen bulgular da kapatıldı:
 
 ### Ayrıntılı doğrulama dökümü
 
-Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 162/162, player 142/142, denetim regresyonu 41/41. Sabit kimliği olmayan eski satırlara uydurma yeni ID verilmedi; bu raporun kendi aralıkları kanonik bırakıldı. Ayrıntılı bulgu/düzeltme/ret/manual matrisi: `AUDIT-KAPANIS-MATRISI-2026-09-12.md`.
+Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 165/165, player 142/142, denetim regresyonu 41/41. Sabit kimliği olmayan eski satırlara uydurma yeni ID verilmedi; bu raporun kendi aralıkları kanonik bırakıldı. Ayrıntılı bulgu/düzeltme/ret/manual matrisi: `AUDIT-KAPANIS-MATRISI-2026-09-12.md`.
 
 ## AKIŞ, CANLI ALTYAZI VE ARAŞTIRMA ARAÇLARI EK DOĞRULAMASI — 2026-09-12
 
@@ -284,14 +284,14 @@ Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 162/
   tekrar kalite kapısından geçirilmemesiydi. Metadata yoluna da
   `not translation_is_source_echo(entry[2], old[2])` koşulu eklendi; bu cue’lar artık
   yeniden çeviriye gönderiliyor. SRT dosyaları değiştirilmedi; yeni regresyon testiyle
-  backend 163/163 geçti.
+  backend 165/165 geçti.
 - **Ret/açık gerekçeleri:** Playwright somut kapsama boşluğu için eklenecek. Readability
   karşılaştırması ölçümlü yerel prototiple kapatıldı; harici kütüphane bağımlılığı,
   gerçek içerik korpusu olmadan varsayılan yapılmadı. Manga OCR ayrımı gerçek eksik kabul
   edilip iki katmanlı önbellek ve metin çeviri geri kullanımıyla kapatıldı. Lisansı
   belirsiz kod kopyalanmadı; davranışlar projeye özgü, sınırlandırılmış uygulamayla yazıldı.
 - **Doğrulama:** Nihai `npm test` çıkış 0 ve son satır `Tüm testler geçti` verdi;
-  backend 162/162 geçti. Son eklemeler için `browser-subtitles` 74/74, `browser-stream-fixtures`,
+  backend 165/165 geçti. Son eklemeler için `browser-subtitles` 74/74, `browser-stream-fixtures`,
   `browser-overlay-controller` 13/13, `browser-manga` 91/91,
   `browser-page-archive`, `browser-adblock`, `browser-foundation`,
   `browser-library-tools` 16/16 ve `browser-translation-integrity` hedefli testleri
@@ -303,3 +303,36 @@ Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 162/
   renderer heap farkı 187.640 bayt, browser heap farkı 59.812 bayt; renderer/browser
   heap eğimleri 888,072/393,768 bayt-çevrim ile 49.152 sınırının altında kaldı. Geçici
   altyazı dosyası 64/64 LRU sınırında, disk yazımı çevrim başına 6,995/10 kaldı.
+
+### Anlam öncelikli çeviri — ek doğrulama
+
+- **Bulgu:** Cümle grubu sınırı nokta görüldüğünde kesinleşiyordu; üç nokta veya
+  bağlaçla biten cue'lar (`I thought…`, `because.`) sonraki cue'dan kopabildiğinde
+  model özne/nesne ilişkisini eksik görüyordu.
+- **Düzeltme:** Backend ve tarayıcı aynı `SENTENCE_PROTOCOL_VERSION=2` altında
+  devamlılık sezgisi kullanıyor. Üç nokta, virgül/noktalı virgül ve yaygın
+  bağlaç/edat sonları sonraki cue gelene kadar grubu açık tutuyor; konuşmacı,
+  zaman boşluğu, maksimum süre/karakter ve korumalı SDH sınırları aynen korunuyor.
+- **Bulgu:** JSON yapısı doğru olsa da sayı veya olumsuzluk düşebiliyordu; bu durum
+  daha önce kaynak yankısı/boşluk/zaman denetimlerinden kaçabiliyordu.
+- **Düzeltme:** `translation_meaning_issues` sayı dizilerini ve kaynak olumsuzluğunu
+  muhafazakâr biçimde denetliyor. Hatalı grup cache'e yazılmıyor, ilk geçişte kabul
+  edilmiyor, ikinci geçişte birinci geçişin üstüne yazamıyor; tarayıcı scheduler da
+  aynı yanıtı ekrana almadan sınırlı yeniden denemeye bırakıyor. Kaynak ve hedef cue
+  sınırları yine değiştirilmiyor.
+- **Bağlam:** Tarayıcı cümle isteğinde bağlam satırları yalnız kaynak metni olarak
+  kalıyor; konuşmacı etiketi dışarı sızmıyor, yalnız anonim `speaker_present` bilgisi
+  taşınıyor. Backend tarafında mevcut konuşmacı etiketi ve otomatik sözlük bağlamı
+  gruplu promptta korunuyor. Böylece kişi/zamir kararı için bağlam var, kullanıcı
+  verisi niteliğindeki etiketler tarayıcı payloadına gereksiz taşınmıyor.
+- **Ret gerekçesi:** Ek bir “sahne özeti” LLM çağrısı eklenmedi; maliyet ve gecikme
+  karşılığında ölçülebilir kazanım göstermeden ikinci bir üretim katmanı olurdu.
+  Bunun yerine mevcut komşu bağlam, konuşmacı sınırı, terim sürümü ve grup cache
+  anahtarı birlikte kullanıldı.
+- **Doğrulama dökümü:** Backend `163 geçti, 0 başarısız`; yeni testler sayı/olumsuzluk
+  kapısını ve üç nokta/bağlaç devamlılığını doğrudan sınadı. `subtitle-sentence-layout`,
+  `browser-workflow-core` ve `browser-translation-refresh` hedefli testleri geçti.
+  Tam `npm test` koşusunda yalnız raporun tarihsel test toplamı dışındaki tüm paketler
+  yeşil. Güncel tam `npm test` koşusu çıkış 0 ve son satır `Tüm testler geçti` verdi;
+  ayrıca `npm run test:electron-bridge`, Python `py_compile`, Node `--check` ve
+  `git diff --check` de çıkış 0 verdi.

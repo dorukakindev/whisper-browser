@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
-  decodeSentenceTranslation, fitTranslationParts } = require('./subtitle-sentence-layout');
+  decodeSentenceTranslation, fitTranslationParts, translationMeaningIssues } = require('./subtitle-sentence-layout');
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -364,11 +364,21 @@ class BrowserTranslationScheduler {
     this.pending.set(sentence.id, job);
     Promise.resolve(this.readCache(cacheKey)).then((cached) => {
       if (cached !== undefined && cached !== null && cached !== '') {
-        try { return { ...decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts), cached: true }; }
+        try {
+          const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
+          if (translationMeaningIssues(sentence.text, decoded.text).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
+          return { ...decoded, cached: true };
+        }
         catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }
       }
       return this.translateShared(sentence, cacheKey, controller)
-        .then((value) => ({ ...decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts), cached: false }));
+        .then((value) => {
+          const decoded = decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts);
+          if (translationMeaningIssues(sentence.text, decoded.text).length) {
+            throw new Error('Çeviri sayı veya olumsuzluk bilgisini korumadı.');
+          }
+          return { ...decoded, cached: false };
+        });
     }).then(async (result) => {
       if (controller.signal.aborted || generation !== this.generation) return;
       if (!String(result.text || '').trim()) throw new Error('Çeviri sağlayıcısı boş yanıt döndürdü.');

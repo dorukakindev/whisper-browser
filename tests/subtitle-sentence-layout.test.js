@@ -99,6 +99,11 @@ async function run() {
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('gpt-5.4-mini'), { max_completion_tokens: 4096 });
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('openai/o4-mini'), { max_completion_tokens: 4096 });
   assert.equal(layout.sentenceTranslationMessageRole('gpt-5.4-mini'), 'developer');
+  assert.deepEqual(layout.translationMeaningIssues('There are 2.4 million dollars.', '2,4 milyon dolar.'), []);
+  assert(layout.translationMeaningIssues('There are 2.4 million dollars.', 'Milyonlarca dolar.')
+    .includes('number_mismatch'));
+  assert.deepEqual(layout.translationMeaningIssues("I don't know.", 'Bilmiyorum.'), []);
+  assert(layout.translationMeaningIssues("I don't know.", 'Biliyorum.').includes('negation_missing'));
   assert.equal(layout.sentenceTranslationMessageRole('gemini-3.8-flash'), 'system');
 
   const key = translationCacheKey(sentence);

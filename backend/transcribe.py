@@ -42,7 +42,7 @@ from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   validate_sentence_parts, normalized_text,
-                                  uses_spaceless_script)
+                                  uses_spaceless_script, translation_meaning_issues)
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
@@ -3017,7 +3017,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         mapped = []
         for group in chunk_groups(chunk_idx):
             row = {"ids": [positions[i] for i in group],
-                   "source": ' '.join(entries[i][2] for i in group)}
+                   "source": ' '.join(entries[i][2] for i in group),
+                   "start": float(entries[group[0]][0]),
+                   "end": float(entries[group[-1]][1]),
+                   "duration": max(0.0, float(entries[group[-1]][1]) - float(entries[group[0]][0]))}
+            speakers_in_group = [speaker_map.get(i, "") for i in group]
+            if speakers_in_group and all(speakers_in_group) and len(set(speakers_in_group)) == 1:
+                row['speaker'] = speakers_in_group[0]
             if refine:
                 row['translation'] = ' '.join(out_texts[i] for i in group)
             mapped.append(row)
@@ -3044,7 +3050,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             record = validate_sentence_parts(hit, [hit], 1)
         elif isinstance(hit, dict):
             record = validate_sentence_parts(hit.get('text'), hit.get('parts'), len(group))
-        if record:
+        if record and not translation_meaning_issues(
+                ' '.join(entries[i][2] for i in group), record['text'], target):
             for i, part in zip(group, record['parts']):
                 out_texts[i] = part
             cached_idx.update(group)
@@ -3131,6 +3138,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki
             # "eksikleri tamamla" çalışması da İngilizce satırı atlar.
             if translation_is_source_echo(row['source'], record['text']):
+                continue
+            meaning_issues = translation_meaning_issues(row['source'], record['text'], target)
+            if meaning_issues:
+                log("Ceviri grubu anlamsal kalite kapisinda reddedildi ({}); yeniden denenecek."
+                    .format(", ".join(meaning_issues)), "warn")
+                with lock:
+                    for index in group:
+                        failure_by_index.setdefault(index, "meaning_" + meaning_issues[0])
                 continue
             with lock:
                 for index, part in zip(group, record['parts']):
@@ -3280,6 +3295,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
                 record = accept_sentence_reply(data, row['ids'])
                 if not record:
+                    continue
+                if translation_is_source_echo(row['source'], record['text']):
+                    continue
+                if translation_meaning_issues(row['source'], record['text'], target):
                     continue
                 with lock:
                     for source_index, new_text in zip(group, record['parts']):
@@ -4333,6 +4352,8 @@ def compute_translation_quality_report(source_entries, translated_entries,
     untranslated_indices = []
     empty_indices = []
     timing_mismatch_indices = []
+    number_mismatch_indices = []
+    negation_mismatch_indices = []
     for index in range(total):
         src = source[index] if index < len(source) else None
         dst = target[index] if index < len(target) else None
@@ -4349,11 +4370,17 @@ def compute_translation_quality_report(source_entries, translated_entries,
         # içeren birebir kaynak yankısı ise yeniden denemeye açık tutulur.
         if translation_is_source_echo(src_text, dst_text):
             untranslated_indices.append(index)
+        meaning_issues = translation_meaning_issues(src_text, dst_text)
+        if 'number_mismatch' in meaning_issues:
+            number_mismatch_indices.append(index)
+        if 'negation_missing' in meaning_issues:
+            negation_mismatch_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
                 or abs(float(src[1]) - float(dst[1])) > timing_tolerance):
             timing_mismatch_indices.append(index)
     issue_indices = sorted(set(
         untranslated_indices + empty_indices + timing_mismatch_indices
+        + number_mismatch_indices + negation_mismatch_indices
     ))
     report = {
         "translation_blocks": total,
@@ -4364,6 +4391,10 @@ def compute_translation_quality_report(source_entries, translated_entries,
         "translation_untranslated_indices": untranslated_indices,
         "translation_empty_indices": empty_indices,
         "translation_timing_mismatch_indices": timing_mismatch_indices,
+        "translation_number_mismatch": len(number_mismatch_indices),
+        "translation_number_mismatch_indices": number_mismatch_indices,
+        "translation_negation_mismatch": len(negation_mismatch_indices),
+        "translation_negation_mismatch_indices": negation_mismatch_indices,
         "translation_issue_indices": issue_indices,
     }
     report["translation_issues"] = max(len(issue_indices), report["translation_failed"])

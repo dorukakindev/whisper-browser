@@ -3347,6 +3347,24 @@ def test_compute_translation_quality_report_separates_empty_and_timing():
     assert report["translation_empty"] == 1
     assert report["translation_timing_mismatch"] == 1
     assert report["translation_failed"] == 1
+    assert report["translation_number_mismatch"] == 0
+    assert report["translation_negation_mismatch"] == 0
+
+
+def test_translation_meaning_gate_preserves_numbers_and_negation():
+    assert T.translation_meaning_issues("There are 2.4 million dollars.", "2,4 milyon dolar.") == []
+    assert "number_mismatch" in T.translation_meaning_issues("There are 2.4 million dollars.", "Milyonlarca dolar.")
+    assert T.translation_meaning_issues("I don't know.", "Bilmiyorum.") == []
+    assert "negation_missing" in T.translation_meaning_issues("I don't know.", "Biliyorum.")
+
+
+def test_sentence_groups_hold_ellipsis_and_conjunction_continuations():
+    assert T.sentence_groups([
+        (0, 1, "I thought…"), (1, 2, "we had more time."),
+    ]) == [[0, 1]]
+    assert T.sentence_groups([
+        (0, 1, "Because."), (1, 2, "the door was locked."),
+    ]) == [[0, 1]]
 
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
