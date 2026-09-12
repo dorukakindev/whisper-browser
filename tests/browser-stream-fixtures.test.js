@@ -26,6 +26,25 @@ const { createBrowserStreamFixtureServer } = require('./browser-stream-fixture-s
     assert(Date.now() - started >= 60, 'geciken segment anında dönmemeli');
     assert.equal(delayed[0].start, 8, 'discontinuity sonrası MPEGTS zamanı korunmalı');
 
+    const wrongMimeUrl = `${fixture.baseUrl}/hls/wrong-mime.vtt`;
+    const wrongMimeResponse = await fetch(wrongMimeUrl);
+    const wrongMime = parseSubtitlePayload(await wrongMimeResponse.text(),
+      wrongMimeResponse.headers.get('content-type'), wrongMimeUrl).cues;
+    assert.equal(wrongMime[0].text, 'Yanlış MIME ile gelen altyazı',
+      'dosya uzantısı geçerli VTT içeriğini yanlış MIME yüzünden kaybetmemeli');
+
+    const partialUrl = `${fixture.baseUrl}/hls/partial.vtt`;
+    const partialFirst = parseSubtitlePayload(await (await fetch(partialUrl)).text(), 'text/vtt', partialUrl).cues;
+    assert.equal(partialFirst.length, 0, 'yarım kalan cue başarı sayılmamalı');
+    const partialRetry = parseSubtitlePayload(await (await fetch(partialUrl)).text(), 'text/vtt', partialUrl).cues;
+    assert.equal(partialRetry[0].text, 'Yeniden denemede tamamlandı');
+
+    const staleSigned = await fetch(`${fixture.baseUrl}/hls/signed-live.m3u8?token=expired`);
+    assert.equal(staleSigned.status, 403, 'süresi dolan imzalı manifest 403 dönmeli');
+    const refreshedSigned = await fetch(`${fixture.baseUrl}/hls/signed-live.m3u8?token=fresh`);
+    assert.equal(refreshedSigned.status, 200, 'manifest URL yenilendiğinde akış açılmalı');
+    assert.equal(parseHlsSegments(await refreshedSigned.text(), refreshedSigned.url)[0].sequence, 90);
+
     const mpdUrl = `${fixture.baseUrl}/dash/manifest.mpd`;
     const mpd = await (await fetch(mpdUrl)).text();
     const dash = parseDashSubtitleMatchers(mpd, mpdUrl);
@@ -57,7 +76,7 @@ const { createBrowserStreamFixtureServer } = require('./browser-stream-fixture-s
       [{ start: 20, end: 22, text: 'eski canlı hipotez' }],
       [{ start: 20, end: 23, text: 'kesinleşen canlı altyazı' }]);
     assert.deepEqual(seekRevision.map((cue) => cue.text), ['kesinleşen canlı altyazı']);
-    console.log('browser-stream-fixtures: HLS gecikme/eksik/discontinuity ve DASH eksik segment testleri geçti');
+    console.log('browser-stream-fixtures: HLS gecikme/eksik/discontinuity/yanlış MIME/yarım yanıt/imza yenileme ve DASH eksik segment testleri geçti');
   } finally {
     await fixture.close();
   }

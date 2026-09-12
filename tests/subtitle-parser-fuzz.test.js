@@ -1,6 +1,7 @@
 const assert = require('assert');
 const {
   parseAss,
+  parseMp4Stpp,
   parseMp4WebVtt,
   parseSubtitlePayload,
 } = require('../src/browser-subtitles');
@@ -194,10 +195,9 @@ function full(flags, payload, version = 0) {
   return Buffer.concat([head, payload]);
 }
 
-function offsetWvttFixture() {
-  const sample = box('vttc', box('payl', Buffer.from('Ofset', 'utf-8')));
+function offsetTimedFixture(sample, baseTime = 1000) {
   const tfhdPayload = Buffer.alloc(4); tfhdPayload.writeUInt32BE(1);
-  const tfdtPayload = Buffer.alloc(4); tfdtPayload.writeUInt32BE(1000);
+  const tfdtPayload = Buffer.alloc(4); tfdtPayload.writeUInt32BE(baseTime);
   const rows = Buffer.alloc(16);
   rows.writeUInt32BE(1, 0); // sample_count
   // data_offset daha sonra moof boyutu bilindiğinde yazılır.
@@ -217,6 +217,15 @@ function offsetWvttFixture() {
   ]));
   moof = box('moof', traf);
   return Buffer.concat([moof, box('mdat', Buffer.concat([prefix, sample]))]);
+}
+
+function offsetWvttFixture() {
+  return offsetTimedFixture(box('vttc', box('payl', Buffer.from('Ofset', 'utf-8'))));
+}
+
+function offsetStppFixture() {
+  const xml = '<tt><body><div><p begin="0s" end="1s">STPP</p></div></body></tt>';
+  return offsetTimedFixture(Buffer.from(xml, 'utf8'));
 }
 
 const started = performance.now();
@@ -301,13 +310,51 @@ if (compareCues(offsetCues, [expectedCue(1, 2, 'Ofset')])) {
   recordFailure({ generator: 'container', index: 0, kind: 'data_offset', detail: JSON.stringify(offsetCues) });
 }
 
-// Container mutasyonları: kısa/taşan box boyları veya rastgele byte değişimi crash üretmemeli.
+const stppCues = parseMp4Stpp(offsetStppFixture(), { timescale: 1000 });
+if (compareCues(stppCues, [expectedCue(1, 2, 'STPP')])) {
+  recordFailure({ generator: 'container', index: 1, kind: 'stpp', detail: JSON.stringify(stppCues) });
+}
+
+// Yeni fMP4 biçimleri için hedefli kutu mutasyonları: sıfır trun süresi,
+// geriye giden tfdt, yarım mdat ve vttc içindeki bilinmeyen alt kutu.
 const containerSeed = offsetWvttFixture();
+const structuralMutations = [];
+const zeroDuration = Buffer.from(containerSeed);
+const trunType = zeroDuration.indexOf(Buffer.from('trun'));
+if (trunType >= 0) zeroDuration.writeUInt32BE(0, trunType + 16);
+structuralMutations.push(zeroDuration);
+const backwardTfdt = Buffer.from(containerSeed);
+const tfdtType = backwardTfdt.indexOf(Buffer.from('tfdt'));
+if (tfdtType >= 0) backwardTfdt.writeUInt32BE(0, tfdtType + 8);
+structuralMutations.push(backwardTfdt);
+structuralMutations.push(containerSeed.subarray(0, containerSeed.length - 5));
+const unknownChild = box('vttc', Buffer.concat([
+  box('zzzz', Buffer.from([0, 1, 2, 3])),
+  box('payl', Buffer.from('Bilinmeyen kutu', 'utf8')),
+]));
+structuralMutations.push(offsetTimedFixture(unknownChild));
+for (let index = 0; index < 1024; index++) {
+  const mutated = structuralMutations[index % structuralMutations.length];
+  assert.doesNotThrow(() => assertCueInvariant(parseMp4WebVtt(mutated, { timescale: 1000 })));
+  cases++;
+}
+assert.equal(parseMp4WebVtt(structuralMutations[3], { timescale: 1000 })[0]?.text,
+  'Bilinmeyen kutu');
+
+// Container mutasyonları: kısa/taşan box boyları veya rastgele byte değişimi crash üretmemeli.
 for (let index = 0; index < 2000; index++) {
   const mutated = Buffer.from(containerSeed);
   const changes = 1 + Math.floor(random() * 4);
   for (let n = 0; n < changes; n++) mutated[Math.floor(random() * mutated.length)] = Math.floor(random() * 256);
   assert.doesNotThrow(() => assertCueInvariant(parseMp4WebVtt(mutated, { timescale: pick([0, 1, 1000]) })));
+  cases++;
+}
+const stppSeed = offsetStppFixture();
+for (let index = 0; index < 1000; index++) {
+  const mutated = Buffer.from(stppSeed);
+  const changes = 1 + Math.floor(random() * 4);
+  for (let n = 0; n < changes; n++) mutated[Math.floor(random() * mutated.length)] = Math.floor(random() * 256);
+  assert.doesNotThrow(() => assertCueInvariant(parseMp4Stpp(mutated, { timescale: pick([0, 1, 1000]) })));
   cases++;
 }
 

@@ -22,6 +22,17 @@ async function createBrowserStreamFixtureServer() {
       'WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:0\n\n00:00.000 --> 00:04.000\nBugün Sidney\'de\n');
     if (url.pathname === '/hls/delayed.vtt') return delayed(
       'WEBVTT\nX-TIMESTAMP-MAP=LOCAL:00:00:00.000,MPEGTS:720000\n\n00:00.000 --> 00:04.000\nBölüm sonrası\n');
+    if (url.pathname === '/hls/wrong-mime.vtt') return send(response, 200, 'application/octet-stream',
+      'WEBVTT\n\n00:12.000 --> 00:14.000\nYanlış MIME ile gelen altyazı\n');
+    if (url.pathname === '/hls/partial.vtt') {
+      if (requests.get(url.pathname) === 1) return send(response, 200, 'text/vtt', 'WEBVTT\n\n00:16.000 -->');
+      return send(response, 200, 'text/vtt', 'WEBVTT\n\n00:16.000 --> 00:18.000\nYeniden denemede tamamlandı\n');
+    }
+    if (url.pathname === '/hls/signed-live.m3u8') {
+      if (url.searchParams.get('token') !== 'fresh') return send(response, 403, 'text/plain', 'imza süresi doldu');
+      return send(response, 200, 'application/vnd.apple.mpegurl',
+        '#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:90\n#EXTINF:4,\nseg-40.vtt\n');
+    }
     if (url.pathname === '/hls/missing.vtt' || url.pathname === '/dash/missing.m4s') {
       return send(response, 404, 'text/plain', 'fixture segment eksik');
     }

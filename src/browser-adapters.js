@@ -45,6 +45,13 @@ function redactCaptureUrl(value) {
   }
 }
 
+function sanitizeManifestPreview(value, limit = 2048) {
+  return String(value == null ? '' : value).slice(0, Math.max(0, Number(limit) || 2048))
+    .replace(/https?:\/\/[^\s"'<>]+/gi, (url) => redactCaptureUrl(url))
+    .replace(/([?&](?:access_?token|auth(?:orization)?|api_?key|credential|expires?|jwt|key|password|policy|secret|session(?:id)?|sig(?:nature)?|token|x-amz-[^=&\s]+|x-goog-[^=&\s]+)=)[^&\s"'<>]+/gi, '$1[gizlendi]')
+    .replace(/\b(?:authorization|cookie)\s*[:=]\s*[^\r\n]+/gi, (match) => `${match.split(/[:=]/)[0]}=[gizlendi]`);
+}
+
 const SENSITIVE_MEDIA_URL_PARAM = /^(?:access_?token|auth(?:orization)?|api_?key|code|credential|expires?|jwt|key|key-pair-id|pass(?:code|word)?|policy|secret|session(?:id)?|sig(?:nature)?|state|token|x-amz-.+)$/i;
 
 function persistentBrowserMediaUrl(value) {
@@ -71,4 +78,5 @@ module.exports = {
   hostnameOf,
   persistentBrowserMediaUrl,
   redactCaptureUrl,
+  sanitizeManifestPreview,
 };

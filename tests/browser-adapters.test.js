@@ -7,6 +7,7 @@ const {
   browserResponseAdapter,
   persistentBrowserMediaUrl,
   redactCaptureUrl,
+  sanitizeManifestPreview,
 } = require('../src/browser-adapters');
 
 let passed = 0;
@@ -71,6 +72,12 @@ test('teşhis URLsi imza, token ve fragmentleri göstermez', () => {
   const value = redactCaptureUrl('https://cdn.test/subs/en.vtt?token=secret&sig=abc&lang=en#private');
   assert.equal(value, 'https://cdn.test/subs/en.vtt?lang=en');
   assert.doesNotMatch(value, /secret|sig|private/);
+});
+
+test('tanı paketi manifest özetindeki imzalı URLleri temizler', () => {
+  const preview = sanitizeManifestPreview('#EXTM3U\nhttps://cdn.test/sub.m4s?X-Goog-Signature=SECRET&lang=en\nkey?token=PRIVATE');
+  assert.match(preview, /sub\.m4s\?lang=en/);
+  assert.doesNotMatch(preview, /SECRET|PRIVATE/);
 });
 
 test('kalıcı medya URLsi video kimliğini korur, sırları ayıklar', () => {

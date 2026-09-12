@@ -7,6 +7,7 @@ const {
   cueFingerprint,
   cuesToSrt,
   cuesToVtt,
+  detectHlsCea608,
   isLikelySubtitleResponse,
   manifestFingerprint,
   parseAss,
@@ -21,6 +22,7 @@ const {
   cuesUseLocalSegmentTimeline,
   normalizeCues,
   browserActiveCuesAt,
+  parseMp4Stpp,
   parseMp4WebVtt,
   parseMp4SampleDefaults,
   parseMp4Timescale,
@@ -32,6 +34,7 @@ const {
   parseSami,
   parseSubtitlePayload,
   parseTime,
+  parseYoutubeCaptionMetadata,
 } = require('../src/browser-subtitles');
 const { captureBodyFingerprint } = require('../src/browser-capture-recovery');
 
@@ -349,6 +352,19 @@ test('YouTube json3 aAppend canlı metnini önceki cue ile birleştirir', () => 
   assert.deepEqual(result.cues, [{ start: 1, end: 3, text: 'Merhaba' }]);
 });
 
+test('YouTube otomatik iz ve servis çeviri dillerini ayrı metadata olarak verir', () => {
+  assert.deepEqual(parseYoutubeCaptionMetadata(JSON.stringify({ kind: 'asr', translationLanguages: [
+    { languageCode: 'tr', languageName: { simpleText: 'Türkçe' } },
+  ] })), {
+    automatic: true, translatedByService: false,
+    translationLanguages: [{ languageCode: 'tr', languageName: 'Türkçe' }],
+  });
+  assert.deepEqual(parseYoutubeCaptionMetadata('{}',
+    'https://www.youtube.com/api/timedtext?kind=asr&tlang=tr'), {
+    automatic: true, translatedByService: true, translationLanguages: [],
+  });
+});
+
 test('YouTube srv3 kısa t/d değerlerini de milisaniye kabul eder', () => {
   const result = parseSubtitlePayload('<timedtext><body><p t="80" d="40">Kısa</p></body></timedtext>',
     'text/xml', 'https://youtube.com/api/timedtext?fmt=srv3');
@@ -593,6 +609,13 @@ test('DASH parçalı altyazı eşleştiricisi video segmentlerini dışarıda b�
   }
 });
 
+test('HLS gömülü CTA-608/708 izini yanlış WebVTT sanmadan tanıya hazırlar', () => {
+  const body = '#EXTM3U\n#EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="English",LANGUAGE="en",INSTREAM-ID="CC1"\n';
+  assert.deepEqual(detectHlsCea608(body), [{ instreamId: 'CC1', language: 'en', name: 'English',
+    supported: false, reason: 'cea-608-708-embedded' }]);
+  assert.deepEqual(detectHlsCea608('#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,URI="sub.vtt"'), []);
+});
+
 test('DASH SegmentList altyazı parçalarını tek iz ve doğru sıra ofsetiyle eşleştirir', () => {
   const mpd = '<MPD><Period><AdaptationSet contentType="text" lang="tr" codecs="wvtt">'
     + '<Representation id="std"><BaseURL>subs/</BaseURL><SegmentList timescale="1000" duration="2000" startNumber="5">'
@@ -782,6 +805,32 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
   assert.deepEqual(parseMp4WebVtt(Buffer.concat([box('moof', emptyTraf), box('mdat', first)]), {
     timescale: 1000,
   }), [{ start: 8, end: 10, text: 'Bir' }]);
+});
+
+test('DASH stpp MP4 örneklerini sample zamanına taşıyarak ayrıştırır', () => {
+  const box = (type, payload) => {
+    const head = Buffer.alloc(8); head.writeUInt32BE(payload.length + 8); head.write(type, 4, 4, 'ascii');
+    return Buffer.concat([head, payload]);
+  };
+  const full = (flags, payload, version = 0) => {
+    const head = Buffer.alloc(4); head[0] = version; head.writeUIntBE(flags, 1, 3);
+    return Buffer.concat([head, payload]);
+  };
+  const xml = Buffer.from('<?xml version="1.0"?><tt xmlns="http://www.w3.org/ns/ttml"><body><div><p begin="0s" end="2s">Merhaba <span>dünya</span></p></div></body></tt>', 'utf8');
+  const tfhdPayload = Buffer.alloc(4); tfhdPayload.writeUInt32BE(3);
+  const tfdtPayload = Buffer.alloc(4); tfdtPayload.writeUInt32BE(12000);
+  const rows = Buffer.alloc(12); rows.writeUInt32BE(1);
+  rows.writeUInt32BE(2000, 4); rows.writeUInt32BE(xml.length, 8);
+  const traf = box('traf', Buffer.concat([
+    box('tfhd', full(0, tfhdPayload)), box('tfdt', full(0, tfdtPayload)), box('trun', full(0x300, rows)),
+  ]));
+  const fragment = Buffer.concat([box('moof', traf), box('mdat', xml)]);
+  assert.deepEqual(parseMp4Stpp(fragment, { timescale: 1000 }), [
+    { start: 12, end: 14, text: 'Merhaba dünya' },
+  ]);
+  assert.deepEqual(parseMp4Stpp(Buffer.concat([box('moof', traf), box('mdat', xml.subarray(0, 24))]), {
+    timescale: 1000,
+  }), [], 'yarım mdat/XML sessizce yanlış cue üretmemeli');
 });
 
 test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bulur', () => {

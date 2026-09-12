@@ -76,6 +76,13 @@ const delayed = applyEditRecord({ id: 'web-tr-a', start: 10, end: 12, text: 'Yen
 assert.equal(delayed.text, 'Benim düzeltmem');
 assert.equal(delayed.baseTranslation, 'Yeni model metni');
 
+// Append-only manifest yenilemesi çalışan çeviri oturumunun lineage kimliğini
+// değiştirmez; aynı kaynak cue kullanıcının düzeltmesini kaybetmez.
+const refreshedEditContext = { ...editContext, sourceCueHash: cueSourceHash(appended[0], 0) };
+const afterManifestRefresh = applyEditRecord(
+  { id: 'web-tr-a', start: 10, end: 12, text: 'Yenileme sonrası model' }, edit, refreshedEditContext);
+assert.equal(afterManifestRefresh.text, 'Benim düzeltmem');
+
 // 12: aynı zaman kodlu iki cue kimlikle ayrılır.
 const otherContext = { ...editContext, cueId: 'b', sourceCueHash: cueSourceHash(cues[1], 1) };
 assert.equal(applyEditRecord({ ...cues[1], text: 'Model B' }, edit, otherContext).text, 'Model B');
