@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { safePlaceUrl } = require('./browser-place-url');
 
-const ASSET_VERSION = 1;
+const ASSET_VERSION = 2;
 
 function hash(value, length = 24) {
   return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex').slice(0, length);
@@ -23,6 +24,18 @@ function normalizeCues(rawCues) {
     const sourceCueHash = String(cue && cue.sourceCueHash || '').replace(/[^a-f0-9]/gi, '').toLowerCase().slice(0, 64);
     if (cueId) normalized.cueId = cueId;
     if (sourceCueHash) normalized.sourceCueHash = sourceCueHash;
+    if (cue?.provenance && typeof cue.provenance === 'object') {
+      normalized.provenance = {
+        layer: String(cue.provenance.layer || 'unknown').slice(0, 40),
+        streamKey: String(cue.provenance.streamKey || '').slice(0, 180),
+        segmentUrl: safePlaceUrl(cue.provenance.segmentUrl || ''),
+        epoch: String(cue.provenance.epoch || '').slice(0, 180),
+        discontinuity: Math.max(0, Math.trunc(Number(cue.provenance.discontinuity) || 0)),
+        sequence: Math.trunc(Number(cue.provenance.sequence) || 0),
+        automatic: cue.provenance.automatic === true,
+        translatedByService: cue.provenance.translatedByService === true,
+      };
+    }
     return normalized;
   }).filter((cue) => cue && cue.text && cue.end >= cue.start)
     .sort((a, b) => a.start - b.start || a.end - b.end).slice(-20000);
@@ -61,6 +74,13 @@ function safeMeta(raw = {}) {
     sourceTrackId: String(raw.sourceTrackId || '').slice(0, 180),
     provider: String(raw.provider || '').slice(0, 240),
     model: String(raw.model || '').slice(0, 120),
+    automatic: raw.automatic === true,
+    translatedByService: raw.translatedByService === true,
+    translationLanguages: (Array.isArray(raw.translationLanguages) ? raw.translationLanguages : [])
+      .map((item) => ({
+        languageCode: String(item?.languageCode || '').slice(0, 24),
+        languageName: String(item?.languageName || '').slice(0, 80),
+      })).filter((item) => item.languageCode).slice(0, 200),
   };
 }
 
@@ -122,7 +142,7 @@ class BrowserAssetStore {
     if (!paths) return { ok: false, error: 'Geçersiz altyazı varlık kimliği.' };
     try {
       const parsed = JSON.parse(this.fs.readFileSync(paths.jsonPath, 'utf8'));
-      if (!parsed || parsed.version !== ASSET_VERSION || parsed.assetId !== assetId) {
+      if (!parsed || ![1, ASSET_VERSION].includes(parsed.version) || parsed.assetId !== assetId) {
         return { ok: false, error: 'Altyazı varlığı biçimi desteklenmiyor.' };
       }
       const cues = normalizeCues(parsed.cues);
@@ -134,7 +154,7 @@ class BrowserAssetStore {
         this.fs.writeFileSync(tempSrt, `\uFEFF${cuesToSrt(cues)}`, 'utf8');
         this.fs.renameSync(tempSrt, paths.srtPath);
       }
-      return { ok: true, document: { ...parsed, cues }, ...paths };
+      return { ok: true, document: { ...parsed, version: ASSET_VERSION, cues }, ...paths };
     } catch (error) {
       return { ok: false, error: error.message };
     }

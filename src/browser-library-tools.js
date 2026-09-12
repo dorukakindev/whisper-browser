@@ -201,8 +201,12 @@ function normalizeTextAnchor(raw = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const exact = boundedText(raw.exact, 4000);
   if (!exact) return null;
+  const positionStart = Number(raw.positionStart);
+  const positionEnd = Number(raw.positionEnd);
+  const validPosition = Number.isInteger(positionStart) && Number.isInteger(positionEnd)
+    && positionStart >= 0 && positionEnd > positionStart && positionEnd <= 5000000;
   return {
-    version: 1,
+    version: validPosition ? 2 : 1,
     kind: 'text',
     exact,
     prefix: boundedText(raw.prefix, 240),
@@ -210,6 +214,7 @@ function normalizeTextAnchor(raw = {}) {
     blockId: boundedText(raw.blockId, 180),
     domPath: boundedText(raw.domPath, 800),
     documentId: boundedText(raw.documentId, 240),
+    ...(validPosition ? { positionStart, positionEnd } : {}),
   };
 }
 
@@ -228,6 +233,16 @@ function selectionAnchorCaptureScript(documentId = '') {
     const blockText = String(block.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 16000);
     const normalizedExact = exact.replace(/\\s+/g, ' ').trim();
     const at = blockText.indexOf(normalizedExact);
+    let positionStart = -1;
+    let positionEnd = -1;
+    try {
+      const root = document.body || document.documentElement;
+      const prefixRange = range.cloneRange();
+      prefixRange.selectNodeContents(root);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      positionStart = prefixRange.toString().length;
+      positionEnd = positionStart + range.toString().length;
+    } catch (_) {}
     const domPath = (element) => {
       const parts = [];
       let current = element;
@@ -241,11 +256,12 @@ function selectionAnchorCaptureScript(documentId = '') {
       return parts.join(' > ').slice(0, 800);
     };
     return { ok: true, anchor: {
-      version: 1, kind: 'text', exact,
+      version: positionStart >= 0 ? 2 : 1, kind: 'text', exact,
       prefix: at >= 0 ? blockText.slice(Math.max(0, at - 240), at) : '',
       suffix: at >= 0 ? blockText.slice(at + normalizedExact.length, at + normalizedExact.length + 240) : '',
       blockId: String(block.id || '').slice(0, 180), domPath: domPath(block),
-      documentId: ${JSON.stringify(String(documentId || '').slice(0, 240))}
+      documentId: ${JSON.stringify(String(documentId || '').slice(0, 240))},
+      ...(positionStart >= 0 && positionEnd > positionStart ? { positionStart, positionEnd } : {})
     }};
   })()`;
 }
@@ -260,6 +276,26 @@ function textAnchorRestoreScript(rawAnchor) {
       .filter((element) => !element.closest('[data-whisper-page-overlay], [data-whisper-manga-overlay], input, textarea, select, [contenteditable]'))
       .slice(0, 12000);
     const candidates = [];
+    if (Number.isInteger(anchor.positionStart) && Number.isInteger(anchor.positionEnd)) {
+      try {
+        const root = document.body || document.documentElement;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let cursor = 0;
+        for (let textNode = walker.nextNode(); textNode; textNode = walker.nextNode()) {
+          const next = cursor + String(textNode.nodeValue || '').length;
+          if (anchor.positionStart >= cursor && anchor.positionStart <= next) {
+            const element = textNode.parentElement?.closest?.('p, li, blockquote, figcaption, td, th, article, section, h1, h2, h3, h4, h5, h6, div');
+            if (element && blocks.includes(element)) {
+              const text = String(element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 16000);
+              const at = text.indexOf(exact);
+              if (at >= 0) candidates.push({ element, at, score: 80, position: true });
+            }
+            break;
+          }
+          cursor = next;
+        }
+      } catch (_) {}
+    }
     for (const element of blocks) {
       const text = String(element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 16000);
       const at = text.indexOf(exact);
@@ -361,9 +397,15 @@ function mangaPositionRestoreScript(rawPosition) {
 function resolveTextAnchor(anchor, rawBlocks) {
   const target = normalizeTextAnchor(anchor);
   if (!target) return { status: 'missing', matches: [] };
-  const blocks = (Array.isArray(rawBlocks) ? rawBlocks : []).map((block, index) => ({
-    index, id: boundedText(block?.id, 180), path: boundedText(block?.path, 800), text: String(block?.text || '').normalize('NFKC'),
-  }));
+  let cursor = 0;
+  const blocks = (Array.isArray(rawBlocks) ? rawBlocks : []).map((block, index) => {
+    const text = String(block?.text || '').normalize('NFKC');
+    const start = Number.isFinite(Number(block?.positionStart)) ? Number(block.positionStart) : cursor;
+    const end = Number.isFinite(Number(block?.positionEnd)) ? Number(block.positionEnd) : start + text.length;
+    cursor = end + 1;
+    return { index, id: boundedText(block?.id, 180), path: boundedText(block?.path, 800), text,
+      positionStart: start, positionEnd: end };
+  });
   const exact = target.exact.normalize('NFKC');
   const score = (block) => {
     const at = block.text.indexOf(exact);
@@ -371,6 +413,8 @@ function resolveTextAnchor(anchor, rawBlocks) {
     let points = 10;
     if (target.blockId && block.id === target.blockId) points += 100;
     if (target.domPath && block.path === target.domPath) points += 20;
+    if (Number.isInteger(target.positionStart) && target.positionStart >= block.positionStart
+        && target.positionStart < block.positionEnd) points += 80;
     if (target.prefix && block.text.slice(Math.max(0, at - target.prefix.length), at).endsWith(target.prefix.normalize('NFKC'))) points += 8;
     if (target.suffix && block.text.slice(at + exact.length).startsWith(target.suffix.normalize('NFKC'))) points += 8;
     return { ...block, offset: at, score: points };

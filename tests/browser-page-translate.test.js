@@ -169,6 +169,10 @@ for (const script of scripts) {
 assert.match(pageBlockScanScript(), /createTreeWalker/);
 assert.match(pageBlockScanScript(), /shadowRoot/);
 assert.match(pageBlockScanScript(), /MutationObserver/);
+assert.match(pageBlockScanScript(), /characterData: true/,
+  'SPA metin düğümü yerinde değişince yeniden taranmalı');
+assert.match(pageBlockScanScript(), /state\.ownWrites/,
+  'uygulamanın kendi çeviri yazımı characterData olarak tekrar kuyruğa girmemeli');
 assert.match(pageBlockScanScript(), /setTimeout\([\s\S]*400/);
 assert.match(pageApplyScript({}), /whisper-page-tr/);
 assert.match(pageBlockScanScript({ scope: 'selection', visibleOnly: true, autoContinue: false }), /intersectsNode/);

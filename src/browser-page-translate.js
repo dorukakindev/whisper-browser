@@ -381,6 +381,7 @@ function pageBlockScanScript(options = {}) {
       refs: new Map(),
       knownIds: new Set(),
       originalValues: new WeakMap(),
+      ownWrites: new WeakMap(),
       blockIndexes: new WeakMap(),
       latestIdByRoot: new WeakMap(),
       activeByRoot: new WeakMap(),
@@ -551,6 +552,24 @@ function pageBlockScanScript(options = {}) {
         const observer = new MutationObserver((mutations) => {
           let shouldScan = false;
           for (const mutation of mutations) {
+            if (mutation.type === 'characterData') {
+              const node = mutation.target;
+              const value = String(node?.nodeValue || '');
+              if (ownAddedNode(node)) continue;
+              if (state.ownWrites?.get(node) === value) {
+                state.ownWrites.delete(node);
+                continue;
+              }
+              // SPA metin düğümünü yerinde değiştirdi. Eski kaynak metni yerine
+              // yeni gerçek metni temel al ve aynı blok kökünü yeni hash ile tara.
+              state.originalValues.set(node, value);
+              const owner = blockRoot(node);
+              const previousId = owner ? state.latestIdByRoot.get(owner) : '';
+              const previous = previousId ? state.refs.get(previousId) : null;
+              if (previous) previous.active = false;
+              shouldScan = true;
+              continue;
+            }
             const added = [...(mutation.addedNodes || [])];
             if (added.some((node) => !ownAddedNode(node))) { shouldScan = true; break; }
           }
@@ -562,7 +581,7 @@ function pageBlockScanScript(options = {}) {
             emitNewBlocks();
           }, 400);
         });
-        observer.observe(root, { childList: true, subtree: true });
+        observer.observe(root, { childList: true, characterData: true, subtree: true });
         state.observers.set(root, observer);
       }
       if (!state.scrollListening) {
@@ -839,7 +858,10 @@ function pageApplyScript(payload = {}) {
     }
     const restoreRef = (ref) => {
       ref.nodes.forEach((node, index) => {
-        if (node && node.isConnected !== false) node.nodeValue = ref.originals[index];
+        if (node && node.isConnected !== false) {
+          state.ownWrites?.set(node, ref.originals[index]);
+          node.nodeValue = ref.originals[index];
+        }
       });
     };
     const distribute = (ref, value) => {
@@ -866,7 +888,9 @@ function pageApplyScript(payload = {}) {
           }
           end = best;
         }
-        node.nodeValue = characters.slice(cursor, end).join('');
+        const nextValue = characters.slice(cursor, end).join('');
+        state.ownWrites?.set(node, nextValue);
+        node.nodeValue = nextValue;
         cursor = end;
       });
     };
@@ -1209,7 +1233,10 @@ function pageVisibilityScript(visible) {
     }
     state.visible = visible;
     const restoreRef = (ref) => ref.nodes.forEach((node, index) => {
-      if (node && node.isConnected !== false) node.nodeValue = ref.originals[index];
+      if (node && node.isConnected !== false) {
+        state.ownWrites?.set(node, ref.originals[index]);
+        node.nodeValue = ref.originals[index];
+      }
     });
     const distribute = (ref) => {
       const chars = Array.from(String(ref.translation || ''));
@@ -1231,7 +1258,11 @@ function pageVisibilityScript(visible) {
           }
           end = best;
         }
-        if (node && node.isConnected !== false) node.nodeValue = chars.slice(cursor, end).join('');
+        if (node && node.isConnected !== false) {
+          const nextValue = chars.slice(cursor, end).join('');
+          state.ownWrites?.set(node, nextValue);
+          node.nodeValue = nextValue;
+        }
         cursor = end;
       });
     };
@@ -1287,7 +1318,10 @@ function pageExcludeScript(ids = []) {
       if (!ref) continue;
       ref.active = false;
       ref.nodes.forEach((node, index) => {
-        if (node && node.isConnected !== false) node.nodeValue = ref.originals[index];
+        if (node && node.isConnected !== false) {
+          state.ownWrites?.set(node, ref.originals[index]);
+          node.nodeValue = ref.originals[index];
+        }
       });
       ref.overlay?.remove?.(); ref.overlay = null;
       ref.failureBadge?.remove?.(); ref.failureBadge = null;

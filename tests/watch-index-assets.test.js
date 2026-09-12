@@ -50,6 +50,26 @@ try {
     assert.equal(store.getTrack(result.assetId).ok, false);
   });
 
+  test('sürüm 1 altyazı varlığı kayıpsız biçimde sürüm 2 görünümüne taşınır', () => {
+    const store = new BrowserAssetStore({ rootDir: path.join(dir, 'asset-v1-migration') });
+    const saved = store.putTrack({
+      mediaId: 'browser:legacy:episode', trackId: 'legacy-en', language: 'en',
+      cues: [{ id: 'legacy-1', start: 3, end: 5, text: 'Legacy cue' }],
+    });
+    assert(saved.ok, saved.error);
+    const legacyDocument = JSON.parse(fs.readFileSync(saved.jsonPath, 'utf8'));
+    legacyDocument.version = 1;
+    delete legacyDocument.automatic;
+    delete legacyDocument.translatedByService;
+    fs.writeFileSync(saved.jsonPath, JSON.stringify(legacyDocument), 'utf8');
+
+    const loaded = store.getTrack(saved.assetId);
+    assert(loaded.ok, loaded.error);
+    assert.equal(loaded.document.version, 2);
+    assert.equal(loaded.document.cues[0].text, 'Legacy cue');
+    assert.equal(loaded.document.cues[0].start, 3);
+  });
+
   test('tamamlanan web çevirisi ayrı translation rolüyle kalıcı yazılır', () => {
     const store = new BrowserAssetStore({ rootDir: path.join(dir, 'translation-assets') });
     const result = store.putTrack({

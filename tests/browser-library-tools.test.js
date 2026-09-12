@@ -7,6 +7,7 @@ const {
   renameCollection,
   resolveMangaPosition,
   resolveTextAnchor,
+  normalizeTextAnchor,
   selectionAnchorCaptureScript,
   setCollectionMembership,
   textAnchorRestoreScript,
@@ -83,6 +84,19 @@ test('paragraf araya eklense de prefix ve suffix bağlamı doğru alıntıyı bu
   ]);
   assert.equal(result.status, 'found');
   assert.equal(result.match.id, 'old');
+});
+
+test('position selector aynı alıntının doğru belge konumundaki örneğini seçer ve v1 ile uyumludur', () => {
+  const legacy = normalizeTextAnchor({ exact: 'hedef' });
+  assert.equal(legacy.version, 1);
+  const anchor = normalizeTextAnchor({ exact: 'hedef', positionStart: 24, positionEnd: 29 });
+  assert.equal(anchor.version, 2);
+  const result = resolveTextAnchor(anchor, [
+    { id: 'ilk', text: 'hedef kısa' },
+    { id: 'ikinci', text: 'uzun metinde hedef burada', positionStart: 15, positionEnd: 40 },
+  ]);
+  assert.equal(result.status, 'found');
+  assert.equal(result.match.id, 'ikinci');
 });
 
 test('kayıp alıntı notu silmek yerine missing döndürür', () => {

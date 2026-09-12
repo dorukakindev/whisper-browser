@@ -8,6 +8,7 @@ const vm = require('vm');
 const page = require('../src/browser-page-translate');
 const archive = require('../src/browser-translation-archive');
 const terminology = require('../src/browser-terminology');
+const siteTerminology = require('../src/browser-site-terminology');
 
 class FakeScheduler {
   constructor(options) { this.options = options; this.sentences = []; this.failures = []; this.ran = false; }
@@ -64,6 +65,10 @@ class FakeScheduler {
     createTerminologyMap: terminology.createTerminologyMap,
     seedTerminology: terminology.seedTerminology,
     learnTerminology: terminology.learnTerminology,
+    siteTerminologyScope: siteTerminology.siteTerminologyScope,
+    seedSiteTerminology: siteTerminology.seedSiteTerminology,
+    readBrowserPlaces: () => ({ siteTerminology: {} }),
+    setBrowserPlaces: () => true,
     BrowserTranslationScheduler: FakeScheduler,
     browserNetworkOnline: true,
     browserTranslationCache: () => ({ get: () => undefined, set() {} }),

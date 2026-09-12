@@ -16,6 +16,7 @@ const PROFILE_FIELDS = Object.freeze({
   pageTargetLanguage: { type: 'string', max: 24 },
   mangaTargetLanguage: { type: 'string', max: 24 },
   pageAuto: { type: 'boolean' },
+  adblockEnabled: { type: 'boolean' },
   zoom: { type: 'number', min: 0.5, max: 3, precision: 1 },
 });
 

@@ -28,6 +28,12 @@ test('false ve sifir fallback sayılmaz', () => {
   assert.equal(result.sources.pageAuto, 'tab');
 });
 
+test('site reklam koruması false değeri profilde açıkça korunur', () => {
+  const result = withBrowserSiteProfileField({}, 'https://video.test/watch', 'adblockEnabled', false);
+  assert.equal(result.ok, true);
+  assert.equal(result.profile.adblockEnabled, false);
+});
+
 test('site override genel değişiklikle ezilmez ve kaldırılınca güncel genel gelir', () => {
   let profiles = withBrowserSiteProfileField({}, 'https://example.test/watch', 'targetLanguage', 'tr').profiles;
   let result = resolveEffectiveBrowserSettings({ general: { targetLanguage: 'de' }, profile: profiles['https://example.test'] });
