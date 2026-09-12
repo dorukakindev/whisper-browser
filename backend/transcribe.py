@@ -4355,6 +4355,8 @@ def compute_translation_quality_report(source_entries, translated_entries,
     timing_mismatch_indices = []
     number_mismatch_indices = []
     negation_mismatch_indices = []
+    meaning_shadow_evaluated = 0
+    meaning_shadow_rejected_indices = []
     for index in range(total):
         src = source[index] if index < len(source) else None
         dst = target[index] if index < len(target) else None
@@ -4367,6 +4369,8 @@ def compute_translation_quality_report(source_entries, translated_entries,
         dst_text = unicodedata.normalize("NFC", str(dst[2] or "")).strip()
         if not dst_text:
             empty_indices.append(index)
+        else:
+            meaning_shadow_evaluated += 1
         # Kısa özel adlar, sayılar ve URL'ler aynı kalabilir. Uzun ve harf
         # içeren birebir kaynak yankısı ise yeniden denemeye açık tutulur.
         if translation_is_source_echo(src_text, dst_text):
@@ -4376,6 +4380,8 @@ def compute_translation_quality_report(source_entries, translated_entries,
             number_mismatch_indices.append(index)
         if 'negation_missing' in meaning_issues:
             negation_mismatch_indices.append(index)
+        if meaning_issues:
+            meaning_shadow_rejected_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
                 or abs(float(src[1]) - float(dst[1])) > timing_tolerance):
             timing_mismatch_indices.append(index)
@@ -4396,6 +4402,21 @@ def compute_translation_quality_report(source_entries, translated_entries,
         "translation_number_mismatch_indices": number_mismatch_indices,
         "translation_negation_mismatch": len(negation_mismatch_indices),
         "translation_negation_mismatch_indices": negation_mismatch_indices,
+        # Gölge ölçüm: olumsuzluk sezgisi otomatik retry tüketmez; yine de
+        # gerçek çıktı korpusundaki oranı görünür olur. Sert kapı yalnız
+        # number_mismatch olduğundan iki oran ayrı tutulur.
+        "translation_meaning_shadow_evaluated": meaning_shadow_evaluated,
+        "translation_meaning_shadow_rejected": len(meaning_shadow_rejected_indices),
+        "translation_meaning_shadow_rejected_indices": meaning_shadow_rejected_indices,
+        "translation_meaning_shadow_rejected_rate": (
+            len(meaning_shadow_rejected_indices) / meaning_shadow_evaluated
+            if meaning_shadow_evaluated else 0.0
+        ),
+        "translation_meaning_hard_rejected": len(number_mismatch_indices),
+        "translation_meaning_hard_rejected_rate": (
+            len(number_mismatch_indices) / meaning_shadow_evaluated
+            if meaning_shadow_evaluated else 0.0
+        ),
         "translation_issue_indices": issue_indices,
     }
     report["translation_issues"] = max(len(issue_indices), report["translation_failed"])

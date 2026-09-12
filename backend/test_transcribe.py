@@ -3360,6 +3360,33 @@ def test_translation_meaning_gate_preserves_numbers_and_negation():
     assert T.translation_blocking_issues("I don't know.", "Biliyorum.") == []
 
 
+def test_translation_meaning_gate_shadow_metrics_separate_hard_and_advisory():
+    report = T.compute_translation_quality_report([
+        (0, 1, "There are 2.4 million dollars."),
+        (1, 2, "I don't know."),
+        (2, 3, "He carried 80 bags."),
+    ], [
+        (0, 1, "Milyonlarca dolar."),
+        (1, 2, "Biliyorum."),
+        (2, 3, "Seksen paket taşıdı."),
+    ])
+    assert report["translation_meaning_shadow_evaluated"] == 3
+    assert report["translation_meaning_shadow_rejected"] == 2
+    assert report["translation_meaning_hard_rejected"] == 1
+    assert abs(report["translation_meaning_shadow_rejected_rate"] - (2 / 3)) < 1e-9
+    assert abs(report["translation_meaning_hard_rejected_rate"] - (1 / 3)) < 1e-9
+
+
+def test_translation_number_gate_property_preserves_decimal_punctuation():
+    # Nokta/virgül biçim farkı iyi çevirileri retry'a sokmamalı. Geniş fakat
+    # deterministik örnek kümesi, tek birkaç sabit örnekten daha güçlü değişmez.
+    for whole in range(1, 401):
+        for tenth in range(10):
+            source = f"Amount: {whole}.{tenth} million."
+            target = f"Tutar: {whole},{tenth} milyon."
+            assert T.translation_blocking_issues(source, target) == []
+
+
 def test_sentence_groups_hold_ellipsis_and_conjunction_continuations():
     assert T.sentence_groups([
         (0, 1, "I thought…"), (1, 2, "we had more time."),

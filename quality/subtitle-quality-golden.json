@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "description": "Gerçek sorunlu Border Security çifti üzerinden elle doğrulanan iyi çeviriler ve kaynak-yankısı satırları için beklenen onarımlar.",
+  "knownGood": [
+    {
+      "source": "We've got four young passengers coming in today.",
+      "target": "Bugün dört genç yolcu geliyor."
+    },
+    {
+      "source": "Three of them have Canadian passports and one of them has a Dutch passport, all travelling from Canada.",
+      "target": "Üçünün Kanada pasaportu var, birinin de Hollanda pasaportu; hepsi Kanada’dan geliyor."
+    },
+    {
+      "source": "One of the first things I've noticed, they're here for ten days, but each passenger has got two huge suitcases.",
+      "target": "Dikkatimi çeken ilk şeylerden biri şu: On gündür buradalar ama her yolcunun iki tane kocaman valizi var."
+    },
+    {
+      "source": "They're only ten days, why do you need that much luggage?",
+      "target": "Sadece on günlüğüne geldiler; neden bu kadar çok bagaja ihtiyacınız olsun ki?"
+    },
+    {
+      "source": "The passengers are telling us that they're friends, but when you really get down to questioning them, they don't really know each other that well.",
+      "target": "Yolcular bize arkadaş olduklarını söylüyorlar ama gerçekten sorgulayınca birbirlerini pek iyi tanımadıkları ortaya çıkıyor."
+    },
+    {
+      "source": "They met someone three months ago.",
+      "target": "Üç ay önce biriyle tanışmışlar."
+    },
+    {
+      "source": "So you're saying that you met at six months…",
+      "target": "Yani altı ay önce tanıştığınızı mı söylüyorsunuz…"
+    },
+    {
+      "source": "Well, we had talked about it six months ago.",
+      "target": "Şey, bunu altı ay önce konuşmuştuk."
+    },
+    {
+      "source": "Normally people get a little bit nervous, and she's quite talkative.",
+      "target": "Normalde insanlar biraz gerilir, ama o epey konuşkan."
+    },
+    {
+      "source": "Um, they didn't want me missing school, but I'm only taking two classes, so it's not, like, really that big of a deal.",
+      "target": "Şey, okuldan kalmamı istemediler ama sadece iki ders alıyorum, yani öyle çok büyük bir mesele değil."
+    },
+    {
+      "source": "A swab is now taken to test for traces of any illicit substances.",
+      "target": "Şimdi yasa dışı maddelerin izleri için bir sürüntü alınıyor."
+    },
+    {
+      "source": "Do you use any recreational drugs?",
+      "target": "Eğlence amaçlı uyuşturucu kullanıyor musun?"
+    },
+    {
+      "source": "You don't? The test is negative.",
+      "target": "Kullanmıyor musun? Test negatif çıktı."
+    },
+    {
+      "source": "It could be anything, so I just want to take a closer look.",
+      "target": "Her şey olabilir, o yüzden daha yakından bakmak istiyorum."
+    },
+    {
+      "source": "The passengers confirm that they have read the cards and that they have nothing to declare,",
+      "target": "Yolcular, kartları okuduklarını ve beyan edecek bir şeyleri olmadığını doğruluyorlar,"
+    }
+  ],
+  "expectedRepairs": [
+    {
+      "source": "But a shocking development has occurred when a bag belonging to one of the male travellers is x-rayed",
+      "target": "Ancak erkek yolculardan birine ait çanta röntgen cihazından geçirilince şoke edici bir gelişme yaşanır."
+    },
+    {
+      "source": "and indicates that there could be a massive concealment.",
+      "target": "Görüntü, çantada büyük miktarda gizlenmiş madde olabileceğine işaret eder."
+    },
+    {
+      "source": "They've got a lot of boxes, and so far three of the boxes have come through full of material",
+      "target": "Yanlarında çok sayıda kutu var; şu ana kadar üç kutunun içi yoğun bir malzemeyle dolu çıktı."
+    },
+    {
+      "source": "that we really need to have a better look at.",
+      "target": "Bu malzemeyi daha yakından incelememiz gerekiyor."
+    },
+    {
+      "source": "He says, this is to certify that Alex is an employee and presently holding regular appointment",
+      "target": "Belgede, Alex'in çalışan olduğu ve hâlen düzenli bir görevde bulunduğu yazıyor."
+    },
+    {
+      "source": "since October of 2012.",
+      "target": "Ekim 2012'den beri."
+    },
+    {
+      "source": "It's hard to tell if the story is legitimate, but an x-ray of one of the men's bags",
+      "target": "Anlatılanların doğru olup olmadığını anlamak zor; ancak adamlardan birinin çantasının röntgeni"
+    },
+    {
+      "source": "may give the answer officers are looking for.",
+      "target": "görevlilerin aradığı yanıtı verebilir."
+    },
+    {
+      "source": "Because the indicators are so strong that there is a concealment in the bag,",
+      "target": "Çantada gizlenmiş bir şey bulunduğuna dair göstergeler çok güçlü olduğu için"
+    },
+    {
+      "source": "Officer Craig has another concern.",
+      "target": "Memur Craig'in başka bir endişesi daha var."
+    },
+    {
+      "source": "It's difficult to put the facts together as the man keeps changing his story,",
+      "target": "Adam ifadesini sürekli değiştirdiği için olayın gerçeklerini bir araya getirmek zorlaşıyor;"
+    },
+    {
+      "source": "but it's becoming clear that he's lying and his waiting friend is actually his employer.",
+      "target": "ancak yalan söylediği ve dışarıda bekleyen arkadaşının aslında işvereni olduğu giderek anlaşılıyor."
+    },
+    {
+      "source": "And the x-ray shows up virtually a mirror image to the previous bag,",
+      "target": "Röntgen görüntüsü de önceki çantanın neredeyse birebir aynısı çıkıyor;"
+    },
+    {
+      "source": "which has returned a positive result for heroin.",
+      "target": "önceki çantada eroin için pozitif sonuç alınmıştı."
+    },
+    {
+      "source": "But with another five bags between the whole group still to be checked,",
+      "target": "Ancak grubun hâlâ kontrol edilmesi gereken beş çantası daha varken"
+    },
+    {
+      "source": "Officer Craig has a very bad feeling.",
+      "target": "Memur Craig'in içine kötü bir his doğuyor."
+    }
+  ]
+}

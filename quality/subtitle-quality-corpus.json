@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "baseDir": "%USERPROFILE%/Downloads",
+  "pairs": [
+    {
+      "name": "Border Security S10E11",
+      "source": "Biggest Con Man Tries To Fool Customs _ S10 EP 11 _ Border Security Australia Full Episodes.srt",
+      "target": "Biggest Con Man Tries To Fool Customs _ S10 EP 11 _ Border Security Australia Full Episodes.tr.srt",
+      "targetLanguage": "tr",
+      "expectedMinSourceCues": 480,
+      "expectedMinTargetCues": 480
+    },
+    {
+      "name": "Border Security S13E04",
+      "source": "4 Dr_g Mules Caught With $2.4 Million In He_oin _ Season 13 Episode 04 _ Border Security Australia.srt",
+      "target": "4 Dr_g Mules Caught With $2.4 Million In He_oin _ Season 13 Episode 04 _ Border Security Australia.tr.srt",
+      "targetLanguage": "tr",
+      "expectedMinSourceCues": 285,
+      "expectedMinTargetCues": 285
+    },
+    {
+      "name": "Border Security S01E13",
+      "source": "Caught Carrying 80 Bags Of Co_aine Internally! _ S1 Ep 13 _ Border Security Australia.srt",
+      "target": "Caught Carrying 80 Bags Of Co_aine Internally! _ S1 Ep 13 _ Border Security Australia.tr.srt",
+      "targetLanguage": "tr",
+      "expectedMinSourceCues": 175,
+      "expectedMinTargetCues": 175
+    }
+  ]
+}

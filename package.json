@@ -8,7 +8,10 @@
     "dev": "electron . --dev",
     "test": "node tests/run-all.js",
     "test:electron-bridge": "electron tests/electron-browser-trusted-bridge.smoke.js --disable-gpu",
-    "test:soak": "node tests/run-resource-soak.js"
+    "test:soak": "node tests/run-resource-soak.js",
+    "audit:subtitle-pair": "node tools/audit-subtitle-pair.js",
+    "audit:subtitle-corpus": "node tools/audit-subtitle-corpus.js",
+    "audit:subtitle-golden": "node tools/audit-subtitle-golden.js"
   },
   "author": "Whisper Altyazı",
   "license": "MIT",
