@@ -377,3 +377,170 @@ Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 165/
   sözdizimi kontrolleri ve `git diff --check` çıkış 0 verdi. Güncel tam
   `npm test` son satırı `Tüm testler geçti`; `npm run test:electron-bridge` da
   çıkış 0 verdi.
+
+## 2026-09-12 — 15 önerinin nihai kapanış denetimi
+
+Bu bölüm önceki ara durumların yerine geçen güncel sonuçtur. Bulgular yalnız
+kaynakta karşılığı görülen davranış, deterministik test veya bu turda çalıştırılan
+soak kanıtıyla kapatıldı. Kullanıcıya ait gerçek profil, anahtar, çerez ve geçmiş
+okunmadı; bütün Electron kaynak ölçümleri geçici `userData` ve yerel fixture ile
+yapıldı.
+
+### Sonuç özeti
+
+1. **Çökme sonrası toparlanma — TAMAM.** Sekme çökme nedeni politikası, sınırlı
+   yeniden yükleme, geri yükleme bileti ve yeni gezinme/sekme nesli geldiğinde eski
+   sonucun reddi bağlandı. Sonsuz yeniden yükleme yok; kullanıcı kapatması çökme
+   sayılmıyor.
+2. **Sekme hibernasyonu — TAMAM, bilinçli olarak kullanıcı eylemli.** Boşaltmadan
+   önce medya/form/taslak/aktif iş, split görünüm ve altyazı yakalama kuyruğu
+   denetleniyor. Bekleyen veya doğrulanamayan cue varken işlem fail-closed reddediliyor.
+   Oturum atomik yazılıyor, sonra WebContents kapanıyor. Otomatik “boşta sekme avcısı”
+   eklenmedi: form ve aktif medya için gereksiz veri kaybı riski yaratacağı için
+   kullanıcı tarafından başlatılan güvenli boşaltma tercih edildi. Gerçek Electron
+   testinde 50/50 boşalt-uyandır çevrimi geçti.
+3. **HTTP hata sınıfları ve yeniden deneme — TAMAM.** 404/401 gibi kalıcı yanıtlar
+   tekrar edilmiyor; 429 ve 5xx sınırlı backoff kullanıyor; `Retry-After` üst sınırla
+   uygulanıyor; timeout tekrar ediliyor, gezinme/kapanış iptali edilmiyor. İmzalı
+   segmentte 403, aynı URL'yi döndürmek yerine manifest yenileme eylemi üretiyor.
+   HLS metin segmentlerinde byte-range'ın retry sarmalında kaybolduğu ek hata da
+   giderildi.
+4. **Seek yarışı ve eski sonuç — TAMAM.** Yakalama lineage/epoch bilgisi segment,
+   katman, discontinuity ve seek neslini taşıyor. Eski fetch/XHR/CDP teslimatı yeni
+   gezinmeye veya seek'e uygulanmıyor; ACK/RELEASE de tab/generation bağlamını son
+   kez doğruluyor.
+5. **Cue provenance ve kapsama haritası — TAMAM.** Cue'lar acquisition katmanı,
+   stream/segment, epoch, discontinuity, otomatik/servis-çevirisi niteliğiyle
+   izleniyor. Kapsama özeti zaman aralıklarını birleştiriyor, eksik aralık ve katman
+   dağılımını tanıya veriyor. URL yalnız sansürlenmiş biçimde rapora giriyor.
+6. **Manifest yenilemede kısmi kaynak ve kullanıcı düzenlemesi — TAMAM.** Aynı
+   lineage'da append-only cue'lar var olan kaynağı silmeden ekleniyor; yenileme
+   işlemi yeni bir toplu çeviri işi başlatmıyor. Kaynak hash'i değişmemiş cue'nun
+   kullanıcı düzeltmesi korunuyor; yalnız gerçekten değişen kaynak yeniden işleniyor.
+7. **MP4 WebVTT (`wvtt`) ve TTML (`stpp`) — TAMAM.** `moov/trak/mdhd/hdlr`,
+   `trex/tfhd/tfdt/trun/mdat` zaman ve örnek zinciri çözümleniyor. `vttc/payl`
+   metni ve boş `vtte` doğru ayrılıyor; `stpp` örneğindeki TTML yerel/medya
+   zamanına taşınıyor. Timescale yoksa tahminle yanlış cue üretmek yerine parça
+   reddediliyor.
+8. **TTML/IMSC ve CEA-608/708 — KISMİ UYGULAMA + TEKNİK RET.** TTML style/region
+   zinciri, kalıtım, writingMode ve bölgeye duyarlı cue birleştirme tamam. HLS
+   manifestindeki `CLOSED-CAPTIONS`, `INSTREAM-ID=CC1..CC4/SERVICE*` algılanıp
+   “desteklenmiyor” tanısı veriliyor. Sıfırdan CEA-608/708 video elementary-stream
+   decoder'ı eklenmedi: mevcut yakalama hattı metin/manifest altyazısı işliyor;
+   MPEG video bit akışına decoder, field/channel state machine ve kapsamlı yayın
+   fixture'ı eklemek ölçütsüz ve yüksek regresyonlu olurdu. Sessizce altyazı yok
+   demek yerine kesin tanı ve Whisper alternatifi sunuluyor.
+9. **YouTube JSON3/SRV3 ve kaynak niteliği — TAMAM.** JSON3 event/segment yapısı,
+   XML/SRV3 metni ve zamanları mevcut ortak parser yolunda çözülüyor. URL/body
+   metadata'sından otomatik altyazı, YouTube tarafından çevrilmiş iz ve sunulan
+   çeviri dilleri çıkarılıyor; bu bilgi track, cue provenance ve kalıcı asset
+   kaydına taşınıyor. Kullanıcı izini servis çevirisiyle sessizce değiştiren bir
+   “her zaman translated track seç” kuralı eklenmedi.
+10. **Dinamik DOM çevirisi ve eski yanıt — TAMAM.** `childList` yanında
+    `characterData` değişiklikleri de yakalanıyor. Her bölüm kaynak hash'i ve iş
+    nesliyle bağlı; geç yanıt yeni metne uygulanmıyor. Atomik bölüm çıktısı başarısız
+    parçayı kaynak metinle koruyor.
+11. **Site bazlı çeviri terminolojisi — TAMAM.** Origin/path kapsamlı profil ile
+    kalıcı terim listesi birbirinden ayrıldı; değerler sınırlandırılıp normalize
+    ediliyor. İş başladığında ayarlar donduruluyor ve cache anahtarına terim sürümü
+    giriyor; başka siteye sızmıyor.
+12. **Bulanık alıntı sabitleme — TAMAM.** Exact quote'a prefix/suffix bağlamı,
+    text-position, DOM/range konumu ve güven eşikli fuzzy yedek eklendi. Yakın iki
+    aday birbirine benziyorsa yanlış kesin sonuç vermek yerine belirsiz dönüyor.
+13. **Ghostery/reklam engelleme tanısı — TAMAM.** Genel ayarın yanında siteye özel
+    açık `false` değeri korunuyor. Engellenen istekte kategori/kural ve sansürlü
+    URL tutuluyor; token, kullanıcı bilgisi, query ve fragment günlük/tanı dışı.
+14. **Manga OCR sonucu–çeviri ayrımı ve yerleşim — TAMAM; yerel GPU boşaltma RET.**
+    OCR provenance'ı ve normalize metni çeviri/yerleşimden ayrı asset kaydına
+    yazılıyor; hedef dil değişince aynı görsel tekrar OCR edilmeden çevrilebiliyor.
+    Okuma sırası, uzun Türkçe metin için sığdırma ve dikey yazı testleri korunuyor.
+    Manga yolu Electron'dan uzak HTTP modeline istek gönderiyor ve yerel PyTorch
+    modeli yüklemiyor; bu nedenle burada sahte bir CUDA `empty_cache` çağrısı
+    eklenmedi. Yerel Whisper/pyannote GPU temizliği backend'de zaten ayrı yaşam
+    döngüsünde.
+15. **Gerçekçi uçtan uca fixture ve Playwright kararı — TAMAM + BAĞIMLILIK RET.**
+    Yerel sunucu eksik/geciken/yarım segment, yanlış MIME, byte-range, seek,
+    discontinuity, imza yenileme ve DASH eksik segment senaryolarını yürütüyor.
+    Mevcut gerçek Electron smoke testleri WebContents, isolated world ve IPC
+    köprüsünü doğrudan çalıştırdığı için şu anda yalnız Playwright'ın yakalayacağı
+    somut bir hata yolu kalmadı. Sırf araç çeşitliliği için yeni bağımlılık
+    eklenmedi; ileride Electron testinin ifade edemediği somut çok-pencere veya
+    kullanıcı etkileşimi vakası çıkarsa karar yeniden açılacak.
+
+### Ek bulgular ve yapılan düzeltmeler
+
+- **Tek URL sansürleme kapısı:** Provenance, kapsama, adblock ve dışa aktarılan tanı
+  aynı güvenli URL biçimini kullanıyor. `sig`, `token`, `X-Goog-*`, credential,
+  query ve fragment çıktıya taşınmıyor; işleme için gereken ham imzalı URL yalnız
+  bellek içindeki ağ yolunda korunuyor.
+- **Tek tık tekrar üretilebilir hata paketi:** Acquisition plan aşamaları, servis
+  sınıfı, hata kodları, kapsama aralıkları, cue sayıları ve ilk 2 KiB ile sınırlı
+  sansürlenmiş manifest özeti dışa aktarılıyor. Altyazı metni ve kullanıcı verisi
+  pakete eklenmiyor.
+- **Kalıcı şema envanteri:** 23 kalıcı şema tek envanter testinde dosya, sürüm ve
+  migration testiyle eşleştirildi. Yeni şema veya sürüm değişikliği, envanter ve
+  migration kanıtı birlikte güncellenmezse test kırılıyor.
+- **Parser fuzz genişletmesi:** MP4 kutu boyu, yarım `mdat`, bilinmeyen `vttc`
+  alt kutusu, geri giden `tfdt`, bozuk `trun` ve TTML/VTT/SRT sınırları dâhil
+  54.024 vaka çalışıyor; 40.000 differential karşılaştırma var. Sayı koruma kapısı
+  için nokta/virgül ondalık yazımı property testi eklendi.
+- **Anlam kapısı gölge ölçümü:** Kesin sayı kaybı sert ret olarak kalıyor;
+  olumsuzluk sezgisi advisory ölçülüyor. Rapor `evaluated`, gölge-ret sayısı/oranı,
+  kesin sayı uyuşmazlığı oranı ve indeksleri ayrı veriyor; doğal `80 → seksen`
+  dönüşümü yanlış pozitif olmuyor.
+- **Soak CPU/overlay ölçümü:** Ortalama/azami overlay render süresi ve cue-sınırı
+  callback sayısı bütçeye bağlandı. Bellek, heap, GPU, timer, dinleyici, disk,
+  geçici altyazı LRU ve hibernasyon başarısı aynı raporda.
+- **Soak ölçüm hatası:** İlk 50 hibernasyon koşusunda işlev 50/50 başarılı olduğu
+  hâlde listener farkı +217 görünüyordu. Sayaç, `replaceChildren` ile DOM'dan
+  çıkarılmış düğümleri yaşamaya devam eden dinleyici sayıyordu. WeakRef ve
+  bağlı-DOM denetimi eklendi. Kalan +16'nın 15 site-izin select'i ile bir favicon
+  dinleyicisinin ilk tembel kurulumu olduğu tür dökümüyle kanıtlandı. Başlangıç
+  örneğinden önce tek ölçüm-dışı hibernasyonla yüzey hazırlandı; eşdeğer durumların
+  karşılaştırıldığı nihai koşuda fark 0 oldu. Bu düzeltme yalnız eşiği gevşetmedi,
+  ölçümün hem sahte pozitifini hem hedef/callback'i hayatta tutma riskini giderdi.
+
+### Nihai doğrulama dökümü
+
+- `npm test`: **çıkış 0**, son satır **“Tüm testler geçti”**.
+- Python backend: **167 geçti, 0 başarısız**.
+- Parser fuzz: **54.024 vaka**, **40.000 differential**; yaklaşık 390 ms,
+  en yavaş vaka 1,921 ms, tepe heap büyümesi 7,8 MiB.
+- `npm run test:electron-bridge`: **çıkış 0**; isolated world 999
+  page-action/page-blocks geçti, bilinmeyen tip reddedildi.
+- Tam kaynak soak: **200/200 yakalama**, **50/50 hibernasyon**, karar **GEÇTİ**.
+  Listener farkı 0; main ve renderer timer farkı 0; GPU process farkı 0.
+  Renderer heap farkı 876.864 bayt, eğim 2.721,676 bayt/çevrim
+  (bütçe 49.152). Browser heap farkı -23.888 bayt, eğim 22,502
+  bayt/çevrim. Overlay ortalama/azami render 0,10/0,10 ms
+  (bütçe 8/50 ms). Disk yazımı 7,245 işlem/çevrim (bütçe 10);
+  Places ve watch-library okumaları 1,0/1,0 (bütçe 1,1).
+- `python -m py_compile backend/transcribe.py`, `node --check` (main, preload,
+  renderer, resource soak probe ve altyazı parserı) ve `git diff --check`:
+  **çıkış 0**. Diff kontrolündeki LF→CRLF mesajları hata değil, Git çalışma
+  ağacı satır-sonu uyarısıdır.
+
+### Kapanış kararı
+
+On beş maddenin on ikisi tam uygulama, üçü kapsamı açıkça sınırlandırılmış teknik
+kararla kapandı: CEA-608/708 için decoder yerine tespit+tanı, hibernasyonda otomatik
+idle eviction yerine güvenli kullanıcı eylemi, Playwright için somut kapsama açığı
+oluşana dek bağımlılık reddi. Bunlar “unutulmuş yarım iş” değil; kullanıcı etkisi,
+mevcut mimari ve doğrulama maliyeti yazılı ret kararıdır. Bu bölümde doğrulanmadan
+“tamam” sayılan madde yoktur.
+
+### Gerçek kabul ve sürümleme eki
+
+- Gerçek Electron altyazı yakalama testi artık yalnız ekranda cue görmeyi değil,
+  tanı JSON'unu gerçekten diske yazmayı da denetliyor. Yakalanan altyazı metni ve
+  imzalı URL'deki sentetik token dosyada bulunmadı.
+- Üç gerçek SRT çifti kalıcı kalite korpusuna alındı. S10E11 486/288 cue ve 421
+  kesin engel; S13E04 290/290 cue ve 24 kaynak yankısı; S01E13 1/1 cue ve iki
+  minimum-kapsam engeli verdi. Dosyalar değiştirilmedi.
+- Sert anlam kapısı 15 bilinen iyi ve 16 beklenen düzeltilmiş altın örnekte %0
+  yanlış ret verdi. Korpus yalnız sorunlu örneklerden oluşmuyor.
+- Altı tematik kod/test commit'i oluşturuldu: `3944261`, `3fedf25`, `72485dd`,
+  `bb3c5cf`, `69f5782`, `4c1ae05`. Push ve tag dış etki oluşturduğu için açık
+  kullanıcı talebi olmadan çalıştırılmadı.
+- Akış bazında beklenen/gözlenen sonuçlar, ret gerekçeleri ve komut dökümü
+  `BROWSER-GERCEK-KABUL-KANITI-2026-09-12.md` dosyasındadır.
