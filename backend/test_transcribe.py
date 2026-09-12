@@ -3183,6 +3183,36 @@ def test_translate_existing_rejects_mismatched_metadata_even_when_timeline_match
         logs = [payload.get("message", "") for kind, payload in events if kind == "log"]
         assert any("metadata" in message.lower() and "kullanılmayacak" in message for message in logs)
 
+def test_translate_existing_metadata_completed_source_echo_is_retried():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "echo-meta.en.srt"
+        existing = root / "echo-meta.tr.srt"
+        text = "A shocking development has occurred when the bag is x-rayed."
+        source.write_text(f"1\n00:00:01,000 --> 00:00:03,000\n{text}\n", encoding="utf-8-sig")
+        existing.write_text(f"1\n00:00:01,000 --> 00:00:03,000\n{text}\n", encoding="utf-8-sig")
+        key_payload = json.dumps({"i": 0, "s": 1.0, "e": 3.0, "t": text},
+                                 ensure_ascii=False, separators=(",", ":"))
+        key = hashlib.sha256(key_payload.encode("utf-8")).hexdigest()
+        Path(f"{existing}.meta.json").write_text(json.dumps({
+            "sourceHash": T.subtitle_entries_hash([(1.0, 3.0, text)]), "targetLanguage": "tr",
+            "cues": [{"key": key, "status": "completed", "text": text}],
+        }), encoding="utf-8")
+        args = _TrArgs(translate_cache=False)
+        args.input, args.output_dir, args.language = str(source), str(root), "en"
+        args.max_lines, args.wrap_mode = 2, "sentence"
+        args.formats, args.dual_subtitle, args.dual_translation_first = "srt", False, False
+        args.translate_existing = str(existing)
+        seen = []
+        def translate_echo_retry(entries, _args, _warnings, source_lang=None, status_out=None):
+            seen.extend(entries)
+            status_out.update(completed=[0], failed=[])
+            return [(entries[0][0], entries[0][1], "Çarpıcı bir gelişme yaşandı.")]
+        with mock.patch.object(T, "llm_translate", side_effect=translate_echo_retry), mock.patch.object(T, "emit"):
+            T.translate_existing_subtitle(args)
+        assert len(seen) == 1
+        assert "Çarpıcı bir gelişme yaşandı." in existing.read_text(encoding="utf-8-sig")
+
 def test_translate_existing_total_failure_does_not_create_fake_translation():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)

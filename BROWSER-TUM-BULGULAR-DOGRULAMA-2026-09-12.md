@@ -278,6 +278,13 @@ Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 162/
   kısa bir `article` kabuğuna takılabilirdi. Aday puanlama ve %15 üstünlük kapısı eklendi;
   sonuç `extractor` ve `readerComparison` alanlarıyla ölçülebilir. `browser-nine-features`
   testinde belirgin üstün aday seçiliyor, marj yoksa native aday korunuyor.
+- **Gerçek SRT örneği — kaynak yankısı:** `4 Dr_g Mules...srt` ve `.tr.srt` üzerinde
+  290/290 cue, kimlik ve zaman damgası eşleşti; ancak 27 hedef cue kaynak İngilizcesiyle
+  birebir kaldı. Kök neden, mevcut metadata kaydı `completed` dediğinde kaynak yankısının
+  tekrar kalite kapısından geçirilmemesiydi. Metadata yoluna da
+  `not translation_is_source_echo(entry[2], old[2])` koşulu eklendi; bu cue’lar artık
+  yeniden çeviriye gönderiliyor. SRT dosyaları değiştirilmedi; yeni regresyon testiyle
+  backend 163/163 geçti.
 - **Ret/açık gerekçeleri:** Playwright somut kapsama boşluğu için eklenecek. Readability
   karşılaştırması ölçümlü yerel prototiple kapatıldı; harici kütüphane bağımlılığı,
   gerçek içerik korpusu olmadan varsayılan yapılmadı. Manga OCR ayrımı gerçek eksik kabul

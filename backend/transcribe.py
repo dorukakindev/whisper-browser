@@ -5962,7 +5962,8 @@ def translate_existing_subtitle(args):
                 for index, (entry, old) in enumerate(zip(entries, old_entries)):
                     record = keyed.get(cue_fingerprint(entry, index))
                     if (record and str(record.get("status")) == "completed"
-                            and len(old) >= 3 and str(old[2]).strip()):
+                            and len(old) >= 3 and str(old[2]).strip()
+                            and not translation_is_source_echo(entry[2], old[2])):
                         existing_by_key[(
                             round(float(entry[0]), 3), round(float(entry[1]), 3), index
                         )] = old[2]
