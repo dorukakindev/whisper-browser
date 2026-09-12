@@ -16,6 +16,10 @@ const vtt = cuesToVtt(cues);
 const vttResult = validateSubtitleExport(vtt, Buffer.from(vtt, 'utf8'), 'çeviri.vtt');
 assert.equal(vttResult.format, 'vtt');
 assert.equal(vttResult.bom, false);
+for (const output of [cuesToSrt([{ start: 0, end: 1, text: 'Bir\nİki' }]),
+  cuesToVtt([{ start: 0, end: 1, text: 'Bir\nİki' }])]) {
+  assert.equal(/(^|[^\r])\n/u.test(output), false, 'çok satırlı cue karma LF/CRLF üretti');
+}
 
 const ass = `[Script Info]\nScriptType: v4.00+\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.12,0:00:02.75,Default,,0,0,0,,Türkçe ğüşiöç İ`;
 assert.equal(validateSubtitleExport(ass, Buffer.from(`\uFEFF${ass}`, 'utf8'), 'çeviri.ass').format, 'ass');

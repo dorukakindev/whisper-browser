@@ -131,6 +131,10 @@ class FakeScheduler {
     'blok retry beklenmeyen hatada da düğme kilidini bırakmalı');
   assert.match(pageActionSource, /tab\.generation === generation && tab\.pageTranslateSession === session[\s\S]*pageActionResultScript/,
     'retry sonucu gezinme sırasında yeni sayfanın aynı blok kimliğine uygulanmamalı');
+  assert.match(pageActionSource, /if \(!session \|\| session\.generation !== tab\.generation\) \{ await settleRejectedRetry\(\); return; \}/,
+    'geçerli köprüden gelen retry oturumu kaybolduğunda rozet beklemede bırakılmamalı');
+  assert.match(pageActionSource, /if \(!block \|\| session\.excludedBlockIds\?\.has\(id\)\) \{ await settleRejectedRetry\(\); return; \}/,
+    'retry bloğu yenileme sırasında kaybolduğunda rozet beklemede bırakılmamalı');
   assert.match(pageActionSource, /if \(tab\.generation !== generation \|\| tab\.pageTranslateSession !== session\) return;[\s\S]*tab\.pageTranslated/,
     'eski düzenleme veya dışlama sonucu yeni sayfanın sekme durumuna yazılmamalı');
 

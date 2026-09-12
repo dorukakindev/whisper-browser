@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const {
   PDF_TRANSLATION_STATE_VERSION,
+  mapPdfItemsThroughViewport,
   textItemsToLines,
   mergePdfLines,
   mergePdfTextItems,
@@ -18,6 +19,12 @@ const {
   pdfHashFromFirstChunk,
 } = require('../src/pdf-translate');
 
+const rotatedItems = mapPdfItemsThroughViewport([
+  { str: 'Döndürülmüş', width: 50, height: 10, transform: [1, 0, 0, 10, 100, 500] },
+], { pageHeight: 600, viewportTransform: [0, 1, 1, 0, 0, 0] });
+assert.equal(rotatedItems[0].transform[4], 500);
+assert.equal(rotatedItems[0].transform[5], 500);
+
 function item(str, x, y, width = str.length * 5, height = 10, extra = {}) {
   return { str, width, height, transform: [1, 0, 0, height, x, y], ...extra };
 }
@@ -30,6 +37,10 @@ const sameLine = textItemsToLines([
 assert.equal(sameLine.length, 2);
 assert.equal(sameLine[0].text, 'Merhaba dünya.');
 assert.equal(sameLine[1].text, 'İkinci satır');
+const overhang = textItemsToLines([
+  item('Geniş', 0, 700, 200), item('Son', 50, 700, 10),
+], { pageHeight: 800 });
+assert.equal(overhang[0].width, 200, 'satır genişliği son değil en sağ parça sınırını kullanmalı');
 
 // Tireli satır sonu kayıpsız birleşir; yalnız geometrik paragraf aralığı ayırır.
 const paragraphs = mergePdfTextItems([
@@ -51,6 +62,10 @@ assert.deepEqual(mergePdfLines([
   { text: 'Birinci cümle.', x: 0, y: 100, width: 80, height: 10 },
   { text: 'Aynı paragrafın devamı.', x: 0, y: 90, width: 100, height: 10 },
 ]).map((paragraph) => paragraph.text), ['Birinci cümle. Aynı paragrafın devamı.']);
+assert.deepEqual(mergePdfLines([
+  { text: 'Ana gövde.', x: 0, y: 100, width: 80, height: 10, column: 0 },
+  { text: 'Yukarıdaki bağımsız not.', x: 0, y: 140, width: 100, height: 10, column: 0 },
+]).map((paragraph) => paragraph.text), ['Ana gövde.', 'Yukarıdaki bağımsız not.']);
 assert.equal(textItemsToLines([
   item('这', 0, 100, 8), item('是', 10, 100, 8), item('测', 20, 100, 8), item('试', 30, 100, 8),
 ])[0].text, '这是测试');

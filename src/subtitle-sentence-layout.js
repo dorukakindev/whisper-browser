@@ -10,9 +10,17 @@ function sentencePartsMatch(text, parts) {
   return joined === expected || (SPACELESS_SCRIPT.test(expected)
     && joined.replace(/\s+/g, '') === expected.replace(/\s+/g, ''));
 }
+const NON_SPEAKER_LABEL = /^(?:warning|note|chapter|answer|question|step|time|caution|tip|example|important|update|result|summary|uyarı|not|bölüm|cevap|soru|adım|saat|ipucu|örnek|önemli|güncelleme|sonuç|özet)(?:\s+\d+)?$/iu;
+function hasSpeakerLabel(text) {
+  const match = String(text || '').trim().match(/^(?:[^.!?:\n]{1,32}):\s/u);
+  if (!match) return false;
+  const label = match[0].replace(/:\s$/u, '').trim();
+  return !NON_SPEAKER_LABEL.test(label);
+}
 const protectedCue = (cue) => !Number.isFinite(Number(cue.start)) || !Number.isFinite(Number(cue.end))
   || Number(cue.end) <= Number(cue.start) || !normalizeText(cue.text)
-  || /(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)/i.test(String(cue.text || '').trim());
+  || /(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b)/i.test(String(cue.text || '').trim())
+  || hasSpeakerLabel(cue.text);
 function sentenceEnded(text) {
   text = normalizeText(text).replace(/["'“”‘’)}\]»]+$/u, '');
   if (!/[.!?…。！？]$/u.test(text)) return false;
@@ -156,6 +164,6 @@ function fitTranslationParts(text, pieces) {
   });
 }
 
-module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
+module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded, hasSpeakerLabel,
   sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest,
   sentenceTranslationGenerationParameters, sentenceTranslationMessageRole };

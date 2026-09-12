@@ -29,6 +29,16 @@ async function run() {
     { id: 'a', start: 0, end: 1, text: 'Los Angeles, yani L.A.' },
     { id: 'b', start: 1, end: 2, text: 'kentinde buluştuk.' },
   ]).length, 1, 'baş harfli kısaltma sonraki cue ile aynı cümlede kalmalı');
+  assert.equal(layout.protectedCue({ start: 0, end: 1, text: 'Warning: do not' }), false,
+    'uyarı etiketi konuşmacı adı sayılmamalı');
+  assert.equal(layout.protectedCue({ start: 0, end: 1, text: 'Note: this continues' }), false,
+    'not etiketi konuşmacı adı sayılmamalı');
+  assert.equal(layout.protectedCue({ start: 0, end: 1, text: 'JOHN: Do not move.' }), true,
+    'gerçek metinsel konuşmacı etiketi korunmalı');
+  assert.equal(assembleCueSentences([
+    { id: 'warning-a', start: 0, end: 1, text: 'Warning: do not' },
+    { id: 'warning-b', start: 1, end: 2, text: 'cross the yellow line.' },
+  ]).length, 1, 'iki noktalı normal cümle sonraki cue ile birleşmeli');
   for (const fixture of fixtures) {
     const input = fixture.entries.map(([start, end, text], id) => ({ id: String(id), start, end, text }));
     const before = JSON.stringify(input);
@@ -96,6 +106,8 @@ async function run() {
   assert.notEqual(translationCacheKey(speakerSentence), translationCacheKey({ ...speakerSentence, speaker: 'CHAR_B',
     pieces: speakerSentence.pieces.map((piece) => ({ ...piece, speaker: 'CHAR_B' })) }));
   assert.notEqual(key, translationCacheKey({ ...sentence, pieces: sentence.pieces.map((p) => ({ ...p, end: p.end + 1 })) }));
+  assert.equal(key, translationCacheKey({ ...sentence, pieces: sentence.pieces.map((p) => ({ ...p, end: p.end + 0.0004 })) }),
+    'milisaniye altı kayan nokta gürültüsü cache anahtarını değiştirmemeli');
   assert.equal(key, translationCacheKey({ ...sentence, id: 'other', pieces: sentence.pieces.map((p) => ({ ...p, cueId: 'other' })) }));
   const cache = new Map();
   let calls = 0;
@@ -152,6 +164,13 @@ async function run() {
   const fittedOutput = await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
   assert.equal(fittedOutput.parts.length, sentence.pieces.length, 'düz metin sağlayıcı yanıtı zaman bloklarına dağıtılmadı');
   assert.equal(fittedOutput.parts.join(' '), reply.text);
+  responseText = `<think>Do not expose this reasoning.</think>\n${JSON.stringify(reply)}`;
+  assert.deepEqual(
+    await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid'),
+    reply);
+  responseText = '<think>unfinished';
+  await assert.rejects(() => sandbox.requestBrowserSentenceTranslationAtEndpoint(
+    sentence, config, null, 'https://example.invalid'), /tamamlanmamış düşünme bloğu/);
   responseText = 'Merhaba.';
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');
   responseText = '{"translation":"Merhaba."}';

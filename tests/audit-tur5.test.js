@@ -65,7 +65,8 @@ function runFunction(name, context) {
   };
   const canceled = [];
   const ctx = { state: { previewSegs: [1] }, _searchTimer: 5, previewFilter: 'previous job',
-    _previewCapWarned: true, clearTimeout: (id) => canceled.push(id), $: (id) => nodes[id] };
+    _previewCapWarned: true, cancelPendingPreviewFlush() {},
+    clearTimeout: (id) => canceled.push(id), $: (id) => nodes[id] };
   runFunction('clearPreview', ctx)();
   assert.deepStrictEqual(canceled, [5]);
   assert.equal(ctx._searchTimer, null);
@@ -80,7 +81,7 @@ function runFunction(name, context) {
   const ctx = { state: { previewSegs: [
     { start: 1, end: 2, text: 'Canlı metin', speaker: 'A', confidence: 0.25,
       lowConfidenceWords: 2, translationText: 'Live text', previewActive: true },
-  ] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500,
+  ] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500, cancelPendingPreviewFlush() {},
     $: () => ({ appendChild() {}, classList: { toggle() {} } }), document: { createDocumentFragment: () => ({ appendChild() {} }) },
     createSegmentEl: () => ({ classList: { add() {} } }), applySegmentFilter() {} };
   const record = { start: 1, end: 2, text: 'Merhaba' };
@@ -128,7 +129,7 @@ function runFunction(name, context) {
   const ctx = { state: { previewSegs: [
     { start: 1, end: 2, text: 'Benim metnim', previewEdited: true },
     { start: 3, end: 4, text: 'Yeniden bölünen düzenleme', previewEdited: true },
-  ] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500,
+  ] }, playerPreviewUnmatchedEdits: [], PREVIEW_DOM_CAP: 1500, cancelPendingPreviewFlush() {},
     $: id => id === 'preview' ? preview : { classList: { toggle() {} } },
     document: { createDocumentFragment: () => ({ appendChild() {} }) },
     createSegmentEl: () => ({ classList: { add() {} } }), applySegmentFilter() {}, logLine() {},

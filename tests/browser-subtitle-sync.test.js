@@ -34,7 +34,12 @@ assert.ok(Math.abs(sourceToVideoTime(700, drift) - 708) < 1e-9);
 
 // 4-5: yakın/ters noktalar ve geçersiz dönüşümler reddedilir.
 assert.throws(() => calculateTwoPointTransform({ sourceTime: 1, videoTime: 2 }, { sourceTime: 1.2, videoTime: 3 }), /yakın/);
-assert.throws(() => calculateTwoPointTransform({ sourceTime: 2, videoTime: 3 }, { sourceTime: 1, videoTime: 4 }), /ters/);
+assert.deepEqual(calculateTwoPointTransform(
+  { sourceTime: 700, videoTime: 708 }, { sourceTime: 100, videoTime: 102 }
+).points.map((point) => point.sourceTime), [100, 700]);
+assert.throws(() => calculateTwoPointTransform(
+  { sourceTime: 2, videoTime: 3 }, { sourceTime: 1, videoTime: 4 }
+), /ters/);
 for (const transform of [{ scale: 0 }, { scale: -1 }, { scale: .24 }, { scale: 4.01 }, { scale: NaN }, { scale: Infinity }, { scale: 1, offsetSeconds: Infinity }]) {
   assert.throws(() => normalizeTransform(transform));
 }
@@ -122,6 +127,13 @@ assert.deepEqual(clippedAtStart.map(({ start, end, text }) => ({ start, end, tex
 ]);
 assert.equal(exportWarnings.length, 1, 'video başlangıcında kırpılan cue kullanıcıya bildirilmedi');
 assert.match(exportWarnings[0], /1.*başlangıcında/i);
+const invalidWarnings = [];
+assert.deepEqual(transformCuesForExport([
+  { start: 1, end: 2, text: 'Korunan' },
+  { start: 3, end: 3, text: 'Bozuk' },
+], { scale: 1, offsetSeconds: 0 }, (message) => invalidWarnings.push(message))
+  .map((cue) => cue.text), ['Korunan']);
+assert.match(invalidWarnings[0], /1.*geçersiz/i);
 assert.throws(() => transformCuesForExport([
   { start: 0.25, end: 0.4, text: 'Tamamen video öncesi' },
 ], { scale: 1, offsetSeconds: -0.5 }), /geçerli.*kalmadı/i);

@@ -7,10 +7,11 @@
 
   const WORD = /[\p{L}\p{N}_]/u;
 
-  // watch-index.js ile ayni arama semantigi: NFKC + Turkce case-fold.
+  // NFKC + Türkçe case-fold. Bul/değiştir eşleşmeleri metni değiştirdiği için
+  // arama indeksindeki bulanık eşleşmenin aksine ı ve i kimliği korunur.
   function foldSearchText(value, caseSensitive = false) {
     const normalized = String(value == null ? '' : value).normalize('NFKC');
-    return caseSensitive ? normalized : normalized.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
+    return caseSensitive ? normalized : normalized.toLocaleLowerCase('tr-TR');
   }
 
   function codePointBoundaries(text) {

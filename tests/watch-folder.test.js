@@ -63,7 +63,10 @@ test('önceden okunmuş çıktı dizini dil ekli dosya aramasında yeniden kulla
   const video = path.join('D:\\medya', 'film.mkv');
   assert.equal(hasConfiguredWatchOutput(video, {
     formats: 'srt,vtt', langSuffix: true, outputDir: 'D:\\cikti',
-  }, () => false, ['film.fr.vtt']), true);
+  }, () => false, ['film.fr.srt', 'film.fr.vtt']), true);
+  assert.equal(hasConfiguredWatchOutput(video, {
+    formats: 'srt,vtt', langSuffix: true, outputDir: 'D:\\cikti',
+  }, () => false, ['film.fr.vtt']), false);
 });
 
 test('sabit dosya yalnızca bir kez kuyruğa bildirilir', () => {

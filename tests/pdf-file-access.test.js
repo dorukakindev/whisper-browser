@@ -15,6 +15,12 @@ try {
   assert.equal(access.grant(valid), fs.realpathSync(valid));
   assert.equal(access.has(valid), true);
 
+  const prefixed = path.join(root, 'bomlu.pdf');
+  fs.writeFileSync(prefixed, Buffer.concat([
+    Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('%PDF-1.7\n', 'ascii'),
+  ]));
+  assert.equal(access.inspect(prefixed), fs.realpathSync(prefixed));
+
   const wrongSignature = path.join(root, 'bozuk.pdf');
   fs.writeFileSync(wrongSignature, Buffer.from('not-a-pdf', 'ascii'));
   assert.throws(() => access.inspect(wrongSignature), /PDF imzası/);

@@ -170,7 +170,7 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
     const proc = new EventEmitter(); proc.stdout = new EventEmitter();
     let timeout, killed = 0;
     const probe = handler('media:probeTracks', { authorizedBrowserSender: () => true,
-      resolveFfTool: () => 'ffprobe', spawn: () => proc,
+      resolveFfTool: () => 'ffprobe', authorizeLocalMediaPath: (value) => value, spawn: () => proc,
       setTimeout: fn => { timeout = fn; return { unref() {} }; }, clearTimeout() {},
       terminateProcessTree: () => { killed++; }, parseSubtitleStreams: () => [], subtitleTrackLabel: () => '',
     });

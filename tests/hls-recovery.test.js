@@ -110,9 +110,25 @@ test('uzun event boşluğu ve seek sıçraması kararlılık ölçümüne eklenm
   machine.playbackProgress(1, 1000);
   machine.playbackProgress(20, 2000); // seek: bir saniyede 19 saniye
   assert.equal(machine.snapshot().stableElapsedMs, 0);
-  machine.playbackProgress(21, 5000); // stall/throttle: 3 saniyelik event boşluğu
-  assert.equal(machine.snapshot().stableElapsedMs, 0);
+  machine.playbackProgress(21, 5000); // throttle: video yalnız 1 saniye ilerledi
+  assert.equal(machine.snapshot().stableElapsedMs, 1000,
+    'arka plan throttle aralığında yalnız kanıtlanan medya ilerlemesi sayılmalı');
   assert.equal(machine.snapshot().mediaAttempts, 1);
+});
+
+test('aynı kare örnekleri kararlılık penceresini silmez', () => {
+  const machine = createHlsRecoveryState({ stableMs: 1000 });
+  machine.sourceChanged('video-a');
+  const attempt = machine.beginRecovery('network');
+  machine.completeRecovery(attempt.token);
+  machine.playbackStarted(0, 0);
+  machine.playbackProgress(.25, 250);
+  machine.playbackProgress(.25, 260);
+  assert.equal(machine.snapshot().stableElapsedMs, 250);
+  machine.playbackProgress(.5, 500);
+  machine.playbackProgress(.75, 750);
+  assert.equal(machine.playbackProgress(1, 1000).reset, false);
+  assert.equal(machine.playbackProgress(1.01, 1010).reset, true);
 });
 
 test('kaynak değişimi geç başarı tokenını reddeder ve bütçeleri sıfırlar', () => {

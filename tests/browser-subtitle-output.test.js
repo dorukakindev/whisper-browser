@@ -33,16 +33,18 @@ assert.equal(parsedVtt[1].text, cues[1].text);
 
 const ass = cuesToAss([{ start: 1, end: 2, text: 'Virgül, süslü {metin}\nalt satır' }]);
 assert.match(ass, /Dialogue: 0,0:00:01\.00,0:00:02\.00/);
-assert.match(ass, /Virgül, süslü ｛metin｝\\Nalt satır/);
+assert.match(ass, /Virgül, süslü \\\{⁠metin\\\}⁠\\Nalt satır/);
 
 const corrupted = srt.text.replace('00:00:02,875', '00:00:12,875');
 const bracedAss = buildBrowserSubtitleDocument([
   { start: 1, end: 2, text: 'Sahne {notu}\nalt satır' },
 ], 'ass');
-assert.match(bracedAss.text, /｛notu｝/);
-assert.doesNotMatch(bracedAss.text, /\\\{/);
+assert.match(bracedAss.text, /\\\{⁠notu\\\}⁠/);
 assert.equal(parseSubtitlePayload(bracedAss.text, '', 'test.ass').cues[0].text,
-  'Sahne ｛notu｝\nalt satır');
+  'Sahne {notu}\nalt satır');
+const pathAss = buildBrowserSubtitleDocument([{ start: 0, end: 1, text: 'C:\\Users\\Name\\Note ve \\h' }], 'ass');
+assert.equal(parseSubtitlePayload(pathAss.text, '', 'test.ass').cues[0].text,
+  'C:\\Users\\Name\\Note ve \\h');
 assert.equal(validateBrowserSubtitleDocument(corrupted, 'srt', cues).ok, false);
 assert.throws(() => buildBrowserSubtitleDocument([], 'srt'), /altyazı yok/i);
 

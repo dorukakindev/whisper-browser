@@ -50,6 +50,12 @@ assert.strictEqual(context.BrowserPlaceUrl.safePlaceUrl('https://a.test/?utm_sou
 
 // Raporun yanlış yardımcıyla denediği adres çubuğunun gerçek uygulamasını çalıştır.
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+assert.match(main, /parsedParts\[0\]\.targetDuration \|\| parsedParts\[0\]\.duration/,
+  'HLS sequence boşluğunda hedef süre yoksa gerçek segment süresi kullanılmalı');
+assert.doesNotMatch(main, /width: Math\.max\(320, Math\.round\(size\.width \* scale\)\)/,
+  'manga küçültme iki eksene ayrı minimum uygulayıp oranı bozmamalı');
+assert.match(main, /candidate\.dashTrack\?\.streamKey \|\| browserTrackStreamKey/,
+  'DASH parçaları manifestteki ortak iz anahtarıyla birleşmeli');
 const start = main.indexOf('function normalizeBrowserUrl(raw)');
 const end = main.indexOf('function browserPopupWindowOptions()', start);
 const navigate = vm.runInNewContext(main.slice(start, end) + '\nnormalizeBrowserUrl;', { URL, encodeURIComponent });

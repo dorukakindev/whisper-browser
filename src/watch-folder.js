@@ -44,19 +44,19 @@ function watchOutputNames(videoPath, config) {
 }
 
 function hasConfiguredWatchOutput(videoPath, config, exists = (filePath) => false, directoryEntries = null) {
-  const { names, outputDir, stem } = watchOutputNames(videoPath, config);
+  const { outputDir, stem } = watchOutputNames(videoPath, config);
   const normalized = normalizeWatchOutputConfig(config);
-  const candidates = names
-    .filter((name) => !name.includes('<lang>'))
-    .map((name) => path.join(outputDir, name));
-  if (candidates.some(exists)) return true;
-  if (!normalized.langSuffix) return false;
   const escapedStem = stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   let entries = Array.isArray(directoryEntries) ? directoryEntries : null;
-  if (!entries) {
+  if (normalized.langSuffix && !entries) {
     try { entries = require('fs').readdirSync(outputDir); } catch (_) { return false; }
   }
-  return normalized.formats.some((format) => {
+  return normalized.formats.every((format) => {
+    const exact = [stem, `${stem}.dual`, `${stem}.ceviri`, `${stem}.tr`, `${stem}.en`,
+      ...(normalized.translateTo ? [`${stem}.${normalized.translateTo}`] : [])]
+      .map((name) => path.join(outputDir, `${name}.${format}`));
+    if (exact.some(exists)) return true;
+    if (!normalized.langSuffix) return false;
     const pattern = new RegExp(`^${escapedStem}\\.[a-z]{2,3}(?:-[a-z]{2,4})?\\.${format}$`, 'i');
     return entries.some((entry) => pattern.test(entry));
   });

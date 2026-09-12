@@ -28,9 +28,11 @@ test('Türkçe büyük küçük harf NFKC fold ile eşleşir', () => {
   assert.equal(foldSearchText('İ'), 'i');
 });
 
-test('İngilizce büyük I küçük i sorgusuyla eşleşir', () => {
-  assert.deepEqual(literalRanges('It is inside', 'it'), [{ start: 0, end: 2 }]);
-  assert.equal(literalRanges('I think so', 'i', { wholeWord: true }).length, 1);
+test('Türkçe ı ve i bul-değiştir sırasında birbirine karışmaz', () => {
+  assert.equal(foldSearchText('ılık'), 'ılık');
+  assert.equal(foldSearchText('ilik'), 'ilik');
+  assert.deepEqual(literalRanges('ılık ilik sık sik', 'ilik'), [{ start: 5, end: 9 }]);
+  assert.deepEqual(literalRanges('IĞDIR İzmir', 'ığdır'), [{ start: 0, end: 5 }]);
 });
 
 test('özel karakterler regex değil düz metindir', () => {

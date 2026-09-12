@@ -22,6 +22,30 @@ function pageWidthFrom(options = {}) {
   return Math.max(0, finiteNumber(options.pageWidth ?? options.viewport?.width));
 }
 
+function mapPdfItemsThroughViewport(items, options = {}) {
+  if (!Array.isArray(items)) return [];
+  const matrix = Array.isArray(options.viewportTransform) ? options.viewportTransform.slice(0, 6).map(Number) : [];
+  const height = pageHeightFrom(options);
+  if (matrix.length !== 6 || matrix.some((value) => !Number.isFinite(value)) || !height) {
+    return items.map((item) => ({ ...item,
+      transform: Array.isArray(item?.transform) ? item.transform.slice(0, 6) : [] }));
+  }
+  return items.map((item) => {
+    const transform = Array.isArray(item?.transform) ? item.transform.slice(0, 6).map(Number) : [];
+    if (transform.length !== 6 || transform.some((value) => !Number.isFinite(value))) {
+      return { ...item, transform: [] };
+    }
+    const x = transform[4], y = transform[5];
+    const viewportX = matrix[0] * x + matrix[2] * y + matrix[4];
+    const viewportY = matrix[1] * x + matrix[3] * y + matrix[5];
+    transform[4] = viewportX;
+    // textItemsToLines kendi Kartezyen sözleşmesinde üst satırı büyük Y ile
+    // sıralar; PDF.js viewport Y'si aşağı arttığı için ekseni geri çevir.
+    transform[5] = height - viewportY;
+    return { ...item, transform };
+  });
+}
+
 function itemGeometry(item, index) {
   const transform = Array.isArray(item?.transform) ? item.transform : [];
   const transformHeight = Math.hypot(finiteNumber(transform[2]), finiteNumber(transform[3]));
@@ -104,6 +128,7 @@ function textItemsToLines(items, options = {}) {
     for (const [partIndex, fragment] of fragments.entries()) {
       const first = fragment[0];
       const last = fragment.at(-1);
+      const rightEdge = Math.max(...fragment.map((item) => item.x + item.width));
       if (partIndex > 0) {
         const previous = fragments[partIndex - 1].at(-1);
         gutters.push({
@@ -118,7 +143,7 @@ function textItemsToLines(items, options = {}) {
         text,
         x: first.x,
         y: line.y,
-        width: Math.max(0, last.x + last.width - first.x),
+        width: Math.max(0, rightEdge - first.x),
         height: line.height,
         pageHeight,
         pageWidth,
@@ -234,7 +259,8 @@ function mergePdfLines(rawLines, options = {}) {
     const columnChanged = Number.isInteger(previous.column) && Number.isInteger(next.column)
       && previous.column !== next.column;
     const splitRow = previous.rowGroup === next.rowGroup && previous.rowPart !== next.rowPart;
-    const startsNewParagraph = !hyphenated && (columnChanged || splitRow || gap > paragraphGap);
+    const startsNewParagraph = !hyphenated && (columnChanged || splitRow
+      || gap > paragraphGap || gap < -fallbackGap * 2);
     if (startsNewParagraph) {
       paragraphs.push(paragraphFrom(current, pageNumber, paragraphs.length));
       current = [next];
@@ -440,6 +466,7 @@ function pdfHashFromFirstChunk(fileSize, firstChunk) {
 module.exports = {
   PDF_TRANSLATION_STATE_VERSION,
   PDF_HASH_CHUNK_BYTES,
+  mapPdfItemsThroughViewport,
   textItemsToLines,
   mergePdfLines,
   mergePdfTextItems,
