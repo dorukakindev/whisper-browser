@@ -19,12 +19,17 @@ test('kapalı, gizli ve duraklatılmış durumda sürekli frame planlamaz', () =
   assert.match(script, /document\.hidden \|\| state\.mode === 'off' \|\| !media \|\| media\.paused/);
   assert.match(script, /state\.mode === 'off'\) \{[\s\S]*?cancelFrame/);
   assert.match(script, /requestVideoFrameCallback/);
+  assert.match(script, /const nextCueBoundary = boundaries\.length \? Math\.min/);
+  assert.match(script, /boundaryTimer = setTimeout/);
+  assert.doesNotMatch(script, /const callback = \(\) => \{[\s\S]{0,120}render\(\);[\s\S]{0,120}requestVideoFrameCallback\(callback\)/);
 });
 
 test('oynatıcı zamanı ve iki bağımsız iz dönüşümü finite olmayan sayfalı değerlerden korunur', () => {
   assert.match(script, /const finite = \(value, fallback = 0\)/);
   assert.match(script, /videoToSource\(videoTime, state\.sourceTransform\)/);
   assert.match(script, /videoToSource\(videoTime, state\.translationTransform\)/);
+  assert.match(script, /sourceToVideo\(raw, transform\)/);
+  assert.match(script, /nextCueBoundary - videoTime/);
   assert.match(script, /if \(scale <= 0\) return finite\(videoTime\) - finite\(state\.offset, 0\)/);
 });
 
@@ -83,16 +88,27 @@ test('DOM değişiklikleri tek animation frame içinde birleştirilir', () => {
 test('yeniden enjeksiyon yeni controller üretmeden state günceller', () => {
   assert.match(script, /existing && typeof existing\.update === 'function'/);
   assert.match(script, /existing\.update\(nextState\)/);
+  assert.match(script, /update\(value\) \{\s*\/\/[^\n]*\n\s*cancelFrame\(\);\s*\n\s*state = value/);
+});
+test('saydamlık sıfır değeri varsayılanla ezilmez', () => {
+  assert.match(buildBrowserOverlayScript({ mode: 'source', style: { opacity: 0 } }, '(cues) => cues'),
+    /Number\.isFinite\(rawOpacity\) \? rawOpacity : \.82/);
 });
 
 test('web altyazısı basılı tutularak taşınır ve yeni konum uygulamaya bildirilir', () => {
   assert.match(script, /addEventListener\('pointerdown'/);
   assert.match(script, /setPointerCapture/);
+  assert.match(script, /window\.addEventListener\('pointerup', finishDrag, true\)/);
+  assert.match(script, /window\.addEventListener\('blur', cancelDrag, true\)/);
+  assert.match(script, /lostpointercapture/);
+  assert.match(script, /detachDragListeners/);
   assert.match(script, /__whisperTrustedBridgeSend\?\.\('overlay-style'/);
   assert.equal((script.match(/!event\.isTrusted/g) || []).length, 3);
   assert.doesNotMatch(script, /__WHISPER_BROWSER_OVERLAY_STYLE__/);
   assert.match(script, /Math\.min\(75/);
   assert.match(script, /style\.pointerEvents = 'auto'/);
+  assert.match(script, /boxSizing = 'content-box'/);
+  assert.match(script, /maxHeight = 'calc\('/);
   assert.match(script, /const baseMargin = Math\.min\(96, Math\.max\(20, rect\.height \* \.09\)\)/);
   assert.doesNotMatch(script, /Math\.max\(96, rect\.height \* \(bottomOffset/);
 });

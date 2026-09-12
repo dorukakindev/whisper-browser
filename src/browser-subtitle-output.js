@@ -13,7 +13,12 @@ function assTime(seconds) {
 }
 
 function escapeAssText(value) {
-  return String(value || '').replace(/\r?\n/g, '\\N').replace(/\{/g, '｛').replace(/\}/g, '｝');
+  return String(value || '')
+    .replace(/\\(?=[Nnh])/g, '\\⁠')
+    // İşaretçi, üçüncü taraf bozuk ASS içindeki sıradan \\{ dizilerinden
+    // ayırarak kendi çıktımızı birebir geri okuyabilmemizi sağlar.
+    .replace(/\{/g, '\\{⁠').replace(/\}/g, '\\}⁠')
+    .replace(/\r?\n/g, '\\N');
 }
 
 function cuesToAss(cues) {

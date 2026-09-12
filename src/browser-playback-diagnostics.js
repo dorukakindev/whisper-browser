@@ -144,7 +144,7 @@ function inferPlaybackResource(details = {}) {
   // yanlış kesinleştirir; buna karşılık license.* / .../wv yaygın gerçek şekildir.
   const requestLike = !type || /^(xhr|fetch|other|websocket)$/.test(type);
   const licenseHost = /(?:^|[.-])(?:license|licence|widevine|drm)(?:[.-]|$)/i.test(host);
-  const licensePath = /(?:^|[\/_-])(?:license|licence|widevine|drm)(?:[\/_?&=.-]|$)|(?:^|\/)(?:getlicense|acquirelicense|wv|cdm|keys?)(?:[\/_?&=.-]|$)/i.test(path);
+  const licensePath = /(?:^|[\/_-])(?:license|licence|widevine|drm)(?:[\/_?&=.-]|$)|(?:^|\/)(?:getlicense|acquirelicense|wv|cdm)(?:[\/_?&=.-]|$)/i.test(path);
   if (requestLike && (licenseHost || licensePath)) return 'license';
   if (/^(mainframe|document)$/.test(type)) return 'document';
   if (type === 'subframe' && /(?:^|[\/_-])(?:embed|player|playback|stream|video|watch)(?:[\/_?&=.-]|$)/i.test(path)) {

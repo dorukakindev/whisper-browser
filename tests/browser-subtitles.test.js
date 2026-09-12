@@ -197,6 +197,16 @@ test('namespace kullanan TTML içerik MIME ipucu olmadan da tanınır', () => {
   assert.deepEqual(result.cues, [{ start: 1, end: 2, text: 'Metin' }]);
 });
 
+test('bozuk TTML namespace kapanışını komşu paragrafları yutmadan tolere eder', () => {
+  const result = parseSubtitlePayload(
+    '<tt:tt xmlns:tt="urn:tt"><tt:body><tt:p begin="1s" end="2s">Bir</p><tt:p begin="3s" end="4s">İki</tt:p></tt:body></tt:tt>',
+    'application/ttml+xml', 'https://cdn.test/mixed-prefix.ttml');
+  assert.deepEqual(result.cues, [
+    { start: 1, end: 2, text: 'Bir' },
+    { start: 3, end: 4, text: 'İki' },
+  ]);
+});
+
 test('yaygın adlandırılmış HTML entity değerlerini çözer', () => {
   const result = parseSubtitlePayload('WEBVTT\n\n00:00.000 --> 00:01.000\nTom&nbsp;&amp;&nbsp;Jerry &copy;',
     'text/vtt', 'https://cdn.test/entities.vtt');
@@ -232,6 +242,13 @@ test('ayraçsız zaman bloklarında rakamdan oluşan diyalog satırı kaybolmaz'
   assert.deepEqual(result.cues.map((cue) => cue.text), ['Geri sayım:\n3', 'Bitti']);
 });
 
+test('numarasız başlayan kompakt SRT sonraki sıra numarasını metne sızdırmaz', () => {
+  const result = parseSubtitlePayload(
+    '00:00:01,000 --> 00:00:02,000\nİlk\n2\n00:00:03,000 --> 00:00:04,000\nİkinci',
+    'application/x-subrip', 'https://cdn.test/compact.srt');
+  assert.deepEqual(result.cues.map((cue) => cue.text), ['İlk', 'İkinci']);
+});
+
 test('cue normalizasyonu konuşmacı ve kimlik metadatasını korur', () => {
   assert.deepEqual(normalizeCues([{ start: 1, end: 2, text: 'Merhaba', speaker: 'Alice', id: 'cue-1' }]),
     [{ start: 1, end: 2, text: 'Merhaba', speaker: 'Alice', id: 'cue-1' }]);
@@ -262,6 +279,18 @@ test('SAMI kapanış etiketleri son diyalog metnine sızmaz', () => {
   assert.equal(cues.at(-1).text, 'Son');
 });
 
+test('çok dilli SAMI bloklarında ilk dil izini tutarlı biçimde seçer', () => {
+  const cues = parseSami('<SAMI><BODY>'
+    + '<SYNC Start=1000><P Class=ENCC>Hello</P><P Class=TRCC>Merhaba</P></SYNC>'
+    + '<SYNC Start=3000><P Class=ENCC>World</P><P Class=TRCC>Dünya</P></SYNC>'
+    + '<SYNC Start=5000><P Class=ENCC>&nbsp;</P><P Class=TRCC>&nbsp;</P></SYNC>'
+    + '</BODY></SAMI>');
+  assert.deepEqual(cues.map(({ start, end, text }) => ({ start, end, text })), [
+    { start: 1, end: 3, text: 'Hello' },
+    { start: 3, end: 5, text: 'World' },
+  ]);
+});
+
 test('tırnaksız timed-text nitelikleri zaman damgasını korur', () => {
   const result = parseSubtitlePayload('<tt><body><div><p t=1500 d=2000>Tırnaksız</p></div></body></tt>',
     'application/ttml+xml', 'https://cdn.test/unquoted.ttml');
@@ -276,6 +305,26 @@ test('TTML kapsayıcı begin zamanını alt p cue zamanına ekler', () => {
   const result = parseSubtitlePayload('<tt><body begin="10s"><div begin="2s"><p begin="1s" dur="2s">İç içe</p></div></body></tt>',
     'application/ttml+xml', 'https://cdn.test/nested.ttml');
   assert.deepEqual(result.cues, [{ start: 13, end: 15, text: 'İç içe' }]);
+});
+
+test('IMSC bölge, konum, boyut ve yazım yönünü cue metadata’sında korur', () => {
+  const xml = `<?xml version="1.0"?><tt xmlns:tts="urn:ttml:styling"><head><styling>
+    <style xml:id="vertical" tts:writingMode="tbrl" tts:textAlign="center"/>
+    </styling><layout>
+    <region xml:id="left" tts:origin="5% 70%" tts:extent="40% 20%"/>
+    <region xml:id="right" style="vertical" tts:origin="55% 70%" tts:extent="40% 20%"/>
+    </layout></head><body><div>
+    <p begin="1s" end="2s" region="left">Aynı</p>
+    <p begin="1s" end="2s" region="right">Aynı</p>
+    </div></body></tt>`;
+  const cues = parseSubtitlePayload(xml, 'application/ttml+xml', 'https://cdn.test/imsc.ttml').cues;
+  assert.equal(cues.length, 2);
+  assert.deepEqual(cues.map((cue) => cue.region), ['left', 'right']);
+  assert.equal(cues[0].position, '5%');
+  assert.equal(cues[0].line, '70%');
+  assert.equal(cues[0].regionExtent, '40% 20%');
+  assert.equal(cues[1].writingMode, 'tbrl');
+  assert.equal(cues[1].align, 'center');
 });
 
 test('Windows-1254 ağ altyazısı Türkçe karakterleriyle çözülür', () => {
@@ -371,6 +420,43 @@ test('Canlı ASR aynı başlangıçlı düzeltme hipotezini son cue üzerine yaz
   assert.notEqual(merged, previous, 'önceki dizi korunmalı');
   assert.deepEqual(previous, [{ id: 'live-1', start: 10, end: 11, text: 'Merhaba' }]);
   assert.deepEqual(merged, [{ id: 'live-1b', start: 10.005, end: 12, text: 'Merhaba dünya' }]);
+});
+
+test('büyüyen canlı altyazı gecikmiş kısa prefix yanıtıyla geriye dönmez', () => {
+  const current = [{ start: 10, end: 13, text: "Bugün Sidney'de sınır görevlileri" }];
+  const stale = mergeBrowserStreamCues(current,
+    [{ start: 10.005, end: 12.9, text: "Bugün Sidney'de" }]);
+  assert.deepEqual(stale, current);
+  const correction = mergeBrowserStreamCues(current,
+    [{ start: 10.005, end: 13, text: "Bugün Sydney'de sınır görevlileri" }]);
+  assert.equal(correction[0].text, "Bugün Sydney'de sınır görevlileri");
+});
+
+test('komşu segmentte yinelenen aynı cueyu uzatır', () => {
+  const merged = mergeBrowserStreamCues(
+    [{ start: 4, end: 6, text: 'Devam eden cümle', sourceMode: 'pop-on' }],
+    [{ start: 6.05, end: 8, text: 'Devam eden cümle', sourceMode: 'pop-on' }]);
+  assert.deepEqual(merged, [{ start: 4, end: 8, text: 'Devam eden cümle', sourceMode: 'pop-on' }]);
+});
+
+test('farklı caption modu ve konuşmacı aynı metin olsa da korunur', () => {
+  const modes = mergeBrowserStreamCues(
+    [{ start: 1, end: 3, text: 'Evet', sourceMode: 'pop-on' }],
+    [{ start: 2.9, end: 4, text: 'Evet', sourceMode: 'roll-up' }]);
+  assert.equal(modes.length, 2);
+  const speakers = normalizeCues([
+    { start: 5, end: 7, text: 'Merhaba', speaker: 'A' },
+    { start: 5.2, end: 7.2, text: 'Merhaba', speaker: 'B' },
+  ]);
+  assert.equal(speakers.length, 2);
+});
+
+test('HLS reklam veya bölüm discontinuity sınırındaki aynı metin birleşmez', () => {
+  const merged = mergeBrowserStreamCues(
+    [{ start: 10, end: 12, text: 'Birazdan devam edeceğiz.', discontinuity: 0 }],
+    [{ start: 12, end: 14, text: 'Birazdan devam edeceğiz.', discontinuity: 1 }]);
+  assert.equal(merged.length, 2);
+  assert.deepEqual(merged.map((cue) => cue.discontinuity), [0, 1]);
 });
 
 test('Genel altyazı JSON zaman kodlarını saat:dakika:saniye biçiminde ayrıştırır', () => {
@@ -500,6 +586,25 @@ test('DASH parçalı altyazı eşleştiricisi video segmentlerini dışarıda b�
   const initMatcher = parseDashSubtitleMatchers(initOnly, 'https://cdn.test/movie/a.mpd')[0];
   assert.equal(initMatcher.timescale, 0);
   assert.equal(initMatcher.initializationUrl, 'https://cdn.test/movie/cc/en/init.mp4');
+  for (const formatter of ['%d', '%u']) {
+    const plain = `<MPD><Period><AdaptationSet contentType="text"><SegmentTemplate media="cc/$Number${formatter}$.m4s"/><Representation id="tr"/></AdaptationSet></Period></MPD>`;
+    assert.ok(matchDashSubtitleUrl('https://cdn.test/cc/12.m4s',
+      parseDashSubtitleMatchers(plain, 'https://cdn.test/a.mpd')), formatter);
+  }
+});
+
+test('DASH SegmentList altyazı parçalarını tek iz ve doğru sıra ofsetiyle eşleştirir', () => {
+  const mpd = '<MPD><Period><AdaptationSet contentType="text" lang="tr" codecs="wvtt">'
+    + '<Representation id="std"><BaseURL>subs/</BaseURL><SegmentList timescale="1000" duration="2000" startNumber="5">'
+    + '<Initialization sourceURL="init.mp4"/><SegmentURL media="a.m4s"/><SegmentURL media="b.m4s"/>'
+    + '</SegmentList></Representation></AdaptationSet></Period></MPD>';
+  const matchers = parseDashSubtitleMatchers(mpd, 'https://cdn.test/movie/manifest.mpd');
+  assert.equal(matchers.length, 2);
+  const second = matchDashSubtitleUrl('https://cdn.test/movie/subs/b.m4s?token=x', matchers);
+  assert.equal(second.segmentValue, 6);
+  assert.equal(dashSegmentOffset(second), 2);
+  assert.equal(second.initializationUrl, 'https://cdn.test/movie/subs/init.mp4');
+  assert.equal(matchers[0].streamKey, matchers[1].streamKey);
 });
 
 test('Segment zaman kararı mutlak cueyu ikinci kez kaydırmaz', () => {
@@ -518,6 +623,11 @@ test('Aynı anda etkin olan çakışan altyazıların tamamını korur', () => {
   assert.deepEqual(browserActiveCuesAt(cues, 3).map((cue) => cue.text),
     ['Konuşmacı bir', 'Konuşmacı iki']);
   assert.deepEqual(browserActiveCuesAt(cues, 5.5), []);
+});
+
+test('DASH base URL çözülemediğinde boş adresli sahte iz üretmez', () => {
+  const mpd = '<MPD><Period><AdaptationSet mimeType="application/ttml+xml"><Representation id="tr"><BaseURL>subs/tr.ttml</BaseURL></Representation></AdaptationSet></Period></MPD>';
+  assert.deepEqual(parseDashSubtitleTracks(mpd, ''), []);
 });
 
 test('bitiş anında eski cue kapanır ve yalnız komşu cue etkin kalır', () => {
@@ -584,6 +694,29 @@ test('DASH wvtt MP4 örneklerini gerçek trun zamanlarıyla ayrıştırır', () 
     box('mvhd', mvhd), box('trak', box('mdia', box('mdhd', mdhd))),
   ]));
   assert.equal(parseMp4Timescale(movieAndTrackInit), 1000);
+  const track = (trackId, timescale, handler) => {
+    const tkhd = Buffer.alloc(16); tkhd.writeUInt32BE(trackId, 12);
+    const trackMdhd = Buffer.alloc(20); trackMdhd.writeUInt32BE(timescale, 12);
+    const hdlr = Buffer.alloc(12); hdlr.write(handler, 8, 4, 'ascii');
+    return box('trak', Buffer.concat([
+      box('tkhd', tkhd), box('mdia', Buffer.concat([box('mdhd', trackMdhd), box('hdlr', hdlr)])),
+    ]));
+  };
+  const multiTrackInit = box('moov', Buffer.concat([
+    track(1, 90000, 'vide'), track(2, 1000, 'text'),
+  ]));
+  assert.equal(parseMp4Timescale(multiTrackInit), 1000,
+    'çok kanallı init segmentinde video değil altyazı zaman ölçeği seçilmeli');
+  const subtitleTfhdPayload = Buffer.alloc(4); subtitleTfhdPayload.writeUInt32BE(2);
+  const subtitleTraf = box('traf', Buffer.concat([
+    box('tfhd', full(0, subtitleTfhdPayload)), box('tfdt', full(0, tfdtPayload)),
+    box('trun', full(0x300, rows)),
+  ]));
+  assert.deepEqual(parseMp4WebVtt(Buffer.concat([
+    multiTrackInit, box('moof', subtitleTraf), box('mdat', Buffer.concat([first, second])),
+  ]), {}), [
+    { start: 6, end: 8, text: 'Bir' }, { start: 8, end: 10, text: 'İki' },
+  ]);
   assert.deepEqual(parseMp4WebVtt(fragment, {}), []);
   const secondTfdt = Buffer.alloc(4); secondTfdt.writeUInt32BE(10000);
   const secondRows = Buffer.alloc(12); secondRows.writeUInt32BE(1);
@@ -663,6 +796,13 @@ test('JSON manifest içindeki timed-text URLlerini false positive üretmeden bul
   assert.deepEqual(findSubtitleUrls(JSON.stringify({ language: 'en', value: 'en/US' }), 'https://media.test/'), []);
   assert.deepEqual(findSubtitleUrls(JSON.stringify({ caption: 'captions/en.vtt' }), 'https://media.test/'),
     ['https://media.test/captions/en.vtt']);
+});
+
+test('altyazı alanındaki uzantısız göreli REST yolunu çözer', () => {
+  assert.deepEqual(findSubtitleUrls(JSON.stringify({ subtitles: { url: 'api/v1/subtitles?track=tr' } }),
+    'https://player.test/watch/1'), ['https://player.test/watch/api/v1/subtitles?track=tr']);
+  assert.deepEqual(findSubtitleUrls(JSON.stringify({ title: 'api/v1/not-a-resource?x=1' }),
+    'https://player.test/watch/1'), []);
 });
 
 test('ASS, SAMI ve LRC metinleri ortak cue modeline dönüştürür', () => {

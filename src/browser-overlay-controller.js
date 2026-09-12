@@ -19,6 +19,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     let mediaDirty = true;
     let frameToken = 0;
     let frameKind = '';
+    let boundaryTimer = 0;
     let mutationFrame = 0;
     let resizeObserver = null;
     let drag = null;
@@ -42,6 +43,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (scale <= 0) return finite(videoTime) - finite(state.offset, 0);
       return (finite(videoTime) - offsetSeconds) / scale;
     };
+    const sourceToVideo = (sourceTime, rawTransform) => {
+      const scale = finite(rawTransform && rawTransform.scale, 1);
+      const offsetSeconds = finite(rawTransform && rawTransform.offsetSeconds, finite(state.offset, 0));
+      return scale > 0 ? finite(sourceTime) * scale + offsetSeconds : finite(sourceTime) + finite(state.offset, 0);
+    };
 
     const bindDrag = (item) => {
       if (!item || item.dataset.whisperDragBound === 'true') return;
@@ -51,25 +57,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       item.style.cursor = 'grab';
       item.style.touchAction = 'none';
       item.style.userSelect = 'none';
-      item.addEventListener('pointerdown', (event) => {
-        if (!event.isTrusted || event.button !== 0) return;
-        const activeMedia = discoverMedia();
-        const measured = activeMedia?.getBoundingClientRect?.();
-        const height = measured?.height > 2 ? measured.height : innerHeight;
-        const current = Number(state.style?.bottomOffset);
-        drag = {
-          pointerId: event.pointerId, startY: event.clientY,
-          startOffset: Number.isFinite(current) ? current : 8,
-          bottomOffset: Number.isFinite(current) ? current : 8,
-          height: Math.max(1, height), moved: false,
-        };
-        item.style.cursor = 'grabbing';
-        try { item.setPointerCapture(event.pointerId); } catch (_) {}
-        event.preventDefault();
-        event.stopPropagation();
-      });
-      item.addEventListener('pointermove', (event) => {
-        if (!event.isTrusted || !drag || drag.pointerId !== event.pointerId) return;
+      const moveDrag = (event) => {
+        if (!event.isTrusted || !drag || drag.item !== item || drag.pointerId !== event.pointerId) return;
         const delta = drag.startY - event.clientY;
         if (Math.abs(delta) >= 3) drag.moved = true;
         drag.bottomOffset = Math.max(0, Math.min(75,
@@ -80,15 +69,24 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         }
         event.preventDefault();
         event.stopPropagation();
-      });
-      const finishDrag = (event, canceled = false) => {
-        if (!event.isTrusted || !drag || drag.pointerId !== event.pointerId) return;
+      };
+      const detachDragListeners = () => {
+        window.removeEventListener('pointermove', moveDrag, true);
+        window.removeEventListener('pointerup', finishDrag, true);
+        window.removeEventListener('pointercancel', cancelDrag, true);
+        window.removeEventListener('blur', cancelDrag, true);
+      };
+      const endDrag = (event, canceled = false, forced = false) => {
+        if ((!forced && !event.isTrusted) || !drag || drag.item !== item
+            || (!forced && drag.pointerId !== event.pointerId)) return;
+        const pointerId = drag.pointerId;
         const { bottomOffset, startOffset, moved } = drag;
         drag = null;
+        detachDragListeners();
         if (dragFrame) cancelAnimationFrame(dragFrame);
         dragFrame = 0;
         item.style.cursor = 'grab';
-        try { item.releasePointerCapture(event.pointerId); } catch (_) {}
+        try { item.releasePointerCapture(pointerId); } catch (_) {}
         if (canceled) {
           state.style = { ...(state.style || {}), bottomOffset: startOffset };
           render();
@@ -98,11 +96,34 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
             bottomOffset, bridgeToken: state.bridgeToken || '',
           });
         }
+        event.preventDefault?.();
+        event.stopPropagation?.();
+      };
+      const finishDrag = (event) => endDrag(event, false);
+      const cancelDrag = (event) => endDrag(event, true, event?.type === 'blur');
+      item.addEventListener('pointerdown', (event) => {
+        if (!event.isTrusted || event.button !== 0) return;
+        if (drag) return;
+        const activeMedia = discoverMedia();
+        const measured = activeMedia?.getBoundingClientRect?.();
+        const height = measured?.height > 2 ? measured.height : innerHeight;
+        const current = Number(state.style?.bottomOffset);
+        drag = {
+          pointerId: event.pointerId, startY: event.clientY,
+          startOffset: Number.isFinite(current) ? current : 8,
+          bottomOffset: Number.isFinite(current) ? current : 8,
+          height: Math.max(1, height), moved: false, item,
+        };
+        item.style.cursor = 'grabbing';
+        try { item.setPointerCapture(event.pointerId); } catch (_) {}
+        window.addEventListener('pointermove', moveDrag, true);
+        window.addEventListener('pointerup', finishDrag, true);
+        window.addEventListener('pointercancel', cancelDrag, true);
+        window.addEventListener('blur', cancelDrag, true);
         event.preventDefault();
         event.stopPropagation();
-      };
-      item.addEventListener('pointerup', finishDrag);
-      item.addEventListener('pointercancel', (event) => finishDrag(event, true));
+      });
+      item.addEventListener('lostpointercapture', cancelDrag);
     };
 
     const syncNativeCaptionVisibility = () => {
@@ -150,11 +171,16 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     const cancelFrame = () => {
-      if (!frameToken) return;
-      if (frameKind === 'video' && media && typeof media.cancelVideoFrameCallback === 'function') {
-        try { media.cancelVideoFrameCallback(frameToken); } catch (_) {}
-      } else {
-        cancelAnimationFrame(frameToken);
+      if (boundaryTimer) {
+        clearTimeout(boundaryTimer);
+        boundaryTimer = 0;
+      }
+      if (frameToken) {
+        if (frameKind === 'video' && media && typeof media.cancelVideoFrameCallback === 'function') {
+          try { media.cancelVideoFrameCallback(frameToken); } catch (_) {}
+        } else {
+          cancelAnimationFrame(frameToken);
+        }
       }
       frameToken = 0;
       frameKind = '';
@@ -257,9 +283,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const redraw = () => render();
       // Aday yaşam döngüsü dinleyicileri play/pause/metadata/emptied olaylarını
       // zaten yeniden seçim için işler; seçili medyada bunları ikinci kez bağlama.
-      const eventTypes = ['seeked', 'durationchange'];
-      // Oynayan videoda rVFC zaten her görüntü karesinde güncelliyor. Aynı anda
-      // timeupdate dinlemek aynı cueyu iki kez çiziyordu; rVFC yoksa fallback.
+      const eventTypes = ['seeked', 'durationchange', 'ratechange'];
+      // Cue sınırı bilinmiyorsa timeupdate düşük frekanslı emniyet ağıdır.
       if (typeof media.requestVideoFrameCallback !== 'function') eventTypes.unshift('timeupdate');
       for (const type of eventTypes) {
         media.addEventListener(type, redraw, { passive: true });
@@ -273,19 +298,39 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     const queueFrame = () => {
-      if (frameToken || document.hidden || state.mode === 'off' || !media || media.paused) return;
+      if (frameToken || boundaryTimer || document.hidden || state.mode === 'off' || !media || media.paused) return;
+      const videoTime = finite(media.currentTime);
+      const boundaries = [];
+      const collectBoundaries = (cues, transform) => {
+        for (const cue of Array.isArray(cues) ? cues : []) {
+          for (const raw of [cue && cue.start, cue && cue.end]) {
+            const value = sourceToVideo(raw, transform);
+            if (Number.isFinite(value) && value > videoTime + .003) boundaries.push(value);
+          }
+        }
+      };
+      collectBoundaries(state.source, state.sourceTransform);
+      collectBoundaries(state.translation, state.translationTransform);
+      const nextCueBoundary = boundaries.length ? Math.min(...boundaries) : NaN;
+      if (!Number.isFinite(nextCueBoundary)) return;
+      const playbackRate = Math.max(.05, finite(media.playbackRate, 1));
+      const delayMs = Math.max(0, (nextCueBoundary - videoTime) * 1000 / playbackRate - 12);
       const callback = () => {
         frameToken = 0;
         frameKind = '';
         render();
       };
-      if (typeof media.requestVideoFrameCallback === 'function') {
-        frameKind = 'video';
-        frameToken = media.requestVideoFrameCallback(callback);
-      } else {
-        frameKind = 'raf';
-        frameToken = requestAnimationFrame(callback);
-      }
+      boundaryTimer = setTimeout(() => {
+        boundaryTimer = 0;
+        if (document.hidden || state.mode === 'off' || !media || media.paused) return;
+        if (typeof media.requestVideoFrameCallback === 'function') {
+          frameKind = 'video';
+          frameToken = media.requestVideoFrameCallback(callback);
+        } else {
+          frameKind = 'raf';
+          frameToken = requestAnimationFrame(callback);
+        }
+      }, Math.min(60000, delayMs));
     };
 
     function render() {
@@ -345,7 +390,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (source.textContent !== sourceText) source.textContent = sourceText;
       if (translation.textContent !== translationText) translation.textContent = translationText;
       const scale = Math.max(.65, Math.min(1.8, Number(style.scale) || 1));
-      const opacity = Math.max(.2, Math.min(1, Number(style.opacity) || .82));
+      const rawOpacity = Number(style.opacity);
+      const opacity = Math.max(0, Math.min(1, Number.isFinite(rawOpacity) ? rawOpacity : .82));
       const width = Math.max(40, Math.min(98, Number(style.width) || 88));
       const lines = Math.max(1, Math.min(6, Number(style.maxLines) || 3));
       const styleKey = [scale, opacity, width, lines].join(':');
@@ -353,9 +399,10 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         appliedStyleKey = styleKey;
         for (const item of [source, translation]) {
           item.style.maxWidth = width + '%';
+          item.style.boxSizing = 'content-box';
           item.style.fontSize = 'clamp(' + (15 * scale) + 'px,' + (2.05 * scale) + 'vw,' + (27 * scale) + 'px)';
           item.style.backgroundColor = 'rgba(5,7,10,' + opacity + ')';
-          item.style.maxHeight = (lines * 1.35) + 'em';
+          item.style.maxHeight = 'calc(' + (lines * 1.35) + 'em + 4px)';
         }
       }
       if (style.sourceFirst === false) {
@@ -373,6 +420,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
 
     window.__whisperBrowserOverlayController = {
       update(value) {
+        // Yeni cue listesi önceki listenin sınır zamanlayıcısını geçersiz kılar.
+        cancelFrame();
         state = value || {};
         if (state.mode === 'off') {
           cancelFrame();
@@ -395,7 +444,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           resizeObservers: resizeObserver ? 1 : 0,
           mediaListeners: mediaListeners.length + candidateListeners.size * 4,
           overlayNodes,
-          pendingFrames: (frameToken ? 1 : 0) + (mutationFrame ? 1 : 0) + (dragFrame ? 1 : 0) };
+          pendingFrames: (frameToken ? 1 : 0) + (boundaryTimer ? 1 : 0)
+            + (mutationFrame ? 1 : 0) + (dragFrame ? 1 : 0) };
       },
     };
     if (state.mode !== 'off') startObserving();

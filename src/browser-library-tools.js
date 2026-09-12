@@ -10,6 +10,37 @@ function boundedText(value, limit) {
   return String(value || '').trim().slice(0, limit);
 }
 
+function normalizeAnchorText(value) {
+  return String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+}
+
+function approximateAnchorMatch(rawText, rawPattern, cellBudget = 600000) {
+  const normalize = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+  const text = normalize(rawText);
+  const pattern = normalize(rawPattern);
+  if (pattern.length < 8 || pattern.length > 320 || text.length < Math.max(4, pattern.length * 0.55)) return null;
+  const maxErrors = Math.max(2, Math.min(64, Math.floor(pattern.length * 0.22)));
+  if (pattern.length * text.length > cellBudget) return null;
+  let previous = new Uint16Array(text.length + 1);
+  let current = new Uint16Array(text.length + 1);
+  for (let row = 1; row <= pattern.length; row++) {
+    current[0] = row;
+    const code = pattern.charCodeAt(row - 1);
+    for (let column = 1; column <= text.length; column++) {
+      current[column] = Math.min(current[column - 1] + 1, previous[column] + 1,
+        previous[column - 1] + (code === text.charCodeAt(column - 1) ? 0 : 1));
+    }
+    [previous, current] = [current, previous];
+  }
+  let distance = maxErrors + 1;
+  let end = -1;
+  for (let column = 1; column <= text.length; column++) {
+    if (previous[column] < distance) { distance = previous[column]; end = column; }
+  }
+  if (end < 0 || distance > maxErrors) return null;
+  return { offset: Math.max(0, end - pattern.length), distance, similarity: 1 - distance / pattern.length };
+}
+
 function stableId(prefix, parts) {
   const hash = crypto.createHash('sha256').update(parts.map((part) => String(part || '')).join('\u241f'), 'utf8')
     .digest('hex').slice(0, 20);
@@ -245,11 +276,37 @@ function textAnchorRestoreScript(rawAnchor) {
       }
       candidates.push({ element, at, score });
     }
+    if (!candidates.length && exact.length >= 8 && exact.length <= 320) {
+      const normalize = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+      const approximate = ${approximateAnchorMatch.toString()};
+      let budget = 2000000;
+      for (const element of blocks) {
+        const text = normalize(element.textContent).slice(0, 16000);
+        const cells = text.length * exact.length;
+        if (cells > budget) continue;
+        const contextual = (anchor.blockId && element.id === anchor.blockId)
+          || (anchor.prefix && text.includes(normalize(anchor.prefix).slice(-32)))
+          || (anchor.suffix && text.includes(normalize(anchor.suffix).slice(0, 32)))
+          || text.length <= exact.length * 4 + 480;
+        if (!contextual) continue;
+        const match = approximate(text, exact, budget);
+        budget -= cells;
+        if (!match || match.similarity < .78) continue;
+        let score = match.similarity * 50;
+        if (anchor.blockId && element.id === anchor.blockId) score += 20;
+        if (anchor.domPath) {
+          try { if (document.querySelector(anchor.domPath) === element) score += 10; } catch (_) {}
+        }
+        candidates.push({ element, at: match.offset, score, fuzzy: true, similarity: match.similarity });
+      }
+    }
     const specific = candidates.filter((candidate) => !candidates.some((other) =>
       other !== candidate && candidate.score <= other.score && candidate.element.contains?.(other.element)));
     specific.sort((a, b) => b.score - a.score);
     if (!candidates.length) return { status: 'missing' };
-    if (specific.length > 1 && specific[0].score === specific[1].score) return { status: 'ambiguous', count: specific.length };
+    if (specific.length > 1 && (specific[0].score - specific[1].score) < (specific[0].fuzzy ? 3 : .001)) {
+      return { status: 'ambiguous', count: specific.length };
+    }
     document.querySelectorAll('[data-whisper-note-highlight]').forEach((item) => {
       item.removeAttribute('data-whisper-note-highlight'); item.style.removeProperty('outline'); item.style.removeProperty('outline-offset');
     });
@@ -262,7 +319,8 @@ function textAnchorRestoreScript(rawAnchor) {
       if (!target.isConnected) return;
       target.removeAttribute('data-whisper-note-highlight'); target.style.removeProperty('outline'); target.style.removeProperty('outline-offset');
     }, 8000);
-    return { status: 'found', count: candidates.length };
+    return { status: 'found', count: candidates.length, fuzzy: !!specific[0].fuzzy,
+      similarity: specific[0].fuzzy ? specific[0].similarity : 1 };
   })()`;
 }
 
@@ -317,9 +375,31 @@ function resolveTextAnchor(anchor, rawBlocks) {
     if (target.suffix && block.text.slice(at + exact.length).startsWith(target.suffix.normalize('NFKC'))) points += 8;
     return { ...block, offset: at, score: points };
   };
-  const candidates = blocks.map(score).filter(Boolean).sort((a, b) => b.score - a.score || a.index - b.index);
+  let candidates = blocks.map(score).filter(Boolean).sort((a, b) => b.score - a.score || a.index - b.index);
+  if (!candidates.length) {
+    let budget = 2000000;
+    candidates = blocks.map((block) => {
+      const cells = block.text.length * exact.length;
+      if (cells > budget) return null;
+      const contextual = (target.blockId && block.id === target.blockId)
+        || (target.domPath && block.path === target.domPath)
+        || (target.prefix && block.text.includes(target.prefix.slice(-32)))
+        || (target.suffix && block.text.includes(target.suffix.slice(0, 32)))
+        || block.text.length <= exact.length * 4 + 480;
+      if (!contextual) return null;
+      const match = approximateAnchorMatch(block.text, exact, budget);
+      budget -= cells;
+      if (!match || match.similarity < .78) return null;
+      let points = match.similarity * 50;
+      if (target.blockId && block.id === target.blockId) points += 20;
+      if (target.domPath && block.path === target.domPath) points += 10;
+      return { ...block, offset: match.offset, score: points, fuzzy: true, similarity: match.similarity };
+    }).filter(Boolean).sort((a, b) => b.score - a.score || a.index - b.index);
+  }
   if (!candidates.length) return { status: 'missing', matches: [] };
-  if (candidates.length > 1 && candidates[0].score === candidates[1].score) return { status: 'ambiguous', matches: candidates };
+  if (candidates.length > 1 && (candidates[0].score - candidates[1].score) < (candidates[0].fuzzy ? 3 : .001)) {
+    return { status: 'ambiguous', matches: candidates };
+  }
   return { status: 'found', match: candidates[0], matches: candidates };
 }
 

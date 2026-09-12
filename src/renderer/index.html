@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' file: blob: https://*.googlevideo.com; connect-src 'self' whisper-pdf: https://*.googlevideo.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; media-src 'self' file: blob: https://*.googlevideo.com; connect-src 'self' whisper-pdf: https://*.googlevideo.com" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -1373,6 +1373,7 @@
                 <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>
                 <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserCopyAb" type="button" title="A-B aralığındaki altyazıları panoya kopyala">A-B metni</button>
                 <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserQueuePage" type="button" title="Açık ve indirilebilir sayfayı transkripsiyon kuyruğuna ekle">Kuyruğa</button>
+                <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserArchivePage" type="button" title="Sayfanın o anki hâlini kaynaklarıyla birlikte tek MHTML dosyasında sakla">Sayfayı arşivle</button>
                 <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserExportClip" type="button" title="A-B aralığını açık kaynakta MP4 klip olarak çıkar">A-B klibi</button>
                 <button class="btn btn-secondary btn-sm browser-signal-tool" id="browserWhisperSubtitles" type="button"
                   title="Açık YouTube videosunun sesini Whisper ile yazıya çevir ve bu sekmeye yükle">Whisper altyazı</button>

@@ -58,6 +58,10 @@ test('YouTube URL biçimleri aynı medya kimliğine birleşir', () => {
   assert.equal(c.key, 'youtube:abc123');
   assert.equal(canonicalMediaIdentity('https://www.youtube.com/clip/UgkxClipToken').key,
     'youtube:clip:UgkxClipToken');
+  assert.equal(canonicalMediaIdentity('https://www.youtube.com/clip/UgkxClipToken?v=fullVideo').key,
+    'youtube:clip:UgkxClipToken');
+  assert.equal(canonicalMediaIdentity('https://www.netflix.com/browse?jbv=81234567').key,
+    'netflix:81234567');
 });
 
 test('Amazon Prime bölgesel alan adları aynı servis olarak tanınır', () => {
@@ -85,6 +89,15 @@ test('bilinmeyen web adresi sabit ve hassas olmayan hash kimliği alır', () => 
   assert.equal(a.key, b.key);
   assert.match(a.key, /^web:url:[a-f0-9]{24}$/);
   assert(!a.canonicalUrl.includes('token='));
+});
+
+test('16 KiB üstünde aynı öneki taşıyan farklı URLler ayrı kimlik alır', () => {
+  const prefix = `https://media.example/watch?id=${'a'.repeat(16400)}`;
+  const first = canonicalMediaIdentity(`${prefix}AAAA`);
+  const second = canonicalMediaIdentity(`${prefix}BBBB`);
+  assert.notEqual(first.key, second.key);
+  assert.equal(first.canonicalUrl.length, 16384);
+  assert.equal(second.canonicalUrl.length, 16384);
 });
 
 test('olay zarfı tab, nesil, medya ve edinme kimliğini birlikte kapılar', () => {
@@ -125,6 +138,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   const session = normalizeBrowserSession({
     version: 99,
     activeTabId: 't1',
+    cleanExit: false,
     secret: 'LEAK',
     tabs: [{
       id: 't1',
@@ -143,6 +157,7 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   });
   assert.equal(session.version, BROWSER_SESSION_VERSION);
   assert.equal(session.activeTabId, 't1');
+  assert.equal(session.cleanExit, false);
   assert.equal(session.tabs[0].mediaId, 'netflix:81234567');
   assert.equal(session.tabs[0].rate, 4);
   assert.equal(session.tabs[0].volume, 0);
@@ -156,6 +171,12 @@ test('oturum şeması yalnız izinli ve sınırlı alanları saklar', () => {
   const serialized = JSON.stringify(session);
   assert(!serialized.includes('LEAK'));
   assert(!serialized.includes('requestHeaders'));
+});
+
+test('oturum temiz kapanış işaretini taşır, eski sürümde bilinmiyor bırakır', () => {
+  assert.equal(normalizeBrowserSession({ version: BROWSER_SESSION_VERSION, cleanExit: true, tabs: [] }).cleanExit, true);
+  assert.equal(normalizeBrowserSession({ version: BROWSER_SESSION_VERSION, cleanExit: false, tabs: [] }).cleanExit, false);
+  assert.equal(normalizeBrowserSession({ version: 7, tabs: [] }).cleanExit, null);
 });
 
 test('oturum SPA rotasını korurken hash içindeki gizli anahtarı siler', () => {
@@ -172,6 +193,7 @@ test('oturum atomik yazılır, okunur ve önceki sürüm yedeklenir', () => {
   try {
     let result = writeBrowserSessionAtomic(file, {
       activeTabId: 'one',
+      cleanExit: false,
       tabs: [{ id: 'one', url: 'https://youtu.be/first', position: 2 }],
     });
     assert(result.ok, result.error);
@@ -185,6 +207,7 @@ test('oturum atomik yazılır, okunur ve önceki sürüm yedeklenir', () => {
     assert.equal(loaded.activeTabId, 'two');
     assert.equal(loaded.tabs[0].mediaId, 'youtube:second');
     assert.equal(loaded.tabs[0].position, 8);
+    assert.equal(readBrowserSession(`${file}.bak`).cleanExit, false);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -243,6 +266,8 @@ test('ana süreç oturumu açılışta geri yükler ve kapanmadan önce yazar', 
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   assert.match(main, /restoreBrowserSessionState\(\);\s*\r?\n\s*createWindow\(\)/);
+  assert.match(main, /Önceki tarayıcı oturumu beklenmedik biçimde sona erdi/);
+  assert.match(main, /browserOrderlyShutdown = false;\s*\r?\n\s*persistBrowserSessionNow\(\)/);
   const calls = [];
   await require('../src/browser-session-privacy').shutdownBrowserSession({
     closeAllConnections: async () => calls.push('close'),
@@ -256,6 +281,7 @@ test('ana süreç oturumu açılışta geri yükler ve kapanmadan önce yazar', 
   const flush = main.slice(main.indexOf('async function flushBrowserSession'),
     main.indexOf('async function shutdownPersistentBrowserSession'));
   assert.match(flush, /persistBrowserSessionNow\(\)/);
+  assert.match(flush, /browserOrderlyShutdown = true/);
   assert.match(close, /destroyBrowserView\(\)[\s\S]*await shutdownPersistentBrowserSession\(mainWindow\)/);
   assert.match(main, /ipcMain\.handle\('browser:session:updateTab'/);
   assert.match(main, /sessionWarning, \.\.\.browserNavigationState\(\)/);

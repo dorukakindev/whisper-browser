@@ -20,15 +20,35 @@ function extractJsonPayload(text) {
   for (const candidate of [unfenced, raw]) {
     try { return JSON.parse(candidate); } catch (_) {}
   }
-  const objectStart = raw.indexOf('{');
-  const arrayStart = raw.indexOf('[');
-  const start = [objectStart, arrayStart].filter((index) => index >= 0).sort((a, b) => a - b)[0];
-  if (start === undefined) throw new Error('Görsel çeviri yanıtında JSON bulunamadı.');
-  const close = raw[start] === '[' ? ']' : '}';
-  const end = raw.lastIndexOf(close);
-  if (end <= start) throw new Error('Görsel çeviri yanıtındaki JSON tamamlanmamış.');
-  try { return JSON.parse(raw.slice(start, end + 1)); }
-  catch (_) { throw new Error('Görsel çeviri yanıtı okunamadı.'); }
+  let sawJsonStart = false;
+  for (let start = 0; start < raw.length; start++) {
+    if (raw[start] !== '{' && raw[start] !== '[') continue;
+    sawJsonStart = true;
+    const stack = [];
+    let quoted = false;
+    let escaped = false;
+    for (let end = start; end < raw.length; end++) {
+      const char = raw[end];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === '\\') escaped = true;
+        else if (char === '"') quoted = false;
+        continue;
+      }
+      if (char === '"') { quoted = true; continue; }
+      if (char === '{' || char === '[') stack.push(char);
+      else if (char === '}' || char === ']') {
+        const open = stack.at(-1);
+        if ((open === '{' && char !== '}') || (open === '[' && char !== ']')) break;
+        stack.pop();
+        if (!stack.length) {
+          try { return JSON.parse(raw.slice(start, end + 1)); } catch (_) { break; }
+        }
+      }
+    }
+  }
+  if (!sawJsonStart) throw new Error('Görsel çeviri yanıtında JSON bulunamadı.');
+  throw new Error('Görsel çeviri yanıtı okunamadı veya tamamlanmamış.');
 }
 
 function clampCoordinate(value) {
@@ -285,6 +305,23 @@ function isSafeMangaImageUrl(raw) {
     if (isIP(host) && !isPublicMangaIpAddress(host)) return false;
     return true;
   } catch (_) { return false; }
+}
+
+function mangaOcrCacheKey(buffer, options = {}) {
+  const digest = createHash('sha256').update(buffer).digest('hex');
+  return createHash('sha256').update(JSON.stringify({
+    digest,
+    model: String(options.model || ''),
+    ocrSchemaVersion: 1,
+  })).digest('hex');
+}
+
+function normalizeMangaOcrRegions(input) {
+  const rows = Array.isArray(input) ? input : Array.isArray(input?.regions) ? input.regions : [];
+  return normalizeMangaRegions(rows.map((row) => ({
+    ...row,
+    translation: String(row?.translation || row?.source || row?.source_text || '').trim(),
+  }))).filter((row) => row.source).map((row) => ({ ...row, translation: '', hidden: false }));
 }
 
 function detectMangaImageMime(buffer) {
@@ -950,6 +987,7 @@ module.exports = {
   isSafeMangaImageUrl,
   legacyMangaCacheKey,
   mangaCacheKey,
+  mangaOcrCacheKey,
   mangaCandidateScanScript,
   mangaClearScript,
   mangaFailureState,
@@ -961,6 +999,7 @@ module.exports = {
   mangaSelectionScript,
   mangaVisibilityScript,
   normalizeMangaRegions,
+  normalizeMangaOcrRegions,
   sampleMangaRegionColors,
   selectMangaCandidates,
 };

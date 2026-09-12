@@ -14,7 +14,12 @@ contextBridge.exposeInMainWorld('api', {
   },
   selectVideo: () => ipcRenderer.invoke('dialog:openVideo'),
   selectFolders: () => ipcRenderer.invoke('dialog:openFolders'),
-  scanMediaPaths: (paths) => ipcRenderer.invoke('paths:scanMedia', paths),
+  scanDroppedFiles: (files) => {
+    const paths = Array.from(files || []).map((file) => {
+      try { return webUtils.getPathForFile(file); } catch (_) { return ''; }
+    }).filter(Boolean);
+    return ipcRenderer.invoke('paths:scanMedia', paths);
+  },
   listMediaFolder: (filePath) => ipcRenderer.invoke('media:listFolder', filePath),
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
   selectFolder: () => ipcRenderer.invoke('dialog:openFolder'),
@@ -138,6 +143,7 @@ contextBridge.exposeInMainWorld('api', {
   cancelPdfTranslation: (pdfHash) => ipcRenderer.invoke('pdf:cancel', { pdfHash }),
   exportPdfTranslation: (pdfHash, format, targetLanguage, model) => ipcRenderer.invoke('pdf:export', { pdfHash, format, targetLanguage, model }),
   captureBrowserPage: (tabId) => ipcRenderer.invoke('browser:capturePage', { tabId }),
+  archiveBrowserPage: (tabId) => ipcRenderer.invoke('browser:archivePage', { tabId }),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),
   getBrowserTranslationSnapshot: (tabId) => ipcRenderer.invoke('browser:translation:snapshot', { tabId }),
   stopBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:stop', { tabId }),

@@ -10,6 +10,30 @@ function normalizeReaderPreferences(raw = {}) {
   };
 }
 
+// Mozilla Readability'nin aday seçme fikrini bağımlılık eklemeden, ölçülebilir
+// ve sınırlı bir karşılaştırma olarak uygular. Gerçek çıkarım hâlâ güvenli copy()
+// yolundan geçer; bu yardımcı yalnız hangi içerik kökünün daha iyi olduğunu seçer.
+function scoreReaderCandidate(stats = {}) {
+  const text = Math.max(0, Number(stats.textLength) || 0);
+  const paragraphs = Math.max(0, Number(stats.paragraphs) || 0);
+  const links = Math.max(0, Number(stats.links) || 0);
+  const noise = Math.max(0, Number(stats.noise) || 0);
+  return Math.max(0, Math.round(text + paragraphs * 120 - links * 18 - noise * 140));
+}
+
+function chooseReaderCandidate(candidates = [], minimumGain = 1.15) {
+  const rows = Array.isArray(candidates) ? candidates.filter(Boolean).map((row) => ({
+    ...row, score: scoreReaderCandidate(row), selector: String(row.selector || ''),
+  })) : [];
+  if (!rows.length) return { selected: null, candidates: [] };
+  rows.sort((a, b) => b.score - a.score || b.textLength - a.textLength);
+  const best = rows[0];
+  const native = rows.find((row) => row.native) || rows[rows.length - 1];
+  const selected = best.score >= Math.round((native.score || 1) * minimumGain) && best.textLength >= native.textLength
+    ? best : native;
+  return { selected, candidates: rows };
+}
+
 function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
   const safeAction = READER_ACTIONS.has(action) ? action : 'toggle';
   const preferences = normalizeReaderPreferences(rawPreferences);
@@ -23,15 +47,32 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
     if (current && action === 'preferences') return current.preferences(requested);
     if (current && action === 'open') return current.snapshot();
     if (action === 'close' || action === 'preferences') return { ok: true, active: false };
-    const candidate = document.querySelector('article,[role="main"],main') || document.body;
+    const roots = [...document.querySelectorAll('article,[role="main"],main,body')];
+    const uniqueRoots = [...new Set(roots)];
+    const statRows = uniqueRoots.map((root) => ({
+      root,
+      selector: root.matches('article') ? 'article' : root.matches('[role="main"]') ? '[role=main]' : root.tagName.toLowerCase(),
+      native: root === roots[0], textLength: String(root.innerText || '').trim().length,
+      paragraphs: root.querySelectorAll('p').length, links: root.querySelectorAll('a').length,
+      noise: root.querySelectorAll('nav,aside,footer,header,form,script,style').length,
+    }));
+    const measured = statRows.map((row) => ({ ...row, score: row.textLength + row.paragraphs * 120 - row.links * 18 - row.noise * 140 }));
+    measured.sort((a, b) => b.score - a.score || b.textLength - a.textLength);
+    const nativeRoot = roots[0] || document.body;
+    const nativeStats = statRows.find((row) => row.native) || statRows[0];
+    const bestStats = measured[0] || nativeStats;
+    const candidate = bestStats && bestStats.score >= Math.round((nativeStats?.score || 1) * 1.15) && bestStats.textLength >= (nativeStats?.textLength || 0)
+      ? bestStats.root : nativeRoot;
     if (!candidate) return { ok: false, active: false, error: 'Okunabilir sayfa govdesi bulunamadi.' };
     const title = String(document.querySelector('h1')?.textContent || document.title || '').trim().slice(0, 500);
     const byline = String(document.querySelector('[rel="author"],.byline,.author,[itemprop="author"]')?.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 300);
     const allowed = new Set(['P','H1','H2','H3','H4','BLOCKQUOTE','PRE','CODE','UL','OL','LI','FIGURE','FIGCAPTION','IMG','A','EM','STRONG','B','I','HR']);
+    const ignored = new Set(['SCRIPT','STYLE','NOSCRIPT','TEMPLATE','SVG','IFRAME','OBJECT','EMBED','HEAD']);
     const safeUrl = (value, kind) => { try { const url = new URL(String(value || ''), location.href); if (url.protocol === 'https:' || url.protocol === 'http:' || (kind === 'image' && url.protocol === 'data:' && /^data:image\\//i.test(url.href))) return url.href; } catch (_) {} return ''; };
     const copy = (node, depth = 0) => {
       if (!node || depth > 80) return null;
       if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue || '');
+      if (node.nodeType === Node.ELEMENT_NODE && ignored.has(node.tagName)) return null;
       if (node.nodeType !== Node.ELEMENT_NODE || !allowed.has(node.tagName)) {
         const fragment = document.createDocumentFragment();
         for (const child of node.childNodes || []) { const next = copy(child, depth + 1); if (next) fragment.appendChild(next); }
@@ -69,11 +110,16 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
     const toc = document.createElement('nav'); toc.className = 'toc'; toc.setAttribute('aria-label', 'Icindekiler');
     const tocTitle = document.createElement('strong'); tocTitle.textContent = 'ICINDEKILER'; toc.appendChild(tocTitle);
     const headings = [...body.querySelectorAll('h2,h3')].slice(0, 80);
-    headings.forEach((heading, index) => { const id = 'whisper-reader-heading-' + index; heading.id = id; const link = document.createElement('a'); link.href = '#' + id; link.textContent = String(heading.textContent || '').trim().slice(0, 160); toc.appendChild(link); });
+    headings.forEach((heading, index) => { const id = 'whisper-reader-heading-' + index; heading.id = id; const link = document.createElement('a'); link.href = '#' + id; link.textContent = String(heading.textContent || '').trim().slice(0, 160); link.addEventListener('click', (event) => { event.preventDefault(); heading.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); toc.appendChild(link); });
     layout.append(body, toc); shell.append(bar, layout); shadow.append(style, shell); document.documentElement.appendChild(host);
     const state = { fontSize: requested.fontSize, lineHeight: requested.lineHeight, width: requested.width };
     const apply = () => { shell.style.setProperty('--reader-font', state.fontSize + 'px'); shell.style.setProperty('--reader-line', String(state.lineHeight)); shell.style.setProperty('--reader-width', state.width + 'px'); };
-    const snapshot = () => ({ ok: true, active: true, title, textLength, headings: headings.length, preferences: { ...state } });
+    const snapshot = () => ({ ok: true, active: true, title, textLength, headings: headings.length,
+      extractor: candidate === nativeRoot ? 'native' : 'readability-heuristic',
+      readerComparison: { native: nativeStats ? { ...nativeStats, root: undefined } : null,
+        selected: bestStats ? { ...bestStats, root: undefined } : null,
+        candidates: measured.slice(0, 8).map(({ root, ...row }) => row) },
+      preferences: { ...state } });
     const controller = {
       snapshot,
       preferences(next) { state.fontSize = Math.max(16, Math.min(32, Number(next.fontSize) || state.fontSize)); state.lineHeight = Math.max(1.35, Math.min(2.1, Number(next.lineHeight) || state.lineHeight)); state.width = Math.max(520, Math.min(1100, Number(next.width) || state.width)); apply(); return snapshot(); },
@@ -89,4 +135,4 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
   })()`;
 }
 
-module.exports = { buildBrowserReaderScript, normalizeReaderPreferences };
+module.exports = { buildBrowserReaderScript, normalizeReaderPreferences, scoreReaderCandidate, chooseReaderCandidate };

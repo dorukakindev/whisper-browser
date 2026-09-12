@@ -10,6 +10,7 @@ const {
   isSafeMangaImageUrl,
   detectMangaImageMime,
   mangaCacheKey,
+  mangaOcrCacheKey,
   mangaGenerationParameters,
   mangaCandidateScanScript,
   mangaClearScript,
@@ -17,6 +18,7 @@ const {
   mangaRegionsStateScript,
   mangaSelectionScript,
   normalizeMangaRegions,
+  normalizeMangaOcrRegions,
   mangaFailureState,
   mangaRegionSampleBox,
   mangaResultState,
@@ -34,6 +36,9 @@ assert.equal(mangaFailureState({ httpStatus: 429 }), 'http_failed');
 
 assert.deepEqual(extractJsonPayload('```json\n{"regions":[]}\n```'), { regions: [] });
 assert.deepEqual(extractJsonPayload('Yanıt: {"regions":[{"translation":"Merhaba"}]} bitti').regions[0].translation, 'Merhaba');
+assert.deepEqual(extractJsonPayload('[Bölüm 1] açıklama\n{"regions":[{"translation":"Köşeli [metin]"}]}')
+  .regions[0].translation, 'Köşeli [metin]');
+assert.deepEqual(extractJsonPayload('not: [broken] sonra [{"translation":"Geçerli"}]')[0].translation, 'Geçerli');
 const normalizedLegacy = normalizeMangaRegions({ regions: [
   { box: [900, 800, 100, 200], source: 'Hi', translation: 'Merhaba', kind: 'speech' },
   { box: [0, 0, 2, 2], translation: 'çok küçük' },
@@ -115,6 +120,14 @@ assert.notEqual(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', glossar
 assert.equal(mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri A' }),
   mangaCacheKey(image, { targetLanguage: 'tr', model: 'x', pageTitle: 'Seri B' }),
   'dinamik sayfa başlığı aynı görselin kalıcı düzenleme/cache anahtarını değiştirmemeli');
+assert.equal(mangaOcrCacheKey(image, { targetLanguage: 'tr', model: 'x', glossary: ['A=B'] }),
+  mangaOcrCacheKey(image, { targetLanguage: 'en', model: 'x', glossary: ['A=C'] }),
+  'OCR katmanı hedef dil ve çeviri sözlüğünden bağımsız olmalı');
+assert.notEqual(mangaOcrCacheKey(image, { model: 'x' }), mangaOcrCacheKey(image, { model: 'y' }));
+const ocrOnly = normalizeMangaOcrRegions([{ box: [1, 2, 30, 40], source: 'Original', kind: 'speech' }]);
+assert.equal(ocrOnly.length, 1);
+assert.equal(ocrOnly[0].source, 'Original');
+assert.equal(ocrOnly[0].translation, '');
 assert.deepEqual(mangaGenerationParameters('gpt-5.4'), { max_completion_tokens: 8000 });
 assert.deepEqual(mangaGenerationParameters('o4-mini'), { max_completion_tokens: 8000 });
 assert.deepEqual(mangaGenerationParameters('openai/gpt-5.4-mini'), { max_completion_tokens: 8000 });
@@ -285,7 +298,9 @@ assert.match(main, /payload\.bridgeToken !== tab\.bridgeToken/);
 assert.match(main, /await tab\.mangaClearPromise[\s\S]{0,500}if \(tab\.mangaJob\)/);
 assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /if \(!result\.length\)[\s\S]{0,240}focusRegion, true/);
-assert.match(main, /if \(result\.length\) browserMangaCache\(\)\.set/);
+assert.match(main, /if \(result\.length\) \{[\s\S]{0,500}browserMangaCache\(\)\.set\(key[\s\S]{0,500}browserMangaCache\(\)\.set\(ocrKey/);
+assert.match(main, /if \(regions\?\.length && !browserMangaCache\(\)\.get\(ocrKey\)\)[\s\S]{0,360}browserMangaCache\(\)\.set\(ocrKey/);
+assert.match(main, /requestBrowserSentenceTranslation\(\{ text: region\.source \}, config/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
 assert.match(preload, /retrySelectedBrowserManga:[\s\S]{0,120}browser:manga:retrySelected/);

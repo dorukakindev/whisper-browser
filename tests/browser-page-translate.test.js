@@ -42,6 +42,8 @@ assert.deepEqual(normalized[0].nodes, [8, 5]);
 assert.equal(normalized[0].tag, 'h2');
 assert.equal(normalized[0].role, 'heading');
 assert.equal(normalized[1].text.length, MAX_PAGE_BLOCK_TEXT);
+assert.deepEqual(normalizePageBlocks([{ id: 'year', text: '2026', tag: 'h2' }])
+  .map((block) => [block.text, block.tag]), [['2026', 'h2']]);
 
 const tooMany = Array.from({ length: MAX_PAGE_BLOCKS + 10 }, (_, index) => ({
   id: `block-${index}`, text: `Metin ${index}`,
@@ -126,6 +128,15 @@ const decodedPage = decodePageTranslation({ translations: [
   { id: 'heading', translation: 'Ana sayfa' },
 ] }, pageSentence);
 assert.deepEqual(decodedPage.parts, ['Ana sayfa', 'Merhaba {{name}} &amp;']);
+const normalizedTokens = decodePageTranslation({ translations: [
+  { id: 'heading', translation: 'Ana sayfa' },
+  { id: 'body', translation: 'Ayrıntılar https://example.test/docs için & bilgi.' },
+] }, { pieces: [
+  { cueId: 'heading', text: 'Home' },
+  { cueId: 'body', text: 'Details at https://example.test/docs. &amp; info.' },
+] });
+assert.deepEqual(normalizedTokens.parts,
+  ['Ana sayfa', 'Ayrıntılar https://example.test/docs için & bilgi.']);
 assert.throws(() => decodePageTranslation({ translations: [
   { id: 'heading', translation: 'Ana sayfa' },
   { id: 'body', translation: 'Merhaba ad' },
@@ -165,12 +176,26 @@ assert.match(pageBlockScanScript({ scope: 'article' }), /article,main/);
 assert.match(pageContextScript(), /querySelectorAll/);
 assert.match(pageContextScript(), /maxCharacters/);
 assert.match(pageContextScript(), /__whisperPageContextState/);
+assert.match(pageContextScript(), /button,a,pre,code/,
+  'teknik belge bağlamı sınırlı pre/code içeriğini kapsamalı');
+assert.doesNotMatch(pageContextScript(), /noscript,code,pre,textarea/,
+  'pre/code bağlam engel listesinde kalmamalı');
+assert.match(pageBlockScanScript(), /blocks\.sort\(\(a, b\) => a\.order - b\.order\)/,
+  'görünürlük seçimi sonrasında LLM blokları belge sırasına dönmeli');
 assert.match(pageBlockScanScript({ excludedSelectors: ['.comments', '.ads'] }), /matchesExtraExcluded/);
 assert.match(pageApplyScript({ targetLanguage: 'tr' }), /sessionStorage/);
 assert.match(pageMemoryClearScript(), /removeItem/);
 assert.match(pageApplyScript({}), /hideTools/);
 assert.match(pageApplyScript({}), /pointerout/);
 assert.match(pageApplyScript({}), /whisperPendingId/);
+assert.doesNotMatch(pageApplyScript({}), /globalThis\.prompt/,
+  'Electron web içeriğinde desteklenmeyen prompt kullanılmamalı');
+assert.match(pageApplyScript({}), /data-whisper-action', 'edit-save'/,
+  'çeviri düzeltme yerleşik DOM düzenleyicisiyle kaydedilebilmeli');
+assert.match(pageApplyScript({}), /flushPersistedTranslations\(\)/,
+  'çeviri belleği blok başına değil paket sonunda yazılmalı');
+assert.match(pageApplyScript({}), /document\.documentElement\.appendChild\(tools\)/,
+  'body transformu sabit araç kutusunun koordinat sistemini değiştirmemeli');
 
 const retryButton = {
   disabled: true,
@@ -179,11 +204,24 @@ const retryButton = {
 };
 const retryState = { tools: { querySelector: () => retryButton } };
 assert.equal(vm.runInNewContext(pageActionResultScript({ id: 'retry-id', ok: true }), {
-  window: { __whisperPageTranslateState: retryState }, String,
+  window: { __whisperPageTranslateState: retryState }, document: { querySelectorAll: () => [] }, String, Array,
 }), true);
 assert.equal(retryButton.disabled, false);
 assert.equal(retryButton.textContent, 'Yeniden çevir');
 assert.equal(retryButton.dataset.whisperPendingId, undefined);
+
+const badgeRetryButton = {
+  disabled: true,
+  textContent: 'Yeniden deneniyor…',
+  dataset: { whisperPendingId: 'badge-id' },
+};
+assert.equal(vm.runInNewContext(pageActionResultScript({ id: 'badge-id', ok: false }), {
+  window: { __whisperPageTranslateState: retryState },
+  document: { querySelectorAll: () => [badgeRetryButton] }, String, Array,
+}), true);
+assert.equal(badgeRetryButton.disabled, false);
+assert.equal(badgeRetryButton.textContent, 'Yeniden dene');
+assert.equal(badgeRetryButton.dataset.whisperPendingId, undefined);
 
 let emitted = 0;
 const viewState = {
@@ -270,6 +308,31 @@ const reIncludedScan = vm.runInContext(pageBlockScanScript({
 }), vm.createContext(excludedContext));
 assert.equal(reIncludedScan.blocks.length, 1,
   'dışlama kaldırılınca daha önce bütçeye alınmamış bölüm keşfedilmeli');
+excludedWindow.__whisperPageTranslateState.emittedCount = 1500;
+const resetScan = vm.runInContext(pageBlockScanScript({
+  observe: false, resetSession: true,
+}), vm.createContext(excludedContext));
+assert.equal(resetScan.blocks.length, 1, 'yeni çeviri oturumu eski blok bütçesini devralmamalı');
+
+const memoryRows = JSON.stringify([{
+  page: 'https://example.com/article?v=1', target: 'tr', memoryVersion: 'm',
+  source: 'Merhaba dünya.', tag: 'p', role: 'article', section: 'Genel', translation: 'Hello world.',
+}]);
+const memoryStorage = { getItem: () => memoryRows };
+const memoryContext = (search) => ({
+  window: {}, document: fakeDocument, NodeFilter: { SHOW_TEXT: 4 }, innerHeight: 600,
+  location: { origin: 'https://example.com', pathname: '/article', search },
+  sessionStorage: memoryStorage,
+  getComputedStyle: (element) => ({ display: element.display }), Map, Set, WeakMap, Math, Number, String,
+});
+assert.equal(vm.runInNewContext(pageBlockScanScript({
+  preview: true, observe: false, targetLanguage: 'tr', memoryVersion: 'm',
+}), memoryContext('?v=2')).restoredTranslations.length, 0,
+'farklı query parametreli sayfa çeviri belleğini paylaşmamalı');
+assert.equal(vm.runInNewContext(pageBlockScanScript({
+  preview: true, observe: false, targetLanguage: 'tr', memoryVersion: 'm',
+}), memoryContext('?v=1')).restoredTranslations.length, 1,
+'aynı query parametreli sayfa çevirisi geri yüklenmeli');
 
 const sourceElement = {
   tagName: 'P', textContent: 'Kaynak paragraf metni.', isConnected: true, style: {},
@@ -333,6 +396,16 @@ assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 vm.runInNewContext(pageVisibilityScript(true), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Hello world.');
 assert.equal(firstNode.nodeValue, 'Hello ', 'görünürlük dönüşü kelimeyi DOM düğümleri arasında bölmemeli');
+const detachedMiddle = { nodeValue: 'kopuk', isConnected: false };
+pageState.refs.get('0:key').nodes = [firstNode, detachedMiddle, secondNode];
+pageState.refs.get('0:key').originals = ['Merhaba ', 'kopuk ', 'dünya.'];
+vm.runInNewContext(pageApplyScript({
+  mode: 'replace', id: '0:key', translation: 'Eksiksiz çevrilmiş cümle.',
+}), pageContext);
+assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Eksiksiz çevrilmiş cümle.',
+  'kopmuş düğümün payı bağlı düğümlerde kaybolmamalı');
+pageState.refs.get('0:key').nodes = [firstNode, secondNode];
+pageState.refs.get('0:key').originals = ['Merhaba ', 'dünya.'];
 const bilingual = vm.runInNewContext(pageApplyScript({
   mode: 'bilingual', targetLanguage: 'en', translations: [{ id: '0:key', text: 'Hello world.' }],
 }), pageContext);
@@ -361,6 +434,29 @@ const flexContext = { ...pageContext, window: { __whisperPageTranslateState: fle
 vm.runInNewContext(pageApplyScript({ mode: 'bilingual', id: 'flex:key', translation: 'Card text' }), flexContext);
 assert.equal(flexRoot.children.length, 0, 'çeviri flex/grid kapsayıcıda yeni düzen öğesi olmamalı');
 assert.equal(layoutParent.children[1].className, 'whisper-page-tr');
+const tableParent = {
+  tagName: 'DIV', children: [],
+  insertBefore(node, before) {
+    const index = before ? this.children.indexOf(before) : -1;
+    if (index < 0) this.children.push(node); else this.children.splice(index, 0, node);
+    node.parentNode = this;
+  },
+};
+const table = { tagName: 'TABLE', parentNode: tableParent, nextSibling: null };
+const tbody = { tagName: 'TBODY', parentNode: table, nextSibling: null };
+const row = { tagName: 'TR', parentNode: tbody, nextSibling: null, children: [],
+  appendChild(node) { this.children.push(node); } };
+tableParent.children.push(table);
+const tableState = {
+  refs: new Map([['table:key', { id: 'table:key', root: row,
+    nodes: [{ nodeValue: 'Satır', isConnected: true }], originals: ['Satır'],
+    active: false, applied: false }]]),
+  latestIdByRoot: new WeakMap([[row, 'table:key']]), activeByRoot: new WeakMap(), visible: true,
+};
+vm.runInNewContext(pageApplyScript({ mode: 'bilingual', id: 'table:key', translation: 'Row' }),
+  { ...pageContext, window: { __whisperPageTranslateState: tableState } });
+assert.equal(row.children.length, 0, 'çeviri doğrudan tr içine eklenmemeli');
+assert.equal(tableParent.children[1].className, 'whisper-page-tr');
 vm.runInNewContext(pageRestoreScript(), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 

@@ -42,6 +42,8 @@ const state = {
   inputFile: null,
   outputDir: null,
   outputFiles: [],
+  resultModalFiles: [],
+  resultModalVideo: null,
   running: false,
   cancelled: false,
   startTime: 0,
@@ -71,6 +73,7 @@ let historyCache = [];
 // ===== Kuyruk yönetimi =====
 let _queueIdCounter = 0;
 let _queuePersistenceReady = false;
+let _queueNextTimer = null;
 let _queuePersistTimer = null;
 let _burninRecoveryPollTimer = null;
 let _burninRecoveryPromptOpen = false;
@@ -145,6 +148,7 @@ async function restorePersistedQueue() {
     } else {
       state.queueRunning = false;
       state.currentQueueId = null;
+      state.activeJobId = null;
       const recovered = Number(restored.recoveredCount) || state.queue.filter((item) => item.recovered).length;
       if (recovered) {
         setJobsTab('queue');
@@ -471,13 +475,19 @@ function removeFromQueue(id) {
   // Çalışan item silinemez
   const item = state.queue.find(x => x.id === id);
   if (!item || item.status === 'running') return;
+  const buttons = [...document.querySelectorAll('.queue-remove[data-id]')];
+  const removedIndex = buttons.findIndex((button) => Number(button.dataset.id) === id);
   state.queue = state.queue.filter(x => x.id !== id);
   renderQueue();
+  const remaining = [...document.querySelectorAll('.queue-remove[data-id]')];
+  remaining[Math.min(Math.max(removedIndex, 0), remaining.length - 1)]?.focus?.();
 }
 
 function clearQueue() {
   // Çalışanlar kalsın
   state.queue = state.queue.filter(x => x.status === 'running');
+  if (_queueNextTimer) { clearTimeout(_queueNextTimer); _queueNextTimer = null; }
+  state.queueRunning = false;
   renderQueue();
 }
 
@@ -555,6 +565,7 @@ function renderQueue() {
       item.error = '';
       renderQueue();
       logLine(`"${item.label}" yeniden kuyruğa alındı`, 'info');
+      if (!state.queueRunning) startQueue();
     });
   });
   syncJobsCenter();
@@ -689,7 +700,7 @@ async function processNextQueueItem() {
     renderQueue();
     state.running = false;
     // Sonrakine geç
-    setTimeout(processNextQueueItem, 100);
+    _queueNextTimer = setTimeout(() => { _queueNextTimer = null; processNextQueueItem(); }, 100);
   }
   // Aksi halde event handler done/error event'inde sonrakini başlatacak
 }
@@ -698,6 +709,23 @@ async function processNextQueueItem() {
 const $ = (id) => document.getElementById(id);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+function syncProcessingControlState() {
+  const busy = !!(state.running || state.queueRunning);
+  const valueControls = typeof PERSIST_VALUE_CONTROLS !== 'undefined' ? PERSIST_VALUE_CONTROLS : [];
+  const checkboxControls = typeof PERSIST_CHECKBOX_CONTROLS !== 'undefined' ? PERSIST_CHECKBOX_CONTROLS : [];
+  for (const id of [...valueControls, ...checkboxControls, 'pickVideosBtn', 'pickFolderBtn']) {
+    const el = $(id);
+    if (el) {
+      el.disabled = busy;
+      el.setAttribute('aria-disabled', String(busy));
+    }
+  }
+  const dropZone = $('dropZone');
+  if (dropZone) {
+    dropZone.classList.toggle('processing-locked', busy);
+    dropZone.setAttribute('aria-disabled', String(busy));
+  }
+}
 function setStatus(text, type = '') {
   const pill = $('statusPill');
   pill.textContent = text;
@@ -705,6 +733,7 @@ function setStatus(text, type = '') {
   // İlerleme çubuğu shimmer'ı yalnızca iş çalışırken (active) dönsün
   const fill = $('progressFill');
   if (fill) fill.classList.toggle('running', type === 'active');
+  syncProcessingControlState();
 }
 
 // İlerleme çubuğu genişliği + erişilebilirlik değeri tek noktadan
@@ -1021,6 +1050,21 @@ function isNearBottom(el) {
   return el.scrollHeight - el.scrollTop - el.clientHeight < 48;
 }
 
+const LOG_LINE_LIMIT = 500;
+const LOG_LINE_RETAIN = 450;
+
+function trimLogLines(log) {
+  if (log.children.length <= LOG_LINE_LIMIT) return;
+  const firstRetained = log.children[log.children.length - LOG_LINE_RETAIN];
+  if (!log.firstChild || !firstRetained) return;
+  // Birikmiş eski satırları tek DOM işlemiyle kaldır. Uzun işlerde her yeni
+  // olay için ayrı düğüm silme döngüsü ana renderer iş parçacığını yoruyordu.
+  const range = document.createRange();
+  range.setStartBefore(log.firstChild);
+  range.setEndBefore(firstRetained);
+  range.deleteContents();
+}
+
 function logLine(message, level = 'info') {
   const log = $('log');
   const stick = isNearBottom(log);
@@ -1031,8 +1075,7 @@ function logLine(message, level = 'info') {
   line.innerHTML = `<span class="log-time">${ts}</span>${escapeHtml(message)}`;
   log.appendChild(line);
   if (stick) log.scrollTop = log.scrollHeight;
-  // Trim if too many lines
-  while (log.children.length > 500) log.removeChild(log.firstChild);
+  trimLogLines(log);
   return line;
 }
 
@@ -1052,9 +1095,19 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+let _pendingPreviewSegments = [];
+let _previewFlushTimer = null;
+
+function cancelPendingPreviewFlush() {
+  if (_previewFlushTimer !== null) clearTimeout(_previewFlushTimer);
+  _previewFlushTimer = null;
+  _pendingPreviewSegments = [];
+}
+
 function clearPreview() {
   clearTimeout(_searchTimer);
   _searchTimer = null;
+  cancelPendingPreviewFlush();
   previewFilter = '';
   if ($('previewSearch')) $('previewSearch').value = '';
   $('previewSearchClear')?.classList.add('hidden');
@@ -1185,7 +1238,10 @@ function previewTimeKey(seg) {
 function applyPreviewTranslations(segments, replaceAll = false) {
   const translated = Array.isArray(segments) ? segments : [];
   if (replaceAll) state.previewSegs.forEach((seg) => { delete seg.translationText; });
-  const byTime = new Map(state.previewSegs.map((seg, index) => [previewTimeKey(seg), index]));
+  const timeCounts = new Map();
+  state.previewSegs.forEach((seg) => { const key = previewTimeKey(seg); timeCounts.set(key, (timeCounts.get(key) || 0) + 1); });
+  const byTime = new Map();
+  state.previewSegs.forEach((seg, index) => { const key = previewTimeKey(seg); if (timeCounts.get(key) === 1) byTime.set(key, index); });
   const changed = new Set();
   translated.forEach((segment, fallbackIndex) => {
     const eventIndex = Number(segment.index);
@@ -1255,7 +1311,7 @@ function createSegmentEl(seg, idx) {
     <span class="segment-state-rail" aria-hidden="true"></span>
     <span class="segment-time">${start} → ${end}${fast ? ` · ${cps.toFixed(0)} CPS` : ''}</span>
     <span class="segment-copy">
-      <span class="segment-text" contenteditable="true" spellcheck="false" title="Düzenlemek için tıkla — Kopyala/JSON yeniden-üret bu metni kullanır">${escapeHtml(seg.text)}</span>
+      <span class="segment-text" role="textbox" tabindex="0" aria-label="Segment metni — düzenlemek için Enter veya Tab kullanın" contenteditable="true" spellcheck="false" title="Düzenlemek için tıkla — Kopyala/JSON yeniden-üret bu metni kullanır">${escapeHtml(seg.text)}</span>
       <span class="segment-state-summary"></span>
     </span>
   `;
@@ -1271,7 +1327,7 @@ function commitSegmentEdit(textEl) {
   const idx = parseInt(segEl.dataset.idx, 10);
   const entry = state.previewSegs[idx];
   if (!entry) return;
-  const newText = textEl.textContent.replace(/\s+/g, ' ').trim();
+  const newText = textEl.textContent.replace(/[ \t\f\v]+/g, ' ').replace(/\r?\n[ \t]*/g, '\n').trim();
   textEl.textContent = newText;
   if (newText === entry.text) return;
   entry.text = newText;
@@ -1285,7 +1341,7 @@ $('preview').addEventListener('blur', (e) => {
   if (e.target.classList && e.target.classList.contains('segment-text')) commitSegmentEdit(e.target);
 }, true);
 $('preview').addEventListener('keydown', (e) => {
-  if (e.target.classList && e.target.classList.contains('segment-text') && e.key === 'Enter') {
+  if (e.target.classList && e.target.classList.contains('segment-text') && e.key === 'Enter' && !e.isComposing) {
     e.preventDefault();
     e.target.blur();
   }
@@ -1303,22 +1359,47 @@ function enforcePreviewCap(preview) {
   }
 }
 
-function addSegment(seg) {
+function flushPendingPreviewSegments() {
+  if (_previewFlushTimer !== null) clearTimeout(_previewFlushTimer);
+  _previewFlushTimer = null;
+  if (!_pendingPreviewSegments.length) return;
+  const pending = _pendingPreviewSegments;
+  _pendingPreviewSegments = [];
   const preview = $('preview');
-  clearPreviewActiveSegment();
-  const entry = { ...seg, previewActive: true };
-  const idx = state.previewSegs.push(entry) - 1;
-  if (preview.querySelector('.empty-state')) preview.innerHTML = '';
   const stick = isNearBottom(preview);
-  const el = createSegmentEl(entry, idx);
-  applySegmentFilter(el);
-  preview.appendChild(el);
+  const activeEl = preview.querySelector('.segment.active');
+  if (activeEl) {
+    const index = Number(activeEl.dataset.idx);
+    if (Number.isInteger(index) && state.previewSegs[index]) {
+      syncPreviewSegmentState(activeEl, state.previewSegs[index]);
+    }
+  }
+  if (preview.querySelector('.empty-state')) preview.replaceChildren();
+  const fragment = document.createDocumentFragment();
+  for (const { entry, idx } of pending) {
+    const el = createSegmentEl(entry, idx);
+    applySegmentFilter(el);
+    fragment.appendChild(el);
+  }
+  preview.appendChild(fragment);
   enforcePreviewCap(preview);
   if (stick) preview.scrollTop = preview.scrollHeight;
 }
 
+function addSegment(seg) {
+  const previous = state.previewSegs[state.previewSegs.length - 1];
+  if (previous?.previewActive) previous.previewActive = false;
+  const entry = { ...seg, previewActive: true };
+  const idx = state.previewSegs.push(entry) - 1;
+  _pendingPreviewSegments.push({ entry, idx });
+  if (_previewFlushTimer === null) {
+    _previewFlushTimer = setTimeout(flushPendingPreviewSegments, 16);
+  }
+}
+
 // Nihai segment listesini tek seferde göster — DocumentFragment ile (düğüm başına reflow yok)
 function renderFinalPreview(segs) {
+  cancelPendingPreviewFlush();
   const preview = $('preview');
   // DOM sınırından çıkan düzenlemeler de modelde saklanır. İndekse değil zaman
   // aralığına eşle; yeniden bölünmüş bir bloğa başka kullanıcının metnini taşıma.
@@ -1379,9 +1460,15 @@ $$('.tab[data-tab]').forEach((tab) => {
 });
 
 // ===== File & folder selection =====
+let inputSelectionGeneration = 0;
+async function selectVideoWithGeneration() {
+  const generation = ++inputSelectionGeneration;
+  const files = await window.api.selectVideo();
+  return generation === inputSelectionGeneration ? files : null;
+}
 const dropZone = $('dropZone');
 dropZone.addEventListener('click', async () => {
-  const files = await window.api.selectVideo();
+  const files = await selectVideoWithGeneration();
   if (!files || files.length === 0) return;
   if (files.length === 1 && state.queue.length === 0 && !state.running && !state.queueRunning) {
     setInputFile(files[0]);
@@ -1533,7 +1620,7 @@ if (openLogFolderBtn) {
 const pickVideosBtn = $('pickVideosBtn');
 if (pickVideosBtn) {
   pickVideosBtn.addEventListener('click', async () => {
-    const files = await window.api.selectVideo();
+    const files = await selectVideoWithGeneration();
     if (!files || files.length === 0) return;
     if (files.length === 1 && state.queue.length === 0 && !state.running && !state.queueRunning) {
       setInputFile(files[0]);
@@ -1579,6 +1666,7 @@ dropZone.addEventListener('dragleave', () => {
 });
 
 async function handleDropPayload(e) {
+  inputSelectionGeneration += 1;
   // webUtils üzerinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)
   let paths = Array.from(e.dataTransfer.files)
     .map((f) => window.api.getFilePath(f))
@@ -1602,7 +1690,7 @@ async function handleDropPayload(e) {
       paths = paths.filter((item) => !subtitlePaths.includes(item));
       if (!paths.length) return;
     }
-    const mediaFiles = await window.api.scanMediaPaths(paths);
+    const mediaFiles = await window.api.scanDroppedFiles(e.dataTransfer.files);
     if (!mediaFiles || mediaFiles.length === 0) {
       logLine('Bırakılan dosya veya klasörlerde desteklenen video/ses dosyası bulunamadı.', 'warn');
       return;
@@ -1813,16 +1901,16 @@ function renderGlossary() {
 function addGlossaryTerm() {
   const v = glossaryInputEl.value.trim();
   if (!v) return;
-  // Birden çok terim virgülle ayrılırsa hepsini ekle
-  v.split(/[,;]/).map(s => s.trim()).filter(Boolean).forEach(term => {
-    if (!glossary.includes(term)) glossary.push(term);
-  });
+  for (const term of v.split(/[,;]/).map(s => s.trim()).filter(Boolean)) {
+    if (glossary.includes(term)) continue;
+    if (glossary.length >= 500) { logLine('Glossary limit: 500 terms.', 'warn'); break; }
+    glossary.push(term);
+  }
   glossaryInputEl.value = '';
   saveAppSettings();
   renderGlossary();
 }
-
-$('glossaryAdd').addEventListener('click', addGlossaryTerm);
+glossaryAdd.addEventListener('click', addGlossaryTerm);
 glossaryInputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); addGlossaryTerm(); }
 });
@@ -2402,6 +2490,7 @@ if ($('deepseekKeyHelp')) {
   try {
     const s = await window.api.loadSettings();
     if (s) {
+      if (s._loadWarning) logLine(String(s._loadWarning), 'error');
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
       if (s.hfToken) $('hfToken').value = s.hfToken;
       if (s.outputDir) {
@@ -2804,6 +2893,23 @@ function mergeLiveCues(existing, incoming) {
   return [...byTime.values()].sort((a, b) => a.start - b.start);
 }
 
+function replaceLiveCuesForRefresh(existing, fresh, range = null) {
+  const previous = Array.isArray(existing) ? existing : [];
+  const finalCues = applyCueQuality(Array.isArray(fresh) ? fresh : [], previous);
+  if (!range) return finalCues.slice().sort((a, b) => a.start - b.start);
+  const start = Number(range.start);
+  const rawEnd = range.end;
+  const end = rawEnd === '' || rawEnd == null ? Infinity : Number(rawEnd);
+  if (!Number.isFinite(start) || !(end > start)) {
+    return finalCues.slice().sort((a, b) => a.start - b.start);
+  }
+  // Progressive işte preview_refresh yalnız o parçanın nihai listesidir.
+  // Aynı parçadaki ham segmentleri çıkar; önceki/sonraki parçaları koru.
+  const outside = previous.filter((cue) =>
+    Number(cue.end) <= start || Number(cue.start) >= end);
+  return mergeLiveCues(outside, finalCues);
+}
+
 function applyCueQuality(cues, qualityCues) {
   if (!qualityCues || !qualityCues.length) return cues;
   const ordered = [...qualityCues].sort((a, b) => a.start - b.start || a.end - b.end);
@@ -2875,7 +2981,9 @@ async function finishProgressiveJob(job) {
     return;
   }
   job.stage = 'Kaydediliyor';
-  if (job.sourceFile && source.length) await window.api.writeSubtitle(job.sourceFile, cuesToSrt(source));
+  const edits = new Map(state.previewSegs.filter((seg) => seg.previewEdited).map((seg) => [previewTimeKey(seg), seg.text]));
+  const editedSource = source.map((cue) => edits.has(previewTimeKey(cue)) ? { ...cue, text: edits.get(previewTimeKey(cue)) } : cue);
+  if (job.sourceFile && editedSource.length) await window.api.writeSubtitle(job.sourceFile, cuesToSrt(editedSource));
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (job.translationFile && translated.length) {
     await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
@@ -3108,8 +3216,9 @@ function playerJobEvent(event) {
     }
   } else if (event.type === 'preview_refresh') {
     const fresh = liveSegments(event);
-    if (fresh.length) job.liveSource = mergeLiveCues(job.liveSource || [], fresh);
-    if (fresh.length && job.mediaKey === player.mediaKey && job.kind !== 'translate') {
+    const range = job.kind === 'progressive' ? job.ranges?.[job.rangeIndex] : null;
+    job.liveSource = replaceLiveCuesForRefresh(job.liveSource || [], fresh, range);
+    if (job.mediaKey === player.mediaKey && job.kind !== 'translate') {
       player.cues = (job.liveSource || []).slice().sort((a, b) => a.start - b.start);
       player.activeIdx = -1;
       scheduleLiveCueRender();
@@ -3627,7 +3736,7 @@ window.api.onEvent((event) => {
         state.awaitingExit = false;
         $('startBtn').classList.remove('hidden');
         $('cancelBtn').classList.add('hidden');
-        setTimeout(processNextQueueItem, 250);
+        _queueNextTimer = setTimeout(() => { _queueNextTimer = null; processNextQueueItem(); }, 250);
         break;
       }
       // Tekil (kuyruksuz) is: 'done'/'error' geldiginde arayuz zaten bitmis
@@ -3667,6 +3776,8 @@ if ($('resultModal')) {
 }
 
 function showResultModal(event) {
+  state.resultModalFiles = Array.isArray(event.files) ? event.files.slice() : [];
+  state.resultModalVideo = state.lastJobVideo || null;
   let stats;
   if (event.sync_offset !== undefined) {
     const o = event.sync_offset;
@@ -3723,14 +3834,14 @@ function showResultModal(event) {
   $('burnInCancel').classList.add('hidden');
   $('burnInBtn').classList.remove('hidden');
   // Burn-in yalnızca yerel video + SRT/ASS çıktısı varsa anlamlı
-  const canBurn = !!state.lastJobVideo && !!pickOutput(['.srt', '.ass']);
+  const canBurn = !!state.resultModalVideo && !!pickOutput(['.srt', '.ass']);
   $('burninRow').classList.toggle('hidden', !canBurn);
-  $('reviewOutput').disabled = !state.lastJobVideo;
-  $('reviewOutput').title = state.lastJobVideo
+  $('reviewOutput').disabled = !state.resultModalVideo;
+  $('reviewOutput').title = state.resultModalVideo
     ? 'Videoyu son çıktıyla oynatıcıda aç'
     : 'YouTube işleri geçmişteki İzle eyleminden yeniden açılabilir';
 
-  openManagedModal($('resultModal'), state.lastJobVideo ? $('reviewOutput') : $('openOutput'));
+  openManagedModal($('resultModal'), state.resultModalVideo ? $('reviewOutput') : $('openOutput'));
 }
 
 $('closeModal').addEventListener('click', () => {
@@ -3738,15 +3849,15 @@ $('closeModal').addEventListener('click', () => {
 });
 
 $('openOutput').addEventListener('click', () => {
-  const f = state.outputFiles[0];
+  const f = state.resultModalFiles[0];
   if (f) window.api.showInFolder(f);
   closeManagedModal($('resultModal'));
 });
 
 $('reviewOutput').addEventListener('click', () => {
-  if (!state.lastJobVideo) return;
+  if (!state.resultModalVideo) return;
   closeManagedModal($('resultModal'), false);
-  openPlayer();
+  openPlayer({ video: state.resultModalVideo, files: state.resultModalFiles });
 });
 
 // ===== Kuyruk buton event'leri =====
@@ -3948,7 +4059,7 @@ function updateSyncBtn() {
 }
 
 $('pickSyncVideo').addEventListener('click', async () => {
-  const files = await window.api.selectVideo();
+  const files = await selectVideoWithGeneration();
   if (files && files[0]) {
     state.syncVideo = files[0];
     $('syncVideoPath').textContent = files[0];
@@ -3993,7 +4104,7 @@ $('syncBtn').addEventListener('click', async () => {
 
 // ===== Sonuç modalı araçları: zaman kaydır + videoya göm =====
 function pickOutput(exts) {
-  return (state.outputFiles || []).find(f => exts.includes(f.slice(f.lastIndexOf('.')).toLowerCase()));
+  return (state.resultModalFiles || []).find(f => exts.includes(f.slice(f.lastIndexOf('.')).toLowerCase()));
 }
 
 $('applyShift').addEventListener('click', async () => {
@@ -4016,9 +4127,9 @@ function setBurninRunningUi() {
 
 $('burnInBtn').addEventListener('click', async () => {
   const sub = pickOutput(['.srt', '.ass']);
-  if (!state.lastJobVideo) { logLine('Gömme yalnızca yerel video girdisinde mümkün (YouTube değil).', 'warn'); return; }
+  if (!state.resultModalVideo) { logLine('Gömme yalnızca yerel video girdisinde mümkün (YouTube değil).', 'warn'); return; }
   if (!sub) { logLine('Gömülecek SRT/ASS çıktısı yok.', 'warn'); return; }
-  const r = await window.api.burnInStart(state.lastJobVideo, sub);
+  const r = await window.api.burnInStart(state.resultModalVideo, sub);
   if (!r || !r.ok) { logLine('Gömme başlatılamadı: ' + ((r && r.error) || ''), 'error'); return; }
   setBurninRunningUi();
 });
@@ -4270,6 +4381,7 @@ const player = {
   playbackPolicy: 'normal',
   learningBaseRate: 1,
   shadowResumeTimer: null,
+  shadowPausedCueId: '',
   cueEditUndo: [],
   cueEditRedo: [],
   subtitleFindReplace: { generation: 0, timer: null, matches: [], selected: new Set() },
@@ -5193,7 +5305,21 @@ function renderBrowserTabs() {
     open.setAttribute('aria-selected', webActive ? 'true' : 'false');
     open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
     open.tabIndex = webActive ? 0 : -1;
-    open.textContent = browserTabLabel(tab);
+    if (tab.favicon) {
+      const favicon = document.createElement('img');
+      favicon.className = 'browser-tab-favicon';
+      favicon.src = tab.favicon;
+      favicon.alt = '';
+      favicon.draggable = false;
+      favicon.referrerPolicy = 'no-referrer';
+      favicon.setAttribute('aria-hidden', 'true');
+      favicon.addEventListener('error', () => { favicon.hidden = true; }, { once: true });
+      open.appendChild(favicon);
+    }
+    const label = document.createElement('span');
+    label.className = 'browser-tab-label';
+    label.textContent = browserTabLabel(tab);
+    open.appendChild(label);
     open.title = [tab.title, tab.url, activity.label].filter(Boolean).join('\n') || 'Yeni sekme';
     if (activity.busy) open.dataset.activity = activity.label;
     const audio = document.createElement('button');
@@ -5966,9 +6092,13 @@ function renderBrowserPlaces() {
 let browserAddressSearchTimer = null;
 let browserAddressSearchSeq = 0;
 function closeBrowserAddressResults() {
+  clearTimeout(browserAddressSearchTimer);
+  browserAddressSearchTimer = null;
+  browserAddressSearchSeq += 1;
   const panel = $('browserAddressResults');
   panel?.classList.add('hidden');
   $('browserAddress')?.setAttribute('aria-expanded', 'false');
+  player.browserAddressResults = [];
   player.browserAddressSelected = -1;
   syncBrowserOcclusion();
 }
@@ -6371,6 +6501,7 @@ let browserDiagnosticsFilter = '';
 
 function browserDiagnosticsCopyText(diagnostics) {
   const counts = diagnostics?.counts || {};
+  const translation = diagnostics?.translation || {};
   const operationId = String(diagnostics?.operationId || 'yok');
   const recent = Array.isArray(diagnostics?.recent) ? diagnostics.recent.slice(0, 100) : [];
   const lines = [
@@ -6379,6 +6510,7 @@ function browserDiagnosticsCopyText(diagnostics) {
     `Sayfa: ${String(diagnostics?.pageUrl || 'yok')}`,
     `Sayfa durumu: ${String(diagnostics?.responsiveness?.message || 'ölçülmedi')}`,
     `Sonuç: ${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`,
+    `Çeviri: ${Number(translation.sourceCues || 0)} kaynak · ${Number(translation.submittedSentences || 0)} gönderilen cümle · ${Number(translation.translatedCues || 0)} çıktı · ${Number(translation.missingCues || 0)} eksik`,
     'Son olaylar:',
     ...recent.slice(0, 30).map((entry) => [entry.strategy, entry.outcome, entry.detail, entry.url].filter(Boolean).join(' · ')),
   ];
@@ -6395,10 +6527,18 @@ function renderBrowserDiagnostics(diagnostics) {
   if ($('browserDiagnosticsHelp')) $('browserDiagnosticsHelp').textContent = adapter.help
     || 'Videoyu başlatın ve varsa sitenin kendi altyazısını açın.';
   const counts = diagnostics.counts || {};
-  const attempts = Number(counts.cdp || 0) + Number(counts.page || 0) + Number(counts.textTrack || 0);
-  if ($('browserDiagnosticsSummary')) $('browserDiagnosticsSummary').textContent = attempts
-    ? `${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`
-    : 'Henüz ağ izi yok';
+  const translation = diagnostics.translation || {};
+  const attempts = Number(counts.cdp || 0) + Number(counts.page || 0) + Number(counts.textTrack || 0)
+    + Number(counts.manifest || 0) + Number(counts.adblock || 0);
+  if ($('browserDiagnosticsSummary')) {
+    const captureSummary = attempts
+      ? `${Number(counts.parsed || 0)} işlendi · ${Number(counts.rejected || 0)} elendi · ${Number(counts.errors || 0)} hata`
+      : 'Henüz ağ izi yok';
+    const translationSummary = Number(translation.sourceCues || 0)
+      ? ` · Çeviri ${Number(translation.translatedCues || 0)}/${Number(translation.sourceCues || 0)}${Number(translation.missingCues || 0) ? ` · ${Number(translation.missingCues)} eksik` : ''}`
+      : '';
+    $('browserDiagnosticsSummary').textContent = captureSummary + translationSummary;
+  }
   const activity = diagnostics.activity || {};
   const responsiveness = diagnostics.responsiveness || {};
   const pageStatus = $('browserDiagnosticsPageStatus');
@@ -6452,7 +6592,7 @@ function renderBrowserDiagnostics(diagnostics) {
     const row = document.createElement('div');
     row.className = `browser-diagnostic-row is-${entry.outcome === 'parsed' ? 'parsed' : entry.outcome === 'error' ? 'error' : 'neutral'}`;
     const strategy = document.createElement('span');
-    strategy.textContent = ({ cdp: 'AĞ', page: 'SAYFA', textTrack: 'İZ', manifest: 'AKIŞ' })[entry.strategy]
+    strategy.textContent = ({ cdp: 'AĞ', page: 'SAYFA', textTrack: 'İZ', manifest: 'AKIŞ', adblock: 'FİLTRE' })[entry.strategy]
       || String(entry.strategy || '').toUpperCase();
     const result = document.createElement('span');
     result.textContent = entry.outcome === 'parsed' ? 'işlendi' : entry.outcome === 'error' ? 'hata' : 'elendi';
@@ -8954,6 +9094,8 @@ async function navigateBrowserFromAddress() {
     $('browserAddress')?.focus();
     return null;
   }
+  $('browserAddress')?.blur?.();
+  closeBrowserAddressResults();
   if (player.browserSurface === 'settings') showBrowserWebSurface();
   const navigateSeq = ++player.browserNavigateSeq;
   const tabId = player.browserActiveTabId;
@@ -9716,6 +9858,20 @@ if ($('browserTrackExport')) $('browserTrackExport').addEventListener('click', e
 if ($('browserTranslationExport')) $('browserTranslationExport').addEventListener('click', exportBrowserTranslation);
 if ($('browserTranslationRetryFailed')) $('browserTranslationRetryFailed').addEventListener('click', retryFailedBrowserTranslation);
 if ($('browserQueuePage')) $('browserQueuePage').addEventListener('click', queueCurrentBrowserPage);
+if ($('browserArchivePage')) $('browserArchivePage').addEventListener('click', async () => {
+  const button = $('browserArchivePage');
+  if (button.disabled) return;
+  button.disabled = true;
+  const result = await window.api.archiveBrowserPage?.(player.browserActiveTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  button.disabled = false;
+  if (result?.ok) {
+    setBrowserSignal('Sayfanın çevrimdışı MHTML kopyası kaydedildi.', true, { priority: 60, holdMs: 4500 });
+    logLine(`Sayfa arşivi kaydedildi: ${result.path}`, 'success');
+  } else if (!result?.canceled) {
+    setBrowserSignal(result?.error || 'Sayfa arşivlenemedi.', false, { priority: 90, holdMs: 6500 });
+  }
+});
 if ($('browserExportClip')) $('browserExportClip').addEventListener('click', exportBrowserAbClip);
 if ($('browserWhisperSubtitles')) $('browserWhisperSubtitles').addEventListener('click', () => startBrowserYoutubeWhisper(false));
 if ($('browserWhisperTranslate')) $('browserWhisperTranslate').addEventListener('click', () => startBrowserYoutubeWhisper(true));
@@ -9908,6 +10064,37 @@ $('browserPermissionPrompt')?.addEventListener('click', (event) => {
   if (button) void respondToBrowserPermission(button.dataset.permissionDecision);
 });
 
+function runBrowserShortcut(key, shift = false) {
+  const normalized = String(key || '').toLowerCase();
+  if (normalized === 'k' || normalized === 'p') { openBrowserCommandPalette(); return true; }
+  if (normalized === 'f') { openBrowserFind(); return true; }
+  if (normalized === 'l') { $('browserAddress')?.focus(); $('browserAddress')?.select(); return true; }
+  if (normalized === 't' && shift) { reopenClosedBrowserTab(); return true; }
+  if (normalized === 't') { createBrowserTab(); return true; }
+  if (normalized === 'w') { closeBrowserTab(player.browserActiveTabId); return true; }
+  if (normalized === 'r') { void runBrowserChromeCommand('reload'); return true; }
+  if (normalized === 'tab') {
+    const tabs = player.browserTabs || [];
+    if (tabs.length > 1) {
+      const current = Math.max(0, tabs.findIndex((tab) => tab.id === player.browserActiveTabId));
+      const direction = shift ? -1 : 1;
+      void activateBrowserTab(tabs[(current + direction + tabs.length) % tabs.length].id);
+    }
+    return true;
+  }
+  if (/^[1-9]$/.test(normalized)) {
+    const tabs = player.browserTabs || [];
+    const index = normalized === '9' ? tabs.length - 1 : Number(normalized) - 1;
+    if (tabs[index]) void activateBrowserTab(tabs[index].id);
+    return true;
+  }
+  const zoomCommand = normalized === '0' ? 'zoom-reset'
+    : (normalized === '+' || normalized === '=' ? 'zoom-in'
+      : (normalized === '-' || normalized === '_' ? 'zoom-out' : ''));
+  if (zoomCommand) { void changeBrowserZoom(zoomCommand); return true; }
+  return false;
+}
+
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
   if (event.type === 'permission-request') { showBrowserPermissionPrompt(event); return; }
@@ -9943,10 +10130,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (['find-open', 'find-result', 'find-reset'].includes(event.type)) { receiveBrowserFindEvent(event); return; }
   if (event.type === 'browser-shortcut') {
     if (event.tabId !== player.browserActiveTabId) return;
-    if (event.key === 'k') openBrowserCommandPalette();
-    else if (event.key === 'f') openBrowserFind();
-    else if (event.key === 'l') { $('browserAddress')?.focus(); $('browserAddress')?.select(); }
-    else if (event.key === 't' && event.shift) reopenClosedBrowserTab();
+    runBrowserShortcut(event.key, !!event.shift);
     return;
   }
   if (event.type === 'tabs-changed') {
@@ -10990,7 +11174,8 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
   const action = window.WhisperPlaybackPolicy.playbackLearningAction(
     player.cues, currentSourceTime, previousSourceTime,
     player.playbackPolicy,
-    { baseRate: player.learningBaseRate, gapRate: Math.max(2, player.learningBaseRate), minGap: 2, lead: .15 },
+    { baseRate: player.learningBaseRate, gapRate: Math.max(2, player.learningBaseRate), minGap: 2, lead: .15,
+      lastShadowCueId: player.shadowPausedCueId },
   );
   if (!action) return;
   if (action.type === 'seek') {
@@ -11002,6 +11187,7 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
     }
     else if ($('playerVideo')) $('playerVideo').currentTime = target;
   } else if (action.type === 'set-rate') {
+    if (action.cueId) player.shadowPausedCueId = '';
     const current = browserMode ? player.browserRate : Number($('playerVideo')?.playbackRate || 1);
     if (Math.abs(current - action.rate) < .01) return;
     if (browserMode) {
@@ -11022,6 +11208,7 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
     const generation = currentGeneration();
     if (browserMode) browserCommand('pause').catch(() => {});
     else $('playerVideo')?.pause();
+    player.shadowPausedCueId = action.cueId || '';
     player.shadowResumeTimer = setTimeout(() => {
       player.shadowResumeTimer = null;
       if (generation !== currentGeneration() || player.playbackPolicy !== 'shadowing' || player.editing) return;
@@ -15648,27 +15835,29 @@ async function applySubtitleFindReplacement(mode) {
   logLine(changedMatches + ' eşleşme ' + plans.length + ' altyazı bloğunda değiştirildi.', 'success');
 }
 
-function openPlayer() {
+function openPlayer(jobSnapshot = null) {
+  const jobVideo = jobSnapshot?.video ?? state.lastJobVideo;
+  const jobFiles = jobSnapshot?.files ?? state.outputFiles;
   $('playerLayer').classList.remove('hidden');
   setWorkspaceMode(player.workspaceMode, false);
   // SIRA ONEMLI: once kaynak acilir (bu, medyaya bagli durumu SIFIRLAR), sonra
   // altyazilar iliskilendirilir. Ters sirada, az once eklenen "son isin ciktilari"
   // hemen siliniyordu ve cikti baska klasordeyse hic gorunmuyordu.
-  if (state.lastJobVideo) {
+  if (jobVideo) {
     player.openIntent++;
     player.pendingAutoOpen = null;
-    $('playerVideoPath').textContent = state.lastJobVideo;
-    setPlayerSource(pathToFileUrl(state.lastJobVideo),
-                    state.lastJobVideo.split(/[\\/]/).pop(),
-                    mediaKeyFor('local', state.lastJobVideo),
-                    { localPath: state.lastJobVideo });
+    $('playerVideoPath').textContent = jobVideo;
+    setPlayerSource(pathToFileUrl(jobVideo),
+                    jobVideo.split(/[\\/]/).pop(),
+                    mediaKeyFor('local', jobVideo),
+                    { localPath: jobVideo });
   }
-  const outputs = (state.outputFiles || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
+  const outputs = (jobFiles || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
   outputs.forEach((f) => addSubtitleOption(f));
   // Is ciktisi varsa onu deterministik olarak birincil tut. Klasor taramasi
   // asenkron tamamlanip cues henuz bosken kardes dosyayi secerek cikti yuklemesini
   // yarista iptal etmesin; bu durumda kardesler yalnizca seceneklere eklenir.
-  if (state.lastJobVideo) attachSiblingSubtitles(state.lastJobVideo, outputs.length === 0);
+  if (jobVideo) attachSiblingSubtitles(jobVideo, outputs.length === 0);
   // Isin kendi ciktisi varsa onu birincil altyaziya yukle (kardes taramasi
   // asenkron; o da bosalti doldurmaya calisir, ikisi ayni dosyayi bulur)
   if (outputs.length && !player.cues.length) {
@@ -16596,10 +16785,15 @@ function renderBrowserPagePreview(result = player.browserPagePreview) {
     return;
   }
   panel.hidden = false;
+  const totalBlocks = Number(result.totalBlocks) || 0;
+  const apiBlocks = Number(result.apiBlocks) || 0;
+  const memoryBlocks = Number(result.memoryBlocks) || 0;
+  const excludedBlocks = Number(result.excludedBlocks) || 0;
+  const pendingBlocks = Number(result.pendingBlocks) || 0;
   panel.innerHTML = '<strong>Çeviri önizlemesi</strong><div>'
-    + result.totalBlocks + ' blok bulundu · ' + result.apiBlocks + ' API’ye gidecek · '
-    + result.memoryBlocks + ' bellekten · ' + result.excludedBlocks + ' dışlandı · '
-    + result.pendingBlocks + ' beklemede</div><small>'
+    + totalBlocks + ' blok bulundu · ' + apiBlocks + ' API’ye gidecek · '
+    + memoryBlocks + ' bellekten · ' + excludedBlocks + ' dışlandı · '
+    + pendingBlocks + ' beklemede</div><small>'
     + Number(result.apiCharacters || 0).toLocaleString('tr-TR')
     + ' kaynak karakteri' + (result.characterBudget ? ' / ' + Number(result.characterBudget).toLocaleString('tr-TR') + ' sınır' : '')
     + '</small>';
@@ -17010,7 +17204,9 @@ async function extractPdfReaderPage(pageNumber) {
   }
   if (lines.length) blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') });
   reader.pages.set(pageNumber, {
-    blocks, items, pageHeight, pageWidth, article: null, translation: null,
+    blocks, items, pageHeight, pageWidth,
+    viewportTransform: Array.isArray(pageViewport.transform) ? pageViewport.transform.slice(0, 6) : [],
+    article: null, translation: null,
   });
   return blocks;
 }
@@ -17099,7 +17295,8 @@ async function translateVisiblePdfPages(all = false) {
     const requests = batchPages.map((pageNumber) => {
       const entry = reader.pages.get(pageNumber) || {};
       return { pageNumber, blocks: entry.blocks || [], items: entry.items || [],
-        pageHeight: entry.pageHeight || 0, pageWidth: entry.pageWidth || 0 };
+        pageHeight: entry.pageHeight || 0, pageWidth: entry.pageWidth || 0,
+        viewportTransform: entry.viewportTransform || [] };
     });
     const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage: $('pdfTargetLanguage')?.value || 'tr', pages: requests }).catch((error) => ({ ok: false, error: error.message }));
     if (result?.state) {
@@ -17107,8 +17304,15 @@ async function translateVisiblePdfPages(all = false) {
       for (const page of batchPages) renderPdfTranslation(page, result.state.pages?.[String(page)]);
       updatePdfReaderProgress();
     }
-    if (result?.ok || result?.partial) completed += batchPages.length;
-    else { failed += batchPages.length; lastError = result?.error || 'Çeviri başarısız'; }
+    if (result?.ok) completed += batchPages.length;
+    else if (result?.partial) {
+      const batchCompleted = Math.max(0, Math.min(batchPages.length,
+        Number(result.completedCount) || 0));
+      completed += batchCompleted;
+      failed += Math.max(0, Math.min(batchPages.length,
+        Number.isFinite(Number(result.failedCount)) ? Number(result.failedCount) : batchPages.length - batchCompleted));
+      lastError = result?.error || 'Bazı sayfalar çevrilemedi';
+    } else { failed += batchPages.length; lastError = result?.error || 'Çeviri başarısız'; }
     pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
     if (result?.canceled) { canceled = true; break; }
   }
@@ -18615,35 +18819,7 @@ document.addEventListener('keydown', (e) => {
   const modifier = e.ctrlKey || e.metaKey;
   if (player.workspaceMode === 'browser' && modifier && !e.altKey) {
     const key = e.key.toLowerCase();
-    if (key === 'k') { e.preventDefault(); openBrowserCommandPalette(); return; }
-    if (key === 'f') { e.preventDefault(); openBrowserFind(); return; }
-    if (key === 'l') {
-      e.preventDefault();
-      $('browserAddress')?.focus();
-      $('browserAddress')?.select();
-      return;
-    }
-    if (key === 't' && e.shiftKey) { e.preventDefault(); reopenClosedBrowserTab(); return; }
-    if (key === 't') { e.preventDefault(); createBrowserTab(); return; }
-    if (key === 'w') { e.preventDefault(); closeBrowserTab(player.browserActiveTabId); return; }
-    if (e.key === 'Tab') {
-      const tabs = player.browserTabs || [];
-      if (tabs.length > 1) {
-        e.preventDefault();
-        const current = Math.max(0, tabs.findIndex((tab) => tab.id === player.browserActiveTabId));
-        const direction = e.shiftKey ? -1 : 1;
-        const next = tabs[(current + direction + tabs.length) % tabs.length];
-        activateBrowserTab(next.id);
-      }
-      return;
-    }
-    const zoomCommand = key === '0' ? 'zoom-reset'
-      : (key === '+' || key === '=' ? 'zoom-in' : (key === '-' || key === '_' ? 'zoom-out' : ''));
-    if (zoomCommand) {
-      e.preventDefault();
-      changeBrowserZoom(zoomCommand).catch(() => {});
-      return;
-    }
+    if (runBrowserShortcut(key, e.shiftKey)) { e.preventDefault(); return; }
   }
   const video = $('playerVideo');
   const tag = (e.target.tagName || '').toLowerCase();
@@ -18837,7 +19013,7 @@ $$('.tab[data-ptab]').forEach((tab) => {
 
 if ($('playerPickVideo')) {
   $('playerPickVideo').addEventListener('click', async () => {
-    const files = await window.api.selectVideo();
+    const files = await selectVideoWithGeneration();
     if (!files || !files.length) return;
     const f = files[0];
     openLocalMedia(f, 0, files);

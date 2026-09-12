@@ -131,6 +131,8 @@ test('normal ve ilgisiz belirtiler false positive üretmez', () => {
 
 test('yalnız oynatma ile ilgili ağ kaynakları tanı matrisine girer', () => {
   assert.equal(inferPlaybackResource({ url: 'https://svc.test/wv/license', resourceType: 'xhr' }), 'license');
+  assert.equal(inferPlaybackResource({ url: 'https://svc.test/wv/keys', resourceType: 'xhr' }), 'license');
+  assert.equal(inferPlaybackResource({ url: 'https://svc.test/auth/key', resourceType: 'xhr' }), 'other');
   assert.equal(inferPlaybackResource({ url: 'https://license.svc.test/wv', resourceType: 'xhr' }), 'license');
   assert.equal(inferPlaybackResource({ url: 'https://svc.test/movie.mpd', resourceType: 'xhr' }), 'media');
   assert.equal(inferPlaybackResource({ url: 'https://svc.test/playback/session', resourceType: 'fetch' }), 'playback-api');

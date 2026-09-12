@@ -7,7 +7,7 @@ const { normalizeMangaPosition } = require('./browser-library-tools');
 const { normalizeTabGroup } = require('./browser-tab-layout');
 const { normalizeReaderPreferences } = require('./browser-reader');
 
-const BROWSER_SESSION_VERSION = 7;
+const BROWSER_SESSION_VERSION = 8;
 const MAX_SESSION_TABS = 24;
 const MAX_TRACK_REFS = 12;
 const MAX_RECOVERY_JOBS = 50;
@@ -160,6 +160,10 @@ function migrateBrowserSession(raw) {
     })) : [], splitSecondaryTabId: '', splitRatio: 0.5 };
     version = 7;
   }
+  if (version < 8) {
+    source = { ...source, cleanExit: source.cleanExit === true ? true : source.cleanExit === false ? false : null };
+    version = 8;
+  }
   // Yerel oturum gelecekte ek alanlar kazanırsa bilinmeyen alanları izinli
   // şemaya indirerek aç; taşınabilir paket sürümü ayrıca katı doğrulanır.
   return source;
@@ -247,6 +251,7 @@ function normalizeBrowserSession(raw) {
       ? splitSecondaryTabId : '',
     splitRatio: finiteNumber(source.splitRatio, 0.5, 0.25, 0.75),
     savedAt: finiteNumber(source.savedAt, Date.now(), 0),
+    cleanExit: source.cleanExit === true ? true : source.cleanExit === false ? false : null,
     tabs,
   };
 }

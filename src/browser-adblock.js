@@ -16,9 +16,44 @@ function electronBlockerClass() {
 }
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CACHE_BYTES = 64 * 1024 * 1024;
+const MAX_RECENT_BLOCKED = 30;
 
 function safeErrorMessage(error) {
   return String(error?.message || error || 'Bilinmeyen hata').replace(/\s+/g, ' ').trim().slice(0, 500);
+}
+
+function safeBlockedUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    parsed.username = '';
+    parsed.password = '';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString().slice(0, 500);
+  } catch (_) {
+    return '';
+  }
+}
+
+function safeFilterRule(value) {
+  return String(value || '')
+    .replace(/([?&](?:token|sig|signature|key|auth|authorization|password|secret)=)[^&\s|]+/gi, '$1[gizlendi]')
+    .replace(/\b(bearer)\s+[a-z0-9._~+\/-]+/gi, '$1 [gizlendi]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
+}
+
+function blockedRequestEntry(request, result, now = Date.now()) {
+  const url = safeBlockedUrl(request?.url);
+  const type = String(request?.type || 'other').slice(0, 40);
+  let rawRule = '';
+  try { rawRule = result?.filter?.getFilter?.() || ''; } catch (_) {}
+  const rule = safeFilterRule(rawRule);
+  const subtitleLike = type === 'texttrack' || type === 'manifest'
+    || /(?:caption|subtitle|timedtext|webvtt|ttml|\.srt(?:$|[/?])|\.vtt(?:$|[/?])|\.m3u8(?:$|[/?])|\.mpd(?:$|[/?]))/i.test(url);
+  return { at: Number(now) || Date.now(), url, type, rule, subtitleLike };
 }
 
 async function readEngineCache(cachePath, fileSystem = fs.promises, now = Date.now()) {
@@ -104,6 +139,7 @@ function createBrowserAdblock(options = {}) {
   let source = '';
   let stale = false;
   let blocked = 0;
+  let recentBlocked = [];
   let eventBound = false;
 
   const snapshot = (changed = false) => ({
@@ -115,13 +151,21 @@ function createBrowserAdblock(options = {}) {
     source,
     stale,
     blocked,
+    recentBlocked: recentBlocked.map((entry) => ({ ...entry })),
     changed,
     engine: 'Ghostery',
   });
 
   const bindEvents = () => {
     if (!engine || eventBound || typeof engine.on !== 'function') return;
-    engine.on('request-blocked', () => { blocked += 1; });
+    engine.on('request-blocked', (request, result) => {
+      blocked += 1;
+      const entry = blockedRequestEntry(request, result);
+      recentBlocked = [entry, ...recentBlocked].slice(0, MAX_RECENT_BLOCKED);
+      try { options.onBlocked?.({ ...entry }); } catch (callbackError) {
+        options.logger?.warn?.(`Engellenen istek tanısı aktarılamadı: ${safeErrorMessage(callbackError)}`);
+      }
+    });
     eventBound = true;
   };
 
@@ -208,10 +252,14 @@ function createBrowserAdblock(options = {}) {
 module.exports = {
   DEFAULT_CACHE_TTL_MS,
   MAX_CACHE_BYTES,
+  MAX_RECENT_BLOCKED,
+  blockedRequestEntry,
   createBrowserAdblock,
   fetchWithTimeout,
   loadEngine,
   readEngineCache,
   safeErrorMessage,
+  safeBlockedUrl,
+  safeFilterRule,
   writeEngineCache,
 };

@@ -90,6 +90,25 @@ test('kayıp alıntı notu silmek yerine missing döndürür', () => {
   assert.equal(result.status, 'missing');
 });
 
+test('alıntı küçük bir yazım değişikliğinden sonra bulanık eşleşmeyle bulunur', () => {
+  const result = resolveTextAnchor({
+    exact: 'Bugün Sidney kentinde sınır görevlileri pasaportu inceliyor.',
+    prefix: 'Belgeselde ', suffix: ' Ardından sorgu başlıyor.',
+  }, [{ id: 'scene', text: 'Belgeselde Bugün Sidney kentinde sınır görevlileri pasaportu dikkatle inceliyor. Ardından sorgu başlıyor.' }]);
+  assert.equal(result.status, 'found');
+  assert.equal(result.match.id, 'scene');
+  assert.equal(result.match.fuzzy, true);
+  assert(result.match.similarity >= .78);
+});
+
+test('birbirine yakın iki bulanık alıntıyı yanlış kesinleştirmez', () => {
+  const result = resolveTextAnchor({ exact: 'Görevli yolcunun pasaportunu dikkatlice kontrol etti.' }, [
+    { id: 'a', text: 'Görevli yolcunun pasaportunu dikkatle kontrol etti.' },
+    { id: 'b', text: 'Görevli yolcunun pasaportunu dikkatle kontrol etti.' },
+  ]);
+  assert.equal(result.status, 'ambiguous');
+});
+
 test('HTML ve script görünümlü alıntı kod olarak çalıştırılmadan veri kalır', () => {
   const quote = `</script><img src=x onerror="globalThis.pwned=true">`;
   const block = {

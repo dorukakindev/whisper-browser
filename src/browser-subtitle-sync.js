@@ -79,8 +79,9 @@
   }
 
   function calculateTwoPointTransform(first, second, minimumSpan = MIN_POINT_SPAN_SECONDS) {
-    const point1 = normalizePoint(first);
-    const point2 = normalizePoint(second);
+    let point1 = normalizePoint(first);
+    let point2 = normalizePoint(second);
+    if (point1.sourceTime > point2.sourceTime) [point1, point2] = [point2, point1];
     const sourceSpan = point2.sourceTime - point1.sourceTime;
     const videoSpan = point2.videoTime - point1.videoTime;
     // Bir saniyeden kisa iki tik, kullanicinin kare/tik hassasiyetini yuzlerce
@@ -138,11 +139,13 @@
     const output = [];
     let clamped = 0;
     let skipped = 0;
+    let invalidSkipped = 0;
     for (const cue of source) {
       const start = sourceToVideoTime(cue.start, normalized);
       const end = sourceToVideoTime(cue.end, normalized);
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-        throw new RangeError('Senkron uygulanınca geçersiz altyazı zamanı oluştu.');
+        invalidSkipped++;
+        continue;
       }
       if (end <= 0) {
         skipped++;
@@ -154,10 +157,11 @@
     if (source.length && !output.length) {
       throw new RangeError('Senkron uygulanınca dışa aktarılacak geçerli altyazı kalmadı.');
     }
-    if ((clamped || skipped) && typeof onWarning === 'function') {
+    if ((clamped || skipped || invalidSkipped) && typeof onWarning === 'function') {
       const details = [];
       if (clamped) details.push(`${clamped} altyazı video başlangıcında kırpıldı`);
       if (skipped) details.push(`${skipped} altyazı video başlamadan bittiği için atlandı`);
+      if (invalidSkipped) details.push(`${invalidSkipped} altyazının zamanı geçersiz olduğu için atlandı`);
       onWarning(`${details.join('; ')}.`);
     }
     return output;

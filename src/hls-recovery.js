@@ -121,17 +121,27 @@
       const rate = Math.min(4, Math.max(0.1, Math.abs(Number(playbackRate) || 1)));
       const plausibleJump = Math.max(maxSeekJumpSeconds, (wallDelta / 1000) * rate * 4);
 
-      // Uzun event boşluğu stall/throttle olabilir; geri/ileri sıçrama ise seek'tir.
-      // Her ikisi de önceki kararlılık penceresini devralamaz.
-      if (wallDelta <= 0 || wallDelta > maxProgressGapMs
-          || mediaDelta <= 0 || mediaDelta > plausibleJump) {
+      // Saatin geri gitmesi ve oynatma konumunun geriye/ileri sıçraması yeni bir
+      // kararlılık penceresi başlatır. Aynı video karesinin birden çok kez
+      // örneklenmesi ise ilerleme değildir ama önceki gerçek ilerlemeyi de silmez.
+      if (wallDelta < 0 || mediaDelta < 0 || mediaDelta > plausibleJump) {
         stability.elapsedMs = 0;
         stability.lastClockMs = now;
         stability.lastMediaTime = media;
         return { stable: false, reset: false };
       }
 
-      stability.elapsedMs += wallDelta;
+      if (wallDelta === 0 || mediaDelta === 0) {
+        stability.lastClockMs = now;
+        stability.lastMediaTime = media;
+        return { stable: false, reset: false };
+      }
+
+      // Arka plan sekmelerinde event aralığı maxProgressGapMs'yi aşabilir. Video
+      // zamanı gerçekten ve makul ölçüde ilerlediyse bu aralığı körlemesine
+      // sıfırlamak yerine medya ilerlemesiyle sınırlı süreyi say.
+      const progressedMs = Math.min(wallDelta, (mediaDelta / rate) * 1000);
+      stability.elapsedMs += Math.max(0, progressedMs);
       stability.lastClockMs = now;
       stability.lastMediaTime = media;
       if (stability.elapsedMs < stableMs) return { stable: false, reset: false };

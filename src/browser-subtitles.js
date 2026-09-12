@@ -77,6 +77,16 @@ function parseTime(value) {
   return Number.isFinite(result) ? result : null;
 }
 
+function cuePresentationKey(cue = {}) {
+  return [cue.speaker, cue.sourceMode || cue.captionMode || cue.mode, cue.region, cue.line, cue.position, cue.align,
+    cue.writingMode, cue.regionExtent, cue.discontinuity]
+    .map((value) => String(value ?? '').trim().toLowerCase()).join('\u241f');
+}
+
+function cuePresentationCompatible(left, right) {
+  return cuePresentationKey(left) === cuePresentationKey(right);
+}
+
 function normalizeCues(cues) {
   const clean = (cues || []).map((cue) => ({
     ...cue,
@@ -101,9 +111,7 @@ function normalizeCues(cues) {
   const deduped = [];
   for (const cue of clean) {
     const previous = deduped[deduped.length - 1];
-    const differentSpeaker = previous && cue.speaker && previous.speaker
-      && String(cue.speaker) !== String(previous.speaker);
-    const rollingDuplicate = previous && !differentSpeaker && cue.text === previous.text
+    const rollingDuplicate = previous && cuePresentationCompatible(previous, cue) && cue.text === previous.text
       && cue.start < previous.end && cue.start - previous.start <= 1.0;
     if (rollingDuplicate) {
       previous.end = Math.max(previous.end, cue.end);
@@ -124,16 +132,36 @@ function mergeBrowserStreamCues(previousCues, incomingCues, limit = 20000) {
     const cue = incoming[0];
     const lastIndex = merged.length - 1;
     const last = merged[lastIndex];
-    if (Math.abs(Number(cue.start) - Number(last.start)) <= 0.015) merged[lastIndex] = cue;
-    else if (cue.text !== last.text || Number(cue.end) !== Number(last.end)) merged.push(cue);
+    const compatible = cuePresentationCompatible(last, cue);
+    const sameStart = compatible && Math.abs(Number(cue.start) - Number(last.start)) <= 0.015;
+    const previousText = String(last?.text || '').replace(/\s+/g, ' ').trim();
+    const incomingText = String(cue?.text || '').replace(/\s+/g, ' ').trim();
+    // Büyüyen canlı caption sağlayıcılarında gecikmiş kısa hipotez, daha yeni
+    // uzun metinden sonra gelebilir. Aynı zamanlı gerçek düzeltmeleri koru;
+    // yalnız tam prefix gerilemesini ve daha ileri bitiş taşımayan cevabı reddet.
+    const staleGrowingRegression = sameStart && previousText.length > incomingText.length
+      && previousText.startsWith(incomingText)
+      && Number(cue.end) <= Number(last.end) + 0.05;
+    if (sameStart && !staleGrowingRegression) merged[lastIndex] = cue;
+    else if (compatible && cue.text === last.text && Number(cue.start) <= Number(last.end) + 0.1) {
+      merged[lastIndex] = { ...last, end: Math.max(Number(last.end), Number(cue.end)) };
+    } else if (!staleGrowingRegression
+        && (cue.text !== last.text || Number(cue.end) !== Number(last.end) || !compatible)) merged.push(cue);
     return merged.slice(-maximum);
   }
-  return [...previous, ...incoming]
-    .sort((a, b) => a.start - b.start || a.end - b.end)
-    .filter((cue, index, all) => index === 0
-      || Math.abs(cue.start - all[index - 1].start) > 0.015
-      || cue.text !== all[index - 1].text)
-    .slice(-maximum);
+  const ordered = [...previous, ...incoming].sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged = [];
+  for (const cue of ordered) {
+    const last = merged[merged.length - 1];
+    if (last && cuePresentationCompatible(last, cue) && cue.text === last.text
+        && Number(cue.start) <= Number(last.end) + 0.1
+        && Number(cue.start) - Number(last.start) <= 1.0) {
+      last.end = Math.max(Number(last.end), Number(cue.end));
+      continue;
+    }
+    merged.push({ ...cue });
+  }
+  return merged.slice(-maximum);
 }
 
 const MPEGTS_CLOCK_RATE = 90000;
@@ -181,8 +209,9 @@ function parseTimedBlocks(body, timing = {}) {
       if (position + 1 < indices.length) {
         const candidate = lines[until - 1]?.trim() || '';
         const currentCueId = idx > 0 ? lines[idx - 1]?.trim() || '' : '';
-        const sequentialNumericId = /^\d+$/.test(candidate) && /^\d+$/.test(currentCueId)
-          && Number(candidate) === Number(currentCueId) + 1;
+        const sequentialNumericId = /^\d+$/.test(candidate)
+          && ((/^\d+$/.test(currentCueId) && Number(candidate) === Number(currentCueId) + 1)
+            || (!currentCueId && position === 0 && Number(candidate) === 2));
         const separatedCueId = /^[A-Za-z0-9_-]{1,128}$/.test(candidate)
           && until > 1 && !lines[until - 2]?.trim();
         if (sequentialNumericId || separatedCueId) until--;
@@ -211,7 +240,8 @@ function stripAssOverrideBlocks(text) {
   let out = '';
   let cursor = 0;
   while (cursor < value.length) {
-    const open = value.indexOf('{', cursor);
+    let open = value.indexOf('{', cursor);
+    while (open > 0 && value[open - 1] === '\\') open = value.indexOf('{', open + 1);
     if (open < 0) { out += value.slice(cursor); break; }
     out += value.slice(cursor, open);
     const close = value.indexOf('}', open + 1);
@@ -266,7 +296,8 @@ function parseAss(body) {
       ? stripAssOverrideBlocks(stripAssDrawing(rawText))
       : rawText;
     const text = cleanedText
-      .replace(/\\N/gi, '\n').replace(/\\h/gi, ' ');
+      .replace(/\\N/gi, '\n').replace(/\\h/gi, ' ')
+      .replace(/\\([{}])⁠/g, '$1').replace(/\\⁠/g, '\\');
     if (start !== null) out.push({ start, end, text });
   }
   return normalizeCues(out);
@@ -274,10 +305,31 @@ function parseAss(body) {
 function parseSami(body) {
   const out = [];
   const matches = [...String(body || '').matchAll(/<sync\b[^>]*\bstart\s*=\s*["']?(\d+)["']?[^>]*>([\s\S]*?)(?=<sync\b|$)/gi)];
+  const paragraphPattern = /<p\b([^>]*)>([\s\S]*?)(?=<p\b|<\/sync\b|$)/gi;
+  const classes = [];
+  for (const match of matches) {
+    for (const paragraph of match[2].matchAll(paragraphPattern)) {
+      const className = attr(paragraph[1], 'class').trim().toLowerCase();
+      if (className && cleanCueText(paragraph[2])) classes.push(className);
+    }
+  }
+  const distinctClasses = [...new Set(classes)];
+  // Çok dilli SAMI dosyasında tutarlı tek bir iz üret. Ayrıştırıcıya dil
+  // tercihi taşınmadığı için ilk gerçek metnin sınıfı dosyanın varsayılanıdır.
+  const selectedClass = distinctClasses.length > 1 ? classes[0] : '';
   for (let i = 0; i < matches.length; i++) {
     const start = Number(matches[i][1]) / 1000;
     const end = i + 1 < matches.length ? Number(matches[i + 1][1]) / 1000 : null;
-    const text = matches[i][2]
+    let block = matches[i][2];
+    if (selectedClass) {
+      const paragraphs = [...block.matchAll(paragraphPattern)];
+      if (paragraphs.some((paragraph) => attr(paragraph[1], 'class').trim())) {
+        block = paragraphs
+          .filter((paragraph) => attr(paragraph[1], 'class').trim().toLowerCase() === selectedClass)
+          .map((paragraph) => paragraph[2]).join('\n');
+      }
+    }
+    const text = block
       .replace(/<\/?(?:body|sami|head|title|sync)\b[^>]*>/gi, '')
       .replace(/<p\b[^>]*>/gi, '\n').replace(/<\/p>/gi, '\n');
     out.push({ start, end, text });
@@ -513,13 +565,43 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
     const adaptationPrefix = adaptation.inner.split(/<Representation\b/i)[0];
     const adaptationBase = lastBaseUrl(adaptationPrefix, outerBase);
     const adaptationTemplate = (adaptationPrefix.match(/<SegmentTemplate\b([^>]*)\/?\s*>/i) || [])[1] || '';
+    const adaptationListMatch = adaptationPrefix.match(/<SegmentList\b([^>]*)>([\s\S]*?)<\/SegmentList>/i);
     for (const rep of dashRepresentations(adaptation.inner)) {
       const repBase = lastBaseUrl(rep.inner, adaptationBase);
       const templateTag = (rep.inner.match(/<SegmentTemplate\b([^>]*)\/?\s*>/i) || [])[1] || adaptationTemplate;
       const media = attr(templateTag, 'media');
-      if (!media) continue;
       const representationId = attr(rep.tag, 'id');
       const bandwidth = attr(rep.tag, 'bandwidth');
+      const language = attr(adaptation.tag, 'lang') || attr(rep.tag, 'lang') || '';
+      const label = attr(adaptation.tag, 'label') || representationId || language || 'DASH altyazısı';
+      const format = /vtt|wvtt/i.test(adaptation.signature + rep.tag) ? 'vtt' : 'ttml';
+      const repListMatch = rep.inner.match(/<SegmentList\b([^>]*)>([\s\S]*?)<\/SegmentList>/i);
+      const segmentList = repListMatch || adaptationListMatch;
+      if (!media && segmentList) {
+        const listTag = segmentList[1] || '';
+        const listInner = segmentList[2] || '';
+        const initializationValue = attr((listInner.match(/<Initialization\b[^>]*>/i) || [])[0], 'sourceURL');
+        const initializationUrl = initializationValue ? resolveUrl(initializationValue, repBase) : '';
+        const timescale = Math.max(0, Number(attr(listTag, 'timescale')) || 0);
+        const duration = Math.max(0, Number(attr(listTag, 'duration')) || 0);
+        const startNumber = dashStartNumber(attr(listTag, 'startNumber'));
+        const streamKey = `dash-segment-list|${repBase}|${representationId}|${language}`;
+        let segmentIndex = 0;
+        for (const segment of listInner.matchAll(/<SegmentURL\b([^>]*)\/?\s*>/gi)) {
+          const segmentUrl = resolveUrl(attr(segment[1], 'media'), repBase);
+          if (!segmentUrl) continue;
+          const escaped = segmentUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const querySuffix = segmentUrl.includes('#') ? ''
+            : segmentUrl.includes('?') ? '(?:&[^#]*)?(?:#.*)?' : '(?:[?#].*)?';
+          matchers.push({
+            pattern: `^${escaped}${querySuffix}$`, variable: 'number',
+            segmentValue: startNumber + segmentIndex++, startNumber, timescale, duration,
+            initializationUrl, language, label, format, streamKey,
+          });
+        }
+        continue;
+      }
+      if (!media) continue;
       const initialization = attr(templateTag, 'initialization');
       const initializationUrl = initialization ? resolveUrl(decodeEntities(initialization)
         .replace(/\$RepresentationID\$/gi, representationId || '')
@@ -530,7 +612,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         .replace(/\$Bandwidth\$/gi, bandwidth || '__DASHREP__')
         .replace(/\$\$/g, '__DASHDOLLAR__');
       let variable = '';
-      template = template.replace(/\$(Number|Time|SubNumber)(?:%0\d+d)?\$/gi, (_whole, name) => {
+      template = template.replace(/\$(Number|Time|SubNumber)(?:%0?\d*[du])?\$/gi, (_whole, name) => {
         if (!variable) { variable = name.toLowerCase(); return '__DASHCAP__'; }
         return '__DASHNUM__';
       });
@@ -553,9 +635,8 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         initializationUrl,
         duration: Math.max(0, Number(attr(templateTag, 'duration')) || 0),
         startNumber: dashStartNumber(attr(templateTag, 'startNumber')),
-        language: attr(adaptation.tag, 'lang') || attr(rep.tag, 'lang') || '',
-        label: attr(adaptation.tag, 'label') || representationId || attr(adaptation.tag, 'lang') || 'DASH altyazısı',
-        format: /vtt|wvtt/i.test(adaptation.signature + rep.tag) ? 'vtt' : 'ttml',
+        language, label, format,
+        streamKey: `dash-template|${absolute}|${representationId}|${language}`,
       });
     }
   }
@@ -566,7 +647,11 @@ function matchDashSubtitleUrl(url, matchers = []) {
   for (const matcher of matchers || []) {
     try {
       const match = String(url || '').match(new RegExp(matcher.pattern));
-      if (match) return { ...matcher, segmentValue: Number(match[1]) };
+      if (match) {
+        const captured = Number(match[1]);
+        return { ...matcher, segmentValue: Number.isFinite(captured)
+          ? captured : Number(matcher.segmentValue) };
+      }
     } catch (_) {}
   }
   return null;
@@ -691,6 +776,7 @@ function parseDashSubtitleTracks(body, baseUrl = '') {
       if (!directValue) continue;
       try {
         const url = repValue ? resolveUrl(repValue, adaptationBase) : resolveUrl(directValue, outerBase);
+        if (!url) continue;
         if (tracks.some((track) => track.url === url)) continue;
         tracks.push({
           url,
@@ -717,6 +803,8 @@ function findSubtitleUrls(body, baseUrl = '') {
       const looksLikeResource = /^https?:\/\//i.test(text)
         || text.startsWith('/')
         || (hinted && /^(?:\.{1,2}\/|(?:captions?|subtitles?|timedtext|texttracks?|transcripts?)\/)/i.test(text))
+        || (hinted && !/\s/u.test(text) && /[/?=&]/u.test(text)
+          && !/^[a-z][a-z\d+.-]*:/i.test(text))
         || /\.(?:vtt|srt|ttml|dfxp|srv3|json3|xml)(?:[?#]|$)/i.test(text);
       if (!looksLikeResource || (!hinted && !/\.(?:vtt|srt|ttml|dfxp|xml)(?:[?#]|$)/i.test(text))) return;
       try {
@@ -791,6 +879,39 @@ function parseXml(body) {
     openStack.push({ name, index: token.index });
   }
   if (openStack.length) xml = xml.slice(0, openStack[0].index);
+  const compactPresentation = (value) => Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== '' && item !== null && item !== undefined));
+  const presentationFromTag = (tag) => {
+    const origin = attr(tag, 'origin').trim();
+    const extent = attr(tag, 'extent').trim();
+    const originParts = origin.split(/\s+/);
+    return compactPresentation({
+      position: originParts[0] || '',
+      line: originParts[1] || '',
+      regionExtent: extent,
+      align: attr(tag, 'textAlign').trim(),
+      displayAlign: attr(tag, 'displayAlign').trim(),
+      writingMode: attr(tag, 'writingMode').trim(),
+    });
+  };
+  const styleDefinitions = new Map();
+  for (const style of xml.matchAll(/<(?:[\w.-]+:)?style\b([^>]*)\/?\s*>/gi)) {
+    const id = attr(style[1], 'id') || attr(style[1], 'xml:id');
+    if (id) styleDefinitions.set(id, presentationFromTag(style[1]));
+  }
+  const mergePresentation = (...values) => compactPresentation(Object.assign({}, ...values));
+  const regionDefinitions = new Map();
+  for (const region of xml.matchAll(/<(?:[\w.-]+:)?region\b([^>]*)\/?\s*>/gi)) {
+    const id = attr(region[1], 'id') || attr(region[1], 'xml:id');
+    if (!id) continue;
+    const style = styleDefinitions.get(attr(region[1], 'style')) || {};
+    regionDefinitions.set(id, mergePresentation(style, presentationFromTag(region[1]), { region: id }));
+  }
+  const resolvePresentation = (tag, inherited = {}) => {
+    const style = styleDefinitions.get(attr(tag, 'style')) || {};
+    const region = regionDefinitions.get(attr(tag, 'region')) || {};
+    return mergePresentation(inherited, style, region, presentationFromTag(tag));
+  };
   const parentOffsets = new Map();
   const stack = [{ name: 'root', offset: 0 }];
   const localName = (value) => String(value || '').toLowerCase().split(':').pop();
@@ -811,10 +932,11 @@ function parseXml(body) {
     if (!/\/>$/.test(rawTag)) stack.push({ name, offset: parentOffset + (begin || 0) });
   }
   // YouTube timedtext / srv biçimi.
-  for (const match of xml.matchAll(/<((?:[\w.-]+:)?(?:text|p))\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi)) {
+  for (const match of xml.matchAll(/<(?:[\w.-]+:)?(text|p)\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi)) {
     const elementName = localName(match[1]);
     const tag = match[2];
     const inner = match[3];
+    const paragraphPresentation = resolvePresentation(tag);
     const timedTextStart = attr(tag, 't');
     const timedTextDuration = attr(tag, 'd');
     const startRaw = attr(tag, 'start') || attr(tag, 'begin') || timedTextStart;
@@ -828,11 +950,11 @@ function parseXml(body) {
     // Her zamanli span kendi cue'su olur; p baslangici varsa span ona gore
     // ofsetlenir. Boylece farkli span sureleri tek buyuk cue'ya cokmez.
     const timedSpans = elementName === 'p' ? [...inner.matchAll(
-      /<((?:[\w.-]+:)?span)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi,
+      /<(?:[\w.-]+:)?(span)\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi,
     )].filter((span) => /\b(?:begin|start|t|end|dur|d)\s*=/i.test(span[2])) : [];
     if (timedSpans.length) {
       const outsideText = cleanCueText(inner.replace(
-        /<((?:[\w.-]+:)?span)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ''));
+        /<(?:[\w.-]+:)?(span)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?\1\s*>/gi, ''));
       let paragraphStart = parseXmlTime(startRaw, xml);
       if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) {
         paragraphStart = Number(startRaw) / 1000;
@@ -843,7 +965,8 @@ function parseXml(body) {
       const paragraphEnd = end !== null ? parentOffset + end
         : (duration !== null && paragraphStart !== null ? parentOffset + paragraphStart + duration : null);
       if (outsideText && paragraphStart !== null) {
-        out.push({ start: parentOffset + paragraphStart, end: paragraphEnd, text: inner });
+        out.push({ start: parentOffset + paragraphStart, end: paragraphEnd, text: inner,
+          ...paragraphPresentation });
         continue;
       }
       const paragraphDuration = paragraphEnd !== null && paragraphStart !== null
@@ -872,7 +995,8 @@ function parseXml(body) {
         spanStart += absoluteSpan ? parentOffset : spanBase;
         if (spanEnd !== null) spanEnd += absoluteSpan ? parentOffset : spanBase;
         if (spanEnd === null && spanDuration !== null) spanEnd = spanStart + spanDuration;
-        out.push({ start: spanStart, end: spanEnd, text: span[3] });
+        out.push({ start: spanStart, end: spanEnd, text: span[3],
+          ...resolvePresentation(spanTag, paragraphPresentation) });
       }
       continue;
     }
@@ -882,7 +1006,7 @@ function parseXml(body) {
     if (start !== null) start += parentOffset;
     if (end !== null) end += parentOffset;
     if (end === null && start !== null && duration !== null) end = start + duration;
-    if (start !== null) out.push({ start, end, text: inner });
+    if (start !== null) out.push({ start, end, text: inner, ...paragraphPresentation });
   }
   return normalizeCues(out);
 }
@@ -951,7 +1075,12 @@ function mp4Boxes(buffer, start = 0, end = buffer.length) {
       const large = buffer.readBigUInt64BE(offset + 8);
       if (large > BigInt(Number.MAX_SAFE_INTEGER)) break;
       size = Number(large); header = 16;
-    } else if (size === 0) size = end - offset;
+    } else if (size === 0) {
+      // EOF'a uzanan kutu yalnız dosyanın üst seviyesinde geçerlidir. Bozuk
+      // iç kutuyu kapsayıcının sonuna yaymak sonraki kardeş kutuları yutardı.
+      if (start !== 0 || end !== buffer.length) break;
+      size = end - offset;
+    }
     if (size < header || offset + size > end) break;
     boxes.push({ type, offset, header, start: offset + header, end: offset + size });
     offset += size;
@@ -1061,38 +1190,60 @@ function mp4PaylText(buffer) {
   return visit(0, buffer.length).map(cleanCueText).filter(Boolean).join('\n');
 }
 
-function parseMp4Timescale(buffer) {
+function parseMp4TimingMetadata(buffer) {
   const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
-  if (data.length < 16) return 0;
-  let movieTimescale = 0;
+  const metadata = { byTrack: {}, subtitleTimescale: 0, firstTimescale: 0, movieTimescale: 0 };
+  if (data.length < 16) return metadata;
   const readTimescale = (box) => {
     const version = data[box.start];
     const offset = box.start + (version === 1 ? 20 : 12);
     return offset + 4 <= box.end ? data.readUInt32BE(offset) || 0 : 0;
   };
-  const visit = (start, end, depth = 0) => {
-    if (depth > 6) return 0;
-    for (const box of mp4Boxes(data, start, end)) {
-      if (box.type === 'mdhd') return readTimescale(box);
-      if (box.type === 'mvhd' && !movieTimescale) movieTimescale = readTimescale(box);
-      if (/^(moov|trak|mdia)$/.test(box.type)) {
-        const nested = visit(box.start, box.end, depth + 1);
-        if (nested) return nested;
+  const inspectTrack = (track) => {
+    const children = mp4Boxes(data, track.start, track.end);
+    const tkhd = mp4Child(children, 'tkhd');
+    const tkhdOffset = tkhd ? tkhd.start + (data[tkhd.start] === 1 ? 20 : 12) : 0;
+    const trackId = tkhdOffset && tkhdOffset + 4 <= tkhd.end ? data.readUInt32BE(tkhdOffset) : 0;
+    const mdia = mp4Child(children, 'mdia');
+    if (!mdia) return;
+    const mediaChildren = mp4Boxes(data, mdia.start, mdia.end);
+    const mdhd = mp4Child(mediaChildren, 'mdhd');
+    const hdlr = mp4Child(mediaChildren, 'hdlr');
+    const timescale = mdhd ? readTimescale(mdhd) : 0;
+    const handler = hdlr && hdlr.start + 12 <= hdlr.end
+      ? data.toString('ascii', hdlr.start + 8, hdlr.start + 12) : '';
+    if (!timescale) return;
+    if (!metadata.firstTimescale) metadata.firstTimescale = timescale;
+    if (trackId) metadata.byTrack[String(trackId)] = timescale;
+    if (!metadata.subtitleTimescale && /^(?:text|sbtl|subt|clcp)$/i.test(handler)) {
+      metadata.subtitleTimescale = timescale;
+    }
+  };
+  for (const top of mp4Boxes(data)) {
+    if (top.type !== 'moov') continue;
+    for (const box of mp4Boxes(data, top.start, top.end)) {
+      if (box.type === 'mvhd' && !metadata.movieTimescale) {
+        metadata.movieTimescale = readTimescale(box);
+      } else if (box.type === 'trak') {
+        inspectTrack(box);
       }
     }
-    return 0;
-  };
-  return visit(0, data.length) || movieTimescale;
+  }
+  return metadata;
+}
+
+function parseMp4Timescale(buffer, trackId = 0) {
+  const metadata = parseMp4TimingMetadata(buffer);
+  return metadata.byTrack[String(Math.max(0, Number(trackId) || 0))]
+    || metadata.subtitleTimescale || metadata.firstTimescale || metadata.movieTimescale;
 }
 
 function parseMp4WebVtt(buffer, matcher = {}) {
   const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || '');
   if (data.length < 16) return [];
   const top = mp4Boxes(data);
-  const timescale = Math.max(0, Number(matcher.timescale) || parseMp4Timescale(data));
-  // Yanlış bir '1' varsayımı sessizce devasa zamanlar üretmektense, init
-  // segmenti henüz bulunamadığında parçayı reddetmek daha güvenlidir.
-  if (!timescale) return [];
+  const timing = parseMp4TimingMetadata(data);
+  const configuredTimescale = Math.max(0, Number(matcher.timescale) || 0);
   const cues = [];
   for (let topIndex = 0; topIndex < top.length; topIndex++) {
     const moof = top[topIndex];
@@ -1109,6 +1260,12 @@ function parseMp4WebVtt(buffer, matcher = {}) {
         duration: fragmentDefaults.duration || Number(initDefaults.duration) || 0,
         size: fragmentDefaults.size || Number(initDefaults.size) || 0,
       };
+      const timescale = configuredTimescale
+        || timing.byTrack[String(fragmentDefaults.trackId)]
+        || timing.subtitleTimescale || timing.firstTimescale || timing.movieTimescale;
+      // Init segmenti ya da MPD zaman ölçeği yoksa tahmin ederek sessizce yanlış
+      // zaman üretme; parça sonraki yakalama turunda init ile yeniden denenir.
+      if (!timescale) continue;
       const baseTime = mp4Tfdt(data, mp4Child(children, 'tfdt'));
       const runs = children.filter((box) => box.type === 'trun')
         .map((box) => mp4TrunSamples(data, box, defaults))
@@ -1230,14 +1387,18 @@ function formatSrtTime(seconds) {
 }
 
 function cuesToSrt(cues) {
+  const lines = (value) => String(value || '').replace(/\r\n?/g, '\n')
+    .replace(/\n[ \t]*\n+/g, '\n').replace(/\n/g, '\r\n');
   return normalizeCues(cues).map((cue, index) => `${index + 1}\r\n${formatSrtTime(cue.start)} --> `
-    + `${formatSrtTime(cue.end)}\r\n${cue.text.replace(/\r?\n[ \t]*\r?\n+/g, '\n')}\r\n`).join('\r\n');
+    + `${formatSrtTime(cue.end)}\r\n${lines(cue.text)}\r\n`).join('\r\n');
 }
 
 function cuesToVtt(cues) {
   const stamp = (seconds) => formatSrtTime(seconds).replace(',', '.');
+  const lines = (value) => String(value || '').replace(/\r\n?/g, '\n')
+    .replace(/\n[ \t]*\n+/g, '\n').replace(/\n/g, '\r\n');
   const body = normalizeCues(cues).map((cue) => `${stamp(cue.start)} --> ${stamp(cue.end)}\r\n`
-    + `${cue.text.replace(/\r?\n[ \t]*\r?\n+/g, '\n')}\r\n`).join('\r\n');
+    + `${lines(cue.text)}\r\n`).join('\r\n');
   return `WEBVTT\r\n\r\n${body}`;
 }
 
