@@ -139,8 +139,11 @@ function createBrowserAdblock(options = {}) {
   let source = '';
   let stale = false;
   let blocked = 0;
+  let allowedBySite = 0;
   let recentBlocked = [];
+  let recentAllowed = [];
   let eventBound = false;
+  let siteBypassInstalled = false;
 
   const snapshot = (changed = false) => ({
     ok: state !== 'error',
@@ -151,7 +154,9 @@ function createBrowserAdblock(options = {}) {
     source,
     stale,
     blocked,
+    allowedBySite,
     recentBlocked: recentBlocked.map((entry) => ({ ...entry })),
+    recentAllowed: recentAllowed.map((entry) => ({ ...entry })),
     changed,
     engine: 'Ghostery',
   });
@@ -169,6 +174,36 @@ function createBrowserAdblock(options = {}) {
     eventBound = true;
   };
 
+  const installSiteBypass = () => {
+    if (!engine || siteBypassInstalled || typeof options.isSitePaused !== 'function') return;
+    const paused = (...args) => {
+      try { return options.isSitePaused(...args) === true; } catch (_) { return false; }
+    };
+    if (typeof engine.onBeforeRequest === 'function') {
+      const original = engine.onBeforeRequest.bind(engine);
+      engine.onBeforeRequest = (details, callback) => {
+        if (!paused(details)) return original(details, callback);
+        const entry = { at: Date.now(), url: safeBlockedUrl(details?.url),
+          type: String(details?.resourceType || 'other').slice(0, 40), decision: 'allowed-by-site-switch' };
+        allowedBySite += 1;
+        recentAllowed = [entry, ...recentAllowed].slice(0, MAX_RECENT_BLOCKED);
+        try { options.onAllowed?.({ ...entry }); } catch (_) {}
+        callback({});
+      };
+    }
+    if (typeof engine.onHeadersReceived === 'function') {
+      const original = engine.onHeadersReceived.bind(engine);
+      engine.onHeadersReceived = (details, callback) => paused(details) ? callback({}) : original(details, callback);
+    }
+    if (typeof engine.onInjectCosmeticFilters === 'function') {
+      const original = engine.onInjectCosmeticFilters.bind(engine);
+      engine.onInjectCosmeticFilters = (event, url, message) => paused({
+        url, webContentsId: event?.sender?.id, resourceType: 'cosmetic',
+      }) ? undefined : original(event, url, message);
+    }
+    siteBypassInstalled = true;
+  };
+
   const ensureLoaded = async () => {
     if (engine) return engine;
     if (!loadPromise) {
@@ -178,6 +213,7 @@ function createBrowserAdblock(options = {}) {
         engine = result.engine;
         source = result.source;
         stale = result.stale;
+        installSiteBypass();
         bindEvents();
         return engine;
       }).finally(() => { loadPromise = null; });

@@ -20,6 +20,8 @@ class FakeEngine extends EventEmitter {
   serialize() { return Buffer.from(this.label, 'utf8'); }
   enableBlockingInSession(session) { this.enabledSessions.add(session); }
   disableBlockingInSession(session) { this.enabledSessions.delete(session); }
+  onBeforeRequest(_details, callback) { callback({ cancel: true }); }
+  onHeadersReceived(_details, callback) { callback({ responseHeaders: { test: ['1'] } }); }
 }
 
 (async () => {
@@ -106,6 +108,23 @@ class FakeEngine extends EventEmitter {
     assert.equal(blockedState.recentBlocked[0].subtitleLike, true);
     assert(!JSON.stringify(blockedState).includes('SECRET'));
     assert.equal(blockedNotice.subtitleLike, true);
+    let allowedNotice = null;
+    const bypassController = createBrowserAdblock({
+      cachePath,
+      blockerClass: FakeBlocker,
+      fetchImpl: async () => ({ ok: true }),
+      initialEnabled: false,
+      isSitePaused: (details) => details.webContentsId === 77,
+      onAllowed: (entry) => { allowedNotice = entry; },
+    });
+    await bypassController.setEnabled(session, true);
+    let bypassDecision = null;
+    lastEngine.onBeforeRequest({ webContentsId: 77,
+      url: 'https://ads.test/x?token=SECRET', resourceType: 'image' }, (value) => { bypassDecision = value; });
+    assert.deepEqual(bypassDecision, {});
+    assert.equal(bypassController.getState().allowedBySite, 1);
+    assert.equal(allowedNotice.decision, 'allowed-by-site-switch');
+    assert(!JSON.stringify(bypassController.getState()).includes('SECRET'));
     lastEngine.emit('request-blocked');
     assert.equal(controller.getState().blocked, 0);
     const unchanged = await controller.setEnabled(session, true);
@@ -169,6 +188,9 @@ class FakeEngine extends EventEmitter {
     assert.match(main, /browser:adblock:getState/);
     assert.match(main, /browser:adblock:setEnabled/);
     assert.match(main, /noteBrowserCapture\('adblock'/);
+    assert.match(main, /siteOverrideOrigin === origin[\s\S]{0,260}adblockEnabled/);
+    assert.match(main, /adblock: adblock \?/);
+    assert.match(main, /recentAllowed:[\s\S]{0,500}redactCaptureUrl/);
     assert.match(renderer, /adblock: 'FİLTRE'/);
     assert.match(preload, /getBrowserAdblockState/);
     assert.match(preload, /setBrowserAdblockEnabled/);
