@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { shouldRetryCaptureResponseBody } = require('../src/browser-capture-recovery');
+const { normalizeCueProvenance } = require('../src/browser-capture-provenance');
 
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
 
@@ -45,6 +46,12 @@ function hlsContext(fetchResults) {
       if (result instanceof Error) throw result;
       return result;
     },
+    fetchBrowserTextWithRetry: async (url) => {
+      fetchCounts.set(url, (fetchCounts.get(url) || 0) + 1);
+      const result = fetchResults.get(url);
+      if (result instanceof Error) throw result;
+      return result;
+    },
     flushBrowserTrackPublication: (key, force) => {
       assert.equal(force, true);
       const entry = pending.get(key);
@@ -77,6 +84,9 @@ function hlsContext(fetchResults) {
     subtitleLanguage: () => 'tr',
     trimInsertionCollection: () => {},
     browserTrackStreamKey: (url) => url,
+    activeBrowserTab: () => null,
+    normalizeCueProvenance,
+    browserDiagnostics: null,
   };
   return { context, fetchCounts, pending, publications, stored };
 }
@@ -121,6 +131,27 @@ function hlsContext(fetchResults) {
     assert.equal(harness.stored.length, 0);
     assert.equal(harness.pending.size, 0);
     assert.equal(harness.publications.size, 0);
+  });
+
+  await test('imzalı HLS segmenti 403 alınca eski playlist tekrarına değil manifest yenilemeye yönelir', async () => {
+    const expired = Object.assign(new Error('HTTP 403'), {
+      code: 'EBROWSER_HTTP', status: 403, retryAction: 'refresh-manifest',
+    });
+    const results = new Map([
+      ['https://cdn.test/a.vtt', expired],
+      ['https://cdn.test/b.vtt', 'korunan parça'],
+    ]);
+    const harness = hlsContext(results);
+    const capture = extractFunction('async function captureHlsSubtitlePlaylist(',
+      'const CAPTURE_PROCESSED', harness.context);
+    let refreshes = 0;
+    const completed = await capture('#EXTM3U', 'https://cdn.test/subs.m3u8', {
+      onRefreshManifest: () => { refreshes++; },
+    });
+    assert.equal(completed, false);
+    assert.equal(refreshes, 1);
+    assert.equal(harness.pending.has('https://cdn.test/subs.m3u8'), true,
+      '403 dışındaki geçerli parça manifest yenilenirken kayboldu');
   });
 
   await test('CDP timed-text gövdesi sınırlı yeniden denenir ve sekme değişince kesilir', async () => {

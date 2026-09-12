@@ -650,8 +650,18 @@ async function run() {
           adblockQuick: box(adblockQuick),
         };
       })()`, 10000);
-      const nativeVisible = await browserViewVisible();
       const narrow = snapshot.viewport.width <= 1020;
+      const expectedNative = typeof stateSpec.nativeVisible === 'boolean'
+        ? stateSpec.nativeVisible
+        : (stateSpec.name === 'transcript' || stateSpec.name === 'settings') ? !narrow : null;
+      // Renderer sınıfları anında yerleşir; native WebContentsView görünürlüğü
+      // IPC üzerinden ana sürece ulaşır. Tek anlık okuma yoğun Electron koşusunda
+      // önceki state'i yakalayabiliyordu. Gerçek kabul ölçütü kararlı son durumdur.
+      if (expectedNative !== null) {
+        await waitFor(async () => browserViewVisible()
+          .then(value => value === expectedNative).catch(() => false), 3000, 40);
+      }
+      const nativeVisible = await browserViewVisible();
       assert.equal(snapshot.overflowX, false,
         `${target.name} / ${stateSpec.name}: horizontal overflow detected.`);
       assert.ok(snapshot.actions.right <= snapshot.viewport.width - 8,

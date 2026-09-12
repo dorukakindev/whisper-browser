@@ -6194,6 +6194,7 @@ function browserProfileControls() {
     ['overlayMaxLines', 'browserOverlayMaxLines', 'Azami satır', 3],
     ['overlaySourceFirst', 'browserOverlaySourceFirst', 'Kaynak üstte', true],
     ['hideSiteCaptions', 'browserHideSiteCaptions', 'Site altyazısını gizle', false],
+    ['adblockEnabled', 'browserAdblockEnabled', 'Bu sitede reklam koruması', true],
   ];
 }
 
@@ -6307,7 +6308,9 @@ async function updateBrowserProfileField(field, value, reset = false, expected =
   } else return;
   if (player.browserActiveTabId !== tabId || browserTabState()?.generation !== generation) return;
   renderBrowserSiteProfile(); scheduleBrowserOverlaySync();
-  $('browserProfileStatus').textContent = 'Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.';
+  $('browserProfileStatus').textContent = field === 'adblockEnabled'
+    ? 'Reklam koruması yeni isteklere uygulandı. Sayfadaki mevcut reklam öğeleri için sayfayı yenileyin.'
+    : 'Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.';
 }
 
 async function loadBrowserPlaces() {

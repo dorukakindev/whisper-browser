@@ -105,7 +105,7 @@ async function run() {
   const wav = silentWav(90);
   const vtt = 'WEBVTT\n\n00:00:00.000 --> 00:01:30.000\nElectron tarayıcı altyazısı\n';
   server = http.createServer((request, response) => {
-    if (request.url === '/captions.vtt') {
+    if (request.url?.startsWith('/captions.vtt')) {
       response.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Cache-Control': 'no-store' });
       response.end(vtt);
       return;
@@ -132,7 +132,7 @@ async function run() {
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Subtitle smoke</title>
       <style>body{margin:0;background:#111;color:#fff}video{display:block;width:640px;height:360px;background:#000}</style>
       </head><body><video controls muted autoplay preload="auto" crossorigin="anonymous">
-      <source src="/silence.wav" type="audio/wav"><track kind="subtitles" src="/captions.vtt" srclang="en" label="English" default>
+      <source src="/silence.wav" type="audio/wav"><track kind="subtitles" src="/captions.vtt?token=ELECTRON_SMOKE_SECRET&lang=en" srclang="en" label="English" default>
       </video><script>const v=document.querySelector('video');const t=v.textTracks[0];t.mode='showing';v.play().catch(()=>{});</script>
       </body></html>`;
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -148,9 +148,34 @@ async function run() {
   userDataDir = path.join(os.tmpdir(), `whisper-local-browser-profile-${randomUUID()}`);
   fs.mkdirSync(userDataDir, { recursive: true });
   const devtoolsPort = 20000 + Math.floor(Math.random() * 1000);
+  const mainDevtoolsPort = 22000 + Math.floor(Math.random() * 1000);
+  const diagnosticsOutputPath = path.join(userDataDir, 'actual-browser-diagnostics.json');
   electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
-    projectRoot, `--remote-debugging-port=${devtoolsPort}`, `--user-data-dir=${userDataDir}`,
+    `--inspect=${mainDevtoolsPort}`, projectRoot,
+    `--remote-debugging-port=${devtoolsPort}`, `--user-data-dir=${userDataDir}`,
   ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore' });
+
+  const mainTargets = await waitFor(async () => {
+    try {
+      const response = await fetch(`http://127.0.0.1:${mainDevtoolsPort}/json/list`);
+      return response.ok ? response.json() : null;
+    } catch (_) { return null; }
+  }, 20000, 300);
+  assert.ok(mainTargets?.[0]?.webSocketDebuggerUrl, 'Electron ana süreç denetçisi açılmadı.');
+  const main = createCdpClient(mainTargets[0].webSocketDebuggerUrl);
+  await main.opened;
+  await main.call('Runtime.enable');
+  const dialogPatched = await evaluate(main, `(() => {
+    const requireMain = process.getBuiltinModule('module').createRequire(
+      process.cwd() + '/src/main.js');
+    const electron = requireMain('electron');
+    electron.dialog.showSaveDialog = async () => ({
+      canceled: false,
+      filePath: ${JSON.stringify(diagnosticsOutputPath)}
+    });
+    return true;
+  })()`);
+  assert.equal(dialogPatched, true, 'Tanı paketi kayıt diyaloğu test için yönlendirilemedi.');
 
   const targets = await waitFor(async () => {
     if (electronProcess.exitCode != null) throw new Error(`Electron erken kapandı: ${electronProcess.exitCode}`);
@@ -263,8 +288,24 @@ async function run() {
   assert.match(overlay.text, /Electron tarayıcı altyazısı/u);
   assert.notEqual(overlay.display, 'none');
 
+  const exportResult = await evaluate(renderer, `window.api.exportBrowserDiagnostics()`, 15000);
+  assert.equal(exportResult?.ok, true, `Gerçek tanı paketi dışa aktarılamadı: ${JSON.stringify(exportResult)}`);
+  const exportedDiagnostics = JSON.parse(fs.readFileSync(diagnosticsOutputPath, 'utf8'));
+  const exportedText = JSON.stringify(exportedDiagnostics);
+  assert.doesNotMatch(exportedText, /Electron tarayıcı altyazısı/u,
+    'Tanı paketi yakalanan altyazı metnini içeriyor.');
+  assert.doesNotMatch(exportedText, /ELECTRON_SMOKE_SECRET/u,
+    'Tanı paketi imzalı/gizli URL parametresini içeriyor.');
+  assert.equal(exportedDiagnostics.version, 1);
+  console.log('Electron browser diagnostics export:', JSON.stringify({
+    exported: true,
+    subtitleTextLeaked: false,
+    secretUrlParameterLeaked: false,
+  }));
+
   page.socket.close();
   renderer.socket.close();
+  main.socket.close();
 }
 
 async function cleanup() {

@@ -73,9 +73,21 @@ class MockXhr {
   }
 }
 
+function mockDocument() {
+  const listeners = new Map();
+  return {
+    addEventListener(name, listener) { listeners.set(name, listener); },
+    removeEventListener(name, listener) {
+      if (listeners.get(name) === listener) listeners.delete(name);
+    },
+    emit(name) { listeners.get(name)?.(); },
+  };
+}
+
 const pageContext = {
   window: { location: { hostname: 'www.hulu.com' } },
   XMLHttpRequest: MockXhr,
+  document: mockDocument(),
   crypto: { randomUUID: () => 'frame-test' },
   performance: { now: () => 0 },
 };
@@ -100,9 +112,24 @@ huluPlaylistXhr.emitLoadEnd('{"transcripts":[]}', huluPlaylistUrl, 'application/
 assert.equal(pageContext.window.__whisperCaptureQueue.length, 3,
   'Hulu playlist JSON yanıtı sayfa içi XHR kancasında yakalanmadı');
 
+const staleAfterSeek = new pageContext.XMLHttpRequest();
+staleAfterSeek.open('GET', url);
+staleAfterSeek.send();
+pageContext.document.emit('seeking');
+staleAfterSeek.emitLoadEnd('eski dönem', url);
+assert.equal(pageContext.window.__whisperCaptureQueue.length, 0,
+  'seek öncesi başlayan gecikmiş yanıt yeni epoch kuyruğuna sızdı');
+const freshAfterSeek = new pageContext.XMLHttpRequest();
+freshAfterSeek.open('GET', url);
+freshAfterSeek.send();
+freshAfterSeek.emitLoadEnd('yeni dönem', url);
+assert.equal(pageContext.window.__whisperCaptureQueue.length, 1,
+  'seek sonrasında başlayan güncel yanıt reddedildi');
+
 const genericContext = {
   window: { location: { hostname: 'example.com' } },
   XMLHttpRequest: MockXhr,
+  document: mockDocument(),
   crypto: { randomUUID: () => 'generic-frame' },
   performance: { now: () => 0 },
 };

@@ -7,6 +7,18 @@ const assets = require('../src/browser-asset-store');
 const places = require('../src/browser-place-url');
 const identity = require('../src/browser-media-identity');
 
+const provenanceCue = assets.normalizeCues([{
+  start: 1, end: 2, text: 'Bir',
+  provenance: {
+    layer: 'manifest', streamKey: 'track', epoch: 'track:2',
+    segmentUrl: 'https://cdn.test/sub.m4s?sig=secret&lang=en',
+    discontinuity: 2, sequence: 9, automatic: true, translatedByService: false,
+  },
+}])[0];
+assert.strictEqual(provenanceCue.provenance.segmentUrl, 'https://cdn.test/sub.m4s?lang=en');
+assert.strictEqual(provenanceCue.provenance.epoch, 'track:2');
+assert.strictEqual(provenanceCue.provenance.automatic, true);
+
 for (const start of ['0', '1', '', 'invalid']) {
   const attribute = start ? ` startNumber="${start}"` : '';
   const mpd = `<MPD><Period><AdaptationSet contentType="text" codecs="wvtt"><SegmentTemplate media="sub/$Number$.m4s" duration="6000" timescale="1000"${attribute}/><Representation id="tr"/></AdaptationSet></Period></MPD>`;

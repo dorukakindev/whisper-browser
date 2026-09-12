@@ -37,6 +37,7 @@ const {
   normalizeCues,
   parseSubtitlePayload,
   parseHlsSubtitleTracks,
+  detectHlsCea608,
   parseHlsSegments,
   isHlsSubtitlePlaylist,
   parseDashSubtitleTracks,
@@ -46,8 +47,10 @@ const {
   cuesUseLocalSegmentTimeline,
   browserActiveCuesAt,
   parseMp4WebVtt,
+  parseMp4Stpp,
   parseMp4SampleDefaults,
   parseMp4Timescale,
+  parseYoutubeCaptionMetadata,
   findSubtitleUrls,
   subtitleLanguage,
 } = require('./browser-subtitles');
@@ -61,6 +64,7 @@ const {
   browserResponseAdapter,
   persistentBrowserMediaUrl,
   redactCaptureUrl,
+  sanitizeManifestPreview,
 } = require('./browser-adapters');
 const {
   BROWSER_CAPTURE_BODY_LIMIT,
@@ -78,6 +82,12 @@ const {
   captureBodyFingerprint,
   shouldRetryCaptureResponseBody,
 } = require('./browser-capture-recovery');
+const { crashRecoveryPolicy, navigationRetryPolicy, parseRetryAfterMs,
+  subtitleRequestRetryPolicy } = require('./browser-lifecycle-policy');
+const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-capture-provenance');
+const { sanitizeDiagnosticsAgainstCueText } = require('./browser-diagnostics-export');
+const { normalizeBrowserSiteTerminology, seedSiteTerminology,
+  siteTerminologyScope } = require('./browser-site-terminology');
 const {
   ManifestTransactionRegistry,
   hasExpectedManifestRoot,
@@ -1897,6 +1907,18 @@ function ensureBrowserAdblockController() {
       cachePath: path.join(app.getPath('userData'), 'browser-adblock-engine.bin'),
       initialEnabled: browserAdblockInitiallyEnabled,
       logger: console,
+      isSitePaused: (details = {}) => {
+        const tab = [...browserTabs.values()].find((item) => item.view
+          && !item.view.webContents.isDestroyed() && item.view.webContents.id === Number(details.webContentsId));
+        const pageUrl = tab ? browserTabSnapshot(tab).url : String(details.referrer || '');
+        const origin = browserSiteOrigin(pageUrl);
+        if (!origin) return false;
+        if (tab?.siteOverrideOrigin === origin
+            && Object.prototype.hasOwnProperty.call(tab.siteOverrides || {}, 'adblockEnabled')) {
+          return tab.siteOverrides.adblockEnabled === false;
+        }
+        return readBrowserPlaces().siteProfiles?.[origin]?.adblockEnabled === false;
+      },
       onBlocked: (entry) => {
         if (!entry?.subtitleLike) return;
         const rule = entry.rule ? ` Kural: ${entry.rule}` : '';
@@ -1977,6 +1999,10 @@ function createBrowserTabRecord(initial = {}) {
     acquisitionPlan: null,
     acquisitionId: '',
     discoveryProbeTimer: null,
+    loadRetryTimer: null,
+    loadRetryAttempt: 0,
+    crashRecoveryAttempt: 0,
+    captureCoverage: new CaptureCoverageMap(),
     operationId: randomUUID(),
     translationScheduler: null,
     translationTrackId: '',
@@ -2415,10 +2441,11 @@ function normalizeBrowserPlaces(places) {
   })).filter(item => item.name && item.tabs.length);
   const siteProfiles = normalizeBrowserSiteProfiles(places?.siteProfiles, places?.siteZooms);
   const pathProfiles = normalizeBrowserPathProfiles(places?.pathProfiles);
+  const siteTerminology = normalizeBrowserSiteTerminology(places?.siteTerminology);
   const compatibilityHosts = normalizeBrowserCompatibilityHosts(places?.compatibilityHosts);
   const sitePermissions = normalizeBrowserSitePermissions(places?.sitePermissions);
   return { history: clean(places && places.history), bookmarks: clean(places && places.bookmarks),
-    workspaces, siteZooms: {}, siteProfiles, pathProfiles, compatibilityHosts, sitePermissions };
+    workspaces, siteZooms: {}, siteProfiles, pathProfiles, siteTerminology, compatibilityHosts, sitePermissions };
 }
 
 function cloneBrowserPlaces(places) {
@@ -2429,6 +2456,8 @@ function cloneBrowserPlaces(places) {
     siteZooms: {},
     pathProfiles: Object.fromEntries(Object.entries(places?.pathProfiles || {}).map(([key, value]) => [key, { ...value }])),
     siteProfiles: Object.fromEntries(Object.entries(places?.siteProfiles || {}).map(([key, value]) => [key, { ...value }])),
+    siteTerminology: Object.fromEntries(Object.entries(places?.siteTerminology || {}).map(([key, value]) =>
+      [key, value.map((row) => ({ ...row }))])),
     compatibilityHosts: [...(places?.compatibilityHosts || [])],
     sitePermissions: Object.fromEntries(Object.entries(places?.sitePermissions || {}).map(([origin, value]) =>
       [origin, { ...value, permissions: { ...(value.permissions || {}) } }])),
@@ -2857,6 +2886,7 @@ function freshBrowserDiagnostics(url = '', tab = activeBrowserTab()) {
       message: tab?.pageResponsive === false ? 'Sayfa yanıt vermiyor.' : 'Sayfa yanıt veriyor.',
     },
     acquisition: acquisition ? acquisition.snapshot() : null,
+    coverage: tab?.captureCoverage?.snapshot?.() || [],
     recent: [],
   };
 }
@@ -2970,7 +3000,8 @@ function browserDiagnosticsExportSnapshot() {
   const counts = source.counts && typeof source.counts === 'object' ? source.counts : {};
   const adapter = source.adapter && typeof source.adapter === 'object' ? source.adapter : {};
   const recent = Array.isArray(source.recent) ? source.recent.slice(0, 100) : [];
-  return {
+  const adblock = browserAdblockController?.getState?.() || null;
+  const snapshot = {
     version: 1,
     exportedAt: new Date().toISOString(),
     operationId: String(source.operationId || '').slice(0, 160),
@@ -3003,6 +3034,33 @@ function browserDiagnosticsExportSnapshot() {
       message: redactBrowserDiagnosticsText(source.translation.message),
     } : null,
     acquisition: source.acquisition && typeof source.acquisition === 'object' ? source.acquisition : null,
+    manifest: source.manifest && typeof source.manifest === 'object' ? {
+      kind: String(source.manifest.kind || '').slice(0, 20),
+      bytes: Math.max(0, Math.trunc(Number(source.manifest.bytes) || 0)),
+      preview: sanitizeManifestPreview(source.manifest.preview || ''),
+    } : null,
+    coverage: Array.isArray(source.coverage) ? source.coverage.slice(0, 64) : [],
+    adblock: adblock ? {
+      enabled: adblock.enabled === true,
+      state: String(adblock.state || '').slice(0, 40),
+      blocked: Math.max(0, Math.trunc(Number(adblock.blocked) || 0)),
+      allowedBySite: Math.max(0, Math.trunc(Number(adblock.allowedBySite) || 0)),
+      recentBlocked: (Array.isArray(adblock.recentBlocked) ? adblock.recentBlocked : []).slice(0, 20)
+        .map((entry) => ({
+          at: Number(entry.at) || null,
+          url: redactCaptureUrl(entry.url || ''),
+          type: String(entry.type || '').slice(0, 40),
+          rule: redactBrowserDiagnosticsText(entry.rule),
+          subtitleLike: entry.subtitleLike === true,
+        })),
+      recentAllowed: (Array.isArray(adblock.recentAllowed) ? adblock.recentAllowed : []).slice(0, 20)
+        .map((entry) => ({
+          at: Number(entry.at) || null,
+          url: redactCaptureUrl(entry.url || ''),
+          type: String(entry.type || '').slice(0, 40),
+          decision: String(entry.decision || '').slice(0, 60),
+        })),
+    } : null,
     recent: recent.map((entry) => ({
       at: Number.isFinite(Number(entry.at)) ? Number(entry.at) : null,
       operationId: String(entry.operationId || source.operationId || '').slice(0, 160),
@@ -3014,6 +3072,10 @@ function browserDiagnosticsExportSnapshot() {
       detail: redactBrowserDiagnosticsText(entry.detail),
     })),
   };
+  // Dışa aktarma şeması cue dizilerini bilinçli olarak içermez. Yine de bir
+  // sağlayıcı hatası cue metnini serbest bir `message`/`detail` alanına
+  // taşıyabilir; son katmanda bellekteki cue'larla eşleşen içeriği de kaldır.
+  return sanitizeDiagnosticsAgainstCueText(snapshot, browserTrackBuffers);
 }
 
 function normalizeBrowserUrl(raw) {
@@ -3842,6 +3904,9 @@ function browserCaptureUninstallScript() {
           XMLHttpRequest.prototype.send = originals.xhrSend;
         }
       }
+      if (originals.seekHandler && typeof document !== 'undefined' && document?.removeEventListener) {
+        document.removeEventListener('seeking', originals.seekHandler, true);
+      }
     }
     if (Array.isArray(window.__whisperCaptureQueue)) window.__whisperCaptureQueue.length = 0;
     if (window.__whisperCaptureSeen instanceof Set) window.__whisperCaptureSeen.clear();
@@ -3850,7 +3915,7 @@ function browserCaptureUninstallScript() {
       '__whisperCaptureInstalled', '__whisperCaptureEnabled', '__whisperCaptureQueue',
       '__whisperCaptureSeen', '__whisperCaptureInFlight', '__whisperCaptureFrameId',
       '__whisperCaptureSeq', '__whisperCaptureDeliverySeq', '__whisperCaptureDropped',
-      '__whisperCaptureOriginals'
+      '__whisperCaptureEpoch', '__whisperCaptureOriginals'
     ]) {
       try { delete window[key]; } catch (_) {}
     }
@@ -3912,6 +3977,21 @@ function browserPageMemoryKeys(tab, block, config = {}) {
 
 function browserPageTerminologySuggestions(session) {
   return terminologySuggestions(session?.terminologyMap, session?.lockedTerms || session?.config?.lockedTerms || []);
+}
+
+function seedBrowserPageSiteTerminology(tab, session) {
+  const scope = siteTerminologyScope(browserPageUrl(tab), session?.config?.targetLanguage);
+  if (!scope || !session?.terminologyMap) return 0;
+  return seedSiteTerminology(session.terminologyMap, readBrowserPlaces().siteTerminology?.[scope] || []);
+}
+
+function persistBrowserPageSiteTerminology(tab, session) {
+  const scope = siteTerminologyScope(browserPageUrl(tab), session?.config?.targetLanguage);
+  const rows = browserPageTerminologySuggestions(session);
+  if (!scope || !rows.length) return false;
+  const places = readBrowserPlaces();
+  places.siteTerminology = { ...(places.siteTerminology || {}), [scope]: rows };
+  return setBrowserPlaces(places, { broadcast: false });
 }
 
 function browserPageExcludedIds(session) {
@@ -4454,6 +4534,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   };
   if (retryFailureDetails.length) result.message = `${retryFailureDetails.length} blok yeniden çevrilemedi; önceki çeviriler korundu.`;
   const archived = persistBrowserPageTranslationArchive(tab, session);
+  persistBrowserPageSiteTerminology(tab, session);
   if (archived?.ok) result.archivePath = archived.path;
   sendBrowserEvent(tab, { type: 'page-translate-done', state: failed || completion.pending ? 'partial' : 'ready', ...result });
   return result;
@@ -4510,6 +4591,7 @@ async function startBrowserPageTranslation(tab, options = {}) {
     budgetReached: false,
   };
   session.config = config;
+  seedBrowserPageSiteTerminology(tab, session);
   session.mode = config.mode;
   session.view = config.view;
   session.scope = config.scope;
@@ -6160,6 +6242,10 @@ function restorePersistedBrowserTracks(tab) {
           role,
           sourceHash: document.sourceHash || '', sourceTrackId: document.sourceTrackId || '',
           provider: document.provider || '', model: document.model || '', sourceMismatch,
+          automatic: document.automatic === true,
+          translatedByService: document.translatedByService === true,
+          translationLanguages: Array.isArray(document.translationLanguages)
+            ? document.translationLanguages.slice(0, 200) : [],
           archivePath: archived?.ok ? archived.path : '',
           cueIdentities: document.cues.map((cue) => ({ id: cue.id, cueId: cue.cueId || '',
             start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '' })),
@@ -6201,7 +6287,11 @@ function publishBrowserTrackNow(entry) {
     format: String(meta.format || 'web'), cueCount: normalized.length,
     updatedAt: Date.now(),
     pageUrl: tab && tab.view && !tab.view.webContents.isDestroyed() ? tab.view.webContents.getURL() : '',
-    sourceUrl: String(meta.sourceUrl || '').slice(0, 1000),
+    sourceUrl: redactCaptureUrl(meta.sourceUrl || ''),
+    automatic: meta.automatic === true,
+    translatedByService: meta.translatedByService === true,
+    translationLanguages: (Array.isArray(meta.translationLanguages) ? meta.translationLanguages : [])
+      .slice(0, 200),
   };
   track = persistBrowserTrack(tab, track, normalized, meta);
   browserTrackPublications.set(publicationKey, { fingerprint, id: stableId, path: filePath });
@@ -6258,6 +6348,12 @@ function storeBrowserTrack(cues, meta = {}) {
   let normalized = normalizeCues(cues).slice(-20000);
   if (!normalized.length) return null;
   const streamKey = String(meta.streamKey || '');
+  if (streamKey && tab?.captureCoverage) {
+    tab.captureCoverage.observeCues(streamKey, normalized);
+    if (browserDiagnostics && tab === activeBrowserTab()) {
+      browserDiagnostics.coverage = tab.captureCoverage.snapshot();
+    }
+  }
   if (streamKey) {
     const previous = browserTrackBuffers.get(streamKey) || [];
     // Canlı ASR aynı başlangıç için giderek olgunlaşan hipotezler yollar.
@@ -6369,7 +6465,8 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
       await assertPublicBrowserSubtitleUrl(redirected.href);
       requestUrl = redirected.href;
     }
-    if (!response.ok) throw browserSubtitleHttpError(response.status);
+    if (!response.ok) throw browserSubtitleHttpError(response.status, requestUrl,
+      parseRetryAfterMs(response.headers.get('retry-after')));
     const length = Number(response.headers.get('content-length') || 0);
     if (length > maxBytes) {
       throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı yanıtı güvenli boyut sınırını aşıyor.');
@@ -6389,12 +6486,14 @@ async function fetchBrowserText(url, maxBytes = 12 * 1024 * 1024, context = null
   return decodeSubtitleBuffer(await fetchBrowserBuffer(url, maxBytes, context, byteRange)).text;
 }
 
-function browserSubtitleHttpError(status) {
+function browserSubtitleHttpError(status, requestUrl = '', retryAfterMs = 0) {
   const code = Number(status);
   const error = new Error(`HTTP ${code}`);
   error.code = 'EBROWSER_HTTP';
   error.status = code;
   error.retryable = code === 429 || code >= 500;
+  error.requestUrl = String(requestUrl || '');
+  error.retryAfterMs = Math.max(0, Number(retryAfterMs) || 0);
   return error;
 }
 
@@ -6416,15 +6515,28 @@ function browserSubtitleRetryable(error) {
   return true;
 }
 
-async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null) {
+function browserSubtitleRetryDecision(error, url, attempt) {
+  return subtitleRequestRetryPolicy({
+    attempt,
+    status: error?.code === 'EBROWSER_HTTP' ? error.status : 0,
+    retryAfterMs: error?.retryAfterMs,
+    url: error?.requestUrl || url,
+    retryable: browserSubtitleRetryable(error),
+  });
+}
+
+async function fetchBrowserTextWithRetry(url, maxBytes = 12 * 1024 * 1024, attempts = 2, context = null, byteRange = null) {
   let lastError;
   for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
-    try { return await fetchBrowserText(url, maxBytes, context); }
+    try { return await fetchBrowserText(url, maxBytes, context, byteRange); }
     catch (error) {
       lastError = context && !isCurrentBrowserContext(context)
         ? browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.') : error;
-      if (attempt + 1 < attempts && browserSubtitleRetryable(lastError)) {
-        await new Promise((resolve) => setTimeout(resolve, lastError?.status === 429 ? 500 : 150));
+      const retry = browserSubtitleRetryDecision(lastError, url, attempt);
+      lastError.retryAction = retry.action;
+      lastError.retryReason = retry.reason;
+      if (attempt + 1 < attempts && retry.action === 'retry') {
+        await new Promise((resolve) => setTimeout(resolve, retry.delayMs));
       } else break;
     }
   }
@@ -6438,8 +6550,11 @@ async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, att
     catch (error) {
       lastError = context && !isCurrentBrowserContext(context)
         ? browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.') : error;
-      if (attempt + 1 < attempts && browserSubtitleRetryable(lastError)) {
-        await new Promise((resolve) => setTimeout(resolve, lastError?.status === 429 ? 500 : 150));
+      const retry = browserSubtitleRetryDecision(lastError, url, attempt);
+      lastError.retryAction = retry.action;
+      lastError.retryReason = retry.reason;
+      if (attempt + 1 < attempts && retry.action === 'retry') {
+        await new Promise((resolve) => setTimeout(resolve, retry.delayMs));
       } else break;
     }
   }
@@ -6451,12 +6566,22 @@ async function fetchAndStoreBrowserSubtitle(url, meta = {}, context = null) {
   const parsed = parseSubtitlePayload(text, '', url);
   if (!parsed.cues.length) return { parsed, text, stored: null };
   const language = meta.language || subtitleLanguage({ url });
+  const youtube = parseYoutubeCaptionMetadata(text, url);
+  const streamKey = meta.streamKey || browserTrackStreamKey(url, language);
+  parsed.cues = parsed.cues.map((cue) => ({ ...cue,
+    provenance: normalizeCueProvenance({ layer: 'network', streamKey,
+      segmentUrl: url, automatic: youtube.automatic,
+      translatedByService: youtube.translatedByService }) }));
   return { parsed, text, stored: storeBrowserTrack(parsed.cues, {
     language,
     label: meta.label || language || 'Sayfada bulunan altyazı',
     format: parsed.format,
     sourceUrl: url,
-    streamKey: meta.streamKey || browserTrackStreamKey(url, language), context,
+    streamKey, context,
+    automatic: youtube.automatic, translatedByService: youtube.translatedByService,
+    translationLanguages: youtube.translationLanguages,
+    provider: youtube.translatedByService ? 'youtube-translated'
+      : youtube.automatic ? 'youtube-auto' : meta.provider,
   }) };
 }
 
@@ -6521,6 +6646,7 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
     const collected = [];
     const fetchedThisAttempt = [];
     let allSegmentsCaptured = true;
+    let refreshManifestRequested = false;
     const initialization = new Map();
     // Yalnızca yeni segmentleri indir; canlı playlist her yenilendiğinde eski
     // parçaları tekrar istemek hem gereksiz trafik hem de servis yükü yaratır.
@@ -6550,12 +6676,16 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
             const cues = parseMp4WebVtt(partBuffer, matcher);
             return cues.length ? { segment, cues, hasTimestampMap: false } : null;
           }
-          const partBody = await fetchBrowserText(segment.url, 2 * 1024 * 1024, context, segment.byteRange);
+          const partBody = await fetchBrowserTextWithRetry(
+            segment.url, 2 * 1024 * 1024, 2, context, segment.byteRange);
           if (!isActive()) return null;
           return { segment, partBody };
-        } catch (_) {
+        } catch (error) {
           // Başarısız segmenti tekrar denenebilir bırak.
           fetched.delete(segment.fetchKey);
+          if (error?.retryAction === 'refresh-manifest') refreshManifestRequested = true;
+          const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
+          tab?.captureCoverage?.failure(streamKey, segment, error?.message || error);
           return null;
         }
       }));
@@ -6601,10 +6731,19 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
           end: likelyLocalTimeline ? cue.end + segment.start : cue.end,
           sequence: segment.sequence,
           discontinuity: segment.discontinuity,
+          provenance: normalizeCueProvenance({ layer: 'manifest', streamKey,
+            segmentUrl: segment.url, epoch: `${streamKey}:${segment.discontinuity}`,
+            discontinuity: segment.discontinuity, sequence: segment.sequence }),
         })));
+        const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
+        tab?.captureCoverage?.success(streamKey, segment);
+        if (browserDiagnostics) browserDiagnostics.coverage = tab?.captureCoverage?.snapshot?.() || [];
         fetched.add(segment.fetchKey);
         fetchedThisAttempt.push(segment.fetchKey);
       }
+    }
+    if (refreshManifestRequested) {
+      try { meta.onRefreshManifest?.(); } catch (_) {}
     }
     let accepted = browserTrackPublications.has(streamKey)
       || browserTrackPendingPublications.has(streamKey);
@@ -6741,6 +6880,10 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
       try {
         const isHls = /mpegurl|\.m3u8(?:[?#]|$)/i.test(mime + candidate.url);
         const manifestKind = isHls ? 'hls' : 'dash';
+        if (browserDiagnostics) browserDiagnostics.manifest = {
+          kind: manifestKind, bytes: Buffer.byteLength(body, 'utf8'),
+          preview: sanitizeManifestPreview(body),
+        };
         if (!hasExpectedManifestRoot(body, manifestKind)
             || !isCompleteManifestBody(body, manifestKind)) {
           throw new Error(isHls
@@ -6748,6 +6891,7 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
             : 'DASH MPD yapısı tamamlanmamış veya ayrıştırılamadı.');
         }
         let manifestRetryNeeded = false;
+        let manifestRefreshRequested = false;
         let dashMatcherCount = 0;
         if (!isHls) {
           const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
@@ -6768,6 +6912,7 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
                 requireActiveTransaction();
                 if (!matcher.timescale) matcher.timescale = 0;
                 manifestRetryNeeded = true;
+                if (error?.retryAction === 'refresh-manifest') manifestRefreshRequested = true;
                 noteBrowserCapture('manifest', candidate, 'error',
                   'DASH init segmenti alınamadı; tekrar denenecek');
               }
@@ -6805,6 +6950,7 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
               if (captured) storedCount++;
             } else if (isHls && await captureHlsSubtitlePlaylist(fetched, discovered.url, {
               ...discovered, isActive: transactionCurrent,
+              onRefreshManifest: () => { manifestRefreshRequested = true; },
             }, context)) {
               storedCount++;
               captured = true;
@@ -6812,6 +6958,7 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
             requireActiveTransaction();
           } catch (error) {
             if (error && error.code === 'ECAPTURECANCELLED') throw error;
+            if (error?.retryAction === 'refresh-manifest') manifestRefreshRequested = true;
           }
           if (!captured) manifestRetryNeeded = true;
         }
@@ -6821,12 +6968,34 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
           const captured = await captureHlsSubtitlePlaylist(body, candidate.url, {
             language: subtitleLanguage(candidate), label: 'HLS altyazısı',
             isActive: transactionCurrent,
+            onRefreshManifest: () => { manifestRefreshRequested = true; },
           }, context);
           requireActiveTransaction();
           if (captured) storedCount++;
           else manifestRetryNeeded = true;
         }
+        if (manifestRefreshRequested) {
+          browserManifestTransactions.cancel(transaction);
+          noteBrowserCapture('manifest', candidate, 'error',
+            'İmzalı altyazı adresinin süresi doldu; manifestin yeni sürümü istenecek');
+          try {
+            const refreshed = await fetchBrowserBufferWithRetry(
+              candidate.url, 12 * 1024 * 1024, 1, context);
+            const refreshedBody = decodeSubtitleBuffer(refreshed).text;
+            if (manifestFingerprint(refreshedBody) !== fingerprint) {
+              return processBrowserCapturedPayloadOnce(refreshed, {
+                ...candidate, status: 200, responseHeaders: {},
+              }, 'manifest-refresh', context);
+            }
+          } catch (_) {}
+          return CAPTURE_ABANDONED;
+        }
         const declaredSubtitleWork = manifestDeclaresSubtitleWork(body, manifestKind);
+        const embeddedCaptions = isHls ? detectHlsCea608(body) : [];
+        if (embeddedCaptions.length) {
+          noteBrowserCapture('manifest', candidate, 'rejected',
+            `${embeddedCaptions.map((track) => track.instreamId).join(', ')} gömülü CTA-608/708 izi algılandı; bu iz henüz çözümlenmiyor.`);
+        }
         if (declaredSubtitleWork && !tracks.length && !inlineHlsSubtitle && !dashMatcherCount) {
           manifestRetryNeeded = true;
         }
@@ -6850,9 +7019,14 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
       }
     }
     const parsed = parseSubtitlePayload(body, candidate.mimeType, candidate.url);
+    const youtube = parseYoutubeCaptionMetadata(body, candidate.url);
     if (!parsed.cues.length && candidate.dashTrack?.format === 'vtt') {
       parsed.cues = parseMp4WebVtt(responseBuffer, candidate.dashTrack);
       if (parsed.cues.length) parsed.format = 'dash-wvtt';
+    }
+    if (!parsed.cues.length && candidate.dashTrack?.format === 'ttml') {
+      parsed.cues = parseMp4Stpp(responseBuffer, candidate.dashTrack);
+      if (parsed.cues.length) parsed.format = 'dash-stpp';
     }
     if (parsed.cues.length && candidate.dashTrack) {
       const offset = dashSegmentOffset(candidate.dashTrack);
@@ -6886,13 +7060,25 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
       return CAPTURE_DISCARDED;
     }
     const language = candidate.dashTrack?.language || subtitleLanguage(candidate);
+    const streamKey = candidate.dashTrack?.streamKey || browserTrackStreamKey(candidate.url, language);
+    parsed.cues = parsed.cues.map((cue) => ({ ...cue,
+      provenance: cue.provenance || normalizeCueProvenance({
+        layer: strategy, streamKey, segmentUrl: candidate.url,
+        epoch: String(candidate.captureEpoch ?? ''),
+        automatic: youtube.automatic, translatedByService: youtube.translatedByService,
+      }),
+    }));
     const stored = storeBrowserTrack(parsed.cues, {
       language,
       label: candidate.dashTrack?.label || language || 'Sayfada bulunan altyazı',
       format: parsed.format,
       sourceUrl: candidate.url,
-      streamKey: candidate.dashTrack?.streamKey || browserTrackStreamKey(candidate.url, language),
+      streamKey,
       context,
+      automatic: youtube.automatic, translatedByService: youtube.translatedByService,
+      translationLanguages: youtube.translationLanguages,
+      provider: youtube.translatedByService ? 'youtube-translated'
+        : youtube.automatic ? 'youtube-auto' : '',
     });
     noteBrowserCapture(strategy, candidate, stored ? 'parsed' : 'rejected',
       stored ? `${parsed.cues.length} satır · ${parsed.format}` : 'Aynı altyazı daha önce işlendi');
@@ -7226,6 +7412,7 @@ function browserCaptureHookScript() {
       ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
     window.__whisperCaptureSeq = 0;
     window.__whisperCaptureDeliverySeq = 0;
+    window.__whisperCaptureEpoch = 0;
     const MAX_TEXT = 2 * 1024 * 1024;
     const hinted = /(?:caption|subtitle|timedtext|texttrack|webvtt|ttml|dfxp|sami|json3|srv3|\\.vtt(?:[?#]|$)|\\.srt(?:[?#]|$)|\\.m3u8(?:[?#]|$)|\\.mpd(?:[?#]|$))/i;
     const acceptedMime = /(?:text\\/vtt|ttml|x-subrip|mpegurl|dash\\+xml)/i;
@@ -7234,6 +7421,7 @@ function browserCaptureHookScript() {
     const bodyFingerprint = ${captureBodyFingerprint.toString()};
     const push = (entry) => {
       if (!window.__whisperCaptureEnabled) return;
+      if (Number(entry.captureEpoch) !== Number(window.__whisperCaptureEpoch)) return;
       const body = String(entry.body || '');
       const bodyBase64 = String(entry.bodyBase64 || '');
       const binaryBytes = bodyBase64 ? Math.floor(bodyBase64.length * 3 / 4) : 0;
@@ -7257,22 +7445,25 @@ function browserCaptureHookScript() {
         window.__whisperCaptureDropped = (Number(window.__whisperCaptureDropped) || 0) + 1;
       }
     };
-    const inspectResponse = (url, response) => {
+    const inspectResponse = (url, response, captureEpoch) => {
       if (!window.__whisperCaptureEnabled) return;
       try {
         const mime = response.headers && response.headers.get ? (response.headers.get('content-type') || '') : '';
         if (!hinted.test(String(url || '')) && !acceptedMime.test(mime) && !huluPlaylist(url)) return;
         const length = Number(response.headers && response.headers.get ? response.headers.get('content-length') : 0) || 0;
         if (length > MAX_TEXT) return;
-        response.clone().text().then((body) => push({ url: String(url || response.url || ''), mimeType: mime, body, via: 'fetch' })).catch(() => {});
+        response.clone().text().then((body) => push({ url: String(url || response.url || ''),
+          mimeType: mime, body, via: 'fetch', captureEpoch })).catch(() => {});
       } catch (_) {}
     };
     const originalFetch = window.fetch;
     let fetchWrapper = null;
     if (typeof originalFetch === 'function') {
       fetchWrapper = function(...args) {
+        const captureEpoch = Number(window.__whisperCaptureEpoch) || 0;
         const result = originalFetch.apply(this, args);
-        result.then((response) => inspectResponse(response.url || (args[0] && args[0].url) || args[0], response)).catch(() => {});
+        result.then((response) => inspectResponse(
+          response.url || (args[0] && args[0].url) || args[0], response, captureEpoch)).catch(() => {});
         return result;
       };
       window.fetch = fetchWrapper;
@@ -7285,6 +7476,7 @@ function browserCaptureHookScript() {
       return originalOpen.call(this, method, url, ...rest);
     };
     const xhrSendWrapper = function(...args) {
+      this.__whisperCaptureEpoch = Number(window.__whisperCaptureEpoch) || 0;
       if (!this.__whisperListening) {
         this.__whisperListening = true;
         this.addEventListener('loadend', async () => {
@@ -7292,7 +7484,8 @@ function browserCaptureHookScript() {
             const mime = this.getResponseHeader('content-type') || '';
             if (!hinted.test(this.__whisperUrl || '') && !acceptedMime.test(mime)
                 && !huluPlaylist(this.__whisperUrl)) return;
-            const base = { url: this.responseURL || this.__whisperUrl || '', mimeType: mime, via: 'xhr' };
+            const base = { url: this.responseURL || this.__whisperUrl || '', mimeType: mime,
+              via: 'xhr', captureEpoch: this.__whisperCaptureEpoch };
             if (this.responseType === 'arraybuffer' && this.response) {
               const bytes = new Uint8Array(this.response);
               let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) {
@@ -7315,6 +7508,15 @@ function browserCaptureHookScript() {
       }
       return originalSend.apply(this, args);
     };
+    const seekHandler = () => {
+      window.__whisperCaptureEpoch = (Number(window.__whisperCaptureEpoch) || 0) + 1;
+      if (Array.isArray(window.__whisperCaptureQueue)) window.__whisperCaptureQueue.length = 0;
+      if (window.__whisperCaptureSeen instanceof Set) window.__whisperCaptureSeen.clear();
+      if (window.__whisperCaptureInFlight instanceof Map) window.__whisperCaptureInFlight.clear();
+    };
+    if (typeof document !== 'undefined' && document?.addEventListener) {
+      document.addEventListener('seeking', seekHandler, true);
+    }
     XMLHttpRequest.prototype.open = xhrOpenWrapper;
     XMLHttpRequest.prototype.send = xhrSendWrapper;
     try {
@@ -7324,6 +7526,7 @@ function browserCaptureHookScript() {
           fetch: originalFetch, fetchWrapper,
           xhrOpen: originalOpen, xhrOpenWrapper,
           xhrSend: originalSend, xhrSendWrapper,
+          seekHandler,
         },
       });
     } catch (_) {
@@ -7331,6 +7534,7 @@ function browserCaptureHookScript() {
         fetch: originalFetch, fetchWrapper,
         xhrOpen: originalOpen, xhrOpenWrapper,
         xhrSend: originalSend, xhrSendWrapper,
+        seekHandler,
       };
     }
     return true;
@@ -7559,6 +7763,7 @@ async function handleBrowserPageAction(tab, payload = {}) {
   const completion = pageTranslationCompletion(session);
   tab.pageTranslateCompletion = completion;
   const archived = persistBrowserPageTranslationArchive(tab, session);
+  persistBrowserPageSiteTerminology(tab, session);
   sendBrowserEvent(tab, { type: 'page-translate-done', state: tab.pageTranslateFailed || completion.pending ? 'partial' : 'ready',
     translated: tab.pageTranslated, failed: tab.pageTranslateFailed, total: session.blocks.size,
     visible: tab.pageTranslateVisible, view: session.view, scope: session.scope,
@@ -8434,6 +8639,12 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: true }) });
   });
   wc.on('did-stop-loading', () => {
+    if (!tab.loadError) {
+      tab.loadRetryAttempt = 0;
+      tab.crashRecoveryAttempt = 0;
+      if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
+      tab.loadRetryTimer = null;
+    }
     tab.lifecycle = tab.id === browserActiveTabId ? 'active' : 'background';
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     if (tab.compatibilityMode) return;
@@ -8525,7 +8736,20 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         kind: 'network', resourceKind: 'document', error: description || code,
       });
       const message = diagnostic ? diagnostic.message : browserLoadErrorMessage(code, description);
-      tab.loadError = { kind: 'connection', code, message, url };
+      const retry = navigationRetryPolicy({ code, attempt: tab.loadRetryAttempt, url });
+      tab.loadError = { kind: 'connection', code, message, url, retry };
+      if (retry.action === 'retry' && !tab.loadRetryTimer) {
+        tab.loadRetryAttempt = retry.nextAttempt;
+        tab.loadRetryTimer = setTimeout(() => {
+          tab.loadRetryTimer = null;
+          if (tab.closing || tab.view !== view || wc.isDestroyed()) return;
+          tab.loadError = null;
+          sendBrowserEvent(tab, { type: 'load-retry', attempt: tab.loadRetryAttempt,
+            message: `Geçici ağ hatası yeniden deneniyor (${tab.loadRetryAttempt}/3).` });
+          wc.reload();
+        }, retry.delayMs);
+        tab.loadRetryTimer.unref?.();
+      }
       if (tab.id === browserActiveTabId) view.setVisible(false);
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
       sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
@@ -8535,7 +8759,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('render-process-gone', (_event, details = {}) => {
     if (tab.closing || mainWindowClosing || tab.view !== view || browserTabById(tab.id) !== tab) return;
     const reason = String(details.reason || 'crashed');
-    if (reason === 'clean-exit') return;
+    const policy = crashRecoveryPolicy(reason);
+    if (policy.action === 'ignore') return;
     const failedUrl = wc.getURL() && wc.getURL() !== 'about:blank' ? wc.getURL() : tab.restoredUrl;
     tab.restoredUrl = failedUrl || tab.restoredUrl || '';
     tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
@@ -8548,7 +8773,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.browserInstrumentationPending = false;
     tab.loadError = {
       kind: 'crash', code: reason,
-      message: 'Bu sekmenin web işlemi beklenmedik biçimde kapandı. Diğer sekmeler korunuyor; sekmeyi yeniden yükleyebilirsiniz.',
+      message: policy.message,
       url: tab.restoredUrl,
     };
     try { tab.pageFind?.stop(); } catch (_) {}
@@ -8570,6 +8795,18 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       message: tab.loadError.message,
     });
     scheduleBrowserSessionSave();
+    if (policy.action === 'recreate-once' && tab.crashRecoveryAttempt < 1) {
+      tab.crashRecoveryAttempt += 1;
+      const retryTimer = setTimeout(() => {
+        if (tab.closing || mainWindowClosing || browserTabById(tab.id) !== tab || tab.view) return;
+        tab.loadError = null;
+        const replacement = ensureBrowserView(tab);
+        if (!replacement) return;
+        if (tab.id === browserActiveTabId) applyBrowserViewsLayout();
+        resumeRestoredBrowserPage(tab);
+      }, 1000);
+      retryTimer.unref?.();
+    }
   });
   wc.on('page-favicon-updated', (_event, favicons = []) => {
     const favicon = favicons.map(safeBrowserPlaceUrl).find(Boolean) || '';
@@ -8792,6 +9029,8 @@ function queueBrowserTabTransition(work) {
 function destroyBrowserTab(tab) {
   if (!tab) return;
   tab.closing = true;
+  if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
+  tab.loadRetryTimer = null;
   cancelBrowserPermissionRequestsForTab(tab);
   if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
   tab.discoveryProbeTimer = null;
@@ -9061,7 +9300,7 @@ function resourceDirectoryUsage(dir, extension = '') {
 async function collectResourceSoakSnapshot(label, cycle) {
   const browserContents = browserView && !browserView.webContents.isDestroyed()
     ? browserView.webContents : null;
-  const [rendererHeap, browserHeap, rendererRuntime, fixtureRuntime] = await Promise.all([
+  const [rendererHeap, browserHeap, rendererRuntime, fixtureRuntime, overlayRuntime] = await Promise.all([
     resourceCdpHeap(mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null),
     resourceCdpHeap(browserContents),
     mainWindow && !mainWindow.isDestroyed()
@@ -9072,6 +9311,7 @@ async function collectResourceSoakSnapshot(label, cycle) {
       ? browserContents.executeJavaScript(
         'window.__fixtureResourceSnapshot ? window.__fixtureResourceSnapshot() : null', true
       ).catch(() => null) : null,
+    browserOverlayResourceMetrics(activeBrowserTab()),
   ]);
   const metrics = app.getAppMetrics().map(metric => ({
     pid: metric.pid,
@@ -9113,12 +9353,22 @@ async function collectResourceSoakSnapshot(label, cycle) {
       workingSetBytes: gpuMetrics.reduce((total, metric) => total + metric.workingSetBytes, 0),
     },
     listeners: { ...listenerParts, total: Object.values(listenerParts).reduce((sum, value) => sum + value, 0) },
+    listenerDetails: { renderer: rendererRuntime?.listenerBreakdown || {} },
     timers: {
       main: tracker.timers,
       renderer: {
         timeouts: Number(rendererRuntime && rendererRuntime.timeouts) || 0,
         intervals: Number(rendererRuntime && rendererRuntime.intervals) || 0,
         total: Number(rendererRuntime && rendererRuntime.totalTimers) || 0,
+      },
+    },
+    performance: {
+      overlay: {
+        renderCount: Math.max(0, Number(overlayRuntime?.renderCount) || 0),
+        renderTotalMs: Math.max(0, Number(overlayRuntime?.renderTotalMs) || 0),
+        renderAverageMs: Math.max(0, Number(overlayRuntime?.renderAverageMs) || 0),
+        renderMaxMs: Math.max(0, Number(overlayRuntime?.renderMaxMs) || 0),
+        boundaryCallbacks: Math.max(0, Number(overlayRuntime?.boundaryCallbacks) || 0),
       },
     },
     state: {
@@ -9198,14 +9448,59 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
   return captured;
 }
 
+async function resourceSoakWaitForTab(tab, timeoutMs = 8000) {
+  const deadline = Date.now() + Math.max(500, Number(timeoutMs) || 8000);
+  while (Date.now() < deadline) {
+    const wc = tab?.view?.webContents;
+    if (wc && !wc.isDestroyed() && !wc.isLoading?.()
+        && wc.getURL?.() && wc.getURL() !== 'about:blank') return true;
+    await resourceSoakSleep(50);
+  }
+  return false;
+}
+
+async function resourceSoakHibernationSession(count, fixtureRoot) {
+  const attempts = Math.max(0, Math.trunc(Number(count) || 0));
+  if (!attempts) return { attempts: 0, successes: 0 };
+  const target = activeBrowserTab(true);
+  const anchorUrl = `${fixtureRoot}/page?cycle=hibernate-anchor`;
+  const anchor = createBrowserTabRecord({ restoredUrl: anchorUrl, restoredTitle: 'Soak hibernasyon sabitleyicisi' });
+  const anchorView = ensureBrowserView(anchor);
+  if (!anchorView) throw new Error('Hibernasyon soak sabitleyici sekmesi oluşturulamadı.');
+  await anchorView.webContents.loadURL(anchorUrl);
+  await activateBrowserTab(anchor.id);
+  let successes = 0;
+  try {
+    for (let cycle = 1; cycle <= attempts; cycle++) {
+      const unloaded = await unloadBrowserTab(target.id);
+      if (!unloaded?.ok) {
+        throw new Error(`Hibernasyon ${cycle}/${attempts} başarısız: ${unloaded?.error || unloaded?.reason || 'bilinmeyen hata'}`);
+      }
+      await activateBrowserTab(target.id);
+      if (!await resourceSoakWaitForTab(target)) {
+        throw new Error(`Hibernasyon ${cycle}/${attempts} sonrasında sekme zamanında uyanmadı.`);
+      }
+      await activateBrowserTab(anchor.id);
+      successes++;
+    }
+  } finally {
+    if (browserTabById(target.id)) await activateBrowserTab(target.id).catch(() => {});
+    if (browserTabById(anchor.id)) destroyBrowserTab(anchor);
+  }
+  return { attempts, successes };
+}
+
 async function runResourceSoakSession() {
   const fixtureRoot = String(process.env.WHISPER_RESOURCE_SOAK_FIXTURE_URL || '').replace(/\/$/, '');
   const outputPath = path.resolve(process.env.WHISPER_RESOURCE_SOAK_OUTPUT
     || path.join(app.getPath('temp'), 'whisper-resource-soak.json'));
   const rawCycles = Number(process.env.WHISPER_RESOURCE_SOAK_CYCLES);
   const rawWarmup = Number(process.env.WHISPER_RESOURCE_SOAK_WARMUP);
+  const rawHibernationCycles = Number(process.env.WHISPER_RESOURCE_SOAK_HIBERNATION_CYCLES);
   const cycles = Math.max(1, Number.isFinite(rawCycles) && rawCycles > 0 ? rawCycles : 400);
   const warmup = Math.max(0, Number.isFinite(rawWarmup) ? rawWarmup : 20);
+  const hibernationCycles = Math.max(0,
+    Number.isFinite(rawHibernationCycles) ? Math.trunc(rawHibernationCycles) : 50);
   if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(fixtureRoot)) {
     throw new Error('Soak fixture yalnız 127.0.0.1 üzerindeki geçici sunucudan çalıştırılabilir.');
   }
@@ -9216,6 +9511,11 @@ async function runResourceSoakSession() {
   let captureAttempts = 0;
   let captureSuccesses = 0;
   for (let cycle = 1; cycle <= warmup; cycle++) await resourceSoakCycle(-cycle, fixtureRoot);
+  // Dinleyici/memory başlangıcı ile final aynı arayüz durumunu temsil etsin:
+  // ilk uyanış site izinleri ve favicon yüzeylerini tembel olarak kurar.
+  // Bu hazırlık ölçülen 50 hibernasyon denemesine dahil edilmez.
+  const hibernationPrimed = hibernationCycles > 0;
+  if (hibernationPrimed) await resourceSoakHibernationSession(1, fixtureRoot);
   await resourceSoakSleep(500);
   const samples = [await collectResourceSoakSnapshot('start', 0)];
   resourceSoakTracker?.resetPeaks();
@@ -9226,10 +9526,13 @@ async function runResourceSoakSession() {
     const isFinal = cycle === cycles;
     if (cycle % checkpoint === 0 || isFinal) {
       if (isFinal) await resourceSoakSleep(500);
-      samples.push(await collectResourceSoakSnapshot(isFinal ? 'final' : `stable-${cycle}`, cycle));
+      samples.push(await collectResourceSoakSnapshot(`stable-${cycle}`, cycle));
       console.log(`[resource-soak] ${cycle}/${cycles} · yakalama ${captureSuccesses}/${captureAttempts}`);
     }
   }
+  const hibernation = await resourceSoakHibernationSession(hibernationCycles, fixtureRoot);
+  await resourceSoakSleep(500);
+  samples.push(await collectResourceSoakSnapshot('final', cycles));
   const peaks = resourceSoakTracker ? resourceSoakTracker.peaks() : {
     mainTimers: 0, mainProjectTimers: 0, mainInternalTimers: 0, mainTimerOwners: {},
   };
@@ -9246,6 +9549,7 @@ async function runResourceSoakSession() {
     fixtureOrigin: fixtureRoot,
     userData: app.getPath('userData'),
     capture: { attempts: captureAttempts, successes: captureSuccesses },
+    hibernation: { ...hibernation, primedBeforeBaseline: hibernationPrimed },
     captureDiagnostics,
     peaks,
     samples,
@@ -10027,6 +10331,16 @@ async function unloadBrowserTab(rawId) {
   if (!checked.allowed) return { ok: false, protected: true, reason: checked.reason, error: checked.message };
   const view = tab.view; const wc = view?.webContents;
   if (!view || !wc || wc.isDestroyed()) return { ok: false, error: 'Sekme görünümü kullanılamıyor.' };
+  const captureStatus = await browserTabCapturePending(tab, true);
+  if (captureStatus.pending > 0 || captureStatus.unverified) {
+    if (tab.captureEnabled !== false && !tab.compatibilityMode) {
+      void executeBrowserViewFrames(tab.view, browserCaptureHookScript()).catch(() => {});
+    }
+    return { ok: false, protected: true, reason: 'capture_pending',
+      error: captureStatus.pending > 0
+        ? `${captureStatus.pending} altyazı yanıtı henüz işlenmedi; sekme bellekten boşaltılmadı.`
+        : 'Altyazı yakalama kuyruğu doğrulanamadı; sekme bellekten boşaltılmadı.' };
+  }
   tab.restoredUrl = safeBrowserPlaceUrl(wc.getURL()) || tab.restoredUrl || '';
   tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
   tab.lifecycle = 'unloading'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
@@ -10038,12 +10352,16 @@ async function unloadBrowserTab(rawId) {
   }
   if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
   tab.discoveryProbeTimer = null;
+  if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
+  tab.loadRetryTimer = null;
   tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
   try { mainWindow.contentView.removeChildView(view); } catch (_) {}
   tab.view = null; try { wc.close({ waitForBeforeUnload: false }); } catch (_) {}
-  tab.lifecycle = 'unloaded'; tab.unloadedAt = Date.now(); scheduleBrowserSessionSave(0);
+  tab.lifecycle = 'unloaded'; tab.unloadedAt = Date.now();
+  const persisted = persistBrowserSessionNow();
   sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
-  return { ok: true, tab: browserTabSnapshot(tab) };
+  return { ok: true, tab: browserTabSnapshot(tab),
+    persistenceWarning: persisted?.ok === false ? 'Sekme boşaltıldı ancak oturum kaydı diske yazılamadı.' : '' };
 }
 
 ipcMain.handle('browser:command', async (event, payload) => {
@@ -10822,7 +11140,8 @@ ipcMain.handle('browser:profile:update', (event, request = {}) => {
       if (item.view && !item.view.webContents.isDestroyed()) applyStoredBrowserZoom(item, item.view.webContents, url);
     }
   }
-  return { ok: true, origin, places: browserPlacesSnapshot() };
+  return { ok: true, origin, places: browserPlacesSnapshot(),
+    reloadRequired: request.field === 'adblockEnabled' };
 });
 
 ipcMain.handle('browser:page:start', async (event, request) => {

@@ -148,6 +148,15 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(main, /browserOverlay = \{ source: \[\], translation: \[\], mode: 'translation', offset: 0 \}/);
   assert.match(main, /browserLiveAsr\?\.tab === previous/);
   assert.match(main, /async function activateBrowserTab[\s\S]{0,2200}await withTimeout\(drainBrowserCaptureBeforeClose\(\)/);
+  const unloadStart = main.indexOf('async function unloadBrowserTab(');
+  const unloadEnd = main.indexOf("ipcMain.handle('browser:command'", unloadStart);
+  const unload = main.slice(unloadStart, unloadEnd);
+  assert.match(unload, /await browserTabCapturePending\(tab, true\)/,
+    'hibernasyon bekleyen altyazı yakalama kuyruğunu ölçmeden WebContents kapatıyor');
+  assert.ok(unload.indexOf('persistBrowserSessionNow()') > unload.indexOf("tab.lifecycle = 'unloaded'"),
+    'atomik oturum kaydı hibernasyon yaşam döngüsü güncellendikten sonra yazılmalı');
+  assert.ok(unload.indexOf('persistBrowserSessionNow()') < unload.lastIndexOf('return { ok: true'),
+    'hibernasyon başarılı dönmeden önce atomik oturum kaydı yazılmalı');
   assert.match(main, /function queueBrowserTabTransition[\s\S]{0,240}browserTabTransitionPromise/);
   assert.match(main, /ipcMain\.handle\('browser:tab:activate'[\s\S]{0,220}await activateBrowserTab/);
   assert.match(main, /persistedTrack: true/);
