@@ -1180,6 +1180,11 @@ test('uzun videoda transkripsiyon izlenen konumdan parçalara ayrılıyor', () =
     'her parça kendi zaman aralığını backend e göndermiyor');
   assert(/mergeLiveCues/.test(js.slice(js.indexOf('async function finishProgressiveJob'), js.indexOf('async function handleProgressiveTerminal'))),
     'parça sonuçları tek listede birleştirilmiyor');
+  const finishBody = js.slice(js.indexOf('async function finishProgressiveJob'), js.indexOf('async function handleProgressiveTerminal'));
+  assert(finishBody.indexOf('writeSubtitle(job.sourceFile') < finishBody.indexOf('if (selectionChanged)'),
+    'elle altyazı seçilince birleşik aşamalı çıktı yazılmadan iş bitiyor');
+  assert(/opts\.outputNameSuffix = `-whisper-/.test(js),
+    'aşamalı işler hazır altyazıdan ayrı bir çıktı adına yazmıyor');
 });
 
 test('düşük güvenli satırlar listede ve zaman çizgisinde işaretleniyor', () => {

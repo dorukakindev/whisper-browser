@@ -104,6 +104,9 @@ async function run() {
     .includes('number_mismatch'));
   assert.deepEqual(layout.translationMeaningIssues("I don't know.", 'Bilmiyorum.'), []);
   assert(layout.translationMeaningIssues("I don't know.", 'Biliyorum.').includes('negation_missing'));
+  assert.deepEqual(layout.translationMeaningIssues('He carried 80 bags.', 'Seksen paket taşıdı.'), []);
+  assert.deepEqual(layout.translationBlockingIssues("I don't know.", 'Biliyorum.'), [],
+    'olumsuzluk sezgisi doğal çeviriyi sert biçimde reddetti');
   assert.equal(layout.sentenceTranslationMessageRole('gemini-3.8-flash'), 'system');
 
   const key = translationCacheKey(sentence);

@@ -42,7 +42,8 @@ from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   validate_sentence_parts, normalized_text,
-                                  uses_spaceless_script, translation_meaning_issues)
+                                  uses_spaceless_script, translation_meaning_issues,
+                                  translation_blocking_issues)
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
@@ -3050,7 +3051,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             record = validate_sentence_parts(hit, [hit], 1)
         elif isinstance(hit, dict):
             record = validate_sentence_parts(hit.get('text'), hit.get('parts'), len(group))
-        if record and not translation_meaning_issues(
+        if record and not translation_blocking_issues(
                 ' '.join(entries[i][2] for i in group), record['text'], target):
             for i, part in zip(group, record['parts']):
                 out_texts[i] = part
@@ -3139,7 +3140,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             # "eksikleri tamamla" çalışması da İngilizce satırı atlar.
             if translation_is_source_echo(row['source'], record['text']):
                 continue
-            meaning_issues = translation_meaning_issues(row['source'], record['text'], target)
+            meaning_issues = translation_blocking_issues(row['source'], record['text'], target)
             if meaning_issues:
                 log("Ceviri grubu anlamsal kalite kapisinda reddedildi ({}); yeniden denenecek."
                     .format(", ".join(meaning_issues)), "warn")
@@ -3298,7 +3299,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     continue
                 if translation_is_source_echo(row['source'], record['text']):
                     continue
-                if translation_meaning_issues(row['source'], record['text'], target):
+                if translation_blocking_issues(row['source'], record['text'], target):
                     continue
                 with lock:
                     for source_index, new_text in zip(group, record['parts']):
@@ -4380,7 +4381,7 @@ def compute_translation_quality_report(source_entries, translated_entries,
             timing_mismatch_indices.append(index)
     issue_indices = sorted(set(
         untranslated_indices + empty_indices + timing_mismatch_indices
-        + number_mismatch_indices + negation_mismatch_indices
+        + number_mismatch_indices
     ))
     report = {
         "translation_blocks": total,
@@ -4757,6 +4758,10 @@ def transcribe(args):
             base_name = Path(source_path).stem or "altyazi"
             if not Path(source_path).exists():
                 raise RuntimeError(f"Girdi dosyası bulunamadı: {source_path}")
+        if args.output_name_suffix:
+            if not re.fullmatch(r'-whisper-[a-z0-9-]{4,48}', args.output_name_suffix, re.I):
+                raise RuntimeError("Geçersiz aşamalı çıktı kimliği")
+            base_name += args.output_name_suffix
 
         # 2) Ses çıkar. Aralık YouTube indirmesinde uygulandıysa burada tekrar kırpma
         #    (indirilen dosya zaten 0'a sıfırlanmış); aksi halde ffmpeg ile kırp.
@@ -6938,6 +6943,7 @@ def main():
     src.add_argument("--youtube", help="YouTube URL'si")
 
     parser.add_argument("--output-dir", help="Çıktı klasörü", default=None)
+    parser.add_argument("--output-name-suffix", default="", help=argparse.SUPPRESS)
     parser.add_argument("--model", default="large-v3", help="Whisper modeli")
     parser.add_argument(
         "--engine",

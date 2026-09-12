@@ -2934,7 +2934,11 @@ function applyCueQuality(cues, qualityCues) {
 
 function progressiveRanges(duration, current, windowSec = 600) {
   if (!isFinite(duration) || duration <= 0) return [{ start: '', end: '' }];
-  const start = Math.max(0, Math.min(duration, (Number(current) || 0) - 2));
+  // Videonun başına çok yakınken 2-30 saniyelik ayrı bir "başa dön" işi
+  // üretme. Bu küçük son iş hem tüm YouTube sesini yeniden indiriyor hem de
+  // ara çıktıyı tek blokla ezmeye çok yatkındı.
+  const requestedStart = Math.max(0, Math.min(duration, (Number(current) || 0) - 2));
+  const start = requestedStart <= 30 ? 0 : requestedStart;
   const firstEnd = Math.min(duration, start + windowSec);
   const ranges = [{ start, end: firstEnd }];
   if (firstEnd < duration - 0.5) ranges.push({ start: firstEnd, end: duration });
@@ -2969,17 +2973,6 @@ async function finishProgressiveJob(job) {
   const source = mergeLiveCues([], job.liveSource || []);
   const translated = mergeLiveCues([], [...(job.liveTranslation || new Map()).values()]);
   player.cueQualitySource = source.slice();
-  const selectionChanged = (job.selectedSubPath || '') !== (player.subPath || '')
-    || (job.secondSubPath || '') !== (player.sub2Path || '');
-  if (selectionChanged) {
-    job.running = false;
-    state.running = false;
-    $('startBtn').classList.remove('hidden');
-    $('cancelBtn').classList.add('hidden');
-    rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
-      'Aşamalı iş sırasında altyazı seçimi değişti.');
-    return;
-  }
   job.stage = 'Kaydediliyor';
   const edits = new Map(state.previewSegs.filter((seg) => seg.previewEdited).map((seg) => [previewTimeKey(seg), seg.text]));
   const editedSource = source.map((cue) => edits.has(previewTimeKey(cue)) ? { ...cue, text: edits.get(previewTimeKey(cue)) } : cue);
@@ -2988,6 +2981,20 @@ async function finishProgressiveJob(job) {
   if (job.translationFile && translated.length) {
     await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
     if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  }
+  const selectionChanged = (job.selectedSubPath || '') !== (player.subPath || '')
+    || (job.secondSubPath || '') !== (player.sub2Path || '');
+  // Kullanıcının işlem sürerken elle seçtiği altyazıyı oynatıcıdan sökme; fakat
+  // bütün parçaların birleştirilmiş çıktısını benzersiz iş dosyasına mutlaka yaz.
+  if (selectionChanged) {
+    job.running = false;
+    state.running = false;
+    $('startBtn').classList.remove('hidden');
+    $('cancelBtn').classList.add('hidden');
+    rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
+      'Aşamalı çıktı kaydedildi; elle seçtiğin altyazı oynatıcıda korundu.');
+    logLine(`Aşamalı çıktı birleştirildi: ${source.length} blok; elle seçilen altyazı değiştirilmedi.`, 'success');
+    return;
   }
   job.stage = 'Oynatıcıya yükleniyor';
   job.loading = true;
@@ -17733,6 +17740,9 @@ async function startProgressivePlayerTranscription(config = {}) {
   const ranges = progressiveRanges(
     browserYoutube ? Number(player.browserDuration) : Number(video && video.duration),
     browserYoutube ? Number(player.browserTime) : Number(video && video.currentTime));
+  // Her aşamalı çalışma kendi dosyasına yazar. Aynı başlıklı hazır bir .srt
+  // artık ara bölüm veya son birkaç saniyelik iş tarafından ezilemez.
+  opts.outputNameSuffix = `-whisper-${Date.now().toString(36)}`;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
     ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
     sourceFile: '', translationFile: '', awaitingExit: false,

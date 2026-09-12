@@ -12970,6 +12970,13 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
 
   if (options.outputDir) args.push('--output-dir', options.outputDir);
+  if (options.outputNameSuffix) {
+    const suffix = String(options.outputNameSuffix);
+    if (!/^-whisper-[a-z0-9-]{4,48}$/i.test(suffix)) {
+      return { ok: false, error: 'Geçersiz aşamalı çıktı kimliği.' };
+    }
+    args.push('--output-name-suffix', suffix);
+  }
   if (options.model) args.push('--model', options.model);
   if (options.engine) args.push('--engine', options.engine);
   if (options.batchSize) args.push('--batch-size', String(options.batchSize));

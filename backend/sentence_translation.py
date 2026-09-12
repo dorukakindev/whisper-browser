@@ -80,6 +80,47 @@ def _number_tokens(text):
     return [canonical(token) for token in _NUMBER_TOKEN.findall(str(text or ''))]
 
 
+_TR_ONES = ('sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
+_TR_TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
+
+
+def _turkish_integer_words(value):
+    """Sayısal kaynakların doğal Türkçe yazıyla korunmasını tanır (80 → seksen)."""
+    value = int(value)
+    if value < 0 or value > 999999999:
+        return ''
+    if value < 10:
+        return _TR_ONES[value]
+    if value < 100:
+        return ' '.join(part for part in (_TR_TENS[value // 10], _TR_ONES[value % 10] if value % 10 else '') if part)
+    if value < 1000:
+        head = 'yüz' if value // 100 == 1 else f'{_TR_ONES[value // 100]} yüz'
+        tail = _turkish_integer_words(value % 100) if value % 100 else ''
+        return ' '.join(part for part in (head, tail) if part)
+    for scale, word in ((1000000, 'milyon'), (1000, 'bin')):
+        if value >= scale:
+            count, remainder = divmod(value, scale)
+            head = word if count == 1 else f'{_turkish_integer_words(count)} {word}'
+            tail = _turkish_integer_words(remainder) if remainder else ''
+            return ' '.join(part for part in (head, tail) if part)
+    return ''
+
+
+def _number_preserved(token, translated, target_lang):
+    if token in _number_tokens(translated):
+        return True
+    if str(target_lang or '').lower().split('-')[0] != 'tr':
+        return False
+    try:
+        value = float(token)
+    except ValueError:
+        return False
+    if not value.is_integer():
+        return False
+    words = _turkish_integer_words(int(value))
+    return bool(words and re.search(r'(?<!\w)' + re.escape(words) + r'(?!\w)', normalized_text(translated), re.I))
+
+
 def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     """Bariz sayı/olumsuzluk kaybını anlamsal kalite kapısı olarak bildirir.
 
@@ -91,14 +132,24 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     translated = normalized_text(translated_text)
     issues = []
     source_numbers = _number_tokens(source)
-    translated_numbers = _number_tokens(translated)
-    if source_numbers and source_numbers != translated_numbers:
-        missing = [token for token in source_numbers if token not in translated_numbers]
+    if source_numbers:
+        missing = [token for token in source_numbers
+                   if not _number_preserved(token, translated, target_lang)]
         if missing:
             issues.append('number_mismatch')
     if _SOURCE_NEGATION.search(source) and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
     return issues
+
+
+def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
+    """Otomatik reddi yalnız kesin yapısal kayıplara uygula.
+
+    Olumsuzluk sezgisi tanı amaçlı kalır: Türkçe olumsuzluk çekimleri ve doğal
+    yeniden anlatım regex ile güvenilir biçimde kanıtlanamaz.
+    """
+    return [issue for issue in translation_meaning_issues(
+        source_text, translated_text, target_lang) if issue == 'number_mismatch']
 
 
 def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6,

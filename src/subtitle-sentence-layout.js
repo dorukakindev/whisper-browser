@@ -39,15 +39,44 @@ function numberTokens(text) {
     return /^\d{1,3}(?:[.,]\d{3})+$/u.test(token) ? token.replace(/[.,]/g, '') : token.replace(/,/g, '.');
   });
 }
-function translationMeaningIssues(source, translated) {
+const TR_ONES = ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+const TR_TENS = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+function turkishIntegerWords(value) {
+  value = Number(value);
+  if (!Number.isSafeInteger(value) || value < 0 || value > 999999999) return '';
+  if (value < 10) return TR_ONES[value];
+  if (value < 100) return [TR_TENS[Math.floor(value / 10)], value % 10 ? TR_ONES[value % 10] : ''].filter(Boolean).join(' ');
+  if (value < 1000) return [Math.floor(value / 100) === 1 ? 'yüz' : `${TR_ONES[Math.floor(value / 100)]} yüz`,
+    value % 100 ? turkishIntegerWords(value % 100) : ''].filter(Boolean).join(' ');
+  for (const [scale, word] of [[1000000, 'milyon'], [1000, 'bin']]) {
+    if (value >= scale) {
+      const count = Math.floor(value / scale);
+      return [count === 1 ? word : `${turkishIntegerWords(count)} ${word}`,
+        value % scale ? turkishIntegerWords(value % scale) : ''].filter(Boolean).join(' ');
+    }
+  }
+  return '';
+}
+function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const issues = [];
   const sourceNumbers = numberTokens(source);
   const translatedNumbers = numberTokens(translated);
-  if (sourceNumbers.some((token) => !translatedNumbers.includes(token))) issues.push('number_mismatch');
+  const normalizedTranslation = normalizeText(translated).toLocaleLowerCase('tr');
+  if (sourceNumbers.some((token) => {
+    if (translatedNumbers.includes(token)) return false;
+    const numeric = Number(token);
+    const words = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr' && Number.isInteger(numeric)
+      ? turkishIntegerWords(numeric) : '';
+    return !words || !new RegExp(`(?:^|\\s)${words.replace(/ /g, '\\s+')}(?:$|[\\s.,!?;:])`, 'iu').test(normalizedTranslation);
+  })) issues.push('number_mismatch');
   if (SOURCE_NEGATION.test(normalizeText(source)) && !TARGET_NEGATION.test(normalizeText(translated))) {
     issues.push('negation_missing');
   }
   return issues;
+}
+
+function translationBlockingIssues(source, translated, targetLanguage = 'tr') {
+  return translationMeaningIssues(source, translated, targetLanguage).filter(issue => issue === 'number_mismatch');
 }
 
 function validParts(text, parts, count) {
@@ -190,5 +219,5 @@ function fitTranslationParts(text, pieces) {
 
 module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded, hasSpeakerLabel,
   sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest,
-  translationMeaningIssues,
+  translationMeaningIssues, translationBlockingIssues,
   sentenceTranslationGenerationParameters, sentenceTranslationMessageRole };

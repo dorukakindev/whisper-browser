@@ -3356,6 +3356,8 @@ def test_translation_meaning_gate_preserves_numbers_and_negation():
     assert "number_mismatch" in T.translation_meaning_issues("There are 2.4 million dollars.", "Milyonlarca dolar.")
     assert T.translation_meaning_issues("I don't know.", "Bilmiyorum.") == []
     assert "negation_missing" in T.translation_meaning_issues("I don't know.", "Biliyorum.")
+    assert T.translation_meaning_issues("He carried 80 bags.", "Seksen paket taşıdı.") == []
+    assert T.translation_blocking_issues("I don't know.", "Biliyorum.") == []
 
 
 def test_sentence_groups_hold_ellipsis_and_conjunction_continuations():

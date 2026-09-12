@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
-  decodeSentenceTranslation, fitTranslationParts, translationMeaningIssues } = require('./subtitle-sentence-layout');
+  decodeSentenceTranslation, fitTranslationParts, translationBlockingIssues } = require('./subtitle-sentence-layout');
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -366,7 +366,7 @@ class BrowserTranslationScheduler {
       if (cached !== undefined && cached !== null && cached !== '') {
         try {
           const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
-          if (translationMeaningIssues(sentence.text, decoded.text).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
+          if (translationBlockingIssues(sentence.text, decoded.text, this.context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
           return { ...decoded, cached: true };
         }
         catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }
@@ -374,8 +374,8 @@ class BrowserTranslationScheduler {
       return this.translateShared(sentence, cacheKey, controller)
         .then((value) => {
           const decoded = decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts);
-          if (translationMeaningIssues(sentence.text, decoded.text).length) {
-            throw new Error('Çeviri sayı veya olumsuzluk bilgisini korumadı.');
+          if (translationBlockingIssues(sentence.text, decoded.text, this.context.targetLanguage).length) {
+            throw new Error('Çeviri sayısal bilgiyi korumadı.');
           }
           return { ...decoded, cached: false };
         });

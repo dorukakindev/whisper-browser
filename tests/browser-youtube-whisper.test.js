@@ -39,6 +39,11 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(calls[0].baseOpts.input, undefined);
   assert.equal(calls[0].baseOpts.youtube, 'https://www.youtube.com/watch?v=abcdefghijk');
   assert.equal(calls[0].ranges[0].start, 798);
+  assert.match(calls[0].baseOpts.outputNameSuffix, /^-whisper-[a-z0-9-]{4,48}$/i);
+  assert.equal(ctx.progressiveRanges(1306, 8).length, 2,
+    'videonun başındaki birkaç saniye için üçüncü ve yıkıcı bir iş üretildi');
+  assert.deepEqual(Array.from(ctx.progressiveRanges(1306, 8), range => [range.start, range.end]),
+    [[0, 600], [600, 1306]]);
   assert.equal(calls[0].browserTabId, 'a');
   await ctx.startBrowserYoutubeWhisper(true);
   assert.equal(calls.length, 1, 'meşgulken ikinci iş başladı');

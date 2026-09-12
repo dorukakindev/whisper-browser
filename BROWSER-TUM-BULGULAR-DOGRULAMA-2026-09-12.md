@@ -336,3 +336,44 @@ Tam `npm test` çıkış 0 ve son satır “Tüm testler geçti”; backend 165/
   yeşil. Güncel tam `npm test` koşusu çıkış 0 ve son satır `Tüm testler geçti` verdi;
   ayrıca `npm run test:electron-bridge`, Python `py_compile`, Node `--check` ve
   `git diff --check` de çıkış 0 verdi.
+
+### Hazır altyazının aşamalı Whisper çıktısıyla ezilmesi — doğrulandı ve düzeltildi
+
+- **Ayrıntılı bulgu:** Kullanıcının olay dökümünde 08:56:57'de hazır `.tr.srt`
+  başarıyla `179 blok` olarak yüklendi. Üçüncü aşamanın 08:57:00'daki son 0–6
+  saniyelik backend `done` olayı aynı kanonik `.srt` ve `.tr.srt` yollarına birer
+  blok yazdı. Güncel iki dosyanın da yalnız bir cue içermesi bu olay sırasını disk
+  düzeyinde doğruladı. `finishProgressiveJob` ise seçili altyazı yolunun değiştiğini
+  görünce birleşik 307 civarı canlı cue'yu yazmadan dönüyordu. Böylece sorun dosya
+  yükleyicide değil, ara aşamaların ortak çıktı adını kullanması ve seçim değişince
+  son birleştirmenin atlanmasıydı.
+- **Düzeltme:** Her aşamalı oynatıcı işi artık doğrulanan benzersiz
+  `-whisper-<iş-kimliği>` son ekli dosyalara yazar; aynı başlıklı hazır dosyaya
+  dokunmaz. Renderer → main → Python argüman zincirinde kimlik iki tarafta da dar
+  regex ile doğrulanır. Kullanıcı iş sürerken başka altyazı seçse bile kaynak ve
+  çeviri parçaları önce benzersiz iş dosyasına birleştirilir, seçili altyazı
+  oynatıcıda korunur. Başlangıç konumu ilk 30 saniyedeyse aralık 0'dan başlatılır;
+  bu olayda görülen gereksiz üçüncü 0–6 saniye aşaması oluşmaz.
+- **Ek çeviri bulgusu ve düzeltmesi:** Dökümde `80` sayısının doğal Türkçe
+  `seksen` karşılığı sayısal kayıp sanılarak iki kez reddediliyordu. Türkçe tam
+  sayıları yazıyla koruyan çeviriler artık kabul edilir. `negation_missing` regex
+  sonucu kesin kanıt olmadığı için tanıda görünmeye devam eder, fakat doğal
+  Türkçe çeviriyi otomatik reddeden/cache dışına atan sert kapı olmaktan çıkarıldı.
+  Sayı kaybı kesin olduğunda sert kapı korunuyor.
+- **Ret gerekçeleri:** “Hazır altyazıyı yüklemek satırları sildi” iddiası
+  reddedildi; yükleme günlüğü 179 bloğu doğruluyor, silinme üç saniye sonraki
+  backend yazımıdır. “Bittikten sonra bütün video baştan çevrildi” de birebir doğru
+  değil: 6–606, 606–1306 ve 0–6 aralıkları ayrı işlendi. Ancak her aşamada tüm
+  16,51 MiB YouTube sesinin yeniden indirilmesi gerçek bir verimsizliktir; bu turda
+  veri kaybına yol açan dosya çakışması giderildi, ortak indirme önbelleği ayrı bir
+  performans işi olarak bırakıldı. Ezilmiş 179 bloklu dosyayı tek bloklu mevcut
+  dosyadan güvenilir biçimde geri üretmek mümkün olmadığı için kullanıcı SRT'lerine
+  otomatik içerik yazılmadı.
+- **Doğrulama dökümü:** `browser-youtube-whisper` başlangıca yakın aralığın iki
+  parçaya düştüğünü ve iş son ekinin üretildiğini sınadı. `player-ui` birleşik
+  dosya yazımının seçim-değişikliği çıkışından önce olduğunu doğruladı. Backend
+  `165 geçti, 0 başarısız`; tarayıcı cümle yerleşim testi `80 → seksen` kabulünü ve
+  olumsuzluk sezgisinin sert ret olmadığını doğruladı. Hedefli Node/Python
+  sözdizimi kontrolleri ve `git diff --check` çıkış 0 verdi. Güncel tam
+  `npm test` son satırı `Tüm testler geçti`; `npm run test:electron-bridge` da
+  çıkış 0 verdi.
