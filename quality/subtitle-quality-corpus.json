@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "baseDir": "%USERPROFILE%/Downloads",
+  "_note": "Bu manifest, gerçek (telifli) SRT çiftlerinin repoya alınmaması için yalnız dosya adlarına referans verir. SRT dosyaları hiçbir commit'e girmez; korpus ölçümü yalnızca bu makinede, dosyalar Downloads klasöründe durduğu sürece çalışır. Dosyalar silinirse kalite koruması quality/subtitle-quality-golden.json üzerinde sürer.",
   "pairs": [
     {
       "name": "Border Security S10E11",
