@@ -60,15 +60,67 @@ def sentence_ended(text):
 
 _NUMBER_TOKEN = re.compile(r'(?<![\w])(?:\d+(?:[.,]\d+)?%?|\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?)(?![\w])')
 _SOURCE_NEGATION = re.compile(
-    r"\b(?:not|never|no|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b",
+    r"\b(?:not|never|no|none|nobody|nothing|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b",
     re.I,
 )
 _TARGET_NEGATION = re.compile(
     r"\b(?:değil|degil|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao)\b"
     # Türkçe fiil olumsuzluğu: gelmiyor, sanmıyorum, gelmedi, yapmaz vb.
-    r"|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d\w*\b|\b\w{2,}m[ae]z\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b|\b\w{2,}mamalı\w*\b|\b\w{2,}memeli\w*\b",
+    r"|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d\w*\b|\b\w{2,}m[ae]z\w*\b"
+    r"|\b\w{2,}m[ae]y?[ae]c[ae]k\w*\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b"
+    r"|\b\w{2,}mamalı\w*\b|\b\w{2,}memeli\w*\b",
     re.I,
 )
+
+_SOURCE_MODAL = re.compile(
+    r"\b(?:[Cc]an|[Cc]ould|may|[Mm]ight|[Mm]ust|[Ss]hall|[Ss]hould|[Ww]ill|[Ww]ould|"
+    r"[Oo]ught\s+to|[Hh]ave\s+to|[Hh]as\s+to|[Nn]eed\s+to)\b",
+)
+_TARGET_MODAL = re.compile(
+    r"\b(?:zorunda\w*|gerek(?:iyor|ir|ecek)?|lazım|lazim|mümkün|mumkun|olabilir|belki)\b"
+    r"|\b\w{2,}(?:malı|meli|abilir|ebilir|amaz|emez|acak|ecek)\w*\b",
+    re.I,
+)
+
+_CURRENCY_PATTERNS = {
+    'usd': re.compile(r'(?:US\$|\$|(?<!\w)(?:USD|dollars?|dolar\w*)(?!\w))', re.I),
+    'eur': re.compile(r'(?:€|(?<!\w)(?:EUR|euros?|avro\w*)(?!\w))', re.I),
+    'gbp': re.compile(r'(?:£|(?<!\w)(?:GBP|pounds?|sterlin\w*)(?!\w))', re.I),
+    'try': re.compile(r'(?<!\w)(?:₺|TRY|TL|lira\w*)(?!\w)', re.I),
+    'jpy': re.compile(r'(?<!\w)(?:¥|JPY|yen)(?!\w)', re.I),
+}
+_UNIT_PATTERNS = {
+    'km': re.compile(r'(?<!\w)(?:km|kilometers?|kilometre\w*)(?!\w)', re.I),
+    'm': re.compile(r'(?<!\w)(?:m|meters?|metre\w*)(?!\w)', re.I),
+    'kg': re.compile(r'(?<!\w)(?:kg|kilograms?|kilogram\w*)(?!\w)', re.I),
+    'g': re.compile(r'(?<!\w)(?:g|grams?|gram\w*)(?!\w)', re.I),
+    'l': re.compile(r'(?<!\w)(?:l|liters?|litre\w*)(?!\w)', re.I),
+    'mile': re.compile(r'(?<!\w)(?:miles?|mil)(?!\w)', re.I),
+    'hour': re.compile(r'(?<!\w)(?:hours?|hrs?|saat\w*)(?!\w)', re.I),
+    'minute': re.compile(r'(?<!\w)(?:minutes?|mins?|dakika\w*)(?!\w)', re.I),
+    'second': re.compile(r'(?<!\w)(?:seconds?|secs?|saniye\w*)(?!\w)', re.I),
+    'celsius': re.compile(r'(?<!\w)(?:°\s*C|degrees?\s+Celsius|santigrat\w*)(?!\w)', re.I),
+}
+_MONTH_PATTERNS = {
+    'jan': re.compile(r'\b(?:January|Jan\.?|Ocak)\b', re.I),
+    'feb': re.compile(r'\b(?:February|Feb\.?|Şubat|Subat)\b', re.I),
+    'mar': re.compile(r'\b(?:March|Mar\.?|Mart)\b', re.I),
+    'apr': re.compile(r'\b(?:April|Apr\.?|Nisan)\b', re.I),
+    # İngilizce modal "may" ay adı değildir; İngilizce ay adı büyük harfle,
+    # Türkçe karşılıkları kendi doğal yazımlarıyla kabul edilir.
+    'may': re.compile(r'\b(?:May|Mayıs|Mayis|mayıs|mayis)\b'),
+    'jun': re.compile(r'\b(?:June|Jun\.?|Haziran)\b', re.I),
+    'jul': re.compile(r'\b(?:July|Jul\.?|Temmuz)\b', re.I),
+    'aug': re.compile(r'\b(?:August|Aug\.?|Ağustos|Agustos)\b', re.I),
+    'sep': re.compile(r'\b(?:September|Sep\.?|Sept\.?|Eylül|Eylul)\b', re.I),
+    'oct': re.compile(r'\b(?:October|Oct\.?|Ekim)\b', re.I),
+    'nov': re.compile(r'\b(?:November|Nov\.?|Kasım|Kasim)\b', re.I),
+    'dec': re.compile(r'\b(?:December|Dec\.?|Aralık|Aralik)\b', re.I),
+}
+
+
+def _semantic_markers(text, patterns):
+    return {name for name, pattern in patterns.items() if pattern.search(str(text or ''))}
 
 
 def _number_tokens(text):
@@ -139,6 +191,15 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
             issues.append('number_mismatch')
     if _SOURCE_NEGATION.search(source) and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
+    if _SOURCE_MODAL.search(source) and not _TARGET_MODAL.search(translated):
+        issues.append('modal_missing')
+    for issue, patterns in (
+            ('currency_mismatch', _CURRENCY_PATTERNS),
+            ('unit_mismatch', _UNIT_PATTERNS),
+            ('date_mismatch', _MONTH_PATTERNS)):
+        source_markers = _semantic_markers(source, patterns)
+        if source_markers and not source_markers.issubset(_semantic_markers(translated, patterns)):
+            issues.append(issue)
     return issues
 
 

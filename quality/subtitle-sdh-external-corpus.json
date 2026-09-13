@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdh-raw-to-reviewed",
+  "baseDir": "D:/Openai Altyazı Çevirisi/translated",
+  "_note": "Bu klasördeki .ham.srt dosyaları kaynak dil değil Türkçe ham çeviri, .srt dosyaları denetlenmiş/temizlenmiş Türkçe sürümdür. Telifli metin repoya alınmaz. Bu manifest çeviri doğruluğunu veya SDH kararlarının doğruluğunu kanıtlamaz; yalnız gerçek ham-denetlenmiş çift envanteri, cue kapsamı ve zaman korumasını ölçer.",
+  "excluded": [
+    {
+      "source": "blood.tea.and.red.string.2006.1080p.web.h264-elevate/blood.tea.and.red.string.2006.1080p.web.h264-elevate.ham.srt",
+      "reason": "Hedef dosya mevcut fakat ayrıştırılabilir cue sayısı 0; korpus çifti olarak kullanılamaz."
+    }
+  ]
+}

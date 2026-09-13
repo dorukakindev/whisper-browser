@@ -93,11 +93,48 @@ def _pid_is_alive(pid) -> bool:
         pid = int(pid)
         if pid <= 0:
             return False
+        if pid == os.getpid():
+            return True
+        if os.name == "nt":
+            # Windows'ta os.kill(pid, 0) yeni sonlanan PID'leri canlı
+            # gösterebilir ve bazı CPython/Windows birleşimlerinde SystemError
+            # üretebilir. Gerçek çıkış durumunu salt-okunur işlem tutamacından
+            # sorgula.
+            import ctypes
+            from ctypes import wintypes
+
+            process_query_limited_information = 0x1000
+            still_active = 259
+            error_access_denied = 5
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            open_process = kernel32.OpenProcess
+            open_process.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+            open_process.restype = wintypes.HANDLE
+            get_exit_code = kernel32.GetExitCodeProcess
+            get_exit_code.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+            get_exit_code.restype = wintypes.BOOL
+            close_handle = kernel32.CloseHandle
+            close_handle.argtypes = (wintypes.HANDLE,)
+            close_handle.restype = wintypes.BOOL
+
+            handle = open_process(process_query_limited_information, False, pid)
+            if not handle:
+                # Erişim reddi: süreç var olabilir fakat sorgu yetkisi yoktur;
+                # journal'ı yanlışlıkla geri almamak için canlı kabul edilir.
+                return ctypes.get_last_error() == error_access_denied
+            try:
+                exit_code = wintypes.DWORD()
+                if not get_exit_code(handle, ctypes.byref(exit_code)):
+                    return True
+                return exit_code.value == still_active
+            finally:
+                close_handle(handle)
         os.kill(pid, 0)
         return True
     except PermissionError:
         return True
-    except (OSError, TypeError, ValueError):
+    except Exception:
+        # Süreç sondası hiçbir zaman başlangıç kurtarmasını düşürmemeli.
         return False
 
 
@@ -146,7 +183,8 @@ def recover_output_transactions(output_dir) -> int:
 class OutputTransaction:
     """Stage all outputs and atomically replace finals with rollback journaling."""
 
-    def __init__(self, output_dir, checkpoint=cancellation_checkpoint, replace=os.replace):
+    def __init__(self, output_dir, checkpoint=cancellation_checkpoint, replace=os.replace,
+                 warning=None):
         self.output_dir = Path(output_dir).resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.token = uuid.uuid4().hex
@@ -156,7 +194,21 @@ class OutputTransaction:
         self.closed = False
         self.checkpoint = checkpoint
         self._replace = replace
+        self._warning = warning
         self._persist()
+
+    def _warn_rollback_deferred(self) -> None:
+        if not callable(self._warning):
+            return
+        try:
+            self._warning(
+                "Çıktı dosyası başka bir program tarafından kullanılıyor veya dosya sistemi "
+                "erişimi engelliyor. İşlem günlüğü korundu; geri alma sonraki başlatmada "
+                "yeniden denenecek."
+            )
+        except Exception:
+            # Bir kullanıcı bildirimi hiçbir zaman asıl yazma/kurtarma hatasını maskeleyemez.
+            pass
 
     def _persist(self) -> None:
         _write_json_atomic(self.journal, {
@@ -230,23 +282,32 @@ class OutputTransaction:
             self.rollback()
             raise
 
-    def rollback(self) -> None:
+    def rollback(self) -> bool:
         if self.closed:
-            return
+            return True
+        deferred = False
         for entry in reversed(self.entries):
             final = Path(entry["final"])
             backup = Path(entry["backup"])
-            if entry.get("existed") and backup.exists():
-                self._replace(backup, final)
-            elif not entry.get("existed") and self.state != "staging":
-                try:
+            try:
+                if entry.get("existed") and backup.exists():
+                    self._replace(backup, final)
+                elif not entry.get("existed") and self.state != "staging":
                     final.unlink(missing_ok=True)
-                except OSError:
-                    pass
+            except OSError:
+                # Kilitli hedefte backup/journal silinmemeli. Asıl commit hatası
+                # çağırana döner; sonraki başlangıç aynı günlüğü tekrar kurtarır.
+                deferred = True
+                continue
             _cleanup_entry_files(entry, keep_final=True)
+        if deferred:
+            self._warn_rollback_deferred()
+            return False
         try:
             self.journal.unlink(missing_ok=True)
             self.journal.with_name(self.journal.name + ".tmp").unlink(missing_ok=True)
         except OSError:
-            pass
+            self._warn_rollback_deferred()
+            return False
         self.closed = True
+        return True

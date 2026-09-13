@@ -26,6 +26,20 @@ import live_asr as L  # noqa: E402
 import model_benchmark as B  # noqa: E402
 
 
+def test_series_memory_candidates_require_whole_phrase_evidence():
+    assert T.memory_phrase_present("The hero named Troy arrived.", "Troy")
+    assert not T.memory_phrase_present("The hero arrived.", "he")
+    assert not T.memory_phrase_present("I agree.", "I")
+    filtered = T.filter_series_memory_candidates({
+        "terms": {"he": "o", "Troy": "Truva"},
+        "characters": [{"name": "he", "style": "samimi"}, {"name": "Troy", "style": "resmi"}],
+        "addresses": [{"a": "he", "b": "Troy", "register": "sen"}],
+    }, "The hero named Troy arrived.", "Truva adlı kahraman geldi.")
+    assert filtered["terms"] == {"Troy": "Truva"}, filtered
+    assert [item["name"] for item in filtered["characters"]] == ["Troy"], filtered
+    assert filtered["addresses"] == [], filtered
+
+
 def test_checkpoint_write_failure_warns_once_and_continues():
     events = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -265,10 +279,12 @@ def test_drop_trailing_hallucination():
     # 2 kelimeden uzun kapanış → korunur
     longer = [(0, 3, "Bir."), (3, 6, "İki."), (6, 8, "Bu uzun bir kapanış cümlesi.")]
     assert len(T.drop_trailing_hallucination(longer, lo, None, None, 0.0)) == 3
-    # tipik kapanış uydurmaları kanıt gerektirmeden atılır (yapısal koşullar sağlıysa)
+    # Tipik kalıp TEK BAŞINA kanıt değildir: gerçek final repliği yüksek güvenle korunur.
     for phrase in ("Thank you.", "The End", "Teşekkürler.", "Bye.", "Son."):
         case = [(0, 3, "Bir cümle."), (3, 6, "İkinci cümle."), (6, 7, phrase)]
-        assert len(T.drop_trailing_hallucination(case, hi, None, None, 0.0)) == 2, phrase
+        assert len(T.drop_trailing_hallucination(case, hi, None, None, 0.0)) == 3, phrase
+        low_phrase = [{"word": phrase, "start": 6.2, "end": 6.8, "probability": 0.20}]
+        assert len(T.drop_trailing_hallucination(case, low_phrase, None, None, 0.0)) == 2, phrase
     # normal kısa kapanışlar korunur
     for phrase in ("Suicide.", "Action.", "Dignity."):
         case = [(0, 3, "Bir cümle."), (3, 6, "İkinci cümle."), (6, 7, phrase)]
@@ -276,9 +292,13 @@ def test_drop_trailing_hallucination():
     # film ORTASINDAKİ "Thank you." etkilenmez (son blok değil)
     mid = [(0, 3, "Bir cümle."), (3, 6, "Thank you."), (6, 9, "Devam eden anlatım.")]
     assert len(T.drop_trailing_hallucination(mid, hi, None, None, 0.0)) == 3
-    # üst üste gelen kapanış uydurmaları hepsi atılır (max_drop)
+    # Üst üste gelen düşük güvenli kapanış uydurmaları max_drop sınırında atılır.
     multi = [(0, 3, "Bir cümle."), (3, 6, "İkinci cümle."), (6, 7, "Thank you."), (7, 8, "The End")]
-    assert len(T.drop_trailing_hallucination(multi, hi, None, None, 0.0)) == 2
+    multi_low = [
+        {"word": "Thank you.", "start": 6.2, "end": 6.8, "probability": 0.20},
+        {"word": "The End", "start": 7.2, "end": 7.8, "probability": 0.20},
+    ]
+    assert len(T.drop_trailing_hallucination(multi, multi_low, None, None, 0.0)) == 2
 
 
 def test_merge_short_entries_abbreviation():
@@ -757,6 +777,21 @@ def test_whisperx_error_path_releases_gpu_and_logs_compute_fallback():
     assert any("int8_float16" in message and level == "warn" for message, level in logs)
 
 
+def test_diarization_spans_share_the_clipped_media_timeline_once():
+    raw_spans = [(0.25, 1.75, "SPEAKER_00"), (1.75, 3.0, "SPEAKER_01")]
+    shifted = T.offset_diarization_spans(raw_spans, 10.5)
+    assert shifted == [(10.75, 12.25, "SPEAKER_00"), (12.25, 13.5, "SPEAKER_01")]
+    entries = [
+        (10.8, 12.1, "Birinci konuşmacı"),
+        (12.3, 13.4, "İkinci konuşmacı"),
+    ]
+    assert T.assign_speakers(entries, shifted) == {0: "SPEAKER_00", 1: "SPEAKER_01"}
+    assert T.offset_diarization_spans(shifted, 0) == shifted
+    # Aynı span'lara clip ofseti ikinci kez uygulanırsa ilk cue artık örtüşmez;
+    # üretim yolu helper'ı yalnız run_diarization dönüşünde bir kez çağırır.
+    assert T.assign_speakers(entries, T.offset_diarization_spans(shifted, 10.5)) == {}
+
+
 def test_encoding_repair_no_false_positive():
     # İzlandaca'da þ ð ý GERÇEK harf — onarım dokunmamalı
     ice = "Þetta er íslenskur texti með ðöðum og ýmsu."
@@ -777,6 +812,7 @@ def test_resolve_translate_routes():
     assert "https://api.shuaiapi.com/v1" in r
     # başka sağlayıcıda yedekleme yok (tek endpoint)
     assert T.resolve_translate_routes("https://api.deepseek.com") == ["https://api.deepseek.com"]
+    assert T.resolve_translate_routes("https://codecraftapi.com/v1/") == ["https://codecraftapi.com/v1"]
     # boşsa varsayılan rota
     assert T.resolve_translate_routes("") == [T.SHUAI_ROUTES[0][1]]
 
@@ -1151,6 +1187,36 @@ def test_translate_source_echo_is_retried_before_it_can_enter_cache():
     assert out[0][2] == "Bu cümle çevrilmelidir."
     assert len(calls) == 2
     assert status["completed"] == [0] and status["failed"] == []
+
+
+def test_source_echo_gate_catches_short_and_cosmetic_echoes_without_rejecting_names():
+    assert T.translation_is_source_echo("Thank you.", "  THANK YOU! ")
+    assert T.translation_is_source_echo("NARRATOR: Come on!", "- come on…")
+    assert T.translation_is_source_echo("Hello.", "hello!")
+    assert not T.translation_is_source_echo("Australia", "Australia")
+    assert not T.translation_is_source_echo("https://example.com", "https://example.com")
+    assert not T.translation_is_source_echo("Flight 815", "815 seferi")
+
+
+def test_strict_srt_serializer_rejects_raw_structure_loss():
+    entries = [(1.0, 2.5, "Birinci satır"), (3.0, 4.0, "İkinci satır")]
+    payload = T.serialize_srt_strict(entries)
+    assert payload.startswith("1\n00:00:01,000 --> 00:00:02,500\n")
+    assert payload.endswith("\n\n")
+    assert T.validate_strict_srt_payload(payload, entries)
+    broken = payload.replace("\n\n2\n", "\n2\n")
+    try:
+        T.validate_strict_srt_payload(broken, entries)
+    except RuntimeError as error:
+        assert "ham dosyada" in str(error)
+    else:
+        raise AssertionError("ayraçsız ham SRT katı doğrulamadan geçti")
+    try:
+        T.serialize_srt_strict([(1.0, 2.0, "")])
+    except RuntimeError as error:
+        assert "kimliği/gövdesi bozuk" in str(error) or "metni boş" in str(error)
+    else:
+        raise AssertionError("boş cue diske yazılabilir kaldı")
 
 
 def test_translate_invalid_large_chunk_retries_smaller_groups():
@@ -1616,6 +1682,8 @@ def test_hallucination_confidence_gate_preserves_real_spoken_lines():
         assert T.is_hallucination(text) is True
         assert T.should_skip_hallucination(text, -0.2, 0.05) is False
         assert T.should_skip_hallucination(text, -1.4, 0.8) is True
+        assert T.should_skip_hallucination(text, None, None) is False
+        assert T.should_skip_hallucination(text, -0.2, None) is False
     assert T.should_skip_hallucination("[Müzik]", -0.1, 0.0) is True
     assert T.should_skip_hallucination("evet evet evet evet evet", -0.1, 0.0) is True
 
@@ -2682,6 +2750,52 @@ def test_sentence_translation_chunk_limit_never_splits_group():
     assert [e[:2] for e in result] == [e[:2] for e in source]
 
 
+def test_sentence_translation_retries_only_missing_groups_at_scale():
+    source = [(i, i + .8, f'Selective sentence {i}.') for i in range(25)]
+
+    def answer(payload):
+        reply = _sentence_reply(payload)
+        if len(payload['sentence_groups']) > 1:
+            for row in payload['sentence_groups']:
+                number = int(row['source'].removeprefix('Selective sentence ').removesuffix('.'))
+                if number % 5 != 0:
+                    continue
+                for local_id in row['ids']:
+                    reply['items'].pop(str(local_id), None)
+                reply['sentences'].pop(str(row['ids'][0]), None)
+        return reply
+
+    result, seen, _events, warnings = _sentence_translate(source, answer=answer)
+    assert [entry[2] for entry in result] == [f'[TR] Selective sentence {i}.' for i in range(25)]
+    assert sum(len(payload['items']) for payload, _request in seen) == 30
+    assert [len(payload['items']) for payload, _request in seen] == [20, 1, 1, 1, 1, 5, 1]
+    assert not warnings
+
+
+def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
+    with tempfile.TemporaryDirectory() as tmp:
+        args = _TrArgs(cache_dir=tmp, translate_cache=True)
+        checkpoints = []
+
+        def cancel_before_cache(stage, point):
+            checkpoints.append((stage, point))
+            raise T.PipelineCancelled(stage, point)
+
+        with mock.patch.object(T, 'cancellation_checkpoint', side_effect=cancel_before_cache):
+            try:
+                _sentence_translate([(0, 1, 'Cache boundary sentence.')], args=args)
+                raise AssertionError('Önbellek yazımı öncesindeki iptal yutuldu')
+            except T.PipelineCancelled:
+                pass
+
+        assert checkpoints == [('llm', 'during')]
+        cache_path = T.translate_cache_path(args)
+        assert not Path(cache_path).exists(), 'İptal edilen çeviri tam önbelleğe yazıldı'
+        memory_path = Path(tmp) / 'translation-memory.sqlite3'
+        memory_path.unlink()
+        assert not memory_path.exists(), 'SQLite çeviri hafızası bağlantısı açık kaldı'
+
+
 def test_sentence_reply_nfc_and_dialogue_line_breaks():
     assert T.validate_sentence_parts('İyi günler.', ['I\u0307yi', 'günler.'], 2)
     assert T.validate_sentence_parts('こんにちは世界', ['こんにちは', '世界'], 2)
@@ -3006,7 +3120,9 @@ def test_retry_after_header_and_bounded_wait():
                           ('Thu, 01 Jan 1970 00:01:00 GMT', 60)]:
         assert T.api_retry_after_seconds(ApiError(429, {'Retry-After': raw}), now=0) == expected
     assert T.api_retry_after_seconds(ApiError(503, {'retry-after': '1.5'})) == 1.5
-    for status, headers, expected in [(429, {}, [5, 10]), (503, {}, [.75, 1.5]),
+    for status, headers, expected in [(408, {}, [.75, 1.5]), (429, {}, [5, 10]),
+                                      (500, {}, [.75, 1.5]), (502, {}, [.75, 1.5]),
+                                      (503, {}, [.75, 1.5]),
                                       (429, {'retry-after': '30'}, [30, 30]),
                                       (503, {'Retry-After': '60'}, [60, 60])]:
         calls = []
@@ -3017,8 +3133,10 @@ def test_retry_after_header_and_bounded_wait():
             return 'ok'
         with patch.object(T.time, 'sleep') as sleep:
             assert T.call_api_with_retry(flaky) == 'ok'
-            assert [c.args[0] for c in sleep.call_args_list] == expected
-    for status, delay in [(429, '121'), (401, '20')]:
+            waits = [c.args[0] for c in sleep.call_args_list]
+            assert all(0 < value <= .1000001 for value in waits)
+            assert abs(sum(waits) - sum(expected)) < 1e-6
+    for status, delay in [(400, '20'), (429, '121'), (401, '20'), (403, '20')]:
         error = ApiError(status, {'Retry-After': delay})
         with patch.object(T.time, 'sleep') as sleep:
             try:
@@ -3027,6 +3145,21 @@ def test_retry_after_header_and_bounded_wait():
             except ApiError as caught:
                 assert caught is error
             sleep.assert_not_called()
+
+    cancel_calls = []
+    def cancel_during_backoff(stage, point):
+        cancel_calls.append((stage, point))
+        if len(cancel_calls) == 3:
+            raise T.PipelineCancelled(stage, point)
+    with patch.object(T, 'cancellation_checkpoint', side_effect=cancel_during_backoff), \
+            patch.object(T.time, 'sleep') as sleep:
+        try:
+            T.call_api_with_retry(
+                lambda: (_ for _ in ()).throw(ApiError(503, {'Retry-After': '30'})))
+            raise AssertionError('Backoff iptali yutuldu')
+        except T.PipelineCancelled:
+            pass
+        assert len(sleep.call_args_list) == 2
 
 
 def test_subtitle_output_contract_and_model_change_resume():
@@ -3140,11 +3273,161 @@ def test_translate_quality_gate_marks_long_source_echo_for_retry():
         done = [payload for kind, payload in events if kind == "done"][-1]
         assert done["outputs"][0]["status"] == "partial"
         assert done["outputs"][0]["failed"] == 1
+        assert done["outputs"][0]["path"].endswith("echo.tr.partial.srt")
+        assert not (root / "echo.tr.srt").exists(), "kısmi sonuç final dosya adıyla yazıldı"
         report = [payload for kind, payload in events if kind == "quality_report"][-1]
         assert report["translation_untranslated_indices"] == [0]
-        metadata = json.loads((root / "echo.tr.srt.meta.json").read_text(encoding="utf-8"))
+        metadata = json.loads((root / "echo.tr.partial.srt.meta.json").read_text(encoding="utf-8"))
         assert metadata["cues"][0]["status"] == "failed"
         assert metadata["cues"][0]["error"] == "untranslated_source"
+
+
+def test_partial_translation_never_overwrites_existing_complete_artifact():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "safe.en.srt"
+        final = root / "safe.tr.srt"
+        source.write_text("1\n00:00:01,000 --> 00:00:02,000\nThank you.\n", encoding="utf-8-sig")
+        final.write_text("1\n00:00:01,000 --> 00:00:02,000\nTeşekkür ederim.\n", encoding="utf-8-sig")
+        before = final.read_bytes()
+        args = _TrArgs(translate_cache=False)
+        args.input, args.output_dir, args.language = str(source), str(root), "en"
+        args.max_lines, args.wrap_mode = 2, "sentence"
+        args.formats, args.dual_subtitle, args.dual_translation_first = "srt", False, False
+        args.translate_existing = ""
+        events = []
+
+        def short_echo(entries, _args, _warnings, source_lang=None, status_out=None):
+            status_out.update(completed=[0], failed=[])
+            return list(entries)
+
+        with mock.patch.object(T, "llm_translate", side_effect=short_echo), \
+                mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
+            T.translate_existing_subtitle(args)
+        assert final.read_bytes() == before
+        partial = root / "safe.tr.partial.srt"
+        assert partial.exists() and "Thank you." in partial.read_text(encoding="utf-8-sig")
+        done = [payload for kind, payload in events if kind == "done"][-1]
+        assert done["outputs"][0]["status"] == "partial"
+
+
+def test_completed_translation_removes_only_owned_partial_artifacts():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "resume.en.srt"
+        source.write_text(
+            "1\n00:00:01,000 --> 00:00:02,000\nFirst line.\n\n"
+            "2\n00:00:03,000 --> 00:00:04,000\nSecond line.\n",
+            encoding="utf-8-sig",
+        )
+        args = _TrArgs(translate_cache=False)
+        args.input, args.output_dir, args.language = str(source), str(root), "en"
+        args.max_lines, args.wrap_mode = 2, "sentence"
+        args.formats, args.dual_subtitle, args.dual_translation_first = "srt", True, False
+        args.translate_existing = ""
+
+        def partial_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+            status_out.update(completed=[0], failed=[1], failedReasons={"1": "api_failure"})
+            return [
+                (entries[0][0], entries[0][1], "İlk satır."),
+                (entries[1][0], entries[1][1], entries[1][2]),
+            ]
+
+        with mock.patch.object(T, "llm_translate", side_effect=partial_translate), \
+                mock.patch.object(T, "emit"):
+            T.translate_existing_subtitle(args)
+        partial = root / "resume.tr.partial.srt"
+        partial_meta = Path(f"{partial}.meta.json")
+        dual_partial = root / "resume.dual.partial.srt"
+        assert partial.exists() and partial_meta.exists() and dual_partial.exists()
+
+        foreign = root / "resume.tr.yeni.partial.srt"
+        foreign.write_text("KORU", encoding="utf-8")
+        foreign_meta = Path(f"{foreign}.meta.json")
+        foreign_meta.write_text(json.dumps({
+            "sourceHash": "f" * 64, "targetLanguage": "tr", "sourceId": "başka-iş",
+        }), encoding="utf-8")
+
+        args.translate_existing = str(partial)
+
+        def complete_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+            status_out.update(completed=[0], failed=[], failedReasons={})
+            return [(entries[0][0], entries[0][1], "İkinci satır.")]
+
+        with mock.patch.object(T, "llm_translate", side_effect=complete_translate), \
+                mock.patch.object(T, "emit"):
+            T.translate_existing_subtitle(args)
+
+        assert (root / "resume.tr.srt").exists()
+        assert (root / "resume.dual.srt").exists()
+        assert not partial.exists() and not partial_meta.exists()
+        assert not dual_partial.exists()
+        assert foreign.exists() and foreign_meta.exists()
+
+
+def test_translate_existing_formats_commit_as_one_transaction():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "atomic.en.srt"
+        final_srt = root / "atomic.tr.srt"
+        final_vtt = root / "atomic.tr.vtt"
+        source.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello there.\n", encoding="utf-8-sig")
+        final_srt.write_bytes(b"old-srt")
+        final_vtt.write_bytes(b"old-vtt")
+        args = _TrArgs(translate_cache=False)
+        args.input, args.output_dir, args.language = str(source), str(root), "en"
+        args.max_lines, args.wrap_mode = 2, "sentence"
+        args.formats, args.dual_subtitle, args.dual_translation_first = "srt,vtt", False, False
+        args.translate_existing = ""
+
+        def complete(entries, _args, _warnings, source_lang=None, status_out=None):
+            status_out.update(completed=[0], failed=[])
+            return [(entries[0][0], entries[0][1], "Merhaba.")]
+
+        with mock.patch.object(T, "llm_translate", side_effect=complete), \
+                mock.patch.object(T, "write_vtt", side_effect=OSError("disk full")), \
+                mock.patch.object(T, "emit"):
+            try:
+                T.translate_existing_subtitle(args)
+            except OSError as error:
+                assert "disk full" in str(error)
+            else:
+                raise AssertionError("ikinci format yazma hatası başarı sayıldı")
+        assert final_srt.read_bytes() == b"old-srt"
+        assert final_vtt.read_bytes() == b"old-vtt"
+        assert not list(root.glob(".whisper-output-transaction-*"))
+
+
+def test_translate_existing_strips_only_inline_sdh_from_model_input():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = root / "sdh.en.srt"
+        original = (
+            "1\n00:00:01,000 --> 00:00:02,000\n[whispering] Don't move.\n\n"
+            "2\n00:00:03,000 --> 00:00:04,000\n[music]\n"
+        )
+        source.write_text(original, encoding="utf-8-sig")
+        args = _TrArgs(translate_cache=False)
+        args.input, args.output_dir, args.language = str(source), str(root), "en"
+        args.max_lines, args.wrap_mode = 2, "sentence"
+        args.formats, args.dual_subtitle, args.dual_translation_first = "srt", False, False
+        args.translate_existing = ""
+        seen = []
+
+        def translate_clean(entries, _args, _warnings, source_lang=None, status_out=None):
+            seen.extend(entries)
+            status_out.update(completed=[0, 1], failed=[])
+            return [(entries[0][0], entries[0][1], "Kıpırdama."),
+                    (entries[1][0], entries[1][1], "[müzik]")]
+
+        with mock.patch.object(T, "llm_translate", side_effect=translate_clean), \
+                mock.patch.object(T, "emit"):
+            T.translate_existing_subtitle(args)
+        assert [row[2] for row in seen] == ["Don't move.", "[music]"]
+        written = (root / "sdh.tr.srt").read_text(encoding="utf-8-sig")
+        assert "Kıpırdama." in written and "[müzik]" in written
+        assert len(T.parse_srt(written)) == 2
+        assert source.read_text(encoding="utf-8-sig") == original
 
 def test_translate_existing_rejects_mismatched_metadata_even_when_timeline_matches():
     with tempfile.TemporaryDirectory() as tmp:
@@ -3308,6 +3591,10 @@ def test_subtitle_output_descriptor_does_not_infer_role_from_filename():
     assert descriptor["role"] == "translation"
     assert descriptor["status"] == "partial"
     assert descriptor["completed"] == 87 and descriptor["failed"] == 13
+    inconsistent = T.subtitle_output("film.tr.srt", "translation", "tr", "source", "hash",
+                                     total=10, completed=10, failed=2)
+    assert inconsistent["status"] == "partial"
+    assert inconsistent["completed"] == 8 and inconsistent["failed"] == 2
 
 
 def test_chat_reasoning_model_uses_supported_generation_contract():

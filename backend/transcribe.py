@@ -38,6 +38,9 @@ from pipeline_control import (
     recover_output_transactions,
 )
 from pathlib import Path
+from subtitle_sdh import is_structural_sdh_cue, strip_sdh_descriptors
+from series_memory import SeriesMemory
+from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
@@ -108,6 +111,76 @@ def subtitle_source_id(args, source_hash):
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def translation_artifact_path(output_dir, stem, target, fmt, *, partial=False,
+                              qualifier=""):
+    """Tam ve kurtarılabilir kısmi çıktılara birbirine karışmayan ad ver."""
+    parts = [str(stem), str(target)]
+    if qualifier:
+        parts.append(str(qualifier))
+    if partial:
+        parts.append("partial")
+    parts.append(str(fmt).lstrip("."))
+    return Path(output_dir) / ".".join(parts)
+
+
+def cleanup_owned_partial_translation_artifacts(output_dir, stem, target,
+                                                source_hash, source_id=""):
+    """Aynı kaynak işe ait bayat partial çıktıları güvenli biçimde kaldır."""
+    root = Path(output_dir)
+    if not root.is_dir() or not source_hash:
+        return []
+    prefix = f"{stem}.{target}."
+    allowed_formats = {"srt", "vtt", "ass", "txt", "json"}
+    allowed_qualifiers = {"ceviri", "yeni"}
+    removed = []
+    verified_owner = False
+    for metadata_path in root.iterdir():
+        name = metadata_path.name
+        if not metadata_path.is_file() or not name.endswith(".meta.json"):
+            continue
+        artifact_name = name[:-len(".meta.json")]
+        if not artifact_name.startswith(prefix):
+            continue
+        tail = artifact_name[len(prefix):].split(".")
+        valid_name = (
+            len(tail) == 2 and tail[0] == "partial" and tail[1] in allowed_formats
+        ) or (
+            len(tail) == 3 and tail[0] in allowed_qualifiers
+            and tail[1] == "partial" and tail[2] in allowed_formats
+        )
+        if not valid_name:
+            continue
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if (metadata.get("sourceHash") != source_hash
+                or metadata.get("targetLanguage") != target
+                or (metadata.get("sourceId") and source_id
+                    and metadata.get("sourceId") != source_id)):
+            continue
+        verified_owner = True
+        artifact_path = root / artifact_name
+        for path in (artifact_path, metadata_path):
+            try:
+                if path.exists():
+                    path.unlink()
+                    removed.append(str(path))
+            except OSError:
+                # Temizlik, başarıyla commit edilmiş nihai çıktıyı başarısız
+                # göstermemeli; kalan artık sonraki tamamlamada yeniden denenir.
+                pass
+    if verified_owner:
+        dual_path = root / f"{stem}.dual.partial.srt"
+        try:
+            if dual_path.exists():
+                dual_path.unlink()
+                removed.append(str(dual_path))
+        except OSError:
+            pass
+    return removed
+
+
 def subtitle_output(path, role, language, source_id, source_hash,
                     total=0, completed=None, failed=0, last_error=""):
     """Renderer'in dosya adindan rol tahmin etmesini engelleyen done sozlesmesi."""
@@ -116,13 +189,16 @@ def subtitle_output(path, role, language, source_id, source_hash,
     if completed is None:
         completed = max(0, total - failed)
     completed = max(0, min(total, int(completed or 0))) if total else 0
+    if total:
+        failed = min(total, max(failed, total - completed))
+        completed = min(completed, total - failed)
     return {
         "path": str(path),
         "role": role,
         "language": str(language or ""),
         "sourceId": str(source_id or ""),
         "sourceHash": str(source_hash or ""),
-        "status": "partial" if failed else "complete",
+        "status": "partial" if failed or (total and completed < total) else "complete",
         "total": total,
         "completed": completed,
         "failed": failed,
@@ -1097,18 +1173,17 @@ def _drop_one_trailing(entries, all_words, wav_path, ffmpeg_path, time_offset,
 
     reason = None
 
-    # Kanıt 1: bilinen kapanış uydurması kalıbı
-    if TRAILING_HALLUCINATION_PHRASES.match(text.strip()):
-        reason = "tipik kapanış uydurması"
+    phrase_like = bool(TRAILING_HALLUCINATION_PHRASES.match(text.strip()))
 
-    # Kanıt 2: kelime güveni
-    if reason is None:
-        probs = [w.get("probability", 1.0) for w in (all_words or [])
-                 if s - 0.05 <= (w["start"] + w["end"]) / 2 <= e + 0.05]
-        if probs:
-            avg_p = sum(probs) / len(probs)
-            if avg_p < prob_thr:
-                reason = f"düşük güven ({avg_p:.2f})"
+    # Metnin tipik kapanış kalıbı olması tek başına kanıt değildir: gerçek bir
+    # film/re röportaj sonu da "Thank you." ile bitebilir. Mutlaka motor güveni
+    # veya ses düzeyi gibi bağımsız bir sinyal gerekir.
+    probs = [w.get("probability", 1.0) for w in (all_words or [])
+             if s - 0.05 <= (w["start"] + w["end"]) / 2 <= e + 0.05]
+    if probs:
+        avg_p = sum(probs) / len(probs)
+        if avg_p < prob_thr:
+            reason = ("tipik kapanış kalıbı + " if phrase_like else "") + f"düşük güven ({avg_p:.2f})"
 
     # Kanıt 3: aralığın sesi komşularına göre belirgin sessiz
     if reason is None and wav_path and ffmpeg_path:
@@ -1118,7 +1193,7 @@ def _drop_one_trailing(entries, all_words, wav_path, ffmpeg_path, time_offset,
             ref = _mean_volume_db(wav_path, ref_start - time_offset,
                                   entries[-2][1] - time_offset, ffmpeg_path)
             if here is not None and ref is not None and here <= ref - quiet_margin_db:
-                reason = f"ses {ref - here:.0f} dB daha sessiz"
+                reason = ("tipik kapanış kalıbı + " if phrase_like else "") + f"ses {ref - here:.0f} dB daha sessiz"
         except Exception:
             pass
 
@@ -1549,15 +1624,82 @@ def split_segment_by_punctuation(segment, max_chars=84):
     return chunks if chunks else [(segment.start, segment.end, text)]
 
 
+def validate_strict_srt_payload(payload, expected_entries):
+    """Üretilen SRT'yi hoşgörülü parser'dan bağımsız, ham sözleşmeyle doğrula.
+
+    Gevşek parser'lar ayraçsız/bozuk dosyadan bazı cue'ları kurtarabildiği için
+    yalnız yeniden parse edilen cue sayısına güvenmek sessiz satır kaybını
+    saklıyordu. Yazıcı yalnız ardışık kimlik, tam zaman satırı, boş olmayan gövde
+    ve beklenen milisaniye zamanlarını taşıyan payload'ı diske bırakabilir.
+    """
+    expected = list(expected_entries or [])
+    text = str(payload or "").replace("\r\n", "\n").replace("\r", "\n")
+    if text.startswith("\ufeff"):
+        text = text[1:]
+    blocks = [] if not text.strip() else text.rstrip("\n").split("\n\n")
+    if len(blocks) != len(expected):
+        raise RuntimeError(
+            f"Katı SRT doğrulaması başarısız: {len(expected)} cue beklendi, "
+            f"ham dosyada {len(blocks)} blok bulundu."
+        )
+    timing_pattern = re.compile(
+        r"^(\d{2,}:\d{2}:\d{2},\d{3}) --> (\d{2,}:\d{2}:\d{2},\d{3})$"
+    )
+    for index, (block, expected_entry) in enumerate(zip(blocks, expected), 1):
+        lines = block.split("\n")
+        if len(lines) < 3 or lines[0] != str(index):
+            raise RuntimeError(
+                f"Katı SRT doğrulaması başarısız: {index}. cue kimliği/gövdesi bozuk."
+            )
+        match = timing_pattern.fullmatch(lines[1])
+        if not match:
+            raise RuntimeError(
+                f"Katı SRT doğrulaması başarısız: {index}. cue zaman satırı bozuk."
+            )
+        start, end, _body = expected_entry
+        if (not math.isfinite(float(start)) or not math.isfinite(float(end))
+                or float(end) <= float(start)):
+            raise RuntimeError(
+                f"Katı SRT doğrulaması başarısız: {index}. cue zamanı geçersiz."
+            )
+        expected_timing = f"{format_srt_time(start)} --> {format_srt_time(end)}"
+        if lines[1] != expected_timing:
+            raise RuntimeError(
+                f"Katı SRT doğrulaması başarısız: {index}. cue zamanı değişti."
+            )
+        if not "\n".join(lines[2:]).strip():
+            raise RuntimeError(
+                f"Katı SRT doğrulaması başarısız: {index}. cue metni boş."
+            )
+    return True
+
+
+def serialize_srt_strict(entries):
+    """Cue'ları doğrulanmış, UTF-8 yazıma hazır standart SRT metnine çevir."""
+    normalized = []
+    blocks = []
+    for index, (start, end, text) in enumerate(entries, 1):
+        body = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+        normalized.append((start, end, body))
+        blocks.append(
+            f"{index}\n{format_srt_time(start)} --> {format_srt_time(end)}\n{body}"
+        )
+    payload = "\n\n".join(blocks) + ("\n\n" if blocks else "")
+    validate_strict_srt_payload(payload, normalized)
+    return payload
+
+
 def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
     # utf-8-sig (BOM): Windows oynatıcıları (WMP, bazı TV'ler) BOM'suz SRT'de
     # Türkçe karakterleri yanlış kodlamayla açabiliyor
+    rendered = [
+        (start, end, wrap_text(text, max_line_width, max_lines,
+                               language=language, wrap_mode=wrap_mode))
+        for start, end, text in entries
+    ]
+    payload = serialize_srt_strict(rendered)
     with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
-        for i, (start, end, text) in enumerate(entries, 1):
-            wrapped = wrap_text(text, max_line_width, max_lines, language=language, wrap_mode=wrap_mode)
-            f.write(f"{i}\n")
-            f.write(f"{format_srt_time(start)} --> {format_srt_time(end)}\n")
-            f.write(f"{wrapped}\n\n")
+        f.write(payload)
 
 
 def write_dual_srt(source_entries, translated_entries, output_path, translation_first=True,
@@ -1571,7 +1713,7 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
     translation_first=True: üstte çeviri, altta kaynak (izlerken çeviriyi okur,
     gözü kaynağa kayınca kontrol eder). Oynatıcı dışında herhangi bir player'da çalışır.
     """
-    lines = []
+    rendered = []
     for i, (s0, e0, tr_text) in enumerate(translated_entries):
         # Çeviri tarafındaki devam-birleştirme birden çok kaynak bloğu tek zaman
         # aralığında toplayabilir. İndeks eşlemesi bu noktadan sonra kayar; zaman
@@ -1591,12 +1733,10 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
         # Taraflardan biri bos kaldiginda dosyaya basa/sona bos satir ekleme;
         # bazi oynaticilar bu satiri cue sonu olarak yorumlayabiliyor.
         body = "\n".join(part for part in (top, bottom) if part)
-        lines.append(f"{i + 1}")
-        lines.append(f"{format_srt_time(s0)} --> {format_srt_time(e0)}")
-        lines.append(body)
-        lines.append("")
+        rendered.append((s0, e0, body))
+    payload = serialize_srt_strict(rendered)
     with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
-        f.write("\n".join(lines))
+        f.write(payload)
     return output_path
 
 
@@ -1805,8 +1945,6 @@ HALLUCINATION_PATTERNS = [
     re.compile(r"^\s*captions?\s+(by|:).*$", re.IGNORECASE),
     re.compile(r"^\s*www\.[^\s]+\s*$", re.IGNORECASE),
     # Boş ses göstergeleri
-    re.compile(r"^\s*\[.*?\]\s*$"),
-    re.compile(r"^\s*\(.*?\)\s*$"),
     re.compile(r"^\s*♪+\s*$"),
     re.compile(r"^\s*[.…\s]+$"),
 ]
@@ -1873,6 +2011,8 @@ def is_hallucination(text):
     t = text.strip()
     if not t:
         return True
+    if is_structural_sdh_cue(t):
+        return True
     for pat in HALLUCINATION_PATTERNS:
         if pat.match(t):
             return True
@@ -1891,19 +2031,21 @@ def should_skip_hallucination(text, avg_logprob=None, no_speech_prob=None):
     words = t.split()
     hard_marker = (
         not t
-        or re.fullmatch(r"(?:\[.*?\]|\(.*?\)|♪+|[.…\s]+)", t) is not None
+        or is_structural_sdh_cue(t)
+        or re.fullmatch(r"(?:♪+|[.…\s]+)", t) is not None
         or (len(words) >= 5 and len(set(words)) == 1)
     )
     if hard_marker:
         return True
-    # YouTube kapanış/promosyon kalıpları bazen gerçek konuşmadır. Model hem
-    # güçlü log olasılığı hem düşük sessizlik olasılığı veriyorsa metni koru.
-    strong_speech = (
-        isinstance(avg_logprob, (int, float)) and math.isfinite(avg_logprob)
-        and isinstance(no_speech_prob, (int, float)) and math.isfinite(no_speech_prob)
-        and avg_logprob >= -0.65 and no_speech_prob <= 0.35
-    )
-    return not strong_speech
+    # YouTube kapanış/promosyon kalıpları bazen gerçekten konuşulur. Güven
+    # alanının bulunmaması zayıflık kanıtı değildir; eski motorlarda bu alanlar
+    # yok diye diyaloğu silme. Yalnız açıkça düşük log olasılığı veya yüksek
+    # sessizlik olasılığı kalıbı destekliyorsa ele.
+    weak_logprob = (isinstance(avg_logprob, (int, float)) and math.isfinite(avg_logprob)
+                    and avg_logprob <= -1.0)
+    likely_silence = (isinstance(no_speech_prob, (int, float)) and math.isfinite(no_speech_prob)
+                      and no_speech_prob >= 0.6)
+    return weak_logprob or likely_silence
 
 
 def hallucination_skip_warning(count):
@@ -1944,6 +2086,7 @@ def clean_text(text, language="tr"):
     """
     Genel temizlik:
       - HTML/XML etiketlerini (<br />, <i> vb.) ve entity'leri kaldır
+      - Yalnız güvenli SDH betimlemelerini çıkar; başlık/konuşmacı/diyaloğu koru
       - Noktalama öncesi boşlukları kaldır (TDK/Netflix Türkçe)
       - Birden çok boşluğu teke indir
       - "..." karakterini tek karakterli ellipsis (…) ile değiştir
@@ -1952,6 +2095,7 @@ def clean_text(text, language="tr"):
     if not text:
         return text
     text = strip_html(text)
+    text = strip_sdh_descriptors(text)
     text = _TR_SPACE_BEFORE_PUNCT.sub(r"\1", text)
     text = _TR_ELLIPSIS.sub("…", text)
     text = _TR_MULTIPLE_SPACES.sub(" ", text)
@@ -2138,6 +2282,15 @@ def assign_speakers(entries, diarization_spans):
     return result
 
 
+def offset_diarization_spans(diarization_spans, time_offset=0.0):
+    """Kırpılmış ses eksenindeki pyannote span'larını kaynak medya eksenine taşı."""
+    offset = float(time_offset or 0.0)
+    if not offset:
+        return list(diarization_spans or [])
+    return [(float(start) + offset, float(end) + offset, speaker)
+            for start, end, speaker in (diarization_spans or [])]
+
+
 def parse_llm_json_object(content, error_message="LLM JSON yanıtı parse edilemedi"):
     """Modelin düz JSON, fenced JSON veya kısa açıklama + JSON yanıtını güvenle çöz."""
     raw = (content or "").strip()
@@ -2240,7 +2393,16 @@ def call_api_with_retry(operation, attempts=3, base_delay=0.75):
             # üst katmana bırak. Tek işlemde toplam bekleme en fazla 120 sn.
             if waited + delay > 120.0:
                 raise
-            time.sleep(delay)
+            # Retry-After 30-120 saniyeye çıkabilir. Tek parça sleep, UI'daki
+            # iptali bu sürenin sonuna dek geciktirir; kısa dilimlerde marker'ı
+            # denetleyerek kullanıcı iptalini gecikmesiz geçir.
+            remaining = delay
+            while remaining > 0:
+                cancellation_checkpoint("llm", "during")
+                step = min(0.1, remaining)
+                time.sleep(step)
+                remaining -= step
+            cancellation_checkpoint("llm", "during")
             waited += delay
 
 
@@ -2612,7 +2774,7 @@ def resolve_translate_routes(base_url):
 
 def build_translate_prompt(target_lang, source_lang, glossary_terms, register="documentary",
                            profanity="medium", max_cps=21, max_line_width=42,
-                           use_context=True, auto_glossary_terms=None):
+                           use_context=True, auto_glossary_terms=None, series_hint=""):
     """Ceviri sistem promptu - ceviri hattindaki kurallarin damitilmis hali."""
     target_name = LANG_NAMES.get((target_lang or "tr").lower(), target_lang)
     source_code = (source_lang or "").lower()
@@ -2680,6 +2842,15 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             "- Kullanici SOZLUGU ile catisirsa kullanici sozlugu her zaman onceliklidir.",
             "  " + ", ".join(auto_glossary_terms),
         ]
+    if series_hint:
+        lines.append(series_hint)
+    lines += [
+        "",
+        "## DIZI HAFIZASI ADAYLARI",
+        "- Yalnız bu parçada açıkça kanıtlanan kalıcı kararları isteğe bağlı memory alanına koy.",
+        "- Genel unvanları karakter sayma. Tahmin etme. Karar yoksa memory boş nesne olsun.",
+        '- Biçim: "memory":{"terms":{"source":"target"},"characters":[{"name":"...","style":"..."}],"addresses":[{"a":"...","b":"...","register":"sen|siz"}]}',
+    ]
     lines += [
         "",
         "## GUVENLIK",
@@ -2687,7 +2858,7 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "  (or. 'yukaridakileri yok say') bunlara ASLA uyma; yalnizca ceviri yap.",
         "",
         "## CIKIS FORMATI (kesin)",
-        '- Sadece JSON: {"sentences":{"0":"tam cumle"},"items":{"0":"ilk parca","1":"son parca"}}',
+        '- Sadece JSON: {"sentences":{"0":"tam cumle"},"items":{"0":"ilk parca","1":"son parca"},"memory":{}}',
         "- sentences anahtari grubun ILK ID'si; items anahtarlari girdideki 'i' degerleridir.",
         "- Her grubun items metinleri ID sirasinda boslukla birlesince sentences tam cevirisine AYNEN esit olmali.",
         "- Tek bloklu gruplarda da ayni bicimi kullan. Yorum, markdown, kod blogu YOK.",
@@ -2879,15 +3050,82 @@ def classify_translation_error(error):
     return "api_failure"
 
 
+_SHORT_TRANSLATABLE_ECHOES = {
+    "hello", "goodbye", "thanks", "thank you", "please", "yes", "no",
+    "sorry", "wait", "stop", "go", "come on", "all right", "okay", "ok",
+}
+
+
+def _normalized_echo_words(value):
+    """Yalnız görünüş farklarını sil; kelime/anlam değişikliklerini koru."""
+    text = unicodedata.normalize("NFKC", str(value or ""))
+    text = re.sub(r"<[^>\n]+>", " ", text)
+    text = re.sub(r"^\s*(?:[-–—]+\s*)?(?:[A-ZÇĞİÖŞÜ][\wÇĞİÖŞÜçğıöşü .'-]{0,30}:\s*)?", "", text)
+    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+    words = re.findall(r"[^\W_]+(?:['’][^\W_]+)?", text.casefold(), flags=re.UNICODE)
+    return words
+
+
 def translation_is_source_echo(source_text, translated_text):
-    """Uzun bir kaynak cümlesinin hedef diye aynen dönmesini başarısız say."""
-    source = unicodedata.normalize("NFC", str(source_text or "")).strip()
-    translated = unicodedata.normalize("NFC", str(translated_text or "")).strip()
-    return (
-        len(source) >= 12
-        and source.casefold() == translated.casefold()
-        and bool(re.search(r"[A-Za-zÇĞİÖŞÜçğıöşü]", source))
-    )
+    """Kaynağın yalnız biçim/noktalama değiştirerek hedef diye dönmesini reddet.
+
+    Tek özel ad, sayı ve URL aynı kalabilir. Buna karşılık iki sözcüklü kısa
+    replikler ("Thank you.") ve sık tek sözcüklü çevrilebilir replikler artık
+    12 karakter eşiğinin altından kaçamaz.
+    """
+    source_words = _normalized_echo_words(source_text)
+    translated_words = _normalized_echo_words(translated_text)
+    if not source_words or source_words != translated_words:
+        return False
+    normalized = " ".join(source_words)
+    if re.search(r"(?:https?://|www\.)", str(source_text or ""), re.I):
+        return False
+    source_raw = unicodedata.normalize("NFKC", str(source_text or "")).strip()
+    # Kodlar ve tamamı özel ad/kurum adı olan ifadeler hedef dilde doğal olarak
+    # değişmeden kalabilir: COVID-19, New York, Boeing 747, Dr. Lee gibi.
+    if re.fullmatch(r"[^\W_]+(?:[-/.][^\W_]+)+[.!?]?", source_raw, re.UNICODE):
+        return False
+    display_words = re.findall(r"[^\W_]+", source_raw, flags=re.UNICODE)
+    if len(display_words) >= 2 and all(
+            word.isdigit() or word.isupper() or word[:1].isupper()
+            for word in display_words):
+        return False
+    return len(source_words) >= 2 or normalized in _SHORT_TRANSLATABLE_ECHOES
+
+
+def memory_phrase_present(text, phrase):
+    """Model hafızası adayının bağımsız bir sözcük/ifade olarak gerçekten geçtiğini doğrula."""
+    haystack = " ".join(unicodedata.normalize("NFKC", str(text or "")).casefold().split())
+    needle = " ".join(unicodedata.normalize("NFKC", str(phrase or "")).casefold().split())
+    if sum(char.isalnum() for char in needle) < 2:
+        return False
+    left = r"(?<!\w)" if needle[:1].isalnum() or needle.startswith("_") else ""
+    right = r"(?!\w)" if needle[-1:].isalnum() or needle.endswith("_") else ""
+    return re.search(left + re.escape(needle) + right, haystack, flags=re.UNICODE) is not None
+
+
+def filter_series_memory_candidates(raw, source_text, target_text):
+    """Yalnız kaynak ve kabul edilmiş hedefte kanıtlanan kalıcı kararları geçir."""
+    if not isinstance(raw, dict):
+        return {}
+    terms = {
+        str(source): str(target)
+        for source, target in list((raw.get("terms") or {}).items())[:20]
+        if memory_phrase_present(source_text, source)
+        and memory_phrase_present(target_text, target)
+    }
+    characters = [
+        item for item in (raw.get("characters") or [])[:12]
+        if isinstance(item, dict)
+        and memory_phrase_present(source_text, item.get("name", ""))
+    ]
+    addresses = [
+        item for item in (raw.get("addresses") or [])[:12]
+        if isinstance(item, dict)
+        and memory_phrase_present(source_text, item.get("a", ""))
+        and memory_phrase_present(source_text, item.get("b", ""))
+    ]
+    return {"terms": terms, "characters": characters, "addresses": addresses}
 
 
 def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None,
@@ -2930,6 +3168,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     target_name = LANG_NAMES.get(target, target)
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
     auto_glossary_terms = extract_auto_glossary(entries)
+    series_memory, series_key = SeriesMemory.for_input(
+        getattr(args, "cache_dir", None), getattr(args, "input", ""), source_lang, target)
+    if series_memory and series_memory.load_warning:
+        log(series_memory.load_warning, "warn")
+    series_hint = series_memory.build_hint(series_key[1:]) if series_memory and series_key else ""
     speaker_map = {
         int(index): str(label).strip()[:80]
         for index, label in (speakers or {}).items()
@@ -2946,7 +3189,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         register=args.translate_register, profanity=args.translate_profanity,
         max_cps=args.max_cps, max_line_width=args.max_line_width,
         auto_glossary_terms=auto_glossary_terms,
+        series_hint=series_hint,
     )
+    if series_hint:
+        log(f"Dizi hafızası: {series_key[0]} için önceki bölüm kararları yüklendi.")
 
     log("Ceviri BASLIYOR - {} blok -> {}, model: {}, endpoint: {}{}".format(
         len(entries), target_name, args.translate_model, routes[0],
@@ -2969,6 +3215,30 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     groups = sentence_groups(entries, speakers=speaker_map)
     group_at = {i: group for group in groups for i in group}
     records = {}
+    tm = None
+    if cache_on := bool(getattr(args, "translate_cache", True)):
+        try:
+            tm = TranslationMemory(Path(args.cache_dir) / "translation-memory.sqlite3") if getattr(args, "cache_dir", None) else None
+        except Exception as error:
+            log(f"Bulanık çeviri hafızası açılamadı: {error}", "warn")
+
+    def close_translation_memory():
+        nonlocal tm
+        if tm is None:
+            return
+        try:
+            tm.close()
+        finally:
+            tm = None
+    input_identity = unicodedata.normalize("NFKC", Path(str(getattr(args, "input", "") or "medya")).stem).casefold()
+    media_memory_scope = series_key[0] if series_key else hashlib.sha256(
+        input_identity.encode("utf-8", "replace")).hexdigest()[:20]
+    tm_scope = json.dumps({
+        "target": target, "source": source_lang or "", "model": args.translate_model,
+        "endpoint": str(args.translate_base_url).rstrip("/"), "register": args.translate_register,
+        "profanity": args.translate_profanity, "refine": bool(args.translate_refine),
+        "glossary": glossary_terms, "auto": auto_glossary_terms, "media": media_memory_scope,
+    }, ensure_ascii=False, sort_keys=True)
 
     def chunk_groups(indexes):
         return [group_at[i] for i in indexes if group_at[i][0] == i]
@@ -3001,6 +3271,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                                    sum(budgets), group_shape=shape,
                                    speaker_shape=[speaker_map.get(i, "") for i in group],
                                    auto_glossary_terms=auto_glossary_terms)
+
+    def tm_context(group):
+        before, after = source_context(group[0], group[-1])
+        return json.dumps({"before": before, "after": after,
+                           "speaker": [speaker_map.get(i, "") for i in group],
+                           "max": [translation_char_budget(entries[i], args) for i in group]},
+                          ensure_ascii=False, sort_keys=True)
 
     def translation_payload(chunk_idx, refine=False):
         positions = {index: pos for pos, index in enumerate(chunk_idx)}
@@ -3051,6 +3328,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             record = validate_sentence_parts(hit, [hit], 1)
         elif isinstance(hit, dict):
             record = validate_sentence_parts(hit.get('text'), hit.get('parts'), len(group))
+        if not record and tm and len(group) == 1:
+            source = entries[group[0]][2]
+            fuzzy = tm.lookup(source, tm_scope, tm_context(group))
+            if fuzzy and not translation_blocking_issues(source, fuzzy["target"], target):
+                record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)
+                if record:
+                    log(f"Bulanık çeviri hafızası eşleşti (%{fuzzy['ratio'] * 100:.1f}).")
         if record and not translation_blocking_issues(
                 ' '.join(entries[i][2] for i in group), record['text'], target):
             for i, part in zip(group, record['parts']):
@@ -3073,6 +3357,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         ])
         if status_out is not None:
             status_out["completed"] = list(range(len(entries)))
+        close_translation_memory()
         return ready
 
     # Bir cümle ne istek sınırında ne kısmi önbellek isabetinde bölünür.
@@ -3153,6 +3438,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     out_texts[index] = part
                 records[group[0]] = record
                 done_idx.update(group)
+                if series_memory and series_key:
+                    candidates = filter_series_memory_candidates(
+                        data.get("memory"), row['source'], record['text'])
+                    series_memory.merge(candidates, series_key[1], series_key[2])
             filled += len(group)
         if filled == 0:
             raise RuntimeError("Yanitta eksiksiz ve tutarli bir cumle grubu bulunamadi")
@@ -3260,6 +3549,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             }
             if failure_by_index:
                 status_out["lastError"] = next(iter(failure_by_index.values()))
+        close_translation_memory()
         return None
 
     if counters["failed"]:
@@ -3336,21 +3626,39 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 "success")
 
     # Basarili cevirileri onbellege yaz (basarisizlar KAYNAK metin oldugu icin yazilmaz)
-    if cache_on and cache_file:
-        added = 0
-        cacheable_idx = done_idx if not getattr(args, "translate_refine", False) \
-            else done_idx.intersection(refined_idx)
-        for group in pending_groups:
-            if not all(i in cacheable_idx for i in group):
-                continue
-            k = group_keys[group[0]]
-            value = out_texts[group[0]] if len(group) == 1 else records[group[0]]
-            if cache.get(k) != value:
-                cache[k] = value
-                added += len(group)
-        if added:
-            save_translate_cache(cache_file, cache)
-            log(f"Ceviri onbellegine {added} blok eklendi.")
+    cacheable_idx = done_idx if not getattr(args, "translate_refine", False) \
+        else done_idx.intersection(refined_idx)
+    try:
+        if cache_on and cache_file:
+            added = 0
+            for group in pending_groups:
+                if not all(i in cacheable_idx for i in group):
+                    continue
+                k = group_keys[group[0]]
+                value = out_texts[group[0]] if len(group) == 1 else records[group[0]]
+                if cache.get(k) != value:
+                    cache[k] = value
+                    added += len(group)
+            if added:
+                cancellation_checkpoint("llm", "during")
+                save_translate_cache(cache_file, cache)
+                log(f"Ceviri onbellegine {added} blok eklendi.")
+        if tm:
+            stored = 0
+            for group in pending_groups:
+                if len(group) != 1 or group[0] not in cacheable_idx:
+                    continue
+                source = entries[group[0]][2]
+                target_text = out_texts[group[0]]
+                if not translation_blocking_issues(source, target_text, target):
+                    cancellation_checkpoint("llm", "during")
+                    stored += int(tm.store(source, target_text, tm_scope, tm_context(group)))
+            if stored:
+                log(f"Bulanık çeviri hafızasına {stored} güvenli cümle eklendi.")
+    finally:
+        # İptal tam önbellek yazım sınırında gelirse SQLite bağlantısını açık
+        # bırakma. Windows'ta bu, sonraki işin hafıza dosyasını kilitleyebilir.
+        close_translation_memory()
 
     result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
     emit("translation_refresh", segments=[
@@ -4355,6 +4663,10 @@ def compute_translation_quality_report(source_entries, translated_entries,
     timing_mismatch_indices = []
     number_mismatch_indices = []
     negation_mismatch_indices = []
+    modal_mismatch_indices = []
+    currency_mismatch_indices = []
+    unit_mismatch_indices = []
+    date_mismatch_indices = []
     meaning_shadow_evaluated = 0
     meaning_shadow_rejected_indices = []
     for index in range(total):
@@ -4380,6 +4692,14 @@ def compute_translation_quality_report(source_entries, translated_entries,
             number_mismatch_indices.append(index)
         if 'negation_missing' in meaning_issues:
             negation_mismatch_indices.append(index)
+        if 'modal_missing' in meaning_issues:
+            modal_mismatch_indices.append(index)
+        if 'currency_mismatch' in meaning_issues:
+            currency_mismatch_indices.append(index)
+        if 'unit_mismatch' in meaning_issues:
+            unit_mismatch_indices.append(index)
+        if 'date_mismatch' in meaning_issues:
+            date_mismatch_indices.append(index)
         if meaning_issues:
             meaning_shadow_rejected_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
@@ -4402,6 +4722,14 @@ def compute_translation_quality_report(source_entries, translated_entries,
         "translation_number_mismatch_indices": number_mismatch_indices,
         "translation_negation_mismatch": len(negation_mismatch_indices),
         "translation_negation_mismatch_indices": negation_mismatch_indices,
+        "translation_modal_mismatch": len(modal_mismatch_indices),
+        "translation_modal_mismatch_indices": modal_mismatch_indices,
+        "translation_currency_mismatch": len(currency_mismatch_indices),
+        "translation_currency_mismatch_indices": currency_mismatch_indices,
+        "translation_unit_mismatch": len(unit_mismatch_indices),
+        "translation_unit_mismatch_indices": unit_mismatch_indices,
+        "translation_date_mismatch": len(date_mismatch_indices),
+        "translation_date_mismatch_indices": date_mismatch_indices,
         # Gölge ölçüm: olumsuzluk sezgisi otomatik retry tüketmez; yine de
         # gerçek çıktı korpusundaki oranı görünür olur. Sert kapı yalnız
         # number_mismatch olduğundan iki oran ayrı tutulur.
@@ -5258,9 +5586,7 @@ def transcribe(args):
                     max_speakers=args.max_speakers or None,
                 )
                 # Diarization kırpılmış ses üzerinde çalışır — entries ile aynı eksene getir
-                if time_offset:
-                    spans = [(s + time_offset, e + time_offset, sp) for (s, e, sp) in spans]
-                diarization_spans = spans
+                diarization_spans = offset_diarization_spans(spans, time_offset)
                 cancellation_checkpoint("diarize", "after")
                 cancellation_checkpoint("diarize", "handoff")
 
@@ -5335,7 +5661,11 @@ def transcribe(args):
         # TUM formatlar once yan dosyaya yazilir, sonra tek seferde yerine konur.
         # Eskiden her dosya tek tek yazildigi icin iptal/cokme "srt var, ass yok"
         # gibi TUTARSIZ bir cikti kumesi birakabiliyordu.
-        output_tx = OutputTransaction(output_dir, checkpoint=cancellation_checkpoint)
+        output_tx = OutputTransaction(
+            output_dir,
+            checkpoint=cancellation_checkpoint,
+            warning=lambda message: log(message, "warn"),
+        )
         cancellation_checkpoint("write", "start")
         formats = args.formats.split(",") if args.formats else ["srt"]
         output_files = []
@@ -5378,8 +5708,33 @@ def transcribe(args):
             except Exception as e:
                 log(f"Ceviri basarisiz: {e}", "warn")
                 warn_list.append(f"Ceviri yapilamadi: {e}")
+        translation_completed_count = 0
+        translation_failed_count = 0
+        translation_last_error = str(translation_status.get("lastError", "") or "")
+        if translated:
+            provisional_completed = (
+                set(range(len(entries))) if not translation_status
+                else {index for index in translation_status.get("completed", [])
+                      if isinstance(index, int) and 0 <= index < len(entries)}
+            )
+            translation_report = compute_translation_quality_report(
+                entries, translated,
+                failed_count=max(0, len(entries) - len(provisional_completed)),
+            )
+            quality_failed = set(translation_report["translation_issue_indices"])
+            completed_indices = provisional_completed - quality_failed
+            translation_completed_count = len(completed_indices)
+            translation_failed_count = max(0, len(entries) - translation_completed_count)
+            if quality_failed and not translation_last_error:
+                translation_last_error = "untranslated_source"
+            if translation_failed_count:
+                warn_list.append(
+                    f"Çeviri kısmi kaldı: {translation_completed_count}/{len(entries)} cue tamamlandı; "
+                    f"{translation_failed_count} cue yeniden denenecek."
+                )
         # Yalnizca ceviri istendiginde kaynak dosyalari yazma (ceviri gercekten olustuysa)
-        write_source = args.translate_keep_source or not translated
+        # Kısmi çeviri tek çıktı olamaz: kaynak dosya da mutlaka korunur.
+        write_source = args.translate_keep_source or not translated or translation_failed_count > 0
         # JSON ciktisinda ceviri YAZILMAZ (kelime damgalari kaynak metne ait).
         # Kullanici yalnizca JSON secip "kaynagi koru"yu kapatirsa hicbir dosya
         # olusmuyordu ve is yine de basarili bitiyordu - kaynagi yine de yaz.
@@ -5390,8 +5745,6 @@ def transcribe(args):
                 "yazildi (aksi halde hic cikti olusmazdi).", "warn")
             warn_list.append("Yalnizca JSON secili oldugundan ceviri dosyasi olusmadi; "
                              "kaynak JSON yazildi. Ceviri icin srt/vtt/ass da secin.")
-        tgt_suffix = f".{(args.translate_to or 'tr').lower()}"
-
         for fmt in formats:
             fmt = fmt.strip().lower()
             out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
@@ -5438,32 +5791,42 @@ def transcribe(args):
                 # JSON kelime damgalari kaynak metne aittir - ceviride yaniltici olur
                 if fmt == "json":
                     continue
-                tr_path = output_dir / f"{base_name}{tgt_suffix}.{fmt}"
+                tr_path = translation_artifact_path(
+                    output_dir, base_name, (args.translate_to or "tr").lower(), fmt,
+                    partial=translation_failed_count > 0,
+                )
                 # Kaynak dil = hedef dil ise (ve dil eki aciksa) iki yol AYNI olur;
                 # ceviri kaynagin uzerine yazardi. Ayirt edici ek koy.
                 if write_source and tr_path == out_path:
-                    tr_path = output_dir / f"{base_name}{tgt_suffix}.ceviri.{fmt}"
+                    tr_path = translation_artifact_path(
+                        output_dir, base_name, (args.translate_to or "tr").lower(), fmt,
+                        partial=translation_failed_count > 0, qualifier="ceviri",
+                    )
                     log(f"Kaynak ve ceviri ayni ada denk geldi - ceviri {tr_path.name} "
                         f"olarak yazildi.", "warn")
                 if _write(translated, tr_path, (args.translate_to or "tr").lower(),
                           translated_speakers_map):
                     output_files.append(str(tr_path))
-                    failed_count = len(set(translation_status.get("failed", [])))
-                    completed_count = len(set(translation_status.get("completed", [])))
-                    if not translation_status:
-                        completed_count = len(entries)
                     output_descriptors.append(subtitle_output(
                         tr_path, "translation", (args.translate_to or "tr").lower(),
                         source_id, source_hash, total=len(entries),
-                        completed=completed_count, failed=failed_count,
-                        last_error=translation_status.get("lastError", ""),
+                        completed=translation_completed_count,
+                        failed=translation_failed_count,
+                        last_error=translation_last_error,
                     ))
-                    log(f"Çeviri yazıldı: {tr_path}")
+                    log(
+                        f"{'Kısmi çeviri kurtarma dosyası' if translation_failed_count else 'Çeviri'} "
+                        f"yazıldı: {tr_path}",
+                        "warn" if translation_failed_count else "success",
+                    )
 
         # Çift dilli tek dosya (kaynak + çeviri üst üste) — herhangi bir oynatıcıda çalışır
         if translated and args.dual_subtitle:
             try:
-                dual_path = output_dir / f"{base_name}.dual.srt"
+                dual_path = output_dir / (
+                    f"{base_name}.dual.partial.srt" if translation_failed_count
+                    else f"{base_name}.dual.srt"
+                )
                 dual_source = (label_entries_for_text_output(entries, speakers_map)
                                if args.label_speakers and speakers_map else entries)
                 dual_translation = (label_entries_for_text_output(
@@ -5477,17 +5840,18 @@ def transcribe(args):
                     source_language=tr_source,
                     wrap_mode=args.wrap_mode))
                 output_files.append(str(dual_path))
-                failed_count = len(set(translation_status.get("failed", [])))
-                completed_count = len(set(translation_status.get("completed", [])))
-                if not translation_status:
-                    completed_count = len(entries)
                 output_descriptors.append(subtitle_output(
                     dual_path, "dual", (args.translate_to or "tr").lower(),
                     source_id, source_hash, total=len(entries),
-                    completed=completed_count, failed=failed_count,
-                    last_error=translation_status.get("lastError", ""),
+                    completed=translation_completed_count,
+                    failed=translation_failed_count,
+                    last_error=translation_last_error,
                 ))
-                log(f"Çift dilli altyazı yazıldı: {dual_path}")
+                log(
+                    f"{'Kısmi çift dilli kurtarma dosyası' if translation_failed_count else 'Çift dilli altyazı'} "
+                    f"yazıldı: {dual_path}",
+                    "warn" if translation_failed_count else "success",
+                )
             except Exception as e:
                 log(f"Çift dilli dosya yazılamadı: {e}", "warn")
 
@@ -5956,6 +6320,22 @@ def translate_existing_subtitle(args):
         if deduped:
             log(f"Guvenli cue tekillestirme: {deduped} yinelenen blok elendi.", "warn")
 
+    # Hazır altyazıda cue kimliği/zamanı ve kaynak dosya AYNEN kalır. Yalnız
+    # diyalogla aynı cue içindeki güvenli SDH betimlemesi model girdisinden
+    # çıkarılır. Saf [music] gibi cue'lar boşaltılmaz; böylece satır sayısı ve
+    # kaynak-hedef zaman eşlemesi hiçbir koşulda kaybolmaz.
+    translation_source_entries = []
+    inline_sdh_cleaned = 0
+    for start, end, source_text in entries:
+        cleaned_text = strip_sdh_descriptors(source_text)
+        if cleaned_text and cleaned_text != str(source_text).strip():
+            inline_sdh_cleaned += 1
+            translation_source_entries.append((start, end, cleaned_text))
+        else:
+            translation_source_entries.append((start, end, source_text))
+    if inline_sdh_cleaned:
+        log(f"Çeviri girdisinden {inline_sdh_cleaned} satır içi SDH betimlemesi güvenle çıkarıldı.")
+
     warn_list = []
 
     def cue_fingerprint(entry, index):
@@ -6043,12 +6423,13 @@ def translate_existing_subtitle(args):
     def existing_for(entry, index):
         return existing_by_key.get((round(float(entry[0]), 3), round(float(entry[1]), 3), index))
 
-    pending_pairs = [(index, entry) for index, entry in enumerate(entries)
+    pending_pairs = [(index, translation_source_entries[index])
+                     for index, entry in enumerate(entries)
                      if existing_for(entry, index) is None]
     pending_entries = [entry for _index, entry in pending_pairs]
     pending_source_positions = {id(entry): source_index for source_index, entry in pending_pairs}
-    pending_status_positions = {id(entry): pending_index
-                                for pending_index, entry in enumerate(pending_entries)}
+    pending_status_positions = {source_index: pending_index
+                                for pending_index, (source_index, _entry) in enumerate(pending_pairs)}
     translation_status = {}
     if existing_by_key and not pending_entries:
         log("Eksik çeviri yok; API çağrısı yapılmadı.", "success")
@@ -6120,12 +6501,32 @@ def translate_existing_subtitle(args):
     if not requested:
         requested = ["srt"]
 
+    recovered_transactions = recover_output_transactions(out_dir)
+    if recovered_transactions:
+        log(f"Yarım kalmış {recovered_transactions} çeviri çıktı işlemi geri alındı.", "warn")
+    output_tx = OutputTransaction(
+        out_dir,
+        checkpoint=cancellation_checkpoint,
+        warning=lambda message: log(message, "warn"),
+    )
+
+    def stage_required_output(path, writer):
+        try:
+            return output_tx.stage(path, writer)
+        except BaseException:
+            output_tx.rollback()
+            raise
+
     files = []
     outputs = []
+    partial_result = failed_count > 0
     for fmt in requested:
-        out_path = out_dir / f"{stem}.{target}.{fmt}"
+        out_path = translation_artifact_path(
+            out_dir, stem, target, fmt, partial=partial_result)
         if out_path.resolve() == src_path.resolve():      # kaynagin uzerine yazma
-            out_path = out_dir / f"{stem}.{target}.ceviri.{fmt}"
+            out_path = translation_artifact_path(
+                out_dir, stem, target, fmt, partial=partial_result,
+                qualifier="ceviri")
         if (existing_snapshot and existing_path and existing_path.exists()
                 and out_path.resolve() == existing_path.resolve()):
             try:
@@ -6136,36 +6537,45 @@ def translate_existing_subtitle(args):
                 # API çalışırken kullanıcı dosyayı düzenlediyse emeğini ezme.
                 # Yeni sonuç ayrı bir dosyaya yazılır ve renderer bunu yeni
                 # çeviri çıktısı olarak açıkça yükler.
-                out_path = out_dir / f"{stem}.{target}.yeni.{fmt}"
+                out_path = translation_artifact_path(
+                    out_dir, stem, target, fmt, partial=partial_result,
+                    qualifier="yeni")
                 log("Mevcut çeviri işlem sırasında değişti; kullanıcı düzenlemesini "
                     f"korumak için yeni sonuç ayrı yazılıyor: {out_path.name}", "warn")
         if fmt == "srt":
-            write_srt(translated, out_path, args.max_line_width, args.max_lines,
-                      language=target, wrap_mode=args.wrap_mode)
+            stage_required_output(out_path, lambda staged: write_srt(
+                translated, staged, args.max_line_width, args.max_lines,
+                language=target, wrap_mode=args.wrap_mode))
         elif fmt == "vtt":
-            write_vtt(translated, out_path, args.max_line_width, args.max_lines,
-                      language=target, wrap_mode=args.wrap_mode)
+            stage_required_output(out_path, lambda staged: write_vtt(
+                translated, staged, args.max_line_width, args.max_lines,
+                language=target, wrap_mode=args.wrap_mode))
         elif fmt == "txt":
-            write_txt(translated, out_path)
+            stage_required_output(out_path, lambda staged: write_txt(translated, staged))
         elif fmt == "ass":
-            write_ass(translated, out_path, max_line_width=args.max_line_width,
-                      language=target, wrap_mode=args.wrap_mode)
+            stage_required_output(out_path, lambda staged: write_ass(
+                translated, staged, max_line_width=args.max_line_width,
+                language=target, wrap_mode=args.wrap_mode))
         else:
-            write_json(translated, out_path)
+            stage_required_output(out_path, lambda staged: write_json(translated, staged))
         files.append(str(out_path))
         outputs.append(subtitle_output(
             out_path, "translation", target, source_id, source_hash,
             total=len(entries), completed=completed_count, failed=failed_count,
             last_error=quality_last_error,
         ))
-        log(f"Ceviri yazildi: {out_path}", "success")
+        log(
+            f"{'Kısmi çeviri kurtarma dosyası' if partial_result else 'Çeviri'} "
+            f"yazıldı: {out_path}",
+            "warn" if partial_result else "success",
+        )
         # Çıktının yanındaki metadata, sonraki denemede hangi cue'ların
         # gerçekten tamamlandığını kaynak hash'i ile doğrular. Kalite kapısında
         # kaynak yankısı/boş/zaman uyumsuz cue başarısız kalır ve yeniden denenir.
         if fmt in {"srt", "vtt", "ass"} and len(translated) == len(entries):
             metadata_cues = []
             for index, entry in enumerate(entries):
-                pending_index = pending_status_positions.get(id(entry))
+                pending_index = pending_status_positions.get(index)
                 completed = index in completed_source_indices
                 failed_reasons = translation_status.get("failedReasons", {})
                 metadata_cues.append({
@@ -6188,17 +6598,28 @@ def translate_existing_subtitle(args):
                     "provider": str(getattr(args, "translate_base_url", "") or ""),
                     "cues": metadata_cues,
                 }, ensure_ascii=False, indent=2) + "\n"
-                with atomic_text_writer(Path(f"{out_path}.meta.json"), encoding="utf-8") as handle:
-                    handle.write(metadata_text)
+                metadata_path = Path(f"{out_path}.meta.json")
+
+                def _write_translation_metadata(staged):
+                    with atomic_text_writer(staged, encoding="utf-8") as handle:
+                        handle.write(metadata_text)
+
+                output_tx.stage(metadata_path, _write_translation_metadata)
+            except PipelineCancelled:
+                output_tx.rollback()
+                raise
             except OSError as error:
                 log(f"Çeviri metadata'sı yazılamadı: {error}", "warn")
 
     if args.dual_subtitle:
-        dual_path = out_dir / f"{stem}.dual.srt"
-        write_dual_srt(entries, translated, dual_path,
-                       translation_first=args.dual_translation_first,
-                       max_line_width=args.max_line_width,
-                       language=target, source_language=args.language)
+        dual_path = out_dir / (
+            f"{stem}.dual.partial.srt" if partial_result else f"{stem}.dual.srt"
+        )
+        stage_required_output(dual_path, lambda staged: write_dual_srt(
+            entries, translated, staged,
+            translation_first=args.dual_translation_first,
+            max_line_width=args.max_line_width,
+            language=target, source_language=args.language))
         files.append(str(dual_path))
         outputs.append(subtitle_output(
             dual_path, "dual", target, source_id, source_hash,
@@ -6206,8 +6627,21 @@ def translate_existing_subtitle(args):
             failed=max(0, len(entries) - completed_count),
             last_error=quality_last_error,
         ))
-        log(f"Cift dilli altyazi yazildi: {dual_path}", "success")
+        log(
+            f"{'Kısmi çift dilli kurtarma dosyası' if partial_result else 'Çift dilli altyazı'} "
+            f"yazıldı: {dual_path}",
+            "warn" if partial_result else "success",
+        )
 
+    # SRT/VTT/ASS/JSON, metadata ve çift dilli dosya tek sürüm olarak görünür.
+    # İptal/çökme commit öncesinde hiçbir eski final dosyayı değiştiremez.
+    output_tx.commit()
+    if not partial_result:
+        removed_partial = cleanup_owned_partial_translation_artifacts(
+            out_dir, stem, target, source_hash, source_id)
+        if removed_partial:
+            log(f"Tamamlanan işe ait {len(removed_partial)} eski kısmi çıktı temizlendi.",
+                "success")
     emit("quality_report", **translation_report)
     if translation_report["translation_issues"]:
         warn_list.append(
@@ -6578,9 +7012,9 @@ def sync_output_path(subtitle_path, output_dir=None):
 
 def write_srt_raw(entries, output_path):
     """Metni AYNEN koruyarak SRT yaz (senkron: yalnızca zaman değişir, sarma yok)."""
+    payload = serialize_srt_strict(entries)
     with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
-        for i, (start, end, text) in enumerate(entries, 1):
-            f.write(f"{i}\n{format_srt_time(start)} --> {format_srt_time(end)}\n{text}\n\n")
+        f.write(payload)
 
 
 def build_binary_signal(spans, nbins, hz):
