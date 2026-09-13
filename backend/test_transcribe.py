@@ -1121,6 +1121,24 @@ def test_translate_refine_caches_valid_unchanged_answers():
     assert calls["count"] == 2, "ikinci çalıştırma geçerli refine cache'ini kullanmadı"
 
 
+def test_translate_refine_rejects_new_meaning_loss_and_keeps_first_pass():
+    """Zararlı ikinci geçiş, güvenli ilk çevirinin üzerine yazılmamalı."""
+    entries = [(0.0, 2.0, "I don't know.")]
+
+    def answer(payload):
+        text = "Biliyorum." if "src" in payload["items"][0] else "Bilmiyorum."
+        return {"items": {"0": text}, "sentences": {"0": text}}
+
+    result, seen, _events, warnings = _sentence_translate(
+        entries,
+        _TrArgs(translate_refine=True, translate_cache=False),
+        answer,
+    )
+    assert len(seen) == 2
+    assert result == [(0.0, 2.0, "Bilmiyorum.")]
+    assert any("1. geçişi korundu" in warning for warning in warnings), warnings
+
+
 def test_translate_partial_response_retries_missing_groups():
     """Toplu yanıtta atlanan cümleler tek başına yeniden istenir."""
     import sys, types, importlib.machinery, json

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "description": "Doğal Türkçe ikinci geçişinin ilk çeviriyi anlam veya süre bakımından geriletmemesini ölçen sentetik altyazı korpusu.",
+  "provenance": {
+    "inspiration": "https://github.com/oguzhankayan/turkish-native",
+    "sourceVersion": "0.3.0",
+    "license": "MIT",
+    "adaptation": "Kurallar yeniden ifade edildi; örnekler Whisper Local altyazı akışı için bağımsız yazıldı.",
+    "retrievedAt": "2026-09-13"
+  },
+  "cases": [
+    {
+      "id": "natural-closer-look",
+      "source": "Let's take a closer look.",
+      "current": "Daha yakın bir bakış alalım.",
+      "candidate": "Daha yakından bakalım.",
+      "maxChars": 42,
+      "expected": "accept"
+    },
+    {
+      "id": "natural-need-inspect",
+      "source": "We need to have a better look at the material.",
+      "current": "Malzemeye daha iyi bir bakışa sahip olmamız gerekiyor.",
+      "candidate": "Malzemeyi daha yakından incelememiz gerekiyor.",
+      "maxChars": 48,
+      "expected": "accept"
+    },
+    {
+      "id": "natural-bad-feeling",
+      "source": "Officer Craig has a very bad feeling.",
+      "current": "Memur Craig çok kötü bir hisse sahip.",
+      "candidate": "Memur Craig'in içine kötü bir his doğuyor.",
+      "maxChars": 46,
+      "expected": "accept"
+    },
+    {
+      "id": "natural-negative",
+      "source": "They don't really know each other that well.",
+      "current": "Onlar gerçekten birbirlerini o kadar iyi bilmiyorlar.",
+      "candidate": "Aslında birbirlerini pek iyi tanımıyorlar.",
+      "maxChars": 46,
+      "expected": "accept"
+    },
+    {
+      "id": "natural-number",
+      "source": "They are here for ten days.",
+      "current": "Onlar on gün için buradalar.",
+      "candidate": "On günlüğüne buradalar.",
+      "maxChars": 32,
+      "expected": "accept"
+    },
+    {
+      "id": "natural-result",
+      "source": "The test returned a negative result.",
+      "current": "Test negatif bir sonuç döndürdü.",
+      "candidate": "Test negatif çıktı.",
+      "maxChars": 32,
+      "expected": "accept"
+    },
+    {
+      "id": "positive-control",
+      "source": "It could be anything.",
+      "current": "Her şey olabilir.",
+      "candidate": "Her şey olabilir.",
+      "maxChars": 28,
+      "expected": "accept"
+    },
+    {
+      "id": "reject-number-loss",
+      "source": "He carried 80 bags.",
+      "current": "80 çanta taşıdı.",
+      "candidate": "Çantaları taşıdı.",
+      "maxChars": 28,
+      "expected": "reject",
+      "reason": "meaning:number_mismatch"
+    },
+    {
+      "id": "reject-negation-loss",
+      "source": "I don't know.",
+      "current": "Bilmiyorum.",
+      "candidate": "Biliyorum.",
+      "maxChars": 20,
+      "expected": "reject",
+      "reason": "meaning:negation_missing"
+    },
+    {
+      "id": "reject-modal-loss",
+      "source": "He should wait.",
+      "current": "Beklemeli.",
+      "candidate": "Bekliyor.",
+      "maxChars": 20,
+      "expected": "reject",
+      "reason": "meaning:modal_missing"
+    },
+    {
+      "id": "reject-currency-loss",
+      "source": "It costs 5 dollars.",
+      "current": "5 dolar tutuyor.",
+      "candidate": "5 tutuyor.",
+      "maxChars": 24,
+      "expected": "reject",
+      "reason": "meaning:currency_mismatch"
+    },
+    {
+      "id": "reject-budget-regression",
+      "source": "Wait here.",
+      "current": "Burada bekle.",
+      "candidate": "Lütfen herhangi bir yere ayrılmadan tam olarak burada bir süre boyunca beklemeye devam et.",
+      "maxChars": 24,
+      "expected": "reject",
+      "reason": "budget_regression"
+    }
+  ]
+}

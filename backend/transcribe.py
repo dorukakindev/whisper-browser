@@ -2867,15 +2867,65 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
     return "\n".join(lines)
 
 
+TURKISH_NATIVE_REFINE_PROTOCOL = "tr-native-refine-v1"
+
+TURKISH_NATIVE_REFINE_RULES = (
+    "- Sorun kaynak dilin cumle iskeletiyse kelimeleri tek tek yamama; ayni anlami Turkcenin dogal cumle yapisiyla yeniden kur.",
+    "- Kaynaktaki kelime sirasi, acik ozne ve cumle sinirlari Turkcede yapay duruyorsa bunlari korumak zorunda degilsin.",
+    "- Isim-fiil ve fiil-nesne eslesmelerini Turkcedeki dogal kullanima gore sec; genel 'yapmak/saglamak/sunmak' fiillerini otomatik kalip gibi kullanma.",
+    "- Zamir ve ozneyi ancak belirsizlik yaratmiyorsa dusur; kimin ne yaptigi ve kime hitap edildigi acik kalmali.",
+    "- Konusma dilini kurumsal veya kitabi bir dile cevirme; karakterin kisaligini, argosunu, mizahini ve resmiyet derecesini koru.",
+    "- Zaten dogal olan Turkceyi sirf baska bir soyleyis mumkun diye degistirme.",
+    "- Akicilik ugruna ad, sayi, tarih, para birimi, olumsuzluk, kip, kosul veya olgunun kapsamini degistirme.",
+    "- Dogal yeniden kurulum sure butcesini asmamali; gerekirse dolgu ve tekrarlari kisalt, anlam tasiyan bilgiyi silme.",
+)
+
+
+def evaluate_refinement_candidate(source_text, current_text, candidate_text,
+                                  target_lang="tr", max_chars=0):
+    """İkinci geçişin ilk çeviriyi semantik veya süre bakımından geriletmesini engelle.
+
+    Mutlak dilbilgisi doğruluğu iddia etmez. Yalnız ilk geçişte bulunmayan
+    güvenilir anlam işaretlerinin kaybını ve ağır karakter bütçesi gerilemesini
+    karşılaştırmalı olarak ölçer; böylece doğal yeniden kurulum serbest kalırken
+    daha kötü bir refine yanıtı güvenli ilk çevirinin üzerine yazamaz.
+    """
+    source = normalized_text(source_text)
+    current = normalized_text(current_text)
+    candidate = normalized_text(candidate_text)
+    current_issues = set(translation_meaning_issues(source, current, target_lang))
+    candidate_issues = set(translation_meaning_issues(source, candidate, target_lang))
+    blocking = set(translation_blocking_issues(source, candidate, target_lang))
+    introduced = candidate_issues - current_issues
+    reasons = [f"meaning:{issue}" for issue in sorted(blocking | introduced)]
+    budget = max(0, int(max_chars or 0))
+    current_chars = len(current)
+    candidate_chars = len(candidate)
+    budget_limit = max(budget + 8, int(math.ceil(budget * 1.15))) if budget else 0
+    if budget and candidate_chars > budget_limit and candidate_chars > current_chars:
+        reasons.append("budget_regression")
+    return {
+        "accepted": not reasons,
+        "reasons": reasons,
+        "currentIssues": sorted(current_issues),
+        "candidateIssues": sorted(candidate_issues),
+        "introducedIssues": sorted(introduced),
+        "currentChars": current_chars,
+        "candidateChars": candidate_chars,
+        "maxChars": budget,
+        "budgetLimit": budget_limit,
+    }
+
+
 def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
     """
     İkinci geçiş promptu (VideoLingo'nun 'reflect & improve' adımı). Model kendi
     çevirisini kaynakla yan yana görüp yalnızca GEREKENİ düzeltir — yeniden çevirmez.
     """
     target_name = LANG_NAMES.get((target_lang or "tr").lower(), target_lang)
-    return "\n".join([
+    lines = [
         "Sen kidemli bir altyazi editorusun. Asagida her blok icin KAYNAK metin ve bir",
-        "CEVIRI var. Ceviriyi bastan yazmayacaksin; yalnizca hatalari duzelteceksin.",
+        "CEVIRI var. Butun metni gereksiz yere bastan yazmayacaksin; yalnizca gercek hatalari duzelteceksin.",
         "",
         "## NEYI DUZELT",
         "- Anlam hatasi: kaynakta olmayan/eksik bilgi, yanlis olumsuzluk, yanlis ozne.",
@@ -2884,6 +2934,11 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
         "- Uzunluk: blogun 'max' karakter butcesini asan ceviriyi anlam kaybetmeden kisalt "
         f"(hedef {max_cps} karakter/saniye, satir basina ~{max_line_width} karakter).",
         "- Yazim/noktalama hatalari.",
+    ]
+    if str(target_lang or "").lower().split("-")[0] == "tr":
+        lines += ["", "## DOGAL TURKCE - ANLAMDAN YENIDEN KUR"]
+        lines += TURKISH_NATIVE_REFINE_RULES
+    lines += [
         "",
         "## NEYE DOKUNMA",
         "- Zaten dogru ve dogal olan ceviriyi DEGISTIRME (gereksiz varyasyon uretme).",
@@ -2902,7 +2957,8 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
         '- Sadece JSON: {"sentences":{"0":"tam nihai cumle"},"items":{"0":"ilk parca","1":"son parca"}}',
         "- sentences anahtari grubun ILK ID'si. O grubun dolu items metinleri sirayla boslukla birlesince tam cumleye AYNEN esit olmali.",
         f"- Ceviriler {target_name} dilinde. Yorum/markdown YOK.",
-    ])
+    ]
+    return "\n".join(lines)
 
 
 def translate_cache_path(args):
@@ -2977,7 +3033,7 @@ def translate_cache_key(text, args, target, source_lang=None,
                 result.append({"t": nfc(value), "sp": ""})
         return result
 
-    raw = json.dumps({
+    cache_identity = {
         "v": 6,
         "sentence_protocol": SENTENCE_PROTOCOL_VERSION,
         "group_shape": group_shape,
@@ -2997,7 +3053,10 @@ def translate_cache_key(text, args, target, source_lang=None,
         "max_chars": int(max_chars or 0),
         "context_before": context_rows(context_before),
         "context_after": context_rows(context_after),
-    }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    }
+    if bool(getattr(args, "translate_refine", False)):
+        cache_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
+    raw = json.dumps(cache_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
@@ -3233,12 +3292,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     input_identity = unicodedata.normalize("NFKC", Path(str(getattr(args, "input", "") or "medya")).stem).casefold()
     media_memory_scope = series_key[0] if series_key else hashlib.sha256(
         input_identity.encode("utf-8", "replace")).hexdigest()[:20]
-    tm_scope = json.dumps({
+    tm_scope_identity = {
         "target": target, "source": source_lang or "", "model": args.translate_model,
         "endpoint": str(args.translate_base_url).rstrip("/"), "register": args.translate_register,
         "profanity": args.translate_profanity, "refine": bool(args.translate_refine),
         "glossary": glossary_terms, "auto": auto_glossary_terms, "media": media_memory_scope,
-    }, ensure_ascii=False, sort_keys=True)
+    }
+    if bool(args.translate_refine):
+        tm_scope_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
+    tm_scope = json.dumps(tm_scope_identity, ensure_ascii=False, sort_keys=True)
 
     def chunk_groups(indexes):
         return [group_at[i] for i in indexes if group_at[i][0] == i]
@@ -3575,6 +3637,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         refined = list(out_texts)
         refined_idx = set()
         r_counters = {"changed": 0, "failed": 0}
+        r_rejections = {}
 
         def refine_task(chunk_idx):
             payload = translation_payload(chunk_idx, refine=True)
@@ -3583,13 +3646,20 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
             n_changed = 0
             confirmed = []
+            rejected = {}
             for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
                 record = accept_sentence_reply(data, row['ids'])
                 if not record:
                     continue
                 if translation_is_source_echo(row['source'], record['text']):
+                    rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
                     continue
-                if translation_blocking_issues(row['source'], record['text'], target):
+                assessment = evaluate_refinement_candidate(
+                    row['source'], row['translation'], record['text'], target,
+                    sum(translation_char_budget(entries[i], args) for i in group))
+                if not assessment["accepted"]:
+                    for reason in assessment["reasons"]:
+                        rejected[reason] = rejected.get(reason, 0) + len(group)
                     continue
                 with lock:
                     for source_index, new_text in zip(group, record['parts']):
@@ -3598,7 +3668,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         refined[source_index] = new_text
                     records[group[0]] = record
                 confirmed.extend(group)
-            return n_changed, confirmed
+            return n_changed, confirmed, rejected
 
         refine_chunks = pack_sentence_groups(
             [group for group in pending_groups if all(i in done_idx for i in group)], CHUNK_SIZE)
@@ -3607,10 +3677,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             for fut in as_completed(futs):
                 ch = futs[fut]
                 try:
-                    changed, confirmed = fut.result()
+                    changed, confirmed, rejected = fut.result()
                     r_counters["changed"] += changed
                     r_counters["failed"] += len(ch) - len(confirmed)
                     refined_idx.update(confirmed)
+                    for reason, count in rejected.items():
+                        r_rejections[reason] = r_rejections.get(reason, 0) + count
                 except Exception as e:
                     r_counters["failed"] += len(ch)
                     log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
@@ -3624,6 +3696,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         else:
             log("2. geçiş tamamlandı: {} blok iyileştirildi".format(r_counters["changed"]),
                 "success")
+        if r_rejections:
+            details = ", ".join(f"{reason}={count}" for reason, count in sorted(r_rejections.items()))
+            log(f"2. geçiş kabul kapısı daha kötü adayları korudu: {details}", "warn")
 
     # Basarili cevirileri onbellege yaz (basarisizlar KAYNAK metin oldugu icin yazilmaz)
     cacheable_idx = done_idx if not getattr(args, "translate_refine", False) \
