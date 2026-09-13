@@ -78,3 +78,12 @@ HF token ve LLM API key **argv'den değil ortam değişkeninden** geçer (`WHISP
 - CSP `index.html`'de katı (`script-src 'self'`); inline script ekleme, harici CDN kullanma.
 - Renderer'dan dış kaynağa erişim yok — dosya yolu (`webUtils.getPathForFile`), pano, harici link, ortam bilgisi hepsi preload `api` + main IPC üzerinden gider.
 - Arayüzün kanonik paleti mürekkep/grafit zeminli “ses çalışma istasyonu” düzenidir; tek vurgu rengi sıcak amber `--accent: #d5a35c` değeridir. Yeni stillerde eski sabit mavi yerine mevcut tasarım token'larını kullan; dekoratif emoji ve işlevsiz parıltı ekleme.
+
+
+## Kalıcı devir notu kuralı
+
+Her çalışma için `docs/devir/YYYY-MM-DD-HHMM.md` oluştur; önceki notları silme veya üzerlerine yazma. Kökteki `DEVIR-NOTU.md` güncel nota bağlantı veren indeks olmalı; mevcut tarihsel içeriği koru.
+
+Notta repo/dal, başlangıç ve bitiş kod commit kimlikleri, değişen her dosyanın amacı, hata kök nedenleri ve kanıtları, özelliklerin kullanımı, test komutları/sonuçları ve çalıştırılmayanlar, bağımlılık/kurulum/şema değişiklikleri, yarım işler ve sonraki adımlar yer almalı. Commit veya push edilmemiş değişiklikleri açıkça belirt. Gizli anahtar, token, şifre veya kişisel veri yazma; kanıtlanmamış işi tamamlandı gösterme.
+
+Kullanıcının bu proje için talebi devir notunu commit edip ilgili GitHub deposuna push etmektir. Push başarıyla bitmeden GitHub'a yüklendi deme. Son yanıtta repo bağlantısı, tarihli notun doğrudan GitHub bağlantısı ve uzak dalda doğrulanan son commit kimliğini ver. Kod ve dokümantasyon commit'lerini ayırarak notta kesin bitiş kod kimliğini belirt; notun kendi hash'ini kendisine yazmaya çalışma.

@@ -1,3 +1,11 @@
+# Devir notları indeksi
+
+Güncel çalışma: [2026-09-14-0250 — Tarayıcı tasarımı ve altyazı kurtarma](docs/devir/2026-09-14-0250.md)
+
+Her yeni çalışma `docs/devir/YYYY-MM-DD-HHMM.md` altında ayrı tutulur. Eski notlar silinmez.
+
+## Önceki kök not (özgün içerik korunmuştur)
+
 # Devir Notu — dal kurtarma çalışması
 
 Son güncelleme: 2026-09-08 · master = `ebe582d` · `npm test` **yeşil** (120 dosya)

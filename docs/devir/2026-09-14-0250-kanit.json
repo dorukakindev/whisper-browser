@@ -1,0 +1,29 @@
+{
+  "description": "Yerel E2E raporlarından teknik alanlar; profil ve dosya yolları çıkarılmıştır.",
+  "manualRestart": {
+    "mode": "source",
+    "offsetSeconds": 0.5
+  },
+  "pairRecovery": {
+    "offset": 0.5,
+    "pending": false,
+    "secondaryCues": 3,
+    "mode": "both"
+  },
+  "siteTrackRestart": [
+    {
+      "mode": "both",
+      "offsetSeconds": 0.2
+    }
+  ],
+  "fullSuite": {
+    "failedFiles": 7,
+    "passed": false
+  },
+  "limitations": [
+    "İki saat gerçek oynatma yapılmadı",
+    "Uzun süreli bellek testi yapılmadı",
+    "Canlı AI çevirisi doğrulanmadı",
+    "Bir E2E başlangıç zaman aşımı sonrası seri tekrar geçti; kök neden bilinmiyor"
+  ]
+}
