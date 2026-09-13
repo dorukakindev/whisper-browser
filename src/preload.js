@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('api', {
   downloadYoutube: (opts) => ipcRenderer.invoke('media:download', opts),
   downloadYoutubeSubs: (opts) => ipcRenderer.invoke('media:downloadSubs', opts),
   findSiblingSubs: (videoPath) => ipcRenderer.invoke('media:findSiblingSubs', videoPath),
+  authorizeHistoryFiles: (recordId) => ipcRenderer.invoke('history:authorizeFiles', recordId),
   cancelYoutubeDownload: () => ipcRenderer.invoke('media:cancelDownload'),
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change }),

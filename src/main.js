@@ -818,7 +818,11 @@ ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     if (!videoPath || typeof videoPath !== 'string') return { ok: true, files: [] };
-    videoPath = canonicalLocalPath(videoPath);
+    // Klasor taramasi yalnizca kullanicinin secmis oldugu/uygulama kaydindan
+    // acikca actigi medya icin yapilsin. Bulunan kardes altyazilar da bu
+    // kullanici niyetinin parcasi oldugundan sonraki readSubtitle cagrisina
+    // tek tek yetkilendirilir.
+    videoPath = authorizeLocalMediaPath(videoPath);
     const dir = path.dirname(videoPath);
     const stem = path.basename(videoPath, path.extname(videoPath)).toLowerCase();
     const out = [];
@@ -828,7 +832,8 @@ ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
       // "film.srt", "film.tr.srt", "film.en.srt" ... hepsi ayni koke bagli
       const base = path.basename(name, ext).toLowerCase();
       if (base === stem || base.startsWith(stem + '.')) {
-        out.push(path.join(dir, name));
+        const granted = subtitleFileAccess.grant(path.join(dir, name));
+        if (granted) out.push(granted);
       }
     }
     out.sort();
@@ -12173,6 +12178,26 @@ ipcMain.handle('dialog:openFolder', async (event) => {
 
 ipcMain.handle('history:list', async (event) => authorizedBrowserSender(event) ? grantKnownMediaRecords(loadHistory()) : []);
 
+// history:list ekran doldurulurken calisir; o asamada eski kayitlardaki butun
+// altyazi yollarini otomatik yetkilendirmek gereksiz derecede genis olur.
+// Kullanici belirli bir kayitta "Oynat" dediginde ise yalniz o kaydin halen
+// var olan, dogrulanmis altyazi ciktilarina erisim verilir.
+ipcMain.handle('history:authorizeFiles', async (event, recordId) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.', files: [] };
+  const id = typeof recordId === 'string' ? recordId : '';
+  const record = id ? loadHistory().find((item) => item && item.id === id) : null;
+  if (!record) return { ok: false, error: 'Geçmiş kaydı bulunamadı.', files: [] };
+  const candidates = (Array.isArray(record.files) ? record.files : [])
+    .filter((value) => typeof value === 'string' && /\.(srt|vtt|ass|ssa)$/i.test(value));
+  const files = [];
+  for (const value of candidates) {
+    if (!value || !fs.existsSync(value)) continue;
+    const granted = subtitleFileAccess.grant(value);
+    if (granted) files.push(granted);
+  }
+  return { ok: true, files, skipped: Math.max(0, candidates.length - files.length) };
+});
+
 ipcMain.handle('history:remove', async (_event, id) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   saveHistory(loadHistory().filter((h) => h.id !== id));
@@ -13626,7 +13651,11 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (!/^-whisper-[a-z0-9-]{4,48}$/i.test(suffix)) {
       return { ok: false, error: 'Geçersiz aşamalı çıktı kimliği.' };
     }
-    args.push('--output-name-suffix', suffix);
+    // Değer bilinçli olarak '-' ile başlıyor. Ayrı argv öğesi olarak
+    // gönderildiğinde argparse bunu yeni bir seçenek sanıp
+    // "expected one argument" ile işi transkripsiyon başlamadan kapatır.
+    // --ad=değer biçimi, tireli değeri tek argüman olarak bağlar.
+    args.push(`--output-name-suffix=${suffix}`);
   }
   if (options.model) args.push('--model', options.model);
   if (options.engine) args.push('--engine', options.engine);

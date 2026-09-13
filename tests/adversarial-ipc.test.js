@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const vm = require('vm');
 const { EventEmitter } = require('events');
-const { SubtitleFileAccess, canonicalLocalPath, MAX_SUBTITLE_BYTES } = require('../src/local-file-access');
+const { SubtitleFileAccess, MediaFileAccess, canonicalLocalPath, MAX_SUBTITLE_BYTES } = require('../src/local-file-access');
 const { clonePublicOptions, validateQueueOptions } = require('../src/queue-persistence');
 const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
@@ -115,6 +115,55 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       assert.equal(fs.existsSync(unknown + '.bak'), false);
       const secret = path.join(dir, 'private_key'); fs.writeFileSync(secret, 'private');
       assert.equal((await registered['media:readSubtitle'](authorized, secret)).ok, false);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+  await test('geçmiş oynatma yalnız seçilen kaydın mevcut altyazılarını yetkilendirir', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-history-subs-'));
+    try {
+      const source = path.join(dir, 'film.srt');
+      const translation = path.join(dir, 'film.tr.srt');
+      const missing = path.join(dir, 'silinmis.srt');
+      const invalidSubtitle = path.join(dir, 'klasor.srt');
+      const invalid = path.join(dir, 'notlar.txt');
+      fs.writeFileSync(source, 'source'); fs.writeFileSync(translation, 'translation');
+      fs.mkdirSync(invalidSubtitle); fs.writeFileSync(invalid, 'not subtitle');
+      const access = new SubtitleFileAccess();
+      const handler = register('history:authorizeFiles', {
+        authorizedBrowserSender: auth, fs, subtitleFileAccess: access,
+        loadHistory: () => [{ id: 'secili', files: [source, translation, missing, invalidSubtitle, invalid] },
+          { id: 'baska', files: [path.join(dir, 'baska.srt')] }],
+      });
+      assert.equal((await handler(authorized, 'yok')).ok, false);
+      const result = await handler(authorized, 'secili');
+      assert.equal(result.ok, true);
+      assert.deepEqual(Array.from(result.files), [fs.realpathSync(source), fs.realpathSync(translation)]);
+      assert.equal(result.skipped, 2);
+      assert.equal(access.has(access.inspect(source)), true);
+      assert.equal(access.has(access.inspect(translation)), true);
+      assert.equal(access.has(access.inspect(path.join(dir, 'baska.srt'))), false);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+  await test('kardeş altyazı taraması yalnız yetkili videoda çalışır ve bulduklarını okunabilir kılar', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-sibling-subs-'));
+    try {
+      const video = path.join(dir, 'film.mp4');
+      const source = path.join(dir, 'film.srt');
+      const translation = path.join(dir, 'film.tr.srt');
+      const unrelated = path.join(dir, 'baska.srt');
+      for (const file of [video, source, translation, unrelated]) fs.writeFileSync(file, 'x');
+      const mediaAccess = new MediaFileAccess(['mp4']);
+      const subtitleAccess = new SubtitleFileAccess();
+      const handler = register('media:findSiblingSubs', {
+        authorizedBrowserSender: auth, fs, path, subtitleFileAccess: subtitleAccess,
+        authorizeLocalMediaPath: (value) => mediaAccess.authorize(value),
+      });
+      assert.equal((await handler(authorized, video)).ok, false, 'seçilmemiş video klasörü tarandı');
+      mediaAccess.grant(video);
+      const result = await handler(authorized, video);
+      assert.equal(result.ok, true);
+      assert.deepEqual(Array.from(result.files), [fs.realpathSync(source), fs.realpathSync(translation)]);
+      for (const file of result.files) assert.equal(subtitleAccess.has(subtitleAccess.inspect(file)), true);
+      assert.equal(subtitleAccess.has(subtitleAccess.inspect(unrelated)), false);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
   await test('shell yalnız desteklenen belge/medya veya klasör açar, betik ve EXE reddedilir', async () => {

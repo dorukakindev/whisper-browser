@@ -13381,10 +13381,25 @@ async function openWatchLibraryItem(item, seconds) {
   }
 }
 
-function openHistoryItem(h) {
-  const subs = (h.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
+async function openHistoryItem(h) {
+  // Listeleme, eski gecmis dosyalarina kendiliginden okuma yetkisi vermez.
+  // "Oynat" tiklamasi kullanici niyetidir; ana surec yalnız secilen kaydin
+  // gercekte var olan altyazi ciktilarini dogrulayip geri dondurur.
+  const intent = ++player.openIntent;
+  let authorization = { ok: false, files: [], skipped: 0 };
+  try {
+    authorization = await window.api.authorizeHistoryFiles(h.id);
+  } catch (error) {
+    authorization = { ok: false, files: [], error: error?.message || 'IPC çağrısı başarısız' };
+  }
+  if (intent !== player.openIntent) return;
+  const subs = (authorization.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
+  if (!authorization.ok) {
+    logLine(`Geçmiş altyazıları hazırlanamadı: ${authorization.error || 'bilinmeyen hata'}`, 'warn');
+  } else if (authorization.skipped) {
+    logLine(`${authorization.skipped} geçmiş altyazı dosyası artık bulunamadığı veya geçersiz olduğu için atlandı.`, 'warn');
+  }
   if (h.source === 'youtube') {
-    const intent = ++player.openIntent;
     // Yayin acilinca altyazi baglansin diye ONCE bekleyen listeye koy.
     player.pendingSubs = { key: mediaKeyFor('youtube', h.input), files: subs };
     player.pendingAutoOpen = { key: mediaKeyFor('youtube', h.input), intent };

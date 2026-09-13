@@ -1435,6 +1435,18 @@ test('web videosu konumu izleme kütüphanesine yazılır ve geri açılır', ()
     'web kütüphane kaydı kaldığı konuma hazırlanmıyor');
 });
 
+test('geçmişten oynatma altyazı yollarını açık kullanıcı niyetiyle yetkilendirir', () => {
+  const start = js.indexOf('async function openHistoryItem');
+  const body = js.slice(start, js.indexOf('// ---- izlerken cumle birlestirme', start));
+  assert(start > 0, 'openHistoryItem async değil veya bulunamadı');
+  assert(/await window\.api\.authorizeHistoryFiles\(h\.id\)/.test(body),
+    'geçmiş çıktıları oynatma tıklamasında yetkilendirilmiyor');
+  assert(body.indexOf('authorizeHistoryFiles') < body.indexOf('player.pendingSubs'),
+    'YouTube yayını altyazı yetkisi tamamlanmadan açılıyor');
+  assert(/intent !== player\.openIntent/.test(body),
+    'geciken geçmiş yetkilendirmesi yeni medya seçimini ezebilir');
+});
+
 test('web altyazı araçları dosya, iki iz, dışa aktarma ve A-B kopyasını bağlıyor', () => {
   for (const id of ['browserManualSubtitle', 'browserTrackSelect2', 'browserTrackLoadPair', 'browserTrackExport',
     'browserTranslationExport', 'browserTranslationRetryFailed', 'browserCopyAb']) {

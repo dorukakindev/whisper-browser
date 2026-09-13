@@ -141,6 +141,17 @@ test('oynaticida secilen YouTube ses dili Whisper isine gider', () => {
     'secilen ses dili argv sozlesmesine tasinmadi');
 });
 
+test('aşamalı çıktı soneki tireli değeri argparse için tek argv öğesinde taşır', () => {
+  const suffix = '-whisper-test123';
+  const args = build({ youtube: 'https://youtu.be/test', model: 'large-v3',
+    outputNameSuffix: suffix });
+  assert(args.includes(`--output-name-suffix=${suffix}`),
+    'tireli sonek --ad=değer biçiminde gönderilmedi');
+  assert(!args.includes('--output-name-suffix'),
+    'tireli sonek ayrı argv öğesi; argparse bunu yeni seçenek sanır');
+  assert(!args.includes(suffix), 'tireli sonek bağımsız argv öğesi olarak sızdı');
+});
+
 test('yalnizca sifir veya pozitif tam sayi ses parcasi argumana gider', () => {
   assert(argValue(build(base({ audioTrack: 0 })), '--audio-track') === '0', '0 numarali parca atlandi');
   assert(argValue(build(base({ audioTrack: 3 })), '--audio-track') === '3', 'gecerli parca atlandi');
