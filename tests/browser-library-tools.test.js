@@ -27,10 +27,12 @@ test('Unicode araması Türkçe ve İngilizce I varyantlarını birlikte katlar'
   assert.equal(foldLibraryText('Instagram'), foldLibraryText('instagram'));
 });
 
-test('birleşik arama açık sekme, yer imi, kaynak ve çeviri izlerini ayırır', () => {
+test('birleşik arama açık sekme, yer imi, sayfa, kaynak ve çeviri izlerini ayırır', () => {
   const results = unifiedLibrarySearch({
     query: 'ışık', scope: 'all', tabs: [{ id: 't1', title: 'IŞIK dersi', url: 'https://example.test' }],
     bookmarks: [{ title: 'Işık arşivi', url: 'https://bookmark.test' }],
+    pageHits: [{ title: 'Gezilen Işık yazısı', url: 'https://page.test/yazi',
+      snippet: '[Işık] üzerine okuma', visited_at: 44 }],
     cueHits: [
       { media_id: 'm1', track_id: 's', cue_id: 'same', start: 5, title: 'Film', source_text: 'IŞIK', role: 'source', language: 'en' },
       { media_id: 'm1', track_id: 'tr', cue_id: 'same', start: 5, title: 'Film', translation_text: 'ışık', role: 'translation', language: 'tr', model: 'gemini', provider: 'https://api.test' },
@@ -38,6 +40,7 @@ test('birleşik arama açık sekme, yer imi, kaynak ve çeviri izlerini ayırır
   });
   assert(results.some((item) => item.kind === 'tabs'));
   assert(results.some((item) => item.kind === 'bookmarks'));
+  assert(results.some((item) => item.kind === 'pages' && item.action === 'open-url'));
   const cues = results.filter((item) => item.kind === 'subtitles');
   assert.equal(cues.length, 2, 'aynı zaman ve cue kimliği farklı izleri karıştırmamalı');
   assert(cues.some((item) => item.role === 'translation' && item.model === 'gemini'));

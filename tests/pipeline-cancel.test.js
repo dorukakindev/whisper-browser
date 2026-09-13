@@ -223,7 +223,7 @@ function fixturePython() {
     assert.match(renderer, /state\.cancelled \|\| event\.cancelled/);
     assert.match(renderer, /event\.cancelTooLate/);
     assert.match(renderer, /event\.cleanupError/);
-    assert.match(backend, /OutputTransaction\(output_dir/);
+    assert.match(backend, /OutputTransaction\(\s*output_dir/);
     assert.match(backend, /output_tx\.commit\(\)/);
     const production = `${backend}\n${control}`;
     for (const stage of ['download', 'extract', 'load_model', 'transcribe', 'llm', 'diarize', 'write']) {

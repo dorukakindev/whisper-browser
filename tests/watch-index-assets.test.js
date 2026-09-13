@@ -4,7 +4,7 @@ const os = require('os');
 const path = require('path');
 
 const { BrowserAssetStore, normalizeCues: normalizeAssetCues } = require('../src/browser-asset-store');
-const { WatchIndex, foldSearchText, ftsQuery } = require('../src/watch-index');
+const { WATCH_INDEX_VERSION, WatchIndex, databaseConstructor, foldSearchText, ftsQuery, safePageIndexUrl } = require('../src/watch-index');
 const { normalizeAnnotation } = require('../src/browser-learning');
 
 let passed = 0;
@@ -184,6 +184,11 @@ try {
     assert.equal(foldSearchText('İZMİR'), 'izmir');
     assert.equal(foldSearchText('Important'), foldSearchText('important'));
   });
+  test('sayfa indeks URLsi kimlik, imzalı sorgu ve parçayı saklamaz', () => {
+    assert.equal(safePageIndexUrl('https://user:pass@example.test/makale?sig=gizli&token=x#bolum'),
+      'https://example.test/makale');
+    assert.equal(safePageIndexUrl('file:///secret'), '');
+  });
 
   const index = new WatchIndex(path.join(dir, 'watch.db'));
   try {
@@ -220,6 +225,22 @@ try {
       ]);
       assert.equal(index.searchCues('dünya').length, 0);
       assert.equal(index.searchCues('değişmiş').length, 1);
+    });
+
+    test('gezilen sayfa metni yerel FTS indeksinde güncellenir', () => {
+      const page = index.upsertPage({ url: 'https://example.test/makale', title: 'Deneme makalesi',
+        content: 'Hermetik gelenek üzerine ayrıntılı bir araştırma metni.', visitedAt: 456 });
+      assert.equal(page.url, 'https://example.test/makale');
+      assert.equal(index.searchPages('hermetik').length, 1);
+      assert.match(index.searchPages('araştırma')[0].snippet, /\[araştırma\]/i);
+      index.upsertPage({ url: 'https://example.test/makale', title: 'Güncel başlık',
+        content: 'Mitoloji üzerine tamamen değiştirilmiş uzun içerik.', visitedAt: 789 });
+      assert.equal(index.searchPages('hermetik').length, 0);
+      assert.equal(index.searchPages('mitoloji')[0].title, 'Güncel başlık');
+      assert.equal(index.clearPages(), 1);
+      assert.equal(index.searchPages('mitoloji').length, 0);
+      assert.throws(() => index.upsertPage({ url: 'file:///secret', content: 'yeterince uzun içerik vardır' }),
+        /HTTP\(S\)/);
     });
 
     test('boş ve yinelenen cue kimlikleri toplu yazımı çökertmez', () => {
@@ -286,6 +307,21 @@ try {
   } finally {
     index.close();
   }
+
+  test('gelecekteki WatchIndex şeması açılmadan reddedilir ve sürümü ezilmez', () => {
+    const DatabaseSync = databaseConstructor();
+    const futurePath = path.join(dir, 'future-watch.db');
+    const raw = new DatabaseSync(futurePath);
+    raw.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    raw.prepare("INSERT INTO meta(key,value) VALUES('schema_version', ?)").run(String(WATCH_INDEX_VERSION + 1));
+    raw.close();
+    assert.throws(() => new WatchIndex(futurePath), /daha yeni bir sürüme ait/);
+    const verify = new DatabaseSync(futurePath);
+    assert.equal(Number(verify.prepare("SELECT value FROM meta WHERE key='schema_version'").get().value),
+      WATCH_INDEX_VERSION + 1);
+    assert.equal(verify.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='media'").get(), undefined);
+    verify.close();
+  });
 
   console.log(`watch-index-assets: ${passed} test`);
 } finally {

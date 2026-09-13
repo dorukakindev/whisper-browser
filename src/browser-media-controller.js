@@ -6,6 +6,128 @@ function controllerBootstrap() {
     const media = new Set();
     const observers = new Map();
     let adAudioSnapshot = null;
+    let playbackPreference = { rate: 1, enforceRate: false, preservesPitch: true,
+      brightness: 1, contrast: 1, normalizeAudio: false };
+    const configuredMedia = new WeakSet();
+    const audioGraphs = new WeakMap();
+    const originalVideoFilters = new WeakMap();
+    const appliedVideoFilters = new WeakMap();
+    const explicitRateIntents = new WeakMap();
+    let applyingRate = false;
+
+    const releaseMedia = (item) => {
+      media.delete(item);
+      explicitRateIntents.delete(item);
+      if (item?.style && originalVideoFilters.has(item)) {
+        try { item.style.filter = originalVideoFilters.get(item); } catch (_) {}
+        appliedVideoFilters.delete(item);
+      }
+      const graph = audioGraphs.get(item);
+      if (!graph) return;
+      // SPA oynatıcıları aynı medya öğesini kısa süre DOM'dan çıkarıp yeniden
+      // takabilir. MediaElementSource bir öğe için yalnız bir kez üretilebilir;
+      // context'i burada kapatmak yeniden takıldığında sessiz video bırakır.
+      // WeakMap öğeyle birlikte toplanır; ayrıyken doğrudan çıkışa geri bağla.
+      try {
+        graph.source.disconnect(); graph.compressor.disconnect();
+        graph.source.connect(graph.context.destination); graph.normalized = false;
+        graph.context.resume?.().catch?.(() => {});
+      } catch (_) {}
+    };
+
+    const audioGraphAllowed = (item) => {
+      const source = String(item?.currentSrc || item?.src || '');
+      if (!source) return true;
+      try {
+        const url = new URL(source, location.href);
+        return !/^https?:$/.test(url.protocol) || url.origin === location.origin
+          || String(item.crossOrigin || '').toLowerCase() === 'anonymous';
+      } catch (_) { return false; }
+    };
+    const applyAudioPreference = (item) => {
+      let graph = audioGraphs.get(item);
+      if (!playbackPreference.normalizeAudio) {
+        if (graph?.normalized) {
+          try { graph.source.disconnect(); graph.compressor.disconnect(); graph.source.connect(graph.context.destination); }
+          catch (_) {}
+          graph.normalized = false;
+          graph.context.resume?.().catch?.(() => {});
+        }
+        return;
+      }
+      if (!audioGraphAllowed(item)) return;
+      try {
+        if (!graph) {
+          const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
+          if (!AudioContextClass) return;
+          const context = new AudioContextClass();
+          const source = context.createMediaElementSource(item);
+          const compressor = context.createDynamicsCompressor();
+          compressor.threshold.value = -24; compressor.knee.value = 30;
+          compressor.ratio.value = 8; compressor.attack.value = .003; compressor.release.value = .25;
+          graph = { context, source, compressor, normalized: false };
+          audioGraphs.set(item, graph);
+        }
+        if (!graph.normalized) {
+          graph.source.disconnect(); graph.compressor.disconnect();
+          graph.source.connect(graph.compressor); graph.compressor.connect(graph.context.destination);
+          graph.normalized = true;
+        }
+        graph.context.resume?.().catch?.(() => {});
+      } catch (_) {}
+    };
+
+    const applyPlaybackPreference = (item) => {
+      if (!item) return;
+      try {
+        item.preservesPitch = playbackPreference.preservesPitch;
+        if ('mozPreservesPitch' in item) item.mozPreservesPitch = playbackPreference.preservesPitch;
+        if ('webkitPreservesPitch' in item) item.webkitPreservesPitch = playbackPreference.preservesPitch;
+      } catch (_) {}
+      if (item.tagName?.toLowerCase() === 'video' && item.style) {
+        const b = playbackPreference.brightness;
+        const c = playbackPreference.contrast;
+        const currentFilter = String(item.style.filter || '');
+        // Site filtresini biz uyguladıktan sonra değiştirdiyse yeni değeri esas
+        // al. Böylece kalite/reklam geçişindeki site filtresi eski snapshot ile
+        // ezilmez ve özellik kapatılınca güncel site görünümü geri gelir.
+        if (!originalVideoFilters.has(item) || (appliedVideoFilters.has(item)
+            && currentFilter !== appliedVideoFilters.get(item))) {
+          originalVideoFilters.set(item, currentFilter);
+        }
+        const original = originalVideoFilters.get(item);
+        const ownFilter = Math.abs(b - 1) < .001 && Math.abs(c - 1) < .001
+          ? '' : 'brightness(' + b + ') contrast(' + c + ')';
+        item.style.filter = [original, ownFilter].filter(Boolean).join(' ');
+        appliedVideoFilters.set(item, item.style.filter);
+      }
+      applyAudioPreference(item);
+      if (playbackPreference.enforceRate
+          && Math.abs(finite(item.playbackRate, 1) - playbackPreference.rate) > .01) {
+        applyingRate = true;
+        try { item.playbackRate = playbackPreference.rate; }
+        finally { Promise.resolve().then(() => { applyingRate = false; }); }
+      }
+    };
+    const registerMedia = (item) => {
+      if (!item) return;
+      media.add(item);
+      if (!configuredMedia.has(item)) {
+        configuredMedia.add(item);
+        const reapply = () => applyPlaybackPreference(item);
+        for (const type of ['play', 'seeking', 'seeked', 'loadstart', 'loadedmetadata']) {
+          item.addEventListener?.(type, reapply, { passive: true });
+        }
+        item.addEventListener?.('ratechange', () => {
+          if (applyingRate || !playbackPreference.enforceRate) return;
+          const intent = explicitRateIntents.get(item);
+          if (intent && intent.until >= Date.now()
+              && Math.abs(finite(item.playbackRate, 1) - intent.rate) <= .01) return;
+          applyPlaybackPreference(item);
+        }, { passive: true });
+      }
+      applyPlaybackPreference(item);
+    };
 
     const cleanupDetachedRoots = () => {
       for (const [root, observer] of observers) {
@@ -33,7 +155,7 @@ function controllerBootstrap() {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) scan(node);
           if (mutation.removedNodes.length) {
-            for (const item of [...media]) if (!item.isConnected) media.delete(item);
+            for (const item of [...media]) if (!item.isConnected) releaseMedia(item);
             cleanupDetachedRoots();
           }
         }
@@ -45,9 +167,16 @@ function controllerBootstrap() {
     function scan(node) {
       if (!node) return;
       if (node.nodeType === 9 || node.nodeType === 11) observeRoot(node);
-      if (node.nodeType === 1 && node.matches?.('video,audio')) media.add(node);
+      if (node.nodeType === 1 && node.matches?.('video,audio')) registerMedia(node);
+      // MutationObserver eklenen düğüm olarak doğrudan bir shadow host verir.
+      // Yalnız çocukları dolaşmak, SPA'nın söküp yeniden taktığı host'un kendi
+      // shadowRoot'undaki medya öğelerini kaybettirir.
+      if (node.nodeType === 1 && node.shadowRoot) {
+        observeRoot(node.shadowRoot);
+        scan(node.shadowRoot);
+      }
       if (!node.querySelectorAll) return;
-      for (const item of node.querySelectorAll('video,audio')) media.add(item);
+      for (const item of node.querySelectorAll('video,audio')) registerMedia(item);
       // Büyük SPA mutation'larında ikinci bir sınırsız evrensel seçici NodeList'i
       // tahsis etme; yalnız shadow host aramasını derinliği sınırlı dolaş.
       scanShadowHosts(node);
@@ -138,7 +267,7 @@ function controllerBootstrap() {
     };
     const select = () => {
       cleanupDetachedRoots();
-      for (const item of [...media]) if (!item.isConnected) media.delete(item);
+      for (const item of [...media]) if (!item.isConnected) releaseMedia(item);
       return [...media].sort(compareMedia)[0] || null;
     };
 
@@ -152,6 +281,23 @@ function controllerBootstrap() {
       },
       findAdSkipButton() { return detectAd().skipButton; },
       muteForAd(item) { return muteForAd(item); },
+      setRate(item, rate) {
+        if (!item) return false;
+        const next = Math.max(.25, Math.min(4, finite(rate, 1)));
+        explicitRateIntents.set(item, { rate: next, until: Date.now() + 1500 });
+        item.playbackRate = next;
+        return true;
+      },
+      configurePlayback(raw = {}) {
+        const rate = Math.max(.25, Math.min(4, finite(raw.rate, 1)));
+        const brightness = Math.max(.4, Math.min(2, finite(raw.brightness, 1)));
+        const contrast = Math.max(.4, Math.min(2, finite(raw.contrast, 1)));
+        playbackPreference = { rate, brightness, contrast,
+          enforceRate: raw.enforceRate === true, preservesPitch: raw.preservesPitch !== false,
+          normalizeAudio: raw.normalizeAudio === true };
+        for (const item of media) applyPlaybackPreference(item);
+        return { ...playbackPreference };
+      },
       probe() {
         const item = select();
         if (!item) return null;
@@ -176,6 +322,7 @@ function controllerBootstrap() {
           '.vjs-waiting .vjs-loading-spinner',
           '[data-testid="player-spinner"]',
         ]);
+        const rect = item.getBoundingClientRect?.();
         return {
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
@@ -186,6 +333,8 @@ function controllerBootstrap() {
           volume: finite(item.volume),
           playbackRate: finite(item.playbackRate, 1),
           area: Math.max(0, item.clientWidth * item.clientHeight),
+          bounds: rect ? { x: finite(rect.x), y: finite(rect.y),
+            width: Math.max(0, finite(rect.width)), height: Math.max(0, finite(rect.height)) } : null,
           readyState: Math.max(0, Math.min(4, finite(item.readyState))),
           videoWidth: Math.max(0, finite(item.videoWidth)),
           videoHeight: Math.max(0, finite(item.videoHeight)),
@@ -204,6 +353,30 @@ function controllerBootstrap() {
     };
     window.__whisperMediaController = controller;
     return controller;
+  })()`;
+}
+
+function normalizeBrowserMediaPreference(raw = {}) {
+  const number = (value, fallback, min, max) => {
+    const parsed = Number(value);
+    return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
+  };
+  return {
+    rate: number(raw.rate, 1, .25, 4),
+    enforceRate: raw.enforceRate === true,
+    preservesPitch: raw.preservesPitch !== false,
+    brightness: number(raw.brightness, 1, .4, 2),
+    contrast: number(raw.contrast, 1, .4, 2),
+    normalizeAudio: raw.normalizeAudio === true,
+  };
+}
+
+function buildBrowserMediaPreferenceScript(raw) {
+  const safePreference = JSON.stringify(normalizeBrowserMediaPreference(raw));
+  return `(() => {
+    const controller = ${controllerBootstrap()};
+    const preference = controller.configurePlayback(${safePreference});
+    return { handled: true, preference, media: controller.probe() };
   })()`;
 }
 
@@ -270,7 +443,7 @@ function buildBrowserMediaCommandScript(command, value) {
       if (!video.paused) return false;
       video.currentTime = Math.max(0, video.currentTime + ${safeValue});
     } else if (command === 'speed') {
-      video.playbackRate = Math.max(.25, Math.min(4, ${safeValue} || 1));
+      controller.setRate(video, Math.max(.25, Math.min(4, ${safeValue} || 1)));
     } else if (command === 'fullscreen') {
       if (document.fullscreenElement) await document.exitFullscreen();
       else {
@@ -296,4 +469,5 @@ function buildBrowserMediaCommandScript(command, value) {
   })()`;
 }
 
-module.exports = { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript };
+module.exports = { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
+  buildBrowserMediaPreferenceScript, normalizeBrowserMediaPreference };

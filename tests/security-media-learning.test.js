@@ -51,14 +51,16 @@ test('ayarlar public bölüm ve gizli değerler olarak ayrılır', () => {
     glossary: ['Karah'],
     hfToken: 'hf-secret',
     llm: { apiKey: 'llm-secret', model: 'x' },
-    translate: { apiKey: 'translate-secret', target: 'tr' },
-    manga: { apiKey: 'manga-secret', model: 'vision-x' },
+    translate: { apiKey: 'translate-secret', apiKeyProfiles: '{"provider:codecraftapi":"cc-secret"}', target: 'tr' },
+    manga: { apiKey: 'manga-secret', apiKeyProfiles: '{"provider:gemini":"gemini-secret"}', model: 'vision-x' },
   };
   const { publicSettings, secrets } = splitSettingsSecrets(input);
   assert.equal(secrets.hfToken, 'hf-secret');
   assert.equal(secrets['llm.apiKey'], 'llm-secret');
   assert.equal(secrets['translate.apiKey'], 'translate-secret');
+  assert.equal(secrets['translate.apiKeyProfiles'], '{"provider:codecraftapi":"cc-secret"}');
   assert.equal(secrets['manga.apiKey'], 'manga-secret');
+  assert.equal(secrets['manga.apiKeyProfiles'], '{"provider:gemini":"gemini-secret"}');
   const text = JSON.stringify(publicSettings);
   assert(!text.includes('secret'));
   assert.equal(publicSettings.llm.model, 'x');
@@ -66,6 +68,7 @@ test('ayarlar public bölüm ve gizli değerler olarak ayrılır', () => {
   assert.equal(publicSettings.manga.model, 'vision-x');
   const merged = mergeSettingsSecrets(publicSettings, secrets);
   assert.equal(merged.llm.apiKey, 'llm-secret');
+  assert.equal(merged.translate.apiKeyProfiles, '{"provider:codecraftapi":"cc-secret"}');
   assert.equal(merged.manga.apiKey, 'manga-secret');
 });
 
@@ -77,8 +80,8 @@ test('OS güvenli deposu şifreli yazar ve ayarlarla geri birleştirir', () => {
     const saved = store.saveFromSettings({
       hfToken: 'hf-value',
       llm: { apiKey: 'llm-value', model: 'model' },
-      translate: { apiKey: 'tr-value' },
-      manga: { apiKey: 'manga-value' },
+      translate: { apiKey: 'tr-value', apiKeyProfiles: '{"provider:codecraftapi":"cc-value"}' },
+      manga: { apiKey: 'manga-value', apiKeyProfiles: '{"provider:gemini":"gemini-value"}' },
       ordinary: true,
     });
     assert(saved.ok, saved.error);
@@ -87,10 +90,13 @@ test('OS güvenli deposu şifreli yazar ve ayarlarla geri birleştirir', () => {
     assert(!disk.includes('hf-value'));
     assert(!disk.includes('llm-value'));
     assert(!disk.includes('manga-value'));
+    assert(!disk.includes('cc-value'));
+    assert(!disk.includes('gemini-value'));
     const loaded = store.withSecrets(saved.publicSettings);
     assert(loaded.ok, loaded.error);
     assert.equal(loaded.settings.hfToken, 'hf-value');
     assert.equal(loaded.settings.llm.apiKey, 'llm-value');
+    assert.equal(loaded.settings.translate.apiKeyProfiles, '{"provider:codecraftapi":"cc-value"}');
     assert.equal(loaded.settings.manga.apiKey, 'manga-value');
     assert.equal(loaded.settings.ordinary, true);
     assert(!JSON.stringify(store.forExport(loaded.settings)).includes('value'));
@@ -236,6 +242,28 @@ test('altyazısız bölge hızlandırma ve atlama politikaları eylem üretir', 
   assert.equal(playbackLearningAction(cues, 2.5, 2.4, 'accelerate-gaps').rate, 1);
 });
 
+test('cue sonu otomatik dur gap atlamasından önce gelir ve seek yarışına girmez', () => {
+  const pause = playbackLearningAction(cues, 4.1, 3.9, 'skip-gaps', { autoPause: true });
+  assert.deepEqual(pause, { type: 'pause-at-cue-end', cueId: 'a' });
+  assert.notEqual(playbackLearningAction(cues, 10, 3.9, 'skip-gaps', { autoPause: true }).type,
+    'pause-at-cue-end', 'kullanıcı seek hareketi cue sonu sanıldı');
+});
+
+test('cue sonu otomatik dur bitişik cue sınırında durur fakat örtüşen konuşmayı kesmez', () => {
+  const adjacent = [
+    { id: 'a', start: 2, end: 4, text: 'Bir' },
+    { id: 'b', start: 4, end: 6, text: 'İki' },
+  ];
+  assert.deepEqual(playbackLearningAction(adjacent, 4.05, 3.95, 'normal', { autoPause: true }),
+    { type: 'pause-at-cue-end', cueId: 'a' });
+  const overlapping = [
+    { id: 'speaker-a', start: 10, end: 14, text: 'Birinci konuşmacı' },
+    { id: 'speaker-b', start: 13.5, end: 17, text: 'İkinci konuşmacı' },
+  ];
+  const action = playbackLearningAction(overlapping, 14.05, 13.95, 'normal', { autoPause: true });
+  assert.notEqual(action.type, 'pause-at-cue-end');
+});
+
 test('shadowing cue bitişinde süreli duraklatma üretir', () => {
   const action = playbackLearningAction(cues, 4.1, 3.9, 'shadowing', { shadowingFactor: 1.5 });
   assert.equal(action.type, 'pause-for-shadowing');
@@ -256,6 +284,27 @@ test('shadowing örtüşen başka konuşmacının aktif cue sunu ortasında dura
   const action = playbackLearningAction(overlapping, 14.05, 13.95, 'shadowing');
   assert.equal(action.type, 'set-rate');
   assert.equal(action.cueId, 'speaker-b');
+});
+
+test('cue döngüsü yapılandırılan sayıda tekrarlar ve kullanıcı seek hareketini yutmaz', () => {
+  const first = playbackLearningAction(cues, 4.05, 3.95, 'loop-cue', {
+    repeatCount: 3, loopCueId: '', completedRepeats: 0,
+  });
+  assert.deepEqual(first, { type: 'loop-cue', cueId: 'a', time: 2,
+    completedRepeats: 1, repeatCount: 3 });
+  const second = playbackLearningAction(cues, 4.05, 3.95, 'loop-cue', {
+    repeatCount: 3, loopCueId: 'a', completedRepeats: 1,
+  });
+  assert.equal(second.completedRepeats, 2);
+  assert.deepEqual(playbackLearningAction(cues, 4.05, 3.95, 'loop-cue', {
+    repeatCount: 3, loopCueId: 'a', completedRepeats: 2,
+  }), { type: 'loop-cue-finished', cueId: 'a', repeatCount: 3 });
+  assert.notEqual(playbackLearningAction(cues, 10, 3.95, 'loop-cue', { repeatCount: 3 }).type,
+    'loop-cue', 'kullanıcı seek hareketi cue döngüsü sanıldı');
+  const zeroDuration = [{ id: 'broken', start: 4, end: 4, text: 'Bozuk' }, ...cues];
+  assert.notEqual(playbackLearningAction(zeroDuration, 4.05, 3.95, 'loop-cue', {
+    repeatCount: 3,
+  }).cueId, 'broken', 'sıfır süreli cue döngü eylemine girdi');
 });
 
 test('öğrenme notu medya ve zaman bağını korur', () => {

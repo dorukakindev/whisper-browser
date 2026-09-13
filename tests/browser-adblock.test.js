@@ -125,6 +125,13 @@ class FakeEngine extends EventEmitter {
     assert.equal(bypassController.getState().allowedBySite, 1);
     assert.equal(allowedNotice.decision, 'allowed-by-site-switch');
     assert(!JSON.stringify(bypassController.getState()).includes('SECRET'));
+    let otherTabDecision = null;
+    lastEngine.onBeforeRequest({ webContentsId: 78,
+      url: 'https://ads.test/other-tab', resourceType: 'image' }, (value) => { otherTabDecision = value; });
+    assert.deepEqual(otherTabDecision, { cancel: true },
+      'site anahtarı başka bir tarayıcı sekmesindeki engellemeyi gevşetmemeli');
+    assert.equal(bypassController.getState().allowedBySite, 1,
+      'yalnız duraklatılmış sekmenin izin sayacı artmalı');
     lastEngine.emit('request-blocked');
     assert.equal(controller.getState().blocked, 0);
     const unchanged = await controller.setEnabled(session, true);

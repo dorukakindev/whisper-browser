@@ -199,6 +199,28 @@ function shuffle(items, random) {
     assert.strictEqual(eventMatchesActiveJob(reloadedState, { type: 'progress', jobId: 'new-job' }), true);
   });
 
+  await test('bayat jobId sonucu aktif çalışmanın terminalini ve UI durumunu değiştiremez', () => {
+    const state = makeState(1);
+    const item = state.queue[0];
+    beginQueueRun(state, item, 'current-job');
+    const staleDone = applyQueueRunEvent(state,
+      { type: 'done', jobId: 'previous-job', files: ['bayat.srt'] });
+    assert.deepStrictEqual(staleDone, { accepted: false, stale: true });
+    assert.strictEqual(item.status, 'running');
+    assert.strictEqual(item.activeRun.terminal, null);
+    assert.strictEqual(item.activeRun.terminalCount, 0);
+    assert.deepStrictEqual(item.files, []);
+    assert.strictEqual(state.activeJobId, 'current-job');
+    assert.strictEqual(state.running, true);
+
+    const staleExit = applyQueueRunEvent(state,
+      { type: 'exit', code: 0, jobId: 'previous-job' });
+    assert.deepStrictEqual(staleExit, { accepted: false, stale: true });
+    assert.strictEqual(item.activeRun.closed, false);
+    assert.strictEqual(state.currentQueueId, item.id);
+    assertQueueInvariants(state);
+  });
+
   await test('çalışan öğe sırasında reorder kimlik eşlemesini bozmaz', () => {
     const state = makeState(3);
     const active = state.queue[1];

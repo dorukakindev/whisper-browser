@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const {
   youtubeVideoId, hashPrefix, normalizeCategories, extractHashSegments, validateSegments,
-  clampSegmentsToDuration, SponsorBlockCache,
+  validateChapters, splitSponsorActions, clampSegmentsToDuration, SponsorBlockCache,
 } = require('../src/browser-sponsorblock');
 
 let passed = 0;
@@ -53,6 +53,52 @@ test('Yerel video süresi segmentleri sınırlar', () => {
   const checked = validateSegments(extractHashSegments(hashResponse, 'abcdefghijk'), 'abcdefghijk', 80);
   assert.deepEqual(checked.segments.map(({ start, end }) => [start, end]), [[60, 80]],
     'video süresini aşan segment güvenli süreye kırpılmadı');
+});
+
+test('chapter eylemleri skip listesinden ayrılır ve başlığı güvenle doğrulanır', () => {
+  const payload = [
+    { videoID: 'abcdefghijk', segment: [0, 30], category: 'chapter', actionType: 'chapter',
+      description: '  Giriş\u0000 bölümü  ', UUID: 'chapter-1', videoDuration: 120 },
+    { videoID: 'abcdefghijk', segment: [30, 60], category: 'chapter', actionType: 'skip',
+      description: 'Yanlış eylem', UUID: 'chapter-2' },
+    { videoID: 'abcdefghijk', segment: [60, 90], category: 'sponsor', actionType: 'skip', UUID: 'skip-1' },
+  ];
+  const actions = splitSponsorActions(payload);
+  assert.equal(actions.chapter.length, 1);
+  assert.equal(actions.skip.length, 2);
+  const checked = validateChapters(actions.chapter, 'abcdefghijk', 120);
+  assert.equal(checked.invalid, 0);
+  assert.deepEqual(checked.chapters.map(({ start, end, title, actionType }) => ({ start, end, title, actionType })),
+    [{ start: 0, end: 30, title: 'Giriş bölümü', actionType: 'chapter' }]);
+  assert.equal(validateSegments(actions.skip, 'abcdefghijk').segments.length, 1,
+    'chapter kategorili skip eylemi atlama listesine kabul edildi');
+});
+
+test('boş, taşan veya yanlış videoya ait chapter kayıtları reddedilir', () => {
+  const checked = validateChapters([
+    { videoID: 'abcdefghijk', segment: [5, 999], category: 'chapter', actionType: 'chapter', description: 'Son' },
+    { videoID: 'abcdefghijk', segment: [5, 6], category: 'chapter', actionType: 'chapter', description: '' },
+    { videoID: 'other-video', segment: [5, 6], category: 'chapter', actionType: 'chapter', description: 'Başka' },
+  ], 'abcdefghijk', 100);
+  assert.equal(checked.chapters.length, 1);
+  assert.equal(checked.chapters[0].end, 100);
+  assert.equal(checked.invalid, 2);
+});
+
+test('süre bilinmiyorsa aşırı uzun chapter kaydı reddedilir', () => {
+  const checked = validateChapters([
+    { videoID: 'abcdefghijk', segment: [5, 5 + (2 * 60 * 60) + 1], category: 'chapter',
+      actionType: 'chapter', description: 'Şüpheli uzun bölüm' },
+  ], 'abcdefghijk');
+  assert.equal(checked.chapters.length, 0);
+  assert.equal(checked.invalid, 1);
+});
+
+test('ana süreç chapter ve skip action type değerlerini aynı mahrem sorguda ister', () => {
+  const main = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/main.js'), 'utf8');
+  assert.match(main, /JSON\.stringify\(\[\.\.\.normalized, 'chapter'\]\)/);
+  assert.match(main, /JSON\.stringify\(\['skip', 'chapter'\]\)/);
+  assert.match(main, /validateSponsorChapters\(actions\.chapter/);
 });
 
 test('video sonundaki küçük süre farkı segmenti silmek yerine kırpar', () => {

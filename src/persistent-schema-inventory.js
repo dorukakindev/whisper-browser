@@ -36,7 +36,7 @@ const PERSISTENT_SCHEMA_INVENTORY = Object.freeze([
     source: 'src/browser-workflow-recorder.js', version: 1, constants: ['WORKFLOW_VERSION'],
     migrationTest: 'tests/browser-workflow-recorder.test.js' },
   { id: 'watch-index', kind: 'persistent', storage: 'watch-index.sqlite user_version',
-    source: 'src/watch-index.js', version: 3, constants: ['WATCH_INDEX_VERSION'],
+    source: 'src/watch-index.js', version: 4, constants: ['WATCH_INDEX_VERSION'],
     migrationTest: 'tests/watch-index-assets.test.js' },
   { id: 'secret-store', kind: 'persistent', storage: 'secret store',
     source: 'src/secret-store.js', version: 1, constants: ['SECRET_STORE_VERSION'],
@@ -75,6 +75,12 @@ const PERSISTENT_SCHEMA_INVENTORY = Object.freeze([
   { id: 'backend-translate-cache-key', kind: 'protocol', storage: 'backend translate cache key',
     source: 'backend/transcribe.py', version: 6, constants: [],
     sourceMarker: '"v": 6', migrationTest: 'backend/test_transcribe.py' },
+  { id: 'series-memory', kind: 'persistent', storage: 'series-memory/*.json',
+    source: 'backend/series_memory.py', version: 1, constants: ['SERIES_MEMORY_VERSION'],
+    migrationTest: 'backend/test_series_memory.py' },
+  { id: 'translation-memory', kind: 'persistent', storage: 'translation-memory.sqlite3',
+    source: 'backend/translation_memory.py', version: 1, constants: ['TM_SCHEMA_VERSION'],
+    migrationTest: 'backend/test_translation_memory.py' },
 ]);
 
 module.exports = { PERSISTENT_SCHEMA_INVENTORY };

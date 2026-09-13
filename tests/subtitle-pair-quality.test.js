@@ -44,6 +44,30 @@ const duplicateTimes = auditSubtitlePair(
 );
 assert.equal(duplicateTimes.matchedCues, 2, 'aynı zamanlı cue sıra içinde kaybolmamalı');
 
+const consolidated = auditSubtitlePair(
+  [
+    { start: 0, end: 2, text: 'Birinci kaynak cümlesi.' },
+    { start: 2, end: 4, text: 'İkinci kaynak cümlesi.' },
+  ],
+  [{ start: 0, end: 4, text: 'Birleştirilmiş hedef cümleler.' }],
+);
+assert.equal(consolidated.matchedCues, 0, 'birebir sınır metriği geriye uyumlu kalmalı');
+assert.equal(consolidated.coveredSourceCues, 2);
+assert.equal(consolidated.coveredTargetCues, 1);
+assert.equal(consolidated.issues.missingTarget.length, 0,
+  'bir hedef cue tarafından kapsanan kaynaklar eksik sayılmamalı');
+assert.equal(consolidated.issues.extraTarget.length, 0);
+assert.equal(consolidated.issues.nonExactTimestamp.length, 2);
+assert.equal(consolidated.pass, true);
+
+const incidentalOverlap = auditSubtitlePair(
+  [{ start: 0, end: 1, text: 'Kaynak.' }],
+  [{ start: 0.9, end: 2, text: 'Hedef.' }],
+);
+assert.equal(incidentalOverlap.issues.missingTarget.length, 1,
+  '150 ms altındaki tesadüfi çakışma kapsam sayılmamalı');
+assert.equal(incidentalOverlap.issues.extraTarget.length, 1);
+
 const jointlyTruncated = auditSubtitlePair(
   [{ start: 0, end: 1, text: 'Tek kaynak satırı.' }],
   [{ start: 0, end: 1, text: 'Tek hedef satırı.' }],

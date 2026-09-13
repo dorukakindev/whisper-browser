@@ -3,6 +3,8 @@ const vm = require('vm');
 const {
   buildBrowserMediaCommandScript,
   buildBrowserMediaProbeScript,
+  buildBrowserMediaPreferenceScript,
+  normalizeBrowserMediaPreference,
 } = require('../src/browser-media-controller');
 
 let passed = 0;
@@ -81,6 +83,89 @@ test('every supported media command produces valid JavaScript', () => {
   }
 });
 
+test('medya tercihi sınırlandırılır ve çalıştırılabilir JavaScript üretir', () => {
+  assert.deepEqual(normalizeBrowserMediaPreference({ rate: 99, brightness: 0,
+    contrast: 3, enforceRate: true, preservesPitch: false, normalizeAudio: true }), {
+    rate: 4, brightness: .4, contrast: 2, enforceRate: true, preservesPitch: false,
+    normalizeAudio: true,
+  });
+  assert.doesNotThrow(() => new vm.Script(buildBrowserMediaPreferenceScript({ rate: 1.25 })));
+});
+
+asyncTest('hız koruması, ses perdesi ve video filtresi aynı kalıcı controller üzerinden uygulanır', async () => {
+  const listeners = {};
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,
+    playbackRate: 1, preservesPitch: false, style: {},
+    addEventListener(type, fn) { listeners[type] = fn; } };
+  const harness = mediaCommandHarness(video);
+  const result = await vm.runInNewContext(buildBrowserMediaPreferenceScript({
+    rate: 1.5, enforceRate: true, preservesPitch: true, brightness: 1.2, contrast: .9,
+  }), harness.context);
+  assert.equal(result.handled, true);
+  assert.equal(video.playbackRate, 1.5);
+  assert.equal(video.preservesPitch, true);
+  assert.equal(video.style.filter, 'brightness(1.2) contrast(0.9)');
+  video.playbackRate = 1;
+  listeners.ratechange();
+  assert.equal(video.playbackRate, 1.5, 'site hız sıfırlaması geri alınmadı');
+});
+
+asyncTest('video filtresi sitenin kendi filtresini korur ve kapatılınca geri yükler', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,
+    playbackRate: 1, preservesPitch: true, style: { filter: 'saturate(0.8)' },
+    addEventListener() {} };
+  const harness = mediaCommandHarness(video);
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({ brightness: 1.2, contrast: .9 }),
+    harness.context);
+  assert.equal(video.style.filter, 'saturate(0.8) brightness(1.2) contrast(0.9)');
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({ brightness: 1, contrast: 1 }),
+    harness.context);
+  assert.equal(video.style.filter, 'saturate(0.8)');
+});
+
+asyncTest('site filtreyi sonradan değiştirirse güncel değer korunur', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,
+    playbackRate: 1, preservesPitch: true, style: { filter: 'saturate(0.8)' },
+    addEventListener() {} };
+  const harness = mediaCommandHarness(video);
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({ brightness: 1.2 }), harness.context);
+  video.style.filter = 'sepia(0.3)';
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({ brightness: 1.4 }), harness.context);
+  assert.equal(video.style.filter, 'sepia(0.3) brightness(1.4) contrast(1)');
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({ brightness: 1, contrast: 1 }),
+    harness.context);
+  assert.equal(video.style.filter, 'sepia(0.3)');
+});
+
+test('ses normalleştirme çapraz kaynak CORS kapısı ve compressor yolu içerir', () => {
+  const script = buildBrowserMediaPreferenceScript({ normalizeAudio: true });
+  assert.match(script, /crossOrigin/);
+  assert.match(script, /createMediaElementSource/);
+  assert.match(script, /createDynamicsCompressor/);
+  assert.match(script, /compressor\.ratio\.value = 8/);
+  assert.doesNotMatch(script, /graph\.context\.close/);
+  assert.match(script, /graph\.source\.connect\(graph\.context\.destination\)/);
+  assert.match(script, /releaseMedia\(item\)/);
+});
+
+asyncTest('açık hız niyeti fightback tarafından aynı olayda geri alınmaz', async () => {
+  const listeners = {};
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,
+    playbackRate: 1, preservesPitch: true, style: {},
+    addEventListener(type, fn) { listeners[type] = fn; } };
+  const harness = mediaCommandHarness(video);
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({ rate: 1.25, enforceRate: true }),
+    harness.context);
+  const result = await vm.runInNewContext(buildBrowserMediaCommandScript('speed', 2), harness.context);
+  assert.equal(result.playbackRate, 2);
+  listeners.ratechange();
+  assert.equal(video.playbackRate, 2, 'açık uygulama hız niyeti eski profile geri alındı');
+});
+
 test('oynayan görünür video büyük ama duraklatılmış videodan önce seçilir', () => {
   const paused = { isConnected: true, tagName: 'VIDEO', paused: true, ended: false,
     clientWidth: 1920, clientHeight: 1080, currentTime: 11, duration: 500 };
@@ -133,13 +218,37 @@ test('bağlantısı kopmuş shadow kökü observerını controller bırakır', (
   assert.equal(observers.find((observer) => observer.root === shadow).disconnected, true);
 });
 
+test('yeniden eklenen shadow host kendi kökündeki medyayı tekrar kaydeder', () => {
+  const observed = new Map();
+  class MutationObserver {
+    constructor(callback) { this.callback = callback; }
+    observe(root) { observed.set(root, this); }
+    disconnect() {}
+  }
+  const video = { nodeType: 1, isConnected: true, tagName: 'VIDEO', paused: true, ended: false,
+    clientWidth: 640, clientHeight: 360, currentTime: 7, duration: 90,
+    playbackRate: 1, preservesPitch: true, style: {}, matches: () => true,
+    addEventListener() {}, querySelectorAll: () => [] };
+  const shadow = { nodeType: 11, children: [video], querySelectorAll: () => [video] };
+  const host = { nodeType: 1, children: [], shadowRoot: shadow, isConnected: true,
+    matches: () => false, querySelectorAll: () => [] };
+  shadow.host = host;
+  const document = { nodeType: 9, children: [], querySelectorAll: () => [] };
+  const context = { window: {}, document, MutationObserver };
+  vm.runInNewContext(buildBrowserMediaProbeScript(), context);
+  observed.get(document).callback([{ addedNodes: [host], removedNodes: [] }]);
+  assert.equal(context.window.__whisperMediaController.diagnostics().candidateCount, 1);
+  assert.equal(context.window.__whisperMediaController.diagnostics().observerCount, 2);
+  assert.equal(context.window.__whisperMediaController.select(), video);
+});
+
 test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () => {
   const broken = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
     clientWidth: 800, clientHeight: 450, currentTime: Infinity, duration: NaN,
     volume: Infinity, playbackRate: NaN };
   assert.deepEqual(probe([broken]), {
     currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
-    volume: 0, playbackRate: 1, area: 360000, adPlaying: false,
+    volume: 0, playbackRate: 1, area: 360000, bounds: null, adPlaying: false,
     readyState: 0, videoWidth: 0, videoHeight: 0, totalVideoFrames: null,
     spinnerVisible: false, errorCode: 0, errorMessage: '',
     adSkippable: false, adRemaining: null,

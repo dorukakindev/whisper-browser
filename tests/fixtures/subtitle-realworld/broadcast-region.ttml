@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+  <head>
+    <styling><style xml:id="center" tts:textAlign="center"/></styling>
+    <layout><region xml:id="bottom" style="center" tts:origin="10% 75%" tts:extent="80% 20%" tts:displayAlign="after"/></layout>
+  </head>
+  <body begin="10s"><div begin="2s">
+    <p begin="1s" end="3s" region="bottom">Birinci<br/>satır</p>
+    <p begin="4s" dur="2s" region="bottom"><span>İkinci &amp; satır</span></p>
+  </div></body>
+</tt>

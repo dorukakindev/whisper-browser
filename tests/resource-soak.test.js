@@ -52,6 +52,16 @@ test('hibernasyon çevrimindeki tek kayıp bile bütçeyi düşürür', () => {
   assert.equal(verdict.pass, false);
   assert.equal(verdict.checks.find((check) => check.name === 'hibernation-success-rate').pass, false);
 });
+test('tek işlenmeyen Promise reddi soak sonucunu düşürür', () => {
+  const verdict = evaluateResourceSoak({
+    cycles: 200, capture: { attempts: 200, successes: 200 },
+    runtime: { unhandledRejections: 1 },
+    peaks: { mainTimers: 4, mainProjectTimers: 2, mainInternalTimers: 2 },
+    samples: [sample('start', 0), sample('final', 200)],
+  });
+  assert.equal(verdict.pass, false);
+  assert.equal(verdict.checks.find((check) => check.name === 'unhandled-promise-rejections').pass, false);
+});
 test('dosya ve timer büyümesini ayrı kontrollerle reddeder', () => {
   const final = sample('final', 200, {
     disk: { browserSubtitleFiles: DEFAULT_RESOURCE_SOAK_BUDGETS.browserSubtitleFileCountMax + 1 },
@@ -114,6 +124,7 @@ test('kısa smoke koşusu bütçe kanıtı sayılmaz', () => {
   assert.match(main, /resourceSoakHibernationSession\(hibernationCycles, fixtureRoot\)/);
   assert.match(main, /resourceSoakHibernationSession\(1, fixtureRoot\)/);
   assert.match(main, /primedBeforeBaseline: hibernationPrimed/);
+  assert.match(main, /runtime: \{ unhandledRejections: resourceSoakUnhandledRejectionCount \}/);
   assert.match(runner, /report\.meaningful !== false/);
 });
 test('normal tarayıcı yoklama aralıkları değişmeden kalır', () => {

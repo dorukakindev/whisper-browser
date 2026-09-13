@@ -7,5 +7,6 @@ nvidia-cublas-cu12
 nvidia-cudnn-cu12==9.*
 # Opsiyonel: LLM post-processing (DeepSeek, OpenAI uyumlu endpoint'ler)
 openai>=1.40.0
+genanki>=0.13.1
 # Konuşmacı tanıma (opsiyonel, sadece diarization açıkken kullanılır)
 # pyannote.audio>=3.1.0  # install-diarize.bat ile ayrı kurulur

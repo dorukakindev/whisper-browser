@@ -8,6 +8,7 @@ const MIB = 1024 * 1024;
 const DEFAULT_RESOURCE_SOAK_BUDGETS = Object.freeze({
   captureSuccessRateMin: 0.98,
   hibernationSuccessRateMin: 1,
+  unhandledRejectionCountMax: 0,
   mainRssDeltaBytesMax: 64 * MIB,
   mainHeapDeltaBytesMax: 24 * MIB,
   rendererHeapDeltaBytesMax: 16 * MIB,
@@ -84,6 +85,7 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
   const values = {
     captureSuccessRate: captureRate,
     hibernationSuccessRate: hibernationRate,
+    unhandledRejectionCount: Math.max(0, finite(report && report.runtime && report.runtime.unhandledRejections)),
     mainRssDeltaBytes: delta('main.rssBytes'),
     mainHeapDeltaBytes: delta('main.heapUsedBytes'),
     rendererHeapDeltaBytes: delta('renderer.heapUsedBytes'),
@@ -113,6 +115,7 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
   };
   const specs = [
     ['capture-success-rate', values.captureSuccessRate, 'min', budgets.captureSuccessRateMin],
+    ['unhandled-promise-rejections', values.unhandledRejectionCount, 'max', budgets.unhandledRejectionCountMax],
     ['main-rss-delta', values.mainRssDeltaBytes, 'max', budgets.mainRssDeltaBytesMax],
     ['main-heap-delta', values.mainHeapDeltaBytes, 'max', budgets.mainHeapDeltaBytesMax],
     ['renderer-heap-delta', values.rendererHeapDeltaBytes, 'max', budgets.rendererHeapDeltaBytesMax],

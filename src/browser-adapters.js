@@ -33,6 +33,10 @@ function adapterAcceptsResponse(adapter, response = {}) {
 function redactCaptureUrl(value) {
   try {
     const url = new URL(String(value || ''));
+    // URL userinfo is not part of a useful capture diagnosis and may contain
+    // plaintext IPTV/intranet credentials.
+    url.username = '';
+    url.password = '';
     const kept = new URLSearchParams();
     for (const key of ['lang', 'language', 'locale', 'hl', 'fmt']) {
       if (url.searchParams.has(key)) kept.set(key, url.searchParams.get(key));
@@ -41,7 +45,9 @@ function redactCaptureUrl(value) {
     url.hash = '';
     return url.href.slice(0, 360);
   } catch (_) {
-    return String(value || '').split(/[?#]/)[0].slice(0, 360);
+    return String(value || '').split(/[?#]/)[0]
+      .replace(/^(https?:\/\/)[^/@\s]+@/i, '$1[gizlendi]@')
+      .slice(0, 360);
   }
 }
 

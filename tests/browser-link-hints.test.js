@@ -1,0 +1,22 @@
+'use strict';
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const { HINT_ALPHABET, hintCode, buildBrowserLinkHintsScript } = require('../src/browser-link-hints');
+
+assert.equal(new Set(HINT_ALPHABET).size, HINT_ALPHABET.length);
+assert.equal(hintCode(0, 3), 'a');
+assert.equal(hintCode(1, 3), 's');
+assert.equal(hintCode(0, 30), 'aa');
+assert.equal(hintCode(26, 28), 'sa');
+assert.doesNotThrow(() => new vm.Script(buildBrowserLinkHintsScript()));
+assert.doesNotThrow(() => new vm.Script(buildBrowserLinkHintsScript({ newTab: true })));
+assert.match(buildBrowserLinkHintsScript(), /stopImmediatePropagation/);
+assert.match(buildBrowserLinkHintsScript(), /shadowRoot/);
+assert.match(buildBrowserLinkHintsScript(), /contentDocument/);
+assert.match(buildBrowserLinkHintsScript(), /cross-origin frame/);
+assert.match(buildBrowserLinkHintsScript(), /if \(candidates\.length >= 700\) break/);
+assert.match(buildBrowserLinkHintsScript(), /eventDocuments/);
+assert.match(buildBrowserLinkHintsScript(), /window\.parent\.document\.documentElement/);
+assert.match(buildBrowserLinkHintsScript(), /delegated: true/);
+assert.match(buildBrowserLinkHintsScript({ newTab: true }), /window\.open/);
+console.log('browser-link-hints: 11 test');

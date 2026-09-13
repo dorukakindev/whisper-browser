@@ -152,7 +152,11 @@ async function main() {
   assert.match(backendSource, /hallucination_skipped \+= 1[\s\S]*hallucination_skip_warning\(hallucination_skipped\)/);
   assert.match(backendSource, /warn_list\.append\(hallucination_warning\)/);
 
-  assert.match(backendSource, /def should_skip_hallucination[\s\S]*avg_logprob >= -0\.65[\s\S]*no_speech_prob <= 0\.35/);
+  assert.match(backendSource,
+    /def should_skip_hallucination[\s\S]*avg_logprob <= -1\.0[\s\S]*no_speech_prob >= 0\.6/);
+  assert.match(backendSource,
+    /if hard_marker:[\s\S]*return True[\s\S]*return weak_logprob or likely_silence/,
+    'konuşulabilir kapanış kalıpları yalnız düşük güven veya sessizlik kanıtıyla atılmalı');
   assert.match(backendSource, /should_skip_hallucination\([\s\S]*segment_metric\["avg_logprob"\]/);
 
   const resultModal = rendererSource.slice(rendererSource.indexOf('function showResultModal'),

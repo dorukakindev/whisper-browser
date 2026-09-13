@@ -187,7 +187,8 @@ function runFunction(name, context) {
   const video = { duration: Infinity, currentTime: 8 };
   let input;
   vm.runInNewContext(source.slice(start, end), {
-    video, $: () => ({ addEventListener: (_, fn) => { input = fn; } }), updateSeekVisuals() {},
+    video, player: { loopCueId: 'önceki', loopCueRepeats: 3 },
+    $: () => ({ addEventListener: (_, fn) => { input = fn; } }), updateSeekVisuals() {},
   });
   for (const duration of [Infinity, NaN, 0]) {
     video.duration = duration; input({ target: { value: '500' } });

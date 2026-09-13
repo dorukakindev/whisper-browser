@@ -28,6 +28,7 @@ test('native görünüm yalnız desteklenen kısayolları köprüler', () => {
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'l', control: true }), 'l');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 't', control: true, shift: true }), 't');
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'p', control: true, shift: true }), 'p');
+  assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'h', control: true, shift: true }), 'h');
   for (const key of ['p', 't', 'w', 'r', 'Tab', '0', '+', '=', '-', '1', '9']) {
     assert.equal(browserShortcutForInput({ type: 'keyDown', key, control: true }), key.toLowerCase());
   }

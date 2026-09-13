@@ -1,0 +1,10 @@
+{
+  "wireMagic": "json3",
+  "events": [
+    {"tStartMs": 1000, "dDurationMs": 800, "segs": [{"utf8": "Bir "}]},
+    {"tStartMs": 1500, "dDurationMs": 900, "aAppend": 1, "segs": [{"utf8": "satır"}]},
+    {"tStartMs": 3000, "dDurationMs": 1000, "segs": [{"utf8": "İkinci"}, {"utf8": " & "}, {"utf8": "üçüncü"}]},
+    {"tStartMs": 4500, "dDurationMs": 500, "segs": [{"utf8": "\n"}]},
+    {"tStartMs": "bozuk", "dDurationMs": 500, "segs": [{"utf8": "Yok say"}]}
+  ]
+}

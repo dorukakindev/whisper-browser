@@ -39,4 +39,27 @@ test('newline olmadan kapanan son geçerli olayı flush eder', () => {
   assert.deepEqual(parser.flush(), ['{"type":"done"}']);
 });
 
+test('tek karakterlik parçalar Türkçe, CJK, Tayca ve emoji içeriğini bozmaz', () => {
+  const records = [
+    { type: 'log', text: 'İşlem sürüyor 🙂' },
+    { type: 'segment', text: 'こんにちは世界' },
+    { type: 'segment', text: 'สวัสดีโลก' },
+  ];
+  const stream = records.map((row) => JSON.stringify(row)).join('\r\n') + '\r\n';
+  const parser = createNdjsonLineBuffer();
+  const lines = [];
+  for (const char of stream) lines.push(...parser.push(char));
+  lines.push(...parser.flush());
+  assert.deepEqual(lines.map((line) => JSON.parse(line)), records);
+});
+
+test('bozuk ve boş satırlar tamponu sonraki geçerli IPC olayından koparmaz', () => {
+  const parser = createNdjsonLineBuffer();
+  const lines = parser.push('\n{bozuk}\n\n{"type":"done","ok":true}\n');
+  const parsed = lines.map((line) => {
+    try { return JSON.parse(line); } catch (_) { return null; }
+  }).filter(Boolean);
+  assert.deepEqual(parsed, [{ type: 'done', ok: true }]);
+});
+
 if (!process.exitCode) console.log(`\n${pass} NDJSON tampon testi geçti.`);

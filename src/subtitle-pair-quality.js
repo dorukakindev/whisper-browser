@@ -39,6 +39,55 @@ function alignByTimestamp(sourceCues, targetCues) {
   return { matched, missing, extra };
 }
 
+function cueOverlapSeconds(left, right) {
+  const start = Math.max(Number(left?.start) || 0, Number(right?.start) || 0);
+  const end = Math.min(Number(left?.end) || 0, Number(right?.end) || 0);
+  return Math.max(0, end - start);
+}
+
+function alignByOverlap(sourceCues, targetCues, minimumOverlapSeconds = 0.15) {
+  const threshold = Math.max(0.001, Number(minimumOverlapSeconds) || 0.15);
+  const source = Array.isArray(sourceCues) ? sourceCues : [];
+  const target = Array.isArray(targetCues) ? targetCues : [];
+  const sortedTargets = target.map((cue, index) => ({ cue, index }))
+    .sort((a, b) => Number(a.cue.start) - Number(b.cue.start)
+      || Number(a.cue.end) - Number(b.cue.end) || a.index - b.index);
+  const sourceRows = source.map((cue, index) => ({ cue, index }))
+    .sort((a, b) => Number(a.cue.start) - Number(b.cue.start)
+      || Number(a.cue.end) - Number(b.cue.end) || a.index - b.index);
+  const coveredBySourceIndex = new Map();
+  const coveredTargetIndexes = new Set();
+  let cursor = 0;
+  for (const sourceRow of sourceRows) {
+    const sourceStart = Number(sourceRow.cue.start) || 0;
+    const sourceEnd = Number(sourceRow.cue.end) || 0;
+    while (cursor < sortedTargets.length
+        && (Number(sortedTargets[cursor].cue.end) || 0) - sourceStart < threshold) {
+      cursor += 1;
+    }
+    const overlaps = [];
+    for (let index = cursor; index < sortedTargets.length; index++) {
+      const targetRow = sortedTargets[index];
+      if ((Number(targetRow.cue.start) || 0) > sourceEnd - threshold) break;
+      const seconds = cueOverlapSeconds(sourceRow.cue, targetRow.cue);
+      if (seconds >= threshold) {
+        overlaps.push({ target: targetRow.cue, targetIndex: targetRow.index, seconds });
+        coveredTargetIndexes.add(targetRow.index);
+      }
+    }
+    if (overlaps.length) coveredBySourceIndex.set(sourceRow.index, overlaps);
+  }
+  const coveredSource = [];
+  const missing = [];
+  for (let index = 0; index < source.length; index++) {
+    const overlaps = coveredBySourceIndex.get(index);
+    if (overlaps) coveredSource.push({ source: source[index], overlaps });
+    else missing.push(source[index]);
+  }
+  const extra = target.filter((_cue, index) => !coveredTargetIndexes.has(index));
+  return { coveredSource, missing, extra, coveredTargetIndexes };
+}
+
 function repeatedTranslationGroups(matched) {
   const groups = new Map();
   for (const pair of matched) {
@@ -60,11 +109,15 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
   const source = Array.isArray(sourceCues) ? sourceCues : [];
   const target = Array.isArray(targetCues) ? targetCues : [];
   const aligned = alignByTimestamp(source, target);
+  const coverage = alignByOverlap(source, target, options.minimumOverlapSeconds);
   const issues = {
     sourceBelowMinimum: [],
     targetBelowMinimum: [],
-    missingTarget: aligned.missing.map(cueRef),
-    extraTarget: aligned.extra.map(cueRef),
+    // Bir hedef cue birden çok kaynak cue'yu kapsayabilir. Yapısal kayıp
+    // hükmünü cue sayısı/birebir sınır yerine gerçek zaman kapsamından üret.
+    missingTarget: coverage.missing.map(cueRef),
+    extraTarget: coverage.extra.map(cueRef),
+    nonExactTimestamp: aligned.missing.map(cueRef),
     emptyTarget: [],
     sourceEcho: [],
     numberMismatch: [],
@@ -113,6 +166,8 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     sourceCues: source.length,
     targetCues: target.length,
     matchedCues: aligned.matched.length,
+    coveredSourceCues: coverage.coveredSource.length,
+    coveredTargetCues: coverage.coveredTargetIndexes.size,
     sourceCharacters,
     targetCharacters,
     characterRatio: Number((targetCharacters / Math.max(1, sourceCharacters)).toFixed(4)),
@@ -128,6 +183,7 @@ function sha256(buffer) {
 }
 
 module.exports = {
+  alignByOverlap,
   alignByTimestamp,
   auditSubtitlePair,
   parseSubtitleFile,

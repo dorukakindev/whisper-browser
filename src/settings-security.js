@@ -11,7 +11,7 @@ const MAX_TRANSACTION_RECORDS = 16;
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 const SECRET_KEYS = new Set([
-  'hftoken', 'apikey', 'llmapikey', 'translateapikey', 'token', 'secret', 'password',
+  'hftoken', 'apikey', 'apikeyprofiles', 'llmapikey', 'translateapikey', 'token', 'secret', 'password',
 ]);
 
 const PERSIST_VALUE_CONTROLS = Object.freeze([
@@ -24,9 +24,10 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
-  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'youtubeCookieBrowser',
+  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
+  'browserVideoBrightness', 'browserVideoContrast',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
 ]);
@@ -41,7 +42,8 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'llmPostprocess',
   'llmFixCensorship', 'llmFixHallucination', 'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst',
-  'browserHideSiteCaptions', 'browserPageAuto', 'browserHardwareAcceleration', 'browserAdblockEnabled',
+  'browserHideSiteCaptions', 'browserRateFightback', 'browserPreservesPitch', 'browserDarkMode',
+  'browserNormalizeAudio', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
   'browserAutoSkipAds', 'browserPlayerResponseAdPrune',
 ]);
 
@@ -59,7 +61,7 @@ const UI_ENUMS = Object.freeze({
   translateProfanity: ['soft', 'medium', 'explicit'],
   translateContext: ['0', '2', '4', '6', '10'],
   playerSpeed: ['0.5', '0.75', '1', '1.25', '1.5', '1.75', '2'],
-  playerPlaybackPolicy: ['normal', 'accelerate-gaps', 'skip-gaps'],
+  playerPlaybackPolicy: ['normal', 'accelerate-gaps', 'skip-gaps', 'shadowing', 'loop-cue'],
   youtubeCookieBrowser: ['', 'firefox', 'chrome', 'edge', 'brave', 'vivaldi', 'opera'],
   browserMangaTarget: ['tr', 'en', 'de', 'fr', 'es', 'it', 'ru', 'ar'],
   browserMangaFont: ['comic', 'system', 'compact'],
@@ -79,20 +81,26 @@ const UI_NUMERIC_RANGES = Object.freeze({
   compressionRatioThreshold: [1.5, 4], logProbThreshold: [-3, 0], noSpeechThreshold: [0.1, 0.9],
   vadMinSpeechMs: [0, 1000], vadMinSilenceMs: [100, 3000], vadSpeechPadMs: [0, 500],
   vadMaxSpeechS: [0, 60], translateWorkers: [1, 10], llmWorkers: [1, 10], playerVolume: [0, 100],
+  playerCueRepeatCount: [2, 20],
   subSize: [14, 56], subOffset: [-10, 10], browserMangaWorkers: [1, 6],
   browserMangaMaxImages: [1, 120], browserMangaFontScale: [70, 170],
   browserOverlayScale: [65, 180], browserOverlayOpacity: [20, 100], browserOverlayBottom: [0, 75],
   browserOverlayWidth: [40, 98], browserOverlayMaxLines: [1, 6],
+  browserVideoBrightness: [40, 200], browserVideoContrast: [40, 200],
 });
 
 const ENDPOINT_PRESETS = new Set([
   'https://api.shuaiapi.com/v1', 'https://oai.sb/v1', 'https://api.oai.sb/v1',
   'https://cdn.shuaiapi.com/v1', 'https://api.openai.com/v1', 'https://api.deepseek.com',
+  'https://codecraftapi.com/v1',
   'https://openrouter.ai/api/v1', 'https://api.groq.com/openai/v1',
   'https://generativelanguage.googleapis.com/v1beta/openai', 'custom',
 ]);
 
-const SECRET_FIELD_PATHS = Object.freeze(['hfToken', 'llm.apiKey', 'translate.apiKey', 'manga.apiKey']);
+const SECRET_FIELD_PATHS = Object.freeze([
+  'hfToken', 'llm.apiKey', 'translate.apiKey', 'translate.apiKeyProfiles',
+  'manga.apiKey', 'manga.apiKeyProfiles',
+]);
 
 class SettingsValidationError extends Error {
   constructor(message) {
@@ -208,6 +216,30 @@ function sanitizeEndpointGroup(value, label, allowSecrets, existing, { allowInhe
   } else if (existing && typeof existing.apiKey === 'string') {
     clean.apiKey = existing.apiKey;
   }
+  if (allowSecrets && Object.prototype.hasOwnProperty.call(value, 'apiKeyProfiles')) {
+    const serialized = boundedString(value.apiKeyProfiles, `${label} sağlayıcı anahtar profilleri`, 128000);
+    if (serialized) {
+      let profiles;
+      try { profiles = JSON.parse(serialized); } catch (_) {
+        throw new SettingsValidationError(`${label} sağlayıcı anahtar profilleri geçerli JSON değil.`);
+      }
+      if (!isPlainRecord(profiles) || Object.keys(profiles).length > 32) {
+        throw new SettingsValidationError(`${label} en fazla 32 sağlayıcı anahtarı saklayabilir.`);
+      }
+      const cleanProfiles = {};
+      for (const [scope, apiKey] of Object.entries(profiles)) {
+        const safeScope = boundedString(scope, `${label} sağlayıcı kimliği`, 600).trim();
+        const safeKey = boundedString(apiKey, `${label} sağlayıcı API anahtarı`, 10000).trim();
+        if (DANGEROUS_KEYS.has(safeScope)) {
+          throw new SettingsValidationError(`${label} sağlayıcı kimliği güvenli değil.`);
+        }
+        if (safeScope && safeKey) cleanProfiles[safeScope] = safeKey;
+      }
+      clean.apiKeyProfiles = JSON.stringify(cleanProfiles);
+    } else clean.apiKeyProfiles = '';
+  } else if (existing && typeof existing.apiKeyProfiles === 'string') {
+    clean.apiKeyProfiles = existing.apiKeyProfiles;
+  }
   return clean;
 }
 
@@ -319,8 +351,16 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
   if (Object.prototype.hasOwnProperty.call(input, 'playerPositions')) clean.playerPositions = sanitizePlayerPositions(input.playerPositions);
   if (Object.prototype.hasOwnProperty.call(input, 'translate')) {
     clean.translate = sanitizeEndpointGroup(input.translate, 'Çeviri', allowSecrets, existingSettings.translate);
-  } else if (!allowSecrets && existingSettings.translate && typeof existingSettings.translate.apiKey === 'string') {
-    clean.translate = { apiKey: existingSettings.translate.apiKey };
+  } else if (!allowSecrets && existingSettings.translate
+      && (typeof existingSettings.translate.apiKey === 'string'
+        || typeof existingSettings.translate.apiKeyProfiles === 'string')) {
+    clean.translate = {};
+    if (typeof existingSettings.translate.apiKey === 'string') {
+      clean.translate.apiKey = existingSettings.translate.apiKey;
+    }
+    if (typeof existingSettings.translate.apiKeyProfiles === 'string') {
+      clean.translate.apiKeyProfiles = existingSettings.translate.apiKeyProfiles;
+    }
   }
   if (Object.prototype.hasOwnProperty.call(input, 'llm')) {
     clean.llm = sanitizeEndpointGroup(input.llm, 'LLM', allowSecrets, existingSettings.llm);
@@ -329,8 +369,16 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
   }
   if (Object.prototype.hasOwnProperty.call(input, 'manga')) {
     clean.manga = sanitizeMangaSettings(input.manga, allowSecrets, existingSettings.manga);
-  } else if (!allowSecrets && existingSettings.manga && typeof existingSettings.manga.apiKey === 'string') {
-    clean.manga = { apiKey: existingSettings.manga.apiKey };
+  } else if (!allowSecrets && existingSettings.manga
+      && (typeof existingSettings.manga.apiKey === 'string'
+        || typeof existingSettings.manga.apiKeyProfiles === 'string')) {
+    clean.manga = {};
+    if (typeof existingSettings.manga.apiKey === 'string') {
+      clean.manga.apiKey = existingSettings.manga.apiKey;
+    }
+    if (typeof existingSettings.manga.apiKeyProfiles === 'string') {
+      clean.manga.apiKeyProfiles = existingSettings.manga.apiKeyProfiles;
+    }
   }
   if (Object.prototype.hasOwnProperty.call(input, 'browserSponsorExemptions')) {
     clean.browserSponsorExemptions = sanitizeStructuredSetting(
@@ -352,7 +400,9 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
 
 function collectSecretValues(settings) {
   return [settings && settings.hfToken, settings && settings.translate && settings.translate.apiKey,
-    settings && settings.llm && settings.llm.apiKey, settings && settings.manga && settings.manga.apiKey]
+    settings && settings.translate && settings.translate.apiKeyProfiles,
+    settings && settings.llm && settings.llm.apiKey, settings && settings.manga && settings.manga.apiKey,
+    settings && settings.manga && settings.manga.apiKeyProfiles]
     .filter((value) => typeof value === 'string' && value);
 }
 

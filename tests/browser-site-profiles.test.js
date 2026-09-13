@@ -34,6 +34,18 @@ test('site reklam koruması false değeri profilde açıkça korunur', () => {
   assert.equal(result.profile.adblockEnabled, false);
 });
 
+test('site medya tercihleri güvenli aralıkta kalır', () => {
+  let profiles = withBrowserSiteProfileField({}, 'https://video.test/watch', 'playbackRate', 1.25).profiles;
+  profiles = withBrowserSiteProfileField(profiles, 'https://video.test/watch', 'enforcePlaybackRate', true).profiles;
+  profiles = withBrowserSiteProfileField(profiles, 'https://video.test/watch', 'preservesPitch', false).profiles;
+  profiles = withBrowserSiteProfileField(profiles, 'https://video.test/watch', 'videoBrightness', 1.4).profiles;
+  const profile = profiles['https://video.test'];
+  assert.deepEqual(profile, { playbackRate: 1.25, enforcePlaybackRate: true,
+    preservesPitch: false, videoBrightness: 1.4 });
+  assert.equal(withBrowserSiteProfileField(profiles, 'https://video.test', 'playbackRate', 9).ok, false);
+  assert.equal(withBrowserSiteProfileField(profiles, 'https://video.test', 'videoContrast', .2).ok, false);
+});
+
 test('site override genel değişiklikle ezilmez ve kaldırılınca güncel genel gelir', () => {
   let profiles = withBrowserSiteProfileField({}, 'https://example.test/watch', 'targetLanguage', 'tr').profiles;
   let result = resolveEffectiveBrowserSettings({ general: { targetLanguage: 'de' }, profile: profiles['https://example.test'] });

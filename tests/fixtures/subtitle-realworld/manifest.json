@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "noLiveNetwork": true,
+    "contentSynthetic": true,
+    "description": "Dosyalar gerçek taşıma biçimlerinin yapısal sınırlarını korur; konuşma metinleri bu proje için sentetik olarak yazılmıştır."
+  },
+  "fixtures": [
+    {
+      "id": "youtube-json3-live-growth",
+      "file": "youtube-json3-live.json",
+      "format": "json3",
+      "mimeType": "application/json",
+      "parserUrl": "https://captions.invalid/timedtext?fmt=json3",
+      "sha256": "14524c98e2291a60a7aef557455053199b82881504d1eaab9ab4a0b1a573aad8",
+      "provenance": {
+        "kind": "sanitized-structural-reconstruction",
+        "source": "yt-dlp YouTube timed-text format family",
+        "sourceUrl": "https://github.com/yt-dlp/yt-dlp",
+        "sourceLicense": "Unlicense for referenced source code; fixture wording is original",
+        "transformation": "Live aAppend growth and segmented text shape retained; all caption wording replaced."
+      },
+      "expected": [
+        {"start": 1, "end": 2.4, "text": "Bir satır"},
+        {"start": 3, "end": 4, "text": "İkinci & üçüncü"}
+      ]
+    },
+    {
+      "id": "youtube-srv3-nested-spans",
+      "file": "youtube-srv3.xml",
+      "format": "timedtext",
+      "mimeType": "text/xml",
+      "parserUrl": "https://captions.invalid/timedtext?fmt=srv3",
+      "sha256": "5adff2d33789a35384824622e41f426781db8ec44872a5b1380bccb0ad8595e6",
+      "provenance": {
+        "kind": "sanitized-structural-reconstruction",
+        "source": "yt-dlp YouTube timed-text format family",
+        "sourceUrl": "https://github.com/yt-dlp/yt-dlp",
+        "sourceLicense": "Unlicense for referenced source code; fixture wording is original",
+        "transformation": "Nested span, pen/window attributes and millisecond timing retained; all caption wording replaced."
+      },
+      "expected": [
+        {"start": 1.25, "end": 2.5, "text": "Bir satır & işaret"},
+        {"start": 3, "end": 3.9, "text": "İkinci satır"}
+      ]
+    },
+    {
+      "id": "ttml-region-parent-offset",
+      "file": "broadcast-region.ttml",
+      "format": "ttml",
+      "mimeType": "application/ttml+xml",
+      "parserUrl": "https://broadcast.invalid/subtitle.ttml",
+      "sha256": "6faca3718842cac67988a728b430072597f4f002ce74ae17be9743401a9d40da",
+      "provenance": {
+        "kind": "spec-derived-synthetic",
+        "source": "W3C TTML2 timing and region model",
+        "sourceUrl": "https://www.w3.org/TR/ttml2/",
+        "sourceLicense": "W3C Software and Document License; fixture wording is original",
+        "transformation": "Parent begin offsets, referenced style, region and line break combined in an original compact sample."
+      },
+      "expected": [
+        {"start": 13, "end": 15, "text": "Birinci\nsatır", "region": "bottom", "align": "center"},
+        {"start": 16, "end": 18, "text": "İkinci & satır", "region": "bottom", "align": "center"}
+      ]
+    },
+    {
+      "id": "hls-webvtt-timestamp-map",
+      "file": "hls-timestamp-map.vtt",
+      "format": "vtt",
+      "mimeType": "text/vtt",
+      "parserUrl": "https://stream.invalid/segment-7.vtt",
+      "sha256": "4f150a5484bef2da48b45b2dbf5b60c471ce0986554d279f96765ac9b913d547",
+      "provenance": {
+        "kind": "spec-derived-synthetic",
+        "source": "RFC 8216 WebVTT segment timestamp mapping",
+        "sourceUrl": "https://www.rfc-editor.org/rfc/rfc8216",
+        "sourceLicense": "IETF Trust Legal Provisions; fixture wording is original",
+        "transformation": "MPEGTS mapping, cue identifier and cue settings combined with original wording."
+      },
+      "expected": [
+        {"start": 11, "end": 12.25, "text": "Bir & iki"},
+        {"start": 13, "end": 14, "text": "İkinci satır"}
+      ]
+    },
+    {
+      "id": "webvtt-missing-blank-separator",
+      "file": "webvtt-missing-separators.vtt",
+      "format": "vtt",
+      "mimeType": "text/vtt",
+      "parserUrl": "https://stream.invalid/damaged.vtt",
+      "sha256": "bf840d13087f4881e5e1f626c4b3294a986180700935ef549182dbc0c77710c0",
+      "provenance": {
+        "kind": "field-observation-reconstruction",
+        "source": "Malformed WebVTT seen in subtitle download tools",
+        "sourceUrl": "https://www.w3.org/TR/webvtt1/",
+        "sourceLicense": "Fixture is original; W3C URL documents the intended format",
+        "transformation": "Missing blank separator and inline class markup retained; wording replaced."
+      },
+      "expected": [
+        {"start": 0.5, "end": 1.5, "text": "Bir & iki"},
+        {"start": 1.6, "end": 2.6, "text": "İkinci satır"}
+      ]
+    },
+    {
+      "id": "generic-millisecond-caption-envelope",
+      "file": "generic-caption-envelope.json",
+      "format": "json3",
+      "mimeType": "application/json",
+      "parserUrl": "https://captions.invalid/api/captions",
+      "sha256": "e4e1df777c20ad599a1f46739a01c67c6ce04b20c0a5110b3fc0fd92d25f58da",
+      "provenance": {
+        "kind": "multi-provider-structural-reconstruction",
+        "source": "Common millisecond caption envelope",
+        "sourceUrl": "https://github.com/yt-dlp/yt-dlp",
+        "sourceLicense": "Fixture is original; source URL is format-family context only",
+        "transformation": "Common startTimeMs, durationMs and endTimeMs variants combined with original wording."
+      },
+      "expected": [
+        {"start": 0.25, "end": 1, "text": "Kısa başlangıç", "id": "caption-a"},
+        {"start": 1.25, "end": 2.5, "text": "İkinci cümle", "id": "caption-b"}
+      ]
+    }
+  ]
+}

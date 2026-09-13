@@ -5,3 +5,8 @@ faster-whisper==1.2.1
 ctranslate2==4.4.0
 whisperx==3.4.2
 pyannote.audio==3.3.2
+genanki==0.13.1
+cached-property==2.0.1
+chevron==0.14.0
+frozendict==2.4.7
+PyYAML==6.0.3

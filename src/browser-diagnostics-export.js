@@ -1,6 +1,31 @@
 'use strict';
 
+const { redactCaptureUrl } = require('./browser-adapters');
+
 const SUBTITLE_REDACTION = '[altyazı metni gizlendi]';
+const LOCAL_PATH_REDACTION = '[yol gizlendi]';
+
+function redactBrowserDiagnosticsText(value, maxLength = 400) {
+  return String(value == null ? '' : value)
+    .replace(/https?:\/\/[^\s)"',;<>]+/gi, (url) => redactCaptureUrl(url))
+    .replace(/\bfile:(?:\/\/\/?)?[^\r\n,;)"'}\]]+/gi, LOCAL_PATH_REDACTION)
+    .replace(/(^|[\s"'(=:])(?:[A-Za-z]:[\\/]|\\\\[^\\/\s]+[\\/]|\/(?:home|Users)\/)[^\r\n,;)"'}\]]+/gim,
+      '$1' + LOCAL_PATH_REDACTION)
+    .replace(/\b(api[_-]?key|token|sig|signature|secret|authorization|cookie|password)\s*[=:]\s*(?:(?:Bearer|Basic)\s+)?[^\s,;]+/gi,
+      '$1=[gizlendi]')
+    .replace(/\b(Bearer|Basic)\s+[^\s,;]+/gi, '$1 [gizlendi]')
+    .slice(0, Math.max(0, Number(maxLength) || 400));
+}
+
+function sanitizeDiagnosticsSecrets(value) {
+  function visit(current) {
+    if (typeof current === 'string') return redactBrowserDiagnosticsText(current, 2048);
+    if (Array.isArray(current)) return current.map(visit);
+    if (!current || typeof current !== 'object') return current;
+    return Object.fromEntries(Object.entries(current).map(([key, entry]) => [key, visit(entry)]));
+  }
+  return visit(value);
+}
 
 function capturedCueTexts(trackBuffers) {
   const texts = new Set();
@@ -46,8 +71,11 @@ function sanitizeDiagnosticsAgainstCueText(value, trackBuffers) {
 }
 
 module.exports = {
+  LOCAL_PATH_REDACTION,
   SUBTITLE_REDACTION,
   capturedCueTexts,
   redactCapturedCueText,
+  redactBrowserDiagnosticsText,
+  sanitizeDiagnosticsSecrets,
   sanitizeDiagnosticsAgainstCueText,
 };

@@ -25,6 +25,14 @@ assert.match(contract.outputLabel({ ...selected.translation, lastError: 'rate_li
 assert.match(contract.outputLabel({ ...selected.translation, lastError: 'untranslated_source' }), /kaynak metin çevrilmemiş/);
 assert.match(contract.outputLabel({ ...selected.translation, lastError: 'timeline_mismatch' }), /zaman çizelgesi uyuşmuyor/);
 
+const inconsistent = contract.selectOutputs({ outputs: [{
+  path: 'C:\\out\\inconsistent.tr.srt', role: 'translation', status: 'complete',
+  total: 10, completed: 10, failed: 2,
+}] }).translation;
+assert.equal(inconsistent.status, 'partial', 'çelişkili sayaçlar complete kabul edildi');
+assert.equal(inconsistent.completed, 8);
+assert.equal(inconsistent.failed, 2);
+
 selected = contract.selectOutputs({ files: ['C:\\out\\legacy.tr.srt'] }, { fallbackRole: 'translation' });
 assert.equal(selected.translation.path, 'C:\\out\\legacy.tr.srt');
 assert.equal(selected.source, null, 'legacy çeviri aynı anda kaynak yapıldı');
@@ -38,6 +46,16 @@ assert.equal(selected.translation, null, 'başka kaynağın çevirisi eşleştir
 // Renderer'daki gerçek bağlama fonksiyonunu kontrollü DOM/dosya taklitleriyle
 // çalıştır. Bu, yalnız kaynak metinde fonksiyon adı arayan bir sözleşme testi değildir.
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+const playerJobBody = renderer.slice(renderer.indexOf('function playerJobEvent('),
+  renderer.indexOf('function completedSubtitleOutputs('));
+assert.match(playerJobBody, /if \(job\.loading\)[\s\S]*job\.exitSeen = true/,
+  'done yüklemesi sürerken exit işi erken temizleyebilir');
+assert.match(playerJobBody, /if \(job\.doneHandled\) return true;[\s\S]*job\.doneHandled = true/,
+  'yinelenen done olayı ikinci yükleme başlatabilir');
+assert.match(playerJobBody, /Kısmi çeviri yüklendi:[\s\S]*Eksikleri tamamlayabilirsiniz/,
+  'kısmi çeviri kullanıcıya tamamlanmış gibi gösteriliyor');
+assert.match(playerJobBody, /\.catch\(\(error\) =>[\s\S]*\.finally\(\(\) =>/,
+  'altyazı yükleme reddi işi sonsuza dek running bırakabilir');
 const controls = {
   playerSubSelect: { value: '' }, playerSubSelect2: { value: '' },
 };

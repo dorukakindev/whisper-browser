@@ -16,10 +16,22 @@
     const path = typeof value.path === 'string' ? value.path.trim() : '';
     const role = typeof value.role === 'string' ? value.role.toLowerCase() : '';
     if (!path || !SUBTITLE_EXT.test(path) || !ROLES.has(role)) return null;
-    const total = Math.max(0, Number(value.total) || 0);
-    const completed = Math.max(0, Math.min(total || Infinity, Number(value.completed) || 0));
-    const failed = Math.max(0, Number(value.failed) || 0);
-    const status = value.status === 'partial' || failed > 0 ? 'partial' : 'complete';
+    const total = Math.max(0, Math.floor(Number(value.total) || 0));
+    const hasCompleted = Number.isFinite(Number(value.completed));
+    let failed = Math.max(0, Math.floor(Number(value.failed) || 0));
+    let completed = hasCompleted
+      ? Math.max(0, Math.floor(Number(value.completed)))
+      : Math.max(0, total - failed);
+    if (total) {
+      completed = Math.min(total, completed);
+      failed = Math.min(total, Math.max(failed, total - completed));
+      completed = Math.min(completed, total - failed);
+    } else {
+      completed = 0;
+      failed = 0;
+    }
+    const status = value.status === 'partial' || failed > 0
+      || (total > 0 && completed < total) ? 'partial' : 'complete';
     return {
       path,
       role,

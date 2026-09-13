@@ -692,9 +692,9 @@
                 </select>
               </label>
               <label class="field field-full">
-                <span class="field-label">API Key (shuaiapi / OpenAI uyumlu)</span>
+                <span class="field-label">API Key (CodeCraftAPI / shuaiapi / OpenAI uyumlu)</span>
                 <span class="secret-control">
-                  <input type="password" id="translateApiKey" placeholder="sk-..." autocomplete="off" />
+                  <input type="password" id="translateApiKey" placeholder="cc_... / sk-..." autocomplete="off" />
                   <button class="secret-toggle" type="button" data-secret-target="translateApiKey" aria-label="Çeviri API anahtarını göster" aria-pressed="false">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
                   </button>
@@ -707,6 +707,7 @@
                   <option value="https://oai.sb/v1">shuaiapi · Global</option>
                   <option value="https://api.oai.sb/v1">shuaiapi · Asya Pasifik CDN 2</option>
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
+                  <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini · görsel/manga</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -743,6 +744,7 @@
                   <option value="https://oai.sb/v1">shuaiapi · Global</option>
                   <option value="https://api.oai.sb/v1">shuaiapi · Asya Pasifik CDN 2</option>
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
+                  <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -758,7 +760,7 @@
                 <span class="field-label">Manga özel endpoint URL</span>
                 <input type="text" id="mangaBaseUrl" placeholder="https://api.example.com/v1" />
               </label>
-              <div class="hint field-full">Manga alanları boşsa altyazı profili kullanılır. Ayrı anahtar girerseniz aynı sağlayıcıda iki farklı API anahtarıyla çalışabilirsiniz.</div>
+              <div class="hint field-full">Manga alanları boşsa altyazı profili kullanılır. Ayrı anahtar girerseniz aynı sağlayıcıda iki farklı API anahtarıyla çalışabilirsiniz. CodeCraftAPI seçildiğinde model otomatik olarak <code>gemini-3.7-flash</code> yapılır.</div>
               <label class="field">
                 <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">4</span></span>
                 <input type="range" id="translateWorkers" min="1" max="10" step="1" value="4" />
@@ -1500,6 +1502,15 @@
                   <label><span>Azami satır</span><input type="number" id="browserOverlayMaxLines" min="1" max="6" value="3" /></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserOverlaySourceFirst" checked /><span>Kaynak üstte, çeviri altta</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" /><span>Sitenin kendi altyazısını gizle</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserRateFightback" /><span>Site hızı sıfırlarsa geri uygula</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserPreservesPitch" checked /><span>Hız değişince ses perdesini koru</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserDarkMode" /><span>Bu sayfayı koyu göster</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserNormalizeAudio" /><span>Konuşma sesini dinamik olarak dengele</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserPageIndexEnabled" /><span>Gezilen sayfa metnini yerel aramaya ekle</span></label>
+                  <label><span>Video parlaklığı <output id="browserVideoBrightnessVal">%100</output></span>
+                    <input type="range" id="browserVideoBrightness" min="40" max="200" step="5" value="100" /></label>
+                  <label><span>Video kontrastı <output id="browserVideoContrastVal">%100</output></span>
+                    <input type="range" id="browserVideoContrast" min="40" max="200" step="5" value="100" /></label>
                 </div>
                 <div class="browser-view-actions" data-browser-settings-kind="live">
                   <button class="btn btn-ghost btn-sm" id="browserPageRetryFailed" type="button" disabled>Sayfa hatalarını yeniden dene</button>
@@ -1507,6 +1518,7 @@
                   <button class="btn btn-ghost btn-sm" id="browserPageExport" type="button">Sayfa çevirisini dışa aktar</button>
                   <button class="btn btn-ghost btn-sm" id="browserTranslationArchiveOpen" type="button">Çeviri arşivini aç</button>
                   <button class="btn btn-ghost btn-sm" id="browserPageClear" type="button">Sayfa çevirisini kaldır</button>
+                  <button class="btn btn-ghost btn-sm" id="browserPageIndexClear" type="button">Yerel sayfa indeksini temizle</button>
                   <button class="btn btn-ghost btn-sm" id="browserMangaRetryFailed" type="button" disabled>Başarısızları yeniden dene</button>
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportJson" type="button">Manga JSON</button>
                   <button class="btn btn-ghost btn-sm" id="browserMangaExportImage" type="button">Manga görseli</button>
@@ -2023,6 +2035,7 @@
                 <option value="subtitles">Altyazılar</option>
                 <option value="notes">Notlar</option>
                 <option value="bookmarks">Yer imleri</option>
+                <option value="pages">Gezilen sayfaların içeriği</option>
               </select>
             </div>
             <div class="research-library-controls hidden" id="researchLibraryControls">
@@ -2031,6 +2044,7 @@
               <select id="researchType" aria-label="Not türü"><option value="all">Tüm türler</option><option value="quote">Alıntılar</option><option value="word">Kelimeler</option><option value="note">Notlar</option></select>
               <select id="researchStatus" aria-label="Öğrenme durumu"><option value="all">Tüm durumlar</option><option value="new">Yeni</option><option value="learning">Öğreniliyor</option><option value="known">Biliniyor</option></select>
               <button class="link-btn" id="researchExport" type="button">Markdown dışa aktar</button>
+              <button class="link-btn" id="researchExportAnki" type="button">Anki paketi dışa aktar</button>
             </div>
             <div class="library-collection-tools hidden" id="libraryCollectionTools">
               <button class="link-btn" type="button" id="libraryCollectionCreate">Yeni koleksiyon</button>
@@ -2317,8 +2331,19 @@
                 <option value="accelerate-gaps">Altyazısız bölümü 2× hızlandır</option>
                 <option value="skip-gaps">Altyazısız bölümü atla</option>
                 <option value="shadowing">Dinle ve tekrar et (shadowing)</option>
+                <option value="loop-cue">Her altyazıyı belirli sayıda tekrarla</option>
               </select>
               <small>Yalnız altyazı yüklüyken çalışır; normal moda dönünce seçili hız geri gelir.</small>
+            </label>
+            <label class="field">
+              <span class="field-label">Altyazı tekrar sayısı</span>
+              <select id="playerCueRepeatCount">
+                <option value="2">2 kez</option>
+                <option value="3">3 kez</option>
+                <option value="5" selected>5 kez</option>
+                <option value="10">10 kez</option>
+              </select>
+              <small>“Her altyazıyı tekrarla” politikasında geçerlidir.</small>
             </label>
             <div class="hint" style="margin:-2px 0 10px">
               İzlerken anında uygulanır, dosyayı değiştirmez. Yeni altyazı üretirken de
@@ -2570,6 +2595,7 @@
   <script src="vendor/hls.min.js"></script>
   <script src="../hls-recovery.js"></script>
   <script src="../playback-policy.js"></script>
+  <script src="../browser-chapters.js"></script>
   <script src="../browser-tabs.js"></script>
   <script src="../browser-tab-layout.js"></script>
   <script src="../browser-transcript-search.js"></script>
@@ -2581,6 +2607,7 @@
   <script src="../browser-workflow-recorder.js"></script>
   <script src="../browser-command-palette.js"></script>
   <script src="../browser-settings-registry.js"></script>
+  <script src="../provider-api-keys.js"></script>
   <script src="../subtitle-find-replace.js"></script>
   <script src="queue-lifecycle.js"></script>
   <script src="../renderer-ui-model.js"></script>

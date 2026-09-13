@@ -545,6 +545,28 @@ function dashOuterBase(xml, adaptation, baseUrl) {
   return resolved;
 }
 
+function parseIsoDurationSeconds(raw) {
+  const match = /^P(?:(\d+(?:\.\d+)?)D)?(?:T(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?$/i
+    .exec(String(raw || '').trim());
+  if (!match) return 0;
+  return (Number(match[1]) || 0) * 86400 + (Number(match[2]) || 0) * 3600
+    + (Number(match[3]) || 0) * 60 + (Number(match[4]) || 0);
+}
+
+function dashPeriodStart(xml, adaptation) {
+  const source = String(xml || '');
+  let inferredStart = 0;
+  for (const period of source.matchAll(/<Period\b([^>]*)>([\s\S]*?)<\/Period>/gi)) {
+    const explicit = attr(period[1], 'start');
+    const start = explicit ? parseIsoDurationSeconds(explicit) : inferredStart;
+    const endIndex = Number(period.index) + period[0].length;
+    if (Number(adaptation?.index) >= Number(period.index) && Number(adaptation?.index) < endIndex) return start;
+    const duration = parseIsoDurationSeconds(attr(period[1], 'duration'));
+    inferredStart = start + duration;
+  }
+  return 0;
+}
+
 function dashTextAdaptations(xml) {
   const out = [];
   for (const match of String(xml || '').matchAll(/<AdaptationSet\b([^>]*)>([\s\S]*?)<\/AdaptationSet>/gi)) {
@@ -581,6 +603,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
     const adaptationBase = lastBaseUrl(adaptationPrefix, outerBase);
     const adaptationTemplate = (adaptationPrefix.match(/<SegmentTemplate\b([^>]*)\/?\s*>/i) || [])[1] || '';
     const adaptationListMatch = adaptationPrefix.match(/<SegmentList\b([^>]*)>([\s\S]*?)<\/SegmentList>/i);
+    const periodStart = dashPeriodStart(xml, adaptation);
     for (const rep of dashRepresentations(adaptation.inner)) {
       const repBase = lastBaseUrl(rep.inner, adaptationBase);
       const templateTag = (rep.inner.match(/<SegmentTemplate\b([^>]*)\/?\s*>/i) || [])[1] || adaptationTemplate;
@@ -611,7 +634,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
           matchers.push({
             pattern: `^${escaped}${querySuffix}$`, variable: 'number',
             segmentValue: startNumber + segmentIndex++, startNumber, timescale, duration,
-            initializationUrl, language, label, format, streamKey,
+            periodStart, initializationUrl, language, label, format, streamKey,
           });
         }
         continue;
@@ -649,7 +672,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         timescale: Math.max(0, Number(attr(templateTag, 'timescale')) || 0),
         initializationUrl,
         duration: Math.max(0, Number(attr(templateTag, 'duration')) || 0),
-        startNumber: dashStartNumber(attr(templateTag, 'startNumber')),
+        startNumber: dashStartNumber(attr(templateTag, 'startNumber')), periodStart,
         language, label, format,
         streamKey: `dash-template|${absolute}|${representationId}|${language}`,
       });
@@ -682,14 +705,15 @@ function dashSegmentOffset(matcher) {
   // MPEG-DASH'te timescale verilmezse standart varsayılanı 1'dir. Manifest
   // varsa init parçasından okunan gerçek değer eşleştiriciye daha önce yazılır.
   const timescale = Math.max(1, Number(matcher && matcher.timescale) || 1);
-  if (!Number.isFinite(value)) return 0;
-  if (matcher.variable === 'time') return Math.max(0, value / timescale);
+  const periodStart = Math.max(0, Number(matcher && matcher.periodStart) || 0);
+  if (!Number.isFinite(value)) return periodStart;
+  if (matcher.variable === 'time') return periodStart + Math.max(0, value / timescale);
   if (matcher.variable === 'number' || matcher.variable === 'subnumber') {
     const duration = Math.max(0, Number(matcher.duration) || 0);
     const start = dashStartNumber(matcher.startNumber);
-    return duration ? Math.max(0, (value - start) * duration / timescale) : 0;
+    return periodStart + (duration ? Math.max(0, (value - start) * duration / timescale) : 0);
   }
-  return 0;
+  return periodStart;
 }
 
 function cuesUseLocalSegmentTimeline(cues, segmentDuration, segmentStart = 0) {

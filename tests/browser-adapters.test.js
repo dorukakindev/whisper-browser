@@ -74,6 +74,13 @@ test('teşhis URLsi imza, token ve fragmentleri göstermez', () => {
   assert.doesNotMatch(value, /secret|sig|private/);
 });
 
+test('teşhis URLsi userinfo kimlik bilgisini kaldırırken güvenli parametreleri korur', () => {
+  const value = redactCaptureUrl(
+    'https://kullanici:parola123@cdn.test/subs/en.vtt?token=secret&lang=tr&fmt=vtt#private');
+  assert.equal(value, 'https://cdn.test/subs/en.vtt?lang=tr&fmt=vtt');
+  assert.doesNotMatch(value, /kullanici|parola123|secret|private/);
+});
+
 test('tanı paketi manifest özetindeki imzalı URLleri temizler', () => {
   const preview = sanitizeManifestPreview('#EXTM3U\nhttps://cdn.test/sub.m4s?X-Goog-Signature=SECRET&lang=en\nkey?token=PRIVATE');
   assert.match(preview, /sub\.m4s\?lang=en/);

@@ -84,6 +84,8 @@ test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
   assert(/Number\.isFinite\(currentTime\)/.test(frame), '0. saniyedeki kare adımı eski konumu koruyor');
   const speed = js.slice(js.indexOf('async function nudgeSpeed'), js.indexOf('// Ses cubugu'));
   assert(/browserCommand\('speed', target\)/.test(speed), 'hız kısayolu web videosunu hedeflemiyor');
+  assert(/scheduleBrowserMediaPreferenceSync\(\)/.test(speed),
+    'hız kısayolu yeni değeri site fightback tercihine taşımıyor');
 });
 
 test('özel web oynatma hızında kısayol sıralı komşu hıza geçiyor', () => {
@@ -103,8 +105,10 @@ test('tarayıcı A-B döngüsü ve otomatik dur web video zamanını kullanıyor
   const cue = js.slice(js.indexOf('function renderBrowserCueAt'), js.indexOf('function applyBrowserTracks'));
   assert(/player\.abB/.test(cue) && /browserCommand\('seek', player\.abA\)/.test(cue),
     'A-B döngüsü web videosunu geri sarmıyor');
-  assert(/player\.autoPause/.test(cue) && /browserCommand\('pause'\)/.test(cue),
-    'otomatik dur web videosunu durdurmuyor');
+  const policy = js.slice(js.indexOf('function applyPlaybackLearningPolicy'), js.indexOf('function renderCue()'));
+  assert(/autoPause: player\.autoPause/.test(policy)
+      && /pause-at-cue-end/.test(policy) && /browserCommand\('pause'\)/.test(policy),
+    'otomatik dur politika katmanından web videosunu durdurmuyor');
   const toggle = js.slice(js.indexOf('function toggleAbLoop'), js.indexOf('function renderAbMarkers'));
   assert(/workspaceMode === 'browser' \? player\.browserTime/.test(toggle), 'A/B noktaları web zamanından alınmıyor');
 });
@@ -591,19 +595,14 @@ test('tarayıcı görünümü panel ve sürükleme değişikliklerinde gerçek a
 
 // ---- 6. otomatik dur ----
 test('otomatik dur geçişi ÖNCEKİ zamanın bloğuna göre sınanıyor', () => {
-  const i = js.indexOf('player.autoPause && !video.paused');
-  assert(i > 0, 'otomatik dur blogu bulunamadi');
-  const body = js.slice(i, i + 900);
-  // timeupdate ~250 ms'de bir tetiklenir, bloklar arasi bosluk ~80 ms. Tik
-  // cogu zaman boslugu atlayip SONRAKI blogun icine duser; o an mevcut
-  // indeksi kullanmak gecisi yanlis blogun sonuna gore sinar ve duraklatma
-  // kacirilir. Gecis her zaman lastT'nin blogu uzerinden sinanmali.
-  assert(!/const j = i >= 0 \? i :/.test(body),
-    'gecis mevcut indekse guveniyor — tik boslugu atlayinca duraklatma kacar');
-  assert(/const j = findCueAt\(player\.cues,\s*player\.lastT/.test(body),
-    'gecis lastT blogundan hesaplanmiyor');
-  assert(/dt > 0 && dt < 1/.test(body),
-    'ileri/geri sarma korumasi (dt) kaybolmus — sarmada da duraklatir');
+  const policy = require('../src/playback-policy');
+  const cues = [{ id: 'a', start: 1, end: 2, text: 'Bir' }, { id: 'b', start: 2.08, end: 3, text: 'İki' }];
+  assert(policy.playbackLearningAction(cues, 2.2, 1.9, 'normal', { autoPause: true }).type === 'pause-at-cue-end',
+    'kısa cue boşluğu atlanınca otomatik dur kaçtı');
+  assert(policy.playbackLearningAction(cues, 2.2, 0.2, 'normal', { autoPause: true }).type !== 'pause-at-cue-end',
+    'ileri/geri sarma otomatik dur sanıldı');
+  const body = js.slice(js.indexOf('function applyPlaybackLearningPolicy'), js.indexOf('function renderCue()'));
+  assert(/Number\.isFinite\(player\.abA\)/.test(body), 'A-B döngüsü sırasında öğrenme politikası susmuyor');
 });
 
 // ---- 7. satır hizası ve tema ----

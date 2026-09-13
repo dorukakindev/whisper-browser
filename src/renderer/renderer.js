@@ -2013,6 +2013,71 @@ function secretSettingPatch(id, key = 'apiKey') {
   const value = secretSettingValue(id);
   return value === undefined ? {} : { [key]: value };
 }
+
+const providerApiKeyProfiles = { translate: {}, manga: {} };
+const activeProviderCredentialScopes = { translate: '', manga: '' };
+const providerApiKeyProfilesEdited = { translate: false, manga: false };
+
+function providerCredentialScopeFor(kind) {
+  const api = window.WhisperProviderApiKeys;
+  if (!api) return '';
+  const preset = $(`${kind}EndpointPreset`)?.value || '';
+  const customBaseUrl = $(`${kind}BaseUrl`)?.value || '';
+  if (kind === 'manga' && preset === 'inherit') {
+    return api.providerCredentialScope(preset, customBaseUrl,
+      $('translateEndpointPreset')?.value || '', $('translateBaseUrl')?.value || '');
+  }
+  return api.providerCredentialScope(preset, customBaseUrl);
+}
+
+function rememberVisibleProviderApiKey(kind) {
+  const api = window.WhisperProviderApiKeys;
+  const control = $(`${kind}ApiKey`);
+  const scope = activeProviderCredentialScopes[kind] || providerCredentialScopeFor(kind);
+  if (!api || !control || !scope) return;
+  const before = api.serializeProviderKeyProfiles(providerApiKeyProfiles[kind]);
+  providerApiKeyProfiles[kind] = api.updateProviderKeyProfile(
+    providerApiKeyProfiles[kind], scope, control.value, control.dataset.secretEdited === 'true');
+  if (api.serializeProviderKeyProfiles(providerApiKeyProfiles[kind]) !== before) {
+    providerApiKeyProfilesEdited[kind] = true;
+  }
+}
+
+function activateProviderApiKey(kind, { markActiveEdited = true } = {}) {
+  const api = window.WhisperProviderApiKeys;
+  const control = $(`${kind}ApiKey`);
+  if (!api || !control) return;
+  rememberVisibleProviderApiKey(kind);
+  const scope = providerCredentialScopeFor(kind);
+  activeProviderCredentialScopes[kind] = scope;
+  control.value = api.providerKeyForScope(providerApiKeyProfiles[kind], scope);
+  control.dataset.secretEdited = markActiveEdited ? 'true' : 'false';
+}
+
+function initializeProviderApiKeyState(kind, settingsGroup = {}) {
+  const api = window.WhisperProviderApiKeys;
+  const control = $(`${kind}ApiKey`);
+  if (!api || !control) return;
+  providerApiKeyProfiles[kind] = api.normalizeProviderKeyProfiles(settingsGroup.apiKeyProfiles);
+  const scope = providerCredentialScopeFor(kind);
+  const legacyKey = typeof settingsGroup.apiKey === 'string' ? settingsGroup.apiKey.trim() : '';
+  if (scope && legacyKey && !api.providerKeyForScope(providerApiKeyProfiles[kind], scope)) {
+    providerApiKeyProfiles[kind] = api.updateProviderKeyProfile(
+      providerApiKeyProfiles[kind], scope, legacyKey, true);
+    providerApiKeyProfilesEdited[kind] = true;
+  }
+  activeProviderCredentialScopes[kind] = scope;
+  control.value = api.providerKeyForScope(providerApiKeyProfiles[kind], scope) || legacyKey;
+  control.dataset.secretEdited = 'false';
+}
+
+function providerApiKeyProfilesPatch(kind) {
+  const api = window.WhisperProviderApiKeys;
+  if (!api || !providerApiKeyProfilesEdited[kind]) return {};
+  const serialized = api.serializeProviderKeyProfiles(providerApiKeyProfiles[kind]);
+  return { apiKeyProfiles: serialized === '{}' ? '' : serialized };
+}
+
 document.addEventListener('change', (event) => {
   if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey'].includes(event.target.id)) {
     event.target.dataset.secretEdited = 'true';
@@ -2039,10 +2104,17 @@ async function saveAppSettings() {
     return false;
   }
   _settingsSaveWarningShown = false;
+  providerApiKeyProfilesEdited.translate = false;
+  providerApiKeyProfilesEdited.manga = false;
+  for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey']) {
+    if ($(id)) $(id).dataset.secretEdited = 'false';
+  }
   return true;
 }
 
 function appSettingsPayload() {
+  rememberVisibleProviderApiKey('translate');
+  rememberVisibleProviderApiKey('manga');
   return {
     glossary,
     ...secretSettingPatch('hfToken', 'hfToken'),
@@ -2052,12 +2124,14 @@ function appSettingsPayload() {
     watchDir: state.watchDir || '',
     translate: {
       ...secretSettingPatch('translateApiKey'),
+      ...providerApiKeyProfilesPatch('translate'),
       endpointPreset: $('translateEndpointPreset') ? $('translateEndpointPreset').value : '',
       customBaseUrl: $('translateBaseUrl') ? $('translateBaseUrl').value.trim() : '',
       model: $('translateModel') ? $('translateModel').value.trim() : '',
     },
     manga: {
       ...secretSettingPatch('mangaApiKey'),
+      ...providerApiKeyProfilesPatch('manga'),
       endpointPreset: $('mangaEndpointPreset') ? $('mangaEndpointPreset').value : 'inherit',
       customBaseUrl: $('mangaBaseUrl') ? $('mangaBaseUrl').value.trim() : '',
       model: $('mangaModel') ? $('mangaModel').value.trim() : '',
@@ -2095,9 +2169,10 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
-  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'youtubeCookieBrowser',
+  'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
+  'browserVideoBrightness', 'browserVideoContrast',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
 ];
@@ -2111,7 +2186,11 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
   'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
+  'browserRateFightback', 'browserPreservesPitch',
+  'browserDarkMode',
+  'browserNormalizeAudio',
   'browserPageAuto',
+  'browserPageIndexEnabled',
   'browserHardwareAcceleration',
   'browserAdblockEnabled',
   'browserAutoSkipAds',
@@ -2425,8 +2504,16 @@ if ($('llmEndpointPreset')) {
   });
 }
 
-// Çeviri endpoint preset'i: "custom" seçilince özel URL alanı görünür
-function updateTranslateEndpointUI() {
+function endpointPresetRecommendedModel(preset) {
+  const endpoint = String(preset?.value || preset || '').trim().replace(/\/+$/, '');
+  if (endpoint === 'https://codecraftapi.com/v1') return 'gemini-3.7-flash';
+  return '';
+}
+
+// Çeviri endpoint preset'i: "custom" seçilince özel URL alanı görünür.
+// data-default-model taşıyan sağlayıcılar seçildiğinde uyumlu modeli de seç;
+// ayar yüklerken ise kullanıcının önceden kaydettiği özel modeli ezme.
+function updateTranslateEndpointUI(applyRecommendedModel = false) {
   const preset = $('translateEndpointPreset');
   const customField = $('translateCustomUrlField');
   if (!preset || !customField) return;
@@ -2434,7 +2521,10 @@ function updateTranslateEndpointUI() {
   const model = $('translateModel');
   if (!model) return;
   const current = model.value.trim();
-  if (preset.value.includes('generativelanguage.googleapis.com')
+  const recommended = endpointPresetRecommendedModel(preset);
+  if (recommended && (applyRecommendedModel || !current)) {
+    model.value = recommended;
+  } else if (preset.value.includes('generativelanguage.googleapis.com')
       && (!current || ['gpt-4.1-mini', 'deepseek-chat'].includes(current))) {
     model.value = 'gemini-3.7-flash';
   }
@@ -2442,36 +2532,57 @@ function updateTranslateEndpointUI() {
 
 if ($('translateEndpointPreset')) {
   $('translateEndpointPreset').addEventListener('change', () => {
-    updateTranslateEndpointUI();
-    saveAppSettings();
+    if (!_applyingSettings) activateProviderApiKey('translate');
+    updateTranslateEndpointUI(true);
+    if (!_applyingSettings && $('mangaEndpointPreset')?.value === 'inherit') {
+      activateProviderApiKey('manga');
+    }
+    if (!_applyingSettings) saveAppSettings();
   });
   updateTranslateEndpointUI();
 }
 
-function updateMangaEndpointUI() {
+function updateMangaEndpointUI(applyRecommendedModel = false) {
   const preset = $('mangaEndpointPreset');
   const customField = $('mangaCustomUrlField');
   if (!preset || !customField) return;
   customField.classList.toggle('hidden', preset.value !== 'custom');
+  const model = $('mangaModel');
+  const recommended = endpointPresetRecommendedModel(preset);
+  if (model && recommended && (applyRecommendedModel || !model.value.trim())) {
+    model.value = recommended;
+  }
 }
 
 if ($('mangaEndpointPreset')) {
   $('mangaEndpointPreset').addEventListener('change', () => {
-    updateMangaEndpointUI();
-    saveAppSettings();
+    if (!_applyingSettings) activateProviderApiKey('manga');
+    updateMangaEndpointUI(true);
+    if (!_applyingSettings) saveAppSettings();
   });
   updateMangaEndpointUI();
 }
 
 // API anahtarı yazılınca kaydet (gizli alanlar PERSIST listesinde değil)
-['translateApiKey', 'mangaApiKey'].forEach((id) => {
+[['translateApiKey', 'translate'], ['mangaApiKey', 'manga']].forEach(([id, kind]) => {
   const el = $(id);
-  if (el) el.addEventListener('change', saveAppSettings);
+  if (el) el.addEventListener('change', () => {
+    rememberVisibleProviderApiKey(kind);
+    saveAppSettings();
+  });
 });
-['mangaBaseUrl', 'mangaModel'].forEach((id) => {
-  const el = $(id);
-  if (el) el.addEventListener('change', saveAppSettings);
+$('translateBaseUrl')?.addEventListener('change', () => {
+  if ($('translateEndpointPreset')?.value !== 'custom' || _applyingSettings) return;
+  activateProviderApiKey('translate');
+  if ($('mangaEndpointPreset')?.value === 'inherit') activateProviderApiKey('manga');
+  saveAppSettings();
 });
+$('mangaBaseUrl')?.addEventListener('change', () => {
+  if ($('mangaEndpointPreset')?.value !== 'custom' || _applyingSettings) return;
+  activateProviderApiKey('manga');
+  saveAppSettings();
+});
+$('mangaModel')?.addEventListener('change', saveAppSettings);
 ['llmApiKey', 'llmBaseUrl', 'llmModel'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('change', saveAppSettings);
@@ -2509,7 +2620,6 @@ if ($('deepseekKeyHelp')) {
         if ($('watchDirPath')) $('watchDirPath').textContent = s.watchDir;
       }
       if (s.translate) {
-        if (s.translate.apiKey && $('translateApiKey')) $('translateApiKey').value = s.translate.apiKey;
         if (s.translate.endpointPreset && $('translateEndpointPreset')) {
           $('translateEndpointPreset').value = s.translate.endpointPreset;
         }
@@ -2520,7 +2630,6 @@ if ($('deepseekKeyHelp')) {
         updateTranslateEndpointUI();
       }
       if (s.manga) {
-        if (s.manga.apiKey && $('mangaApiKey')) $('mangaApiKey').value = s.manga.apiKey;
         if (s.manga.endpointPreset && $('mangaEndpointPreset')) $('mangaEndpointPreset').value = s.manga.endpointPreset;
         if (s.manga.customBaseUrl && $('mangaBaseUrl')) $('mangaBaseUrl').value = s.manga.customBaseUrl;
         if (s.manga.model && $('mangaModel')) $('mangaModel').value = s.manga.model;
@@ -2535,6 +2644,10 @@ if ($('deepseekKeyHelp')) {
         if (s.llm.model && $('llmModel')) $('llmModel').value = s.llm.model;
       }
       if (s.ui) applyUiSettings(s.ui);
+      // UI'nin son endpoint değerleri belli olduktan sonra şifreli sağlayıcı
+      // halkasını yükle. Eski tek apiKey yalnız seçili sağlayıcıya taşınır.
+      initializeProviderApiKeyState('translate', s.translate || {});
+      initializeProviderApiKeyState('manga', s.manga || {});
       // Preset seçimini geri yükle (değerler zaten ui'dan geldi — yeniden uygulama yok)
       if (s.preset && ($('presetSelect').querySelector(`option[value="${s.preset}"]`))) {
         $('presetSelect').value = s.preset;
@@ -2840,6 +2953,19 @@ function finishRun(success) {
   updatePlayerTaskCenter();
 }
 
+function finishRunAwaitingProcessExit() {
+  // Backend `done` olayını stdout'a süreç kapanmadan hemen önce yollar. Bu dar
+  // aralıkta işi yeniden başlatılabilir göstermeyelim; aksi halde ikinci tık
+  // ana süreçte hâlâ yaşayan işe çarpar ve kullanıcı çevirinin yeniden
+  // başladığını sanabilir. Çeviri bitmiştir, yalnız süreç kapanışı beklenir.
+  state.running = true;
+  state.cancelled = false;
+  $('startBtn').classList.add('hidden');
+  $('cancelBtn').classList.add('hidden');
+  setStatus('Tamamlandı · süreç kapanıyor', 'success');
+  updatePlayerTaskCenter();
+}
+
 function notifyDone(title, body) {
   // Kullanıcı kapatmışsa bildirim gösterme; ayrıca yalnızca pencere odakta
   // değilken bildir (odaktaysa UI zaten görünüyor)
@@ -3137,6 +3263,13 @@ function playerJobEvent(event) {
   }
 
   if (event.type === 'exit' && job.awaitingExit) {
+    // `done` dosyaları diskte hazır demektir; oynatıcıya asenkron yükleme henüz
+    // sürüyor olabilir. Erken exit işi sahiplenmeden temizlerse ikinci tıklama
+    // yeni bir çeviri başlamış gibi görünür ve geç promise eski UI'ı değiştirir.
+    if (job.loading) {
+      job.exitSeen = true;
+      return true;
+    }
     job.awaitingExit = false;
     state.aiJob = false;
     if (player.job === job) player.job = null;
@@ -3277,6 +3410,8 @@ function playerJobEvent(event) {
     state.running = false;
     bar.classList.add('hidden');
   } else if (event.type === 'done') {
+    if (job.doneHandled) return true;
+    job.doneHandled = true;
     fill.style.width = '100%';
     job.awaitingExit = true;
     const files = (event.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
@@ -3290,11 +3425,20 @@ function playerJobEvent(event) {
     }
     const isTranslateJob = job.kind === 'translate';
     const isSyncJob = job.kind === 'sync';
+    const translationDescriptor = isTranslateJob
+      ? completedSubtitleOutputs(event, 'translation').translation : null;
+    const translationFailed = Math.max(0,
+      Number(translationDescriptor?.failed) || Number(job.failedBlocks) || 0);
+    const translationTotal = Math.max(0, Number(translationDescriptor?.total) || 0);
+    const translationCompleted = Math.max(0,
+      Number(translationDescriptor?.completed) || Math.max(0, translationTotal - translationFailed));
+    const translationPartial = isTranslateJob
+      && (translationDescriptor?.status === 'partial' || translationFailed > 0
+        || (translationTotal > 0 && translationCompleted < translationTotal));
     player.cueQualitySource = (job.liveSource || []).slice();
     job.loading = true;
     job.stage = 'Oynatıcıya yükleniyor';
     void attachCompletedJobSubtitles(event, job).then((result) => {
-      job.loading = false;
       if (isSyncJob && result.loaded) {
         player.offset = 0;
         if ($('subOffset')) {
@@ -3303,17 +3447,17 @@ function playerJobEvent(event) {
         }
       }
       if (isTranslateJob) {
-        const descriptor = completedSubtitleOutputs(event, 'translation').translation;
-        player.translationRetryAvailable = Math.max(0,
-          Number(descriptor?.failed) || Number(job.failedBlocks) || 0);
+        player.translationRetryAvailable = translationFailed;
         updateMakeTransState();
       }
-      const successText = isTranslateJob ? 'Türkçe çeviri hazır ve oynatıcıya yüklendi.'
+      const successText = translationPartial
+        ? `Kısmi çeviri yüklendi: ${translationCompleted}/${translationTotal || translationCompleted + translationFailed} cue hazır, ${translationFailed} cue eksik. Eksikleri tamamlayabilirsiniz.`
+        : isTranslateJob ? 'Türkçe çeviri hazır ve oynatıcıya yüklendi.'
         : isSyncJob ? 'Altyazı sese göre senkronlandı ve oynatıcıya yüklendi.'
         : 'Altyazı hazır ve oynatıcıya yüklendi.';
       finish(result.loaded ? successText
         : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${result.reason}`,
-        result.loaded ? 'success' : 'warn');
+        result.loaded && !translationPartial ? 'success' : 'warn');
       if (job.browserTrackId) {
         const latestTrack = player.browserTracks.find((track) => track.id === job.browserTrackId);
         if (latestTrack && Number(latestTrack.cueCount || 0) > Number(job.browserSourceCueCount || 0)) {
@@ -3325,6 +3469,18 @@ function playerJobEvent(event) {
       }
       refreshHistory();
       updatePlayerTaskCenter();
+    }).catch((error) => {
+      finish(`Dosya kaydedildi; oynatıcıya yükleme sırasında hata oluştu: ${String(error?.message || error).slice(0, 220)}`, 'warn');
+      rememberPendingPlayerLoad(event, job, 'Altyazı dosyası kaydedildi ancak otomatik yükleme tamamlanamadı.');
+    }).finally(() => {
+      job.loading = false;
+      if (job.exitSeen) {
+        job.awaitingExit = false;
+        state.aiJob = false;
+        if (player.job === job) player.job = null;
+        aiChatCtxLabel();
+        updateMakeTransState();
+      }
     });
   } else if (event.type === 'error' && job.kind === 'chat') {
     if (job.bubble) {
@@ -3676,11 +3832,11 @@ window.api.onEvent((event) => {
         }
         // Python stdout'taki done, işletim sistemi süreci kapanmadan gelebilir.
         // Sıradaki işi yalnız exit olayında başlat; activeJob o anda temizlenmiştir.
-        setStatus('Tamamlandı · süreç kapanıyor');
+        finishRunAwaitingProcessExit();
       } else {
         // Tek seferlik mod — modal göster
         showResultModal(event);
-        finishRun(true);
+        finishRunAwaitingProcessExit();
         notifyDone('Altyazı hazır', `${event.segments} segment · ${(event.files || []).length} dosya`);
       }
       break;
@@ -3997,9 +4153,6 @@ $('importSettings').addEventListener('click', async () => {
     if (s.llm.model && $('llmModel')) $('llmModel').value = s.llm.model;
   }
   if (s.translate) {
-    if (s.translate.apiKey !== undefined && $('translateApiKey')) {
-      $('translateApiKey').value = s.translate.apiKey || '';
-    }
     if (s.translate.endpointPreset && $('translateEndpointPreset')) {
       $('translateEndpointPreset').value = s.translate.endpointPreset;
     }
@@ -4010,13 +4163,14 @@ $('importSettings').addEventListener('click', async () => {
     updateTranslateEndpointUI();
   }
   if (s.manga) {
-    if (s.manga.apiKey !== undefined && $('mangaApiKey')) $('mangaApiKey').value = s.manga.apiKey || '';
     if (s.manga.endpointPreset && $('mangaEndpointPreset')) $('mangaEndpointPreset').value = s.manga.endpointPreset;
     if (s.manga.customBaseUrl !== undefined && $('mangaBaseUrl')) $('mangaBaseUrl').value = s.manga.customBaseUrl || '';
     if (s.manga.model !== undefined && $('mangaModel')) $('mangaModel').value = s.manga.model || '';
     updateMangaEndpointUI();
   }
   if (s.ui) applyUiSettings(s.ui);
+  initializeProviderApiKeyState('translate', s.translate || {});
+  initializeProviderApiKeyState('manga', s.manga || {});
   if (window.BrowserWorkflowRecorder) {
     browserWorkflowLibrary = window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(s.browserWorkflows);
   }
@@ -4195,6 +4349,8 @@ const player = {
   pausedAt: -1,
   ytInfo: null,
   chapters: [],
+  nativeChapters: [],
+  browserSponsorChapters: [],
   hls: null,
   hlsRecovery: window.WhisperHlsRecovery.createHlsRecoveryState(),
   isLive: false,
@@ -4389,6 +4545,8 @@ const player = {
   learningBaseRate: 1,
   shadowResumeTimer: null,
   shadowPausedCueId: '',
+  loopCueId: '',
+  loopCueRepeats: 0,
   cueEditUndo: [],
   cueEditRedo: [],
   subtitleFindReplace: { generation: 0, timer: null, matches: [], selected: new Set() },
@@ -5063,6 +5221,19 @@ function browserCommandPaletteCommands() {
     { id: 'site-profile', title: 'Bu sitenin profilini aç', keywords: ['site', 'profil', 'otomatik'], category: 'ayarlar', available: () => ({ enabled: !!effectiveBrowserProfile().origin, reason: 'Önce bir web sitesi açın.' }), run: () => { if ($('browserProfileScope')) $('browserProfileScope').value = 'site'; openBrowserSettings('site', 'browserProfileScope'); renderBrowserSiteProfile(); } },
     { id: 'view-settings', title: 'Görünüm ve manga ayarlarını aç', keywords: ['görünüm', 'manga', 'sayfa'], category: 'ayarlar', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-settings' } }), run: () => openBrowserSettings('site') },
     { id: 'diagnostics', title: 'Yakalama ayrıntılarını göster', keywords: ['altyazı', 'tanı', 'hata'], category: 'inceleme', workflowStep: () => ({ command: 'openSettings', args: { page: 'browser-diagnostics' } }), run: () => toggleSettingsPage('browser-diagnostics') },
+    { id: 'link-hints', title: 'Bağlantıları klavyeyle etiketle', keywords: ['link', 'bağlantı', 'vimium', 'klavye'], category: 'gezinme', run: async () => {
+      const result = await browserCommand('link-hints');
+      if (result?.ok) setBrowserSignal(`${result.count} bağlantı/form etiketi gösterildi. Harfleri yazın; Esc ile kapatın.`, true, { priority: 25 });
+      else setBrowserSignal(result?.error || 'Bağlantı etiketleri açılamadı.', false);
+    } },
+    { id: 'link-hints-new', title: 'Bağlantıları yeni sekme için etiketle', keywords: ['link', 'bağlantı', 'yeni sekme', 'vimium'], category: 'gezinme', run: async () => {
+      const result = await browserCommand('link-hints-new');
+      if (!result?.ok) setBrowserSignal(result?.error || 'Bağlantı etiketleri açılamadı.', false);
+    } },
+    { id: 'capture-full-page', title: 'Tam sayfa ekran görüntüsü kaydet', keywords: ['ekran', 'görüntü', 'tam sayfa', 'png'], category: 'yakalama', run: () => captureBrowserPageMode({ mode: 'full' }) },
+    { id: 'capture-video-captions', title: 'Video karesi ve altyazıyı kaydet', keywords: ['ekran', 'video', 'altyazı', 'anki'], category: 'yakalama', run: () => captureBrowserPageMode({ mode: 'video-captions' }) },
+    { id: 'capture-video-clean', title: 'Temiz video karesini kaydet', keywords: ['ekran', 'video', 'temiz', 'kontrolsüz'], category: 'yakalama', run: () => captureBrowserPageMode({ mode: 'video' }) },
+    { id: 'copy-video-captions', title: 'Video karesi ve altyazıyı panoya kopyala', keywords: ['pano', 'video', 'altyazı', 'anki'], category: 'yakalama', run: () => captureBrowserPageMode({ mode: 'video-captions', copy: true, save: false }) },
     { id: 'load-source', title: 'Seçili kaynak altyazıyı yükle', keywords: ['altyazı', 'kaynak', 'yükle'], category: 'altyazı', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'loadSourceTrack', args: workflowTrackArgs(browserTrackSelection(false)) }), run: () => useBrowserTrack(false) },
     { id: 'translate-track', title: 'Seçili altyazıyı çevir', keywords: ['çeviri', 'altyazı', 'başlat'], category: 'çeviri', available: () => ({ enabled: !!browserTrackSelection(false), reason: 'Kullanılabilir kaynak izi yok.' }), workflowStep: () => ({ command: 'translateTrack', args: workflowTrackArgs(browserTrackSelection(false)) }), run: () => useBrowserTrack(true) },
     { id: 'complete-translation', title: 'Eksik çevirileri tamamla', keywords: ['çeviri', 'eksik', 'tamamla'], category: 'çeviri', available: () => ({ enabled: !!player.browserTranslationTrackId, reason: 'Önce bir çeviri işi başlatın.' }), workflowStep: () => ({ command: 'completeTranslation', args: workflowTrackArgs(browserTrackSelection(false), player.browserTranslationTrackId) }), run: () => completeSelectedBrowserTranslation() },
@@ -6194,6 +6365,13 @@ function browserProfileControls() {
     ['overlayMaxLines', 'browserOverlayMaxLines', 'Azami satır', 3],
     ['overlaySourceFirst', 'browserOverlaySourceFirst', 'Kaynak üstte', true],
     ['hideSiteCaptions', 'browserHideSiteCaptions', 'Site altyazısını gizle', false],
+    ['playbackRate', 'playerSpeed', 'Site oynatma hızı', 1],
+    ['enforcePlaybackRate', 'browserRateFightback', 'Site hızı sıfırlarsa geri uygula', false],
+    ['preservesPitch', 'browserPreservesPitch', 'Hız değişince ses perdesini koru', true],
+    ['videoBrightness', 'browserVideoBrightness', 'Video parlaklığı (%)', 1, 100],
+    ['videoContrast', 'browserVideoContrast', 'Video kontrastı (%)', 1, 100],
+    ['darkMode', 'browserDarkMode', 'Koyu sayfa görünümü', false],
+    ['normalizeAudio', 'browserNormalizeAudio', 'Konuşma sesi normalleştirme', false],
     ['adblockEnabled', 'browserAdblockEnabled', 'Bu sitede reklam koruması', true],
   ];
 }
@@ -6270,7 +6448,7 @@ function renderBrowserSiteProfile() {
         else original.value = input.value;
         original.dispatchEvent(new Event('input', { bubbles: true }));
         original.dispatchEvent(new Event('change', { bubbles: true }));
-        scheduleSave(); scheduleBrowserOverlaySync(); renderBrowserSiteProfile();
+        scheduleSave(); scheduleBrowserOverlaySync(); scheduleBrowserMediaPreferenceSync(); scheduleBrowserDarkModeSync(); renderBrowserSiteProfile();
       } else updateBrowserProfileField(field, typeof fallback === 'boolean' ? input.checked
         : typeof fallback === 'number' ? Number(input.value) / scale : input.value, false, editContext);
     });
@@ -6307,7 +6485,7 @@ async function updateBrowserProfileField(field, value, reset = false, expected =
     player.browserPlaces = result.places;
   } else return;
   if (player.browserActiveTabId !== tabId || browserTabState()?.generation !== generation) return;
-  renderBrowserSiteProfile(); scheduleBrowserOverlaySync();
+  renderBrowserSiteProfile(); scheduleBrowserOverlaySync(); scheduleBrowserMediaPreferenceSync(); scheduleBrowserDarkModeSync();
   $('browserProfileStatus').textContent = field === 'adblockEnabled'
     ? 'Reklam koruması yeni isteklere uygulandı. Sayfadaki mevcut reklam öğeleri için sayfayı yenileyin.'
     : 'Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.';
@@ -8401,6 +8579,38 @@ function scheduleBrowserOverlaySync() {
   }, 120);
 }
 
+function scheduleBrowserMediaPreferenceSync() {
+  clearTimeout(player.browserMediaPreferenceTimer);
+  if (player.workspaceMode !== 'browser' || !window.api.browserCommand || !player.browserActiveTabId) return;
+  player.browserMediaPreferenceTimer = setTimeout(async () => {
+    player.browserMediaPreferenceTimer = null;
+    const effective = effectiveBrowserProfile().values;
+    const result = await browserCommand('media-preference', {
+      rate: effective.playbackRate,
+      enforceRate: effective.enforcePlaybackRate,
+      preservesPitch: effective.preservesPitch,
+      brightness: effective.videoBrightness,
+      contrast: effective.videoContrast,
+      normalizeAudio: effective.normalizeAudio,
+    }).catch(() => null);
+    if (result?.ok && result.media?.media) {
+      player.browserRate = Number(result.media.media.playbackRate) || player.browserRate;
+    }
+  }, 120);
+}
+
+function scheduleBrowserDarkModeSync() {
+  clearTimeout(player.browserDarkModeTimer);
+  if (player.workspaceMode !== 'browser' || !window.api.browserCommand || !player.browserActiveTabId) return;
+  player.browserDarkModeTimer = setTimeout(() => {
+    player.browserDarkModeTimer = null;
+    browserCommand('page-dark-mode', effectiveBrowserProfile().values.darkMode === true)
+      .then((result) => {
+        if (!result?.ok && !result?.stale) setBrowserSignal(result?.error || 'Koyu sayfa görünümü uygulanamadı.', false);
+      }).catch(() => {});
+  }, 180);
+}
+
 function setBrowserLoadingState(loading, updateTab = true) {
   const active = !!loading;
   const reload = $('browserReload');
@@ -8525,6 +8735,7 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserVolume = 1;
     player.browserMuted = false;
     player.browserSponsorSegments = [];
+    player.browserSponsorChapters = [];
     player.browserSponsorVideoId = '';
     player.browserSponsorSkipped = new Set();
     player.browserSponsorExempt = new Set();
@@ -8539,6 +8750,7 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserAdSkippable = false;
     player.browserAdRemaining = null;
     player.browserAdSkipPending = false;
+    if (typeof renderResolvedChapters === 'function') renderResolvedChapters();
     player.browserAdLastSkipAt = 0;
     player.browserAdLastNoticeAction = '';
     const sponsorButton = $('browserSponsorTemporary');
@@ -8587,6 +8799,10 @@ function updateBrowserNavigation(data, options = {}) {
   }
   if (data.loading === false && data.url && player.workspaceMode === 'browser' && browserSponsorMode() !== 'off') {
     refreshBrowserSponsorSegments().catch(() => {});
+  }
+  if (data.loading === false && data.url && player.workspaceMode === 'browser') {
+    scheduleBrowserMediaPreferenceSync();
+    scheduleBrowserDarkModeSync();
   }
   if (data.loading === false && data.url && $('browserMangaAuto')?.checked
       && player.browserMangaAutoUrl !== data.url && !player.browserMangaBusy) {
@@ -8758,17 +8974,14 @@ function renderBrowserSponsorSegments() {
 async function refreshBrowserSponsorSegments() {
   if (player.workspaceMode !== 'browser' || !window.api.getBrowserSponsorSegments) return;
   if (browserSponsorMode() === 'off' || player.browserSponsorTemporaryDisabled) {
+    player.browserSponsorSegments = [];
+    player.browserSponsorChapters = [];
+    renderResolvedChapters();
+    renderBrowserSponsorSegments();
     if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'SponsorBlock kapalı; ağ isteği gönderilmedi.';
     return;
   }
   const categories = browserSponsorCategories();
-  if (!categories.length) {
-    player.browserSponsorSegments = [];
-    player.browserSponsorFetchSeq += 1;
-    renderBrowserSponsorSegments();
-    if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Kategori seçilmedi; ağ isteği gönderilmedi.';
-    return;
-  }
   const seq = ++player.browserSponsorFetchSeq;
   const requestedTabId = player.browserActiveTabId;
   const requestedGeneration = Number(browserTabState()?.generation) || 0;
@@ -8777,9 +8990,12 @@ async function refreshBrowserSponsorSegments() {
     categories, player.browserDuration).catch(() => null);
   if (seq !== player.browserSponsorFetchSeq || result?.tabId !== player.browserActiveTabId
       || player.browserActiveTabId !== requestedTabId
+      || browserSponsorMode() === 'off' || player.browserSponsorTemporaryDisabled
       || (requestedGeneration && Number(result?.mediaGeneration) !== requestedGeneration)) return;
   if (!result?.ok) {
     player.browserSponsorSegments = [];
+    player.browserSponsorChapters = [];
+    renderResolvedChapters();
     if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'Sponsor bilgileri alınamadı; video normal oynatılıyor.';
     renderBrowserSponsorSegments(); return;
   }
@@ -8788,14 +9004,22 @@ async function refreshBrowserSponsorSegments() {
   player.browserSponsorGeneration = Number(result.mediaGeneration) || 0;
   player.browserSponsorSegments = (Array.isArray(result.segments) ? result.segments : [])
     .filter((segment) => !Number.isFinite(player.browserDuration) || player.browserDuration <= 0 || segment.end <= player.browserDuration);
+  player.browserSponsorChapters = (Array.isArray(result.chapters) ? result.chapters : [])
+    .filter((chapter) => !Number.isFinite(player.browserDuration) || player.browserDuration <= 0 || chapter.start < player.browserDuration);
+  renderResolvedChapters();
   if (previousVideoId && previousVideoId !== player.browserSponsorVideoId) {
     player.browserSponsorSkipped = new Set();
     player.browserSponsorPrompted = new Set();
   }
   restoreBrowserSponsorExemptions();
   renderBrowserSponsorSegments();
-  if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = player.browserSponsorSegments.length
-    ? `${player.browserSponsorSegments.length} sponsor bölümü bulundu.` : 'Bu videoda sponsor bölümü bulunamadı.';
+  if ($('browserSponsorStatus')) {
+    const parts = [];
+    if (player.browserSponsorSegments.length) parts.push(`${player.browserSponsorSegments.length} sponsor bölümü`);
+    if (player.browserSponsorChapters.length) parts.push(`${player.browserSponsorChapters.length} topluluk bölümü`);
+    $('browserSponsorStatus').textContent = parts.length
+      ? `${parts.join(' · ')} bulundu.` : 'Bu videoda sponsor veya topluluk bölümü bulunamadı.';
+  }
 }
 
 function seekBrowserSponsorSegment(segment, undo = false) {
@@ -8853,11 +9077,11 @@ function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaus
   const mode = browserSponsorMode();
   if (paused || mode === 'off' || player.browserSponsorTemporaryDisabled || player.browserAdPlaying
       || (player.abA !== null && player.abB !== null) || !player.browserSponsorSegments.length
-      || !Number.isFinite(player.browserDuration) || player.browserDuration <= 0) return;
+      || !Number.isFinite(player.browserDuration) || player.browserDuration <= 0) return false;
   const currentTabGeneration = Number(browserTabState()?.generation) || 0;
-  if (player.browserSponsorGeneration && currentTabGeneration !== player.browserSponsorGeneration) return;
+  if (player.browserSponsorGeneration && currentTabGeneration !== player.browserSponsorGeneration) return false;
   const now = Date.now();
-  if (now < player.browserSponsorMutedUntil) return;
+  if (now < player.browserSponsorMutedUntil) return false;
   if (Number.isFinite(previousTime) && previousTime - time > 1) {
     player.browserSponsorMutedUntil = now + 3000;
     const rewoundSegment = player.browserSponsorSegments.find((item) => time >= item.start && time < item.end
@@ -8869,7 +9093,7 @@ function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaus
         { priority: 60, holdMs: 3000, action: 'sponsor-watch', force: true });
       player.browserSponsorWatchTimer = setTimeout(clearBrowserSponsorWatchAction, 3000);
     }
-    return;
+    return false;
   }
   // `skipped` only prevents the duplicate seek generated by the same media
   // tick. Once playback leaves a segment, allow it to be skipped again when
@@ -8885,45 +9109,38 @@ function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaus
   const segment = player.browserSponsorSegments.find((item) => time >= item.start && time < item.end
     && !player.browserSponsorSkipped.has(item.uuid || `${item.start}:${item.end}`)
     && !player.browserSponsorExempt?.has(item.uuid || `${item.start}:${item.end}`));
-  if (!segment) return;
+  if (!segment) return false;
   player.browserSponsorPendingAction = segment;
   if (mode === 'ask') {
     const id = segment.uuid || `${segment.start}:${segment.end}`;
-    if (player.browserSponsorPrompted?.has(id)) return;
+    if (player.browserSponsorPrompted?.has(id)) return false;
     player.browserSponsorPrompted?.add(id);
     const remainingMs = Math.max(3500, Math.min(2 * 60 * 60 * 1000,
       Math.round(Math.max(0, segment.end - Number(time || 0)) * 1000)));
     setBrowserSignal(`Sponsor bölümü bulundu · ${pSecToTime(segment.end - segment.start)}`, true,
       { priority: 60, holdMs: remainingMs, action: 'sponsor-skip' });
-    return;
+    return false;
   }
   seekBrowserSponsorSegment(segment, false);
+  return true;
 }
 
 function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   const t = subtitleSourceTime(Number(time || 0), false);
-  applyBrowserSponsorSkip(Number(time || 0), Number(previousTime), paused);
+  const sponsorSeekStarted = applyBrowserSponsorSkip(Number(time || 0), Number(previousTime), paused);
   const previous = Number(previousTime);
-  applyPlaybackLearningPolicy(time, previousTime, paused, true);
   if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
       && (!Number.isFinite(previous) || previous < player.abB)) {
     player.browserTime = player.abA;
     browserCommand('seek', player.abA).catch(() => {});
     return renderBrowserCueAt(player.abA, undefined, paused);
   }
+  if (!sponsorSeekStarted) applyPlaybackLearningPolicy(time, previousTime, paused, true);
   if (player.cues.length) {
     const index = findCueAt(player.cues, t, player.activeIdx);
     if (index !== player.activeIdx) {
       player.activeIdx = index;
       highlightCueRow();
-    }
-    const prev = subtitleSourceTime(previous, false);
-    const dt = Number.isFinite(prev) ? t - prev : -1;
-    if (player.autoPause && !paused && dt > 0 && dt < 1) {
-      const priorIndex = findCueAt(player.cues, prev, player.activeIdx);
-      if (priorIndex >= 0 && prev < player.cues[priorIndex].end && t >= player.cues[priorIndex].end) {
-        browserCommand('pause').catch(() => {});
-      }
     }
   }
   if (player.cues2.length) {
@@ -9302,17 +9519,46 @@ const browserRangeOutputs = {
   browserOverlayOpacity: ['browserOverlayOpacityVal', (value) => `%${value}`],
   browserOverlayBottom: ['browserOverlayBottomVal', (value) => `%${value}`],
   browserOverlayWidth: ['browserOverlayWidthVal', (value) => `%${value}`],
+  browserVideoBrightness: ['browserVideoBrightnessVal', (value) => `%${value}`],
+  browserVideoContrast: ['browserVideoContrastVal', (value) => `%${value}`],
 };
 for (const [id, [outputId, format]] of Object.entries(browserRangeOutputs)) {
   const control = $(id);
   if (!control) continue;
   const refresh = () => { if ($(outputId)) $(outputId).textContent = format(control.value); };
-  control.addEventListener('input', () => { refresh(); if (id.startsWith('browserOverlay')) scheduleBrowserOverlaySync(); });
+  control.addEventListener('input', () => {
+    refresh();
+    if (id.startsWith('browserOverlay')) scheduleBrowserOverlaySync();
+    if (id.startsWith('browserVideo')) scheduleBrowserMediaPreferenceSync();
+  });
   refresh();
 }
 for (const id of ['browserOverlayMaxLines', 'browserOverlaySourceFirst', 'browserHideSiteCaptions']) {
   $(id)?.addEventListener('change', scheduleBrowserOverlaySync);
 }
+for (const id of ['browserRateFightback', 'browserPreservesPitch', 'browserNormalizeAudio']) {
+  $(id)?.addEventListener('change', scheduleBrowserMediaPreferenceSync);
+}
+$('browserDarkMode')?.addEventListener('change', scheduleBrowserDarkModeSync);
+$('browserPageIndexEnabled')?.addEventListener('change', async (event) => {
+  const requested = event.target.checked === true;
+  const result = await window.api.setBrowserPageIndexEnabled?.(requested)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    event.target.checked = !requested;
+    setBrowserSignal(result?.error || 'Sayfa metni indeksleme tercihi uygulanamadı.', false);
+    return;
+  }
+  setBrowserSignal(requested
+    ? 'Gezilen sayfaların metni yalnız bu cihazdaki arama indeksine eklenecek.'
+    : 'Yeni sayfaların metni artık indekslenmeyecek. Önceki kayıtları ayrıca temizleyebilirsiniz.', true);
+});
+$('browserPageIndexClear')?.addEventListener('click', async () => {
+  const result = await window.api.clearBrowserPageIndex?.()
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) setBrowserSignal(`${Number(result.removed) || 0} sayfa kaydı yerel indeksten silindi.`, true);
+  else setBrowserSignal(result?.error || 'Yerel sayfa indeksi temizlenemedi.', false);
+});
 $('browserMangaRetryFailed')?.addEventListener('click', async () => {
   const result = await window.api.retryFailedBrowserManga?.(player.browserActiveTabId)
     .catch((error) => ({ ok: false, error: error.message }));
@@ -9771,7 +10017,8 @@ if ($('browserSponsorMode')) $('browserSponsorMode').addEventListener('change', 
   const mode = browserSponsorMode();
   if (mode === 'off') {
     clearBrowserSponsorWatchAction();
-    player.browserSponsorSegments = []; player.browserSponsorFetchSeq += 1; renderBrowserSponsorSegments();
+    player.browserSponsorSegments = []; player.browserSponsorChapters = [];
+    player.browserSponsorFetchSeq += 1; renderBrowserSponsorSegments(); renderResolvedChapters();
     if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = 'SponsorBlock kapalı; ağ isteği gönderilmez.';
   } else {
     setBrowserSignal(mode === 'auto' ? 'Sponsor bölümleri otomatik atlanacak.' : 'Sponsor bölümü bulunduğunda atlama seçeneği gösterilecek.', true);
@@ -9785,7 +10032,14 @@ if ($('browserSponsorTemporary')) $('browserSponsorTemporary').addEventListener(
   button.textContent = player.browserSponsorTemporaryDisabled ? 'Bu videoda yeniden aç' : 'Bu videoda geçici kapat';
   if ($('browserSponsorStatus')) $('browserSponsorStatus').textContent = player.browserSponsorTemporaryDisabled
     ? 'SponsorBlock bu video için geçici olarak kapatıldı.' : 'SponsorBlock bu video için yeniden açıldı.';
-  if (player.browserSponsorTemporaryDisabled) clearBrowserSponsorWatchAction();
+  if (player.browserSponsorTemporaryDisabled) {
+    clearBrowserSponsorWatchAction();
+    player.browserSponsorFetchSeq += 1;
+    player.browserSponsorSegments = [];
+    player.browserSponsorChapters = [];
+    renderBrowserSponsorSegments();
+    renderResolvedChapters();
+  }
   if (!player.browserSponsorTemporaryDisabled) refreshBrowserSponsorSegments().catch(() => {});
 });
 if ($('browserSponsorInfo')) $('browserSponsorInfo').addEventListener('click', () => {
@@ -10078,6 +10332,12 @@ function runBrowserShortcut(key, shift = false) {
   const normalized = String(key || '').toLowerCase();
   if (normalized === 'k' || normalized === 'p') { openBrowserCommandPalette(); return true; }
   if (normalized === 'f') { openBrowserFind(); return true; }
+  if (normalized === 'h' && shift) {
+    browserCommand('link-hints').then((result) => {
+      if (!result?.ok) setBrowserSignal(result?.error || 'Bağlantı etiketleri açılamadı.', false);
+    }).catch(() => {});
+    return true;
+  }
   if (normalized === 'l') { $('browserAddress')?.focus(); $('browserAddress')?.select(); return true; }
   if (normalized === 't' && shift) { reopenClosedBrowserTab(); return true; }
   if (normalized === 't') { createBrowserTab(); return true; }
@@ -11177,25 +11437,37 @@ function findCueAt(cues, t, hint) {
 }
 
 function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
-  if (player.editing || player.holdingSpeed || $('playerVideo')?.seeking) return;
-  if (player.playbackPolicy === 'normal' || !player.cues.length || !window.WhisperPlaybackPolicy) return;
+  if (player.editing || player.holdingSpeed || player.seekDragging || $('playerVideo')?.seeking) return;
+  if (Number.isFinite(player.abA) && Number.isFinite(player.abB)) return;
+  if ((player.playbackPolicy === 'normal' && !player.autoPause)
+      || !player.cues.length || !window.WhisperPlaybackPolicy) return;
   const currentSourceTime = browserMode ? subtitleSourceTime(time, false) : Number(time) - player.offset;
   const previousSourceTime = browserMode ? subtitleSourceTime(previousTime, false) : Number(previousTime) - player.offset;
   const action = window.WhisperPlaybackPolicy.playbackLearningAction(
     player.cues, currentSourceTime, previousSourceTime,
     player.playbackPolicy,
     { baseRate: player.learningBaseRate, gapRate: Math.max(2, player.learningBaseRate), minGap: 2, lead: .15,
-      lastShadowCueId: player.shadowPausedCueId },
+      lastShadowCueId: player.shadowPausedCueId, autoPause: player.autoPause,
+      loopCueId: player.loopCueId, completedRepeats: player.loopCueRepeats,
+      repeatCount: Number($('playerCueRepeatCount')?.value) || 5 },
   );
   if (!action) return;
-  if (action.type === 'seek') {
+  if (action.type === 'seek' || action.type === 'loop-cue') {
     const target = browserMode ? subtitleVideoTime(action.time, false) : action.time + player.offset;
+    if (action.type === 'loop-cue') {
+      player.loopCueId = action.cueId || '';
+      player.loopCueRepeats = Number(action.completedRepeats) || 0;
+      osd(`Altyazı tekrarı ${player.loopCueRepeats + 1}/${action.repeatCount}`, 700);
+    }
     if (browserMode) {
       if (Date.now() < Number(player.browserLearningSeekUntil || 0)) return;
       player.browserLearningSeekUntil = Date.now() + 750;
       browserCommand('seek', target).catch(() => {});
     }
     else if ($('playerVideo')) $('playerVideo').currentTime = target;
+  } else if (action.type === 'loop-cue-finished') {
+    player.loopCueId = '';
+    player.loopCueRepeats = 0;
   } else if (action.type === 'set-rate') {
     if (action.cueId) player.shadowPausedCueId = '';
     const current = browserMode ? player.browserRate : Number($('playerVideo')?.playbackRate || 1);
@@ -11214,6 +11486,10 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
       });
     }
     else if ($('playerVideo')) $('playerVideo').playbackRate = action.rate;
+  } else if (action.type === 'pause-at-cue-end' && !paused) {
+    if (browserMode) browserCommand('pause').catch(() => {});
+    else $('playerVideo')?.pause();
+    osd('Altyazı sonunda durdu', 900);
   } else if (action.type === 'pause-for-shadowing' && !paused && !player.shadowResumeTimer) {
     const generation = currentGeneration();
     if (browserMode) browserCommand('pause').catch(() => {});
@@ -11248,28 +11524,8 @@ function renderCue() {
     if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
     renderActiveCueWord(i, i >= 0 ? player.cues[i] : null, t, overlay);
 
-    // Her blok sonunda duraklat (Voracious'taki çalışma modu).
-    // GECIS yakalanir: onceki zaman blok sonundan kucuk, simdiki buyuk/esit.
-    // Eskiden "t >= end - 0.05" penceresine bakiliyordu; timeupdate ~250 ms'de bir
-    // tetiklendigi icin 50 ms'lik pencere cogu blok sonunda ISKALANIYORDU (ve blok
-    // bittikten sonra findCueAt -1 dondugu icin kosul hic calismiyordu).
-    // dt korumasi: ileri/geri sarmada (buyuk sicrama) duraklatma tetiklenmesin -
-    // yalnizca normal oynatma adimi (0 < dt < 1 sn) gecis sayilir.
-    const dt = player.lastT === undefined ? -1 : t - player.lastT;
     applyPlaybackLearningPolicy(video.currentTime,
       player.lastT === undefined ? NaN : player.lastT + player.offset, video.paused, false);
-    if (player.autoPause && !video.paused && !video.seeking && dt > 0 && dt < 1.0) {
-      // Bitisini gectigimiz blogu HER ZAMAN onceki zamana gore bul.
-      // Eskiden `i >= 0 ? i : ...` yaziyordu: tik boslugu atlayip sonraki
-      // blogun icine dustugunde (250 ms tik / 80 ms bosluk -> cogu zaman)
-      // gecis YANLIS blogun sonuna gore sinaniyor ve duraklatma kaciriliyordu.
-      const j = findCueAt(player.cues, player.lastT, player.activeIdx);
-      if (j >= 0 && player.lastT < player.cues[j].end && t >= player.cues[j].end) {
-        video.pause();
-        // Kullanici geri sarip ayni blogu tekrar dinlerse YINE dursun diye
-        // isaretlemeye gerek yok: gecis mantigi kendini tekrarlamaz.
-      }
-    }
     player.lastT = t;
   } else {
     setOverlayText(overlay, '');
@@ -11543,6 +11799,8 @@ function bindTranscriptScroll() {
 function seekToCue(i) {
   const video = $('playerVideo');
   if (i < 0 || i >= player.cues.length) return;
+  player.loopCueId = '';
+  player.loopCueRepeats = 0;
   let target = subtitleVideoTime(player.cues[i].start, false);
   target = Math.max(0, target + 0.01);
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
@@ -12137,6 +12395,8 @@ if ($('timelineCanvas')) {
     } else if (e.key === 'Enter') {
       const cue = player.cues[player.timeline.selected];
       if (cue) {
+        player.loopCueId = '';
+        player.loopCueRepeats = 0;
         const target = Math.max(0, subtitleVideoTime(cue.start, false));
         if (player.workspaceMode === 'browser') browserCommand('seek', target).catch(() => {});
         else if ($('playerVideo')) $('playerVideo').currentTime = target;
@@ -12167,6 +12427,8 @@ if ($('timelineCanvas')) {
         Math.abs(cueAt - c.start), Math.abs(cueAt - c.end)) <= edgeSec);
     }
     if (hit < 0) {
+      player.loopCueId = '';
+      player.loopCueRepeats = 0;
       const target = Math.max(0, Math.min(timelineDuration(), at));
       if (player.workspaceMode === 'browser' && window.api.browserCommand) {
         player.browserTime = target;
@@ -12453,6 +12715,7 @@ function captureWatchPrefs() {
     offset: player.offset,
     autoPause: player.autoPause,
     playbackPolicy: player.playbackPolicy,
+    cueRepeatCount: Number($('playerCueRepeatCount')?.value) || 5,
     autoFollow: player.autoFollow,
     showSource: $('showSource') ? $('showSource').checked : true,
     showTranslation: $('showTranslation') ? $('showTranslation').checked : true,
@@ -12600,6 +12863,9 @@ async function restoreWatchProfile(key) {
     $('playerPlaybackPolicy').value = prefs.playbackPolicy;
     $('playerPlaybackPolicy').dispatchEvent(new Event('change'));
   }
+  if (prefs.cueRepeatCount && $('playerCueRepeatCount')) {
+    $('playerCueRepeatCount').value = String(Math.max(2, Math.min(20, Number(prefs.cueRepeatCount) || 5)));
+  }
   if (prefs.subStyle && typeof prefs.subStyle === 'object') {
     player.subStyle = { ...SUB_STYLE_DEFAULTS, ...prefs.subStyle };
     applySubtitleStyle();
@@ -12639,6 +12905,7 @@ function libraryResultKindLabel(result) {
   if (result.kind === 'tabs') return 'Açık sekme';
   if (result.kind === 'bookmarks') return 'Yer imi';
   if (result.kind === 'notes') return 'Not';
+  if (result.kind === 'pages') return 'Sayfa içeriği';
   if (result.kind === 'subtitles') return result.role === 'translation' ? 'Çeviri altyazısı' : 'Kaynak altyazı';
   return 'Kayıtlı içerik';
 }
@@ -13878,12 +14145,20 @@ function renderAbMarkers() {
 
 // ---- ekran görüntüsü ----
 // Videonun o anki karesini + ekrandaki altyaziyi PNG olarak kaydeder.
+async function captureBrowserPageMode(options = {}) {
+  const result = await window.api.captureBrowserPage?.(player.browserActiveTabId, options)
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) {
+    const message = result.copied && !result.path ? 'Tarayıcı görüntüsü panoya kopyalandı.'
+      : `Tarayıcı ekran görüntüsü kaydedildi: ${result.path}`;
+    logLine(message, 'success'); osd(result.copied && !result.path ? 'Görüntü panoda' : 'Görüntü kaydedildi');
+  } else if (!result?.canceled) logLine(result?.error || 'Tarayıcı ekran görüntüsü alınamadı.', 'warn');
+  return result;
+}
+
 async function capturePlayerFrame() {
   if (player.workspaceMode === 'browser') {
-    const result = await window.api.captureBrowserPage?.(player.browserActiveTabId)
-      .catch((error) => ({ ok: false, error: error.message }));
-    if (result?.ok) logLine(`Tarayıcı ekran görüntüsü kaydedildi: ${result.path}`, 'success');
-    else if (!result?.canceled) logLine(result?.error || 'Tarayıcı ekran görüntüsü alınamadı.', 'warn');
+    await captureBrowserPageMode({ mode: 'viewport' });
     return;
   }
   const v = $('playerVideo');
@@ -14212,7 +14487,15 @@ function renderSeekMarkers(times) {
 // Belgesellerde bölüm başlıkları gezinmeyi çok kolaylaştırıyor: hem açılır
 // listeden atlanır hem de zaman çubuğunda işaret olarak görünür.
 function setChapters(chapters) {
-  player.chapters = Array.isArray(chapters) ? chapters : [];
+  player.nativeChapters = Array.isArray(chapters) ? chapters : [];
+  renderResolvedChapters();
+}
+
+function renderResolvedChapters() {
+  const merger = window.WhisperBrowserChapters?.mergeBrowserChapters;
+  player.chapters = typeof merger === 'function'
+    ? merger(player.nativeChapters, player.browserSponsorChapters, 1.5)
+    : (Array.isArray(player.nativeChapters) ? player.nativeChapters : []);
   const panel = $('playerChaptersPanel');
   const sel = $('playerChapters');
   if (!panel || !sel) return;
@@ -14229,7 +14512,8 @@ function setChapters(chapters) {
   player.chapters.forEach((c, i) => {
     const o = document.createElement('option');
     o.value = String(i);
-    o.textContent = `${pSecToTime(c.start)} · ${c.title || 'Bölüm ' + (i + 1)}`;
+    o.textContent = `${pSecToTime(c.start)} · ${c.title || 'Bölüm ' + (i + 1)}`
+      + (c.source === 'sponsorblock' ? ' · Topluluk' : '');
     sel.appendChild(o);
   });
   panel.classList.remove('hidden');
@@ -14347,6 +14631,8 @@ function resetMediaBoundState(options = {}) {
   player.sub2Format = 'srt';
   player.pausedAt = -1;
   player.chapters = [];
+  player.nativeChapters = [];
+  player.browserSponsorChapters = [];
   player.savedCues = [];
   player.savedOnly = false;
   player.qualityOnly = false;
@@ -15471,6 +15757,8 @@ function seekToSubtitleFindMatch(match) {
   const secondary = match.channel === 'secondary';
   const time = subtitleVideoTime(match.start, secondary);
   if (!Number.isFinite(time)) return;
+  player.loopCueId = '';
+  player.loopCueRepeats = 0;
   if (player.workspaceMode === 'browser') {
     browserCommand('seek', time).catch(() => {});
   } else if ($('playerVideo')) {
@@ -18358,6 +18646,24 @@ $('researchExport')?.addEventListener('click', async () => {
   if (result?.ok) logLine(`${result.count} araştırma kaydı Markdown olarak dışa aktarıldı: ${result.path}`, 'success');
   else if (!result?.canceled) logLine(`Araştırma defteri dışa aktarılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
 });
+$('researchExportAnki')?.addEventListener('click', async () => {
+  const button = $('researchExportAnki');
+  if (!window.api.exportResearchAnnotationsAnki || button?.disabled) return;
+  if (button) button.disabled = true;
+  try {
+    const result = await window.api.exportResearchAnnotationsAnki(
+      researchLibraryFilters(), 'Whisper Local').catch((error) => ({ ok: false, error: error.message }));
+    if (result?.ok) {
+      const media = result.mediaCount ? ` · ${result.mediaCount} medya` : '';
+      const skipped = result.skippedMedia ? ` · ${result.skippedMedia} eksik medya atlandı` : '';
+      logLine(`${result.count} Anki kartı dışa aktarıldı${media}${skipped}: ${result.path}`, 'success');
+    } else if (!result?.canceled) {
+      logLine(`Anki paketi dışa aktarılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    }
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
 if ($('playerLibraryUndoBtn')) $('playerLibraryUndoBtn').addEventListener('click', async () => {
   const annotation = lastDeletedLibraryAnnotation;
   if (!annotation) return;
@@ -18680,6 +18986,8 @@ if ($('playerVideo')) {
     if (video.paused) video.play(); else video.pause();
   });
   $('playerSeek').addEventListener('input', (e) => {
+    player.loopCueId = '';
+    player.loopCueRepeats = 0;
     const fraction = Number(e.target.value) / 1000;
     if (Number.isFinite(video.duration) && video.duration > 0 && Number.isFinite(fraction)) {
       video.currentTime = Math.max(0, Math.min(1, fraction)) * video.duration;
@@ -18723,6 +19031,7 @@ if ($('playerVideo')) {
         video.playbackRate = rate;
       }
       player.learningBaseRate = rate;
+      if (player.workspaceMode === 'browser') scheduleBrowserMediaPreferenceSync();
       scheduleSave();
     });
   }
@@ -18988,6 +19297,7 @@ async function nudgeSpeed(dir) {
   }
   player.learningBaseRate = target;
   sel.value = String(target);
+  if (player.workspaceMode === 'browser') scheduleBrowserMediaPreferenceSync();
   scheduleSave();
   osd(`${target}× hız`);
   showControls();
@@ -19407,6 +19717,8 @@ if ($('playerPlaybackPolicy')) {
   $('playerPlaybackPolicy').addEventListener('change', (event) => {
     clearTimeout(player.shadowResumeTimer);
     player.shadowResumeTimer = null;
+    player.loopCueId = '';
+    player.loopCueRepeats = 0;
     player.playbackPolicy = event.target.value || 'normal';
     player.learningBaseRate = Number($('playerSpeed')?.value)
       || (player.workspaceMode === 'browser' ? player.browserRate : Number($('playerVideo')?.playbackRate)) || 1;
@@ -19417,6 +19729,11 @@ if ($('playerPlaybackPolicy')) {
     scheduleSave();
   });
 }
+if ($('playerCueRepeatCount')) $('playerCueRepeatCount').addEventListener('change', () => {
+  player.loopCueId = '';
+  player.loopCueRepeats = 0;
+  scheduleSave();
+});
 if ($('subtitleOverlay')) {
   $('subtitleOverlay').addEventListener('dblclick', () => openCueEditor(false));
 }
@@ -19808,9 +20125,19 @@ if ($('playerChapters')) {
   $('playerChapters').addEventListener('change', (e) => {
     const i = parseInt(e.target.value, 10);
     const video = $('playerVideo');
-    if (!video || isNaN(i) || !player.chapters[i]) return;
-    video.currentTime = player.chapters[i].start;
-    video.play().catch(() => {});
+    if (isNaN(i) || !player.chapters[i]) return;
+    player.loopCueId = '';
+    player.loopCueRepeats = 0;
+    if (player.workspaceMode === 'browser') {
+      player.browserTime = player.chapters[i].start;
+      browserCommand('seek', player.browserTime).then((result) => {
+        if (result?.ok) browserCommand('play').catch(() => {});
+      }).catch(() => {});
+    } else {
+      if (!video) return;
+      video.currentTime = player.chapters[i].start;
+      video.play().catch(() => {});
+    }
     logLine(`Bölüm: ${player.chapters[i].title || i + 1}`, 'info');
   });
 }

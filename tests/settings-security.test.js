@@ -211,7 +211,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     model: 'tiny', engine: 'faster', task: 'transcribe', formats: 'srt', computeType: 'float16',
     device: 'cpu', splitMode: 'sentence', wrapMode: 'balanced', audioPreprocess: 'none',
     translateRegister: 'general', translateProfanity: 'medium', translateContext: '4',
-    playerSpeed: '1.25', playerPlaybackPolicy: 'accelerate-gaps', youtubeCookieBrowser: 'firefox',
+    playerSpeed: '1.25', playerPlaybackPolicy: 'loop-cue', youtubeCookieBrowser: 'firefox',
     browserMangaTarget: 'tr', browserMangaFont: 'comic', browserPageTarget: 'en',
     browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
     browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', uiTheme: 'light',
@@ -223,10 +223,12 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     repetitionPenalty: '1.1', noRepeatNgramSize: '2', compressionRatioThreshold: '2.4',
     logProbThreshold: '-1', noSpeechThreshold: '0.6', vadMinSpeechMs: '250',
     vadMinSilenceMs: '500', vadSpeechPadMs: '200', vadMaxSpeechS: '30',
-    translateWorkers: '4', llmWorkers: '2', playerVolume: '75', subSize: '28', subOffset: '0',
+    translateWorkers: '4', llmWorkers: '2', playerVolume: '75', playerCueRepeatCount: '7',
+    subSize: '28', subOffset: '0',
     browserMangaWorkers: '2', browserMangaMaxImages: '48', browserMangaFontScale: '100',
     browserOverlayScale: '100', browserOverlayOpacity: '90', browserOverlayBottom: '7',
     browserOverlayWidth: '86', browserOverlayMaxLines: '3',
+    browserVideoBrightness: '115', browserVideoContrast: '90',
   };
   const ui = Object.fromEntries(PERSIST_VALUE_CONTROLS.map((id) => [
     id, enumValues[id] ?? numericValues[id] ?? (id.endsWith('BaseUrl') ? '' : `değer-${id}`),

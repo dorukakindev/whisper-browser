@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<timedtext format="3">
+  <head><pen id="1" fc="#FFFFFF"/><ws id="0" ju="0"/></head>
+  <body>
+    <p t="1250" d="1250" p="1" ws="0"><s ac="255">Bir</s><s> satır &amp; işaret</s></p>
+    <p t="3000" d="900"><s>İkinci satır</s></p>
+    <p t="4100" d="700"></p>
+  </body>
+</timedtext>

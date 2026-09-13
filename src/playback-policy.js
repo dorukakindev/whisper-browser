@@ -8,13 +8,14 @@
     accelerateGaps: { id: 'accelerate-gaps', label: 'Altyazısız bölümü hızlandır' },
     skipGaps: { id: 'skip-gaps', label: 'Altyazısız bölümü atla' },
     shadowing: { id: 'shadowing', label: 'Dinle ve tekrar et' },
+    loopCue: { id: 'loop-cue', label: 'Her altyazıyı tekrarla' },
   });
 
   function normalizeCueList(raw) {
     return (Array.isArray(raw) ? raw : []).map((cue, index) => ({
       id: String(cue && (cue.id ?? index)), start: Math.max(0, Number(cue && cue.start) || 0),
       end: Math.max(0, Number(cue && cue.end) || 0), text: String(cue && cue.text || '').trim(),
-    })).filter((cue) => cue.text && cue.end >= cue.start).sort((a, b) => a.start - b.start);
+    })).filter((cue) => cue.text && cue.end > cue.start).sort((a, b) => a.start - b.start);
   }
 
   function playbackLearningAction(rawCues, time, previousTime, policy = 'normal', options = {}) {
@@ -30,6 +31,36 @@
     // Büyük zaman sıçraması kullanıcı seek'idir; cue sonunu doğal oynatmayla
     // geçti sanıp kullanıcıyı istemsiz duraklatma.
     const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < 1;
+    if (policy === PLAYBACK_POLICIES.loopCue.id && naturalAdvance) {
+      const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
+        && currentTime >= cue.end && currentTime - cue.end < 1);
+      if (ended) {
+        const continuingOverlap = cues.some((cue) => cue.id !== ended.id
+          && currentTime >= cue.start && currentTime < cue.end && cue.start < ended.end);
+        if (!continuingOverlap) {
+          const repeatCount = Math.max(2, Math.min(20, Math.round(Number(options.repeatCount) || 5)));
+          const sameCue = String(options.loopCueId || '') === ended.id;
+          const completedRepeats = sameCue ? Math.max(0, Number(options.completedRepeats) || 0) : 0;
+          if (completedRepeats < repeatCount - 1) return {
+            type: 'loop-cue', cueId: ended.id, time: ended.start,
+            completedRepeats: completedRepeats + 1, repeatCount,
+          };
+          return { type: 'loop-cue-finished', cueId: ended.id, repeatCount };
+        }
+      }
+    }
+    if (options.autoPause && naturalAdvance) {
+      const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
+        && currentTime >= cue.end && currentTime - cue.end < 1);
+      if (ended) {
+        // İki konuşmacının cue'ları örtüşüyorsa ilki bitti diye devam eden
+        // konuşmanın ortasında durma. Tam sınırda başlayan bir sonraki cue ise
+        // yeni bloktur ve kullanıcı devam ettirene kadar bekletilir.
+        const continuingOverlap = cues.some((cue) => cue.id !== ended.id
+          && currentTime >= cue.start && currentTime < cue.end && cue.start < ended.end);
+        if (!continuingOverlap) return { type: 'pause-at-cue-end', cueId: ended.id };
+      }
+    }
     if (policy === PLAYBACK_POLICIES.shadowing.id && naturalAdvance && !active) {
       const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < 1);
       if (ended && String(options.lastShadowCueId || '') !== ended.id) {

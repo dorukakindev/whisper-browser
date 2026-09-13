@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const SEARCH_SCOPES = new Set(['all', 'tabs', 'subtitles', 'notes', 'bookmarks']);
+const SEARCH_SCOPES = new Set(['all', 'tabs', 'subtitles', 'notes', 'bookmarks', 'pages']);
 
 function foldLibraryText(value) {
   return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
@@ -86,6 +86,16 @@ function unifiedLibrarySearch(input = {}) {
         id: stableId('bookmark', [bookmark.url]), kind: 'bookmarks', title: boundedText(bookmark.title || bookmark.url || 'Yer imi', 500),
         snippet: boundedText([bookmark.folder, bookmark.url].filter(Boolean).join(' · '), 500),
         url: boundedText(bookmark.url, 2000), action: 'open-url', updatedAt: Number(bookmark.visitedAt) || 0,
+      });
+    }
+  }
+  if (allow('pages')) {
+    for (const page of Array.isArray(input.pageHits) ? input.pageHits : []) {
+      push({
+        id: stableId('page', [page.url]), kind: 'pages',
+        title: boundedText(page.title || page.url || 'Gezilen sayfa', 500),
+        snippet: boundedText(page.snippet || page.url, 800), url: boundedText(page.url, 2000),
+        action: 'open-url', updatedAt: Number(page.visited_at || page.visitedAt) || 0,
       });
     }
   }

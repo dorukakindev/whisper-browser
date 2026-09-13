@@ -85,7 +85,11 @@ const {
 const { crashRecoveryPolicy, navigationRetryPolicy, parseRetryAfterMs,
   subtitleRequestRetryPolicy } = require('./browser-lifecycle-policy');
 const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-capture-provenance');
-const { sanitizeDiagnosticsAgainstCueText } = require('./browser-diagnostics-export');
+const {
+  redactBrowserDiagnosticsText,
+  sanitizeDiagnosticsSecrets,
+  sanitizeDiagnosticsAgainstCueText,
+} = require('./browser-diagnostics-export');
 const { normalizeBrowserSiteTerminology, seedSiteTerminology,
   siteTerminologyScope } = require('./browser-site-terminology');
 const {
@@ -144,6 +148,8 @@ const {
   normalizeCategories: normalizeSponsorCategories,
   extractHashSegments: extractSponsorHashSegments,
   validateSegments: validateSponsorSegments,
+  validateChapters: validateSponsorChapters,
+  splitSponsorActions,
   clampSegmentsToDuration: clampSponsorSegmentsToDuration,
   SponsorBlockCache,
 } = require('./browser-sponsorblock');
@@ -243,12 +249,16 @@ function spawnSync(command, args, options = {}) {
   return rawSpawnSync(command, args, { ...options, env });
 }
 const { buildBrowserOverlayScript } = require('./browser-overlay-controller');
-const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript } = require('./browser-media-controller');
+const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
+  buildBrowserMediaPreferenceScript } = require('./browser-media-controller');
+const { buildBrowserLinkHintsScript } = require('./browser-link-hints');
+const { buildDarkReaderCssScript } = require('./browser-dark-mode');
 const { CaptionAcquisitionPlan } = require('./browser-acquisition');
 const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-event-envelope');
 const { BrowserAssetStore } = require('./browser-asset-store');
 const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('./browser-session-package');
 const { WatchIndex } = require('./watch-index');
+const { runBrowserPageIndexCapture } = require('./browser-page-index');
 const { BrowserNoteStore } = require('./browser-note-store');
 const { validateSubtitleExport } = require('./subtitle-export-validation');
 const {
@@ -363,6 +373,8 @@ if (!browserHardwareAccelerationEnabled) app.disableHardwareAcceleration();
 const browserAdblockInitiallyEnabled = readPublicSettings().ui?.browserAdblockEnabled !== false;
 const browserPlayerResponseAdPruneInitiallyEnabled =
   readPublicSettings().ui?.browserPlayerResponseAdPrune === true;
+let browserPageIndexEnabled = readPublicSettings().ui?.browserPageIndexEnabled === true;
+let browserPageIndexGeneration = 0;
 
 // Kutuphane dosyasina AYNI ANDA iki surec yazarsa biri digerinin yazdigini
 // ezer. Tek-writer garantisi burada baslar: ikinci surec hic pencere acmadan
@@ -486,6 +498,7 @@ let browserDiagnostics = null;
 let browserNetworkOnline = true;
 let browserLiveAsr = null;
 let modelBenchmarkJob = null;
+let ankiExportJob = null;
 // Includes stopping Live ASR processes until their actual close event.
 const modelProcesses = new Set();
 let browserAdapterPluginStatus = { loaded: [], errors: [] };
@@ -653,8 +666,10 @@ function writeJobLog(event) {
   try { jobLog.stream.write(`${line}\n`); } catch (_) {}
 }
 
+let resourceSoakUnhandledRejectionCount = 0;
 process.on('unhandledRejection', (reason) => {
-  const detail = reason instanceof Error ? reason.message
+  if (process.env.WHISPER_RESOURCE_SOAK === '1') resourceSoakUnhandledRejectionCount += 1;
+  const detail = reason instanceof Error ? (reason.stack || reason.message)
     : (typeof reason === 'string' ? reason : 'Bilinmeyen hata');
   const message = `İşlenmeyen Promise reddi: ${String(detail).slice(0, 2000)}`;
   console.error(message);
@@ -1059,6 +1074,18 @@ function writeJsonAtomic(filePath, value) {
   const tmp = filePath + '.tmp';
   try {
     fs.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
+    fs.renameSync(tmp, filePath);
+  } catch (error) {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+    throw error;
+  }
+}
+
+function writeBufferAtomic(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tmp, value, { flush: true });
     fs.renameSync(tmp, filePath);
   } catch (error) {
     try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
@@ -1790,6 +1817,7 @@ function searchUnifiedBrowserLibrary(request = {}) {
   if (!value && scope !== 'notes') return [];
   let cueHits = [];
   let notes = [];
+  let pageHits = [];
   if (scope === 'all' || scope === 'subtitles') {
     try { cueHits = watchIndex()?.searchCues(value, 160) || []; } catch (_) {}
   }
@@ -1802,6 +1830,9 @@ function searchUnifiedBrowserLibrary(request = {}) {
         : (value ? store.search(value, 120) : store.list().slice(-120).reverse());
     } catch (_) {}
   }
+  if (scope === 'all' || scope === 'pages') {
+    try { pageHits = watchIndex()?.searchPages(value, 120) || []; } catch (_) {}
+  }
   return unifiedLibrarySearch({
     query: value || '*',
     scope,
@@ -1811,6 +1842,7 @@ function searchUnifiedBrowserLibrary(request = {}) {
     library: loadWatchLibrary(),
     cueHits,
     notes,
+    pageHits,
   });
 }
 
@@ -1999,6 +2031,8 @@ function createBrowserTabRecord(initial = {}) {
     acquisitionPlan: null,
     acquisitionId: '',
     discoveryProbeTimer: null,
+    pageIndexTimer: null,
+    darkModeRequestSeq: 0,
     loadRetryTimer: null,
     loadRetryAttempt: 0,
     crashRecoveryAttempt: 0,
@@ -2671,6 +2705,26 @@ function rememberBrowserVisit(url, title = '') {
   setBrowserPlaces(places);
 }
 
+function scheduleBrowserPageIndex(tab, delay = 900) {
+  if (!browserPageIndexEnabled) return;
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  clearTimeout(tab.pageIndexTimer);
+  const generation = tab.generation;
+  const indexGeneration = browserPageIndexGeneration;
+  const view = tab.view;
+  tab.pageIndexTimer = setTimeout(async () => {
+    tab.pageIndexTimer = null;
+    await runBrowserPageIndexCapture({
+      tab, view, webContents: wc, tabGeneration: generation, indexGeneration,
+      isEnabled: () => browserPageIndexEnabled,
+      currentIndexGeneration: () => browserPageIndexGeneration,
+      script: pageContextScript({ maxBlocks: 120, maxCharacters: 20000 }),
+      upsertPage: (page) => watchIndex()?.upsertPage(page),
+    });
+  }, Math.max(100, Math.min(5000, Number(delay) || 900)));
+}
+
 const browserDownloads = createBrowserDownloads({
   publish: downloads => sendBrowserEvent({ type: 'downloads', downloads }),
   canStart: () => !mainWindowClosing && !!mainWindow && !mainWindow.isDestroyed(),
@@ -2988,13 +3042,6 @@ function noteBrowserResponsiveness(tab, responsive) {
   });
 }
 
-function redactBrowserDiagnosticsText(value) {
-  return String(value == null ? '' : value)
-    .replace(/https?:\/\/[^\s)]+/gi, (url) => redactCaptureUrl(url))
-    .replace(/\b(api[_-]?key|token|sig|signature|secret|authorization|cookie|password)\s*[=:]\s*[^\s,;]+/gi, '$1=[gizlendi]')
-    .slice(0, 400);
-}
-
 function browserDiagnosticsExportSnapshot() {
   const source = browserDiagnostics && typeof browserDiagnostics === 'object' ? browserDiagnostics : {};
   const counts = source.counts && typeof source.counts === 'object' ? source.counts : {};
@@ -3075,7 +3122,7 @@ function browserDiagnosticsExportSnapshot() {
   // Dışa aktarma şeması cue dizilerini bilinçli olarak içermez. Yine de bir
   // sağlayıcı hatası cue metnini serbest bir `message`/`detail` alanına
   // taşıyabilir; son katmanda bellekteki cue'larla eşleşen içeriği de kaldır.
-  return sanitizeDiagnosticsAgainstCueText(snapshot, browserTrackBuffers);
+  return sanitizeDiagnosticsAgainstCueText(sanitizeDiagnosticsSecrets(snapshot), browserTrackBuffers);
 }
 
 function normalizeBrowserUrl(raw) {
@@ -5771,25 +5818,143 @@ function browserExportTitle(tab, fallback = 'web-sayfasi') {
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || fallback;
 }
 
-async function saveBrowserPageCapture(tab, title = 'Tarayıcı ekran görüntüsünü kaydet') {
+let darkReaderApiBundle = '';
+function darkReaderBundle() {
+  if (!darkReaderApiBundle) {
+    darkReaderApiBundle = fs.readFileSync(require.resolve('darkreader/darkreader.js'), 'utf8');
+  }
+  return darkReaderApiBundle;
+}
+
+async function applyBrowserDarkMode(tab, enabled) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
+  const requestSeq = (Number(tab.darkModeRequestSeq) || 0) + 1;
+  tab.darkModeRequestSeq = requestSeq;
+  if (tab.darkModeCssKey) {
+    await wc.removeInsertedCSS(tab.darkModeCssKey).catch(() => {});
+    tab.darkModeCssKey = '';
+  }
+  if (enabled !== true) return { ok: true, enabled: false };
+  const generation = tab.generation;
+  let result;
+  try {
+    [result] = await executeBrowserTrustedMain(tab.view, buildDarkReaderCssScript(darkReaderBundle()));
+  } catch (error) {
+    return { ok: false, error: `Koyu sayfa CSS'i üretilemedi: ${error.message}` };
+  }
+  if (!result?.ok || !result.css) return { ok: false, error: result?.error || 'Koyu sayfa CSS’i üretilemedi.' };
+  if (tab.darkModeRequestSeq !== requestSeq || tab.generation !== generation
+      || tab.view?.webContents !== wc || wc.isDestroyed()) {
+    return { ok: false, stale: true, error: 'Sayfa değiştiği için eski koyu tema reddedildi.' };
+  }
+  try {
+    const key = await wc.insertCSS(result.css, { cssOrigin: 'user' });
+    if (tab.darkModeRequestSeq !== requestSeq || tab.generation !== generation || tab.view?.webContents !== wc) {
+      await wc.removeInsertedCSS(key).catch(() => {});
+      return { ok: false, stale: true, error: 'Sayfa değiştiği için eski koyu tema kaldırıldı.' };
+    }
+    tab.darkModeCssKey = key;
+    return { ok: true, enabled: true };
+  } catch (error) { return { ok: false, error: `Koyu sayfa uygulanamadı: ${error.message}` }; }
+}
+
+async function captureBrowserFullPage(wc) {
+  // Kalıcı altyazı yakalama aynı CDP debugger'ını hazırlıyor olabilir. Onun
+  // bağlantısını geçici ekran görüntüsü sahiplenmiş gibi sökmemek için önce
+  // sürmekteki kurulumu bekle ve yalnız bizzat taktığımız bağlantıyı bırak.
+  if (!wc.debugger.isAttached() && browserDebuggerAttachPromise) {
+    await browserDebuggerAttachPromise.catch(() => false);
+  }
+  let attachedHere = false;
+  try {
+    if (!wc.debugger.isAttached()) {
+      wc.debugger.attach('1.3');
+      attachedHere = true;
+    }
+    const metrics = await wc.debugger.sendCommand('Page.getLayoutMetrics');
+    const size = metrics?.cssContentSize || metrics?.contentSize || {};
+    const width = Math.max(1, Math.min(30000, Math.ceil(Number(size.width) || 1)));
+    const height = Math.max(1, Math.min(30000, Math.ceil(Number(size.height) || 1)));
+    if (width * height > 120000000) throw new Error('Tam sayfa görüntüsü güvenli piksel sınırını aşıyor. Sayfayı küçültüp yeniden deneyin.');
+    const shot = await wc.debugger.sendCommand('Page.captureScreenshot', {
+      format: 'png', fromSurface: true, captureBeyondViewport: true,
+      clip: { x: 0, y: 0, width, height, scale: 1 },
+    });
+    return nativeImage.createFromBuffer(Buffer.from(String(shot?.data || ''), 'base64'));
+  } finally {
+    // Başka bir yakalama kurulumu bu arada aynı bağlantıyı devraldıysa onun
+    // hazır debugger'ını koparma. Henüz await'te olan girişim WeakMap'te görünür.
+    if (attachedHere && wc.debugger.isAttached() && !browserDebuggerReady
+        && !browserDebuggerAttachAttempts.has(wc)) wc.debugger.detach();
+  }
+}
+
+async function captureBrowserVideoFrame(tab, includeCaptions) {
+  const wc = tab.view.webContents;
+  const candidates = await Promise.all(browserFrames().map(async (frame) => ({
+    frame, media: await frame.executeJavaScript(buildBrowserMediaProbeScript(), true).catch(() => null),
+  })));
+  const candidate = rankBrowserMediaCandidates(candidates)[0];
+  if (!candidate?.media?.bounds) throw new Error('Yakalanabilecek görünür video bulunamadı.');
+  if (candidate.frame !== wc.mainFrame) {
+    throw new Error('Video iç içe bir çerçevede. Güvenli kırpma konumu doğrulanamadığı için tam sayfa görüntüsü kullanın.');
+  }
+  const bounds = candidate.media.bounds;
+  const zoom = Math.max(.25, Math.min(5, Number(wc.getZoomFactor?.()) || 1));
+  const viewport = tab.view.getBounds?.() || {};
+  const x = Math.max(0, Math.floor(Number(bounds.x) * zoom));
+  const y = Math.max(0, Math.floor(Number(bounds.y) * zoom));
+  const rect = {
+    x, y,
+    width: Math.max(2, Math.min(Math.max(2, Number(viewport.width) - x || Number.MAX_SAFE_INTEGER),
+      Math.floor(Number(bounds.width) * zoom))),
+    height: Math.max(2, Math.min(Math.max(2, Number(viewport.height) - y || Number.MAX_SAFE_INTEGER),
+      Math.floor(Number(bounds.height) * zoom))),
+  };
+  const hideScript = `(() => {
+    const selectors = ['.ytp-chrome-bottom','.ytp-chrome-top','.vjs-control-bar','.jw-controls','[data-testid="player-controls"]'${includeCaptions ? '' : ",'[data-whisper-browser-overlay=\"true\"]'"}];
+    const changed = [];
+    for (const selector of selectors) for (const element of document.querySelectorAll(selector)) {
+      changed.push([element, element.style.visibility]); element.style.visibility = 'hidden';
+    }
+    window.__whisperCaptureHidden = changed; return changed.length;
+  })()`;
+  const restoreScript = `(() => { for (const [element, visibility] of window.__whisperCaptureHidden || []) {
+    if (element?.isConnected) element.style.visibility = visibility;
+  } delete window.__whisperCaptureHidden; })()`;
+  await candidate.frame.executeJavaScript(hideScript, true).catch(() => null);
+  try { return await wc.capturePage(rect); }
+  finally { await candidate.frame.executeJavaScript(restoreScript, true).catch(() => null); }
+}
+
+async function saveBrowserPageCapture(tab, title = 'Tarayıcı ekran görüntüsünü kaydet', options = {}) {
   if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
   let image;
+  const mode = ['viewport', 'full', 'video', 'video-captions'].includes(options.mode) ? options.mode : 'viewport';
   try {
     // Kullanıcı kayıt yerini seçerken video ve animasyon ilerleyebilir. Diyalog
     // açılmadan önce anlık kareyi sabitle; iptal edilirse yalnız bellekten atılır.
-    image = await tab.view.webContents.capturePage();
+    image = mode === 'full' ? await captureBrowserFullPage(tab.view.webContents)
+      : mode === 'video' || mode === 'video-captions'
+        ? await captureBrowserVideoFrame(tab, mode === 'video-captions')
+        : await tab.view.webContents.capturePage();
     if (image.isEmpty()) throw new Error('Sayfa görüntüsü boş döndü. DRM korumalı videolar görüntü yakalamayı engelleyebilir.');
   } catch (error) {
     return { ok: false, error: error.message };
   }
+  if (options.copy === true) clipboard.writeImage(image);
+  if (options.save === false) return { ok: true, copied: options.copy === true, mode };
   const result = await dialog.showSaveDialog(mainWindow, {
-    title, defaultPath: path.join(app.getPath('pictures'), `${browserExportTitle(tab)}.png`),
+    title, defaultPath: path.join(app.getPath('pictures'), `${browserExportTitle(tab)}-${mode}.png`),
     filters: [{ name: 'PNG', extensions: ['png'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
-    fs.writeFileSync(result.filePath, image.toPNG());
-    return { ok: true, path: result.filePath };
+    const outputPath = path.extname(result.filePath).toLowerCase() === '.png'
+      ? result.filePath : `${result.filePath}.png`;
+    writeBufferAtomic(outputPath, image.toPNG());
+    return { ok: true, path: outputPath, copied: options.copy === true, mode };
   } catch (error) { return { ok: false, error: error.message }; }
 }
 
@@ -8647,6 +8812,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     }
     tab.lifecycle = tab.id === browserActiveTabId ? 'active' : 'background';
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
+    scheduleBrowserPageIndex(tab);
     if (tab.compatibilityMode) return;
     // Bazı iç-frame yüklemelerinde Chromium did-start-loading gönderip ana
     // belge için yeni bir dom-ready göndermeyebilir. Bu durumda uyumluluk
@@ -9034,6 +9200,8 @@ function destroyBrowserTab(tab) {
   cancelBrowserPermissionRequestsForTab(tab);
   if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
   tab.discoveryProbeTimer = null;
+  if (tab.pageIndexTimer) clearTimeout(tab.pageIndexTimer);
+  tab.pageIndexTimer = null;
   if (tab.pageArchiveRestoreTimer) clearTimeout(tab.pageArchiveRestoreTimer);
   tab.pageArchiveRestoreTimer = null;
   tab.pageArchiveRestoreInFlightGeneration = -1;
@@ -9550,6 +9718,7 @@ async function runResourceSoakSession() {
     userData: app.getPath('userData'),
     capture: { attempts: captureAttempts, successes: captureSuccesses },
     hibernation: { ...hibernation, primedBeforeBaseline: hibernationPrimed },
+    runtime: { unhandledRejections: resourceSoakUnhandledRejectionCount },
     captureDiagnostics,
     peaks,
     samples,
@@ -9807,7 +9976,8 @@ app.on('window-all-closed', () => {
   // süreçleri (yt-dlp indirme, probe, altyazı) varsa onları da öldür — orphan
   // kalmasın. Büyük bir YouTube indirmesi uygulama kapandıktan sonra arka planda
   // sürüp disk ve ağ kullanmaya devam ediyordu.
-  for (const j of new Set([...modelProcesses, modelBenchmarkJob?.proc, browserLiveAsr?.proc, updateJob, burninJob, ...Object.values(mediaJobs)])) {
+  for (const j of new Set([...modelProcesses, modelBenchmarkJob?.proc, ankiExportJob?.proc,
+    browserLiveAsr?.proc, updateJob, burninJob, ...Object.values(mediaJobs)])) {
     if (j) terminateProcessTree(j, { spawn });
   }
   if (process.platform !== 'darwin') app.quit();
@@ -10240,24 +10410,25 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:discovery-signal', (ev
 
 function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
   const normalized = normalizeSponsorCategories(categories);
-  if (!normalized.length) {
-    return Promise.resolve({ ok: true, segments: [], invalid: 0, source: 'SponsorBlock', skipped: true });
-  }
   const filterForDuration = (result) => {
     const limit = Number(duration);
-    if (!Number.isFinite(limit) || limit <= 0 || !Array.isArray(result?.segments)) return result;
-    return { ...result, segments: clampSponsorSegmentsToDuration(result.segments, limit) };
+    if (!Number.isFinite(limit) || limit <= 0) return result;
+    return { ...result,
+      segments: clampSponsorSegmentsToDuration(result?.segments, limit),
+      chapters: clampSponsorSegmentsToDuration(result?.chapters, limit) };
   };
-  const cached = sponsorBlockCache.get(videoId, normalized);
+  const actionTypes = 'skip,chapter';
+  const cached = sponsorBlockCache.get(videoId, normalized, actionTypes);
   if (cached) return Promise.resolve({ ok: true, ...filterForDuration(cached), cached: true });
-  const key = sponsorBlockCache.key(videoId, normalized);
+  const key = sponsorBlockCache.key(videoId, normalized, actionTypes);
   if (sponsorBlockInFlight.has(key)) return sponsorBlockInFlight.get(key);
   const promise = new Promise((resolve) => {
     const prefix = sponsorBlockHashPrefix(videoId, 4);
     const request = net.request({
       protocol: 'https:',
       hostname: SPONSORBLOCK_HOST,
-      path: `/api/skipSegments/${encodeURIComponent(prefix)}?categories=${encodeURIComponent(JSON.stringify(normalized))}`,
+      path: `/api/skipSegments/${encodeURIComponent(prefix)}?categories=${encodeURIComponent(JSON.stringify([...normalized, 'chapter']))}`
+        + `&actionTypes=${encodeURIComponent(JSON.stringify(['skip', 'chapter']))}`,
       method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
     });
     let timeoutTimer = setTimeout(() => {
@@ -10274,15 +10445,25 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
       response.on('end', () => {
         if (total > MAX_SPONSORBLOCK_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
         if (response.statusCode === 404) {
-          const empty = { segments: [], invalid: 0, source: 'SponsorBlock' }; sponsorBlockCache.set(videoId, normalized, empty, { negative: true });
+          const empty = { segments: [], chapters: [], invalid: 0, source: 'SponsorBlock' };
+          sponsorBlockCache.set(videoId, normalized, empty, { negative: true, actionType: actionTypes });
           return resolve({ ok: true, ...empty });
         }
         if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-          const checked = validateSponsorSegments(extractSponsorHashSegments(parsed, videoId), videoId);
-          const result = { segments: checked.segments, invalid: checked.invalid, source: 'SponsorBlock' };
-          sponsorBlockCache.set(videoId, normalized, result, { negative: !result.segments.length });
+          const extracted = extractSponsorHashSegments(parsed, videoId);
+          const actions = splitSponsorActions(extracted);
+          // Oynatıcı ilk probda eksik/kısa süre bildirebilir. Süreyi burada
+          // doğrulamaya katıp sonucu cache'lemek, daha sonra öğrenilen gerçek
+          // süreye ait segmentleri kalıcı olarak kaybettirir. Ham ve güvenli
+          // sonucu sakla; yalnız çağrıya dönerken filterForDuration ile kırp.
+          const checked = validateSponsorSegments(actions.skip, videoId);
+          const chapterCheck = validateSponsorChapters(actions.chapter, videoId);
+          const result = { segments: checked.segments, chapters: chapterCheck.chapters,
+            invalid: checked.invalid + chapterCheck.invalid + actions.invalid, source: 'SponsorBlock' };
+          sponsorBlockCache.set(videoId, normalized, result,
+            { negative: !result.segments.length && !result.chapters.length, actionType: actionTypes });
           resolve({ ok: true, ...filterForDuration(result) });
         } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
       });
@@ -10352,6 +10533,8 @@ async function unloadBrowserTab(rawId) {
   }
   if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
   tab.discoveryProbeTimer = null;
+  if (tab.pageIndexTimer) clearTimeout(tab.pageIndexTimer);
+  tab.pageIndexTimer = null;
   if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
   tab.loadRetryTimer = null;
   tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
@@ -10409,7 +10592,18 @@ ipcMain.handle('browser:command', async (event, payload) => {
         ? `Yakınlaştırma uygulandı ancak site ayarı sınırına ulaşıldığı için kaydedilemedi (${MAX_BROWSER_SITE_PROFILES}).`
         : 'Yakınlaştırma uygulandı ancak site tercihi diske kaydedilemedi.';
       return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, persistenceWarning, ...browserNavigationState() };
-    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd'].includes(command)) {
+    } else if (command === 'page-dark-mode') {
+      return applyBrowserDarkMode(tab, value === true);
+    } else if (command === 'link-hints' || command === 'link-hints-new') {
+      const results = await Promise.all(browserFrames().map((frame) => frame
+        .executeJavaScript(buildBrowserLinkHintsScript({ newTab: command === 'link-hints-new' }), true)
+        .catch(() => null)));
+      if (!isCurrentBrowserContext(context)) return { ok: false, stale: true, error: 'Sekme değiştiği için bağlantı etiketleri iptal edildi.' };
+      const count = results.reduce((sum, result) => sum + Math.max(0, Number(result?.count) || 0), 0);
+      const handled = results.some((result) => result?.handled);
+      return handled ? { ok: true, ...browserEventContext(tab), count, ...browserNavigationState() }
+        : { ok: false, error: 'Bu görünümde etiketlenebilecek bağlantı veya form alanı yok.' };
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd', 'media-preference'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
       // player on services that split their UI across frames.
@@ -10422,7 +10616,9 @@ ipcMain.handle('browser:command', async (event, payload) => {
       let commandError = '';
       for (const candidate of rankBrowserMediaCandidates(candidates)) {
         const result = await candidate.frame
-          .executeJavaScript(buildBrowserMediaCommandScript(command, value), true)
+          .executeJavaScript(command === 'media-preference'
+            ? buildBrowserMediaPreferenceScript(value)
+            : buildBrowserMediaCommandScript(command, value), true)
           .catch(() => ({ handled: false, error: 'Komut oynatıcı karesinde çalıştırılamadı.' }));
         if (result?.error && !commandError) commandError = String(result.error).slice(0, 180);
         if (result && (result === true || result.handled)) {
@@ -11430,7 +11626,7 @@ ipcMain.handle('browser:capturePage', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
-  return saveBrowserPageCapture(tab);
+  return saveBrowserPageCapture(tab, 'Tarayıcı ekran görüntüsünü kaydet', request?.options || {});
 });
 
 ipcMain.handle('browser:archivePage', async (event, request) => {
@@ -11438,6 +11634,43 @@ ipcMain.handle('browser:archivePage', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   return saveBrowserPageArchive(tab);
+});
+
+ipcMain.handle('browser:pageIndex:setEnabled', (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const nextEnabled = request.enabled === true;
+  if (browserPageIndexEnabled !== nextEnabled) browserPageIndexGeneration += 1;
+  browserPageIndexEnabled = nextEnabled;
+  if (browserPageIndexEnabled) {
+    const tab = activeBrowserTab();
+    if (tab) scheduleBrowserPageIndex(tab, 100);
+  } else {
+    for (const tab of browserTabs.values()) {
+      if (tab.pageIndexTimer) clearTimeout(tab.pageIndexTimer);
+      tab.pageIndexTimer = null;
+    }
+  }
+  return { ok: true, enabled: browserPageIndexEnabled };
+});
+
+ipcMain.handle('browser:pageIndex:clear', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  // O anda sayfa metni çıkaran eski bir promise temizleme sonrasında indeksi
+  // yeniden dolduramasın. Açık kalacaksa güncel sayfa ayrıca yeniden planlanır.
+  browserPageIndexGeneration += 1;
+  for (const tab of browserTabs.values()) {
+    if (tab.pageIndexTimer) clearTimeout(tab.pageIndexTimer);
+    tab.pageIndexTimer = null;
+  }
+  try {
+    const removed = watchIndex()?.clearPages() || 0;
+    if (browserPageIndexEnabled) {
+      const tab = activeBrowserTab();
+      if (tab) scheduleBrowserPageIndex(tab, 100);
+    }
+    return { ok: true, removed };
+  }
+  catch (error) { return { ok: false, error: `Yerel sayfa indeksi temizlenemedi: ${error.message}` }; }
 });
 
 ipcMain.handle('browser:translation:start', async (event, request) => {
@@ -11601,12 +11834,32 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
 
 ipcMain.handle('browser:diagnostics:export', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!app.isPackaged && process.argv.includes('--electron-diagnostics-sensitive-smoke')) {
+    browserDiagnostics = {
+      operationId: 'electron-diagnostics-smoke',
+      pageUrl: 'https://user:pass@cdn.test/video?token=PAGE_SECRET',
+      acquisition: { mediaId: 'https://cdn.test/media?sig=ACQ_SECRET', stages: [
+        { id: 'manifest', reason: 'authorization: Bearer STAGE_SECRET' },
+      ] },
+      coverage: [{ streamKey: 'https://cdn.test/sub.vtt?token=COVERAGE_SECRET', failures: [
+        { error: 'C:\\Users\\K\\private\\subtitle.srt' },
+      ] }],
+      recent: [{ detail: 'Gizli cue metni tanı alanına sızdı',
+        url: 'https://cdn.test/x?sig=RECENT_SECRET' }],
+    };
+    browserTrackBuffers.clear();
+    browserTrackBuffers.set('smoke', [{ text: 'Gizli cue metni tanı alanına sızdı' }]);
+  }
   const snapshot = browserDiagnosticsExportSnapshot();
-  const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Tarayıcı tanı paketini dışa aktar',
-    defaultPath: 'whisper-browser-diagnostics.json',
-    filters: [{ name: 'Tanı JSON paketi', extensions: ['json'] }],
-  });
+  const smokePrefix = '--electron-diagnostics-output=';
+  const smokePath = !app.isPackaged
+    ? process.argv.find((argument) => argument.startsWith(smokePrefix))?.slice(smokePrefix.length) : '';
+  const result = smokePath ? { canceled: false, filePath: smokePath }
+    : await dialog.showSaveDialog(mainWindow, {
+      title: 'Tarayıcı tanı paketini dışa aktar',
+      defaultPath: 'whisper-browser-diagnostics.json',
+      filters: [{ name: 'Tanı JSON paketi', extensions: ['json'] }],
+    });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
     const outputPath = path.extname(result.filePath).toLowerCase() === '.json'
@@ -12119,6 +12372,85 @@ ipcMain.handle('browser:research:export', async (event, request = {}) => {
     if (result.canceled || !result.filePath) return { ok: false, canceled: true };
     writeTextAtomic(result.filePath, researchAnnotationsToMarkdown(annotations, request.title || 'Whisper Local araştırma defteri'));
     return { ok: true, path: result.filePath, count: annotations.length };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
+
+function runAnkiExport(annotations, outputPath, deckName) {
+  if (ankiExportJob) return Promise.resolve({ ok: false, error: 'Anki dışa aktarımı zaten çalışıyor.' });
+  const appDir = app.getAppPath();
+  const script = path.join(appDir, 'backend', 'export_anki.py');
+  if (!fs.existsSync(script)) return Promise.resolve({ ok: false, error: 'Anki dışa aktarım yardımcısı bulunamadı.' });
+  const input = Buffer.from(JSON.stringify({ annotations }), 'utf8');
+  if (input.length > 32 * 1024 * 1024) {
+    return Promise.resolve({ ok: false, error: 'Anki notları güvenli boyut sınırını aşıyor.' });
+  }
+  let proc;
+  try {
+    proc = spawn(resolvePython(), [script, '--output', outputPath, '--deck-name', deckName], {
+      cwd: appDir, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    return Promise.resolve({ ok: false, error: `Anki yardımcısı başlatılamadı: ${error.message}` });
+  }
+  const job = { proc };
+  ankiExportJob = job;
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
+      if (ankiExportJob === job) ankiExportJob = null;
+      resolve(result);
+    };
+    const timeoutTimer = setTimeout(() => {
+      terminateProcessTree(proc, { spawn });
+      finish({ ok: false, error: 'Anki dışa aktarımı iki dakikalık süre sınırını aştı.' });
+    }, 2 * 60 * 1000);
+    timeoutTimer.unref?.();
+    proc.stdout.setEncoding('utf8');
+    proc.stderr.setEncoding('utf8');
+    proc.stdout.on('data', (chunk) => { stdout = `${stdout}${chunk}`.slice(-64 * 1024); });
+    proc.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-16 * 1024); });
+    proc.on('error', (error) => finish({ ok: false,
+      error: error.code === 'ENOENT' ? 'Python sanal ortamı bulunamadı.' : error.message }));
+    proc.on('close', (code) => {
+      if (settled) return;
+      if (code !== 0) return finish({ ok: false,
+        error: stderr.trim() || `Anki yardımcısı ${code} koduyla kapandı.` });
+      try {
+        const result = JSON.parse(stdout.trim().split(/\r?\n/).filter(Boolean).at(-1) || '{}');
+        if (!result.ok || !fs.existsSync(outputPath)) throw new Error('Anki paketi doğrulanamadı.');
+        finish({ ...result, path: outputPath });
+      } catch (error) {
+        finish({ ok: false, error: error.message });
+      }
+    });
+    proc.stdin.on('error', () => {});
+    proc.stdin.end(input);
+  });
+}
+
+ipcMain.handle('browser:research:exportAnki', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const store = ensureBrowserNotesReady();
+    if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError };
+    const annotations = store.filter(request.filters || {}, 5000)
+      .filter((annotation) => annotation.type === 'quote');
+    if (!annotations.length) return { ok: false, error: 'Dışa aktarılacak alıntı bulunamadı.' };
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Alıntıları Anki paketi olarak dışa aktar',
+      defaultPath: path.join(app.getPath('documents'), 'whisper-local-kartlari.apkg'),
+      filters: [{ name: 'Anki paketi', extensions: ['apkg'] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    const outputPath = result.filePath.toLowerCase().endsWith('.apkg')
+      ? result.filePath : `${result.filePath}.apkg`;
+    return await runAnkiExport(annotations, outputPath,
+      String(request.deckName || 'Whisper Local').trim().slice(0, 160));
   } catch (error) { return { ok: false, error: error.message }; }
 });
 

@@ -31,7 +31,7 @@ try {
   };
   if (json) console.log(JSON.stringify(report, null, 2));
   else {
-    console.log(`Kaynak/çeviri: ${report.sourceCues}/${report.targetCues} blok · eşleşen ${report.matchedCues}`);
+    console.log(`Kaynak/çeviri: ${report.sourceCues}/${report.targetCues} blok · birebir eşleşen ${report.matchedCues} · zamanla kapsanan ${report.coveredSourceCues}/${report.coveredTargetCues}`);
     console.log(`Kesin sorun: ${report.blockingCount} · inceleme uyarısı: ${report.advisoryCount}`);
     for (const [name, entries] of Object.entries(report.issues)) {
       if (name === 'contextReview' || !entries.length) continue;

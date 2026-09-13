@@ -17,6 +17,13 @@ const PROFILE_FIELDS = Object.freeze({
   mangaTargetLanguage: { type: 'string', max: 24 },
   pageAuto: { type: 'boolean' },
   adblockEnabled: { type: 'boolean' },
+  playbackRate: { type: 'number', min: 0.25, max: 4, precision: 2 },
+  enforcePlaybackRate: { type: 'boolean' },
+  preservesPitch: { type: 'boolean' },
+  videoBrightness: { type: 'number', min: 0.4, max: 2, precision: 2 },
+  videoContrast: { type: 'number', min: 0.4, max: 2, precision: 2 },
+  darkMode: { type: 'boolean' },
+  normalizeAudio: { type: 'boolean' },
   zoom: { type: 'number', min: 0.5, max: 3, precision: 1 },
 });
 

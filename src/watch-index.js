@@ -1,6 +1,6 @@
 const path = require('path');
 
-const WATCH_INDEX_VERSION = 3;
+const WATCH_INDEX_VERSION = 4;
 
 function databaseConstructor() {
   try { return require('node:sqlite').DatabaseSync; }
@@ -21,6 +21,18 @@ function foldSearchText(value) {
   return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
 }
 
+function safePageIndexUrl(raw) {
+  try {
+    const parsed = new URL(String(raw || '').trim());
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    parsed.username = '';
+    parsed.password = '';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString().slice(0, 4000);
+  } catch (_) { return ''; }
+}
+
 class WatchIndex {
   constructor(filePath, options = {}) {
     const DatabaseSync = options.DatabaseSync || databaseConstructor();
@@ -31,7 +43,13 @@ class WatchIndex {
     if (this.hasTurkishFold) {
       this.db.function('tr_fold', { deterministic: true }, foldSearchText);
     }
-    this.initialize();
+    try {
+      this.initialize();
+    } catch (error) {
+      try { this.db.close(); } catch (_) {}
+      this.db = null;
+      throw error;
+    }
   }
 
   initialize() {
@@ -42,8 +60,18 @@ class WatchIndex {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
-      INSERT INTO meta(key, value) VALUES('schema_version', '${WATCH_INDEX_VERSION}')
-        ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+    `);
+    const storedVersion = this.db.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value;
+    if (storedVersion !== undefined) {
+      const parsedVersion = Number(storedVersion);
+      if (!Number.isInteger(parsedVersion) || parsedVersion < 1) {
+        throw new Error('İzleme indeksi şema sürümü geçersiz; dosya değiştirilmedi.');
+      }
+      if (parsedVersion > WATCH_INDEX_VERSION) {
+        throw new Error(`İzleme indeksi daha yeni bir sürüme ait (${parsedVersion}); dosya değiştirilmedi.`);
+      }
+    }
+    this.db.exec(`
 
       CREATE TABLE IF NOT EXISTS media (
         id TEXT PRIMARY KEY,
@@ -123,6 +151,30 @@ class WatchIndex {
         updated_at INTEGER NOT NULL DEFAULT 0
       );
       CREATE INDEX IF NOT EXISTS annotations_media_time_idx ON annotations(media_id, start);
+
+      CREATE TABLE IF NOT EXISTS pages (
+        rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL DEFAULT '',
+        content TEXT NOT NULL DEFAULT '',
+        visited_at INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE VIRTUAL TABLE IF NOT EXISTS page_fts USING fts5(
+        title, content, content='pages', content_rowid='rowid',
+        tokenize='unicode61 remove_diacritics 2'
+      );
+      CREATE TRIGGER IF NOT EXISTS pages_ai AFTER INSERT ON pages BEGIN
+        INSERT INTO page_fts(rowid, title, content) VALUES (new.rowid, new.title, new.content);
+      END;
+      CREATE TRIGGER IF NOT EXISTS pages_ad AFTER DELETE ON pages BEGIN
+        INSERT INTO page_fts(page_fts, rowid, title, content)
+        VALUES ('delete', old.rowid, old.title, old.content);
+      END;
+      CREATE TRIGGER IF NOT EXISTS pages_au AFTER UPDATE ON pages BEGIN
+        INSERT INTO page_fts(page_fts, rowid, title, content)
+        VALUES ('delete', old.rowid, old.title, old.content);
+        INSERT INTO page_fts(rowid, title, content) VALUES (new.rowid, new.title, new.content);
+      END;
     `);
     const trackColumns = new Set(this.db.prepare('PRAGMA table_info(tracks)').all().map((row) => row.name));
     if (!trackColumns.has('model')) this.db.exec("ALTER TABLE tracks ADD COLUMN model TEXT NOT NULL DEFAULT ''");
@@ -132,6 +184,8 @@ class WatchIndex {
     if (!annotationColumns.has('track_id')) this.db.exec("ALTER TABLE annotations ADD COLUMN track_id TEXT NOT NULL DEFAULT ''");
     if (!annotationColumns.has('cue_id')) this.db.exec("ALTER TABLE annotations ADD COLUMN cue_id TEXT NOT NULL DEFAULT ''");
     if (!annotationColumns.has('anchor_json')) this.db.exec("ALTER TABLE annotations ADD COLUMN anchor_json TEXT NOT NULL DEFAULT ''");
+    this.db.prepare(`INSERT INTO meta(key, value) VALUES('schema_version', ?)
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(WATCH_INDEX_VERSION));
   }
 
   transaction(fn) {
@@ -272,6 +326,38 @@ class WatchIndex {
     `).all(match, Math.max(1, Math.min(200, Number(limit) || 50)));
   }
 
+  upsertPage(page = {}) {
+    const url = safePageIndexUrl(page.url);
+    if (!url) throw new TypeError('HTTP(S) sayfa adresi gerekli.');
+    const title = String(page.title || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+    const content = String(page.content || '').normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 20000);
+    if (content.length < 20) return null;
+    this.db.prepare(`
+      INSERT INTO pages(url,title,content,visited_at) VALUES(?,?,?,?)
+      ON CONFLICT(url) DO UPDATE SET title=excluded.title,content=excluded.content,visited_at=excluded.visited_at
+    `).run(url, title, content, Number(page.visitedAt) || Date.now());
+    this.db.exec(`DELETE FROM pages WHERE rowid IN (
+      SELECT rowid FROM pages ORDER BY visited_at DESC LIMIT -1 OFFSET 3000
+    )`);
+    return this.db.prepare('SELECT url,title,visited_at FROM pages WHERE url=?').get(url) || null;
+  }
+
+  searchPages(query, limit = 50) {
+    const match = ftsQuery(query);
+    if (!match) return [];
+    return this.db.prepare(`
+      SELECT p.url,p.title,p.visited_at,
+        snippet(page_fts, 1, '[', ']', ' … ', 24) AS snippet
+      FROM page_fts JOIN pages p ON p.rowid=page_fts.rowid
+      WHERE page_fts MATCH ? ORDER BY rank LIMIT ?
+    `).all(match, Math.max(1, Math.min(200, Number(limit) || 50)));
+  }
+
+  clearPages() {
+    const result = this.db.prepare('DELETE FROM pages').run();
+    return Math.max(0, Number(result?.changes) || 0);
+  }
+
   upsertAnnotation(annotation = {}) {
     if (!annotation.id || !annotation.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
     this.db.prepare(`
@@ -372,4 +458,5 @@ module.exports = {
   databaseConstructor,
   foldSearchText,
   ftsQuery,
+  safePageIndexUrl,
 };

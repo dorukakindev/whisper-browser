@@ -72,6 +72,53 @@ function validateSegments(payload, videoId, duration = 0) {
   return { segments, invalid, error: '' };
 }
 
+function validateChapters(payload, videoId, duration = 0) {
+  if (!Array.isArray(payload)) return { chapters: [], invalid: 1, error: 'SponsorBlock bölüm yanıtı dizi değil.' };
+  const chapters = [];
+  let invalid = 0;
+  for (const item of payload) {
+    const start = Number(item?.segment?.[0]);
+    const end = Number(item?.segment?.[1]);
+    const title = String(item?.description || '')
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 240);
+    const category = String(item?.category || '');
+    const actionType = String(item?.actionType || '');
+    const uuid = String(item?.UUID || item?.uuid || '').slice(0, 180);
+    const id = String(item?.videoID || item?.videoId || '');
+    const apiDuration = Number(item?.videoDuration);
+    const validApiDuration = Number.isFinite(apiDuration) && apiDuration > 0;
+    const effectiveDuration = Number.isFinite(duration) && duration > 0
+      ? duration : (validApiDuration ? apiDuration : 0);
+    const boundedEnd = effectiveDuration > 0 ? Math.min(end, effectiveDuration) : end;
+    if (id !== videoId || category !== 'chapter' || actionType !== 'chapter' || !title
+        || !Number.isFinite(start) || !Number.isFinite(end) || start < 0 || boundedEnd <= start
+        || (effectiveDuration <= 2 * 60 * 60 && end - start > 2 * 60 * 60)) {
+      invalid += 1;
+      continue;
+    }
+    chapters.push({ videoId, start, end: boundedEnd, title, category, actionType, uuid,
+      videoDuration: validApiDuration ? apiDuration : (duration > 0 ? duration : null) });
+  }
+  chapters.sort((a, b) => a.start - b.start || a.end - b.end || a.uuid.localeCompare(b.uuid));
+  return { chapters, invalid, error: '' };
+}
+
+function splitSponsorActions(payload) {
+  const skip = [];
+  const chapter = [];
+  let invalid = 0;
+  for (const item of Array.isArray(payload) ? payload : []) {
+    const actionType = String(item?.actionType || 'skip');
+    if (actionType === 'skip') skip.push(item);
+    else if (actionType === 'chapter') chapter.push(item);
+    else invalid += 1;
+  }
+  return { skip, chapter, invalid };
+}
+
 function clampSegmentsToDuration(segments, duration) {
   const limit = Number(duration);
   if (!Number.isFinite(limit) || limit <= 0 || !Array.isArray(segments)) return Array.isArray(segments) ? segments : [];
@@ -95,4 +142,6 @@ class SponsorBlockCache {
   }
 }
 
-module.exports = { SPONSORBLOCK_VERSION, DEFAULT_CATEGORIES, KNOWN_CATEGORIES, youtubeVideoId, hashPrefix, normalizeCategories, extractHashSegments, validateSegments, clampSegmentsToDuration, SponsorBlockCache };
+module.exports = { SPONSORBLOCK_VERSION, DEFAULT_CATEGORIES, KNOWN_CATEGORIES, youtubeVideoId, hashPrefix,
+  normalizeCategories, extractHashSegments, validateSegments, validateChapters, splitSponsorActions,
+  clampSegmentsToDuration, SponsorBlockCache };

@@ -6,7 +6,9 @@ const DEFAULT_SECRET_FIELDS = Object.freeze([
   'hfToken',
   'llm.apiKey',
   'translate.apiKey',
+  'translate.apiKeyProfiles',
   'manga.apiKey',
+  'manga.apiKeyProfiles',
 ]);
 
 function cloneJson(value) {

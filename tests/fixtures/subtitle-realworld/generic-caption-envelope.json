@@ -1,0 +1,8 @@
+{
+  "provider": "synthetic-fixture",
+  "captions": [
+    {"id": "caption-a", "startTimeMs": 250, "durationMs": 750, "text": "Kısa başlangıç"},
+    {"id": "caption-b", "startTimeMs": 1250, "endTimeMs": 2500, "text": "İkinci cümle"},
+    {"id": "caption-empty", "startTimeMs": 3000, "durationMs": 500, "text": ""}
+  ]
+}
