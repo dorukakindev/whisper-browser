@@ -230,7 +230,9 @@ function normalizeSessionTab(raw) {
     // null eski kayıttır; iki boş kimlik ise kullanıcının bilinçli boş seçimidir.
     subtitleSelection: raw.subtitleSelection && typeof raw.subtitleSelection === 'object' && !Array.isArray(raw.subtitleSelection)
       ? { primaryId: cleanString(raw.subtitleSelection.primaryId, 180),
-        secondaryId: cleanString(raw.subtitleSelection.secondaryId, 180) } : null,
+        secondaryId: cleanString(raw.subtitleSelection.secondaryId, 180),
+        ...(raw.subtitleSelection.primaryFile ? { primaryFile: cleanString(raw.subtitleSelection.primaryFile, 4096) } : {}),
+        ...(raw.subtitleSelection.secondaryFile ? { secondaryFile: cleanString(raw.subtitleSelection.secondaryFile, 4096) } : {}) } : null,
   };
 }
 

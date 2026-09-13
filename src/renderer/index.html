@@ -18,7 +18,7 @@
         </div>
         <div class="brand-text">
           <h1>Whisper Altyazı</h1>
-          <span class="brand-sub">faster-whisper · CUDA</span>
+          <span class="brand-sub">Yerel altyazı çalışma alanı</span>
         </div>
       </div>
       <div class="header-actions">
@@ -35,9 +35,9 @@
       <!-- LEFT PANEL -->
       <section class="panel panel-left">
         <!-- SOURCE -->
-        <div class="card">
+        <div class="card source-card">
           <div class="card-head">
-            <h2>Kaynak</h2>
+            <div class="section-heading"><span class="signal-kicker">01 · BAŞLANGIÇ</span><h2>Kaynağını seç</h2></div>
             <div class="tabs" role="tablist" aria-label="Kaynak türü">
               <button class="tab active" id="sourceTabFile" type="button" data-tab="file" role="tab"
                 aria-selected="true" aria-controls="sourcePanelFile" tabindex="0">Dosya</button>
@@ -55,13 +55,13 @@
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               <div class="drop-text">
-                <strong>Sürükle bırak</strong> veya tıklayarak seç
+                <strong>Video veya ses dosyanı bırak</strong><span> ya da tıklayarak seç</span>
               </div>
-              <div class="drop-sub">Video dosyaları veya klasörler bırakabilirsiniz (bölümler otomatik taranır)</div>
+              <div class="drop-sub">Klasör de ekleyebilirsin; içindeki bölümler otomatik bulunur.</div>
             </div>
-            <div class="source-actions" style="display:flex;gap:8px;margin-top:8px">
-              <button class="btn btn-secondary btn-sm" id="pickVideosBtn" style="flex:1" title="Birden fazla video/ses dosyası seç">Dosya(lar) Seç</button>
-              <button class="btn btn-secondary btn-sm" id="pickFoldersBtn" style="flex:1" title="Bir veya birden fazla klasör seç (içlerindeki tüm videolar taranır)">Klasör(ler) Seç</button>
+            <div class="source-actions">
+              <button class="btn btn-secondary btn-sm" id="pickVideosBtn" title="Birden fazla video/ses dosyası seç">Dosya seç</button>
+              <button class="btn btn-secondary btn-sm" id="pickFoldersBtn" title="Bir veya birden fazla klasör seç (içlerindeki tüm videolar taranır)">Klasör seç</button>
             </div>
             <div class="file-info hidden" id="fileInfo">
               <div class="file-icon">
@@ -75,20 +75,23 @@
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
               </button>
             </div>
-            <div class="watch-folder" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">
-              <label class="field switch-field">
-                <input type="checkbox" id="watchEnabled" />
-                <span>Klasörü izle — yeni video düşünce kuyruğa otomatik ekle</span>
-              </label>
-              <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-                <button class="btn btn-secondary btn-sm" id="pickWatchDir">Klasör seç</button>
-                <div class="path-display" id="watchDirPath" style="flex:1">Seçilmedi</div>
+            <details class="source-utilities">
+              <summary>Klasör takibi ve yeniden dışa aktarma</summary>
+              <div class="watch-folder">
+                <label class="field switch-field">
+                  <input type="checkbox" id="watchEnabled" />
+                  <span>Klasörü izle · yeni videoları kuyruğa ekle</span>
+                </label>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+                  <button class="btn btn-secondary btn-sm" id="pickWatchDir">Klasör seç</button>
+                  <div class="path-display" id="watchDirPath" style="flex:1">Seçilmedi</div>
+                </div>
               </div>
-            </div>
-            <div class="hint" style="margin-top:8px">
-              Mevcut bir <strong>JSON</strong> çıktısından formatları yeniden üretmek için (yeniden transkripsiyon yok):
-              <button class="link-btn" id="reexportJson">JSON'dan yeniden üret</button>
-            </div>
+              <div class="hint" style="margin-top:8px">
+                Mevcut bir <strong>JSON</strong> çıktısından formatları yeniden üretmek için (yeniden transkripsiyon yok):
+                <button class="link-btn" id="reexportJson">JSON'dan yeniden üret</button>
+              </div>
+            </details>
           </div>
 
           <div class="tab-content hidden" id="sourcePanelYoutube" data-content="youtube" role="tabpanel"
@@ -122,9 +125,8 @@
               <button class="link-btn" id="clearClip" style="display:none">temizle</button>
             </div>
             <div class="hint" id="clipHint" style="margin-top:6px">
-              Yalnızca bir bölümü çevirmek için: <code>1:30</code> – <code>5:00</code> (veya saniye: <code>90</code>).
-              Zaman damgaları orijinal videoya göre hizalanır; YouTube'da iki sınır da doluysa
-              <strong>sadece o aralık indirilir</strong>.
+              Örnek: <code>1:30</code> – <code>5:00</code>. Boş bırakırsan tüm dosya işlenir.
+              Zamanlar videoya göre korunur; YouTube'da iki sınır da girildiğinde yalnızca bu aralık indirilir.
             </div>
           </div>
         </div>
@@ -969,7 +971,7 @@
         <!-- LIVE PREVIEW -->
         <div class="card card-flex">
           <div class="card-head">
-            <h2>Canlı önizleme</h2>
+            <div class="section-heading"><span class="signal-kicker">ALTYAZI ÇALIŞMA ALANI</span><h2>Canlı önizleme</h2></div>
             <div class="preview-tools">
               <div class="search-control">
                 <input type="search" id="previewSearch" class="preview-search" placeholder="Ara..." aria-label="Canlı önizlemede ara" />
@@ -985,7 +987,7 @@
           <div class="preview" id="preview" role="log" aria-live="polite" aria-label="Canlı önizleme">
             <div class="empty-state">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5h18M3 12h18M3 19h12"/></svg>
-              <div>Transkripsiyon başladığında segmentler burada görünecek.</div>
+              <div class="preview-empty-copy"><strong>Altyazıların burada şekillenecek</strong><p>Bir kaynak seç ve transkripsiyonu başlat. Oluşan metni burada takip edip düzenleyebilirsin.</p></div>
             </div>
           </div>
         </div>
@@ -1301,6 +1303,14 @@
               <button class="btn-icon browser-dismiss" id="browserDownloadsClose" type="button" title="Kapat (Esc)" aria-label="İndirme listesini kapat">×</button>
             </div>
             <p class="browser-download-note">Kalıcı son 100 indirme. Medya dosyalarını yerel oynatıcıda açabilirsiniz.</p>
+            <div class="browser-download-filters">
+              <input type="search" id="browserDownloadsSearch" placeholder="Dosya adı veya konumda ara…" aria-label="İndirilen dosyalarda ara" />
+              <select id="browserDownloadsFilter" aria-label="İndirme durumu">
+                <option value="all">Tüm indirmeler</option><option value="active">Devam edenler</option>
+                <option value="completed">Tamamlananlar</option><option value="failed">Kesilen / iptal edilen</option>
+              </select>
+            </div>
+            <p id="browserDownloadsCount" class="browser-download-note" role="status" aria-live="polite"></p>
             <p id="browserDownloadsStatus" class="browser-download-note" role="status" aria-live="polite"></p>
             <div id="browserDownloadsList" class="browser-download-list"></div>
           </section>
@@ -1339,6 +1349,10 @@
               <select id="browserPlacesFolder" aria-label="Yer imi klasörü"><option value="">Tüm klasörler</option></select>
             </div>
             <div class="browser-places-list" id="browserPlacesList" role="tabpanel" aria-labelledby="browserPlaceTabBookmarks"></div>
+            <div class="browser-place-results">
+              <span id="browserPlacesCount" role="status" aria-live="polite"></span>
+              <button class="link-btn hidden" id="browserPlacesResetFilters" type="button">Filtreleri temizle</button>
+            </div>
             <div class="browser-workspaces">
               <label for="browserWorkspaceSelect">Kayıtlı çalışma alanları</label>
               <select id="browserWorkspaceSelect"><option value="">Henüz kayıt yok</option></select>
@@ -1662,7 +1676,7 @@
             <section class="browser-settings-surface hidden" id="browserSettingsSurface"
               aria-label="Tarayıcı ayarları" aria-hidden="true">
               <header class="browser-settings-surface-head">
-                <h2>Tarayıcı ayarları</h2>
+                <div><span class="browser-section-eyebrow">ÇALIŞMA ALANIN</span><h2>Tarayıcı ayarları</h2><p>İzleme, çeviri ve gizlilik tercihlerini bir yerden yönet.</p></div>
                 <button class="btn-icon browser-dismiss" id="browserSettingsClose" type="button"
                   aria-label="Ayarlar sekmesini kapat" title="Ayarlar sekmesini kapat">×</button>
               </header>
@@ -1674,6 +1688,7 @@
                 <nav class="browser-settings-categories" id="browserSettingsCategories"
                   aria-label="Ayar kategorileri"></nav>
                 <div class="browser-settings-main">
+                  <div class="browser-settings-category-head" id="browserSettingsCategoryHead"><h3 id="browserSettingsCategoryTitle">Site ve altyazı</h3><p id="browserSettingsCategoryDescription">Altyazı dilini ve sitelerin nasıl davranacağını belirle.</p></div>
                   <div class="browser-settings-results hidden" id="browserSettingsResults"
                     aria-label="Ayar arama sonuçları" aria-live="polite"></div>
                   <div class="browser-settings-surface-content" id="browserSettingsSurfaceContent"></div>
@@ -1681,12 +1696,16 @@
               </div>
             </section>
             <div class="browser-empty" id="browserEmpty">
-              <span class="browser-empty-rule" aria-hidden="true"></span>
-              <strong>Web sayfasını burada aç</strong>
-              <p>Video altyazılarını yakalayabilir, manga görsellerini çevirebilir veya normal bir web sayfasında gezinebilirsin.</p>
-              <small>Adresi ya da aramak istediğin ifadeyi üstteki alana yaz. Adres çubuğuna dönmek için Ctrl+L kullanabilirsin.</small>
-              <small>Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır.</small>
-              <small>DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</small>
+              <span class="browser-home-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01M8 13h8M8 16h5"/></svg></span>
+              <span class="browser-section-eyebrow">WHISPER TARAYICI</span>
+              <strong>İzle. Oku. Kendi dilinde keşfet.</strong>
+              <p>Web sayfaları, video altyazıları ve manga çevirileri için çalışma alanın.</p>
+              <div class="browser-home-actions">
+                <button type="button" id="browserStartBrowse"><span class="browser-home-action-icon" aria-hidden="true">↗</span><strong>Bir sayfa aç</strong><span>Adres yaz veya web'de ara</span><kbd>Ctrl+L</kbd></button>
+                <button type="button" id="browserStartLibrary"><span class="browser-home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h5v16H4zM12 4h5v16h-5zM19 5l3 14"/></svg></span><strong>Kütüphanem</strong><span>Kayıtlarına kaldığın yerden dön</span></button>
+                <button type="button" id="browserStartSettings"><span class="browser-home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></span><strong>Çeviriyi ayarla</strong><span>Dil ve okuma tercihlerini seç</span></button>
+              </div>
+              <details class="browser-home-about"><summary>Bu tarayıcı hakkında</summary><p>Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır. DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</p></details>
               <div class="browser-quick-places hidden" id="browserQuickPlaces" aria-label="Hızlı erişim">
                 <div class="browser-quick-places-head">
                   <span>Hızlı erişim</span>
@@ -2455,6 +2474,7 @@
                 <button class="btn btn-secondary btn-sm" id="browserSyncLater" type="button">0,1 sn geç</button>
                 <button class="btn btn-ghost btn-sm" id="browserSyncEarlierStep" type="button">Büyük adım erken</button>
                 <button class="btn btn-ghost btn-sm" id="browserSyncLaterStep" type="button">Büyük adım geç</button>
+                <button class="btn btn-secondary btn-sm" id="browserSyncAlignCurrent" type="button" title="Aktif altyazı bloğunun başlangıcını videonun mevcut anına hizalar. Önizlemeyi kontrol edip kaydedin.">Aktif bloğu bu ana hizala</button>
               </div>
               <div class="browser-sync-points">
                 <p id="browserSyncPoints" role="status" aria-live="polite">Drift için iki uzak altyazı bloğunu videodaki doğru başlangıçlarıyla eşleştirin.</p>

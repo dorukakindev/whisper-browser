@@ -66,3 +66,27 @@ assert.equal(tab.subtitleSelection, null);
 assert.equal(tab.subtitleSelectionRestored, true);
 assert.equal(tab.subtitleSelectionExplicit, false);
 console.log('Browser subtitle session: explicit slots, off mode, legacy fallback, pending saves and navigation passed.');
+
+const manualSelection = { primaryId: '', secondaryId: '', primaryFile: 'C:/subs/film.srt', secondaryFile: 'C:/subs/film.tr.vtt' };
+assert.deepEqual(normalizeSessionTab({ ...raw, subtitleSelection: manualSelection }).subtitleSelection, manualSelection);
+assert.deepEqual(selectState({ subtitleSelectionExplicit: true }, { subPath: manualSelection.primaryFile, sub2Path: manualSelection.secondaryFile }, () => 'both').selection, manualSelection);
+(async () => {
+  const tab = { id: 'a', subtitleSelection: manualSelection, restoreSubtitleMode: 'both' };
+  const controls = { playerSubSelect: {}, playerSubSelect2: {} };
+  const loads = [];
+  const ctx = { player: { browserActiveTabId: 'a', browserTracks: [] }, currentGeneration: () => 1,
+    staleGeneration: () => false, $: id => controls[id], addSubtitleOption() {},
+    setSubtitleMode: mode => { assert.equal(mode, 'both'); }, saveActiveBrowserTabWorkspace() {},
+    loadSubtitle: async (file, secondary) => { loads.push(file); ctx.player[secondary ? 'sub2Path' : 'subPath'] = file; } };
+  vm.createContext(ctx);
+  vm.runInContext(renderer.slice(renderer.indexOf('async function restoreBrowserSubtitleSelection('), renderer.indexOf('async function loadPersistedBrowserTranslation(')), ctx);
+  await ctx.restoreBrowserSubtitleSelection(tab);
+  assert.deepEqual(loads, [manualSelection.primaryFile, manualSelection.secondaryFile]);
+  assert.equal(tab.subtitleSelectionRestored, true);
+  tab.subtitleSelectionRestored = false; ctx.player.subPath = ''; loads.length = 0;
+  ctx.loadSubtitle = async file => { loads.push(file); };
+  await ctx.restoreBrowserSubtitleSelection(tab);
+  await ctx.restoreBrowserSubtitleSelection(tab);
+  assert.equal(loads.length, 1, 'Eksik dosya her iz olayında tekrar okunmamalı');
+  assert.equal(tab.subtitleSelection.primaryFile, manualSelection.primaryFile, 'Dosyayı bulmak için seçim korunmalı');
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -109,7 +109,7 @@ class Item extends EventEmitter {
     contains() { return false; }
     focus() { this.focused = true; }
   }
-  const nodes = Object.fromEntries(['Panel', 'Toggle', 'Close', 'List', 'Status', 'Badge'].map(k => ['browserDownloads' + k, new Node()]));
+  const nodes = Object.fromEntries(['Panel', 'Toggle', 'Close', 'List', 'Status', 'Badge', 'Search', 'Filter', 'Count'].map(k => ['browserDownloads' + k, new Node()]));
   const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
   const rs = renderer.indexOf('const browserDownloadState =');
   const re = renderer.indexOf('function renderBrowserDiagnostics(', rs);
@@ -129,7 +129,40 @@ class Item extends EventEmitter {
   ctx.receiveBrowserDownloads({ ...data, revision: 12, active: 0, items: [{ ...data.items[0], state: 'completed', active: false, total: 5, path: 'saved.zip' }] });
   assert.equal(row.children[2].hidden, true);
   assert.equal(row.children[4].children[1].classList.contains('hidden'), true);
-  assert.equal(row.children[4].children[3].classList.contains('hidden'), false);
+  assert.equal(row.children[4].children[3].classList.contains('hidden'), true, 'ZIP dosyası oynatıcıda açılabilir görünmemeli');
   assert.equal(row.children[4].children[4].classList.contains('hidden'), false);
+  const completed = { ...data, revision: 13, active: 0, items: [{ ...data.items[0], filename: 'İSTANBUL.MP4', state: 'completed', active: false, path: 'C:/Video/İSTANBUL.MP4' }] };
+  ctx.receiveBrowserDownloads(completed);
+  assert.equal(row.children[4].children[3].classList.contains('hidden'), false, 'Büyük harfli medya uzantısı desteklenmeli');
+  nodes.browserDownloadsSearch.value = 'istanbul';
+  nodes.browserDownloadsSearch.listeners.input();
+  assert.equal(row.classList.contains('hidden'), false, 'Türkçe arama büyük/küçük harften etkilenmemeli');
+  nodes.browserDownloadsFilter.value = 'active';
+  nodes.browserDownloadsFilter.listeners.change();
+  assert.equal(row.classList.contains('hidden'), true);
+  assert.match(nodes.browserDownloadsCount.textContent, /0 \/ 1/);
+  nodes.browserDownloadsFilter.value = 'completed';
+  nodes.browserDownloadsFilter.listeners.change();
+  assert.equal(row.classList.contains('hidden'), false);
+  assert.equal(nodes.browserDownloadsList.children[0], row, 'Filtreler satır DOM ve odağını yeniden oluşturmamalı');
+
+  let finishAction, actionCalls = 0;
+  ctx.window.api.browserDownloads = () => { actionCalls++; return new Promise(resolve => { finishAction = resolve; }); };
+  const revealButton = row.children[4].children[4];
+  const pending = revealButton.listeners.click();
+  assert.equal(revealButton.disabled, true);
+  await revealButton.listeners.click();
+  assert.equal(actionCalls, 1, 'Bekleyen indirme işlemi çift tıklamayla yinelenmemeli');
+  ctx.receiveBrowserDownloads({ ...completed, revision: 14 });
+  assert.equal(revealButton.disabled, true, 'İlerleme olayı bekleyen işlemi yeniden etkinleştirmemeli');
+  finishAction({ ok: false, error: 'Dosya taşınmış veya silinmiş.' });
+  await pending;
+  assert.equal(revealButton.disabled, false);
+  assert.match(row.children[5].textContent, /taşınmış/);
+  ctx.receiveBrowserDownloads({ ...completed, revision: 15 });
+  assert.match(row.children[5].textContent, /taşınmış/, 'İlerleme olayı işlem hatasını silmemeli');
+  const retry = revealButton.listeners.click();
+  finishAction({ ok: true }); await retry;
+  assert.equal(row.children[5].textContent, '');
   console.log('Browser downloads lifecycle, limits, IPC and renderer tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

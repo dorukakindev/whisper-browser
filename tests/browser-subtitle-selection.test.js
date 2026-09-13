@@ -32,6 +32,7 @@ function harness() {
     updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {},
     updatePlayerAutoSyncState() {}, renderCue() {}, scheduleBrowserOverlaySync() {}, logLine() {},
     updateCueEditHistoryButtons() {}, setSubtitleMode: (mode) => modes.push(mode),
+    renderBrowserCueAt() {}, saveActiveBrowserTabWorkspace() {},
     setBrowserSignal: (message) => signals.push(message),
   };
   vm.createContext(ctx);
@@ -46,6 +47,33 @@ function harness() {
 }
 
 (async () => {
+  {
+  const pair = harness();
+  await pair.load('src.srt');
+  await pair.load('src2.srt', true);
+  const roles = pair.ctx.browserSubtitleRoleCues();
+  assert.equal(roles.source, pair.ctx.player.cues, 'İki site dili birlikte seçilince birinci dil korunmalı');
+  assert.equal(roles.translation, pair.ctx.player.cues2, 'İkinci site dili ayrı görüntüleme kanalında olmalı');
+  pair.ctx.browserTransformForChannel = secondary => ({ scale: 1, offsetSeconds: secondary ? 2 : 1 });
+  assert.equal(pair.ctx.browserTransformForRole('source').offsetSeconds, 1);
+  assert.equal(pair.ctx.browserTransformForRole('translation').offsetSeconds, 2);
+  const identity = pair.ctx.browserTrackSourceIdentity(pair.ctx.player.browserTracks[2], pair.ctx.player.cues2);
+  assert.equal(identity.sourcePrefixHash, browserSubtitleSync.cuePrefixHash(pair.ctx.player.cues2, 1), 'İkinci kaynağın kimliği ilk dilin metninden üretilmemeli');
+
+  const manualSync = harness();
+  manualSync.tab.mediaId = 'manual-video';
+  await manualSync.load('manual.srt');
+  manualSync.ctx.nudgeBrowserSync(.5);
+  assert.equal(manualSync.ctx.browserTransformForChannel(false).offsetSeconds, .5, 'Elle yüklenen SRT önizlemesi uygulanmalı');
+  manualSync.ctx.saveBrowserSync();
+  assert.equal(manualSync.tab.subtitleSyncRecords.length, 1);
+  manualSync.ctx.player.browserSyncPreview = null;
+  assert.equal(manualSync.ctx.browserTransformForChannel(false).offsetSeconds, .5, 'Dosya senkron kaydı yeniden kullanılmalı');
+  manualSync.ctx.player.cuesRaw = [{ start: 5, end: 6, text: 'Aynı dosyada başka içerik' }];
+  manualSync.ctx.player.cues = manualSync.ctx.player.cuesRaw;
+  assert.equal(manualSync.ctx.browserTransformForChannel(false).offsetSeconds, 0, 'Değişen dosya içeriğine eski senkron uygulanmamalı');
+
+  }
   const first = harness();
   await first.load('src.srt');
   await first.load('tr.srt', true);

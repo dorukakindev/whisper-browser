@@ -2309,7 +2309,13 @@ function restoreBrowserSessionState() {
   browserSessionLoadWarning = [loaded.warning, interruptedWarning].filter(Boolean).join(' ');
   browserSessionRestoreEnabled = saved.restoreEnabled !== false;
   if (!browserSessionRestoreEnabled || !saved.tabs.length) return;
-  for (const snapshot of saved.tabs) createBrowserTabRecord(snapshot);
+  for (const snapshot of saved.tabs) {
+    createBrowserTabRecord(snapshot);
+    for (const slot of ['primaryFile', 'secondaryFile']) {
+      const file = snapshot.subtitleSelection?.[slot];
+      if (file) subtitleFileAccess.grant(file);
+    }
+  }
   if (saved.activeTabId && browserTabs.has(saved.activeTabId)) browserActiveTabId = saved.activeTabId;
   browserSplitSecondaryTabId = saved.splitSecondaryTabId && saved.splitSecondaryTabId !== browserActiveTabId
     && browserTabs.has(saved.splitSecondaryTabId) ? saved.splitSecondaryTabId : '';
@@ -8846,9 +8852,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.service = identity.service;
     tab.contentId = identity.contentId;
     applyStoredBrowserZoom(tab, wc, tab.restoredUrl);
+    // Renderer yeni medya için eski listeyi önce temizlesin. Kayıtlı izler
+    // bundan önce yayımlanırsa hemen ardından gelen navigation onları siler.
+    sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab) });
     if (tab.id === browserActiveTabId) resetBrowserCaptureState({ cancelTranslation: true });
     rememberBrowserVisit(wc.getURL(), wc.getTitle());
-    sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab) });
     scheduleBrowserSessionSave();
   });
   wc.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
@@ -8882,6 +8890,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       tab.contentId = identity.contentId;
       applyStoredBrowserZoom(tab, wc, nextUrl);
       if (mediaChanged && tab.id === browserActiveTabId) {
+        sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab) });
         resetBrowserCaptureState({ cancelTranslation: true });
         void resetBrowserPageCaptureState(tab.view);
         void reportBrowserDrmSupport();
@@ -9064,7 +9073,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
 
 function persistActiveBrowserTabState() {
   const tab = activeBrowserTab();
-  if (!tab) return;
+  // İlk açılışta kayıtlı etkin sekme henüz bir görünüme bağlanmamış olabilir.
+  // Sürecin varsayılan katmanını bu sekmenin saklanan tercihleri üzerine yazma.
+  if (!tab || !browserView || tab.view !== browserView) return;
   tab.captureEnabled = browserCaptureEnabled;
   tab.diagnostics = browserDiagnostics;
   tab.overlay = browserOverlay;
@@ -10844,6 +10855,14 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     url: liveUrl || raw?.url || tab.restoredUrl,
   });
   if (!normalized) return { ok: false, error: 'Geçersiz tarayıcı oturum verisi.' };
+  // Yalnızca daha önce kullanıcı tarafından açılan dosyaları hatırla.
+  for (const slot of ['primaryFile', 'secondaryFile']) {
+    const file = normalized.subtitleSelection?.[slot];
+    if (!file || file === tab.subtitleSelection?.[slot]) continue;
+    try {
+      if (!subtitleFileAccess.has(subtitleFileAccess.inspect(file))) delete normalized.subtitleSelection[slot];
+    } catch (_) { delete normalized.subtitleSelection[slot]; }
+  }
   Object.assign(tab, {
     restoredUrl: normalized.url,
     restoredTitle: normalized.title,

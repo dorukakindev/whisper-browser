@@ -134,6 +134,28 @@ function harness() {
     assert.equal(loaded, change === 'none' ? 1 : 0);
   }
   const notices = harness();
+  const secondSiteLanguage = harness();
+  const secondPlayer = secondSiteLanguage.ctx.player;
+  secondPlayer.browserTracks = [{ id: 'site-tr', role: 'source', language: 'tr' }];
+  secondPlayer.browserLoadedTrackId2 = 'site-tr';
+  secondPlayer.cues2 = [{ start: 1, end: 2, text: 'Sitenin ikinci dili' }];
+  secondPlayer.cues2Raw = secondPlayer.cues2;
+  secondSiteLanguage.ctx.browserSubtitleRoleCues = () => ({ translation: secondPlayer.cues2 });
+  secondSiteLanguage.controls.browserExportTiming = { value: 'synchronized' };
+  secondSiteLanguage.ctx.browserSubtitleSync = require('../src/browser-subtitle-sync');
+  secondSiteLanguage.ctx.browserTransformForChannel = secondary => ({ scale: 1, offsetSeconds: secondary ? 2 : 1 });
+  await secondSiteLanguage.ctx.exportBrowserTranslation();
+  assert.equal(secondSiteLanguage.exports[0].cues[0].start, 3, 'İkinci site dili kendi senkronuyla dışa aktarılmalı');
+  assert.match(secondSiteLanguage.exports[0].title, /tr-ceviri$/);
+  const manualTiming = harness();
+  manualTiming.ctx.browserTrackSelection = () => null;
+  manualTiming.controls.browserExportTiming = { value: 'synchronized' };
+  manualTiming.ctx.player.cuesRaw = [{ start: 1, end: 2, text: 'Elle yüklenen satır' }];
+  manualTiming.ctx.browserTransformForChannel = () => ({ scale: 1, offsetSeconds: .5 });
+  manualTiming.ctx.browserSubtitleSync = require('../src/browser-subtitle-sync');
+  await manualTiming.ctx.exportSelectedBrowserTrack();
+  assert.equal(manualTiming.exports[0].cues[0].start, 1.5, 'Elle yüklenen dosya önizlemesinin senkronu dışa aktarılmalı');
+  assert.equal(manualTiming.ctx.player.cuesRaw[0].start, 1, 'Dışa aktarma orijinal zamanları değiştirmemeli');
   const tab = {};
   notices.ctx.browserTabState = () => tab;
   vm.runInContext(source.slice(source.indexOf('function announceBrowserTrack('),

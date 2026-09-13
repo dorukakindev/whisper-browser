@@ -23,6 +23,22 @@ function checksumPayload(payload) {
   return crypto.createHash('sha256').update(JSON.stringify(payload), 'utf8').digest('hex');
 }
 
+// Yerel dosya seçimi yalnız bu bilgisayarın oturumuna aittir.
+function portableSessionTab(raw) {
+  const tab = normalizeSessionTab(raw);
+  if (tab?.subtitleSelection) {
+    delete tab.subtitleSelection.primaryFile;
+    delete tab.subtitleSelection.secondaryFile;
+  }
+  return tab;
+}
+
+function portableSession(raw) {
+  const session = normalizeBrowserSession(raw);
+  session.tabs = session.tabs.map(portableSessionTab);
+  return session;
+}
+
 function sanitizePlaces(raw = {}) {
   const cleanEntries = (items) => (Array.isArray(items) ? items : []).map((item) => ({
     url: safePlaceUrl(item?.url),
@@ -33,7 +49,7 @@ function sanitizePlaces(raw = {}) {
   const workspaces = (Array.isArray(raw.workspaces) ? raw.workspaces : []).map((workspace) => ({
     name: clean(workspace?.name, 64),
     tabs: (Array.isArray(workspace?.tabs) ? workspace.tabs : [])
-      .map(normalizeSessionTab).filter(Boolean).slice(0, 24),
+      .map(portableSessionTab).filter(Boolean).slice(0, 24),
     activeTabId: clean(workspace?.activeTabId, 128),
     splitSecondaryTabId: clean(workspace?.splitSecondaryTabId, 128),
     splitRatio: Math.max(0.25, Math.min(0.75, Number(workspace?.splitRatio) || 0.5)),
@@ -80,7 +96,7 @@ function sanitizeVariant(raw = {}) {
 
 function createBrowserSessionPackage({ session, places, variants = [], now = Date.now() } = {}) {
   const payload = {
-    session: normalizeBrowserSession(session || {}),
+    session: portableSession(session || {}),
     places: sanitizePlaces(places),
     variants: (Array.isArray(variants) ? variants : []).map(sanitizeVariant)
       .filter(Boolean).slice(0, MAX_PACKAGE_VARIANTS),
@@ -129,7 +145,7 @@ function inspectBrowserSessionPackage(raw) {
     ? migrated.payload.session : {};
   const tabs = [];
   for (const [index, candidate] of (Array.isArray(rawSession.tabs) ? rawSession.tabs : []).entries()) {
-    const tab = normalizeSessionTab(candidate);
+    const tab = portableSessionTab(candidate);
     if (tab) tabs.push(tab);
     else warnings.push(`Sekme ${index + 1} geçersiz olduğu için atlandı.`);
   }

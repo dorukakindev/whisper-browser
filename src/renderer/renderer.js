@@ -1116,7 +1116,7 @@ function clearPreview() {
   $('preview').innerHTML = `
     <div class="empty-state">
       <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5h18M3 12h18M3 19h12"/></svg>
-      <div>Transkripsiyon başladığında segmentler burada görünecek.</div>
+      <div class="preview-empty-copy"><strong>Altyazıların burada şekillenecek</strong><p>Bir kaynak seç ve transkripsiyonu başlat. Oluşan metni burada takip edip düzenleyebilirsin.</p></div>
     </div>
   `;
 }
@@ -1516,9 +1516,8 @@ function updateClipHint() {
     return;
   }
   if (a === null && b === null) {
-    hint.innerHTML = 'Yalnızca bir bölümü çevirmek için: <code>1:30</code> – <code>5:00</code> '
-      + '(veya saniye: <code>90</code>). Zaman damgaları orijinal videoya göre hizalanır; '
-      + "YouTube'da iki sınır da doluysa <strong>sadece o aralık indirilir</strong>.";
+    hint.innerHTML = 'Örnek: <code>1:30</code> – <code>5:00</code>. Boş bırakırsan tüm dosya işlenir. '
+      + "Zamanlar videoya göre korunur; YouTube'da iki sınır da girildiğinde yalnızca bu aralık indirilir.";
     return;
   }
   const from = a === null ? 'baştan' : formatClipDur(a);
@@ -3640,15 +3639,42 @@ async function retryPendingPlayerLoad() {
 }
 
 async function locateMissingSubtitle(missingPath, secondary, role) {
+  const gen = currentGeneration();
+  const restoringTab = player.workspaceMode === 'browser' ? browserTabState() : null;
+  const pendingSelection = restoringTab?.subtitleSelection && !restoringTab.subtitleSelectionRestored
+    ? { ...restoringTab.subtitleSelection } : null;
   const replacement = await window.api.selectFile('subtitle').catch(() => null);
-  if (!replacement) return;
+  if (!replacement || staleGeneration(gen)) return;
   addSubtitleOption(replacement, `Bulunan dosya · ${role === 'translation' ? 'Çeviri' : 'Kaynak'}`,
     { role });
   const select = $(secondary ? 'playerSubSelect2' : 'playerSubSelect');
   if (select) select.value = replacement;
-  await loadSubtitle(replacement, secondary, { role });
+  await loadSubtitle(replacement, secondary, { role,
+    ...(pendingSelection ? { silent: true, restoringSelection: true } : {}) });
+  if (staleGeneration(gen)) return;
   if ((secondary ? player.sub2Path : player.subPath) === replacement) {
-    state.pendingPlayerLoad = null;
+    if (player.workspaceMode === 'browser') {
+      const tab = browserTabState();
+      const track = browserSyncTrack(secondary);
+      const oldId = `file:${browserSubtitleSync.hashText(missingPath)}`;
+      // Aynı içerik taşındıysa zaman düzeltmesini yeni dosya kimliğine aktar.
+      if (tab && track) tab.subtitleSyncRecords = (tab.subtitleSyncRecords || []).map(record =>
+        record.sourceTrackId === oldId && record.sourceHash === track.sourceHash
+          ? { ...record, sourceTrackId: track.id } : record);
+      if (pendingSelection && tab === restoringTab) {
+        pendingSelection[secondary ? 'secondaryFile' : 'primaryFile'] = replacement;
+        pendingSelection[secondary ? 'secondaryId' : 'primaryId'] = '';
+        tab.subtitleSelection = pendingSelection;
+        tab.subtitleSelectionLoadingFailed = undefined;
+        state.pendingPlayerLoad = null;
+        await restoreBrowserSubtitleSelection(tab);
+        if (staleGeneration(gen)) return;
+      }
+      saveActiveBrowserTabWorkspace();
+      renderBrowserCueAt(player.browserTime);
+      scheduleBrowserOverlaySync();
+    }
+    if (!pendingSelection) state.pendingPlayerLoad = null;
     flushWatchState(false, true);
     updatePlayerTaskCenter();
     logLine(`Taşınan altyazı bulundu: ${replacement}`, 'success');
@@ -4713,6 +4739,8 @@ function saveActiveBrowserTabWorkspace() {
   const selection = restoringSelection ? tab.subtitleSelection
     : (tab.subtitleSelection || tab.subtitleSelectionExplicit || player.browserLoadedTrackId || player.browserLoadedTrackId2) ? {
     primaryId: player.browserLoadedTrackId || '', secondaryId: player.browserLoadedTrackId2 || '',
+    ...(!player.browserLoadedTrackId && player.subPath ? { primaryFile: player.subPath } : {}),
+    ...(!player.browserLoadedTrackId2 && player.sub2Path ? { secondaryFile: player.sub2Path } : {}),
   } : null;
   const savedSubtitleMode = restoringSelection ? tab.restoreSubtitleMode : browserSubtitleMode();
   Object.assign(tab, {
@@ -6163,7 +6191,7 @@ function renderBrowserQuickPlaces() {
 function browserPlaceList() {
   const places = player.browserPlaces || { history: [], bookmarks: [] };
   const query = String($('browserPlacesSearch')?.value || '').trim().toLocaleLowerCase('tr');
-  const folder = $('browserPlacesFolder')?.value || '';
+  const folder = player.browserPlaceTab === 'bookmarks' ? ($('browserPlacesFolder')?.value || '') : '';
   return (Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : []).filter(item => {
     if (folder && item.folder !== folder) return false;
     return !query || `${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`.toLocaleLowerCase('tr').includes(query);
@@ -6228,11 +6256,15 @@ function renderBrowserPlaces() {
   if (!list) return;
   list.replaceChildren();
   const entries = browserPlaceList();
+  const filtered = !!String($('browserPlacesSearch')?.value || '').trim()
+    || (player.browserPlaceTab === 'bookmarks' && !!$('browserPlacesFolder')?.value);
+  if ($('browserPlacesCount')) $('browserPlacesCount').textContent = `${entries.length} kayıt${filtered ? ' eşleşti' : ''}`;
+  $('browserPlacesResetFilters')?.classList.toggle('hidden', !filtered);
   if (!entries.length) {
     const empty = document.createElement('div');
     empty.className = 'browser-place-empty';
-    empty.textContent = player.browserPlaceTab === 'bookmarks'
-      ? 'Henüz yer imi eklenmedi.' : 'Henüz ziyaret edilen site yok.';
+    empty.textContent = filtered ? 'Aramanızla eşleşen kayıt bulunamadı. Aramayı veya klasör filtresini temizleyin.'
+      : player.browserPlaceTab === 'bookmarks' ? 'Henüz yer imi eklenmedi.' : 'Henüz ziyaret edilen site yok.';
     list.appendChild(empty);
     return;
   }
@@ -6521,7 +6553,15 @@ function setBrowserPlacesOpen(open) {
   }
 }
 
-const browserDownloadState = { revision: -1, items: [], active: 0, message: '', rows: new Map() };
+const browserDownloadState = { revision: -1, items: [], active: 0, message: '', rows: new Map(), pending: new Set(), errors: new Map() };
+
+function browserDownloadMatches(item) {
+  const query = String($('browserDownloadsSearch')?.value || '').trim().toLocaleLowerCase('tr');
+  const filter = $('browserDownloadsFilter')?.value || 'all';
+  if (query && !`${item.filename} ${item.path || ''}`.toLocaleLowerCase('tr').includes(query)) return false;
+  return filter === 'all' || (filter === 'active' ? item.active
+    : filter === 'completed' ? item.state === 'completed' : !item.active && item.state !== 'completed');
+}
 
 function browserDownloadBytes(value) {
   if (!(value > 0)) return '0 B';
@@ -6547,9 +6587,12 @@ function renderBrowserDownloads() {
   status.textContent = browserDownloadState.message || (browserDownloadState.active
     ? `${browserDownloadState.active} indirme sürüyor.` : browserDownloadState.items.length
       ? 'Devam eden indirme yok.' : 'Henüz indirme yok. Bir web sayfasındaki indirme bağlantısını kullanın.');
+  const matched = browserDownloadState.items.filter(browserDownloadMatches).length;
+  if ($('browserDownloadsCount')) $('browserDownloadsCount').textContent = browserDownloadState.items.length
+    ? `${matched} / ${browserDownloadState.items.length} indirme${matched ? '' : ' · Eşleşen dosya bulunamadı.'}` : '';
   const ids = new Set(browserDownloadState.items.map(item => item.id));
   for (const [id, row] of browserDownloadState.rows) {
-    if (!ids.has(id)) { row.root.remove(); browserDownloadState.rows.delete(id); }
+    if (!ids.has(id)) { row.root.remove(); browserDownloadState.rows.delete(id); browserDownloadState.errors.delete(id); }
   }
   for (const item of [...browserDownloadState.items].reverse()) {
     let row = browserDownloadState.rows.get(item.id);
@@ -6565,20 +6608,29 @@ function renderBrowserDownloads() {
         ['open-player', 'Oynatıcıda aç'], ['reveal', 'Klasörde göster'], ['clear', 'Listeden kaldır']]) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm'; button.textContent = label;
         button.addEventListener('click', async () => {
-          button.disabled = true;
+          if (browserDownloadState.pending.has(item.id)) return;
+          browserDownloadState.pending.add(item.id);
+          browserDownloadState.errors.delete(item.id);
+          renderBrowserDownloads();
           const result = await window.api.browserDownloads(command, item.id).catch(() => ({ ok: false, error: 'İndirme işlemi gerçekleştirilemedi.' }));
-          button.disabled = false;
-          if (!result?.ok) status.textContent = result?.error || 'İşlem gerçekleştirilemedi.';
-          else if (command === 'open-player' && result.path) {
+          browserDownloadState.pending.delete(item.id);
+          if (!result?.ok && browserDownloadState.rows.has(item.id)) browserDownloadState.errors.set(item.id, result?.error || 'İşlem gerçekleştirilemedi.');
+          renderBrowserDownloads();
+          if (result?.ok && command === 'open-player' && result.path) {
             setBrowserDownloadsOpen(false);
             await openLocalMedia(result.path, 0);
           }
         });
         actions.appendChild(button); buttons[command] = button;
       }
-      root.append(name, info, progress, saved, actions); list.prepend(root);
-      row = { root, name, info, progress, saved, buttons }; browserDownloadState.rows.set(item.id, row);
+      const error = document.createElement('p'); error.className = 'browser-download-error'; error.setAttribute('role', 'status');
+      root.append(name, info, progress, saved, actions, error); list.prepend(root);
+      row = { root, name, info, progress, saved, buttons, error }; browserDownloadState.rows.set(item.id, row);
     }
+    row.root.classList.toggle('hidden', !browserDownloadMatches(item));
+    row.error.textContent = browserDownloadState.errors.get(item.id) || '';
+    row.error.classList.toggle('hidden', !row.error.textContent);
+    for (const button of Object.values(row.buttons)) button.disabled = browserDownloadState.pending.has(item.id);
     row.name.textContent = item.filename;
     const label = item.paused ? 'Duraklatıldı' : item.state === 'completed' ? 'Tamamlandı' : item.state === 'cancelled' ? 'İptal edildi'
       : item.state === 'interrupted' ? (item.active ? 'Bağlantı kesildi' : 'İndirme başarısız') : 'İndiriliyor';
@@ -6590,7 +6642,8 @@ function renderBrowserDownloads() {
     row.buttons.pause.classList.toggle('hidden', !item.canPause);
     row.buttons.cancel.classList.toggle('hidden', !item.active);
     row.buttons.resume.classList.toggle('hidden', !item.canResume);
-    row.buttons['open-player'].classList.toggle('hidden', item.state !== 'completed' || !item.path);
+    const playable = /\.(?:mp4|mkv|avi|mov|webm|flv|wmv|m4v|ts|3gp|mp3|wav|m4a|aac|flac|ogg|opus|wma)$/i.test(item.path || '');
+    row.buttons['open-player'].classList.toggle('hidden', item.state !== 'completed' || !playable);
     row.buttons.reveal.classList.toggle('hidden', item.state !== 'completed' || !item.path);
     row.buttons.clear.classList.toggle('hidden', !!item.active);
   }
@@ -6615,6 +6668,7 @@ function setBrowserDownloadsOpen(open) {
 
 $('browserDownloadsToggle')?.addEventListener('click', () => setBrowserDownloadsOpen($('browserDownloadsPanel').classList.contains('hidden')));
 $('browserDownloadsClose')?.addEventListener('click', () => setBrowserDownloadsOpen(false));
+for (const id of ['browserDownloadsSearch', 'browserDownloadsFilter']) $(id)?.addEventListener(id.endsWith('Search') ? 'input' : 'change', renderBrowserDownloads);
 $('browserDownloadsPanel')?.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setBrowserDownloadsOpen(false); }
 });
@@ -7272,10 +7326,14 @@ function handleBrowserSubtitleAutomation(track) {
 async function restoreBrowserSubtitleSelection(tab) {
   const gen = currentGeneration();
   if (!tab?.subtitleSelection || tab.subtitleSelectionRestored || tab.subtitleSelectionLoading?.generation === gen
-      || tab.id !== player.browserActiveTabId) return;
+      || tab.subtitleSelectionLoadingFailed === gen || tab.id !== player.browserActiveTabId) return;
   const selection = tab.subtitleSelection;
-  const primary = player.browserTracks.find((track) => track.id === selection.primaryId);
-  const secondary = player.browserTracks.find((track) => track.id === selection.secondaryId);
+  const primary = selection.primaryId
+    ? player.browserTracks.find((track) => track.id === selection.primaryId)
+    : selection.primaryFile ? { path: selection.primaryFile, label: 'Kayıtlı dosya' } : null;
+  const secondary = selection.secondaryId
+    ? player.browserTracks.find((track) => track.id === selection.secondaryId)
+    : selection.secondaryFile ? { path: selection.secondaryFile, label: 'Kayıtlı dosya' } : null;
   // İki kayıtlı iz de keşfedilmeden yarım seçim uygulama.
   if ((selection.primaryId && !primary) || (selection.secondaryId && !secondary)) return;
   const mode = tab.restoreSubtitleMode || tab.subtitleMode;
@@ -7288,13 +7346,15 @@ async function restoreBrowserSubtitleSelection(tab) {
       addSubtitleOption(primary.path, `${primary.role === 'translation' ? 'Çeviri' : 'Web'} · ${primary.label || primary.language}`);
       $('playerSubSelect').value = primary.path;
       await loadSubtitle(primary.path, false, { silent: true, restoringSelection: true });
-      if (!isCurrent() || player.subPath !== primary.path) return;
+      if (!isCurrent()) return;
+      if (player.subPath !== primary.path) { tab.subtitleSelectionLoadingFailed = gen; return; }
     }
     if (secondary) {
       addSubtitleOption(secondary.path, `${secondary.role === 'translation' ? 'Çeviri' : 'Web'} · ${secondary.label || secondary.language}`);
       $('playerSubSelect2').value = secondary.path;
       await loadSubtitle(secondary.path, true, { silent: true, restoringSelection: true });
-      if (!isCurrent() || player.sub2Path !== secondary.path) return;
+      if (!isCurrent()) return;
+      if (player.sub2Path !== secondary.path) { tab.subtitleSelectionLoadingFailed = gen; return; }
     }
     if (!isCurrent()) return;
     tab.subtitleSelectionRestored = true;
@@ -7812,14 +7872,15 @@ function browserExportFormat() {
   return ['srt', 'vtt', 'ass'].includes(value) ? value : 'srt';
 }
 
-function prepareBrowserExportCues(track, cues) {
+function prepareBrowserExportCues(track, cues, fallbackSecondary = false) {
   let prepared = (Array.isArray(cues) ? cues : []).map((cue) => ({ ...cue }));
   if (track?.role === 'translation' && typeof effectiveBrowserTranslationCues === 'function') {
     prepared = effectiveBrowserTranslationCues(track, prepared);
   }
   if ($('browserExportTiming')?.value !== 'synchronized') return prepared;
   let transform;
-  if (track?.id && track.id === player.browserLoadedTrackId) transform = browserTransformForChannel(false);
+  if (!track) transform = browserTransformForChannel(fallbackSecondary);
+  else if (track?.id && track.id === player.browserLoadedTrackId) transform = browserTransformForChannel(false);
   else if (track?.id && track.id === player.browserLoadedTrackId2) transform = browserTransformForChannel(true);
   else transform = browserSavedTransform(track, prepared);
   return typeof browserSubtitleSync !== 'undefined' && browserSubtitleSync?.transformCuesForExport
@@ -7880,8 +7941,10 @@ async function exportBrowserTranslation() {
   const roleCues = browserSubtitleRoleCues();
   // Dosyadan seçilmiş çeviride düzenlenmiş ham bloklar esastır. Canlı Map
   // yükleme anının kopyası olabilir; onu seçmek kullanıcının düzeltmesini kaybettirir.
-  const primary = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId && track.role === 'translation');
-  const secondary = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId2 && track.role === 'translation');
+  const primary = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId
+    && (track.role === 'translation' || roleCues.translation === player.cues));
+  const secondary = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId2
+    && (track.role === 'translation' || roleCues.translation === player.cues2));
   const selected = secondary || primary;
   const fileCues = secondary ? (player.cues2Raw || player.cues2) : primary ? (player.cuesRaw || player.cues) : null;
   const cues = (fileCues || (liveCues.length ? liveCues : roleCues.translation))
@@ -7895,7 +7958,7 @@ async function exportBrowserTranslation() {
   const format = browserExportFormat();
   const language = selected?.language || $('translateTo')?.value || 'tr';
   return runBrowserSubtitleExport(async () => ({
-    cues: prepareBrowserExportCues(selected, cues),
+    cues: prepareBrowserExportCues(selected, cues, roleCues.translation === player.cues2 && player.cues2.length > 0),
     title: `${player.browserPageTitle || 'web-altyazi'}-${language}-ceviri`, format,
   }), 'Çeviri dışa aktarıldı');
 }
@@ -8285,15 +8348,19 @@ function browserSubtitleRoleCues() {
     }
     return { primaryTranslation, source, translation };
   }
-  const primaryTranslation = browserPrimaryIsTranslation();
   const primaryTrack = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId);
   const secondaryTrack = player.browserTracks.find((track) => track.id === player.browserLoadedTrackId2);
   const primaryRole = primaryTrack
     ? (primaryTrack?.role === 'translation' ? 'translation' : 'source')
     : (player.subRole === 'translation' ? 'translation' : 'source');
-  const secondaryRole = secondaryTrack
+  let secondaryRole = secondaryTrack
     ? (secondaryTrack.role === 'translation' ? 'translation' : 'source')
     : (player.sub2Role === 'source' ? 'source' : 'translation');
+  // Sitelerin iki farklı dil izi de "source" olabilir. Görüntüleme kanalları
+  // ayrı kalmalı; ikinci dil, ilk dilin satırlarını ezmemeli.
+  if (player.cues.length && player.cues2.length && secondaryRole === primaryRole) {
+    secondaryRole = primaryRole === 'source' ? 'translation' : 'source';
+  }
   let source = primaryRole === 'source' ? player.cues : [];
   let translation = primaryRole === 'translation' ? player.cues : [];
   if (player.cues2.length) {
@@ -8301,7 +8368,7 @@ function browserSubtitleRoleCues() {
     else translation = player.cues2;
   }
   return {
-    primaryTranslation,
+    primaryTranslation: primaryRole === 'translation',
     source,
     translation,
   };
@@ -8312,12 +8379,30 @@ function browserLoadedTrack(secondary = false) {
   return player.browserTracks.find((track) => track.id === id) || null;
 }
 
+const browserFileSyncTracks = new WeakMap();
+function browserSyncTrack(secondary = false) {
+  const detected = browserLoadedTrack(secondary);
+  if (detected) return detected;
+  const path = secondary ? player.sub2Path : player.subPath;
+  const cues = secondary ? (player.cues2Raw || player.cues2) : (player.cuesRaw || player.cues);
+  if (!path || !cues?.length || !browserSubtitleSync) return null;
+  const cached = browserFileSyncTracks.get(cues);
+  if (cached?.path === path) return cached;
+  // Dosya izi yakalama listesine eklenmez; yalnız zaman düzeltmesinin kimliğidir.
+  // Ham blok dizisi sabitken her video zaman olayında yeniden hash hesaplama.
+  const track = { id: `file:${browserSubtitleSync.hashText(path)}`, path, role: 'source',
+    label: `Dosya · ${String(path).split(/[\\/]/).pop()}`,
+    sourceHash: browserSubtitleSync.cuePrefixHash(cues, cues.length) };
+  browserFileSyncTracks.set(cues, track);
+  return track;
+}
+
 function browserTrackSourceIdentity(track, cues = []) {
   if (!track || !browserSubtitleSync) return null;
   const sourceTrackId = track.role === 'translation' ? (track.sourceTrackId || '') : track.id;
   if (!sourceTrackId) return null;
   const sourceRole = browserSubtitleRoleCues().source;
-  const proofCues = sourceRole.length ? sourceRole : (track.role === 'source' ? cues : []);
+  const proofCues = track.role !== 'translation' && cues.length ? cues : sourceRole;
   const sourcePrefixCount = Math.min(32, proofCues.length);
   const sourcePrefixHashes = {};
   for (let count = 1; count <= sourcePrefixCount; count++) {
@@ -8354,7 +8439,7 @@ function browserSavedSyncRecord(track, cues = []) {
 }
 
 function browserTransformForChannel(secondary = false) {
-  const track = browserLoadedTrack(secondary);
+  const track = browserSyncTrack(secondary);
   const cues = secondary ? player.cues2 : player.cues;
   if (!track) return { scale: 1, offsetSeconds: 0 };
   const context = browserTrackSourceIdentity(track, cues);
@@ -8384,20 +8469,15 @@ function subtitleVideoTime(sourceTime, secondary = false) {
 }
 
 function browserTransformForRole(role) {
-  const primary = browserLoadedTrack(false);
-  if (primary && (primary.role === 'translation' ? 'translation' : 'source') === role) {
-    return browserTransformForChannel(false);
-  }
-  const secondary = browserLoadedTrack(true);
-  if (secondary && (secondary.role === 'translation' ? 'translation' : 'source') === role) {
-    return browserTransformForChannel(true);
-  }
+  const cues = browserSubtitleRoleCues()[role];
+  if (cues?.length && cues === player.cues) return browserTransformForChannel(false);
+  if (cues?.length && cues === player.cues2) return browserTransformForChannel(true);
   return { scale: 1, offsetSeconds: 0 };
 }
 
 function browserSyncSelection() {
   const secondary = $('browserSyncChannel')?.value === 'secondary';
-  const track = browserLoadedTrack(secondary);
+  const track = browserSyncTrack(secondary);
   const cues = secondary ? player.cues2 : player.cues;
   const context = browserTrackSourceIdentity(track, cues);
   return { secondary, channel: secondary ? 'secondary' : 'primary', track, cues, context };
@@ -8448,7 +8528,7 @@ function refreshBrowserSyncPanel(message = '') {
   }
   if ($('browserSyncWarning')) $('browserSyncWarning').textContent = message || '';
   for (const id of ['browserSyncEarlier', 'browserSyncLater', 'browserSyncEarlierStep', 'browserSyncLaterStep',
-    'browserSyncPoint1', 'browserSyncPoint2', 'browserSyncClearPoints', 'browserSyncSave', 'browserSyncCancel', 'browserSyncReset']) {
+    'browserSyncPoint1', 'browserSyncPoint2', 'browserSyncAlignCurrent', 'browserSyncOffset', 'browserSyncClearPoints', 'browserSyncSave', 'browserSyncCancel', 'browserSyncReset']) {
     if ($(id)) $(id).disabled = !selected.track;
   }
 }
@@ -8481,7 +8561,8 @@ function captureBrowserSyncPoint(slot) {
   if (!preview || !cue) return refreshBrowserSyncPanel('Eşleşme için önce videoda görünen bir altyazı bloğu seçin.');
   const points = preview.points.slice(0, 2);
   points[slot] = { sourceTime: Number(cue.start), videoTime: Number(player.browserTime), cueId: browserSubtitleSync.cueKey(cue, index) };
-  preview.points = points;
+  if (!Number.isFinite(points[slot].sourceTime) || !Number.isFinite(points[slot].videoTime)
+      || points[slot].sourceTime < 0 || points[slot].videoTime < 0) return refreshBrowserSyncPanel('Eşleşme noktası geçersiz.');
   if (points[0] && points[1]) {
     try {
       const result = browserSubtitleSync.calculateTwoPointTransform(points[0], points[1]);
@@ -8492,7 +8573,19 @@ function captureBrowserSyncPoint(slot) {
       return;
     } catch (error) { return refreshBrowserSyncPanel(error.message); }
   }
-  refreshBrowserSyncPanel();
+  applyBrowserSyncPreview(preview.transform, points);
+}
+
+function alignBrowserSyncCurrentCue() {
+  const selected = browserSyncSelection();
+  const preview = browserSyncEnsurePreview();
+  const cue = selected.cues[selected.secondary ? player.activeIdx2 : player.activeIdx];
+  if (!preview || !cue) return refreshBrowserSyncPanel('Hizalama için önce bir altyazı bloğuna gidin.');
+  const sourceTime = Number(cue.start), videoTime = Number(player.browserTime);
+  if (!Number.isFinite(sourceTime) || !Number.isFinite(videoTime) || sourceTime < 0 || videoTime < 0) {
+    return refreshBrowserSyncPanel('Video veya altyazı zamanı geçersiz.');
+  }
+  applyBrowserSyncPreview({ ...preview.transform, offsetSeconds: videoTime - sourceTime * preview.transform.scale }, []);
 }
 
 function saveBrowserSync() {
@@ -9731,6 +9824,12 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
   else setBrowserSignal(`Kayıt kaldırılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
 });
 for (const id of ['browserPlacesSearch', 'browserPlacesFolder']) $(id)?.addEventListener(id.endsWith('Search') ? 'input' : 'change', renderBrowserPlaces);
+$('browserPlacesResetFilters')?.addEventListener('click', () => {
+  if ($('browserPlacesSearch')) $('browserPlacesSearch').value = '';
+  if ($('browserPlacesFolder')) $('browserPlacesFolder').value = '';
+  renderBrowserPlaces();
+  $('browserPlacesSearch')?.focus();
+});
 $('browserWorkspaceSave')?.addEventListener('click', async () => {
   const name = await openAppDialog({ title: 'Çalışma alanını kaydet', description: 'Açık tarayıcı sekmeleri bu adla kaydedilir.',
     inputLabel: 'Çalışma alanı adı', confirmLabel: 'Kaydet', intent: 'primary' });
@@ -9880,6 +9979,17 @@ function renderBrowserSettingsSurface(focusId = '') {
   const query = String($('browserSettingsSearch')?.value || '').trim();
   const matches = registry.search(query);
   const category = player.browserSettingsCategory || registry.categories()[0]?.id || 'site';
+  const categoryDescriptions = {
+    site: 'Altyazı dilini ve sitelerin nasıl davranacağını belirle.',
+    translation: 'Sayfalar ve manga için dil, görünüm ve çeviri tercihlerini düzenle.',
+    privacy: 'Reklam korumasını, site verilerini ve izinlerini yönet.',
+    session: 'Sekmelerini ve çalışma düzenini sakla, başka bir oturumda devam et.',
+    system: 'Tarayıcının performans ve donanım tercihlerini düzenle.',
+  };
+  if ($('browserSettingsCategoryTitle')) $('browserSettingsCategoryTitle').textContent = query
+    ? 'Arama sonuçları' : (registry.categories().find((item) => item.id === category)?.label || 'Ayarlar');
+  if ($('browserSettingsCategoryDescription')) $('browserSettingsCategoryDescription').textContent = query
+    ? `${matches.length} ayar bulundu. Bir sonuca tıklayarak ilgili ayara git.` : (categoryDescriptions[category] || '');
   surface.querySelectorAll('[data-browser-settings-category]').forEach((button) => {
     const active = button.dataset.browserSettingsCategory === category;
     button.classList.toggle('active', active);
@@ -16580,10 +16690,10 @@ function setSettingsPage(page) {
 }
 
 if ($('browserSyncChannel')) $('browserSyncChannel').addEventListener('change', () => {
-  player.browserSyncPreview = null;
-  refreshBrowserSyncPanel();
+  cancelBrowserSyncPreview();
 });
 if ($('browserSyncOffset')) $('browserSyncOffset').addEventListener('input', (event) => {
+  if (!String(event.target.value).trim()) return refreshBrowserSyncPanel('Bir kaydırma değeri girin; mevcut senkron korunuyor.');
   const value = Number(event.target.value);
   if (!Number.isFinite(value)) return refreshBrowserSyncPanel('Kaydırma değeri geçersiz.');
   const preview = browserSyncEnsurePreview();
@@ -16595,9 +16705,10 @@ if ($('browserSyncEarlierStep')) $('browserSyncEarlierStep').addEventListener('c
 if ($('browserSyncLaterStep')) $('browserSyncLaterStep').addEventListener('click', () => nudgeBrowserSync(Number($('browserSyncStep')?.value) || 1));
 if ($('browserSyncPoint1')) $('browserSyncPoint1').addEventListener('click', () => captureBrowserSyncPoint(0));
 if ($('browserSyncPoint2')) $('browserSyncPoint2').addEventListener('click', () => captureBrowserSyncPoint(1));
+if ($('browserSyncAlignCurrent')) $('browserSyncAlignCurrent').addEventListener('click', alignBrowserSyncCurrentCue);
 if ($('browserSyncClearPoints')) $('browserSyncClearPoints').addEventListener('click', () => {
   const preview = browserSyncEnsurePreview();
-  if (preview) { preview.points = []; preview.dirty = true; refreshBrowserSyncPanel(); }
+  if (preview) applyBrowserSyncPreview(preview.transform, []);
 });
 if ($('browserSyncSave')) $('browserSyncSave').addEventListener('click', saveBrowserSync);
 if ($('browserSyncCancel')) $('browserSyncCancel').addEventListener('click', cancelBrowserSyncPreview);
@@ -17036,6 +17147,16 @@ $$('[data-browser-proxy]').forEach((button) => {
     closeBrowserToolbarMenus();
   });
 });
+
+$('browserStartBrowse')?.addEventListener('click', () => {
+  $('browserAddress')?.focus();
+  $('browserAddress')?.select();
+});
+$('browserStartLibrary')?.addEventListener('click', () => {
+  setPlayerSidebarCollapsed(false);
+  setSideTab('library', { focusContent: true });
+});
+$('browserStartSettings')?.addEventListener('click', () => openBrowserSettings('translation'));
 
 const playerTitleNode = $('playerTitle');
 if (playerTitleNode && typeof MutationObserver === 'function') {
