@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1509 — Yedi özellik sonrası tam test paketi denetimi](docs/devir/2026-09-14-1509.md)
+Güncel çalışma: [2026-09-14-1527 — Çalışma paketi hata düzeltmeleri](docs/devir/2026-09-14-1527.md)
+
+Önceki çalışma: [2026-09-14-1509 — Yedi özellik sonrası tam test paketi denetimi](docs/devir/2026-09-14-1509.md)
 
 Önceki çalışma: [2026-09-14-1502 — Yedi katalog ve browser özelliği](docs/devir/2026-09-14-1502.md)
 
