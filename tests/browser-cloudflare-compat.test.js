@@ -301,6 +301,7 @@ void (async () => {
       browserDebuggerNeeded: () => false,
       ensureBrowserDebugger: async () => true,
       ensureBrowserCaptureHooks: async () => 0,
+      applyBrowserOverlay: async () => true,
       browserCompatibilityModeForUrl: () => false,
       setTimeout: () => ({ unref() {} }),
       clearTimeout: () => {},

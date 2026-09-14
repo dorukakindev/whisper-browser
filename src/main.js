@@ -8193,8 +8193,12 @@ async function performBrowserPageInstrumentation(tab) {
   if (wasActive || wasPending) {
     sendBrowserEvent(tab, {
       type: 'compatibility-status', kind: 'cloudflare', active: false, pending: false,
-      message: cloudflareCompatibilityMessage(false),
+      message: wasActive ? cloudflareCompatibilityMessage(false)
+        : 'Sayfa hazır; altyazı yakalama kullanılabilir.',
     });
+    // İlk ölçüm yükleme sırasında ertelenmişse zamanlayıcının tamamladığı
+    // bu yolda dom-ready yeniden gelmez. Bekleyen altyazıyı burada uygula.
+    if (tab.id === browserActiveTabId && tab.view === browserView) void applyBrowserOverlay();
   }
   return { active: false, probe };
 }
@@ -8507,7 +8511,9 @@ function browserOverlayScript(payload, tab) {
 }
 
 async function applyBrowserOverlay() {
-  if (activeBrowserTab()?.compatibilityMode || !browserView || browserView.webContents.isDestroyed()) return false;
+  const tab = activeBrowserTab();
+  if (!tab || tab.compatibilityMode || tab.cloudflareChallengeActive || tab.browserInstrumentationPending
+      || !browserView || tab.view !== browserView || browserView.webContents.isDestroyed()) return false;
   try {
     const results = await executeBrowserTrustedMain(browserView, browserOverlayScript(browserOverlay));
     return results.some(Boolean);
@@ -8902,7 +8908,12 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         void reportBrowserDrmSupport();
         scheduleArchivedBrowserPageTranslationRestore(tab);
       }).catch(() => {});
-    } else if (tab.id === browserActiveTabId) scheduleArchivedBrowserPageTranslationRestore(tab);
+    } else if (tab.id === browserActiveTabId) {
+      // Yükleme sırasında gelen overlay IPC'si script çalıştıramaz. Güvenlik
+      // ölçümü daha önce bitmiş olsa bile son durum artık uygulanmalıdır.
+      void applyBrowserOverlay();
+      scheduleArchivedBrowserPageTranslationRestore(tab);
+    }
   });
   wc.on('did-navigate', () => {
     tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();

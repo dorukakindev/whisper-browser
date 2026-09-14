@@ -11040,9 +11040,23 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const bottomOffset = Number(event.style?.bottomOffset);
     const control = $('browserOverlayBottom');
     if (control && Number.isFinite(bottomOffset)) {
-      control.value = String(Math.max(0, Math.min(75, bottomOffset)));
-      if ($('browserOverlayBottomVal')) $('browserOverlayBottomVal').textContent = `%${Math.round(Number(control.value))}`;
-      scheduleSave();
+      const value = Math.max(0, Math.min(75, bottomOffset));
+      const effective = effectiveBrowserProfile(), tab = browserTabState();
+      if (tab && ['tab', 'site', 'path'].includes(effective.sources.overlayBottom)) {
+        const existing = tab.siteOverrideOrigin === effective.origin ? tab.siteOverrides : {};
+        const result = window.BrowserSiteProfiles.withBrowserSiteProfileField(
+          { [effective.origin]: existing }, effective.origin, 'overlayBottom', value);
+        if (result.ok) {
+          tab.siteOverrideOrigin = effective.origin; tab.siteOverrides = result.profile;
+          saveActiveBrowserTabWorkspace();
+        }
+      } else {
+        control.value = String(value);
+        if ($('browserOverlayBottomVal')) $('browserOverlayBottomVal').textContent = `%${Math.round(value)}`;
+        scheduleSave();
+      }
+      if ($('browserWatchTools')?.open) renderBrowserWatchStyle();
+      scheduleBrowserOverlaySync();
     }
   } else if (event.type === 'live-asr-state') {
     updateBrowserLiveAsrButton(event.message || 'Canlı Whisper');

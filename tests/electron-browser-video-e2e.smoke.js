@@ -195,6 +195,25 @@ app.whenReady().then(async()=>{
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
+ if(process.env.VIDEO_E2E_BROWSER_BUGS==='1'){
+  await page.executeJavaScript(`document.querySelector('video').pause()`);
+  const message=await run(`return browserTabState().compatibilityMessage`);
+  assert(!/Cloudflare/i.test(message),'Normal sayfa Cloudflare çözülmüş gibi gösterilmemeli');
+  const general=await run(`return $('browserOverlayBottom').value`);
+  await run(`$('browserWatchTools').open=true;renderBrowserWatchStyle();
+    for(const [field,value] of [['overlayBottom',12],['overlayGap',24]]){
+      const input=document.querySelector('[data-field="'+field+'"]');input.value=value;input.dispatchEvent(new Event('input'));}`);
+  await until(()=>page.executeJavaScript(`document.getElementById('__whisper_browser_subtitles')?.style.gap==='24px'`),'Görünüm uygulanması');
+  const context=await run(`const tab=browserTabState();return {tabId:tab.id,generation:tab.generation,mediaId:tab.mediaId||'',acquisitionId:tab.acquisitionId||'',operationId:tab.operationId||''}`);
+  win.webContents.send('browser:event',{...context,type:'overlay-style',style:{bottomOffset:31}});
+  await until(()=>run(`return effectiveBrowserProfile().values.overlayBottom===31`),'Sürüklenen konumun korunması');
+  assert.equal(await run(`return $('browserOverlayBottom').value`),general);
+  await wait(500);
+  await snapshot('browser-bugs');
+  fs.writeFileSync(path.join(out,'browser-video.png'),(await page.capturePage()).toPNG());
+  fs.writeFileSync(path.join(out,'browser-bugs.json'),JSON.stringify({video:mediaInfo,overlay,message,dragOffset:31,generalPreserved:true,controlledDragEvent:true},null,2));
+  app.quit();return;
+ }
  if(process.env.VIDEO_E2E_DURABLE==='write'){
   const original=fs.readFileSync(en.path,'utf8');
   await run(`openCueEditor();browserQuickEditor.rows[0].text.value='Kalıcı kaynak düzeltmesi';browserQuickEditor.rows[1].text.value='Kalıcı ikinci dil düzeltmesi';await saveBrowserQuickEditor();closeBrowserQuickEditor();
