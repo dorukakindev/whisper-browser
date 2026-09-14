@@ -1,5 +1,7 @@
 # Whisper Altyazı
 
+**Format sonrası / yeni Codex oturumu:** [Yeni bilgisayarda kurulum ve devralma](YENI-BILGISAYAR.md) · [Kalıcı çalışma kuralları](AGENTS.md) · [Güncel devir notu](DEVIR-NOTU.md). Bu çalışmanın teslim deposu: [dorukakindev/whisper-browser](https://github.com/dorukakindev/whisper-browser).
+
 [![Testler](https://github.com/androiandot/whisper-altyazi/actions/workflows/ci.yml/badge.svg)](https://github.com/androiandot/whisper-altyazi/actions/workflows/ci.yml)
 [![Lisans: MIT](https://img.shields.io/badge/lisans-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
