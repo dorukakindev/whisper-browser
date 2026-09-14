@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1238 — GitHub araştırması: browser için sonraki adaylar](docs/devir/2026-09-14-1238.md)
+Güncel çalışma: [2026-09-14-1259 — Altı browser analiz ve çeviri özelliği](docs/devir/2026-09-14-1259.md)
+
+Önceki çalışma: [2026-09-14-1238 — GitHub araştırması: browser için sonraki adaylar](docs/devir/2026-09-14-1238.md)
 
 Önceki çalışma: [2026-09-14-1231 — Browser video ve altyazı araçları](docs/devir/2026-09-14-1231.md)
 

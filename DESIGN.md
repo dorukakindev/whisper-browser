@@ -70,6 +70,10 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 - OCR seçilen video karesindeki bölgeyi okur. Sahne şeridi kullanıcının seçtiği yerel video dosyasından çıkarılır. Anlamsal arama yüklü altyazıda yerel çokdilli model kullanır.
 - OpenSubtitles alanları maskeli, oturumluk girişlerdir. API anahtarı argv, log, devir notu veya normal ayar dosyasına yazılmaz.
 - Jenerik/özet aralıkları video veya açıkça seçilen dizi kapsamında saklanır. Video değişimi atlama durumunu sıfırlar; geriye sarma tekrarlı otomatik atlamayı bastırır.
+- Senkron ve video önizlemesi açılır grubunda kullanıcı aynı sürümdeki yerel referans videoyu seçer. Dalga biçimi mevcut zamanlama editörünü kullanır; kare önizlemesi zaman çubuğunun hover/klavye etkileşimindedir.
+- Parçalı senkron doğru zamanlı referans altyazıyla hesaplanır. Önce değişiklikler gösterilir; düşük kanıtlı sonuç uygulanamaz. Uygulama geri alınabilir taslağı değiştirir, dosyayı kendiliğinden yazmaz.
+- Aralık OCR'ı en fazla 60 saniyeden düzenlenebilir zaman ve metin blokları çıkarır. SRT kaydı ayrı kullanıcı eylemidir. Jenerik analizi iki bölümün ilk 120 saniyesindeki ses benzerliğini önerir; kayıt otomatik atlamayı açmaz.
+- Dizi çeviri profili site ve açık dizi adına bağlıdır. Yeni bölümde “Bölümü diziye bağla ve tercihleri yükle” mevcut profili korur; “kaydet” düzenlenen profili günceller. Değişiklik sonraki çeviriye uygulanır. Terim kontrolü kaynak/çeviri rollerini ve ayrı zaman dönüşümlerini izler, metni kendiliğinden düzeltmez.
 
 ## Verification
 
