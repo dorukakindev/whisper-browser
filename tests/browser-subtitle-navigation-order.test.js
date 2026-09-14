@@ -12,7 +12,7 @@ for (const kind of ['did-navigate', 'did-navigate-in-page']) {
     wc: { on: (name, fn) => { handlers[name] = fn; }, getURL: () => 'https://video.test/new', getTitle: () => 'Yeni video' },
     ADAPTER_REGISTRY: { mediaIdentity: () => ({ key: 'new', service: 'web', contentId: 'new' }) },
     syncBrowserTabCompatibilityForUrl() {}, applyStoredBrowserZoom() {}, rememberBrowserVisit() {}, scheduleBrowserSessionSave() {},
-    stopBrowserManga() {}, stopBrowserPageTranslation() {}, publishBrowserPlaybackDiagnostics() {},
+    stopBrowserManga() {}, stopBrowserPageTranslation() {}, invalidateBrowserTabSubtitles() {}, publishBrowserPlaybackDiagnostics() {},
     resetBrowserPageCaptureState() {}, reportBrowserDrmSupport() {},
     browserNavigationStateForTab: () => ({ url: tab.restoredUrl, mediaId: tab.mediaId }),
     sendBrowserEvent(_tab, event) {

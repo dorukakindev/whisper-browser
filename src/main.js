@@ -3633,6 +3633,22 @@ function trackBrowserSubtitleFile(filePath) {
   return browserSubtitleFileStore.touch(filePath, activePaths);
 }
 
+function invalidateBrowserTabSubtitles(tab) {
+  if (!tab) return;
+  // Önce sahipliği bırak: cancelAll eşzamanlı onState yayımlayabilir.
+  const scheduler = tab.translationScheduler;
+  tab.translationScheduler = null;
+  scheduler?.cancelAll('Sayfa değişti.');
+  tab.translationResults = new Map();
+  tab.translationSourceCues = [];
+  tab.translationTrackId = '';
+  tab.translationPersistedSignature = '';
+  const prior = tab.id === browserActiveTabId ? browserOverlay || tab.overlay : tab.overlay;
+  tab.overlay = { ...(prior || {}), source: [], translation: [] };
+  if (tab.id === browserActiveTabId) browserOverlay = tab.overlay;
+  if (browserLiveAsr?.tab === tab) stopBrowserLiveAsr('Sayfa değiştiği için canlı Whisper durduruldu.');
+}
+
 function resetBrowserCaptureState(options = {}) {
   flushBrowserTrackPublications(true);
   browserStateGeneration += 1;
@@ -6094,6 +6110,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   const sourceHash = createHash('sha256')
     .update(JSON.stringify(cues.map((cue) => [cue.start, cue.end, cue.text])), 'utf8').digest('hex');
   const mediaIdentity = browserWatchMediaId(tab);
+  const generation = tab.generation;
   const trackIdentity = tab.translationTrackId;
   const context = {
     promptVersion: 'browser-sentence-v2-context',
@@ -6119,7 +6136,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     paused: !browserNetworkOnline,
     translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, config, call.signal),
     onResult: (result, sentence) => {
-      if (tab.translationScheduler !== scheduler) return;
+      if (!isCurrent()) return;
       if (!result.error) {
         for (const cue of result.cues) {
           tab.translationResults.set(String(cue.cueId), cue);
@@ -6137,7 +6154,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
       sendBrowserEvent(tab, { type: 'translation-result', result, trackId: tab.translationTrackId });
     },
     onState: (state) => {
-      if (tab.translationScheduler === scheduler) {
+      if (isCurrent()) {
         updateBrowserTranslationDiagnostics(tab, state);
         sendBrowserEvent(tab, { type: 'translation-state', state, trackId: tab.translationTrackId });
         if (state.total > 0 && state.completed >= state.total && !state.pending && !state.queued && !state.failed) {
@@ -6149,6 +6166,8 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
       }
     },
   });
+  const isCurrent = () => !tab.closing && tab.translationScheduler === scheduler
+    && tab.generation === generation && browserWatchMediaId(tab) === mediaIdentity;
   tab.translationScheduler = scheduler;
   scheduler.setSentences(sentences);
   scheduler.updatePlayhead(tab.position || 0);
@@ -8865,6 +8884,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
     stopBrowserManga(tab, false);
     stopBrowserPageTranslation(tab, false);
+    invalidateBrowserTabSubtitles(tab);
     tab.mangaTranslated = 0;
     tab.mangaVisible = false;
     tab.generation += 1;
@@ -8951,6 +8971,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         tab.mangaRestoreAttemptedGeneration = -1;
         stopBrowserManga(tab, true);
         stopBrowserPageTranslation(tab, true);
+        invalidateBrowserTabSubtitles(tab);
         tab.mangaTranslated = 0;
         tab.mangaVisible = false;
         tab.generation += 1;

@@ -10,12 +10,14 @@ const out=path.resolve(process.env.VIDEO_E2E_OUT || path.join(root,'.uiprev','vi
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.resolve(process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid));
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,{recursive:true});
 let soakProviderCalls=0;
-if(process.env.VIDEO_E2E_COMBINED_SOAK==='1'){
+let releaseIsolationProvider;
+if(process.env.VIDEO_E2E_COMBINED_SOAK==='1'||process.env.VIDEO_E2E_ISOLATION==='1'){
  fs.writeFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'settings.json'),JSON.stringify({settingsVersion:3,translate:{apiKey:'controlled-test-value',endpointPreset:'custom',customBaseUrl:'https://soak-provider.test/v1',model:'controlled'},ui:{translateWorkers:1}}));
  const realFetch=globalThis.fetch;
  globalThis.fetch=async(url,options)=>{
   if(!String(url).startsWith('https://soak-provider.test/'))return realFetch(url,options);
   soakProviderCalls++;
+  if(process.env.VIDEO_E2E_ISOLATION==='1')await new Promise(resolve=>{releaseIsolationProvider=resolve;});
   const body=JSON.parse(options.body),payload=JSON.parse(body.messages.at(-1).content);
   const content=payload.parts?JSON.stringify({text:payload.parts.map(()=> 'Kontrollü çeviri.').join(' '),parts:payload.parts.map(()=> 'Kontrollü çeviri.')}):'Kontrollü çeviri.';
   return new Response(JSON.stringify({choices:[{message:{content}}]}),{headers:{'content-type':'application/json'}});
@@ -195,6 +197,28 @@ app.whenReady().then(async()=>{
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
+ if(process.env.VIDEO_E2E_ISOLATION==='1'){
+  const oldTab=await run(`return player.browserActiveTabId`);
+  const result=await run(`return await window.api.startBrowserTranslation(player.browserActiveTabId,{trackId:${JSON.stringify(en.id)},targetLanguage:'tr',cues:[{id:'isolation',start:0,end:1,text:'Old video sentence.'}],completeTrack:true})`);
+  assert.equal(result.ok,true,JSON.stringify(result));
+  await until(()=>releaseIsolationProvider,'Bekleyen sağlayıcı isteği');
+  await run(`await createBrowserTab()`);
+  const foreground=await run(`return player.browserActiveTabId`);
+  const events=[],send=win.webContents.send.bind(win.webContents);
+  win.webContents.send=(channel,...args)=>{if(channel==='browser:event')events.push(args[0]);return send(channel,...args);};
+  await page.executeJavaScript(`history.pushState({},'', '/other')`);
+  await until(()=>events.some(event=>event.type==='navigation'&&event.tabId===oldTab&&event.url?.endsWith('/other')),'Arka plan video değişimi');
+  releaseIsolationProvider();await wait(600);
+  assert.equal(events.some(event=>event.type==='translation-result'),false,'Eski çeviri yeni videoya yayımlanmamalı');
+  assert.equal(events.some(event=>event.type==='subtitle-found'&&event.track?.role==='translation'),false,'Eski çeviri yeni video adına kaydedilmemeli');
+  assert.equal(await run(`return player.browserActiveTabId`),foreground);
+  assert.equal(await run(`return player.cues.length+player.cues2.length`),0);
+  await run(`await activateBrowserTab(${JSON.stringify(oldTab)})`);
+  assert.equal(await run(`return player.browserTracks.some(track=>track.role==='translation')`),false);
+  await snapshot('isolation');
+  fs.writeFileSync(path.join(out,'isolation.json'),JSON.stringify({delayedProvider:true,backgroundNavigation:true,staleResultRejected:true,foregroundPreserved:true,oldTranslationNotRestored:true},null,2));
+  app.quit();return;
+ }
  if(process.env.VIDEO_E2E_BROWSER_BUGS==='1'){
   await page.executeJavaScript(`document.querySelector('video').pause()`);
   const message=await run(`return browserTabState().compatibilityMessage`);

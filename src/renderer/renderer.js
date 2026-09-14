@@ -10721,7 +10721,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     tab.generation = Math.max(Number(tab.generation) || 0, Number(event.generation) || 0);
     if (event.tabId !== player.browserActiveTabId) {
       if (event.type === 'navigation') {
-        if (event.url && event.url !== tab.url) {
+        const mediaChanged = tab.mediaId && event.mediaId
+          ? tab.mediaId !== event.mediaId : !!event.url && event.url !== tab.url;
+        if (mediaChanged) {
           const fresh = newBrowserTabState({ ...event, id: tab.id, captureEnabled: tab.captureEnabled, pinned: tab.pinned });
           Object.assign(tab, fresh);
         }
