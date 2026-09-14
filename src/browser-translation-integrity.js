@@ -9,7 +9,9 @@ function summarizeTranslationIntegrity({ sourceCues = [], results = [], state = 
   const source = Array.isArray(sourceCues) ? sourceCues : [];
   const output = results instanceof Map ? [...results.values()] : (Array.isArray(results) ? results : []);
   const sourceIds = new Set(source.map(cueIdentity));
-  const translatedIds = new Set(output.map(cueIdentity));
+  const translatedIds = new Set(output.map((cue, index) =>
+    typeof cue?.text === 'string' && cue.text.trim() ? cueIdentity(cue, index) : null)
+    .filter(id => sourceIds.has(id)));
   const failures = Array.isArray(state?.failures) ? state.failures : [];
   const totalSentences = Math.max(0, Math.trunc(Number(state?.total) || 0));
   const completedSentences = Math.max(0, Math.trunc(Number(state?.completed) || 0));

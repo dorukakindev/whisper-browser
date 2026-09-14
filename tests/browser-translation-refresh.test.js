@@ -76,7 +76,7 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   assert.match(translationSource,
     /if \(terminologyVersion !== context\.terminologyVersion\)[\s\S]{0,180}scheduler\.setContext\(\{ terminologyVersion, terminologyText: terminologyPrompt\(config\.terminologyMap\) \}\)/,
     'öğrenilen terminoloji yeni cümlelerin önbellek bağlamına aktarılmalı');
-  const context = { normalizeCues, assembleCueSentences,
+  const context = { normalizeCues, assembleCueSentences, createHash: require('node:crypto').createHash,
     browserTranslationConfig: () => { throw Error('güncellemede sağlayıcı yeniden kuruldu'); } };
   vm.createContext(context);
   vm.runInContext(translationSource, context);
@@ -87,6 +87,11 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   assert.equal(tab.translationScheduler, scheduler);
   assert.equal(tab.translationResults.has('old'), false);
   assert.equal(tab.translationResults.size, 1);
+  const expectedHash = context.createHash('sha256').update(JSON.stringify([[10, 11, 'Corrected.']])).digest('hex');
+  assert.equal(scheduler.context.sourceHash, expectedHash);
+  assert.equal(scheduler.context.sourceRevision, expectedHash);
+  assert.match(translationSource, /persistCompletedBrowserTranslation\(tab, scheduler, config, scheduler\.context\)/,
+    'Arşivleme güncel kaynak bağlamını kullanmalı');
   assert.equal(context.startBrowserTranslation(tab, [first], { trackId: 'wrong', refresh: true }).ok, false);
 
   const recoveryContext = { Map, Date, Number, Array };

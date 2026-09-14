@@ -4089,9 +4089,10 @@ function browserPageTranslationConfig(overrides = {}) {
 }
 
 function browserPageMemoryVersion(config = {}) {
-  return createHash('sha1').update(JSON.stringify({ version: 2,
+  return createHash('sha1').update(JSON.stringify({ version: 3,
     targetLanguage: config.targetLanguage || '', sourceLanguage: config.sourceLanguage || '',
     model: config.model || '', glossary: config.glossary || [], lockedTerms: config.lockedTerms || [],
+    endpoint: config.endpoint || '', register: config.register || '', profanity: config.profanity || '',
   }), 'utf8').digest('hex').slice(0, 16);
 }
 
@@ -4108,7 +4109,7 @@ function browserPageMemoryKeys(tab, block, config = {}) {
   const url = canonicalPageUrl(browserPageUrl(tab));
   const site = canonicalPageSite(url);
   const key = pageTranslationMemoryKey(block, { targetLanguage: config.targetLanguage,
-    sourceLanguage: config.sourceLanguage, model: config.model });
+    sourceLanguage: config.sourceLanguage, model: config.model, memoryVersion: browserPageMemoryVersion(config) });
   return {
     exact: url ? `page-memory:v2:${url}:${key}` : '',
     site: site ? `page-site-memory:v2:${site}:${key}` : '',
@@ -4189,12 +4190,16 @@ function flushBrowserPageApply(tab, job) {
   if (!translations.length || !pageTranslationJobIsCurrent(tab, job)) return job.applyChain;
   job.applyChain = job.applyChain.then(async () => {
     if (!pageTranslationJobIsCurrent(tab, job)) return null;
+    const excluded = browserPageExcludedIds(job.session);
+    const currentTranslations = translations.filter(item => !excluded.has(item.id)
+      && job.session.translations.get(item.id) === item.translation);
+    if (!currentTranslations.length) return null;
     const result = await executeBrowserTrustedMain(tab.view, pageApplyScript({
       mode: job.session.mode,
       view: job.session.view,
       targetLanguage: job.session.config.targetLanguage,
       memoryVersion: job.session.memoryVersion,
-      translations,
+      translations: currentTranslations,
     }));
     const warnings = result.flatMap((item) => Array.isArray(item?.layoutWarnings) ? item.layoutWarnings : []);
     if (warnings.length) {
@@ -4512,7 +4517,10 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     applyChain: Promise.resolve(),
     retryIds,
     retryFailures: new Map(),
+    editVersions: new Map(session.manualEditVersions || []),
   };
+  const acceptsResult = id => !browserPageExcludedIds(session).has(id)
+    && (session.manualEditVersions?.get(id) || 0) === (job.editVersions.get(id) || 0);
   tab.pageTranslateJob?.controller.abort('Yeni sayfa çevirisi başladı.');
   tab.pageTranslateJob?.scheduler?.cancelAll('Yeni sayfa çevirisi başladı.');
   tab.pageTranslateJob = job;
@@ -4561,6 +4569,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
       if (result.error) {
         for (const piece of sentence.pieces || []) {
           const blockId = String(piece.cueId);
+          if (!acceptsResult(blockId)) continue;
           const failure = { block: session.blocks.get(blockId), error: result.error };
           if (job.retryIds.has(blockId) && session.translations.has(blockId)) job.retryFailures.set(blockId, failure);
           else session.failures.set(blockId, failure);
@@ -4572,6 +4581,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
         }
         for (const cue of result.cues || []) {
           const blockId = String(cue.cueId);
+          if (!acceptsResult(blockId)) continue;
           const translation = String(cue.text || '').trim();
           if (!translation) continue;
           const source = session.blocks.get(blockId);
@@ -4622,6 +4632,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     const sentence = sentences.find((item) => item.id === failure.sentenceId);
     for (const piece of sentence?.pieces || []) {
       const id = String(piece.cueId);
+      if (!acceptsResult(id)) continue;
       const detail = { block: session.blocks.get(id), error: failure.error || 'Çeviri başarısız.' };
       if (job.retryIds.has(id) && session.translations.has(id)) job.retryFailures.set(id, detail);
       else session.failures.set(id, detail);
@@ -6104,6 +6115,9 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
       return { ok: false, error: 'Güncellenecek çeviri oturumu bulunamadı.' };
     }
     tab.translationSourceCues = cues;
+    const sourceHash = createHash('sha256')
+      .update(JSON.stringify(cues.map(cue => [cue.start, cue.end, cue.text])), 'utf8').digest('hex');
+    tab.translationScheduler.setContext({ sourceHash, sourceRevision: sourceHash });
     tab.translationScheduler.reconcileSentences(sentences);
     tab.translationResults = new Map(tab.translationScheduler.snapshot().results
       .flatMap((result) => result.cues || []).map((cue) => [String(cue.cueId), cue]));
@@ -6170,7 +6184,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
         updateBrowserTranslationDiagnostics(tab, state);
         sendBrowserEvent(tab, { type: 'translation-state', state, trackId: tab.translationTrackId });
         if (state.total > 0 && state.completed >= state.total && !state.pending && !state.queued && !state.failed) {
-          persistCompletedBrowserTranslation(tab, scheduler, config, context);
+          persistCompletedBrowserTranslation(tab, scheduler, config, scheduler.context);
           noteBrowserDiagnosticActivity(tab, 'lastTranslation', `${state.completed}/${state.total} altyazı cümlesi çevrildi.`);
         } else if (state.total > 0 && !state.pending && !state.queued && state.failed) {
           noteBrowserDiagnosticActivity(tab, 'lastError', `${state.failed} altyazı cümlesi çevrilemedi.`);
@@ -7989,6 +8003,8 @@ async function handleBrowserPageAction(tab, payload = {}) {
     session.translations.set(id, translation);
     session.failures.delete(id);
     session.manualEditIds ||= new Set(); session.manualEditIds.add(id);
+    session.manualEditVersions ||= new Map();
+    session.manualEditVersions.set(id, (session.manualEditVersions.get(id) || 0) + 1);
     const memoryKeys = browserPageMemoryKeys(tab, block, session.config);
     if (memoryKeys.exact) browserTranslationCache().set(memoryKeys.exact, translation);
     if (payload.memoryScope === 'site') {

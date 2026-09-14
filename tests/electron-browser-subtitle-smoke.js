@@ -80,7 +80,9 @@ function createCdpClient(webSocketDebuggerUrl) {
 async function evaluate(client, expression, timeout = 15000) {
   const result = await withTimeout(client.call('Runtime.evaluate', {
     expression, awaitPromise: true, returnByValue: true,
-  }), timeout, 'Runtime değerlendirmesi');
+  }), timeout, 'Runtime değerlendirmesi').catch(error => {
+    throw new Error(`${error.message}; ifade: ${expression.slice(0, 220)}`);
+  });
   if (result.exceptionDetails) {
     throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
   }
@@ -153,7 +155,7 @@ async function run() {
   electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
     `--inspect=${mainDevtoolsPort}`, projectRoot,
     `--remote-debugging-port=${devtoolsPort}`, `--user-data-dir=${userDataDir}`,
-  ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore' });
+  ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore', env: { ...process.env, WHISPER_RESOURCE_SOAK_USER_DATA: userDataDir } });
 
   const mainTargets = await waitFor(async () => {
     try {

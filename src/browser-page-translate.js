@@ -152,7 +152,8 @@ function pageBlockCacheKey(block, context = {}) {
 
 function pageTranslationMemoryKey(block, context = {}) {
   const material = JSON.stringify({
-    version: 'page-memory-v2',
+    version: 'page-memory-v3',
+    memoryVersion: String(context.memoryVersion || ''),
     text: normalizeText(block?.text),
     targetLanguage: String(context.targetLanguage || '').trim().toLowerCase(),
     sourceLanguage: String(context.sourceLanguage || '').trim().toLowerCase(),

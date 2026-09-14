@@ -85,6 +85,7 @@ class FakeScheduler {
   };
   vm.createContext(context);
   vm.runInContext(`${source}\nthis.runBlocks = runBrowserPageTranslationBlocks;\nthis.completion = pageTranslationCompletion;\nthis.pageUrl = browserPageUrl;`, context);
+  vm.runInContext(pageActionSource, context);
 
   assert.equal(context.pageUrl({ restoredUrl: 'https://example.com/old', view: { webContents: {
     isDestroyed: () => false, getURL: () => 'https://example.com/new',
@@ -94,6 +95,15 @@ class FakeScheduler {
   } } }), 'https://example.com/fallback', 'boşaltılmış sekme kalıcı URL’ye geri düşmeli');
 
   const block = { id: 'a', text: 'Original text.', tag: 'p', role: '', section: 'Giriş', order: 0 };
+  const memoryTab = { restoredUrl: 'https://example.com/article' };
+  const memoryConfig = { targetLanguage: 'tr', model: 'test', glossary: [], lockedTerms: [] };
+  const memoryKeys = context.browserPageMemoryKeys(memoryTab, block, memoryConfig);
+  for (const change of [{ glossary: [{ source: 'Captain', target: 'Komutan' }] }, { lockedTerms: ['Captain'] },
+    { register: 'formal' }, { profanity: 'soften' }, { endpoint: 'https://provider.example/v1' }]) {
+    const changed = context.browserPageMemoryKeys(memoryTab, block, { ...memoryConfig, ...change });
+    assert.notEqual(memoryKeys.exact, changed.exact);
+    assert.notEqual(memoryKeys.site, changed.site);
+  }
   const makeSession = () => ({ generation: 7,
     config: { targetLanguage: 'tr', sourceLanguage: 'en', model: 'test', workers: 1,
       register: 'natural', profanity: 'preserve', glossary: [], pageCharacterBudget: 1000 },
@@ -118,6 +128,41 @@ class FakeScheduler {
   assert.equal(successSession.apiCharacters, block.text.length,
     'yeniden çeviri gerçek API kaynak karakterini saymalı');
   assert.equal(success.retryFailures.length, 0);
+
+  // User edits made while a provider request is outstanding survive both its
+  // successful result and its failure bookkeeping, including queued DOM work.
+  const applied = [];
+  context.executeBrowserTrustedMain = async (_view, payload) => { applied.push(...(payload.translations || [])); return [{ ok: true }]; };
+  for (const providerFails of [false, true]) {
+    const editedSession = makeSession(), editedTab = makeTab(editedSession);
+    editedTab.bridgeToken = 'test';
+    context.BrowserTranslationScheduler = class extends FakeScheduler {
+      async whenIdle() {
+        await context.handleBrowserPageAction(editedTab, { action: 'edit', id: 'a', bridgeToken: 'test', pre: 'Eski çeviri.', translation: 'Kullanıcı düzeltmesi.' });
+        this.options.testFailure = providerFails;
+        if (providerFails) this.failures = this.sentences.map(s => ({ sentenceId: s.id, error: 'Hata' }));
+        await super.whenIdle();
+      }
+    };
+    const outcome = await context.runBlocks(editedTab, [block], editedSession, { retry: true, retryIds: ['a'] });
+    assert.equal(editedSession.translations.get('a'), 'Kullanıcı düzeltmesi.');
+    assert.equal(editedSession.manualEditVersions.get('a'), 1);
+    assert.equal(outcome.retryFailures.length, 0);
+    assert.equal(editedSession.failures.size, 0);
+  }
+  const queuedSession = makeSession(), queuedTab = makeTab(queuedSession);
+  const queuedJob = { session: queuedSession, generation: 7, controller: new AbortController(), applyQueue: [{ id: 'a', translation: 'Eski çeviri.' }], applyChain: Promise.resolve() };
+  queuedTab.pageTranslateJob = queuedJob;
+  const beforeApply = applied.length;
+  const flush = context.flushBrowserPageApply(queuedTab, queuedJob);
+  queuedSession.translations.set('a', 'Son kullanıcı metni.');
+  await flush;
+  assert.equal(applied.length, beforeApply, 'Kuyrukta bekleyen eski metin düzenlemeyi geri almamalı');
+  queuedJob.applyQueue.push({ id: 'a', translation: 'Son kullanıcı metni.' });
+  queuedSession.sectionExcludedBlockIds.add('a');
+  await context.flushBrowserPageApply(queuedTab, queuedJob);
+  assert.equal(applied.length, beforeApply, 'Dışlanan bölümün bekleyen sonucu ekrana gönderilmemeli');
+  context.BrowserTranslationScheduler = FakeScheduler;
 
   const failedSession = makeSession();
   const failedTab = makeTab(failedSession);

@@ -26,10 +26,19 @@ assert.equal(running.status, 'running');
 assert.equal(running.submittedSentences, 1);
 
 const complete = summarizeTranslationIntegrity({
-  sourceCues, results: sourceCues.map((cue) => ({ cueId: cue.id })),
+  sourceCues, results: sourceCues.map((cue) => ({ cueId: cue.id, text: 'Translation' })),
   state: { total: 2, completed: 2, queued: [], pending: [], failures: [] },
 });
 assert.equal(complete.status, 'complete');
 assert.equal(complete.missingCues, 0);
 
-console.log('browser-translation-integrity: 3 test geçti');
+const invalidOutput = summarizeTranslationIntegrity({ sourceCues,
+  results: [{ cueId: 'a', text: 'One' }, { cueId: 'b', text: ' ' }, { cueId: 'c' }, { cueId: 'foreign', text: 'Other track' }],
+  state: { total: 2, completed: 2, pending: [], queued: [] } });
+assert.equal(invalidOutput.status, 'partial');
+assert.equal(invalidOutput.translatedCues, 1);
+assert.deepEqual(invalidOutput.missingCueIds, ['b', 'c']);
+assert.deepEqual(summarizeTranslationIntegrity({ sourceCues: [{ text: 'A' }, { text: 'B' }],
+  results: [{ text: '' }, { text: 'İki' }] }).missingCueIds, ['index:0']);
+
+console.log('browser-translation-integrity: 5 test geçti');
