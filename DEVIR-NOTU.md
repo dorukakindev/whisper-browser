@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-0415 — Altyazı yönetimi, kurtarma ve tam ekran kontrolleri](docs/devir/2026-09-14-0415.md)
+Güncel çalışma: [2026-09-14-0456 — Kararlılık kapanışı; ortam engelleri açık](docs/devir/2026-09-14-0456.md)
+
+Önceki çalışma: [2026-09-14-0415 — Altyazı yönetimi, kurtarma ve tam ekran kontrolleri](docs/devir/2026-09-14-0415.md)
 
 Önceki çalışma: [2026-09-14-0328 — Tarayıcı durumu, video tercihleri ve tam ekran](docs/devir/2026-09-14-0328.md)
 
