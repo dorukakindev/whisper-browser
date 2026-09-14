@@ -7,6 +7,8 @@ function browserScriptExecutionReady(webContents) {
   try {
     return !!webContents
       && !webContents.isDestroyed()
+      && !(typeof webContents.getURL === 'function' && !webContents.getURL())
+      && !(typeof webContents.isLoadingMainFrame === 'function' && webContents.isLoadingMainFrame())
       && !(typeof webContents.isLoading === 'function' && webContents.isLoading());
   } catch (_) {
     return false;

@@ -21,6 +21,9 @@ assert.equal(browserScriptExecutionReady(contents({ destroyed: true })), false);
 assert.equal(browserScriptExecutionReady(contents({ loading: true })), false,
   'yükleme sürerken executeJavaScript did-stop-loading dinleyicisi biriktirmemeli');
 assert.equal(browserScriptExecutionReady(contents()), true);
+assert.equal(browserScriptExecutionReady({ ...contents(), getURL: () => '' }), false,
+  'henüz adresi olmayan WebContents Electron bekleme kuyruğuna alınmamalı');
+assert.equal(browserScriptExecutionReady({ ...contents(), isLoadingMainFrame: () => true }), false);
 assert.equal(browserScriptExecutionReady({
   isDestroyed() { throw new Error('kapandı'); },
   isLoading: () => false,

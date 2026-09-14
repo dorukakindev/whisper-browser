@@ -15,6 +15,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     const findCues = ${finder};
     let state = nextState;
     let root = null;
+    let toolbar = null;
+    let fullscreenVideo = null;
+    let fullscreenHost = null;
+    let fullscreenStyle = null;
+    let fullscreenTransition = false;
     let media = null;
     let mediaDirty = true;
     let frameToken = 0;
@@ -350,7 +355,83 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       }, Math.min(60000, delayMs));
     };
 
+    function enableFullscreenControls() {
+      // Chromium yerel video tam ekranında diğer DOM öğelerine tıklamayı
+      // engeller. Videoyu aynı yerde geçici kapsayıcıya alarak hem yerel
+      // oynatıcı düğmelerini hem altyazı araçlarını erişilebilir tut.
+      const fullscreen = document.fullscreenElement;
+      if (fullscreen?.tagName === 'VIDEO' && !fullscreenTransition && !fullscreenHost) {
+        fullscreenTransition = true;
+        fullscreenVideo = fullscreen;
+        fullscreenStyle = Object.fromEntries(['width','height','maxWidth','maxHeight','objectFit'].map(key => [key, fullscreen.style[key]]));
+        fullscreenHost = document.createElement('div');
+        fullscreenHost.id = '__whisper_fullscreen_player';
+        fullscreenHost.style.cssText = 'width:100%;height:100%;background:#000;position:relative;';
+        fullscreen.parentElement.insertBefore(fullscreenHost, fullscreen);
+        fullscreenHost.moveBefore(fullscreen, null);
+        Object.assign(fullscreen.style, {width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain'});
+        document.exitFullscreen().then(() => fullscreenHost.requestFullscreen()).catch(() => {}).finally(() => { fullscreenTransition = false; render(); });
+        return;
+      }
+    }
+    function renderToolbar() {
+      const fullscreen = document.fullscreenElement;
+      if (!fullscreen && fullscreenHost && !fullscreenTransition) {
+        if (fullscreenVideo?.parentElement === fullscreenHost && fullscreenHost.parentElement) {
+          fullscreenHost.parentElement.moveBefore(fullscreenVideo, fullscreenHost);
+          for (const [key, value] of Object.entries(fullscreenStyle || {})) fullscreenVideo.style[key] = value;
+        }
+        fullscreenHost.remove(); fullscreenHost = null; fullscreenVideo = null; fullscreenStyle = null;
+      }
+      if (fullscreenTransition) return;
+      if (!document.fullscreenElement || document.hidden) {
+        if (toolbar) { toolbar.remove(); toolbar = null; }
+        return;
+      }
+      if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.id = '__whisper_subtitle_toolbar';
+        toolbar.setAttribute('role', 'toolbar');
+        toolbar.setAttribute('aria-label', 'Tam ekran altyazı kontrolleri');
+        toolbar.style.cssText = 'position:fixed;inset:16px 16px auto auto;margin:0;padding:8px;border:1px solid #65533c;border-radius:10px;background:#191c20;color:#eee;z-index:2147483647;font:13px Segoe UI,sans-serif;max-width:calc(100vw - 48px);';
+        const toggle = document.createElement('button');
+        toggle.textContent = 'Altyazı ayarları';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.style.cssText = 'background:transparent;color:#d5a35c;border:0;padding:6px;cursor:pointer;font:inherit;';
+        const controls = document.createElement('div');
+        controls.style.cssText = 'display:none;flex-wrap:wrap;gap:6px;max-width:430px;padding-top:6px;';
+        const expand = open => { controls.style.display = open ? 'flex' : 'none'; toggle.setAttribute('aria-expanded', String(open)); };
+        toggle.addEventListener('click', event => { if (event.isTrusted) expand(true); });
+        toolbar.addEventListener('mouseenter', () => expand(true));
+        toolbar.addEventListener('mouseleave', () => { if (!toolbar.contains(document.activeElement)) expand(false); });
+        toolbar.addEventListener('focusout', event => { if (!toolbar.contains(event.relatedTarget)) expand(false); });
+        for (const [action, label] of [['source','Kaynak'],['translation','Çeviri'],['both','Çift dil'],['smaller','A−'],['larger','A+'],['earlier','−0,1 sn'],['later','+0,1 sn'],['save','Senkronu kaydet'],['toggle','Gizle / göster']]) {
+          const button = document.createElement('button');
+          button.textContent = label; button.dataset.action = 'subtitle-' + action;
+          button.title = action === 'earlier' || action === 'later' ? 'Seçili senkron kanalını kaydır; kalıcı olması için Senkronu kaydet düğmesini kullan' : label;
+          button.style.cssText = 'background:#292b2f;color:#eee;border:1px solid #65533c;border-radius:5px;padding:7px;cursor:pointer;font:inherit;';
+          button.addEventListener('click', event => {
+            if (!event.isTrusted) return;
+            event.preventDefault(); event.stopPropagation();
+            globalThis.__whisperTrustedBridgeSend?.('subtitle-control', { action: 'subtitle-' + action });
+          });
+          controls.appendChild(button);
+        }
+        toolbar.append(toggle, controls);
+      }
+      const native = /^(VIDEO|AUDIO)$/.test(document.fullscreenElement.tagName || '');
+      const host = native ? document.documentElement : document.fullscreenElement;
+      if (toolbar.parentElement !== host) host.appendChild(toolbar);
+      if (native && typeof toolbar.showPopover === 'function') {
+        toolbar.setAttribute('popover', 'manual');
+        if (!toolbar.matches(':popover-open')) toolbar.showPopover();
+      } else if (toolbar.hasAttribute('popover')) {
+        if (toolbar.matches(':popover-open')) toolbar.hidePopover();
+        toolbar.removeAttribute('popover');
+      }
+    }
     function render() {
+      renderToolbar();
       const renderStarted = monotonicNow();
       renderCount += 1;
       const finishRender = () => {
@@ -449,6 +530,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     window.addEventListener('resize', render, { passive: true });
 
     window.__whisperBrowserOverlayController = {
+      enableFullscreenControls,
       update(value) {
         // Yeni cue listesi önceki listenin sınır zamanlayıcısını geçersiz kılar.
         cancelFrame();

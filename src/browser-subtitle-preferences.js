@@ -2,9 +2,26 @@
 const { normalizeSessionTab } = require('./browser-session-store');
 // Video kimliği başına sınırlı yerel tercih deposu; erişim yetkisini çağıran main doğrular.
 class BrowserSubtitlePreferences {
-  constructor({ read, write, limit = 200 }) {
+  constructor({ read, readBackup, write, limit = 200 }) {
     this.write = write; this.limit = limit; this.items = new Map();
-    try { for (const row of read()?.items || []) this.put(row, false); } catch (_) {}
+    this.recovery = '';
+    try { this.load(read()); } catch (error) {
+      try { this.load(readBackup?.()); this.recovery = 'backup'; }
+      catch (_) { if (error.code !== 'ENOENT') this.recovery = 'unavailable'; }
+    }
+  }
+  load(value) {
+    if (!value || value.version !== 1 || !Array.isArray(value.items)) throw Error('Geçersiz altyazı tercih dosyası');
+    if (value.items.some(row => !row?.mediaId || !row.subtitleSelection || !normalizeSessionTab({ ...row, id: 'preference' }))) {
+      throw Error('Geçersiz video altyazı tercihi');
+    }
+    for (const row of value.items) this.put(row, false);
+  }
+  remove(mediaId) {
+    if (!this.items.has(mediaId)) return false;
+    const next = new Map(this.items); next.delete(mediaId);
+    this.write({ version: 1, items: [...next.values()] });
+    this.items = next; return true;
   }
   put(raw, persist = true) {
     if (!raw?.mediaId || !raw.subtitleSelection) return false;
@@ -14,6 +31,7 @@ class BrowserSubtitlePreferences {
       subtitleSelection: normalized.subtitleSelection, subtitleMode: normalized.subtitleMode,
       subtitleSyncRecords: normalized.subtitleSyncRecords };
     if (!row.mediaId) return false;
+    if (persist && !Object.values(row.subtitleSelection || {}).some(Boolean) && !row.subtitleSyncRecords?.length) return this.remove(row.mediaId);
     const before = JSON.stringify(this.items.get(row.mediaId));
     if (before === JSON.stringify(row)) return false;
     const next = new Map(this.items); next.delete(row.mediaId); next.set(row.mediaId, row);

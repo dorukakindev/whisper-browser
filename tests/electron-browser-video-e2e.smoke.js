@@ -8,6 +8,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const root=path.resolve(__dirname,'..');
 const out=path.join(root,'.uiprev','video-e2e');fs.mkdirSync(out,{recursive:true});
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid);
+process.on('warning', warning => fs.appendFileSync(process.env.VIDEO_E2E_WARNINGS || path.join(out,'native-warnings.log'), String(warning.stack)+'\n'));
 app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
 require('../src/main.js');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -36,6 +37,33 @@ app.whenReady().then(async()=>{
  await wait(1200);win.setContentSize(1440,960);
  await run(`globalThis.modeTrace=[];const setModeOriginal=setSubtitleMode;setSubtitleMode=function(mode,announce){modeTrace.push({mode,restore:browserTabState()?.restoreSubtitleMode,selection:browserTabState()?.subtitleSelectionRestored,cues:player.cues.length,cues2:player.cues2.length});return setModeOriginal(mode,announce)};openPlayer();setWorkspaceMode('browser',false);setBrowserCaptureEnabled(true,false)`);
  await until(()=>run(`return player.browserActiveTabId`),'Tarayıcı sekmesi').catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await run(`return {mode:player.workspaceMode,signal:document.getElementById('browserSignalText')?.textContent,pending:state.pendingPlayerLoad?.label,tabs:await window.api.showBrowser('',browserSlotBounds())}`),null,2));throw error});
+ if(process.env.VIDEO_E2E_RECOVERY_REOPEN==='1'){
+  await until(()=>run(`return browserTabState().subtitleSelectionRestored&&player.cues.length===2&&player.cues2.length===3`),'Kurtarılan dosyaları yeniden açma');
+  assert.equal(await run(`return browserTransformForChannel(false).offsetSeconds`),.5);
+  await run(`document.getElementById('browserVideoSubtitles').open=true;await inspectBrowserVideoSubtitles()`);
+  assert.equal(await run(`return browserTabState().missingSubtitleFiles.length`),0);
+  await snapshot('four-manager');fs.writeFileSync(path.join(out,'four-reopen-report.json'),JSON.stringify({restoredPair:true,offset:.5}));app.quit();return;
+ }
+ if(process.env.VIDEO_E2E_PAIR_RECOVERY==='1'){
+  await until(()=>run(`return state.pendingPlayerLoad?.label==='Altyazı dosyası eksik'`),'İki eksik dosya');
+  await run(`document.getElementById('browserVideoSubtitles').open=true;await inspectBrowserVideoSubtitles();toggleSettingsPage('browser-subtitles')`);
+  assert.equal(await run(`return browserTabState().missingSubtitleFiles.length`),2);
+  assert.match(await run(`return document.getElementById('browserPreferenceNotice').textContent`),/2 kayıtlı dosya/);
+  await snapshot('four-missing-files');
+  const movedSecond=path.join(out,'manual-second-moved.vtt'), movedFirst=path.join(out,'manual-moved.srt');
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[movedSecond]});
+  await run(`document.getElementById('browserReplaceSecondary').click()`);
+  await until(()=>run(`return browserTabState().subtitleSelection.secondaryFile?.endsWith('manual-second-moved.vtt')`),'İkinci dosya kurtarma');
+  await wait(300);dialog.showOpenDialog=async()=>({canceled:false,filePaths:[movedFirst]});
+  await run(`document.getElementById('browserReplacePrimary').click()`);
+  await until(()=>run(`return browserTabState().subtitleSelectionRestored&&player.cues.length===2&&player.cues2.length===3`),'Çift dosya kurtarma');
+  assert.equal(await run(`return browserSubtitleMode()`),'both');
+  assert.equal(await run(`return browserTransformForChannel(false).offsetSeconds`),.5);
+  await run(`await inspectBrowserVideoSubtitles()`);assert.equal(await run(`return browserTabState().missingSubtitleFiles.length`),0);
+  const recovery=await run(`return await window.api.browserSubtitlePreference({action:'inspect',tabId:player.browserActiveTabId,mediaId:browserTabState().mediaId})`);
+  assert.equal(recovery.recovery,'backup');
+  await snapshot('four-recovered-files');fs.writeFileSync(path.join(out,'four-recovery-report.json'),JSON.stringify({twoMissing:true,secondFirst:true,mode:'both',offset:.5,backupRecovery:true}));app.quit();return;
+ }
  if(process.env.VIDEO_E2E_MISSING==='1'){
   await until(()=>run(`return state.pendingPlayerLoad?.label==='Altyazı dosyası eksik'`),'Eksik dosya bildirimi');
   const moved=path.join(out,'manual-moved.srt');
@@ -58,12 +86,54 @@ app.whenReady().then(async()=>{
   await restoredPage.executeJavaScript(`document.querySelector('video').currentTime=.8`);await wait(700);
   fs.writeFileSync(path.join(out,'04-restored-video.png'),(await restoredPage.capturePage()).toPNG());
   if(process.env.VIDEO_E2E_NATIVE_FULLSCREEN==='1'){
+   const original=await restoredPage.executeJavaScript(`(()=>{const v=document.querySelector('video');v.loop=true;v.play();return {parent:v.parentElement.tagName,style:v.getAttribute('style')||''}})()`,true);
    await restoredPage.executeJavaScript(`document.querySelector('video').requestFullscreen()`,true);await wait(800);
+   assert.equal(await restoredPage.executeJavaScript(`document.querySelector('video').paused`),false,'Tam ekran geçişi oynatmayı kesmemeli');
+   await restoredPage.executeJavaScript(`document.querySelector('video').pause();document.querySelector('video').currentTime=.8`);await wait(300);
    const bounds=await restoredPage.executeJavaScript(`(()=>{const r=document.getElementById('__whisper_browser_subtitles').getBoundingClientRect();return {width:r.width,height:r.height,top:r.top,fullscreen:document.fullscreenElement?.tagName}})()`);
    assert(bounds.width>100&&bounds.height>20,JSON.stringify(bounds));
+   const clickControl=async selector=>{
+    const point=await restoredPage.executeJavaScript(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+    restoredPage.focus();
+    restoredPage.sendInputEvent({type:'mouseMove',...point});
+    restoredPage.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point});
+    restoredPage.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});await wait(400);
+   };
+   await clickControl('#__whisper_subtitle_toolbar > button');
+   const scale=await run(`return Number(document.getElementById('browserOverlayScale').value)`);
+   await restoredPage.executeJavaScript(`document.querySelector('[data-action="subtitle-larger"]').click()`);await wait(200);
+   assert.equal(await run(`return Number(document.getElementById('browserOverlayScale').value)`),scale,'Sayfa kaynaklı sahte tıklama engellenmeli');
+   await clickControl('[data-action="subtitle-larger"]');
+   assert.equal(await run(`return Number(document.getElementById('browserOverlayScale').value)`),scale+5);
+   await clickControl('[data-action="subtitle-toggle"]');
+   assert.equal(await run(`return browserSubtitleMode()`),'off');
+   assert(await restoredPage.executeJavaScript(`document.getElementById('__whisper_subtitle_toolbar').getBoundingClientRect().width>0`));
+   await clickControl('[data-action="subtitle-toggle"]');
+   assert.equal(await run(`return browserSubtitleMode()`),'both');
+   await clickControl('[data-action="subtitle-source"]');assert.equal(await run(`return browserSubtitleMode()`),'source');
+   await clickControl('[data-action="subtitle-both"]');
+   await clickControl('[data-action="subtitle-later"]');
+   assert(Math.abs(await run(`return browserTransformForChannel(false).offsetSeconds`)-.3)<.001);
+   await clickControl('[data-action="subtitle-save"]');
+   assert.equal(await run(`return !!player.browserSyncPreview?.dirty`),false);
+   report.push({toolbar:'native click, forged click rejection, scale, hide/show, mode, offset and save passed'});
    fs.writeFileSync(path.join(out,'review-native-fullscreen.png'),(await restoredPage.capturePage()).toPNG());
    fs.writeFileSync(path.join(out,'native-fullscreen-report.json'),JSON.stringify(bounds,null,2));
    await restoredPage.executeJavaScript(`document.exitFullscreen()`);await wait(300);
+   assert.equal(await restoredPage.executeJavaScript(`!!document.getElementById('__whisper_subtitle_toolbar')`),false);
+   const after=await restoredPage.executeJavaScript(`(()=>{const v=document.querySelector('video');return {parent:v.parentElement.tagName,style:v.getAttribute('style')||'',wrappers:document.querySelectorAll('#__whisper_fullscreen_player').length}})()`);
+   assert.equal(after.wrappers,0);assert.equal(after.parent,original.parent);assert.equal(after.style,original.style);
+   await run(`document.getElementById('browserVideoSubtitles').open=true;await inspectBrowserVideoSubtitles()`);
+   assert.match(await run(`return document.getElementById('browserPrimaryFileInfo').textContent`),/Birinci kanal:/);
+   await run(`document.getElementById('browserResetVideoSync').click()`);await wait(300);
+   assert.equal(await run(`return browserTransformForChannel(false).offsetSeconds`),0);
+   const refused=await run(`return await window.api.browserSubtitlePreference({action:'forget',tabId:player.browserActiveTabId,mediaId:'wrong-video'})`);
+   assert.equal(refused.ok,false);
+   await run(`document.getElementById('browserForgetSubtitles').click()`);await wait(500);
+   assert.equal(await run(`return player.cues.length+player.cues2.length`),0);
+   const prefs=JSON.parse(fs.readFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'browser-subtitle-preferences.json'),'utf8'));
+   assert.equal(prefs.items.some(row=>row.url==='https://video-e2e.test/watch'),false);
+   report.push({manager:'inspect, reset, wrong-media rejection, forget persisted passed'});
   }
   report.push({restart:restored});await snapshot('04-restored');fs.writeFileSync(path.join(out,'restore-report.json'),JSON.stringify(report,null,2));app.quit();return;
  }
@@ -160,7 +230,7 @@ app.whenReady().then(async()=>{
    const metric=app.getAppMetrics().filter(m=>m.type==='Tab').reduce((sum,m)=>sum+(m.memory?.workingSetSize||0),0);
    const diag=await page.executeJavaScriptInIsolatedWorld(999,[{code:`window.__whisperBrowserOverlayController?.diagnostics()`}]);
    assert(diag&&diag.overlayNodes===3,JSON.stringify(diag));assert(diag.pendingFrames<=3,JSON.stringify(diag));
-   memory.push({seconds:Math.round((Date.now()-began)/1000),rendererWorkingSetKiB:metric,overlayNodes:diag.overlayNodes,pendingFrames:diag.pendingFrames,mediaListeners:diag.mediaListeners,mutationObservers:diag.mutationObservers});
+   memory.push({seconds:Math.round((Date.now()-began)/1000),rendererWorkingSetKiB:metric,overlayNodes:diag.overlayNodes,pendingFrames:diag.pendingFrames,mediaListeners:diag.mediaListeners,mutationObservers:diag.mutationObservers,nativeStopListeners:page.listenerCount('did-stop-loading'),shellStopListeners:win.webContents.listenerCount('did-stop-loading')});
    fs.writeFileSync(path.join(out,'review-soak-progress.json'),JSON.stringify(memory,null,2));
   }
   await page.executeJavaScript(`document.querySelector('video').pause()`);

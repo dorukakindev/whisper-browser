@@ -1388,6 +1388,15 @@
               <span id="browserSubtitleHealthText">Bir video sayfası açın.</span>
               <button id="browserSubtitleHealthAction" class="btn btn-secondary btn-sm" type="button" data-action="address">Adres gir</button>
             </div>
+            <details id="browserVideoSubtitles" class="browser-video-subtitles">
+              <summary>Bu videonun altyazıları</summary>
+              <p id="browserPreferenceNotice" role="status"></p>
+              <div class="browser-subtitle-file-row"><span id="browserPrimaryFileInfo"></span><button id="browserReplacePrimary" class="btn btn-secondary btn-sm" type="button">Dosyayı seç / değiştir</button></div>
+              <div class="browser-subtitle-file-row"><span id="browserSecondaryFileInfo"></span><button id="browserReplaceSecondary" class="btn btn-secondary btn-sm" type="button">Dosyayı seç / değiştir</button></div>
+              <p id="browserVideoSyncInfo"></p>
+              <div class="browser-subtitle-file-row"><button id="browserResetVideoSync" class="btn btn-secondary btn-sm" type="button">Bu videonun senkronunu sıfırla</button><button id="browserForgetSubtitles" class="btn btn-secondary btn-sm" type="button">Altyazı tercihlerini unut</button></div>
+              <p class="muted">Unutma işlemi dosyaları silmez. Yeniden altyazı seçtiğinizde yeni tercihler kaydedilir.</p>
+            </details>
             <div class="browser-signal-body">
               <div class="browser-signal-tools" id="browserSignalTools" role="group" aria-label="Altyazı yardımcı araçları">
                 <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>

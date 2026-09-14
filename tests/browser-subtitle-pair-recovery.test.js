@@ -11,5 +11,15 @@ const extract=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end
  await ctx.locateMissingSubtitle('old.srt',false,'source');
  assert.equal(ctx.player.sub2Path,'second.vtt','Birinci dosya bulununca ikinci kayıtlı altyazı da geri yüklenmeli');
  assert.equal(ctx.mode,'both','Kurtarma çift dil tercihini korumalı');
+ tab.subtitleSelection={primaryFile:'old.srt',secondaryFile:'lost.vtt'};tab.subtitleSelectionRestored=false;tab.subtitleSelectionLoadingFailed=null;
+ ctx.player.subPath='';ctx.player.sub2Path='';
+ const loader=ctx.loadSubtitle;ctx.loadSubtitle=async(file,...args)=>{if(file==='lost.vtt')return;await loader(file,...args);};
+ ctx.window.api.selectFile=async()=>'second-moved.vtt';
+ await ctx.locateMissingSubtitle('lost.vtt',true,'translation');
+ assert.equal(tab.subtitleSelection.secondaryFile,'second-moved.vtt');
+ assert.equal(tab.subtitleSelection.primaryFile,'old.srt');
+ ctx.window.api.selectFile=async()=>'first-moved.srt';
+ await ctx.locateMissingSubtitle('old.srt',false,'source');
+ assert.equal(ctx.player.subPath,'first-moved.srt');assert.equal(ctx.player.sub2Path,'second-moved.vtt');assert.equal(ctx.mode,'both');
  console.log('Çift dosya kurtarma: ikinci kanal ve görünüm korundu.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

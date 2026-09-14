@@ -3720,7 +3720,12 @@ function browserSubtitlePreferences() {
     const { BrowserSubtitlePreferences } = require('./browser-subtitle-preferences');
     browserSubtitlePreferenceStore = new BrowserSubtitlePreferences({
       read: () => JSON.parse(fs.readFileSync(file, 'utf8')),
-      write: value => writeJsonAtomic(file, value),
+      readBackup: () => JSON.parse(fs.readFileSync(file + '.bak', 'utf8')),
+      write: value => {
+        // Yedek yalnız doğrulanmış yeni durumdan üretilir; bozuk ana dosya kopyalanmaz.
+        writeJsonAtomic(file, value);
+        writeJsonAtomic(file + '.bak', value);
+      },
     });
   }
   return browserSubtitlePreferenceStore;
@@ -8359,7 +8364,7 @@ function pollBrowserTabAudioStates() {
 async function probeActiveBrowserMedia(requestedTab = null) {
   const tab = activeBrowserTab();
   if (!tab || (requestedTab && requestedTab !== tab) || tab.compatibilityMode
-      || browserMediaBusy || !browserVisible || !browserView || browserView.webContents.isDestroyed()) return false;
+      || browserMediaBusy || !browserVisible || !browserView?.webContents || browserView.webContents.isDestroyed()) return false;
   browserMediaBusy = true;
   const generation = browserStateGeneration;
   const context = { ...browserEventContext(tab), stateGeneration: generation };
@@ -8750,6 +8755,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.htmlFullscreen = true;
     if (tab.id === browserActiveTabId) applyBrowserViewBounds(tab, view);
     sendBrowserEvent(tab, { type: 'html-full-screen', active: true });
+    setTimeout(() => {
+      if (tab.closing || tab.id !== browserActiveTabId || tab.view !== view || !tab.htmlFullscreen) return;
+      void executeBrowserTrustedMain(view, 'window.__whisperBrowserOverlayController?.enableFullscreenControls?.()').catch(() => {});
+    }, 100);
   });
   wc.on('leave-html-full-screen', () => {
     if (tab.view !== view || browserTabById(tab.id) !== tab) return;
@@ -10068,6 +10077,9 @@ ipcMain.on('browser:trusted-bridge', (event, message) => {
   if (!tab || (message.type !== 'page-blocks' && message.type !== 'page-action' && tab.id !== browserActiveTabId)) return;
   if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
   else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
+  else if (message.type === 'subtitle-control' && ['subtitle-earlier', 'subtitle-later', 'subtitle-larger', 'subtitle-smaller', 'subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle', 'subtitle-save'].includes(message.payload?.action)) {
+    sendBrowserEvent(tab, { type: 'browser-shortcut', key: message.payload.action });
+  }
   else if (message.type === 'page-blocks') acceptDynamicBrowserPageBlocks(tab, message.payload);
   else if (message.type === 'page-action') void handleBrowserPageAction(tab, message.payload);
   else if (message.type === 'reading-position') {
@@ -10867,6 +10879,28 @@ ipcMain.handle('browser:session:setRestore', (event, enabled) => {
   const result = persistBrowserSessionNow();
   if (!result.ok) browserSessionRestoreEnabled = previous;
   return { ok: !!result.ok, enabled: browserSessionRestoreEnabled, error: result.error };
+});
+
+ipcMain.handle('browser:subtitle-preference', (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false };
+  if (!request || typeof request !== 'object') return { ok: false };
+  const tab = activeRequestedBrowserTab(request.tabId);
+  if (!tab || tab.mediaId !== request.mediaId) return { ok: false, error: 'Video değişti; yeniden deneyin.' };
+  try {
+    const store = browserSubtitlePreferences();
+    if (request.action === 'forget') {
+      store.remove(tab.mediaId);
+      tab.subtitleSelection = { primaryId: '', secondaryId: '' };
+      tab.subtitleSyncRecords = [];
+      scheduleBrowserSessionSave();
+    } else if (request.action !== 'inspect') return { ok: false };
+    const selection = tab.subtitleSelection || {};
+    const missing = ['primaryFile', 'secondaryFile'].filter(slot => {
+      const file = selection[slot];
+      return file && subtitleFileAccess.has(subtitleFileAccess.inspect(file)) && !fs.existsSync(file);
+    });
+    return { ok: true, missing, recovery: store.recovery };
+  } catch (_) { return { ok: false, error: 'Altyazı tercih işlemi tamamlanamadı.' }; }
 });
 
 ipcMain.handle('browser:session:updateTab', (event, raw) => {

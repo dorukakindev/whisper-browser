@@ -103,7 +103,7 @@ test('web altyazısı basılı tutularak taşınır ve yeni konum uygulamaya bil
   assert.match(script, /lostpointercapture/);
   assert.match(script, /detachDragListeners/);
   assert.match(script, /__whisperTrustedBridgeSend\?\.\('overlay-style'/);
-  assert.equal((script.match(/!event\.isTrusted/g) || []).length, 3);
+  assert.equal((script.match(/!event\.isTrusted/g) || []).length, 4);
   assert.doesNotMatch(script, /__WHISPER_BROWSER_OVERLAY_STYLE__/);
   assert.match(script, /Math\.min\(75/);
   assert.match(script, /style\.pointerEvents = 'auto'/);

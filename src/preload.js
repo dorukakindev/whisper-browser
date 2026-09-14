@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld('api', {
   listBrowserJobs: () => ipcRenderer.invoke('browser:jobs:list'),
   setBrowserSessionRestore: (enabled) => ipcRenderer.invoke('browser:session:setRestore', enabled),
   updateBrowserSessionTab: (tab) => ipcRenderer.invoke('browser:session:updateTab', tab),
+  browserSubtitlePreference: (request) => ipcRenderer.invoke('browser:subtitle-preference', request),
   listBrowserPlaces: () => ipcRenderer.invoke('browser:places:list'),
   updateBrowserSiteProfile: (request) => ipcRenderer.invoke('browser:profile:update', request),
   toggleBrowserBookmark: (entry) => ipcRenderer.invoke('browser:places:toggleBookmark', entry),

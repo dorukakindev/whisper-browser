@@ -6621,3 +6621,9 @@ body.modal-open { overflow: hidden; }
 .browser-subtitle-health > button { flex-shrink:0; }
 .browser-subtitle-health[data-state="file-error"], .browser-subtitle-health[data-state="translation-error"] { border-left:3px solid var(--accent); }
 @media(max-width:700px) { .browser-subtitle-health { align-items:flex-start; flex-direction:column; } }
+/* Video başına dosya ve senkron yönetimi. */
+.browser-video-subtitles { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.browser-video-subtitles summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.browser-video-subtitles p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.browser-subtitle-file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.browser-subtitle-file-row > span { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }

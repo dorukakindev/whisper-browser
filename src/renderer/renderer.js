@@ -7038,7 +7038,64 @@ function browserSubtitleHealth(input) {
   if (input.searchDone) return { state: 'missing', text: 'Henüz altyazı bulunamadı. Videoyu ve sitenin altyazısını açın veya dosya yükleyin.', action: 'file', label: 'Dosyadan yükle' };
   return { state: 'searching', text: 'Sayfada altyazı aranıyor…', action: '', label: '' };
 }
+function renderBrowserVideoSubtitles() {
+  if (!$('browserVideoSubtitles')) return;
+  const tab = browserTabState();
+  const selection = tab?.subtitleSelection || {};
+  for (const [secondary, id] of [[false, 'browserPrimaryFileInfo'], [true, 'browserSecondaryFileInfo']]) {
+    const slot = secondary ? 'secondaryFile' : 'primaryFile';
+    const file = secondary ? player.sub2Path : player.subPath;
+    const trackId = secondary ? player.browserLoadedTrackId2 : player.browserLoadedTrackId;
+    const track = player.browserTracks.find(row => row.id === trackId);
+    const label = track ? (track.label || track.language || 'Site altyazısı') : (file || selection[slot] || '').split(/[\\/]/).pop();
+    $(id).textContent = `${secondary ? 'İkinci' : 'Birinci'} kanal: ${label || 'Seçilmedi'}${tab?.missingSubtitleFiles?.includes(slot) ? ' · Dosya bulunamadı' : ''}`;
+  }
+  $('browserVideoSyncInfo').textContent = `${tab?.subtitleSyncRecords?.length || 0} kayıtlı senkron düzeltmesi${player.browserSyncPreview?.dirty ? ' · Kaydedilmemiş önizleme var' : ''}`;
+}
+async function inspectBrowserVideoSubtitles() {
+  const tab = browserTabState();
+  if (!tab || !window.api.browserSubtitlePreference) return;
+  const mediaId = tab.mediaId;
+  const result = await window.api.browserSubtitlePreference({ action: 'inspect', tabId: tab.id, mediaId }).catch(() => null);
+  if (tab !== browserTabState() || mediaId !== tab.mediaId) return;
+  tab.missingSubtitleFiles = result?.missing || [];
+  $('browserPreferenceNotice').textContent = !result?.ok ? 'Tercihler okunamadı; yeniden açarak deneyin.'
+    : result.missing.length ? `${result.missing.length} kayıtlı dosya bulunamadı. Her kanal için yeni konumunu seçin; diğer kanalın seçimi korunur.`
+    : result.recovery === 'backup' ? 'Tercihler yedek dosyadan kurtarıldı.'
+    : result.recovery === 'unavailable' ? 'Tercih dosyası ve yedeği okunamadı. Altyazıları yeniden seçebilirsiniz.' : '';
+  renderBrowserVideoSubtitles();
+}
+$('browserVideoSubtitles')?.addEventListener('toggle', () => { if ($('browserVideoSubtitles').open) void inspectBrowserVideoSubtitles(); });
+for (const [id, secondary] of [['browserReplacePrimary', false], ['browserReplaceSecondary', true]]) {
+  $(id)?.addEventListener('click', async () => {
+    const tab = browserTabState();
+    if (!tab || tab.subtitleSelectionLoading) return;
+    const file = (secondary ? player.sub2Path : player.subPath) || tab.subtitleSelection?.[secondary ? 'secondaryFile' : 'primaryFile'] || '';
+    await locateMissingSubtitle(file, secondary, secondary ? 'translation' : 'source');
+    await inspectBrowserVideoSubtitles();
+  });
+}
+$('browserResetVideoSync')?.addEventListener('click', () => {
+  const tab = browserTabState(); if (!tab) return;
+  tab.subtitleSyncRecords = []; tab.offset = 0; player.offset = 0; player.browserSyncPreview = null;
+  saveActiveBrowserTabWorkspace(); refreshBrowserSyncPanel('Bu videonun tüm senkron düzeltmeleri sıfırlandı.');
+  scheduleBrowserOverlaySync(); renderBrowserVideoSubtitles();
+});
+$('browserForgetSubtitles')?.addEventListener('click', async () => {
+  const tab = browserTabState(); if (!tab || tab.subtitleSelectionLoading) return;
+  const mediaId = tab.mediaId;
+  const result = await window.api.browserSubtitlePreference({ action: 'forget', tabId: tab.id, mediaId }).catch(() => null);
+  if (tab !== browserTabState() || tab.mediaId !== mediaId) return;
+  if (!result?.ok) { $('browserPreferenceNotice').textContent = 'Tercihler silinemedi; yeniden deneyin.'; return; }
+  tab.subtitleSelection = { primaryId: '', secondaryId: '' }; tab.subtitleSelectionRestored = true;
+  tab.subtitleSyncRecords = []; tab.missingSubtitleFiles = []; state.pendingPlayerLoad = null;
+  clearBrowserTracks('Bu videonun altyazı tercihleri unutuldu.');
+  player.offset = 0; tab.offset = 0;
+  saveActiveBrowserTabWorkspace(); scheduleBrowserOverlaySync(); renderBrowserVideoSubtitles();
+  $('browserPreferenceNotice').textContent = 'Altyazı tercihleri unutuldu. Dosyalarınız korundu.';
+});
 function renderBrowserSubtitleHealth() {
+  renderBrowserVideoSubtitles();
   const panel = $('browserSubtitleHealth');
   if (!panel) return;
   const tab = browserTabState();
@@ -10514,6 +10571,12 @@ $('browserPermissionPrompt')?.addEventListener('click', (event) => {
 
 function runBrowserShortcut(key, shift = false) {
   const normalized = String(key || '').toLowerCase();
+  if (['subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle'].includes(normalized)) {
+    setSubtitleMode(normalized === 'subtitle-toggle' ? (browserSubtitleMode() === 'off' ? 'both' : 'off') : normalized.slice(9));
+    saveActiveBrowserTabWorkspace();
+    return true;
+  }
+  if (normalized === 'subtitle-save') { saveBrowserSync(); return true; }
   if (normalized === 'subtitle-earlier' || normalized === 'subtitle-later') {
     nudgeBrowserSync(normalized === 'subtitle-earlier' ? -.1 : .1);
     return true;
@@ -15710,7 +15773,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   if (selNow && selNow.value !== path) return;
   if (!res || !res.ok) {
     if (selNow) selNow.value = (secondary ? player.sub2Path : player.subPath) || '';
-    const message = `Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`;
+    const message = /ENOENT|ENOTDIR/.test(res?.error || '')
+      ? 'Altyazı dosyası bulunamadı. Dosyayı bul düğmesinden yeni konumunu seçin.'
+      : `Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`;
     logLine(message, 'error');
     if (typeof state !== 'undefined') {
       state.pendingPlayerLoad = {
