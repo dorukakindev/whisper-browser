@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    "navigation": {
+      "ok": true,
+      "error": null
+    },
+    "media": {
+      "readyState": 4,
+      "duration": 5.055,
+      "width": 960
+    },
+    "playback": true,
+    "seek": true,
+    "trackCount": 0,
+    "pageState": {
+      "loading": "complete",
+      "videoCount": 1,
+      "error": "",
+      "consent": false,
+      "signInRequired": false
+    }
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+    "navigation": {
+      "ok": true,
+      "error": null
+    },
+    "media": null,
+    "playback": false,
+    "seek": false,
+    "trackCount": 0,
+    "pageState": {
+      "loading": "complete",
+      "videoCount": 1,
+      "error": "",
+      "consent": false,
+      "signInRequired": true
+    }
+  }
+]

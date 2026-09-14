@@ -1,0 +1,537 @@
+{
+  "elapsedSeconds": 606.478,
+  "cycles": 59,
+  "samples": [
+    {
+      "seconds": 10,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 0,
+      "aiRequests": 6,
+      "workingSetKiB": 343648
+    },
+    {
+      "seconds": 20,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 0,
+      "aiRequests": 6,
+      "workingSetKiB": 316168
+    },
+    {
+      "seconds": 31,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 0,
+      "aiRequests": 7,
+      "workingSetKiB": 301084
+    },
+    {
+      "seconds": 41,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 0,
+      "aiRequests": 7,
+      "workingSetKiB": 296416
+    },
+    {
+      "seconds": 51,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 1,
+      "aiRequests": 7,
+      "workingSetKiB": 301044
+    },
+    {
+      "seconds": 62,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 3,
+      "aiRequests": 8,
+      "workingSetKiB": 303272
+    },
+    {
+      "seconds": 72,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 3,
+      "aiRequests": 8,
+      "workingSetKiB": 301648
+    },
+    {
+      "seconds": 82,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 3,
+      "aiRequests": 8,
+      "workingSetKiB": 303340
+    },
+    {
+      "seconds": 92,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 3,
+      "aiRequests": 9,
+      "workingSetKiB": 300968
+    },
+    {
+      "seconds": 103,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 4,
+      "aiRequests": 9,
+      "workingSetKiB": 303108
+    },
+    {
+      "seconds": 113,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 6,
+      "aiRequests": 9,
+      "workingSetKiB": 296156
+    },
+    {
+      "seconds": 123,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 6,
+      "aiRequests": 10,
+      "workingSetKiB": 349124
+    },
+    {
+      "seconds": 133,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 6,
+      "aiRequests": 10,
+      "workingSetKiB": 333072
+    },
+    {
+      "seconds": 143,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 6,
+      "aiRequests": 10,
+      "workingSetKiB": 327872
+    },
+    {
+      "seconds": 154,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 7,
+      "aiRequests": 11,
+      "workingSetKiB": 303820
+    },
+    {
+      "seconds": 164,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 9,
+      "aiRequests": 11,
+      "workingSetKiB": 291736
+    },
+    {
+      "seconds": 174,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 9,
+      "aiRequests": 11,
+      "workingSetKiB": 293180
+    },
+    {
+      "seconds": 185,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 9,
+      "aiRequests": 12,
+      "workingSetKiB": 299784
+    },
+    {
+      "seconds": 195,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 9,
+      "aiRequests": 12,
+      "workingSetKiB": 297156
+    },
+    {
+      "seconds": 205,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 10,
+      "aiRequests": 12,
+      "workingSetKiB": 301496
+    },
+    {
+      "seconds": 216,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 12,
+      "aiRequests": 13,
+      "workingSetKiB": 298584
+    },
+    {
+      "seconds": 226,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 12,
+      "aiRequests": 13,
+      "workingSetKiB": 296732
+    },
+    {
+      "seconds": 236,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 12,
+      "aiRequests": 13,
+      "workingSetKiB": 297940
+    },
+    {
+      "seconds": 247,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 12,
+      "aiRequests": 14,
+      "workingSetKiB": 302072
+    },
+    {
+      "seconds": 257,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 13,
+      "aiRequests": 14,
+      "workingSetKiB": 302712
+    },
+    {
+      "seconds": 267,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 15,
+      "aiRequests": 14,
+      "workingSetKiB": 299296
+    },
+    {
+      "seconds": 278,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 15,
+      "aiRequests": 15,
+      "workingSetKiB": 304296
+    },
+    {
+      "seconds": 288,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 15,
+      "aiRequests": 15,
+      "workingSetKiB": 293176
+    },
+    {
+      "seconds": 298,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 15,
+      "aiRequests": 15,
+      "workingSetKiB": 296236
+    },
+    {
+      "seconds": 309,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 16,
+      "aiRequests": 16,
+      "workingSetKiB": 298356
+    },
+    {
+      "seconds": 319,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 18,
+      "aiRequests": 16,
+      "workingSetKiB": 296504
+    },
+    {
+      "seconds": 329,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 18,
+      "aiRequests": 16,
+      "workingSetKiB": 296276
+    },
+    {
+      "seconds": 339,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 18,
+      "aiRequests": 17,
+      "workingSetKiB": 298888
+    },
+    {
+      "seconds": 349,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 18,
+      "aiRequests": 17,
+      "workingSetKiB": 296832
+    },
+    {
+      "seconds": 360,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 19,
+      "aiRequests": 17,
+      "workingSetKiB": 300232
+    },
+    {
+      "seconds": 370,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 21,
+      "aiRequests": 18,
+      "workingSetKiB": 301628
+    },
+    {
+      "seconds": 380,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 21,
+      "aiRequests": 18,
+      "workingSetKiB": 293524
+    },
+    {
+      "seconds": 390,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 21,
+      "aiRequests": 18,
+      "workingSetKiB": 294036
+    },
+    {
+      "seconds": 401,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 21,
+      "aiRequests": 19,
+      "workingSetKiB": 298716
+    },
+    {
+      "seconds": 411,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 22,
+      "aiRequests": 19,
+      "workingSetKiB": 298660
+    },
+    {
+      "seconds": 421,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 24,
+      "aiRequests": 19,
+      "workingSetKiB": 295220
+    },
+    {
+      "seconds": 432,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 24,
+      "aiRequests": 20,
+      "workingSetKiB": 299488
+    },
+    {
+      "seconds": 442,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 24,
+      "aiRequests": 20,
+      "workingSetKiB": 296084
+    },
+    {
+      "seconds": 452,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 24,
+      "aiRequests": 20,
+      "workingSetKiB": 297628
+    },
+    {
+      "seconds": 463,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 25,
+      "aiRequests": 21,
+      "workingSetKiB": 300560
+    },
+    {
+      "seconds": 473,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 27,
+      "aiRequests": 21,
+      "workingSetKiB": 294540
+    },
+    {
+      "seconds": 483,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 27,
+      "aiRequests": 21,
+      "workingSetKiB": 299144
+    },
+    {
+      "seconds": 494,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 27,
+      "aiRequests": 22,
+      "workingSetKiB": 300780
+    },
+    {
+      "seconds": 504,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 27,
+      "aiRequests": 22,
+      "workingSetKiB": 292512
+    },
+    {
+      "seconds": 514,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 28,
+      "aiRequests": 22,
+      "workingSetKiB": 296092
+    },
+    {
+      "seconds": 525,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 30,
+      "aiRequests": 23,
+      "workingSetKiB": 296672
+    },
+    {
+      "seconds": 535,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 30,
+      "aiRequests": 23,
+      "workingSetKiB": 293680
+    },
+    {
+      "seconds": 545,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 30,
+      "aiRequests": 23,
+      "workingSetKiB": 295072
+    },
+    {
+      "seconds": 556,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 30,
+      "aiRequests": 24,
+      "workingSetKiB": 297056
+    },
+    {
+      "seconds": 566,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 31,
+      "aiRequests": 24,
+      "workingSetKiB": 298616
+    },
+    {
+      "seconds": 576,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 33,
+      "aiRequests": 24,
+      "workingSetKiB": 298020
+    },
+    {
+      "seconds": 586,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 33,
+      "aiRequests": 25,
+      "workingSetKiB": 297748
+    },
+    {
+      "seconds": 596,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 33,
+      "aiRequests": 25,
+      "workingSetKiB": 297640
+    },
+    {
+      "seconds": 606,
+      "overlayNodes": 3,
+      "observers": 1,
+      "listeners": 1,
+      "providerCalls": 33,
+      "aiRequests": 25,
+      "workingSetKiB": 297316
+    }
+  ]
+}

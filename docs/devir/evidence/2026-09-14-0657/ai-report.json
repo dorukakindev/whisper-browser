@@ -1,0 +1,16 @@
+{
+  "stalePreparation": true,
+  "singleRequest": true,
+  "frozenContext": true,
+  "watchedScope": true,
+  "verifiedCitations": true,
+  "videoSeek": true,
+  "staleCitationBlocked": true,
+  "errorRetry": true,
+  "cancelLateReply": true,
+  "emptyReply": true,
+  "responseDeadline": true,
+  "cancelPreparation": true,
+  "cancelFailureRetry": true,
+  "historyIsolation": true
+}

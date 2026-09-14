@@ -1,0 +1,16 @@
+{
+  "codeCommit": "7cc8f7aad74317ccf03e92ba230c655c5eb10de3",
+  "npmTest": {"files": 193, "passed": 188, "failed": 5, "exitCode": 1},
+  "environmentFailures": [
+    "tests/browser-stream-fixtures.test.js",
+    "backend/test_export_anki.py",
+    "backend/test_ffmpeg_integration.py",
+    "backend/test_transcribe.py",
+    "backend/test_ytdlp_update.py"
+  ],
+  "electronBridge": "passed",
+  "controlledAiEvaluation": {"acceptedExamples": 6, "rejectedMutants": 28, "liveProvider": false},
+  "combinedSoak": {"exitCode": 0, "elapsedSeconds": 606.48, "samples": 59, "shortVideoLoop": true},
+  "durableRestart": {"writeExitCode": 0, "readExitCode": 0},
+  "publicSites": {"mdnPlayback": true, "youtubePlayback": false, "youtubeSignInRequired": true, "warningsAndUnhandledRejections": 0}
+}
