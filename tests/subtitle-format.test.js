@@ -10,7 +10,7 @@
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf-8');
 const body = src.slice(src.indexOf('function parseAss'), src.indexOf('function setPlayerSource'));
-const F = new Function(body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceTimedCueTexts, replaceVttCueTexts, replaceVttCueText};')();
+const F = new Function('window', body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceTimedCueTexts, replaceVttCueTexts, replaceVttCueText};')({ addEventListener() {} });
 
 const BS = String.fromCharCode(92);
 let pass = 0; const fails = [];

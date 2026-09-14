@@ -314,6 +314,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const calls = []; let ready, finishDrm;
     vm.runInNewContext(block, {
       hasSingleInstanceLock: true,
+      require: (name) => { assert.equal(name, './browser-ass-renderer'); return { registerAssAssets() {} }; },
+      session: { fromPartition: () => ({}) }, net: {},
       app: { whenReady: () => ({ then: (fn) => { ready = fn; } }), getPath: () => 'test-profile' },
       prepareWidevineComponents: () => { calls.push('prepare'); return new Promise((resolve) => { finishDrm = resolve; }); },
       sweepStaleChatFiles() {}, sweepBrowserLiveAsrTemp() {}, sweepBrowserSubtitleFiles() {},

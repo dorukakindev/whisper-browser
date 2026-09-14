@@ -21,6 +21,8 @@ function harness() {
     snapshot() { return { results: [{ cues: [{ id: '1', start: 0, end: 1, text: 'Eski çeviri' }] }] }; }
   }
   const context = vm.createContext({ tab, wc, view: tab.view, Map, createHash,
+    browserExtras: null,
+    terminologyPrompt: require('../src/browser-terminology').terminologyPrompt,
     browserActiveTabId: 'foreground', browserOverlay: { source: ['foreground'] },
     browserNetworkOnline: true, browserLiveAsr: null, browserVisible: true, browserModalOccluded: false,
     normalizeCues, assembleCueSentences, BrowserTranslationScheduler: Scheduler,

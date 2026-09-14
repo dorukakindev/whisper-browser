@@ -6,11 +6,38 @@ import tempfile
 import unittest
 import unicodedata
 from pathlib import Path
+from unittest.mock import patch
 
 from series_memory import SeriesMemory, is_generic_character_name, parse_series_key
 
 
 class SeriesMemoryTests(unittest.TestCase):
+    def test_windows_replace_retries_are_bounded_and_preserve_previous_file(self):
+        with tempfile.TemporaryDirectory() as work:
+            memory, _ = SeriesMemory.for_input(work, 'Show.S01E02.srt', 'en', 'tr')
+            memory.merge({'terms': {'First': 'İlk'}}, 1, 1)
+            previous = memory.path.read_bytes()
+            blocked = PermissionError('sharing violation')
+            blocked.winerror = 32
+            real_replace = os.replace
+            with patch('series_memory.os.replace', side_effect=[blocked, blocked, None]) as replace, patch('series_memory.time.sleep'):
+                # Son çağrı gerçekten atomik yazımı yapar.
+                def replace_after_two(source, target):
+                    if replace.call_count < 3:
+                        raise blocked
+                    return real_replace(source, target)
+                replace.side_effect = replace_after_two
+                self.assertTrue(memory.merge({'terms': {'Second': 'İkinci'}}, 1, 2))
+                self.assertEqual(replace.call_count, 3)
+            self.assertIn('Second', json.loads(memory.path.read_text(encoding='utf-8'))['terms'])
+            previous = memory.path.read_bytes()
+            with patch('series_memory.os.replace', side_effect=blocked) as replace, patch('series_memory.time.sleep'):
+                with self.assertRaises(PermissionError):
+                    memory.merge({'terms': {'Third': 'Üçüncü'}}, 1, 3)
+                self.assertEqual(replace.call_count, 6)
+            self.assertEqual(memory.path.read_bytes(), previous)
+            self.assertEqual(list(memory.path.parent.glob('*.tmp')), [])
+
     def test_filename_variants_and_nfc_share_identity(self):
         self.assertEqual(parse_series_key("Show.Name.S01E05.1080p.srt"), ("show-name", 1, 5))
         self.assertEqual(parse_series_key("Show Name 1x06.srt"), ("show-name", 1, 6))

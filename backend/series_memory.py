@@ -86,7 +86,10 @@ class SeriesMemory:
         self.target_language = str(target_language or "tr").casefold()
         self._lock = threading.RLock()
         self.load_warning = ""
-        self.data = self._read()
+        # İlk okuma da yazıcıyla aynı kilidi paylaşmalı: Windows'ta açık bir
+        # okuyucu, atomik yeniden adlandırmayı paylaşım ihlaliyle durdurabilir.
+        with self._file_lock():
+            self.data = self._read()
 
     @classmethod
     def for_input(cls, cache_dir, input_path, source_language="auto", target_language="tr"):
@@ -359,7 +362,14 @@ class SeriesMemory:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
                 json.dump(self.data, handle, ensure_ascii=False, indent=2)
                 handle.flush(); os.fsync(handle.fileno())
-            os.replace(temp_path, self.path)
+            for attempt in range(6):
+                try:
+                    os.replace(temp_path, self.path)
+                    break
+                except PermissionError as exc:
+                    if getattr(exc, 'winerror', None) not in {5, 32, 33} or attempt == 5:
+                        raise
+                    time.sleep(0.025 * (attempt + 1))
             return True
         finally:
             try:

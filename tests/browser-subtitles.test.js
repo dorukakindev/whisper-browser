@@ -1047,7 +1047,10 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /effectiveDelay = elapsed >= 10_000 \? 0/);
   assert.match(main, /let browserPlacesCache = null/);
   assert.match(main, /setTimeout\(\(\) => flushBrowserPlaces\(\), 400\)/);
-  assert.match(main, /app\.on\('before-quit'[\s\S]{0,180}flushBrowserPlaces\(\)/);
+  const quitStart = main.indexOf("app.on('before-quit'");
+  const quitEnd = main.indexOf("\n});", quitStart);
+  assert(quitStart >= 0 && quitEnd > quitStart);
+  assert.match(main.slice(quitStart, quitEnd), /flushBrowserPlaces\(\)/);
   assert.match(main, /for \(const candidate of \[primary, `\$\{primary\}\.bak`\]\)/,
     'bozuk browser places dosyasi yedekten kurtarilmiyor');
   assert.match(main, /JSON\.parse\(fs\.readFileSync\(primary, 'utf8'\)\)[\s\S]{0,240}fs\.copyFileSync\(primary, backup\)/,

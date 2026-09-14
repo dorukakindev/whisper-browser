@@ -2,6 +2,7 @@
 
 const assert = require('assert');
 const vm = require('vm');
+const crypto = require('crypto');
 const {
   MAX_PAGE_BLOCKS,
   MAX_PAGE_BLOCK_TEXT,
@@ -80,6 +81,13 @@ assert.notEqual(pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x'
   pageBlockCacheKey(cacheBlock, { targetLanguage: 'tr', model: 'x', contextBefore: ['Başka'] }));
 assert.equal(pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
   pageTranslationMemoryKey({ ...cacheBlock, id: 'başka-id' }, { targetLanguage: 'TR', model: 'x' }));
+// v2 anahtarları v3 kapsamıyla yeniden kullanılmaz; eski kayıt diskte kalabilir.
+const v2Key = crypto.createHash('sha256').update(JSON.stringify({
+  version: 'page-memory-v2', memoryVersion: '', text: 'Hello.', targetLanguage: 'tr',
+  sourceLanguage: '', model: 'x', tag: 'p', role: '', section: 'Genel',
+})).digest('hex');
+assert.notEqual(pageTranslationMemoryKey({ text: 'Hello.', tag: 'p' },
+  { targetLanguage: 'tr', model: 'x' }), v2Key);
 assert.notEqual(pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'tr', model: 'x' }),
   pageTranslationMemoryKey(cacheBlock, { targetLanguage: 'de', model: 'x' }));
 assert.notEqual(pageTranslationMemoryKey({ ...cacheBlock, tag: 'a', section: 'Menü' }, { targetLanguage: 'tr', model: 'x' }),

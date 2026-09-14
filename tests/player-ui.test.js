@@ -407,16 +407,18 @@ test('kuyruk sıradaki işi done değil süreç exit olayında başlatıyor', ()
 });
 
 // ---- 1. ölü kontrol yok ----
-test('oynatıcıdaki her düğmenin renderer.js\'te karşılığı var', () => {
+test('oynatıcıdaki her düğmenin yüklenen renderer modüllerinde karşılığı var', () => {
+  const loadedScripts = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+\.js)"/g)]
+    .map(match => fs.readFileSync(path.join(SRC, match[1]), 'utf8')).join('\n');
   const tags = [...layer.matchAll(/<button[^>]*id="([A-Za-z0-9_-]+)"[^>]*>/g)];
   assert(tags.length > 30, `beklenenden az dugme bulundu (${tags.length}) — ayirma bozulmus olabilir`);
   // Bir düğme ya id'siyle ya da delegasyon kancasıyla (data-* / sınıf)
   // bağlanmış olmalı. Delegasyonu "ölü" saymak yanlış alarm üretir.
   const wired = (m) => {
     const [tag, id] = [m[0], m[1]];
-    if (new RegExp(`['"]${id}['"]`).test(js)) return true;
+    if (new RegExp(`['"]${id}['"]`).test(loadedScripts)) return true;
     const hooks = [...tag.matchAll(/\sdata-([a-z-]+)=/g)].map((d) => d[1]);
-    return hooks.some((h) => js.includes(`data-${h}`) || js.includes(camel(h)));
+    return hooks.some((h) => loadedScripts.includes(`data-${h}`) || loadedScripts.includes(camel(h)));
   };
   const camel = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
   const dead = tags.filter((m) => !wired(m)).map((m) => m[1]);
