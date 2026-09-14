@@ -25,7 +25,7 @@
       end: Math.max(Math.max(0, Number(cue?.start) || 0), Number(cue?.end) || Number(cue?.start) || 0),
       text: String(cue?.text || '').trim().slice(0, 4000),
       translation: String(cue?.translation || '').trim().slice(0, 4000),
-    })).filter((cue) => cue.text || cue.translation).slice(0, 50000);
+    })).filter((cue) => cue.text || cue.translation).slice(0, 50000).map((cue,index)=>({...cue,index}));
   }
   function wholeTranscriptIntent(question) {
     const query = ` ${fold(question)} `;

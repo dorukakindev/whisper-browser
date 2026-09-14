@@ -745,8 +745,8 @@ test('AI işleri "Altyazı hazır" modalını açmıyor', () => {
 test('sohbet geçmişi KOPYA olarak gönderiliyor', () => {
   const i = js.indexOf('opts.chat = {');
   assert(i > 0, 'sohbet yuku olusturulmuyor');
-  const body = js.slice(i, i + 220);
-  assert(/history:\s*\(player\.chatHistory \|\| \[\]\)\.slice\(-8\)/.test(body),
+  const body = js.slice(js.indexOf('async function aiChatSend'), i + 220);
+  assert(/const history=\(player\.chatHistory\|\|\[\]\)\.slice\(-8\)\.map/.test(body),
     'gecmis referansla gonderiliyor — asagida ayni diziye soru eklenince '
     + 'soru modele IKI KEZ gider');
 });

@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');
+const ai=require('../src/browser-ai-context');
+const search=require('../src/browser-transcript-search');
+const rows=[{start:10.5,end:12,text:'Önceki'},{start:15.2,end:18,text:'Hedef',translation:'Çeviri'},{start:20,end:23,text:'Gelecek'}];
+const ctx=ai.context(rows,16,'watched');
+assert.equal(ctx.cumle,'Hedef');assert.equal(ctx.mevcut_ceviri,'Çeviri');assert.equal(ctx.sonraki.length,0);
+assert.equal(ai.context(rows,16,'full').sonraki.length,1);
+assert.equal(ai.context(rows,1).cumle,undefined);
+assert.equal(ai.citation(ctx,'00:15').baslangic,15.2);
+assert.equal(ai.citation(ctx,'09:59'),null);
+ctx.transcript_evidence={evidence:[{id:'T2',zaman:'00:15',baslangic:15.2}]};
+assert.equal(ai.citation(ctx,'T2').baslangic,15.2);assert.equal(ai.citation(ctx,'T999'),null);
+const evidence=search.buildTranscriptEvidence([{start:0,end:1,text:''},...rows],'Hedef',{scope:'full',position:16});
+assert(evidence.evidence.some(row=>row.metin==='Hedef'));
+assert(evidence.evidence.every(row=>row.metin));
+console.log('AI bağlamı: hedef replik, izlenen kapsam, doğrulanmış zaman/kimlik ve boş satır arama regresyonu geçti.');

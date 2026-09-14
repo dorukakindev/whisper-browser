@@ -164,8 +164,9 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const chat = vm.runInNewContext(chatCode + '\naiChatSend', {
     state: {}, player: { chatHistory: history }, buildOptsFromUI: () => ({}), aiChatContext: () => ({}),
     aiTranscriptEvidence: () => null,
+    aiChatPreparing:null,aiSourceScope:()=> 'scope',updateAiChatActions(){},
   });
-  assert.deepStrictEqual([...(await chat('Test')).history], history.slice(-8));
+  assert.deepStrictEqual(JSON.parse(JSON.stringify((await chat('Test')).history)), history.slice(-8));
   assert.strictEqual(history.length, 100);
 
   // BUG-216: refreshing chapter markers preserves both A-B edges and the range.

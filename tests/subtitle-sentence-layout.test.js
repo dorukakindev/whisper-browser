@@ -180,6 +180,9 @@ async function run() {
   await assert.rejects(() => sandbox.requestBrowserSentenceTranslationAtEndpoint(
     sentence, config, null, 'https://example.invalid'), /tamamlanmamış düşünme bloğu/);
   responseText = 'Merhaba.';
+  await sandbox.requestBrowserSentenceTranslationAtEndpoint({text:'She said yes.',pieces:[sentence.pieces[0]],contextBefore:[{text:'Dr. Ada asked.'}],contextAfter:[{text:'Ada thanked her.'}]},config,null,'https://example.invalid');
+  assert.deepEqual(JSON.parse(body.messages[1].content),{metin:'She said yes.',onceki:['Dr. Ada asked.'],sonraki:['Ada thanked her.']});
+  assert(body.messages[0].content.includes('yalnız bağlamdır'));
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');
   responseText = '{"translation":"Merhaba."}';
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');

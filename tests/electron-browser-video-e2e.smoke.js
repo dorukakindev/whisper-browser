@@ -13,7 +13,13 @@ process.on('warning', warning => fs.appendFileSync(process.env.VIDEO_E2E_WARNING
 app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
 const handle=ipcMain.handle.bind(ipcMain);
 let quickFailPath='';
+const aiRequests=[];let aiPageDelay=false,aiPageResolve=null,aiCancelFail=false;
 ipcMain.handle=(channel,listener)=>handle(channel,async(...args)=>{
+ if(process.env.VIDEO_E2E_AI==='1'){
+  if(channel==='browser:page:context')return aiPageDelay?await new Promise(resolve=>{aiPageResolve=resolve;}):{ok:true,blocks:[{id:'S1',text:'Kontrollü sayfa metni'}]};
+  if(channel==='transcribe:start'){aiRequests.push(args[1]);return {ok:true,jobId:args[1].jobId};}
+  if(channel==='transcribe:cancel'){if(aiCancelFail){aiCancelFail=false;throw Error('Kontrollü iptal bağlantı hatası');}return {ok:true};}
+ }
  if(channel==='settings:load'&&process.env.VIDEO_E2E_SETTINGS_DELAY)await new Promise(resolve=>setTimeout(resolve,Number(process.env.VIDEO_E2E_SETTINGS_DELAY)));
  if(channel==='media:writeSubtitle'&&quickFailPath&&args[1]?.path===quickFailPath){quickFailPath='';return {ok:false,error:'Kontrollü yazma hatası'};}
  return listener(...args);
@@ -163,6 +169,59 @@ app.whenReady().then(async()=>{
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
+ if(process.env.VIDEO_E2E_AI==='1'){
+  await run(`const buildOriginal=buildOptsFromUI;buildOptsFromUI=()=>({...buildOriginal(),translateApiKey:'controlled-test-value'});setSideTab('ai');`);
+  aiPageDelay=true;
+  await run(`void aiChatSend('Eski sekme sorusu')`);await until(()=>aiPageResolve,'Bağlam isteği');
+  const tabId=await run(`return player.browserActiveTabId`);
+  await run(`player.browserActiveTabId='stale-test-tab'`);aiPageResolve({ok:true,blocks:[]});
+  await until(()=>run(`return !aiChatPreparing`),'Eski isteğin bırakılması');assert.equal(aiRequests.length,0);
+  await run(`player.browserActiveTabId=${JSON.stringify(tabId)};player.browserTime=.8`);
+  aiPageResolve=null;await run(`void aiChatSend('Ne konuşuluyor?');void aiChatSend('Çift tıklama')`);
+  await until(()=>aiPageResolve,'İkinci bağlam isteği');
+  await run(`player.browserTime=4`);aiPageResolve({ok:true,blocks:[{id:'S1',text:'Sayfa metni'}]});
+  await until(()=>aiRequests.length===1,'Tek AI isteği');
+  assert.equal(aiRequests[0].chat.context.cumle,captions.en[0]);
+  assert.equal(aiRequests[0].chat.context.transcript_evidence.position,.8);
+  assert.equal(aiRequests[0].chat.context.sonraki.length,0);
+  const emit=async(event)=>{win.webContents.send('transcribe:event',{jobId:aiRequests.at(-1).jobId,...event});await wait(200);};
+  await emit({type:'chat',text:'Altyazıya göre çiçeklerden söz ediliyor [T1]. [T999] 09:59 00:00'});
+  await emit({type:'done',files:[]});await emit({type:'exit',code:0});
+  assert.equal(await run(`return document.querySelectorAll('.ai-transcript-link').length`),1);
+  assert.equal(await run(`return document.querySelectorAll('.ai-time-link').length`),1);
+  await run(`document.querySelector('.ai-transcript-link').click()`);
+  await until(()=>page.executeJavaScript(`document.querySelector('video').currentTime<.3`),'Kanıta video seek');
+  await run(`player.browserActiveTabId='stale-test-tab';player.browserTime=2;document.querySelector('.ai-time-link').click()`);
+  assert.equal(await run(`return player.browserTime`),2);
+  await run(`player.browserActiveTabId=${JSON.stringify(tabId)}`);aiPageDelay=false;
+  await run(`await aiChatSend('Hata denemesi')`);await emit({type:'error',message:'Kontrollü bağlantı hatası'});await emit({type:'exit',code:1});
+  assert.equal(await run(`return document.getElementById('aiChatRetry').classList.contains('hidden')`),false);
+  await run(`document.getElementById('aiChatRetry').click()`);await until(()=>aiRequests.length===3,'Yeniden deneme');
+  await run(`await cancelAiChat()`);await emit({type:'chat',text:'İptal sonrası geç yanıt'});await emit({type:'exit',code:0});
+  assert.equal(await run(`return player.chatHistory.some(row=>row.content==='İptal sonrası geç yanıt')`),false);
+  await run(`await aiChatSend('Boş yanıt')`);await emit({type:'chat',text:''});await emit({type:'exit',code:1});
+  assert.equal(await run(`return state.running`),false);
+  await run(`const originalTimeout=window.setTimeout;window.setTimeout=(fn,ms,...args)=>originalTimeout(fn,ms===120000?80:ms,...args);await aiChatSend('Süre sınırı');window.setTimeout=originalTimeout;`);
+  await until(()=>run(`return player.job?.cancelled`),'AI yanıt süresi sınırı');
+  assert.match(await run(`return player.job.bubble.textContent`),/süresi aşıldı/);
+  await emit({type:'exit',code:1});
+  aiCancelFail=true;
+  await run(`await aiChatSend('İptal bağlantısı');await cancelAiChat()`);
+  await until(()=>run(`return player.job?.bubble.textContent.includes('doğrulanamadı')`),'İptal hatası görünürlüğü');
+  assert.equal(await run(`return player.job.awaitingExit`),true);
+  await run(`await cancelAiChat()`);await emit({type:'exit',code:1});
+  aiPageDelay=true;aiPageResolve=null;
+  const requestCount=aiRequests.length;
+  await run(`void aiChatSend('Hazırlık iptali')`);await until(()=>aiPageResolve,'İptal edilecek bağlam');
+  await run(`await cancelAiChat()`);aiPageResolve({ok:true,blocks:[]});await wait(250);
+  assert.equal(aiRequests.length,requestCount);
+  aiPageDelay=false;
+  await run(`player.generation++;await aiChatSend('Yeni video oturumu')`);
+  assert.equal(aiRequests.at(-1).chat.history.length,0);
+  await run(`await cancelAiChat()`);await emit({type:'exit',code:1});
+  await snapshot('ai-reviewed');
+  fs.writeFileSync(path.join(out,'ai-report.json'),JSON.stringify({stalePreparation:true,singleRequest:true,frozenContext:true,watchedScope:true,verifiedCitations:true,videoSeek:true,staleCitationBlocked:true,errorRetry:true,cancelLateReply:true,emptyReply:true,responseDeadline:true,cancelPreparation:true,cancelFailureRetry:true,historyIsolation:true},null,2));app.quit();return;
+ }
  if(process.env.VIDEO_E2E_REVIEW_EDIT==='1'){
   const original=fs.readFileSync(en.path,'utf8');
   await run(`openCueEditor();browserQuickEditor.rows[0].text.value='Önizleme metni';document.getElementById('browserQuickPreview').click();`);

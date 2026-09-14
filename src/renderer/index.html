@@ -2035,6 +2035,8 @@
             <div class="ai-chat-input">
               <textarea id="aiChatText" class="resize-none" rows="1" placeholder="Sorunu yaz… (Enter: gönder, Shift+Enter: alt satır)" aria-label="Yapay zekâya soru yaz"></textarea>
               <button class="btn btn-primary btn-sm" id="aiChatSend" title="Gönder (Enter)">Sor</button>
+              <button class="btn btn-secondary btn-sm hidden" id="aiChatCancel" type="button">İptal</button>
+              <button class="btn btn-secondary btn-sm hidden" id="aiChatRetry" type="button" title="Aynı soruyu bu videonun güncel bağlamıyla yeniden gönder">Yeniden dene</button>
             </div>
             <div class="ai-chat-foot">
               <label class="ai-context-scope"><span>Transkript kapsamı</span><select id="aiTranscriptScope"><option value="nearby">Yakın replikler</option><option value="watched" selected>Şu ana kadar izlenen</option><option value="full">Tüm transkript</option></select></label>
@@ -2659,6 +2661,7 @@
   <script src="../subtitle-output-contract.js"></script>
   <script src="../browser-subtitle-sync.js"></script>
   <script src="../browser-subtitle-review.js"></script>
+  <script src="../browser-ai-context.js"></script>
   <script src="../browser-site-profiles.js"></script>
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>

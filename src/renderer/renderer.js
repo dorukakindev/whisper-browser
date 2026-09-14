@@ -2896,11 +2896,12 @@ $('startBtn').addEventListener('click', async () => {
 
 $('cancelBtn').addEventListener('click', async () => {
   // Kuyruk öğeleri arası boşlukta running=false ama queueRunning=true olabilir — yine de iptal et
-  if (!state.running && !state.queueRunning) return;
+  if (!state.running && !state.queueRunning && !(player.job?.kind==='chat'&&player.job.awaitingExit)) return;
   state.cancelled = true;
-  const aiJob = state.aiJob && player.job && ['chat', 'explain'].includes(player.job.kind)
+  const aiJob = (state.aiJob||player.job?.awaitingExit) && player.job && ['chat', 'explain'].includes(player.job.kind)
     ? player.job : null;
   if (aiJob) {
+    clearTimeout(aiJob.chatTimer);
     aiJob.cancelled = true;
     aiJob.running = false;
     aiJob.awaitingExit = true;
@@ -2918,7 +2919,11 @@ $('cancelBtn').addEventListener('click', async () => {
     $('playerJobText').textContent = 'AI işi iptal edildi.';
     $('playerJobBar').classList.add('hidden');
   }
-  const r = await window.api.cancelTranscribe();
+  const r = await window.api.cancelTranscribe().catch(()=>({ok:false,error:'İptal bağlantısı kurulamadı.'}));
+  if(aiJob&&!r?.ok&&r?.error!=='Çalışan iş yok.'){
+    if(aiJob.bubble)aiJob.bubble.textContent='İptal doğrulanamadı. Yanıtlar uygulanmayacak; tekrar İptal düğmesine basabilirsiniz.';
+    updateAiChatActions();return;
+  }
   if (state.queueRunning) {
     // Kuyruk modunda iptal → tüm kuyruğu durdur
     state.queueRunning = false;
@@ -2934,7 +2939,7 @@ $('cancelBtn').addEventListener('click', async () => {
   if (!r || !r.ok) {
     // Backend'de çalışan iş yoktu → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
     state.cancelled = false;
-    if (aiJob && player.job === aiJob) player.job = null;
+    if (aiJob && player.job === aiJob) {player.job = null;state.activeJobId=null;updateAiChatActions();}
     finishRun(false);
   }
 });
@@ -3232,6 +3237,15 @@ async function handleProgressiveTerminal(event, job) {
 function playerJobEvent(event) {
   const job = player.job;
   if (!job || (!job.running && !job.awaitingExit)) return false;
+  if(job.kind==='chat'){
+    if(['chat','done','exit','error'].includes(event.type))clearTimeout(job.chatTimer);
+    if(event.type==='chat'&&job.chatAnswered)return true;
+    if(event.type==='done'&&!job.chatAnswered&&!job.cancelled)event={...event,type:'error',message:'Sağlayıcı kullanılabilir bir yanıt döndürmedi.'};
+    if(event.type==='exit'&&!job.awaitingExit&&!job.chatAnswered&&!job.cancelled){
+      if(job.bubble){job.bubble.classList.remove('is-loading');job.bubble.textContent='AI işlemi yanıt gelmeden kapandı. Yeniden deneyebilirsiniz.';}
+      job.running=false;state.running=false;state.aiJob=false;player.job=null;retryAiChat(job);return true;
+    }
+  }
   const bar = $('playerJobBar');
   const txt = $('playerJobText');
   const fill = $('playerJobFill');
@@ -3278,7 +3292,8 @@ function playerJobEvent(event) {
   }
 
   if ((event.type === 'chat' || event.type === 'explain')
-      && (job.mediaKey !== player.mediaKey || (job.kind === 'chat' && job.generation !== player.generation))) {
+      && (job.mediaKey !== player.mediaKey || (job.kind === 'chat' && (job.generation !== player.generation
+        || (job.sourceScope&&job.sourceScope!==aiSourceScope()))))) {
     if (job.bubble) {
       job.bubble.classList.remove('is-loading');
       job.bubble.classList.add('ai-msg-err');
@@ -3309,6 +3324,8 @@ function playerJobEvent(event) {
   };
 
   if (event.type === 'chat') {
+    if(!String(event.text||'').trim())return playerJobEvent({type:'error',message:'Sağlayıcı boş yanıt döndürdü.'});
+    job.chatAnswered=true;
     const bubble = job.bubble;
     if (bubble) {
       bubble.classList.remove('is-loading');
@@ -3317,6 +3334,7 @@ function playerJobEvent(event) {
       $('aiChatLog').scrollTop = $('aiChatLog').scrollHeight;
     }
     player.chatHistory = player.chatHistory || [];
+    player.chatHistoryScope=job.sourceScope||null;
     if (job.chatQuestion) {
       player.chatHistory.push({ role: 'user', content: job.chatQuestion });
     }
@@ -3492,6 +3510,7 @@ function playerJobEvent(event) {
     state.running = false;
     state.aiJob = false;
     bar.classList.add('hidden');
+    retryAiChat(job);
   } else if (event.type === 'error') {
     finish(`Altyazı oluşturulamadı: ${friendlyYoutubeError(event.message || '').slice(0, 240)}`, 'error');
     refreshHistory();
@@ -13780,7 +13799,24 @@ function subtitleContextLanguage(role) {
     || langFromPath(channel.path) || '').toUpperCase();
 }
 
+function aiSourceScope() {
+  return JSON.stringify([player.workspaceMode,player.mediaKey,player.generation,player.browserActiveTabId]);
+}
+function aiVideoRows() {
+  const roles=browserSubtitleRoleCues();
+  const convert=(cues,role)=>cues.map(cue=>({...cue,
+    start:browserSubtitleSync.sourceToVideoTime(cue.start,browserTransformForRole(role)),
+    end:browserSubtitleSync.sourceToVideoTime(cue.end,browserTransformForRole(role))}));
+  const source=convert(roles.source.length?roles.source:roles.translation,roles.source.length?'source':'translation');
+  const translated=roles.source.length?translationsForCues(source,convert(roles.translation,'translation')):source.map(cue=>cue.text);
+  return source.map((cue,index)=>({...cue,translation:translated[index]||''}));
+}
 function aiChatContext() {
+  if(player.workspaceMode==='browser')return {
+    ...window.BrowserAiContext.context(aiVideoRows(),player.browserTime,$('aiTranscriptScope')?.value),
+    video:$('playerTitle')?.textContent||'',
+    diller:{kaynak:subtitleContextLanguage('source')||'yok',ceviri:subtitleContextLanguage('translation')||'yok'},
+  };
   const cues = player.cues || [];
   const now = subtitleSourceTime(player.workspaceMode === 'browser'
     ? player.browserTime : (($('playerVideo') || {}).currentTime || 0), false);
@@ -13816,6 +13852,9 @@ function aiChatContext() {
 
 function aiTranscriptEvidence(question) {
   if (!window.BrowserTranscriptSearch?.buildTranscriptEvidence) return null;
+  if(player.workspaceMode==='browser')return window.BrowserTranscriptSearch.buildTranscriptEvidence(aiVideoRows(),question,{
+    scope:$('aiTranscriptScope')?.value||'watched',position:player.browserTime,limit:40,
+  });
   const roles = browserSubtitleRoleCues();
   const source = roles.source.length ? roles.source : roles.translation;
   if (!source.length) return null;
@@ -13865,6 +13904,7 @@ function renderAiChatContext(context, frozen = false) {
   const translationLanguage = ctx.diller?.ceviri || 'yok';
   meta.textContent = `${ctx.video || 'İsimsiz içerik'} · ${ctx.zaman || '—'} · Kaynak: ${sourceLanguage} · Çeviri: ${translationLanguage}`;
   body.appendChild(meta);
+  if(ctx.sinir){const boundary=document.createElement('p');boundary.className='ai-context-meta';boundary.textContent=ctx.sinir;body.appendChild(boundary);}
   for (const item of ctx.onceki || []) addRow('previous', item.zaman, item.metin);
   addRow('current', ctx.zaman, ctx.cumle || ctx.not || 'Altyazı bağlamı yok.');
   if (ctx.mevcut_ceviri) addRow('translation', '', `Mevcut çeviri: ${ctx.mevcut_ceviri}`);
@@ -13880,6 +13920,7 @@ function renderAiChatContext(context, frozen = false) {
 }
 
 function aiChatCtxLabel() {
+  updateAiChatActions();
   const frozenJob = player.job?.kind === 'chat' && player.job?.chatContext
     && (player.job.running || player.job.awaitingExit) ? player.job : null;
   renderAiChatContext(frozenJob ? frozenJob.chatContext : aiChatContext(), !!frozenJob);
@@ -13906,12 +13947,16 @@ function renderAiText(el, text) {
     el.appendChild(document.createTextNode(raw.slice(last, tokenStart)));
     if (match[3]) {
       const sourceId = match[3];
+      const verified=sourceId.startsWith('T')?window.BrowserAiContext.citation(el._chatContext,sourceId)
+        :el._chatContext?.page?.blocks?.find(row=>row.id===sourceId);
+      if(!verified){el.appendChild(document.createTextNode(`[${sourceId}]`));last=re.lastIndex;continue;}
       const button = document.createElement('button');
       button.type = 'button';
       button.className = sourceId.startsWith('T') ? 'ai-source-link ai-transcript-link' : 'ai-source-link';
       button.textContent = `[${sourceId}]`;
       button.title = sourceId.startsWith('T') ? 'Transkriptteki kaynak repliğe git' : 'Sayfadaki kaynak paragrafa git';
       button.addEventListener('click', async () => {
+        if(el._sourceScope!==aiSourceScope()){setBrowserSignal('Bu yanıt başka bir video veya sekmeye ait.',false);return;}
         if (sourceId.startsWith('T')) {
           const evidence = transcriptEvidence.find((item) => item.id === sourceId);
           if (!evidence) { setBrowserSignal('Bu transkript kanıtı artık bulunamıyor.', false); return; }
@@ -13936,7 +13981,8 @@ function renderAiText(el, text) {
       });
       el.appendChild(button);
     } else {
-      const seconds = aiTimeToSeconds(match[2]);
+      const reference=window.BrowserAiContext.citation(el._chatContext,match[2]);
+      const seconds = reference ? Number(reference.baslangic) : null;
       if (seconds === null) {
         el.appendChild(document.createTextNode(match[2]));
       } else {
@@ -13946,6 +13992,7 @@ function renderAiText(el, text) {
         button.textContent = match[2];
         button.title = `${match[2]} konumuna git`;
         button.addEventListener('click', () => {
+          if(el._sourceScope!==aiSourceScope()){setBrowserSignal('Bu yanıt başka bir video veya sekmeye ait.',false);return;}
           if (player.workspaceMode === 'browser' && window.api.browserCommand) {
             player.browserTime = Math.max(0, seconds);
             browserCommand('seek', player.browserTime).catch(() => {});
@@ -13983,10 +14030,30 @@ function aiChatAdd(role, text, cls) {
   return d;
 }
 
+let aiChatPreparing=null;
+let aiChatRetryPacket=null;
+function updateAiChatActions(){
+  const busy=!!aiChatPreparing||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit));
+  if($('aiChatSend'))$('aiChatSend').disabled=busy;
+  $('aiChatCancel')?.classList.toggle('hidden',!busy);
+  $('aiChatRetry')?.classList.toggle('hidden',busy||!aiChatRetryPacket||aiChatRetryPacket.scope!==aiSourceScope());
+}
+function retryAiChat(job){
+  if(job?.chatQuestion&&job.sourceScope===aiSourceScope())aiChatRetryPacket={question:job.chatQuestion,scope:job.sourceScope};
+  updateAiChatActions();
+}
+async function cancelAiChat(message='İptal edildi.'){
+  if(aiChatPreparing){aiChatPreparing.cancelled=true;aiChatPreparing=null;updateAiChatActions();return;}
+  const job=player.job;if(job?.kind!=='chat'||(!job.running&&!job.awaitingExit))return;
+  clearTimeout(job.chatTimer);retryAiChat(job);
+  $('cancelBtn').click();
+  if(job.bubble)job.bubble.textContent=message;
+  updateAiChatActions();
+}
 async function aiChatSend(soru) {
   const q = String(soru || '').trim();
   if (!q) return;
-  if (state.running || state.queueRunning) {
+  if (aiChatPreparing||state.running || state.queueRunning||player.job?.awaitingExit) {
     aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
     return;
   }
@@ -13996,10 +14063,20 @@ async function aiChatSend(soru) {
   // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
   // IKI KEZ giderdi.
   const chatContext = aiChatContext();
+  const sourceScope=aiSourceScope();
+  if(player.chatHistoryScope&&player.chatHistoryScope!==sourceScope)player.chatHistory=[];
+  const transcriptEvidence = aiTranscriptEvidence(q);
+  if (transcriptEvidence?.evidence?.length) chatContext.transcript_evidence = transcriptEvidence;
+  const history=(player.chatHistory||[]).slice(-8).map(row=>({...row}));
+  const preparing={scope:sourceScope,cancelled:false};
+  aiChatPreparing=preparing;updateAiChatActions();
   let chatSourceTabId = '';
   if (player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.getBrowserPageContext) {
     const requestedPageTabId = player.browserActiveTabId;
-    const page = await window.api.getBrowserPageContext(requestedPageTabId).catch(() => null);
+    let timer;
+    const page = await Promise.race([Promise.resolve().then(()=>window.api.getBrowserPageContext(requestedPageTabId)).catch(() => null),
+      new Promise(resolve=>{timer=setTimeout(()=>resolve(null),4000);})]);
+    clearTimeout(timer);
     if (page?.ok) chatContext.page = {
       title: String(page.title || '').slice(0, 300),
       url: String(page.url || '').slice(0, 1000),
@@ -14008,9 +14085,10 @@ async function aiChatSend(soru) {
     };
     if (page?.ok) chatSourceTabId = requestedPageTabId;
   }
-  const transcriptEvidence = aiTranscriptEvidence(q);
-  if (transcriptEvidence?.evidence?.length) chatContext.transcript_evidence = transcriptEvidence;
-  opts.chat = { question: q, history: (player.chatHistory || []).slice(-8), context: chatContext };
+  if(aiChatPreparing===preparing)aiChatPreparing=null;
+  updateAiChatActions();
+  if(preparing.cancelled||sourceScope!==aiSourceScope()||state.running||state.queueRunning||player.job?.awaitingExit)return;
+  opts.chat = { question: q, history, context: chatContext };
   delete opts.youtube;
   if (!opts.translateApiKey) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
@@ -14026,20 +14104,27 @@ async function aiChatSend(soru) {
   state.aiJob = true;
   player.job = {
     running: true, mediaKey: player.mediaKey, generation: player.generation,
-    kind: 'chat', bubble: bekleyen, chatQuestion: q, chatContext, sourcePageTabId: chatSourceTabId,
+    kind: 'chat', bubble: bekleyen, chatQuestion: q, chatContext, sourceScope, sourcePageTabId: chatSourceTabId,
   };
+  const job=player.job;
+  aiChatRetryPacket=null;updateAiChatActions();
+  bekleyen._sourceScope=sourceScope;bekleyen._chatContext=chatContext;
   bekleyen._transcriptEvidence = chatContext.transcript_evidence?.evidence || [];
   renderAiChatContext(chatContext, true);
   updateMakeTransState();
+  job.chatTimer=setTimeout(()=>{if(player.job===job&&job.running)void cancelAiChat('Yanıt süresi aşıldı. İstek iptal edildi; yeniden deneyebilirsiniz.');},120000);
 
   const r = await startTranscribeSafe(opts);
   if (!r || !r.ok) {
+    clearTimeout(job.chatTimer);
+    if(player.job!==job)return;
     state.running = false;
     state.aiJob = false;
     player.job = null;
     bekleyen.classList.remove('is-loading');
     bekleyen.classList.add('ai-msg-err');
     bekleyen.textContent = (r && r.error) || 'Cevap alınamadı.';
+    retryAiChat(job);
     aiChatCtxLabel();
     updateMakeTransState();
   }
@@ -19141,6 +19226,8 @@ $$('.side-tab').forEach((b) => b.addEventListener('click', () => {
   }
   setSideTab(b.dataset.stab, { focusContent: tablist?.dataset.rovingActivation !== 'true' });
 }));
+$('aiChatCancel')?.addEventListener('click',()=>void cancelAiChat());
+$('aiChatRetry')?.addEventListener('click',()=>{if(aiChatRetryPacket?.scope===aiSourceScope())void aiChatSend(aiChatRetryPacket.question);});
 if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend($('aiChatText').value));
 if ($('aiChatText')) {
   $('aiChatText').addEventListener('input', autoGrowChatBox);
@@ -19156,7 +19243,7 @@ if ($('aiChatLog')) {
 }
 if ($('aiChatClear')) {
   $('aiChatClear').addEventListener('click', () => {
-    if (player.job?.running && player.job.kind === 'chat') {
+    if (aiChatPreparing || (player.job?.kind === 'chat'&&(player.job.running||player.job.awaitingExit))) {
       aiChatAdd('ai', 'Yanıt hazırlanırken sohbet temizlenemez. Önce işlemi iptal edin veya yanıtın bitmesini bekleyin.', 'ai-msg-err');
       return;
     }
