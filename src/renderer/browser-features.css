@@ -58,3 +58,55 @@
 .bf-footer .bf-error { color: var(--danger); }
 @media (max-width: 650px) { .browser-features { margin: 8px 6px; } .bf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .browser-features * { scroll-behavior: auto !important; } }
+
+/* Araç sekmesi kendi kaydırma alanını kullanır. */
+.player-layer:not(.workspace-browser) #browserFeatures,
+.player-side.ai-mode #browserFeatures,
+.player-side.library-mode #browserFeatures { display: none; }
+#browserFeatures > .bf-workspace { margin: 0; padding: 12px; overflow: auto; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.bf-workspace:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#browserFeatures .bf-context { font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; margin-bottom: 10px; }
+#browserFeatures .bf-top-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+#browserFeatures .bf-top-actions button:first-child { grid-column: 1 / -1; border-color: var(--accent); }
+#browserFeatures .bf-top-actions button { text-align: center; }
+#browserFeatures .bf-footer { padding: 8px 0; margin: 0; border: 0; min-height: 36px; }
+#browserFeatures .bf-footer p { line-height: 1.4; overflow-wrap: anywhere; }
+#browserFeatures .bf-footer button:disabled { display: none; }
+#browserFeatures .bf-section { padding: 0; margin: 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; font-size: inherit; }
+#browserFeatures .bf-section > summary { cursor: pointer; padding: 12px 2px; color: var(--text); font-weight: 600; line-height: 1.4; }
+#browserFeatures .bf-section > summary:hover { color: var(--accent); }
+#browserFeatures .bf-section[open] > summary { color: var(--accent); }
+#browserFeatures .bf-group-body { padding: 0 2px 14px; }
+#browserFeatures .bf-group-body > p { line-height: 1.6; }
+#browserFeatures button { min-height: 34px; line-height: 1.4; overflow-wrap: anywhere; }
+#browserFeatures button:active:not(:disabled) { background: var(--accent-soft); }
+#browserFeatures button:disabled { cursor: not-allowed; }
+#browserFeatures .bf-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+#browserFeatures .bf-grid label { gap: 5px; }
+#browserFeatures input:not([type=checkbox]), #browserFeatures select { min-height: 34px; }
+#browserFeatures input[type=checkbox] { accent-color: var(--accent); flex-shrink: 0; }
+#browserFeatures .bf-credentials { padding: 9px; background: var(--bg-2); }
+@container player-sidebar (max-width: 340px) {
+  #browserFeatures > .bf-workspace { padding: 9px; }
+  #browserFeatures .bf-top-actions { grid-template-columns: minmax(0,1fr); }
+}
+
+
+/* Sekme çubuğu her modda sabit; araçlar yalnız kendi sekmesinde görünür. */
+.workspace-browser .player-side > .side-top { order: -1; }
+#browserFeatures { display: none; }
+.workspace-browser .player-side.tools-mode #browserFeatures { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; margin-bottom: 12px; }
+.player-side.tools-mode #browserFeatures > summary { display: none; }
+.player-side.tools-mode #browserFeatures > .bf-workspace { flex: 1; min-height: 0; max-height: none; }
+.player-layer:not(.workspace-browser) #sideTabTools { display: none; }
+.player-side.tools-mode .side-top > :not(.side-tabbar),
+.player-side.tools-mode .side-tab-actions,
+.player-side.tools-mode #browserWatchTools,
+.player-side.tools-mode #browserSubtitleReview,
+.player-side.tools-mode #browserQuickEdit,
+.player-side.tools-mode #cueList,
+.player-side.tools-mode #selectedCueActions,
+.player-side.tools-mode #wordInspector,
+.player-side.tools-mode .side-bottom { display: none; }
+.workspace-browser .side-tabs { min-width: 0; overflow-x: auto; }
+.workspace-browser .side-tab { flex-shrink: 0; }

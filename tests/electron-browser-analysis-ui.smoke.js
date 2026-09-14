@@ -66,7 +66,7 @@ app.whenReady().then(async () => {
   const page = await until(() => webContents.getAllWebContents().find(item => item.getURL() === 'https://browser-analysis-ui.test/watch'), 'Video sayfası');
   await until(() => page.executeJavaScript('document.querySelector("video")?.readyState >= 2'), 'Video çözme');
   await until(() => run('return !!browserTabState()?.mediaId'), 'Medya kimliği');
-  await run(`player.cues=${JSON.stringify(target)};player.cuesRaw=player.cues.map(c=>({...c}));player.browserDuration=42;document.getElementById('browserFeatures').open=true;document.getElementById('browserAnalysisTools').open=true;return true`);
+  await run(`player.cues=${JSON.stringify(target)};player.cuesRaw=player.cues.map(c=>({...c}));player.browserDuration=42;setSideTab('tools');document.getElementById('browserFeatures').open=true;document.getElementById('browserAnalysisTools').open=true;return true`);
   const originalPicker = dialog.showOpenDialog;
   let chosen = video;
   dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [chosen] });

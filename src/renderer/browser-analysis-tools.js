@@ -2,7 +2,7 @@
   'use strict';
   const mount = document.getElementById('browserAnalysisTools');
   if (!mount) return;
-  mount.innerHTML = `<summary>Senkron ve video önizlemesi</summary>
+  mount.innerHTML = `<summary>Senkron ve video önizlemesi</summary><div class="bf-group-body">
     <p>Dalga biçimi ve görüntü analizi için izlenen videoyla aynı sürümdeki yerel dosyayı seçin.</p>
     <div class="ba-actions"><button id="baReference" type="button">Referans video seç</button><span id="baReferenceName">Dosya seçilmedi</span></div>
     <div class="ba-status"><p id="baStatus" role="status" aria-live="polite"></p><button id="baCancel" type="button" disabled>İşlemi durdur</button></div>
@@ -12,7 +12,7 @@
       <div id="baThumb" class="hidden" role="status"><img id="baThumbImage" alt="Seçilen zamanın video karesi"/><span id="baThumbTime"></span><span id="baThumbCue"></span></div></div>
     <div class="ba-actions"><button id="baAlign" type="button">Referans altyazıyla parçalı senkron bul</button></div>
     <p>Yüklü ana altyazı için doğru zamanlı başka bir altyazı seçin. Sonuç önce karşılaştırma olarak gösterilir.</p>
-    <div id="baAlignment" class="ba-results"></div><button id="baApply" type="button" disabled>Senkronu zamanlama taslağına uygula</button>`;
+    <div id="baAlignment" class="ba-results"></div><button id="baApply" type="button" disabled>Senkronu zamanlama taslağına uygula</button></div>`;
   const $ = id => document.getElementById(id);
   let currentKey = '', ref = null, busy = false, sequence = 0, preview = null, thumbSequence = 0, thumbTimer = null, dragging = false;
   function context() {

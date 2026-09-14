@@ -9493,6 +9493,7 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
   if (mode !== 'browser' && player.settingsPage !== 'source') setSettingsPage('source');
   player.workspaceMode = mode;
+  if (mode !== 'browser' && player.sideTab === 'tools') setSideTab('subs');
   if (mode === 'browser') {
     startBrowserMangaLookaheadTimer();
     bindBrowserBoundsObserver();
@@ -14189,7 +14190,11 @@ function autoGrowChatBox() {
 function setSideTab(tab, { focusContent = false } = {}) {
   const ai = tab === 'ai';
   const library = tab === 'library';
-  player.sideTab = ai ? 'ai' : library ? 'library' : 'subs';
+  const tools = tab === 'tools' && player.workspaceMode === 'browser';
+  player.sideTab = tools ? 'tools' : ai ? 'ai' : library ? 'library' : 'subs';
+  tab = player.sideTab;
+  $('playerSide').classList.toggle('tools-mode', tools);
+  if (tools && $('browserFeatures')) $('browserFeatures').open = true;
   $('playerSide').classList.toggle('ai-mode', ai);
   $('playerSide').classList.toggle('library-mode', library);
   $('aiChat').classList.toggle('hidden', !ai);
