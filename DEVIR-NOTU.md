@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1133 — Git bağlantı hatasının Proxifier ile ilişkisi](docs/devir/2026-09-14-1133.md)
+Güncel çalışma: [2026-09-14-1147 — Browser altyazı katmanı, konum ve durum mesajı düzeltmeleri](docs/devir/2026-09-14-1147.md)
+
+Önceki çalışma: [2026-09-14-1133 — Git bağlantı hatasının Proxifier ile ilişkisi](docs/devir/2026-09-14-1133.md)
 
 Önceki çalışma: [2026-09-14-1128 — İzlerken görünüm, senkron, elle eşleştirme ve AI taslakları](docs/devir/2026-09-14-1128.md)
 
