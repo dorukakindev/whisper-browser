@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-0657 — Browser kararlılığı, birleşik izleme, AI değerlendirmesi ve yeniden açma](docs/devir/2026-09-14-0657.md)
+Güncel çalışma: [2026-09-14-0713 — Format sonrası kalıcı çalışma kuralları ve devralma rehberi](docs/devir/2026-09-14-0713.md)
+
+Önceki çalışma: [2026-09-14-0657 — Browser kararlılığı, birleşik izleme, AI değerlendirmesi ve yeniden açma](docs/devir/2026-09-14-0657.md)
 
 Önceki çalışma: [2026-09-14-0636 — Browser AI bağlamı, tutarlılık, hata yönetimi ve kaynaklar](docs/devir/2026-09-14-0636.md)
 
