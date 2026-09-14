@@ -1384,6 +1384,10 @@
                   title="Altyazı sinyalini gizle" aria-label="Altyazı sinyalini gizle"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
               </div>
             </div>
+            <div id="browserSubtitleHealth" class="browser-subtitle-health" role="status" aria-live="polite">
+              <span id="browserSubtitleHealthText">Bir video sayfası açın.</span>
+              <button id="browserSubtitleHealthAction" class="btn btn-secondary btn-sm" type="button" data-action="address">Adres gir</button>
+            </div>
             <div class="browser-signal-body">
               <div class="browser-signal-tools" id="browserSignalTools" role="group" aria-label="Altyazı yardımcı araçları">
                 <button class="btn btn-ghost btn-sm browser-signal-tool" id="browserManualSubtitle" type="button">Dosyadan</button>
@@ -1507,6 +1511,7 @@
                 <div class="browser-view-settings-grid" data-browser-settings-kind="live">
                   <label><span>Altyazı boyutu <output id="browserOverlayScaleVal">%100</output></span>
                     <input type="range" id="browserOverlayScale" min="65" max="180" step="5" value="100" /></label>
+                  <p class="hint">Ctrl+Alt+↑/↓: yazı boyutu · Ctrl+Alt+←/→: seçili senkron kanalını 0,1 sn kaydır. Senkron değişikliğini panelden kaydedin.</p>
                   <label><span>Altyazı opaklığı <output id="browserOverlayOpacityVal">%100</output></span>
                     <input type="range" id="browserOverlayOpacity" min="20" max="100" step="5" value="100" /></label>
                   <label><span>Alt boşluk <output id="browserOverlayBottomVal">%7</output></span>

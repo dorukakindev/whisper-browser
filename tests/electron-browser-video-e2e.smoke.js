@@ -57,6 +57,14 @@ app.whenReady().then(async()=>{
   const restoredPage=webContents.getAllWebContents().find(w=>w.getURL()==='https://video-e2e.test/watch');
   await restoredPage.executeJavaScript(`document.querySelector('video').currentTime=.8`);await wait(700);
   fs.writeFileSync(path.join(out,'04-restored-video.png'),(await restoredPage.capturePage()).toPNG());
+  if(process.env.VIDEO_E2E_NATIVE_FULLSCREEN==='1'){
+   await restoredPage.executeJavaScript(`document.querySelector('video').requestFullscreen()`,true);await wait(800);
+   const bounds=await restoredPage.executeJavaScript(`(()=>{const r=document.getElementById('__whisper_browser_subtitles').getBoundingClientRect();return {width:r.width,height:r.height,top:r.top,fullscreen:document.fullscreenElement?.tagName}})()`);
+   assert(bounds.width>100&&bounds.height>20,JSON.stringify(bounds));
+   fs.writeFileSync(path.join(out,'review-native-fullscreen.png'),(await restoredPage.capturePage()).toPNG());
+   fs.writeFileSync(path.join(out,'native-fullscreen-report.json'),JSON.stringify(bounds,null,2));
+   await restoredPage.executeJavaScript(`document.exitFullscreen()`);await wait(300);
+  }
   report.push({restart:restored});await snapshot('04-restored');fs.writeFileSync(path.join(out,'restore-report.json'),JSON.stringify(report,null,2));app.quit();return;
  }
  const nav=await run(`document.getElementById('browserAddress').value='https://video-e2e.test/watch';return await navigateBrowserFromAddress()`);assert.equal(nav.ok,true,JSON.stringify(nav));
@@ -115,6 +123,52 @@ app.whenReady().then(async()=>{
  await run(`document.getElementById('browserAddress').value='https://video-e2e.test/watch';await navigateBrowserFromAddress()`);
  await until(()=>run(`return player.browserTracks.filter(t=>t.cueCount>=3).length>=2`),'Geri dönen izler').catch(async e=>{fs.writeFileSync(path.join(out,'return-diagnostic.json'),JSON.stringify({renderer:await run(`return {url:player.browserPageUrl,tracks:player.browserTracks,capture:player.browserCaptureEnabled,signal:document.getElementById('browserSignalText').textContent,tab:browserTabState()}`),page:await page.executeJavaScript(`({html:document.querySelector('video')?.outerHTML,tracks:[...document.querySelector('video').textTracks].map(t=>({language:t.language,mode:t.mode,cues:t.cues?.length}))})`)},null,2));throw e});
  await run(`document.getElementById('browserTrackSelect').value=player.browserTracks.find(t=>t.language==='en').id;document.getElementById('browserTrackSelect2').value=player.browserTracks.find(t=>t.language==='tr').id;await useBrowserTrackPair();document.getElementById('browserSyncChannel').value='primary';nudgeBrowserSync(.2);saveBrowserSync();setSubtitleMode('both');saveActiveBrowserTabWorkspace()`);
+ if(process.env.VIDEO_E2E_REVIEW==='1'){
+  await wait(1200);
+  const saved=await run(`return {path:player.subPath,mode:currentSubtitleMode(),offset:browserTransformForChannel(false).offsetSeconds}`);
+  await run(`document.getElementById('browserAddress').value='https://video-e2e.test/other';await navigateBrowserFromAddress()`);await wait(700);
+  await until(()=>run(`return player.subPath.endsWith('manual.vtt')&&player.cues.length===3`),'Video başına manuel dosya');
+  await run(`document.getElementById('browserAddress').value='https://video-e2e.test/watch';await navigateBrowserFromAddress()`);
+  await until(()=>run(`return player.subPath===${JSON.stringify(saved.path)}&&currentSubtitleMode()==='both'&&Math.abs(browserTransformForChannel(false).offsetSeconds-${saved.offset})<.001`),'Video başına dil ve senkron');
+  report.push({perVideoRestore:'passed'});
+  // Native browser focus path and shell renderer route must use the same commands.
+  const size=await run(`return Number(document.getElementById('browserOverlayScale').value)`);
+  page.focus();page.sendInputEvent({type:'keyDown',keyCode:'Up',modifiers:['control','alt']});await wait(300);
+  assert.equal(await run(`return Number(document.getElementById('browserOverlayScale').value)`),size+5);
+  report.push({nativeSubtitleShortcut:'passed'});
+  await page.executeJavaScript(`document.documentElement.requestFullscreen()`,true);await wait(700);
+  assert.equal(await page.executeJavaScript(`!!document.fullscreenElement`),true);
+  await page.executeJavaScript(`document.querySelector('video').currentTime=.8`);await wait(700);
+  const rects=await page.executeJavaScript(`(()=>{const root=document.getElementById('__whisper_browser_subtitles'),video=document.querySelector('video'),r=root.getBoundingClientRect(),v=video.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,videoTop:v.top,videoBottom:v.bottom,videoLeft:v.left,videoRight:v.right,nodes:document.querySelectorAll('[data-whisper-browser-overlay]').length}})()`);
+  assert(rects.top>=rects.videoTop-1&&rects.bottom<=rects.videoBottom+1,JSON.stringify(rects));assert.equal(rects.nodes,1);
+  fs.writeFileSync(path.join(out,'review-fullscreen.png'),(await page.capturePage()).toPNG());
+  await page.executeJavaScript(`document.exitFullscreen()`);await wait(400);report.push({fullscreen:rects});
+  await run(`renderBrowserSubtitleHealth()`);
+  await snapshot('review-status');
+  await page.executeJavaScript(`document.querySelector('video').style.width='320px';document.querySelector('video').currentTime=.8`);await wait(300);
+  const longLayout=await page.executeJavaScriptInIsolatedWorld(999,[{code:`(()=>{window.__whisperBrowserOverlayController.update({mode:'both',source:[{start:0,end:5,text:'UzunKelime'.repeat(50)}],translation:[{start:0,end:5,text:'Uzun çeviri satırı '.repeat(30)}],style:{scale:1.8,width:98,maxLines:6}});const r=document.getElementById('__whisper_browser_subtitles').getBoundingClientRect(),v=document.querySelector('video').getBoundingClientRect();return {top:r.top,bottom:r.bottom,videoTop:v.top,videoBottom:v.bottom,rows:[...document.querySelectorAll('#__whisper_browser_subtitles > div')].map(e=>({width:e.getBoundingClientRect().width,videoWidth:v.width}))}})()`}]);
+  assert(longLayout.top>=longLayout.videoTop-1&&longLayout.bottom<=longLayout.videoBottom+1,JSON.stringify(longLayout));
+  assert(longLayout.rows.every(row=>row.width<=row.videoWidth),JSON.stringify(longLayout));report.push({longLayout});
+  fs.writeFileSync(path.join(out,'review-long-lines.png'),(await page.capturePage()).toPNG());
+  await page.executeJavaScript(`document.querySelector('video').style.width='95%'`);await run(`scheduleBrowserOverlaySync()`);await wait(400);
+  // Gerçek kısa MP4 döngüsü; süre ortam değişkeniyle uzatılabilir. Uzun film testi değildir.
+  const seconds=Math.max(30,Number(process.env.VIDEO_E2E_SOAK_SECONDS)||300);
+  await page.executeJavaScript(`document.querySelector('video').loop=true;document.querySelector('video').play()`,true);
+  const memory=[];const began=Date.now();
+  while(Date.now()-began<seconds*1000){
+   await wait(5000);
+   const metric=app.getAppMetrics().filter(m=>m.type==='Tab').reduce((sum,m)=>sum+(m.memory?.workingSetSize||0),0);
+   const diag=await page.executeJavaScriptInIsolatedWorld(999,[{code:`window.__whisperBrowserOverlayController?.diagnostics()`}]);
+   assert(diag&&diag.overlayNodes===3,JSON.stringify(diag));assert(diag.pendingFrames<=3,JSON.stringify(diag));
+   memory.push({seconds:Math.round((Date.now()-began)/1000),rendererWorkingSetKiB:metric,overlayNodes:diag.overlayNodes,pendingFrames:diag.pendingFrames,mediaListeners:diag.mediaListeners,mutationObservers:diag.mutationObservers});
+   fs.writeFileSync(path.join(out,'review-soak-progress.json'),JSON.stringify(memory,null,2));
+  }
+  await page.executeJavaScript(`document.querySelector('video').pause()`);
+  report.push({soak:{elapsedSeconds:(Date.now()-began)/1000,samples:memory}});
+ }
  await wait(1200);report.push({profile:process.env.WHISPER_RESOURCE_SOAK_USER_DATA});
  fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));app.quit();
-}).catch(e=>{fs.writeFileSync(path.join(out,'error.txt'),e.stack);console.error(e);app.exit(1)});
+}).catch(async e=>{
+ try { const w=webContents.getAllWebContents().find(w=>w.getURL().startsWith('https://video-e2e.test/'));if(w)fs.writeFileSync(path.join(out,'failure-page.json'),JSON.stringify(await w.executeJavaScript(`({time:document.querySelector('video')?.currentTime,paused:document.querySelector('video')?.paused,text:document.getElementById('__whisper_browser_subtitles')?.textContent,diagnostics:window.__whisperBrowserOverlayController?.diagnostics()})`),null,2)); } catch(_){}
+ fs.writeFileSync(path.join(out,'error.txt'),e.stack);console.error(e);app.exit(1)
+});

@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict');
+const {canonicalMediaIdentity}=require('../src/browser-media-identity');
+const key=id=>canonicalMediaIdentity(`https://video.test/${id}`).key;
+const {BrowserSubtitlePreferences}=require('../src/browser-subtitle-preferences');
+let saved;
+const store=new BrowserSubtitlePreferences({read:()=>null,write:value=>{saved=value},limit:2});
+const row=(id,file)=>({mediaId:id,url:`https://video.test/${id}`,subtitleMode:'both',subtitleSelection:{primaryFile:file},subtitleSyncRecords:[]});
+assert(store.put(row('one','one.srt')));assert.equal(store.put(row('one','one.srt')),false);
+store.put(row('two','two.srt'));
+assert.equal(store.get(key('one')).subtitleSelection.primaryFile,'one.srt');
+assert.equal(store.get(key('three')),null);
+const restarted=new BrowserSubtitlePreferences({read:()=>saved,write:()=>{}});
+assert.equal(restarted.get(key('one')).subtitleMode,'both');
+store.put(row('three','three.srt'));assert.equal(store.get(key('one')),null);
+assert.equal(restarted.get(key('one')).subtitleSelection.primaryFile,'one.srt');
+const failed=new BrowserSubtitlePreferences({read:()=>null,write:()=>{throw Error('disk')}});
+assert.throws(()=>failed.put(row('one','a.srt')));assert.equal(failed.get(key('one')),null);
+console.log('Video preferences: isolated identities, restart, bounded history, unchanged saves and failed writes passed.');

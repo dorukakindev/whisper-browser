@@ -4820,6 +4820,13 @@ function saveActiveBrowserTabWorkspace() {
       const track = player.browserTracks.find((item) => item.id === player.browserLoadedTrackId2);
       refs.push({ id: player.browserLoadedTrackId2, assetId: track?.assetId || '', role: 'secondary' });
     }
+    const savingMediaId = tab.mediaId;
+    const reportPreferenceSave = error => {
+      if (browserTabState() !== tab || tab.mediaId !== savingMediaId) return;
+      if (tab.subtitlePreferenceError === error) return;
+      tab.subtitlePreferenceError = error;
+      renderBrowserSubtitleHealth();
+    };
     window.api.updateBrowserSessionTab({
       id: tab.id, url: tab.url, title: tab.title,
       mediaId: tab.mediaId || '', service: tab.service || '',
@@ -4833,7 +4840,8 @@ function saveActiveBrowserTabWorkspace() {
       subtitleSyncRecords: tab.subtitleSyncRecords || [],
       subtitleEdits: tab.subtitleEdits || [],
       subtitleRecordQuarantine: tab.subtitleRecordQuarantine || [],
-    }).catch(() => {});
+    }).then(result => reportPreferenceSave(result?.ok === false ? String(result.error || 'Kaydetme başarısız.') : ''))
+      .catch(() => reportPreferenceSave('Kaydetme bağlantısı kesildi.'));
   }
 }
 
@@ -5896,6 +5904,7 @@ function setBrowserSignal(text, detected = false, options = {}) {
     historyElement.textContent = previous.join(' · ');
     historyElement.title = history.slice(0, -1).map((item) => item.text).join('\n');
   }
+  renderBrowserSubtitleHealth();
   if (blocked) return false;
   player.browserSignalState = {
     text: message, priority, action: options.action || '',
@@ -7013,7 +7022,46 @@ function renderBrowserAcquisition(acquisition) {
   }
 }
 
+function browserSubtitleHealth(input) {
+  if (input.saveError) return { state: 'save-error', text: 'Video altyazı tercihi kaydedilemedi.', action: 'save', label: 'Kaydetmeyi yeniden dene' };
+  if (input.fileError) return { state: 'file-error', text: 'Altyazı dosyası okunamıyor.', action: 'locate', label: 'Dosyayı bul' };
+  if (!input.url) return { state: 'idle', text: 'Bir video sayfası açın.', action: 'address', label: 'Adres gir' };
+  if (input.failed) return { state: 'translation-error', text: `${input.failed} çeviri bloğu başarısız.`, action: 'retry', label: 'Hatalıları yeniden dene' };
+  if (input.busy && input.online === false) return { state: 'offline', text: 'Bağlantı bekleniyor; çeviri bağlantı geldiğinde devam edecek.', action: '', label: '' };
+  if (input.busy) return { state: 'translating', text: 'Çeviri hazırlanıyor; hazır bloklar gösterilir.', action: '', label: '' };
+  if (input.cues && input.mode === 'off') return { state: 'hidden', text: 'Altyazı yüklü, görünüm kapalı.', action: 'show', label: 'Altyazıyı göster' };
+  if (input.cues) return { state: 'ready', text: `${input.cues} blok hazır · ${input.tracks} site izi.`, action: '', label: '' };
+  if (input.tracks) return input.targetAvailable
+    ? { state: 'select', text: 'Altyazı bulundu; görüntülenecek izi seçin.', action: 'select', label: 'İzi seç' }
+    : { state: 'language', text: 'Hedef dilde site altyazısı bulunamadı. Mevcut izi seçip çevirebilirsiniz.', action: 'select', label: 'İzi seç ve çevir' };
+  if (!input.capture) return { state: 'paused', text: 'Altyazı araması duraklatıldı.', action: 'capture', label: 'Aramayı aç' };
+  if (input.searchDone) return { state: 'missing', text: 'Henüz altyazı bulunamadı. Videoyu ve sitenin altyazısını açın veya dosya yükleyin.', action: 'file', label: 'Dosyadan yükle' };
+  return { state: 'searching', text: 'Sayfada altyazı aranıyor…', action: '', label: '' };
+}
+function renderBrowserSubtitleHealth() {
+  const panel = $('browserSubtitleHealth');
+  if (!panel) return;
+  const tab = browserTabState();
+  const target = String($('translateTo')?.value || 'tr').toLowerCase();
+  const health = browserSubtitleHealth({ url: player.browserPageUrl,
+    online: typeof navigator === 'undefined' || navigator.onLine !== false,
+    saveError: !!tab?.subtitlePreferenceError,
+    fileError: state.pendingPlayerLoad?.label === 'Altyazı dosyası eksik',
+    failed: player.browserTranslationFailed || 0,
+    busy: player.browserTranslatePreparing || (player.browserTranslationTrackId && tab?.browserTranslationComplete === false),
+    mode: browserSubtitleMode(), cues: player.cues.length + player.cues2.length,
+    tracks: player.browserTracks.length, capture: player.browserCaptureEnabled,
+    searchDone: player.browserSubtitleSearchDone,
+    targetAvailable: player.browserTracks.some(track => String(track.language || '').toLowerCase().split('-')[0] === target.split('-')[0]),
+  });
+  panel.dataset.state = health.state;
+  $('browserSubtitleHealthText').textContent = health.text;
+  const button = $('browserSubtitleHealthAction');
+  button.classList.toggle('hidden', !health.action); button.dataset.action = health.action; button.textContent = health.label;
+}
+
 function updateBrowserSubtitleSummary() {
+  renderBrowserSubtitleHealth();
   const button = $('browserSubtitleSettingsToggle');
   const label = $('browserSubtitleLabel');
   if (!button || !label) return;
@@ -7122,7 +7170,8 @@ function scheduleBrowserNoTrackSuggestion(expectedUrl) {
     player.browserNoTrackTimer = null;
     const tab = browserTabState();
     if (player.workspaceMode !== 'browser' || player.browserPageUrl !== url
-        || tab?.loading || player.browserTracks.length) return;
+        || tab?.loading || player.browserTracks.length || player.cues.length || player.cues2.length) return;
+    player.browserSubtitleSearchDone = true;
     setBrowserSignal('Bu sayfada altyazı izi bulunamadı. Ses üzerinden altyazı üretmek için Canlı Whisper’ı deneyin.', false,
       { action: 'live-asr', priority: 55, holdMs: 10000 });
   }, 8000);
@@ -7840,6 +7889,7 @@ async function loadManualBrowserSubtitle() {
   await loadSubtitle(path);
   if (!isCurrent() || player.subPath !== path) return;
   player.browserLoadedTrackId = '';
+  saveActiveBrowserTabWorkspace();
   setPlayerSidebarCollapsed(false);
   setBrowserSignal('Dosyadaki altyazı web videosunun üzerine yüklendi.', true);
 }
@@ -8808,6 +8858,8 @@ function updateBrowserNavigation(data, options = {}) {
   }
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
   if (!options.preserveWorkspace && mediaChanged) {
+    player.browserSubtitleSearchDone = false;
+    if (state.pendingPlayerLoad?.label === 'Altyazı dosyası eksik') state.pendingPlayerLoad = null;
     player.browserSyncPreview = null;
     player.browserCueEditContext = null;
     if (tab) {
@@ -8855,6 +8907,15 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserPositionTick = 0;
     applyBrowserMangaState({ state: 'idle', translated: 0, visible: false });
     clearBrowserTracks(data.loading ? 'Sayfa açılıyor; altyazı izi bekleniyor…' : 'Video başlatıldığında altyazı izi aranacak.');
+    if (tab && data.subtitlePreference?.subtitleSelection) {
+      tab.subtitleSelection = data.subtitlePreference.subtitleSelection;
+      tab.subtitleSelectionRestored = false;
+      tab.subtitleSelectionExplicit = true;
+      tab.subtitleSelectionLoadingFailed = undefined;
+      tab.restoreSubtitleMode = data.subtitlePreference.subtitleMode;
+      tab.subtitleSyncRecords = data.subtitlePreference.subtitleSyncRecords || [];
+      void restoreBrowserSubtitleSelection(tab);
+    }
     scheduleBrowserOverlaySync();
   }
   if (data.loading) {
@@ -10250,6 +10311,19 @@ if ($('browserExportClip')) $('browserExportClip').addEventListener('click', exp
 if ($('browserWhisperSubtitles')) $('browserWhisperSubtitles').addEventListener('click', () => startBrowserYoutubeWhisper(false));
 if ($('browserWhisperTranslate')) $('browserWhisperTranslate').addEventListener('click', () => startBrowserYoutubeWhisper(true));
 if ($('browserLiveAsr')) $('browserLiveAsr').addEventListener('click', toggleBrowserLiveAsr);
+if ($('browserSubtitleHealthAction')) $('browserSubtitleHealthAction').addEventListener('click', async event => {
+  switch (event.currentTarget.dataset.action) {
+    case 'save': saveActiveBrowserTabWorkspace(); break;
+    case 'locate': await state.pendingPlayerLoad?.run?.(); break;
+    case 'address': $('browserAddress')?.focus(); break;
+    case 'file': await loadManualBrowserSubtitle(); break;
+    case 'capture': setBrowserCaptureEnabled(true); break;
+    case 'select': $('browserTrackActions')?.classList.remove('hidden'); $('browserTrackSelect')?.focus(); break;
+    case 'retry': $('browserTranslationRetryFailed')?.click(); break;
+    case 'show': setSubtitleMode(player.cues.length && player.cues2.length ? 'both' : player.cues.length ? 'source' : 'translation'); break;
+  }
+  renderBrowserSubtitleHealth();
+});
 if ($('browserManualSubtitle')) $('browserManualSubtitle').addEventListener('click', loadManualBrowserSubtitle);
 if ($('browserCopyAb')) $('browserCopyAb').addEventListener('click', copyBrowserAbText);
 if ($('browserTrackDismiss')) $('browserTrackDismiss').addEventListener('click', () => {
@@ -10440,6 +10514,19 @@ $('browserPermissionPrompt')?.addEventListener('click', (event) => {
 
 function runBrowserShortcut(key, shift = false) {
   const normalized = String(key || '').toLowerCase();
+  if (normalized === 'subtitle-earlier' || normalized === 'subtitle-later') {
+    nudgeBrowserSync(normalized === 'subtitle-earlier' ? -.1 : .1);
+    return true;
+  }
+  if (normalized === 'subtitle-larger' || normalized === 'subtitle-smaller') {
+    const control = $('browserOverlayScale');
+    if (control) {
+      control.value = Math.max(65, Math.min(180, Number(control.value) + (normalized === 'subtitle-larger' ? 5 : -5)));
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      scheduleSave();
+    }
+    return true;
+  }
   if (normalized === 'k' || normalized === 'p') { openBrowserCommandPalette(); return true; }
   if (normalized === 'f') { openBrowserFind(); return true; }
   if (normalized === 'h' && shift) {
@@ -19275,6 +19362,10 @@ document.addEventListener('keydown', (e) => {
   const layer = $('playerLayer');
   if (!layer || layer.classList.contains('hidden')) return;
   const modifier = e.ctrlKey || e.metaKey;
+  if (player.workspaceMode === 'browser' && modifier && e.altKey) {
+    const shortcut = window.BrowserCommandPalette?.browserShortcutForInput({ type: 'keyDown', key: e.key, control: e.ctrlKey, meta: e.metaKey, alt: true });
+    if (shortcut && runBrowserShortcut(shortcut)) { e.preventDefault(); return; }
+  }
   if (player.workspaceMode === 'browser' && modifier && !e.altKey) {
     const key = e.key.toLowerCase();
     if (runBrowserShortcut(key, e.shiftKey)) { e.preventDefault(); return; }

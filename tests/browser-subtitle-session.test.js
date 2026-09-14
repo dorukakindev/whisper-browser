@@ -44,7 +44,7 @@ for (const [selection, mode, expected] of [[null, 'source', true], [null, 'off',
 const tab = { id: 'a', mediaId: 'one', subtitleSelection: raw.subtitleSelection,
   subtitleSelectionRestored: false, subtitleSelectionExplicit: true };
 const element = { value: '', classList: { toggle() {} }, setAttribute() {} };
-const nav = { player: { browserActiveTabId: 'a', browserPageUrl: 'https://example.com/one',
+const nav = { state: {}, player: { browserActiveTabId: 'a', browserPageUrl: 'https://example.com/one',
     browserTabEventGate: { accept: () => true } },
   browserTabState: () => tab, browserPlaceKey: (url) => url, $: () => element,
   document: {}, localStorage: { setItem() {} },

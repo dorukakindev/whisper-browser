@@ -8,7 +8,7 @@ for (const kind of ['did-navigate', 'did-navigate-in-page']) {
   const handlers = {}, events = [];
   let visibleTracks = [], rendererUrl = 'https://video.test/old';
   const tab = { id: 'tab', mediaId: 'old', generation: 1, view: {}, playbackDiagnostics: { reset() {} } };
-  const ctx = { tab, browserActiveTabId: 'tab',
+  const ctx = { restoreBrowserMediaSubtitlePreference() {}, tab, browserActiveTabId: 'tab',
     wc: { on: (name, fn) => { handlers[name] = fn; }, getURL: () => 'https://video.test/new', getTitle: () => 'Yeni video' },
     ADAPTER_REGISTRY: { mediaIdentity: () => ({ key: 'new', service: 'web', contentId: 'new' }) },
     syncBrowserTabCompatibilityForUrl() {}, applyStoredBrowserZoom() {}, rememberBrowserVisit() {}, scheduleBrowserSessionSave() {},

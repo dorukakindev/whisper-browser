@@ -4671,7 +4671,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-signal-status-row { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .browser-signal-kicker { color: #99999f; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
 .browser-signal-text { color: var(--text-dim); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
-.browser-signal.detected .browser-signal-text { color: #dfdfe1; }
+.browser-signal.detected .browser-signal-text { color: var(--text); }
 .browser-signal-action { flex: 0 0 auto; min-height: 25px; padding: 0 8px; color: #e0ad5d; }
 .browser-signal-history { color: var(--text-muted); font-size: 9px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-signal-state-actions,
@@ -6615,3 +6615,9 @@ body.modal-open { overflow: hidden; }
   .source-card .tabs { width: auto; }
   .panel-left > .actions { position: static; }
 }
+
+.browser-subtitle-health { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-top:1px solid var(--border); background:var(--surface-panel); font-size:12px; line-height:1.5; }
+.browser-subtitle-health > span { min-width:0; overflow-wrap:anywhere; }
+.browser-subtitle-health > button { flex-shrink:0; }
+.browser-subtitle-health[data-state="file-error"], .browser-subtitle-health[data-state="translation-error"] { border-left:3px solid var(--accent); }
+@media(max-width:700px) { .browser-subtitle-health { align-items:flex-start; flex-direction:column; } }

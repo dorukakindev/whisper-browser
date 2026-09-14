@@ -50,6 +50,7 @@ function fakeButton() {
   let tab = { pinned: false };
   const context = loadBetween('function updateBrowserPinMenu()', 'const MAX_BROWSER_TABS', {
     $: () => button,
+    renderBrowserSubtitleHealth() {},
     browserTabState: () => tab,
   });
   context.updateBrowserPinMenu();
@@ -105,6 +106,7 @@ function fakeButton() {
   const state = { running: false };
   const context = loadBetween('function updateBrowserSubtitleSummary()', 'function clearBrowserTracks', {
     $: (id) => id === 'browserSubtitleLabel' ? label : button,
+    renderBrowserSubtitleHealth() {},
     browserTabState: () => tab,
     player,
     state,

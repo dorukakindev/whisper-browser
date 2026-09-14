@@ -3324,6 +3324,8 @@ function browserNavigationStateForTab(tab, extra = {}) {
     canGoForward,
     zoom: Number(wc.getZoomFactor?.()) || Number(tab.zoom) || 1,
     compatibilityMode: !!tab.compatibilityMode,
+    subtitlePreference: tab.subtitleSelection ? { subtitleSelection: tab.subtitleSelection,
+      subtitleMode: tab.subtitleMode, subtitleSyncRecords: tab.subtitleSyncRecords || [] } : null,
     ...extra,
   };
 }
@@ -3709,6 +3711,32 @@ function browserTrackStreamKey(sourceUrl, language = '') {
     const query = params.map(([k, v]) => `${k}=${v}`).join('&');
     return `${u.origin}${pathname}${query ? `?${query}` : ''}|${String(language || '').toLowerCase()}`;
   } catch (_) { return `${raw}|${String(language || '').toLowerCase()}`; }
+}
+
+let browserSubtitlePreferenceStore;
+function browserSubtitlePreferences() {
+  if (!browserSubtitlePreferenceStore) {
+    const file = path.join(app.getPath('userData'), 'browser-subtitle-preferences.json');
+    const { BrowserSubtitlePreferences } = require('./browser-subtitle-preferences');
+    browserSubtitlePreferenceStore = new BrowserSubtitlePreferences({
+      read: () => JSON.parse(fs.readFileSync(file, 'utf8')),
+      write: value => writeJsonAtomic(file, value),
+    });
+  }
+  return browserSubtitlePreferenceStore;
+}
+function restoreBrowserMediaSubtitlePreference(tab) {
+  const row = browserSubtitlePreferences().get(tab.mediaId);
+  if (!row) return null;
+  tab.subtitleSelection = row.subtitleSelection;
+  tab.subtitleMode = row.subtitleMode;
+  tab.overlay = { ...(tab.overlay || {}), mode: row.subtitleMode };
+  tab.subtitleSyncRecords = row.subtitleSyncRecords;
+  for (const slot of ['primaryFile', 'secondaryFile']) {
+    const file = row.subtitleSelection?.[slot];
+    if (file) subtitleFileAccess.grant(file);
+  }
+  return row;
 }
 
 function browserWatchMediaId(tab) {
@@ -8849,6 +8877,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       tab.mangaRestoreAttemptedGeneration = -1;
     }
     tab.mediaId = identity.key;
+    restoreBrowserMediaSubtitlePreference(tab);
     tab.service = identity.service;
     tab.contentId = identity.contentId;
     applyStoredBrowserZoom(tab, wc, tab.restoredUrl);
@@ -8886,6 +8915,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       syncBrowserTabCompatibilityForUrl(tab, nextUrl);
       tab.restoredTitle = wc.getTitle() || '';
       tab.mediaId = identity.key;
+      if (mediaChanged) restoreBrowserMediaSubtitlePreference(tab);
       tab.service = identity.service;
       tab.contentId = identity.contentId;
       applyStoredBrowserZoom(tab, wc, nextUrl);
@@ -10846,6 +10876,7 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
   const wc = tab.view?.webContents;
   const liveUrl = wc && !wc.isDestroyed() && wc.getURL() && wc.getURL() !== 'about:blank'
     ? wc.getURL() : '';
+  if (raw?.mediaId && tab.mediaId && raw.mediaId !== tab.mediaId) return { ok: false, error: 'Video değişti; eski altyazı tercihi kaydedilmedi.' };
   const normalized = normalizeSessionTab({
     ...browserTabSnapshot(tab),
     ...(raw && typeof raw === 'object' ? raw : {}),
@@ -10888,6 +10919,8 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     subtitleRecordQuarantine: normalized.subtitleRecordQuarantine,
     overlay: { ...(tab.overlay || {}), mode: normalized.subtitleMode, offset: normalized.offset },
   });
+  try { browserSubtitlePreferences().put(browserTabSnapshot(tab)); }
+  catch (_) { return { ok: false, error: 'Video altyazı tercihi diske kaydedilemedi.' }; }
   scheduleBrowserSessionSave();
   return { ok: true, tab: browserTabSnapshot(tab) };
 });

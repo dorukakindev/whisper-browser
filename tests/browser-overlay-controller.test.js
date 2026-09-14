@@ -107,8 +107,8 @@ test('web altyazısı basılı tutularak taşınır ve yeni konum uygulamaya bil
   assert.doesNotMatch(script, /__WHISPER_BROWSER_OVERLAY_STYLE__/);
   assert.match(script, /Math\.min\(75/);
   assert.match(script, /style\.pointerEvents = 'auto'/);
-  assert.match(script, /boxSizing = 'content-box'/);
-  assert.match(script, /maxHeight = 'calc\('/);
+  assert.match(script, /boxSizing = 'border-box'/);
+  assert.match(script, /maxHeight = 'min\(calc\('/);
   assert.match(script, /const baseMargin = Math\.min\(96, Math\.max\(20, rect\.height \* \.09\)\)/);
   assert.doesNotMatch(script, /Math\.max\(96, rect\.height \* \(bottomOffset/);
 });

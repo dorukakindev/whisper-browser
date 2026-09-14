@@ -28,7 +28,9 @@ function browserCommandContextMatches(opened, current) {
 }
 
 function browserShortcutForInput(input = {}) {
-  if (input.type !== 'keyDown' || input.alt || !(input.control || input.meta)) return '';
+  if (input.type !== 'keyDown' || !(input.control || input.meta)) return '';
+  if (input.alt) return ({ arrowleft: 'subtitle-earlier', arrowright: 'subtitle-later',
+    arrowup: 'subtitle-larger', arrowdown: 'subtitle-smaller' })[String(input.key || '').toLowerCase()] || '';
   const key = String(input.key || '').toLowerCase();
   if (input.shift) return ['p', 't', 'h', 'tab', '+', '='].includes(key) ? key : '';
   return ['k', 'p', 'f', 'l', 't', 'w', 'r', 'tab', '0', '+', '=', '-', '_',

@@ -154,25 +154,35 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (!root) {
         root = document.createElement('div');
         root.id = '__whisper_browser_subtitles';
-        root.style.cssText = 'position:fixed;z-index:2147483646;pointer-events:none;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:Inter,Segoe UI,sans-serif;text-shadow:0 2px 5px #000,0 0 2px #000;';
+        root.style.cssText = 'margin:0;border:0;padding:0;background:transparent;overflow:visible;inset:auto;position:fixed;z-index:2147483646;pointer-events:none;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:Inter,Segoe UI,sans-serif;text-shadow:0 2px 5px #000,0 0 2px #000;';
       }
       root.dataset.whisperBrowserOverlay = 'true';
       let source = root.querySelector('[data-kind="source"]');
       let translation = root.querySelector('[data-kind="translation"]');
       if (!source) {
         source = document.createElement('div'); source.dataset.kind = 'source'; source.dir = 'auto';
-        source.style.cssText = 'max-width:88%;padding:3px 8px;border-radius:5px;background:rgba(5,7,10,.74);color:#f5f5f5;font-size:clamp(15px,2vw,25px);line-height:1.35;white-space:pre-line;overflow:hidden;';
+        source.style.cssText = 'max-width:88%;padding:3px 8px;border-radius:5px;background:rgba(5,7,10,.74);color:#f5f5f5;font-size:clamp(15px,2vw,25px);line-height:1.35;white-space:pre-line;overflow-wrap:anywhere;overflow:hidden;';
         root.appendChild(source);
       }
       if (!translation) {
         translation = document.createElement('div'); translation.dataset.kind = 'translation'; translation.dir = 'auto';
-        translation.style.cssText = 'max-width:88%;padding:4px 9px;border-radius:5px;background:rgba(5,7,10,.82);color:#e0ad5d;font-weight:650;font-size:clamp(16px,2.15vw,27px);line-height:1.35;white-space:pre-line;overflow:hidden;';
+        translation.style.cssText = 'max-width:88%;padding:4px 9px;border-radius:5px;background:rgba(5,7,10,.82);color:#e0ad5d;font-weight:650;font-size:clamp(16px,2.15vw,27px);line-height:1.35;white-space:pre-line;overflow-wrap:anywhere;overflow:hidden;';
         root.appendChild(translation);
       }
       bindDrag(source);
       bindDrag(translation);
-      const host = document.fullscreenElement || document.documentElement;
+      // video bir replaced element: içine eklenen HTML tam ekranda çizilmez.
+      // Manuel popover katmanı native videonun üstündeki top layer'a taşır.
+      const nativeFullscreen = /^(VIDEO|AUDIO)$/.test(document.fullscreenElement?.tagName || '');
+      const host = nativeFullscreen ? document.documentElement : document.fullscreenElement || document.documentElement;
       if (root.parentNode !== host) host.appendChild(root);
+      if (nativeFullscreen && typeof root.showPopover === 'function') {
+        root.setAttribute('popover', 'manual');
+        if (!root.matches(':popover-open')) root.showPopover();
+      } else if (root.hasAttribute('popover')) {
+        if (root.matches(':popover-open')) root.hidePopover();
+        root.removeAttribute('popover');
+      }
       return root;
     };
 
@@ -410,15 +420,15 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const opacity = Math.max(0, Math.min(1, Number.isFinite(rawOpacity) ? rawOpacity : .82));
       const width = Math.max(40, Math.min(98, Number(style.width) || 88));
       const lines = Math.max(1, Math.min(6, Number(style.maxLines) || 3));
-      const styleKey = [scale, opacity, width, lines].join(':');
+      const styleKey = [scale, opacity, width, lines, rect.height].join(':');
       if (styleKey !== appliedStyleKey) {
         appliedStyleKey = styleKey;
         for (const item of [source, translation]) {
           item.style.maxWidth = width + '%';
-          item.style.boxSizing = 'content-box';
+          item.style.boxSizing = 'border-box';
           item.style.fontSize = 'clamp(' + (15 * scale) + 'px,' + (2.05 * scale) + 'vw,' + (27 * scale) + 'px)';
           item.style.backgroundColor = 'rgba(5,7,10,' + opacity + ')';
-          item.style.maxHeight = 'calc(' + (lines * 1.35) + 'em + 4px)';
+          item.style.maxHeight = 'min(calc(' + (lines * 1.35) + 'em + 4px), ' + Math.max(20, (rect.height - baseMargin - 12) / 2) + 'px)';
         }
       }
       if (style.sourceFirst === false) {
@@ -426,6 +436,9 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       } else if (source.nextSibling !== translation) box.appendChild(translation);
       source.style.display = source.textContent ? '' : 'none';
       translation.style.display = translation.textContent ? '' : 'none';
+      // İki uzun dil bloğu küçük/tam ekran videonun dışına taşmasın.
+      const overlayHeight = box.getBoundingClientRect().height;
+      box.style.top = Math.max(rect.top, Math.min(parseFloat(box.style.top), rect.bottom - baseMargin - overlayHeight)) + 'px';
       queueFrame();
       finishRender();
     }

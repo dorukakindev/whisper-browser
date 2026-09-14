@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const {BrowserTranslationScheduler}=require('../src/browser-translation-scheduler');
+const sentence=(id,start)=>({id,start,end:start+1,text:'Hello.',pieces:[{cueId:id,start,end:start+1,text:'Hello.'}]});
+const tick=()=>new Promise(r=>setTimeout(r,10));
+(async()=>{
+ const calls=[],results=[];
+ const scheduler=new BrowserTranslationScheduler({maxConcurrent:1,lookAhead:5,lookBehind:1,translate:(sentence,context)=>new Promise(resolve=>calls.push({id:sentence.id,resolve,context})),onResult:r=>results.push(r)});
+ scheduler.setSentences([sentence('early',0),sentence('late',3600)]);scheduler.updatePlayhead(0);
+ await tick();assert.equal(calls[0].id,'early');
+ scheduler.updatePlayhead(3600);await tick();assert.equal(calls[1].id,'late','Seek yeni bölgeye öncelik vermeli');
+ calls[0].resolve(JSON.stringify({text:'Eski yanıt.'}));calls[1].resolve(JSON.stringify({text:'Merhaba.'}));
+ await scheduler.whenIdle();assert.deepEqual(results.map(r=>r.sentenceId),['late'],'Geç gelen iptal edilmiş yanıt gösterilmemeli');
+ let count=0;
+ const retry=new BrowserTranslationScheduler({paused:true,maxConcurrent:1,maxAttempts:2,retryBaseMs:10,translate:async()=>{count++;if(count<=2)throw Error('Kontrollü bağlantı kesintisi');return JSON.stringify({text:'Merhaba.'});}});
+ retry.setSentences([sentence('recover',0)]);retry.completeAll();await tick();assert.equal(count,0);
+ retry.setPaused(false);await retry.whenIdle();assert.equal(retry.snapshot().failures.length,1);
+ retry.retryFailed();await retry.whenIdle();assert.equal(retry.snapshot().completed,1);assert.equal(count,3);
+ scheduler.cancelAll();retry.cancelAll();assert.equal(scheduler.pending.size,0);assert.equal(retry.retryTimers.size,0);
+ console.log('Kontrollü sağlayıcı: 1 saat seek, geç yanıt, offline, iki hata, manuel retry ve temizlik geçti.');
+})().catch(e=>{console.error(e);process.exitCode=1});

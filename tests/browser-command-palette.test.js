@@ -41,3 +41,9 @@ test('native görünüm yalnız desteklenen kısayolları köprüler', () => {
   assert.equal(browserShortcutForInput({ type: 'keyDown', key: 'k', control: true, alt: true }), '');
 });
 console.log(`browser-command-palette: ${passed} test`);
+
+for (const [key, action] of [['ArrowLeft','subtitle-earlier'],['ArrowRight','subtitle-later'],['ArrowUp','subtitle-larger'],['ArrowDown','subtitle-smaller']]) {
+  assert.equal(browserShortcutForInput({type:'keyDown',key,control:true,alt:true}),action);
+  assert.equal(browserShortcutForInput({type:'keyDown',key,alt:true}),'');
+  assert.equal(browserShortcutForInput({type:'keyUp',key,control:true,alt:true}),'');
+}

@@ -10,7 +10,7 @@ function harness() {
   const button = () => ({ disabled: false, attributes: {}, setAttribute(key, value) { this.attributes[key] = value; } });
   const controls = { browserTrackExport: button(), browserTranslationExport: button(),
     browserExportFormat: { value: 'vtt' }, translateTo: { value: 'de' }, playerSubSelect: { value: '' } };
-  const ctx = {
+  const ctx = { saveActiveBrowserTabWorkspace() {},
     player: { workspaceMode: 'browser', browserActiveTabId: 'a', browserPageTitle: 'Bölüm A',
       cues: [], cues2: [], browserTracks: [], browserLiveTranslations: new Map() },
     $: (id) => controls[id], currentGeneration: () => generation, staleGeneration: (gen) => gen !== generation,
