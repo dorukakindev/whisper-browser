@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-0514 — GitHub araştırması ve tarayıcı geliştirme önerileri](docs/devir/2026-09-14-0514.md)
+Güncel çalışma: [2026-09-14-0543 — Yayın altyazısı kararlılığı ve birleşik düzenleme paneli](docs/devir/2026-09-14-0543.md)
+
+Önceki çalışma: [2026-09-14-0514 — GitHub araştırması ve tarayıcı geliştirme önerileri](docs/devir/2026-09-14-0514.md)
 
 Önceki çalışma: [2026-09-14-0510 — Tarayıcı altyazısı teslimi; kullanıcı onaylı test istisnaları](docs/devir/2026-09-14-0510.md)
 

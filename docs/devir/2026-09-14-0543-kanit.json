@@ -1,0 +1,38 @@
+{
+  "codeCommit": "9771df56770e60642a6cb090540d0ab9a17b5d4a",
+  "quickEditor": {
+    "dualEdit": true,
+    "timing": true,
+    "draftRestore": true,
+    "writeFailureRollback": true,
+    "undoRedo": true,
+    "pinnedCue": true,
+    "invalidTiming": true,
+    "staleTab": true,
+    "lateModel": true,
+    "modelTimingUndoRedo": true,
+    "layout": {
+      "width": 908,
+      "scroll": 908,
+      "save": 908.0000305175781,
+      "viewport": 940
+    }
+  },
+  "video": {
+    "seeks": 60,
+    "maxObservedMs": 229,
+    "overlayNodes": 3,
+    "mutationObservers": 1,
+    "pollIntervalMs": 200
+  },
+  "tests": {
+    "browserSubtitles": 77,
+    "manifestProcessing": 5,
+    "electronBridge": "passed on final retry",
+    "npmTest": "five previously waived environment test files failed"
+  },
+  "limitations": [
+    "Controlled local fixture; no real paid provider, GPU transcription or DRM site test",
+    "Screenshot captures the renderer panel; native video view is separate"
+  ]
+}
