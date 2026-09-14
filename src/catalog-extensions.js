@@ -88,19 +88,25 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const videoPackage = require('./workspace-video-package');
         const videoFolder = await videoPackage.extract(userData(), data, pythonPath());
         if (!canRestore()) { if (videoFolder) videoPackage.clean(userData(), videoFolder); throw new Error('Yeni işlem başladı; geri yükleme iptal edildi.'); }
-        const live = await owner().webContents.executeJavaScript(`Object.fromEntries(${JSON.stringify(packages.STORAGE_KEYS)}.map(key => [key, localStorage.getItem(key)]))`);
-        packages.exportPackage(userData(), path.join(userData(), 'before-restore-complete-' + Date.now() + '.wbp'), live);
-        const restored = packages.remapRendererValues(userData(), data, data.videoMappings || []);
+        let live, storageChanged = false;
         const setStorage = values => owner().webContents.executeJavaScript(`(() => {
           const values = ${JSON.stringify(values)}, previous = {};
           try { for (const [key, value] of Object.entries(values)) { previous[key] = localStorage.getItem(key); if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } }
           catch (error) { for (const [key, value] of Object.entries(previous)) { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } throw error; }
         })()`);
         try {
+          live = await owner().webContents.executeJavaScript(`Object.fromEntries(${JSON.stringify(packages.STORAGE_KEYS)}.map(key => [key, localStorage.getItem(key)]))`);
+          packages.exportPackage(userData(), path.join(userData(), 'before-restore-complete-' + Date.now() + '.wbp'), live);
+          const restored = packages.remapRendererValues(userData(), data, data.videoMappings || []);
           await setStorage(restored);
+          storageChanged = true;
           if (!canRestore()) throw new Error('Yeni medya işlemi başladı; geri yükleme iptal edildi.');
           require('./workspace-package').restorePackage(userData(), data, data.videoMappings || []);
-        } catch (error) { await setStorage(live); if (videoFolder) videoPackage.clean(userData(), videoFolder); throw error; }
+        } catch (error) {
+          try { if (storageChanged) await setStorage(live); }
+          finally { if (videoFolder) videoPackage.clean(userData(), videoFolder); }
+          throw error;
+        }
         previews.delete(input.token); restart(); return { ok: true };
       }
       case 'extension-cancel': { const row = previews.get(input.token); if (row?.sender === event.sender.id) previews.delete(input.token); return { ok: true }; }

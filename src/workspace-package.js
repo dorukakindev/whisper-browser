@@ -21,10 +21,19 @@ function allowed(name) {
     (ROOTS.has(name) || (DIRS.has(name.split('/')[0]) && /\.(srt|vtt|ass|ssa|jsonl?|png|jpg|jpeg|webp|ttf|otf|woff2?)$/i.test(name)));
 }
 function rewrite(value, mappings) {
-  if (typeof value === 'string') { for (const [from, to] of mappings) value = value.split(from).join(to); return value; }
-  if (Array.isArray(value)) return value.map(v => rewrite(v, mappings));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [rewrite(k, mappings), rewrite(v, mappings)]));
-  return value;
+  // Match the original string once: a destination can itself contain a source
+  // prefix, and must never be rewritten by a later mapping.
+  const replacements = new Map();
+  for (const [from, to] of mappings) if (!replacements.has(from)) replacements.set(from, to);
+  if (!replacements.size) return value;
+  const pattern = new RegExp([...replacements.keys()].sort((a, b) => b.length - a.length).map(from => from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+  function visit(current) {
+    if (typeof current === 'string') return current.replace(pattern, from => replacements.get(from));
+    if (Array.isArray(current)) return current.map(visit);
+    if (current && typeof current === 'object') return Object.fromEntries(Object.entries(current).map(([k, v]) => [visit(k), visit(v)]));
+    return current;
+  }
+  return visit(value);
 }
 function exportPackage(root, output, rendererValues = {}) {
   const files = [], mappings = [], seen = new Set(); let total = 0;
@@ -115,6 +124,7 @@ function restorePackage(root, data, videoMappings = []) {
 }
 function remapRendererValues(root, data, videoMappings = []) {
   const maps = [...videoMappings, ...data.mappings.map(([from, relative]) => [from, path.join(root, relative)]), [data.sourceRoot, root]];
-  return Object.fromEntries(Object.entries(storageValues(data.rendererValues)).map(([key, value]) => [key, JSON.stringify(rewrite(JSON.parse(value), maps))]));
+  const values = storageValues(data.rendererValues);
+  return Object.fromEntries(STORAGE_KEYS.map(key => [key, key in values ? JSON.stringify(rewrite(JSON.parse(values[key]), maps)) : null]));
 }
 module.exports = { exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues };
