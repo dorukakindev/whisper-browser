@@ -790,7 +790,7 @@ function syncBrowserOcclusion() {
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
-    || settingsOverlay
+    || settingsOverlay || !!$('mediaCatalogDialog')?.open
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
   if (window.api.setBrowserOccluded) {
@@ -13695,6 +13695,17 @@ async function openWatchLibraryItem(item, seconds) {
   }
 }
 
+window.openMediaCatalogPlayback = async (item) => {
+  await flushWatchState(false, false);
+  const history = await window.api.listWatchLibrary();
+  const latest = history?.find(row => row.key === item.key);
+  const position = latest ? (latest.completed ? 0 : latest.position || 0) : item.position || 0;
+  if (item.type === 'local') {
+    setWorkspaceMode('player');
+    await openLocalMedia(item.localPath || item.sourceRef, position);
+  } else await openWatchLibraryItem(item, position);
+};
+
 async function openHistoryItem(h) {
   // Listeleme, eski gecmis dosyalarina kendiliginden okuma yetkisi vermez.
   // "Oynat" tiklamasi kullanici niyetidir; ana surec yalnız secilen kaydin
@@ -19846,6 +19857,7 @@ let browserReviewTimer = null;
 function readSourceEdits() {
   try { const records=JSON.parse(localStorage.getItem(browserReviewRecordsKey)||'{}');return records&&typeof records==='object'&&!Array.isArray(records)?records:{}; } catch (_) { return {}; }
 }
+
 function renderBrowserWatchStyle() {
   const box=$('browserWatchStyle'); if(!box)return;
   box.replaceChildren();

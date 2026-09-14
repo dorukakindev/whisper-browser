@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="browser-analysis-tools.css" />
   <link rel="stylesheet" href="browser-video-analysis.css" />
   <link rel="stylesheet" href="browser-series-context.css" />
+  <link rel="stylesheet" href="media-catalog.css" />
 </head>
 <body>
   <div class="app">
@@ -27,6 +28,7 @@
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary btn-sm" id="openPlayer" title="Videoyu altyazılarınla izle">İzle</button>
+        <button class="btn btn-secondary btn-sm" id="mediaCatalogOpen" data-media-catalog-open type="button">Film ve dizi arşivi</button>
         <div class="gpu-badge" id="gpuBadge">
           <span class="dot"></span>
           <span id="gpuBadgeText">CUDA · float16</span>
@@ -1043,6 +1045,7 @@
             aria-selected="false" aria-controls="browserWorkspace" tabindex="-1">Tarayıcı</button>
         </div>
         <div class="player-head-actions">
+          <button class="workspace-mode" data-media-catalog-open type="button" title="Film, dizi ve izlenecekler">Arşiv</button>
           <div class="player-parse-status hidden" id="playerParseStatus">
             <span class="parse-spark" aria-hidden="true"></span><span id="playerParseText">Ses işleniyor…</span>
           </div>
@@ -2735,7 +2738,9 @@
   <script src="../subtitle-find-replace.js"></script>
   <script src="queue-lifecycle.js"></script>
   <script src="../renderer-ui-model.js"></script>
+<dialog id="mediaCatalogDialog" aria-label="Film ve dizi arşivi"><div id="mediaCatalogRoot"></div></dialog>
 <script src="renderer.js"></script>
+<script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>
 <script src="browser-analysis-tools.js"></script>
 <script src="browser-video-analysis.js"></script>

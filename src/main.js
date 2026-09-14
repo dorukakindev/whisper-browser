@@ -14340,3 +14340,9 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   grantSubtitle: file => subtitleFileAccess.grant(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
 });
+
+require('./media-catalog-service').registerMediaCatalogService({
+  ipcMain, dialog, nativeImage, owner: () => mainWindow, authorized: authorizedBrowserSender,
+  userData: () => app.getPath('userData'), pythonPath: resolvePython,
+  inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
+});
