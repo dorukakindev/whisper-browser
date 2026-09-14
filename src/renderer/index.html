@@ -6,6 +6,9 @@
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="browser-features.css" />
+  <link rel="stylesheet" href="browser-analysis-tools.css" />
+  <link rel="stylesheet" href="browser-video-analysis.css" />
+  <link rel="stylesheet" href="browser-series-context.css" />
 </head>
 <body>
   <div class="app">
@@ -1910,6 +1913,7 @@
           </details>
           <details id="browserFeatures" class="browser-features" aria-label="Video ve altyazı araçları">
             <summary>Video ve altyazı araçları</summary>
+            <details id="browserAnalysisTools" class="browser-analysis-tools"></details>
             <p id="browserFeaturesContext" class="bf-context">Etkin videoyu seçin.</p>
             <div class="bf-top-actions">
               <button type="button" data-bf-action="mini-open">Küçük oynatıcıyı aç</button>
@@ -1926,6 +1930,21 @@
             <section class="bf-section" aria-labelledby="bfOcrTitle"><h3 id="bfOcrTitle">Ekrandaki yazıyı oku</h3><p>Video karesindeki yazı bölgesini seçin.</p><div class="bf-inline"><button type="button" data-bf-action="ocr-frame">Kareyi al</button><button type="button" data-bf-action="ocr-all">Tüm kareyi oku</button></div><div id="bfOcrFrame" class="bf-ocr-frame" aria-label="Okunacak bölgeyi sürükleyerek seçin"></div><div id="bfOcrResult" class="bf-results" aria-live="polite"></div></section>
             <section class="bf-section" aria-labelledby="bfScenesTitle"><h3 id="bfScenesTitle">Sahne şeridi</h3><button type="button" data-bf-action="scenes">Yerel videodan sahneleri çıkar</button><div id="bfScenes" class="bf-scenes" aria-live="polite"></div></section>
             <section class="bf-section" aria-labelledby="bfSkipTitle"><h3 id="bfSkipTitle">Jenerik ve özet aralıkları</h3><p>Otomatik atlama varsayılan olarak kapalıdır.</p><div class="bf-grid"><label>Tür<select id="bfSkipKind"><option value="intro">Jenerik</option><option value="recap">Özet</option></select></label><label>Başlangıç (sn)<input id="bfSkipStart" type="number" min="0" step="0.1"></label><label>Bitiş (sn)<input id="bfSkipEnd" type="number" min="0" step="0.1"></label><label>Kapsam<select id="bfSkipScope"><option value="media">Bu video</option><option value="series">Dizi</option></select></label><label>Dizi adı<input id="bfSeriesName" type="text" maxlength="120" placeholder="Dizi adı"></label><label class="bf-check"><input id="bfSkipAuto" type="checkbox"> Otomatik atla</label></div><div class="bf-inline"><button type="button" data-bf-action="skip-save">Aralığı kaydet</button><button type="button" data-bf-action="skip-list">Kayıtları yenile</button><button type="button" data-bf-action="skip-link-series">Bu videoyu diziye bağla</button></div><div id="bfSkipCandidate" class="bf-candidate" aria-live="polite"></div><div id="bfSkipRecords" class="bf-results" aria-live="polite"></div></section>
+            <section id="bfSeriesContext" class="bf-section bf-series-context" aria-labelledby="bfSeriesTitle"><h3 id="bfSeriesTitle">Dizi çeviri bağlamı</h3><p>Her yeni bölümü aynı dizi adına bağlayarak kayıtlı tercihleri yükleyin. Değişiklikler sonraki çeviride kullanılır. Özet yalnız sizin yazdığınız bilgidir.</p><div class="bf-grid"><label>Dizi adı<input id="bfContextSeries" type="text" maxlength="120" placeholder="Dizi adı" autocomplete="off"></label><label>Hitap biçimi<input id="bfContextStyle" type="text" maxlength="500" placeholder="Örn. karakterler birbirine siz der" autocomplete="off"></label></div><label class="bf-series-field">Dizi özeti<textarea id="bfContextSynopsis" maxlength="2000" rows="3" placeholder="Çeviri için gerekli, spoiler içermeyen kendi özetiniz"></textarea></label><label class="bf-series-field">Terimler · her satıra kaynak = hedef<textarea id="bfContextTerms" rows="4" placeholder="Captain = Kaptan"></textarea></label><div class="bf-inline"><button id="bfContextBind" type="button">Bölümü diziye bağla ve tercihleri yükle</button><button id="bfContextSave" type="button">Dizi bağlamını kaydet</button><button id="bfContextCheck" type="button">Altyazı terimlerini kontrol et</button></div><p id="bfContextStatus" role="status" aria-live="polite"></p><div id="bfContextIssues" class="bf-results" aria-live="polite"></div></section>
+            <section id="browserVideoAnalysisTools" class="bf-section browser-video-analysis" aria-labelledby="bvaTitle">
+              <h3 id="bvaTitle">Kareden altyazı ve jenerik önerisi</h3>
+              <p>En fazla 60 saniyelik aralıktaki gömülü yazıyı okuyun. Sonuçları gözden geçirip düzeltin.</p>
+              <div class="bf-grid"><label>Başlangıç (sn)<input id="bvaStart" type="number" min="0" step="0.1"></label><label>Bitiş (sn)<input id="bvaEnd" type="number" min="0" step="0.1"></label><label>Örnekleme (sn)<input id="bvaInterval" type="number" min="0.5" max="5" step="0.5" value="1"></label></div>
+              <div class="bf-inline"><button id="bvaSetStart" type="button">Başlangıç: şimdi</button><button id="bvaSetEnd" type="button">Bitiş: şimdi</button></div>
+              <p>OCR alanı video yüzdesidir. Varsayılan alt %35.</p>
+              <div class="bf-grid"><label>Sol X (%)<input id="bvaCropX" type="number" min="0" max="100" step="1" value="0"></label><label>Üst Y (%)<input id="bvaCropY" type="number" min="0" max="100" step="1" value="65"></label><label>Genişlik (%)<input id="bvaCropW" type="number" min="1" max="100" step="1" value="100"></label><label>Yükseklik (%)<input id="bvaCropH" type="number" min="1" max="100" step="1" value="35"></label></div>
+              <div class="bf-inline"><button id="bvaRunOcr" type="button">Aralığı oku</button><button id="bvaSaveSrt" type="button" disabled>Düzeltilmiş SRT'yi kaydet</button></div>
+              <p id="bvaOcrStatus" role="status" aria-live="polite"></p><div id="bvaCues" class="bva-cues"></div>
+              <h3>Diğer bölümle jeneriği karşılaştır</h3>
+              <p>Yerel videoların ilk en fazla 120 saniyesindeki benzer ses önerilir. Otomatik atlama yapılmaz.</p>
+              <button id="bvaDetectIntro" type="button">Diğer bölümü seç ve karşılaştır</button>
+              <p id="bvaIntroStatus" role="status" aria-live="polite"></p><div id="bvaIntroResults" class="bva-intro-results"></div>
+            </section>
           </details>
           <section id="browserQuickEdit" class="browser-quick-edit hidden" aria-labelledby="browserQuickEditTitle">
             <div class="browser-quick-edit-heading"><strong id="browserQuickEditTitle">Altyazıyı düzenle</strong><button id="browserQuickEditClose" type="button" class="btn btn-ghost btn-sm">Kapat</button></div>
@@ -2718,5 +2737,8 @@
   <script src="../renderer-ui-model.js"></script>
 <script src="renderer.js"></script>
 <script src="browser-features.js"></script>
+<script src="browser-analysis-tools.js"></script>
+<script src="browser-video-analysis.js"></script>
+<script src="browser-series-context.js"></script>
 </body>
 </html>

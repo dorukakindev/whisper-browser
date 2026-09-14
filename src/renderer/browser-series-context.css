@@ -1,0 +1,9 @@
+.bf-series-context .bf-series-field { display: grid; gap: 4px; margin: 8px 0; color: var(--text-muted); }
+.bf-series-context textarea {
+  display: block; box-sizing: border-box; width: 100%; min-width: 0; resize: vertical;
+  border: 1px solid var(--border); border-radius: var(--radius-xs);
+  background: var(--bg-1); color: var(--text); padding: 8px; font: inherit;
+}
+.bf-series-context textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bf-series-context #bfContextStatus { min-height: 1.3em; color: var(--text-muted); }
+.bf-series-context #bfContextStatus.bf-series-error { color: var(--danger); }

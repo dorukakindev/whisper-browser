@@ -12,6 +12,15 @@ function registerBrowserFeatureServices(deps) {
     frames, probeScript, rankCandidates, commandScript, captureFrame, restoreLayout, grantSubtitle,
     pythonPath, ffmpegPath, ffprobePath } = deps;
   const jobs = new Map(), captures = new Map();
+  const references = new Map();
+  let seriesStore = null;
+  const series = () => seriesStore ||= require('./browser-series-context').createBrowserSeriesContext({
+    filePath: path.join(app.getPath('userData'), 'browser-series-context.json') });
+  const mediaKey = tab => {
+    const url = tab.view.webContents.getURL();
+    let origin = ''; try { origin = new URL(url).origin; } catch {}
+    return { origin, key: `${origin}|${tab.mediaId || url}` };
+  };
   let skipData;
   const dataPath = () => path.join(app.getPath('userData'), 'browser-skip-segments.json');
   function data() {
@@ -66,6 +75,7 @@ function registerBrowserFeatureServices(deps) {
   function cancel(tab, lifecycle = true) {
     for (const [key, job] of jobs) if (key.startsWith(`${tab.id}:`)) { job.abort(); jobs.delete(key); }
     captures.delete(tab.id);
+    if (lifecycle) references.delete(tab.id);
     if (lifecycle && tab.assFrame) {
       const frame = tab.assFrame; tab.assFrame = null;
       try { void frame.executeJavaScript(require('./browser-ass-renderer').buildAssClearScript(), true).catch(() => {}); } catch {}
@@ -90,9 +100,77 @@ function registerBrowserFeatureServices(deps) {
     const current = () => valid() && !controller.signal.aborted && jobs.get(key) === controller;
     const assertCurrent = () => { if (!current()) throw new Error('Video değişti veya işlem iptal edildi.'); };
     const tools = () => createBrowserMediaTools({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() });
+    const referenceTools = () => require('./browser-reference-media').createBrowserReferenceMedia({ ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() });
+    const videoAnalysis = () => require('./browser-video-analysis').createBrowserVideoAnalysis({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() });
+    const reference = () => {
+      const ref = references.get(tab.id);
+      if (!ref || ref.generation !== tab.generation || ref.mediaId !== tab.mediaId) throw new Error('Önce bu videonun yerel referans dosyasını seçin.');
+      const stat = fs.statSync(ref.path);
+      if (stat.mtimeMs !== ref.mtimeMs || stat.size !== ref.size) throw new Error('Referans dosya değişmiş; yeniden seçin.');
+      return ref;
+    };
     let result = {};
     try {
       switch (payload.action) {
+        case 'reference-open': {
+          const videoPath = await choose('İzlenen videoyla aynı sürümdeki yerel dosyayı seç', ['mp4', 'mkv', 'webm', 'mov', 'avi', 'm4v']); assertCurrent();
+          const meta = await referenceTools().probe(videoPath, { signal: controller.signal }); assertCurrent();
+          const stat = fs.statSync(videoPath);
+          const ref = { path: videoPath, name: path.basename(videoPath), ...meta, size: stat.size, mtimeMs: stat.mtimeMs,
+            generation: tab.generation, mediaId: tab.mediaId, thumbnails: new Map(), waveform: null };
+          references.set(tab.id, ref);
+          result = { name: ref.name, duration: ref.duration }; break;
+        }
+        case 'reference-waveform': {
+          const ref = reference();
+          result = ref.waveform || await referenceTools().waveform(ref.path, ref.duration, { signal: controller.signal });
+          assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
+          ref.waveform = result; break;
+        }
+        case 'reference-thumbnail': {
+          const ref = reference();
+          const time = Math.floor(Math.max(0, Math.min(ref.duration - .04, Number(payload.time))) * 2) / 2;
+          if (!Number.isFinite(time)) throw new Error('Önizleme zamanı geçersiz.');
+          result = ref.thumbnails.get(time) || await referenceTools().thumbnail(ref.path, time, { signal: controller.signal });
+          assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
+          ref.thumbnails.set(time, result);
+          if (ref.thumbnails.size > 60) ref.thumbnails.delete(ref.thumbnails.keys().next().value);
+          break;
+        }
+        case 'thumbnail-cancel': jobs.get(`${tab.id}:reference-thumbnail`)?.abort(); break;
+        case 'alignment-preview': {
+          const file = await choose('Doğru zamanlı referans altyazıyı seç', ['srt', 'vtt', 'ass', 'ssa']); assertCurrent();
+          if (fs.statSync(file).size > 8 * 1024 * 1024) throw new Error('Referans altyazı en fazla 8 MB olabilir.');
+          const parsed = require('./browser-subtitles').parseSubtitlePayload(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''), '', file);
+          result = await require('./browser-alignment').createBrowserAlignment({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath() })
+            .align({ referenceCues: parsed.cues, targetCues: payload.cues }, { signal: controller.signal });
+          break;
+        }
+        case 'ocr-range': {
+          const ref = reference();
+          if (!Number.isFinite(payload.start) || !Number.isFinite(payload.end) || payload.start < 0 || payload.end > ref.duration + .1) throw new Error('OCR aralığı referans videonun içinde olmalı.');
+          result = await videoAnalysis().ocrRange({ videoPath: ref.path, start: payload.start, end: payload.end, crop: payload.crop, interval: payload.interval ?? .5 }, { signal: controller.signal });
+          assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
+          break;
+        }
+        case 'intro-detect': {
+          const ref = reference();
+          const other = await choose('Aynı dizinin karşılaştırılacak başka bölümünü seç', ['mp4', 'mkv', 'webm', 'mov', 'avi', 'm4v']); assertCurrent();
+          if (path.resolve(other).toLowerCase() === path.resolve(ref.path).toLowerCase()) throw new Error('Aynı dosya yerine başka bir bölüm seçin.');
+          result = await videoAnalysis().detectIntro({ videoPaths: [ref.path, other], maxScanSeconds: 120 }, { signal: controller.signal });
+          assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
+          break;
+        }
+        case 'series-context:get': result = { context: series().get(mediaKey(tab).key) }; break;
+        case 'series-context:bind': {
+          const identity = mediaKey(tab);
+          result = { context: series().bind(identity.key, payload.seriesName, identity.origin) }; break;
+        }
+        case 'series-context:save': {
+          const identity = mediaKey(tab);
+          result = { context: series().bindAndSave(identity.key, payload.seriesName, identity.origin, payload.profile) }; break;
+        }
+        case 'series-context:check': result = series().check(mediaKey(tab).key, { cues: payload.cues, translations: payload.translations }); break;
         case 'mini-open': result = mini.open(tab); break;
         case 'ass-load': {
           const file = await choose('Özgün ASS / SSA altyazısını seç', ['ass', 'ssa']); assertCurrent();
@@ -181,6 +259,6 @@ function registerBrowserFeatureServices(deps) {
       return { ok: false, stale: !current(), error: String(error.message || 'Video aracı çalıştırılamadı.').slice(0, 600) };
     } finally { if (jobs.get(key) === controller) jobs.delete(key); }
   });
-  return { mini, cancel };
+  return { mini, cancel, translationContext: tab => series().translationContext(mediaKey(tab).key) };
 }
 module.exports = { registerBrowserFeatureServices };

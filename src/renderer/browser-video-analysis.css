@@ -1,0 +1,8 @@
+.browser-video-analysis .bva-cues, .browser-video-analysis .bva-intro-results { display: grid; gap: 8px; margin: 8px 0; max-height: 360px; overflow: auto; }
+.browser-video-analysis .bva-cue, .browser-video-analysis .bva-intro-result { display: grid; gap: 6px; padding: 9px; background: var(--bg-1); border-left: 2px solid var(--accent); }
+.browser-video-analysis .bva-cue-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.browser-video-analysis .bva-cue label { display: grid; gap: 3px; color: var(--text-muted); }
+.browser-video-analysis .bva-cue textarea { min-height: 56px; resize: vertical; }
+.browser-video-analysis .bva-cue input, .browser-video-analysis .bva-cue textarea { box-sizing: border-box; width: 100%; background: var(--bg-1); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 7px; font: inherit; }
+.browser-video-analysis .bva-intro-result button { justify-self: start; }
+.browser-video-analysis .bva-error { color: var(--danger, #e58f83); }
