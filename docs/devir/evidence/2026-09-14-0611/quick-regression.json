@@ -1,0 +1,18 @@
+{
+  "dualEdit": true,
+  "timing": true,
+  "draftRestore": true,
+  "writeFailureRollback": true,
+  "undoRedo": true,
+  "pinnedCue": true,
+  "invalidTiming": true,
+  "staleTab": true,
+  "lateModel": true,
+  "modelTimingUndoRedo": true,
+  "layout": {
+    "width": 908,
+    "scroll": 908,
+    "save": 908.0000305175781,
+    "viewport": 940
+  }
+}

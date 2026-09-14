@@ -1,0 +1,10 @@
+{
+  "previewWithoutWrite": true,
+  "closeRestores": true,
+  "replayStops": true,
+  "storageFailureRollback": true,
+  "sourceUndoRedo": true,
+  "sourceRefreshPreserves": true,
+  "keepAndAcceptConflict": true,
+  "issueNavigation": true
+}
