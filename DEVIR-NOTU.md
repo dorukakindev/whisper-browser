@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1401 — Browser araçları için ayrı yan panel sekmesi](docs/devir/2026-09-14-1401.md)
+Güncel çalışma: [2026-09-14-1407 — Browser üst durum alanını sadeleştirme](docs/devir/2026-09-14-1407.md)
+
+Önceki çalışma: [2026-09-14-1401 — Browser araçları için ayrı yan panel sekmesi](docs/devir/2026-09-14-1401.md)
 
 Önceki çalışma: [2026-09-14-1341 — Yeni özelliklerde veri koruma ve browser yaşam döngüsü düzeltmeleri](docs/devir/2026-09-14-1341.md)
 

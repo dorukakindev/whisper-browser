@@ -87,6 +87,10 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 - Yerel oynatıcıya geçerken açık Araçlar sekmesi Altyazılar'a döner. Yeni tercih/ayar şeması yoktur; otomatik hızlanma/atlama varsayılanları değişmez.
 - Gruplar, düğmeler ve formlar mevcut renk/font token'larını kullanır; yeni font, CDN veya uygulama bağımlılığı eklenmez. Superdesign önizlemesi uygulamadan ayrı, statik inceleme materyalidir; uygulama IPC eylemlerini çalıştırmaz.
 
+### Browser üst durum alanı
+
+Altyazı sinyali normal genişlikte iki kompakt satır kullanır: yakalama/sayfa durumu üstte, hazır blok veya hata durumu ve dosya ayrıntısı altta. Dosya ayrıntısı açılırsa tüm genişliği kullanır; hata metni kısaltılmaz ve eylemi gizlenmez. 650 px altındaki browser konteynerinde sıralı düzene geçilir. Önceki sinyal metni yalnız Ayrıntılar açıkken görünür. Durum metni açık/koyu tema için `--text-dim`, hata `--danger`, bağlantı bekleme `--warning` kullanır.
+
 ## Verification
 
 Değişen akışlar ayrı Electron test profillerinde sınanır. ASS, küçük oynatıcı ve ürün entegrasyonu için `tests/electron-browser-*.smoke.js` dosyaları; ses, tercih ve kayıt kararları için ilgili hedefli testler kullanılır. Canlı OpenSubtitles hesabı, tüm siteler ve DRM başarısı kontrollü testlerden çıkarılmaz.
