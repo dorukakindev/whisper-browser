@@ -501,9 +501,11 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const opacity = Math.max(0, Math.min(1, Number.isFinite(rawOpacity) ? rawOpacity : .82));
       const width = Math.max(40, Math.min(98, Number(style.width) || 88));
       const lines = Math.max(1, Math.min(6, Number(style.maxLines) || 3));
-      const styleKey = [scale, opacity, width, lines, rect.height].join(':');
+      const gap = Math.max(0, Math.min(48, Number.isFinite(Number(style.gap)) ? Number(style.gap) : 6));
+      const styleKey = [scale, opacity, width, lines, rect.height, gap].join(':');
       if (styleKey !== appliedStyleKey) {
         appliedStyleKey = styleKey;
+        box.style.gap = gap + 'px';
         for (const item of [source, translation]) {
           item.style.maxWidth = width + '%';
           item.style.boxSizing = 'border-box';

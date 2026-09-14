@@ -34,7 +34,9 @@ ipcMain.handle=(channel,listener)=>handle(channel,async(...args)=>{
  }
  if(channel==='settings:load'&&process.env.VIDEO_E2E_SETTINGS_DELAY)await new Promise(resolve=>setTimeout(resolve,Number(process.env.VIDEO_E2E_SETTINGS_DELAY)));
  if(channel==='media:writeSubtitle'&&quickFailPath&&args[1]?.path===quickFailPath){quickFailPath='';return {ok:false,error:'Kontrollü yazma hatası'};}
- return listener(...args);
+ const result=await listener(...args);
+ if(process.env.VIDEO_E2E_FEATURES==='1'&&channel==='browser:setOverlay')fs.appendFileSync(path.join(out,'overlay-ipc.jsonl'),JSON.stringify({result,style:args[1]?.payload?.style})+'\n');
+ return result;
 });
 require('../src/main.js');
 assert.equal(app.getPath('userData'),process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'Test profili uygulanmalı');
@@ -61,6 +63,9 @@ app.whenReady().then(async()=>{
  });
  const win=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading()),'Pencere');
  const run=code=>win.webContents.executeJavaScript(`(async()=>{${code}})()`,true);
+ if(process.env.VIDEO_E2E_FEATURES==='1')win.webContents.on('console-message',(_event,details)=>{
+  fs.appendFileSync(path.join(out,'renderer-console.log'),String(details.message||details)+'\n');
+ });
  const snapshot=async name=>{win.show();win.focus();const [w,h]=win.getContentSize();win.setContentSize(w+1,h);await wait(100);win.setContentSize(w,h);await wait(400);fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());};
  let initializationTimer;
  try { await Promise.race([run('await initialSettingsReady'),new Promise((_,reject)=>{initializationTimer=setTimeout(()=>reject(Error('Başlangıç ayarları hazır olmadı')),30000)})]); }
@@ -197,6 +202,66 @@ app.whenReady().then(async()=>{
     document.getElementById('browserSyncChannel').value='secondary';nudgeBrowserSync(.4);saveBrowserSync();await browserCommand('seek',2.5);await browserCommand('pause');saveActiveBrowserTabWorkspace();`);
   await wait(1800);fs.writeFileSync(en.path,original);
   fs.writeFileSync(path.join(out,'durable-write.json'),JSON.stringify({saved:true,sourceFileRefreshed:true}));app.quit();return;
+ }
+ if(process.env.VIDEO_E2E_FEATURES==='1'){
+  const results={};
+  await page.executeJavaScript(`document.querySelector('video').pause()`);
+  await run(`$('browserWatchTools').open=true;renderBrowserWatchStyle();
+    for(const [field,value] of [['overlayScale',130],['overlayOpacity',35],['overlayBottom',12],['overlayGap',24]]){
+      const input=document.querySelector('[data-field="'+field+'"]');input.value=value;input.dispatchEvent(new Event('input'));}`);
+  await until(()=>page.executeJavaScript(`document.getElementById('__whisper_browser_subtitles')?.style.gap==='24px'`),'İki dil aralığı');
+  const appearance=await page.executeJavaScript(`(()=>{const box=document.getElementById('__whisper_browser_subtitles'),row=box.querySelector('[data-kind="source"]');return {gap:box.style.gap,bg:row.style.backgroundColor,size:row.style.fontSize}})()`);
+  assert.equal(appearance.bg,'rgba(5, 7, 10, 0.35)');assert(appearance.size.includes('19.5'));results.appearance=appearance;
+  await run(`openBrowserQuickEditor();const editor=browserQuickEditor;player.browserTime=1;alignQuickEditorRow(editor,editor.rows[0]);saveBrowserSync();
+    player.browserTime=1.3;alignQuickEditorRow(editor,editor.rows[1]);saveBrowserSync();`);
+  assert.deepEqual(await run(`return [browserTransformForChannel(false).offsetSeconds,browserTransformForChannel(true).offsetSeconds]`),[1,1.3]);results.channelSync=true;
+  await run(`closeBrowserQuickEditor();$('browserSyncChannel').value='primary';resetBrowserSync();$('browserSyncChannel').value='secondary';resetBrowserSync();
+    await browserCommand('seek',.8);renderBrowserCueAt(.8);openBrowserQuickEditor();
+    browserQuickEditor.rows[0].text.value='Korunan eski düzeltme';await saveBrowserQuickEditor();closeBrowserQuickEditor();`);
+  await run(`const stored=readSourceEdits(),scope=Object.keys(stored)[0];globalThis.remapOld={scope,record:stored[scope][0]};
+    $('browserSubtitleReview').open=true;$('browserRemapPanel').open=true;renderBrowserRemap();
+    $('browserRemapRecord').value=String(browserRemapChoices.findIndex(item=>item.scope===scope));
+    $('browserRemapChannel').value=subtitleFindDescriptors()[0].channel;renderBrowserRemapCues();$('browserRemapCue').value='1';stageBrowserRemap();`);
+  assert.equal(await run(`return browserQuickEditor.rows[0].text.value`),'Korunan eski düzeltme');
+  assert.equal(await run(`return browserQuickEditor.rows[0].start.value`),'1.800');
+  await run(`closeBrowserQuickEditor();openBrowserQuickEditor(false,{channel:subtitleFindDescriptors()[0].channel,index:1});`);
+  assert.equal(await run(`return !!browserQuickEditor.remap`),true);
+  await run(`await saveBrowserQuickEditor();closeBrowserQuickEditor();`);
+  assert.equal(await run(`return readSourceEdits()[remapOld.scope].length`),1);
+  assert.equal(await run(`return readSourceEdits()[remapOld.scope][0].base.start`),1.8);
+  await run(`await applyCueEditHistory('undo')`);
+  assert.equal(await run(`return readSourceEdits()[remapOld.scope][0].base.start`),0);results.remapUndo=true;
+  await run(`const stored=readSourceEdits();stored['retired-test-track']=stored[remapOld.scope];delete stored[remapOld.scope];writeSourceEdits(stored);
+    renderBrowserRemap();$('browserRemapRecord').value=String(browserRemapChoices.findIndex(item=>item.scope==='retired-test-track'));
+    $('browserRemapChannel').value=subtitleFindDescriptors()[0].channel;renderBrowserRemapCues();$('browserRemapCue').value='1';stageBrowserRemap();
+    await saveBrowserQuickEditor();closeBrowserQuickEditor();`);
+  assert.equal(await run(`return !!readSourceEdits()['retired-test-track']`),false);
+  assert.equal(await run(`return readSourceEdits()[remapOld.scope][0].base.start`),1.8);
+  await run(`await applyCueEditHistory('undo')`);
+  assert.equal(await run(`return readSourceEdits()['retired-test-track'][0].base.start`),0);results.changedTrackRemapUndo=true;
+  await run(`await browserCommand('seek',.8);renderBrowserCueAt(.8);openBrowserQuickEditor();
+    const original=buildOptsFromUI;buildOptsFromUI=()=>({...original(),translateApiKey:'controlled-test-value'});
+    requestQuickTranslations(browserQuickEditor,browserQuickEditor.rows[1]);`);
+  await until(()=>aiRequests.length===1,'Alternatif çeviri isteği');
+  assert(aiRequests[0].chat.question.includes('alternatives'));
+  const emit=async event=>{win.webContents.send('transcribe:event',{jobId:aiRequests.at(-1).jobId,...event});await wait(200);};
+  await emit({type:'chat',text:JSON.stringify({alternatives:['Rüzgârda salınan çiçekler.','Çiçekler rüzgârla sallanıyor.','Çiçekleri rüzgâr oynatıyor.']})});
+  await emit({type:'done',files:[]});await emit({type:'exit',code:0});
+  assert.equal(await run(`return document.querySelectorAll('.browser-ai-alternative button').length`),3);
+  await snapshot('features-ai');
+  const originalTranslation=await run(`return player.cues2[0].text`);
+  await run(`document.querySelector('.browser-ai-alternative button').click()`);
+  assert.equal(await run(`return player.cues2[0].text`),originalTranslation);
+  assert.equal(await run(`return browserQuickEditor.rows[1].text.value`),'Rüzgârda salınan çiçekler.');
+  await snapshot('features-wide');fs.writeFileSync(path.join(out,'features-video.png'),(await page.capturePage()).toPNG());
+  await run(`await saveBrowserQuickEditor();closeBrowserQuickEditor();await applyCueEditHistory('undo')`);
+  assert.equal(await run(`return player.cues2[0].text`),originalTranslation);results.aiPreviewSaveUndo=true;
+  await run(`document.querySelector('.browser-ai-alternative button').click()`);
+  assert.equal(await run(`return player.cues2[0].text`),originalTranslation);results.staleAiRejected=true;
+  win.setContentSize(1000,760);await wait(300);
+  await run(`setPlayerSidebarCollapsed(false);$('browserWatchTools').open=false;$('browserSubtitleReview').open=true;$('browserRemapPanel').open=true;renderBrowserRemap();`);
+  await snapshot('features-narrow');
+  fs.writeFileSync(path.join(out,'features.json'),JSON.stringify(results,null,2));app.quit();return;
  }
  if(process.env.VIDEO_E2E_AI==='1'){
   await run(`const buildOriginal=buildOptsFromUI;buildOptsFromUI=()=>({...buildOriginal(),translateApiKey:'controlled-test-value'});setSideTab('ai');`);

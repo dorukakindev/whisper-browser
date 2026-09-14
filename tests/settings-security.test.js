@@ -228,6 +228,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserMangaWorkers: '2', browserMangaMaxImages: '48', browserMangaFontScale: '100',
     browserOverlayScale: '100', browserOverlayOpacity: '90', browserOverlayBottom: '7',
     browserOverlayWidth: '86', browserOverlayMaxLines: '3',
+    browserOverlayGap: '24',
     browserVideoBrightness: '115', browserVideoContrast: '90',
   };
   const ui = Object.fromEntries(PERSIST_VALUE_CONTROLS.map((id) => [

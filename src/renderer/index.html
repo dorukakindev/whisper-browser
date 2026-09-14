@@ -1523,6 +1523,7 @@
                   <p class="hint">Ctrl+Alt+↑/↓: yazı boyutu · Ctrl+Alt+←/→: seçili senkron kanalını 0,1 sn kaydır. Senkron değişikliğini panelden kaydedin.</p>
                   <label><span>Altyazı opaklığı <output id="browserOverlayOpacityVal">%100</output></span>
                     <input type="range" id="browserOverlayOpacity" min="20" max="100" step="5" value="100" /></label>
+                  <label><span>İki dil arası (px)</span><input id="browserOverlayGap" type="range" min="0" max="48" value="6" /></label>
                   <label><span>Alt boşluk <output id="browserOverlayBottomVal">%7</output></span>
                     <input type="range" id="browserOverlayBottom" min="0" max="75" step="1" value="7" /></label>
                   <label><span>Azami genişlik <output id="browserOverlayWidthVal">%86</output></span>
@@ -1897,6 +1898,11 @@
         <div class="side-resizer" id="sideResizer" title="Sürükleyerek genişlet"></div>
 
         <div class="player-side" id="playerSide">
+          <details id="browserWatchTools" class="browser-subtitle-review browser-watch-tools">
+            <summary>İzlerken altyazı ayarı</summary>
+            <p class="hint">Görünüm ayarları bu sekmeye uygulanır.</p>
+            <div id="browserWatchStyle" class="browser-watch-style"></div>
+          </details>
           <section id="browserQuickEdit" class="browser-quick-edit hidden" aria-labelledby="browserQuickEditTitle">
             <div class="browser-quick-edit-heading"><strong id="browserQuickEditTitle">Altyazıyı düzenle</strong><button id="browserQuickEditClose" type="button" class="btn btn-ghost btn-sm">Kapat</button></div>
             <p class="hint">Zamanlar altyazı saniyesidir. Video senkron ayarı ayrıca uygulanır.</p>
@@ -1904,6 +1910,8 @@
             <div class="browser-quick-edit-actions">
               <label><input id="browserQuickPreview" type="checkbox"> Videoda önizle</label>
               <button id="browserQuickReplay" type="button" class="btn btn-secondary btn-sm">Seçili repliği oynat</button>
+              <button id="browserQuickSyncSave" type="button" class="btn btn-secondary btn-sm">Senkronu kaydet</button>
+              <button id="browserQuickSyncCancel" type="button" class="btn btn-ghost btn-sm">Senkron önizlemesinden vazgeç</button>
             </div>
             <p id="browserQuickEditStatus" role="status" aria-live="polite"></p>
             <div class="browser-quick-edit-actions">
@@ -1917,6 +1925,18 @@
             <summary>Altyazı kontrolü <span id="browserReviewCount"></span></summary>
             <button id="browserReviewRefresh" type="button" class="btn btn-secondary btn-sm">Yeniden kontrol et</button>
             <div id="browserReviewConflicts" aria-live="polite"></div>
+            <details id="browserRemapPanel">
+              <summary>Kayıtlı düzeltmeyi başka satırla eşleştir</summary>
+              <p class="hint">Eski düzeltmeyi ve yeni satırı seçin. Yeni satırın zamanı korunur; metin önce taslağa gelir.</p>
+              <div class="browser-remap-controls">
+                <label>Korunan düzeltme<select id="browserRemapRecord"></select></label>
+                <label>Hedef kanal<select id="browserRemapChannel"></select></label>
+                <label>Yeni kaynakta ara<input id="browserRemapSearch" type="search" placeholder="Replik metni" /></label>
+                <label>Yeni satır<select id="browserRemapCue"></select></label>
+                <button id="browserRemapApply" type="button" class="btn btn-secondary btn-sm">Eşleştirmeyi taslakta önizle</button>
+                <p id="browserRemapStatus" role="status"></p>
+              </div>
+            </details>
             <div id="browserReviewIssues"></div>
           </details>
           <!-- UST: diller, kaynak rozeti, arama, ayar cekmecesi -->

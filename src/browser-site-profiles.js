@@ -8,6 +8,7 @@ const PROFILE_FIELDS = Object.freeze({
   overlayScale: { type: 'number', min: 0.65, max: 1.8, precision: 2 },
   overlayOpacity: { type: 'number', min: 0, max: 1, precision: 2 },
   overlayBottom: { type: 'number', min: 0, max: 75, precision: 1 },
+  overlayGap: { type: 'number', min: 0, max: 48, precision: 0 },
   overlayWidth: { type: 'number', min: 40, max: 98, precision: 0 },
   overlayMaxLines: { type: 'number', min: 1, max: 6, precision: 0 },
   overlaySourceFirst: { type: 'boolean' },

@@ -26,7 +26,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
-  'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayWidth', 'browserOverlayMaxLines',
+  'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserVideoBrightness', 'browserVideoContrast',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
@@ -86,6 +86,7 @@ const UI_NUMERIC_RANGES = Object.freeze({
   browserMangaMaxImages: [1, 120], browserMangaFontScale: [70, 170],
   browserOverlayScale: [65, 180], browserOverlayOpacity: [20, 100], browserOverlayBottom: [0, 75],
   browserOverlayWidth: [40, 98], browserOverlayMaxLines: [1, 6],
+  browserOverlayGap: [0, 48],
   browserVideoBrightness: [40, 200], browserVideoContrast: [40, 200],
 });
 

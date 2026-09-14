@@ -11345,6 +11345,7 @@ ipcMain.handle('browser:setOverlay', async (event, request) => {
       width: Math.max(40, Math.min(98, Number(rawStyle.width) || 86)),
       maxLines: Math.max(1, Math.min(6, Number(rawStyle.maxLines) || 3)),
       sourceFirst: rawStyle.sourceFirst !== false,
+      gap: Math.max(0, Math.min(48, Number.isFinite(Number(rawStyle.gap)) ? Number(rawStyle.gap) : 6)),
       hideSiteCaptions: !!rawStyle.hideSiteCaptions,
     },
   };

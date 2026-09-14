@@ -6643,3 +6643,18 @@ body.modal-open { overflow: hidden; }
 .browser-video-subtitles p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .browser-subtitle-file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .browser-subtitle-file-row > span { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+/* İzlerken erişilen altyazı kontrolleri. */
+.browser-watch-style { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.browser-watch-style label { display:grid; gap:4px; min-width:0; }
+.browser-watch-style label span { display:flex; justify-content:space-between; gap:6px; }
+.browser-watch-style input { width:100%; min-width:0; accent-color:var(--accent); }
+.player-layer:not(.workspace-browser) #browserWatchTools { display:none; }
+.browser-ai-alternative { padding:10px 0; border-top:1px solid var(--border); }
+.browser-ai-alternative p { white-space:pre-wrap; overflow-wrap:anywhere; }
+.player-side.ai-mode #browserQuickEdit,
+.player-side.ai-mode #browserWatchTools,
+.player-side.ai-mode #browserSubtitleReview { display:none; }
+.browser-remap-controls { display:grid; gap:8px; margin:10px 0; }
+.browser-remap-controls label { display:grid; gap:5px; color:var(--text-muted); }
+.browser-remap-controls select,.browser-remap-controls input { width:100%; min-width:0; padding:8px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); font:inherit; }
+@media(max-width:800px) { .browser-watch-style { grid-template-columns:1fr; } }
