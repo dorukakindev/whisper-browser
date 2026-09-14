@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1110 — Format sonrası geliştirme ortamının kurulması](docs/devir/2026-09-14-1110.md)
+Güncel çalışma: [2026-09-14-1128 — İzlerken görünüm, senkron, elle eşleştirme ve AI taslakları](docs/devir/2026-09-14-1128.md)
+
+Önceki çalışma: [2026-09-14-1110 — Format sonrası geliştirme ortamının kurulması](docs/devir/2026-09-14-1110.md)
 
 Önceki çalışma: [2026-09-14-0713 — Format sonrası kalıcı çalışma kuralları ve devralma rehberi](docs/devir/2026-09-14-0713.md)
 
