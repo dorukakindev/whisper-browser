@@ -24,6 +24,7 @@ const {
 const { canonicalLocalPath, SubtitleFileAccess, MediaFileAccess, PdfFileAccess, MAX_SUBTITLE_BYTES } = require('./local-file-access');
 const { readAdjacentWordSegments } = require('./subtitle-word-sidecar');
 const { decodeSubtitleBuffer } = require('./browser-textutil');
+const { captureDashSegments } = require('./browser-dash-capture');
 const subtitleFileAccess = new SubtitleFileAccess();
 const pdfFileAccess = new PdfFileAccess();
 const {
@@ -489,6 +490,7 @@ const browserManifestRetryTimers = new Map();
 const browserHlsFetchedSegments = new Map();
 const browserHlsTimelines = new Map();
 const browserHlsInFlight = new Set();
+const browserDashFetchedSegments = new Map();
 const browserResourceSnapshotRequests = new Map();
 let browserResourceSnapshotSequence = 0;
 
@@ -3676,6 +3678,7 @@ function resetBrowserCaptureState(options = {}) {
   for (const timer of browserManifestRetryTimers.values()) clearTimeout(timer);
   browserManifestRetryTimers.clear();
   browserDashSubtitleMatchers = [];
+  browserDashFetchedSegments.clear();
   browserTrackBusy = false;
   browserMediaBusy = false;
   browserLastCaptureDropped.clear();
@@ -6764,6 +6767,13 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
     if (buffer.length > maxBytes) {
       throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı yanıtı güvenli boyut sınırını aşıyor.');
     }
+    if (byteRange) {
+      const range = /^bytes (\d+)-(\d+)\/(?:\d+|\*)$/i.exec(response.headers.get('content-range') || '');
+      if (response.status !== 206 || !range || Number(range[1]) !== byteRange.start
+        || Number(range[2]) !== byteRange.end || buffer.length !== byteRange.end - byteRange.start + 1) {
+        throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı sunucusu istenen bayt aralığını döndürmedi.');
+      }
+    }
     if (context && !isCurrentBrowserContext(context)) {
       throw browserSubtitleStateError('EBROWSER_STALE', 'Tarayıcı sekmesi değişti.');
     }
@@ -7186,23 +7196,31 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
         let manifestRetryNeeded = false;
         let manifestRefreshRequested = false;
         let dashMatcherCount = 0;
+        let storedCount = 0;
         if (!isHls) {
           const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
           dashMatcherCount = discoveredMatchers.length;
+          const dashInitializations = new Map();
           for (const matcher of discoveredMatchers) {
             requireActiveTransaction();
+            matcher.initializationFailed = false;
             // MPD timescale verse bile wvtt örnek süre/boyutları yalnız init
             // segmentindeki trex varsayılanlarında bulunabilir.
             if (matcher.initializationUrl && (!matcher.timescale || matcher.format === 'vtt')) {
               try {
-                const init = await fetchBrowserBufferWithRetry(
-                  matcher.initializationUrl, 4 * 1024 * 1024, 2, context);
+                const initKey = JSON.stringify([matcher.initializationUrl, matcher.initializationRange]);
+                if (!dashInitializations.has(initKey)) {
+                  dashInitializations.set(initKey, fetchBrowserBufferWithRetry(
+                    matcher.initializationUrl, 4 * 1024 * 1024, 2, context, matcher.initializationRange));
+                }
+                const init = await dashInitializations.get(initKey);
                 requireActiveTransaction();
                 if (!matcher.timescale) matcher.timescale = parseMp4Timescale(init);
                 matcher.sampleDefaults = parseMp4SampleDefaults(init);
                 if (!matcher.timescale) throw new Error('DASH timescale bulunamadı.');
               } catch (error) {
                 requireActiveTransaction();
+                matcher.initializationFailed = true;
                 if (!matcher.timescale) matcher.timescale = 0;
                 manifestRetryNeeded = true;
                 if (error?.retryAction === 'refresh-manifest') manifestRefreshRequested = true;
@@ -7211,7 +7229,9 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
               }
             }
             const existingIndex = browserDashSubtitleMatchers
-              .findIndex((item) => item.pattern === matcher.pattern);
+              .findIndex((item) => item.pattern === matcher.pattern && item.streamKey === matcher.streamKey
+                && item.periodStart === matcher.periodStart && item.segmentValue === matcher.segmentValue
+                && JSON.stringify(item.byteRange) === JSON.stringify(matcher.byteRange));
             if (existingIndex >= 0) {
               browserDashSubtitleMatchers[existingIndex] = {
                 ...browserDashSubtitleMatchers[existingIndex], ...matcher,
@@ -7220,11 +7240,27 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
               browserDashSubtitleMatchers.push(matcher);
             }
           }
-          browserDashSubtitleMatchers = browserDashSubtitleMatchers.slice(-64);
+          browserDashSubtitleMatchers = browserDashSubtitleMatchers.slice(-10000);
+          if (discoveredMatchers.some(matcher => matcher.segmentUrl)) {
+            const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
+            const complete = await captureDashSegments(discoveredMatchers, {
+              current: transactionCurrent, completed: browserDashFetchedSegments, coverage: tab?.captureCoverage,
+              onError: (error) => { if (error?.retryAction === 'refresh-manifest') manifestRefreshRequested = true; },
+              fetchBuffer: (url, range) => fetchBrowserBufferWithRetry(url, 2 * 1024 * 1024, 2, context, range),
+              store: (cues, matcher) => {
+                const stored = storeBrowserTrack(cues, { language: matcher.language, label: matcher.label,
+                  format: 'dash-subtitles', sourceUrl: candidate.url, streamKey: matcher.streamKey, context, finalize: true });
+                const captured = !!(stored || browserTrackPublications.has(matcher.streamKey));
+                if (captured) storedCount++;
+                return captured;
+              },
+            });
+            requireActiveTransaction();
+            if (!complete) manifestRetryNeeded = true;
+          }
         }
         const tracks = isHls ? parseHlsSubtitleTracks(body, candidate.url)
           : parseDashSubtitleTracks(body, candidate.url);
-        let storedCount = 0;
         for (const discovered of tracks.slice(0, 24)) {
           let captured = false;
           try {

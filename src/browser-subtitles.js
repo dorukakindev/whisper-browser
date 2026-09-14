@@ -646,23 +646,36 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
       if (!media && segmentList) {
         const listTag = segmentList[1] || '';
         const listInner = segmentList[2] || '';
-        const initializationValue = attr((listInner.match(/<Initialization\b[^>]*>/i) || [])[0], 'sourceURL');
-        const initializationUrl = initializationValue ? resolveUrl(initializationValue, repBase) : '';
+        const initializationTag = (listInner.match(/<Initialization\b[^>]*>/i) || [])[0] || '';
+        const initializationValue = attr(initializationTag, 'sourceURL');
+        const initializationRange = dashByteRange(attr(initializationTag, 'range'));
+        const initializationUrl = initializationValue || initializationRange
+          ? resolveUrl(initializationValue || repBase, repBase) : '';
         const timescale = Math.max(0, Number(attr(listTag, 'timescale')) || 0);
         const duration = Math.max(0, Number(attr(listTag, 'duration')) || 0);
         const startNumber = dashStartNumber(attr(listTag, 'startNumber'));
         const streamKey = `dash-segment-list|${repBase}|${representationId}|${language}`;
+        const segmentTags = [...listInner.matchAll(/<SegmentURL\b([^>]*)\/?\s*>/gi)];
+        if (segmentTags.length > 10000) throw new Error('DASH altyazısı 10.000 parça sınırını aşıyor; kısmi liste tamamlanmış sayılmadı.');
+        const timeline = dashListTimeline(listInner, segmentTags.length);
+        const presentationTimeOffset = Number(attr(listTag, 'presentationTimeOffset')) || 0;
         let segmentIndex = 0;
-        for (const segment of listInner.matchAll(/<SegmentURL\b([^>]*)\/?\s*>/gi)) {
-          const segmentUrl = resolveUrl(attr(segment[1], 'media'), repBase);
+        for (const segment of segmentTags) {
+          const byteRange = dashByteRange(attr(segment[1], 'mediaRange'));
+          const segmentUrl = resolveUrl(attr(segment[1], 'media') || (byteRange ? repBase : ''), repBase);
           if (!segmentUrl) continue;
+          const timing = timeline[segmentIndex];
           const escaped = segmentUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const querySuffix = segmentUrl.includes('#') ? ''
             : segmentUrl.includes('?') ? '(?:&[^#]*)?(?:#.*)?' : '(?:[?#].*)?';
           matchers.push({
             pattern: `^${escaped}${querySuffix}$`, variable: 'number',
+            segmentUrl,
+            ...(byteRange ? { byteRange } : {}), initializationRange,
+            ...(timing ? { segmentTime: timing.time } : {}),
             segmentValue: startNumber + segmentIndex++, startNumber, timescale, duration,
-            periodStart, initializationUrl, language, label, format, streamKey,
+            ...(timing ? { duration: timing.duration } : {}),
+            presentationTimeOffset, periodStart, initializationUrl, language, label, format, streamKey,
           });
         }
         continue;
@@ -706,11 +719,50 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
       });
     }
   }
-  return matchers.filter((item, index, all) => all.findIndex((other) => other.pattern === item.pattern) === index).slice(0, 64);
+  const unique = [...new Map(matchers.map(item => [JSON.stringify([item.streamKey, item.pattern, item.byteRange, item.periodStart, item.segmentValue]), item])).values()];
+  if (unique.length > 10000) throw new Error('DASH altyazısı 10.000 parça sınırını aşıyor; kısmi liste tamamlanmış sayılmadı.');
+  return unique;
+}
+
+function dashByteRange(raw) {
+  if (!raw) return null;
+  const match = /^(\d+)-(\d+)$/.exec(raw);
+  const start = Number(match?.[1]), end = Number(match?.[2]);
+  if (!match || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end < start) {
+    throw new Error('DASH altyazı bayt aralığı geçersiz.');
+  }
+  return { start, end };
+}
+
+function dashListTimeline(xml, count) {
+  const inner = (xml.match(/<SegmentTimeline\b[^>]*>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
+  if (!inner) return [];
+  const entries = [...inner.matchAll(/<S\b([^>]*)\/?\s*>/gi)];
+  const timeline = [];
+  let time = 0;
+  for (let index = 0; index < entries.length && timeline.length < count; index++) {
+    const tag = entries[index][1];
+    const explicitTime = attr(tag, 't');
+    if (explicitTime !== '') time = Number(explicitTime);
+    const duration = Number(attr(tag, 'd'));
+    const repeat = Number(attr(tag, 'r')) || 0;
+    if (!Number.isSafeInteger(time) || time < 0 || !Number.isSafeInteger(duration) || duration <= 0
+      || !Number.isSafeInteger(repeat) || repeat < -1) throw new Error('DASH altyazı zaman çizelgesi geçersiz.');
+    const nextTime = attr(entries[index + 1]?.[1] || '', 't');
+    const length = repeat >= 0 ? repeat + 1 : nextTime !== ''
+      ? Math.ceil((Number(nextTime) - time) / duration) : count - timeline.length;
+    for (let i = 0; i < length && timeline.length < count; i++) {
+      timeline.push({ time, duration }); time += duration;
+    }
+  }
+  if (timeline.length !== count) throw new Error('DASH altyazı zaman çizelgesi parça listesiyle eşleşmiyor.');
+  return timeline;
 }
 
 function matchDashSubtitleUrl(url, matchers = []) {
   for (const matcher of matchers || []) {
+    // Aynı URL'nin hangi bayt aralığı olduğunu URL'den çıkaramayız.
+    if (matcher.byteRange) continue;
     try {
       const match = String(url || '').match(new RegExp(matcher.pattern));
       if (match) {
@@ -734,6 +786,9 @@ function dashSegmentOffset(matcher) {
   // varsa init parçasından okunan gerçek değer eşleştiriciye daha önce yazılır.
   const timescale = Math.max(1, Number(matcher && matcher.timescale) || 1);
   const periodStart = Math.max(0, Number(matcher && matcher.periodStart) || 0);
+  if (Number.isFinite(matcher?.segmentTime)) {
+    return periodStart + (matcher.segmentTime - (Number(matcher.presentationTimeOffset) || 0)) / timescale;
+  }
   if (!Number.isFinite(value)) return periodStart;
   if (matcher.variable === 'time') return periodStart + Math.max(0, value / timescale);
   if (matcher.variable === 'number' || matcher.variable === 'subnumber') {
@@ -836,6 +891,7 @@ function parseDashSubtitleTracks(body, baseUrl = '') {
     const adaptationValue = firstBaseValue(adaptationPrefix);
     const adaptationBase = adaptationValue ? resolveUrl(adaptationValue, outerBase) : outerBase;
     for (const representation of dashRepresentations(inner)) {
+      if (/<Segment(?:List|Template)\b/i.test(adaptationPrefix + representation.inner)) continue;
       const repTag = representation.tag || '';
       const repValue = firstBaseValue(representation.inner || '');
       const directValue = repValue
