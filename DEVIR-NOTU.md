@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1331 — Film, dizi ve izlenecekler kataloğu](docs/devir/2026-09-14-1331.md)
+Güncel çalışma: [2026-09-14-1341 — Yeni özelliklerde veri koruma ve browser yaşam döngüsü düzeltmeleri](docs/devir/2026-09-14-1341.md)
+
+Önceki çalışma: [2026-09-14-1331 — Film, dizi ve izlenecekler kataloğu](docs/devir/2026-09-14-1331.md)
 
 Önceki çalışma: [2026-09-14-1305 — Film ve dizi kütüphanesi entegrasyon yönü](docs/devir/2026-09-14-1305.md)
 
