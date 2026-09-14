@@ -89,6 +89,7 @@ function translationCacheKey(sentence, context = {}) {
     // Oturum içinde öğrenilen terimler değiştikçe eski çeviri cache'i
     // yeni prompt'a yanlışlıkla yeniden kullanılmamalı.
     terminologyVersion: String(context.terminologyVersion || ''),
+    terminologyText: String(context.terminologyText || ''),
   });
   return crypto.createHash('sha256').update(material, 'utf8').digest('hex');
 }
@@ -306,7 +307,7 @@ class BrowserTranslationScheduler {
     if (this.cache && typeof this.cache.set === 'function') await this.cache.set(key, value);
   }
 
-  translateShared(sentence, cacheKey, jobController) {
+  translateShared(sentence, cacheKey, jobController, context = this.context) {
     // Cache okuması sürerken seek/cancel gelmiş olabilir. AbortSignal, olay
     // dinleyicisi sonradan eklenince geçmiş abort olayını yeniden yayımlamaz;
     // bu kapı olmazsa artık tüketicisi olmayan pahalı bir API isteği başlar.
@@ -321,9 +322,11 @@ class BrowserTranslationScheduler {
     if (!shared) {
       const controller = new AbortController();
       shared = { controller, consumers: new Set(), settled: false, promise: null };
-      shared.promise = Promise.resolve().then(() => this.translate(
-        sentence, { ...this.context, signal: controller.signal }
-      )).finally(() => {
+      const requestContext = { ...context };
+      shared.promise = Promise.resolve().then(() => {
+        if (controller.signal.aborted) throw new Error('Çeviri isteği iptal edildi.');
+        return this.translate(sentence, { ...requestContext, signal: controller.signal });
+      }).finally(() => {
         shared.settled = true;
         if (this.inFlightByCacheKey.get(cacheKey) === shared) this.inFlightByCacheKey.delete(cacheKey);
       });
@@ -359,22 +362,24 @@ class BrowserTranslationScheduler {
   start(sentence) {
     const generation = this.generation;
     const controller = new AbortController();
-    const cacheKey = translationCacheKey(sentence, this.context);
+    const context = { ...this.context };
+    const cacheKey = translationCacheKey(sentence, context);
     const job = { sentence, controller, cacheKey, generation };
     this.pending.set(sentence.id, job);
-    Promise.resolve(this.readCache(cacheKey)).then((cached) => {
+    // Cache availability must not turn a usable provider into a failed job.
+    Promise.resolve().then(() => this.readCache(cacheKey)).catch(() => undefined).then((cached) => {
       if (cached !== undefined && cached !== null && cached !== '') {
         try {
           const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
-          if (translationBlockingIssues(sentence.text, decoded.text, this.context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
+          if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
           return { ...decoded, cached: true };
         }
         catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }
       }
-      return this.translateShared(sentence, cacheKey, controller)
+      return this.translateShared(sentence, cacheKey, controller, context)
         .then((value) => {
           const decoded = decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts);
-          if (translationBlockingIssues(sentence.text, decoded.text, this.context.targetLanguage).length) {
+          if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) {
             throw new Error('Çeviri sayısal bilgiyi korumadı.');
           }
           return { ...decoded, cached: false };

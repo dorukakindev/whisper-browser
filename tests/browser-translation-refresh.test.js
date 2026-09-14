@@ -74,7 +74,7 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   const translationSource = main.slice(main.indexOf('function startBrowserTranslation('),
     main.indexOf('function persistCompletedBrowserTranslation('));
   assert.match(translationSource,
-    /if \(terminologyVersion !== context\.terminologyVersion\)[\s\S]{0,180}scheduler\.setContext\(\{ terminologyVersion \}\)/,
+    /if \(terminologyVersion !== context\.terminologyVersion\)[\s\S]{0,180}scheduler\.setContext\(\{ terminologyVersion, terminologyText: terminologyPrompt\(config\.terminologyMap\) \}\)/,
     'öğrenilen terminoloji yeni cümlelerin önbellek bağlamına aktarılmalı');
   const context = { normalizeCues, assembleCueSentences,
     browserTranslationConfig: () => { throw Error('güncellemede sağlayıcı yeniden kuruldu'); } };

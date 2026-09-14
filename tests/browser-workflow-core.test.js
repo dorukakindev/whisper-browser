@@ -469,6 +469,8 @@ async function test(name, fn) {
     const sentence = { id: 'shared', text: 'Same.' };
     const firstController = new AbortController();
     const first = scheduler.translateShared(sentence, 'same-key', firstController);
+    await Promise.resolve();
+    assert.equal(calls, 1, 'Bu senaryo sağlayıcıya ulaşmış isteğin iptalini sınar');
     firstController.abort('ilk tüketici ayrıldı');
     const secondController = new AbortController();
     const second = scheduler.translateShared(sentence, 'same-key', secondController);

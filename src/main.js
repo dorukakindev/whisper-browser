@@ -3924,7 +3924,8 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
     writeJobLog(event);
   }
   const glossary = acceptedGlossary.join(' | ');
-  const accumulatedTerminology = config.terminologyEnabled ? terminologyPrompt(config.terminologyMap) : "";
+  const accumulatedTerminology = config.terminologyEnabled
+    ? (config.terminologyText ?? terminologyPrompt(config.terminologyMap)) : "";
   const system = [
     pageMode
       ? `Profesyonel bir web sayfası çevirmenisin. Hedef dil: ${config.targetLanguage}.`
@@ -4523,6 +4524,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     style: `${session.config.register}:${session.config.profanity}:web-page`,
     glossaryVersion: createHash('sha1').update(JSON.stringify(session.config.glossary)).digest('hex').slice(0, 12),
     terminologyVersion: createHash('sha1').update(terminologyPrompt(session.terminologyMap), 'utf8').digest('hex').slice(0, 12),
+    terminologyText: terminologyPrompt(session.terminologyMap),
   };
   const sentences = units.map((unit, unitIndex) => {
     const pieces = unit.targets.map((block, pieceIndex) => ({
@@ -4553,7 +4555,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     lookAhead: Math.max(1, sentences.length + 1),
     context,
     paused: !browserNetworkOnline || session.userPaused === true,
-    translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, session.config, call.signal),
+    translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, { ...session.config, terminologyText: call.terminologyText }, call.signal),
     onResult: (result, sentence) => {
       if (!pageTranslationJobIsCurrent(tab, job)) return;
       if (result.error) {
@@ -4582,7 +4584,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
           queueBrowserPageApply(tab, job, { id: blockId, translation });
         }
         context.terminologyVersion = createHash('sha1').update(terminologyPrompt(session.terminologyMap), 'utf8').digest('hex').slice(0, 12);
-        scheduler.setContext({ terminologyVersion: context.terminologyVersion });
+        scheduler.setContext({ terminologyVersion: context.terminologyVersion, terminologyText: terminologyPrompt(session.terminologyMap) });
         tab.pageTranslated = browserPageTranslatedCount(session);
         tab.pageTranslateVisible = session.view !== 'original' && tab.pageTranslated > 0;
         tab.pageTranslateView = session.view;
@@ -6134,6 +6136,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     style: `${config.register}:${config.profanity}`,
     glossaryVersion: createHash('sha1').update(JSON.stringify({ glossary: config.glossary, seriesContext: config.seriesContext })).digest('hex').slice(0, 12),
     terminologyVersion: '',
+    terminologyText: terminologyPrompt(config.terminologyMap),
   };
   const scheduler = new BrowserTranslationScheduler({
     cache: browserTranslationCache(),
@@ -6143,7 +6146,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     lookAhead: 90,
     context,
     paused: !browserNetworkOnline,
-    translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, config, call.signal),
+    translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, { ...config, terminologyText: call.terminologyText }, call.signal),
     onResult: (result, sentence) => {
       if (!isCurrent()) return;
       if (!result.error) {
@@ -6155,7 +6158,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
             const terminologyVersion = createHash('sha1').update(terminologyPrompt(config.terminologyMap), 'utf8').digest('hex').slice(0, 12);
             if (terminologyVersion !== context.terminologyVersion) {
               context.terminologyVersion = terminologyVersion;
-              scheduler.setContext({ terminologyVersion });
+              scheduler.setContext({ terminologyVersion, terminologyText: terminologyPrompt(config.terminologyMap) });
             }
           }
         }

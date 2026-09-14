@@ -17,7 +17,7 @@ async function main() {
     AbortController, setTimeout, clearTimeout, Buffer,
     safeTranslationEndpoint: (url) => url,
     browserGlossaryTruncationNotified: false,
-    terminologyPrompt: () => '',
+    terminologyPrompt: () => 'Captain=Canlı terim',
     sendEvent() {}, writeJobLog() {},
     readJsonResponseLimited: async (response) => response.json(),
     fetch: async (url, options) => {
@@ -72,7 +72,14 @@ async function main() {
     const digest = (value) => vm.runInNewContext(cacheLine[1], { createHash, config: value });
     assert.notEqual(digest(config), digest({ ...base, seriesContext: changed, glossary: [...changed.terms] }));
     assert.notEqual(digest(config), digest({ ...base, seriesContext: null }));
-    assert.equal(requests.length, 3);
+    await translate(sentence, { ...base, terminologyEnabled: true, terminologyText: 'Captain=Kaptan' }, undefined, base.endpoint);
+    assert.match(requests.at(-1).body.messages[0].content, /Captain=Kaptan/);
+    assert.doesNotMatch(requests.at(-1).body.messages[0].content, /Canlı terim/);
+    await translate(sentence, { ...base, terminologyEnabled: true, terminologyText: '' }, undefined, base.endpoint);
+    assert.doesNotMatch(requests.at(-1).body.messages[0].content, /Canlı terim/, 'Empty job snapshot must not read later learned terms');
+    await translate(sentence, { ...base, terminologyEnabled: true }, undefined, base.endpoint);
+    assert.match(requests.at(-1).body.messages[0].content, /Canlı terim/, 'Non-scheduler callers retain live terminology fallback');
+    assert.equal(requests.length, 6);
     assert(requests.every((request) => request.url === base.endpoint));
     console.log('browser-series-translation: controlled provider prompt and cache key passed');
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
