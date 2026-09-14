@@ -1,0 +1,1229 @@
+{
+  "scope": "Gerçek kısa MP4 döngüsü; kontrollü VTT; Electron --disable-gpu; gerçek sağlayıcı kullanılmadı. Bazı örnekler başka test pencereleri açıkken alındı.",
+  "before": {
+    "seconds": 600.273,
+    "samples": 119,
+    "firstMiB": 373.68,
+    "lastMiB": 267.43,
+    "minMiB": 267.43,
+    "maxMiB": 373.68
+  },
+  "after": {
+    "seconds": 601.736,
+    "samples": 118,
+    "firstMiB": 381.68,
+    "lastMiB": 344.04,
+    "minMiB": 312.29,
+    "maxMiB": 381.68
+  },
+  "afterSamples": [
+    {
+      "seconds": 5,
+      "rendererWorkingSetKiB": 390836,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 10,
+      "rendererWorkingSetKiB": 376760,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 15,
+      "rendererWorkingSetKiB": 362572,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 20,
+      "rendererWorkingSetKiB": 354708,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 25,
+      "rendererWorkingSetKiB": 355220,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 30,
+      "rendererWorkingSetKiB": 355756,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 35,
+      "rendererWorkingSetKiB": 355960,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 40,
+      "rendererWorkingSetKiB": 357184,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 46,
+      "rendererWorkingSetKiB": 350716,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 51,
+      "rendererWorkingSetKiB": 348648,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 56,
+      "rendererWorkingSetKiB": 347972,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 61,
+      "rendererWorkingSetKiB": 351560,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 66,
+      "rendererWorkingSetKiB": 351872,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 71,
+      "rendererWorkingSetKiB": 353736,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 76,
+      "rendererWorkingSetKiB": 352100,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 81,
+      "rendererWorkingSetKiB": 350972,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 86,
+      "rendererWorkingSetKiB": 353252,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 92,
+      "rendererWorkingSetKiB": 352204,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 98,
+      "rendererWorkingSetKiB": 327880,
+      "overlayNodes": 3,
+      "pendingFrames": 0,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 103,
+      "rendererWorkingSetKiB": 321952,
+      "overlayNodes": 3,
+      "pendingFrames": 0,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 109,
+      "rendererWorkingSetKiB": 319780,
+      "overlayNodes": 3,
+      "pendingFrames": 0,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 114,
+      "rendererWorkingSetKiB": 374616,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 119,
+      "rendererWorkingSetKiB": 353612,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 124,
+      "rendererWorkingSetKiB": 350912,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 129,
+      "rendererWorkingSetKiB": 352336,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 135,
+      "rendererWorkingSetKiB": 352184,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 140,
+      "rendererWorkingSetKiB": 349476,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 145,
+      "rendererWorkingSetKiB": 349180,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 150,
+      "rendererWorkingSetKiB": 347452,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 155,
+      "rendererWorkingSetKiB": 351240,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 160,
+      "rendererWorkingSetKiB": 351528,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 165,
+      "rendererWorkingSetKiB": 351084,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 171,
+      "rendererWorkingSetKiB": 348412,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 176,
+      "rendererWorkingSetKiB": 351420,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 181,
+      "rendererWorkingSetKiB": 351072,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 186,
+      "rendererWorkingSetKiB": 350800,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 191,
+      "rendererWorkingSetKiB": 354880,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 196,
+      "rendererWorkingSetKiB": 351452,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 201,
+      "rendererWorkingSetKiB": 355132,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 206,
+      "rendererWorkingSetKiB": 355028,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 211,
+      "rendererWorkingSetKiB": 352536,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 216,
+      "rendererWorkingSetKiB": 352556,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 221,
+      "rendererWorkingSetKiB": 349764,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 226,
+      "rendererWorkingSetKiB": 352492,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 231,
+      "rendererWorkingSetKiB": 352468,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 236,
+      "rendererWorkingSetKiB": 353416,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 241,
+      "rendererWorkingSetKiB": 353392,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 246,
+      "rendererWorkingSetKiB": 352440,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 251,
+      "rendererWorkingSetKiB": 353716,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 256,
+      "rendererWorkingSetKiB": 353276,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 261,
+      "rendererWorkingSetKiB": 354156,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 266,
+      "rendererWorkingSetKiB": 355108,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 271,
+      "rendererWorkingSetKiB": 352620,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 276,
+      "rendererWorkingSetKiB": 353496,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 281,
+      "rendererWorkingSetKiB": 353180,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 286,
+      "rendererWorkingSetKiB": 353716,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 292,
+      "rendererWorkingSetKiB": 353076,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 297,
+      "rendererWorkingSetKiB": 352032,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 302,
+      "rendererWorkingSetKiB": 355208,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 307,
+      "rendererWorkingSetKiB": 356368,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 313,
+      "rendererWorkingSetKiB": 354284,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 318,
+      "rendererWorkingSetKiB": 349544,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 323,
+      "rendererWorkingSetKiB": 352152,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 328,
+      "rendererWorkingSetKiB": 349412,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 333,
+      "rendererWorkingSetKiB": 348376,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 338,
+      "rendererWorkingSetKiB": 350188,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 343,
+      "rendererWorkingSetKiB": 353748,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 348,
+      "rendererWorkingSetKiB": 351748,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 353,
+      "rendererWorkingSetKiB": 350096,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 358,
+      "rendererWorkingSetKiB": 351176,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 363,
+      "rendererWorkingSetKiB": 351520,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 368,
+      "rendererWorkingSetKiB": 350460,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 373,
+      "rendererWorkingSetKiB": 351760,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 379,
+      "rendererWorkingSetKiB": 352396,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 384,
+      "rendererWorkingSetKiB": 350852,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 389,
+      "rendererWorkingSetKiB": 352096,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 394,
+      "rendererWorkingSetKiB": 352460,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 399,
+      "rendererWorkingSetKiB": 356400,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 404,
+      "rendererWorkingSetKiB": 350412,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 409,
+      "rendererWorkingSetKiB": 349800,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 414,
+      "rendererWorkingSetKiB": 351312,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 419,
+      "rendererWorkingSetKiB": 353672,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 424,
+      "rendererWorkingSetKiB": 353420,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 429,
+      "rendererWorkingSetKiB": 353392,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 434,
+      "rendererWorkingSetKiB": 352292,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 439,
+      "rendererWorkingSetKiB": 353032,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 445,
+      "rendererWorkingSetKiB": 352340,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 450,
+      "rendererWorkingSetKiB": 354280,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 455,
+      "rendererWorkingSetKiB": 353416,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 460,
+      "rendererWorkingSetKiB": 353816,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 465,
+      "rendererWorkingSetKiB": 353440,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 470,
+      "rendererWorkingSetKiB": 351436,
+      "overlayNodes": 3,
+      "pendingFrames": 0,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 475,
+      "rendererWorkingSetKiB": 329296,
+      "overlayNodes": 3,
+      "pendingFrames": 0,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 480,
+      "rendererWorkingSetKiB": 321660,
+      "overlayNodes": 3,
+      "pendingFrames": 0,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 485,
+      "rendererWorkingSetKiB": 373416,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 490,
+      "rendererWorkingSetKiB": 358900,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 495,
+      "rendererWorkingSetKiB": 350248,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 500,
+      "rendererWorkingSetKiB": 353596,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 505,
+      "rendererWorkingSetKiB": 352276,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 510,
+      "rendererWorkingSetKiB": 352056,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 515,
+      "rendererWorkingSetKiB": 353072,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 520,
+      "rendererWorkingSetKiB": 352504,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 525,
+      "rendererWorkingSetKiB": 349804,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 530,
+      "rendererWorkingSetKiB": 352864,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 535,
+      "rendererWorkingSetKiB": 353784,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 540,
+      "rendererWorkingSetKiB": 353880,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 545,
+      "rendererWorkingSetKiB": 355540,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 550,
+      "rendererWorkingSetKiB": 355720,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 555,
+      "rendererWorkingSetKiB": 354700,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 561,
+      "rendererWorkingSetKiB": 355476,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 566,
+      "rendererWorkingSetKiB": 353644,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 571,
+      "rendererWorkingSetKiB": 354096,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 576,
+      "rendererWorkingSetKiB": 351544,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 581,
+      "rendererWorkingSetKiB": 350624,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 587,
+      "rendererWorkingSetKiB": 351648,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 592,
+      "rendererWorkingSetKiB": 351880,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 597,
+      "rendererWorkingSetKiB": 352956,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    },
+    {
+      "seconds": 602,
+      "rendererWorkingSetKiB": 352292,
+      "overlayNodes": 3,
+      "pendingFrames": 1,
+      "mediaListeners": 7,
+      "mutationObservers": 1,
+      "nativeStopListeners": 1,
+      "shellStopListeners": 0
+    }
+  ],
+  "nativeWarningsBefore": 1,
+  "nativeWarningsAfter": 0,
+  "controls": [
+    {
+      "toolbar": "native click, forged click rejection, scale, hide/show, mode, offset and save passed"
+    },
+    {
+      "manager": "inspect, reset, wrong-media rejection, forget persisted passed"
+    },
+    {
+      "restart": {
+        "url": "https://video-e2e.test/watch",
+        "mode": "both",
+        "offset": 0.2
+      }
+    }
+  ],
+  "recovery": {
+    "twoMissing": true,
+    "secondFirst": true,
+    "mode": "both",
+    "offset": 0.5,
+    "backupRecovery": true
+  },
+  "reopen": {
+    "restoredPair": true,
+    "offset": 0.5
+  }
+}
