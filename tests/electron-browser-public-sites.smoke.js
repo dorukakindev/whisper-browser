@@ -4,6 +4,15 @@ const {app,BrowserWindow,webContents}=require('electron');
 const fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','public-sites-'+Date.now());
 fs.mkdirSync(out,{recursive:true});
+const diagnostics=[];
+process.on('warning',warning=>{diagnostics.push({kind:'warning',message:warning.message,stack:warning.stack});});
+process.on('unhandledRejection',error=>{diagnostics.push({kind:'rejection',message:error?.message,origin:error?.testOrigin});});
+app.on('web-contents-created',(_event,wc)=>{
+ for(const name of ['executeJavaScript','executeJavaScriptInIsolatedWorld']){
+  const original=wc[name].bind(wc);
+  wc[name]=(...args)=>{const origin=new Error('Script çağrısı').stack;return original(...args).catch(error=>{error.testOrigin=origin;throw error;});};
+ }
+});
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');
 app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
 require('../src/main');
@@ -31,9 +40,11 @@ app.whenReady().then(async()=>{
     seek=!!await until(()=>page.executeJavaScript(`Math.abs(document.querySelector('video').currentTime-1)<.3`),3000);
    }
    const trackCount=await run(`return player.browserTracks.length`);
-   results.push({url,navigation:{ok:!!navigation?.ok,error:navigation?.error||null},media,playback,seek,trackCount});
+   const pageState=page?await page.executeJavaScript(`({loading:document.readyState,videoCount:document.querySelectorAll('video').length,error:(document.querySelector('.ytp-error-content-wrap')?.innerText||'').slice(0,160),consent:!!document.querySelector('form[action*="consent"]'),signInRequired:/bot olmadığınızı doğrulamak için oturum açın|sign in to confirm you.re not a bot/i.test(document.body?.innerText||'')})`).catch(()=>null):null;
+   results.push({url,navigation:{ok:!!navigation?.ok,error:navigation?.error||null},media,playback,seek,trackCount,pageState});
   }catch(error){clearTimeout(timer);results.push({url,error:String(error.message).replaceAll(root,'[repo]')});}
-  fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(results,null,2));
+ fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(results,null,2));
+ fs.writeFileSync(path.join(out,'diagnostics.json'),JSON.stringify(diagnostics,null,2));
  }
  console.log(JSON.stringify({report:path.relative(root,path.join(out,'report.json')),results},null,2));app.quit();
 }).catch(error=>{console.error(error.message);app.exit(1);});

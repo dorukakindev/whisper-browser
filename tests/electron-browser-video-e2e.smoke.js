@@ -9,6 +9,18 @@ const root=path.resolve(__dirname,'..');
 const out=path.resolve(process.env.VIDEO_E2E_OUT || path.join(root,'.uiprev','video-e2e'));fs.mkdirSync(out,{recursive:true});
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.resolve(process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid));
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,{recursive:true});
+let soakProviderCalls=0;
+if(process.env.VIDEO_E2E_COMBINED_SOAK==='1'){
+ fs.writeFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'settings.json'),JSON.stringify({settingsVersion:3,translate:{apiKey:'controlled-test-value',endpointPreset:'custom',customBaseUrl:'https://soak-provider.test/v1',model:'controlled'},ui:{translateWorkers:1}}));
+ const realFetch=globalThis.fetch;
+ globalThis.fetch=async(url,options)=>{
+  if(!String(url).startsWith('https://soak-provider.test/'))return realFetch(url,options);
+  soakProviderCalls++;
+  const body=JSON.parse(options.body),payload=JSON.parse(body.messages.at(-1).content);
+  const content=payload.parts?JSON.stringify({text:payload.parts.map(()=> 'Kontrollü çeviri.').join(' '),parts:payload.parts.map(()=> 'Kontrollü çeviri.')}):'Kontrollü çeviri.';
+  return new Response(JSON.stringify({choices:[{message:{content}}]}),{headers:{'content-type':'application/json'}});
+ };
+}
 process.on('warning', warning => fs.appendFileSync(process.env.VIDEO_E2E_WARNINGS || path.join(out,'native-warnings.log'), String(warning.stack)+'\n'));
 app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
 const handle=ipcMain.handle.bind(ipcMain);
@@ -56,6 +68,15 @@ app.whenReady().then(async()=>{
  win.setContentSize(1440,960);
  await run(`globalThis.modeTrace=[];const setModeOriginal=setSubtitleMode;setSubtitleMode=function(mode,announce){modeTrace.push({mode,restore:browserTabState()?.restoreSubtitleMode,selection:browserTabState()?.subtitleSelectionRestored,cues:player.cues.length,cues2:player.cues2.length});return setModeOriginal(mode,announce)};openPlayer();setWorkspaceMode('browser',false);setBrowserCaptureEnabled(true,false)`);
  await until(()=>run(`return player.browserActiveTabId`),'Tarayıcı sekmesi').catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await run(`return {mode:player.workspaceMode,signal:document.getElementById('browserSignalText')?.textContent,pending:state.pendingPlayerLoad?.label,tabs:await window.api.showBrowser('',browserSlotBounds())}`),null,2));throw error});
+ if(process.env.VIDEO_E2E_DURABLE==='read'){
+  await until(()=>run(`return player.cues.length===3&&player.cues2.length===3&&browserTabState()?.subtitleSelectionRestored`),'Kalıcı izleri geri açma',30000);
+  const restored=await run(`return {source:player.cues[0].text,translation:player.cues2[0].text,mode:currentSubtitleMode(),sourceOffset:browserTransformForChannel(false).offsetSeconds,translationOffset:browserTransformForChannel(true).offsetSeconds,time:player.browserTime}`);
+  assert.equal(restored.source,'Kalıcı kaynak düzeltmesi');assert.equal(restored.translation,'Kalıcı ikinci dil düzeltmesi');
+  assert.equal(restored.mode,'both');assert.equal(restored.sourceOffset,.2);assert.equal(restored.translationOffset,.4);
+  await until(()=>run(`return Math.abs(player.browserTime-2.5)<.4`),'Video konumunun geri gelmesi');
+  restored.time=await run(`return player.browserTime`);
+  fs.writeFileSync(path.join(out,'durable-read.json'),JSON.stringify(restored,null,2));await snapshot('durable-restored');app.quit();return;
+ }
  if(process.env.VIDEO_E2E_RECOVERY_REOPEN==='1'){
   await until(()=>run(`return browserTabState().subtitleSelectionRestored&&player.cues.length===2&&player.cues2.length===3`),'Kurtarılan dosyaları yeniden açma');
   assert.equal(await run(`return browserTransformForChannel(false).offsetSeconds`),.5);
@@ -169,6 +190,14 @@ app.whenReady().then(async()=>{
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
+ if(process.env.VIDEO_E2E_DURABLE==='write'){
+  const original=fs.readFileSync(en.path,'utf8');
+  await run(`openCueEditor();browserQuickEditor.rows[0].text.value='Kalıcı kaynak düzeltmesi';browserQuickEditor.rows[1].text.value='Kalıcı ikinci dil düzeltmesi';await saveBrowserQuickEditor();closeBrowserQuickEditor();
+    document.getElementById('browserSyncChannel').value='primary';nudgeBrowserSync(.2);saveBrowserSync();
+    document.getElementById('browserSyncChannel').value='secondary';nudgeBrowserSync(.4);saveBrowserSync();await browserCommand('seek',2.5);await browserCommand('pause');saveActiveBrowserTabWorkspace();`);
+  await wait(1800);fs.writeFileSync(en.path,original);
+  fs.writeFileSync(path.join(out,'durable-write.json'),JSON.stringify({saved:true,sourceFileRefreshed:true}));app.quit();return;
+ }
  if(process.env.VIDEO_E2E_AI==='1'){
   await run(`const buildOriginal=buildOptsFromUI;buildOptsFromUI=()=>({...buildOriginal(),translateApiKey:'controlled-test-value'});setSideTab('ai');`);
   aiPageDelay=true;
@@ -210,6 +239,28 @@ app.whenReady().then(async()=>{
   await until(()=>run(`return player.job?.bubble.textContent.includes('doğrulanamadı')`),'İptal hatası görünürlüğü');
   assert.equal(await run(`return player.job.awaitingExit`),true);
   await run(`await cancelAiChat()`);await emit({type:'exit',code:1});
+  if(process.env.VIDEO_E2E_COMBINED_SOAK==='1'){
+   const seconds=Math.max(60,Number(process.env.VIDEO_E2E_SOAK_SECONDS)||600),samples=[],began=Date.now();let cycle=0;
+   await page.executeJavaScript(`document.querySelector('video').loop=true;document.querySelector('video').play()`,true);
+   while(Date.now()-began<seconds*1000){
+    await wait(10000);cycle++;
+    await page.executeJavaScript(`document.querySelector('video').currentTime=${[.6,2.2,4][cycle%3]}`);
+    if(cycle%3===0){await run(`await aiChatSend('Bu replikte ne konuşuluyor?')`);await emit({type:'chat',text:'Yalnız verilen altyazı değerlendirilebilir [T1].'});await emit({type:'done',files:[]});await emit({type:'exit',code:0});}
+    if(cycle%5===0){
+     await run(`await window.api.setBrowserNetworkOnline(false)`);
+     const calls=soakProviderCalls;
+     const result=await run(`return await window.api.startBrowserTranslation(player.browserActiveTabId,{trackId:${JSON.stringify(en.id)},targetLanguage:'tr',cues:[{id:'soak-${cycle}',start:0,end:5,text:'Test sentence ${cycle}.'}],completeTrack:true})`);
+     assert.equal(result.ok,true);await wait(200);assert.equal(soakProviderCalls,calls,'Çevrimdışı kuyruk sağlayıcıya gitmemeli');
+     await run(`await window.api.setBrowserNetworkOnline(true)`);await until(()=>soakProviderCalls>calls,'Bağlantı sonrası çeviri');
+    }
+    if(cycle%6===0){const active=await run(`return player.browserActiveTabId`);await run(`await createBrowserTab();await activateBrowserTab(${JSON.stringify(active)})`);await page.executeJavaScript(`document.querySelector('video').play()`,true);}
+    const diag=await page.executeJavaScriptInIsolatedWorld(999,[{code:'window.__whisperBrowserOverlayController.diagnostics()'}]);
+    assert.equal(diag.overlayNodes,3);assert.equal(diag.mutationObservers,1);assert(page.listenerCount('did-stop-loading')<=2);
+    samples.push({seconds:Math.round((Date.now()-began)/1000),overlayNodes:diag.overlayNodes,observers:diag.mutationObservers,listeners:page.listenerCount('did-stop-loading'),providerCalls:soakProviderCalls,aiRequests:aiRequests.length,workingSetKiB:app.getAppMetrics().filter(m=>m.type==='Tab').reduce((sum,m)=>sum+(m.memory?.workingSetSize||0),0)});
+    fs.writeFileSync(path.join(out,'combined-soak.json'),JSON.stringify({elapsedSeconds:(Date.now()-began)/1000,cycles:cycle,samples},null,2));
+   }
+   await page.executeJavaScript(`document.querySelector('video').pause()`);
+  }
   aiPageDelay=true;aiPageResolve=null;
   const requestCount=aiRequests.length;
   await run(`void aiChatSend('Hazırlık iptali')`);await until(()=>aiPageResolve,'İptal edilecek bağlam');

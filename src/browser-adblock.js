@@ -197,9 +197,19 @@ function createBrowserAdblock(options = {}) {
     }
     if (typeof engine.onInjectCosmeticFilters === 'function') {
       const original = engine.onInjectCosmeticFilters.bind(engine);
-      engine.onInjectCosmeticFilters = (event, url, message) => paused({
-        url, webContentsId: event?.sender?.id, resourceType: 'cosmetic',
-      }) ? undefined : original(event, url, message);
+      const schedule=require('./browser-cosmetic-executor').createCosmeticExecutor(()=>{
+        options.logger?.warn?.('Reklam engelleyici görsel filtresi bu sayfada uygulanamadı.');
+      });
+      engine.onInjectCosmeticFilters = (event, url, message) => {
+        const allowed=()=>!paused({url,webContentsId:event?.sender?.id,resourceType:'cosmetic'});
+        if(!allowed()||!event?.sender||event.sender.isDestroyed())return;
+        const sender=new Proxy(event.sender,{get(target,key){
+          if(key==='executeJavaScript'||key==='insertCSS')return (...args)=>schedule(target,key,args,allowed);
+          const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
+        }});
+        return Promise.resolve(original({sender,frameId:event.frameId,processId:event.processId},url,message))
+          .catch(()=>options.logger?.warn?.('Reklam engelleyici görsel filtre isteği tamamlanamadı.'));
+      };
     }
     siteBypassInstalled = true;
   };
