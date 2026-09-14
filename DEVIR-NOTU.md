@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-0250 — Tarayıcı tasarımı ve altyazı kurtarma](docs/devir/2026-09-14-0250.md)
+Güncel çalışma: [2026-09-14-0328 — Tarayıcı durumu, video tercihleri ve tam ekran](docs/devir/2026-09-14-0328.md)
+
+Önceki çalışma: [2026-09-14-0250 — Tarayıcı tasarımı ve altyazı kurtarma](docs/devir/2026-09-14-0250.md)
 
 Her yeni çalışma `docs/devir/YYYY-MM-DD-HHMM.md` altında ayrı tutulur. Eski notlar silinmez.
 

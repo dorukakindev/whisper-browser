@@ -1,0 +1,544 @@
+{
+  "codeStart": "54fa730629c74a6a02dcb0b889a7f84bbc3094ec",
+  "codeEnd": "dd6f936450ab1657518e5c0e00159f95e2da8acf",
+  "controlledProvider": {
+    "seekSeconds": 3600,
+    "lateAbortedResponseIgnored": true,
+    "offlineCalls": 0,
+    "failuresBeforeManualRetry": 2,
+    "callsAfterRecovery": 3
+  },
+  "perVideoRestore": "passed",
+  "nativeSubtitleShortcut": "passed",
+  "fullscreenContainer": {
+    "top": 588.4271240234375,
+    "bottom": 684.9687957763672,
+    "left": 24,
+    "right": 1600.3646240234375,
+    "videoTop": 73.45833587646484,
+    "videoBottom": 745.4583358764648,
+    "videoLeft": 24,
+    "videoRight": 1600.3646240234375,
+    "nodes": 1
+  },
+  "nativeVideoFullscreen": {
+    "width": 1707.3333740234375,
+    "height": 96.54167175292969,
+    "top": 777.0521240234375,
+    "fullscreen": "VIDEO"
+  },
+  "longLayout": {
+    "top": 79.45833587646484,
+    "bottom": 233.45833587646484,
+    "videoTop": 73.45833587646484,
+    "videoBottom": 253.45833587646484,
+    "rows": [
+      {
+        "width": 313.59375,
+        "videoWidth": 320
+      },
+      {
+        "width": 313.59375,
+        "videoWidth": 320
+      }
+    ]
+  },
+  "soak": {
+    "elapsedSeconds": 300.947,
+    "sampleCount": 60,
+    "workingSetMiB": {
+      "first": 348.98828125,
+      "last": 272.08984375,
+      "min": 271.36328125,
+      "max": 348.98828125
+    },
+    "samples": [
+      {
+        "seconds": 5,
+        "rendererWorkingSetKiB": 357364,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 10,
+        "rendererWorkingSetKiB": 342768,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 15,
+        "rendererWorkingSetKiB": 335412,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 20,
+        "rendererWorkingSetKiB": 335724,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 25,
+        "rendererWorkingSetKiB": 335976,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 30,
+        "rendererWorkingSetKiB": 336352,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 35,
+        "rendererWorkingSetKiB": 338240,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 40,
+        "rendererWorkingSetKiB": 336084,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 45,
+        "rendererWorkingSetKiB": 333816,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 50,
+        "rendererWorkingSetKiB": 333480,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 55,
+        "rendererWorkingSetKiB": 333240,
+        "overlayNodes": 3,
+        "pendingFrames": 1,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 60,
+        "rendererWorkingSetKiB": 307604,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 65,
+        "rendererWorkingSetKiB": 303760,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 70,
+        "rendererWorkingSetKiB": 300608,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 75,
+        "rendererWorkingSetKiB": 286084,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 80,
+        "rendererWorkingSetKiB": 286276,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 85,
+        "rendererWorkingSetKiB": 286476,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 90,
+        "rendererWorkingSetKiB": 286644,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 95,
+        "rendererWorkingSetKiB": 286852,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 100,
+        "rendererWorkingSetKiB": 287060,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 105,
+        "rendererWorkingSetKiB": 286600,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 110,
+        "rendererWorkingSetKiB": 285992,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 115,
+        "rendererWorkingSetKiB": 286196,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 120,
+        "rendererWorkingSetKiB": 286400,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 125,
+        "rendererWorkingSetKiB": 286612,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 130,
+        "rendererWorkingSetKiB": 286820,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 136,
+        "rendererWorkingSetKiB": 287020,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 141,
+        "rendererWorkingSetKiB": 287228,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 146,
+        "rendererWorkingSetKiB": 287412,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 151,
+        "rendererWorkingSetKiB": 287688,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 156,
+        "rendererWorkingSetKiB": 287860,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 161,
+        "rendererWorkingSetKiB": 288076,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 166,
+        "rendererWorkingSetKiB": 288260,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 171,
+        "rendererWorkingSetKiB": 288468,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 176,
+        "rendererWorkingSetKiB": 288672,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 181,
+        "rendererWorkingSetKiB": 288912,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 186,
+        "rendererWorkingSetKiB": 289124,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 191,
+        "rendererWorkingSetKiB": 289312,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 196,
+        "rendererWorkingSetKiB": 289512,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 201,
+        "rendererWorkingSetKiB": 289720,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 206,
+        "rendererWorkingSetKiB": 289956,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 211,
+        "rendererWorkingSetKiB": 290152,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 216,
+        "rendererWorkingSetKiB": 290368,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 221,
+        "rendererWorkingSetKiB": 290572,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 226,
+        "rendererWorkingSetKiB": 290776,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 231,
+        "rendererWorkingSetKiB": 290964,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 236,
+        "rendererWorkingSetKiB": 291172,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 241,
+        "rendererWorkingSetKiB": 282968,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 246,
+        "rendererWorkingSetKiB": 283024,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 251,
+        "rendererWorkingSetKiB": 283208,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 256,
+        "rendererWorkingSetKiB": 283380,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 261,
+        "rendererWorkingSetKiB": 283564,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 266,
+        "rendererWorkingSetKiB": 283756,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 271,
+        "rendererWorkingSetKiB": 279144,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 276,
+        "rendererWorkingSetKiB": 279320,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 281,
+        "rendererWorkingSetKiB": 277876,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 286,
+        "rendererWorkingSetKiB": 278072,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 291,
+        "rendererWorkingSetKiB": 278232,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 296,
+        "rendererWorkingSetKiB": 278408,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      },
+      {
+        "seconds": 301,
+        "rendererWorkingSetKiB": 278620,
+        "overlayNodes": 3,
+        "pendingFrames": 0,
+        "mediaListeners": 7,
+        "mutationObservers": 1
+      }
+    ]
+  },
+  "limitations": [
+    "Gerçek kısa MP4 döngüsü; uzun film veya iki saat gerçek oynatma değildir.",
+    "MaxListenersExceededWarning görüldü; kök neden ayrıştırılmadı.",
+    "Gerçek AI sağlayıcısı kullanıcı tercihiyle kullanılmadı.",
+    "Tam test paketi: 7 başarısız dosya."
+  ]
+}
