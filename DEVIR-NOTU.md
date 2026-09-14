@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1544 — Çeviri düzenleme, arşiv ve bellek tutarlılığı](docs/devir/2026-09-14-1544.md)
+Güncel çalışma: [2026-09-14-1553 — Çeviri anlamı ve sağlayıcı yanıtı doğrulaması](docs/devir/2026-09-14-1553.md)
+
+Önceki çalışma: [2026-09-14-1544 — Çeviri düzenleme, arşiv ve bellek tutarlılığı](docs/devir/2026-09-14-1544.md)
 
 Önceki çalışma: [2026-09-14-1534 — Browser çeviri kuyruğu hata düzeltmeleri](docs/devir/2026-09-14-1534.md)
 
