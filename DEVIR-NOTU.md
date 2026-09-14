@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1305 — Film ve dizi kütüphanesi entegrasyon yönü](docs/devir/2026-09-14-1305.md)
+Güncel çalışma: [2026-09-14-1331 — Film, dizi ve izlenecekler kataloğu](docs/devir/2026-09-14-1331.md)
+
+Önceki çalışma: [2026-09-14-1305 — Film ve dizi kütüphanesi entegrasyon yönü](docs/devir/2026-09-14-1305.md)
 
 Önceki çalışma: [2026-09-14-1259 — Altı browser analiz ve çeviri özelliği](docs/devir/2026-09-14-1259.md)
 

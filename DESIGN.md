@@ -74,6 +74,10 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 - Parçalı senkron doğru zamanlı referans altyazıyla hesaplanır. Önce değişiklikler gösterilir; düşük kanıtlı sonuç uygulanamaz. Uygulama geri alınabilir taslağı değiştirir, dosyayı kendiliğinden yazmaz.
 - Aralık OCR'ı en fazla 60 saniyeden düzenlenebilir zaman ve metin blokları çıkarır. SRT kaydı ayrı kullanıcı eylemidir. Jenerik analizi iki bölümün ilk 120 saniyesindeki ses benzerliğini önerir; kayıt otomatik atlamayı açmaz.
 - Dizi çeviri profili site ve açık dizi adına bağlıdır. Yeni bölümde “Bölümü diziye bağla ve tercihleri yükle” mevcut profili korur; “kaydet” düzenlenen profili günceller. Değişiklik sonraki çeviriye uygulanır. Terim kontrolü kaynak/çeviri rollerini ve ayrı zaman dönüşümlerini izler, metni kendiliğinden düzeltmez.
+- Film ve dizi arşivi ana başlıktan ve oynatıcıdaki Arşiv eyleminden açılan native dialog'dur. Filmler, Diziler ve İzlenecekler aynı katalog üzerinde filtrelenir; mevcut izleme geçmişi ayrı kalır. Eser dosyasız var olabilir; oynatma için yerel dosya veya browser bağlantısı gerekir.
+- Afişli kartlar sabit 2:3 görüntü alanı taşır; afişler görünür oldukça küçültülmüş olarak yüklenir. Eksik afiş bir boş durumdur. Katalog grafit/amber ve açık tema token'larını kullanır; kendi modal kaydırma alanı vardır. Modal açıldığında native browser yüzeyi mevcut occlusion sözleşmesiyle gizlenir.
+- Eser ve bölüm düzenleme açık kaydetme kullanır. Silme iki adımlıdır; yalnız katalog kaydı silinir, medya dosyası ve izleme geçmişi kalır. İzlenecekler bölümünden yeni kayıt başlangıçta İzlenecek durumundadır. Bölüm sırası sezon/numaraya göre, sıradaki öneri kaynaklı ve tamamlanmamış ilk bölümdür.
+- nMDB içe aktarımı salt okunur önizleme → seçim → uygula akışıdır. Kimlik çakışmaları ve atlamalar gösterilir; tekrar içe aktarım mevcut izleme durumu, favori, kaynak ve puanları ezmez. İthal puanlar kaynak değerleridir; canlı sağlayıcı doğrulaması veya otomatik film önerisi değildir.
 
 ## Verification
 
