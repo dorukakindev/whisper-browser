@@ -30,13 +30,20 @@ function sentenceEnded(text) {
     || (last.endsWith('.') && ABBREVIATIONS.has(last.slice(0, -1).toLowerCase())));
 }
 
-const NUMBER_TOKEN = /(?<![\w])(?:\d+(?:[.,]\d+)?%?|\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?)(?![\w])/gu;
+const NUMBER_TOKEN = /(?<![\p{L}\p{N}_])(?:(?:%|yüzde)\s*)?(?:[-−]|(?:eksi|minus)\s+)?(?:%\s*)?\d+(?:[.,]\d+)*(?:\s*(?:%|percent\b))?(?![\p{L}\p{N}_])/giu;
 const SOURCE_NEGATION = /\b(?:not|never|no|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b/iu;
-const TARGET_NEGATION = /\b(?:değil|degil|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao)\b|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d\w*\b|\b\w{2,}m[ae]z\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b|\b\w{2,}mamalı\w*\b|\b\w{2,}memeli\w*\b/iu;
+const TARGET_NEGATION = /(?<!\p{L})(?:değil|degil|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao|\p{L}{2,}m[ıiuü]yor\p{L}*|\p{L}{2,}m[ae]d\p{L}*|\p{L}{2,}m[ae]z|\p{L}{2,}mamış\p{L}*|\p{L}{2,}memiş\p{L}*|\p{L}{2,}mamalı\p{L}*|\p{L}{2,}memeli\p{L}*)(?!\p{L})/iu;
 function numberTokens(text) {
   return [...String(text || '').matchAll(NUMBER_TOKEN)].map((match) => {
-    const token = match[0].replace(/%/g, '');
-    return /^\d{1,3}(?:[.,]\d{3})+$/u.test(token) ? token.replace(/[.,]/g, '') : token.replace(/,/g, '.');
+    const negative = /[-−]|eksi|minus/iu.test(match[0]);
+    const percentage = /%|yüzde|percent/iu.test(match[0]);
+    let token = match[0].replace(/[^\d.,]/g, '');
+    if (token.includes('.') && token.includes(',')) {
+      const decimal = token.lastIndexOf('.') > token.lastIndexOf(',') ? '.' : ',';
+      token = token.replace(decimal === '.' ? /,/g : /\./g, '').replace(',', '.');
+    } else token = /^\d{1,3}(?:[.,]\d{3})+$/u.test(token) ? token.replace(/[.,]/g, '') : token.replace(',', '.');
+    token = token.replace(/^0+(?=\d)/, '').replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    return `${negative ? '-' : ''}${token}${percentage ? '%' : ''}`;
   });
 }
 const TR_ONES = ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
@@ -64,12 +71,13 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const normalizedTranslation = normalizeText(translated).toLocaleLowerCase('tr');
   if (sourceNumbers.some((token) => {
     if (translatedNumbers.includes(token)) return false;
-    const numeric = Number(token);
+    const numeric = Number(token.replace(/^-|%$/g, ''));
     const words = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr' && Number.isInteger(numeric)
       ? turkishIntegerWords(numeric) : '';
-    return !words || !new RegExp(`(?:^|\\s)${words.replace(/ /g, '\\s+')}(?:$|[\\s.,!?;:])`, 'iu').test(normalizedTranslation);
+    const phrase = [token.endsWith('%') ? 'yüzde' : '', token.startsWith('-') ? 'eksi' : '', words].filter(Boolean).join(' ');
+    return !words || !new RegExp(`(?:^|\\s)${phrase.replace(/ /g, '\\s+')}(?:$|[\\s.,!?;:])`, 'iu').test(normalizedTranslation);
   })) issues.push('number_mismatch');
-  if (SOURCE_NEGATION.test(normalizeText(source)) && !TARGET_NEGATION.test(normalizeText(translated))) {
+  if (SOURCE_NEGATION.test(normalizeText(source).replace(/[‘’]/g, "'")) && !TARGET_NEGATION.test(normalizeText(translated))) {
     issues.push('negation_missing');
   }
   return issues;
@@ -121,11 +129,12 @@ function sentenceTranslationRequest(sentence) {
     const rows = Array.isArray(value) ? value : value ? [value] : [];
     const bounded = rows.map((row) => typeof row === 'string'
       ? { text: row }
-      : { text: String(row?.text || '') })
+      : { text: String(row?.text || ''), ...(sentence.speaker && row?.speaker
+        ? { speaker_relation: row.speaker === sentence.speaker ? 'same' : 'different' } : {}) })
       .filter((row) => normalizeText(row.text));
     let used = bounded;
     if (JSON.stringify(used).length > 1200) used = edge === 'before' ? used.slice(-3) : used.slice(0, 3);
-    used = used.map((row) => ({ text: String(row.text).slice(0, 600) }));
+    used = used.map((row) => ({ ...row, text: String(row.text).slice(0, 600) }));
     return used;
   };
   return {

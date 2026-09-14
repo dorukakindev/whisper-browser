@@ -88,6 +88,11 @@ async function run() {
   assert.equal(speakerPayload.parts[0].speaker, undefined, 'konuşmacı etiketi sağlayıcı payloadına sızdı');
   assert.equal(speakerPayload.context_before[0].speaker, undefined, 'bağlam konuşmacısı payloada sızdı');
   assert(!JSON.stringify(speakerPayload).includes('CHAR_A'));
+  assert.equal(speakerPayload.context_before[0].speaker_relation, 'same');
+  const turnPayload = JSON.parse(layout.sentenceTranslationRequest({ ...speakerSentence,
+    contextBefore: [{ text: 'Why?', speaker: 'CHAR_B' }] }).payload);
+  assert.equal(turnPayload.context_before[0].speaker_relation, 'different');
+  assert(!JSON.stringify(turnPayload).includes('CHAR_B'));
   const fitPieces = [{ start: 0, end: 1 }, { start: 1, end: 5 }];
   const fit = layout.fitTranslationParts('Bir iki üç dört beş altı yedi sekiz dokuz on.', fitPieces);
   assert(fit[1].length > fit[0].length, 'süre bütçesi dikkate alınmadı');
@@ -104,7 +109,20 @@ async function run() {
     .includes('number_mismatch'));
   assert.deepEqual(layout.translationMeaningIssues("I don't know.", 'Bilmiyorum.'), []);
   assert(layout.translationMeaningIssues("I don't know.", 'Biliyorum.').includes('negation_missing'));
+  assert(layout.translationMeaningIssues('I don’t know.', 'Biliyorum.').includes('negation_missing'));
+  assert(!layout.translationMeaningIssues('I do not think so.', 'Öyle düşünmüyorum.').includes('negation_missing'));
+  assert(!layout.translationMeaningIssues('Never.', 'Hiç.').includes('negation_missing'));
   assert.deepEqual(layout.translationMeaningIssues('He carried 80 bags.', 'Seksen paket taşıdı.'), []);
+  for (const [source, target] of [['Rate 5%', 'Oran 5'], ['Temperature -5', 'Sıcaklık 5'],
+    ['Rate -5%', 'Oran %5'], ['Total 1,234.56', 'Toplam 1234 ve 56']]) {
+    assert(layout.translationBlockingIssues(source, target).includes('number_mismatch'), `${source} -> ${target}`);
+  }
+  for (const [source, target] of [['Rate 5%', 'Oran %5'], ['Rate 5%', 'Oran yüzde 5'],
+    ['Rate 5%', 'Oran yüzde beş'], ['Rate -5%', 'Oran %-5'], ['Temperature -5', 'Sıcaklık eksi 5'],
+    ['Temperature -5', 'Sıcaklık eksi beş'], ['Total 1,234.56', 'Toplam 1.234,56'],
+    ['Total 1,234,567', 'Toplam 1234567'], ['Between 2-3', '2 ile 3 arası'], ['- 5 minutes.', '- Beş dakika.']]) {
+    assert.deepEqual(layout.translationBlockingIssues(source, target), [], `${source} -> ${target}`);
+  }
   assert.deepEqual(layout.translationBlockingIssues("I don't know.", 'Biliyorum.'), [],
     'olumsuzluk sezgisi doğal çeviriyi sert biçimde reddetti');
   assert.equal(layout.sentenceTranslationMessageRole('gemini-3.8-flash'), 'system');
@@ -148,23 +166,47 @@ async function run() {
   assert.equal(arrayReply.snapshot().failures.length, 1, 'JSON dizisi başarısızlık olarak bildirilmedi');
   assert.equal(arrayReplyCache.size, 0, 'JSON dizisi önbelleğe yazıldı');
 
+  const [percentSentence] = assembleCueSentences([{ id: 'percent', start: 0, end: 2, text: 'Rate 5%.' }]);
+  const numericCache = new Map([[translationCacheKey(percentSentence), JSON.stringify({ text: 'Oran 5.' })]]);
+  let repairedCalls = 0;
+  const repaired = new BrowserTranslationScheduler({ cache: numericCache, maxAttempts: 1,
+    translate: async () => { repairedCalls++; return 'Oran %5.'; } });
+  repaired.setSentences([percentSentence]); repaired.completeAll(); await repaired.whenIdle();
+  assert.equal(repairedCalls, 1, 'Yüzdesini kaybetmiş eski cache yeniden çevrilmeli');
+  assert.equal(repaired.snapshot().results[0].text, 'Oran %5.');
+  const rejectedNumbers = new Map();
+  const numericFailure = new BrowserTranslationScheduler({ cache: rejectedNumbers, maxAttempts: 1, translate: async () => 'Oran 5.' });
+  numericFailure.setSentences([percentSentence]); numericFailure.completeAll(); await numericFailure.whenIdle();
+  assert.equal(numericFailure.snapshot().completed, 0); assert.equal(rejectedNumbers.size, 0);
+
   // Main sürecinin GERÇEK istek fonksiyonunu, yalnız taşıma katmanı taklidiyle çalıştır.
   const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
   const start = main.indexOf('async function requestBrowserSentenceTranslationAtEndpoint(');
   const end = main.indexOf('\nasync function requestBrowserSentenceTranslation(', start);
   let body;
   let responseText = JSON.stringify(reply);
+  let responseMeta = {};
   const sandbox = { require: (name) => { assert.equal(name, './subtitle-sentence-layout'); return layout; },
     AbortController, setTimeout, clearTimeout,
     safeTranslationEndpoint: () => 'https://example.invalid/v1/chat/completions',
     fetch: async (_url, options) => { body = JSON.parse(options.body); return { ok: true }; },
-    readJsonResponseLimited: async () => ({ choices: [{ message: { content: responseText } }] }),
+    readJsonResponseLimited: async () => ({ choices: [{ message: { content: responseText }, ...responseMeta }] }),
   };
   vm.createContext(sandbox);
   vm.runInContext(main.slice(start, end), sandbox);
   const config = { apiKey: 'fake', model: 'gemini-3.7-flash', glossary: [], targetLanguage: 'tr', register: 'general', profanity: 'keep' };
   const output = await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
   assert.deepEqual(output, reply);
+  for (const finish_reason of ['length', 'content_filter', 'tool_calls', 'function_call']) {
+    responseMeta = { finish_reason };
+    await assert.rejects(sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid'), /uygulanmadı/);
+    const rejectedCache = new Map();
+    const rejected = new BrowserTranslationScheduler({ cache: rejectedCache, maxAttempts: 1,
+      translate: () => sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid') });
+    rejected.setSentences([sentence]); rejected.completeAll(); await rejected.whenIdle();
+    assert.equal(rejected.snapshot().completed, 0); assert.equal(rejectedCache.size, 0);
+  }
+  responseMeta = {};
   assert.equal(body.model, config.model, 'kullanıcının modeli değişti');
   assert.equal(body.temperature, 0.2);
   assert.deepEqual(JSON.parse(body.messages[1].content).parts.map((p) => p.source), cues.map((c) => c.text));
@@ -183,6 +225,11 @@ async function run() {
   await sandbox.requestBrowserSentenceTranslationAtEndpoint({text:'She said yes.',pieces:[sentence.pieces[0]],contextBefore:[{text:'Dr. Ada asked.'}],contextAfter:[{text:'Ada thanked her.'}]},config,null,'https://example.invalid');
   assert.deepEqual(JSON.parse(body.messages[1].content),{metin:'She said yes.',onceki:['Dr. Ada asked.'],sonraki:['Ada thanked her.']});
   assert(body.messages[0].content.includes('yalnız bağlamdır'));
+  await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'I will.', speaker: 'CHAR_B', pieces: [sentence.pieces[0]],
+    contextBefore: [{ text: 'Will you come?', speaker: 'CHAR_A' }], contextAfter: [{ text: 'Tomorrow.', speaker: 'CHAR_B' }] }, config, null, 'https://example.invalid');
+  const singleSpeaker = JSON.parse(body.messages[1].content);
+  assert.deepEqual(singleSpeaker.konusmaci_baglari, { onceki: ['different'], sonraki: ['same'] });
+  assert(!body.messages[1].content.includes('CHAR_A') && !body.messages[1].content.includes('CHAR_B'));
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');
   responseText = '{"translation":"Merhaba."}';
   assert.equal((await sandbox.requestBrowserSentenceTranslationAtEndpoint({ text: 'Hello.', pieces: [sentence.pieces[0]] }, config, null, 'https://example.invalid')).text, 'Merhaba.');

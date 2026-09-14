@@ -69,6 +69,7 @@ function translationCacheKey(sentence, context = {}) {
   ));
   const material = JSON.stringify({
     version: SENTENCE_PROTOCOL_VERSION,
+    responseValidationVersion: 1,
     promptVersion: String(context.promptVersion || SENTENCE_PROTOCOL_VERSION),
     mediaIdentity: String(context.mediaIdentity || ''),
     trackIdentity: String(context.trackIdentity || ''),

@@ -3965,6 +3965,10 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
             metin:String(sentence.text||'').slice(0,12000),
             onceki:(sentence.contextBefore||[]).slice(-3).map(row=>String(row.text||'').slice(0,2000)),
             sonraki:(sentence.contextAfter||[]).slice(0,3).map(row=>String(row.text||'').slice(0,2000)),
+            ...(sentence.speaker ? { konusmaci_baglari: {
+              onceki: (sentence.contextBefore || []).slice(-3).map(row => !row.speaker ? 'unknown' : row.speaker === sentence.speaker ? 'same' : 'different'),
+              sonraki: (sentence.contextAfter || []).slice(0, 3).map(row => !row.speaker ? 'unknown' : row.speaker === sentence.speaker ? 'same' : 'different'),
+            } } : {}),
           }) },
         ],
       }),
@@ -3978,6 +3982,14 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', forwardAbort);
+  }
+  const finishReason = data?.choices?.[0]?.finish_reason;
+  if (finishReason === 'length' || data?.status === 'incomplete') {
+    throw new Error('Çeviri yanıtı tamamlanmadan kesildi; kısmi metin uygulanmadı.');
+  }
+  if (['content_filter', 'tool_calls', 'function_call'].includes(finishReason)
+      || data?.choices?.[0]?.message?.refusal || data?.error) {
+    throw new Error('Çeviri sağlayıcısı geçerli bir çeviri üretmedi; yanıt uygulanmadı.');
   }
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
@@ -6093,12 +6105,10 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   const sentences = assembleCueSentences(cues);
   const contextRows = (index, direction) => {
     const rows = [];
-    const targetSpeaker = String(sentences[index]?.speaker || '');
     for (let cursor = index + direction; cursor >= 0 && cursor < sentences.length && rows.length < 3; cursor += direction) {
       const neighbor = sentences[cursor];
       const neighborSpeaker = String(neighbor?.speaker || '');
-      if (targetSpeaker && neighborSpeaker && neighborSpeaker !== targetSpeaker) break;
-      const row = { text: neighbor.text };
+      const row = { text: neighbor.text, ...(neighborSpeaker ? { speaker: neighborSpeaker } : {}) };
       if (direction < 0) rows.unshift(row); else rows.push(row);
     }
     return rows;

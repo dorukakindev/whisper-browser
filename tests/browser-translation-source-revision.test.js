@@ -39,6 +39,14 @@ async function main() {
   assert.equal(archived[1].sourceHash, createHash('sha256').update(JSON.stringify([[0, 2, 'Please wait.']])).digest('hex'));
   assert.equal(stored[1].options.sourceHash, archived[1].sourceHash);
   assert.notEqual(stored[0].cues[0].sourceCueHash, stored[1].cues[0].sourceCueHash);
+  assert(context.startBrowserTranslation(tab, [
+    { id: 'q', start: 0, end: 2, text: 'Will you come?', speaker: 'A' },
+    { id: 'a', start: 3, end: 5, text: 'I will.', speaker: 'B' },
+  ], { trackId: 'dialogue' }).ok);
+  await tab.translationScheduler.whenIdle();
+  const answer = tab.translationScheduler.sentences.find(row => row.text === 'I will.');
+  assert.equal(answer.contextBefore[0].text, 'Will you come?');
+  assert.equal(answer.contextBefore[0].speaker, 'A');
   console.log('browser source refresh: real scheduler/main persistence keeps archive, track and cue identities aligned');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
