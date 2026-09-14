@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-0459 — Ortam engeli denetimi; hedef tamamlanmadı](docs/devir/2026-09-14-0459.md)
+Güncel çalışma: [2026-09-14-0510 — Tarayıcı altyazısı teslimi; kullanıcı onaylı test istisnaları](docs/devir/2026-09-14-0510.md)
+
+Önceki çalışma: [2026-09-14-0459 — Ortam engeli denetimi; hedef tamamlanmadı](docs/devir/2026-09-14-0459.md)
 
 Önceki çalışma: [2026-09-14-0456 — Kararlılık kapanışı; ortam engelleri açık](docs/devir/2026-09-14-0456.md)
 
