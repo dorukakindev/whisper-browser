@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1527 — Çalışma paketi hata düzeltmeleri](docs/devir/2026-09-14-1527.md)
+Güncel çalışma: [2026-09-14-1534 — Browser çeviri kuyruğu hata düzeltmeleri](docs/devir/2026-09-14-1534.md)
+
+Önceki çalışma: [2026-09-14-1527 — Çalışma paketi hata düzeltmeleri](docs/devir/2026-09-14-1527.md)
 
 Önceki çalışma: [2026-09-14-1509 — Yedi özellik sonrası tam test paketi denetimi](docs/devir/2026-09-14-1509.md)
 
