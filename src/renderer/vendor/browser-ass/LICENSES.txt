@@ -1,0 +1,9 @@
+JASSUB 2.5.16 dağıtım lisans kaydı
+
+Paketin package.json içinde bildirdiği SPDX ifadesi:
+LGPL-2.1-or-later AND (FTL OR GPL-2.0-or-later) AND MIT AND MIT-Modern-Variant AND ISC AND NTP AND Zlib AND BSL-1.0
+
+JASSUB paketinin sağladığı üst düzey lisans JASSUB-LICENSE.txt içinde korunur.
+Bundled worker/WASM/font bileşenleri yalnız MIT kapsamında değildir.
+Üçüncü taraf metinler ve kesin kaynak kimlikleri third-party-licenses/ dizinindedir.
+Upstream kaynak: https://github.com/ThaUnknown/jassub

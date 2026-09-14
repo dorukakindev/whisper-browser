@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('api', {
   setBrowserBounds: (tabId, bounds) => ipcRenderer.invoke('browser:setBounds', { tabId, bounds }),
   navigateBrowser: (tabId, url) => ipcRenderer.invoke('browser:navigate', { tabId, url }),
   browserCommand: (tabId, command, value) => ipcRenderer.invoke('browser:command', { tabId, command, value }),
+  browserExtras: (payload) => ipcRenderer.invoke('browser:extras', payload),
   getBrowserSponsorSegments: (tabId, url, categories, duration) => ipcRenderer.invoke('browser:sponsorBlock:get', { tabId, url, categories, duration }),
   getBrowserAdblockState: () => ipcRenderer.invoke('browser:adblock:getState'),
   setBrowserAdblockEnabled: (enabled) => ipcRenderer.invoke('browser:adblock:setEnabled', { enabled: enabled !== false }),

@@ -1,4 +1,5 @@
 const { compareBrowserMediaCandidates, browserMediaCandidateRank } = require('./browser-media-selection');
+const { AUDIO_PROFILES, audioLevelDb, nextSilenceState } = require('./browser-audio-policy');
 
 function controllerBootstrap() {
   return `(() => {
@@ -7,30 +8,81 @@ function controllerBootstrap() {
     const observers = new Map();
     let adAudioSnapshot = null;
     let playbackPreference = { rate: 1, enforceRate: false, preservesPitch: true,
-      brightness: 1, contrast: 1, normalizeAudio: false };
+      brightness: 1, contrast: 1, normalizeAudio: false, silenceSpeedEnabled: false,
+      silenceSpeedRate: 3, silenceThresholdDb: -45, audioProfile: 'off' };
     const configuredMedia = new WeakSet();
     const audioGraphs = new WeakMap();
     const originalVideoFilters = new WeakMap();
     const appliedVideoFilters = new WeakMap();
     const explicitRateIntents = new WeakMap();
+    const internalRateIntents = new WeakMap();
     let applyingRate = false;
+    const profiles = ${JSON.stringify(AUDIO_PROFILES)};
+    const audioLevelDb = ${audioLevelDb.toString()};
+    const nextSilenceState = ${nextSilenceState.toString()};
+    const setInternalRate = (item, rate) => {
+      internalRateIntents.set(item, { rate, until: Date.now() + 1500 });
+      item.playbackRate = rate;
+    };
+
+    const restoreSilenceRate = (item, graph) => {
+      if (!graph?.boosted) return;
+      graph.boosted = false;
+      applyingRate = true;
+      try { setInternalRate(item, graph.baseRate); }
+      catch (_) {}
+      finally { Promise.resolve().then(() => { applyingRate = false; }); }
+    };
+    const stopSilenceMonitor = (item, graph) => {
+      if (!graph) return;
+      if (graph.timer) clearInterval(graph.timer);
+      graph.timer = null;
+      graph.silence = { quietMs: 0, active: false };
+      restoreSilenceRate(item, graph);
+    };
+    const tickSilenceMonitor = (item, graph) => {
+      if (!item.isConnected || item.paused || item.ended || item.muted || item.volume === 0
+          || graph.context.state !== 'running') {
+        restoreSilenceRate(item, graph);
+        graph.silence = { quietMs: 0, active: false };
+        return;
+      }
+      try {
+        graph.analyser.getByteTimeDomainData(graph.samples);
+        const level = audioLevelDb(graph.samples);
+        graph.silence = nextSilenceState(graph.silence, level, 100,
+          playbackPreference.silenceThresholdDb);
+        if (graph.silence.active && !graph.boosted) {
+          graph.baseRate = finite(item.playbackRate, playbackPreference.rate);
+          const target = Math.max(graph.baseRate, playbackPreference.silenceSpeedRate);
+          if (target > graph.baseRate + .01) {
+            graph.boosted = true;
+            applyingRate = true;
+            try { setInternalRate(item, target); }
+            finally { Promise.resolve().then(() => { applyingRate = false; }); }
+          }
+        } else if (!graph.silence.active) restoreSilenceRate(item, graph);
+      } catch (_) { stopSilenceMonitor(item, graph); }
+    };
 
     const releaseMedia = (item) => {
       media.delete(item);
       explicitRateIntents.delete(item);
+      internalRateIntents.delete(item);
       if (item?.style && originalVideoFilters.has(item)) {
         try { item.style.filter = originalVideoFilters.get(item); } catch (_) {}
         appliedVideoFilters.delete(item);
       }
       const graph = audioGraphs.get(item);
       if (!graph) return;
+      stopSilenceMonitor(item, graph);
       // SPA oynatıcıları aynı medya öğesini kısa süre DOM'dan çıkarıp yeniden
       // takabilir. MediaElementSource bir öğe için yalnız bir kez üretilebilir;
       // context'i burada kapatmak yeniden takıldığında sessiz video bırakır.
       // WeakMap öğeyle birlikte toplanır; ayrıyken doğrudan çıkışa geri bağla.
       try {
-        graph.source.disconnect(); graph.compressor.disconnect();
-        graph.source.connect(graph.context.destination); graph.normalized = false;
+        graph.source.disconnect(); graph.compressor.disconnect(); graph.analyser?.disconnect();
+        graph.source.connect(graph.context.destination); graph.normalized = false; graph.monitored = false;
         graph.context.resume?.().catch?.(() => {});
       } catch (_) {}
     };
@@ -46,16 +98,21 @@ function controllerBootstrap() {
     };
     const applyAudioPreference = (item) => {
       let graph = audioGraphs.get(item);
-      if (!playbackPreference.normalizeAudio) {
-        if (graph?.normalized) {
-          try { graph.source.disconnect(); graph.compressor.disconnect(); graph.source.connect(graph.context.destination); }
-          catch (_) {}
-          graph.normalized = false;
-          graph.context.resume?.().catch?.(() => {});
+      const profile = profiles[playbackPreference.audioProfile];
+      const processing = playbackPreference.normalizeAudio || !!profile;
+      const monitoring = playbackPreference.silenceSpeedEnabled;
+      if (!processing && !monitoring && !graph) return;
+      if (!audioGraphAllowed(item)) {
+        if (graph) {
+          stopSilenceMonitor(item, graph);
+          try {
+            graph.source.disconnect(); graph.compressor.disconnect(); graph.analyser?.disconnect();
+            graph.source.connect(graph.context.destination);
+            graph.normalized = false; graph.monitored = false;
+          } catch (_) {}
         }
         return;
       }
-      if (!audioGraphAllowed(item)) return;
       try {
         if (!graph) {
           const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
@@ -63,18 +120,37 @@ function controllerBootstrap() {
           const context = new AudioContextClass();
           const source = context.createMediaElementSource(item);
           const compressor = context.createDynamicsCompressor();
-          compressor.threshold.value = -24; compressor.knee.value = 30;
-          compressor.ratio.value = 8; compressor.attack.value = .003; compressor.release.value = .25;
-          graph = { context, source, compressor, normalized: false };
+          graph = { context, source, compressor, normalized: false, timer: null,
+            boosted: false, silence: { quietMs: 0, active: false } };
           audioGraphs.set(item, graph);
         }
-        if (!graph.normalized) {
-          graph.source.disconnect(); graph.compressor.disconnect();
-          graph.source.connect(graph.compressor); graph.compressor.connect(graph.context.destination);
-          graph.normalized = true;
+        if (processing) {
+          const settings = profile || { threshold: -24, knee: 30, ratio: 8,
+            attack: .003, release: .25 };
+          graph.compressor.threshold.value = settings.threshold;
+          graph.compressor.knee.value = settings.knee;
+          graph.compressor.ratio.value = settings.ratio;
+          graph.compressor.attack.value = settings.attack;
+          graph.compressor.release.value = settings.release;
         }
+        if (monitoring && !graph.analyser) {
+          graph.analyser = graph.context.createAnalyser();
+          graph.analyser.fftSize = 2048;
+          graph.samples = new Uint8Array(graph.analyser.fftSize);
+        }
+        if (graph.normalized !== processing || graph.monitored !== monitoring) {
+          graph.source.disconnect(); graph.compressor.disconnect(); graph.analyser?.disconnect();
+          let output = graph.source;
+          if (processing) { output.connect(graph.compressor); output = graph.compressor; }
+          if (monitoring) { output.connect(graph.analyser); graph.analyser.connect(graph.context.destination); }
+          else output.connect(graph.context.destination);
+          graph.normalized = processing;
+          graph.monitored = monitoring;
+        }
+        if (monitoring && !graph.timer) graph.timer = setInterval(() => tickSilenceMonitor(item, graph), 100);
+        if (!monitoring) stopSilenceMonitor(item, graph);
         graph.context.resume?.().catch?.(() => {});
-      } catch (_) {}
+      } catch (_) { stopSilenceMonitor(item, graph); }
     };
 
     const applyPlaybackPreference = (item) => {
@@ -102,10 +178,10 @@ function controllerBootstrap() {
         appliedVideoFilters.set(item, item.style.filter);
       }
       applyAudioPreference(item);
-      if (playbackPreference.enforceRate
+      if (playbackPreference.enforceRate && !audioGraphs.get(item)?.boosted
           && Math.abs(finite(item.playbackRate, 1) - playbackPreference.rate) > .01) {
         applyingRate = true;
-        try { item.playbackRate = playbackPreference.rate; }
+        try { setInternalRate(item, playbackPreference.rate); }
         finally { Promise.resolve().then(() => { applyingRate = false; }); }
       }
     };
@@ -119,7 +195,17 @@ function controllerBootstrap() {
           item.addEventListener?.(type, reapply, { passive: true });
         }
         item.addEventListener?.('ratechange', () => {
-          if (applyingRate || !playbackPreference.enforceRate) return;
+          if (applyingRate) return;
+          const internal = internalRateIntents.get(item);
+          if (internal && internal.until >= Date.now()
+              && Math.abs(finite(item.playbackRate, 1) - internal.rate) <= .01) return;
+          const graph = audioGraphs.get(item);
+          if (graph?.boosted) {
+            graph.baseRate = finite(item.playbackRate, playbackPreference.rate);
+            graph.boosted = false;
+            graph.silence = { quietMs: 0, active: false };
+          }
+          if (!playbackPreference.enforceRate) return;
           const intent = explicitRateIntents.get(item);
           if (intent && intent.until >= Date.now()
               && Math.abs(finite(item.playbackRate, 1) - intent.rate) <= .01) return;
@@ -285,6 +371,8 @@ function controllerBootstrap() {
         if (!item) return false;
         const next = Math.max(.25, Math.min(4, finite(rate, 1)));
         explicitRateIntents.set(item, { rate: next, until: Date.now() + 1500 });
+        const graph = audioGraphs.get(item);
+        if (graph?.boosted) { graph.boosted = false; graph.silence = { quietMs: 0, active: false }; }
         item.playbackRate = next;
         return true;
       },
@@ -294,7 +382,11 @@ function controllerBootstrap() {
         const contrast = Math.max(.4, Math.min(2, finite(raw.contrast, 1)));
         playbackPreference = { rate, brightness, contrast,
           enforceRate: raw.enforceRate === true, preservesPitch: raw.preservesPitch !== false,
-          normalizeAudio: raw.normalizeAudio === true };
+          normalizeAudio: raw.normalizeAudio === true,
+          silenceSpeedEnabled: raw.silenceSpeedEnabled === true,
+          silenceSpeedRate: Math.max(2, Math.min(8, finite(raw.silenceSpeedRate, 3))),
+          silenceThresholdDb: Math.max(-70, Math.min(-20, finite(raw.silenceThresholdDb, -45))),
+          audioProfile: profiles[raw.audioProfile] !== undefined ? raw.audioProfile : 'off' };
         for (const item of media) applyPlaybackPreference(item);
         return { ...playbackPreference };
       },
@@ -368,6 +460,10 @@ function normalizeBrowserMediaPreference(raw = {}) {
     brightness: number(raw.brightness, 1, .4, 2),
     contrast: number(raw.contrast, 1, .4, 2),
     normalizeAudio: raw.normalizeAudio === true,
+    silenceSpeedEnabled: raw.silenceSpeedEnabled === true,
+    silenceSpeedRate: number(raw.silenceSpeedRate, 3, 2, 8),
+    silenceThresholdDb: number(raw.silenceThresholdDb, -45, -70, -20),
+    audioProfile: Object.hasOwn(AUDIO_PROFILES, raw.audioProfile) ? raw.audioProfile : 'off',
   };
 }
 

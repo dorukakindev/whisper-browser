@@ -364,6 +364,9 @@ if (app.isPackaged) {
 protocol?.registerSchemesAsPrivileged?.([{
   scheme: 'whisper-pdf',
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+}, {
+  scheme: 'whisper-assets',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true },
 }]);
 // Bu Electron tercihi app.ready öncesinde uygulanmalıdır; çalışma sırasında
 // değiştirilen ayar sonraki açılışta geçerli olur. Python/CUDA'yı etkilemez.
@@ -419,6 +422,7 @@ let browserVisible = false;
 let browserModalOccluded = false;
 let browserBounds = null;
 const browserTabs = new Map();
+let browserExtras = null;
 const browserClosedTabs = new BrowserClosedTabHistory(20);
 let browserActiveTabId = '';
 let browserSplitSecondaryTabId = '';
@@ -3266,6 +3270,7 @@ function browserTabShouldBeVisible(tab) {
 
 function applyBrowserViewBounds(tab, view = tab?.view) {
   if (!view || view.webContents.isDestroyed()) return false;
+  if (browserExtras?.mini.owns(tab)) return browserExtras.mini.layout();
   let bounds = tab?.htmlFullscreen ? browserFullscreenBounds() : browserBounds;
   const secondary = secondaryBrowserTab();
   if (!tab?.htmlFullscreen && secondary && browserBounds) {
@@ -3282,7 +3287,7 @@ function applyBrowserViewsLayout() {
   const secondary = secondaryBrowserTab();
   if (active?.view && !active.view.webContents.isDestroyed()) {
     applyBrowserViewBounds(active, active.view);
-    active.view.setVisible(browserTabShouldBeVisible(active));
+    active.view.setVisible(browserExtras?.mini.owns(active) || browserTabShouldBeVisible(active));
   }
   if (secondary?.view && !secondary.view.webContents.isDestroyed()) {
     applyBrowserViewBounds(secondary, secondary.view);
@@ -3635,6 +3640,7 @@ function trackBrowserSubtitleFile(filePath) {
 
 function invalidateBrowserTabSubtitles(tab) {
   if (!tab) return;
+  browserExtras?.cancel(tab);
   // Önce sahipliği bırak: cancelAll eşzamanlı onState yayımlayabilir.
   const scheduler = tab.translationScheduler;
   tab.translationScheduler = null;
@@ -9223,6 +9229,7 @@ function resumeRestoredBrowserPage(tab) {
 async function activateBrowserTab(rawId) {
   const next = browserTabById(rawId);
   if (!next) return null;
+  if (next.id !== browserActiveTabId) browserExtras?.mini.close();
   if (next.id === browserActiveTabId && next.view && !next.view.webContents.isDestroyed()) {
     browserView = ensureBrowserView(next);
     browserCaptureEnabled = next.captureEnabled !== false;
@@ -9311,6 +9318,8 @@ function queueBrowserTabTransition(work) {
 function destroyBrowserTab(tab) {
   if (!tab) return;
   tab.closing = true;
+  browserExtras?.cancel(tab);
+  if (browserExtras?.mini.owns(tab)) browserExtras.mini.close();
   if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
   tab.loadRetryTimer = null;
   cancelBrowserPermissionRequestsForTab(tab);
@@ -9993,6 +10002,7 @@ app.on('certificate-error', (event, webContents, url, error, _certificate, callb
 });
 
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
+  require('./browser-ass-renderer').registerAssAssets(session.fromPartition('persist:whisper-browser'), net);
   // Gerçek Electron smoke testi, native dosya seçiciye güvenmeden yalnızca
   // kendi geçici altyazı fixture'larını okuyabilsin. Paketlenmiş uygulamada
   // bu geliştirme kapısı tamamen kapalıdır; normal çalışmada izin modeli aynı
@@ -10043,6 +10053,8 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
 let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
+  browserExtras?.mini.close();
+  for (const tab of browserTabs.values()) browserExtras?.cancel(tab);
   if (watchTimer) clearInterval(watchTimer);
   watchTimer = null;
   flushBrowserTrackPublications(true);
@@ -14313,4 +14325,15 @@ ipcMain.handle('transcribe:cancel', async (event) => {
   } catch (err) {
     return { ok: false, error: err.message };
   }
+});
+
+browserExtras = require('./browser-feature-services').registerBrowserFeatureServices({
+  app, ipcMain, dialog, BrowserWindow,
+  owner: () => mainWindow, getTab: browserTabById, activeTab: activeBrowserTab,
+  context: browserEventContext, authorized: authorizedBrowserSender,
+  frames: browserFrames, probeScript: buildBrowserMediaProbeScript,
+  rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,
+  captureFrame: captureBrowserVideoFrame, restoreLayout: applyBrowserViewsLayout,
+  grantSubtitle: file => subtitleFileAccess.grant(file),
+  pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
 });

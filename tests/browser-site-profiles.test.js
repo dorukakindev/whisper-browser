@@ -46,6 +46,17 @@ test('site medya tercihleri güvenli aralıkta kalır', () => {
   assert.equal(withBrowserSiteProfileField(profiles, 'https://video.test', 'videoContrast', .2).ok, false);
 });
 
+test('sessizlik ve ses profili site ayarlarında doğrulanır', () => {
+  let profiles = withBrowserSiteProfileField({}, 'https://video.test/watch', 'silenceSpeedEnabled', true).profiles;
+  profiles = withBrowserSiteProfileField(profiles, 'https://video.test/watch', 'silenceSpeedRate', 3.5).profiles;
+  profiles = withBrowserSiteProfileField(profiles, 'https://video.test/watch', 'silenceThresholdDb', -45).profiles;
+  profiles = withBrowserSiteProfileField(profiles, 'https://video.test/watch', 'audioProfile', 'night').profiles;
+  assert.deepEqual(profiles['https://video.test'], { silenceSpeedEnabled: true,
+    silenceSpeedRate: 3.5, silenceThresholdDb: -45, audioProfile: 'night' });
+  assert.equal(withBrowserSiteProfileField(profiles, 'https://video.test', 'silenceSpeedRate', 9).ok, false);
+  assert.equal(withBrowserSiteProfileField(profiles, 'https://video.test', 'audioProfile', 'boost').ok, false);
+});
+
 test('site override genel değişiklikle ezilmez ve kaldırılınca güncel genel gelir', () => {
   let profiles = withBrowserSiteProfileField({}, 'https://example.test/watch', 'targetLanguage', 'tr').profiles;
   let result = resolveEffectiveBrowserSettings({ general: { targetLanguage: 'de' }, profile: profiles['https://example.test'] });

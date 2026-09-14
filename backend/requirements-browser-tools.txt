@@ -1,0 +1,4 @@
+# İsteğe bağlı browser kare OCR ve yerel anlamsal arama (CPython 3.11).
+rapidocr-onnxruntime==1.4.4
+onnxruntime==1.20.1
+sentence-transformers==5.1.2

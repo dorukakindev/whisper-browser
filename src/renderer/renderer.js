@@ -2171,7 +2171,7 @@ const PERSIST_VALUE_CONTROLS = [
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
-  'browserVideoBrightness', 'browserVideoContrast',
+  'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
 ];
@@ -2187,7 +2187,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
   'browserRateFightback', 'browserPreservesPitch',
   'browserDarkMode',
-  'browserNormalizeAudio',
+  'browserNormalizeAudio', 'browserSilenceSpeedEnabled',
   'browserPageAuto',
   'browserPageIndexEnabled',
   'browserHardwareAcceleration',
@@ -6435,6 +6435,10 @@ function browserProfileControls() {
     ['videoContrast', 'browserVideoContrast', 'Video kontrastı (%)', 1, 100],
     ['darkMode', 'browserDarkMode', 'Koyu sayfa görünümü', false],
     ['normalizeAudio', 'browserNormalizeAudio', 'Konuşma sesi normalleştirme', false],
+    ['silenceSpeedEnabled', 'browserSilenceSpeedEnabled', 'Sessizlikte hızlandır', false],
+    ['silenceSpeedRate', 'browserSilenceSpeedRate', 'Sessizlik hızı', 3],
+    ['silenceThresholdDb', 'browserSilenceThresholdDb', 'Sessizlik eşiği (dB)', -45],
+    ['audioProfile', 'browserAudioProfile', 'Ses profili', 'off'],
     ['adblockEnabled', 'browserAdblockEnabled', 'Bu sitede reklam koruması', true],
   ];
 }
@@ -8816,6 +8820,10 @@ function scheduleBrowserMediaPreferenceSync() {
       brightness: effective.videoBrightness,
       contrast: effective.videoContrast,
       normalizeAudio: effective.normalizeAudio,
+      silenceSpeedEnabled: effective.silenceSpeedEnabled,
+      silenceSpeedRate: effective.silenceSpeedRate,
+      silenceThresholdDb: effective.silenceThresholdDb,
+      audioProfile: effective.audioProfile,
     }).catch(() => null);
     if (result?.ok && result.media?.media) {
       player.browserRate = Number(result.media.media.playbackRate) || player.browserRate;
@@ -9776,7 +9784,8 @@ for (const [id, [outputId, format]] of Object.entries(browserRangeOutputs)) {
 for (const id of ['browserOverlayMaxLines', 'browserOverlayGap', 'browserOverlaySourceFirst', 'browserHideSiteCaptions']) {
   $(id)?.addEventListener('change', scheduleBrowserOverlaySync);
 }
-for (const id of ['browserRateFightback', 'browserPreservesPitch', 'browserNormalizeAudio']) {
+for (const id of ['browserRateFightback', 'browserPreservesPitch', 'browserNormalizeAudio',
+  'browserSilenceSpeedEnabled', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile']) {
   $(id)?.addEventListener('change', scheduleBrowserMediaPreferenceSync);
 }
 $('browserDarkMode')?.addEventListener('change', scheduleBrowserDarkModeSync);

@@ -25,6 +25,10 @@ const PROFILE_FIELDS = Object.freeze({
   videoContrast: { type: 'number', min: 0.4, max: 2, precision: 2 },
   darkMode: { type: 'boolean' },
   normalizeAudio: { type: 'boolean' },
+  silenceSpeedEnabled: { type: 'boolean' },
+  silenceSpeedRate: { type: 'number', min: 2, max: 8, precision: 1 },
+  silenceThresholdDb: { type: 'number', min: -70, max: -20, precision: 0 },
+  audioProfile: { type: 'enum', values: ['off', 'night', 'dialogue', 'guard'] },
   zoom: { type: 'number', min: 0.5, max: 3, precision: 1 },
 });
 

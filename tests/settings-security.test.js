@@ -214,7 +214,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     playerSpeed: '1.25', playerPlaybackPolicy: 'loop-cue', youtubeCookieBrowser: 'firefox',
     browserMangaTarget: 'tr', browserMangaFont: 'comic', browserPageTarget: 'en',
     browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
-    browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', uiTheme: 'light',
+    browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', browserAudioProfile: 'night', uiTheme: 'light',
   };
   const numericValues = {
     beamSize: '5', bestOf: '5', batchSize: '8', vadThreshold: '0.5', maxLineWidth: '42',
@@ -230,6 +230,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserOverlayWidth: '86', browserOverlayMaxLines: '3',
     browserOverlayGap: '24',
     browserVideoBrightness: '115', browserVideoContrast: '90',
+    browserSilenceSpeedRate: '3', browserSilenceThresholdDb: '-45',
   };
   const ui = Object.fromEntries(PERSIST_VALUE_CONTROLS.map((id) => [
     id, enumValues[id] ?? numericValues[id] ?? (id.endsWith('BaseUrl') ? '' : `değer-${id}`),

@@ -27,7 +27,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
-  'browserVideoBrightness', 'browserVideoContrast',
+  'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
 ]);
@@ -43,7 +43,7 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'llmFixCensorship', 'llmFixHallucination', 'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst',
   'browserHideSiteCaptions', 'browserRateFightback', 'browserPreservesPitch', 'browserDarkMode',
-  'browserNormalizeAudio', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
+  'browserNormalizeAudio', 'browserSilenceSpeedEnabled', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
   'browserAutoSkipAds', 'browserPlayerResponseAdPrune',
 ]);
 
@@ -70,6 +70,7 @@ const UI_ENUMS = Object.freeze({
   browserSubtitleAutomation: ['off', 'ask', 'auto'],
   browserPreferredSubtitleMode: ['translation', 'both', 'source', 'off'],
   browserSponsorMode: ['off', 'ask', 'auto'],
+  browserAudioProfile: ['off', 'night', 'dialogue', 'guard'],
   uiTheme: ['system', 'dark', 'light'],
 });
 
@@ -88,6 +89,7 @@ const UI_NUMERIC_RANGES = Object.freeze({
   browserOverlayWidth: [40, 98], browserOverlayMaxLines: [1, 6],
   browserOverlayGap: [0, 48],
   browserVideoBrightness: [40, 200], browserVideoContrast: [40, 200],
+  browserSilenceSpeedRate: [2, 8], browserSilenceThresholdDb: [-70, -20],
 });
 
 const ENDPOINT_PRESETS = new Set([

@@ -87,7 +87,8 @@ test('medya tercihi sınırlandırılır ve çalıştırılabilir JavaScript ür
   assert.deepEqual(normalizeBrowserMediaPreference({ rate: 99, brightness: 0,
     contrast: 3, enforceRate: true, preservesPitch: false, normalizeAudio: true }), {
     rate: 4, brightness: .4, contrast: 2, enforceRate: true, preservesPitch: false,
-    normalizeAudio: true,
+    normalizeAudio: true, silenceSpeedEnabled: false, silenceSpeedRate: 3,
+    silenceThresholdDb: -45, audioProfile: 'off',
   });
   assert.doesNotThrow(() => new vm.Script(buildBrowserMediaPreferenceScript({ rate: 1.25 })));
 });
@@ -145,7 +146,7 @@ test('ses normalleştirme çapraz kaynak CORS kapısı ve compressor yolu içeri
   assert.match(script, /crossOrigin/);
   assert.match(script, /createMediaElementSource/);
   assert.match(script, /createDynamicsCompressor/);
-  assert.match(script, /compressor\.ratio\.value = 8/);
+  assert.match(script, /ratio: 8/);
   assert.doesNotMatch(script, /graph\.context\.close/);
   assert.match(script, /graph\.source\.connect\(graph\.context\.destination\)/);
   assert.match(script, /releaseMedia\(item\)/);
