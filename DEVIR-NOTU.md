@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1502 — Yedi katalog ve browser özelliği](docs/devir/2026-09-14-1502.md)
+Güncel çalışma: [2026-09-14-1509 — Yedi özellik sonrası tam test paketi denetimi](docs/devir/2026-09-14-1509.md)
+
+Önceki çalışma: [2026-09-14-1502 — Yedi katalog ve browser özelliği](docs/devir/2026-09-14-1502.md)
 
 Önceki çalışma: [2026-09-14-1415 — GitHub araştırması: browser ve katalog için 20 aday](docs/devir/2026-09-14-1415.md)
 
