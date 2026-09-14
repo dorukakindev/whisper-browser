@@ -62,7 +62,7 @@ function buildAssClearScript(operationId) {
   })()`;
 }
 
-function buildAssInstallScript(text, operationId) {
+function buildAssInstallScript(text, operationId, fonts = []) {
   if (typeof text !== 'string' || !text.trim() || text.length > 2 * 1024 * 1024) throw new Error('ASS altyazısı boş veya çok büyük.');
   const serialized = JSON.stringify(text);
   const serializedId = serializeOperationId(operationId);
@@ -107,6 +107,7 @@ function buildAssInstallScript(text, operationId) {
       if (globalThis.__whisperAssState !== state) { state.detach(); return { ok: false, error: 'ASS yükleme iptal edildi.' }; }
       state.renderer = new JASSUB({ video, subContent: assText, workerUrl,
         wasmUrl: base + 'jassub-worker.wasm', modernWasmUrl: base + 'jassub-worker-modern.wasm',
+        fonts: ${JSON.stringify(fonts.map(font => font.base64))}.map(value => Uint8Array.from(atob(value), ch => ch.charCodeAt(0))),
         availableFonts: { 'liberation sans': base + 'default.woff2' }, queryFonts: false });
       state.canvas = state.renderer._canvas;
       state.canvas.style.zIndex = '2147483646';

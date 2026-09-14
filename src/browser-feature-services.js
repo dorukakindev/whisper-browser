@@ -13,6 +13,7 @@ function registerBrowserFeatureServices(deps) {
     pythonPath, ffmpegPath, ffprobePath } = deps;
   const jobs = new Map(), captures = new Map();
   const references = new Map();
+  const encodingPreviews = new Map();
   let seriesStore = null;
   const series = () => seriesStore ||= require('./browser-series-context').createBrowserSeriesContext({
     filePath: path.join(app.getPath('userData'), 'browser-series-context.json') });
@@ -75,6 +76,7 @@ function registerBrowserFeatureServices(deps) {
   function cancel(tab, lifecycle = true) {
     for (const [key, job] of jobs) if (key.startsWith(`${tab.id}:`)) { job.abort(); jobs.delete(key); }
     captures.delete(tab.id);
+    encodingPreviews.delete(tab.id);
     if (lifecycle) references.delete(tab.id);
     if (lifecycle && tab.assFrame) {
       const frame = tab.assFrame; tab.assFrame = null;
@@ -112,6 +114,23 @@ function registerBrowserFeatureServices(deps) {
     let result = {};
     try {
       switch (payload.action) {
+        case 'encoding-preview': {
+          const file = await choose('Karakter kodlaması düzeltilecek altyazıyı seç', ['srt', 'vtt', 'ass', 'ssa']); assertCurrent();
+          if (fs.statSync(file).size > 8e6) throw new Error('Altyazı en fazla 8 MB olabilir.');
+          const bytes = fs.readFileSync(file), token = randomUUID();
+          encodingPreviews.set(tab.id, { token, bytes, extension: path.extname(file).toLowerCase(), created: Date.now() });
+          result = { token, candidates: require('./subtitle-encoding-preview').preview(bytes) }; break;
+        }
+        case 'encoding-apply': {
+          const preview = encodingPreviews.get(tab.id);
+          if (!preview || preview.token !== payload.token || Date.now() - preview.created > 900000) throw new Error('Kodlama önizlemesini yeniden açın.');
+          const text = require('./subtitle-encoding-preview').decode(preview.bytes, payload.encoding);
+          const parsed = require('./browser-subtitles').parseSubtitlePayload(text, '', 'subtitle' + preview.extension);
+          if (!parsed.cues?.length) throw new Error('Bu kodlamayla altyazı okunamadı; başka kodlama seçin.');
+          const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });
+          const filePath = path.join(directory, randomUUID() + preview.extension); fs.writeFileSync(filePath, '\uFEFF' + text); grantSubtitle(filePath);
+          result = { filePath }; encodingPreviews.delete(tab.id); break;
+        }
         case 'reference-open': {
           const videoPath = await choose('İzlenen videoyla aynı sürümdeki yerel dosyayı seç', ['mp4', 'mkv', 'webm', 'mov', 'avi', 'm4v']); assertCurrent();
           const meta = await referenceTools().probe(videoPath, { signal: controller.signal }); assertCurrent();
@@ -126,6 +145,14 @@ function registerBrowserFeatureServices(deps) {
           result = ref.waveform || await referenceTools().waveform(ref.path, ref.duration, { signal: controller.signal });
           assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
           ref.waveform = result; break;
+        }
+        case 'dialogue-transcribe': {
+          const ref = reference();
+          if (!Number.isFinite(payload.end) || payload.end > ref.duration + .1) throw new Error('Aralık videonun içinde olmalı.');
+          result = await require('./browser-dialogue').dialogue({ video: ref.path, start: payload.start, end: payload.end,
+            model: payload.model, language: payload.language, python: pythonPath(), ffmpeg: ffmpegPath(), signal: controller.signal });
+          assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
+          break;
         }
         case 'reference-thumbnail': {
           const ref = reference();
@@ -172,18 +199,31 @@ function registerBrowserFeatureServices(deps) {
         }
         case 'series-context:check': result = series().check(mediaKey(tab).key, { cues: payload.cues, translations: payload.translations }); break;
         case 'mini-open': result = mini.open(tab); break;
+        case 'ass-load-fonts':
+        case 'ass-load-mkv-fonts':
         case 'ass-load': {
           const file = await choose('Özgün ASS / SSA altyazısını seç', ['ass', 'ssa']); assertCurrent();
           if (fs.statSync(file).size > 2 * 1024 * 1024) throw new Error('ASS dosyası en fazla 2 MB olabilir.');
-          const text = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+          const text = require('./browser-textutil').decodeSubtitleBuffer(fs.readFileSync(file)).text;
           if (!/\[Script Info\]/i.test(text) || !/\[Events\]/i.test(text)) throw new Error('Geçerli ASS / SSA dosyası seçin.');
+          let fonts = [];
+          if (payload.action === 'ass-load-fonts') {
+            const choice = await dialog.showOpenDialog(owner(), { title: 'ASS fontlarını seç', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Fontlar', extensions: ['ttf', 'otf', 'woff', 'woff2'] }] }); assertCurrent();
+            if (choice.canceled) throw new Error('Font seçimi iptal edildi.');
+            fonts = require('./browser-fonts').readFonts(choice.filePaths || []);
+          } else if (payload.action === 'ass-load-mkv-fonts') {
+            const video = await choose('Fontları içeren MKV dosyasını seç', ['mkv']); assertCurrent();
+            fonts = await require('./browser-fonts').extractFonts(video, ffmpegPath(), ffprobePath(), controller.signal); assertCurrent();
+            if (!fonts.length) throw new Error('MKV dosyasında font eki bulunamadı; fontları ayrı seçebilirsiniz.');
+          }
           const frame = await bestFrame(tab); assertCurrent();
           const operationId = randomUUID();
           const ass = require('./browser-ass-renderer');
           const abort = () => { try { void frame.executeJavaScript(ass.buildAssClearScript(operationId), true).catch(() => {}); } catch {} };
           controller.signal.addEventListener('abort', abort, { once: true });
           try {
-            result = await frame.executeJavaScript(ass.buildAssInstallScript(text, operationId), true);
+            result = await frame.executeJavaScript(ass.buildAssInstallScript(text, operationId, fonts), true);
+            result.fontCount = fonts.length;
             if (current() && result?.ok) tab.assFrame = frame;
             else abort();
           } finally { controller.signal.removeEventListener('abort', abort); }
@@ -259,6 +299,6 @@ function registerBrowserFeatureServices(deps) {
       return { ok: false, stale: !current(), error: String(error.message || 'Video aracı çalıştırılamadı.').slice(0, 600) };
     } finally { if (jobs.get(key) === controller) jobs.delete(key); }
   });
-  return { mini, cancel, translationContext: tab => series().translationContext(mediaKey(tab).key) };
+  return { mini, cancel, hasJobs: () => jobs.size > 0, translationContext: tab => series().translationContext(mediaKey(tab).key) };
 }
 module.exports = { registerBrowserFeatureServices };

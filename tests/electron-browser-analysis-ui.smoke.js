@@ -99,6 +99,22 @@ app.whenReady().then(async () => {
     await wait(300);
     fs.writeFileSync(path.join(out, 'analysis-ui.png'), (await win.webContents.capturePage()).toPNG());
     fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify({ wave, preview, draft, applied, undone: undone[0] }, null, 2));
+
+    const encoded = path.join(out, 'turkish-1254.srt');
+    fs.writeFileSync(encoded, Buffer.concat([Buffer.from('1\n00:00:01,000 --> 00:00:02,000\n'), Buffer.from([0xDE, 0xFD, 0xF0]), Buffer.from('\n')]));
+    chosen = encoded;
+    await run(`document.querySelector('[data-bf-action="encoding-preview"]').click()`);
+    await until(() => run(`return !!document.querySelector('#bfEncodingPreview select')`), 'Kodlama önizlemesi');
+    await run(`const select=document.querySelector('#bfEncodingPreview select');select.value='windows-1254';select.dispatchEvent(new Event('change'));`);
+    assert(await run(`return document.querySelector('#bfEncodingPreview pre').textContent.includes('Şığ')`));
+    await run(`document.querySelector('#bfEncodingPreview button').click()`);
+    await until(() => run(`return player.cues.some(c=>c.text.includes('Şığ'))`), 'Kodlama kopyası');
+    assert.equal(fs.readFileSync(encoded).includes(Buffer.from([0xDE, 0xFD, 0xF0])), true);
+    await run(`document.getElementById('bdRun').closest('details').open=true;document.getElementById('bdEnd').value='100';document.getElementById('bdRun').click()`);
+    await until(() => run(`return !document.getElementById('bdRun').disabled && document.getElementById('bdStatus').textContent.includes('Aralık')`), 'Konuşma aralığı doğrulama');
+    await run(`document.getElementById('bdRun').closest('details').scrollIntoView({block:'center'})`);
+    await wait(200); fs.writeFileSync(path.join(out, 'dialogue-ui.png'), (await win.webContents.capturePage()).toPNG());
+
     console.log(JSON.stringify({ ok: true, wave, preview, changes: draft.changes, applied, undone: undone[0] }));
   } finally { dialog.showOpenDialog = originalPicker; }
   app.quit();

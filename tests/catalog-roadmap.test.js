@@ -1,0 +1,73 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { randomBytes } = require('node:crypto');
+const { createMediaCatalogStore } = require('../src/media-catalog-store');
+const packages = require('../src/workspace-package');
+const videoPackages = require('../src/workspace-video-package');
+const { createMetadataClient, scanFolder } = require('../src/catalog-discovery');
+const { decode, preview } = require('../src/subtitle-encoding-preview');
+const { readFonts, extractFonts } = require('../src/browser-fonts');
+const { spawnSync } = require('node:child_process');
+const root = path.resolve('.uiprev/roadmap-tests/' + Date.now()); fs.mkdirSync(root, { recursive: true });
+const python = path.resolve('backend/venv/Scripts/python.exe'), ffmpeg = path.resolve('backend/bin/ffmpeg.exe');
+async function main() {
+  const source = path.join(root, 'source'), target = path.join(root, 'restored'); fs.mkdirSync(source); fs.mkdirSync(target);
+  const store = createMediaCatalogStore({ filePath: path.join(source, 'media-catalog.json') });
+  const session = require('../src/browser-session-store').normalizeBrowserSession({ activeTabId: 'one', tabs: [{ id: 'one', url: 'https://video.test/watch/1', title: 'Bölüm',
+    offset: 2.5, subtitleSyncRecords: [{ mediaId: 'site:episode-one', sourceTrackId: 'source', sourceHash: 'hash-one', scale: 1.002, offsetSeconds: 1.25, updatedAt: 10 }],
+    subtitleEdits: [{ mediaId: 'site:episode-one', variantId: 'translation-a', sourceHash: 'hash-one', cueId: 'cue-1', sourceCueHash: 'deadbeef', baseTranslation: 'Temel', hasOverride: true, userOverride: 'Kullanıcı düzeltmesi', revision: 2, userEditedAt: 11 }] }] });
+  fs.writeFileSync(path.join(source, 'browser-session.json'), JSON.stringify(session));
+  const sub = path.join(root, 'outside.srt'); fs.writeFileSync(sub, '1\n00:00:01,000 --> 00:00:02,000\nĞİŞ ıüğ\n');
+  fs.writeFileSync(path.join(source, 'browser-subtitle-preferences.json'), JSON.stringify({ version: 1, items: [{ mediaId: 'film', subtitleSelection: { primary: sub }, subtitleSyncRecords: [{ offset: 2.5 }] }] }));
+  fs.writeFileSync(path.join(source, 'settings.json'), JSON.stringify({ apiKey: 'DO_NOT_EXPORT' }));
+  fs.mkdirSync(path.join(source, 'subtitle-edits')); fs.writeFileSync(path.join(source, 'subtitle-edits/test.jsonl'), '{"before":"eski","after":"yeni"}\n');
+  const video = path.join(source, 'Sample.Series.S01E02.2024.mp4');
+  assert.equal(spawnSync(ffmpeg, ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=64x64:d=1', '-c:v', 'mpeg4', '-y', video], { windowsHide: true }).status, 0);
+  store.upsert({ kind: 'series', title: 'Sample', tmdbId: 'tv:42', favorite: true, ratings: { personal: '9' }, episodes: [{ season: 1, number: 2, airDate: '2026-09-20', source: { type: 'local', value: video } }] });
+  const parsed = await scanFolder(source, python); assert.equal(parsed.items[0].episodes[0].number, 2);
+  assert.equal(parsed.items[0].episodes[0].source.value, video);
+  let urls = [];
+  const client = createMetadataClient(async (url, options) => {
+    urls.push(String(url)); assert.equal(options.headers.Authorization, 'Bearer ' + 'x'.repeat(30));
+    assert(!String(url).includes('xxxx')); return { ok: true, text: async () => JSON.stringify(String(url).includes('/season/') ? { episodes: [{ episode_number: 3, name: 'Bölüm', air_date: '2026-09-21' }] } : { results: [{ id: 42, name: 'Sample', first_air_date: '2024-01-01' }] }) };
+  });
+  assert.equal((await client.search({ kind: 'series', title: 'Sample' }, 'x'.repeat(30)))[0].id, 42);
+  assert.equal((await client.season({ tmdbId: 'tv:42' }, 1, 'x'.repeat(30)))[0].airDate, '2026-09-21');
+  await assert.rejects(client.season({ tmdbId: '' }, 1, 'x'.repeat(30)));
+  const bundle = path.join(root, 'work.wbp'); packages.exportPackage(source, bundle, { subtitleStyle: '{"size":30}', apiKey: 'secret' });
+  const data = packages.readPackage(bundle); assert(!data.files.some(f => f.name === 'settings.json')); assert(!data.rendererValues.apiKey);
+  assert(data.files.some(f => f.name === 'subtitle-edits/test.jsonl'));
+  packages.restorePackage(target, data);
+  const sessionAfter = require('../src/browser-session-store').readBrowserSession(path.join(target, 'browser-session.json'));
+  assert.equal(sessionAfter.tabs[0].subtitleSyncRecords[0].offsetSeconds, 1.25);
+  assert.equal(sessionAfter.tabs[0].subtitleSyncRecords[0].scale, 1.002);
+  assert.equal(sessionAfter.tabs[0].subtitleEdits[0].userOverride, 'Kullanıcı düzeltmesi');
+  assert.equal(sessionAfter.tabs[0].offset, 2.5);
+  const tampered = path.join(root, 'untrusted.wbp');
+  fs.writeFileSync(tampered, require('node:zlib').gzipSync(Buffer.from(JSON.stringify({ ...data, archive: { path: 'unselected.zip' }, videoMappings: [['a', 'b']], videos: [] }))));
+  const sanitized = await videoPackages.read(tampered, python);
+  assert.equal(sanitized.archive, undefined); assert.equal(sanitized.videoMappings, undefined); assert.equal(sanitized.videos, undefined);
+  const restored = JSON.parse(fs.readFileSync(path.join(target, 'browser-subtitle-preferences.json')));
+  assert.equal(restored.items[0].subtitleSyncRecords[0].offset, 2.5);
+  assert(fs.existsSync(restored.items[0].subtitleSelection.primary));
+  assert.equal(createMediaCatalogStore({ filePath: path.join(target, 'media-catalog.json') }).list()[0].ratings.personal, '9');
+  assert.throws(() => packages.validate({ ...data, files: [{ name: '../escape.json', data: 'e30=' }] }));
+  assert.throws(() => packages.validate({ ...data, files: [...data.files, data.files[0]] }));
+  const cp = Buffer.from([0xDE, 0xFD, 0xF0]); assert.equal(decode(cp, 'windows-1254'), 'Şığ'); assert.equal(preview(cp).length, 6); assert.throws(() => decode(cp, 'invalid'));
+  // Exceed the shared 5 MB subprocess-output limit without losing the package manifest.
+  fs.mkdirSync(path.join(source, 'workspace-assets')); fs.writeFileSync(path.join(source, 'workspace-assets/random.srt'), randomBytes(6e6));
+  const videoBundle = path.join(root, 'with-video.wbp'); await videoPackages.exportWithVideos(source, videoBundle, {}, python);
+  const videoData = await videoPackages.read(videoBundle, python); assert.equal(videoData.videos.length, 1);
+  await videoPackages.extract(target, videoData, python); packages.restorePackage(target, videoData, videoData.videoMappings);
+  const restoredVideo = createMediaCatalogStore({ filePath: path.join(target, 'media-catalog.json') }).list()[0].episodes[0].source.value;
+  assert.equal(fs.readFileSync(restoredVideo).compare(fs.readFileSync(video)), 0);
+  const font = path.resolve('src/renderer/vendor/browser-ass/default.woff2'); assert.equal(readFonts([font]).length, 1);
+  assert.throws(() => readFonts([sub]));
+  const mkv = path.join(root, 'font.mkv');
+  assert.equal(spawnSync(ffmpeg, ['-v', 'error', '-i', video, '-c', 'copy', '-attach', font, '-metadata:s:t', 'mimetype=font/woff2', '-y', mkv], { windowsHide: true }).status, 0);
+  const fonts = await extractFonts(mkv, ffmpeg, path.resolve('backend/bin/ffprobe.exe')); assert.equal(fonts.length, 1); assert.equal(fonts[0].base64, fs.readFileSync(font).toString('base64'));
+  console.log('roadmap: folder, provider contract, calendar, package secrets/sync/edit/video roundtrip, >5 MB manifest, traversal, encoding and MKV fonts passed');
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

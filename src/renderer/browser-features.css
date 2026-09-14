@@ -110,3 +110,6 @@
 .player-side.tools-mode .side-bottom { display: none; }
 .workspace-browser .side-tabs { min-width: 0; overflow-x: auto; }
 .workspace-browser .side-tab { flex-shrink: 0; }
+#bfEncodingPreview { flex-basis: 100%; min-width: 0; }
+#bfEncodingPreview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }
+#bdText { width: 100%; min-height: 180px; resize: none; background: var(--bg-1); color: var(--text); border: 1px solid var(--border); }

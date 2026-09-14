@@ -8,6 +8,7 @@
   const state = { items: [], watchItems: [], section: 'movie', search: '', status: 'all', favorite: false,
     selected: null, mode: 'list', draft: null, busy: false, message: '', error: false, importData: null, importIds: new Set(), removeId: null, visibleCount: 40, session: 0, opener: null };
   const posterCache = new Map();
+  Object.assign(state, { credential: '', metadataQuery: '', metadataResults: [], metadata: null, metadataFields: new Set(), season: 1, seasonData: null, packageData: null });
   function loadPoster(target, id) {
     if (!posterCache.has(id)) posterCache.set(id, Promise.resolve(window.api?.mediaCatalog?.({ action: 'poster', id })).catch(() => null));
     posterCache.get(id).then(result => {
@@ -51,7 +52,7 @@
     try {
       const result = await window.api.mediaCatalog({ action, ...payload });
       if (sessionId !== state.session || !dialog.open) {
-        if (action === 'import-preview' && result?.token) void window.api.mediaCatalog({ action: 'import-cancel', token: result.token }).catch(() => {});
+        if (result?.token) void window.api.mediaCatalog({ action: action === 'import-preview' ? 'import-cancel' : 'extension-cancel', token: result.token }).catch(() => {});
         return null;
       }
       if (!result || result.ok === false) { state.message = result?.canceled ? '' : result?.error || 'İşlem tamamlanamadı.'; state.error = !result?.canceled; return null; }
@@ -65,10 +66,10 @@
     return !!result;
   }
   function cancelImport() {
-    if (state.importData?.token) void window.api?.mediaCatalog?.({ action: 'import-cancel', token: state.importData.token }).catch(() => {});
+    if (state.importData?.token) void window.api?.mediaCatalog?.({ action: state.importData.action === 'folder-preview' ? 'extension-cancel' : 'import-cancel', token: state.importData.token }).catch(() => {});
     state.importData = null; state.importIds.clear();
   }
-  function close() { cancelImport(); dialog.close(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); state.mode = 'list'; state.selected = null; state.removeId = null; }
+  function close() { state.credential = ''; cancelImport(); dialog.close(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); state.mode = 'list'; state.selected = null; state.removeId = null; }
   function show(id) { state.removeId = null; state.selected = id; state.mode = 'detail'; render(); }
   function formField(label, value, change, options = {}) {
     const wrap = $('label', 'mc-field'); wrap.append($('span', '', label));
@@ -126,13 +127,14 @@
   }
   function renderNav() {
     const nav = $('nav', 'mc-nav'); nav.setAttribute('aria-label', 'Katalog bölümleri');
-    for (const [key, label] of [['movie', 'Filmler'], ['series', 'Diziler'], ['watchlist', 'İzlenecekler']]) {
+    for (const [key, label] of [['movie', 'Filmler'], ['series', 'Diziler'], ['watchlist', 'İzlenecekler'], ['calendar', 'Takvim']]) {
       const control = button(label, () => { state.section = key; state.mode = 'list'; render(); });
       control.setAttribute('aria-current', state.section === key ? 'page' : 'false'); nav.append(control);
     }
     return nav;
   }
   function renderList() {
+    if (state.section === 'calendar') return renderCalendar();
     const body = $('div', 'mc-content');
     const controls = $('div', 'mc-toolbar');
     const search = $('input'); search.type = 'search'; search.placeholder = 'Başlık, yıl veya konu ara'; search.setAttribute('aria-label', 'Katalogda ara'); search.value = state.search;
@@ -145,7 +147,8 @@
     controls.append(search, status, favorite); body.append(controls);
     const actions = $('div', 'mc-list-actions');
     actions.append(button('Film ekle', () => edit(null, 'movie'), 'mc-primary'), button('Dizi ekle', () => edit(null, 'series')),
-      button('Eski arşivi içe aktar', previewImport)); body.append(actions);
+      button('Eski arşivi içe aktar', () => previewImport()), button('Klasör tara', () => previewImport('folder-preview')),
+      button('Çalışma paketi', () => { state.mode = 'package'; render(); })); body.append(actions);
     const grid = $('div', 'mc-grid'); grid.id = 'mcGrid'; body.append(grid); renderCards(grid);
     return body;
   }
@@ -207,7 +210,10 @@
     if (item.ratings) text.append($('p', 'mc-ratings', [item.ratings.imdb ? `IMDb ${item.ratings.imdb}/10` : '',
       item.ratings.letterboxd ? `Letterboxd ${item.ratings.letterboxd}/5` : '', item.ratings.personal ? `Kişisel ${item.ratings.personal}` : ''].filter(Boolean).join(' · ')));
     if (item.synopsis) text.append($('p', 'mc-synopsis', item.synopsis));
+    if (item.genres?.length || item.runtime) text.append($('p', 'mc-muted', [...(item.genres || []), item.runtime ? `${item.runtime} dk` : ''].filter(Boolean).join(' · ')));
+    if (item.cast?.length) text.append($('p', 'mc-muted', item.cast.join(', ')));
     const actions = $('div', 'mc-detail-actions');
+    actions.append(button('Bilgileri eşleştir', () => { state.metadataQuery = item.title; state.metadataResults = []; state.metadata = null; state.seasonData = null; state.mode = 'metadata'; render(); }));
     actions.append(button('Düzenle', () => edit(item)), button('Afiş seç', async () => { const result = await api('poster-file', { id: item.id }); if (result) { posterCache.delete(String(item.id)); if (!await reload()) return; show(item.id); } }));
     if (catalogType(item) === 'movie') actions.append(button(item.progress?.position > 0 && !item.progress?.completed ? 'Kaldığın yerden devam et' : 'Oynat', () => play(item), 'mc-primary'));
     else {
@@ -249,9 +255,10 @@
   function renderEpisodeForm() {
     const item = find(state.selected), draft = state.draft; const body = $('div', 'mc-content mc-form');
     body.append(button('← Diziye dön', () => show(item.id), 'mc-back'), $('h3', '', draft.id ? 'Bölümü düzenle' : 'Yeni bölüm'));
-    const form = $('form'); form.append(formField('Sezon', draft.season, value => { draft.season = Number(value); }, { type: 'number', min: 0, max: 1000, required: true }),
+    const form = $('form'); form.noValidate = true; form.append(formField('Sezon', draft.season, value => { draft.season = Number(value); }, { type: 'number', min: 0, max: 1000, required: true }),
       formField('Bölüm no', draft.number, value => { draft.number = Number(value); }, { type: 'number', min: 1, max: 10000, required: true }),
       formField('Başlık', draft.title, value => { draft.title = value; }, { maxLength: 200 }),
+      formField('Yayın tarihi (YYYY-AA-GG)', draft.airDate || '', value => { draft.airDate = value; }, { maxLength: 10 }),
       selectField('İzleme durumu', draft.watchStatus, Object.entries(statusLabels), value => { draft.watchStatus = value; }));
     const actions = $('div', 'mc-form-actions'); const save = $('button', 'mc-primary', 'Bölümü kaydet'); save.type = 'submit'; actions.append(save);
     if (draft.id) actions.append(button('Bölümü sil', async () => {
@@ -260,7 +267,7 @@
       const result = await api('save', { item: next }); if (result) { state.removeId = null; if (!await reload()) return; show(item.id); }
     }, 'mc-danger'), button('Vazgeç', () => { state.removeId = null; feedback('Silme iptal edildi.'); }));
     form.append(actions); form.addEventListener('submit', async event => {
-      event.preventDefault(); if (!form.reportValidity() || !Number.isInteger(draft.season) || !Number.isInteger(draft.number) || draft.season < 0 || draft.number < 1) return;
+      event.preventDefault(); if (!Number.isInteger(draft.season) || !Number.isInteger(draft.number) || draft.season < 0 || draft.season > 1000 || draft.number < 1 || draft.number > 10000 || (draft.airDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.airDate))) { feedback('Sezon, bölüm numarası ve tarihi kontrol edin.', true); return; }
       const next = makeDraft(item); next.episodes = next.episodes.filter(row => String(row.id) !== String(draft.id));
       next.episodes.push({ ...draft, id: draft.id || `episode-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
       const result = await api('save', { item: next }); if (result) { if (!await reload()) return; show(item.id); feedback('Bölüm kaydedildi.'); }
@@ -269,7 +276,7 @@
   function renderForm() {
     const draft = state.draft, body = $('div', 'mc-content mc-form');
     body.append(button('← Geri', () => { state.mode = draft.id ? 'detail' : 'list'; render(); }, 'mc-back'), $('h3', '', draft.id ? 'Yapımı düzenle' : 'Kataloğa yapım ekle'));
-    const form = $('form'); form.append(selectField('Tür', draft.type, Object.entries(typeLabels), value => { draft.type = value; }),
+    const form = $('form'); form.noValidate = true; form.append(selectField('Tür', draft.type, Object.entries(typeLabels), value => { draft.type = value; }),
       formField('Başlık', draft.title, value => { draft.title = value; }, { required: true, maxLength: 200 }),
       formField('Yıl', draft.year, value => { draft.year = value; }, { type: 'number', min: 1888, max: 2100 }),
       formField('Konu', draft.synopsis, value => { draft.synopsis = value; }, { multiline: true, maxLength: 4000 }),
@@ -281,19 +288,19 @@
     checkbox.addEventListener('change', () => { draft.favorite = checkbox.checked; }); favorite.append(checkbox, $('span', '', 'Favori')); form.append(favorite);
     const save = $('button', 'mc-primary', draft.id ? 'Değişiklikleri kaydet' : 'Kataloğa ekle'); save.type = 'submit'; form.append(save);
     form.addEventListener('submit', async event => {
-      event.preventDefault(); if (!form.reportValidity() || !draft.title.trim()) return;
+      event.preventDefault(); if (!draft.title.trim()) { feedback('Başlık gerekli.', true); return; }
       const result = await api('save', { item: { ...draft, kind: draft.type === 'series' ? 'series' : 'film', title: draft.title.trim(), year: draft.year === '' ? null : Number(draft.year) } });
       if (result) { if (!await reload()) return; state.selected = result.item?.id || draft.id; state.mode = 'detail'; feedback('Yapım kaydedildi.'); }
     }); form.querySelectorAll('button,input,select,textarea').forEach(control => { control.disabled = state.busy; }); body.append(form); return body;
   }
-  async function previewImport() {
-    const result = await api('import-preview');
+  async function previewImport(action = 'import-preview') {
+    const result = await api(action);
     if (!result) return;
     if (!dialog.open) { if (result.token) void window.api.mediaCatalog({ action: 'import-cancel', token: result.token }).catch(() => {}); return; }
-    state.importData = result; state.importIds = new Set(); state.mode = 'import'; render();
+    state.importData = { ...result, action }; state.importIds = new Set(); state.mode = 'import'; render();
   }
   function renderImport() {
-    const body = $('div', 'mc-content mc-import'); body.append(button('← Kataloğa dön', () => { cancelImport(); state.mode = 'list'; render(); }, 'mc-back'), $('h3', '', 'Eski arşivi içe aktar'));
+    const body = $('div', 'mc-content mc-import'); body.append(button('← Kataloğa dön', () => { cancelImport(); state.mode = 'list'; render(); }, 'mc-back'), $('h3', '', state.importData?.action === 'folder-preview' ? 'Klasör tarama sonuçları' : 'Eski arşivi içe aktar'));
     const data = state.importData || {}; const rows = Array.isArray(data.items) ? data.items : [];
     body.append($('p', 'mc-muted', `${rows.length} kayıt önizlemede. Yalnız seçtikleriniz içe aktarılır; belirsiz eşleşmeleri kontrol edin.`));
     if (data.summary) body.append($('p', 'mc-muted', `Eklenecek: ${data.summary.added?.length || 0} · Güncellenecek: ${data.summary.updated?.length || 0} · Çakışma: ${data.summary.conflicts?.length || 0} · Atlanan: ${data.summary.skipped?.length || 0}`));
@@ -318,9 +325,84 @@
     body.append(list);
     body.append(button('Seçilileri içe aktar', async () => {
       if (!state.importIds.size) { feedback('İçe aktarmak için en az bir kayıt seçin.', true); return; }
-      const result = await api('import-apply', { token: data.token, ids: [...state.importIds] });
+      const result = await api(data.action === 'folder-preview' ? 'folder-apply' : 'import-apply', { token: data.token, ids: [...state.importIds] });
       if (result) { state.mode = 'list'; state.importData = null; if (!await reload()) return; const report = result.summary || {}; feedback(`İçe aktarma tamamlandı: ${report.added?.length || 0} eklendi, ${report.updated?.length || 0} güncellendi, ${report.conflicts?.length || 0} çakışma, ${report.skipped?.length || 0} atlandı.`); }
     }, 'mc-primary'));
+    return body;
+  }
+  function renderCalendar() {
+    const body = $('div', 'mc-content'); body.append($('h3', '', 'Bölüm takvimi'), $('p', 'mc-muted', 'Tarihleri dizi ayrıntısındaki Bilgileri eşleştir alanından alabilir veya bölüm düzenlerken yazabilirsiniz.'));
+    const rows = state.items.flatMap(item => (item.episodes || []).map(ep => ({ item, ep })));
+    rows.sort((a, b) => (a.ep.airDate || '9999').localeCompare(b.ep.airDate || '9999'));
+    const now = new Date(), today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const pending = rows.filter(({ ep }) => ep.watchStatus !== 'completed' && !ep.progress?.completed);
+    if (!pending.length) body.append($('p', 'mc-empty', 'Tarihi bilinen, izlenmemiş bölüm yok.'));
+    const groups = [['Yaklaşan bölümler', pending.filter(({ ep }) => ep.airDate > today)], ['Yayınlandı · izlenmedi', pending.filter(({ ep }) => ep.airDate && ep.airDate <= today && ep.source)], ['Kaynağı eksik', pending.filter(({ ep }) => !ep.source && (!ep.airDate || ep.airDate <= today))], ['Tarihi açıklanmamış', pending.filter(({ ep }) => !ep.airDate && ep.source)]];
+    for (const [label, entries] of groups) {
+      body.append($('h4', '', `${label} · ${entries.length}`));
+      for (const { item, ep } of entries.slice(0, state.visibleCount)) {
+      const row = $('div', 'mc-calendar-row');
+      row.append($('time', '', ep.airDate ? ep.airDate.split('-').reverse().join('.') : 'Tarih yok'), $('strong', '', `${item.title} · S${ep.season} B${ep.number}`),
+        $('span', 'mc-muted', ep.airDate > today ? 'Yaklaşıyor' : ep.source ? 'İzlemeye hazır' : 'Yayınlandı · kaynak yok'), button('Diziye git', () => show(item.id)));
+      body.append(row);
+    } }
+    if (pending.length > state.visibleCount) body.append(button('Daha fazla göster', () => { state.visibleCount += 40; render(); }));
+    return body;
+  }
+  function renderMetadata() {
+    const item = find(state.selected), body = $('div', 'mc-content mc-form');
+    if (!item) return renderList();
+    body.append(button('← Eser ayrıntısına dön', () => show(item.id)), $('h3', '', 'Eser bilgilerini eşleştir'),
+      $('p', 'mc-muted', 'TMDB başlık araması ve seçili sezon bilgileri çevrimiçi alınır. Erişim belirteci yalnız bu katalog oturumunda tutulur.'));
+    body.append(formField('TMDB API okuma erişim belirteci', state.credential, value => { state.credential = value; }, { type: 'password', maxLength: 4096 }));
+    const secret = body.querySelector('input[type=password]'); secret.autocomplete = 'off';
+    body.append(button('Belirteci göster / gizle', () => { secret.type = secret.type === 'password' ? 'text' : 'password'; }));
+    body.append(formField('Aranacak başlık', state.metadataQuery, value => { state.metadataQuery = value; }, { maxLength: 200 }),
+      button('Aramayı temizle', () => { state.metadataQuery = ''; state.metadataResults = []; state.metadata = null; render(); }),
+      button('TMDB’de ara', async () => { const result = await api('metadata-search', { id: item.id, query: state.metadataQuery, credential: state.credential }); if (result) { state.metadataResults = result.results; state.metadata = null; if (!result.results.length) state.message = 'Eşleşme bulunamadı; başka başlık deneyin.'; render(); } }));
+    const results = $('div', 'mc-import-list');
+    for (const row of state.metadataResults) results.append(button(`${row.title} · ${row.date || 'Tarih yok'}`, async () => {
+      const result = await api('metadata-preview', { id: item.id, providerId: row.id, credential: state.credential });
+      if (result) { state.metadata = result; state.metadataFields = new Set(['title', 'year', 'synopsis', 'genres', 'cast', 'runtime', 'imdbId', 'originalTitle', 'poster'].filter(key => key === 'poster' ? !item.hasPoster : Array.isArray(item[key]) ? !item[key].length : !item[key])); render(); }
+    }));
+    body.append(results);
+    if (state.metadata) {
+      const data = state.metadata; body.append($('h4', '', 'Uygulanacak alanları seçin'));
+      const labels = { title: 'Başlık', originalTitle: 'Özgün başlık', year: 'Yıl', synopsis: 'Konu', imdbId: 'IMDb kimliği', genres: 'Türler', cast: 'Oyuncular', runtime: 'Süre', poster: 'Afiş' };
+      for (const [key, label] of Object.entries(labels)) {
+        const row = $('label', 'mc-check'); const check = $('input'); check.type = 'checkbox'; check.checked = state.metadataFields.has(key); check.disabled = state.busy;
+        check.addEventListener('change', () => { if (check.checked) state.metadataFields.add(key); else state.metadataFields.delete(key); });
+        row.append(check, $('span', '', `${label}: ${key === 'poster' ? data.poster ? 'Yeni afiş indirilecek' : 'Afiş yok' : Array.isArray(data.patch[key]) ? data.patch[key].join(', ') : data.patch[key] ?? 'Bilgi yok'}`)); body.append(row);
+      }
+      body.append($('p', 'mc-muted', 'Yalnız boş alanlar başlangıçta seçilidir. Dolu bir alanı seçerseniz mevcut değer değişir. TMDB kimliği bağlanır; kişisel puan, favori ve izleme durumu korunur.'), button('Seçili bilgileri uygula', async () => {
+        const result = await api('metadata-apply', { token: data.token, fields: [...state.metadataFields] });
+        if (result) { posterCache.delete(String(item.id)); state.metadata = null; if (await reload()) show(item.id); }
+      }, 'mc-primary'));
+    }
+    if (item.kind === 'series') {
+      body.append($('h4', '', 'Sezon ve bölüm tarihleri'), formField('Sezon numarası', state.season, value => { state.season = Number(value); }, { type: 'number', min: 0, max: 1000 }),
+        button('Sezonu önizle', async () => { const result = await api('season-preview', { id: item.id, season: state.season, credential: state.credential }); if (result) { state.seasonData = result; render(); } }));
+      if (state.seasonData) {
+        const list = $('div', 'mc-import-list');
+        for (const ep of state.seasonData.episodes) list.append($('p', '', `B${ep.number} · ${ep.title} · ${ep.airDate || 'Tarih açıklanmadı'}`));
+        body.append(list, $('p', 'mc-muted', 'Eksik bölümler eklenir, yayın tarihleri güncellenir. Kaynak ve izleme durumu korunur.'), button('Bölümleri takvime aktar', async () => {
+          const result = await api('season-apply', { token: state.seasonData.token }); if (result) { state.seasonData = null; if (await reload()) show(item.id); }
+        }, 'mc-primary'));
+      }
+    }
+    body.append($('p', 'mc-muted', 'This product uses the TMDB API but is not endorsed or certified by TMDB.'));
+    return body;
+  }
+  function renderPackage() {
+    state.includeVideos ??= false;
+    const body = $('div', 'mc-content mc-form'); body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }), $('h3', '', 'Taşınabilir çalışma paketi'),
+      $('p', 'mc-muted', 'Katalog, posterler, kayıtlı altyazılar, düzeltmeler, notlar, izleme geçmişi ve senkron tercihleri birlikte taşınır. Hesap oturumları ve anahtarlar dahil değildir. Videoları eklerseniz kopyalama uzun sürebilir (en fazla 100 GB).'),
+      button('Paketi dışa aktar', async () => { const rendererValues = Object.fromEntries(['subtitleStyle', 'subtitlePos', 'browser-source-edits-v1', 'browser-source-edit-scopes-v1', 'browser-subtitle-drafts-v1'].map(key => [key, localStorage.getItem(key)])); const result = await api('package-export', { rendererValues, includeVideos: state.includeVideos }); if (result) feedback(`${result.count} çalışma dosyası, ${result.videos || 0} video ve kayıtlı düzenlemeler paketlendi.`); }),
+      button('Geri yüklenecek paketi seç', async () => { const result = await api('package-preview'); if (result) { state.packageData = result; render(); } }));
+    const include = $('label', 'mc-check'), checkbox = $('input'); checkbox.type = 'checkbox'; checkbox.checked = state.includeVideos; checkbox.disabled = state.busy;
+    checkbox.addEventListener('change', () => { state.includeVideos = checkbox.checked; }); include.append(checkbox, $('span', '', 'Katalogdaki yerel videoları da pakete ekle')); body.insertBefore(include, body.children[3]);
+    if (state.packageData) body.append($('p', 'mc-danger-note', `${state.packageData.count} çalışma dosyası ve ${state.packageData.videos || 0} video geri yüklenecek. Paketteki kayıtlar mevcut kayıtların yerini alır. Mevcut durum ayrıca yedeklenir. Uygulama yeniden başlayacak; açık işleri önce bitirin.`),
+      button('Vazgeç', () => { state.packageData = null; render(); }), button('Geri yükle ve yeniden başlat', async () => { await api('package-apply', { token: state.packageData.token }); }, 'mc-danger'));
     return body;
   }
   function render() {
@@ -332,7 +414,7 @@
     state.renderedView = viewKey;
     root.replaceChildren(renderHeader(), renderNav());
     if (state.message) { const message = $('p', state.error ? 'mc-feedback mc-error' : 'mc-feedback', state.message); message.setAttribute('role', state.error ? 'alert' : 'status'); root.append(message); }
-    root.append(state.mode === 'detail' ? renderDetail() : state.mode === 'form' ? renderForm() : state.mode === 'episode' ? renderEpisodeForm() : state.mode === 'import' ? renderImport() : renderList());
+    root.append(state.mode === 'metadata' ? renderMetadata() : state.mode === 'package' ? renderPackage() : state.mode === 'detail' ? renderDetail() : state.mode === 'form' ? renderForm() : state.mode === 'episode' ? renderEpisodeForm() : state.mode === 'import' ? renderImport() : renderList());
     root.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
@@ -342,6 +424,6 @@
     dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
     state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus(); await reload();
   });
-  dialog.addEventListener('close', () => { state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); cancelImport(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
+  dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });
 })();

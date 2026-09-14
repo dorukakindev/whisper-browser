@@ -35,7 +35,7 @@ async function main() {
   fs.writeFileSync(file, `<html><body style="margin:0;background:#222"><video src="${video.replace(/\\/g, '/')}" width="640" height="360" muted autoplay loop></video></body></html>`);
   await window.loadFile(file);
   const ass = `[Script Info]\nScriptType: v4.00+\nPlayResX: 640\nPlayResY: 360\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,20,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.00,0:00:04.00,Default,,0,0,0,,Hello ASS`;
-  const result = await window.webContents.executeJavaScript(buildAssInstallScript(ass, 'ass-first'), true);
+  const result = await window.webContents.executeJavaScript(buildAssInstallScript(ass, 'ass-first', require('../src/browser-fonts').readFonts([path.resolve(__dirname, '../src/renderer/vendor/browser-ass/default.woff2')])), true);
   if (!result.ok) throw new Error(result.error);
   const canvas = await window.webContents.executeJavaScript('({ count: document.querySelectorAll("canvas.JASSUB").length, width: document.querySelector("canvas.JASSUB")?.width, style: document.querySelector("canvas.JASSUB")?.getAttribute("style"), time:document.querySelector("video")?.currentTime })', true);
   if (canvas.count !== 1) throw new Error('ASS canvas oluşturulmadı.');

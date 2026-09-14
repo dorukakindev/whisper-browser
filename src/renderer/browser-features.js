@@ -65,6 +65,16 @@
     if (!Number.isFinite(seconds) || seconds < 0) return;
     if (player.workspaceMode === 'browser') browserCommand('seek', seconds).catch(() => status('Sahneye gidilemedi.', true));
   }
+  async function openSubtitleCopy(filePath) {
+    const key = signature(context());
+    addSubtitleOption(filePath, `Dosya · ${String(filePath).split(/[\\/]/).pop()}`);
+    $('playerSubSelect').value = filePath;
+    await loadSubtitle(filePath);
+    if (key !== signature(context()) || player.subPath !== filePath) { status('Altyazı açılamadı veya video değişti.', true); return false; }
+    player.browserLoadedTrackId = '';
+    saveActiveBrowserTabWorkspace();
+    return true;
+  }
   function timeText(value) {
     const seconds = Math.max(0, Number(value) || 0);
     const m = Math.floor(seconds / 60);
@@ -93,7 +103,7 @@
         const downloaded = await call('subtitle-download', { fileId: row.fileId, config: credentials() });
         if (!downloaded) return;
         if (!downloaded.filePath) { status('İndirme dosya yolu döndürmedi.', true); return; }
-        await loadSubtitle(downloaded.filePath);
+        if (!await openSubtitleCopy(downloaded.filePath)) return;
         status('Altyazı açıldı. Senkronu videoda kontrol edin.');
       });
       item.append(button); list.append(item);
@@ -283,7 +293,18 @@
     else if (action === 'skip-list') await listSkips();
     else if (action === 'skip-link-series') await linkSeries();
     else if (action === 'skip-save') await saveSkip();
-    else { const result = await call(action); if (result && action === 'ass-load') status('ASS görünümü açıldı.'); }
+    else if (action === 'encoding-preview') {
+      const result = await call(action); if (!result) return;
+      const box = $('bfEncodingPreview'); box.replaceChildren();
+      const label = node('label', 'Karakter kodlaması '), select = document.createElement('select');
+      for (const candidate of result.candidates) { const option = node('option', candidate.encoding === 'auto' ? 'Otomatik onarım' : candidate.encoding); option.value = candidate.encoding; select.append(option); }
+      label.append(select); const pre = node('pre', result.candidates[0]?.text || '');
+      select.addEventListener('change', () => { pre.textContent = result.candidates.find(c => c.encoding === select.value)?.text || ''; });
+      const apply = node('button', 'Bu kodlamayla kopyasını aç'); apply.type = 'button';
+      apply.addEventListener('click', async () => { if (busy) return; const output = await call('encoding-apply', { token: result.token, encoding: select.value }); if (output && await openSubtitleCopy(output.filePath)) { box.replaceChildren(); status('Düzeltilmiş kopya açıldı. Özgün dosya korundu.'); } });
+      box.append(label, pre, apply);
+    }
+    else { const result = await call(action); if (result && action.startsWith('ass-load')) status(`ASS görünümü açıldı · ${result.fontCount || 0} ek font.`); }
   });
   root.addEventListener('toggle', () => { if (root.open && context()) void listSkips(); });
   root.addEventListener('keydown', (event) => {

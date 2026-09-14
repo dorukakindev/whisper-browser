@@ -5,7 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
 
 function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userData, pythonPath,
-  inspectMedia, grantMedia, watchItems, nativeImage }) {
+  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore }) {
   let catalog;
   const previews = new Map();
   const posterCache = new Map();
@@ -53,10 +53,12 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     if (!item.episodes.some(ep => ep.id === episodeId)) throw new Error('Bölüm bulunamadı.');
     return store().upsert({ id, episodes: item.episodes.map(ep => ep.id === episodeId ? { ...ep, source } : ep) });
   }
+  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore });
   ipcMain.handle('media-catalog:request', async (event, request) => {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const input = request && typeof request === 'object' ? request : {};
     try {
+      const extra = await extension(event, input); if (extra) return extra;
       switch (input.action) {
         case 'list': {
           const history = watchItems();
@@ -71,7 +73,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           if (raw.ratings && typeof raw.ratings === 'object') patch.ratings = { ...(previous?.ratings || {}), personal: raw.ratings.personal };
           if (Array.isArray(raw.episodes)) {
             patch.episodes = raw.episodes.map(ep => ({
-              id: ep.id, season: ep.season, number: ep.number, title: ep.title, watchStatus: ep.watchStatus,
+              id: ep.id, season: ep.season, number: ep.number, title: ep.title, watchStatus: ep.watchStatus, airDate: ep.airDate,
               source: previous?.episodes?.find(old => old.id === ep.id)?.source || null,
             }));
           }

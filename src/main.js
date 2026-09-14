@@ -14342,6 +14342,8 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
 });
 
 require('./media-catalog-service').registerMediaCatalogService({
+  restart: () => { app.relaunch(); app.exit(0); },
+  canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob && !browserExtras?.hasJobs(),
   ipcMain, dialog, nativeImage, owner: () => mainWindow, authorized: authorizedBrowserSender,
   userData: () => app.getPath('userData'), pythonPath: resolvePython,
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,

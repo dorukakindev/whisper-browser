@@ -50,7 +50,13 @@
 .mc-field { display: grid; gap: 5px; color: var(--text-muted); font-size: 12px; }
 .mc-field input, .mc-field select, .mc-field textarea { width: 100%; color: var(--text); }
 .mc-field:has(textarea), .mc-form-actions { grid-column: 1 / -1; }
-.mc-field textarea { min-height: 100px; resize: vertical; }
+.mc-field textarea { min-height: 150px; resize: none; field-sizing: content; }
+.mc-form > .mc-field, .mc-form > .mc-check { display: grid; margin-block: 12px; overflow-wrap: anywhere; }
+.mc-form > .mc-check { grid-template-columns: auto 1fr; align-items: start; gap: 10px; }
+.mc-form > button { margin: 5px 8px 5px 0; }
+.mc-calendar-row { display: grid; grid-template-columns: 100px minmax(100px, 1fr) minmax(100px, auto) auto; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.mc-calendar-row time { color: var(--accent); font-variant-numeric: tabular-nums; }
+@media (max-width: 680px) { .mc-calendar-row { grid-template-columns: 90px 1fr; } .mc-nav { flex-wrap: wrap; } }
 .mc-import-list { display: grid; gap: 5px; max-height: 420px; overflow: auto; margin: 16px 0; }
 .mc-import-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 11px; border: 1px solid var(--border); background: var(--bg-1); }
 .mc-feedback { margin: 0; padding: 9px 26px; border-bottom: 1px solid var(--border); color: var(--accent); }

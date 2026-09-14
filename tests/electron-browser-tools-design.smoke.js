@@ -80,7 +80,7 @@ app.whenReady().then(async () => {
       cues:document.getElementById('cueList').getBoundingClientRect().height,
       nested:!!document.getElementById('browserFeatures').contains(document.getElementById('bvaSaveSrt'))};`);
   fs.writeFileSync(path.join(out,'inspect.png'),(await win.webContents.capturePage()).toPNG());
-  assert.equal(check.groups, 8); assert(!check.overflow); assert(check.height>300); assert.equal(check.cues,0);assert(check.nested);
+  assert.equal(check.groups, 9); assert(!check.overflow); assert(check.height>300); assert.equal(check.cues,0);assert(check.nested);
   fs.writeFileSync(path.join(out,'tools-dark.png'),(await win.webContents.capturePage()).toPNG());
   fs.writeFileSync(path.join(out,'video-surface.png'),(await page.capturePage()).toPNG());
   await run(`document.getElementById('bfFindTitle').click();document.getElementById('bfTitle').value='Uzun bir film adı';document.getElementById('bfFindTitle').click();document.getElementById('bfFindTitle').click();return true`);

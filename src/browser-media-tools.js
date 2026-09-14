@@ -73,4 +73,4 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
   };
 }
 
-module.exports = { createBrowserMediaTools };
+module.exports = { createBrowserMediaTools, run };

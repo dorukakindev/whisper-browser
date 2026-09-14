@@ -58,7 +58,8 @@ function episodeOf(raw) {
       !Number.isSafeInteger(number) || number < 1 || number > 10000) return null;
   const id = text(raw.id, 120) || `s${season}e${number}`;
   return { id, season, number, title: text(raw.title, 300),
-    watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : 'unspecified', source: sourceOf(raw.source) };
+    watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : 'unspecified', source: sourceOf(raw.source),
+    airDate: /^\d{4}-\d{2}-\d{2}$/.test(raw.airDate || '') ? raw.airDate : '' };
 }
 function itemOf(raw, old = null) {
   if (!raw || typeof raw !== 'object') fail('Katalog kaydı geçersiz.');
@@ -80,6 +81,9 @@ function itemOf(raw, old = null) {
   const incomingSource = Object.prototype.hasOwnProperty.call(raw, 'source') ? sourceOf(raw.source) : old?.source || null;
   return { id: text(raw.id ?? old?.id, 120) || randomUUID(), kind, title, year,
     originalTitle: text(raw.originalTitle ?? old?.originalTitle, 300),
+    genres: (Array.isArray(raw.genres ?? old?.genres) ? raw.genres ?? old.genres : []).slice(0, 30).map(v => text(v, 80)),
+    cast: (Array.isArray(raw.cast ?? old?.cast) ? raw.cast ?? old.cast : []).slice(0, 20).map(v => text(v, 120)),
+    runtime: Number(raw.runtime ?? old?.runtime) > 0 ? Math.min(10000, Number(raw.runtime ?? old?.runtime)) : null,
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',

@@ -1,6 +1,9 @@
 # Bağımlılıklar
 node_modules/
 backend/venv/
+backend/separator-venv/
+backend/separator-models/
+*.wbp
 backend/.venv/
 backend/.venv-installing-*/
 backend/.venv-backup-*/

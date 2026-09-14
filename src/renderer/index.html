@@ -1921,7 +1921,11 @@
             <div class="bf-top-actions">
               <button type="button" data-bf-action="mini-open">Küçük oynatıcıyı aç</button>
               <button type="button" data-bf-action="ass-load">ASS altyazısı aç</button>
+              <button type="button" data-bf-action="ass-load-fonts">ASS ve font dosyalarını seç</button>
+              <button type="button" data-bf-action="ass-load-mkv-fonts">ASS ve MKV fontlarını aç</button>
+              <button type="button" data-bf-action="encoding-preview">Bozuk karakterleri düzelt</button>
               <button type="button" data-bf-action="ass-clear">ASS görünümünü kapat</button>
+              <div id="bfEncodingPreview" class="bf-results"></div>
             </div>
             <div class="bf-footer"><p id="bfStatus" role="status" aria-live="polite"></p><button type="button" data-bf-action="cancel">İşlemi durdur</button></div>
             <details id="browserAnalysisTools" class="browser-analysis-tools bf-section"></details>
@@ -2747,6 +2751,7 @@
 <script src="browser-features.js"></script>
 <script src="browser-analysis-tools.js"></script>
 <script src="browser-video-analysis.js"></script>
+<script src="browser-dialogue.js"></script>
 <script src="browser-series-context.js"></script>
 </body>
 </html>
