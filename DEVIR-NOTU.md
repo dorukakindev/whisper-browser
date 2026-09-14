@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-1157 — Arka plan gezinmesinde altyazı ve çeviri yalıtımı](docs/devir/2026-09-14-1157.md)
+Güncel çalışma: [2026-09-14-1200 — GitHub araştırması: yeni browser özellikleri](docs/devir/2026-09-14-1200.md)
+
+Önceki çalışma: [2026-09-14-1157 — Arka plan gezinmesinde altyazı ve çeviri yalıtımı](docs/devir/2026-09-14-1157.md)
 
 Önceki çalışma: [2026-09-14-1147 — Browser altyazı katmanı, konum ve durum mesajı düzeltmeleri](docs/devir/2026-09-14-1147.md)
 
