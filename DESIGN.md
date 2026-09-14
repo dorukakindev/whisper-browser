@@ -82,7 +82,7 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 ### Browser araçlarının gezinmesi
 
 - Yan panelin sekme çubuğu browser modunda en üstte kalır. **Araçlar** yalnız browser modunda görünür; Altyazılar, AI ve Kütüphane ile aynı `setSideTab` ve klavye gezinmesi sahibini kullanır.
-- Araçlar sekmesinde mini oynatıcı/ASS hızlı işlemleri ve sekiz native açılır grup vardır. Senkron, altyazı bulma, anlam arama, kare OCR, sahne şeridi, atlama aralıkları, dizi bağlamı ve aralık analizi ayrı açılır. Gizleme DOM'u yeniden kurmaz; alan değerleri ve devam eden iş durumu korunur.
+- Araçlar sekmesinde mini oynatıcı/ASS hızlı işlemleri ve dokuz native açılır grup vardır. Senkron, altyazı bulma, anlam arama, kare OCR, sahne şeridi, atlama aralıkları, dizi bağlamı, aralık analizi ve konuşma ayırma ayrı açılır. Gizleme DOM'u yeniden kurmaz; alan değerleri ve devam eden iş durumu korunur.
 - Araçların tek ana kaydırma sahibi `.bf-workspace` alanıdır; sonuç listeleri mevcut sınırlı kaydırmasını korur. Altyazılar sekmesinde araç formları yer kaplamaz. Dar pencerede mevcut panel devralma ve Sayfaya dön eylemi kullanılır.
 - Yerel oynatıcıya geçerken açık Araçlar sekmesi Altyazılar'a döner. Yeni tercih/ayar şeması yoktur; otomatik hızlanma/atlama varsayılanları değişmez.
 - Gruplar, düğmeler ve formlar mevcut renk/font token'larını kullanır; yeni font, CDN veya uygulama bağımlılığı eklenmez. Superdesign önizlemesi uygulamadan ayrı, statik inceleme materyalidir; uygulama IPC eylemlerini çalıştırmaz.
@@ -92,5 +92,15 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 Altyazı sinyali normal genişlikte iki kompakt satır kullanır: yakalama/sayfa durumu üstte, hazır blok veya hata durumu ve dosya ayrıntısı altta. Dosya ayrıntısı açılırsa tüm genişliği kullanır; hata metni kısaltılmaz ve eylemi gizlenmez. 650 px altındaki browser konteynerinde sıralı düzene geçilir. Önceki sinyal metni yalnız Ayrıntılar açıkken görünür. Durum metni açık/koyu tema için `--text-dim`, hata `--danger`, bağlantı bekleme `--warning` kullanır.
 
 ## Verification
+
+### Katalog otomasyonu ve çalışma paketi
+
+Klasör tarama mevcut içe aktarma önizlemesi/seçim sahibini kullanır; dosyaları yeniden adlandırmaz ve arka planda kendiliğinden çalışmaz. TMDB eşleştirme ekranı katalog ayrıntısından açılır. Yerel dolu alanlar başlangıçta seçilmez; değiştirmek açık seçim gerektirir. Kişisel puan/favori/izleme durumu metadata kapsamına girmez. Maskeli TMDB okuma belirteci katalog kapanınca temizlenir. TMDB sağlayıcı atfı ekranın altındadır.
+
+Takvim katalog gezinmesinin dördüncü bölümüdür. Yaklaşan, yayınlanmış/izlenmemiş, kaynağı eksik ve tarihi açıklanmamış bölümler ayrı gruplardır. Tarih alanı ürünün Türkçe YYYY-AA-GG metin sözleşmesini kullanır; OS tarih popup'ı yoktur. Metadata, kodlama ve model seçimleri mevcut native select sözleşmesini izler.
+
+Çalışma paketi ekranı dışa aktarma ve önizlemeli geri yükleme sunar. Video dahil etme başlangıçta kapalıdır. Son eylem kayıt değiştirme ve yeniden başlatmayı açıkça söyler; Vazgeç önce gelir. Katalog, kayıtlı altyazı dosyaları/düzeltmeleri, browser sekme senkronu, izleme geçmişi ve posterler taşınır. Anahtarlar/cookie oturumları, aktif kuyruk ve genel uygulama ayarları bu paketin kapsamında değildir. Genel ayar yedeği mevcut Ayarlar dışa aktarımıdır.
+
+Araçlar alanında dokuz açılır grup vardır. Yeni konuşma ayırma grubu aynı `.bf-workspace` kaydırıcısındadır; yalnız tıklamayla başlar, 60 saniye sınırı ve model/dil seçimi sunar. CPU üzerinde ayrı ortamda çalışır, sonuç SRT metnidir ve özgün videoya offset uygulanır; mevcut altyazıyı otomatik değiştirmez. ASS hızlı eylemleri ayrı font ve MKV font seçenekleri içerir. Kodlama kurtarma önizlemesi özgün dosyayı koruyarak yeni kopyayı mevcut altyazı seçim sahibine bağlar.
 
 Değişen akışlar ayrı Electron test profillerinde sınanır. ASS, küçük oynatıcı ve ürün entegrasyonu için `tests/electron-browser-*.smoke.js` dosyaları; ses, tercih ve kayıt kararları için ilgili hedefli testler kullanılır. Canlı OpenSubtitles hesabı, tüm siteler ve DRM başarısı kontrollü testlerden çıkarılmaz.
