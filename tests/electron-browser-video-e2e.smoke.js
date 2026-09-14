@@ -3,14 +3,18 @@
 // node_modules/.bin/electron tests/electron-browser-video-e2e.smoke.js
 // Yeniden açılış: aynı VIDEO_E2E_PROFILE ile VIDEO_E2E_RESTORE=1 kullanın.
 // Çıktılar .uiprev/video-e2e/ altında. Canlı AI sağlayıcısı bu testin kapsamında değil.
-const {app,BrowserWindow,webContents,session,dialog}=require('electron');
+const {app,BrowserWindow,webContents,session,dialog,ipcMain}=require('electron');
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const root=path.resolve(__dirname,'..');
-const out=path.join(root,'.uiprev','video-e2e');fs.mkdirSync(out,{recursive:true});
+const out=process.env.VIDEO_E2E_OUT || path.join(root,'.uiprev','video-e2e');fs.mkdirSync(out,{recursive:true});
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid);
 process.on('warning', warning => fs.appendFileSync(process.env.VIDEO_E2E_WARNINGS || path.join(out,'native-warnings.log'), String(warning.stack)+'\n'));
 app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
+const handle=ipcMain.handle.bind(ipcMain);
+ipcMain.handle=(channel,listener)=>handle(channel,channel==='settings:load'&&process.env.VIDEO_E2E_SETTINGS_DELAY
+ ? async(...args)=>{await new Promise(resolve=>setTimeout(resolve,Number(process.env.VIDEO_E2E_SETTINGS_DELAY)));return listener(...args)}:listener);
 require('../src/main.js');
+ipcMain.handle=handle;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const report=[];
 async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(Date.now()<end){last=await fn();if(last)return last;await wait(200)}throw Error(label+' zaman aşımı: '+JSON.stringify(last));}
@@ -34,7 +38,10 @@ app.whenReady().then(async()=>{
  const win=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading()),'Pencere');
  const run=code=>win.webContents.executeJavaScript(`(async()=>{${code}})()`,true);
  const snapshot=async name=>{win.show();win.focus();const [w,h]=win.getContentSize();win.setContentSize(w+1,h);await wait(100);win.setContentSize(w,h);await wait(400);fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());};
- await wait(1200);win.setContentSize(1440,960);
+ let initializationTimer;
+ try { await Promise.race([run('await initialSettingsReady'),new Promise((_,reject)=>{initializationTimer=setTimeout(()=>reject(Error('Başlangıç ayarları hazır olmadı')),30000)})]); }
+ finally { clearTimeout(initializationTimer); }
+ win.setContentSize(1440,960);
  await run(`globalThis.modeTrace=[];const setModeOriginal=setSubtitleMode;setSubtitleMode=function(mode,announce){modeTrace.push({mode,restore:browserTabState()?.restoreSubtitleMode,selection:browserTabState()?.subtitleSelectionRestored,cues:player.cues.length,cues2:player.cues2.length});return setModeOriginal(mode,announce)};openPlayer();setWorkspaceMode('browser',false);setBrowserCaptureEnabled(true,false)`);
  await until(()=>run(`return player.browserActiveTabId`),'Tarayıcı sekmesi').catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await run(`return {mode:player.workspaceMode,signal:document.getElementById('browserSignalText')?.textContent,pending:state.pendingPlayerLoad?.label,tabs:await window.api.showBrowser('',browserSlotBounds())}`),null,2));throw error});
  if(process.env.VIDEO_E2E_RECOVERY_REOPEN==='1'){
@@ -153,6 +160,20 @@ app.whenReady().then(async()=>{
  await page.executeJavaScript(`document.querySelector('video').currentTime=2.5`);await wait(1000);
  const seekText=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('garden')&&t.includes('Bahçeye')?t:null})()`),'İleri sarma katmanı');
   assert(seekText.includes(captions.en[1])&&seekText.includes(captions.tr[1]),'İleri sarma altyazıları güncellemedi');report.push({seek:'passed'});
+ if(process.env.VIDEO_E2E_STRESS==='1'){
+  const seeks=[];
+  for(let index=0;index<60;index++){
+   const slot=index%3, target=[.5,2.5,4.2][slot],began=Date.now();
+   await page.executeJavaScript(`document.querySelector('video').pause();document.querySelector('video').currentTime=${target}`);
+   await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes(${JSON.stringify(captions.en[slot])})&&t.includes(${JSON.stringify(captions.tr[slot])})})()`),'Tekrarlı seek '+index,3000);
+   seeks.push(Date.now()-began);
+  }
+  const diagnostics=await page.executeJavaScriptInIsolatedWorld(999,[{code:'window.__whisperBrowserOverlayController.diagnostics()'}]);
+  assert.equal(diagnostics.overlayNodes,3);assert.equal(diagnostics.mutationObservers,1);
+  assert(page.listenerCount('did-stop-loading')<=1);
+  report.push({seekStress:{count:seeks.length,maxMs:Math.max(...seeks),samples:seeks,diagnostics}});
+  await page.executeJavaScript(`document.querySelector('video').currentTime=2.5`);await wait(200);
+ }
  await page.executeJavaScript(`document.querySelector('video').play()`);await wait(400);
  const advanced=await page.executeJavaScript(`document.querySelector('video').currentTime`);assert(advanced>2.6);await page.executeJavaScript(`document.querySelector('video').pause()`);report.push({playback:'passed'});
  await run(`document.getElementById('browserSyncChannel').value='primary';nudgeBrowserSync(0.4)`);

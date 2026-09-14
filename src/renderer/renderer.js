@@ -2596,7 +2596,7 @@ if ($('deepseekKeyHelp')) {
 }
 
 // Başlangıçta ayarları yükle
-(async () => {
+const initialSettingsReady = (async () => {
   try {
     const s = await window.api.loadSettings();
     if (s) {

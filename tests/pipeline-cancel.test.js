@@ -71,12 +71,9 @@ function forceKillPid(pid) {
 }
 
 function fixturePython() {
-  const candidates = [
-    process.env.WHISPER_TEST_PYTHON,
-    path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'),
-    path.resolve(__dirname, '..', '..', '..', 'backend', 'venv', 'Scripts', 'python.exe'),
-  ].filter(Boolean);
-  return candidates.find((candidate) => fs.existsSync(candidate)) || 'python';
+  const executable = require('./python-runtime').findTestPython();
+  if (!executable) throw new Error('Süreç ağacı testi için çalışan Python bulunamadı.');
+  return executable;
 }
 
 (async () => {

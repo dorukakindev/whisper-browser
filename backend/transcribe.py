@@ -6317,10 +6317,6 @@ def chat_about_video(args):
     Neden dosya: soru ve konusma gecmisi uzun olabilir; argv'ye sigmaz ve
     surec listesinde gorunur. Gizli anahtar zaten ortam degiskeninden geliyor.
     """
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise RuntimeError("Sohbet icin 'openai' paketi gerekli (pip install openai).")
     if not args.translate_api_key:
         raise RuntimeError("API anahtari yok (Gelismis ayarlar > Ceviri > API Key).")
 
@@ -6333,6 +6329,11 @@ def chat_about_video(args):
     soru = (payload.get("question") or "").strip()
     if not soru:
         raise RuntimeError("Soru bos.")
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise RuntimeError("Sohbet icin 'openai' paketi gerekli (pip install openai).")
 
     # Gecmis SINIRLI tutulur: uzun sohbette her turda tum gecmisi gondermek
     # hem pahali hem gereksiz. Son 8 mesaj baglami korumaya yetiyor.

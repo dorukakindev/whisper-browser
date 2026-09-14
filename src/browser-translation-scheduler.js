@@ -421,12 +421,19 @@ class BrowserTranslationScheduler {
           cues: [],
         }, sentence);
         if (!terminal) {
-          const timer = setTimeout(() => {
-            this.retryTimers.delete(timer);
-            if (generation === this.generation) this.updatePlayhead(this.playhead);
-            else this.resolveIdleIfNeeded();
-          }, delay);
-          this.retryTimers.add(timer);
+          // Windows zamanlayıcısı retryAt duvar saatinden önce uyanabilir.
+          // O durumda updatePlayhead bu işi hâlâ dışlar; tek timerı silmek
+          // yeniden denemeyi kaybettirip whenIdle'ı erken çözüyordu.
+          const armRetry = () => {
+            const timer = setTimeout(() => {
+              this.retryTimers.delete(timer);
+              if (generation !== this.generation) { this.resolveIdleIfNeeded(); return; }
+              if (Date.now() < failure.retryAt) { armRetry(); return; }
+              this.updatePlayhead(this.playhead);
+            }, Math.max(1, failure.retryAt - Date.now()));
+            this.retryTimers.add(timer);
+          };
+          armRetry();
         }
       }
     }).finally(() => {

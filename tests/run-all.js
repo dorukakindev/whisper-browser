@@ -2,7 +2,7 @@
  * Tüm testleri tek komutla çalıştırır:  npm test
  *
  * Node testleri (tests/*.test.js) + Python testleri (backend/test_transcribe.py).
- * Python testleri venv yoksa atlanır (kurulum yapılmamış makinede npm test yine çalışsın).
+ * Python yoksa test paketi eksik doğrulama bildirerek başarısız olur.
  */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -23,20 +23,9 @@ for (const f of fs.readdirSync(__dirname).filter((x) => x.endsWith('.test.js')).
   run(`node tests/${f}`, process.execPath, [path.join(__dirname, f)]);
 }
 
-// ---- Python testleri (venv varsa)
-const localPy = ['backend/venv/Scripts/python.exe', 'backend/venv/bin/python', 'backend/.venv/Scripts/python.exe']
-  .map((p) => path.join(ROOT, p))
-  .find((p) => fs.existsSync(p));
-let py = localPy ? { cmd: localPy, prefix: [] } : null;
-if (!py) {
-  const candidates = process.platform === 'win32'
-    ? [{ cmd: 'python', prefix: [] }, { cmd: 'py', prefix: ['-3'] }]
-    : [{ cmd: 'python3', prefix: [] }, { cmd: 'python', prefix: [] }];
-  py = candidates.find((candidate) => {
-    const probe = spawnSync(candidate.cmd, [...candidate.prefix, '--version'], { cwd: ROOT, stdio: 'ignore' });
-    return !probe.error && probe.status === 0;
-  }) || null;
-}
+// ---- Python testleri
+const python = require('./python-runtime').findTestPython();
+const py = python ? { cmd: python, prefix: [] } : null;
 
 if (py) {
   // backend/ altındaki TÜM test_*.py dosyaları otomatik keşfedilir — yeni bir Python
@@ -55,7 +44,8 @@ if (py) {
   }
 } else {
   console.log('\n=== python backend/test_transcribe.py ===');
-  console.log('  (Python bulunamadı — Python testleri atlandı)');
+  console.log('  (Python bulunamadı — Python testleri çalıştırılamadı)');
+  failed++;
 }
 
 console.log(failed ? `\n${failed} test dosyası BAŞARISIZ` : '\nTüm testler geçti');
