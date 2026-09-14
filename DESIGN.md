@@ -79,6 +79,14 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 - Eser ve bölüm düzenleme açık kaydetme kullanır. Silme iki adımlıdır; yalnız katalog kaydı silinir, medya dosyası ve izleme geçmişi kalır. İzlenecekler bölümünden yeni kayıt başlangıçta İzlenecek durumundadır. Bölüm sırası sezon/numaraya göre, sıradaki öneri kaynaklı ve tamamlanmamış ilk bölümdür.
 - nMDB içe aktarımı salt okunur önizleme → seçim → uygula akışıdır. Kimlik çakışmaları ve atlamalar gösterilir; tekrar içe aktarım mevcut izleme durumu, favori, kaynak ve puanları ezmez. İthal puanlar kaynak değerleridir; canlı sağlayıcı doğrulaması veya otomatik film önerisi değildir.
 
+### Browser araçlarının gezinmesi
+
+- Yan panelin sekme çubuğu browser modunda en üstte kalır. **Araçlar** yalnız browser modunda görünür; Altyazılar, AI ve Kütüphane ile aynı `setSideTab` ve klavye gezinmesi sahibini kullanır.
+- Araçlar sekmesinde mini oynatıcı/ASS hızlı işlemleri ve sekiz native açılır grup vardır. Senkron, altyazı bulma, anlam arama, kare OCR, sahne şeridi, atlama aralıkları, dizi bağlamı ve aralık analizi ayrı açılır. Gizleme DOM'u yeniden kurmaz; alan değerleri ve devam eden iş durumu korunur.
+- Araçların tek ana kaydırma sahibi `.bf-workspace` alanıdır; sonuç listeleri mevcut sınırlı kaydırmasını korur. Altyazılar sekmesinde araç formları yer kaplamaz. Dar pencerede mevcut panel devralma ve Sayfaya dön eylemi kullanılır.
+- Yerel oynatıcıya geçerken açık Araçlar sekmesi Altyazılar'a döner. Yeni tercih/ayar şeması yoktur; otomatik hızlanma/atlama varsayılanları değişmez.
+- Gruplar, düğmeler ve formlar mevcut renk/font token'larını kullanır; yeni font, CDN veya uygulama bağımlılığı eklenmez. Superdesign önizlemesi uygulamadan ayrı, statik inceleme materyalidir; uygulama IPC eylemlerini çalıştırmaz.
+
 ## Verification
 
 Değişen akışlar ayrı Electron test profillerinde sınanır. ASS, küçük oynatıcı ve ürün entegrasyonu için `tests/electron-browser-*.smoke.js` dosyaları; ses, tercih ve kayıt kararları için ilgili hedefli testler kullanılır. Canlı OpenSubtitles hesabı, tüm siteler ve DRM başarısı kontrollü testlerden çıkarılmaz.
