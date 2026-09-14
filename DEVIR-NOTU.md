@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-14-0611 — Altyazı önizlemesi, kalite kontrolü ve kaynak düzeltmeleri](docs/devir/2026-09-14-0611.md)
+Güncel çalışma: [2026-09-14-0636 — Browser AI bağlamı, tutarlılık, hata yönetimi ve kaynaklar](docs/devir/2026-09-14-0636.md)
+
+Önceki çalışma: [2026-09-14-0611 — Altyazı önizlemesi, kalite kontrolü ve kaynak düzeltmeleri](docs/devir/2026-09-14-0611.md)
 
 Önceki çalışma: [2026-09-14-0543 — Yayın altyazısı kararlılığı ve birleşik düzenleme paneli](docs/devir/2026-09-14-0543.md)
 
