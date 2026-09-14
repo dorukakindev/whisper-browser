@@ -27,6 +27,7 @@ function harness() {
     window: { api: { readSubtitle: async (file) => ({ ok: true, text: file }),
       stopBrowserTranslation: async (id) => { stops.push(id); } } },
     parseSubtitles: (text) => [{ id: '1', start: 0, end: 1, text }], applyCueQuality: (cues) => cues,
+    reviewSourceCues: (track,file,cues) => require('../src/browser-subtitle-review').reconcile(cues,[]).cues,
     browserTranslationMapFromCues: (cues) => new Map((cues || []).map((cue) => [String(cue.id), cue])),
     hideWordInspector() {}, renderCueList() {}, updateSubtitleChips() {}, updateMakeTransState() {},
     updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {},

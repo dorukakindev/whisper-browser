@@ -163,6 +163,42 @@ app.whenReady().then(async()=>{
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
+ if(process.env.VIDEO_E2E_REVIEW_EDIT==='1'){
+  const original=fs.readFileSync(en.path,'utf8');
+  await run(`openCueEditor();browserQuickEditor.rows[0].text.value='Önizleme metni';document.getElementById('browserQuickPreview').click();`);
+  await until(()=>page.executeJavaScript(`document.getElementById('__whisper_browser_subtitles')?.textContent.includes('Önizleme metni')`),'Kaydetmeden önizleme');
+  assert.equal(fs.readFileSync(en.path,'utf8'),original);
+  assert.equal(await run(`return player.cues[0].text`),captions.en[0]);
+  await run(`closeBrowserQuickEditor()`);
+  await until(()=>page.executeJavaScript(`document.getElementById('__whisper_browser_subtitles')?.textContent.includes('Flowers')`),'Önizlemeyi kapatma');
+  await run(`openCueEditor();browserQuickEditor.rows[0].end.value='1.300';await replayBrowserQuickCue()`);
+  await until(()=>page.executeJavaScript(`!document.querySelector('video').paused`),'Repliği oynatma');
+  await until(()=>page.executeJavaScript(`document.querySelector('video').paused&&document.querySelector('video').currentTime>=1.3`),'Replik sonunda durma',6000);
+  await run(`globalThis.reviewStorageOriginal=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key===browserReviewRecordsKey)throw new Error('Kontrollü kota hatası');return reviewStorageOriginal.call(this,key,value)};await saveBrowserQuickEditor();Storage.prototype.setItem=reviewStorageOriginal`);
+  assert.equal(fs.readFileSync(en.path,'utf8'),original,'Kota hatasında dosya geri yüklenmeli');
+  assert.equal(await run(`return player.cues[0].text`),captions.en[0]);
+  assert.match(await run(`return document.getElementById('browserQuickEditStatus').textContent`),/saklanamadı/);
+  await run(`await saveBrowserQuickEditor()`);
+  assert.equal(await run(`return player.cues[0].text`),'Önizleme metni');
+  assert.equal(await run(`return Object.values(readSourceEdits()).flat().length`),1);
+  await run(`await browserQuickHistory('undo')`);
+  assert.equal(await run(`return Object.values(readSourceEdits()).flat().length`),0);
+  await run(`await browserQuickHistory('redo');closeBrowserQuickEditor()`);
+  fs.writeFileSync(en.path,original.replace(captions.en[0],'Site yenilendi'));
+  await run(`await loadSubtitle(${JSON.stringify(en.path)},false,{silent:true});document.getElementById('browserSubtitleReview').open=true;renderBrowserSubtitleReview()`);
+  assert.equal(await run(`return player.cues[0].text`),'Önizleme metni');
+  assert.match(await run(`return document.getElementById('browserReviewConflicts').textContent`),/Site yenilendi/);
+  await snapshot('review-conflict');
+  await run(`document.querySelector('#browserReviewConflicts button').click()`);
+  await until(()=>run(`return !document.querySelector('#browserReviewConflicts button')`),'Düzeltmeyi koruma');
+  fs.writeFileSync(en.path,original.replace(captions.en[0],'İkinci site güncellemesi'));
+  await run(`await loadSubtitle(${JSON.stringify(en.path)},false,{silent:true});renderBrowserSubtitleReview();document.querySelectorAll('#browserReviewConflicts button')[1].click()`);
+  await until(()=>run(`return player.cues[0].text==='İkinci site güncellemesi'`),'Yeni kaynağı seçme');
+  await run(`player.cuesRaw[0].text='Çok hızlı '.repeat(20);renderBrowserSubtitleReview();document.querySelector('#browserReviewIssues button').click()`);
+  await until(()=>run(`return browserQuickEditor?.rows[0].index===0`),'Uyarıdan düzenleyiciye');
+  win.setContentSize(820,760);await snapshot('review-narrow');
+  fs.writeFileSync(path.join(out,'review-edit-report.json'),JSON.stringify({previewWithoutWrite:true,closeRestores:true,replayStops:true,storageFailureRollback:true,sourceUndoRedo:true,sourceRefreshPreserves:true,keepAndAcceptConflict:true,issueNavigation:true},null,2));app.quit();return;
+ }
  if(process.env.VIDEO_E2E_QUICK==='1'){
   await run(`openCueEditor();`);
   assert.equal(await run(`return browserQuickEditor.rows.length`),2);

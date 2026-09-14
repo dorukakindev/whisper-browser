@@ -19,6 +19,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
     const view = { setVisible() {}, webContents: { loadURL: async () => { throw error; } } };
     const shared = {
       URL,
+      loadedDirectBrowserMedia: vm.runInNewContext(main.slice(main.indexOf('async function loadedDirectBrowserMedia('),main.indexOf('function isAbortedBrowserNavigation('))+'\nloadedDirectBrowserMedia',{URL,setTimeout}),
       isAbortedBrowserNavigation: isAborted, normalizeBrowserUrl: url => url,
       browserLoadErrorMessage: (_, message) => message, waitForProtectedPlayback: async () => {},
       setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },

@@ -8759,9 +8759,9 @@ function scheduleBrowserOverlaySync() {
     player.browserOverlayTimer = null;
     const roleCues = browserSubtitleRoleCues();
     window.api.setBrowserOverlay(player.browserActiveTabId, {
-      source: roleCues.source
+      source: browserQuickPreviewCues(roleCues.source)
         .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
-      translation: roleCues.translation
+      translation: browserQuickPreviewCues(roleCues.translation)
         .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
       offset: player.offset,
@@ -9338,6 +9338,11 @@ function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaus
 }
 
 function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
+  if(browserQuickEditor?.replay&&!quickEditorStillCurrent(browserQuickEditor))browserQuickEditor.replay=null;
+  if (browserQuickEditor?.replay && !paused && (time >= browserQuickEditor.replay.end || time < browserQuickEditor.replay.start - .2)) {
+    browserQuickEditor.replay = null;
+    browserCommand('pause').catch(() => {});
+  }
   const t = subtitleSourceTime(Number(time || 0), false);
   const sponsorSeekStarted = applyBrowserSponsorSkip(Number(time || 0), Number(previousTime), paused);
   const previous = Number(previousTime);
@@ -15822,6 +15827,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     if (tab) tab.browserTracks = player.browserTracks.slice();
   }
   cues = attachBrowserCueIdentities(browserTrackForPath, cues);
+  if (player.workspaceMode === 'browser' && browserTrackForPath?.role !== 'translation') {
+    cues = reviewSourceCues(browserTrackForPath, path, cues);
+  }
   if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
   const wordSegments = player.workspaceMode === 'player' && Array.isArray(res.wordSegments)
     ? res.wordSegments : [];
@@ -16332,6 +16340,7 @@ function applySubtitleBulkMemory(files, desired) {
       const previousVisible = secondary ? [] : player.cues.map((cue) => ({ ...cue }));
       const track = player.workspaceMode === 'browser' ? browserLoadedTrack(secondary) : null;
       let cues = attachBrowserCueIdentities(track, parseSubtitles(raw));
+      if(player.workspaceMode==='browser'&&track?.role!=='translation')cues=reviewSourceCues(track,operation.path,cues);
       if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
       if (secondary) {
         player.cues2Raw = cues;
@@ -19713,6 +19722,144 @@ $$('[data-subtitle-display]').forEach((button) => {
 
 // ---- izlerken düzeltme ----
 let browserQuickEditor = null;
+const browserReviewRecordsKey = 'browser-source-edits-v1';
+const browserReviewConflicts = new Map();
+let browserReviewTimer = null;
+
+function readSourceEdits() {
+  try { const records=JSON.parse(localStorage.getItem(browserReviewRecordsKey)||'{}');return records&&typeof records==='object'&&!Array.isArray(records)?records:{}; } catch (_) { return {}; }
+}
+function writeSourceEdits(records) {
+  localStorage.setItem(browserReviewRecordsKey,JSON.stringify(records));
+}
+function reviewSourceScope(track,path) {
+  return browserSubtitleSync.hashText(`${player.mediaKey}|${track?.id || path}`);
+}
+function reviewSourceCues(track,path,cues) {
+  const scope=reviewSourceScope(track,path), records=readSourceEdits()[scope]||[];
+  const result=window.BrowserSubtitleReview.reconcile(cues,records);
+  browserReviewConflicts.set(scope,{mediaKey:player.mediaKey,trackId:track?.id,path,conflicts:result.conflicts});
+  clearTimeout(browserReviewTimer);browserReviewTimer=setTimeout(renderBrowserSubtitleReview,150);
+  return result.cues;
+}
+function sourceEditSnapshot(editor,plans) {
+  const stored=readSourceEdits(), before={}, after={};
+  for(const plan of plans){
+    const row=editor.rows.find(item=>item.channel===plan.channel);
+    if(row.browserOverride)continue;
+    const scope=reviewSourceScope(row.track,row.path);
+    if (!(scope in before)) before[scope]=stored[scope]||[];
+    const records=after[scope]||before[scope];
+    const existing=records.find(item=>window.BrowserSubtitleReview.equal(item.edited,window.BrowserSubtitleReview.plain(row.before)));
+    const record={cueId:String(row.before.cueId||row.before.id||''),base:existing?.base||window.BrowserSubtitleReview.plain(row.before),
+      edited:{text:plan.after,start:plan.timing?.start??row.before.start,end:plan.timing?.end??row.before.end},at:Date.now()};
+    after[scope]=[record,...records.filter(item=>item!==existing)];
+    if(after[scope].length>1000)throw new Error('Bu izde 1.000 kaynak düzeltmesi sınırına ulaşıldı. Önce altyazıyı dışa aktarın.');
+  }
+  return {before,after};
+}
+function sourceSnapshotMatches(snapshot,side) {
+  const stored=readSourceEdits();
+  return !snapshot || Object.entries(snapshot[side]).every(([key,value])=>JSON.stringify(stored[key]||[])===JSON.stringify(value));
+}
+function applySourceSnapshot(snapshot,side) {
+  if(!snapshot)return;
+  const stored=readSourceEdits();
+  for(const [key,value] of Object.entries(snapshot[side])){
+    if(value.length)stored[key]=value;else delete stored[key];
+  }
+  writeSourceEdits(stored);
+}
+function reviewDisplayChannels() {
+  const roles=browserSubtitleRoleCues();
+  return subtitleFindDescriptors().map(item=>{
+    const visible=item.secondary?player.cues2:player.cues;
+    const transform=browserTransformForChannel(item.secondary);
+    return {...item,role:roles.source===visible?'source':'translation',cues:item.cues.map(cue=>({...cue,
+      start:browserSubtitleSync.sourceToVideoTime(cue.start,transform),end:browserSubtitleSync.sourceToVideoTime(cue.end,transform)}))};
+  });
+}
+async function openReviewIssue(issue) {
+  const descriptor=subtitleFindDescriptors().find(item=>item.channel===issue.channel),cue=descriptor?.cues[issue.index];
+  if(!cue)return;
+  const generation=currentGeneration(),mediaKey=player.mediaKey,tabId=player.browserActiveTabId;
+  await browserCommand('seek',issue.start+.02);
+  if(generation!==currentGeneration()||mediaKey!==player.mediaKey||tabId!==player.browserActiveTabId)return;
+  if(descriptor.secondary)player.activeIdx2=player.cues2.indexOf(cue);
+  else player.activeIdx=player.cues.indexOf(cue);
+  openBrowserQuickEditor(descriptor.secondary,{channel:issue.channel,index:issue.index});
+}
+function renderBrowserSubtitleReview() {
+  if(player.workspaceMode!=='browser')return;
+  const issues=window.BrowserSubtitleReview.issues(reviewDisplayChannels());
+  const list=$('browserReviewIssues');list.replaceChildren();
+  const activeScopes=new Set(subtitleFindDescriptors().map(row=>reviewSourceScope(row.track,row.path)));
+  const conflicts=[...browserReviewConflicts.entries()].filter(([scope,value])=>activeScopes.has(scope)&&value.mediaKey===player.mediaKey)
+    .flatMap(([scope,value])=>value.conflicts.map(conflict=>({...conflict,scope,path:value.path})));
+  $('browserReviewCount').textContent=`· ${issues.length} uyarı · ${conflicts.length} kaynak değişikliği`;
+  for(const issue of issues.slice(0,200)){
+    const button=document.createElement('button');button.type='button';button.className='browser-review-row';
+    button.textContent=`${pSecToTime(issue.start)} · ${issue.reasons.join(' · ')}\n${String(issue.text||'').slice(0,180)}`;
+    button.addEventListener('click',()=>void openReviewIssue(issue).catch(()=>logLine('Altyazı satırına gidilemedi.','warn')));list.append(button);
+  }
+  if(!issues.length)list.textContent='Mevcut izlerde hızlı okuma, çakışma veya eksik çeviri uyarısı yok.';
+  const box=$('browserReviewConflicts');box.replaceChildren();
+  for(const conflict of conflicts.slice(0,50)){
+    const block=document.createElement('div');block.className='browser-review-conflict';
+    const describe=cue=>`${cue.start.toFixed(3)}–${cue.end.toFixed(3)} sn · ${cue.text}`;
+    const text=document.createElement('p');text.textContent=`${conflict.reason}\nÖnceki kaynak: ${describe(conflict.record.base)}\nDüzeltmeniz: ${describe(conflict.record.edited)}\nYeni kaynak: ${conflict.incoming?describe(conflict.incoming):'Eşleşme yok; kayıt saklanıyor.'}`;block.append(text);
+    for(const [keep,label] of [[true,'Düzeltmemi koru'],[false,'Yeni kaynağı kullan']]){
+      const button=document.createElement('button');button.type='button';button.className='btn btn-secondary btn-sm';button.textContent=label;
+      button.disabled=!conflict.incoming;
+      button.addEventListener('click',async()=>{
+        if(browserQuickEditor?.busy||player.cueHistoryBusy||player.subtitleFindReplace.applying)return;
+        if(!subtitleFindDescriptors().some(row=>reviewSourceScope(row.track,row.path)===conflict.scope))return;
+        const records=readSourceEdits(),rows=records[conflict.scope]||[];
+        const index=rows.findIndex(row=>JSON.stringify(row)===JSON.stringify(conflict.record));if(index<0)return;
+        if(keep)rows[index]={...rows[index],base:conflict.incoming};else rows.splice(index,1);
+        try{writeSourceEdits(records);}catch(_){text.textContent='Tercih kaydedilemedi; düzeltmeniz korunuyor.';return;}
+        const descriptor=subtitleFindDescriptors().find(row=>row.path===conflict.path);
+        if(descriptor)await loadSubtitle(conflict.path,descriptor.secondary,{silent:true,preserveInspector:true});
+        renderBrowserSubtitleReview();
+      });block.append(button);
+    }
+    box.append(block);
+  }
+}
+function browserQuickPreviewCues(cues) {
+  const editor=browserQuickEditor;
+  if(!editor?.preview||!quickEditorStillCurrent(editor))return cues;
+  const secondary=cues===player.cues2,row=editor.rows.find(item=>item.secondary===secondary);
+  if(!row)return cues;
+  const start=Number(row.start.value),end=Number(row.end.value);
+  if(!row.start.value||!row.end.value||!Number.isFinite(start)||!Number.isFinite(end)||start<0||end-start<.08)return cues;
+  return cues.map(cue=>cue.start===row.before.start&&cue.end===row.before.end&&cue.text===row.before.text
+    ? {...cue,text:row.text.value,start,end}:cue).sort((a,b)=>a.start-b.start||a.end-b.end);
+}
+async function replayBrowserQuickCue() {
+  const editor=browserQuickEditor;if(!editor||!quickEditorStillCurrent(editor))return;
+  const row=editor.rows.find(item=>item.channel===editor.selectedChannel)||editor.rows[0];
+  const transform=browserTransformForChannel(row.secondary),start=Number(row.start.value),end=Number(row.end.value);
+  if(!row.start.value||!row.end.value||!Number.isFinite(start)||!Number.isFinite(end)||start<0||end-start<.08)return updateQuickEditorStatus('Oynatmadan önce geçerli bir zaman aralığı girin.');
+  editor.preview=true;$('browserQuickPreview').checked=true;scheduleBrowserOverlaySync();
+  const begin=browserSubtitleSync.sourceToVideoTime(start,transform),finish=browserSubtitleSync.sourceToVideoTime(end,transform);
+  await browserCommand('seek',begin);
+  if(editor===browserQuickEditor&&quickEditorStillCurrent(editor)){
+    editor.replay={start:Math.max(0,begin),end:finish};
+    await browserCommand('play');
+  }
+}
+function stopBrowserQuickPreview() {
+  const editor=browserQuickEditor;
+  if(editor?.replay&&editor.tabId===player.browserActiveTabId&&editor.mediaKey===player.mediaKey)browserCommand('pause').catch(()=>{});
+  if(editor){editor.replay=null;editor.preview=false;}
+  $('browserQuickPreview').checked=false;
+  scheduleBrowserOverlaySync();
+}
+$('browserQuickPreview')?.addEventListener('change',event=>{if(browserQuickEditor)browserQuickEditor.preview=event.target.checked;scheduleBrowserOverlaySync();});
+$('browserQuickReplay')?.addEventListener('click',()=>void replayBrowserQuickCue().catch(()=>{stopBrowserQuickPreview();updateQuickEditorStatus('Replik oynatılamadı.');}));
+$('browserReviewRefresh')?.addEventListener('click',renderBrowserSubtitleReview);
+$('browserSubtitleReview')?.addEventListener('toggle',()=>{if($('browserSubtitleReview').open)renderBrowserSubtitleReview();});
 const browserQuickDraftKey = 'browser-subtitle-drafts-v1';
 
 function quickDrafts() {
@@ -19759,20 +19906,22 @@ function updateQuickEditorStatus(message = '') {
 function closeBrowserQuickEditor() {
   if (browserQuickEditor?.busy) return;
   persistQuickDraft();
+  stopBrowserQuickPreview();
   browserQuickEditor = null;
   $('browserQuickEdit')?.classList.add('hidden');
   player.editing = false;
 }
 
-function openBrowserQuickEditor(secondary = false) {
+function openBrowserQuickEditor(secondary = false, target = null) {
   if (browserQuickEditor?.busy) return;
   persistQuickDraft();
+  stopBrowserQuickPreview();
   const descriptors = subtitleFindDescriptors();
   const rows = [];
   for (const descriptor of descriptors) {
     const visible = descriptor.secondary ? player.cues2 : player.cues;
     const active = descriptor.secondary ? player.activeIdx2 : player.activeIdx;
-    const cue = visible[active];
+    const cue = target?.channel===descriptor.channel ? descriptor.cues[target.index] : visible[active];
     if (!cue) continue;
     const index = descriptor.cues.findIndex(item => item === cue
       || (Number(item.start) === Number(cue.start) && Number(item.end) === Number(cue.end) && item.text === cue.text));
@@ -19792,7 +19941,7 @@ function openBrowserQuickEditor(secondary = false) {
   const box = $('browserQuickEditRows'); box.replaceChildren();
   for (const row of rows) {
     const field = document.createElement('fieldset');
-    const title = row.role === 'translation' ? 'Çeviri' : 'Kaynak';
+    const title = browserSubtitleRoleCues().translation===(row.secondary?player.cues2:player.cues) ? 'Çeviri' : 'Kaynak';
     const legend = document.createElement('legend'); legend.textContent = `${title} · ${row.secondary ? 'İkinci kanal' : 'Birinci kanal'}`;
     row.text = document.createElement('textarea'); row.text.value = row.before.text;
     row.text.setAttribute('aria-label', `${title} metni`); row.text.maxLength = 12000;
@@ -19813,9 +19962,13 @@ function openBrowserQuickEditor(secondary = false) {
       if (value) { row.text.value = String(value.text ?? ''); row.start.value = value.start; row.end.value = value.end; }
     }
   }
-  for (const row of rows) for (const input of [row.text, row.start, row.end]) input.addEventListener('input', () => {
-    updateQuickEditorStatus(); persistQuickDraft();
-  });
+  for (const row of rows) for (const input of [row.text, row.start, row.end]) {
+    input.addEventListener('focus',()=>{editor.selectedChannel=row.channel;});
+    input.addEventListener('input', () => {
+      updateQuickEditorStatus(); persistQuickDraft();
+      if(editor.preview)scheduleBrowserOverlaySync();
+    });
+  }
   player.editing = true;
   browserCommand('pause').catch(() => {});
   setPlayerSidebarCollapsed(false);
@@ -19858,6 +20011,9 @@ async function saveBrowserQuickEditor() {
   if (!plans.length) return updateQuickEditorStatus('Değişiklik yok.');
   const prepared = prepareSubtitleBulkOperations(plans);
   if (prepared.error) return updateQuickEditorStatus(prepared.error);
+  let reviewSources;
+  try {reviewSources=sourceEditSnapshot(editor,plans);}
+  catch(error){return updateQuickEditorStatus(error.message);}
   editor.busy = true; player.subtitleFindReplace.applying = true; updateQuickEditorStatus();
   try {
     const result = await writeSubtitleBulkFiles(prepared.files, 'after', 'quick-edit');
@@ -19866,9 +20022,14 @@ async function saveBrowserQuickEditor() {
       const rollback = await writeSubtitleBulkFiles(prepared.files, 'before', 'quick-rollback');
       updateQuickEditorStatus('Kaydetme sırasında altyazı değişti; işlem uygulanmadı.' + (rollback.ok ? '' : ' Dosya geri yüklenemedi.')); return;
     }
+    try { applySourceSnapshot(reviewSources,'after'); }
+    catch (_) {
+      const rollback=await writeSubtitleBulkFiles(prepared.files,'before','quick-storage-rollback');
+      updateQuickEditorStatus('Düzeltme kaydı saklanamadı; taslak korunuyor.'+(rollback.ok?'':' Dosya geri yüklenemedi.'));return;
+    }
     applySubtitleBulkMemory(prepared.files, 'after'); applyBrowserBulkMemory(prepared.browserEdits, 'after');
     player.cueEditUndo.push({ kind: 'subtitle-bulk', mediaKey: editor.mediaKey,
-      files: prepared.files, browserEdits: prepared.browserEdits, at: Date.now() });
+      files: prepared.files, browserEdits: prepared.browserEdits, reviewSources, at: Date.now() });
     player.cueEditUndo = player.cueEditUndo.slice(-100); player.cueEditRedo = [];
     persistQuickDraft(true);
     editor.initial = quickEditorValues(editor);
@@ -19900,6 +20061,7 @@ $('browserQuickEditUndo')?.addEventListener('click', () => browserQuickHistory('
 $('browserQuickEditRedo')?.addEventListener('click', () => browserQuickHistory('redo'));
 $('browserQuickEditDiscard')?.addEventListener('click', () => {
   if (!browserQuickEditor || browserQuickEditor.busy) return;
+  stopBrowserQuickPreview();
   browserQuickEditor.rows.forEach((row, index) => { const value = browserQuickEditor.initial[index];
     row.text.value = value.text; row.start.value = value.start; row.end.value = value.end; });
   persistQuickDraft(true); updateQuickEditorStatus('Taslak silindi; kayıtlı metin korundu.');
@@ -20000,7 +20162,8 @@ async function applyCueEditHistoryCore(direction) {
     const desired = direction === 'undo' ? 'before' : 'after';
     const currentSide = direction === 'undo' ? 'after' : 'before';
     const fileStateMatches = subtitleBulkFileStateStillMatches(entry.files, currentSide);
-    if (!fileStateMatches || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)) {
+    if (!fileStateMatches || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)
+        || !sourceSnapshotMatches(entry.reviewSources,currentSide)) {
       logLine('Altyazı toplu düzeltmeden sonra değişti; geri alma yanlış metni ezmemek için uygulanmadı.', 'warn');
       scheduleSubtitleFindReplace(0);
       return;
@@ -20016,11 +20179,17 @@ async function applyCueEditHistoryCore(direction) {
     }
     if (generation !== currentGeneration() || entry.mediaKey !== player.mediaKey
         || !subtitleBulkFileStateStillMatches(entry.files, currentSide)
-        || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)) {
+        || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)
+        || !sourceSnapshotMatches(entry.reviewSources,currentSide)) {
       const rollback = await writeSubtitleBulkFiles(entry.files, currentSide, 'bulk-rollback');
       logLine('Altyazı işlem sırasında değişti; geçmiş işlemi uygulanmadı'
         + (rollback.ok ? '.' : ' ve dosya geri yüklenemedi.'), rollback.ok ? 'warn' : 'error');
       return;
+    }
+    try { applySourceSnapshot(entry.reviewSources,desired); }
+    catch (_) {
+      const rollback=await writeSubtitleBulkFiles(entry.files,currentSide,'history-storage-rollback');
+      logLine('Düzeltme geçmişi saklanamadı.'+(rollback.ok?'':' Dosya geri yüklenemedi.'),'error');return;
     }
     applySubtitleBulkMemory(entry.files, desired);
     applyBrowserBulkMemory(entry.browserEdits, desired);

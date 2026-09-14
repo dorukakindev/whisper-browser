@@ -1901,6 +1901,10 @@
             <div class="browser-quick-edit-heading"><strong id="browserQuickEditTitle">Altyazıyı düzenle</strong><button id="browserQuickEditClose" type="button" class="btn btn-ghost btn-sm">Kapat</button></div>
             <p class="hint">Zamanlar altyazı saniyesidir. Video senkron ayarı ayrıca uygulanır.</p>
             <div id="browserQuickEditRows"></div>
+            <div class="browser-quick-edit-actions">
+              <label><input id="browserQuickPreview" type="checkbox"> Videoda önizle</label>
+              <button id="browserQuickReplay" type="button" class="btn btn-secondary btn-sm">Seçili repliği oynat</button>
+            </div>
             <p id="browserQuickEditStatus" role="status" aria-live="polite"></p>
             <div class="browser-quick-edit-actions">
               <button id="browserQuickEditUndo" type="button" class="btn btn-secondary btn-sm">Geri al</button>
@@ -1909,6 +1913,12 @@
               <button id="browserQuickEditSave" type="button" class="btn btn-primary btn-sm">Değişiklikleri kaydet</button>
             </div>
           </section>
+          <details id="browserSubtitleReview" class="browser-subtitle-review">
+            <summary>Altyazı kontrolü <span id="browserReviewCount"></span></summary>
+            <button id="browserReviewRefresh" type="button" class="btn btn-secondary btn-sm">Yeniden kontrol et</button>
+            <div id="browserReviewConflicts" aria-live="polite"></div>
+            <div id="browserReviewIssues"></div>
+          </details>
           <!-- UST: diller, kaynak rozeti, arama, ayar cekmecesi -->
           <div class="side-top">
             <div class="side-tabbar">
@@ -2648,6 +2658,7 @@
 <script src="../browser-place-url.js"></script>
   <script src="../subtitle-output-contract.js"></script>
   <script src="../browser-subtitle-sync.js"></script>
+  <script src="../browser-subtitle-review.js"></script>
   <script src="../browser-site-profiles.js"></script>
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>

@@ -1858,6 +1858,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .sub-color-swatch:hover { transform: scale(1.15); border-color: var(--accent); }
 
 /* İzlerken düzeltme kutusu */
+.player-layer:not(.workspace-browser) #browserSubtitleReview { display: none; }
+.browser-subtitle-review { padding: 12px 16px; border-bottom: 1px solid var(--border); max-height: 40vh; overflow: auto; flex-shrink: 0; }
+.browser-subtitle-review summary { cursor: pointer; color: var(--accent); padding-bottom: 8px; }
+.browser-review-row { display: block; width: 100%; text-align: left; white-space: normal; padding: 10px; margin: 6px 0; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.browser-review-conflict { padding: 10px; margin: 8px 0; border: 1px solid var(--accent); border-radius: var(--radius-sm); }
+.browser-review-conflict p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .browser-quick-edit { padding: 16px; border-bottom: 1px solid var(--border-strong); background: var(--bg-2); flex-shrink: 0; max-height: 75vh; overflow: auto; }
 .browser-quick-edit-heading, .browser-quick-edit-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .browser-quick-edit fieldset { min-width: 0; margin: 12px 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }

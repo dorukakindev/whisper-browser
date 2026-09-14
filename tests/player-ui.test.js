@@ -1503,8 +1503,8 @@ test('birincil web çevirisi tüm araçlarda çeviri rolünü korur', () => {
     && /inVideoTime\(roleCues\.translation, browserTransformForRole\('translation'\)\)/.test(excerpt),
   'A-B kopyası birincil çeviri kanalını kullanmıyor');
   const overlay = js.slice(js.indexOf('function scheduleBrowserOverlaySync'), js.indexOf('function setBrowserLoadingState'));
-  assert(/source:\s*roleCues\.source/.test(overlay)
-    && /translation:\s*roleCues\.translation/.test(overlay),
+  assert(/source:\s*browserQuickPreviewCues\(roleCues\.source\)/.test(overlay)
+    && /translation:\s*browserQuickPreviewCues\(roleCues\.translation\)/.test(overlay),
   'web overlay kaynak ve çeviriyi rol eşlemesiyle göndermiyor');
 });
 

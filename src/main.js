@@ -3334,6 +3334,26 @@ function browserNavigationState(extra = {}) {
   return browserNavigationStateForTab(activeBrowserTab(), extra);
 }
 
+async function loadedDirectBrowserMedia(wc,url,error) {
+  // Chromium doğrudan medya belgesini oynatırken loadURL ERR_FAILED döndürebilir.
+  // Yalnız aynı URL'deki çözülmüş medya doğrulanır; ağ hataları gizlenmez.
+  if(Number(error?.errno)!==-2 && !['ERR_FAILED','net::ERR_FAILED'].includes(error?.code))return false;
+  let parsed;
+  try{parsed=new URL(url);}catch(_){return false;}
+  if(!/\.(mp4|webm|ogv|ogg)$/i.test(parsed.pathname)||wc.isDestroyed())return false;
+  const until=Date.now()+2000;
+  do{
+    if(wc.isDestroyed())return false;
+    if(wc.getURL()===url){
+      try{
+        if(await wc.executeJavaScriptInIsolatedWorld(999,[{code:`(()=>{const video=document.querySelector('video');return !!video&&video.readyState>=2&&video.videoWidth>0&&!video.error;})()`}])===true)return true;
+      }catch(_){return false;}
+    }
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }while(Date.now()<until);
+  return false;
+}
+
 function isAbortedBrowserNavigation(error) {
   return Number(error?.errno ?? error?.code) === -3
     || ['ERR_ABORTED', 'net::ERR_ABORTED'].includes(error?.code);
@@ -10339,6 +10359,11 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   } catch (err) {
     if (!requestIsCurrent()) return { ok: false, stale: true, error: 'Daha yeni gezinme isteği var.' };
     if (isAbortedBrowserNavigation(err)) return { ok: false, aborted: true };
+    if(await loadedDirectBrowserMedia(view.webContents,url,err)){
+      if(!requestIsCurrent())return {ok:false,stale:true};
+      tab.restoredUrl=url;scheduleBrowserSessionSave();
+      return {ok:true,mediaDocument:true,...browserEventContext(tab),...browserNavigationState()};
+    }
     return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message), url };
   }
 });
