@@ -129,6 +129,12 @@
     $('bvaIntroResults').replaceChildren();
     const result = await request('intro-detect', {}, 'bvaIntroStatus');
     if (!result) return;
+    const candidateContext = signature();
+    const candidateIsCurrent = item => {
+      if (item.isConnected && candidateContext === signature()) return true;
+      status('bvaIntroStatus', 'Video veya analiz değişti; jenerik önerisini yeniden oluşturun.', true);
+      return false;
+    };
     const rows = Array.isArray(result.candidates) ? result.candidates.slice(0, 3) : [];
     if (!rows.length) { status('bvaIntroStatus', 'Yeterince benzer bir jenerik bölümü bulunamadı.'); return; }
     status('bvaIntroStatus', `${rows.length} olası jenerik aralığı. Ses benzerliği öneridir; kaydetmeden önce izleyin.`);
@@ -137,9 +143,10 @@
       if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) continue;
       const item = document.createElement('div'); item.className = 'bva-intro-result';
       const label = document.createElement('p'); label.textContent = `${start.toFixed(1)}–${end.toFixed(1)} sn · benzerlik ${Math.round(Number(candidate.score) * 100)}%`;
-      const play = document.createElement('button'); play.type = 'button'; play.textContent = 'Başlangıca git'; play.addEventListener('click', () => seek(start));
+      const play = document.createElement('button'); play.type = 'button'; play.textContent = 'Başlangıca git'; play.addEventListener('click', () => { if (candidateIsCurrent(item)) seek(start); });
       const save = document.createElement('button'); save.type = 'button'; save.textContent = 'Jenerik aralığı olarak kaydet';
       save.addEventListener('click', async () => {
+        if (!candidateIsCurrent(item) || busy) return;
         const result = await request('skip-save', { record: { id: `intro-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           kind: 'intro', scope: 'media', start, end, autoSkip: false } }, 'bvaIntroStatus');
         if (result) { status('bvaIntroStatus', 'Jenerik aralığı kaydedildi. Otomatik atlama kapalı.'); save.disabled = true; }

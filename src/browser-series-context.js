@@ -128,6 +128,8 @@ function createBrowserSeriesContext({ filePath }) {
       fail('Kontrol için en çok 10000 kaynak ve çeviri repliği verin.');
     const timed = translations.filter((row) => Number.isFinite(Number(row?.start)) && Number.isFinite(Number(row?.end)))
       .sort((a, b) => Number(a.start) - Number(b.start));
+    const prefixEnd = [];
+    for (const row of timed) prefixEnd.push(Math.max(prefixEnd.at(-1) ?? -Infinity, Number(row.end)));
     const issues = [];
     let checked = 0;
     for (let index = 0; index < cues.length; index++) {
@@ -144,10 +146,12 @@ function createBrowserSeriesContext({ filePath }) {
           if (Number(timed[mid].start) < end) low = mid + 1;
           else high = mid;
         }
-        for (let position = low - 1; position >= 0 && position >= low - 8; position--) {
+        const overlapping = [];
+        for (let position = low - 1; position >= 0 && prefixEnd[position] > start; position--) {
           const row = timed[position];
-          if (Math.min(end, Number(row.end)) - Math.max(start, Number(row.start)) > 0) { translated = row; break; }
+          if (Math.min(end, Number(row.end)) - Math.max(start, Number(row.start)) > 0) overlapping.push(row);
         }
+        if (overlapping.length) translated = { text: overlapping.reverse().map(row => row.text || '').join(' ') };
       }
       if (!translated) continue;
       checked++;

@@ -50,7 +50,10 @@
     state.busy = true; state.message = 'İşleniyor…'; state.error = false; render();
     try {
       const result = await window.api.mediaCatalog({ action, ...payload });
-      if (sessionId !== state.session || !dialog.open) return null;
+      if (sessionId !== state.session || !dialog.open) {
+        if (action === 'import-preview' && result?.token) void window.api.mediaCatalog({ action: 'import-cancel', token: result.token }).catch(() => {});
+        return null;
+      }
       if (!result || result.ok === false) { state.message = result?.canceled ? '' : result?.error || 'İşlem tamamlanamadı.'; state.error = !result?.canceled; return null; }
       state.message = ''; return result;
     } catch (error) { if (sessionId === state.session && dialog.open) { state.message = error?.message || 'İşlem tamamlanamadı.'; state.error = true; } return null; }
@@ -59,13 +62,14 @@
   async function reload() {
     const result = await api('list');
     if (result) { state.items = Array.isArray(result.items) ? result.items : []; state.watchItems = Array.isArray(result.watchItems) ? result.watchItems : []; render(); }
+    return !!result;
   }
   function cancelImport() {
     if (state.importData?.token) void window.api?.mediaCatalog?.({ action: 'import-cancel', token: state.importData.token }).catch(() => {});
     state.importData = null; state.importIds.clear();
   }
   function close() { cancelImport(); dialog.close(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); state.mode = 'list'; state.selected = null; state.removeId = null; }
-  function show(id) { state.selected = id; state.mode = 'detail'; render(); }
+  function show(id) { state.removeId = null; state.selected = id; state.mode = 'detail'; render(); }
   function formField(label, value, change, options = {}) {
     const wrap = $('label', 'mc-field'); wrap.append($('span', '', label));
     const input = options.multiline ? $('textarea') : $('input');
@@ -95,7 +99,8 @@
       if (state.section === 'watchlist'
         ? !(['planned', 'watching'].includes(item.watchStatus) || (item.episodes || []).some(episode => ['planned', 'watching'].includes(episode.watchStatus)))
         : catalogType(item) !== state.section) return false;
-      if (state.status !== 'all' && item.watchStatus !== state.status) return false;
+      if (state.status !== 'all' && item.watchStatus !== state.status &&
+          !(state.section === 'watchlist' && (item.episodes || []).some(episode => episode.watchStatus === state.status))) return false;
       if (state.favorite && !item.favorite) return false;
       return !query || `${item.title || ''} ${item.year || ''} ${item.synopsis || ''}`.toLocaleLowerCase('tr-TR').includes(query);
     });
@@ -165,12 +170,13 @@
     if (rows.length > state.visibleCount) grid.append(button(`Daha fazla göster (${state.visibleCount}/${rows.length})`, () => { state.visibleCount += 40; renderCards(); }, 'mc-more'));
   }
   async function play(item, episodeId) {
+    const sessionId = state.session;
     const result = await api('play', { id: item.id, ...(episodeId ? { episodeId } : {}) });
     if (!result) return;
     const watchItem = result.watchItem;
     if (!watchItem || typeof window.openMediaCatalogPlayback !== 'function') { feedback('Oynatma köprüsü kullanılamıyor.', true); return; }
-    try { await window.openMediaCatalogPlayback(watchItem); close(); }
-    catch (error) { feedback(error?.message || 'Oynatma başlatılamadı.', true); }
+    try { await window.openMediaCatalogPlayback(watchItem); if (sessionId === state.session && dialog.open) close(); }
+    catch (error) { if (sessionId === state.session && dialog.open) feedback(error?.message || 'Oynatma başlatılamadı.', true); }
   }
   async function source(item, episodeId, kind) {
     const payload = { id: item.id, ...(episodeId ? { episodeId } : {}) };
@@ -180,7 +186,7 @@
       payload.url = url;
     }
     const result = await api(kind === 'file' ? 'source-file' : 'source-url', payload);
-    if (result) { await reload(); show(item.id); feedback('Oynatma kaynağı bağlandı.'); }
+    if (result) { if (!await reload()) return; show(item.id); feedback('Oynatma kaynağı bağlandı.'); }
   }
   function sourceControls(item, episode) {
     const wrap = $('div', 'mc-source'); const id = episode?.id;
@@ -202,7 +208,7 @@
       item.ratings.letterboxd ? `Letterboxd ${item.ratings.letterboxd}/5` : '', item.ratings.personal ? `Kişisel ${item.ratings.personal}` : ''].filter(Boolean).join(' · ')));
     if (item.synopsis) text.append($('p', 'mc-synopsis', item.synopsis));
     const actions = $('div', 'mc-detail-actions');
-    actions.append(button('Düzenle', () => edit(item)), button('Afiş seç', async () => { const result = await api('poster-file', { id: item.id }); if (result) { posterCache.delete(String(item.id)); await reload(); show(item.id); } }));
+    actions.append(button('Düzenle', () => edit(item)), button('Afiş seç', async () => { const result = await api('poster-file', { id: item.id }); if (result) { posterCache.delete(String(item.id)); if (!await reload()) return; show(item.id); } }));
     if (catalogType(item) === 'movie') actions.append(button(item.progress?.position > 0 && !item.progress?.completed ? 'Kaldığın yerden devam et' : 'Oynat', () => play(item), 'mc-primary'));
     else {
       const next = [...(item.episodes || [])].sort((a, b) => Number(a.season) - Number(b.season) || Number(a.number) - Number(b.number))
@@ -235,6 +241,7 @@
     return body;
   }
   function editEpisode(item, episode) {
+    state.removeId = null;
     state.selected = item.id;
     state.draft = { ...(episode || {}), season: episode?.season ?? 1, number: episode?.number || 1, title: episode?.title || '', watchStatus: episode?.watchStatus || 'unspecified' };
     state.mode = 'episode'; render();
@@ -250,13 +257,13 @@
     if (draft.id) actions.append(button('Bölümü sil', async () => {
       if (state.removeId !== draft.id) { state.removeId = draft.id; feedback('Bölümü silmek için yeniden basın veya vazgeçin.'); return; }
       const next = makeDraft(item); next.episodes = next.episodes.filter(row => String(row.id) !== String(draft.id));
-      const result = await api('save', { item: next }); if (result) { state.removeId = null; await reload(); show(item.id); }
+      const result = await api('save', { item: next }); if (result) { state.removeId = null; if (!await reload()) return; show(item.id); }
     }, 'mc-danger'), button('Vazgeç', () => { state.removeId = null; feedback('Silme iptal edildi.'); }));
     form.append(actions); form.addEventListener('submit', async event => {
       event.preventDefault(); if (!form.reportValidity() || !Number.isInteger(draft.season) || !Number.isInteger(draft.number) || draft.season < 0 || draft.number < 1) return;
       const next = makeDraft(item); next.episodes = next.episodes.filter(row => String(row.id) !== String(draft.id));
       next.episodes.push({ ...draft, id: draft.id || `episode-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
-      const result = await api('save', { item: next }); if (result) { await reload(); show(item.id); feedback('Bölüm kaydedildi.'); }
+      const result = await api('save', { item: next }); if (result) { if (!await reload()) return; show(item.id); feedback('Bölüm kaydedildi.'); }
     }); form.querySelectorAll('button,input,select,textarea').forEach(control => { control.disabled = state.busy; }); body.append(form); return body;
   }
   function renderForm() {
@@ -276,7 +283,7 @@
     form.addEventListener('submit', async event => {
       event.preventDefault(); if (!form.reportValidity() || !draft.title.trim()) return;
       const result = await api('save', { item: { ...draft, kind: draft.type === 'series' ? 'series' : 'film', title: draft.title.trim(), year: draft.year === '' ? null : Number(draft.year) } });
-      if (result) { await reload(); state.selected = result.item?.id || draft.id; state.mode = 'detail'; feedback('Yapım kaydedildi.'); }
+      if (result) { if (!await reload()) return; state.selected = result.item?.id || draft.id; state.mode = 'detail'; feedback('Yapım kaydedildi.'); }
     }); form.querySelectorAll('button,input,select,textarea').forEach(control => { control.disabled = state.busy; }); body.append(form); return body;
   }
   async function previewImport() {
@@ -312,7 +319,7 @@
     body.append(button('Seçilileri içe aktar', async () => {
       if (!state.importIds.size) { feedback('İçe aktarmak için en az bir kayıt seçin.', true); return; }
       const result = await api('import-apply', { token: data.token, ids: [...state.importIds] });
-      if (result) { state.mode = 'list'; state.importData = null; await reload(); const report = result.summary || {}; feedback(`İçe aktarma tamamlandı: ${report.added?.length || 0} eklendi, ${report.updated?.length || 0} güncellendi, ${report.conflicts?.length || 0} çakışma, ${report.skipped?.length || 0} atlandı.`); }
+      if (result) { state.mode = 'list'; state.importData = null; if (!await reload()) return; const report = result.summary || {}; feedback(`İçe aktarma tamamlandı: ${report.added?.length || 0} eklendi, ${report.updated?.length || 0} güncellendi, ${report.conflicts?.length || 0} çakışma, ${report.skipped?.length || 0} atlandı.`); }
     }, 'mc-primary'));
     return body;
   }

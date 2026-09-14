@@ -66,7 +66,7 @@ function itemOf(raw, old = null) {
   if (!['film', 'series'].includes(kind)) fail('Eser türü film veya dizi olmalı.');
   const title = text(raw.title ?? old?.title, 300);
   if (!title) fail('Eser adı gerekli.');
-  const yearRaw = raw.year ?? old?.year;
+  const yearRaw = Object.prototype.hasOwnProperty.call(raw, 'year') ? raw.year : old?.year;
   const year = yearRaw == null || yearRaw === '' ? null : Number(yearRaw);
   if (year !== null && (!Number.isSafeInteger(year) || year < 1880 || year > 2200)) fail('Yıl geçersiz.');
   const episodesRaw = raw.episodes ?? old?.episodes ?? [];
@@ -128,8 +128,8 @@ function mergeRecord(target, incoming) {
     const at = episodes.findIndex((current) => current.id === episode.id ||
       (current.season === episode.season && current.number === episode.number));
     if (at < 0) episodes.push(episode);
-    else episodes[at] = { ...episode, id: episodes[at].id,
-      watchStatus: episodes[at].watchStatus, source: episodes[at].source || episode.source };
+    else episodes[at] = { ...episodes[at], title: episodes[at].title || episode.title,
+      source: episodes[at].source || episode.source };
   }
   return itemOf({ ...target, title: target.title || incoming.title,
     originalTitle: target.originalTitle || incoming.originalTitle,

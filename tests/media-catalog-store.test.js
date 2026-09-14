@@ -44,9 +44,11 @@ try {
     episodes: [{ id: 's1e1', season: 1, number: 1, title: 'Başlangıç', source: { type: 'local', value: 'C:\\TV\\S01E01.mp4' } }] };
   assert.equal(store.mergeImport([episodeImport], { selectedIds: ['nmdb:work:3'] }).added.length, 1);
   const series = store.list().find((item) => item.importRef === 'nmdb:work:3');
-  store.upsert({ id: series.id, episodes: [{ ...series.episodes[0], watchStatus: 'completed' }] });
+  store.upsert({ id: series.id, episodes: [{ ...series.episodes[0], watchStatus: 'completed', title: 'Elle düzeltilen bölüm', season: 2 }] });
   store.mergeImport([{ ...episodeImport, episodes: [{ ...episodeImport.episodes[0], title: 'Yeni başlık', source: null }] }]);
   assert.equal(store.get(series.id).episodes[0].watchStatus, 'completed');
+  assert.equal(store.get(series.id).episodes[0].title, 'Elle düzeltilen bölüm');
+  assert.equal(store.get(series.id).episodes[0].season, 2);
   assert.equal(store.get(series.id).episodes[0].source.value, 'C:\\TV\\S01E01.mp4');
   assert.equal(store.remove(series.id), true);
   assert.equal(store.get(series.id), null);
@@ -68,6 +70,9 @@ try {
     kind: 'film', title: 'İkinci', year: 2022, imdbId: 'N/A', tmdbId: '-' }]);
   assert.equal(unrelated.added.length, 1);
   assert.equal(store.upsert({ kind: 'film', title: 'Kısa ID', imdbId: 'tt1', tmdbId: 'movie:0' }).imdbId, '');
+  store.upsert({ id: manual.id, year: null });
+  assert.equal(store.get(manual.id).year, null, 'Boşaltılan yıl yeniden eski değere dönmemeli');
+  assert.equal(createMediaCatalogStore({ filePath }).get(manual.id).year, null);
   const corrupt = path.join(dir, 'bad.json'); fs.writeFileSync(corrupt, '{broken');
   assert.throws(() => createMediaCatalogStore({ filePath: corrupt }).list(), /korunuyor/);
   assert.equal(fs.readFileSync(corrupt, 'utf8'), '{broken');

@@ -26,6 +26,15 @@ try {
   assert.equal(check.issues[0].index, 1);
   assert.equal(check.checked, 2);
   assert.equal(store.get(episode2).profile.terms[0].target, 'Kaptan');
+  const split = store.check(episode2, { cues: [{ start: 0, end: 4, text: 'Captain, wait.' }],
+    translations: [{ start: 0, end: 2, text: 'Kaptan,' }, { start: 2, end: 4, text: 'bekleyin.' }] });
+  assert.equal(split.checked, 1);
+  assert.equal(split.issues.length, 0, 'Terim önceki çeviri bloğunda da aranmalı');
+  const long = store.check(episode2, { cues: [{ start: 50, end: 52, text: 'Captain' }],
+    translations: [{ start: 0, end: 60, text: 'Kaptan' },
+      ...Array.from({ length: 12 }, (_, i) => ({ start: i + 1, end: i + 2, text: 'Kısa blok' }))] });
+  assert.equal(long.checked, 1, 'Sekiz satırdan önce başlayan örtüşen blok kaybolmamalı');
+  assert.equal(long.issues.length, 0);
   const otherSite = 'https://other.example|episode-1';
   store.bind(otherSite, 'Kuzey', 'https://other.example/watch/1');
   assert.equal(store.translationContext(otherSite).terms.length, 0);
