@@ -168,6 +168,11 @@
   }
 
   function createEditRecord(raw) {
+    const timing = raw?.timingOverride;
+    if (timing != null && (!Number.isFinite(timing.start) || !Number.isFinite(timing.end)
+        || timing.start < 0 || timing.end - timing.start < .08)) {
+      throw new TypeError('Altyazı bitişi başlangıçtan en az 0,08 saniye sonra olmalı.');
+    }
     const mediaId = clean(raw?.mediaId, 240);
     const variantId = clean(raw?.variantId, 180);
     const sourceHash = clean(raw?.sourceHash, 128);
@@ -180,6 +185,7 @@
       version: EDIT_RECORD_VERSION,
       mediaId, variantId, sourceHash, cueId, sourceCueHash,
       baseTranslation: String(raw.baseTranslation ?? ''),
+      ...(timing != null ? { timingOverride: { start: timing.start, end: timing.end } } : {}),
       hasOverride: raw.hasOverride === true,
       userOverride: raw.hasOverride === true ? String(raw.userOverride ?? '') : null,
       revision: Math.max(1, Number(raw.revision) || 1),
@@ -202,6 +208,11 @@
     const item = createEditRecord(record);
     return {
       ...modelCue,
+      cueId: modelCue.cueId || context.cueId,
+      sourceCueHash: modelCue.sourceCueHash || context.sourceCueHash,
+      ...(item.timingOverride ? { cueId: modelCue.cueId || context.cueId,
+        sourceStart: modelCue.sourceStart ?? modelCue.start, sourceEnd: modelCue.sourceEnd ?? modelCue.end,
+        start: item.timingOverride.start, end: item.timingOverride.end } : {}),
       text: item.hasOverride ? item.userOverride : String(modelCue?.text ?? ''),
       baseTranslation: String(modelCue?.text ?? ''),
       userOverride: item.hasOverride ? item.userOverride : null,

@@ -6,14 +6,20 @@
 const {app,BrowserWindow,webContents,session,dialog,ipcMain}=require('electron');
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const root=path.resolve(__dirname,'..');
-const out=process.env.VIDEO_E2E_OUT || path.join(root,'.uiprev','video-e2e');fs.mkdirSync(out,{recursive:true});
-process.env.WHISPER_RESOURCE_SOAK_USER_DATA=process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid);
+const out=path.resolve(process.env.VIDEO_E2E_OUT || path.join(root,'.uiprev','video-e2e'));fs.mkdirSync(out,{recursive:true});
+process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.resolve(process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid));
+fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,{recursive:true});
 process.on('warning', warning => fs.appendFileSync(process.env.VIDEO_E2E_WARNINGS || path.join(out,'native-warnings.log'), String(warning.stack)+'\n'));
 app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
 const handle=ipcMain.handle.bind(ipcMain);
-ipcMain.handle=(channel,listener)=>handle(channel,channel==='settings:load'&&process.env.VIDEO_E2E_SETTINGS_DELAY
- ? async(...args)=>{await new Promise(resolve=>setTimeout(resolve,Number(process.env.VIDEO_E2E_SETTINGS_DELAY)));return listener(...args)}:listener);
+let quickFailPath='';
+ipcMain.handle=(channel,listener)=>handle(channel,async(...args)=>{
+ if(channel==='settings:load'&&process.env.VIDEO_E2E_SETTINGS_DELAY)await new Promise(resolve=>setTimeout(resolve,Number(process.env.VIDEO_E2E_SETTINGS_DELAY)));
+ if(channel==='media:writeSubtitle'&&quickFailPath&&args[1]?.path===quickFailPath){quickFailPath='';return {ok:false,error:'Kontrollü yazma hatası'};}
+ return listener(...args);
+});
 require('../src/main.js');
+assert.equal(app.getPath('userData'),process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'Test profili uygulanmalı');
 ipcMain.handle=handle;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const report=[];
@@ -144,6 +150,7 @@ app.whenReady().then(async()=>{
   }
   report.push({restart:restored});await snapshot('04-restored');fs.writeFileSync(path.join(out,'restore-report.json'),JSON.stringify(report,null,2));app.quit();return;
  }
+ await until(()=>run(`return !player.browserWorkspaceShowBusy&&player.browserActiveTabId`),'Tarayıcı çalışma alanının hazırlanması');
  const nav=await run(`document.getElementById('browserAddress').value='https://video-e2e.test/watch';return await navigateBrowserFromAddress()`);assert.equal(nav.ok,true,JSON.stringify(nav));
  const page=await until(()=>webContents.getAllWebContents().find(w=>w.getURL()==='https://video-e2e.test/watch'),'Video sayfası');
  const mediaInfo=await until(()=>page.executeJavaScript(`(()=>{const v=document.querySelector('video');return v.readyState>=2?{duration:v.duration,width:v.videoWidth,height:v.videoHeight}:null})()`),'Video çözme');
@@ -156,6 +163,62 @@ app.whenReady().then(async()=>{
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
+ if(process.env.VIDEO_E2E_QUICK==='1'){
+  await run(`openCueEditor();`);
+  assert.equal(await run(`return browserQuickEditor.rows.length`),2);
+  await run(`const rows=browserQuickEditor.rows;rows[0].text.value='Rüzgârda çiçekler.';rows[0].start.value='0.100';rows[1].text.value='İkinci kanal düzeltildi.';rows[1].end.value='1.700';rows[0].text.dispatchEvent(new Event('input'));`);
+  assert.equal(await run(`return quickEditorDirty()`),true);
+  await run(`closeBrowserQuickEditor();openCueEditor()`);
+  assert.equal(await run(`return browserQuickEditor.rows[0].text.value`),'Rüzgârda çiçekler.');
+  const originalEn=fs.readFileSync(en.path,'utf8'),originalTr=fs.readFileSync(tr.path,'utf8');
+  quickFailPath=tr.path;
+  await run(`await saveBrowserQuickEditor()`);
+  assert.match(await run(`return document.getElementById('browserQuickEditStatus').textContent`),/Kontrollü yazma hatası/);
+  assert.equal(fs.readFileSync(en.path,'utf8'),originalEn,'İlk dosya geri yüklenmeli');
+  assert.equal(fs.readFileSync(tr.path,'utf8'),originalTr);
+  assert.equal(await run(`return player.cues[0].text`),captions.en[0]);
+  assert.equal(await run(`return quickEditorDirty()`),true);
+  await run(`await saveBrowserQuickEditor()`);
+  assert.equal(await run(`return player.cues[0].text`),'Rüzgârda çiçekler.');
+  assert.equal(await run(`return player.cues[0].start`),.1);
+  assert.equal(await run(`return player.cues2[0].text`),'İkinci kanal düzeltildi.');
+  assert.equal(await run(`return player.cues2[0].end`),1.7);
+  assert.match(fs.readFileSync(en.path,'utf8'),/00:00:00.100/);
+  assert.equal(await run(`return player.cueEditUndo.at(-1).files.length`),2);
+  await snapshot('quick-saved');
+  await run(`await browserQuickHistory('undo')`);
+  assert.equal(await run(`return player.cues[0].text`),captions.en[0]);
+  assert.equal(await run(`return player.cues2[0].end`),1.8);
+  await run(`await browserQuickHistory('redo')`);
+  assert.equal(await run(`return player.cues[0].start`),.1);
+  await run(`browserQuickEditor.rows[0].text.value='Yanlış satıra yazılmamalı';browserQuickEditor.rows[0].text.dispatchEvent(new Event('input'));player.activeIdx=1;await saveBrowserQuickEditor()`);
+  fs.writeFileSync(path.join(out,'quick-diagnostic.json'),JSON.stringify(await run(`return {status:document.getElementById('browserQuickEditStatus').textContent,rows:browserQuickEditor?.rows.map(r=>({channel:r.channel,index:r.index,before:r.before,raw:r.expectedRaw})),cues:player.cues,cues2:player.cues2}`),null,2));
+  assert.equal(await run(`return player.cues[0].text`),'Yanlış satıra yazılmamalı');
+  assert.equal(await run(`return player.cues[1].text`),captions.en[1]);
+  await run(`closeBrowserQuickEditor();player.activeIdx=0;openCueEditor();browserQuickEditor.rows[0].start.value='3';browserQuickEditor.rows[0].end.value='2';await saveBrowserQuickEditor()`);
+  assert.match(await run(`return document.getElementById('browserQuickEditStatus').textContent`),/0,08/);
+  await run(`document.getElementById('browserQuickEditDiscard').click();`);
+  win.setContentSize(820,760);await wait(400);await snapshot('quick-narrow');
+  const layout=await run(`const p=document.getElementById('browserQuickEdit');return {width:p.clientWidth,scroll:p.scrollWidth,save:document.getElementById('browserQuickEditSave').getBoundingClientRect().right,viewport:innerWidth}`);
+  assert(layout.width>=200&&layout.scroll<=layout.width+2&&layout.save<=layout.viewport);
+  await run(`browserQuickEditor.rows[0].text.value='Eski video taslağı';browserQuickEditor.rows[0].text.dispatchEvent(new Event('input'));player.browserActiveTabId='changed-tab';await saveBrowserQuickEditor()`);
+  assert.match(await run(`return document.getElementById('browserQuickEditStatus').textContent`),/Video veya altyazı değişti/);
+  await run(`player.browserActiveTabId=browserQuickEditor.tabId;document.getElementById('browserQuickEditDiscard').click();closeBrowserQuickEditor();
+    const track=player.browserTracks.find(t=>t.id===${JSON.stringify(tr.id)});track.role='translation';track.sourceTrackId=${JSON.stringify(en.id)};track.sourceHash='controlled-source';
+    applyLoadedBrowserTranslation(track,true);renderBrowserCueAt(.8,.8,true);openCueEditor();
+    const row=browserQuickEditor.rows.find(r=>r.role==='translation');row.text.value='Kullanıcının çevirisi';row.start.value='0.200';row.end.value='1.600';row.text.dispatchEvent(new Event('input'));await saveBrowserQuickEditor();`);
+  assert.equal(await run(`return player.cues2[0].text`),'Kullanıcının çevirisi');
+  assert.equal(await run(`return player.cues2[0].start`),.2);
+  assert.equal(await run(`return browserTabState().subtitleEdits.at(0).timingOverride.end`),1.6);
+  await run(`const map=browserBaseCueMap(${JSON.stringify(tr.id)});const first=[...map.values()][0];first.text='Gecikmiş model metni';refreshBrowserEditedChannel(${JSON.stringify(tr.id)});`);
+  assert.equal(await run(`return player.cues2[0].text`),'Kullanıcının çevirisi');
+  assert.equal(await run(`return player.cues2[0].start`),.2);
+  await run(`await browserQuickHistory('undo')`);
+  assert.equal(await run(`return player.cues2[0].text`),'Gecikmiş model metni');
+  await run(`await browserQuickHistory('redo')`);
+  assert.equal(await run(`return player.cues2[0].text`),'Kullanıcının çevirisi');
+  fs.writeFileSync(path.join(out,'quick-report.json'),JSON.stringify({dualEdit:true,timing:true,draftRestore:true,writeFailureRollback:true,undoRedo:true,pinnedCue:true,invalidTiming:true,staleTab:true,lateModel:true,modelTimingUndoRedo:true,layout},null,2));app.quit();return;
+ }
  assert(overlay.includes(captions.en[0])&&overlay.includes(captions.tr[0]),'Çift dil katmanında iki dil birlikte görünmedi: '+overlay);
  await page.executeJavaScript(`document.querySelector('video').currentTime=2.5`);await wait(1000);
  const seekText=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('garden')&&t.includes('Bahçeye')?t:null})()`),'İleri sarma katmanı');
@@ -174,8 +237,9 @@ app.whenReady().then(async()=>{
   report.push({seekStress:{count:seeks.length,maxMs:Math.max(...seeks),samples:seeks,diagnostics}});
   await page.executeJavaScript(`document.querySelector('video').currentTime=2.5`);await wait(200);
  }
- await page.executeJavaScript(`document.querySelector('video').play()`);await wait(400);
- const advanced=await page.executeJavaScript(`document.querySelector('video').currentTime`);assert(advanced>2.6);await page.executeJavaScript(`document.querySelector('video').pause()`);report.push({playback:'passed'});
+ await page.executeJavaScript(`document.querySelector('video').play()`);
+ await until(()=>page.executeJavaScript(`document.querySelector('video').currentTime>2.6`),'Videonun ilerlemesi',5000);
+ await page.executeJavaScript(`document.querySelector('video').pause()`);report.push({playback:'passed'});
  await run(`document.getElementById('browserSyncChannel').value='primary';nudgeBrowserSync(0.4)`);
  await page.executeJavaScript(`document.querySelector('video').currentTime=1.9`);await wait(700);
  const shifted=await page.executeJavaScript(`document.getElementById('__whisper_browser_subtitles')?.textContent||''`);

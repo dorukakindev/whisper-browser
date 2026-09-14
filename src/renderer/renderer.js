@@ -4846,6 +4846,7 @@ function saveActiveBrowserTabWorkspace() {
 }
 
 function restoreActiveBrowserTabWorkspace(tab) {
+  if (browserQuickEditor && browserQuickEditor.tabId !== tab?.id) closeBrowserQuickEditor();
   if (!tab) return;
   player.browserSyncPreview = null;
   player.browserCueEditContext = null;
@@ -7721,7 +7722,7 @@ function browserEditContextForCue(track, cue, index = 0) {
     // türetme: model metni değişince override kimliğini koparır. Kaynak hash,
     // cue kimliği ve zamanlar birlikte aynı-zamanlı cue çakışmasını da önler.
     sourceCueHash: cue.sourceCueHash || browserSubtitleSync.hashText(
-      `${identity.sourceHash}|${cueId}|${Number(cue.start)}|${Number(cue.end)}|${index}`),
+      `${identity.sourceHash}|${cueId}|${Number(cue.sourceStart ?? cue.start)}|${Number(cue.sourceEnd ?? cue.end)}|${index}`),
   };
 }
 
@@ -7755,7 +7756,7 @@ function effectiveBrowserTranslationCues(track, cues) {
   return (Array.isArray(cues) ? cues : []).map((cue, index) => {
     const context = browserEditContextForCue(track, cue, index);
     return browserSubtitleSync.applyEditRecord(cue, browserEditRecord(context), context);
-  });
+  }).sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
 function applyLoadedBrowserTranslation(track, secondary = false) {
@@ -14878,6 +14879,7 @@ function maybeOfferResume() {
 // devam ediyor, ustelik attachSiblingSubtitles "cues doluysa yukleme" dedigi icin
 // B'nin kendi altyazisi otomatik acilmiyordu. Bolum isaretleri de kaliyordu.
 function resetMediaBoundState(options = {}) {
+  closeBrowserQuickEditor();
   if (typeof stopPlayerVideoFrameLoop === 'function') stopPlayerVideoFrameLoop();
   if (typeof resetActiveWordHighlight === 'function') resetActiveWordHighlight();
   player.cancelHoldSpeed?.();
@@ -15254,6 +15256,16 @@ function replaceTimedCueTexts(rawText, edits) {
   // işlenmemiş zaman satırlarının özgün indeksleri kaymaz.
   resolved.sort((a, b) => b.lineIndex - a.lineIndex);
   for (const edit of resolved) {
+    if (edit.timing) {
+      const fmt = (value) => {
+        const ms = Math.round(value * 1000);
+        return `${String(Math.floor(ms / 3600000)).padStart(2, '0')}:${String(Math.floor(ms / 60000) % 60).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}${/^WEBVTT/.test(source.replace(/^\uFEFF/, '')) ? '.' : ','}${String(ms % 1000).padStart(3, '0')}`;
+      };
+      const pattern = /(?:\d+:)?\d+:\d{2}[.,]\d{1,3}/g;
+      let part = 0;
+      lines[edit.lineIndex] = lines[edit.lineIndex].replace(pattern,
+        (match) => ++part === 1 ? fmt(edit.timing.start) : part === 2 ? fmt(edit.timing.end) : match);
+    }
     const nextTiming = timingLines[edit.sourceIndex + 1]?.lineIndex ?? lines.length;
     let bodyEnd = nextTiming;
     if (edit.sourceIndex + 1 < timingLines.length) {
@@ -15262,6 +15274,11 @@ function replaceTimedCueTexts(rawText, edits) {
       if (/^\d+$/.test(candidate) || separatedCueId) bodyEnd--;
     }
     while (bodyEnd > edit.lineIndex + 1 && !lines[bodyEnd - 1].trim()) bodyEnd--;
+    // Boş satır cue gövdesini bitirir. Sonraki NOTE/STYLE/REGION bloğunu
+    // düzenlenen metnin parçası sanıp silme.
+    for (let i = edit.lineIndex + 1; i < bodyEnd; i++) {
+      if (!lines[i].trim()) { bodyEnd = i; break; }
+    }
     const normalized = String(edit.newText ?? '').replace(/\r\n?/g, '\n')
       .replace(/\n[ \t]*\n+/g, '\n');
     const safeLines = normalized ? normalized.split('\n') : [];
@@ -15283,7 +15300,7 @@ function replaceVttCueText(rawText, cue, newText) {
 // adlarini yok ederdi (eskiden .ass dosyasina duz SRT yaziliyordu).
 function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, fieldCount = 10,
                                 expectedStart = null, expectedEnd = null,
-                                startIndex = 1, endIndex = 2) {
+                                startIndex = 1, endIndex = 2, timing = null) {
   const source = String(rawText);
   const NL = source.includes('\r\n') ? '\r\n' : '\n';
   const lines = source.split(/\r?\n/);
@@ -15316,6 +15333,13 @@ function replaceAssDialogueText(rawText, lineNo, newText, lead, textIndex = 9, f
   const safeText = String(newText).replace(/\r\n?/g, '\n')
     .replace(/\n[ \t]*\n+/g, '\n').replace(/\{/g, '｛').replace(/\}/g, '｝');
   const body = (lead || '') + safeText.replace(/\n/g, '\\' + 'N');
+  if (timing) {
+    const fmt = (value) => {
+      const cs = Math.round(value * 100);
+      return `${Math.floor(cs / 360000)}:${String(Math.floor(cs / 6000) % 60).padStart(2, '0')}:${String(Math.floor(cs / 100) % 60).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
+    };
+    parts[startIndex] = fmt(timing.start); parts[endIndex] = fmt(timing.end);
+  }
   lines[lineNo] = line.slice(0, colon + 1) + parts.slice(0, textIndex).join(',') + ',' + body;
   return lines.join(NL);
 }
@@ -16142,6 +16166,10 @@ function prepareSubtitleBulkOperations(plans) {
     if (!descriptor || !cue || String(cue.text ?? '') !== plan.before) {
       return { error: 'Altyazı arama sonucundan sonra değişti; sonuçlar yenilendi.' };
     }
+    if (plan.timing && (!Number.isFinite(plan.timing.start) || !Number.isFinite(plan.timing.end)
+        || plan.timing.start < 0 || plan.timing.end - plan.timing.start < .08)) {
+      return { error: 'Bitiş, başlangıçtan en az 0,08 saniye sonra olmalı.' };
+    }
     if (descriptor.browserOverride) {
       const context = browserEditContextForCue(descriptor.track, cue, plan.index);
       const key = browserTranslationCueKey(cue);
@@ -16153,6 +16181,7 @@ function prepareSubtitleBulkOperations(plans) {
       }
       const after = browserSubtitleSync.createEditRecord({
         ...context, baseTranslation, hasOverride: true, userOverride: plan.after,
+        timingOverride: plan.timing || before?.timingOverride,
         revision: Number(before?.revision || 0) + 1, userEditedAt: Date.now(),
       });
       browserEdits.push({ trackId: descriptor.track.id, identity: { ...context },
@@ -16178,7 +16207,7 @@ function prepareSubtitleBulkOperations(plans) {
     operation.channels.add(descriptor.channel);
     operation.changes.push({ field: plan.field, channel: plan.channel,
       cueIndex: plan.index, start: cue.start, before: plan.before, after: plan.after,
-      cue: { ...cue } });
+      cue: { ...cue }, timing: plan.timing });
   }
 
   const files = [...fileMap.values()];
@@ -16189,7 +16218,8 @@ function prepareSubtitleBulkOperations(plans) {
         ? 'line:' + change.cue.line
         : 'cue:' + (change.cue.subtitleSourceIndex ?? (change.channel + ':' + change.cueIndex));
       const earlier = unique.get(cueKey);
-      if (earlier && earlier.after !== change.after) {
+      if (earlier && (earlier.after !== change.after
+          || JSON.stringify(earlier.timing) !== JSON.stringify(change.timing))) {
         return { error: 'Aynı altyazı bloğu için çelişen iki değiştirme oluştu.' };
       }
       if (!earlier) unique.set(cueKey, change);
@@ -16203,12 +16233,12 @@ function prepareSubtitleBulkOperations(plans) {
           cue.assTextIndex, cue.assFieldCount,
           Number.isFinite(cue.sourceStart) ? cue.sourceStart : cue.start,
           Number.isFinite(cue.sourceEnd) ? cue.sourceEnd : cue.end,
-          cue.assStartIndex, cue.assEndIndex);
+          cue.assStartIndex, cue.assEndIndex, change.timing);
         if (payload === null) break;
       }
     } else {
       payload = replaceTimedCueTexts(operation.before,
-        operation.changes.map((change) => ({ cue: change.cue, newText: change.after })));
+        operation.changes.map((change) => ({ cue: change.cue, newText: change.after, timing: change.timing })));
     }
     if (payload === null) {
       return { error: operation.format.toUpperCase()
@@ -16286,6 +16316,7 @@ function browserBulkStateStillMatches(edits, side = 'before', checkBase = true) 
     const sameRecord = (!current && !expected)
       || (!!current && !!expected && Number(current.revision) === Number(expected.revision)
         && current.hasOverride === expected.hasOverride
+        && JSON.stringify(current.timingOverride) === JSON.stringify(expected.timingOverride)
         && String(current.userOverride ?? '') === String(expected.userOverride ?? ''));
     const cue = browserBaseCueMap(edit.trackId).get(edit.identity.cueId);
     return sameRecord && (!checkBase
@@ -16345,13 +16376,14 @@ function refreshAfterSubtitleBulkEdit() {
   updateCueMeta();
   updateCueEditHistoryButtons();
   renderCueList($('cueSearch')?.value || '');
-  renderCue();
+  if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+  else renderCue();
   scheduleBrowserOverlaySync();
   scheduleSubtitleFindReplace(0);
 }
 
 async function applySubtitleFindReplacement(mode) {
-  if (player.subtitleFindReplace.applying || !subtitleFindReplace) return;
+  if (player.cueHistoryBusy || player.subtitleFindReplace.applying || !subtitleFindReplace) return;
   const matches = player.subtitleFindReplace.matches.slice();
   let selected;
   if (mode === 'one') selected = new Set(matches.length ? [matches[0].id] : []);
@@ -19680,7 +19712,205 @@ $$('[data-subtitle-display]').forEach((button) => {
 });
 
 // ---- izlerken düzeltme ----
+let browserQuickEditor = null;
+const browserQuickDraftKey = 'browser-subtitle-drafts-v1';
+
+function quickDrafts() {
+  try { const value = JSON.parse(localStorage.getItem(browserQuickDraftKey) || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch (_) { return {}; }
+}
+
+function quickEditorValues(editor = browserQuickEditor) {
+  return editor.rows.map(row => ({ channel: row.channel, text: row.text.value,
+    start: row.start.value, end: row.end.value }));
+}
+
+function quickEditorDirty(editor = browserQuickEditor) {
+  return !!editor && JSON.stringify(quickEditorValues(editor)) !== JSON.stringify(editor.initial);
+}
+
+function persistQuickDraft(remove = false) {
+  const editor = browserQuickEditor;
+  if (!editor) return;
+  const drafts = quickDrafts();
+  delete drafts[editor.key];
+  if (!remove && quickEditorDirty(editor)) drafts[editor.key] = {
+    values: quickEditorValues(editor), at: Date.now(), signature: editor.signature };
+  const entries = Object.entries(drafts).sort((a, b) => Number(b[1].at) - Number(a[1].at)).slice(0, 30);
+  try { localStorage.setItem(browserQuickDraftKey, JSON.stringify(Object.fromEntries(entries))); }
+  catch (_) { $('browserQuickEditStatus').textContent = 'Taslak diske yazılamadı; paneldeki metin korunuyor.'; return false; }
+  return true;
+}
+
+function updateQuickEditorStatus(message = '') {
+  if (!browserQuickEditor) return;
+  const busy = browserQuickEditor.busy;
+  const dirty = quickEditorDirty();
+  $('browserQuickEditStatus').textContent = message || (busy ? 'Kaydediliyor…' : dirty
+    ? 'Kaydedilmemiş taslak · Kapatınca korunur.' : 'Değişiklik yok.');
+  $('browserQuickEditSave').disabled = busy || !dirty;
+  $('browserQuickEditUndo').disabled = busy || dirty || !player.cueEditUndo.length;
+  $('browserQuickEditRedo').disabled = busy || dirty || !player.cueEditRedo.length;
+  $('browserQuickEditDiscard').disabled = busy || !dirty;
+  $('browserQuickEditClose').disabled = busy;
+  for (const row of browserQuickEditor.rows) for (const input of [row.text, row.start, row.end]) input.disabled = busy;
+}
+
+function closeBrowserQuickEditor() {
+  if (browserQuickEditor?.busy) return;
+  persistQuickDraft();
+  browserQuickEditor = null;
+  $('browserQuickEdit')?.classList.add('hidden');
+  player.editing = false;
+}
+
+function openBrowserQuickEditor(secondary = false) {
+  if (browserQuickEditor?.busy) return;
+  persistQuickDraft();
+  const descriptors = subtitleFindDescriptors();
+  const rows = [];
+  for (const descriptor of descriptors) {
+    const visible = descriptor.secondary ? player.cues2 : player.cues;
+    const active = descriptor.secondary ? player.activeIdx2 : player.activeIdx;
+    const cue = visible[active];
+    if (!cue) continue;
+    const index = descriptor.cues.findIndex(item => item === cue
+      || (Number(item.start) === Number(cue.start) && Number(item.end) === Number(cue.end) && item.text === cue.text));
+    if (index < 0 || (!descriptor.browserOverride && !descriptor.path)) continue;
+    const base = descriptor.cues[index];
+    rows.push({ ...descriptor, index, before: { ...base }, expectedRaw: descriptor.raw,
+      expectedTrack: descriptor.track?.id || '', expectedRecord: descriptor.browserOverride
+        ? JSON.stringify(browserEditRecord(browserEditContextForCue(descriptor.track, base, index))) : '' });
+  }
+  if (!rows.length) { closeBrowserQuickEditor(); logLine('Düzenlemek için yüklü bir altyazı bloğunun göründüğü ana gelin.', 'warn'); return; }
+  const signature = JSON.stringify(rows.map(row => [row.channel, row.expectedTrack, row.path,
+    row.before.cueId || row.before.subtitleSourceIndex || row.index, row.before.text, row.before.start, row.before.end]));
+  const key = browserSubtitleSync.hashText(`${player.mediaKey}|${signature}`);
+  const editor = { rows, key, signature, mediaKey: player.mediaKey, tabId: player.browserActiveTabId,
+    generation: currentGeneration(), busy: false, initial: [] };
+  browserQuickEditor = editor;
+  const box = $('browserQuickEditRows'); box.replaceChildren();
+  for (const row of rows) {
+    const field = document.createElement('fieldset');
+    const title = row.role === 'translation' ? 'Çeviri' : 'Kaynak';
+    const legend = document.createElement('legend'); legend.textContent = `${title} · ${row.secondary ? 'İkinci kanal' : 'Birinci kanal'}`;
+    row.text = document.createElement('textarea'); row.text.value = row.before.text;
+    row.text.setAttribute('aria-label', `${title} metni`); row.text.maxLength = 12000;
+    const times = document.createElement('div'); times.className = 'browser-quick-edit-times';
+    for (const [property, label] of [['start', 'Başlangıç (sn)'], ['end', 'Bitiş (sn)']]) {
+      const wrapper = document.createElement('label'); wrapper.textContent = label;
+      const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '.001';
+      input.value = Number(row.before[property]).toFixed(3); input.setAttribute('aria-label', `${title} ${label}`);
+      row[property] = input; wrapper.append(input); times.append(wrapper);
+    }
+    field.append(legend, row.text, times); box.append(field);
+  }
+  editor.initial = quickEditorValues();
+  const draft = quickDrafts()[key];
+  if (draft?.signature === signature && Array.isArray(draft.values)) {
+    for (const row of rows) {
+      const value = draft.values.find(item => item.channel === row.channel);
+      if (value) { row.text.value = String(value.text ?? ''); row.start.value = value.start; row.end.value = value.end; }
+    }
+  }
+  for (const row of rows) for (const input of [row.text, row.start, row.end]) input.addEventListener('input', () => {
+    updateQuickEditorStatus(); persistQuickDraft();
+  });
+  player.editing = true;
+  browserCommand('pause').catch(() => {});
+  setPlayerSidebarCollapsed(false);
+  $('browserQuickEdit').classList.remove('hidden');
+  updateQuickEditorStatus(draft ? 'Önceki kaydedilmemiş taslak geri yüklendi.' : 'Kaynak ve çeviriyi burada birlikte düzenleyebilirsiniz.');
+  const focus = rows.find(row => row.secondary === secondary) || rows[0];
+  focus.text.focus(); $('browserQuickEdit').scrollIntoView({ block: 'nearest' });
+}
+
+function quickEditorStillCurrent(editor) {
+  if (editor !== browserQuickEditor || editor.mediaKey !== player.mediaKey
+      || editor.tabId !== player.browserActiveTabId || editor.generation !== currentGeneration()) return false;
+  const descriptors = subtitleFindDescriptors();
+  return editor.rows.every(row => {
+    const descriptor = descriptors.find(item => item.channel === row.channel);
+    const cue = descriptor?.cues[row.index];
+    return descriptor && descriptor.path === row.path && (descriptor.track?.id || '') === row.expectedTrack
+      && descriptor.raw === row.expectedRaw && cue?.text === row.before.text
+      && cue.start === row.before.start && cue.end === row.before.end
+      && (!row.browserOverride || JSON.stringify(browserEditRecord(
+        browserEditContextForCue(descriptor.track, cue, row.index))) === row.expectedRecord);
+  });
+}
+
+async function saveBrowserQuickEditor() {
+  const editor = browserQuickEditor;
+  if (!editor || editor.busy || player.cueHistoryBusy || player.subtitleFindReplace.applying) return;
+  if (!quickEditorStillCurrent(editor)) { updateQuickEditorStatus('Video veya altyazı değişti. Taslak korunuyor; paneli kapatıp güncel satırı açın.'); return; }
+  const plans = [];
+  for (const row of editor.rows) {
+    const text = row.text.value.trim(), start = Number(row.start.value), end = Number(row.end.value);
+    if (!text || !row.start.value || !row.end.value || !Number.isFinite(start) || !Number.isFinite(end)
+        || start < 0 || end - start < .08) {
+      updateQuickEditorStatus('Metin boş olamaz; bitiş başlangıçtan en az 0,08 saniye sonra olmalı.'); return;
+    }
+    if (text !== row.before.text || start !== row.before.start || end !== row.before.end) plans.push({
+      channel: row.channel, index: row.index, field: row.role, before: row.before.text, after: text,
+      timing: start !== row.before.start || end !== row.before.end ? { start, end } : undefined });
+  }
+  if (!plans.length) return updateQuickEditorStatus('Değişiklik yok.');
+  const prepared = prepareSubtitleBulkOperations(plans);
+  if (prepared.error) return updateQuickEditorStatus(prepared.error);
+  editor.busy = true; player.subtitleFindReplace.applying = true; updateQuickEditorStatus();
+  try {
+    const result = await writeSubtitleBulkFiles(prepared.files, 'after', 'quick-edit');
+    if (!result.ok) { updateQuickEditorStatus(`Kaydedilemedi: ${result.error}${result.rollbackFailed ? ' Önceki dosya geri yüklenemedi.' : ' Taslak korunuyor.'}`); return; }
+    if (!quickEditorStillCurrent(editor) || !browserBulkStateStillMatches(prepared.browserEdits, 'before')) {
+      const rollback = await writeSubtitleBulkFiles(prepared.files, 'before', 'quick-rollback');
+      updateQuickEditorStatus('Kaydetme sırasında altyazı değişti; işlem uygulanmadı.' + (rollback.ok ? '' : ' Dosya geri yüklenemedi.')); return;
+    }
+    applySubtitleBulkMemory(prepared.files, 'after'); applyBrowserBulkMemory(prepared.browserEdits, 'after');
+    player.cueEditUndo.push({ kind: 'subtitle-bulk', mediaKey: editor.mediaKey,
+      files: prepared.files, browserEdits: prepared.browserEdits, at: Date.now() });
+    player.cueEditUndo = player.cueEditUndo.slice(-100); player.cueEditRedo = [];
+    persistQuickDraft(true);
+    editor.initial = quickEditorValues(editor);
+    for (const warning of result.warnings) logLine(warning, 'warn');
+    refreshAfterSubtitleBulkEdit();
+    editor.busy = false; openBrowserQuickEditor(); updateQuickEditorStatus('Kaydedildi · Kaynak ve çeviri tek işlemle geri alınabilir.');
+  } catch (error) {
+    updateQuickEditorStatus(`Kaydedilemedi: ${error?.message || 'bilinmeyen hata'}. Taslak korunuyor.`);
+  } finally {
+    editor.busy = false; player.subtitleFindReplace.applying = false;
+    if (browserQuickEditor === editor) updateQuickEditorStatus($('browserQuickEditStatus').textContent);
+  }
+}
+
+async function browserQuickHistory(direction) {
+  if (browserQuickEditor?.busy || player.cueHistoryBusy || quickEditorDirty()) return;
+  const before = (direction === 'undo' ? player.cueEditUndo : player.cueEditRedo).length;
+  await applyCueEditHistory(direction);
+  if ((direction === 'undo' ? player.cueEditUndo : player.cueEditRedo).length === before) {
+    updateQuickEditorStatus('Geçmiş işlemi uygulanamadı; ayrıntı için işlem günlüğüne bakın.'); return;
+  }
+  openBrowserQuickEditor();
+  updateQuickEditorStatus(direction === 'undo' ? 'Son kayıt geri alındı.' : 'Son kayıt yinelendi.');
+}
+
+$('browserQuickEditSave')?.addEventListener('click', saveBrowserQuickEditor);
+$('browserQuickEditClose')?.addEventListener('click', closeBrowserQuickEditor);
+$('browserQuickEditUndo')?.addEventListener('click', () => browserQuickHistory('undo'));
+$('browserQuickEditRedo')?.addEventListener('click', () => browserQuickHistory('redo'));
+$('browserQuickEditDiscard')?.addEventListener('click', () => {
+  if (!browserQuickEditor || browserQuickEditor.busy) return;
+  browserQuickEditor.rows.forEach((row, index) => { const value = browserQuickEditor.initial[index];
+    row.text.value = value.text; row.start.value = value.start; row.end.value = value.end; });
+  persistQuickDraft(true); updateQuickEditorStatus('Taslak silindi; kayıtlı metin korundu.');
+});
+$('browserQuickEdit')?.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.stopPropagation(); closeBrowserQuickEditor(); }
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void saveBrowserQuickEditor(); }
+});
+
 function openCueEditor(secondary = false) {
+  if (player.workspaceMode === 'browser') return openBrowserQuickEditor(secondary);
   clearTimeout(player.shadowResumeTimer);
   player.shadowResumeTimer = null;
   const cueList = secondary ? player.cues2 : player.cues;
@@ -19748,6 +19978,13 @@ function updateCueEditHistoryButtons() {
 }
 
 async function applyCueEditHistory(direction) {
+  if (player.cueHistoryBusy || player.subtitleFindReplace.applying || quickEditorDirty()) return;
+  player.cueHistoryBusy = true;
+  try { return await applyCueEditHistoryCore(direction); }
+  finally { player.cueHistoryBusy = false; }
+}
+
+async function applyCueEditHistoryCore(direction) {
   if (player.subtitleFindReplace.applying) {
     logLine('Toplu altyazı yazımı sürerken geçmiş işlemi başlatılamaz.', 'warn');
     return;

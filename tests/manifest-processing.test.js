@@ -92,6 +92,25 @@ function hlsContext(fetchResults) {
 }
 
 (async () => {
+  await test('eski playlist canlı zaman çizelgesinin ileri ucunu geri çekmez', async () => {
+    const harness = hlsContext(new Map());
+    let parts = [{ url: 'a.vtt', start: 0, duration: 4, sequence: 10, discontinuity: 0 },
+      { url: 'b.vtt', start: 4, duration: 10, sequence: 11, discontinuity: 0 }];
+    harness.context.parseHlsSegments = () => parts.map(part => ({ ...part }));
+    harness.context.fetchBrowserTextWithRetry = async () => 'metin';
+    const capture = extractFunction('async function captureHlsSubtitlePlaylist(', 'const CAPTURE_PROCESSED', harness.context);
+    const url = 'https://cdn.test/live.m3u8';
+    await capture('#EXTM3U', url);
+    parts = [parts[0]];
+    await capture('#EXTM3U', url);
+    const timeline = harness.context.browserHlsTimelines.get(url);
+    assert.equal(timeline.nextSequence, 12);
+    assert.equal(timeline.nextStart, 14);
+    parts = [{ url: 'd.vtt', start: 0, duration: 5, sequence: 13, discontinuity: 0 }];
+    await capture('#EXTM3U', url);
+    assert.equal(timeline.starts.get(13), 19);
+  });
+
   await test('kısmi HLS başarısı korunur; yalnız eksik parça yeniden indirilir', async () => {
     const results = new Map([
       ['https://cdn.test/a.vtt', 'ilk'],

@@ -1,0 +1,28 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const sync = require('../src/browser-subtitle-sync');
+const { normalizeBrowserSession } = require('../src/browser-session-store');
+const source = fs.readFileSync(require('node:path').join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+const extract = (from, to) => vm.runInNewContext('(' + source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from))) + ')');
+const timed = extract('function replaceTimedCueTexts(', 'function replaceVttCueTexts(');
+const ass = extract('function replaceAssDialogueText(', 'function syncPlayerSourceQuick(');
+const vtt = 'WEBVTT\n\nSTYLE\n::cue { color: lime; }\n\nfirst\n00:00:01.000 --> 00:00:03.000 align:start\nÖzgün\n\nNOTE Korunmalı\nAçıklama\n';
+const changed = timed(vtt, [{cue:{start:1,end:3,subtitleSourceIndex:0},newText:'Yeni',timing:{start:1.25,end:3.75}}]);
+assert(changed.includes('00:00:01.250 --> 00:00:03.750 align:start\nYeni'));
+assert(changed.includes('NOTE Korunmalı\nAçıklama'));
+assert(changed.includes('STYLE\n::cue { color: lime; }'));
+assert.equal(timed(vtt,[{cue:{start:9,end:10},newText:'Yanlış'}]),null);
+const line = 'Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Özgün';
+assert.equal(ass(line,0,'Yeni','',9,10,1,3,1,2,{start:1.25,end:3.75}),
+ 'Dialogue: 0,0:00:01.25,0:00:03.75,Default,,0,0,0,,Yeni');
+const identity = {mediaId:'test-video',variantId:'tr',sourceHash:'s',cueId:'c',sourceCueHash:'h'};
+const record = sync.createEditRecord({...identity,hasOverride:true,userOverride:'Düzeltilmiş',timingOverride:{start:1.5,end:4}});
+const applied = sync.applyEditRecord({start:1,end:3,text:'Geç model'},record,identity);
+assert.equal(applied.start,1.5);assert.equal(applied.end,4);assert.equal(applied.text,'Düzeltilmiş');
+assert.equal(applied.sourceStart,1);assert.equal(applied.sourceCueHash,'h');assert.equal(applied.cueId,'c');
+assert.equal(sync.applyEditRecord({start:1,end:3,text:'Başka video'},record,{...identity,mediaId:'other'}).start,1);
+assert.throws(()=>sync.createEditRecord({...record,timingOverride:{start:3,end:2}}));
+const session=normalizeBrowserSession({version:2,tabs:[{id:'t',url:'https://example.com/watch',subtitleEdits:[record]}]});
+assert.deepEqual(session.tabs[0].subtitleEdits[0].timingOverride,{start:1.5,end:4});
+console.log('Hızlı düzenleme: VTT metadata, ASS zamanları, satır kimliği, geç model ve oturum kalıcılığı geçti.');

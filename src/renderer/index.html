@@ -1897,6 +1897,18 @@
         <div class="side-resizer" id="sideResizer" title="Sürükleyerek genişlet"></div>
 
         <div class="player-side" id="playerSide">
+          <section id="browserQuickEdit" class="browser-quick-edit hidden" aria-labelledby="browserQuickEditTitle">
+            <div class="browser-quick-edit-heading"><strong id="browserQuickEditTitle">Altyazıyı düzenle</strong><button id="browserQuickEditClose" type="button" class="btn btn-ghost btn-sm">Kapat</button></div>
+            <p class="hint">Zamanlar altyazı saniyesidir. Video senkron ayarı ayrıca uygulanır.</p>
+            <div id="browserQuickEditRows"></div>
+            <p id="browserQuickEditStatus" role="status" aria-live="polite"></p>
+            <div class="browser-quick-edit-actions">
+              <button id="browserQuickEditUndo" type="button" class="btn btn-secondary btn-sm">Geri al</button>
+              <button id="browserQuickEditRedo" type="button" class="btn btn-secondary btn-sm">Yinele</button>
+              <button id="browserQuickEditDiscard" type="button" class="btn btn-ghost btn-sm">Taslağı sil</button>
+              <button id="browserQuickEditSave" type="button" class="btn btn-primary btn-sm">Değişiklikleri kaydet</button>
+            </div>
+          </section>
           <!-- UST: diller, kaynak rozeti, arama, ayar cekmecesi -->
           <div class="side-top">
             <div class="side-tabbar">

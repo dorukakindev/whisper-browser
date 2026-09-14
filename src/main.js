@@ -6831,9 +6831,13 @@ async function captureHlsSubtitlePlaylist(playlistBody, playlistUrl, meta = {}, 
     }
     if (parsedParts.length) {
       const last = parsedParts[parsedParts.length - 1];
-      timeline.nextSequence = last.sequence + 1;
-      timeline.nextStart = last.start + last.duration;
-      if (last.duration > 0) timeline.lastDuration = last.duration;
+      // Geri sarma/eski manifest yanıtı, canlı pencerenin ileri uç bilgisini
+      // geriye çekmemeli; sonraki boşluk hesabı yanlış süreyi kullanırdı.
+      if (!Number.isFinite(timeline.nextSequence) || last.sequence + 1 >= timeline.nextSequence) {
+        timeline.nextSequence = last.sequence + 1;
+        timeline.nextStart = last.start + last.duration;
+        if (last.duration > 0) timeline.lastDuration = last.duration;
+      }
       while (timeline.starts.size > 4000) timeline.starts.delete(timeline.starts.keys().next().value);
       browserHlsTimelines.set(streamKey, timeline);
       trimInsertionCollection(browserHlsTimelines, 64);

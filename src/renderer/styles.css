@@ -1858,6 +1858,16 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .sub-color-swatch:hover { transform: scale(1.15); border-color: var(--accent); }
 
 /* İzlerken düzeltme kutusu */
+.browser-quick-edit { padding: 16px; border-bottom: 1px solid var(--border-strong); background: var(--bg-2); flex-shrink: 0; max-height: 75vh; overflow: auto; }
+.browser-quick-edit-heading, .browser-quick-edit-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.browser-quick-edit fieldset { min-width: 0; margin: 12px 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.browser-quick-edit legend { color: var(--accent); padding: 0 5px; }
+.browser-quick-edit textarea { width: 100%; min-height: 70px; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font: inherit; }
+.browser-quick-edit-times { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 8px; }
+.browser-quick-edit-times label { display: grid; gap: 4px; color: var(--text-muted); font-size: 12px; }
+.browser-quick-edit-times input { min-width: 0; width: 100%; font-variant-numeric: tabular-nums; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-family: inherit; }
+.browser-quick-edit-heading > button { margin-left: auto; flex: 0 0 auto; }
+#browserQuickEditStatus { font-size: 12px; line-height: 1.5; color: var(--accent); }
 .subtitle-edit {
   position: absolute;
   left: 6%;

@@ -79,7 +79,7 @@ function parseTime(value) {
 
 function cuePresentationKey(cue = {}) {
   return [cue.speaker, cue.sourceMode || cue.captionMode || cue.mode, cue.region, cue.line, cue.position, cue.align,
-    cue.writingMode, cue.regionExtent, cue.discontinuity]
+    cue.writingMode, cue.regionExtent, cue.discontinuity, cue.language, cue.provenance?.streamKey]
     .map((value) => String(value ?? '').trim().toLowerCase()).join('\u241f');
 }
 
@@ -126,13 +126,20 @@ function mergeBrowserStreamCues(previousCues, incomingCues, limit = 20000) {
   const previous = Array.isArray(previousCues) ? previousCues : [];
   const incoming = Array.isArray(incomingCues) ? incomingCues : [];
   const maximum = Math.max(1, Math.min(20000, Math.trunc(Number(limit) || 20000)));
+  const compatibleCues = (left, right) => {
+    const leftId = left.cueId || left.id, rightId = right.cueId || right.id;
+    const a = String(left.text || '').trim(), b = String(right.text || '').trim();
+    const growing = a && b && a.length !== b.length && (a.startsWith(b) || b.startsWith(a))
+      && Math.abs(Number(left.start) - Number(right.start)) <= .015;
+    return cuePresentationCompatible(left, right) && (!leftId || !rightId || leftId === rightId || growing);
+  };
   if (incoming.length === 1 && previous.length
       && Number(incoming[0]?.start) >= Number(previous[previous.length - 1]?.start) - 0.015) {
     const merged = previous.slice();
     const cue = incoming[0];
     const lastIndex = merged.length - 1;
     const last = merged[lastIndex];
-    const compatible = cuePresentationCompatible(last, cue);
+    const compatible = compatibleCues(last, cue);
     const sameStart = compatible && Math.abs(Number(cue.start) - Number(last.start)) <= 0.015;
     const previousText = String(last?.text || '').replace(/\s+/g, ' ').trim();
     const incomingText = String(cue?.text || '').replace(/\s+/g, ' ').trim();
@@ -149,13 +156,34 @@ function mergeBrowserStreamCues(previousCues, incomingCues, limit = 20000) {
         && (cue.text !== last.text || Number(cue.end) !== Number(last.end) || !compatible)) merged.push(cue);
     return merged.slice(-maximum);
   }
-  const ordered = [...previous, ...incoming].sort((a, b) => a.start - b.start || a.end - b.end);
+  // Aynı başlangıçlı güncellemeleri varış sırasıyla çöz. Zaman sıralaması
+  // önce yapılırsa kısa/gecikmiş hipotez, tamamlanmış repliği geri alabilir.
+  const revisionKey = cue => `${Math.round(Number(cue.start) * 1000)}|${cuePresentationKey(cue)}|${cue.cueId || cue.id || ''}`;
+  const group = cues => {
+    const map = new Map();
+    for (const cue of cues) { const key = revisionKey(cue); const values = map.get(key) || []; values.push(cue); map.set(key, values); }
+    return map;
+  };
+  const oldGroups = group(previous), newGroups = group(incoming), removed = new Set();
+  for (const [key, values] of newGroups) {
+    const oldValues = oldGroups.get(key);
+    // Eşzamanlı farklı replikleri hipotez sanma. Yalnız tekil kimlik eşleşmesi
+    // güncellenir; bir batch içindeki bağımsız satırlar korunur.
+    if (values.length !== 1 || oldValues?.length !== 1) continue;
+    const cue = values[0], old = oldValues[0];
+    if (cue === old) continue;
+    const oldText = String(old?.text || '').replace(/\s+/g, ' ').trim();
+    const nextText = String(cue?.text || '').replace(/\s+/g, ' ').trim();
+    if (old && oldText.length > nextText.length && oldText.startsWith(nextText)
+        && Number(cue.end) <= Number(old.end) + .05) removed.add(cue);
+    else removed.add(old);
+  }
+  const ordered = [...previous, ...incoming].filter(cue => !removed.has(cue)).sort((a, b) => a.start - b.start || a.end - b.end);
   const merged = [];
   for (const cue of ordered) {
     const last = merged[merged.length - 1];
-    if (last && cuePresentationCompatible(last, cue) && cue.text === last.text
-        && Number(cue.start) <= Number(last.end) + 0.1
-        && Number(cue.start) - Number(last.start) <= 1.0) {
+    if (last && compatibleCues(last, cue) && cue.text === last.text
+        && Number(cue.start) <= Number(last.end) + 0.1) {
       last.end = Math.max(Number(last.end), Number(cue.end));
       continue;
     }
