@@ -43,7 +43,8 @@ app.whenReady().then(async () => {
     player.browserTracks = [{ id:'cea-ui', path:'C:\\\\test\\\\web.srt', language:'en',
       label:'1-CC1', format:'cea-608', captureKind:'embedded-cea', cueCount:7, role:'source' }];
     player.browserCeaCapture = { state:'running', completed:84, total:312, failed:0,
-      cueCount:126, message:'Gömülü altyazı getiriliyor.' };
+      cueCount:126, message:'Gömülü altyazı getiriliyor.', planReason:'duration-gap',
+      plannedDuration:465, expectedDuration:1860, durationPercent:25 };
     if (tab) { tab.browserTracks=player.browserTracks.slice(); tab.browserCeaCapture=player.browserCeaCapture; }
     renderBrowserTracks('cea-ui');
     setBrowserSignalVisible(true);
@@ -64,6 +65,7 @@ app.whenReady().then(async () => {
   assert.equal(wide.disabled, false);
   assert.equal(wide.button, 'Yakalamayı durdur');
   assert.match(wide.status, /84\/312 segment/);
+  assert.match(wide.status, /süre kapsamı %25/);
   assert.equal(wide.overflow, false);
   fs.writeFileSync(path.join(out, 'cea-full-wide.png'), (await win.webContents.capturePage()).toPNG());
 

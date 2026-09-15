@@ -7211,11 +7211,14 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
   }, 0);
   const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
     cueCount, planComplete: job.playlistComplete !== false,
+    expectedDuration: Number(job.tab?.duration) || 0,
   });
   sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
     completed: completeness.completed, total: completeness.total, failed: job.failures.length,
     missing: completeness.missing, percent: completeness.percent, complete: completeness.complete,
-    planComplete: completeness.planComplete,
+    planComplete: completeness.planComplete, planReason: completeness.planReason,
+    plannedDuration: completeness.plannedDuration, expectedDuration: completeness.expectedDuration,
+    durationPercent: completeness.durationPercent,
     retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount, message });
 }
 
@@ -7224,9 +7227,11 @@ function scheduleBrowserHlsCeaAutoRetry(job, completeness) {
   if (!shouldAutoRetryCeaCapture(completeness, job.retryRound, maxRetryRounds)) return false;
   const nextRound = (Number(job.retryRound) || 0) + 1;
   const delay = nextRound === 1 ? 1500 : 4000;
-  const reason = completeness.planComplete === false
+  const reason = completeness.planReason === 'open-playlist'
     ? 'Oynatma listesi henüz sona ermedi'
-    : `${completeness.missing} segment eksik kaldı`;
+    : (completeness.planReason === 'duration-gap'
+      ? `Segment planı video süresinin yalnız %${completeness.durationPercent} bölümünü kapsıyor`
+      : `${completeness.missing} segment eksik kaldı`);
   sendBrowserHlsCeaFullProgress(job, 'retry-wait',
     `${reason}; ${Math.ceil(delay / 1000)} saniye sonra manifest otomatik yenilenecek (${nextRound}/${maxRetryRounds}).`);
   clearTimeout(job.autoRetryTimer);
@@ -7334,6 +7339,11 @@ async function runBrowserHlsCeaFullCapture(job) {
     const initialCompleteness = summarizeCeaCaptureCompleteness(job.segments, job.completed);
     const missing = initialCompleteness.missingSegments;
     job.failures = missing.map((segment) => ({ segment, error: new Error('Segment alınamadı.') }));
+    const planCoverage = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
+      cueCount: 1, planComplete: job.playlistComplete !== false,
+      expectedDuration: Number(job.tab?.duration) || 0,
+    });
+    const captureReady = !missing.length && planCoverage.planComplete;
     let cueCount = 0;
     let inputPath = '';
     for (const track of job.tracks || []) {
@@ -7341,7 +7351,7 @@ async function runBrowserHlsCeaFullCapture(job) {
       const cues = browserTrackBuffers.get(streamKey) || [];
       if (!cues.length) continue;
       cueCount += cues.length;
-      if (!missing.length && job.playlistComplete !== false) {
+      if (captureReady) {
         inputPath = saveBrowserTrackToConfiguredFolder(job.tab, cues, track, 'source');
       }
       storeBrowserTrack(cues, {
@@ -7349,19 +7359,22 @@ async function runBrowserHlsCeaFullCapture(job) {
         format: track.standard || 'cea-608', captureKind: 'embedded-cea',
         instreamId: track.instreamId || '', sourceUrl: job.sourceUrl, streamKey,
         context: job.context, finalize: true,
-        captureComplete: !missing.length && job.playlistComplete !== false,
+        captureComplete: captureReady,
         captureTotal: job.total, inputPath,
       });
     }
     const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
       cueCount, planComplete: job.playlistComplete !== false,
+      expectedDuration: Number(job.tab?.duration) || 0,
     });
     if (!completeness.complete) {
       if (scheduleBrowserHlsCeaAutoRetry(job, completeness)) return;
       sendBrowserHlsCeaFullProgress(job, 'partial', cueCount
-        ? (completeness.planComplete === false
+        ? (completeness.planReason === 'open-playlist'
           ? `Oynatma listesi henüz sonlanmadı; yakalanan ${cueCount} satır korundu. Daha sonra yeniden deneyebilirsiniz.`
-          : `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`)
+          : (completeness.planReason === 'duration-gap'
+            ? `Segment planı video süresinin yalnız %${completeness.durationPercent} bölümünü kapsıyor; yakalanan ${cueCount} satır korundu. Daha sonra yeniden deneyebilirsiniz.`
+            : `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`))
         : 'Gömülü altyazı segmentleri alındı ancak cue üretilemedi.');
     } else {
       job.failures = [];

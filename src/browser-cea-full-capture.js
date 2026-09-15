@@ -47,7 +47,22 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
   const total = planned.length;
   const completedCount = Math.max(0, total - missing.length);
   const cueCount = Math.max(0, Number(options.cueCount) || 0);
-  const planComplete = options.planComplete !== false;
+  const manifestComplete = options.planComplete !== false;
+  const plannedDuration = planned.reduce((sum, segment) => {
+    const duration = Number(segment.duration);
+    return sum + (Number.isFinite(duration) && duration > 0 ? duration : 0);
+  }, 0);
+  const rawExpectedDuration = Number(options.expectedDuration);
+  const expectedDuration = Number.isFinite(rawExpectedDuration) && rawExpectedDuration > 0
+    ? rawExpectedDuration : 0;
+  // HLS media duration and EXTINF totals can differ slightly because of rounding,
+  // mux boundaries and a short final segment. A small tolerance prevents a healthy
+  // VOD plan from being rejected without allowing a short sliding window to pass.
+  const durationTolerance = expectedDuration > 0 ? Math.max(3, expectedDuration * 0.02) : 0;
+  const durationComplete = expectedDuration <= 0
+    || plannedDuration + durationTolerance >= expectedDuration;
+  const planComplete = manifestComplete && durationComplete;
+  const planReason = !manifestComplete ? "open-playlist" : (!durationComplete ? "duration-gap" : "");
   const complete = total > 0 && planComplete && missing.length === 0 && cueCount > 0;
   return {
     total,
@@ -55,7 +70,15 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
     missing: missing.length,
     missingSegments: missing,
     cueCount,
+    manifestComplete,
     planComplete,
+    planReason,
+    plannedDuration,
+    expectedDuration,
+    durationComplete,
+    durationPercent: expectedDuration > 0
+      ? Math.max(0, Math.min(100, Math.floor((plannedDuration / expectedDuration) * 100)))
+      : 0,
     complete,
     state: complete ? "complete" : (completedCount > 0 || cueCount > 0 ? "partial" : "empty"),
     percent: total ? Math.floor((completedCount / total) * 100) : 0,

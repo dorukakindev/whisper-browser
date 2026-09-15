@@ -7341,7 +7341,9 @@ function renderBrowserCeaCaptureState(track = browserTrackSelection(false)) {
     const counts = capture.total ? ` ${Number(capture.completed || 0)}/${Number(capture.total)} segment` : '';
     const missing = capture.missing ? ` · ${Number(capture.missing)} eksik` : '';
     const cues = capture.cueCount ? ` · ${Number(capture.cueCount)} satır` : '';
-    status.textContent = `${capture.message || 'Tam altyazı yakalama'}${counts}${missing}${cues}`;
+    const coverage = capture.expectedDuration > 0
+      ? ` · süre kapsamı %${Number(capture.durationPercent || 0)}` : '';
+    status.textContent = `${capture.message || 'Tam altyazı yakalama'}${counts}${missing}${cues}${coverage}`;
   }
 }
 
@@ -7355,6 +7357,10 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
     percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
     retryRound: Math.max(0, Number(event.retryRound) || 0),
     planComplete: event.planComplete !== false,
+    planReason: String(event.planReason || ''),
+    plannedDuration: Math.max(0, Number(event.plannedDuration) || 0),
+    expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
+    durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
     cueCount: Math.max(0, Number(event.cueCount) || 0),
     message: String(event.message || ''),
   };
@@ -10863,6 +10869,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
           missing: Math.max(0, Number(event.missing) || 0),
           percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
           planComplete: event.planComplete !== false,
+          planReason: String(event.planReason || ''),
+          plannedDuration: Math.max(0, Number(event.plannedDuration) || 0),
+          expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
+          durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
         };
       } else if (event.type === 'media-identity' && event.resetSubtitles) {
         tab.browserTracks = [];

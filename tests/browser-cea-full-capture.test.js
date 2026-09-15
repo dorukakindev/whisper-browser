@@ -82,6 +82,22 @@ const {
   assert.equal(openPlaylist.missing, 0);
   assert.equal(shouldAutoRetryCeaCapture(openPlaylist, 0, 2), true);
 
+  const timedSegments = refreshed.map((segment, index) => ({
+    ...segment, start: index * 10, duration: 10,
+  }));
+  const shortWindow = summarizeCeaCaptureCompleteness(timedSegments,
+    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: true, expectedDuration: 120 });
+  assert.equal(shortWindow.complete, false, 'ENDLIST kısa kayan pencereyi tam video yapmamalı');
+  assert.equal(shortWindow.manifestComplete, true);
+  assert.equal(shortWindow.durationComplete, false);
+  assert.equal(shortWindow.planReason, 'duration-gap');
+  assert.equal(shortWindow.plannedDuration, 30);
+  assert.equal(shortWindow.durationPercent, 25);
+  assert.equal(shouldAutoRetryCeaCapture(shortWindow, 0, 2), true);
+  const durationComplete = summarizeCeaCaptureCompleteness(timedSegments,
+    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: true, expectedDuration: 30.5 });
+  assert.equal(durationComplete.complete, true, 'küçük EXTINF yuvarlama farkı kabul edilmeli');
+
   const root = path.join(__dirname, '..');
   const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
@@ -97,6 +113,8 @@ const {
   assert.match(main, /sendBrowserHlsCeaFullProgress\(job, 'retry-wait'/);
   assert.match(main, /#EXT-X-ENDLIST/);
   assert.match(main, /mergeCeaCaptureSegments\(job\.segments, refreshed\.segments\)/);
+  assert.match(main, /expectedDuration:\s*Number\(job\.tab\?\.duration\) \|\| 0/);
+  assert.match(main, /completeness\.planReason === 'duration-gap'/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(job\.tab, cues, track, 'source'\)/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
   assert.match(main, /browser:subtitle:captureFull/);
