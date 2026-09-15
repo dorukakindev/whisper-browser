@@ -1590,6 +1590,8 @@ test('terminal web çeviri hataları kullanıcı tarafından yeniden kuyruğa al
   assert(/player\.browserTranslationFailed = Math\.max/.test(states)
     && /updateBrowserTranslationRetryButton\(\)/.test(states),
   'terminal hata sayısı çeviri ilerleme olayından düğmeye taşınmıyor');
+  assert(/browserTranslationLastError/.test(states) && /Son hata:/.test(states),
+    'terminal sağlayıcı hata nedeni üst durum şeridinde gösterilmiyor');
 });
 
 test('tamamlanan web çevirisi kalıcı ana iz olarak geri yüklenir', () => {

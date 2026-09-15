@@ -432,6 +432,24 @@ async function test(name, fn) {
     assert.equal(scheduler.snapshot().results.length, 1, 'başarılı yeniden deneme sonucu saklanmadı');
   });
 
+  await test('kalıcı sağlayıcı hatası otomatik olarak üç kez yinelenmez', async () => {
+    const sentence = { id: 'bad-key', start: 0, end: 2, text: 'Hello.',
+      pieces: [{ cueId: 'bad-key', start: 0, end: 2, text: 'Hello.' }] };
+    let calls = 0;
+    const scheduler = new BrowserTranslationScheduler({ maxAttempts: 3, retryBaseMs: 10,
+      translate: async () => {
+        calls++;
+        const error = new Error('Çeviri servisi HTTP 401 döndürdü: API anahtarı geçersiz.');
+        error.retryable = false;
+        throw error;
+      } });
+    scheduler.setSentences([sentence]);
+    scheduler.completeAll();
+    await scheduler.whenIdle();
+    assert.equal(calls, 1, 'kalıcı HTTP hatası gereksiz yere yeniden gönderildi');
+    assert.equal(scheduler.snapshot().failures[0].terminal, true);
+  });
+
   await test('aynı cache anahtarındaki eşzamanlı çeviriler tek isteği paylaşır', async () => {
     const pieces = (cueId, start) => [{ cueId, start, end: start + 1, text: 'Same.' }];
     const sentences = [

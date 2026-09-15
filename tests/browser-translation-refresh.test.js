@@ -78,6 +78,9 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   assert.match(translationSource,
     /if \(terminologyVersion !== context\.terminologyVersion\)[\s\S]{0,180}scheduler\.setContext\(\{ terminologyVersion, terminologyText: terminologyPrompt\(config\.terminologyMap\) \}\)/,
     'öğrenilen terminoloji yeni cümlelerin önbellek bağlamına aktarılmalı');
+  assert.match(translationSource, /!sentences\.length && options\.sourceComplete !== false/,
+    'yarım cümleyle başlayan canlı iz çeviri oturumunu kapatmamalı');
+
   const context = { normalizeCues, assembleCueSentences, createHash: require('node:crypto').createHash,
     browserTranslationConfig: () => { throw Error('güncellemede sağlayıcı yeniden kuruldu'); } };
   vm.createContext(context);

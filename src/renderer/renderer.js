@@ -7842,6 +7842,7 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   player.browserTranslationTrackId = track.id;
   player.browserLiveTranslations = new Map();
   player.browserTranslationFailed = 0;
+  player.browserTranslationLastError = '';
   player.cues2 = [];
   player.cues2Raw = null;
   player.activeIdx2 = -1;
@@ -8102,6 +8103,7 @@ async function restoreBrowserTranslationSnapshot(tab) {
 function applyBrowserTranslationResult(event) {
   if (!event.result || event.trackId !== player.browserTranslationTrackId) return;
   if (event.result.error) {
+    player.browserTranslationLastError = String(event.result.error || '').replace(/\s+/g, ' ').trim().slice(0, 240);
     logLine(`Canlı web çevirisi: ${event.result.error}`, 'warn');
     return;
   }
@@ -11284,7 +11286,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         { priority: 65, holdMs: 4000 });
     } else if (progress.total && progress.failed) {
       updateBrowserTranslationExportButton();
-      setBrowserSignal(`Canlı çeviri tamamlanamadı: ${Number(progress.completed || 0)}/${Number(progress.total)} cümle hazır · ${Number(progress.failed)} hata.`, false,
+      const reason = String(player.browserTranslationLastError || '').trim();
+      setBrowserSignal(`Canlı çeviri tamamlanamadı: ${Number(progress.completed || 0)}/${Number(progress.total)} cümle hazır · ${Number(progress.failed)} hata.${reason ? ` Son hata: ${reason}` : ''}`, false,
         { priority: 90, holdMs: 6000 });
     } else if (progress.total) {
       setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle.`, true);

@@ -4054,9 +4054,15 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   const sentenceRequest = pageMode ? pageTranslationRequest(sentence)
     : grouped ? sentenceTranslationRequest(sentence) : null;
   const endpoint = safeTranslationEndpoint(endpointBase);
-  if (!endpoint) throw new Error('Çeviri endpoint adresi güvenli değil. HTTPS veya yerel HTTP kullanın.');
+  if (!endpoint) {
+    const error = new Error('Çeviri endpoint adresi güvenli değil. HTTPS veya yerel HTTP kullanın.');
+    error.retryable = false;
+    throw error;
+  }
   if (!config.apiKey && !/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint)) {
-    throw new Error('Canlı web çevirisi için API anahtarı girilmemiş.');
+    const error = new Error('Canlı web çevirisi için API anahtarı girilmemiş.');
+    error.retryable = false;
+    throw error;
   }
   const glossaryEntries = config.glossary.map((item) => typeof item === 'string'
     ? item : `${item.source || item.from || ''}=${item.target || item.to || ''}`)
@@ -4127,8 +4133,23 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
       }),
     });
     if (!response.ok) {
-      const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü.`);
-      error.httpStatus = response.status;
+      let detail = '';
+      try {
+        const rawError = (await readResponseBufferLimited(response, 64 * 1024,
+          'Çeviri servisi hata yanıtı')).toString('utf8').replace(/^\uFEFF/, '');
+        let parsed = null;
+        try { parsed = JSON.parse(rawError); } catch (_) {}
+        const candidate = parsed?.error?.message || parsed?.message || parsed?.detail
+          || (typeof parsed?.error === 'string' ? parsed.error : '');
+        if (typeof candidate === 'string') {
+          detail = redactBrowserDiagnosticsText(candidate, 240)
+            .replace(new RegExp(String(sentence?.text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu'), '[altyazı metni]')
+            .replace(/[\r\n]+/g, ' ').trim();
+        }
+      } catch (_) {}
+      const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü${detail ? `: ${detail}` : ''}.`);
+      error.httpStatus = Number(response.status) || 0;
+      error.retryable = [408, 425, 429].includes(error.httpStatus) || error.httpStatus >= 500;
       throw error;
     }
     data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
@@ -6255,7 +6276,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   if (!requestedTrackId) return { ok: false, error: 'Kaynak altyazı izi kimliği bulunamadı.' };
   const cues = normalizeCues(rawCues).slice(0, 20000);
   if (!cues.length) return { ok: false, error: 'Çevrilecek altyazı bloğu yok.' };
-  const sentences = assembleCueSentences(cues);
+  const sentences = assembleCueSentences(cues, { sourceComplete: options.sourceComplete !== false });
   const contextRows = (index, direction) => {
     const rows = [];
     for (let cursor = index + direction; cursor >= 0 && cursor < sentences.length && rows.length < 3; cursor += direction) {
@@ -6272,7 +6293,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     if (before.length) sentences[index].contextBefore = before;
     if (after.length) sentences[index].contextAfter = after;
   }
-  if (!sentences.length) return { ok: false, error: 'Tamamlanmış cümle bulunamadı.' };
+  if (!sentences.length && options.sourceComplete !== false) return { ok: false, error: 'Tamamlanmış cümle bulunamadı.' };
   if (options.refresh) {
     if (!tab.translationScheduler || tab.translationTrackId !== requestedTrackId) {
       return { ok: false, error: 'Güncellenecek çeviri oturumu bulunamadı.' };

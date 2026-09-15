@@ -39,6 +39,18 @@ async function run() {
     { id: 'warning-a', start: 0, end: 1, text: 'Warning: do not' },
     { id: 'warning-b', start: 1, end: 2, text: 'cross the yellow line.' },
   ]).length, 1, 'iki noktalı normal cümle sonraki cue ile birleşmeli');
+  const growingTail = [
+    { id: 'live-a', start: 10, end: 12, text: 'In our previous lecture, we finished up the' },
+    { id: 'live-b', start: 12, end: 14, text: 'introductory material by looking at' },
+  ];
+  assert.equal(assembleCueSentences(growingTail, { sourceComplete: false }).length, 0,
+    'canlı izin yarım son cümlesi sağlayıcıya erken gönderilmemeli');
+  assert.equal(assembleCueSentences(growingTail, { sourceComplete: true }).length, 1,
+    'tamamlanmış izin son cümlesi noktalama olmasa da korunmalı');
+  assert.equal(assembleCueSentences([...growingTail,
+    { id: 'live-c', start: 14, end: 16, text: 'the more important gods.' },
+  ], { sourceComplete: false }).length, 1, 'canlı izde tamamlanan cümle hemen çevrilebilmeli');
+
   for (const fixture of fixtures) {
     const input = fixture.entries.map(([start, end, text], id) => ({ id: String(id), start, end, text }));
     const before = JSON.stringify(input);
@@ -185,11 +197,15 @@ async function run() {
   const end = main.indexOf('\nasync function requestBrowserSentenceTranslation(', start);
   let body;
   let responseText = JSON.stringify(reply);
+  let responseStatus = 200;
+  let errorText = '';
   let responseMeta = {};
   const sandbox = { require: (name) => { assert.equal(name, './subtitle-sentence-layout'); return layout; },
-    AbortController, setTimeout, clearTimeout,
+    AbortController, Buffer, setTimeout, clearTimeout,
     safeTranslationEndpoint: () => 'https://example.invalid/v1/chat/completions',
-    fetch: async (_url, options) => { body = JSON.parse(options.body); return { ok: true }; },
+    fetch: async (_url, options) => { body = JSON.parse(options.body); return { ok: responseStatus < 400, status: responseStatus }; },
+    readResponseBufferLimited: async () => Buffer.from(errorText, 'utf8'),
+    redactBrowserDiagnosticsText: (value, maxLength) => String(value).replace(/sk-[a-z0-9-]+/gi, '[GİZLENDİ]').slice(0, maxLength),
     readJsonResponseLimited: async () => ({ choices: [{ message: { content: responseText }, ...responseMeta }] }),
   };
   vm.createContext(sandbox);
@@ -267,6 +283,19 @@ async function run() {
   responseText = JSON.stringify({ translations: [{ id: 'home', translation: 'Ana sayfa' }] });
   await assert.rejects(() => sandbox.requestBrowserSentenceTranslationAtEndpoint(
     pageSentence, { ...config, terminologyEnabled: false }, null, 'https://example.invalid'), /blok sayısıyla/);
+  responseStatus = 401;
+  errorText = JSON.stringify({ error: { message: `Invalid API key sk-secret for ${sentence.text}` } });
+  let permanentError = null;
+  try {
+    await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
+  } catch (error) { permanentError = error; }
+  assert(permanentError, 'HTTP hata yanıtı başarı sayıldı');
+  assert.equal(permanentError.httpStatus, 401);
+  assert.equal(permanentError.retryable, false);
+  assert.match(permanentError.message, /Invalid API key \[GİZLENDİ\]/);
+  assert(!permanentError.message.includes(sentence.text), 'sağlayıcı hata ayrıntısı altyazı metnini sızdırdı');
+  responseStatus = 200;
+
   console.log('subtitle-sentence-layout: ortak sınırlar, kayıpsız yerleşim, atomik cache/ret ve gerçek main istek sözleşmesi geçti');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

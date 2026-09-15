@@ -59,7 +59,14 @@ function assembleCueSentences(rawCues, options = {}) {
     group.push(cue);
     if (cue.protected || sentenceEnded(cue.text)) flush();
   }
-  flush();
+  // Büyüyen/canlı bir izde son grup çoğu kez cümlenin yalnız ilk yarısıdır.
+  // Kaynak tamamlanmadan bu kuyruğu çeviriye vermek hem bağlamı bozar hem de
+  // her yeni cue geldiğinde aynı cümleyi iptal edip yeniden ücretlendirir.
+  // Güvenlik sınırına ulaşmış uzun gruplar ise noktalama beklemeden ilerler.
+  const trailingDuration = group.length ? group[group.length - 1].end - group[0].start : 0;
+  const trailingChars = group.reduce((sum, item) => sum + item.text.length + 1, 0);
+  if (options.sourceComplete !== false || group.length >= maxParts
+      || trailingDuration >= maxDuration || trailingChars >= maxChars) flush();
   return sentences;
 }
 
@@ -428,7 +435,7 @@ class BrowserTranslationScheduler {
       if (!controller.signal.aborted && generation === this.generation) {
         const previous = this.failures.get(sentence.id);
         const attempts = (previous?.attempts || 0) + 1;
-        const terminal = attempts >= this.maxAttempts;
+        const terminal = error?.retryable === false || attempts >= this.maxAttempts;
         const delay = Math.min(this.retryMaxMs, this.retryBaseMs * (2 ** Math.max(0, attempts - 1)));
         const failure = {
           attempts,
@@ -441,6 +448,7 @@ class BrowserTranslationScheduler {
           sentenceId: sentence.id,
           error: failure.error,
           attempt: attempts,
+          retryable: error?.retryable !== false,
           retrying: !terminal,
           nextRetryMs: terminal ? 0 : delay,
           cues: [],
