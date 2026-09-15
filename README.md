@@ -20,16 +20,18 @@ Whisper Browser does not decrypt protected media, bypass DRM, or extract data fr
 
 ## Product tour
 
-[![Watch the 12-second Whisper Browser product tour](docs/media/demo-poster.png)](docs/media/whisper-browser-tour.mp4)
+[![Watch a real-video dual-subtitle translation demo](docs/media/demo-poster.png)](docs/media/whisper-browser-tour.mp4)
 
-Click the image to open the short MP4 tour. English title cards explain each workflow; the captured application UI remains Turkish because that is the language currently shipped.
+Click the image to open a 26-second MP4 showing an English subtitle track and a context-aware Turkish translation over real video. The public example uses [*Tears of Steel* on YouTube](https://www.youtube.com/watch?v=OHOpb2fS-cM), an open movie by Blender Foundation.
+
+![English source subtitles and natural Turkish translation over a real Tears of Steel scene](docs/media/youtube-dual-subtitles.png)
 
 | Browser workspace | Context-aware AI | Subtitle editor |
 | --- | --- | --- |
 | ![Embedded browser workspace with media tools](docs/media/browser-workspace.png) | ![AI panel using subtitle and timestamp context](docs/media/ai-context-panel.png) | ![Subtitle cue editor preserving timing](docs/media/subtitle-editor.png) |
 | Capture and inspect accessible web subtitle tracks. | Ask questions grounded in the current scene. | Correct text without losing cue identity or timing. |
 
-All captures use isolated test profiles and synthetic fixtures. They contain no user account, private subtitle, API key, or browsing-history data.
+The application captures use isolated test profiles and synthetic fixtures. The real-video demo uses a credited excerpt from *Tears of Steel* (CC BY 3.0) with a manually reviewed Turkish translation; audio is intentionally omitted. No user account, private subtitle, API key, or browsing-history data is included.
 ## Setup
 
 Requirements: Windows 10/11, Node.js 22.13+, Python 3.10 or 3.11, and FFmpeg. An NVIDIA CUDA GPU is recommended.
