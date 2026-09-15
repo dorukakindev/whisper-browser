@@ -301,9 +301,20 @@ class BrowserTranslationScheduler {
       .map(([sentenceId]) => sentenceId);
     if (!failedIds.length) return 0;
     for (const sentenceId of failedIds) this.failures.delete(sentenceId);
-    this.completeTrack = true;
-    this.updatePlayhead(this.playhead);
-    return failedIds.length;
+    // Hata kullanicinin mevcut pencere kapsami disinda olsa bile yeniden
+    // denenebilmeli; ancak bu eylem acik bir "tum izi cevir" talebi degildir.
+    const failedSet = new Set(failedIds);
+    const unavailable = new Set([
+      ...this.results.keys(),
+      ...this.pending.keys(),
+      ...this.queue.map((sentence) => sentence.id),
+    ]);
+    const retries = this.sentences.filter((sentence) =>
+      failedSet.has(sentence.id) && !unavailable.has(sentence.id));
+    this.queue = [...retries, ...this.queue];
+    this.emitState();
+    this.pump();
+    return retries.length;
   }
 
   async readCache(key) {

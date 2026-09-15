@@ -5,6 +5,7 @@ const path = require('path');
 const { performance } = require('perf_hooks');
 const { sortByLastWatched } = require('../src/watch-library-view');
 const { createWatchLibraryStore } = require('../src/watch-library-store');
+const { SubtitleFileAccess } = require('../src/local-file-access');
 
 const root = path.join(__dirname, '..');
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
@@ -43,14 +44,18 @@ measuredPromises.readFile = async (...args) => {
 };
 Object.defineProperty(measuredFs, 'promises', { value: measuredPromises });
 const app = { getPath: () => temp };
+const subtitleFileAccess = new SubtitleFileAccess();
+for (let index = 0; index < records; index++) {
+  subtitleFileAccess.grant(path.join(temp, `subtitle-${index}.srt`));
+}
 const api = new Function('fs', 'path', 'app', 'decodeSubtitleBuffer', 'writeJsonAtomic',
-  'sortByLastWatched', 'createWatchLibraryStore',
+  'sortByLastWatched', 'createWatchLibraryStore', 'subtitleFileAccess',
   `${source}\nreturn {
     searchWatchLibrary,
     removeWatchItem: (key) => watchLibraryStore().remove(key),
   };`)(
   measuredFs, path, app, (buffer) => ({ text: buffer.toString('utf8') }), () => {},
-  sortByLastWatched, createWatchLibraryStore);
+  sortByLastWatched, createWatchLibraryStore, subtitleFileAccess);
 
 async function mainTest() {
   const cacheSearchMs = [];

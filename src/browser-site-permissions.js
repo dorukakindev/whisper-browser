@@ -43,7 +43,6 @@ function browserPermissionDecision(sitePermissions, rawUrl, permission) {
   if (!origin || !name) return 'block';
   const stored = normalizeBrowserSitePermissions(sitePermissions)[origin]?.permissions?.[name];
   if (stored) return stored;
-  if (name === 'fullscreen' || name === 'clipboard-sanitized-write') return 'allow';
   return 'ask';
 }
 
@@ -55,8 +54,7 @@ function withBrowserPermission(sitePermissions, rawUrl, permission, decision, no
   const normalized = normalizeBrowserSitePermissions(sitePermissions);
   const existing = normalized[origin] || { permissions: {}, updatedAt: 0 };
   const permissions = { ...existing.permissions };
-  if (choice === 'ask') delete permissions[name];
-  else permissions[name] = choice;
+  permissions[name] = choice;
   if (Object.keys(permissions).length) normalized[origin] = { permissions, updatedAt: now };
   else delete normalized[origin];
   const entries = Object.entries(normalized).sort((a, b) => Number(b[1].updatedAt) - Number(a[1].updatedAt))

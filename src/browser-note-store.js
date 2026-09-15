@@ -42,6 +42,7 @@ class BrowserNoteStore {
     this.needsLegacyImport = false;
     this.migrationError = '';
     this.loadError = '';
+    this.recoveryWriteError = '';
     this.loaded = false;
     this.load();
   }
@@ -76,7 +77,15 @@ class BrowserNoteStore {
       if (annotation.id && annotation.mediaId) this.annotations.set(annotation.id, annotation);
     }
     this.loaded = true;
-    if (this.recoveredFromBackup) this.flush({ preserveBackup: true });
+    if (this.recoveredFromBackup) {
+      try {
+        this.flush({ preserveBackup: true });
+      } catch (error) {
+        // Sağlam yedek bellekte kullanilabilir durumda. Kurtarma yazimi
+        // basarisiz olsa bile butun not ozelligini konstruktor asamasinda oldurme.
+        this.recoveryWriteError = 'Not yedekten kurtarıldı ancak ana dosya yenilenemedi: ' + error.message;
+      }
+    }
   }
 
   snapshot() {
@@ -104,6 +113,7 @@ class BrowserNoteStore {
       fs.renameSync(temporary, this.filePath);
       if (!fs.existsSync(this.backupPath)) fs.copyFileSync(this.filePath, this.backupPath);
       this.needsLegacyImport = false;
+      this.recoveryWriteError = '';
     } catch (error) {
       try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch (_) {}
       throw error;

@@ -11191,6 +11191,16 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       { priority: 100, holdMs: 7000 });
   } else if (event.type === 'notice') {
     setBrowserSignal(event.message || 'İşlem tamamlandı.', !!event.success);
+  } else if (event.type === 'load-retry') {
+    const attempt = Math.max(1, Number(event.attempt) || 1);
+    const message = event.message || ('Geçici ağ hatası yeniden deneniyor (' + attempt + '/3).');
+    setBrowserSignal(message, false, { priority: 70, holdMs: 5000 });
+    logLine(message, 'warn');
+  } else if (event.type === 'html-full-screen') {
+    const tab = browserTabState(event.tabId);
+    if (tab) tab.htmlFullscreen = event.active === true;
+    const message = event.active === true ? 'Site tam ekran modu açıldı.' : 'Site tam ekran modu kapatıldı.';
+    setBrowserSignal(message, true, { priority: 40, holdMs: 2500 });
   } else if (event.type === 'capture-warning') {
     logLine(event.message || 'Web altyazısı ağdan izlenemedi; HTML5 izleri taranmaya devam ediyor.', 'warn');
   } else if (event.type === 'capture-enabled') {

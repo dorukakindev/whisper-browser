@@ -4,6 +4,7 @@ const path = require('path');
 const os = require('os');
 const { createWatchLibraryStore } = require('../src/watch-library-store');
 const { decodeSubtitleBuffer } = require('../src/browser-textutil');
+const { SubtitleFileAccess } = require('../src/local-file-access');
 
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
 const start = main.indexOf('const WATCH_LIBRARY_LIMIT');
@@ -16,10 +17,12 @@ if (jsonStart < 0 || jsonEnd < 0) throw new Error('Atomik JSON yazıcı kaynak b
 const jsonSource = main.slice(jsonStart, jsonEnd);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-watch-'));
 const app = { getPath: () => tmp };
+const subtitleFileAccess = new SubtitleFileAccess();
 const api = new Function('fs', 'path', 'app', 'createWatchLibraryStore', 'decodeSubtitleBuffer',
+  'subtitleFileAccess',
   `${jsonSource}\n${source}\nreturn {
      loadWatchLibrary, upsertWatchItem, searchWatchLibrary, watchLibraryPath,
-   };`)(fs, path, app, createWatchLibraryStore, decodeSubtitleBuffer);
+   };`)(fs, path, app, createWatchLibraryStore, decodeSubtitleBuffer, subtitleFileAccess);
 
 let pass = 0;
 const failures = [];
@@ -56,6 +59,7 @@ test('başlık ve koleksiyon içinde arar', async () => {
 test('altyazı metnini bulur ve zamanını döndürür', async () => {
   const subtitle = path.join(tmp, 'ornek.srt');
   fs.writeFileSync(subtitle, '1\n00:01:23,400 --> 00:01:25,000\nAradığımız nadir cümle burada.\n', 'utf-8');
+  subtitleFileAccess.grant(subtitle);
   api.upsertWatchItem({ key: 'file:c', title: 'C', subtitlePaths: [subtitle] });
   const item = (await api.searchWatchLibrary('nadir'))[0];
   assert(item && item.matches.length === 1, 'altyazı eşleşmesi yok');
@@ -65,6 +69,7 @@ test('altyazı metnini bulur ve zamanını döndürür', async () => {
 test('ASS altyazısında metni ve Dialogue zamanını bulur', async () => {
   const subtitle = path.join(tmp, 'ornek.ass');
   fs.writeFileSync(subtitle, '[Events]\nDialogue: 0,0:02:03.50,0:02:05.00,Default,,0,0,0,,{\\i1}Özel ifade{\\i0} burada\n', 'utf-8');
+  subtitleFileAccess.grant(subtitle);
   api.upsertWatchItem({ key: 'file:d', title: 'D', subtitlePaths: [subtitle] });
   const item = (await api.searchWatchLibrary('özel ifade')).find((x) => x.key === 'file:d');
   assert(item && item.matches.length === 1, 'ASS eşleşmesi yok');
@@ -74,6 +79,7 @@ test('ASS altyazısında metni ve Dialogue zamanını bulur', async () => {
 test('saat alani olmayan VTT eslesmesinin zamanini döndürür', async () => {
   const subtitle = path.join(tmp, 'kisa.vtt');
   fs.writeFileSync(subtitle, 'WEBVTT\n\n01:23.400 --> 01:25.000\nKisa zamanli nadir ifade.\n', 'utf-8');
+  subtitleFileAccess.grant(subtitle);
   api.upsertWatchItem({ key: 'file:vtt', title: 'VTT', subtitlePaths: [subtitle] });
   const item = (await api.searchWatchLibrary('kisa zamanli')).find((x) => x.key === 'file:vtt');
   assert(item && item.matches.length === 1, 'VTT eslesmesi yok');
@@ -83,6 +89,7 @@ test('saat alani olmayan VTT eslesmesinin zamanini döndürür', async () => {
 test('standart dışı tek haneli VTT dakikasını toleranslı okur', async () => {
   const subtitle = path.join(tmp, 'tek-dakika.vtt');
   fs.writeFileSync(subtitle, 'WEBVTT\n\n5:23.456 --> 5:25.000\nTek haneli dakika.\n', 'utf-8');
+  subtitleFileAccess.grant(subtitle);
   api.upsertWatchItem({ key: 'file:vtt-short', title: 'VTT kısa', subtitlePaths: [subtitle] });
   const item = (await api.searchWatchLibrary('tek haneli')).find((x) => x.key === 'file:vtt-short');
   assert(item && item.matches.length === 1, 'tek haneli VTT eşleşmesi yok');
@@ -93,6 +100,7 @@ test('cp1254 altyazi oynaticiyla ayni sekilde aranir', async () => {
   const subtitle = path.join(tmp, 'turkce-cp1254.srt');
   const latin = Buffer.from('1\n00:00:03,000 --> 00:00:04,000\nI\u00fe\u00fdk G\u00fcne\u00fei aramas\u00fd.\n', 'latin1');
   fs.writeFileSync(subtitle, latin);
+  subtitleFileAccess.grant(subtitle);
   api.upsertWatchItem({ key: 'file:cp1254', title: 'Kodlama', subtitlePaths: [subtitle] });
   const item = (await api.searchWatchLibrary('ışık güneşi')).find((x) => x.key === 'file:cp1254');
   assert(item && item.matches.length === 1, 'cp1254 Turkce metin bulunamadi');

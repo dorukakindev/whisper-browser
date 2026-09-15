@@ -129,13 +129,14 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startBrowserDiscoveryObserver, { once: true });
 } else startBrowserDiscoveryObserver();
 
-window.addEventListener('pagehide', () => {
+window.addEventListener('pagehide', (event) => {
+  if (event.persisted) return;
   discoveryObserver?.disconnect();
   discoveryObserver = null;
   if (discoveryFlushTimer) clearTimeout(discoveryFlushTimer);
   discoveryFlushTimer = null;
   discoveryPending.clear();
-}, { once: true });
+});
 
 // Native find-in-page does not always recalculate when an SPA appends text
 // after the initial search. Keep a small, opt-in observer: the main process
@@ -204,8 +205,9 @@ ipcRenderer.on('browser:resource-snapshot-request', (_event, payload = {}) => {
   ipcRenderer.send('browser:resource-snapshot-response', { requestId, ...browserPageResourceTelemetry() });
 });
 
-window.addEventListener('pagehide', () => {
+window.addEventListener('pagehide', (event) => {
+  if (event.persisted) return;
   stopPageFindObserver();
   if (readingPositionTimer) clearTimeout(readingPositionTimer);
   readingPositionTimer = null;
-}, { once: true });
+});

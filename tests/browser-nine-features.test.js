@@ -78,7 +78,7 @@ assert.match(escapedMarkdown, /1\\\. Sahte sıra/);
 
 assert.equal(permissionOrigin('https://example.com/a?x=1'), 'https://example.com');
 assert.equal(browserPermissionDecision({}, 'https://example.com', 'camera'), 'ask');
-assert.equal(browserPermissionDecision({}, 'https://example.com', 'fullscreen'), 'allow');
+assert.equal(browserPermissionDecision({}, 'https://example.com', 'fullscreen'), 'ask');
 const permission = withBrowserPermission({}, 'https://example.com/a', 'camera', 'block', now);
 assert.equal(permission.sitePermissions['https://example.com'].permissions.camera, 'block');
 

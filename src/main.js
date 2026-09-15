@@ -3383,6 +3383,15 @@ function applyBrowserViewBounds(tab, view = tab?.view) {
 function applyBrowserViewsLayout() {
   const active = activeBrowserTab();
   const secondary = secondaryBrowserTab();
+  const fullscreen = active?.htmlFullscreen ? active : (secondary?.htmlFullscreen ? secondary : null);
+  if (fullscreen) {
+    for (const tab of browserTabs.values()) {
+      if (!tab.view || tab.view.webContents.isDestroyed()) continue;
+      if (tab.id === fullscreen.id) applyBrowserViewBounds(tab, tab.view);
+      tab.view.setVisible(tab.id === fullscreen.id && browserTabShouldBeVisible(tab));
+    }
+    return;
+  }
   if (active?.view && !active.view.webContents.isDestroyed()) {
     applyBrowserViewBounds(active, active.view);
     active.view.setVisible(browserExtras?.mini.owns(active) || browserTabShouldBeVisible(active));
@@ -6310,6 +6319,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   const mediaIdentity = browserWatchMediaId(tab);
   tab.translationMediaIdentity = mediaIdentity;
   const generation = tab.generation;
+  const pageMediaId = tab.mediaId;
   const trackIdentity = tab.translationTrackId;
   const context = {
     promptVersion: 'browser-sentence-v2-context',
@@ -6372,7 +6382,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   // Sonraki gerçek akış değişimleri scheduler'ı invalidateBrowserTabSubtitles ile
   // zaten iptal eder; burada kimliği sabitlemek ilk evlat edinmeyi bayat sayıyordu.
   const isCurrent = () => !tab.closing && tab.translationScheduler === scheduler
-    && tab.generation === generation && browserWatchMediaId(tab) === tab.translationMediaIdentity;
+    && tab.generation === generation && tab.mediaId === pageMediaId;
   tab.translationScheduler = scheduler;
   scheduler.setSentences(sentences);
   scheduler.updatePlayhead(tab.position || 0);
@@ -9671,17 +9681,17 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('enter-html-full-screen', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
     tab.htmlFullscreen = true;
-    if (tab.id === browserActiveTabId) applyBrowserViewBounds(tab, view);
+    if (tab.id === browserActiveTabId || tab.id === browserSplitSecondaryTabId) applyBrowserViewsLayout();
     sendBrowserEvent(tab, { type: 'html-full-screen', active: true });
     setTimeout(() => {
-      if (tab.closing || tab.id !== browserActiveTabId || tab.view !== view || !tab.htmlFullscreen) return;
+      if (tab.closing || !browserTabShouldBeVisible(tab) || tab.view !== view || !tab.htmlFullscreen) return;
       void executeBrowserTrustedMain(view, 'window.__whisperBrowserOverlayController?.enableFullscreenControls?.()').catch(() => {});
     }, 100);
   });
   wc.on('leave-html-full-screen', () => {
     if (tab.view !== view || browserTabById(tab.id) !== tab) return;
     tab.htmlFullscreen = false;
-    if (tab.id === browserActiveTabId) applyBrowserViewBounds(tab, view);
+    if (tab.id === browserActiveTabId || tab.id === browserSplitSecondaryTabId) applyBrowserViewsLayout();
     sendBrowserEvent(tab, { type: 'html-full-screen', active: false });
   });
   wc.on('media-started-playing', () => {

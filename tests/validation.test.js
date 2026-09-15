@@ -138,7 +138,8 @@ t('klasör izleme yalnız gerçek dizin yolunu kabul eder', () => {
   const start = msrc.indexOf("ipcMain.handle('watch:start'");
   const end = msrc.indexOf("ipcMain.handle('watch:stop'", start);
   const body = msrc.slice(start, end);
-  ok(/fs\.statSync\(dir\)\.isDirectory\(\)/.test(body), 'watch:start dosya yolunu klasör sanıyor');
+  ok(/canonicalLocalPath\(dir\)/.test(body), 'watch:start yolu kanonikleştirmiyor');
+  ok(/fs\.statSync\(target\)\.isDirectory\(\)/.test(body), 'watch:start dosya yolunu klasör sanıyor');
 });
 
 t('ayar içe aktarma JSON dizisini reddeder', () => {

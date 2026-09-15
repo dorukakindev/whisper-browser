@@ -307,14 +307,25 @@ async function run() {
       && capturedFrame.getSize().height >= captureRect.height,
     'DPR uygulanmış görüntü üretim koordinatlarının altında kaldı.');
     window.webContents.setZoomFactor(1);
+    // setZoomFactor, dönüşünden sonra gecikmiş bir resize olayı yayımlayabilir.
+    // Link-hints bu olayda bilerek kapanır; katmanı zoom yerleşmeden kurmak
+    // smoke testini ürün davranışından bağımsız bir yarışa dönüştürüyordu.
+    await new Promise((resolve) => setTimeout(resolve, 80));
 
     const hints = await window.webContents.executeJavaScript(buildBrowserLinkHintsScript(), true);
     assert.equal(hints?.active, true);
     assert.ok(hints.count >= 4, 'Ana belge, shadow DOM ve iframe ipuçları birlikte bulunamadı.');
-    await window.webContents.executeJavaScript(
-      "document.dispatchEvent(new KeyboardEvent('keydown',{key:'a',bubbles:true,cancelable:true}))", true);
-    assert.equal(await window.webContents.executeJavaScript('window.__hintClicks', true), 1,
-      'Gerçek Electron belgesinde ipucu tuşu hedefi etkinleştirmedi.');
+    const hintActivation = await window.webContents.executeJavaScript(`(() => {
+      const layer = document.querySelector('[data-whisper-link-hints]');
+      const labels = [...(layer?.querySelectorAll('span') || [])].map((node) => node.textContent);
+      const dispatched = document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'a', bubbles: true, cancelable: true,
+      }));
+      return { clicks: window.__hintClicks, dispatched, labels,
+        active: !!document.querySelector('[data-whisper-link-hints]') };
+    })()`, true);
+    assert.equal(hintActivation.clicks, 1,
+      `Gerçek Electron belgesinde ipucu tuşu hedefi etkinleştirmedi: ${JSON.stringify(hintActivation)}`);
     assert.equal(await window.webContents.executeJavaScript(
       "!!document.querySelector('[data-whisper-link-hints]')", true), false,
     'Link ipucu katmanı seçimden sonra temizlenmedi.');

@@ -221,11 +221,23 @@ class BrowserTranslationArchive {
 
   _saveIndex(entry) {
     const index = this._readIndex();
+    const previous = index.entries.find((item) => item.id === entry.id);
     index.entries = [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT);
     const temp = `${this.indexPath}.${process.pid}.${Date.now()}.tmp`;
     this.ensure();
     this.fs.writeFileSync(temp, `${JSON.stringify(index, null, 2)}\n`, 'utf8');
     this.fs.renameSync(temp, this.indexPath);
+    // Index atomik olarak yeni revizyona gectikten sonra yalniz ayni mantiksal
+    // kaydin eski dosyalarini ve yalniz arsiv kokunun icinde sil.
+    for (const field of ['jsonPath', 'displayPath']) {
+      const relative = String(previous?.[field] || '');
+      if (!relative || relative === entry[field]) continue;
+      const target = path.resolve(this.rootDir, relative);
+      const parent = path.dirname(target);
+      if (!target.startsWith(this.rootDir + path.sep)
+          || ![this.pageDir, this.subtitleDir].includes(parent)) continue;
+      try { if (this.fs.existsSync(target)) this.fs.unlinkSync(target); } catch (_) {}
+    }
   }
 
   savePage(raw = {}) {

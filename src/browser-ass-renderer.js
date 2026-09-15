@@ -87,17 +87,20 @@ function buildAssInstallScript(text, operationId, fonts = []) {
     const workerUrl = URL.createObjectURL(new Blob(['import ' + JSON.stringify(base + 'worker.js') + ';'], { type: 'text/javascript' }));
     const state = { video, canvas: null, workerUrl, renderer: null, observer: null, detach: null, operationId: ${serializedId} };
     globalThis.__whisperAssState = state;
+    state.pageHide = (event) => {
+      if (!event.persisted) state.detach();
+    };
     state.detach = () => {
       if (globalThis.__whisperAssState === state) globalThis.__whisperAssState = null;
       state.observer?.disconnect();
       state.video.removeEventListener('emptied', state.detach);
-      globalThis.removeEventListener('pagehide', state.detach);
+      globalThis.removeEventListener('pagehide', state.pageHide);
       state.renderer?.destroy()?.catch?.(() => {});
       URL.revokeObjectURL(state.workerUrl);
       state.canvas?.remove();
     };
     video.addEventListener('emptied', state.detach, { once: true });
-    globalThis.addEventListener('pagehide', state.detach, { once: true });
+    globalThis.addEventListener('pagehide', state.pageHide);
     state.observer = new MutationObserver(() => { if (!video.isConnected) state.detach(); });
     state.observer.observe(document, { childList: true, subtree: true });
     const videoRoot = video.getRootNode();
