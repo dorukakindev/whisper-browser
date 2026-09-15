@@ -11,6 +11,13 @@ const TORCH_INDEX = 'https://download.pytorch.org/whl/cu121';
 const TORCH_PINS = ['torch==2.5.1+cu121', 'torchaudio==2.5.1+cu121'];
 const ELECTRON_COMMIT = '8244344c33634d9323377c0d0fd1d9b7f9b69540';
 const VALID_PROFILES = new Set(['core', 'whisperx', 'diarize']);
+// Some old packages publish SPDX-compatible license data through the legacy
+// `licenses` field. npm does not copy that field into lockfile v3. Keep the
+// exception exact by lock path and version so a package update cannot inherit
+// an unverified license decision.
+const LEGACY_NPM_LICENSES = new Map([
+  ['node_modules/dom-walk@0.1.2', 'MIT'],
+]);
 
 class InstallError extends Error {
   constructor(code, message) {
@@ -278,7 +285,10 @@ class InstallOrchestrator {
     }
     for (const [name, metadata] of Object.entries(packageLock.packages)) {
       if (!name) continue;
-      if (!metadata.license) throw new InstallError('NPM_LICENSE', `${name} icin lisans metadata'si eksik.`);
+      const legacyLicense = LEGACY_NPM_LICENSES.get(`${name}@${metadata.version}`);
+      if (!metadata.license && !legacyLicense) {
+        throw new InstallError('NPM_LICENSE', `${name} icin lisans metadata'si eksik.`);
+      }
       if (String(metadata.resolved || '').includes('registry.npmjs.org') && !metadata.integrity) {
         throw new InstallError('NPM_INTEGRITY', `${name} icin registry integrity degeri eksik.`);
       }
@@ -553,6 +563,7 @@ if (require.main === module) process.exitCode = main();
 
 module.exports = {
   ELECTRON_COMMIT,
+  LEGACY_NPM_LICENSES,
   InstallError,
   InstallOrchestrator,
   MIN_FREE_BYTES,

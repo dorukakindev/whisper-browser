@@ -411,19 +411,52 @@ function parseHlsSubtitleTracks(body, baseUrl = '') {
   return tracks;
 }
 
+function parseHlsAttributes(line) {
+  const attrs = {};
+  for (const match of String(line || '').matchAll(/([A-Z0-9-]+)=((?:"[^"]*")|[^,]*)/gi)) {
+    attrs[match[1].toUpperCase()] = String(match[2] || '').replace(/^"|"$/g, '');
+  }
+  return attrs;
+}
+
 function detectHlsCea608(body) {
   const tracks = [];
   for (const line of String(body || '').split(/\r?\n/)) {
     if (!/#EXT-X-MEDIA:/i.test(line) || !/TYPE\s*=\s*CLOSED-CAPTIONS\b/i.test(line)) continue;
-    const attrs = {};
-    for (const match of line.matchAll(/([A-Z0-9-]+)=((?:"[^"]*")|[^,]*)/gi)) {
-      attrs[match[1].toUpperCase()] = String(match[2] || '').replace(/^"|"$/g, '');
-    }
+    const attrs = parseHlsAttributes(line);
     if (!/^(?:CC[1-4]|SERVICE\d+)$/i.test(attrs['INSTREAM-ID'] || '')) continue;
     tracks.push({ instreamId: attrs['INSTREAM-ID'].toUpperCase(), language: attrs.LANGUAGE || '',
-      name: attrs.NAME || '', supported: false, reason: 'cea-608-708-embedded' });
+      name: attrs.NAME || '', groupId: attrs['GROUP-ID'] || '', supported: true,
+      standard: /^CC/i.test(attrs['INSTREAM-ID']) ? 'cea-608' : 'cea-708' });
   }
   return tracks;
+}
+
+function parseHlsVariantStreams(body, baseUrl = '') {
+  const lines = String(body || '').split(/\r?\n/);
+  const variants = [];
+  let pending = null;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (/^#EXT-X-STREAM-INF:/i.test(line)) {
+      pending = parseHlsAttributes(line);
+      continue;
+    }
+    if (!pending || line.startsWith('#')) continue;
+    try {
+      variants.push({
+        url: new URL(line, baseUrl).href,
+        bandwidth: Math.max(0, Number(pending.BANDWIDTH) || 0),
+        averageBandwidth: Math.max(0, Number(pending['AVERAGE-BANDWIDTH']) || 0),
+        codecs: pending.CODECS || '',
+        resolution: pending.RESOLUTION || '',
+        closedCaptionsGroup: pending['CLOSED-CAPTIONS'] || '',
+      });
+    } catch (_) {}
+    pending = null;
+  }
+  return variants;
 }
 
 function parseHlsSegmentUris(body, baseUrl = '') {
@@ -447,6 +480,8 @@ function parseHlsSegments(body, baseUrl = '') {
   let initializationByteRange = null;
   let previousInitializationUrl = '';
   let previousInitializationRangeEnd = 0;
+  let encryption = null;
+  let initializationEncryption = null;
   for (const line of text.split(/\r?\n/)) {
     const value = line.trim();
     if (!value) continue;
@@ -484,6 +519,23 @@ function parseHlsSegments(body, baseUrl = '') {
         previousInitializationUrl = '';
         previousInitializationRangeEnd = 0;
       }
+      initializationEncryption = encryption ? { ...encryption } : null;
+      continue;
+    }
+    const key = value.match(/^#EXT-X-KEY\s*:\s*(.+)$/i);
+    if (key) {
+      const attrs = parseHlsAttributes(key[1]);
+      if (!attrs.METHOD || /^NONE$/i.test(attrs.METHOD)) {
+        encryption = null;
+      } else {
+        let keyUrl = '';
+        try { keyUrl = attrs.URI ? new URL(attrs.URI, baseUrl).href : ''; } catch (_) {}
+        encryption = {
+          method: String(attrs.METHOD || '').toUpperCase(),
+          keyUrl,
+          iv: String(attrs.IV || ''),
+        };
+      }
       continue;
     }
     if (/^#EXT-X-DISCONTINUITY(?:\s|$)/i.test(value)) {
@@ -515,7 +567,9 @@ function parseHlsSegments(body, baseUrl = '') {
       out.push({ url, start: elapsed, duration: segmentDuration, sequence, discontinuity,
         targetDuration, ...(byteRange ? { byteRange } : {}),
         ...(initializationUrl ? { initializationUrl } : {}),
-        ...(initializationByteRange ? { initializationByteRange } : {}) });
+        ...(initializationByteRange ? { initializationByteRange } : {}),
+        ...(initializationEncryption ? { initializationEncryption: { ...initializationEncryption } } : {}),
+        ...(encryption ? { encryption: { ...encryption } } : {}) });
       elapsed += segmentDuration;
       sequence += 1;
     } catch (_) {}
@@ -1606,6 +1660,7 @@ module.exports = {
   parseTime,
   parseAss,
   parseHlsSubtitleTracks,
+  parseHlsVariantStreams,
   parseHlsSegmentUris,
   parseHlsSegments,
   isHlsSubtitlePlaylist,

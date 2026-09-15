@@ -164,6 +164,8 @@ test('geçici bozuk gövde manifest kökü sayılmaz, sonraki geçerli gövde ka
   assert.equal(manifestDeclaresSubtitleWork(
     '#EXTM3U\n#EXT-X-MEDIA:GROUP-ID="cc",TYPE="SUBTITLES"', 'hls'), true);
   assert.equal(manifestDeclaresSubtitleWork(
+    '#EXTM3U\n#EXT-X-MEDIA:GROUP-ID="cc",TYPE="CLOSED-CAPTIONS",INSTREAM-ID="CC1"', 'hls'), true);
+  assert.equal(manifestDeclaresSubtitleWork(
     '<MPD><Representation codecs="wvtt"/></MPD>', 'dash'), true);
   assert.equal(manifestDeclaresSubtitleWork(
     '<MPD><AdaptationSet contentType="video"/></MPD>', 'dash'), false);

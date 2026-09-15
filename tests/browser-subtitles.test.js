@@ -12,6 +12,7 @@ const {
   manifestFingerprint,
   parseAss,
   parseHlsSubtitleTracks,
+  parseHlsVariantStreams,
   parseHlsSegmentUris,
   parseHlsSegments,
   isHlsSubtitlePlaylist,
@@ -609,11 +610,41 @@ test('DASH parçalı altyazı eşleştiricisi video segmentlerini dışarıda b�
   }
 });
 
-test('HLS gömülü CTA-608/708 izini yanlış WebVTT sanmadan tanıya hazırlar', () => {
-  const body = '#EXTM3U\n#EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="English",LANGUAGE="en",INSTREAM-ID="CC1"\n';
+test('HLS gömülü CEA-608/708 izini ve bağlı varyantı yakalamaya hazırlar', () => {
+  const body = '#EXTM3U\n#EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="English",LANGUAGE="en",INSTREAM-ID="CC1"\n'
+    + '#EXT-X-STREAM-INF:BANDWIDTH=800000,AVERAGE-BANDWIDTH=640000,CODECS="avc1.4d401f,mp4a.40.2",RESOLUTION=640x360,CLOSED-CAPTIONS="cc"\nvideo/low.m3u8\n';
   assert.deepEqual(detectHlsCea608(body), [{ instreamId: 'CC1', language: 'en', name: 'English',
-    supported: false, reason: 'cea-608-708-embedded' }]);
+    groupId: 'cc', supported: true, standard: 'cea-608' }]);
+  assert.deepEqual(parseHlsVariantStreams(body, 'https://cdn.test/master.m3u8'), [{
+    url: 'https://cdn.test/video/low.m3u8', bandwidth: 800000, averageBandwidth: 640000,
+    codecs: 'avc1.4d401f,mp4a.40.2', resolution: '640x360', closedCaptionsGroup: 'cc',
+  }]);
   assert.deepEqual(detectHlsCea608('#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,URI="sub.vtt"'), []);
+});
+
+test('HLS AES-128 anahtarını yalnız takip eden segmentlere taşır ve NONE ile temizler', () => {
+  const body = '#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:7\n'
+    + '#EXT-X-KEY:METHOD=AES-128,URI="keys/k.bin",IV=0x00000000000000000000000000000007\n'
+    + '#EXTINF:6,\na.ts\n#EXT-X-KEY:METHOD=NONE\n#EXTINF:6,\nb.ts\n';
+  const segments = parseHlsSegments(body, 'https://cdn.test/v/list.m3u8');
+  assert.deepEqual(segments[0].encryption, {
+    method: 'AES-128', keyUrl: 'https://cdn.test/v/keys/k.bin',
+    iv: '0x00000000000000000000000000000007',
+  });
+  assert.equal(segments[0].sequence, 7);
+  assert.equal(segments[1].encryption, undefined);
+});
+
+test('HLS AES-128 anahtarı şifreli fMP4 başlangıç parçasına ayrı kapsamla taşınır', () => {
+  const body = '#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:12\n'
+    + '#EXT-X-KEY:METHOD=AES-128,URI="keys/init.bin",IV=0x0c\n'
+    + '#EXT-X-MAP:URI="init.mp4"\n'
+    + '#EXT-X-KEY:METHOD=NONE\n#EXTINF:6,\npart-12.m4s\n';
+  const segment = parseHlsSegments(body, 'https://cdn.test/v/list.m3u8')[0];
+  assert.deepEqual(segment.initializationEncryption, {
+    method: 'AES-128', keyUrl: 'https://cdn.test/v/keys/init.bin', iv: '0x0c',
+  });
+  assert.equal(segment.encryption, undefined);
 });
 
 test('DASH SegmentList altyazı parçalarını tek iz ve doğru sıra ofsetiyle eşleştirir', () => {
@@ -951,7 +982,9 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /segment\.initializationUrl/);
   assert.match(main, /parseMp4WebVtt\(partBuffer, matcher\)/);
   assert.match(main, /fetchBrowserBufferWithRetry\(segment\.initializationUrl[\s\S]{0,160}range\)/);
-  assert.match(main, /const manifestHandled = !manifestRetryNeeded && \(storedCount > 0 \|\| noSubtitleWork\)/);
+  assert.match(main, /const manifestHandled = !manifestRetryNeeded[\s\S]{0,100}ceaMatcherCount > 0/);
+  assert.match(main, /matchHlsCeaSegmentUrl\(response\.url, browserHlsCeaSegmentMatchers\)/);
+  assert.match(main, /captureBrowserHlsCeaSegment\(responseBuffer, candidate, context\)/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);
   assert.match(main, /Target\.setAutoAttach/);

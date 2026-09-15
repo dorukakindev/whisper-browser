@@ -158,6 +158,14 @@ test('npm lisans metadata eksik', (root) => {
   mutateJson(root, 'package-lock.json', (lock) => { delete lock.packages['node_modules/debug'].license; });
   expectCode(root, new FakeDriver(root), 'NPM_LICENSE');
 });
+test('eski npm lisans alani yalniz dogrulanmis tam surumde kabul edilir', (root) => {
+  const orchestrator = new InstallOrchestrator(root, new FakeDriver(root));
+  assert.doesNotThrow(() => orchestrator.preflight());
+  mutateJson(root, 'package-lock.json', (lock) => {
+    lock.packages['node_modules/dom-walk'].version = '0.1.3';
+  });
+  expectCode(root, new FakeDriver(root), 'NPM_LICENSE');
+});
 test('python aralik pini reddedilir', (root) => {
   const file = path.join(root, 'backend', 'requirements-core.lock');
   fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('faster-whisper==', 'faster-whisper>='));

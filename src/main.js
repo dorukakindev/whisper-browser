@@ -39,6 +39,7 @@ const {
   normalizeCues,
   parseSubtitlePayload,
   parseHlsSubtitleTracks,
+  parseHlsVariantStreams,
   detectHlsCea608,
   parseHlsSegments,
   isHlsSubtitlePlaylist,
@@ -56,6 +57,13 @@ const {
   findSubtitleUrls,
   subtitleLanguage,
 } = require('./browser-subtitles');
+const {
+  CeaCaptionDecoder,
+  buildHlsCeaSegmentMatchers,
+  decryptHlsAes128,
+  isLikelyMpegTsResponse,
+  matchHlsCeaSegmentUrl,
+} = require('./browser-cea-captions');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
 const { summarizeTranslationIntegrity } = require('./browser-translation-integrity');
 const { hashText: browserSubtitleIdentityHash, normalizeTransform } = require('./browser-subtitle-sync');
@@ -491,6 +499,13 @@ const browserManifestRetryTimers = new Map();
 const browserHlsFetchedSegments = new Map();
 const browserHlsTimelines = new Map();
 const browserHlsInFlight = new Set();
+let browserHlsCeaSegmentMatchers = [];
+let browserHlsCeaActive = null;
+const browserHlsCeaDecoders = new Map();
+const browserHlsCeaDecodeQueues = new Map();
+const browserHlsCeaInitializations = new Map();
+const browserHlsCeaKeys = new Map();
+const browserHlsCeaFetchedSegments = new Set();
 const browserDashFetchedSegments = new Map();
 const browserResourceSnapshotRequests = new Map();
 let browserResourceSnapshotSequence = 0;
@@ -3699,6 +3714,14 @@ function resetBrowserCaptureState(options = {}) {
   browserHlsFetchedSegments.clear();
   browserHlsTimelines.clear();
   browserHlsInFlight.clear();
+  browserHlsCeaSegmentMatchers = [];
+  browserHlsCeaActive = null;
+  for (const decoder of browserHlsCeaDecoders.values()) decoder.reset();
+  browserHlsCeaDecoders.clear();
+  browserHlsCeaDecodeQueues.clear();
+  browserHlsCeaInitializations.clear();
+  browserHlsCeaKeys.clear();
+  browserHlsCeaFetchedSegments.clear();
   browserCaptureHookFrames = new WeakSet();
   browserLastDrmStatus = '';
   const url = browserView && !browserView.webContents.isDestroyed() ? browserView.webContents.getURL() : '';
@@ -6874,6 +6897,225 @@ async function fetchBrowserBufferWithRetry(url, maxBytes = 12 * 1024 * 1024, att
   throw lastError || new Error('Altyazı isteği başarısız.');
 }
 
+function hlsCeaSegmentFetchKey(segment = {}) {
+  return [
+    segment.playlistUrl || '', segment.discontinuity || 0,
+    segment.sequence ?? '', segment.url || '',
+  ].join('|');
+}
+
+function registerBrowserHlsCeaMatchers(matchers = []) {
+  for (const matcher of matchers) {
+    const key = hlsCeaSegmentFetchKey(matcher);
+    const index = browserHlsCeaSegmentMatchers.findIndex((item) =>
+      hlsCeaSegmentFetchKey(item) === key);
+    if (index >= 0) browserHlsCeaSegmentMatchers[index] = matcher;
+    else browserHlsCeaSegmentMatchers.push(matcher);
+  }
+  browserHlsCeaSegmentMatchers = browserHlsCeaSegmentMatchers.slice(-20000);
+  return matchers.length;
+}
+
+function hlsCeaTracksForVariant(tracks, variant = {}) {
+  const group = String(variant.closedCaptionsGroup || '');
+  if (/^NONE$/i.test(group)) return [];
+  if (!group) return tracks || [];
+  return (tracks || []).filter((track) => !track.groupId || track.groupId === group);
+}
+
+async function getBrowserHlsCeaKey(encryption, context = null) {
+  if (!encryption || encryption.method !== 'AES-128' || !encryption.keyUrl) {
+    throw new Error(`Gömülü CEA için desteklenmeyen HLS şifrelemesi: ${encryption?.method || 'bilinmiyor'}`);
+  }
+  const keyId = encryption.keyUrl;
+  let keyPromise = browserHlsCeaKeys.get(keyId);
+  if (!keyPromise) {
+    keyPromise = fetchBrowserBufferWithRetry(keyId, 1024, 2, context)
+      .catch((error) => {
+        if (browserHlsCeaKeys.get(keyId) === keyPromise) browserHlsCeaKeys.delete(keyId);
+        throw error;
+      });
+    browserHlsCeaKeys.set(keyId, keyPromise);
+    trimInsertionCollection(browserHlsCeaKeys, 32);
+  }
+  return keyPromise;
+}
+
+async function captureBrowserHlsCeaSegment(responseBuffer, candidate = {}, context = null) {
+  const segment = candidate.ceaSegment;
+  if (!segment || (context && !isCurrentBrowserContext(context))) return false;
+  const fetchKey = hlsCeaSegmentFetchKey(segment);
+  if (browserHlsCeaFetchedSegments.has(fetchKey)) return true;
+  const decoderKey = `${segment.playlistUrl || segment.sourceUrl || 'hls'}|${segment.discontinuity || 0}`;
+  const previous = browserHlsCeaDecodeQueues.get(decoderKey) || Promise.resolve();
+  const work = previous.catch(() => {}).then(async () => {
+    if (browserHlsCeaFetchedSegments.has(fetchKey)) return true;
+    if (context && !isCurrentBrowserContext(context)) return false;
+    let decoder = browserHlsCeaDecoders.get(decoderKey);
+    if (!decoder) {
+      decoder = new CeaCaptionDecoder();
+      browserHlsCeaDecoders.set(decoderKey, decoder);
+      while (browserHlsCeaDecoders.size > 64) {
+        const oldestKey = browserHlsCeaDecoders.keys().next().value;
+        browserHlsCeaDecoders.get(oldestKey)?.reset();
+        browserHlsCeaDecoders.delete(oldestKey);
+      }
+    }
+    const fragmentedMp4 = !!segment.initializationUrl
+      || /\.(?:m4s|mp4)(?:[?#]|$)/i.test(String(segment.url || candidate.url || ''));
+    let initialization = null;
+    if (fragmentedMp4 && segment.initializationUrl) {
+      const range = segment.initializationByteRange;
+      const initEncryption = segment.initializationEncryption;
+      const initKey = `${segment.initializationUrl}|${range?.start ?? ''}-${range?.end ?? ''}`
+        + `|${initEncryption?.method || ''}|${initEncryption?.keyUrl || ''}|${initEncryption?.iv || ''}`;
+      let pending = browserHlsCeaInitializations.get(initKey);
+      if (!pending) {
+        pending = fetchBrowserBufferWithRetry(segment.initializationUrl,
+          4 * 1024 * 1024, 2, context, range)
+          .then(async (buffer) => {
+            if (!initEncryption) return buffer;
+            const key = await getBrowserHlsCeaKey(initEncryption, context);
+            return decryptHlsAes128(buffer, key, segment.sequence, initEncryption.iv);
+          })
+          .catch((error) => {
+            if (browserHlsCeaInitializations.get(initKey) === pending) {
+              browserHlsCeaInitializations.delete(initKey);
+            }
+            throw error;
+          });
+        browserHlsCeaInitializations.set(initKey, pending);
+        trimInsertionCollection(browserHlsCeaInitializations, 64);
+      }
+      initialization = await pending;
+    }
+    let mediaBuffer = responseBuffer;
+    if (segment.encryption) {
+      const key = await getBrowserHlsCeaKey(segment.encryption, context);
+      mediaBuffer = decryptHlsAes128(
+        responseBuffer, key, segment.sequence, segment.encryption.iv);
+    }
+    const decoded = fragmentedMp4
+      ? decoder.decodeFragmentedMp4(mediaBuffer, initialization, segment)
+      : decoder.decodeTransportStream(mediaBuffer, segment);
+    if (context && !isCurrentBrowserContext(context)) return false;
+    browserHlsCeaFetchedSegments.add(fetchKey);
+    while (browserHlsCeaFetchedSegments.size > 20000) {
+      browserHlsCeaFetchedSegments.delete(browserHlsCeaFetchedSegments.values().next().value);
+    }
+    let stored = 0;
+    for (const track of segment.tracks || []) {
+      const trackCues = decoded.filter((cue) =>
+        String(cue.stream || '').toUpperCase() === String(track.instreamId || '').toUpperCase());
+      if (!trackCues.length) continue;
+      const likelyLocalTimeline = segment.start > 0
+        && cuesUseLocalSegmentTimeline(trackCues, segment.duration, segment.start);
+      const streamKey = `${browserTrackStreamKey(segment.sourceUrl || segment.playlistUrl,
+        track.language)}|cea:${track.instreamId}`;
+      const cues = trackCues.map((cue) => ({
+        ...cue,
+        start: likelyLocalTimeline ? cue.start + segment.start : cue.start,
+        end: likelyLocalTimeline ? cue.end + segment.start : cue.end,
+        sequence: segment.sequence,
+        discontinuity: segment.discontinuity,
+        captionMode: track.instreamId,
+        provenance: normalizeCueProvenance({
+          layer: 'manifest', streamKey, segmentUrl: segment.url || candidate.url,
+          epoch: `${streamKey}:${segment.discontinuity || 0}`,
+          discontinuity: segment.discontinuity, sequence: segment.sequence,
+        }),
+      }));
+      const publication = storeBrowserTrack(cues, {
+        language: track.language || '',
+        label: track.name || track.instreamId || 'Gömülü altyazı',
+        format: track.standard || 'cea-608',
+        sourceUrl: segment.sourceUrl || segment.playlistUrl,
+        streamKey,
+        context,
+      });
+      if (publication || browserTrackPublications.has(streamKey)
+          || browserTrackPendingPublications.has(streamKey)) stored++;
+    }
+    if (stored) {
+      noteBrowserCapture('cea', candidate, 'parsed',
+        `${stored} gömülü CEA izi · ${decoded.length} cue`);
+    }
+    return true;
+  });
+  browserHlsCeaDecodeQueues.set(decoderKey, work);
+  try {
+    return await work;
+  } finally {
+    if (browserHlsCeaDecodeQueues.get(decoderKey) === work) {
+      browserHlsCeaDecodeQueues.delete(decoderKey);
+    }
+  }
+}
+
+async function prepareBrowserHlsCeaCapture(masterBody, masterUrl, tracks, context, isActive) {
+  const variants = parseHlsVariantStreams(masterBody, masterUrl)
+    .filter((variant) => hlsCeaTracksForVariant(tracks, variant).length)
+    .sort((left, right) => (left.averageBandwidth || left.bandwidth || Number.MAX_SAFE_INTEGER)
+      - (right.averageBandwidth || right.bandwidth || Number.MAX_SAFE_INTEGER))
+    .slice(0, 12);
+  const playlists = [];
+  if (!variants.length && parseHlsSegments(masterBody, masterUrl).length) {
+    playlists.push({ variant: { url: masterUrl }, body: masterBody });
+  } else {
+    const resolved = await Promise.all(variants.map(async (variant) => {
+      try {
+        const body = await fetchBrowserTextWithRetry(variant.url, 4 * 1024 * 1024, 2, context);
+        return { variant, body };
+      } catch (error) {
+        noteBrowserCapture('cea', { url: variant.url, context }, 'error',
+          'CEA video oynatma listesi alınamadı');
+        return null;
+      }
+    }));
+    playlists.push(...resolved.filter(Boolean));
+  }
+  if (!isActive()) return { matcherCount: 0, recovered: false };
+  let matcherCount = 0;
+  for (const item of playlists) {
+    const variantTracks = hlsCeaTracksForVariant(tracks, item.variant);
+    const matchers = buildHlsCeaSegmentMatchers(
+      item.body, item.variant.url, variantTracks, masterUrl);
+    matcherCount += registerBrowserHlsCeaMatchers(matchers);
+    item.matchers = matchers;
+  }
+
+  // Manifest yakalama açıldığında oynatıcı ilk parçayı çoktan indirmiş olabilir.
+  // Tüm videoyu yeniden indirmek yerine en düşük bant genişlikli varyanttan
+  // oynatma konumundaki parça ve iki komşusunu geri al.
+  const recovery = playlists.find((item) => item.matchers?.length);
+  const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
+  const playhead = Math.max(0, Number(tab?.position) || 0);
+  let recovered = false;
+  if (recovery) {
+    let index = recovery.matchers.findIndex((segment) =>
+      playhead >= segment.start && playhead < segment.start + Math.max(0.1, segment.duration));
+    if (index < 0) index = 0;
+    const nearby = recovery.matchers.slice(Math.max(0, index - 1), index + 3);
+    for (const segment of nearby) {
+      if (!isActive()) break;
+      const key = hlsCeaSegmentFetchKey(segment);
+      if (browserHlsCeaFetchedSegments.has(key)) continue;
+      try {
+        const buffer = await fetchBrowserBufferWithRetry(segment.url,
+          BROWSER_CAPTURE_BODY_LIMIT, 2, context, segment.byteRange);
+        recovered = await captureBrowserHlsCeaSegment(buffer, {
+          url: segment.url, mimeType: segment.initializationUrl ? 'video/mp4' : 'video/mp2t',
+          ceaSegment: segment, context,
+        }, context) || recovered;
+      } catch (error) {
+        noteBrowserCapture('cea', { url: segment.url, context }, 'error',
+          error?.message || 'İlk CEA video parçası alınamadı');
+      }
+    }
+  }
+  return { matcherCount, recovered };
+}
+
 async function fetchAndStoreBrowserSubtitle(url, meta = {}, context = null) {
   const text = await fetchBrowserText(url, 12 * 1024 * 1024, context);
   const parsed = parseSubtitlePayload(text, '', url);
@@ -7137,6 +7379,7 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
     context: context || candidate.context || null,
     sessionId: String(candidate.sessionId || ''),
     ...(candidate.dashTrack ? { dashTrack: candidate.dashTrack } : {}),
+    ...(candidate.ceaSegment ? { ceaSegment: candidate.ceaSegment } : {}),
   };
   const payloadKey = browserCaptureContentKey(candidate, responseBuffer);
   pruneBrowserCaptureDedupe(browserCapturePayloadSeen);
@@ -7160,6 +7403,10 @@ async function processBrowserCapturedPayload(responseBuffer, candidate = {}, str
 
 async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {}, strategy = 'cdp', context = null) {
   try {
+    if (candidate.ceaSegment) {
+      const handled = await captureBrowserHlsCeaSegment(responseBuffer, candidate, context);
+      return handled ? CAPTURE_PROCESSED : CAPTURE_DISCARDED;
+    }
     const body = decodeSubtitleBuffer(responseBuffer).text;
     const mime = String(candidate.mimeType || '').toLowerCase();
     const isManifest = /mpegurl|dash\+xml/i.test(mime) || /\.(m3u8|mpd)(?:[?#]|$)/i.test(candidate.url || '');
@@ -7210,7 +7457,16 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
         let manifestRetryNeeded = false;
         let manifestRefreshRequested = false;
         let dashMatcherCount = 0;
+        let ceaMatcherCount = 0;
         let storedCount = 0;
+        const embeddedCaptions = isHls ? detectHlsCea608(body) : [];
+        if (embeddedCaptions.length) {
+          browserHlsCeaActive = {
+            sourceUrl: candidate.url,
+            tracks: embeddedCaptions,
+            context: context ? { ...context } : null,
+          };
+        }
         if (!isHls) {
           const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
           dashMatcherCount = discoveredMatchers.length;
@@ -7317,6 +7573,17 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
           if (captured) storedCount++;
           else manifestRetryNeeded = true;
         }
+        if (embeddedCaptions.length) {
+          const cea = await prepareBrowserHlsCeaCapture(
+            body, candidate.url, embeddedCaptions, context, transactionCurrent);
+          requireActiveTransaction();
+          ceaMatcherCount = cea.matcherCount;
+          noteBrowserCapture('manifest', candidate, ceaMatcherCount ? 'parsed' : 'error',
+            ceaMatcherCount
+              ? `${embeddedCaptions.map((track) => track.instreamId).join(', ')} gömülü CEA izi için ${ceaMatcherCount} video parçası izlendi`
+              : 'Gömülü CEA izi bulundu ancak video parçaları eşlenemedi');
+          if (!ceaMatcherCount) manifestRetryNeeded = true;
+        }
         if (manifestRefreshRequested) {
           browserManifestTransactions.cancel(transaction);
           noteBrowserCapture('manifest', candidate, 'error',
@@ -7334,21 +7601,19 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
           return CAPTURE_ABANDONED;
         }
         const declaredSubtitleWork = manifestDeclaresSubtitleWork(body, manifestKind);
-        const embeddedCaptions = isHls ? detectHlsCea608(body) : [];
-        if (embeddedCaptions.length) {
-          noteBrowserCapture('manifest', candidate, 'rejected',
-            `${embeddedCaptions.map((track) => track.instreamId).join(', ')} gömülü CTA-608/708 izi algılandı; bu iz henüz çözümlenmiyor.`);
-        }
-        if (declaredSubtitleWork && !tracks.length && !inlineHlsSubtitle && !dashMatcherCount) {
+        if (declaredSubtitleWork && !tracks.length && !inlineHlsSubtitle
+            && !dashMatcherCount && !ceaMatcherCount) {
           manifestRetryNeeded = true;
         }
         const noSubtitleWork = (!declaredSubtitleWork && !tracks.length && !inlineHlsSubtitle)
           || (!isHls && dashMatcherCount > 0);
-        const manifestHandled = !manifestRetryNeeded && (storedCount > 0 || noSubtitleWork);
+        const manifestHandled = !manifestRetryNeeded
+          && (storedCount > 0 || ceaMatcherCount > 0 || noSubtitleWork);
         noteBrowserCapture(strategy, candidate, storedCount ? 'parsed' : (manifestHandled ? 'rejected' : 'error'),
           storedCount ? `${storedCount} altyazı izi`
-            : (manifestHandled ? 'Manifestte kullanılabilir altyazı izi bulunamadı'
-              : 'Manifest altyazısı alınamadı; tekrar denenecek'));
+            : (ceaMatcherCount ? 'Gömülü CEA altyazısı video parçalarından yakalanıyor'
+              : (manifestHandled ? 'Manifestte kullanılabilir altyazı izi bulunamadı'
+              : 'Manifest altyazısı alınamadı; tekrar denenecek')));
         if (!manifestHandled) {
           return manifestRetryOutcome(transaction, new Error('Manifest altyazı işi tamamlanamadı.'));
         }
@@ -9213,8 +9478,24 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (method === 'Network.responseReceived') {
       const response = params.response || {};
       const dashTrack = matchDashSubtitleUrl(response.url, browserDashSubtitleMatchers);
+      const exactCeaSegment = matchHlsCeaSegmentUrl(response.url, browserHlsCeaSegmentMatchers);
+      const broadCeaSegment = !exactCeaSegment && browserHlsCeaActive
+        && isLikelyMpegTsResponse(response)
+        && (!browserHlsCeaActive.context || isCurrentBrowserContext(browserHlsCeaActive.context))
+        ? {
+            url: response.url,
+            playlistUrl: browserHlsCeaActive.sourceUrl,
+            sourceUrl: browserHlsCeaActive.sourceUrl,
+            start: 0,
+            duration: 0,
+            sequence: null,
+            discontinuity: 0,
+            tracks: browserHlsCeaActive.tracks,
+          }
+        : null;
+      const ceaSegment = exactCeaSegment || broadCeaSegment;
       const adapter = browserResponseAdapter(wc.getURL(), response.url);
-      if (dashTrack || isLikelySubtitleResponse(response)
+      if (dashTrack || ceaSegment || isLikelySubtitleResponse(response)
         || adapterAcceptsResponse(adapter, response)
         || /mpegurl|dash\+xml/i.test(String(response.mimeType || ''))
         || /\.(m3u8|mpd)(?:[?#]|$)/i.test(String(response.url || ''))
@@ -9239,6 +9520,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         browserPendingResponses.set(pendingKey, {
           ...candidate, sessionId: sessionId || '', context,
           ...(dashTrack ? { dashTrack } : {}),
+          ...(ceaSegment ? { ceaSegment } : {}),
         });
         // loadingFinished gelmeyen yanıtları hem süre hem adet sınırıyla bırak.
         const pruned = pruneBrowserCaptureCandidates(browserPendingResponses, {

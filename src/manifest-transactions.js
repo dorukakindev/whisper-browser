@@ -59,7 +59,7 @@ function isCompleteManifestBody(body, kind) {
 function manifestDeclaresSubtitleWork(body, kind) {
   const text = String(body || '');
   if (kind === 'hls') {
-    return /#EXT-X-MEDIA:[^\r\n]*TYPE\s*=\s*"?SUBTITLES"?/i.test(text);
+    return /#EXT-X-MEDIA:[^\r\n]*TYPE\s*=\s*"?(?:SUBTITLES|CLOSED-CAPTIONS)"?/i.test(text);
   }
   if (kind === 'dash') {
     return /<(?:AdaptationSet|Representation)\b[^>]*(?:contentType\s*=\s*["']text["']|mimeType\s*=\s*["'][^"']*(?:ttml|vtt|text)[^"']*["']|codecs\s*=\s*["'][^"']*(?:stpp|wvtt)[^"']*["'])/i.test(text);
