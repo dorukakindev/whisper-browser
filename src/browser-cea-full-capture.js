@@ -39,6 +39,17 @@ function mergeCeaCaptureSegments(previous = [], refreshed = []) {
     ...normalizeCeaCaptureSegments(refreshed)]);
 }
 
+function retainCeaExpectedDuration(previous = 0, media = {}) {
+  const current = Number(previous);
+  const retained = Number.isFinite(current) && current > 0 ? current : 0;
+  if (media?.adPlaying === true) return retained;
+  const candidate = Number(media?.duration);
+  if (!Number.isFinite(candidate) || candidate <= 0) return retained;
+  // Aynı akış içinde kısa reklam/önizleme süresinin daha önce doğrulanmış uzun
+  // içerik süresini ezmesine izin verme. Yeni akışta sayaç ayrıca sıfırlanır.
+  return Math.max(retained, candidate);
+}
+
 function summarizeCeaCaptureCompleteness(segments = [], completed = [], options = {}) {
   const planned = normalizeCeaCaptureSegments(segments);
   const completedIds = new Set((completed instanceof Set ? [...completed] : completed || [])
@@ -55,14 +66,18 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
   const rawExpectedDuration = Number(options.expectedDuration);
   const expectedDuration = Number.isFinite(rawExpectedDuration) && rawExpectedDuration > 0
     ? rawExpectedDuration : 0;
+  const durationRequired = options.requireExpectedDuration === true;
+  const durationKnown = expectedDuration > 0;
   // HLS media duration and EXTINF totals can differ slightly because of rounding,
   // mux boundaries and a short final segment. A small tolerance prevents a healthy
   // VOD plan from being rejected without allowing a short sliding window to pass.
-  const durationTolerance = expectedDuration > 0 ? Math.max(3, expectedDuration * 0.02) : 0;
-  const durationComplete = expectedDuration <= 0
-    || plannedDuration + durationTolerance >= expectedDuration;
+  const durationTolerance = durationKnown ? Math.max(3, expectedDuration * 0.02) : 0;
+  const durationComplete = durationKnown
+    ? plannedDuration + durationTolerance >= expectedDuration
+    : !durationRequired;
   const planComplete = manifestComplete && durationComplete;
-  const planReason = !manifestComplete ? "open-playlist" : (!durationComplete ? "duration-gap" : "");
+  const planReason = !manifestComplete ? "open-playlist"
+    : (!durationKnown && durationRequired ? "duration-unknown" : (!durationComplete ? "duration-gap" : ""));
   const complete = total > 0 && planComplete && missing.length === 0 && cueCount > 0;
   return {
     total,
@@ -75,6 +90,8 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
     planReason,
     plannedDuration,
     expectedDuration,
+    durationKnown,
+    durationRequired,
     durationComplete,
     durationPercent: expectedDuration > 0
       ? Math.max(0, Math.min(100, Math.floor((plannedDuration / expectedDuration) * 100)))
@@ -153,6 +170,7 @@ module.exports = {
   ceaCaptureSegmentIdentity,
   mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
+  retainCeaExpectedDuration,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,
   shouldAutoRetryCeaCapture,

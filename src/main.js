@@ -70,6 +70,7 @@ const {
   mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
+  retainCeaExpectedDuration,
   runOrderedCeaCapture,
   shouldAutoRetryCeaCapture,
   summarizeCeaCaptureCompleteness,
@@ -2148,6 +2149,7 @@ function createBrowserTabRecord(initial = {}) {
     contentId: restored.contentId || '',
     position: restored.position || 0,
     duration: restored.duration || 0,
+    contentDuration: restored.duration || 0,
     rate: restored.rate || 1,
     volume: Number.isFinite(restored.volume) ? restored.volume : 1,
     muted: !!restored.muted,
@@ -3693,6 +3695,7 @@ function trackBrowserSubtitleFile(filePath) {
 
 function invalidateBrowserTabSubtitles(tab) {
   if (!tab) return;
+  tab.contentDuration = 0;
   browserExtras?.cancel(tab);
   // Önce sahipliği bırak: cancelAll eşzamanlı onState yayımlayabilir.
   const scheduler = tab.translationScheduler;
@@ -7211,7 +7214,8 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
   }, 0);
   const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
     cueCount, planComplete: job.playlistComplete !== false,
-    expectedDuration: Number(job.tab?.duration) || 0,
+    expectedDuration: Number(job.expectedDuration) || 0,
+    requireExpectedDuration: true,
   });
   sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
     completed: completeness.completed, total: completeness.total, failed: job.failures.length,
@@ -7222,6 +7226,32 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
     retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount, message });
 }
 
+async function resolveBrowserHlsCeaExpectedDuration(job) {
+  const current = Number(job?.expectedDuration);
+  if (Number.isFinite(current) && current > 0) return current;
+  if (!job?.tab || job.cancelled || browserHlsCeaFullCaptureJob !== job
+      || !isCurrentBrowserContext(job.context)) return 0;
+  const cached = retainCeaExpectedDuration(0, {
+    duration: job.tab.contentDuration, adPlaying: false,
+  });
+  if (cached > 0) {
+    job.expectedDuration = cached;
+    return cached;
+  }
+  try {
+    const probed = await withTimeout(executeBrowserFrames(buildBrowserMediaProbeScript()),
+      BROWSER_SCRIPT_TIMEOUT, 'Video süresi ölçümü zaman aşımına uğradı.');
+    if (job.cancelled || browserHlsCeaFullCaptureJob !== job
+        || !isCurrentBrowserContext(job.context)) return 0;
+    const media = rankBrowserMediaCandidates(probed.map((item) => ({ media: item })))[0]?.media;
+    job.tab.contentDuration = retainCeaExpectedDuration(job.tab.contentDuration, media);
+    job.expectedDuration = retainCeaExpectedDuration(0, {
+      duration: job.tab.contentDuration, adPlaying: false,
+    });
+  } catch (_) {}
+  return Math.max(0, Number(job.expectedDuration) || 0);
+}
+
 function scheduleBrowserHlsCeaAutoRetry(job, completeness) {
   const maxRetryRounds = 2;
   if (!shouldAutoRetryCeaCapture(completeness, job.retryRound, maxRetryRounds)) return false;
@@ -7229,9 +7259,11 @@ function scheduleBrowserHlsCeaAutoRetry(job, completeness) {
   const delay = nextRound === 1 ? 1500 : 4000;
   const reason = completeness.planReason === 'open-playlist'
     ? 'Oynatma listesi henüz sona ermedi'
+    : (completeness.planReason === 'duration-unknown'
+      ? 'Video süresi henüz doğrulanamadı'
     : (completeness.planReason === 'duration-gap'
       ? `Segment planı video süresinin yalnız %${completeness.durationPercent} bölümünü kapsıyor`
-      : `${completeness.missing} segment eksik kaldı`);
+      : `${completeness.missing} segment eksik kaldı`));
   sendBrowserHlsCeaFullProgress(job, 'retry-wait',
     `${reason}; ${Math.ceil(delay / 1000)} saniye sonra manifest otomatik yenilenecek (${nextRound}/${maxRetryRounds}).`);
   clearTimeout(job.autoRetryTimer);
@@ -7283,6 +7315,11 @@ function clearBrowserHlsCeaFullCaptureState(plan) {
 
 async function runBrowserHlsCeaFullCapture(job) {
   try {
+    await resolveBrowserHlsCeaExpectedDuration(job);
+    if (job.cancelled || browserHlsCeaFullCaptureJob !== job || !isCurrentBrowserContext(job.context)) {
+      sendBrowserHlsCeaFullProgress(job, 'cancelled', 'Tam altyazı yakalama iptal edildi.');
+      return;
+    }
     if (!job.resume) clearBrowserHlsCeaFullCaptureState(job);
     let pending = normalizeCeaCaptureSegments(job.segments)
       .filter((segment) => !job.completed.has(ceaCaptureSegmentIdentity(segment)));
@@ -7336,12 +7373,18 @@ async function runBrowserHlsCeaFullCapture(job) {
       sendBrowserHlsCeaFullProgress(job, 'cancelled', 'Tam altyazı yakalama iptal edildi.');
       return;
     }
+    await resolveBrowserHlsCeaExpectedDuration(job);
+    if (job.cancelled || browserHlsCeaFullCaptureJob !== job || !isCurrentBrowserContext(job.context)) {
+      sendBrowserHlsCeaFullProgress(job, 'cancelled', 'Tam altyazı yakalama iptal edildi.');
+      return;
+    }
     const initialCompleteness = summarizeCeaCaptureCompleteness(job.segments, job.completed);
     const missing = initialCompleteness.missingSegments;
     job.failures = missing.map((segment) => ({ segment, error: new Error('Segment alınamadı.') }));
     const planCoverage = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
       cueCount: 1, planComplete: job.playlistComplete !== false,
-      expectedDuration: Number(job.tab?.duration) || 0,
+      expectedDuration: Number(job.expectedDuration) || 0,
+      requireExpectedDuration: true,
     });
     const captureReady = !missing.length && planCoverage.planComplete;
     let cueCount = 0;
@@ -7365,16 +7408,19 @@ async function runBrowserHlsCeaFullCapture(job) {
     }
     const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
       cueCount, planComplete: job.playlistComplete !== false,
-      expectedDuration: Number(job.tab?.duration) || 0,
+      expectedDuration: Number(job.expectedDuration) || 0,
+      requireExpectedDuration: true,
     });
     if (!completeness.complete) {
       if (scheduleBrowserHlsCeaAutoRetry(job, completeness)) return;
       sendBrowserHlsCeaFullProgress(job, 'partial', cueCount
         ? (completeness.planReason === 'open-playlist'
           ? `Oynatma listesi henüz sonlanmadı; yakalanan ${cueCount} satır korundu. Daha sonra yeniden deneyebilirsiniz.`
+          : (completeness.planReason === 'duration-unknown'
+            ? `Video süresi doğrulanamadığı için tamlık onaylanmadı; yakalanan ${cueCount} satır korundu. Daha sonra yeniden deneyebilirsiniz.`
           : (completeness.planReason === 'duration-gap'
             ? `Segment planı video süresinin yalnız %${completeness.durationPercent} bölümünü kapsıyor; yakalanan ${cueCount} satır korundu. Daha sonra yeniden deneyebilirsiniz.`
-            : `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`))
+            : `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`)))
         : 'Gömülü altyazı segmentleri alındı ancak cue üretilemedi.');
     } else {
       job.failures = [];
@@ -7412,6 +7458,9 @@ function startBrowserHlsCeaFullCapture(tab) {
     tracks: (resume ? previous.tracks : active.tracks).map((track) => ({ ...track })),
     segments: normalizeCeaCaptureSegments(resume ? previous.segments : active.segments),
     playlistComplete: resume ? previous.playlistComplete : active.playlistComplete,
+    expectedDuration: retainCeaExpectedDuration(resume ? previous.expectedDuration : 0, {
+      duration: tab.contentDuration, adPlaying: false,
+    }),
     completed: new Set(resume ? previous.completed : []), failures: [], resume,
     // Kullanıcının açık yeniden denemesi yeni bir otomatik tamamlama bütçesi alır.
     // Zamanlayıcının kendi turları aynı job üzerinde retryRound'u artırır.
@@ -9209,6 +9258,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     };
     tab.position = safeMedia.currentTime;
     tab.duration = safeMedia.duration;
+    tab.contentDuration = retainCeaExpectedDuration(tab.contentDuration, safeMedia);
     tab.rate = safeMedia.playbackRate;
     tab.volume = safeMedia.volume;
     tab.muted = !!safeMedia.muted;

@@ -8,6 +8,7 @@ const {
   mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
+  retainCeaExpectedDuration,
   runOrderedCeaCapture,
   shouldAutoRetryCeaCapture,
   summarizeCeaCaptureCompleteness,
@@ -82,6 +83,22 @@ const {
   assert.equal(openPlaylist.missing, 0);
   assert.equal(shouldAutoRetryCeaCapture(openPlaylist, 0, 2), true);
 
+  assert.equal(retainCeaExpectedDuration(1860, { duration: 30, adPlaying: true }), 1860,
+    'reklam süresi içerik süresini ezmemeli');
+  assert.equal(retainCeaExpectedDuration(0, { duration: 30, adPlaying: true }), 0,
+    'ilk reklam örneği içerik süresi diye kabul edilmemeli');
+  assert.equal(retainCeaExpectedDuration(1860, { duration: 30, adPlaying: false }), 1860,
+    'aynı akıştaki kısa önizleme doğrulanmış süreyi küçültmemeli');
+  assert.equal(retainCeaExpectedDuration(0, { duration: 1860, adPlaying: false }), 1860);
+  assert.equal(retainCeaExpectedDuration(0, { duration: Infinity, adPlaying: false }), 0);
+
+  const unknownDuration = summarizeCeaCaptureCompleteness(refreshed,
+    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: true, requireExpectedDuration: true });
+  assert.equal(unknownDuration.complete, false, 'bilinmeyen süre tam video kanıtı değildir');
+  assert.equal(unknownDuration.planReason, 'duration-unknown');
+  assert.equal(unknownDuration.durationKnown, false);
+  assert.equal(shouldAutoRetryCeaCapture(unknownDuration, 0, 2), true);
+
   const timedSegments = refreshed.map((segment, index) => ({
     ...segment, start: index * 10, duration: 10,
   }));
@@ -113,7 +130,13 @@ const {
   assert.match(main, /sendBrowserHlsCeaFullProgress\(job, 'retry-wait'/);
   assert.match(main, /#EXT-X-ENDLIST/);
   assert.match(main, /mergeCeaCaptureSegments\(job\.segments, refreshed\.segments\)/);
-  assert.match(main, /expectedDuration:\s*Number\(job\.tab\?\.duration\) \|\| 0/);
+  assert.match(main, /async function resolveBrowserHlsCeaExpectedDuration\(job\)/);
+  assert.match(main, /contentDuration:\s*restored\.duration \|\| 0/);
+  assert.match(main, /function invalidateBrowserTabSubtitles\(tab\)[\s\S]{0,100}tab\.contentDuration = 0/);
+  assert.match(main, /contentDuration = retainCeaExpectedDuration\(tab\.contentDuration, safeMedia\)/);
+  assert.match(main, /expectedDuration:\s*Number\(job\.expectedDuration\) \|\| 0/);
+  assert.match(main, /requireExpectedDuration:\s*true/);
+  assert.match(main, /completeness\.planReason === 'duration-unknown'/);
   assert.match(main, /completeness\.planReason === 'duration-gap'/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(job\.tab, cues, track, 'source'\)/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
