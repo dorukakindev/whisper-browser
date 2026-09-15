@@ -35,7 +35,7 @@ assert.throws(() => defaultMediaFolders('göreli'), /mutlak/);
 
 const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
 assert.match(mainSource, /media:download'[\s\S]*?o\.inputDir[\s\S]*?Girdi klasörü/);
-assert.match(mainSource, /media:downloadSubs'[\s\S]*?o\.outputDir[\s\S]*?Çıktı klasörü/);
+assert.match(mainSource, /media:downloadSubs'[\s\S]*?o\.inputDir[\s\S]*?Girdi klasörü/);
 assert.match(mainSource, /args\.push\('--input-dir', options\.inputDir\)/);
 assert.match(mainSource, /args\.push\('--output-dir', options\.outputDir\)/);
 console.log('media-folders.test.js: OK');

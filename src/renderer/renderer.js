@@ -21186,7 +21186,7 @@ if ($('playerYtSubGet')) {
     try {
       res = await window.api.downloadYoutubeSubs({
         url, lang, auto: auto === '1', cookieBrowser: youtubeCookieBrowser(),
-        outputDir: state.outputDir || undefined,
+        inputDir: state.inputDir || undefined,
       });
     } catch (err) {
       res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };

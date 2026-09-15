@@ -30,8 +30,8 @@ if (!js.includes('selectInputFolder()')) {
 if (!/downloadYoutube\(\{[\s\S]*?inputDir:\s*state\.inputDir/.test(js)) {
   throw new Error('Video indirmesi Girdi klasörüne yönlenmiyor.');
 }
-if (!/downloadYoutubeSubs\(\{[\s\S]*?outputDir:\s*state\.outputDir/.test(js)) {
-  throw new Error('Hazır altyazı indirmesi Çıktı klasörüne yönlenmiyor.');
+if (!/downloadYoutubeSubs\(\{[\s\S]*?inputDir:\s*state\.inputDir/.test(js)) {
+  throw new Error('Hazır kaynak altyazı indirmesi Girdi klasörüne yönlenmiyor.');
 }
 
 // oynatıcı katmanını ayır

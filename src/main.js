@@ -862,7 +862,7 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol) || !mediaUrl.hostname) return { ok: false, error: "Yalnızca http/https medya URL'leri kullanılabilir." };
   let outDir;
   try {
-    outDir = sanitizeAbsolutePath(o.outputDir || loadSettings().outputDir, 'Çıktı klasörü');
+    outDir = sanitizeAbsolutePath(o.inputDir || loadSettings().inputDir, 'Girdi klasörü');
   } catch (error) {
     return { ok: false, error: error.message };
   }
