@@ -1,8 +1,10 @@
 # Devir notları indeksi
 
-Güncel eşitleme notu: [2026-09-15 04:30 — yerel/GitHub doğrulaması](docs/devir/2026-09-15-0430.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 03:47 — yapılandırılabilir GİRDİ ve ÇIKTI klasörleri](docs/devir/2026-09-15-0347.md). Önceki kayıtlar aşağıda korunmuştur.
 
-Güncel çalışma: [2026-09-14-1612 — Discovery+ kısmi altyazı düzeltmesi ve servis araştırması](docs/devir/2026-09-14-1612.md)
+Önceki eşitleme notu: [2026-09-15 04:30 — yerel/GitHub doğrulaması](docs/devir/2026-09-15-0430.md).
+
+Önceki çalışma: [2026-09-14-1612 — Discovery+ kısmi altyazı düzeltmesi ve servis araştırması](docs/devir/2026-09-14-1612.md)
 
 Önceki çalışma: [2026-09-14-1553 — Çeviri anlamı ve sağlayıcı yanıtı doğrulaması](docs/devir/2026-09-14-1553.md)
 
