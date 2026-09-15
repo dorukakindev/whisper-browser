@@ -41,6 +41,9 @@ function cleanCueText(value) {
   if (source.includes('{\\') && source.includes('}')) {
     source = source.replace(/\{\\[^}]*\}/g, '');
   }
+  // IMSC ruby anotasyonunda rt okunuş/açıklama metnidir. Ana karakterlerle
+  // birleşirse düz metinde sahte bir diyalog oluşur; ana ruby metnini koru.
+  source = source.replace(/<(?:[\w.-]+:)?(?:rt|rp)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:rt|rp)\s*>/gi, '');
   const decoded = decodeEntities(source.replace(/<br\s*\/?>/gi, '\n'));
   // Yalnız bilinen altyazı biçimlendirme etiketlerini kaldır. Genel <...>
   // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
@@ -80,6 +83,7 @@ function parseTime(value) {
 function cuePresentationKey(cue = {}) {
   return [cue.speaker, cue.sourceMode || cue.captionMode || cue.mode, cue.region, cue.line, cue.lineAlign,
     cue.position, cue.positionAlign, cue.size, cue.align, cue.displayAlign, cue.writingMode, cue.regionExtent,
+    cue.direction, cue.unicodeBidi,
     cue.discontinuity, cue.language,
     cue.provenance?.streamKey]
     .map((value) => String(value ?? '').trim().toLowerCase()).join('\u241f');
@@ -736,6 +740,22 @@ function dashTemplateTimeline(template, periodDuration) {
   return rows;
 }
 
+function dashTemplateHasFiniteLiveTimeline(template) {
+  const timelineInner = (String(template?.inner || '')
+    .match(/<SegmentTimeline\b[^>]*>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
+  if (!timelineInner) return false;
+  const entries = [...timelineInner.matchAll(/<S\b([^>]*)\/?\s*>/gi)];
+  if (!entries.length) return false;
+  return entries.every((entry, index) => {
+    const repeat = Number(attr(entry[1], 'r')) || 0;
+    if (!Number.isSafeInteger(repeat) || repeat < -1) return false;
+    if (repeat !== -1) return true;
+    // Canlı MPD'de sonu açık r=-1 şablonu sonsuzdur. Sonraki açık t değeri
+    // varsa tekrar sayısı kesin hesaplanabilir ve yalnız ilan edilen pencere
+    // parçaları güvenle alınabilir.
+    return attr(entries[index + 1]?.[1] || '', 't') !== '';
+  });
+}
 function dashTextAdaptations(xml) {
   const out = [];
   for (const match of String(xml || '').matchAll(/<AdaptationSet\b([^>]*)>([\s\S]*?)<\/AdaptationSet>/gi)) {
@@ -830,7 +850,8 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         .replace(/\$Bandwidth\$/gi, bandwidth || '')
         .replace(/\$\$/g, '$'), repBase) : '';
       const staticMpd = !/\btype\s*=\s*["']dynamic["']/i.test((xml.match(/<MPD\b[^>]*>/i) || [])[0] || '');
-      const boundedTimeline = staticMpd ? dashTemplateTimeline(template, periodBounds.duration) : [];
+      const boundedTimeline = staticMpd || dashTemplateHasFiniteLiveTimeline(template)
+        ? dashTemplateTimeline(template, staticMpd ? periodBounds.duration : 0) : [];
       if (boundedTimeline.length) {
         const startNumber = dashStartNumber(attr(templateTag, 'startNumber'));
         const timescale = Math.max(1, Number(attr(templateTag, 'timescale')) || 1);
@@ -1189,28 +1210,45 @@ function parseXml(body) {
       align: attr(tag, 'textAlign').trim(),
       displayAlign: attr(tag, 'displayAlign').trim(),
       writingMode: attr(tag, 'writingMode').trim(),
+      direction: attr(tag, 'direction').trim(),
+      unicodeBidi: attr(tag, 'unicodeBidi').trim(),
     });
   };
+  const mergePresentation = (...values) => compactPresentation(Object.assign({}, ...values));
   const styleDefinitions = new Map();
   for (const style of xml.matchAll(/<(?:[\w.-]+:)?style\b([^>]*)\/?\s*>/gi)) {
     const id = attr(style[1], 'id') || attr(style[1], 'xml:id');
-    if (id) styleDefinitions.set(id, presentationFromTag(style[1]));
+    if (id) styleDefinitions.set(id, {
+      references: attr(style[1], 'style').trim().split(/\s+/).filter(Boolean),
+      presentation: presentationFromTag(style[1]),
+    });
   }
-  const mergePresentation = (...values) => compactPresentation(Object.assign({}, ...values));
+  const resolveStyle = (ids, seen = new Set()) => {
+    let resolved = {};
+    for (const id of String(ids || '').trim().split(/\s+/).filter(Boolean)) {
+      if (seen.has(id)) continue;
+      const definition = styleDefinitions.get(id);
+      if (!definition) continue;
+      const branch = new Set(seen); branch.add(id);
+      resolved = mergePresentation(resolved,
+        resolveStyle(definition.references.join(' '), branch), definition.presentation);
+    }
+    return resolved;
+  };
   const regionDefinitions = new Map();
   for (const region of xml.matchAll(/<(?:[\w.-]+:)?region\b([^>]*)\/?\s*>/gi)) {
     const id = attr(region[1], 'id') || attr(region[1], 'xml:id');
     if (!id) continue;
-    const style = styleDefinitions.get(attr(region[1], 'style')) || {};
-    regionDefinitions.set(id, mergePresentation(style, presentationFromTag(region[1]), { region: id }));
+    regionDefinitions.set(id, mergePresentation(resolveStyle(attr(region[1], 'style')),
+      presentationFromTag(region[1]), { region: id }));
   }
   const resolvePresentation = (tag, inherited = {}) => {
-    const style = styleDefinitions.get(attr(tag, 'style')) || {};
     const region = regionDefinitions.get(attr(tag, 'region')) || {};
-    return mergePresentation(inherited, style, region, presentationFromTag(tag));
+    const style = resolveStyle(attr(tag, 'style'));
+    return mergePresentation(inherited, region, style, presentationFromTag(tag));
   };
-  const parentOffsets = new Map();
-  const stack = [{ name: 'root', offset: 0 }];
+  const parentContexts = new Map();
+  const stack = [{ name: 'root', offset: 0, presentation: {} }];
   const localName = (value) => String(value || '').toLowerCase().split(':').pop();
   for (const token of xml.matchAll(/<\/?(?:[\w.-]+:)?(?:body|div|p)\b[^>]*>/gi)) {
     const rawTag = token[0];
@@ -1223,17 +1261,22 @@ function parseXml(body) {
       }
       continue;
     }
-    const parentOffset = stack[stack.length - 1]?.offset || 0;
-    if (name === 'p') parentOffsets.set(token.index, parentOffset);
+    const parent = stack[stack.length - 1] || { offset: 0, presentation: {} };
+    const parentOffset = parent.offset || 0;
+    const presentation = resolvePresentation(rawTag, parent.presentation);
+    if (name === 'p') parentContexts.set(token.index, { offset: parentOffset, presentation: parent.presentation });
     const begin = parseXmlTime(attr(rawTag, 'begin'), xml);
-    if (!/\/>$/.test(rawTag)) stack.push({ name, offset: parentOffset + (begin || 0) });
+    if (!/\/>$/.test(rawTag)) stack.push({
+      name, offset: parentOffset + (begin || 0), presentation,
+    });
   }
   // YouTube timedtext / srv biçimi.
   for (const match of xml.matchAll(/<(?:[\w.-]+:)?(text|p)\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi)) {
     const elementName = localName(match[1]);
     const tag = match[2];
     const inner = match[3];
-    const paragraphPresentation = resolvePresentation(tag);
+    const parentContext = parentContexts.get(match.index) || { offset: 0, presentation: {} };
+    const paragraphPresentation = resolvePresentation(tag, parentContext.presentation);
     const timedTextStart = attr(tag, 't');
     const timedTextDuration = attr(tag, 'd');
     const startRaw = attr(tag, 'start') || attr(tag, 'begin') || timedTextStart;
@@ -1242,7 +1285,7 @@ function parseXml(body) {
     let start = parseXmlTime(startRaw, xml);
     let duration = parseXmlTime(durRaw, xml);
     let end = parseXmlTime(endRaw, xml);
-    const parentOffset = parentOffsets.get(match.index) || 0;
+    const parentOffset = parentContext.offset || 0;
     // TTML'de asil zaman kimi servislerde p yerine ic span'lere yazilir.
     // Her zamanli span kendi cue'su olur; p baslangici varsa span ona gore
     // ofsetlenir. Boylece farkli span sureleri tek buyuk cue'ya cokmez.

@@ -153,6 +153,8 @@ contextBridge.exposeInMainWorld('api', {
   setBrowserPageIndexEnabled: (enabled) => ipcRenderer.invoke('browser:pageIndex:setEnabled', { enabled: enabled === true }),
   clearBrowserPageIndex: () => ipcRenderer.invoke('browser:pageIndex:clear'),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),
+  reportBrowserTranslationDisplayed: (tabId, trackId, cueIds) =>
+    ipcRenderer.invoke('browser:translation:displayed', { tabId, trackId, cueIds }),
   getBrowserTranslationSnapshot: (tabId) => ipcRenderer.invoke('browser:translation:snapshot', { tabId }),
   stopBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:stop', { tabId }),
   completeBrowserTranslation: (tabId) => ipcRenderer.invoke('browser:translation:completeAll', { tabId }),

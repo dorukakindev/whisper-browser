@@ -45,15 +45,40 @@ function coverageGaps(ranges = []) {
   return gaps;
 }
 
+function subtractCoverageRanges(expected = [], covered = [], tolerance = .05) {
+  const wanted = mergeCoverageRanges(expected, tolerance);
+  const have = mergeCoverageRanges(covered, tolerance);
+  const missing = [];
+  for (const range of wanted) {
+    let cursor = range.start;
+    for (const current of have) {
+      if (current.end <= cursor + tolerance || current.start >= range.end - tolerance) continue;
+      if (current.start > cursor + tolerance) missing.push({ start: cursor, end: Math.min(current.start, range.end) });
+      cursor = Math.max(cursor, current.end);
+      if (cursor >= range.end - tolerance) break;
+    }
+    if (cursor < range.end - tolerance) missing.push({ start: cursor, end: range.end });
+  }
+  return mergeCoverageRanges(missing, tolerance);
+}
 class CaptureCoverageMap {
   constructor(limit = 64) { this.limit = Math.max(1, Number(limit) || 64); this.streams = new Map(); }
   entry(key) {
     const safeKey = String(key || '').slice(0, 180);
     if (!this.streams.has(safeKey)) this.streams.set(safeKey, {
-      ranges: [], cueRanges: [], failures: [],
+      ranges: [], expectedRanges: [], cueRanges: [], failures: [],
     });
     while (this.streams.size > this.limit) this.streams.delete(this.streams.keys().next().value);
     return this.streams.get(safeKey);
+  }
+  expect(key, segments = []) {
+    const entry = this.entry(key);
+    const additions = (Array.isArray(segments) ? segments : []).map((segment) => ({
+      start: finite(segment?.start),
+      end: finite(segment?.end, finite(segment?.start) + finite(segment?.duration)),
+    })).filter((range) => range.end > range.start);
+    entry.expectedRanges = mergeCoverageRanges([...entry.expectedRanges, ...additions]);
+    return this.snapshot(key);
   }
   observeCues(key, cues = []) {
     const entry = this.entry(key);
@@ -84,8 +109,10 @@ class CaptureCoverageMap {
     for (const [key, entry] of this.streams) {
       if (onlyKey !== null && key !== String(onlyKey).slice(0, 180)) continue;
       const ranges = mergeCoverageRanges(entry.ranges);
+      const expectedRanges = mergeCoverageRanges(entry.expectedRanges);
       const cueRanges = mergeCoverageRanges(entry.cueRanges);
-      rows.push({ streamKey: key, ranges, gaps: coverageGaps(ranges),
+      rows.push({ streamKey: key, ranges, expectedRanges,
+        missingRanges: subtractCoverageRanges(expectedRanges, ranges), gaps: coverageGaps(ranges),
         cueRanges, cueGaps: coverageGaps(cueRanges), failures: entry.failures.slice(-20),
         coveredSeconds: ranges.reduce((sum, range) => sum + range.end - range.start, 0) });
     }
@@ -93,4 +120,4 @@ class CaptureCoverageMap {
   }
 }
 
-module.exports = { CaptureCoverageMap, coverageGaps, mergeCoverageRanges, normalizeCueProvenance };
+module.exports = { CaptureCoverageMap, coverageGaps, mergeCoverageRanges, normalizeCueProvenance, subtractCoverageRanges };

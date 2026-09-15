@@ -2095,6 +2095,8 @@ function createBrowserTabRecord(initial = {}) {
     translationTrackId: '',
     translationSourceCues: [],
     translationResults: new Map(),
+    translationDisplayedCueIds: new Set(),
+    translationFileCueIds: new Set(),
     translationPersistedSignature: '',
     streamMediaId: '',
     translationSourceComplete: true,
@@ -3074,10 +3076,17 @@ function updateBrowserTranslationDiagnostics(tab, state = null) {
   if (!tab) return null;
   const current = tab.diagnostics || (tab === activeBrowserTab() ? browserDiagnostics : null)
     || freshBrowserDiagnostics(tab.restoredUrl || '', tab);
+  const sourceStreamKeys = new Set((tab.translationSourceCues || [])
+    .map((cue) => String(cue?.provenance?.streamKey || '')).filter(Boolean));
+  const capture = sourceStreamKeys.size ? (tab.captureCoverage?.snapshot?.() || [])
+    .filter((row) => sourceStreamKeys.has(String(row.streamKey || ''))) : [];
   current.translation = summarizeTranslationIntegrity({
     sourceCues: tab.translationSourceCues,
     results: tab.translationResults,
     state: state || tab.translationScheduler?.snapshot() || null,
+    capture,
+    displayedCueIds: tab.translationDisplayedCueIds?.size ? tab.translationDisplayedCueIds : null,
+    fileCueIds: tab.translationFileCueIds?.size ? tab.translationFileCueIds : null,
   });
   tab.diagnostics = current;
   if (tab === activeBrowserTab()) {
@@ -3703,6 +3712,8 @@ function invalidateBrowserTabSubtitles(tab) {
   scheduler?.cancelAll('Sayfa değişti.');
   tab.translationResults = new Map();
   tab.translationSourceCues = [];
+  tab.translationDisplayedCueIds = new Set();
+  tab.translationFileCueIds = new Set();
   tab.translationTrackId = '';
   tab.translationPersistedSignature = '';
   tab.translationSourceComplete = true;
@@ -6240,6 +6251,8 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   tab.translationSourceCues = cues;
   tab.translationSourceComplete = options.sourceComplete !== false;
   tab.translationResults = new Map();
+  tab.translationDisplayedCueIds = new Set();
+  tab.translationFileCueIds = new Set();
   tab.translationPersistedSignature = '';
   const sourceHash = createHash('sha256')
     .update(JSON.stringify(cues.map((cue) => [cue.start, cue.end, cue.text])), 'utf8').digest('hex');
@@ -12668,6 +12681,19 @@ ipcMain.handle('browser:translation:start', async (event, request) => {
   });
 });
 
+ipcMain.handle('browser:translation:displayed', (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request.tabId);
+  if (!tab || String(request.trackId || '') !== tab.translationTrackId) {
+    return { ok: false, error: 'Eski çeviri görünüm bildirimi reddedildi.' };
+  }
+  const ids = (Array.isArray(request.cueIds) ? request.cueIds : []).slice(0, 20000)
+    .map((value) => String(value || '').replace(/^web-tr-/, '').slice(0, 180)).filter(Boolean);
+  tab.translationDisplayedCueIds ||= new Set();
+  for (const id of ids) tab.translationDisplayedCueIds.add(id);
+  updateBrowserTranslationDiagnostics(tab);
+  return { ok: true, displayed: tab.translationDisplayedCueIds.size };
+});
 ipcMain.handle('browser:translation:snapshot', (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
@@ -12806,7 +12832,15 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
     const validation = validateBrowserSubtitleDocument(written, document.format, document.cues);
     if (!validation.ok) throw new Error(`Dışa aktarılan dosya tekrar okuma doğrulamasından geçemedi: ${validation.error}`);
     subtitleFileAccess.grant(outputPath);
-    return { ok: true, path: outputPath, cueCount: validation.cues.length, verified: true };
+    const tab = activeBrowserTab();
+    if (tab && String(payload?.trackId || '') === tab.translationTrackId) {
+      tab.translationFileCueIds = new Set(cues.map((cue, index) =>
+        String(cue?.cueId ?? cue?.id ?? ('index:' + index)).replace(/^web-tr-/, '')));
+      updateBrowserTranslationDiagnostics(tab);
+    }
+    return { ok: true, path: outputPath, cueCount: validation.cues.length, verified: true,
+      integrity: tab && String(payload?.trackId || '') === tab.translationTrackId
+        ? tab.diagnostics?.translation || null : null };
   } catch (err) {
     return { ok: false, error: err.message };
   }

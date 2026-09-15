@@ -20,6 +20,10 @@ async function captureDashSegments(matchers, { fetchBuffer, store, current, comp
   for (const [streamKey, segments] of groups) {
     const done = completed.get(streamKey) || new Set();
     completed.set(streamKey, done);
+    coverage?.expect?.(streamKey, segments.map((segment) => ({
+      start: dashSegmentOffset(segment),
+      duration: segment.duration / Math.max(1, segment.timescale || 1),
+    })));
     const pending = segments.filter(s => !done.has(segmentKey(s)));
     const cues = [], accepted = []; let bytes = 0;
     for (let i = 0; i < pending.length; i += 6) {

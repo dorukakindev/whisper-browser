@@ -132,6 +132,58 @@ test('aşırı liste sessizce kesilmez; canlı şablondan URL tahmin edilmez', a
   assert.equal(f.fetched.length, 0);
 });
 
+test('canlı DASH penceresi yenilendiğinde yalnız yeni segment alınır ve düşen eski pencere seek tekrarına yol açmaz', async () => {
+  const live = (times) => '<MPD type="dynamic"><Period><AdaptationSet mimeType="text/vtt" lang="en">'
+    + '<Representation id="live"><SegmentTemplate timescale="1" media="text/$Time$.vtt">'
+    + '<SegmentTimeline>' + times.map((time) => '<S t="' + time + '" d="2"/>').join('')
+    + '</SegmentTimeline></SegmentTemplate></Representation></AdaptationSet></Period></MPD>';
+  const f = fixture();
+  const recordFetch = f.options.fetchBuffer;
+  f.options.fetchBuffer = async (url) => {
+    await recordFetch(url);
+    return Buffer.from('WEBVTT\n\n00:00.000 --> 00:01.500\nLine ' + url.match(/(\d+)\.vtt/)[1] + '.\n');
+  };
+  const coverage = new (require('../src/browser-capture-provenance').CaptureCoverageMap)();
+  f.options.coverage = coverage;
+  const first = parseDashSubtitleMatchers(live([100, 102, 104]), base);
+  assert.deepEqual(first.map((item) => item.segmentValue), [100, 102, 104]);
+  assert.equal(await captureDashSegments(first, f.options), true);
+  const second = parseDashSubtitleMatchers(live([102, 104, 106]), base);
+  assert.equal(await captureDashSegments(second, f.options), true);
+  assert.deepEqual(f.fetched.map((url) => Number(url.match(/(\d+)\.vtt/)[1])), [100, 102, 104, 106]);
+  assert.deepEqual(f.stored.map((cue) => cue.start), [100, 102, 104, 106]);
+  assert.deepEqual(coverage.snapshot()[0].missingRanges, []);
+  // Eski pencereye seek, tamamlanmış segmenti tekrar indirmemeli.
+  assert.equal(await captureDashSegments(first, f.options), true);
+  assert.equal(f.fetched.length, 4);
+});
+
+test('sonu açık canlı SegmentTimeline URL tahmin etmez ve eksik aralığı tamamlandı saymaz', async () => {
+  const open = '<MPD type="dynamic"><Period><AdaptationSet mimeType="text/vtt"><Representation>'
+    + '<SegmentTemplate timescale="1" media="text/$Time$.vtt"><SegmentTimeline>'
+    + '<S t="100" d="2" r="-1"/></SegmentTimeline></SegmentTemplate>'
+    + '</Representation></AdaptationSet></Period></MPD>';
+  assert.equal(parseDashSubtitleMatchers(open, base).some((item) => item.segmentUrl), false);
+
+  const f = fixture();
+  const coverage = new (require('../src/browser-capture-provenance').CaptureCoverageMap)();
+  f.options.coverage = coverage;
+  const list = parseDashSubtitleMatchers(liveWindowManifest(), base);
+  const fetch = f.options.fetchBuffer;
+  f.options.fetchBuffer = async (url) => {
+    if (url.endsWith('/104.vtt')) throw Error('Canlı segment gecikti.');
+    return fetch(url);
+  };
+  assert.equal(await captureDashSegments(list, f.options), false);
+  assert.deepEqual(coverage.snapshot()[0].missingRanges, [{ start: 104, end: 106 }]);
+});
+
+function liveWindowManifest() {
+  return '<MPD type="dynamic"><Period><AdaptationSet mimeType="text/vtt"><Representation>'
+    + '<SegmentTemplate timescale="1" media="text/$Time$.vtt"><SegmentTimeline>'
+    + '<S t="100" d="2"/><S t="102" d="2"/><S t="104" d="2"/>'
+    + '</SegmentTimeline></SegmentTemplate></Representation></AdaptationSet></Period></MPD>';
+}
 test('aynı altyazı izinin birden fazla dönemi aynı yayında korunur', async () => {
   const period = start => `<Period start="PT${start}S"><AdaptationSet mimeType="text/vtt" lang="en"><Representation id="en"><SegmentList duration="10"><SegmentURL media="text/0.vtt"/></SegmentList></Representation></AdaptationSet></Period>`;
   const list = parseDashSubtitleMatchers(`<MPD>${period(0)}${period(1200)}</MPD>`, base);

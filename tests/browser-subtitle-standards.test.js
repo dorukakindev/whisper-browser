@@ -13,6 +13,7 @@ const {
   detectHlsCea608,
   parseDashSubtitleMatchers,
   parseMp4WebVtt,
+  parseMp4Stpp,
   parseSubtitlePayload,
 } = require('../src/browser-subtitles');
 const { captureDashSegments } = require('../src/browser-dash-capture');
@@ -130,6 +131,27 @@ test('imscJS oracle IMSC zaman olaylarını ve bölge sunumunu doğrular', () =>
   assert.deepEqual(ours.map((cue) => cue.line), ['70%', '70%']);
 });
 
+test('IMSC stil zinciri, üst öğe bölgesi, RTL yönü ve ruby ana metni korunur', () => {
+  const body = '<?xml version="1.0"?><tt xmlns="http://www.w3.org/ns/ttml" '
+    + 'xmlns:tts="http://www.w3.org/ns/ttml#styling"><head><styling>'
+    + '<style xml:id="base" tts:direction="rtl" tts:unicodeBidi="bidiOverride"/>'
+    + '<style xml:id="vertical" style="base" tts:writingMode="tbrl"/>'
+    + '<style xml:id="override" tts:textAlign="center"/>'
+    + '</styling><layout><region xml:id="main" style="vertical" tts:origin="15% 20%" '
+    + 'tts:extent="70% 60%"/></layout></head>'
+    + '<body region="main"><div style="override"><p begin="1s" end="3s">'
+    + '<ruby>漢<rt>kan</rt></ruby>字</p></div></body></tt>';
+  const cues = parseSubtitlePayload(body, 'application/ttml+xml', 'https://fixture.invalid/rtl.ttml').cues;
+  assert.equal(cues.length, 1);
+  assert.equal(cues[0].text, '漢字');
+  assert.equal(cues[0].region, 'main');
+  assert.equal(cues[0].position, '15%');
+  assert.equal(cues[0].line, '20%');
+  assert.equal(cues[0].writingMode, 'tbrl');
+  assert.equal(cues[0].direction, 'rtl');
+  assert.equal(cues[0].unicodeBidi, 'bidiOverride');
+  assert.equal(cues[0].align, 'center');
+});
 function box(type, payload) {
   const head = Buffer.alloc(8);
   head.writeUInt32BE(payload.length + 8);
@@ -169,4 +191,29 @@ test('MP4Box.js oracle wvtt tfdt/trun zamanını özel ayrıştırıcıyla difer
   assert.deepEqual(parseMp4WebVtt(fragment, { timescale: 1000 }), [
     { start: oracleStart, end: oracleEnd, text: 'Oracle satırı' },
   ]);
+});
+test('MP4Box.js oracle stpp tfdt/trun zamanını ve TTML örnek metnini diferansiyel doğrular', () => {
+  const xml = Buffer.from('<?xml version="1.0"?><tt><body><div><p begin="0s" end="2s">STPP satırı</p></div></body></tt>', 'utf8');
+  const tfhd = Buffer.alloc(4); tfhd.writeUInt32BE(1);
+  const tfdt = Buffer.alloc(4); tfdt.writeUInt32BE(7000);
+  const rows = Buffer.alloc(16); rows.writeUInt32BE(1);
+  rows.writeUInt32BE(2500, 4); rows.writeUInt32BE(xml.length, 8); rows.writeUInt32BE(250, 12);
+  const fragment = Buffer.concat([
+    box('moof', box('traf', Buffer.concat([
+      box('tfhd', full(0, tfhd)), box('tfdt', full(0, tfdt)), box('trun', full(0xb00, rows)),
+    ]))),
+    box('mdat', xml),
+  ]);
+  const file = MP4Box.createFile();
+  const input = fragment.buffer.slice(fragment.byteOffset, fragment.byteOffset + fragment.byteLength);
+  input.fileStart = 0;
+  file.appendBuffer(input); file.flush();
+  const traf = file.boxes.find((item) => item.type === 'moof').trafs[0];
+  const trun = traf.truns[0];
+  const oracleStart = (traf.tfdt.baseMediaDecodeTime + trun.sample_composition_time_offset[0]) / 1000;
+  const ours = parseMp4Stpp(fragment, { timescale: 1000 });
+  assert.equal(ours.length, 1);
+  assert.equal(ours[0].start, oracleStart);
+  assert.equal(ours[0].end, oracleStart + 2);
+  assert.equal(ours[0].text, 'STPP satırı');
 });

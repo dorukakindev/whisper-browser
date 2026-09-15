@@ -156,7 +156,8 @@ function action(name, next, context) {
   assert.equal(refreshRequest.cues, refreshContext.player.cuesRaw);
   assert.equal(snapshots, 1);
 
-  const streamTab = {};
+  const displayReports = [];
+  const streamTab = { id: 'a' };
   const streamContext = {
     player: { browserTranslationTrackId: 'live', browserLiveTranslations: new Map(),
       cues: [], cues2: [], cues2Raw: null, workspaceMode: 'browser', mergeCont: true },
@@ -166,6 +167,7 @@ function action(name, next, context) {
     mergeCueContinuation: (cues) => cues.map((item) => ({ ...item })),
     updateBrowserTranslationExportButton() {}, syncSubtitleModeUi() {}, scheduleBrowserOverlaySync() {},
     renderBrowserCueAt() {}, renderCueList() {}, renderCue() {}, updateCueMeta() {},
+    window: { api: { reportBrowserTranslationDisplayed: async (...args) => { displayReports.push(args); } } },
   };
   vm.createContext(streamContext);
   vm.runInContext(source.slice(source.indexOf('function browserTranslationCueKey('),
@@ -183,17 +185,21 @@ function action(name, next, context) {
   streamContext.applyCueMerge();
   assert.equal(streamContext.player.cues2.length, 2, 'birleştirme kapatılınca yeni çeviri kayboldu');
   assert.equal(streamTab.cues2Raw.length, 2);
+  assert.equal(displayReports.length, 2, 'artımlı sonuçlar görünüm bütünlüğü IPCsine bildirilmedi');
+  assert.deepEqual(JSON.parse(JSON.stringify(displayReports)), [['a', 'live', ['1']], ['a', 'live', ['2']]]);
 
   // Snapshot eski satırları geri birleştirmemeli ve ham kaynak/çeviriyi yenilemeli.
   Object.assign(streamTab, { id: 'a', browserTranslationTrackId: 'live', generation: 1,
     browserLiveTranslations: [{ id: 'web-tr-old', text: 'Silinmiş', start: 0, end: 1 }] });
   streamContext.player.browserActiveTabId = 'a';
-  streamContext.window = { api: { getBrowserTranslationSnapshot: async () => ({
+  streamContext.window = { api: {
+    reportBrowserTranslationDisplayed: async (...args) => { displayReports.push(args); },
+    getBrowserTranslationSnapshot: async () => ({
     ok: true, trackId: 'live', generation: 1,
     sourceCues: [{ id: 'new', text: 'Source.', start: 5, end: 6 }],
     results: [{ cueId: 'new', text: 'Yeni.', start: 5, end: 6 }],
     state: { total: 1, completed: 1, failures: [] },
-  }) } };
+  }), } };
   let restoredMode;
   streamContext.setSubtitleMode = (mode) => { restoredMode = mode; };
   streamContext.updateBrowserTranslationRetryButton = () => {};

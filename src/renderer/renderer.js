@@ -7997,6 +7997,10 @@ async function restoreBrowserTranslationSnapshot(tab) {
   if (browserTranslationJustCompleted(current, result.state)) {
     setSubtitleMode('translation', false);
   }
+  if (translated.size && window.api.reportBrowserTranslationDisplayed) {
+    void window.api.reportBrowserTranslationDisplayed(current.id, result.trackId,
+      [...translated.keys()]).catch(() => {});
+  }
   scheduleBrowserOverlaySync();
   if (player.workspaceMode === 'browser') {
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
@@ -8022,6 +8026,11 @@ function applyBrowserTranslationResult(event) {
     tab.browserLiveTranslations = [...player.browserLiveTranslations.values()];
     tab.cues2Raw = player.cues2Raw.slice();
     tab.cues2 = player.cues2.slice();
+    const displayedIds = (event.result.cues || []).map(browserTranslationCueKey);
+    if (displayedIds.length && window.api.reportBrowserTranslationDisplayed) {
+      void window.api.reportBrowserTranslationDisplayed(tab.id,
+        player.browserTranslationTrackId, displayedIds).catch(() => {});
+    }
   }
   scheduleBrowserOverlaySync();
   if (player.workspaceMode === 'browser') renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
@@ -8188,6 +8197,7 @@ async function exportBrowserTranslation() {
   return runBrowserSubtitleExport(async () => ({
     cues: prepareBrowserExportCues(selected, cues, roleCues.translation === player.cues2 && player.cues2.length > 0),
     title: `${player.browserPageTitle || 'web-altyazi'}-${language}-ceviri`, format,
+    trackId: player.browserTranslationTrackId,
   }), 'Çeviri dışa aktarıldı');
 }
 

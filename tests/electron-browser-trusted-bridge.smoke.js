@@ -1,7 +1,9 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { buildDarkReaderCssScript } = require('../src/browser-dark-mode');
 const { buildBrowserLinkHintsScript } = require('../src/browser-link-hints');
@@ -12,11 +14,20 @@ const {
 
 const BRIDGE_CHANNEL = 'browser:trusted-bridge';
 const ISOLATED_WORLD_ID = 999;
-
 async function run() {
   await app.whenReady();
   const received = [];
   let server = null;
+  const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-electron-media-'));
+  const videoFixture = path.join(fixtureDir, 'timeline.mp4');
+  const ffmpeg = path.resolve(__dirname, '..', 'backend', 'bin', 'ffmpeg.exe');
+  const made = spawnSync(ffmpeg, [
+    '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
+    'testsrc2=size=160x90:rate=24:duration=4',
+    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', videoFixture,
+  ], { windowsHide: true });
+  assert.equal(made.status, 0,
+    'Gerçek video fixture üretilemedi: ' + (made.stderr?.toString() || 'FFmpeg bulunamadı.'));
   const onBridge = (_event, message) => received.push(message);
   ipcMain.on(BRIDGE_CHANNEL, onBridge);
   const window = new BrowserWindow({
@@ -50,7 +61,42 @@ async function run() {
           };
         }
       </script>`;
-    server = http.createServer((_request, response) => {
+    server = http.createServer((request, response) => {
+      if (request.url === '/timeline.mp4') {
+        const body = fs.readFileSync(videoFixture);
+        const range = String(request.headers.range || '').match(/^bytes=(\d+)-(\d*)$/);
+        if (range) {
+          const start = Number(range[1]);
+          const end = Math.min(body.length - 1, range[2] ? Number(range[2]) : body.length - 1);
+          response.writeHead(206, {
+            'accept-ranges': 'bytes', 'content-type': 'video/mp4',
+            'content-range': `bytes ${start}-${end}/${body.length}`,
+            'content-length': end - start + 1,
+          });
+          response.end(body.subarray(start, end + 1));
+        } else {
+          response.writeHead(200, {
+            'accept-ranges': 'bytes', 'content-type': 'video/mp4', 'content-length': body.length,
+          });
+          response.end(body);
+        }
+        return;
+      }
+      if (request.url === '/test.vtt') {
+        const body = [
+          'WEBVTT',
+          '',
+          '00:00:00.500 --> 00:00:01.500',
+          'İlk cue',
+          '',
+          '00:00:02.000 --> 00:00:03.000',
+          'İkinci cue',
+          '',
+        ].join(String.fromCharCode(10));
+        response.writeHead(200, { 'content-type': 'text/vtt; charset=utf-8', 'content-length': Buffer.byteLength(body) });
+        response.end(body);
+        return;
+      }
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       response.end(pageHtml);
     });
@@ -88,17 +134,59 @@ async function run() {
 
     const mediaStandards = await window.webContents.executeJavaScript(`(async () => {
       const video = document.createElement('video');
-      document.body.appendChild(video);
+      video.muted = true;
       let addTrackEvents = 0;
+      let cueChanges = 0;
+      let encryptedEvents = 0;
+      let waitingForKeyEvents = 0;
       video.textTracks.addEventListener('addtrack', () => { addTrackEvents += 1; });
-      const track = video.addTextTrack('subtitles', 'English', 'en');
+      video.addEventListener('encrypted', () => { encryptedEvents += 1; });
+      video.addEventListener('waitingforkey', () => { waitingForKeyEvents += 1; });
+      const trackElement = document.createElement('track');
+      trackElement.kind = 'subtitles';
+      trackElement.label = 'English';
+      trackElement.srclang = 'en';
+      trackElement.src = '/test.vtt';
+      trackElement.default = true;
+      video.appendChild(trackElement);
+      document.body.appendChild(video);
+      video.src = '/timeline.mp4';
+      await Promise.all([
+        new Promise((resolve, reject) => {
+          video.addEventListener('loadedmetadata', resolve, { once: true });
+          video.addEventListener('error', () => reject(Error('Yerel medya yüklenemedi.')), { once: true });
+        }),
+        new Promise((resolve, reject) => {
+          trackElement.addEventListener('load', resolve, { once: true });
+          trackElement.addEventListener('error', () => reject(Error('Yerel VTT yüklenemedi.')), { once: true });
+        }),
+      ]);
+      const track = trackElement.track;
       track.mode = 'hidden';
-      const cue = new VTTCue(1, 3, 'WPT sözleşmesi');
-      track.addCue(cue);
+      track.addEventListener('cuechange', () => { cueChanges += 1; });
+      const [first, second] = track.cues;
+      const seekAcrossBoundary = async (seekTime, readTime) => {
+        const done = new Promise((resolve) => video.addEventListener('seeked', resolve, { once: true }));
+        video.currentTime = seekTime;
+        await done;
+        await video.play();
+        const deadline = performance.now() + 2000;
+        while (video.currentTime < readTime && performance.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 16));
+        }
+        video.pause();
+        if (video.currentTime < readTime) throw Error('Gerçek video saati cue sınırını geçemedi.');
+        return [...track.activeCues].map((cue) => cue.text);
+      };
+      const activeFirst = await seekAcrossBoundary(0.4, 0.7);
+      const activeSecond = await seekAcrossBoundary(1.9, 2.2);
+      const activeAfter = await seekAcrossBoundary(3.2, 3.5);
+      video.dispatchEvent(new Event('encrypted'));
+      video.dispatchEvent(new Event('waitingforkey'));
       await new Promise((resolve) => setTimeout(resolve, 0));
       const cueCount = track.cues.length;
-      const activeBeforeTime = track.activeCues.length;
-      track.removeCue(cue);
+      track.removeCue(first);
+      track.removeCue(second);
       let invalidKeySystemRejected = false;
       try {
         await navigator.requestMediaKeySystemAccess('invalid.whisper.keysystem', [{
@@ -106,11 +194,9 @@ async function run() {
         }]);
       } catch (_) { invalidKeySystemRejected = true; }
       const result = {
-        trackCount: video.textTracks.length,
-        addTrackEvents,
-        mode: track.mode,
-        cueCount,
-        activeBeforeTime,
+        trackCount: video.textTracks.length, addTrackEvents, mode: track.mode, cueCount,
+        activeFirst, activeSecond, activeAfter, cueChanges: cueChanges >= 2,
+        encryptedEvents, waitingForKeyEvents,
         cueCountAfterRemove: track.cues.length,
         emeType: typeof navigator.requestMediaKeySystemAccess,
         invalidKeySystemRejected,
@@ -122,12 +208,17 @@ async function run() {
       trackCount: 1,
       addTrackEvents: 1,
       mode: 'hidden',
-      cueCount: 1,
-      activeBeforeTime: 0,
+      cueCount: 2,
+      activeFirst: ['İlk cue'],
+      activeSecond: ['İkinci cue'],
+      activeAfter: [],
+      cueChanges: true,
+      encryptedEvents: 1,
+      waitingForKeyEvents: 1,
       cueCountAfterRemove: 0,
       emeType: 'function',
       invalidKeySystemRejected: true,
-    }, 'Gerçek Electron TextTrack/EME sözleşmesi WPT beklentisinden ayrıldı.');
+    }, 'Gerçek Electron TextTrack/seek/EME sözleşmesi WPT beklentisinden ayrıldı.');
 
     const mediaPreference = await window.webContents.executeJavaScript(
       buildBrowserMediaPreferenceScript({
@@ -262,6 +353,7 @@ async function run() {
     ipcMain.removeListener(BRIDGE_CHANNEL, onBridge);
     if (!window.isDestroyed()) window.destroy();
     if (server) await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
     app.quit();
   }
 }
