@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 03:47 — yapılandırılabilir GİRDİ ve ÇIKTI klasörleri](docs/devir/2026-09-15-0347.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 04:45 — HLS gömülü CEA altyazı yakalama](docs/devir/2026-09-15-0445.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 03:47 — yapılandırılabilir GİRDİ ve ÇIKTI klasörleri](docs/devir/2026-09-15-0347.md).
 
 Önceki eşitleme notu: [2026-09-15 04:30 — yerel/GitHub doğrulaması](docs/devir/2026-09-15-0430.md).
 

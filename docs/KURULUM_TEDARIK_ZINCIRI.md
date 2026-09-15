@@ -60,6 +60,8 @@ iki temiz Windows sandbox manifesti karşılaştırılarak yapılmalıdır.
 | pyannote.audio | İsteğe bağlı konuşmacı tanıma | MIT |
 | Electron for Content Security | Masaüstü çalışma zamanı | MIT |
 | hls.js | Depoya alınmış renderer vendor dosyası; npm çalışma zamanı bağımlılığı değildir | Apache-2.0 |
+| mux.js | HLS içindeki CEA-608/708 altyazı verisini MPEG-TS/fMP4'ten ayırma | Apache-2.0 |
+| dom-walk 0.1.2 | mux.js'in eski dolaylı DOM uyumluluk paketi | MIT; paket `license` yerine eski `licenses` alanını yayımlar, tam sürümlü istisna kurulum politikasında kayıtlıdır |
 
 Lisans tablosu karar desteğidir; dağıtım öncesi paketlerin kendi LICENSE dosyaları
 esas alınır. NVIDIA çalışma zamanları açık kaynak değildir.
