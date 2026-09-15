@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 10:36 — browser derin denetim turu (rapor 26)](docs/devir/2026-09-15-1036.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 11:12 — browser derin denetim turu, modül kapanışı ve deneysel doğrulama (rapor 27)](docs/devir/2026-09-15-1112.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 10:36 — browser derin denetim turu (rapor 26)](docs/devir/2026-09-15-1036.md).
 
 Önceki çalışma: [2026-09-15 10:00 — browser tarafı sözleşme ve kalan-açık denetim turu (rapor 25)](docs/devir/2026-09-15-1000.md).
 
