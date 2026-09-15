@@ -18,6 +18,18 @@ Whisper Browser is a Windows desktop application for local GPU-accelerated subti
 
 Whisper Browser does not decrypt protected media, bypass DRM, or extract data from a CDM. Capture works only when a site exposes an authorized, accessible subtitle track.
 
+## Product tour
+
+[![Watch the 12-second Whisper Browser product tour](docs/media/demo-poster.png)](docs/media/whisper-browser-tour.mp4)
+
+Click the image to open the short MP4 tour. English title cards explain each workflow; the captured application UI remains Turkish because that is the language currently shipped.
+
+| Browser workspace | Context-aware AI | Subtitle editor |
+| --- | --- | --- |
+| ![Embedded browser workspace with media tools](docs/media/browser-workspace.png) | ![AI panel using subtitle and timestamp context](docs/media/ai-context-panel.png) | ![Subtitle cue editor preserving timing](docs/media/subtitle-editor.png) |
+| Capture and inspect accessible web subtitle tracks. | Ask questions grounded in the current scene. | Correct text without losing cue identity or timing. |
+
+All captures use isolated test profiles and synthetic fixtures. They contain no user account, private subtitle, API key, or browsing-history data.
 ## Setup
 
 Requirements: Windows 10/11, Node.js 22.13+, Python 3.10 or 3.11, and FFmpeg. An NVIDIA CUDA GPU is recommended.
