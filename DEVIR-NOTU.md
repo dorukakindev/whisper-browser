@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 11:12 — browser derin denetim turu, modül kapanışı ve deneysel doğrulama (rapor 27)](docs/devir/2026-09-15-1112.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 12:04 — canlı DASH ve uçtan uca altyazı bütünlüğü](docs/devir/2026-09-15-1204.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 11:12 — browser derin denetim turu, modül kapanışı ve deneysel doğrulama (rapor 27)](docs/devir/2026-09-15-1112.md).
 
 Önceki çalışma: [2026-09-15 10:36 — browser derin denetim turu (rapor 26)](docs/devir/2026-09-15-1036.md).
 
