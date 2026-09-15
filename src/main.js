@@ -8,6 +8,7 @@ const https = require('https');
 const { isIP } = require('net');
 const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
+const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createProcessTerminalLatch } = require('./renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('./pipeline-job');
@@ -801,7 +802,12 @@ ipcMain.handle('media:download', async (_e, opts) => {
   const o = opts || {};
   const mediaUrl = decideUrlPolicy(o.url, 'renderer-external');
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol) || !mediaUrl.hostname) return { ok: false, error: "Yalnızca http/https medya URL'leri kullanılabilir." };
-  const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
+  let outDir;
+  try {
+    outDir = sanitizeAbsolutePath(o.inputDir || loadSettings().inputDir, 'Girdi klasörü');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
   const args = ['download', '--url', mediaUrl.url, '--output-dir', outDir];
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
@@ -854,7 +860,12 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   const o = opts || {};
   const mediaUrl = decideUrlPolicy(o.url, 'renderer-external');
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol) || !mediaUrl.hostname) return { ok: false, error: "Yalnızca http/https medya URL'leri kullanılabilir." };
-  const outDir = o.outputDir || path.join(app.getPath('userData'), 'videos');
+  let outDir;
+  try {
+    outDir = sanitizeAbsolutePath(o.outputDir || loadSettings().outputDir, 'Çıktı klasörü');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
   const args = [
     'subs', '--url', mediaUrl.url,
     '--sub-lang', o.lang || 'en',
@@ -1366,9 +1377,11 @@ function loadSettings() {
     recoverJsonTransaction(path.join(app.getPath('userData'), '.whisper-settings-transaction.json'));
   } catch (_) {
     settingsLoadWarning = 'Ayar kurtarma işlemi tamamlanamadı; güvenli varsayılanlar yüklendi.';
-    return { settingsVersion: 3, glossary: [], hfToken: '' };
+    return withDefaultMediaFolders(
+      { settingsVersion: 3, glossary: [], hfToken: '' }, app.getPath('downloads'));
   }
-  const settings = migrateSubtitleModelDefault(readPublicSettings());
+  const settings = withDefaultMediaFolders(
+    migrateSubtitleModelDefault(readPublicSettings()), app.getPath('downloads'));
   const split = splitSettingsSecrets(settings);
   const legacySecretFields = Object.keys(split.secrets);
 
@@ -1387,7 +1400,8 @@ function loadSettings() {
   const loaded = getSettingsSecretStore().withSecrets(settings);
   if (!loaded.ok) settingsLoadWarning = loaded.error
     || 'Güvenli anahtar deposundaki bazı alanlar çözülemedi.';
-  return (loaded.ok || loaded.partial) ? loaded.settings : settings;
+  return withDefaultMediaFolders(
+    (loaded.ok || loaded.partial) ? loaded.settings : settings, app.getPath('downloads'));
 }
 
 function saveSettings(s) {
@@ -12263,8 +12277,9 @@ ipcMain.handle('dialog:openVideo', async (event) => {
       { name: 'Tüm Dosyalar', extensions: ['*'] },
     ],
   };
-  // Son kullanılan girdi klasörünü hatırla
-  if (prev && prev.lastInputDir && fs.existsSync(prev.lastInputDir)) opts.defaultPath = prev.lastInputDir;
+  // Son kullanılan konum varsa onu, yoksa ayarlardaki kalıcı GİRDİ klasörünü aç.
+  const preferredInputDir = prev && (prev.lastInputDir || prev.inputDir);
+  if (preferredInputDir && fs.existsSync(preferredInputDir)) opts.defaultPath = preferredInputDir;
   const result = await dialog.showOpenDialog(mainWindow, opts);
   if (result.canceled || result.filePaths.length === 0) return null;
   result.filePaths.forEach((file) => {
@@ -12372,7 +12387,8 @@ ipcMain.handle('dialog:openFolders', async (event) => {
     title: 'Klasör veya klasörler seç (içlerindeki tüm videolar sıraya eklenir)',
     properties: ['openDirectory', 'multiSelections'],
   };
-  if (prev && prev.lastInputDir && fs.existsSync(prev.lastInputDir)) opts.defaultPath = prev.lastInputDir;
+  const preferredInputDir = prev && (prev.lastInputDir || prev.inputDir);
+  if (preferredInputDir && fs.existsSync(preferredInputDir)) opts.defaultPath = preferredInputDir;
   const result = await dialog.showOpenDialog(mainWindow, opts);
   if (result.canceled || result.filePaths.length === 0) return null;
   try {
@@ -12401,10 +12417,26 @@ ipcMain.handle('media:listFolder', async (_event, filePath) => {
 
 ipcMain.handle('dialog:openFolder', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const result = await dialog.showOpenDialog(mainWindow, {
+  const settings = loadSettings();
+  const options = {
     title: 'Çıktı klasörü seç',
     properties: ['openDirectory', 'createDirectory'],
-  });
+  };
+  if (settings.outputDir && fs.existsSync(settings.outputDir)) options.defaultPath = settings.outputDir;
+  const result = await dialog.showOpenDialog(mainWindow, options);
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('dialog:openInputFolder', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const settings = loadSettings();
+  const options = {
+    title: 'Girdi klasörü seç',
+    properties: ['openDirectory', 'createDirectory'],
+  };
+  if (settings.inputDir && fs.existsSync(settings.inputDir)) options.defaultPath = settings.inputDir;
+  const result = await dialog.showOpenDialog(mainWindow, options);
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
 });
@@ -13053,6 +13085,7 @@ ipcMain.handle('settings:import', async (event) => {
     const currentSettings = loadSettings();
     const imported = parseImportText(readImportFile(result.filePaths[0]), currentSettings);
     const changedPaths = [
+      ['inputDir', 'Girdi klasörü'],
       ['outputDir', 'Çıktı klasörü'],
       ['watchDir', 'İzleme klasörü'],
       ['lastInputDir', 'Son girdi klasörü'],
@@ -13826,6 +13859,19 @@ function recordJob(meta, event) {
 ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!options || typeof options !== 'object' || Array.isArray(options)) return { ok: false, error: 'Geçersiz iş seçenekleri.' };
+  const folderDefaults = defaultMediaFolders(app.getPath('downloads'));
+  const folderSettings = loadSettings();
+  try {
+    options = {
+      ...options,
+      inputDir: sanitizeAbsolutePath(
+        options.inputDir || folderSettings.inputDir || folderDefaults.inputDir, 'Girdi klasörü'),
+      outputDir: sanitizeAbsolutePath(
+        options.outputDir || folderSettings.outputDir || folderDefaults.outputDir, 'Çıktı klasörü'),
+    };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
   if (options.youtube) {
     const youtubeUrl = decideUrlPolicy(options.youtube, 'renderer-external');
     if (youtubeUrl.action !== 'external' || !['http:', 'https:'].includes(youtubeUrl.protocol)
@@ -13878,7 +13924,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     return { ok: false, error: 'Bir dosya ya da YouTube linki gerekli.' };
   }
 
-  if (options.outputDir) args.push('--output-dir', options.outputDir);
+  args.push('--input-dir', options.inputDir);
+  args.push('--output-dir', options.outputDir);
   if (options.outputNameSuffix) {
     const suffix = String(options.outputNameSuffix);
     if (!/^-whisper-[a-z0-9-]{4,48}$/i.test(suffix)) {
@@ -14110,9 +14157,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const job = activeJob;
   const jobProc = job;
   modelProcesses.add(jobProc);
-  const pipelineOutputDir = options.outputDir
-    ? path.resolve(options.outputDir)
-    : (options.input ? path.dirname(path.resolve(options.input)) : null);
+  const pipelineOutputDir = path.resolve(options.outputDir);
   // Iptal edilen isten kalan yarim cikti islemleri geri alinir. ownerPid ile
   // BASKA bir surecin devam eden islemine dokunulmaz.
   const recoverInterruptedOutputs = () => {

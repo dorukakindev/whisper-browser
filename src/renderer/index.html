@@ -326,11 +326,22 @@
 
             <div class="field field-full">
               <span class="field-label">
+                Girdi klasörü
+                <button class="link-btn" id="pickInputFolder">Seç</button>
+                <button class="link-btn" id="resetInputFolder" title="İndirilenler/Whisper/GİRDİ klasörüne dön">Varsayılan</button>
+              </span>
+              <div class="path-display" id="inputDir">İndirilenler\Whisper\GİRDİ</div>
+              <span class="field-hint">Uygulamanın indirdiği video ve ses kaynakları burada tutulur. Yerel dosyalar taşınmaz.</span>
+            </div>
+
+            <div class="field field-full">
+              <span class="field-label">
                 Çıktı klasörü
                 <button class="link-btn" id="pickFolder">Seç</button>
-                <button class="link-btn" id="resetFolder" title="Video ile aynı klasöre dön">Varsayılan</button>
+                <button class="link-btn" id="resetFolder" title="İndirilenler/Whisper/ÇIKTI klasörüne dön">Varsayılan</button>
               </span>
-              <div class="path-display" id="outputDir">Video ile aynı klasör</div>
+              <div class="path-display" id="outputDir">İndirilenler\Whisper\ÇIKTI</div>
+              <span class="field-hint">Üretilen kaynak, çeviri ve kalite raporları burada tutulur.</span>
             </div>
               </div>
 

@@ -10,7 +10,8 @@ const { clonePublicOptions, validateQueueOptions } = require('../src/queue-persi
 const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
 const { createNdjsonLineBuffer } = require('../src/ndjson-lines');
-const { buildSecretEnv } = require('../src/settings-security');
+const { defaultMediaFolders } = require('../src/media-folders');
+const { buildSecretEnv, sanitizeAbsolutePath } = require('../src/settings-security');
 const { decodeSubtitleBuffer } = require('../src/browser-textutil');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const handlers = new Map();
@@ -215,6 +216,11 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer,
       process: { env: {} }, resolvePython: () => 'mock-python',
+      defaultMediaFolders, sanitizeAbsolutePath,
+      loadSettings: () => ({
+        inputDir: path.join(os.tmpdir(), 'Whisper', 'GİRDİ'),
+        outputDir: path.join(os.tmpdir(), 'Whisper', 'ÇIKTI'),
+      }),
       spawn: () => {
         const proc = new EventEmitter();
         proc.stdout = new EventEmitter(); proc.stderr = new EventEmitter();

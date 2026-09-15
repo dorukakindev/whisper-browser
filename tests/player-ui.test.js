@@ -21,6 +21,19 @@ const html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf-8');
 const css = fs.readFileSync(path.join(SRC, 'styles.css'), 'utf-8');
 const browserSettingsRegistry = require('../src/browser-settings-registry');
 
+if (!html.includes('id="pickInputFolder"') || !html.includes('id="inputDir"')) {
+  throw new Error('Girdi klasörü seçme arayüzü eksik.');
+}
+if (!js.includes('selectInputFolder()')) {
+  throw new Error('Girdi klasörü seçimi renderer IPC köprüsüne bağlı değil.');
+}
+if (!/downloadYoutube\(\{[\s\S]*?inputDir:\s*state\.inputDir/.test(js)) {
+  throw new Error('Video indirmesi Girdi klasörüne yönlenmiyor.');
+}
+if (!/downloadYoutubeSubs\(\{[\s\S]*?outputDir:\s*state\.outputDir/.test(js)) {
+  throw new Error('Hazır altyazı indirmesi Çıktı klasörüne yönlenmiyor.');
+}
+
 // oynatıcı katmanını ayır
 const li = html.indexOf('id="playerLayer"');
 const lj = html.indexOf('</body>');

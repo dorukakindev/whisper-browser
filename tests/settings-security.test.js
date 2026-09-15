@@ -44,6 +44,7 @@ function extractRendererList(source, name) {
 function safeSettings(extra = {}) {
   return {
     glossary: ['mitoloji'],
+    inputDir: 'C:\\Whisper\\GİRDİ',
     outputDir: 'C:\\Altyazilar',
     watchDir: 'D:\\Videolar',
     lastInputDir: 'D:\\Girdiler',
@@ -83,6 +84,16 @@ test('renderer kalıcılık listeleri güvenlik şemasıyla bire bir eşleşir',
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
   assert.deepStrictEqual(extractRendererList(source, 'PERSIST_VALUE_CONTROLS'), PERSIST_VALUE_CONTROLS);
   assert.deepStrictEqual(extractRendererList(source, 'PERSIST_CHECKBOX_CONTROLS'), PERSIST_CHECKBOX_CONTROLS);
+});
+
+test('girdi ve çıktı klasörleri mutlak yol olarak korunur', () => {
+  const clean = sanitizeSettings(safeSettings());
+  assert.equal(clean.inputDir, 'C:\\Whisper\\GİRDİ');
+  assert.equal(clean.outputDir, 'C:\\Altyazilar');
+  assert.throws(
+    () => sanitizeSettings(safeSettings({ inputDir: '..\\girdi' })),
+    /Girdi klasörü mutlak bir yol/,
+  );
 });
 
 test('main import/export ve Python env çağrı yolları güvenli yardımcılara bağlıdır', () => {

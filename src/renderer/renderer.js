@@ -40,6 +40,7 @@ const state = {
   aiJob: false,            // calisan is bir AI sorusu mu (sohbet / acikla)
 
   inputFile: null,
+  inputDir: null,
   outputDir: null,
   outputFiles: [],
   resultModalFiles: [],
@@ -295,6 +296,7 @@ function buildOptsFromUI() {
     maxLineWidth: parseInt($('maxLineWidth').value, 10),
     maxLines: 2,
     maxChars: parseInt($('maxLineWidth').value, 10) * 2,
+    inputDir: state.inputDir,
     outputDir: state.outputDir,
     diarize: $('diarize').checked,
     hfToken: $('hfToken').value.trim(),
@@ -1801,7 +1803,24 @@ $('clearFile').addEventListener('click', () => {
   updateSignalDesk();
 });
 
-// ===== Output folder =====
+// ===== Input / output folders =====
+$('pickInputFolder').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const folder = await window.api.selectInputFolder();
+  if (folder) {
+    state.inputDir = folder;
+    $('inputDir').textContent = folder;
+    saveAppSettings();
+  }
+});
+
+$('resetInputFolder').addEventListener('click', (e) => {
+  e.preventDefault();
+  state.inputDir = null;
+  $('inputDir').textContent = 'İndirilenler\\Whisper\\GİRDİ';
+  saveAppSettings();
+});
+
 $('pickFolder').addEventListener('click', async (e) => {
   e.preventDefault();
   const folder = await window.api.selectFolder();
@@ -1814,9 +1833,8 @@ $('pickFolder').addEventListener('click', async (e) => {
 
 $('resetFolder').addEventListener('click', (e) => {
   e.preventDefault();
-  if (!state.outputDir) return;
   state.outputDir = null;
-  $('outputDir').textContent = 'Video ile aynı klasör';
+  $('outputDir').textContent = 'İndirilenler\\Whisper\\ÇIKTI';
   saveAppSettings();
 });
 
@@ -2117,6 +2135,7 @@ function appSettingsPayload() {
   return {
     glossary,
     ...secretSettingPatch('hfToken', 'hfToken'),
+    inputDir: state.inputDir || '',
     outputDir: state.outputDir || '',
     preset: $('presetSelect').value,
     presetReference: _presetReference,
@@ -2603,10 +2622,10 @@ const initialSettingsReady = (async () => {
       if (s._loadWarning) logLine(String(s._loadWarning), 'error');
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
       if (s.hfToken) $('hfToken').value = s.hfToken;
-      if (s.outputDir) {
-        state.outputDir = s.outputDir;
-        $('outputDir').textContent = s.outputDir;
-      }
+      state.inputDir = s.inputDir || null;
+      state.outputDir = s.outputDir || null;
+      $('inputDir').textContent = s.inputDir || 'İndirilenler\\Whisper\\GİRDİ';
+      $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
       if (s.playerPositions && typeof s.playerPositions === 'object') {
         player.positions = s.playerPositions;
       }
@@ -4191,7 +4210,10 @@ $('importSettings').addEventListener('click', async () => {
   const s = r.settings || {};
   glossary = Array.isArray(s.glossary) ? s.glossary : glossary;
   if (s.hfToken !== undefined) $('hfToken').value = s.hfToken || '';
-  if (s.outputDir) { state.outputDir = s.outputDir; $('outputDir').textContent = s.outputDir; }
+  state.inputDir = s.inputDir || null;
+  state.outputDir = s.outputDir || null;
+  $('inputDir').textContent = s.inputDir || 'İndirilenler\\Whisper\\GİRDİ';
+  $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
   if (s.llm) {
     if (s.llm.apiKey !== undefined && $('llmApiKey')) $('llmApiKey').value = s.llm.apiKey || '';
     if (s.llm.endpointPreset && $('llmEndpointPreset')) $('llmEndpointPreset').value = s.llm.endpointPreset;
@@ -21096,7 +21118,7 @@ if ($('playerDownload')) {
       res = await window.api.downloadYoutube({
         url, height, audioLang,
         cookieBrowser: youtubeCookieBrowser(),
-        outputDir: state.outputDir || undefined,
+        inputDir: state.inputDir || undefined,
       });
     } catch (err) {
       res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };

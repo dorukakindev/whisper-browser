@@ -5055,10 +5055,16 @@ def resolve_output_dir(args):
     """İş türünden bağımsız olarak nihai çıktı klasörünü belirle."""
     if args.output_dir:
         return Path(args.output_dir)
-    if args.input:
-        return Path(args.input).parent
     downloads = Path.home() / "Downloads"
-    return downloads if downloads.exists() else Path.home()
+    return downloads / "Whisper" / "ÇIKTI"
+
+
+def resolve_input_dir(args):
+    """Uygulamanın indirdiği kalıcı medya girdilerinin klasörünü belirle."""
+    if getattr(args, "input_dir", None):
+        return Path(args.input_dir)
+    downloads = Path.home() / "Downloads"
+    return downloads / "Whisper" / "GİRDİ"
 
 
 def preflight_output_dir(output_dir):
@@ -5082,6 +5088,29 @@ def preflight_output_dir(output_dir):
             except OSError:
                 pass
     return output_dir
+
+
+def preflight_input_dir(input_dir):
+    """İndirme başlamadan kalıcı girdi klasörünün yazılabilir olduğunu doğrula."""
+    input_dir = Path(input_dir)
+    probe_path = None
+    try:
+        input_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix=".whisper-input-probe-", dir=str(input_dir),
+                                         delete=False) as probe:
+            probe.write(b"ok")
+            probe.flush()
+            os.fsync(probe.fileno())
+            probe_path = Path(probe.name)
+    except Exception as exc:
+        raise RuntimeError(f"Girdi klasörüne yazılamıyor: {input_dir} ({exc})") from exc
+    finally:
+        if probe_path is not None:
+            try:
+                probe_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return input_dir
 
 
 def checkpoint_resume_from(entries, last_time, backoff=2.0):
@@ -5126,8 +5155,8 @@ def transcribe(args):
                 f"{f'{clip_end:.1f}s' if clip_end is not None else 'son'}")
 
         output_dir = preflight_output_dir(resolve_output_dir(args))
-        if not args.output_dir and not args.input:
-            log(f"Çıktı klasörü seçilmedi — buraya yazılıyor: {output_dir}", "warn")
+        if not args.output_dir:
+            log(f"Çıktı klasörü seçilmedi — varsayılan kullanılıyor: {output_dir}", "warn")
 
         # Checkpoint / kaldığı yerden devam — yalnızca yerel dosya + kırpma yokken.
         # Checkpoint varsa sesi o noktadan çıkarmak için clip_start'ı içeriden set ederiz.
@@ -5168,8 +5197,11 @@ def transcribe(args):
             cancellation_checkpoint("download", "before")
             emit("status", stage="download", text="YouTube'dan indiriliyor...")
             cancellation_checkpoint("download", "start")
+            input_dir = preflight_input_dir(resolve_input_dir(args))
+            if not getattr(args, "input_dir", None):
+                log(f"Girdi klasörü seçilmedi — varsayılan kullanılıyor: {input_dir}", "warn")
             source_path, title, youtube_ranged = download_youtube(
-                args.youtube, workdir, ffmpeg_path,
+                args.youtube, input_dir, ffmpeg_path,
                 clip_start=clip_start, clip_end=clip_end,
                 audio_lang=args.youtube_audio_lang,
                 cookie_browser=args.youtube_cookie_browser,
@@ -6584,8 +6616,7 @@ def translate_existing_subtitle(args):
     quality_last_error = (translation_status.get("lastError", "")
                           or ("untranslated_source" if quality_failed_indices else ""))
 
-    out_dir = Path(args.output_dir) if args.output_dir else src_path.parent
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = preflight_output_dir(resolve_output_dir(args))
     # "film.en.srt" -> "film.tr.srt"; "film.srt" -> "film.tr.srt"
     stem = src_path.stem
     m = re.match(r"^(.*)\.[a-z]{2,3}$", stem, re.I)
@@ -6852,8 +6883,7 @@ def reexport_from_json(args):
         for i, (s, e, t) in enumerate(entries)
     ])
 
-    output_dir = Path(args.output_dir) if args.output_dir else src.parent
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = preflight_output_dir(resolve_output_dir(args))
     base_name = src.stem
     # JSON adı "video.tr" gibiyse ".tr" dil ekini gövdeden ayıkla (tekrar eklenmesin)
     if base_name.lower().endswith(f".{str(lang).lower()}"):
@@ -7466,7 +7496,8 @@ def sync_subtitles(args):
             shifted = apply_piecewise(spans, pieces, ratio)
         else:
             shifted = shift_srt_entries(scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
-        out_path = sync_output_path(srt_path, args.output_dir)
+        out_path = sync_output_path(
+            srt_path, preflight_output_dir(resolve_output_dir(args)))
         emit("status", stage="write", text="Senkronlu altyazı yazılıyor...")
         write_srt_raw(shifted, out_path)
         log(f"Yazıldı: {out_path}")
@@ -7496,6 +7527,7 @@ def main():
     src.add_argument("--youtube", help="YouTube URL'si")
 
     parser.add_argument("--output-dir", help="Çıktı klasörü", default=None)
+    parser.add_argument("--input-dir", help="İndirilen medya girdilerinin klasörü", default=None)
     parser.add_argument("--output-name-suffix", default="", help=argparse.SUPPRESS)
     parser.add_argument("--model", default="large-v3", help="Whisper modeli")
     parser.add_argument(

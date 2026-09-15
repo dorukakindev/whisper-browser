@@ -49,9 +49,20 @@ function argValue(args, flag) {
   return k < 0 ? undefined : args[k + 1];
 }
 function base(extra) {
-  return Object.assign({ input: 'C:/video.mkv', model: 'large-v3', outputDir: 'C:/out' }, extra);
+  return Object.assign({
+    input: 'C:/video.mkv',
+    model: 'large-v3',
+    inputDir: 'C:/in',
+    outputDir: 'C:/out',
+  }, extra);
 }
 const build = (o) => buildArgs(o, 'transcribe.py', path, fakeApp);
+
+test('girdi ve çıktı klasörleri backend argv sözleşmesine ayrı gider', () => {
+  const args = build(base());
+  assert(argValue(args, '--input-dir') === 'C:/in', '--input-dir yanlış');
+  assert(argValue(args, '--output-dir') === 'C:/out', '--output-dir yanlış');
+});
 
 // ---- 1) ASIL HATA: ceviri, LLM duzeltmesinden bagimsiz olmali ----
 test('ceviri LLM duzeltme KAPALIYKEN de gonderilir', () => {

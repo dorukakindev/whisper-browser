@@ -25,5 +25,5 @@ assert.equal(migrate({ translate: { ...input.translate, model: 'custom-model' } 
 assert.match(html, /id="translateModel" value="gemini-3\.8-flash"/);
 assert.match(backend, /add_argument\("--translate-model", default="gemini-3\.8-flash"\)/);
 assert.match(main, /translate\.model \|\| ui\.translateModel \|\| 'gemini-3\.8-flash'/);
-assert.match(main, /const settings = migrateSubtitleModelDefault\(readPublicSettings\(\)\)/);
+assert.match(main, /migrateSubtitleModelDefault\(readPublicSettings\(\)\)/);
 console.log('subtitle-model-default: varsayılanlar, shuai geçişi, özel model ve bağımsız manga koruması geçti');

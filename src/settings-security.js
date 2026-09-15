@@ -319,7 +319,12 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
     }
     clean.glossary = [...new Set(input.glossary.map((item) => boundedString(item, 'Sözlük terimi', 200).trim()).filter(Boolean))];
   }
-  for (const [key, label] of [['outputDir', 'Çıktı klasörü'], ['watchDir', 'İzleme klasörü'], ['lastInputDir', 'Son girdi klasörü']]) {
+  for (const [key, label] of [
+    ['inputDir', 'Girdi klasörü'],
+    ['outputDir', 'Çıktı klasörü'],
+    ['watchDir', 'İzleme klasörü'],
+    ['lastInputDir', 'Son girdi klasörü'],
+  ]) {
     if (Object.prototype.hasOwnProperty.call(input, key)) clean[key] = pathSetting(input[key], label);
   }
   if (Object.prototype.hasOwnProperty.call(input, 'preset')) {

@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   listMediaFolder: (filePath) => ipcRenderer.invoke('media:listFolder', filePath),
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
+  selectInputFolder: () => ipcRenderer.invoke('dialog:openInputFolder'),
   selectFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
   listHistory: () => ipcRenderer.invoke('history:list'),
