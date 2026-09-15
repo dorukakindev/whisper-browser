@@ -12,6 +12,7 @@ Sohbet geçmişi kaybolmuş olabilir. Çalışmaya başlamadan bu dosyayı, [YEN
 - Kullanıcı çalışmak için gereken araçların/bağımlılıkların indirilip kurulmasına izin verdi. Görev için gerekli ve uyumlu araçları güvenilir resmî kaynaklardan kurabilirsin; mevcut kilit dosyalarını ve kurulum akışını tercih et. Gereksiz toplu sürüm yükseltmesi yapma. Yeni bağımlılığı, sürümü, nedenini ve kurulumunu devir notuna yaz. Bu izin bilgisayarı formatlama, kişisel dosyaları silme, güvenlik duvarını kapatma, ücretli servis satın alma veya hesap açma yetkisi değildir.
 - Ekran görüntüsü alarak gerçek arayüzü incelemek yetkilidir. Browser işlerinde mümkünse ayrı test profili kullan; kullanıcının açık sekmelerini, altyazılarını ve ayarlarını bozma. Ana pencere yakalaması native video yüzeyini göstermeyebilir; gerekli durumda video yüzeyini ayrıca doğrula. Ham kişisel görüntü/profil/logları Git'e koyma.
 - Gerçek sağlayıcı anahtarı olmadığında kullanıcı **kontrollü sağlayıcı testleriyle ilerlemeyi** kabul etti. Anahtarı sohbete isteme. Mock/fixture başarısını gerçek model kalitesi, ücretli canlı sağlayıcı veya tüm siteler için başarı diye sunma.
+- Denetim/bug bulguları **her zaman bir `.md` dosyasına** kaydedilir; yalnız sohbette bırakma. Seri `BROWSER_BUG_REPORT_<sıra>.md` adlandırmasını izle (son: 25).
 
 ### Her tamamlanan düzeltme/özellik sonrası teslim döngüsü
 
