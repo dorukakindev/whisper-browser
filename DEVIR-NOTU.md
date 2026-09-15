@@ -1,6 +1,6 @@
 # Devir notları indeksi
-
-Güncel çalışma: [2026-09-15 13:59 — yeni browser özellikleri + katalog denetimi, 8 bulgu (rapor 30)](docs/devir/2026-09-15-1359.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 14:30 — English public documentation and release hygiene](docs/devir/2026-09-15-1430.md).
+Önceki çalışma: [2026-09-15 13:59 — yeni browser özellikleri + katalog denetimi, 8 bulgu (rapor 30)](docs/devir/2026-09-15-1359.md). Önceki kayıtlar aşağıda korunmuştur.
 
 Önceki çalışma: [2026-09-15 12:59 — paralel denetim turu, üç P1 bulgu (rapor 29)](docs/devir/2026-09-15-1259.md).
 
