@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { scanFolder, createMetadataClient } = require('./catalog-discovery');
-function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true }) {
+function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false }) {
   const client = createMetadataClient(), previews = new Map();
   function remember(event, data) {
     for (const [key, row] of previews) if (Date.now() - row.created > 900000) previews.delete(key);
@@ -50,7 +50,10 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         }
         try {
           if (JSON.stringify(store().get(data.id)) !== data.before) throw new Error('Eser değişti; yeniden önizleyin.');
-          const saved = store().upsert(patch); previews.delete(input.token); return { ok: true, item: visible(saved) };
+          const previousPoster = current.posterPath;
+          const saved = store().upsert(patch);
+          if (patch.posterPath && previousPoster && previousPoster !== patch.posterPath) removeOwnedPoster(previousPoster);
+          previews.delete(input.token); return { ok: true, item: visible(saved) };
         } catch (error) { if (patch.posterPath) { try { fs.unlinkSync(patch.posterPath); } catch {} } throw error; }
       }
       case 'season-preview': {
@@ -63,7 +66,8 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const episodes = [...current.episodes];
         for (const next of data.episodes) {
           const index = episodes.findIndex(ep => ep.season === next.season && ep.number === next.number);
-          if (index < 0) episodes.push(next); else episodes[index] = { ...episodes[index], airDate: next.airDate, title: episodes[index].title || next.title };
+          if (index < 0) episodes.push(next); else episodes[index] = { ...episodes[index],
+            airDate: next.airDate || episodes[index].airDate, title: episodes[index].title || next.title };
         }
         store().upsert({ id: current.id, episodes }); previews.delete(input.token); return { ok: true };
       }
@@ -96,7 +100,10 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         })()`);
         try {
           live = await owner().webContents.executeJavaScript(`Object.fromEntries(${JSON.stringify(packages.STORAGE_KEYS)}.map(key => [key, localStorage.getItem(key)]))`);
-          packages.exportPackage(userData(), path.join(userData(), 'before-restore-complete-' + Date.now() + '.wbp'), live);
+          const backup = path.join(userData(), 'before-restore-complete-' + Date.now() + '.wbp');
+          packages.exportPackage(userData(), backup, live);
+          const backups = fs.readdirSync(userData()).filter(name => /^before-restore-complete-\d+\.wbp$/.test(name)).sort().reverse();
+          for (const name of backups.slice(3)) { try { fs.unlinkSync(path.join(userData(), name)); } catch {} }
           const restored = packages.remapRendererValues(userData(), data, data.videoMappings || []);
           await setStorage(restored);
           storageChanged = true;

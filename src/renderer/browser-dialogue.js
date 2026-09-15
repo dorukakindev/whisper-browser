@@ -26,7 +26,7 @@
     } catch (error) { if (seq === sequence) status(error.message || 'İşlem başarısız.'); }
     finally { if (seq === sequence) { busy = false; $('bdRun').disabled = false; $('bdCancel').disabled = true; } }
   });
-  $('bdCancel').addEventListener('click', () => { const ctx = tools.context(); reset(); status('İşlem durduruldu.'); if (ctx) void window.api.browserExtras({ ...ctx, action: 'cancel' }).catch(() => {}); });
+  $('bdCancel').addEventListener('click', () => { const ctx = tools.context(); reset(); status('İşlem durduruldu.'); if (ctx) void window.api.browserExtras({ ...ctx, action: 'cancel', targetAction: 'dialogue-transcribe' }).catch(() => {}); });
   $('bdSave').addEventListener('click', async () => { const text = $('bdText').value; if (!text.trim()) { status('Kaydedilecek altyazı yok.'); return; } const result = await window.api.saveSubtitleCopy('konusma.srt', text).catch(() => null); if (result?.ok) status('SRT kaydedildi.'); else if (!result?.canceled) status('SRT kaydedilemedi.'); });
   document.addEventListener('browser-analysis-contextchange', reset);
   setInterval(() => { if (key !== tools.signature()) reset(); }, 1000);

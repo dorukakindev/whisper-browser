@@ -160,6 +160,34 @@ test('tek bozuk gizli alan sağlam anahtarların yüklenmesini engellemez', () =
   }
 });
 
+test('kısmen çözülen kasa yeni kayıtla sessizce daraltılmaz', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-secrets-partial-save-'));
+  const file = path.join(dir, 'secrets.safe.json');
+  const selectiveStorage = {
+    ...fakeSafeStorage,
+    decryptString: (buffer) => {
+      const text = buffer.toString('utf8');
+      if (text.includes('broken')) throw new Error('bozuk kayıt');
+      return text.replace(/^encrypted:/, '');
+    },
+  };
+  try {
+    const original = JSON.stringify({ version: 1, entries: {
+      hfToken: Buffer.from('encrypted:hf-ok').toString('base64'),
+      'llm.apiKey': Buffer.from('encrypted:broken').toString('base64'),
+    } });
+    fs.writeFileSync(file, original);
+    const store = new SafeSecretStore({ safeStorage: selectiveStorage, filePath: file });
+    const result = store.saveFromSettings({ translate: { apiKey: 'new-value' } });
+    assert.equal(result.ok, false);
+    assert.equal(result.partial, true);
+    assert.match(result.error, /korunmak için değişiklik kaydedilmedi/);
+    assert.equal(fs.readFileSync(file, 'utf8'), original);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('güvenli kasa bozuk/eksik primary için yedekten döner; sağlam boş kayıt önceliklidir', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-secrets-backup-'));
   const file = path.join(dir, 'secrets.safe.json');

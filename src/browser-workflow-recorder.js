@@ -112,13 +112,17 @@
         title: clean(title, 120) || 'Tarayıcı iş akışı',
         createdAt: Date.now(),
         mediaIdentity: normalized.mediaId,
+        context: normalized,
         steps: [],
       };
       return { ...this.active, steps: [] };
     }
 
-    record(command, args = {}) {
+    record(command, args = {}, context = null) {
       if (!this.active) return false;
+      if (context && !contextsMatch(this.active.context, context)) {
+        throw Object.assign(new Error('Sekme, sayfa veya medya değişti; workflow kaydı durduruldu.'), { code: 'EWORKFLOW_STALE' });
+      }
       const step = normalizeStep({ command, args });
       if (!step) return false;
       if (this.active.steps.length >= MAX_WORKFLOW_STEPS) {
@@ -131,7 +135,9 @@
     stop() {
       const current = this.active;
       this.active = null;
-      return current ? normalizeWorkflow(current) : null;
+      if (!current) return null;
+      const { context, ...portable } = current;
+      return normalizeWorkflow(portable);
     }
 
     cancel() { this.active = null; }
@@ -169,6 +175,9 @@
             throw Object.assign(new Error('Sekme, sayfa veya medya değişti; workflow durduruldu.'), { code: 'EWORKFLOW_STALE' });
           }
           await options.execute(step, { signal: controller.signal, index: completed, total: workflow.steps.length });
+          if (controller.signal.aborted) {
+            throw Object.assign(new Error(String(controller.signal.reason || 'Workflow iptal edildi.')), { code: 'EWORKFLOW_ABORTED' });
+          }
           if (!contextsMatch(initial, options.getContext())) {
             throw Object.assign(new Error('Komut sırasında sekme, sayfa veya medya değişti; workflow durduruldu.'), { code: 'EWORKFLOW_STALE' });
           }

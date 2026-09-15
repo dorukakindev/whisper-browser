@@ -131,7 +131,8 @@
     if (type === 'exit') return !!(state.running || state.cancelled || state.awaitingExit);
     if (type === 'done' || type === 'error') return !!state.running && !state.cancelled;
     const live = new Set(['status', 'download_progress', 'language', 'progress', 'segment',
-      'llm_progress', 'preview_refresh', 'quality_report']);
+      'llm_progress', 'preview_refresh', 'quality_report', 'translation_chunk',
+      'translation_refresh', 'chat', 'explain']);
     return !live.has(type) || (!!state.running && !state.cancelled && !state.awaitingExit);
   }
 

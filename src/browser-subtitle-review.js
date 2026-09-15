@@ -3,7 +3,11 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.BrowserSubtitleReview = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, () => {
-  const plain = cue => ({ start: Number(cue.start), end: Number(cue.end), text: String(cue.text || '') });
+  const plain = cue => ({
+    start: Number(cue.start),
+    end: Number(cue.end),
+    text: String(cue.text || '').replace(/\r\n?/g, '\n').replace(/\n{2,}/g, '\n').slice(0, 12000),
+  });
   const equal = (a, b) => a && b && a.start === b.start && a.end === b.end && a.text === b.text;
   function reconcile(cues, records) {
     const output = cues.map(cue => ({ ...cue })), conflicts = [];
@@ -16,7 +20,10 @@
       append(byStart,Math.floor(cue.start*500),entry);
       append(byEdited,exactKey(cue),entry);
     });
-    const valid=value=>value&&typeof value.text==='string'&&Number.isFinite(value.start)&&Number.isFinite(value.end)&&value.start>=0&&value.end-value.start>=.08;
+    const structuralCue=/^(?:\s*\d{1,7}\s*\n)?\s*\d{1,3}:\d{2}(?::\d{2})?[,.]\d{3}\s+-->\s+/m;
+    const valid=value=>value&&typeof value.text==='string'&&value.text.length<=12000
+      &&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value.text)&&!structuralCue.test(value.text)
+      &&Number.isFinite(value.start)&&Number.isFinite(value.end)&&value.start>=0&&value.end<=604800&&value.end-value.start>=.08;
     for (const record of Array.isArray(records)?records.slice(0,1000):[]) {
       if (!valid(record?.base) || !valid(record?.edited)) continue;
       let matches = record.cueId ? byId.get(record.cueId)||[] : [];
@@ -36,7 +43,7 @@
       if (!equal(incoming,record.base) && !equal(incoming,record.edited)) {
         conflicts.push({record,index,incoming,reason:'Site bu satırı değiştirdi.'});
       }
-      output[index]={...cue,...record.edited,sourceStart:cue.start,sourceEnd:cue.end};
+      output[index]={...cue,...plain(record.edited),sourceStart:cue.start,sourceEnd:cue.end};
     }
     return {cues:output.sort((a,b)=>a.start-b.start||a.end-b.end),conflicts};
   }

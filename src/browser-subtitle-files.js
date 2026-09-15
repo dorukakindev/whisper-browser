@@ -12,7 +12,8 @@ function createBrowserSubtitleFileStore(options = {}) {
   function isOwnedFile(file) {
     const resolved = path.resolve(String(file || ''));
     return path.dirname(resolved).toLowerCase() === directoryKey
-      && /^web-.*\.srt$/i.test(path.basename(resolved));
+      && (/^web-.*\.srt$/i.test(path.basename(resolved))
+        || /^[0-9a-f]{8}-[0-9a-f-]{27,}\.(?:srt|vtt|ass|ssa)$/i.test(path.basename(resolved)));
   }
 
   function ensureIndex() {
@@ -20,7 +21,8 @@ function createBrowserSubtitleFileStore(options = {}) {
     entries = new Map();
     try {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-        if (!entry.isFile() || !/^web-.*\.srt$/i.test(entry.name)) continue;
+        if (!entry.isFile() || !(/^web-.*\.srt$/i.test(entry.name)
+          || /^[0-9a-f]{8}-[0-9a-f-]{27,}\.(?:srt|vtt|ass|ssa)$/i.test(entry.name))) continue;
         const file = path.resolve(path.join(directory, entry.name));
         try { entries.set(file, Number(fs.statSync(file).mtimeMs) || 0); } catch (_) {}
       }

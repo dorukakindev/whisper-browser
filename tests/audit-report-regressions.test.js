@@ -86,6 +86,9 @@ async function main() {
 
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
   assert.match(renderer, /job\.generation !== player\.generation/);
+  assert.match(renderer,
+    /let embeddedSubtitleLoadRequest = 0;[\s\S]*staleGeneration\(targetGeneration\)[\s\S]*player\.mediaKey !== targetMediaKey/,
+    'gecikmiş gömülü altyazı sonucu yeni videoya uygulanmamalı');
   assert.match(renderer, /player\.chatHistory\.length > 128/);
   assert.match(renderer, /messages\.length - 200/);
   assert.match(renderer, /snapshot\.mediaKey === \(player\.mediaKey \|\| ''\)/);
@@ -146,7 +149,7 @@ async function main() {
 
   const transcribeStart = section("ipcMain.handle('transcribe:start'", "ipcMain.handle('transcribe:cancel'");
   assert.match(transcribeStart, /decideUrlPolicy\(options\.youtube, 'renderer-external'\)/);
-  assert.match(transcribeStart, /authorizeLocalMediaPath\(options\.input\)/);
+  assert.match(transcribeStart, /options\.reexport \|\| options\.translateOnly[\s\S]*authorizeSubtitleFile\(options\.input\)[\s\S]*authorizeMediaFile\(options\.input\)/);
 
   const backendSource = fs.readFileSync(path.join(__dirname, '..', 'backend', 'transcribe.py'), 'utf8');
   assert.match(backendSource, /hallucination_skipped \+= 1[\s\S]*hallucination_skip_warning\(hallucination_skipped\)/);

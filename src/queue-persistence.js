@@ -214,7 +214,9 @@ function updateQueueSnapshotTerminal(raw, queueItemId, event) {
     item.error = String(event?.message || event?.stderr || fallback).trim().slice(0, 500);
   }
   item.recovered = false;
-  return queueSnapshotForDisk({ ...snapshot, currentQueueId: null, queueRunning: false });
+  const hasPending = snapshot.items.some((entry) => entry.status === 'pending');
+  return queueSnapshotForDisk({ ...snapshot, currentQueueId: null,
+    queueRunning: !!snapshot.queueRunning && hasPending });
 }
 
 function updateQueueSnapshotRunning(raw, queueItemId, fallback = null) {

@@ -199,6 +199,17 @@ class SafeSecretStore {
     if (!Object.keys(secrets).length) return { ok: true, publicSettings, stored: [] };
     const current = this.load();
     if (!current.ok && !current.unavailable && !current.partial) return { ...current, publicSettings };
+    // Kısmen çözülebilen kasa yalnız kurtarılan alanlarla yeniden yazılırsa,
+    // çözülemeyen şifreli kayıtlar kalıcı olarak kaybolur. Mevcut kasa dosyasını
+    // olduğu gibi koru ve kullanıcıdan bozuk kimlik bilgilerini çözmesini iste.
+    if (current.partial) {
+      return {
+        ...current,
+        ok: false,
+        error: 'Güvenli anahtar deposundaki bazı kayıtlar çözülemedi; mevcut anahtarlar korunmak için değişiklik kaydedilmedi.',
+        publicSettings,
+      };
+    }
     const next = { ...(current.secrets || {}) };
     for (const field of cleared) delete next[field];
     Object.assign(next, secrets);

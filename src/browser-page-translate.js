@@ -421,14 +421,9 @@ function pageBlockScanScript(options = {}) {
     state.destroyed = false;
     const pageMemoryKey = () => String(location.origin || '') + String(location.pathname || '')
       + String(location.search || '');
-    const pageMemory = (() => {
-      try {
-        const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v2') || '[]');
-        return Array.isArray(rows) ? rows.filter((row) => row && row.page === pageMemoryKey()
-          && row.target === String(state.config.targetLanguage || '')
-          && row.memoryVersion === String(state.config.memoryVersion || '')).slice(-300) : [];
-      } catch (_) { return []; }
-    })();
+    // Ziyaret edilen sayfa sessionStorage'a yazabildiği için buradaki veri
+    // güvenilir çeviri belleği sayılmaz. Kalıcı bellek ana süreçte tutulur.
+    const pageMemory = [];
     const restoredTranslations = [];
 
     const parentAcrossShadow = (element) => element?.parentElement || element?.getRootNode?.()?.host || null;
@@ -508,17 +503,20 @@ function pageBlockScanScript(options = {}) {
       return fallback || document.body || document.documentElement;
     };
     const discoverRoots = () => {
+      const maxRoots = 128;
       const queue = [document];
       const discovered = [];
       const seen = new Set();
-      while (queue.length) {
+      while (queue.length && discovered.length < maxRoots) {
         const root = queue.shift();
         if (!root || seen.has(root)) continue;
         seen.add(root);
         discovered.push(root);
         let elements = [];
         try { elements = root.querySelectorAll ? root.querySelectorAll('*') : []; } catch (_) {}
-        for (const element of elements) if (element.shadowRoot) queue.push(element.shadowRoot);
+        for (const element of elements) {
+          if (element.shadowRoot && queue.length + discovered.length < maxRoots) queue.push(element.shadowRoot);
+        }
       }
       for (const root of discovered) state.roots.add(root);
       return discovered;
@@ -962,38 +960,8 @@ function pageApplyScript(payload = {}) {
       return count;
     };
     const clearFailure = (ref) => { ref.failureBadge?.remove?.(); ref.failureBadge = null; };
-    let persistedTranslations = null;
-    let persistedTranslationsDirty = false;
-    const persistTranslation = (ref) => {
-      try {
-        const page = String(location.origin || '') + String(location.pathname || '') + String(location.search || '');
-        const target = String(input?.targetLanguage || state.config?.targetLanguage || '');
-        const sourceText = String(ref.originals.join('')).normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 2000);
-        const memoryVersion = String(input?.memoryVersion || state.config?.memoryVersion || '');
-        if (persistedTranslations === null) {
-          const rows = JSON.parse(sessionStorage.getItem('whisperPageTranslate:v2') || '[]');
-          persistedTranslations = Array.isArray(rows) ? rows : [];
-        }
-        const next = persistedTranslations.filter((row) => !(row?.page === page && row?.target === target
-          && row?.memoryVersion === memoryVersion && row?.source === sourceText && row?.tag === ref.tag
-          && row?.role === ref.role && row?.section === ref.section));
-        next.push({ page, target, memoryVersion, source: sourceText, tag: ref.tag || '', role: ref.role || '',
-          section: ref.section || 'Genel', translation: String(ref.translation || '').slice(0, 12000) });
-        persistedTranslations = next.slice(-300);
-        persistedTranslationsDirty = true;
-      } catch (_) {}
-    };
-    const flushPersistedTranslations = () => {
-      if (!persistedTranslationsDirty || !Array.isArray(persistedTranslations)) return;
-      try {
-        for (const limit of [300, 120, 40]) {
-          try {
-            sessionStorage.setItem('whisperPageTranslate:v2', JSON.stringify(persistedTranslations.slice(-limit)));
-            break;
-          } catch (_) {}
-        }
-      } catch (_) {}
-    };
+    const persistTranslation = () => {};
+    const flushPersistedTranslations = () => {};
     state.markFailure = (id, message = '') => {
       const ref = state.refs.get(String(id || ''));
       if (!ref || state.latestIdByRoot?.get(ref.root) !== ref.id) return false;
@@ -1053,6 +1021,7 @@ function pageApplyScript(payload = {}) {
       const hideTools = () => {
         if (state.editInput) return;
         tools.hidden = true;
+        restoreView(state.hoveredRef);
         state.hoveredRef = null;
       };
       const startEdit = (ref, memoryScope) => {
@@ -1078,9 +1047,10 @@ function pageApplyScript(payload = {}) {
         tools.hidden = false;
         state.editInput = input;
         input.addEventListener('keydown', (event) => {
+          if (!event.isTrusted) return;
           if (event.key === 'Escape') { event.preventDefault(); cancel.click(); }
           else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-            event.preventDefault(); save.click();
+            event.preventDefault(); state.trustedPageActionButton = save; save.click();
           }
         });
         input.focus(); input.select();
@@ -1106,6 +1076,9 @@ function pageApplyScript(payload = {}) {
       document.addEventListener?.('click', (event) => {
         const button = event.target?.closest?.('[data-whisper-action]');
         if (!button) return;
+        const trustedKeyboardActivation = state.trustedPageActionButton === button;
+        state.trustedPageActionButton = null;
+        if (!event.isTrusted && !trustedKeyboardActivation) return;
         const ref = button.getAttribute?.('data-whisper-id')
           ? state.refs.get(button.getAttribute('data-whisper-id')) : state.hoveredRef;
         if (!ref) return;
@@ -1140,11 +1113,13 @@ function pageApplyScript(payload = {}) {
         }
       }, true);
       globalThis.addEventListener?.('keydown', (event) => {
+        if (!event.isTrusted) return;
         if (event.key === 'Alt' && !event.repeat && !/^(?:INPUT|TEXTAREA|SELECT)$/u.test(document.activeElement?.tagName || '')) {
           showOriginal(state.hoveredRef);
         }
       }, true);
       globalThis.addEventListener?.('keyup', (event) => {
+        if (!event.isTrusted) return;
         if (event.key === 'Alt') restoreView(state.hoveredRef);
       }, true);
       state.actionsInstalled = true;

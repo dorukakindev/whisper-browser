@@ -35,8 +35,19 @@ function registerBrowserFeatureServices(deps) {
   function save() {
     const target = dataPath();
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target + '.tmp', JSON.stringify(data()), 'utf8');
-    fs.renameSync(target + '.tmp', target);
+    const temp = `${target}.${randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temp, JSON.stringify(data()), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      fs.renameSync(temp, target);
+    } finally { try { fs.unlinkSync(temp); } catch {} }
+  }
+  function writeOwnedSubtitle(filePath, text) {
+    const temp = `${filePath}.${randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temp, '\uFEFF' + text, 'utf8');
+      fs.renameSync(temp, filePath);
+    } finally { try { fs.unlinkSync(temp); } catch {} }
+    grantSubtitle(filePath);
   }
   function keys(tab, seriesName) {
     const url = tab.view.webContents.getURL();
@@ -60,7 +71,10 @@ function registerBrowserFeatureServices(deps) {
   }
   async function bestFrame(tab) {
     const found = await Promise.all(frames(tab.view).map(async frame => ({ frame,
-      media: await frame.executeJavaScript(probeScript(), true).catch(() => null) })));
+      media: await Promise.race([
+        frame.executeJavaScript(probeScript(), true),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Video karesi taraması zaman aşımına uğradı.')), 5000)),
+      ]).catch(() => null) })));
     const best = rankCandidates(found)[0];
     if (!best) throw new Error('Sayfada görünür video bulunamadı.');
     return best.frame;
@@ -92,10 +106,18 @@ function registerBrowserFeatureServices(deps) {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const payload = input && typeof input === 'object' ? input : {};
     const tab = getTab(payload.tabId);
+    if (payload.action === 'cancel') {
+      if (!tab) return { ok: false, stale: true, error: 'Sekme artık bulunamıyor.' };
+      const targetAction = String(payload.targetAction || '').slice(0, 80);
+      if (targetAction) {
+        const targetKey = `${tab.id}:${targetAction}`;
+        jobs.get(targetKey)?.abort(); jobs.delete(targetKey);
+      } else cancel(tab, false);
+      return { ok: true };
+    }
     const valid = () => tab && tab === activeTab() && !tab.closing && tab.view && !tab.view.webContents.isDestroyed()
       && context(tab).generation === payload.generation && (context(tab).mediaId || '') === (payload.mediaId || '');
     if (!valid()) return { ok: false, stale: true, error: 'Video veya sekme değişti.' };
-    if (payload.action === 'cancel') { cancel(tab, false); return { ok: true }; }
     const key = `${tab.id}:${payload.action}`;
     jobs.get(key)?.abort();
     const controller = new AbortController(); jobs.set(key, controller);
@@ -123,12 +145,15 @@ function registerBrowserFeatureServices(deps) {
         }
         case 'encoding-apply': {
           const preview = encodingPreviews.get(tab.id);
-          if (!preview || preview.token !== payload.token || Date.now() - preview.created > 900000) throw new Error('Kodlama önizlemesini yeniden açın.');
+          if (!preview || preview.token !== payload.token || Date.now() - preview.created > 900000) {
+            if (preview && Date.now() - preview.created > 900000) encodingPreviews.delete(tab.id);
+            throw new Error('Kodlama önizlemesini yeniden açın.');
+          }
           const text = require('./subtitle-encoding-preview').decode(preview.bytes, payload.encoding);
           const parsed = require('./browser-subtitles').parseSubtitlePayload(text, '', 'subtitle' + preview.extension);
           if (!parsed.cues?.length) throw new Error('Bu kodlamayla altyazı okunamadı; başka kodlama seçin.');
           const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });
-          const filePath = path.join(directory, randomUUID() + preview.extension); fs.writeFileSync(filePath, '\uFEFF' + text); grantSubtitle(filePath);
+          const filePath = path.join(directory, randomUUID() + preview.extension); writeOwnedSubtitle(filePath, text);
           result = { filePath }; encodingPreviews.delete(tab.id); break;
         }
         case 'reference-open': {
@@ -168,7 +193,8 @@ function registerBrowserFeatureServices(deps) {
         case 'alignment-preview': {
           const file = await choose('Doğru zamanlı referans altyazıyı seç', ['srt', 'vtt', 'ass', 'ssa']); assertCurrent();
           if (fs.statSync(file).size > 8 * 1024 * 1024) throw new Error('Referans altyazı en fazla 8 MB olabilir.');
-          const parsed = require('./browser-subtitles').parseSubtitlePayload(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''), '', file);
+          const decoded = require('./browser-textutil').decodeSubtitleBuffer(fs.readFileSync(file)).text;
+          const parsed = require('./browser-subtitles').parseSubtitlePayload(decoded, '', file);
           result = await require('./browser-alignment').createBrowserAlignment({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath() })
             .align({ referenceCues: parsed.cues, targetCues: payload.cues }, { signal: controller.signal });
           break;
@@ -230,8 +256,10 @@ function registerBrowserFeatureServices(deps) {
           break;
         }
         case 'ass-clear': {
-          if (tab.assFrame) await tab.assFrame.executeJavaScript(require('./browser-ass-renderer').buildAssClearScript(), true);
-          tab.assFrame = null; break;
+          const frame = tab.assFrame;
+          try { if (frame) await frame.executeJavaScript(require('./browser-ass-renderer').buildAssClearScript(), true); }
+          finally { tab.assFrame = null; }
+          break;
         }
         case 'ocr-frame': {
           const image = await captureFrame(tab, false); assertCurrent();
@@ -255,7 +283,7 @@ function registerBrowserFeatureServices(deps) {
           try {
             const output = await tools().sceneStrip({ videoPath, outputDir }, { signal: controller.signal }); assertCurrent();
             result = { scenes: output.scenes.map(scene => ({ time: scene.time, thumbnail: `data:image/jpeg;base64,${fs.readFileSync(scene.thumbnailPath).toString('base64')}` })) };
-          } finally { fs.rmSync(outputDir, { recursive: true, force: true }); }
+          } finally { try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (_) {} }
           break;
         }
         case 'semantic-search': result = await tools().semanticSearch({ query: payload.query, cues: payload.cues }, { signal: controller.signal }); break;
@@ -264,24 +292,32 @@ function registerBrowserFeatureServices(deps) {
           const output = await subtitles.downloadSubtitle({ fileId: payload.fileId }, payload.config || {}, { signal: controller.signal }); assertCurrent();
           const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });
           const filePath = path.join(directory, `${randomUUID()}.${output.format === 'vtt' ? 'vtt' : 'srt'}`);
-          fs.writeFileSync(filePath, '\uFEFF' + output.text, 'utf8'); grantSubtitle(filePath);
+          writeOwnedSubtitle(filePath, output.text);
           result = { filePath, fileName: output.fileName }; break;
         }
         case 'skip-list': {
           const identity = keys(tab, payload.seriesName);
-          if (typeof payload.seriesName === 'string') { associate(identity); save(); }
+          result = { ...identity, records: visibleRecords(identity) }; break;
+        }
+        case 'skip-link-series': {
+          const identity = keys(tab, payload.seriesName);
+          if (!identity.seriesKey) throw new Error('Dizi adı gerekli.');
+          associate(identity); save();
           result = { ...identity, records: visibleRecords(identity) }; break;
         }
         case 'skip-save': {
           const identity = keys(tab, payload.seriesName), raw = payload.record || {};
-          const existing = data().records.find(record => record.id === raw.id);
+          const normalizedId = String(raw.id || '').trim().slice(0, 128);
+          const existing = data().records.find(record => record.id === normalizedId);
           if (existing && existing.scopeKey !== identity.mediaKey && existing.scopeKey !== identity.seriesKey) throw new Error('Bu kayıt başka videoya ait.');
           const scope = raw.scope === 'series' ? 'series' : 'media';
           const record = skips.normalizeRecord({ ...raw, id: raw.id || randomUUID(), scope,
             scopeKey: scope === 'series' ? identity.seriesKey : identity.mediaKey });
           if (!record) throw new Error('Geçerli başlangıç/bitiş süresi ve dizi adı girin.');
           if (!existing && data().records.length >= 500) throw new Error('500 aralık sınırına ulaşıldı. Önce kullanılmayan bir kaydı silin.');
-          data().records = skips.upsertRecord(data().records, record).records; associate(identity); save();
+          data().records = skips.upsertRecord(data().records, record).records;
+          if (scope === 'series' && typeof payload.seriesName === 'string') associate(identity);
+          save();
           result = { ...identity, records: visibleRecords(identity) }; break;
         }
         case 'skip-delete': {

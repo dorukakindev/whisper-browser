@@ -7,8 +7,9 @@ const { spawn } = require('node:child_process');
 function run(executable, args, input, signal, timeoutMs = 120000) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
-    const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' } });
+    const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
+    delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
+    const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env });
     const output = []; let size = 0; let errorText = ''; let settled = false;
     const finish = (error, value) => {
       if (settled) return;

@@ -210,7 +210,7 @@ t('geçici sohbet verisi benzersiz dosyada tutulur ve tüm iş bitiş yollarınd
   ok(/Buffer\.byteLength\(chatPayload, 'utf8'\) > 8 \* 1024 \* 1024/.test(body),
     'sohbet geçici dosyasında güvenli boyut sınırı yok');
   ok(/mode:\s*0o600/.test(body), 'sohbet geçici dosyası kısıtlı izinle yazılmıyor');
-  ok(/catch \(err\) \{[\s\S]{0,320}cleanupChatFile\(\);\s*return \{ ok: false, error: `Python başlatılamadı/.test(body),
+  ok(/catch \(err\) \{[\s\S]{0,400}cleanupFailedJobStart\(\);\s*return \{ ok: false, error: `Python başlatılamadı/.test(body),
     'spawn hatasında sohbet dosyası silinmiyor');
   const closeBody = body.slice(body.indexOf("activeJob.on('close'"), body.indexOf("activeJob.on('error'"));
   const errorBody = body.slice(body.indexOf("activeJob.on('error'"), body.indexOf('startPowerBlocker()', body.indexOf("activeJob.on('error'")));
@@ -224,6 +224,8 @@ t('çökmeden kalan sohbet dosyaları açılışta ve dar hedefle temizlenir', (
   const sweep = msrc.slice(sweepStart, sweepEnd);
   ok(sweepStart >= 0, 'sohbet artık temizleyicisi yok');
   ok(/\^chat-\[0-9a-f\]/.test(sweep), 'temizlik tüm tmp klasörünü hedefliyor');
+  ok(/\^job-\[a-z0-9\]\+/.test(sweep) && /fs\.rmSync\(target, \{ recursive: true, force: true \}\)/.test(sweep),
+    'çökmeden kalan sahipli job klasörleri dar ad alanıyla temizlenmiyor');
   ok(/sweepStaleChatFiles\(\);/.test(msrc.slice(msrc.indexOf('app.whenReady()'))),
     'sohbet artığı açılışta temizlenmiyor');
 });

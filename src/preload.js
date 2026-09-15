@@ -33,7 +33,11 @@ contextBridge.exposeInMainWorld('api', {
   updateWatchItem: (item) => ipcRenderer.invoke('library:upsert', item),
   removeWatchItem: (key) => ipcRenderer.invoke('library:remove', key),
   saveWatchItemBeforeClose: (item) => ipcRenderer.sendSync('library:upsert-before-close', item),
-  onWatchFlushBeforeClose: (callback) => ipcRenderer.on('library:flush-before-close', (_event, token) => callback(token)),
+  onWatchFlushBeforeClose: (callback) => {
+    const listener = (_event, token) => callback(token);
+    ipcRenderer.on('library:flush-before-close', listener);
+    return () => ipcRenderer.removeListener('library:flush-before-close', listener);
+  },
   finishWatchFlushBeforeClose: (token) => ipcRenderer.send('library:flush-before-close-complete', token),
   searchWatchLibrary: (query) => ipcRenderer.invoke('library:search', query),
   cancelWatchLibrarySearch: () => ipcRenderer.send('library:search-cancel'),
@@ -70,7 +74,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('watch:newFiles', listener);
     return () => ipcRenderer.removeListener('watch:newFiles', listener);
   },
-  onMediaEvent: (cb) => ipcRenderer.on('media:event', (_e, data) => cb(data)),
+  onMediaEvent: (cb) => {
+    const listener = (_event, data) => cb(data);
+    ipcRenderer.on('media:event', listener);
+    return () => ipcRenderer.removeListener('media:event', listener);
+  },
+  authorizeWatchItem: (key) => ipcRenderer.invoke('library:authorizeItem', key),
   showBrowser: (tabId, bounds) => ipcRenderer.invoke('browser:show', { tabId, bounds }),
   getBrowserGpuDiagnostics: () => ipcRenderer.invoke('browser:gpuDiagnostics'),
   hideBrowser: () => ipcRenderer.invoke('browser:hide'),

@@ -101,6 +101,23 @@ async function test(name, fn) {
     await first;
   });
 
+  await test('bekleyen komut sırasında iptal edilen tek adım tamamlandı sayılmaz', async () => {
+    const player = new BrowserWorkflowPlayer();
+    const context = { tabId: 'a', generation: 1, mediaId: 'video-a' };
+    let release;
+    const playing = player.play({ mediaIdentity: 'video-a', steps: [
+      { command: 'setSubtitleMode', args: { mode: 'source' } },
+    ] }, {
+      getContext: () => context,
+      execute: () => new Promise((resolve) => { release = resolve; }),
+    });
+    await Promise.resolve();
+    assert.equal(player.cancel('Kullanıcı iptal etti.'), true);
+    release();
+    await assert.rejects(playing, (error) => error.code === 'EWORKFLOW_ABORTED');
+    assert.equal(player.playing, false);
+  });
+
   await test('workflow kitaplığı bozuk adımları atar ve sınırlı kalır', () => {
     const rows = Array.from({ length: MAX_SAVED_WORKFLOWS + 5 }, (_, index) => ({
       id: `w-${index}`, createdAt: index, mediaIdentity: 'video',

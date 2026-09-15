@@ -26,7 +26,8 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 function register(channel, context) {
   let callback;
   vm.runInNewContext(handlers.get(channel), { burninStartPending: false, ...context, ipcMain: { handle: (name, fn) => {
-    assert.equal(name, channel); assert.equal(callback, undefined); callback = fn;
+    if (name !== channel) return;
+    assert.equal(callback, undefined); callback = fn;
   } } });
   return callback;
 }
@@ -172,6 +173,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     try {
       const opened = [];
       const handler = register('shell:openPath', { authorizedBrowserSender: auth, canonicalLocalPath, fs,
+        shellTargetAccess: new Set(), watchFolderAccess: new Set(),
+        subtitleFileAccess: { has: () => false }, mediaFileAccess: { has: () => false },
+        mainWindow: {}, dialog: { showMessageBox: async () => ({ response: 1 }) },
         shell: { openPath: async (file) => { opened.push(file); return ''; } } });
       for (const name of ['run.exe', 'run.cmd', 'run.ps1', 'shortcut.lnk']) {
         const file = path.join(dir, name); fs.writeFileSync(file, 'not executable');

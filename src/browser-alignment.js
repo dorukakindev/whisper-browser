@@ -18,7 +18,7 @@ function validateCues(cues) {
 function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
   const script = path.resolve(__dirname, '..', 'backend', 'browser_align.py');
   return {
-    align({ referenceCues, targetCues }, { signal } = {}) {
+    align({ referenceCues, targetCues }, { signal, timeoutMs = 120000 } = {}) {
       const reference = validateCues(referenceCues);
       const target = validateCues(targetCues);
       const payload = JSON.stringify({ referenceCues: reference, targetCues: target });
@@ -27,19 +27,25 @@ function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
       if (signal?.aborted) return Promise.reject(new Error('İşlem iptal edildi.'));
       return new Promise((resolve, reject) => {
         const env = { ...process.env };
+        env.PYTHONIOENCODING = 'utf-8'; env.PYTHONUTF8 = '1';
+        delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
         if (ffmpegPath) env.PATH = `${path.dirname(ffmpegPath)}${path.delimiter}${env.PATH || ''}`;
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-align-job-'));
         env.WHISPER_ALIGN_TMPDIR = tempRoot;
         const child = spawn(pythonPath, [script], { env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
         let stdout = '', stderr = '', settled = false;
+        let timer = null;
         const abort = () => { child.kill(); finish(new Error('İşlem iptal edildi.')); };
         const finish = (error, value) => {
           if (settled) return;
           settled = true;
+          if (timer) clearTimeout(timer);
           signal?.removeEventListener('abort', abort);
           if (error) reject(error); else resolve(value);
         };
         signal?.addEventListener('abort', abort, { once: true });
+        timer = setTimeout(() => { child.kill(); finish(new Error('Altyazı eşleme işlemi zaman aşımına uğradı.')); },
+          Math.max(1000, Math.min(600000, Number(timeoutMs) || 120000)));
         child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
         child.stdout.on('data', chunk => {
           stdout += chunk;

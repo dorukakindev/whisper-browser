@@ -23,4 +23,11 @@ assert.equal(issues([{channel:'primary',role:'source',cues:many},{channel:'secon
 const manyEdits=many.slice(0,1000).map(base=>({base,edited:{...base,text:'Düzeltilmiş'}}));
 assert.equal(reconcile(many,manyEdits).cues.filter(cue=>cue.text==='Düzeltilmiş').length,1000);
 assert.equal(reconcile([base],[record,record]).conflicts.length,1);
+const hostile = reconcile([{...base,cueId:'one',assLead:'safe',assFieldCount:10}], [{
+  cueId:'one', base, edited:{...edited,assLead:'injected',assFieldCount:1,cueId:'poison',text:'Düzeltme\n\n2\n00:00:00,000 --> 99:00:00,000'},
+}]).cues[0];
+assert.equal(hostile.assLead,'safe');
+assert.equal(hostile.assFieldCount,10);
+assert.equal(hostile.cueId,'one');
+assert.equal(hostile.text,'Kaynak');
 console.log('Kaynak yenileme, çakışma, belirsiz eşleme, bozuk kayıt ve 20.000 satır kalite denetimi geçti.');

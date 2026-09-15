@@ -69,8 +69,18 @@
     if (state.importData?.token) void window.api?.mediaCatalog?.({ action: state.importData.action === 'folder-preview' ? 'extension-cancel' : 'import-cancel', token: state.importData.token }).catch(() => {});
     state.importData = null; state.importIds.clear();
   }
-  function close() { state.credential = ''; cancelImport(); dialog.close(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); state.mode = 'list'; state.selected = null; state.removeId = null; }
-  function show(id) { state.removeId = null; state.selected = id; state.mode = 'detail'; render(); }
+  function cancelPreviewTokens() {
+    for (const token of [state.metadata?.token, state.seasonData?.token, state.packageData?.token]) {
+      if (token) void window.api?.mediaCatalog?.({ action: 'extension-cancel', token }).catch(() => {});
+    }
+    state.metadata = null; state.seasonData = null; state.packageData = null;
+  }
+  function close() { state.credential = ''; cancelImport(); cancelPreviewTokens(); dialog.close(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); state.mode = 'list'; state.selected = null; state.removeId = null; }
+  function show(id) {
+    state.removeId = null; state.selected = id; state.mode = 'detail';
+    state.seasonData = null; state.metadata = null; state.metadataResults = []; state.packageData = null;
+    render();
+  }
   function formField(label, value, change, options = {}) {
     const wrap = $('label', 'mc-field'); wrap.append($('span', '', label));
     const input = options.multiline ? $('textarea') : $('input');
@@ -424,6 +434,6 @@
     dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
     state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus(); await reload();
   });
-  dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
+  dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });
 })();

@@ -42,10 +42,17 @@ function client(url) {
       socket.addEventListener('open', resolve, { once: true });
       socket.addEventListener('error', reject, { once: true });
     }),
-    call(method, params = {}) {
+    call(method, params = {}, timeoutMs = 15000) {
       return new Promise((resolve, reject) => {
         const requestId = ++id;
-        pending.set(requestId, { resolve, reject });
+        const timer = setTimeout(() => {
+          pending.delete(requestId);
+          reject(new Error(`CDP çağrısı zaman aşımına uğradı: ${method}`));
+        }, timeoutMs);
+        pending.set(requestId, {
+          resolve: (value) => { clearTimeout(timer); resolve(value); },
+          reject: (error) => { clearTimeout(timer); reject(error); },
+        });
         socket.send(JSON.stringify({ id: requestId, method, params }));
       });
     },

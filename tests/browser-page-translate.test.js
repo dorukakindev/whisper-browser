@@ -195,10 +195,12 @@ assert.doesNotMatch(pageContextScript(), /noscript,code,pre,textarea/,
 assert.match(pageBlockScanScript(), /blocks\.sort\(\(a, b\) => a\.order - b\.order\)/,
   'görünürlük seçimi sonrasında LLM blokları belge sırasına dönmeli');
 assert.match(pageBlockScanScript({ excludedSelectors: ['.comments', '.ads'] }), /matchesExtraExcluded/);
-assert.match(pageApplyScript({ targetLanguage: 'tr' }), /sessionStorage/);
+assert.doesNotMatch(pageApplyScript({ targetLanguage: 'tr' }), /sessionStorage/);
 assert.match(pageMemoryClearScript(), /removeItem/);
 assert.match(pageApplyScript({}), /hideTools/);
 assert.match(pageApplyScript({}), /pointerout/);
+assert.match(pageApplyScript({}), /restoreView\(state\.hoveredRef\);[\s\S]{0,80}state\.hoveredRef = null/,
+  'araç kutusu kapanırken Alt kaynak önizlemesi takılı kalmamalı');
 assert.match(pageApplyScript({}), /whisperPendingId/);
 assert.doesNotMatch(pageApplyScript({}), /globalThis\.prompt/,
   'Electron web içeriğinde desteklenmeyen prompt kullanılmamalı');
@@ -330,7 +332,7 @@ const memoryRows = JSON.stringify([{
   page: 'https://example.com/article?v=1', target: 'tr', memoryVersion: 'm',
   source: 'Merhaba dünya.', tag: 'p', role: 'article', section: 'Genel', translation: 'Hello world.',
 }]);
-const memoryStorage = { getItem: () => memoryRows };
+const memoryStorage = { getItem: () => { throw new Error('Sayfa yazılabilir sessionStorage okunmamalı'); } };
 const memoryContext = (search) => ({
   window: {}, document: fakeDocument, NodeFilter: { SHOW_TEXT: 4 }, innerHeight: 600,
   location: { origin: 'https://example.com', pathname: '/article', search },
@@ -343,8 +345,8 @@ assert.equal(vm.runInNewContext(pageBlockScanScript({
 'farklı query parametreli sayfa çeviri belleğini paylaşmamalı');
 assert.equal(vm.runInNewContext(pageBlockScanScript({
   preview: true, observe: false, targetLanguage: 'tr', memoryVersion: 'm',
-}), memoryContext('?v=1')).restoredTranslations.length, 1,
-'aynı query parametreli sayfa çevirisi geri yüklenmeli');
+}), memoryContext('?v=1')).restoredTranslations.length, 0,
+'sayfa yazılabilir sessionStorage çeviri belleği güvenilir veri olarak geri yüklenmemeli');
 
 const sourceElement = {
   tagName: 'P', textContent: 'Kaynak paragraf metni.', isConnected: true, style: {},

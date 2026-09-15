@@ -12,8 +12,11 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   const store = () => catalog ||= require('./media-catalog-store').createMediaCatalogStore({ filePath: path.join(userData(), 'media-catalog.json') });
   const sourceKey = source => source ? canonicalWatchKey(source.type === 'local'
     ? 'file:' + source.value : 'browser:' + source.value) : '';
+  const historyIndex = history => new Map((Array.isArray(history) ? history : [])
+    .map(item => [canonicalWatchKey(item.key), item]));
   const progress = (source, history) => {
-    const found = history.find(item => canonicalWatchKey(item.key) === sourceKey(source));
+    const found = history instanceof Map ? history.get(sourceKey(source))
+      : (Array.isArray(history) ? history.find(item => canonicalWatchKey(item.key) === sourceKey(source)) : null);
     return found ? { position: Number(found.position) || 0, duration: Number(found.duration) || 0, completed: !!found.completed } : null;
   };
   function visible(item, history = watchItems()) {
@@ -35,7 +38,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     if (!filePath) return '';
     try {
       const real = fs.realpathSync(filePath), stat = fs.statSync(real);
-      if (!stat.isFile() || stat.size > 8 * 1024 * 1024 || !/\.(png|jpe?g|webp)$/i.test(real)) return '';
+      if (!stat.isFile() || stat.size > 8 * 1024 * 1024 || !/\.(png|jpe?g|webp|avif)$/i.test(real)) return '';
       const key = `${real}|${stat.mtimeMs}|${stat.size}`;
       if (posterCache.has(key)) return posterCache.get(key);
       const img = nativeImage.createFromPath(real);
@@ -47,13 +50,22 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       return image;
     } catch { return ''; }
   }
+  function removeOwnedPoster(filePath) {
+    if (!filePath) return false;
+    try {
+      const real = fs.realpathSync(filePath);
+      const folder = fs.realpathSync(path.join(userData(), 'catalog-posters'));
+      if (path.dirname(real).toLowerCase() !== folder.toLowerCase()) return false;
+      fs.unlinkSync(real); return true;
+    } catch { return false; }
+  }
   function patchSource(id, episodeId, source) {
     const item = found(id);
     if (!episodeId) return store().upsert({ id, source });
     if (!item.episodes.some(ep => ep.id === episodeId)) throw new Error('Bölüm bulunamadı.');
     return store().upsert({ id, episodes: item.episodes.map(ep => ep.id === episodeId ? { ...ep, source } : ep) });
   }
-  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore });
+  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster });
   ipcMain.handle('media-catalog:request', async (event, request) => {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const input = request && typeof request === 'object' ? request : {};
@@ -62,7 +74,8 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       switch (input.action) {
         case 'list': {
           const history = watchItems();
-          return { ok: true, items: store().list().map(item => visible(item, history)), watchItems: history };
+          const index = historyIndex(history);
+          return { ok: true, items: store().list().map(item => visible(item, index)) };
         }
         case 'save': {
           const raw = input.item || input.patch || {};
@@ -79,7 +92,12 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           }
           return { ok: true, item: visible(store().upsert(patch)) };
         }
-        case 'remove': found(input.id); store().remove(input.id); return { ok: true };
+        case 'remove': {
+          const previous = found(input.id);
+          store().remove(input.id);
+          removeOwnedPoster(previous.posterPath);
+          return { ok: true };
+        }
         case 'source-file': {
           found(input.id);
           const file = await choose('Oynatılacak video dosyasını seç', ['mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v', 'ts']);
@@ -103,7 +121,12 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const folder = path.join(userData(), 'catalog-posters'); fs.mkdirSync(folder, { recursive: true });
           const target = path.join(folder, randomUUID() + '.png');
           fs.writeFileSync(target, nativeImage.createFromDataURL(image).toPNG());
-          try { return { ok: true, item: { ...visible(store().upsert({ id: input.id, posterPath: target })), posterImage: image } }; }
+          const previousPoster = found(input.id).posterPath;
+          try {
+            const saved = store().upsert({ id: input.id, posterPath: target });
+            if (previousPoster && previousPoster !== target) removeOwnedPoster(previousPoster);
+            return { ok: true, item: { ...visible(saved), posterImage: image } };
+          }
           catch (error) { fs.unlinkSync(target); throw error; }
         }
         case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath) };

@@ -7,6 +7,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+if hasattr(sys.stdin, "reconfigure"):
+    sys.stdin.reconfigure(encoding="utf-8")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 
 def valid_cues(raw):
     if not isinstance(raw, list) or not 3 <= len(raw) <= 10000:
@@ -31,13 +38,20 @@ def overlap_score(reference, candidate):
     if not total:
         return 0.0
     overlap = 0.0
+    ref_index = 0
     for start, end in candidate:
-        for rs, re in ref:
+        while ref_index < len(ref) and ref[ref_index][1] <= start:
+            ref_index += 1
+        index = ref_index
+        while index < len(ref):
+            rs, re = ref[index]
             if re <= start:
+                index += 1
                 continue
             if rs >= end:
                 break
             overlap += max(0.0, min(end, re) - max(start, rs))
+            index += 1
     return min(1.0, overlap / total)
 
 

@@ -236,7 +236,7 @@ function controllerBootstrap() {
     }
 
     const observeRoot = (root) => {
-      if (!root || observers.has(root)) return;
+      if (!root || observers.has(root) || observers.size >= 128) return;
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) scan(node);

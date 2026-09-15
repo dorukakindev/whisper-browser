@@ -5,6 +5,7 @@
   const $ = (id) => document.getElementById(id);
   let sequence = 0;
   let busy = false;
+  let activeAction = '';
   let frameImage = null;
   let skipRecords = [];
   let skipKeys = { mediaKey: '', seriesKey: '' };
@@ -42,6 +43,7 @@
     if (!ctx) { status('Önce tarayıcıda bir video açın.', true); return null; }
     if (typeof window.api.browserExtras !== 'function') { status('Bu araç henüz kullanılamıyor.', true); return null; }
     const seq = ++sequence;
+    activeAction = action;
     setBusy(true);
     status(action === 'semantic-search' ? 'Anlamsal model ilk kullanımda indirilebilir; arama birkaç dakika sürebilir.' : 'İşleniyor…');
     try {
@@ -57,7 +59,7 @@
       if (current(ctx, seq)) status(error?.message || 'İşlem tamamlanamadı.', true);
       return null;
     } finally {
-      if (current(ctx, seq)) setBusy(false);
+      if (current(ctx, seq)) { activeAction = ''; setBusy(false); }
     }
   }
   function seek(time) {
@@ -228,7 +230,7 @@
   }
   async function linkSeries() {
     if (!val('bfSeriesName')) { status('Önce dizi adını girin.', true); $('bfSeriesName').focus(); return; }
-    const result = await call('skip-list', { seriesName: val('bfSeriesName') });
+    const result = await call('skip-link-series', { seriesName: val('bfSeriesName') });
     if (result) { applySkips(result); status('Bu video dizi aralıklarına bağlandı.'); }
   }
   async function backgroundSkips(ctx, key) {
@@ -281,7 +283,8 @@
     if (!action) return;
     if (action === 'cancel') {
       sequence++; setBusy(false); status('İşlem durduruluyor…');
-      const ctx = context(); if (ctx) window.api.browserExtras({ action: 'cancel', ...ctx }).catch(() => {});
+      const ctx = context(); if (ctx) window.api.browserExtras({ action: 'cancel', targetAction: activeAction, ...ctx }).catch(() => {});
+      activeAction = '';
       return;
     }
     if (busy) return;
@@ -307,8 +310,11 @@
     else { const result = await call(action); if (result && action.startsWith('ass-load')) status(`ASS görünümü açıldı · ${result.fontCount || 0} ek font.`); }
   });
   root.addEventListener('toggle', () => { if (root.open && context()) void listSkips(); });
+  document.addEventListener('browser-skips-changed', (event) => {
+    if (event.detail?.ok !== false) applySkips(event.detail);
+  });
   root.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' || event.isComposing) return;
+    if (event.key !== 'Enter' || event.isComposing || busy) return;
     if (event.target.id === 'bfSemanticQuery') { event.preventDefault(); void semanticSearch(); }
     if (event.target.id === 'bfTitle') { event.preventDefault(); void searchSubtitles(); }
   });

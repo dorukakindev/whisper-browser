@@ -147,7 +147,7 @@ async function restorePersistedQueue() {
       $('cancelBtn').classList.remove('hidden');
       logLine(`Çalışan kuyruk işine yeniden bağlanıldı: ${active.label}`, 'success');
     } else {
-      state.queueRunning = false;
+      state.queueRunning = !!restored.queueRunning && state.queue.some((item) => item.status === 'pending');
       state.currentQueueId = null;
       state.activeJobId = null;
       const recovered = Number(restored.recoveredCount) || state.queue.filter((item) => item.recovered).length;
@@ -155,6 +155,7 @@ async function restorePersistedQueue() {
         setJobsTab('queue');
         logLine(`${recovered} yarım kuyruk işi kurtarıldı. Devam etmek için “Kuyruğu başlat”ı kullanın.`, 'warn');
       }
+      if (state.queueRunning) setTimeout(() => processNextQueueItem(), 500);
     }
     const invalid = Number(restored.invalidCount) || 0;
     if (invalid) {
@@ -432,16 +433,27 @@ async function startTranscribeSafe(opts, requestedJobId = null) {
 
 function queueInputKey(type, input) {
   const value = String(input || '').trim();
+  if (type === 'youtube') return mediaKeyFor('youtube', value);
   return type === 'file' ? value.replace(/\\/g, '/').toLowerCase() : value;
 }
 
 function addToQueue(type, input, { watchSource = false } = {}) {
   if (!input) return false;
   const inputKey = queueInputKey(type, input);
-  const existing = state.queue.find((item) => ['pending', 'running'].includes(item.status)
-    && queueInputKey(item.type, item.input) === inputKey);
+  const existing = state.queue.find((item) => (
+    ['pending', 'running'].includes(item.status)
+      || (watchSource && item.watchSource && item.status === 'error')
+  ) && queueInputKey(item.type, item.input) === inputKey);
   if (existing) {
     if (watchSource) existing.watchSource = true;
+    if (watchSource && existing.status === 'error') {
+      existing.status = 'pending';
+      existing.files = [];
+      existing.error = '';
+      existing.watchReported = '';
+      renderQueue();
+      return true;
+    }
     return false;
   }
   const opts = buildOptsFromUI();
@@ -453,6 +465,9 @@ function addToQueue(type, input, { watchSource = false } = {}) {
   if (problem) {
     logLine(`Kuyruğa eklenmedi — ${problem}`, 'error');
     showJobValidation(problemInfo);
+    if (watchSource && window.api.reportWatchFile) {
+      window.api.reportWatchFile(input, 'error').catch(() => {});
+    }
     return false;
   }
   clearJobValidation();
@@ -667,15 +682,14 @@ async function processNextQueueItem() {
   opts.queueItemId = next.id;
   const problemInfo = optsProblemInfo(opts);
   if (problemInfo) {
-    next.status = 'pending';
-    state.queueRunning = false;
+    next.status = 'error';
+    next.error = problemInfo.message;
     state.currentQueueId = null;
     state.running = false;
     renderQueue();
     showJobValidation(problemInfo);
     logLine(`Kurtarılan kuyruk işi başlatılamadı — ${problemInfo.message}`, 'error');
-    $('startBtn').classList.remove('hidden');
-    $('cancelBtn').classList.add('hidden');
+    _queueNextTimer = setTimeout(() => { _queueNextTimer = null; processNextQueueItem(); }, 100);
     return;
   }
   if (next.type === 'youtube') { opts.youtube = next.input; state.lastJobVideo = null; }
@@ -697,6 +711,15 @@ async function processNextQueueItem() {
   const r = await startTranscribeSafe(opts);
   if (!r.ok) {
     logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${r.error}`, 'error');
+    state.currentQueueId = null;
+    if (/hâlâ kapanıyor|zaten çalışıyor/i.test(String(r.error || ''))) {
+      next.status = 'pending';
+      state.queueRunning = false;
+      state.running = false;
+      renderQueue();
+      logLine('Kuyruk, önceki işlem tamamen kapanana kadar duraklatıldı.', 'warn');
+      return;
+    }
     next.status = 'error';
     reportWatchQueueResult(next, 'error');
     renderQueue();
@@ -878,7 +901,7 @@ function resolveAppDialog(value) {
   if (resolve) resolve(value);
 }
 
-function openAppDialog({ title, description, confirmLabel, intent = 'danger', inputLabel = '', inputValue = '', onInput = null }) {
+function openAppDialog({ title, description, confirmLabel, intent = 'danger', inputLabel = '', inputValue = '', inputMaxLength = 0, onInput = null }) {
   if (_dialogResolve) resolveAppDialog(false);
   const modal = $('appDialog');
   const field = $('appDialogField');
@@ -890,6 +913,7 @@ function openAppDialog({ title, description, confirmLabel, intent = 'danger', in
   $('appDialogInputLabel').textContent = inputLabel || 'Değer';
   field.classList.toggle('hidden', !hasInput);
   input.value = hasInput ? inputValue : '';
+  input.maxLength = hasInput && Number.isInteger(inputMaxLength) && inputMaxLength > 0 ? inputMaxLength : -1;
   if (_dialogInputListener) input.removeEventListener('input', _dialogInputListener);
   _dialogInputListener = hasInput && typeof onInput === 'function'
     ? () => onInput(input.value) : null;
@@ -1114,6 +1138,8 @@ function clearPreview() {
   if ($('previewSearch')) $('previewSearch').value = '';
   $('previewSearchClear')?.classList.add('hidden');
   state.previewSegs = [];
+  playerPreviewUnmatchedEdits = [];
+  $('copyPreviewEdits')?.classList.add('hidden');
   _previewCapWarned = false;
   $('preview').innerHTML = `
     <div class="empty-state">
@@ -1353,6 +1379,8 @@ $('preview').addEventListener('keydown', (e) => {
 function enforcePreviewCap(preview) {
   let over = preview.childElementCount - PREVIEW_DOM_CAP;
   while (over-- > 0 && preview.firstElementChild) {
+    const focused = document.activeElement;
+    if (focused && preview.firstElementChild.contains(focused)) commitSegmentEdit(focused);
     preview.removeChild(preview.firstElementChild);
   }
   if (preview.childElementCount >= PREVIEW_DOM_CAP && !_previewCapWarned) {
@@ -1568,7 +1596,7 @@ if ($('pickWatchDir')) {
     if (!dir) return;
     state.watchDir = dir;
     $('watchDirPath').textContent = dir;
-    saveAppSettings();
+    scheduleSave();
     applyWatchState();
   });
 }
@@ -1579,7 +1607,7 @@ if ($('watchEnabled')) {
       $('watchEnabled').checked = false;
       return;
     }
-    saveAppSettings();
+    scheduleSave();
     applyWatchState();
   });
 }
@@ -1590,7 +1618,7 @@ if ($('watchEnabled')) {
   const el = $(id);
   if (!el) return;
   el.addEventListener('change', () => {
-    saveAppSettings();
+    scheduleSave();
     if ($('watchEnabled')?.checked && state.watchDir) applyWatchState();
   });
 });
@@ -2916,6 +2944,10 @@ $('startBtn').addEventListener('click', async () => {
 $('cancelBtn').addEventListener('click', async () => {
   // Kuyruk öğeleri arası boşlukta running=false ama queueRunning=true olabilir — yine de iptal et
   if (!state.running && !state.queueRunning && !(player.job?.kind==='chat'&&player.job.awaitingExit)) return;
+  if (!state.queueRunning && player.job?.kind === 'progressive') {
+    $('playerJobCancel')?.click();
+    return;
+  }
   state.cancelled = true;
   const aiJob = (state.aiJob||player.job?.awaitingExit) && player.job && ['chat', 'explain'].includes(player.job.kind)
     ? player.job : null;
@@ -3125,10 +3157,14 @@ async function finishProgressiveJob(job) {
   job.stage = 'Kaydediliyor';
   const edits = new Map(state.previewSegs.filter((seg) => seg.previewEdited).map((seg) => [previewTimeKey(seg), seg.text]));
   const editedSource = source.map((cue) => edits.has(previewTimeKey(cue)) ? { ...cue, text: edits.get(previewTimeKey(cue)) } : cue);
-  if (job.sourceFile && editedSource.length) await window.api.writeSubtitle(job.sourceFile, cuesToSrt(editedSource));
+  if (job.sourceFile && editedSource.length) {
+    const result = await window.api.writeSubtitle(job.sourceFile, cuesToSrt(editedSource));
+    if (!result?.ok) throw new Error(result?.error || 'Kaynak altyazı dosyası yazılamadı.');
+  }
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (job.translationFile && translated.length) {
-    await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
+    const result = await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
+    if (!result?.ok) throw new Error(result?.error || 'Çevrilmiş altyazı dosyası yazılamadı.');
     if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   }
   const selectionChanged = (job.selectedSubPath || '') !== (player.subPath || '')
@@ -3725,7 +3761,9 @@ async function locateMissingSubtitle(missingPath, secondary, role) {
 window.api.onEvent((event) => {
   // Kuyruk durdurulmuş veya yeni bir tekil iş başlamış olsa bile eski Python
   // sürecinden geç gelen terminal/progress olayı yeni arayüz durumuna sızmasın.
-  if (event.queueItemId != null && event.queueItemId !== state.currentQueueId) return;
+  const exitForActiveJob = event.type === 'exit' && event.jobId
+    && event.jobId === state.activeJobId;
+  if (event.queueItemId != null && event.queueItemId !== state.currentQueueId && !exitForActiveJob) return;
   // Etiketli olaylarda iş kimliği eşleşmiyorsa olay ölmüş bir işe aittir;
   // arayüze sızmasın. Etiketsiz olaylar (genel uyarı/günlük satırları) geçer —
   // aksi halde transkripsiyon dışı bildirimleri de düşürürdük.
@@ -3937,11 +3975,16 @@ window.api.onEvent((event) => {
         // Kullanıcı iptal etti — hata gibi gösterme
         state.cancelled = false;
         state.running = false;
+        const cancelledId = Number(event.queueItemId || state.currentQueueId);
+        const cancelledItem = state.queue.find((item) => item.id === cancelledId);
+        if (cancelledItem?.status === 'running') cancelledItem.status = 'pending';
         state.currentQueueId = null;
         state.awaitingExit = false;
         $('startBtn').classList.remove('hidden');
         $('cancelBtn').classList.add('hidden');
         setStatus('İptal edildi');
+        if (state.queueRunning) finalizeQueue();
+        renderQueue();
         break;
       }
       if (state.queueRunning && state.currentQueueId !== null) {
@@ -4212,8 +4255,10 @@ $('importSettings').addEventListener('click', async () => {
   if (s.hfToken !== undefined) $('hfToken').value = s.hfToken || '';
   state.inputDir = s.inputDir || null;
   state.outputDir = s.outputDir || null;
+  state.watchDir = s.watchDir || null;
   $('inputDir').textContent = s.inputDir || 'İndirilenler\\Whisper\\GİRDİ';
   $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
+  if ($('watchDirPath')) $('watchDirPath').textContent = state.watchDir || 'Klasör seçilmedi';
   if (s.llm) {
     if (s.llm.apiKey !== undefined && $('llmApiKey')) $('llmApiKey').value = s.llm.apiKey || '';
     if (s.llm.endpointPreset && $('llmEndpointPreset')) $('llmEndpointPreset').value = s.llm.endpointPreset;
@@ -4297,7 +4342,10 @@ $('pickSyncVideo').addEventListener('click', async () => {
 });
 
 $('pickSyncSrt').addEventListener('click', async () => {
-  const p = await window.api.selectFile('subtitle');
+  const p = await window.api.selectFile('subtitle').catch((error) => {
+    logLine(`Altyazı seçilemedi: ${error?.message || 'dosya iletişimi başarısız'}`, 'error');
+    return '';
+  });
   if (p) {
     state.syncSrt = p;
     $('syncSrtPath').textContent = p;
@@ -4420,6 +4468,7 @@ const player = {
   nativeChapters: [],
   browserSponsorChapters: [],
   hls: null,
+  hlsQualityPreference: null,
   hlsRecovery: window.WhisperHlsRecovery.createHlsRecoveryState(),
   isLive: false,
   downloading: false,
@@ -4732,6 +4781,8 @@ function saveLocalSubtitleWorkspace() {
     sub2Format: player.sub2Format, sub2Raw: player.sub2Raw,
     wordSegments: (player.wordSegments || []).slice(), wordSegments2: (player.wordSegments2 || []).slice(),
     offset: player.offset,
+    mediaKey: player.mediaKey, localPath: player.localPath,
+    originalUrl: player.originalUrl, ytInfo: player.ytInfo ? { ...player.ytInfo } : null,
   };
 }
 
@@ -4753,6 +4804,10 @@ function restoreLocalSubtitleWorkspace() {
   player.sub2Format = saved.sub2Format || 'srt';
   player.sub2Raw = saved.sub2Raw || '';
   player.offset = saved.offset;
+  player.mediaKey = saved.mediaKey || '';
+  player.localPath = saved.localPath || '';
+  player.originalUrl = saved.originalUrl || '';
+  player.ytInfo = saved.ytInfo ? { ...saved.ytInfo } : null;
   for (const [id, path, emptyLabel] of [
     ['playerSubSelect', saved.subPath, 'Altyazı yok'],
     ['playerSubSelect2', saved.sub2Path, 'Kapalı'],
@@ -4845,6 +4900,7 @@ function saveActiveBrowserTabWorkspace() {
     subtitles: player.subtitles.map((item) => ({ ...item })),
     subOrigins: { ...player.subOrigins },
     subPath: player.subPath, sub2Path: player.sub2Path,
+    subRole: player.subRole, sub2Role: player.sub2Role,
     subFormat: player.subFormat, subRaw: player.subRaw,
     sub2Format: player.sub2Format, sub2Raw: player.sub2Raw, offset: player.offset,
     viewMode: player.viewMode,
@@ -4990,6 +5046,8 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.subOrigins = { ...(tab.subOrigins || {}) };
   player.subPath = tab.subPath || '';
   player.sub2Path = tab.sub2Path || '';
+  player.subRole = tab.subRole === 'translation' ? 'translation' : 'source';
+  player.sub2Role = tab.sub2Role === 'source' ? 'source' : 'translation';
   player.subFormat = tab.subFormat || 'srt';
   player.subRaw = tab.subRaw || '';
   player.sub2Format = tab.sub2Format || 'srt';
@@ -5241,9 +5299,21 @@ async function executeRecordedBrowserWorkflowStep(step) {
   if (!track) throw new Error('Kaydedilen altyazı izi bu sayfada bulunamadı.');
   const select = $('browserTrackSelect');
   if (select) select.value = track.id;
-  if (step.command === 'loadSourceTrack') return useBrowserTrack(false, track.id);
-  if (step.command === 'translateTrack') return useBrowserTrack(true, track.id);
-  if (step.command === 'completeTranslation') return completeSelectedBrowserTranslation();
+  if (step.command === 'loadSourceTrack') {
+    await useBrowserTrack(false, track.id);
+    if (player.browserLoadedTrackId !== track.id) throw new Error('Kaynak altyazı izi yüklenemedi.');
+    return;
+  }
+  if (step.command === 'translateTrack') {
+    await useBrowserTrack(true, track.id);
+    if (player.browserTranslationTrackId !== track.id) throw new Error('Altyazı çevirisi başlatılamadı.');
+    return;
+  }
+  if (step.command === 'completeTranslation') {
+    const result = await completeSelectedBrowserTranslation();
+    if (!result?.ok) throw new Error(result?.error || 'Eksik çeviriler kuyruğa alınamadı.');
+    return;
+  }
   throw new Error('Desteklenmeyen workflow komutu.');
 }
 function startBrowserWorkflowRecording() {
@@ -5392,12 +5462,17 @@ async function executeBrowserCommandPalette(index = browserCommandPaletteState.s
     : !!current && current.id === browserCommandPaletteState.context?.tabId;
   if (!valid) { setBrowserSignal('Sekme veya medya değişti; komut yeniden seçilmeli.', false); closeBrowserCommandPalette(); return; }
   closeBrowserCommandPalette();
-  try {
-    await command.run();
-    if (recordedStep && browserWorkflowRecorder?.recording) {
-      browserWorkflowRecorder.record(recordedStep.command, recordedStep.args);
+  try { await command.run(); }
+  catch (error) { setBrowserSignal(`Komut çalıştırılamadı: ${error.message}`, false); return; }
+  if (recordedStep && browserWorkflowRecorder?.recording) {
+    try { browserWorkflowRecorder.record(recordedStep.command, recordedStep.args, currentBrowserWorkflowContext()); }
+    catch (error) {
+      const message = error?.code === 'EWORKFLOW_LIMIT'
+        ? 'Komut çalıştı ancak workflow kayıt sınırı dolduğu için kaydedilmedi.'
+        : `Komut çalıştı ancak workflow kaydına eklenemedi: ${error.message}`;
+      setBrowserSignal(message, false);
     }
-  } catch (error) { setBrowserSignal(`Komut çalıştırılamadı: ${error.message}`, false); }
+  }
 }
 if ($('browserCommandPaletteToggle')) $('browserCommandPaletteToggle').addEventListener('click', () => {
   const returnFocus = $('browserMoreMenu')?.querySelector('summary');
@@ -5435,11 +5510,14 @@ function updateBrowserZoomUi(rawZoom = player.browserZoom) {
 }
 
 async function changeBrowserZoom(command) {
+  const tabId = player.browserActiveTabId;
   const result = await browserCommand(command).catch(() => null);
   if (!result?.ok) {
     setBrowserSignal(result?.error || 'Sayfa yakınlaştırması değiştirilemedi.', false);
     return result;
   }
+  const tab = browserTabState(tabId);
+  if (!tab || player.browserActiveTabId !== tabId) return { ...result, stale: true };
   updateBrowserZoomUi(result.zoom);
   scheduleBrowserBounds();
   scheduleBrowserOverlaySync();
@@ -7206,6 +7284,7 @@ function clearBrowserTracks(message) {
   }
   player.browserPrepareSeq += 1;
   player.browserTranslatePreparing = false;
+  if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = false;
   Object.values(player.browserTrackRefreshTimers).forEach((timer) => clearTimeout(timer));
   player.browserTrackRefreshTimers = {};
   player.browserLoadedTrackId = '';
@@ -7698,10 +7777,15 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
     player.browserTranslatePreparing = true;
     if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = true;
     setBrowserSignal('Altyazı parçaları tamamlanıyor; son sürüm bekleniyor…', true);
-    track = await waitForBrowserTrackStable(track.id, prepareSeq);
-    if (prepareSeq !== player.browserPrepareSeq) return;
-    player.browserTranslatePreparing = false;
-    if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = false;
+    try {
+      track = await waitForBrowserTrackStable(track.id, prepareSeq);
+      if (prepareSeq !== player.browserPrepareSeq) return;
+    } finally {
+      if (prepareSeq === player.browserPrepareSeq) {
+        player.browserTranslatePreparing = false;
+        if ($('browserTrackTranslate')) $('browserTrackTranslate').disabled = false;
+      }
+    }
     if (!track || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   }
   addSubtitleOption(track.path, `Web · ${track.language || track.label}`);
@@ -7719,10 +7803,12 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
 
 async function completeSelectedBrowserTranslation() {
   const selected = browserTrackSelection(false);
-  if (!selected) return;
+  if (!selected) return { ok: false, error: 'Çevrilecek altyazı izi seçilmedi.' };
   if (selected.role === 'translation') {
     await loadPersistedBrowserTranslation(selected);
-    return;
+    return player.browserLoadedTrackId2 === selected.id
+      ? { ok: true, loaded: true }
+      : { ok: false, error: 'Kayıtlı çeviri izi yüklenemedi.' };
   }
   const tabId = player.browserActiveTabId;
   // Devam eden aynı izin scheduler'ını yeniden kurmak hazır sonuç Map'ini
@@ -7731,14 +7817,19 @@ async function completeSelectedBrowserTranslation() {
   if (!selected || player.browserTranslationTrackId !== selected.id) {
     await useBrowserTrack(true);
   }
-  if (player.browserActiveTabId !== tabId || player.browserTranslationTrackId !== selected.id) return;
+  if (player.browserActiveTabId !== tabId || player.browserTranslationTrackId !== selected.id) {
+    return { ok: false, error: 'Çeviri oturumu başlatılamadı veya medya değişti.' };
+  }
   const result = await window.api.completeBrowserTranslation?.(tabId).catch(() => null);
-  if (player.browserActiveTabId !== tabId || player.browserTranslationTrackId !== selected.id) return;
+  if (player.browserActiveTabId !== tabId || player.browserTranslationTrackId !== selected.id) {
+    return { ok: false, error: 'Çeviri tamamlanırken medya değişti.' };
+  }
   if (!result?.ok) {
     setBrowserSignal(result?.error || 'Tüm iz çeviri kuyruğuna alınamadı.', false);
-    return;
+    return { ok: false, error: result?.error || 'Tüm iz çeviri kuyruğuna alınamadı.' };
   }
   setBrowserSignal(`${Number(result.remaining || 0)} cümle arka planda tamamlanacak; oynatma çevresi öncelikli kalacak.`, true);
+  return { ok: true, remaining: Number(result.remaining || 0) };
 }
 
 async function startBrowserLiveTranslation(track, sourceLanguage = '') {
@@ -10778,7 +10869,11 @@ function runBrowserShortcut(key, shift = false) {
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
-  if (event.type === 'permission-request') { showBrowserPermissionPrompt(event); return; }
+  if (event.type === 'permission-request') {
+    if (player.workspaceMode === 'browser' && event.tabId === player.browserActiveTabId) showBrowserPermissionPrompt(event);
+    else void window.api.respondBrowserPermission?.(event.requestId, 'block-once').catch(() => null);
+    return;
+  }
   if (event.type === 'navigation' && event.loading && event.tabId) {
     const navigatingTab = browserTabState(event.tabId);
     if (navigatingTab) navigatingTab.readerActive = false;
@@ -10841,7 +10936,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const tab = browserTabState(event.tabId);
     if (!tab || !player.browserTabEventGate.accept(event)) return;
     tab.generation = Math.max(Number(tab.generation) || 0, Number(event.generation) || 0);
-    if (event.tabId !== player.browserActiveTabId) {
+    if (event.tabId !== player.browserActiveTabId || player.workspaceMode !== 'browser') {
       if (event.type === 'navigation') {
         const mediaChanged = tab.mediaId && event.mediaId
           ? tab.mediaId !== event.mediaId : !!event.url && event.url !== tab.url;
@@ -12294,7 +12389,7 @@ function replayCue() {
     return;
   }
   const video = $('playerVideo');
-  if (video && video.paused) video.play();
+  if (video && video.paused) video.play().catch(() => {});
 }
 
 async function copyCue() {
@@ -12398,6 +12493,62 @@ async function loadLearningAnnotations() {
   updateCueMeta();
 }
 
+const NOTE_DRAFT_MAX_LENGTH = 12000;
+const NOTE_DRAFT_MAX_COUNT = 50;
+const NOTE_DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function noteDraftVersion(annotation) {
+  return Number(annotation?.updatedAt || annotation?.createdAt || 0) || 0;
+}
+
+function cleanNoteDrafts() {
+  const now = Date.now();
+  const entries = [];
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith('browser-note-draft:') && !key?.startsWith('browser-note-edit-draft:')) continue;
+      let parsed = null;
+      try { parsed = JSON.parse(localStorage.getItem(key) || ''); } catch (_) {}
+      if (!parsed || typeof parsed !== 'object' || typeof parsed.value !== 'string'
+          || !Number.isFinite(parsed.at) || now - parsed.at > NOTE_DRAFT_MAX_AGE_MS) {
+        localStorage.removeItem(key);
+        continue;
+      }
+      entries.push([key, parsed.at]);
+    }
+    entries.sort((a, b) => b[1] - a[1]);
+    for (const [key] of entries.slice(NOTE_DRAFT_MAX_COUNT)) localStorage.removeItem(key);
+  } catch (_) {}
+}
+
+function readNoteDraft(key, annotation = null) {
+  cleanNoteDrafts();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '');
+    if (!parsed || typeof parsed.value !== 'string' || parsed.baseVersion !== noteDraftVersion(annotation)
+        || !Number.isFinite(parsed.at) || Date.now() - parsed.at > NOTE_DRAFT_MAX_AGE_MS) {
+      localStorage.removeItem(key);
+      return '';
+    }
+    return parsed.value.slice(0, NOTE_DRAFT_MAX_LENGTH);
+  } catch (_) {
+    try { localStorage.removeItem(key); } catch (_) {}
+    return '';
+  }
+}
+
+function writeNoteDraft(key, value, annotation = null) {
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      value: String(value || '').slice(0, NOTE_DRAFT_MAX_LENGTH),
+      baseVersion: noteDraftVersion(annotation),
+      at: Date.now(),
+    }));
+    cleanNoteDrafts();
+  } catch (_) {}
+}
+
 async function saveCueNote() {
   if (!player.mediaKey) {
     logLine('Not eklemek için önce bir video veya web içeriği açın.', 'warn');
@@ -12425,21 +12576,20 @@ async function saveCueNote() {
     && ((cueContext.trackId && cueContext.cueId && item.trackId === cueContext.trackId && item.cueId === cueContext.cueId)
       || ((!item.trackId || !item.cueId) && Math.abs(Number(item.start) - Number(cue.start)) < .05)));
   const draftKey = `browser-note-draft:${player.mediaKey}:${cueContext.trackId}:${cueContext.cueId}`;
-  let draft = '';
-  try { draft = localStorage.getItem(draftKey) || ''; } catch (_) {}
+  const draft = readNoteDraft(draftKey, existing);
   const note = await openAppDialog({
     title: existing ? 'Zaman notunu düzenle' : (activeCue ? 'Cümleye not ekle' : 'Bu ana not ekle'),
     description: `${pSecToTime(cue.start)} zamanına${activeCue ? ' ve etkin altyazı satırına' : ''} bağlı kalıcı bir not yaz. Yazarken taslak bu içeriğe özel olarak yerelde korunur.${player.workspaceMode === 'browser' && player.browserDuration <= 0 ? ' Canlı/DVR akışında dönüş için satır kimliği kullanılır; yayın penceresi değişirse zaman konumu yaklaşık olabilir.' : ''}`,
     confirmLabel: 'Notu kaydet', intent: 'primary', inputLabel: 'Not',
-    inputValue: draft || existing?.note || '',
-    onInput: (value) => { try { localStorage.setItem(draftKey, String(value)); } catch (_) {} },
+    inputValue: draft || existing?.note || '', inputMaxLength: NOTE_DRAFT_MAX_LENGTH,
+    onInput: (value) => writeNoteDraft(draftKey, value, existing),
   });
   if (note === false || !String(note).trim()) return;
   if (staleGeneration(generation) || player.mediaKey !== mediaKey) {
     logLine('Video değiştiği için eski videonun notu yeni oynatıcıya kaydedilmedi.', 'warn');
     return;
   }
-  try { localStorage.setItem(draftKey, String(note)); } catch (_) {}
+  writeNoteDraft(draftKey, note, existing);
   const result = await syncLearningAnnotation('note', cue, true, {
     id: existing?.id, createdAt: existing?.createdAt, note: String(note).trim(),
     source: cueContext.source, translation: cueContext.translation,
@@ -13790,14 +13940,24 @@ async function refreshEmbeddedSubtitleTracks(filePath) {
   $('playerEmbeddedSubLoad').disabled = !textCount;
 }
 
+let embeddedSubtitleLoadRequest = 0;
 async function loadSelectedEmbeddedSubtitle() {
   const select = $('playerEmbeddedSubSelect');
   const track = player.embeddedSubtitleTracks.find((item) => String(item.streamIndex) === select?.value);
   if (!track || !player.localPath) return;
+  const request = ++embeddedSubtitleLoadRequest;
+  const targetGeneration = currentGeneration();
+  const targetMediaKey = player.mediaKey;
+  const targetLocalPath = player.localPath;
   const button = $('playerEmbeddedSubLoad');
   if (button) button.disabled = true;
-  const result = await window.api.extractSubtitleTrack(player.localPath, track).catch((error) => ({ ok: false, error: error.message }));
-  if (button) button.disabled = false;
+  const result = await window.api.extractSubtitleTrack(targetLocalPath, track).catch((error) => ({ ok: false, error: error.message }));
+  if (request === embeddedSubtitleLoadRequest && button) button.disabled = false;
+  if (request !== embeddedSubtitleLoadRequest || staleGeneration(targetGeneration)
+      || player.mediaKey !== targetMediaKey || player.localPath !== targetLocalPath) {
+    logLine('Gömülü altyazı önceki videoya ait olduğu için mevcut oynatıcıya uygulanmadı.', 'warn');
+    return;
+  }
   if (!result?.ok) {
     logLine(`Gömülü altyazı çıkarılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
     return;
@@ -13828,7 +13988,12 @@ async function openWatchLibraryItem(item, seconds) {
     player.pendingAutoOpen = { key: item.key, intent };
     openYoutubePanelAndProbe(item.sourceRef);
   } else {
-    openLocalMedia(item.localPath || item.sourceRef, seconds);
+    const authorization = await window.api.authorizeWatchItem?.(item.key);
+    if (!authorization?.ok) {
+      logLine(`Kütüphane medyası açılamadı: ${authorization?.error || 'erişim onaylanmadı'}`, 'warn');
+      return;
+    }
+    openLocalMedia(authorization.path || item.localPath || item.sourceRef, seconds);
   }
 }
 
@@ -13870,7 +14035,7 @@ async function openHistoryItem(h) {
     logLine('YouTube videosu ve bu işin altyazısı hazırlanıyor.', 'info');
     return;
   }
-  state.lastJobVideo = h.video || null;
+  state.lastJobVideo = authorization.video || h.video || null;
   state.outputFiles = (h.files || []).slice();
   openPlayer();
 }
@@ -14808,8 +14973,20 @@ function loadSubtitleStyle() {
   player.subStyle = Object.assign({}, SUB_STYLE_DEFAULTS);
   try {
     const raw = localStorage.getItem(SUB_STYLE_KEY);
-    if (raw) Object.assign(player.subStyle, JSON.parse(raw) || {});
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      for (const key of Object.keys(SUB_STYLE_DEFAULTS)) {
+        if (Object.prototype.hasOwnProperty.call(parsed, key)) player.subStyle[key] = parsed[key];
+      }
+    }
   } catch (_) {}
+  player.subStyle.size = Math.max(14, Math.min(72, Number(player.subStyle.size) || SUB_STYLE_DEFAULTS.size));
+  player.subStyle.bg = Math.max(0, Math.min(100, Number(player.subStyle.bg) || 0));
+  player.subStyle.outline = Math.max(0, Math.min(100, Number(player.subStyle.outline) || 0));
+  player.subStyle.weight = Number(player.subStyle.weight) >= 700 ? 700 : 600;
+  player.subStyle.lineHeight = Math.max(1, Math.min(2, Number(player.subStyle.lineHeight) || SUB_STYLE_DEFAULTS.lineHeight));
+  if (!Object.prototype.hasOwnProperty.call(SUB_FONTS, player.subStyle.font)) player.subStyle.font = 'system';
+  if (!/^#[0-9a-f]{6}$/i.test(String(player.subStyle.color))) player.subStyle.color = SUB_STYLE_DEFAULTS.color;
   // Kontrolleri duruma esitle
   const map = { subSize: 'size', subColor: 'color', subBgOpacity: 'bg',
                 subOutline: 'outline', subFont: 'font', subWeight: 'weight' };
@@ -14895,8 +15072,8 @@ function loadSubtitlePos() {
     const raw = localStorage.getItem(SUB_POS_KEY);
     if (!raw) return;
     const p = JSON.parse(raw);
-    if (typeof p.bottom === 'number') player.subBottom = p.bottom;
-    if (typeof p.top2 === 'number') player.sub2Top = p.top2;
+    if (Number.isFinite(p.bottom)) player.subBottom = Math.max(1, Math.min(88, p.bottom));
+    if (Number.isFinite(p.top2)) player.sub2Top = Math.max(1, Math.min(88, p.top2));
   } catch (_) {}
   applySubtitlePos();
 }
@@ -14955,11 +15132,12 @@ function makeSubtitleDraggable(el, edge) {
     }
   });
 
-  const end = (e) => {
+  const end = (e, cancelled = false) => {
     if (!dragging) return;
     dragging = false;
     el.classList.remove('dragging');
     try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (cancelled) return;
     if (moved) {
       saveSubtitlePos();
       logLine(`Altyazı konumu kaydedildi (${edge === 'bottom' ? 'alt' : 'üst'}: `
@@ -14972,7 +15150,7 @@ function makeSubtitleDraggable(el, edge) {
     }
   };
   el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
+  el.addEventListener('pointercancel', (event) => end(event, true));
 }
 
 // ---- kontrollerin boşta gizlenmesi (film izlerken imleç/çubuk yolu kapatmasın) ----
@@ -15021,7 +15199,7 @@ function renderSeekMarkers(times) {
   if (!box) return;
   // A-B döngüsünün işaretleri aynı kapsayıcıda; yalnız bölüm işaretlerini yenile.
   box.querySelectorAll('.seek-marker').forEach((el) => el.remove());
-  if (!video || !video.duration || !times || !times.length) return;
+  if (!video || !Number.isFinite(video.duration) || video.duration <= 0 || !times || !times.length) return;
   // Sure disina dusenler cizilmez (negatif gecikme veya baska videonun bolumleri)
   times.filter((t) => t >= 0 && t <= video.duration).slice(0, 400).forEach((t) => {
     const el = document.createElement('div');
@@ -15050,7 +15228,7 @@ function renderResolvedChapters() {
   sel.innerHTML = '';
   if (!player.chapters.length) {
     panel.classList.add('hidden');
-    renderSeekMarkers([]);
+    if (!$('cueSearch')?.value.trim()) renderSeekMarkers([]);
     return;
   }
   const head = document.createElement('option');
@@ -15065,7 +15243,7 @@ function renderResolvedChapters() {
     sel.appendChild(o);
   });
   panel.classList.remove('hidden');
-  renderSeekMarkers(player.chapters.map((c) => c.start));
+  if (!$('cueSearch')?.value.trim()) renderSeekMarkers(player.chapters.map((c) => c.start));
 }
 
 // ---- kaldığın yerden devam ----
@@ -15697,6 +15875,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   // anahtarini yeniden kurmak altyazilari, ceviriyi, zamanlama masasini ve
   // tercihlerı siler. Yalniz ilk acilista medyaya bagli durumu sifirla.
   if (!preserveMediaState) setMediaKey(key || manifestUrl);
+  if (!preserveMediaState) player.hlsQualityPreference = null;
   if (meta && meta.chapters) setChapters(meta.chapters);
   if (meta && meta.isLive) player.isLive = true;
   const parseStatus = $('playerParseStatus');
@@ -15731,7 +15910,11 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
     if (lockedIndex >= 0 && $('playerAudioLock') && $('playerAudioLock').checked) {
       hls.audioTrack = lockedIndex;
     }
-    const activeIndex = hls.audioTrack >= 0 ? hls.audioTrack : (lockedIndex >= 0 ? lockedIndex : 0);
+    const rememberedIndex = player.playbackAudioLang
+      ? tracks.findIndex((track) => audioLanguagesMatch(track.lang, player.playbackAudioLang)) : -1;
+    if (hls.audioTrack < 0 && rememberedIndex >= 0) hls.audioTrack = rememberedIndex;
+    const activeIndex = hls.audioTrack >= 0 ? hls.audioTrack
+      : (lockedIndex >= 0 ? lockedIndex : (rememberedIndex >= 0 ? rememberedIndex : 0));
     sel.value = String(activeIndex);
     const activeTrack = tracks[activeIndex];
     player.playbackAudioLang = normalizeAudioLang(activeTrack && activeTrack.lang);
@@ -15783,14 +15966,22 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
         o.textContent = `${lvl.height}p`;
         sel.appendChild(o);
       });
-      // 1080p varsa onu, yoksa altindaki en yuksegi sec
+      const previousQuality = player.hlsQualityPreference;
+      // İlk açılışta 1080p sınırı; manifest kurtarmasında kullanıcının seçimi korunur.
       let pick = -1;
       hls.levels.forEach((lvl, i) => {
         if (lvl.height <= 1080 && (pick < 0 || lvl.height > hls.levels[pick].height)) pick = i;
       });
-      if (pick >= 0) {
+      const remembered = previousQuality && previousQuality !== 'auto'
+        ? hls.levels.findIndex((level) => String(level.height) === String(previousQuality)) : -1;
+      if (previousQuality === 'auto') {
+        sel.value = 'auto'; hls.currentLevel = -1;
+      } else if (remembered >= 0) {
+        sel.value = String(hls.levels[remembered].height); hls.currentLevel = remembered;
+      } else if (pick >= 0) {
         sel.value = String(hls.levels[pick].height);
         hls.currentLevel = pick;
+        player.hlsQualityPreference = String(hls.levels[pick].height);
       }
     }
     video.play().catch(() => {});
@@ -16181,7 +16372,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.browserLoadedTrackId = browserTrack?.id || '';
       const tab = browserTabState();
       if (tab) tab.browserLoadedTrackId = browserTrack?.id || '';
-      if (browserTrack && $('browserTrackSelect')) $('browserTrackSelect').value = browserTrack.id;
+      if ($('browserTrackSelect')) $('browserTrackSelect').value = browserTrack?.id || '';
     }
     if (browserTrack?.role === 'translation') {
       applyLoadedBrowserTranslation(browserTrack, false);
@@ -16255,7 +16446,10 @@ async function loadSubtitle(path, secondary = false, options = {}) {
 async function attachSiblingSubtitles(videoPath, autoLoad = true) {
   if (!videoPath || !window.api.findSiblingSubs) return;
   const gen = currentGeneration();
-  const res = await window.api.findSiblingSubs(videoPath);
+  const res = await window.api.findSiblingSubs(videoPath).catch((error) => {
+    logLine(`Komşu altyazılar aranamadı: ${error?.message || 'dosya iletişimi başarısız'}`, 'warn');
+    return { ok: false, files: [] };
+  });
   if (staleGeneration(gen)) return;      // bu arada baska videoya gecilmis
   const files = (res && res.files) || [];
   if (!files.length) return;
@@ -17390,9 +17584,22 @@ async function refreshBrowserUnifiedJobs() {
   player.browserJobs = response.jobs;
 }
 
+let playerTaskRefreshTimer = null;
+let playerTaskRefreshRunning = false;
+
+function scheduleBrowserUnifiedJobsRefresh() {
+  if (playerTaskRefreshTimer !== null || playerTaskRefreshRunning) return;
+  playerTaskRefreshTimer = setTimeout(async () => {
+    playerTaskRefreshTimer = null;
+    playerTaskRefreshRunning = true;
+    try { await refreshBrowserUnifiedJobs(); }
+    finally { playerTaskRefreshRunning = false; }
+  }, 250);
+}
+
 function updatePlayerTaskCenter({ refresh = true } = {}) {
   updateBrowserWhisperActions();
-  if (refresh) void refreshBrowserUnifiedJobs();
+  if (refresh) scheduleBrowserUnifiedJobsRefresh();
   const localRows = playerTaskSnapshot();
   const localLabels = new Set(localRows.map((row) => row.label));
   const browserRows = (player.browserJobs || []).filter((job) => !(job.tabId === player.browserActiveTabId && localLabels.has(job.kind === 'download' ? 'İndirme' : job.kind === 'manga' ? 'Manga çevirisi' : job.kind === 'page-translation' ? 'Sayfa çevirisi' : 'Altyazı çevirisi'))).map((job) => {
@@ -18685,8 +18892,11 @@ if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async (
     job.awaitingExit = false;
     job.cancelled = false;
     state.cancelled = false;
-    if (player.job === job) player.job = null;
     logLine(`İptal isteği tamamlanamadı: ${(cancelResult && cancelResult.error) || 'çalışan süreç yok'}`, 'warn');
+    job.running = true;
+    state.running = true;
+    $('playerJobText').textContent = 'İptal doğrulanamadı; işlem izlenmeye devam ediyor.';
+    return;
   }
   state.running = false;
   state.forceTranslate = false;
@@ -19036,16 +19246,16 @@ async function handleWatchLibraryAction(e) {
     }
     if (action === 'annotation-edit') {
       const draftKey = `browser-note-edit-draft:${annotation.id}`;
-      let draft = '';
-      try { draft = localStorage.getItem(draftKey) || ''; } catch (_) {}
+      const draft = readNoteDraft(draftKey, annotation);
       const note = await openAppDialog({
         title: 'Zaman bağlı notu düzenle',
         description: `${pSecToTime(annotation.start)} konumundaki notu güncelle.`,
         confirmLabel: 'Değişiklikleri kaydet', intent: 'primary',
-        inputLabel: 'Not', inputValue: draft || annotation.note || '',
+        inputLabel: 'Not', inputValue: draft || annotation.note || '', inputMaxLength: NOTE_DRAFT_MAX_LENGTH,
+        onInput: (value) => writeNoteDraft(draftKey, value, annotation),
       });
       if (note === false || !String(note).trim()) return;
-      try { localStorage.setItem(draftKey, String(note)); } catch (_) {}
+      writeNoteDraft(draftKey, note, annotation);
       const updated = {
         ...annotation, note: String(note).trim(), updatedAt: Date.now(),
         mediaTitle: item.title || '', mediaType: item.type || '', mediaUrl: item.sourceRef || '',
@@ -19581,7 +19791,7 @@ if ($('playerVideo')) {
   });
 
   $('playPause').addEventListener('click', () => {
-    if (video.paused) video.play(); else video.pause();
+    if (video.paused) video.play().catch(() => {}); else video.pause();
   });
   $('playerSeek').addEventListener('input', (e) => {
     player.loopCueId = '';
@@ -19720,8 +19930,8 @@ if ($('subtitleModeMenu')) {
       return;
     }
     const stage = $('playerStage');
-    if (!document.fullscreenElement) stage.requestFullscreen();
-    else document.exitFullscreen();
+    if (!document.fullscreenElement) stage.requestFullscreen().catch(() => {});
+    else document.exitFullscreen().catch(() => {});
   });
 }
 
@@ -19851,7 +20061,7 @@ document.addEventListener('keydown', (e) => {
     if (help && !help.classList.contains('hidden')) { setShortcutHelpOpen(false); return; }
     const drawer = $('settingsDrawer');
     if (drawer && !drawer.classList.contains('hidden')) { setSettingsDrawer(false); return; }
-    if (document.fullscreenElement) document.exitFullscreen();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else closePlayer();
   }
 });
@@ -19965,7 +20175,10 @@ if ($('playerAutoNext')) {
 
 if ($('playerPickSub')) {
   $('playerPickSub').addEventListener('click', async () => {
-    const p = await window.api.selectFile('subtitle');
+    const p = await window.api.selectFile('subtitle').catch((error) => {
+      logLine(`Altyazı seçilemedi: ${error?.message || 'dosya iletişimi başarısız'}`, 'error');
+      return '';
+    });
     if (!p) return;
     addSubtitleOption(p);
     $('playerSubSelect').value = p;
@@ -20289,8 +20502,25 @@ $('browserSubtitleReview')?.addEventListener('toggle',()=>{if($('browserSubtitle
 const browserQuickDraftKey = 'browser-subtitle-drafts-v1';
 
 function quickDrafts() {
-  try { const value = JSON.parse(localStorage.getItem(browserQuickDraftKey) || '{}');
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch (_) { return {}; }
+  try {
+    const value = JSON.parse(localStorage.getItem(browserQuickDraftKey) || '{}');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const now = Date.now(), cleaned = {};
+    for (const [key, draft] of Object.entries(value).slice(0, 100)) {
+      if (!draft || typeof draft !== 'object' || typeof draft.signature !== 'string'
+          || draft.signature.length > 2000 || !Number.isFinite(draft.at)
+          || now - draft.at > NOTE_DRAFT_MAX_AGE_MS || !Array.isArray(draft.values)
+          || draft.values.length < 1 || draft.values.length > 2) continue;
+      const values = draft.values.map(item => ({
+        channel: ['source', 'translation', 'primary', 'secondary'].includes(item?.channel) ? item.channel : '',
+        text: String(item?.text || '').slice(0, NOTE_DRAFT_MAX_LENGTH),
+        start: String(item?.start || '').slice(0, 32), end: String(item?.end || '').slice(0, 32),
+      }));
+      if (values.some(item => !item.channel || !Number.isFinite(Number(item.start)) || !Number.isFinite(Number(item.end)))) continue;
+      cleaned[key.slice(0, 2000)] = { values, at: draft.at, signature: draft.signature };
+    }
+    return cleaned;
+  } catch (_) { return {}; }
 }
 
 function quickEditorValues(editor = browserQuickEditor) {
@@ -20397,10 +20627,9 @@ function openBrowserQuickEditor(secondary = false, target = null) {
   editor.initial = quickEditorValues();
   const draft = quickDrafts()[key];
   if (draft?.signature === signature && Array.isArray(draft.values)) {
-    if(draft.remap?.scope&&draft.remap.record&&rows.some(row=>row.channel===draft.remap.channel))editor.remap=draft.remap;
     for (const row of rows) {
       const value = draft.values.find(item => item.channel === row.channel);
-      if (value) { row.text.value = String(value.text ?? ''); row.start.value = value.start; row.end.value = value.end; }
+      if (value) { row.text.value = String(value.text ?? '').slice(0, NOTE_DRAFT_MAX_LENGTH); row.start.value = value.start; row.end.value = value.end; }
     }
   }
   for (const row of rows) for (const input of [row.text, row.start, row.end]) {
@@ -20741,6 +20970,20 @@ async function saveCueEdit() {
   // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
   // WEBVTT basligini kaybediyordu.
   const cue = player.cues[i];
+  const rawCues = Array.isArray(player.cuesRaw) && player.cuesRaw.length
+    ? player.cuesRaw : player.cues;
+  const mergedViewChanged = !!player.mergeCont && (
+    rawCues.length !== player.cues.length
+      || player.cues.some((item, index) => {
+        const raw = rawCues[index];
+        return !raw || raw.start !== item.start || raw.end !== item.end || raw.text !== item.text;
+      })
+  );
+  if (mergedViewChanged) {
+    logLine('Birleştirilmiş görünümde düzenleme kaynak bloklarını belirsizleştirir. Önce “Cümleleri birleştir” seçeneğini kapatın.', 'warn');
+    return;
+  }
+  const sourceCue = rawCues[i] || cue;
   const savedSignature = cueSignature(cue);
   const wasSaved = player.savedCues.includes(savedSignature);
   const targetPath = player.subPath;
@@ -20748,31 +20991,27 @@ async function saveCueEdit() {
   const targetGen = currentGeneration();
   let payload;
   if (player.subFormat === 'ass') {
-    payload = replaceAssDialogueText(player.subRaw, cue.line, text, cue.assLead,
-      cue.assTextIndex, cue.assFieldCount,
-      Number.isFinite(cue.sourceStart) ? cue.sourceStart : cue.start,
-      Number.isFinite(cue.sourceEnd) ? cue.sourceEnd : cue.end,
-      cue.assStartIndex, cue.assEndIndex);
+    payload = replaceAssDialogueText(player.subRaw, sourceCue.line, text, sourceCue.assLead,
+      sourceCue.assTextIndex, sourceCue.assFieldCount,
+      Number.isFinite(sourceCue.sourceStart) ? sourceCue.sourceStart : sourceCue.start,
+      Number.isFinite(sourceCue.sourceEnd) ? sourceCue.sourceEnd : sourceCue.end,
+      sourceCue.assStartIndex, sourceCue.assEndIndex);
     if (payload === null) {
       logLine('ASS satırı bulunamadı — dosya biçimi bozulmasın diye kaydedilmedi.', 'error');
       return;
     }
-    if (cue.assInner) {
+    if (sourceCue.assInner) {
       logLine('Uyarı: bu satırın metin içindeki biçim etiketleri (italik vb.) kaldırıldı.', 'warn');
     }
   } else if (player.subFormat === 'vtt') {
-    payload = replaceVttCueText(player.subRaw, cue, text);
+    payload = replaceVttCueText(player.subRaw, sourceCue, text);
     if (payload === null) {
       logLine('VTT bloğu bulunamadı — dosya metadatası bozulmasın diye kaydedilmedi.', 'error');
       return;
     }
   } else {
-    if (player.mergeCont && player.cuesRaw && player.cuesRaw.length !== player.cues.length) {
-      logLine('Birleştirilmiş görünümde düzenleme kaynak bloklarını belirsizleştirir. Önce “Cümleleri birleştir” seçeneğini kapatın.', 'warn');
-      return;
-    }
     // SRT'de korunacak metadata yok; blok listesinden yeniden uretmek guvenli
-    const draft = player.cues.map((c, k) => (k === i ? { ...c, text } : c));
+    const draft = rawCues.map((c, k) => (k === i ? { ...c, text } : c));
     payload = cuesToSrt(draft);
   }
 
@@ -20793,7 +21032,9 @@ async function saveCueEdit() {
   const beforeCue = { ...cue };
   if (res.warning) logLine(res.warning, 'warn');
   cue.text = text;                            // ANCAK yazma basarili olduysa
+  if (sourceCue !== cue) sourceCue.text = text;
   refreshCueWordRanges(cue);
+  if (sourceCue !== cue) refreshCueWordRanges(sourceCue);
   resetActiveWordHighlight();
   migrateSavedCueAssociation(beforeCue, cue);
   player.cueEditUndo.push({
@@ -21191,12 +21432,14 @@ if ($('playerQuality')) {
     const opt = e.target.selectedOptions[0];
     const v = e.target.value;
     if (v === 'auto') {
+      player.hlsQualityPreference = 'auto';
       player.hls.currentLevel = -1;
       logLine('Kalite: otomatik', 'info');
       return;
     }
     const level = opt && opt.dataset.level !== undefined ? parseInt(opt.dataset.level, 10) : -1;
     if (level >= 0) {
+      player.hlsQualityPreference = v;
       player.hls.currentLevel = level;
       logLine(`Kalite: ${v}p`, 'info');
     }
@@ -21363,9 +21606,10 @@ if ($('applyOffsetToFile')) {
 }
 
 if ($('playerCancelDl')) {
-  $('playerCancelDl').addEventListener('click', async () => {
-    await window.api.cancelYoutubeDownload();
-    logLine('İndirme iptal edildi.', 'warn');
+$('playerCancelDl').addEventListener('click', async () => {
+    const result = await window.api.cancelYoutubeDownload().catch((error) => ({ ok: false, error: error?.message }));
+    if (result?.ok === false) logLine(`İndirme iptal edilemedi: ${result.error || 'bilinmeyen hata'}`, 'error');
+    else logLine('İndirme iptal edildi.', 'warn');
   });
 }
 

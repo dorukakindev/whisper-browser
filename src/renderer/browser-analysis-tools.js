@@ -14,7 +14,7 @@
     <p>Yüklü ana altyazı için doğru zamanlı başka bir altyazı seçin. Sonuç önce karşılaştırma olarak gösterilir.</p>
     <div id="baAlignment" class="ba-results"></div><button id="baApply" type="button" disabled>Senkronu zamanlama taslağına uygula</button></div>`;
   const $ = id => document.getElementById(id);
-  let currentKey = '', ref = null, busy = false, sequence = 0, preview = null, thumbSequence = 0, thumbTimer = null, dragging = false;
+  let currentKey = '', ref = null, busy = false, activeAction = '', sequence = 0, preview = null, thumbSequence = 0, thumbTimer = null, dragging = false;
   function context() {
     const tab = browserTabState();
     return player.workspaceMode === 'browser' && tab ? { tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' } : null;
@@ -41,6 +41,7 @@
     if (!ctx) { message('Önce tarayıcıda bir video açın.', true); return null; }
     if (busy) { message('Çalışan işlemin bitmesini bekleyin veya durdurun.'); return null; }
     const seq = ++sequence;
+    activeAction = action;
     setBusy(true); message(action === 'ocr-range' ? 'Seçilen aralıktaki yazılar okunuyor…' : 'İşleniyor…');
     try {
       const output = await window.api.browserExtras({ ...payload, action, ...ctx });
@@ -54,13 +55,14 @@
       }
       message('Hazır.'); return output;
     } catch (error) { if (seq === sequence && key === signature()) message(error.message || 'İşlem tamamlanamadı.', true); return null; }
-    finally { if (seq === sequence && key === signature()) setBusy(false); }
+    finally { if (seq === sequence && key === signature()) { activeAction = ''; setBusy(false); } }
   }
   window.BrowserAnalysisTools = { request, context, signature, getReference: () => ref };
   $('baReference').addEventListener('click', () => request('reference-open'));
   $('baCancel').addEventListener('click', () => {
     const ctx = context(); sequence++; setBusy(false); message('İşlem durduruldu.');
-    if (ctx) void window.api.browserExtras({ action: 'cancel', ...ctx }).catch(() => {});
+    if (ctx) void window.api.browserExtras({ action: 'cancel', targetAction: activeAction, ...ctx }).catch(() => {});
+    activeAction = '';
   });
   $('baWaveform').addEventListener('click', async () => {
     if (!ref) { message('Önce referans video seçin.', true); return; }
@@ -125,7 +127,9 @@
         if (seq !== thumbSequence || key !== signature()) return;
         if (output?.ok) { $('baThumbImage').src = output.image; $('baThumbImage').hidden = false; }
         else $('baThumbTime').textContent = output?.error || 'Kare alınamadı.';
-      } catch { if (seq === thumbSequence) $('baThumbTime').textContent = 'Kare alınamadı.'; }
+      } catch {
+        if (seq === thumbSequence && key === signature()) $('baThumbTime').textContent = 'Kare alınamadı.';
+      }
     }, 140);
   }
   function hidePreview() {

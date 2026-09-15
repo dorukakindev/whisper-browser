@@ -71,6 +71,7 @@ async function main() {
       ids: ['nmdb:work:1', 'nmdb:work:2'] });
     assert.equal(applied.ok, true, applied.error);
     const list = await invoke(authorized, { action: 'list' });
+    assert.equal(Object.hasOwn(list, 'watchItems'), false, 'Gereksiz izleme geçmişi renderer’a taşınmamalı');
     const film = list.items.find((item) => item.id === id);
     assert.equal(film.watchStatus, 'watching');
     assert.equal(film.favorite, true);

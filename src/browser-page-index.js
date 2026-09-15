@@ -15,7 +15,8 @@ async function runBrowserPageIndexCapture(options) {
   if (!pageIndexCaptureIsCurrent(options)) return { ok: false, reason: 'stale-before-capture' };
   let result;
   try {
-    result = await options.webContents.mainFrame.executeJavaScript(options.script, true);
+    result = await options.webContents.executeJavaScriptInIsolatedWorld(
+      Number(options.worldId) || 999, [{ code: options.script }], true);
   } catch (_) {
     return { ok: false, reason: 'capture-failed' };
   }

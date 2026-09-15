@@ -7,7 +7,7 @@ const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-librar
   'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits']);
 const LIMIT = 256 * 1024 * 1024;
-const STORAGE_KEYS = ['subtitleStyle', 'subtitlePos', 'browser-source-edits-v1', 'browser-source-edit-scopes-v1', 'browser-subtitle-drafts-v1'];
+const STORAGE_KEYS = ['subtitleStyle', 'subtitlePos', 'browser-source-edits-v1', 'browser-source-edit-scopes-v1'];
 function storageValues(values) {
   const result = {};
   for (const key of STORAGE_KEYS) if (typeof values?.[key] === 'string') {
@@ -21,14 +21,28 @@ function allowed(name) {
     (ROOTS.has(name) || (DIRS.has(name.split('/')[0]) && /\.(srt|vtt|ass|ssa|jsonl?|png|jpg|jpeg|webp|ttf|otf|woff2?)$/i.test(name)));
 }
 function rewrite(value, mappings) {
-  // Match the original string once: a destination can itself contain a source
-  // prefix, and must never be rewritten by a later mapping.
-  const replacements = new Map();
-  for (const [from, to] of mappings) if (!replacements.has(from)) replacements.set(from, to);
-  if (!replacements.size) return value;
-  const pattern = new RegExp([...replacements.keys()].sort((a, b) => b.length - a.length).map(from => from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+  // Yalnız bütün bir yol veya o yolun altındaki bir dosya yeniden eşlenir.
+  // Serbest metin içindeki benzer alt dizileri değiştirmek kurcalanmış paketin
+  // başlık, not ve altyazı metnini bozmasına izin verirdi.
+  const replacements = [];
+  const seen = new Set();
+  for (const [rawFrom, rawTo] of mappings) {
+    const from = String(rawFrom || '');
+    if (!from || seen.has(from)) continue;
+    seen.add(from); replacements.push([from, String(rawTo || '')]);
+  }
+  replacements.sort((a, b) => b[0].length - a[0].length);
+  const replacePath = current => {
+    for (const [from, to] of replacements) {
+      if (current === from) return to;
+      if (current.startsWith(from) && /[\\/]/.test(current.charAt(from.length))) {
+        return to + current.slice(from.length);
+      }
+    }
+    return current;
+  };
   function visit(current) {
-    if (typeof current === 'string') return current.replace(pattern, from => replacements.get(from));
+    if (typeof current === 'string') return replacePath(current);
     if (Array.isArray(current)) return current.map(visit);
     if (current && typeof current === 'object') return Object.fromEntries(Object.entries(current).map(([k, v]) => [visit(k), visit(v)]));
     return current;

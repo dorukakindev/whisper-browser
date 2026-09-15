@@ -33,6 +33,7 @@ function linkElementFromEvent(event) {
 }
 
 function handleNewTabLink(event) {
+  if (!event.isTrusted) return;
   if (!isNewTabLinkGesture(event)) return;
   const anchor = linkElementFromEvent(event);
   if (!anchor || anchor.hasAttribute('download')) return;

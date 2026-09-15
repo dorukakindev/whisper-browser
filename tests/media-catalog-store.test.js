@@ -76,5 +76,18 @@ try {
   const corrupt = path.join(dir, 'bad.json'); fs.writeFileSync(corrupt, '{broken');
   assert.throws(() => createMediaCatalogStore({ filePath: corrupt }).list(), /korunuyor/);
   assert.equal(fs.readFileSync(corrupt, 'utf8'), '{broken');
+  const resilient = path.join(dir, 'resilient.json');
+  const resilientStore = createMediaCatalogStore({ filePath: resilient });
+  const first = resilientStore.upsert({ kind: 'film', title: 'Yedekli kayıt' });
+  resilientStore.upsert({ id: first.id, synopsis: 'İkinci sağlam sürüm' });
+  assert.equal(fs.existsSync(`${resilient}.bak`), true);
+  fs.writeFileSync(resilient, '{broken', 'utf8');
+  assert.equal(createMediaCatalogStore({ filePath: resilient }).get(first.id).title, 'Yedekli kayıt');
+  const malformed = path.join(dir, 'malformed.json');
+  fs.writeFileSync(malformed, JSON.stringify({ version: 1, items: [{ kind: 'bad' }] }), 'utf8');
+  assert.throws(() => createMediaCatalogStore({ filePath: malformed }).list(), /korunuyor/);
+  assert.equal(createMediaCatalogStore({ filePath: path.join(dir, 'unc.json') }).upsert({
+    kind: 'film', title: 'UNC', source: { type: 'local', value: '\\\\evil.test\\share\\movie.mkv' },
+  }).source, null);
   console.log('media-catalog-store: CRUD, preview, identity and user-state preservation passed');
 } finally { fs.rmSync(dir, { recursive: true, force: true }); }

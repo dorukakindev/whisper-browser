@@ -149,7 +149,10 @@
         if (!candidateIsCurrent(item) || busy) return;
         const result = await request('skip-save', { record: { id: `intro-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           kind: 'intro', scope: 'media', start, end, autoSkip: false } }, 'bvaIntroStatus');
-        if (result) { status('bvaIntroStatus', 'Jenerik aralığı kaydedildi. Otomatik atlama kapalı.'); save.disabled = true; }
+        if (result) {
+          document.dispatchEvent(new CustomEvent('browser-skips-changed', { detail: result }));
+          status('bvaIntroStatus', 'Jenerik aralığı kaydedildi. Otomatik atlama kapalı.'); save.disabled = true;
+        }
       });
       item.append(label, play, save); $('bvaIntroResults').append(item);
     }

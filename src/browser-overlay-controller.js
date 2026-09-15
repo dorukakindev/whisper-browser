@@ -252,7 +252,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     const observeRoot = (scope) => {
-      if (!scope || observedRoots.has(scope) || state.mode === 'off') return;
+      if (!scope || observedRoots.has(scope) || state.mode === 'off' || mutationObservers.length >= 128) return;
       observedRoots.add(scope);
       const observer = new MutationObserver((mutations) => {
         if (state.mode === 'off') return;

@@ -19,7 +19,8 @@ async function main() {
       files: [{ name: 'browser-notes.json', data: Buffer.from(JSON.stringify({ video: oldVideo })).toString('base64') }],
       rendererValues: { 'browser-subtitle-drafts-v1': JSON.stringify({ [oldVideo]: { path: oldVideo } }) } };
     const mapped = packages.remapRendererValues(target, data, [[oldVideo, newVideo]]);
-    assert.deepEqual(JSON.parse(mapped['browser-subtitle-drafts-v1']), { [newVideo]: { path: newVideo } });
+    assert.equal(mapped['browser-subtitle-drafts-v1'], undefined,
+      'Executable subtitle drafts from imported packages must not be restored');
     assert.equal(mapped['browser-source-edits-v1'], null, 'Absent draft keys must clear previous profile values');
     packages.restorePackage(target, data, [[oldVideo, newVideo]]);
     assert.equal(JSON.parse(fs.readFileSync(path.join(target, 'browser-notes.json'))).video, newVideo);

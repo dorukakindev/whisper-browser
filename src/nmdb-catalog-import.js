@@ -63,7 +63,9 @@ async function previewNmdbImport({ dbPath, pythonPath, signal } = {}) {
     throw new Error('nMDB dosyası ve Python yolu gerekli.');
   const script = path.join(__dirname, '..', 'backend', 'nmdb_catalog_import.py');
   const raw = await new Promise((resolve, reject) => {
-    const child = spawn(pythonPath, [script, '--db', dbPath], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
+    delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
+    const child = spawn(pythonPath, [script, '--db', dbPath], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env });
     const chunks = []; let size = 0, stderr = '', settled = false;
     const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort); error ? reject(error) : resolve(value); };
     const abort = () => { child.kill(); finish(new Error('nMDB önizlemesi iptal edildi.')); };
@@ -77,7 +79,14 @@ async function previewNmdbImport({ dbPath, pythonPath, signal } = {}) {
       if (size > MAX_BYTES) { child.kill(); finish(new Error('nMDB önizlemesi boyut sınırını aştı.')); }
       else chunks.push(chunk);
     });
-    child.on('close', (code) => finish(code === 0 ? null : new Error(stderr || 'nMDB önizlemesi okunamadı.'), Buffer.concat(chunks)));
+    child.on('close', (code) => {
+      const output = Buffer.concat(chunks);
+      if (code === 0) { finish(null, output); return; }
+      try {
+        const response = JSON.parse(output.toString('utf8'));
+        finish(new Error(String(response.error || stderr || 'nMDB önizlemesi okunamadı.').slice(0, 300)));
+      } catch { finish(new Error(stderr || 'nMDB önizlemesi okunamadı.')); }
+    });
   });
   let parsed;
   try { parsed = JSON.parse(raw.toString('utf8')); }

@@ -102,6 +102,9 @@ ok('üretim olay kapısı idle/cancel/awaiting-exit durumunda stale ilerlemeyi r
   assert.equal(shouldAcceptRunEvent({ running: false }, 'progress'), false);
   assert.equal(shouldAcceptRunEvent({ running: true, cancelled: true }, 'segment'), false);
   assert.equal(shouldAcceptRunEvent({ running: true, awaitingExit: true }, 'status'), false);
+  for (const type of ['translation_chunk', 'translation_refresh', 'chat', 'explain']) {
+    assert.equal(shouldAcceptRunEvent({ running: true, awaitingExit: true }, type), false);
+  }
   assert.equal(shouldAcceptRunEvent({ running: true }, 'progress'), true);
   assert.match(js, /RendererUiModel\.shouldAcceptRunEvent\(state, event\.type\)/);
   const exitBlock = js.slice(js.indexOf("case 'exit':"), js.indexOf("// ===== Result modal"));

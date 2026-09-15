@@ -1740,6 +1740,14 @@ test('dalga biçimi ve altyazı düzenleme sonuçları medya değişimini doğru
   const edit = js.slice(editStart, js.indexOf("if ($('cueSearch'))", editStart));
   assert(/targetPath = player\.subPath/.test(edit) && /staleGeneration\(targetGen\)/.test(edit),
     'geç altyazı kaydı mevcut videonun belleğini değiştirebiliyor');
+  assert(/const rawCues = Array\.isArray\(player\.cuesRaw\)/.test(edit),
+    'tekil düzenleme kaynak cue listesini kullanmıyor');
+  assert(/mergedViewChanged[\s\S]*Önce “Cümleleri birleştir”/.test(edit),
+    'birleştirilmiş SRT/VTT/ASS görünümü biçim ayrımından önce engellenmiyor');
+  assert(/replaceVttCueText\(player\.subRaw, sourceCue, text\)/.test(edit),
+    'VTT düzenlemesi görüntü kopyası yerine kaynak cue metadatasını kullanmıyor');
+  assert(/if \(sourceCue !== cue\) sourceCue\.text = text/.test(edit),
+    'başarılı düzenleme cuesRaw ile ekran cue kopyasını birlikte güncellemiyor');
 });
 
 test('HLS kurtarma durum makinesi oynatıcı olaylarına bağlıdır', () => {

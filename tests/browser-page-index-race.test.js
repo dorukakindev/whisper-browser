@@ -18,7 +18,7 @@ async function run() {
   const writes = [];
   const webContents = {
     isDestroyed: () => false,
-    mainFrame: { executeJavaScript: () => first.promise },
+    executeJavaScriptInIsolatedWorld: () => first.promise,
   };
   const base = {
     tab, view, webContents, tabGeneration: 11, indexGeneration: 7,
@@ -38,7 +38,7 @@ async function run() {
 
   indexGeneration = 7;
   const second = deferred();
-  webContents.mainFrame.executeJavaScript = () => second.promise;
+  webContents.executeJavaScriptInIsolatedWorld = () => second.promise;
   const staleTab = runBrowserPageIndexCapture(base);
   tab.generation += 1;
   tab.view = { id: 'view-2' };
@@ -49,7 +49,7 @@ async function run() {
 
   tab.generation = 11;
   tab.view = view;
-  webContents.mainFrame.executeJavaScript = async () => ({
+  webContents.executeJavaScriptInIsolatedWorld = async () => ({
     ok: true, url: 'https://example.test/yeni?token=gizli', title: 'Yeni',
     blocks: [{ text: 'Güncel birinci blok.' }, { text: 'Güncel ikinci blok.' }],
   });

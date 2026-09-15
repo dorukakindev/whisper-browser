@@ -10,6 +10,7 @@ function fail(message) { throw new Error(message); }
 function text(value, max = 500) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 function localPath(value) {
   const raw = text(value, 2048);
+  if (/^\\\\(?!\?\\)/.test(raw)) return '';
   return (path.isAbsolute(raw) || path.win32.isAbsolute(raw)) && !raw.includes('\0') ? raw : '';
 }
 function posterPath(value) {
@@ -150,17 +151,23 @@ function mergeRecord(target, incoming) {
 function createMediaCatalogStore({ filePath }) {
   if (!filePath) fail('Katalog dosya yolu gerekli.');
   let cache;
+  const backupPath = `${filePath}.bak`;
+  function parseEnvelope(bytes) {
+    const parsed = JSON.parse(bytes);
+    if (parsed.version !== 1 || !Array.isArray(parsed.items) || parsed.items.length > MAX_ITEMS)
+      fail('Katalog dosyası geçersiz; veri korunuyor.');
+    return { version: 1, items: parsed.items.map((item) => itemOf(item)) };
+  }
   function read() {
     if (cache) return cache;
     try {
-      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      if (parsed.version !== 1 || !Array.isArray(parsed.items) || parsed.items.length > MAX_ITEMS)
-        fail('Katalog dosyası geçersiz; veri korunuyor.');
-      cache = parsed;
+      cache = parseEnvelope(fs.readFileSync(filePath, 'utf8'));
     } catch (error) {
       if (error.code === 'ENOENT') cache = { version: 1, items: [] };
-      else if (error instanceof SyntaxError) fail('Katalog dosyası okunamadı; veri korunuyor.');
-      else throw error;
+      else {
+        try { cache = parseEnvelope(fs.readFileSync(backupPath, 'utf8')); }
+        catch { fail('Katalog dosyası ve güvenli yedeği okunamadı; veri korunuyor.'); }
+      }
     }
     return cache;
   }
@@ -171,6 +178,10 @@ function createMediaCatalogStore({ filePath }) {
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
       fs.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      try {
+        parseEnvelope(fs.readFileSync(filePath, 'utf8'));
+        fs.copyFileSync(filePath, backupPath);
+      } catch {}
       fs.renameSync(temp, filePath); cache = next;
     } finally { try { fs.unlinkSync(temp); } catch {} }
   }
