@@ -32,6 +32,13 @@ function remapCeaCaptureSegments(segments = [], refreshed = []) {
     next.get(ceaCaptureSegmentIdentity(segment)) || segment);
 }
 
+function mergeCeaCaptureSegments(previous = [], refreshed = []) {
+  // Refreshed entries come last so the same sequence's renewed signed URL wins;
+  // segments that slid out of the newest window remain part of the completeness ledger.
+  return normalizeCeaCaptureSegments([...normalizeCeaCaptureSegments(previous),
+    ...normalizeCeaCaptureSegments(refreshed)]);
+}
+
 function summarizeCeaCaptureCompleteness(segments = [], completed = [], options = {}) {
   const planned = normalizeCeaCaptureSegments(segments);
   const completedIds = new Set((completed instanceof Set ? [...completed] : completed || [])
@@ -40,13 +47,15 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
   const total = planned.length;
   const completedCount = Math.max(0, total - missing.length);
   const cueCount = Math.max(0, Number(options.cueCount) || 0);
-  const complete = total > 0 && missing.length === 0 && cueCount > 0;
+  const planComplete = options.planComplete !== false;
+  const complete = total > 0 && planComplete && missing.length === 0 && cueCount > 0;
   return {
     total,
     completed: completedCount,
     missing: missing.length,
     missingSegments: missing,
     cueCount,
+    planComplete,
     complete,
     state: complete ? "complete" : (completedCount > 0 || cueCount > 0 ? "partial" : "empty"),
     percent: total ? Math.floor((completedCount / total) * 100) : 0,
@@ -54,7 +63,7 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
 }
 
 function shouldAutoRetryCeaCapture(summary, retryRound = 0, maxRetryRounds = 2) {
-  return !!summary && !summary.complete && summary.missing > 0
+  return !!summary && !summary.complete && (summary.missing > 0 || summary.planComplete === false)
     && Math.max(0, Number(retryRound) || 0) < Math.max(0, Number(maxRetryRounds) || 0);
 }
 
@@ -119,6 +128,7 @@ async function runOrderedCeaCapture(options = {}) {
 
 module.exports = {
   ceaCaptureSegmentIdentity,
+  mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,

@@ -7354,6 +7354,7 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
     missing: Math.max(0, Number(event.missing) || 0),
     percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
     retryRound: Math.max(0, Number(event.retryRound) || 0),
+    planComplete: event.planComplete !== false,
     cueCount: Math.max(0, Number(event.cueCount) || 0),
     message: String(event.message || ''),
   };
@@ -10861,6 +10862,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
           cueCount: Math.max(0, Number(event.cueCount) || 0), message: String(event.message || ''),
           missing: Math.max(0, Number(event.missing) || 0),
           percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
+          planComplete: event.planComplete !== false,
         };
       } else if (event.type === 'media-identity' && event.resetSubtitles) {
         tab.browserTracks = [];

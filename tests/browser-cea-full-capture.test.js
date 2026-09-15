@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   ceaCaptureSegmentIdentity,
+  mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,
@@ -23,6 +24,12 @@ const {
     url: `https://cdn.test/${sequence}.ts?sig=fresh`, sequence, discontinuity: 0,
   }));
   assert.ok(remapCeaCaptureSegments(segments, refreshed).every((item) => item.url.includes('fresh')));
+  const sliding = mergeCeaCaptureSegments(refreshed.slice(0, 2), [
+    { ...refreshed[1], url: 'https://cdn.test/2.ts?sig=renewed' },
+    { url: 'https://cdn.test/4.ts?sig=fresh', sequence: 4, discontinuity: 0 },
+  ]);
+  assert.deepEqual(sliding.map((item) => item.sequence), [1, 2, 4]);
+  assert.match(sliding[1].url, /renewed/, 'aynı segmentin yenilenmiş URLsi kazanmalı');
 
   const consumed = [];
   let active = 0;
@@ -69,6 +76,11 @@ const {
   const complete = summarizeCeaCaptureCompleteness(refreshed, new Set(['0:1', '0:2', '0:3']), { cueCount: 20 });
   assert.equal(complete.complete, true);
   assert.equal(complete.missing, 0);
+  const openPlaylist = summarizeCeaCaptureCompleteness(refreshed,
+    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: false });
+  assert.equal(openPlaylist.complete, false, 'ENDLIST olmayan pencere tam video sayılamaz');
+  assert.equal(openPlaylist.missing, 0);
+  assert.equal(shouldAutoRetryCeaCapture(openPlaylist, 0, 2), true);
 
   const root = path.join(__dirname, '..');
   const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
@@ -83,6 +95,8 @@ const {
   assert.match(main, /completed:\s*new Set\(resume \? previous\.completed : \[\]\)/);
   assert.match(main, /scheduleBrowserHlsCeaAutoRetry\(job, completeness\)/);
   assert.match(main, /sendBrowserHlsCeaFullProgress\(job, 'retry-wait'/);
+  assert.match(main, /#EXT-X-ENDLIST/);
+  assert.match(main, /mergeCeaCaptureSegments\(job\.segments, refreshed\.segments\)/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(job\.tab, cues, track, 'source'\)/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
   assert.match(main, /browser:subtitle:captureFull/);

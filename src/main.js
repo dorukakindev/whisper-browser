@@ -67,6 +67,7 @@ const {
 } = require('./browser-cea-captions');
 const {
   ceaCaptureSegmentIdentity,
+  mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,
@@ -7197,7 +7198,7 @@ async function resolveBrowserHlsCeaFullPlan(sourceUrl, tracks, context) {
   }
   registerBrowserHlsCeaMatchers(segments);
   return { sourceUrl, variant, playlistUrl: variant.url || sourceUrl,
-    tracks: variantTracks, segments };
+    tracks: variantTracks, segments, playlistComplete: /#EXT-X-ENDLIST(?:\s|$)/i.test(playlistBody) };
 }
 
 function sendBrowserHlsCeaFullProgress(job, state, message = '') {
@@ -7208,10 +7209,13 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
     const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
     return total + (browserTrackBuffers.get(streamKey)?.length || 0);
   }, 0);
-  const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, { cueCount });
+  const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
+    cueCount, planComplete: job.playlistComplete !== false,
+  });
   sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
     completed: completeness.completed, total: completeness.total, failed: job.failures.length,
     missing: completeness.missing, percent: completeness.percent, complete: completeness.complete,
+    planComplete: completeness.planComplete,
     retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount, message });
 }
 
@@ -7220,14 +7224,30 @@ function scheduleBrowserHlsCeaAutoRetry(job, completeness) {
   if (!shouldAutoRetryCeaCapture(completeness, job.retryRound, maxRetryRounds)) return false;
   const nextRound = (Number(job.retryRound) || 0) + 1;
   const delay = nextRound === 1 ? 1500 : 4000;
+  const reason = completeness.planComplete === false
+    ? 'Oynatma listesi henüz sona ermedi'
+    : `${completeness.missing} segment eksik kaldı`;
   sendBrowserHlsCeaFullProgress(job, 'retry-wait',
-    `${completeness.missing} eksik segment ${Math.ceil(delay / 1000)} saniye sonra otomatik yeniden denenecek (${nextRound}/${maxRetryRounds}).`);
+    `${reason}; ${Math.ceil(delay / 1000)} saniye sonra manifest otomatik yenilenecek (${nextRound}/${maxRetryRounds}).`);
   clearTimeout(job.autoRetryTimer);
-  job.autoRetryTimer = setTimeout(() => {
+  job.autoRetryTimer = setTimeout(async () => {
     if (job.cancelled || browserHlsCeaFullCaptureJob !== job || !isCurrentBrowserContext(job.context)) return;
     job.retryRound = nextRound;
     job.resume = true;
     job.autoRetryTimer = null;
+    try {
+      const refreshed = await resolveBrowserHlsCeaFullPlan(job.sourceUrl, job.tracks, job.context);
+      if (job.cancelled || browserHlsCeaFullCaptureJob !== job || !isCurrentBrowserContext(job.context)) return;
+      job.variant = refreshed.variant;
+      job.playlistUrl = refreshed.playlistUrl;
+      // Kayan/event listelerinde önceki pencereyi kaybetme; aynı segmentin
+      // yenilenmiş imzalı URL'si son değer olarak korunur.
+      job.segments = mergeCeaCaptureSegments(job.segments, refreshed.segments);
+      job.playlistComplete = refreshed.playlistComplete;
+      job.total = job.segments.length;
+    } catch (error) {
+      job.failures = [{ error }];
+    }
     sendBrowserHlsCeaFullProgress(job, 'running',
       `Eksik segmentler otomatik tamamlanıyor: ${completeness.completed}/${completeness.total}.`);
     void runBrowserHlsCeaFullCapture(job);
@@ -7299,10 +7319,11 @@ async function runBrowserHlsCeaFullCapture(job) {
         const refreshed = await resolveBrowserHlsCeaFullPlan(job.sourceUrl, job.tracks, job.context);
         job.variant = refreshed.variant;
         job.playlistUrl = refreshed.playlistUrl;
-        job.segments = refreshed.segments;
-        job.total = refreshed.segments.length;
+        job.segments = mergeCeaCaptureSegments(job.segments, refreshed.segments);
+        job.playlistComplete = refreshed.playlistComplete;
+        job.total = job.segments.length;
         pending = remapCeaCaptureSegments(
-          refreshed.segments.filter((segment) => !job.completed.has(ceaCaptureSegmentIdentity(segment))),
+          job.segments.filter((segment) => !job.completed.has(ceaCaptureSegmentIdentity(segment))),
           refreshed.segments);
       }
     }
@@ -7320,22 +7341,27 @@ async function runBrowserHlsCeaFullCapture(job) {
       const cues = browserTrackBuffers.get(streamKey) || [];
       if (!cues.length) continue;
       cueCount += cues.length;
-      if (!missing.length) {
+      if (!missing.length && job.playlistComplete !== false) {
         inputPath = saveBrowserTrackToConfiguredFolder(job.tab, cues, track, 'source');
       }
       storeBrowserTrack(cues, {
         language: track.language || '', label: track.name || track.instreamId || 'Gömülü altyazı',
         format: track.standard || 'cea-608', captureKind: 'embedded-cea',
         instreamId: track.instreamId || '', sourceUrl: job.sourceUrl, streamKey,
-        context: job.context, finalize: true, captureComplete: !missing.length,
+        context: job.context, finalize: true,
+        captureComplete: !missing.length && job.playlistComplete !== false,
         captureTotal: job.total, inputPath,
       });
     }
-    const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, { cueCount });
+    const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {
+      cueCount, planComplete: job.playlistComplete !== false,
+    });
     if (!completeness.complete) {
       if (scheduleBrowserHlsCeaAutoRetry(job, completeness)) return;
       sendBrowserHlsCeaFullProgress(job, 'partial', cueCount
-        ? `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`
+        ? (completeness.planComplete === false
+          ? `Oynatma listesi henüz sonlanmadı; yakalanan ${cueCount} satır korundu. Daha sonra yeniden deneyebilirsiniz.`
+          : `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`)
         : 'Gömülü altyazı segmentleri alındı ancak cue üretilemedi.');
     } else {
       job.failures = [];
@@ -7372,6 +7398,7 @@ function startBrowserHlsCeaFullCapture(tab) {
     variant: { ...(resume ? previous.variant : active.variant || {}) },
     tracks: (resume ? previous.tracks : active.tracks).map((track) => ({ ...track })),
     segments: normalizeCeaCaptureSegments(resume ? previous.segments : active.segments),
+    playlistComplete: resume ? previous.playlistComplete : active.playlistComplete,
     completed: new Set(resume ? previous.completed : []), failures: [], resume,
     // Kullanıcının açık yeniden denemesi yeni bir otomatik tamamlama bütçesi alır.
     // Zamanlayıcının kendi turları aynı job üzerinde retryRound'u artırır.
@@ -7430,6 +7457,7 @@ async function prepareBrowserHlsCeaCapture(masterBody, masterUrl, tracks, contex
       playlistUrl: recovery.variant.url || masterUrl,
       variant: { ...recovery.variant },
       segments: normalizeCeaCaptureSegments(recovery.matchers),
+      playlistComplete: /#EXT-X-ENDLIST(?:\s|$)/i.test(recovery.body),
     });
   }
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
