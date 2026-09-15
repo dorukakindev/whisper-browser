@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-15 15:22 — real-video subtitle translation demo](docs/devir/2026-09-15-1522.md).
+Güncel çalışma: [2026-09-15 15:48 — düşmanca sayfa denetimi + backend kodlama bug'ları, B51–B70 (rapor 30)](docs/devir/2026-09-15-1548.md).
+
+Önceki çalışma: [2026-09-15 15:22 — real-video subtitle translation demo](docs/devir/2026-09-15-1522.md).
 Önceki çalışma: [2026-09-15 14:50 — English screenshot gallery and product tour](docs/devir/2026-09-15-1450.md).
 Önceki çalışma: [2026-09-15 14:30 — English public documentation and release hygiene](docs/devir/2026-09-15-1430.md).
 Önceki çalışma: [2026-09-15 13:59 — yeni browser özellikleri + katalog denetimi, 8 bulgu (rapor 30)](docs/devir/2026-09-15-1359.md). Önceki kayıtlar aşağıda korunmuştur.
