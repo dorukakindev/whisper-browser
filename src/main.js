@@ -275,6 +275,7 @@ const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
   buildBrowserMediaPreferenceScript } = require('./browser-media-controller');
 const { buildBrowserLinkHintsScript } = require('./browser-link-hints');
 const { buildDarkReaderCssScript } = require('./browser-dark-mode');
+const { isYoutubePageUrl, youtubeStyleCss } = require('./browser-youtube-style');
 const { CaptionAcquisitionPlan } = require('./browser-acquisition');
 const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-event-envelope');
 const { BrowserAssetStore } = require('./browser-asset-store');
@@ -2117,6 +2118,9 @@ function createBrowserTabRecord(initial = {}) {
     discoveryProbeTimer: null,
     pageIndexTimer: null,
     darkModeRequestSeq: 0,
+    youtubeStyleRequestSeq: 0,
+    youtubeStyleGeneration: -1,
+    youtubeStyleSignature: '',
     loadRetryTimer: null,
     loadRetryAttempt: 0,
     crashRecoveryAttempt: 0,
@@ -6150,6 +6154,42 @@ async function applyBrowserDarkMode(tab, enabled) {
   } catch (error) { return { ok: false, error: `Koyu sayfa uygulanamadı: ${error.message}` }; }
 }
 
+async function applyBrowserYoutubeStyle(tab, options = {}) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
+  const requestSeq = (Number(tab.youtubeStyleRequestSeq) || 0) + 1;
+  tab.youtubeStyleRequestSeq = requestSeq;
+  const appearance = options?.appearance !== false;
+  const hideShorts = options?.hideShorts !== false;
+  const signature = `${appearance ? '1' : '0'}:${hideShorts ? '1' : '0'}`;
+  const enabled = isYoutubePageUrl(wc.getURL()) && (appearance || hideShorts);
+  if (enabled && tab.youtubeStyleCssKey && tab.youtubeStyleGeneration === tab.generation
+      && tab.youtubeStyleSignature === signature) {
+    return { ok: true, enabled: true, unchanged: true };
+  }
+  if (tab.youtubeStyleCssKey) {
+    await wc.removeInsertedCSS(tab.youtubeStyleCssKey).catch(() => {});
+    tab.youtubeStyleCssKey = '';
+  }
+  tab.youtubeStyleGeneration = -1;
+  tab.youtubeStyleSignature = '';
+  if (!enabled) return { ok: true, enabled: false };
+  const generation = tab.generation;
+  try {
+    const key = await wc.insertCSS(youtubeStyleCss({ appearance, hideShorts }), { cssOrigin: 'user' });
+    if (tab.youtubeStyleRequestSeq !== requestSeq || tab.generation !== generation
+        || tab.view?.webContents !== wc || wc.isDestroyed() || !isYoutubePageUrl(wc.getURL())) {
+      await wc.removeInsertedCSS(key).catch(() => {});
+      return { ok: false, stale: true, error: 'Sayfa değiştiği için eski YouTube görünümü kaldırıldı.' };
+    }
+    tab.youtubeStyleCssKey = key;
+    tab.youtubeStyleGeneration = generation;
+    tab.youtubeStyleSignature = signature;
+    return { ok: true, enabled: true };
+  } catch (error) {
+    return { ok: false, error: `YouTube görünümü uygulanamadı: ${error.message}` };
+  }
+}
 async function captureBrowserFullPage(wc) {
   // Kalıcı altyazı yakalama aynı CDP debugger'ını hazırlıyor olabilir. Onun
   // bağlantısını geçici ekran görüntüsü sahiplenmiş gibi sökmemek için önce
@@ -11654,6 +11694,8 @@ ipcMain.handle('browser:command', async (event, payload) => {
       return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, persistenceWarning, ...browserNavigationState() };
     } else if (command === 'page-dark-mode') {
       return applyBrowserDarkMode(tab, value === true);
+    } else if (command === 'page-youtube-style') {
+      return applyBrowserYoutubeStyle(tab, value);
     } else if (command === 'link-hints' || command === 'link-hints-new') {
       const results = await Promise.all(browserFrames().map((frame) => frame
         .executeJavaScript(buildBrowserLinkHintsScript({ newTab: command === 'link-hints-new' }), true)

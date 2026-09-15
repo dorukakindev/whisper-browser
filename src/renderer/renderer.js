@@ -2234,6 +2234,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
   'browserRateFightback', 'browserPreservesPitch',
   'browserDarkMode',
+  'browserYoutubeAppearance', 'browserYoutubeHideShorts',
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled',
   'browserPageAuto',
   'browserPageIndexEnabled',
@@ -9047,6 +9048,19 @@ function scheduleBrowserDarkModeSync() {
   }, 180);
 }
 
+function scheduleBrowserYoutubeStyleSync() {
+  clearTimeout(player.browserYoutubeStyleTimer);
+  if (player.workspaceMode !== 'browser' || !window.api.browserCommand || !player.browserActiveTabId) return;
+  player.browserYoutubeStyleTimer = setTimeout(() => {
+    player.browserYoutubeStyleTimer = null;
+    browserCommand('page-youtube-style', {
+      appearance: $('browserYoutubeAppearance')?.checked !== false,
+      hideShorts: $('browserYoutubeHideShorts')?.checked !== false,
+    }).then((result) => {
+      if (!result?.ok && !result?.stale) setBrowserSignal(result?.error || 'YouTube görünümü uygulanamadı.', false);
+    }).catch(() => {});
+  }, 120);
+}
 function setBrowserLoadingState(loading, updateTab = true) {
   const active = !!loading;
   const reload = $('browserReload');
@@ -9250,6 +9264,7 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.loading === false && data.url && player.workspaceMode === 'browser') {
     scheduleBrowserMediaPreferenceSync();
     scheduleBrowserDarkModeSync();
+    scheduleBrowserYoutubeStyleSync();
   }
   if (data.loading === false && data.url && $('browserMangaAuto')?.checked
       && player.browserMangaAutoUrl !== data.url && !player.browserMangaBusy) {
@@ -9994,6 +10009,8 @@ for (const id of ['browserRateFightback', 'browserPreservesPitch', 'browserNorma
   $(id)?.addEventListener('change', scheduleBrowserMediaPreferenceSync);
 }
 $('browserDarkMode')?.addEventListener('change', scheduleBrowserDarkModeSync);
+$('browserYoutubeAppearance')?.addEventListener('change', scheduleBrowserYoutubeStyleSync);
+$('browserYoutubeHideShorts')?.addEventListener('change', scheduleBrowserYoutubeStyleSync);
 $('browserPageIndexEnabled')?.addEventListener('change', async (event) => {
   const requested = event.target.checked === true;
   const result = await window.api.setBrowserPageIndexEnabled?.(requested)

@@ -136,6 +136,22 @@ const entries = Object.freeze([
     scope: 'global',
   },
   {
+    id: 'browserYoutubeAppearance',
+    label: 'YouTube özel görünümü',
+    description: 'YouTube sayfalarında koyu, geniş ve yuvarlatılmış yerleşimi varsayılan olarak uygula.',
+    category: 'site',
+    keywords: ['youtube', 'görünüm', 'tema', 'koyu', 'kart', 'ızgara'],
+    scope: 'global',
+  },
+  {
+    id: 'browserYoutubeHideShorts',
+    label: 'YouTube Shorts bölümlerini gizle',
+    description: 'YouTube Shorts raflarını, kartlarını ve gezinme bağlantılarını gizle.',
+    category: 'site',
+    keywords: ['youtube', 'shorts', 'kısa video', 'gizle'],
+    scope: 'global',
+  },
+  {
     id: 'browserAdblockEnabled',
     label: 'Tarayıcı reklam koruması',
     description: 'Web reklam isteklerini Ghostery filtreleriyle engelle.',
