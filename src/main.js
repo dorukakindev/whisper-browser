@@ -70,7 +70,10 @@ const {
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,
+  shouldAutoRetryCeaCapture,
+  summarizeCeaCaptureCompleteness,
 } = require('./browser-cea-full-capture');
+const { deriveStreamMediaIdentity } = require('./browser-media-identity');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
 const { summarizeTranslationIntegrity } = require('./browser-translation-integrity');
 const { hashText: browserSubtitleIdentityHash, normalizeTransform } = require('./browser-subtitle-sync');
@@ -2091,6 +2094,8 @@ function createBrowserTabRecord(initial = {}) {
     translationSourceCues: [],
     translationResults: new Map(),
     translationPersistedSignature: '',
+    streamMediaId: '',
+    translationSourceComplete: true,
     cloudflareChallengeActive: false,
     cloudflareChallengeTimer: null,
     cloudflareChallengeChecks: 0,
@@ -2380,6 +2385,7 @@ function browserEventContext(tab = activeBrowserTab()) {
     tabId: tab.id,
     generation: tab.generation,
     mediaId: tab.mediaId || '',
+    streamMediaId: tab.streamMediaId || '',
     service: tab.service || '',
     acquisitionId: tab.acquisitionId || '',
     operationId: tab.operationId || '',
@@ -2479,6 +2485,7 @@ function isCurrentBrowserContext(context) {
   return !!tab && tab.id === browserActiveTabId && tab.view === browserView
     && tab.generation === context.generation
     && (!context.mediaId || context.mediaId === tab.mediaId)
+    && (!context.streamMediaId || context.streamMediaId === tab.streamMediaId)
     && (!context.acquisitionId || context.acquisitionId === tab.acquisitionId)
     && context.stateGeneration === browserStateGeneration
     && browserView && !browserView.webContents.isDestroyed();
@@ -3694,6 +3701,7 @@ function invalidateBrowserTabSubtitles(tab) {
   tab.translationSourceCues = [];
   tab.translationTrackId = '';
   tab.translationPersistedSignature = '';
+  tab.translationSourceComplete = true;
   const prior = tab.id === browserActiveTabId ? browserOverlay || tab.overlay : tab.overlay;
   tab.overlay = { ...(prior || {}), source: [], translation: [] };
   if (tab.id === browserActiveTabId) browserOverlay = tab.overlay;
@@ -3829,7 +3837,7 @@ function browserSubtitlePreferences() {
   return browserSubtitlePreferenceStore;
 }
 function restoreBrowserMediaSubtitlePreference(tab) {
-  const row = browserSubtitlePreferences().get(tab.mediaId);
+  const row = browserSubtitlePreferences().get(tab.streamMediaId || tab.mediaId);
   if (!row) return null;
   tab.subtitleSelection = row.subtitleSelection;
   tab.subtitleMode = row.subtitleMode;
@@ -3843,7 +3851,27 @@ function restoreBrowserMediaSubtitlePreference(tab) {
 }
 
 function browserWatchMediaId(tab) {
-  return tab && tab.mediaId ? `browser:${tab.mediaId}` : '';
+  const identity = tab && (tab.streamMediaId || tab.mediaId);
+  return identity ? `browser:${identity}` : '';
+}
+
+function adoptBrowserStreamMediaIdentity(tab, streamUrl) {
+  if (!tab || !streamUrl) return { changed: false, identity: tab?.streamMediaId || '' };
+  const identity = deriveStreamMediaIdentity(tab.mediaId || '', streamUrl);
+  if (!identity || identity === tab.streamMediaId) return { changed: false, identity };
+  const previous = tab.streamMediaId || '';
+  tab.streamMediaId = identity;
+  if (previous && previous !== identity) {
+    invalidateBrowserTabSubtitles(tab);
+    tab.subtitleSelection = null;
+    tab.trackRefs = [];
+    sendBrowserEvent(tab, { type: 'media-identity', mediaId: identity, resetSubtitles: true });
+    noteBrowserDiagnosticActivity(tab, 'lastCapture',
+      'Aynı sayfada farklı bir video akışı algılandı; altyazı durumu yeni videoya ayrıldı.');
+  }
+  restoreBrowserMediaSubtitlePreference(tab);
+  scheduleBrowserSessionSave();
+  return { changed: previous !== identity, identity, previous };
 }
 
 function browserTranslationConfig(overrides = {}) {
@@ -6181,13 +6209,23 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
       return { ok: false, error: 'Güncellenecek çeviri oturumu bulunamadı.' };
     }
     tab.translationSourceCues = cues;
+    if (Object.prototype.hasOwnProperty.call(options, 'sourceComplete')) {
+      tab.translationSourceComplete = options.sourceComplete !== false;
+    }
     const sourceHash = createHash('sha256')
       .update(JSON.stringify(cues.map(cue => [cue.start, cue.end, cue.text])), 'utf8').digest('hex');
+    const shouldCompleteTrack = options.completeTrack !== false
+      || tab.translationScheduler.snapshot().completeTrack;
     tab.translationScheduler.setContext({ sourceHash, sourceRevision: sourceHash });
     tab.translationScheduler.reconcileSentences(sentences);
+    if (shouldCompleteTrack) tab.translationScheduler.completeAll();
+    const reconcile = { ...(tab.translationScheduler.snapshot().reconcile || {}) };
     tab.translationResults = new Map(tab.translationScheduler.snapshot().results
       .flatMap((result) => result.cues || []).map((cue) => [String(cue.cueId), cue]));
-    return { ok: true, refreshed: true, sentenceCount: sentences.length };
+    return { ok: true, refreshed: true, sentenceCount: sentences.length,
+      reused: Number(reconcile.unchanged) || 0, added: Number(reconcile.added) || 0,
+      changed: Number(reconcile.changed) || 0, removed: Number(reconcile.removed) || 0,
+      completeTrack: shouldCompleteTrack };
   }
   const config = browserTranslationConfig(options);
   config.seriesContext = browserExtras?.translationContext(tab) || null;
@@ -6196,6 +6234,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   tab.translationScheduler?.cancelAll('Yeni çeviri oturumu başladı.');
   tab.translationTrackId = requestedTrackId.slice(0, 180);
   tab.translationSourceCues = cues;
+  tab.translationSourceComplete = options.sourceComplete !== false;
   tab.translationResults = new Map();
   tab.translationPersistedSignature = '';
   const sourceHash = createHash('sha256')
@@ -6248,7 +6287,9 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     onState: (state) => {
       if (isCurrent()) {
         updateBrowserTranslationDiagnostics(tab, state);
-        sendBrowserEvent(tab, { type: 'translation-state', state, trackId: tab.translationTrackId });
+        sendBrowserEvent(tab, { type: 'translation-state',
+          state: { ...state, sourceComplete: tab.translationSourceComplete !== false },
+          trackId: tab.translationTrackId });
         if (state.total > 0 && state.completed >= state.total && !state.pending && !state.queued && !state.failed) {
           persistCompletedBrowserTranslation(tab, scheduler, config, scheduler.context);
           noteBrowserDiagnosticActivity(tab, 'lastTranslation', `${state.completed}/${state.total} altyazı cümlesi çevrildi.`);
@@ -7167,9 +7208,32 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
     const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
     return total + (browserTrackBuffers.get(streamKey)?.length || 0);
   }, 0);
+  const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, { cueCount });
   sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
-    completed: job.completed.size, total: job.total, failed: job.failures.length,
-    cueCount, message });
+    completed: completeness.completed, total: completeness.total, failed: job.failures.length,
+    missing: completeness.missing, percent: completeness.percent, complete: completeness.complete,
+    retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount, message });
+}
+
+function scheduleBrowserHlsCeaAutoRetry(job, completeness) {
+  const maxRetryRounds = 2;
+  if (!shouldAutoRetryCeaCapture(completeness, job.retryRound, maxRetryRounds)) return false;
+  const nextRound = (Number(job.retryRound) || 0) + 1;
+  const delay = nextRound === 1 ? 1500 : 4000;
+  sendBrowserHlsCeaFullProgress(job, 'retry-wait',
+    `${completeness.missing} eksik segment ${Math.ceil(delay / 1000)} saniye sonra otomatik yeniden denenecek (${nextRound}/${maxRetryRounds}).`);
+  clearTimeout(job.autoRetryTimer);
+  job.autoRetryTimer = setTimeout(() => {
+    if (job.cancelled || browserHlsCeaFullCaptureJob !== job || !isCurrentBrowserContext(job.context)) return;
+    job.retryRound = nextRound;
+    job.resume = true;
+    job.autoRetryTimer = null;
+    sendBrowserHlsCeaFullProgress(job, 'running',
+      `Eksik segmentler otomatik tamamlanıyor: ${completeness.completed}/${completeness.total}.`);
+    void runBrowserHlsCeaFullCapture(job);
+  }, delay);
+  job.autoRetryTimer.unref?.();
+  return true;
 }
 
 function clearBrowserHlsCeaFullCaptureState(plan) {
@@ -7246,8 +7310,8 @@ async function runBrowserHlsCeaFullCapture(job) {
       sendBrowserHlsCeaFullProgress(job, 'cancelled', 'Tam altyazı yakalama iptal edildi.');
       return;
     }
-    const missing = job.segments.filter((segment) =>
-      !job.completed.has(ceaCaptureSegmentIdentity(segment)));
+    const initialCompleteness = summarizeCeaCaptureCompleteness(job.segments, job.completed);
+    const missing = initialCompleteness.missingSegments;
     job.failures = missing.map((segment) => ({ segment, error: new Error('Segment alınamadı.') }));
     let cueCount = 0;
     let inputPath = '';
@@ -7267,7 +7331,9 @@ async function runBrowserHlsCeaFullCapture(job) {
         captureTotal: job.total, inputPath,
       });
     }
-    if (missing.length || !cueCount) {
+    const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, { cueCount });
+    if (!completeness.complete) {
+      if (scheduleBrowserHlsCeaAutoRetry(job, completeness)) return;
       sendBrowserHlsCeaFullProgress(job, 'partial', cueCount
         ? `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`
         : 'Gömülü altyazı segmentleri alındı ancak cue üretilemedi.');
@@ -7286,7 +7352,8 @@ async function runBrowserHlsCeaFullCapture(job) {
 function startBrowserHlsCeaFullCapture(tab) {
   if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
   if (browserHlsCeaFullCaptureJob?.state === 'running'
-      || browserHlsCeaFullCaptureJob?.state === 'refreshing') {
+      || browserHlsCeaFullCaptureJob?.state === 'refreshing'
+      || browserHlsCeaFullCaptureJob?.state === 'retry-wait') {
     return { ok: false, error: 'Tam altyazı yakalama zaten çalışıyor.' };
   }
   const active = browserHlsCeaActive;
@@ -7306,6 +7373,10 @@ function startBrowserHlsCeaFullCapture(tab) {
     tracks: (resume ? previous.tracks : active.tracks).map((track) => ({ ...track })),
     segments: normalizeCeaCaptureSegments(resume ? previous.segments : active.segments),
     completed: new Set(resume ? previous.completed : []), failures: [], resume,
+    // Kullanıcının açık yeniden denemesi yeni bir otomatik tamamlama bütçesi alır.
+    // Zamanlayıcının kendi turları aynı job üzerinde retryRound'u artırır.
+    retryRound: 0,
+    autoRetryTimer: null,
   };
   job.total = job.segments.length;
   browserHlsCeaFullCaptureJob = job;
@@ -7717,6 +7788,11 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
       try {
         const isHls = /mpegurl|\.m3u8(?:[?#]|$)/i.test(mime + candidate.url);
         const manifestKind = isHls ? 'hls' : 'dash';
+        const manifestTab = context ? browserTabById(context.tabId) : activeBrowserTab();
+        const hlsMaster = /#EXT-X-(?:STREAM-INF|MEDIA)\s*:/i.test(body);
+        if (manifestTab && (!isHls || hlsMaster || !manifestTab.streamMediaId)) {
+          adoptBrowserStreamMediaIdentity(manifestTab, candidate.url);
+        }
         if (browserDiagnostics) browserDiagnostics.manifest = {
           kind: manifestKind, bytes: Buffer.byteLength(body, 'utf8'),
           preview: sanitizeManifestPreview(body),
@@ -9572,6 +9648,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       tab.mangaRestoreAttemptedGeneration = -1;
     }
     tab.mediaId = identity.key;
+    tab.streamMediaId = '';
     restoreBrowserMediaSubtitlePreference(tab);
     tab.service = identity.service;
     tab.contentId = identity.contentId;
@@ -9595,6 +9672,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         tab.subtitleSelection = null;
         tab.mangaPosition = null;
         tab.mangaRestoreAttemptedGeneration = -1;
+        tab.streamMediaId = '';
         stopBrowserManga(tab, true);
         stopBrowserPageTranslation(tab, true);
         invalidateBrowserTabSubtitles(tab);
@@ -11604,7 +11682,7 @@ ipcMain.handle('browser:subtitle-preference', (event, request = {}) => {
   try {
     const store = browserSubtitlePreferences();
     if (request.action === 'forget') {
-      store.remove(tab.mediaId);
+      store.remove(tab.streamMediaId || tab.mediaId);
       tab.subtitleSelection = { primaryId: '', secondaryId: '' };
       tab.subtitleSyncRecords = [];
       scheduleBrowserSessionSave();
@@ -11668,7 +11746,11 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
     subtitleRecordQuarantine: normalized.subtitleRecordQuarantine,
     overlay: { ...(tab.overlay || {}), mode: normalized.subtitleMode, offset: normalized.offset },
   });
-  try { browserSubtitlePreferences().put(browserTabSnapshot(tab)); }
+  try {
+    browserSubtitlePreferences().put({
+      ...browserTabSnapshot(tab), mediaId: tab.streamMediaId || tab.mediaId,
+    });
+  }
   catch (_) { return { ok: false, error: 'Video altyazı tercihi diske kaydedilemedi.' }; }
   scheduleBrowserSessionSave();
   return { ok: true, tab: browserTabSnapshot(tab) };
@@ -12992,6 +13074,8 @@ ipcMain.handle('browser:subtitle:captureFull', async (event, payload) => {
       return { ok: false, error: 'Durdurulacak tam altyazı yakalama işi yok.' };
     }
     browserHlsCeaFullCaptureJob.cancelled = true;
+    clearTimeout(browserHlsCeaFullCaptureJob.autoRetryTimer);
+    browserHlsCeaFullCaptureJob.autoRetryTimer = null;
     return { ok: true, cancelled: true };
   }
   return startBrowserHlsCeaFullCapture(tab);

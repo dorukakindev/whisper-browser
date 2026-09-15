@@ -7332,15 +7332,16 @@ function renderBrowserCeaCaptureState(track = browserTrackSelection(false)) {
   if (!button || !status) return;
   const eligible = track?.captureKind === 'embedded-cea' || /^cea-(?:608|708)$/i.test(track?.format || '');
   const capture = player.browserCeaCapture;
-  const busy = capture && ['running', 'refreshing'].includes(capture.state);
+  const busy = capture && ['running', 'refreshing', 'retry-wait'].includes(capture.state);
   button.classList.toggle('hidden', !eligible);
   button.disabled = !eligible;
   button.textContent = busy ? 'Yakalamayı durdur' : (capture?.state === 'partial' ? 'Eksikleri yeniden dene' : 'Tüm altyazıyı getir');
   status.classList.toggle('hidden', !eligible || !capture);
   if (eligible && capture) {
     const counts = capture.total ? ` ${Number(capture.completed || 0)}/${Number(capture.total)} segment` : '';
+    const missing = capture.missing ? ` · ${Number(capture.missing)} eksik` : '';
     const cues = capture.cueCount ? ` · ${Number(capture.cueCount)} satır` : '';
-    status.textContent = `${capture.message || 'Tam altyazı yakalama'}${counts}${cues}`;
+    status.textContent = `${capture.message || 'Tam altyazı yakalama'}${counts}${missing}${cues}`;
   }
 }
 
@@ -7350,6 +7351,9 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
     completed: Math.max(0, Number(event.completed) || 0),
     total: Math.max(0, Number(event.total) || 0),
     failed: Math.max(0, Number(event.failed) || 0),
+    missing: Math.max(0, Number(event.missing) || 0),
+    percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
+    retryRound: Math.max(0, Number(event.retryRound) || 0),
     cueCount: Math.max(0, Number(event.cueCount) || 0),
     message: String(event.message || ''),
   };
@@ -7368,7 +7372,7 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
 
 async function toggleBrowserCeaFullCapture() {
   const capture = player.browserCeaCapture;
-  const busy = capture && ['running', 'refreshing'].includes(capture.state);
+  const busy = capture && ['running', 'refreshing', 'retry-wait'].includes(capture.state);
   const result = await window.api.captureFullBrowserSubtitle?.(
     player.browserActiveTabId, busy ? 'cancel' : 'start')
     .catch((error) => ({ ok: false, error: error.message }));
@@ -7760,6 +7764,7 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
     register: $('translateRegister')?.value || 'documentary',
     profanity: $('translateProfanity')?.value || 'medium',
     completeTrack: true,
+    sourceComplete: track.captureComplete !== false,
   }).catch((error) => ({ ok: false, error: error.message }));
   // IPC yanıtı sekme/medya değişiminden veya aynı izi yeniden başlatan daha
   // yeni bir istekten sonra gelebilir; yeni çalışma alanına dokunma.
@@ -8524,10 +8529,17 @@ function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
       if (latest.role !== 'translation' && player.browserTranslationTrackId === latest.id) {
         const result = await window.api.startBrowserTranslation(tabId, {
           trackId: latest.id, cues: player.cuesRaw || player.cues, refresh: true,
+          completeTrack: true, sourceComplete: latest.captureComplete !== false,
         }).catch((error) => ({ ok: false, error: error.message }));
         if (player.browserActiveTabId !== tabId || staleGeneration(gen)
             || player.browserTranslationTrackId !== latest.id) return;
-        if (result?.ok) await restoreBrowserTranslationSnapshot(browserTabState(tabId));
+        if (result?.ok) {
+          await restoreBrowserTranslationSnapshot(browserTabState(tabId));
+          const changed = Number(result.added || 0) + Number(result.changed || 0);
+          if (changed) setBrowserSignal(
+            `Altyazı büyüdü: ${Number(result.reused || 0)} cümle korundu, ${changed} yeni/değişen cümle çevriliyor.`,
+            true, { priority: 62, holdMs: 4500 });
+        }
         else setBrowserSignal(`Çeviri güncellenemedi: ${result?.error || 'bilinmeyen hata'}`, false);
       }
     }
@@ -10847,7 +10859,15 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
           state: String(event.state || 'running'), completed: Math.max(0, Number(event.completed) || 0),
           total: Math.max(0, Number(event.total) || 0), failed: Math.max(0, Number(event.failed) || 0),
           cueCount: Math.max(0, Number(event.cueCount) || 0), message: String(event.message || ''),
+          missing: Math.max(0, Number(event.missing) || 0),
+          percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
         };
+      } else if (event.type === 'media-identity' && event.resetSubtitles) {
+        tab.browserTracks = [];
+        tab.browserCeaCapture = null;
+        tab.browserTranslationTrackId = '';
+        tab.browserLiveTranslations = [];
+        tab.browserTranslationComplete = false;
       } else if (event.type === 'translation-result' && event.result && !event.result.error
           && event.trackId === tab.browserTranslationTrackId) {
         const translated = mergeBrowserTranslationCues(
@@ -10927,6 +10947,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (event.type === 'navigation') {
     updateBrowserNavigation(event);
     void restorePendingLibraryAnchor(event);
+  } else if (event.type === 'media-identity' && event.resetSubtitles) {
+    clearBrowserTracks('Farklı video akışı algılandı; altyazılar yeni video için yeniden aranıyor.');
   } else if (event.type === 'title') {
     player.browserPageTitle = event.title || '';
     const tab = browserTabState();
@@ -11130,7 +11152,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       if (justCompleted) setSubtitleMode('translation', false);
       if (!player.browserTranslationFailed) void completeBrowserRecovery(translationTab, 'subtitle-translation', event.trackId);
       updateBrowserTranslationExportButton();
-      setBrowserSignal(`Canlı çeviri hazır: ${Number(progress.completed)}/${Number(progress.total)} cümle.${justCompleted ? ' Çeviri ana altyazı olarak gösteriliyor.' : ''}`, true,
+      const scope = progress.sourceComplete === false ? 'Yakalanan kısmın çevirisi hazır' : 'Canlı çeviri hazır';
+      setBrowserSignal(`${scope}: ${Number(progress.completed)}/${Number(progress.total)} cümle.${justCompleted ? ' Çeviri ana altyazı olarak gösteriliyor.' : ''}`, true,
         { priority: 65, holdMs: 4000 });
     } else if (progress.total && progress.failed) {
       updateBrowserTranslationExportButton();

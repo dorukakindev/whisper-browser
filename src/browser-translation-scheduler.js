@@ -172,6 +172,7 @@ class BrowserTranslationScheduler {
     this.completeTrack = false;
     this.paused = Boolean(options.paused);
     this.idleWaiters = [];
+    this.lastReconcile = { unchanged: 0, added: 0, changed: 0, removed: 0 };
   }
 
   setContext(context = {}) {
@@ -204,6 +205,13 @@ class BrowserTranslationScheduler {
     // Yalnız tamamen aynı cümlenin sonucu ve çalışan isteği korunur.
     const unchanged = new Set(next.filter((sentence) =>
       JSON.stringify(previous.get(sentence.id)) === JSON.stringify(sentence)).map((sentence) => sentence.id));
+    const nextIds = new Set(next.map((sentence) => sentence.id));
+    this.lastReconcile = {
+      unchanged: unchanged.size,
+      added: next.filter((sentence) => !previous.has(sentence.id)).length,
+      changed: next.filter((sentence) => previous.has(sentence.id) && !unchanged.has(sentence.id)).length,
+      removed: this.sentences.filter((sentence) => !nextIds.has(sentence.id)).length,
+    };
     for (const [id, job] of this.pending) {
       if (unchanged.has(id)) continue;
       job.controller.abort('Kaynak cümle güncellendi.');
@@ -500,6 +508,7 @@ class BrowserTranslationScheduler {
       pending: [...this.pending.keys()],
       failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure })),
       results: [...this.results.values()].map((value) => ({ ...value, cues: value.cues.map((cue) => ({ ...cue })) })),
+      reconcile: { ...this.lastReconcile },
     };
   }
 }

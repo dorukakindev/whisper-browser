@@ -2,6 +2,8 @@ const crypto = require('crypto');
 
 const { SENSITIVE_PARAM_RE, TRACKING_PARAM_RE } = require('./browser-place-url');
 
+const VOLATILE_STREAM_PARAM_RE = /^(?:expire|expires|expiration|sig|signature|token|auth|authorization|policy|key-pair-id|x-amz-.+|x-goog-.+|hdnts|hdnea|range|rn|rbuf|ms|mv|mt|ip|ipbits|start|end|segment|seq|sequence|n|frag|fragment|index|chunk|part|offset)$/i;
+
 function cleanPart(value, max = 240) {
   return String(value == null ? '' : value).trim().slice(0, max);
 }
@@ -119,6 +121,34 @@ function stableUrlHash(value) {
   return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex').slice(0, 24);
 }
 
+function normalizeStreamIdentityUrl(rawUrl) {
+  try {
+    const url = new URL(String(rawUrl || ''));
+    if (!/^https?:$/.test(url.protocol)) return '';
+    url.username = '';
+    url.password = '';
+    url.hostname = url.hostname.toLowerCase();
+    url.hash = '';
+    for (const key of [...url.searchParams.keys()]) {
+      if (SENSITIVE_PARAM_RE.test(key) || TRACKING_PARAM_RE.test(key)
+          || VOLATILE_STREAM_PARAM_RE.test(key)) url.searchParams.delete(key);
+    }
+    url.searchParams.sort();
+    return url.href;
+  } catch (_) {
+    return '';
+  }
+}
+
+function deriveStreamMediaIdentity(baseMediaIdentity, streamUrl, hints = {}) {
+  const base = cleanPart(baseMediaIdentity, 512);
+  const stream = normalizeStreamIdentityUrl(streamUrl);
+  const contentHint = cleanPart(hints.contentId || hints.streamId, 240);
+  if (!stream && !contentHint) return base;
+  const material = JSON.stringify([base, stream, contentHint]);
+  return `${base || 'browser:web'}:stream:${stableUrlHash(material)}`;
+}
+
 function canonicalMediaIdentity(rawUrl, hints = {}) {
   // Depolanan URL'yi sınırlı tut, fakat kimliği tam normalize edilmiş URL'den
   // üret. Aksi halde aynı 16 KiB öneke sahip iki ayrı adres aynı içeriğe
@@ -139,7 +169,9 @@ module.exports = {
   SENSITIVE_PARAM_RE,
   TRACKING_PARAM_RE,
   canonicalMediaIdentity,
+  deriveStreamMediaIdentity,
   normalizeBrowserUrl,
+  normalizeStreamIdentityUrl,
   isAmazonHost,
   serviceIdentity,
   stableUrlHash,

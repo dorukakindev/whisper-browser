@@ -32,6 +32,32 @@ function remapCeaCaptureSegments(segments = [], refreshed = []) {
     next.get(ceaCaptureSegmentIdentity(segment)) || segment);
 }
 
+function summarizeCeaCaptureCompleteness(segments = [], completed = [], options = {}) {
+  const planned = normalizeCeaCaptureSegments(segments);
+  const completedIds = new Set((completed instanceof Set ? [...completed] : completed || [])
+    .map((item) => typeof item === "string" ? item : ceaCaptureSegmentIdentity(item)));
+  const missing = planned.filter((segment) => !completedIds.has(ceaCaptureSegmentIdentity(segment)));
+  const total = planned.length;
+  const completedCount = Math.max(0, total - missing.length);
+  const cueCount = Math.max(0, Number(options.cueCount) || 0);
+  const complete = total > 0 && missing.length === 0 && cueCount > 0;
+  return {
+    total,
+    completed: completedCount,
+    missing: missing.length,
+    missingSegments: missing,
+    cueCount,
+    complete,
+    state: complete ? "complete" : (completedCount > 0 || cueCount > 0 ? "partial" : "empty"),
+    percent: total ? Math.floor((completedCount / total) * 100) : 0,
+  };
+}
+
+function shouldAutoRetryCeaCapture(summary, retryRound = 0, maxRetryRounds = 2) {
+  return !!summary && !summary.complete && summary.missing > 0
+    && Math.max(0, Number(retryRound) || 0) < Math.max(0, Number(maxRetryRounds) || 0);
+}
+
 async function runOrderedCeaCapture(options = {}) {
   const items = normalizeCeaCaptureSegments(options.segments);
   const concurrency = Math.max(1, Math.min(6, Number(options.concurrency) || 4));
@@ -96,4 +122,6 @@ module.exports = {
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,
+  shouldAutoRetryCeaCapture,
+  summarizeCeaCaptureCompleteness,
 };

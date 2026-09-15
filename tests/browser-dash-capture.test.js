@@ -176,6 +176,7 @@ test('gerçek MPD işleyicisi init dosyasını bir kez alır ve 240 parçayı ya
     decodeSubtitleBuffer: buffer => ({ text: buffer.toString() }),
     browserDashSubtitleMatchers: [], browserDashFetchedSegments: new Map(), browserDiagnostics: null,
     browserTrackPublications: new Map(), activeBrowserTab: () => ({}),
+    adoptBrowserStreamMediaIdentity: () => ({ changed: false, identity: 'fixture-stream' }),
     noteBrowserCapture() {}, browserTrackStreamKey: url => url, manifestResponseMeta: candidate => candidate,
     browserManifestTransactions: { begin: () => ({ action: 'process', transaction: {} }), isActive: () => true, commit: () => { commits++; return true; } },
     hasExpectedManifestRoot: () => true, isCompleteManifestBody: () => true, manifestDeclaresSubtitleWork: () => true,

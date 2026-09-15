@@ -8,6 +8,8 @@ const {
   normalizeCeaCaptureSegments,
   remapCeaCaptureSegments,
   runOrderedCeaCapture,
+  shouldAutoRetryCeaCapture,
+  summarizeCeaCaptureCompleteness,
 } = require('../src/browser-cea-full-capture');
 
 (async () => {
@@ -57,6 +59,17 @@ const {
   assert.deepEqual(paused.failed.map((item) => item.segment.sequence), [2]);
   assert.deepEqual(paused.remaining.map((item) => item.sequence), [3]);
 
+  const partial = summarizeCeaCaptureCompleteness(refreshed, new Set(['0:1', '0:3']), { cueCount: 14 });
+  assert.equal(partial.complete, false, 'cue bulunması eksik segmenti gizlememeli');
+  assert.equal(partial.missing, 1);
+  assert.equal(partial.percent, 66);
+  assert.deepEqual(partial.missingSegments.map((item) => item.sequence), [2]);
+  assert.equal(shouldAutoRetryCeaCapture(partial, 0, 2), true);
+  assert.equal(shouldAutoRetryCeaCapture(partial, 2, 2), false);
+  const complete = summarizeCeaCaptureCompleteness(refreshed, new Set(['0:1', '0:2', '0:3']), { cueCount: 20 });
+  assert.equal(complete.complete, true);
+  assert.equal(complete.missing, 0);
+
   const root = path.join(__dirname, '..');
   const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
@@ -68,6 +81,8 @@ const {
   assert.match(main, /shouldPause:\s*\(\) => true/);
   assert.match(main, /filter\(\(segment\) => !job\.completed\.has\(ceaCaptureSegmentIdentity\(segment\)\)\)/);
   assert.match(main, /completed:\s*new Set\(resume \? previous\.completed : \[\]\)/);
+  assert.match(main, /scheduleBrowserHlsCeaAutoRetry\(job, completeness\)/);
+  assert.match(main, /sendBrowserHlsCeaFullProgress\(job, 'retry-wait'/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(job\.tab, cues, track, 'source'\)/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
   assert.match(main, /browser:subtitle:captureFull/);
@@ -75,7 +90,7 @@ const {
   assert.match(renderer, /toggleBrowserCeaFullCapture/);
   assert.match(html, /id="browserTrackCaptureFull"[\s\S]*?Tüm altyazıyı getir/);
 
-  console.log('browser-cea-full-capture: 22/22 OK');
+  console.log('browser-cea-full-capture: ordered capture, exact completeness and automatic missing retry OK');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

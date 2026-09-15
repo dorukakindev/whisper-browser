@@ -5,8 +5,10 @@ const path = require('path');
 
 const {
   canonicalMediaIdentity,
+  deriveStreamMediaIdentity,
   isAmazonHost,
   normalizeBrowserUrl,
+  normalizeStreamIdentityUrl,
 } = require('../src/browser-media-identity');
 const {
   BROWSER_IPC_VERSION,
@@ -89,6 +91,18 @@ test('bilinmeyen web adresi sabit ve hassas olmayan hash kimliği alır', () => 
   assert.equal(a.key, b.key);
   assert.match(a.key, /^web:url:[a-f0-9]{24}$/);
   assert(!a.canonicalUrl.includes('token='));
+});
+
+test('aynı sayfadaki akış kimliği imza yenilenmesinde sabit, video yolu değişince farklıdır', () => {
+  const firstUrl = 'https://cdn.example/series/episode-4/master.m3u8?token=old&X-Goog-Signature=A&lang=en';
+  const refreshedUrl = 'https://cdn.example/series/episode-4/master.m3u8?token=new&X-Goog-Signature=B&lang=en';
+  const nextVideoUrl = 'https://cdn.example/series/episode-5/master.m3u8?token=new&lang=en';
+  assert.equal(normalizeStreamIdentityUrl(firstUrl), normalizeStreamIdentityUrl(refreshedUrl));
+  assert.equal(deriveStreamMediaIdentity('web:url:course', firstUrl),
+    deriveStreamMediaIdentity('web:url:course', refreshedUrl));
+  assert.notEqual(deriveStreamMediaIdentity('web:url:course', firstUrl),
+    deriveStreamMediaIdentity('web:url:course', nextVideoUrl));
+  assert(!normalizeStreamIdentityUrl(firstUrl).includes('token'));
 });
 
 test('16 KiB üstünde aynı öneki taşıyan farklı URLler ayrı kimlik alır', () => {

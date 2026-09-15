@@ -27,6 +27,8 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   });
   scheduler.reconcileSentences(assembleCueSentences([first, pending, cue('c', 'New.', 4)]));
   await tick();
+  assert.deepEqual(scheduler.snapshot().reconcile,
+    { unchanged: 2, added: 1, changed: 0, removed: 0 });
   assert.equal(waiting.get('pending').signal.aborted, false, 'değişmeyen uçuşan istek iptal edildi');
   assert.equal(calls.filter((text) => text === 'First.').length, 1);
   assert.equal(calls.filter((text) => text === 'Pending.').length, 1);
@@ -90,6 +92,8 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   const expectedHash = context.createHash('sha256').update(JSON.stringify([[10, 11, 'Corrected.']])).digest('hex');
   assert.equal(scheduler.context.sourceHash, expectedHash);
   assert.equal(scheduler.context.sourceRevision, expectedHash);
+  assert.equal(result.completeTrack, true);
+  assert.equal(result.reused + result.added + result.changed, result.sentenceCount);
   assert.match(translationSource, /persistCompletedBrowserTranslation\(tab, scheduler, config, scheduler\.context\)/,
     'Arşivleme güncel kaynak bağlamını kullanmalı');
   assert.equal(context.startBrowserTranslation(tab, [first], { trackId: 'wrong', refresh: true }).ok, false);
