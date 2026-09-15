@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 08:07 — CEA tam yakalamada video süresi kapsamı](docs/devir/2026-09-15-0807.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 08:19 — CEA tamlık kararında içerik süresi sabitleme](docs/devir/2026-09-15-0819.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 08:07 — CEA tam yakalamada video süresi kapsamı](docs/devir/2026-09-15-0807.md).
 
 Önceki çalışma: [2026-09-15 07:55 — HLS oynatma listesi bütünlük doğrulaması](docs/devir/2026-09-15-0755.md).
 
