@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-15 19:54 — canlı altyazı çeviri hata görünürlüğü ve yarım cümle kararlılığı](docs/devir/2026-09-15-1954.md).
+Güncel çalışma: [2026-09-15 20:18 — YouTube varsayılan görünüm ve Shorts filtresi](docs/devir/2026-09-15-2018.md).
+
+Önceki çalışma: [2026-09-15 19:54 — canlı altyazı çeviri hata görünürlüğü ve yarım cümle kararlılığı](docs/devir/2026-09-15-1954.md).
 
 Önceki çalışma: [2026-09-15 19:11 — 15 Eylül bug raporları 25–32 tam kapanış](docs/devir/2026-09-15-1911.md).
 
