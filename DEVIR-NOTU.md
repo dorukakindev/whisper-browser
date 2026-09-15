@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 05:29 — tam gömülü HLS/CEA altyazı yakalama](docs/devir/2026-09-15-0529.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 07:49 — altyazı bütünlüğü, video kimliği ve artımlı çeviri](docs/devir/2026-09-15-0749.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 05:29 — tam gömülü HLS/CEA altyazı yakalama](docs/devir/2026-09-15-0529.md).
 
 Önceki çalışma: [2026-09-15 04:45 — HLS gömülü CEA altyazı yakalama](docs/devir/2026-09-15-0445.md).
 
