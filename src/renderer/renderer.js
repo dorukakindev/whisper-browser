@@ -4503,6 +4503,7 @@ const player = {
   narrowViewport: false,
   browserTabEventGate: new BrowserTabEventGate(),
   browserTracks: [],
+  browserCeaCapture: null,
   browserPageUrl: '',
   browserPageTitle: '',
   browserTime: 0,
@@ -4653,6 +4654,7 @@ function newBrowserTabState(snapshot = {}) {
     error: '',
     errorKind: '', errorCode: '', errorUrl: '',
     browserTracks: [],
+    browserCeaCapture: null,
     browserTime: Number(snapshot.position) || 0,
     browserDuration: Number(snapshot.duration) || 0,
     browserPaused: true,
@@ -4792,6 +4794,7 @@ function saveActiveBrowserTabWorkspace() {
     diagnostics: player.browserDiagnostics,
     playbackDiagnostics: player.browserPlaybackDiagnostics,
     browserTracks: player.browserTracks.slice(),
+    browserCeaCapture: player.browserCeaCapture,
     browserTime: player.browserTime,
     browserDuration: player.browserDuration,
     browserPaused: player.browserPaused,
@@ -4900,6 +4903,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserDiagnostics = tab.diagnostics || null;
   player.browserPlaybackDiagnostics = tab.playbackDiagnostics || null;
   player.browserTracks = (tab.browserTracks || []).slice();
+  player.browserCeaCapture = tab.browserCeaCapture || null;
   player.browserTime = Number(tab.browserTime) || 0;
   player.browserDuration = Number(tab.browserDuration) || 0;
   player.browserPaused = tab.browserPaused !== false;
@@ -7213,6 +7217,7 @@ function clearBrowserTracks(message) {
   player.browserCueEditContext = null;
   player.browserTranslationFailed = 0;
   player.browserTracks = [];
+  player.browserCeaCapture = null;
   player.cues = [];
   player.cues2 = [];
   player.subPath = '';
@@ -7321,6 +7326,58 @@ function scheduleDeferredBrowserTrackAction() {
   }, 750);
 }
 
+function renderBrowserCeaCaptureState(track = browserTrackSelection(false)) {
+  const button = $('browserTrackCaptureFull');
+  const status = $('browserTrackCaptureStatus');
+  if (!button || !status) return;
+  const eligible = track?.captureKind === 'embedded-cea' || /^cea-(?:608|708)$/i.test(track?.format || '');
+  const capture = player.browserCeaCapture;
+  const busy = capture && ['running', 'refreshing'].includes(capture.state);
+  button.classList.toggle('hidden', !eligible);
+  button.disabled = !eligible;
+  button.textContent = busy ? 'Yakalamayı durdur' : (capture?.state === 'partial' ? 'Eksikleri yeniden dene' : 'Tüm altyazıyı getir');
+  status.classList.toggle('hidden', !eligible || !capture);
+  if (eligible && capture) {
+    const counts = capture.total ? ` ${Number(capture.completed || 0)}/${Number(capture.total)} segment` : '';
+    const cues = capture.cueCount ? ` · ${Number(capture.cueCount)} satır` : '';
+    status.textContent = `${capture.message || 'Tam altyazı yakalama'}${counts}${cues}`;
+  }
+}
+
+function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
+  const capture = {
+    state: String(event.state || 'running'),
+    completed: Math.max(0, Number(event.completed) || 0),
+    total: Math.max(0, Number(event.total) || 0),
+    failed: Math.max(0, Number(event.failed) || 0),
+    cueCount: Math.max(0, Number(event.cueCount) || 0),
+    message: String(event.message || ''),
+  };
+  if (tab) tab.browserCeaCapture = capture;
+  if (tab?.id === player.browserActiveTabId || !tab) player.browserCeaCapture = capture;
+  renderBrowserCeaCaptureState();
+  if (capture.state === 'complete') {
+    setBrowserSignal(capture.message || 'Tam altyazı yakalandı.', true, { priority: 70, holdMs: 6000 });
+    logLine(capture.message || 'Tam web altyazısı yakalandı.', 'success');
+  } else if (capture.state === 'partial' || capture.state === 'error') {
+    setBrowserSignal(capture.message || 'Tam altyazı yakalama tamamlanamadı.', false,
+      { priority: 90, holdMs: 7500 });
+    logLine(capture.message || 'Tam web altyazısı yakalanamadı.', 'warn');
+  }
+}
+
+async function toggleBrowserCeaFullCapture() {
+  const capture = player.browserCeaCapture;
+  const busy = capture && ['running', 'refreshing'].includes(capture.state);
+  const result = await window.api.captureFullBrowserSubtitle?.(
+    player.browserActiveTabId, busy ? 'cancel' : 'start')
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    setBrowserSignal(result?.error || 'Tam altyazı yakalama başlatılamadı.', false,
+      { priority: 90, holdMs: 6500 });
+  }
+}
+
 function renderBrowserTracks(selectedId) {
   const select = $('browserTrackSelect');
   const select2 = $('browserTrackSelect2');
@@ -7378,6 +7435,9 @@ function renderBrowserTracks(selectedId) {
   if (player.browserTracks.length) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
     announceBrowserTrack(chosen);
+    renderBrowserCeaCaptureState(chosen);
+  } else {
+    renderBrowserCeaCaptureState(null);
   }
   updateBrowserSubtitleSummary();
   refreshBrowserSyncPanel();
@@ -10407,6 +10467,7 @@ if ($('browserSignalTranslateAction')) $('browserSignalTranslateAction').addEven
   else useBrowserTrack(true);
 });
 if ($('browserTrackTranslateAll')) $('browserTrackTranslateAll').addEventListener('click', completeSelectedBrowserTranslation);
+if ($('browserTrackCaptureFull')) $('browserTrackCaptureFull').addEventListener('click', toggleBrowserCeaFullCapture);
 if ($('browserTrackExport')) $('browserTrackExport').addEventListener('click', exportSelectedBrowserTrack);
 if ($('browserTranslationExport')) $('browserTranslationExport').addEventListener('click', exportBrowserTranslation);
 if ($('browserTranslationRetryFailed')) $('browserTranslationRetryFailed').addEventListener('click', retryFailedBrowserTranslation);
@@ -10781,6 +10842,12 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.tabMuted = !!event.tabMuted;
       } else if (event.type === 'capture-status') {
         tab.diagnostics = event.diagnostics || null;
+      } else if (event.type === 'cea-capture-progress') {
+        tab.browserCeaCapture = {
+          state: String(event.state || 'running'), completed: Math.max(0, Number(event.completed) || 0),
+          total: Math.max(0, Number(event.total) || 0), failed: Math.max(0, Number(event.failed) || 0),
+          cueCount: Math.max(0, Number(event.cueCount) || 0), message: String(event.message || ''),
+        };
       } else if (event.type === 'translation-result' && event.result && !event.result.error
           && event.trackId === tab.browserTranslationTrackId) {
         const translated = mergeBrowserTranslationCues(
@@ -10899,6 +10966,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     }
     void restoreBrowserSubtitleSelection(tab);
     if (index < 0) logLine(`${event.track.role === 'translation' ? 'Web çevirisi' : 'Web altyazısı'} bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
+  } else if (event.type === 'cea-capture-progress') {
+    applyBrowserCeaCaptureProgress(event, browserTabState());
   } else if (event.type === 'media' && event.media) {
     const previousTime = player.browserTime;
     const wasPaused = player.browserPaused;

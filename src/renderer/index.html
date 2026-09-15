@@ -1435,6 +1435,8 @@
                 </select>
                 <button class="btn btn-secondary btn-sm" id="browserTrackLoad" type="button">Altyazıyı yükle</button>
                 <button class="btn btn-secondary btn-sm" id="browserTrackLoadPair" type="button">İki izi yükle</button>
+                <button class="btn btn-secondary btn-sm hidden" id="browserTrackCaptureFull" type="button"
+                  title="Gömülü CEA altyazısının bütün video segmentlerini düşük bant varyantından getir">Tüm altyazıyı getir</button>
                 <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
                 <button class="btn btn-secondary btn-sm" id="browserTrackTranslateAll" type="button">Tüm izi tamamla</button>
                 <button class="btn btn-ghost btn-sm" id="browserTranslationRetryFailed" type="button" disabled>Hatalıları yeniden dene</button>
@@ -1447,6 +1449,7 @@
                 <button class="btn btn-ghost btn-sm" id="browserTranslationExport" type="button" disabled>Çeviriyi dışa aktar</button>
                 <button class="btn-icon browser-dismiss" id="browserTrackDismiss" type="button"
                   title="Bu bildirimi kapat" aria-label="Bildirimi kapat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+                <p class="browser-session-status hidden" id="browserTrackCaptureStatus" role="status" aria-live="polite"></p>
               </div>
               <details class="browser-view-settings" id="browserViewSettings">
                 <summary>Görünüm, sayfa ve manga</summary>

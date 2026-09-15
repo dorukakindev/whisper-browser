@@ -60,10 +60,17 @@ const {
 const {
   CeaCaptionDecoder,
   buildHlsCeaSegmentMatchers,
+  ceaUrlKey,
   decryptHlsAes128,
   isLikelyMpegTsResponse,
   matchHlsCeaSegmentUrl,
 } = require('./browser-cea-captions');
+const {
+  ceaCaptureSegmentIdentity,
+  normalizeCeaCaptureSegments,
+  remapCeaCaptureSegments,
+  runOrderedCeaCapture,
+} = require('./browser-cea-full-capture');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
 const { summarizeTranslationIntegrity } = require('./browser-translation-integrity');
 const { hashText: browserSubtitleIdentityHash, normalizeTransform } = require('./browser-subtitle-sync');
@@ -501,6 +508,7 @@ const browserHlsTimelines = new Map();
 const browserHlsInFlight = new Set();
 let browserHlsCeaSegmentMatchers = [];
 let browserHlsCeaActive = null;
+let browserHlsCeaFullCaptureJob = null;
 const browserHlsCeaDecoders = new Map();
 const browserHlsCeaDecodeQueues = new Map();
 const browserHlsCeaInitializations = new Map();
@@ -2212,6 +2220,12 @@ function browserUnifiedJobsSnapshot() {
     if (tab.translationScheduler || subtitle) add('subtitle-translation', !browserNetworkOnline ? 'offline' : tab.translationScheduler ? 'running' : 'partial', subtitle, ['pause', 'cancel', 'retry']);
     if (tab.mangaJob) add('manga', tab.mangaJob.controller?.signal?.aborted ? 'cancelled' : 'running', { completed: tab.mangaTranslated, total: tab.mangaAttempted?.size, failed: tab.mangaFailures?.length }, []);
     if (tab.pageTranslateJob) add('page-translation', tab.pageTranslatePaused ? 'paused' : (!browserNetworkOnline ? 'offline' : 'running'), { completed: tab.pageTranslated, total: tab.pageTranslateSession?.blocks?.size, failed: tab.pageTranslateFailed }, ['pause']);
+    if (browserHlsCeaFullCaptureJob?.tab === tab) {
+      const capture = browserHlsCeaFullCaptureJob;
+      add('subtitle-capture', capture.cancelled ? 'cancelled' : capture.state,
+        { completed: capture.completed?.size, total: capture.total, failed: capture.failures?.length },
+        capture.state === 'running' ? ['cancel'] : ['retry']);
+    }
     for (const item of recovery) if (!jobs.some((job) => job.tabId === tab.id && job.kind === item.kind)) jobs.push({ ...item, title: browserTabSnapshot(tab).title || tab.restoredTitle || 'Sekme', actions: ['resume', 'restart', 'dismiss'] });
   }
   for (const item of readBrowserDownloadRecords()) {
@@ -3687,6 +3701,8 @@ function invalidateBrowserTabSubtitles(tab) {
 }
 
 function resetBrowserCaptureState(options = {}) {
+  if (browserHlsCeaFullCaptureJob) browserHlsCeaFullCaptureJob.cancelled = true;
+  browserHlsCeaFullCaptureJob = null;
   flushBrowserTrackPublications(true);
   browserStateGeneration += 1;
   const currentTab = activeBrowserTab();
@@ -6282,13 +6298,25 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
   const trackId = `translation-${createHash('sha1').update(identity).digest('hex').slice(0, 24)}`;
   const signature = createHash('sha1').update(JSON.stringify(cues)).digest('hex');
   if (tab.translationPersistedSignature === signature) return null;
+  let outputPath = '';
+  try {
+    outputPath = saveBrowserTrackToConfiguredFolder(tab, cues, {
+      language: config.targetLanguage,
+      label: `${String(config.targetLanguage || 'tr').toUpperCase()} çeviri`,
+    }, 'translation');
+  } catch (error) {
+    noteBrowserDiagnosticActivity(tab, 'lastError',
+      `Tamamlanan web çevirisi ÇIKTI klasörüne yazılamadı: ${error.message}`);
+  }
   const track = persistBrowserTrack(tab, {
     id: trackId,
     language: config.targetLanguage,
     label: `${String(config.targetLanguage || 'tr').toUpperCase()} çeviri`,
+    outputPath,
   }, cues, {
     role: 'translation', format: 'translation', sourceHash: context.sourceHash,
     sourceTrackId: tab.translationTrackId, provider: context.provider, model: config.model,
+    outputPath,
   });
   if (!track?.persisted) return null;
   let archived = null;
@@ -6619,6 +6647,12 @@ function publishBrowserTrackNow(entry) {
     sourceUrl: redactCaptureUrl(meta.sourceUrl || ''),
     automatic: meta.automatic === true,
     translatedByService: meta.translatedByService === true,
+    captureKind: String(meta.captureKind || ''),
+    instreamId: String(meta.instreamId || ''),
+    captureComplete: meta.captureComplete === true,
+    captureTotal: Math.max(0, Number(meta.captureTotal) || 0),
+    inputPath: String(meta.inputPath || ''),
+    outputPath: String(meta.outputPath || ''),
     translationLanguages: (Array.isArray(meta.translationLanguages) ? meta.translationLanguages : [])
       .slice(0, 200),
   };
@@ -6944,9 +6978,19 @@ async function getBrowserHlsCeaKey(encryption, context = null) {
 async function captureBrowserHlsCeaSegment(responseBuffer, candidate = {}, context = null) {
   const segment = candidate.ceaSegment;
   if (!segment || (context && !isCurrentBrowserContext(context))) return false;
+  if (browserHlsCeaFullCaptureJob
+      && ['running', 'refreshing'].includes(browserHlsCeaFullCaptureJob.state)
+      && candidate.fullCapture !== true
+      && (segment.playlistUrl === browserHlsCeaFullCaptureJob.playlistUrl
+        || segment.sourceUrl === browserHlsCeaFullCaptureJob.sourceUrl)) {
+    // Tam görev manifest sırasını kendisi yürütür. Aynı anda CDP'den gelen bir
+    // ileri segment decoder kuyruğuna girerse CEA durum makinesi geriye dönüp
+    // eski parçayı doğru çözemez; bu akışta ağ kopyasını bilinçli olarak atla.
+    return false;
+  }
   const fetchKey = hlsCeaSegmentFetchKey(segment);
   if (browserHlsCeaFetchedSegments.has(fetchKey)) return true;
-  const decoderKey = `${segment.playlistUrl || segment.sourceUrl || 'hls'}|${segment.discontinuity || 0}`;
+  const decoderKey = `${ceaUrlKey(segment.playlistUrl || segment.sourceUrl || 'hls')}|${segment.discontinuity || 0}`;
   const previous = browserHlsCeaDecodeQueues.get(decoderKey) || Promise.resolve();
   const work = previous.catch(() => {}).then(async () => {
     if (browserHlsCeaFetchedSegments.has(fetchKey)) return true;
@@ -7029,6 +7073,8 @@ async function captureBrowserHlsCeaSegment(responseBuffer, candidate = {}, conte
         language: track.language || '',
         label: track.name || track.instreamId || 'Gömülü altyazı',
         format: track.standard || 'cea-608',
+        captureKind: 'embedded-cea',
+        instreamId: track.instreamId || '',
         sourceUrl: segment.sourceUrl || segment.playlistUrl,
         streamKey,
         context,
@@ -7050,6 +7096,224 @@ async function captureBrowserHlsCeaSegment(responseBuffer, candidate = {}, conte
       browserHlsCeaDecodeQueues.delete(decoderKey);
     }
   }
+}
+
+function browserConfiguredSubtitlePath(tab, track = {}, role = 'source') {
+  const settings = withDefaultMediaFolders(loadSettings(), app.getPath('downloads'));
+  const directory = sanitizeAbsolutePath(
+    role === 'translation' ? settings.outputDir : settings.inputDir,
+    role === 'translation' ? 'Çıktı klasörü' : 'Girdi klasörü');
+  fs.mkdirSync(directory, { recursive: true });
+  const rawTitle = String(tab?.restoredTitle
+    || (tab?.view && !tab.view.webContents.isDestroyed() ? tab.view.webContents.getTitle() : '')
+    || 'web-altyazi');
+  const title = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ')
+    .replace(/\s+/g, ' ').trim().slice(0, 90) || 'web-altyazi';
+  const mediaSuffix = createHash('sha1').update(browserWatchMediaId(tab) || tab?.restoredUrl || title)
+    .digest('hex').slice(0, 8);
+  const language = String(track.language || (role === 'translation' ? 'tr' : 'source'))
+    .replace(/[^a-z0-9_-]/gi, '').slice(0, 16) || (role === 'translation' ? 'tr' : 'source');
+  const channel = role === 'source' && track.instreamId
+    ? `.${String(track.instreamId).replace(/[^a-z0-9_-]/gi, '').slice(0, 16)}` : '';
+  return path.join(directory, `${title}.${mediaSuffix}.${language}${channel}.srt`);
+}
+
+function saveBrowserTrackToConfiguredFolder(tab, cues, track = {}, role = 'source') {
+  const normalized = normalizeCues(cues).slice(0, 20000);
+  if (!normalized.length) return '';
+  const outputPath = browserConfiguredSubtitlePath(tab, track, role);
+  const document = buildBrowserSubtitleDocument(normalized, 'srt');
+  backupOnce(outputPath);
+  writeSubtitleAtomic(outputPath, document.text, (temporaryPath) => {
+    const validation = validateBrowserSubtitleDocument(
+      fs.readFileSync(temporaryPath, 'utf8'), 'srt', document.cues);
+    if (!validation.ok || validation.cues.length !== document.cues.length) {
+      throw new Error(`Altyazı dosyası doğrulanamadı: ${validation.error || 'satır sayısı uyuşmuyor'}`);
+    }
+  });
+  subtitleFileAccess.grant(outputPath);
+  return outputPath;
+}
+
+async function resolveBrowserHlsCeaFullPlan(sourceUrl, tracks, context) {
+  const masterBody = await fetchBrowserTextWithRetry(sourceUrl, 4 * 1024 * 1024, 2, context);
+  const variants = parseHlsVariantStreams(masterBody, sourceUrl)
+    .filter((variant) => hlsCeaTracksForVariant(tracks, variant).length)
+    .sort((left, right) => (left.averageBandwidth || left.bandwidth || Number.MAX_SAFE_INTEGER)
+      - (right.averageBandwidth || right.bandwidth || Number.MAX_SAFE_INTEGER));
+  let variant = variants[0] || { url: sourceUrl };
+  let playlistBody = masterBody;
+  if (variants.length) {
+    playlistBody = await fetchBrowserTextWithRetry(variant.url, 4 * 1024 * 1024, 2, context);
+  } else if (!parseHlsSegments(masterBody, sourceUrl).length) {
+    throw browserSubtitleStateError('EBROWSER_NO_CEA_PLAN', 'Gömülü altyazı için video segment listesi bulunamadı.');
+  }
+  const variantTracks = hlsCeaTracksForVariant(tracks, variant);
+  const segments = normalizeCeaCaptureSegments(buildHlsCeaSegmentMatchers(
+    playlistBody, variant.url || sourceUrl, variantTracks, sourceUrl));
+  if (!segments.length) {
+    throw browserSubtitleStateError('EBROWSER_NO_CEA_PLAN', 'Gömülü altyazı için indirilebilir segment bulunamadı.');
+  }
+  registerBrowserHlsCeaMatchers(segments);
+  return { sourceUrl, variant, playlistUrl: variant.url || sourceUrl,
+    tracks: variantTracks, segments };
+}
+
+function sendBrowserHlsCeaFullProgress(job, state, message = '') {
+  if (!job?.tab) return;
+  job.state = state;
+  job.total = Math.max(0, Number(job.segments?.length) || Number(job.total) || 0);
+  const cueCount = (job.tracks || []).reduce((total, track) => {
+    const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
+    return total + (browserTrackBuffers.get(streamKey)?.length || 0);
+  }, 0);
+  sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
+    completed: job.completed.size, total: job.total, failed: job.failures.length,
+    cueCount, message });
+}
+
+function clearBrowserHlsCeaFullCaptureState(plan) {
+  const playlistUrl = ceaUrlKey(plan.playlistUrl || plan.sourceUrl);
+  for (const [key, decoder] of browserHlsCeaDecoders) {
+    if (!key.startsWith(`${playlistUrl}|`)) continue;
+    decoder.reset();
+    browserHlsCeaDecoders.delete(key);
+  }
+  const plannedFetchKeys = new Set((plan.segments || []).map(hlsCeaSegmentFetchKey));
+  for (const key of plannedFetchKeys) browserHlsCeaFetchedSegments.delete(key);
+  for (const track of plan.tracks || []) {
+    const streamKey = `${browserTrackStreamKey(plan.sourceUrl, track.language)}|cea:${track.instreamId}`;
+    browserTrackBuffers.delete(streamKey);
+    browserTrackPendingPublications.delete(streamKey);
+    const timer = browserTrackPublicationTimers.get(streamKey);
+    if (timer) clearTimeout(timer);
+    browserTrackPublicationTimers.delete(streamKey);
+    browserTextStability.cancelScope?.(streamKey);
+  }
+}
+
+async function runBrowserHlsCeaFullCapture(job) {
+  try {
+    if (!job.resume) clearBrowserHlsCeaFullCaptureState(job);
+    let pending = normalizeCeaCaptureSegments(job.segments)
+      .filter((segment) => !job.completed.has(ceaCaptureSegmentIdentity(segment)));
+    for (let pass = 0; pass < 3 && pending.length && !job.cancelled; pass++) {
+      job.failures = [];
+      const result = await runOrderedCeaCapture({
+        segments: pending,
+        concurrency: 4,
+        isCancelled: () => job.cancelled || browserHlsCeaFullCaptureJob !== job
+          || !isCurrentBrowserContext(job.context),
+        // Bir parça eksikken sonraki parçayı decoder'a verme. Aksi halde daha
+        // sonra yalnız eksiği denemek CEA durum makinesini zamanda geriye sarar.
+        shouldPause: () => true,
+        fetchSegment: (segment) => fetchBrowserBufferWithRetry(segment.url,
+          BROWSER_CAPTURE_BODY_LIMIT, 2, job.context, segment.byteRange),
+        consumeSegment: async (buffer, segment) => {
+          const captured = await captureBrowserHlsCeaSegment(buffer, {
+            url: segment.url,
+            mimeType: segment.initializationUrl ? 'video/mp4' : 'video/mp2t',
+            ceaSegment: segment,
+            fullCapture: true,
+            context: job.context,
+          }, job.context);
+          if (!captured) throw new Error('CEA segmenti çözümlenemedi.');
+          job.completed.add(ceaCaptureSegmentIdentity(segment));
+        },
+        onProgress: () => sendBrowserHlsCeaFullProgress(job, 'running',
+          `Gömülü altyazı getiriliyor: ${job.completed.size}/${job.total} segment.`),
+      });
+      job.failures = result.failed;
+      if (job.cancelled || result.cancelled) break;
+      pending = [...result.failed.map((item) => item.segment), ...result.remaining]
+        .filter((segment) => !job.completed.has(ceaCaptureSegmentIdentity(segment)));
+      const refreshRequested = result.failed.some((item) =>
+        item.error?.retryAction === 'refresh-manifest');
+      if (result.paused && refreshRequested) {
+        sendBrowserHlsCeaFullProgress(job, 'refreshing',
+          'Segment adresinin süresi doldu; manifest yenilenip eksiklerden devam ediliyor.');
+        const refreshed = await resolveBrowserHlsCeaFullPlan(job.sourceUrl, job.tracks, job.context);
+        job.variant = refreshed.variant;
+        job.playlistUrl = refreshed.playlistUrl;
+        job.segments = refreshed.segments;
+        job.total = refreshed.segments.length;
+        pending = remapCeaCaptureSegments(
+          refreshed.segments.filter((segment) => !job.completed.has(ceaCaptureSegmentIdentity(segment))),
+          refreshed.segments);
+      }
+    }
+    if (job.cancelled || browserHlsCeaFullCaptureJob !== job || !isCurrentBrowserContext(job.context)) {
+      sendBrowserHlsCeaFullProgress(job, 'cancelled', 'Tam altyazı yakalama iptal edildi.');
+      return;
+    }
+    const missing = job.segments.filter((segment) =>
+      !job.completed.has(ceaCaptureSegmentIdentity(segment)));
+    job.failures = missing.map((segment) => ({ segment, error: new Error('Segment alınamadı.') }));
+    let cueCount = 0;
+    let inputPath = '';
+    for (const track of job.tracks || []) {
+      const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
+      const cues = browserTrackBuffers.get(streamKey) || [];
+      if (!cues.length) continue;
+      cueCount += cues.length;
+      if (!missing.length) {
+        inputPath = saveBrowserTrackToConfiguredFolder(job.tab, cues, track, 'source');
+      }
+      storeBrowserTrack(cues, {
+        language: track.language || '', label: track.name || track.instreamId || 'Gömülü altyazı',
+        format: track.standard || 'cea-608', captureKind: 'embedded-cea',
+        instreamId: track.instreamId || '', sourceUrl: job.sourceUrl, streamKey,
+        context: job.context, finalize: true, captureComplete: !missing.length,
+        captureTotal: job.total, inputPath,
+      });
+    }
+    if (missing.length || !cueCount) {
+      sendBrowserHlsCeaFullProgress(job, 'partial', cueCount
+        ? `${missing.length} segment alınamadı; yakalanan ${cueCount} satır korundu. Yeniden deneyebilirsiniz.`
+        : 'Gömülü altyazı segmentleri alındı ancak cue üretilemedi.');
+    } else {
+      job.failures = [];
+      sendBrowserHlsCeaFullProgress(job, 'complete',
+        `${cueCount} altyazı satırı eksiksiz yakalandı ve GİRDİ klasörüne kaydedildi.`);
+    }
+  } catch (error) {
+    job.failures = [{ error }];
+    sendBrowserHlsCeaFullProgress(job, 'error',
+      error?.message || 'Tam altyazı yakalama tamamlanamadı.');
+  }
+}
+
+function startBrowserHlsCeaFullCapture(tab) {
+  if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
+  if (browserHlsCeaFullCaptureJob?.state === 'running'
+      || browserHlsCeaFullCaptureJob?.state === 'refreshing') {
+    return { ok: false, error: 'Tam altyazı yakalama zaten çalışıyor.' };
+  }
+  const active = browserHlsCeaActive;
+  if (!active?.segments?.length || !active?.tracks?.length) {
+    return { ok: false, error: 'Bu sayfada tam yakalanabilir gömülü CEA altyazı planı bulunamadı.' };
+  }
+  const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
+  const previous = browserHlsCeaFullCaptureJob;
+  const resume = !!previous && previous.tab === tab
+    && previous.sourceUrl === active.sourceUrl
+    && ['partial', 'error', 'cancelled'].includes(previous.state)
+    && previous.segments?.length;
+  const job = {
+    id: randomUUID(), tab, context, cancelled: false, state: 'running',
+    sourceUrl: active.sourceUrl, playlistUrl: resume ? previous.playlistUrl : active.playlistUrl,
+    variant: { ...(resume ? previous.variant : active.variant || {}) },
+    tracks: (resume ? previous.tracks : active.tracks).map((track) => ({ ...track })),
+    segments: normalizeCeaCaptureSegments(resume ? previous.segments : active.segments),
+    completed: new Set(resume ? previous.completed : []), failures: [], resume,
+  };
+  job.total = job.segments.length;
+  browserHlsCeaFullCaptureJob = job;
+  sendBrowserHlsCeaFullProgress(job, 'running', resume
+    ? `Eksik segmentlerden devam ediliyor: ${job.completed.size}/${job.total}.`
+    : `Tam altyazı yakalama başladı: ${job.total} segment.`);
+  void runBrowserHlsCeaFullCapture(job);
+  return { ok: true, jobId: job.id, total: job.total };
 }
 
 async function prepareBrowserHlsCeaCapture(masterBody, masterUrl, tracks, context, isActive) {
@@ -7088,6 +7352,15 @@ async function prepareBrowserHlsCeaCapture(masterBody, masterUrl, tracks, contex
   // Tüm videoyu yeniden indirmek yerine en düşük bant genişlikli varyanttan
   // oynatma konumundaki parça ve iki komşusunu geri al.
   const recovery = playlists.find((item) => item.matchers?.length);
+  if (recovery && browserHlsCeaActive
+      && browserHlsCeaActive.sourceUrl === masterUrl
+      && (!context || isCurrentBrowserContext(context))) {
+    Object.assign(browserHlsCeaActive, {
+      playlistUrl: recovery.variant.url || masterUrl,
+      variant: { ...recovery.variant },
+      segments: normalizeCeaCaptureSegments(recovery.matchers),
+    });
+  }
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
   const playhead = Math.max(0, Number(tab?.position) || 0);
   let recovered = false;
@@ -12708,6 +12981,20 @@ ipcMain.handle('dialog:openFolder', async (event) => {
   const result = await dialog.showOpenDialog(mainWindow, options);
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
+});
+
+ipcMain.handle('browser:subtitle:captureFull', async (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(payload?.tabId);
+  if (!tab) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
+  if (payload?.action === 'cancel') {
+    if (!browserHlsCeaFullCaptureJob || browserHlsCeaFullCaptureJob.tab !== tab) {
+      return { ok: false, error: 'Durdurulacak tam altyazı yakalama işi yok.' };
+    }
+    browserHlsCeaFullCaptureJob.cancelled = true;
+    return { ok: true, cancelled: true };
+  }
+  return startBrowserHlsCeaFullCapture(tab);
 });
 
 ipcMain.handle('dialog:openInputFolder', async (event) => {
