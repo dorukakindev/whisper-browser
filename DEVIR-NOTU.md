@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 12:59 — paralel denetim turu, üç P1 bulgu (rapor 29)](docs/devir/2026-09-15-1259.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 13:59 — yeni browser özellikleri + katalog denetimi, 8 bulgu (rapor 30)](docs/devir/2026-09-15-1359.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 12:59 — paralel denetim turu, üç P1 bulgu (rapor 29)](docs/devir/2026-09-15-1259.md).
 
 Önceki çalışma: [2026-09-15 12:04 — canlı DASH ve uçtan uca altyazı bütünlüğü](docs/devir/2026-09-15-1204.md).
 
