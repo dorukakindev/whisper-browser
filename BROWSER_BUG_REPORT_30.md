@@ -353,7 +353,7 @@ Güncel kaynakta 49 numaralı bulgu tek tek yeniden incelendi: 42 bulgu düzelti
 | B58 | Düzeltildi | `sourceComplete` ana çeviri çağrısına taşınıyor. |
 | B59 | Düzeltildi | Sekme kapatma `captureFull` işini aktif çalışma sayıyor. |
 | B60 | Kısmen kapatıldı | Unload scheduler/manga/page işlerini iptal ediyor; reset tüm çeviri alanlarını temizliyor; source hash yazılıyor; uzun track kimliği normalize. Eski async üreticilerin tamamına immutable event-context eklemek daha geniş protokol değişikliği olduğundan bu alt madde açık sınır olarak kaydedildi. |
-| B61 | Düzeltildi | İlk stream kimliği evlat edinilirken scheduler bağlamı yeni kimliğe taşınıyor; sonraki gerçek medya değişimi yine bayat sonucu reddediyor. |
+| B61 | Düzeltildi | İlk stream kimliği evlat edinilirken scheduler bağlamı yeni kimliğe taşınıyor; tam paket kapanışında `isCurrent` içindeki eski, değişebilir `browserWatchMediaId` karşılaştırması kaldırıldı. Scheduler nesnesi + sekme kuşağı + başlangıçta sabitlenen temel `tab.mediaId`, sonraki gerçek medya değişiminde bayat sonucu reddediyor. |
 | B62 | Düzeltildi | Cancel, stale/valid kapısından önce ve hedef eylem kapsamıyla çalışıyor. |
 | B63 | Düzeltildi | UUID temp, exclusive create ve `0600` dosya modu. |
 | B64 | Kısmen kapatıldı | Taslak şekil/TTL/sınır ve paket ekimi kapatıldı; sender testleri genişletildi. Üç önizleme altyapısının tüm TTL/tek-kullanım kombinasyonlarını kapsayan ortak mutasyon matrisi hâlâ yok. |

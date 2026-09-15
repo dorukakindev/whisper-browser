@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-15 18:48 — bug raporları 29–31 doğrulama ve düzeltme kapanışı](docs/devir/2026-09-15-1848.md).
+Güncel çalışma: [2026-09-15 19:11 — 15 Eylül bug raporları 25–32 tam kapanış](docs/devir/2026-09-15-1911.md).
+
+Önceki çalışma: [2026-09-15 18:48 — bug raporları 29–31 doğrulama ve düzeltme kapanışı](docs/devir/2026-09-15-1848.md).
 
 Önceki çalışma: [2026-09-15 15:48 — düşmanca sayfa denetimi + backend kodlama bug'ları, B51–B70 (rapor 30)](docs/devir/2026-09-15-1548.md).
 
