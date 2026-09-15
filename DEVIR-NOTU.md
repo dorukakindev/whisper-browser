@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 08:19 — CEA tamlık kararında içerik süresi sabitleme](docs/devir/2026-09-15-0819.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 09:36 — yayın altyazısı standart oracle'ları ve statik DASH tam yakalama](docs/devir/2026-09-15-0936.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 08:19 — CEA tamlık kararında içerik süresi sabitleme](docs/devir/2026-09-15-0819.md).
 
 Önceki çalışma: [2026-09-15 08:07 — CEA tam yakalamada video süresi kapsamı](docs/devir/2026-09-15-0807.md).
 
