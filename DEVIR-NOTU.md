@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-15 10:00 — browser tarafı sözleşme ve kalan-açık denetim turu (rapor 25)](docs/devir/2026-09-15-1000.md). Önceki kayıtlar aşağıda korunmuştur.
+Güncel çalışma: [2026-09-15 10:36 — browser derin denetim turu (rapor 26)](docs/devir/2026-09-15-1036.md). Önceki kayıtlar aşağıda korunmuştur.
+
+Önceki çalışma: [2026-09-15 10:00 — browser tarafı sözleşme ve kalan-açık denetim turu (rapor 25)](docs/devir/2026-09-15-1000.md).
 
 Önceki çalışma: [2026-09-15 09:36 — yayın altyazısı standart oracle'ları ve statik DASH tam yakalama](docs/devir/2026-09-15-0936.md).
 
