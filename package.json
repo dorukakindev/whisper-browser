@@ -19,7 +19,10 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "https://github.com/castlabs/electron-releases#v43.2.0+wvcus",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "imsc": "1.1.5",
+    "mp4box": "2.4.1",
+    "vtt.js": "0.13.0"
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "2.18.2",

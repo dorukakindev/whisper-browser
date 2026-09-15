@@ -2,8 +2,9 @@
 const { parseSubtitlePayload, parseMp4WebVtt, parseMp4Stpp, dashSegmentOffset, cuesUseLocalSegmentTimeline } = require('./browser-subtitles');
 const { decodeSubtitleBuffer } = require('./browser-textutil');
 
-// Only explicit subtitle SegmentURL entries are fetched. Video URLs and
-// unbounded/live SegmentTemplate addresses are never guessed.
+// Yalnız açık SegmentURL girdileri ile süresi manifestten kesin hesaplanabilen
+// statik altyazı SegmentTemplate parçaları alınır. Video URL'leri ve
+// sınırsız/canlı SegmentTemplate adresleri hiçbir zaman tahmin edilmez.
 function segmentKey(segment) {
   return JSON.stringify([segment.segmentUrl, segment.byteRange, dashSegmentOffset(segment)]);
 }

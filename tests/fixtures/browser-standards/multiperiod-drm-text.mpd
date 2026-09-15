@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MPD type="static" mediaPresentationDuration="PT12S">
+  <Period id="program" start="PT0S" duration="PT6S">
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <ContentProtection schemeIdUri="urn:mpeg:dash:mp4protection:2011" value="cenc"/>
+      <Representation id="video-main"><SegmentTemplate media="video/$Number$.m4s" duration="2"/></Representation>
+    </AdaptationSet>
+    <AdaptationSet contentType="text" mimeType="text/vtt" lang="en">
+      <SegmentTemplate media="captions/en/p1-$Number$.vtt" duration="2"/>
+      <Representation id="en"/>
+    </AdaptationSet>
+  </Period>
+  <Period id="ad" start="PT6S" duration="PT6S">
+    <AdaptationSet contentType="video" mimeType="video/mp4">
+      <ContentProtection schemeIdUri="urn:uuid:00000000-0000-0000-0000-000000000000"/>
+      <Representation id="video-ad"><SegmentTemplate media="ad/$Number$.m4s" duration="2"/></Representation>
+    </AdaptationSet>
+    <AdaptationSet contentType="text" mimeType="application/ttml+xml" lang="tr">
+      <SegmentTemplate media="captions/tr/p2-$Number$.ttml" duration="2"/>
+      <Representation id="tr"/>
+    </AdaptationSet>
+  </Period>
+</MPD>

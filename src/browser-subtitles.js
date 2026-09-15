@@ -78,8 +78,10 @@ function parseTime(value) {
 }
 
 function cuePresentationKey(cue = {}) {
-  return [cue.speaker, cue.sourceMode || cue.captionMode || cue.mode, cue.region, cue.line, cue.position, cue.align,
-    cue.writingMode, cue.regionExtent, cue.discontinuity, cue.language, cue.provenance?.streamKey]
+  return [cue.speaker, cue.sourceMode || cue.captionMode || cue.mode, cue.region, cue.line, cue.lineAlign,
+    cue.position, cue.positionAlign, cue.size, cue.align, cue.displayAlign, cue.writingMode, cue.regionExtent,
+    cue.discontinuity, cue.language,
+    cue.provenance?.streamKey]
     .map((value) => String(value ?? '').trim().toLowerCase()).join('\u241f');
 }
 
@@ -256,7 +258,8 @@ function parseTimedBlocks(body, timing = {}) {
         }
       }
       const text = lines.slice(idx + 1, until).join('\n');
-      out.push({ start: start + timelineOffset, end: end + timelineOffset, text });
+      const settings = parseWebVttCueSettings(lines[idx].slice(m[0].length));
+      out.push({ start: start + timelineOffset, end: end + timelineOffset, text, ...settings });
   }
   return normalizeCues(out);
 }
@@ -409,6 +412,27 @@ function parseHlsSubtitleTracks(body, baseUrl = '') {
     }); } catch (_) {}
   }
   return tracks;
+}
+
+function parseWebVttCueSettings(raw) {
+  const out = {};
+  for (const token of String(raw || '').trim().split(/\s+/).filter(Boolean)) {
+    const separator = token.indexOf(':');
+    if (separator <= 0) continue;
+    const key = token.slice(0, separator).toLowerCase();
+    const value = token.slice(separator + 1).trim();
+    if (!value) continue;
+    if (key === 'line' || key === 'position') {
+      const [placement, alignment] = value.split(',', 2);
+      out[key] = placement;
+      if (alignment) out[key === 'line' ? 'lineAlign' : 'positionAlign'] = alignment.toLowerCase();
+    }
+    else if (key === 'size' && /^\d+(?:\.\d+)?%$/.test(value)) out.size = value;
+    else if (key === 'align' && /^(?:start|center|middle|end|left|right)$/i.test(value)) out.align = value.toLowerCase();
+    else if (key === 'vertical' && /^(?:rl|lr)$/i.test(value)) out.writingMode = value.toLowerCase();
+    else if (key === 'region' && /^[A-Za-z0-9_.:-]{1,128}$/.test(value)) out.region = value;
+  }
+  return out;
 }
 
 function parseHlsAttributes(line) {
@@ -635,18 +659,81 @@ function parseIsoDurationSeconds(raw) {
     + (Number(match[3]) || 0) * 60 + (Number(match[4]) || 0);
 }
 
-function dashPeriodStart(xml, adaptation) {
+function dashPeriodBounds(xml, adaptation) {
   const source = String(xml || '');
+  const periods = [...source.matchAll(/<Period\b([^>]*)>([\s\S]*?)<\/Period>/gi)];
+  const mpdTag = (source.match(/<MPD\b([^>]*)>/i) || [])[1] || '';
+  const totalDuration = parseIsoDurationSeconds(attr(mpdTag, 'mediaPresentationDuration'));
   let inferredStart = 0;
-  for (const period of source.matchAll(/<Period\b([^>]*)>([\s\S]*?)<\/Period>/gi)) {
-    const explicit = attr(period[1], 'start');
-    const start = explicit ? parseIsoDurationSeconds(explicit) : inferredStart;
-    const endIndex = Number(period.index) + period[0].length;
-    if (Number(adaptation?.index) >= Number(period.index) && Number(adaptation?.index) < endIndex) return start;
+  const rows = periods.map((period) => {
+    const explicitStart = attr(period[1], 'start');
+    const start = explicitStart ? parseIsoDurationSeconds(explicitStart) : inferredStart;
     const duration = parseIsoDurationSeconds(attr(period[1], 'duration'));
-    inferredStart = start + duration;
+    if (duration > 0) inferredStart = start + duration;
+    return { index: Number(period.index), endIndex: Number(period.index) + period[0].length, start, duration };
+  });
+  for (let index = 0; index < rows.length; index++) {
+    if (rows[index].duration > 0) continue;
+    const nextStart = rows[index + 1]?.start;
+    if (Number.isFinite(nextStart) && nextStart > rows[index].start) rows[index].duration = nextStart - rows[index].start;
+    else if (totalDuration > rows[index].start) rows[index].duration = totalDuration - rows[index].start;
   }
-  return 0;
+  return rows.find((row) => Number(adaptation?.index) >= row.index
+    && Number(adaptation?.index) < row.endIndex) || { start: 0, duration: 0 };
+}
+
+function dashSegmentTemplate(scope) {
+  const source = String(scope || '');
+  const closed = source.match(/<SegmentTemplate\b([^>]*)>([\s\S]*?)<\/SegmentTemplate>/i);
+  if (closed) return { tag: closed[1] || '', inner: closed[2] || '' };
+  const empty = source.match(/<SegmentTemplate\b([^>]*?)\/?\s*>/i);
+  return empty ? { tag: empty[1] || '', inner: '' } : null;
+}
+
+function dashTemplateToken(value, name, fallback = '') {
+  const pattern = new RegExp(`\\$${name}(?:%0?(\\d*)[du])?\\$`, 'gi');
+  return String(value || '').replace(pattern, (_whole, width) => {
+    const raw = String(fallback);
+    return width ? raw.padStart(Number(width), '0') : raw;
+  });
+}
+
+function dashTemplateTimeline(template, periodDuration) {
+  const timescale = Math.max(1, Number(attr(template.tag, 'timescale')) || 1);
+  const presentationTimeOffset = Number(attr(template.tag, 'presentationTimeOffset')) || 0;
+  const endTime = presentationTimeOffset + Math.max(0, Number(periodDuration) || 0) * timescale;
+  const duration = Math.max(0, Number(attr(template.tag, 'duration')) || 0);
+  const timelineInner = (template.inner.match(/<SegmentTimeline\b[^>]*>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
+  const rows = [];
+  if (!timelineInner) {
+    if (!duration || !periodDuration) return rows;
+    const count = Math.ceil(periodDuration * timescale / duration);
+    if (count > 10000) throw new Error('DASH altyazısı 10.000 parça sınırını aşıyor; şablon tamamlanmış sayılmadı.');
+    for (let index = 0; index < count; index++) rows.push({ time: index * duration, duration });
+    return rows;
+  }
+  const entries = [...timelineInner.matchAll(/<S\b([^>]*)\/?\s*>/gi)];
+  let time = 0;
+  for (let index = 0; index < entries.length; index++) {
+    const tag = entries[index][1];
+    const explicit = attr(tag, 't');
+    if (explicit !== '') time = Number(explicit);
+    const itemDuration = Number(attr(tag, 'd'));
+    const repeat = Number(attr(tag, 'r')) || 0;
+    if (!Number.isSafeInteger(time) || time < 0 || !Number.isSafeInteger(itemDuration) || itemDuration <= 0
+      || !Number.isSafeInteger(repeat) || repeat < -1) throw new Error('DASH altyazı zaman şablonu geçersiz.');
+    const nextTimeRaw = attr(entries[index + 1]?.[1] || '', 't');
+    const repeatCount = repeat >= 0 ? repeat + 1 : nextTimeRaw !== ''
+      ? Math.ceil((Number(nextTimeRaw) - time) / itemDuration)
+      : endTime > time ? Math.ceil((endTime - time) / itemDuration) : 0;
+    for (let item = 0; item < repeatCount; item++) {
+      if (rows.length >= 10000) throw new Error('DASH altyazısı 10.000 parça sınırını aşıyor; şablon tamamlanmış sayılmadı.');
+      if (endTime > presentationTimeOffset && time >= endTime) break;
+      rows.push({ time, duration: itemDuration });
+      time += itemDuration;
+    }
+  }
+  return rows;
 }
 
 function dashTextAdaptations(xml) {
@@ -683,12 +770,14 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
     const outerBase = dashOuterBase(xml, adaptation, baseUrl);
     const adaptationPrefix = adaptation.inner.split(/<Representation\b/i)[0];
     const adaptationBase = lastBaseUrl(adaptationPrefix, outerBase);
-    const adaptationTemplate = (adaptationPrefix.match(/<SegmentTemplate\b([^>]*)\/?\s*>/i) || [])[1] || '';
+    const adaptationTemplate = dashSegmentTemplate(adaptationPrefix);
     const adaptationListMatch = adaptationPrefix.match(/<SegmentList\b([^>]*)>([\s\S]*?)<\/SegmentList>/i);
-    const periodStart = dashPeriodStart(xml, adaptation);
+    const periodBounds = dashPeriodBounds(xml, adaptation);
+    const periodStart = periodBounds.start;
     for (const rep of dashRepresentations(adaptation.inner)) {
       const repBase = lastBaseUrl(rep.inner, adaptationBase);
-      const templateTag = (rep.inner.match(/<SegmentTemplate\b([^>]*)\/?\s*>/i) || [])[1] || adaptationTemplate;
+      const template = dashSegmentTemplate(rep.inner) || adaptationTemplate || { tag: '', inner: '' };
+      const templateTag = template.tag;
       const media = attr(templateTag, 'media');
       const representationId = attr(rep.tag, 'id');
       const bandwidth = attr(rep.tag, 'bandwidth');
@@ -740,17 +829,48 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         .replace(/\$RepresentationID\$/gi, representationId || '')
         .replace(/\$Bandwidth\$/gi, bandwidth || '')
         .replace(/\$\$/g, '$'), repBase) : '';
-      let template = decodeEntities(media)
+      const staticMpd = !/\btype\s*=\s*["']dynamic["']/i.test((xml.match(/<MPD\b[^>]*>/i) || [])[0] || '');
+      const boundedTimeline = staticMpd ? dashTemplateTimeline(template, periodBounds.duration) : [];
+      if (boundedTimeline.length) {
+        const startNumber = dashStartNumber(attr(templateTag, 'startNumber'));
+        const timescale = Math.max(1, Number(attr(templateTag, 'timescale')) || 1);
+        const presentationTimeOffset = Number(attr(templateTag, 'presentationTimeOffset')) || 0;
+        const streamKey = `dash-template|${resolveUrl(media, repBase)}|${representationId}|${language}`;
+        for (let index = 0; index < boundedTimeline.length; index++) {
+          const number = startNumber + index;
+          const timing = boundedTimeline[index];
+          let segmentPath = decodeEntities(media)
+            .replace(/\$RepresentationID\$/gi, representationId || '')
+            .replace(/\$Bandwidth\$/gi, bandwidth || '')
+            .replace(/\$\$/g, '__DASHDOLLAR__');
+          segmentPath = dashTemplateToken(segmentPath, 'Number', number);
+          segmentPath = dashTemplateToken(segmentPath, 'SubNumber', number);
+          segmentPath = dashTemplateToken(segmentPath, 'Time', timing.time).replace(/__DASHDOLLAR__/g, '$');
+          const segmentUrl = resolveUrl(segmentPath, repBase);
+          if (!segmentUrl) continue;
+          const escaped = segmentUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const querySuffix = segmentUrl.includes('#') ? ''
+            : segmentUrl.includes('?') ? '(?:&[^#]*)?(?:#.*)?' : '(?:[?#].*)?';
+          matchers.push({
+            pattern: `^${escaped}${querySuffix}$`, variable: /\$Time/i.test(media) ? 'time' : 'number',
+            segmentUrl, segmentValue: /\$Time/i.test(media) ? timing.time : number,
+            segmentTime: timing.time, startNumber, timescale, duration: timing.duration,
+            presentationTimeOffset, periodStart, initializationUrl, language, label, format, streamKey,
+          });
+        }
+        continue;
+      }
+      let templatePath = decodeEntities(media)
         .replace(/\$RepresentationID\$/gi, representationId || '__DASHREP__')
         .replace(/\$Bandwidth\$/gi, bandwidth || '__DASHREP__')
         .replace(/\$\$/g, '__DASHDOLLAR__');
       let variable = '';
-      template = template.replace(/\$(Number|Time|SubNumber)(?:%0?\d*[du])?\$/gi, (_whole, name) => {
+      templatePath = templatePath.replace(/\$(Number|Time|SubNumber)(?:%0?\d*[du])?\$/gi, (_whole, name) => {
         if (!variable) { variable = name.toLowerCase(); return '__DASHCAP__'; }
         return '__DASHNUM__';
       });
       if (!variable) continue;
-      const absolute = resolveUrl(template, repBase);
+      const absolute = resolveUrl(templatePath, repBase);
       const escaped = absolute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const querySuffix = absolute.includes('#') ? ''
         : absolute.includes('?') ? '(?:&[^#]*)?(?:#.*)?' : '(?:[?#].*)?';

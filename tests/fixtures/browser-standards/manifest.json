@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "fixturePolicy": "Yerel olarak yazılmış anonim yapısal örneklerdir; üçüncü taraf medya, altyazı metni, DRM anahtarı veya canlı URL kopyalanmamıştır.",
+  "sources": [
+    { "id": "dash-if-livesim2", "url": "https://github.com/Dash-Industry-Forum/livesim2", "commit": "bffc44f71076f91b8b59e6b3b1909680b1c02209", "license": "BSD-3-Clause", "use": "statik Number/Time SegmentTemplate ve CEA senaryo biçimi" },
+    { "id": "gpac-mp4box", "url": "https://github.com/gpac/mp4box.js", "commit": "38c2ac5d36d444f5eb2f5a7f0305fca7327b77e8", "license": "BSD-3-Clause", "use": "wvtt/stpp ISO-BMFF zaman oracle'ı" },
+    { "id": "sandflow-imscjs", "url": "https://github.com/sandflow/imscJS", "standard": "https://www.w3.org/TR/ttml-imsc1.2/", "commit": "89719fc2d224e36764defad01a9f7646af4ccdec", "license": "BSD-2-Clause", "use": "W3C IMSC zaman ve bölge sözleşmesi için oracle" },
+    { "id": "web-platform-tests", "url": "https://github.com/web-platform-tests/wpt", "commit": "8541c81a23fa405b61dc6cc12fbde3fd789147c0", "license": "WPT repository licenses", "use": "TextTrack ve EME davranış sözleşmeleri" },
+    { "id": "hbbtv-axinom", "url": "https://github.com/HbbTV-Association/ReferenceApplication + https://github.com/Axinom/public-test-vectors", "commit": "af21ed24a20b1d221623c109d087ceae6057cc78 + 9f5bd6b6117575454db8a44086efb69c32ab08e3", "license": "MIT + repository terms", "use": "çok dönem, reklam geçişi ve DRM yanında açık altyazı matrisi" },
+    { "id": "videojs-vttjs", "url": "https://github.com/videojs/vtt.js", "commit": "2eb1ea469f06478cd40268fe9d7de5746dee60fb", "license": "Apache-2.0", "use": "parçalı WebVTT ayrıştırma oracle'ı" }
+  ],
+  "fixtures": [
+    { "file": "cea-master.m3u8", "sha256": "14a6c1610af2cea8e2206ee2d365cd29b786af19fb181dc42c5522b268ffc738" },
+    { "file": "imsc-regions.ttml", "sha256": "1f5e76f84a0c2f613c911b4caf9fdef1a51d79c158c3804516aecb0525843e16" },
+    { "file": "livesim-static-number.mpd", "sha256": "28d86b5b379514fd70b529afa4edbb518e73aa58fe95da13c8c60ddd3d41ad88" },
+    { "file": "livesim-time-cea.mpd", "sha256": "3e54f5e3c701dbfb2888349b7ee0a1c98f1be9ef98d5bc66314bf4b4136e5c52" },
+    { "file": "multiperiod-drm-text.mpd", "sha256": "72895f163476922179a0a36f3ad7186630a01dc1ba8f1c4607ee19e1428a8c19" },
+    { "file": "webvtt-settings.vtt", "sha256": "e43b6b49e36981a1bf2dfdb9b8b6ae6faaf20651f6ebe8bbb3f483c205d72269" }
+  ]
+}

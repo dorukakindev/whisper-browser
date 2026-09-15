@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MPD type="static" mediaPresentationDuration="PT6S">
+  <Period duration="PT6S">
+    <AdaptationSet contentType="text" mimeType="application/mp4" codecs="stpp" lang="tr">
+      <SegmentTemplate timescale="1000" presentationTimeOffset="4000"
+        initialization="text/init.mp4" media="text/$Time$.m4s">
+        <SegmentTimeline><S t="4000" d="2000" r="-1"/></SegmentTimeline>
+      </SegmentTemplate>
+      <Representation id="ttml-tr"/>
+    </AdaptationSet>
+  </Period>
+</MPD>

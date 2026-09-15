@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { buildDarkReaderCssScript } = require('../src/browser-dark-mode');
@@ -15,6 +16,7 @@ const ISOLATED_WORLD_ID = 999;
 async function run() {
   await app.whenReady();
   const received = [];
+  let server = null;
   const onBridge = (_event, message) => received.push(message);
   ipcMain.on(BRIDGE_CHANNEL, onBridge);
   const window = new BrowserWindow({
@@ -27,7 +29,7 @@ async function run() {
     },
   });
   try {
-    await window.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html>
+    const pageHtml = `<!doctype html>
       <style>button,a,video{display:block;width:180px;height:32px;margin:8px} video{width:640px;height:360px}</style>
       <main><button id="main-action">Ana eylem</button><a href="#hedef">Bağlantı</a></main>
       <section id="shadow-host"></section>
@@ -47,7 +49,17 @@ async function run() {
             createDynamicsCompressor(...args) { window.__audioStats.compressors += 1; return super.createDynamicsCompressor(...args); }
           };
         }
-      </script>`));
+      </script>`;
+    server = http.createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      response.end(pageHtml);
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    await window.loadURL(`http://127.0.0.1:${address.port}/`);
     const result = await window.webContents.executeJavaScriptInIsolatedWorld(
       ISOLATED_WORLD_ID,
       [{ code: `(() => ({
@@ -73,6 +85,49 @@ async function run() {
       && message.payload?.action === 'retry'), true);
     assert.equal(received.some((message) => message?.type === 'page-blocks'), true);
     assert.equal(received.some((message) => message?.type === 'unknown-action'), false);
+
+    const mediaStandards = await window.webContents.executeJavaScript(`(async () => {
+      const video = document.createElement('video');
+      document.body.appendChild(video);
+      let addTrackEvents = 0;
+      video.textTracks.addEventListener('addtrack', () => { addTrackEvents += 1; });
+      const track = video.addTextTrack('subtitles', 'English', 'en');
+      track.mode = 'hidden';
+      const cue = new VTTCue(1, 3, 'WPT sözleşmesi');
+      track.addCue(cue);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const cueCount = track.cues.length;
+      const activeBeforeTime = track.activeCues.length;
+      track.removeCue(cue);
+      let invalidKeySystemRejected = false;
+      try {
+        await navigator.requestMediaKeySystemAccess('invalid.whisper.keysystem', [{
+          initDataTypes: ['cenc'], videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }]
+        }]);
+      } catch (_) { invalidKeySystemRejected = true; }
+      const result = {
+        trackCount: video.textTracks.length,
+        addTrackEvents,
+        mode: track.mode,
+        cueCount,
+        activeBeforeTime,
+        cueCountAfterRemove: track.cues.length,
+        emeType: typeof navigator.requestMediaKeySystemAccess,
+        invalidKeySystemRejected,
+      };
+      video.remove();
+      return result;
+    })()`, true);
+    assert.deepEqual(mediaStandards, {
+      trackCount: 1,
+      addTrackEvents: 1,
+      mode: 'hidden',
+      cueCount: 1,
+      activeBeforeTime: 0,
+      cueCountAfterRemove: 0,
+      emeType: 'function',
+      invalidKeySystemRejected: true,
+    }, 'Gerçek Electron TextTrack/EME sözleşmesi WPT beklentisinden ayrıldı.');
 
     const mediaPreference = await window.webContents.executeJavaScript(
       buildBrowserMediaPreferenceScript({
@@ -202,10 +257,11 @@ async function run() {
     const cssKey = await window.webContents.insertCSS(darkResult.css, { cssOrigin: 'user' });
     assert.equal(typeof cssKey, 'string');
     await window.webContents.removeInsertedCSS(cssKey);
-    console.log('electron-browser-trusted-bridge: güvenilir köprü, gerçek medya/shadow/iframe yaşam döngüsü, link ipuçları ve Dark Reader isolated world akışı geçti.');
+    console.log('electron-browser-trusted-bridge: güvenilir köprü, TextTrack/EME, gerçek medya/shadow/iframe yaşam döngüsü, link ipuçları ve Dark Reader isolated world akışı geçti.');
   } finally {
     ipcMain.removeListener(BRIDGE_CHANNEL, onBridge);
     if (!window.isDestroyed()) window.destroy();
+    if (server) await new Promise((resolve) => server.close(resolve));
     app.quit();
   }
 }
