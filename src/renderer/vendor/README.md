@@ -1,35 +1,8 @@
-# vendor/
+# Vendored browser assets
 
-Bu klasördeki dosyalar üçüncü taraf kütüphanelerdir ve **depoyla birlikte
-dağıtılır** (CSP `script-src 'self'` olduğu için CDN kullanılamaz).
+These third-party files are bundled locally because the renderer Content Security Policy disallows CDN scripts.
 
-## hls.min.js
+- hls.js 1.7.1 — Apache-2.0; see hls.js-LICENSE.txt
+- PDF.js 6.3.289 — Apache-2.0; see pdfjs-LICENSE.txt
 
-- Proje: [hls.js](https://github.com/video-dev/hls.js)
-- Sürüm: 1.7.1
-- Lisans: Apache-2.0 — tam metin: [`hls.js-LICENSE.txt`](hls.js-LICENSE.txt)
-
-Nerede kullanılıyor: YouTube'u indirmeden izlemek için. YouTube 1080p ve üzerini
-video/ses ayrı akışlar olarak verir; düz `<video>` bunları birleştiremez. hls.js,
-YouTube'un HLS manifestini MSE ile birleştirip oynatır.
-
-Güncellemek için:
-
-```bash
-npm i hls.js@<sürüm>
-cp node_modules/hls.js/dist/hls.min.js src/renderer/vendor/
-cp node_modules/hls.js/LICENSE src/renderer/vendor/hls.js-LICENSE.txt
-```
-
-Sürüm numarasını bu dosyada da güncelleyin.
-
-## pdf.js
-
-- Proje: [PDF.js](https://github.com/mozilla/pdf.js)
-- Sürüm: 6.3.289
-- Lisans: Apache-2.0 — tam metin: [`pdfjs-LICENSE.txt`](pdfjs-LICENSE.txt)
-
-`pdf.min.mjs` ile `pdf.worker.min.mjs`, PDF kitap okuyucusunda yerel dosyaları
-çizmek ve metin katmanını çıkarmak için kullanılır. `standard_fonts/`, `cmaps/`,
-`wasm/` ve `iccs/` dizinleri standart font, çok dilli karakter haritası, görsel
-çözücü ve renk profili desteğidir. CSP nedeniyle CDN kullanılmaz.
+PDF.js modules, worker, fonts, character maps, WASM helpers, and color profiles support the local PDF reader.

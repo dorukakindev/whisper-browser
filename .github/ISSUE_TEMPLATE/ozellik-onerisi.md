@@ -1,13 +1,11 @@
 ---
-name: Özellik önerisi
-about: Yeni bir özellik veya iyileştirme fikri
-title: ''
-labels: öneri
+name: Feature request
+about: Suggest a focused improvement
+title: ""
+labels: enhancement
 ---
 
-**Hangi sorunu çözüyor?**
-<!-- Somut bir kullanım durumu anlatın: hangi videoda, hangi adımda tıkandınız? -->
-
-**Nasıl çalışmasını hayal ediyorsun?**
-
-**Alternatifler / şu an nasıl idare ediyorsun?**
+## Problem
+## Proposed behavior
+## Alternatives
+## Privacy, compatibility, or performance considerations

@@ -1,13 +1,13 @@
-name: Testler
+name: CI
 
-# Testler yalnızca saf mantığı sınar: GPU, model indirmesi veya ağ gerekmez.
-# Python testleri ağır bağımlılıklar (torch, faster-whisper) OLMADAN çalışır —
-# transcribe.py modül seviyesinde ağır import yapmaz, bu yüzden CI hızlıdır.
 on:
   push:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -16,22 +16,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
+          node-version: '22.13.0'
+          cache: npm
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Node testleri
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts
+      - name: Run test suite
         run: npm test
-
-      - name: Sözdizimi kontrolü
+      - name: Check syntax
         run: |
           node --check src/main.js
           node --check src/preload.js

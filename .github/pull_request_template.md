@@ -1,19 +1,10 @@
-## Ne değişti?
+## What changed?
+## Why?
+## Verification
 
-<!-- Kısa özet -->
-
-## Neden?
-
-<!-- Hangi sorunu çözüyor? Varsa issue numarası -->
-
-## Nasıl doğrulandı?
-
-<!--
-Ölçüm/çıktı varsa yazın (bu depoda alışkanlık budur: iddiayı ölçümle destekleyin).
--->
-
-- [ ] `npm test` geçiyor
-- [ ] Kullanıcıya görünen metinler Türkçe
-- [ ] Yeni backend seçeneği eklendiyse sözleşme dört yerde senkron
-      (transcribe.py → main.js → renderer.js → index.html)
-- [ ] Gizli anahtar argv'ye eklenmedi (ortam değişkeni kullanıldı)
+- [ ] Focused regression tests pass
+- [ ] npm test passes
+- [ ] User-facing application text remains Turkish
+- [ ] Backend contracts are synchronized where applicable
+- [ ] No secret was added to argv, logs, fixtures, or source control
+- [ ] Privacy and license notices were updated when needed

@@ -1,7 +1,7 @@
 {
-  "name": "whisper-altyazi",
-  "version": "1.0.0",
-  "description": "Yerel, GPU hizlandirmali altyazi cikarma uygulamasi (Electron + faster-whisper). Film ve belgesel icin ayarlanmis; dahili oynatici, ceviri ve senkron araclariyla.",
+  "name": "whisper-browser",
+  "version": "0.9.0-beta.1",
+  "description": "Local GPU-accelerated subtitle transcription, browser caption capture, and context-aware translation for Windows.",
   "main": "src/main.js",
   "scripts": {
     "build:browser-ass": "node tools/build-browser-ass.js",
@@ -15,7 +15,7 @@
     "audit:subtitle-golden": "node tools/audit-subtitle-golden.js",
     "audit:subtitle-external-sdh": "node tools/audit-subtitle-external-sdh.js"
   },
-  "author": "Whisper Altyazı",
+  "author": "dorukakindev and Whisper Browser contributors",
   "license": "MIT",
   "devDependencies": {
     "electron": "https://github.com/castlabs/electron-releases#v43.2.0+wvcus",
@@ -46,12 +46,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/androiandot/whisper-altyazi.git"
+    "url": "https://github.com/dorukakindev/whisper-browser.git"
   },
   "bugs": {
-    "url": "https://github.com/androiandot/whisper-altyazi/issues"
+    "url": "https://github.com/dorukakindev/whisper-browser/issues"
   },
-  "homepage": "https://github.com/androiandot/whisper-altyazi#readme",
+  "homepage": "https://github.com/dorukakindev/whisper-browser#readme",
   "engines": {
     "node": ">=22.13.0"
   }

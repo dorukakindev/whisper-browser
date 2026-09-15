@@ -1,34 +1,21 @@
 ---
-name: Hata bildirimi
-about: Beklenmeyen bir davranış veya çökme
-title: ''
-labels: hata
+name: Bug report
+about: Report reproducible incorrect behavior or a crash
+title: ""
+labels: bug
 ---
 
-**Ne oldu?**
-<!-- Kısa açıklama -->
+## What happened?
+## Expected behavior
+## Reproduction steps
+## Environment
 
-**Ne olmasını bekliyordun?**
+- Commit/version:
+- Windows:
+- GPU and VRAM:
+- Model and engine:
+- Source type:
 
-**Nasıl tekrarlanır?**
-1.
-2.
-3.
+## Redacted log
 
-**Ortam**
-- Windows sürümü:
-- GPU ve VRAM: <!-- örn. RTX 4070 Super, 12 GB -->
-- Model / motor: <!-- örn. large-v3 / faster-whisper -->
-- Kaynak: <!-- yerel dosya / YouTube -->
-- Ön ayar: <!-- Film, Hızlı, ... -->
-
-**Günlük**
-<!--
-Uygulama her iş için günlük yazar: %APPDATA%/whisper-altyazi/logs/
-İlgili kısmı buraya yapıştırın. Günlükte API anahtarı bulunmaz, yine de
-göndermeden önce göz atın.
--->
-
-```
-(günlük buraya)
-```
+Remove paths, subtitle text, cookies, headers, signed URLs, and secrets.

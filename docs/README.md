@@ -1,8 +1,3 @@
-# docs/
+# Documentation archive
 
-Arsiv. `BUG_RAPORU.md` ve `BUG_REPORT.md`, gelistirme sirasinda yapilan eski
-kod denetimlerinin ciktilaridir; **guncel durumu yansitmazlar** — icindeki
-bulgularin buyuk kismi coktan duzeltildi. Gecmis kaydi olarak tutuluyorlar.
-
-Guncel mimari ve konvansiyonlar icin depo kokundeki `CLAUDE.md`,
-katki akisi icin `CONTRIBUTING.md` dosyalarina bakin.
+This tree contains current public documentation and historical audit, verification, and handoff records. Historical records may describe findings later fixed; they are not a current support matrix. Start with the documents linked from the root README.
