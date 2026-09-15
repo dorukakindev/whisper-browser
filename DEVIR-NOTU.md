@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-15 19:11 — 15 Eylül bug raporları 25–32 tam kapanış](docs/devir/2026-09-15-1911.md).
+Güncel çalışma: [2026-09-15 19:54 — canlı altyazı çeviri hata görünürlüğü ve yarım cümle kararlılığı](docs/devir/2026-09-15-1954.md).
+
+Önceki çalışma: [2026-09-15 19:11 — 15 Eylül bug raporları 25–32 tam kapanış](docs/devir/2026-09-15-1911.md).
 
 Önceki çalışma: [2026-09-15 18:48 — bug raporları 29–31 doğrulama ve düzeltme kapanışı](docs/devir/2026-09-15-1848.md).
 
