@@ -18,6 +18,18 @@ Whisper Browser is a Windows desktop application for local GPU-accelerated subti
 
 Whisper Browser does not decrypt protected media, bypass DRM, or extract data from a CDM. Capture works only when a site exposes an authorized, accessible subtitle track.
 
+## Ways to use it
+
+| Workflow | Use it for |
+| --- | --- |
+| **Local file or folder** | GPU transcription, batch queues, subtitle repair, translation, and SRT/VTT/ASS/TXT/JSON export. |
+| **YouTube source mode** | Create a complete local subtitle file from a permitted YouTube video or selected time range. |
+| **Player mode** | Watch local media with source/translation tracks, cue search, editing, loops, notes, and timing tools. |
+| **Browser mode** | Watch websites, capture accessible subtitle tracks, retrieve complete tracks where supported, translate them, or fall back to Live Whisper. |
+| **Page, manga, and PDF translation** | Translate articles/selections, supported image regions, and bounded PDF page batches with configured providers. |
+
+See the screenshot-led [usage guide](docs/USAGE_GUIDE.md) for the difference between YouTube source mode and browser mode, complete web-caption capture, translation profiles, and review steps.
+
 ## Product tour
 
 [![Watch a real-video dual-subtitle translation demo](docs/media/demo-poster.png)](docs/media/whisper-browser-tour.mp4)
@@ -46,6 +58,7 @@ Use start.bat so CUDA DLL paths are configured. Default input/output folders are
 ## Documentation
 
 - [Installation](docs/INSTALLATION.md)
+- [Usage guide](docs/USAGE_GUIDE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Privacy](docs/PRIVACY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

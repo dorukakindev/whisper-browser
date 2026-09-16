@@ -7,6 +7,7 @@ These assets document the shipped application and its subtitle workflow.
 - browser-workspace.png: Electron browser-extras smoke capture using an isolated profile and synthetic browser-extras.test media.
 - ai-context-panel.png: controlled Electron AI-context evidence using synthetic page and subtitle data.
 - subtitle-editor.png: controlled Electron subtitle-editor evidence using synthetic cue data.
+- translation-providers.png: isolated-profile Electron capture of separate subtitle and manga provider profiles; no key is entered or displayed.
 
 ## Real-video translation example
 
@@ -27,3 +28,4 @@ The shipped application UI inside the application captures is Turkish. No user a
 - demo-poster.png: 3e79736853e9a3cc22a05bb9da392dfad2d23fd3c267e6ad1581a28e1b5e7699
 - youtube-dual-subtitles.png: 3e79736853e9a3cc22a05bb9da392dfad2d23fd3c267e6ad1581a28e1b5e7699
 - whisper-browser-tour.mp4: d9f5147b81a33488cf18cf4c61c3aa8963c12c89344943170810b7a06be85cac
+- translation-providers.png: 415847c2dc1472714a9a42ef61b7508c2f44c40a9157efb80dee4cd8350ebf02
