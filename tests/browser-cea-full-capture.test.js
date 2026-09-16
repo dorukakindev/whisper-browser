@@ -51,6 +51,27 @@ const {
   assert.equal(peak, 2);
   assert.equal(ordered.completed.length, 3);
 
+  let cancelled = false;
+  let releaseDownload;
+  const lateConsumed = [];
+  const lateProgress = [];
+  const cancelledRun = runOrderedCeaCapture({
+    segments: refreshed, concurrency: 1,
+    isCancelled: () => cancelled,
+    fetchSegment: () => new Promise(resolve => { releaseDownload = resolve; }),
+    consumeSegment: async (_buffer, segment) => lateConsumed.push(segment.sequence),
+    onProgress: progress => lateProgress.push(progress),
+  });
+  await Promise.resolve();
+  cancelled = true;
+  releaseDownload(Buffer.from('late segment'));
+  const stopped = await cancelledRun;
+  assert.deepEqual(lateConsumed, []);
+  assert.deepEqual(lateProgress, []);
+  assert.equal(stopped.completed.length, 0);
+  assert.equal(stopped.remaining.length, 3);
+  assert.equal(stopped.cancelled, true);
+
   const refreshError = Object.assign(new Error('expired'), { retryAction: 'refresh-manifest' });
   const paused = await runOrderedCeaCapture({
     segments: refreshed,

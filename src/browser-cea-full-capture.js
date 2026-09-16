@@ -141,6 +141,8 @@ async function runOrderedCeaCapture(options = {}) {
     if (!pending) break;
     const result = await pending;
     inFlight.delete(index);
+    // İndirme beklenirken iptal veya medya değişimi olmuş olabilir.
+    if (isCancelled()) break;
     const segment = items[index];
     if (result.ok) {
       try {
