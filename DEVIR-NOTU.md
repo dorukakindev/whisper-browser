@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 17:23 — rapor 51 bağımsız doğrulama ve ret ayrımı](docs/devir/2026-09-16-1723.md).
+Güncel çalışma: [2026-09-16 19:24 — English public repository presentation](docs/devir/2026-09-16-1924.md).
+
+Önceki çalışma: [2026-09-16 17:23 — rapor 51 bağımsız doğrulama ve ret ayrımı](docs/devir/2026-09-16-1723.md).
 
 Önceki çalışma: [2026-09-16 16:26 — çeviri fallback tanısı ve küçük-paket kurtarma](docs/devir/2026-09-16-1626.md).
 
