@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 08:07 — Great Courses altyazı manifesti geri kazanımı](docs/devir/2026-09-16-0807.md).
+Güncel çalışma: [2026-09-16 08:14 — rapor 40: Great Courses analizinin korunması](docs/devir/2026-09-16-0814.md).
+
+Önceki çalışma: [2026-09-16 08:07 — Great Courses altyazı manifesti geri kazanımı](docs/devir/2026-09-16-0807.md).
 
 Önceki çalışma: [2026-09-16 07:10 — medya tarama onayı ve önizleme token kapanışı](docs/devir/2026-09-16-0710.md).
 
