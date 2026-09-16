@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 10:42 — tam altyazı metadata terfisi ve görünür çeviri başlangıç hataları](docs/devir/2026-09-16-1042.md).
+Güncel çalışma: [2026-09-16 11:11 — 4SAPI çeviri sağlayıcısı ve model profilleri](docs/devir/2026-09-16-1111.md).
+
+Önceki çalışma: [2026-09-16 10:42 — tam altyazı metadata terfisi ve görünür çeviri başlangıç hataları](docs/devir/2026-09-16-1042.md).
 
 Önceki çalışma: [2026-09-16 10:38 — 10-ajan derin denetim turu (rapor 42)](docs/devir/2026-09-16-1038.md).
 
