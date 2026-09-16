@@ -1527,6 +1527,46 @@ function mp4VideoFragmentStart(buffer, videoTrackIds = [], timescales = {}) {
   return Number.isFinite(earliest) ? earliest : null;
 }
 
+function mp4FirstTrunComposition(buffer, box) {
+  if (!box || box.start + 8 > box.end) return 0;
+  const version = buffer[box.start];
+  const flags = buffer.readUInt32BE(box.start) & 0x00ffffff;
+  const count = buffer.readUInt32BE(box.start + 4);
+  if (!count) return 0;
+  let cursor = box.start + 8;
+  if (flags & 0x000001) cursor += 4; // data_offset
+  if (flags & 0x000004) cursor += 4; // first_sample_flags
+  if (flags & 0x000100) cursor += 4; // sample_duration
+  if (flags & 0x000200) cursor += 4; // sample_size
+  if (flags & 0x000400) cursor += 4; // sample_flags
+  if (!(flags & 0x000800) || cursor + 4 > box.end) return 0;
+  return version === 1 ? buffer.readInt32BE(cursor) : buffer.readUInt32BE(cursor);
+}
+
+function mp4VideoFragmentCompositionStart(buffer, videoTrackIds = [], timescales = {}) {
+  const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  const wanted = new Set((videoTrackIds || []).map((id) => String(id)));
+  if (!wanted.size || data.length < 16) return null;
+  let earliest = Infinity;
+  for (const moof of mp4Boxes(data).filter((box) => box.type === 'moof')) {
+    for (const traf of mp4Boxes(data, moof.start, moof.end).filter((box) => box.type === 'traf')) {
+      const children = mp4Boxes(data, traf.start, traf.end);
+      const trackId = String(mp4Tfhd(data, mp4Child(children, 'tfhd')).trackId || '');
+      const tfdt = mp4Child(children, 'tfdt');
+      const trun = mp4Child(children, 'trun');
+      const timescale = Number(timescales[trackId]);
+      if (!wanted.has(trackId) || !tfdt || !Number.isFinite(timescale) || timescale <= 0) continue;
+      if (tfdt.start + (data[tfdt.start] === 1 ? 12 : 8) > tfdt.end) continue;
+      if (data[tfdt.start] === 1
+          && data.readBigUInt64BE(tfdt.start + 4) > BigInt(Number.MAX_SAFE_INTEGER)) continue;
+      const composition = mp4FirstTrunComposition(data, trun);
+      const seconds = (mp4Tfdt(data, tfdt) + composition) / timescale;
+      if (Number.isFinite(seconds)) earliest = Math.min(earliest, seconds);
+    }
+  }
+  return Number.isFinite(earliest) ? earliest : null;
+}
+
 function mp4TrunSamples(buffer, box, defaults = {}) {
   if (!box || box.start + 8 > box.end) return { samples: [], dataOffset: null };
   const version = buffer[box.start];
@@ -1862,6 +1902,7 @@ module.exports = {
   parseMp4Stpp,
   parseMp4SampleDefaults,
   mp4VideoFragmentStart,
+  mp4VideoFragmentCompositionStart,
   parseMp4Timescale,
   parseTimedBlocks,
   parseYoutubeCaptionMetadata,

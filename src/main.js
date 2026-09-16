@@ -67,6 +67,11 @@ const {
   matchHlsCeaSegmentUrl,
 } = require('./browser-cea-captions');
 const {
+  calibrateCueTimeline,
+  matchingReferenceCues,
+  shiftCueTimeline,
+} = require('./browser-cue-timeline-calibration');
+const {
   ceaCaptureSegmentIdentity,
   mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,
@@ -7636,12 +7641,25 @@ async function runBrowserHlsCeaFullCapture(job) {
       requireExpectedDuration: true,
     });
     const captureReady = !missing.length && planCoverage.planComplete;
+    const nativeTimelineTracks = await snapshotBrowserNativeTracks(job.tab, job.context);
     let cueCount = 0;
     let inputPath = '';
     for (const track of job.tracks || []) {
       const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
-      const cues = browserTrackBuffers.get(streamKey) || [];
+      let cues = browserTrackBuffers.get(streamKey) || [];
       if (!cues.length) continue;
+      const references = matchingReferenceCues(nativeTimelineTracks, {
+        language: track.language || '',
+        label: track.name || track.instreamId || '',
+        instreamId: track.instreamId || '',
+      });
+      const calibration = calibrateCueTimeline(references, cues);
+      if (calibration.accepted && Math.abs(calibration.offsetSeconds) >= 0.05) {
+        cues = normalizeCues(shiftCueTimeline(cues, calibration.offsetSeconds));
+        browserTrackBuffers.set(streamKey, cues);
+        noteBrowserCapture('cea', { url: job.sourceUrl, context: job.context }, 'calibrated',
+          `Site altyazısıyla ${calibration.matches} eşleşme · zaman düzeltmesi ${calibration.offsetSeconds > 0 ? '+' : ''}${calibration.offsetSeconds.toFixed(3)} sn`);
+      }
       cueCount += cues.length;
       if (captureReady) {
         inputPath = saveBrowserTrackToConfiguredFolder(job.tab, cues, track, 'source');
@@ -8625,6 +8643,10 @@ function ensureBrowserDebugger() {
 }
 
 function browserTrackProbeScript() {
+  return browserTrackProbeScriptWithMode(false);
+}
+
+function browserTrackProbeScriptWithMode(force = false) {
   return `(async () => {
     let video = window.__whisperMediaController?.select?.() || null;
     if (!video) {
@@ -8679,10 +8701,11 @@ function browserTrackProbeScript() {
         hashText(cue ? Number(cue.startTime).toFixed(3) + '|' + Number(cue.endTime).toFixed(3) + '|' + String(cue.text || '') : '');
         if (previous && index + 1 === previous.length) previousPrefixFingerprint = fingerprint;
       }
-      if (previous && previous.length === count && previous.fingerprint === fingerprint) continue;
+      if (!${force ? 'true' : 'false'} && previous
+          && previous.length === count && previous.fingerprint === fingerprint) continue;
       const list = Array.from({ length: count }, (_, index) => cueList[index]);
       let emitted = list;
-      if (previous && list.length > previous.length && previous.length > 0
+      if (!${force ? 'true' : 'false'} && previous && list.length > previous.length && previous.length > 0
           && previousPrefixFingerprint === previous.fingerprint) emitted = list.slice(previous.length);
       probeState.seen.set(track, { length: list.length, fingerprint });
       const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
@@ -8695,6 +8718,19 @@ function browserTrackProbeScript() {
     }
     return tracks;
   })()`;
+}
+
+async function snapshotBrowserNativeTracks(tab, context) {
+  if (!tab || !isCurrentBrowserContext(context) || !browserView
+      || browserView.webContents.isDestroyed()) return [];
+  try {
+    const frameTracks = await withTimeout(executeBrowserFrames(browserTrackProbeScriptWithMode(true)),
+      BROWSER_SCRIPT_TIMEOUT, 'Yerel altyazı zaman örneği alınamadı.');
+    if (!isCurrentBrowserContext(context)) return [];
+    return frameTracks.flatMap((tracks) => Array.isArray(tracks) ? tracks : []);
+  } catch (_) {
+    return [];
+  }
 }
 
 function browserCaptureHookScript() {

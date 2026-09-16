@@ -12,6 +12,10 @@ const {
   isLikelyMpegTsResponse,
   matchHlsCeaSegmentUrl,
 } = require('../src/browser-cea-captions');
+const {
+  mp4VideoFragmentCompositionStart,
+  mp4VideoFragmentStart,
+} = require('../src/browser-subtitles');
 
 const ROOT = path.join(__dirname, '..');
 let passed = 0;
@@ -62,6 +66,30 @@ test('fMP4 tfdt epoku HLS parça başlangıcına taşınır', () => {
   const later = new CeaCaptionDecoder().decodeFragmentedMp4(shifted, init,
     { start: 20, duration: 120 });
   assert.equal(later[0].start, 20);
+});
+
+test('fMP4 trun kompozisyon ofseti decode zamanından ayrı tutulur', () => {
+  const box = (type, payload) => {
+    const header = Buffer.alloc(8);
+    header.writeUInt32BE(payload.length + 8, 0);
+    header.write(type, 4, 4, 'ascii');
+    return Buffer.concat([header, payload]);
+  };
+  const tfhd = Buffer.alloc(8);
+  tfhd.writeUInt32BE(0, 0);
+  tfhd.writeUInt32BE(1, 4);
+  const tfdt = Buffer.alloc(12);
+  tfdt[0] = 1;
+  tfdt.writeBigUInt64BE(0n, 4);
+  const trun = Buffer.alloc(12);
+  trun.writeUInt32BE(0x00000800, 0);
+  trun.writeUInt32BE(1, 4);
+  trun.writeUInt32BE(8 * 90000, 8);
+  const fragment = box('moof', box('traf', Buffer.concat([
+    box('tfhd', tfhd), box('tfdt', tfdt), box('trun', trun),
+  ])));
+  assert.equal(mp4VideoFragmentStart(fragment, [1], { 1: 90000 }), 0);
+  assert.equal(mp4VideoFragmentCompositionStart(fragment, [1], { 1: 90000 }), 8);
 });
 
 test('HLS segment eşleyicisi imzalı sorgu değişse de yalnız tanımlı yolu kabul eder', () => {

@@ -2,7 +2,7 @@
 
 const muxjs = require('mux.js');
 const { createDecipheriv } = require('crypto');
-const { parseHlsSegments, mp4VideoFragmentStart } = require('./browser-subtitles');
+const { parseHlsSegments, mp4VideoFragmentCompositionStart } = require('./browser-subtitles');
 
 function normalizeCaptionText(value) {
   return String(value || '').replace(/\r\n?/g, '\n')
@@ -80,10 +80,13 @@ class CeaCaptionDecoder {
       this.mp4TrackIds, this.mp4Timescales);
     const cues = (parsed?.captions || []).map(captionToCue).filter(Boolean);
     const playlistStart = Number(options.start);
-    const fragmentStart = mp4VideoFragmentStart(fragment, this.mp4TrackIds, this.mp4Timescales);
+    const fragmentStart = mp4VideoFragmentCompositionStart(
+      fragment, this.mp4TrackIds, this.mp4Timescales);
     if (!Number.isFinite(playlistStart) || !Number.isFinite(fragmentStart)) return cues;
-    // CMAF tfdt can start at a non-zero decode epoch while the HTML5 playhead
-    // starts at the HLS playlist's zero. Map both clocks before publishing.
+    // CMAF tfdt can start at a non-zero decode epoch and the first displayed
+    // sample can have an additional trun composition offset. CaptionParser
+    // emits presentation timestamps, so anchor them to the first presented
+    // video sample rather than to decode time before publishing.
     const offset = playlistStart - fragmentStart;
     return cues.map((cue) => ({ ...cue, start: Math.max(0, cue.start + offset),
       end: Math.max(0.001, cue.end + offset), timelineMapped: true }));
