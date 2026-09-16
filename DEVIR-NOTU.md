@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 08:31 — Great Courses gerçek-site CEA kabulü ve doğrudan tam yakalama](docs/devir/2026-09-16-0831.md).
+Güncel çalışma: [2026-09-16 09:26 — Great Courses CEA plan durumunun snapshot ile güvenilir teslimi](docs/devir/2026-09-16-0926.md).
+
+Önceki çalışma: [2026-09-16 08:31 — Great Courses gerçek-site CEA kabulü ve doğrudan tam yakalama](docs/devir/2026-09-16-0831.md).
 
 Önceki çalışma: [2026-09-16 08:14 — rapor 40: Great Courses analizinin korunması](docs/devir/2026-09-16-0814.md).
 
