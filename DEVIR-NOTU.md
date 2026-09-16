@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 12:43 — tarayıcı üst katmanlarını native videonun önünde gösterme](docs/devir/2026-09-16-1243.md).
+Güncel çalışma: [2026-09-16 14:10 — CEA saat eşlemesi ve çeviri istek bütçesi](docs/devir/2026-09-16-1410.md).
+
+Önceki çalışma: [2026-09-16 12:43 — tarayıcı üst katmanlarını native videonun önünde gösterme](docs/devir/2026-09-16-1243.md).
 
 Önceki çalışma: [2026-09-16 12:12 — ikinci 10-ajan derin denetim turu (rapor 46)](docs/devir/2026-09-16-1212.md).
 
