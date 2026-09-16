@@ -32,6 +32,12 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   assert.equal(waiting.get('pending').signal.aborted, false, 'değişmeyen uçuşan istek iptal edildi');
   assert.equal(calls.filter((text) => text === 'First.').length, 1);
   assert.equal(calls.filter((text) => text === 'Pending.').length, 1);
+  const contextOnly = assembleCueSentences([first, pending, cue('c', 'New.', 4)]);
+  contextOnly[0].contextAfter = [{ text: 'New neighboring context.' }];
+  scheduler.reconcileSentences(contextOnly);
+  assert.equal(scheduler.snapshot().reconcile.changed, 0,
+    'yalnız komşu bağlam değiştiğinde gönderilmiş cümle yeniden ücretlendirilmemeli');
+  assert.equal(waiting.get('pending').signal.aborted, false);
   waiting.get('pending').resolve('Bekleyen.');
   await scheduler.whenIdle();
   assert.equal(scheduler.snapshot().total, 3);
@@ -99,6 +105,46 @@ const cue = (id, text, start = 0) => ({ id, text, start, end: start + 1 });
   assert.equal(result.reused + result.added + result.changed, result.sentenceCount);
   assert.match(translationSource, /persistCompletedBrowserTranslation\(tab, scheduler, config, scheduler\.context\)/,
     'Arşivleme güncel kaynak bağlamını kullanmalı');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+  const liveStart = renderer.slice(renderer.indexOf('async function startBrowserLiveTranslation('),
+    renderer.indexOf('function browserTranslationCueKey('));
+  assert.match(liveStart,
+    /player\.browserTranslationTrackId === track\.id[\s\S]*?refresh: true[\s\S]*?restoreBrowserTranslationSnapshot/,
+    'aynı izin ikinci seçimi scheduler ve sonuçları sıfırlamamalı');
+  let reusedRequest = null;
+  let restored = 0;
+  const oldTranslations = new Map([['a', { cueId: 'a', text: 'Korunan çeviri.' }]]);
+  const liveContext = {
+    player: {
+      browserActiveTabId: 'tab-1', cues: [first], cuesRaw: [first],
+      browserTranslationTrackId: 'source', browserTranslationFailed: 0,
+      browserLiveTranslations: oldTranslations,
+    },
+    window: { api: { startBrowserTranslation: async (_tabId, request) => {
+      reusedRequest = request;
+      return { ok: true, sentenceCount: 1 };
+    } } },
+    currentGeneration: () => 1, staleGeneration: () => false,
+    browserTabState: () => ({}),
+    restoreBrowserTranslationSnapshot: async () => { restored++; },
+    retryFailedBrowserTranslation: async () => { throw new Error('başarılı iz yeniden denenmemeli'); },
+    setBrowserSignal: () => {},
+  };
+  vm.createContext(liveContext);
+  vm.runInContext(liveStart, liveContext);
+  const reused = await liveContext.startBrowserLiveTranslation({ id: 'source', role: 'source' }, 'en');
+  assert.equal(reused.reused, true);
+  assert.equal(reusedRequest.refresh, true);
+  assert.equal(restored, 1);
+  assert.equal(liveContext.player.browserLiveTranslations, oldTranslations,
+    'aynı iz yeniden seçilince hazır çeviri Map sıfırlandı');
+  liveContext.player.browserTranslationFailed = 2;
+  liveContext.retryFailedBrowserTranslation = async () => { liveContext.retried = true; };
+  const retried = await liveContext.startBrowserLiveTranslation({ id: 'source', role: 'source' }, 'en');
+  assert.equal(retried.reused, true);
+  assert.equal(liveContext.retried, true, 'yalnız hatalı cümleler yeniden denenmedi');
+  assert.equal(liveContext.player.browserLiveTranslations, oldTranslations,
+    'kısmi hatada sağlam çeviriler silindi');
   assert.equal(context.startBrowserTranslation(tab, [first], { trackId: 'wrong', refresh: true }).ok, false);
 
   const recoveryContext = { Map, Date, Number, Array };

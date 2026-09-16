@@ -180,6 +180,7 @@ class BrowserTranslationScheduler {
     this.paused = Boolean(options.paused);
     this.idleWaiters = [];
     this.lastReconcile = { unchanged: 0, added: 0, changed: 0, removed: 0 };
+    this.providerFailure = '';
   }
 
   setContext(context = {}) {
@@ -208,10 +209,16 @@ class BrowserTranslationScheduler {
   reconcileSentences(sentences) {
     const next = (Array.isArray(sentences) ? sentences : []).map((sentence) => ({ ...sentence }));
     const previous = new Map(this.sentences.map((sentence) => [sentence.id, sentence]));
-    // Aynı metnin zamanları, cue sınırları veya bağlamı değişmiş olabilir.
-    // Yalnız tamamen aynı cümlenin sonucu ve çalışan isteği korunur.
+    // Sonradan eklenen komşu cue yalnız bağlamı değiştirir. Çevrilmiş veya
+    // sağlayıcıya gönderilmiş aynı cümleyi bu yüzden yeniden ücretlendirme.
+    // Metin, cue sınırı, saat veya açık bağlam sürümü değişirse yine yenile.
+    const core = (sentence) => {
+      if (!sentence) return '';
+      const { contextBefore, contextAfter, ...stable } = sentence;
+      return JSON.stringify(stable);
+    };
     const unchanged = new Set(next.filter((sentence) =>
-      JSON.stringify(previous.get(sentence.id)) === JSON.stringify(sentence)).map((sentence) => sentence.id));
+      core(previous.get(sentence.id)) === core(sentence)).map((sentence) => sentence.id));
     const nextIds = new Set(next.map((sentence) => sentence.id));
     this.lastReconcile = {
       unchanged: unchanged.size,
@@ -235,6 +242,17 @@ class BrowserTranslationScheduler {
     const next = Math.max(0, finiteNumber(seconds));
     const farSeek = Math.abs(next - this.playhead) >= this.farSeekThreshold;
     this.playhead = next;
+    if (this.providerFailure) {
+      for (const sentence of this.sentences) {
+        if (!this.results.has(sentence.id)) this.failures.set(sentence.id, {
+          attempts: 0, terminal: true, retryAt: Infinity, error: this.providerFailure,
+        });
+      }
+      this.queue = [];
+      this.emitState();
+      this.resolveIdleIfNeeded();
+      return [];
+    }
     const windowIds = new Set(planTranslationWindow(this.sentences, next, {
       lookBehind: this.lookBehind,
       lookAhead: this.lookAhead,
@@ -307,6 +325,7 @@ class BrowserTranslationScheduler {
       .filter(([, failure]) => failure.terminal)
       .map(([sentenceId]) => sentenceId);
     if (!failedIds.length) return 0;
+    this.providerFailure = '';
     for (const sentenceId of failedIds) this.failures.delete(sentenceId);
     // Hata kullanicinin mevcut pencere kapsami disinda olsa bile yeniden
     // denenebilmeli; ancak bu eylem acik bir "tum izi cevir" talebi degildir.
@@ -433,6 +452,14 @@ class BrowserTranslationScheduler {
       this.onResult(value, sentence);
     }).catch((error) => {
       if (!controller.signal.aborted && generation === this.generation) {
+        if (error?.providerUnavailable === true) {
+          this.tripProviderFailure(error);
+          this.onResult({
+            sentenceId: sentence.id, error: this.providerFailure, attempt: 1,
+            retryable: false, retrying: false, nextRetryMs: 0, cues: [],
+          }, sentence);
+          return;
+        }
         const previous = this.failures.get(sentence.id);
         const attempts = (previous?.attempts || 0) + 1;
         const terminal = error?.retryable === false || attempts >= this.maxAttempts;
@@ -477,6 +504,7 @@ class BrowserTranslationScheduler {
   }
 
   cancelAll(reason = 'İptal edildi.') {
+    this.providerFailure = '';
     this.queue = [];
     for (const job of this.pending.values()) job.controller.abort(reason);
     this.pending.clear();
@@ -485,6 +513,24 @@ class BrowserTranslationScheduler {
     for (const timer of this.retryTimers) clearTimeout(timer);
     this.retryTimers.clear();
     this.failures.clear();
+    this.emitState();
+    this.resolveIdleIfNeeded();
+  }
+
+  tripProviderFailure(error) {
+    this.providerFailure = String(error?.message || error || 'Çeviri sağlayıcısı modeli sunmuyor.');
+    for (const job of this.pending.values()) job.controller.abort('Sağlayıcı modeli sunmuyor.');
+    this.pending.clear();
+    for (const shared of this.inFlightByCacheKey.values()) shared.controller.abort('Sağlayıcı modeli sunmuyor.');
+    this.inFlightByCacheKey.clear();
+    for (const timer of this.retryTimers) clearTimeout(timer);
+    this.retryTimers.clear();
+    this.queue = [];
+    for (const sentence of this.sentences) {
+      if (!this.results.has(sentence.id)) this.failures.set(sentence.id, {
+        attempts: 0, terminal: true, retryAt: Infinity, error: this.providerFailure,
+      });
+    }
     this.emitState();
     this.resolveIdleIfNeeded();
   }

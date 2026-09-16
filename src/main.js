@@ -17,6 +17,7 @@ const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
+const { classifyTranslationHttpFailure } = require('./browser-translation-provider-error');
 const {
   isYoutubePlayerResponseUrl,
   pruneYoutubePlayerResponseBody,
@@ -4172,7 +4173,7 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
       } catch (_) {}
       const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü${detail ? `: ${detail}` : ''}.`);
       error.httpStatus = Number(response.status) || 0;
-      error.retryable = [408, 425, 429].includes(error.httpStatus) || error.httpStatus >= 500;
+      Object.assign(error, classifyTranslationHttpFailure(error.httpStatus, detail));
       throw error;
     }
     data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
@@ -7284,7 +7285,7 @@ async function captureBrowserHlsCeaSegment(responseBuffer, candidate = {}, conte
       const trackCues = decoded.filter((cue) =>
         String(cue.stream || '').toUpperCase() === String(track.instreamId || '').toUpperCase());
       if (!trackCues.length) continue;
-      const likelyLocalTimeline = segment.start > 0
+      const likelyLocalTimeline = segment.start > 0 && !trackCues.some((cue) => cue.timelineMapped)
         && cuesUseLocalSegmentTimeline(trackCues, segment.duration, segment.start);
       const streamKey = `${browserTrackStreamKey(segment.sourceUrl || segment.playlistUrl,
         track.language)}|cea:${track.instreamId}`;

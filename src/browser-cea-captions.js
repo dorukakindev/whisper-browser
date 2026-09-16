@@ -2,7 +2,7 @@
 
 const muxjs = require('mux.js');
 const { createDecipheriv } = require('crypto');
-const { parseHlsSegments } = require('./browser-subtitles');
+const { parseHlsSegments, mp4VideoFragmentStart } = require('./browser-subtitles');
 
 function normalizeCaptionText(value) {
   return String(value || '').replace(/\r\n?/g, '\n')
@@ -75,9 +75,18 @@ class CeaCaptionDecoder {
     }
     if (!this.mp4TrackIds.length || !Object.keys(this.mp4Timescales).length) return [];
     this.mp4.clearParsedCaptions();
-    const parsed = this.mp4.parse(new Uint8Array(Buffer.from(buffer || [])),
+    const fragment = Buffer.from(buffer || []);
+    const parsed = this.mp4.parse(new Uint8Array(fragment),
       this.mp4TrackIds, this.mp4Timescales);
-    return (parsed?.captions || []).map(captionToCue).filter(Boolean);
+    const cues = (parsed?.captions || []).map(captionToCue).filter(Boolean);
+    const playlistStart = Number(options.start);
+    const fragmentStart = mp4VideoFragmentStart(fragment, this.mp4TrackIds, this.mp4Timescales);
+    if (!Number.isFinite(playlistStart) || !Number.isFinite(fragmentStart)) return cues;
+    // CMAF tfdt can start at a non-zero decode epoch while the HTML5 playhead
+    // starts at the HLS playlist's zero. Map both clocks before publishing.
+    const offset = playlistStart - fragmentStart;
+    return cues.map((cue) => ({ ...cue, start: Math.max(0, cue.start + offset),
+      end: Math.max(0.001, cue.end + offset), timelineMapped: true }));
   }
 }
 

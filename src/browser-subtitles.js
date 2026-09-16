@@ -1505,6 +1505,28 @@ function mp4Tfdt(buffer, box) {
   return buffer.readUInt32BE(box.start + 4);
 }
 
+function mp4VideoFragmentStart(buffer, videoTrackIds = [], timescales = {}) {
+  const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  const wanted = new Set((videoTrackIds || []).map((id) => String(id)));
+  if (!wanted.size || data.length < 16) return null;
+  let earliest = Infinity;
+  for (const moof of mp4Boxes(data).filter((box) => box.type === 'moof')) {
+    for (const traf of mp4Boxes(data, moof.start, moof.end).filter((box) => box.type === 'traf')) {
+      const children = mp4Boxes(data, traf.start, traf.end);
+      const trackId = String(mp4Tfhd(data, mp4Child(children, 'tfhd')).trackId || '');
+      const tfdt = mp4Child(children, 'tfdt');
+      const timescale = Number(timescales[trackId]);
+      if (!wanted.has(trackId) || !tfdt || !Number.isFinite(timescale) || timescale <= 0) continue;
+      if (tfdt.start + (data[tfdt.start] === 1 ? 12 : 8) > tfdt.end) continue;
+      if (data[tfdt.start] === 1
+          && data.readBigUInt64BE(tfdt.start + 4) > BigInt(Number.MAX_SAFE_INTEGER)) continue;
+      const seconds = mp4Tfdt(data, tfdt) / timescale;
+      if (Number.isFinite(seconds)) earliest = Math.min(earliest, seconds);
+    }
+  }
+  return Number.isFinite(earliest) ? earliest : null;
+}
+
 function mp4TrunSamples(buffer, box, defaults = {}) {
   if (!box || box.start + 8 > box.end) return { samples: [], dataOffset: null };
   const version = buffer[box.start];
@@ -1839,6 +1861,7 @@ module.exports = {
   parseMp4WebVtt,
   parseMp4Stpp,
   parseMp4SampleDefaults,
+  mp4VideoFragmentStart,
   parseMp4Timescale,
   parseTimedBlocks,
   parseYoutubeCaptionMetadata,

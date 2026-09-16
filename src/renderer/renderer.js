@@ -8058,6 +8058,27 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   }
   const tabId = player.browserActiveTabId;
   const gen = currentGeneration();
+  // Aynı izi ikinci kez seçmek, bitmiş/pending cümleleri silip API'ye yeniden
+  // göndermemeli. Yeni modelle baştan çeviri ayrı ve açık bir kullanıcı eylemi.
+  if (player.browserTranslationTrackId === track.id) {
+    const resumed = await window.api.startBrowserTranslation(tabId, {
+      trackId: track.id,
+      cues: (player.cuesRaw || player.cues).map((cue, index) => ({
+        id: cue.id ?? index, start: cue.start, end: cue.end, text: cue.text,
+      })),
+      refresh: true, completeTrack: true, sourceComplete: track.captureComplete !== false,
+    }).catch(() => null);
+    if (player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
+    if (resumed?.ok) {
+      await restoreBrowserTranslationSnapshot(browserTabState(tabId));
+      if (player.browserTranslationFailed) {
+        await retryFailedBrowserTranslation();
+      } else {
+        setBrowserSignal('Bu izin çevirisi zaten açık; hazır cümleler ve çeviri kuyruğu korundu.', true);
+      }
+      return { ok: true, reused: true, sentenceCount: Number(resumed.sentenceCount) || 0 };
+    }
+  }
   const startSeq = ++player.browserTranslationStartSeq;
   const translationTab = browserTabState(tabId);
   if (translationTab) translationTab.browserTranslationComplete = false;

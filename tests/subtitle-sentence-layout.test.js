@@ -205,6 +205,7 @@ async function run() {
     safeTranslationEndpoint: () => 'https://example.invalid/v1/chat/completions',
     fetch: async (_url, options) => { body = JSON.parse(options.body); return { ok: responseStatus < 400, status: responseStatus }; },
     readResponseBufferLimited: async () => Buffer.from(errorText, 'utf8'),
+    classifyTranslationHttpFailure: require('../src/browser-translation-provider-error').classifyTranslationHttpFailure,
     redactBrowserDiagnosticsText: (value, maxLength) => String(value).replace(/sk-[a-z0-9-]+/gi, '[GİZLENDİ]').slice(0, maxLength),
     readJsonResponseLimited: async () => ({ choices: [{ message: { content: responseText }, ...responseMeta }] }),
   };
@@ -294,6 +295,11 @@ async function run() {
   assert.equal(permanentError.retryable, false);
   assert.match(permanentError.message, /Invalid API key \[GİZLENDİ\]/);
   assert(!permanentError.message.includes(sentence.text), 'sağlayıcı hata ayrıntısı altyazı metnini sızdırdı');
+  responseStatus = 503;
+  errorText = JSON.stringify({ error: { message: 'No available channel for model gpt-5.4 under group gemini-cli' } });
+  await assert.rejects(
+    sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid'),
+    (error) => error.httpStatus === 503 && error.retryable === false && error.providerUnavailable === true);
   responseStatus = 200;
 
   console.log('subtitle-sentence-layout: ortak sınırlar, kayıpsız yerleşim, atomik cache/ret ve gerçek main istek sözleşmesi geçti');

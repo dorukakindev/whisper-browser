@@ -144,6 +144,15 @@ function createBrowserAdblock(options = {}) {
   let recentAllowed = [];
   let eventBound = false;
   let siteBypassInstalled = false;
+  const cosmeticWarnings = new WeakMap();
+  const reportCosmeticFailure = (sender, url, failure, message) => {
+    const { isBrowserScriptContextLoss } = require('./browser-script-execution');
+    if (!sender || sender.isDestroyed?.() || isBrowserScriptContextLoss(failure)) return;
+    const page = safeBlockedUrl(url || sender.getURL?.()) || 'unknown-page';
+    if (cosmeticWarnings.get(sender) === page) return;
+    cosmeticWarnings.set(sender, page);
+    options.logger?.warn?.(message);
+  };
 
   const snapshot = (changed = false) => ({
     ok: state !== 'error',
@@ -197,8 +206,9 @@ function createBrowserAdblock(options = {}) {
     }
     if (typeof engine.onInjectCosmeticFilters === 'function') {
       const original = engine.onInjectCosmeticFilters.bind(engine);
-      const schedule=require('./browser-cosmetic-executor').createCosmeticExecutor(()=>{
-        options.logger?.warn?.('Reklam engelleyici görsel filtresi bu sayfada uygulanamadı.');
+      const schedule=require('./browser-cosmetic-executor').createCosmeticExecutor((failure, context)=>{
+        reportCosmeticFailure(context?.webContents, context?.url, failure,
+          'Reklam engelleyici görsel filtresi bu sayfada uygulanamadı.');
       });
       engine.onInjectCosmeticFilters = (event, url, message) => {
         const allowed=()=>!paused({url,webContentsId:event?.sender?.id,resourceType:'cosmetic'});
@@ -208,7 +218,8 @@ function createBrowserAdblock(options = {}) {
           const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
         }});
         return Promise.resolve(original({sender,frameId:event.frameId,processId:event.processId},url,message))
-          .catch(()=>options.logger?.warn?.('Reklam engelleyici görsel filtre isteği tamamlanamadı.'));
+          .catch((failure)=>reportCosmeticFailure(event.sender, url, failure,
+            'Reklam engelleyici görsel filtre isteği tamamlanamadı.'));
       };
     }
     siteBypassInstalled = true;

@@ -45,6 +45,25 @@ test('gerçek fMP4 segmentinden CC1 cue üretir', () => {
     [['CC1', '00:00:00', 0, 119]]);
 });
 
+test('fMP4 tfdt epoku HLS parça başlangıcına taşınır', () => {
+  const dir = path.join(ROOT, 'node_modules', 'mux.js', 'test', 'segments');
+  const init = fs.readFileSync(path.join(dir, 'dash-608-captions-init.mp4'));
+  const shifted = Buffer.from(fs.readFileSync(path.join(dir, 'dash-608-captions-seg.m4s')));
+  const tfdt = shifted.indexOf('tfdt');
+  assert.ok(tfdt > 0);
+  assert.equal(shifted[tfdt + 4], 1);
+  shifted.writeBigUInt64BE(8n * 90000n, tfdt + 8);
+  const raw = new CeaCaptionDecoder().decodeFragmentedMp4(shifted, init);
+  assert.equal(raw[0].start, 8);
+  const mapped = new CeaCaptionDecoder().decodeFragmentedMp4(shifted, init,
+    { start: 0, duration: 120 });
+  assert.equal(mapped[0].start, 0);
+  assert.equal(mapped[0].timelineMapped, true);
+  const later = new CeaCaptionDecoder().decodeFragmentedMp4(shifted, init,
+    { start: 20, duration: 120 });
+  assert.equal(later[0].start, 20);
+});
+
 test('HLS segment eşleyicisi imzalı sorgu değişse de yalnız tanımlı yolu kabul eder', () => {
   const playlist = '#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-MAP:URI="init.mp4"\n'
     + '#EXTINF:6,\nseg-1.m4s?token=old\n#EXTINF:6,\nseg-2.m4s?token=old\n';

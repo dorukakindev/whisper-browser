@@ -22,6 +22,7 @@ class FakeEngine extends EventEmitter {
   disableBlockingInSession(session) { this.enabledSessions.delete(session); }
   onBeforeRequest(_details, callback) { callback({ cancel: true }); }
   onHeadersReceived(_details, callback) { callback({ responseHeaders: { test: ['1'] } }); }
+  onInjectCosmeticFilters(event, _url, message) { return event.sender.insertCSS(message); }
 }
 
 (async () => {
@@ -132,6 +133,35 @@ class FakeEngine extends EventEmitter {
       'site anahtarı başka bir tarayıcı sekmesindeki engellemeyi gevşetmemeli');
     assert.equal(bypassController.getState().allowedBySite, 1,
       'yalnız duraklatılmış sekmenin izin sayacı artmalı');
+    const cosmeticWarnings = [];
+    const cosmeticController = createBrowserAdblock({
+      cachePath, blockerClass: FakeBlocker,
+      fetchImpl: async () => ({ ok: true }),
+      initialEnabled: false,
+      isSitePaused: () => false,
+      logger: { warn: (message) => cosmeticWarnings.push(message) },
+    });
+    await cosmeticController.setEnabled(session, true);
+    const cosmeticEngine = lastEngine;
+    const wc = new EventEmitter();
+    let cosmeticUrl = 'https://site.test/watch/1';
+    let cosmeticFailure = 'CSS failed';
+    Object.assign(wc, {
+      isDestroyed: () => false, isLoading: () => false,
+      getURL: () => cosmeticUrl,
+      insertCSS: async () => { throw new Error(cosmeticFailure); },
+    });
+    for (let index = 0; index < 5; index++) {
+      await cosmeticEngine.onInjectCosmeticFilters({ sender: wc }, cosmeticUrl, '.ad {display:none}');
+    }
+    assert.equal(cosmeticWarnings.length, 1, 'aynı sayfadaki CSS hatası logu doldurdu');
+    cosmeticUrl = 'https://site.test/watch/2';
+    await cosmeticEngine.onInjectCosmeticFilters({ sender: wc }, cosmeticUrl, '.ad {display:none}');
+    assert.equal(cosmeticWarnings.length, 2, 'yeni sayfanın gerçek hatası görünmez oldu');
+    cosmeticFailure = 'Execution context was destroyed';
+    cosmeticUrl = 'https://site.test/watch/3';
+    await cosmeticEngine.onInjectCosmeticFilters({ sender: wc }, cosmeticUrl, '.ad {display:none}');
+    assert.equal(cosmeticWarnings.length, 2, 'beklenen gezinme yarışı hata olarak yazıldı');
     lastEngine.emit('request-blocked');
     assert.equal(controller.getState().blocked, 0);
     const unchanged = await controller.setEnabled(session, true);
