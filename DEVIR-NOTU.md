@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 14:10 — CEA saat eşlemesi ve çeviri istek bütçesi](docs/devir/2026-09-16-1410.md).
+Güncel çalışma: [2026-09-16 15:22 — Great Courses CEA zaman çizgisi kalibrasyonu](docs/devir/2026-09-16-1522.md).
+
+Önceki çalışma: [2026-09-16 14:10 — CEA saat eşlemesi ve çeviri istek bütçesi](docs/devir/2026-09-16-1410.md).
 
 Önceki çalışma: [2026-09-16 12:43 — tarayıcı üst katmanlarını native videonun önünde gösterme](docs/devir/2026-09-16-1243.md).
 
