@@ -42,23 +42,29 @@ app.whenReady().then(async () => {
     const tab = browserTabState();
     player.browserTracks = [{ id:'native-cc1', path:'C:\\\\test\\\\native.srt', language:'en',
       label:'1-CC1', format:'html5-track', cueCount:7, role:'source' }];
-    player.browserCeaCapture = { state:'ready', available:true, completed:0, total:312,
-      missing:312, cueCount:0, message:'Tam kaynak altyazı planı hazır.',
-      tracks:[{ instreamId:'CC1', language:'en', name:'English', standard:'cea-608' }] };
-    if (tab) { tab.browserTracks=player.browserTracks.slice(); tab.browserCeaCapture=player.browserCeaCapture; }
+    const snapshot = { id:tab.id, generation:tab.generation, url:tab.url, title:tab.title,
+      captureEnabled:true, ceaCapture:{ state:'ready', available:true, completed:0, total:312,
+        missing:312, cueCount:0, message:'Tam kaynak altyazı planı hazır.',
+        tracks:[{ instreamId:'CC1', language:'en', name:'English', standard:'cea-608' }] } };
+    syncBrowserTabs([snapshot], tab.id, player.browserSplit);
+    const restoredTab = browserTabState();
+    restoredTab.browserTracks = player.browserTracks.slice();
+    restoreActiveBrowserTabWorkspace(restoredTab);
     renderBrowserTracks('native-cc1');
     setSettingsPage('browser-subtitles');
     setSettingsDrawer(true);
     const button=document.getElementById('browserTrackCaptureFull');
     return { visible:button.getBoundingClientRect().width>0, disabled:button.disabled,
       button:button.textContent, matched:browserTrackMatchesCeaPlan(player.browserTracks[0]),
-      prefetch:shouldAcquireFullCeaBeforeTranslation(player.browserTracks[0]) };
+      prefetch:shouldAcquireFullCeaBeforeTranslation(player.browserTracks[0]),
+      restored:player.browserCeaCapture?.total };
   `);
   assert.equal(ready.visible, true);
   assert.equal(ready.disabled, false);
   assert.equal(ready.button, 'Tüm altyazıyı getir');
   assert.equal(ready.matched, true);
   assert.equal(ready.prefetch, true);
+  assert.equal(ready.restored, 312);
   await run(`
     const tab = browserTabState();
     player.browserTracks = [{ id:'cea-ui', path:'C:\\\\test\\\\web.srt', language:'en',

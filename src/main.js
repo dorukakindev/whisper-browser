@@ -2110,6 +2110,7 @@ function createBrowserTabRecord(initial = {}) {
     lifecycle: restored.lifecycle === 'unloaded' ? 'unloaded' : 'background',
     unloadedAt: Number(restored.unloadedAt) || 0,
     diagnostics: null,
+    ceaCapture: null,
     playbackDiagnostics: createPlaybackDiagnosticTracker(),
     htmlFullscreen: false,
     pageResponsive: true,
@@ -2322,6 +2323,9 @@ function browserTabSnapshot(tab) {
     pageTranslateStats: tab?.pageTranslateStats || null,
     pageTranslateCompletion: tab?.pageTranslateCompletion || null,
     diagnostics: tab ? tab.diagnostics : null,
+    ceaCapture: tab?.ceaCapture ? { ...tab.ceaCapture,
+      tracks: Array.isArray(tab.ceaCapture.tracks)
+        ? tab.ceaCapture.tracks.map((track) => ({ ...track })) : [] } : null,
     operationId: tab?.operationId || '',
     mediaId: tab?.mediaId || '',
     service: tab?.service || '',
@@ -3755,6 +3759,7 @@ function trackBrowserSubtitleFile(filePath) {
 function invalidateBrowserTabSubtitles(tab) {
   if (!tab) return;
   tab.contentDuration = 0;
+  tab.ceaCapture = null;
   browserExtras?.cancel(tab);
   // Önce sahipliği bırak: cancelAll eşzamanlı onState yayımlayabilir.
   const scheduler = tab.translationScheduler;
@@ -3780,6 +3785,7 @@ function resetBrowserCaptureState(options = {}) {
   flushBrowserTrackPublications(true);
   browserStateGeneration += 1;
   const currentTab = activeBrowserTab();
+  if (currentTab) currentTab.ceaCapture = null;
   if (currentTab?.discoveryProbeTimer) clearTimeout(currentTab.discoveryProbeTimer);
   if (currentTab) currentTab.discoveryProbeTimer = null;
   if (options.cancelTranslation && currentTab?.translationScheduler) {
@@ -7349,6 +7355,46 @@ async function resolveBrowserHlsCeaFullPlan(sourceUrl, tracks, context) {
     tracks: variantTracks, segments, playlistComplete: /#EXT-X-ENDLIST(?:\s|$)/i.test(playlistBody) };
 }
 
+function normalizeBrowserCeaCaptureState(payload = {}) {
+  return {
+    state: String(payload.state || 'running'),
+    available: payload.available === true,
+    completed: Math.max(0, Number(payload.completed) || 0),
+    total: Math.max(0, Number(payload.total) || 0),
+    failed: Math.max(0, Number(payload.failed) || 0),
+    missing: Math.max(0, Number(payload.missing) || 0),
+    percent: Math.max(0, Math.min(100, Number(payload.percent) || 0)),
+    complete: payload.complete === true,
+    planComplete: payload.planComplete !== false,
+    planReason: String(payload.planReason || ''),
+    plannedDuration: Math.max(0, Number(payload.plannedDuration) || 0),
+    expectedDuration: Math.max(0, Number(payload.expectedDuration) || 0),
+    durationPercent: Math.max(0, Math.min(100, Number(payload.durationPercent) || 0)),
+    retryRound: Math.max(0, Number(payload.retryRound) || 0),
+    cueCount: Math.max(0, Number(payload.cueCount) || 0),
+    tracks: Array.isArray(payload.tracks) ? payload.tracks.map((track) => ({
+      instreamId: String(track?.instreamId || ''), language: String(track?.language || ''),
+      name: String(track?.name || ''), standard: String(track?.standard || ''),
+    })) : [],
+    message: String(payload.message || ''),
+  };
+}
+
+function publishBrowserHlsCeaCaptureState(tab, payload = {}, syncSnapshot = false) {
+  if (!tab) return null;
+  const state = normalizeBrowserCeaCaptureState(payload);
+  tab.ceaCapture = state;
+  sendBrowserEvent(tab, { type: 'cea-capture-progress', ...state });
+  if (syncSnapshot) {
+    // Plan olayı gezinme/acquisition kapısı açılmadan geldiyse renderer onu
+    // haklı olarak reddedebilir. Global sekme snapshot'ı kapıdan bağımsızdır;
+    // çalışma durumunu ikinci bir güvenilir kanaldan yeniden kurar.
+    sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(),
+      activeTabId: browserActiveTabId, split: browserSplitSnapshot() });
+  }
+  return state;
+}
+
 function sendBrowserHlsCeaFullProgress(job, state, message = '') {
   if (!job?.tab) return;
   job.state = state;
@@ -7362,18 +7408,14 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
     expectedDuration: Number(job.expectedDuration) || 0,
     requireExpectedDuration: true,
   });
-  sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
-    available: true,
+  publishBrowserHlsCeaCaptureState(job.tab, { state, available: true,
     completed: completeness.completed, total: completeness.total, failed: job.failures.length,
     missing: completeness.missing, percent: completeness.percent, complete: completeness.complete,
     planComplete: completeness.planComplete, planReason: completeness.planReason,
     plannedDuration: completeness.plannedDuration, expectedDuration: completeness.expectedDuration,
     durationPercent: completeness.durationPercent,
     retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount,
-    tracks: (job.tracks || []).map((track) => ({
-      instreamId: String(track.instreamId || ''), language: String(track.language || ''),
-      name: String(track.name || ''), standard: String(track.standard || ''),
-    })), message });
+    tracks: job.tracks, message }, ['complete', 'partial', 'error', 'cancelled'].includes(state));
 }
 
 function sendBrowserHlsCeaPlanReady(tab, plan) {
@@ -7381,8 +7423,8 @@ function sendBrowserHlsCeaPlanReady(tab, plan) {
   const plannedDuration = plan.segments.reduce((total, segment) =>
     total + Math.max(0, Number(segment.duration) || 0), 0);
   const expectedDuration = Math.max(0, Number(tab.contentDuration) || 0);
-  sendBrowserEvent(tab, {
-    type: 'cea-capture-progress', state: 'ready', available: true,
+  publishBrowserHlsCeaCaptureState(tab, {
+    state: 'ready', available: true,
     completed: 0, total: plan.segments.length, failed: 0, missing: plan.segments.length,
     percent: 0, cueCount: 0, planComplete: plan.playlistComplete !== false,
     plannedDuration, expectedDuration,
@@ -7393,7 +7435,7 @@ function sendBrowserHlsCeaPlanReady(tab, plan) {
       name: String(track.name || ''), standard: String(track.standard || ''),
     })),
     message: `Tam kaynak altyazı planı hazır: ${plan.segments.length} video segmenti.`,
-  });
+  }, true);
 }
 
 async function resolveBrowserHlsCeaExpectedDuration(job) {

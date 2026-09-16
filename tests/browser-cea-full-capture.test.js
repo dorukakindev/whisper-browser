@@ -163,11 +163,30 @@ const {
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
   assert.match(main, /browser:subtitle:captureFull/);
   assert.match(main, /sendBrowserHlsCeaPlanReady\(ceaTab, browserHlsCeaActive\)/);
+  assert.match(main, /ceaCapture:\s*tab\?\.ceaCapture/);
+  assert.match(main, /function publishBrowserHlsCeaCaptureState\(tab, payload = \{\}, syncSnapshot = false\)/);
+  assert.match(main, /sendBrowserEvent\(\{ type: 'tabs-changed', tabs: browserTabsSnapshot\(\)/);
+  assert.match(main, /function invalidateBrowserTabSubtitles\(tab\)[\s\S]{0,140}tab\.ceaCapture = null/);
   assert.match(preload, /captureFullBrowserSubtitle/);
   assert.match(renderer, /toggleBrowserCeaFullCapture/);
   assert.match(renderer, /browserPendingCeaTranslation/);
+  assert.match(renderer, /browserCeaCapture:\s*normalizeBrowserCeaCaptureState\(snapshot\.ceaCapture\)/);
+  assert.match(renderer, /hasOwnProperty\.call\(snapshot, 'ceaCapture'\)[\s\S]{0,120}normalizeBrowserCeaCaptureState/);
   assert.match(renderer, /Önce bölümün tam kaynak altyazısı getiriliyor/);
   assert.match(html, /id="browserTrackCaptureFull"[\s\S]*?Tüm altyazıyı getir/);
+
+  const normalizeSource = renderer.slice(
+    renderer.indexOf('function normalizeBrowserCeaCaptureState('),
+    renderer.indexOf('function applyBrowserCeaCaptureProgress('));
+  const normalizeState = new Function(`${normalizeSource}; return normalizeBrowserCeaCaptureState;`)();
+  assert.equal(normalizeState(null), null);
+  const restored = normalizeState({ state: 'ready', available: true, total: 906,
+    missing: 906, durationPercent: 102, tracks: [{ instreamId: 'CC1', standard: 'cea-608' }] });
+  assert.equal(restored.state, 'ready');
+  assert.equal(restored.available, true);
+  assert.equal(restored.total, 906);
+  assert.equal(restored.durationPercent, 100);
+  assert.deepEqual(restored.tracks, [{ instreamId: 'CC1', language: '', name: '', standard: 'cea-608' }]);
 
   console.log('browser-cea-full-capture: ordered capture, exact completeness and automatic missing retry OK');
 })().catch((error) => {

@@ -4726,7 +4726,7 @@ function newBrowserTabState(snapshot = {}) {
     error: '',
     errorKind: '', errorCode: '', errorUrl: '',
     browserTracks: [],
-    browserCeaCapture: null,
+    browserCeaCapture: normalizeBrowserCeaCaptureState(snapshot.ceaCapture),
     browserTime: Number(snapshot.position) || 0,
     browserDuration: Number(snapshot.duration) || 0,
     browserPaused: true,
@@ -5134,6 +5134,8 @@ function syncBrowserTabs(snapshots, activeTabId, split) {
       browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
       browserMangaVisible: !!snapshot.mangaVisible,
       diagnostics: snapshot.diagnostics || tab.diagnostics,
+      browserCeaCapture: Object.prototype.hasOwnProperty.call(snapshot, 'ceaCapture')
+        ? normalizeBrowserCeaCaptureState(snapshot.ceaCapture) : tab.browserCeaCapture,
       mediaId: snapshot.mediaId || tab.mediaId || '', service: snapshot.service || tab.service || '',
       browserTime: Number.isFinite(Number(snapshot.position)) ? Number(snapshot.position) : (tab.browserTime || 0),
       browserDuration: Number.isFinite(Number(snapshot.duration)) ? Number(snapshot.duration) : (tab.browserDuration || 0),
@@ -7498,8 +7500,9 @@ function renderBrowserCeaCaptureState(track = browserTrackSelection(false)) {
   }
 }
 
-function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
-  const capture = {
+function normalizeBrowserCeaCaptureState(event) {
+  if (!event || typeof event !== 'object') return null;
+  return {
     state: String(event.state || 'running'),
     available: event.available === true,
     completed: Math.max(0, Number(event.completed) || 0),
@@ -7520,6 +7523,11 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
     })) : [],
     message: String(event.message || ''),
   };
+}
+
+function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
+  const capture = normalizeBrowserCeaCaptureState(event);
+  if (!capture) return;
   if (tab) tab.browserCeaCapture = capture;
   if (tab?.id === player.browserActiveTabId || !tab) player.browserCeaCapture = capture;
   renderBrowserCeaCaptureState();
@@ -11111,23 +11119,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'capture-status') {
         tab.diagnostics = event.diagnostics || null;
       } else if (event.type === 'cea-capture-progress') {
-        tab.browserCeaCapture = {
-          state: String(event.state || 'running'), completed: Math.max(0, Number(event.completed) || 0),
-          available: event.available === true,
-          total: Math.max(0, Number(event.total) || 0), failed: Math.max(0, Number(event.failed) || 0),
-          cueCount: Math.max(0, Number(event.cueCount) || 0), message: String(event.message || ''),
-          missing: Math.max(0, Number(event.missing) || 0),
-          percent: Math.max(0, Math.min(100, Number(event.percent) || 0)),
-          planComplete: event.planComplete !== false,
-          planReason: String(event.planReason || ''),
-          plannedDuration: Math.max(0, Number(event.plannedDuration) || 0),
-          expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
-          durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
-          tracks: Array.isArray(event.tracks) ? event.tracks.map((track) => ({
-            instreamId: String(track?.instreamId || ''), language: String(track?.language || ''),
-            name: String(track?.name || ''), standard: String(track?.standard || ''),
-          })) : [],
-        };
+        tab.browserCeaCapture = normalizeBrowserCeaCaptureState(event);
       } else if (event.type === 'media-identity' && event.resetSubtitles) {
         tab.browserTracks = [];
         tab.browserCeaCapture = null;
