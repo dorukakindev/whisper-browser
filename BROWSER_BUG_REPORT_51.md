@@ -1,9 +1,26 @@
 # BROWSER BUG REPORT 51 — 35 ajanlık derin tarayıcı/renderer denetimi (tur 3)
 
-Tarih: 2026-09-16 15:57
+Tarih: 2026-09-16 15:57 (güncelleme: 16:30 — doğrulama koşuları)
 Denetim HEAD'i: `bf6780424cc779efd60cedf4c8f5c19014218c90` (`master`)
 Yöntem: 20 + 15 paralel salt-okunur ajan; tüm kritik bulgular bu rapora alınmadan önce üst ajan tarafından güncel kaynakta `dosya:satır` düzeyinde yeniden doğrulandı.
-Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmadı (statik denetim).** Raporlar 42/46/47/48/49 ile tekilleştirildi; B48-1/B49-1 (CEA saat eşlemesi) gibi kapanmış konular tekrar yazılmadı. (Not: `d9f395d` dokümantasyon commit'i paralel oturumun cue-sahipliği düzeltmesini ve onların `BROWSER_BUG_REPORT_50.md` dosyasını da taşıdı — bu rapor bu nedenle 51 numaralıdır.)
+Durum: **Ürün kodu bu turda değiştirilmedi.** Raporlar 42/46/47/48/49 ile tekilleştirildi; B48-1/B49-1 (CEA saat eşlemesi) gibi kapanmış konular tekrar yazılmadı. (Not: `d9f395d` dokümantasyon commit'i paralel oturumun cue-sahipliği düzeltmesini ve onların `BROWSER_BUG_REPORT_50.md` dosyasını da taşıdı — bu rapor bu nedenle 51 numaralıdır.)
+
+## Doğrulama koşuları (2026-09-16 — ÇALIŞTIRILDI)
+
+Statik bulguların koşulabilen alt kümesi gerçek harness'lerle test edildi (`.uiprev/ni-test/validate-report51.cjs` + `validate-r51-38.py` + Electron `ni-check.cjs`; fonksiyonlar kaynaktan kesilerek veya modül require ile koşuldu — ürün koduna dokunulmadı):
+
+| Bulgu | Sonuç | Kanıt |
+| --- | --- | --- |
+| R51-06 | ✅ **DOĞRULANDI** | Electron 43.2.0+wvcus'ta `createFromBuffer`: png 64×64 ✓, webp/gif/avif `isEmpty()=true` |
+| R51-34/35 | ✅ **DOĞRULANDI** | `parseSubtitles` 4 gerçek cue → 5 cue çıktı; STYLE bloğu cue-1 metninde, NOTE metni cue-2'de, NOTE içi `-->` sahte cue üretti; SRT'te `<i>`, `&amp;`, `&nbsp;`, `<v Ali>` literal kaldı |
+| R51-30 | ✅ **DOĞRULANDI** | Renderer regex'i `hâlâ kapanıyor\|zaten çalışıyor` 4 gerçek meşgul hatasının **hiçbirini** yakalamıyor → kuyruk öğeleri pending yerine kalıcı `error` |
+| R51-02 | ✅ **DOĞRULANDI** | `parseImportText` ile koşuldu: endpoint `https://saldiri-sunucu.example/v1` kabul + `apiKey:"GERCEK_ANAHTAR_123"` miras alındı |
+| R51-08 | ⚠️ **KISMEN/NETLEŞTİ** | İşaret onaysız kabul ediliyor; AMA sır-mirası mevcut alanların işaretini kayıtta etkisizleştiriyor (kasa korunuyor). Gerçek etki: `withSecrets` mevcut anahtarı uygulamadan **anında gizliyor** → çeviri/LLM/manga yeniden girilene dek fiilen kırık; kasada olmayan alanların işaretleri silahlı kalıyor |
+| R51-38 | ✅ **DOĞRULANDI** | `drop_repeated_hallucinations`: hizalıyken grup işaretlenip uyarılıyor; resume/1-blok-düşüş desync'inde `flagged=0, warnings=0` → tekrarlı halüsinasyon sessizce geçiyor |
+| R51-54 | ✅ **DOĞRULANDI** | `normalizeQueueSnapshot` 600 öğe → 500 öğe + `invalidCount=100` (UI sınırı yok) |
+| R51-55 | ✅ **DOĞRULANDI** | `readQueueStateRaw`: >8 MB `queue-state.json` + büyük `.bak` → `items:0` sessiz boş dönüş |
+
+Koşulamayan bulgular (Electron yaşam döngüsü/gerçek-site gerektiren) aşağıdaki "Runtime doğrulama gerektirenler" bölümünde duruyor.
 
 ## Özet
 
@@ -47,6 +64,8 @@ Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmad�
 - `safeTranslationEndpoint` (4015-4026) `https:` şartı koşar ama sahibi doğrulamaz — saldırganın HTTPS alanı geçerlidir.
 
 **Etki:** Yedek gibi görünen zararlı ayar dosyası `customBaseUrl`'i `https://attacker.example/v1`'e çevirir; kasada korunan gerçek anahtar bir sonraki çeviri/manga isteğinde o endpoint'e `Authorization` olarak POST edilir.
+
+**Runtime doğrulaması (YAPILDI — kesin):** `parseImportText` gerçek import metniyle koşuldu → çıktı `{"customBaseUrl":"https://saldiri-sunucu.example/v1","apiKey":"GERCEK_ANAHTAR_123"}` — endpoint değişti, sır korundu. Harness: `.uiprev/ni-test/validate-report51.cjs`.
 
 **Düzeltme planı:** Endpoint kimliği (origin) değiştiğinde ilgili sırları içe aktarmada taşıma; diyaloğa endpoint farkını ekle ve "mevcut anahtarları koru" için ayrı onay kutusu iste; import sonrası ilk istekte endpoint+anahtar eşleşmesini bir kez göster.
 
@@ -101,7 +120,7 @@ Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmad�
 | Kimlik | Bulgu | Kanıt |
 | --- | --- | --- |
 | R51-07 | İçe aktarılan `sitePermissions.allow` aktif-sekme kontrolünden **önce** `callback(true)` verir → arka plan sekmesinde bile sessiz izin | `main.js:9935-9939` |
-| R51-08 | `clearedSecretFields` import'ta kabul edilir → kasa sırları ayrı onay olmadan silinebilir (kullanılabilirlik kaybı) | `settings-security.js:351-357` |
+| R51-08 | `clearedSecretFields` import'ta onaysız kabul edilir → `withSecrets` mevcut kasa anahtarlarını uygulamadan anında gizler (çeviri/LLM/manga kırılır); fiziksel silme çoğu senaryoda sır-mirasıyla etkisizleşir ama kasa-dışı alanların işaretleri silahlı kalır | `settings-security.js:351-357`, `secret-store.js:23-25,87-89,190-223` |
 | R51-09 | Katalog "Oynat" `grantMedia` yapar, `authorizeMediaFile` diyaloğunu atlar → NMDB import'uyla eklenen keyfi yol klasör-yetkisi doğurur | `media-catalog-service.js:140` |
 | R51-10 | SponsorBlock segmenti tüm videoyu kapsayabilir → `[0,duration]` auto-skip videoyu sona sarar; kapsama oranı denetimi yok | `browser-sponsorblock.js:61-67` |
 | R51-11 | Anki export `screenshotRef`/`audioRef` ile keyfi yerel medya dosyasını `.apkg`'ye gömer → paylaşılan deste sızıntı taşır | `browser-learning.js:27-28`, `backend/export_anki.py:93-118` |
@@ -143,7 +162,7 @@ Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmad�
 | --- | --- | --- |
 | R51-28 | Spawn penceresinde iptal: `persistQueueNow`/`startTranscribeSafe` await'leri sonrası `queueRunning`/`cancelled`/`status` yeniden denetlenmez → yetim Python işi sonuna kadar çalışır; `state.running` sonsuza takılabilir | `renderer.js:650-711` |
 | R51-29 | Renderer reload'u kuyruk-dışı işi yetim bırakır: `loadQueueState` `activeJobId`'yi yalnız kuyruklu iş için döndürür → iş görünmez, iptal edilemez; yeni iş "Zaten bir iş çalışıyor" duvarına çarpar | `main.js:1224`, `renderer.js:3822, 2977` |
-| R51-30 | Geçici "meşgul" ret'leri kalıcı `error`'a sınıflanır: regex `zaten çalışıyor` bitişik kalıbı ararken ana süreç `'Zaten bir iş çalışıyor.'`/`'Gömme işi çalışırken…'`/`'Başka bir model işi…'` döndürür → kuyruk öğeleri tek tek yanar | `renderer.js:715-723` vs `main.js:15207-15214` |
+| R51-30 ✅ | Geçici "meşgul" ret'leri kalıcı `error`'a sınıflanır — **doğrulandı**: `/hâlâ kapanıyor\|zaten çalışıyor/i` hiçbir gerçek meşgul hatasını yakalamıyor (`'Zaten bir iş çalışıyor.'`, `'Gömme işi çalışırken…'`, `'Başka bir model işi…kapanıyor'`, `'…hâlâ çalışıyor'` hepsi kaçıyor) → kuyruk öğeleri tek tek yanar | `renderer.js:715-723` vs `main.js:15207-15214` |
 | R51-31 | Aynı kök-adlı çıktılar sessizce birbirini ezer: `D:\a\film.mp4` ve `D:\b\film.mp4` ayrı kuyruk öğesi → ikisi de `film.en.srt` yazar; son commit kazanır, öncekinin `files` listesi yanlış içeriği gösterir | `renderer.js:434-446`, `transcribe.py:5263-5266, 5919` |
 | R51-32 | Restore edilen kuyrukta her yerel dosya ayrı yetki diyaloğu açar (grant'lar bellekte); reddedilen öğe kalıcı `error` olur → "katılımsız kuyruk" imkânsız | `local-file-access.js` (Map bellek), `main.js:13514-13526, 15195`, `renderer.js:681-728` |
 | R51-33 | `queueSnapshotPayload` `watchSource`'u serialize etmeden atar → reload sonrası izleme öğeleri `watch:report`'a ulaşamaz; `watchSeen` `queued:true` mandalında kalır → dosya bir daha taranmaz | `renderer.js:83-94, 485-489`, `queue-persistence.js:141` |
@@ -152,11 +171,11 @@ Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmad�
 
 | Kimlik | Bulgu | Kanıt |
 | --- | --- | --- |
-| R51-34 | Yerel `parseSubtitles` VTT `NOTE`/`STYLE`/`REGION` bloklarını ve boş-satır sonrası metni önceki cue'nun gövdesine katar; `NOTE` içindeki `-->` benzeri satır sahte cue böler (browser ayrıştırıcı 253-263'te kesiyor, yerel kesmiyor) | `renderer.js:12090-12106` |
-| R51-35 | Yerel SRT/VTT metni etiket/entity temizliğinden geçmez → `<i>`, `&amp;`, `<v …>` literal basılır; kelime vurgusu ve düzenleme-geri-yazımı kirli metinle çalışır | `renderer.js:12104-12106` (browser yolu `cleanCueText` kullanır) |
+| R51-34 ✅ | Yerel `parseSubtitles` VTT `NOTE`/`STYLE`/`REGION` bloklarını cue gövdesine katar — **doğrulandı**: 4 gerçek cue'dan 5 cue çıktı, STYLE metni cue-1'e, NOTE metni cue-2'ye sızdı, NOTE içi `-->` sahte cue üretti (browser ayrıştırıcı bu blokları kesiyor, yerel kesmiyor) | `renderer.js:12090-12106` |
+| R51-35 ✅ | Yerel SRT/VTT metni etiket/entity temizliğinden geçmez — **doğrulandı**: `<i>`, `&amp;`, `&nbsp;`, `<v Ali>` literal çıktı; kelime vurgusu ve düzenleme-geri-yazımı kirli metinle çalışır | `renderer.js:12104-12106` (browser yolu `cleanCueText` kullanır) |
 | R51-36 | OSD browser modunda tamamen görünmez (`#playerOsd` `display:none` sahnede) → otomatik duraklatma/tekrar/hız geri bildirimi kaybolur | `renderer.js:15077-15084`, `index.html:1827`, `styles.css:5051` |
 | R51-37 | G/H ve `subOffset` kaydırıcısı browser modunda ölü ama `player.offset`'e ve medya-state'e **yazar** → aynı medya yerelde açıldığında bayat ofset sessizce uygulanır | `renderer.js:20323-20324, 20349-20358, 9050-9060` |
-| R51-38 | `transcribe.py` `segment_metrics` indeks kayması: metrikler transkripsiyon sırasında (5528) eklenir, aradaki birleştirme/filtreleme `entries`'i mutasyona uğratır, `drop_repeated_hallucinations` (5631-5632) indeksle erişir → yanlış güven sınıfı (uzunluk koruması yalnız 5806/5947'de) | `backend/transcribe.py:5528, 5631-5632, 5806, 5947` |
+| R51-38 ✅ | `transcribe.py` `segment_metrics` indeks kayması — **doğrulandı**: metrikler entries ile kilitli eklenir (5639-5640) ama `recover_punctuation_collapse`/`merge_resumed_entries`/`dedupe`/`fix_common_errors` entries'i mutasyona uğratırken metriklere dokunmaz; `find_repeated_hallucinations` metriği entries indeksiyle okur (4362). Resume'da grup `flagged=0` → tekrarlı halüsinasyon sessizce geçer | `backend/transcribe.py:5639-5640, 5688, 5714, 5728, 5736, 5744; 4310-4412` |
 | R51-39 | `media:readSubtitle` mtime/hash döndürmez, `media:writeSubtitle` körlemesine yazar → harici düzenleme sessizce ezilir (lost update) | `main.js:1737-1738`, yazma yolu `backupOnce`+atomic |
 
 ### Manga / sağlayıcı / yardımcı süreç
@@ -184,8 +203,8 @@ Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmad�
 | R51-51 | SPA hash-route çakışması: `url.hash=''` + `contentId` çıkarılamazsa aynı host'taki tüm videolar tek `mediaId`'ye çöker → altyazı yanlış videoya bağlanır (Stremio/Plex kalıbı) | `browser-media-identity.js:18` |
 | R51-52 | `queue:saveSync` terminal-guard'ı salmaz → retry diske `done` maskelenir; guard'lar oturum boyu birikir | `main.js:14302-14310` vs `14321-14329` |
 | R51-53 | İşler-arası/spawn boşluğunda renderer reload → `queueRunning` diske `activePresent` üzerinden yazıldığı için kuyruk sessizce durur, ipucu yok | `queue-persistence.js:167-173`, `main.js:1213-1225` |
-| R51-54 | Kuyruk UI'sında boyut sınırı yok; 500 öğe üstü diskte sessizce kırpılır ve mesaj "bozuk" der | `renderer.js:440-483`, `queue-persistence.js:4,152-153` |
-| R51-55 | `queue-state.json` 8 MB okuma üst-sınırı → aşılırsa ana+yedek atlanır, tüm kuyruk sessizce kaybolur | `main.js:1189-1206` |
+| R51-54 ✅ | Kuyruk UI'sında boyut sınırı yok — **doğrulandı**: 600 öğe normalize'da 500'e kırpıldı (`invalidCount=100`); kullanıcıya kayıp bildirimi yok | `renderer.js:440-483`, `queue-persistence.js:4,152-153` |
+| R51-55 ✅ | `queue-state.json` 8 MB okuma üst-sınırı — **doğrulandı**: >8 MB dosyada `readQueueStateRaw` `items:0` döner; `.bak` da büyükse kuyruk sessizce sıfırlanır | `main.js:1189-1199` |
 | R51-56 | `history.json` `.bak`'sız; parse hatası sonrası ilk kayıt tüm geçmişi siler | `main.js:1505-1529` |
 | R51-57 | Kapanışta child `close`'u beklenmez → transaction artıkları (`.whisper-output-transaction-*`) kalıcı kalabilir; mevcut flush kalıbı burada uygulanmıyor | `main.js:11262, 11303-11315, 15624-15638` |
 | R51-58 | `playerJobEvent` olayı `jobId`/`queueItemId` bağı olmadan tüketir → bayat `player.job` kuyruk terminalini yiyebilir, kuyruk kilitlenir | `renderer.js:3344-3346, 3813-3824` |
@@ -288,18 +307,20 @@ R51-12..15 (komut yolu), R51-24/25 (seek/sahne), R51-38 (metrik hizası), R51-40
 **Kademe 5 — sertleştirme / kozmetik:**
 R51-42/43 (SDK retry + env scrubbing), R51-48/49/51, R51-61..69 (manga yaşam döngüsü), R51-78/79 (prompt yüzeyi), R51-80..88, P4 tablosu.
 
-## Runtime doğrulama gerektirenler
+## Runtime doğrulama gerektirenler (kalan)
 
-- ~~R51-06~~: **Doğrulandı** — Electron 43.2.0+wvcus'ta `createFromBuffer` yalnız PNG/JPEG çözüyor (webp/gif/avif → `isEmpty`).
+Aşağıdakiler yukarıdaki koşularda **doğrulandı**: R51-02, R51-06, R51-08 (netleşti), R51-30, R51-34/35, R51-38, R51-54, R51-55.
+
+Hâlâ açık olanlar (canlı uygulama/gerçek site/zamanlama gerekir):
 - R51-13/28/46/57: yarış pencereleri gerçek zamanlamada repro edilmeli.
 - R51-16..20: gerçek HLS (byterange + delta-playlist + çok-varyant) akışında CEA fixture e2e.
 - R51-21: renderer'ı `process.crash()` ile öldürüp pencere davranışı.
 - R51-24: ofsetli senkronlu videoda anlamsal arama tıklaması.
-- R51-34/35: NOTE/STYLE'lı gerçek VTT ve etiketli SRT ile yerel görüntü.
+- R51-01: paket→oturum grant zincirinin uçtan uca repro'u (crafted `.wspak` + restart — statik zincir tam kanıtlı, e2e onayı kaldı).
 
 ## Sınırlar
 
-- Tüm bulgular **statik** denetimden; test koşusu yok, ürün kodu değişmedi.
+- Denetim statik + hedefli doğrulama koşuları; ürün kodu değişmedi. Doğrulama harness'leri `.uiprev/ni-test/` altında (repo-dışı araç dizini).
 - `BROWSER_BUG_REPORT_42/46/47` diskte `.gitignore` kapsamında olmadığı için tekilleştirme devir-özeti + seri devamlılığıyla yapıldı; olası kesişimler işaretlendi (R51-88 gibi).
 - `AGENTS.md`'deki "son: 28" ibaresi güncel değil — gerçek seri 51'e ulaştı; bu rapor 51'dir.
 - Rate-limit ile ölen ajan oturumları yeniden başlatıldı; tüm 35 kapsam tamamlandı.
