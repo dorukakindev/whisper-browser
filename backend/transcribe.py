@@ -44,6 +44,7 @@ from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
+                                  sentence_reply_issue,
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
                                   translation_blocking_issues)
@@ -3449,6 +3450,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     counters = {"done": 0, "failed": 0}
     failure_by_index = {}
     last_emit_ts = [time.time()]
+    translation_metrics = {
+        "started": time.time(), "requests": 0, "batch_requests": 0,
+        "fallback_requests": 0, "invalid_batches": 0,
+    }
 
     def call_api_with(prompt_text, payload):
         """Tercih edilen rotadan baslar; baglanti/5xx hatasinda siradaki rotaya gecer."""
@@ -3485,7 +3490,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
-    def task_once(chunk_idx):
+    def task_once(chunk_idx, phase="batch"):
+        with lock:
+            translation_metrics["requests"] += 1
+            metric_key = "fallback_requests" if phase == "fallback" else "batch_requests"
+            translation_metrics[metric_key] += 1
         payload = translation_payload(chunk_idx)
 
         resp, used_url = call_api_with(system_prompt, payload)
@@ -3498,17 +3507,28 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         data = parse_llm_json_object(content, "Ceviri yaniti JSON nesnesi degil")
 
         filled = 0
+        rejected = {}
         for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
+            issue = sentence_reply_issue(data, row['ids'])
+            if issue:
+                rejected[issue] = rejected.get(issue, 0) + 1
+                continue
             record = accept_sentence_reply(data, row['ids'])
             if not record:
+                rejected["bilinmeyen_yapisal_ret"] = rejected.get(
+                    "bilinmeyen_yapisal_ret", 0) + 1
                 continue
             # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
             # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki
             # "eksikleri tamamla" çalışması da İngilizce satırı atlar.
             if translation_is_source_echo(row['source'], record['text']):
+                rejected["kaynak_yankisi"] = rejected.get("kaynak_yankisi", 0) + 1
                 continue
             meaning_issues = translation_blocking_issues(row['source'], record['text'], target)
             if meaning_issues:
+                for issue in meaning_issues:
+                    key = "anlam_" + issue
+                    rejected[key] = rejected.get(key, 0) + 1
                 log("Ceviri grubu anlamsal kalite kapisinda reddedildi ({}); yeniden denenecek."
                     .format(", ".join(meaning_issues)), "warn")
                 with lock:
@@ -3526,25 +3546,100 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     series_memory.merge(candidates, series_key[1], series_key[2])
             filled += len(group)
         if filled == 0:
-            raise RuntimeError("Yanitta eksiksiz ve tutarli bir cumle grubu bulunamadi")
+            details = ", ".join(f"{key}={count}" for key, count in sorted(rejected.items()))
+            raise RuntimeError(
+                "Yanitta eksiksiz ve tutarli bir cumle grubu bulunamadi"
+                + (f" (ret: {details})" if details else " (ret nedeni: bos grup listesi)")
+            )
+        if rejected:
+            details = ", ".join(f"{key}={count}" for key, count in sorted(rejected.items()))
+            log(
+                f"Çeviri {chunk_idx[0]}-{chunk_idx[-1]}: {filled}/{len(chunk_idx)} blok "
+                f"kabul edildi; ret: {details}. Eksikler küçük paketlerle yeniden denenecek.",
+                "warn",
+            )
         # GERCEKTEN dolan blok sayisi doner (parca uzunlugu DEGIL). Model 20 blok
         # istenip yalnizca birkacini dondurdugunde geri kalanlar sessizce KAYNAK
         # metin olarak kaliyordu; eskiden parca uzunlugu dondugu icin ilerleme
         # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
         return filled
 
-    def retry_groups_once(groups_to_retry):
-        """Eksik her cümle grubunu bir kez tek başına yeniden iste."""
+    def retry_groups_once(groups_to_retry, *, batched=True):
+        """Eksik grupları önce ikili küçük paket, gerekirse tek grup olarak kurtar."""
         recovered = 0
-        for group in groups_to_retry:
+        bundles = []
+        # Tüm toplu yanıt bozuksa ikili paket, yalnız belirli gruplar eksikse
+        # doğrudan tekil istek kullan. Eksik olduğu zaten kanıtlanmış grubu
+        # başka bir eksikle yeniden paketlemek gereksiz bir ek tur yaratır.
+        bundle_width = 2 if batched and len(groups_to_retry) > 2 else 1
+        for offset in range(0, len(groups_to_retry), bundle_width):
+            bundle_groups = groups_to_retry[offset:offset + bundle_width]
+            bundles.append((bundle_groups, [
+                index for group in bundle_groups for index in group
+            ]))
+        started = time.time()
+        log(
+            f"Çeviri kurtarma başladı: {len(groups_to_retry)} cümle grubu / "
+            f"{sum(len(group) for group in groups_to_retry)} blok, "
+            f"{len(bundles)} küçük paket.",
+            "warn",
+        )
+        emit(
+            "status", stage="translate",
+            text=f"Çeviri kurtarılıyor: 0/{len(groups_to_retry)} cümle grubu",
+        )
+        completed_groups = 0
+        for bundle_groups, bundle in bundles:
             try:
-                recovered += task_once(group)
+                recovered += task_once(bundle, phase="fallback")
+                missing_after_bundle = [
+                    group for group in bundle_groups
+                    if not all(index in done_idx for index in group)
+                ]
+                for group in missing_after_bundle:
+                    try:
+                        recovered += task_once(group, phase="fallback")
+                    except Exception as single_error:
+                        single_reason = classify_translation_error(single_error)
+                        with lock:
+                            for index in group:
+                                if index not in done_idx:
+                                    failure_by_index.setdefault(index, single_reason)
             except Exception as retry_error:
                 reason = classify_translation_error(retry_error)
-                with lock:
-                    for index in group:
-                        if index not in done_idx:
-                            failure_by_index.setdefault(index, reason)
+                if reason in {"invalid_response", "empty_response"} and len(bundle_groups) > 1:
+                    log(
+                        f"Çeviri küçük paketi {bundle[0]}-{bundle[-1]} de geçersiz "
+                        f"({retry_error}); tek gruplara ayrılıyor.",
+                        "warn",
+                    )
+                    for group in bundle_groups:
+                        try:
+                            recovered += task_once(group, phase="fallback")
+                        except Exception as single_error:
+                            single_reason = classify_translation_error(single_error)
+                            with lock:
+                                for index in group:
+                                    if index not in done_idx:
+                                        failure_by_index.setdefault(index, single_reason)
+                else:
+                    with lock:
+                        for index in bundle:
+                            if index not in done_idx:
+                                failure_by_index.setdefault(index, reason)
+            completed_groups += len(bundle_groups)
+            log(
+                f"Çeviri kurtarma ilerlemesi: {completed_groups}/{len(groups_to_retry)} "
+                f"grup işlendi, {recovered} blok kurtarıldı, "
+                f"{time.time() - started:.1f} sn.",
+            )
+            emit(
+                "status", stage="translate",
+                text=(
+                    f"Çeviri kurtarılıyor: {completed_groups}/{len(groups_to_retry)} "
+                    f"cümle grubu · {recovered} blok hazır"
+                ),
+            )
         return recovered
 
     def task(chunk_idx):
@@ -3556,7 +3651,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             reason = classify_translation_error(error)
             if reason not in {"invalid_response", "empty_response"}:
                 raise
-            log("Çeviri grubu geçersiz yanıt verdi; cümleler tek tek yeniden deneniyor.", "warn")
+            with lock:
+                translation_metrics["invalid_batches"] += 1
+            log(
+                f"Çeviri {chunk_idx[0]}-{chunk_idx[-1]} toplu yanıtı geçersiz "
+                f"({error}); küçük paketlerle yeniden deneniyor.",
+                "warn",
+            )
             return retry_groups_once(groups_in_chunk)
 
         missing_groups = [
@@ -3569,7 +3670,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 "kaynak dilde bıraktı; gruplar tek tek yeniden deneniyor.",
                 "warn",
             )
-            recovered += retry_groups_once(missing_groups)
+            recovered += retry_groups_once(missing_groups, batched=False)
         return recovered
 
     done_idx = set()
@@ -3649,6 +3750,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 record_chunk_result(ch, got=fut.result())
             except Exception as error:
                 record_chunk_result(ch, error=error)
+
+    log(
+        "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
+        "{} geçersiz toplu yanıt; {:.1f} sn.".format(
+            translation_metrics["batch_requests"],
+            translation_metrics["fallback_requests"],
+            translation_metrics["requests"],
+            translation_metrics["invalid_batches"],
+            time.time() - translation_metrics["started"],
+        )
+    )
 
     if counters["done"] == 0 and not cached_idx:
         # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).

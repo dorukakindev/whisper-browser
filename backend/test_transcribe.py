@@ -1353,6 +1353,23 @@ def test_translate_invalid_two_group_retry_terminates_as_single_groups():
     assert [row[2] for row in out] == ["[TR] First.", "[TR] Second."]
     assert calls == [2, 1, 1], calls
 
+
+def test_sentence_reply_issue_explains_structure_without_source_text():
+    from sentence_translation import sentence_reply_issue
+
+    assert sentence_reply_issue({"items": {}, "sentences": {}}, [0]) == "eksik_part:1"
+    assert sentence_reply_issue(
+        {"items": {"0": "Bir", "1": "iki"}, "sentences": {}}, [0, 1]
+    ) == "eksik_tam_cumle"
+    assert sentence_reply_issue(
+        {"items": {"0": "Bir", "1": "iki"},
+         "sentences": {"0": "Başka bir bütün."}}, [0, 1]
+    ) == "partlar_tam_cumleyi_olusturmuyor"
+    assert sentence_reply_issue(
+        {"items": {"0": "Gizli kaynak metni"},
+         "sentences": {"0": "Gizli kaynak metni"}}, [0]
+    ) == ""
+
 def _capture_translate_payloads(entries, args):
     """llm_translate'i taklit API ile kosturur; modele giden istekleri dondurur."""
     import sys, types, json, importlib.machinery

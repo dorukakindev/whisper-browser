@@ -287,18 +287,46 @@ def validate_sentence_parts(whole, parts, count):
     return {"text": normalized_text(whole), "parts": [part.strip() for part in parts]}
 
 
+def sentence_reply_issue(data, ids):
+    """Bir cümle yanıtının neden reddedildiğini metni sızdırmadan açıkla."""
+    if not isinstance(data, dict):
+        return "kok_nesne_degil"
+    items = data.get('items', data)
+    wholes = data.get('sentences', {})
+    if not isinstance(items, dict):
+        return "items_nesne_degil"
+    if not isinstance(wholes, dict):
+        return "sentences_nesne_degil"
+    parts = [items.get(str(index)) for index in ids]
+    missing = sum(part is None for part in parts)
+    if missing:
+        return f"eksik_part:{missing}"
+    if any(not isinstance(part, str) or not normalized_text(part) for part in parts):
+        return "bos_veya_gecersiz_part"
+    whole = wholes.get(str(ids[0]))
+    if len(ids) == 1 and whole is None:
+        whole = parts[0]
+    if whole is None:
+        return "eksik_tam_cumle"
+    if not isinstance(whole, str) or not normalized_text(whole):
+        return "bos_veya_gecersiz_tam_cumle"
+    if len(whole) > 12000:
+        return "tam_cumle_cok_uzun"
+    if not sentence_parts_match(whole, parts):
+        return "partlar_tam_cumleyi_olusturmuyor"
+    return ""
+
+
 def accept_sentence_reply(data, ids):
     """Çok bloklu grup ya bütünüyle kabul edilir ya hiç uygulanmaz.
 
     Eski düz ID→metin yanıtları yalnız bağımsız tek bloklarda uyumluluk için
     kabul edilir. Çok bloklu grupta ayrı tam çeviri kanıtı zorunludur.
     """
-    if not isinstance(data, dict):
+    if sentence_reply_issue(data, ids):
         return None
     items = data.get('items', data)
     wholes = data.get('sentences', {})
-    if not isinstance(items, dict) or not isinstance(wholes, dict):
-        return None
     parts = [items.get(str(index)) for index in ids]
     whole = wholes.get(str(ids[0]))
     if len(ids) == 1 and whole is None:
