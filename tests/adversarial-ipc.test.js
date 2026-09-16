@@ -168,6 +168,21 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       assert.equal(subtitleAccess.has(subtitleAccess.inspect(unrelated)), false);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
+  await test('sürüklenen medya yolları native kullanıcı onayı olmadan taranmaz', async () => {
+    let allow = false;
+    let scans = 0;
+    const handler = register('paths:scanMedia', {
+      authorizedBrowserSender: auth,
+      authorizeMediaScanRoots: async (paths) => allow ? paths : [],
+      scanMediaFromPaths: async (paths) => { scans++; return paths; },
+    });
+    const paths = ['C:\\kullanici-secimi'];
+    assert.deepEqual(Array.from(await handler(authorized, paths)), []);
+    assert.equal(scans, 0);
+    allow = true;
+    assert.deepEqual(Array.from(await handler(authorized, paths)), paths);
+    assert.equal(scans, 1);
+  });
   await test('shell yalnız desteklenen belge/medya veya klasör açar, betik ve EXE reddedilir', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-shell-guard-'));
     try {

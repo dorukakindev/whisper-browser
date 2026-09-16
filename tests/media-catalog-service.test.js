@@ -26,7 +26,7 @@ async function main() {
     registerMediaCatalogService({
       ipcMain: { handle: (channel, fn) => handlers.set(channel, fn) },
       dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picker] }) },
-      owner: () => null, authorized: (event) => event.sender.id === 1,
+      owner: () => null, authorized: (event) => event.sender.id === 1 || event.sender.id === 3,
       userData: () => dir, pythonPath: () => 'synthetic-python',
       inspectMedia: (value) => {
         if (!value.endsWith('allowed.mp4')) throw new Error('Yerel video yolu yetkili değil.');
@@ -65,11 +65,22 @@ async function main() {
     assert.equal(preview.ok, true, preview.error);
     assert.equal(preview.summary.updated.length, 1);
     assert.equal(preview.summary.added.length, 1);
+    const wrongSender = await invoke({ sender: { id: 3 } }, { action: 'import-apply',
+      token: preview.token, ids: ['nmdb:work:1'] });
+    assert.equal(wrongSender.ok, false, 'Önizleme başka sender tarafından uygulanabildi');
+    assert.equal((await invoke({ sender: { id: 3 } }, {
+      action: 'import-cancel', token: preview.token,
+    })).ok, true);
+    const wrongToken = await invoke(authorized, { action: 'import-apply',
+      token: 'yanlis-token', ids: ['nmdb:work:1'] });
+    assert.equal(wrongToken.ok, false);
     const beforeApply = await invoke(authorized, { action: 'list' });
     assert.equal(beforeApply.items.length, 1);
     const applied = await invoke(authorized, { action: 'import-apply', token: preview.token,
       ids: ['nmdb:work:1', 'nmdb:work:2'] });
     assert.equal(applied.ok, true, applied.error);
+    assert.equal((await invoke(authorized, { action: 'import-apply', token: preview.token,
+      ids: ['nmdb:work:1'] })).ok, false, 'Tüketilmiş önizleme yeniden uygulandı');
     const list = await invoke(authorized, { action: 'list' });
     assert.equal(Object.hasOwn(list, 'watchItems'), false, 'Gereksiz izleme geçmişi renderer’a taşınmamalı');
     const film = list.items.find((item) => item.id === id);
@@ -99,6 +110,15 @@ async function main() {
     const conflict = await invoke(authorized, { action: 'import-apply', token: conflictPreview.token, ids: ['nmdb:work:1'] });
     assert.equal(conflict.summary.conflicts.length, 1);
     assert.equal((await invoke(authorized, { action: 'list' })).items.length, 2);
+    const realNow = Date.now;
+    try {
+      let now = 1_000_000;
+      Date.now = () => now;
+      const expiring = await invoke(authorized, { action: 'import-preview' });
+      now += 15 * 60 * 1000 + 1;
+      assert.equal((await invoke(authorized, { action: 'import-apply', token: expiring.token,
+        ids: ['nmdb:work:1'] })).ok, false, 'Süresi dolmuş önizleme uygulandı');
+    } finally { Date.now = realNow; }
     console.log('media-catalog-service: authorization, source validation, preview/apply and conflict passed');
   } finally {
     importer.previewNmdbImport = originalImport;

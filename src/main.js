@@ -13341,6 +13341,46 @@ async function scanMediaFromPaths(inputPaths, { maxDepth = 5, maxResults = 20000
   return results;
 }
 
+function inspectMediaScanRoots(inputPaths) {
+  if (!Array.isArray(inputPaths) || inputPaths.length === 0 || inputPaths.length > 1000) {
+    throw new Error('Taranacak dosya veya klasör listesi geçersiz.');
+  }
+  return inputPaths.map((value) => {
+    const target = canonicalLocalPath(value);
+    const stat = fs.statSync(target);
+    if (stat.isDirectory()) return target;
+    if (stat.isFile()) return mediaFileAccess.inspect(target);
+    throw new Error('Yalnızca medya dosyaları ve klasörler taranabilir.');
+  });
+}
+
+async function authorizeMediaScanRoots(inputPaths) {
+  let roots;
+  try { roots = inspectMediaScanRoots(inputPaths); }
+  catch (_) { return []; }
+  const preview = roots.slice(0, 3).join('\n');
+  const extra = roots.length > 3 ? `\n… ve ${roots.length - 3} öğe daha` : '';
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    title: 'Bırakılan medyaları tara',
+    message: 'Bu dosya ve klasörlerde medya taramasına izin verilsin mi?',
+    detail: `${preview}${extra}`,
+    buttons: ['İptal', 'Tara'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  });
+  if (result.response !== 1) return [];
+  // Kullanıcı native diyaloğu yanıtlarken bir junction/symlink hedefi değişmişse
+  // önceki onayı farklı bir konuma taşımamak için kökleri yeniden çöz.
+  let confirmed;
+  try { confirmed = inspectMediaScanRoots(inputPaths); }
+  catch (_) { return []; }
+  if (confirmed.length !== roots.length
+      || confirmed.some((value, index) => value !== roots[index])) return [];
+  return roots;
+}
+
 ipcMain.handle('dialog:openFolders', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const prev = loadSettings();
@@ -13362,8 +13402,9 @@ ipcMain.handle('dialog:openFolders', async (event) => {
 
 ipcMain.handle('paths:scanMedia', async (_event, inputPaths) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (!Array.isArray(inputPaths) || inputPaths.length === 0) return [];
-  return await scanMediaFromPaths(inputPaths);
+  const roots = await authorizeMediaScanRoots(inputPaths);
+  if (!roots.length) return [];
+  return await scanMediaFromPaths(roots);
 });
 
 ipcMain.handle('media:listFolder', async (_event, filePath) => {

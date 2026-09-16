@@ -146,6 +146,7 @@ async function main() {
   const preloadSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   assert.match(preloadSource, /scanDroppedFiles[\s\S]*webUtils\.getPathForFile[\s\S]*paths:scanMedia/);
   assert.doesNotMatch(preloadSource, /scanMediaPaths\s*:/);
+  assert.match(source, /ipcMain\.handle\('paths:scanMedia'[\s\S]{0,260}authorizeMediaScanRoots\(inputPaths\)/);
 
   const transcribeStart = section("ipcMain.handle('transcribe:start'", "ipcMain.handle('transcribe:cancel'");
   assert.match(transcribeStart, /decideUrlPolicy\(options\.youtube, 'renderer-external'\)/);

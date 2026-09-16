@@ -20,15 +20,19 @@ const ipcMain = { handle(channel, handler) { handlers.set(channel, handler); } }
 const wc = { isDestroyed: () => false, getURL: () => 'https://video.test/watch/one' };
 const tab = { id: 'tab-1', view: { webContents: wc }, mediaId: 'media-1', closing: false,
   assFrame: { executeJavaScript() { throw new Error('ASS temizlenmemeliydi.'); } } };
+const encodingFixture = path.join(temp, 'encoding.srt');
+fs.writeFileSync(encodingFixture, '1\n00:00:00,000 --> 00:00:01,000\nMerhaba\n', 'utf8');
 let generation = 1;
 const service = registerBrowserFeatureServices({
   app: { getPath: kind => kind === 'userData' ? temp : os.tmpdir() }, ipcMain,
+  dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [encodingFixture] }) },
   BrowserWindow: class {}, owner: () => ({ isDestroyed: () => false }),
   getTab: id => id === tab.id ? tab : null, activeTab: () => tab,
   context: () => ({ generation, mediaId: tab.mediaId }),
   authorized: event => event.sender === 'trusted',
   frames: () => [], probeScript: () => '', rankCandidates: () => [], commandScript: () => '',
   pythonPath: () => '', ffmpegPath: () => '', ffprobePath: () => '',
+  grantSubtitle: () => true,
 });
 const handler = handlers.get('browser:extras');
 const request = (action, extra = {}, event = { sender: 'trusted' }) => handler(event,
@@ -72,6 +76,28 @@ async function run() {
   assert.equal(overwrite.ok, false, 'Başka medya kaydı aynı id ile ezilememeli.');
   const deniedDelete = await request('skip-delete', { id: 'intro-1' });
   assert.equal(deniedDelete.ok, false);
+  const encoding = await request('encoding-preview');
+  assert.equal(encoding.ok, true, encoding.error);
+  assert.equal((await request('encoding-apply', {
+    token: 'yanlis-token', encoding: 'utf-8',
+  })).ok, false);
+  const appliedEncoding = await request('encoding-apply', {
+    token: encoding.token, encoding: 'utf-8',
+  });
+  assert.equal(appliedEncoding.ok, true, appliedEncoding.error);
+  assert.equal((await request('encoding-apply', {
+    token: encoding.token, encoding: 'utf-8',
+  })).ok, false, 'Tüketilmiş kodlama önizlemesi yeniden uygulandı');
+  const realNow = Date.now;
+  try {
+    let now = 2_000_000;
+    Date.now = () => now;
+    const expiring = await request('encoding-preview');
+    now += 900001;
+    assert.equal((await request('encoding-apply', {
+      token: expiring.token, encoding: 'utf-8',
+    })).ok, false, 'Süresi dolmuş kodlama önizlemesi uygulandı');
+  } finally { Date.now = realNow; }
   console.log('browser-feature-services: ok');
 }
 

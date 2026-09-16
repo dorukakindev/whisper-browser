@@ -46,11 +46,35 @@ async function main() {
       const apply = handler(event, { action: 'package-apply', token: preview.token });
       if (failure === 'success') {
         await apply; assert(restarted); assert(!storage.has('browser-source-edits-v1'));
+        await assert.rejects(handler(event, { action: 'package-apply', token: preview.token }),
+          /Önizleme sona erdi/, 'Tüketilmiş paket önizlemesi yeniden uygulandı');
       } else {
         await assert.rejects(apply); assert(!restarted); assert(!fs.existsSync(folder), failure + ': extracted videos must be removed');
         if (failure !== 'rollback') assert.equal(storage.get('browser-source-edits-v1'), '{"old":true}');
       }
     }
+    videos.read = async () => ({ ...data, rendererValues: {} });
+    const tokenHandler = createCatalogExtensions({ userData: () => target, pythonPath: () => '',
+      dialog: { showOpenDialog: async () => ({ filePaths: ['fixture.wbp'] }) },
+      owner: () => ({ webContents: { executeJavaScript: async () => ({}) } }),
+      restart: () => {} });
+    const tokenEvent = { sender: { id: 11 } };
+    const realNow = Date.now;
+    try {
+      let now = 3_000_000;
+      Date.now = () => now;
+      const preview = await tokenHandler(tokenEvent, { action: 'package-preview' });
+      await assert.rejects(tokenHandler({ sender: { id: 12 } },
+        { action: 'package-apply', token: preview.token }), /Önizleme sona erdi/,
+      'Başka sender paket önizlemesini uyguladı');
+      await assert.rejects(tokenHandler(tokenEvent,
+        { action: 'folder-apply', token: preview.token, ids: ['x'] }), /Önizleme sona erdi/,
+      'Yanlış türde token kabul edildi');
+      now += 900001;
+      await assert.rejects(tokenHandler(tokenEvent,
+        { action: 'package-apply', token: preview.token }), /Önizleme sona erdi/,
+      'Süresi dolmuş paket önizlemesi uygulandı');
+    } finally { Date.now = realNow; }
     console.log('workspace restore regressions: non-cascading paths, absent draft clearing, capture/backup/restore/rollback failure cleanup passed');
   } finally {
     videos.read = original.read; videos.extract = original.extract; packages.exportPackage = original.export; packages.restorePackage = original.restore;

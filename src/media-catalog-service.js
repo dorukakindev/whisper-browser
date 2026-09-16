@@ -169,7 +169,11 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           previews.delete(input.token);
           return { ok: true, summary: result };
         }
-        case 'import-cancel': previews.delete(input.token); return { ok: true };
+        case 'import-cancel': {
+          const preview = previews.get(input.token);
+          if (preview?.sender === event.sender.id) previews.delete(input.token);
+          return { ok: true };
+        }
         default: throw new Error('Bilinmeyen katalog işlemi.');
       }
     } catch (error) {
