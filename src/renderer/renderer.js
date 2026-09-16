@@ -798,7 +798,9 @@ function syncBrowserOcclusion() {
   const downloads = $('browserDownloadsPanel');
   const moreMenu = $('browserMoreMenu');
   const translateMenu = $('browserTranslateMenu');
+  const pageQuickMenu = $('browserPageQuickMenu');
   const splitMenu = $('browserSplitMenu');
+  const taskCenter = $('playerTaskCenter');
   const addressResults = $('browserAddressResults');
   const permissionPrompt = $('browserPermissionPrompt');
   const commandPalette = $('browserCommandPalette');
@@ -811,7 +813,8 @@ function syncBrowserOcclusion() {
     && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')));
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
-    || !!moreMenu?.open || !!translateMenu?.open || !!splitMenu?.open
+    || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
+    || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
@@ -17904,6 +17907,7 @@ function setPlayerTaskCenter(open) {
   button.classList.toggle('active', open);
   button.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) updatePlayerTaskCenter();
+  syncBrowserOcclusion();
 }
 
 initializeSettingsPages();
@@ -18008,7 +18012,7 @@ document.addEventListener('keydown', (event) => {
 if ($('browserSubtitleSettingsToggle')) {
   $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
 }
-const browserToolbarMenuIds = ['browserTranslateMenu', 'browserMoreMenu', 'browserSplitMenu'];
+const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu'];
 function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
   let focusTarget = null;
   for (const id of browserToolbarMenuIds) {
@@ -18033,7 +18037,7 @@ for (const id of browserToolbarMenuIds) {
   });
 }
 document.addEventListener('pointerdown', (event) => {
-  if (event.target.closest?.('#browserTranslateMenu, #browserMoreMenu, #browserSplitMenu')) return;
+  if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu')) return;
   closeBrowserToolbarMenus();
 }, true);
 document.addEventListener('keydown', (event) => {

@@ -591,6 +591,16 @@ async function run() {
       nativeVisible: false,
     },
     {
+      name: 'page-translation-menu',
+      setup: "setSettingsDrawer(false); setPlayerSidebarCollapsed(true); document.getElementById('browserPageQuickMenu').open=true;",
+      nativeVisible: false,
+    },
+    {
+      name: 'active-jobs',
+      setup: "setSettingsDrawer(false); setPlayerSidebarCollapsed(true); setPlayerTaskCenter(true);",
+      nativeVisible: false,
+    },
+    {
       name: 'long-title-job',
       setup: "document.getElementById('browserMoreMenu').open=false; setSettingsDrawer(false); setViewMode('reading'); setPlayerSidebarCollapsed(true); document.getElementById('playerTitle').textContent='Çok uzun bir video başlığı · '.repeat(24); document.getElementById('playerParseText').textContent='Uzun video işleniyor · kalan süre hesaplanıyor'; document.getElementById('playerParseStatus').classList.remove('hidden');",
       nativeVisible: true,
@@ -602,6 +612,8 @@ async function run() {
     for (const stateSpec of stateSetups) {
       const snapshot = await evaluate(renderer, `(async () => {
         document.getElementById('browserMoreMenu').open = false;
+        document.getElementById('browserPageQuickMenu').open = false;
+        setPlayerTaskCenter(false);
         document.getElementById('playerParseStatus').classList.add('hidden');
         document.getElementById('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
         ${stateSpec.setup}
@@ -726,6 +738,10 @@ async function run() {
         nativeVisible,
       });
     }
+  }
+  if (process.env.WHISPER_SMOKE_LAYOUT_ONLY === '1') {
+    console.log('electron-browser-layout-smoke: ' + JSON.stringify(responsiveMatrix));
+    return;
   }
   assert.ok(await resizeAppWindow(main, renderer, 1280, 820),
     'Post-matrix Electron window size did not settle.');

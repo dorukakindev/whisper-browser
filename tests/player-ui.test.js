@@ -892,16 +892,30 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
 });
 
 test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüsünü kullanır', () => {
-  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserMoreMenu', 'browserSplitMenu'\]/.test(js),
+  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu'\]/.test(js),
     'toolbar menüleri tek yaşam döngüsü listesinde değil');
-  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open \|\| !!splitMenu\?\.open/.test(js),
+  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open \|\| !!pageQuickMenu\?\.open \|\| !!splitMenu\?\.open/.test(js),
     'native browser okluzyonu açık toolbar menülerini hesaba katmıyor');
-  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserMoreMenu, #browserSplitMenu'\)/.test(js),
+  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu'\)/.test(js),
     'dış tıklama menüleri tek noktadan kapatmıyor');
   assert(/event\.key !== 'Escape'[\s\S]{0,260}closeBrowserToolbarMenus\('', true\)/.test(js),
     'Escape en üst toolbar menüsünü kapatıp odağı geri vermiyor');
   assert(/\$\$\('\[data-browser-proxy\]'\)[\s\S]{0,260}closeBrowserToolbarMenus\(\)/.test(js),
     'proxy eylemi sonrasında menü yaşam döngüsü kapanmıyor');
+});
+
+test('sayfa çevirisi seçenekleri ve aktif işler native video yüzeyini örter', () => {
+  const occlusionFn = js.slice(js.indexOf('function syncBrowserOcclusion'), js.indexOf('function openManagedModal'));
+  const taskCenterStart = js.indexOf('function setPlayerTaskCenter');
+  const taskCenterFn = js.slice(taskCenterStart, js.indexOf('initializeSettingsPages();', taskCenterStart));
+  assert(/const pageQuickMenu = \$\('browserPageQuickMenu'\)/.test(occlusionFn)
+    && /!!pageQuickMenu\?\.open/.test(occlusionFn),
+  'sayfa çevirisi seçenekleri native browser okluzyonuna bağlı değil');
+  assert(/const taskCenter = \$\('playerTaskCenter'\)/.test(occlusionFn)
+    && /!taskCenter\.classList\.contains\('hidden'\)/.test(occlusionFn),
+  'aktif işler paneli native browser okluzyonuna bağlı değil');
+  assert(/syncBrowserOcclusion\(\)/.test(taskCenterFn),
+    'aktif işler açma-kapama işlemi native browser görünürlüğünü yenilemiyor');
 });
 
 test('Aşama B çalışma çekmecesini korur, tarayıcı kalıcı ayarlarını özel sekmeye ayırır', () => {
