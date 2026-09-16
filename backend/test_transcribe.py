@@ -1046,6 +1046,9 @@ def test_translate_sends_speakers_for_boundaries_and_register_choices():
     prompt = captured[0]["messages"][0]["content"]
     assert "'sp' alani o blogun konusmacisidir" in prompt
     assert "etiketi ceviriye ekleme" in prompt
+    assert "kesintisiz bir" in prompt and "konusma akisi gibi birlikte oku" in prompt
+    assert "kaynakta hangi ID'deyse" in prompt
+    assert "baska ID'ye tasima" in prompt
 
 
 def test_translate_refine_processes_full_index_chunks():

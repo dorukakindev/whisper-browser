@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 15:22 — Great Courses CEA zaman çizgisi kalibrasyonu](docs/devir/2026-09-16-1522.md).
+Güncel çalışma: [2026-09-16 15:57 — üçüncü 35-ajan derin denetim turu (rapor 50)](docs/devir/2026-09-16-1557.md).
+
+Önceki çalışma: [2026-09-16 15:22 — Great Courses CEA zaman çizgisi kalibrasyonu](docs/devir/2026-09-16-1522.md).
 
 Önceki çalışma: [2026-09-16 14:10 — CEA saat eşlemesi ve çeviri istek bütçesi](docs/devir/2026-09-16-1410.md).
 
