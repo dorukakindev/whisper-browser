@@ -20,6 +20,7 @@ function harness() {
     cloudflareProbeState, cloudflareCompatibilityMessage,
     clearBrowserCloudflareTimer() {}, browserDebuggerNeeded: () => false,
     applyBrowserOverlay: async () => { calls.overlay++; return true; },
+    recoverBrowserManifestResources: async () => 0,
     sendBrowserEvent: (_tab, event) => calls.events.push(event),
     scheduleBrowserCloudflareProbe() {},
     browserNavigationStateForTab: () => ({}), scheduleBrowserPageIndex() {},

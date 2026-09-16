@@ -2116,6 +2116,9 @@ function createBrowserTabRecord(initial = {}) {
     acquisitionPlan: null,
     acquisitionId: '',
     discoveryProbeTimer: null,
+    manifestResourceRecoveryBusy: false,
+    manifestResourceRecoverySeq: 0,
+    manifestResourceAttempts: new Map(),
     pageIndexTimer: null,
     darkModeRequestSeq: 0,
     youtubeStyleRequestSeq: 0,
@@ -9015,6 +9018,9 @@ function suspendBrowserInstrumentationForNavigation(tab, view = tab?.view) {
   tab.cloudflareChallengeChecks = 0;
   tab.cloudflareChallengeTimedOut = false;
   tab.browserInstrumentationPending = !tab.compatibilityMode;
+  tab.manifestResourceRecoveryBusy = false;
+  tab.manifestResourceRecoverySeq = (Number(tab.manifestResourceRecoverySeq) || 0) + 1;
+  tab.manifestResourceAttempts = new Map();
   browserDebuggerAttachAttempts.delete(view.webContents);
   detachBrowserDebugger(view);
   if (tab.id === browserActiveTabId && tab.view === browserView) {
@@ -9181,6 +9187,9 @@ async function performBrowserPageInstrumentation(tab) {
     // İlk ölçüm yükleme sırasında ertelenmişse zamanlayıcının tamamladığı
     // bu yolda dom-ready yeniden gelmez. Bekleyen altyazıyı burada uygula.
     if (tab.id === browserActiveTabId && tab.view === browserView) void applyBrowserOverlay();
+  }
+  if (tab.id === browserActiveTabId && tab.view === browserView) {
+    void recoverBrowserManifestResources(tab, 'güvenlik ölçümü sonrası');
   }
   return { active: false, probe };
 }
@@ -9350,6 +9359,99 @@ async function probeActiveBrowserTracks(trigger = 'fallback', requestedTab = nul
   }
 }
 
+function browserManifestResourceProbeScript() {
+  return [
+    '(() => {',
+    '  const found = [];',
+    '  const add = (raw) => {',
+    '    try {',
+    '      const url = new URL(String(raw || ""), location.href);',
+    '      if (!/^https?:$/.test(url.protocol) || url.username || url.password) return;',
+    '      const value = url.href;',
+    '      if (!/\\.(?:m3u8|mpd)(?:[?#]|$)/i.test(value)',
+    '          && !/(?:^|[/_.-])(?:master|manifest|playlist)(?:[/_.?=&-]|$)/i.test(value)) return;',
+    '      found.push(value);',
+    '    } catch (_) {}',
+    '  };',
+    '  try {',
+    '    for (const entry of performance.getEntriesByType("resource") || []) add(entry && entry.name);',
+    '  } catch (_) {}',
+    '  try {',
+    '    for (const media of document.querySelectorAll("video,audio")) {',
+    '      add(media.currentSrc);',
+    '      add(media.src);',
+    '    }',
+    '  } catch (_) {}',
+    '  return [...new Set(found)].slice(-8);',
+    '})()',
+  ].join('\n');
+}
+
+function browserManifestResourceMime(url, payload = null) {
+  const body = payload == null ? '' : decodeSubtitleBuffer(payload).text.trimStart();
+  if (/^(?:<\?xml[^>]*>\s*)?<MPD\b/i.test(body)) return 'application/dash+xml';
+  if (/^#EXTM3U\b/i.test(body)) return 'application/vnd.apple.mpegurl';
+  return /\.mpd(?:[?#]|$)/i.test(String(url || ''))
+    ? 'application/dash+xml' : 'application/vnd.apple.mpegurl';
+}
+
+async function recoverBrowserManifestResources(tab, trigger = 'yedek tarama') {
+  if (!tab || tab.closing || tab.id !== browserActiveTabId || tab.view !== browserView
+      || !browserCaptureEnabled || tab.compatibilityMode || tab.cloudflareChallengeActive
+      || tab.browserInstrumentationPending || tab.manifestResourceRecoveryBusy
+      || !tab.view || tab.view.webContents.isDestroyed()) return 0;
+  tab.manifestResourceRecoveryBusy = true;
+  const recoverySeq = (Number(tab.manifestResourceRecoverySeq) || 0) + 1;
+  tab.manifestResourceRecoverySeq = recoverySeq;
+  const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
+  try {
+    const rows = await executeBrowserViewFrames(tab.view, browserManifestResourceProbeScript()).catch(() => []);
+    if (!isCurrentBrowserContext(context)) return 0;
+    const urls = [...new Set(rows.flatMap((row) => Array.isArray(row) ? row : [])
+      .filter((url) => typeof url === 'string'))].slice(-8);
+    const attempts = tab.manifestResourceAttempts instanceof Map
+      ? tab.manifestResourceAttempts : new Map();
+    tab.manifestResourceAttempts = attempts;
+    let recovered = 0;
+    for (const url of urls) {
+      if (!isCurrentBrowserContext(context)) break;
+      const previous = attempts.get(url);
+      if (previous?.done || (previous?.count >= 2 && Date.now() - previous.at < 60_000)
+          || (previous && Date.now() - previous.at < 5_000)) continue;
+      attempts.set(url, { count: (previous?.count || 0) + 1, at: Date.now(), done: false });
+      try {
+        const payload = await fetchBrowserBufferWithRetry(url, 12 * 1024 * 1024, 1, context);
+        const mimeType = browserManifestResourceMime(url, payload);
+        const outcome = await processBrowserCapturedPayload(payload, {
+          url, mimeType, status: 200, responseHeaders: {}, context,
+        }, 'performance-resource', context);
+        const status = captureOutcomeStatus(outcome);
+        const done = ![CAPTURE_RETRY, CAPTURE_ABANDONED].includes(status);
+        attempts.set(url, { count: (previous?.count || 0) + 1, at: Date.now(), done });
+        if (status === CAPTURE_PROCESSED) recovered += 1;
+      } catch (_) {
+        // Ağ/CDN koşulu değişebilir; iki sınırlı deneme hakkını koru.
+      }
+    }
+    while (attempts.size > 96) attempts.delete(attempts.keys().next().value);
+    if (urls.length) {
+      const diagnostics = tab.diagnostics || freshBrowserDiagnostics(tab.restoredUrl || '', tab);
+      diagnostics.manifestRecovery = {
+        trigger: String(trigger || '').slice(0, 80), candidates: urls.length,
+        recovered, attempted: attempts.size,
+      };
+      tab.diagnostics = diagnostics;
+      browserDiagnostics = diagnostics;
+      sendBrowserEvent(tab, { type: 'capture-status', diagnostics });
+    }
+    return recovered;
+  } finally {
+    if (browserTabById(tab.id) === tab && tab.manifestResourceRecoverySeq === recoverySeq) {
+      tab.manifestResourceRecoveryBusy = false;
+    }
+  }
+}
+
 function scheduleBrowserDiscoveryProbe(tab, delay = 100) {
   if (!tab || tab.closing || tab.id !== browserActiveTabId) return;
   if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
@@ -9458,7 +9560,10 @@ function startBrowserPolling() {
   // Normal yol preload'dan gelen DOM/media/text-track olaylarıdır. Bu daha
   // seyrek tur yalnız olay vermeyen veya kapalı shadow DOM kullanan siteler
   // için güvenlik ağıdır.
-  browserTrackTimer = setInterval(() => { void probeActiveBrowserTracks('fallback'); }, BROWSER_POLL_INTERVALS.track);
+  browserTrackTimer = setInterval(() => {
+    void probeActiveBrowserTracks('fallback');
+    void recoverBrowserManifestResources(activeBrowserTab(), 'periyodik yedek tarama');
+  }, BROWSER_POLL_INTERVALS.track);
   browserCaptureTimer = setInterval(() => {
     if (activeBrowserTab()?.compatibilityMode || activeBrowserTab()?.cloudflareChallengeActive
         || activeBrowserTab()?.browserInstrumentationPending) return;
@@ -9789,6 +9894,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     updateBrowserPlaybackState(tab, true);
     if (tab.id === browserActiveTabId) {
       scheduleBrowserDiscoveryProbe(tab, 0);
+      void recoverBrowserManifestResources(tab, 'oynatma başladı');
       void probeActiveBrowserMedia(tab);
     }
   });
@@ -11499,13 +11605,21 @@ if (typeof ipcMain.on === 'function') ipcMain.on('browser:resource-snapshot-resp
   pending.finish(payload);
 });
 
+function browserDiscoveryFrameAllowed(event) {
+  const main = event?.sender?.mainFrame;
+  const frame = event?.senderFrame;
+  if (!main || !frame) return false;
+  if (frame === main) return true;
+  return Array.isArray(main.framesInSubtree) && main.framesInSubtree.includes(frame);
+}
+
 // Browser preload yalnız olay türü ve sayısal sayaçlar yollar; gerçek track
 // içeriği güvenilir isolated-world probe ile okunur. Sender doğrulaması ve
 // aktif sekme koşulu, arka/kapalı bir belgenin yeni sayfayı tetiklemesini
 // engeller. Art arda gelen progress/cuechange olayları sekme bazında debounce
 // edilir.
 if (typeof ipcMain.on === 'function') ipcMain.on('browser:discovery-signal', (event, payload = {}) => {
-  if (event.senderFrame !== event.sender.mainFrame) return;
+  if (!browserDiscoveryFrameAllowed(event)) return;
   const tab = browserTabForWebContents(event.sender);
   if (!tab || tab.closing || tab.id !== browserActiveTabId || tab.view !== browserView
       || tab.compatibilityMode || tab.cloudflareChallengeActive) return;
