@@ -3109,6 +3109,22 @@ def classify_translation_error(error):
     return "api_failure"
 
 
+FATAL_TRANSLATION_ERRORS = frozenset({"authentication", "quota"})
+
+
+def same_translation_language(source_language, target_language):
+    """ISO dil kodlarının ana etiketini karşılaştır; boş/auto değerini eşit sayma."""
+    def primary(value):
+        code = str(value or "").strip().lower().replace("_", "-")
+        if not code or code in {"auto", "unknown", "und"}:
+            return ""
+        return code.split("-", 1)[0]
+
+    source = primary(source_language)
+    target = primary(target_language)
+    return bool(source and target and source == target)
+
+
 _SHORT_TRANSLATABLE_ECHOES = {
     "hello", "goodbye", "thanks", "thank you", "please", "yes", "no",
     "sorry", "wait", "stop", "go", "come on", "all right", "okay", "ok",
@@ -3553,46 +3569,82 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         return recovered
 
     done_idx = set()
-    with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
-        futures = {ex.submit(task, ch): ch for ch in chunks}
-        for fut in as_completed(futures):
-            ch = futures[fut]
-            try:
-                got = fut.result()
-                counters["done"] += got
-                # Yanitta gelmeyen bloklar da BASARISIZ sayilir (kaynak metin kaldi)
-                missing = len(ch) - got
-                if missing > 0:
-                    counters["failed"] += missing
-                    with lock:
-                        for index in ch:
-                            if index not in done_idx:
-                                failure_by_index.setdefault(index, "invalid_response")
-                    log("Ceviri {}-{}: {} blok eksik/tutarsiz cumle grubundaydi - o bloklarda orijinal "
-                        "metin kaldi.".format(ch[0], ch[-1], missing), "warn")
-            except Exception as e:
-                counters["failed"] += len(ch)
-                reason = classify_translation_error(e)
+
+    def record_chunk_result(ch, *, got=None, error=None):
+        """Tek parça sonucunu sayaçlara/olaylara uygula ve hata kodunu döndür."""
+        reason = ""
+        if error is None:
+            counters["done"] += got
+            # Yanitta gelmeyen bloklar da BASARISIZ sayilir (kaynak metin kaldi)
+            missing = len(ch) - got
+            if missing > 0:
+                counters["failed"] += missing
                 with lock:
                     for index in ch:
                         if index not in done_idx:
-                            failure_by_index[index] = reason
-                log("Ceviri {}-{} hatasi [{}]: {}".format(ch[0], ch[-1], reason, e), "warn")
-            completed = [i for i in ch if i in done_idx]
-            if completed:
-                emit("translation_chunk", segments=[
-                    {"index": i, "start": entries[i][0], "end": entries[i][1],
-                     "text": out_texts[i]}
-                    for i in completed
-                ])
-            now = time.time()
-            handled = counters["done"] + counters["failed"] + len(cached_idx)
-            if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
-                emit("llm_progress", percent=round(handled / len(entries) * 100.0, 1),
-                     done=counters["done"] + len(cached_idx),
-                     failed=counters["failed"], total=len(entries),
-                     stage="translate")
-                last_emit_ts[0] = now
+                            failure_by_index.setdefault(index, "invalid_response")
+                log("Ceviri {}-{}: {} blok eksik/tutarsiz cumle grubundaydi - o bloklarda orijinal "
+                    "metin kaldi.".format(ch[0], ch[-1], missing), "warn")
+        else:
+            counters["failed"] += len(ch)
+            reason = classify_translation_error(error)
+            with lock:
+                for index in ch:
+                    if index not in done_idx:
+                        failure_by_index[index] = reason
+            log("Ceviri {}-{} hatasi [{}]: {}".format(ch[0], ch[-1], reason, error), "warn")
+        completed = [i for i in ch if i in done_idx]
+        if completed:
+            emit("translation_chunk", segments=[
+                {"index": i, "start": entries[i][0], "end": entries[i][1],
+                 "text": out_texts[i]}
+                for i in completed
+            ])
+        now = time.time()
+        handled = counters["done"] + counters["failed"] + len(cached_idx)
+        if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
+            emit("llm_progress", percent=round(handled / len(entries) * 100.0, 1),
+                 done=counters["done"] + len(cached_idx),
+                 failed=counters["failed"], total=len(entries),
+                 stage="translate")
+            last_emit_ts[0] = now
+        return reason
+
+    # İlk parçayı senkron bir sağlayıcı probu olarak kullan. Anahtar/kota gibi
+    # bütün işi etkileyen kalıcı bir hata varsa onlarca paralel isteği aynı anda
+    # göndermeden durur; başarılı probdan sonra normal paralellik korunur.
+    remaining_chunks = list(chunks)
+    fatal_reason = ""
+    if remaining_chunks:
+        probe = remaining_chunks.pop(0)
+        try:
+            record_chunk_result(probe, got=task(probe))
+        except Exception as error:
+            fatal_reason = record_chunk_result(probe, error=error)
+
+    if fatal_reason in FATAL_TRANSLATION_ERRORS and remaining_chunks:
+        skipped = sum(len(ch) for ch in remaining_chunks)
+        counters["failed"] += skipped
+        with lock:
+            for ch in remaining_chunks:
+                for index in ch:
+                    if index not in done_idx:
+                        failure_by_index[index] = fatal_reason
+        log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
+            .format(fatal_reason, skipped), "warn")
+        emit("llm_progress", percent=100.0,
+             done=counters["done"] + len(cached_idx), failed=counters["failed"],
+             total=len(entries), stage="translate")
+        remaining_chunks = []
+
+    with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
+        futures = {ex.submit(task, ch): ch for ch in remaining_chunks}
+        for fut in as_completed(futures):
+            ch = futures[fut]
+            try:
+                record_chunk_result(ch, got=fut.result())
+            except Exception as error:
+                record_chunk_result(ch, error=error)
 
     if counters["done"] == 0 and not cached_idx:
         # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
@@ -5800,11 +5852,21 @@ def transcribe(args):
                 # dil olarak konusmanin ozgun dilini vermek modele celiskili
                 # talimat olurdu ("metin Ingilizce, kaynak dil Ispanyolca").
                 tr_source = "en" if args.task == "translate" else info.language
-                translated = llm_translate(
-                    entries, args, warn_list, source_lang=tr_source,
-                    status_out=translation_status,
-                    speakers=speakers_map,
-                )
+                if same_translation_language(tr_source, args.translate_to):
+                    translation_status.update(
+                        completed=[], failed=[], failedReasons={},
+                        lastError="same_language", skipped="same_language",
+                    )
+                    message = ("Kaynak dil ile hedef dil aynı ({}); gereksiz çeviri API çağrısı "
+                               "yapılmadı.".format(args.translate_to))
+                    log(message, "warn")
+                    warn_list.append(message)
+                else:
+                    translated = llm_translate(
+                        entries, args, warn_list, source_lang=tr_source,
+                        status_out=translation_status,
+                        speakers=speakers_map,
+                    )
                 # Çeviri izi kaynakla birebir cue sözleşmesini korur. Çeviri
                 # tarafında devam satırlarını birleştirmek cue sayısını ve zaman
                 # eşlemesini değiştirip oynatıcı/yeniden-deneme kimliğini bozuyordu.
@@ -6040,10 +6102,25 @@ def transcribe(args):
                 perf["rtf"], perf["segments"],
                 f", {low_conf} dusuk guvenli kelime" if low_conf else ""))
 
+        translation_summary = None
+        if args.translate:
+            translation_summary = {
+                "requested": True,
+                "total": len(entries),
+                "completed": translation_completed_count,
+                "failed": (translation_failed_count if translated else
+                           (0 if translation_status.get("skipped") else len(entries))),
+                "lastError": translation_last_error,
+                "skipped": str(translation_status.get("skipped", "") or ""),
+                "stopProgressive": bool(
+                    translation_status.get("skipped")
+                    or translation_last_error in FATAL_TRANSLATION_ERRORS
+                ),
+            }
         emit("done", files=output_files, outputs=output_descriptors,
              sourceId=source_id, sourceHash=source_hash,
              segments=len(entries), language=info.language,
-             warnings=warn_list, perf=perf)
+             warnings=warn_list, perf=perf, translation=translation_summary)
 
     finally:
         # Geçici çalışma klasörünü tümüyle temizle (indirilen ses, audio.wav vb.)

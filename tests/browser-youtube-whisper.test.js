@@ -9,7 +9,7 @@ const node = id => {
 };
 const calls = [];
 const ctx = {
-  URL, console, Object, Number, Date,
+  URL, console, Object, Number, Date, setTimeout: fn => { fn(); return 1; },
   player: { workspaceMode: 'browser', mediaKey: 'browser:youtube:abcdefghijk', browserActiveTabId: 'a',
     browserPageUrl: 'https://www.youtube.com/watch?v=abcdefghijk&list=ignored', browserTracks: [],
     browserDuration: 1800, browserTime: 800, subPath: '', sub2Path: '' },
@@ -24,6 +24,7 @@ vm.createContext(ctx);
 function section(from, to) { const start = code.indexOf(from); assert(start >= 0); return code.slice(start, code.indexOf(to, start)); }
 vm.runInContext(section('function youtubeVideoId(', 'function mediaKeyFor('), ctx);
 vm.runInContext(section('function progressiveRanges(', 'async function startProgressiveChunk('), ctx);
+vm.runInContext(section('async function handleProgressiveTerminal(', 'function playerJobEvent('), ctx);
 vm.runInContext(section('function currentBrowserYoutubeUrl(', 'async function exportBrowserAbClip('), ctx);
 vm.runInContext(section('async function startProgressivePlayerTranscription(', '// "Altyazı oluştur"'), ctx);
 (async () => {
@@ -77,5 +78,31 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   ctx.registerCompletedBrowserOutputs({ items: [{ role: 'translation', path: 'wrong.srt' }] },
     { workspaceMode: 'browser', browserTabId: 'other', mediaKey: ctx.player.mediaKey });
   assert.equal(ctx.player.browserTracks.length, before, 'başka sekmenin çıktısı eklendi');
-  console.log('Browser YouTube Whisper: URL, browser time, translation intent, reuse, busy and tab race passed.');
+
+  const terminalActions = [];
+  const job = {
+    running: true, awaitingExit: false, mediaKey: ctx.player.mediaKey,
+    browserTabId: 'a', ranges: [{ start: 0, end: 600 }, { start: 600, end: 1200 }],
+    rangeIndex: 0, outputFiles: [], outputDescriptors: [],
+  };
+  ctx.player.job = job;
+  ctx.player.workspaceMode = 'browser';
+  ctx.completedSubtitleOutputs = event => ({
+    items: event.outputs || [],
+    source: (event.outputs || []).find(item => item.role === 'source') || null,
+    translation: null,
+  });
+  ctx.subtitleOutputContract = { errorLabel: code => code === 'quota' ? 'Sağlayıcı kotası doldu' : code };
+  ctx.finishProgressiveJob = async () => terminalActions.push('finish');
+  ctx.startProgressiveChunk = async () => terminalActions.push('next');
+  await ctx.handleProgressiveTerminal({
+    type: 'done', files: ['source.srt'],
+    outputs: [{ role: 'source', path: 'source.srt' }],
+    translation: { requested: true, failed: 20, lastError: 'quota', stopProgressive: true },
+  }, job);
+  await ctx.handleProgressiveTerminal({ type: 'exit', code: 0 }, job);
+  assert.deepEqual(terminalActions, ['finish'], 'kalıcı çeviri hatasından sonra ikinci aralık başlatıldı');
+  assert.equal(job.rangeIndex, 0);
+
+  console.log('Browser YouTube Whisper: URL, translation intent, reuse, tab race and permanent-error stop passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

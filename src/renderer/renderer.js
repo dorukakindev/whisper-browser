@@ -3198,18 +3198,29 @@ async function finishProgressiveJob(job) {
   $('startBtn').classList.remove('hidden');
   $('cancelBtn').classList.add('hidden');
   $('playerJobFill').style.width = '100%';
+  const translationStopReason = job.translationTerminal?.stopProgressive
+    ? (job.translationTerminal.skipped === 'same_language'
+      ? 'Kaynak dil hedef dille aynı; API çağrısı yapılmadı.'
+      : `Çeviri durdu: ${subtitleOutputContract.errorLabel(job.translationTerminal.lastError || 'api_failure')}.`)
+    : '';
   $('playerJobText').textContent = loaded.loaded
-    ? `Altyazı oynatıcıya yüklendi · ${source.length} blok`
-    : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${loaded.reason}`;
+    ? `Altyazı oynatıcıya yüklendi · ${source.length} blok${translationStopReason ? ` · ${translationStopReason}` : ''}`
+    : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${loaded.reason}${translationStopReason ? ` · ${translationStopReason}` : ''}`;
   if (job.workspaceMode === 'browser' && job.browserTabId === player.browserActiveTabId) {
     const translatedText = translated.length ? ` · ${translated.length} çeviri` : '';
-    setBrowserSignal(loaded.loaded
-      ? `Whisper altyazısı bu sekmeye yüklendi · ${source.length} blok${translatedText}`
-      : `Whisper çıktısı kaydedildi ancak sekmeye yüklenemedi: ${loaded.reason}`,
-    loaded.loaded, { priority: loaded.loaded ? 75 : 95, holdMs: 6000 });
+    const signalText = loaded.loaded
+      ? `Whisper altyazısı bu sekmeye yüklendi · ${source.length} blok${translatedText}${translationStopReason ? ` · ${translationStopReason}` : ''}`
+      : `Whisper çıktısı kaydedildi ancak sekmeye yüklenemedi: ${loaded.reason}${translationStopReason ? ` · ${translationStopReason}` : ''}`;
+    const signalOk = loaded.loaded && (!job.translationTerminal?.stopProgressive
+      || job.translationTerminal.skipped === 'same_language');
+    setBrowserSignal(signalText, signalOk, {
+      priority: job.translationTerminal?.stopProgressive ? 100 : (loaded.loaded ? 75 : 95),
+      holdMs: job.translationTerminal?.stopProgressive ? 10000 : 6000,
+    });
   }
   setTimeout(() => $('playerJobBar').classList.add('hidden'), 4000);
-  logLine(`Öncelikli altyazı üretimi tamamlandı: ${source.length} blok`, 'success');
+  logLine(`Öncelikli altyazı üretimi tamamlandı: ${source.length} blok${translationStopReason ? ` · ${translationStopReason}` : ''}`,
+    job.translationTerminal?.stopProgressive && job.translationTerminal.skipped !== 'same_language' ? 'warn' : 'success');
   refreshHistory();
 }
 
@@ -3225,6 +3236,9 @@ async function handleProgressiveTerminal(event, job) {
   }
   if (event.type === 'done') {
     const selected = completedSubtitleOutputs(event, 'source');
+    if (event.translation && typeof event.translation === 'object') {
+      job.translationTerminal = { ...event.translation };
+    }
     job.outputFiles = [...new Set([...(job.outputFiles || []), ...(event.files || [])])];
     job.outputDescriptors = job.outputDescriptors || [];
     for (const item of selected.items) {
@@ -3268,7 +3282,14 @@ async function handleProgressiveTerminal(event, job) {
       }
       next(job);
     };
-    if (job.rangeIndex + 1 < job.ranges.length) {
+    if (job.translationTerminal?.stopProgressive) {
+      const reason = job.translationTerminal.skipped === 'same_language'
+        ? 'Kaynak dil zaten hedef dille aynı; çeviri yapılmadan kaynak altyazı hazırlandı.'
+        : `Çeviri kalıcı sağlayıcı hatası nedeniyle durdu: ${subtitleOutputContract.errorLabel(job.translationTerminal.lastError || 'api_failure')}`;
+      logLine(reason, job.translationTerminal.skipped ? 'warn' : 'error');
+      setBrowserSignal(reason, false, { priority: 100, holdMs: 10000 });
+      setTimeout(() => continueWhenCurrent(finishProgressiveJob), 80);
+    } else if (job.rangeIndex + 1 < job.ranges.length) {
       job.rangeIndex++;
       setTimeout(() => continueWhenCurrent(startProgressiveChunk), 80);
     } else {

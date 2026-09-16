@@ -932,6 +932,45 @@ def test_translate_returns_none_when_every_chunk_fails():
     assert calls == [1], "kimlik hatası küçük gruplarla yeniden denenmemeli"
 
 
+def test_translate_quota_probe_stops_parallel_fanout():
+    """Önceden tükenmiş kota tek probla anlaşılmalı; kalan parçalar gönderilmemeli."""
+    import types
+
+    entries = [(float(i), float(i + 1), f"Source sentence number {i}.") for i in range(45)]
+    calls = []
+
+    def fail_quota(**_kwargs):
+        calls.append(1)
+        raise RuntimeError("402 insufficient_quota")
+
+    class _Quota:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=fail_quota))
+
+    status = {}
+    with _fake_openai(_Quota):
+        out = T.llm_translate(
+            entries,
+            _TrArgs(translate_workers=8, translate_cache=False),
+            [],
+            source_lang="en",
+            status_out=status,
+        )
+    assert out is None
+    assert calls == [1], f"kalıcı kota hatasında {len(calls)} istek gönderildi"
+    assert status["lastError"] == "quota"
+    assert status["failed"] == list(range(len(entries)))
+
+
+def test_same_translation_language_compares_primary_iso_tags():
+    assert T.same_translation_language("tr", "TR")
+    assert T.same_translation_language("tr-TR", "tr")
+    assert not T.same_translation_language("en", "tr")
+    assert not T.same_translation_language("", "tr")
+    assert not T.same_translation_language("auto", "tr")
+
+
 def test_translate_returns_list_on_success():
     import sys, types, importlib.machinery, json
 
