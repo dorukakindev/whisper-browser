@@ -7197,6 +7197,16 @@ function browserSubtitleHealth(input) {
       action: 'capture-full', label: retry ? 'Eksikleri yeniden dene' : 'Tüm altyazıyı getir',
     };
   }
+  if (input.directTranslate && !input.targetAvailable) {
+    const cueCount = Math.max(0, Number(input.ceaCueCount) || 0);
+    return {
+      state: 'translation-ready',
+      text: cueCount
+        ? `${cueCount} satırlık kaynak altyazı hazır. Çeviriyi oluşturup videoda gösterebilirsiniz.`
+        : 'Kaynak altyazı hazır. Çeviriyi oluşturup videoda gösterebilirsiniz.',
+      action: 'translate', label: 'Çevir ve göster',
+    };
+  }
   if (input.cues && input.mode === 'off') return { state: 'hidden', text: 'Altyazı yüklü, görünüm kapalı.', action: 'show', label: 'Altyazıyı göster' };
   if (input.cues) return { state: 'ready', text: `${input.cues} blok hazır · ${input.tracks} site izi.`, action: '', label: '' };
   if (input.tracks) return input.targetAvailable
@@ -7269,6 +7279,7 @@ function renderBrowserSubtitleHealth() {
   if (!panel) return;
   const tab = browserTabState();
   const target = String($('translateTo')?.value || 'tr').toLowerCase();
+  const directTranslateTrack = preferredBrowserSourceTrack();
   const health = browserSubtitleHealth({ url: player.browserPageUrl,
     online: typeof navigator === 'undefined' || navigator.onLine !== false,
     saveError: !!tab?.subtitlePreferenceError,
@@ -7281,6 +7292,8 @@ function renderBrowserSubtitleHealth() {
     ceaAvailable: player.browserCeaCapture?.available === true,
     ceaState: String(player.browserCeaCapture?.state || ''),
     ceaMessage: String(player.browserCeaCapture?.message || ''),
+    ceaCueCount: Number(player.browserCeaCapture?.cueCount || 0),
+    directTranslate: !!directTranslateTrack,
     targetAvailable: player.browserTracks.some(track => String(track.language || '').toLowerCase().split('-')[0] === target.split('-')[0]),
   });
   panel.dataset.state = health.state;
@@ -7473,6 +7486,30 @@ function completedBrowserCeaTrack(capture = player.browserCeaCapture, language =
     && browserTrackMatchesCeaPlan(track, capture));
   return candidates.find((track) => wantedLanguage
     && String(track.language || '').toLowerCase() === wantedLanguage) || candidates[0] || null;
+}
+
+function preferredBrowserSourceTrack() {
+  const completed = player.browserCeaCapture?.state === 'complete'
+    ? completedBrowserCeaTrack(player.browserCeaCapture) : null;
+  if (completed) return completed;
+  const selected = browserTrackSelection(false);
+  if (selected && selected.role !== 'translation' && selected.path) return selected;
+  return player.browserTracks.find((track) => track.role !== 'translation' && track.path) || null;
+}
+
+async function translateBrowserSubtitleFromHealth() {
+  const track = preferredBrowserSourceTrack();
+  if (!track) {
+    $('browserTrackActions')?.classList.remove('hidden');
+    $('browserTrackSelect')?.focus();
+    setBrowserSignal('Çevrilecek kaynak altyazı izi seçilemedi. Listeden bir iz seçin.', false,
+      { priority: 90, holdMs: 6500 });
+    return false;
+  }
+  setBrowserSignal('Kaynak altyazı hazır; çeviri başlatılıyor…', true,
+    { priority: 80, holdMs: 4500 });
+  await useBrowserTrack(true, track.id);
+  return true;
 }
 
 function shouldAcquireFullCeaBeforeTranslation(track, capture = player.browserCeaCapture) {
@@ -10769,6 +10806,7 @@ if ($('browserSubtitleHealthAction')) $('browserSubtitleHealthAction').addEventL
     case 'file': await loadManualBrowserSubtitle(); break;
     case 'capture': setBrowserCaptureEnabled(true); break;
     case 'capture-full': await toggleBrowserCeaFullCapture(); break;
+    case 'translate': await translateBrowserSubtitleFromHealth(); break;
     case 'select': $('browserTrackActions')?.classList.remove('hidden'); $('browserTrackSelect')?.focus(); break;
     case 'retry': $('browserTranslationRetryFailed')?.click(); break;
     case 'show': setSubtitleMode(player.cues.length && player.cues2.length ? 'both' : player.cues.length ? 'source' : 'translation'); break;

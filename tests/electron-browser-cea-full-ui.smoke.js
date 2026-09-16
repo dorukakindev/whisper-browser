@@ -112,7 +112,36 @@ app.whenReady().then(async () => {
   assert.equal(narrow.statusVisible, true);
   assert.ok(narrow.right <= narrow.viewport + 1);
   fs.writeFileSync(path.join(out, 'cea-full-narrow.png'), (await win.webContents.capturePage()).toPNG());
-  console.log(JSON.stringify({ ok: true, wide, narrow }));
+
+  const translationReady = await run(`
+    const tab = browserTabState();
+    player.browserPageUrl = 'https://video.test/lesson';
+    player.browserTracks = [{ id:'cea-complete', path:'C:\\\\test\\\\complete.srt', language:'en',
+      label:'1-CC1', format:'cea-608', captureKind:'embedded-cea', captureComplete:true,
+      cueCount:560, role:'source' }];
+    player.browserCeaCapture = { state:'complete', available:true, completed:906, total:906,
+      failed:0, missing:0, cueCount:560, message:'560 altyazı satırı eksiksiz yakalandı.',
+      tracks:[{ instreamId:'CC1', language:'en', name:'English', standard:'cea-608' }] };
+    player.cues=[]; player.cues2=[]; player.browserTranslationTrackId='';
+    if (tab) { tab.browserTracks=player.browserTracks.slice(); tab.browserCeaCapture=player.browserCeaCapture;
+      tab.browserTranslationComplete=null; }
+    renderBrowserTracks('cea-complete');
+    renderBrowserSubtitleHealth();
+    const button=document.getElementById('browserSubtitleHealthAction');
+    return { state:document.getElementById('browserSubtitleHealth').dataset.state,
+      action:button.dataset.action, label:button.textContent,
+      text:document.getElementById('browserSubtitleHealthText').textContent,
+      visible:button.getBoundingClientRect().width>0,
+      preferred:preferredBrowserSourceTrack()?.id || '' };
+  `);
+  assert.equal(translationReady.state, 'translation-ready');
+  assert.equal(translationReady.action, 'translate');
+  assert.equal(translationReady.label, 'Çevir ve göster');
+  assert.match(translationReady.text, /560 satırlık kaynak altyazı hazır/);
+  assert.equal(translationReady.visible, true);
+  assert.equal(translationReady.preferred, 'cea-complete');
+  fs.writeFileSync(path.join(out, 'cea-translation-ready.png'), (await win.webContents.capturePage()).toPNG());
+  console.log(JSON.stringify({ ok: true, wide, narrow, translationReady }));
   app.exit(0);
 }).catch((error) => {
   fs.writeFileSync(path.join(out, 'error.txt'), String(error.stack || error));
