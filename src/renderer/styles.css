@@ -6634,9 +6634,12 @@ body.modal-open { overflow: hidden; }
 
 .browser-subtitle-health { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-top:1px solid var(--border); background:var(--surface-panel); font-size:12px; line-height:1.5; }
 .browser-subtitle-health > span { min-width:0; overflow-wrap:anywhere; }
-.browser-subtitle-health > button { flex-shrink:0; }
+.browser-subtitle-health-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-shrink:0; }
 .browser-subtitle-health[data-state="file-error"], .browser-subtitle-health[data-state="translation-error"] { border-left:3px solid var(--accent); }
-@media(max-width:700px) { .browser-subtitle-health { align-items:flex-start; flex-direction:column; } }
+@media(max-width:700px) {
+  .browser-subtitle-health { align-items:flex-start; flex-direction:column; }
+  .browser-subtitle-health-actions { width:100%; justify-content:flex-start; flex-wrap:wrap; }
+}
 /* Video başına dosya ve senkron yönetimi. */
 .browser-video-subtitles { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
 .browser-video-subtitles summary { cursor: pointer; color: var(--accent); font-weight: 600; }
@@ -6691,5 +6694,6 @@ body.modal-open { overflow: hidden; }
   .workspace-browser .browser-signal-state-actions { justify-content: flex-start; flex-wrap: wrap; }
   .workspace-browser .browser-signal-copy { flex-wrap: wrap; gap: 4px 8px; }
   .workspace-browser .browser-subtitle-health { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .workspace-browser .browser-subtitle-health-actions { width: auto; }
   .workspace-browser .browser-video-subtitles > summary { width: fit-content; }
 }

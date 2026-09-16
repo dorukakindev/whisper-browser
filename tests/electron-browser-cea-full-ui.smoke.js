@@ -146,18 +146,32 @@ app.whenReady().then(async () => {
     player.browserTranslationLastError = 'Canlı web çevirisi için seçili sağlayıcının API anahtarı girilmemiş.';
     renderBrowserSubtitleHealth();
     const button=document.getElementById('browserSubtitleHealthAction');
+    const clearButton=document.getElementById('browserSubtitleHealthClear');
     return { state:document.getElementById('browserSubtitleHealth').dataset.state,
       action:button.dataset.action, label:button.textContent,
       text:document.getElementById('browserSubtitleHealthText').textContent,
-      visible:button.getBoundingClientRect().width>0 };
+      visible:button.getBoundingClientRect().width>0,
+      clearVisible:clearButton.getBoundingClientRect().width>0 };
   `);
   assert.equal(translationError.state, 'translation-error');
   assert.equal(translationError.action, 'translation-settings');
   assert.equal(translationError.label, 'Çeviri ayarlarını aç');
   assert.match(translationError.text, /API anahtarı girilmemiş/);
   assert.equal(translationError.visible, true);
+  assert.equal(translationError.clearVisible, true);
   fs.writeFileSync(path.join(out, 'cea-translation-error.png'), (await win.webContents.capturePage()).toPNG());
-  console.log(JSON.stringify({ ok: true, wide, narrow, translationReady, translationError }));
+  const translationCleared = await run(`
+    document.getElementById('browserSubtitleHealthClear').click();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return { error:player.browserTranslationLastError,
+      state:document.getElementById('browserSubtitleHealth').dataset.state,
+      clearHidden:document.getElementById('browserSubtitleHealthClear').classList.contains('hidden') };
+  `);
+  assert.equal(translationCleared.error, '');
+  assert.notEqual(translationCleared.state, 'translation-error');
+  assert.equal(translationCleared.clearHidden, true);
+  fs.writeFileSync(path.join(out, 'cea-translation-cleared.png'), (await win.webContents.capturePage()).toPNG());
+  console.log(JSON.stringify({ ok: true, wide, narrow, translationReady, translationError, translationCleared }));
   app.exit(0);
 }).catch((error) => {
   fs.writeFileSync(path.join(out, 'error.txt'), String(error.stack || error));

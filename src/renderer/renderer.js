@@ -2560,12 +2560,21 @@ function endpointPresetRecommendedModel(preset) {
   return '';
 }
 
-function clearBrowserTranslationConfigError() {
-  if (!/API anahtarı|endpoint/i.test(String(player.browserTranslationLastError || ''))) return;
+function clearBrowserTranslationError(options = {}) {
+  const previous = String(player.browserTranslationLastError || '').trim();
   player.browserTranslationLastError = '';
   const tab = browserTabState();
   if (tab) tab.browserTranslationLastError = '';
   renderBrowserSubtitleHealth();
+  if (previous && options.announce) {
+    setBrowserSignal('Çeviri hata bildirimi temizlendi.', true, { priority: 40, holdMs: 3000 });
+  }
+  return !!previous;
+}
+
+function clearBrowserTranslationConfigError() {
+  if (!/API anahtarı|endpoint/i.test(String(player.browserTranslationLastError || ''))) return;
+  clearBrowserTranslationError();
 }
 
 async function saveTranslationProviderSettings() {
@@ -4682,6 +4691,7 @@ const player = {
   browserTranslationStartSeq: 0,
   browserLiveTranslations: new Map(),
   browserTranslationFailed: 0,
+  browserTranslationLastError: '',
   browserSyncPreview: null,
   browserCueEditContext: null,
   browserBaseCues: new Map(),
@@ -4765,6 +4775,7 @@ function newBrowserTabState(snapshot = {}) {
     browserTranslationTrackId: snapshot.translationTrackId || '',
     browserLiveTranslations: [],
     browserTranslationFailed: 0,
+    browserTranslationLastError: '',
     browserMangaBusy: !!snapshot.mangaBusy,
     browserMangaTranslated: Number(snapshot.mangaTranslated) || 0,
     browserMangaVisible: !!snapshot.mangaVisible,
@@ -4904,6 +4915,7 @@ function saveActiveBrowserTabWorkspace() {
     browserTranslationTrackId: player.browserTranslationTrackId,
     browserLiveTranslations: [...player.browserLiveTranslations.values()],
     browserTranslationFailed: player.browserTranslationFailed,
+    browserTranslationLastError: player.browserTranslationLastError,
     browserMangaBusy: player.browserMangaBusy,
     browserMangaTranslated: player.browserMangaTranslated,
     browserMangaVisible: player.browserMangaVisible,
@@ -5023,6 +5035,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   }
   player.browserLiveTranslations = browserTranslationMapFromCues(tab.browserLiveTranslations);
   player.browserTranslationFailed = Math.max(0, Number(tab.browserTranslationFailed) || 0);
+  player.browserTranslationLastError = String(tab.browserTranslationLastError || '');
   tab.subtitleSyncRecords = Array.isArray(tab.subtitleSyncRecords) ? tab.subtitleSyncRecords.map((item) => ({ ...item })) : [];
   tab.subtitleEdits = Array.isArray(tab.subtitleEdits) ? tab.subtitleEdits.map((item) => ({ ...item })) : [];
   tab.subtitleRecordQuarantine = Array.isArray(tab.subtitleRecordQuarantine) ? tab.subtitleRecordQuarantine.map((item) => ({ ...item })) : [];
@@ -7222,6 +7235,7 @@ function browserSubtitleHealth(input) {
       text: `Çeviri başlatılamadı: ${input.translationError}`,
       action: settingsError ? 'translation-settings' : 'translate',
       label: settingsError ? 'Çeviri ayarlarını aç' : 'Yeniden dene',
+      dismissible: true,
     };
   }
   if (input.directTranslate && !input.targetAvailable) {
@@ -7328,6 +7342,8 @@ function renderBrowserSubtitleHealth() {
   $('browserSubtitleHealthText').textContent = health.text;
   const button = $('browserSubtitleHealthAction');
   button.classList.toggle('hidden', !health.action); button.dataset.action = health.action; button.textContent = health.label;
+  const clearButton = $('browserSubtitleHealthClear');
+  if (clearButton) clearButton.classList.toggle('hidden', health.dismissible !== true);
 }
 
 function updateBrowserSubtitleSummary() {
@@ -7377,6 +7393,8 @@ function clearBrowserTracks(message) {
   player.browserSyncPreview = null;
   player.browserCueEditContext = null;
   player.browserTranslationFailed = 0;
+  player.browserTranslationLastError = '';
+  if (tab) tab.browserTranslationLastError = '';
   player.browserTracks = [];
   player.browserCeaCapture = null;
   player.browserPendingCeaTranslation = null;
@@ -8044,6 +8062,7 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
   player.browserLiveTranslations = new Map();
   player.browserTranslationFailed = 0;
   player.browserTranslationLastError = '';
+  if (translationTab) translationTab.browserTranslationLastError = '';
   player.cues2 = [];
   player.cues2Raw = null;
   player.activeIdx2 = -1;
@@ -8312,7 +8331,10 @@ function applyBrowserTranslationResult(event) {
   if (!event.result || event.trackId !== player.browserTranslationTrackId) return;
   if (event.result.error) {
     player.browserTranslationLastError = String(event.result.error || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+    const tab = browserTabState();
+    if (tab) tab.browserTranslationLastError = player.browserTranslationLastError;
     logLine(`Canlı web çevirisi: ${event.result.error}`, 'warn');
+    renderBrowserSubtitleHealth();
     return;
   }
   mergeBrowserTranslationCues(player.browserLiveTranslations, event.result.cues);
@@ -10851,6 +10873,9 @@ if ($('browserSubtitleHealthAction')) $('browserSubtitleHealthAction').addEventL
     case 'show': setSubtitleMode(player.cues.length && player.cues2.length ? 'both' : player.cues.length ? 'source' : 'translation'); break;
   }
   renderBrowserSubtitleHealth();
+});
+if ($('browserSubtitleHealthClear')) $('browserSubtitleHealthClear').addEventListener('click', () => {
+  clearBrowserTranslationError({ announce: true });
 });
 if ($('browserManualSubtitle')) $('browserManualSubtitle').addEventListener('click', loadManualBrowserSubtitle);
 if ($('browserCopyAb')) $('browserCopyAb').addEventListener('click', copyBrowserAbText);

@@ -1410,7 +1410,11 @@
             </div>
             <div id="browserSubtitleHealth" class="browser-subtitle-health" role="status" aria-live="polite">
               <span id="browserSubtitleHealthText">Bir video sayfası açın.</span>
-              <button id="browserSubtitleHealthAction" class="btn btn-secondary btn-sm" type="button" data-action="address">Adres gir</button>
+              <div class="browser-subtitle-health-actions">
+                <button id="browserSubtitleHealthAction" class="btn btn-secondary btn-sm" type="button" data-action="address">Adres gir</button>
+                <button id="browserSubtitleHealthClear" class="btn btn-ghost btn-sm hidden" type="button"
+                  title="Bu çeviri hata bildirimini temizle">Temizle</button>
+              </div>
             </div>
             <details id="browserVideoSubtitles" class="browser-video-subtitles">
               <summary>Bu videonun altyazıları</summary>
