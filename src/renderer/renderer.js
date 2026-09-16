@@ -4575,6 +4575,7 @@ const player = {
   browserTabEventGate: new BrowserTabEventGate(),
   browserTracks: [],
   browserCeaCapture: null,
+  browserPendingCeaTranslation: null,
   browserPageUrl: '',
   browserPageTitle: '',
   browserTime: 0,
@@ -7319,6 +7320,7 @@ function clearBrowserTracks(message) {
   player.browserTranslationFailed = 0;
   player.browserTracks = [];
   player.browserCeaCapture = null;
+  player.browserPendingCeaTranslation = null;
   player.cues = [];
   player.cues2 = [];
   player.subPath = '';
@@ -7427,11 +7429,43 @@ function scheduleDeferredBrowserTrackAction() {
   }, 750);
 }
 
+function browserCeaMatchHint(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function browserTrackMatchesCeaPlan(track, capture = player.browserCeaCapture) {
+  if (!track) return false;
+  if (track.captureKind === 'embedded-cea' || /^cea-(?:608|708)$/i.test(track.format || '')) return true;
+  if (!capture?.available || !Array.isArray(capture.tracks) || !capture.tracks.length) return false;
+  if (!/^(?:html5-track|text-track)$/i.test(track.format || '')) return false;
+  const label = browserCeaMatchHint(`${track.trackId || ''} ${track.label || ''}`);
+  const language = String(track.language || '').toLowerCase();
+  if (capture.tracks.some((item) => {
+    const instreamId = browserCeaMatchHint(item.instreamId);
+    const name = browserCeaMatchHint(item.name);
+    return (instreamId && label.includes(instreamId)) || (name && name.length >= 3 && label.includes(name));
+  })) return true;
+  return capture.tracks.length === 1
+    && !!language && String(capture.tracks[0].language || '').toLowerCase() === language;
+}
+
+function completedBrowserCeaTrack(capture = player.browserCeaCapture, language = '') {
+  const wantedLanguage = String(language || '').toLowerCase();
+  const candidates = player.browserTracks.filter((track) => track.captureComplete === true
+    && browserTrackMatchesCeaPlan(track, capture));
+  return candidates.find((track) => wantedLanguage
+    && String(track.language || '').toLowerCase() === wantedLanguage) || candidates[0] || null;
+}
+
+function shouldAcquireFullCeaBeforeTranslation(track, capture = player.browserCeaCapture) {
+  return browserTrackMatchesCeaPlan(track, capture) && track?.captureComplete !== true;
+}
+
 function renderBrowserCeaCaptureState(track = browserTrackSelection(false)) {
   const button = $('browserTrackCaptureFull');
   const status = $('browserTrackCaptureStatus');
   if (!button || !status) return;
-  const eligible = track?.captureKind === 'embedded-cea' || /^cea-(?:608|708)$/i.test(track?.format || '');
+  const eligible = browserTrackMatchesCeaPlan(track);
   const capture = player.browserCeaCapture;
   const busy = capture && ['running', 'refreshing', 'retry-wait'].includes(capture.state);
   button.classList.toggle('hidden', !eligible);
@@ -7451,6 +7485,7 @@ function renderBrowserCeaCaptureState(track = browserTrackSelection(false)) {
 function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
   const capture = {
     state: String(event.state || 'running'),
+    available: event.available === true,
     completed: Math.max(0, Number(event.completed) || 0),
     total: Math.max(0, Number(event.total) || 0),
     failed: Math.max(0, Number(event.failed) || 0),
@@ -7463,6 +7498,10 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
     expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
     durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
     cueCount: Math.max(0, Number(event.cueCount) || 0),
+    tracks: Array.isArray(event.tracks) ? event.tracks.map((track) => ({
+      instreamId: String(track?.instreamId || ''), language: String(track?.language || ''),
+      name: String(track?.name || ''), standard: String(track?.standard || ''),
+    })) : [],
     message: String(event.message || ''),
   };
   if (tab) tab.browserCeaCapture = capture;
@@ -7471,11 +7510,33 @@ function applyBrowserCeaCaptureProgress(event, tab = browserTabState()) {
   if (capture.state === 'complete') {
     setBrowserSignal(capture.message || 'Tam altyazı yakalandı.', true, { priority: 70, holdMs: 6000 });
     logLine(capture.message || 'Tam web altyazısı yakalandı.', 'success');
+    resumePendingBrowserCeaTranslation(capture);
   } else if (capture.state === 'partial' || capture.state === 'error') {
+    if (player.browserPendingCeaTranslation) {
+      player.browserPendingCeaTranslation = null;
+      capture.message = `${capture.message || 'Tam altyazı yakalama tamamlanamadı.'} Çeviri otomatik başlatılmadı.`;
+    }
     setBrowserSignal(capture.message || 'Tam altyazı yakalama tamamlanamadı.', false,
       { priority: 90, holdMs: 7500 });
     logLine(capture.message || 'Tam web altyazısı yakalanamadı.', 'warn');
+  } else if (capture.state === 'cancelled') {
+    player.browserPendingCeaTranslation = null;
   }
+}
+
+function resumePendingBrowserCeaTranslation(capture = player.browserCeaCapture) {
+  const pending = player.browserPendingCeaTranslation;
+  if (!pending || pending.tabId !== player.browserActiveTabId || capture?.state !== 'complete') return;
+  player.browserPendingCeaTranslation = null;
+  setTimeout(() => {
+    const fullTrack = completedBrowserCeaTrack(capture, pending.language);
+    if (!fullTrack) {
+      setBrowserSignal('Tam altyazı yakalandı ancak tamamlanan kaynak izi bulunamadı.', false,
+        { priority: 90, holdMs: 7000 });
+      return;
+    }
+    void useBrowserTrack(true, fullTrack.id);
+  }, 100);
 }
 
 async function toggleBrowserCeaFullCapture() {
@@ -7794,6 +7855,31 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
   clearDeferredBrowserTrackAction();
   const tabId = player.browserActiveTabId;
   const gen = currentGeneration();
+  if (translate && shouldAcquireFullCeaBeforeTranslation(track)) {
+    const completed = player.browserCeaCapture?.state === 'complete'
+      ? completedBrowserCeaTrack(player.browserCeaCapture, track.language) : null;
+    if (completed) {
+      track = completed;
+    } else {
+      player.browserPendingCeaTranslation = {
+        tabId, trackId: track.id, language: String(track.language || ''),
+      };
+      setBrowserSignal('Önce bölümün tam kaynak altyazısı getiriliyor; tamamlanınca toplu çeviri başlayacak.', true,
+        { priority: 80, holdMs: 7000 });
+      const captureBusy = ['running', 'refreshing', 'retry-wait']
+        .includes(player.browserCeaCapture?.state);
+      if (!captureBusy) {
+        const result = await window.api.captureFullBrowserSubtitle?.(tabId, 'start')
+          .catch((error) => ({ ok: false, error: error.message }));
+        if (!result?.ok) {
+          player.browserPendingCeaTranslation = null;
+          setBrowserSignal(result?.error || 'Tam kaynak altyazı yakalama başlatılamadı.', false,
+            { priority: 95, holdMs: 7500 });
+        }
+      }
+      return;
+    }
+  }
   if (translate) {
     const prepareSeq = ++player.browserPrepareSeq;
     player.browserTranslatePreparing = true;
@@ -11009,6 +11095,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'cea-capture-progress') {
         tab.browserCeaCapture = {
           state: String(event.state || 'running'), completed: Math.max(0, Number(event.completed) || 0),
+          available: event.available === true,
           total: Math.max(0, Number(event.total) || 0), failed: Math.max(0, Number(event.failed) || 0),
           cueCount: Math.max(0, Number(event.cueCount) || 0), message: String(event.message || ''),
           missing: Math.max(0, Number(event.missing) || 0),
@@ -11018,6 +11105,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
           plannedDuration: Math.max(0, Number(event.plannedDuration) || 0),
           expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
           durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
+          tracks: Array.isArray(event.tracks) ? event.tracks.map((track) => ({
+            instreamId: String(track?.instreamId || ''), language: String(track?.language || ''),
+            name: String(track?.name || ''), standard: String(track?.standard || ''),
+          })) : [],
         };
       } else if (event.type === 'media-identity' && event.resetSubtitles) {
         tab.browserTracks = [];

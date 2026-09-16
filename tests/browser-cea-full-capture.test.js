@@ -162,8 +162,11 @@ const {
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(job\.tab, cues, track, 'source'\)/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
   assert.match(main, /browser:subtitle:captureFull/);
+  assert.match(main, /sendBrowserHlsCeaPlanReady\(ceaTab, browserHlsCeaActive\)/);
   assert.match(preload, /captureFullBrowserSubtitle/);
   assert.match(renderer, /toggleBrowserCeaFullCapture/);
+  assert.match(renderer, /browserPendingCeaTranslation/);
+  assert.match(renderer, /Önce bölümün tam kaynak altyazısı getiriliyor/);
   assert.match(html, /id="browserTrackCaptureFull"[\s\S]*?Tüm altyazıyı getir/);
 
   console.log('browser-cea-full-capture: ordered capture, exact completeness and automatic missing retry OK');

@@ -7360,12 +7360,37 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
     requireExpectedDuration: true,
   });
   sendBrowserEvent(job.tab, { type: 'cea-capture-progress', state,
+    available: true,
     completed: completeness.completed, total: completeness.total, failed: job.failures.length,
     missing: completeness.missing, percent: completeness.percent, complete: completeness.complete,
     planComplete: completeness.planComplete, planReason: completeness.planReason,
     plannedDuration: completeness.plannedDuration, expectedDuration: completeness.expectedDuration,
     durationPercent: completeness.durationPercent,
-    retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount, message });
+    retryRound: Math.max(0, Number(job.retryRound) || 0), cueCount,
+    tracks: (job.tracks || []).map((track) => ({
+      instreamId: String(track.instreamId || ''), language: String(track.language || ''),
+      name: String(track.name || ''), standard: String(track.standard || ''),
+    })), message });
+}
+
+function sendBrowserHlsCeaPlanReady(tab, plan) {
+  if (!tab || !plan?.segments?.length || !plan?.tracks?.length) return;
+  const plannedDuration = plan.segments.reduce((total, segment) =>
+    total + Math.max(0, Number(segment.duration) || 0), 0);
+  const expectedDuration = Math.max(0, Number(tab.contentDuration) || 0);
+  sendBrowserEvent(tab, {
+    type: 'cea-capture-progress', state: 'ready', available: true,
+    completed: 0, total: plan.segments.length, failed: 0, missing: plan.segments.length,
+    percent: 0, cueCount: 0, planComplete: plan.playlistComplete !== false,
+    plannedDuration, expectedDuration,
+    durationPercent: expectedDuration > 0
+      ? Math.max(0, Math.min(100, Math.round((plannedDuration / expectedDuration) * 100))) : 0,
+    tracks: plan.tracks.map((track) => ({
+      instreamId: String(track.instreamId || ''), language: String(track.language || ''),
+      name: String(track.name || ''), standard: String(track.standard || ''),
+    })),
+    message: `Tam kaynak altyazı planı hazır: ${plan.segments.length} video segmenti.`,
+  });
 }
 
 async function resolveBrowserHlsCeaExpectedDuration(job) {
@@ -8159,6 +8184,10 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
             body, candidate.url, embeddedCaptions, context, transactionCurrent);
           requireActiveTransaction();
           ceaMatcherCount = cea.matcherCount;
+          if (ceaMatcherCount && browserHlsCeaActive?.segments?.length) {
+            const ceaTab = context ? browserTabById(context.tabId) : activeBrowserTab();
+            sendBrowserHlsCeaPlanReady(ceaTab, browserHlsCeaActive);
+          }
           noteBrowserCapture('manifest', candidate, ceaMatcherCount ? 'parsed' : 'error',
             ceaMatcherCount
               ? `${embeddedCaptions.map((track) => track.instreamId).join(', ')} gömülü CEA izi için ${ceaMatcherCount} video parçası izlendi`

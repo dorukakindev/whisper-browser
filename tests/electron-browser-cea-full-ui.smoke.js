@@ -38,6 +38,27 @@ app.whenReady().then(async () => {
     return true;
   `);
   await until(() => run('return !player.browserWorkspaceShowBusy && player.browserActiveTabId'), 'Tarayıcı sekmesi');
+  const ready = await run(`
+    const tab = browserTabState();
+    player.browserTracks = [{ id:'native-cc1', path:'C:\\\\test\\\\native.srt', language:'en',
+      label:'1-CC1', format:'html5-track', cueCount:7, role:'source' }];
+    player.browserCeaCapture = { state:'ready', available:true, completed:0, total:312,
+      missing:312, cueCount:0, message:'Tam kaynak altyazı planı hazır.',
+      tracks:[{ instreamId:'CC1', language:'en', name:'English', standard:'cea-608' }] };
+    if (tab) { tab.browserTracks=player.browserTracks.slice(); tab.browserCeaCapture=player.browserCeaCapture; }
+    renderBrowserTracks('native-cc1');
+    setSettingsPage('browser-subtitles');
+    setSettingsDrawer(true);
+    const button=document.getElementById('browserTrackCaptureFull');
+    return { visible:button.getBoundingClientRect().width>0, disabled:button.disabled,
+      button:button.textContent, matched:browserTrackMatchesCeaPlan(player.browserTracks[0]),
+      prefetch:shouldAcquireFullCeaBeforeTranslation(player.browserTracks[0]) };
+  `);
+  assert.equal(ready.visible, true);
+  assert.equal(ready.disabled, false);
+  assert.equal(ready.button, 'Tüm altyazıyı getir');
+  assert.equal(ready.matched, true);
+  assert.equal(ready.prefetch, true);
   await run(`
     const tab = browserTabState();
     player.browserTracks = [{ id:'cea-ui', path:'C:\\\\test\\\\web.srt', language:'en',
