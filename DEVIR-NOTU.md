@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 06:00 — altyazı çevirisi kota koruması ve aşamalı iş sonlandırma](docs/devir/2026-09-16-0600.md).
+Güncel çalışma: [2026-09-16 06:47 — CEA iptal yarışı ve çeviri öncesi tam kaynak edinme](docs/devir/2026-09-16-0647.md).
+
+Önceki çalışma: [2026-09-16 06:00 — altyazı çevirisi kota koruması ve aşamalı iş sonlandırma](docs/devir/2026-09-16-0600.md).
 
 Önceki çalışma: [2026-09-15 20:18 — YouTube varsayılan görünüm ve Shorts filtresi](docs/devir/2026-09-15-2018.md).
 
