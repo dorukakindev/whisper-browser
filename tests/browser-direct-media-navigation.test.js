@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../src/main.js'),'utf8');
-const fn=vm.runInNewContext('('+source.slice(source.indexOf('async function loadedDirectBrowserMedia('),source.indexOf('function isAbortedBrowserNavigation('))+')',{URL,setTimeout});
+const fn=vm.runInNewContext('('+source.slice(source.indexOf('async function loadedDirectBrowserMedia('),source.indexOf('function isAbortedBrowserNavigation('))+')',{URL,setTimeout,withTimeout:(p)=>p});
 (async()=>{
  const url='https://example.com/clip.mp4';let probe=true;
  const wc={isDestroyed:()=>false,getURL:()=>url,executeJavaScriptInIsolatedWorld:async()=>probe};

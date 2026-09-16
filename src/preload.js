@@ -63,7 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   authorizeHistoryFiles: (recordId) => ipcRenderer.invoke('history:authorizeFiles', recordId),
   cancelYoutubeDownload: () => ipcRenderer.invoke('media:cancelDownload'),
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
-  writeSubtitle: (path, text, change) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change }),
+  writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),
   getWaveform: (path) => ipcRenderer.invoke('media:waveform', path),
   startWatchFolder: (dir, options) => ipcRenderer.invoke('watch:start', dir, options),

@@ -975,7 +975,8 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /sandbox: true/);
   assert.match(main, /ipcMain\.handle\('browser:navigate'/);
   assert.match(main, /async function scanMediaFromPaths/);
-  assert.match(main, /maxDepth: 0, maxResults: 5000/);
+  // R51-27: kardeş dosya taraması maxDepth:1 kullanır (0'da walk hemen çıkar → liste hep boş).
+  assert.match(main, /maxDepth: 1, maxResults: 5000/);
   assert.match(main, /yt-dlp güncellemesi 10 dakika içinde tamamlanmadı/);
   assert.match(main, /parseHlsSubtitleTracks/);
   assert.match(main, /headers: \{ Range: `bytes=\$\{byteRange\.start\}-\$\{byteRange\.end\}` \}/);
@@ -983,7 +984,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /parseMp4WebVtt\(partBuffer, matcher\)/);
   assert.match(main, /fetchBrowserBufferWithRetry\(segment\.initializationUrl[\s\S]{0,160}range\)/);
   assert.match(main, /const manifestHandled = !manifestRetryNeeded[\s\S]{0,100}ceaMatcherCount > 0/);
-  assert.match(main, /matchHlsCeaSegmentUrl\(response\.url, browserHlsCeaSegmentMatchers\)/);
+  assert.match(main, /matchHlsCeaSegmentUrl\(response\.url, browserHlsCeaSegmentMatchers, response\.headers\)/);
   assert.match(main, /captureBrowserHlsCeaSegment\(responseBuffer, candidate, context\)/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);

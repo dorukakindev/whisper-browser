@@ -11,10 +11,14 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 let failed = 0;
 
+// Tek bir test dosyasının asılı kalması CI'yı sonsuza kilitlemesin.
+const TEST_FILE_TIMEOUT_MS = 10 * 60 * 1000;
+
 function run(title, cmd, args) {
   console.log(`\n=== ${title} ===`);
-  const r = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit' });
+  const r = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit', timeout: TEST_FILE_TIMEOUT_MS });
   if (r.error) { console.log(`  (çalıştırılamadı: ${r.error.message})`); failed++; return; }
+  if (r.signal === 'SIGTERM') { console.log('  (zaman aşımı — test dosyası sonlandırıldı)'); failed++; return; }
   if (r.status !== 0) failed++;
 }
 

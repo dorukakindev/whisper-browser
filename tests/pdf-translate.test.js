@@ -165,9 +165,11 @@ const restoredSalvage = normalizePdfTranslationState({
 assert.deepEqual(restoredSalvage.pages['4'].map((block) => block.id), ['ok-2']);
 assert.throws(() => recordPdfPageTranslation(partial, 4, [{ source: ' ' }]), /geçersiz/u);
 
-// Karma yalnız dosya boyutu ve ilk 1 MiB üzerinden planlanır/üretilir.
+// Karma dosya boyutu + ilk 1 MiB + son 256 KiB örneğiyle planlanır (R51-89:
+// yalnız ilk parça aynı olan farklı PDF'ler artık aynı kimliğe çökmez).
 assert.deepEqual(pdfHashPlan(2 * 1024 * 1024), {
-  fileSize: 2 * 1024 * 1024, offset: 0, length: 1024 * 1024, algorithm: 'sha256',
+  fileSize: 2 * 1024 * 1024, offset: 0, length: 1024 * 1024,
+  tailOffset: 2 * 1024 * 1024 - 256 * 1024, tailLength: 256 * 1024, algorithm: 'sha256',
 });
 assert.equal(pdfHashPlan(17).length, 17);
 const chunk = Buffer.alloc(1024 * 1024 + 10, 7);

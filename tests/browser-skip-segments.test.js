@@ -35,6 +35,15 @@ assert.equal(decision.shouldSkip, false, 'geriye kullanıcı seek işlemi otomat
 assert.equal(api.decideSkip(enabled, { ...matching, currentTime: 21 }, decision.state).shouldSkip, false);
 assert.equal(api.decideSkip(enabled, { ...matching, currentTime: 20, playing: false }).shouldSkip, false);
 
+// R51-48: reklam zaman ekseninde kullanıcı kaydı tetiklenmez — reklamın kendi
+// zamanı içerik kaydının [start,end) aralığına düşse bile auto-skip ateşlenmez.
+assert.equal(api.decideSkip(enabled, { ...matching, currentTime: 20, adPlaying: true }).shouldSkip, false);
+assert.equal(api.decideSkip(enabled, { ...matching, currentTime: 20, adPlaying: false }).shouldSkip, true);
+// Reklam sırasında candidate yine gösterilir (kullanıcı elle atlayabilir) ama otomatik seek olmaz.
+const adDecision = api.decideSkip(enabled, { ...matching, currentTime: 20, adPlaying: true });
+assert.equal(adDecision.candidate.id, intro.id);
+assert.equal(adDecision.shouldSkip, false);
+
 const source = fs.readFileSync(path.join(__dirname, '../src/browser-skip-segments.js'), 'utf8');
 const browser = { globalThis: {} };
 vm.runInNewContext(source, browser);

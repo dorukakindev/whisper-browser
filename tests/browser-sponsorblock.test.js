@@ -125,6 +125,8 @@ test('Cache TTL, negatif TTL ve LRU sınırı uygulanır', () => {
 });
 
 
-test('uzun video segmenti iki saat güvenlik sınırı yüzünden reddedilmez', () => { const checked = validateSegments([{ videoID: 'abcdefghijk', segment: [0, 11000], category: 'selfpromo', actionType: 'skip', videoDuration: 11000 }], 'abcdefghijk', 10800); assert.equal(checked.segments.length, 1); assert.equal(checked.segments[0].end, 10800); });
+test('uzun video segmenti iki saat güvenlik sınırı yüzünden reddedilmez', () => { const checked = validateSegments([{ videoID: 'abcdefghijk', segment: [600, 11000], category: 'selfpromo', actionType: 'skip', videoDuration: 11000 }], 'abcdefghijk', 10800); assert.equal(checked.segments.length, 1); assert.equal(checked.segments[0].end, 10800); });
+// R51-10: videonun tamamını kapsayan segment auto-skip'te videoyu sona sarar — reddedilir.
+test('videonun tamamını kapsayan segment reddedilir', () => { const checked = validateSegments([{ videoID: 'abcdefghijk', segment: [0, 11000], category: 'selfpromo', actionType: 'skip', videoDuration: 11000 }], 'abcdefghijk', 10800); assert.equal(checked.segments.length, 0); assert.equal(checked.invalid, 1); });
 test('kısa veya bilinmeyen sürede iki saatten uzun ham segment reddedilir', () => { const payload = [{ videoID: 'abcdefghijk', segment: [0, 99999], category: 'sponsor', actionType: 'skip' }]; assert.equal(validateSegments(payload, 'abcdefghijk', 90).segments.length, 0); assert.equal(validateSegments(payload, 'abcdefghijk').segments.length, 0); });
 console.log(`SponsorBlock: ${passed} test`);

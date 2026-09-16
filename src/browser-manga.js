@@ -21,9 +21,15 @@ function extractJsonPayload(text) {
     try { return JSON.parse(candidate); } catch (_) {}
   }
   let sawJsonStart = false;
-  for (let start = 0; start < raw.length; start++) {
+  // Her '{'/'[' konumundan sona taramak bozuk/unclosed girdide O(n²) olur;
+  // gerçekçi yanıtlarda JSON ilk birkaç adaydan birinde başlar. Aday sayısını
+  // sabit sınırla kısıtlayarak toplam iş O(n)'de kalır.
+  const MAX_JSON_CANDIDATES = 16;
+  let candidates = 0;
+  for (let start = 0; start < raw.length && candidates < MAX_JSON_CANDIDATES; start++) {
     if (raw[start] !== '{' && raw[start] !== '[') continue;
     sawJsonStart = true;
+    candidates += 1;
     const stack = [];
     let quoted = false;
     let escaped = false;
@@ -474,17 +480,37 @@ function mangaCandidateScanScript() {
       // yalnız bir ara rota olduğundan onu alternatif olarak sakla.
       const renderedSource = image.currentSrc || image.src;
       const renderedUrl = inlineBlobImage(image, renderedSource) || absoluteUrl(renderedSource);
-      const placeholder = /^data:image\\/(?:gif|png|webp);base64,/i.test(renderedUrl) && renderedUrl.length < 500;
+      // LQIP placeholder'ları: minik inline data-URI gerçek görsel değildir;
+      // jpeg de bazı sitelerde kullanılır — listede yoktu, minik placeholder
+      // modele gidip gerçek görselin denenmemesine yol açıyordu.
+      const placeholder = /^data:image\\/(?:gif|png|webp|jpe?g|avif);base64,/i.test(renderedUrl) && renderedUrl.length < 500;
       const urls = [...new Set((placeholder
         ? [lazyUrl, srcsetUrl, pictureUrl, renderedUrl]
         : [renderedUrl, pictureUrl, srcsetUrl, lazyUrl]).filter(Boolean))];
       const url = urls[0] || '';
       if (!url) continue;
-      let id = image.getAttribute('data-whisper-manga-id');
+      // Kimlik içeriğe bağlıdır: aynı <img> öğesi okuyucu/srcset değişimiyle
+      // başka görsele dönerse eski kimlik eski çeviriyi yeni görselin üstünde
+      // tutar ve mangaAttempted yeni içeriğin çevrilmesini engeller.
+      const srcIds = window.__whisperMangaSrcIds || (window.__whisperMangaSrcIds = new WeakMap());
+      let perImage = srcIds.get(image);
+      if (!perImage) { perImage = new Map(); srcIds.set(image, perImage); }
+      let id = perImage.get(renderedUrl) || '';
       if (!id) {
         sequence += 1;
         id = 'wm-' + Date.now().toString(36) + '-' + sequence.toString(36);
+        if (perImage.size >= 16) perImage.delete(perImage.keys().next().value);
+        perImage.set(renderedUrl, id);
+      }
+      const oldId = image.getAttribute('data-whisper-manga-id');
+      if (oldId !== id) {
         image.setAttribute('data-whisper-manga-id', id);
+        const overlayState = window.__whisperMangaOverlay;
+        if (oldId && overlayState?.overlays?.has(oldId)) {
+          overlayState.overlays.get(oldId).remove();
+          overlayState.overlays.delete(oldId);
+          overlayState.imageById?.delete(oldId);
+        }
       }
       const visible = rect.bottom > 0 && rect.top < viewportBottom;
       const distance = visible ? 0 : Math.min(Math.abs(rect.top), Math.abs(rect.bottom - viewportBottom));
@@ -827,7 +853,8 @@ function mangaOverlayScript(payload) {
         sourcePanel.append(original);
         const translationPanel = document.createElement('label');
         translationPanel.textContent = 'Çeviri';
-        area.style.marginTop = '8px'; area.style.minHeight = '190px'; area.maxLength = 3000;
+        // main.js saklama/yükleme sınırı 4000 — editör aynı sınırı izler.
+        area.style.marginTop = '8px'; area.style.minHeight = '190px'; area.maxLength = 4000;
         translationPanel.append(area);
         columns.append(sourcePanel, translationPanel);
         const buttons = document.createElement('div');

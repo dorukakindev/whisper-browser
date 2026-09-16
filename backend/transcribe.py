@@ -4307,6 +4307,51 @@ def drop_micro_blocks(entries, min_dur=0.08, max_words=2):
     return out, len(entries) - len(out)
 
 
+def realign_segment_metrics(entries, metrics, start_tol=0.5, end_tol=2.5):
+    """Paralel segment_metrics dizisini mevcut entries sırasına yeniden bağlar.
+
+    Metrikler append anında start/end damgalanır; entries'i değiştiren adımlar
+    (punctuation onarımı, resume-birleştirme, sort, dedupe, fix_common_errors,
+    merge adımları) sonrası indeks bağı kırılır. Zamanla en yakın metrik
+    bağlanır; eşleşemeyen bloklar None kalır (yanlış metrik bağlanmasından
+    iyidir — tüketici tarafı zaten dict olmayanları atlıyor).
+    """
+    import bisect as _bisect
+    if not isinstance(metrics, (list, tuple)) or not metrics:
+        return None
+    pool = sorted(
+        (m for m in metrics
+         if isinstance(m, dict)
+         and math.isfinite(float(m.get("start") or float("nan")))
+         and math.isfinite(float(m.get("end") or float("nan")))),
+        key=lambda m: (float(m["start"]), float(m["end"])),
+    )
+    if not pool:
+        return None
+    starts = [float(m["start"]) for m in pool]
+    used = [False] * len(pool)
+    aligned = [None] * len(entries)
+    for i, entry in enumerate(entries):
+        s = float(entry[0])
+        e = float(entry[1])
+        pivot = _bisect.bisect_left(starts, s)
+        best_j, best_d = -1, start_tol
+        for cand in range(max(0, pivot - 2), min(len(pool), pivot + 3)):
+            if used[cand]:
+                continue
+            m = pool[cand]
+            d = abs(starts[cand] - s)
+            if d > best_d:
+                continue
+            if abs(float(m["end"]) - e) > end_tol:
+                continue
+            best_d, best_j = d, cand
+        if best_j >= 0:
+            aligned[i] = pool[best_j]
+            used[best_j] = True
+    return aligned
+
+
 def find_repeated_hallucinations(entries, all_words, min_count=4, max_words=8,
                                  conf_thr=0.55, spread_ratio=0.25, segment_metrics=None):
     """
@@ -5637,7 +5682,14 @@ def transcribe(args):
                 start += time_offset
                 end += time_offset
                 entries.append((start, end, cleaned))
-                segment_metrics.append(dict(segment_metric))
+                # Metrik bloğa start/end'iyle bağlanır: sonraki mutasyonlar
+                # (onarım, resume-birleştirme, sıralama, dedupe, yaygın-hata)
+                # entries'i kaydırınca paralel indeks bağı kırılıyordu; zaman
+                # damgasıyla yeniden hizalanır (realign_segment_metrics).
+                _metric = dict(segment_metric)
+                _metric["start"] = round(float(start), 3)
+                _metric["end"] = round(float(end), 3)
+                segment_metrics.append(_metric)
                 # Oynatici, tum is bitmeden dusuk-guvenli satiri gosterebilsin.
                 # Yalnizca bu parcayla zaman olarak ortusen kelimeler kullanilir;
                 # segment ortalamasi uzun cumledeki tek sorunlu kelimeyi gizlemesin.
@@ -5741,6 +5793,7 @@ def transcribe(args):
         # Tekrarlı halüsinasyon (bilinmeyen uydurmalar; regex listesi yalnızca bilinenleri
         # yakalıyor). Kelime güveni gerektiği için yalnızca kelime damgaları varsa çalışır.
         if args.drop_repeated_hallucinations and (all_words or segment_metrics):
+            segment_metrics = realign_segment_metrics(entries, segment_metrics)
             entries, n_drop = drop_repeated_hallucinations(entries, all_words, warn_list, segment_metrics=segment_metrics)
             if n_drop:
                 log(f"Tekrarlı uydurma temizliği: {n_drop} blok silindi", "warn")
@@ -5915,7 +5968,7 @@ def transcribe(args):
             qr = compute_quality_report(
                 entries, max_cps=args.max_cps,
                 max_dur=args.max_duration, min_dur=args.min_duration,
-                segment_metrics=(segment_metrics if len(segment_metrics) == len(entries) else None),
+                segment_metrics=realign_segment_metrics(entries, segment_metrics),
             )
             emit("quality_report", **qr)
             log(
@@ -6056,7 +6109,7 @@ def transcribe(args):
                               language=lang_code, wrap_mode=args.wrap_mode, speakers=speaker_map)
                 elif fmt == "json":
                     write_json(items, path, info=info, speakers=speaker_map, all_words=all_words,
-                              segment_metrics=(segment_metrics if len(segment_metrics) == len(items) else None))
+                              segment_metrics=realign_segment_metrics(items, segment_metrics))
                 else:
                     return False
                 return True

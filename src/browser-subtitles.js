@@ -3,6 +3,12 @@ const { decodeSubtitleBuffer: decodeSubtitleBufferWithMetadata } = require('./br
 
 const SUBTITLE_URL_RE = /(?:^|[\/?&_.=-])(caption|captions|subtitle|subtitles|timedtext|texttrack|webvtt|ttml|dfxp|srt|vtt|srv3|json3|altyazi|altyazilar|sous-titres?|untertitel|subtitulos?|legendas?|sottotitoli)(?:[\/?&_.=-]|$)/i;
 
+// Bidi yeniden-yöneltme ve görünmez ayraç karakterleri: RLO/PDF/LRO/LRE/RLE,
+// izolatlar (LRI/RLI/FSI/PDI), ALM, ZWSP, WJ ve gövde içi BOM. Görsel
+// spoofing'in primitifleri; Arapça/Farsça metinde anlamlı ZWNJ/ZWJ/LRM/RLM
+// görüntüde korunur, yalnızca kimlik-hash'inde sıyrılır (hashText).
+const BIDI_SPOOF_RE = /[\u200B\u202A-\u202E\u2060-\u2064\u2066-\u2069\u061C\uFEFF]/g;
+
 function decodeEntities(value) {
   const decodeCodePoint = (raw, radix = 10) => {
     const codePoint = parseInt(String(raw), radix);
@@ -12,6 +18,13 @@ function decodeEntities(value) {
     // Yatay sekme ve LF, altyazı metninde anlamlı olan iki istisnadır.
     if ((codePoint < 0x20 && codePoint !== 0x09 && codePoint !== 0x0A)
         || (codePoint >= 0x7F && codePoint <= 0x9F)) return '';
+    // Entity kodlu bidi/sıfır-genişlik enjeksiyonu da (&#8238; = RLO)
+    // temizlikten sonra metne sızmasın.
+    if ((codePoint >= 0x200B && codePoint <= 0x200F)
+        || (codePoint >= 0x202A && codePoint <= 0x202E)
+        || (codePoint >= 0x2060 && codePoint <= 0x2064)
+        || (codePoint >= 0x2066 && codePoint <= 0x2069)
+        || codePoint === 0x061C || codePoint === 0xFEFF) return '';
     return String.fromCodePoint(codePoint);
   };
   const named = {
@@ -52,6 +65,7 @@ function cleanCueText(value) {
     .replace(/<\/?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
     .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\.[\w-]+)*(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
     .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
+    .replace(BIDI_SPOOF_RE, '')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{2,}/g, '\n')
@@ -508,6 +522,7 @@ function parseHlsSegments(body, baseUrl = '') {
   let initializationByteRange = null;
   let previousInitializationUrl = '';
   let previousInitializationRangeEnd = 0;
+  let pendingGap = false;
   let encryption = null;
   let initializationEncryption = null;
   for (const line of text.split(/\r?\n/)) {
@@ -570,6 +585,19 @@ function parseHlsSegments(body, baseUrl = '') {
       discontinuity += 1;
       continue;
     }
+    const skip = value.match(/^#EXT-X-SKIP\s*:(.+)$/i);
+    if (skip) {
+      // Delta listesi ilk N parçayı düşürür; atlananlar defter sırası ve
+      // zaman ekseninde yer tutar (örtük AES-IV de sıradan türer).
+      const skipped = Math.max(0, Number(parseHlsAttributes(skip[1])['SKIPPED-SEGMENTS']) || 0);
+      sequence += skipped;
+      elapsed += skipped * targetDuration;
+      continue;
+    }
+    if (/^#EXT-X-GAP(?:\s|$)/i.test(value)) {
+      pendingGap = true;
+      continue;
+    }
     if (value.startsWith('#')) continue;
     try {
       const url = new URL(value, baseUrl).href;
@@ -593,7 +621,7 @@ function parseHlsSegments(body, baseUrl = '') {
       // süresi bu bozukluk için en güvenli yaklaşık değerdir.
       const segmentDuration = pendingDuration > 0 ? pendingDuration : targetDuration;
       out.push({ url, start: elapsed, duration: segmentDuration, sequence, discontinuity,
-        targetDuration, ...(byteRange ? { byteRange } : {}),
+        targetDuration, ...(byteRange ? { byteRange } : {}), ...(pendingGap ? { gap: true } : {}),
         ...(initializationUrl ? { initializationUrl } : {}),
         ...(initializationByteRange ? { initializationByteRange } : {}),
         ...(initializationEncryption ? { initializationEncryption: { ...initializationEncryption } } : {}),
@@ -603,6 +631,7 @@ function parseHlsSegments(body, baseUrl = '') {
     } catch (_) {}
     pendingDuration = 0;
     pendingByteRange = null;
+    pendingGap = false;
   }
   return out;
 }

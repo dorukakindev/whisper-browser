@@ -1072,6 +1072,11 @@
   color: var(--sub-color);
   text-shadow: var(--sub-shadow);
   white-space: pre-line;
+  /* Kesintisiz uzun metin (URL, bosluksuz dizgi) videoyu tamamen kapatmasin;
+     asirisi gizlenir, satir icinde kirilabilir. */
+  max-height: 45%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 /* Arka plan yalnizca METNIN arkasinda olsun (tum satir boyunca degil) */
@@ -1082,6 +1087,8 @@
   padding: var(--sub-pad);
   border-radius: 6px;
   backdrop-filter: blur(2px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /* Altyazi degisince yumusak beliris */
@@ -1476,6 +1483,7 @@
   font-size: 14px;
   line-height: 1.45;
   color: var(--text-dim);
+  overflow-wrap: anywhere;
 }
 .cue-card.active .cue-card-src { color: var(--text); }
 
@@ -1485,6 +1493,7 @@
   color: var(--accent);
   margin-top: 3px;
   opacity: .9;
+  overflow-wrap: anywhere;
 }
 
 .cue-card mark {

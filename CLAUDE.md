@@ -20,7 +20,7 @@ install-diarize.bat      :: opsiyonel pyannote.audio (konuşmacı tanıma)
 - DevTools'lu mod: `npm run dev` (renderer'da `--dev` ile detached DevTools açar). Yine cuDNN PATH'i lazımsa start.bat env'ini taklit et.
 - Backend'i tek başına test etme: `backend\venv\Scripts\python.exe backend\transcribe.py --input <dosya> --model tiny --device cpu` — NDJSON olaylarını stdout'a basar.
 
-**Test/doğrulama:** `npm test` tüm testleri çalıştırır (`tests/*.test.js` + `backend/test_transcribe.py`; venv yoksa Python kısmı atlanır). Node testleri Electron'a bağlı olmayan saf mantığı KAYNAKTAN kesip çalıştırır — sınır işaretleri değişirse test yüksek sesle kırılır. Ayrıca sözdizimi kontrolü:
+**Test/doğrulama:** `npm test` tüm testleri çalıştırır (`tests/*.test.js` + `backend/test_*.py`; Python bulunamazsa paket eksik doğrulama bildirerek başarısız sayılır). Node testleri Electron'a bağlı olmayan saf mantığı KAYNAKTAN kesip çalıştırır — sınır işaretleri değişirse test yüksek sesle kırılır. Ayrıca sözdizimi kontrolü:
 ```powershell
 & "backend\venv\Scripts\python.exe" -m py_compile backend\transcribe.py
 node --check src\main.js; node --check src\preload.js; node --check src\renderer\renderer.js

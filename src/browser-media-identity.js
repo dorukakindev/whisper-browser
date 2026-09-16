@@ -15,7 +15,10 @@ function normalizeBrowserUrl(rawUrl, maxLength = 16384) {
     url.username = '';
     url.password = '';
     url.hostname = url.hostname.toLowerCase();
-    url.hash = '';
+    // SPA hash-route'ları (Stremio '#/player/..', Plex/Emby '#!/..') içerik
+    // kimliğinin parçasıdır — sıyrılınca aynı hosttaki tüm videolar tek
+    // mediaId'ye çöküyordu. Sıradan sayfa-içi fragment'ler yine atılır.
+    if (!/^#!?\//.test(url.hash)) url.hash = '';
     for (const key of [...url.searchParams.keys()]) {
       if (SENSITIVE_PARAM_RE.test(key) || TRACKING_PARAM_RE.test(key)) url.searchParams.delete(key);
     }

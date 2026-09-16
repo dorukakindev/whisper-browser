@@ -81,7 +81,10 @@ def main():
     reader = threading.Thread(target=read_commands, args=(commands, stop_event), daemon=True)
     reader.start()
 
-    while not stop_event.is_set():
+    # stop/EOF sonrası da kuyruktaki parçalar işlenir — aksi halde son ~9 sn
+    # ses transkripte hiç girmezdi. Uygulama kapanışı çocuğu yine öldürür;
+    # bu döngü yalnızca nazik durdurmada drenaj sağlar.
+    while not stop_event.is_set() or not commands.empty():
         try:
             command = commands.get(timeout=0.2)
         except queue.Empty:
@@ -101,8 +104,6 @@ def main():
             )
             count = 0
             for segment in segments:
-                if stop_event.is_set():
-                    break
                 text = str(segment.text or "").strip()
                 bounds = segment_bounds(segment)
                 if not text or bounds is None:
@@ -112,11 +113,9 @@ def main():
                      end=offset + end * rate, text=text,
                      language=getattr(info, "language", "") or "")
                 count += 1
-            if not stop_event.is_set():
-                emit("chunk_done", path=file_path, count=count)
+            emit("chunk_done", path=file_path, count=count)
         except Exception as error:
-            if not stop_event.is_set():
-                emit("chunk_done", path=file_path, count=0, error=str(error))
+            emit("chunk_done", path=file_path, count=0, error=str(error))
     emit("stopped")
     return 0
 

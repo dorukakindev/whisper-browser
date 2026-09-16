@@ -450,17 +450,30 @@ function pdfHashPlan(fileSize, maxChunkBytes = PDF_HASH_CHUNK_BYTES) {
   if (!Number.isSafeInteger(size) || size < 0 || !Number.isSafeInteger(limit) || limit < 1) {
     throw new TypeError('PDF karma planı için dosya boyutu geçersiz.');
   }
-  return { fileSize: size, offset: 0, length: Math.min(size, limit), algorithm: 'sha256' };
+  const head = Math.min(size, limit);
+  // Yalnız ilk parça aynı başlığı/şablonu paylaşan PDF'leri çakıştırıyordu;
+  // son parça da karışıma katılır (kuyruk kimliği ayırt eder).
+  const tail = size > head ? Math.min(size - head, Math.min(limit, 256 * 1024)) : 0;
+  return { fileSize: size, offset: 0, length: head,
+    tailOffset: tail ? size - tail : size, tailLength: tail, algorithm: 'sha256' };
 }
 
-function pdfHashFromFirstChunk(fileSize, firstChunk) {
+function pdfHashFromFirstChunk(fileSize, firstChunk, lastChunk = null) {
   const plan = pdfHashPlan(fileSize);
   if (!Buffer.isBuffer(firstChunk) && !(firstChunk instanceof Uint8Array)) {
     throw new TypeError('PDF karma verisi bayt dizisi olmalı.');
   }
   if (firstChunk.byteLength < plan.length) throw new TypeError('PDF karma verisi eksik.');
   const bytes = Buffer.from(firstChunk.buffer, firstChunk.byteOffset, Math.min(firstChunk.byteLength, plan.length));
-  return `${plan.fileSize}:${createHash('sha256').update(bytes).digest('hex')}`;
+  const hash = createHash('sha256').update(bytes);
+  if (lastChunk && plan.tailLength) {
+    const tailBytes = Buffer.from(
+      Buffer.isBuffer(lastChunk) ? lastChunk : lastChunk.buffer,
+      Buffer.isBuffer(lastChunk) ? 0 : lastChunk.byteOffset,
+      Math.min(lastChunk.byteLength, plan.tailLength));
+    hash.update(tailBytes);
+  }
+  return `${plan.fileSize}:${hash.digest('hex')}`;
 }
 
 module.exports = {

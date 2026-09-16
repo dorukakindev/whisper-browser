@@ -59,15 +59,38 @@ function registerBrowserFeatureServices(deps) {
       const name = seriesName.trim().slice(0, 160);
       seriesKey = name ? `${origin}|${name.toLocaleLowerCase('tr')}` : '';
     }
-    return { mediaKey, seriesKey };
+    return { mediaKey, seriesKey, origin };
+  }
+  function orphanedSeriesRecord(identity, record) {
+    // Hiçbir medya bu seri anahtarına bağlı değilse kayıt yetimdir: aynı origin'in
+    // yetim kayıtları listede görünsün ve silinebilsin (yazım hatasıyla açılmış
+    // seri adları kalıcı çöp olmasın).
+    return record.scope === 'series'
+      && !Object.values(data().series).includes(record.scopeKey)
+      && String(record.scopeKey).startsWith(`${identity.origin}|`);
+  }
+  function ownsRecord(identity, record) {
+    return record.scopeKey === identity.mediaKey || record.scopeKey === identity.seriesKey
+      || orphanedSeriesRecord(identity, record);
   }
   function visibleRecords(identity) {
-    return data().records.filter(record => record.scope === 'media' ? record.scopeKey === identity.mediaKey : record.scopeKey === identity.seriesKey);
+    return data().records.filter(record => record.scope === 'media'
+      ? record.scopeKey === identity.mediaKey
+      : record.scopeKey === identity.seriesKey || orphanedSeriesRecord(identity, record));
   }
   function associate(identity) {
+    const previous = data().series[identity.mediaKey] || '';
     const entries = Object.entries(data().series).filter(([key]) => key !== identity.mediaKey).slice(-499);
     data().series = Object.fromEntries(entries);
     if (identity.seriesKey) data().series[identity.mediaKey] = identity.seriesKey;
+    // Yeniden bağlanan medya eski serinin son üyesiyse seri-kapsamlı kayıtlar
+    // yetim kalmasın diye yeni anahtara taşınır (seri adı düzeltme senaryosu).
+    if (previous && previous !== identity.seriesKey
+        && !Object.values(data().series).includes(previous)) {
+      for (const record of data().records) {
+        if (record.scope === 'series' && record.scopeKey === previous) record.scopeKey = identity.seriesKey;
+      }
+    }
   }
   async function bestFrame(tab) {
     const found = await Promise.all(frames(tab.view).map(async frame => ({ frame,
@@ -309,7 +332,7 @@ function registerBrowserFeatureServices(deps) {
           const identity = keys(tab, payload.seriesName), raw = payload.record || {};
           const normalizedId = String(raw.id || '').trim().slice(0, 128);
           const existing = data().records.find(record => record.id === normalizedId);
-          if (existing && existing.scopeKey !== identity.mediaKey && existing.scopeKey !== identity.seriesKey) throw new Error('Bu kayıt başka videoya ait.');
+          if (existing && !ownsRecord(identity, existing)) throw new Error('Bu kayıt başka videoya ait.');
           const scope = raw.scope === 'series' ? 'series' : 'media';
           const record = skips.normalizeRecord({ ...raw, id: raw.id || randomUUID(), scope,
             scopeKey: scope === 'series' ? identity.seriesKey : identity.mediaKey });
@@ -323,7 +346,7 @@ function registerBrowserFeatureServices(deps) {
         case 'skip-delete': {
           const identity = keys(tab);
           const record = data().records.find(r => r.id === payload.id);
-          if (record && record.scopeKey !== identity.mediaKey && record.scopeKey !== identity.seriesKey) throw new Error('Bu kayıt başka videoya ait.');
+          if (record && !ownsRecord(identity, record)) throw new Error('Bu kayıt başka videoya ait.');
           data().records = skips.removeRecord(data().records, payload.id).records; save();
           result = { ...identity, records: visibleRecords(identity) }; break;
         }

@@ -49,6 +49,7 @@ const state = {
   cancelled: false,
   startTime: 0,
   _speedEma: 0,
+  _etaBase: null,
   // Kuyruk
   queue: [],            // [{id, type:'file'|'youtube', input, label, status, files}]
   queueRunning: false,  // tüm kuyruk işleniyor mu?
@@ -89,6 +90,7 @@ function queueSnapshotPayload() {
       id: item.id, type: item.type, input: item.input, label: item.label,
       status: item.status, files: item.files || [], warnings: item.warnings || [],
       error: item.error || '', opts: item.opts || {}, recovered: !!item.recovered,
+      watchSource: !!item.watchSource, watchReported: item.watchReported || '',
     })),
   };
 }
@@ -161,6 +163,10 @@ async function restorePersistedQueue() {
     if (invalid) {
       setJobsTab('queue');
       logLine(`${invalid} kuyruk işi bozuk veya güvenli boyut sınırını aştığı için yüklenemedi. Disk kaydı sessizce değiştirilmedi.`, 'error');
+    }
+    if (restored.oversized) {
+      setJobsTab('queue');
+      logLine('Kuyruk kayıt dosyası 8 MB güvenlik sınırını aştığı için okunamadı; önceki kayıt korunuyor ama listeye alınmadı. Dosya: %APPDATA% altında queue-state.json', 'error');
     }
   }
   _queuePersistenceReady = true;
@@ -409,7 +415,7 @@ function showJobValidation(problem) {
 async function startTranscribeSafe(opts, requestedJobId = null) {
   const jobId = requestedJobId || createJobId();
   if (state.activeJobId && state.activeJobId !== jobId) {
-    return { ok: false, error: 'Başka bir transkripsiyon işi hâlâ kapanıyor.', jobId };
+    return { ok: false, busy: true, error: 'Başka bir transkripsiyon işi hâlâ kapanıyor.', jobId };
   }
   // Yeni bir iş sahiplenilebiliyorsa önceki işten kalmış terminal-bekleme
   // bayrağı artık bu işe ait değildir. Aksi halde canlı ilerleme olayları
@@ -434,11 +440,31 @@ async function startTranscribeSafe(opts, requestedJobId = null) {
 function queueInputKey(type, input) {
   const value = String(input || '').trim();
   if (type === 'youtube') return mediaKeyFor('youtube', value);
-  return type === 'file' ? value.replace(/\\/g, '/').toLowerCase() : value;
+  if (type !== 'file') return value;
+  // '..'/'.' parçaları ve sondaki bölü çizgisi aynı fiziksel dosyayı iki kez
+  // kuyruğa sokuyordu; renderer'da fs yok — leksikal kanonikleştirme yapılır.
+  const parts = value.replace(/\\/g, '/').split('/');
+  const out = [];
+  for (const part of parts) {
+    if (!part || part === '.') continue;
+    if (part === '..' && out.length && out[out.length - 1] !== '..'
+        && !(out.length === 1 && /^[a-zA-Z]:$/.test(out[0]))) { out.pop(); continue; }
+    out.push(part);
+  }
+  return out.join('/').toLowerCase();
 }
 
+// queue-persistence.js MAX_QUEUE_ITEMS (500) ile aynı sınır — aşılırsa
+// disk snapshot'ı kuyruğun sonunu sessizce kırpıyordu; şimdi eklemeyi
+// kullanıcıya bildirerek reddediyoruz.
+const QUEUE_UI_LIMIT = 500;
+// addToQueue'un en son ret nedeni — izleme sayacı "zaten kuyrukta" ile
+// doğrulama/sınır hatasını birbirine karıştırmasın diye.
+let _queueRejectReason = '';
+
 function addToQueue(type, input, { watchSource = false } = {}) {
-  if (!input) return false;
+  _queueRejectReason = '';
+  if (!input) { _queueRejectReason = 'invalid'; return false; }
   const inputKey = queueInputKey(type, input);
   const existing = state.queue.find((item) => (
     ['pending', 'running'].includes(item.status)
@@ -454,6 +480,7 @@ function addToQueue(type, input, { watchSource = false } = {}) {
       renderQueue();
       return true;
     }
+    _queueRejectReason = 'duplicate';
     return false;
   }
   const opts = buildOptsFromUI();
@@ -468,13 +495,40 @@ function addToQueue(type, input, { watchSource = false } = {}) {
     if (watchSource && window.api.reportWatchFile) {
       window.api.reportWatchFile(input, 'error').catch(() => {});
     }
+    _queueRejectReason = 'invalid';
     return false;
   }
   clearJobValidation();
+  if (state.queue.length >= QUEUE_UI_LIMIT) {
+    logLine(`Kuyruk dolu (en fazla ${QUEUE_UI_LIMIT} iş). Yeni iş eklemek için önce tamamlananları temizleyin.`, 'error');
+    if (watchSource && window.api.reportWatchFile) {
+      window.api.reportWatchFile(input, 'error').catch(() => {});
+    }
+    _queueRejectReason = 'limit';
+    return false;
+  }
   const id = ++_queueIdCounter;
   const label = type === 'youtube'
     ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
     : input.split(/[\\/]/).pop();
+  // Aynı kök-adlı farklı dosyalar aynı çıktı klasöründe aynı .srt/.vtt adını
+  // üretir ve sessizce birbirini ezer (D:\a\film.mp4 vs D:\b\film.mp4).
+  // Yalnız çakışan işe benzersiz sonek verilir; aynı dosyanın yeniden koşusu
+  // kendi çıktısını yeniden yazabilir — beklenen davranış.
+  if (type === 'file') {
+    const stemOf = (value) => String(value || '').split(/[\\/]/).pop()
+      .replace(/\.[^.]+$/, '').toLowerCase();
+    const stem = stemOf(input);
+    const collides = stem && state.queue.some((item) => item.type === 'file'
+      && queueInputKey('file', item.input) !== inputKey
+      && ['pending', 'running', 'done'].includes(item.status)
+      && String(item.opts?.outputDir || '') === String(opts.outputDir || '')
+      && stemOf(item.input) === stem);
+    if (collides) {
+      opts.outputNameSuffix = `-whisper-q${id}`;
+      logLine(`"${label}" aynı adlı başka bir kuyruk işiyle çakışıyor; çıktıları "-whisper-q${id}" sonekiyle yazılacak.`, 'warn');
+    }
+  }
   // Ayarları EKLEME anında dondur: kuyruk işlenirken UI değişse bile bu iş eski ayarı kullanır
   state.queue.push({ id, type, input, label, status: 'pending', files: [], opts, watchSource });
   setJobsTab('queue');
@@ -673,6 +727,7 @@ async function processNextQueueItem() {
   state.running = true;
   state.cancelled = false;
   state._speedEma = 0;
+  state._etaBase = null;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -712,7 +767,7 @@ async function processNextQueueItem() {
   if (!r.ok) {
     logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${r.error}`, 'error');
     state.currentQueueId = null;
-    if (/hâlâ kapanıyor|zaten çalışıyor/i.test(String(r.error || ''))) {
+    if (r.busy || /hâlâ kapanıyor|hâlâ çalışıyor|zaten bir iş çalışıyor|çalışırken|başka bir model işi/i.test(String(r.error || ''))) {
       next.status = 'pending';
       state.queueRunning = false;
       state.running = false;
@@ -1628,12 +1683,15 @@ if ($('watchEnabled')) {
 if (window.api.onWatchFiles) {
   window.api.onWatchFiles((files) => {
     if (!Array.isArray(files) || !files.length) return;
-    const added = files.reduce(
-      (count, file) => count + (addToQueue('file', file, { watchSource: true }) ? 1 : 0), 0);
-    if (added) logLine(`Klasörde ${added} yeni dosya bulundu, kuyruğa eklendi.`, 'success');
-    if (added < files.length) {
-      logLine(`${files.length - added} dosya zaten kuyrukta olduğu için yinelenmedi.`, 'info');
+    let added = 0, dupes = 0, rejected = 0;
+    for (const file of files) {
+      if (addToQueue('file', file, { watchSource: true })) added++;
+      else if (_queueRejectReason === 'duplicate') dupes++;
+      else rejected++;
     }
+    if (added) logLine(`Klasörde ${added} yeni dosya bulundu, kuyruğa eklendi.`, 'success');
+    if (dupes) logLine(`${dupes} dosya zaten kuyrukta olduğu için yinelenmedi.`, 'info');
+    if (rejected) logLine(`${rejected} dosya doğrulama veya kuyruk sınırı nedeniyle eklenemedi.`, 'warn');
     if (added && !state.queueRunning && !state.running) {
       logLine('Kuyruk otomatik başlatılıyor.', 'info');
       $('startQueueBtn').click();
@@ -2952,6 +3010,7 @@ $('startBtn').addEventListener('click', async () => {
   state.running = true;
   state.cancelled = false;
   state._speedEma = 0;
+  state._etaBase = null;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -3189,13 +3248,15 @@ async function finishProgressiveJob(job) {
   const edits = new Map(state.previewSegs.filter((seg) => seg.previewEdited).map((seg) => [previewTimeKey(seg), seg.text]));
   const editedSource = source.map((cue) => edits.has(previewTimeKey(cue)) ? { ...cue, text: edits.get(previewTimeKey(cue)) } : cue);
   if (job.sourceFile && editedSource.length) {
-    const result = await window.api.writeSubtitle(job.sourceFile, cuesToSrt(editedSource));
+    const result = await window.api.writeSubtitle(job.sourceFile, cuesToSrt(editedSource), null, subtitleStatFor(job.sourceFile));
     if (!result?.ok) throw new Error(result?.error || 'Kaynak altyazı dosyası yazılamadı.');
+    noteSubtitleStat(job.sourceFile, result);
   }
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (job.translationFile && translated.length) {
-    const result = await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated));
+    const result = await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated), null, subtitleStatFor(job.translationFile));
     if (!result?.ok) throw new Error(result?.error || 'Çevrilmiş altyazı dosyası yazılamadı.');
+    noteSubtitleStat(job.translationFile, result);
     if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   }
   const selectionChanged = (job.selectedSubPath || '') !== (player.subPath || '')
@@ -3875,6 +3936,10 @@ window.api.onEvent((event) => {
         if (state.activeOutputJob) state.activeOutputJob.stage = `İndiriliyor · %${percent.toFixed(0)}`;
         setProgress(percent);
         $('progressText').textContent = `İndiriliyor ${percent.toFixed(0)}%`;
+        const eta = Number(event.eta);
+        $('progressTime').textContent = Number.isFinite(eta) && eta > 0
+          ? `indirme · kalan ~${formatTime(eta)}`
+          : 'indiriliyor…';
       }
       break;
 
@@ -3887,9 +3952,15 @@ window.api.onEvent((event) => {
       if (state.activeOutputJob) state.activeOutputJob.stage = `Transkripsiyon · %${percent.toFixed(1)}`;
       setProgress(percent);
       $('progressText').textContent = `${percent.toFixed(1)}%`;
-      const elapsed = (Date.now() - state.startTime) / 1000;
+      // Saat ilk progress olayında kurulur: indirme/ffmpeg çıkarımı ETA'ya
+      // karışmaz; resume'de de hız kalan-bölüm ekseninde ölçülür (%60'tan
+      // başlayan işte anlık %60/sn patlaması olmaz).
+      if (state._etaBase == null || percent < state._etaBase.percent) {
+        state._etaBase = { percent, at: Date.now() };
+      }
+      const elapsed = (Date.now() - state._etaBase.at) / 1000;
       // Hız (%/sn) üzerinde EMA — erken tahminlerdeki aşırı oynamayı yumuşatır
-      const speed = elapsed > 0.1 ? percent / elapsed : 0;
+      const speed = elapsed > 0.1 ? (percent - state._etaBase.percent) / elapsed : 0;
       if (speed > 0) {
         state._speedEma = state._speedEma > 0 ? state._speedEma * 0.7 + speed * 0.3 : speed;
       }
@@ -4334,6 +4405,15 @@ $('importSettings').addEventListener('click', async () => {
     updateMangaEndpointUI();
   }
   if (s.ui) applyUiSettings(s.ui);
+  // Bellek dışında tutulan ayarlar da uygulanmalı — aksi halde sonraki
+  // scheduleSave() eski bellek değerini diske geri yazar ve import sessizce ezilir.
+  if (s.playerPositions && typeof s.playerPositions === 'object') {
+    player.positions = s.playerPositions;
+  }
+  // Alan yoksa eski yedeklerde mevcut bellek değeri korunur (boşa sıfırlanmaz).
+  if (s.browserSponsorExemptions !== undefined) {
+    browserSponsorExemptions = normalizeBrowserSponsorExemptions(s.browserSponsorExemptions);
+  }
   initializeProviderApiKeyState('translate', s.translate || {});
   initializeProviderApiKeyState('manga', s.manga || {});
   if (window.BrowserWorkflowRecorder) {
@@ -4367,6 +4447,8 @@ $('reexportJson').addEventListener('click', async () => {
   setStatus('Çalışıyor', 'active');
   state.running = true;
   state.cancelled = false;
+  state._speedEma = 0;
+  state._etaBase = null;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -4420,6 +4502,8 @@ $('syncBtn').addEventListener('click', async () => {
   setStatus('Çalışıyor', 'active');
   state.running = true;
   state.cancelled = false;
+  state._speedEma = 0;
+  state._etaBase = null;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -4751,6 +4835,10 @@ function newBrowserTabState(snapshot = {}) {
     compatibilityMessage: '',
     pinned: !!snapshot.pinned,
     group: window.BrowserTabLayout?.normalizeTabGroup(snapshot.group) || null,
+    lifecycle: ['active', 'background', 'unloaded', 'restore_failed'].includes(snapshot.lifecycle)
+      ? snapshot.lifecycle : 'active',
+    unloadedAt: Number(snapshot.unloadedAt) || 0,
+    keepAwake: !!snapshot.keepAwake,
     readerActive: !!snapshot.readerActive,
     readerPreferences: snapshot.readerPreferences || null,
     diagnostics: snapshot.diagnostics || null,
@@ -4762,6 +4850,11 @@ function newBrowserTabState(snapshot = {}) {
     browserDuration: Number(snapshot.duration) || 0,
     browserPaused: true,
     browserRate: Number(snapshot.rate) || 1,
+    // Oturum/çalışma alanı kaydındaki hız: ilk medya olayı browserRate'i sayfanın
+    // gerçek değeriyle ezer; kayıtlı değer restoreWatchProfile'a ayrı alanda ve
+    // kaydedildiği medya kimliğine bağlı taşınır (başka videoya uygulanmaz).
+    browserSavedRate: Number(snapshot.rate) || 0,
+    browserSavedRateMediaId: snapshot.mediaId || '',
     browserVolume: Number.isFinite(Number(snapshot.volume)) ? Number(snapshot.volume) : 1,
     browserMuted: !!snapshot.muted,
     tabMuted: !!snapshot.tabMuted,
@@ -5162,6 +5255,10 @@ function syncBrowserTabs(snapshots, activeTabId, split) {
       compatibilityMode: snapshot.compatibilityMode === true,
       pinned: snapshot.pinned !== undefined ? !!snapshot.pinned : !!tab.pinned,
       group: window.BrowserTabLayout?.normalizeTabGroup(snapshot.group) || null,
+      lifecycle: ['active', 'background', 'unloaded', 'restore_failed'].includes(snapshot.lifecycle)
+        ? snapshot.lifecycle : (tab.lifecycle || 'active'),
+      unloadedAt: Number(snapshot.unloadedAt) || (tab.unloadedAt || 0),
+      keepAwake: snapshot.keepAwake !== undefined ? !!snapshot.keepAwake : !!tab.keepAwake,
       readerActive: snapshot.readerActive !== undefined ? !!snapshot.readerActive : !!tab.readerActive,
       readerPreferences: snapshot.readerPreferences || tab.readerPreferences || null,
       browserMangaBusy: !!snapshot.mangaBusy,
@@ -9141,8 +9238,9 @@ function applyBrowserSyncPreview(transform, points) {
 
 function nudgeBrowserSync(amount) {
   const preview = browserSyncEnsurePreview();
-  if (!preview) return;
+  if (!preview) return false;
   applyBrowserSyncPreview({ ...preview.transform, offsetSeconds: preview.transform.offsetSeconds + amount });
+  return true;
 }
 
 function captureBrowserSyncPoint(slot) {
@@ -11579,6 +11677,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       if ($('browserWatchTools')?.open) renderBrowserWatchStyle();
       scheduleBrowserOverlaySync();
     }
+  } else if (event.type === 'manga-edit-rejected') {
+    setBrowserSignal('Manga düzenlemesi reddedildi: sayfadaki metin kayıtlı değerle uyuşmadı; özgün değere geri alındı.', false,
+      { priority: 80, holdMs: 5000 });
   } else if (event.type === 'live-asr-state') {
     updateBrowserLiveAsrButton(event.message || 'Canlı Whisper');
     if (event.message) setBrowserSignal(event.message, !!event.active);
@@ -11665,6 +11766,21 @@ function pSecToTime(sec) {
 function cueSignature(cue) {
   if (!cue) return '';
   return `${Number(cue.start || 0).toFixed(3)}|${Number(cue.end || 0).toFixed(3)}|${String(cue.text || '').trim()}`;
+}
+
+// Son okunan/yazılan disk durumu — writeSubtitle expect kontrolü ile harici
+// değişikliğin sessizce ezilmesini (lost update) önler.
+function subtitleStatFor(filePath) {
+  if (!filePath) return null;
+  if (filePath === player.subPath) return player.subStat || null;
+  if (filePath === player.sub2Path) return player.sub2Stat || null;
+  return null;
+}
+function noteSubtitleStat(filePath, stat) {
+  const next = stat && Number.isFinite(Number(stat.mtimeMs))
+    ? { mtimeMs: Number(stat.mtimeMs), size: Number(stat.size) || 0 } : null;
+  if (filePath === player.subPath) player.subStat = next;
+  else if (filePath === player.sub2Path) player.sub2Stat = next;
 }
 
 function savedCueStorageKey() {
@@ -12026,7 +12142,9 @@ function parseAss(text) {
   let inEvents = false;
   let fields = ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
   const toSec = (t) => {
-    const m = String(t).trim().match(/(\d+):(\d{2}):(\d{2})[.,](\d{1,3})/);
+    // Alan değeri tam olarak zaman damgası olmalı — gömülü metindeki
+    // "1:23:45.67" parçası sessizce sahte cue üretmesin.
+    const m = String(t).trim().match(/^(\d+):(\d{2}):(\d{2})[.,](\d{1,3})$/);
     if (!m) return null;
     return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / (10 ** m[4].length);
   };
@@ -12077,6 +12195,50 @@ function parseAss(text) {
   return out;
 }
 
+// Yerel SRT/VTT metin temizliği — browser ayrıştırıcısındaki cleanCueText
+// (src/browser-subtitles.js) ile aynı kapsamın renderer kopyası.
+function decodeSubtitleEntities(value) {
+  const named = {
+    nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+    ndash: '–', mdash: '—', hellip: '…', laquo: '«', raquo: '»',
+    lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', copy: '©', reg: '®',
+    auml: 'ä', ouml: 'ö', uuml: 'ü', ccedil: 'ç', szlig: 'ß', eacute: 'é',
+    scedil: 'ş', gbreve: 'ğ', idot: 'ı',
+  };
+  return String(value || '').replace(/&([a-z][a-z0-9]+|#\d+|#x[0-9a-f]+);/gi, (match, entity) => {
+    const key = entity.toLowerCase();
+    if (key.startsWith('#x') || key.startsWith('#')) {
+      const codePoint = parseInt(key.slice(key[1] === 'x' ? 2 : 1), key[1] === 'x' ? 16 : 10);
+      if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10FFFF) return '';
+      if ((codePoint < 0x20 && codePoint !== 0x09 && codePoint !== 0x0A)
+          || (codePoint >= 0x7F && codePoint <= 0x9F)) return '';
+      return String.fromCodePoint(codePoint);
+    }
+    return Object.prototype.hasOwnProperty.call(named, entity) ? named[entity]
+      : (Object.prototype.hasOwnProperty.call(named, key) ? named[key] : match);
+  });
+}
+
+function cleanLocalCueText(value) {
+  let source = String(value || '');
+  if (source.includes('{\\') && source.includes('}')) {
+    source = source.replace(/\{\\[^}]*\}/g, '');
+  }
+  source = source.replace(/<(?:[\w.-]+:)?(?:rt|rp)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:rt|rp)\s*>/gi, '');
+  const decoded = decodeSubtitleEntities(source.replace(/<br\s*\/?>/gi, '\n'));
+  return decoded
+    .replace(/<\/?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
+    .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\.[\w-]+)*(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
+    .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
+    // Bidi yeniden-yöneltme + görünmez ayraçlar (RLO/PDF, izolatlar, ZWSP,
+    // WJ, gövde BOM'u) — browser tarafındaki cleanCueText ile aynı sınıf.
+    .replace(/[\u200B\u202A-\u202E\u2060-\u2064\u2066-\u2069\u061C\uFEFF]/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
 // SRT/VTT ayrıştırma — write_srt çıktımızla birebir uyumlu (BOM ve \r\n dahil)
 function parseSubtitles(text) {
   if (/^\s*(\[Script Info\]|\[V4\+? Styles\]|\[Events\])/im.test(text)
@@ -12086,9 +12248,21 @@ function parseSubtitles(text) {
   const out = [];
   const clean = String(text || '').replace(/\r/g, '').replace(/^\uFEFF/, '');
   // WebVTT bir saatin altinda HH alanini atlayabilir (MM:SS.mmm). SRT'nin
-  // HH:MM:SS,mmm bicimini de kabul eden tek ifade kullan.
-  const re = /(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
+  // HH:MM:SS,mmm bicimini de kabul eden tek ifade kullan. Satır başına bağlı:
+  // gövde metnindeki "-->" dizgisi sahte cue üretmesin (VTT satır sonu ayarları
+  // — position/line — serbest kalır).
+  const re = /^\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,3}):(\d{2})[,.](\d{1,3})/;
   const lines = clean.split('\n');
+  // VTT'de NOTE/STYLE/REGION blokları boş satıra kadar sürer; içlerindeki
+  // "-->" satırları sahte cue üretmesin, gövdeleri komşu cue'lara sızmasın.
+  if (/^\s*WEBVTT/i.test(clean)) {
+    for (let index = 0; index < lines.length; index++) {
+      if (/^(?:NOTE|STYLE|REGION)(?:\s|$)/.test(lines[index].trim())) {
+        lines[index] = '';
+        while (index + 1 < lines.length && lines[index + 1].trim()) lines[++index] = '';
+      }
+    }
+  }
   const indices = lines.flatMap((line, index) => re.test(line) ? [index] : []);
   for (let position = 0; position < indices.length; position++) {
     const idx = indices[position];
@@ -12101,9 +12275,13 @@ function parseSubtitles(text) {
       const separatedCueId = candidate && until > 1 && !lines[until - 2]?.trim();
       if (/^\d+$/.test(candidate) || separatedCueId) until--;
     }
-    const body = lines.slice(idx + 1, until).join('\n').trim();
+    const rawBody = lines.slice(idx + 1, until).join('\n').trim();
+    const body = cleanLocalCueText(rawBody);
     if (body) out.push({ start, end, text: body, sourceStart: start, sourceEnd: end,
-      subtitleSourceIndex: position });
+      subtitleSourceIndex: position,
+      // SRT geri-yazımı tüm dosyayı yeniden üretir; kullanıcının dokunmadığı
+      // cue'larda biçim etiketleri kaybolmasın diye ham gövdeyi de sakla.
+      ...(rawBody !== body ? { rawText: rawBody } : {}) });
   }
   out.sort((a, b) => a.start - b.start);
   return out;
@@ -12216,7 +12394,7 @@ function clearCueWordData(cues) {
 
 // Altyazi metnini kutulu bir span icine yazar (arka plan yalnizca metnin
 // arkasinda dursun, satirin tamami boyunca degil) ve degisince animasyon tetikler.
-function setOverlayText(el, text) {
+function setOverlayText(el, text, lang = '') {
   if (!el) return;
   const cur = el.firstChild && el.firstChild.textContent;
   if (cur === text) return;                  // ayni metin: animasyonu tekrarlama
@@ -12224,6 +12402,10 @@ function setOverlayText(el, text) {
   if (!text) return;
   const span = document.createElement('span');
   span.className = 'subtitle-overlay-inner';
+  // RTL altyazılarda taban yönü içerikten türetilir (Arapça/İbranice satır
+  // Latin arayüzde sağa yaslı ve doğru sıralı görünür).
+  span.dir = 'auto';
+  if (lang) span.lang = String(lang).slice(0, 24);
   span.textContent = text;
   el.appendChild(span);
 }
@@ -12253,11 +12435,24 @@ function queuePlayerVideoFrame() {
   });
 }
 
-// Aktif blok genelde bir öncekinin komşusudur — baştan aramak yerine oradan ilerle
+// Aktif blok genelde bir öncekinin komşusudur — baştan aramak yerine oradan ilerle.
+// Yarı-açık [start, end) aralığı kullanılır (browserActiveCuesAt ile aynı
+// semantik): biten cue ile aynı anda başlayan cue çakışmaz; üst üste binen
+// izlerde en son başlayan aktif cue kazanır.
 function findCueAt(cues, t, hint) {
-  let i = hint;
-  if (i >= 0 && i < cues.length && cues[i].start <= t && cues[i].end >= t) return i;
-  return cues.findIndex((c) => c.start <= t && c.end >= t);
+  const match = (c) => c && c.start <= t && c.end > t;
+  if (hint >= 0 && hint < cues.length && match(cues[hint])) {
+    let best = hint;
+    for (let j = hint + 1; j < cues.length && cues[j].start <= t; j++) {
+      if (match(cues[j])) best = j;
+    }
+    return best;
+  }
+  let best = -1;
+  for (let j = 0; j < cues.length; j++) {
+    if (match(cues[j])) best = j;
+  }
+  return best;
 }
 
 function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
@@ -12352,6 +12547,9 @@ function renderCue() {
       player.lastT === undefined ? NaN : player.lastT + player.offset, video.paused, false);
     player.lastT = t;
   } else {
+    // Boş izde eski indeks kalmasın — copyCue gibi tüketiciler stale
+    // indeksle player.cues[...] okuyup TypeError yutuyordu.
+    player.activeIdx = -1;
     setOverlayText(overlay, '');
     resetActiveWordHighlight();
     updateCueMeta();
@@ -12501,10 +12699,12 @@ function renderCueList(filter = '') {
     const body = document.createElement('div');
     const primary = document.createElement('div');
     primary.className = primaryTranslation ? 'cue-card-tr' : 'cue-card-src';
+    primary.dir = 'auto';
     appendInteractiveText(primary, c.text, q, i, primaryTranslation ? 'translation' : 'source');
     if (primaryTranslation && counterpart) {
       const source = document.createElement('div');
       source.className = 'cue-card-src';
+      source.dir = 'auto';
       appendInteractiveText(source, counterpart, q, i, 'source');
       body.appendChild(source);
     }
@@ -12512,6 +12712,7 @@ function renderCueList(filter = '') {
     if (!primaryTranslation && counterpart) {
       const translation = document.createElement('div');
       translation.className = 'cue-card-tr';
+      translation.dir = 'auto';
       appendInteractiveText(translation, counterpart, q, i, 'translation');
       body.appendChild(translation);
     }
@@ -12671,9 +12872,10 @@ function replayCue() {
 }
 
 async function copyCue() {
-  if (player.activeIdx < 0) return;
+  const cue = player.cues[player.activeIdx];
+  if (!cue) return;
   try {
-    await window.api.copyText(player.cues[player.activeIdx].text);
+    await window.api.copyText(cue.text);
     logLine('Altyazı satırı panoya kopyalandı.', 'success');
   } catch (error) {
     logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
@@ -13677,6 +13879,19 @@ async function flushWatchState(completed = false, refresh = false) {
 
 async function restoreWatchProfile(key) {
   const gen = currentGeneration();
+  // Kayıtlı hız kütüphane kaydından bağımsız uygulanır — kütüphanesiz videoda
+  // çalışma alanı açılışı sayfayı 1x'te bırakırken arayüz eski hızı gösterirdi.
+  const earlyBrowserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
+  const earlyTab = earlyBrowserMode ? browserTabState() : null;
+  const savedRateMediaId = String(earlyTab?.browserSavedRateMediaId || '');
+  // Kayıt başka bir videodan kaldıysa (sekme o videodan sonra gezildiyse) uygulama.
+  const savedRate = earlyBrowserMode && (!savedRateMediaId || savedRateMediaId === key.slice(7))
+    ? Number(earlyTab?.browserSavedRate) || 0 : 0;
+  if (earlyTab) { earlyTab.browserSavedRate = 0; earlyTab.browserSavedRateMediaId = ''; }
+  if (earlyBrowserMode && window.api.browserCommand && savedRate > 0 && savedRate !== 1) {
+    await browserCommand('speed', Math.max(.25, Math.min(4, savedRate))).catch(() => null);
+    if (staleGeneration(gen) || player.mediaKey !== key) return;
+  }
   let item = watchItemByKey(key);
   if (!item && window.api.listWatchLibrary) {
     try {
@@ -15658,6 +15873,7 @@ function resetMediaBoundState(options = {}) {
   updateCueEditHistoryButtons();
   player.timeline.loading = false;
   player.editing = false;
+  player.cueEditTarget = null;
   if ($('timelineDrawer')) $('timelineDrawer').classList.remove('dirty');
   $('playerStage')?.classList.remove('editing');
   $('subtitleEdit')?.classList.add('hidden');
@@ -16582,6 +16798,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.activeIdx2 = -1;
     player.sub2Path = path;
     player.sub2Raw = res.text;
+    player.sub2Stat = { mtimeMs: res.mtimeMs, size: res.size };
     player.sub2Format = /\.(ass|ssa)$/i.test(path) ? 'ass'
                       : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
     player.sub2Role = requestedRole;
@@ -16641,6 +16858,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.subPath = path;
     player.subRole = requestedRole;
     player.subRaw = res.text;
+    player.subStat = { mtimeMs: res.mtimeMs, size: res.size };
     player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
     const browserTrack = browserTrackForPath;
@@ -17023,7 +17241,7 @@ async function writeSubtitleBulkFiles(files, desired, action) {
       const changes = subtitleBulkLogChanges(operation, desired);
       result = await window.api.writeSubtitle(operation.path, operation[desired], {
         action, changeCount: changes.length, changes: changes.slice(0, 200),
-      });
+      }, subtitleStatFor(operation.path));
     } catch (error) { result = { ok: false, error: error?.message }; }
     if (!result?.ok) {
       let rollbackFailed = false;
@@ -17039,6 +17257,7 @@ async function writeSubtitleBulkFiles(files, desired, action) {
       }
       return { ok: false, error: result?.error || 'bilinmeyen hata', rollbackFailed };
     }
+    noteSubtitleStat(operation.path, result);
     completed.push(operation);
     if (result.warning) warnings.push(result.warning);
   }
@@ -17241,6 +17460,7 @@ function closePlayer() {
   player.pendingLibrarySeek = null;
   player.pendingSubs = null;
   player.editing = false;
+  player.cueEditTarget = null;
   player.cueEditUndo = [];
   player.cueEditRedo = [];
   player.abA = null;
@@ -19125,6 +19345,8 @@ async function startProgressivePlayerTranscription(config = {}) {
     browserTabId: browserYoutube ? player.browserActiveTabId : '' };
   state.running = true;
   state.cancelled = false;
+  state._speedEma = 0;
+  state._etaBase = null;
   state.startTime = Date.now();
   state.outputFiles = [];
   $('startBtn').classList.add('hidden');
@@ -19266,6 +19488,8 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   opts.diarize = false;
   state.running = true;
   state.cancelled = false;
+  state._speedEma = 0;
+  state._etaBase = null;
   state.startTime = Date.now();
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [],
     selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '' };
@@ -20347,6 +20571,19 @@ document.addEventListener('keydown', (e) => {
 
 // Gecikme/hiz/ses: hem kontrolden hem klavyeden ayni yoldan degissin
 function nudgeOffset(delta) {
+  if (player.workspaceMode === 'browser') {
+    // Browser modunda altyazı kaydırması senkron önizlemesi üzerinden yürür;
+    // player.offset burada görüntüye etki etmez ama medya-state'e ve kalıcı
+    // subOffset kontrolüne sızıp aynı medya yerelde açıldığında bayat ofset
+    // olarak geri geliyordu.
+    if (nudgeBrowserSync(delta)) {
+      osd(`Gecikme ${delta > 0 ? '+' : ''}${Number(delta).toFixed(1)} sn (önizleme — senkron panelinden kaydedin)`);
+    } else {
+      osd('Web altyazısı yüklü değil; gecikme ancak senkron panelinden ayarlanır.');
+    }
+    showControls();
+    return;
+  }
   const el = $('subOffset');
   if (!el) return;
   const v = Math.max(-10, Math.min(10, (parseFloat(el.value) || 0) + delta));
@@ -21056,6 +21293,10 @@ function openCueEditor(secondary = false) {
     $('subtitleEditRevertModel')?.classList.toggle('hidden', !record?.hasOverride);
   } else {
     player.browserCueEditContext = null;
+    // Hedefi açılış anında sabitle: editör açıkken başka bloğa tıklamak veya
+    // başka altyazı yüklemek activeIdx/subPath'i değiştirir; kayıt bu kayıtla doğrulanır.
+    player.cueEditTarget = { index: cueIndex, signature: cueSignature(cue),
+      path: subtitlePath, mediaKey: player.mediaKey };
     $('subtitleEditRevertModel')?.classList.add('hidden');
   }
   player.editing = true;
@@ -21079,6 +21320,7 @@ function closeCueEditor() {
   $('playerStage').classList.remove('editing');
   $('subtitleEdit').classList.add('hidden');
   player.browserCueEditContext = null;
+  player.cueEditTarget = null;
   $('subtitleEditRevertModel')?.classList.add('hidden');
   renderCue();
 }
@@ -21203,7 +21445,9 @@ async function saveCueEdit() {
     return;
   }
   const browserContext = player.workspaceMode === 'browser' ? player.browserCueEditContext : null;
-  const i = browserContext ? Number(browserContext.cueIndex) : player.activeIdx;
+  const localTarget = browserContext ? null : player.cueEditTarget;
+  const i = browserContext ? Number(browserContext.cueIndex)
+    : (localTarget ? Number(localTarget.index) : -1);
   if (i < 0) return closeCueEditor();
   const text = $('subtitleEditBox').value.trim();
   if (browserContext) {
@@ -21248,7 +21492,16 @@ async function saveCueEdit() {
   // DOSYA BICIMINI KORU. Eskiden her bicim cuesToSrt ile yazilirdi: .ass dosyasina
   // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
   // WEBVTT basligini kaybediyordu.
+  if (!localTarget || player.subPath !== localTarget.path
+      || player.mediaKey !== localTarget.mediaKey) {
+    logLine('Düzenleme sırasında altyazı dosyası değişti; taslak kaydedilmedi.', 'warn');
+    return;
+  }
   const cue = player.cues[i];
+  if (!cue || cueSignature(cue) !== localTarget.signature) {
+    logLine('Düzenlenen satır arka planda değişti. Taslağınız korunuyor; satırı yeniden açıp kontrol edin.', 'warn');
+    return;
+  }
   const rawCues = Array.isArray(player.cuesRaw) && player.cuesRaw.length
     ? player.cuesRaw : player.cues;
   const mergedViewChanged = !!player.mergeCont && (
@@ -21289,20 +21542,23 @@ async function saveCueEdit() {
       return;
     }
   } else {
-    // SRT'de korunacak metadata yok; blok listesinden yeniden uretmek guvenli
-    const draft = rawCues.map((c, k) => (k === i ? { ...c, text } : c));
+    // SRT'de korunacak metadata yok; blok listesinden yeniden uretmek guvenli.
+    // Dokunulmamis cue'larda ayrıştırma-temizliği öncesi ham metni koru.
+    const draft = rawCues.map((c, k) => (k === i ? { ...c, text }
+      : (c.rawText !== undefined ? { ...c, text: c.rawText } : c)));
     payload = cuesToSrt(draft);
   }
 
   let res;
   try { res = await window.api.writeSubtitle(targetPath, payload, {
     action: 'edit', cueIndex: i, start: cue.start, before: cue.text, after: text,
-  }); }
+  }, subtitleStatFor(targetPath)); }
   catch (err) { res = { ok: false, error: err && err.message }; }
   if (!res || !res.ok) {
     logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
+  noteSubtitleStat(targetPath, res);
   if (staleGeneration(targetGen) || player.mediaKey !== targetKey
       || player.subPath !== targetPath || player.cues[i] !== cue) {
     logLine('Düzenleme önceki altyazı dosyasına kaydedildi; mevcut videoya uygulanmadı.', 'warn');
@@ -21420,6 +21676,20 @@ if ($('subtitleEditBox')) {
 
 if ($('subOffset')) {
   $('subOffset').addEventListener('input', (e) => {
+    if (player.workspaceMode === 'browser') {
+      // Web modunda bu kaydırıcı player.offset'e yazıp kalıcı duruma sızmamalı;
+      // etki senkron önizlemesinin offsetSeconds alanında yaşar.
+      const preview = browserSyncEnsurePreview();
+      if (preview) {
+        applyBrowserSyncPreview({ ...preview.transform, offsetSeconds: parseFloat(e.target.value) || 0 });
+        $('subOffsetVal').textContent = (parseFloat(e.target.value) || 0).toFixed(1);
+      } else {
+        e.target.value = '0';
+        $('subOffsetVal').textContent = '0.0';
+      }
+      $('applyOffsetToFile')?.classList.add('hidden');
+      return;
+    }
     player.offset = parseFloat(e.target.value);
     $('subOffsetVal').textContent = player.offset.toFixed(1);
     player.activeIdx = -1;

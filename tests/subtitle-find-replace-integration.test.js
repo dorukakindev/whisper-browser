@@ -110,8 +110,10 @@ test('boş browser override geç gelen model metninden ayrı kalıyor', () => {
 
 (async () => {
   const writeBody = slice('function subtitleBulkLogChanges', 'function browserBulkStateStillMatches');
+  // R51-39: yazımlar disk-tazelik damgası taşır; stub stat bilgisi döndürmez.
+  const statHelpers = 'function subtitleStatFor(){return null} function noteSubtitleStat(){} ';
   const makeWriter = (writeSubtitle) => new Function('window',
-    writeBody + '; return writeSubtitleBulkFiles;')({ api: { writeSubtitle } });
+    statHelpers + writeBody + '; return writeSubtitleBulkFiles;')({ api: { writeSubtitle } });
   const files = [
     { path: 'a.srt', before: 'a0', after: 'a1', changes: [] },
     { path: 'b.vtt', before: 'b0', after: 'b1', changes: [] },

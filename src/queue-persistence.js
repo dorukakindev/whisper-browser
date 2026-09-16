@@ -139,6 +139,7 @@ function normalizeQueueItem(raw) {
     error: String(raw.error || '').trim().slice(0, 500),
     opts,
     watchSource: raw.watchSource === true,
+    watchReported: String(raw.watchReported || '').slice(0, 20),
     recovered: !!raw.recovered,
   };
 }

@@ -53,7 +53,12 @@ function test(name, fn) {
   catch (e) { failures.push(`${name}: ${e.message}`); console.log(`  FAIL  ${name} — ${e.message}`); }
 }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'assert'); }
-function reset() { try { fs.unlinkSync(api.historyPath()); } catch (_) {} }
+// R51-56: bozuk ana dosyada .bak'a düşülür — reset ikisini de silmeli.
+function reset() {
+  for (const target of [api.historyPath(), `${api.historyPath()}.bak`]) {
+    try { fs.unlinkSync(target); } catch (_) {}
+  }
+}
 
 const meta = (over) => ({
   startedAt: 1, input: 'D:\\Filmler\\Film.mkv', source: 'local',
@@ -153,7 +158,21 @@ test('liste sınırı aşılmaz (eski kayıtlar düşer)', () => {
 test('bozuk history.json çökme yerine boş liste verir', () => {
   reset();
   fs.writeFileSync(api.historyPath(), '{bu json degil', 'utf-8');
-  assert(api.loadHistory().length === 0, 'bozuk dosyada bos liste bekleniyordu');
+  fs.writeFileSync(`${api.historyPath()}.bak`, '{bu da bozuk', 'utf-8');
+  assert(api.loadHistory().length === 0, 'iki dosya da bozuksa bos liste bekleniyordu');
+});
+
+test('bozuk ana dosyada .bak yedeğinden geri yüklenir (R51-56)', () => {
+  reset();
+  api.recordJob(meta(), done());
+  const saved = api.loadHistory();
+  assert(saved.length === 1);
+  // Bir sonraki kayıt önceki sağlam dosyayı .bak'a taşır; sonra ana dosyayı boz.
+  api.recordJob(meta({ input: 'D:\\B.mkv', video: 'D:\\B.mkv' }), done({ files: ['D:\\B.srt'] }));
+  fs.writeFileSync(api.historyPath(), '{bozuldu', 'utf-8');
+  const restored = api.loadHistory();
+  assert(restored.length === 1 && restored[0].title === 'Film',
+    'bozuk ana dosyada .bak içeriği bekleniyordu: ' + JSON.stringify(restored));
 });
 
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_) {}

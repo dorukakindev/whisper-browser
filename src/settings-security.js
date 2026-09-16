@@ -201,7 +201,28 @@ function sanitizeUiSettings(ui) {
   return clean;
 }
 
-function sanitizeEndpointGroup(value, label, allowSecrets, existing, { allowInherit = false } = {}) {
+const TRANSLATE_UI_ENDPOINT_KEYS = Object.freeze(['translateEndpointPreset', 'translateBaseUrl']);
+const TRANSLATE_DEFAULT_ENDPOINT = 'https://api.shuaiapi.com/v1';
+
+// Endpoint kimliği: grup alanları + ui fallback'leri + varsayılan preset ile
+// browserTranslationConfig'in çalışma-zamanı çözümünü taklit eder. İçe aktarımda
+// kimlik değiştiyse eski anahtar yeni endpoint'e sızmasın diye sır taşınmaz.
+function endpointIdentity(group, { inherited = '', ui = null, uiKeys = null, defaultPreset = '' } = {}) {
+  if (!isPlainRecord(group)) group = {};
+  let preset = String(group.endpointPreset || '').trim();
+  let custom = String(group.customBaseUrl || '').trim();
+  if (Array.isArray(uiKeys) && isPlainRecord(ui)) {
+    preset = preset || String(ui[uiKeys[0]] || '').trim();
+    custom = custom || String(ui[uiKeys[1]] || '').trim();
+  }
+  preset = preset || defaultPreset;
+  if (preset === 'custom') return `custom:${custom.toLowerCase()}`;
+  if (preset === 'inherit') return inherited;
+  return preset ? `preset:${preset}` : '';
+}
+
+function sanitizeEndpointGroup(value, label, allowSecrets, existing,
+    { allowInherit = false, nextIdentity = null, previousIdentity = null } = {}) {
   if (!isPlainRecord(value)) throw new SettingsValidationError(`${label} ayarları nesne olmalıdır.`);
   const clean = {};
   if (Object.prototype.hasOwnProperty.call(value, 'endpointPreset')) {
@@ -215,9 +236,13 @@ function sanitizeEndpointGroup(value, label, allowSecrets, existing, { allowInhe
     clean.customBaseUrl = endpointSetting(value.customBaseUrl, `${label} özel endpoint`);
   }
   if (Object.prototype.hasOwnProperty.call(value, 'model')) clean.model = boundedString(value.model, `${label} model`, 300);
+  // İçe aktarımda endpoint kimliği değiştiyse mevcut anahtar yeni (muhtemelen
+  // saldırganın) endpoint'e Authorization olarak gider; bu durumda sır taşınmaz.
+  const secretsInheritable = allowSecrets || !nextIdentity
+    || endpointIdentity(clean, nextIdentity) === endpointIdentity(existing, previousIdentity || {});
   if (allowSecrets && Object.prototype.hasOwnProperty.call(value, 'apiKey')) {
     clean.apiKey = boundedString(value.apiKey, `${label} API anahtarı`, 10000);
-  } else if (existing && typeof existing.apiKey === 'string') {
+  } else if (secretsInheritable && existing && typeof existing.apiKey === 'string') {
     clean.apiKey = existing.apiKey;
   }
   if (allowSecrets && Object.prototype.hasOwnProperty.call(value, 'apiKeyProfiles')) {
@@ -241,14 +266,14 @@ function sanitizeEndpointGroup(value, label, allowSecrets, existing, { allowInhe
       }
       clean.apiKeyProfiles = JSON.stringify(cleanProfiles);
     } else clean.apiKeyProfiles = '';
-  } else if (existing && typeof existing.apiKeyProfiles === 'string') {
+  } else if (secretsInheritable && existing && typeof existing.apiKeyProfiles === 'string') {
     clean.apiKeyProfiles = existing.apiKeyProfiles;
   }
   return clean;
 }
 
-function sanitizeMangaSettings(value, allowSecrets, existing) {
-  const clean = sanitizeEndpointGroup(value, 'Manga', allowSecrets, existing, { allowInherit: true });
+function sanitizeMangaSettings(value, allowSecrets, existing, inherited = {}) {
+  const clean = sanitizeEndpointGroup(value, 'Manga', allowSecrets, existing, { allowInherit: true, ...inherited });
   const language = value.targetLanguage;
   if (language !== undefined) {
     clean.targetLanguage = boundedString(language, 'Manga hedef dili', 16);
@@ -358,9 +383,15 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
   }
   if (Object.prototype.hasOwnProperty.call(input, 'ui')) clean.ui = sanitizeUiSettings(input.ui);
   if (Object.prototype.hasOwnProperty.call(input, 'playerPositions')) clean.playerPositions = sanitizePlayerPositions(input.playerPositions);
+  const nextTranslateOpts = { ui: clean.ui, uiKeys: TRANSLATE_UI_ENDPOINT_KEYS, defaultPreset: TRANSLATE_DEFAULT_ENDPOINT };
+  const prevTranslateOpts = { ui: existingSettings.ui, uiKeys: TRANSLATE_UI_ENDPOINT_KEYS, defaultPreset: TRANSLATE_DEFAULT_ENDPOINT };
+  const existingTranslateIdentity = endpointIdentity(existingSettings.translate, prevTranslateOpts);
   if (Object.prototype.hasOwnProperty.call(input, 'translate')) {
-    clean.translate = sanitizeEndpointGroup(input.translate, 'Çeviri', allowSecrets, existingSettings.translate);
+    clean.translate = sanitizeEndpointGroup(input.translate, 'Çeviri', allowSecrets, existingSettings.translate, {
+      nextIdentity: nextTranslateOpts, previousIdentity: prevTranslateOpts,
+    });
   } else if (!allowSecrets && existingSettings.translate
+      && endpointIdentity(null, nextTranslateOpts) === existingTranslateIdentity
       && (typeof existingSettings.translate.apiKey === 'string'
         || typeof existingSettings.translate.apiKeyProfiles === 'string')) {
     clean.translate = {};
@@ -371,14 +402,24 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
       clean.translate.apiKeyProfiles = existingSettings.translate.apiKeyProfiles;
     }
   }
+  const cleanTranslateIdentity = endpointIdentity(clean.translate, nextTranslateOpts);
   if (Object.prototype.hasOwnProperty.call(input, 'llm')) {
-    clean.llm = sanitizeEndpointGroup(input.llm, 'LLM', allowSecrets, existingSettings.llm);
-  } else if (!allowSecrets && existingSettings.llm && typeof existingSettings.llm.apiKey === 'string') {
+    clean.llm = sanitizeEndpointGroup(input.llm, 'LLM', allowSecrets, existingSettings.llm, {
+      nextIdentity: {}, previousIdentity: {},
+    });
+  } else if (!allowSecrets && existingSettings.llm && !endpointIdentity(existingSettings.llm)
+      && typeof existingSettings.llm.apiKey === 'string') {
     clean.llm = { apiKey: existingSettings.llm.apiKey };
   }
+  const mangaOpts = (inherited) => ({ inherited, defaultPreset: 'inherit' });
   if (Object.prototype.hasOwnProperty.call(input, 'manga')) {
-    clean.manga = sanitizeMangaSettings(input.manga, allowSecrets, existingSettings.manga);
+    clean.manga = sanitizeMangaSettings(input.manga, allowSecrets, existingSettings.manga, {
+      nextIdentity: mangaOpts(cleanTranslateIdentity),
+      previousIdentity: mangaOpts(existingTranslateIdentity),
+    });
   } else if (!allowSecrets && existingSettings.manga
+      && endpointIdentity(null, mangaOpts(cleanTranslateIdentity))
+        === endpointIdentity(existingSettings.manga, mangaOpts(existingTranslateIdentity))
       && (typeof existingSettings.manga.apiKey === 'string'
         || typeof existingSettings.manga.apiKeyProfiles === 'string')) {
     clean.manga = {};
@@ -749,6 +790,7 @@ module.exports = {
   assertSafeJsonFile,
   buildSecretEnv,
   createBackupPayload,
+  endpointIdentity,
   parseImportText,
   publicSettings,
   readImportFile,

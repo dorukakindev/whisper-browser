@@ -115,12 +115,35 @@ function buildHlsCeaSegmentMatchers(playlistBody, playlistUrl, tracks = [], sour
   }));
 }
 
-function matchHlsCeaSegmentUrl(url, matchers = []) {
-  const key = ceaUrlKey(url);
-  for (let index = matchers.length - 1; index >= 0; index--) {
-    if (matchers[index]?.urlKey === key) return matchers[index];
+function contentRangeOf(headers = {}) {
+  for (const [name, value] of Object.entries(headers || {})) {
+    if (String(name).toLowerCase() !== 'content-range') continue;
+    const match = String(value).match(/bytes\s+(\d+)\s*-\s*(\d+)/i);
+    if (match) return { start: Number(match[1]), end: Number(match[2]) };
   }
   return null;
+}
+
+function matchHlsCeaSegmentUrl(url, matchers = [], headers = null) {
+  const key = ceaUrlKey(url);
+  // EXT-X-BYTERANGE parçaları aynı URL'i paylaşır; ayırt edici bilgi yanıtın
+  // Content-Range başlığındadır. Aralık biliniyorsa yalnız birebir eşleşme kabul
+  // edilir — son kayda çökmek tüm aralıkların aynı parçaya bağlanmasına yol açardı.
+  const range = headers ? contentRangeOf(headers) : null;
+  let last = null;
+  let lastPlain = null;
+  for (let index = matchers.length - 1; index >= 0; index--) {
+    const matcher = matchers[index];
+    if (matcher?.urlKey !== key) continue;
+    last = matcher;
+    if (!matcher.byteRange) lastPlain = matcher;
+    if (range && matcher.byteRange
+        && matcher.byteRange.start === range.start && matcher.byteRange.end === range.end) {
+      return matcher;
+    }
+  }
+  if (range) return lastPlain;
+  return last;
 }
 
 function isLikelyMpegTsResponse(response = {}) {

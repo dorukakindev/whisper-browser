@@ -60,7 +60,9 @@
         : item.scopeKey === context.seriesKey) && time >= item.start && time < item.end)
       .sort((a, b) => a.end - b.end)[0] || null;
     const suppressedId = candidate && (backwards ? candidate.id : state.suppressedId);
-    const shouldSkip = !!candidate?.autoSkip && !backwards
+    // Reklam zaman ekseninde kullanıcı atlama kaydı tetiklenmez — kayıtlar içerik
+    // zamanına aittir; reklam sırasında ateşlemek ad-block kapalıyken bile reklamı atlatırdı.
+    const shouldSkip = !!candidate?.autoSkip && !backwards && context.adPlaying !== true
       && suppressedId !== candidate.id && context.playing !== false;
     return { candidate, shouldSkip,
       state: { lastTime: time, suppressedId: candidate ? (shouldSkip ? candidate.id : suppressedId) : null } };

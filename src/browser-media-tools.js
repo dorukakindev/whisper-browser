@@ -4,13 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
-function run(executable, args, input, signal, timeoutMs = 120000) {
+function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine = null) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
     const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
     delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
     const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env });
     const output = []; let size = 0; let errorText = ''; let settled = false;
+    let stderrRemainder = '';
     const finish = (error, value) => {
       if (settled) return;
       settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort);
@@ -21,8 +22,27 @@ function run(executable, args, input, signal, timeoutMs = 120000) {
     signal?.addEventListener('abort', abort, { once: true });
     child.on('error', (error) => finish(new Error(`Medya aracı başlatılamadı: ${error.message}`)));
     child.stdout.on('data', (chunk) => { size += chunk.length; if (size > 5 * 1024 * 1024) { child.kill(); finish(new Error('Medya aracı çıktısı çok büyük.')); } else output.push(chunk); });
-    child.stderr.on('data', (chunk) => { errorText = (errorText + chunk.toString('utf8')).slice(-100000); });
-    child.on('close', (code) => finish(code === 0 ? null : new Error(errorText.trim() || Buffer.concat(output).toString('utf8').slice(0, 500) || 'Medya işlemi başarısız.'), Buffer.concat(output).toString('utf8') || errorText));
+    child.stderr.on('data', (chunk) => {
+      const text = chunk.toString('utf8');
+      errorText = (errorText + text).slice(-100000);
+      // showinfo pts_time gibi akan işaretler son-100KB arabelleğinden taşabilir;
+      // tam satırlar kancaya anında iletilir.
+      if (typeof onStderrLine === 'function') {
+        stderrRemainder += text;
+        let idx;
+        while ((idx = stderrRemainder.indexOf('\n')) >= 0) {
+          const line = stderrRemainder.slice(0, idx);
+          stderrRemainder = stderrRemainder.slice(idx + 1);
+          try { onStderrLine(line); } catch (_) {}
+        }
+      }
+    });
+    child.on('close', (code) => {
+      if (typeof onStderrLine === 'function' && stderrRemainder) {
+        try { onStderrLine(stderrRemainder); } catch (_) {}
+      }
+      finish(code === 0 ? null : new Error(errorText.trim() || Buffer.concat(output).toString('utf8').slice(0, 500) || 'Medya işlemi başarısız.'), Buffer.concat(output).toString('utf8') || errorText);
+    });
     child.stdin.on('error', () => {});
     child.stdin.end(input);
   });
@@ -59,9 +79,16 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
       const duration = Number(probe.trim());
       if (!Number.isFinite(duration) || duration <= 0 || duration > 4 * 3600) throw new Error('Video süresi en fazla dört saat olabilir.');
       fs.mkdirSync(outputDir, { recursive: true });
-      const detection = await run(ffmpegPath, ['-hide_banner', '-nostdin', '-i', videoPath, '-vf', `scale=320:-2,select=gt(scene\\,${threshold}),showinfo`, '-frames:v', String(maxScenes), '-f', 'null', '-'], '', signal, 120000);
-      const times = [...detection.matchAll(/pts_time:([\d.]+)/g)].map((match) => Number(match[1]));
-      if (!times.length) times.push(0);
+      // pts_time işaretleri stderr'e AKAR; yalnızca kuyruk arabelleği okunursa
+      // uzun videoda erken sahneler kaybolur. Satır kancasıyla akan işaretler
+      // toplanır (-frames:v en fazla maxScenes işaret üretir).
+      const times = [];
+      await run(ffmpegPath, ['-hide_banner', '-nostdin', '-i', videoPath, '-vf', `scale=320:-2,select=gt(scene\\,${threshold}),showinfo`, '-frames:v', String(maxScenes), '-f', 'null', '-'], '', signal, 120000, (line) => {
+        const match = line.match(/pts_time:([\d.]+)/);
+        if (match && times.length < maxScenes) times.push(Number(match[1]));
+      });
+      // İşaret yoksa sahte 0:00 sahnesi üretme — boş liste "sahne bulunamadı"
+      // anlamına gelir ve arayüz bunu doğru gösterir.
       const scenes = [];
       for (const [index, time] of times.slice(0, maxScenes).entries()) {
         if (signal?.aborted) throw new Error('İşlem iptal edildi.');

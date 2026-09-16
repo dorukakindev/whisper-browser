@@ -90,6 +90,21 @@ function readPackage(file) {
   const data = JSON.parse(gunzipSync(fs.readFileSync(file), { maxOutputLength: LIMIT }).toString('utf8'));
   validate(data); return data;
 }
+function sanitizeImportedSession(value) {
+  // Oturumdaki yerel altyazı yolları dışa aktarımda silinir (browser-session-package
+  // portableSessionTab). El yapımı bir paket bu alanlara keyfi yol koyup açılıştaki
+  // koşulsuz grant'i kötüye kullanabilir; içe aktarımda da aynı kural uygulanır.
+  if (value && typeof value === 'object' && Array.isArray(value.tabs)) {
+    for (const tab of value.tabs) {
+      const sel = tab && typeof tab === 'object' ? tab.subtitleSelection : null;
+      if (sel && typeof sel === 'object') {
+        delete sel.primaryFile;
+        delete sel.secondaryFile;
+      }
+    }
+  }
+  return value;
+}
 function validate(data) {
   storageValues(data?.rendererValues);
   if (data?.format !== 'whisper-workspace' || data.version !== 1 || !Array.isArray(data.files) || data.files.length > 20000 || typeof data.sourceRoot !== 'string' || data.sourceRoot.length < 3) throw new Error('Geçerli bir çalışma paketi seçin.');
@@ -117,7 +132,11 @@ function restorePackage(root, data, videoMappings = []) {
     while (parent !== path.resolve(root)) { if (fs.existsSync(parent) && fs.lstatSync(parent).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.'); parent = path.dirname(parent); }
     if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.');
     let bytes = Buffer.from(file.data, 'base64');
-    if (file.name.endsWith('.json')) bytes = Buffer.from(JSON.stringify(rewrite(JSON.parse(bytes.toString('utf8')), mappings)));
+    if (file.name.endsWith('.json')) {
+      let parsed = rewrite(JSON.parse(bytes.toString('utf8')), mappings);
+      if (file.name === 'browser-session.json') parsed = sanitizeImportedSession(parsed);
+      bytes = Buffer.from(JSON.stringify(parsed));
+    }
     return { destination, bytes, previous: fs.existsSync(destination) ? fs.readFileSync(destination) : null };
   });
   // A durable pre-restore copy lets the user reverse an intentional replacement.

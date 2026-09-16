@@ -62,7 +62,12 @@ function validateSegments(payload, videoId, duration = 0) {
       ? duration
       : (validApiDuration ? apiDuration : 0);
     const boundedEnd = effectiveDuration > 0 ? Math.min(end, effectiveDuration) : end;
+    // [0, duration] kapsayan bir segment auto-skip'te videoyu baştan sona
+    // sarar — sürenin %90'ından fazlasını kapsayan kayıtları reddet.
+    const coversWholeVideo = effectiveDuration > 0
+      && start <= effectiveDuration * 0.02 && boundedEnd >= effectiveDuration * 0.98;
     if (id !== videoId || !Number.isFinite(start) || !Number.isFinite(end) || start < 0 || boundedEnd <= start
+      || coversWholeVideo
       || (effectiveDuration <= 2 * 60 * 60 && end - start > 2 * 60 * 60)
       || !normalizeCategories([category]).includes(category) || actionType !== 'skip') { invalid += 1; continue; }
     segments.push({ videoId, start, end: boundedEnd, category, actionType, uuid,

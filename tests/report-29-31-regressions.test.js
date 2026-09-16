@@ -18,7 +18,7 @@ function section(source, start, end) {
 }
 
 const transcribe = section(main, "ipcMain.handle('transcribe:start'", "ipcMain.handle('transcribe:cancel'");
-assert.match(transcribe, /for \(const optionName of \['syncSrt', 'translateExisting'\]\)[\s\S]*authorizeSubtitleFile/);
+assert.match(transcribe, /for \(const optionName of \['syncSrt', 'translateExisting', 'explainTranslation'\]\)[\s\S]*authorizeSubtitleFile/);
 assert.match(transcribe, /cleanupFailedJobStart[\s\S]*endJobLog\(\)[\s\S]*fs\.rmSync\(activeJobTempDir/);
 
 const watch = section(main, 'function scanWatchFolder()', "ipcMain.handle('watch:start'");

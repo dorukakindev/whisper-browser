@@ -268,7 +268,7 @@
     if (!ctx || !skipRecords.length) { if (candidateKey) { clear(box); candidateKey = ''; } return; }
     const result = window.WhisperBrowserSkipSegments.decideSkip(skipRecords, {
       currentTime: player.browserTime, mediaKey: skipKeys.mediaKey, seriesKey: skipKeys.seriesKey,
-      playing: !player.browserPaused,
+      playing: !player.browserPaused, adPlaying: !!player.browserAdPlaying,
     }, skipState);
     skipState = result.state;
     if (!result.candidate) { if (candidateKey) { clear(box); candidateKey = ''; } return; }

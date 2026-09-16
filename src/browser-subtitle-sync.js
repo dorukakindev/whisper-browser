@@ -19,8 +19,12 @@
   function hashText(value) {
     // Renderer ve Node'da ayni sonucu veren kucuk, kriptografik olmayan kimlik.
     // Gizlilik karari degil; cue/source revizyonlarini yanlis eslestirmemek icin.
+    // Görünmez enjeksiyonlar (bidi kontrolleri, ZWSP/ZWNJ/ZWJ, WJ, gövde BOM'u)
+    // kimliği bölmesin: gösterim metni korunur ama hash onlarsız hesaplanır.
     let hash = 0x811c9dc5;
-    const text = String(value == null ? '' : value).normalize('NFC');
+    const text = String(value == null ? '' : value)
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\u061C\uFEFF]/g, '')
+      .normalize('NFC');
     for (let index = 0; index < text.length; index++) {
       hash ^= text.charCodeAt(index);
       hash = Math.imul(hash, 0x01000193) >>> 0;
