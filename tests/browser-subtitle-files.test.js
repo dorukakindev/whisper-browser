@@ -106,7 +106,7 @@ test('üretim bağlantısı yazılan dosyayı etkin yollarla birlikte LRU katman
   const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
   assert.match(main, /BROWSER_SUBTITLE_FILE_LIMIT = 64/);
   assert.match(main, /function trackBrowserSubtitleFile[\s\S]{0,900}browserTrackPublications\.values\(\)/);
-  assert.match(main, /browserTrackPublications\.set\(publicationKey[\s\S]{0,180}trackBrowserSubtitleFile\(filePath\)/);
+  assert.match(main, /browserTrackPublications\.set\(publicationKey[\s\S]{0,420}trackBrowserSubtitleFile\(filePath\)/);
 });
 
 console.log(`${passed} tarayıcı altyazı dosyası LRU testi geçti.`);

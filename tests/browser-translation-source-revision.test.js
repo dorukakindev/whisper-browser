@@ -15,6 +15,7 @@ async function main() {
     ...scheduler, ...terminology, createHash, Map,
     browserTranslationConfig: () => ({ targetLanguage: 'tr', model: 'fixture', workers: 1,
       glossary: [], register: 'natural', profanity: 'preserve', terminologyEnabled: false, endpoint: 'http://localhost/fixture' }),
+    browserTranslationConfigProblem: () => '',
     browserExtras: null, browserWatchMediaId: () => 'fixture-media', browserNetworkOnline: true,
     safeTranslationEndpoint: value => value, browserTranslationCache: () => new Map(),
     requestBrowserSentenceTranslation: async () => ({ text: 'Aynı çeviri.', parts: ['Aynı çeviri.'] }),

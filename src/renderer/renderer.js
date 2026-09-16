@@ -2557,6 +2557,20 @@ function endpointPresetRecommendedModel(preset) {
   return '';
 }
 
+function clearBrowserTranslationConfigError() {
+  if (!/API anahtarı|endpoint/i.test(String(player.browserTranslationLastError || ''))) return;
+  player.browserTranslationLastError = '';
+  const tab = browserTabState();
+  if (tab) tab.browserTranslationLastError = '';
+  renderBrowserSubtitleHealth();
+}
+
+async function saveTranslationProviderSettings() {
+  const saved = await saveAppSettings();
+  if (saved) clearBrowserTranslationConfigError();
+  return saved;
+}
+
 // Çeviri endpoint preset'i: "custom" seçilince özel URL alanı görünür.
 // data-default-model taşıyan sağlayıcılar seçildiğinde uyumlu modeli de seç;
 // ayar yüklerken ise kullanıcının önceden kaydettiği özel modeli ezme.
@@ -2584,7 +2598,7 @@ if ($('translateEndpointPreset')) {
     if (!_applyingSettings && $('mangaEndpointPreset')?.value === 'inherit') {
       activateProviderApiKey('manga');
     }
-    if (!_applyingSettings) saveAppSettings();
+    if (!_applyingSettings) void saveTranslationProviderSettings();
   });
   updateTranslateEndpointUI();
 }
@@ -2615,14 +2629,15 @@ if ($('mangaEndpointPreset')) {
   const el = $(id);
   if (el) el.addEventListener('change', () => {
     rememberVisibleProviderApiKey(kind);
-    saveAppSettings();
+    if (kind === 'translate') void saveTranslationProviderSettings();
+    else saveAppSettings();
   });
 });
 $('translateBaseUrl')?.addEventListener('change', () => {
   if ($('translateEndpointPreset')?.value !== 'custom' || _applyingSettings) return;
   activateProviderApiKey('translate');
   if ($('mangaEndpointPreset')?.value === 'inherit') activateProviderApiKey('manga');
-  saveAppSettings();
+  void saveTranslationProviderSettings();
 });
 $('mangaBaseUrl')?.addEventListener('change', () => {
   if ($('mangaEndpointPreset')?.value !== 'custom' || _applyingSettings) return;
@@ -7197,6 +7212,15 @@ function browserSubtitleHealth(input) {
       action: 'capture-full', label: retry ? 'Eksikleri yeniden dene' : 'Tüm altyazıyı getir',
     };
   }
+  if (input.translationError) {
+    const settingsError = /API anahtarı|endpoint/i.test(input.translationError);
+    return {
+      state: 'translation-error',
+      text: `Çeviri başlatılamadı: ${input.translationError}`,
+      action: settingsError ? 'translation-settings' : 'translate',
+      label: settingsError ? 'Çeviri ayarlarını aç' : 'Yeniden dene',
+    };
+  }
   if (input.directTranslate && !input.targetAvailable) {
     const cueCount = Math.max(0, Number(input.ceaCueCount) || 0);
     return {
@@ -7294,6 +7318,7 @@ function renderBrowserSubtitleHealth() {
     ceaMessage: String(player.browserCeaCapture?.message || ''),
     ceaCueCount: Number(player.browserCeaCapture?.cueCount || 0),
     directTranslate: !!directTranslateTrack,
+    translationError: String(player.browserTranslationLastError || ''),
     targetAvailable: player.browserTracks.some(track => String(track.language || '').toLowerCase().split('-')[0] === target.split('-')[0]),
   });
   panel.dataset.state = health.state;
@@ -7508,8 +7533,8 @@ async function translateBrowserSubtitleFromHealth() {
   }
   setBrowserSignal('Kaynak altyazı hazır; çeviri başlatılıyor…', true,
     { priority: 80, holdMs: 4500 });
-  await useBrowserTrack(true, track.id);
-  return true;
+  const result = await useBrowserTrack(true, track.id);
+  return result?.ok !== false;
 }
 
 function shouldAcquireFullCeaBeforeTranslation(track, capture = player.browserCeaCapture) {
@@ -7968,7 +7993,8 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
   setBrowserSignal(translate
     ? `Altyazı yüklendi; ${sourceLanguage ? sourceLanguage.toUpperCase() + ' · ' : ''}oynatma kafasının ilerisi çevriliyor…`
     : 'Altyazı çalışma alanına yüklendi.', true);
-  if (translate) await startBrowserLiveTranslation(track, sourceLanguage);
+  if (translate) return startBrowserLiveTranslation(track, sourceLanguage);
+  return { ok: true };
 }
 
 async function completeSelectedBrowserTranslation() {
@@ -8003,7 +8029,9 @@ async function completeSelectedBrowserTranslation() {
 }
 
 async function startBrowserLiveTranslation(track, sourceLanguage = '') {
-  if (!window.api.startBrowserTranslation || !track || track.role === 'translation' || !player.cues.length) return;
+  if (!window.api.startBrowserTranslation || !track || track.role === 'translation' || !player.cues.length) {
+    return { ok: false, error: 'Çeviri başlatmak için yüklenmiş bir kaynak altyazı gerekli.' };
+  }
   const tabId = player.browserActiveTabId;
   const gen = currentGeneration();
   const startSeq = ++player.browserTranslationStartSeq;
@@ -8041,15 +8069,22 @@ async function startBrowserLiveTranslation(track, sourceLanguage = '') {
       || player.browserTranslationStartSeq !== startSeq
       || player.browserTranslationTrackId !== track.id) return;
   if (!result || !result.ok) {
+    const message = String(result?.error || 'bilinmeyen hata').replace(/\s+/g, ' ').trim().slice(0, 240);
     player.browserTranslationTrackId = '';
+    player.browserTranslationLastError = message;
+    if (translationTab) translationTab.browserTranslationLastError = message;
     updateBrowserTranslationExportButton();
     syncSubtitleModeUi();
-    setBrowserSignal(`Canlı çeviri başlatılamadı: ${result?.error || 'bilinmeyen hata'}`, false);
-    return;
+    logLine(`Canlı web çevirisi başlatılamadı: ${message}`, 'error');
+    setBrowserSignal(`Canlı çeviri başlatılamadı: ${message}`, false,
+      { priority: 100, holdMs: 15000 });
+    renderBrowserSubtitleHealth();
+    return { ok: false, error: message };
   }
   // Eski oturumlarda profil alanı yoktur; önceki iki-iz görünümünü koru.
   setSubtitleMode(effectiveBrowserProfile().values.subtitleMode ?? 'both', false);
   setBrowserSignal(`${result.sentenceCount} cümlenin tamamı kuyruğa alındı; oynatma çevresi öncelikli hazırlanıyor.`, true);
+  return { ok: true, sentenceCount: Number(result.sentenceCount) || 0 };
 }
 
 function browserTranslationCueKey(cue) {
@@ -10807,6 +10842,7 @@ if ($('browserSubtitleHealthAction')) $('browserSubtitleHealthAction').addEventL
     case 'capture': setBrowserCaptureEnabled(true); break;
     case 'capture-full': await toggleBrowserCeaFullCapture(); break;
     case 'translate': await translateBrowserSubtitleFromHealth(); break;
+    case 'translation-settings': toggleDrawerAt(null, '#translateApiKey'); break;
     case 'select': $('browserTrackActions')?.classList.remove('hidden'); $('browserTrackSelect')?.focus(); break;
     case 'retry': $('browserTranslationRetryFailed')?.click(); break;
     case 'show': setSubtitleMode(player.cues.length && player.cues2.length ? 'both' : player.cues.length ? 'source' : 'translation'); break;

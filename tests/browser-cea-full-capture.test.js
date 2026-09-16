@@ -160,6 +160,8 @@ const {
   assert.match(main, /completeness\.planReason === 'duration-unknown'/);
   assert.match(main, /completeness\.planReason === 'duration-gap'/);
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(job\.tab, cues, track, 'source'\)/);
+  assert.equal((main.match(/browserTrackPublicationNeedsMetadataRefresh\(previousPublication, meta\)/g) || []).length, 2,
+    'metadata terfisi hem erken tekilleştirmede hem yayın aşamasında korunmalı');
   assert.match(main, /saveBrowserTrackToConfiguredFolder\(tab, cues,[\s\S]*?'translation'\)/);
   assert.match(main, /browser:subtitle:captureFull/);
   assert.match(main, /sendBrowserHlsCeaPlanReady\(ceaTab, browserHlsCeaActive\)/);
@@ -187,6 +189,18 @@ const {
   assert.equal(restored.total, 906);
   assert.equal(restored.durationPercent, 100);
   assert.deepEqual(restored.tracks, [{ instreamId: 'CC1', language: '', name: '', standard: 'cea-608' }]);
+
+  const refreshSource = main.slice(
+    main.indexOf('function browserTrackPublicationNeedsMetadataRefresh('),
+    main.indexOf('function publishBrowserTrackNow('));
+  const needsMetadataRefresh = new Function(`${refreshSource}; return browserTrackPublicationNeedsMetadataRefresh;`)();
+  const incompletePublication = { fingerprint: 'same', captureComplete: false, inputPath: '' };
+  assert.equal(needsMetadataRefresh(incompletePublication,
+    { finalize: true, captureComplete: true, inputPath: 'GİRDİ\\full.srt' }), true,
+  'aynı cue metni tamlık metadata yükseltmesini engellememeli');
+  assert.equal(needsMetadataRefresh({ ...incompletePublication, captureComplete: true, inputPath: 'GİRDİ\\full.srt' },
+    { finalize: true, captureComplete: true, inputPath: 'GİRDİ\\full.srt' }), false,
+  'tamamlanmış aynı yayın üçüncü kez yayımlanmamalı');
 
   console.log('browser-cea-full-capture: ordered capture, exact completeness and automatic missing retry OK');
 })().catch((error) => {

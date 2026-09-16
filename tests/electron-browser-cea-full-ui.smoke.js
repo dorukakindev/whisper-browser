@@ -141,7 +141,23 @@ app.whenReady().then(async () => {
   assert.equal(translationReady.visible, true);
   assert.equal(translationReady.preferred, 'cea-complete');
   fs.writeFileSync(path.join(out, 'cea-translation-ready.png'), (await win.webContents.capturePage()).toPNG());
-  console.log(JSON.stringify({ ok: true, wide, narrow, translationReady }));
+
+  const translationError = await run(`
+    player.browserTranslationLastError = 'Canlı web çevirisi için seçili sağlayıcının API anahtarı girilmemiş.';
+    renderBrowserSubtitleHealth();
+    const button=document.getElementById('browserSubtitleHealthAction');
+    return { state:document.getElementById('browserSubtitleHealth').dataset.state,
+      action:button.dataset.action, label:button.textContent,
+      text:document.getElementById('browserSubtitleHealthText').textContent,
+      visible:button.getBoundingClientRect().width>0 };
+  `);
+  assert.equal(translationError.state, 'translation-error');
+  assert.equal(translationError.action, 'translation-settings');
+  assert.equal(translationError.label, 'Çeviri ayarlarını aç');
+  assert.match(translationError.text, /API anahtarı girilmemiş/);
+  assert.equal(translationError.visible, true);
+  fs.writeFileSync(path.join(out, 'cea-translation-error.png'), (await win.webContents.capturePage()).toPNG());
+  console.log(JSON.stringify({ ok: true, wide, narrow, translationReady, translationError }));
   app.exit(0);
 }).catch((error) => {
   fs.writeFileSync(path.join(out, 'error.txt'), String(error.stack || error));

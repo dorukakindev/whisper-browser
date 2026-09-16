@@ -95,6 +95,38 @@ function action(name, next, context) {
     else assert.equal(modes.length, 0, `${replacement}: eski yanıt görünümü değiştirdi`);
   }
 
+  // Başlangıç reddi geçici üst bildirimde kaybolmamalı: günlük, sağlık durumu
+  // ve tekrar/ayar eylemi için son hata saklanır.
+  const rejectedTab = {};
+  const rejectionSignals = [];
+  const rejectionLogs = [];
+  let rejectionHealthRenders = 0;
+  const rejectionContext = {
+    player: { browserActiveTabId: 'a', browserTranslationStartSeq: 0,
+      cues: [{ start: 0, end: 1, text: 'Hello' }], browserTranslationLastError: '' },
+    currentGeneration: () => 1, staleGeneration: () => false,
+    browserTabState: () => rejectedTab,
+    effectiveBrowserProfile: () => ({ values: { targetLanguage: 'tr' } }),
+    $: () => null,
+    window: { api: { startBrowserTranslation: async () => ({ ok: false,
+      error: 'Canlı web çevirisi için seçili sağlayıcının API anahtarı girilmemiş.' }) } },
+    updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {}, syncSubtitleModeUi() {},
+    setSubtitleMode() {}, setBrowserSignal: (...args) => rejectionSignals.push(args),
+    logLine: (...args) => rejectionLogs.push(args),
+    renderBrowserSubtitleHealth: () => { rejectionHealthRenders++; },
+  };
+  vm.createContext(rejectionContext);
+  vm.runInContext(source.slice(source.indexOf('async function startBrowserLiveTranslation('),
+    source.indexOf('function browserTranslationCueKey(')), rejectionContext);
+  const rejected = await rejectionContext.startBrowserLiveTranslation({ id: 'source', role: 'source' });
+  assert.equal(rejected.ok, false);
+  assert.match(rejectionContext.player.browserTranslationLastError, /API anahtarı girilmemiş/);
+  assert.equal(rejectedTab.browserTranslationLastError, rejectionContext.player.browserTranslationLastError);
+  assert.match(rejectionLogs[0][0], /başlatılamadı/);
+  assert.equal(rejectionLogs[0][1], 'error');
+  assert.equal(rejectionSignals.at(-1)[2].holdMs, 15000);
+  assert.equal(rejectionHealthRenders, 1);
+
   // Kaydedilmiş çeviri dosyası büyür/güncellenirse yalnız yeniden yüklenir.
   let refresh;
   let starts = 0;

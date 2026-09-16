@@ -4020,6 +4020,16 @@ function safeTranslationEndpoint(raw) {
   } catch (_) { return ''; }
 }
 
+function browserTranslationConfigProblem(config = {}) {
+  const endpoint = safeTranslationEndpoint(config.endpoint);
+  if (!endpoint) return 'Canlı web çevirisi endpoint adresi güvenli değil. HTTPS veya yerel HTTP kullanın.';
+  const local = /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//i.test(endpoint);
+  if (!String(config.apiKey || '').trim() && !local) {
+    return 'Canlı web çevirisi için seçili sağlayıcının API anahtarı girilmemiş. Gelişmiş ayarlar → Çeviri bölümünü kontrol edin.';
+  }
+  return '';
+}
+
 async function readResponseBufferLimited(response, maxBytes, label = 'Servis yanıtı') {
   const limit = Math.max(1024, Number(maxBytes) || 1024);
   const declared = Number(response?.headers?.get?.('content-length') || 0);
@@ -6368,6 +6378,11 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
       completeTrack: shouldCompleteTrack };
   }
   const config = browserTranslationConfig(options);
+  const configProblem = browserTranslationConfigProblem(config);
+  if (configProblem) {
+    noteBrowserDiagnosticActivity(tab, 'lastError', configProblem);
+    return { ok: false, error: configProblem, code: 'BROWSER_TRANSLATION_CONFIG' };
+  }
   try { config.seriesContext = browserExtras?.translationContext(tab) || null; }
   catch (error) {
     config.seriesContext = null;
@@ -6818,11 +6833,20 @@ function restorePersistedBrowserTracks(tab) {
   return restored;
 }
 
+function browserTrackPublicationNeedsMetadataRefresh(previous, meta = {}) {
+  if (!previous) return true;
+  if (meta.captureComplete === true && previous.captureComplete !== true) return true;
+  const inputPath = String(meta.inputPath || '');
+  if (meta.finalize === true && inputPath && inputPath !== String(previous.inputPath || '')) return true;
+  return false;
+}
+
 function publishBrowserTrackNow(entry) {
   if (!entry) return null;
   const { normalized, meta, tab, publicationKey, fingerprint } = entry;
   const previousPublication = browserTrackPublications.get(publicationKey);
-  if (previousPublication?.fingerprint === fingerprint) return null;
+  if (previousPublication?.fingerprint === fingerprint
+      && !browserTrackPublicationNeedsMetadataRefresh(previousPublication, meta)) return null;
   const lang = String(meta.language || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
   const suffix = lang ? `.${lang}` : '';
   const stableId = previousPublication ? previousPublication.id : fingerprint;
@@ -6850,7 +6874,12 @@ function publishBrowserTrackNow(entry) {
       .slice(0, 200),
   };
   track = persistBrowserTrack(tab, track, normalized, meta);
-  browserTrackPublications.set(publicationKey, { fingerprint, id: stableId, path: filePath });
+  browserTrackPublications.set(publicationKey, {
+    fingerprint, id: stableId, path: filePath,
+    captureComplete: meta.captureComplete === true,
+    captureTotal: Math.max(0, Number(meta.captureTotal) || 0),
+    inputPath: String(meta.inputPath || ''),
+  });
   trackBrowserSubtitleFile(filePath);
   while (browserTrackPublications.size > 128) {
     const oldestKey = browserTrackPublications.keys().next().value;
@@ -6925,9 +6954,16 @@ function storeBrowserTrack(cues, meta = {}) {
   if (!fingerprint) return null;
   const publicationKey = streamKey || fingerprint;
   const previousPublication = browserTrackPublications.get(publicationKey);
-  if (previousPublication && previousPublication.fingerprint === fingerprint) return null;
+  if (previousPublication && previousPublication.fingerprint === fingerprint
+      && !browserTrackPublicationNeedsMetadataRefresh(previousPublication, meta)) return null;
   const pending = browserTrackPendingPublications.get(publicationKey);
-  if (pending?.fingerprint === fingerprint) return null;
+  if (pending?.fingerprint === fingerprint) {
+    if (meta.finalize !== true) return null;
+    const pendingTimer = browserTrackPublicationTimers.get(publicationKey);
+    if (pendingTimer) clearTimeout(pendingTimer);
+    browserTrackPublicationTimers.delete(publicationKey);
+    browserTrackPendingPublications.delete(publicationKey);
+  }
   if (meta.finalize !== true) {
     const decision = browserTextStability.observe({
       scopeId: publicationKey, fingerprint,

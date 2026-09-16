@@ -27,6 +27,7 @@ function harness() {
     browserNetworkOnline: true, browserLiveAsr: null, browserVisible: true, browserModalOccluded: false,
     normalizeCues, assembleCueSentences, BrowserTranslationScheduler: Scheduler,
     browserTranslationConfig: () => ({ targetLanguage: 'tr', model: 'test', endpoint: 'https://provider.test', glossary: {} }),
+    browserTranslationConfigProblem: () => '',
     browserWatchMediaId: item => item.mediaId, safeTranslationEndpoint: value => value,
     browserTranslationCache: () => null, requestBrowserSentenceTranslation() {},
     updateBrowserTranslationDiagnostics() {}, noteBrowserDiagnosticActivity() {},
