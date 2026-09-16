@@ -1,7 +1,7 @@
 # Devir notları indeksi
 Güncel çalışma: [2026-09-16 16:03 — kesintisiz çeviri bağlamı ve cue-yerel anlam çapaları](docs/devir/2026-09-16-1603.md).
 
-Önceki çalışma: [2026-09-16 15:57 — üçüncü 35-ajan derin denetim turu (rapor 50)](docs/devir/2026-09-16-1557.md).
+Önceki çalışma: [2026-09-16 15:57 — üçüncü 35-ajan derin denetim turu (rapor 51)](docs/devir/2026-09-16-1557.md).
 
 Önceki çalışma: [2026-09-16 15:22 — Great Courses CEA zaman çizgisi kalibrasyonu](docs/devir/2026-09-16-1522.md).
 
