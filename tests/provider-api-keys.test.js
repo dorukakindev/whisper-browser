@@ -22,6 +22,17 @@ assert.equal(providerCredentialScope('https://codecraftapi.com/v1'), 'provider:c
 assert.equal(providerCredentialScope('custom', 'https://codecraftapi.com/v1/'), 'provider:codecraftapi');
 assert.equal(providerCredentialScope('inherit', '', 'https://codecraftapi.com/v1'), 'provider:codecraftapi');
 assert.notEqual(providerCredentialScope('https://api.openai.com/v1'), 'provider:codecraftapi');
+const fourSapi = [
+  'https://4sapi.com/v1',
+  'https://4sapi.org/v1',
+  'https://4sapi.cn/v1',
+  'https://4sapi.net/v1',
+  'https://4sapi.ai/v1',
+  'https://4stoken.com/v1',
+].map((endpoint) => providerCredentialScope(endpoint));
+assert.equal(new Set(fourSapi).size, 1, '4SAPI resmi rotaları tek anahtar paylaşmalı');
+assert.equal(fourSapi[0], 'provider:4sapi');
+assert.notEqual(fourSapi[0], 'provider:codecraftapi');
 assert.notEqual(
   providerCredentialScope('custom', 'https://bir.example/v1'),
   providerCredentialScope('custom', 'https://iki.example/v1'),
@@ -34,6 +45,9 @@ assert.equal(providerKeyForScope(profiles, 'provider:codecraftapi'), '');
 profiles = updateProviderKeyProfile(profiles, 'provider:codecraftapi', 'cc-key', true);
 assert.equal(providerKeyForScope(profiles, 'provider:codecraftapi'), 'cc-key');
 assert.equal(providerKeyForScope(profiles, 'provider:shuaiapi'), 'shuai-key');
+profiles = updateProviderKeyProfile(profiles, 'provider:4sapi', '4s-key', true);
+assert.equal(providerKeyForScope(profiles, 'provider:4sapi'), '4s-key');
+assert.equal(providerKeyForScope(profiles, 'provider:codecraftapi'), 'cc-key');
 profiles = updateProviderKeyProfile(profiles, 'provider:codecraftapi', '', true);
 assert.equal(providerKeyForScope(profiles, 'provider:codecraftapi'), '');
 assert.equal(providerKeyForScope(profiles, 'provider:shuaiapi'), 'shuai-key');

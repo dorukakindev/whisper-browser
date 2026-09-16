@@ -2552,8 +2552,11 @@ if ($('llmEndpointPreset')) {
 }
 
 function endpointPresetRecommendedModel(preset) {
+  const declared = String(preset?.selectedOptions?.[0]?.dataset?.defaultModel || '').trim();
+  if (declared) return declared;
   const endpoint = String(preset?.value || preset || '').trim().replace(/\/+$/, '');
   if (endpoint === 'https://codecraftapi.com/v1') return 'gemini-3.7-flash';
+  if (endpoint === 'https://4sapi.com/v1') return 'gpt-5.4';
   return '';
 }
 

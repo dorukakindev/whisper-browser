@@ -54,15 +54,25 @@ assert.equal(controls.translateApiKey.value, '');
 controls.translateApiKey.value = 'codecraft-key';
 controls.translateApiKey.dataset.secretEdited = 'true';
 remember('translate');
+controls.translateEndpointPreset.value = 'https://4sapi.com/v1';
+activate('translate');
+assert.equal(controls.translateApiKey.value, '');
+controls.translateApiKey.value = '4sapi-key';
+controls.translateApiKey.dataset.secretEdited = 'true';
+remember('translate');
 controls.translateEndpointPreset.value = 'https://oai.sb/v1';
 activate('translate');
 assert.equal(controls.translateApiKey.value, 'shuai-yeni');
 controls.translateEndpointPreset.value = 'https://codecraftapi.com/v1';
 activate('translate');
 assert.equal(controls.translateApiKey.value, 'codecraft-key');
+controls.translateEndpointPreset.value = 'https://4sapi.com/v1';
+activate('translate');
+assert.equal(controls.translateApiKey.value, '4sapi-key');
 
 // Manga “altyazı sağlayıcısını kullan” seçeneğinde altyazı endpoint'ini izler,
 // ama manga anahtar halkası altyazı anahtarlarından bağımsız kalır.
+controls.translateEndpointPreset.value = 'https://codecraftapi.com/v1';
 initialize('manga', {
   apiKeyProfiles: JSON.stringify({
     'provider:codecraftapi': 'manga-codecraft',
