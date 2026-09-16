@@ -90,7 +90,7 @@ Durum: **Ürün kodu bu turda değiştirilmedi. Hiçbir test çalıştırılmad�
 
 **Düzeltme planı:** (a) `Accept`'i PNG/JPEG ağırlıklı yap; (b) decode başarısızlığında sayfa-içi canvas fallback'i (`inlineBlobImage` kalıbı, browser-manga.js:423-439) http görsellere genişlet; (c) desteklenmeyen MIME'de alternatif URL zincirine düş.
 
-**Doğrulama notu:** Tek satırlık runtime kontrolü (`nativeImage.createFromBuffer(webp).isEmpty()`) kesinleştirir — WebP beklenmedik biçimde destekleniyorsa bulgu GIF/AVIF'e daralır.
+**Runtime doğrulaması (2026-09-16, YAPILDI — bulgu kesin):** Electron `43.2.0+wvcus` build'inde 64×64 gerçek dosyalarla `nativeImage.createFromBuffer` koşuldu — `png: 64x64 (ok)`, `webp/gif/avif: isEmpty()=true, 0x0`. Bu build yalnız PNG/JPEG çözüyor; manga yolu WebP/AVIF/GIF'te **kesin olarak** sistematik başarısız. Test: `.uiprev/ni-test/` (ffmpeg ile üretilmiş gerçek dosyalar).
 
 ---
 
@@ -290,7 +290,7 @@ R51-42/43 (SDK retry + env scrubbing), R51-48/49/51, R51-61..69 (manga yaşam d�
 
 ## Runtime doğrulama gerektirenler
 
-- R51-06: `nativeImage`'ın WebP/GIF/AVIF desteği tek satırla kesinleşir.
+- ~~R51-06~~: **Doğrulandı** — Electron 43.2.0+wvcus'ta `createFromBuffer` yalnız PNG/JPEG çözüyor (webp/gif/avif → `isEmpty`).
 - R51-13/28/46/57: yarış pencereleri gerçek zamanlamada repro edilmeli.
 - R51-16..20: gerçek HLS (byterange + delta-playlist + çok-varyant) akışında CEA fixture e2e.
 - R51-21: renderer'ı `process.crash()` ile öldürüp pencere davranışı.
