@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-15 20:18 — YouTube varsayılan görünüm ve Shorts filtresi](docs/devir/2026-09-15-2018.md).
+Güncel çalışma: [2026-09-16 06:00 — altyazı çevirisi kota koruması ve aşamalı iş sonlandırma](docs/devir/2026-09-16-0600.md).
+
+Önceki çalışma: [2026-09-15 20:18 — YouTube varsayılan görünüm ve Shorts filtresi](docs/devir/2026-09-15-2018.md).
 
 Önceki çalışma: [2026-09-15 19:54 — canlı altyazı çeviri hata görünürlüğü ve yarım cümle kararlılığı](docs/devir/2026-09-15-1954.md).
 
