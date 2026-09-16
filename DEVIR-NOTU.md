@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 06:50 — düzeltme doğrulama turu (rapor 37)](docs/devir/2026-09-16-0650.md).
+Güncel çalışma: [2026-09-16 07:10 — medya tarama onayı ve önizleme token kapanışı](docs/devir/2026-09-16-0710.md).
+
+Önceki çalışma: [2026-09-16 06:50 — düzeltme doğrulama turu (rapor 37)](docs/devir/2026-09-16-0650.md).
 
 Önceki çalışma: [2026-09-16 06:47 — CEA iptal yarışı ve çeviri öncesi tam kaynak edinme](docs/devir/2026-09-16-0647.md).
 
