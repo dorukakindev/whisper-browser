@@ -19,7 +19,7 @@ Durum: **DOĞRULANDI → DÜZELTİLDİ (gerçek-site kabulü bekliyor)**
 
 Etkilenen kaynak dosya:
 
-`C:\Users\K\Downloads\Whisper\GİRDİ\Religion in the Ancient Mediterranean World The Great Courses Plus.5ede7b75.source.CC1.srt`
+`%USERPROFILE%\Downloads\Whisper\GİRDİ\Religion in the Ancient Mediterranean World The Great Courses Plus.5ede7b75.source.CC1.srt`
 
 - Yakalanan SRT'de “In the last lecture…” başlangıcı: **00:19.977**
 - Yakalanan SRT'de “All of Egyptian religion…” başlangıcı: **00:28.018**

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Support and troubleshooting
+    url: https://github.com/dorukakindev/whisper-browser/blob/master/SUPPORT.md
+    about: Read setup, troubleshooting, and privacy guidance before opening an issue.
+  - name: Private security report
+    url: https://github.com/dorukakindev/whisper-browser/security/advisories/new
+    about: Report credential, session, local-file, or remote-user vulnerabilities privately.

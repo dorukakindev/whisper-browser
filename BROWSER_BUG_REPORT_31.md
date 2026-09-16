@@ -42,7 +42,7 @@ Tehdit modeli: renderer'ın ele geçirilmesi / zararlı `.wbp` paketi içe aktar
 
 ### B83 · P2 — `subtitlePaths` → keyfi yerel dosya içeriği ifşası (kütüphane araması) [SONUÇ: DOĞRULANDI · DÜZELTİLDİ]
 - **Kanıt:** `subtitleTextForSearch` (main.js:1698-1723) herhangi bir mevcut ≤8 MB dosyayı okuyor — **uzantı denetimi yok, `subtitleFileAccess` grant yok, yol doğrulaması yok** — ve `searchWatchLibrary` eşleşen blok başına ~220 karakter snippet + ham yol döndürüyor. `subtitlePaths` `.wbp` `watch-library.json`'undan (normalizeItem `uniqueStrings`'e indiriyor) veya `library:upsert`'ten doğrulanmadan giriyor.
-- **Repro:** içe aktarılmış `.wbp`'ye `subtitlePaths:['C:\\Users\\K\\AppData\\...\\settings.json']` → kütüphane aramasında sorgu → 220'şer karakterlik pencerelerle içerik sızıyor.
+- **Repro:** içe aktarılmış `.wbp`'ye `subtitlePaths:['%USERPROFILE%\\AppData\\...\\settings.json']` → kütüphane aramasında sorgu → 220'şer karakterlik pencerelerle içerik sızıyor.
 - **Düzeltme yönü:** `subtitleTextForSearch`'te `subtitleFileAccess.has` veya kanonik-yol + uzantı whitelist; `subtitlePaths`'i normalizeItem'da ve paket import'unda doğrula.
 
 ### B84 · P2 — Subtitle-tercihi restore'u sessiz `subtitleFileAccess.grant` veriyor (consent baypası) [SONUÇ: DOĞRULANDI · DÜZELTİLDİ]
