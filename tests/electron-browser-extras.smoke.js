@@ -61,7 +61,7 @@ app.whenReady().then(async () => {
   const page = await until(() => webContents.getAllWebContents().find((item) => item.getURL() === 'https://browser-extras.test/watch'), 'Video sayfası');
   await until(() => page.executeJavaScript('document.querySelector("video")?.readyState >= 2'), 'Video çözme');
   await until(() => run('return !!browserTabState()?.mediaId'), 'Video kimliği');
-  await run('document.getElementById("browserFeatures").open=true');
+  await run('setSideTab("tools");document.getElementById("browserFeatures").open=true');
   assert.equal(await run('return document.getElementById("bfSkipAuto").checked'), false);
   assert.equal(await run('return document.getElementById("browserFeatures").getBoundingClientRect().width > 100'), true);
   const extras = (action, payload = {}) => run(`return window.api.browserExtras({action:${JSON.stringify(action)},tabId:player.browserActiveTabId,generation:browserTabState().generation,mediaId:browserTabState().mediaId,...${JSON.stringify(payload)}})`);
