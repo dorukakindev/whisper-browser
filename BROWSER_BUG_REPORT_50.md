@@ -1,6 +1,6 @@
 # BROWSER BUG REPORT 50 — Bağlamsal çeviride cue sahipliği
 
-Tarih: 2026-09-16  
+Tarih: 2026-09-16
 Durum: **DOĞRULANDI VE DÜZELTİLDİ**
 
 ## Ayrıntılı bulgu
