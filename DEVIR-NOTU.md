@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 19:58 — screenshot-led English usage guide](docs/devir/2026-09-16-1958.md).
+Güncel çalışma: [2026-09-16 21:12 — rapor 51 A-sınıfı 56 bulgunun uygulanması](docs/devir/2026-09-16-2112.md).
+
+Önceki çalışma: [2026-09-16 19:58 — screenshot-led English usage guide](docs/devir/2026-09-16-1958.md).
 
 Önceki çalışma: [2026-09-16 19:24 — English public repository presentation](docs/devir/2026-09-16-1924.md).
 
