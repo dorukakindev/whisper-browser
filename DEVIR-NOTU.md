@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-16 12:12 — ikinci 10-ajan derin denetim turu (rapor 46)](docs/devir/2026-09-16-1212.md).
+Güncel çalışma: [2026-09-16 12:43 — tarayıcı üst katmanlarını native videonun önünde gösterme](docs/devir/2026-09-16-1243.md).
+
+Önceki çalışma: [2026-09-16 12:12 — ikinci 10-ajan derin denetim turu (rapor 46)](docs/devir/2026-09-16-1212.md).
 
 Önceki çalışma: [2026-09-16 11:55 — kalıcı tarayıcı çeviri hatalarını temizleme](docs/devir/2026-09-16-1155.md).
 
