@@ -119,4 +119,32 @@ test('satır ayırıcı karakterleri silmeden JavaScript içinde güvenle escape
   assert(!escaped.includes(`a\u2028b`));
 });
 
+test('R51-77: JASSUB canvas aktifken DOM altyazı kutusu çizilmez ve geri döner', () => {
+  // Aynı video üzerinde ASS canvas + DOM overlay aynı z-index'te çift metin
+  // çiziyordu. render() artık __whisperAssState varlığında cue kutusunu gizler;
+  // detach durumu null'a indirdiği için sonraki render'da katman geri döner.
+  assert.match(script, /globalThis\.__whisperAssState\) \{\s*if \(root\) root\.style\.display = 'none'/);
+  assert.match(script, /__whisperBrowserOverlayController = \{[\s\S]{0,80}render,/);
+  // ASS tarafı kurulum ve detach sonrası render'ı tetikler — duraklatılmış
+  // videoda timeupdate gelmediği için tetikleme olmadan çift metin kalırdı.
+  const { buildAssInstallScript, buildAssClearScript } = require('../src/browser-ass-renderer');
+  const install = buildAssInstallScript('[Script Info]\nX\n[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hi', 'op');
+  assert.equal((install.match(/__whisperBrowserOverlayController\?\.render\?\.\(\)/g) || []).length, 2);
+  assert.match(install, /__whisperAssState === state\) globalThis\.__whisperAssState = null/);
+  assert.match(buildAssClearScript(), /previous\.detach\(\)/);
+});
+
+test('R51-73: dikey VTT writingMode cue kutusuna uygulanır, karışık içerikte temizlenir', () => {
+  assert.match(script, /applyWritingMode\(source, sourceCues\)/);
+  assert.match(script, /applyWritingMode\(translation, translationCues\)/);
+  assert.match(script, /every\(\(cue\) => cue && cue\.writingMode === list\[0\]\.writingMode\)/);
+  assert.match(script, /mode === 'rl' \? 'vertical-rl' : mode === 'lr' \? 'vertical-lr' : ''/);
+  // Parser tarafı: vertical:rl gerçekten writingMode'a iniyor.
+  const { parseSubtitlePayload } = require('../src/browser-subtitles');
+  const vtt = 'WEBVTT\n\n00:00:01.000 --> 00:00:03.000 vertical:rl line:90%\n縦書きテスト\n';
+  const cues = parseSubtitlePayload(Buffer.from(vtt, 'utf8'), 'text/vtt', 'https://x.test/a.vtt').cues || [];
+  assert.equal(cues[0].writingMode, 'rl');
+  assert.equal(cues[0].line, '90%');
+});
+
 console.log(`browser-overlay-controller: ${passed} test`);

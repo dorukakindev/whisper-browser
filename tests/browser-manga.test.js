@@ -234,8 +234,8 @@ assert.match(overlaySource, /state\.imageById\.get\(id\)/);
 assert.doesNotMatch(overlaySource, /for \(const \[id, overlay\] of state\.overlays\)[\s\S]{0,160}\[\.\.\.\(document\.images/);
 assert.match(overlaySource, /bridgeToken/);
 assert.match(overlaySource, /data-whisper-manga-editor/);
-assert.match(overlaySource, /editor\.addEventListener\('keydown'[\s\S]{0,180}Escape[\s\S]{0,120}close\(\)/);
-assert.match(overlaySource, /!editor\.contains\(event\.target\)[\s\S]{0,80}close\(\)/);
+assert.match(overlaySource, /editor\.addEventListener\('keydown'[\s\S]{0,180}Escape[\s\S]{0,240}close\(\)/);
+assert.match(overlaySource, /!editor\.contains\(event\.target\) && !dirty\(\)\) close\(\)/);
 assert.match(overlaySource, /document\.addEventListener\('pointerdown', onOutsidePointerDown, true\)/);
 assert.match(overlaySource, /Orijinal konuşma balonu/);
 assert.match(mangaClearScript(), /removeEventListener\('keydown'/);
@@ -272,6 +272,16 @@ assert.match(main, /detectMangaImageMime\(buffer\)/);
 assert.match(main, /decoded\.crop\(\{ x: left, y: top/);
 assert.doesNotMatch(main, /sampleMangaRegionColors\(decoded\.toBitmap/);
 assert.match(main, /rateLimitRetries = 2/);
+// R51-42: tek uç yapılandırmasında geçici ağ/5xx hatası tek denemeyle ölmesin;
+// çoklu uçta failover aynı davranışı zaten sağlıyor.
+assert.match(main, /transientRetries = endpoints\.length === 1 \? 1 : 0/,
+  'manga isteğinde tek-uç geçici hata denemesi yok');
+{
+  const sStart = main.indexOf('async function requestBrowserSentenceTranslation(');
+  const sBody = main.slice(sStart, sStart + 1400);
+  assert.match(sBody, /attempts = endpoints\.length === 1 \? 2 : 1/,
+    'cümle çevirisinde tek-uç tekrar denemesi yok');
+}
 assert.match(main, /await stopBrowserManga\(tab, true\)/);
 assert.match(main, /attempt < \(incremental \? 1 : 6\)/);
 assert.match(main, /stableScans >= 2/);
@@ -298,7 +308,7 @@ assert.match(main, /payload\.bridgeToken !== tab\.bridgeToken/);
 assert.match(main, /await tab\.mangaClearPromise[\s\S]{0,500}if \(tab\.mangaJob\)/);
 assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /if \(!result\.length\)[\s\S]{0,240}focusRegion, true/);
-assert.match(main, /if \(result\.length\) \{[\s\S]{0,500}browserMangaCache\(\)\.set\(key[\s\S]{0,500}browserMangaCache\(\)\.set\(ocrKey/);
+assert.match(main, /browserMangaCache\(\)\.set\(key, JSON\.stringify\(result\.length[\s\S]{0,300}if \(result\.length\) \{[\s\S]{0,300}browserMangaCache\(\)\.set\(ocrKey/);
 assert.match(main, /if \(regions\?\.length && !browserMangaCache\(\)\.get\(ocrKey\)\)[\s\S]{0,360}browserMangaCache\(\)\.set\(ocrKey/);
 assert.match(main, /requestBrowserSentenceTranslation\(\{ text: region\.source \}, config/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
@@ -320,4 +330,116 @@ assert.match(html, /id="mangaEndpointPreset"/);
 assert.match(html, /id="mangaModel"/);
 assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
 
-console.log('browser-manga: 91 test');
+// R51-61: stopBrowserManga hata listesini de temizlemeli — aksi halde gezinme
+// sonrası retryFailedBrowserManga eski dokümanın adaylarını modele gönderir.
+{
+  const stopStart = main.indexOf('function stopBrowserManga(');
+  const stopBody = main.slice(stopStart, main.indexOf('\n}', stopStart));
+  assert.match(stopBody, /tab\.mangaFailures = \[\]/,
+    'stopBrowserManga mangaFailures listesini temizlemiyor');
+  assert.match(stopBody, /tab\.mangaPages\?\.clear\(\)/);
+  assert.match(stopBody, /tab\.mangaAttempted\?\.clear\(\)/);
+  const retryStart = main.indexOf('function retryFailedBrowserManga(');
+  const retryBody = main.slice(retryStart, main.indexOf('\n}', retryStart));
+  assert.match(retryBody, /tab\?\.mangaFailures/);
+  // Gezinme yolları stopBrowserManga çağırıyor mu (did-start-navigation +
+  // did-navigate-in-page medya değişimi dalı)
+  assert.match(main, /did-start-navigation[\s\S]{0,900}stopBrowserManga\(tab, false\)/);
+  assert.match(main, /did-navigate-in-page[\s\S]{0,1400}stopBrowserManga\(tab, true\)/);
+}
+
+// R51-63: taslak editörü dış tık/Esc ile kaydedilmemiş metni atamaz.
+{
+  const manga = fs.readFileSync(path.join(__dirname, '..', 'src', 'browser-manga.js'), 'utf8');
+  assert.match(manga, /const dirty = \(\) => area\.value\.trim\(\) !== \(group\.dataset\.translation \|\| ''\)/,
+    'kirli-taslak denetimi yok');
+  assert.match(manga, /!editor\.contains\(event\.target\) && !dirty\(\)\) close\(\)/,
+    'dış tık kirli taslakta kapatmamalı');
+  assert.match(manga, /key === 'Escape'[\s\S]{0,220}if \(dirty\(\)\) \{ area\.focus\(\); return; \}/,
+    'Esc kirli taslakta alanı kapatmamalı');
+  // Temiz durumda iki yol da kapatmaya devam etmeli
+  assert.match(manga, /!dirty\(\)\) close\(\)/);
+}
+
+// R51-64: sayfa katman düğümünü silerse layout katmanı geri bağlamalı.
+{
+  const manga = fs.readFileSync(path.join(__dirname, '..', 'src', 'browser-manga.js'), 'utf8');
+  assert.match(manga, /!overlay\.isConnected\)\s*\(document\.body \|\| document\.documentElement\)\?\.appendChild\(overlay\)/,
+    'layout kopan katmanı geri bağlamıyor');
+  // Görseli silinen katmanlar hâlâ temizleniyor olmalı
+  assert.match(manga, /!target\.isConnected\)\s*\{[\s\S]{0,160}state\.overlays\.delete\(id\)/);
+}
+
+// R51-100: metinsiz görsel negatif cache'lenir ve kısa pencerede yeniden
+// görsel model çağrısını atlar; süresi dolunca yeniden denenir.
+{
+  const start = main.indexOf('async function translateMangaCandidate(');
+  const body = main.slice(start, main.indexOf('\n}', start));
+  assert.match(body, /noRegions: true, t: Date\.now\(\)/, 'negatif sonuç işaretli yazılmıyor');
+  assert.match(body, /MANGA_NEGATIVE_TTL_MS/, 'negatif cache penceresi yok');
+  assert.match(body, /noRegionsCached[\s\S]{0,200}<\s*MANGA_NEGATIVE_TTL_MS/,
+    'negatif işaret süre penceresiyle sınırlı değil');
+  assert.match(body, /!regions\?\.length && !noRegionsCached\)\s*\{[\s\S]{0,120}job\.imageRequests\.get\(key\)/,
+    'negatif cache isteği atlamıyor');
+  // Pozitif sonuç yazımı korunuyor ve OCR katmanı hâlâ dolduruluyor
+  assert.match(body, /\{ regions: result \}/);
+  assert.match(body, /browserMangaCache\(\)\.set\(ocrKey/);
+}
+
+// R51-104: uyumluluk modu "enjeksiyonsuz sayfa" sözü verir — manga enjeksiyonu
+// ana süreç ve düğme katmanında reddedilmeli.
+{
+  const startStart = main.indexOf('async function startBrowserManga(');
+  const startBody = main.slice(startStart, startStart + 1200);
+  assert.match(startBody, /tab\.compatibilityMode/, 'startBrowserManga uyumluluk denetimi yok');
+  const retryStart = main.indexOf('async function retrySelectedMangaRegion(');
+  const retryBody = main.slice(retryStart, retryStart + 1200);
+  assert.match(retryBody, /tab\.compatibilityMode/, 'retrySelectedMangaRegion uyumluluk denetimi yok');
+  const handleStart = renderer.indexOf('async function handleBrowserMangaAction(');
+  const handleBody = renderer.slice(handleStart, handleStart + 1400);
+  assert.match(handleBody, /compatibilityMode/, 'renderer manga eylemi uyumluluk denetimi yok');
+  assert.match(renderer, /browserTabState\(\)\?\.compatibilityMode === true/);
+  assert.match(renderer, /button\.disabled = compat/);
+}
+
+// R51-69: OCR-cache isabetinde metin çevirisi bölge başına sıralı değil,
+// işçi sayısıyla sınırlı paralel chunk'lar halinde çalışmalı.
+{
+  const start = main.indexOf('if (ocrRegions.length) {');
+  const body = main.slice(start, start + 2200);
+  assert.match(body, /concurrency = Math\.max\(1, Math\.min\(6, Number\(config\.workers\) \|\| 2\)\)/);
+  assert.match(body, /Promise\.all\(chunk\.map/, 'OCR metin çevirisi paralelleştirilmemiş');
+  assert.match(body, /translated\.length === ocrRegions\.length/, 'hepsi-ya-hiç eşiği kaybolmuş');
+}
+
+// R51-105: sayfa !important kuralları overlay'in satır içi stillerini
+// ezememeli — kritik stiller setProperty('important') ile yazılır.
+{
+  const manga = fs.readFileSync(path.join(__dirname, '..', 'src', 'browser-manga.js'), 'utf8');
+  for (const prop of ['position', 'z-index', 'pointer-events', 'overflow', 'contain']) {
+    assert(manga.includes(`setProperty('${prop}'`) && manga.includes("'important'"),
+      `overlay '${prop}' important korumasız`);
+  }
+  assert.match(manga, /setProperty\('left'[^)]*'important'\)/, 'konum yazımı important değil');
+  assert.match(manga, /setProperty\('visibility'[^)]*'important'\)/s, 'görünürlük important değil');
+  // Toggle yolu da aynı korumayı kullanmalı.
+  assert.match(manga, /overlay\.style\.setProperty\('display', 'none', 'important'\)/,
+    'göster/gizle yolu important yazmıyor');
+  assert.doesNotMatch(manga, /overlay\.style\.display = state\.visible \? '' : 'none'/,
+    "eski important'sız display yazımı kalmış");
+}
+
+// R51-107: http: görsel indirmesi düz metin kanal — oturum çerezleri ve
+// https sayfanın Referer'i sızmasın.
+{
+  const start = main.indexOf('async function requestPinnedMangaImage');
+  const body = main.slice(start, start + 2000);
+  assert.match(body, /parsed\.protocol === 'https:'\s*\?\s*await browserSession\.cookies\.get/,
+    'http: isteğine çerez ekleniyor');
+  const refStart = main.indexOf('function mangaRequestReferrer');
+  const refBody = main.slice(refStart, refStart + 900);
+  assert.match(refBody, /page\.protocol === 'https:' && image\.protocol !== 'https:'\)\s*return ''/,
+    'https→http düşüşünde Referer sızıyor');
+}
+
+console.log('browser-manga: 93 test');

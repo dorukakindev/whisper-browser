@@ -272,5 +272,21 @@ function action(name, next, context) {
   await autoContext.loadPersistedBrowserTranslation(loadedTrack);
   assert.equal(loadedTrack.autoLoad, false, 'otomatik yükleme işareti her sekme dönüşünde tekrarlandı');
 
+  // R51-71: updateCueMeta her karede 10k cue için imza dizisi kuruyordu
+  // (~3.4ms/frame → ~0.6ms). İmza WeakMap'te cache'lenir; start/end/text'e
+  // yazan iki nokta (zaman çizelgesi sürükleme, kayıtlı düzenleme) invalidate eder.
+  assert.match(source, /const cueSignatureCache = new WeakMap\(\)/, 'cueSignature cache yok');
+  assert.match(source, /function invalidateCueSignature\(cue\)/, 'invalidate yardımcısı yok');
+  const dragBlock = source.slice(source.indexOf("if (drag.mode === 'start')"), source.indexOf('drag.changed = true'));
+  assert.match(dragBlock, /invalidateCueSignature\(cue\)/, 'zaman sürüklemesi imzayı eskitmiyor');
+  const editStart = source.indexOf('cue.text = text;');
+  const editBlock = source.slice(editStart, source.indexOf('refreshCueWordRanges(cue)', editStart));
+  assert.match(editBlock, /invalidateCueSignature\(cue\)/, 'metin düzenlemesi imzayı eskitmiyor');
+  // migrateSavedCueAssociation eski anahtarı beforeKOPYASI üzerinden okur —
+  // invalidate, migrate çağrısından önce gelmeli ki yeni imza doğru hesaplansın.
+  const editOrder = source.indexOf('invalidateCueSignature(cue);', source.indexOf('cue.text = text;'));
+  const migrateOrder = source.indexOf('migrateSavedCueAssociation(beforeCue, cue)');
+  assert(editOrder > 0 && migrateOrder > editOrder, 'invalidate→migrate sırası bozuk');
+
   console.log('Browser subtitle actions: export, start/retry races and saved translation refresh passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

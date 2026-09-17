@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { spawn } = require('node:child_process');
+const { withoutSecretEnv } = require('./settings-security');
 
 function validateCues(cues) {
   if (!Array.isArray(cues) || cues.length < 3 || cues.length > 10000) throw new Error('Senkron için 3-10000 altyazı satırı gerekli.');
@@ -26,9 +27,8 @@ function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
       if (!pythonPath) throw new Error('Python çalışma ortamı bulunamadı.');
       if (signal?.aborted) return Promise.reject(new Error('İşlem iptal edildi.'));
       return new Promise((resolve, reject) => {
-        const env = { ...process.env };
+        const env = withoutSecretEnv(process.env);
         env.PYTHONIOENCODING = 'utf-8'; env.PYTHONUTF8 = '1';
-        delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
         if (ffmpegPath) env.PATH = `${path.dirname(ffmpegPath)}${path.delimiter}${env.PATH || ''}`;
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-align-job-'));
         env.WHISPER_ALIGN_TMPDIR = tempRoot;

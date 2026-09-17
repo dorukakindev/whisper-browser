@@ -232,6 +232,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const context = {
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
+      // transcribe:start başlatma yarışı koruması (R51-28/29): authorize
+      // await'leri sırasında gelen iptal bu sayaçlarla işaretlenir.
+      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer,
       process: { env: {} }, resolvePython: () => 'mock-python',
@@ -344,6 +347,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       app: { whenReady: () => ({ then: (fn) => { ready = fn; } }), getPath: () => 'test-profile' },
       prepareWidevineComponents: () => { calls.push('prepare'); return new Promise((resolve) => { finishDrm = resolve; }); },
       sweepStaleChatFiles() {}, sweepBrowserLiveAsrTemp() {}, sweepBrowserSubtitleFiles() {},
+      sweepOrphanOutputTransactions() {},
       browserAssetStore: () => ({ sweepTempFiles() {} }),
       ADAPTER_REGISTRY: { loadJsonDirectory() {} }, browserAdapterPluginStatus: null, path,
       restoreBrowserSessionState() {}, createWindow: () => calls.push('window'),

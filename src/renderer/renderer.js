@@ -715,6 +715,12 @@ async function processNextQueueItem() {
     renderQueue();
     return;
   }
+  // persistQueueNow beklenirken İptal'e basılmış olabilir: kuyruk durduysa
+  // veya öğe artık çalışır değilse start isteği gönderme — aksi halde UI'da
+  // görünmeyen, iptal edilemeyen sahipsiz bir süreç spawn edilir.
+  if (!state.queueRunning || next.status !== 'running' || state.currentQueueId !== next.id) {
+    return;
+  }
 
   // Tek-iş arayüzünü güncelle: kuyruk item'i mevcut iş gibi göster
   resetStages();
@@ -768,6 +774,15 @@ async function processNextQueueItem() {
 
   const r = await startTranscribeSafe(opts);
   if (!r.ok) {
+    if (r.cancelled) {
+      // Kullanıcı başlatma IPC'si yoldayken İptal'e bastı; ana süreç spawn'a
+      // girmedi. Öğeyi hatalı göstermeden bekleyen durumuna döndür.
+      if (next.status === 'running') next.status = 'pending';
+      state.currentQueueId = null;
+      state.running = false;
+      renderQueue();
+      return;
+    }
     logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${r.error}`, 'error');
     state.currentQueueId = null;
     if (r.busy || /hâlâ kapanıyor|hâlâ çalışıyor|zaten bir iş çalışıyor|çalışırken|başka bir model işi/i.test(String(r.error || ''))) {
@@ -3093,8 +3108,9 @@ $('cancelBtn').addEventListener('click', async () => {
   } else {
     logLine('İptal isteği gönderildi.', 'warn');
   }
-  if (!r || !r.ok) {
-    // Backend'de çalışan iş yoktu → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
+  if (!r || !r.ok || r.deferred) {
+    // Backend'de çalışan iş yoktu veya iptal, başlatma IPC'si havada iken
+    // kaydedildi → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
     state.cancelled = false;
     if (aiJob && player.job === aiJob) {player.job = null;state.activeJobId=null;updateAiChatActions();}
     finishRun(false);
@@ -3374,12 +3390,10 @@ async function handleProgressiveTerminal(event, job) {
       return true;
     }
     if (event.code !== 0) {
-      job.running = false; state.running = false;
-      $('startBtn').classList.remove('hidden');
-      $('cancelBtn').classList.add('hidden');
-      $('playerJobText').textContent = 'Altyazı üretimi beklenmedik biçimde durdu.';
-      updateBrowserWhisperActions();
-      return true;
+      // 'done' terminali geldi: çıktılar diske yazıldı. Kapanış sırasında
+      // (temizlik/atexit) çöken süreç işi ölü uca bırakmasın — uyarı ver,
+      // çıktıları yükleme akışına devam et.
+      logLine('Süreç çıktıları yazdıktan sonra hata koduyla kapandı; üretilen dosyalar korunuyor.', 'warn');
     }
     job.awaitingExit = false;
     const continueWhenCurrent = (next) => {
@@ -6265,6 +6279,9 @@ function updateBrowserMangaButton() {
   }
   button.dataset.state = state;
   button.setAttribute('aria-pressed', state === 'ready' || state === 'running' ? 'true' : 'false');
+  const compat = browserTabState()?.compatibilityMode === true;
+  button.disabled = compat;
+  if (compat) title = 'Uyumluluk modunda sayfa enjeksiyonları kapalıdır; manga çevirisi kullanılamaz';
   button.setAttribute('aria-label', title);
   button.title = title;
   label.textContent = text;
@@ -6331,6 +6348,10 @@ function applyBrowserMangaState(event = {}) {
 async function handleBrowserMangaAction(clickEvent) {
   if (!player.browserPageUrl || !player.browserActiveTabId) {
     setBrowserSignal('Manga çevirmek için önce bir okuma sayfası açın.', false);
+    return;
+  }
+  if (browserTabState()?.compatibilityMode) {
+    setBrowserSignal('Uyumluluk modunda sayfa enjeksiyonları kapalıdır; manga çevirisi kullanılamaz.', false);
     return;
   }
   if (player.browserMangaBusy) {
@@ -11799,10 +11820,22 @@ function pSecToTime(sec) {
 // Kayitli cümleler video degisse bile karismasin. Indeks yerine zaman+metin
 // imzasi kullanilir; altyazi yeniden üretildiginde ayni satir mümkün oldugunca
 // korunur, baska videoda eski favoriler görünmez.
+// İmza metni her zamanetiketinde yeniden kurulurdu: 10k cue'da updateCueMeta
+// içindeki kayıt-sayısı taraması ~3.4ms/frame yakıyordu. WeakMap kimliğe bağlar;
+// serialize edilemez ve nesne GC'siyle temizlenir. start/end/text'e yazan tek
+// noktalar zaman çizelgesi sürüklemesi ve kayıtlı düzenleme — orada invalidate
+// edilir.
+const cueSignatureCache = new WeakMap();
 function cueSignature(cue) {
   if (!cue) return '';
-  return `${Number(cue.start || 0).toFixed(3)}|${Number(cue.end || 0).toFixed(3)}|${String(cue.text || '').trim()}`;
+  let sig = cueSignatureCache.get(cue);
+  if (sig === undefined) {
+    sig = `${Number(cue.start || 0).toFixed(3)}|${Number(cue.end || 0).toFixed(3)}|${String(cue.text || '').trim()}`;
+    cueSignatureCache.set(cue, sig);
+  }
+  return sig;
 }
+function invalidateCueSignature(cue) { if (cue) cueSignatureCache.delete(cue); }
 
 // Son okunan/yazılan disk durumu — writeSubtitle expect kontrolü ile harici
 // değişikliğin sessizce ezilmesini (lost update) önler.
@@ -13587,6 +13620,7 @@ if ($('timelineCanvas')) {
       cue.start = Math.max(0, Math.min(timelineDuration() - duration, drag.start + delta));
       cue.end = cue.start + duration;
     }
+    invalidateCueSignature(cue);
     drag.changed = true;
     if ($('timelineStatus')) $('timelineStatus').textContent =
       `${drag.index + 1}. blok · ${pSecToTime(cue.start)} – ${pSecToTime(cue.end)}`;
@@ -15327,11 +15361,17 @@ function bindHoldToSpeed() {
 // gunluge bakmak zorunda kalmadan ne oldugunu goruyorsun.
 function osd(text, ms) {
   const el = $('playerOsd');
-  if (!el) return;
-  el.textContent = text;
-  el.classList.add('show');
-  clearTimeout(player.osdTimer);
-  player.osdTimer = setTimeout(() => el.classList.remove('show'), ms || 900);
+  if (el) {
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(player.osdTimer);
+    player.osdTimer = setTimeout(() => el.classList.remove('show'), ms || 900);
+  }
+  // Browser modunda .player-stage display:none ve sayfa yerel view'ın altında
+  // kalır — geri bildirim sayfa içi OSD'ye enjekte edilir.
+  if (player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.browserCommand) {
+    browserCommand('osd', { text: String(text || ''), ms: ms || 900 }).catch(() => {});
+  }
 }
 
 // ---- A-B döngüsü ----
@@ -20593,7 +20633,8 @@ if ($('subtitleModeMenu')) {
       const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
       const t = ratio * video.duration;
       const tip = $('seekTip');
-      const i = findCueAt(player.cues, t - player.offset, -1);
+      const i = findCueAt(player.cues, t - player.offset, player.seekHoverIdx ?? -1);
+      player.seekHoverIdx = i;
       tip.textContent = i >= 0
         ? `${pSecToTime(t)} · ${player.cues[i].text.replace(/\n/g, ' ').slice(0, 60)}`
         : pSecToTime(t);
@@ -21761,6 +21802,8 @@ async function saveCueEdit() {
   if (res.warning) logLine(res.warning, 'warn');
   cue.text = text;                            // ANCAK yazma basarili olduysa
   if (sourceCue !== cue) sourceCue.text = text;
+  invalidateCueSignature(cue);
+  if (sourceCue !== cue) invalidateCueSignature(sourceCue);
   refreshCueWordRanges(cue);
   if (sourceCue !== cue) refreshCueWordRanges(sourceCue);
   resetActiveWordHighlight();

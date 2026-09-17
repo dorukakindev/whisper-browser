@@ -3,6 +3,7 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { sourceOf, posterPath, ratingsOf, imdbIdOf, tmdbIdOf } = require('./media-catalog-store');
+const { withoutSecretEnv } = require('./settings-security');
 
 const MAX_BYTES = 32 * 1024 * 1024;
 function watchStatus(raw) {
@@ -30,7 +31,7 @@ function mapWorks(payload, { namespace = 'fixture' } = {}) {
     if (String(raw.imdb_id || '').trim() && !imdbId) warnings.push(`${ref}: Geçersiz veya boş IMDb kimliği atlandı.`);
     if (String(raw.tmdb_id || '').trim() && !tmdbId) warnings.push(`${ref}: Geçersiz veya boş TMDB kimliği atlandı.`);
     const media = Array.isArray(raw.media_files) ? raw.media_files.slice(0, 1000) : [];
-    const valid = media.map((entry) => ({ entry, source: sourceOf({ type: 'local', value: entry.path }) }))
+    const valid = media.map((entry) => ({ entry, source: sourceOf({ type: 'local', value: entry.path, imported: true }) }))
       .filter((entry) => entry.source);
     if (media.length > valid.length) warnings.push(`${ref}: Geçersiz dosya yolları atlandı.`);
     if (kind === 'film' && valid.length > 1) warnings.push(`${ref}: Birden fazla dosya var; ilk geçerli kaynak seçildi.`);
@@ -63,8 +64,7 @@ async function previewNmdbImport({ dbPath, pythonPath, signal } = {}) {
     throw new Error('nMDB dosyası ve Python yolu gerekli.');
   const script = path.join(__dirname, '..', 'backend', 'nmdb_catalog_import.py');
   const raw = await new Promise((resolve, reject) => {
-    const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
-    delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
+    const env = { ...withoutSecretEnv(process.env), PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
     const child = spawn(pythonPath, [script, '--db', dbPath], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env });
     const chunks = []; let size = 0, stderr = '', settled = false;
     const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort); error ? reject(error) : resolve(value); };

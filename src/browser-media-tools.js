@@ -3,12 +3,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { withoutSecretEnv } = require('./settings-security');
 
 function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine = null) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
-    const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
-    delete env.WHISPER_HF_TOKEN; delete env.WHISPER_LLM_API_KEY;
+    const env = { ...withoutSecretEnv(process.env), PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
     const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env });
     const output = []; let size = 0; let errorText = ''; let settled = false;
     let stderrRemainder = '';

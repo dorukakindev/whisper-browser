@@ -128,7 +128,12 @@
     if (!hits.length) { list.append(node('p', 'Eşleşme bulunamadı. Daha farklı bir ifade deneyin.')); return; }
     for (const hit of hits) {
       const button = node('button', `${timeText(hit.start)}  ${String(hit.text || hit.translation || '').slice(0, 220)}`, 'bf-hit');
-      button.type = 'button'; button.addEventListener('click', () => seek(hit.start)); list.append(button);
+      button.type = 'button';
+      // hit.start altyazı (kaynak) zamanı; ofsetli/ölçekli senkronda video
+      // zamanına dönüştürmeden seek etmek yanlış konuma atlar.
+      button.addEventListener('click', () =>
+        seek(typeof subtitleVideoTime === 'function' ? subtitleVideoTime(hit.start, false) : hit.start));
+      list.append(button);
     }
   }
 

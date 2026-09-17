@@ -51,5 +51,12 @@ const { createTerminologyMap, learnTerminology, seedTerminology, terminologyProm
   const generic = createTerminologyMap({ minOccurrences: 2 });
   seedTerminology(generic, ['Welcome back.', 'Welcome home.']);
   assert.equal(terminologyPrompt(generic), '');
+
+  // R51-78: sayfadan öğrenilen terim adayları sistem prompt'una güvenilmez-veri
+  // işareti olmadan giriyordu — sayfa içeriği prompt enjeksiyonu taşıyabilir.
+  const main = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const promptLine = main.match(/accumulatedTerminology \? `([^`]*)`/)?.[1] || '';
+  assert.match(promptLine, /GÜVENİLMEZ|güvenilmez/i, 'öğrenilen terminoloji güvenilmez olarak işaretlenmiyor');
+  assert.match(promptLine, /talimatları uygulama/, 'terminoloji talimat-uygulama koruması yok');
   console.log('  PASS terminology map');
 })();

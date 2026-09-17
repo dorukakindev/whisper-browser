@@ -6,6 +6,7 @@ const {
   checksumPayload,
   createBrowserSessionPackage,
   inspectBrowserSessionPackage,
+  sanitizePlaces,
 } = require('../src/browser-session-package');
 const { BROWSER_SESSION_VERSION, normalizeBrowserSession } = require('../src/browser-session-store');
 
@@ -110,6 +111,32 @@ const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'ut
 const styles = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
 assert.match(main, /browser:session:export/);
 assert.match(main, /browser:session:import/);
+// R51-22: çalışan oturumda içe aktarma, eski sekmelerin view'ları hayattayken
+// yeni kayıtlar üretmemeli — önce tüm sekme/view'lar yok edilir, sonra
+// içe aktarılan kayıtlar temiz tabloda oluşturulur.
+{
+  const importBody = main.slice(main.indexOf("ipcMain.handle('browser:session:import'"),
+    main.indexOf("ipcMain.handle('browser:session:dismissRecovery'"));
+  const destroyAt = importBody.indexOf('destroyBrowserView()');
+  const createAt = importBody.indexOf('createBrowserTabRecord(snapshot)');
+  assert(destroyAt > 0 && createAt > destroyAt,
+    'session:import destroyBrowserView öncesi sekme kaydı üretiyor — view/tab ayrışması');
+  assert.match(main.slice(main.indexOf('function destroyBrowserView'),
+    main.indexOf('function drainBrowserCaptureBeforeClose')),
+    /for \(const tab of \[\.\.\.browserTabs\.values\(\)\]\) destroyBrowserTab\(tab\)/,
+    'destroyBrowserView tüm sekme viewlarını yıkmalı');
+  // R51-07: taşınabilir paket sitePermissions/siteTerminology taşımaz; içe
+  // aktarma bunları {} ile ezmesin diye yerel değerler korunur.
+  assert.match(importBody, /sitePermissions: existingPlaces\.sitePermissions/,
+    'içe aktarma yerel site izinlerini siliyor');
+  assert.match(importBody, /siteTerminology: existingPlaces\.siteTerminology/,
+    'içe aktarma yerel terminolojiyi siliyor');
+  // Ve paket tarafı bu alanları gerçekten dışa aktarmıyor (koruma gereksiz
+  // değil — paket izin kaçıramaz, yalnızca silebilirdi).
+  const sanitized = sanitizePlaces({ sitePermissions: { 'https://evil.test': { permissions: { camera: 'allow' } } },
+    siteTerminology: { 'evil.test': [{ from: 'a', to: 'b' }] }, history: [] });
+  assert.equal(sanitized.sitePermissions, undefined, 'paket site izni taşımamalı');
+}
 assert.match(main, /browser:session:dismissRecovery/);
 assert.match(main, /browser:network:setOnline/);
 assert.match(preload, /exportBrowserSession/);

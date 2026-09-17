@@ -147,9 +147,15 @@ function createBrowserSeriesContext({ filePath }) {
           else high = mid;
         }
         const overlapping = [];
+        // Birleşik metin clean() ile zaten 4000 karaktere kesiliyor; bozuk
+        // çeviri zamanlarında (tüm satırlar tüm zamanı kapsar) geriye tarama
+        // O(cue×çeviri)'ye düşmesin diye örtüşme sayısı sınırlı.
         for (let position = low - 1; position >= 0 && prefixEnd[position] > start; position--) {
           const row = timed[position];
-          if (Math.min(end, Number(row.end)) - Math.max(start, Number(row.start)) > 0) overlapping.push(row);
+          if (Math.min(end, Number(row.end)) - Math.max(start, Number(row.start)) > 0) {
+            overlapping.push(row);
+            if (overlapping.length >= 64) break;
+          }
         }
         if (overlapping.length) translated = { text: overlapping.reverse().map(row => row.text || '').join(' ') };
       }

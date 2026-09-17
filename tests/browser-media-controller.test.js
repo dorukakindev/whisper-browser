@@ -4,6 +4,7 @@ const {
   buildBrowserMediaCommandScript,
   buildBrowserMediaProbeScript,
   buildBrowserMediaPreferenceScript,
+  buildBrowserOsdScript,
   normalizeBrowserMediaPreference,
 } = require('../src/browser-media-controller');
 
@@ -72,6 +73,48 @@ test('komutlar durum yoklamasıyla aynı medya seçicisini kullanır', () => {
   assert.match(script, /const video = controller.select\(\)/);
   assert.match(script, /video\.playbackRate/);
   assert.match(script, /1\.5/);
+});
+
+asyncTest('R51-13: probe ile komut arasındaki gezinme yeni belgede mutasyonu reddeder', async () => {
+  const oldVideo = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100 };
+  const oldDoc = mediaCommandHarness(oldVideo);
+  const oldProbe = await vm.runInNewContext(buildBrowserMediaProbeScript(), oldDoc.context);
+  assert.match(String(oldProbe.docToken || ''), /^doc-/);
+  // Gezinme: aynı frame yeni belgeyi barındırıyor — yeni window + yeni controller.
+  const newVideo = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 77, duration: 200 };
+  const newDoc = mediaCommandHarness(newVideo);
+  const staleSeek = await vm.runInNewContext(
+    buildBrowserMediaCommandScript('seek', 1, oldProbe.docToken), newDoc.context);
+  assert.deepEqual(staleSeek, { handled: false, stale: true },
+    'eski belgenin tokeni yeni belgede mutasyona izin vermemeli');
+  assert.equal(newVideo.currentTime, 77, 'yeni belgenin videosu seek edilmemeli');
+  // Aynı belge: token eşleşir, komut uygulanır.
+  const applied = await vm.runInNewContext(
+    buildBrowserMediaCommandScript('seek', 42, oldProbe.docToken), oldDoc.context);
+  assert.equal(applied.handled, true);
+  assert.equal(oldVideo.currentTime, 42);
+  // Geriye uyumluluk: token verilmezse komut eskisi gibi çalışır.
+  const legacy = await vm.runInNewContext(
+    buildBrowserMediaCommandScript('seek', 9), oldDoc.context);
+  assert.equal(legacy.handled, true);
+  assert.equal(oldVideo.currentTime, 9);
+});
+
+asyncTest('R51-13: medya tercihi de belge tokenine bağlıdır', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,
+    playbackRate: 1, preservesPitch: true, style: {} };
+  const first = mediaCommandHarness(video);
+  const probeResult = await vm.runInNewContext(buildBrowserMediaProbeScript(), first.context);
+  const foreign = mediaCommandHarness(video);
+  const refused = await vm.runInNewContext(
+    buildBrowserMediaPreferenceScript({ rate: 2 }, probeResult.docToken), foreign.context);
+  assert.deepEqual(refused, { handled: false, stale: true });
+  const applied = await vm.runInNewContext(
+    buildBrowserMediaPreferenceScript({ rate: 2 }, probeResult.docToken), first.context);
+  assert.equal(applied.handled, true);
 });
 
 test('every supported media command produces valid JavaScript', () => {
@@ -247,7 +290,10 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
   const broken = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
     clientWidth: 800, clientHeight: 450, currentTime: Infinity, duration: NaN,
     volume: Infinity, playbackRate: NaN };
-  assert.deepEqual(probe([broken]), {
+  const brokenProbe = probe([broken]);
+  assert.match(String(brokenProbe.docToken || ''), /^doc-/, 'probe belge tokeni taşımalı');
+  delete brokenProbe.docToken;
+  assert.deepEqual(brokenProbe, {
     currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
     volume: 0, playbackRate: 1, area: 360000, bounds: null, adPlaying: false,
     readyState: 0, videoWidth: 0, videoHeight: 0, totalVideoFrames: null,
@@ -339,6 +385,67 @@ test('tam ekran ham video yerine altyazıyı taşıyabilen oynatıcı kapsayıc�
   assert.match(script, /video\.closest\('\.html5-video-player/);
   assert.match(script, /target\.requestFullscreen/);
   assert.doesNotMatch(script, /else await video\.requestFullscreen/);
+});
+
+test('R51-36: OSD scripti sayfa içinde görünür aria-live bildirim oluşturur ve yeniden kullanır', () => {
+  const appended = [];
+  const document = {
+    getElementById: (id) => appended.find((e) => e.id === id) || null,
+    createElement: () => {
+      const el = { id: '', attrs: {}, style: {}, textContent: '' };
+      el.setAttribute = (k, v) => { el.attrs[k] = v; };
+      return el;
+    },
+    body: { appendChild: (node) => appended.push(node) },
+    documentElement: { appendChild: (node) => appended.push(node) },
+  };
+  const timers = [];
+  const sandbox = {
+    document, window: {},
+    requestAnimationFrame: (fn) => fn(),
+    clearTimeout: () => {},
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+  };
+  const first = vm.runInNewContext(buildBrowserOsdScript('Hız: 1.5×', 1400), sandbox);
+  assert.deepEqual(first, { handled: true });
+  assert.equal(appended.length, 1);
+  const el = appended[0];
+  assert.equal(el.id, '__whisper-osd');
+  assert.equal(el.attrs.role, 'status');
+  assert.equal(el.attrs['aria-live'], 'polite');
+  assert.equal(el.textContent, 'Hız: 1.5×');
+  assert.match(el.style.cssText, /position:fixed/);
+  assert.match(el.style.cssText, /z-index:2147483647/);
+  assert.equal(el.style.opacity, '1');
+  assert.equal(timers.at(-1).ms, 1400);
+  // İkinci bildirim yeni düğüm açmaz; mevcut düğüm güncellenir
+  const second = vm.runInNewContext(buildBrowserOsdScript('Ses: %80'), sandbox);
+  assert.deepEqual(second, { handled: true });
+  assert.equal(appended.length, 1);
+  assert.equal(el.textContent, 'Ses: %80');
+  // Süre sınırları: 300-5000 ms arasına kenetlenir
+  vm.runInNewContext(buildBrowserOsdScript('x', 999999), sandbox);
+  assert.equal(timers.at(-1).ms, 5000);
+  vm.runInNewContext(buildBrowserOsdScript('x', 1), sandbox);
+  assert.equal(timers.at(-1).ms, 300);
+});
+
+test('R51-36: renderer OSD browser modunda sayfa içi bildirime yönlendirir', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const osdStart = renderer.indexOf('function osd(text, ms)');
+  const osdBody = renderer.slice(osdStart, osdStart + 1200);
+  assert.match(osdBody, /workspaceMode === 'browser'/);
+  assert.match(osdBody, /browserCommand\('osd'/);
+  const cmdStart = main.indexOf("ipcMain.handle('browser:command'");
+  const cmdBody = main.slice(cmdStart, main.indexOf('ipcMain.handle(', cmdStart + 20));
+  assert.match(cmdBody, /command === 'osd'/);
+  assert.match(cmdBody, /executeBrowserTrustedMain\(tab\.view, buildBrowserOsdScript/);
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  assert.match(styles, /\.workspace-browser \.player-stage \{ display: none/,
+    'browser modunda sahne gizli — sayfa içi OSD tek görünür kanal');
 });
 
 test('Picture-in-Picture desteklenmiyorsa kullanıcıya açık hata döner', () => {

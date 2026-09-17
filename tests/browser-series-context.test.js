@@ -50,5 +50,15 @@ try {
   fs.writeFileSync(corruptedPath, '{not-json');
   assert.throws(() => createBrowserSeriesContext({ filePath: corruptedPath }).get(episode1), /korunuyor/);
   assert.equal(fs.readFileSync(corruptedPath, 'utf8'), '{not-json');
+  // R51-50: bozuk çeviri zamanları (tüm satırlar tüm ekseni kapsar) örtüşme
+  // taramasını O(cue×çeviri)'ye düşürmemeli — 10k×10k deterministik sınır.
+  const degenerate = Array.from({ length: 10000 }, () => ({ start: 0, end: 86400, text: 'Kaptan' }));
+  const wideCues = Array.from({ length: 10000 }, (_, i) => ({ start: i * 8, end: i * 8 + 4, text: 'Captain' }));
+  const t0 = Date.now();
+  const wide = store.check(episode2, { cues: wideCues, translations: degenerate });
+  const elapsed = Date.now() - t0;
+  assert.equal(wide.checked, 10000);
+  assert.equal(wide.issues.length, 0, 'terim örtüşen çeviride bulunmalı');
+  assert.ok(elapsed < 5000, `bozuk zamanlı tarama ${elapsed}ms sürdü (sınır 5000)`);
   console.log('browser-series-context: persistence, scope and review checks passed');
 } finally { fs.rmSync(directory, { recursive: true, force: true }); }

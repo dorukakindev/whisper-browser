@@ -446,6 +446,15 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         finishRender();
         return;
       }
+      // JASSUB/ASS canvas'ı aktifken DOM altyazısı da çizilirse metin çift
+      // görünür. ASS durumu detach sırasında null'a indiği için sonraki
+      // render'da katman kendiliğinden geri döner.
+      if (globalThis.__whisperAssState) {
+        if (root) root.style.display = 'none';
+        cancelFrame();
+        finishRender();
+        return;
+      }
       const box = ensureRoot();
       const activeMedia = discoverMedia();
       if (!activeMedia) {
@@ -496,6 +505,17 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         ? translationCues.map((cue) => cue.text).join('\\n') : '';
       if (source.textContent !== sourceText) source.textContent = sourceText;
       if (translation.textContent !== translationText) translation.textContent = translationText;
+      // Dikey VTT cue'ları (vertical:rl/lr — geleneksel CJK altyazısı) yatay
+      // basılırsa okunamaz. Tüm aktif cue'lar aynı yazım yönünü taşıyorsa
+      // öğeye uygula; karışık içerikte varsayılan yatay kalsın. line/position/
+      // region ayarları kasıtlı uygulanmaz — katmanın kendi konum modeli var.
+      const applyWritingMode = (el, list) => {
+        const mode = list.length && list.every((cue) => cue && cue.writingMode === list[0].writingMode)
+          ? String(list[0].writingMode || '') : '';
+        el.style.writingMode = mode === 'rl' ? 'vertical-rl' : mode === 'lr' ? 'vertical-lr' : '';
+      };
+      applyWritingMode(source, sourceCues);
+      applyWritingMode(translation, translationCues);
       const scale = Math.max(.65, Math.min(1.8, Number(style.scale) || 1));
       const rawOpacity = Number(style.opacity);
       const opacity = Math.max(0, Math.min(1, Number.isFinite(rawOpacity) ? rawOpacity : .82));
@@ -533,6 +553,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
 
     window.__whisperBrowserOverlayController = {
       enableFullscreenControls,
+      render,
       update(value) {
         // Yeni cue listesi önceki listenin sınır zamanlayıcısını geçersiz kılar.
         cancelFrame();

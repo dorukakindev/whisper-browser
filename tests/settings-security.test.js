@@ -119,6 +119,40 @@ test('main import/export ve Python env çağrı yolları güvenli yardımcılara
   assert.match(main, /pythonEnvWithRuntime\([\s\S]*withoutSecretEnv\(process\.env\)/);
 });
 
+test('R51-43: yardımcı alt süreç modülleri sır-env temizliğini atlayamaz', () => {
+  const helpers = [
+    'browser-reference-media.js',
+    'browser-video-analysis.js',
+    'browser-alignment.js',
+    'browser-media-tools.js',
+    'nmdb-catalog-import.js',
+  ];
+  for (const name of helpers) {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'src', name), 'utf8');
+    const spawnCalls = [...source.matchAll(/\bspawn\s*\(/g)]
+      .filter((m) => !/require\('node:child_process'\)/.test(source.slice(Math.max(0, m.index - 80), m.index)));
+    assert.ok(spawnCalls.length > 0, `${name}: spawn çağrısı bulunamadı`);
+    assert.match(source, /require\('\.\/settings-security'\)/, `${name}: withoutSecretEnv içe aktarılmamış`);
+    assert.match(source, /withoutSecretEnv\(process\.env\)/, `${name}: spawn env'i temizlenmiyor`);
+    for (const m of spawnCalls) {
+      const slice = source.slice(m.index, m.index + 600);
+      const callText = slice.slice(0, slice.indexOf('});') + 2);
+      assert.match(callText, /\benv\b/, `${name}: env'siz spawn kaldı`);
+    }
+  }
+  // withoutSecretEnv bilinen üç sır adını büyük/küçük harf duyarsız siler
+  const { withoutSecretEnv } = require('../src/settings-security');
+  const scrubbed = withoutSecretEnv({
+    WHISPER_HF_TOKEN: 'a', whisper_translate_api_key: 'b', WHISPER_LLM_API_KEY: 'c',
+    PATH: 'x', NORMAL: 'y',
+  });
+  assert.strictEqual(scrubbed.WHISPER_HF_TOKEN, undefined);
+  assert.strictEqual(scrubbed.whisper_translate_api_key, undefined);
+  assert.strictEqual(scrubbed.WHISPER_LLM_API_KEY, undefined);
+  assert.strictEqual(scrubbed.PATH, 'x');
+  assert.strictEqual(scrubbed.NORMAL, 'y');
+});
+
 test('secret sentinel yalnız child env içinde kalır; argv, export ve görünür sonuçlarda yoktur', () => {
   const secrets = {
     hf: 'SENTINEL_HF_31_a91f',
@@ -596,6 +630,64 @@ test('bozuk ve yarım import, mevcut ayar dosyasını değiştirmeden başarıs�
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('R51-08: içe aktarılan clearedSecretFields kasa anahtarını gizleyemez', () => {
+  const existing = safeSettings();
+  // Kasa anahtarının yerel kayıt yolundaki hali: publicSettings sır içermez,
+  // mevcut ayarlar anahtarı taşır. İçe aktarılan dosya silme işareti gönderiyor.
+  const hostile = JSON.stringify({
+    glossary: ['x'],
+    clearedSecretFields: ['translate.apiKey', 'manga.apiKey', 'llm.apiKey', 'hfToken'],
+  });
+  const imported = parseImportText(hostile, existing);
+  assert.strictEqual(imported.settings.clearedSecretFields, undefined,
+    'içe aktarma silme işaretlerini kabul etmemeli');
+  // mergeSettingsSecrets'e beslendiğinde kasa anahtarı korunmalı
+  const { mergeSettingsSecrets } = require('../src/secret-store');
+  const merged = mergeSettingsSecrets(imported.settings, { 'translate.apiKey': 'kasadaki-anahtar' });
+  assert.strictEqual(merged.translate.apiKey, 'kasadaki-anahtar',
+    'kasa anahtarı içe aktarımla gizlenmemeli');
+  // v3 yedek zarfı içinde de aynı koruma
+  const bundledHostile = JSON.stringify({
+    backupVersion: 3,
+    settings: { clearedSecretFields: ['translate.apiKey'] },
+  });
+  const bundledImported = parseImportText(bundledHostile, existing);
+  assert.strictEqual(bundledImported.settings.clearedSecretFields, undefined,
+    'yedek zarfındaki silme işaretleri de kabul edilmemeli');
+});
+
+test('R51-84: yerel kayıtta tek bozuk UI değeri tüm ayar kaydını reddetmez', () => {
+  // Kullanıcı number input'a aralık dışı değer yazdığında (input.value kenetlemez)
+  // geri kalan tüm tercihler yine de kaydedilmeli.
+  const saved = sanitizeSettings({
+    ui: { subSize: '9999', uiTheme: 'dark', browserOverlayOpacity: '50', splitMode: 'uydurma', translateBaseUrl: 'javascript:x' },
+  }, { allowSecrets: true });
+  assert.strictEqual(saved.ui.subSize, undefined, 'aralık dışı sayı atlanmalı');
+  assert.strictEqual(saved.ui.splitMode, undefined, 'geçersiz enum atlanmalı');
+  assert.strictEqual(saved.ui.translateBaseUrl, undefined, 'geçersiz endpoint atlanmalı');
+  assert.strictEqual(saved.ui.uiTheme, 'dark', 'geçerli alan korunmalı');
+  assert.strictEqual(saved.ui.browserOverlayOpacity, '50', 'geçerli sayı korunmalı');
+  // İçe aktarma katı kalır: aynı dosya bütün olarak reddedilir
+  assert.throws(() => sanitizeSettings({ ui: { subSize: '9999' } }, { allowSecrets: false }),
+    SettingsValidationError);
+  assert.throws(() => sanitizeSettings({ ui: { subSize: '9999' } }),
+    SettingsValidationError, 'varsayılan katı mod');
+  // Tür hatası (kök nesne değil) iki modda da reddedilir
+  assert.throws(() => sanitizeSettings({ ui: 'x' }, { allowSecrets: true }),
+    SettingsValidationError);
+});
+
+test('R51-08: yerel kayıt yolu silme işaretlerini korur ve şekli doğrular', () => {
+  const saved = sanitizeSettings(
+    { clearedSecretFields: ['translate.apiKey', 'bilinmeyen-alan', 'translate.apiKey'] },
+    { allowSecrets: true },
+  );
+  assert.deepStrictEqual(saved.clearedSecretFields, ['translate.apiKey'],
+    'geçerli işaret korunur, bilinmeyen ve tekrar edilir');
+  assert.throws(() => sanitizeSettings({ clearedSecretFields: 'translate.apiKey' }, { allowSecrets: true }),
+    SettingsValidationError, 'dizi olmayan işaret listesi reddedilir');
 });
 
 console.log(`\n${passed} settings güvenlik testi geçti${process.exitCode ? ' (başarısız test var)' : ''}`);

@@ -234,6 +234,7 @@ test('ana gezinme öncesi debugger ve bekleyen yakalama durumu askıya alınır'
     browserTrackBusy: true,
     browserDebuggerAttachAttempts: attachAttempts,
     browserPendingResponses: pendingResponses,
+    browserRequestRanges: new Map(),
     clearBrowserCloudflareTimer: () => { cleared += 1; },
     detachBrowserDebugger: () => { detached += 1; },
   });
@@ -281,6 +282,7 @@ void (async () => {
       browserCaptureHookFrames: new WeakSet(),
       browserDebuggerAttachAttempts: new WeakMap([[webContents, Promise.resolve()]]),
       browserPendingResponses: new Map([['old-request', {}]]),
+      browserRequestRanges: new Map(),
       browserTabById: (id) => id === tab?.id ? tab : null,
       browserCloudflareChallengeProbeScript: () => 'probe',
       browserCaptureUninstallScript: () => 'uninstall',

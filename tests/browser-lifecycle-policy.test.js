@@ -33,4 +33,49 @@ assert.equal(subtitleRequestRetryPolicy({ status: 429, retryAfterMs: 4200, attem
 assert.equal(subtitleRequestRetryPolicy({ status: 503, attempt: 1 }).delayMs, 1000);
 assert.equal(subtitleRequestRetryPolicy({ retryable: true, attempt: 2 }).delayMs, 3000);
 
+// R51-46: çökme yeniden-deneme zamanlayıcısı sekmeye yazılır ve unload/close
+// yolu onu temizler; boşaltılmış sekme crash retry ile dirilmez.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const crashStart = main.indexOf("wc.on('render-process-gone'");
+  const crashBody = main.slice(crashStart, crashStart + 3600);
+  assert.match(crashBody, /tab\.crashRecoveryTimer = setTimeout/,
+    'crash retry zamanlayıcısı sekmeye yazılmıyor');
+  assert.match(crashBody, /tab\.lifecycle === 'unloaded' \|\| tab\.lifecycle === 'unloading'/,
+    'crash retry boşaltılmış sekmeyi diriltebilir');
+  const unloadStart = main.indexOf('async function unloadBrowserTab(');
+  const unloadBody = main.slice(unloadStart, unloadStart + 3200);
+  assert.match(unloadBody, /clearTimeout\(tab\.crashRecoveryTimer\)/,
+    'unloadBrowserTab crash retry zamanlayıcısını temizlemiyor');
+  const destroyStart = main.indexOf('function destroyBrowserTab(');
+  const destroyBody = main.slice(destroyStart, destroyStart + 1600);
+  assert.match(destroyBody, /clearTimeout\(tab\.crashRecoveryTimer\)/,
+    'destroyBrowserTab crash retry zamanlayıcısını temizlemiyor');
+}
+
+// R51-47: browser:show view kuramayınca bu çağrının ürettiği boş sekme kaydı
+// kalmasın — yoksa oturum dosyasına "hayalet sekme" yazılır.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const showStart = main.indexOf("ipcMain.handle('browser:show'");
+  const showBody = main.slice(showStart, showStart + 1600);
+  assert.match(showBody, /createdHere = !!tab/, 'browser:show kaydın kim tarafından üretildiğini izlemiyor');
+  assert.match(showBody, /createdHere && tab && !tab\.view && !tab\.restoredUrl[\s\S]{0,120}destroyBrowserTab\(tab\)/,
+    'view kurulamayan yeni kayıt yok edilmiyor — hayalet sekme riski');
+}
+
+// R51-91: mini-player kapanışında ana pencereye geri bağlama, ana pencere
+// kapanırken native addChildView fırlatırsa süreci düşürmemeli.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const mini = fs.readFileSync(path.join(__dirname, '..', 'src', 'browser-mini-player.js'), 'utf8');
+  assert.match(mini, /main && !main\.isDestroyed\(\)[\s\S]{0,140}try \{ main\.contentView\.addChildView/,
+    'mini-player geri bağlama try/catch korumasız');
+}
+
 console.log('Tarayıcı yaşam döngüsü: retry sınıfları ve çökme neden politikası geçti.');

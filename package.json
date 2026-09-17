@@ -9,6 +9,7 @@
     "dev": "electron . --dev",
     "test": "node tests/run-all.js",
     "test:electron-bridge": "electron tests/electron-browser-trusted-bridge.smoke.js --disable-gpu",
+    "test:electron": "node tests/run-electron-smokes.js",
     "test:soak": "node tests/run-resource-soak.js",
     "audit:subtitle-pair": "node tools/audit-subtitle-pair.js",
     "compare:subtitle-translations": "node tools/compare-subtitle-translations.js",

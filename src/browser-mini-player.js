@@ -42,7 +42,10 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
         window = null; tab = null;
         if (currentTab.view && !currentTab.view.webContents.isDestroyed() && !currentTab.closing) {
           const main = owner();
-          if (main && !main.isDestroyed()) { main.contentView.addChildView(currentTab.view); restore(); }
+          // Kapanan ana pencerede addChildView native tarafta fırlayabilir.
+          if (main && !main.isDestroyed()) {
+            try { main.contentView.addChildView(currentTab.view); restore(); } catch (_) {}
+          }
         }
       });
       window.loadFile(path.join(__dirname, 'renderer', 'browser-mini.html'));

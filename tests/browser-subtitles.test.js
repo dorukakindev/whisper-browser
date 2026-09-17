@@ -984,7 +984,11 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(main, /parseMp4WebVtt\(partBuffer, matcher\)/);
   assert.match(main, /fetchBrowserBufferWithRetry\(segment\.initializationUrl[\s\S]{0,160}range\)/);
   assert.match(main, /const manifestHandled = !manifestRetryNeeded[\s\S]{0,100}ceaMatcherCount > 0/);
-  assert.match(main, /matchHlsCeaSegmentUrl\(response\.url, browserHlsCeaSegmentMatchers, response\.headers\)/);
+  assert.match(main, /matchHlsCeaSegmentUrl\(response\.url, browserHlsCeaSegmentMatchers,[\s\S]{0,120}response\.headers, \{ seen: !!requestInfo/);
+  // R51-17/A2: isteğin Range başlığı requestWillBeSent'te saklanır ve yanıt
+  // Content-Range taşımadığında eşleyiciye verilir; belirsizlikte eşleşme reddedilir.
+  assert.match(main, /method === 'Network\.requestWillBeSent'/);
+  assert.match(main, /browserRequestRanges\.set\(`\$\{sessionId \|\| 'root'\}:\$\{params\.requestId\}`, \{ range \}\)/);
   assert.match(main, /captureBrowserHlsCeaSegment\(responseBuffer, candidate, context\)/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);

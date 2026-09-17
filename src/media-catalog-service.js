@@ -134,10 +134,26 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const item = found(input.id);
           const episode = input.episodeId ? item.episodes.find(ep => ep.id === input.episodeId) : null;
           if (input.episodeId && !episode) throw new Error('Bölüm bulunamadı.');
-          const source = episode ? episode.source : item.source;
+          let source = episode ? episode.source : item.source;
           if (!source) throw new Error('Önce video dosyası veya browser bağlantısı ekleyin.');
           let value = source.value;
-          if (source.type === 'local') { value = inspectMedia(value); if (!grantMedia(value)) throw new Error('Video dosyası açılamadı.'); }
+          if (source.type === 'local') {
+            if (source.imported === true) {
+              // Paketten gelen yol bu makinede seçilmedi: sessiz grant yerine
+              // kullanıcıya dosyayı bir kez gösterip seçimini al.
+              const picked = await choose('İçe aktarılan kayıt için video dosyasını doğrulayın', ['mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v', 'ts']);
+              if (!picked) return { ok: false, canceled: true };
+              value = inspectMedia(picked);
+              const patched = patchSource(input.id, input.episodeId || null,
+                { type: 'local', value, watchKey: sourceKey({ type: 'local', value }) });
+              const refreshed = input.episodeId
+                ? patched.episodes.find(ep => ep.id === input.episodeId)?.source
+                : patched.source;
+              source = refreshed || source;
+            }
+            value = inspectMedia(value);
+            if (!grantMedia(value)) throw new Error('Video dosyası açılamadı.');
+          }
           else {
             const url = new URL(value);
             if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Video bağlantısı geçersiz.');

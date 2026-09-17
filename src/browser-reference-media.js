@@ -1,10 +1,11 @@
 'use strict';
 const { spawn } = require('node:child_process');
+const { withoutSecretEnv } = require('./settings-security');
 
 function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, timeout = 120000, consume } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
-    const child = spawn(executable, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(executable, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: withoutSecretEnv(process.env) });
     const chunks = []; let bytes = 0, errorText = '', settled = false;
     const finish = (error, output) => {
       if (settled) return;

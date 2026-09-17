@@ -4,11 +4,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { withoutSecretEnv } = require('./settings-security');
 
 function run(executable, args, input, signal, timeoutMs = 120000) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('Video analizi iptal edildi.'));
-    const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: withoutSecretEnv(process.env) });
     const chunks = []; let count = 0; let stderr = ''; let finished = false; let stopped = null;
     const finish = (error, result) => {
       if (finished) return;

@@ -124,26 +124,58 @@ function contentRangeOf(headers = {}) {
   return null;
 }
 
-function matchHlsCeaSegmentUrl(url, matchers = [], headers = null) {
+function matchHlsCeaSegmentUrl(url, matchers = [], headers = null, request = null) {
   const key = ceaUrlKey(url);
   // EXT-X-BYTERANGE parçaları aynı URL'i paylaşır; ayırt edici bilgi yanıtın
-  // Content-Range başlığındadır. Aralık biliniyorsa yalnız birebir eşleşme kabul
-  // edilir — son kayda çökmek tüm aralıkların aynı parçaya bağlanmasına yol açardı.
-  const range = headers ? contentRangeOf(headers) : null;
-  let last = null;
-  let lastPlain = null;
-  for (let index = matchers.length - 1; index >= 0; index--) {
-    const matcher = matchers[index];
-    if (matcher?.urlKey !== key) continue;
-    last = matcher;
-    if (!matcher.byteRange) lastPlain = matcher;
-    if (range && matcher.byteRange
-        && matcher.byteRange.start === range.start && matcher.byteRange.end === range.end) {
-      return matcher;
-    }
+  // Content-Range başlığı ya da isteğin Range başlığıdır. Content-Range her
+  // zaman yetkilidir; istekteki Range ancak 206 yanıtında yanıt aralığının
+  // yerine geçer — 200 alınmışsa sunucu Range'i yok saymıştır ve gövde tam
+  // dosyadır, bir byte-range parçasına bağlanamaz.
+  const responseRange = headers ? contentRangeOf(headers) : null;
+  const requestRange = request && request.range ? request.range : null;
+  const status = request ? Number(request.status) || 0 : 0;
+  const range = responseRange || (status === 206 ? requestRange : null);
+  const candidates = [];
+  for (const matcher of matchers) {
+    if (matcher?.urlKey === key) candidates.push(matcher);
   }
-  if (range) return lastPlain;
-  return last;
+  if (!candidates.length) return null;
+  if (range) {
+    return candidates.find((matcher) => matcher.byteRange
+        && matcher.byteRange.start === range.start && matcher.byteRange.end === range.end)
+      || candidates.find((matcher) => !matcher.byteRange) || null;
+  }
+  const plain = candidates.filter((matcher) => !matcher.byteRange);
+  const ranged = candidates.length - plain.length;
+  if (!ranged) return candidates[candidates.length - 1];
+  if (request && request.seen) {
+    // İstek gözlendi: Range'siz istek veya 200 yanıt gövde tam dosyadır;
+    // yalnız düz parça adayı kabul edilir. Aralık istenip yanıt aralığı
+    // doğrulanamadıysa hangi parçanın geldiği bilinemez — kapalı kal.
+    if (status !== 206 && (!requestRange || status)) {
+      return plain.length ? plain[plain.length - 1] : null;
+    }
+    if (status !== 206) return null;
+  }
+  // Ne istek ne yanıt aralık bilgisi taşımıyorsa birden çok byte-range
+  // adayından birini tahmin etmek altyazıları yanlış zaman çizgisine
+  // yerleştirir. Rastgele son adaya bağlanmak yerine eşleşmeyi reddet.
+  if (ranged > 1 || plain.length) return null;
+  return candidates[0];
+}
+
+function ceaStreamMatchesInstream(instreamId, stream) {
+  // Manifest INSTREAM-ID'si 608 izleri için CC1-CC4, 708 hizmetleri için
+  // SERVICE1-63 taşır; mux.js çözülen cue'ları CC* ya da "cc708_<n>" olarak
+  // etiketler. Düz karşılaştırma SERVICE1 ≠ CC708_1 olduğundan 708 izleri
+  // sessizce düşüyordu — iki adlandırma burada eşlenir.
+  const instream = String(instreamId || '').toUpperCase();
+  const decoded = String(stream || '').toUpperCase();
+  if (!instream || !decoded) return false;
+  if (instream === decoded) return true;
+  const service = instream.match(/^SERVICE(\d+)$/);
+  if (service) return decoded === `CC708_${Number(service[1])}`;
+  return false;
 }
 
 function isLikelyMpegTsResponse(response = {}) {
@@ -179,6 +211,7 @@ module.exports = {
   CeaCaptionDecoder,
   buildHlsCeaSegmentMatchers,
   captionToCue,
+  ceaStreamMatchesInstream,
   ceaUrlKey,
   decryptHlsAes128,
   hlsAes128Iv,

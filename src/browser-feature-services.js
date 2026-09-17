@@ -100,13 +100,14 @@ function registerBrowserFeatureServices(deps) {
       ]).catch(() => null) })));
     const best = rankCandidates(found)[0];
     if (!best) throw new Error('Sayfada görünür video bulunamadı.');
-    return best.frame;
+    return best;
   }
   const mini = createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore: restoreLayout,
     command: async (tab, command, value) => {
       try {
         if (tab !== activeTab()) throw new Error('Etkin sekme değişti.');
-        const media = await (await bestFrame(tab)).executeJavaScript(commandScript(command, value), true);
+        const best = await bestFrame(tab);
+        const media = await best.frame.executeJavaScript(commandScript(command, value, best.media?.docToken), true);
         return { ok: !!media?.handled, media };
       } catch (error) { return { ok: false, error: error.message }; }
     } });
@@ -265,7 +266,7 @@ function registerBrowserFeatureServices(deps) {
             fonts = await require('./browser-fonts').extractFonts(video, ffmpegPath(), ffprobePath(), controller.signal); assertCurrent();
             if (!fonts.length) throw new Error('MKV dosyasında font eki bulunamadı; fontları ayrı seçebilirsiniz.');
           }
-          const frame = await bestFrame(tab); assertCurrent();
+          const frame = (await bestFrame(tab)).frame; assertCurrent();
           const operationId = randomUUID();
           const ass = require('./browser-ass-renderer');
           const abort = () => { try { void frame.executeJavaScript(ass.buildAssClearScript(operationId), true).catch(() => {}); } catch {} };

@@ -563,7 +563,10 @@ function mangaVisibilityScript(visible) {
     const state = window.__whisperMangaOverlay;
     if (!state || !state.overlays) return 0;
     state.visible = ${visible ? 'true' : 'false'};
-    for (const overlay of state.overlays.values()) overlay.style.display = state.visible ? '' : 'none';
+    for (const overlay of state.overlays.values()) {
+      if (state.visible) overlay.style.removeProperty('display');
+      else overlay.style.setProperty('display', 'none', 'important');
+    }
     if (state.editor) state.editor.style.display = state.visible ? '' : 'none';
     return state.overlays.size;
   })()`;
@@ -684,15 +687,23 @@ function mangaOverlayScript(payload) {
           if (!target || !target.isConnected) {
             overlay.remove(); state.overlays.delete(id); state.imageById.delete(id); state.visibleImages.delete(id); continue;
           }
+          // Sayfa katman düğümünü kaldırdıysa (temizlik/anti-tamper scriptleri)
+          // görsel hâlâ duruyorken katmanı geri bağla; yoksa çeviri sessizce
+          // kaybolur ve mangaTranslated sayacı yanıltıcı kalır.
+          if (!overlay.isConnected) (document.body || document.documentElement)?.appendChild(overlay);
           const rect = target.getBoundingClientRect();
           // Viewport koordinatları iç kaydırmalı/transform uygulanmış manga
           // okuyucularında da görselle aynı referans düzlemini kullanır.
-          overlay.style.left = rect.left + 'px';
-          overlay.style.top = rect.top + 'px';
-          overlay.style.width = rect.width + 'px';
-          overlay.style.height = rect.height + 'px';
-          overlay.style.visibility = rect.width > 1 && rect.height > 1 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth
-            ? 'visible' : 'hidden';
+          // Kritik konum stilleri important ile yazılır — sayfanın kendi
+          // important kuralları (anti-overlay/çerez-duvarı CSS'i) satır
+          // içi stilleri ezmesin.
+          overlay.style.setProperty('left', rect.left + 'px', 'important');
+          overlay.style.setProperty('top', rect.top + 'px', 'important');
+          overlay.style.setProperty('width', rect.width + 'px', 'important');
+          overlay.style.setProperty('height', rect.height + 'px', 'important');
+          overlay.style.setProperty('visibility',
+            rect.width > 1 && rect.height > 1 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth
+              ? 'visible' : 'hidden', 'important');
           if (overlay.style.visibility !== 'visible' && !state.visibleImages.has(id)) continue;
           for (const group of overlay.querySelectorAll('[data-whisper-manga-region]')) {
             const region = group.querySelector('[data-whisper-manga-frame]');
@@ -870,6 +881,9 @@ function mangaOverlayScript(payload) {
           return button;
         };
         let onOutsidePointerDown = null;
+        // Taslak, kaydedilmiş çeviriden farklıysa yanlışlıkla dışarı tıklama veya
+        // Esc metni silmesin; atmak için 'Kapat' düğmesi bilinçli seçilmelidir.
+        const dirty = () => area.value.trim() !== (group.dataset.translation || '');
         const close = () => {
           if (onOutsidePointerDown) document.removeEventListener('pointerdown', onOutsidePointerDown, true);
           editor.remove();
@@ -878,12 +892,14 @@ function mangaOverlayScript(payload) {
           frame.style.removeProperty('outline');
         };
         onOutsidePointerDown = (event) => {
-          if (event.isTrusted && !editor.contains(event.target)) close();
+          if (event.isTrusted && !editor.contains(event.target) && !dirty()) close();
         };
         document.addEventListener('pointerdown', onOutsidePointerDown, true);
         editor.addEventListener('keydown', (event) => {
           if (event.isTrusted && event.key === 'Escape') {
-            event.preventDefault(); event.stopPropagation(); close();
+            event.preventDefault(); event.stopPropagation();
+            if (dirty()) { area.focus(); return; }
+            close();
           }
         });
         buttons.appendChild(makeButton('Geri al', false, () => {
@@ -932,8 +948,15 @@ function mangaOverlayScript(payload) {
     if (previous) previous.remove();
     const overlay = document.createElement('div');
     overlay.setAttribute('data-whisper-manga-overlay', payload.id);
-    Object.assign(overlay.style, { position: 'fixed', zIndex: '2147483000', pointerEvents: 'none', overflow: 'hidden',
-      display: state.visible ? '' : 'none', fontFamily: payload.fontStack, contain: 'layout paint style' });
+    // Sayfanın important kuralları satır içi stilleri ezebildiği için
+    // katmanın kritik stilleri setProperty('important') ile yazılır.
+    overlay.style.setProperty('position', 'fixed', 'important');
+    overlay.style.setProperty('z-index', '2147483000', 'important');
+    overlay.style.setProperty('pointer-events', 'none', 'important');
+    overlay.style.setProperty('overflow', 'hidden', 'important');
+    overlay.style.setProperty('contain', 'layout paint style', 'important');
+    overlay.style.setProperty('font-family', payload.fontStack);
+    if (!state.visible) overlay.style.setProperty('display', 'none', 'important');
     payload.regions.forEach((item, index) => {
       const [ty1, tx1, ty2, tx2] = item.textBox;
       const [by1, bx1, by2, bx2] = item.bubbleBox;

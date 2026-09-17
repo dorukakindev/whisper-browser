@@ -184,4 +184,20 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(renderer, /result\.captureEnabled !== player\.browserCaptureEnabled/);
 });
 
+test('R51-15: medya komutu mutasyondan önce sekme bağlamını yeniden doğrular', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+  const start = main.indexOf("ipcMain.handle('browser:command'");
+  const end = main.indexOf("ipcMain.handle(", start + 20);
+  const body = main.slice(start, end);
+  const loopStart = body.indexOf('for (const candidate of rankBrowserMediaCandidates(candidates))');
+  assert.ok(loopStart > 0, 'medya komut döngüsü bulunamadı');
+  const guardIdx = body.indexOf('isCurrentBrowserContext(context)', loopStart);
+  const mutateIdx = body.indexOf('.executeJavaScript(command ===', loopStart);
+  assert.ok(guardIdx > loopStart, 'döngü içinde bağlam denetimi yok');
+  assert.ok(guardIdx < mutateIdx, 'bağlam denetimi mutasyondan önce olmalı');
+  // Sonuç reddi (eski davranış) hâlâ mutasyon sonrası son savunma olarak duruyor
+  assert.ok(body.indexOf('isCurrentBrowserContext(context)', mutateIdx) > mutateIdx,
+    'mutasyon sonrası sonuç reddi korunmalı');
+});
+
 console.log(`browser-tabs: ${passed} test`);

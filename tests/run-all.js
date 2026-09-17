@@ -53,4 +53,6 @@ if (py) {
 }
 
 console.log(failed ? `\n${failed} test dosyası BAŞARISIZ` : '\nTüm testler geçti');
+// Electron smoke/soak dosyaları bu paketin parçası değil; envanter ve koşturucu:
+console.log('Not: Electron smoke/soak testleri ayrı koşulur — envanter için: node tests/run-electron-smokes.js');
 process.exit(failed ? 1 : 0);

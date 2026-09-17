@@ -217,6 +217,12 @@ function fixturePython() {
     assert.match(main, /terminateProcessTree/);
     assert.match(main, /recoverOutputTransactions\(pipelineOutputDir, \{ ownerPid: job\.pid \}\)/);
     assert.match(main, /app\.on\('before-quit'/);
+    // R51-57: kapanış işlem ortasında kesilirse açılış süpürmesi ölü sahipli
+    // journalları geri almalı; canlı sahipli journallara dokunulmamalı.
+    assert.match(main, /sweepOrphanOutputTransactions\(\)/, 'açılış süpürmesi bağlanmamış');
+    assert.match(main, /function pidAlive\(pid\)/, 'pid canlılık denetimi yok');
+    assert.match(main, /pidAlive\(ownerPid\)\) continue/, 'canlı sahipli journal elenmiyor');
+    assert.match(main, /recoverOutputTransactions\(dir, \{ ownerPid \}\)/, 'süpürme ownerPid ile geri almıyor');
     assert.match(renderer, /state\.cancelled \|\| event\.cancelled/);
     assert.match(renderer, /event\.cancelTooLate/);
     assert.match(renderer, /event\.cleanupError/);
@@ -230,6 +236,48 @@ function fixturePython() {
     }
     assert.equal((renderer.match(/window\.api\.onEvent\(/g) || []).length, 1,
       'renderer terminal listener birden çok kez kuruluyor');
+  });
+
+  await test('R51-99: done sonrası nonzero exit işi ölü uca bırakmaz, çıktılar korunur', async () => {
+    const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+    const gate = renderer.indexOf("if (event.type === 'exit' && job.awaitingExit)");
+    assert(gate > 0, 'awaitingExit exit dalı bulunamadı');
+    const branch = renderer.slice(gate, gate + 2400);
+    // code!==0 artık erken return ile ölü uca gitmiyor; uyarı düşüp
+    // finishProgressiveJob akışına devam ediyor.
+    const codeBranch = branch.slice(branch.indexOf('if (event.code !== 0)'));
+    const codeBranchBody = codeBranch.slice(0, codeBranch.indexOf('job.awaitingExit = false'));
+    assert.doesNotMatch(codeBranchBody, /return true/,
+      'done sonrası nonzero exit hâlâ erken dönüyor — çıktılar yüklenmez');
+    assert.match(codeBranchBody, /hata koduyla kapandı/, 'nonzero exit uyarı günlüğü yok');
+    assert.match(branch, /continueWhenCurrent\(finishProgressiveJob\)/,
+      'exit sonrası finish akışı korunmuyor');
+    // done öncesi gelen nonzero exit davranışı değişmedi: o başka dalda.
+    assert.match(renderer, /job\.failed = true;\s*job\.awaitingExit = true/);
+  });
+
+  await test('R51-58: eski işin olayı yeni kuyruk işine sızamaz', async () => {
+    const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+    const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+    // Sıralama değişmezi: exit olayı 'close' handler'ının içinde, stdio
+    // tamamen boşaldıktan sonra gönderilir — eski süreçten yeni iş başladıktan
+    // sonra olay gelmesi Node akış modeliyle imkânsız.
+    const closeHandler = main.slice(main.indexOf("activeJob.on('close'"),
+      main.indexOf("activeJob.on('error'"));
+    assert.match(closeHandler, /sendJobEvent\(exitEvent\)/, 'exit close handler dışına taşmış');
+    assert.equal(closeHandler.indexOf('activeJob.stderr.on') < 0, true,
+      'stderr handler close içine kaymış');
+    // jobId'siz giden tek olaylar 'log' tipinde — terminal/done asla kimliksiz
+    // çıkmaz, renderer süzgeci işe yaraması için bu şart.
+    const jobRegion = main.slice(main.indexOf('const sendJobEvent'),
+      main.indexOf("activeJob.on('close'"));
+    for (const match of jobRegion.matchAll(/(?<!Job)sendEvent\(\{([^}]*)\}\)/g)) {
+      if (/jobId/.test(match[1])) continue; // sendJobEvent sarmalayıcısı kimlik ekliyor
+      assert.match(match[1], /type:\s*'log'/, `jobId'siz terminal olay sızıyor: ${match[0]}`);
+    }
+    // Renderer tarafı: kimliği uyuşmayan olay playerJobEvent'e hiç ulaşmaz.
+    assert.match(renderer, /if \(event\.jobId && !eventMatchesActiveJob\(state, event\)\) return/);
+    assert.match(renderer, /state\.activeJobId && state\.activeJobId !== jobId[\s\S]{0,120}busy: true/);
   });
 
   console.log(`\n${passed} pipeline cancel testi geçti, ${failures.length} başarısız.`);

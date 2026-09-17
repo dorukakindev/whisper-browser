@@ -105,6 +105,18 @@ function sanitizeImportedSession(value) {
   }
   return value;
 }
+
+function sanitizeImportedCatalog(value) {
+  // İçe aktarılan katalog kayıtlarındaki yerel dosya yolları bu makinede dosya
+  // seçiciyle doğrulanmadı; 'play' sırasında bir kez yeniden seçim istenir.
+  for (const item of (value && Array.isArray(value.items) ? value.items : [])) {
+    if (item?.source?.type === 'local') item.source.imported = true;
+    for (const episode of (Array.isArray(item?.episodes) ? item.episodes : [])) {
+      if (episode?.source?.type === 'local') episode.source.imported = true;
+    }
+  }
+  return value;
+}
 function validate(data) {
   storageValues(data?.rendererValues);
   if (data?.format !== 'whisper-workspace' || data.version !== 1 || !Array.isArray(data.files) || data.files.length > 20000 || typeof data.sourceRoot !== 'string' || data.sourceRoot.length < 3) throw new Error('Geçerli bir çalışma paketi seçin.');
@@ -135,6 +147,7 @@ function restorePackage(root, data, videoMappings = []) {
     if (file.name.endsWith('.json')) {
       let parsed = rewrite(JSON.parse(bytes.toString('utf8')), mappings);
       if (file.name === 'browser-session.json') parsed = sanitizeImportedSession(parsed);
+      if (file.name === 'media-catalog.json') parsed = sanitizeImportedCatalog(parsed);
       bytes = Buffer.from(JSON.stringify(parsed));
     }
     return { destination, bytes, previous: fs.existsSync(destination) ? fs.readFileSync(destination) : null };

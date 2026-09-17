@@ -4,6 +4,17 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+// CI/ajan oturumları ELECTRON_RUN_AS_NODE=1 ile gelebiliyor; o zaman electron
+// binary saf Node gibi davranır ve require('electron') API yerine yol döner.
+// Sızan değişkeni temizleyip kendini yeniden başlat.
+if (process.env.ELECTRON_RUN_AS_NODE) {
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.ELECTRON_RUN_AS_NODE;
+  const rerun = spawnSync(process.execPath, [__filename, ...process.argv.slice(2)], {
+    stdio: 'inherit', env: cleanEnv, windowsHide: true,
+  });
+  process.exit(rerun.status ?? 1);
+}
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { buildDarkReaderCssScript } = require('../src/browser-dark-mode');
 const { buildBrowserLinkHintsScript } = require('../src/browser-link-hints');

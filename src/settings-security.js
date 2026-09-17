@@ -175,28 +175,43 @@ function endpointSetting(value, label) {
   return text;
 }
 
-function sanitizeUiSettings(ui) {
+function sanitizeUiSettings(ui, { strict = true } = {}) {
   if (!isPlainRecord(ui)) throw new SettingsValidationError('Arayüz ayarları nesne olmalıdır.');
   const clean = {};
   for (const id of PERSIST_VALUE_CONTROLS) {
     if (!Object.prototype.hasOwnProperty.call(ui, id)) continue;
     const value = boundedString(ui[id], `Arayüz ayarı ${id}`, id === 'initialPrompt' ? 20000 : 2048);
     if (UI_ENUMS[id] && !UI_ENUMS[id].includes(value)) {
-      throw new SettingsValidationError(`Arayüz ayarı ${id} geçersiz bir değer içeriyor.`);
+      // Yerel kayıtta (strict=false) tek bozuk kontrol değeri tüm ayar
+      // kaydını öldürmemeli — alan atlanır, diğer tercihler korunur.
+      // İçe aktarımda (strict) bozuk dosya bütün olarak reddedilir.
+      if (strict) throw new SettingsValidationError(`Arayüz ayarı ${id} geçersiz bir değer içeriyor.`);
+      continue;
     }
     if (UI_NUMERIC_RANGES[id]) {
       const number = Number(value);
       const [min, max] = UI_NUMERIC_RANGES[id];
       if (!Number.isFinite(number) || number < min || number > max) {
-        throw new SettingsValidationError(`Arayüz ayarı ${id} ${min}-${max} aralığında olmalıdır.`);
+        if (strict) throw new SettingsValidationError(`Arayüz ayarı ${id} ${min}-${max} aralığında olmalıdır.`);
+        continue;
       }
     }
-    if (id === 'translateBaseUrl' && value) endpointSetting(value, 'Çeviri özel endpoint');
+    if (id === 'translateBaseUrl' && value) {
+      try {
+        endpointSetting(value, 'Çeviri özel endpoint');
+      } catch (error) {
+        if (strict) throw error;
+        continue;
+      }
+    }
     clean[id] = value;
   }
   for (const id of PERSIST_CHECKBOX_CONTROLS) {
     if (!Object.prototype.hasOwnProperty.call(ui, id)) continue;
-    if (typeof ui[id] !== 'boolean') throw new SettingsValidationError(`Arayüz ayarı ${id} doğru/yanlış olmalıdır.`);
+    if (typeof ui[id] !== 'boolean') {
+      if (strict) throw new SettingsValidationError(`Arayüz ayarı ${id} doğru/yanlış olmalıdır.`);
+      continue;
+    }
     clean[id] = ui[id];
   }
   return clean;
@@ -374,7 +389,11 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
     }
     clean.subtitleModelDefault38Applied = input.subtitleModelDefault38Applied;
   }
-  if (Object.prototype.hasOwnProperty.call(input, 'clearedSecretFields')) {
+  // Silme işaretleri yalnız yerel kayıt yolunda anlamlıdır: içe aktarılan dosya
+  // sır taşıyamaz (allowSecrets=false), bu yüzden kasadaki anahtarı gizleyen
+  // işaret de taşıyamaz — aksi halde crafted bir yedek mevcut anahtarları
+  // yeniden girilene dek sessizce devre dışı bırakırdı.
+  if (allowSecrets && Object.prototype.hasOwnProperty.call(input, 'clearedSecretFields')) {
     if (!Array.isArray(input.clearedSecretFields)) {
       throw new SettingsValidationError('Temizlenen gizli alan listesi dizi olmalıdır.');
     }
@@ -382,7 +401,11 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
       .map((item) => boundedString(item, 'Temizlenen gizli alan', 100))
       .filter((item) => SECRET_FIELD_PATHS.includes(item)))];
   }
-  if (Object.prototype.hasOwnProperty.call(input, 'ui')) clean.ui = sanitizeUiSettings(input.ui);
+  // Yerel kayıt (allowSecrets) hoşgörülü: tek bozuk kontrol değeri diğer tüm
+  // tercihlerin kalıcılığını durduramaz. İçe aktarma katı kalır.
+  if (Object.prototype.hasOwnProperty.call(input, 'ui')) {
+    clean.ui = sanitizeUiSettings(input.ui, { strict: !allowSecrets });
+  }
   if (Object.prototype.hasOwnProperty.call(input, 'playerPositions')) clean.playerPositions = sanitizePlayerPositions(input.playerPositions);
   const nextTranslateOpts = { ui: clean.ui, uiKeys: TRANSLATE_UI_ENDPOINT_KEYS, defaultPreset: TRANSLATE_DEFAULT_ENDPOINT };
   const prevTranslateOpts = { ui: existingSettings.ui, uiKeys: TRANSLATE_UI_ENDPOINT_KEYS, defaultPreset: TRANSLATE_DEFAULT_ENDPOINT };

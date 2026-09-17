@@ -50,7 +50,11 @@ function sourceOf(raw) {
     catch { return null; }
   }
   const watchKey = text(raw.watchKey, 2048) || canonicalWatchKey(type === 'local' ? `file:${value}` : `browser:${value}`);
-  return { type, value, watchKey };
+  const source = { type, value, watchKey };
+  // Paket içe aktarımından gelen yerel yollar bu makinede kullanıcı seçiminden
+  // geçmedi; oynatmadan önce bir kez dosya seçiciyle doğrulanır.
+  if (type === 'local' && raw.imported === true) source.imported = true;
+  return source;
 }
 function episodeOf(raw) {
   if (!raw || typeof raw !== 'object') return null;

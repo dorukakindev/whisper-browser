@@ -98,6 +98,9 @@ function buildAssInstallScript(text, operationId, fonts = []) {
       state.renderer?.destroy()?.catch?.(() => {});
       URL.revokeObjectURL(state.workerUrl);
       state.canvas?.remove();
+      // Duraklatılmış videoda DOM altyazısı timeupdate olmadan bekler; ASS
+      // katmanı kalktığında görünürlüğü hemen geri kazanması için tetikle.
+      try { globalThis.__whisperBrowserOverlayController?.render?.(); } catch {}
     };
     video.addEventListener('emptied', state.detach, { once: true });
     globalThis.addEventListener('pagehide', state.pageHide);
@@ -119,6 +122,9 @@ function buildAssInstallScript(text, operationId, fonts = []) {
       await state.renderer.resize(true);
       await state.renderer.manualRender({ mediaTime: video.currentTime, expectedDisplayTime: performance.now(), width: video.videoWidth, height: video.videoHeight }, true);
       if (globalThis.__whisperAssState !== state) { state.detach(); return { ok: false, error: 'ASS yükleme iptal edildi.' }; }
+      // Duraklatılmış videoda DOM altyazısı çizilmeye devam ederdi; JASSUB
+      // canvas'ı ile çakışmasın diye gizlenmesini hemen iste.
+      try { globalThis.__whisperBrowserOverlayController?.render?.(); } catch {}
       return { ok: true, videoWidth: video.videoWidth, videoHeight: video.videoHeight };
     } catch (error) {
       state.detach();

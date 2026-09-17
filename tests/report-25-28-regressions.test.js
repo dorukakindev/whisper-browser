@@ -116,6 +116,11 @@ const sentence = (id, start) => ({
     /const hideTools = \(\) => \{[\s\S]{0,180}restoreView\(state\.hoveredRef\)/);
   assert.match(subtitles, /tailEnd: Number\(list\[list\.length - 1\]\?\.end\)/);
 
+  // R51-24: anlamsal arama sonucu kaynak (altyazı) zamanıdır; seek'e gönderilmeden
+  // video zamanına dönüştürülür — ofsetli/ölçekli senkronda yanlış konuma atlardı.
+  assert.match(features, /subtitleVideoTime\(hit\.start, false\)/,
+    'anlamsal arama tıklaması kaynak zamanı video zamanına çevirmiyor');
+
   console.log('report-25-28-regressions: B1-B15 kapanış senaryoları geçti');
 })().catch((error) => {
   console.error(error);

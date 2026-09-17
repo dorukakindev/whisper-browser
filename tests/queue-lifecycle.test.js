@@ -378,5 +378,61 @@ function shuffle(items, random) {
     assert.throws(() => api.assertQueueInvariants(state), /birden fazla terminale/i);
   });
 
+  await test('R51-28/29: başlatma sırasındaki iptal sahipsiz süreç bırakmaz', () => {
+    const root = path.join(__dirname, '..');
+    const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
+    const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
+
+    // Main: yetkilendirme await'leri sırasında ikinci başlatma engellenir ve
+    // bu pencerede gelen iptal spawn'dan önce uygulanır.
+    assert(/let jobStarting = false;/.test(main), 'jobStarting bayrağı yok');
+    assert(/let jobStartSeq = 0;/.test(main), 'jobStartSeq yok');
+    assert(/let jobCancelSeq = 0;/.test(main), 'jobCancelSeq yok');
+    const startSlice = main.slice(main.indexOf("ipcMain.handle('transcribe:start'"),
+      main.indexOf('activeJob = spawn'));
+    assert(/activeJob \|\| jobStarting/.test(startSlice),
+      'başlatma meşgul kontrolü jobStarting içermiyor — iki eşzamanlı start ikisi de spawn edebilir');
+    assert(/jobCancelSeq === startSeq/.test(startSlice),
+      'spawn öncesi bekleyen iptal kontrolü yok');
+    assert(/cancelled: true/.test(startSlice), 'iptal edilen başlatma cancelled döndürmüyor');
+    assert(/} finally \{\s*jobStarting = false;/.test(startSlice),
+      'jobStarting finally ile temizlenmiyor — erken return bayrağı takılı bırakır');
+
+    const cancelSlice = main.slice(main.indexOf("ipcMain.handle('transcribe:cancel'"),
+      main.indexOf('ipcMain.handle', main.indexOf("ipcMain.handle('transcribe:cancel'") + 40));
+    assert(/if \(jobStarting\) \{ jobCancelSeq = jobStartSeq; return \{ ok: true, deferred: true \}; \}/.test(cancelSlice),
+      'cancel, başlatma havada iken iptali işaretlemiyor');
+    assert(/deferred: true/.test(cancelSlice), 'deferred işareti yok — renderer exit bekleyerek takılır');
+
+    // Renderer: persist await'i sonrası kuyruk canlılığı yeniden doğrulanır
+    // ve iptal edilen başlatma öğeyi hatalı göstermez.
+    const processSlice = renderer.slice(renderer.indexOf('async function processNextQueueItem'),
+      renderer.indexOf('// ===== Helpers ====='));
+    assert(/await persistQueueNow\(\)\)[\s\S]{0,600}!state\.queueRunning \|\| next\.status !== 'running'/.test(processSlice),
+      'persistQueueNow sonrası kuyruk/öğe canlılık kontrolü yok');
+    assert(/r\.cancelled/.test(processSlice), 'iptal edilen başlatma sonucu işlenmiyor');
+    const cancelBtnSlice = renderer.slice(renderer.indexOf('cancelTranscribe().catch'),
+      renderer.indexOf('function finishRun('));
+    assert(/r\.deferred/.test(cancelBtnSlice),
+      'deferred iptal exit bekleyerek UI takılmasına yol açıyor');
+  });
+
+  await test('R51-53: renderer reload çalışan işi activeJobId ile yeniden evlat edinir', () => {
+    const root = path.join(__dirname, '..');
+    const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
+    const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
+    // Ana süreç kuyruk snapshot'ında aktif iş kimliğini yayınlar; yenilenen
+    // renderer onu state.activeJobId'ye geri bağlar — aksi halde çalışan
+    // Python sürecinin olayları kapıdan düşer ve iş sahipsiz görünürdü.
+    assert(/activeJobId: activeQueueItemId \? activeTranscriptionJobId : null/.test(main),
+      'queue snapshot aktif jobId yayınlamıyor');
+    assert(/activeTranscriptionJobId = jobId/.test(main), 'jobId kaydı yok');
+    const restoreStart = renderer.indexOf('async function restorePersistedQueue');
+    const restoreSlice = renderer.slice(restoreStart,
+      renderer.indexOf('_queuePersistenceReady = true', restoreStart) + 200);
+    assert(/restored\.activeJobId/.test(restoreSlice), 'restore activeJobId evlat edinmiyor');
+    assert(/state\.currentQueueId = active\.id/.test(restoreSlice), 'restore currentQueueId bağlamıyor');
+  });
+
   if (!process.exitCode) console.log(`\n${passed} kuyruk lifecycle testi geçti.`);
 })();

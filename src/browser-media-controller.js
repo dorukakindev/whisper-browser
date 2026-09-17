@@ -4,6 +4,11 @@ const { AUDIO_PROFILES, audioLevelDb, nextSilenceState } = require('./browser-au
 function controllerBootstrap() {
   return `(() => {
     if (window.__whisperMediaController) return window.__whisperMediaController;
+    // Belge kimliği: controller window'a bağlı olduğundan gezinme sonrası yeni
+    // belgede yeni token doğar. Probe sonucuyla gelen token'i komut script'i
+    // mutasyondan önce eşler — probe ile komut arasındaki gezinmede eski
+    // belgenin token'i yeni belgede tutmaz ve yanlış videoda seek engellenir.
+    const docToken = 'doc-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
     const media = new Set();
     const observers = new Map();
     let adAudioSnapshot = null;
@@ -390,6 +395,7 @@ function controllerBootstrap() {
         for (const item of media) applyPlaybackPreference(item);
         return { ...playbackPreference };
       },
+      docToken,
       probe() {
         const item = select();
         if (!item) return null;
@@ -416,6 +422,7 @@ function controllerBootstrap() {
         ]);
         const rect = item.getBoundingClientRect?.();
         return {
+          docToken,
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
           paused: !!item.paused,
@@ -467,10 +474,14 @@ function normalizeBrowserMediaPreference(raw = {}) {
   };
 }
 
-function buildBrowserMediaPreferenceScript(raw) {
+function buildBrowserMediaPreferenceScript(raw, expectedDocToken) {
   const safePreference = JSON.stringify(normalizeBrowserMediaPreference(raw));
+  const safeDocToken = expectedDocToken ? JSON.stringify(String(expectedDocToken)) : 'null';
   return `(() => {
     const controller = ${controllerBootstrap()};
+    if (${safeDocToken} && controller.docToken !== ${safeDocToken}) {
+      return { handled: false, stale: true };
+    }
     const preference = controller.configurePlayback(${safePreference});
     return { handled: true, preference, media: controller.probe() };
   })()`;
@@ -483,7 +494,7 @@ function buildBrowserMediaProbeScript() {
   })()`;
 }
 
-function buildBrowserMediaCommandScript(command, value) {
+function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
   const allowedCommands = new Set([
     'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
     'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd',
@@ -495,8 +506,14 @@ function buildBrowserMediaCommandScript(command, value) {
       && !Number.isFinite(Number(value))) return '(async () => false)()';
   const safeCommand = JSON.stringify(String(command || ''));
   const safeValue = JSON.stringify(Number(value) || 0);
+  const safeDocToken = expectedDocToken ? JSON.stringify(String(expectedDocToken)) : 'null';
   return `(async () => {
     const controller = ${controllerBootstrap()};
+    // Probe ile komut arasında sayfa/çerçeve gezinmiş olabilir: token farklı
+    // belgeye aitse bu eval artık eski videoda değil — mutasyonu reddet.
+    if (${safeDocToken} && controller.docToken !== ${safeDocToken}) {
+      return { handled: false, stale: true };
+    }
     const video = controller.select();
     if (!video) return false;
     const command = ${safeCommand};
@@ -565,5 +582,38 @@ function buildBrowserMediaCommandScript(command, value) {
   })()`;
 }
 
+function buildBrowserOsdScript(text, ms) {
+  const safeText = JSON.stringify(String(text || '').slice(0, 200));
+  const duration = Math.max(300, Math.min(5000, Number(ms) || 900));
+  return `(() => {
+    try {
+      let el = document.getElementById('__whisper-osd');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = '__whisper-osd';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.style.cssText = 'position:fixed;left:50%;top:12%;transform:translateX(-50%);'
+          + 'z-index:2147483647;padding:10px 18px;border-radius:10px;'
+          + 'background:rgba(0,0,0,.72);color:#fff;font:600 15px/1.4 system-ui,sans-serif;'
+          + 'letter-spacing:.01em;pointer-events:none;opacity:0;max-width:70vw;text-align:center;'
+          + 'transition:opacity .18s ease,transform .18s ease;';
+        (document.body || document.documentElement).appendChild(el);
+      }
+      el.textContent = ${safeText};
+      clearTimeout(window.__whisperOsdTimer);
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(-50%) translateY(4px)';
+      });
+      window.__whisperOsdTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-50%)';
+      }, ${JSON.stringify(duration)});
+      return { handled: true };
+    } catch (_) { return { handled: false }; }
+  })()`;
+}
+
 module.exports = { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
-  buildBrowserMediaPreferenceScript, normalizeBrowserMediaPreference };
+  buildBrowserMediaPreferenceScript, buildBrowserOsdScript, normalizeBrowserMediaPreference };

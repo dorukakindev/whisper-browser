@@ -25,4 +25,18 @@ const exported=sync.transformCuesForExport(cues,transform);
 assert.equal(exported.length,cues.length);
 assert(Math.abs(exported.at(-1).start-sync.sourceToVideoTime(cues.at(-1).start,transform))<.002);
 assert.equal(cues.at(-1).start,7199.5,'Dışa aktarma kaynak zamanlarını değiştirdi');
+
+// R51-71: zaman çubuğu hover'ı her mousemove'da tüm listeyi taramamalı —
+// son eşleşme ipucu sonraki çağrıya taşınır (ipucu ıskalarsa tam tarama yine doğru).
+assert.match(renderer, /findCueAt\(player\.cues, t - player\.offset, player\.seekHoverIdx \?\? -1\)/,
+  'seek hover taraması ipucu kullanmıyor');
+assert.match(renderer, /player\.seekHoverIdx = i;/, 'seek hover sonucu ipucuna yazılmıyor');
+// Ardışık hover: önceki eşleşme ipucu olarak geçerli ve doğru sonucu korur.
+const hover = Array.from({length: 4000}, (_, i) => ({id: String(i), start: i*2, end: i*2+1.5, text: `c${i}`}));
+let hoverHint = -1;
+for (let n = 0; n < 500; n++) {
+  const t = 100 + n * .01; // aynı bloğun içinde küçük adımlar
+  hoverHint = findCueAt(hover, t, hoverHint);
+}
+assert.equal(hoverHint, findCueAt(hover, 104.99, -1), 'ardışık hover ipucu doğru bloğu kaybetti');
 console.log(`İki saatlik zaman çizelgesi: 14.400 blok, 30.000 seek + boşluk kontrolü ${elapsed.toFixed(0)} ms; drift ve dışa aktarma geçti.`);

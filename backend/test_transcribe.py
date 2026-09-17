@@ -1890,6 +1890,28 @@ def test_normalize_timings():
     assert [item[2] for item in unordered] == ["ilk", "son"]
 
 
+def test_r51_86_nan_times_repaired_before_write():
+    """R51-86: NaN/inf zamanlı blok noktalama onarımına span üretmez,
+    normalize_timings sonrası yazıcılar finite zaman görür."""
+    import math
+    nan_entries = [
+        (0.0, 1.0, "sağlam başlangıç."),
+        (float("nan"), float("nan"), "bozuk zamanlı blok"),
+        (2.0, float("inf"), "sonsuz bitişli blok"),
+        (3.0, 4.0, "sağlam bitiş."),
+    ]
+    # Noktalama bölge bulucu NaN sınırlı span üretmemeli.
+    spans = T.find_unpunctuated_spans(nan_entries, min_words=1, min_dur=0.0)
+    for s, e in spans:
+        assert math.isfinite(s) and math.isfinite(e), f"NaN sınırlı span üretildi: {(s, e)}"
+    out = T.normalize_timings(nan_entries)
+    for s, e, _t in out:
+        assert math.isfinite(s) and math.isfinite(e) and e >= s, f"NaN zaman onarılmadı: {(s, e)}"
+    # Yazıcı katmanı artık exception üretmez — üretim yolu bozulmadı.
+    payload = T.serialize_srt_strict(out)
+    assert "nan" not in payload.lower() and "inf" not in payload.lower()
+
+
 def test_atomic_subtitle_write_preserves_existing_file_on_failure():
     import tempfile
     from pathlib import Path
@@ -3804,6 +3826,36 @@ def test_sentence_groups_hold_ellipsis_and_conjunction_continuations():
     assert T.sentence_groups([
         (0, 1, "Because."), (1, 2, "the door was locked."),
     ]) == [[0, 1]]
+
+
+def test_r51_86_nan_timestamps_never_reach_output_or_span_boundaries():
+    """NaN bir damga noktalama onarımı bölge sınırlarına ya da çıktıya sızamaz."""
+    nan = float("nan")
+    # find_unpunctuated_spans: NaN'lı blok bölge sınırı üretmez ve NaN orta
+    # nokta filtresiyle içerik seçimine de girmez.
+    entries = [(nan, nan, "kelime " * 5)]
+    entries += [(i * 2.0, i * 2.0 + 1.0, "kelime kelime kelime kelime")
+                for i in range(40)]
+    spans = T.find_unpunctuated_spans(entries, min_words=80, min_dur=15.0)
+    assert all(math.isfinite(s) and math.isfinite(e) for s, e in spans), spans
+    # NaN'lı orta noktalı blok bölge içeriğine seçilemez — span kapsasa bile.
+    for s, e in spans:
+        inside = [x for x in entries if s <= (x[0] + x[1]) / 2 <= e]
+        assert all(math.isfinite(x[0]) and math.isfinite(x[1]) for x in inside)
+    # Yazıcılar son savunma: NaN damga dosyaya değil hataya gider.
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            T.write_srt(os.path.join(tmp, "x.srt"),
+                        [(0.0, 1.0, "ok"), (nan, nan, "bozuk")])
+            raise AssertionError("NaN damga SRT'ye yazıldı")
+        except (ValueError, RuntimeError):
+            pass
+        try:
+            T.write_json(os.path.join(tmp, "x.json"),
+                         [(0.0, 1.0, "ok"), (nan, 2.0, "bozuk")])
+            raise AssertionError("NaN damga JSON'a yazıldı")
+        except (ValueError, RuntimeError):
+            pass
 
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
