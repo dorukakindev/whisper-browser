@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-17 08:10 — Turkish subtitle comprehension and A/B quality review](docs/devir/2026-09-17-0810.md).
+Güncel çalışma: [2026-09-17 10:09 — Aktif İşler merkezi, canlı aşamalar ve iş kontrolleri](docs/devir/2026-09-17-1009.md).
+
+Önceki çalışma: [2026-09-17 08:10 — Turkish subtitle comprehension and A/B quality review](docs/devir/2026-09-17-0810.md).
 
 Önceki çalışma: [2026-09-17 07:46 — full-track subtitle translation context](docs/devir/2026-09-17-0746.md).
 
