@@ -25,6 +25,60 @@ function sentenceIdFor(cues) {
   return `sentence:${cues[0].id}:${cues[cues.length - 1].id}:${hash}`;
 }
 
+// Yalnız dilbilgisel olarak önceki parçaya açıkça yaslanan başlangıçlar.
+// And/But/That gibi sözcükler bağımsız yeni cümle de başlatabildiği için burada
+// yer almaz; aksi halde tamamlanmış düşünceler tek istek içinde yanlış birleşir.
+const ENGLISH_DEPENDENT_START = /^(?:which|who|whom|whose|where|to|from|of|by|with|through|into|onto)\b/iu;
+const ENGLISH_POSSESSIVE_LIST_ITEM = /^(?:our|your|their|his|her|its|my)\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}[.!?]$/iu;
+const ENGLISH_LIST_PREDICATE = /^(?:am|are|is|was|were|be|been|being)\b/iu;
+
+function sentenceFromCues(cues) {
+  const text = cues.map((cue) => cue.text).join(' ').replace(/\s+/g, ' ').trim();
+  return {
+    id: sentenceIdFor(cues),
+    start: cues[0].start,
+    end: cues[cues.length - 1].end,
+    text,
+    cueIds: cues.map((cue) => cue.id),
+    speaker: cues[0].speaker,
+    pieces: cues.map((cue) => ({ cueId: cue.id, text: cue.text, start: cue.start, end: cue.end,
+      speaker: cue.speaker })),
+  };
+}
+
+function shouldJoinEnglishFragments(previous, next) {
+  const previousPieces = previous?.pieces || [];
+  const nextPieces = next?.pieces || [];
+  const previousLast = normalizeText(previousPieces.at(-1)?.text || previous?.text);
+  const nextFirst = normalizeText(nextPieces[0]?.text || next?.text);
+  if (!previousLast || !nextFirst) return false;
+  if (ENGLISH_DEPENDENT_START.test(nextFirst)) return true;
+  const previousIsList = previousPieces.length > 0
+    && previousPieces.every((piece) => ENGLISH_POSSESSIVE_LIST_ITEM.test(normalizeText(piece.text)));
+  return (previousIsList && ENGLISH_POSSESSIVE_LIST_ITEM.test(nextFirst))
+    || (previousIsList && ENGLISH_LIST_PREDICATE.test(nextFirst));
+}
+
+function joinCompleteTrackFragments(sentences, options) {
+  const joined = [];
+  for (const sentence of sentences) {
+    const previous = joined.at(-1);
+    const pieces = previous ? [...previous.pieces, ...sentence.pieces] : [];
+    const gap = previous ? sentence.start - previous.end : Infinity;
+    const joinedChars = pieces.reduce((sum, piece) => sum + normalizeText(piece.text).length + 1, 0);
+    if (previous && previous.speaker === sentence.speaker
+      && -0.05 <= gap && gap <= options.maxGap
+      && sentence.end - previous.start <= options.maxDuration
+      && pieces.length <= options.maxParts && joinedChars <= options.maxChars
+      && shouldJoinEnglishFragments(previous, sentence)) {
+      joined[joined.length - 1] = sentenceFromCues(pieces.map((piece) => ({
+        id: piece.cueId, start: piece.start, end: piece.end, text: piece.text, speaker: piece.speaker,
+      })));
+    } else joined.push(sentence);
+  }
+  return joined;
+}
+
 function assembleCueSentences(rawCues, options = {}) {
   const cues = normalizeCues(rawCues);
   const maxGap = Math.max(0, finiteNumber(options.maxGap, 1.2));
@@ -36,17 +90,7 @@ function assembleCueSentences(rawCues, options = {}) {
 
   const flush = () => {
     if (!group.length) return;
-    const text = group.map((cue) => cue.text).join(' ').replace(/\s+/g, ' ').trim();
-    sentences.push({
-      id: sentenceIdFor(group),
-      start: group[0].start,
-      end: group[group.length - 1].end,
-      text,
-      cueIds: group.map((cue) => cue.id),
-      speaker: group[0].speaker,
-      pieces: group.map((cue) => ({ cueId: cue.id, text: cue.text, start: cue.start, end: cue.end,
-        speaker: cue.speaker })),
-    });
+    sentences.push(sentenceFromCues(group));
     group = [];
   };
 
@@ -67,7 +111,9 @@ function assembleCueSentences(rawCues, options = {}) {
   const trailingChars = group.reduce((sum, item) => sum + item.text.length + 1, 0);
   if (options.sourceComplete !== false || group.length >= maxParts
       || trailingDuration >= maxDuration || trailingChars >= maxChars) flush();
-  return sentences;
+  return options.joinEnglishFragments
+    ? joinCompleteTrackFragments(sentences, { maxGap, maxChars, maxDuration, maxParts })
+    : sentences;
 }
 
 function translationCacheKey(sentence, context = {}) {

@@ -51,6 +51,43 @@ async function run() {
     { id: 'live-c', start: 14, end: 16, text: 'the more important gods.' },
   ], { sourceComplete: false }).length, 1, 'canlı izde tamamlanan cümle hemen çevrilebilmeli');
 
+  const longCompleteSentence = [
+    { id: 'long-a', start: 0, end: 10.8, text: 'You who know at what' },
+    { id: 'long-b', start: 10.9, end: 16.9, text: 'point in its long trajectory,' },
+    { id: 'long-c', start: 18.0, end: 24.8, text: 'the mind finds its ground.' },
+  ];
+  assert.equal(assembleCueSentences(longCompleteSentence).length, 3,
+    'canlı varsayılan uzun cümleyi gecikme uğruna sınırsız birleştirmemeli');
+  assert.deepEqual(assembleCueSentences(longCompleteSentence, {
+    sourceComplete: true, maxGap: 1.8, maxChars: 520, maxDuration: 32, maxParts: 8,
+    joinEnglishFragments: true,
+  }).map((item) => item.cueIds), [['long-a', 'long-b', 'long-c']],
+  'tam iz uzun cümleyi tek anlam birimi olarak çevirmeli');
+
+  const fragmentChain = [
+    { id: 'list-a', start: 30, end: 31, text: 'Our writers.' },
+    { id: 'list-b', start: 31.2, end: 32.2, text: 'Our thinkers.' },
+    { id: 'list-c', start: 32.4, end: 34.5, text: 'Are conspiring to ruin life.' },
+    { id: 'fragment-a', start: 36, end: 38, text: 'We are inside the mind.' },
+    { id: 'fragment-b', start: 38.3, end: 40, text: 'Of the interior of the head.' },
+  ];
+  assert.deepEqual(assembleCueSentences(fragmentChain, {
+    sourceComplete: true, maxGap: 1.8, maxChars: 520, maxDuration: 32, maxParts: 8,
+    joinEnglishFragments: true,
+  }).map((item) => item.cueIds), [['list-a', 'list-b', 'list-c'], ['fragment-a', 'fragment-b']],
+  'tam iz açık İngilizce liste ve bağımlı parçaları birlikte çevirmeli');
+  assert.deepEqual(assembleCueSentences([
+    { id: 'truth', start: 50, end: 51, text: 'Truth.' },
+    { id: 'capital', start: 51.2, end: 53, text: 'With a capital T. Reason.' },
+    { id: 'reject', start: 53.2, end: 56, text: 'We reject them all.' },
+    { id: 'surface', start: 57, end: 60, text: 'Reality is not under this surface.' },
+    { id: 'therefore', start: 60.2, end: 63, text: 'That is why we leave.' },
+  ], {
+    sourceComplete: true, maxGap: 1.8, maxChars: 520, maxDuration: 32, maxParts: 8,
+    joinEnglishFragments: true,
+  }).map((item) => item.cueIds), [['truth', 'capital'], ['reject'], ['surface'], ['therefore']],
+  'bağımlı parça geriye bağlanmalı fakat sonraki bağımsız cümleyi yutmamalı');
+
   for (const fixture of fixtures) {
     const input = fixture.entries.map(([start, end, text], id) => ({ id: String(id), start, end, text }));
     const before = JSON.stringify(input);
@@ -231,6 +268,10 @@ async function run() {
   assert.equal(body.model, config.model, 'kullanıcının modeli değişti');
   assert.equal(body.temperature, 0.2);
   assert.deepEqual(JSON.parse(body.messages[1].content).parts.map((p) => p.source), cues.map((c) => c.text));
+  assert(body.messages[0].content.includes('tam cümlenin anlamını doğal Türkçe söz dizimiyle yeniden kur'),
+    'Türkçe tarayıcı altyazısı doğal yeniden kurulum kuralını almıyor');
+  assert(body.messages[0].content.includes('İngilizce kalıp ve mecazları harfiyen kopyalama'),
+    'Türkçe tarayıcı altyazısı çeviri kokusu kuralını almıyor');
   responseText = reply.text;
   const fittedOutput = await sandbox.requestBrowserSentenceTranslationAtEndpoint(sentence, config, null, 'https://example.invalid');
   assert.equal(fittedOutput.parts.length, sentence.pieces.length, 'düz metin sağlayıcı yanıtı zaman bloklarına dağıtılmadı');
