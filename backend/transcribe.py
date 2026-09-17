@@ -7763,12 +7763,17 @@ def find_piecewise_offsets(ref_sig, hz, spans, base_offset, ratio=1.0,
     return [(a, b, o) for (a, b, o) in merged if b >= a]
 
 
-def apply_piecewise(spans, pieces, ratio=1.0, min_gap=0.08):
+def apply_piecewise(spans, pieces, ratio=1.0, min_gap=0.08, min_cue_dur=0.3):
     """Parça kaymalarını uygula (zamanlar ölçeklenip kendi offset'iyle kaydırılır).
 
     Parça sınırında zıt yönlü kaymalar çakışan veya ters sıralı cue üretebilir;
     çıktı kronolojik sıralanır ve her bitiş sonraki başlangıç - min_gap ile
     sınırlanır (normalize_timings ile aynı boşluk sözleşmesi).
+
+    Kırpma cue'ya okunabilir süre (min_cue_dur) bırakmıyorsa — örn. zıt
+    kaymalar iki kaynağı aynı ana hizaladığında — kronoloji + pozitif süre +
+    min_gap aynı anda sağlanamaz; o durumda 10 ms'lik göstermelik kırpma
+    yerine None döner ve çağıran güvenli sabit kaymaya düşer.
     """
     out = []
     for (a_idx, b_idx, off) in pieces:
@@ -7780,8 +7785,11 @@ def apply_piecewise(spans, pieces, ratio=1.0, min_gap=0.08):
     for i in range(len(out) - 1):
         s, e, t = out[i]
         next_start = out[i + 1][0]
-        if e > next_start - min_gap:
-            out[i] = (s, max(s + 0.01, next_start - min_gap), t)
+        ceiling = next_start - min_gap
+        if e > ceiling:
+            if ceiling - s < min_cue_dur:
+                return None
+            out[i] = (s, ceiling, t)
     return out
 
 
@@ -7857,6 +7865,13 @@ def sync_subtitles(args):
 
         if pieces:
             shifted = apply_piecewise(spans, pieces, ratio)
+            if shifted is None:
+                # Parça sınırında zıt kaymalar cue'ları aynı ana hizalayıp
+                # çakışma/okunamaz süre üretti — güvenli sabit kaymaya düş.
+                warn.append("Parçalı hizalama sınırda çakışan/okunamaz cue üretti; "
+                            "güvenli sabit kayma kullanıldı — sonucu kontrol edin.")
+                shifted = shift_srt_entries(
+                    scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
         else:
             shifted = shift_srt_entries(scale_spans(spans, ratio) if ratio != 1.0 else spans, offset)
         out_path = sync_output_path(

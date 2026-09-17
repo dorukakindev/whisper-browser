@@ -591,6 +591,24 @@ def test_r58_apply_piecewise_output_is_monotonic_and_non_overlapping():
         assert cur[1] > cur[0], cur
 
 
+def test_r58_apply_piecewise_equal_start_returns_none_instead_of_10ms_crush():
+    # R58-14 sınırı (rapor 60): zıt parça kaymaları iki kaynağı AYNI
+    # başlangıca hizalarsa kronoloji + pozitif süre + min_gap aynı anda
+    # sağlanamaz. Eski kod ilk cue'yu 10 ms'ye sıkıştırıp ikincisiyle
+    # çakıştırıyordu; fonksiyon None dönmeli, çağıran sabit kaymaya düşer.
+    out = T.apply_piecewise([(0, 2, "first"), (2, 4, "second")],
+                            [(0, 0, 2), (1, 1, 0)])
+    assert out is None, f"çakışan/okunamaz çıktı üretildi: {out}"
+
+    # Okunabilir süre bırakan sınır kırpması hâlâ uygulanır (fallback değil).
+    ok = T.apply_piecewise([(0.0, 10.0, "a"), (10.0, 20.0, "b")],
+                           [(0, 0, 8.0), (1, 1, -8.0)])
+    assert ok is not None
+    for prev, cur in zip(ok, ok[1:]):
+        assert cur[0] >= prev[1] - 1e-9, f"çakışma: {prev} -> {cur}"
+        assert cur[1] - cur[0] >= 0.29, f"okunamaz süre: {cur}"
+
+
 def test_piecewise_no_false_split():
     """Kayma sabitse tek parça kalmalı (gereksiz kırılma üretmesin)."""
     spans, ref = _sync_fixture(dur=2400, seed=3)
