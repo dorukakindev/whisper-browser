@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { decodeSubtitleBuffer, parseSubtitlePayload } = require('./browser-subtitles');
-const { normalizeText, translationMeaningIssues } = require('./subtitle-sentence-layout');
+const { normalizeText, sourceReviewHints, translationMeaningIssues } = require('./subtitle-sentence-layout');
 
 const timestampKey = cue => `${Math.round(Number(cue.start) * 1000)}:${Math.round(Number(cue.end) * 1000)}`;
 const echo = (source, target) => {
@@ -14,6 +14,25 @@ const cueRef = cue => ({
   startMs: Math.round(Number(cue.start) * 1000),
   endMs: Math.round(Number(cue.end) * 1000),
 });
+
+function turkishFluencyReviewIssues(sourceText, targetText) {
+  const source = normalizeText(sourceText).toLocaleLowerCase('und');
+  const target = normalizeText(targetText).toLocaleLowerCase('tr');
+  const issues = [];
+  const targetHow = (target.match(/\bnasıl\b/gu) || []).length;
+  const sourceHow = (source.match(/\bhow\b/gu) || []).length;
+  if (targetHow > Math.max(1, sourceHow)) issues.push('repeated_question_word');
+  const targetHints = sourceReviewHints(target);
+  const sourceHints = sourceReviewHints(source);
+  if (targetHints.includes('repeated_phrase') && !sourceHints.includes('repeated_phrase')) {
+    issues.push('introduced_repetition');
+  }
+  if (targetHints.some((hint) => hint === 'unbalanced_delimiter' || hint === 'unbalanced_quote')
+      && !sourceHints.some((hint) => hint === 'unbalanced_delimiter' || hint === 'unbalanced_quote')) {
+    issues.push('introduced_unbalanced_punctuation');
+  }
+  return issues;
+}
 
 function parseSubtitleFile(buffer, filename = 'subtitle.srt') {
   const text = decodeSubtitleBuffer(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || ''));
@@ -125,6 +144,8 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     heavyCompression: [],
     repeatedTranslation: [],
     contextReview: [],
+    sourceUncertainty: [],
+    turkishFluencyReview: [],
   };
   const expectedMinSourceCues = Math.max(0, Math.trunc(Number(options.expectedMinSourceCues) || 0));
   const expectedMinTargetCues = Math.max(0, Math.trunc(Number(options.expectedMinTargetCues) || 0));
@@ -154,13 +175,20 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     if (sourceText.length <= 36 || !/[.!?…。！？]["'“”‘’)}\]»]*$/u.test(sourceText)) {
       issues.contextReview.push(ref);
     }
+    const sourceHints = sourceReviewHints(sourceText)
+      .filter((hint) => !hint.startsWith('needs_'));
+    if (sourceHints.length) issues.sourceUncertainty.push({ ...ref, reasons: sourceHints });
+    const fluency = String(options.targetLanguage || 'tr').toLowerCase().split('-')[0] === 'tr'
+      ? turkishFluencyReviewIssues(sourceText, targetText) : [];
+    if (fluency.length) issues.turkishFluencyReview.push({ ...ref, reasons: fluency });
   }
   issues.repeatedTranslation = repeatedTranslationGroups(aligned.matched);
   const blockingCount = issues.sourceBelowMinimum.length + issues.targetBelowMinimum.length
     + issues.missingTarget.length + issues.extraTarget.length
     + issues.emptyTarget.length + issues.sourceEcho.length + issues.numberMismatch.length;
   const advisoryCount = issues.negationReview.length + issues.heavyCompression.length
-    + issues.repeatedTranslation.length;
+    + issues.repeatedTranslation.length + issues.sourceUncertainty.length
+    + issues.turkishFluencyReview.length;
   return {
     schemaVersion: 1,
     sourceCues: source.length,
@@ -182,10 +210,35 @@ function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
+function compareSubtitleTranslations(sourceCues, baselineCues, candidateCues, options = {}) {
+  const baseline = auditSubtitlePair(sourceCues, baselineCues, options);
+  const candidate = auditSubtitlePair(sourceCues, candidateCues, options);
+  const issueDelta = {};
+  for (const name of new Set([...Object.keys(baseline.issues), ...Object.keys(candidate.issues)])) {
+    issueDelta[name] = (candidate.issues[name]?.length || 0) - (baseline.issues[name]?.length || 0);
+  }
+  const blockingDelta = candidate.blockingCount - baseline.blockingCount;
+  const advisoryDelta = candidate.advisoryCount - baseline.advisoryCount;
+  return {
+    schemaVersion: 1,
+    baseline,
+    candidate,
+    delta: { blocking: blockingDelta, advisory: advisoryDelta, issues: issueDelta },
+    noStructuralRegression: blockingDelta <= 0,
+    fewerReviewFlags: advisoryDelta < 0,
+    verdict: blockingDelta < 0 ? 'candidate_safer'
+      : blockingDelta > 0 ? 'candidate_regressed'
+        : advisoryDelta < 0 ? 'candidate_fewer_review_flags'
+          : advisoryDelta > 0 ? 'candidate_more_review_flags' : 'no_measured_difference',
+  };
+}
+
 module.exports = {
   alignByOverlap,
   alignByTimestamp,
   auditSubtitlePair,
+  compareSubtitleTranslations,
   parseSubtitleFile,
   sha256,
+  turkishFluencyReviewIssues,
 };

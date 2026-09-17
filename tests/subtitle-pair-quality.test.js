@@ -3,7 +3,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { auditSubtitlePair, parseSubtitleFile } = require('../src/subtitle-pair-quality');
+const { auditSubtitlePair, compareSubtitleTranslations, parseSubtitleFile,
+  turkishFluencyReviewIssues } = require('../src/subtitle-pair-quality');
 
 const srt = rows => Buffer.from('\ufeff' + rows.map((row, index) => (
   `${index + 1}\r\n${row.time}\r\n${row.text}\r\n`
@@ -25,6 +26,32 @@ const valid = auditSubtitlePair(source, clean);
 assert.equal(valid.pass, true);
 assert.equal(valid.matchedCues, 3);
 assert.equal(valid.issues.numberMismatch.length, 0, '80 → seksen yanlış pozitif olmamalı');
+assert.deepEqual(turkishFluencyReviewIssues('How can we understand it?',
+  'Bunu nasıl anlayabiliriz?'), []);
+assert(turkishFluencyReviewIssues('How can we understand it?',
+  'Bunu nasıl nasıl anlayabiliriz?').includes('repeated_question_word'));
+assert(turkishFluencyReviewIssues('We can understand it.',
+  'Bunu anlayabiliriz anlayabiliriz.').includes('introduced_repetition'));
+
+const reviewable = auditSubtitlePair(
+  [{ start: 0, end: 2, text: 'He said "hello.' },
+    { start: 2, end: 4, text: 'How can we know?' }],
+  [{ start: 0, end: 2, text: '“Merhaba,” dedi.' },
+    { start: 2, end: 4, text: 'Bunu nasıl nasıl bilebiliriz?' }],
+);
+assert.equal(reviewable.pass, true, 'inceleme uyarıları yapısal başarıyı engellememeli');
+assert.equal(reviewable.issues.sourceUncertainty.length, 1);
+assert.equal(reviewable.issues.turkishFluencyReview.length, 1);
+assert.equal(reviewable.advisoryCount, 2);
+const comparison = compareSubtitleTranslations(
+  [{ start: 0, end: 2, text: 'How can we know?' }],
+  [{ start: 0, end: 2, text: 'Bunu nasıl nasıl bilebiliriz?' }],
+  [{ start: 0, end: 2, text: 'Bunu nasıl bilebiliriz?' }],
+);
+assert.equal(comparison.noStructuralRegression, true);
+assert.equal(comparison.fewerReviewFlags, true);
+assert.equal(comparison.delta.advisory, -1);
+assert.equal(comparison.verdict, 'candidate_fewer_review_flags');
 
 const broken = parseSubtitleFile(srt([
   { time: '00:00:00,000 --> 00:00:02,000', text: 'He never carried 8 bags.' },
