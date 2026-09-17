@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-17 22:15 — rapor 56 kabul açıklarının davranışsal kapanışı](docs/devir/2026-09-17-2215.md).
+Güncel çalışma: [2026-09-17 23:40 — rapor 54 güncel-ağaç doğrulaması ve kesin bulgular (rapor 58)](docs/devir/2026-09-17-2340.md).
+
+Önceki çalışma: [2026-09-17 22:15 — rapor 56 kabul açıklarının davranışsal kapanışı](docs/devir/2026-09-17-2215.md).
 
 Önceki çalışma: [2026-09-17 21:17 — rapor 53 B/D doğrulama turu ve Electron kabulü (rapor 56)](docs/devir/2026-09-17-2117.md).
 
