@@ -29,7 +29,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
-  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
+  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
 ]);
 
 const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
@@ -73,6 +73,7 @@ const UI_ENUMS = Object.freeze({
   browserSponsorMode: ['off', 'ask', 'auto'],
   browserAudioProfile: ['off', 'night', 'dialogue', 'guard'],
   uiTheme: ['system', 'dark', 'light'],
+  uiLocale: ['en', 'tr'],
 });
 
 const UI_NUMERIC_RANGES = Object.freeze({

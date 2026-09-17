@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; media-src 'self' file: blob: https://*.googlevideo.com; connect-src 'self' whisper-pdf: https://*.googlevideo.com" />
@@ -27,8 +27,9 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" id="openPlayer" title="Videoyu altyazılarınla izle">İzle</button>
-        <button class="btn btn-secondary btn-sm" id="mediaCatalogOpen" data-media-catalog-open type="button">Film ve dizi arşivi</button>
+        <button class="btn btn-secondary btn-sm" id="openPlayer" title="Open the browser and player">BROWSER</button>
+        <button class="btn btn-secondary btn-sm catalog-entry" id="mediaCatalogOpen" data-media-catalog-open type="button" title="Open your movie and series library"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4m-4 6h4m10-6h4m-4 6h4"/></svg><span>Media library</span></button>
+        <label class="ui-locale-control"><span class="sr-only">Interface language</span><select id="uiLocale" aria-label="Interface language"><option value="en">EN</option><option value="tr">TR</option></select></label>
         <div class="gpu-badge" id="gpuBadge">
           <span class="dot"></span>
           <span id="gpuBadgeText">CUDA · float16</span>
@@ -1062,7 +1063,8 @@
             aria-selected="false" aria-controls="browserWorkspace" tabindex="-1">Tarayıcı</button>
         </div>
         <div class="player-head-actions">
-          <button class="workspace-mode" data-media-catalog-open type="button" title="Film, dizi ve izlenecekler">Arşiv</button>
+          <button class="catalog-entry player-catalog-entry" data-media-catalog-open type="button" title="Open your movie and series library"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4m-4 6h4m10-6h4m-4 6h4"/></svg><span>Media library</span></button>
+          <label class="ui-locale-control player-locale-control"><span class="sr-only">Interface language</span><select id="playerUiLocale" aria-label="Interface language"><option value="en">EN</option><option value="tr">TR</option></select></label>
           <div class="player-parse-status hidden" id="playerParseStatus">
             <span class="parse-spark" aria-hidden="true"></span><span id="playerParseText">Ses işleniyor…</span>
           </div>
@@ -2772,6 +2774,7 @@
   <script src="queue-lifecycle.js"></script>
   <script src="../renderer-ui-model.js"></script>
 <dialog id="mediaCatalogDialog" aria-label="Film ve dizi arşivi"><div id="mediaCatalogRoot"></div></dialog>
+<script src="ui-locale.js"></script>
 <script src="renderer.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>

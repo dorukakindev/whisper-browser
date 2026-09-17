@@ -29,6 +29,8 @@
   }, { root: dialog, rootMargin: '120px' });
   const statusLabels = { unspecified: 'Durum yok', planned: 'İzlenecek', watching: 'İzleniyor', completed: 'İzlendi' };
   const typeLabels = { movie: 'Film', series: 'Dizi' };
+  const t = value => window.UiLocale?.t?.(value) ?? value;
+  const english = () => window.UiLocale?.get?.() === 'en';
   const $ = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -167,20 +169,20 @@
     const rows = filtered();
     if (!rows.length) { grid.append($('p', 'mc-empty', state.items.length ? 'Bu filtreye uyan yapım yok.' : 'Kataloğunuz boş. İlk filmi veya diziyi ekleyin.')); return; }
     for (const item of rows.slice(0, state.visibleCount)) {
-      const card = button('', () => show(item.id), 'mc-card'); card.setAttribute('aria-label', `${item.title || 'Adsız yapım'} ayrıntılarını aç`);
+      const card = button('', () => show(item.id), 'mc-card'); card.setAttribute('aria-label', `${item.title || t('Adsız yapım')} ${english() ? 'details' : 'ayrıntılarını aç'}`);
       card.append(poster(item, 'mc-card-poster'));
-      const info = $('div', 'mc-card-info'); info.append($('strong', '', item.title || 'Adsız yapım'));
-      info.append($('span', '', `${item.year || 'Yıl yok'} · ${typeLabels[catalogType(item)]} · ${statusLabels[item.watchStatus] || statusLabels.unspecified}`));
+      const info = $('div', 'mc-card-info'); info.append($('strong', '', item.title || t('Adsız yapım')));
+      info.append($('span', '', `${item.year || t('Yıl yok')} · ${t(typeLabels[catalogType(item)])} · ${t(statusLabels[item.watchStatus] || statusLabels.unspecified)}`));
       if (item.favorite) info.append($('span', 'mc-fav-mark', '★ Favori'));
       const ratings = item.ratings || {};
       if (ratings.imdb || ratings.letterboxd || ratings.personal) info.append($('span', 'mc-ratings', [
         ratings.imdb ? `IMDb ${ratings.imdb}/10` : '', ratings.letterboxd ? `Letterboxd ${ratings.letterboxd}/5` : '',
-        ratings.personal ? `Kişisel ${ratings.personal}` : '',
+        ratings.personal ? `${english() ? 'Personal' : 'Kişisel'} ${ratings.personal}` : '',
       ].filter(Boolean).join(' · ')));
-      if (item.progress?.position > 0 && !item.progress?.completed) info.append($('span', 'mc-progress', `Devam · ${Math.floor(item.progress.position / 60)} dk`));
+      if (item.progress?.position > 0 && !item.progress?.completed) info.append($('span', 'mc-progress', `${english() ? 'Resume' : 'Devam'} · ${Math.floor(item.progress.position / 60)} ${english() ? 'min' : 'dk'}`));
       card.append(info); grid.append(card);
     }
-    if (rows.length > state.visibleCount) grid.append(button(`Daha fazla göster (${state.visibleCount}/${rows.length})`, () => { state.visibleCount += 40; renderCards(); }, 'mc-more'));
+    if (rows.length > state.visibleCount) grid.append(button(`${t('Daha fazla göster')} (${state.visibleCount}/${rows.length})`, () => { state.visibleCount += 40; renderCards(); }, 'mc-more'));
   }
   async function play(item, episodeId) {
     const sessionId = state.session;
@@ -204,7 +206,7 @@
   function sourceControls(item, episode) {
     const wrap = $('div', 'mc-source'); const id = episode?.id;
     const current = episode ? episode.source : item.source;
-    wrap.append($('p', 'mc-muted', current ? `Kaynak: ${current.type === 'local' ? 'Yerel dosya' : 'Tarayıcı adresi'}` : 'Oynatma kaynağı yok'));
+    wrap.append($('p', 'mc-muted', current ? `${english() ? 'Source' : 'Kaynak'}: ${t(current.type === 'local' ? 'Yerel dosya' : 'Tarayıcı adresi')}` : t('Oynatma kaynağı yok')));
     const controls = $('div', 'mc-source-actions');
     controls.append(button('Yerel dosya bağla', () => source(item, id, 'file')));
     const input = $('input'); input.type = 'url'; input.placeholder = 'https://…'; input.setAttribute('aria-label', 'Tarayıcı video adresi'); input.dataset.sourceUrl = id || 'item';
@@ -215,12 +217,12 @@
     const item = find(state.selected); if (!item) { state.mode = 'list'; return renderList(); }
     const body = $('div', 'mc-content mc-detail'); body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }, 'mc-back'));
     const hero = $('div', 'mc-detail-hero'); hero.append(poster(item, 'mc-detail-poster'));
-    const text = $('div'); text.append($('span', 'mc-eyebrow', `${typeLabels[catalogType(item)]} · ${item.year || 'Yıl belirtilmedi'}`), $('h3', '', item.title || 'Adsız yapım'));
+    const text = $('div'); text.append($('span', 'mc-eyebrow', `${t(typeLabels[catalogType(item)])} · ${item.year || t('Yıl belirtilmedi')}`), $('h3', '', item.title || t('Adsız yapım')));
     text.append($('p', 'mc-muted', statusLabels[item.watchStatus] || statusLabels.unspecified));
     if (item.ratings) text.append($('p', 'mc-ratings', [item.ratings.imdb ? `IMDb ${item.ratings.imdb}/10` : '',
-      item.ratings.letterboxd ? `Letterboxd ${item.ratings.letterboxd}/5` : '', item.ratings.personal ? `Kişisel ${item.ratings.personal}` : ''].filter(Boolean).join(' · ')));
+      item.ratings.letterboxd ? `Letterboxd ${item.ratings.letterboxd}/5` : '', item.ratings.personal ? `${english() ? 'Personal' : 'Kişisel'} ${item.ratings.personal}` : ''].filter(Boolean).join(' · ')));
     if (item.synopsis) text.append($('p', 'mc-synopsis', item.synopsis));
-    if (item.genres?.length || item.runtime) text.append($('p', 'mc-muted', [...(item.genres || []), item.runtime ? `${item.runtime} dk` : ''].filter(Boolean).join(' · ')));
+    if (item.genres?.length || item.runtime) text.append($('p', 'mc-muted', [...(item.genres || []), item.runtime ? `${item.runtime} ${english() ? 'min' : 'dk'}` : ''].filter(Boolean).join(' · ')));
     if (item.cast?.length) text.append($('p', 'mc-muted', item.cast.join(', ')));
     const actions = $('div', 'mc-detail-actions');
     actions.append(button('Bilgileri eşleştir', () => { state.metadataQuery = item.title; state.metadataResults = []; state.metadata = null; state.seasonData = null; state.mode = 'metadata'; render(); }));
@@ -229,7 +231,7 @@
     else {
       const next = [...(item.episodes || [])].sort((a, b) => Number(a.season) - Number(b.season) || Number(a.number) - Number(b.number))
         .find(episode => episode.source && !episode.progress?.completed && episode.watchStatus !== 'completed');
-      if (next) actions.append(button(`Sıradaki bölümü oynat · S${next.season} B${next.number}`, () => play(item, next.id), 'mc-primary'));
+      if (next) actions.append(button(`${english() ? 'Play next episode' : 'Sıradaki bölümü oynat'} · S${next.season} ${english() ? 'E' : 'B'}${next.number}`, () => play(item, next.id), 'mc-primary'));
       if (item.source) actions.append(button('Dizi kaynağını aç', () => play(item)));
     }
     actions.append(button(state.removeId === item.id ? 'Silme işlemini onayla' : 'Sil', () => {
@@ -247,7 +249,7 @@
       if (!episodes.length) list.append($('p', 'mc-empty', 'Henüz bölüm eklenmedi.'));
       for (const episode of episodes) {
         const row = $('div', 'mc-episode');
-        const top = $('div', 'mc-episode-head'); top.append($('strong', '', `S${episode.season ?? 1} B${episode.number || 1} · ${episode.title || 'Bölüm'}`), $('span', 'mc-muted', episode.progress?.completed ? 'İzlendi' : episode.progress?.position > 0 ? 'Devam ediyor' : statusLabels[episode.watchStatus] || statusLabels.unspecified));
+        const top = $('div', 'mc-episode-head'); top.append($('strong', '', `S${episode.season ?? 1} ${english() ? 'E' : 'B'}${episode.number || 1} · ${episode.title || (english() ? 'Episode' : 'Bölüm')}`), $('span', 'mc-muted', episode.progress?.completed ? t('İzlendi') : episode.progress?.position > 0 ? (english() ? 'In progress' : 'Devam ediyor') : t(statusLabels[episode.watchStatus] || statusLabels.unspecified)));
         const controls = $('div', 'mc-episode-actions');
         controls.append(button('Oynat', () => play(item, episode.id), 'mc-primary'), button('Düzenle', () => editEpisode(item, episode)));
         row.append(top, controls, sourceControls(item, episode)); list.append(row);
@@ -434,6 +436,7 @@
     dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
     state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus(); await reload();
   });
+  document.addEventListener('ui-locale-change', () => { if (dialog.open) render(); });
   dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });
 })();

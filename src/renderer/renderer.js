@@ -2281,7 +2281,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
-  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme',
+  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -2342,6 +2342,7 @@ function applyUiSettings(ui) {
     _applyingSettings = false;
   }
   updateGpuBadge();
+  if (ui.uiLocale && window.UiLocale) window.UiLocale.set(ui.uiLocale);
 }
 
 let _saveTimer = null;
@@ -2356,6 +2357,16 @@ function scheduleSave() {
   if (el) el.addEventListener('change', scheduleSave);
 });
 $('primarySettingsOpen')?.addEventListener('toggle', scheduleSave);
+
+for (const id of ['uiLocale', 'playerUiLocale']) {
+  const control = $(id);
+  if (!control) continue;
+  control.value = window.UiLocale?.get() || 'en';
+  control.addEventListener('change', () => {
+    window.UiLocale?.set(control.value);
+    if (id === 'playerUiLocale') scheduleSave();
+  });
+}
 
 const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
 function applyUiTheme(mode = $('uiTheme')?.value || 'system') {
@@ -20173,7 +20184,10 @@ if ($('aiAnswerClose')) {
   $('aiAnswerClose').addEventListener('click', () => $('aiAnswer').classList.add('hidden'));
 }
 
-if ($('openPlayer')) $('openPlayer').addEventListener('click', openPlayer);
+if ($('openPlayer')) $('openPlayer').addEventListener('click', () => {
+  $('playerLayer').classList.remove('hidden');
+  setWorkspaceMode('browser');
+});
 if ($('playerBack')) $('playerBack').addEventListener('click', closePlayer);
 
 if ($('playerVideo')) {
