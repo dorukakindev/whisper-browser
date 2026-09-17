@@ -85,7 +85,7 @@ test('Chromium donanım hızlandırma durumu açılış günlüğünde görünü
 
 test('tarayıcı modunda oynatma kısayolları web videosuna gider', () => {
   const start = js.lastIndexOf("document.addEventListener('keydown'");
-  const body = js.slice(start, start + 4200);
+  const body = js.slice(start, js.indexOf('// Gecikme/hiz/ses', start));
   assert(/workspaceMode === 'browser'/.test(body), 'tarayıcı kısayol dalı yok');
   for (const command of ['play-pause', 'seek-relative', 'mute', 'volume-relative']) {
     assert(body.includes(`'${command}'`), `${command} web videosuna bağlı değil`);
@@ -1886,6 +1886,123 @@ test('yan panel genişliği ve duyarlı CSS C aşaması sınırlarını koruyor'
   assert(!css.includes('Stage B:'), 'geçici Stage B son-dosya override bloğu kaldırılmamış');
   assert(!html.includes('drawer-head-kicker') && !html.includes('CANLI TRANSKRİPT'),
     'yinelenen görsel etiketler hâlâ arayüzde');
+});
+
+test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oynatıcı', () => {
+  const vm = require('vm');
+  // Oynatıcı keydown işleyicisini kaynaktan kesip sahte DOM'da çalıştır.
+  const keyStart = js.indexOf("document.addEventListener('keydown', (e) => {",
+    js.indexOf('// Klavye: oynatıcı açıkken'));
+  const keyEnd = js.indexOf('\n});', js.indexOf("// Gecikme/hiz/ses", keyStart) - 80) + 4;
+  assert(keyStart > 0 && keyEnd > keyStart, 'oynatıcı keydown işleyicisi kesilemedi');
+  const calls = [];
+  const rec = (name) => (...args) => { calls.push([name, ...args]); };
+  const mkEl = (hidden = true) => ({
+    classList: { contains: (c) => c === 'hidden' ? hidden : false, add() {}, remove() {} },
+    click: rec('el-click'),
+  });
+  const elements = {
+    playerLayer: mkEl(false),
+    playerVideo: { paused: true, muted: false, volume: 0.5, play: rec('play'), pause: rec('pause'), currentTime: 0 },
+    subtitleModeMenu: mkEl(), browserPlacesPanel: mkEl(), browserDownloadsPanel: mkEl(),
+    shortcutHelp: mkEl(), settingsDrawer: mkEl(false), // açık katman
+    fullscreenBtn: mkEl(), subtitleModeWrap: mkEl(),
+  };
+  const player = {
+    workspaceMode: 'browser', editing: false, selectedWord: null,
+    suppressClick: false, browserPaused: true, subsHidden: false,
+  };
+  const runResults = { shortcut: false };
+  const ctx = vm.createContext({
+    document: {
+      addEventListener: (type, fn) => { ctx.__keyHandler = type === 'keydown' ? fn : ctx.__keyHandler; },
+      fullscreenElement: null,
+      activeElement: null,
+      hidden: false,
+      querySelectorAll: () => [],
+    },
+    window: {
+      api: { browserCommand: rec('browserCommand') },
+      BrowserCommandPalette: { browserShortcutForInput: () => null },
+    },
+    $: (id) => elements[id] ?? mkEl(),
+    $$: () => [],
+    player,
+    runBrowserShortcut: () => runResults.shortcut,
+    browserCommand: rec('browserCommand'),
+    stepBrowserFrame: rec('stepBrowserFrame'), nudgeSpeed: rec('nudgeSpeed'),
+    nudgeOffset: rec('nudgeOffset'), setPlayerVolume: rec('setPlayerVolume'),
+    openCueEditor: rec('openCueEditor'), closeCueEditor: rec('closeCueEditor'),
+    stepCue: rec('stepCue'), replayCue: rec('replayCue'), copyCue: rec('copyCue'),
+    toggleCueSaved: rec('toggleCueSaved'), toggleWordSaved: rec('toggleWordSaved'),
+    toggleAbLoop: rec('toggleAbLoop'), capturePlayerFrame: rec('capturePlayerFrame'),
+    setShortcutHelpOpen: rec('setShortcutHelpOpen'), setSettingsDrawer: rec('setSettingsDrawer'),
+    setSubtitleModeMenuOpen: rec('setSubtitleModeMenuOpen'), setBrowserPlacesOpen: rec('setBrowserPlacesOpen'),
+    setBrowserDownloadsOpen: rec('setBrowserDownloadsOpen'), hideWordInspector: rec('hideWordInspector'),
+    setSubtitlesVisible: rec('setSubtitlesVisible'), closePlayer: rec('closePlayer'),
+    showControls: rec('showControls'), osd: rec('osd'), logLine: rec('logLine'),
+    setSubtitleMode: rec('setSubtitleMode'),
+    console,
+  });
+  vm.runInContext(js.slice(keyStart, keyEnd), ctx);
+  const handler = ctx.__keyHandler;
+  assert(typeof handler === 'function', 'keydown işleyicisi yakalanamadı');
+  const key = (props) => handler({
+    preventDefault: rec('preventDefault'),
+    target: { tagName: 'DIV', isContentEditable: false, closest: () => null },
+    ...props,
+  });
+
+  // Ctrl+C tarayıcı kısayolu eşleşmezse 'c' eylemine (copyCue) düşmemeli.
+  calls.length = 0;
+  key({ key: 'c', ctrlKey: true });
+  assert(!calls.some(([n]) => n === 'copyCue'), 'Ctrl+C copyCue eylemini tetikledi');
+
+  // Alt+harf oynatıcı eylemi tetiklememeli.
+  calls.length = 0;
+  key({ key: 'c', altKey: true });
+  assert(!calls.some(([n]) => n === 'copyCue'), 'Alt+C copyCue eylemini tetikledi');
+
+  // Odaklı düğmede Escape açık katmanı (settingsDrawer) kapatmalı.
+  calls.length = 0;
+  handler({ key: 'Escape', preventDefault: rec('preventDefault'),
+    target: { tagName: 'BUTTON', isContentEditable: false, closest: () => null } });
+  assert(calls.some(([n, v]) => n === 'setSettingsDrawer' && v === false),
+    'odaklı düğmede Escape açık katmanı kapatmadı');
+
+  // Sıradan tek harf çalışmaya devam etmeli (regresyon kontrolü).
+  calls.length = 0;
+  key({ key: 'c' });
+  assert(calls.some(([n]) => n === 'copyCue'), 'düz c tuşu copyCue çalıştırmadı');
+
+  // Ana ekran: çalışan iş varken INPUT içinde Escape işi iptal etmemeli.
+  const mainStart = js.indexOf('// ===== Klavye kısayolları =====');
+  const mainEnd = js.indexOf('\n});', js.indexOf("e.key === 'Escape'", mainStart)) + 4;
+  const mainCalls = [];
+  const mainRec = (name) => (...a) => { mainCalls.push([name, ...a]); };
+  const mainElements = {
+    playerLayer: mkEl(), resultModal: mkEl(),
+    cancelBtn: { click: mainRec('cancelBtn') },
+    startBtn: { click: mainRec('startBtn') },
+  };
+  const mainCtx = vm.createContext({
+    document: { addEventListener: (t, fn) => { if (t === 'keydown') mainCtx.__h = fn; } },
+    $: (id) => mainElements[id] ?? mkEl(),
+    _activeModal: null,
+    state: { running: true, queueRunning: false },
+  });
+  vm.runInContext(js.slice(mainStart, mainEnd), mainCtx);
+  mainCtx.__h({ key: 'Escape', ctrlKey: false, metaKey: false,
+    preventDefault: () => {},
+    target: { tagName: 'INPUT', isContentEditable: false, closest: () => null } });
+  assert(!mainCalls.some(([n]) => n === 'cancelBtn'),
+    'INPUT içinde Escape çalışan işi iptal etti');
+  // Aynı durumda düz hedefte Escape işi iptal eder (beklenen davranış korunur).
+  mainCalls.length = 0;
+  mainCtx.__h({ key: 'Escape', ctrlKey: false, metaKey: false,
+    preventDefault: () => {},
+    target: { tagName: 'DIV', isContentEditable: false, closest: () => null } });
+  assert(mainCalls.some(([n]) => n === 'cancelBtn'), 'düz hedefte Escape işi iptal etmedi');
 });
 
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);

@@ -54,6 +54,8 @@ function firstMatch(value, expressions) {
   return '';
 }
 
+const ROUTE_KEYWORD_RE = /^(?:video|videos|watch|episode|episodes|lecture|learn|show|series|movie|movies|play|feature|sport)$/i;
+
 function serviceIdentity(url, hints = {}) {
   const host = url.hostname.toLowerCase();
   const hintedService = cleanPart(hints.service, 48).toLowerCase();
@@ -110,10 +112,20 @@ function serviceIdentity(url, hints = {}) {
   ];
   const known = knownHosts.find(([suffix]) => hostMatches(host, suffix));
   if (known) {
-    const id = hintedId || firstMatch(url.pathname, [
-      /\/(?:video|videos|watch|episode|episodes|lecture|learn)\/([^/?#]+)/i,
-      /\/([a-f0-9-]{16,})$/i,
-    ]);
+    // Genel desende ilk anahtar kelime sonrasındaki parça alınır — bu
+    // `/learn/lecture/123`'te "lecture", `/video/watch/x`'te "watch",
+    // `/video/2024/..`'de "2024" gibi rota parçasını kimlik sanıp aynı
+    // servisteki tüm videoları tek kayda çökertir. Bunun yerine SONDAN
+    // bir önceki değil, EN SON rota anahtar kelimesinden sonraki kuyruk
+    // kimlik yapılır: dizi/bölüm slug'ları kuyrukta kalır.
+    const segments = url.pathname.split('/').filter(Boolean);
+    let keywordIdx = -1;
+    for (let i = 0; i + 1 < segments.length; i++) {
+      if (ROUTE_KEYWORD_RE.test(segments[i])) keywordIdx = i;
+    }
+    let id = hintedId;
+    if (!id && keywordIdx >= 0) id = segments.slice(keywordIdx + 1).join('/');
+    if (!id) id = firstMatch(url.pathname, [/\/([a-f0-9-]{16,})$/i]);
     if (id) return { service: known[1], contentId: cleanPart(id, 180) };
     return { service: known[1], contentId: '' };
   }

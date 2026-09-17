@@ -477,6 +477,43 @@ def test_drop_repeated_hallucinations_thresholds():
     assert n2 == 0 and len(out2) == len(e2) and len(warn) == 1
 
 
+def test_r58_drop_repeated_hallucinations_preserves_confident_occurrence():
+    # R58-12: grup ORTALAMASI düşükken bile kendi güveni yüksek tekrar
+    # gerçek replik olabilir — silinmemeli.
+    entries, words = [], []
+    probs = [0.95, 0.10, 0.10, 0.10]
+    t = 0.0
+    for prob in probs:
+        entries.append((t, t + 2.0, "Kanal XYZ"))
+        words.append({"word": "Kanal", "start": t + 0.2, "end": t + 0.5, "probability": prob})
+        words.append({"word": "XYZ", "start": t + 0.6, "end": t + 0.9, "probability": prob})
+        t += 100.0
+    out, n = T.drop_repeated_hallucinations(entries, words, [])
+    assert any(abs(x[0] - 0.0) < 1e-9 for x in out), "0.95 güvenli tekrar silindi"
+    assert n == 3, n
+
+
+def test_r58_realign_segment_metrics_keeps_zero_start():
+    # R58-13: start=0.0 geçerli değerdir; falsy varsayıp NaN'a düşürmek ilk
+    # bloğun güven/sessizlik metriğini kaybeder.
+    aligned = T.realign_segment_metrics(
+        [(0.0, 1.0, "ilk blok")],
+        [{"start": 0.0, "end": 1.0, "no_speech_prob": 0.1}],
+    )
+    assert aligned is not None and aligned[0] is not None, aligned
+    assert aligned[0]["start"] == 0.0 and aligned[0]["no_speech_prob"] == 0.1
+
+
+def test_r58_fix_common_errors_drops_emptied_cue_before_strict_writer():
+    # R58-11: ">>" artefakt temizliği boş cue üretir; boş gövde katı SRT
+    # doğrulamasını çökertir — yazıcıya ulaşmadan düşürülmeli.
+    entries, stats = T.fix_common_errors([(0.0, 1.0, ">>"), (2.0, 3.0, "Merhaba.")])
+    assert all(str(t).strip() for _s, _e, t in entries), entries
+    assert len(entries) == 1, entries
+    payload = T.serialize_srt_strict(entries)   # kompoze yol: hata atmamalı
+    assert "Merhaba." in payload
+
+
 # ===== senkron: framerate sürüklenmesi =====
 def _sync_fixture(dur=900, seed=7):
     """Rastgele ama tekrarlanabilir konuşma blokları + referans sinyal."""
@@ -539,6 +576,19 @@ def test_find_piecewise_offsets():
     assert worst < 0.1, worst
     clamped = T.apply_piecewise([(-2.0, -1.0, "erken")], [(0, 0, 0.0)])
     assert clamped == [(0.0, 0.001, "erken")]
+
+
+def test_r58_apply_piecewise_output_is_monotonic_and_non_overlapping():
+    # R58-14: parça sınırında ters kaymalar çakışan/ters sıralı çıktı üretebilir;
+    # çıktı kronolojik sıralı ve repo min_gap sözleşmesine uymalı.
+    spans = [(0.0, 10.0, "a"), (10.0, 20.0, "b")]
+    pieces = [(0, 0, 8.0), (1, 1, -8.0)]
+    out = T.apply_piecewise(spans, pieces, 1.0)
+    assert len(out) == 2, out
+    assert out == sorted(out, key=lambda x: (x[0], x[1])), f"sıralı değil: {out}"
+    for prev, cur in zip(out, out[1:]):
+        assert cur[0] >= prev[1] - 1e-9, f"çakışma: {prev} -> {cur}"
+        assert cur[1] > cur[0], cur
 
 
 def test_piecewise_no_false_split():
@@ -759,8 +809,9 @@ def test_whisperx_error_path_releases_gpu_and_logs_compute_fallback():
     seen = {}
 
     class FakeModel:
-        def transcribe(self, _audio, batch_size):
+        def transcribe(self, _audio, batch_size, **kwargs):
             seen["batch_size"] = batch_size
+            seen.update(kwargs)
             raise RuntimeError("decode failed")
 
     fake_whisperx = types.SimpleNamespace(
@@ -773,6 +824,7 @@ def test_whisperx_error_path_releases_gpu_and_logs_compute_fallback():
         repetition_penalty=1.0, no_repeat_ngram_size=0,
         compression_ratio_threshold=2.4, log_prob_threshold=-1.0,
         no_speech_threshold=0.6, condition_on_previous=False, batch_size=3,
+        task="transcribe",
     )
     old_module = sys.modules.get("whisperx")
     old_free = T._wx_free_gpu
@@ -3169,6 +3221,47 @@ def test_json_writer_nonfinite_metrics_and_invalid_timing_are_safe():
         else:
             raise AssertionError('Sonsuz zaman kabul edildi')
         assert target.read_bytes() == content
+
+
+def test_r58_whisperx_receives_requested_task():
+    # R58-10: --task translate faster-whisper'a iletiliyor ama whisperx
+    # model.transcribe çağrısına hiç ulaşmıyordu — kaynak dilde çıktı,
+    # .en. adlandırmasıyla birlikte sessiz yanlış sonuç.
+    seen = {}
+
+    class FakeModel:
+        def transcribe(self, _audio, **kwargs):
+            seen.update(kwargs)
+            return {"language": "en", "segments": []}
+
+    fake_whisperx = types.SimpleNamespace(
+        load_model=lambda *_a, **_k: FakeModel(),
+        load_audio=lambda _path: [0.0] * 160,
+    )
+    args = types.SimpleNamespace(
+        model="tiny", temperature_fallback=False, temperature=0.0,
+        beam_size=1, best_of=1, patience=1.0, length_penalty=1.0,
+        repetition_penalty=1.0, no_repeat_ngram_size=0,
+        compression_ratio_threshold=2.4, log_prob_threshold=-1.0,
+        no_speech_threshold=0.6, condition_on_previous=False,
+        batch_size=3, task="translate",
+    )
+    old_module = sys.modules.get("whisperx")
+    old_free = T._wx_free_gpu
+    sys.modules["whisperx"] = fake_whisperx
+    T._wx_free_gpu = lambda: None
+    try:
+        segments_iter, info = T.run_whisperx(
+            args, "unused.wav", need_words=False, device="cpu", compute_type="int8")
+        list(segments_iter)
+        assert info.language == "en"
+    finally:
+        T._wx_free_gpu = old_free
+        if old_module is None:
+            sys.modules.pop("whisperx", None)
+        else:
+            sys.modules["whisperx"] = old_module
+    assert seen.get("task") == "translate", seen
 
 
 def test_whisperx_zero_confidence_is_not_promoted_to_one():

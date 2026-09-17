@@ -85,6 +85,27 @@ test('Vimeo doğrudan paylaşım adresi sayısal video kimliğini korur', () => 
   assert.equal(player.key, 'vimeo:123456789');
 });
 
+test('R58-07: bilinen servislerde farklı bölümler ayrı kimlik alır', () => {
+  const pairs = [
+    ['https://www.udemy.com/course/js-course/learn/lecture/111',
+     'https://www.udemy.com/course/js-course/learn/lecture/222'],
+    ['https://www.max.com/video/watch/aaaa-bbbb/xxxx',
+     'https://www.max.com/video/watch/cccc-dddd/yyyy'],
+    ['https://www.discoveryplus.com/video/show-name/episode-one',
+     'https://www.discoveryplus.com/video/show-name/episode-two'],
+    ['https://www.raiplay.it/video/2024/05/Programma-Uno-aaa.html',
+     'https://www.raiplay.it/video/2024/05/Programma-Due-bbb.html'],
+  ];
+  for (const [a, b] of pairs) {
+    assert.notEqual(canonicalMediaIdentity(a).key, canonicalMediaIdentity(b).key,
+      `${a} ile ${b} aynı kimliğe çöktü`);
+  }
+  // Aynı bölümün alternatif adresi aynı kimliği korumalı.
+  assert.equal(
+    canonicalMediaIdentity('https://www.max.com/video/watch/aaaa-bbbb/xxxx?utm_source=x').key,
+    canonicalMediaIdentity('https://www.max.com/video/watch/aaaa-bbbb/xxxx').key);
+});
+
 test('bilinmeyen web adresi sabit ve hassas olmayan hash kimliği alır', () => {
   const a = canonicalMediaIdentity('https://media.example/show/1?token=a&lang=en');
   const b = canonicalMediaIdentity('https://media.example/show/1?lang=en&token=b');

@@ -32,7 +32,9 @@ const body = src.slice(i, j) + '\n  return args;';
 // main.js gercek kodu app.getPath('userData') kullaniyor (onbellek klasoru);
 // cikarilan blok icin sahte bir app veriyoruz.
 const fakeApp = { getPath: (k) => `C:/fake/${k}` };
-const buildArgs = new Function('options', 'scriptPath', 'path', 'app', body);
+// Aşamalı çıktı soneki doğrulayıcısı ortak sözleşmeden (queue-lifecycle) gelir.
+const { isValidOutputNameSuffix } = require('../src/renderer/queue-lifecycle');
+const buildArgs = new Function('options', 'scriptPath', 'path', 'app', 'isValidOutputNameSuffix', body);
 
 // ---- minik test cercevesi ----
 let pass = 0;
@@ -56,7 +58,7 @@ function base(extra) {
     outputDir: 'C:/out',
   }, extra);
 }
-const build = (o) => buildArgs(o, 'transcribe.py', path, fakeApp);
+const build = (o) => buildArgs(o, 'transcribe.py', path, fakeApp, isValidOutputNameSuffix);
 
 test('girdi ve çıktı klasörleri backend argv sözleşmesine ayrı gider', () => {
   const args = build(base());

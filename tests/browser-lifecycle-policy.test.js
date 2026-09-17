@@ -78,4 +78,77 @@ assert.equal(subtitleRequestRetryPolicy({ retryable: true, attempt: 2 }).delayMs
     'mini-player geri bağlama try/catch korumasız');
 }
 
+// R58-02/03: sekme render-process-gone'da sekmeye ait canlı Whisper süreci ve
+// ücretli tam-iz çeviri scheduler'ı serbest bırakılmalı — yoksa model süreci
+// sahipsiz kalır, API istekleri ölü sayfa için çalışmaya devam eder.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const vm = require('vm');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8')
+    .replace(/\r\n/g, '\n');
+  const start = main.indexOf("wc.on('render-process-gone'");
+  const end = main.indexOf("\n  });", start);
+  assert.ok(start >= 0 && end > start, 'render-process-gone işleyicisi bulunamadı');
+  const calls = [];
+  const cancelled = [];
+  const asrJob = { stopping: false, proc: { stdin: { write() {} } } };
+  const tab = {
+    id: 'tab-crash', closing: false, lifecycle: 'active',
+    restoredUrl: 'https://video.example/watch?v=1', restoredTitle: 'Video',
+    translationScheduler: { cancelAll: (reason) => { cancelled.push(reason); } },
+    pageFind: null, generation: 0, crashRecoveryAttempt: 1,
+  };
+  const view = { setVisible() { calls.push('hide'); }, webContents: null };
+  tab.view = view;
+  const wc = {
+    getURL: () => 'https://video.example/watch?v=1',
+    getTitle: () => 'Video',
+    isDestroyed: () => false,
+    close: () => calls.push('wc-close'),
+  };
+  const context = vm.createContext({
+    tab, view, wc,
+    mainWindowClosing: false,
+    browserTabById: (id) => id === 'tab-crash' ? tab : null,
+    crashRecoveryPolicy: () => ({ action: 'notify', message: 'İşlem sona erdi.' }),
+    cancelBrowserPermissionRequestsForTab() {},
+    clearBrowserCloudflareTimer() {},
+    stopBrowserManga: (t) => calls.push(['manga', t === tab]),
+    stopBrowserPageTranslation: (t) => calls.push(['pagetr', t === tab]),
+    stopBrowserLiveAsr: (reason) => calls.push(['asr', reason]),
+    browserLiveAsr: { tab },
+    detachBrowserDebugger() {},
+    mainWindow: { isDestroyed: () => false, contentView: { removeChildView() {} } },
+    browserActiveTabId: 'other',
+    browserView: null,
+    stopBrowserPolling() {},
+    browserDebuggerReady: true,
+    browserPendingResponses: new Map(),
+    browserRequestRanges: new Map(),
+    sendBrowserEvent() {},
+    scheduleBrowserSessionSave() {},
+    setTimeout: () => ({ unref() {} }),
+    clearTimeout() {},
+    ensureBrowserView: () => null,
+    applyBrowserViewsLayout() {},
+    resumeRestoredBrowserPage() {},
+    String, Number, Object, console,
+  });
+  // Kesim arrow işlevinin kapanış süslüsünü dışarıda bırakır; elle eklenir.
+  const handler = vm.runInContext(
+    '(' + main.slice(start, end).replace(/^wc\.on\('render-process-gone',\s*/, '') + '\n})', context);
+  handler(null, { reason: 'crashed' });
+  assert.ok(calls.some((c) => Array.isArray(c) && c[0] === 'asr'),
+    'crash handler sekmeye ait canlı Whisper işini durdurmuyor (R58-02)');
+  assert.equal(cancelled.length, 1,
+    'crash handler tam-iz çeviri schedulerını iptal etmiyor (R58-03)');
+  assert.equal(context.tab.translationScheduler, null,
+    'scheduler referansı crash sonrası temizlenmeli');
+  assert.ok(calls.some((c) => Array.isArray(c) && c[0] === 'manga')
+    && calls.some((c) => Array.isArray(c) && c[0] === 'pagetr'),
+    'manga/sayfa çevirisi işleri crashde durdurulmadı');
+  assert.equal(context.tab.view, null, 'görünüm crash sonrası bırakılmalı');
+}
+
 console.log('Tarayıcı yaşam döngüsü: retry sınıfları ve çökme neden politikası geçti.');

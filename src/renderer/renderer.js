@@ -6,6 +6,7 @@
 const {
   createJobId,
   eventMatchesActiveJob,
+  queueOutputNameSuffix,
   snapshotOptions: snapshotQueueOptions,
 } = window.QueueLifecycle;
 
@@ -455,6 +456,25 @@ function queueInputKey(type, input) {
   return out.join('/').toLowerCase();
 }
 
+// Aynı kök-adlı farklı dosyalar aynı çıktı klasöründe aynı .srt/.vtt adını
+// üretir; çakışan işe ortak sözleşmeli (queue-lifecycle) sonek verilir.
+// Ekleme anında ve işin her başlatılmasında yeniden hesaplanır — bekleyen
+// kuyruk üyeliği değiştiyse sonek güncel duruma göre üretilir.
+function computeQueueCollisionSuffix(input, opts, excludeId) {
+  const stemOf = (value) => String(value || '').split(/[\\/]/).pop()
+    .replace(/\.[^.]+$/, '').toLowerCase();
+  const stem = stemOf(input);
+  if (!stem) return '';
+  const inputKey = queueInputKey('file', input);
+  const collides = state.queue.some((item) => item.type === 'file'
+    && item.id !== excludeId
+    && queueInputKey('file', item.input) !== inputKey
+    && ['pending', 'running', 'done'].includes(item.status)
+    && String(item.opts?.outputDir || '') === String(opts.outputDir || '')
+    && stemOf(item.input) === stem);
+  return collides ? queueOutputNameSuffix(excludeId) : '';
+}
+
 // queue-persistence.js MAX_QUEUE_ITEMS (500) ile aynı sınır — aşılırsa
 // disk snapshot'ı kuyruğun sonunu sessizce kırpıyordu; şimdi eklemeyi
 // kullanıcıya bildirerek reddediyoruz.
@@ -517,17 +537,10 @@ function addToQueue(type, input, { watchSource = false } = {}) {
   // Yalnız çakışan işe benzersiz sonek verilir; aynı dosyanın yeniden koşusu
   // kendi çıktısını yeniden yazabilir — beklenen davranış.
   if (type === 'file') {
-    const stemOf = (value) => String(value || '').split(/[\\/]/).pop()
-      .replace(/\.[^.]+$/, '').toLowerCase();
-    const stem = stemOf(input);
-    const collides = stem && state.queue.some((item) => item.type === 'file'
-      && queueInputKey('file', item.input) !== inputKey
-      && ['pending', 'running', 'done'].includes(item.status)
-      && String(item.opts?.outputDir || '') === String(opts.outputDir || '')
-      && stemOf(item.input) === stem);
-    if (collides) {
-      opts.outputNameSuffix = `-whisper-q${id}`;
-      logLine(`"${label}" aynı adlı başka bir kuyruk işiyle çakışıyor; çıktıları "-whisper-q${id}" sonekiyle yazılacak.`, 'warn');
+    const suffix = computeQueueCollisionSuffix(input, opts, id);
+    if (suffix) {
+      opts.outputNameSuffix = suffix;
+      logLine(`"${label}" aynı adlı başka bir kuyruk işiyle çakışıyor; çıktıları "${suffix}" sonekiyle yazılacak.`, 'warn');
     }
   }
   // Ayarları EKLEME anında dondur: kuyruk işlenirken UI değişse bile bu iş eski ayarı kullanır
@@ -742,6 +755,14 @@ async function processNextQueueItem() {
   // Eklenirken dondurulmuş ayarları kullan (yoksa mevcut UI'dan üret — geriye uyum)
   const opts = next.opts ? { ...next.opts, ...queueSecretsFromCurrentUi(next.opts) } : buildOptsFromUI();
   opts.queueItemId = next.id;
+  // Çakışma soneki ekleme anındaki kuyruk üyeliğine göre donmuş olabilir ve
+  // kalıcı kuyruktan gelen işler geçersiz '-whisper-q2' taşıyabilir; her
+  // başlatmada güncel üyeliğe göre ortak sözleşmeyle yeniden üretilir.
+  if (next.type === 'file') {
+    const suffix = computeQueueCollisionSuffix(next.input, opts, next.id);
+    if (suffix) opts.outputNameSuffix = suffix;
+    else if (/^-whisper-q\d+$/i.test(String(opts.outputNameSuffix || ''))) delete opts.outputNameSuffix;
+  }
   const problemInfo = optsProblemInfo(opts);
   if (problemInfo) {
     next.status = 'error';
@@ -794,6 +815,7 @@ async function processNextQueueItem() {
       return;
     }
     next.status = 'error';
+    next.error = String(r.error || 'İş başlatılamadı.').slice(0, 500);
     reportWatchQueueResult(next, 'error');
     renderQueue();
     state.running = false;
@@ -4401,9 +4423,14 @@ document.addEventListener('keydown', (e) => {
     if (!state.running) $('startBtn').click();
   } else if (e.key === 'Escape') {
     const modal = $('resultModal');
+    const escapeTarget = e.target;
+    const escapeEditable = escapeTarget && (
+      ['input', 'select', 'textarea'].includes(String(escapeTarget.tagName || '').toLowerCase())
+      || escapeTarget.isContentEditable
+      || escapeTarget.closest?.('[contenteditable="true"]'));
     if (modal && !modal.classList.contains('hidden')) {
       modal.classList.add('hidden');
-    } else if (state.running || state.queueRunning) {
+    } else if (!escapeEditable && (state.running || state.queueRunning)) {
       $('cancelBtn').click();
     }
   }
@@ -20679,11 +20706,39 @@ document.addEventListener('visibilitychange', () => {
   renderCue();
 });
 
-// Klavye: oynatıcı açıkken boşluk/ok/F/Esc
+// Klavye: oynatıcı açıkken boşluk/ok/F/Esc. Öncelik sözleşmesi:
+//   1) katman/modal kapanışı — Escape odaklı düğme/bağlantıda bile katmanı kapatır
+//   2) düzenlenebilir/etkileşimli hedef koruması
+//   3) tarayıcı kısayolları (yalnız browser çalışma alanı, Ctrl/Meta/Alt)
+//   4) oynatıcı kısayolları (tek tuş)
 document.addEventListener('keydown', (e) => {
   const layer = $('playerLayer');
   if (!layer || layer.classList.contains('hidden')) return;
   const modifier = e.ctrlKey || e.metaKey;
+  const video = $('playerVideo');
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (player.editing) { closeCueEditor(); return; }
+    const subMenu = $('subtitleModeMenu');
+    const places = $('browserPlacesPanel');
+    const downloads = $('browserDownloadsPanel');
+    if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
+    else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
+    else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
+    else if (player.selectedWord) hideWordInspector();
+    else if (!$('shortcutHelp')?.classList.contains('hidden')) setShortcutHelpOpen(false);
+    else if (!$('settingsDrawer')?.classList.contains('hidden')) setSettingsDrawer(false);
+    else if (player.workspaceMode !== 'browser') {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else closePlayer();
+    }
+    return;
+  }
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
+      || tag === 'a' || tag === 'summary' || e.target.isContentEditable
+      || e.target.closest?.('[contenteditable="true"]')) return;
+  if (player.editing) return;
   if (player.workspaceMode === 'browser' && modifier && e.altKey) {
     const shortcut = window.BrowserCommandPalette?.browserShortcutForInput({ type: 'keyDown', key: e.key, control: e.ctrlKey, meta: e.metaKey, alt: true });
     if (shortcut && runBrowserShortcut(shortcut)) { e.preventDefault(); return; }
@@ -20692,12 +20747,9 @@ document.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
     if (runBrowserShortcut(key, e.shiftKey)) { e.preventDefault(); return; }
   }
-  const video = $('playerVideo');
-  const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
-      || tag === 'a' || tag === 'summary' || e.target.isContentEditable
-      || e.target.closest?.('[contenteditable="true"]')) return;
-  if (player.editing) return;
+  // Eşleşmeyen Ctrl/Meta/Alt kombinasyonu tek-harf oynatıcı eylemine düşmez:
+  // Ctrl+C kopyalama, Alt+harf menü kısayolu olarak kalmalı.
+  if (modifier || e.altKey) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
@@ -20743,19 +20795,6 @@ document.addEventListener('keydown', (e) => {
       }).catch(() => {});
       return;
     }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      const subMenu = $('subtitleModeMenu');
-      const places = $('browserPlacesPanel');
-      const downloads = $('browserDownloadsPanel');
-      if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
-      else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
-      else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
-      else if (player.selectedWord) hideWordInspector();
-      else if (!$('shortcutHelp')?.classList.contains('hidden')) setShortcutHelpOpen(false);
-      else if (!$('settingsDrawer')?.classList.contains('hidden')) setSettingsDrawer(false);
-      return;
-    }
   }
   // Kare kare gezinme (duraklatilmisken) - altyazi sinirini ayarlarken ise yarar
   if ((e.key === ',' || e.key === '.') && video.paused) {
@@ -20790,17 +20829,6 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') { video.currentTime += 5; showControls(); }
   else if (e.key === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
-  else if (e.key === 'Escape') {
-    const subMenu = $('subtitleModeMenu');
-    if (subMenu && !subMenu.classList.contains('hidden')) { setSubtitleModeMenuOpen(false); return; }
-    if (player.selectedWord) { hideWordInspector(); return; }
-    const help = $('shortcutHelp');
-    if (help && !help.classList.contains('hidden')) { setShortcutHelpOpen(false); return; }
-    const drawer = $('settingsDrawer');
-    if (drawer && !drawer.classList.contains('hidden')) { setSettingsDrawer(false); return; }
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else closePlayer();
-  }
 });
 
 // Gecikme/hiz/ses: hem kontrolden hem klavyeden ayni yoldan degissin

@@ -54,8 +54,12 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
   const planned = normalizeCeaCaptureSegments(segments);
   const completedIds = new Set((completed instanceof Set ? [...completed] : completed || [])
     .map((item) => typeof item === "string" ? item : ceaCaptureSegmentIdentity(item)));
-  const missing = planned.filter((segment) => !completedIds.has(ceaCaptureSegmentIdentity(segment)));
-  const total = planned.length;
+  // EXT-X-GAP parçaları sunucuda bilinçli olarak yok; indirilemez oldukları için
+  // zorunlu işten çıkarılırlar ama süreleri zaman çizgisi muhasebesinde kalır.
+  const required = planned.filter((segment) => !segment.gap);
+  const gapCount = planned.length - required.length;
+  const missing = required.filter((segment) => !completedIds.has(ceaCaptureSegmentIdentity(segment)));
+  const total = required.length;
   const completedCount = Math.max(0, total - missing.length);
   const cueCount = Math.max(0, Number(options.cueCount) || 0);
   const manifestComplete = options.planComplete !== false;
@@ -84,6 +88,7 @@ function summarizeCeaCaptureCompleteness(segments = [], completed = [], options 
     completed: completedCount,
     missing: missing.length,
     missingSegments: missing,
+    gapCount,
     cueCount,
     manifestComplete,
     planComplete,
@@ -108,7 +113,8 @@ function shouldAutoRetryCeaCapture(summary, retryRound = 0, maxRetryRounds = 2) 
 }
 
 async function runOrderedCeaCapture(options = {}) {
-  const items = normalizeCeaCaptureSegments(options.segments);
+  const items = normalizeCeaCaptureSegments(options.segments)
+    .filter((segment) => !segment.gap);
   const concurrency = Math.max(1, Math.min(6, Number(options.concurrency) || 4));
   const fetchSegment = options.fetchSegment;
   const consumeSegment = options.consumeSegment;

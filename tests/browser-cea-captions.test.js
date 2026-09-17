@@ -356,6 +356,73 @@ test('R51-16: SERVICE<n> manifest kimliği cc708_<n> çözülmüş akışıyla e
     'ceaStreamMatchesInstream import edilmemiş');
 });
 
-testOutOfOrderHlsSegments()
-  .then(() => console.log(`browser-cea-captions: ${passed + 1}/${passed + 1} OK`))
-  .catch((error) => { console.error('  FAIL R51-19', error); process.exitCode = 1; });
+// R58-04: CEA video parça adayı için 304/4xx/5xx gövdesi çözümleyiciye
+// ulaşmamalı; yoksa boş/hata gövdesi "yakalandı" diye işaretlenir ve gerçek
+// parça "zaten alındı" diye atlanır.
+async function testR58CeaHttpErrorBodies() {
+  const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8').replace(/\r\n/g, '\n');
+  const start = main.indexOf('async function captureBrowserResponse(');
+  const end = main.indexOf('\nfunction browserDebuggerNeeded(', start);
+  assert.ok(start >= 0 && end > start, 'captureBrowserResponse kaynakta bulunamadı');
+  const calls = [];
+  const browserPendingResponses = new Map();
+  const context = {
+    Promise, Buffer, Number, Error, String,
+    BROWSER_CAPTURE_BODY_LIMIT,
+    browserCaptureBodyAllowed: () => true,
+    browserCapturePayloadAllowed: () => true,
+    browserDebuggerReady: true,
+    browserPendingResponses,
+    browserTabById: () => ({ compatibilityMode: false }),
+    getBrowserCapturedResponseBody: async () => { calls.push('body'); return { body: 'x' }; },
+    isBrowserCaptureCandidateExpired: () => false,
+    isCurrentBrowserContext: () => true,
+    noteBrowserCapture: () => {},
+    processBrowserCapturedPayload: async () => { calls.push('payload'); },
+    scheduleBrowserManifestRetry: () => {},
+  };
+  vm.createContext(context);
+  vm.runInContext(main.slice(start, end), context);
+  const capture = context.captureBrowserResponse;
+  const seg = { playlistUrl: 'https://cdn.test/v/playlist.m3u8', sequence: 1,
+    url: 'https://cdn.test/v/seg.ts', tracks: [] };
+  const eventContext = { tabId: 'tab-1', stateGeneration: 0 };
+  for (const status of [304, 403, 404, 500]) {
+    browserPendingResponses.set(`root:r${status}`,
+      { status, requestId: `r${status}`, ceaSegment: seg, context: eventContext });
+    await capture(`root:r${status}`);
+    assert.equal(calls.length, 0,
+      `HTTP ${status} gövdesi okunup payload işlemcisine verilmemeli`);
+  }
+  // Kontrol: 2xx parça gövdesi hâlâ okunup işlenir.
+  browserPendingResponses.set('root:ok',
+    { status: 206, requestId: 'ok', ceaSegment: seg, context: eventContext });
+  await capture('root:ok');
+  assert.deepEqual(calls, ['body', 'payload'], '2xx gövdesi akışı bozulmamalı');
+  console.log('  OK  R58-04 CEA parçasında 304/4xx/5xx gövdesi reddedilir');
+}
+
+// R58-05: canlı media-playlist yenilemesi CEA eşleyicilerini güncellemeli —
+// master'taki iz bildirimi korunur, kayan penceredeki yeni parçalar eşlenir.
+test('R58-05: yenilenen medya listesi CEA parça eşleyicilerini tazeler', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+  // Üretim bağlantısı: master'sız yenileme dalı eşleyiciyi yeniden kurmalı.
+  assert.ok(/ceaUrlKey\(candidate\.url\)\s*===\s*ceaUrlKey\(browserHlsCeaActive\.playlistUrl\)[\s\S]{0,900}buildHlsCeaSegmentMatchers[\s\S]{0,900}registerBrowserHlsCeaMatchers/.test(main),
+    'media-playlist yenilemesi CEA eşleyicilerini güncellemiyor');
+  // Davranış: yenilenen gövdeden kurulan eşleyiciler yeni parçaları taşır ve
+  // aynı kaynağa bağlı kalır.
+  const tracks = [{ instreamId: 'CC1', language: 'en', supported: true }];
+  const playlistV2 = '#EXTM3U\n#EXT-X-TARGETDURATION:6\n'
+    + '#EXTINF:6,\nseg7.ts\n#EXTINF:6,\nseg8.ts\n#EXTINF:6,\nseg9.ts\n';
+  const matchers = buildHlsCeaSegmentMatchers(playlistV2,
+    'https://cdn.test/v/playlist.m3u8', tracks, 'https://cdn.test/master.m3u8');
+  assert.equal(matchers.length, 3);
+  assert.ok(matchers.every((item) => item.sourceUrl === 'https://cdn.test/master.m3u8'
+    && item.playlistUrl === 'https://cdn.test/v/playlist.m3u8'));
+  assert.deepEqual(matchers.map((item) => item.sequence), [0, 1, 2]);
+});
+
+testR58CeaHttpErrorBodies()
+  .then(() => testOutOfOrderHlsSegments())
+  .then(() => console.log(`browser-cea-captions: ${passed + 2}/${passed + 2} OK`))
+  .catch((error) => { console.error('  FAIL', error); process.exitCode = 1; });

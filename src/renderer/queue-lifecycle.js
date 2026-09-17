@@ -24,6 +24,21 @@
     return deepFreeze(cloneValue(value || {}));
   }
 
+  // Aşamalı çıktı soneki sözleşmesi tek yerde: main.js aynı kuralı doğrular,
+  // renderer kuyruk çakışma sonekini aynı kuralla üretir. '-whisper-'
+  // sonrası en az 4 karakter zorunlu — 'q2'/'q12' gibi küçük kuyruk
+  // kimlikleri eskiden geçersiz sonek üretip işi başlamadan düşürüyordu.
+  const OUTPUT_NAME_SUFFIX_RE = /^-whisper-[a-z0-9-]{4,48}$/i;
+
+  function isValidOutputNameSuffix(value) {
+    return OUTPUT_NAME_SUFFIX_RE.test(String(value || ''));
+  }
+
+  function queueOutputNameSuffix(id) {
+    const numeric = Math.max(0, Math.floor(Number(id) || 0));
+    return `-whisper-q${String(numeric).padStart(4, '0')}`;
+  }
+
   let fallbackJobSequence = 0;
   function createJobId() {
     const cryptoObject = typeof globalThis !== 'undefined' ? globalThis.crypto : null;
@@ -240,6 +255,8 @@
     createProcessTerminalLatch,
     createSingleFlightScheduler,
     eventMatchesActiveJob,
+    isValidOutputNameSuffix,
+    queueOutputNameSuffix,
     snapshotOptions,
   };
 }));

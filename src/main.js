@@ -10,7 +10,7 @@ const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
 const { terminateProcessTree } = require('./process-lifecycle');
-const { createProcessTerminalLatch } = require('./renderer/queue-lifecycle');
+const { createProcessTerminalLatch, isValidOutputNameSuffix } = require('./renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('./pipeline-job');
 const { createWatchLibraryStore } = require('./watch-library-store');
 const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
@@ -6820,7 +6820,10 @@ function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
   const job = browserLiveAsr;
   if (!job || job.stopping) return false;
   job.stopping = true;
-  browserLiveAsr = null;
+  // browserLiveAsr'ı hemen null yapma: Python 'stop' alınca son cue'ları
+  // boşaltır; consumeLiveAsrLine'ın sahiplik denetimi close'a kadar bu işte
+  // kalmalı, yoksa son saniyelerin konuşması sessizce kaybolur. Yeni ses
+  // parçaları zaten job.stopping ile reddedilir.
   const stage = job.tab.acquisitionPlan?.stage('live-asr');
   if (stage && ['waiting', 'running'].includes(stage.status)) {
     job.tab.acquisitionPlan.finish('live-asr', { success: false, reason });
@@ -8116,6 +8119,7 @@ async function prepareBrowserHlsCeaCapture(masterBody, masterUrl, tracks, contex
     const nearby = recovery.matchers.slice(Math.max(0, index - 1), index + 3);
     for (const segment of nearby) {
       if (!isActive()) break;
+      if (segment.gap) continue;  // EXT-X-GAP: sunucuda yok — indirme denemesi nafile
       const key = hlsCeaSegmentFetchKey(segment);
       if (browserHlsCeaFetchedSegments.has(key)) continue;
       try {
@@ -8489,6 +8493,30 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
             tracks: embeddedCaptions,
             context: context ? { ...context } : null,
           };
+        } else if (isHls && browserHlsCeaActive?.tracks?.length
+            && browserHlsCeaActive.playlistUrl
+            && (!browserHlsCeaActive.context || isCurrentBrowserContext(browserHlsCeaActive.context))
+            && ceaUrlKey(candidate.url) === ceaUrlKey(browserHlsCeaActive.playlistUrl)) {
+          // Canlı/kayan medya listesi yenilemesi master'taki CLOSED-CAPTIONS
+          // bildirimini taşımaz; korunan iz bildirimiyle yeni parçaları
+          // eşleyicilere ekle, yoksa liste başından sonra CEA genişlemez.
+          const refreshedMatchers = buildHlsCeaSegmentMatchers(body, candidate.url,
+            hlsCeaTracksForVariant(browserHlsCeaActive.tracks, browserHlsCeaActive.variant || {}),
+            browserHlsCeaActive.sourceUrl);
+          ceaMatcherCount = registerBrowserHlsCeaMatchers(refreshedMatchers);
+          Object.assign(browserHlsCeaActive, {
+            segments: mergeCeaCaptureSegments(browserHlsCeaActive.segments, refreshedMatchers),
+            playlistComplete: /#EXT-X-ENDLIST(?:\s|$)/i.test(body),
+          });
+          const ceaJob = browserHlsCeaFullCaptureJob;
+          if (ceaJob && ['running', 'refreshing', 'partial', 'error'].includes(ceaJob.state)
+              && ceaUrlKey(ceaJob.playlistUrl || ceaJob.sourceUrl) === ceaUrlKey(candidate.url)) {
+            ceaJob.segments = mergeCeaCaptureSegments(ceaJob.segments, refreshedMatchers);
+            ceaJob.total = ceaJob.segments.length;
+            ceaJob.playlistComplete = browserHlsCeaActive.playlistComplete;
+          }
+          noteBrowserCapture('manifest', candidate, 'parsed',
+            `${ceaMatcherCount} gömülü CEA video parçası yenilenen listeden eşlendi`);
         }
         if (!isHls) {
           const discoveredMatchers = parseDashSubtitleMatchers(body, candidate.url);
@@ -8791,6 +8819,15 @@ async function captureBrowserResponse(pendingKey) {
   const tab = browserTabById(context.tabId);
   if (tab?.compatibilityMode) return;
   try {
+    if (candidate.ceaSegment
+        && !(Number(candidate.status) >= 200 && Number(candidate.status) < 300)) {
+      // 304/4xx/5xx gövdesi gerçek video parçası değildir; çözümleyiciye vermek
+      // sıfır cue üretip parçayı "yakalandı" diye işaretler ve gerçek gövde
+      // daha sonra "zaten alındı" diye atlanır. Parça eksik kalmalı.
+      noteBrowserCapture('cdp', candidate, 'error',
+        `Gömülü CEA video parçası HTTP ${candidate.status || 'bilinmeyen'} ile geldi; parça yakalanmadı`);
+      return;
+    }
     if (Number(candidate.status) === 304) {
       await processBrowserCapturedPayload(Buffer.alloc(0), candidate, 'cdp', context);
       return;
@@ -10568,6 +10605,16 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     };
     try { tab.pageFind?.stop(); } catch (_) {}
     tab.pageFind = null;
+    // Sekmeye ait model/ücretli işler çökmeden sonra sahipsiz kalmasın —
+    // destroyBrowserTab ile aynı sözleşme: manga/sayfa çevirisi, tam-iz
+    // çeviri scheduler'ı ve canlı Whisper süreci serbest bırakılır.
+    stopBrowserManga(tab, false);
+    stopBrowserPageTranslation(tab, false);
+    tab.translationScheduler?.cancelAll('Sekme işlemi sona erdi.');
+    tab.translationScheduler = null;
+    if (browserLiveAsr?.tab === tab) {
+      stopBrowserLiveAsr('Sekme işlemi sona erdiği için canlı Whisper durduruldu.');
+    }
     detachBrowserDebugger(view);
     try { view.setVisible(false); } catch (_) {}
     try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(view); } catch (_) {}
@@ -15747,7 +15794,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
   if (options.input && typeof fs !== 'undefined' && typeof canonicalLocalPath === 'function' && typeof MEDIA_EXTS !== 'undefined') {
     try {
-      const inputPath = options.reexport || options.translateOnly
+      // explain işleri de girdi olarak altyazı dosyası kullanır (player.subPath);
+      // bunları medya yetkilendiricisine sokmak .srt/.vtt/.ass uzantılarını reddeder.
+      const inputPath = options.reexport || options.translateOnly || options.explain
         ? await authorizeSubtitleFile(options.input)
         : await authorizeMediaFile(options.input);
       options.input = inputPath;
@@ -15810,7 +15859,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--output-dir', options.outputDir);
   if (options.outputNameSuffix) {
     const suffix = String(options.outputNameSuffix);
-    if (!/^-whisper-[a-z0-9-]{4,48}$/i.test(suffix)) {
+    if (!isValidOutputNameSuffix(suffix)) {
       return { ok: false, error: 'Geçersiz aşamalı çıktı kimliği.' };
     }
     // Değer bilinçli olarak '-' ile başlıyor. Ayrı argv öğesi olarak

@@ -202,6 +202,31 @@ const {
     { finalize: true, captureComplete: true, inputPath: 'GİRDİ\\full.srt' }), false,
   'tamamlanmış aynı yayın üçüncü kez yayımlanmamalı');
 
+  // R58-06: EXT-X-GAP parçaları sunucuda bilinçli yok; zorunlu/indirilebilir
+  // işten çıkar ama süreleri zaman çizgisi muhasebesinde kalır.
+  const gapped = [
+    { url: 'https://cdn.test/g1.ts', sequence: 1, discontinuity: 0, start: 0, duration: 6 },
+    { url: 'https://cdn.test/g2.ts', sequence: 2, discontinuity: 0, start: 6, duration: 6, gap: true },
+    { url: 'https://cdn.test/g3.ts', sequence: 3, discontinuity: 0, start: 12, duration: 6 },
+  ];
+  const gapFetched = [];
+  const gapOrdered = await runOrderedCeaCapture({
+    segments: gapped, concurrency: 1,
+    fetchSegment: async (segment) => { gapFetched.push(segment.sequence); return Buffer.from('ok'); },
+    consumeSegment: async () => {},
+  });
+  assert.deepEqual(gapFetched, [1, 3], 'EXT-X-GAP parçası indirilmeye çalışılmamalı');
+  assert.equal(gapOrdered.total, 2);
+  const gapSummary = summarizeCeaCaptureCompleteness(gapped,
+    new Set(['0:1', '0:3']), { cueCount: 10, planComplete: true });
+  assert.equal(gapSummary.gapCount, 1);
+  assert.equal(gapSummary.total, 2, 'gap parçası zorunlu iş sayılmamalı');
+  assert.equal(gapSummary.missing, 0, 'gap parçası eksik sayılıp sonsuz retry üretmemeli');
+  assert.equal(gapSummary.plannedDuration, 18, 'gap süresi zaman muhasebesinde korunmalı');
+  assert.equal(gapSummary.complete, true);
+  const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  assert.match(mainSource, /if \(segment\.gap\) continue/, 'kurtarma döngüsü gap parçalarını atlamalı');
+
   console.log('browser-cea-full-capture: ordered capture, exact completeness and automatic missing retry OK');
 })().catch((error) => {
   console.error(error);

@@ -4070,7 +4070,7 @@ def run_whisperx(args, wav_path, need_words=True, initial_prompt=None, language=
 
         audio = whisperx.load_audio(wav_path)
         emit("status", stage="transcribe", text="WhisperX transkripsiyon...")
-        result = model.transcribe(audio, batch_size=args.batch_size)
+        result = model.transcribe(audio, batch_size=args.batch_size, task=args.task)
     finally:
         # load/transcribe hata yolunda da CTranslate2 çalışma alanını ve CUDA
         # cache'ini hizalama/diarization başlamadan önce bırak.
@@ -4388,14 +4388,22 @@ def realign_segment_metrics(entries, metrics, start_tol=0.5, end_tol=2.5):
     iyidir — tüketici tarafı zaten dict olmayanları atlıyor).
     """
     import bisect as _bisect
+
+    def _metric_float(value):
+        # 0.0 geçerli bir zaman damgasıdır; `or` falsy sayıp NaN'a düşürmez.
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return float("nan")
+
     if not isinstance(metrics, (list, tuple)) or not metrics:
         return None
     pool = sorted(
         (m for m in metrics
          if isinstance(m, dict)
-         and math.isfinite(float(m.get("start") or float("nan")))
-         and math.isfinite(float(m.get("end") or float("nan")))),
-        key=lambda m: (float(m["start"]), float(m["end"])),
+         and math.isfinite(_metric_float(m.get("start")))
+         and math.isfinite(_metric_float(m.get("end")))),
+        key=lambda m: (_metric_float(m["start"]), _metric_float(m["end"])),
     )
     if not pool:
         return None
@@ -4497,15 +4505,19 @@ def find_repeated_hallucinations(entries, all_words, min_count=4, max_words=8,
             continue
         out.append({"text": entries[idxs[0]][2], "count": len(idxs),
                     "conf": round(conf, 3) if conf is not None else 0.0,
-                    "metricRisk": metric_risk, "indices": idxs})
+                    "metricRisk": metric_risk, "indices": idxs,
+                    "confs": {i: mean_conf([i]) for i in idxs}})
     out.sort(key=lambda d: -d["count"])
     return out
 
 
-def drop_repeated_hallucinations(entries, all_words, warn_list=None, conf_drop=0.4, segment_metrics=None):
+def drop_repeated_hallucinations(entries, all_words, warn_list=None, conf_drop=0.4,
+                                 conf_keep=0.55, segment_metrics=None):
     """
     Bulunan tekrarlı uydurmalardan güveni ÇOK düşük olanları (conf_drop altı) siler,
     kalanları uyarı olarak bildirir — silmek riskliyken karar kullanıcıya bırakılır.
+    Grup ortalaması düşükken bile kendi güveni yüksek tekrar gerçek replik olabilir;
+    o oluş korunur.
     Döner: (entries, silinen_blok_sayısı)
     """
     found = find_repeated_hallucinations(entries, all_words, segment_metrics=segment_metrics)
@@ -4514,7 +4526,11 @@ def drop_repeated_hallucinations(entries, all_words, warn_list=None, conf_drop=0
     drop_idx = set()
     for item in found:
         if item["conf"] < conf_drop and not item.get("metricRisk"):
-            drop_idx.update(item["indices"])
+            confs = item.get("confs") or {}
+            drop_idx.update(
+                i for i in item["indices"]
+                if not (confs.get(i) is not None and confs[i] >= conf_keep)
+            )
             log(f"Tekrarlı uydurma silindi ({item['count']}x, güven {item['conf']:.2f}): "
                 f"\"{item['text'][:60]}\"", "warn")
         else:
@@ -4546,14 +4562,22 @@ def fix_common_errors(entries, language="tr"):
         stats["mikro blok"] = n
 
     fixed_text = 0
+    dropped_empty = 0
     new_entries = []
     for s0, e0, text in entries:
         t = fix_text_artifacts(text, language)
         if t != text:
             fixed_text += 1
+        if not t.strip():
+            # ">>" gibi artefakt blokları temizlikte boşalabilir; boş gövde
+            # katı SRT doğrulamasını çökertir — yazıcıya ulaşmadan düşür.
+            dropped_empty += 1
+            continue
         new_entries.append((s0, e0, t))
     if fixed_text:
         stats["metin biçimi"] = fixed_text
+    if dropped_empty:
+        stats["temizlikte boşalan blok"] = dropped_empty
 
     new_entries, n = capitalize_after_sentence(new_entries, language)
     if n:
@@ -7739,14 +7763,25 @@ def find_piecewise_offsets(ref_sig, hz, spans, base_offset, ratio=1.0,
     return [(a, b, o) for (a, b, o) in merged if b >= a]
 
 
-def apply_piecewise(spans, pieces, ratio=1.0):
-    """Parça kaymalarını uygula (zamanlar ölçeklenip kendi offset'iyle kaydırılır)."""
+def apply_piecewise(spans, pieces, ratio=1.0, min_gap=0.08):
+    """Parça kaymalarını uygula (zamanlar ölçeklenip kendi offset'iyle kaydırılır).
+
+    Parça sınırında zıt yönlü kaymalar çakışan veya ters sıralı cue üretebilir;
+    çıktı kronolojik sıralanır ve her bitiş sonraki başlangıç - min_gap ile
+    sınırlanır (normalize_timings ile aynı boşluk sözleşmesi).
+    """
     out = []
     for (a_idx, b_idx, off) in pieces:
         for (s0, e0, t) in spans[a_idx:b_idx + 1]:
             start = max(0.0, s0 * ratio + off)
             end = max(start + 0.001, e0 * ratio + off)
             out.append((start, end, t))
+    out.sort(key=lambda cue: (cue[0], cue[1]))
+    for i in range(len(out) - 1):
+        s, e, t = out[i]
+        next_start = out[i + 1][0]
+        if e > next_start - min_gap:
+            out[i] = (s, max(s + 0.01, next_start - min_gap), t)
     return out
 
 

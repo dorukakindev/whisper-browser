@@ -28,4 +28,48 @@ assert.throws(() => pcm16Wav(Buffer.alloc(16000 * 2 * 10)), /geçersiz/);
   assert.match(main, /job\.chunkFiles\.add\(filePath\)/);
 }
 
-console.log('browser-live-audio: 9 test');
+// R58-01: stopBrowserLiveAsr işi stdout/close'a kadar drain sahibi tutmalı —
+// Python 'stop' aldığında son segmentleri boşaltır; browserLiveAsr'ı hemen
+// null yapmak o son satırları sahiplik denetiminde düşürür.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const vm = require('vm');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8')
+    .replace(/\r\n/g, '\n');
+  const stopStart = main.indexOf('function stopBrowserLiveAsr(');
+  const stopEnd = main.indexOf('\nfunction sweepBrowserLiveAsrTemp(', stopStart);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart, 'stopBrowserLiveAsr kaynakta bulunamadı');
+  const consumeStart = main.indexOf('  const consumeLiveAsrLine =');
+  const consumeEnd = main.indexOf('  const liveAsrLines =', consumeStart);
+  assert.ok(consumeStart >= 0 && consumeEnd > consumeStart, 'consumeLiveAsrLine bulunamadı');
+  const written = [];
+  const stored = [];
+  const job = {
+    nextCueId: 0, cues: [], stopping: false, chunkFiles: new Set(),
+    tab: { id: 'tab-1', acquisitionId: 'acq',
+      acquisitionPlan: { stage: () => null, finish: () => true, snapshot: () => ({}) } },
+    proc: { stdin: { write: (line) => written.push(line) } },
+  };
+  const context = vm.createContext({
+    browserLiveAsr: job, browserDiagnostics: null, publishBrowserDiagnostics() {},
+    sendBrowserEvent() {}, terminateProcessTree() {}, spawn() {}, setTimeout: () => ({ unref() {} }),
+    JSON, isCurrentBrowserContext: () => true,
+    storeBrowserTrack: (cues) => { stored.push(cues); },
+    job, tab: job.tab, language: 'en', context: {},
+    fs: { unlinkSync() {}, existsSync: () => false },
+  });
+  const stop = vm.runInContext(`(${main.slice(stopStart, stopEnd)})`, context);
+  const consume = vm.runInContext(
+    main.slice(consumeStart, consumeEnd) + '\nconsumeLiveAsrLine', context);
+  assert.equal(stop('test'), true);
+  assert.equal(context.browserLiveAsr, job,
+    'stop sonrası drain sahipliği close a kadar korunmalı');
+  // Python'ın stop sonrası boşalttığı son segment kaybolmamalı.
+  consume(JSON.stringify({ type: 'segment', start: 120.4, end: 122.1, text: 'Son cümle.' }));
+  assert.equal(stored.length, 1, 'stop sonrası boşaltılan son segment kayboldu');
+  assert.equal(job.cues.length, 1);
+  assert.match(String(written[0] || ''), /"stop"/, 'stop komutu sürece yazılmadı');
+}
+
+console.log('browser-live-audio: 10 test');

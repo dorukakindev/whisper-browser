@@ -285,6 +285,51 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     assert.equal(emitted.at(-1).traceback, undefined);
     spawned[1].emit('close', 1);
   });
+  await test('R58-08: explain işi altyazı girdisini medya yetkilendiricisine göndermez', async () => {
+    // askExplain() player.subPath'i opts.input yapar; .srt medya
+    // yetkilendiricisinde reddedilir ve açıklama işi hiç başlayamazdı.
+    const subCalls = [], mediaCalls = [], spawned = [];
+    const context = {
+      authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer,
+      activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
+      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
+      modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
+      app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer, fs,
+      process: { env: {} }, resolvePython: () => 'mock-python',
+      defaultMediaFolders, sanitizeAbsolutePath, canonicalLocalPath,
+      MEDIA_EXTS: new Set(['mp4', 'mkv']),
+      authorizeSubtitleFile: async (p) => { subCalls.push(p); return p; },
+      authorizeMediaFile: async (p) => { mediaCalls.push(p); throw new Error('medya değil'); },
+      loadSettings: () => ({
+        inputDir: path.join(os.tmpdir(), 'Whisper', 'GİRDİ'),
+        outputDir: path.join(os.tmpdir(), 'Whisper', 'ÇIKTI'),
+      }),
+      spawn: () => {
+        const proc = new EventEmitter();
+        proc.stdout = new EventEmitter(); proc.stderr = new EventEmitter();
+        proc.stdout.setEncoding = proc.stderr.setEncoding = () => {};
+        spawned.push(proc); return proc;
+      },
+      persistQueueRunning: () => {}, persistQueueTerminal: () => {},
+      sendEvent: () => {}, writeJobLog: () => {}, startJobLog: () => {},
+      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
+      startPowerBlocker: () => {}, stopPowerBlocker: () => {},
+      createProcessTerminalLatch, randomUUID: require('crypto').randomUUID,
+      createIdempotentCancel, recoverOutputTransactions,
+    };
+    const sandbox = vm.createContext(context);
+    sandbox.ipcMain = { handle: (_name, fn) => { sandbox.start = fn; } };
+    vm.runInContext(handlers.get('transcribe:start'), sandbox);
+    const srt = path.join(os.tmpdir(), 'film.srt');
+    const result = await sandbox.start({}, {
+      input: srt, explain: true, explainIndex: 0, explainKind: 'sentence',
+      explainTranslation: '', translate: true,
+    });
+    assert.equal(mediaCalls.length, 0, 'explain girdisi medya yetkilendiricisine gitti');
+    assert.deepEqual(subCalls, [srt], 'explain girdisi altyazı yetkilendiricisinden geçmedi');
+    assert.equal(result.ok, true, `explain işi başlatılamadı: ${result.error}`);
+    spawned[0].emit('close', 0);
+  });
   await test('benchmark dosya diyaloğu sırasında başlayan model işi ikinci spawnı engeller', async () => {
     const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender } };

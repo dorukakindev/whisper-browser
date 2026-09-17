@@ -434,5 +434,58 @@ function shuffle(items, random) {
     assert(/state\.currentQueueId = active\.id/.test(restoreSlice), 'restore currentQueueId bağlamıyor');
   });
 
+  await test('R58-09: kuyruk çakışma soneki ortak sözleşmeyle üretilir ve hata nedeni saklanır', () => {
+    const { isValidOutputNameSuffix, queueOutputNameSuffix } = require('../src/renderer/queue-lifecycle');
+    // Küçük kuyruk kimlikleri eskiden '-whisper-q2' üretip main doğrulayıcısına
+    // takılıyordu; yeni üretici tüm kimliklerde geçerli sonek vermeli.
+    for (const id of [1, 2, 12, 123, 9999, 10000]) {
+      const suffix = queueOutputNameSuffix(id);
+      assert.equal(isValidOutputNameSuffix(suffix), true, `${id} → ${suffix}`);
+    }
+    assert.equal(isValidOutputNameSuffix('-whisper-q2'), false, 'eski kısa sonek hâlâ geçersiz olmalı');
+    // Main.js aynı ortak doğrulayıcıyı kullanır (tek sözleşme).
+    const mainSrc = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+    assert(/isValidOutputNameSuffix\(suffix\)/.test(mainSrc), 'main.js ortak doğrulayıcıyı kullanmıyor');
+    assert(/require\('\.\/renderer\/queue-lifecycle'\)[\s\S]{0,0}/.test(mainSrc)
+      && /isValidOutputNameSuffix/.test(mainSrc.slice(0, mainSrc.indexOf('ipcMain.handle'))),
+      'isValidOutputNameSuffix içe aktarılmamış');
+
+    // Renderer: çakışma soneki davranışsal olarak hesaplanır.
+    const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8')
+      .replace(/\r\n/g, '\n');
+    const helperStart = renderer.indexOf('function computeQueueCollisionSuffix');
+    const helperEnd = renderer.indexOf('\n}\n', helperStart);
+    assert.ok(helperStart > 0 && helperEnd > helperStart, 'computeQueueCollisionSuffix bulunamadı');
+    const keyStart = renderer.indexOf('function queueInputKey');
+    const keyEnd = renderer.indexOf('\n}\n', keyStart);
+    const sandbox = {
+      queueOutputNameSuffix,
+      state: { queue: [
+        { id: 1, type: 'file', input: 'D:\\a\\film.mp4', status: 'done',
+          opts: { outputDir: 'D:\\out' } },
+      ] },
+      mediaKeyFor: (t, v) => `youtube:${v}`,
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(
+      renderer.slice(keyStart, keyEnd + 3) + '\n' + renderer.slice(helperStart, helperEnd + 3)
+      + '\ncomputeQueueCollisionSuffix', sandbox);
+    // Farklı yolda aynı kök-ad + aynı çıktı klasörü → sonek üretilir.
+    const suffix = sandbox.computeQueueCollisionSuffix('D:\\b\\film.mp4', { outputDir: 'D:\\out' }, 2);
+    assert.equal(suffix, '-whisper-q0002', `beklenen ortak sonek değil: ${suffix}`);
+    assert.equal(isValidOutputNameSuffix(suffix), true);
+    // Aynı dosya veya farklı çıktı klasörü → sonek üretilmez.
+    assert.equal(sandbox.computeQueueCollisionSuffix('D:\\a\\film.mp4', { outputDir: 'D:\\out' }, 2), '');
+    assert.equal(sandbox.computeQueueCollisionSuffix('D:\\b\\film.mp4', { outputDir: 'D:\\other' }, 2), '');
+
+    // Sözleşme: başlatma anında sonek yeniden hesaplanır ve hata nedeni öğeye yazılır.
+    const processSlice = renderer.slice(renderer.indexOf('async function processNextQueueItem'),
+      renderer.indexOf('// ===== Helpers ====='));
+    assert(/computeQueueCollisionSuffix\(next\.input, opts, next\.id\)/.test(processSlice),
+      'processNextQueueItem soneki yeniden üretmiyor — kalıcı kuyruk geçersiz sonekle takılır');
+    assert(/next\.error = String\(r\.error/.test(processSlice),
+      'next.status=error yolunda hata nedeni öğeye yazılmıyor — kuyruk satırı sebepsiz görünür');
+  });
+
   if (!process.exitCode) console.log(`\n${passed} kuyruk lifecycle testi geçti.`);
 })();
