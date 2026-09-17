@@ -2295,27 +2295,54 @@ function browserUnifiedJobsSnapshot() {
   const jobs = [];
   for (const tab of browserTabs.values()) {
     const recovery = browserRecoveryJobsForTab(tab);
-    const add = (kind, state, summary, actions = []) => jobs.push({
+    const add = (kind, state, summary, actions = [], extra = {}) => jobs.push({
       id: kind + ':' + tab.id + ':' + tab.generation, kind, tabId: tab.id, generation: tab.generation,
       mediaId: tab.mediaId || '', title: browserTabSnapshot(tab).title || tab.restoredTitle || 'Sekme',
       status: state, completed: Number(summary?.completed) || 0, total: Number(summary?.total) || 0,
-      failed: Number(summary?.failed) || 0, actions,
+      failed: Number(summary?.failed) || 0, queued: Number(summary?.queued) || 0,
+      pending: Number(summary?.pending) || 0, actions, ...extra,
     });
     const subtitle = tab.translationScheduler?.recoverySummary?.();
-    if (tab.translationScheduler || subtitle) add('subtitle-translation', !browserNetworkOnline ? 'offline' : tab.translationScheduler ? 'running' : 'partial', subtitle, ['pause', 'cancel', 'retry']);
-    if (tab.mangaJob) add('manga', tab.mangaJob.controller?.signal?.aborted ? 'cancelled' : 'running', { completed: tab.mangaTranslated, total: tab.mangaAttempted?.size, failed: tab.mangaFailures?.length }, []);
-    if (tab.pageTranslateJob) add('page-translation', tab.pageTranslatePaused ? 'paused' : (!browserNetworkOnline ? 'offline' : 'running'), { completed: tab.pageTranslated, total: tab.pageTranslateSession?.blocks?.size, failed: tab.pageTranslateFailed }, ['pause']);
-    if (browserHlsCeaFullCaptureJob?.tab === tab) {
+    if (tab.translationScheduler || subtitle) add('subtitle-translation',
+      !browserNetworkOnline ? 'offline' : tab.translationScheduler ? 'running' : 'partial',
+      subtitle, ['cancel', 'retry'], {
+        stage: !browserNetworkOnline ? 'Ağ bağlantısı bekleniyor'
+          : subtitle?.pending ? 'Sağlayıcı yanıtı bekleniyor'
+            : subtitle?.queued ? 'Çeviri kuyruğu işleniyor' : 'Çeviri sonuçları birleştiriliyor',
+      });
+    if (tab.mangaJob) add('manga',
+      tab.mangaJob.controller?.signal?.aborted ? 'cancelled' : 'running',
+      { completed: tab.mangaTranslated, total: tab.mangaAttempted?.size, failed: tab.mangaFailures?.length },
+      ['cancel'], { stage: 'Görseller okunuyor ve çevriliyor' });
+    if (tab.pageTranslateJob) add('page-translation',
+      tab.pageTranslatePaused ? 'paused' : (!browserNetworkOnline ? 'offline' : 'running'),
+      { completed: tab.pageTranslated, total: tab.pageTranslateSession?.blocks?.size, failed: tab.pageTranslateFailed },
+      ['pause', 'cancel'], { stage: tab.pageTranslatePauseReason || (tab.pageTranslatePaused
+        ? 'Sayfa çevirisi duraklatıldı' : 'Sayfa blokları çevriliyor') });
+    if (browserHlsCeaFullCaptureJob?.tab === tab && browserHlsCeaFullCaptureJob.state !== 'complete') {
       const capture = browserHlsCeaFullCaptureJob;
       add('subtitle-capture', capture.cancelled ? 'cancelled' : capture.state,
         { completed: capture.completed?.size, total: capture.total, failed: capture.failures?.length },
-        capture.state === 'running' ? ['cancel'] : ['retry']);
+        capture.state === 'running' ? ['cancel'] : ['retry', 'dismiss'],
+        { stage: capture.state === 'refreshing' ? 'Oynatma listesi yenileniyor'
+          : capture.state === 'retry-wait' ? 'Eksik video parçaları yeniden beklenecek'
+            : 'Video parçalarındaki altyazı okunuyor' });
     }
-    for (const item of recovery) if (!jobs.some((job) => job.tabId === tab.id && job.kind === item.kind)) jobs.push({ ...item, title: browserTabSnapshot(tab).title || tab.restoredTitle || 'Sekme', actions: ['resume', 'restart', 'dismiss'] });
+    for (const item of recovery) if (!jobs.some((job) => job.tabId === tab.id && job.kind === item.kind)) jobs.push({
+      ...item, title: browserTabSnapshot(tab).title || tab.restoredTitle || 'Sekme',
+      stage: 'Önceki oturumdan kalan iş', actions: ['resume', 'restart', 'dismiss'],
+    });
   }
-  for (const item of readBrowserDownloadRecords()) {
+  for (const item of browserDownloads.snapshot().items) {
     if (!item || typeof item !== 'object' || !item.id) continue;
-    jobs.push({ id: 'download:' + item.id, kind: 'download', tabId: item.tabId || '', title: String(item.title || item.filename || 'İndirme'), status: ['completed','failed','cancelled'].includes(item.status) ? item.status : 'running', completed: Number(item.receivedBytes) || 0, total: Number(item.totalBytes) || 0, failed: item.status === 'failed' ? 1 : 0, actions: item.status === 'running' ? ['cancel'] : ['open'] });
+    const status = item.active ? (item.paused ? 'paused' : 'running') : String(item.state || 'interrupted');
+    if (['completed', 'cancelled'].includes(status)) continue;
+    jobs.push({ id: 'download:' + item.id, downloadId: item.id, kind: 'download',
+      tabId: item.tabId || '', title: String(item.title || item.filename || 'İndirme'),
+      status, stage: item.paused ? 'İndirme duraklatıldı' : item.active ? 'Dosya indiriliyor' : 'İndirme yarım kaldı',
+      completed: Number(item.received) || 0, total: Number(item.total) || 0,
+      failed: status === 'interrupted' ? 1 : 0,
+      actions: item.active ? ['cancel'] : ['dismiss'] });
   }
   return jobs.slice(0, 200);
 }
@@ -13901,6 +13928,16 @@ ipcMain.handle('browser:subtitle:captureFull', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(payload?.tabId);
   if (!tab) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
+  if (payload?.action === 'dismiss') {
+    if (!browserHlsCeaFullCaptureJob || browserHlsCeaFullCaptureJob.tab !== tab) {
+      return { ok: true, dismissed: false };
+    }
+    clearTimeout(browserHlsCeaFullCaptureJob.autoRetryTimer);
+    browserHlsCeaFullCaptureJob.autoRetryTimer = null;
+    browserHlsCeaFullCaptureJob = null;
+    tab.ceaCapture = null;
+    return { ok: true, dismissed: true };
+  }
   if (payload?.action === 'cancel') {
     if (!browserHlsCeaFullCaptureJob || browserHlsCeaFullCaptureJob.tab !== tab) {
       return { ok: false, error: 'Durdurulacak tam altyazı yakalama işi yok.' };

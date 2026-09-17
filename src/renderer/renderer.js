@@ -11,6 +11,7 @@ const {
 
 // renderer-ui-model.js index.html'de renderer.js'ten ÖNCE yüklenir.
 const RendererUiModel = window.RendererUiModel;
+const PlayerTaskCenterModel = window.PlayerTaskCenterModel;
 
 // Sekme şeritlerinde ok tuşlarıyla gezinme (WAI-ARIA "roving tabindex").
 // Eskiden yalnız Tab ile tek tek dolaşılabiliyordu; ok tuşları hiçbir şey
@@ -759,6 +760,8 @@ async function processNextQueueItem() {
     selectedSubPath: player.subPath || '',
     secondSubPath: player.sub2Path || '',
     kind: 'queue',
+    startedAt: Date.now(),
+    percent: 0,
   };
 
   logLine(`▶ Kuyruk: "${next.label}" başlıyor (${next.type})`);
@@ -3014,6 +3017,8 @@ $('startBtn').addEventListener('click', async () => {
     selectedSubPath: player.subPath || '',
     secondSubPath: player.sub2Path || '',
     kind: 'global',
+    startedAt: Date.now(),
+    percent: 0,
   };
   clearJobValidation();
 
@@ -3589,6 +3594,7 @@ function playerJobEvent(event) {
     const overall = job.kind === 'progressive'
       ? ((job.rangeIndex + event.percent / 100) / job.ranges.length) * 100
       : event.percent;
+    job.percent = Math.min(100, Math.max(0, overall));
     fill.style.width = `${Math.min(100, overall)}%`;
     txt.textContent = job.kind === 'progressive'
       ? `İzleme konumundan hazırlanıyor · ${job.rangeIndex + 1}/${job.ranges.length} · %${event.percent.toFixed(0)}`
@@ -3597,6 +3603,9 @@ function playerJobEvent(event) {
   } else if (event.type === 'llm_progress' && job.kind === 'translate') {
     const failed = Math.max(0, Number(event.failed) || 0);
     job.failedBlocks = failed;
+    job.completed = Math.max(0, Number(event.done) || 0);
+    job.total = Math.max(0, Number(event.total) || 0);
+    job.percent = Math.min(100, Math.max(0, Number(event.percent) || 0));
     player.translationRetryAvailable = failed;
     txt.textContent = `Çeviri oluşturuluyor · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
     job.stage = txt.textContent;
@@ -3944,7 +3953,10 @@ window.api.onEvent((event) => {
     case 'download_progress':
       {
         const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
-        if (state.activeOutputJob) state.activeOutputJob.stage = `İndiriliyor · %${percent.toFixed(0)}`;
+        if (state.activeOutputJob) {
+          state.activeOutputJob.stage = `İndiriliyor · %${percent.toFixed(0)}`;
+          state.activeOutputJob.percent = percent;
+        }
         setProgress(percent);
         $('progressText').textContent = `İndiriliyor ${percent.toFixed(0)}%`;
         const eta = Number(event.eta);
@@ -3960,7 +3972,10 @@ window.api.onEvent((event) => {
 
     case 'progress': {
       const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
-      if (state.activeOutputJob) state.activeOutputJob.stage = `Transkripsiyon · %${percent.toFixed(1)}`;
+      if (state.activeOutputJob) {
+        state.activeOutputJob.stage = `Transkripsiyon · %${percent.toFixed(1)}`;
+        state.activeOutputJob.percent = percent;
+      }
       setProgress(percent);
       $('progressText').textContent = `${percent.toFixed(1)}%`;
       // Saat ilk progress olayında kurulur: indirme/ffmpeg çıkarımı ETA'ya
@@ -4003,6 +4018,7 @@ window.api.onEvent((event) => {
         state.activeOutputJob.completed = Number(event.done) || 0;
         state.activeOutputJob.total = Number(event.total) || 0;
         state.activeOutputJob.failed = Number(event.failed) || 0;
+        state.activeOutputJob.percent = percent;
       }
       $('progressText').textContent = `${_lbl} ${percent.toFixed(1)}% (${event.done}/${event.total})`;
       if (event.failed) $('progressTime').textContent = `${event.failed} blokta hata`;
@@ -17962,28 +17978,42 @@ function playerTaskSnapshot() {
   const rows = [];
   const localJob = player.job;
   if (localJob?.running || localJob?.awaitingExit || localJob?.loading) {
-    rows.push({ label: localJob.kind === 'translate' ? 'Altyazı çevirisi' : 'Altyazı işi',
-      detail: localJob.stage || 'Hazırlanıyor' });
+    const labels = { translate: 'Altyazı çevirisi', progressive: 'Whisper altyazı işi',
+      sync: 'Altyazı senkronu', chat: 'AI yanıtı', explain: 'AI açıklaması' };
+    rows.push({ id: 'local-player-job', label: labels[localJob.kind] || 'Altyazı işi',
+      detail: localJob.stage || 'Hazırlanıyor', context: player.workspaceMode === 'browser'
+        ? player.browserPageTitle : ($('playerTitle')?.textContent || ''),
+      completed: localJob.completed, total: localJob.total, percent: localJob.percent,
+      failed: localJob.failedBlocks, startedAt: localJob.startedAt,
+      state: localJob.awaitingExit ? 'closing' : 'running',
+      actions: [{ label: 'Durdur', kind: 'stop', run: () => $('playerJobCancel')?.click() }] });
   } else if (state.activeOutputJob?.loading || (state.running && state.activeOutputJob)) {
-    rows.push({ label: state.activeOutputJob.translateRequested ? 'Altyazı + çeviri' : 'Altyazı işi',
-      detail: state.activeOutputJob.stage || 'Hazırlanıyor' });
+    const job = state.activeOutputJob;
+    rows.push({ id: 'global-output-job',
+      label: job.translateRequested ? 'Altyazı + çeviri' : 'Altyazı işi',
+      detail: job.stage || 'Hazırlanıyor', context: job.input ? job.input.split(/[\\/]/).pop() : '',
+      completed: job.completed, total: job.total, percent: job.percent,
+      failed: job.failed, startedAt: job.startedAt || state.startTime,
+      state: job.loading ? 'loading' : 'running',
+      actions: state.running ? [{ label: 'Durdur', kind: 'stop', run: () => $('cancelBtn')?.click() }] : [] });
   }
   if (state.pendingPlayerLoad) {
-    rows.push({ label: state.pendingPlayerLoad.label || 'Dosya kaydedildi',
+    rows.push({ id: 'pending-player-load', label: state.pendingPlayerLoad.label || 'Dosya kaydedildi',
       detail: state.pendingPlayerLoad.reason || 'Oynatıcıya yüklenemedi',
-      action: state.pendingPlayerLoad.run ? 'Dosyayı bul' : 'Yeniden yükle',
-      run: state.pendingPlayerLoad.run || retryPendingPlayerLoad });
+      state: 'interrupted', recoverable: true,
+      actions: [{ label: state.pendingPlayerLoad.run ? 'Dosyayı bul' : 'Yeniden yükle',
+        run: state.pendingPlayerLoad.run || retryPendingPlayerLoad }],
+      dismiss: () => { state.pendingPlayerLoad = null; updatePlayerTaskCenter({ refresh: false }); } });
   }
-  const tab = browserTabState();
-  if (player.browserTranslationTrackId && tab?.browserTranslationComplete === false) {
-    rows.push({ label: 'Altyazı çevirisi', detail: player.browserTranslationFailed ? `${player.browserTranslationFailed} satır yeniden denenecek` : 'Çeviri sürüyor' });
+  if (player.pdfReader?.translating) {
+    const reader = player.pdfReader;
+    rows.push({ id: 'active-pdf-translation', label: 'PDF çevirisi',
+      detail: $('pdfReaderStatus')?.textContent || 'Çeviri sürüyor',
+      completed: reader.translationCompleted, total: reader.translationTotal,
+      failed: reader.translationFailed, state: 'running',
+      actions: [{ label: 'Durdur', kind: 'stop',
+        run: () => window.api.cancelPdfTranslation?.(reader.pdfHash) }] });
   }
-  if (player.browserMangaBusy) rows.push({ label: 'Manga çevirisi', detail: `${player.browserMangaTranslated || 0} bölge hazır` });
-  if (player.browserPageTranslateBusy) rows.push({ label: 'Sayfa çevirisi', detail: `${player.browserPageTranslated || 0} blok hazır` });
-  if (player.pdfReader?.translating) rows.push({ label: 'PDF çevirisi', detail: $('pdfReaderStatus')?.textContent || 'Çeviri sürüyor' });
-  const recoverable = (Array.isArray(player.browserTabs) ? player.browserTabs : [])
-    .reduce((total, item) => total + (item.recoveryJobs?.length || 0), 0);
-  if (recoverable) rows.push({ label: 'Kurtarılabilir browser işi', detail: `${recoverable} yarım iş için işlem bekleniyor` });
   return rows;
 }
 
@@ -18091,10 +18121,13 @@ async function refreshBrowserUnifiedJobs() {
   const response = await window.api.listBrowserJobs().catch(() => null);
   if (!response?.ok || !Array.isArray(response.jobs)) return;
   player.browserJobs = response.jobs;
+  updatePlayerTaskCenter({ refresh: false });
 }
 
 let playerTaskRefreshTimer = null;
 let playerTaskRefreshRunning = false;
+let playerTaskPulseTimer = null;
+const playerTaskActionBusy = new Set();
 
 function scheduleBrowserUnifiedJobsRefresh() {
   if (playerTaskRefreshTimer !== null || playerTaskRefreshRunning) return;
@@ -18106,18 +18139,88 @@ function scheduleBrowserUnifiedJobsRefresh() {
   }, 250);
 }
 
+function playerTaskText(value) {
+  return window.UiLocale?.t ? window.UiLocale.t(String(value || '')) : String(value || '');
+}
+
+async function runBrowserTaskAction(job, command) {
+  const key = `${job.id || job.kind}:${command}`;
+  if (playerTaskActionBusy.has(key)) return;
+  playerTaskActionBusy.add(key);
+  updatePlayerTaskCenter({ refresh: false });
+  let result = null;
+  try {
+    if (command === 'dismiss') {
+      if (job.kind === 'download') result = await window.api.browserDownloads?.('clear', job.downloadId);
+      else if (job.kind === 'subtitle-capture') result = await window.api.captureFullBrowserSubtitle?.(job.tabId, 'dismiss');
+      else {
+        result = await window.api.dismissBrowserRecovery?.(job.tabId, job.id);
+        const tab = browserTabState(job.tabId);
+        if (result?.ok && tab) tab.recoveryJobs = (tab.recoveryJobs || []).filter((item) => item.id !== job.id);
+      }
+    } else if (command === 'resume' || command === 'restart') {
+      await runBrowserRecovery(job.tabId, job, command === 'restart');
+      result = { ok: true };
+    } else if (command === 'cancel') {
+      if (job.kind === 'subtitle-translation') result = await window.api.stopBrowserTranslation?.(job.tabId);
+      else if (job.kind === 'page-translation') result = await window.api.clearBrowserPageTranslation?.(job.tabId);
+      else if (job.kind === 'manga') result = await window.api.clearBrowserManga?.(job.tabId);
+      else if (job.kind === 'subtitle-capture') result = await window.api.captureFullBrowserSubtitle?.(job.tabId, 'cancel');
+      else if (job.kind === 'download') result = await window.api.browserDownloads?.('cancel', job.downloadId);
+    } else if (command === 'pause' && job.kind === 'page-translation') {
+      result = await window.api.setBrowserPagePaused?.(job.tabId, job.status !== 'paused');
+    } else if (command === 'retry') {
+      if (job.kind === 'subtitle-translation') result = await window.api.retryFailedBrowserTranslation?.(job.tabId);
+      else if (job.kind === 'page-translation') result = await window.api.retryBrowserPageTranslation?.(job.tabId);
+      else if (job.kind === 'manga') result = await window.api.retryFailedBrowserManga?.(job.tabId);
+      else if (job.kind === 'subtitle-capture') result = await window.api.captureFullBrowserSubtitle?.(job.tabId, 'start');
+    }
+    if (result && result.ok === false) logLine(result.error || 'İşlem gerçekleştirilemedi.', 'warn');
+  } catch (error) {
+    logLine(error?.message || 'İşlem gerçekleştirilemedi.', 'warn');
+  } finally {
+    playerTaskActionBusy.delete(key);
+    await refreshBrowserUnifiedJobs();
+    renderBrowserRecoveryList();
+  }
+}
+
+function browserTaskRow(job) {
+  const descriptor = PlayerTaskCenterModel.browserJobDescriptor(job);
+  const actions = [];
+  if (!descriptor.recoverable) {
+    for (const command of descriptor.actions) {
+      if (command === 'dismiss' || command === 'open') continue;
+      if (command === 'retry' && descriptor.active && descriptor.status !== 'partial') continue;
+      const label = command === 'cancel' ? 'Durdur'
+        : command === 'pause' ? (descriptor.status === 'paused' ? 'Sürdür' : 'Duraklat')
+          : command === 'retry' ? 'Yeniden dene'
+            : command === 'resume' ? 'Sürdür' : command === 'restart' ? 'Yeniden başlat' : command;
+      actions.push({ label, kind: command === 'cancel' ? 'stop' : '', busyKey: `${job.id}:${command}`,
+        run: () => runBrowserTaskAction(job, command) });
+    }
+  } else {
+    for (const command of ['resume', 'restart'].filter((name) => descriptor.actions.includes(name))) {
+      actions.push({ label: command === 'resume' ? 'Sürdür' : 'Yeniden başlat',
+        busyKey: `${job.id}:${command}`, run: () => runBrowserTaskAction(job, command) });
+    }
+  }
+  return {
+    ...descriptor,
+    rawJob: job,
+    detail: descriptor.stage,
+    actions,
+    dismiss: descriptor.dismissable ? () => runBrowserTaskAction(job, 'dismiss') : null,
+  };
+}
+
 function updatePlayerTaskCenter({ refresh = true } = {}) {
   updateBrowserWhisperActions();
   if (refresh) scheduleBrowserUnifiedJobsRefresh();
   const localRows = playerTaskSnapshot();
   const localLabels = new Set(localRows.map((row) => row.label));
-  const browserRows = (player.browserJobs || []).filter((job) => !(job.tabId === player.browserActiveTabId && localLabels.has(job.kind === 'download' ? 'İndirme' : job.kind === 'manga' ? 'Manga çevirisi' : job.kind === 'page-translation' ? 'Sayfa çevirisi' : 'Altyazı çevirisi'))).map((job) => {
-    const label = job.kind === 'download' ? 'İndirme' : job.kind === 'manga' ? 'Manga çevirisi' : job.kind === 'page-translation' ? 'Sayfa çevirisi' : 'Altyazı çevirisi';
-    const row = { label, detail: String(job.status || 'bekliyor') + ' · ' + String(job.completed || 0) + '/' + String(job.total || '?') };
-    if (job.kind === 'subtitle-translation' && job.tabId) { row.action = job.status === 'running' ? 'Durdur' : 'Yeniden dene'; row.run = () => job.status === 'running' ? window.api.stopBrowserTranslation?.(job.tabId) : runBrowserRecovery(job.tabId, job, false); }
-    else if (job.kind === 'page-translation' && job.tabId) { row.action = job.status === 'paused' ? 'Sürdür' : 'Duraklat'; row.run = () => window.api.setBrowserPagePaused?.(job.tabId, job.status !== 'paused'); }
-    return row;
-  });
+  const browserRows = (player.browserJobs || []).map(browserTaskRow)
+    .filter((row) => !(row.rawJob.tabId === player.browserActiveTabId && localLabels.has(row.label)));
   const rows = [...localRows, ...browserRows];
   const badge = $('playerTaskBadge');
   if (badge) {
@@ -18135,18 +18238,70 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     return;
   }
   for (const row of rows) {
-    const item = document.createElement('div'); item.className = 'player-task-row';
+    const progress = PlayerTaskCenterModel.progressOf(row);
+    const item = document.createElement('article'); item.className = 'player-task-row';
+    if (row.recoverable) item.classList.add('is-recovery');
+    if (row.failed || ['failed', 'error'].includes(row.state || row.status)) item.classList.add('is-error');
     const mark = document.createElement('span'); mark.className = 'player-task-mark';
-    const copy = document.createElement('div');
+    mark.setAttribute('aria-hidden', 'true');
+    const copy = document.createElement('div'); copy.className = 'player-task-copy';
+    const titleLine = document.createElement('div'); titleLine.className = 'player-task-title-line';
     const label = document.createElement('strong'); label.textContent = row.label;
-    const detail = document.createElement('span'); detail.textContent = row.detail;
-    copy.append(label, detail); item.append(mark, copy);
-    if (row.action && typeof row.run === 'function') {
-      const action = document.createElement('button');
-      action.type = 'button'; action.className = 'player-task-action'; action.textContent = row.action;
-      action.addEventListener('click', row.run);
-      item.appendChild(action);
+    const stateLabel = document.createElement('span'); stateLabel.className = 'player-task-state';
+    stateLabel.textContent = progress.percent !== null ? `${progress.percent.toFixed(0)}%`
+      : row.recoverable ? playerTaskText('Yarım kaldı')
+        : (row.state === 'paused' || row.status === 'paused') ? playerTaskText('Duraklatıldı') : playerTaskText('İşleniyor');
+    titleLine.append(label, stateLabel);
+    const detail = document.createElement('span'); detail.className = 'player-task-detail';
+    detail.textContent = playerTaskText(row.detail || 'Hazırlanıyor');
+    copy.append(titleLine, detail);
+    if (row.context) {
+      const context = document.createElement('span'); context.className = 'player-task-context';
+      context.dataset.uiUntranslated = ''; context.textContent = row.context; context.title = row.context; copy.appendChild(context);
     }
+    const metaParts = [];
+    if (progress.total) metaParts.push(`${progress.completed}/${progress.total} ${playerTaskText('tamamlandı')}`);
+    if (row.pending) metaParts.push(`${row.pending} ${playerTaskText('çalışıyor')}`);
+    if (row.queued) metaParts.push(`${row.queued} ${playerTaskText('bekliyor')}`);
+    if (row.failed) metaParts.push(`${row.failed} ${playerTaskText('hata')}`);
+    const elapsed = PlayerTaskCenterModel.elapsedLabel(row.startedAt);
+    if (elapsed) metaParts.push(`${playerTaskText('geçen süre')} ${elapsed}`);
+    if (metaParts.length) {
+      const meta = document.createElement('span'); meta.className = 'player-task-meta';
+      for (const value of metaParts) { const part = document.createElement('span'); part.textContent = value; meta.appendChild(part); }
+      copy.appendChild(meta);
+    }
+    if (row.state === 'running' || row.status === 'running' || row.recoverable || progress.percent !== null) {
+      const bar = document.createElement('span'); bar.className = 'player-task-progress';
+      if (progress.indeterminate && !row.recoverable) bar.classList.add('indeterminate');
+      bar.setAttribute('role', 'progressbar');
+      if (progress.percent !== null) {
+        bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100');
+        bar.setAttribute('aria-valuenow', String(Math.round(progress.percent)));
+      }
+      const fill = document.createElement('i');
+      if (progress.percent !== null) fill.style.width = `${progress.percent}%`;
+      bar.appendChild(fill); copy.appendChild(bar);
+    }
+    item.append(mark, copy);
+    const controls = document.createElement('div'); controls.className = 'player-task-controls';
+    for (const spec of (Array.isArray(row.actions) ? row.actions : [])) {
+      const action = document.createElement('button');
+      action.type = 'button'; action.className = 'player-task-action';
+      if (spec.kind === 'stop') action.classList.add('is-stop');
+      action.textContent = playerTaskText(spec.label);
+      action.disabled = !!spec.busyKey && playerTaskActionBusy.has(spec.busyKey);
+      action.addEventListener('click', async () => { action.disabled = true; await spec.run?.(); });
+      controls.appendChild(action);
+    }
+    if (typeof row.dismiss === 'function') {
+      const dismiss = document.createElement('button'); dismiss.type = 'button';
+      dismiss.className = 'player-task-dismiss'; dismiss.textContent = '×';
+      dismiss.title = playerTaskText('Temizle'); dismiss.setAttribute('aria-label', playerTaskText('Temizle'));
+      dismiss.addEventListener('click', async () => { dismiss.disabled = true; await row.dismiss(); });
+      controls.appendChild(dismiss);
+    }
+    if (controls.childElementCount) item.appendChild(controls);
     list.appendChild(item);
   }
 }
@@ -18158,7 +18313,12 @@ function setPlayerTaskCenter(open) {
   panel.classList.toggle('hidden', !open);
   button.classList.toggle('active', open);
   button.setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open) updatePlayerTaskCenter();
+  clearInterval(playerTaskPulseTimer);
+  playerTaskPulseTimer = null;
+  if (open) {
+    updatePlayerTaskCenter();
+    playerTaskPulseTimer = setInterval(() => updatePlayerTaskCenter(), 1000);
+  }
   syncBrowserOcclusion();
 }
 
@@ -18885,11 +19045,15 @@ function renderPdfTranslation(pageNumber, blocks) {
 async function translateVisiblePdfPages(all = false) {
   const reader = player.pdfReader; if (!reader?.pdf) return;
   reader.translating = true;
-  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
-  if (!pages.length) return;
+  if (!pages.length) { reader.translating = false; return; }
+  reader.translationStartedAt = Date.now();
+  reader.translationCompleted = 0;
+  reader.translationFailed = 0;
+  reader.translationTotal = pages.length;
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   if (all) {
     for (const pageNumber of pages) await extractPdfReaderPage(pageNumber);
   } else {
@@ -18924,11 +19088,15 @@ async function translateVisiblePdfPages(all = false) {
         Number.isFinite(Number(result.failedCount)) ? Number(result.failedCount) : batchPages.length - batchCompleted));
       lastError = result?.error || 'Bazı sayfalar çevrilemedi';
     } else { failed += batchPages.length; lastError = result?.error || 'Çeviri başarısız'; }
+    reader.translationCompleted = completed;
+    reader.translationFailed = failed;
+    if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
     pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
     if (result?.canceled) { canceled = true; break; }
   }
   $('pdfTranslateCancel').disabled = true;
   reader.translating = false;
+  if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
   pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
     : failed ? `${completed} sayfa hazır, ${failed} sayfa başarısız${lastError ? `: ${lastError}` : ''}` : 'Çeviri hazır', canceled || failed > 0);
 }
@@ -19348,6 +19516,7 @@ async function startProgressivePlayerTranscription(config = {}) {
   // artık ara bölüm veya son birkaç saniyelik iş tarafından ezilemez.
   opts.outputNameSuffix = `-whisper-${Date.now().toString(36)}`;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
+    startedAt: Date.now(), percent: 0,
     ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
     sourceFile: '', translationFile: '', awaitingExit: false,
     outputFiles: [], outputDescriptors: [], stage: 'Başlatılıyor',
@@ -19570,6 +19739,7 @@ if ($('makeTransBtn')) {
     // itiyordu. Çeviri çıktısı done olayında ayrıca listeye eklenir.
     const previousOutputs = state.outputFiles.slice();
     player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
+      startedAt: Date.now(), percent: 0,
       workspaceMode: player.workspaceMode, browserTabId: player.workspaceMode === 'browser' ? player.browserActiveTabId : '',
       liveSource: sourceCues.slice(), liveTranslation: new Map(),
       selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '',
