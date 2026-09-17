@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 01:07 — rapor 59 bağımsız kontrolü ve kalan R58-14 sınır açığı](docs/devir/2026-09-18-0107.md).
+Güncel çalışma: [2026-09-18 01:30 — rapor 60 R58-14 eşit-başlangıç sınırı onarımı (rapor 61)](docs/devir/2026-09-18-0130.md).
+
+Önceki çalışma: [2026-09-18 01:07 — rapor 59 bağımsız kontrolü ve kalan R58-14 sınır açığı](docs/devir/2026-09-18-0107.md).
 
 Önceki çalışma: [2026-09-18 00:58 — rapor 58 onarımı: 15 kesin bulgunun tamamı (rapor 59)](docs/devir/2026-09-18-0058.md).
 
