@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-17 07:46 — full-track subtitle translation context](docs/devir/2026-09-17-0746.md).
+Güncel çalışma: [2026-09-17 08:10 — Turkish subtitle comprehension and A/B quality review](docs/devir/2026-09-17-0810.md).
+
+Önceki çalışma: [2026-09-17 07:46 — full-track subtitle translation context](docs/devir/2026-09-17-0746.md).
 
 Önceki çalışma: [2026-09-17 07:17 — English default UI and EN/TR switch](docs/devir/2026-09-17-0717.md).
 
