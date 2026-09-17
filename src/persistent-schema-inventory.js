@@ -70,7 +70,7 @@ const PERSISTENT_SCHEMA_INVENTORY = Object.freeze([
     source: 'src/browser-page-translate.js', version: 3, constants: [],
     sourceMarker: "version: 'page-memory-v3'", migrationTest: 'tests/browser-page-translate.test.js' },
   { id: 'sentence-protocol-python', kind: 'protocol', storage: 'backend translation request/cache contract',
-    source: 'backend/sentence_translation.py', version: 2, constants: ['SENTENCE_PROTOCOL_VERSION'],
+    source: 'backend/sentence_translation.py', version: 3, constants: ['SENTENCE_PROTOCOL_VERSION'],
     migrationTest: 'backend/test_transcribe.py' },
   { id: 'backend-translate-cache-key', kind: 'protocol', storage: 'backend translate cache key',
     source: 'backend/transcribe.py', version: 6, constants: [],

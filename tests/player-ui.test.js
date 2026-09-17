@@ -1199,7 +1199,7 @@ test('nihai preview ham segmentleri aynı aralıkta biriktirmek yerine değişti
 });
 
 test('uzun videoda transkripsiyon izlenen konumdan parçalara ayrılıyor', () => {
-  assert(/function progressiveRanges\(duration, current, windowSec = 600\)/.test(js),
+  assert(/function progressiveRanges\(duration, current, windowSec = 600, overlapSec = 4\)/.test(js),
     'progressiveRanges yok');
   const i = js.indexOf('async function startProgressiveChunk');
   assert(i > 0, 'parça başlatma fonksiyonu yok');

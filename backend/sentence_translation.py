@@ -6,7 +6,7 @@ import re
 import unicodedata
 from pathlib import Path
 
-SENTENCE_PROTOCOL_VERSION = 2
+SENTENCE_PROTOCOL_VERSION = 3
 _BOUNDARY = re.compile(r'(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)', re.I)
 _END = re.compile(r'[.!?…。！？][\"\'”’)}\]]*$')
 _CONTINUATION_END = re.compile(
@@ -41,6 +41,24 @@ def sentence_parts_match(whole, parts):
     if uses_spaceless_script(expected):
         return re.sub(r'\s+', '', joined) == re.sub(r'\s+', '', expected)
     return False
+
+
+def sentence_part_boundary_issue(source_parts, translated_parts):
+    """Hedefin cümleyi kaynak cue'dan daha erken kapatmasını engelle.
+
+    Bir cümle grubu içinde sözcük dizimi değişebilir; ancak nokta/soru/ünlem
+    başka cue'ya taşındığında oynatıcı bir yüklemi erken bitmiş gösterip kalan
+    anlamı sonraki zaman aralığına iter. Kaynakta devam eden, son olmayan bir
+    parçanın hedef karşılığı gerçek bir cümle sonuyla kapanamaz.
+    """
+    if (not isinstance(source_parts, (list, tuple))
+            or not isinstance(translated_parts, (list, tuple))
+            or len(source_parts) != len(translated_parts)):
+        return "cue_siniri_gecersiz"
+    for index in range(max(0, len(source_parts) - 1)):
+        if not sentence_ended(source_parts[index]) and sentence_ended(translated_parts[index]):
+            return f"erken_cumle_sonu:{index}"
+    return ""
 
 
 def sentence_ended(text):

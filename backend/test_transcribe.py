@@ -611,6 +611,31 @@ def test_strip_repeated_prefix():
     assert count == 2
 
 
+def test_reconcile_rolling_hypotheses_repairs_real_progressive_asr_shapes():
+    first, n1 = T.reconcile_rolling_hypotheses([
+        (280.0, 285.0, "as well as its alchemical context of transformation,"),
+        (285.1, 289.04, "as well as its alchemical context of transformation, which,"),
+    ])
+    assert n1 == 1 and len(first) == 1
+    assert first[0] == (
+        280.0, 289.04, "as well as its alchemical context of transformation, which,")
+
+    second, n2 = T.reconcile_rolling_hypotheses([
+        (50.0, 55.0, "The first day of the sun was dedicated to the sun, and the last day of the sun"),
+        (55.1, 58.0, "was dedicated to the sun, and the last day of the week, Saturday,"),
+    ])
+    assert n2 == 1 and len(second) == 1
+    assert second[0][2] == (
+        "The first day of the sun was dedicated to the sun, and the last day of the week, Saturday,")
+
+    safe, count = T.reconcile_rolling_hypotheses([
+        (0, 1, "yes yes yes yes yes yes"),
+        (1.1, 2, "yes yes yes yes yes yes"),
+        (2.1, 3, "[SPEAKER_01] one two three four five six"),
+    ])
+    assert count == 0 and len(safe) == 3
+
+
 def test_drop_micro_blocks():
     m = [(0, 0.03, "Ah"), (1, 3, "Normal bir cümle.")]
     out, n = T.drop_micro_blocks(m)
@@ -2676,6 +2701,27 @@ def test_sentence_translation_natural_order_keeps_all_original_timings():
     assert [item['max'] for item in payload['items']] == [30, 30, 40]
     published = [data for kind, data in events if kind == 'translation_chunk'][0]['segments']
     assert [e['text'] for e in published] == _SENTENCE_PARTS
+
+
+def test_sentence_translation_rejects_premature_target_sentence_boundary():
+    source = [
+        (0, 1, "In Jung's view, the shadow side of the psyche drains vital"),
+        (1, 2, "energy from life unless it is consciously made"),
+        (2, 3, "brighter. So the work continues."),
+    ]
+
+    def answer(_payload):
+        items = {
+            '0': "Jung'a göre ruhun gölge yanı,",
+            '1': "bilinçle aydınlatılmazsa yaşam enerjisini emer.",
+            '2': "daha parlaktır. Bu yüzden çalışma sürer.",
+        }
+        return {'items': items, 'sentences': {'0': ' '.join(items.values())}}
+
+    result, _seen, events, warnings = _sentence_translate(source, answer=answer)
+    assert result is None, 'erken noktayla anlamı sonraki cue’ya taşıyan yanıt kabul edildi'
+    assert any('Hicbir blok cevrilemedi' in message for message in warnings)
+    assert not [data for kind, data in events if kind == 'translation_chunk']
 
 
 def test_sentence_translation_incomplete_or_mismatched_groups_are_atomic():

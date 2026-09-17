@@ -24,6 +24,7 @@ vm.createContext(ctx);
 function section(from, to) { const start = code.indexOf(from); assert(start >= 0); return code.slice(start, code.indexOf(to, start)); }
 vm.runInContext(section('function youtubeVideoId(', 'function mediaKeyFor('), ctx);
 vm.runInContext(section('function progressiveRanges(', 'async function startProgressiveChunk('), ctx);
+vm.runInContext(section('function cueKey(', 'function progressiveRanges('), ctx);
 vm.runInContext(section('async function handleProgressiveTerminal(', 'function playerJobEvent('), ctx);
 vm.runInContext(section('function currentBrowserYoutubeUrl(', 'async function exportBrowserAbClip('), ctx);
 vm.runInContext(section('async function startProgressivePlayerTranscription(', '// "Altyazı oluştur"'), ctx);
@@ -44,7 +45,14 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(ctx.progressiveRanges(1306, 8).length, 2,
     'videonun başındaki birkaç saniye için üçüncü ve yıkıcı bir iş üretildi');
   assert.deepEqual(Array.from(ctx.progressiveRanges(1306, 8), range => [range.start, range.end]),
-    [[0, 600], [600, 1306]]);
+    [[0, 600], [596, 1306]]);
+  assert.deepEqual(Array.from(ctx.progressiveRanges(1800, 800), range => [range.start, range.end]),
+    [[798, 1398], [1394, 1800], [0, 802]], 'aşamalı işler sınır bağlamını örtüştürmeli');
+  const refreshed = ctx.replaceLiveCuesForRefresh(
+    [{ start: 596, end: 599.98, text: 'yarım eski' }, { start: 600, end: 602, text: 'eski sınır' }],
+    [{ start: 596, end: 602, text: 'tam yenilenmiş cümle' }],
+    { start: 596, end: 1306 });
+  assert.deepEqual(Array.from(refreshed, cue => cue.text), ['tam yenilenmiş cümle']);
   assert.equal(calls[0].browserTabId, 'a');
   await ctx.startBrowserYoutubeWhisper(true);
   assert.equal(calls.length, 1, 'meşgulken ikinci iş başladı');

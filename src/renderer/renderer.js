@@ -3219,7 +3219,7 @@ function applyCueQuality(cues, qualityCues) {
   });
 }
 
-function progressiveRanges(duration, current, windowSec = 600) {
+function progressiveRanges(duration, current, windowSec = 600, overlapSec = 4) {
   if (!isFinite(duration) || duration <= 0) return [{ start: '', end: '' }];
   // Videonun başına çok yakınken 2-30 saniyelik ayrı bir "başa dön" işi
   // üretme. Bu küçük son iş hem tüm YouTube sesini yeniden indiriyor hem de
@@ -3227,9 +3227,15 @@ function progressiveRanges(duration, current, windowSec = 600) {
   const requestedStart = Math.max(0, Math.min(duration, (Number(current) || 0) - 2));
   const start = requestedStart <= 30 ? 0 : requestedStart;
   const firstEnd = Math.min(duration, start + windowSec);
+  const overlap = Math.max(0, Math.min(30, Number(overlapSec) || 0));
   const ranges = [{ start, end: firstEnd }];
-  if (firstEnd < duration - 0.5) ranges.push({ start: firstEnd, end: duration });
-  if (start > 0.5) ranges.push({ start: 0, end: start });
+  // Whisper penceresi tam sözcük/cümle ortasında kesilebilir. Komşu işler kısa
+  // bir bağlamı yeniden işler; refresh yolu bu örtüşen eski cue'ları atomik
+  // olarak değiştirir, böylece 600.000 gibi sınırlarda hece/kelime kaybolmaz.
+  if (firstEnd < duration - 0.5) {
+    ranges.push({ start: Math.max(start, firstEnd - overlap), end: duration });
+  }
+  if (start > 0.5) ranges.push({ start: 0, end: Math.min(duration, start + overlap) });
   return ranges;
 }
 
@@ -3580,7 +3586,10 @@ function playerJobEvent(event) {
     const fresh = liveSegments(event);
     if (fresh.length && job.mediaKey === player.mediaKey) {
       if (job.kind === 'progressive') {
-        fresh.forEach((s) => job.liveTranslation.set(cueKey(s), s));
+        const range = job.ranges?.[job.rangeIndex] || null;
+        const replaced = replaceLiveCuesForRefresh(
+          [...job.liveTranslation.values()], fresh, range);
+        job.liveTranslation = new Map(replaced.map((cue) => [cueKey(cue), cue]));
         player.cues2 = [...job.liveTranslation.values()].sort((a, b) => a.start - b.start);
       } else {
         player.cues2 = fresh.slice().sort((a, b) => a.start - b.start);

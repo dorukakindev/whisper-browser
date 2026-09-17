@@ -44,7 +44,7 @@ from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
-                                  sentence_reply_issue,
+                                  sentence_reply_issue, sentence_part_boundary_issue,
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
                                   translation_blocking_issues)
@@ -2803,6 +2803,8 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Yalniz ayni grup icinde yeniden sirala. GRUPLAR ARASINDA anlam tasima; baglam bilgisini erkene cekme.",
         "- SAYI, TARIH, MIKTAR, KOD ve OZEL AD kaynakta hangi ID'deyse ceviride de o ID'nin",
         "  items metninde kalmalidir. Ayni cumlede bile baska ID'ye tasima; diger sozcukleri bunlarin etrafinda dogal kur.",
+        "- Kaynak grubun son parcasi disindaki bir ID cumleyi bitirmiyorsa hedef karsiligi da",
+        "  nokta/soru/unlemle cumleyi erken BITIREMEZ. Yuklemi veya kalan anlami sonraki ID'ye tasima.",
         "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme.",
         "- Blok ekleme, silme veya birlestirme YAPMA. Girdideki her ID icin tam bir cikti ver.",
         "- Konusmaci tiresi (-), muzik isareti ve koseli parantezli efektler korunur.",
@@ -2951,6 +2953,8 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
         "- Blok ekleme/silme/birlestirme YOK; her ID icin tam bir cikti ver.",
         "- sentence_groups kaynak ve ceviri cumlesinin TAM halidir. Anlami tek parcalari degil TAM grubu karsilastirarak denetle.",
         "- GRUPLAR ARASINDA anlam tasima. Yalniz ayni grupta dogal soz dizimi ve sureye gore yeniden paylastir.",
+        "- Kaynak grubun son parcasi disindaki bir ID cumleyi bitirmiyorsa hedef karsiligi da",
+        "  nokta/soru/unlemle cumleyi erken BITIREMEZ; kalan anlami sonraki ID'ye tasima.",
         "- context_before/context_after yalniz okunur kaynak baglamidir; ceviriye katma.",
         "- items icindeki istege bagli 'sp' konusmaci bilgisini zamir, sen/siz, hitap",
         "  ve ton denetiminde kullan; etiketi ceviriye ekleme veya ciktiya dondurme.",
@@ -3418,7 +3422,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)
                 if record:
                     log(f"Bulanık çeviri hafızası eşleşti (%{fuzzy['ratio'] * 100:.1f}).")
-        if record and not translation_blocking_issues(
+        boundary_issue = sentence_part_boundary_issue(
+            [entries[i][2] for i in group], record['parts']) if record else ""
+        if record and not boundary_issue and not translation_blocking_issues(
                 ' '.join(entries[i][2] for i in group), record['text'], target):
             for i, part in zip(group, record['parts']):
                 out_texts[i] = part
@@ -3517,6 +3523,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             if not record:
                 rejected["bilinmeyen_yapisal_ret"] = rejected.get(
                     "bilinmeyen_yapisal_ret", 0) + 1
+                continue
+            boundary_issue = sentence_part_boundary_issue(
+                [entries[index][2] for index in group], record['parts'])
+            if boundary_issue:
+                key = "cue_siniri_" + boundary_issue
+                rejected[key] = rejected.get(key, 0) + 1
                 continue
             # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
             # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki
@@ -3818,6 +3830,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
                 record = accept_sentence_reply(data, row['ids'])
                 if not record:
+                    continue
+                boundary_issue = sentence_part_boundary_issue(
+                    [entries[index][2] for index in group], record['parts'])
+                if boundary_issue:
+                    key = "cue_boundary:" + boundary_issue
+                    rejected[key] = rejected.get(key, 0) + len(group)
                     continue
                 if translation_is_source_echo(row['source'], record['text']):
                     rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
@@ -4297,6 +4315,59 @@ def strip_repeated_prefix(entries, max_gap=2.0):
     return [(a, b, c) for a, b, c in out if c], removed
 
 
+_ROLLING_WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
+
+
+def reconcile_rolling_hypotheses(entries, max_gap=1.2, min_run=6):
+    """Ardışık büyüyen/yenilenen ASR hipotezlerini tek zaman aralığında uzlaştır.
+
+    Whisper bazen önce uzun bir taslak, hemen ardından aynı ortadan başlayan
+    düzeltilmiş cümleyi üretir. İki cue'yu ayrı bırakmak hem metni tekrarlar hem
+    de ikinci cue'yu 40-70 CPS gibi okunamaz hızlara sıkıştırır. Yalnız uzun ve
+    baskın bir ortak sözcük koşusu varsa birleştirilir; kısa gerçek tekrarlar ve
+    konuşmacı/SDH sınırları korunur.
+    """
+    if len(entries) < 2:
+        return entries, 0
+
+    def tokens(text):
+        return [(match.group(0).casefold(), match.start())
+                for match in _ROLLING_WORD_RE.finditer(str(text or ""))]
+
+    def protected(text):
+        return bool(re.match(r'^\s*(?:[-–—♪♫\[(]|<v\b)', str(text or ""), re.I))
+
+    out = []
+    merged = 0
+    for s0, e0, text in entries:
+        current = (float(s0), float(e0), str(text or "").strip())
+        if out and current[2] and not protected(current[2]) and not protected(out[-1][2]):
+            previous = out[-1]
+            gap = current[0] - previous[1]
+            prev_tokens = tokens(previous[2])
+            curr_tokens = tokens(current[2])
+            best_start, best_run = -1, 0
+            if -0.25 <= gap <= max_gap and len(prev_tokens) >= min_run and len(curr_tokens) >= min_run:
+                for start in range(len(prev_tokens)):
+                    run = 0
+                    while (start + run < len(prev_tokens) and run < len(curr_tokens)
+                           and prev_tokens[start + run][0] == curr_tokens[run][0]):
+                        run += 1
+                    if run > best_run:
+                        best_start, best_run = start, run
+            if (previous[2].casefold() != current[2].casefold()
+                    and best_run >= min_run
+                    and best_run / len(prev_tokens) >= 0.5
+                    and best_run / len(curr_tokens) >= 0.45):
+                prefix = previous[2][:prev_tokens[best_start][1]].rstrip(" ,;:-")
+                combined = (prefix + " " + current[2]).strip() if prefix else current[2]
+                out[-1] = (previous[0], max(previous[1], current[1]), combined)
+                merged += 1
+                continue
+        out.append(current)
+    return out, merged
+
+
 def drop_micro_blocks(entries, min_dur=0.08, max_words=2):
     """
     Süresi 80 ms'nin altındaki tek-iki kelimelik bloklar: insan gözüne görünmez,
@@ -4464,6 +4535,9 @@ def fix_common_errors(entries, language="tr"):
     (büyük harf kararı düzeltilmiş noktalamaya göre verilsin).
     """
     stats = {}
+    entries, n = reconcile_rolling_hypotheses(entries)
+    if n:
+        stats["büyüyen ASR hipotezi"] = n
     entries, n = strip_repeated_prefix(entries)
     if n:
         stats["tekrar eden ön ek"] = n
@@ -5943,7 +6017,9 @@ def transcribe(args):
                 min_gap=args.min_gap,
                 max_cps=args.max_cps,
             )
-            log(f"Zamanlama düzeltildi (maks {args.max_cps:.0f} CPS, min {args.min_duration:.2f}s, boşluk {args.min_gap:.2f}s)")
+            log(f"Zamanlama iyileştirildi (hedef en çok {args.max_cps:.0f} CPS, "
+                f"min {args.min_duration:.2f}s, boşluk {args.min_gap:.2f}s; "
+                "konuşma aralığı yetmezse kalan aşımlar kalite raporunda gösterilir)")
 
         # snap/normalize başlangıçları değiştirebilir ve normalize sıralayabilir.
         # İndeks tabanlı konuşmacı haritasını ancak nihai zamanlar belli olduktan
@@ -5974,9 +6050,15 @@ def transcribe(args):
             log(
                 f"Kalite: {qr['blocks']} blok · {qr['cps_violations']} hızlı okuma · "
                 f"{qr['overlaps']} çakışma · en uzun blok {qr['longest_dur']:.1f}s "
-                f"(en yüksek {qr['max_cps']:.0f} KPS)",
+                f"(en yüksek {qr['max_cps']:.0f} CPS)",
                 "success" if (qr['cps_violations'] == 0 and qr['overlaps'] == 0) else "warn",
             )
+            if qr['cps_violations']:
+                log(
+                    f"{qr['cps_violations']} blok, mevcut konuşma aralığı ve güvenli "
+                    "boşluklar içinde CPS hedefine indirilemedi; kalite denetiminde işaretlendi.",
+                    "warn",
+                )
 
         # 5) Çıktıyı yaz
         cancellation_checkpoint("write", "before")
