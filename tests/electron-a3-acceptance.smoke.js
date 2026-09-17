@@ -76,6 +76,19 @@ function createCdpClient(webSocketDebuggerUrl) {
   };
 }
 
+async function closeCdpClient(client) {
+  const socket = client?.socket;
+  if (!socket || socket.readyState === WebSocket.CLOSED) return;
+  await new Promise((resolve) => {
+    const timer = setTimeout(resolve, 2000);
+    socket.addEventListener('close', () => {
+      clearTimeout(timer);
+      resolve();
+    }, { once: true });
+    try { socket.close(); } catch (_) { clearTimeout(timer); resolve(); }
+  });
+}
+
 async function evaluate(client, expression, timeout = 15000, extra = {}) {
   const result = await withTimeout(client.call('Runtime.evaluate', {
     expression,
@@ -550,10 +563,10 @@ async function run() {
     'İçe aktarılan oturumdaki secondaryFile temizlenmedi.');
 
   assert.equal(renderer.exceptions.length, 0, 'Main renderer exceptions: ' + renderer.exceptions.join(' | '));
-  pageA.socket.close();
-  pageB.socket.close();
-  renderer.socket.close();
-  main.socket.close();
+  await Promise.all([
+    closeCdpClient(pageA), closeCdpClient(pageB),
+    closeCdpClient(renderer), closeCdpClient(main),
+  ]);
   console.log('electron-a3-acceptance: 7 kabul yolu + manga stale-edit rollback geçti '
     + JSON.stringify({ crashDialog: true, unresponsiveDialog: true, tabProtection: true,
       offsetIsolation: { A: offsetA, B: offsetB }, rate: appliedRate, fightback,
@@ -585,6 +598,11 @@ async function cleanup() {
 run().then(async () => {
   await cleanup();
   console.log('electron-a3-acceptance-smoke: passed');
+  // Node'un yerleşik WebSocket istemcisi, bütün CDP soketleri kapatılmış olsa
+  // bile Windows'ta olay döngüsünde artık kullanılmayan bir tutamaç bırakabiliyor.
+  // Bu bağımsız smoke sürecinin sahip olduğu tüm kaynaklar cleanup'tan geçti;
+  // koşturucunun 15 dakikalık zaman aşımına düşmemesi için başarıyı kesin kapat.
+  process.exit(0);
 }).catch(async (error) => {
   await cleanup();
   console.error(error.stack || error.message);

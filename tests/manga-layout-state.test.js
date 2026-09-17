@@ -6,7 +6,21 @@ const { mangaOverlayScript, mangaClearScript } = require('../src/browser-manga')
 class Element {
   constructor() {
     this.children = []; this.dataset = {}; this.attrs = {}; this.isConnected = true;
-    this.style = { removeProperty(name) { delete this[name]; } };
+    this.style = {
+      priorities: {},
+      setProperty(name, value, priority = '') {
+        this[name] = String(value);
+        if (priority) this.priorities[name] = String(priority);
+        else delete this.priorities[name];
+      },
+      getPropertyValue(name) { return this[name] || ''; },
+      getPropertyPriority(name) { return this.priorities[name] || ''; },
+      removeProperty(name) {
+        const previous = this[name] || '';
+        delete this[name]; delete this.priorities[name];
+        return previous;
+      },
+    };
     this.textContent = ''; this.clientWidth = 200; this.clientHeight = 100;
     this.scrollWidth = 20; this.scrollHeight = 20;
   }
@@ -45,6 +59,8 @@ const run = (id, verticalText, bridgeToken) => vm.runInContext(mangaOverlayScrip
 assert.strictEqual(run('a', false, 'old'), true);
 assert.strictEqual(run('b', true, 'new'), true);
 const state = context.__whisperMangaOverlay;
+assert.strictEqual(state.overlays.get('b').style.getPropertyPriority('position'), 'important');
+assert.strictEqual(state.overlays.get('b').style.getPropertyPriority('pointer-events'), 'important');
 const group = id => state.overlays.get(id).querySelector('[data-whisper-manga-region]');
 const text = id => group(id).querySelector('[data-whisper-manga-text]');
 assert.strictEqual(text('a').style.height, 'auto');

@@ -161,11 +161,9 @@ async function main() {
     // itemOf round-trip (mağaza yüklemesi) işareti korumalı.
     const reloaded = itemOf(writtenCatalog.items[0]);
     assert.equal(reloaded.source.imported, true, 'sourceOf drops imported flag');
-    // Servis katmanı: imported kaynak sessiz grant yerine dosya seçiciye düşer.
-    const serviceSource = fs.readFileSync(path.join(__dirname, '../src/media-catalog-service.js'), 'utf8');
-    assert.match(serviceSource, /source\.imported === true[\s\S]{0,400}choose\(/,
-      'play must route imported local sources through the file picker');
-    console.log('workspace restore regressions: non-cascading paths, absent draft clearing, capture/backup/restore/rollback failure cleanup, crafted-session grant denial, imported-catalog re-grant passed');
+    // Servis katmanındaki seçim/iptal/grant davranışı media-catalog-service.test.js
+    // tarafından handler çalıştırılarak sınanır; burada paket ve mağaza sınırı kilitlenir.
+    console.log('workspace restore regressions: non-cascading paths, absent draft clearing, capture/backup/restore/rollback failure cleanup, crafted-session grant denial, imported-catalog marker round-trip passed');
   } finally {
     videos.read = original.read; videos.extract = original.extract; packages.exportPackage = original.export; packages.restorePackage = original.restore;
     if (path.dirname(root) !== path.resolve(os.tmpdir()) || !path.basename(root).startsWith('whisper-restore-regression-')) throw Error('Invalid cleanup root');

@@ -12,27 +12,33 @@ async function main() {
   try {
     const handlers = new Map();
     let picker = 'C:\\Movies\\allowed.mp4';
+    let pickerCanceled = false;
+    let pickerCalls = 0;
+    const granted = [];
     const imported = [
       { id: 'nmdb:work:1', importRef: 'nmdb:work:1', kind: 'film', title: 'Kuzey', year: 2024,
         imdbId: 'tt1234567', synopsis: 'Sentetik film', watchStatus: 'completed', favorite: false,
-        source: { type: 'local', value: 'C:\\Movies\\imported.mp4' }, episodes: [] },
+        source: { type: 'local', value: 'C:\\Movies\\imported.mp4', imported: true }, episodes: [] },
       { id: 'nmdb:work:2', importRef: 'nmdb:work:2', kind: 'series', title: 'Dizi', year: 2023,
         tmdbId: 'tv:42', synopsis: 'Sentetik dizi', episodes: [
           { id: 's1e2', season: 1, number: 2, title: 'Bölüm', watchStatus: 'unspecified',
-            source: { type: 'local', value: 'C:\\TV\\imported-s1e2.mp4' } },
+            source: { type: 'local', value: 'C:\\TV\\imported-s1e2.mp4', imported: true } },
         ] },
     ];
     importer.previewNmdbImport = async () => ({ items: imported, warnings: [], count: imported.length });
     registerMediaCatalogService({
       ipcMain: { handle: (channel, fn) => handlers.set(channel, fn) },
-      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picker] }) },
+      dialog: { showOpenDialog: async () => {
+        pickerCalls++;
+        return { canceled: pickerCanceled, filePaths: pickerCanceled ? [] : [picker] };
+      } },
       owner: () => null, authorized: (event) => event.sender.id === 1 || event.sender.id === 3,
       userData: () => dir, pythonPath: () => 'synthetic-python',
       inspectMedia: (value) => {
         if (!value.endsWith('allowed.mp4')) throw new Error('Yerel video yolu yetkili değil.');
         return value;
       },
-      grantMedia: () => true,
+      grantMedia: (value) => { granted.push(value); return true; },
       watchItems: () => [],
       nativeImage: { createFromPath: () => ({ isEmpty: () => true }) },
     });
@@ -90,6 +96,37 @@ async function main() {
     const series = list.items.find((item) => item.kind === 'series');
     assert(series);
     assert.equal(series.episodes[0].source.value, 'C:\\TV\\imported-s1e2.mp4');
+    assert.equal(series.episodes[0].source.imported, true);
+
+    // R51-09 davranış testi: içe aktarılmış yerel yol doğrudan grant edilmez.
+    // İptal dosyayı ve katalog kaydını değiştirmez; seçim yapıldığında ise
+    // yalnız seçilen yol grant edilir ve imported işareti kalıcı olarak kalkar.
+    const pickerBeforeCancel = pickerCalls;
+    pickerCanceled = true;
+    const canceledPlay = await invoke(authorized, {
+      action: 'play', id: series.id, episodeId: series.episodes[0].id,
+    });
+    assert.deepEqual(canceledPlay, { ok: false, canceled: true });
+    assert.equal(pickerCalls, pickerBeforeCancel + 1);
+    assert.deepEqual(granted, [], 'İptal edilen içe aktarım yolu grant edildi');
+    const afterCancel = await invoke(authorized, { action: 'list' });
+    assert.equal(afterCancel.items.find((item) => item.id === series.id)
+      .episodes[0].source.imported, true, 'İptal imported işaretini kaldırdı');
+
+    pickerCanceled = false;
+    picker = 'C:\\Movies\\allowed.mp4';
+    const played = await invoke(authorized, {
+      action: 'play', id: series.id, episodeId: series.episodes[0].id,
+    });
+    assert.equal(played.ok, true, played.error);
+    assert.equal(played.watchItem.sourceRef, picker);
+    assert.equal(played.watchItem.localPath, picker);
+    assert.deepEqual(granted, [picker], 'Seçilmeyen veya birden çok yol grant edildi');
+    const afterPlay = await invoke(authorized, { action: 'list' });
+    assert.equal(afterPlay.items.find((item) => item.id === series.id)
+      .episodes[0].source.imported, undefined, 'Seçim sonrası imported işareti korunmuş');
+    assert.equal(afterPlay.items.find((item) => item.id === series.id)
+      .episodes[0].source.value, picker);
 
     const changed = await invoke(authorized, { action: 'save', item: { id: series.id,
       episodes: [{ ...series.episodes[0], watchStatus: 'completed' }] } });
@@ -102,7 +139,9 @@ async function main() {
     const after = await invoke(authorized, { action: 'list' });
     assert.equal(after.items.length, 2);
     assert.equal(after.items.find((item) => item.id === series.id).episodes[0].watchStatus, 'completed');
-    assert.equal(after.items.find((item) => item.id === series.id).episodes[0].source.value, 'C:\\TV\\imported-s1e2.mp4');
+    assert.equal(after.items.find((item) => item.id === series.id).episodes[0].source.value, picker,
+      'Yeniden içe aktarım kullanıcının doğruladığı yerel yolu ezdi');
+    assert.equal(after.items.find((item) => item.id === series.id).episodes[0].source.imported, undefined);
 
     importer.previewNmdbImport = async () => ({ items: [{ ...imported[0], imdbId: 'tt7654321' }], warnings: [], count: 1 });
     const conflictPreview = await invoke(authorized, { action: 'import-preview' });
