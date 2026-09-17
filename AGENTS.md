@@ -27,7 +27,7 @@ Sohbet geçmişi kaybolmuş olabilir. Çalışmaya başlamadan bu dosyayı, [YEN
 
 ## Genel bakış
 
-Yerel, GPU hızlandırmalı altyazı çıkarma uygulaması. **Electron arayüzü** (Node + renderer) + **Python backend** (faster-whisper / WhisperX). Windows hedefli, RTX 4070 Ti için optimize. Arayüz ve tüm kullanıcı metinleri Türkçe.
+Yerel, GPU hızlandırmalı altyazı çıkarma uygulaması. **Electron arayüzü** (Node + renderer) + **Python backend** (faster-whisper / WhisperX). Windows hedefli, RTX 4070 Ti için optimize. Arayüzün varsayılan dili İngilizcedir; üstteki EN/TR seçimiyle Türkçeye geçilir. Eski backend günlükleri ve henüz taşınmamış tanı mesajları Türkçe kalabilir; yeni kullanıcı metinlerinde iki dili de planla.
 
 ## Komutlar
 
@@ -96,7 +96,7 @@ HF token ve LLM API key **argv'den değil ortam değişkeninden** geçer (`WHISP
 
 ## Konvansiyonlar
 
-- Kullanıcıya görünen tüm metinler **Türkçe**. Log mesajları, hata metinleri, UI etiketleri Türkçe yazılır.
+- Arayüz varsayılan **İngilizce**, üstteki EN/TR seçimiyle **Türkçe** olur. Yeni UI etiketleri ve durum/hata metinleri için iki dili de sağla; altyazı, medya başlığı, not ve kullanıcı verisini arayüz çeviricisine sokma. Eski günlük/tanı metinlerinin Türkçe kalması İngilizce yerelleştirme kapsamında açık iştir.
 - SRT ve ASS çıktıları **UTF-8 BOM** (`utf-8-sig`) ile yazılır (Windows oynatıcılarında Türkçe karakter sorunu için); JSON bilinçli olarak BOM'suz.
 - CSP `index.html`'de katı (`script-src 'self'`); inline script ekleme, harici CDN kullanma.
 - Renderer'dan dış kaynağa erişim yok — dosya yolu (`webUtils.getPathForFile`), pano, harici link, ortam bilgisi hepsi preload `api` + main IPC üzerinden gider.

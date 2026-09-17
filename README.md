@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml) [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![Windows](https://img.shields.io/badge/platform-Windows-lightgrey) ![Beta](https://img.shields.io/badge/status-beta-orange)
 
-Whisper Browser is a Windows desktop application for local GPU-accelerated subtitle transcription, subtitle-aware video browsing, and context-sensitive translation. The application UI is currently in Turkish.
+Whisper Browser is a Windows desktop application for local GPU-accelerated subtitle transcription, subtitle-aware video browsing, and context-sensitive translation. The main interface opens in English by default, with an EN/TR switch in the header. Some older diagnostic and backend messages are still Turkish while localization continues.
 
 > This project is in beta. Back up important subtitle files and review generated text before publishing it.
 
