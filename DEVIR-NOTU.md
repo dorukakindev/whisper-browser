@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-17 10:09 — Aktif İşler merkezi, canlı aşamalar ve iş kontrolleri](docs/devir/2026-09-17-1009.md).
+Güncel çalışma: [2026-09-17 13:31 — 57-ajan dört-dalga tam kapsam denetimi (rapor 54)](docs/devir/2026-09-17-1331.md).
+
+Önceki çalışma: [2026-09-17 10:09 — Aktif İşler merkezi, canlı aşamalar ve iş kontrolleri](docs/devir/2026-09-17-1009.md).
 
 Önceki çalışma: [2026-09-17 08:10 — Turkish subtitle comprehension and A/B quality review](docs/devir/2026-09-17-0810.md).
 
