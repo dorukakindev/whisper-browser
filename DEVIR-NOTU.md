@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 00:40 — Oynatıcı ayar panelleri görsel düzenleme: flex-gap düzeni, stilsiz URL input'u sarıldı, OAuth grubu, inline margin temizliği](docs/devir/2026-09-19-0040.md).
+Güncel çalışma: [2026-09-19 02:24 — Derin player denetimi (10 ajanlık, R72): OAuth soft-lock, Invidious SID failover sızıntısı, grid tuş kaçağı, probe-yarışı, hız reseti, A-B kaçışı — 31 bulgu düzeltildi; npm test TAM GEÇTİ](docs/devir/2026-09-19-0224.md).
+
+Önceki çalışma: [2026-09-19 00:40 — Oynatıcı ayar panelleri görsel düzenleme: flex-gap düzeni, stilsiz URL input'u sarıldı, OAuth grubu, inline margin temizliği](docs/devir/2026-09-19-0040.md).
 
 Önceki çalışma: [2026-09-18 23:55 — YouTube OAuth girişi oynatıcı paneline eklendi (playerYtOAuthBtn + senkron durum; smoke probları)](docs/devir/2026-09-18-2355.md).
 
