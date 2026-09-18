@@ -405,3 +405,62 @@ Yani "çalışmıyor"un birinci cevabı R67-01; düzeltilse sırayla R67-02
    beklediği `heights/stream/audioLangs/isLive` alanlarını üret.
 10. Sonra P2/P3 kuyruğu: SSRF instance doğrulaması, cancel sahipliği,
     cache/auth-desync, i18n, failover.
+
+---
+
+# UYGULAMA DURUMU — 2026-09-18 (implementasyon turu)
+
+Kullanıcı talimatıyla doğrulanmış tüm bulgular düzeltildi; SmartTube
+oynatıcı yüzeyi uçtan uca çalışır hale getirildi.
+
+## Kapanan bulgular
+
+| # | Bulgu | Uygulanan düzeltme |
+|---|---|---|
+| R67-01 | TDZ renderer çökmesi | `INV_KEY`/`playerSource` bildirimleri `initPlayerSource()` çağrısından ÖNE taşındı. Boot smoke (`electron-smarttube-boot.smoke.js`) gerçek Electron'da kanıtladı: sıfır uncaught hata, `initSmartTube` → `invidious:feed` invoke'a kadar canlı. |
+| R67-02 | Sonuç beyaz listesi | `feed|search|channel|login|logout` tipleri `runInvidiousCommand`'de yakalanıyor; `downloaded` `media.py` yolunda `runMediaCommand` üzerinden. |
+| R67-03 | Modal script sonrası | `invidiousLoginModal` markup'ı `<script>` etiketlerinin önüne taşındı; Esc/backdrop kapatma + şifre alanı temizleme bağlandı. |
+| R67-04 | CSP | `img-src`/`media-src`/`connect-src` `https:` genişletildi (thumbnail/stream/manifest); `script-src 'self'` korunuyor. |
+| R67-05 | Tek slot çakışması | Renderer `invCall` promise-zinciri tüm Invidious IPC'lerini serileştiriyor; `renderInvidiousHome` artık sıralı. |
+| R67-06 | Auth mimarisi | `email` alanı (iki varyant denemeli), `/api/v1/auth/feed` endpoint'i, SID `WHISPER_INVIDIOUS_SID` env ile subprocess'e; SID renderer'a asla dönmüyor (sonuçtan soyuluyor). Oturum açılışta geri yükleniyor. |
+| R67-07 | downloadStream yolu | `invidious:downloadStream` → `runMediaCommand(media.py)` (`download` slot, 2 sa timeout, `media:cancel` bedava). `media.py download_stream`: `--url` opsiyonel, `--video-id`, mime'dan container, ffmpeg önce kontrol, birleşik progress, `.invtmp`/kısmi dosya temizliği. Renderer İndir düğmesi kaynak-dallı. |
+| R67-08 | srv1/srv3 parser | `fmt=srv3` isteniyor; parser srv3 (`<p t d>`) + srv1 (`<text start dur>`) + VTT; boş/tanınamayan içerik sahte "No subtitles" SRT'si yerine sınıflı `RuntimeError`; `url`+`language_code`+`kind=asr` kullanılıyor; çıktı adı `Başlık [vid].lang.srt`. |
+| R67-09 | Şema sürüklenmesi | probe emit'i gerçek API alanlarına hizalandı (`dashUrl`, `videoThumbnails`, `resolution`, `liveNow`, `audioTrack`) + renderer şeması üretildi (`heights` sayı dizisi, `stream` nesnesi, `audioLangs`, `isLive`). |
+| R67-12 | Instance SSRF | `validateInvidiousInstance` `opts.instance`'ı http/https origin'e indirger; SID yalnız login yapılan instance'a gider (`resolveInvidiousInstance`/`requireSession`). |
+| R67-13 | Cancel sahipliği | `invidious:cancel` slot'u null'lamaz; temizlik `close`'un `mediaJobs[kind] === proc` kontrolüyle. |
+| R67-14 | Altyazı gizliliği | `fetch_subs` caption URL'lerini instance üzerinden çözüyor (`_abs_url`), youtube.com'a doğrudan gitmiyor. |
+| R67-15 | SID sızıntısı | login/logout/session sonuçlarından `sid` anahtarı soyuluyor; main içinde `invidiousSessions` haritasında. |
+| R67-16 | İndirme eksikleri | Bkz. R67-07 satırı — container/kısmi-dosya/ffmpeg/ad-çakışması düzeltildi. |
+| R67-17 | Arama görünürlüğü | `stSearchResults`/`stSearchGrid` aç-kapa mantığı + `stGrid` karşılıklı gizleme; `stSearchSeq` yarış koruması; eski `invidiousSearchResults` konteyneri de gösteriliyor. |
+| R67-18 | `Giriş`→`Intro` çakışması | Etiketler `Oturum aç`/`Oturumu kapat` yapıldı; ui-locale eksikleri tamamlandı. |
+| R67-19 | HLS kurtarma | `probeWithActiveSource` kullanıyor (yt-dlp sabit değil). |
+| R67-20 | Ölü nesil markup | `invidiousHomePage` (3. nesil, hiç gösterilmeyen kopya) kaldırıldı; ölü `invHome*` butonları gitti (player-ui invariant'ı yeşil). |
+
+## Ek iyileştirmeler (SmartTube tamamlama)
+
+- Tek-tık kart oynatma (`pendingAutoOpen` kalıbı) — probe sonrası akış varsa doğrudan oynatır.
+- Kartlarda süre, görüntülenme, tarih, kanal adı ve `CANLI` rozeti; thumbnail URL'leri instance'a mutlaklaştırılıyor.
+- Kanal sayfası: başlık + `← Kanallarım` geri + kanal adı/abone bilgisi.
+- `stSectionSeq` bölüm-yarış koruması, `stStatusLine` durum satırı, giriş gereken bölümde giriş ipucu.
+- `refreshSmartTubeAuthUI` hem `smarttubeBrowser` sidebar'ını hem ayar paneli butonlarını senkronlar; açılışta `invidious:session` geri yükleme.
+- `hideHomeOnVideoLoad` HLS yoluna da bağlandı; `openPlayer` medya yokken tarayıcıyı geri gösterir.
+- `invidious:event` logları renderer'a iletiliyor (`playerLog`'a düşer).
+- Per-kind timeout (trending 120 sn, diğer feed'ler 75 sn), NDJSON taşma koruması, hata sanitize (spawn hatası sınıflı Türkçe fallback — `err.message` ham sızdırmaz).
+- `.st-card:focus-visible` `outline:none` kaldırıldı (tasarım-sistemi invariant'ı).
+- Failover: `_fetch_with_failover` + `_iter_instances` (tercih → önbellek → varsayılan liste) feed/search/channel/probe'da.
+- `extract_video_id`: watch?v= (param sırası bağımsız), youtu.be, /shorts|embed|live|v/, nocookie ve **herhangi instance URL'si** — kart linkleri de dahil.
+
+## Doğrulama kanıtı
+
+- `tests/report67-smarttube-wiring.test.js` — **24/24** (yeni, kaynak-sözleşme)
+- `backend/test_invidious.py` — **48/48** (orijinal testler korunarak genişletildi; boş-içerik hatası ve srv1/VTT davranış testleri eklendi)
+- `tests/electron-smarttube-boot.smoke.js` — **GEÇTİ** (yeni; gerçek Electron penceresinde index.html+preload boot → `{"ok":true}`, tüm SmartTube probları canlı)
+- `design-system`, `ui-locale`, `ytdlp-runtime`, `report65-invidious-bridge` (21), `player-ui` (145) — **hepsi yeşil** (implementasyonun kırdığı 5 tracked test onarıldı: 2'si gerçek ürün hatası [ölü butonlar, focus-visible], 2'si bayat beklenti [eski regex/iptal semantiği], 1'i çift locale anahtarı)
+- `node --check` (renderer/main/preload/ui-locale) + `py_compile` (invidious/media) — temiz
+- `npm test` — sonuç aşağıda; kalan kırmızılar **izlenmemiş başka-iş-akışı WIP testleri** (`tests/report62-*`, `report63-*` ×2, `report64-*` ×2 + `src/browser-sensitive-keys.js`): bekledikleri ürün düzeltmeleri (hassas-param redaksiyonu, SSRF observer LRU, i↔İ locale, kontrast, adres-listbox) o iş akışında henüz yazılmadı. Bu teslimin kapsamı dışında — dokunulmadı.
+
+## Kalan sınırlar (canlı sağlayıcı doğrulanmadı)
+
+- Invidious instance'larına canlı ağ erişimi bu ortamda test edilmedi; feed/probe gerçek API yanıtıyla doğrulanmadı — boot smoke IPC-seviyesinde kanıtlıyor, uç ağ doğrulaması kullanıcı ortamında.
+- Login yanıtı gerçek bir Invidious hesabıyla denenmedi (instance'a göre `email`/`email_or_user` varyantları kod yolunda).
+- HLS oynatma `hls.js` vendor bundle'ına bağlı; canlı yayın kurgusu canlı test edilmedi.

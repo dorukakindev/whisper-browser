@@ -1,5 +1,5 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 14:21 — Invidious (SmartTube) entegrasyon denetimi bulguları (rapor 67)](docs/devir/2026-09-18-1421.md).
+Güncel çalışma: [2026-09-18 17:30 — R67 onarımları + SmartTube oynatıcı uçtan uca çalışır (TDZ boot-smoke kanıtlı)](docs/devir/2026-09-18-1730.md).
 
 Önceki çalışma: [2026-09-18 13:30 — SmartTube tarzı: ana sayfa, auth, arama, kanal, download_stream](docs/devir/2026-09-18-1330.md).
 
