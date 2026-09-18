@@ -97,7 +97,9 @@ test('R67-07: invidious:downloadStream media.py üzerinden çalışır', () => {
   assert.ok(handler, 'downloadStream handler bulunamadı');
   assert.match(handler[0], /runMediaCommand\(/, 'downloadStream hâlâ runInvidiousCommand kullanıyor');
   assert.doesNotMatch(handler[0], /runInvidiousCommand\(/, 'downloadStream invidious.py\'ye gitmemeli');
-  assert.match(handler[0], /'download'\)/, "'download' slot'u kullanılmalı");
+  assert.match(handler[0], /'download'[,\)]/, "'download' slot'u kullanılmalı");
+  // R68-K1: iş 'invidious-stream' etiketi taşır — invidious:cancel tanır
+  assert.match(handler[0], /'invidious-stream'/, 'jobTag eksik — invidious:cancel işi öldüremez');
 });
 
 // ---------- R67-12: instance doğrulama ----------
@@ -195,7 +197,8 @@ test('renderer: Trend ayracı tam satır — iç içe .st-grid wrap yok', () => 
     RENDERER.indexOf("renderSmartTubeGrid(grid, dedupe(videos)"),
     RENDERER.indexOf('} else {', RENDERER.indexOf("renderSmartTubeGrid(grid, dedupe(videos)"))
   );
-  assert.match(sec, /gridColumn\s*=\s*['"]1 \/ -1['"]/);
+  assert.match(sec, /st-grid-row|gridColumn\s*=\s*['"]1 \/ -1['"]/,
+    'ayraç tam satır kaplamıyor');
   assert.doesNotMatch(sec, /createElement\('div'\)[\s\S]{0,200}className\s*=\s*'st-grid'/);
 });
 
@@ -252,9 +255,9 @@ test('renderer: trend kategori chip\'leri backend tab parametresiyle çağrılı
 test('renderer: degraded yedek kaynak Invidious gibi gösterilmez', () => {
   assert.match(RENDERER, /feedData\.degraded|feedData && feedData\.degraded/);
   assert.match(RENDERER, /Yedek kaynak \(yt-dlp\)/);
-  // Backend emit'leri source/degraded taşır
-  assert.match(INV_PY, /degraded=True, source="yt-dlp"/);
-  assert.match(INV_PY, /instance="yt-dlp:tab"/);
+  // Backend payload'ları source/degraded taşır (dict veya kwargs biçimi)
+  assert.match(INV_PY, /"degraded": True, "source": "yt-dlp"|degraded=True, source="yt-dlp"/);
+  assert.match(INV_PY, /"instance": "yt-dlp:tab"|instance="yt-dlp:tab"/);
 });
 
 test('backend: trending/popular yedeği arama değil gerçek feed sayfası', () => {
@@ -357,7 +360,7 @@ test('renderer: yorum isteği yarış/nerede-kaldı korumalı', () => {
 test('renderer: kanal sayfası iç içe .st-grid üretmez + tam-satır başlık', () => {
   const fn = RENDERER.match(/async function openInvidiousChannelPage[\s\S]*?\n}/);
   assert.ok(fn, 'openInvidiousChannelPage yok');
-  assert.match(fn[0], /gridColumn\s*=\s*['"]1 \/ -1['"]/, 'kanal başlığı tam satır değil');
+  assert.match(fn[0], /st-grid-row|gridColumn\s*=\s*['"]1 \/ -1['"]/, 'kanal başlığı tam satır değil');
   assert.doesNotMatch(fn[0], /className\s*=\s*'st-grid'/, 'iç içe st-grid wrap hâlâ var');
 });
 
@@ -371,6 +374,202 @@ test('renderer: playerMeta dinamik metinleri locale üzerinden', () => {
   const ignoredLine = LOCALE.match(/const ignored = '([^']+)'/);
   assert.ok(ignoredLine && ignoredLine[1].includes('#playerMeta'),
     '#playerMeta ignored listesinde değil — kısmi çeviri bozar');
+});
+
+// ---------- R68 doğrulama düzeltmeleri ----------
+
+test('R68 D-K1/K2: closePlayer ölü kaynakta mediaKey sıfırlar + evi geri getirir', () => {
+  const fn = RENDERER.match(/function closePlayer\(\)[\s\S]*?\n}/);
+  assert.ok(fn, 'closePlayer yok');
+  assert.match(fn[0], /!closedVideo\.currentSrc/, 'currentSrc kontrolü yok');
+  assert.match(fn[0], /setMediaKey\(''\)/, 'mediaKey sıfırlanmıyor — yeniden açılış siyah kalır');
+  assert.match(fn[0], /showHomeWhenNoVideo\(\)/, 'SmartTube geri getirilmiyor');
+});
+
+test('R68 D-K5: setSmartTubeVisible arama görünümünü geri getirir', () => {
+  const fn = RENDERER.match(/function setSmartTubeVisible[\s\S]*?\n}/);
+  assert.ok(fn, 'setSmartTubeVisible yok');
+  assert.match(fn[0], /stSearchActive/, 'arama durumu yok sayılıyor');
+  assert.match(fn[0], /results\.classList\.remove\('hidden'\)/,
+    'arama sonuçları geri getirilmiyor');
+});
+
+test('R68 D-K4: kaynak Invidious\'a geçince medya yoksa SmartTube açılır', () => {
+  const fn = RENDERER.match(/playerSource = sel\.value[\s\S]{0,900}?setSmartTubeVisible\(true\)/);
+  assert.ok(fn, 'playerSourceSelect handler / setSmartTubeVisible yok');
+  assert.match(fn[0], /playerSource === 'invidious' && !player\.mediaKey/);
+});
+
+test('R68 D-K7: kanal yüklemesi lastInvidiousInstance günceller', () => {
+  const fn = RENDERER.match(/async function loadInvidiousChannel[\s\S]*?\n}/);
+  assert.ok(fn, 'loadInvidiousChannel yok');
+  assert.match(fn[0], /lastInvidiousInstance = res\.data\.instance/,
+    'instance güncellenmiyor — göreli thumbnail kırılır');
+});
+
+test('R68 D-Y5: arama sıfırlama eski kartları DOM\'dan siler', () => {
+  const fn = RENDERER.match(/function resetSmartTubeSearch[\s\S]*?\n}/);
+  assert.ok(fn, 'resetSmartTubeSearch yok');
+  assert.match(fn[0], /searchGrid\.innerHTML = ''/, 'stSearchGrid temizlenmiyor — DOM birikimi');
+  assert.match(fn[0], /stSearchSeen\.clear\(\)/);
+});
+
+test('R68 D-K6: giriş uçuşta iken ikinci istek engellenir', () => {
+  assert.match(RENDERER, /_invLoginBusy/);
+  const fn = RENDERER.match(/async function doInvidiousLogin[\s\S]*?_invLoginBusy = true/);
+  assert.ok(fn, 'busy guard yok — Enter ile çift giriş');
+});
+
+test('R68 K1: invidious:cancel etiketli download işini de öldürür', () => {
+  const cancel = MAIN.match(/ipcMain\.handle\('invidious:cancel'[\s\S]*?\n\}\);/);
+  assert.ok(cancel, 'cancel handler yok');
+  assert.match(cancel[0], /dl\.jobTag === 'invidious-stream'/,
+    'download slot\'undaki Invidious akışı öldürülmüyor');
+  // Normal indirme etkilenmez — etiket kontrolü şart
+  assert.match(MAIN, /proc\.jobTag = jobTag \|\| kind/);
+});
+
+test('R68 K7: SID düz http\'de yalnız yerel/özel ağa gider', () => {
+  assert.match(MAIN, /function isLocalInvidiousInstance\(/);
+  const env = MAIN.match(/function invidiousAuthEnv[\s\S]*?\n}/);
+  assert.ok(env, 'invidiousAuthEnv yok');
+  assert.match(env[0], /isLocalInvidiousInstance\(instance\)/,
+    'http SID koruması yok — uzak http\'ye sızar');
+  // RFC1918 + loopback tanımları
+  assert.match(MAIN, /\^10\\\./);
+  assert.match(MAIN, /\^192\\\.168\\\./);
+});
+
+test('R68 K2: SID safeStorage ile kalıcı + açılışta geri yüklenir', () => {
+  assert.match(MAIN, /function persistInvidiousSessions\(/);
+  assert.match(MAIN, /function restoreInvidiousSessions\(/);
+  assert.match(MAIN, /invidious-session\.safe\.json/);
+  assert.match(MAIN, /persistInvidiousSessions\(\);.*K2|persistInvidiousSessions\(\)/);
+  const login = MAIN.match(/ipcMain\.handle\('invidious:login'[\s\S]*?\n\}\);/);
+  assert.match(login[0], /persistInvidiousSessions\(\)/, 'login kaydetmiyor');
+  const logout = MAIN.match(/ipcMain\.handle\('invidious:logout'[\s\S]*?\n\}\);/);
+  assert.match(logout[0], /persistInvidiousSessions\(\)/, 'logout temizlemiyor');
+  assert.match(MAIN, /restoreInvidiousSessions\(\);.*\n.*createWindow\(\)|restoreInvidiousSessions\(\)/);
+});
+
+test('R68 Y2: eski Invidious paneli kaldırıldı (çift DOM/a11y yok)', () => {
+  assert.doesNotMatch(HTML, /id="invidiousHome"/, 'eski home paneli hâlâ HTML\'de');
+  assert.doesNotMatch(HTML, /id="invidiousSearchResults"/, 'eski arama paneli hâlâ HTML\'de');
+  assert.doesNotMatch(RENDERER, /function renderInvidiousHome\(/, 'ölü render hâlâ var');
+  assert.doesNotMatch(RENDERER, /function initInvidiousHome\(/, 'ölü init hâlâ var');
+  assert.doesNotMatch(RENDERER, /renderInvidiousCard/, 'ölü kart render hâlâ var');
+  // Modal düğmeleri yeni bağlama noktasında (initSmartTube)
+  const init = RENDERER.match(/function initSmartTube\(\)[\s\S]*?\n}/);
+  assert.match(init[0], /invLoginSubmit/, 'modal submit bağlantısı kayboldu');
+  assert.match(init[0], /invLoginCancel/, 'modal cancel bağlantısı kayboldu');
+});
+
+test('R68 D-K3: birleşik home feed — tek süreç paralel popular+trending', () => {
+  assert.match(INV_PY, /def feed_home\(instance=None\)/);
+  assert.match(INV_PY, /ThreadPoolExecutor\(max_workers=2\)/);
+  assert.match(INV_PY, /_emit_lock/, 'emit kilit yok — NDJSON satırları karışır');
+  assert.match(INV_PY, /elif args\.command == "home"/);
+  const valid = MAIN.match(/const valid = \[([^\]]+)\]/);
+  assert.match(valid[1], /'home'/, "main.js 'home' kind'ını reddediyor");
+  // Renderer tek 'home' çağrısı yapar, iki ayrı feed isteği değil
+  assert.match(RENDERER, /section === 'home' \? 'home' : section/);
+  assert.match(RENDERER, /feedData\.popular/);
+  assert.match(RENDERER, /feedData\.trending|feedData\._trending/);
+});
+
+test('R68 Y9: klavye seek çubuk görsünü anında tazeler', () => {
+  assert.match(RENDERER, /video\.currentTime \+= 10; updateSeekVisuals\(\)/);
+  assert.match(RENDERER, /video\.currentTime -= 10; updateSeekVisuals\(\)/);
+  assert.match(RENDERER, /video\.currentTime \+= 5; updateSeekVisuals\(\)/);
+});
+
+test('R68 Y10: menü açıkken V yalnız menüyü kapatır', () => {
+  const fn = RENDERER.match(/e\.key === 'v' \|\| e\.key === 'V'[\s\S]*?return;\s*\n\s*}/);
+  assert.ok(fn, 'V handler yok');
+  assert.match(fn[0], /subMenu && !subMenu\.classList\.contains\('hidden'\)/);
+});
+
+test('R68 Y11: lastSubtitleMode ayar dosyasına yazılır + geri yüklenir', () => {
+  const collect = RENDERER.match(/function collectUiSettings[\s\S]*?\n}/);
+  assert.match(collect[0], /playerLastSubtitleMode/);
+  const apply = RENDERER.match(/function applyUiSettings[\s\S]*?\n  updateGpuBadge/);
+  assert.match(apply[0], /playerLastSubtitleMode/);
+  const setMode = RENDERER.match(/function setSubtitleMode[\s\S]*?\n}/);
+  assert.match(setMode[0], /scheduleSave\(\)/, 'mod değişimi kaydedilmiyor');
+});
+
+test('R68 Y12: mute simgesi volumechange ile senkron', () => {
+  assert.match(RENDERER, /volumechange', syncMuteIcon/);
+  assert.match(RENDERER, /aria-pressed/);
+});
+
+test('R68 D-Y3: ambient boyama belge gizliyken durur', () => {
+  const paint = RENDERER.match(/const paint = \(\) => \{[\s\S]*?\};/);
+  assert.ok(paint, 'paint yok');
+  assert.match(paint[0], /document\.hidden/, 'gizli sekmeye hâlâ çiziyor');
+});
+
+test('R68 D-Y7: oturum geri yükleme statü satırına yansır', () => {
+  const fn = RENDERER.match(/async function restoreInvidiousSession[\s\S]*?\n}/);
+  assert.ok(fn, 'restoreInvidiousSession yok');
+  assert.match(fn[0], /setSmartTubeStatus/, 'geri yükleme sessiz — kullanıcı göremiyor');
+});
+
+test('R68 D-O1: arama sonuç sayısı sınırlı (DOM/dedupe şişmez)', () => {
+  assert.match(RENDERER, /ST_SEARCH_MAX/);
+  const fn = RENDERER.match(/function stAppendSearchResults[\s\S]*?\n}/);
+  assert.match(fn[0], /children\.length >= ST_SEARCH_MAX/);
+});
+
+test('R68 O6/O7: arama temizle × + şifre göster düğmesi bağlı', () => {
+  assert.match(HTML, /id="stSearchClear"/);
+  assert.match(HTML, /id="invLoginPassToggle"/);
+  const init = RENDERER.match(/function initSmartTube\(\)[\s\S]*?\n}/);
+  assert.match(init[0], /stSearchClear/);
+  assert.match(init[0], /invLoginPassToggle/);
+});
+
+test('R68 O5/D1: ikonlar aria-hidden + statü satırı aria-live', () => {
+  assert.match(HTML, /st-side-icon" aria-hidden="true"/);
+  assert.match(HTML, /id="stStatusLine" role="status" aria-live="polite"/);
+});
+
+test('R68 O11: kart görselleri decoding=async', () => {
+  assert.match(RENDERER, /img\.decoding = 'async'/);
+});
+
+test('R68 D-D7: absThumb yalnız http(s) kabul eder (şema beyaz liste)', () => {
+  const fn = RENDERER.match(/function absThumb\(url\) \{[\s\S]*?\n}/);
+  assert.ok(fn, 'absThumb yok');
+  assert.match(fn[0], /\^https\?:/, 'javascript:/data: şemaları geçiyor — img enjeksiyonu');
+});
+
+test('R68 Y3: arama input\'u debounce\'lu canlı sorgu yapar', () => {
+  assert.match(RENDERER, /searchDebounce/);
+  assert.match(RENDERER, /setTimeout\([\s\S]{0,80}450\)/);
+});
+
+test('R68 D-O6: yorumlar 200 düğümde kesilir (DOM birikimi yok)', () => {
+  assert.match(RENDERER, /ST_COMMENTS_MAX = 200/);
+  assert.match(RENDERER, /\.st-comment'\)\.length >= ST_COMMENTS_MAX/);
+});
+
+test('R68 D-D3: formatCount Intl compact kullanır', () => {
+  assert.match(RENDERER, /Intl\.NumberFormat/);
+  assert.match(RENDERER, /notation: 'compact'/);
+});
+
+test('R68 D-O9: disk dolu/izin hatası dostça mesaja çevrilir', () => {
+  assert.match(MEDIA_PY, /ENOSPC/);
+  assert.match(MEDIA_PY, /EACCES, _errno\.EPERM/);
+  assert.match(MEDIA_PY, /Disk dolu/);
+});
+
+test('R68 O10/D3/D-Y10: placeholder + sidebar focus + kart content-visibility', () => {
+  const CSS = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles.css'), 'utf8');
+  assert.match(CSS, /#stSearchInput::placeholder/);
+  assert.match(CSS, /\.st-side-item:focus-visible/);
+  assert.match(CSS, /\.st-card \{[\s\S]*?content-visibility: auto/);
 });
 
 // ---------- çalıştır ----------

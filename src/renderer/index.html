@@ -1867,32 +1867,32 @@
             <!-- Sol kenar çubuğu (SmartTube TV kategoriler) -->
             <nav class="st-sidebar" aria-label="Invidious gezinme">
               <button class="st-side-item is-active" data-st-section="home" title="Ana sayfa">
-                <span class="st-side-icon">⌂</span>
+                <span class="st-side-icon" aria-hidden="true">⌂</span>
                 <span class="st-side-label">Ana sayfa</span>
               </button>
               <button class="st-side-item" data-st-section="trending" title="Trend">
-                <span class="st-side-icon">↗</span>
+                <span class="st-side-icon" aria-hidden="true">↗</span>
                 <span class="st-side-label">Trend</span>
               </button>
               <button class="st-side-item" data-st-section="popular" title="Popüler">
-                <span class="st-side-icon">★</span>
+                <span class="st-side-icon" aria-hidden="true">★</span>
                 <span class="st-side-label">Popüler</span>
               </button>
               <button class="st-side-item" data-st-section="subscriptions" title="Abonelikler">
-                <span class="st-side-icon">⊞</span>
+                <span class="st-side-icon" aria-hidden="true">⊞</span>
                 <span class="st-side-label">Abonelikler</span>
               </button>
               <button class="st-side-item" data-st-section="channels" title="Kanallarım">
-                <span class="st-side-icon">☷</span>
+                <span class="st-side-icon" aria-hidden="true">☷</span>
                 <span class="st-side-label">Kanallarım</span>
               </button>
               <div class="st-side-spacer"></div>
               <button class="st-side-item" data-st-action="login" id="stLoginBtn" title="Oturum aç">
-                <span class="st-side-icon">⚿</span>
+                <span class="st-side-icon" aria-hidden="true">⚿</span>
                 <span class="st-side-label">Oturum aç</span>
               </button>
               <button class="st-side-item hidden" data-st-action="logout" id="stLogoutBtn" title="Oturumu kapat">
-                <span class="st-side-icon">⏻</span>
+                <span class="st-side-icon" aria-hidden="true">⏻</span>
                 <span class="st-side-label">Oturumu kapat</span>
               </button>
             </nav>
@@ -1902,15 +1902,16 @@
               <header class="st-topbar">
                 <div class="st-search-wrap">
                   <input type="search" id="stSearchInput" placeholder="Ara..." aria-label="Ara"/>
+                  <button class="st-clear-btn hidden" id="stSearchClear" aria-label="Aramayı temizle">&times;</button>
                   <button class="st-search-btn" id="stSearchBtn" aria-label="Ara">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
                   </button>
                 </div>
                 <button class="st-icon-btn" id="stRefresh" title="Yenile" aria-label="Yenile">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3.5-7.1M21 4v5h-5"/></svg>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3.5-7.1M21 4v5h-5"/></svg>
                 </button>
                 <button class="st-icon-btn" id="stCloseBrowser" title="Kapat" aria-label="Tarayıcıyı kapat">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
                 </button>
               </header>
 
@@ -1920,12 +1921,12 @@
                 <div class="inv-status">İçerik yükleniyor…</div>
               </div>
 
-              <div class="st-search-results hidden" id="stSearchResults">
+              <div class="st-search-results hidden" id="stSearchResults" role="region" aria-label="Arama sonuçları">
                 <button class="st-back-btn" id="stBackFromSearch">← Geri</button>
                 <div class="st-grid" id="stSearchGrid"></div>
               </div>
 
-              <div class="st-status-line hidden" id="stStatusLine"></div>
+              <div class="st-status-line hidden" id="stStatusLine" role="status" aria-live="polite"></div>
             </section>
           </div>
 
@@ -1935,7 +1936,7 @@
             <div class="st-upnext-head">
               <span class="st-upnext-title" id="stUpNextTitle">Sıradaki</span>
               <button class="st-icon-btn" id="stUpNextClose" aria-label="Paneli kapat">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
               </button>
             </div>
             <div class="st-upnext-list" id="stUpNextList" role="list"></div>
@@ -2480,15 +2481,6 @@
                 </select>
                 <small id="playerSourceHint">Invidious: Google'a bağlanmadan, reklamsız. Hız/yenilik için yt-dlp.</small>
               </label>
-              <div class="invidious-toolbar">
-                <button class="btn btn-secondary btn-sm" id="invidiousHomeRefresh">Ana sayfa yenile</button>
-                <button class="btn btn-secondary btn-sm" id="invidiousLoginBtn">Oturum aç</button>
-                <button class="btn btn-secondary btn-sm hidden" id="invidiousLogoutBtn">Oturumu kapat</button>
-                <input type="search" id="invidiousSearchInput" placeholder="Invidious'ta ara..." aria-label="Invidious arama"/>
-                <button class="btn btn-secondary btn-sm" id="invidiousSearchBtn">Ara</button>
-              </div>
-              <div id="invidiousHome" class="invidious-home"></div>
-              <div id="invidiousSearchResults" class="invidious-search hidden"></div>
               <label class="field youtube-session-field">
                 <span class="field-label">YouTube oturumu</span>
                 <select id="playerCookieBrowser">
@@ -2892,7 +2884,10 @@
     </label>
     <label class="field">
       <span class="field-label">Şifre</span>
-      <input type="password" id="invLoginPassword" autocomplete="current-password" />
+      <span class="inv-pass-wrap">
+        <input type="password" id="invLoginPassword" autocomplete="current-password" />
+        <button type="button" class="inv-pass-toggle" id="invLoginPassToggle" aria-label="Şifreyi göster" aria-pressed="false">Göster</button>
+      </span>
     </label>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="invLoginCancel">İptal</button>

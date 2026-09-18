@@ -141,25 +141,24 @@ test('Invidious auth: videoUrl validation rejects bad scheme', () => {
   assert.match(sec, /policy\.action\s*!==\s*['"]external['"]/);
 });
 
-test('Invidious ana sayfa renderer bağlantıları', () => {
+test('Invidious ana sayfa renderer bağlantıları (SmartTube)', () => {
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
-  // renderer.js'te renderInvidiousHome tanımlı
-  assert.match(html, /function renderInvidiousHome/);
-  assert.match(html, /function renderInvidiousCard/);
-  assert.match(html, /initInvidiousHome/);
-  // search
-  assert.match(html, /async function searchInvidious/);
-  assert.match(html, /async function doInvidiousLogin/);
-  assert.match(html, /async function doInvidiousLogout/);
+  // R68-Y2: eski inv-* paneli kaldırıldı; SmartTube st-* arayüzü kanonik
+  assert.match(renderer, /function renderSmartTubeSection/);
+  assert.match(renderer, /function buildSmartTubeCard/);
+  assert.match(renderer, /initSmartTube/);
+  // search + auth akışları korunuyor
+  assert.match(renderer, /async function searchInvidious/);
+  assert.match(renderer, /async function doInvidiousLogin/);
+  assert.match(renderer, /async function doInvidiousLogout/);
 });
 
-test('Invidious HTML elemanları index.html\'de mevcut', () => {
+test('Invidious HTML elemanları index.html\'de mevcut (SmartTube)', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
-  assert.match(html, /id="invidiousHome"/);
-  assert.match(html, /id="invidiousSearchInput"/);
-  assert.match(html, /id="invidiousSearchBtn"/);
-  assert.match(html, /id="invidiousLoginBtn"/);
+  assert.match(html, /id="smarttubeBrowser"/);
+  assert.match(html, /id="stSearchInput"/);
+  assert.match(html, /id="stSearchBtn"/);
+  assert.match(html, /id="stLoginBtn"/);
   assert.match(html, /id="invidiousLoginModal"/);
   assert.match(html, /id="invLoginUsername"/);
   assert.match(html, /id="invLoginPassword"/);
@@ -167,14 +166,14 @@ test('Invidious HTML elemanları index.html\'de mevcut', () => {
   assert.match(html, /id="invLoginCancel"/);
 });
 
-test('Invidious CSS stilleri mevcut', () => {
+test('Invidious CSS stilleri mevcut (SmartTube)', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
-  assert.match(css, /\.inv-card/);
-  assert.match(css, /\.inv-grid/);
-  assert.match(css, /\.inv-card-thumb/);
-  assert.match(css, /\.inv-card-duration/);
-  assert.match(css, /\.invidious-home/);
-  assert.match(css, /\.invidious-toolbar/);
+  assert.match(css, /\.st-card/);
+  assert.match(css, /\.st-grid/);
+  assert.match(css, /\.st-card-thumb/);
+  assert.match(css, /\.st-card-duration/);
+  assert.match(css, /\.smarttube-browser/);
+  assert.match(css, /\.st-topbar/);
 });
 
 test('Invidious auth backend: login fonksiyonu şifreyi güvenli yollar', () => {

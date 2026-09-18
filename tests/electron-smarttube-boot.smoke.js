@@ -31,6 +31,13 @@ async function main() {
   const musicTrend = Array.from({ length: 3 }, (_, i) => mkVideo(`mus${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'z'), `MusicHit ${i}`, 'MusicChannel'));
   ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
     const tab = opts && opts.tab;
+    if (kind === 'home') {
+      // D-K3 birleşik paket — tek emit'te popular+trending
+      return { ok: true, data: {
+        instance: 'https://mock.invidious.local', kind: 'home',
+        popular: { videos: popular }, trending: { videos: trending },
+      } };
+    }
     if (kind === 'trending' && tab === 'music') {
       return { ok: true, data: { instance: 'https://mock.invidious.local', tab, videos: musicTrend } };
     }
@@ -124,8 +131,9 @@ async function main() {
       cardCount: cards.length,
       minCardWidth: widths.length ? Math.min(...widths) : 0,
       // Layout regresyonu: ayrac tam satır, iç içe .st-grid yok
+      // (st-grid-row sınıfı veya inline style — computed ile doğrula)
       trendSep: !!trendSep,
-      sepFullRow: trendSep ? trendSep.style.gridColumn === '1 / -1' : false,
+      sepFullRow: trendSep ? getComputedStyle(trendSep).gridColumn === '1 / -1' : false,
       noNestedGrid: nested === 0,
     };
   })()`, true);
@@ -197,7 +205,8 @@ async function main() {
     await openInvidiousChannelPage('UCmock');
     await sleep(300);
     const head = grid.querySelector('.st-channel-head');
-    out.channelHead = !!head && head.style.gridColumn === '1 / -1';
+    // st-grid-row sınıfı veya inline style — computed ile doğrula
+    out.channelHead = !!head && getComputedStyle(head).gridColumn === '1 / -1';
     out.channelNoNested = grid.querySelectorAll(':scope > .st-grid').length === 0;
     out.channelCards = grid.querySelectorAll(':scope > .st-card').length;
 

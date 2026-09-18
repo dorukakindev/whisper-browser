@@ -516,6 +516,13 @@ def main():
         elif "Could not copy" in message and "cookie" in message.lower():
             message = ("Tarayıcı cookie veritabanı okunamadı. Tarayıcıyı tamamen kapatıp "
                        "yeniden deneyin veya Firefox oturumunu seçin.")
+        elif isinstance(e, OSError):
+            # Disk dolu / izin hatası ham errno olarak kalmasın (D-O9)
+            import errno as _errno
+            if e.errno == _errno.ENOSPC:
+                message = "Disk dolu — indirme için yeterli alan yok. Çıktı klasörünü veya boş alanı kontrol edin."
+            elif e.errno in (_errno.EACCES, _errno.EPERM):
+                message = "Dosyaya yazma izni yok — çıktı klasörünün yazılabilir olduğunu doğrulayın."
         emit("error", message=message, traceback=traceback.format_exc())
         sys.exit(1)
 

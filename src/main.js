@@ -801,7 +801,7 @@ function pythonRuntimeEnv(extra = {}) {
   );
 }
 
-function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
+function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir medya işi zaten çalışıyor; önce bitmesini bekleyin.' });
     const appDir = app.getAppPath();
@@ -818,6 +818,9 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
         ? 'Python bulunamadı (install.bat ile venv oluşturun).'
         : 'Medya yardımcı süreci başlatılamadı.' });
     }
+    // Etiket: aynı slot'u paylaşan farklı kaynakları ayırt eder —
+    // invidious:cancel yalnız kendi indirmesini öldürür (K1).
+    proc.jobTag = jobTag || kind;
     mediaJobs[kind] = proc;
     let result = null;
     let errText = '';
@@ -892,6 +895,49 @@ let invidiousLastInstance = null;
 // Invidious giriş — ana süreçte session saklanır (instance'a bağlı).
 const invidiousSessions = new Map();    // username -> { sid, instance }
 
+// ---- Invidious SID kalıcılığı (K2) ----
+// Oturumlar safeStorage ile şifrelenmiş ayrı bir dosyada tutulur; yeniden
+// başlatmada kullanıcıdan tekrar giriş istenmez. safeStorage kapalıysa
+// bellek-içi davranış korunur (eski semantik — hata verilmez).
+let invidiousSessionStore = null;
+function getInvidiousSessionStore() {
+  if (!invidiousSessionStore) {
+    invidiousSessionStore = new SafeSecretStore({
+      safeStorage,
+      filePath: path.join(app.getPath('userData'), 'invidious-session.safe.json'),
+      fields: ['sessions'],
+    });
+  }
+  return invidiousSessionStore;
+}
+
+function persistInvidiousSessions() {
+  try {
+    const list = [...invidiousSessions.entries()].map(([username, s]) => ({
+      username, sid: s.sid, instance: s.instance,
+    })).filter((s) => s.sid);
+    getInvidiousSessionStore().save({ sessions: JSON.stringify(list) });
+  } catch (_) {}
+}
+
+function restoreInvidiousSessions() {
+  try {
+    const loaded = getInvidiousSessionStore().load();
+    const raw = loaded && loaded.secrets && loaded.secrets.sessions;
+    if (!raw) return;
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return;
+    for (const s of list) {
+      if (s && s.username && s.sid) {
+        invidiousSessions.set(String(s.username).slice(0, 100), {
+          sid: String(s.sid).slice(0, 500),
+          instance: validateInvidiousInstance(s.instance) || '',
+        });
+      }
+    }
+  } catch (_) {}
+}
+
 function validateInvidiousInstance(v) {
   // Renderer'dan gelen instance'ı http/https origin'e indirger (path/credential atılır).
   if (!v || typeof v !== 'string') return '';
@@ -926,9 +972,32 @@ function resolveInvidiousInstance(explicit, { requireSession = false } = {}) {
   return invidiousLastInstance || '';
 }
 
+function isLocalInvidiousInstance(instance) {
+  // http:// yalnız yerel/özel ağdaki kendi-host edilen instance'lar için
+  // kabul — internete açık düz http'ye SID asla gitmesin (K7).
+  try {
+    const u = new URL(instance);
+    if (u.protocol === 'https:') return true;
+    if (u.protocol !== 'http:') return false;
+    const h = u.hostname.toLowerCase();
+    if (h === 'localhost' || h === '::1' || h.endsWith('.local')) return true;
+    if (/^127\./.test(h)) return true;
+    if (/^10\./.test(h)) return true;
+    if (/^192\.168\./.test(h)) return true;
+    const m = h.match(/^172\.(\d{1,3})\./);
+    if (m && +m[1] >= 16 && +m[1] <= 31) return true;
+    if (h.startsWith('[') && /^(::1|fc|fd)/i.test(h.slice(1))) return true;
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 function invidiousAuthEnv(instance) {
   // SID yalnızca kendi instance'ına gider — başka host'a sızmasın.
   if (!instance) return {};
+  // Düz http yalnız yerel/özel ağda — uzak http instance'a SID gitmez (K7).
+  if (!isLocalInvidiousInstance(instance)) return {};
   for (const [, s] of invidiousSessions) {
     if (s && s.sid && validateInvidiousInstance(s.instance) === instance) {
       return { WHISPER_INVIDIOUS_SID: String(s.sid) };
@@ -1160,17 +1229,28 @@ ipcMain.handle('invidious:subs', async (_e, url, opts) => {
 
 ipcMain.handle('invidious:cancel', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  let killed = false;
   const job = mediaJobs.invidious;
-  if (!job) return { ok: false, error: 'Invidious işi yok' };
-  // Slot'u close handler temizler — burada null yapmak sahipliği bozar
-  terminateProcessTree(job, { spawn });
+  if (job) {
+    // Slot'u close handler temizler — burada null yapmak sahipliği bozar
+    terminateProcessTree(job, { spawn });
+    killed = true;
+  }
+  // Invidious akış indirmesi 'download' slot'unda çalışır — yalnız kendi
+  // etiketli işini öldür; normal medya indirmesi etkilenmez (K1).
+  const dl = mediaJobs.download;
+  if (dl && dl.jobTag === 'invidious-stream') {
+    terminateProcessTree(dl, { spawn });
+    killed = true;
+  }
+  if (!killed) return { ok: false, error: 'Invidious işi yok' };
   return { ok: true };
 });
 
 // Invidious feed (popüler/trending/abonelikler)
 ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
-  const valid = ['popular', 'trending', 'subscriptions'];
+  const valid = ['popular', 'trending', 'subscriptions', 'home'];
   if (!valid.includes(kind)) return { ok: false, error: `Geçersiz feed: ${kind}` };
   if (kind === 'subscriptions' && !invidiousSessionInstance()) {
     return { ok: false, error: 'Abonelikler için Invidious hesabına giriş gerekli.' };
@@ -1294,6 +1374,7 @@ ipcMain.handle('invidious:login', async (_e, opts) => {
       sid: res.data.sid,
       instance: res.data.instance,
     });
+    persistInvidiousSessions();   // safeStorage ile kalıcı — yeniden giriş gerekmesin (K2)
   }
   // SID asla renderer'a gitmez — yalnızca ana süreçte tutulur
   if (res && res.data && 'sid' in res.data) {
@@ -1306,6 +1387,7 @@ ipcMain.handle('invidious:login', async (_e, opts) => {
 ipcMain.handle('invidious:logout', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   invidiousSessions.clear();
+  persistInvidiousSessions();     // kalıcı dosyayı da boşalt (K2)
   return runInvidiousCommand(['logout'], 'invidious');
 });
 
@@ -1361,12 +1443,13 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
   if (o.videoId) args.push('--video-id', String(o.videoId).slice(0, 40));
-  // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz
+  // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
+  // jobTag: invidious:cancel bu işi tanıyıp öldürebilsin diye (K1).
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('media:event', ev);
     }
-  }, 'download');
+  }, 'download', 'invidious-stream');
 });
 
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
@@ -12159,6 +12242,7 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
     path.join(app.getPath('userData'), 'browser-adapters'));
   if (typeof startBrowserAdblock === 'function') startBrowserAdblock();
   restoreBrowserSessionState();
+  restoreInvidiousSessions();     // K2 — şifreli SID deposu → bellek haritası
   createWindow();
   if (RESOURCE_SOAK_MODE) {
     const startSoak = () => runResourceSoakSession().catch(error => {

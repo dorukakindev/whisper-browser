@@ -2352,6 +2352,10 @@ function collectUiSettings() {
     const el = $(id);
     if (el) ui[id] = el.tagName === 'DETAILS' ? el.open : el.checked;
   });
+  // DOM kontrolü olmayan oyuncu tercihi — V ile geri açılan son altyazı modu
+  if (typeof player !== 'undefined' && player.lastSubtitleMode) {
+    ui.playerLastSubtitleMode = player.lastSubtitleMode;
+  }
   return ui;
 }
 
@@ -2380,6 +2384,10 @@ function applyUiSettings(ui) {
     });
   } finally {
     _applyingSettings = false;
+  }
+  if (typeof player !== 'undefined'
+      && ['off', 'source', 'translation', 'both'].includes(ui.playerLastSubtitleMode)) {
+    player.lastSubtitleMode = ui.playerLastSubtitleMode;
   }
   updateGpuBadge();
   if (ui.uiLocale && window.UiLocale) window.UiLocale.set(ui.uiLocale);
@@ -15314,7 +15322,7 @@ function startAmbient() {
   ctx.clearRect(0, 0, cv.width, cv.height);
   stage.classList.add('ambient-on');
   const paint = () => {
-    if (v.paused || v.readyState < 2 || !v.videoWidth) return;
+    if (v.paused || v.readyState < 2 || !v.videoWidth || document.hidden) return;
     try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch (_) {}
   };
   // Oynatma olayı ilk gerçek kareden hemen önce gelebilir. Hazır kare varsa
@@ -16153,8 +16161,11 @@ function setSubtitleMode(mode, announce = true) {
   } else if (mode === 'source' || mode === 'translation') {
     applySubtitleTrackSelection(mode === 'source', mode === 'translation');
     player.lastSubtitleMode = mode;
+    scheduleSave();          // V ile geri açılan son mod kalıcı kalsın (Y11)
     setSubtitlesVisible(true);
   } else if (mode === 'both') {
+    player.lastSubtitleMode = mode;
+    scheduleSave();
     applySubtitleTrackSelection(true, true);
     setSubtitlesVisible(true);
   }
@@ -17596,6 +17607,15 @@ function closePlayer() {
   disconnectBrowserBoundsObserver();
   if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
   $('playerLayer').classList.add('hidden');
+  // Kapanan kaynak artık oynatılabilir değilse (HLS/MediaSource çözüldü ya da
+  // uzak akış) medya anahtarını sıfırla; yoksa bir sonraki açılışta SmartTube
+  // gizli kalıp siyah sahne gösterir (D-K1/K2). Yerel dosyada currentSrc
+  // korunur — resume davranışı bozulmaz.
+  const closedVideo = $('playerVideo');
+  if (player.mediaKey && closedVideo && !closedVideo.currentSrc) {
+    setMediaKey('');
+    if (typeof showHomeWhenNoVideo === 'function') showHomeWhenNoVideo();
+  }
 }
 
 function setShortcutHelpOpen(open) {
@@ -19538,6 +19558,7 @@ function onSubtitleTrackToggle() {
   if (tracks.source || tracks.translation) {
     player.lastSubtitleMode = tracks.source && tracks.translation ? 'both'
       : tracks.source ? 'source' : 'translation';
+    scheduleSave();
     setSubtitlesVisible(true);
   } else {
     setSubtitlesVisible(false);
@@ -20598,6 +20619,20 @@ if ($('playerVideo')) {
   });
   syncVolumeFill();
   $('muteBtn').addEventListener('click', () => { video.muted = !video.muted; });
+  // Simgenin durumu ses olayını izlesin — klavye M, kaydırıcı ve tarayıcı
+  // içi ses değişimleri de aynı görünümü günceller (Y12).
+  const syncMuteIcon = () => {
+    const btn = $('muteBtn');
+    if (!btn) return;
+    const muted = video.muted || video.volume === 0;
+    btn.innerHTML = muted
+      ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+    btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    btn.setAttribute('aria-label', muted ? 'Ses kapalı — aç' : 'Ses açık — kapat');
+  };
+  video.addEventListener('volumechange', syncMuteIcon);
+  syncMuteIcon();
 
   // Hız: belgesellerde 1.25x, ağır aksanda 0.75x
   if ($('playerSpeed')) {
@@ -20817,13 +20852,19 @@ document.addEventListener('keydown', (e) => {
     osd(e.key === '.' ? 'Kare ileri' : 'Kare geri', 600);
     return;
   }
-  if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; showControls(); osd('-10 sn'); return; }
-  if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; showControls(); osd('+10 sn'); return; }
+  if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; updateSeekVisuals(); showControls(); osd('-10 sn'); return; }
+  if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; updateSeekVisuals(); showControls(); osd('+10 sn'); return; }
   if (e.key === 'm' || e.key === 'M') { e.preventDefault(); video.muted = !video.muted; showControls();
     osd(video.muted ? 'Ses kapalı' : 'Ses açık'); return; }
   if (e.key === 'v' || e.key === 'V') {
     e.preventDefault();
-    setSubtitleModeMenuOpen(false);
+    const subMenu = $('subtitleModeMenu');
+    if (subMenu && !subMenu.classList.contains('hidden')) {
+      // Menü açıkken V yalnız menüyü kapatsın — aynı tuş vuruşunda hem
+      // kapatıp hem altyazı çevirmek çift eylem hissi veriyordu (Y10).
+      setSubtitleModeMenuOpen(false);
+      return;
+    }
     setSubtitlesVisible(player.subsHidden);       // tersine cevir
     const text = player.subsHidden ? 'Altyazılar kapatıldı' : 'Altyazılar gösteriliyor';
     osd(text);
@@ -20840,8 +20881,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowDown') { e.preventDefault(); setPlayerVolume(video.volume - 0.05); showControls();
     osd(`Ses %${Math.round(video.volume * 100)}`); return; }
   if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
-  else if (e.key === 'ArrowRight') { video.currentTime += 5; showControls(); }
-  else if (e.key === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
+  else if (e.key === 'ArrowRight') { video.currentTime += 5; updateSeekVisuals(); showControls(); }
+  else if (e.key === 'ArrowLeft') { video.currentTime -= 5; updateSeekVisuals(); showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
 });
 
@@ -22032,12 +22073,6 @@ function invCall(fn) {
   return run;
 }
 
-async function fetchInvidiousChannelVideos(channelId) {
-  const res = await invCall(() => window.api.invidiousChannel(channelId));
-  if (!res || !res.ok || !res.data) return [];
-  return res.data.videos || [];
-}
-
 async function fetchInvidiousFeed(kind, force = false, opts = {}) {
   // Tam payload döner: { videos, instance, degraded, source, tab }
   const cacheKey = kind + (opts.tab ? `:${opts.tab}` : '');
@@ -22091,136 +22126,12 @@ async function loadInvidiousChannel(channelId) {
   if (!channelId) return null;
   const res = await invCall(() => window.api.invidiousChannel(channelId));
   if (!res || !res.ok || !res.data) return null;
+  // Kanal yanıtı da instance taşır — göreli thumbnail URL'leri (absThumb)
+  // feed henüz hiç çalışmadıysa bile doğru hosta çözülsün (D-K7).
+  if (res.data.instance && !String(res.data.instance).startsWith('yt-dlp')) {
+    lastInvidiousInstance = res.data.instance;
+  }
   return res.data;   // { info, videos }
-}
-
-// Video kartı render — SmartTube gibi kare thumbnail + başlık + kanal/süre
-function renderInvidiousCard(video) {
-  const card = document.createElement('div');
-  card.className = 'inv-card';
-  card.dataset.videoId = video.videoId || '';
-  card.tabIndex = 0;
-  card.setAttribute('role', 'button');
-  card.setAttribute('aria-label', `${video.title} — ${video.author}`);
-
-  const thumb = document.createElement('div');
-  thumb.className = 'inv-card-thumb';
-  const tn = (video.videoThumbnails || []).find((t) => t.quality === 'medium')
-            || (video.videoThumbnails || [])[0]
-            || null;
-  if (tn && tn.url) {
-    const img = document.createElement('img');
-    img.loading = 'lazy';
-    img.alt = '';
-    img.src = tn.url;
-    thumb.appendChild(img);
-  }
-  // Süre etiketi
-  const dur = document.createElement('span');
-  dur.className = 'inv-card-duration';
-  const secs = Number(video.lengthSeconds) || 0;
-  if (secs > 0) {
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    dur.textContent = h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-                       : `${m}:${String(s).padStart(2,'0')}`;
-  }
-  thumb.appendChild(dur);
-  card.appendChild(thumb);
-
-  const meta = document.createElement('div');
-  meta.className = 'inv-card-meta';
-  const title = document.createElement('div');
-  title.className = 'inv-card-title';
-  title.textContent = video.title || '';
-  const sub = document.createElement('div');
-  sub.className = 'inv-card-sub';
-  sub.textContent = video.author || '';
-  meta.appendChild(title);
-  meta.appendChild(sub);
-  card.appendChild(meta);
-
-  // Tıklayınca URL kutusuna koy ve probe et
-  const open = () => {
-    const url = `https://www.youtube.com/watch?v=${video.videoId}`;
-    const box = $('playerYtUrl');
-    if (box) box.value = url;
-    const probe = $('playerProbe');
-    if (probe) probe.click();
-  };
-  card.addEventListener('click', open);
-  card.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      open();
-    }
-  });
-  return card;
-}
-
-async function renderInvidiousHome() {
-  const root = $('invidiousHome');
-  if (!root) return;
-  root.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
-
-  // Sıralı çek — ana süreçte tek Invidious slot'u var, paralel istek çakışır
-  const popular = (await fetchInvidiousFeed('popular').catch(() => null))?.videos || [];
-  const trending = (await fetchInvidiousFeed('trending').catch(() => null))?.videos || [];
-
-  root.innerHTML = '';
-
-  if (popular.length) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section';
-    const h = document.createElement('h3');
-    h.textContent = 'Popüler';
-    sec.appendChild(h);
-    const grid = document.createElement('div');
-    grid.className = 'inv-grid';
-    popular.slice(0, 24).forEach((v) => grid.appendChild(renderInvidiousCard(v)));
-    sec.appendChild(grid);
-    root.appendChild(sec);
-  }
-
-  if (trending.length) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section';
-    const h = document.createElement('h3');
-    h.textContent = 'Trend (müzik / oyun / haber / film)';
-    sec.appendChild(h);
-    const grid = document.createElement('div');
-    grid.className = 'inv-grid';
-    trending.slice(0, 24).forEach((v) => grid.appendChild(renderInvidiousCard(v)));
-    sec.appendChild(grid);
-    root.appendChild(sec);
-  }
-
-  // Abonelikler — giriş gerekli
-  const subs = (await fetchInvidiousFeed('subscriptions').catch(() => null))?.videos || [];
-  if (subs.length) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section';
-    const h = document.createElement('h3');
-    h.textContent = 'Abonelikler';
-    sec.appendChild(h);
-    const grid = document.createElement('div');
-    grid.className = 'inv-grid';
-    subs.slice(0, 24).forEach((v) => grid.appendChild(renderInvidiousCard(v)));
-    sec.appendChild(grid);
-    root.appendChild(sec);
-  } else if (!invidiousLoggedIn) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section inv-login-hint';
-    sec.innerHTML = '<p>Abonelikler ve kişiselleştirilmiş öneriler için <button class="btn btn-link" id="invOpenLogin">Invidious hesabına giriş yap</button>.</p>';
-    root.appendChild(sec);
-    const openBtn = $('invOpenLogin');
-    if (openBtn) openBtn.addEventListener('click', () => openInvidiousLogin());
-  }
-
-  if (!popular.length && !trending.length) {
-    root.innerHTML = '<div class="inv-status">Invidious içeriği alınamadı. Farklı bir instance dene veya yt-dlp yolunu kullan.</div>';
-  }
 }
 
 // Invidious login modal
@@ -22248,16 +22159,21 @@ function closeInvidiousLogin() {
   if (pass) pass.value = '';   // şifre DOM'da kalmasın
 }
 
+let _invLoginBusy = false;
 async function doInvidiousLogin() {
+  // Enter tuşu disabled düğmeyi atlar — uçuşta ikinci istek açılmasın (D-K6)
+  if (_invLoginBusy) return;
   const user = ($('invLoginUsername')?.value || '').trim();
   const pass = ($('invLoginPassword')?.value || '');
   if (!user || !pass) {
     logLine('Invidious: kullanıcı adı ve şifre gerekli.', 'warn');
     return;
   }
+  _invLoginBusy = true;
   const btn = $('invLoginSubmit');
   if (btn) { btn.disabled = true; btn.textContent = 'Giriş yapılıyor…'; }
   const res = await invCall(() => window.api.invidiousLogin(user, pass));
+  _invLoginBusy = false;
   const passEl = $('invLoginPassword');
   if (passEl) passEl.value = '';   // şifre bellekten/dokumandan hemen silinir
   if (btn) { btn.disabled = false; btn.textContent = 'Oturum aç'; }
@@ -22272,7 +22188,6 @@ async function doInvidiousLogin() {
   invidiousFeedCache.delete('subscriptions');
   logLine(`Invidious giriş başarılı: ${user}`, 'success');
   renderSmartTubeSection(stCurrentSection);
-  renderInvidiousHome();
 }
 
 async function doInvidiousLogout() {
@@ -22283,7 +22198,6 @@ async function doInvidiousLogout() {
   invidiousFeedCache.clear();
   logLine('Invidious çıkış yapıldı.', 'info');
   renderSmartTubeSection(stCurrentSection);
-  renderInvidiousHome();
 }
 
 // Uygulama açılırken ana süreçteki session'ı geri yükle — UI senkronu
@@ -22293,6 +22207,9 @@ async function restoreInvidiousSession() {
     const sessions = (res && res.ok && res.data && res.data.sessions) || [];
     if (sessions.length) {
       invidiousLoggedIn = { username: sessions[0].username, instance: sessions[0].instance };
+      // Oturum geri yüklendiyse kısa bir onay göster — kenar çubuğu etiketi
+      // küçük olduğundan kullanıcı fark etmeyebiliyordu (D-Y7).
+      setSmartTubeStatus(`${window.UiLocale?.t('Oturum geri yüklendi') || 'Oturum geri yüklendi'}: ${sessions[0].username}`);
     } else {
       invidiousLoggedIn = null;
     }
@@ -22301,70 +22218,6 @@ async function restoreInvidiousSession() {
   }
   refreshSmartTubeAuthUI();
 }
-
-// Arama (yt paneli içindeki küçük arama kutusu)
-async function doInvidiousSearch() {
-  const inp = $('invidiousSearchInput');
-  const root = $('invidiousSearchResults');
-  const home = $('invidiousHome');
-  if (!inp || !root) return;
-  const q = inp.value.trim();
-  if (!q) {
-    root.classList.add('hidden');
-    if (home) home.classList.remove('hidden');
-    return;
-  }
-  root.classList.remove('hidden');
-  if (home) home.classList.add('hidden');
-  root.innerHTML = '<div class="inv-status">Aranıyor…</div>';
-  const videos = await searchInvidious(q);
-  root.innerHTML = '';
-  if (!videos.length) {
-    root.innerHTML = '<div class="inv-status">Sonuç yok.</div>';
-    return;
-  }
-  const grid = document.createElement('div');
-  grid.className = 'inv-grid';
-  videos.slice(0, 40).forEach((v) => grid.appendChild(renderInvidiousCard(v)));
-  root.appendChild(grid);
-}
-
-// Event bağlama — initPlayerSource çalıştırılınca hepsi bağlanır
-function initInvidiousHome() {
-  const searchBtn = $('invidiousSearchBtn');
-  if (searchBtn) searchBtn.addEventListener('click', doInvidiousSearch);
-  const searchInput = $('invidiousSearchInput');
-  if (searchInput) {
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doInvidiousSearch();
-    });
-  }
-  const loginBtn = $('invidiousLoginBtn');
-  if (loginBtn) loginBtn.addEventListener('click', openInvidiousLogin);
-  const logoutBtn = $('invidiousLogoutBtn');
-  if (logoutBtn) logoutBtn.addEventListener('click', doInvidiousLogout);
-  const loginSubmit = $('invLoginSubmit');
-  if (loginSubmit) loginSubmit.addEventListener('click', doInvidiousLogin);
-  const loginCancel = $('invLoginCancel');
-  if (loginCancel) loginCancel.addEventListener('click', closeInvidiousLogin);
-  const refresh = $('invidiousHomeRefresh');
-  if (refresh) refresh.addEventListener('click', () => renderInvidiousHome());
-
-  // Kaynak Invidious'a geçince ana sayfa panelini otomatik yükle
-  const sel = $('playerSourceSelect');
-  if (sel) {
-    sel.addEventListener('change', () => {
-      if (playerSource === 'invidious') {
-        renderInvidiousHome();
-      }
-    });
-  }
-  // İlk yükleme (Eğer kaynak zaten Invidious ise)
-  if (playerSource === 'invidious') {
-    renderInvidiousHome();
-  }
-}
-initInvidiousHome();
 
 // ===== SmartTube-style Invidious browser =====
 // Tüm player-stage'i kaplar: sol kenar çubuğu (kategoriler) + ana grid.
@@ -22377,7 +22230,18 @@ function setSmartTubeVisible(visible) {
   const st = $('smarttubeBrowser');
   if (!st) return;
   st.classList.toggle('hidden', !visible);
-  if (visible) renderSmartTubeSection(stCurrentSection);
+  if (!visible) return;
+  // Arama ortasında gizlenip geri gelindiyse sonuç görünümünü olduğu gibi
+  // geri getir — bölümü yeniden çizmek hem ek istek atar hem de kullanıcının
+  // arama bağlamını kaybeder (D-K5).
+  if (stSearchActive) {
+    const results = $('stSearchResults');
+    const mainGrid = $('stGrid');
+    if (results) results.classList.remove('hidden');
+    if (mainGrid) mainGrid.classList.add('hidden');
+    return;
+  }
+  renderSmartTubeSection(stCurrentSection);
 }
 
 function hideHomeOnVideoLoad() {
@@ -22458,9 +22322,19 @@ async function renderSmartTubeSection(section, opts = {}) {
       return;
     }
     const feedOpts = section === 'trending' && stTrendTab ? { tab: stTrendTab } : {};
-    feedData = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, force, feedOpts);
+    feedData = await fetchInvidiousFeed(
+      section === 'home' ? 'home' : section, force, feedOpts);
     if (stale()) return;
-    videos = (feedData && feedData.videos) || [];
+    if (section === 'home') {
+      // Birleşik paket: tek süreçte paralel popular+trending (D-K3)
+      const pop = (feedData && feedData.popular) || {};
+      const tr = (feedData && feedData.trending) || {};
+      videos = pop.videos || [];
+      feedData._trending = tr.videos || [];
+      feedData.degraded = !!pop.degraded || !!tr.degraded;
+    } else {
+      videos = (feedData && feedData.videos) || [];
+    }
     if (!videos.length) {
       showError('İçerik alınamadı — günlük kayıtlarına bak.');
       return;
@@ -22481,7 +22355,7 @@ async function renderSmartTubeSection(section, opts = {}) {
   }
 
   if (section === 'home') {
-    const trending = (await fetchInvidiousFeed('trending', false).catch(() => null))?.videos || [];
+    const trending = feedData._trending || [];
     if (stale()) return;
     const seen = new Set();
     const dedupe = (list) => list.filter((v) => {
@@ -22494,8 +22368,7 @@ async function renderSmartTubeSection(section, opts = {}) {
     const trendList = dedupe(trending || []);
     if (trendList.length) {
       const sep = document.createElement('div');
-      sep.className = 'st-section-title';
-      sep.style.gridColumn = '1 / -1';
+      sep.className = 'st-section-title st-grid-row';
       sep.textContent = 'Trend';
       grid.appendChild(sep);
       trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
@@ -22570,6 +22443,7 @@ function renderSmartTubeChannels(channels) {
     if (tn && tn.url) {
       const img = document.createElement('img');
       img.loading = 'lazy';
+      img.decoding = 'async';
       img.src = absThumb(tn.url);
       img.alt = '';
       thumb.appendChild(img);
@@ -22599,8 +22473,12 @@ function renderSmartTubeChannels(channels) {
   });
 }
 
+const _compactFmt = (typeof Intl !== 'undefined' && Intl.NumberFormat)
+  ? new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 })
+  : null;
 function formatCount(n) {
   n = Number(n) || 0;
+  if (_compactFmt) return _compactFmt.format(n);   // locale-duyarlı: 1.2K / 1,2B (D-D3)
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return String(n);
@@ -22611,7 +22489,8 @@ function absThumb(url) {
   if (!url) return '';
   if (url.startsWith('//')) return 'https:' + url;
   if (url.startsWith('/') && lastInvidiousInstance) return lastInvidiousInstance + url;
-  return url;
+  // Yalnız http(s) kabul — javascript:/data:/file: şemaları img'ye basılmaz (D-D7)
+  return /^https?:\/\//i.test(url) ? url : '';
 }
 
 // ----- SmartTube kart (büyük dikey) -----
@@ -22631,6 +22510,7 @@ function buildSmartTubeCard(video) {
   if (tn && tn.url) {
     const img = document.createElement('img');
     img.loading = 'lazy';
+    img.decoding = 'async';
     img.alt = '';
     img.src = absThumb(tn.url);
     thumb.appendChild(img);
@@ -22813,11 +22693,13 @@ async function doSmartTubeSearch() {
 }
 
 // Arama sonuçlarını dedupe ederek grid'e ekle (sayfalama güvenli)
+const ST_SEARCH_MAX = 500;   // sonsuz sayfalamada DOM/dedupe seti büyümesin
 function stAppendSearchResults(videos) {
   const searchGrid = $('stSearchGrid');
   if (!searchGrid) return;
   let added = 0;
   for (const v of videos) {
+    if (searchGrid.children.length >= ST_SEARCH_MAX) break;
     const id = v.videoId || v.authorId || v.title;
     if (!id || stSearchSeen.has(id)) continue;
     stSearchSeen.add(id);
@@ -22825,7 +22707,8 @@ function stAppendSearchResults(videos) {
     added++;
   }
   // Invidious arama sayfası ~20 sonuç verir; dolu sayfa = muhtemelen devamı var
-  stSearchHasMore = videos.length >= 18 && added > 0;
+  stSearchHasMore = videos.length >= 18 && added > 0
+    && searchGrid.children.length < ST_SEARCH_MAX;
 }
 
 // "Daha fazla" düğmesi — tam genişlik grid item
@@ -22880,6 +22763,10 @@ function resetSmartTubeSearch() {
     results.classList.add('hidden');
     results.querySelector('.st-more-row')?.remove();
   }
+  // Eski sonuç kartlarını da temizle — yoksa her arama arasında yüzlerce
+  // kullanılmayan düğüm DOM'da birikiyordu (D-Y5).
+  const searchGrid = $('stSearchGrid');
+  if (searchGrid) searchGrid.innerHTML = '';
   const mainGrid = $('stGrid');
   if (mainGrid) mainGrid.classList.remove('hidden');
   if (inp) inp.value = '';
@@ -22887,6 +22774,7 @@ function resetSmartTubeSearch() {
   stSearchSeq++;             // uçuşta olan sayfa isteği sonucu düşsün
   stSearchQuery = '';
   stSearchHasMore = false;
+  stSearchSeen.clear();      // dedupe seti yeni aramaya taşınmasın
   renderSmartTubeSection(stCurrentSection);
 }
 
@@ -22906,8 +22794,7 @@ async function openInvidiousChannelPage(channelId) {
 
   // Kanal başlığı + geri dön — tam satır grid item (iç içe .st-grid YOK)
   const head = document.createElement('div');
-  head.className = 'st-channel-head';
-  head.style.gridColumn = '1 / -1';
+  head.className = 'st-channel-head st-grid-row';
   const back = document.createElement('button');
   back.className = 'st-back-btn';
   back.textContent = `← ${window.UiLocale?.t('Kanallarım') || 'Kanallarım'}`;
@@ -22933,8 +22820,7 @@ async function openInvidiousChannelPage(channelId) {
   grid.appendChild(head);
   if (!videos.length) {
     const empty = document.createElement('div');
-    empty.className = 'inv-status';
-    empty.style.gridColumn = '1 / -1';
+    empty.className = 'inv-status st-grid-row';
     empty.textContent = window.UiLocale?.t('Kanal videosu bulunamadı.') || 'Kanal videosu bulunamadı.';
     grid.appendChild(empty);
   } else {
@@ -22959,13 +22845,6 @@ function refreshSmartTubeAuthUI() {
       logoutBtn.querySelector('.st-side-label').textContent = 'Oturumu kapat';
     }
   }
-  // Aynı oturum durumunu eski araç çubuklarına da yansıt
-  for (const [loginId, logoutId] of [['invidiousLoginBtn', 'invidiousLogoutBtn'], ['stLoginBtn', 'stLogoutBtn']]) {
-    const l = $(loginId);
-    const o = $(logoutId);
-    if (l) l.classList.toggle('hidden', logged);
-    if (o) o.classList.toggle('hidden', !logged);
-  }
 }
 
 function initSmartTube() {
@@ -22976,6 +22855,11 @@ function initSmartTube() {
   if (loginBtn) loginBtn.addEventListener('click', openInvidiousLogin);
   const logoutBtn = $('stLogoutBtn');
   if (logoutBtn) logoutBtn.addEventListener('click', doInvidiousLogout);
+  // Login modal düğmeleri (eski araç panelinden taşındı)
+  const loginSubmit = $('invLoginSubmit');
+  if (loginSubmit) loginSubmit.addEventListener('click', doInvidiousLogin);
+  const loginCancel = $('invLoginCancel');
+  if (loginCancel) loginCancel.addEventListener('click', closeInvidiousLogin);
   const refresh = $('stRefresh');
   if (refresh) refresh.addEventListener('click', () => {
     if (stSearchActive) doSmartTubeSearch();
@@ -22988,10 +22872,47 @@ function initSmartTube() {
   const searchBtn = $('stSearchBtn');
   if (searchBtn) searchBtn.addEventListener('click', doSmartTubeSearch);
   const searchInp = $('stSearchInput');
+  const searchClear = $('stSearchClear');
+  const syncSearchClear = () => {
+    if (searchClear && searchInp) searchClear.classList.toggle('hidden', !searchInp.value);
+  };
   if (searchInp) {
+    let searchDebounce = null;
     searchInp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doSmartTubeSearch();
-      else if (e.key === 'Escape') resetSmartTubeSearch();
+      if (e.key === 'Enter') { clearTimeout(searchDebounce); doSmartTubeSearch(); }
+      else if (e.key === 'Escape') { clearTimeout(searchDebounce); resetSmartTubeSearch(); }
+    });
+    searchInp.addEventListener('input', () => {
+      syncSearchClear();
+      // SmartTube canlı arama: yazarken debounce'lu sorgu (Y3) — boşalınca sıfırla
+      clearTimeout(searchDebounce);
+      const q = searchInp.value.trim();
+      if (!q) { resetSmartTubeSearch(); return; }
+      searchDebounce = setTimeout(() => {
+        if (searchInp.value.trim() === q) doSmartTubeSearch();
+      }, 450);
+    });
+  }
+  if (searchClear) {
+    searchClear.addEventListener('click', () => {
+      if (searchInp) { searchInp.value = ''; searchInp.focus(); }
+      syncSearchClear();
+      resetSmartTubeSearch();
+    });
+  }
+  // Şifre göster/gizle — modal içi küçük geçiş (O7)
+  const passToggle = $('invLoginPassToggle');
+  if (passToggle) {
+    passToggle.addEventListener('click', () => {
+      const passEl = $('invLoginPassword');
+      if (!passEl) return;
+      const show = passEl.type === 'password';
+      passEl.type = show ? 'text' : 'password';
+      passToggle.textContent = show
+        ? (window.UiLocale?.t('Gizle') || 'Gizle')
+        : (window.UiLocale?.t('Göster') || 'Göster');
+      passToggle.setAttribute('aria-pressed', show ? 'true' : 'false');
+      passToggle.setAttribute('aria-label', show ? 'Şifreyi gizle' : 'Şifreyi göster');
     });
   }
   const back = $('stBackFromSearch');
@@ -23039,6 +22960,7 @@ function buildUpNextItem(video) {
   if (tn && tn.url) {
     const img = document.createElement('img');
     img.loading = 'lazy';
+    img.decoding = 'async';
     img.alt = '';
     img.src = absThumb(tn.url);
     thumb.appendChild(img);
@@ -23148,6 +23070,10 @@ async function loadStComments(info, continuation = '') {
     return;
   }
   const items = Array.isArray(data.comments) ? data.comments : [];
+  // Sayfalar birikmesin — 200+ düğüm sonra "daha fazla" kesilsin (D-O6)
+  const rendered = box.querySelectorAll('.st-comment').length;
+  const ST_COMMENTS_MAX = 200;
+  if (rendered >= ST_COMMENTS_MAX) { stCommentsCont = ''; return; }
   if (!items.length && !continuation) {
     const none = document.createElement('div');
     none.className = 'inv-status st-comments-status';
@@ -23158,6 +23084,7 @@ async function loadStComments(info, continuation = '') {
   box.querySelector('.st-comments-more')?.remove();
   for (const c of items) {
     if (!c || typeof c !== 'object') continue;
+    if (box.querySelectorAll('.st-comment').length >= ST_COMMENTS_MAX) { stCommentsCont = ''; break; }
     const el = document.createElement('div');
     el.className = 'st-comment';
     const head = document.createElement('div');
@@ -23208,6 +23135,12 @@ function initPlayerSource() {
       try { localStorage.setItem(INV_KEY, playerSource); } catch (_) {}
       // Probe sonuçları farklı şema → temizle
       player.ytInfo = null;
+      // Kaynak Invidious'a geçildi ve oynatılan bir medya yoksa SmartTube
+      // tarayıcısını öne getir — aksi halde sahne boş siyah kalıyor (D-K4).
+      if (playerSource === 'invidious' && !player.mediaKey
+          && typeof setSmartTubeVisible === 'function') {
+        setSmartTubeVisible(true);
+      }
     });
   }
 }

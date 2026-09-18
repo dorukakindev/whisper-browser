@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.parse as urllib_parse
 from pathlib import Path
@@ -47,10 +48,16 @@ DEFAULT_INSTANCES = [
 _cached_instance = None
 
 
+# Paralel thread'lerden gelen emit'lerin satırları karışmasın — NDJSON
+# bütünlüğü tek write altında korunur (feed_home iki kolu eşzamanlı çalıştırır).
+_emit_lock = threading.Lock()
+
+
 def emit(event_type, **kwargs):
     payload = {"type": event_type}
     payload.update(kwargs)
-    print(json_dumps_finite(payload), flush=True)
+    with _emit_lock:
+        print(json_dumps_finite(payload), flush=True)
 
 
 def log(message, level="info"):
@@ -677,25 +684,23 @@ def _ytdlp_tab_videos(tab_url, max_results=30):
     return out
 
 
-def feed_popular(instance=None):
-    """Popüler videolar — instance failover + yt-dlp yedek."""
+def _popular_payload(instance=None):
+    """Popüler payload'ı üretir (emit etmez) — feed_home paralel çağırır."""
     try:
         data, inst = _fetch_with_failover("/api/v1/popular", preferred=instance, timeout=10)
         videos = [_parse_video_item(v) for v in (data or [])]
         if videos:
-            emit("feed", kind="popular", videos=videos, instance=inst)
-            return
+            return {"videos": videos, "instance": inst}
         raise RuntimeError("Invidious popüler boş döndü")
     except Exception as primary:
         log(f"Invidious başarısız, yt-dlp yedek denenecek: {primary}")
         videos = _ytdlp_tab_videos("https://www.youtube.com/feed/trending", max_results=24)
-        emit("feed", kind="popular", videos=videos, instance="yt-dlp:tab",
-             degraded=True, source="yt-dlp")
+        return {"videos": videos, "instance": "yt-dlp:tab",
+                "degraded": True, "source": "yt-dlp"}
 
 
-def feed_trending(instance=None, tab=None):
-    """Trend videolar — tab verilirse tek kategori, yoksa 4'ü birleşik.
-    Instance failover + yt-dlp gerçek-trend yedeği."""
+def _trending_payload(instance=None, tab=None):
+    """Trend payload'ı üretir (emit etmez) — feed_home paralel çağırır."""
     tabs = [tab] if tab else ["music", "gaming", "news", "movies"]
     try:
         all_videos = []
@@ -707,9 +712,7 @@ def feed_trending(instance=None, tab=None):
             if data:
                 all_videos.extend([_parse_video_item(v) for v in data])
         if all_videos:
-            emit("feed", kind="trending", tab=tab or "", videos=all_videos,
-                 instance=used_inst)
-            return
+            return {"videos": all_videos, "instance": used_inst, "tab": tab or ""}
         raise RuntimeError("Invidious trend boş döndü")
     except Exception as primary:
         log(f"Invidious başarısız, yt-dlp yedek denenecek: {primary}")
@@ -717,8 +720,44 @@ def feed_trending(instance=None, tab=None):
         if tab == "music":
             url += "?bp=4gINGgt5dWQ"
         videos = _ytdlp_tab_videos(url, max_results=24)
-        emit("feed", kind="trending", tab=tab or "", videos=videos,
-             instance="yt-dlp:tab", degraded=True, source="yt-dlp")
+        return {"videos": videos, "instance": "yt-dlp:tab", "tab": tab or "",
+                "degraded": True, "source": "yt-dlp"}
+
+
+def feed_popular(instance=None):
+    """Popüler videolar — instance failover + yt-dlp yedek."""
+    emit("feed", kind="popular", **_popular_payload(instance))
+
+
+def feed_trending(instance=None, tab=None):
+    """Trend videolar — tab verilirse tek kategori, yoksa 4'ü birleşik.
+    Instance failover + yt-dlp gerçek-trend yedeği."""
+    emit("feed", kind="trending", **_trending_payload(instance, tab))
+
+
+def feed_home(instance=None):
+    """Ana sayfa: popular + trending TEK komutta, iki paralel ağ kolu.
+    Ayrı iki süreç yerine tek süreçte ThreadPoolExecutor — Invidious
+    failover + yt-dlp yedek mantığı aynı payload fonksiyonlarından gelir."""
+    from concurrent.futures import ThreadPoolExecutor
+    results = {}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        fut_pop = pool.submit(_popular_payload, instance)
+        fut_tr = pool.submit(_trending_payload, instance, None)
+        results["popular"] = fut_pop.result()
+        results["trending"] = fut_tr.result()
+    # Üst düzey instance: yt-dlp olmayan gerçek instance'ı tercih et
+    inst = ""
+    for key in ("popular", "trending"):
+        cand = results[key].get("instance") or ""
+        if cand and not cand.startswith("yt-dlp"):
+            inst = cand
+            break
+    if not inst:
+        inst = results["popular"].get("instance") or ""
+    emit("feed", kind="home",
+         popular=results["popular"], trending=results["trending"],
+         instance=inst)
 
 
 def feed_subscriptions(instance=None):
@@ -853,7 +892,7 @@ def main():
     ap = argparse.ArgumentParser(description="Invidious API client")
     ap.add_argument("command", choices=[
         "probe", "subs", "login", "logout",
-        "popular", "trending", "subscriptions",
+        "popular", "trending", "subscriptions", "home",
         "search", "channel", "comments", "playlist",
     ])
     ap.add_argument("--url", default="", help="YouTube URL veya video ID")
@@ -895,6 +934,8 @@ def main():
             feed_trending(instance, tab=tab if tab in _TREND_TABS else None)
         elif args.command == "subscriptions":
             feed_subscriptions(instance)
+        elif args.command == "home":
+            feed_home(instance)
         elif args.command == "search":
             search(args.query, args.page, instance)
         elif args.command == "channel":

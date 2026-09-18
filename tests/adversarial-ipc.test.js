@@ -392,7 +392,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       app: { whenReady: () => ({ then: (fn) => { ready = fn; } }), getPath: () => 'test-profile' },
       prepareWidevineComponents: () => { calls.push('prepare'); return new Promise((resolve) => { finishDrm = resolve; }); },
       sweepStaleChatFiles() {}, sweepBrowserLiveAsrTemp() {}, sweepBrowserSubtitleFiles() {},
-      sweepOrphanOutputTransactions() {},
+      sweepOrphanOutputTransactions() {}, restoreInvidiousSessions() {},
       browserAssetStore: () => ({ sweepTempFiles() {} }),
       ADAPTER_REGISTRY: { loadJsonDirectory() {} }, browserAdapterPluginStatus: null, path,
       restoreBrowserSessionState() {}, createWindow: () => calls.push('window'),
