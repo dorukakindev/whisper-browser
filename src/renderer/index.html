@@ -2384,6 +2384,14 @@
             <div class="ptab-content hidden" id="playerSourcePanelYoutube" data-pcontent="yt" role="tabpanel"
               aria-labelledby="playerSourceTabYoutube">
               <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." aria-label="Oynatıcı YouTube adresi"/>
+              <label class="field">
+                <span class="field-label">Kaynak</span>
+                <select id="playerSourceSelect" aria-label="YouTube kaynak seçici">
+                  <option value="ytdlp">YouTube (yt-dlp)</option>
+                  <option value="invidious">Invidious (reklamsız/gizli)</option>
+                </select>
+                <small id="playerSourceHint">Invidious: Google'a bağlanmadan, reklamsız. Hız/yenilik için yt-dlp.</small>
+              </label>
               <label class="field youtube-session-field">
                 <span class="field-label">YouTube oturumu</span>
                 <select id="playerCookieBrowser">

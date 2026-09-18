@@ -792,7 +792,7 @@ function endJobLog() {
 // "altyaziyi indir" denince yeni surec mediaJob'un uzerine yaziliyor, sonra
 // "Indirmeyi iptal et" yanlis sureci olduruyor ya da kisa is bitip mediaJob'u
 // null yaptigi icin "Indirme yok" deniyordu.
-const mediaJobs = { probe: null, download: null, subs: null };
+const mediaJobs = { probe: null, download: null, subs: null, invidious: null };
 
 function pythonRuntimeEnv(extra = {}) {
   return pythonEnvWithRuntime(
@@ -876,6 +876,79 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
       finish({ ok: false, error: err && err.code === 'ENOENT'
         ? 'Python bulunamadı (install.bat ile venv oluşturun).'
         : 'Medya yardımcı süreci çalışırken hata oluştu.' });
+    });
+  });
+}
+
+// Invidious API için basit wrapper — runMediaCommand'a benzer ama invidious.py kullanır
+function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
+  return new Promise((resolve) => {
+    if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir Invidious işi zaten çalışıyor.' });
+    const appDir = app.getAppPath();
+    const script = path.join(appDir, 'backend', 'invidious.py');
+    let proc;
+    try {
+      proc = spawn(resolvePython(), [script, ...cmdArgs], {
+        cwd: appDir,
+        windowsHide: true,
+        env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }),
+      });
+    } catch (err) {
+      return resolve({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı.'
+        : 'Invidious yardımcı süreci başlatılamadı.' });
+    }
+    mediaJobs[kind] = proc;
+    let result = null;
+    let errText = '';
+    let stderrTail = '';
+    let settled = false;
+    const timeoutMs = 45_000;  // Invidious probe için 45 sn yeterli
+    let timeoutTimer = null;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      resolve(value);
+    };
+    const handleLine = (raw) => {
+      if (settled) return;
+      const line = String(raw || '').trim();
+      if (!line) return;
+      let ev;
+      try { ev = JSON.parse(line); } catch (_) { return; }
+      if (ev.type === 'probe' || ev.type === 'subs') result = ev;
+      else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
+      if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
+      if (onEvent) onEvent(ev);
+    };
+    const stdoutLines = createNdjsonLineBuffer({ maxLineChars: 8 * 1024 * 1024 });
+    proc.stdout.setEncoding('utf-8');
+    proc.stderr.setEncoding('utf-8');
+    proc.stdout.on('data', (chunk) => {
+      for (const line of stdoutLines.push(chunk)) handleLine(line);
+    });
+    proc.stderr.on('data', (c) => { stderrTail = `${stderrTail}${c}`.slice(-500); });
+    timeoutTimer = setTimeout(() => {
+      if (mediaJobs[kind] !== proc || settled) return;
+      terminateProcessTree(proc, { spawn });
+      finish({ ok: false, error: 'Invidious işlemi zaman sınırını aştı.' });
+    }, timeoutMs);
+    timeoutTimer.unref?.();
+    proc.on('close', (code) => {
+      if (mediaJobs[kind] === proc) mediaJobs[kind] = null;
+      if (settled) return;
+      for (const line of stdoutLines.flush()) handleLine(line);
+      if (result) finish({ ok: true, data: result });
+      else {
+        if (!errText && stderrTail) {
+          writeJobLog({ type: 'log', level: 'warn', message: `Invidious: ${sanitizeProcessDetail(stderrTail)}` });
+        }
+        finish({ ok: false, error: errText || `Invidious süreci ${code} koduyla tamamlandı.` });
+      }
+    });
+    proc.on('error', (err) => {
+      finish({ ok: false, error: 'Invidious yardımcı süreci hatası: ' + err.message });
     });
   });
 }
@@ -982,6 +1055,50 @@ ipcMain.handle('media:cancelDownload', async (event) => {
   const job = mediaJobs.download;      // probe/altyazi isleri iptalden etkilenmez
   if (!job) return { ok: false, error: 'İndirme yok' };
   terminateProcessTree(job, { spawn });
+  return { ok: true };
+});
+
+// ===== Invidious API (reklamsız/gizli YouTube) =====
+ipcMain.handle('invidious:probe', async (_e, url, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const mediaUrl = decideUrlPolicy(url, 'renderer-external');
+  if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol)) {
+    return { ok: false, error: "Yalnızca http/https URL'leri kullanılabilir." };
+  }
+  const args = ['probe', '--url', mediaUrl.url];
+  if (opts && opts.instance) args.push('--instance', opts.instance);
+  return runInvidiousCommand(args, 'invidious');
+});
+
+ipcMain.handle('invidious:subs', async (_e, url, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const mediaUrl = decideUrlPolicy(url, 'renderer-external');
+  if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol)) {
+    return { ok: false, error: "Yalnızca http/https URL'leri kullanılabilir." };
+  }
+  const o = opts || {};
+  let outDir;
+  try {
+    outDir = sanitizeAbsolutePath(o.inputDir || loadSettings().inputDir, 'Girdi klasörü');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+  const args = ['subs', '--url', mediaUrl.url, '--lang', o.lang || 'en', '--output-dir', outDir];
+  if (o.auto) args.push('--auto');
+  if (o.instance) args.push('--instance', o.instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  });
+});
+
+ipcMain.handle('invidious:cancel', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const job = mediaJobs.invidious;
+  if (!job) return { ok: false, error: 'Invidious işi yok' };
+  terminateProcessTree(job, { spawn });
+  mediaJobs.invidious = null;
   return { ok: true };
 });
 

@@ -62,6 +62,14 @@ contextBridge.exposeInMainWorld('api', {
   findSiblingSubs: (videoPath) => ipcRenderer.invoke('media:findSiblingSubs', videoPath),
   authorizeHistoryFiles: (recordId) => ipcRenderer.invoke('history:authorizeFiles', recordId),
   cancelYoutubeDownload: () => ipcRenderer.invoke('media:cancelDownload'),
+  // Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)
+  probeInvidious: (url, opts) => ipcRenderer.invoke('invidious:probe', url, opts || {}),
+  downloadInvidiousSubs: (url, opts) => ipcRenderer.invoke('invidious:subs', url, opts || {}),
+  cancelInvidious: () => ipcRenderer.invoke('invidious:cancel'),
+  onInvidiousEvent: (listener) => {
+    ipcRenderer.on('invidious:event', listener);
+    return () => ipcRenderer.removeListener('invidious:event', listener);
+  },
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),

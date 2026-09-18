@@ -15392,7 +15392,10 @@ function osd(text, ms) {
     el.textContent = text;
     el.classList.add('show');
     clearTimeout(player.osdTimer);
-    player.osdTimer = setTimeout(() => el.classList.remove('show'), ms || 900);
+    player.osdTimer = setTimeout(() => {
+      el.classList.remove('show');
+      el.textContent = '';
+    }, ms || 900);
   }
   // Browser modunda .player-stage display:none ve sayfa yerel view'ın altında
   // kalır — geri bildirim sayfa içi OSD'ye enjekte edilir.
@@ -21999,6 +22002,62 @@ if ($('youtubeCookieBrowser') && $('playerCookieBrowser')) {
   setTimeout(() => { $('playerCookieBrowser').value = $('youtubeCookieBrowser').value; }, 0);
 }
 
+initPlayerSource();
+
+// Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)
+// Source toggle: yt-dlp / Invidious arası geçiş
+const INV_KEY = 'player:source';
+let playerSource = 'ytdlp';   // 'ytdlp' | 'invidious'
+
+function initPlayerSource() {
+  try {
+    const saved = localStorage.getItem(INV_KEY);
+    if (saved === 'invidious') playerSource = 'invidious';
+  } catch (_) {}
+  const sel = $('playerSourceSelect');
+  if (sel) {
+    sel.value = playerSource;
+    sel.addEventListener('change', () => {
+      playerSource = sel.value;
+      try { localStorage.setItem(INV_KEY, playerSource); } catch (_) {}
+      // Probe sonuçları farklı şema → temizle
+      player.ytInfo = null;
+    });
+  }
+}
+
+async function probeWithActiveSource(url) {
+  if (playerSource === 'invidious') {
+    try {
+      return await window.api.probeInvidious(url, {});
+    } catch (err) {
+      return { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+    }
+  }
+  try {
+    return await window.api.probeYoutube(url, youtubeCookieBrowser());
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+  }
+}
+
+async function fetchSubsWithActiveSource(url, lang, auto) {
+  if (playerSource === 'invidious') {
+    try {
+      return await window.api.downloadInvidiousSubs(url, {
+        lang, auto,
+        inputDir: state.inputDir || undefined,
+      });
+    } catch (err) {
+      return { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
+    }
+  }
+  return window.api.downloadYoutubeSubs({
+    url, lang, auto, cookieBrowser: youtubeCookieBrowser(),
+    inputDir: state.inputDir || undefined,
+  });
+}
+
 if ($('playerProbe')) {
   $('playerProbe').addEventListener('click', async () => {
     const url = $('playerYtUrl').value.trim();
@@ -22011,10 +22070,12 @@ if ($('playerProbe')) {
     const parseStatus = $('playerParseStatus');
     const parseText = $('playerParseText');
     if (parseStatus) parseStatus.classList.remove('hidden');
-    if (parseText) parseText.textContent = 'Video bilgisi alınıyor…';
+    if (parseText) parseText.textContent = playerSource === 'invidious'
+      ? 'Invidious ile video bilgisi alınıyor…'
+      : 'Video bilgisi alınıyor…';
     let res;
     try {
-      res = await window.api.probeYoutube(url, youtubeCookieBrowser());
+      res = await probeWithActiveSource(url);
     } catch (err) {
       res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
     }
@@ -22354,10 +22415,7 @@ if ($('playerYtSubGet')) {
     const gen = currentGeneration();
     let res;
     try {
-      res = await window.api.downloadYoutubeSubs({
-        url, lang, auto: auto === '1', cookieBrowser: youtubeCookieBrowser(),
-        inputDir: state.inputDir || undefined,
-      });
+      res = await fetchSubsWithActiveSource(url, lang, auto === '1');
     } catch (err) {
       res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
     }
