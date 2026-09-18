@@ -1011,7 +1011,9 @@ function openAppDialog({ title, description, confirmLabel, intent = 'danger', in
   $('appDialogInputLabel').textContent = inputLabel || 'Değer';
   field.classList.toggle('hidden', !hasInput);
   input.value = hasInput ? inputValue : '';
-  input.maxLength = hasInput && Number.isInteger(inputMaxLength) && inputMaxLength > 0 ? inputMaxLength : -1;
+  // maxLength IDL'i -1 kabul etmez; sınır yoksa özniteliği kaldırmak gerekir.
+  if (hasInput && Number.isInteger(inputMaxLength) && inputMaxLength > 0) input.maxLength = inputMaxLength;
+  else input.removeAttribute('maxlength');
   if (_dialogInputListener) input.removeEventListener('input', _dialogInputListener);
   _dialogInputListener = hasInput && typeof onInput === 'function'
     ? () => onInput(input.value) : null;
@@ -8541,13 +8543,29 @@ async function restoreBrowserTranslationSnapshot(tab) {
   }
 }
 
+// Cümle başına gelen aynı sağlayıcı hatası logu sel basıyordu (düşen
+// endpoint'te 200+ satır). Özdeş ardışık hatalar sayılıp tek satırda özetlenir.
+const liveTranslationErrorDedup = { message: '', count: 0 };
+function logLiveTranslationError(message) {
+  if (message === liveTranslationErrorDedup.message) {
+    liveTranslationErrorDedup.count += 1;
+    return;
+  }
+  if (liveTranslationErrorDedup.count > 1) {
+    logLine(`Canlı web çevirisi: ${liveTranslationErrorDedup.message} (×${liveTranslationErrorDedup.count} tekrar)`, 'warn');
+  }
+  liveTranslationErrorDedup.message = message;
+  liveTranslationErrorDedup.count = 1;
+  logLine(`Canlı web çevirisi: ${message}`, 'warn');
+}
+
 function applyBrowserTranslationResult(event) {
   if (!event.result || event.trackId !== player.browserTranslationTrackId) return;
   if (event.result.error) {
     player.browserTranslationLastError = String(event.result.error || '').replace(/\s+/g, ' ').trim().slice(0, 240);
     const tab = browserTabState();
     if (tab) tab.browserTranslationLastError = player.browserTranslationLastError;
-    logLine(`Canlı web çevirisi: ${event.result.error}`, 'warn');
+    logLiveTranslationError(event.result.error);
     renderBrowserSubtitleHealth();
     return;
   }
@@ -11787,7 +11805,12 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       ? 'Widevine teknik erişimi doğrulandı. Bu sonuç servis lisansı, abonelik veya bölge erişimini garanti etmez.'
       : 'Widevine teknik erişimi doğrulanamadı. EME, codec ve bileşen kanıtlarını oynatma tanısı panelinde birlikte değerlendirin; bu sonuç tek başına lisans veya bölge engeli değildir.';
     setBrowserSignal(message, !!event.supported, { priority: event.supported ? 35 : 75, holdMs: 5000 });
-    logLine(message, event.supported ? 'info' : 'warn');
+    // Karar oturum boyunca değişmez; her navigasyonda aynı satırı basmak yerine
+    // yalnız ilk sonucu ve olası değişimleri kaydet.
+    if (player.browserDrmVerdict !== event.supported) {
+      player.browserDrmVerdict = event.supported;
+      logLine(message, event.supported ? 'info' : 'warn');
+    }
   } else if (event.type === 'drm-wait') {
     setBrowserSignal(event.message || (event.waiting ? 'DRM bileşeni hazırlanıyor…' : 'Sayfa açılıyor…'), false);
   } else if (event.type === 'popup-opened') {

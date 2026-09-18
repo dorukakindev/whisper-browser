@@ -5079,9 +5079,28 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
       const error = new Error(`Çeviri servisi HTTP ${response.status} döndürdü${detail ? `: ${detail}` : ''}.`);
       error.httpStatus = Number(response.status) || 0;
       Object.assign(error, classifyTranslationHttpFailure(error.httpStatus, detail));
+      // Sunucunun istediği bekleme (429/503): scheduler bunu kendi üstel
+      // geri çekilmesiyle maksimum alır; yoksa 120 istek/dk sınırı aynı hızla
+      // tekrar tüketilir.
+      const retryAfterRaw = String(response.headers?.get?.('retry-after') || '').trim();
+      if (retryAfterRaw) {
+        const retryAfterSec = Number(retryAfterRaw);
+        const retryAfterMs = Number.isFinite(retryAfterSec)
+          ? retryAfterSec * 1000
+          : Date.parse(retryAfterRaw) - Date.now();
+        if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+          error.retryAfterMs = Math.min(120000, retryAfterMs);
+        }
+      }
       throw error;
     }
     data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
+  } catch (requestError) {
+    // fetch'in kendisinin düşmesi (DNS/bağlantı) httpStatus taşımaz; devre
+    // kesicinin ağ kesintisi fırtınasını da sayması için işaretle.
+    if (requestError && requestError.httpStatus === undefined
+        && requestError.name !== 'AbortError') requestError.transportError = true;
+    throw requestError;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', forwardAbort);

@@ -3841,6 +3841,30 @@ def test_translation_errors_are_classified_for_resume_metadata():
         assert T.classify_translation_error(RuntimeError(message)) == expected
 
 
+def test_translation_error_classifier_survives_request_id_digits():
+    # Sağlayıcı hata gövdesindeki rastgele request-id rakamları ("...403...",
+    # "...429...") HTTP durum kodu sanılıp yanlış sınıfa çekilemezdi.
+    body = ("Error code: 503 - {'error': {'code': 'model_not_found', 'message': "
+            "'No available channel for model gpt-5.4 (request id: "
+            "202609181748443892540358268d9d6AsN5SLNM)', 'type': 'new_api_error'}}")
+    assert T.classify_translation_error(RuntimeError(body)) == "model_unavailable"
+    assert "model_unavailable" in T.FATAL_TRANSLATION_ERRORS
+    # 403/429 içeren request-id'li geçici hata yanlışlıkla fatal sınıfa düşmez.
+    generic = ("Error code: 503 - upstream error (request id: "
+               "202609181748443892540358268d9d6)")
+    assert T.classify_translation_error(RuntimeError(generic)) == "server_error"
+    limited = ("Error code: 500 - upstream error (request id: "
+               "202611292992994299429)")
+    assert T.classify_translation_error(RuntimeError(limited)) == "server_error"
+    # Gerçek HTTP 401 yapısal alandan gelirse yine authentication sayılır.
+    class ApiError(Exception):
+        def __init__(self, status):
+            super().__init__(f"http {status}")
+            self.status_code = status
+    assert T.classify_translation_error(ApiError(401)) == "authentication"
+    assert T.classify_translation_error(ApiError(429)) == "rate_limit"
+
+
 def test_subtitle_output_descriptor_does_not_infer_role_from_filename():
     descriptor = T.subtitle_output("film.tr.srt", "translation", "tr", "source", "hash",
                                    total=100, completed=87, failed=13)

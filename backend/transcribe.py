@@ -3099,11 +3099,27 @@ def save_translate_cache(path, cache, limit=200000):
 def classify_translation_error(error):
     """Sağlayıcı hatasını kullanıcıya ve devam metadata'sına kararlı kodla taşır."""
     message = str(error or "").lower()
+    # HTTP durumunu önce yapısal alandan oku: hata gövdesindeki rastgele
+    # request-id rakamları "403"/"429" gibi kodları içerebilir ve hatayı yanlış
+    # sınıflandırırdı (authentication FATAL olduğu için işi gereksiz keserdi).
+    status = api_error_status(error)
+    if any(token in message for token in (
+            "model_not_found", "no available channel", "no channel available",
+            "model does not exist", "invalid model", "unknown model")):
+        return "model_unavailable"
+    if status == 429:
+        return "rate_limit"
+    if status in (401, 403):
+        return "authentication"
+    if status is not None and status >= 500:
+        return "server_error"
     if any(token in message for token in ("insufficient_quota", "quota", "kota")):
         return "quota"
-    if any(token in message for token in ("invalid_api_key", "unauthorized", "401", "403")):
+    if any(token in message for token in ("invalid_api_key", "unauthorized")) \
+            or re.search(r"\b(?:401|403)\b", message):
         return "authentication"
-    if any(token in message for token in ("429", "rate limit", "rate_limit", "too many requests")):
+    if any(token in message for token in ("rate limit", "rate_limit", "too many requests")) \
+            or re.search(r"\b429\b", message):
         return "rate_limit"
     if any(token in message for token in ("timeout", "timed out", "zaman aş", "zaman as")):
         return "timeout"
@@ -3111,14 +3127,17 @@ def classify_translation_error(error):
         return "invalid_response"
     if any(token in message for token in ("bos cevap", "empty response", "content is empty")):
         return "empty_response"
-    if any(token in message for token in ("500", "502", "503", "504", "server error")):
+    if any(token in message for token in ("server error",)) \
+            or re.search(r"\b(?:500|502|503|504)\b", message):
         return "server_error"
     if any(token in message for token in ("connection", "network", "dns", "socket")):
         return "network_error"
     return "api_failure"
 
 
-FATAL_TRANSLATION_ERRORS = frozenset({"authentication", "quota"})
+# model_unavailable da fatal'dir: sağlayıcının bu model için kanalı yoksa kalan
+# yüzlerce parçayı sırayla denemek yalnızca isteği ve süreyi boşa harcar.
+FATAL_TRANSLATION_ERRORS = frozenset({"authentication", "quota", "model_unavailable"})
 
 
 def same_translation_language(source_language, target_language):
@@ -3490,9 +3509,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         ],
                         temperature=0.2,
                     ), attempts=2), url
-                # Kota/anahtar sorunu tum rotalarda ayni olur - rota denemek anlamsiz
-                if any(k in msg for k in ("insufficient_quota", "invalid_api_key",
-                                          "401", "403", "quota")):
+                # Kota/anahtar sorunu tum rotalarda ayni olur - rota denemek anlamsiz.
+                # HTTP durumu yapısal alandan okunur; request-id icindeki rakamlar
+                # "401"/"403" substring eslesmesiyle yanlis alarm uretmesin.
+                status = api_error_status(e)
+                if status in (401, 403) or any(k in msg for k in (
+                        "insufficient_quota", "invalid_api_key", "quota")):
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
@@ -6763,12 +6785,14 @@ def chat_about_video(args):
         except Exception as e:
             last_err = e
             msg = str(e).lower()
-            if any(k in msg for k in ("insufficient_quota", "invalid_api_key", "401", "403", "quota")):
+            if api_error_status(e) in (401, 403) or any(k in msg for k in (
+                    "insufficient_quota", "invalid_api_key", "quota")):
                 break
     kind = classify_translation_error(last_err)
     messages = {
         "authentication": "Sağlayıcı kimlik doğrulaması başarısız. AI ayarlarındaki anahtarı kontrol edin.",
         "quota": "Sağlayıcı kotası doldu. Hesabınızı kontrol edin.",
+        "model_unavailable": "Seçili model bu sağlayıcıda kullanılamıyor. Ayarlardaki model adını kontrol edin.",
         "rate_limit": "Sağlayıcı istek sınırına ulaşıldı. Biraz sonra yeniden deneyin.",
         "timeout": "AI yanıt süresi aşıldı. Yeniden deneyebilirsiniz.",
         "network_error": "AI sağlayıcısına bağlanılamadı. Bağlantınızı kontrol edin.",

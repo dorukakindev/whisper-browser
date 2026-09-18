@@ -210,6 +210,11 @@ class BrowserTranslationScheduler {
     this.maxAttempts = Math.max(1, Math.trunc(finiteNumber(options.maxAttempts, 3)));
     this.retryBaseMs = Math.max(10, finiteNumber(options.retryBaseMs, 1000));
     this.retryMaxMs = Math.max(this.retryBaseMs, finiteNumber(options.retryMaxMs, 10000));
+    // Ard arda bu kadar 5xx/429 hatası (arada tek başarı bile olmadan)
+    // sağlayıcının çöktüğü anlamına gelir: kuyruğu devam ettirmek istek
+    // fırtınası ve kota tüketimi üretir — devre kesici kapatır.
+    this.providerFailureThreshold = Math.max(2, Math.trunc(finiteNumber(options.providerFailureThreshold, 8)));
+    this.consecutiveProviderFailures = 0;
     this.onResult = typeof options.onResult === 'function' ? options.onResult : () => {};
     this.onState = typeof options.onState === 'function' ? options.onState : () => {};
     this.context = { ...(options.context || {}) };
@@ -495,6 +500,7 @@ class BrowserTranslationScheduler {
       };
       this.failures.delete(sentence.id);
       this.results.set(sentence.id, value);
+      this.consecutiveProviderFailures = 0;
       this.onResult(value, sentence);
     }).catch((error) => {
       if (!controller.signal.aborted && generation === this.generation) {
@@ -506,10 +512,30 @@ class BrowserTranslationScheduler {
           }, sentence);
           return;
         }
+        // 5xx/429 isteği sağlayıcı tarafında düşüyor: arka arkaya eşik kadar
+        // hatada kuyruğu sürdürmek saniyede istek yağmuru üretir.
+        const httpStatus = Number(error?.httpStatus) || 0;
+        if (httpStatus === 429 || httpStatus >= 500 || error?.transportError === true) {
+          this.consecutiveProviderFailures += 1;
+          if (this.consecutiveProviderFailures >= this.providerFailureThreshold) {
+            const tripError = new Error(
+              `Çeviri sağlayıcısı arka arkaya ${this.consecutiveProviderFailures} isteği reddetti (HTTP ${httpStatus}); kalan cümleler durduruldu. Biraz sonra yeniden deneyin.`);
+            this.tripProviderFailure(tripError);
+            this.onResult({
+              sentenceId: sentence.id, error: this.providerFailure, attempt: 1,
+              retryable: false, retrying: false, nextRetryMs: 0, cues: [],
+            }, sentence);
+            return;
+          }
+        } else if (httpStatus > 0 && httpStatus < 500) {
+          this.consecutiveProviderFailures = 0;
+        }
         const previous = this.failures.get(sentence.id);
         const attempts = (previous?.attempts || 0) + 1;
         const terminal = error?.retryable === false || attempts >= this.maxAttempts;
-        const delay = Math.min(this.retryMaxMs, this.retryBaseMs * (2 ** Math.max(0, attempts - 1)));
+        const delay = Math.max(
+          Math.min(this.retryMaxMs, this.retryBaseMs * (2 ** Math.max(0, attempts - 1))),
+          Number(error?.retryAfterMs) || 0);
         const failure = {
           attempts,
           terminal,
