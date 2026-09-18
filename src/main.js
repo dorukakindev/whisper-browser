@@ -918,6 +918,7 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
       let ev;
       try { ev = JSON.parse(line); } catch (_) { return; }
       if (ev.type === 'probe' || ev.type === 'subs') result = ev;
+      else if (ev.type === 'feed' || ev.type === 'search') result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
       if (onEvent) onEvent(ev);

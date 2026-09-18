@@ -22023,8 +22023,10 @@ async function fetchInvidiousFeed(kind, force = false) {
   }
   const res = await window.api.invidiousFeed(kind);
   if (!res || !res.ok || !res.data) {
-    logLine(`Invidious ${kind} alınamadı: ${(res && res.error) || 'bilinmeyen'}`, 'error');
-    return cached ? cached.videos : [];
+    const reason = (res && res.error) || 'bilinmeyen';
+    logLine(`Invidious ${kind} alınamadı: ${reason}`, 'error');
+    // Hata durumunda exception fırlat ki grid'de görünsün
+    throw new Error(reason);
   }
   invidiousFeedCache.set(kind, { ts: Date.now(), videos: res.data.videos || [] });
   return res.data.videos;
@@ -22351,6 +22353,10 @@ async function renderSmartTubeSection(section) {
   if (!grid) return;
   grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
 
+  const showError = (msg) => {
+    grid.innerHTML = `<div class="inv-status" style="color:var(--accent);font-size:12px;">${msg}</div>`;
+  };
+
   let videos = [];
   try {
     if (section === 'channels') {
@@ -22359,14 +22365,20 @@ async function renderSmartTubeSection(section) {
       return;
     }
     videos = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, false);
-  } catch {
-    videos = [];
+    if (!videos || !videos.length) {
+      showError('İçerik alınamadı — günlük kayıtlarına bak.');
+      return;
+    }
+  } catch (e) {
+    showError(`Hata: ${e && e.message ? e.message : e}`);
+    logLine(`SmartTube feed hata: ${e && e.message ? e.message : e}`, 'error');
+    return;
   }
 
   if (section === 'home') {
     const trending = await fetchInvidiousFeed('trending', false).catch(() => []);
     renderSmartTubeGrid(grid, videos.slice(0, 24), 'Popüler');
-    if (trending.length) {
+    if (trending && trending.length) {
       const sep = document.createElement('div');
       sep.className = 'st-section-title';
       sep.textContent = 'Trend';
