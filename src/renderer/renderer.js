@@ -2370,6 +2370,12 @@ function applyUiSettings(ui) {
       if (ui[id] === undefined) return;
       const el = $(id);
       if (!el) return;
+      // Kalıcı özel hız (örn. 1.3×) düz atamada option bulamaz → boş seçim +
+      // hız 1'e düşerdi; önce option'ı üretip değeri ayarla.
+      if (id === 'playerSpeed' && syncPlayerSpeedControl(ui[id]) !== null) {
+        el.dispatchEvent(new Event('change'));
+        return;
+      }
       el.value = ui[id];
       el.dispatchEvent(new Event('input'));   // range etiketlerini tazele
       el.dispatchEvent(new Event('change'));  // bağımlı UI (GPU rozeti vb.)
@@ -15389,7 +15395,9 @@ function bindHoldToSpeed() {
     if (active) {
       active = false;
       player.holdingSpeed = false;
-      v.playbackRate = prevRate;
+      // Hold sürerken başka yol (politika vb.) hızı değiştirdiyse ezme —
+      // yalnız hâlâ bizim koyduğumuz 2x ise eski değere dön.
+      if (Math.abs(v.playbackRate - 2) < 1e-6) v.playbackRate = prevRate;
       stage.classList.remove('holding');
       player.suppressClick = true;          // birakinca duraklatma tetiklenmesin
       setTimeout(() => { player.suppressClick = false; }, 120);
@@ -15470,7 +15478,7 @@ function renderAbMarkers() {
   const duration = player.workspaceMode === 'browser' ? player.browserDuration : (v && v.duration);
   if (!box) return;
   box.querySelectorAll('.ab-marker, .ab-range').forEach((e) => e.remove());
-  if (!v || !duration) return;
+  if (!v || !duration || !Number.isFinite(duration)) return;
   const pct = (t) => (t / duration) * 100;
   if (player.abA !== null) {
     const a = document.createElement('div');
@@ -15969,6 +15977,7 @@ function resetMediaBoundState(options = {}) {
   if (typeof resetActiveWordHighlight === 'function') resetActiveWordHighlight();
   player.cancelHoldSpeed?.();
   player.lastT = undefined;
+  player._abPrevT = undefined;
   player.holdingSpeed = false;
   closeTimeline();
   resetEmbeddedSubtitleTracks();
@@ -16052,6 +16061,14 @@ function resetMediaBoundState(options = {}) {
   if ($('playerStreamAudioField')) $('playerStreamAudioField').classList.add('hidden');
   if ($('playerChaptersPanel')) $('playerChaptersPanel').classList.add('hidden');
   if ($('playerChapters')) $('playerChapters').innerHTML = '';
+  // Seekbar görselleri de sıfırlanır — preload="metadata" iken ilk progress/
+  // timeupdate'e kadar önceki videonun doluluk/oynatma barı görünüyordu.
+  const played = $('seekPlayed');
+  const buffered = $('seekBuffered');
+  const seekInp = $('playerSeek');
+  if (played) played.style.width = '0%';
+  if (buffered) buffered.style.width = '0%';
+  if (seekInp) seekInp.value = '0';
   renderSeekMarkers([]);
   renderAbMarkers(); // Medya değişince artık korunmaması gereken eski A-B işaretlerini temizle.
   if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
@@ -16235,6 +16252,21 @@ function setMediaKey(key) {
     $('playerAudioField')?.classList.add('hidden');
     $('playerStreamAudioField')?.classList.add('hidden');
     if (typeof hideUpNextPanel === 'function') hideUpNextPanel();
+  }
+  // YouTube→YouTube geçişinde eski videonun ytInfo'su (yorumlar/up-next)
+  // yeni probe bitene kadar ekranda kalıyordu — anahtar uyuşmuyorsa düşür.
+  if (String(nextKey).startsWith('youtube:') && player.ytInfo
+      && player.ytInfo.videoKey !== nextKey) {
+    player.ytInfo = null;
+    $('playerYtInfo')?.classList.add('hidden');
+    if (typeof hideUpNextPanel === 'function') hideUpNextPanel();
+  }
+  // Yerel playlist yalnızca file: medyasına aittir — YouTube/stream açılınca
+  // eski klasör listesi prev/next ve oto-sonraki (ended) üzerinden hortluyordu.
+  if (!String(nextKey).startsWith('file:')) {
+    player.playlist = [];
+    player.playlistIndex = -1;
+    updatePlaylistButtons();
   }
   player.mediaKey = nextKey;
   if (player.pendingLibrarySeek && player.pendingLibrarySeek.key !== player.mediaKey) {
@@ -20528,9 +20560,19 @@ if ($('playerVideo')) {
     }
   });
   video.addEventListener('progress', updateSeekVisuals);
-  // A-B dongusu: B'ye gelince A'ya don
+  // Hız her yoldan değişince select'i eşitle — politika/hold-speed/load-reset
+  // değişiklikleri select'i güncellemeden bırakıyordu (sonraki > adımı atlıyordu).
+  video.addEventListener('ratechange', () => {
+    if (player.workspaceMode === 'browser') return;
+    syncPlayerSpeedControl(video.playbackRate);
+  });
+  // A-B dongusu: B'ye gelince A'ya don. Yalnız B'ye "oynayarak" ulaşınca —
+  // kullanıcı B'nin ötesine atlarsa döngüden çıkabilmeli (tarayıcı yoluyla aynı).
   video.addEventListener('timeupdate', () => {
-    if (player.abA !== null && player.abB !== null && video.currentTime >= player.abB) {
+    const previous = player._abPrevT;
+    player._abPrevT = video.currentTime;
+    if (player.abA !== null && player.abB !== null && previous !== undefined
+        && previous < player.abB && video.currentTime >= player.abB) {
       video.currentTime = player.abA;
       renderCue();
     }
@@ -20545,6 +20587,9 @@ if ($('playerVideo')) {
   video.addEventListener('loadstart', () => { interruptHlsStability(); spin(true); });
   video.addEventListener('seeking', interruptHlsStability);
   video.addEventListener('seeked', () => {
+    // Atlama sonrası taban zamanı güncelle — yoksa B'nin ötesine yapılan atlama
+    // bir sonraki timeupdate'te eski "önceki" değerle A-B döngüsüne yakalanır.
+    player._abPrevT = video.currentTime;
     if (player.hls && !video.paused) {
       player.hlsRecovery.playbackStarted(video.currentTime || 0, performance.now());
     }
@@ -20559,6 +20604,15 @@ if ($('playerVideo')) {
   video.addEventListener('canplay', () => spin(false));
   video.addEventListener('error', () => spin(false));
   video.addEventListener('loadedmetadata', () => {
+    // load() playbackRate'i defaultPlaybackRate'e sıfırlar (spec) — kalıcı
+    // select değerini geri uygula, yoksa select 1.5x gösterirken video 1x oynar.
+    if (player.workspaceMode !== 'browser') {
+      const persisted = parseFloat($('playerSpeed')?.value);
+      if (Number.isFinite(persisted) && persisted > 0
+          && Math.abs(video.playbackRate - persisted) > 1e-6) {
+        video.playbackRate = persisted;
+      }
+    }
     if (player.isLive || !isFinite(video.duration)) {
       $('playerTime').textContent = '0:00 · CANLI';
       return;
@@ -20576,6 +20630,9 @@ if ($('playerVideo')) {
     // Bölümler probe'dan gelmişti ama süre o an bilinmiyordu — şimdi çizilebilir
     const q = $('cueSearch') ? $('cueSearch').value.trim() : '';
     if (!q) renderSeekMarkers(defaultMarkers());
+    // A-B işaretleri de: metadata'dan önce basılan B, süresizken çizilemeyip
+    // sonsuza kayboluyordu.
+    renderAbMarkers();
   });
   video.addEventListener('play', () => {
     showControls();
@@ -20597,7 +20654,7 @@ if ($('playerVideo')) {
     stopPlayerVideoFrameLoop();
     renderCue();
     await flushWatchState(true, true);
-    if (player.autoNext) await playPlaylistDelta(1);
+    if (player.autoNext && player.playlistIndex >= 0) await playPlaylistDelta(1);
   });
   video.addEventListener('error', () => {
     const code = video.error?.code;
@@ -20640,6 +20697,9 @@ if ($('playerVideo')) {
     video.volume = e.target.value / 100;
     syncVolumeFill();
   });
+  // Kaydırıcı sürüklemesi de kalıcı olsun — change bırakma anında gelir;
+  // eskiden yalnız ok-tuşu yolu scheduleSave çağırıyordu.
+  $('playerVolume').addEventListener('change', () => scheduleSave());
   syncVolumeFill();
   $('muteBtn').addEventListener('click', () => { video.muted = !video.muted; });
   // Simgenin durumu ses olayını izlesin — klavye M, kaydırıcı ve tarayıcı
@@ -20656,6 +20716,25 @@ if ($('playerVideo')) {
   };
   video.addEventListener('volumechange', syncMuteIcon);
   syncMuteIcon();
+
+  // İşaretçi tıklaması sonrası taşıma kontrolleri odağı bırakır — odaklı
+  // button/range tek-harf kısayollarını ve ok tuşlarını yutuyordu (J/L/F/M/
+  // Space ölüyordu, seek inputunda ok = 1/1000 adım oluyordu). detail===0
+  // klavye etkinleştirmesi demek — erişilebilirlik için o odak korunur.
+  if ($('playerControls')) {
+    $('playerControls').addEventListener('click', (e) => {
+      if (e.detail === 0) return;
+      const el = e.target.closest('button');
+      if (el) el.blur();
+    });
+    for (const id of ['playerSeek', 'playerVolume']) {
+      const el = $(id);
+      if (el) el.addEventListener('pointerup', () => el.blur());
+    }
+    // select'i click'te blur'lamak açılır menüyü kapatabilir — seçim bitince bırak
+    const speedSel = $('playerSpeed');
+    if (speedSel) speedSel.addEventListener('change', () => speedSel.blur());
+  }
 
   // Hız: belgesellerde 1.25x, ağır aksanda 0.75x
   if ($('playerSpeed')) {
@@ -20718,7 +20797,7 @@ if ($('subtitleModeMenu')) {
   // Videoya tıkla: oynat/duraklat — çift tıkla: tam ekran
   video.addEventListener('click', () => {
     if (player.suppressClick) return;      // 2x basili tutmadan sonra gelen tik
-    video.paused ? video.play() : video.pause();
+    video.paused ? video.play().catch(() => {}) : video.pause();
   });
   video.addEventListener('dblclick', () => $('fullscreenBtn').click());
 
@@ -20726,7 +20805,8 @@ if ($('subtitleModeMenu')) {
   const wrap = $('seekWrap');
   if (wrap) {
     wrap.addEventListener('mousemove', (e) => {
-      if (!video.duration) return;
+      // Canlı/DVR'da duration=Infinity — ipucu her konumda "0:00" gösteriyordu
+      if (!video.duration || !Number.isFinite(video.duration)) return;
       const r = wrap.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
       const t = ratio * video.duration;
@@ -20793,7 +20873,9 @@ document.addEventListener('keydown', (e) => {
     const subMenu = $('subtitleModeMenu');
     const places = $('browserPlacesPanel');
     const downloads = $('browserDownloadsPanel');
-    if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
+    const ytModal = $('youtubeLoginModal');
+    if (ytModal && !ytModal.classList.contains('hidden')) closeYoutubeLogin();
+    else if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
     else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
     else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
     else if (player.selectedWord) hideWordInspector();
@@ -20806,6 +20888,17 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   const tag = (e.target.tagName || '').toLowerCase();
+  // Menü düğmesi odaklıyken V yine kapatabilsin — tag korumasından önce bakılır,
+  // yoksa menüde focus varken V hiç çalışmıyordu (kapanış yalnız Esc'teydi).
+  // Metin alanlarındaysa tuş yazıya ait — menüyü kapatma.
+  const subMenu = $('subtitleModeMenu');
+  if ((e.key === 'v' || e.key === 'V') && subMenu && !subMenu.classList.contains('hidden')
+      && tag !== 'input' && tag !== 'textarea' && tag !== 'select'
+      && !e.target.isContentEditable) {
+    e.preventDefault();
+    setSubtitleModeMenuOpen(false);
+    return;
+  }
   if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
       || tag === 'a' || tag === 'summary' || e.target.isContentEditable
       || e.target.closest?.('[contenteditable="true"]')) return;
@@ -20821,6 +20914,9 @@ document.addEventListener('keydown', (e) => {
   // Eşleşmeyen Ctrl/Meta/Alt kombinasyonu tek-harf oynatıcı eylemine düşmez:
   // Ctrl+C kopyalama, Alt+harf menü kısayolu olarak kalmalı.
   if (modifier || e.altKey) return;
+  // Basılı tutunca strobo yapan geçiş tuşları (Space/F/B/M/V/N/?) —
+  // ok/ses/hız ve cue adım tuşları tekrarlanabilir kalmalı.
+  if (e.repeat && /^( |f|b|m|v|n|\?)$/i.test(e.key)) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
@@ -20903,7 +20999,7 @@ document.addEventListener('keydown', (e) => {
     osd(`Ses %${Math.round(video.volume * 100)}`); return; }
   if (e.key === 'ArrowDown') { e.preventDefault(); setPlayerVolume(video.volume - 0.05); showControls();
     osd(`Ses %${Math.round(video.volume * 100)}`); return; }
-  if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+  if (e.key === ' ') { e.preventDefault(); video.paused ? video.play().catch(() => {}) : video.pause(); }
   else if (e.key === 'ArrowRight') { video.currentTime += 5; updateSeekVisuals(); showControls(); }
   else if (e.key === 'ArrowLeft') { video.currentTime -= 5; updateSeekVisuals(); showControls(); }
   else if (e.key === 'f' || e.key === 'F') $('fullscreenBtn').click();
@@ -22332,7 +22428,15 @@ async function renderSmartTubeSection(section, opts = {}) {
 
   const showError = (msg) => {
     if (stale()) return;
-    grid.innerHTML = `<div class="inv-status" style="color:var(--accent);font-size:12px;">${msg}</div>`;
+    // Hata metni uzak yanıttan türer — innerHTML sink'i kullanma (CSP script'i
+    // engellese de img/html enjeksiyonu kalırdı).
+    grid.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'inv-status';
+    div.style.color = 'var(--accent)';
+    div.style.fontSize = '12px';
+    div.textContent = String(msg || '');
+    grid.appendChild(div);
   };
 
   let feedData = null;
@@ -22407,6 +22511,10 @@ async function renderSmartTubeSection(section, opts = {}) {
       trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
     }
   } else {
+    // Yalnız "Yükleniyor…" yer tutucusunu kaldır — innerHTML='' yazsaydık
+    // az önce eklenen trend chip'lerini de silerdi. Eski içerik zaten
+    // fonksiyon başındaki loader yazımıyla silinmiş durumda.
+    grid.querySelector(':scope > .inv-status')?.remove();
     videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
   }
 
@@ -22476,12 +22584,16 @@ function renderSmartTubeChannels(channels) {
     const thumb = document.createElement('div');
     thumb.className = 'st-card-thumb';
     if (tn && tn.url) {
-      const img = document.createElement('img');
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      img.src = absThumb(tn.url);
-      img.alt = '';
-      thumb.appendChild(img);
+      const thumbSrc = absThumb(tn.url);
+      // Boş URL img.src='' olur → belge URL'ine gereksiz istek + kırık ikon
+      if (thumbSrc) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.src = thumbSrc;
+        img.alt = '';
+        thumb.appendChild(img);
+      }
     }
     card.appendChild(thumb);
     const body = document.createElement('div');
@@ -22529,6 +22641,22 @@ function absThumb(url) {
 }
 
 // ----- SmartTube kart (büyük dikey) -----
+// Kart/up-next tıklamasından probe tetikleme: sürüyor olan probe bitene kadar
+// bekle (disabled düğmeye click() sessizce no-op olur ve istek kaybolurdu).
+// openYoutubePanelAndProbe ile aynı seq'i paylaşır — son istek kazanır.
+function queuePlayerProbeFromCard() {
+  const requestSeq = ++player.probeRequestSeq;
+  const launch = () => {
+    if (requestSeq !== player.probeRequestSeq) return;
+    const probe = $('playerProbe');
+    if (!probe) return;
+    if (probe.disabled) { setTimeout(launch, 100); return; }
+    if (!player.pendingAutoOpen) return;
+    probe.click();
+  };
+  launch();
+}
+
 function buildSmartTubeCard(video) {
   const card = document.createElement('div');
   card.className = 'st-card';
@@ -22543,12 +22671,15 @@ function buildSmartTubeCard(video) {
   const thumb = document.createElement('div');
   thumb.className = 'st-card-thumb';
   if (tn && tn.url) {
-    const img = document.createElement('img');
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.alt = '';
-    img.src = absThumb(tn.url);
-    thumb.appendChild(img);
+    const thumbSrc = absThumb(tn.url);
+    if (thumbSrc) {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = '';
+      img.src = thumbSrc;
+      thumb.appendChild(img);
+    }
   }
   const secs = Number(video.lengthSeconds) || 0;
   if (video.liveNow) {
@@ -22610,19 +22741,20 @@ function buildSmartTubeCard(video) {
   card.appendChild(body);
 
   const open = () => {
-    const url = `https://www.youtube.com/watch?v=${video.videoId}`;
+    const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId || '')}`;
     const box = $('playerYtUrl');
     if (box) box.value = url;
     // Tek tık = oynat (SmartTube davranışı): probe bitince akış otomatik başlar
     player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: player.openIntent };
-    const probe = $('playerProbe');
-    if (probe) probe.click();
+    queuePlayerProbeFromCard();
     setSmartTubeVisible(false);   // video açılınca tarayıcı kaybolur
   };
   card.addEventListener('click', open);
   card.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      // Space yayılırsa document kısayolu da play/pause tetikler
+      e.stopPropagation();
       open();
     }
   });
@@ -22667,6 +22799,9 @@ function stGridNavKeydown(e) {
   next = Math.max(0, Math.min(cards.length - 1, next));
   if (next === idx) return;
   e.preventDefault();
+  // Kartlar div — document seviyesindeki oynatıcı kısayol koruyucusu input/
+  // button dışındaki her şeyi geçirir; yayılımı kesmezsek oklar videoyu da kaydırır.
+  e.stopPropagation();
   cards[next].focus();
   cards[next].scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
@@ -22709,10 +22844,11 @@ async function doSmartTubeSearch() {
   stSearchLoading = true;
 
   let videos = [];
+  let searchError = '';
   try {
     videos = await searchInvidious(q, 1);
-  } catch {
-    videos = [];
+  } catch (e) {
+    searchError = e && e.message ? e.message : 'arama hatası';
   }
   stSearchLoading = false;
   // Eski arama sonucu yeni aramayı ezmesin
@@ -22720,7 +22856,14 @@ async function doSmartTubeSearch() {
 
   searchGrid.innerHTML = '';
   if (!videos.length) {
-    searchGrid.innerHTML = `<div class="inv-status">${window.UiLocale?.t('Sonuç yok.') || 'Sonuç yok.'}</div>`;
+    // Ölü instance/zaman aşımı gerçek "sonuç yok"tan ayrılsın — eskiden hata
+    // sessizce boş sonuç gibi görünüyordu.
+    const div = document.createElement('div');
+    div.className = 'inv-status';
+    div.textContent = searchError
+      ? `${window.UiLocale?.t('Arama hatası') || 'Arama hatası'}: ${searchError}`
+      : (window.UiLocale?.t('Sonuç yok.') || 'Sonuç yok.');
+    searchGrid.appendChild(div);
     return;
   }
   stAppendSearchResults(videos);
@@ -22816,11 +22959,36 @@ function resetSmartTubeSearch() {
 // ----- Kanal sayfası aç -----
 async function openInvidiousChannelPage(channelId) {
   const grid = $('stGrid');
-  if (!grid) return;
+  if (!grid || !channelId) return;
+  // Arama sonucu kartından açılıyorsa arama katmanını kaldır — yoksa kanal
+  // sayfası gizli #stGrid'e çizilip görünmez kalıyordu. resetSmartTubeSearch
+  // kullanılamaz: sonunda stCurrentSection'ı yeniden render edip bu sayfayı siler.
+  stSearchActive = false;
+  stSearchSeq++;
+  stSearchQuery = '';
+  stSearchHasMore = false;
+  if (typeof stSearchSeen !== 'undefined' && stSearchSeen && stSearchSeen.clear) stSearchSeen.clear();
+  $('stSearchResults')?.classList.add('hidden');
+  const stSearchGridEl = $('stSearchGrid');
+  if (stSearchGridEl) stSearchGridEl.innerHTML = '';
+  const stSearchInpEl = $('stSearchInput');
+  if (stSearchInpEl) stSearchInpEl.value = '';
+  grid.classList.remove('hidden');
   const seq = ++stSectionSeq;
   grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
   const data = await loadInvidiousChannel(channelId).catch(() => null);
   if (seq !== stSectionSeq) return;
+  if (!data) {
+    // Yükleme hatası sahte "boş kanal" olarak görünmesin — ağ/ID hatasını göster
+    const title = $('stSectionTitle');
+    if (title) title.textContent = window.UiLocale?.t('Kanal') || 'Kanal';
+    grid.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'inv-status';
+    err.textContent = window.UiLocale?.t('Kanal bilgisi alınamadı.') || 'Kanal bilgisi alınamadı.';
+    grid.appendChild(err);
+    return;
+  }
   const info = (data && data.info) || {};
   const videos = (data && data.videos) || [];
 
@@ -22936,9 +23104,32 @@ function _ytShowView(id) {
   });
 }
 
+let _ytLoginModalBound = false;
+// Akış kuşağı: modal her kapanışta artar; sürüyor olan await'ler döndüğünde
+// kuşak değiştiyse sonuç uygulanmaz. Eskiden İptal/kapat yalnızca gizliyordu —
+// 30 dk'lık poll arka planda sürüp _ytPolling sonsuza takılı kalabiliyordu.
+let _ytFlowGen = 0;
+
+function ytModalError(msg) {
+  const el = $('ytModalStatus');
+  if (el) { el.textContent = msg || ''; el.classList.toggle('hidden', !msg); }
+  if (msg) setSmartTubeStatus(`⚠ ${msg}`);
+}
+
 function openYoutubeLogin() {
   const dlg = $('youtubeLoginModal');
   if (!dlg) return;
+  // Lazy bağlama — backdrop tıklaması ve Esc modalı kapatır (eskiden ikisi de
+  // yoktu; Esc alttaki oynatıcı katmanını kapatırken modal açık kalıyordu).
+  if (!_ytLoginModalBound) {
+    _ytLoginModalBound = true;
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) closeYoutubeLogin(); });
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeYoutubeLogin(); }
+      else if (e.key === 'Enter' && e.target.tagName === 'INPUT') $('ytClientSave')?.click();
+    });
+  }
+  ytModalError('');
   if (youtubeLoggedIn) {
     const as = $('ytLoggedAs');
     if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
@@ -22953,18 +23144,34 @@ function openYoutubeLogin() {
     }).catch(() => {});
   }
   dlg.classList.remove('hidden');
+  const focusTarget = youtubeLoggedIn ? $('ytLoggedClose') : $('ytClientId');
+  if (focusTarget) focusTarget.focus();
 }
 
 function closeYoutubeLogin() {
   const dlg = $('youtubeLoginModal');
   if (dlg) dlg.classList.add('hidden');
+  _ytFlowGen++;                                     // süren akışı geçersiz kıl
+  if (_ytPolling) {                                 // poll sürüyorsa main'de de iptal et
+    _ytPolling = false;
+    window.api.youtubeCancel().catch(() => {});
+  }
+  // Secret kapanışta DOM'da kalmasın (Invidious modalıyla aynı sözleşme)
+  const cid = $('ytClientId');
+  const csec = $('ytClientSecret');
+  if (cid) cid.value = '';
+  if (csec) csec.value = '';
 }
 
 async function startYoutubeDeviceFlow() {
   if (_ytPolling) return;
-  const res = await window.api.youtubeDeviceCode();
+  _ytPolling = true;                                // deviceCode await'i de kapsar
+  const gen = ++_ytFlowGen;
+  const res = await window.api.youtubeDeviceCode().catch(() => null);
+  if (gen !== _ytFlowGen) { _ytPolling = false; window.api.youtubeCancel().catch(() => {}); return; }
   if (!res || !res.ok) {
-    setSmartTubeStatus(`⚠ ${res && res.error ? res.error : 'Cihaz kodu alınamadı'}`);
+    _ytPolling = false;
+    ytModalError(res && res.error ? res.error : 'Cihaz kodu alınamadı');
     return;
   }
   _ytShowView('ytDeviceView');
@@ -22979,14 +23186,15 @@ async function startYoutubeDeviceFlow() {
   }
   const status = $('ytPollStatus');
   if (status) status.textContent = 'Onay bekleniyor…';
-  _ytPolling = true;
   try {
     const pr = await window.api.youtubePoll();
+    if (gen !== _ytFlowGen) return;                 // modal kapanmış — sonucu uygulama
     if (pr && pr.ok) {
       youtubeLoggedIn = true;
       youtubeUserName = pr.data.userName || 'YouTube';
       refreshYoutubeAuthUI();
       if (status) status.textContent = `Giriş yapıldı: ${youtubeUserName}`;
+      _ytPolling = false;          // poll bitti — close'un iptal yoluna düşmesin
       closeYoutubeLogin();
       osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
       if (stCurrentSection === 'subscriptions') renderSmartTubeSection('subscriptions', { force: true });
@@ -23000,6 +23208,8 @@ async function startYoutubeDeviceFlow() {
 
 async function doYoutubeLogout() {
   try { await window.api.youtubeLogout(); } catch (_) {}
+  _ytFlowGen++;            // sürüyor olabilecek akışın sonucunu düşür
+  _ytPolling = false;
   youtubeLoggedIn = false;
   youtubeUserName = '';
   refreshYoutubeAuthUI();
@@ -23031,7 +23241,7 @@ function initSmartTube() {
     if (cid || csec) {
       const r = await window.api.youtubeSetClient(cid, csec);
       if (!r || !r.ok) {
-        setSmartTubeStatus(`⚠ ${r && r.error ? r.error : 'Client kaydedilemedi'}`);
+        ytModalError(r && r.error ? r.error : 'Client kaydedilemedi');
         return;
       }
     }
@@ -23074,7 +23284,13 @@ function initSmartTube() {
     let searchDebounce = null;
     searchInp.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { clearTimeout(searchDebounce); doSmartTubeSearch(); }
-      else if (e.key === 'Escape') { clearTimeout(searchDebounce); resetSmartTubeSearch(); }
+      else if (e.key === 'Escape') {
+        // Yayılımı kes — yoksa document handler aramayı sıfırlarken tüm
+        // oynatıcı katmanını da (closePlayer) kapatıyordu.
+        e.stopPropagation();
+        clearTimeout(searchDebounce);
+        resetSmartTubeSearch();
+      }
     });
     searchInp.addEventListener('input', () => {
       syncSearchClear();
@@ -23130,6 +23346,8 @@ initSmartTube();
 function stUpNextToggle(show) {
   const panel = $('stUpNext');
   if (!panel) return;
+  // Düğme gizliyken (YouTube dışı medya) N kısayolu bayat öneri panelini açmasın
+  if (show !== false && $('playerUpNextBtn')?.classList.contains('hidden')) return;
   const visible = show === undefined ? panel.classList.contains('hidden') : !!show;
   panel.classList.toggle('hidden', !visible);
   $('playerUpNextBtn')?.classList.toggle('is-active', visible);
@@ -23153,12 +23371,15 @@ function buildUpNextItem(video) {
            || thumbs.find((t) => (t.quality || '').toLowerCase() === 'hqdefault')
            || thumbs[0] || null;
   if (tn && tn.url) {
-    const img = document.createElement('img');
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.alt = '';
-    img.src = absThumb(tn.url);
-    thumb.appendChild(img);
+    const thumbSrc = absThumb(tn.url);
+    if (thumbSrc) {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = '';
+      img.src = thumbSrc;
+      thumb.appendChild(img);
+    }
   }
   const secs = Number(video.lengthSeconds) || 0;
   if (secs > 0) {
@@ -23182,16 +23403,16 @@ function buildUpNextItem(video) {
   item.appendChild(thumb);
   item.appendChild(body);
   const open = () => {
-    const url = `https://www.youtube.com/watch?v=${video.videoId}`;
+    const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId || '')}`;
     const box = $('playerYtUrl');
     if (box) box.value = url;
     player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: player.openIntent };
-    $('playerProbe')?.click();
+    queuePlayerProbeFromCard();
     stUpNextToggle(false);
   };
   item.addEventListener('click', open);
   item.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); open(); }
   });
   return item;
 }
@@ -23268,7 +23489,13 @@ async function loadStComments(info, continuation = '') {
   // Sayfalar birikmesin — 200+ düğüm sonra "daha fazla" kesilsin (D-O6)
   const rendered = box.querySelectorAll('.st-comment').length;
   const ST_COMMENTS_MAX = 200;
-  if (rendered >= ST_COMMENTS_MAX) { stCommentsCont = ''; return; }
+  // Sınırda erken dönmeden ÖNCE bayat "Daha fazla" düğmesini kaldır — yoksa
+  // boş continuation'la tıklama yorumları sessizce 1. sayfaya sıfırlıyordu.
+  if (rendered >= ST_COMMENTS_MAX) {
+    stCommentsCont = '';
+    box.querySelector('.st-comments-more')?.remove();
+    return;
+  }
   if (!items.length && !continuation) {
     const none = document.createElement('div');
     none.className = 'inv-status st-comments-status';
@@ -23373,6 +23600,12 @@ async function fetchSubsWithActiveSource(url, lang, auto) {
   });
 }
 
+// URL kutusunu elle değiştirmek kartlardan silahlanan otomatik-açma niyetini
+// geçersiz kılar — yoksa eski anahtarla eşleşmeyen niyet bekleyip durur.
+if ($('playerYtUrl')) {
+  $('playerYtUrl').addEventListener('input', () => { player.pendingAutoOpen = null; });
+}
+
 if ($('playerProbe')) {
   $('playerProbe').addEventListener('click', async () => {
     const url = $('playerYtUrl').value.trim();
@@ -23405,6 +23638,9 @@ if ($('playerProbe')) {
     if (!res || !res.ok) {
       const message = friendlyYoutubeError((res && res.error) || 'bilinmeyen hata');
       logLine(`Video bilgisi alınamadı: ${message}`, 'error');
+      // Bekleyen otomatik-açma niyetini de düşür — başarısız probe'da silahlanmış
+      // kalıp sonraki manuel probe'da beklenmedik oynatma tetikliyordu.
+      player.pendingAutoOpen = null;
       if (/oturum|tarayıcı/i.test(message)) toggleDrawerAt(null, '#playerCookieBrowser');
       return;
     }

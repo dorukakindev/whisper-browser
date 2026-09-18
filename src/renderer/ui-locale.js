@@ -1189,6 +1189,8 @@
     ['Oyun', 'Gaming'],
     ['Haberler', 'News'],
     ['Kanal', 'Channel'],
+    ['Kanal bilgisi alınamadı.', 'Could not load channel info.'],
+    ['Arama hatası', 'Search error'],
     ['Trend kategorisi', 'Trending category'],
     ['Sonraki videolar ve yorumlar', 'Up next and comments'],
     ['Sonraki videolar (N)', 'Up next (N)'],

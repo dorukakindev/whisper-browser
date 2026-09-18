@@ -31,7 +31,7 @@ function test(name, fn) { tests.push({ name, fn }); }
 // ---------- handler bloğu çıkarımı ----------
 function handlerBody(name) {
   const m = MAIN.match(new RegExp(
-    `ipcMain\\.handle\\('${name}',\\s*async[\\s\\S]*?\\}\\);`, 'm'));
+    `ipcMain\\.handle\\('${name}',\\s*async[\\s\\S]*?\\n\\}\\);`, 'm'));
   assert.ok(m, `${name} handler'ı bulunamadı`);
   return m[0];
 }

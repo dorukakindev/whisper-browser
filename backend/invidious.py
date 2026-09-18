@@ -70,7 +70,7 @@ def _fetch_json(url, timeout=10, session=True):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json",
     }
-    if session and _session_cookie:
+    if session and _session_cookie and _session_url_ok(url):
         headers["Cookie"] = f"SID={_session_cookie}"
     try:
         req = Request(url, headers=headers)
@@ -504,19 +504,37 @@ def _ms_to_srt_time(ms):
 # anahtarı modül seviyesinde tutulur (ana süreçten gelir).
 _session_cookie = None   # SID değeri
 _session_username = None
+_session_instance = None # SID'in ait olduğu instance — başka host'a sızdırılmaz
 
 
-def set_session(cookie=None, username=None):
+def set_session(cookie=None, username=None, instance=None):
     """Ana süreçten gelen session'ı kur."""
-    global _session_cookie, _session_username
+    global _session_cookie, _session_username, _session_instance
     _session_cookie = cookie or None
     _session_username = username or None
+    _session_instance = (instance or None) if cookie else None
 
 
-def _auth_headers():
-    """Invidious session cookie varsa ekler."""
+def _session_url_ok(url):
+    """SID bu URL'nin host'una mı ait? Failover başka instance'a düşerse
+    credential sızmasın — SID yalnız kendi instance'ına gider."""
+    if not _session_instance:
+        return False   # instance bilinmiyorken sızdırmamak güvenli varsayılan
+    try:
+        return urllib_parse.urlparse(url).netloc == urllib_parse.urlparse(_session_instance).netloc
+    except Exception:
+        return False
+
+
+def _auth_headers(url=None):
+    """Invidious session cookie'sini ekler.
+
+    url verilirse SID yalnızca kendi instance host'una eklenir (failover
+    sızıntısı önlenir). url=None → eski sözleşme: istek zaten oturumlu
+    instance'a gidiyor kabul edilir, SID eklenir.
+    """
     headers = {"User-Agent": "Mozilla/5.0"}
-    if _session_cookie:
+    if _session_cookie and (url is None or _session_url_ok(url)):
         headers["Cookie"] = f"SID={_session_cookie}"
     return headers
 
@@ -558,7 +576,7 @@ def login(username, password, instance=None):
                     break
             if not sid:
                 raise RuntimeError("Invidious session cookie alınamadı.")
-            set_session(cookie=sid, username=username)
+            set_session(cookie=sid, username=username, instance=inst)
             log(f"Invidious giriş başarılı: {username}")
             emit("login", ok=True, username=username, instance=inst, sid=sid)
     except HTTPError as e:
@@ -762,12 +780,15 @@ def feed_home(instance=None):
 
 def feed_subscriptions(instance=None):
     """Kullanıcının abonelik feed'i — giriş gerekli (/api/v1/auth/feed)."""
-    inst = instance or find_working_instance()
     if not _session_cookie:
         raise RuntimeError("Abonelikler için Invidious hesabına giriş gerekli.")
+    # Oturumlu istek failover YAPMAZ — SID yalnız kendi instance'ına gider;
+    # başka instance'a düşmek hem credential sızdırır hem yanlış hesap olur.
+    inst = _session_instance or instance or find_working_instance()
     log(f"Invidious subscriptions: {inst}")
     try:
-        req = Request(f"{inst}/api/v1/auth/feed", headers=_auth_headers())
+        feed_url = f"{inst}/api/v1/auth/feed"
+        req = Request(feed_url, headers=_auth_headers(feed_url))
         with urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         videos = [_parse_video_item(v) for v in (data.get("videos") or [])]
@@ -916,7 +937,7 @@ def main():
     # Session — env (süreç listesinde görünmez) veya argv
     sid = os.environ.get("WHISPER_INVIDIOUS_SID", "").strip() or args.sid.strip()
     if sid and args.command not in ("login", "logout"):
-        set_session(cookie=sid)
+        set_session(cookie=sid, instance=instance)
 
     try:
         if args.command == "probe":

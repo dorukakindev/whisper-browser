@@ -260,6 +260,27 @@ class InvidiousAuth(unittest.TestCase):
         finally:
             invidious.set_session(cookie=None, username=None)
 
+    def test_auth_headers_no_leak_to_other_instance(self):
+        """SID, failover ile farklı instance'a düşen isteğe eklenmemeli."""
+        invidious.set_session(cookie="abc123", username="u",
+                              instance="https://good.example.com")
+        try:
+            same = invidious._auth_headers("https://good.example.com/api/v1/auth/feed")
+            self.assertEqual(same.get("Cookie"), "SID=abc123")
+            other = invidious._auth_headers("https://evil.example.com/api/v1/auth/feed")
+            self.assertNotIn("Cookie", other)
+        finally:
+            invidious.set_session(cookie=None, username=None)
+
+    def test_auth_headers_no_instance_no_leak(self):
+        """Instance bilinmiyorken URL'li isteğe SID sızdırma (fail-safe)."""
+        invidious.set_session(cookie="abc123", username="u")
+        try:
+            headers = invidious._auth_headers("https://unknown.example.com/api/v1")
+            self.assertNotIn("Cookie", headers)
+        finally:
+            invidious.set_session(cookie=None, username=None)
+
 
 class InvidiousFeedParsing(unittest.TestCase):
     """Feed/video item parsing."""

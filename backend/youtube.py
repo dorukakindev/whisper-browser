@@ -132,6 +132,7 @@ def poll(client_id, expires_in=1800, interval=5):
         raise RuntimeError("Device code eksik — önce device_code çalıştırın.")
     deadline = time.time() + max(60, int(expires_in))
     delay = max(3, int(interval))
+    net_errors = 0
     while time.time() < deadline:
         time.sleep(delay)
         data, err = _post_form(OAUTH_TOKEN, {
@@ -151,11 +152,23 @@ def poll(client_id, expires_in=1800, interval=5):
             return
         code = (err or {}).get("error", "")
         if code == "authorization_pending":
+            net_errors = 0
             log("Onay bekleniyor…")
             continue
         if code == "slow_down":
+            net_errors = 0
             delay += 5
             continue
+        # Geçici ağ/5xx hatası tek seferde akışı öldürmesin — üst üste 6 kez
+        # gelirse ancak o zaman pes et (eskiden tek kopma 30 dk'lık pencereyi
+        # kapatıyordu).
+        if code == "network" or str(code).startswith("http_5"):
+            net_errors += 1
+            if net_errors < 6:
+                log(f"Token yoklaması geçici hata ({net_errors}/6): {code}")
+                continue
+            raise RuntimeError(f"Token yoklaması ağ hatası sürüyor: {code}")
+        net_errors = 0
         if code in ("expired_token", "access_denied", "invalid_grant"):
             raise RuntimeError({
                 "expired_token": "Kodun süresi doldu — yeniden kod üretin.",

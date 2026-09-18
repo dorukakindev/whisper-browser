@@ -146,7 +146,7 @@ test('backend: timedtext srv3 istenir ve srv1 parse edilir', () => {
 test('backend: SID env/argv kabul edilir ve session kurulur', () => {
   assert.match(INV_PY, /WHISPER_INVIDIOUS_SID/);
   assert.match(INV_PY, /--sid/);
-  assert.match(INV_PY, /set_session\(cookie=sid\)/);
+  assert.match(INV_PY, /set_session\(cookie=sid[,)]/);
 });
 
 test('backend: instance failover yardımcısı var', () => {

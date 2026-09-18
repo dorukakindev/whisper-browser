@@ -1809,6 +1809,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 }
 .player-panel > .player-panel-title { margin-bottom: 0; }
 .player-panel > .player-panel-title:not(:first-child) { margin-top: 6px; }
+.player-panel > .hint { margin-top: 0; }
 
 .player-panel-title {
   font-size: 11px;
@@ -1828,6 +1829,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 /* Kaynak sekmesi içeriği: alanlar tek tip aralıkla dizilsin — eskiden margin
    yoktu ve kontroller yapışık/rastgele boşluklu duruyordu. */
 .ptab-content { display: flex; flex-direction: column; gap: 10px; }
+/* Flex gap üstüne kalan margin'ler çift boşluk üretir — sıfırla. */
+.ptab-content > .source-actions { margin-top: 0 !important; }
+.ptab-content > .player-auto-next { margin-top: 0; }
 
 .player-yt-info { display: flex; flex-direction: column; gap: 8px; }
 .player-yt-title { font-size: 12px; color: var(--text-dim); line-height: 1.4; }

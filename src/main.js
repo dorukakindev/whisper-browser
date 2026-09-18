@@ -1077,27 +1077,35 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
 }
 
 // access_token taze değilse refresh_token ile yeniler; refresh_token da
-// düştüyse oturumu temizler ve null döner.
+// düştüyse oturumu temizler ve null döner. Eşzamanlı çağrılar TEK uçuştaki
+// yenilemeyi paylaşır — yoksa ikinci çağrı mediaJobs slot'una takılıp mevcut
+// oturum varken "giriş yapın" hatası döndürüyordu.
+let _ytRefreshInFlight = null;
 async function ensureYoutubeAccessToken() {
   if (!youtubeSession.refreshToken) return null;
   if (youtubeSession.accessToken && Date.now() < youtubeSession.expiresAt - 60_000) {
     return youtubeSession.accessToken;
   }
   if (!youtubeSession.clientId) return null;
-  const res = await runYoutubeCommand(
-    ['refresh', '--client-id', youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
-  if (res && res.ok && res.data && res.data.access_token) {
-    youtubeSession.accessToken = res.data.access_token;
-    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
-    return youtubeSession.accessToken;
-  }
-  const msg = String(res && res.error || '');
-  if (/invalid_grant|oturum düştü|giriş gerekli/i.test(msg)) {
-    youtubeSession.refreshToken = '';
-    youtubeSession.accessToken = '';
-    persistYoutubeSession();
-  }
-  return null;
+  if (_ytRefreshInFlight) return _ytRefreshInFlight;
+  _ytRefreshInFlight = (async () => {
+    const res = await runYoutubeCommand(
+      ['refresh', '--client-id', youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
+    if (res && res.ok && res.data && res.data.access_token) {
+      youtubeSession.accessToken = res.data.access_token;
+      youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
+      return youtubeSession.accessToken;
+    }
+    const msg = String(res && res.error || '');
+    if (/invalid_grant|oturum düştü|giriş gerekli/i.test(msg)) {
+      youtubeSession.refreshToken = '';
+      youtubeSession.accessToken = '';
+      persistYoutubeSession();
+    }
+    return null;
+  })();
+  try { return await _ytRefreshInFlight; }
+  finally { _ytRefreshInFlight = null; }
 }
 
 function validateInvidiousInstance(v) {
@@ -1731,6 +1739,9 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
 
 ipcMain.handle('youtube:logout', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  // Uçuştaki poll'u öldür — yoksa çıkış sonrası gelen başarı sonucu oturumu
+  // diske geri yazıyor ve mediaJobs slot'u revoke'u da kilitliyordu.
+  if (mediaJobs.youtube) terminateProcessTree(mediaJobs.youtube, { spawn });
   // Revoke en-iyi-çaba — takılmasın diye kısa timeout; başarısızsa da temizleriz.
   await runYoutubeCommand(['revoke'], null, 15_000, youtubeAuthEnv()).catch(() => null);
   youtubeSession.refreshToken = '';
