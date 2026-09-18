@@ -24,6 +24,13 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 from ndjson_utils import json_dumps_finite
 
+try:
+    import yt_dlp
+    _YT_DLP_AVAILABLE = True
+except ImportError:
+    yt_dlp = None
+    _YT_DLP_AVAILABLE = False
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Varsayılan Invidious instance'ları (sırasıyla deneniyor)
@@ -416,31 +423,86 @@ def _parse_video_item(v):
     }
 
 
+def _ytdlp_search_videos(query, max_results=24):
+    """yt-dlp ytsearch ile video listesi çeker — Invidious devre dışıysa yedek yol."""
+    if not _YT_DLP_AVAILABLE:
+        raise RuntimeError("yt-dlp mevcut değil")
+    ydl_opts = {
+        "quiet": True,
+        "extract_flat": True,
+        "skip_download": True,
+        "no_warnings": True,
+        "ignoreerrors": True,
+    }
+    search = f"ytsearch{max_results}:{query}"
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(search, download=False)
+    entries = (info or {}).get("entries") or []
+    out = []
+    for v in entries:
+        if not v:
+            continue
+        thumbs = []
+        for t in v.get("thumbnails") or []:
+            url = t.get("url")
+            if not url:
+                continue
+            thumbs.append({
+                "quality": str(t.get("height") or ""),
+                "url": url,
+                "width": int(t.get("width") or 0),
+                "height": int(t.get("height") or 0),
+            })
+        out.append({
+            "videoId": v.get("id") or "",
+            "title": v.get("title") or "",
+            "author": v.get("uploader") or v.get("channel") or "",
+            "authorId": v.get("uploader_id") or v.get("channel_id") or "",
+            "lengthSeconds": int(v.get("duration") or 0),
+            "viewCount": int(v.get("view_count") or 0),
+            "publishedText": "",
+            "published": int(v.get("timestamp") or 0),
+            "videoThumbnails": thumbs,
+        })
+    return out
+
+
 def feed_popular(instance=None):
-    """Popüler videolar (misafir izlenebilir)."""
-    inst = instance or find_working_instance()
-    log(f"Invidious popular: {inst}")
-    data = _fetch_json(f"{inst}/api/v1/popular", timeout=10)
-    videos = [_parse_video_item(v) for v in (data or [])]
-    emit("feed", kind="popular", videos=videos, instance=inst)
+    """Popüler videolar (Invidious API'si artık çoğu instance'da devre dışı — yt-dlp ytsearch yedek)."""
+    try:
+        inst = instance or find_working_instance()
+        log(f"Invidious popular: {inst}")
+        data = _fetch_json(f"{inst}/api/v1/popular", timeout=10)
+        videos = [_parse_video_item(v) for v in (data or [])]
+        if videos:
+            emit("feed", kind="popular", videos=videos, instance=inst)
+            return
+        raise RuntimeError("Invidious popüler boş döndü")
+    except Exception as primary:
+        log(f"Invidious başarısız, yt-dlp yedek denenecek: {primary}")
+        videos = _ytdlp_search_videos("trending music 2026", max_results=24)
+        emit("feed", kind="popular", videos=videos, instance="yt-dlp:ytdlp_search")
 
 
 def feed_trending(instance=None):
-    """Trend videolar."""
-    inst = instance or find_working_instance()
-    log(f"Invidious trending: {inst}")
-    # Invidious /api/v1/trending 4 kategori: music/gaming/news/movies
-    all_videos = []
+    """Trend videolar (yt-dlp ytsearch yedek)."""
     try:
+        inst = instance or find_working_instance()
+        log(f"Invidious trending: {inst}")
+        # Invidious /api/v1/trending 4 kategori: music/gaming/news/movies
+        all_videos = []
         for tab in ("music", "gaming", "news", "movies"):
             data = _fetch_json(f"{inst}/api/v1/trending?type={tab}", timeout=10)
             if data:
                 all_videos.extend([_parse_video_item(v) for v in data])
-    except Exception:
-        # trending yoksa popular'a düş
-        feed_popular(instance)
-        return
-    emit("feed", kind="trending", videos=all_videos, instance=inst)
+        if all_videos:
+            emit("feed", kind="trending", videos=all_videos, instance=inst)
+            return
+        raise RuntimeError("Invidious trend boş döndü")
+    except Exception as primary:
+        log(f"Invidious başarısız, yt-dlp yedek denenecek: {primary}")
+        videos = _ytdlp_search_videos("youtube trending videos today", max_results=24)
+        emit("feed", kind="trending", videos=videos, instance="yt-dlp:ytdlp_search")
 
 
 def feed_subscriptions(instance=None):
@@ -467,20 +529,29 @@ def feed_subscriptions(instance=None):
 
 # ===== Arama =====
 def search(query, page=1, instance=None):
-    """Invidious arama. Sonuçları video listesi olarak döndürür."""
-    inst = instance or find_working_instance()
-    log(f"Invidious search: {query!r}")
-    q = urllib_parse.quote(query)
-    data = _fetch_json(
-        f"{inst}/api/v1/search?q={q}&page={int(page)}&type=video",
-        timeout=15
-    )
-    videos = []
-    for v in (data or []):
-        if v.get("type") != "video":
-            continue
-        videos.append(_parse_video_item(v))
-    emit("search", query=query, page=int(page), videos=videos, instance=inst)
+    """Invidious arama. Sonuçları video listesi olarak döndürür. yt-dlp yedek."""
+    try:
+        inst = instance or find_working_instance()
+        log(f"Invidious search: {query!r}")
+        q = urllib_parse.quote(query)
+        data = _fetch_json(
+            f"{inst}/api/v1/search?q={q}&page={int(page)}&type=video",
+            timeout=15
+        )
+        videos = []
+        for v in (data or []):
+            if v.get("type") != "video":
+                continue
+            videos.append(_parse_video_item(v))
+        if videos:
+            emit("search", query=query, page=int(page), videos=videos, instance=inst)
+            return
+        raise RuntimeError("Invidious arama boş")
+    except Exception as primary:
+        log(f"Invidious arama başarısız, yt-dlp yedek: {primary}")
+        max_results = 20 * max(1, int(page))
+        videos = _ytdlp_search_videos(query, max_results=max_results)
+        emit("search", query=query, page=int(page), videos=videos, instance="yt-dlp:ytdlp_search")
 
 
 # ===== Kanal =====
