@@ -28,11 +28,42 @@ async function main() {
   // Mock Invidious IPC — gerçek handler'lar bu bare-window'da kayıtlı değil.
   const popular = Array.from({ length: 6 }, (_, i) => mkVideo(`pop${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'x'), `Popular ${i}`, 'PopChannel'));
   const trending = Array.from({ length: 4 }, (_, i) => mkVideo(`trd${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'y'), `Trending ${i}`, 'TrendChannel'));
-  ipcMain.handle('invidious:feed', async (_e, kind) => ({
-    ok: true,
-    data: { instance: 'https://mock.invidious.local', videos: kind === 'trending' ? trending : popular },
-  }));
+  const musicTrend = Array.from({ length: 3 }, (_, i) => mkVideo(`mus${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'z'), `MusicHit ${i}`, 'MusicChannel'));
+  ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
+    const tab = opts && opts.tab;
+    if (kind === 'trending' && tab === 'music') {
+      return { ok: true, data: { instance: 'https://mock.invidious.local', tab, videos: musicTrend } };
+    }
+    if (kind === 'trending' && tab === 'news') {
+      // Degraded provenance — renderer "yedek" etiketi göstermeli
+      return { ok: true, data: { instance: 'yt-dlp:tab', tab, videos: musicTrend, degraded: true, source: 'yt-dlp' } };
+    }
+    return { ok: true, data: { instance: 'https://mock.invidious.local', videos: kind === 'trending' ? trending : popular } };
+  });
   ipcMain.handle('invidious:session', async () => ({ ok: true, data: { loggedIn: false } }));
+  ipcMain.handle('invidious:channel', async (_e, id) => ({
+    ok: true,
+    data: {
+      info: { author: 'MockChannel', authorId: id, subCount: 123456, description: 'desc' },
+      videos: popular.slice(0, 3),
+    },
+  }));
+  ipcMain.handle('invidious:comments', async (_e, vid) => ({
+    ok: true,
+    data: {
+      videoId: vid,
+      comments: [
+        { author: 'u1', text: '<b>ilk</b> yorum', likeCount: 12, publishedText: '1d' },
+        { author: 'u2', text: 'ikinci', likeCount: 0, publishedText: '2d' },
+      ],
+      continuation: '',
+      disabled: false,
+    },
+  }));
+  ipcMain.handle('invidious:search', async (_e, q, opts) => ({
+    ok: true,
+    data: { videos: popular.slice(0, 2).map(v => ({ ...v, videoId: 's' + v.videoId.slice(0, 10), title: `${q}-${v.title}` })) },
+  }));
   ipcMain.handle('queue:save', async () => ({ ok: true }));
   ipcMain.handle('models:status', async () => ({ ok: true, data: {} }));
   ipcMain.on('settings:saveSync', (e) => { e.returnValue = { ok: true }; });
@@ -104,8 +135,102 @@ async function main() {
   assert(probe.cardCount >= 10, `feed kartları basılmadı: ${probe.cardCount}`);
   assert(probe.minCardWidth >= 180, `kartlar hücreye sıkıştı: min width ${probe.minCardWidth}`);
 
+  // ===== Yeni SmartTube parite işlevleri — gerçek DOM'da doğrula =====
+  const feat = await win.webContents.executeJavaScript(`(async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const out = {};
+    const grid = document.getElementById('stGrid');
+    const browser = document.getElementById('smarttubeBrowser');
+    for (let el = browser; el && el !== document.body; el = el.parentElement) {
+      el.classList.remove('hidden');
+      el.style.removeProperty('display');
+    }
+
+    // 1) Trend chip'leri — bölüme girince 5 chip, tıklayınca tab'lı istek
+    renderSmartTubeSection('trending');
+    await sleep(400);
+    const chips = [...grid.querySelectorAll('.st-chip')];
+    out.chipCount = chips.length;
+    out.chipActive = chips.filter((c) => c.classList.contains('is-active')).length;
+    const musicChip = chips.find((c) => /müzik|music/i.test(c.textContent));
+    if (musicChip) musicChip.click();
+    await sleep(400);
+    out.musicTabLoaded = grid.textContent.includes('MusicHit');
+    out.chipActiveAfterClick = [...grid.querySelectorAll('.st-chip.is-active')].length;
+
+    // 2) Degraded statü — 'news' tab'ı mock'ta degraded döner
+    const newsChip = [...grid.querySelectorAll('.st-chip')].find((c) => /haber|news/i.test(c.textContent));
+    if (newsChip) newsChip.click();
+    await sleep(400);
+    const status = document.getElementById('stStatusLine');
+    out.degradedStatus = status && /yedek|fallback/i.test(status.textContent);
+
+    // 3) Roving grid nav — ArrowRight sonraki karta odaklar
+    const cards = [...grid.querySelectorAll('.st-card')];
+    if (cards.length >= 2) {
+      cards[0].focus();
+      cards[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      out.rovingRight = document.activeElement === cards[1];
+      cards[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+      out.rovingEnd = document.activeElement === cards[cards.length - 1];
+    }
+
+    // 4) Up Next + yorumlar — mock probe context'i
+    // (production'da probe handler player.ytInfo'yu AYNI nesneyle kurar;
+    //  loadStComments'in stale koruması buna bakar)
+    const fakeInfo = {
+      videoId: 'abc12345678', id: 'abc12345678', title: 't',
+      instance: 'https://mock.invidious.local',
+      recommended: [{ videoId: 'rec12345678', title: 'Rec Video', author: 'RecCh',
+                      videoThumbnails: [], lengthSeconds: 61 }],
+    };
+    player.ytInfo = fakeInfo;
+    refreshSmartTubePlayerContext(fakeInfo);
+    await sleep(400);
+    out.upNextBtn = !document.getElementById('playerUpNextBtn').classList.contains('hidden');
+    out.upNextItems = document.getElementById('stUpNextList').children.length;
+    const comments = document.getElementById('stCommentsList');
+    out.commentCount = comments.querySelectorAll('.st-comment').length;
+    out.commentNoHtml = !comments.querySelector('.st-comment b');   // textContent ile basıldı
+
+    // 5) Kanal sayfası — iç içe grid yok, başlık tam satır
+    await openInvidiousChannelPage('UCmock');
+    await sleep(300);
+    const head = grid.querySelector('.st-channel-head');
+    out.channelHead = !!head && head.style.gridColumn === '1 / -1';
+    out.channelNoNested = grid.querySelectorAll(':scope > .st-grid').length === 0;
+    out.channelCards = grid.querySelectorAll(':scope > .st-card').length;
+
+    // 6) Kırpık ipucu — hint rect'i stage içinde kalmalı
+    const hint = document.getElementById('subHiddenHint');
+    const stage = document.getElementById('playerStage');
+    hint.classList.remove('hidden');
+    const hr = hint.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    out.hintInStage = hr.right <= sr.right + 1 && hr.bottom <= sr.bottom + 1 && hr.width > 0;
+    hint.classList.add('hidden');
+    return out;
+  })()`, true);
+
+  const failed = Object.entries(feat).filter(([, v]) => !v && typeof v === 'boolean').map(([k]) => k);
+  assert(feat.chipCount === 5, `trend chip sayısı: ${feat.chipCount}`);
+  assert(feat.musicTabLoaded, 'music chip tıklaması tab=music içeriğini getirmedi');
+  assert(feat.chipActiveAfterClick === 1, `aktif chip: ${feat.chipActiveAfterClick}`);
+  assert(feat.degradedStatus === true, 'degraded statü satırı gösterilmedi');
+  assert(feat.rovingRight === true, 'ArrowRight sonraki karta odaklamadı');
+  assert(feat.rovingEnd === true, 'End son karta odaklamadı');
+  assert(feat.upNextBtn === true, 'up-next düğmesi görünmedi');
+  assert(feat.upNextItems >= 1, `up-next öğe: ${feat.upNextItems}`);
+  assert(feat.commentCount >= 2, `yorum sayısı: ${feat.commentCount}`);
+  assert(feat.commentNoHtml === true, 'yorum HTML ile basıldı');
+  assert(feat.channelHead === true, 'kanal başlığı tam satır değil');
+  assert(feat.channelNoNested === true, 'kanal sayfasında iç içe grid var');
+  assert(feat.channelCards >= 3, `kanal kartları: ${feat.channelCards}`);
+  assert(feat.hintInStage === true, 'subHiddenHint stage sınırları dışında/kırpık');
+  assert(failed.length === 0, `özellik probları: ${failed.join(', ')}`);
+
   win.close();
-  console.log(JSON.stringify({ ok: true, probe }));
+  console.log(JSON.stringify({ ok: true, probe, feat }));
 }
 
 app.whenReady().then(main).then(() => app.quit()).catch(error => {

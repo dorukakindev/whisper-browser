@@ -883,6 +883,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
 // Invidious API için basit wrapper — runMediaCommand'a benzer ama invidious.py kullanır
 const INVIDIOUS_RESULT_TYPES = new Set([
   'probe', 'subs', 'feed', 'search', 'channel', 'login', 'logout', 'downloaded',
+  'comments', 'playlist',
 ]);
 
 // Son başarılı Invidious instance'ı — sonraki komutlarda rescan'ı atlar.
@@ -1180,6 +1181,11 @@ ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
     return { ok: false, error: 'Abonelikler için Invidious hesabına giriş gerekli.' };
   }
   const args = [kind];
+  // Trend kategori sekmesi — yalnızca bilinen değerler geçer
+  const tab = String(opts && opts.tab || '').trim().toLowerCase();
+  if (kind === 'trending' && ['music', 'gaming', 'news', 'movies'].includes(tab)) {
+    args.push('--tab', tab);
+  }
   if (instance) args.push('--instance', instance);
   const timeoutMs = kind === 'trending' ? 120_000 : 75_000;
   return runInvidiousCommand(args, 'invidious', (ev) => {
@@ -1224,6 +1230,50 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
       mainWindow.webContents.send('invidious:event', ev);
     }
   }, 75_000, invidiousAuthEnv(instance));
+});
+
+// Invidious yorumlar — /api/v1/comments/:id (continuation ile sayfalama)
+ipcMain.handle('invidious:comments', async (_e, url, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const isId = typeof url === 'string' && /^[A-Za-z0-9_-]{11}$/.test(url.trim());
+  let mediaUrl = null;
+  try { mediaUrl = decideUrlPolicy(url, 'renderer-external'); } catch (_) { /* düz ID */ }
+  const isHttp = mediaUrl && mediaUrl.action === 'external' && ['http:', 'https:'].includes(mediaUrl.protocol);
+  if (!isId && !isHttp) {
+    return { ok: false, error: "Geçerli bir YouTube URL'si veya video ID gerekli." };
+  }
+  const target = isId ? url.trim() : mediaUrl.url;
+  const o = opts || {};
+  const instance = resolveInvidiousInstance(o.instance);
+  const args = ['comments', '--url', target];
+  const cont = String(o.continuation || '').trim();
+  if (cont) args.push('--continuation', cont.slice(0, 500));
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  }, 60_000, invidiousAuthEnv(instance));
+});
+
+// Invidious oynatma listesi — /api/v1/playlists/:id
+ipcMain.handle('invidious:playlist', async (_e, playlistId, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const pid = String(playlistId || '').trim();
+  if (!/^[A-Za-z0-9_-]{2,200}$/.test(pid)) {
+    return { ok: false, error: 'Geçersiz playlist ID formatı.' };
+  }
+  const o = opts || {};
+  const instance = resolveInvidiousInstance(o.instance);
+  const args = ['playlist', '--playlist-id', pid];
+  const page = Math.max(1, parseInt(o.page, 10) || 1);
+  if (page > 1) args.push('--page', String(Math.min(page, 100)));
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  }, 60_000, invidiousAuthEnv(instance));
 });
 
 // Invidious giriş — ana süreçte Invidious session saklanır (Invidious

@@ -1929,6 +1929,24 @@
             </section>
           </div>
 
+          <!-- Up Next + yorumlar paneli: oynatma sırasında sağdan kayar,
+               SmartTube'daki "sonraki videolar" rayının karşılığı -->
+          <aside class="st-upnext hidden" id="stUpNext" aria-label="Sonraki videolar ve yorumlar">
+            <div class="st-upnext-head">
+              <span class="st-upnext-title" id="stUpNextTitle">Sıradaki</span>
+              <button class="st-icon-btn" id="stUpNextClose" aria-label="Paneli kapat">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+            <div class="st-upnext-list" id="stUpNextList" role="list"></div>
+            <div class="st-comments">
+              <div class="st-comments-title" id="stCommentsTitle">Yorumlar</div>
+              <div class="st-comments-list" id="stCommentsList">
+                <div class="inv-status">Yorumlar yükleniyor…</div>
+              </div>
+            </div>
+          </aside>
+
           <!-- Kaldigin yerden devam - uzun filmlerde kritik -->
           <div class="resume-chip hidden" id="resumeChip">
             <span id="resumeChipText"></span>
@@ -1986,6 +2004,9 @@
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
             </button>
             <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" aria-label="Ses düzeyi"/>
+            <button class="btn-icon hidden" id="playerUpNextBtn" title="Sonraki videolar (N)" aria-label="Sonraki videolar panelini aç veya kapat">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="13" height="11" rx="2"/><path d="M19 8l2 2-2 2M8 21h8"/></svg>
+            </button>
             <button class="btn-icon" id="abLoopBtn" title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat (B)" aria-label="A-B döngüsü noktalarını ayarla">A-B</button>
             <button class="btn-icon" id="shotBtn" title="Ekran görüntüsü al (S)" aria-label="Ekran görüntüsü al">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>

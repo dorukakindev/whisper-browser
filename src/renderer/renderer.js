@@ -6466,11 +6466,12 @@ function setBrowserCaptureEnabled(enabled, persist = true) {
     button.setAttribute('aria-label', button.title);
   }
   if (player.workspaceMode === 'browser' && $('playerMeta')) {
+    const mt = (s) => window.UiLocale?.t(s) || s;
     $('playerMeta').textContent = tab?.compatibilityMode
-      ? 'Web sayfası · site uyumluluk modu açık'
+      ? mt('Web sayfası · site uyumluluk modu açık')
       : player.browserCaptureEnabled
-      ? 'Web videosu · altyazı algılama açık'
-      : 'Web videosu · altyazı yakalama kapalı';
+      ? mt('Web videosu · altyazı algılama açık')
+      : mt('Web videosu · altyazı yakalama kapalı');
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserCaptureEnabled', player.browserCaptureEnabled ? 'true' : 'false'); } catch (_) {}
@@ -9685,10 +9686,11 @@ function updateBrowserNavigation(data, options = {}) {
   if (tab) updateBrowserTabPresentation(tab);
   updateBrowserBookmarkButton();
   if (player.workspaceMode === 'browser') {
-    $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
-    $('playerMeta').textContent = data.loading ? 'Sayfa yükleniyor'
-      : tab?.compatibilityMode ? 'Web sayfası · site uyumluluk modu açık'
-      : 'Web videosu · altyazı algılama açık';
+    $('playerTitle').textContent = player.browserPageTitle || (window.UiLocale?.t('Tarayıcı') || 'Tarayıcı');
+    const mt = (s) => window.UiLocale?.t(s) || s;
+    $('playerMeta').textContent = data.loading ? mt('Sayfa yükleniyor')
+      : tab?.compatibilityMode ? mt('Web sayfası · site uyumluluk modu açık')
+      : mt('Web videosu · altyazı algılama açık');
   }
   if (data.loading === false && data.url && player.workspaceMode === 'browser' && !player.browserTracks.length) {
     scheduleBrowserNoTrackSuggestion(data.url);
@@ -10185,8 +10187,8 @@ function setWorkspaceMode(mode, persist = true) {
   }
   if (mode === 'browser') {
     $('playerVideo')?.pause();
-    $('playerTitle').textContent = player.browserPageTitle || 'Tarayıcı';
-    $('playerMeta').textContent = 'Web videosu · altyazı algılama açık';
+    $('playerTitle').textContent = player.browserPageTitle || (window.UiLocale?.t('Tarayıcı') || 'Tarayıcı');
+    $('playerMeta').textContent = window.UiLocale?.t('Web videosu · altyazı algılama açık') || 'Web videosu · altyazı algılama açık';
     requestAnimationFrame(() => showBrowserWorkspace());
     scheduleBrowserOverlaySync();
     maybeShowBrowserRecovery();
@@ -10194,8 +10196,8 @@ function setWorkspaceMode(mode, persist = true) {
     if (window.api.hideBrowser) window.api.hideBrowser().catch(() => {});
     if (previousMode === 'browser') restoreLocalSubtitleWorkspace();
     $('playerTitle').textContent = player.localPath
-      ? player.localPath.split(/[\\/]/).pop() : (player.ytInfo && player.ytInfo.title) || 'Oynatıcı';
-    $('playerMeta').textContent = 'Çift dilli izleme ve çalışma alanı';
+      ? player.localPath.split(/[\\/]/).pop() : (player.ytInfo && player.ytInfo.title) || (window.UiLocale?.t('Oynatıcı') || 'Oynatıcı');
+    $('playerMeta').textContent = window.UiLocale?.t('Çift dilli izleme ve çalışma alanı') || 'Çift dilli izleme ve çalışma alanı';
   }
   if (persist) {
     try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
@@ -10243,7 +10245,7 @@ async function navigateBrowserFromAddress() {
   if (result?.aborted) return result;
   if (!result || !result.ok) {
     setBrowserSignal(`Sayfa açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
-    if (player.workspaceMode === 'browser') $('playerMeta').textContent = 'Sayfa yüklenemedi';
+    if (player.workspaceMode === 'browser') $('playerMeta').textContent = window.UiLocale?.t('Sayfa yüklenemedi') || 'Sayfa yüklenemedi';
     setBrowserLoadingState(false);
     syncBrowserAddressAction();
     return result || null;
@@ -11634,7 +11636,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       tab.errorUrl = event.url || tab.url || player.browserPageUrl || '';
     }
     updateBrowserNavigation({ ...event, loading: false });
-    if (player.workspaceMode === 'browser') $('playerMeta').textContent = event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi';
+    if (player.workspaceMode === 'browser') {
+      const mt = (s) => window.UiLocale?.t(s) || s;
+      $('playerMeta').textContent = event.type === 'tab-crashed' ? mt('Sekme çöktü') : mt('Sayfa yüklenemedi');
+    }
     showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, message: event.message || `hata ${event.code}` });
     setBrowserSignal(`${event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi'}: ${event.message || `hata ${event.code}`}`, false,
       { priority: 100, holdMs: 7000 });
@@ -16195,6 +16200,7 @@ function setMediaKey(key) {
     $('playerStream')?.classList.add('hidden');
     $('playerAudioField')?.classList.add('hidden');
     $('playerStreamAudioField')?.classList.add('hidden');
+    if (typeof hideUpNextPanel === 'function') hideUpNextPanel();
   }
   player.mediaKey = nextKey;
   if (player.pendingLibrarySeek && player.pendingLibrarySeek.key !== player.mediaKey) {
@@ -16422,7 +16428,7 @@ function setPlayerSource(src, title, key, meta) {
   if (typeof hideHomeOnVideoLoad === 'function') hideHomeOnVideoLoad();
   if (title) $('playerTitle').textContent = title;
   const metaEl = $('playerMeta');
-  if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma';
+  if (metaEl) metaEl.textContent = window.UiLocale?.t(meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma') || 'Yerel video · çift dilli çalışma';
   beginWatchSession();
   restoreWatchProfile(player.mediaKey);
 }
@@ -16650,7 +16656,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   if (typeof hideHomeOnVideoLoad === 'function') hideHomeOnVideoLoad();
   if (title) $('playerTitle').textContent = title;
   const metaEl = $('playerMeta');
-  if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma';
+  if (metaEl) metaEl.textContent = window.UiLocale?.t(meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma') || 'YouTube · indirmeden oynatma';
   if (!preserveMediaState) {
     beginWatchSession();
     restoreWatchProfile(player.mediaKey);
@@ -20769,6 +20775,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); stUpNextToggle(); return; }
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
     if ((e.key === ',' || e.key === '.') && player.browserPaused) {
       e.preventDefault();
@@ -22031,12 +22038,14 @@ async function fetchInvidiousChannelVideos(channelId) {
   return res.data.videos || [];
 }
 
-async function fetchInvidiousFeed(kind, force = false) {
-  const cached = invidiousFeedCache.get(kind);
+async function fetchInvidiousFeed(kind, force = false, opts = {}) {
+  // Tam payload döner: { videos, instance, degraded, source, tab }
+  const cacheKey = kind + (opts.tab ? `:${opts.tab}` : '');
+  const cached = invidiousFeedCache.get(cacheKey);
   if (!force && cached && (Date.now() - cached.ts) < INV_FEED_CACHE_MS) {
-    return cached.videos;
+    return cached.data;
   }
-  const res = await invCall(() => window.api.invidiousFeed(kind));
+  const res = await invCall(() => window.api.invidiousFeed(kind, opts));
   if (!res || !res.ok || !res.data) {
     const reason = (res && res.error) || 'bilinmeyen';
     logLine(`Invidious ${kind} alınamadı: ${reason}`, 'error');
@@ -22046,8 +22055,8 @@ async function fetchInvidiousFeed(kind, force = false) {
   if (res.data.instance && !String(res.data.instance).startsWith('yt-dlp')) {
     lastInvidiousInstance = res.data.instance;
   }
-  invidiousFeedCache.set(kind, { ts: Date.now(), videos: res.data.videos || [] });
-  return res.data.videos;
+  invidiousFeedCache.set(cacheKey, { ts: Date.now(), data: res.data });
+  return res.data;
 }
 
 async function searchInvidious(query, page = 1) {
@@ -22058,11 +22067,12 @@ async function searchInvidious(query, page = 1) {
 }
 
 async function fetchInvidiousSubscriptions(force = false) {
-  const videos = await fetchInvidiousFeed('subscriptions', force).catch((e) => {
+  const feedData = await fetchInvidiousFeed('subscriptions', force).catch((e) => {
     // Kanallar sekmesinde giriş hatası sessizce boş liste — ipucu gösterilir
-    if (/giriş|login|401|unauthor/i.test(e && e.message || '')) return [];
+    if (/giriş|login|401|unauthor/i.test(e && e.message || '')) return null;
     throw e;
   });
+  const videos = (feedData && feedData.videos) || [];
   // Videolardan benzersiz kanal listesi çıkar
   const seen = new Map();
   for (const v of videos) {
@@ -22155,8 +22165,8 @@ async function renderInvidiousHome() {
   root.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
 
   // Sıralı çek — ana süreçte tek Invidious slot'u var, paralel istek çakışır
-  const popular = await fetchInvidiousFeed('popular').catch(() => []);
-  const trending = await fetchInvidiousFeed('trending').catch(() => []);
+  const popular = (await fetchInvidiousFeed('popular').catch(() => null))?.videos || [];
+  const trending = (await fetchInvidiousFeed('trending').catch(() => null))?.videos || [];
 
   root.innerHTML = '';
 
@@ -22187,7 +22197,7 @@ async function renderInvidiousHome() {
   }
 
   // Abonelikler — giriş gerekli
-  const subs = await fetchInvidiousFeed('subscriptions').catch(() => []);
+  const subs = (await fetchInvidiousFeed('subscriptions').catch(() => null))?.videos || [];
   if (subs.length) {
     const sec = document.createElement('section');
     sec.className = 'inv-section';
@@ -22438,6 +22448,7 @@ async function renderSmartTubeSection(section, opts = {}) {
     grid.innerHTML = `<div class="inv-status" style="color:var(--accent);font-size:12px;">${msg}</div>`;
   };
 
+  let feedData = null;
   let videos = [];
   try {
     if (section === 'channels') {
@@ -22446,9 +22457,11 @@ async function renderSmartTubeSection(section, opts = {}) {
       renderSmartTubeChannels(channels || []);
       return;
     }
-    videos = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, force);
+    const feedOpts = section === 'trending' && stTrendTab ? { tab: stTrendTab } : {};
+    feedData = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, force, feedOpts);
     if (stale()) return;
-    if (!videos || !videos.length) {
+    videos = (feedData && feedData.videos) || [];
+    if (!videos.length) {
       showError('İçerik alınamadı — günlük kayıtlarına bak.');
       return;
     }
@@ -22461,8 +22474,14 @@ async function renderSmartTubeSection(section, opts = {}) {
     return;
   }
 
+  // Trend sekmesinde kategori chip'leri (SmartTube'daki Music/Gaming/News/Movies)
+  if (section === 'trending') {
+    grid.innerHTML = '';
+    grid.appendChild(buildTrendChips());
+  }
+
   if (section === 'home') {
-    const trending = await fetchInvidiousFeed('trending', false).catch(() => []);
+    const trending = (await fetchInvidiousFeed('trending', false).catch(() => null))?.videos || [];
     if (stale()) return;
     const seen = new Set();
     const dedupe = (list) => list.filter((v) => {
@@ -22482,14 +22501,50 @@ async function renderSmartTubeSection(section, opts = {}) {
       trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
     }
   } else {
-    renderSmartTubeGrid(grid, videos, null);
+    videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
   }
 
   if (stale()) return;
-  if (lastInvidiousInstance) setSmartTubeStatus(`Instance: ${lastInvidiousInstance}`);
+  // Kaynak doğruluğu: yt-dlp yedeği Invidious gibi gösterilmez
+  if (feedData && feedData.degraded) {
+    setSmartTubeStatus(`⚠ ${window.UiLocale?.t('Yedek kaynak (yt-dlp) — sonuçlar Invidious üzerinden gelmedi') || 'Yedek kaynak (yt-dlp)'}`);
+  } else if (lastInvidiousInstance) {
+    setSmartTubeStatus(`Instance: ${lastInvidiousInstance}`);
+  }
   if (!grid.children.length || (grid.children.length === 1 && grid.firstElementChild.classList.contains('inv-status'))) {
     grid.innerHTML = '<div class="inv-status">İçerik alınamadı. Oturum aç veya yt-dlp yolunu kullan.</div>';
   }
+}
+
+// ----- Trend kategori chip'leri -----
+let stTrendTab = '';   // '' = tümü | music | gaming | news | movies
+const ST_TREND_TABS = [
+  { id: '', tr: 'Tümü' },
+  { id: 'music', tr: 'Müzik' },
+  { id: 'gaming', tr: 'Oyun' },
+  { id: 'news', tr: 'Haberler' },
+  { id: 'movies', tr: 'Filmler' },
+];
+
+function buildTrendChips() {
+  const row = document.createElement('div');
+  row.className = 'st-chips';
+  row.setAttribute('role', 'tablist');
+  row.setAttribute('aria-label', 'Trend kategorisi');
+  for (const tab of ST_TREND_TABS) {
+    const chip = document.createElement('button');
+    chip.className = 'st-chip' + (stTrendTab === tab.id ? ' is-active' : '');
+    chip.setAttribute('role', 'tab');
+    chip.setAttribute('aria-selected', stTrendTab === tab.id ? 'true' : 'false');
+    chip.textContent = window.UiLocale?.t(tab.tr) || tab.tr;
+    chip.addEventListener('click', () => {
+      if (stTrendTab === tab.id) return;
+      stTrendTab = tab.id;
+      renderSmartTubeSection('trending');
+    });
+    row.appendChild(chip);
+  }
+  return row;
 }
 
 function renderSmartTubeGrid(grid, videos, _sectionLabel) {
@@ -22606,13 +22661,35 @@ function buildSmartTubeCard(video) {
   title.textContent = video.title || '';
   const sub = document.createElement('div');
   sub.className = 'st-card-sub';
-  // SmartTube meta satırı: kanal · görüntülenme · tarih
+  // Kanal adı ayrı ve tıklanabilir — kanal sayfasını açar (kartı oynatmaz)
+  if (video.author) {
+    const author = document.createElement('button');
+    author.type = 'button';
+    author.className = 'st-card-author';
+    author.textContent = video.author;
+    author.title = video.author;
+    const goChannel = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (video.authorId) openInvidiousChannelPage(video.authorId);
+    };
+    author.addEventListener('click', goChannel);
+    author.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') goChannel(e);
+      // diğer tuşlar (oklar) kabarcıklanıp grid gezinmesine gider
+    });
+    sub.appendChild(author);
+  }
+  // Görüntülenme + tarih meta satırı
   const metaParts = [];
-  if (video.author) metaParts.push(video.author);
   const views = Number(video.viewCount) || 0;
   if (views > 0) metaParts.push(`${formatCount(views)} ${window.UiLocale?.t('görüntüleme') || 'görüntüleme'}`);
   if (video.publishedText) metaParts.push(video.publishedText);
-  sub.textContent = metaParts.join(' · ');
+  if (metaParts.length) {
+    const stats = document.createElement('span');
+    stats.textContent = (video.author ? ' · ' : '') + metaParts.join(' · ');
+    sub.appendChild(stats);
+  }
   body.appendChild(title);
   body.appendChild(sub);
   card.appendChild(body);
@@ -22637,8 +22714,63 @@ function buildSmartTubeCard(video) {
   return card;
 }
 
+// ----- TV tarzı grid gezinmesi (roving arrow-key) -----
+// Grid içindeki .st-card'lar arasında ok tuşlarıyla gezinme; kart içindeki
+// butonlardan (kanal linki) da en yakın karta geri döner.
+function stGridColumns(grid) {
+  const cards = [...grid.querySelectorAll('.st-card')];
+  if (cards.length < 2) return 1;
+  const top = cards[0].offsetTop;
+  let cols = 0;
+  for (const c of cards) {
+    if (c.offsetTop === top) cols++;
+    else break;
+  }
+  return Math.max(1, cols);
+}
+
+function stGridNavKeydown(e) {
+  const key = e.key;
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key)) return;
+  const grid = e.currentTarget;
+  const cards = [...grid.querySelectorAll('.st-card')];
+  if (!cards.length) return;
+  const active = document.activeElement;
+  let idx = cards.indexOf(active);
+  if (idx < 0 && active && active.closest) {
+    idx = cards.indexOf(active.closest('.st-card'));
+  }
+  if (idx < 0) idx = 0;
+  const cols = stGridColumns(grid);
+  let next = idx;
+  if (key === 'ArrowRight') next = idx + 1;
+  else if (key === 'ArrowLeft') next = idx - 1;
+  else if (key === 'ArrowDown') next = idx + cols;
+  else if (key === 'ArrowUp') next = idx - cols;
+  else if (key === 'Home') next = 0;
+  else if (key === 'End') next = cards.length - 1;
+  next = Math.max(0, Math.min(cards.length - 1, next));
+  if (next === idx) return;
+  e.preventDefault();
+  cards[next].focus();
+  cards[next].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function initSmartTubeGridNav() {
+  for (const id of ['stGrid', 'stSearchGrid', 'stUpNextList']) {
+    const grid = $(id);
+    if (grid) grid.addEventListener('keydown', stGridNavKeydown);
+  }
+}
+
 // ----- Arama -----
 let stSearchSeq = 0;
+let stSearchQuery = '';
+let stSearchPage = 0;
+let stSearchLoading = false;
+let stSearchHasMore = false;
+const stSearchSeen = new Set();
+
 async function doSmartTubeSearch() {
   const inp = $('stSearchInput');
   const results = $('stSearchResults');
@@ -22654,31 +22786,107 @@ async function doSmartTubeSearch() {
   if (mainGrid) mainGrid.classList.add('hidden');
   document.querySelectorAll('.st-side-item[data-st-section]').forEach((b) => b.classList.remove('is-active'));
 
+  // Yeni arama — sayfalama durumunu sıfırla
+  stSearchQuery = q;
+  stSearchPage = 1;
+  stSearchHasMore = false;
+  stSearchSeen.clear();
+  stSearchLoading = true;
+
   let videos = [];
   try {
-    videos = await searchInvidious(q);
+    videos = await searchInvidious(q, 1);
   } catch {
     videos = [];
   }
+  stSearchLoading = false;
   // Eski arama sonucu yeni aramayı ezmesin
   if (seq !== stSearchSeq || ($('stSearchInput')?.value || '').trim() !== q) return;
 
   searchGrid.innerHTML = '';
   if (!videos.length) {
-    searchGrid.innerHTML = '<div class="inv-status">Sonuç yok.</div>';
+    searchGrid.innerHTML = `<div class="inv-status">${window.UiLocale?.t('Sonuç yok.') || 'Sonuç yok.'}</div>`;
     return;
   }
-  videos.slice(0, 30).forEach((v) => searchGrid.appendChild(buildSmartTubeCard(v)));
+  stAppendSearchResults(videos);
+  stUpdateSearchMore();
+}
+
+// Arama sonuçlarını dedupe ederek grid'e ekle (sayfalama güvenli)
+function stAppendSearchResults(videos) {
+  const searchGrid = $('stSearchGrid');
+  if (!searchGrid) return;
+  let added = 0;
+  for (const v of videos) {
+    const id = v.videoId || v.authorId || v.title;
+    if (!id || stSearchSeen.has(id)) continue;
+    stSearchSeen.add(id);
+    searchGrid.appendChild(buildSmartTubeCard(v));
+    added++;
+  }
+  // Invidious arama sayfası ~20 sonuç verir; dolu sayfa = muhtemelen devamı var
+  stSearchHasMore = videos.length >= 18 && added > 0;
+}
+
+// "Daha fazla" düğmesi — tam genişlik grid item
+function stUpdateSearchMore() {
+  const results = $('stSearchResults');
+  if (!results) return;
+  results.querySelector('.st-more-row')?.remove();
+  if (!stSearchActive || !stSearchHasMore) return;
+  const row = document.createElement('div');
+  row.className = 'st-more-row';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'st-more-btn';
+  btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+  btn.addEventListener('click', stSearchLoadMore);
+  row.appendChild(btn);
+  results.appendChild(row);
+}
+
+async function stSearchLoadMore() {
+  const searchGrid = $('stSearchGrid');
+  if (!searchGrid || stSearchLoading || !stSearchHasMore) return;
+  const q = stSearchQuery;
+  const page = stSearchPage + 1;
+  const seq = stSearchSeq;
+  stSearchLoading = true;
+  const btn = $('stSearchResults')?.querySelector('.st-more-btn');
+  if (btn) { btn.disabled = true; btn.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…'; }
+  let videos = [];
+  try {
+    videos = await searchInvidious(q, page);
+  } catch {
+    videos = [];
+  }
+  stSearchLoading = false;
+  // Arama değiştiyse/sıfırlandıysa eski sayfayı ekleme
+  if (seq !== stSearchSeq || !stSearchActive || stSearchQuery !== q) return;
+  if (!videos.length) {
+    stSearchHasMore = false;
+    stUpdateSearchMore();
+    return;
+  }
+  stSearchPage = page;
+  stAppendSearchResults(videos);
+  stUpdateSearchMore();
 }
 
 function resetSmartTubeSearch() {
   const results = $('stSearchResults');
   const inp = $('stSearchInput');
-  if (results) results.classList.add('hidden');
+  if (results) {
+    results.classList.add('hidden');
+    results.querySelector('.st-more-row')?.remove();
+  }
   const mainGrid = $('stGrid');
   if (mainGrid) mainGrid.classList.remove('hidden');
   if (inp) inp.value = '';
   stSearchActive = false;
+  stSearchSeq++;             // uçuşta olan sayfa isteği sonucu düşsün
+  stSearchQuery = '';
+  stSearchHasMore = false;
   renderSmartTubeSection(stCurrentSection);
 }
 
@@ -22694,14 +22902,15 @@ async function openInvidiousChannelPage(channelId) {
   const videos = (data && data.videos) || [];
 
   const title = $('stSectionTitle');
-  if (title) title.textContent = info.author || 'Kanal';
+  if (title) title.textContent = info.author || (window.UiLocale?.t('Kanal') || 'Kanal');
 
-  // Kanal başlığı + geri dön
+  // Kanal başlığı + geri dön — tam satır grid item (iç içe .st-grid YOK)
   const head = document.createElement('div');
   head.className = 'st-channel-head';
+  head.style.gridColumn = '1 / -1';
   const back = document.createElement('button');
   back.className = 'st-back-btn';
-  back.textContent = '← Kanallarım';
+  back.textContent = `← ${window.UiLocale?.t('Kanallarım') || 'Kanallarım'}`;
   back.addEventListener('click', () => stSelectSection('channels'));
   head.appendChild(back);
   const name = document.createElement('div');
@@ -22714,16 +22923,24 @@ async function openInvidiousChannelPage(channelId) {
     subs.textContent = `${formatCount(info.subCount)} ${window.UiLocale?.t('abone') || 'abone'}`;
     head.appendChild(subs);
   }
+  if (info.description) {
+    const desc = document.createElement('div');
+    desc.className = 'st-channel-desc';
+    desc.textContent = info.description;
+    head.appendChild(desc);
+  }
   grid.innerHTML = '';
   grid.appendChild(head);
-  const wrap = document.createElement('div');
-  wrap.className = 'st-grid';
   if (!videos.length) {
-    wrap.innerHTML = '<div class="inv-status">Kanal videosu bulunamadı.</div>';
+    const empty = document.createElement('div');
+    empty.className = 'inv-status';
+    empty.style.gridColumn = '1 / -1';
+    empty.textContent = window.UiLocale?.t('Kanal videosu bulunamadı.') || 'Kanal videosu bulunamadı.';
+    grid.appendChild(empty);
   } else {
-    videos.forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+    // Kartlar doğrudan ana grid'e — ayrı iç .st-grid wrap'i layout'u eziyordu
+    videos.forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
   }
-  grid.appendChild(wrap);
 }
 
 // ----- Düğme bağlama -----
@@ -22779,11 +22996,202 @@ function initSmartTube() {
   }
   const back = $('stBackFromSearch');
   if (back) back.addEventListener('click', resetSmartTubeSearch);
+  const upNextBtn = $('playerUpNextBtn');
+  if (upNextBtn) upNextBtn.addEventListener('click', () => stUpNextToggle());
+  const upNextClose = $('stUpNextClose');
+  if (upNextClose) upNextClose.addEventListener('click', () => stUpNextToggle(false));
 
   refreshSmartTubeAuthUI();
   restoreInvidiousSession();
+  initSmartTubeGridNav();
 }
 initSmartTube();
+
+// ===== Up Next rayı + yorumlar (SmartTube oynatma ekranı) =====
+// Probe'dan dönen recommended listesiyle dolar; kontrol çubuğundaki
+// düğme ya da N kısayoluyla açılır. Video değişince içerik tazelenir.
+
+function stUpNextToggle(show) {
+  const panel = $('stUpNext');
+  if (!panel) return;
+  const visible = show === undefined ? panel.classList.contains('hidden') : !!show;
+  panel.classList.toggle('hidden', !visible);
+  $('playerUpNextBtn')?.classList.toggle('is-active', visible);
+}
+
+function hideUpNextPanel() {
+  $('stUpNext')?.classList.add('hidden');
+  $('playerUpNextBtn')?.classList.add('hidden');
+  $('playerUpNextBtn')?.classList.remove('is-active');
+}
+
+function buildUpNextItem(video) {
+  const item = document.createElement('div');
+  item.className = 'st-card st-upnext-item';
+  item.tabIndex = 0;
+  item.setAttribute('role', 'listitem');
+  const thumb = document.createElement('div');
+  thumb.className = 'st-upnext-thumb';
+  const thumbs = video.videoThumbnails || [];
+  const tn = thumbs.find((t) => (t.quality || '').toLowerCase() === 'medium')
+           || thumbs.find((t) => (t.quality || '').toLowerCase() === 'hqdefault')
+           || thumbs[0] || null;
+  if (tn && tn.url) {
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = '';
+    img.src = absThumb(tn.url);
+    thumb.appendChild(img);
+  }
+  const secs = Number(video.lengthSeconds) || 0;
+  if (secs > 0) {
+    const dur = document.createElement('span');
+    dur.className = 'st-card-duration';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    dur.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    thumb.appendChild(dur);
+  }
+  const body = document.createElement('div');
+  body.className = 'st-upnext-body';
+  const t = document.createElement('div');
+  t.className = 'st-upnext-vtitle';
+  t.textContent = video.title || '';
+  const a = document.createElement('div');
+  a.className = 'st-upnext-author';
+  a.textContent = video.author || '';
+  body.appendChild(t);
+  body.appendChild(a);
+  item.appendChild(thumb);
+  item.appendChild(body);
+  const open = () => {
+    const url = `https://www.youtube.com/watch?v=${video.videoId}`;
+    const box = $('playerYtUrl');
+    if (box) box.value = url;
+    player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: player.openIntent };
+    $('playerProbe')?.click();
+    stUpNextToggle(false);
+  };
+  item.addEventListener('click', open);
+  item.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+  });
+  return item;
+}
+
+function renderUpNextRail(info) {
+  const btn = $('playerUpNextBtn');
+  const list = $('stUpNextList');
+  const panel = $('stUpNext');
+  if (!btn || !list || !panel) return;
+  const recs = (info && Array.isArray(info.recommended) ? info.recommended : [])
+    .filter((v) => v && typeof v === 'object' && v.videoId && v.title);
+  list.innerHTML = '';
+  for (const v of recs.slice(0, 15)) list.appendChild(buildUpNextItem(v));
+  // YouTube videosuysa panel düğmesi hep görünür — öneri olmasa da
+  // yorumlar bölümü altta her zaman kullanılabilir
+  if (info && (info.videoId || info.id)) btn.classList.remove('hidden');
+  else btn.classList.add('hidden');
+  if (!recs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'inv-status';
+    empty.textContent = window.UiLocale?.t('Öneri bulunamadı.') || 'Öneri bulunamadı.';
+    list.appendChild(empty);
+  }
+}
+
+// ----- Yorumlar -----
+let stCommentsSeq = 0;
+let stCommentsCont = '';
+let stCommentsVideoId = '';
+
+async function loadStComments(info, continuation = '') {
+  const box = $('stCommentsList');
+  if (!box || !info) return;
+  // Invidious probe 'videoId', yt-dlp probe 'id' verir
+  const vid = info.videoId || info.id || '';
+  if (!vid) return;
+  const seq = ++stCommentsSeq;
+  if (!continuation) {
+    stCommentsVideoId = vid;
+    stCommentsCont = '';
+    box.innerHTML = `<div class="inv-status">${window.UiLocale?.t('Yorumlar yükleniyor…') || 'Yorumlar yükleniyor…'}</div>`;
+    box.querySelector('.st-more-row')?.remove();
+  }
+  let res;
+  try {
+    res = await invCall(() => window.api.invidiousComments(vid, {
+      continuation,
+      instance: info.instance || undefined,
+    }));
+  } catch (e) {
+    res = { ok: false, error: e && e.message };
+  }
+  // Başka bir videoya/isteğe geçildiyse sonucu bırak
+  if (seq !== stCommentsSeq || !player.ytInfo || player.ytInfo !== info) return;
+  if (!continuation) box.innerHTML = '';
+  box.querySelector('.st-comments-status')?.remove();
+
+  if (!res || !res.ok) {
+    const err = document.createElement('div');
+    err.className = 'inv-status st-comments-status';
+    err.textContent = window.UiLocale?.t('Yorumlar alınamadı.') || 'Yorumlar alınamadı.';
+    box.appendChild(err);
+    return;
+  }
+  const data = res.data || {};
+  if (data.disabled) {
+    const off = document.createElement('div');
+    off.className = 'inv-status st-comments-status';
+    off.textContent = window.UiLocale?.t('Yorumlar kapalı.') || 'Yorumlar kapalı.';
+    box.appendChild(off);
+    return;
+  }
+  const items = Array.isArray(data.comments) ? data.comments : [];
+  if (!items.length && !continuation) {
+    const none = document.createElement('div');
+    none.className = 'inv-status st-comments-status';
+    none.textContent = window.UiLocale?.t('Yorum yok.') || 'Yorum yok.';
+    box.appendChild(none);
+    return;
+  }
+  box.querySelector('.st-comments-more')?.remove();
+  for (const c of items) {
+    if (!c || typeof c !== 'object') continue;
+    const el = document.createElement('div');
+    el.className = 'st-comment';
+    const head = document.createElement('div');
+    head.className = 'st-comment-head';
+    head.textContent = [c.author, c.publishedText, c.likeCount ? `👍 ${formatCount(c.likeCount)}` : '']
+      .filter(Boolean).join(' · ');
+    const text = document.createElement('div');
+    text.className = 'st-comment-text';
+    text.textContent = c.text || '';   // HTML yok — düz metin
+    el.appendChild(head);
+    el.appendChild(text);
+    box.appendChild(el);
+  }
+  stCommentsCont = data.continuation || '';
+  if (stCommentsCont) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'st-more-btn st-comments-more';
+    more.textContent = window.UiLocale?.t('Daha fazla yorum') || 'Daha fazla yorum';
+    more.addEventListener('click', () => loadStComments(info, stCommentsCont));
+    box.appendChild(more);
+  }
+}
+
+// Probe sonucu geldiğinde çağrılır — ray + yorumları tazeler
+function refreshSmartTubePlayerContext(info) {
+  renderUpNextRail(info);
+  if (info && (info.videoId || info.id)) {
+    loadStComments(info);
+  } else {
+    $('stCommentsList') && ($('stCommentsList').innerHTML = '');
+    stCommentsSeq++;
+  }
+}
 
 // Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)
 // Source toggle: yt-dlp / Invidious arası geçiş
@@ -22880,6 +23288,8 @@ if ($('playerProbe')) {
     info.videoKey = mediaKeyFor('youtube', url);
     player.ytInfo = info;
     player.originalUrl = url;
+    // Up Next rayı + yorumlar — öneri verisi Invidious probe'undan gelir
+    try { refreshSmartTubePlayerContext(info); } catch (_) {}
     syncPlayerSourceQuick();
     syncSubtitlePrimaryAction();
     $('playerYtInfo').classList.remove('hidden');

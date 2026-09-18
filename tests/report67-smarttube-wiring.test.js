@@ -23,6 +23,8 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const RENDERER = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js'), 'utf8');
 const MAIN = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+const PRELOAD = fs.readFileSync(path.join(ROOT, 'src', 'preload.js'), 'utf8');
+const LOCALE = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'ui-locale.js'), 'utf8');
 const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
 const INV_PY = fs.readFileSync(path.join(ROOT, 'backend', 'invidious.py'), 'utf8');
 const MEDIA_PY = fs.readFileSync(path.join(ROOT, 'backend', 'media.py'), 'utf8');
@@ -223,6 +225,152 @@ test('renderer: HLS kurtarma aktif kaynağı kullanır (yt-dlp sabit değil)', (
 
 test('renderer: invidious:event logları dinleniyor', () => {
   assert.match(RENDERER, /window\.api\.onInvidiousEvent/);
+});
+
+// ---------- R67 devamı: SmartTube parite işlevleri ----------
+
+test('renderer: grid roving ok-tuşu gezinmesi bağlı', () => {
+  assert.match(RENDERER, /function stGridNavKeydown\(/);
+  assert.match(RENDERER, /ArrowLeft[\s\S]{0,80}ArrowRight[\s\S]{0,80}ArrowUp[\s\S]{0,80}ArrowDown/);
+  assert.match(RENDERER, /function initSmartTubeGridNav\(/);
+  assert.match(RENDERER, /initSmartTubeGridNav\(\)/);
+  assert.match(RENDERER, /addEventListener\('keydown', stGridNavKeydown\)/);
+  // Kart içindeki butondan (kanal linki) da en yakın karta döner
+  assert.match(RENDERER, /closest\('\.st-card'\)/);
+});
+
+test('renderer: trend kategori chip\'leri backend tab parametresiyle çağrılır', () => {
+  assert.match(RENDERER, /function buildTrendChips\(/);
+  assert.match(RENDERER, /stTrendTab/);
+  assert.match(RENDERER, /opts\.tab \? \{ tab: stTrendTab \}|\{ tab: stTrendTab \}/);
+  assert.match(RENDERER, /invidiousFeed\(kind, opts\)/);
+  assert.match(MAIN, /--tab', tab/);
+  assert.match(INV_PY, /def feed_trending\(instance=None, tab=None\)/);
+  assert.match(INV_PY, /_TREND_TABS/);
+});
+
+test('renderer: degraded yedek kaynak Invidious gibi gösterilmez', () => {
+  assert.match(RENDERER, /feedData\.degraded|feedData && feedData\.degraded/);
+  assert.match(RENDERER, /Yedek kaynak \(yt-dlp\)/);
+  // Backend emit'leri source/degraded taşır
+  assert.match(INV_PY, /degraded=True, source="yt-dlp"/);
+  assert.match(INV_PY, /instance="yt-dlp:tab"/);
+});
+
+test('backend: trending/popular yedeği arama değil gerçek feed sayfası', () => {
+  assert.match(INV_PY, /def _ytdlp_tab_videos\(/);
+  assert.match(INV_PY, /youtube\.com\/feed\/trending/);
+  // Eski meta-çöp sorguları kalmamalı
+  assert.doesNotMatch(INV_PY, /_ytdlp_search_videos\("youtube trending videos today"/);
+  assert.doesNotMatch(INV_PY, /_ytdlp_search_videos\("trending music 2026"/);
+});
+
+test('backend: probe recommended listesi emit eder', () => {
+  const emit = INV_PY.match(/emit\(\s*\n\s*"probe",[\s\S]*?source="invidious"/);
+  assert.ok(emit, 'probe emit yok');
+  assert.match(emit[0], /recommended=\[/);
+  assert.match(emit[0], /recommendedVideos/);
+});
+
+test('backend: comments + playlist komutları şema-doğrulamalı', () => {
+  assert.match(INV_PY, /def comments\(video_url/);
+  assert.match(INV_PY, /def playlist\(playlist_id/);
+  assert.match(INV_PY, /\/api\/v1\/comments\//);
+  assert.match(INV_PY, /\/api\/v1\/playlists\//);
+  // Playlist ID whitelist
+  assert.match(INV_PY, /isalnum\(\) or ch in "-_"/);
+  // Komutlar argparse'a bağlı
+  assert.match(INV_PY, /elif args\.command == "comments"/);
+  assert.match(INV_PY, /elif args\.command == "playlist"/);
+});
+
+test('main.js+preload: comments/playlist IPC uçtan uca', () => {
+  assert.match(MAIN, /ipcMain\.handle\('invidious:comments'/);
+  assert.match(MAIN, /ipcMain\.handle\('invidious:playlist'/);
+  // Video ID (11 char) veya http/https URL — başka bir şey değil
+  assert.match(MAIN, /\{11\}\$\/\.test/);
+  // Playlist ID whitelist
+  assert.match(MAIN, /\[A-Za-z0-9_-\]\{2,200\}/);
+  // Sonuç tipleri whitelist'te
+  const wl = MAIN.match(/INVIDIOUS_RESULT_TYPES\s*=\s*new Set\(\[([\s\S]*?)\]\)/);
+  assert.match(wl[1], /'comments'/);
+  assert.match(wl[1], /'playlist'/);
+  // Preload köprüsü
+  assert.match(PRELOAD, /invidiousComments:.*'invidious:comments'/);
+  assert.match(PRELOAD, /invidiousPlaylist:.*'invidious:playlist'/);
+});
+
+test('renderer: kart kanal linki oynatmayı tetiklemez (stopPropagation)', () => {
+  const card = RENDERER.match(/function buildSmartTubeCard[\s\S]*?return card;\n}/);
+  assert.ok(card, 'buildSmartTubeCard yok');
+  assert.match(card[0], /st-card-author/);
+  assert.match(card[0], /openInvidiousChannelPage\(video\.authorId\)/);
+  const goChannel = card[0].match(/const goChannel[\s\S]*?};/);
+  assert.ok(goChannel && /stopPropagation/.test(goChannel[0]),
+    'kanal tıklaması kart oynatmayı da tetikler');
+});
+
+test('renderer: arama sayfalama dedupe + yarış korumalı', () => {
+  assert.match(RENDERER, /stSearchSeen/);
+  assert.match(RENDERER, /stSearchPage/);
+  assert.match(RENDERER, /function stSearchLoadMore\(/);
+  assert.match(RENDERER, /seq !== stSearchSeq/);
+  // "Daha fazla" düğmesi
+  assert.match(RENDERER, /st-more-btn/);
+  assert.match(RENDERER, /Daha fazla/);
+});
+
+test('renderer: up-next rayı + yorumlar paneli', () => {
+  assert.match(RENDERER, /function renderUpNextRail\(/);
+  assert.match(RENDERER, /function buildUpNextItem\(/);
+  assert.match(RENDERER, /info\.recommended/);
+  assert.match(RENDERER, /function loadStComments\(/);
+  assert.match(RENDERER, /refreshSmartTubePlayerContext\(info\)/);
+  // Panel HTML'de playerStage içinde
+  assert.match(HTML, /id="stUpNext"/);
+  assert.match(HTML, /id="stUpNextList"/);
+  assert.match(HTML, /id="stCommentsList"/);
+  assert.match(HTML, /id="playerUpNextBtn"/);
+  // Panel stage içinde (fullscreen'da da çalışır)
+  const stage = HTML.slice(HTML.indexOf('id="playerStage"'), HTML.indexOf('id="playerSide"'));
+  assert.ok(stage.includes('id="stUpNext"'), 'up-next paneli playerStage dışında');
+  assert.ok(stage.includes('id="playerUpNextBtn"'), 'panel düğmesi kontrol çubuğunda değil');
+});
+
+test('renderer: yorum metni textContent ile basılır (HTML enjeksiyonu yok)', () => {
+  const load = RENDERER.match(/async function loadStComments[\s\S]*?stCommentsCont = data\.continuation/);
+  assert.ok(load, 'loadStComments yok');
+  assert.match(load[0], /text\.textContent = c\.text/);
+  assert.doesNotMatch(load[0], /innerHTML\s*=\s*[^\s'"`]/, 'yorum innerHTML ile basılıyor');
+  // Backend de HTML etiketlerini soyar
+  assert.match(INV_PY, /_re\.sub\(r"<\[\^>\]\+>", "", raw\)/);
+});
+
+test('renderer: yorum isteği yarış/nerede-kaldı korumalı', () => {
+  assert.match(RENDERER, /stCommentsSeq/);
+  const load = RENDERER.match(/async function loadStComments[\s\S]*?seq !== stCommentsSeq/);
+  assert.ok(load, 'stCommentsSeq guard yok');
+  // Video değişince eski yanıt düşer
+  assert.match(RENDERER, /player\.ytInfo !== info/);
+});
+
+test('renderer: kanal sayfası iç içe .st-grid üretmez + tam-satır başlık', () => {
+  const fn = RENDERER.match(/async function openInvidiousChannelPage[\s\S]*?\n}/);
+  assert.ok(fn, 'openInvidiousChannelPage yok');
+  assert.match(fn[0], /gridColumn\s*=\s*['"]1 \/ -1['"]/, 'kanal başlığı tam satır değil');
+  assert.doesNotMatch(fn[0], /className\s*=\s*'st-grid'/, 'iç içe st-grid wrap hâlâ var');
+});
+
+test('renderer: playerMeta dinamik metinleri locale üzerinden', () => {
+  // meta atamaları UiLocale.t() üzerinden gider (mt helper veya doğrudan)
+  assert.match(RENDERER, /UiLocale\?\.t\(s\)/);
+  assert.match(RENDERER, /UiLocale\?\.t\('Çift dilli izleme ve çalışma alanı'\)/);
+  assert.match(RENDERER, /mt\('Sayfa yükleniyor'\)/);
+  assert.match(RENDERER, /UiLocale\?\.t\(meta && meta\.isLive/);
+  // #playerMeta ignored listesinde — kısmi çeviriyle metin bozulmasın
+  const ignoredLine = LOCALE.match(/const ignored = '([^']+)'/);
+  assert.ok(ignoredLine && ignoredLine[1].includes('#playerMeta'),
+    '#playerMeta ignored listesinde değil — kısmi çeviri bozar');
 });
 
 // ---------- çalıştır ----------

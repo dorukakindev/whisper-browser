@@ -1176,6 +1176,34 @@
     ['görüntüleme', 'views'],
     ['abone', 'subscribers'],
     ['CANLI', 'LIVE'],
+    ['Sıradaki', 'Up next'],
+    ['Yorumlar', 'Comments'],
+    ['Yorumlar yükleniyor…', 'Loading comments…'],
+    ['Yorumlar alınamadı.', 'Could not load comments.'],
+    ['Yorumlar kapalı.', 'Comments are disabled.'],
+    ['Yorum yok.', 'No comments.'],
+    ['Öneri bulunamadı.', 'No recommendations.'],
+    ['Daha fazla yorum', 'More comments'],
+    ['Daha fazla', 'Load more'],
+    ['Müzik', 'Music'],
+    ['Oyun', 'Gaming'],
+    ['Haberler', 'News'],
+    ['Kanal', 'Channel'],
+    ['Trend kategorisi', 'Trending category'],
+    ['Sonraki videolar ve yorumlar', 'Up next and comments'],
+    ['Sonraki videolar (N)', 'Up next (N)'],
+    ['Sonraki videolar panelini aç veya kapat', 'Toggle up-next panel'],
+    ['Paneli kapat', 'Close panel'],
+    ['Yerel video · çift dilli çalışma', 'Local video · bilingual work'],
+    ['Sayfa yükleniyor', 'Loading page'],
+    ['Sayfa yüklenemedi', 'Page failed to load'],
+    ['Sekme çöktü', 'Tab crashed'],
+    ['Canlı yayın · yerel oynatma', 'Live · local playback'],
+    ['Yedek kaynak (yt-dlp) — sonuçlar Invidious üzerinden gelmedi', 'Fallback source (yt-dlp) — results did not come via Invidious'],
+    ['Web sayfası · site uyumluluk modu açık', 'Web page · site compatibility mode on'],
+    ['Web videosu · altyazı yakalama kapalı', 'Web video · subtitle capture off'],
+    ['Canlı yayın · HLS akışı', 'Live · HLS stream'],
+    ['YouTube · indirmeden oynatma', 'YouTube · stream playback'],
     ['Ana sayfa yenile', 'Refresh home'],
     ["Invidious'ta ara...", 'Search Invidious…'],
     ['Invidious sunucu taraflı hesap kullanır — Google\'a bağlanmaz. Sadece o instance\'daki hesabın geçerlidir.', 'Invidious uses server-side accounts — it does not connect to Google. Only the account on that instance works.'],
@@ -1190,7 +1218,7 @@
   const normalize = value => value === 'tr' ? 'tr' : 'en';
   let locale = 'en';
   try { locale = normalize(localStorage.getItem('whisper.uiLocale')); } catch (_) {}
-  const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,[data-ui-untranslated]';
+  const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerMeta,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,[data-ui-untranslated]';
   const originalText = new WeakMap();
   const originalAttributes = new WeakMap();
 

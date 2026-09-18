@@ -309,6 +309,10 @@ def probe(url, instance=None):
         isUpcoming=bool(data.get("isUpcoming")),
         author=data.get("author") or "",
         authorId=data.get("authorId") or "",
+        recommended=[
+            _parse_video_item(v) for v in (data.get("recommendedVideos") or [])[:12]
+            if isinstance(v, dict) and v.get("videoId")
+        ],
         source="invidious",
         instance=inst,
     )
@@ -565,6 +569,9 @@ def logout():
 
 
 # ===== Feed (ana sayfa) =====
+_TREND_TABS = ("music", "gaming", "news", "movies")
+
+
 def _parse_video_item(v):
     """Invidious video objesini ortak şemaya çevirir."""
     return {
@@ -626,6 +633,50 @@ def _ytdlp_search_videos(query, max_results=24):
     return out
 
 
+def _ytdlp_tab_videos(tab_url, max_results=30):
+    """yt-dlp ile gerçek YouTube sekmesi/feed sayfası — arama DEĞİL, gerçek feed.
+    ytsearch yedekleri 'trending videos today' gibi meta-sonuçlar üretiyordu;
+    burada /feed/trending gibi gerçek sayfanın flat entry'leri alınır."""
+    if not _YT_DLP_AVAILABLE:
+        raise RuntimeError("yt-dlp mevcut değil")
+    ydl_opts = {
+        "quiet": True,
+        "extract_flat": "in_playlist",
+        "skip_download": True,
+        "no_warnings": True,
+        "ignoreerrors": True,
+        "playlistend": max_results,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(tab_url, download=False)
+    entries = (info or {}).get("entries") or []
+    out = []
+    for v in entries:
+        if not v or (v.get("_type") or "video") not in ("video", "url"):
+            continue
+        vid = v.get("id") or ""
+        if not vid or len(vid) != 11:
+            continue
+        thumbs = [{"quality": str(t.get("height") or ""), "url": t.get("url"),
+                   "width": int(t.get("width") or 0), "height": int(t.get("height") or 0)}
+                  for t in (v.get("thumbnails") or []) if t.get("url")]
+        out.append({
+            "videoId": vid,
+            "title": v.get("title") or "",
+            "author": v.get("uploader") or v.get("channel") or "",
+            "authorId": v.get("uploader_id") or v.get("channel_id") or "",
+            "lengthSeconds": int(v.get("duration") or 0),
+            "viewCount": int(v.get("view_count") or 0),
+            "publishedText": "",
+            "published": int(v.get("timestamp") or 0),
+            "liveNow": bool(v.get("live_status") == "is_live"),
+            "videoThumbnails": thumbs,
+        })
+        if len(out) >= max_results:
+            break
+    return out
+
+
 def feed_popular(instance=None):
     """Popüler videolar — instance failover + yt-dlp yedek."""
     try:
@@ -637,29 +688,37 @@ def feed_popular(instance=None):
         raise RuntimeError("Invidious popüler boş döndü")
     except Exception as primary:
         log(f"Invidious başarısız, yt-dlp yedek denenecek: {primary}")
-        videos = _ytdlp_search_videos("trending music 2026", max_results=24)
-        emit("feed", kind="popular", videos=videos, instance="yt-dlp:ytdlp_search")
+        videos = _ytdlp_tab_videos("https://www.youtube.com/feed/trending", max_results=24)
+        emit("feed", kind="popular", videos=videos, instance="yt-dlp:tab",
+             degraded=True, source="yt-dlp")
 
 
-def feed_trending(instance=None):
-    """Trend videolar — 4 kategori birleşik, instance failover + yt-dlp yedek."""
+def feed_trending(instance=None, tab=None):
+    """Trend videolar — tab verilirse tek kategori, yoksa 4'ü birleşik.
+    Instance failover + yt-dlp gerçek-trend yedeği."""
+    tabs = [tab] if tab else ["music", "gaming", "news", "movies"]
     try:
         all_videos = []
         used_inst = None
-        for tab in ("music", "gaming", "news", "movies"):
+        for t in tabs:
             data, inst = _fetch_with_failover(
-                f"/api/v1/trending?type={tab}", preferred=instance, timeout=10)
+                f"/api/v1/trending?type={t}", preferred=instance, timeout=10)
             used_inst = used_inst or inst
             if data:
                 all_videos.extend([_parse_video_item(v) for v in data])
         if all_videos:
-            emit("feed", kind="trending", videos=all_videos, instance=used_inst)
+            emit("feed", kind="trending", tab=tab or "", videos=all_videos,
+                 instance=used_inst)
             return
         raise RuntimeError("Invidious trend boş döndü")
     except Exception as primary:
         log(f"Invidious başarısız, yt-dlp yedek denenecek: {primary}")
-        videos = _ytdlp_search_videos("youtube trending videos today", max_results=24)
-        emit("feed", kind="trending", videos=videos, instance="yt-dlp:ytdlp_search")
+        url = "https://www.youtube.com/feed/trending"
+        if tab == "music":
+            url += "?bp=4gINGgt5dWQ"
+        videos = _ytdlp_tab_videos(url, max_results=24)
+        emit("feed", kind="trending", tab=tab or "", videos=videos,
+             instance="yt-dlp:tab", degraded=True, source="yt-dlp")
 
 
 def feed_subscriptions(instance=None):
@@ -729,12 +788,73 @@ def channel(channel_id, instance=None):
     emit("channel", info=info, videos=videos, instance=inst)
 
 
+# ===== Yorumlar =====
+def _parse_comment(c):
+    """Invidious yorum objesini ortak şemaya çevirir — metin HTML olabilir,
+    renderer textContent ile basar; burada yalnız etiketleri soyup düz metin
+    bırakıyoruz (whitelist whitelist değil, güvenli text render)."""
+    import re as _re
+    raw = c.get("content") or c.get("contentHtml") or ""
+    text = _re.sub(r"<[^>]+>", "", raw)
+    text = (text.replace("&amp;", "&").replace("&lt;", "<")
+                .replace("&gt;", ">").replace("&quot;", '"')
+                .replace("&#39;", "'").strip())
+    replies = c.get("replies")
+    return {
+        "author": c.get("author") or "",
+        "authorId": c.get("authorId") or "",
+        "text": text[:2000],
+        "likeCount": _to_int(c.get("likeCount"), 0),
+        "publishedText": c.get("publishedText") or "",
+        "replies": _to_int(replies.get("replyCount"), 0) if isinstance(replies, dict) else 0,
+    }
+
+
+def comments(video_url, instance=None, continuation=""):
+    """Video yorumları — /api/v1/comments/:id, continuation ile sayfalama."""
+    vid = extract_video_id(video_url)
+    if not vid:
+        raise RuntimeError(f"Geçersiz video ID: {video_url}")
+    path = f"/api/v1/comments/{urllib_parse.quote(vid)}"
+    if continuation:
+        path += f"?continuation={urllib_parse.quote(continuation)}"
+    data, inst = _fetch_with_failover(path, preferred=instance, timeout=15)
+    if not isinstance(data, dict):
+        raise RuntimeError("Yorum yanıtı beklenmeyen biçimde")
+    items = [_parse_comment(c) for c in (data.get("comments") or [])
+             if isinstance(c, dict)]
+    emit("comments", videoId=vid, comments=items,
+         continuation=data.get("continuation") or "",
+         disabled=bool(data.get("disabled")), instance=inst)
+
+
+# ===== Oynatma listesi =====
+def playlist(playlist_id, instance=None, page=1):
+    """Playlist bilgisi + videolar — /api/v1/playlists/:id."""
+    pid = (playlist_id or "").strip()
+    if not pid or len(pid) > 200 or not all(ch.isalnum() or ch in "-_" for ch in pid):
+        raise RuntimeError(f"Geçersiz playlist ID: {playlist_id!r}")
+    data, inst = _fetch_with_failover(
+        f"/api/v1/playlists/{urllib_parse.quote(pid)}?page={_to_int(page, 1)}",
+        preferred=instance, timeout=15)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Playlist bulunamadı: {pid}")
+    videos = [_parse_video_item(v) for v in (data.get("videos") or [])
+              if isinstance(v, dict)]
+    emit("playlist", playlistId=pid,
+         title=data.get("title") or "",
+         author=data.get("author") or "",
+         authorId=data.get("authorId") or "",
+         videoCount=_to_int(data.get("videoCount"), len(videos)),
+         videos=videos, instance=inst)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Invidious API client")
     ap.add_argument("command", choices=[
         "probe", "subs", "login", "logout",
         "popular", "trending", "subscriptions",
-        "search", "channel",
+        "search", "channel", "comments", "playlist",
     ])
     ap.add_argument("--url", default="", help="YouTube URL veya video ID")
     ap.add_argument("--lang", default="en", help="Altyazı dili kodu")
@@ -747,6 +867,9 @@ def main():
     ap.add_argument("--page", default="1", help="Arama sayfası")
     ap.add_argument("--channel-id", default="", help="Invidious kanal ID (UCID)")
     ap.add_argument("--sid", default="", help="Invidious SID cookie (env WHISPER_INVIDIOUS_SID da kabul)")
+    ap.add_argument("--tab", default="", help="Trend kategorisi: music|gaming|news|movies")
+    ap.add_argument("--playlist-id", default="", help="Invidious playlist ID (PLID)")
+    ap.add_argument("--continuation", default="", help="Yorum sayfalama continuation token'ı")
     args = ap.parse_args()
 
     instance = args.instance.strip() if args.instance else None
@@ -768,13 +891,18 @@ def main():
         elif args.command == "popular":
             feed_popular(instance)
         elif args.command == "trending":
-            feed_trending(instance)
+            tab = args.tab.strip().lower()
+            feed_trending(instance, tab=tab if tab in _TREND_TABS else None)
         elif args.command == "subscriptions":
             feed_subscriptions(instance)
         elif args.command == "search":
             search(args.query, args.page, instance)
         elif args.command == "channel":
             channel(args.channel_id, instance)
+        elif args.command == "comments":
+            comments(args.url, instance, continuation=args.continuation.strip())
+        elif args.command == "playlist":
+            playlist(args.playlist_id, instance, page=args.page)
     except Exception as e:
         emit("error", message=str(e))
 

@@ -382,5 +382,164 @@ class InvidiousAbsUrl(unittest.TestCase):
         self.assertEqual(invidious._abs_url("https://i.test", ""), "")
 
 
+class InvidiousCommentParsing(unittest.TestCase):
+    """Yorum parsing — HTML etiketleri soyulur, düz metin kalır."""
+
+    def test_parse_comment_strips_html(self):
+        c = invidious._parse_comment({
+            "author": "u",
+            "content": "<a href=\"/x\">link</a> <b>kalın</b> &amp; &lt;3",
+            "likeCount": "42",
+            "publishedText": "2 days ago",
+        })
+        self.assertEqual(c["author"], "u")
+        self.assertEqual(c["text"], "link kalın & <3")
+        self.assertEqual(c["likeCount"], 42)
+
+    def test_parse_comment_reply_count(self):
+        c = invidious._parse_comment({"author": "u", "content": "t",
+                                      "replies": {"replyCount": 7}})
+        self.assertEqual(c["replies"], 7)
+
+
+class InvidiousCommentsCommand(unittest.TestCase):
+    """comments() — emit sözleşmesi ve hata yolları (ağ mock'lu)."""
+
+    def test_comments_emits_parsed_items(self):
+        import unittest.mock as mock
+        payload = {"comments": [
+            {"author": "a", "content": "<b>x</b>", "likeCount": 3},
+            "bozuk-eleman",
+            {"author": "b", "content": "y"},
+        ], "continuation": "tok123"}
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=(payload, "https://i.test")), \
+             mock.patch.object(invidious, "emit",
+                               lambda t, **kw: events.append((t, kw))):
+            invidious.comments("dQw4w9WgXcQ")
+        self.assertEqual(events[0][0], "comments")
+        data = events[0][1]
+        self.assertEqual(data["videoId"], "dQw4w9WgXcQ")
+        self.assertEqual(len(data["comments"]), 2)   # bozuk eleman atlandı
+        self.assertEqual(data["comments"][0]["text"], "x")
+        self.assertEqual(data["continuation"], "tok123")
+
+    def test_comments_disabled_flag(self):
+        import unittest.mock as mock
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=({"disabled": True}, "https://i.test")), \
+             mock.patch.object(invidious, "emit",
+                               lambda t, **kw: events.append((t, kw))):
+            invidious.comments("dQw4w9WgXcQ")
+        self.assertTrue(events[0][1]["disabled"])
+
+    def test_comments_invalid_video_id(self):
+        # extract_video_id ValueError atar; main() genel Exception yakalayıp
+        # error event emit eder — ikisi de reddedildiğinin kanıtı.
+        with self.assertRaises((ValueError, RuntimeError)):
+            invidious.comments("javascript:alert(1)")
+
+
+class InvidiousPlaylistCommand(unittest.TestCase):
+    """playlist() — ID doğrulama + emit sözleşmesi."""
+
+    def test_playlist_id_validation(self):
+        for bad in ["", None, "a;b", "../x", "id with spaces", "x" * 201]:
+            with self.assertRaises(RuntimeError, msg=f"kabul edilmemeli: {bad!r}"):
+                invidious.playlist(bad)
+
+    def test_playlist_emits_videos(self):
+        import unittest.mock as mock
+        payload = {"title": "PL", "author": "ch", "videoCount": 2,
+                   "videos": [{"videoId": "v1", "title": "t1"},
+                              {"videoId": "v2", "title": "t2"}]}
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=(payload, "https://i.test")), \
+             mock.patch.object(invidious, "emit",
+                               lambda t, **kw: events.append((t, kw))):
+            invidious.playlist("PLabcdef123")
+        data = events[0][1]
+        self.assertEqual(events[0][0], "playlist")
+        self.assertEqual(data["title"], "PL")
+        self.assertEqual(len(data["videos"]), 2)
+        self.assertEqual(data["videos"][0]["videoId"], "v1")
+
+
+class InvidiousTrendTabFallback(unittest.TestCase):
+    """feed_trending — tab seçimi + gerçek-feed yt-dlp yedeği + degraded bayrağı."""
+
+    def test_tab_limits_to_single_category(self):
+        import unittest.mock as mock
+        calls = []
+        def fake_fetch(path, **kw):
+            calls.append(path)
+            return ([{"videoId": "v", "title": "t"}], "https://i.test")
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover", fake_fetch), \
+             mock.patch.object(invidious, "emit",
+                               lambda t, **kw: events.append((t, kw))):
+            invidious.feed_trending(tab="music")
+        self.assertEqual(calls, ["/api/v1/trending?type=music"])
+        self.assertEqual(events[0][1].get("tab"), "music")
+
+    def test_no_tab_fetches_all_categories(self):
+        import unittest.mock as mock
+        calls = []
+        def fake_fetch(path, **kw):
+            calls.append(path)
+            return ([], "https://i.test")
+        with mock.patch.object(invidious, "_fetch_with_failover", fake_fetch), \
+             mock.patch.object(invidious, "_ytdlp_tab_videos", return_value=[{"videoId": "x"}]), \
+             mock.patch.object(invidious, "emit", lambda *a, **kw: None):
+            invidious.feed_trending()
+        self.assertEqual(len(calls), 4)
+        self.assertTrue(all("trending?type=" in c for c in calls))
+
+    def test_fallback_marks_degraded(self):
+        import unittest.mock as mock
+        events = []
+        def boom(path, **kw):
+            raise RuntimeError("instance ölü")
+        with mock.patch.object(invidious, "_fetch_with_failover", boom), \
+             mock.patch.object(invidious, "_ytdlp_tab_videos",
+                               return_value=[{"videoId": "x"}]) as tab_fn, \
+             mock.patch.object(invidious, "emit",
+                               lambda t, **kw: events.append((t, kw))):
+            invidious.feed_trending()
+        # ytsearch meta-çöp değil gerçek feed sayfası çağrılır
+        args, _ = tab_fn.call_args
+        self.assertIn("feed/trending", args[0])
+        # log() da emit çağırır — feed event'ini bul
+        data = next(kw for t, kw in events if t == "feed")
+        self.assertTrue(data["degraded"])
+        self.assertEqual(data["source"], "yt-dlp")
+
+
+class InvidiousYtdlpTabVideos(unittest.TestCase):
+    """_ytdlp_tab_videos — flat entry'ler video şemasına çevrilir."""
+
+    def test_filters_non_video_and_bad_ids(self):
+        import unittest.mock as mock
+        info = {"entries": [
+            {"_type": "video", "id": "abc12345678", "title": "ok",
+             "uploader": "ch", "duration": 60},
+            {"_type": "playlist", "id": "PLxxx"},
+            {"_type": "video", "id": "kısa", "title": "kısa id atlanır"},
+            None,
+        ]}
+        with mock.patch.object(invidious, "_YT_DLP_AVAILABLE", True), \
+             mock.patch.object(invidious.yt_dlp, "YoutubeDL") as ydl_cls:
+            inst = ydl_cls.return_value.__enter__.return_value
+            inst.extract_info.return_value = info
+            out = invidious._ytdlp_tab_videos("https://www.youtube.com/feed/trending")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["videoId"], "abc12345678")
+        self.assertEqual(out[0]["author"], "ch")
+        self.assertEqual(out[0]["lengthSeconds"], 60)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
