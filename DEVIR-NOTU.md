@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 09:51 — CEA kurtarma kaydı, odak halkası ve browser menü görsel smoke'u](docs/devir/2026-09-18-0951.md).
+Güncel çalışma: [2026-09-18 10:10 — 20 ajanlık kapsam taraması bulguları (rapor 64)](docs/devir/2026-09-18-1010.md).
+
+Önceki çalışma: [2026-09-18 09:51 — CEA kurtarma kaydı, odak halkası ve browser menü görsel smoke'u](docs/devir/2026-09-18-0951.md).
 
 Önceki çalışma: [2026-09-18 01:30 — rapor 60 R58-14 eşit-başlangıç sınırı onarımı (rapor 61)](docs/devir/2026-09-18-0130.md).
 
