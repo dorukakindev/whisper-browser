@@ -1796,12 +1796,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .player-layer.mode-study .cue-card-src { font-size: 15px; }
 .player-layer.mode-study .cue-card-tr { font-size: 14px; }
 
+/* Panel çocukları tek tip aralıkla dizilsin — .field margin'siz olduğu için
+   kontroller yapışıktı ve inline margin-top'lar tutarsız boşluk üretiyordu. */
 .player-panel {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+.player-panel > .player-panel-title { margin-bottom: 0; }
+.player-panel > .player-panel-title:not(:first-child) { margin-top: 6px; }
 
 .player-panel-title {
   font-size: 11px;

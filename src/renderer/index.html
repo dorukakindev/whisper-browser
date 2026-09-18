@@ -2556,18 +2556,18 @@
           <div class="player-panel">
             <div class="player-panel-title">Altyazı</div>
             <select id="playerSubSelect" aria-label="Altyazı dosyası seçimi"><option value="">Altyazı yok</option></select>
-            <button class="btn btn-secondary btn-sm" id="playerPickSub" style="margin-top:8px">Altyazı dosyası seç</button>
-            <label class="field hidden" id="playerEmbeddedSubField" style="margin-top:10px">
+            <button class="btn btn-secondary btn-sm" id="playerPickSub">Altyazı dosyası seç</button>
+            <label class="field hidden" id="playerEmbeddedSubField">
               <span class="field-label">Videodaki gömülü altyazı</span>
               <select id="playerEmbeddedSubSelect"></select>
-              <button class="btn btn-secondary btn-sm" id="playerEmbeddedSubLoad" type="button" style="margin-top:6px">Çıkar ve yükle</button>
+              <button class="btn btn-secondary btn-sm" id="playerEmbeddedSubLoad" type="button">Çıkar ve yükle</button>
               <small id="playerEmbeddedSubHint">Hazır metin izi doğrudan kullanılır; Whisper çalıştırılmaz.</small>
             </label>
-            <label class="field" style="margin-top:10px">
+            <label class="field">
               <span class="field-label">İkinci altyazı (karşılaştırma)</span>
               <select id="playerSubSelect2"><option value="">Kapalı</option></select>
             </label>
-            <label class="field" style="margin-top:10px">
+            <label class="field">
               <span class="field-label">Gösterilecek altyazı</span>
               <select id="playerSubtitleDisplay">
                 <option value="source">Yalnızca kaynak altyazı</option>
@@ -2583,7 +2583,7 @@
               </div>
               <small>Web çevirisi hazırlanırken yeni satırlar bu seçime göre gösterilir.</small>
             </label>
-            <div class="player-panel-title" style="margin-top:14px">Görünüm</div>
+            <div class="player-panel-title">Görünüm</div>
             <label class="field switch-field">
               <input type="checkbox" id="playerMergeCont" />
               <span>Cümleleri birleştir — sonraki satıra taşan cümleyi tek satırda göster</span>
@@ -2595,7 +2595,7 @@
                 <small>Altyazının yanındaki kelime zamanlamalı JSON çıktısı varsa çalışır</small>
               </span>
             </label>
-            <label class="field" style="margin-top:10px">
+            <label class="field">
               <span class="field-label">İzleme politikası</span>
               <select id="playerPlaybackPolicy">
                 <option value="normal">Normal</option>
@@ -2616,7 +2616,7 @@
               </select>
               <small>“Her altyazıyı tekrarla” politikasında geçerlidir.</small>
             </label>
-            <div class="hint" style="margin:-2px 0 10px">
+            <div class="hint">
               İzlerken anında uygulanır, dosyayı değiştirmez. Yeni altyazı üretirken de
               geçerli olsun isterseniz Gelişmiş ayarlar → Metin işleme'deki aynı seçeneği açın.
             </div>
@@ -2669,12 +2669,12 @@
               <span class="field-label">Gecikme: <span class="value" id="subOffsetVal">0.0</span> sn</span>
               <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
             </label>
-            <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile" style="margin-top:6px;width:100%">Gecikmeyi dosyaya işle</button>
-            <button class="btn btn-secondary btn-sm" id="playerAutoSync" style="margin-top:6px;width:100%"
+            <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile">Gecikmeyi dosyaya işle</button>
+            <button class="btn btn-secondary btn-sm" id="playerAutoSync"
               title="Yerel videonun sesini analiz ederek sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir">
               Sese göre otomatik senkronla
             </button>
-            <div class="hint" id="playerAutoSyncHint" style="margin-top:6px">
+            <div class="hint" id="playerAutoSyncHint">
               Yerel videoda ses ritmini analiz eder; özgün altyazıyı değiştirmeden senkronlu bir kopya oluşturur.
             </div>
             <div class="hint">Altyazıya <strong>çift tıklayarak</strong> izlerken düzeltebilirsin (E). Blok gezinme: <strong>A</strong>/<strong>D</strong>, tekrar: <strong>R</strong>, kopyala: <strong>C</strong>. İlk kaydetmede <code>.bak</code> yedeği alınır.<br>Altyazıyı <strong>basılı tutup yukarı/aşağı sürükleyerek</strong> konumunu değiştirebilirsin; konum hatırlanır.<br>İzlerken gecikme: <strong>G</strong>/<strong>H</strong> (0,1 sn), hız: <strong>&lt;</strong>/<strong>&gt;</strong>, altyazıyı gizle: <strong>V</strong>, 10 sn: <strong>J</strong>/<strong>L</strong>, ses: <strong>&uarr;</strong>/<strong>&darr;</strong>.</div>
