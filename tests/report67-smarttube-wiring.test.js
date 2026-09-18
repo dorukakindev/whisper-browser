@@ -186,6 +186,17 @@ test('renderer: SmartTube kartı tek-tık oynatma (pendingAutoOpen)', () => {
   assert.match(RENDERER, /player\.pendingAutoOpen = \{ key: mediaKeyFor\('youtube', url\)/);
 });
 
+test('renderer: Trend ayracı tam satır — iç içe .st-grid wrap yok', () => {
+  // #stGrid zaten display:grid — ayrac/wrap grid item olarak eklenirse tek
+  // hücreye sıkışır (TRENDING şeridi boş kutu + scrollbar görünümü).
+  const sec = RENDERER.slice(
+    RENDERER.indexOf("renderSmartTubeGrid(grid, dedupe(videos)"),
+    RENDERER.indexOf('} else {', RENDERER.indexOf("renderSmartTubeGrid(grid, dedupe(videos)"))
+  );
+  assert.match(sec, /gridColumn\s*=\s*['"]1 \/ -1['"]/);
+  assert.doesNotMatch(sec, /createElement\('div'\)[\s\S]{0,200}className\s*=\s*'st-grid'/);
+});
+
 test('renderer: bölüm render yarış koruması (stSectionSeq)', () => {
   assert.match(RENDERER, /let stSectionSeq = 0/);
   assert.match(RENDERER, /seq !== stSectionSeq/);

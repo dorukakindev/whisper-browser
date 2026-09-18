@@ -22476,12 +22476,10 @@ async function renderSmartTubeSection(section, opts = {}) {
     if (trendList.length) {
       const sep = document.createElement('div');
       sep.className = 'st-section-title';
+      sep.style.gridColumn = '1 / -1';
       sep.textContent = 'Trend';
       grid.appendChild(sep);
-      const wrap = document.createElement('div');
-      wrap.className = 'st-grid';
-      trendList.slice(0, 18).forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
-      grid.appendChild(wrap);
+      trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
     }
   } else {
     renderSmartTubeGrid(grid, videos, null);
@@ -22529,7 +22527,7 @@ function renderSmartTubeChannels(channels) {
     title.textContent = ch.author || '';
     const sub = document.createElement('div');
     sub.className = 'st-card-sub';
-    sub.textContent = ch.subCount ? `${formatCount(ch.subCount)} abone` : '';
+    sub.textContent = ch.subCount ? `${formatCount(ch.subCount)} ${window.UiLocale?.t('abone') || 'abone'}` : '';
     body.appendChild(title);
     body.appendChild(sub);
     card.appendChild(body);
@@ -22586,7 +22584,7 @@ function buildSmartTubeCard(video) {
   if (video.liveNow) {
     const live = document.createElement('span');
     live.className = 'st-card-duration st-card-live';
-    live.textContent = 'CANLI';
+    live.textContent = window.UiLocale?.t('CANLI') || 'CANLI';
     thumb.appendChild(live);
   } else if (secs > 0) {
     const dur = document.createElement('span');
@@ -22612,7 +22610,7 @@ function buildSmartTubeCard(video) {
   const metaParts = [];
   if (video.author) metaParts.push(video.author);
   const views = Number(video.viewCount) || 0;
-  if (views > 0) metaParts.push(`${formatCount(views)} görüntüleme`);
+  if (views > 0) metaParts.push(`${formatCount(views)} ${window.UiLocale?.t('görüntüleme') || 'görüntüleme'}`);
   if (video.publishedText) metaParts.push(video.publishedText);
   sub.textContent = metaParts.join(' · ');
   body.appendChild(title);
@@ -22713,7 +22711,7 @@ async function openInvidiousChannelPage(channelId) {
   if (info.subCount) {
     const subs = document.createElement('div');
     subs.className = 'st-channel-sub';
-    subs.textContent = `${formatCount(info.subCount)} abone`;
+    subs.textContent = `${formatCount(info.subCount)} ${window.UiLocale?.t('abone') || 'abone'}`;
     head.appendChild(subs);
   }
   grid.innerHTML = '';
