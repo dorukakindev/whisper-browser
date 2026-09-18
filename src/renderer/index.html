@@ -2480,7 +2480,10 @@
 
             <div class="ptab-content hidden" id="playerSourcePanelYoutube" data-pcontent="yt" role="tabpanel"
               aria-labelledby="playerSourceTabYoutube">
-              <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." aria-label="Oynatıcı YouTube adresi"/>
+              <label class="field">
+                <span class="field-label">Video adresi</span>
+                <input type="url" id="playerYtUrl" placeholder="https://youtube.com/watch?v=..." aria-label="Oynatıcı YouTube adresi"/>
+              </label>
               <label class="field">
                 <span class="field-label">Kaynak</span>
                 <select id="playerSourceSelect" aria-label="YouTube kaynak seçici">
@@ -2503,10 +2506,11 @@
                 <small>Bot veya yaş doğrulamasında giriş yaptığın tarayıcıyı seç.</small>
               </label>
               <div class="player-yt-oauth">
+                <span class="field-label">Google hesabı</span>
                 <button class="btn btn-secondary btn-sm" id="playerYtOAuthBtn" type="button">YouTube ile giriş (Google hesabı)</button>
                 <small class="player-yt-oauth-status hidden" id="playerYtOAuthStatus"></small>
               </div>
-              <button class="btn btn-secondary btn-sm" id="playerProbe" style="margin-top:8px">Bilgi al</button>
+              <button class="btn btn-secondary btn-sm" id="playerProbe">Bilgi al</button>
               <div class="player-yt-info hidden" id="playerYtInfo">
                 <div class="player-yt-title" id="playerYtTitle"></div>
                 <label class="field">
@@ -2528,14 +2532,14 @@
                     <small id="playerAudioLockStatus">Ses seçilince otomatik eşleştirilir</small>
                   </span>
                 </label>
-                <button class="btn btn-primary btn-sm" id="playerDownload" style="margin-top:8px;width:100%">İndir ve izle</button>
-                <button class="btn btn-secondary btn-sm hidden" id="playerStream" style="margin-top:6px;width:100%">İndirmeden izle</button>
-                <button class="btn btn-secondary btn-sm hidden" id="playerCancelDl" style="margin-top:6px;width:100%">İndirmeyi iptal et</button>
-                <label class="field hidden" id="playerYtSubField" style="margin-top:10px">
+                <button class="btn btn-primary btn-sm" id="playerDownload">İndir ve izle</button>
+                <button class="btn btn-secondary btn-sm hidden" id="playerStream">İndirmeden izle</button>
+                <button class="btn btn-secondary btn-sm hidden" id="playerCancelDl">İndirmeyi iptal et</button>
+                <label class="field hidden" id="playerYtSubField">
                   <span class="field-label">YouTube'un hazır altyazısı</span>
                   <select id="playerYtSubLang"></select>
                 </label>
-                <button class="btn btn-secondary btn-sm hidden" id="playerYtSubGet" style="margin-top:6px;width:100%">Bu altyazıyı indir</button>
+                <button class="btn btn-secondary btn-sm hidden" id="playerYtSubGet">Bu altyazıyı indir</button>
                 <div class="player-dl-progress hidden" id="playerDlProgress">
                   <div class="progress-track"><div class="progress-fill" id="playerDlFill"></div></div>
                   <span id="playerDlText">0%</span>

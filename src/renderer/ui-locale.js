@@ -1210,6 +1210,8 @@
     ['Arama sonuçları', 'Search results'],
     ['YouTube ile giriş', 'Sign in with YouTube'],
     ['YouTube ile giriş (Google hesabı)', 'Sign in with YouTube (Google account)'],
+    ['Google hesabı', 'Google account'],
+    ['Video adresi', 'Video URL'],
     ['YT çıkış', 'YT sign out'],
     ['YouTube bağlı', 'YouTube connected'],
     ['YouTube onayı bekleniyor', 'Waiting for YouTube approval'],
