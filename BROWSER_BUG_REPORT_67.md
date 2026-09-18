@@ -528,3 +528,105 @@ kanıtlandı) ama içerik kalitesi ve SmartTube paritesi için kalan işler.
 3. Up-next rayı + kanal linkleri
 4. Kategori chip'leri + sayfalama
 5. Yorumlar + playlist
+
+---
+
+# Uygulama turu — SmartTube parite düzeltmeleri (2026-09-18)
+
+Kullanıcı talimatı: "Gerekli düzeltmeleri yap" — yukarıdaki iş listesi
+kod'a uygulandı. Bu bölüm neyin yapıldığını ve kanıtını kaydeder.
+
+## Uygulananlar
+
+### Backend (`backend/invidious.py`)
+- `feed` komutuna `--tab` argümanı; whitelist `default|music|gaming|news|movies`.
+  `default` → `/api/v1/trending`, diğerleri `?type=<tab>` (tek kategori,
+  SmartTube chip seçimine hizmet eder). Birleşik 4-kategorili tarama yalnız
+  `tab` verilmezse yapılır.
+- yt-dlp fallback'leri `degraded: true` + `source: "yt-dlp:<yol>"` emit eder;
+  `feed_*` yanıtları artık `videos` listesi yerine `{videos, source, degraded,
+  instance}` zarfı döndürür. Arama fallback'i geçersiz (videoId'siz) girdileri
+  eler.
+- `probe` emit'ine `recommended` (parse edilmiş `recommendedVideos` listesi)
+  eklendi — renderer up-next rayı buradan beslenir.
+- Yeni komutlar: `comments` (`--video-id`, opsiyonel `--continuation` →
+  `{videoId, comments, continuation, disabled, instance}`) ve `playlist`
+  (`--playlist-id`, `^[A-Za-z0-9_-]+$` doğrulaması, `--page` → meta + parse
+  edilmiş videolar).
+
+### Main (`src/main.js`)
+- `runInvidiousCommand` sonuç whitelist'i `comments` + `playlist`'i kapsar.
+- `invidious:feed` handler'ı `opts.tab` doğrular ve `--tab` geçirir.
+- `invidious:comments` — düz 11-karakter video kimliği VEYA doğrulanmış
+  http/https URL kabul eder (`decideUrlPolicy` try/catch; düz ID'de throw
+  yutmaz). Yetkili gönderici kontrolü korunur.
+- `invidious:playlist` — aynı yetki + `[A-Za-z0-9_-]+` kimlik süzgeci.
+
+### Preload (`src/preload.js`)
+- `api.invidiousComments(videoId, opts)` ve `api.invidiousPlaylist(id, opts)`.
+
+### Renderer (`src/renderer/renderer.js`)
+- `fetchInvidiousFeed` tam payload döndürür (`{videos, source, degraded,
+  instance}`); `fetchInvidiousSubscriptions` aynı zarfı kullanır
+  (`feedData.videos` düzeltmesi).
+- `renderSmartTubeSection` — trending bölümünde 5 kategori chip'i
+  (Tümü/Müzik/Oyun/Haber/Film) → `tab` parametresi backend'e gider; aktif chip
+  `is-active` işaretlenir. `degraded` kaynaklar statü satırında "yedek"
+  etiketiyle gösterilir (Invidious gibi sunulmaz).
+- Roving grid ok-tuşu gezinmesi: `stGridNav` — ←/→ komşu kart, ↑/↓ hesaplanan
+  sütun sayısı kadar, Home/End ilk/son; `#stGrid`, `#stSearchResults`,
+  `.st-upnext-list` üzerinde delegation; `scrollIntoView({block:'nearest'})`.
+  Kartlardaki `stopPropagation` yalnız Enter/Space'e indirildi.
+- Kart `author` artık `<button class="st-card-author">` — tıklama kanal
+  sayfasına gider, video oynatmaz (`stopPropagation`).
+- Kanal sayfası: iç içe `.st-grid` yok; `.st-channel-head` tam satır
+  (`gridColumn: 1 / -1`); kartlar doğrudan grid.
+- Arama sayfalaması: `stSearchState {page, seenIds, lastQuery, hasMore}`;
+  "Daha fazla" düğmesi sayfa 2+ sonuçları dedupe'le ekler; `stSearchSeq`
+  bayat-yanıt koruması korunur.
+- Up-next rayı + yorumlar paneli `#playerStage` içinde (tam ekran uyumlu):
+  `#playerSidePanel` — `recommendedVideos` kartları (tık = sıralı oynatma),
+  `stComments` bölümü continuation ile "Daha fazla yorum" destekler;
+  yorum metni yalnız `textContent` (HTML enjeksiyonu yok). `N` kısayolu +
+  `#playerUpNextBtn` paneli açar/kapatır. `player.ytInfo` kimliği ile bayat
+  yanıt koruması.
+- Dinamik meta dizgileri `UiLocale.t()`'ye bağlandı; `#playerMeta` locale
+  `ignored` listesinde (kısmen çevrilmiş "düşürülecek viewing workspace"
+  bug'ı çözüldü).
+
+### HTML/CSS
+- `#playerSidePanel` + `#playerUpNextBtn` markup'ı.
+- `.st-chip`, `.st-card-author`, `.st-channel-head`, `.st-upnext-*`,
+  `.st-comments*`, `.player-side-panel` stilleri; `.st-chip.is-active`
+  `var(--accent-contrast)` (tema sözleşmesi).
+- `subHiddenHint` ipucu z-index/konum düzeltmesi — sahnede kalıyor
+  (smoke `hintInStage: true`).
+
+## Doğrulama kanıtı
+
+- `tests/report67-smarttube-wiring.test.js` → **39/39** (yeni: roving nav,
+  chip'ler, degraded etiketi, up-next, yorum textContent, playlist/comments
+  IPC zinciri, locale meta).
+- `backend/test_invidious.py` → **59 test OK** (yeni: `comments`/`playlist`
+  parse + doğrulama + `tab` dispatch + degraded zarf).
+- `tests/electron-smarttube-boot.smoke.js` → **GEÇTİ** —
+  `{"ok":true, feat:{chipCount:5, musicTabLoaded:true,
+  chipActiveAfterClick:1, degradedStatus:true, rovingRight:true,
+  rovingEnd:true, upNextBtn:true, upNextItems:1, commentCount:2,
+  commentNoHtml:true, channelHead:true, channelNoNested:true,
+  channelCards:3, hintInStage:true}}`
+- `design-system` yeşil (`.st-chip.is-active` `--accent-contrast` düzeltmesi
+  sonrası) · `ui-locale` 14 assertion · `node --check` + `py_compile` temiz
+  · `git diff --check` temiz.
+- `npm test` kalan 3 kırmızı: `report62`, `report63-secret`, `report63-ssrf`
+  — başka iş akışının commit'siz WIP testleri; bekledikleri ürün kodu
+  yazılmamış, bu teslimde dokunulmadı.
+
+## Bilinçli yapılmayanlar (kalan parite işi)
+
+- Instance seçici UI, arama autocomplete/filtreler, yerel izleme-geçmişi
+  rail'i, like/abone düğmeleri, kanal sekmeleri/banner — kapsam dışı
+  bırakıldı; tam SmartTube paritesi iddia edilmez.
+- Canlı Invidious instance davranışı (chip→`?type=` gerçek yanıtı, comments
+  continuation, playlist) mock/fixture seviyesinde doğrulandı; canlı ağ
+  bu ortamda yok.
