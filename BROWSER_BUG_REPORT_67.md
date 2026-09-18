@@ -353,6 +353,32 @@ yalnız yeni özelliği değil, önceden çalışan yt-dlp oynatıcısını da �
   yazıldı; P1/P2'ler tüm nesillerde invariant, P3'lerin bir kısmı
   varyant-bağımlı — düzeltmeden önce son dosyayla diff'leyin.
 
+## Güncel-durum eki — 2026-09-18 14:2x (kullanıcı ekran görüntüsü doğrulaması)
+
+Kullanıcının paylaştığı ekran: sol `st-*` sidebar render oluyor, içerik
+alanı "İçerik yükleniyor…"da takılı — **tam da R67-01'in ölü-script
+imzası**: markup çizilir, davranış yoktur.
+
+Güncel ağaçta yeniden doğrulanan zincir:
+
+- `initPlayerSource()` hâlâ `renderer.js:22006`'da; `INV_KEY`/`playerSource`
+  hâlâ `22624-22625`'te → TDZ çökmesi **açık**. `sel.value = playerSource`
+  (22634) try dışında → uncaught → 22006 sonrası her şey ölü:
+  `invidiousFeedCache` (22010), `fetchInvidiousFeed` (22019), tüm
+  `renderSmartTube*` (22304+), `DOMContentLoaded` dinleyicisi (22322),
+  sidebar `forEach` bağları (22334), `initSmartTube`/`initInv*` çağrıları
+  (22295, 22620) — hiçbiri hiç çalışmıyor. Sidebar butonları, arama,
+  kart grid'i: hepsi ölü markup.
+- Kısmi düzeltme gelmiş: `main.js:921` artık `feed`/`search` olaylarını da
+  `result`'a yazıyor (R67-02'nin yarısı kapandı). **`channel`, `login`,
+  `logout`, `downloaded` hâlâ yakalanmıyor** → giriş hep "başarısız",
+  kanal hep boş.
+- Gerisi değişmedi: CSP, slot çakışması, modal konumu, auth mimarisi,
+  downloadStream yönlendirmesi, srv1 parser — hepsi açık.
+
+Yani "çalışmıyor"un birinci cevabı R67-01; düzeltilse sırayla R67-02
+(kalan tipler), R67-05, R67-04, R67-06/07/08 duvarlarına çarpar.
+
 ## Handoff — önerilen onarım sırası
 
 1. **R67-01** — `INV_KEY`/`playerSource` bildirimlerini ilk kullanımdan
