@@ -2392,6 +2392,15 @@
                 </select>
                 <small id="playerSourceHint">Invidious: Google'a bağlanmadan, reklamsız. Hız/yenilik için yt-dlp.</small>
               </label>
+              <div class="invidious-toolbar">
+                <button class="btn btn-secondary btn-sm" id="invidiousHomeRefresh">Ana sayfa yenile</button>
+                <button class="btn btn-secondary btn-sm" id="invidiousLoginBtn">Giriş yap</button>
+                <button class="btn btn-secondary btn-sm hidden" id="invidiousLogoutBtn">Çıkış</button>
+                <input type="search" id="invidiousSearchInput" placeholder="Invidious'ta ara..." aria-label="Invidious arama"/>
+                <button class="btn btn-secondary btn-sm" id="invidiousSearchBtn">Ara</button>
+              </div>
+              <div id="invidiousHome" class="invidious-home"></div>
+              <div id="invidiousSearchResults" class="invidious-search hidden"></div>
               <label class="field youtube-session-field">
                 <span class="field-label">YouTube oturumu</span>
                 <select id="playerCookieBrowser">
@@ -2791,5 +2800,25 @@
 <script src="browser-video-analysis.js"></script>
 <script src="browser-dialogue.js"></script>
 <script src="browser-series-context.js"></script>
+
+<!-- Invidious login modalı -->
+<div id="invidiousLoginModal" class="modal hidden" role="dialog" aria-labelledby="invLoginTitle">
+  <div class="modal-content" style="max-width:420px">
+    <h3 id="invLoginTitle">Invidious hesabına giriş</h3>
+    <p class="small-muted">Invidious sunucu taraflı hesap kullanır — Google'a bağlanmaz. Sadece o instance'daki hesabın geçerlidir.</p>
+    <label class="field">
+      <span class="field-label">Kullanıcı adı veya e-posta</span>
+      <input type="text" id="invLoginUsername" autocomplete="username" />
+    </label>
+    <label class="field">
+      <span class="field-label">Şifre</span>
+      <input type="password" id="invLoginPassword" autocomplete="current-password" />
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="invLoginCancel">İptal</button>
+      <button class="btn btn-primary" id="invLoginSubmit">Giriş</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -181,6 +181,127 @@ class InvidiousCmdLine(unittest.TestCase):
             f"Beklenen error event, stdout: {out!r}, exit={proc.returncode}"
         )
 
+    def test_popular_command_emits_feed_event(self):
+        # Ağ çağrısı yapacağı için sadece çalıştırılabilirlik kontrolü
+        # (ortamda Invidious yoksa hata event'i yayınlar)
+        proc = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(__file__), "..", "backend", "invidious.py"),
+             "popular"],
+            capture_output=True, timeout=30,
+        )
+        out = proc.stdout.decode("utf-8", errors="replace")
+        # feed ya da error event yayınlanmalı
+        self.assertTrue(
+            '"type": "feed"' in out or '"type": "error"' in out,
+            f"Beklenen feed/error event, stdout: {out!r}"
+        )
+
+    def test_login_command_with_empty_credentials_returns_error(self):
+        proc = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(__file__), "..", "backend", "invidious.py"),
+             "login", "--username", "", "--password", ""],
+            capture_output=True, timeout=30,
+        )
+        out = proc.stdout.decode("utf-8", errors="replace")
+        # Boş kullanıcı adı/şifre — Invidious sunucu 401 döner veya boş şifre exception
+        self.assertTrue(
+            '"type": "error"' in out or proc.returncode != 0,
+            f"Beklenen error, stdout: {out!r}, exit={proc.returncode}"
+        )
+
+    def test_logout_command_runs_clean(self):
+        proc = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(__file__), "..", "backend", "invidious.py"),
+             "logout"],
+            capture_output=True, timeout=15,
+        )
+        out = proc.stdout.decode("utf-8", errors="replace")
+        self.assertIn('"type": "logout"', out)
+        self.assertIn('"ok": true', out)
+
+
+class InvidiousAuth(unittest.TestCase):
+    """Auth (login/logout) yardımcıları."""
+
+    def test_set_session_clears(self):
+        """set_session None ile çağrılınca temizlenir."""
+        invidious.set_session(cookie="test_sid", username="test_user")
+        self.assertEqual(invidious._session_cookie, "test_sid")
+        self.assertEqual(invidious._session_username, "test_user")
+        invidious.set_session(cookie=None, username=None)
+        self.assertIsNone(invidious._session_cookie)
+        self.assertIsNone(invidious._session_username)
+
+    def test_auth_headers_without_session(self):
+        invidious.set_session(cookie=None, username=None)
+        headers = invidious._auth_headers()
+        self.assertNotIn("Cookie", headers)
+        self.assertIn("User-Agent", headers)
+
+    def test_auth_headers_with_session(self):
+        invidious.set_session(cookie="abc123", username="u")
+        try:
+            headers = invidious._auth_headers()
+            self.assertEqual(headers.get("Cookie"), "SID=abc123")
+        finally:
+            invidious.set_session(cookie=None, username=None)
+
+
+class InvidiousFeedParsing(unittest.TestCase):
+    """Feed/video item parsing."""
+
+    def test_parse_video_item_minimal(self):
+        v = invidious._parse_video_item({
+            "videoId": "abc12345678",
+            "title": "Test",
+            "author": "Channel",
+        })
+        self.assertEqual(v["videoId"], "abc12345678")
+        self.assertEqual(v["title"], "Test")
+        self.assertEqual(v["author"], "Channel")
+        self.assertEqual(v["lengthSeconds"], 0)
+        self.assertEqual(v["viewCount"], 0)
+
+    def test_parse_video_item_full(self):
+        v = invidious._parse_video_item({
+            "videoId": "x",
+            "title": "t",
+            "author": "a",
+            "lengthSeconds": 600,
+            "viewCount": 12345,
+            "videoThumbnails": [{"url": "https://example.com/t.jpg", "quality": "medium"}],
+        })
+        self.assertEqual(v["lengthSeconds"], 600)
+        self.assertEqual(v["viewCount"], 12345)
+        self.assertEqual(len(v["videoThumbnails"]), 1)
+
+    def test_parse_video_item_with_nonascii(self):
+        v = invidious._parse_video_item({
+            "videoId": "tr1",
+            "title": "Türkçe başlık: ğüşı",
+            "author": "Kanal",
+        })
+        self.assertIn("Türkçe", v["title"])
+
+
+class InvidiousChannelIdValidation(unittest.TestCase):
+    """Kanal ID format validasyonu (main.js'te yapılır)."""
+
+    def test_valid_ucid_pattern(self):
+        # Invidious UCID = UC + 22 alphanumeric
+        import re
+        pattern = r"^[A-Za-z0-9_-]{2,40}$"
+        self.assertRegex("UCabcdefghijklmnopqrstuv", pattern)
+        self.assertRegex("UC12345678", pattern)
+        self.assertRegex("UC_x-1", pattern)
+
+    def test_invalid_ucid_rejected(self):
+        import re
+        pattern = r"^[A-Za-z0-9_-]{2,40}$"
+        self.assertNotRegex("javascript:alert(1)", pattern)
+        self.assertNotRegex("", pattern)
+        self.assertNotRegex("../etc/passwd", pattern)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1102,6 +1102,144 @@ ipcMain.handle('invidious:cancel', async (event) => {
   return { ok: true };
 });
 
+// Invidious feed (popüler/trending/abonelikler)
+ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const valid = ['popular', 'trending', 'subscriptions'];
+  if (!valid.includes(kind)) return { ok: false, error: `Geçersiz feed: ${kind}` };
+  const instance = opts && opts.instance ? opts.instance : '';
+  const args = [kind];
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  });
+});
+
+// Invidious arama
+ipcMain.handle('invidious:search', async (_e, query, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return { ok: false, error: 'Arama terimi gerekli.' };
+  }
+  const instance = opts && opts.instance ? opts.instance : '';
+  const args = ['search', '--query', query.trim().slice(0, 100)];
+  if (opts && opts.page) args.push('--page', String(opts.page));
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  });
+});
+
+// Invidious kanal
+ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!channelId || typeof channelId !== 'string') {
+    return { ok: false, error: 'Kanal ID gerekli.' };
+  }
+  // Sadece güvenli karakterler (Invidious UCID'leri UC + 22 alfanumerik)
+  if (!/^[A-Za-z0-9_-]{2,40}$/.test(channelId)) {
+    return { ok: false, error: 'Geçersiz kanal ID formatı.' };
+  }
+  const instance = opts && opts.instance ? opts.instance : '';
+  const args = ['channel', '--channel-id', channelId];
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  });
+});
+
+// Invidious giriş — ana süreçte Invidious session saklanır (Invidious
+// instance'ları arası paylaşılmaz; oturum özel seçilen instance'a bağlı).
+const invidiousSessions = new Map();    // username -> { sid, instance }
+ipcMain.handle('invidious:login', async (_e, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const { username, password, instance } = opts || {};
+  if (!username || !password) {
+    return { ok: false, error: 'Kullanıcı adı ve şifre gerekli.' };
+  }
+  const args = ['login', '--username', String(username).slice(0, 100),
+                '--password', String(password).slice(0, 200)];
+  if (instance) args.push('--instance', instance);
+  const res = await runInvidiousCommand(args, 'invidious');
+  if (res && res.ok && res.data && res.data.username) {
+    invidiousSessions.set(res.data.username, {
+      sid: res.data.sid,
+      instance: res.data.instance,
+    });
+  }
+  return res;
+});
+
+ipcMain.handle('invidious:logout', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  invidiousSessions.clear();
+  return runInvidiousCommand(['logout'], 'invidious');
+});
+
+ipcMain.handle('invidious:session', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const sessions = [...invidiousSessions.entries()].map(([u, v]) => ({
+    username: u,
+    instance: v.instance,
+  }));
+  return { ok: true, data: { sessions } };
+});
+
+// Invidious adaptive stream'lerini indirip ffmpeg ile birleştirir (download_stream)
+// yt-dlp kullanmaz — Invidious'un imzasız URL'leri geçerli olduğu sürece
+// Google'a bağlanmaz (SmartTube/Piped akışının uçtan uca muadili).
+ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const o = opts || {};
+  if (!o.videoUrl || typeof o.videoUrl !== 'string') {
+    return { ok: false, error: 'Video URL gerekli.' };
+  }
+  try {
+    const policy = decideUrlPolicy(o.videoUrl, 'renderer-external');
+    if (policy.action !== 'external' || !['http:', 'https:'].includes(policy.protocol)) {
+      return { ok: false, error: 'Video URL yalnızca http/https olmalı.' };
+    }
+  } catch (_) {
+    return { ok: false, error: 'Video URL çözümlenemedi.' };
+  }
+  if (o.audioUrl) {
+    try {
+      const policy = decideUrlPolicy(o.audioUrl, 'renderer-external');
+      if (policy.action !== 'external' || !['http:', 'https:'].includes(policy.protocol)) {
+        return { ok: false, error: 'Ses URL yalnızca http/https olmalı.' };
+      }
+    } catch (_) {
+      return { ok: false, error: 'Ses URL çözümlenemedi.' };
+    }
+  }
+  let outDir;
+  try {
+    outDir = sanitizeAbsolutePath(o.inputDir || loadSettings().inputDir, 'Girdi klasörü');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+  const args = [
+    'download_stream',
+    '--video-url', o.videoUrl,
+    '--title', (o.title || 'invidious-video').slice(0, 120),
+    '--output-dir', outDir,
+  ];
+  if (o.audioUrl) args.push('--audio-url', o.audioUrl);
+  if (o.height) args.push('--height', String(o.height));
+  if (o.audioLang) args.push('--audio-lang', o.audioLang);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  });
+});
+
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {

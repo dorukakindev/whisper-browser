@@ -65,11 +65,19 @@ contextBridge.exposeInMainWorld('api', {
   // Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)
   probeInvidious: (url, opts) => ipcRenderer.invoke('invidious:probe', url, opts || {}),
   downloadInvidiousSubs: (url, opts) => ipcRenderer.invoke('invidious:subs', url, opts || {}),
+  downloadInvidiousStream: (opts) => ipcRenderer.invoke('invidious:downloadStream', opts || {}),
   cancelInvidious: () => ipcRenderer.invoke('invidious:cancel'),
   onInvidiousEvent: (listener) => {
     ipcRenderer.on('invidious:event', listener);
     return () => ipcRenderer.removeListener('invidious:event', listener);
   },
+  // Invidious ana sayfa + auth (SmartTube tarzı)
+  invidiousFeed: (kind, opts) => ipcRenderer.invoke('invidious:feed', kind, opts || {}),
+  invidiousSearch: (query, opts) => ipcRenderer.invoke('invidious:search', query, opts || {}),
+  invidiousChannel: (channelId, opts) => ipcRenderer.invoke('invidious:channel', channelId, opts || {}),
+  invidiousLogin: (username, password) => ipcRenderer.invoke('invidious:login', { username, password }),
+  invidiousLogout: () => ipcRenderer.invoke('invidious:logout'),
+  invidiousSession: () => ipcRenderer.invoke('invidious:session'),
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),

@@ -325,23 +325,223 @@ def _ms_to_srt_time(ms):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{millis:03d}"
 
 
+# ===== Auth (Invidious session) =====
+# Invidious sunucu taraflı hesap kullanır; Google'a bağlanmaz. Cookie/session
+# anahtarı modül seviyesinde tutulur (ana süreçten gelir).
+_session_cookie = None   # SID değeri
+_session_username = None
+
+
+def set_session(cookie=None, username=None):
+    """Ana süreçten gelen session'ı kur."""
+    global _session_cookie, _session_username
+    _session_cookie = cookie or None
+    _session_username = username or None
+
+
+def _auth_headers():
+    """Invidious session cookie varsa ekler."""
+    headers = {"User-Agent": "Mozilla/5.0"}
+    if _session_cookie:
+        headers["Cookie"] = f"SID={_session_cookie}"
+    return headers
+
+
+def login(username, password, instance=None):
+    """Invidious hesabına giriş yapar. SID cookie'sini döndürür.
+
+    Invidious API:
+      POST /login?email_or_user=...&password=...
+      veya: POST /session/login (JSON: {"email_or_user": ..., "password": ...})
+      Yanıt: Set-Cookie: SID=...; HttpOnly
+    """
+    from http.cookiejar import CookieJar
+    from urllib.request import HTTPCookieProcessor, build_opener
+
+    inst = instance or find_working_instance()
+    jar = CookieJar()
+    opener = build_opener(HTTPCookieProcessor(jar))
+    opener.addheaders = [("User-Agent", "Mozilla/5.0")]
+
+    url = f"{inst}/login"
+    body = f"email_or_user={urllib_parse.quote(username)}&password={urllib_parse.quote(password)}"
+    body_bytes = body.encode("utf-8")
+    try:
+        req = Request(url, data=body_bytes, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Content-Type": "application/x-www-form-urlencoded",
+        })
+        with opener.open(req, timeout=15) as resp:
+            sid = None
+            for cookie in jar:
+                if cookie.name == "SID":
+                    sid = cookie.value
+                    break
+            if not sid:
+                raise RuntimeError("Invidious session cookie alınamadı.")
+            set_session(cookie=sid, username=username)
+            log(f"Invidious giriş başarılı: {username}")
+            emit("login", ok=True, username=username, instance=inst, sid=sid)
+    except HTTPError as e:
+        if e.code == 401:
+            raise RuntimeError("Invidious: kullanıcı adı veya şifre hatalı.")
+        raise RuntimeError(f"Invidious giriş başarısız: HTTP {e.code}")
+    except URLError as e:
+        raise RuntimeError(f"Invidious giriş ağ hatası: {e}")
+
+
+def logout():
+    """Session'ı temizle."""
+    set_session(cookie=None, username=None)
+    emit("logout", ok=True)
+
+
+# urllib.parse burada import edilir (login için)
+import urllib.parse as urllib_parse
+
+
+# ===== Feed (ana sayfa) =====
+def _parse_video_item(v):
+    """Invidious video objesini ortak şemaya çevirir."""
+    return {
+        "videoId": v.get("videoId", ""),
+        "title": v.get("title", ""),
+        "author": v.get("author", ""),
+        "authorId": v.get("authorId", ""),
+        "lengthSeconds": int(v.get("lengthSeconds") or 0),
+        "viewCount": int(v.get("viewCount") or 0),
+        "publishedText": v.get("publishedText", ""),
+        "published": int(v.get("published") or 0),
+        "videoThumbnails": v.get("videoThumbnails", []),
+    }
+
+
+def feed_popular(instance=None):
+    """Popüler videolar (misafir izlenebilir)."""
+    inst = instance or find_working_instance()
+    log(f"Invidious popular: {inst}")
+    data = _fetch_json(f"{inst}/api/v1/popular", timeout=10)
+    videos = [_parse_video_item(v) for v in (data or [])]
+    emit("feed", kind="popular", videos=videos, instance=inst)
+
+
+def feed_trending(instance=None):
+    """Trend videolar."""
+    inst = instance or find_working_instance()
+    log(f"Invidious trending: {inst}")
+    # Invidious /api/v1/trending 4 kategori: music/gaming/news/movies
+    all_videos = []
+    try:
+        for tab in ("music", "gaming", "news", "movies"):
+            data = _fetch_json(f"{inst}/api/v1/trending?type={tab}", timeout=10)
+            if data:
+                all_videos.extend([_parse_video_item(v) for v in data])
+    except Exception:
+        # trending yoksa popular'a düş
+        feed_popular(instance)
+        return
+    emit("feed", kind="trending", videos=all_videos, instance=inst)
+
+
+def feed_subscriptions(instance=None):
+    """Kullanıcının abonelik feed'i — giriş gerekli."""
+    inst = instance or find_working_instance()
+    if not _session_cookie:
+        raise RuntimeError("Abonelikler için Invidious hesabına giriş gerekli.")
+    log(f"Invidious subscriptions: {inst}")
+    try:
+        req = Request(f"{inst}/api/v1/feed/subscriptions",
+                      headers=_auth_headers())
+        with urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        videos = [_parse_video_item(v) for v in (data.get("videos") or [])]
+        # notifications gibi ek alanlar olabilir
+        notifications = data.get("notifications", [])
+        emit("feed", kind="subscriptions", videos=videos,
+             notifications=notifications, instance=inst)
+    except HTTPError as e:
+        if e.code == 401:
+            raise RuntimeError("Oturum süresi dolmuş — yeniden giriş yapın.")
+        raise RuntimeError(f"Abonelik feed hatası: HTTP {e.code}")
+
+
+# ===== Arama =====
+def search(query, page=1, instance=None):
+    """Invidious arama. Sonuçları video listesi olarak döndürür."""
+    inst = instance or find_working_instance()
+    log(f"Invidious search: {query!r}")
+    q = urllib_parse.quote(query)
+    data = _fetch_json(
+        f"{inst}/api/v1/search?q={q}&page={int(page)}&type=video",
+        timeout=15
+    )
+    videos = []
+    for v in (data or []):
+        if v.get("type") != "video":
+            continue
+        videos.append(_parse_video_item(v))
+    emit("search", query=query, page=int(page), videos=videos, instance=inst)
+
+
+# ===== Kanal =====
+def channel(channel_id, instance=None):
+    """Kanal bilgisi + son videolar."""
+    inst = instance or find_working_instance()
+    log(f"Invidious channel: {channel_id} @ {inst}")
+    # Invidious /api/v1/channels/{ucid} (channelId = UC...)
+    url = f"{inst}/api/v1/channels/{urllib_parse.quote(channel_id)}"
+    data = _fetch_json(url, timeout=15)
+    info = {
+        "author": data.get("author", ""),
+        "authorId": data.get("authorId", channel_id),
+        "authorThumbnails": data.get("authorThumbnails", []),
+        "subCount": int(data.get("subCount") or 0),
+        "description": (data.get("description") or "")[:500],
+    }
+    videos = [_parse_video_item(v) for v in (data.get("latestVideos") or [])]
+    emit("channel", info=info, videos=videos, instance=inst)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Invidious API client")
-    ap.add_argument("command", choices=["probe", "subs"])
-    ap.add_argument("--url", required=True, help="YouTube URL veya video ID")
+    ap.add_argument("command", choices=[
+        "probe", "subs", "login", "logout",
+        "popular", "trending", "subscriptions",
+        "search", "channel",
+    ])
+    ap.add_argument("--url", default="", help="YouTube URL veya video ID")
     ap.add_argument("--lang", default="en", help="Altyazı dili kodu")
     ap.add_argument("--auto", action="store_true", help="Otomatik altyazılar dahil")
     ap.add_argument("--instance", default="", help="Invidious instance URL")
     ap.add_argument("--output-dir", default=".", help="Çıktı klasörü")
+    ap.add_argument("--username", default="", help="Invidious kullanıcı adı")
+    ap.add_argument("--password", default="", help="Invidious şifresi (güvenli: argv'de görünür)")
+    ap.add_argument("--query", default="", help="Arama terimi")
+    ap.add_argument("--page", type=int, default=1, help="Arama sayfası")
+    ap.add_argument("--channel-id", default="", help="Invidious kanal ID (UCID)")
     args = ap.parse_args()
-    
+
     instance = args.instance.strip() if args.instance else None
-    
+
     try:
         if args.command == "probe":
             probe(args.url, instance)
         elif args.command == "subs":
             fetch_subs(args.url, args.lang, args.output_dir, instance, args.auto)
+        elif args.command == "login":
+            login(args.username, args.password, instance)
+        elif args.command == "logout":
+            logout()
+        elif args.command == "popular":
+            feed_popular(instance)
+        elif args.command == "trending":
+            feed_trending(instance)
+        elif args.command == "subscriptions":
+            feed_subscriptions(instance)
+        elif args.command == "search":
+            search(args.query, args.page, instance)
+        elif args.command == "channel":
+            channel(args.channel_id, instance)
     except Exception as e:
         emit("error", message=str(e))
 

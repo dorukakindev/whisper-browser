@@ -284,6 +284,104 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
     emit("clip", path=str(path), title=info.get("title") or "", start=start, end=end)
 
 
+def download_stream(video_url, audio_url, title, height, audio_lang, output_dir):
+    """Invidious adaptive stream URL'lerini doğrudan indirip ffmpeg ile birleştirir.
+
+    yt-dlp'ye GEREK YOK — Invidious API'nin döndürdüğü ham adaptive
+    format URL'leri kullanılır. Reklamsız/gizli video için SmartTube
+    yolunun uçtan uca muadili.
+    """
+    import subprocess
+    from urllib.request import urlopen, Request
+
+    if not video_url:
+        raise ValueError("Video URL boş — Invidious probe'tan video URL'i alınamadı.")
+
+    outdir = Path(output_dir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    safe_title = re.sub(r'[<>:"/\\|?*\r\n\t]', '_', title or "video")[:120]
+    out_path = outdir / f"{safe_title}.mp4"
+
+    last = [0.0]
+
+    def report(percent):
+        now = time.time()
+        if now - last[0] > 0.3:
+            last[0] = now
+            emit("download_progress", percent=round(percent, 1), speed=0, eta=0)
+
+    def fetch(url, target, label):
+        """Stream'i indirip ilerleme bildirir. URL imzalıysa (Invidious expires=...) doğrudan çalışır."""
+        if not url:
+            return
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=30) as resp:
+            total = int(resp.headers.get("Content-Length") or 0)
+            got = 0
+            chunk = 256 * 1024
+            with open(target, "wb") as f:
+                while True:
+                    buf = resp.read(chunk)
+                    if not buf:
+                        break
+                    f.write(buf)
+                    got += len(buf)
+                    if total:
+                        report(got / total * 100.0)
+        log(f"{label} indirildi: {target}")
+
+    video_tmp = outdir / f"{safe_title}.video.tmp"
+    audio_tmp = outdir / f"{safe_title}.audio.tmp"
+
+    try:
+        fetch(video_url, video_tmp, "Video")
+        if audio_url:
+            fetch(audio_url, audio_tmp, "Ses")
+        else:
+            # Sadece video akışı — sesi yok
+            audio_tmp = None
+
+        # ffmpeg ile birleştir (ses varsa)
+        ff = _find_ffmpeg()
+        if not ff:
+            raise RuntimeError("ffmpeg bulunamadı — bin/ altına kopyalayın veya PATH'e ekleyin.")
+
+        if audio_tmp and audio_tmp.exists():
+            cmd = [
+                ff, "-y",
+                "-i", str(video_tmp),
+                "-i", str(audio_tmp),
+                "-c", "copy",
+                "-shortest",
+                "-movflags", "+faststart",
+                str(out_path),
+            ]
+        else:
+            # Video-only: sadece kopyala
+            cmd = [
+                ff, "-y",
+                "-i", str(video_tmp),
+                "-c", "copy",
+                "-movflags", "+faststart",
+                str(out_path),
+            ]
+
+        log("Birleştiriliyor (ffmpeg)…")
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg birleştirme başarısız: {proc.stderr[-500:]}")
+
+        emit("downloaded", path=str(out_path), title=title, duration=0)
+    finally:
+        # Geçici dosyaları sil (hata olsa bile)
+        for tmp in (video_tmp, audio_tmp):
+            try:
+                if tmp and tmp.exists():
+                    tmp.unlink()
+            except OSError:
+                pass
+
+
 def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     """YouTube'un hazır altyazısını SRT olarak indirir ve yolunu döndürür."""
     import yt_dlp
@@ -327,7 +425,7 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
 
 def main():
     ap = argparse.ArgumentParser(description="Oynatıcı medya yardımcısı")
-    ap.add_argument("command", choices=["probe", "download", "subs", "clip"])
+    ap.add_argument("command", choices=["probe", "download", "subs", "clip", "download_stream"])
     ap.add_argument("--url", required=True)
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--audio-lang", default="")
@@ -338,6 +436,10 @@ def main():
     ap.add_argument("--clip-start", type=float, default=0)
     ap.add_argument("--clip-end", type=float, default=0)
     ap.add_argument("--output-file", default="")
+    # download_stream: Invidious adaptive stream URL'lerini doğrudan indir
+    ap.add_argument("--video-url", default="", help="Invidious video stream URL (download_stream)")
+    ap.add_argument("--audio-url", default="", help="Invidious audio stream URL (download_stream)")
+    ap.add_argument("--title", default="video", help="video başlığı (dosya adı için)")
     args = ap.parse_args()
 
     try:
@@ -350,6 +452,9 @@ def main():
         elif args.command == "clip":
             download_clip(args.url, args.clip_start, args.clip_end,
                           args.output_file, args.cookie_browser)
+        elif args.command == "download_stream":
+            download_stream(args.video_url, args.audio_url, args.title,
+                            args.height, args.audio_lang, args.output_dir)
         else:
             download(args.url, args.height, args.audio_lang, args.output_dir,
                      args.cookie_browser)
