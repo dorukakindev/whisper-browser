@@ -659,4 +659,55 @@ Bkz. O13. Düşük önem derecesi ama telemetry/observability açısından rapor
 
 ---
 
-**Rapor sonu. Kod değiştirilmedi.**
+---
+
+## 9. Doğrulama ve Uygulama Sonuçları (kod incelemesi + düzeltme)
+
+36 bulgunun tamamı mevcut koda karşı tek tek doğrulandı. Sınıflandırma:
+
+### 9.1 GERÇEK → Düzeltildi (12)
+
+| ID | Bulgu | Uygulanan düzeltme |
+|---|---|---|
+| K1 | OAuth/session token sızıntısı, camelCase varyantları (5 yüzey) | Yeni ortak modül `src/browser-sensitive-keys.js` (UMD, CJS+renderer); `safePlaceUrl`, `redactDiagnosticText`, `persistentBrowserMediaUrl`, `sanitizeManifestPreview`, `safeFilterRule`, `normalizeClosedBrowserTab` ortak sözlüğe bağlandı |
+| K2 | IPv6 SSRF — Teredo `2001::/32` ve 6to4 `2002::/16` public sayılıyor | `isPublicMangaIpAddress`: `0x2002` hexteti ve `2001:0000::/32` reddediliyor; `2606:4700::/2001:4860::` gibi gerçek public adresler geçiyor |
+| K4 | Türkçe `İ ↔ i` locale eşitsizliği | `sentencePartsMatch`'e `foldLocale`: `toLocaleLowerCase('tr')` + `ı→i` + `i̇→i` (İ/i/I/ı tek kanona iner) |
+| K5 | `cancelAll` kuşağı artırmıyor → abort'u yoksayan sağlayıcı geç yanıtı yeni kuşağa yazıyor | `BrowserTranslationScheduler.cancelAll()` sonunda `this.generation += 1` |
+| K7 | `redactDiagnosticText` / `persistentBrowserMediaUrl` camelCase token sızıntısı | Ortak `isSensitiveKey`/`startsWithSensitivePrefix`; tanı metninde `=` ayracı önce işlenir (sonraki `key=value` çiftinin `:` ayracıyla yutulması engellendi) |
+| O11 | `findSubtitleUrls` derinlik/dizi limitleri sessiz kesiyor | `truncated` bayrağı + `console.warn` (dizi>500, nesne>1000, sonuç>64) |
+| O14 | HLS `NAME` yokluğunda ham ISO kodu gösteriliyor | `HLS_LANGUAGE_LABELS` (35 dil): `attrs.NAME || label || LANGUAGE`; forced'a `(zorunlu)` eki korundu |
+| O15 | `submittedSentences` `queued`'ı katmıyor | `completed + pending + queued + failed` (sözleşme: pipeline'a kabul edilen iş); `browser-translation-integrity` testi yeni semantiğe uyarlandı |
+| O16 | 429 varsayılan failover | 429 artık yalnız `sameProviderAliases` kolunda; varsayılan davranış değişmedi (kota sıkışması önlenir) |
+| O17 | `SENTENCE_PROTOCOL_VERSION = 2` | `= 4` + `SUPPORTED_SENTENCE_PROTOCOL_VERSIONS = {2,3,4}`; `persistent-schema-inventory` satırı 4'e güncellendi |
+| D3 | MutationObserver 128 sınırında sessiz drop | LRU tahliyesi (en eski **gölge** kök; `document` ana DOM'un tek gözlemcisi olduğu için muaf) + `console.warn` |
+| D4 | Fullscreen snapshot site değişikliğini eziyor | `FULLSCREEN_STYLE_PROPS/VALUES`: geri yazma yalnız geçerli değer hâlâ bizim yazdığımız değerse; site değiştirdiyse site değeri korunur |
+
+### 9.2 Zaten doğru / FALSE POSITIVE (11)
+
+| ID | Neden |
+|---|---|
+| K3 | `browser-foundation.test.js:303` regex'i diğer restore çağrılarını hesaba katmıyor; init sırası doğru — **24 test geçiyor** |
+| K6 | `flush` zaten `version` snapshot'ı + değişimde yeniden-zamanlama içeriyor |
+| O1 | `persistBrowserSessionNow`/`flushBrowserSession` girişinde `browserSessionFinalizedForQuit` guard'ı mevcut (`main.js:3261,3284`) |
+| O4 | `watchMutationQueue` ile kütüphane mutasyonları zaten serileşmiş |
+| O8 | `cloudflareProbeState` saf fonksiyon (`'active'/'clear'/'unknown'` döndürür) — Map leak yok |
+| O9 | `browser:tab:event` kanalı kodda yok |
+| O12 | `mp4Tfhd`/`trex` okumaları `box.start + N <= box.end` guard'larıyla korunuyor |
+| O18 | `distributeTranslation` grapheme-tabanlı CJK desteği zaten içeriyor — test geçiyor |
+| D2 | Manga görsel fetch'i her redirect hop'unda IP'yi yeniden doğruluyor |
+| D6 | `normalizeTransform` hatası `runBrowserSubtitleExport` sarmalında yakalanıyor |
+| D7 | `dashTemplateTimeline` throw'u manifest işleme yolunda yakalanıyor |
+
+### 9.3 Ertelenen iyileştirmeler (ayrı önceliklendirme gerekir — 13)
+
+O2 (sekme LRU eviction · UX), O3 (`closedAt` + yaş eviction · hafıza hijyeni), O5 (diff tabanlı session save · disk I/O), O6 (SponsorBlock TTL), O7 (skip-segment öncelik sırası), O10/D10 (`note` dead-code), O13/D9 (`normalizeCues` invalidCount telemetrisi), D1 (WeakMap in-place mutasyon · teorik), D5 (manifest token uzunluk sızıntısı · çok düşük risk), D8 (subtitle grants persist · özellik), D11 (`subtitleLanguage` boş dönüş).
+
+### 9.4 Doğrulama kanıtı
+
+- **WIP regresyon testleri yeşil:** `report62-translation-deep-fix` ✓, `report63-secret-redaction` **19/19** ✓, `report63-ssrf-observer` **7/7** ✓, `report64-*` (bilinen-bug doğrulama) ✓
+- **Etkilenen alan testleri:** `browser-foundation` 24 · `browser-subtitles` 79 · `browser-adapters` 9 · `browser-place-url` 6 · `browser-overlay-controller` 15 · `browser-manga` · `browser-translation-integrity` 10 · `translation-endpoints` 20 · `browser-experience` 7 · `browser-report-regressions` · `browser-tabs` · `browser-tab-resources` · `ui-locale` 14 · `persistent-schema-inventory` 25 — hepsi geçti
+- **Enjekte-script doğrulaması:** `buildBrowserOverlayScript` çıktısı `new Function` ile ayrıca sözdizimi-denetlendi (template içi backtick hatası bu yolla yakalanıp düzeltildi)
+- **Electron smoke:** `electron-smarttube-boot` ✓ · `electron-ui-locale` ✓ · `electron-browser-video-e2e` — bu makinede ~%40-50 flake (satır 197 "Çift dil katmanı" zaman aşımı ve satır 500 senkron assertion'ı değişiklikten bağımsız tekrarlanıyor; temiz HEAD'de de aynı davranış gözlendi, son koşu tam geçti)
+- **Ek düzeltmeler bu turda:** `ui-locale` tablosuna eksik 10 çeviri (R70 metinleri) eklendi; `persistent-schema-inventory` `sentence-protocol-js` → v4; `MANIFEST_SECRET_KEY_RE`'ye `x-amz-*`/`x-goog-*`/`x-api-*`/`aws-*`/`google-*` prefix kapsaması geri eklendi; `redactUrlSensitiveParams` hash bloğunda ayrı `hashChanged` bayrağı (güvenli parametrelerin yeniden kodlanması önlendi); `redactDiagnosticText`'te `:` ayracı değerde `=` içermeyecek şekilde daraltıldı (`error: idToken=x` çift-yutma bug'ı)
+
+**Uygulama sonu. 12 bulgu düzeltildi, 11 false-positive/zaten-doğru, 13 iyileştirme ertelendi.**
