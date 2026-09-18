@@ -95,7 +95,7 @@ app.whenReady().then(async () => {
   await until(async () => {
     const fixture = webContents.getAllWebContents().find((item) =>
       item.getURL() === 'https://menu-visual.test/watch' && !item.isLoading());
-    return fixture && fixture.executeJavaScript('!!document.querySelector("video") && document.body.innerText.includes("Offline video fixture")');
+    return fixture && fixture.executeJavaScript('!!document.querySelector("video") && document.title === "Offline video fixture"');
   }, 'Fixture video page');
   await run('closeBrowserToolbarMenus();setBrowserSignalVisible(false,false);return true');
   await wait(350);
