@@ -1895,6 +1895,14 @@
                 <span class="st-side-icon" aria-hidden="true">⏻</span>
                 <span class="st-side-label">Oturumu kapat</span>
               </button>
+              <button class="st-side-item" data-st-action="yt-login" id="stYtLoginBtn" title="YouTube ile giriş (Google hesabı)">
+                <span class="st-side-icon st-yt-icon" aria-hidden="true">▶</span>
+                <span class="st-side-label">YouTube</span>
+              </button>
+              <button class="st-side-item hidden" data-st-action="yt-logout" id="stYtLogoutBtn" title="YouTube oturumunu kapat">
+                <span class="st-side-icon st-yt-icon" aria-hidden="true">⏻</span>
+                <span class="st-side-label">YT çıkış</span>
+              </button>
             </nav>
 
             <!-- Ana alan: üst arama + grid -->
@@ -2892,6 +2900,57 @@
     <div class="modal-actions">
       <button class="btn btn-secondary" id="invLoginCancel">İptal</button>
       <button class="btn btn-primary" id="invLoginSubmit">Oturum aç</button>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
+<div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
+  <div class="modal-content" style="max-width:460px">
+    <!-- Görünüm 1: OAuth client bilgileri (ilk kurulum) -->
+    <div id="ytClientView">
+      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
+      <p class="small-muted">
+        Gerçek YouTube hesabınla giriş — SmartTube'un kullandığı yöntem.
+        Bir kerelik kurulum: Google Cloud'da "TV ve sınırlı girişli cihazlar" tipinde
+        OAuth client oluştur (YouTube Data API v3 etkin), Client ID + Secret'i buraya gir.
+        Bilgiler işletim sistemi güvenli deposunda saklanır.
+      </p>
+      <label class="field">
+        <span class="field-label">Client ID</span>
+        <input type="text" id="ytClientId" autocomplete="off" spellcheck="false"
+               placeholder="xxxxx.apps.googleusercontent.com" />
+      </label>
+      <label class="field">
+        <span class="field-label">Client Secret</span>
+        <input type="password" id="ytClientSecret" autocomplete="off" />
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="ytClientCancel">İptal</button>
+        <button class="btn btn-primary" id="ytClientSave">Kaydet ve devam et</button>
+      </div>
+    </div>
+    <!-- Görünüm 2: cihaz kodu — kullanıcı google.com/device'ta onaylar -->
+    <div id="ytDeviceView" class="hidden">
+      <h3>YouTube onayı bekleniyor</h3>
+      <p class="small-muted">Telefonda veya bilgisayarda aşağıdaki adresi aç ve kodu gir:</p>
+      <div class="yt-device-code-wrap">
+        <a href="#" id="ytVerificationUrl" class="yt-verification-url">google.com/device</a>
+        <div class="yt-user-code" id="ytUserCode">----</div>
+      </div>
+      <p class="small-muted" id="ytPollStatus">Onay bekleniyor…</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="ytDeviceCancel">İptal</button>
+      </div>
+    </div>
+    <!-- Görünüm 3: girişli durum -->
+    <div id="ytLoggedView" class="hidden">
+      <h3>YouTube bağlı</h3>
+      <p class="small-muted" id="ytLoggedAs">Hesap: —</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="ytLoggedClose">Kapat</button>
+        <button class="btn btn-primary" id="ytLogoutConfirm">Oturumu kapat</button>
+      </div>
     </div>
   </div>
 </div>

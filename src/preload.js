@@ -80,6 +80,18 @@ contextBridge.exposeInMainWorld('api', {
   invidiousLogin: (username, password, instance) => ipcRenderer.invoke('invidious:login', { username, password, instance }),
   invidiousLogout: () => ipcRenderer.invoke('invidious:logout'),
   invidiousSession: () => ipcRenderer.invoke('invidious:session'),
+  // YouTube OAuth — SmartTube'un gerçek cihaz-kodu akışı (google.com/device)
+  youtubeSession: () => ipcRenderer.invoke('youtube:session'),
+  youtubeSetClient: (clientId, clientSecret) => ipcRenderer.invoke('youtube:setClient', { clientId, clientSecret }),
+  youtubeDeviceCode: () => ipcRenderer.invoke('youtube:deviceCode'),
+  youtubePoll: () => ipcRenderer.invoke('youtube:poll'),
+  youtubeBrowse: (browseId, opts) => ipcRenderer.invoke('youtube:browse', browseId, opts || {}),
+  youtubeLogout: () => ipcRenderer.invoke('youtube:logout'),
+  youtubeCancel: () => ipcRenderer.invoke('youtube:cancel'),
+  onYoutubeEvent: (listener) => {
+    ipcRenderer.on('youtube:event', listener);
+    return () => ipcRenderer.removeListener('youtube:event', listener);
+  },
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),

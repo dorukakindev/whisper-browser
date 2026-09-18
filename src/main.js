@@ -792,7 +792,7 @@ function endJobLog() {
 // "altyaziyi indir" denince yeni surec mediaJob'un uzerine yaziliyor, sonra
 // "Indirmeyi iptal et" yanlis sureci olduruyor ya da kisa is bitip mediaJob'u
 // null yaptigi icin "Indirme yok" deniyordu.
-const mediaJobs = { probe: null, download: null, subs: null, invidious: null };
+const mediaJobs = { probe: null, download: null, subs: null, invidious: null, youtube: null };
 
 function pythonRuntimeEnv(extra = {}) {
   return pythonEnvWithRuntime(
@@ -889,6 +889,11 @@ const INVIDIOUS_RESULT_TYPES = new Set([
   'comments', 'playlist',
 ]);
 
+// YouTube OAuth cihaz-akışı sonuç tipleri (backend/youtube.py)
+const YOUTUBE_RESULT_TYPES = new Set([
+  'device_code', 'login', 'token', 'feed', 'me', 'revoked',
+]);
+
 // Son başarılı Invidious instance'ı — sonraki komutlarda rescan'ı atlar.
 let invidiousLastInstance = null;
 
@@ -936,6 +941,163 @@ function restoreInvidiousSessions() {
       }
     }
   } catch (_) {}
+}
+
+// ---- YouTube OAuth oturumu (SmartTube cihaz-akışı) ----
+// refresh_token + client_secret safeStorage'da kalıcı; access_token yalnız
+// bellekte (kısa ömürlü, refresh ile yenilenir). Renderer'a token gitmez.
+const youtubeSession = {
+  clientId: '', clientSecret: '',
+  refreshToken: '', accessToken: '', expiresAt: 0,
+  userName: '', userEmail: '',
+};
+let _ytDevice = null;   // {deviceCode, interval, expiresAt} — poll devam ederken
+
+let youtubeSessionStore = null;
+function getYoutubeSessionStore() {
+  if (!youtubeSessionStore) {
+    youtubeSessionStore = new SafeSecretStore({
+      safeStorage,
+      filePath: path.join(app.getPath('userData'), 'youtube-session.safe.json'),
+      fields: ['client_id', 'client_secret', 'refresh_token', 'user_name', 'user_email'],
+    });
+  }
+  return youtubeSessionStore;
+}
+
+function persistYoutubeSession() {
+  try {
+    getYoutubeSessionStore().save({
+      client_id: youtubeSession.clientId || '',
+      client_secret: youtubeSession.clientSecret || '',
+      refresh_token: youtubeSession.refreshToken || '',
+      user_name: youtubeSession.userName || '',
+      user_email: youtubeSession.userEmail || '',
+    });
+  } catch (_) {}
+}
+
+function restoreYoutubeSession() {
+  try {
+    const loaded = getYoutubeSessionStore().load();
+    const s = loaded && loaded.secrets;
+    if (!s) return;
+    youtubeSession.clientId = String(s.client_id || '').slice(0, 200);
+    youtubeSession.clientSecret = String(s.client_secret || '').slice(0, 200);
+    youtubeSession.refreshToken = String(s.refresh_token || '').slice(0, 2000);
+    youtubeSession.userName = String(s.user_name || '').slice(0, 200);
+    youtubeSession.userEmail = String(s.user_email || '').slice(0, 200);
+  } catch (_) {}
+}
+
+function youtubeAuthEnv() {
+  const env = {};
+  if (youtubeSession.clientSecret) env.WHISPER_YT_CLIENT_SECRET = youtubeSession.clientSecret;
+  if (youtubeSession.refreshToken) env.WHISPER_YT_REFRESH_TOKEN = youtubeSession.refreshToken;
+  if (youtubeSession.accessToken) env.WHISPER_YT_ACCESS_TOKEN = youtubeSession.accessToken;
+  if (_ytDevice && _ytDevice.deviceCode) env.WHISPER_YT_DEVICE_CODE = _ytDevice.deviceCode;
+  return env;
+}
+
+function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) {
+  return new Promise((resolve) => {
+    if (mediaJobs.youtube) return resolve({ ok: false, error: 'Bir YouTube işi zaten çalışıyor.' });
+    const appDir = app.getAppPath();
+    const script = path.join(appDir, 'backend', 'youtube.py');
+    let proc;
+    try {
+      proc = spawn(resolvePython(), [script, ...cmdArgs], {
+        cwd: appDir,
+        windowsHide: true,
+        env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', ...extraEnv }),
+      });
+    } catch (err) {
+      return resolve({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı.'
+        : 'YouTube yardımcı süreci başlatılamadı.' });
+    }
+    mediaJobs.youtube = proc;
+    let result = null;
+    let errText = '';
+    let stderrTail = '';
+    let settled = false;
+    let timeoutTimer = null;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      resolve(value);
+    };
+    const handleLine = (raw) => {
+      if (settled) return;
+      const line = String(raw || '').trim();
+      if (!line) return;
+      let ev;
+      try { ev = JSON.parse(line); } catch (_) { return; }
+      if (YOUTUBE_RESULT_TYPES.has(ev.type)) result = ev;
+      else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
+      if (onEvent) onEvent(ev);
+    };
+    const stdoutLines = createNdjsonLineBuffer({
+      maxLineChars: 8 * 1024 * 1024,
+      onOverflow: () => { errText = 'YouTube süreci güvenli satır boyutu sınırını aştı.'; },
+    });
+    proc.stdout.setEncoding('utf-8');
+    proc.stderr.setEncoding('utf-8');
+    proc.stdout.on('data', (chunk) => {
+      for (const line of stdoutLines.push(chunk)) handleLine(line);
+    });
+    proc.stderr.on('data', (c) => { stderrTail = `${stderrTail}${c}`.slice(-500); });
+    timeoutTimer = setTimeout(() => {
+      if (mediaJobs.youtube !== proc || settled) return;
+      terminateProcessTree(proc, { spawn });
+      finish({ ok: false, error: 'YouTube işlemi zaman sınırını aştı.' });
+    }, timeoutMs);
+    timeoutTimer.unref?.();
+    proc.on('close', (code) => {
+      if (mediaJobs.youtube === proc) mediaJobs.youtube = null;
+      if (settled) return;
+      for (const line of stdoutLines.flush()) handleLine(line);
+      if (result) {
+        finish({ ok: true, data: result });
+      } else {
+        if (!errText && stderrTail) {
+          writeJobLog({ type: 'log', level: 'warn', message: `YouTube: ${sanitizeProcessDetail(stderrTail)}` });
+        }
+        finish({ ok: false, error: errText || `YouTube süreci ${code} koduyla tamamlandı.` });
+      }
+    });
+    proc.on('error', (err) => {
+      if (mediaJobs.youtube === proc) mediaJobs.youtube = null;
+      writeJobLog({ type: 'log', level: 'warn',
+        message: `YouTube süreç hatası: ${sanitizeProcessDetail(String(err))}` });
+      finish({ ok: false, error: 'YouTube yardımcı süreci başlatılamadı.' });
+    });
+  });
+}
+
+// access_token taze değilse refresh_token ile yeniler; refresh_token da
+// düştüyse oturumu temizler ve null döner.
+async function ensureYoutubeAccessToken() {
+  if (!youtubeSession.refreshToken) return null;
+  if (youtubeSession.accessToken && Date.now() < youtubeSession.expiresAt - 60_000) {
+    return youtubeSession.accessToken;
+  }
+  if (!youtubeSession.clientId) return null;
+  const res = await runYoutubeCommand(
+    ['refresh', '--client-id', youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
+  if (res && res.ok && res.data && res.data.access_token) {
+    youtubeSession.accessToken = res.data.access_token;
+    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
+    return youtubeSession.accessToken;
+  }
+  const msg = String(res && res.error || '');
+  if (/invalid_grant|oturum düştü|giriş gerekli/i.test(msg)) {
+    youtubeSession.refreshToken = '';
+    youtubeSession.accessToken = '';
+    persistYoutubeSession();
+  }
+  return null;
 }
 
 function validateInvidiousInstance(v) {
@@ -1450,6 +1612,144 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
       mainWindow.webContents.send('media:event', ev);
     }
   }, 'download', 'invidious-stream');
+});
+
+// ======================= YouTube OAuth (SmartTube cihaz-akışı) =======================
+// Akış: setClient → deviceCode (kod gösterilir) → poll (arka planda yoklar)
+// → login: refresh_token safeStorage'a, access_token belleğe.
+// Renderer'a asla token/secret/device_code dönmez.
+
+ipcMain.handle('youtube:session', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, data: {
+    loggedIn: !!youtubeSession.refreshToken,
+    userName: youtubeSession.userName,
+    userEmail: youtubeSession.userEmail,
+    hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
+    pendingCode: !!(_ytDevice && _ytDevice.deviceCode),
+  } };
+});
+
+ipcMain.handle('youtube:setClient', async (_e, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const o = opts || {};
+  const id = String(o.clientId || '').trim();
+  const secret = String(o.clientSecret || '').trim();
+  if (!/^[A-Za-z0-9._-]{10,200}$/.test(id)) {
+    return { ok: false, error: 'Geçersiz Client ID biçimi.' };
+  }
+  if (!/^[A-Za-z0-9._-]{10,200}$/.test(secret)) {
+    return { ok: false, error: 'Geçersiz Client Secret biçimi.' };
+  }
+  youtubeSession.clientId = id;
+  youtubeSession.clientSecret = secret;
+  persistYoutubeSession();
+  return { ok: true, data: { hasClient: true } };
+});
+
+ipcMain.handle('youtube:deviceCode', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!youtubeSession.clientId || !youtubeSession.clientSecret) {
+    return { ok: false, error: 'Önce OAuth Client ID + Secret kaydedin.' };
+  }
+  const res = await runYoutubeCommand(
+    ['device_code', '--client-id', youtubeSession.clientId], null, 30_000);
+  if (!res || !res.ok || !res.data) return res || { ok: false, error: 'Cihaz kodu alınamadı.' };
+  _ytDevice = {
+    deviceCode: res.data.device_code,
+    interval: Number(res.data.interval) || 5,
+    expiresAt: Date.now() + (Number(res.data.expires_in) || 1800) * 1000,
+  };
+  // device_code ana süreçte kalır — renderer'a yalnız kullanıcıya gösterilen bilgiler
+  // verification_url https'e indirgenir (javascript:/data: şeması taşınmaz)
+  let verificationUrl = '';
+  try {
+    const u = new URL(String(res.data.verification_url || ''));
+    if (u.protocol === 'https:') verificationUrl = u.href;
+  } catch (_) {}
+  return { ok: true, data: {
+    user_code: res.data.user_code,
+    verification_url: verificationUrl || 'https://www.google.com/device',
+    expires_in: res.data.expires_in,
+    interval: res.data.interval,
+  } };
+});
+
+ipcMain.handle('youtube:poll', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!_ytDevice || !_ytDevice.deviceCode) {
+    return { ok: false, error: 'Önce cihaz kodu üretin.' };
+  }
+  const remaining = Math.max(60, Math.floor((_ytDevice.expiresAt - Date.now()) / 1000));
+  const res = await runYoutubeCommand(
+    ['poll', '--client-id', youtubeSession.clientId,
+     '--expires-in', String(remaining), '--interval', String(_ytDevice.interval)],
+    (ev) => {
+      // Sızıntı koruması: 'login'/'token' emit'leri access/refresh token taşır;
+      // renderer'a yalnız ilerleme logları iletilir.
+      if (ev && ev.type === 'log' && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('youtube:event', ev);
+      }
+    },
+    remaining * 1000 + 15_000, youtubeAuthEnv());
+  if (res && res.ok && res.data && res.data.refresh_token) {
+    youtubeSession.refreshToken = res.data.refresh_token;
+    youtubeSession.accessToken = res.data.access_token || '';
+    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
+    youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
+    youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
+    _ytDevice = null;
+    persistYoutubeSession();
+    // Token'lar renderer'a gitmez — yalnız gösterim bilgisi
+    return { ok: true, data: { loggedIn: true, userName: youtubeSession.userName,
+                               userEmail: youtubeSession.userEmail } };
+  }
+  if (res && res.ok && res.data) {
+    // login emit'i refresh_token'siz geldiyse (nadir) oturum sayılmaz
+    return { ok: false, error: 'YouTube refresh token döndürmedi — yeniden deneyin.' };
+  }
+  return res || { ok: false, error: 'Onay tamamlanamadı.' };
+});
+
+ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const allowed = new Set(['FEsubscriptions', 'FEwhat_to_watch', 'FElibrary',
+                           'FEhistory', 'VLWL', 'VLLL']);
+  const bid = String(browseId || '').trim();
+  if (!allowed.has(bid)) return { ok: false, error: `Geçersiz browse_id: ${bid}` };
+  const token = await ensureYoutubeAccessToken();
+  if (!token) return { ok: false, error: 'YouTube oturumu yok — önce giriş yapın.' };
+  const args = ['browse', '--browse-id', bid];
+  const cont = String(opts && opts.continuation || '').trim();
+  if (cont) args.push('--continuation', cont.slice(0, 2000));
+  return runYoutubeCommand(args, (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('youtube:event', ev);
+    }
+  }, 60_000, youtubeAuthEnv());
+});
+
+ipcMain.handle('youtube:logout', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  // Revoke en-iyi-çaba — takılmasın diye kısa timeout; başarısızsa da temizleriz.
+  await runYoutubeCommand(['revoke'], null, 15_000, youtubeAuthEnv()).catch(() => null);
+  youtubeSession.refreshToken = '';
+  youtubeSession.accessToken = '';
+  youtubeSession.expiresAt = 0;
+  youtubeSession.userName = '';
+  youtubeSession.userEmail = '';
+  _ytDevice = null;
+  persistYoutubeSession();
+  return { ok: true };
+});
+
+ipcMain.handle('youtube:cancel', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const proc = mediaJobs.youtube;
+  if (!proc) return { ok: false, error: 'Çalışan YouTube işi yok.' };
+  terminateProcessTree(proc, { spawn });
+  _ytDevice = null;
+  return { ok: true };
 });
 
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
@@ -12241,8 +12541,9 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
   browserAdapterPluginStatus = ADAPTER_REGISTRY.loadJsonDirectory(
     path.join(app.getPath('userData'), 'browser-adapters'));
   if (typeof startBrowserAdblock === 'function') startBrowserAdblock();
-  restoreBrowserSessionState();
   restoreInvidiousSessions();     // K2 — şifreli SID deposu → bellek haritası
+  restoreYoutubeSession();        // YouTube OAuth — refresh_token → bellek haritası
+  restoreBrowserSessionState();
   createWindow();
   if (RESOURCE_SOAK_MODE) {
     const startSoak = () => runResourceSoakSession().catch(error => {

@@ -7231,6 +7231,29 @@ body.modal-open { overflow: hidden; }
   .st-upnext { animation: none; }
 }
 
+/* YouTube OAuth cihaz-kodu modalı */
+.st-yt-icon { color: var(--accent); }
+.yt-device-code-wrap {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 6px;
+  text-align: center;
+  background: var(--bg-alt, rgba(255,255,255,.03));
+}
+.yt-verification-url {
+  color: var(--accent);
+  font-size: 14px;
+  word-break: break-all;
+}
+.yt-user-code {
+  margin-top: 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 26px;
+  letter-spacing: 4px;
+  color: var(--fg);
+}
+
 /* Arama temizle düğmesi — input'un iç sağında (O6) */
 .st-clear-btn {
   padding: 6px 12px;

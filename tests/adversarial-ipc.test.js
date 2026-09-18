@@ -393,6 +393,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       prepareWidevineComponents: () => { calls.push('prepare'); return new Promise((resolve) => { finishDrm = resolve; }); },
       sweepStaleChatFiles() {}, sweepBrowserLiveAsrTemp() {}, sweepBrowserSubtitleFiles() {},
       sweepOrphanOutputTransactions() {}, restoreInvidiousSessions() {},
+      restoreYoutubeSession() {},
       browserAssetStore: () => ({ sweepTempFiles() {} }),
       ADAPTER_REGISTRY: { loadJsonDirectory() {} }, browserAdapterPluginStatus: null, path,
       restoreBrowserSessionState() {}, createWindow: () => calls.push('window'),

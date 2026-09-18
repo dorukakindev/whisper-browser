@@ -71,6 +71,18 @@ async function main() {
     ok: true,
     data: { videos: popular.slice(0, 2).map(v => ({ ...v, videoId: 's' + v.videoId.slice(0, 10), title: `${q}-${v.title}` })) },
   }));
+  // Mock YouTube OAuth IPC — oturum başta kapalı; renderer'da elle açılır
+  ipcMain.handle('youtube:session', async () => ({
+    ok: true,
+    data: { loggedIn: false, userName: '', hasClient: false, pendingCode: false },
+  }));
+  const ytSubs = Array.from({ length: 2 }, (_, i) =>
+    mkVideo(`yts${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'q'), `SubVid ${i}`, 'YTChannel'));
+  ipcMain.handle('youtube:browse', async (_e, bid) => (
+    bid === 'FEsubscriptions'
+      ? { ok: true, data: { kind: 'youtube', browse_id: bid, videos: ytSubs, continuation: '', instance: 'youtube.com' } }
+      : { ok: false, error: 'bad browse_id' }
+  ));
   ipcMain.handle('queue:save', async () => ({ ok: true }));
   ipcMain.handle('models:status', async () => ({ ok: true, data: {} }));
   ipcMain.on('settings:saveSync', (e) => { e.returnValue = { ok: true }; });
@@ -218,6 +230,22 @@ async function main() {
     const sr = stage.getBoundingClientRect();
     out.hintInStage = hr.right <= sr.right + 1 && hr.bottom <= sr.bottom + 1 && hr.width > 0;
     hint.classList.add('hidden');
+
+    // 7) YouTube OAuth — girişli durumda subscriptions gerçek YouTube verisi
+    out.ytModal = !!document.getElementById('youtubeLoginModal');
+    youtubeLoggedIn = true;
+    youtubeUserName = 'MockYT';
+    refreshYoutubeAuthUI();
+    out.ytLoginHidden = document.getElementById('stYtLoginBtn').classList.contains('hidden');
+    out.ytLogoutVisible = !document.getElementById('stYtLogoutBtn').classList.contains('hidden');
+    await renderSmartTubeSection('subscriptions');
+    await sleep(400);
+    out.ytSubsRendered = grid.textContent.includes('SubVid');
+    out.ytStatus = /YouTube/.test(document.getElementById('stStatusLine').textContent);
+    youtubeLoggedIn = false;
+    youtubeUserName = '';
+    refreshYoutubeAuthUI();
+    out.ytLogoutCleanup = document.getElementById('stYtLogoutBtn').classList.contains('hidden');
     return out;
   })()`, true);
 
@@ -236,6 +264,12 @@ async function main() {
   assert(feat.channelNoNested === true, 'kanal sayfasında iç içe grid var');
   assert(feat.channelCards >= 3, `kanal kartları: ${feat.channelCards}`);
   assert(feat.hintInStage === true, 'subHiddenHint stage sınırları dışında/kırpık');
+  assert(feat.ytModal === true, 'youtubeLoginModal yok');
+  assert(feat.ytLoginHidden === true, 'girişliyken stYtLoginBtn gizlenmedi');
+  assert(feat.ytLogoutVisible === true, 'girişliyken stYtLogoutBtn görünmedi');
+  assert(feat.ytSubsRendered === true, 'YouTube abonelik kartları basılmadı');
+  assert(feat.ytStatus === true, 'YouTube statü satırı gösterilmedi');
+  assert(feat.ytLogoutCleanup === true, 'çıkışta stYtLogoutBtn gizlenmedi');
   assert(failed.length === 0, `özellik probları: ${failed.join(', ')}`);
 
   win.close();

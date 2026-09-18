@@ -22321,6 +22321,15 @@ async function renderSmartTubeSection(section, opts = {}) {
       renderSmartTubeChannels(channels || []);
       return;
     }
+    if (section === 'subscriptions' && youtubeLoggedIn) {
+      // YouTube OAuth girişi varsa abonelikler gerçek YouTube hesabından gelir
+      const res = await window.api.youtubeBrowse('FEsubscriptions').catch((e) => ({ ok: false, error: e.message }));
+      if (stale()) return;
+      if (!res || !res.ok) throw new Error((res && res.error) || 'YouTube abonelikleri alınamadı.');
+      feedData = res.data || {};
+      feedData._youtube = true;
+      videos = feedData.videos || [];
+    } else {
     const feedOpts = section === 'trending' && stTrendTab ? { tab: stTrendTab } : {};
     feedData = await fetchInvidiousFeed(
       section === 'home' ? 'home' : section, force, feedOpts);
@@ -22334,6 +22343,7 @@ async function renderSmartTubeSection(section, opts = {}) {
       feedData.degraded = !!pop.degraded || !!tr.degraded;
     } else {
       videos = (feedData && feedData.videos) || [];
+    }
     }
     if (!videos.length) {
       showError('İçerik alınamadı — günlük kayıtlarına bak.');
@@ -22381,6 +22391,8 @@ async function renderSmartTubeSection(section, opts = {}) {
   // Kaynak doğruluğu: yt-dlp yedeği Invidious gibi gösterilmez
   if (feedData && feedData.degraded) {
     setSmartTubeStatus(`⚠ ${window.UiLocale?.t('Yedek kaynak (yt-dlp) — sonuçlar Invidious üzerinden gelmedi') || 'Yedek kaynak (yt-dlp)'}`);
+  } else if (feedData && feedData._youtube) {
+    setSmartTubeStatus(`YouTube${youtubeUserName ? `: ${youtubeUserName}` : ''}`);
   } else if (lastInvidiousInstance) {
     setSmartTubeStatus(`Instance: ${lastInvidiousInstance}`);
   }
@@ -22847,6 +22859,118 @@ function refreshSmartTubeAuthUI() {
   }
 }
 
+// ----- YouTube OAuth — SmartTube cihaz-kodu akışı -----
+// Giriş: google.com/device'ta kod onayı → refresh_token ana süreçte
+// safeStorage ile saklanır. Abonelikler/kitaplık gerçek YouTube verisi olur.
+let youtubeLoggedIn = false;
+let youtubeUserName = '';
+let _ytPolling = false;
+
+function refreshYoutubeAuthUI() {
+  const inBtn = $('stYtLoginBtn');
+  const outBtn = $('stYtLogoutBtn');
+  if (!inBtn || !outBtn) return;
+  if (youtubeLoggedIn) {
+    inBtn.classList.add('hidden');
+    outBtn.classList.remove('hidden');
+    outBtn.querySelector('.st-side-label').textContent = youtubeUserName || 'YouTube';
+  } else {
+    inBtn.classList.remove('hidden');
+    outBtn.classList.add('hidden');
+    outBtn.querySelector('.st-side-label').textContent = 'YT çıkış';
+  }
+}
+
+async function restoreYoutubeSession() {
+  try {
+    const res = await window.api.youtubeSession();
+    if (res && res.ok && res.data) {
+      youtubeLoggedIn = !!res.data.loggedIn;
+      youtubeUserName = res.data.userName || '';
+    }
+  } catch (_) { /* bridge yoksa sessiz geç */ }
+  refreshYoutubeAuthUI();
+}
+
+function _ytShowView(id) {
+  ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
+    const el = $(v);
+    if (el) el.classList.toggle('hidden', v !== id);
+  });
+}
+
+function openYoutubeLogin() {
+  const dlg = $('youtubeLoginModal');
+  if (!dlg) return;
+  if (youtubeLoggedIn) {
+    const as = $('ytLoggedAs');
+    if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+    _ytShowView('ytLoggedView');
+  } else {
+    _ytShowView('ytClientView');
+    window.api.youtubeSession().then((res) => {
+      // Client zaten kayıtlıysa alanları doldur — secret asla renderer'a gelmez
+      if (res && res.ok && res.data && res.data.hasClient && $('ytClientId') && !$('ytClientId').value) {
+        $('ytClientId').placeholder = 'Kayıtlı client (değiştirmek için yeni ID gir)';
+      }
+    }).catch(() => {});
+  }
+  dlg.classList.remove('hidden');
+}
+
+function closeYoutubeLogin() {
+  const dlg = $('youtubeLoginModal');
+  if (dlg) dlg.classList.add('hidden');
+}
+
+async function startYoutubeDeviceFlow() {
+  if (_ytPolling) return;
+  const res = await window.api.youtubeDeviceCode();
+  if (!res || !res.ok) {
+    setSmartTubeStatus(`⚠ ${res && res.error ? res.error : 'Cihaz kodu alınamadı'}`);
+    return;
+  }
+  _ytShowView('ytDeviceView');
+  const codeEl = $('ytUserCode');
+  if (codeEl) codeEl.textContent = res.data.user_code || '----';
+  const link = $('ytVerificationUrl');
+  if (link) {
+    const vurl = res.data.verification_url || 'https://www.google.com/device';
+    link.textContent = vurl.replace(/^https?:\/\//, '');
+    link.href = vurl;
+    link.onclick = (e) => { e.preventDefault(); window.api.openExternal(vurl); };
+  }
+  const status = $('ytPollStatus');
+  if (status) status.textContent = 'Onay bekleniyor…';
+  _ytPolling = true;
+  try {
+    const pr = await window.api.youtubePoll();
+    if (pr && pr.ok) {
+      youtubeLoggedIn = true;
+      youtubeUserName = pr.data.userName || 'YouTube';
+      refreshYoutubeAuthUI();
+      if (status) status.textContent = `Giriş yapıldı: ${youtubeUserName}`;
+      closeYoutubeLogin();
+      osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
+      if (stCurrentSection === 'subscriptions') renderSmartTubeSection('subscriptions', { force: true });
+    } else if (status) {
+      status.textContent = (pr && pr.error) ? pr.error : 'Onay tamamlanamadı.';
+    }
+  } finally {
+    _ytPolling = false;
+  }
+}
+
+async function doYoutubeLogout() {
+  try { await window.api.youtubeLogout(); } catch (_) {}
+  youtubeLoggedIn = false;
+  youtubeUserName = '';
+  refreshYoutubeAuthUI();
+  closeYoutubeLogin();
+  osd('YouTube oturumu kapatıldı');
+  if (stCurrentSection === 'subscriptions') renderSmartTubeSection('subscriptions', { force: true });
+}
+
 function initSmartTube() {
   document.querySelectorAll('.st-side-item[data-st-section]').forEach((btn) => {
     btn.addEventListener('click', () => stSelectSection(btn.dataset.stSection));
@@ -22855,6 +22979,36 @@ function initSmartTube() {
   if (loginBtn) loginBtn.addEventListener('click', openInvidiousLogin);
   const logoutBtn = $('stLogoutBtn');
   if (logoutBtn) logoutBtn.addEventListener('click', doInvidiousLogout);
+  // YouTube OAuth düğmeleri (cihaz-kodu akışı)
+  const ytLoginBtn = $('stYtLoginBtn');
+  if (ytLoginBtn) ytLoginBtn.addEventListener('click', openYoutubeLogin);
+  const ytLogoutBtn = $('stYtLogoutBtn');
+  if (ytLogoutBtn) ytLogoutBtn.addEventListener('click', openYoutubeLogin);
+  const ytClientSave = $('ytClientSave');
+  if (ytClientSave) ytClientSave.addEventListener('click', async () => {
+    const cid = ($('ytClientId') && $('ytClientId').value || '').trim();
+    const csec = ($('ytClientSecret') && $('ytClientSecret').value || '').trim();
+    if (cid || csec) {
+      const r = await window.api.youtubeSetClient(cid, csec);
+      if (!r || !r.ok) {
+        setSmartTubeStatus(`⚠ ${r && r.error ? r.error : 'Client kaydedilemedi'}`);
+        return;
+      }
+    }
+    startYoutubeDeviceFlow();
+  });
+  const ytClientCancel = $('ytClientCancel');
+  if (ytClientCancel) ytClientCancel.addEventListener('click', closeYoutubeLogin);
+  const ytDeviceCancel = $('ytDeviceCancel');
+  if (ytDeviceCancel) ytDeviceCancel.addEventListener('click', () => {
+    window.api.youtubeCancel().catch(() => {});
+    _ytPolling = false;
+    closeYoutubeLogin();
+  });
+  const ytLoggedClose = $('ytLoggedClose');
+  if (ytLoggedClose) ytLoggedClose.addEventListener('click', closeYoutubeLogin);
+  const ytLogoutConfirm = $('ytLogoutConfirm');
+  if (ytLogoutConfirm) ytLogoutConfirm.addEventListener('click', doYoutubeLogout);
   // Login modal düğmeleri (eski araç panelinden taşındı)
   const loginSubmit = $('invLoginSubmit');
   if (loginSubmit) loginSubmit.addEventListener('click', doInvidiousLogin);
@@ -22924,6 +23078,7 @@ function initSmartTube() {
 
   refreshSmartTubeAuthUI();
   restoreInvidiousSession();
+  restoreYoutubeSession();
   initSmartTubeGridNav();
 }
 initSmartTube();
