@@ -464,3 +464,17 @@ oynatıcı yüzeyi uçtan uca çalışır hale getirildi.
 - Invidious instance'larına canlı ağ erişimi bu ortamda test edilmedi; feed/probe gerçek API yanıtıyla doğrulanmadı — boot smoke IPC-seviyesinde kanıtlıyor, uç ağ doğrulaması kullanıcı ortamında.
 - Login yanıtı gerçek bir Invidious hesabıyla denenmedi (instance'a göre `email`/`email_or_user` varyantları kod yolunda).
 - HLS oynatma `hls.js` vendor bundle'ına bağlı; canlı yayın kurgusu canlı test edilmedi.
+
+## Ek düzeltme — canlı ekran doğrulaması sonrası (70e5814)
+
+Kullanıcının canlı ekranı: feed gerçek instance'tan doluyor (R67 zinciri
+çözülmüş) ama TRENDING şeridi boş kutu + scrollbar gösteriyordu.
+
+- **Neden:** bölüm ayracı ve kart şeridi `#stGrid`'in grid item'i olarak
+  ekleniyor — ayrı `.st-grid` wrap tek ~220px hücreye sıkışıyordu.
+- **Düzeltme:** ayrac `gridColumn: 1 / -1`, trend kartları doğrudan
+  `#stGrid`'e; iç içe grid kaldırıldı. `görüntüleme`/`abone`/`CANLI`
+  `UiLocale.t()`'ye bağlandı (EN UI'da views/subscribers/LIVE).
+- **Regresyon:** boot smoke'a mock IPC feed'i eklendi — `sepFullRow`,
+  `noNestedGrid`, `minCardWidth=238px` prob'ları bu layout sınıfını
+  gerçek Electron'da kalıcı yakalıyor; wiring 25/25.
