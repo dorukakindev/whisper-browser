@@ -478,3 +478,53 @@ Kullanıcının canlı ekranı: feed gerçek instance'tan doluyor (R67 zinciri
 - **Regresyon:** boot smoke'a mock IPC feed'i eklendi — `sepFullRow`,
   `noNestedGrid`, `minCardWidth=238px` prob'ları bu layout sınıfını
   gerçek Electron'da kalıcı yakalıyor; wiring 25/25.
+
+---
+
+# CANLI EKRAN ANALİZİ — 2026-09-18 (sonraki tur, yalnız inceleme)
+
+Kullanıcının ikinci canlı ekranı: TRENDING artık doluyor (layout düzeltmesi
+kanıtlandı) ama içerik kalitesi ve SmartTube paritesi için kalan işler.
+
+## Ekranda görünen sorunlar
+
+1. **TRENDING meta-çöp** — "Fix YouTube Trending Option Not Showing",
+   "How to Access YouTube Trending" vb: bunlar yt-dlp fallback çıktısı.
+   `feed_trending` 4 kategori (`type=music|gaming|news|movies`) başarısız
+   olunca `search("youtube trending videos today")` çalışıyor (invidious.py:661)
+   → arama sonucu "trending kelimesi hakkında videolar". `feed_popular` yedeği
+   `"trending music 2026"` aynı hastalık. Statü satırı `inv.nadeko.net`
+   gösteriyor çünkü fallback'in `instance="yt-dlp:ytdlp_search"` değeri
+   renderer'da filtreleniyor → provenance kaybı: sonuç `degraded` bayrağıyla
+   işaretlenip statüde "yt-dlp yedeği" gösterilmeli.
+2. **Belge başlığı karma dil** — `Oynatıcı — … workspace` EN UI'da Türkçe;
+   `document.title` locale'e bağlanmalı.
+3. **Sağ alt ipucu kırpılmış** — `hidden — V` kesik.
+4. **`publishedText` İngilizce ham** — sağlayıcı metni; TR'de "2 gün önce"
+   çevrilebilir (opsiyonel).
+
+## Tam-SmartTube paritesi için eksikler
+
+- Kategori chip'leri (backend `type=` birleşik getiriyor; UI'da ayrım yok)
+- Sayfalama/sonsuz kaydırma (HOME 24 + TRENDING 18 sabit)
+- Kart `author` → kanal sayfası linki (şu an düz metin)
+- Kanal sayfası: playlist/sekmeler/banner/arama-in-channel
+- "Up next" öneri rayı — `/api/v1/videos/:id` `recommendedVideos` döndürüyor,
+  oynatma sırasında render edilmiyor
+- Yorumlar — `/api/v1/comments/:videoId` backend'de hiç yok
+- Playlist desteği — `/api/v1/playlists/:id` yok
+- Yerel izleme geçmişi + "devam et" rail'i (mediaKey altyapısı hazır)
+- Grid ok-tuşu gezinmesi (roving grid) — kart Enter/Space var, yön tuşları yok;
+  "TV'deki gibi" isteğinin ana etkileşimi
+- Instance seçici UI (`opts.instance` destekli, dropdown'a bağlanmalı)
+- Arama autocomplete (`/api/v1/search/suggestions`) + filtreler
+  (`type=video/channel/playlist`, süre, tarih)
+- Like/abone düğmeleri (auth sonrası)
+
+## Önerilen sıra
+
+1. Fallback `degraded` bayrağı + sorgu düzeltmesi
+2. Grid ok-tuşu gezinmesi
+3. Up-next rayı + kanal linkleri
+4. Kategori chip'leri + sayfalama
+5. Yorumlar + playlist
