@@ -22010,6 +22010,12 @@ const INV_FEED_CACHE_MS = 5 * 60 * 1000;
 const invidiousFeedCache = new Map();   // kind -> { ts, videos }
 let invidiousLoggedIn = null;          // { username, instance } veya null
 
+async function fetchInvidiousChannelVideos(channelId) {
+  const res = await window.api.invidiousChannel(channelId);
+  if (!res || !res.ok || !res.data) return [];
+  return res.data.videos || [];
+}
+
 async function fetchInvidiousFeed(kind, force = false) {
   const cached = invidiousFeedCache.get(kind);
   if (!force && cached && (Date.now() - cached.ts) < INV_FEED_CACHE_MS) {
@@ -22029,6 +22035,22 @@ async function searchInvidious(query, page = 1) {
   const res = await window.api.invidiousSearch(query.trim(), { page });
   if (!res || !res.ok || !res.data) return [];
   return res.data.videos || [];
+}
+
+async function fetchInvidiousSubscriptions(force = false) {
+  const videos = await fetchInvidiousFeed('subscriptions', force);
+  // Videolardan benzersiz kanal listesi çıkar
+  const seen = new Map();
+  for (const v of videos) {
+    const id = v.authorId || v.author;
+    if (!id || seen.has(id)) continue;
+    seen.set(id, {
+      authorId: v.authorId,
+      author: v.author,
+      authorThumbnails: v.authorThumbnails || [],
+    });
+  }
+  return Array.from(seen.values()).slice(0, 30);
 }
 
 async function loadInvidiousChannel(channelId) {
@@ -22270,115 +22292,168 @@ function initInvidiousHome() {
 }
 initInvidiousHome();
 
-// ===== Invidious Ana Sayfa (player-side panel — video yokken görünür) =====
-// player-side içindeki ana sayfa ile transkript listesi arasında geçiş yapar.
-// Video başlayınca transkript gösterilir, video durunca ana sayfa geri gelir.
+// ===== SmartTube-style Invidious browser =====
+// Tüm player-stage'i kaplar: sol kenar çubuğu (kategoriler) + ana grid.
+// Video açılınca tarayıcı kaybolur; video kapanınca geri döner.
 
-function setHomeSideVisible(visible) {
-  const home = $('invHomeSide');
-  const transcriptBlock = $('cueList');
-  if (!home || !transcriptBlock) return;
-  home.classList.toggle('hidden', !visible);
-  // Transkript listesi yalnız ana sayfa gizliyken gösterilir (veya her zaman)
-  // Şimdilik sadece ana sayfayı kontrol et; transkript zaten state.running ile gösterilir
+let stCurrentSection = 'home';
+let stSearchActive = false;
+
+function setSmartTubeVisible(visible) {
+  const st = $('smarttubeBrowser');
+  if (!st) return;
+  st.classList.toggle('hidden', !visible);
+  if (visible) renderSmartTubeSection(stCurrentSection);
 }
 
-// Video yüklendiğinde ana sayfayı gizle
 function hideHomeOnVideoLoad() {
-  setHomeSideVisible(false);
+  setSmartTubeVisible(false);
 }
 
-// Video kaldırıldığında ana sayfayı göster
 function showHomeWhenNoVideo() {
-  // Sadece çalışan bir iş yoksa göster
   if (!state.running && !player.mediaKey) {
-    setHomeSideVisible(true);
-    renderInvidiousHomeSide();
+    setSmartTubeVisible(true);
   }
 }
 
-// İlk yükleme — ana sayfa göster
+// İlk açılışta SmartTube tarayıcısı görünsün
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
-    if ($('invHomeSide')) {
-      setHomeSideVisible(true);
-      renderInvidiousHomeSide();
-    }
+    setSmartTubeVisible(true);
   }, 100);
 });
 
-// ===== Yan panel Invidious ana sayfa render =====
-async function renderInvidiousHomeSide(force = false) {
-  const root = $('invHomeSideContent');
-  if (!root) return;
-  root.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
+// ----- Sol kenar çubuğu (kategori) seçimi -----
+function stSelectSection(section) {
+  stCurrentSection = section;
+  stSearchActive = false;
+  const results = $('stSearchResults');
+  if (results) results.classList.add('hidden');
+  document.querySelectorAll('.st-side-item[data-st-section]').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.stSection === section);
+  });
+  const title = $('stSectionTitle');
+  if (title) {
+    const labels = {
+      home: 'Ana sayfa',
+      trending: 'Trend',
+      popular: 'Popüler',
+      subscriptions: 'Abonelikler',
+      channels: 'Kanallarım',
+    };
+    title.textContent = labels[section] || section;
+  }
+  renderSmartTubeSection(section);
+}
 
-  // Popüler + Trending paralel çek
-  const [popular, trending] = await Promise.all([
-    fetchInvidiousFeed('popular', force).catch(() => []),
-    fetchInvidiousFeed('trending', force).catch(() => []),
-  ]);
+async function renderSmartTubeSection(section) {
+  const grid = $('stGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
 
-  root.innerHTML = '';
-
-  if (popular.length) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section';
-    const h = document.createElement('h4');
-    h.textContent = 'Popüler';
-    sec.appendChild(h);
-    popular.slice(0, 12).forEach((v) => sec.appendChild(renderInvidiousSideCard(v)));
-    root.appendChild(sec);
+  let videos = [];
+  try {
+    if (section === 'channels') {
+      const channels = await fetchInvidiousSubscriptions();
+      renderSmartTubeChannels(channels);
+      return;
+    }
+    videos = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, false);
+  } catch {
+    videos = [];
   }
 
-  if (trending.length) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section';
-    const h = document.createElement('h4');
-    h.textContent = 'Trend';
-    sec.appendChild(h);
-    trending.slice(0, 12).forEach((v) => sec.appendChild(renderInvidiousSideCard(v)));
-    root.appendChild(sec);
+  if (section === 'home') {
+    const trending = await fetchInvidiousFeed('trending', false).catch(() => []);
+    renderSmartTubeGrid(grid, videos.slice(0, 24), 'Popüler');
+    if (trending.length) {
+      const sep = document.createElement('div');
+      sep.className = 'st-section-title';
+      sep.textContent = 'Trend';
+      grid.appendChild(sep);
+      const wrap = document.createElement('div');
+      wrap.className = 'st-grid';
+      trending.slice(0, 18).forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+      grid.appendChild(wrap);
+    }
+  } else {
+    renderSmartTubeGrid(grid, videos, null);
   }
 
-  // Abonelikler — giriş gerekli
-  const subs = await fetchInvidiousFeed('subscriptions', force).catch(() => []);
-  if (subs.length) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section';
-    const h = document.createElement('h4');
-    h.textContent = 'Abonelikler';
-    sec.appendChild(h);
-    subs.slice(0, 12).forEach((v) => sec.appendChild(renderInvidiousSideCard(v)));
-    root.appendChild(sec);
-  } else if (!invidiousLoggedIn) {
-    const sec = document.createElement('section');
-    sec.className = 'inv-section inv-login-hint';
-    const p = document.createElement('p');
-    p.textContent = 'Abonelikler için giriş yap.';
-    sec.appendChild(p);
-    root.appendChild(sec);
-  }
-
-  if (!popular.length && !trending.length) {
-    const msg = document.createElement('div');
-    msg.className = 'inv-status';
-    msg.textContent = 'İçerik alınamadı. "Giriş" düğmesinden Invidious hesabını dene veya yt-dlp yolunu kullan.';
-    root.appendChild(msg);
+  if (!grid.children.length || (grid.children.length === 1 && grid.firstElementChild.classList.contains('inv-status'))) {
+    grid.innerHTML = '<div class="inv-status">İçerik alınamadı. Giriş yap veya yt-dlp yolunu kullan.</div>';
   }
 }
 
-// Yan panel için kompakt kart (yatay düzen, küçük thumb + başlık)
-function renderInvidiousSideCard(video) {
+function renderSmartTubeGrid(grid, videos, _sectionLabel) {
+  grid.innerHTML = '';
+  videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+}
+
+function renderSmartTubeChannels(channels) {
+  const grid = $('stGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (!channels.length) {
+    grid.innerHTML = '<div class="inv-status">Giriş yaptıktan sonra aboneliklerin burada görünür.</div>';
+    return;
+  }
+  channels.slice(0, 40).forEach((ch) => {
+    const card = document.createElement('div');
+    card.className = 'st-card';
+    card.tabIndex = 0;
+    const tn = (ch.authorThumbnails || [])[0];
+    const thumb = document.createElement('div');
+    thumb.className = 'st-card-thumb';
+    if (tn && tn.url) {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = tn.url;
+      img.alt = '';
+      thumb.appendChild(img);
+    }
+    card.appendChild(thumb);
+    const body = document.createElement('div');
+    body.className = 'st-card-body';
+    const title = document.createElement('div');
+    title.className = 'st-card-title';
+    title.textContent = ch.author || '';
+    const sub = document.createElement('div');
+    sub.className = 'st-card-sub';
+    sub.textContent = ch.subCount ? `${formatCount(ch.subCount)} abone` : '';
+    body.appendChild(title);
+    body.appendChild(sub);
+    card.appendChild(body);
+    card.addEventListener('click', () => {
+      openInvidiousChannelPage(ch.authorId);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openInvidiousChannelPage(ch.authorId);
+      }
+    });
+    grid.appendChild(card);
+  });
+}
+
+function formatCount(n) {
+  n = Number(n) || 0;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return String(n);
+}
+
+// ----- SmartTube kart (büyük dikey) -----
+function buildSmartTubeCard(video) {
   const card = document.createElement('div');
-  card.className = 'inv-side-card';
-  card.dataset.videoId = video.videoId || '';
+  card.className = 'st-card';
   card.tabIndex = 0;
   card.setAttribute('role', 'button');
 
   const tn = (video.videoThumbnails || [])[0] || null;
   const thumb = document.createElement('div');
-  thumb.className = 'inv-side-thumb';
+  thumb.className = 'st-card-thumb';
   if (tn && tn.url) {
     const img = document.createElement('img');
     img.loading = 'lazy';
@@ -22386,29 +22461,31 @@ function renderInvidiousSideCard(video) {
     img.src = tn.url;
     thumb.appendChild(img);
   }
+  const secs = Number(video.lengthSeconds) || 0;
+  if (secs > 0) {
+    const dur = document.createElement('span');
+    dur.className = 'st-card-duration';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    dur.textContent = h
+      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${m}:${String(s).padStart(2, '0')}`;
+    thumb.appendChild(dur);
+  }
   card.appendChild(thumb);
 
-  const meta = document.createElement('div');
-  meta.className = 'inv-side-meta';
+  const body = document.createElement('div');
+  body.className = 'st-card-body';
   const title = document.createElement('div');
-  title.className = 'inv-side-title';
+  title.className = 'st-card-title';
   title.textContent = video.title || '';
   const sub = document.createElement('div');
-  sub.className = 'inv-side-sub';
-  const secs = Number(video.lengthSeconds) || 0;
-  const dur = secs > 0
-    ? (() => {
-        const h = Math.floor(secs / 3600);
-        const m = Math.floor((secs % 3600) / 60);
-        const s = secs % 60;
-        return h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-                 : `${m}:${String(s).padStart(2,'0')}`;
-      })()
-    : '';
-  sub.textContent = `${video.author || ''}${dur ? ' · ' + dur : ''}`;
-  meta.appendChild(title);
-  meta.appendChild(sub);
-  card.appendChild(meta);
+  sub.className = 'st-card-sub';
+  sub.textContent = video.author || '';
+  body.appendChild(title);
+  body.appendChild(sub);
+  card.appendChild(body);
 
   const open = () => {
     const url = `https://www.youtube.com/watch?v=${video.videoId}`;
@@ -22416,7 +22493,7 @@ function renderInvidiousSideCard(video) {
     if (box) box.value = url;
     const probe = $('playerProbe');
     if (probe) probe.click();
-    setHomeSideVisible(false);   // video açılınca ana sayfa kaybolur
+    setSmartTubeVisible(false);   // video açılınca tarayıcı kaybolur
   };
   card.addEventListener('click', open);
   card.addEventListener('keydown', (e) => {
@@ -22428,58 +22505,107 @@ function renderInvidiousSideCard(video) {
   return card;
 }
 
-// Yan panel arama
-async function doInvidiousHomeSideSearch() {
-  const inp = $('invHomeSideSearchInput');
-  const root = $('invHomeSideSearchResults');
-  if (!inp || !root) return;
+// ----- Arama -----
+async function doSmartTubeSearch() {
+  const inp = $('stSearchInput');
+  const results = $('stSearchResults');
+  const searchGrid = $('stSearchGrid');
+  if (!inp || !results || !searchGrid) return;
   const q = inp.value.trim();
   if (!q) return;
-  root.innerHTML = '<div class="inv-status">Aranıyor…</div>';
-  root.classList.remove('hidden');
-  const home = $('invHomeSideContent');
-  if (home) home.classList.add('hidden');
-  const videos = await searchInvidious(q);
-  root.innerHTML = '';
+  stSearchActive = true;
+  searchGrid.innerHTML = '<div class="inv-status">Aranıyor…</div>';
+  results.classList.remove('hidden');
+  document.querySelectorAll('.st-side-item[data-st-section]').forEach((b) => b.classList.remove('is-active'));
+
+  let videos = [];
+  try {
+    videos = await searchInvidious(q);
+  } catch {
+    videos = [];
+  }
+
+  searchGrid.innerHTML = '';
   if (!videos.length) {
-    root.innerHTML = '<div class="inv-status">Sonuç yok.</div>';
+    searchGrid.innerHTML = '<div class="inv-status">Sonuç yok.</div>';
     return;
   }
-  videos.slice(0, 20).forEach((v) => root.appendChild(renderInvidiousSideCard(v)));
+  videos.slice(0, 30).forEach((v) => searchGrid.appendChild(buildSmartTubeCard(v)));
 }
 
-// Arama kapatınca ana sayfa geri gelsin
-function resetHomeSideSearch() {
-  const root = $('invHomeSideSearchResults');
-  const home = $('invHomeSideContent');
-  if (root) {
-    root.classList.add('hidden');
-    root.innerHTML = '';
-  }
-  if (home) home.classList.remove('hidden');
-  const inp = $('invHomeSideSearchInput');
+function resetSmartTubeSearch() {
+  const results = $('stSearchResults');
+  const inp = $('stSearchInput');
+  if (results) results.classList.add('hidden');
   if (inp) inp.value = '';
+  stSearchActive = false;
+  renderSmartTubeSection(stCurrentSection);
 }
 
-// Yan panel düğme bağlama
-function initInvHomeSide() {
-  const refresh = $('invHomeSideRefresh');
-  if (refresh) refresh.addEventListener('click', () => renderInvidiousHomeSide(true));
-  const login = $('invHomeSideLogin');
-  if (login) login.addEventListener('click', openInvidiousLogin);
-  const logout = $('invHomeSideLogout');
-  if (logout) logout.addEventListener('click', doInvidiousLogout);
-  const searchBtn = $('invHomeSideSearchBtn');
-  if (searchBtn) searchBtn.addEventListener('click', doInvidiousHomeSideSearch);
-  const searchInp = $('invHomeSideSearchInput');
+// ----- Kanal sayfası aç -----
+async function openInvidiousChannelPage(channelId) {
+  const grid = $('stGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
+  let videos = [];
+  try {
+    videos = await fetchInvidiousChannelVideos(channelId);
+  } catch {
+    videos = [];
+  }
+  const title = $('stSectionTitle');
+  if (title) title.textContent = `Kanal: ${channelId}`;
+  renderSmartTubeGrid(grid, videos, null);
+}
+
+// ----- Düğme bağlama -----
+function refreshSmartTubeAuthUI() {
+  const loginBtn = $('stLoginBtn');
+  const logoutBtn = $('stLogoutBtn');
+  if (!loginBtn || !logoutBtn) return;
+  if (invidiousLoggedIn && invidiousLoggedIn.username) {
+    loginBtn.classList.add('hidden');
+    logoutBtn.classList.remove('hidden');
+    logoutBtn.querySelector('.st-side-label').textContent = invidiousLoggedIn.username;
+  } else {
+    loginBtn.classList.remove('hidden');
+    logoutBtn.classList.add('hidden');
+    logoutBtn.querySelector('.st-side-label').textContent = 'Çıkış';
+  }
+}
+
+function initSmartTube() {
+  document.querySelectorAll('.st-side-item[data-st-section]').forEach((btn) => {
+    btn.addEventListener('click', () => stSelectSection(btn.dataset.stSection));
+  });
+  const loginBtn = $('stLoginBtn');
+  if (loginBtn) loginBtn.addEventListener('click', openInvidiousLogin);
+  const logoutBtn = $('stLogoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', doInvidiousLogout);
+  const refresh = $('stRefresh');
+  if (refresh) refresh.addEventListener('click', () => {
+    if (stSearchActive) doSmartTubeSearch();
+    else renderSmartTubeSection(stCurrentSection);
+  });
+  const close = $('stCloseBrowser');
+  if (close) close.addEventListener('click', () => {
+    if (player.mediaKey) setSmartTubeVisible(false);
+  });
+  const searchBtn = $('stSearchBtn');
+  if (searchBtn) searchBtn.addEventListener('click', doSmartTubeSearch);
+  const searchInp = $('stSearchInput');
   if (searchInp) {
     searchInp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doInvidiousHomeSideSearch();
-      else if (e.key === 'Escape') resetHomeSideSearch();
+      if (e.key === 'Enter') doSmartTubeSearch();
+      else if (e.key === 'Escape') resetSmartTubeSearch();
     });
   }
+  const back = $('stBackFromSearch');
+  if (back) back.addEventListener('click', resetSmartTubeSearch);
+
+  refreshSmartTubeAuthUI();
 }
-initInvHomeSide();
+initSmartTube();
 
 // Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)
 // Source toggle: yt-dlp / Invidious arası geçiş
