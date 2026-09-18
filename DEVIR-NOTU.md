@@ -1,5 +1,9 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 18:52 — R68 84 bulgu doğrulaması: 30 gerçek düzeltildi, 36 FP; SID kalıcılık+güvenlik, birleşik feed, yaşam döngüsü (66/66 wiring + smoke kanıtlı)](docs/devir/2026-09-18-1852.md).
+Güncel çalışma: [2026-09-18 19:47 — Gerçek YouTube OAuth cihaz-akışı (backend/youtube.py + youtube:* IPC + SmartTube UI; subscriptions gerçek hesap verisi; 19/19 + 18/18 + smoke kanıtlı)](docs/devir/2026-09-18-1947.md).
+
+Önceki çalışma: [2026-09-18 19:30 — R69 salt-okunur audit: 3 WIP test dosyası FAIL kanıtı + 4 ajanlık tarama, 36 bulgu (BROWSER_BUG_REPORT_69.md)](docs/devir/2026-09-18-1930.md).
+
+Önceki çalışma: [2026-09-18 18:52 — R68 84 bulgu doğrulaması: 30 gerçek düzeltildi, 36 FP; SID kalıcılık+güvenlik, birleşik feed, yaşam döngüsü (66/66 wiring + smoke kanıtlı)](docs/devir/2026-09-18-1852.md).
 
 Önceki çalışma: [2026-09-18 16:52 — R67 iş listesi uygulandı: chip'ler, roving grid, up-next, yorumlar, sayfalama (smoke+wiring kanıtlı)](docs/devir/2026-09-18-1652.md).
 
