@@ -1,4 +1,5 @@
 const { createBuiltinAdapterRegistry } = require('./browser-adapter-registry');
+const { isSensitiveKey, startsWithSensitivePrefix, SENSITIVE_KEY_NAMES } = require('./browser-sensitive-keys');
 
 const ADAPTER_REGISTRY = createBuiltinAdapterRegistry();
 const SERVICE_ADAPTERS = Object.freeze(ADAPTER_REGISTRY.list());
@@ -51,21 +52,27 @@ function redactCaptureUrl(value) {
   }
 }
 
+const MANIFEST_SECRET_KEY_RE = new RegExp(
+  `([?&](?:${SENSITIVE_KEY_NAMES.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}`
+  + `|key|(?:x-amz-|x-goog-|x-api-|aws-|google-)[^=&\\s]+)=)[^&\\s"'<>]+`,
+  'gi');
+
 function sanitizeManifestPreview(value, limit = 2048) {
   return String(value == null ? '' : value).slice(0, Math.max(0, Number(limit) || 2048))
     .replace(/https?:\/\/[^\s"'<>]+/gi, (url) => redactCaptureUrl(url))
-    .replace(/([?&](?:access_?token|auth(?:orization)?|api_?key|credential|expires?|jwt|key|password|policy|secret|session(?:id)?|sig(?:nature)?|token|x-amz-[^=&\s]+|x-goog-[^=&\s]+)=)[^&\s"'<>]+/gi, '$1[gizlendi]')
+    .replace(MANIFEST_SECRET_KEY_RE, '$1[gizlendi]')
     .replace(/\b(?:authorization|cookie)\s*[:=]\s*[^\r\n]+/gi, (match) => `${match.split(/[:=]/)[0]}=[gizlendi]`);
 }
-
-const SENSITIVE_MEDIA_URL_PARAM = /^(?:access_?token|auth(?:orization)?|api_?key|code|credential|expires?|jwt|key|key-pair-id|pass(?:code|word)?|policy|secret|session(?:id)?|sig(?:nature)?|state|token|x-amz-.+)$/i;
 
 function persistentBrowserMediaUrl(value) {
   try {
     const url = new URL(String(value || ''));
     if (!['http:', 'https:'].includes(url.protocol)) return '';
     for (const key of [...url.searchParams.keys()]) {
-      if (SENSITIVE_MEDIA_URL_PARAM.test(key)) url.searchParams.delete(key);
+      // Ortak sözlük camelCase OAuth adlarını da kapsar; 'key' eski davranış.
+      if (isSensitiveKey(key) || startsWithSensitivePrefix(key) || /^key$/i.test(key)) {
+        url.searchParams.delete(key);
+      }
     }
     url.hash = '';
     return url.href.slice(0, 2000);

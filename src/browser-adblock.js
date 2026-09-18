@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 function electronBlockerClass() {
   // Paket modül yüklenirken ELECTRON_DISABLE_SECURITY_WARNINGS değerini değiştirir.
   // Bu yan etkiyi yalnız sınıfı alacak kadar kısa tut; uygulamanın güvenlik
@@ -38,7 +39,10 @@ function safeBlockedUrl(value) {
 
 function safeFilterRule(value) {
   return String(value || '')
-    .replace(/([?&](?:token|sig|signature|key|auth|authorization|password|secret)=)[^&\s|]+/gi, '$1[gizlendi]')
+    // Ortak hassas-anahtar sözlüğü camelCase OAuth adlarını da kapsar.
+    .replace(/([?&])([a-z0-9_-]{1,64})=[^&\s|]+/gi, (match, sep, key) =>
+      (isSensitiveKey(key) || startsWithSensitivePrefix(key) || /^key$/i.test(key))
+        ? `${sep}${key}=[gizlendi]` : match)
     .replace(/\b(bearer)\s+[a-z0-9._~+\/-]+/gi, '$1 [gizlendi]')
     .replace(/\s+/g, ' ')
     .trim()

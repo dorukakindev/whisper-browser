@@ -25,7 +25,9 @@ const running = summarizeTranslationIntegrity({
   state: { total: 2, completed: 1, queued: ['s2'], pending: [], failures: [] },
 });
 assert.equal(running.status, 'running');
-assert.equal(running.submittedSentences, 1);
+// Kuyruktaki cümle pipeline'a kabul edilmiş sayılır (rapor 69 O15):
+// completed+pending+queued+failed toplamı submittedSentences'ı verir.
+assert.equal(running.submittedSentences, 2);
 
 const complete = summarizeTranslationIntegrity({
   sourceCues, results: sourceCues.map((cue) => ({ cueId: cue.id, text: 'Translation' })),

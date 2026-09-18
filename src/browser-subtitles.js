@@ -409,6 +409,16 @@ function parseLrc(body) {
   })).filter((row) => row.text));
 }
 
+const HLS_LANGUAGE_LABELS = {
+  tr: 'Türkçe', en: 'İngilizce', de: 'Almanca', fr: 'Fransızca', es: 'İspanyolca',
+  it: 'İtalyanca', pt: 'Portekizce', ru: 'Rusça', ar: 'Arapça', nl: 'Hollandaca',
+  pl: 'Lehçe', sv: 'İsveççe', ja: 'Japonca', ko: 'Korece', zh: 'Çince',
+  hi: 'Hintçe', th: 'Tayca', vi: 'Vietnamca', id: 'Endonezce', uk: 'Ukraynaca',
+  cs: 'Çekçe', el: 'Yunanca', he: 'İbranice', iw: 'İbranice', fa: 'Farsça',
+  ro: 'Rumence', hu: 'Macarca', da: 'Danca', fi: 'Fince', no: 'Norveççe',
+  nb: 'Norveççe', bg: 'Bulgarca', hr: 'Hırvatça', sk: 'Slovakça', sr: 'Sırpça',
+};
+
 function parseHlsSubtitleTracks(body, baseUrl = '') {
   const tracks = [];
   const text = String(body || '');
@@ -424,7 +434,8 @@ function parseHlsSubtitleTracks(body, baseUrl = '') {
       language: attrs.LANGUAGE || '',
       // Etiket doğrudan iz kaydı/önbelleği ve seçiciye taşınır. Yalnız yabancı
       // replikleri içeren forced izi tam altyazı sanılmasın.
-      label: (attrs.NAME || attrs.LANGUAGE || 'HLS altyazısı')
+      label: (attrs.NAME || HLS_LANGUAGE_LABELS[String(attrs.LANGUAGE || '').toLowerCase().split('-')[0]]
+          || attrs.LANGUAGE || 'HLS altyazısı')
         + (String(attrs.FORCED || '').toUpperCase() === 'YES' ? ' (zorunlu)' : ''),
       forced: String(attrs.FORCED || '').toUpperCase() === 'YES',
     }); } catch (_) {}
@@ -1160,15 +1171,27 @@ function findSubtitleUrls(body, baseUrl = '') {
       } catch (_) {}
       return;
     }
-    if (Array.isArray(value)) return value.slice(0, 500).forEach((item) => visit(item, context, depth + 1));
+    if (Array.isArray(value)) {
+      if (value.length > 500) truncated = true;
+      return value.slice(0, 500).forEach((item) => visit(item, context, depth + 1));
+    }
     if (typeof value === 'object') {
-      for (const [key, item] of Object.entries(value).slice(0, 1000)) {
+      const entries = Object.entries(value);
+      if (entries.length > 1000) truncated = true;
+      for (const [key, item] of entries.slice(0, 1000)) {
         visit(item, `${context} ${key}`, depth + 1);
       }
     }
   };
+  let truncated = false;
   visit(root);
-  return [...found].slice(0, 64);
+  const urls = [...found];
+  if (urls.length > 64) truncated = true;
+  if (truncated) {
+    // Sessiz kesinti eksik altyazı izi sanılmasın; keşif sınırı aşımını kaydet.
+    console.warn(`findSubtitleUrls: JSON keşif sınırı aşıldı, ${urls.length} adaydan ilk 64 döndürülüyor.`);
+  }
+  return urls.slice(0, 64);
 }
 
 function attr(tag, name) {

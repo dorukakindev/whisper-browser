@@ -1,3 +1,12 @@
+const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
+
+function redactSensitiveAssignment(match, key) {
+  const sensitive = isSensitiveKey(key) || startsWithSensitivePrefix(key)
+    || /^(?:token|sig(?:nature)?|jwt|key|api[-_]?key|client[-_]?secret|secret|session(?:id)?|sid)$/i.test(key);
+  const generic = /^(?:code|state|pass|exp|expires?|policy|auth)$/i.test(key);
+  return sensitive && !generic ? `${key}=[gizlendi]` : match;
+}
+
 const DIAGNOSTIC_CATALOG = Object.freeze({
   'cdm-component-unavailable': {
     label: 'Widevine bileşen API’si yok', confidence: 'yüksek',
@@ -122,7 +131,13 @@ function redactDiagnosticText(value) {
     .replace(/\b(?:proxy-)?authorization\s*[:=]\s*[^\r\n,;]*/gi, 'authorization=[gizlendi]')
     .replace(/\b(?:bearer|basic)\s+[a-z0-9._~+\/-]+=*/gi, 'kimlik=[gizlendi]')
     .replace(/\b[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\b/gi, 'jwt=[gizlendi]')
-    .replace(/\b(token|sig(?:nature)?|jwt|key|api[-_]?key|client[-_]?secret|secret|session(?:id)?|sid)\s*[=:]\s*[^\s,;]+/gi, '$1=[gizlendi]')
+    // Ortak hassas-anahtar sözlüğü camelCase OAuth adlarını da yakalar
+    // (idToken/accessToken/clientId gibi). Genel İngilizce sözcükler
+    // (code/state/exp gibi) tanı değeri taşıdığı için redaksiyon dışı bırakılır.
+    // '=' ayracı önce işlenir: 'error: idToken=x' metninde ':' ayracının
+    // sonraki key=value çiftini yutması engellenir.
+    .replace(/\b([a-z0-9_-]{2,32})\s*=\s*[^\s,;]+/gi, redactSensitiveAssignment)
+    .replace(/\b([a-z0-9_-]{2,32})\s*:\s*[^\s,;=]+/gi, redactSensitiveAssignment)
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 280);

@@ -1,14 +1,23 @@
 'use strict';
 
-const SENTENCE_PROTOCOL_VERSION = 2;
+const SENTENCE_PROTOCOL_VERSION = 4;
+// Bu sürümle yazılan cache/artefakt yanında eski JS (v2) ve Python (v3)
+// üretimleri de kabul edilir; küme dışı sürüm yeni şema sayılıp reddedilir.
+const SUPPORTED_SENTENCE_PROTOCOL_VERSIONS = new Set([2, 3, 4]);
 const ABBREVIATIONS = new Set(require('../backend/subtitle-abbreviations.json'));
 const normalizeText = (value) => String(value ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
 const SPACELESS_SCRIPT = /[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/u;
+// Türkçe İ/i/ı/I harflerini tek kanona indirger: 'İstanbul' ile 'istanbul',
+// 'I' ile 'i' aynı kabul edilir. Sağlayıcıların büyük/küçük harf farkı
+// yüzünden geçerli parçaları reddedip yeniden çeviri ücretlendirmesini keser.
+const foldLocale = (value) => normalizeText(value).toLocaleLowerCase('tr')
+  .replace(/ı/g, 'i').replace(/i̇/g, 'i');
 function sentencePartsMatch(text, parts) {
   const joined = normalizeText(parts.join(' '));
   const expected = normalizeText(text);
-  return joined === expected || (SPACELESS_SCRIPT.test(expected)
-    && joined.replace(/\s+/g, '') === expected.replace(/\s+/g, ''));
+  return joined === expected || foldLocale(joined) === foldLocale(expected)
+    || (SPACELESS_SCRIPT.test(expected)
+      && joined.replace(/\s+/g, '') === expected.replace(/\s+/g, ''));
 }
 const NON_SPEAKER_LABEL = /^(?:warning|note|chapter|answer|question|step|time|caution|tip|example|important|update|result|summary|uyarı|not|bölüm|cevap|soru|adım|saat|ipucu|örnek|önemli|güncelleme|sonuç|özet)(?:\s+\d+)?$/iu;
 function hasSpeakerLabel(text) {
@@ -260,7 +269,8 @@ function fitTranslationParts(text, pieces) {
   });
 }
 
-module.exports = { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded, hasSpeakerLabel,
+module.exports = { SENTENCE_PROTOCOL_VERSION, SUPPORTED_SENTENCE_PROTOCOL_VERSIONS,
+  normalizeText, protectedCue, sentenceEnded, hasSpeakerLabel,
   sentencePartsMatch, validParts, decodeSentenceTranslation, fitTranslationParts, sentenceTranslationRequest,
   translationMeaningIssues, translationBlockingIssues,
   sourceReviewHints,

@@ -1,4 +1,5 @@
 const { MAX_ABS_OFFSET_SECONDS } = require('./browser-subtitle-sync');
+const { redactUrlSensitiveParams } = require('./browser-place-url');
 
 const DEFAULT_CLOSED_TAB_LIMIT = 20;
 
@@ -9,8 +10,10 @@ function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
 
 function normalizeClosedBrowserTab(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return null;
-  const url = String(snapshot.url || '').trim();
-  if (!/^https?:\/\//i.test(url)) return null;
+  // OAuth callback parametreleri kapalı-sekme geçmişine ve diske yazılmaz;
+  // adresin geri kalanı (route çapası dahil) geri yükleme için korunur.
+  const url = redactUrlSensitiveParams(String(snapshot.url || '').trim());
+  if (!url) return null;
   return {
     url,
     title: String(snapshot.title || '').trim().slice(0, 300),

@@ -252,7 +252,19 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     const observeRoot = (scope) => {
-      if (!scope || observedRoots.has(scope) || state.mode === 'off' || mutationObservers.length >= 128) return;
+      if (!scope || observedRoots.has(scope) || state.mode === 'off') return;
+      if (mutationObservers.length >= 128) {
+        // Sınır dolunca yeni kök sessizce izlenmez kalmasın; en eski gölge kökü
+        // LRU düzeniyle tahliye edip yeni kökü izlemeye devam et. document
+        // (ilk kayıt) ana DOM'un tek gözlemcisi olduğu için tahliyeden muaf.
+        const evictIndex = mutationObservers.findIndex((entry) => entry.root !== document);
+        const evicted = evictIndex >= 0 ? mutationObservers.splice(evictIndex, 1)[0] : null;
+        if (evicted) {
+          try { evicted.observer.disconnect(); } catch (_) {}
+          observedRoots.delete(evicted.root);
+          console.warn('Browser altyazı katmanı: 128 gözlemci sınırı doldu; en eski gölge kök izlemeden çıkarıldı.');
+        }
+      }
       observedRoots.add(scope);
       const observer = new MutationObserver((mutations) => {
         if (state.mode === 'off') return;
@@ -262,7 +274,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         mutationFrame = requestAnimationFrame(() => { mutationFrame = 0; render(); });
       });
       observer.observe(scope, { childList: true, subtree: true });
-      mutationObservers.push(observer);
+      mutationObservers.push({ observer, root: scope });
     };
 
     const startObserving = () => {
@@ -271,7 +283,9 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     const stopObserving = () => {
-      while (mutationObservers.length) mutationObservers.pop().disconnect();
+      while (mutationObservers.length) {
+        try { mutationObservers.pop().observer.disconnect(); } catch (_) {}
+      }
       for (const [item, listener] of candidateListeners) {
         for (const type of ['play', 'pause', 'loadedmetadata', 'emptied']) {
           try { item.removeEventListener(type, listener); } catch (_) {}
@@ -355,6 +369,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       }, Math.min(60000, delayMs));
     };
 
+    const FULLSCREEN_STYLE_PROPS = ['width', 'height', 'maxWidth', 'maxHeight', 'objectFit'];
+    const FULLSCREEN_STYLE_VALUES = { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' };
     function enableFullscreenControls() {
       // Chromium yerel video tam ekranında diğer DOM öğelerine tıklamayı
       // engeller. Videoyu aynı yerde geçici kapsayıcıya alarak hem yerel
@@ -363,13 +379,13 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (fullscreen?.tagName === 'VIDEO' && !fullscreenTransition && !fullscreenHost) {
         fullscreenTransition = true;
         fullscreenVideo = fullscreen;
-        fullscreenStyle = Object.fromEntries(['width','height','maxWidth','maxHeight','objectFit'].map(key => [key, fullscreen.style[key]]));
+        fullscreenStyle = Object.fromEntries(FULLSCREEN_STYLE_PROPS.map(key => [key, fullscreen.style[key]]));
         fullscreenHost = document.createElement('div');
         fullscreenHost.id = '__whisper_fullscreen_player';
         fullscreenHost.style.cssText = 'width:100%;height:100%;background:#000;position:relative;';
         fullscreen.parentElement.insertBefore(fullscreenHost, fullscreen);
         fullscreenHost.moveBefore(fullscreen, null);
-        Object.assign(fullscreen.style, {width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain'});
+        Object.assign(fullscreen.style, FULLSCREEN_STYLE_VALUES);
         document.exitFullscreen().then(() => fullscreenHost.requestFullscreen()).catch(() => {}).finally(() => { fullscreenTransition = false; render(); });
         return;
       }
@@ -379,7 +395,12 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (!fullscreen && fullscreenHost && !fullscreenTransition) {
         if (fullscreenVideo?.parentElement === fullscreenHost && fullscreenHost.parentElement) {
           fullscreenHost.parentElement.moveBefore(fullscreenVideo, fullscreenHost);
-          for (const [key, value] of Object.entries(fullscreenStyle || {})) fullscreenVideo.style[key] = value;
+          // Yalnız hâlâ bizim yazdığımız tam ekran değerini taşıyan özellikler
+          // geri alınır; site tam ekran sırasında aynı özelliği değiştirdiyse
+          // (responsive boyutlandırma gibi) sitenin değeri korunur.
+          for (const [key, value] of Object.entries(fullscreenStyle || {})) {
+            if (fullscreenVideo.style[key] === FULLSCREEN_STYLE_VALUES[key]) fullscreenVideo.style[key] = value;
+          }
         }
         fullscreenHost.remove(); fullscreenHost = null; fullscreenVideo = null; fullscreenStyle = null;
       }

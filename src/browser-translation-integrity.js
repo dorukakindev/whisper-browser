@@ -70,7 +70,7 @@ function summarizeTranslationIntegrity({
   const captureMissingRanges = captureRows.flatMap((row) => Array.isArray(row?.missingRanges)
     ? row.missingRanges.map((range) => ({ streamKey: String(row.streamKey || ''), ...range })) : []);
   const submittedSentences = Math.min(totalSentences,
-    completedSentences + pendingSentences + failedSentences);
+    completedSentences + pendingSentences + queuedSentences + failedSentences);
 
   let status = 'ready';
   let reason = 'waiting';

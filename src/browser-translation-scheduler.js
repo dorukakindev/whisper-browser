@@ -559,6 +559,9 @@ class BrowserTranslationScheduler {
     for (const timer of this.retryTimers) clearTimeout(timer);
     this.retryTimers.clear();
     this.failures.clear();
+    // Abort sinyalini yoksayan bir sağlayıcı yanıtı geç dönerse eski kuşağın
+    // sonucu yeni setSentences kuşağına yazılmasın.
+    this.generation += 1;
     this.emitState();
     this.resolveIdleIfNeeded();
   }

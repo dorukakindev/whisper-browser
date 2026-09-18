@@ -1207,6 +1207,16 @@
     ['Ana sayfa yenile', 'Refresh home'],
     ["Invidious'ta ara...", 'Search Invidious…'],
     ['Invidious sunucu taraflı hesap kullanır — Google\'a bağlanmaz. Sadece o instance\'daki hesabın geçerlidir.', 'Invidious uses server-side accounts — it does not connect to Google. Only the account on that instance works.'],
+    ['Arama sonuçları', 'Search results'],
+    ['YouTube ile giriş', 'Sign in with YouTube'],
+    ['YouTube ile giriş (Google hesabı)', 'Sign in with YouTube (Google account)'],
+    ['YT çıkış', 'YT sign out'],
+    ['YouTube bağlı', 'YouTube connected'],
+    ['YouTube onayı bekleniyor', 'Waiting for YouTube approval'],
+    ['Göster', 'Show'],
+    ['Şifreyi göster', 'Show password'],
+    ['Telefonda veya bilgisayarda aşağıdaki adresi aç ve kodu gir:', 'Open the address below on your phone or computer and enter the code:'],
+    [`Gerçek YouTube hesabınla giriş — SmartTube'un kullandığı yöntem. Bir kerelik kurulum: Google Cloud'da "TV ve sınırlı girişli cihazlar" tipinde OAuth client oluştur (YouTube Data API v3 etkin), Client ID + Secret'i buraya gir. Bilgiler işletim sistemi güvenli deposunda saklanır.`, 'Sign in with your real YouTube account — the method SmartTube uses. One-time setup: create an OAuth client of type "TVs and limited-input devices" in Google Cloud (YouTube Data API v3 enabled) and enter the Client ID + Secret here. Credentials are stored in the OS secure store.'],
   ];
 
   const toEnglish = new Map(entries);

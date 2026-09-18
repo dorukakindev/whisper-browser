@@ -45,7 +45,7 @@ const PERSISTENT_SCHEMA_INVENTORY = Object.freeze([
     source: 'src/watch-library-state.js', version: 2, constants: ['WATCH_LIBRARY_DOCUMENT_VERSION'],
     migrationTest: 'tests/watch-library-concurrency.test.js' },
   { id: 'sentence-protocol-js', kind: 'protocol', storage: 'translation request/cache contract',
-    source: 'src/subtitle-sentence-layout.js', version: 2, constants: ['SENTENCE_PROTOCOL_VERSION'],
+    source: 'src/subtitle-sentence-layout.js', version: 4, constants: ['SENTENCE_PROTOCOL_VERSION'],
     migrationTest: 'tests/subtitle-sentence-layout.test.js' },
   { id: 'settings', kind: 'persistent', storage: 'settings.json',
     source: 'src/settings-security.js', version: 3, constants: ['SETTINGS_VERSION'],

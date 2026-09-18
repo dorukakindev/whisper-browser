@@ -295,9 +295,15 @@ function isPublicMangaIpAddress(rawAddress) {
     return false;
   }
   if (address === '::' || address === '::1') return false;
-  const first = parseInt(address.split(':')[0] || '0', 16);
+  const hextets = address.split(':');
+  const first = parseInt(hextets[0] || '0', 16);
   // Yalnız global-unicast 2000::/3 adresleri uzaktaki görsel kaynağı olabilir.
   if (!Number.isFinite(first) || first < 0x2000 || first > 0x3fff) return false;
+  // 6to4 (2002::/16) ve Teredo (2001:0000::/32) adresleri içine gömülü IPv4
+  // hedef taşır; "global" görünüp yerel ağa tünellenen SSRF vektörüdür.
+  if (first === 0x2002) return false;
+  const second = parseInt(hextets[1] || '', 16);
+  if (first === 0x2001 && (second || 0) === 0) return false;
   if (address.startsWith('2001:db8:')) return false;
   return true;
 }
