@@ -7055,7 +7055,6 @@ body.modal-open { overflow: hidden; }
 .st-card:focus-visible {
   transform: translateY(-2px);
   border-color: var(--accent);
-  outline: none;
 }
 .st-card-thumb {
   aspect-ratio: 16 / 9;
@@ -7133,6 +7132,26 @@ body.modal-open { overflow: hidden; }
   font-size: 12px;
   color: var(--muted);
   border-top: 1px solid var(--border);
+}
+
+.st-card-live {
+  background: #c0392b;
+  color: #fff;
+}
+.st-channel-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px 6px;
+}
+.st-channel-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.st-channel-sub {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .inv-side-card {

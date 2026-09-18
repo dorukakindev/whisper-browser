@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; media-src 'self' file: blob: https://*.googlevideo.com; connect-src 'self' whisper-pdf: https://*.googlevideo.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' file: blob: https:; connect-src 'self' whisper-pdf: https:" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="browser-features.css" />
@@ -1887,13 +1887,13 @@
                 <span class="st-side-label">Kanallarım</span>
               </button>
               <div class="st-side-spacer"></div>
-              <button class="st-side-item" data-st-action="login" id="stLoginBtn" title="Giriş">
+              <button class="st-side-item" data-st-action="login" id="stLoginBtn" title="Oturum aç">
                 <span class="st-side-icon">⚿</span>
-                <span class="st-side-label">Giriş</span>
+                <span class="st-side-label">Oturum aç</span>
               </button>
-              <button class="st-side-item hidden" data-st-action="logout" id="stLogoutBtn" title="Çıkış">
+              <button class="st-side-item hidden" data-st-action="logout" id="stLogoutBtn" title="Oturumu kapat">
                 <span class="st-side-icon">⏻</span>
-                <span class="st-side-label">Çıkış</span>
+                <span class="st-side-label">Oturumu kapat</span>
               </button>
             </nav>
 
@@ -1927,21 +1927,6 @@
 
               <div class="st-status-line hidden" id="stStatusLine"></div>
             </section>
-          </div>
-
-          <!-- Invidious ana sayfa (SmartTube tarzı) — video açıkken gizlenir -->
-          <div class="invidious-home-page hidden" id="invidiousHomePage">
-            <div class="invidious-home-toolbar">
-              <button class="btn btn-secondary btn-sm" id="invHomeRefresh">Yenile</button>
-              <button class="btn btn-secondary btn-sm" id="invHomeLogin">Giriş</button>
-              <button class="btn btn-secondary btn-sm hidden" id="invHomeLogout">Çıkış</button>
-              <input type="search" id="invHomeSearchInput" placeholder="Invidious'ta ara..." aria-label="Invidious arama"/>
-              <button class="btn btn-secondary btn-sm" id="invHomeSearchBtn">Ara</button>
-            </div>
-            <div id="invHomeContent" class="inv-home-content">
-              <div class="inv-status">İçerik yükleniyor…</div>
-            </div>
-            <div id="invHomeSearchResults" class="inv-home-content hidden"></div>
           </div>
 
           <!-- Kaldigin yerden devam - uzun filmlerde kritik -->
@@ -2476,8 +2461,8 @@
               </label>
               <div class="invidious-toolbar">
                 <button class="btn btn-secondary btn-sm" id="invidiousHomeRefresh">Ana sayfa yenile</button>
-                <button class="btn btn-secondary btn-sm" id="invidiousLoginBtn">Giriş yap</button>
-                <button class="btn btn-secondary btn-sm hidden" id="invidiousLogoutBtn">Çıkış</button>
+                <button class="btn btn-secondary btn-sm" id="invidiousLoginBtn">Oturum aç</button>
+                <button class="btn btn-secondary btn-sm hidden" id="invidiousLogoutBtn">Oturumu kapat</button>
                 <input type="search" id="invidiousSearchInput" placeholder="Invidious'ta ara..." aria-label="Invidious arama"/>
                 <button class="btn btn-secondary btn-sm" id="invidiousSearchBtn">Ara</button>
               </div>
@@ -2874,17 +2859,9 @@
   <script src="../renderer-ui-model.js"></script>
   <script src="../player-task-center.js"></script>
 <dialog id="mediaCatalogDialog" aria-label="Film ve dizi arşivi"><div id="mediaCatalogRoot"></div></dialog>
-<script src="ui-locale.js"></script>
-<script src="renderer.js"></script>
-<script src="media-catalog.js"></script>
-<script src="browser-features.js"></script>
-<script src="browser-analysis-tools.js"></script>
-<script src="browser-video-analysis.js"></script>
-<script src="browser-dialogue.js"></script>
-<script src="browser-series-context.js"></script>
 
-<!-- Invidious login modalı -->
-<div id="invidiousLoginModal" class="modal hidden" role="dialog" aria-labelledby="invLoginTitle">
+<!-- Invidious login modalı — renderer.js'ten ÖNCE: buton bağları script değerlendirilirken kurulur -->
+<div id="invidiousLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="invLoginTitle">
   <div class="modal-content" style="max-width:420px">
     <h3 id="invLoginTitle">Invidious hesabına giriş</h3>
     <p class="small-muted">Invidious sunucu taraflı hesap kullanır — Google'a bağlanmaz. Sadece o instance'daki hesabın geçerlidir.</p>
@@ -2898,9 +2875,18 @@
     </label>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="invLoginCancel">İptal</button>
-      <button class="btn btn-primary" id="invLoginSubmit">Giriş</button>
+      <button class="btn btn-primary" id="invLoginSubmit">Oturum aç</button>
     </div>
   </div>
 </div>
+
+<script src="ui-locale.js"></script>
+<script src="renderer.js"></script>
+<script src="media-catalog.js"></script>
+<script src="browser-features.js"></script>
+<script src="browser-analysis-tools.js"></script>
+<script src="browser-video-analysis.js"></script>
+<script src="browser-dialogue.js"></script>
+<script src="browser-series-context.js"></script>
 </body>
 </html>

@@ -16616,7 +16616,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
           logLine('Yayın bağlantısı koptu (adres zaman aşımına uğramış olabilir) — yenileniyor...', 'warn');
           const gen = currentGeneration();
           let res = null;
-          try { res = await window.api.probeYoutube(info.sourceUrl, youtubeCookieBrowser()); } catch (_) {}
+          try { res = await probeWithActiveSource(info.sourceUrl); } catch (_) {}
           if (!player.hlsRecovery.isCurrent(attempt.token) || staleGeneration(gen) || player.hls !== hls) return;
           if (res && res.ok && res.data && res.data.hls) {
             const fresh = res.data;
@@ -16647,6 +16647,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   hls.loadSource(manifestUrl);
   hls.attachMedia(video);
   $('playerEmpty').classList.add('hidden');
+  if (typeof hideHomeOnVideoLoad === 'function') hideHomeOnVideoLoad();
   if (title) $('playerTitle').textContent = title;
   const metaEl = $('playerMeta');
   if (metaEl) metaEl.textContent = meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma';
@@ -17545,6 +17546,8 @@ function openPlayer(jobSnapshot = null) {
     $('playerSubSelect').value = outputs[0];
     loadSubtitle(outputs[0]);
   }
+  // Medya yüklenmediyse SmartTube tarayıcı açık kalsın (SmartTube ana ekranı)
+  if (!jobVideo && typeof showHomeWhenNoVideo === 'function') showHomeWhenNoVideo();
 }
 
 function closePlayer() {
@@ -22003,6 +22006,9 @@ if ($('youtubeCookieBrowser') && $('playerCookieBrowser')) {
   setTimeout(() => { $('playerCookieBrowser').value = $('youtubeCookieBrowser').value; }, 0);
 }
 
+const INV_KEY = 'player:source';
+let playerSource = 'ytdlp';   // 'ytdlp' | 'invidious'
+
 initPlayerSource();
 
 // ===== Invidious Ana Sayfa / Akış (SmartTube tarzı) =====
@@ -22010,8 +22016,17 @@ const INV_FEED_CACHE_MS = 5 * 60 * 1000;
 const invidiousFeedCache = new Map();   // kind -> { ts, videos }
 let invidiousLoggedIn = null;          // { username, instance } veya null
 
+// Ana süreçte TÜM Invidious komutları tek mediaJobs.invidious slot'unu paylaşır —
+// paralel renderer çağrıları "iş zaten çalışıyor" ile çakışır. Burada sıraya koy.
+let invCallChain = Promise.resolve();
+function invCall(fn) {
+  const run = invCallChain.then(fn, fn);
+  invCallChain = run.then(() => {}, () => {});
+  return run;
+}
+
 async function fetchInvidiousChannelVideos(channelId) {
-  const res = await window.api.invidiousChannel(channelId);
+  const res = await invCall(() => window.api.invidiousChannel(channelId));
   if (!res || !res.ok || !res.data) return [];
   return res.data.videos || [];
 }
@@ -22021,12 +22036,15 @@ async function fetchInvidiousFeed(kind, force = false) {
   if (!force && cached && (Date.now() - cached.ts) < INV_FEED_CACHE_MS) {
     return cached.videos;
   }
-  const res = await window.api.invidiousFeed(kind);
+  const res = await invCall(() => window.api.invidiousFeed(kind));
   if (!res || !res.ok || !res.data) {
     const reason = (res && res.error) || 'bilinmeyen';
     logLine(`Invidious ${kind} alınamadı: ${reason}`, 'error');
     // Hata durumunda exception fırlat ki grid'de görünsün
     throw new Error(reason);
+  }
+  if (res.data.instance && !String(res.data.instance).startsWith('yt-dlp')) {
+    lastInvidiousInstance = res.data.instance;
   }
   invidiousFeedCache.set(kind, { ts: Date.now(), videos: res.data.videos || [] });
   return res.data.videos;
@@ -22034,13 +22052,17 @@ async function fetchInvidiousFeed(kind, force = false) {
 
 async function searchInvidious(query, page = 1) {
   if (!query || !query.trim()) return [];
-  const res = await window.api.invidiousSearch(query.trim(), { page });
+  const res = await invCall(() => window.api.invidiousSearch(query.trim(), { page }));
   if (!res || !res.ok || !res.data) return [];
   return res.data.videos || [];
 }
 
 async function fetchInvidiousSubscriptions(force = false) {
-  const videos = await fetchInvidiousFeed('subscriptions', force);
+  const videos = await fetchInvidiousFeed('subscriptions', force).catch((e) => {
+    // Kanallar sekmesinde giriş hatası sessizce boş liste — ipucu gösterilir
+    if (/giriş|login|401|unauthor/i.test(e && e.message || '')) return [];
+    throw e;
+  });
   // Videolardan benzersiz kanal listesi çıkar
   const seen = new Map();
   for (const v of videos) {
@@ -22057,7 +22079,7 @@ async function fetchInvidiousSubscriptions(force = false) {
 
 async function loadInvidiousChannel(channelId) {
   if (!channelId) return null;
-  const res = await window.api.invidiousChannel(channelId);
+  const res = await invCall(() => window.api.invidiousChannel(channelId));
   if (!res || !res.ok || !res.data) return null;
   return res.data;   // { info, videos }
 }
@@ -22132,11 +22154,9 @@ async function renderInvidiousHome() {
   if (!root) return;
   root.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
 
-  // Popüler + Trending paralel çek
-  const [popular, trending] = await Promise.all([
-    fetchInvidiousFeed('popular').catch(() => []),
-    fetchInvidiousFeed('trending').catch(() => []),
-  ]);
+  // Sıralı çek — ana süreçte tek Invidious slot'u var, paralel istek çakışır
+  const popular = await fetchInvidiousFeed('popular').catch(() => []);
+  const trending = await fetchInvidiousFeed('trending').catch(() => []);
 
   root.innerHTML = '';
 
@@ -22194,9 +22214,19 @@ async function renderInvidiousHome() {
 }
 
 // Invidious login modal
+let _invLoginModalBound = false;
 function openInvidiousLogin() {
   const dlg = $('invidiousLoginModal');
   if (!dlg) return;
+  // Lazy bağlama — modal markup'ı script öncesine taşınsa da bu güvende kalır
+  if (!_invLoginModalBound) {
+    _invLoginModalBound = true;
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) closeInvidiousLogin(); });
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeInvidiousLogin(); }
+      else if (e.key === 'Enter' && (e.target.tagName === 'INPUT')) doInvidiousLogin();
+    });
+  }
   dlg.classList.remove('hidden');
   const userEl = $('invLoginUsername');
   if (userEl) userEl.focus();
@@ -22204,6 +22234,8 @@ function openInvidiousLogin() {
 function closeInvidiousLogin() {
   const dlg = $('invidiousLoginModal');
   if (dlg) dlg.classList.add('hidden');
+  const pass = $('invLoginPassword');
+  if (pass) pass.value = '';   // şifre DOM'da kalmasın
 }
 
 async function doInvidiousLogin() {
@@ -22215,35 +22247,65 @@ async function doInvidiousLogin() {
   }
   const btn = $('invLoginSubmit');
   if (btn) { btn.disabled = true; btn.textContent = 'Giriş yapılıyor…'; }
-  const res = await window.api.invidiousLogin(user, pass);
-  if (btn) { btn.disabled = false; btn.textContent = 'Giriş'; }
+  const res = await invCall(() => window.api.invidiousLogin(user, pass));
+  const passEl = $('invLoginPassword');
+  if (passEl) passEl.value = '';   // şifre bellekten/dokumandan hemen silinir
+  if (btn) { btn.disabled = false; btn.textContent = 'Oturum aç'; }
   if (!res || !res.ok) {
     logLine(`Invidious giriş başarısız: ${(res && res.error) || 'bilinmeyen'}`, 'error');
     return;
   }
-  invidiousLoggedIn = { username: user };
+  invidiousLoggedIn = { username: user, instance: res.data && res.data.instance };
   closeInvidiousLogin();
+  refreshSmartTubeAuthUI();
+  // Abonelik/kanal cache'i artık geçersiz — yeni session ile yeniden çek
+  invidiousFeedCache.delete('subscriptions');
   logLine(`Invidious giriş başarılı: ${user}`, 'success');
-  renderInvidiousHome();   // abonelikler artık görünür
-}
-
-async function doInvidiousLogout() {
-  await window.api.invidiousLogout();
-  invidiousLoggedIn = null;
-  logLine('Invidious çıkış yapıldı.', 'info');
+  renderSmartTubeSection(stCurrentSection);
   renderInvidiousHome();
 }
 
-// Arama
+async function doInvidiousLogout() {
+  await invCall(() => window.api.invidiousLogout());
+  invidiousLoggedIn = null;
+  refreshSmartTubeAuthUI();
+  // Önceki kullanıcının kişisel verisi cache'de kalmasın
+  invidiousFeedCache.clear();
+  logLine('Invidious çıkış yapıldı.', 'info');
+  renderSmartTubeSection(stCurrentSection);
+  renderInvidiousHome();
+}
+
+// Uygulama açılırken ana süreçteki session'ı geri yükle — UI senkronu
+async function restoreInvidiousSession() {
+  try {
+    const res = await invCall(() => window.api.invidiousSession());
+    const sessions = (res && res.ok && res.data && res.data.sessions) || [];
+    if (sessions.length) {
+      invidiousLoggedIn = { username: sessions[0].username, instance: sessions[0].instance };
+    } else {
+      invidiousLoggedIn = null;
+    }
+  } catch (_) {
+    invidiousLoggedIn = null;
+  }
+  refreshSmartTubeAuthUI();
+}
+
+// Arama (yt paneli içindeki küçük arama kutusu)
 async function doInvidiousSearch() {
   const inp = $('invidiousSearchInput');
   const root = $('invidiousSearchResults');
+  const home = $('invidiousHome');
   if (!inp || !root) return;
   const q = inp.value.trim();
   if (!q) {
-    root.innerHTML = '<div class="inv-status">Arama terimi gir.</div>';
+    root.classList.add('hidden');
+    if (home) home.classList.remove('hidden');
     return;
   }
+  root.classList.remove('hidden');
+  if (home) home.classList.add('hidden');
   root.innerHTML = '<div class="inv-status">Aranıyor…</div>';
   const videos = await searchInvidious(q);
   root.innerHTML = '';
@@ -22331,6 +22393,8 @@ function stSelectSection(section) {
   stSearchActive = false;
   const results = $('stSearchResults');
   if (results) results.classList.add('hidden');
+  const mainGrid = $('stGrid');
+  if (mainGrid) mainGrid.classList.remove('hidden');
   document.querySelectorAll('.st-side-item[data-st-section]').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.stSection === section);
   });
@@ -22348,52 +22412,85 @@ function stSelectSection(section) {
   renderSmartTubeSection(section);
 }
 
-async function renderSmartTubeSection(section) {
+// Bölüm render yarışı koruması — yavaş 'trending' isteği kullanıcının
+// açtığı 'popular' grid'ini ezmesin diye her render bir sıra numarası alır.
+let stSectionSeq = 0;
+let lastInvidiousInstance = '';
+
+function setSmartTubeStatus(text) {
+  const el = $('stStatusLine');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('hidden', !text);
+}
+
+async function renderSmartTubeSection(section, opts = {}) {
   const grid = $('stGrid');
   if (!grid) return;
+  const seq = ++stSectionSeq;
+  const stale = () => seq !== stSectionSeq;
+  const force = !!opts.force;
   grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
+  setSmartTubeStatus('');
 
   const showError = (msg) => {
+    if (stale()) return;
     grid.innerHTML = `<div class="inv-status" style="color:var(--accent);font-size:12px;">${msg}</div>`;
   };
 
   let videos = [];
   try {
     if (section === 'channels') {
-      const channels = await fetchInvidiousSubscriptions();
-      renderSmartTubeChannels(channels);
+      const channels = await fetchInvidiousSubscriptions(force).catch(() => null);
+      if (stale()) return;
+      renderSmartTubeChannels(channels || []);
       return;
     }
-    videos = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, false);
+    videos = await fetchInvidiousFeed(section === 'home' ? 'popular' : section, force);
+    if (stale()) return;
     if (!videos || !videos.length) {
       showError('İçerik alınamadı — günlük kayıtlarına bak.');
       return;
     }
   } catch (e) {
-    showError(`Hata: ${e && e.message ? e.message : e}`);
-    logLine(`SmartTube feed hata: ${e && e.message ? e.message : e}`, 'error');
+    const msg = e && e.message ? e.message : String(e);
+    showError(/giriş|login|401|unauthor/i.test(msg)
+      ? 'Bu bölüm için Invidious hesabına giriş gerekli — kenar çubuğundan "Oturum aç".'
+      : `Hata: ${msg}`);
+    logLine(`SmartTube feed hata: ${msg}`, 'error');
     return;
   }
 
   if (section === 'home') {
     const trending = await fetchInvidiousFeed('trending', false).catch(() => []);
-    renderSmartTubeGrid(grid, videos.slice(0, 24), 'Popüler');
-    if (trending && trending.length) {
+    if (stale()) return;
+    const seen = new Set();
+    const dedupe = (list) => list.filter((v) => {
+      const id = v.videoId || v.title;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
+    const trendList = dedupe(trending || []);
+    if (trendList.length) {
       const sep = document.createElement('div');
       sep.className = 'st-section-title';
       sep.textContent = 'Trend';
       grid.appendChild(sep);
       const wrap = document.createElement('div');
       wrap.className = 'st-grid';
-      trending.slice(0, 18).forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+      trendList.slice(0, 18).forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
       grid.appendChild(wrap);
     }
   } else {
     renderSmartTubeGrid(grid, videos, null);
   }
 
+  if (stale()) return;
+  if (lastInvidiousInstance) setSmartTubeStatus(`Instance: ${lastInvidiousInstance}`);
   if (!grid.children.length || (grid.children.length === 1 && grid.firstElementChild.classList.contains('inv-status'))) {
-    grid.innerHTML = '<div class="inv-status">İçerik alınamadı. Giriş yap veya yt-dlp yolunu kullan.</div>';
+    grid.innerHTML = '<div class="inv-status">İçerik alınamadı. Oturum aç veya yt-dlp yolunu kullan.</div>';
   }
 }
 
@@ -22407,7 +22504,7 @@ function renderSmartTubeChannels(channels) {
   if (!grid) return;
   grid.innerHTML = '';
   if (!channels.length) {
-    grid.innerHTML = '<div class="inv-status">Giriş yaptıktan sonra aboneliklerin burada görünür.</div>';
+    grid.innerHTML = '<div class="inv-status">Oturum açtıktan sonra aboneliklerin burada görünür.</div>';
     return;
   }
   channels.slice(0, 40).forEach((ch) => {
@@ -22420,7 +22517,7 @@ function renderSmartTubeChannels(channels) {
     if (tn && tn.url) {
       const img = document.createElement('img');
       img.loading = 'lazy';
-      img.src = tn.url;
+      img.src = absThumb(tn.url);
       img.alt = '';
       thumb.appendChild(img);
     }
@@ -22456,25 +22553,42 @@ function formatCount(n) {
   return String(n);
 }
 
+// Thumbnail URL'leri bazen instance-göreli gelir (/vi/... veya //host/...)
+function absThumb(url) {
+  if (!url) return '';
+  if (url.startsWith('//')) return 'https:' + url;
+  if (url.startsWith('/') && lastInvidiousInstance) return lastInvidiousInstance + url;
+  return url;
+}
+
 // ----- SmartTube kart (büyük dikey) -----
 function buildSmartTubeCard(video) {
   const card = document.createElement('div');
   card.className = 'st-card';
   card.tabIndex = 0;
   card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `${video.title || ''} — ${video.author || ''}`);
 
-  const tn = (video.videoThumbnails || [])[0] || null;
+  const thumbs = video.videoThumbnails || [];
+  const tn = thumbs.find((t) => (t.quality || '').toLowerCase() === 'medium')
+           || thumbs.find((t) => (t.quality || '').toLowerCase() === 'hqdefault')
+           || thumbs[0] || null;
   const thumb = document.createElement('div');
   thumb.className = 'st-card-thumb';
   if (tn && tn.url) {
     const img = document.createElement('img');
     img.loading = 'lazy';
     img.alt = '';
-    img.src = tn.url;
+    img.src = absThumb(tn.url);
     thumb.appendChild(img);
   }
   const secs = Number(video.lengthSeconds) || 0;
-  if (secs > 0) {
+  if (video.liveNow) {
+    const live = document.createElement('span');
+    live.className = 'st-card-duration st-card-live';
+    live.textContent = 'CANLI';
+    thumb.appendChild(live);
+  } else if (secs > 0) {
     const dur = document.createElement('span');
     dur.className = 'st-card-duration';
     const h = Math.floor(secs / 3600);
@@ -22494,7 +22608,13 @@ function buildSmartTubeCard(video) {
   title.textContent = video.title || '';
   const sub = document.createElement('div');
   sub.className = 'st-card-sub';
-  sub.textContent = video.author || '';
+  // SmartTube meta satırı: kanal · görüntülenme · tarih
+  const metaParts = [];
+  if (video.author) metaParts.push(video.author);
+  const views = Number(video.viewCount) || 0;
+  if (views > 0) metaParts.push(`${formatCount(views)} görüntüleme`);
+  if (video.publishedText) metaParts.push(video.publishedText);
+  sub.textContent = metaParts.join(' · ');
   body.appendChild(title);
   body.appendChild(sub);
   card.appendChild(body);
@@ -22503,6 +22623,8 @@ function buildSmartTubeCard(video) {
     const url = `https://www.youtube.com/watch?v=${video.videoId}`;
     const box = $('playerYtUrl');
     if (box) box.value = url;
+    // Tek tık = oynat (SmartTube davranışı): probe bitince akış otomatik başlar
+    player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: player.openIntent };
     const probe = $('playerProbe');
     if (probe) probe.click();
     setSmartTubeVisible(false);   // video açılınca tarayıcı kaybolur
@@ -22518,6 +22640,7 @@ function buildSmartTubeCard(video) {
 }
 
 // ----- Arama -----
+let stSearchSeq = 0;
 async function doSmartTubeSearch() {
   const inp = $('stSearchInput');
   const results = $('stSearchResults');
@@ -22525,9 +22648,12 @@ async function doSmartTubeSearch() {
   if (!inp || !results || !searchGrid) return;
   const q = inp.value.trim();
   if (!q) return;
+  const seq = ++stSearchSeq;
   stSearchActive = true;
   searchGrid.innerHTML = '<div class="inv-status">Aranıyor…</div>';
   results.classList.remove('hidden');
+  const mainGrid = $('stGrid');
+  if (mainGrid) mainGrid.classList.add('hidden');
   document.querySelectorAll('.st-side-item[data-st-section]').forEach((b) => b.classList.remove('is-active'));
 
   let videos = [];
@@ -22536,6 +22662,8 @@ async function doSmartTubeSearch() {
   } catch {
     videos = [];
   }
+  // Eski arama sonucu yeni aramayı ezmesin
+  if (seq !== stSearchSeq || ($('stSearchInput')?.value || '').trim() !== q) return;
 
   searchGrid.innerHTML = '';
   if (!videos.length) {
@@ -22549,6 +22677,8 @@ function resetSmartTubeSearch() {
   const results = $('stSearchResults');
   const inp = $('stSearchInput');
   if (results) results.classList.add('hidden');
+  const mainGrid = $('stGrid');
+  if (mainGrid) mainGrid.classList.remove('hidden');
   if (inp) inp.value = '';
   stSearchActive = false;
   renderSmartTubeSection(stCurrentSection);
@@ -22558,31 +22688,68 @@ function resetSmartTubeSearch() {
 async function openInvidiousChannelPage(channelId) {
   const grid = $('stGrid');
   if (!grid) return;
+  const seq = ++stSectionSeq;
   grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
-  let videos = [];
-  try {
-    videos = await fetchInvidiousChannelVideos(channelId);
-  } catch {
-    videos = [];
-  }
+  const data = await loadInvidiousChannel(channelId).catch(() => null);
+  if (seq !== stSectionSeq) return;
+  const info = (data && data.info) || {};
+  const videos = (data && data.videos) || [];
+
   const title = $('stSectionTitle');
-  if (title) title.textContent = `Kanal: ${channelId}`;
-  renderSmartTubeGrid(grid, videos, null);
+  if (title) title.textContent = info.author || 'Kanal';
+
+  // Kanal başlığı + geri dön
+  const head = document.createElement('div');
+  head.className = 'st-channel-head';
+  const back = document.createElement('button');
+  back.className = 'st-back-btn';
+  back.textContent = '← Kanallarım';
+  back.addEventListener('click', () => stSelectSection('channels'));
+  head.appendChild(back);
+  const name = document.createElement('div');
+  name.className = 'st-channel-name';
+  name.textContent = info.author || '';
+  head.appendChild(name);
+  if (info.subCount) {
+    const subs = document.createElement('div');
+    subs.className = 'st-channel-sub';
+    subs.textContent = `${formatCount(info.subCount)} abone`;
+    head.appendChild(subs);
+  }
+  grid.innerHTML = '';
+  grid.appendChild(head);
+  const wrap = document.createElement('div');
+  wrap.className = 'st-grid';
+  if (!videos.length) {
+    wrap.innerHTML = '<div class="inv-status">Kanal videosu bulunamadı.</div>';
+  } else {
+    videos.forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+  }
+  grid.appendChild(wrap);
 }
 
 // ----- Düğme bağlama -----
 function refreshSmartTubeAuthUI() {
+  const logged = !!(invidiousLoggedIn && invidiousLoggedIn.username);
   const loginBtn = $('stLoginBtn');
   const logoutBtn = $('stLogoutBtn');
-  if (!loginBtn || !logoutBtn) return;
-  if (invidiousLoggedIn && invidiousLoggedIn.username) {
-    loginBtn.classList.add('hidden');
-    logoutBtn.classList.remove('hidden');
-    logoutBtn.querySelector('.st-side-label').textContent = invidiousLoggedIn.username;
-  } else {
-    loginBtn.classList.remove('hidden');
-    logoutBtn.classList.add('hidden');
-    logoutBtn.querySelector('.st-side-label').textContent = 'Çıkış';
+  if (loginBtn && logoutBtn) {
+    if (logged) {
+      loginBtn.classList.add('hidden');
+      logoutBtn.classList.remove('hidden');
+      logoutBtn.querySelector('.st-side-label').textContent = invidiousLoggedIn.username;
+    } else {
+      loginBtn.classList.remove('hidden');
+      logoutBtn.classList.add('hidden');
+      logoutBtn.querySelector('.st-side-label').textContent = 'Oturumu kapat';
+    }
+  }
+  // Aynı oturum durumunu eski araç çubuklarına da yansıt
+  for (const [loginId, logoutId] of [['invidiousLoginBtn', 'invidiousLogoutBtn'], ['stLoginBtn', 'stLogoutBtn']]) {
+    const l = $(loginId);
+    const o = $(logoutId);
+    if (l) l.classList.toggle('hidden', logged);
+    if (o) o.classList.toggle('hidden', !logged);
   }
 }
 
@@ -22597,7 +22764,7 @@ function initSmartTube() {
   const refresh = $('stRefresh');
   if (refresh) refresh.addEventListener('click', () => {
     if (stSearchActive) doSmartTubeSearch();
-    else renderSmartTubeSection(stCurrentSection);
+    else renderSmartTubeSection(stCurrentSection, { force: true });
   });
   const close = $('stCloseBrowser');
   if (close) close.addEventListener('click', () => {
@@ -22616,14 +22783,12 @@ function initSmartTube() {
   if (back) back.addEventListener('click', resetSmartTubeSearch);
 
   refreshSmartTubeAuthUI();
+  restoreInvidiousSession();
 }
 initSmartTube();
 
 // Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)
 // Source toggle: yt-dlp / Invidious arası geçiş
-const INV_KEY = 'player:source';
-let playerSource = 'ytdlp';   // 'ytdlp' | 'invidious'
-
 function initPlayerSource() {
   try {
     const saved = localStorage.getItem(INV_KEY);
@@ -22644,7 +22809,7 @@ function initPlayerSource() {
 async function probeWithActiveSource(url) {
   if (playerSource === 'invidious') {
     try {
-      return await window.api.probeInvidious(url, {});
+      return await invCall(() => window.api.probeInvidious(url, {}));
     } catch (err) {
       return { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
     }
@@ -22659,10 +22824,11 @@ async function probeWithActiveSource(url) {
 async function fetchSubsWithActiveSource(url, lang, auto) {
   if (playerSource === 'invidious') {
     try {
-      return await window.api.downloadInvidiousSubs(url, {
+      return await invCall(() => window.api.downloadInvidiousSubs(url, {
         lang, auto,
+        instance: (player.ytInfo && player.ytInfo.instance) || undefined,
         inputDir: state.inputDir || undefined,
-      });
+      }));
     } catch (err) {
       return { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
     }
@@ -22809,10 +22975,15 @@ if ($('playerProbe')) {
     }
     const pendingOpen = player.pendingAutoOpen;
     if (pendingOpen && pendingOpen.key === info.videoKey
-        && pendingOpen.intent === player.openIntent
-        && !streamBtn.classList.contains('hidden')) {
+        && pendingOpen.intent === player.openIntent) {
       player.pendingAutoOpen = null;
-      streamBtn.click();
+      if (!streamBtn.classList.contains('hidden')) {
+        streamBtn.click();
+      } else {
+        // Oynatılabilir akış yok — tarayıcıyı geri aç ki kullanıcı başka video seçebilsin
+        logLine('Bu video için oynatılabilir akış bulunamadı.', 'warn');
+        setSmartTubeVisible(true);
+      }
     }
   });
 }
@@ -22961,11 +23132,36 @@ if ($('playerDownload')) {
 
     let res;
     try {
-      res = await window.api.downloadYoutube({
-        url, height, audioLang,
-        cookieBrowser: youtubeCookieBrowser(),
-        inputDir: state.inputDir || undefined,
-      });
+      if (playerSource === 'invidious' && info && Array.isArray(info.videoStreams) && info.videoStreams.length) {
+        // Invidious: adaptive video+audio stream URL'lerini seç, media.py birleştirir
+        const vStreams = info.videoStreams.filter((s) => s && s.url);
+        const sorted = vStreams.slice().sort((a, b) => (b.height || 0) - (a.height || 0));
+        const target = sorted.find((s) => (s.height || 0) <= height) || sorted[sorted.length - 1] || sorted[0];
+        const aStreams = (info.audioStreams || []).filter((s) => s && s.url);
+        let audio = audioLang
+          ? aStreams.find((a) => a.language && audioLanguagesMatch(a.language, audioLang))
+          : null;
+        if (!audio) audio = aStreams.find((a) => !a.language) || aStreams[0] || null;
+        if (!target || !target.url) {
+          res = { ok: false, error: 'İndirilebilir Invidious akışı bulunamadı.' };
+        } else {
+          res = await window.api.downloadInvidiousStream({
+            videoUrl: target.url,
+            audioUrl: audio && audio.url,
+            title: info.title || 'video',
+            height,
+            audioLang: (audio && audio.language) || audioLang || '',
+            videoId: info.videoId || '',
+            inputDir: state.inputDir || undefined,
+          });
+        }
+      } else {
+        res = await window.api.downloadYoutube({
+          url, height, audioLang,
+          cookieBrowser: youtubeCookieBrowser(),
+          inputDir: state.inputDir || undefined,
+        });
+      }
     } catch (err) {
       res = { ok: false, error: err && err.message ? err.message : 'IPC çağrısı başarısız' };
     }
@@ -23110,6 +23306,14 @@ if (window.api.onMediaEvent) {
     } else if (ev.type === 'log') {
       logLine(ev.message, ev.level || 'info');
     }
+  });
+}
+
+// Invidious alt süreç logları — feed/probe/subs ayrıntıları günlüğe düşsün
+if (window.api.onInvidiousEvent) {
+  window.api.onInvidiousEvent((ev) => {
+    if (!ev) return;
+    if (ev.type === 'log') logLine(ev.message, ev.level || 'info');
   });
 }
 

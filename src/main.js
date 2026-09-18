@@ -881,7 +881,62 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe') {
 }
 
 // Invidious API için basit wrapper — runMediaCommand'a benzer ama invidious.py kullanır
-function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
+const INVIDIOUS_RESULT_TYPES = new Set([
+  'probe', 'subs', 'feed', 'search', 'channel', 'login', 'logout', 'downloaded',
+]);
+
+// Son başarılı Invidious instance'ı — sonraki komutlarda rescan'ı atlar.
+let invidiousLastInstance = null;
+
+// Invidious giriş — ana süreçte session saklanır (instance'a bağlı).
+const invidiousSessions = new Map();    // username -> { sid, instance }
+
+function validateInvidiousInstance(v) {
+  // Renderer'dan gelen instance'ı http/https origin'e indirger (path/credential atılır).
+  if (!v || typeof v !== 'string') return '';
+  const s = v.trim().slice(0, 200);
+  if (!s) return '';
+  try {
+    const u = new URL(s);
+    if (!['http:', 'https:'].includes(u.protocol)) return '';
+    if (!u.hostname) return '';
+    return u.origin;
+  } catch (_) {
+    return '';
+  }
+}
+
+function invidiousSessionInstance() {
+  // İlk (pratikte tek) oturumun instance'ı; yoksa ''
+  for (const [, s] of invidiousSessions) {
+    const inst = validateInvidiousInstance(s && s.instance);
+    if (inst) return inst;
+  }
+  return '';
+}
+
+function resolveInvidiousInstance(explicit, { requireSession = false } = {}) {
+  // Öncelik: açık instance → oturumun instance'ı → son bilinen → ''
+  const inst = validateInvidiousInstance(explicit);
+  if (inst) return inst;
+  const sess = invidiousSessionInstance();
+  if (sess) return sess;
+  if (requireSession) return '';
+  return invidiousLastInstance || '';
+}
+
+function invidiousAuthEnv(instance) {
+  // SID yalnızca kendi instance'ına gider — başka host'a sızmasın.
+  if (!instance) return {};
+  for (const [, s] of invidiousSessions) {
+    if (s && s.sid && validateInvidiousInstance(s.instance) === instance) {
+      return { WHISPER_INVIDIOUS_SID: String(s.sid) };
+    }
+  }
+  return {};
+}
+
+function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent, timeoutMs = 45_000, extraEnv = {}) {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir Invidious işi zaten çalışıyor.' });
     const appDir = app.getAppPath();
@@ -891,7 +946,7 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
       proc = spawn(resolvePython(), [script, ...cmdArgs], {
         cwd: appDir,
         windowsHide: true,
-        env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }),
+        env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', ...extraEnv }),
       });
     } catch (err) {
       return resolve({ ok: false, error: err && err.code === 'ENOENT'
@@ -903,7 +958,6 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
     let errText = '';
     let stderrTail = '';
     let settled = false;
-    const timeoutMs = 45_000;  // Invidious probe için 45 sn yeterli
     let timeoutTimer = null;
     const finish = (value) => {
       if (settled) return;
@@ -917,13 +971,15 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
       if (!line) return;
       let ev;
       try { ev = JSON.parse(line); } catch (_) { return; }
-      if (ev.type === 'probe' || ev.type === 'subs') result = ev;
-      else if (ev.type === 'feed' || ev.type === 'search') result = ev;
+      if (INVIDIOUS_RESULT_TYPES.has(ev.type)) result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
       if (onEvent) onEvent(ev);
     };
-    const stdoutLines = createNdjsonLineBuffer({ maxLineChars: 8 * 1024 * 1024 });
+    const stdoutLines = createNdjsonLineBuffer({
+      maxLineChars: 8 * 1024 * 1024,
+      onOverflow: () => { errText = 'Invidious süreci güvenli satır boyutu sınırını aştı.'; },
+    });
     proc.stdout.setEncoding('utf-8');
     proc.stderr.setEncoding('utf-8');
     proc.stdout.on('data', (chunk) => {
@@ -940,8 +996,11 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
       if (mediaJobs[kind] === proc) mediaJobs[kind] = null;
       if (settled) return;
       for (const line of stdoutLines.flush()) handleLine(line);
-      if (result) finish({ ok: true, data: result });
-      else {
+      if (result) {
+        const inst = validateInvidiousInstance(result.instance);
+        if (inst) invidiousLastInstance = inst;
+        finish({ ok: true, data: result });
+      } else {
         if (!errText && stderrTail) {
           writeJobLog({ type: 'log', level: 'warn', message: `Invidious: ${sanitizeProcessDetail(stderrTail)}` });
         }
@@ -949,7 +1008,9 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent) {
       }
     });
     proc.on('error', (err) => {
-      finish({ ok: false, error: 'Invidious yardımcı süreci hatası: ' + err.message });
+      finish({ ok: false, error: err && err.code === 'ENOENT'
+        ? 'Python bulunamadı (install.bat ile venv oluşturun).'
+        : 'Invidious yardımcı süreci başlatılamadı.' });
     });
   });
 }
@@ -1066,9 +1127,10 @@ ipcMain.handle('invidious:probe', async (_e, url, opts) => {
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol)) {
     return { ok: false, error: "Yalnızca http/https URL'leri kullanılabilir." };
   }
+  const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['probe', '--url', mediaUrl.url];
-  if (opts && opts.instance) args.push('--instance', opts.instance);
-  return runInvidiousCommand(args, 'invidious');
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', null, 60_000, invidiousAuthEnv(instance));
 });
 
 ipcMain.handle('invidious:subs', async (_e, url, opts) => {
@@ -1084,22 +1146,23 @@ ipcMain.handle('invidious:subs', async (_e, url, opts) => {
   } catch (error) {
     return { ok: false, error: error.message };
   }
+  const instance = resolveInvidiousInstance(o.instance);
   const args = ['subs', '--url', mediaUrl.url, '--lang', o.lang || 'en', '--output-dir', outDir];
   if (o.auto) args.push('--auto');
-  if (o.instance) args.push('--instance', o.instance);
+  if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
     }
-  });
+  }, 120_000, invidiousAuthEnv(instance));
 });
 
 ipcMain.handle('invidious:cancel', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const job = mediaJobs.invidious;
   if (!job) return { ok: false, error: 'Invidious işi yok' };
+  // Slot'u close handler temizler — burada null yapmak sahipliği bozar
   terminateProcessTree(job, { spawn });
-  mediaJobs.invidious = null;
   return { ok: true };
 });
 
@@ -1108,14 +1171,22 @@ ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const valid = ['popular', 'trending', 'subscriptions'];
   if (!valid.includes(kind)) return { ok: false, error: `Geçersiz feed: ${kind}` };
-  const instance = opts && opts.instance ? opts.instance : '';
+  if (kind === 'subscriptions' && !invidiousSessionInstance()) {
+    return { ok: false, error: 'Abonelikler için Invidious hesabına giriş gerekli.' };
+  }
+  const instance = resolveInvidiousInstance(opts && opts.instance,
+    { requireSession: kind === 'subscriptions' });
+  if (!instance && kind === 'subscriptions') {
+    return { ok: false, error: 'Abonelikler için Invidious hesabına giriş gerekli.' };
+  }
   const args = [kind];
   if (instance) args.push('--instance', instance);
+  const timeoutMs = kind === 'trending' ? 120_000 : 75_000;
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
     }
-  });
+  }, timeoutMs, invidiousAuthEnv(instance));
 });
 
 // Invidious arama
@@ -1124,15 +1195,15 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
   if (!query || typeof query !== 'string' || !query.trim()) {
     return { ok: false, error: 'Arama terimi gerekli.' };
   }
-  const instance = opts && opts.instance ? opts.instance : '';
+  const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['search', '--query', query.trim().slice(0, 100)];
-  if (opts && opts.page) args.push('--page', String(opts.page));
+  if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
     }
-  });
+  }, 75_000, invidiousAuthEnv(instance));
 });
 
 // Invidious kanal
@@ -1145,34 +1216,39 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
   if (!/^[A-Za-z0-9_-]{2,40}$/.test(channelId)) {
     return { ok: false, error: 'Geçersiz kanal ID formatı.' };
   }
-  const instance = opts && opts.instance ? opts.instance : '';
+  const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['channel', '--channel-id', channelId];
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
     }
-  });
+  }, 75_000, invidiousAuthEnv(instance));
 });
 
 // Invidious giriş — ana süreçte Invidious session saklanır (Invidious
 // instance'ları arası paylaşılmaz; oturum özel seçilen instance'a bağlı).
-const invidiousSessions = new Map();    // username -> { sid, instance }
 ipcMain.handle('invidious:login', async (_e, opts) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
-  const { username, password, instance } = opts || {};
+  const { username, password } = opts || {};
   if (!username || !password) {
     return { ok: false, error: 'Kullanıcı adı ve şifre gerekli.' };
   }
+  const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['login', '--username', String(username).slice(0, 100),
                 '--password', String(password).slice(0, 200)];
   if (instance) args.push('--instance', instance);
-  const res = await runInvidiousCommand(args, 'invidious');
+  let res = await runInvidiousCommand(args, 'invidious', null, 45_000);
   if (res && res.ok && res.data && res.data.username) {
     invidiousSessions.set(res.data.username, {
       sid: res.data.sid,
       instance: res.data.instance,
     });
+  }
+  // SID asla renderer'a gitmez — yalnızca ana süreçte tutulur
+  if (res && res.data && 'sid' in res.data) {
+    const { sid, ...safeData } = res.data;
+    res = { ...res, data: safeData };
   }
   return res;
 });
@@ -1228,17 +1304,19 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   const args = [
     'download_stream',
     '--video-url', o.videoUrl,
-    '--title', (o.title || 'invidious-video').slice(0, 120),
+    '--title', String(o.title || 'invidious-video').slice(0, 120),
     '--output-dir', outDir,
   ];
   if (o.audioUrl) args.push('--audio-url', o.audioUrl);
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
-  return runInvidiousCommand(args, 'invidious', (ev) => {
+  if (o.videoId) args.push('--video-id', String(o.videoId).slice(0, 40));
+  // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz
+  return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('invidious:event', ev);
+      mainWindow.webContents.send('media:event', ev);
     }
-  });
+  }, 'download');
 });
 
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {

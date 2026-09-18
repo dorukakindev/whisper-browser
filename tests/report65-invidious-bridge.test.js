@@ -54,10 +54,11 @@ test('invidious.py varsayılan instance listesi içerir', () => {
 test('invidious.py extract_video_id yardımcısı içerir', () => {
   const py = fs.readFileSync(path.join(__dirname, '..', 'backend', 'invidious.py'), 'utf8');
   assert.match(py, /def extract_video_id\(/);
-  // youtube.com, youtu.be ve embed pattern'leri (Python regex kaynak string)
-  assert.match(py, /youtube\\\.com\/watch/);
+  // watch?v=, youtu.be/ ve /shorts|embed|live/ pattern'leri (instance-agnostik;
+  // davranış doğrulaması backend/test_invidious.py'de — 10 URL varyantı)
+  assert.match(py, /\[\?&\]v=/);
   assert.match(py, /youtu\\\.be/);
-  assert.match(py, /youtube\\\.com\/embed/);
+  assert.match(py, /shorts\|embed\|live/);
 });
 
 test('invidious.py timedtext → SRT dönüşümü içerir', () => {
@@ -82,14 +83,15 @@ test('IPC kanalında URL politika doğrulaması yapılır', () => {
   assert.match(invidiousSection, /http:|https:/);
 });
 
-test('Invidious helper sızıntı yapmaz: cancel için mediaJobs temizliği', () => {
+test('Invidious helper sızıntı yapmaz: cancel sahipliği korur', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
-  const cancel = main.slice(
-    main.indexOf("ipcMain.handle('invidious:cancel'"),
-    main.indexOf("ipcMain.handle('media:readSubtitle'")
-  );
+  const cancelStart = main.indexOf("ipcMain.handle('invidious:cancel'");
+  const cancel = main.slice(cancelStart, main.indexOf("ipcMain.handle('invidious:feed'", cancelStart));
   assert.match(cancel, /terminateProcessTree/);
-  assert.match(cancel, /mediaJobs\.invidious\s*=\s*null/);
+  // R67-13: iptal slot'u null'lamaz — yeniden kullanılan slot'un sahibi
+  // başka işse onu öldürmez; temizlik close handler'ın sahiplik kontrolüyle olur.
+  assert.doesNotMatch(cancel, /mediaJobs\.invidious\s*=\s*null/);
+  assert.match(cancel, /mediaJobs\.invidious/);
 });
 
 test('download_stream komutu media.py argparse\'da tanımlı', () => {

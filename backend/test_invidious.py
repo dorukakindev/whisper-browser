@@ -103,17 +103,31 @@ class InvidiousTimedtextToSrt(unittest.TestCase):
         self.assertIn("1\n00:00:00,000 --> 00:00:02,000\nHello world", srt)
         self.assertIn("2\n00:00:02,000 --> 00:00:05,000\nThis is a test", srt)
 
-    def test_empty_xml_returns_placeholder(self):
-        srt = invidious._convert_timedtext_to_srt("<transcript></transcript>")
-        self.assertIn("No subtitles", srt)
+    def test_empty_xml_raises_instead_of_fake_srt(self):
+        # R67-08: boş içerik sahte "No subtitles available" SRT'si yazamaz —
+        # gerçek hata fırlatılır, aksi hâlde kullanıcı boş dosyayı altyazı sanır.
+        with self.assertRaises(RuntimeError):
+            invidious._convert_timedtext_to_srt("<transcript></transcript>")
 
-    def test_invalid_xml_passes_through(self):
-        # Bozuk XML düz metin olarak döner (graceful degradation)
-        text = "plain text"
-        result = invidious._convert_timedtext_to_srt(text)
-        # Ya placeholder ya da text döner, her ikisi de kabul edilir
-        self.assertIsInstance(result, str)
-        self.assertGreater(len(result), 0)
+    def test_invalid_xml_raises(self):
+        # Tanınmayan içerik düz metin olarak geçmez — sınıflı hata fırlatılır.
+        with self.assertRaises(RuntimeError):
+            invidious._convert_timedtext_to_srt("plain text")
+
+    def test_srv1_text_elements(self):
+        # srv1: <text start="sn" dur="sn"> — ajan sahadan gelen gerçek format.
+        xml = ('<transcript><text start="1.5" dur="2">Hello srv1</text>'
+               '<text start="4" dur="1.5">İkinci satır</text></transcript>')
+        srt = invidious._convert_timedtext_to_srt(xml)
+        self.assertIn("00:00:01,500 --> 00:00:03,500", srt)
+        self.assertIn("İkinci satır", srt)
+
+    def test_vtt_content_converts(self):
+        vtt = ("WEBVTT\n\n00:00:01.500 --> 00:00:03.500\nHello vtt\n\n"
+               "00:00:05.000 --> 00:00:06.000\nSatır iki\n")
+        srt = invidious._convert_timedtext_to_srt(vtt)
+        self.assertIn("00:00:01,500 --> 00:00:03,500", srt)
+        self.assertIn("Satır iki", srt)
 
     def test_xml_with_namespace_stripped(self):
         xml = '''<?xml version="1.0" encoding="utf-8"?>
@@ -301,6 +315,71 @@ class InvidiousChannelIdValidation(unittest.TestCase):
         self.assertNotRegex("javascript:alert(1)", pattern)
         self.assertNotRegex("", pattern)
         self.assertNotRegex("../etc/passwd", pattern)
+
+
+class InvidiousVideoIdExtractionR67(unittest.TestCase):
+    """R67: genişletilmiş URL varyantları (nocookie, live, instance, param sırası)."""
+
+    def test_nocookie_embed(self):
+        self.assertEqual(
+            invidious.extract_video_id("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"),
+            "dQw4w9WgXcQ")
+
+    def test_live_path(self):
+        self.assertEqual(
+            invidious.extract_video_id("https://www.youtube.com/live/dQw4w9WgXcQ"),
+            "dQw4w9WgXcQ")
+
+    def test_v_param_not_first(self):
+        # ?list=...&v=... sırası — eski pattern v'nin ilk parametre olmasını beklerdi
+        self.assertEqual(
+            invidious.extract_video_id("https://www.youtube.com/watch?list=PLx&v=dQw4w9WgXcQ"),
+            "dQw4w9WgXcQ")
+
+    def test_invidious_instance_watch_url(self):
+        # Instance URL'leri YouTube yol yapısını aynalar — karttaki /watch?v= linki çalışmalı
+        for host in ("https://yewtu.be", "https://inv.nadeko.net", "https://vid.priv.au"):
+            self.assertEqual(
+                invidious.extract_video_id(f"{host}/watch?v=dQw4w9WgXcQ"),
+                "dQw4w9WgXcQ", host)
+
+
+class InvidiousNumericGuards(unittest.TestCase):
+    """Invidious API sayıları string/float döndürebilir — _to_int koruması."""
+
+    def test_to_int_variants(self):
+        self.assertEqual(invidious._to_int("42"), 42)
+        self.assertEqual(invidious._to_int("1234.0"), 1234)
+        self.assertEqual(invidious._to_int(None), 0)
+        self.assertEqual(invidious._to_int("abc"), 0)
+        self.assertEqual(invidious._to_int(7), 7)
+
+    def test_parse_video_item_string_numbers(self):
+        v = invidious._parse_video_item({
+            "videoId": "x", "title": "t", "author": "a",
+            "lengthSeconds": "120", "viewCount": "5.0",
+        })
+        self.assertEqual(v["lengthSeconds"], 120)
+        self.assertEqual(v["viewCount"], 5)
+
+
+class InvidiousAbsUrl(unittest.TestCase):
+    """Instance-göreli URL'lerin mutlaklaştırılması."""
+
+    def test_relative_path(self):
+        self.assertEqual(invidious._abs_url("https://i.test", "/vi/x.jpg"),
+                         "https://i.test/vi/x.jpg")
+
+    def test_protocol_relative(self):
+        self.assertEqual(invidious._abs_url("https://i.test", "//h/x.jpg"),
+                         "https://h/x.jpg")
+
+    def test_absolute_passthrough(self):
+        self.assertEqual(invidious._abs_url("https://i.test", "https://h/x.jpg"),
+                         "https://h/x.jpg")
+
+    def test_empty(self):
+        self.assertEqual(invidious._abs_url("https://i.test", ""), "")
 
 
 if __name__ == "__main__":

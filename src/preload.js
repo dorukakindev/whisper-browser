@@ -75,7 +75,7 @@ contextBridge.exposeInMainWorld('api', {
   invidiousFeed: (kind, opts) => ipcRenderer.invoke('invidious:feed', kind, opts || {}),
   invidiousSearch: (query, opts) => ipcRenderer.invoke('invidious:search', query, opts || {}),
   invidiousChannel: (channelId, opts) => ipcRenderer.invoke('invidious:channel', channelId, opts || {}),
-  invidiousLogin: (username, password) => ipcRenderer.invoke('invidious:login', { username, password }),
+  invidiousLogin: (username, password, instance) => ipcRenderer.invoke('invidious:login', { username, password, instance }),
   invidiousLogout: () => ipcRenderer.invoke('invidious:logout'),
   invidiousSession: () => ipcRenderer.invoke('invidious:session'),
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),

@@ -25,6 +25,7 @@ import os
 import re
 import sys
 import time
+import urllib.parse as urllib_parse
 from pathlib import Path
 from ndjson_utils import json_dumps_finite
 
@@ -284,7 +285,16 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
     emit("clip", path=str(path), title=info.get("title") or "", start=start, end=end)
 
 
-def download_stream(video_url, audio_url, title, height, audio_lang, output_dir):
+def _mime_of(url):
+    """googlevideo/Invidious imzalı URL'sinden mime tipini okur (mime=video%2Fmp4)."""
+    try:
+        qs = urllib_parse.parse_qs(urllib_parse.urlsplit(url).query)
+        return (qs.get("mime") or [""])[0].lower()
+    except Exception:
+        return ""
+
+
+def download_stream(video_url, audio_url, title, height, audio_lang, output_dir, video_id=""):
     """Invidious adaptive stream URL'lerini doğrudan indirip ffmpeg ile birleştirir.
 
     yt-dlp'ye GEREK YOK — Invidious API'nin döndürdüğü ham adaptive
@@ -297,27 +307,61 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir)
     if not video_url:
         raise ValueError("Video URL boş — Invidious probe'tan video URL'i alınamadı.")
 
+    # ffmpeg yoksa GB'larca indirmeden önce keşfet
+    ff = _find_ffmpeg()
+    if not ff:
+        raise RuntimeError("ffmpeg bulunamadı — bin/ altına kopyalayın veya PATH'e ekleyin.")
+
     outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     safe_title = re.sub(r'[<>:"/\\|?*\r\n\t]', '_', title or "video")[:120]
-    out_path = outdir / f"{safe_title}.mp4"
+    name = f"{safe_title} [{video_id}]" if video_id else safe_title
 
+    # Container'ı video mime'ından seç — -c copy codec'e dokunmaz
+    vmime = _mime_of(video_url)
+    amime = _mime_of(audio_url) if audio_url else ""
+    same_container = vmime and amime and vmime == amime
+    if vmime == "video/webm" and (not amime or same_container):
+        ext = ".webm"
+    elif vmime and vmime != "video/mp4":
+        ext = ".mkv"
+    elif amime and amime != "audio/mp4" and vmime != "video/mp4":
+        ext = ".mkv"
+    else:
+        ext = ".mp4"
+    out_path = outdir / f"{name}{ext}"
+
+    # Eski kırık tmp dosyalarını süpür (kill -f ile ölen işler kalıntı bırakır)
+    for leftover in outdir.glob("*.invtmp-*"):
+        try:
+            leftover.unlink()
+        except OSError:
+            pass
+
+    video_tmp = outdir / f"{name}.invtmp-video"
+    audio_tmp = outdir / f"{name}.invtmp-audio"
+
+    totals = [0, 0]
+    gots = [0, 0]
     last = [0.0]
 
-    def report(percent):
+    def report():
+        total = totals[0] + totals[1]
+        if total <= 0:
+            return
         now = time.time()
         if now - last[0] > 0.3:
             last[0] = now
-            emit("download_progress", percent=round(percent, 1), speed=0, eta=0)
+            emit("download_progress",
+                 percent=round((gots[0] + gots[1]) / total * 100.0, 1),
+                 speed=0, eta=0)
 
-    def fetch(url, target, label):
-        """Stream'i indirip ilerleme bildirir. URL imzalıysa (Invidious expires=...) doğrudan çalışır."""
+    def fetch(idx, url, target, label):
         if not url:
             return
         req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urlopen(req, timeout=30) as resp:
-            total = int(resp.headers.get("Content-Length") or 0)
-            got = 0
+            totals[idx] = int(resp.headers.get("Content-Length") or 0)
             chunk = 256 * 1024
             with open(target, "wb") as f:
                 while True:
@@ -325,26 +369,16 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir)
                     if not buf:
                         break
                     f.write(buf)
-                    got += len(buf)
-                    if total:
-                        report(got / total * 100.0)
+                    gots[idx] += len(buf)
+                    report()
         log(f"{label} indirildi: {target}")
 
-    video_tmp = outdir / f"{safe_title}.video.tmp"
-    audio_tmp = outdir / f"{safe_title}.audio.tmp"
-
     try:
-        fetch(video_url, video_tmp, "Video")
+        fetch(0, video_url, video_tmp, "Video")
         if audio_url:
-            fetch(audio_url, audio_tmp, "Ses")
+            fetch(1, audio_url, audio_tmp, "Ses")
         else:
-            # Sadece video akışı — sesi yok
             audio_tmp = None
-
-        # ffmpeg ile birleştir (ses varsa)
-        ff = _find_ffmpeg()
-        if not ff:
-            raise RuntimeError("ffmpeg bulunamadı — bin/ altına kopyalayın veya PATH'e ekleyin.")
 
         if audio_tmp and audio_tmp.exists():
             cmd = [
@@ -357,7 +391,6 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir)
                 str(out_path),
             ]
         else:
-            # Video-only: sadece kopyala
             cmd = [
                 ff, "-y",
                 "-i", str(video_tmp),
@@ -371,9 +404,17 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir)
         if proc.returncode != 0:
             raise RuntimeError(f"ffmpeg birleştirme başarısız: {proc.stderr[-500:]}")
 
+        emit("download_progress", percent=100.0, speed=0, eta=0)
         emit("downloaded", path=str(out_path), title=title, duration=0)
+    except BaseException:
+        # Kısmi çıktıyı sil — yarım mp4 kalmasın
+        try:
+            if out_path.exists():
+                out_path.unlink()
+        except OSError:
+            pass
+        raise
     finally:
-        # Geçici dosyaları sil (hata olsa bile)
         for tmp in (video_tmp, audio_tmp):
             try:
                 if tmp and tmp.exists():
@@ -426,7 +467,7 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
 def main():
     ap = argparse.ArgumentParser(description="Oynatıcı medya yardımcısı")
     ap.add_argument("command", choices=["probe", "download", "subs", "clip", "download_stream"])
-    ap.add_argument("--url", required=True)
+    ap.add_argument("--url", default="")
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--audio-lang", default="")
     ap.add_argument("--output-dir", default=".")
@@ -440,21 +481,29 @@ def main():
     ap.add_argument("--video-url", default="", help="Invidious video stream URL (download_stream)")
     ap.add_argument("--audio-url", default="", help="Invidious audio stream URL (download_stream)")
     ap.add_argument("--title", default="video", help="video başlığı (dosya adı için)")
+    ap.add_argument("--video-id", default="", help="YouTube video ID (dosya adı suffix'i için)")
     args = ap.parse_args()
 
     try:
         if args.command == "probe":
+            if not args.url:
+                raise ValueError("--url gerekli (probe)")
             probe(args.url, args.cookie_browser)
         elif args.command == "subs":
+            if not args.url:
+                raise ValueError("--url gerekli (subs)")
             fetch_subs(args.url, args.sub_lang,
                        str(args.sub_auto).lower() == "true", args.output_dir,
                        args.cookie_browser)
         elif args.command == "clip":
+            if not args.url:
+                raise ValueError("--url gerekli (clip)")
             download_clip(args.url, args.clip_start, args.clip_end,
                           args.output_file, args.cookie_browser)
         elif args.command == "download_stream":
             download_stream(args.video_url, args.audio_url, args.title,
-                            args.height, args.audio_lang, args.output_dir)
+                            args.height, args.audio_lang, args.output_dir,
+                            video_id=args.video_id)
         else:
             download(args.url, args.height, args.audio_lang, args.output_dir,
                      args.cookie_browser)

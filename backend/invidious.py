@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import time
+import urllib.parse as urllib_parse
 from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
@@ -56,17 +57,68 @@ def log(message, level="info"):
     emit("log", level=level, message=message)
 
 
-def _fetch_json(url, timeout=10):
-    """URL'den JSON çeker."""
+def _fetch_json(url, timeout=10, session=True):
+    """URL'den JSON çeker. session=True iken SID cookie'si de gönderir."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+    if session and _session_cookie:
+        headers["Cookie"] = f"SID={_session_cookie}"
     try:
-        req = Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json",
-        })
+        req = Request(url, headers=headers)
         with urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except (URLError, HTTPError, json.JSONDecodeError) as e:
         raise RuntimeError(f"Invidious isteği başarısız: {url} — {e}")
+
+
+def _to_int(value, default=0):
+    """Invidious bazı sayı alanlarını string/float döndürür."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
+
+def _abs_url(inst, url):
+    """Instance-göreli URL'leri mutlak yap."""
+    if not url:
+        return ""
+    if url.startswith("//"):
+        return "https:" + url
+    if url.startswith("/"):
+        return inst.rstrip("/") + url
+    return url
+
+
+def _iter_instances(preferred=None):
+    """Tercih edilen + önbellek + varsayılan listeyi tek dolaşımda verir."""
+    seen = set()
+    for inst in ([preferred] if preferred else []) + \
+                ([_cached_instance] if _cached_instance else []) + \
+                DEFAULT_INSTANCES:
+        if inst and inst not in seen:
+            seen.add(inst)
+            yield inst
+
+
+def _fetch_with_failover(path, preferred=None, timeout=10):
+    """Aynı API yolunu sırayla çalışan instance'larda dener."""
+    last_err = None
+    for inst in _iter_instances(preferred):
+        try:
+            global _cached_instance
+            data = _fetch_json(inst.rstrip("/") + path, timeout=timeout)
+            _cached_instance = inst
+            return data, inst
+        except Exception as e:
+            last_err = e
+            log(f"Instance atlandı ({inst}): {e}", level="warn")
+    raise RuntimeError(f"Tüm Invidious instance'ları başarısız: {last_err}")
 
 
 def _check_instance(instance, timeout=5):
@@ -93,81 +145,125 @@ def find_working_instance(instances=None, timeout=5):
 
 
 def extract_video_id(url):
-    """YouTube URL'sinden video ID çıkarır."""
+    """YouTube URL'sinden video ID çıkarır.
+
+    Desteklenenler: watch?v= (param sırası bağımsız), youtu.be/, /shorts/, /embed/,
+    /live/, /v/, youtube-nocookie ve herhangi bir Invidious instance URL'si
+    (aynı yol yapısını aynalar: /watch?v=..., /shorts/... vb.).
+    """
+    url = url.strip()
     patterns = [
-        r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})',
-        r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})',
+        r'[?&]v=([a-zA-Z0-9_-]{11})',
+        r'youtu\.be/([a-zA-Z0-9_-]{11})',
+        r'/(?:shorts|embed|live|v)/([a-zA-Z0-9_-]{11})',
     ]
     for pattern in patterns:
         m = re.search(pattern, url)
         if m:
             return m.group(1)
-    # Zaten video ID ise
     if re.match(r'^[a-zA-Z0-9_-]{11}$', url):
         return url
     raise ValueError(f"Geçersiz YouTube URL: {url}")
 
 
+def _pick_thumbnail(inst, thumbs):
+    """En iyi thumbnail URL'si — yüksek çözünürlükten başa doğru, mutlaklaştırılmış."""
+    if not thumbs:
+        return ""
+    order = {"maxres": 0, "maxresdefault": 1, "sddefault": 2, "high": 3, "hqdefault": 4,
+             "medium": 5, "mqdefault": 6, "default": 7}
+    def key(t):
+        q = (t.get("quality") or "").lower()
+        return order.get(q, 9), -_to_int(t.get("width"), 0)
+    best = sorted(thumbs, key=key)
+    return _abs_url(inst, best[0].get("url") or "")
+
+
 def probe(url, instance=None):
     """Video bilgisi + stream seçenekleri döndürür."""
     vid = extract_video_id(url)
-    inst = instance or find_working_instance()
-    
+    data, inst = _fetch_with_failover(f"/api/v1/videos/{vid}", preferred=instance, timeout=15)
+    if not isinstance(data, dict) or not data.get("title"):
+        raise RuntimeError(f"Video bulunamadı: {vid}")
+
     log(f"Invidious probe: {vid} @ {inst}")
-    
-    # Video bilgisi
-    data = _fetch_json(f"{inst}/api/v1/videos/{vid}")
-    
-    # Stream seçenekleri (adaptive = ayrı video/ses akışları)
+
+    # formatStreams: birleşik (progressive) — <video> doğrudan oynatır
+    progressive = []
+    for s in (data.get("formatStreams") or []):
+        su = s.get("url") or ""
+        if not su:
+            continue
+        progressive.append({
+            "itag": s.get("itag"),
+            "height": _to_int(re.sub(r"[^\d]", "", str(s.get("resolution") or s.get("qualityLabel") or "0")) or 0),
+            "url": su,
+            "mime": (s.get("type") or "").split(";")[0],
+            "qualityLabel": s.get("qualityLabel") or s.get("resolution") or "",
+        })
+    progressive.sort(key=lambda s: -s["height"])
+
+    # adaptiveFormats: ayrı video/ses akışları (indirme + kalite listesi)
     video_streams = []
     audio_streams = []
-    hls_manifests = []
-    
+    audio_langs = []
     for stream in (data.get("adaptiveFormats") or []):
         itag = stream.get("itag", 0)
         mime = stream.get("type", "")
-        url_stream = stream.get("url") or stream.get("cipher") or stream.get("signatureCipher", "")
-        
-        # Signature cipher varsa çözemeyiz (JS player gerekir)
-        if not url_stream or "signatureCipher" in stream:
+        url_stream = stream.get("url") or ""
+        if not url_stream:
             continue
-            
         if "video" in mime:
+            h = _to_int(re.sub(r"[^\d]", "", str(stream.get("resolution") or stream.get("qualityLabel") or stream.get("height") or "0")) or 0)
             video_streams.append({
                 "itag": itag,
-                "height": stream.get("height") or 0,
-                "fps": stream.get("fps") or 30,
+                "height": h,
+                "fps": _to_int(stream.get("fps"), 30),
                 "url": url_stream,
                 "mime": mime.split(";")[0],
+                "qualityLabel": stream.get("qualityLabel") or stream.get("resolution") or (f"{h}p" if h else ""),
             })
         elif "audio" in mime:
+            track = stream.get("audioTrack") or {}
+            lang_code = (track.get("audioTrackId") or "").split(".")[0] or stream.get("languageCode") or ""
             audio_streams.append({
                 "itag": itag,
-                "bitrate": stream.get("bitrate") or 0,
+                "bitrate": _to_int(stream.get("bitrate"), 0),
                 "url": url_stream,
                 "mime": mime.split(";")[0],
+                "language": lang_code,
+                "label": track.get("audioTrackName") or stream.get("audioName") or lang_code,
             })
-    
-    # HLS akışları
-    for hls in (data.get("hlsManifestUrl", []) or [data.get("hlsUrl")]):
-        if hls:
-            hls_manifests.append(hls)
-    
+            if lang_code and not any(a["code"] == lang_code for a in audio_langs):
+                audio_langs.append({
+                    "code": lang_code,
+                    "label": track.get("audioTrackName") or stream.get("audioName") or lang_code,
+                })
+
+    # HLS akışı — canlı yayınlar ve >720p progressive olmayan videolar
+    hls_url = data.get("hlsUrl") or data.get("hlsLocalUrl") or ""
+    if not hls_url:
+        hls_url = _abs_url(inst, data.get("hlsManifestUrl") or "")
+
     # DASH manifest URL
-    dash_url = data.get("dashManifestUrl") or ""
-    
-    # YouTube altyazıları
+    dash_url = data.get("dashUrl") or data.get("dashManifestUrl") or ""
+
+    # YouTube altyazıları — language_code / url Invidious şeması
     sub_langs = []
-    captions = data.get("captions") or []
-    for cap in captions:
-        code = cap.get("languageCode") or ""
+    for cap in (data.get("captions") or []):
+        code = cap.get("language_code") or cap.get("languageCode") or ""
         label = cap.get("label") or code
+        kind = cap.get("kind") or ""
+        auto = kind == "asr" or "auto" in label.lower() or "otomatik" in label.lower()
+        cap_url = cap.get("url") or cap.get("baseUrl") or ""
         sub_langs.append({
             "code": code,
             "label": label,
-            "auto": cap.get("baseUrl", "").startswith("https://www.youtube.com/api/timedtext"),
+            "auto": bool(auto),
+            "kind": kind,
+            "url": _abs_url(inst, cap_url),
         })
-    
+
     # Bölümler
     chapters = []
     for ch in (data.get("chapters") or []):
@@ -178,145 +274,205 @@ def probe(url, instance=None):
             "end": float(ch.get("endTime") or 0),
             "title": (ch.get("title") or "").strip(),
         })
-    
+
+    # Kalite listesi — progressive + adaptive yüksekliklerinin birleşimi (düz sayılar;
+    # renderer yt-dlp probe'uyla aynı şemayı bekler: heights=[1080, 720, ...]).
+    heights = sorted({s["height"] for s in progressive + video_streams if s["height"]}, reverse=True)
+
+    # Doğrudan oynatılabilir progressive akış — {url, height, audioLang} şeması
+    stream_obj = None
+    if progressive:
+        best = progressive[0]
+        stream_obj = {
+            "url": best["url"],
+            "height": best["height"],
+            "audioLang": audio_langs[0]["code"] if audio_langs else "",
+        }
+
     emit(
         "probe",
         videoId=vid,
         title=data.get("title") or "",
-        hls=hls_manifests[0] if hls_manifests else "",
+        hls=hls_url,
         dash=dash_url,
+        dashUrl=dash_url,
+        stream=stream_obj,
+        heights=heights,
         chapters=chapters,
         subtitleLangs=sub_langs,
+        audioLangs=audio_langs,
         duration=float(data.get("lengthSeconds") or 0),
-        thumbnail=data.get("thumbnailUrl") or "",
+        thumbnail=_pick_thumbnail(inst, data.get("videoThumbnails") or []),
         videoStreams=video_streams,
         audioStreams=audio_streams,
+        isLive=bool(data.get("liveNow")),
+        isUpcoming=bool(data.get("isUpcoming")),
+        author=data.get("author") or "",
+        authorId=data.get("authorId") or "",
         source="invidious",
         instance=inst,
     )
 
 
+def _vtt_to_srt(content):
+    """WEBVTT metnini SRT'ye çevirir."""
+    lines = content.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    cues, cur = [], []
+    for line in lines:
+        if "-->" in line and "." in line:
+            ts = line.split("-->")
+            start = ts[0].strip()
+            end = ts[1].strip().split(" ")[0]
+            def to_srt(t):
+                t = t.replace(".", ",")
+                parts = t.split(":")
+                if len(parts) == 2:
+                    t = "00:" + t
+                return t
+            cur = [f"{to_srt(start)} --> {to_srt(end)}"]
+        elif cur is not None:
+            if line.strip() == "":
+                if len(cur) > 1:
+                    cues.append(cur)
+                cur = []
+            elif not line.startswith(("WEBVTT", "NOTE", "STYLE", "Kind:", "Language:")):
+                cur.append(line)
+    if cur and len(cur) > 1:
+        cues.append(cur)
+    out = []
+    for i, cue in enumerate(cues, 1):
+        out.append(str(i))
+        out.extend(cue)
+        out.append("")
+    return "\n".join(out)
+
+
 def fetch_subs(url, lang, output_dir, instance=None, auto=False):
-    """Invidious üzerinden altyazı indirir."""
+    """Invidious üzerinden altyazı indirir — instance-proxied captions öncelikli."""
     vid = extract_video_id(url)
-    inst = instance or find_working_instance()
-    
-    log(f"Invidious subs: {vid} lang={lang} @ {inst}")
-    
-    # Önce captions API dene
-    captions = _fetch_json(f"{inst}/api/v1/videos/{vid}/captions") if False else []
-    
-    # YouTube captions API'ye doğrudan istek (Invidious proxy ile)
-    # Invidious caption endpoint'i yoksa, YouTube'un timedtext API'sini dene
-    sub_url = None
-    caption_label = lang
-    
-    try:
-        # Timedtext API (YouTube'un altyazı sunucusu)
-        # Not: Bu API authentication gerektirmez ama rate-limit olabilir
-        yt_sub_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={vid}&fmt=srv1"
-        req = Request(yt_sub_url, headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(req, timeout=10) as resp:
-            content = resp.read().decode("utf-8")
-            if content.strip():
-                sub_url = yt_sub_url
-    except Exception:
-        pass
-    
-    if not sub_url:
-        # Alternatif: Invidious'un captions listesi
+    data, inst = _fetch_with_failover(f"/api/v1/videos/{vid}", preferred=instance, timeout=15)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Video bulunamadı: {vid}")
+
+    log(f"Invidious subs: {vid} lang={lang} auto={auto} @ {inst}")
+
+    captions = data.get("captions") or []
+    want_auto = bool(auto)
+
+    def cap_code(c):
+        return c.get("language_code") or c.get("languageCode") or ""
+
+    def cap_is_auto(c):
+        k = c.get("kind") or ""
+        lbl = (c.get("label") or "").lower()
+        return k == "asr" or "auto" in lbl or "otomatik" in lbl
+
+    # İstenen dil + auto bayrağıyla eşleşen caption
+    match = None
+    for cap in captions:
+        if cap_code(cap) != lang:
+            continue
+        if cap_is_auto(cap) == want_auto:
+            match = cap
+            break
+    if match is None:
+        for cap in captions:
+            if cap_code(cap) == lang:
+                match = cap
+                break
+
+    candidates = []
+    if match is not None:
+        u = _abs_url(inst, match.get("url") or match.get("baseUrl") or "")
+        if u:
+            candidates.append(u)
+    # Timedtext — srv3 (Invidious/YouTube'un varsayılanı) + kind=asr gerekiyorsa
+    tt = f"https://www.youtube.com/api/timedtext?lang={urllib_parse.quote(lang)}&v={vid}&fmt=srv3"
+    if want_auto:
+        tt += "&kind=asr"
+    candidates.append(tt)
+
+    content = None
+    for cand in candidates:
         try:
-            cap_data = _fetch_json(f"{inst}/api/v1/videos/{vid}")
-            for cap in (cap_data.get("captions") or []):
-                if cap.get("languageCode") == lang:
-                    base = cap.get("baseUrl")
-                    if base:
-                        sub_url = base
-                        caption_label = cap.get("label", lang)
-                        break
+            req = Request(cand, headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://www.youtube.com",
+            })
+            with urlopen(req, timeout=15) as resp:
+                body = resp.read().decode("utf-8")
+            if body and body.strip():
+                content = body
+                break
         except Exception:
-            pass
-    
-    if not sub_url:
-        raise RuntimeError(f"Altyazı bulunamadı: {lang}")
-    
-    # İndir
+            continue
+    if content is None:
+        raise RuntimeError(f"Altyazı bulunamadı: {lang}" + (" (otomatik)" if want_auto else ""))
+
+    if content.lstrip().startswith("WEBVTT"):
+        srt_content = _vtt_to_srt(content)
+    else:
+        srt_content = _convert_timedtext_to_srt(content)
+
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    
-    # YouTube timedtext formatını SRT'ye çevir
-    try:
-        req = Request(sub_url, headers={
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://www.youtube.com",
-        })
-        with urlopen(req, timeout=15) as resp:
-            content = resp.read().decode("utf-8")
-    except Exception as e:
-        raise RuntimeError(f"Altyazı indirilemedi: {e}")
-    
-    # Timedtext → SRT dönüşümü
-    srt_content = _convert_timedtext_to_srt(content)
-    
-    # Dosya kaydet
-    safe_title = re.sub(r'[<>:"/\\|?*]', '_', vid)[:80]
-    out_path = out / f"{safe_title}.{lang}.srt"
-    
-    # BOM ile UTF-8 (Windows uyumluluğu)
+    title = re.sub(r'[<>:"/\\|?*]', "_", str(data.get("title") or vid)).strip()[:80] or vid
+    suffix = f"{lang}.auto" if want_auto else lang
+    out_path = out / f"{title} [{vid}].{suffix}.srt"
     with open(out_path, "w", encoding="utf-8-sig") as f:
         f.write(srt_content)
-    
-    emit("subs", path=str(out_path), lang=lang, auto=bool(auto))
+
+    emit("subs", path=str(out_path), lang=lang, auto=want_auto, instance=inst)
 
 
 def _convert_timedtext_to_srt(content):
-    """YouTube timedtext XML'ini SRT formatına çevirir."""
+    """YouTube timedtext XML'ini SRT'ye çevirir — srv3 (<p t d>) ve srv1 (<text start dur>) destekler."""
     import xml.etree.ElementTree as ET
-    
-    # Namespace'i kaldır
+
+    if content.lstrip().startswith("WEBVTT"):
+        return _vtt_to_srt(content)
+
     content = re.sub(r'xmlns="[^"]*"', '', content)
     content = re.sub(r'tts:', '', content)
-    
+
     try:
         root = ET.fromstring(content)
-    except ET.ParseError:
-        # Düz metin olarak döndür
-        return content
-    
+    except ET.ParseError as e:
+        raise RuntimeError(f"Altyazı formatı tanınamadı: {e}")
+
     srt_lines = []
     index = 1
-    
-    for body in root.findall(".//body"):
-        for p in body.findall(".//p"):
-            start_ms = int(p.get("t", 0))
-            dur = int(p.get("d", 0))
-            end_ms = start_ms + dur
-            
-            # İç içe p varsa (alt satırlar)
-            texts = []
-            for span in p.findall(".//span"):
-                t = span.text or ""
-                texts.append(t.strip())
-            if not texts:
-                t = p.text or ""
-                if t.strip():
-                    texts = [t.strip()]
-            
-            if texts:
-                start = _ms_to_srt_time(start_ms)
-                end = _ms_to_srt_time(end_ms)
-                text = " ".join(texts)
-                
-                srt_lines.append(f"{index}")
-                srt_lines.append(f"{start} --> {end}")
-                srt_lines.append(text)
-                srt_lines.append("")
-                index += 1
-    
-    # Boş dosya kontrolü
+
+    def add_cue(start_ms, end_ms, text):
+        nonlocal index
+        text = " ".join(text.split())
+        if not text or end_ms <= start_ms:
+            return
+        srt_lines.append(str(index))
+        srt_lines.append(f"{_ms_to_srt_time(start_ms)} --> {_ms_to_srt_time(end_ms)}")
+        srt_lines.append(text)
+        srt_lines.append("")
+        index += 1
+
+    # srv1: <transcript><text start="saniye" dur="saniye">metin</text></transcript>
+    texts = root.findall(".//text")
+    if texts:
+        for t in texts:
+            start_s = float(t.get("start", 0) or 0)
+            dur_s = float(t.get("dur", 0) or 0)
+            raw = "".join(t.itertext())
+            add_cue(int(start_s * 1000), int((start_s + dur_s) * 1000), raw)
+    else:
+        # srv3: <timedtext><body><p t="ms" d="ms"><s>metin</s></p></body></timedtext>
+        for p in root.findall(".//body//p"):
+            start_ms = int(p.get("t", 0) or 0)
+            dur = int(p.get("d", 0) or 0)
+            spans = [s.text or "" for s in p.findall(".//s")]
+            text = " ".join(spans) if spans else "".join(p.itertext())
+            add_cue(start_ms, start_ms + dur, text)
+
     if not srt_lines:
-        return "1\n00:00:00,000 --> 00:00:05,000\nNo subtitles available.\n"
-    
+        raise RuntimeError("Altyazı içeriği boş — başka bir dil deneyin.")
     return "\n".join(srt_lines)
 
 
@@ -371,8 +527,13 @@ def login(username, password, instance=None):
     opener.addheaders = [("User-Agent", "Mozilla/5.0")]
 
     url = f"{inst}/login"
-    body = f"email_or_user={urllib_parse.quote(username)}&password={urllib_parse.quote(password)}"
-    body_bytes = body.encode("utf-8")
+    # Instance sürümüne göre alan adı 'email' veya 'email_or_user' olabilir — ikisini de gönder
+    fields = urllib_parse.urlencode({
+        "email": username,
+        "email_or_user": username,
+        "password": password,
+    })
+    body_bytes = fields.encode("utf-8")
     try:
         req = Request(url, data=body_bytes, headers={
             "User-Agent": "Mozilla/5.0",
@@ -403,10 +564,6 @@ def logout():
     emit("logout", ok=True)
 
 
-# urllib.parse burada import edilir (login için)
-import urllib.parse as urllib_parse
-
-
 # ===== Feed (ana sayfa) =====
 def _parse_video_item(v):
     """Invidious video objesini ortak şemaya çevirir."""
@@ -415,10 +572,12 @@ def _parse_video_item(v):
         "title": v.get("title", ""),
         "author": v.get("author", ""),
         "authorId": v.get("authorId", ""),
-        "lengthSeconds": int(v.get("lengthSeconds") or 0),
-        "viewCount": int(v.get("viewCount") or 0),
+        "authorThumbnails": v.get("authorThumbnails", []),
+        "lengthSeconds": _to_int(v.get("lengthSeconds"), 0),
+        "viewCount": _to_int(v.get("viewCount"), 0),
         "publishedText": v.get("publishedText", ""),
-        "published": int(v.get("published") or 0),
+        "published": _to_int(v.get("published"), 0),
+        "liveNow": bool(v.get("liveNow")),
         "videoThumbnails": v.get("videoThumbnails", []),
     }
 
@@ -468,11 +627,9 @@ def _ytdlp_search_videos(query, max_results=24):
 
 
 def feed_popular(instance=None):
-    """Popüler videolar (Invidious API'si artık çoğu instance'da devre dışı — yt-dlp ytsearch yedek)."""
+    """Popüler videolar — instance failover + yt-dlp yedek."""
     try:
-        inst = instance or find_working_instance()
-        log(f"Invidious popular: {inst}")
-        data = _fetch_json(f"{inst}/api/v1/popular", timeout=10)
+        data, inst = _fetch_with_failover("/api/v1/popular", preferred=instance, timeout=10)
         videos = [_parse_video_item(v) for v in (data or [])]
         if videos:
             emit("feed", kind="popular", videos=videos, instance=inst)
@@ -485,18 +642,18 @@ def feed_popular(instance=None):
 
 
 def feed_trending(instance=None):
-    """Trend videolar (yt-dlp ytsearch yedek)."""
+    """Trend videolar — 4 kategori birleşik, instance failover + yt-dlp yedek."""
     try:
-        inst = instance or find_working_instance()
-        log(f"Invidious trending: {inst}")
-        # Invidious /api/v1/trending 4 kategori: music/gaming/news/movies
         all_videos = []
+        used_inst = None
         for tab in ("music", "gaming", "news", "movies"):
-            data = _fetch_json(f"{inst}/api/v1/trending?type={tab}", timeout=10)
+            data, inst = _fetch_with_failover(
+                f"/api/v1/trending?type={tab}", preferred=instance, timeout=10)
+            used_inst = used_inst or inst
             if data:
                 all_videos.extend([_parse_video_item(v) for v in data])
         if all_videos:
-            emit("feed", kind="trending", videos=all_videos, instance=inst)
+            emit("feed", kind="trending", videos=all_videos, instance=used_inst)
             return
         raise RuntimeError("Invidious trend boş döndü")
     except Exception as primary:
@@ -506,18 +663,16 @@ def feed_trending(instance=None):
 
 
 def feed_subscriptions(instance=None):
-    """Kullanıcının abonelik feed'i — giriş gerekli."""
+    """Kullanıcının abonelik feed'i — giriş gerekli (/api/v1/auth/feed)."""
     inst = instance or find_working_instance()
     if not _session_cookie:
         raise RuntimeError("Abonelikler için Invidious hesabına giriş gerekli.")
     log(f"Invidious subscriptions: {inst}")
     try:
-        req = Request(f"{inst}/api/v1/feed/subscriptions",
-                      headers=_auth_headers())
+        req = Request(f"{inst}/api/v1/auth/feed", headers=_auth_headers())
         with urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         videos = [_parse_video_item(v) for v in (data.get("videos") or [])]
-        # notifications gibi ek alanlar olabilir
         notifications = data.get("notifications", [])
         emit("feed", kind="subscriptions", videos=videos,
              notifications=notifications, instance=inst)
@@ -529,22 +684,22 @@ def feed_subscriptions(instance=None):
 
 # ===== Arama =====
 def search(query, page=1, instance=None):
-    """Invidious arama. Sonuçları video listesi olarak döndürür. yt-dlp yedek."""
+    """Invidious arama — instance failover + yt-dlp yedek."""
     try:
-        inst = instance or find_working_instance()
         log(f"Invidious search: {query!r}")
         q = urllib_parse.quote(query)
-        data = _fetch_json(
-            f"{inst}/api/v1/search?q={q}&page={int(page)}&type=video",
-            timeout=15
-        )
+        data, inst = _fetch_with_failover(
+            f"/api/v1/search?q={q}&page={_to_int(page, 1)}&type=video",
+            preferred=instance, timeout=15)
         videos = []
         for v in (data or []):
-            if v.get("type") != "video":
+            if not isinstance(v, dict):
+                continue
+            if v.get("type") not in (None, "video"):
                 continue
             videos.append(_parse_video_item(v))
         if videos:
-            emit("search", query=query, page=int(page), videos=videos, instance=inst)
+            emit("search", query=query, page=_to_int(page, 1), videos=videos, instance=inst)
             return
         raise RuntimeError("Invidious arama boş")
     except Exception as primary:
@@ -556,12 +711,13 @@ def search(query, page=1, instance=None):
 
 # ===== Kanal =====
 def channel(channel_id, instance=None):
-    """Kanal bilgisi + son videolar."""
-    inst = instance or find_working_instance()
+    """Kanal bilgisi + son videolar — instance failover."""
+    data, inst = _fetch_with_failover(
+        f"/api/v1/channels/{urllib_parse.quote(channel_id)}",
+        preferred=instance, timeout=15)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Kanal bulunamadı: {channel_id}")
     log(f"Invidious channel: {channel_id} @ {inst}")
-    # Invidious /api/v1/channels/{ucid} (channelId = UC...)
-    url = f"{inst}/api/v1/channels/{urllib_parse.quote(channel_id)}"
-    data = _fetch_json(url, timeout=15)
     info = {
         "author": data.get("author", ""),
         "authorId": data.get("authorId", channel_id),
@@ -588,11 +744,17 @@ def main():
     ap.add_argument("--username", default="", help="Invidious kullanıcı adı")
     ap.add_argument("--password", default="", help="Invidious şifresi (güvenli: argv'de görünür)")
     ap.add_argument("--query", default="", help="Arama terimi")
-    ap.add_argument("--page", type=int, default=1, help="Arama sayfası")
+    ap.add_argument("--page", default="1", help="Arama sayfası")
     ap.add_argument("--channel-id", default="", help="Invidious kanal ID (UCID)")
+    ap.add_argument("--sid", default="", help="Invidious SID cookie (env WHISPER_INVIDIOUS_SID da kabul)")
     args = ap.parse_args()
 
     instance = args.instance.strip() if args.instance else None
+
+    # Session — env (süreç listesinde görünmez) veya argv
+    sid = os.environ.get("WHISPER_INVIDIOUS_SID", "").strip() or args.sid.strip()
+    if sid and args.command not in ("login", "logout"):
+        set_session(cookie=sid)
 
     try:
         if args.command == "probe":
