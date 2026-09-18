@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 16:52 — R67 iş listesi uygulandı: chip'ler, roving grid, up-next, yorumlar, sayfalama (smoke+wiring kanıtlı)](docs/devir/2026-09-18-1652.md).
+Güncel çalışma: [2026-09-18 18:52 — R68 84 bulgu doğrulaması: 30 gerçek düzeltildi, 36 FP; SID kalıcılık+güvenlik, birleşik feed, yaşam döngüsü (66/66 wiring + smoke kanıtlı)](docs/devir/2026-09-18-1852.md).
+
+Önceki çalışma: [2026-09-18 16:52 — R67 iş listesi uygulandı: chip'ler, roving grid, up-next, yorumlar, sayfalama (smoke+wiring kanıtlı)](docs/devir/2026-09-18-1652.md).
 
 Önceki çalışma: [2026-09-18 17:30 — R67 onarımları + SmartTube oynatıcı uçtan uca çalışır (TDZ boot-smoke kanıtlı)](docs/devir/2026-09-18-1730.md).
 
