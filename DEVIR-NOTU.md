@@ -1,7 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 21:42 — R69 doğrulama+uygulama: 36 bulgudan 12'si düzeltildi (ortak sensitive-keys modülü, IPv6 SSRF, çeviri pipeline, observer LRU, fullscreen); npm test TAM GEÇTİ](docs/devir/2026-09-18-2142.md).
+Güncel çalışma: [2026-09-18 23:30 — R71 çalışma zamanı log bug'ları: hata sınıflandırıcı request-id çakışması, model_unavailable FATAL, canlı-çeviri istek fırtınası (Retry-After + devre-kesici), maxLength DOM istisnası, log dedup; npm test TAM GEÇTİ](docs/devir/2026-09-18-2330.md).
 
-Önceki çalışma: [2026-09-18 19:47 — Gerçek YouTube OAuth cihaz-akışı (backend/youtube.py + youtube:* IPC + SmartTube UI; subscriptions gerçek hesap verisi; 19/19 + 18/18 + smoke kanıtlı)](docs/devir/2026-09-18-1947.md).
+Önceki çalışma: [2026-09-18 21:42 — R69 doğrulama+uygulama: 36 bulgudan 12'si düzeltildi (ortak sensitive-keys modülü, IPv6 SSRF, çeviri pipeline, observer LRU, fullscreen); npm test TAM GEÇTİ](docs/devir/2026-09-18-2142.md).
 
 Önceki çalışma: [2026-09-18 19:30 — R69 salt-okunur audit: 3 WIP test dosyası FAIL kanıtı + 4 ajanlık tarama, 36 bulgu (BROWSER_BUG_REPORT_69.md)](docs/devir/2026-09-18-1930.md).
 
