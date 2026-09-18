@@ -8,6 +8,8 @@ const https = require('https');
 const { isIP } = require('net');
 const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
+const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
+  clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
 const { terminateProcessTree } = require('./process-lifecycle');
 const { createProcessTerminalLatch, isValidOutputNameSuffix } = require('./renderer/queue-lifecycle');
@@ -7887,6 +7889,40 @@ function clearBrowserHlsCeaFullCaptureState(plan) {
   }
 }
 
+function browserCeaCheckpointRoot() {
+  return path.join(app.getPath('userData'), 'capture-checkpoints');
+}
+
+function persistBrowserHlsCeaCheckpoint(job, force = false) {
+  if (!job?.checkpointId || job.cancelled || browserHlsCeaFullCaptureJob !== job) return;
+  const count = job.completed.size;
+  // Save the first caption-bearing segment promptly. Subsequent writes are
+  // batched so long lessons do not synchronously rewrite the file per segment.
+  if (!force && job.checkpointedAtCount && count - job.checkpointedAtCount < 20) return;
+  const tracks = (job.tracks || []).map((track) => ({
+    instreamId: track.instreamId,
+    cues: browserTrackBuffers.get(
+      `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`) || [],
+  }));
+  try {
+    if (saveCeaCheckpoint(browserCeaCheckpointRoot(), job.checkpointId, tracks, count)) {
+      job.checkpointedAtCount = count;
+    }
+  } catch (error) {
+    if (!job.checkpointWarningShown) {
+      job.checkpointWarningShown = true;
+      noteBrowserCapture('cea', { url: job.sourceUrl, context: job.context }, 'error',
+        `Altyazı kurtarma kaydı yazılamadı: ${error?.message || 'disk hatası'}`);
+    }
+  }
+}
+
+function clearBrowserHlsCeaCheckpoint(job) {
+  if (!job?.checkpointId) return;
+  try { clearCeaCheckpoint(browserCeaCheckpointRoot(), job.checkpointId); }
+  catch (_) { /* A failed cleanup must not turn a complete capture into failure. */ }
+}
+
 async function runBrowserHlsCeaFullCapture(job) {
   try {
     await resolveBrowserHlsCeaExpectedDuration(job);
@@ -7920,8 +7956,11 @@ async function runBrowserHlsCeaFullCapture(job) {
           if (!captured) throw new Error('CEA segmenti çözümlenemedi.');
           job.completed.add(ceaCaptureSegmentIdentity(segment));
         },
-        onProgress: () => sendBrowserHlsCeaFullProgress(job, 'running',
-          `Gömülü altyazı getiriliyor: ${job.completed.size}/${job.total} segment.`),
+        onProgress: () => {
+          persistBrowserHlsCeaCheckpoint(job);
+          sendBrowserHlsCeaFullProgress(job, 'running',
+            `Gömülü altyazı getiriliyor: ${job.completed.size}/${job.total} segment.`);
+        },
       });
       job.failures = result.failed;
       if (job.cancelled || result.cancelled) break;
@@ -7999,6 +8038,7 @@ async function runBrowserHlsCeaFullCapture(job) {
       requireExpectedDuration: true,
     });
     if (!completeness.complete) {
+      persistBrowserHlsCeaCheckpoint(job, true);
       if (scheduleBrowserHlsCeaAutoRetry(job, completeness)) return;
       sendBrowserHlsCeaFullProgress(job, 'partial', cueCount
         ? (completeness.planReason === 'open-playlist'
@@ -8011,10 +8051,12 @@ async function runBrowserHlsCeaFullCapture(job) {
         : 'Gömülü altyazı segmentleri alındı ancak cue üretilemedi.');
     } else {
       job.failures = [];
+      clearBrowserHlsCeaCheckpoint(job);
       sendBrowserHlsCeaFullProgress(job, 'complete',
         `${cueCount} altyazı satırı eksiksiz yakalandı ve GİRDİ klasörüne kaydedildi.`);
     }
   } catch (error) {
+    persistBrowserHlsCeaCheckpoint(job, true);
     job.failures = [{ error }];
     sendBrowserHlsCeaFullProgress(job, 'error',
       error?.message || 'Tam altyazı yakalama tamamlanamadı.');
@@ -8038,6 +8080,11 @@ function startBrowserHlsCeaFullCapture(tab) {
     && previous.sourceUrl === active.sourceUrl
     && ['partial', 'error', 'cancelled'].includes(previous.state)
     && previous.segments?.length;
+  const checkpointId = ceaCheckpointId(active.sourceUrl, browserWatchMediaId(tab), active.tracks);
+  let saved = null;
+  if (!resume && checkpointId) {
+    try { saved = loadCeaCheckpoint(browserCeaCheckpointRoot(), checkpointId); } catch (_) {}
+  }
   const job = {
     id: randomUUID(), tab, context, cancelled: false, state: 'running',
     sourceUrl: active.sourceUrl, playlistUrl: resume ? previous.playlistUrl : active.playlistUrl,
@@ -8048,7 +8095,11 @@ function startBrowserHlsCeaFullCapture(tab) {
     expectedDuration: retainCeaExpectedDuration(resume ? previous.expectedDuration : 0, {
       duration: tab.contentDuration, adPlaying: false,
     }),
-    completed: new Set(resume ? previous.completed : []), failures: [], resume,
+    // A persisted cue snapshot is recoverable, but the mux.js CEA decoder's
+    // state is not serializable. On restart, replay the segment plan from its
+    // beginning; never trust a saved segment count as a skip ledger.
+    completed: new Set(resume ? previous.completed : []), failures: [], resume: resume || !!saved,
+    checkpointId, checkpointedAtCount: 0,
     // Kullanıcının açık yeniden denemesi yeni bir otomatik tamamlama bütçesi alır.
     // Zamanlayıcının kendi turları aynı job üzerinde retryRound'u artırır.
     retryRound: 0,
@@ -8056,7 +8107,23 @@ function startBrowserHlsCeaFullCapture(tab) {
   };
   job.total = job.segments.length;
   browserHlsCeaFullCaptureJob = job;
-  sendBrowserHlsCeaFullProgress(job, 'running', resume
+  if (saved) {
+    clearBrowserHlsCeaFullCaptureState(job);
+    for (const track of job.tracks) {
+      const restored = saved.tracks.find((item) => item.instreamId === track.instreamId)?.cues;
+      if (!restored?.length) continue;
+      storeBrowserTrack(restored, {
+        language: track.language || '', label: track.name || track.instreamId || 'Gömülü altyazı',
+        format: track.standard || 'cea-608', captureKind: 'embedded-cea',
+        instreamId: track.instreamId, sourceUrl: job.sourceUrl,
+        streamKey: `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`,
+        context: job.context, captureComplete: false,
+      });
+    }
+  }
+  sendBrowserHlsCeaFullProgress(job, 'running', saved
+    ? `${saved.completedSegments} segmentlik kurtarma kaydındaki satırlar korundu; çözücü güvenliği için parçalar baştan doğrulanıyor.`
+    : resume
     ? `Eksik segmentlerden devam ediliyor: ${job.completed.size}/${job.total}.`
     : `Tam altyazı yakalama başladı: ${job.total} segment.`);
   void runBrowserHlsCeaFullCapture(job);
@@ -14219,6 +14286,7 @@ ipcMain.handle('browser:subtitle:captureFull', async (event, payload) => {
     if (!browserHlsCeaFullCaptureJob || browserHlsCeaFullCaptureJob.tab !== tab) {
       return { ok: true, dismissed: false };
     }
+    clearBrowserHlsCeaCheckpoint(browserHlsCeaFullCaptureJob);
     clearTimeout(browserHlsCeaFullCaptureJob.autoRetryTimer);
     browserHlsCeaFullCaptureJob.autoRetryTimer = null;
     browserHlsCeaFullCaptureJob = null;
@@ -14230,6 +14298,7 @@ ipcMain.handle('browser:subtitle:captureFull', async (event, payload) => {
       return { ok: false, error: 'Durdurulacak tam altyazı yakalama işi yok.' };
     }
     browserHlsCeaFullCaptureJob.cancelled = true;
+    clearBrowserHlsCeaCheckpoint(browserHlsCeaFullCaptureJob);
     clearTimeout(browserHlsCeaFullCaptureJob.autoRetryTimer);
     browserHlsCeaFullCaptureJob.autoRetryTimer = null;
     sendBrowserHlsCeaFullProgress(browserHlsCeaFullCaptureJob, 'cancelled',

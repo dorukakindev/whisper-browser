@@ -850,7 +850,8 @@ function pageApplyScript(payload = {}) {
         '.whisper-page-tr[hidden]{display:none!important}',
         '.whisper-page-tr-tools{position:fixed;z-index:2147483646;display:flex;gap:2px;padding:3px;border:1px solid #6d5738;border-radius:7px;background:#17191c;color:#e6e0d6;box-shadow:0 8px 24px #0009;font:11px/1.2 system-ui,sans-serif}',
         '.whisper-page-tr-tools button,.whisper-page-tr-failure{border:0;border-radius:4px;background:transparent;color:inherit;font:inherit;cursor:pointer}',
-        '.whisper-page-tr-tools button{padding:5px 7px}.whisper-page-tr-tools button:hover,.whisper-page-tr-tools button:focus-visible{background:#d5a35c;color:#17130c;outline:none}',
+        '.whisper-page-tr-tools button{padding:5px 7px}.whisper-page-tr-tools button:hover{background:#d5a35c;color:#17130c}',
+        '.whisper-page-tr-tools button:focus-visible{background:#d5a35c;color:#17130c;outline:2px solid #fff;outline-offset:2px}',
         '.whisper-page-tr-failure{display:inline-flex!important;margin:.25em 0;padding:4px 7px;background:#352019;color:#f1b09d;box-shadow:inset 0 0 0 1px #7c493b}',
       ].join('');
       (document.head || document.documentElement).appendChild(sheet);

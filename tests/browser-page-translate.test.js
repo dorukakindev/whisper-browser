@@ -29,6 +29,12 @@ const {
   decodePageTranslation,
 } = require('../src/browser-page-translate');
 
+// The injected toolbar lives in the page, outside the app's global focus CSS.
+// Hover colour alone must not erase the keyboard focus indicator.
+const toolbarCss = pageApplyScript({ blocks: [] });
+assert.match(toolbarCss, /\.whisper-page-tr-tools button:focus-visible\{[^}]*outline:2px solid #fff;outline-offset:2px/);
+assert.doesNotMatch(toolbarCss, /\.whisper-page-tr-tools button:focus-visible\{[^}]*outline:none/);
+
 const normalized = normalizePageBlocks([
   null,
   { id: 'empty', text: '   ' },
