@@ -242,10 +242,18 @@ async function main() {
     await sleep(400);
     out.ytSubsRendered = grid.textContent.includes('SubVid');
     out.ytStatus = /YouTube/.test(document.getElementById('stStatusLine').textContent);
+    // Oynatıcı panelindeki OAuth düğmesi/durumu aynı oturumla senkron kalmalı.
+    const pBtn = document.getElementById('playerYtOAuthBtn');
+    const pStatus = document.getElementById('playerYtOAuthStatus');
+    out.ytPlayerBtnSynced = !!pBtn && !!pStatus
+      && !pStatus.classList.contains('hidden')
+      && pStatus.textContent.includes('MockYT');
     youtubeLoggedIn = false;
     youtubeUserName = '';
     refreshYoutubeAuthUI();
     out.ytLogoutCleanup = document.getElementById('stYtLogoutBtn').classList.contains('hidden');
+    out.ytPlayerCleanup = !!pStatus && pStatus.classList.contains('hidden')
+      && !!pBtn && pBtn.textContent.length > 0;
     return out;
   })()`, true);
 
@@ -270,6 +278,8 @@ async function main() {
   assert(feat.ytSubsRendered === true, 'YouTube abonelik kartları basılmadı');
   assert(feat.ytStatus === true, 'YouTube statü satırı gösterilmedi');
   assert(feat.ytLogoutCleanup === true, 'çıkışta stYtLogoutBtn gizlenmedi');
+  assert(feat.ytPlayerBtnSynced === true, 'oynatıcı paneli OAuth durumu senkron değil');
+  assert(feat.ytPlayerCleanup === true, 'çıkışta oynatıcı OAuth durumu temizlenmedi');
   assert(failed.length === 0, `özellik probları: ${failed.join(', ')}`);
 
   win.close();

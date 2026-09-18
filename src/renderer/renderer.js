@@ -22892,15 +22892,29 @@ let _ytPolling = false;
 function refreshYoutubeAuthUI() {
   const inBtn = $('stYtLoginBtn');
   const outBtn = $('stYtLogoutBtn');
-  if (!inBtn || !outBtn) return;
-  if (youtubeLoggedIn) {
-    inBtn.classList.add('hidden');
-    outBtn.classList.remove('hidden');
-    outBtn.querySelector('.st-side-label').textContent = youtubeUserName || 'YouTube';
-  } else {
-    inBtn.classList.remove('hidden');
-    outBtn.classList.add('hidden');
-    outBtn.querySelector('.st-side-label').textContent = 'YT çıkış';
+  if (inBtn && outBtn) {
+    if (youtubeLoggedIn) {
+      inBtn.classList.add('hidden');
+      outBtn.classList.remove('hidden');
+      outBtn.querySelector('.st-side-label').textContent = youtubeUserName || 'YouTube';
+    } else {
+      inBtn.classList.remove('hidden');
+      outBtn.classList.add('hidden');
+      outBtn.querySelector('.st-side-label').textContent = 'YT çıkış';
+    }
+  }
+  // Oynatıcı panelindeki OAuth düğmesi/durumu da aynı oturumla senkron kalır.
+  const pBtn = $('playerYtOAuthBtn');
+  const pStatus = $('playerYtOAuthStatus');
+  if (pBtn) {
+    pBtn.textContent = youtubeLoggedIn
+      ? (window.UiLocale?.t('YouTube bağlı') || 'YouTube bağlı')
+      : (window.UiLocale?.t('YouTube ile giriş (Google hesabı)') || 'YouTube ile giriş (Google hesabı)');
+  }
+  if (pStatus) {
+    pStatus.classList.toggle('hidden', !youtubeLoggedIn);
+    // Kanal adı kullanıcı verisidir — arayüz çeviricisine sokulmaz.
+    pStatus.textContent = youtubeLoggedIn ? (youtubeUserName || 'YouTube') : '';
   }
 }
 
@@ -23007,6 +23021,9 @@ function initSmartTube() {
   if (ytLoginBtn) ytLoginBtn.addEventListener('click', openYoutubeLogin);
   const ytLogoutBtn = $('stYtLogoutBtn');
   if (ytLogoutBtn) ytLogoutBtn.addEventListener('click', openYoutubeLogin);
+  // Oynatıcı panelindeki giriş düğmesi de aynı cihaz-kodu akışını açar.
+  const pYtOAuthBtn = $('playerYtOAuthBtn');
+  if (pYtOAuthBtn) pYtOAuthBtn.addEventListener('click', openYoutubeLogin);
   const ytClientSave = $('ytClientSave');
   if (ytClientSave) ytClientSave.addEventListener('click', async () => {
     const cid = ($('ytClientId') && $('ytClientId').value || '').trim();
