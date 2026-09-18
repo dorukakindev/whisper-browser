@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-18 13:13 — dalga 3: 8/10 ajanlık tamamlayıcı tarama bulguları (rapor 66)](docs/devir/2026-09-18-1313.md).
+Güncel çalışma: [2026-09-18 13:30 — SmartTube tarzı: ana sayfa, auth, arama, kanal, download_stream](docs/devir/2026-09-18-1330.md).
+
+Önceki çalışma: [2026-09-18 13:13 — dalga 3: 8/10 ajanlık tamamlayıcı tarama bulguları (rapor 66)](docs/devir/2026-09-18-1313.md).
 
 Önceki çalışma: [2026-09-18 13:00 — SmartTube/Piped altyapısı: Invidious API entegrasyonu](docs/devir/2026-09-18-1300.md).
 
