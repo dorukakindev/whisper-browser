@@ -22399,6 +22399,10 @@ function setSmartTubeVisible(visible) {
   const st = $('smarttubeBrowser');
   if (!st) return;
   st.classList.toggle('hidden', !visible);
+  $('playerStage')?.classList.toggle('browsing', !!visible);
+  // Without a loaded video there is nothing to return to. Do not show a
+  // non-functional close button over the browse view.
+  $('stCloseBrowser')?.classList.toggle('hidden', !player.mediaKey);
   if (!visible) return;
   // Arama ortasında gizlenip geri gelindiyse sonuç görünümünü olduğu gibi
   // geri getir — bölümü yeniden çizmek hem ek istek atar hem de kullanıcının
@@ -22459,6 +22463,7 @@ function stSelectSection(section) {
 // Bölüm render yarışı koruması — yavaş 'trending' isteği kullanıcının
 // açtığı 'popular' grid'ini ezmesin diye her render bir sıra numarası alır.
 let stSectionSeq = 0;
+let stActiveHomeRequestId = null;
 let lastInvidiousInstance = '';
 
 function setSmartTubeStatus(text) {
@@ -22472,10 +22477,19 @@ async function renderSmartTubeSection(section, opts = {}) {
   const grid = $('stGrid');
   if (!grid) return;
   const seq = ++stSectionSeq;
+  stActiveHomeRequestId = section === 'home' ? seq : null;
   const stale = () => seq !== stSectionSeq;
   const force = !!opts.force;
-  grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
+  grid.innerHTML = '<div class="inv-status st-feed-loading" role="status">Yükleniyor…</div>';
   setSmartTubeStatus('');
+  // A public feed can spend many seconds trying Invidious instances before
+  // yt-dlp fallback. Explain the wait without claiming the request failed.
+  setTimeout(() => {
+    if (stale()) return;
+    const message = grid.querySelector(':scope > .st-feed-loading');
+    if (message) message.textContent = window.UiLocale?.t('Kaynaklara bağlanılıyor; bu biraz sürebilir. Bu sırada arama yapabilirsiniz.')
+      || 'Kaynaklara bağlanılıyor; bu biraz sürebilir. Bu sırada arama yapabilirsiniz.';
+  }, 8000);
 
   const showError = (msg) => {
     if (stale()) return;
@@ -22488,6 +22502,12 @@ async function renderSmartTubeSection(section, opts = {}) {
     div.style.fontSize = '12px';
     div.textContent = String(msg || '');
     grid.appendChild(div);
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn btn-secondary btn-sm st-feed-retry';
+    retry.textContent = window.UiLocale?.t('Tekrar dene') || 'Tekrar dene';
+    retry.addEventListener('click', () => renderSmartTubeSection(section, { force: true }));
+    grid.appendChild(retry);
   };
 
   let feedData = null;
@@ -22524,7 +22544,8 @@ async function renderSmartTubeSection(section, opts = {}) {
     } else if (!feedData) {
     const feedOpts = section === 'trending' && stTrendTab ? { tab: stTrendTab } : {};
     feedData = await fetchInvidiousFeed(
-      section === 'home' ? 'home' : section, force, feedOpts);
+      section === 'home' ? 'home' : section, force,
+      section === 'home' ? { ...feedOpts, requestId: seq } : feedOpts);
     if (stale()) return;
     if (section === 'home') {
       // Birleşik paket: tek süreçte paralel popular+trending (D-K3)
@@ -22543,6 +22564,12 @@ async function renderSmartTubeSection(section, opts = {}) {
     }
   } catch (e) {
     const msg = e && e.message ? e.message : String(e);
+    if (section === 'home' && grid.dataset.previewRequestId === String(seq)) {
+      setSmartTubeStatus(window.UiLocale?.t('Ek videolar alınamadı; gösterilenleri izleyebilir veya yeniden deneyebilirsiniz.')
+        || 'Ek videolar alınamadı; gösterilenleri izleyebilir veya yeniden deneyebilirsiniz.');
+      logLine(`SmartTube feed kısmi sonuç: ${msg}`, 'warn');
+      return;
+    }
     showError(/giriş|login|401|unauthor/i.test(msg)
       ? 'Bu bölüm için Invidious hesabına giriş gerekli — kenar çubuğundan "Oturum aç".'
       : `Hata: ${msg}`);
@@ -24192,6 +24219,18 @@ if (window.api.onInvidiousEvent) {
   window.api.onInvidiousEvent((ev) => {
     if (!ev) return;
     if (ev.type === 'log') logLine(ev.message, ev.level || 'info');
+    if (ev.type === 'feed_partial' && ev.kind === 'home'
+        && ev.requestId === stActiveHomeRequestId && stCurrentSection === 'home'
+        && !stSearchActive && !$('smarttubeBrowser')?.classList.contains('hidden')
+        && Array.isArray(ev.videos) && ev.videos.length) {
+      const grid = $('stGrid');
+      if (grid && grid.dataset.previewRequestId !== String(ev.requestId)) {
+        renderSmartTubeGrid(grid, ev.videos, ev.section);
+        grid.dataset.previewRequestId = String(ev.requestId);
+        setSmartTubeStatus(window.UiLocale?.t('İlk videolar hazır; diğer kaynaklar yükleniyor.')
+          || 'İlk videolar hazır; diğer kaynaklar yükleniyor.');
+      }
+    }
   });
 }
 

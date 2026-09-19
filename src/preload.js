@@ -68,8 +68,9 @@ contextBridge.exposeInMainWorld('api', {
   downloadInvidiousStream: (opts) => ipcRenderer.invoke('invidious:downloadStream', opts || {}),
   cancelInvidious: () => ipcRenderer.invoke('invidious:cancel'),
   onInvidiousEvent: (listener) => {
-    ipcRenderer.on('invidious:event', listener);
-    return () => ipcRenderer.removeListener('invidious:event', listener);
+    const wrapped = (_event, payload) => listener(payload);
+    ipcRenderer.on('invidious:event', wrapped);
+    return () => ipcRenderer.removeListener('invidious:event', wrapped);
   },
   // Invidious ana sayfa + auth (SmartTube tarzı)
   invidiousFeed: (kind, opts) => ipcRenderer.invoke('invidious:feed', kind, opts || {}),

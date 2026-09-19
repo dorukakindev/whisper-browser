@@ -37,11 +37,11 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Varsayılan Invidious instance'ları (sırasıyla deneniyor)
 DEFAULT_INSTANCES = [
-    "https://yewtu.be",
-    "https://invidious.privacyredirect.com",
-    "https://invidious.projectsegfau.lt",
-    "https://vid.priv.au",
     "https://inv.nadeko.net",
+    "https://invidious.nerdvpn.de",
+    "https://yt.chocolatemoo53.com",
+    "https://invidious.tiekoetter.com",
+    "https://invidious.f5.si",
 ]
 
 # Çalışan instance'ı önbelleğe al (modül seviyesinde)
@@ -757,13 +757,18 @@ def feed_home(instance=None):
     """Ana sayfa: popular + trending TEK komutta, iki paralel ağ kolu.
     Ayrı iki süreç yerine tek süreçte ThreadPoolExecutor — Invidious
     failover + yt-dlp yedek mantığı aynı payload fonksiyonlarından gelir."""
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     results = {}
     with ThreadPoolExecutor(max_workers=2) as pool:
-        fut_pop = pool.submit(_popular_payload, instance)
-        fut_tr = pool.submit(_trending_payload, instance, None)
-        results["popular"] = fut_pop.result()
-        results["trending"] = fut_tr.result()
+        futures = {
+            pool.submit(_popular_payload, instance): "popular",
+            pool.submit(_trending_payload, instance, None): "trending",
+        }
+        for future in as_completed(futures):
+            section = futures[future]
+            results[section] = future.result()
+            # A slow trend endpoint must not hold already available cards hostage.
+            emit("feed_partial", kind="home", section=section, **results[section])
     # Üst düzey instance: yt-dlp olmayan gerçek instance'ı tercih et
     inst = ""
     for key in ("popular", "trending"):

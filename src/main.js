@@ -1438,9 +1438,10 @@ ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
   }
   if (instance) args.push('--instance', instance);
   const timeoutMs = kind === 'trending' ? 120_000 : 75_000;
+  const requestId = Number.isSafeInteger(opts && opts.requestId) ? opts.requestId : null;
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('invidious:event', ev);
+      mainWindow.webContents.send('invidious:event', { ...ev, requestId });
     }
   }, timeoutMs, invidiousAuthEnv(instance));
 });

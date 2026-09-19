@@ -6811,6 +6811,12 @@ body.modal-open { overflow: hidden; }
 .smarttube-browser.hidden {
   display: none;
 }
+/* Browsing and playback are mutually exclusive surfaces. The playback bar
+   must not bleed through the catalogue, including on GPU-composited video. */
+.player-stage.browsing .player-controls,
+.player-stage.browsing .subtitle-overlay,
+.player-stage.browsing .resume-chip { display: none; }
+.player-stage.browsing { cursor: default; }
 
 .st-sidebar {
   display: flex;
@@ -6948,6 +6954,8 @@ body.modal-open { overflow: hidden; }
   gap: 22px;
   align-content: start;
 }
+.st-grid > .inv-status { grid-column: 1 / -1; }
+.st-feed-retry { grid-column: 1 / -1; justify-self: start; margin-left: 0; }
 .st-grid.inv-status {
   display: block;
   padding: 40px;

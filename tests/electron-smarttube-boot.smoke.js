@@ -28,6 +28,8 @@ async function main() {
   let copiedCode = '';
   let slowNextDeviceCode = false;
   let deviceCancelCount = 0;
+  let failNextHome = false;
+  let slowNextHome = false;
   // Mock Invidious IPC — gerçek handler'lar bu bare-window'da kayıtlı değil.
   const popular = Array.from({ length: 6 }, (_, i) => mkVideo(`pop${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'x'), `Popular ${i}`, 'PopChannel'));
   const trending = Array.from({ length: 4 }, (_, i) => mkVideo(`trd${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'y'), `Trending ${i}`, 'TrendChannel'));
@@ -35,6 +37,15 @@ async function main() {
   ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
     const tab = opts && opts.tab;
     if (kind === 'home') {
+      if (failNextHome) { failNextHome = false; return { ok: false, error: 'mock feed unavailable' }; }
+      if (slowNextHome) {
+        slowNextHome = false;
+        _e.sender.send('invidious:event', {
+          type: 'feed_partial', kind: 'home', section: 'popular',
+          requestId: opts.requestId, videos: popular.slice(0, 2),
+        });
+        await delay(300);
+      }
       // D-K3 birleşik paket — tek emit'te popular+trending
       return { ok: true, data: {
         instance: 'https://mock.invidious.local', kind: 'home',
@@ -144,6 +155,16 @@ async function main() {
     const cards = grid ? [...grid.querySelectorAll(':scope > .st-card')] : [];
     const nested = grid ? grid.querySelectorAll(':scope > .st-grid').length : -1;
     const widths = cards.map((c) => c.getBoundingClientRect().width);
+    const sepFullRow = trendSep ? getComputedStyle(trendSep).gridColumn === '1 / -1' : false;
+    setSmartTubeVisible(true);
+    const stage = document.getElementById('playerStage');
+    const controls = document.getElementById('playerControls');
+    const browseControlsHidden = stage.classList.contains('browsing')
+      && getComputedStyle(controls).display === 'none';
+    const closeHiddenWithoutVideo = document.getElementById('stCloseBrowser').classList.contains('hidden');
+    setSmartTubeVisible(false);
+    const playbackControlsRestored = getComputedStyle(controls).display !== 'none';
+    setSmartTubeVisible(true);
     return {
       api: typeof window.api === 'object' && window.api !== null,
       invidiousFeed: typeof window.api?.invidiousFeed === 'function',
@@ -160,8 +181,11 @@ async function main() {
       // Layout regresyonu: ayrac tam satır, iç içe .st-grid yok
       // (st-grid-row sınıfı veya inline style — computed ile doğrula)
       trendSep: !!trendSep,
-      sepFullRow: trendSep ? getComputedStyle(trendSep).gridColumn === '1 / -1' : false,
+      sepFullRow,
       noNestedGrid: nested === 0,
+      browseControlsHidden,
+      closeHiddenWithoutVideo,
+      playbackControlsRestored,
     };
   })()`, true);
 
@@ -353,6 +377,35 @@ async function main() {
   assert(raceView.visible && raceView.code === 'ABCD-EFGH', 'yeni cihaz kodu eski kuşakta kayboldu');
   assert(deviceCancelCount === 1, `bayat cihaz kodu yeni akışı iptal etti: ${deviceCancelCount}`);
   await win.webContents.executeJavaScript('closeYoutubeLogin()', true);
+
+  // Feed failure must leave a visible, actionable retry rather than a bare
+  // "Loading..." surface. Retry must render the recovered feed.
+  failNextHome = true;
+  const feedRecovery = await win.webContents.executeJavaScript(`(async () => {
+    youtubeLoggedIn = false;
+    await renderSmartTubeSection('home', { force: true });
+    const failed = document.getElementById('stGrid').textContent.includes('mock feed unavailable');
+    const retry = document.querySelector('#stGrid .st-feed-retry');
+    if (retry) retry.click();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return { failed, retryVisible: !!retry, recovered: document.querySelectorAll('#stGrid > .st-card').length >= 6 };
+  })()`, true);
+  assert(feedRecovery.failed && feedRecovery.retryVisible && feedRecovery.recovered,
+    `feed retry did not recover: ${JSON.stringify(feedRecovery)}`);
+
+  slowNextHome = true;
+  await win.webContents.executeJavaScript('void renderSmartTubeSection("home", { force: true })', true);
+  await delay(100);
+  const preview = await win.webContents.executeJavaScript(`(() => ({
+    count: document.querySelectorAll('#stGrid > .st-card').length,
+    status: document.getElementById('stStatusLine').textContent,
+  }))()`, true);
+  assert(preview.count === 2 && /ready|hazır/i.test(preview.status),
+    `partial home feed was not visible before slow final response: ${JSON.stringify(preview)}`);
+  await delay(350);
+  const finalCards = await win.webContents.executeJavaScript(
+    "document.querySelectorAll('#stGrid > .st-card').length", true);
+  assert(finalCards >= 6, `partial home feed did not become final feed: ${finalCards}`);
 
   win.close();
   console.log(JSON.stringify({ ok: true, probe, feat, deviceFlow, loggedAfterPoll }));

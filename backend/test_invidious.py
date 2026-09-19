@@ -562,5 +562,28 @@ class InvidiousYtdlpTabVideos(unittest.TestCase):
         self.assertEqual(out[0]["lengthSeconds"], 60)
 
 
+class InvidiousHomeProgress(unittest.TestCase):
+    def test_first_completed_branch_is_emitted_before_slow_branch(self):
+        import time
+        from unittest import mock
+
+        events = []
+
+        def slow_trending(_instance, _tab):
+            time.sleep(0.05)
+            return {"videos": [{"videoId": "trend"}], "instance": "https://example.test"}
+
+        with mock.patch.object(invidious, "_popular_payload", return_value={
+                "videos": [{"videoId": "popular"}], "instance": "https://example.test"}), \
+             mock.patch.object(invidious, "_trending_payload", slow_trending), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.feed_home()
+
+        self.assertEqual([event[0] for event in events],
+                         ["feed_partial", "feed_partial", "feed"])
+        self.assertEqual(events[0][1]["section"], "popular")
+        self.assertEqual(events[-1][1]["popular"]["videos"][0]["videoId"], "popular")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
