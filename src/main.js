@@ -20,6 +20,7 @@ const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
 const { classifyTranslationHttpFailure } = require('./browser-translation-provider-error');
+const { probeTranslationProvider } = require('./translation-provider-probe');
 const {
   isYoutubePlayerResponseUrl,
   pruneYoutubePlayerResponseBody,
@@ -15706,6 +15707,22 @@ ipcMain.handle('settings:load', (event) => {
   if (!authorizedBrowserSender(event)) return {};
   const settings = loadSettings();
   return settingsLoadWarning ? { ...settings, _loadWarning: settingsLoadWarning } : settings;
+});
+ipcMain.handle('translation:probe', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, code: 'unauthorized', status: 0, latencyMs: 0 };
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    return { ok: false, code: 'invalid_config', status: 0, latencyMs: 0 };
+  }
+  const endpointPreset = String(request.endpointPreset || 'openai').trim();
+  const endpointInput = endpointPreset === 'custom' ? request.customBaseUrl : endpointPreset;
+  const endpoint = safeTranslationEndpoint(endpointInput);
+  const model = String(request.model || '').normalize('NFC').trim();
+  const apiKey = String(request.apiKey || '').trim();
+  if (!endpoint || !model || model.length > 300 || /[\u0000-\u001f\u007f]/u.test(model)
+      || apiKey.length > 10000 || /[\u0000-\u001f\u007f]/u.test(apiKey)) {
+    return { ok: false, code: 'invalid_config', status: 0, latencyMs: 0 };
+  }
+  return probeTranslationProvider({ endpoint, model, apiKey, timeoutMs: 15000 });
 });
 ipcMain.handle('settings:save', (_event, s) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };

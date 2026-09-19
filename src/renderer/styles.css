@@ -5639,6 +5639,42 @@ textarea { resize: none; }
   font-size: 12px;
 }
 
+.provider-model-manager,
+.provider-probe {
+  gap: 7px;
+}
+.provider-model-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.provider-model-row .btn { min-height: 36px; white-space: nowrap; }
+.provider-probe {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-control) 82%, transparent);
+}
+.provider-probe-status {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.provider-probe-status[data-state="testing"] { color: var(--accent-hover); }
+.provider-probe-status[data-state="success"] { color: var(--success); }
+.provider-probe-status[data-state="error"] { color: var(--danger); }
+@media (max-width: 760px) {
+  .provider-model-row,
+  .provider-probe { grid-template-columns: 1fr; }
+  .provider-model-row .btn,
+  .provider-probe .btn { width: 100%; }
+}
+
 /* Sinyal zinciri: ekranın ayırt edici öğesi. Aşamalar veri akışını yatay,
    dar yüzeyde kaydırılabilir ve metinle okunabilir halde gösterir. */
 .stage-list {

@@ -54,6 +54,9 @@ function safeSettings(extra = {}) {
       endpointPreset: 'https://api.openai.com/v1',
       customBaseUrl: '',
       model: 'gpt-test',
+      modelProfiles: JSON.stringify({
+        'https://api.openai.com/v1': ['gpt-test', 'gpt-test-mini'],
+      }),
     },
     llm: {
       apiKey: 'yerel-llm',
@@ -94,6 +97,18 @@ test('girdi ve çıktı klasörleri mutlak yol olarak korunur', () => {
     () => sanitizeSettings(safeSettings({ inputDir: '..\\girdi' })),
     /Girdi klasörü mutlak bir yol/,
   );
+});
+
+test('sağlayıcıya özel model listeleri güvenli biçimde korunur', () => {
+  const clean = sanitizeSettings(safeSettings());
+  assert.deepStrictEqual(JSON.parse(clean.translate.modelProfiles), {
+    'https://api.openai.com/v1': ['gpt-test', 'gpt-test-mini'],
+  });
+  const invalid = safeSettings();
+  invalid.translate.modelProfiles = JSON.stringify({
+    'https://api.openai.com/v1': ['x'.repeat(301)],
+  });
+  assert.throws(() => sanitizeSettings(invalid), /sağlayıcı model listesi geçersiz/);
 });
 
 test('main import/export ve Python env çağrı yolları güvenli yardımcılara bağlıdır', () => {
