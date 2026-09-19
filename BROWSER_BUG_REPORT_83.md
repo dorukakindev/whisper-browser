@@ -1,4 +1,4 @@
-# BROWSER BUG REPORT 82 — Browser alt sistemi tam-kapsam denetimi (salt-okunur)
+# BROWSER BUG REPORT 83 — Browser alt sistemi tam-kapsam denetimi (salt-okunur)
 
 Tarih: 2026-09-19
 Başlangıç ürün commit'i: `f586e28617d7fa23c3af5479e3e84731d3d0273a`
@@ -22,7 +22,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 
 ## P2 — Yüksek öncelikli
 
-### B82-01 — CEA checkpoint'ten dönen tüm satırlar yayında ve dışa aktarımda çiftleniyor
+### B83-01 — CEA checkpoint'ten dönen tüm satırlar yayında ve dışa aktarımda çiftleniyor
 
 - **Konum:** `src/browser-cea-checkpoint.js:30-37`, `src/browser-subtitles.js:97-103`,
   `src/main.js:8881-8923`, `src/main.js:8411-8424`.
@@ -44,7 +44,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   ya da `storeBrowserTrack`'e giderken restore cue'ları aynı kimlikle
   etiketlenmeli.
 
-### B82-02 — Sekme çalışma-durumu probu dolu/gizli/select alanları "kirli form" sayıyor
+### B83-02 — Sekme çalışma-durumu probu dolu/gizli/select alanları "kirli form" sayıyor
 
 - **Konum:** `src/main.js:13206-13218` (`browserTabRuntimeState` sayfa içi
   probu), `src/browser-tab-resources.js:26` (koruma gerekçeleri).
@@ -64,7 +64,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   `defaultValue !== value` farkını izlemeli; `hidden`/`select`/`range` tipleri
   kirli sayılmamalı.
 
-### B82-03 — `browser:open-link` userinfo URL'sini policy'siz yüklüyor; kimlik bilgisi diske yazılıyor
+### B83-03 — `browser:open-link` userinfo URL'sini policy'siz yüklüyor; kimlik bilgisi diske yazılıyor
 
 - **Konum:** `src/main.js:4412-4445` (`openBrowserLinkInNewTab`), çağrıcılar
   `main.js:4586` (bağlam menüsü "yeni sekmede aç") ve `main.js:13062`
@@ -98,7 +98,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 - **Çözüm yönü:** `openBrowserLinkInNewTab` girişinde `decideUrlPolicy(url,
   'browser-navigation', ...)` uygulanmalı (diğer yüzeylerle aynı).
 
-### B82-04 — Browser modunda oynatma politikaları hiç tetiklenmiyor (`naturalAdvance < 1` kapısı)
+### B83-04 — Browser modunda oynatma politikaları hiç tetiklenmiyor (`naturalAdvance < 1` kapısı)
 
 - **Konum:** `src/playback-policy.js:33-64`, `src/main.js:575`
   (`BROWSER_POLL_INTERVALS.media = 1000`), `src/main.js:10884` (probe→event),
@@ -119,7 +119,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   interval*1.5/1000)` penceresi) veya browser sürücüsü `timeupdate`-eşdeğeri
   olayla beslenmeli.
 
-### B82-05 — `applyAudioPreference` her yeniden denemede AudioContext sızdırıyor
+### B83-05 — `applyAudioPreference` her yeniden denemede AudioContext sızdırıyor
 
 - **Konum:** `src/browser-media-controller.js:105-154`.
 - **Mekanizma:** Elemana ikinci bir tercih uygulanırken
@@ -136,7 +136,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   kapat; zaten grafiği olan elemana erken-return veya mevcut grafiği yeniden
   kullan.
 
-### B82-06 — Dinamik blok devamı işi değiştirirken bekleyen uygulama batch'leri sessizce düşüyor
+### B83-06 — Dinamik blok devamı işi değiştirirken bekleyen uygulama batch'leri sessizce düşüyor
 
 - **Konum:** `src/main.js:5340-5344`, `src/main.js:5660-5680`,
   `src/main.js:5961-5970`.
@@ -164,7 +164,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 
 ## P3 — Düşük-orta öncelikli
 
-### B82-07 — `shiftCueTimeline` sıfır öncesi cue'lardan hayalet `[0, 0.001]` cue üretiyor
+### B83-07 — `shiftCueTimeline` sıfır öncesi cue'lardan hayalet `[0, 0.001]` cue üretiyor
 
 - **Konum:** `src/browser-cue-timeline-calibration.js:55-62`; uygulama
   `main.js:8815`.
@@ -178,7 +178,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   cue'ları doğru biçimde düşürüyor; kalibrasyon yolunda bu düşürme yok.
 - **Çözüm yönü:** `cue.end + offset <= 0` ise cue'yu düşür (üretme).
 
-### B82-08 — Altyazı-arama sonucu `fileId` ile `fileName`'i farklı `files[]` girdilerinden okuyor
+### B83-08 — Altyazı-arama sonucu `fileId` ile `fileName`'i farklı `files[]` girdilerinden okuyor
 
 - **Konum:** `src/browser-subtitle-search.js:141-147`.
 - **Mekanizma:** `fileId` `a.files?.find(file => Number.isSafeInteger(Number(
@@ -187,7 +187,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   taşımıyorsa (örn. hatalı kayıt) ad ve kimlik farklı dosyalara ait olur →
   sonuç listesinde yanlış dosya adı/dosya eşleşmesi.
 
-### B82-09 — Sekme kapatma onayındaki `already_unloaded` filtresi ölü; viewsiz sekme onay ister
+### B83-09 — Sekme kapatma onayındaki `already_unloaded` filtresi ölü; viewsiz sekme onay ister
 
 - **Konum:** `src/main.js:12821`, `src/browser-tab-resources.js:26`.
 - **Mekanizma:** Kapatma filtresi `['active','already_unloaded','navigation']`
@@ -197,7 +197,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   `unknown_state` filtreden geçer → aslında kaybedilecek veri bulunmayan
   sekme için gereksiz "kapatma onayı" sorulur.
 
-### B82-10 — Workflow recorder: `normalizeContext(null)` TypeError; play() staleness koruması çöküyor
+### B83-10 — Workflow recorder: `normalizeContext(null)` TypeError; play() staleness koruması çöküyor
 
 - **Konum:** `src/browser-workflow-recorder.js:15` (`normalizeContext(raw =
   {})` — `null` varsayılanı kapsamaz), `renderer.js:5530-5533`
@@ -208,7 +208,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   fırlatır — beklenen `EWORKFLOW_STALE` yerine çökme. `record()` aynı kontrolü
   `context &&` ile sessizce atlar → hata bile vermeden işlem yapmaz.
 
-### B82-11 — Cross-origin iframe'de link-hints ikinci örneği Escape ile kapatılamıyor
+### B83-11 — Cross-origin iframe'de link-hints ikinci örneği Escape ile kapatılamıyor
 
 - **Konum:** `src/browser-link-hints.js:22-32`; çağrı `main.js:13334`
   (`framesInSubtree` ile tüm çerçevelere enjekte).
@@ -218,7 +218,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   keydown yutucu açık kalır: kullanıcı Escape'e bassa bile ipuçları ve
   klavye yutma o çerçevede sürer.
 
-### B82-12 — Oynatma tanıları 8 s/12 s yeniden-emisyonları dedupe'i aşıp `recent`'i dolduruyor
+### B83-12 — Oynatma tanıları 8 s/12 s yeniden-emisyonları dedupe'i aşıp `recent`'i dolduruyor
 
 - **Konum:** `src/browser-playback-diagnostics.js:347-348` (`limit=24`,
   `dedupeMs=5000`), `:410-421`.
@@ -228,7 +228,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   her seferinde geçer → `recent` dizisi aynı parmak izli kayıtlarla dolup
   eski, ayırt edici kanıtları kovar (~3 dakika içinde ~24 özdeş kayıt).
 
-### B82-13 — `session.blocks` yalnız büyüyor: eski `index:hash` kimlikleri yetim kalıp 'partial'ı kilitliyor
+### B83-13 — `session.blocks` yalnız büyüyor: eski `index:hash` kimlikleri yetim kalıp 'partial'ı kilitliyor
 
 - **Konum:** `src/main.js:5600` (yalnız `session.blocks.set`, hiçbir yerde
   `delete` yok), `src/browser-page-translate.js:642` (`id = blockIndex +
@@ -240,7 +240,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   `partial`'da takılır, arşiv `complete:false` kalır, dışa aktarma ölü
   blokları da taşır.
 
-### B82-14 — Yerinde metin mutasyonunda `ref.originals` bayat kalıyor; geri yükleme sitenin yeni metnini eziyor
+### B83-14 — Yerinde metin mutasyonunda `ref.originals` bayat kalıyor; geri yükleme sitenin yeni metnini eziyor
 
 - **Konum:** `src/browser-page-translate.js:562-568` (mutasyonda
   `state.originalValues` güncellenir, `ref.originals` güncellenmez),
@@ -251,7 +251,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   dışlanması, "orijinali göster" veya tam geri yükleme bayat metni canlı
   düğümün üstüne yazar → sitenin güncel içeriği eski değerle kaybolur.
 
-### B82-15 — Yinelenen kaynak `cue.id`'leri `sentenceIdFor`'u çökertiyor; tamamlanma hiç gelmiyor
+### B83-15 — Yinelenen kaynak `cue.id`'leri `sentenceIdFor`'u çökertiyor; tamamlanma hiç gelmiyor
 
 - **Konum:** `src/browser-translation-scheduler.js:22-26`
   (`sentence:${first.id}:${last.id}:${hash}`), `:502`
@@ -263,7 +263,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   `completed < total` kalıcı. `whenIdle` çözülse bile ilerleme `N-1/N`'de
   kalır, kalıcılaştırma/arsiv kapısı (`main.js:7526` çevresi) tetiklenmez.
 
-### B82-16 — Dışlama-rescan köprü emit'iyle handler'ın pending koşusu çift-iş yarışı yapıyor
+### B83-16 — Dışlama-rescan köprü emit'iyle handler'ın pending koşusu çift-iş yarışı yapıyor
 
 - **Konum:** `src/main.js:14320-14367` (`browser:page:exclusions`),
   `src/main.js:5947-5970` (`acceptDynamicBrowserPageBlocks`),
@@ -279,7 +279,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 - **Çözüm yönü:** Handler rescan'i `observe:false` ile çalıştırıp emit'i
   kendisi tek yerden besleyebilir.
 
-### B82-17 — Manga overlay `layout()` sayfa tarafından soyulan frame'de TypeError → tüm takip donuyor
+### B83-17 — Manga overlay `layout()` sayfa tarafından soyulan frame'de TypeError → tüm takip donuyor
 
 - **Konum:** `src/browser-manga.js:720` (`region.dataset.fittedText`,
   `region` null olabilir — yalnız `text` denetlenir), `:819`
@@ -291,7 +291,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   scroll/zoom/resize takibini kalıcı bırakır. Overlay'in kendisinin kopması
   için savunma var (`!overlay.isConnected` re-append), iç elemanlar için yok.
 
-### B82-18 — `library:annotations:toggle` unsave yolu id kaçırınca sessiz no-op; not geri geliyor
+### B83-18 — `library:annotations:toggle` unsave yolu id kaçırınca sessiz no-op; not geri geliyor
 
 - **Konum:** `src/main.js:15300-15312`, `src/browser-learning.js:44-54`.
 - **Mekanizma:** `request.saved===false` kolunda kayıtlı satır
@@ -311,7 +311,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 
 - **Aynı kök-eneden ikiz bulgu birleştirildi:** `openBrowserLinkInNewTab`
   userinfo açığı hem sekme/oturum (yükleme gerçekleşiyor) hem altyapı kümesi
-  (credential saklama) tarafından raporlandı → B82-03'te tek bulgu.
+  (credential saklama) tarafından raporlandı → B83-03'te tek bulgu.
 - **Önceki raporlarda zaten var (yeniden sayılmadı):** komut paletinin asla
   çalışamaması R64-02 (`browserCommandContextMatches` `tabId`/`id` uyumsuzu,
   `renderer.js:5856` — hâlâ canlı), `writeTextAtomic` tanımsızlığı R66-04
@@ -338,7 +338,7 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 - Her bulgu bu oturumda kaynakta satır numarasıyla yeniden okundu; CEA
   çiftlenmesi ve phantom-cue için ajan tarafında Node repro'su çalıştırıldı
   (`mergeBrowserStreamCues → 2`, `shiftCueTimeline([{3,5}],-8) → [0,0.001]`).
-- B82-03 için Electron resmi dokümanı: `will-navigate`/`will-frame-navigate`
+- B83-03 için Electron resmi dokümanı: `will-navigate`/`will-frame-navigate`
   "will not emit when the navigation is started programmatically with APIs
   like `webContents.loadURL`" (electron/electron `docs/api/web-contents.md`).
 - Rapor ürün kodunda değişiklik yapmaz; düzeltme yönleri öneridir.
