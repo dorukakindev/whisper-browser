@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 02:24 — Derin player denetimi (10 ajanlık, R72): OAuth soft-lock, Invidious SID failover sızıntısı, grid tuş kaçağı, probe-yarışı, hız reseti, A-B kaçışı — 31 bulgu düzeltildi; npm test TAM GEÇTİ](docs/devir/2026-09-19-0224.md).
+Güncel çalışma: [2026-09-19 11:18 — R73 doğrulama turu: 36 ajan-bulgusundan 3'ü + bağımsız denetimde 4 ek bug düzeltildi (zoom-set NaN, quick-history geri bildirimi, decideSkip autoSkip önceliği, A-B seek kaçışı native+browser+hız-ölçekli, lastT offset, stSearchSeq); 16 yanlış pozitif elendi; npm test TAM GEÇTİ](docs/devir/2026-09-19-1118.md).
+
+Önceki çalışma: [2026-09-19 02:24 — Derin player denetimi (10 ajanlık, R72): OAuth soft-lock, Invidious SID failover sızıntısı, grid tuş kaçağı, probe-yarışı, hız reseti, A-B kaçışı — 31 bulgu düzeltildi; npm test TAM GEÇTİ](docs/devir/2026-09-19-0224.md).
 
 Önceki çalışma: [2026-09-19 00:40 — Oynatıcı ayar panelleri görsel düzenleme: flex-gap düzeni, stilsiz URL input'u sarıldı, OAuth grubu, inline margin temizliği](docs/devir/2026-09-19-0040.md).
 
