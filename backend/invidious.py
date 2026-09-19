@@ -927,7 +927,7 @@ def main():
     ap.add_argument("--instance", default="", help="Invidious instance URL")
     ap.add_argument("--output-dir", default=".", help="Çıktı klasörü")
     ap.add_argument("--username", default="", help="Invidious kullanıcı adı")
-    ap.add_argument("--password", default="", help="Invidious şifresi (güvenli: argv'de görünür)")
+    ap.add_argument("--password", default="", help="Invidious şifresi — argv'de görünür; env WHISPER_INVIDIOUS_PASSWORD tercih edilir")
     ap.add_argument("--query", default="", help="Arama terimi")
     ap.add_argument("--page", default="1", help="Arama sayfası")
     ap.add_argument("--channel-id", default="", help="Invidious kanal ID (UCID)")
@@ -950,7 +950,10 @@ def main():
         elif args.command == "subs":
             fetch_subs(args.url, args.lang, args.output_dir, instance, args.auto)
         elif args.command == "login":
-            login(args.username, args.password, instance)
+            # Şifre env'de taşınır (süreç listesinde görünmesin); argv sadece
+            # doğrudan CLI kullanımı için geriye dönük yedek olarak okunur.
+            password = os.environ.get("WHISPER_INVIDIOUS_PASSWORD", "") or args.password
+            login(args.username, password, instance)
         elif args.command == "logout":
             logout()
         elif args.command == "popular":

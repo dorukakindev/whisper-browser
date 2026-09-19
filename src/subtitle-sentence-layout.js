@@ -240,16 +240,21 @@ function fitTranslationParts(text, pieces) {
   const prefix = [0];
   for (const word of words) prefix.push(prefix.at(-1) + word.length + separator.length);
   const glue = /^(?:ve|veya|ama|çünkü|eğer|bu|şu|o|bir|her|hiçbir|çok|daha|en|the|a|an|and|of|to)$/iu;
-  const penalty = (position) => {
+  // Ceza yalnız konuma bağlı — DP iç döngüsünde kelime başına 3 regex
+  // tekrar çalışıyordu; bir kez önden hesapla (P79-03).
+  const penalties = words.map((_, position) => {
     if (position === words.length) return 0;
     if (/[.!?,;:…]["'”’)]*$/.test(words[position - 1])) return -0.8;
     if (glue.test(words[position - 1])) return 3;
     if (/^(?:mi|mı|mu|mü|de|da|ki)[?!.]*$/iu.test(words[position])) return 2;
     return 0;
-  };
+  });
+  const penalty = (position) => penalties[position] || 0;
   // Groups are bounded to six cues/280 source characters; cap legacy input too.
   if (words.length > 400 || count > 12) throw new Error('Çeviri yerleştirme boyutu sınırı aşıldı.');
-  let states = new Map([[0, { cost: 0, cuts: [] }]]);
+  // Her geçişte kesim dizisini kopyalamak O(count) tahsis üretiyordu;
+  // önceki-durum zinciriyle geri izleme aynı sonucu tahsissiz verir (P79-03).
+  let states = new Map([[0, { cost: 0, prev: null }]]);
   for (let slot = 0; slot < count; slot++) {
     const next = new Map();
     const target = prefix.at(-1) * durations[slot] / total;
@@ -258,13 +263,19 @@ function fitTranslationParts(text, pieces) {
         if (slot === count - 1 && end !== words.length) continue;
         const chars = prefix[end] - prefix[start];
         const cost = state.cost + ((chars - target) / Math.max(8, target)) ** 2 + penalty(end);
-        if (!next.has(end) || cost < next.get(end).cost) next.set(end, { cost, cuts: [...state.cuts, end] });
+        if (!next.has(end) || cost < next.get(end).cost) next.set(end, { cost, prev: { start, state } });
       }
     }
     states = next;
   }
+  const finalState = states.get(words.length);
+  if (!finalState) return null;
+  const cuts = [];
+  let node = finalState;
+  let endKey = words.length;
+  while (node.prev) { cuts.unshift(endKey); endKey = node.prev.start; node = node.prev.state; }
   let start = 0;
-  return states.get(words.length).cuts.map((end) => {
+  return cuts.map((end) => {
     const part = words.slice(start, end).join(separator); start = end; return part;
   });
 }

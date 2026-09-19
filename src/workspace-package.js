@@ -55,18 +55,32 @@ function exportPackage(root, output, rendererValues = {}) {
     if (seen.has(name)) return;
     const stat = fs.lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink()) return;
     if (stat.size > 16e6 || (total += stat.size) > LIMIT / 1.5) throw new Error('Çalışma paketi çok büyük (en fazla 170 MB veri).');
-    const buffer = fs.readFileSync(file); seen.add(name); files.push({ name, data: buffer.toString('base64') });
+    let buffer = fs.readFileSync(file);
     if (ROOTS.has(name)) {
+      // Gömülü mutlak yollar taşınabilir {{ROOT}}/... formuna çevrilir — paket
+      // paylaşıldığında kaynak makinenin kullanıcı adı/klasör düzeni ve
+      // mappings/sourceRoot içindeki mutlak yollar ifşa olmaz (R83-33).
       const visit = value => {
-        if (typeof value === 'string' && path.isAbsolute(value) && /\.(srt|vtt|ass|ssa|png|jpg|jpeg|webp)$/i.test(value) && fs.existsSync(value)) {
+        if (typeof value === 'string' && path.isAbsolute(value)) {
           const relative = path.relative(root, value).replace(/\\/g, '/');
-          if (allowed(relative)) { add(value, relative); return; }
-          const target = 'workspace-assets/' + createHash('sha256').update(value).digest('hex') + path.extname(value).toLowerCase();
-          mappings.push([value, target]); add(value, target);
-        } else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+          const underRoot = !!relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+          if (/\.(srt|vtt|ass|ssa|png|jpe?g|webp)$/i.test(value) && fs.existsSync(value)) {
+            if (underRoot && allowed(relative)) { add(value, relative); return `{{ROOT}}/${relative}`; }
+            const target = 'workspace-assets/' + createHash('sha256').update(value).digest('hex') + path.extname(value).toLowerCase();
+            add(value, target); return `{{ROOT}}/${target}`;
+          }
+          if (underRoot) return `{{ROOT}}/${relative}`;
+          return value;
+        }
+        if (Array.isArray(value)) return value.map(visit);
+        if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, visit(v)]));
+        return value;
       };
-      visit(JSON.parse(buffer.toString('utf8')));
+      try { buffer = Buffer.from(JSON.stringify(visit(JSON.parse(buffer.toString('utf8'))))); } catch (_) {}
+      seen.add(name); files.push({ name, data: buffer.toString('base64') });
+      return;
     }
+    seen.add(name); files.push({ name, data: buffer.toString('base64') });
   }
   for (const name of ROOTS) if (fs.existsSync(path.join(root, name))) add(path.join(root, name), name);
   function walk(dir, prefix) {
@@ -78,7 +92,9 @@ function exportPackage(root, output, rendererValues = {}) {
     }
   }
   for (const dir of DIRS) walk(path.join(root, dir), dir);
-  const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: root, mappings, files, rendererValues: storageValues(rendererValues) };
+  // sourceRoot/mappings taşınabilir tutulur: {{ROOT}} işareti içe aktarımda
+  // hedef köke eşlenir, pakette mutlak kaynak yolu kalmaz.
+  const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: '{{ROOT}}', mappings, files, rendererValues: storageValues(rendererValues) };
   const bytes = gzipSync(Buffer.from(JSON.stringify(bundle)));
   const temp = output + '.' + randomUUID() + '.tmp';
   try { fs.writeFileSync(temp, bytes, { flag: 'wx', mode: 0o600 }); fs.renameSync(temp, output); }

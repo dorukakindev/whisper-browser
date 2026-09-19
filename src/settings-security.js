@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { normalizeProviderModelProfiles, serializeProviderModelProfiles } = require('./provider-model-profiles');
+const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 
 const SETTINGS_VERSION = 3;
 const BACKUP_VERSION = 3;
@@ -173,7 +174,19 @@ function endpointSetting(value, label) {
   if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
     throw new SettingsValidationError(`${label} yalnız kimlik bilgisi içermeyen HTTP/HTTPS URL olabilir.`);
   }
-  return text;
+  // Sorguya gömülü sırlar (`?api_key=`, `?token=`): endpoint'i işlevsiz
+  // kılmadan hassas parametreleri sil — yedeğe "secretsExcluded" sözüyle
+  // düz metin düşmesinler (B80-01). Fonksiyonel sorgu parametreleri korunur.
+  let stripped = false;
+  for (const key of [...parsed.searchParams.keys()]) {
+    if (isSensitiveKey(key) || startsWithSensitivePrefix(key)) {
+      parsed.searchParams.delete(key);
+      stripped = true;
+    }
+  }
+  // Silme olmadıysa ham metni aynen döndür — URL.href normalizasyonu
+  // (sondaki / gibi) mevcut endpoint'lerin davranışını değiştirmesin.
+  return stripped ? parsed.href : text;
 }
 
 function sanitizeUiSettings(ui, { strict = true } = {}) {
@@ -199,7 +212,10 @@ function sanitizeUiSettings(ui, { strict = true } = {}) {
     }
     if (id === 'translateBaseUrl' && value) {
       try {
-        endpointSetting(value, 'Çeviri özel endpoint');
+        // Dönüş değeri sorgu-sırrı temizlenmiş URL'dir — ham değeri değil
+        // onu sakla; yoksa ?api_key= yedeğe düz metin düşer (B80-01).
+        clean[id] = endpointSetting(value, 'Çeviri özel endpoint');
+        continue;
       } catch (error) {
         if (strict) throw error;
         continue;

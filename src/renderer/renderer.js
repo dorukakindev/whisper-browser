@@ -2515,7 +2515,7 @@ $('primarySettingsOpen')?.addEventListener('toggle', scheduleSave);
 for (const id of ['uiLocale', 'playerUiLocale']) {
   const control = $(id);
   if (!control) continue;
-  control.value = window.UiLocale?.get() || 'en';
+  control.value = globalThis.UiLocale?.get() || 'en';
   control.addEventListener('change', () => {
     window.UiLocale?.set(control.value);
     if (id === 'playerUiLocale') scheduleSave();
@@ -5965,7 +5965,7 @@ function browserTabDisplayRows() {
   for (const tab of player.browserTabs) {
     const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
     if (group) {
-      const key = `${group.name.toLocaleLowerCase('tr-TR')}|${group.color}`;
+      const key = `${group.name.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}|${group.color}`;
       if (!grouped.has(key)) grouped.set(key, { group, tabs: [] });
       grouped.get(key).tabs.push(tab);
     }
@@ -5975,7 +5975,7 @@ function browserTabDisplayRows() {
   for (const tab of player.browserTabs) {
     const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
     if (!group) { rows.push({ kind: 'tab', tab }); continue; }
-    const key = `${group.name.toLocaleLowerCase('tr-TR')}|${group.color}`;
+    const key = `${group.name.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}|${group.color}`;
     if (emitted.has(key)) continue;
     emitted.add(key);
     rows.push({ kind: 'group', key, group, count: grouped.get(key).tabs.length });
@@ -6905,18 +6905,18 @@ function renderBrowserAddressResults(results) {
 async function refreshBrowserAddressResults() {
   const query = String($('browserAddress')?.value || '').trim();
   if (!$('browserAddress')?.matches(':focus') || !query) { closeBrowserAddressResults(); return; }
-  const folded = query.toLocaleLowerCase('tr-TR');
+  const folded = query.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'));
   const results = [];
   const seen = new Set();
   const add = (row) => { const key = `${row.action}:${row.id || row.url || row.title}`; if (!seen.has(key) && results.length < 14) { seen.add(key); results.push(row); } };
   for (const tab of player.browserTabs) {
-    if (`${tab.title} ${tab.url}`.toLocaleLowerCase('tr-TR').includes(folded)) add({ action: 'tab', id: tab.id,
+    if (`${tab.title} ${tab.url}`.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)) add({ action: 'tab', id: tab.id,
       title: browserTabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S' });
   }
   const places = player.browserPlaces || { bookmarks: [], history: [] };
   for (const [kind, label, mark] of [['bookmarks', 'Yer imi', 'Y'], ['history', 'Geçmiş', 'G']]) {
     for (const item of places[kind] || []) {
-      if (`${item.title} ${item.url}`.toLocaleLowerCase('tr-TR').includes(folded)) add({ action: 'url', url: item.url,
+      if (`${item.title} ${item.url}`.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)) add({ action: 'url', url: item.url,
         title: browserPlaceTitle(item), detail: item.url, kindLabel: label, mark });
     }
   }
@@ -7136,7 +7136,7 @@ function browserDownloadBytes(value) {
   if (!(value > 0)) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const power = Math.min(4, Math.floor(Math.log(value) / Math.log(1024)));
-  return `${(value / 1024 ** power).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} ${units[power]}`;
+  return `${(value / 1024 ** power).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'), { maximumFractionDigits: 1 })} ${units[power]}`;
 }
 
 function receiveBrowserDownloads(snapshot) {
@@ -7356,7 +7356,7 @@ function renderBrowserDiagnostics(diagnostics) {
   if (pageStatus) {
     const at = Number(responsiveness.at);
     pageStatus.textContent = responsiveness.message
-      ? `${responsiveness.message}${Number.isFinite(at) && at > 0 ? ` · ${new Date(at).toLocaleString('tr-TR')}` : ''}`
+      ? `${responsiveness.message}${Number.isFinite(at) && at > 0 ? ` · ${new Date(at).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}` : ''}`
       : 'Ölçülmedi';
     pageStatus.dataset.status = responsiveness.status === 'unresponsive' ? 'error' : 'ok';
   }
@@ -7367,7 +7367,7 @@ function renderBrowserDiagnostics(diagnostics) {
     const entry = activity[key];
     const at = Number(entry?.at);
     target.textContent = entry
-      ? `${entry.message || 'Kaydedildi'}${Number.isFinite(at) && at > 0 ? ` · ${new Date(at).toLocaleString('tr-TR')}` : ''}`
+      ? `${entry.message || 'Kaydedildi'}${Number.isFinite(at) && at > 0 ? ` · ${new Date(at).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}` : ''}`
       : 'Henüz yok';
   }
   renderBrowserAcquisition(diagnostics.acquisition);
@@ -7806,7 +7806,7 @@ function renderBrowserResources(resources) {
   }
   const memoryKiB = active.memoryKiB == null ? Number.NaN : Number(active.memoryKiB);
   memory.textContent = Number.isFinite(memoryKiB)
-    ? `${(memoryKiB / 1024).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} MB${active.processShared ? ' · işlem paylaşılıyor' : ''}`
+    ? `${(memoryKiB / 1024).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'), { maximumFractionDigits: 1 })} MB${active.processShared ? ' · işlem paylaşılıyor' : ''}`
     : 'Electron bu işlem için ölçüm vermedi';
   const budgets = resources.budgets || {};
   const activeResources = active.resources || {};
@@ -8071,7 +8071,7 @@ function renderBrowserTracks(selectedId) {
       const roleLabel = track.role === 'translation' ? 'Çeviri' : 'Kaynak';
       const variant = track.role === 'translation'
         ? [track.provider, track.model].filter(Boolean).join(' / ') : (track.format || track.source || 'web');
-      const date = Number(track.updatedAt) ? new Date(Number(track.updatedAt)).toLocaleDateString('tr-TR') : '';
+      const date = Number(track.updatedAt) ? new Date(Number(track.updatedAt)).toLocaleDateString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) : '';
       const label = [roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
         variant, date, `${track.cueCount} satır`].filter(Boolean).join(' · ');
       if (option.textContent !== label) option.textContent = label;
@@ -9483,7 +9483,7 @@ function browserSyncEnsurePreview() {
 }
 
 function formatSyncSeconds(value) {
-  return `${Number(value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} sn`;
+  return `${Number(value || 0).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'), { minimumFractionDigits: 3, maximumFractionDigits: 3 })} sn`;
 }
 
 function refreshBrowserSyncPanel(message = '') {
@@ -11937,7 +11937,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (translationTab) translationTab.browserTranslationFailed = player.browserTranslationFailed;
     updateBrowserTranslationRetryButton();
     const estimate = progress.remaining
-      ? ` · ~${Number(progress.remaining)} istek / ~${Number(progress.estimatedTokens || 0).toLocaleString('tr-TR')} token`
+      ? ` · ~${Number(progress.remaining)} istek / ~${Number(progress.estimatedTokens || 0).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))} token`
       : '';
     if (progress.pending || progress.queued) {
       setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true,
@@ -13904,7 +13904,7 @@ function historyWhen(iso) {
   if (gun === 0) return `bugün ${saat}`;
   if (gun === 1) return `dün ${saat}`;
   if (gun < 7) return `${gun} gün önce`;
-  return d.toLocaleDateString('tr-TR');
+  return d.toLocaleDateString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'));
 }
 
 function historyDur(sec) {
@@ -18874,7 +18874,7 @@ function renderBrowserPageHistory() {
   if (!node) return;
   node.innerHTML = player.browserPageHistory.length
     ? '<strong>Bu sayfanın kayıtları</strong>' + player.browserPageHistory.slice(0, 8).map((entry) => {
-      const date = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString('tr-TR') : 'tarih yok';
+      const date = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) : 'tarih yok';
       return '<div><span>' + escapeHtml(date + ' · ' + (entry.targetLanguage || '').toUpperCase() + ' · ' + entry.count + ' blok') + '</span><small>' + (entry.complete ? 'tamamlandı' : 'kısmi') + '</small></div>';
     }).join('') : '';
 }
@@ -18914,8 +18914,8 @@ function renderBrowserPagePreview(result = player.browserPagePreview) {
     + totalBlocks + ' blok bulundu · ' + apiBlocks + ' API’ye gidecek · '
     + memoryBlocks + ' bellekten · ' + excludedBlocks + ' dışlandı · '
     + pendingBlocks + ' beklemede</div><small>'
-    + Number(result.apiCharacters || 0).toLocaleString('tr-TR')
-    + ' kaynak karakteri' + (result.characterBudget ? ' / ' + Number(result.characterBudget).toLocaleString('tr-TR') + ' sınır' : '')
+    + Number(result.apiCharacters || 0).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))
+    + ' kaynak karakteri' + (result.characterBudget ? ' / ' + Number(result.characterBudget).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) + ' sınır' : '')
     + '</small>';
   if (button) button.textContent = 'Önizlemeyi gizle';
 }
@@ -19004,7 +19004,7 @@ function renderBrowserPageReport(event = {}) {
     terminology.querySelectorAll('[data-page-lock-source]').forEach((button) => button.addEventListener('click', () => {
       const source = button.getAttribute('data-page-lock-source') || '';
       const target = button.getAttribute('data-page-lock-target') || '';
-      const prefs = loadBrowserPagePrefs(); if (!prefs.lockedTerms.some((term) => term.split('=')[0].trim().toLocaleLowerCase('tr-TR') === source.toLocaleLowerCase('tr-TR'))) {
+      const prefs = loadBrowserPagePrefs(); if (!prefs.lockedTerms.some((term) => term.split('=')[0].trim().toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) === source.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')))) {
         prefs.lockedTerms.push(source + '=' + target); saveBrowserPagePrefs(prefs);
         setBrowserSignal('Terim kilitlendi; sonraki çeviride korunacak.', true, { priority: 25 });
       }
@@ -19200,7 +19200,7 @@ const changeBrowserPageBudget = (event) => {
   const prefs = loadBrowserPagePrefs(); prefs.pageCharacterBudget = value; saveBrowserPagePrefs(prefs);
   const otherId = event.target.id === 'browserPageBudget' ? 'browserPageSettingsBudget' : 'browserPageBudget';
   if ($(otherId)) $(otherId).value = String(value);
-  setBrowserSignal(value ? `Bu site için karakter sınırı: ${value.toLocaleString('tr-TR')}.` : 'Karakter sınırı kaldırıldı.', true, { priority: 25 });
+  setBrowserSignal(value ? `Bu site için karakter sınırı: ${value.toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}.` : 'Karakter sınırı kaldırıldı.', true, { priority: 25 });
 };
 $('browserPageBudget')?.addEventListener('change', changeBrowserPageBudget);
 $('browserPageSettingsBudget')?.addEventListener('change', changeBrowserPageBudget);
@@ -20393,10 +20393,10 @@ async function runPlayerLibrarySearch() {
   const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
   const seq = ++player.playerLibrarySearchSeq;
   if (playerLibraryView === 'collections') {
-    const folded = q.normalize('NFKC').toLocaleLowerCase('tr-TR');
+    const folded = q.normalize('NFKC').toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
-        .some((value) => String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').includes(folded)));
+        .some((value) => String(value || '').normalize('NFKC').toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)));
     playerUnifiedLibraryResults = [];
     list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();

@@ -92,7 +92,11 @@ function decodeSubtitleBuffer(value) {
 
   const suspicious = markerCount(text, Object.keys(CP1254_FIXUP));
   const hasTurkish = /[ğışİĞŞ]/.test(text);
-  const hasForeign = /[áéíóúÁÉÍÓÚæÆøåÅ]/.test(text);
+  // İzlandaca'da þ/ð/ý GERÇEK harf — onları foreign setine koymak onarımı
+  // tamamen kapatır (onlar aynı zamanda mojibake işaretidir). Ayırt edici:
+  // Türkçede olmayan aksanlı ünlüler + tipik İzlandaca işlev sözcükleri.
+  const icelandicWords = /\b(?:það|og|að|ekki|með|ég|við|þú|hann|hún|orð)\b/;
+  const hasForeign = /[áéíóúÁÉÍÓÚæÆøåÅ]/.test(text) || icelandicWords.test(text);
   if (suspicious >= 3 && !hasTurkish && !hasForeign) {
     for (const [bad, good] of Object.entries(CP1254_FIXUP)) text = text.split(bad).join(good);
     note = 'Türkçe karakterler onarıldı';

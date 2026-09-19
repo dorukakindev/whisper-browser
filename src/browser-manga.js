@@ -714,7 +714,9 @@ function mangaOverlayScript(payload) {
           for (const group of overlay.querySelectorAll('[data-whisper-manga-region]')) {
             const region = group.querySelector('[data-whisper-manga-frame]');
             const text = group.querySelector('[data-whisper-manga-text]');
-            if (!text) continue;
+            // Site iç frame'i kaldırabilir — null region.dataset okumak
+            // tüm yerleşim döngüsünü TypeError ile durdurur (B83-17).
+            if (!region || !text) continue;
             const verticalText = group.dataset.verticalText === 'true';
             // Düzenleme/geri alma sonrasında eski genişlemeyi taşımadan yeniden sığdır.
             if (region.dataset.fittedText !== text.textContent) {

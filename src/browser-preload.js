@@ -187,15 +187,19 @@ window.addEventListener('scroll', () => {
 function browserPageResourceTelemetry() {
   const activeTimers = [discoveryFlushTimer, pageFindMutationTimer, readingPositionTimer].filter(Boolean).length;
   const mutationObservers = [discoveryObserver, pageFindObserver].filter(Boolean).length;
+  // Preload yalnız kendi zamanlayıcı/observer'larını ölçebilir; sayfanın
+  // ResizeObserver/medya dinleyici/overlay/rAF sayıları isolated world'den
+  // görülemez. Bunlar main-world overlay controller diagnostics'inden
+  // gelir — burada null bırakılır ki sabit-0 ölçüm yalan olmasın (R77-SL2).
   return {
     measured: true,
     activeTimers,
     observerCount: mutationObservers,
     mutationObservers,
-    resizeObservers: 0,
-    mediaListeners: 0,
-    overlayNodes: 0,
-    pendingFrames: 0,
+    resizeObservers: null,
+    mediaListeners: null,
+    overlayNodes: null,
+    pendingFrames: null,
   };
 }
 

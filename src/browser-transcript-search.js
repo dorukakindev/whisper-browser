@@ -4,8 +4,11 @@
   if (root) root.BrowserTranscriptSearch = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   function fold(value) {
+    // tr-TR lowercase 'I'→'ı' üretir; İngilizce metinleri de aranabilir tutmak
+    // için I/İ/ı tek 'i'ye katlanır. \p{L}\p{N} CJK/Kiril/Arapça'yı korur.
     return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-      .toLocaleLowerCase('tr-TR').replace(/[^a-z0-9çğıöşü]+/gi, ' ').trim();
+      .replace(/[Iİı]/g, 'i').toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   }
   const STOP = new Set('acaba ama ancak aslında ben bir bu çok da de daha diye en gibi için ile ise mi mu ne nasıl neden o olan olarak sen şu ve veya ya'
     .split(' ').map(fold));
@@ -28,9 +31,13 @@
     })).filter((cue) => cue.text || cue.translation).slice(0, 50000).map((cue,index)=>({...cue,index}));
   }
   function wholeTranscriptIntent(question) {
-    const query = ` ${fold(question)} `;
-    return ['ozet', 'özet', 'tamamı', 'butun', 'bütün', 'genel', 'ana fikir', 'konu', 'arguman',
-      'argüman', 'tum', 'tüm'].some((intent) => query.includes(` ${intent} `));
+    const folded = fold(question);
+    const query = ` ${folded} `;
+    // Çok-kelimeli niyetler tam eşleşme; tek kökler kelime başı önekiyle
+    // ('özetle'→'ozetle', 'bütünün'→'butunun') yakalanır.
+    if (['ana fikir'].some((phrase) => query.includes(` ${phrase} `))) return true;
+    const stems = ['ozet', 'tamam', 'butun', 'genel', 'konu', 'arguman', 'tum'];
+    return folded.split(/\s+/).some((word) => stems.some((stem) => word.startsWith(stem)));
   }
   function buildTranscriptEvidence(cues, question, options = {}) {
     const rows = normalizedRows(cues);
@@ -68,7 +75,14 @@
       }
     }
     const limit = Math.max(6, Math.min(48, Number(options.limit) || 36));
-    const evidence = [...selected].sort((a, b) => a - b).slice(0, limit).map((index) => {
+    // Önce skora göre seç, sonra kronolojik göster — eski sürüm index sırasıyla
+    // kesiyordu ve videonun sonundaki yüksek-skorlu isabetler düşüyordu.
+    const scoreByIndex = new Map(scored.map(({ row, score }) => [row.index, score]));
+    const evidence = [...selected]
+      .sort((a, b) => (scoreByIndex.get(b) || 0) - (scoreByIndex.get(a) || 0) || a - b)
+      .slice(0, limit)
+      .sort((a, b) => a - b)
+      .map((index) => {
       const row = rows[index];
       return { id: `T${index + 1}`, zaman: clock(row.start), baslangic: row.start,
         bitis: row.end, metin: row.text, ceviri: row.translation };

@@ -312,10 +312,11 @@ test('main reset yardımcısı eşzamanlı çağrıyı tekilleştirir ve boş ot
       events.push('resetData');
       return new Promise(resolve => { finishReset = resolve; });
     },
-    writeBrowserSessionAtomic: (_file, snapshot) => {
+    writeBrowserSessionAtomic: (_file, snapshot, _fsModule, _options) => {
       events.push(['write', snapshot]);
       return { ok: true };
     },
+    fs,
     browserSessionPath: () => 'session.json',
     app: {},
     browserSessionRestoreEnabled: true,

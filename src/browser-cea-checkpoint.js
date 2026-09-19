@@ -31,9 +31,23 @@ function normalizeCue(cue) {
   const start = Number(cue?.start), end = Number(cue?.end);
   const text = String(cue?.text || '').slice(0, 2000);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || !text.trim()) return null;
-  return { start, end, text,
+  const out = { start, end, text,
     sequence: Number.isFinite(Number(cue.sequence)) ? Number(cue.sequence) : null,
     discontinuity: Number.isFinite(Number(cue.discontinuity)) ? Number(cue.discontinuity) : null };
+  // Sunum kimliği alanları korunmazsa checkpoint'ten dönen cue, decode'dan
+  // gelen aynı cue ile birleşemeyip ikiz satır üretiyordu (B83-01).
+  // Boş değerler anahtar üretmez — normalize sözleşmesi alan-düşürme
+  // davranışını korur.
+  const captionMode = String(cue.captionMode || cue.mode || cue.sourceMode || '').trim().slice(0, 24);
+  if (captionMode) out.captionMode = captionMode;
+  const speaker = String(cue.speaker || '').trim().slice(0, 120);
+  if (speaker) out.speaker = speaker;
+  const language = String(cue.language || '').trim().slice(0, 24);
+  if (language) out.language = language;
+  if (cue.provenance && typeof cue.provenance === 'object' && cue.provenance.streamKey) {
+    out.provenance = { streamKey: String(cue.provenance.streamKey).slice(0, 200) };
+  }
+  return out;
 }
 
 function normalizeTracks(tracks) {

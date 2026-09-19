@@ -44,7 +44,8 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
     const openStart = main.indexOf('async function openBrowserLinkInNewTab(');
     const openCode = main.slice(openStart, main.indexOf('function browserImageFileName', openStart));
     const open = vm.runInNewContext(openCode + '\nopenBrowserLinkInNewTab', {
-      ...shared, browserTabs: new Map(), MAX_SESSION_TABS: 24, createBrowserTabRecord: () => tab,
+      ...shared, decideUrlPolicy: require('../src/browser-navigation-policy').decideUrlPolicy,
+      browserTabs: new Map(), MAX_SESSION_TABS: 24, createBrowserTabRecord: () => tab,
       browserTabsSnapshot: () => [], sendBrowserEvent: (...args) => events.push(args.at(-1)),
     });
     assert.strictEqual(await open('https://example.test/watch'), aborted);
@@ -83,6 +84,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
     const openCode = main.slice(openStart, main.indexOf('function browserImageFileName', openStart));
     const open = vm.runInNewContext(openCode + '\nopenBrowserLinkInNewTab', {
       URL, Number,
+      decideUrlPolicy: require('../src/browser-navigation-policy').decideUrlPolicy,
       browserTabs: tabs,
       MAX_SESSION_TABS: 24,
       createBrowserTabRecord: () => tab,

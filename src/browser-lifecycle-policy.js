@@ -27,7 +27,8 @@ function navigationRetryPolicy(input = {}) {
   }
   const delayMs = status === 429 && retryAfterMs
     ? Math.min(5 * 60 * 1000, retryAfterMs) : LOAD_RETRY_DELAYS_MS[attempt];
-  return { action: 'retry', reason: status ? `http-${status}` : `net-${code}`, delayMs,
+  // Chromium hata kodları negatiftir — 'net--105' yerine 'net-err-105' üret.
+  return { action: 'retry', reason: status ? `http-${status}` : `net-err-${Math.abs(Number(code) || 0)}`, delayMs,
     nextAttempt: attempt + 1 };
 }
 

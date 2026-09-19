@@ -7386,7 +7386,11 @@ def repair_cp1254_as_latin1(text):
         return text, False        # sağlam Türkçe harf var - bunlar gerçek olabilir
     # İzlandaca'da þ/ð/ý GERÇEK harflerdir. Ayırt edici: Türkçede hiç kullanılmayan
     # aksanlı ünlüler (á é í ó ú) ve æ. Bunlar varsa metin Türkçe değildir - dokunma.
+    # Saf þ/ð/ý'li metin iki yönde de belirsizdir; tipik İzlandaca işlev
+    # sözcükleri gerçek metni mojibake'den ayırır (B83-36).
     if any(ch in text for ch in "áéíóúÁÉÍÓÚæÆøåÅ"):
+        return text, False
+    if re.search(r"\b(?:það|og|að|ekki|með|ég|við|þú|hann|hún|orð)\b", text):
         return text, False
     return text.translate(_CP1254_FIXUP), True
 

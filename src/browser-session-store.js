@@ -243,7 +243,12 @@ function normalizeBrowserSession(raw) {
   const tabs = normalized.slice(0, MAX_SESSION_TABS);
   const activeTabId = cleanString(source.activeTabId, 128);
   const active = normalized.find((tab) => tab.id === activeTabId);
-  if (active && !tabs.some((tab) => tab.id === activeTabId)) tabs[tabs.length - 1] = active;
+  // Aktif sekme sınır dışındaysa sıralamayı bozmadan başa al; son sekme
+  // yerine en sondaki kayıt düşer, aktif sekme her zaman kurtarılır (R85-K2).
+  if (active && !tabs.some((tab) => tab.id === activeTabId)) {
+    tabs.pop();
+    tabs.unshift(active);
+  }
   const splitSecondaryTabId = cleanString(source.splitSecondaryTabId, 128);
   return {
     version: BROWSER_SESSION_VERSION,
@@ -301,14 +306,14 @@ function readBrowserSession(filePath, fsModule = fs) {
   return readBrowserSessionWithStatus(filePath, fsModule).session;
 }
 
-function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs) {
+function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options = {}) {
   const session = normalizeBrowserSession({ ...rawSession, savedAt: Date.now() });
   const dir = path.dirname(filePath);
   const temp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
   fsModule.mkdirSync(dir, { recursive: true });
   try {
     fsModule.writeFileSync(temp, `${JSON.stringify(session, null, 2)}\n`, 'utf8');
-    if (fsModule.existsSync(filePath)) {
+    if (!options.mirrorBackup && fsModule.existsSync(filePath)) {
       try {
         const previous = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
         if (previous && !Array.isArray(previous) && Array.isArray(previous.tabs)
@@ -318,6 +323,12 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs) {
       } catch (_) {} // Bozuk ana kayıt sağlam yedeğin üstüne yazılmasın.
     }
     fsModule.renameSync(temp, filePath);
+    // Silme/sıfırlama yazımlarında eski sekme durumunun .bak'ta yaşamaya devam
+    // etmesi silinen veriyi geri getiriyordu (R83-34): bu yollarda yedek
+    // doğrulanmış güncel duruma çekilir.
+    if (options.mirrorBackup) {
+      try { fsModule.copyFileSync(filePath, `${filePath}.bak`); } catch (_) {}
+    }
     return { ok: true, session };
   } catch (error) {
     try { if (fsModule.existsSync(temp)) fsModule.unlinkSync(temp); } catch (_) {}

@@ -102,7 +102,7 @@ class BrowserNoteStore {
     const suffix = `${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
     const temporary = `${this.filePath}.${suffix}.tmp`;
     try {
-      if (!options.preserveBackup && fs.existsSync(this.filePath)) {
+      if (!options.preserveBackup && !options.mirrorBackup && fs.existsSync(this.filePath)) {
         fs.copyFileSync(this.filePath, this.backupPath);
       }
       const payload = JSON.stringify(this.snapshot(), null, 2);
@@ -111,7 +111,12 @@ class BrowserNoteStore {
       }
       fs.writeFileSync(temporary, payload, { encoding: 'utf8', flush: true });
       fs.renameSync(temporary, this.filePath);
-      if (!fs.existsSync(this.backupPath)) fs.copyFileSync(this.filePath, this.backupPath);
+      // mirrorBackup (R83-34): silme yazımında eski nesil yedekte kalmasın —
+      // yedek doğrulanmış güncel duruma çekilir. Diğer yazımlarda .bak bir
+      // önceki geçerli ana dosyayı tutar; yoksa ilk yazımda oluşturulur.
+      if (options.mirrorBackup || !fs.existsSync(this.backupPath)) {
+        fs.copyFileSync(this.filePath, this.backupPath);
+      }
       this.needsLegacyImport = false;
       this.recoveryWriteError = '';
     } catch (error) {
@@ -167,7 +172,7 @@ class BrowserNoteStore {
     if (!previous) return null;
     this.annotations.delete(key);
     try {
-      this.flush();
+      this.flush({ mirrorBackup: true });
     } catch (error) {
       this.annotations.set(key, previous);
       throw error;

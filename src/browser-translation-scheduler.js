@@ -20,7 +20,9 @@ function normalizeCues(rawCues) {
 }
 
 function sentenceIdFor(cues) {
-  const raw = cues.map((cue) => `${cue.id}:${cue.text}`).join('|');
+  // Zaman damgalarını da hash'e kat — özdeş metin/id'li iki cue aynı cümle
+  // kimliğini alıp results Map'te tek kayda çöküyordu (B83-15).
+  const raw = cues.map((cue) => `${cue.id}:${cue.start}:${cue.end}:${cue.text}`).join('|');
   const hash = crypto.createHash('sha1').update(raw, 'utf8').digest('hex').slice(0, 12);
   return `sentence:${cues[0].id}:${cues[cues.length - 1].id}:${hash}`;
 }
@@ -217,6 +219,11 @@ class BrowserTranslationScheduler {
     this.consecutiveProviderFailures = 0;
     this.onResult = typeof options.onResult === 'function' ? options.onResult : () => {};
     this.onState = typeof options.onState === 'function' ? options.onState : () => {};
+    // UI callback'inin hatası iş sonucunu bozmasın / ikinci throw unhandled
+    // rejection üretmesin (B83-31).
+    this.emitResult = (payload, sentence) => {
+      try { this.onResult(payload, sentence); } catch (_) {}
+    };
     this.context = { ...(options.context || {}) };
     this.sentences = [];
     this.results = new Map();
@@ -501,12 +508,12 @@ class BrowserTranslationScheduler {
       this.failures.delete(sentence.id);
       this.results.set(sentence.id, value);
       this.consecutiveProviderFailures = 0;
-      this.onResult(value, sentence);
+      this.emitResult(value, sentence);
     }).catch((error) => {
       if (!controller.signal.aborted && generation === this.generation) {
         if (error?.providerUnavailable === true) {
           this.tripProviderFailure(error);
-          this.onResult({
+          this.emitResult({
             sentenceId: sentence.id, error: this.providerFailure, attempt: 1,
             retryable: false, retrying: false, nextRetryMs: 0, cues: [],
           }, sentence);
@@ -521,7 +528,7 @@ class BrowserTranslationScheduler {
             const tripError = new Error(
               `Çeviri sağlayıcısı arka arkaya ${this.consecutiveProviderFailures} isteği reddetti (HTTP ${httpStatus}); kalan cümleler durduruldu. Biraz sonra yeniden deneyin.`);
             this.tripProviderFailure(tripError);
-            this.onResult({
+            this.emitResult({
               sentenceId: sentence.id, error: this.providerFailure, attempt: 1,
               retryable: false, retrying: false, nextRetryMs: 0, cues: [],
             }, sentence);
@@ -543,7 +550,7 @@ class BrowserTranslationScheduler {
           error: error.message || String(error),
         };
         this.failures.set(sentence.id, failure);
-        this.onResult({
+        this.emitResult({
           sentenceId: sentence.id,
           error: failure.error,
           attempt: attempts,

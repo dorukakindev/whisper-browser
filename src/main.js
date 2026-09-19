@@ -232,6 +232,8 @@ const { buildBrowserReaderScript, normalizeReaderPreferences } = require('./brow
 const { researchAnnotationsToMarkdown, scheduleReview } = require('./browser-research-notebook');
 const {
   SUPPORTED_BROWSER_PERMISSIONS,
+  browserMediaPermissionDecision,
+  browserMediaTypesFor,
   browserPermissionDecision,
   normalizeBrowserSitePermissions,
   normalizePermissionName,
@@ -476,6 +478,7 @@ let browserSessionMutationPromise = null;
 let browserSessionFinalizedForQuit = false;
 let browserOrderlyShutdown = false;
 let browserPlacesDirty = false;
+let browserPlacesMirrorBackup = false;
 let browserPlacesSaveErrorNotified = false;
 let browserSessionRestoreEnabled = true;
 let browserTrackTimer = null;
@@ -1537,10 +1540,11 @@ ipcMain.handle('invidious:login', async (_e, opts) => {
     return { ok: false, error: 'Kullanıcı adı ve şifre gerekli.' };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['login', '--username', String(username).slice(0, 100),
-                '--password', String(password).slice(0, 200)];
+  // Şifre argv'de değil env'de — süreç listesinde görünmesin (B82-01).
+  const args = ['login', '--username', String(username).slice(0, 100)];
   if (instance) args.push('--instance', instance);
-  let res = await runInvidiousCommand(args, 'invidious', null, 45_000);
+  const loginEnv = { WHISPER_INVIDIOUS_PASSWORD: String(password).slice(0, 200) };
+  let res = await runInvidiousCommand(args, 'invidious', null, 45_000, loginEnv);
   if (res && res.ok && res.data && res.data.username) {
     invidiousSessions.set(res.data.username, {
       sid: res.data.sid,
@@ -2377,11 +2381,15 @@ function loadHistory() {
   return [];
 }
 
-function saveHistory(list) {
+function saveHistory(list, options = {}) {
   try {
     const target = historyPath();
-    if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
+    if (!options.mirrorBackup && fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
     writeJsonAtomic(target, list.slice(0, HISTORY_LIMIT));
+    // Silme yazımlarında eski kayıtlar .bak'ta kalmasın (R83-34).
+    if (options.mirrorBackup) {
+      try { fs.copyFileSync(target, `${target}.bak`); } catch (_) {}
+    }
     return true;
   } catch (_) {
     return false;
@@ -2516,7 +2524,24 @@ function watchIndex() {
     for (const row of candidate.pruneTracks()) {
       if (row.asset_path) browserAssetStore().removeTrack(row.asset_path);
     }
-    browserAssetStore().sweepOrphans(new Set(candidate.listTrackAssetPaths()));
+    // Referans kümesi yalnız watch-index değil: açık sekmeler, kalıcı oturum
+    // ve workspace'lerdeki trackRefs de varlığı canlı tutar (R83-27).
+    const referencedAssets = new Set(candidate.listTrackAssetPaths());
+    const collectTrackRefs = (tabs) => {
+      for (const tab of Array.isArray(tabs) ? tabs : []) {
+        for (const ref of Array.isArray(tab?.trackRefs) ? tab.trackRefs : []) {
+          if (ref?.assetId) referencedAssets.add(String(ref.assetId).toLowerCase());
+        }
+      }
+    };
+    collectTrackRefs([...browserTabs.values()]);
+    try {
+      collectTrackRefs(readBrowserSessionWithStatus(browserSessionPath(app)).session?.tabs);
+    } catch (_) {}
+    try {
+      for (const ws of browserPlacesSnapshot()?.workspaces || []) collectTrackRefs(ws?.tabs);
+    } catch (_) {}
+    browserAssetStore().sweepOrphans(referencedAssets);
     return watchIndexInstance;
   } catch (_) {
     try { candidate?.close(); } catch (_) {}
@@ -3573,16 +3598,23 @@ function readBrowserPlaces() {
   return cloneBrowserPlaces(browserPlacesCache);
 }
 
-function writeBrowserPlacesAtomic(places) {
+function writeBrowserPlacesAtomic(places, options = {}) {
   const primary = browserPlacesPath();
   const backup = `${primary}.bak`;
-  try {
-    const parsed = JSON.parse(fs.readFileSync(primary, 'utf8'));
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) fs.copyFileSync(primary, backup);
-  } catch (_) {
-    // Bozuk bir ana dosya sağlam yedeğin üstüne kopyalanmamalı.
+  if (!options.mirrorBackup) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(primary, 'utf8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) fs.copyFileSync(primary, backup);
+    } catch (_) {
+      // Bozuk bir ana dosya sağlam yedeğin üstüne kopyalanmamalı.
+    }
   }
   writeJsonAtomic(primary, places);
+  // Silme/temizleme flush'ı sonrası eski geçmiş veya yer imleri yedekte
+  // yaşamaya devam etmesin (R83-34): yedek güncel duruma çekilir.
+  if (options.mirrorBackup) {
+    try { fs.copyFileSync(primary, backup); } catch (_) {}
+  }
 }
 
 function flushBrowserPlaces() {
@@ -3590,8 +3622,9 @@ function flushBrowserPlaces() {
   browserPlacesSaveTimer = null;
   if (!browserPlacesDirty || !browserPlacesCache) return true;
   try {
-    writeBrowserPlacesAtomic(browserPlacesCache);
+    writeBrowserPlacesAtomic(browserPlacesCache, { mirrorBackup: browserPlacesMirrorBackup });
     browserPlacesDirty = false;
+    browserPlacesMirrorBackup = false;
     browserPlacesSaveErrorNotified = false;
     return true;
   } catch (error) {
@@ -3686,7 +3719,7 @@ function resetPersistentBrowserSession() {
     const saved = writeBrowserSessionAtomic(browserSessionPath(app), {
       restoreEnabled: browserSessionRestoreEnabled,
       tabs: [],
-    });
+    }, fs, { mirrorBackup: true });
     if (!saved.ok) throw new Error(saved.error || 'Sıfırlanan oturum diske yazılamadı.');
     return {
       ok: true,
@@ -4412,11 +4445,10 @@ function browserCertificateErrorMessage(error) {
 
 async function openBrowserLinkInNewTab(rawUrl) {
   // Sayfadan gelen link, kullanıcının yazdığı arama metni değildir.
-  let url = '';
-  try {
-    const parsed = new URL(String(rawUrl || ''));
-    if (['http:', 'https:'].includes(parsed.protocol)) url = parsed.href;
-  } catch (_) {}
+  // Adres çubuğuyla aynı politika: userinfo/kontrol-karakterli adresler
+  // reddedilir (B83-03 — restoredUrl ham userinfo saklıyordu).
+  const decision = decideUrlPolicy(rawUrl, 'browser-address');
+  const url = decision.action === 'allow' ? decision.url : '';
   if (!url || browserTabs.size >= MAX_SESSION_TABS) {
     sendBrowserEvent({ type: 'notice', success: false, message: !url ? 'Bağlantı açılamadı.'
       : `En fazla ${MAX_SESSION_TABS} sekme açılabilir. Önce bir sekmeyi kapatın.` });
@@ -5926,6 +5958,12 @@ async function startBrowserPageTranslation(tab, options = {}) {
     autoContinue: session.autoContinue,
   })).catch((error) => [{ blocks: [], warning: error.message }]);
   const payload = scan[0] || {};
+  // Tarama await'i sırasında sekme gezinmiş veya çeviri durdurulmuş olabilir;
+  // eski sayfanın bloklarını yeni kuşağa bağlama (R83-22).
+  if (tab.pageTranslateSession !== session || session.generation !== tab.generation
+      || !tab.view || tab.view.webContents.isDestroyed()) {
+    return { ok: false, error: 'Sayfa çevirisi başlatılırken sekme durumu değişti.' };
+  }
   tab.pageTranslateStats = payload.stats || null;
   if (payload.warning) sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: payload.warning });
   const blocks = normalizePageBlocks(payload.blocks);
@@ -5973,7 +6011,7 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
         return runBrowserPageTranslationBlocks(tab, pending, session, { incremental: true });
       }
       return null;
-    });
+    }).catch(() => {});
     return;
   }
   void runBrowserPageTranslationBlocks(tab, blocks, session, { incremental: true }).catch((error) => {
@@ -11100,8 +11138,14 @@ function browserPermissionLabel(permission) {
   }[permission] || permission;
 }
 
-function browserPermissionAllowed(permission, rawUrl = '') {
-  return browserPermissionDecision(readBrowserPlaces().sitePermissions, rawUrl, permission) === 'allow';
+function browserPermissionAllowed(permission, rawUrl = '', details = {}) {
+  const places = readBrowserPlaces().sitePermissions;
+  if (normalizePermissionName(permission) === 'media') {
+    // Electron check handler'ı mediaType (tekil) bildirir; kayıtlı
+    // camera/microphone kararları bu türe uygulanır.
+    return browserMediaPermissionDecision(places, rawUrl, details.mediaType || details.mediaTypes) === 'allow';
+  }
+  return browserPermissionDecision(places, rawUrl, permission) === 'allow';
 }
 
 function settleBrowserPermissionRequest(requestId, allowed, persistDecision = '') {
@@ -11111,9 +11155,14 @@ function settleBrowserPermissionRequest(requestId, allowed, persistDecision = ''
   clearTimeout(pending.timer);
   if (['allow', 'block'].includes(persistDecision)) {
     const places = readBrowserPlaces();
-    const updated = withBrowserPermission(places.sitePermissions, pending.origin,
-      pending.permission, persistDecision);
-    if (updated.ok) { places.sitePermissions = updated.sitePermissions; setBrowserPlaces(places); }
+    // 'media' isteği kamera+mikrofon bileşenlerine ayrı ayrı yazılır — sonraki
+    // tekil izin kontrolleri kaydedilen kararı bulur.
+    let sitePermissions = places.sitePermissions;
+    for (const name of (pending.permissions || [pending.permission])) {
+      const updated = withBrowserPermission(sitePermissions, pending.origin, name, persistDecision);
+      if (updated.ok) sitePermissions = updated.sitePermissions;
+    }
+    if (sitePermissions !== places.sitePermissions) { places.sitePermissions = sitePermissions; setBrowserPlaces(places); }
   }
   try { pending.callback(allowed === true); } catch (_) {}
   if (allowed !== true) {
@@ -11149,14 +11198,19 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   configureBrowserPlaybackWebRequest(browserSession);
   browserSession.setPermissionCheckHandler((requestingWebContents, permission, _origin, details = {}) => {
     const rawUrl = details.requestingUrl || requestingWebContents?.getURL?.() || '';
-    return browserPermissionAllowed(permission, rawUrl);
+    return browserPermissionAllowed(permission, rawUrl, details);
   });
   browserSession.setPermissionRequestHandler((requestingWebContents, permission, callback, details = {}) => {
     const permissionTab = browserTabForWebContents(requestingWebContents);
     const rawUrl = details.requestingUrl || requestingWebContents?.getURL?.() || '';
     const origin = permissionOrigin(rawUrl);
     const normalizedPermission = normalizePermissionName(permission);
-    const decision = browserPermissionDecision(readBrowserPlaces().sitePermissions, origin, normalizedPermission);
+    // 'media' isteği kamera+mikrofon kararlarının bileşiminden çözülür;
+    // kullanıcı onayı her bileşen iznine ayrı ayrı yazılır.
+    const mediaTypes = normalizedPermission === 'media' ? browserMediaTypesFor(details.mediaTypes) : null;
+    const decision = mediaTypes && mediaTypes.length
+      ? browserMediaPermissionDecision(readBrowserPlaces().sitePermissions, origin, mediaTypes)
+      : browserPermissionDecision(readBrowserPlaces().sitePermissions, origin, normalizedPermission);
     if (decision === 'allow') { callback(true); return; }
     let host = '';
     try { host = new URL(origin).hostname; } catch (_) {}
@@ -11178,7 +11232,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     }, 30000);
     timer.unref?.();
     browserPermissionRequests.set(id, { id, tab: permissionTab, origin, host,
-      permission: normalizedPermission, callback, timer });
+      permission: normalizedPermission,
+      permissions: mediaTypes && mediaTypes.length ? mediaTypes : [normalizedPermission],
+      callback, timer });
     sendBrowserEvent(permissionTab, { type: 'permission-request', requestId: id,
       permission: normalizedPermission, label: browserPermissionLabel(normalizedPermission), origin, host,
       message: `${host || 'Bu site'} ${browserPermissionLabel(normalizedPermission)} erişimi istiyor.` });
@@ -11284,6 +11340,17 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // kullanmak reklam/oynatıcı iframe'i yenilendiğinde ana sayfanın altyazı,
     // çeviri ve medya neslini yanlışlıkla sıfırlıyordu.
     if (!isMainDocumentNavigation(details, isInPlace, isMainFrame)) return;
+    // Yeni belge için eski sayfanın medya/çeviri durumu önce sıfırlanır —
+    // bu çağrılar boşta ve erişilebilir olmalı ki sayfa-geçişi temizliği
+    // garanti olsun.
+    stopBrowserManga(tab, false);
+    stopBrowserPageTranslation(tab, false);
+    invalidateBrowserTabSubtitles(tab);
+    tab.mangaTranslated = 0;
+    tab.mangaVisible = false;
+    // tab.loading bayrağı olmadan sekme boşaltma kararı yüklenmekte olan
+    // sayfayı 'navigation' nedeninden yoksun görüp erken boşaltabiliyordu.
+    tab.loading = true;
     suspendBrowserInstrumentationForNavigation(tab, view);
     // Yeni belge önceki sayfanın donma durumunu devralmaz. Bu değer, aşağıda
     // oluşturulan yeni tanı anlık görüntüsüne başlangıç durumu olarak girer.
@@ -11291,11 +11358,6 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.loadError = null;
     tab.readerActive = false;
     if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
-    stopBrowserManga(tab, false);
-    stopBrowserPageTranslation(tab, false);
-    invalidateBrowserTabSubtitles(tab);
-    tab.mangaTranslated = 0;
-    tab.mangaVisible = false;
     tab.generation += 1;
     tab.bridgeToken = randomUUID();
     tab.playbackDiagnostics.reset({ clearCapabilities: true });
@@ -11304,7 +11366,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
       const prior = browserOverlay || tab.overlay || {};
-      const mode = ['source', 'translation', 'both'].includes(prior.mode) ? prior.mode : 'translation';
+      // 'off' da geçerli kullanıcı tercihi — gezinmede translation'a
+      // düşürülüp kapatma seçimi bozuluyordu (R77-B3).
+      const mode = ['source', 'translation', 'both', 'off'].includes(prior.mode) ? prior.mode : 'translation';
       const offset = Number.isFinite(Number(prior.offset)) ? Number(prior.offset) : 0;
       browserOverlay = { source: [], translation: [], mode, offset };
       tab.overlay = browserOverlay;
@@ -11316,6 +11380,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: true }) });
   });
   wc.on('did-stop-loading', () => {
+    tab.loading = false;
     if (!tab.loadError) {
       tab.loadRetryAttempt = 0;
       tab.crashRecoveryAttempt = 0;
@@ -11418,6 +11483,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     scheduleBrowserSessionSave();
   });
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
+    if (isMainFrame) tab.loading = false;
     if (isMainFrame && code !== -3) {
       tab.browserInstrumentationPending = false;
       if (tab.loadError?.kind === 'certificate' && tab.loadError.url === url) {
@@ -11461,6 +11527,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.generation += 1;
     if (tab.discoveryProbeTimer) clearTimeout(tab.discoveryProbeTimer);
     tab.discoveryProbeTimer = null;
+    if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
+    tab.loadRetryTimer = null;
+    if (tab.crashRecoveryTimer) clearTimeout(tab.crashRecoveryTimer);
+    tab.crashRecoveryTimer = null;
     clearBrowserCloudflareTimer(tab);
     tab.cloudflareChallengeActive = false;
     tab.browserInstrumentationPending = false;
@@ -11773,6 +11843,11 @@ async function activateBrowserTab(rawId) {
   if (next.lifecycle === 'unloaded' || next.lifecycle === 'restore_failed') next.lifecycle = 'restoring';
   else next.lifecycle = 'active';
   browserView = ensureBrowserView(next);
+  // ensureBrowserView null dönerse (kapanan pencere/oturum mutasyonu) sekme
+  // 'restoring'de takılı kalıp unload/restore yollarına erişemiyordu —
+  // görünümü olmayan sekmeyi tekrar unloaded yap ki sonraki etkinleştirme
+  // gerçek yüklemeyi denesin (B83-30).
+  if (!browserView) next.lifecycle = 'unloaded';
   browserCaptureEnabled = next.captureEnabled !== false;
   browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
   browserDiagnostics = next.diagnostics;
@@ -13211,8 +13286,14 @@ async function browserTabRuntimeState(tab) {
       const fields = [...document.querySelectorAll('input,textarea,select')];
       return { mediaPlaying: media.some((item) => !item.paused && !item.ended),
         fullscreen: !!document.fullscreenElement, pictureInPicture: !!document.pictureInPictureElement,
-        formOrLogin: fields.some((item) => item.type === 'password' ||
-          (!['button','submit','reset','checkbox','radio'].includes(item.type) && String(item.value || '').trim())),
+        formOrLogin: fields.some((item) => {
+          if (item.disabled || item.readOnly || item.type === 'hidden') return false;
+          if (item.type === 'password') return !!String(item.value || '').trim();
+          if (['button','submit','reset','checkbox','radio','file'].includes(item.type)) return false;
+          if (item.tagName === 'SELECT') return [...item.options].some((o) => o.selected !== o.defaultSelected);
+          // Ön-dolu ama kullanıcıca değiştirilmemiş değer form kirli sayılmaz.
+          return String(item.value || '') !== String(item.defaultValue ?? '');
+        }),
         dirtyDraft: !!document.querySelector('[contenteditable="true"]:not(:empty)') };
     })()`, true), 1800, 'Sekme durumu ölçülemedi.')) };
   } catch (_) { return { stateKnown: false }; }
@@ -13248,6 +13329,11 @@ async function unloadBrowserTab(rawId) {
   Object.assign(tab, await browserTabRuntimeState(tab));
   const finalCheck = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
   if (browserTabById(tab.id) !== tab || tab.resourceActionSeq !== action || !finalCheck.allowed) {
+    // Yakalama pending ölçümü sırasında duraklatıldı — iptal edilen boşaltma
+    // sonrası sekme yaşamaya devam ederse hook'u tekrar açıyoruz (R83-29).
+    if (tab.captureEnabled !== false && !tab.compatibilityMode) {
+      void executeBrowserViewFrames(tab.view, browserCaptureHookScript()).catch(() => {});
+    }
     tab.lifecycle = 'background'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
     return { ok: false, protected: true, reason: finalCheck.reason || 'stale', error: finalCheck.message || 'Sekme durumu değişti.' };
   }
@@ -13912,6 +13998,7 @@ ipcMain.handle('browser:places:remove', (event, kind, rawUrl) => {
   if (!url || !['history', 'bookmarks'].includes(kind)) return { ok: false, error: 'Geçersiz yer imi/geçmiş türü veya site adresi.' };
   const places = readBrowserPlaces();
   places[kind] = places[kind].filter((item) => item.url !== url);
+  browserPlacesMirrorBackup = true;
   setBrowserPlaces(places);
   const snapshot = browserPlacesSnapshot();
   return { ok: true, places: snapshot };
@@ -13930,6 +14017,7 @@ ipcMain.handle('browser:places:clearHistory', (event, request = {}) => {
       return !(siteMatch && dateMatch);
     });
   } else places.history = [];
+  browserPlacesMirrorBackup = true;
   setBrowserPlaces(places);
   const snapshot = browserPlacesSnapshot();
   return { ok: true, places: snapshot, removed: true, scope: origin || 'all', before: before > 0 ? before : null };
@@ -14337,6 +14425,11 @@ ipcMain.handle('browser:page:exclusions', async (event, request = {}) => {
     excludedSelectors: session.config.excludedSelectors || [], excludedSections: nextSections,
     targetLanguage: session.config.targetLanguage, memoryVersion: session.memoryVersion,
   })).catch(() => []);
+  // Tarama await'i arasında gezinme/durdurma olursa eski session'a yazma.
+  if (tab.pageTranslateSession !== session || session.generation !== tab.generation
+      || !tab.view || tab.view.webContents.isDestroyed()) {
+    return { ok: false, error: 'Bölüm dışlaması uygulanırken sekme durumu değişti.' };
+  }
   const rescanned = normalizePageBlocks(scanPayload?.blocks);
   for (const block of rescanned) session.blocks.set(block.id, block);
   session.sectionExcludedBlockIds = new Set([...session.blocks.values()]
@@ -15158,13 +15251,13 @@ ipcMain.handle('history:authorizeFiles', async (event, recordId) => {
 
 ipcMain.handle('history:remove', async (_event, id) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  saveHistory(loadHistory().filter((h) => h.id !== id));
+  saveHistory(loadHistory().filter((h) => h.id !== id), { mirrorBackup: true });
   return { ok: true };
 });
 
 ipcMain.handle('history:clear', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  saveHistory([]);
+  saveHistory([], { mirrorBackup: true });
   return { ok: true };
 });
 

@@ -11,7 +11,10 @@ function normalizeBrowserSiteZooms(raw) {
   for (const [rawHost, rawZoom] of Object.entries(raw || {}).slice(0, MAX_BROWSER_ZOOM_SITES)) {
     const host = String(rawHost || '').trim().toLowerCase();
     const zoom = Number(rawZoom);
-    if (/^[a-z0-9.-]{1,253}$/.test(host) && Number.isFinite(zoom)
+    // URL.hostname IPv6 için köşeli parantezli döner ([::1]) — eski regex onu
+    // düşürüyor ve withBrowserSiteZoom "kaydedildi" diyerek sessiz kayıp
+    // üretiyordu (R77-C1).
+    if (/^(?:\[[0-9a-f:]+\]|[a-z0-9.-]{1,253})$/.test(host) && Number.isFinite(zoom)
         && zoom >= MIN_BROWSER_ZOOM && zoom <= MAX_BROWSER_ZOOM) {
       normalized[host] = Math.round(zoom * 10) / 10;
     }

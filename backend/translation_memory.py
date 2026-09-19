@@ -192,8 +192,15 @@ class TranslationMemory:
                 "SELECT source,target FROM tm WHERE scope=? AND context_key=? AND length(source) BETWEEN ? AND ? ORDER BY created_at DESC LIMIT 240",
                 (str(scope), context_key, lo, hi)).fetchall()
         best = None
+        source_folded = source.casefold()
         for candidate, target in rows:
-            ratio = SequenceMatcher(None, source.casefold(), candidate.casefold()).ratio()
+            # quick_ratio gerçek ratio'nun üst sınırıdır; eşik altındaki
+            # adayda pahalı ratio hesabı atlanır (P79-02 — 240 aday × tam
+            # ratio yerine çoğu ucuz üst-sınır kontrolüyle elenir).
+            matcher = SequenceMatcher(None, source_folded, candidate.casefold())
+            if matcher.quick_ratio() < threshold:
+                continue
+            ratio = matcher.ratio()
             if ratio < threshold or not fuzzy_semantically_compatible(source, candidate):
                 continue
             if best is None or ratio > best[0]:

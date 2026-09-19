@@ -354,6 +354,11 @@ function createPlaybackDiagnosticTracker(options = {}) {
   let lastSample = null;
   let stalledSince = 0;
   let frameStagnantSince = 0;
+  // Yeniden emisyon üstel gerileme sayaçları — sabit koşul sürerse 8/12 sn'de
+  // bir özdeş fingerprint'ler `recent` (24 kayıt) listesini doldurup ayırt
+  // edici olayları düşürüyordu (B83-12).
+  let stalledEmits = 0;
+  let frameStagnantEmits = 0;
 
   function record(evidence, at = Date.now()) {
     const diagnostic = classifyPlaybackEvidence(evidence);
@@ -385,6 +390,8 @@ function createPlaybackDiagnosticTracker(options = {}) {
     if (!active) {
       stalledSince = 0;
       frameStagnantSince = 0;
+      stalledEmits = 0;
+      frameStagnantEmits = 0;
       lastSample = { ...sample, at };
       return emitted;
     }
@@ -399,26 +406,33 @@ function createPlaybackDiagnosticTracker(options = {}) {
 
     if (progressed) {
       stalledSince = 0;
+      stalledEmits = 0;
       if (visualVideo && Number.isFinite(frames) && Number.isFinite(priorFrames) && frames <= priorFrames) {
-        if (!frameStagnantSince) frameStagnantSince = lastSample.at || at;
+        if (!frameStagnantSince) { frameStagnantSince = lastSample.at || at; frameStagnantEmits = 0; }
       } else {
         frameStagnantSince = 0;
+        frameStagnantEmits = 0;
       }
     } else if (Number(sample.readyState) < 3 || sample.spinnerVisible === true) {
-      if (!stalledSince) stalledSince = lastSample ? lastSample.at : at;
+      if (!stalledSince) { stalledSince = lastSample ? lastSample.at : at; stalledEmits = 0; }
     } else {
       stalledSince = 0;
+      stalledEmits = 0;
     }
 
-    if (frameStagnantSince && at - frameStagnantSince >= 8000) {
+    // 'since' sıfırlanmaz — detay birikimli süreyi gösterir; eşik üstel
+    // büyür (8→16→32→64→128 sn, 12→24→… sn) ki aynı koşul logu sellemesin.
+    const frameThreshold = 8000 * (2 ** Math.min(frameStagnantEmits, 4));
+    if (frameStagnantSince && at - frameStagnantSince >= frameThreshold) {
       const item = record({ kind: 'paint', state: 'black', detail: `${Math.round((at - frameStagnantSince) / 1000)} sn kare yok` }, at);
       if (item) emitted.push(item);
-      frameStagnantSince = at;
+      frameStagnantEmits += 1;
     }
-    if (stalledSince && at - stalledSince >= 12000) {
+    const stallThreshold = 12000 * (2 ** Math.min(stalledEmits, 4));
+    if (stalledSince && at - stalledSince >= stallThreshold) {
       const item = record({ kind: 'paint', state: 'stalled', detail: `${Math.round((at - stalledSince) / 1000)} sn ilerleme yok` }, at);
       if (item) emitted.push(item);
-      stalledSince = at;
+      stalledEmits += 1;
     }
     lastSample = { ...sample, at };
     return emitted;

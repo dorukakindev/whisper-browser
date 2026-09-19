@@ -118,6 +118,7 @@ function extract(start, end, deps = {}) {
       return view;
     },
     sendBrowserEvent: (...args) => events.push(args.at(-1)),
+    decideUrlPolicy: require('../src/browser-navigation-policy').decideUrlPolicy,
     setBrowserTabCompatibilityMode: async (tab, enabled) => { tab.compatibilityMode = enabled; return true; },
     browserCompatibilityModeForUrl: () => true,
     suspendBrowserInstrumentationForNavigation() {},

@@ -15,6 +15,22 @@
     ? shared.startsWithSensitivePrefix
     : (key) => /^(?:x-amz-|x-goog-|x-api-|aws-|google-)/i.test(key);
   const tracking = /^(?:utm_.+|fbclid|gclid|dclid|msclkid|mc_[ce]id|ref_.*|ref|referrer|source)$/i;
+  // Pathname matris parametreleri (`/yol;jsessionid=ABC/sonraki`) sorgu gibi
+  // taranır; hassas olanı düşürür, diğerlerini korur.
+  function cleanPathParams(pathname) {
+    if (!pathname || pathname.indexOf(';') < 0) return pathname;
+    return pathname.split('/').map((segment) => {
+      if (segment.indexOf(';') < 0) return segment;
+      const parts = segment.split(';');
+      const kept = [parts[0]];
+      for (const param of parts.slice(1)) {
+        const name = param.split('=')[0];
+        if (sensitive.test(name) || hasSensitivePrefix(name) || tracking.test(name)) continue;
+        kept.push(param);
+      }
+      return kept.join(';');
+    }).join('/');
+  }
   function cleanQuery(params) {
     for (const key of [...params.keys()]) {
       if (sensitive.test(key) || hasSensitivePrefix(key) || tracking.test(key)) params.delete(key);
@@ -28,6 +44,7 @@
       url.username = '';
       url.password = '';
       cleanQuery(url.searchParams);
+      url.pathname = cleanPathParams(url.pathname);
       const hash = url.hash.slice(1);
       url.hash = '';
       // Yalnız yönlendirme ve zaman bağlantıları kalıcıdır; OAuth fragmentleri değil.
@@ -37,8 +54,9 @@
         const query = mark < 0 ? '' : cleanQuery(new URLSearchParams(hash.slice(mark + 1))).toString();
         url.hash = route + (query ? '?' + query : '');
       } else if (/^(?:t|start)=\d+(?:[hms\d.]*)$/i.test(hash)) url.hash = hash;
-      // Kesilmiş bir adresi farklı bir kaynağa dönüştürme.
-      return url.href.length <= 4000 ? url.href : '';
+      // Kesilmiş bir adresi farklı bir kaynağa dönüştürme. Sınır gezinme
+      // politikasınınkiyle (MAX_POLICY_URL_LENGTH) aynı.
+      return url.href.length <= 8192 ? url.href : '';
     } catch (_) { return ''; }
   }
   // Kapalı sekme geçmişi gibi adresin bütününü korumak isteyen yüzeyler için:
@@ -51,6 +69,8 @@
       if (!['http:', 'https:'].includes(url.protocol)) return '';
       let changed = false;
       if (url.username || url.password) { url.username = ''; url.password = ''; changed = true; }
+      const cleanedPath = cleanPathParams(url.pathname);
+      if (cleanedPath !== url.pathname) { url.pathname = cleanedPath; changed = true; }
       for (const key of [...url.searchParams.keys()]) {
         if (sensitive.test(key) || hasSensitivePrefix(key)) { url.searchParams.delete(key); changed = true; }
       }
@@ -77,7 +97,7 @@
       // Redaksiyon yapılmadıysa ham adres aynen döner; URL.href'in eklediği
       // normalizasyon (sondaki / gibi) sekme geri yüklemesini değiştirmez.
       const result = changed ? url.href : source;
-      return result.length <= 4000 ? result : '';
+      return result.length <= 8192 ? result : '';
     } catch (_) { return ''; }
   }
   return { safePlaceUrl, redactUrlSensitiveParams, SENSITIVE_PARAM_RE: sensitive, TRACKING_PARAM_RE: tracking };

@@ -30,7 +30,11 @@
       if (merged.some((chapter) => Math.abs(chapter.start - candidate.start) <= tolerance)) continue;
       merged.push(candidate);
     }
-    return merged.sort((a, b) => a.start - b.start || (a.source === 'native' ? -1 : 1));
+    // Eşit başlangıçta kaynak tercihi yalnız farklı kaynaklar arasında geçerli;
+    // aynı kaynak içinde tarafsız (0) bırakılmazsa asimetrik comparator
+    // bölümleri tersine çevirebilir.
+    return merged.sort((a, b) => a.start - b.start
+      || (a.source === b.source ? 0 : a.source === 'native' ? -1 : 1));
   }
 
   return { mergeBrowserChapters, normalizeChapter };

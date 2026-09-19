@@ -13,10 +13,12 @@
   }
 
   function normalizeContext(raw = {}) {
+    // Varsayılan parametre yalnız undefined'ı yakalar; null için de koru.
+    const source = raw || {};
     return {
-      tabId: clean(raw.tabId || raw.id, 128),
-      generation: Math.max(0, Math.trunc(Number(raw.generation) || 0)),
-      mediaId: clean(raw.mediaId || raw.mediaIdentity, 320),
+      tabId: clean(source.tabId || source.id, 128),
+      generation: Math.max(0, Math.trunc(Number(source.generation) || 0)),
+      mediaId: clean(source.mediaId || source.mediaIdentity, 320),
     };
   }
 

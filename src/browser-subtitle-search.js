@@ -101,7 +101,11 @@ async function request(path, init, config, signal) {
 }
 
 function normalized(value) {
-  return String(value || '').toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, ' ').trim();
+  // NFKD + diakritik temizliği ASCII↔Unicode yazım çiftlerini eşleştirir
+  // ('İyi Kötü ve Çirkin' ≡ 'iyi kotu ve cirkin'). I/İ/ı tek 'i'ye katlanır.
+  return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[Iİı]/g, 'i').toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
 function scoreCandidate(candidate, target) {
@@ -115,8 +119,10 @@ function scoreCandidate(candidate, target) {
   if (target.season != null && Number(feature.season_number) === Number(target.season)) score += 15;
   if (target.episode != null && Number(feature.episode_number) === Number(target.episode)) score += 15;
   if (target.language && normalized(a.language) === normalized(target.language)) score += 10;
-  if (target.release && normalized(a.release) === normalized(target.release)) score += 25;
-  else if (target.release && normalized(a.release).includes(normalized(target.release))) score += 12;
+  const targetRelease = normalized(target.release);
+  const candidateRelease = normalized(a.release);
+  if (targetRelease && candidateRelease === targetRelease) score += 25;
+  else if (targetRelease && candidateRelease.includes(targetRelease)) score += 12;
   return score;
 }
 
@@ -136,15 +142,18 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
   const results = payload.data.map((item) => {
     const a = item.attributes || {};
     const feature = a.feature_details || {};
+    // fileId ve fileName AYNI dosya kaydından gelmeli — files[0] ID'sizse
+    // ilk geçerli kayıtla isim birbirinden ayrılıyordu (yanlış dosya adı).
+    const file = a.files?.find((f) => Number.isSafeInteger(Number(f.file_id))) || a.files?.[0] || {};
     return {
       id: String(item.id || a.subtitle_id || ''),
-      fileId: a.files?.find((file) => Number.isSafeInteger(Number(file.file_id)))?.file_id || null,
+      fileId: Number.isSafeInteger(Number(file.file_id)) ? file.file_id : null,
       title: feature.title || '',
       season: feature.season_number ?? null,
       episode: feature.episode_number ?? null,
       language: a.language || '',
       release: a.release || '',
-      fileName: a.files?.[0]?.file_name || '',
+      fileName: file.file_name || '',
       hearingImpaired: Boolean(a.hearing_impaired),
       downloadCount: Number(a.download_count) || 0,
       matchScore: scoreCandidate(item, target),
@@ -184,7 +193,9 @@ async function downloadSubtitle({ fileId }, config = {}, { signal } = {}) {
     }
     if (![301, 302, 303, 307, 308].includes(response.status)) break;
     if (redirects === 3) throw problem('Altyazı indirmesi çok fazla yönlendirildi.', 'UNSAFE_URL');
-    url = approvedDownloadUrl(new URL(response.headers.get('location') || '', url).href);
+    const location = response.headers.get('location');
+    if (!location) throw problem('Yönlendirme hedefi eksik — indirme bağlantısı geçersiz.', 'INVALID_RESPONSE');
+    url = approvedDownloadUrl(new URL(location, url).href);
   }
   if (!response.ok) throw apiError(response);
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);

@@ -68,6 +68,9 @@ function persistentBrowserMediaUrl(value) {
   try {
     const url = new URL(String(value || ''));
     if (!['http:', 'https:'].includes(url.protocol)) return '';
+    // Kalıcı medya adresinde userinfo düz metin kimlik bilgisi taşır.
+    url.username = '';
+    url.password = '';
     for (const key of [...url.searchParams.keys()]) {
       // Ortak sözlük camelCase OAuth adlarını da kapsar; 'key' eski davranış.
       if (isSensitiveKey(key) || startsWithSensitivePrefix(key) || /^key$/i.test(key)) {

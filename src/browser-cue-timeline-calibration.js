@@ -1,7 +1,11 @@
 'use strict';
 
 function normalizeTimelineText(value) {
-  return String(value || '').normalize('NFKC').toLocaleLowerCase('en-US')
+  // NFD + birleşik işaret temizliği: Türkçe 'İ' NFKC'de i+̇ 'ye ayrışıp
+  // kelimeyi bölerken burada düz 'i'ye indirgenir; İngilizce 'I' da locale-
+  // bağımsız toLowerCase ile 'i' olur (B83-25).
+  return String(value || '').normalize('NFD').replace(/\p{M}/gu, '')
+    .toLowerCase()
     .replace(/<[^>]*>/g, ' ')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ').trim();
@@ -55,10 +59,14 @@ function calibrateCueTimeline(referenceCues = [], candidateCues = [], options = 
 function shiftCueTimeline(cues = [], offsetSeconds = 0) {
   const offset = Number(offsetSeconds);
   if (!Number.isFinite(offset) || Math.abs(offset) < 0.001) return (cues || []).map((cue) => ({ ...cue }));
-  return (cues || []).map((cue) => {
+  return (cues || []).flatMap((cue) => {
+    const shiftedEnd = Number(cue.end) + offset;
+    // Tamamen negatifte kalan cue'yu [0, 0.001]'e kırpmak video başında
+    // hayalet satır üretiyordu — düşür (B83-07).
+    if (!(shiftedEnd > 0)) return [];
     const start = Math.max(0, Number(cue.start) + offset);
-    const end = Math.max(start + 0.001, Number(cue.end) + offset);
-    return { ...cue, start, end, timelineCalibrated: true };
+    const end = Math.max(start + 0.001, shiftedEnd);
+    return [{ ...cue, start, end, timelineCalibrated: true }];
   });
 }
 

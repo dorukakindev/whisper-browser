@@ -56,6 +56,11 @@ async function clearBrowserSiteData(browserSession, rawUrl) {
   } catch (_) {
     cacheStorageCleared = false;
   }
+  // HTTP Basic/Digest kimlik önbelleği clearData kapsamında değil ve
+  // clearAuthCache origin-bazlı filtre sunmadığından burada çağrılmıyor:
+  // tek-origin temizliği diğer sitelerin kimlik önbelleğini de silmez.
+  // Oturum genelindeki kimlik temizliği yalnız resetBrowserSessionData'da
+  // yapılır (R83-35).
   await flushCookies(browserSession);
   return {
     ok: cacheStorageCleared,

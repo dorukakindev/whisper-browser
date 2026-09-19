@@ -4868,6 +4868,8 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-page-section-progress > strong, .browser-page-failures > strong, .browser-page-terminology > strong,
 .browser-page-layout-warnings > strong, .browser-page-history > strong, .browser-page-preview-panel > strong { color: var(--ink-primary); }
 .browser-page-preview-panel { margin-top: 4px; padding: 7px; border-left: 2px solid var(--accent); background: var(--bg-2); }
+/* display:grid kuralı UA'nın [hidden]{display:none} kuralını eziyor (B83-39) */
+.browser-page-preview-panel[hidden], .browser-page-history[hidden], .browser-page-layout-warnings[hidden] { display: none; }
 .browser-page-terminology > div, .browser-page-layout-warnings > div, .browser-page-history > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); }
 .browser-page-terminology code { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-primary); }
 .browser-page-terminology button { flex: 0 0 auto; border: 0; border-radius: 5px; padding: 3px 6px; color: var(--accent); background: transparent; cursor: pointer; }

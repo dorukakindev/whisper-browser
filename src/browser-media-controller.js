@@ -122,12 +122,20 @@ function controllerBootstrap() {
         if (!graph) {
           const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
           if (!AudioContextClass) return;
-          const context = new AudioContextClass();
-          const source = context.createMediaElementSource(item);
-          const compressor = context.createDynamicsCompressor();
-          graph = { context, source, compressor, normalized: false, timer: null,
-            boosted: false, silence: { quietMs: 0, active: false } };
-          audioGraphs.set(item, graph);
+          let context;
+          try {
+            context = new AudioContextClass();
+            const source = context.createMediaElementSource(item);
+            const compressor = context.createDynamicsCompressor();
+            graph = { context, source, compressor, normalized: false, timer: null,
+              boosted: false, silence: { quietMs: 0, active: false } };
+            audioGraphs.set(item, graph);
+          } catch (_) {
+            // createMediaElementSource atarsa (örn. öğeye ikinci kaynak) yeni
+            // context'i açık bırakma — tarayıcı context kotası tükenir.
+            try { context?.close?.(); } catch (_) {}
+            return;
+          }
         }
         if (processing) {
           const settings = profile || { threshold: -24, knee: 30, ratio: 8,

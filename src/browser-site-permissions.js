@@ -1,5 +1,5 @@
 const SUPPORTED_BROWSER_PERMISSIONS = Object.freeze([
-  'camera', 'microphone', 'media', 'geolocation', 'notifications',
+  'camera', 'microphone', 'media', 'mediaKeySystem', 'geolocation', 'notifications',
   'clipboard-read', 'clipboard-sanitized-write', 'fullscreen', 'display-capture',
   'midi', 'midiSysex', 'pointerLock', 'idle-detection', 'serial', 'usb',
 ]);
@@ -46,6 +46,28 @@ function browserPermissionDecision(sitePermissions, rawUrl, permission) {
   return 'ask';
 }
 
+// Electron 'media' isteği details.mediaTypes ile gelir; kayıtlı camera/microphone
+// kararları bu türlere uygulanmalı — aksi halde 'kamera: engelle' saklanmışken
+// media isteği yeniden soruluyordu.
+function browserMediaTypesFor(raw) {
+  const list = Array.isArray(raw) ? raw : [raw];
+  const mapped = [];
+  for (const item of list) {
+    const type = String(item || '').toLowerCase();
+    if (type === 'video' || type === 'camera') mapped.push('camera');
+    else if (type === 'audio' || type === 'microphone') mapped.push('microphone');
+  }
+  return [...new Set(mapped)];
+}
+
+function browserMediaPermissionDecision(sitePermissions, rawUrl, mediaTypes) {
+  const mapped = browserMediaTypesFor(mediaTypes);
+  if (!mapped.length) return browserPermissionDecision(sitePermissions, rawUrl, 'media');
+  const decisions = mapped.map((name) => browserPermissionDecision(sitePermissions, rawUrl, name));
+  if (decisions.includes('block')) return 'block';
+  return decisions.every((item) => item === 'allow') ? 'allow' : 'ask';
+}
+
 function withBrowserPermission(sitePermissions, rawUrl, permission, decision, now = Date.now()) {
   const origin = permissionOrigin(rawUrl);
   const name = normalizePermissionName(permission);
@@ -64,5 +86,6 @@ function withBrowserPermission(sitePermissions, rawUrl, permission, decision, no
 }
 
 module.exports = { MAX_PERMISSION_ORIGINS, SUPPORTED_BROWSER_PERMISSIONS,
-  browserPermissionDecision, normalizeBrowserSitePermissions, normalizePermissionName,
+  browserMediaPermissionDecision, browserMediaTypesFor, browserPermissionDecision,
+  normalizeBrowserSitePermissions, normalizePermissionName,
   permissionOrigin, withBrowserPermission };

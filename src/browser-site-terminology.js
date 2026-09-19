@@ -10,7 +10,9 @@ function clean(value, max) { return String(value == null ? '' : value).replace(/
 function siteTerminologyScope(rawUrl, targetLanguage) {
   const origin = browserSiteOrigin(rawUrl);
   const language = clean(targetLanguage, 24).toLowerCase();
-  return origin && /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(language) ? `${origin}|${language}` : '';
+  // Birden çok alt etiketli BCP-47 kodları (zh-hans-cn) profil tarafında
+  // kabul görüp burada sessizce düşüyordu — alt etiket sayısını sınırlama.
+  return origin && /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(language) ? `${origin}|${language}` : '';
 }
 
 function normalizeSiteTermRows(value) {

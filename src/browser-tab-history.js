@@ -12,7 +12,16 @@ function normalizeClosedBrowserTab(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return null;
   // OAuth callback parametreleri kapalı-sekme geçmişine ve diske yazılmaz;
   // adresin geri kalanı (route çapası dahil) geri yükleme için korunur.
-  const url = redactUrlSensitiveParams(String(snapshot.url || '').trim());
+  let url = redactUrlSensitiveParams(String(snapshot.url || '').trim());
+  // Uzunluk tavanı (>8192) sekmeyi tamamen düşürüyordu; en azından
+  // origin+pathname'i koruyarak geri-açma kaydını kaybetme (R85-K1).
+  if (!url) {
+    try {
+      const parsed = new URL(String(snapshot.url || '').trim());
+      url = ['http:', 'https:'].includes(parsed.protocol)
+        ? redactUrlSensitiveParams(parsed.origin + parsed.pathname.slice(0, 1200)) : '';
+    } catch (_) {}
+  }
   if (!url) return null;
   return {
     url,

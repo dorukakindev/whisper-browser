@@ -29,7 +29,16 @@ async function exportWithVideos(root, output, values, exe) {
   const videos = sources(root), manifest = path.join(root, randomUUID() + '.wbp'), temp = output + '.' + randomUUID() + '.tmp';
   try {
     const report = core.exportPackage(root, manifest, values), data = core.readPackage(manifest);
-    data.videos = videos; fs.writeFileSync(manifest, gzipSync(Buffer.from(JSON.stringify(data))));
+    // Manifest'e taşınabilir kaynak yazılır: katalog değerleri {{ROOT}}/...
+    // formunda olduğundan içe aktarımda videoMappings bu anahtarla eşleşir ve
+    // paket kaynak makinenin mutlak yolunu ifşa etmez (R83-33). Arşivleme
+    // için gerçek yollar ayrıca `videos` parametresinde gider.
+    const portable = (source) => {
+      const rel = path.relative(root, source).replace(/\\/g, '/');
+      return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? `{{ROOT}}/${rel}` : source;
+    };
+    data.videos = videos.map(v => ({ ...v, source: portable(v.source) }));
+    fs.writeFileSync(manifest, gzipSync(Buffer.from(JSON.stringify(data))));
     await python(exe, { action: 'write', manifest, videos, output: temp });
     fs.renameSync(temp, output); return { ...report, videos: videos.length };
   } finally { for (const file of [manifest, temp]) { try { fs.unlinkSync(file); } catch {} } }

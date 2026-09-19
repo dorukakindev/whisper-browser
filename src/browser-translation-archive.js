@@ -4,11 +4,16 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { cuesToSrt, normalizeCues } = require('./browser-asset-store');
+const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 
 const ARCHIVE_VERSION = 1;
 const INDEX_LIMIT = 5000;
 const TRACKING_QUERY = /^(?:utm_.+|fbclid|gclid|dclid|msclkid|mc_[ce]id|ref_|referrer|source)$/i;
-const SENSITIVE_QUERY = /^(?:access_?token|auth(?:orization)?|api_?key|code|credential|expires?|jwt|key|key-pair-id|pass(?:code|word)?|policy|secret|session(?:id)?|sig(?:nature)?|state|token|x-amz-.+)$/i;
+// Hassas anahtar sözlüğü tek kaynak: browser-sensitive-keys. Yerel regex
+// `hdnts`, `auth_token` gibi imzalı-oturum parametrelerini kaçırıyordu.
+function isSensitiveQuery(key) {
+  return isSensitiveKey(key) || startsWithSensitivePrefix(key) || /^key$/i.test(key);
+}
 
 function hash(value, length = 24) {
   return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex').slice(0, length);
@@ -27,7 +32,7 @@ function canonicalPageUrl(raw) {
     url.password = '';
     url.hash = '';
     const kept = [...url.searchParams.entries()]
-      .filter(([key]) => !TRACKING_QUERY.test(key) && !SENSITIVE_QUERY.test(key))
+      .filter(([key]) => !TRACKING_QUERY.test(key) && !isSensitiveQuery(key))
       .sort(([leftKey, leftValue], [rightKey, rightValue]) =>
         leftKey.localeCompare(rightKey) || leftValue.localeCompare(rightValue));
     url.search = '';

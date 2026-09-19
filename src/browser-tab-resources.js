@@ -80,8 +80,12 @@ function groupBrowserProcessMetrics(tabs = [], appMetrics = []) {
 }
 
 function finiteCount(value) {
+  // null/undefined "ölçülmedi" demektir; Number(null)=0'a düşürme.
+  if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
-  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : null;
+  // Sayılabilen ama geçersiz girdi (Infinity, NaN, metin) güvenli tabana
+  // sıkıştırılır; yalnızca hiç gönderilmemiş alan null kalır.
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0;
 }
 
 function normalizeBrowserPageResourceMetrics(value = {}) {
@@ -91,10 +95,12 @@ function normalizeBrowserPageResourceMetrics(value = {}) {
     activeTimers: measured ? (finiteCount(value.activeTimers) ?? 0) : null,
     observerCount: measured ? (finiteCount(value.observerCount) ?? 0) : null,
     mutationObservers: measured ? (finiteCount(value.mutationObservers) ?? 0) : null,
-    resizeObservers: measured ? (finiteCount(value.resizeObservers) ?? 0) : null,
-    mediaListeners: measured ? (finiteCount(value.mediaListeners) ?? 0) : null,
-    overlayNodes: measured ? (finiteCount(value.overlayNodes) ?? 0) : null,
-    pendingFrames: measured ? (finiteCount(value.pendingFrames) ?? 0) : null,
+    // Ölçülemeyen alanlar (sayfa içi observer/listener sayıları) null kalır —
+    // sıfır uydurmak paneli yanıltır (R77-SL2/R85-C2).
+    resizeObservers: measured ? finiteCount(value.resizeObservers) : null,
+    mediaListeners: measured ? finiteCount(value.mediaListeners) : null,
+    overlayNodes: measured ? finiteCount(value.overlayNodes) : null,
+    pendingFrames: measured ? finiteCount(value.pendingFrames) : null,
     ipcPerMinute: finiteCount(value.ipcPerMinute),
   };
 }

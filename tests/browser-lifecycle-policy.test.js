@@ -12,7 +12,7 @@ assert.equal(navigationRetryPolicy({ status: 403,
 assert.equal(navigationRetryPolicy({ status: 403,
   url: 'https://example.test/login' }).action, 'terminal');
 assert.deepEqual(navigationRetryPolicy({ code: -105, attempt: 0 }), {
-  action: 'retry', reason: 'net--105', delayMs: 10000, nextAttempt: 1,
+  action: 'retry', reason: 'net-err-105', delayMs: 10000, nextAttempt: 1,
 });
 assert.equal(navigationRetryPolicy({ status: 503, attempt: 1 }).delayMs, 30000);
 assert.equal(navigationRetryPolicy({ status: 429, attempt: 0, retryAfterMs: 12500 }).delayMs, 12500);

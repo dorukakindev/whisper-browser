@@ -28,11 +28,17 @@ def _key(value):
     return re.sub(r"[^a-z0-9çğıöşü\s-]", " ", value).strip(" :-–—").strip()
 
 
+# Küme her çağrıda yeniden normalize ediliyordu (66 _key çağrısı/eşleşme);
+# modül sabiti olduğu için bir kez önceden normalize edilir (P79-01).
+_SDH_NORMALIZED = frozenset(_key(term) for term in _SDH)
+_SDH_TERM_WORDS = [term.split() for term in _SDH_NORMALIZED]
+
+
 def is_sdh_descriptor(value):
     key = _key(value)
     if not key or key in _SPEAKER:
         return False
-    normalized_terms = {_key(term) for term in _SDH}
+    normalized_terms = _SDH_NORMALIZED
     if key in normalized_terms:
         return True
     # Alt dize eşleşmesi tehlikelidir: [Brain] içindeki rain veya gerçek
@@ -44,8 +50,7 @@ def is_sdh_descriptor(value):
     words = key.split()
     if not 0 < len(words) <= 6:
         return False
-    for term in normalized_terms:
-        term_words = term.split()
+    for term_words in _SDH_TERM_WORDS:
         if not term_words or len(term_words) > len(words):
             continue
         for start in range(len(words) - len(term_words) + 1):

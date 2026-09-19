@@ -35,6 +35,26 @@ function decodeEntities(value) {
     ccedil: 'ç', Ccedil: 'Ç', szlig: 'ß', eacute: 'é', Eacute: 'É',
     scedil: 'ş', Scedil: 'Ş', gbreve: 'ğ', Gbreve: 'Ğ',
     idot: 'ı', Idot: 'İ', inodot: 'ı', Inodot: 'İ', imath: 'ı', Imath: 'I',
+    // ISO-8859-1 + yaygın Extended-A — elle daraltılmış liste İspanyolca/
+    // Fransızca metinde yarı-çözülmüş entity bırakıyordu (R78-03).
+    iexcl: '¡', cent: '¢', pound: '£', curren: '¤', yen: '¥', brvbar: '¦',
+    sect: '§', uml: '¨', ordf: 'ª', not: '¬', shy: '­', macr: '¯',
+    deg: '°', plusmn: '±', sup2: '²', sup3: '³', acute: '´', micro: 'µ',
+    para: '¶', middot: '·', cedil: '¸', sup1: '¹', ordm: 'º',
+    frac14: '¼', frac12: '½', frac34: '¾', iquest: '¿',
+    Agrave: 'À', agrave: 'à', Aacute: 'Á', aacute: 'á', Acirc: 'Â', acirc: 'â',
+    Atilde: 'Ã', atilde: 'ã', Aring: 'Å', aring: 'å', AElig: 'Æ', aelig: 'æ',
+    Egrave: 'È', egrave: 'è', Ecirc: 'Ê', ecirc: 'ê', Euml: 'Ë', euml: 'ë',
+    Igrave: 'Ì', igrave: 'ì', Iacute: 'Í', iacute: 'í', Icirc: 'Î', icirc: 'î',
+    Iuml: 'Ï', iuml: 'ï', ETH: 'Ð', eth: 'ð', Ntilde: 'Ñ', ntilde: 'ñ',
+    Ograve: 'Ò', ograve: 'ò', Oacute: 'Ó', oacute: 'ó', Ocirc: 'Ô', ocirc: 'ô',
+    Otilde: 'Õ', otilde: 'õ', Oslash: 'Ø', oslash: 'ø', times: '×', divide: '÷',
+    Ugrave: 'Ù', ugrave: 'ù', Uacute: 'Ú', uacute: 'ú', Ucirc: 'Û', ucirc: 'û',
+    Yacute: 'Ý', yacute: 'ý', Yuml: 'Ÿ', yuml: 'ÿ', THORN: 'Þ', thorn: 'þ',
+    OElig: 'Œ', oelig: 'œ', Scaron: 'Š', scaron: 'š', Zcaron: 'Ž', zcaron: 'ž',
+    fnof: 'ƒ', circ: 'ˆ', tilde: '˜', trade: '™', permil: '‰', euro: '€',
+    dagger: '†', Dagger: '‡', bull: '•', prime: '′', Prime: '″',
+    sbquo: '‚', bdquo: '„', lsaquo: '‹', rsaquo: '›', oline: '‾', frasl: '⁄',
   };
   // Üretilen & işaretini aynı geçişte yeniden çözme: &amp;#39; literal kalmalı.
   return String(value || '').replace(/&([a-z][a-z0-9]+|#\d+|#x[0-9a-f]+);/gi, (match, entity) => {
