@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 14:44 — R81 ikinci tur (kod değişikliği yok): npm test TAM GEÇTİ feed_partial WIP dahil; feed_partial son hâl denetimi N1 latent (tek-satır öneri); R77 SL1-5 doğrulandı — SL1 öksüz modül DOĞRU (üretim kopyası preload inline), SL2 sahte telemetri DOĞRU (4 sabit-0), SL4 üçer kopya, SL5 m[1]) artefaktı; PROGRAM_BUG_REPORT_81 §4](docs/devir/2026-09-19-1444.md).
+Güncel çalışma: [2026-09-19 15:17 — R82 güvenlik yüzeyi derin denetimi (kod değişikliği yok): B82-01 P3 yeni bulgu — invidious:login şifresi argv'de (WHISPER_YT_* env konvansiyonu ihlali); navigasyon/izin/popup/indirme/webRequest/SID-token/settings yüzeyleri satır satır TEMİZ; B80-01 hâlâ açık (WIP yalnız modelProfiles); PROGRAM_BUG_REPORT_82.md](docs/devir/2026-09-19-1517.md).
+
+Önceki çalışma: [2026-09-19 14:44 — R81 ikinci tur (kod değişikliği yok): npm test TAM GEÇTİ feed_partial WIP dahil; feed_partial son hâl denetimi N1 latent (tek-satır öneri); R77 SL1-5 doğrulandı — SL1 öksüz modül DOĞRU (üretim kopyası preload inline), SL2 sahte telemetri DOĞRU (4 sabit-0), SL4 üçer kopya, SL5 m[1]) artefaktı; PROGRAM_BUG_REPORT_81 §4](docs/devir/2026-09-19-1444.md).
 
 Önceki çalışma: [2026-09-19 14:39 — SmartTube ana akış ve gezinme düzeltmesi: katalog/oynatma yüzeyi ayrımı (.browsing), feed_partial ilerleyici ana sayfa (hızlı kol bekletmez), requestId kuşağı, preload event-payload köprüsü, resmî instance listesi yenileme, 8s açıklayıcı durum + retry, kısmi-hatada kartlar korunur, YT girişi ana gezinmeye taşındı; npm test geçti](docs/devir/2026-09-19-1439.md).
 
