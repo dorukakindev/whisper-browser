@@ -1908,6 +1908,10 @@
             <!-- Ana alan: üst arama + grid -->
             <section class="st-main">
               <header class="st-topbar">
+                <div class="st-brand" aria-label="YouTube browser">
+                  <span class="st-brand-mark" aria-hidden="true">▶</span>
+                  <span class="st-brand-name">YouTube</span>
+                </div>
                 <div class="st-search-wrap">
                   <input type="search" id="stSearchInput" placeholder="Ara..." aria-label="Ara"/>
                   <button class="st-clear-btn hidden" id="stSearchClear" aria-label="Aramayı temizle">&times;</button>
@@ -2920,10 +2924,10 @@
     <div id="ytClientView">
       <h3 id="ytLoginTitle">YouTube ile giriş</h3>
       <p class="small-muted">
-        Gerçek YouTube hesabınla giriş — SmartTube'un kullandığı yöntem.
-        Bir kerelik kurulum: Google Cloud'da "TV ve sınırlı girişli cihazlar" tipinde
-        OAuth client oluştur (YouTube Data API v3 etkin), Client ID + Secret'i buraya gir.
-        Bilgiler işletim sistemi güvenli deposunda saklanır.
+        Cihaz koduyla giriş için bir kerelik kurulum gerekir: Google Cloud'da
+        "TV ve sınırlı girişli cihazlar" tipinde OAuth istemcisi oluştur,
+        YouTube Data API v3'ü etkinleştir ve Client ID ile Secret'i gir.
+        Bu bilgiler cihazda güvenli depoda tutulur. Bu, SmartTube hesabını içe aktarmaz.
       </p>
       <label class="field">
         <span class="field-label">Client ID</span>
@@ -2947,9 +2951,11 @@
       <div class="yt-device-code-wrap">
         <a href="#" id="ytVerificationUrl" class="yt-verification-url">google.com/device</a>
         <div class="yt-user-code" id="ytUserCode">----</div>
+        <button class="btn btn-secondary btn-sm" id="ytCopyCode" type="button">Kodu kopyala</button>
       </div>
-      <p class="small-muted" id="ytPollStatus">Onay bekleniyor…</p>
+      <p class="small-muted" id="ytPollStatus" role="status" aria-live="polite">Onay bekleniyor…</p>
       <div class="modal-actions">
+        <button class="btn btn-secondary" id="ytChangeClient" type="button">İstemciyi değiştir</button>
         <button class="btn btn-secondary" id="ytDeviceCancel">İptal</button>
       </div>
     </div>

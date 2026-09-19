@@ -22492,12 +22492,26 @@ async function renderSmartTubeSection(section, opts = {}) {
 
   let feedData = null;
   let videos = [];
+  let youtubeHomeFallback = false;
   try {
     if (section === 'channels') {
       const channels = await fetchInvidiousSubscriptions(force).catch(() => null);
       if (stale()) return;
       renderSmartTubeChannels(channels || []);
       return;
+    }
+    if (section === 'home' && youtubeLoggedIn) {
+      // Girişliyken ilk tercih kişisel YouTube ana akışı. InnerTube uçları
+      // her hesapta aynı davranmadığından başarısızlık genel akışa düşer;
+      // kaynak etiketi bunu açıkça belirtir.
+      const personal = await window.api.youtubeBrowse('FEwhat_to_watch').catch(() => null);
+      if (stale()) return;
+      if (personal && personal.ok && Array.isArray(personal.data?.videos) && personal.data.videos.length) {
+        feedData = { ...personal.data, _youtube: true };
+        videos = feedData.videos;
+      } else {
+        youtubeHomeFallback = true;
+      }
     }
     if (section === 'subscriptions' && youtubeLoggedIn) {
       // YouTube OAuth girişi varsa abonelikler gerçek YouTube hesabından gelir
@@ -22507,7 +22521,7 @@ async function renderSmartTubeSection(section, opts = {}) {
       feedData = res.data || {};
       feedData._youtube = true;
       videos = feedData.videos || [];
-    } else {
+    } else if (!feedData) {
     const feedOpts = section === 'trending' && stTrendTab ? { tab: stTrendTab } : {};
     feedData = await fetchInvidiousFeed(
       section === 'home' ? 'home' : section, force, feedOpts);
@@ -22543,6 +22557,10 @@ async function renderSmartTubeSection(section, opts = {}) {
   }
 
   if (section === 'home') {
+    const heading = $('stSectionTitle');
+    if (heading) heading.textContent = feedData._youtube
+      ? (window.UiLocale?.t('Senin için') || 'Senin için')
+      : (window.UiLocale?.t('Ana sayfa') || 'Ana sayfa');
     const trending = feedData._trending || [];
     if (stale()) return;
     const seen = new Set();
@@ -22575,6 +22593,8 @@ async function renderSmartTubeSection(section, opts = {}) {
     setSmartTubeStatus(`⚠ ${window.UiLocale?.t('Yedek kaynak (yt-dlp) — sonuçlar Invidious üzerinden gelmedi') || 'Yedek kaynak (yt-dlp)'}`);
   } else if (feedData && feedData._youtube) {
     setSmartTubeStatus(`YouTube${youtubeUserName ? `: ${youtubeUserName}` : ''}`);
+  } else if (youtubeHomeFallback) {
+    setSmartTubeStatus(window.UiLocale?.t('YouTube kişisel akışı alınamadı; genel akış gösteriliyor.') || 'YouTube kişisel akışı alınamadı; genel akış gösteriliyor.');
   } else if (lastInvidiousInstance) {
     setSmartTubeStatus(`Instance: ${lastInvidiousInstance}`);
   }
@@ -23186,16 +23206,29 @@ function openYoutubeLogin() {
     if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
     _ytShowView('ytLoggedView');
   } else {
-    _ytShowView('ytClientView');
+    // Kayıtlı istemcide her girişte kurulum formuna döndürme. Kod görünümünü
+    // hemen aç; asıl Google onayı yalnız kullanıcı cihazında gerçekleşir.
+    const openingGen = ++_ytFlowGen;
+    _ytShowView('ytDeviceView');
+    const pollStatus = $('ytPollStatus');
+    if (pollStatus) pollStatus.textContent = window.UiLocale?.t('İstemci bilgisi kontrol ediliyor…') || 'İstemci bilgisi kontrol ediliyor…';
     window.api.youtubeSession().then((res) => {
-      // Client zaten kayıtlıysa alanları doldur — secret asla renderer'a gelmez
-      if (res && res.ok && res.data && res.data.hasClient && $('ytClientId') && !$('ytClientId').value) {
-        $('ytClientId').placeholder = 'Kayıtlı client (değiştirmek için yeni ID gir)';
+      if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
+      if (res && res.ok && res.data && res.data.hasClient) {
+        startYoutubeDeviceFlow();
+      } else {
+        _ytShowView('ytClientView');
+        $('ytClientId')?.focus();
       }
-    }).catch(() => {});
+    }).catch(() => {
+      if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
+      _ytShowView('ytClientView');
+      ytModalError('YouTube oturumu kontrol edilemedi. Yeniden deneyin.');
+      $('ytClientId')?.focus();
+    });
   }
   dlg.classList.remove('hidden');
-  const focusTarget = youtubeLoggedIn ? $('ytLoggedClose') : $('ytClientId');
+  const focusTarget = youtubeLoggedIn ? $('ytLoggedClose') : $('ytDeviceCancel');
   if (focusTarget) focusTarget.focus();
 }
 
@@ -23218,15 +23251,21 @@ async function startYoutubeDeviceFlow() {
   if (_ytPolling) return;
   _ytPolling = true;                                // deviceCode await'i de kapsar
   const gen = ++_ytFlowGen;
+  _ytShowView('ytDeviceView');
+  const status = $('ytPollStatus');
+  const codeEl = $('ytUserCode');
+  if (codeEl) codeEl.textContent = '----';
+  if (status) status.textContent = window.UiLocale?.t('Cihaz kodu alınıyor…') || 'Cihaz kodu alınıyor…';
   const res = await window.api.youtubeDeviceCode().catch(() => null);
-  if (gen !== _ytFlowGen) { _ytPolling = false; window.api.youtubeCancel().catch(() => {}); return; }
+  // Kapanış/değiştirme yolu eski isteği zaten iptal eder. Buradan tekrar
+  // cancel göndermek, hemen başlatılan yeni kuşağın poll'unu öldürebilir.
+  if (gen !== _ytFlowGen) return;
   if (!res || !res.ok) {
     _ytPolling = false;
+    _ytShowView('ytClientView');
     ytModalError(res && res.error ? res.error : 'Cihaz kodu alınamadı');
     return;
   }
-  _ytShowView('ytDeviceView');
-  const codeEl = $('ytUserCode');
   if (codeEl) codeEl.textContent = res.data.user_code || '----';
   const link = $('ytVerificationUrl');
   if (link) {
@@ -23235,7 +23274,6 @@ async function startYoutubeDeviceFlow() {
     link.href = vurl;
     link.onclick = (e) => { e.preventDefault(); window.api.openExternal(vurl); };
   }
-  const status = $('ytPollStatus');
   if (status) status.textContent = 'Onay bekleniyor…';
   try {
     const pr = await window.api.youtubePoll();
@@ -23248,12 +23286,12 @@ async function startYoutubeDeviceFlow() {
       _ytPolling = false;          // poll bitti — close'un iptal yoluna düşmesin
       closeYoutubeLogin();
       osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
-      if (stCurrentSection === 'subscriptions') renderSmartTubeSection('subscriptions', { force: true });
+      if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
     } else if (status) {
       status.textContent = (pr && pr.error) ? pr.error : 'Onay tamamlanamadı.';
     }
   } finally {
-    _ytPolling = false;
+    if (gen === _ytFlowGen) _ytPolling = false;
   }
 }
 
@@ -23266,7 +23304,7 @@ async function doYoutubeLogout() {
   refreshYoutubeAuthUI();
   closeYoutubeLogin();
   osd('YouTube oturumu kapatıldı');
-  if (stCurrentSection === 'subscriptions') renderSmartTubeSection('subscriptions', { force: true });
+  if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
 }
 
 function initSmartTube() {
@@ -23305,6 +23343,23 @@ function initSmartTube() {
     window.api.youtubeCancel().catch(() => {});
     _ytPolling = false;
     closeYoutubeLogin();
+  });
+  const ytChangeClient = $('ytChangeClient');
+  if (ytChangeClient) ytChangeClient.addEventListener('click', () => {
+    _ytFlowGen++;
+    if (_ytPolling) window.api.youtubeCancel().catch(() => {});
+    _ytPolling = false;
+    _ytShowView('ytClientView');
+    ytModalError('');
+    $('ytClientId')?.focus();
+  });
+  const ytCopyCode = $('ytCopyCode');
+  if (ytCopyCode) ytCopyCode.addEventListener('click', async () => {
+    const code = $('ytUserCode')?.textContent || '';
+    if (!code || code === '----') return;
+    const copied = await window.api.copyText(code).catch(() => false);
+    const status = $('ytPollStatus');
+    if (copied && status) status.textContent = window.UiLocale?.t('Kod kopyalandı. Google onayı bekleniyor…') || 'Kod kopyalandı. Google onayı bekleniyor…';
   });
   const ytLoggedClose = $('ytLoggedClose');
   if (ytLoggedClose) ytLoggedClose.addEventListener('click', closeYoutubeLogin);

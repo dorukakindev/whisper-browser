@@ -1147,6 +1147,8 @@
 
     // SmartTube / Invidious
     ['Ana sayfa', 'Home'],
+    ['Senin için', 'For you'],
+    ['YouTube kişisel akışı alınamadı; genel akış gösteriliyor.', 'YouTube personal feed unavailable; showing the public feed.'],
     ['Trend', 'Trending'],
     ['Popüler', 'Popular'],
     ['Abonelikler', 'Subscriptions'],
@@ -1217,6 +1219,12 @@
     ['YT çıkış', 'YT sign out'],
     ['YouTube bağlı', 'YouTube connected'],
     ['YouTube onayı bekleniyor', 'Waiting for YouTube approval'],
+    ['Kodu kopyala', 'Copy code'],
+    ['İstemciyi değiştir', 'Change OAuth client'],
+    ['İstemci bilgisi kontrol ediliyor…', 'Checking OAuth client…'],
+    ['Cihaz kodu alınıyor…', 'Requesting device code…'],
+    ['Kod kopyalandı. Google onayı bekleniyor…', 'Code copied. Waiting for Google approval…'],
+    ['Cihaz koduyla giriş için bir kerelik kurulum gerekir: Google Cloud\'da "TV ve sınırlı girişli cihazlar" tipinde OAuth istemcisi oluştur, YouTube Data API v3\'ü etkinleştir ve Client ID ile Secret\'i gir. Bu bilgiler cihazda güvenli depoda tutulur. Bu, SmartTube hesabını içe aktarmaz.', 'Device-code sign-in requires one-time setup: create a "TVs and limited-input devices" OAuth client in Google Cloud, enable YouTube Data API v3, and enter its Client ID and Secret. These credentials are stored securely on this device. This does not import a SmartTube account.'],
     ['Göster', 'Show'],
     ['Şifreyi göster', 'Show password'],
     ['Telefonda veya bilgisayarda aşağıdaki adresi aç ve kodu gir:', 'Open the address below on your phone or computer and enter the code:'],

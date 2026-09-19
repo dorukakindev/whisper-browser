@@ -25,6 +25,9 @@ const mkVideo = (id, title, author) => ({
 });
 
 async function main() {
+  let copiedCode = '';
+  let slowNextDeviceCode = false;
+  let deviceCancelCount = 0;
   // Mock Invidious IPC — gerçek handler'lar bu bare-window'da kayıtlı değil.
   const popular = Array.from({ length: 6 }, (_, i) => mkVideo(`pop${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'x'), `Popular ${i}`, 'PopChannel'));
   const trending = Array.from({ length: 4 }, (_, i) => mkVideo(`trd${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'y'), `Trending ${i}`, 'TrendChannel'));
@@ -74,13 +77,25 @@ async function main() {
   // Mock YouTube OAuth IPC — oturum başta kapalı; renderer'da elle açılır
   ipcMain.handle('youtube:session', async () => ({
     ok: true,
-    data: { loggedIn: false, userName: '', hasClient: false, pendingCode: false },
+    data: { loggedIn: false, userName: '', hasClient: true, pendingCode: false },
   }));
+  ipcMain.handle('youtube:deviceCode', async () => {
+    if (slowNextDeviceCode) { slowNextDeviceCode = false; await delay(350); }
+    return { ok: true, data: { user_code: 'ABCD-EFGH', verification_url: 'https://www.google.com/device', expires_in: 1800 } };
+  });
+  ipcMain.handle('youtube:poll', async () => {
+    await delay(700);
+    return { ok: true, data: { userName: 'MockYT' } };
+  });
+  ipcMain.handle('youtube:cancel', async () => { deviceCancelCount++; return { ok: true }; });
+  ipcMain.handle('clipboard:write', async (_e, value) => { copiedCode = value; return true; });
   const ytSubs = Array.from({ length: 2 }, (_, i) =>
     mkVideo(`yts${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'q'), `SubVid ${i}`, 'YTChannel'));
   ipcMain.handle('youtube:browse', async (_e, bid) => (
-    bid === 'FEsubscriptions'
-      ? { ok: true, data: { kind: 'youtube', browse_id: bid, videos: ytSubs, continuation: '', instance: 'youtube.com' } }
+    bid === 'FEsubscriptions' || bid === 'FEwhat_to_watch'
+      ? { ok: true, data: { kind: 'youtube', browse_id: bid,
+          videos: bid === 'FEwhat_to_watch' ? [mkVideo('personal123', 'PersonalVid', 'YTChannel')] : ytSubs,
+          continuation: '', instance: 'youtube.com' } }
       : { ok: false, error: 'bad browse_id' }
   ));
   ipcMain.handle('queue:save', async () => ({ ok: true }));
@@ -149,6 +164,15 @@ async function main() {
       noNestedGrid: nested === 0,
     };
   })()`, true);
+
+  if (process.env.SMARTTUBE_SCREENSHOT) {
+    const fs = require('node:fs');
+    await win.webContents.executeJavaScript("document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player'); setSmartTubeVisible(true)", true);
+    win.showInactive();
+    await delay(600);
+    const shot = await win.webContents.capturePage();
+    fs.writeFileSync(process.env.SMARTTUBE_SCREENSHOT, shot.toPNG());
+  }
 
   const missing = Object.entries(probe).filter(([k, v]) => !v && k !== 'minCardWidth' && k !== 'cardCount').map(([k]) => k);
   assert(missing.length === 0, `SmartTube boot eksikleri: ${missing.join(', ')}`);
@@ -242,6 +266,9 @@ async function main() {
     await sleep(400);
     out.ytSubsRendered = grid.textContent.includes('SubVid');
     out.ytStatus = /YouTube/.test(document.getElementById('stStatusLine').textContent);
+    await renderSmartTubeSection('home');
+    out.ytHomeRendered = grid.textContent.includes('PersonalVid');
+    out.ytHomeLabel = /For you|Senin için/.test(document.getElementById('stSectionTitle').textContent);
     // Oynatıcı panelindeki OAuth düğmesi/durumu aynı oturumla senkron kalmalı.
     const pBtn = document.getElementById('playerYtOAuthBtn');
     const pStatus = document.getElementById('playerYtOAuthStatus');
@@ -276,14 +303,59 @@ async function main() {
   assert(feat.ytLoginHidden === true, 'girişliyken stYtLoginBtn gizlenmedi');
   assert(feat.ytLogoutVisible === true, 'girişliyken stYtLogoutBtn görünmedi');
   assert(feat.ytSubsRendered === true, 'YouTube abonelik kartları basılmadı');
+  assert(feat.ytHomeRendered === true && feat.ytHomeLabel === true, 'girişli YouTube kişisel ana akışı basılmadı');
   assert(feat.ytStatus === true, 'YouTube statü satırı gösterilmedi');
   assert(feat.ytLogoutCleanup === true, 'çıkışta stYtLogoutBtn gizlenmedi');
   assert(feat.ytPlayerBtnSynced === true, 'oynatıcı paneli OAuth durumu senkron değil');
   assert(feat.ytPlayerCleanup === true, 'çıkışta oynatıcı OAuth durumu temizlenmedi');
   assert(failed.length === 0, `özellik probları: ${failed.join(', ')}`);
 
+  // Kayıtlı istemciyle giriş formu tekrar gösterilmeden cihaz koduna geçmeli.
+  await win.webContents.executeJavaScript('openYoutubeLogin()', true);
+  await delay(250);
+  const deviceFlow = await win.webContents.executeJavaScript(`(() => {
+    const dlg = document.getElementById('youtubeLoginModal');
+    const code = document.getElementById('ytUserCode');
+    const view = document.getElementById('ytDeviceView');
+    const client = document.getElementById('ytClientView');
+    document.getElementById('ytCopyCode').click();
+    return {
+      modalOpen: !dlg.classList.contains('hidden'),
+      deviceVisible: !view.classList.contains('hidden'),
+      clientHidden: client.classList.contains('hidden'),
+      code: code.textContent,
+    };
+  })()`, true);
+  await delay(100);
+  assert(deviceFlow.modalOpen && deviceFlow.deviceVisible && deviceFlow.clientHidden,
+    'kayıtlı istemci doğrudan cihaz kodu ekranına geçmedi');
+  assert(deviceFlow.code === 'ABCD-EFGH', `yanlış cihaz kodu: ${deviceFlow.code}`);
+  assert(copiedCode === 'ABCD-EFGH', 'cihaz kodu panoya kopyalanmadı');
+  await delay(800);
+  const loggedAfterPoll = await win.webContents.executeJavaScript(`(() => ({
+    logged: youtubeLoggedIn,
+    modalClosed: document.getElementById('youtubeLoginModal').classList.contains('hidden'),
+    account: youtubeUserName,
+  }))()`, true);
+  assert(loggedAfterPoll.logged && loggedAfterPoll.modalClosed && loggedAfterPoll.account === 'MockYT',
+    'cihaz onayı sonrası YouTube oturumu arayüze yansımadı');
+
+  // İlk kod isteği geç döndüğünde eski kuşak, yeni kuşağın poll'unu iptal etmemeli.
+  slowNextDeviceCode = true;
+  await win.webContents.executeJavaScript('youtubeLoggedIn = false; refreshYoutubeAuthUI(); openYoutubeLogin()', true);
+  await delay(70);
+  await win.webContents.executeJavaScript('closeYoutubeLogin(); openYoutubeLogin()', true);
+  await delay(450);
+  const raceView = await win.webContents.executeJavaScript(`(() => ({
+    code: document.getElementById('ytUserCode').textContent,
+    visible: !document.getElementById('ytDeviceView').classList.contains('hidden'),
+  }))()`, true);
+  assert(raceView.visible && raceView.code === 'ABCD-EFGH', 'yeni cihaz kodu eski kuşakta kayboldu');
+  assert(deviceCancelCount === 1, `bayat cihaz kodu yeni akışı iptal etti: ${deviceCancelCount}`);
+  await win.webContents.executeJavaScript('closeYoutubeLogin()', true);
+
   win.close();
-  console.log(JSON.stringify({ ok: true, probe, feat }));
+  console.log(JSON.stringify({ ok: true, probe, feat, deviceFlow, loggedAfterPoll }));
 }
 
 app.whenReady().then(main).then(() => app.quit()).catch(error => {
