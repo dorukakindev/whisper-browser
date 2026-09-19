@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 14:30 — R81 doğrulama+denetim+şartname turu (kod değişikliği yok): R79/R80 bulguları 8/8 doğru 0 FP; paralel AI diff incelemesi temiz + 4 nit; D81-01 P2 i18n boşluğu (262 dizge tabloda yok), 185 IPC handler'ın 0'ı guardsız; FEATURE_BLUEPRINTS.md — 7 uygulama şartnamesi (sekme dondurma, seekbar önizleme, userscript GM_*, TTML kolu, semantik geçmiş, cast probe, telefon kumandası); PROGRAM_BUG_REPORT_81.md](docs/devir/2026-09-19-1430.md).
+Güncel çalışma: [2026-09-19 14:39 — R80 SmartTube gezinme düzeltmesi: oynatıcı denetimleri katalogdan ayrıldı, ana akış ilk hazır kartları 1,6 sn'de ilerlemeli gösteriyor, resmî Invidious listesi ve hata/retry yüzeyi; tam paket + Electron smoke yeşil](docs/devir/2026-09-19-1439.md).
+
+Önceki çalışma: [2026-09-19 14:30 — R81 doğrulama+denetim+şartname turu (kod değişikliği yok): R79/R80 bulguları 8/8 doğru 0 FP; paralel AI diff incelemesi temiz + 4 nit; D81-01 P2 i18n boşluğu (262 dizge tabloda yok), 185 IPC handler'ın 0'ı guardsız; FEATURE_BLUEPRINTS.md — 7 uygulama şartnamesi (sekme dondurma, seekbar önizleme, userscript GM_*, TTML kolu, semantik geçmiş, cast probe, telefon kumandası); PROGRAM_BUG_REPORT_81.md](docs/devir/2026-09-19-1430.md).
 
 Önceki çalışma: [2026-09-19 13:57 — R76 derin genişletme (kod değişikliği yok): ikinci araştırma turu §9–§16 — thumbfast/Vieb/Nyxt desenleri, transformers.js semantik geçmiş, CDP setWebLifecycleState sekme dondurma + pre-nav enjeksiyon, Remote Playback cast probe'u, Trakt/Simkl scrobble, guessit+TMDB, aria2/WebTorrent, Playwright-E2E, imsc TTML+JASSUB, Kodi-remote telefon kumandası; ~40 ek bulgu BROWSER_FEATURE_RESEARCH_76.md'ye işlendi](docs/devir/2026-09-19-1357.md).
 
