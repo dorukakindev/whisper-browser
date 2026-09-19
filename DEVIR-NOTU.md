@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 13:11 — R76 tarayıcı-tarafı GitHub özellik araştırması (kod değişikliği yok): 15+ repo — trickplay, incognito/konteyner sekmeler, ClearURLs, DLNA cast, userscript yöneticisi, Whisper sesli giriş, moviehash+subliminal, intro atlama, lite-mode, electron-updater; BROWSER_FEATURE_RESEARCH_76.md](docs/devir/2026-09-19-1311.md).
+Güncel çalışma: [2026-09-19 13:34 — R79 SmartTube-style oynatıcı ve YouTube cihaz kodu girişi: kayıtlı istemciyle doğrudan kod, güvenli kuşak iptali, kişisel ana akış ve TV ölçekli görünüm; mock Electron + tam paket yeşil](docs/devir/2026-09-19-1334.md).
+
+Önceki çalışma: [2026-09-19 13:11 — R76 tarayıcı-tarafı GitHub özellik araştırması (kod değişikliği yok): 15+ repo — trickplay, incognito/konteyner sekmeler, ClearURLs, DLNA cast, userscript yöneticisi, Whisper sesli giriş, moviehash+subliminal, intro atlama, lite-mode, electron-updater; BROWSER_FEATURE_RESEARCH_76.md](docs/devir/2026-09-19-1311.md).
 
 Önceki çalışma: [2026-09-19 12:50 — R75 GitHub özellik araştırması (kod değişikliği yok): 12+ repo kaynak incelemesi — kullanılmayan Invidious uçları (storyboard/suggestions/tlang/kanal sekmeleri), SmartTube parite boşlukları (bağlam menüsü, oynatma kuyruğu, yerel abonelik), RYD/DeArrow/YouTube.js/Piped/MediaSession envanteri; BROWSER_FEATURE_RESEARCH_75.md](docs/devir/2026-09-19-1250.md).
 
