@@ -1,5 +1,8 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 21:34 — Yeni browser/program bug raporları güncel koda göre ayıklandı; 15 doğrulanmış kök neden, kapanmış/yanlış/kanıt bekleyenler ayrı; ürün kodu değişmedi; BROWSER_BUG_REPORT_81.md](docs/devir/2026-09-19-2134.md).
+Güncel çalışma: [2026-09-19 22:00 — Önceki 15-bulguluk ayıklamanın kapsam düzeltmesi; R83'ün 39 maddesi tek tek sınıflandı, R76–80 ve PROGRAM R79–82 envantere alındı; ürün kodu değişmedi; BROWSER_BUG_REPORT_84.md](docs/devir/2026-09-19-2200.md).
+
+Önceki çalışma: [2026-09-19 21:34 — Yeni browser/program bug raporları güncel koda göre ayıklandı; 15 doğrulanmış kök neden, kapanmış/yanlış/kanıt bekleyenler ayrı; ürün kodu değişmedi; BROWSER_BUG_REPORT_81.md](docs/devir/2026-09-19-2134.md).
+
 
 Önceki çalışma: [2026-09-19 14:51 — R83 derin tur 2 (kod değişikliği yok): 6 çapraz-kesim küme + ampirik kanıt — +21 bulgu (1×P1 arşiv regex token sızıntısı, 8×P2 bayatlık/kalibrasyon/saklama, 12×P3); toplam 39 bulgu; Chromium 137 CDP repro'ları + Node kanıtları + 140/143 browser testi; BROWSER_BUG_REPORT_83.md BÖLÜM 2](docs/devir/2026-09-19-1451.md).
 
