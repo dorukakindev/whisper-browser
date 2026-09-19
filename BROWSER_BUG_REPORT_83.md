@@ -15,8 +15,11 @@ main IPC/webview yaşam döngüsü. Ajan bulguları bu oturumda kaynak üzerinde
 **satır satır yeniden doğrulandı**; Electron olay semantiği resmi dokümanla
 teyit edildi. Ürün kodu değiştirilmedi.
 
-Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
+Tarama sonucu (tur 1): **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
 `IPC/webview` kümeleri yeni bulgu üretmedi (küme notları aşağıda).
+
+**BÖLÜM 2 (derin tur) sonucu: +21 tekil bulgu** (1×P1, 8×P2, 12×P3) —
+toplam **39 bulgu** (1×P1, 14×P2, 24×P3). BÖLÜM 2 aşağıdadır.
 
 ---
 
@@ -342,3 +345,306 @@ Tarama sonucu: **18 tekil bulgu** (6×P2, 12×P3). `renderer browser-UI` ve
   "will not emit when the navigation is started programmatically with APIs
   like `webContents.loadURL`" (electron/electron `docs/api/web-contents.md`).
 - Rapor ürün kodunda değişiklik yapmaz; düzeltme yönleri öneridir.
+
+---
+
+# BÖLÜM 2 — Derin tur: yarış / yaşam döngüsü / i18n / kalıcılık / kozmetik (salt-okunur + ampirik)
+
+Aynı gün ikinci tur: 6 çapraz-kesim kümesi (yarış durumları, yaşam döngüsü ve
+sızıntılar, i18n/unicode, kalıcılık/dışa-aktarım bütünlüğü, girdi-doğrulama ve
+hata yolları, kozmetik/UI-sözleşmesi). Her bulgu bu oturumda kaynakta yeniden
+doğrulandı; ayrıca **gerçek Chromium 137 üzerinde CDP ile sayfa-içi repro'lar**
+ve Node repro'ları çalıştırıldı (kanıtlar ilgili maddelerde). Ajanların
+`/tmp` repro'ları repo'ya yazılmadı.
+
+## P1 — Kritik
+
+### B83-19 — Çeviri arşivi kendi SENSITIVE_QUERY listesini kullanıyor; session/OAuth/imza token'ları arşive ve paylaşılabilir dışa-aktarımlara yazılıyor
+
+- **Konum:** `src/browser-translation-archive.js:11` (`canonicalPageUrl`'deki
+  özel `SENSITIVE_QUERY` regex'i), `src/browser-sensitive-keys.js:22-54`
+  (ortak sözlük), yazım çağrıcıları `main.js:5430`, `:7602`, `:7865`.
+- **Mekanizma:** Arşivin URL temizleyicisi ortak `isSensitiveKey` sözlüğünü
+  değil kendi regex'ini kullanır ve sözlükteki şu adları **kaçırır**:
+  `session_id`, `sid`, `id_token`, `refresh_token`, `oauth_token`, `nonce`,
+  `client_id`, `client_secret`, `hdnts`, `hdnea`, `verifier`, `token_type`,
+  `authToken`, `sigv4`, `apikey`, `x-api-key`, `csrf`, `xsrf`, `assertion`,
+  `bearer`, `appSecret`, `x-goog-*`/`aws-*` önekleri. Cloudflare Stream imzalı
+  URL (`?hdnts=~hmac=…`) veya OAuth yönlendirme adresi üzerinde çevrilen
+  sayfa, canlı kimlik bilgisini `Çeviri Arşivi/index.json`, `Sayfalar/*.json`,
+  `Sayfalar/*.md` ("Kaynak:" satırı) ve `buildPageTranslationExport` çıktısının
+  `url` alanına (`.json`/`.md`/`.html` — paylaşılmak için üretilen dosyalar)
+  düz metin taşır.
+- **Etki:** Kullanıcı arşiv/dışa-aktarım dosyasını paylaştığında hesap veya
+  imzalı-içerik token'ları sızar. B80-01'in (yedekteki URL sırrı) aynı sınıf
+  kardeşi; farkı, hedef dosyanın *paylaşılabilir* olması.
+- **Çözüm yönü:** `canonicalPageUrl` ortak `isSensitiveKey` +
+  `startsWithSensitivePrefix`'i kullanmalı.
+
+## P2 — Yüksek öncelikli
+
+### B83-20 — Kimlik bilgili URL'ler (user:pass@) watch-index.sqlite'a ve dışa-aktarımlara kalıcılanıyor
+
+- **Konum:** `src/main.js:7803` (`index.upsertMedia({url: tab.restoredUrl})`),
+  `src/main.js:2725` (arama fallback'i `hit.url` → `watch-library.json`
+  `sourceRef`), `src/browser-adapters.js:67-78`
+  (`persistentBrowserMediaUrl` sorgu anahtarlarını ve hash'i temizler ama
+  **`url.username`/`url.password`'e dokunmaz**; yan komşusu
+  `redactCaptureUrl` :39-40 ikisini de siler).
+- **Mekanizma:** B83-03'ün guard'sız `loadURL` yoluyla açılan
+  `https://user:pass@host/` sekmesi `tab.restoredUrl`'i ham saklar →
+  watch-index `media.url`'a (hiç budanmayan tablo) ve kütüphane
+  `sourceRef`'ine yazılır; `settings:export` yolu da aynı koruma boşluğunu
+  taşır.
+- **Etki:** Düz metin kimlik bilgisi kalıcı mağazalarda ve yedeklerde kalır —
+  B83-03'ün kalıcılık yarısı (savunma derinliği açığı).
+- **Çözüm yönü:** `persistentBrowserMediaUrl` ve `upsertMedia` yolu
+  userinfo'yu her durumda silsin.
+
+### B83-21 — `browser:page:exclusions` üç sayfa-await'inden sonra bayatlık denetimi yapmadan eski oturumun çevirilerini yeni sayfaya basıyor
+
+- **Konum:** `src/main.js:14320-14368`.
+- **Mekanizma:** Handler `session.excludedSections`'ı senkron değiştirip
+  `await pageBlockScanScript` (`observe:true`, :14334), `pageExcludeScript`
+  (:14349), `pageApplyScript` (:14354) ve `runBrowserPageTranslationBlocks`
+  (:14368) çağırır — aralarda hiç `tab.pageTranslateSession === session` /
+  `tab.generation` yeniden kontrolü yok. Navigasyon veya `browser:page:clear`
+  arada olursa eski oturumun pozisyonel `S<n>` çevirileri **yeni belgeye**
+  uygulanır ve `persistBrowserPageTranslationArchive` eski oturumu yeni
+  URL altında yazar → o URL'nin arşiv kaydı bozulur. Kardeş handler'lar
+  (`:14199`, `:14263`, `:10317`) bu kontrolü yapıyor — burası unutulmuş.
+- **Çözüm yönü:** Her await'ten sonra oturum/kuşak yeniden doğrulanmalı.
+
+### B83-22 — `startBrowserPageTranslation` ~5 sn'lik tarama penceresinde bayatlık denetimsiz; iş ölü oturumda doğuyor
+
+- **Konum:** `src/main.js:5913-5945`, `browser:page:start` busy kapısı
+  `:14163` (`if (tab.pageTranslateJob)` — tarama sürerken job henüz yok).
+- **Mekanizma:** `tab.pageTranslateSession = session` (:5913) → `await
+  pageBlockScanScript` (:5914, saniyeler) → doğrudan
+  `runBrowserPageTranslationBlocks` (:5945) — kuşak/oturum yeniden kontrolü
+  yok. Kullanıcı tarama sırasında navigasyon yapar veya temizlerse
+  `stopBrowserPageTranslation` oturumu null'lar + `tab.generation` artar;
+  devam eden koşu yine de işi kurar ve iş **yeni** kuşakla damgalandığı için
+  `pageTranslationJobIsCurrent` ömür boyu `true` → ölü sayfanın blokları için
+  sağlayıcı harcaması + bayat ilerleme/done olayları + yeni URL altında
+  arşiv. Busy-kapısı da baypass edilebilir (job daha atanmadı) → aynı
+  sekmede iki start mümkün.
+- **Çözüm yönü:** await sonrası `tab.pageTranslateSession === session &&
+  tab.generation === session.generation` denetimi.
+
+### B83-23 — Bayat `loadRetryTimer` kullanıcının bir sonraki gezinmesini `wc.reload()` ile eziyor
+
+- **Konum:** `src/main.js:11433-11444` (timer kurulumu), temizleme yalnız
+  `did-stop-loading` `:11320-11323` (`!tab.loadError` koşuluyla), `:11804`,
+  `:13258`. `did-start-navigation` (`:11282`) `tab.loadError`'u sıfırlar ama
+  timer'a dokunmaz.
+- **Mekanizma:** Sayfa A geçici ağ hatasıyla düşer → 10/30/60 sn'lik retry
+  timer'ı kurulur. Kullanıcı aynı sekmede yeni adrese gider →
+  `did-start-navigation` `loadError=null` yapar, timer durur. Timer ateşi
+  yalnız `closing/view-identity/isDestroyed` denetler → yeni sayfa hâlâ
+  yükleniyorken `wc.reload()` **son commit edilmiş (eski/hatalı) URL'yi**
+  yeniden yükler, kullanıcının uçuştaki gezinmesi iptal olur.
+  `loadRetryAttempt` da sıfırlanmadığı için yeni sayfanın ilk gerçek hatası
+  yükseltilmiş deneme indeksiyle 30/60 sn bekler.
+- **Çözüm yönü:** `did-start-navigation`'da timer + attempt sıfırlanmalı.
+
+### B83-24 — ui-locale MutationObserver'ı web-sayfası başlıklarını ve kullanıcı verisini "çeviriyor" (sekme/yer imi/indirme şeritleri korumasız)
+
+- **Konum:** `src/renderer/ui-locale.js:1268` (`ignored` listesinde
+  `#browserTabStrip`, `#browserPlacesList`, `#browserDownloadsList` yok);
+  yazım `renderer.js:6056` (`label.textContent = browserTabLabel(tab)`),
+  `:6818` (yer imi başlığı). `[data-ui-untranslated]` kaçış kapısı ölü —
+  attribute hiçbir elemana konmuyor (repo geneli grep: yalnız selector'da).
+- **Mekanizma:** Observer, sözlükte bulunan her metin düğümünü çevirir.
+  Türkçe site başlığı `Giriş` EN modda sekmede "Intro" diye görünür
+  (`ui-locale.js:403` çifti — üstelik yanlış kelime); `Ayarlar`→"Settings",
+  `Geçmiş`→"History"; TR modda İngilizce `History` başlıklı sayfa "Geçmiş"
+  olur. AGENTS kuralı ("kullanıcı/ortam verisi arayüz çeviricisine girmez")
+  ihlal ediliyor.
+- **Çözüm yönü:** `ignored`'a browser veri konteynerleri eklenmeli.
+
+### B83-25 — `normalizeTimelineText` en-US katlaması `İ`'yi `i\u0307`'ye böler → CEA↔site kalibrasyonu Türkçe içerikte sessizce hiç eşleşmiyor
+
+- **Konum:** `src/browser-cue-timeline-calibration.js:4`
+  (`toLocaleLowerCase('en-US')` + `[^\p{L}\p{N}]+` temizliği),
+  çağrı `main.js:8814`.
+- **Mekanizma + AMPİRİK KANIT (Node repro):**
+  `'İSTANBUL'.toLocaleLowerCase('en-US')` → `'i\u0307stanbul'`; U+0307
+  (Mn işaret) harf-olmayan sınıfın içinde kalıp boşluğa dönüşür →
+  `"i stanbul"` — kelime iki token'a ayrılır. Repro:
+  `normalizeTimelineText('GİDİYORUM') → "gi di yorum"`;
+  `calibrateCueTimeline(site:'istanbul…', cea:'İSTANBUL…')` →
+  `{accepted:false, reason:'insufficient-evidence', matches:1}` iken ASCII
+  `ISTANBUL` varyantı aynı veride `{accepted:true, offsetSeconds:-8,
+  confidence:'high'}`. Yani CEA yayın altyazısı Türkçe büyük-harf kullanırken
+  site ASR'ı farklı kasa kullanıyorsa ölçülen ofset asla uygulanmıyor —
+  gömülü altyazılar ekranda kayık kalıyor.
+- **Çözüm yönü:** Katlamada tr dostu normalize (örn. combining-mark silme +
+  İ/I/ı ayrı token haritası).
+
+### B83-26 — Sponsor "Atla" düğmesi bölüm bitince silinmiyor; tıklayan kullanıcı bitmiş segmente geri sarıyor
+
+- **Konum:** `src/renderer/renderer.js:10213-10225` (sor-modu pendingAction),
+  tıklama `:11254`, seek `:10131/:10138`.
+- **Mekanik:** `browserSponsorPendingAction` segmente girince yazılır;
+  `segment.end` geçildiğinde `find` boş döner ve `return false` alanı
+  pendingAction'ı **temizlemez**, aksiyon düğmesi de gizlenmez → "Atla"
+  sinyal şeridinde belirsiz kalır. Sonradan tıklanırsa
+  `browserCommand('seek', segment.end)` koşulsuz geriye sarar.
+  `sponsor-undo` ("Geri al") varyantı aynı bayatlığı taşır.
+
+### B83-27 — Açılış GC'si referans kümesine yalnız sqlite track satırlarını alıyor; oturum/çalışma-alanı `trackRefs`'leri sayılmadan altyazı varlıkları siliniyor
+
+- **Konum:** `src/main.js:2516-2519` (`pruneTracks` + `sweepOrphans`),
+  `src/browser-asset-store.js:201`; referanslar `main.js:3248`/`3504`/`7817`.
+- **Mekanizma:** `sweepOrphans(new Set(candidate.listTrackAssetPaths()))`
+  — kümede `browser-session.json` `tab.trackRefs[].assetId` ve
+  `browser-places.json` `workspaces[].tabs[].trackRefs[]` yok. Tetikleyiciler:
+  kütüphaneden `library:remove` medyayı silince track satırları düşer ama
+  kayıtlı workspace hâlâ varlıkları işaretler → 30 gün sonra süpürülür;
+  sqlite silinir/karantinaya alınırsa boş indeksle **tüm** >30 günlük varlık
+  çiftleri silinir; 180 gün görülmeyen workspace'in track'leri `pruneTracks`
+  ile gider.
+- **Etki:** Kaydedilmiş çalışma alanı/oturumun bağlı altyazı dosyaları
+  sessizce yok olur; geri dönüşte eksik altyazı.
+
+## P3 — Düşük-orta öncelikli
+
+### B83-28 — `tab.loading` hiçbir yerde atanmıyor → 'navigation' unload koruması ölü; uçuşta yükleme olan sekme boşaltılınca hedef URL kayboluyor
+
+- **Konum:** `src/browser-tab-resources.js:21` (`tab.loading ||
+  tab.restoringPage`), atama yok (repo grep: `tab.loading =` 0 sonuç);
+  snapshot `main.js:13245` son COMMIT URL'yi alır.
+- **Etki:** Yönlendirme zinciri/yavaş site yüklenirken arka plan sekmesi
+  boşaltılabilir → geri dönüşte eski sayfaya açılır.
+
+### B83-29 — Yarıda kalan `unloadBrowserTab`, canlı sekmede `__whisperCaptureEnabled=false` bırakıyor → gelen altyazı yanıtları sessizce düşüyor
+
+- **Konum:** `src/main.js:13235-13252`.
+- **Mekanizma:** Boşaltma önce yakalamayı duraklatır
+  (`browserTabCapturePending(tab, true)`). `capture_pending` kolu hook'u geri
+  açar (:13236-13240) ama sonraki `finalCheck` başarısız olursa (ör. arada
+  `audible`/`formOrLogin` değişti) fonksiyon `lifecycle='background'` ile
+  döner ve hook'u **geri açmaz** — sayfa bir sonraki aktivasyona dek
+  altyazı yanıtlarını push-kapısında düşürür.
+
+### B83-30 — Sekme `lifecycle='restoring'` takılı kalabiliyor; renderer'ın beklediği `'restore_failed'` hiç atanmıyor
+
+- **Konum:** `src/main.js:11773` + `:12787` (yazım), `resumeRestoredBrowserPage`
+  erken-dönüşleri `:11682` (loadError / restoringPage / getURL dolu /
+  requestIsCurrent) — bu yollarda lifecycle 'restoring' kalır. `'restore_failed'`
+  yalnız **okunur** (`:11773`, `renderer.js:5073/:5493` whitelist), hiç
+  yazılmaz → takılı sekme kullanıcıya 'active' görünür, paletin unload
+  eylemi hedefleyemez.
+
+### B83-31 — Scheduler'da atan `onResult` başarılı cümleyi de failure'a yazıp aynı callback'i tekrar çağırıyor → unhandled rejection + sonlandırılamayan durum
+
+- **Konum:** `src/browser-translation-scheduler.js:502-504` + catch `:505+`
+  (`failures.set` :545, ikinci `onResult` çağrısı), retry döngüsü `:559-568`.
+- **Mekanizma:** `results.set` sonrası `onResult` fırlatırsa (uygulama
+  kapanırken `sendBrowserEvent` → `webContents.send` "Object has been
+  destroyed") aynı `.catch`'e düşer → cümle hem results hem failures'ta;
+  retry kuyruğu `results.has` yüzünden onu asla bitiremez → `completed` ve
+  `retrying` aynı anda raporlanır; ikinci `onResult` da atarsa unhandled
+  rejection.
+
+### B83-32 — Dinamik-blok whenIdle devamında `.catch` yok → sessiz unhandledRejection
+
+- **Konum:** `src/main.js:5969` (`void job.scheduler.whenIdle().then(() =>
+  runBrowserPageTranslationBlocks(...))`). Kardeş çağrı `:5979` `.catch`'li.
+- **Mekanizma:** Ertelenmiş koşu reject ederse (örn. kapanışta webContents.send
+  atması — B83-31'le aynı vektör) hata yalnız global sayaçta (`main.js:773`)
+  görünür; Node unhandled-rejection davranışına göre ana süreçte çökme riski.
+
+### B83-33 — `.wbp` çalışma-paketi dışa aktarımı mutlak yerel yolları ve OS kullanıcı adını içeriyor
+
+- **Konum:** `src/workspace-package.js:81` (`bundle.sourceRoot` = userData
+  mutlak yolu — Windows'ta `C:\Users\<kullanıcı>\AppData\Roaming\…`;
+  `mappings` girdileri ham mutlak yollar).
+- **Etki:** Paylaşım için üretilen dosya makinenin dizin düzenini ve hesap
+  adını açığa çıkarır (önceki .wbp raporları hep içe-aktarım tarafındaydı).
+
+### B83-34 — `.bak` gölgeleri kullanıcının sildiği veriyi tutuyor: temizleme flush'ı silme-öncesi dosyayı yedeğe kopyalıyor
+
+- **Konum:** `src/main.js:3578-3585` (`writeBrowserPlacesAtomic`),
+  `src/browser-session-store.js:311-318`, `src/browser-note-store.js:103-106`,
+  `watch-library-store` atomicCommit.
+- **Mekanizma:** Her atomik yazım önce mevcut dosyayı `.bak`'a kopyalar.
+  "Geçmişi temizle"/"oturumu sıfırla" flush'ı önce **dolu** dosyayı yedeğe
+  alır → silinen geçmiş/sekmeler `.bak` içinde okunabilir kalır (kullanıcı
+  hemen çıkarsa süresiz). Özel-gözatma temizliğiyle çelişen saklama.
+
+### B83-35 — `browser:cookies:clearSite` HTTP auth önbelleğini temizlemiyor → basic/digest kimlikleri "site verilerini temizle"den sağ çıkıyor
+
+- **Konum:** `src/browser-session-privacy.js:30-67` (`clearBrowserSiteData` —
+  `clearAuthCache` çağrılmıyor; yalnız `resetBrowserSessionData` :107-108
+  çağırıyor), handler `main.js:13938`.
+- **Mekanizma:** Electron auth-cache `clearData`/`clearStorageData` kapsamında
+  değil. Kullanıcı site verisini sildikten sonra site tekrar açılınca
+  userinfo/401 kaynaklı basic-auth otomatik devam eder — en beklenen
+  silinme gerçekleşmez.
+
+### B83-36 — CP1254 fixup'ı gerçek `þ/ð/ý` metnini bozuyor — foreign-guard aksanlı ünlüleri arıyor, yalnızca þðý'li kısa metinler kayıp (Python ikizi aynı)
+
+- **Konum:** `src/browser-textutil.js:93-98` (guard
+  `/[áéíóúÁÉÍÓÚæÆøåÅ]/`), ikiz `backend/transcribe.py:7376-7391`.
+- **Mekanizma + AMPİRİK KANIT (Node repro):**
+  `decodeSubtitleBuffer('það er þýtt orð þýðing þörf')` →
+  `"şağ er şıtt orğ şığing şörf"` + `note:'Türkçe karakterler onarıldı'`.
+  Yalnız-þðý metinlerde guard letters yoksa suspicious≥3 ile fixup ateşlenir.
+  (Karışık İzlandaca — içinde á/é/æ olan dosyalar guard'a takılıp kurtulur.)
+- **Not:** Repo kuralı "birini değiştirirsen diğerini de değiştir" — iki
+  kopya da aynı boşluğu taşıyor.
+
+### B83-37 — JS `MOJIBAKE_MARKERS` Python'dan eksik: `Å` ve `Ã¢` yok → yalnız ş/Ş/â/Â hasarlı dosyalar JS'te onarılmıyor
+
+- **Konum:** `src/browser-textutil.js:4` (9 marker) vs
+  `backend/transcribe.py:7356` (11 marker, `Å`, `Ã¢` dahil).
+- **Mekanizma + AMPİRİK KANIT (Node repro):**
+  `decodeSubtitleBuffer('ÅŞimdi eve git.')` → değişmez + `note:''` —
+  latin1→utf8 onarımı tetiklenmez; aynı dosyayı backend onarır.
+  Oynatıcı/kütüphane-arama/geri-yazım bozuk metni taşır.
+
+### B83-38 — ~14 kullanıcı-görünür yerde sabit `toLocaleString('tr-TR')`/`toLocaleDateString('tr-TR')` → EN arayüzde de tarih/sayı Türkçe formatlanıyor
+
+- **Konum:** `src/renderer/renderer.js:7139` (boyutlar), `:7359/:7370/:18877`
+  (durum zamanları), `:8074/:13907` (track updatedAt), `:9486` (offset sn),
+  `:11940/:18917/:19203` (token/karakter sayıları), `:7809` (MB).
+- **Etki:** İngilizce arayüzde "19.09.2025", "1,5 MB", "1.234 token" gibi
+  Türkçe formatlar görünür; `UiLocale.get()` mevcut ama kullanılmıyor.
+
+### B83-39 — Önizleme paneli `hidden`'ı yazar-kural `display:grid` ezdiği için asla gizlenemiyor
+
+- **Konum:** `src/renderer/index.html:1205` (`#browserPagePreviewPanel[hidden]`),
+  `src/renderer/styles.css:4867-4870` (`.browser-page-preview-panel{display:
+  grid; … border-left:2px solid var(--accent)}`), toggle `renderer.js:18903`.
+- **Mekanizma + AMPİRİK KANIT (Chromium 137 CDP):** yazar kuralı UA
+  `[hidden]{display:none}`'ı ezer — `getComputedStyle(panel).display ===
+  'grid'` doğrulandı. Popover açıldığında boş, vurgu-kenarlıklı kutu her
+  zaman görünür; "Önizlemeyi gizle" yalnız içeriği temizler. Kardeş
+  `browserGo` aynı desende `[hidden]` guard'ı taşıyor (`styles.css:6192`) —
+  bu elemana eklenmemiş.
+
+## BÖLÜM 2 — Elenen / kapsam-dışı notlar
+
+- **Çift-sayım elendi:** `main.js:5969` `.catch`'siz whenIdle devamı iki
+  kümede de raporlandı → tek bulgu (B83-32).
+- **Önceki raporlarla çakışanlar (yeniden sayılmadı):** settings.json .bak
+  yokluğu B164; browser-downloads.json .bak yokluğu R66-25; atomik-olmayan
+  export yazımları R66-22; arşiv yetim dosyaları B9/Y6; bozuk watch-index
+  kurtarmasızlığı B177; safePageIndexUrl çakışması B172/R46-49; .wbp
+  içe-aktarım path-rewrite B43/R51-01/B109; komut paleti ölü yürütme R64-02;
+  exclusions busy-policy tutarsızlığı R26; unload retention B104.
+- **Doğrulanıp temiz çıkanlar:** scheduler kuşak/abort koruması
+  (:485/:494/:506 + `:572` current===job finally) sağlam; translateShared
+  paylaşılan-istek refcount doğru; browser-preload observer/timer'ları
+  document/pagehide ile birlikte ölüyor; `.field-hint/.muted/.small-muted`
+  gibi tanımsız utility sınıflar yalnız görsel solma farkı (metin okunur).
+- **Ampirik harness notları:** 89/91 `src/browser-*.js` modülü Node'da
+  temiz yüklendi (2 preload modülü DOM/contextBridge gerektirir — beklenen).
+  `npx node --test tests/browser-*.test.js` → **140/143 PASS**; düşenler
+  hep ortam (`backend/venv/Scripts/python.exe`, `backend/bin/ffmpeg.exe`
+  eksik — Windows hedefi). Chromium 137 CDP'de sayfa-içi kanıtlar: CSS
+  `[hidden]`/`display:grid` çatışması (B83-39) ve SPA mutasyonu sonrası
+  restore'un bayat orijinali yazması (B83-14 eşdeğeri: apply → mutasyon →
+  restore = canlı site metni eski değerle ezildi).

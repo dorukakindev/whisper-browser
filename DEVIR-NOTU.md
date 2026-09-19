@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 13:25 — R83 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_83.md](docs/devir/2026-09-19-1325.md).
+Güncel çalışma: [2026-09-19 14:51 — R83 derin tur 2 (kod değişikliği yok): 6 çapraz-kesim küme + ampirik kanıt — +21 bulgu (1×P1 arşiv regex token sızıntısı, 8×P2 bayatlık/kalibrasyon/saklama, 12×P3); toplam 39 bulgu; Chromium 137 CDP repro'ları + Node kanıtları + 140/143 browser testi; BROWSER_BUG_REPORT_83.md BÖLÜM 2](docs/devir/2026-09-19-1451.md).
+
+Önceki çalışma: [2026-09-19 13:25 — R83 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_83.md](docs/devir/2026-09-19-1325.md).
 
 Önceki çalışma: [2026-09-19 15:38 — Sağlayıcıya özel model listeleri ve küçük gerçek bağlantı testi: model kaydet/seç/sil, yeşil-kırmızı durum, EN/TR, güvenli probe IPC, 64 KiB yanıt sınırı; tam paket ve Electron kabulü geçti](docs/devir/2026-09-19-1538.md).
 
