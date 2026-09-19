@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 22:00 — Önceki 15-bulguluk ayıklamanın kapsam düzeltmesi; R83'ün 39 maddesi tek tek sınıflandı, R76–80 ve PROGRAM R79–82 envantere alındı; ürün kodu değişmedi; BROWSER_BUG_REPORT_84.md](docs/devir/2026-09-19-2200.md).
+Güncel çalışma: [2026-09-19 23:03 — R76–80, R83 ve PROGRAM R79–82 eksiksiz bulgu-bazlı denetimi; 125 numaralı madde/126 karar satırı, R81/R84 düzeltmeleri, tam test + üç 20/20 Electron turu; ürün kodu değişmedi; BROWSER_BUG_REPORT_85.md](docs/devir/2026-09-19-2303.md).
+
+Önceki çalışma: [2026-09-19 22:00 — Önceki 15-bulguluk ayıklamanın kapsam düzeltmesi; R83'ün 39 maddesi tek tek sınıflandı, R76–80 ve PROGRAM R79–82 envantere alındı; ürün kodu değişmedi; BROWSER_BUG_REPORT_84.md](docs/devir/2026-09-19-2200.md).
 
 Önceki çalışma: [2026-09-19 21:34 — Yeni browser/program bug raporları güncel koda göre ayıklandı; 15 doğrulanmış kök neden, kapanmış/yanlış/kanıt bekleyenler ayrı; ürün kodu değişmedi; BROWSER_BUG_REPORT_81.md](docs/devir/2026-09-19-2134.md).
 
