@@ -265,3 +265,216 @@ Bu rapor yalnız **doğrulanmış gerçek boşlukları** listeler; var olan öze
 - **Üçüncü-parti veri sızıntısı:** ClearURLs katalog fetch (kural verisi — URL sızıntısı yok), OpenSubtitles (zaten var). Kullanıcı-görünür URL'lerin uzak servislere gönderilmemesi kuralı korunmalı.
 
 **Kaynaklar:** jellyfin/jellyfin TrickplayManager+PR#9554+#11336 · intro-skipper/intro-skipper · ClearURLs/Addon+Rules · cavi-au/Consent-O-Matic · minbrowser/min (userscripts wiki, passwordManager) · thibauts/upnp-mediarenderer-client + @edenware/dlnacasts · GPMDP/electron-chromecast · WICG/spatial-navigation · electron/electron extensions.md + issue #39633 + #37876 · ghostery/adblocker-electron · Diaoul/subliminal · FreeTubeApp/FreeTube (external player pattern) · castlabs/electron-releases wiki (EVS)
+
+---
+
+# DERİN GENİŞLETME — İkinci araştırma turu (40+ ek bulgu)
+
+İkinci turda oynatıcı/güç-tarayıcı ekosistemleri, yerel ML, CDP derin API'leri, medya-takip servisleri, indirme motorları, test altyapısı ve altyazı derinliği katmanları açıldı. Tüm lisans/durum bilgileri repo kaynağından doğrulandı.
+
+## 9. Oynatıcı/güç-tarayıcı ekosistemi desenleri
+
+### 9.1 thumbfast — isteğe bağlı kare yakalama (po5/thumbfast, MIT)
+Tile-sprite üretimi yerine **yardımcı mpv'yi on-demand seeklettirme**: `--no-config --idle --pause --keep-open --no-sub --no-audio --start=T --hr-seek=yes --demuxer-readahead-secs=0 --vd-lavc-fast --sws-scaler=fast-bilinear --of=image2 --o=thumb.jpg`. Tek kare/istek → önbelleksiz, CPU dostu. Bizde ffmpeg eşdeğeri: `ffmpeg -ss T -i file -frames:v 1 -vf scale=W:-1`. Ayrıca mpv PR#17518 `user-data/thumbnailer` protokolünü standardize ediyor (UI↔thumbnailer sözleşmesi — bizim seekbar↔üretici ayrımı için temiz model).
+**Karar:** Trickplay alternatifi olarak **Adapt** — sprite öncesi hızlı kazanım veya düşük-IO cihazlar için tek kare modu.
+
+### 9.2 Vieb — Electron Vim tarayıcısı (Jelmerro/Vieb, GPL-3)
+Kod kopyalanamaz ama Electron'da kanıtlanmış desenler:
+- **Pointer mode** — klavyeyle sanal imleç (hover/click/drag) — link-hints'in ötesi; bizde yok
+- **searchreach** — çok-sekmeli metin araması (sayfalar arası bul)
+- **`:split`/`:vsplit` + Ctrl-w** — bizde split var; çoklu bölme/buffer modeli referansı
+- **`erwic`** — site başına konteyner pencereleri (SSB deseninin olgun versiyonu)
+- **marks / historyswipe / visual mode** — sayfa-içi işaretler ve görsel seçim
+- **`userAgentData` kaldırma** — gizlilik override'ı isolated-world injection'la
+- **Linkedom ile reader ayrıştırma** — JSDOM'dan hızlı/hafif alternatif
+
+### 9.3 Nyxt — auto-rules + ağaç geçmişi (atlas-engineer/nyxt, BSD-3)
+- **Auto-rules:** URL-koşullu mod kuralları — `match-domain/host/url/regex/scheme`, `:included`/`:excluded` mod listesi, `:exact-p`, **en-spesifik kural kazanır** (apply-all-matching kapalıyken). Kural dosyası insan-yazabilir. → **`browser-site-profiles`'ı genel "otomatik eylem" motoruna yükseltme deseni**: "bu sitede reader+dark+çeviri+zoom aç" kuralları; şu an profiller tekil bayraklar, birleşik kural motoru değil.
+- **Ağaç geçmişi:** geri/ileri yığın değil, **dallanan geçmiş ağacı** — yeni navigasyonda forward-stack kaybolmaz. `browser-tab-history`'ye dal görünümü eklenebilir (geçmiş silinmez, düğümler korunur).
+- Diğer: bookmark etiketleri, clipboard ring, çok-sekme arama, noscript/noimage modları (bizim lite-mode'a eş).
+
+### 9.4 qutebrowser (GPL) — klavye-tarayıcı kataloğu
+Domain-başına ayar (`config-cycle`), quickmarks, hint filtre modları, session lazy-load, **textarea'yı harici editörde açma** (`open_editor`). → "Bu alanı düzenleyicide aç" özelliği (metin alanını bizim editor/panel'de aç, kaydedince geri yaz) — benzersiz, ucuz.
+
+### 9.5 mpv script ekosistemi desenleri
+`sponsorblock_minimal.lua`, `chapterskip`, `autosubsync`, `quality-menu`, `uosc` — bizim modüllerle paralel script desenleri; özellikle **chapterskip** (bölüm-adı regex ile atlama) bizim intro-tespiti maddesiyle örtüşür.
+
+## 10. Yerel makine-öğrenmesi katmanı
+
+### 10.1 transformers.js (@huggingface/transformers, MIT)
+ONNX Runtime WASM + **WebGPU** (Electron'da kullanılabilir). Worker'da çalıştırma deseni hazır:
+- `feature-extraction` + `Xenova/all-MiniLM-L6-v2` (~23MB q8, 384-boyut) → **semantik geçmiş/sayfa araması**: `browser-page-index`'e embedding sütunu; "o makale neydi" tarzı anlam-araması, kosinüs benzerliği
+- distilbart özetleme → **çevrimdışı sayfa özeti** (API sağlayıcısı gerektirmez)
+- zero-shot görsel sınıflama → thumbnail NSFW/blur filtresi
+- metin sınıflama → sayfa dili/içerik türü otomatik etiketleri
+**Karar:** **Adapt — orta;** model indirme+cache yönetimi main'de, hesap worker'da.
+
+### 10.2 Piper (rhasspy/piper, MIT)
+Yerel nöral TTS — speechSynthesis'ten belirgin doğal; ONNX ses dosyaları subprocess veya WASM ile. TTS okuma özelliğinin kaliteli versiyonu; Türkçe ses mevcut.
+**Karar:** **Adapt — orta.**
+
+### 10.3 rnnoise/silero — ASR öncesi gürültü temizleme
+Canlı-ASR hattına ön-işlem olarak denoise → Whisper doğruluğu. `live-asr-worklet`'e WASM rnnoise modülü.
+
+## 11. CDP derin API'leri (debugger'ımız zaten attach — marjinal maliyet düşük)
+
+| API | Kazanım | Durum |
+|---|---|---|
+| `Page.setWebLifecycleState('frozen'/'active')` | **Gerçek sekme dondurma** — DOM korunur, görevler askıya alınır (Vivaldi hibernate / Edge sleeping-tabs eşdeğeri); yok-ettirme yerine üstün | WICG spec + puppeteer issue #3339'da doğrulandı; experimental |
+| `Page.addScriptToEvaluateOnNewDocument` | **Navigasyondan ÖNCE enjeksiyon** — userscript yöneticisinin doğru yolu (şu an load-sonrası executeJavaScript) | CDP standart |
+| `Network.setBlockedURLs` | Sekme-özelinde hafif URL bloklama | CDP standart |
+| `Emulation.setTimezoneOverride/setLocaleOverride` | Sekme başına saat/dil spoof | CDP standart |
+| `netLog` + `crashReporter` | Tanı paketine ağ-logu + çökme dökümü | Electron API'leri |
+| `utilityProcess` | Adblock/ML işini main'den ayır | Electron API |
+| `MessageChannelMain` | Büyük altyazı/veri aktarımında structured stream | Electron API |
+
+## 12. Medya takibi ve kütüphane zenginleştirme
+
+### 12.1 Scrobble servisleri — Trakt/Simkl/AniList
+- **Trakt:** `POST /sync/history` (watched_at ile geçmişe yazma — media-center sync deseni), `POST /checkin` (canlı "izliyor"); OAuth. Duplicate'den uygulama sorumlu.
+- **Simkl:** `/sync/all-items?date_from=` delta senkron + `/sync/history` + **scrobble ≥%80'de otomatik watched** (bizim watchLibrary akışına birebir uyur).
+- **AniList:** GraphQL, anahtarsız okuma — anime izleme.
+**Karar:** **Adapt — orta;** opt-in OAuth, `watchLibrary` olaylarına scrobble köprüsü.
+
+### 12.2 guessit (LGPLv3 — CLI/subprocess kullanımı)
+Dosya adı → `title/season/episode/source/codec/release_group/type`; Türkçe `sezon`/`bölüm` dahil 12+ dilde sezon-bölüm işaretleri; `expected_title` ile seri düzeltmesi.
+**Kullanım:** media-catalog eşleştirme + OpenSubtitles sorgu üretimi + series-context iyileştirme. Python subprocess olarak çağrı (kütüphane linkleme yok → LGPL sorunsuz).
+
+### 12.3 TMDB/fanart zenginleştirme
+Poster/özet/episode başlığı — media-catalog'u görselleştirir. API anahtarı gerekir (ücretsiz).
+
+### 12.4 PeerTube — ikinci içerik kaynağı
+Federe video platformu, açık REST API, auth'suz browse/search/comment/subtitle. SmartTube dışı bağımsız medya kaynağı olarak bölüm eklenebilir.
+
+## 13. İndirme/yakalama
+
+### 13.1 aria2 (GPL binary — subprocess) + Motrix deseni (MIT)
+Çok-bağlantılı, devam-edebilir indirme; `Motrix` Electron+Vue aria2 GUI'si — aynı stack, doğrudan referans. Büyük dosyalarda hız/kesinti-dayanıklılık.
+**Karar:** **Adapt — orta;** `browser-downloads`'a aria2c backend seçeneği.
+
+### 13.2 WebTorrent (MIT)
+Magnet → in-app stream; WebTorrent Desktop aynı stack (Electron). Protokol-nötr; yasal içerik (ISO'lar, Creative Commons, arşiv) varsayımıyla opsiyonel kaynak.
+**Karar:** **Adapt — ağır; düşük öncelik.**
+
+### 13.3 Sekme kaydı — getDisplayMedia
+`desktopCapturer.getSources` + `getMediaSourceId` zaten var → `getDisplayMedia` ile **sekmenin video+ses'ini WebM'e kaydet** (audio-only WAV kaydından bir üst seviye).
+**Karar:** **Adopt — orta;** mevcut capturer altyapısına bağlanır.
+
+### 13.4 Remote Playback API — yerel cast menüsü
+`video.remote.watchAvailability(cb)` + `video.remote.prompt()` → Chromium'un kendi cast diyaloğu. **Electron'da Cast servisinin derli olup olmadığı `'remote' in video` probe'uyla doğrulanmalı** — derliyse DLNA implementasyonu gereksizleşir. MSE/blob src için `cast-src` gerekir (muxinc/castable-video deseni).
+**Karar:** **Önce probe — sonra Adopt/Reddet.**
+
+## 14. Test/altyapı repoları
+
+| Repo | Ne verir | Karar |
+|---|---|---|
+| `playwright` `_electron.launch` | Gerçek E2E: pencere etkileşimi, screenshot, `electronApp.evaluate` ile dialog stubbing (deterministik) | **Adapt — orta;** custom smoke'ların üstünde UI katmanı |
+| `deque/axe-core` (MPL-2) / pa11y | Renderer'da otomatik a11y denetimi → teste bağlama | **Adopt — küçük;** mevcut ARIA işini regresyona çevirir |
+| `knip` (ISC) + `madge` (MIT) | 90+ browser modülünde ölü-kod/döngüsel-bağımlılık haritası | **Adopt — küçük;** bakım hijyeni |
+| `jest-image-snapshot` / playwright diff | Görsel regresyon — `_repro/`'daki manuel screenshot akışını otomatikleştirir | **Adapt — orta** |
+| `dependency-cruiser` | Modül-grafik + kural bazlı mimari kısıtlar | Küçük |
+| `eruda`/`vConsole` (MIT) | Sayfa-içi debug konsolu enjeksiyonu (site incelemesi için) | Küçük, dev-özellik |
+
+## 15. Altyazı derinliği (browser tarafıyla kesişen)
+
+### 15.1 imsc (W3C Software License — permissive)
+**TTML/IMSC1 → HTML renderer.** Kritik boşluk: DASH/Netflix-tipi altyazıların çoğu TTML — ağ yakalamamız TTML track'i ham tutuyorsa overlay'de gösteremeyiz. imsc TTML'i DOM'a çizer; dash.js'in TTML pipeline'ı referans. Ayrıca `vtt.js` (Mozilla, WebVTT parser referansı).
+**Karar:** **Adapt — orta;** `browser-subtitles`'a TTML kolu.
+
+### 15.2 JASSUB (MIT wrapper + libass LGPL-2.1 WASM)
+Tüm SSA/ASS özellikleri (karaoke `\k`, `\t` transform, çizim komutları, gömülü fontlar) WebGL-hızlı WASM render — `browser-ass-renderer`'ımızın kapsamadığı derin ASS özelliklerinin olgun implementasyonu. SharedArrayBuffer çok-iş parçacığı için COEP/COOP başlığı gerekir (bizim sayfalar kontrolümüzde; fallback tek-iş parçacıklı).
+**Karar:** **Adapt — orta;** kapsam boşluklarında fallback/ikinci renderer. LGPL ayrı-WASM-modül olarak kullanılabilir, doğrula.
+
+### 15.3 Subtitle Edit özellik kataloğu (GPL-3 — desen)
+SE, altyazı editörü referansı: **waveform üzerinde düzenleme**, "hearing-impaired metni temizle", yaygın-hata toplu düzeltme, shot-change yaslama, 30+ format, **PGS/VobSub→SRT OCR** (tesseract), batch convert, point-sync. Bizim editor'e uygulanabilir desen seti (özellikle hearing-impaired temizliği ve OCR borusu — tesseract gerektirir).
+**Karar:** Desen referansı — editör roadmap'ine.
+
+### 15.4 aeneas / alass — zorlu hizalama
+`aeneas` forced-alignment (metin+ses→senkron), `alass` (Rust) ses-aktivite hizalaması — ffsubsync-benzeri sync'imize alternatif/tamamlayıcı.
+
+## 16. Platform/UX küçük-kazanç listesi (Chromium+Electron API)
+
+**Pencere/entegrasyon:**
+- Tray ikonu + menü (oynat/duraklat/hızlı-sekme) — `Tray`
+- Windows JumpList görevleri ("Son videolar", "Yeni sekme") — `app.setJumpList`
+- Açılışta başlat — `app.setLoginItemSettings`
+- **`setAsDefaultProtocolClient('whisper')`** + `second-instance` arg → `whisper://open?url=` derin bağlantı + "birlikte aç"
+- `navigator.setAppBadge` — görev çubuğu rozeti
+- `Notification` — indirme-bitti, abonelik-yeni-video, queue-bitti toastları
+- `navigator.share` (Web Share) — sayfa paylaşımı
+
+**Girdi/navigasyon:**
+- **Gamepad API** — kumanda/gamepad ile spatial nav eşli (TV hedefi)
+- **`navigator.virtualKeyboard` + özel OSK** — TV/kiosk ekran klavyesi (arama kutusunda)
+- **caret browsing** — `app.commandLine.appendSwitch('enable-caret-browsing')` → F7 metin-imleçli gezinme
+- Vieb pointer-mode (9.2)
+- orta-tık autoscroll + scroll-anywhere (enjeksiyon)
+- EyeDropper API — sayfa renk seçici
+
+**Medya:**
+- `MediaCapabilities.decodingInfo` — codec desteğine göre otomatik kalite/codec seçimi
+- `getVideoPlaybackQuality` + `requestVideoFrameCallback` — **"stats for nerds" overlay** (dropped frames, buffer, çözünürlük) + kare-kare ilerleme (herhangi site videosu dahil)
+- Speculation Rules enjeksiyonu — tahmine dayalı prefetch
+- Ambient mod (video arkası blur-kopya parlama — cosmetic)
+
+**Sayfa araçları:**
+- Sekme başına **auto-refresh/periodic reload** (canlı paneller)
+- **multi-highlight** — kalıcı terim vurgusu
+- **form recovery** — Lazarus-deseni; yazılan metni çökmeye karşı sakla
+- omnibox'ta `= ifade` hesap/birim çevirici (Vivaldi quick-commands deseni)
+- `[başlık](url)` markdown link kopyalama
+- hover-zoom görsel önizleme (Imagus deseni)
+- `eruda` debug konsolu enjeksiyonu
+- **textarea'yı düzenleyicide aç** (qutebrowser deseni)
+
+**Gizlilik/engelleme (ilk rapora ek):**
+- **HTTPS-First** — http→https yükseltme denemesi + uyarı rozeti
+- **Privacy-Badger-sezgisel** — N+ first-party'de izlenen 3p domain'i öğren-engelle (liste-gerektirmez; kendi implementasyonumuz — EFF GPL desen)
+- **uMatrix-lite** — site × kaynak-türü izin matrisi UI'ı (siteProfiles'ın güç-görünümü)
+- **Lightbeam grafiği** — network-capture verisinden tracker bağlantı haritası
+- **userAgentData kaldırma** (Vieb deseni) + isteğe bağlı canvas/audio fingerprint gürültüsü (Chameleon deseni — site kırabilir, opt-in)
+- **WebRTC kısıtı** — izin/politika ile yerel-IP sızıntısını azalt
+- **DDG Fire Button** — tek-tık tüm-sekme+veri silme (onaylı)
+- **Konteyner + proxy** birleşimi (ilk rapora ek detay: partition→setProxy zinciri)
+
+**Okuma/senkron/arşiv:**
+- **floccus deseni** — yer imleri/ayarlar WebDAV/GDrive senkronu (kendi sunucumuz yok → gizlilik-koruyucu sync)
+- **wallabag/linkding/archivebox hedefleri** — self-hosted read-later/yer imi/WARC arşivi API'larına gönderme
+- **archive.org SPN** — "sayfayı Wayback'e kaydet" + son snapshot açma (research-notebook'a uyar)
+- **warcio.js/replayweb** — MHTML ötesi WARC arşiv+replay (etkileşimli sayfa arşivi)
+- **RSS/podcast** — `<link rel=alternate type=rss>` algıla → `rss-parser` (MIT) + podcast enclosure → oynatıcı; PodcastIndex arama
+- **Vivaldi desenleri** — chained commands (komut zincirleri), hibernate (11.tablo), adaptive tema (site rengine uyum)
+- **Opera desenleri** — sidebar'da sabit-site mini-webview (mesajlaşma/müzik), GX-control tarzı CPU/RAM/ağ sınırlayıcı UI (`browser-resource`/`resource-soak` modülümüze bağlanır)
+- **Arc desenleri** — easel (sayfa üstü çizim → note-store), boosts (site-başına CSS düzenleme UI — `browser-youtube-style` desenini genelleştir), live-folders (RSS)
+
+**Medya bitişik:**
+- **LosslessCut deseni (GPL, aynı stack Electron+ffmpeg)** — **kayıpsız kesit/birleştirme** (`-c copy`, re-encode yok) + altyazı senkron koruma → "medya kesici" özelliği; trim dışı reklam/intro kesme
+- **Kodi JSON-RPC deseni** — main'de küçük HTTP+WS sunucu → **telefondan kumanda** (transport/ses/altyazı/seek/queue); benzersiz, stack'e uygun
+- **Syncplay (Apache-2)** — izleme-partisi protokolü (referans)
+- **KDE Connect** — telefon entegrasyonu (referans; MPris-subset)
+- **OBS-websocket** — yayın kontrol köprüsü (referans)
+
+## Genişletilmiş reddet/defer listesi
+
+- `documentPictureInPicture` — Electron'da bozuk (#39633) → kendi mini-player'ımız
+- Remote Playback → **önce probe**; Cast servisi derli değilse DLNA'ya düş
+- TrackMeNot/AdNauseam — sahte sorgu/sahte tıklama (etik dışı)
+- Tam Chrome-uzantı uyumluluğu — Electron "non-goal"; userscript+GM yüzeyi öncelikli
+- Chromaprint intro algılama — özel ffmpeg build
+- Push-notification servisi — FCM Electron'da yok; Notification'lar yerel kalır
+- ipfs/hyper protokolleri (agregore tarzı) — niş
+- Tor-snowflake köprüsü — ağır
+
+## Genişletme öncelik eklentileri (ana matrise ekle)
+
+**S (ucuz):** rVFC kare-kare ilerleme · "stats for nerds" overlay · MediaCapabilities codec seçimi · `=` omnibox hesap · `[başlık](url)` kopyala · auto-refresh · orta-tık autoscroll · multi-highlight · hover-zoom · caret browsing · OSK+virtualKeyboard · gamepad-nav eşliği · tray+JumpList+login-item · `whisper://` protokol · native Notification'lar · Badging · EyeDropper · form recovery · archive.org SPN · DDG fire-button · AMOLED-siyah tema · adaptive-tema · Opera sidebar sabit-site · textarea-düzenleyici
+
+**A:** semantik geçmiş (MiniLM embeddings) · piper TTS · **sekme dondurma setWebLifecycleState** · **userscript GM_* yüzeyi** (`GM_xmlhttpRequest`→main-net CORS bypass, `GM_setValue`, `GM_notification`, `GM_openInTab` — gerçek scriptlerin çalışması için şart) · **pre-nav enjeksiyon addScriptToEvaluateOnNewDocument** · uMatrix-lite · Privacy-Badger-sezgisel · HTTPS-First · timezone/locale spoof · WebRTC kısıtı · sekme video+ses kaydı (getDisplayMedia) · Remote-Playback probe+cast-src · aria2 indirme · Kodi-remote HTTP+WS · floccus-sync · RSS/podcast · Trakt/Simkl scrobble · guessit+TMDB zenginleştirme · LosslessCut-kesici · Nyxt-auto-rules genelleştirme (siteProfiles→auto-actions) · ağaç geçmişi · Vieb pointer-mode · çok-sekmeli arama · Playwright-E2E · axe-core a11y-regresyon · knip/madge · görsel-regresyon · utilityProcess ayrımı · netLog+crashReporter tanı paketi · rnnoise ASR ön-işlemi
+
+**B:** imsc TTML renderer · JASSUB fallback · subtitleedit desen-seti (waveform/HI-temizliği/OCR) · subliminal-subprocess genişlemesi · wallabag/linkding/archivebox uçları · PeerTube kaynağı · WARC arşivi · WebTorrent · fingerprint-gürültüsü · lightbeam-grafiği · SSB→erwic · chained-commands
+
+**C/Referans:** Syncplay watch-party · KDE-Connect · OBS-websocket · ipfs/hyper · aeneas/alass · SubtitleEdit OCR (tesseract bağımlılığı)
+
+## Genişletme kaynakları
+
+po5/thumbfast (+mpv PR#17518 thumbnailer API) · Jelmerro/Vieb (vieb.dev/features + CHANGELOG: userAgentData override, erwic, searchreach) · atlas-engineer/nyxt (auto-rules.lisp şeması, match-* fonksiyonları, ağaç geçmişi) · qutebrowser · huggingface/transformers.js (MiniLM/distilbart/zero-shot + WebGPU) · rhasspy/piper · ThaUnknown/jassub (MIT+LGPL-2.1) · W3C imsc + mozilla/vtt.js · muxinc/media-elements castable-video · playwright.dev/docs/api/class-electron (dialog stubbing) · deque/axe-core · knip/madge/dependency-cruiser · guessit-io/guessit (LGPLv3 CLI) · trakt.tv+simkl.com+anilist API'ları · aria2 + nathan-e/motrix · webtorrent/webtorrent · WICG page-lifecycle (`setWebLifecycleState`) · sindresorhus ekosistemi · floccus · wallabag/linkding/archivebox · webrecorder warcio.js/replayweb · archive.org SPN2 · podcastindex · nickoala/SubtitleEdit (desen kataloğu) · LosslessCut · Syncplay/syncplay · KDE Connect · Opera/Vivaldi/Arc/DDG ürün desenleri (kaynak kapalı — yalnız davranış referansı)

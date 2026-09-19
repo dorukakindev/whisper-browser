@@ -1,5 +1,9 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 13:34 — R79 SmartTube-style oynatıcı ve YouTube cihaz kodu girişi: kayıtlı istemciyle doğrudan kod, güvenli kuşak iptali, kişisel ana akış ve TV ölçekli görünüm; mock Electron + tam paket yeşil](docs/devir/2026-09-19-1334.md).
+Güncel çalışma: [2026-09-19 13:57 — R76 derin genişletme (kod değişikliği yok): ikinci araştırma turu §9–§16 — thumbfast/Vieb/Nyxt desenleri, transformers.js semantik geçmiş, CDP setWebLifecycleState sekme dondurma + pre-nav enjeksiyon, Remote Playback cast probe'u, Trakt/Simkl scrobble, guessit+TMDB, aria2/WebTorrent, Playwright-E2E, imsc TTML+JASSUB, Kodi-remote telefon kumandası; ~40 ek bulgu BROWSER_FEATURE_RESEARCH_76.md'ye işlendi](docs/devir/2026-09-19-1357.md).
+
+Önceki çalışma: [2026-09-19 13:34 — R79 SmartTube-style oynatıcı ve YouTube cihaz kodu girişi: kayıtlı istemciyle doğrudan kod, güvenli kuşak iptali, kişisel ana akış ve TV ölçekli görünüm; mock Electron + tam paket yeşil](docs/devir/2026-09-19-1334.md).
+
+Önceki çalışma: [2026-09-19 13:10 — R77 salt-okunur browser test+denetim turu (kod değişikliği yok): npm test + electron-bridge geçti; --all smoke setinde 3 flaky düşüş; arama modüllerinde gerçek-koşu doğrulamalı 8 bulgu — F1 P1: transcript-search fold() İ→ı katlaması (Türkçe sorgu eşleşmiyor), F2 İngilizce I→ı, F3 CJK siliniyor, F4 subtitle-search İ normalizasyonu (+50 iddiası çürütüldü), F5–F8 P3; K1/K2 kenar bulguları + T1–T3 test hijyeni; _repro/r76-transcript-search-verify.js 18 PASS; BROWSER_BUG_REPORT_76.md; performans turu: PF1 P1 canlı yakalama batch başına ~57 ms (merge tüm 20k geçmişi yeniden sıralıyor + fingerprint tam geçmiş) — _repro/r77-perf-*.js ile ölçüldü, PF2 oturum kaydı karantina yolu 306 ms, PF3 elelenenler](docs/devir/2026-09-19-1310.md).
 
 Önceki çalışma: [2026-09-19 13:11 — R76 tarayıcı-tarafı GitHub özellik araştırması (kod değişikliği yok): 15+ repo — trickplay, incognito/konteyner sekmeler, ClearURLs, DLNA cast, userscript yöneticisi, Whisper sesli giriş, moviehash+subliminal, intro atlama, lite-mode, electron-updater; BROWSER_FEATURE_RESEARCH_76.md](docs/devir/2026-09-19-1311.md).
 
