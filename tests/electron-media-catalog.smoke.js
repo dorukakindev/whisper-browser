@@ -55,7 +55,7 @@ app.whenReady().then(async () => {
   const run = code => win.webContents.executeJavaScript(`(async()=>{${code}})()`, true);
   const api = (action, payload = {}) => run(`return window.api.mediaCatalog({action:${JSON.stringify(action)},...${JSON.stringify(payload)}})`);
   await until(() => run('return typeof initialSettingsReady !== "undefined" ? await initialSettingsReady.then(()=>true) : false'), 'Ayarlar');
-  await run('applyUiTheme("dark");document.getElementById("mediaCatalogOpen").click();return true');
+  await run('window.UiLocale?.set("tr", false);applyUiTheme("dark");document.getElementById("mediaCatalogOpen").click();return true');
   await until(() => run('return document.getElementById("mediaCatalogDialog").open && !!document.getElementById("mcGrid")'), 'Katalog penceresi');
   const click = text => run(`const bs=[...document.querySelectorAll('#mediaCatalogRoot button')];const b=bs.find(x=>x.textContent.trim()===${JSON.stringify(text)});if(!b)throw Error('Buton yok: '+${JSON.stringify(text)}+'; mevcut='+bs.map(x=>x.textContent.trim()).join('|'));b.click();return true`);
   const fill = (label, value) => run(`const l=[...document.querySelectorAll('#mediaCatalogRoot label')].find(x=>x.querySelector('span')?.textContent.trim()===${JSON.stringify(label)});const input=l?.querySelector('input,textarea,select');if(!input)throw Error('Alan yok: '+${JSON.stringify(label)});input.value=${JSON.stringify(value)};input.dispatchEvent(new Event(input.tagName==='SELECT'?'change':'input',{bubbles:true}));return true`);

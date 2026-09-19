@@ -155,6 +155,28 @@ asyncTest('hız koruması, ses perdesi ve video filtresi aynı kalıcı controll
   assert.equal(video.playbackRate, 1.5, 'site hız sıfırlaması geri alınmadı');
 });
 
+asyncTest('site hız sıfırlaması tercih yazımıyla aynı görevde yarışsa da yeniden uygulanır', async () => {
+  const listeners = {};
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,
+    playbackRate: 1, preservesPitch: true, style: {},
+    addEventListener(type, fn) { listeners[type] = fn; } };
+  const harness = mediaCommandHarness(video);
+  const result = vm.runInNewContext(buildBrowserMediaPreferenceScript({
+    rate: 1.75, enforceRate: true,
+  }), harness.context);
+  assert.equal(result.handled, true);
+  assert.equal(video.playbackRate, 1.75);
+  // configurePlayback'in applyingRate bayrağı mikro-görevde kapanmadan site
+  // kendi hızını yazıyor: Electron kabul testinde yakalanan gerçek yarış.
+  video.playbackRate = 1;
+  listeners.ratechange();
+  assert.equal(video.playbackRate, 1, 'yarış senaryosu eşzamanlı olarak gizlenmemeli');
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(video.playbackRate, 1.75, 'kaçırılan ratechange sonradan doğrulanmadı');
+});
+
 asyncTest('video filtresi sitenin kendi filtresini korur ve kapatılınca geri yükler', async () => {
   const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
     clientWidth: 800, clientHeight: 450, currentTime: 5, duration: 100,

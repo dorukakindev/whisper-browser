@@ -83,6 +83,8 @@ app.setPath('userData', testProfile);
       .map(e => e.textContent.trim()).filter(Boolean).slice(0, 60)`);
     console.log('Visible remaining TR · main:', JSON.stringify(untranslatedMain));
     console.log('Visible remaining TR · player:', JSON.stringify(untranslatedPlayer));
+    assert.ok(!untranslatedPlayer.includes('Çift dilli izleme ve çalışma alanı'),
+      'Default English player metadata remained Turkish');
     await win.webContents.executeJavaScript(`(() => {
       document.getElementById('playerLayer').classList.add('hidden');
       document.querySelector('.app-main').style.visibility = '';

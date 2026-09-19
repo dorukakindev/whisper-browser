@@ -200,7 +200,21 @@ function controllerBootstrap() {
           item.addEventListener?.(type, reapply, { passive: true });
         }
         item.addEventListener?.('ratechange', () => {
-          if (applyingRate) return;
+          if (applyingRate) {
+            // Kendi playbackRate yazımımızın olayı ile sitenin aynı anda
+            // yaptığı sıfırlama aynı görevde birleşebilir. Olayı tamamen
+            // yutarsak applyingRate mikro-görevde kapandıktan sonra video
+            // yanlış hızda kalır. Bayrak kapandıktan sonra bir kez daha
+            // doğrula; kendi olayımızda değer zaten eşleştiği için bu no-op.
+            Promise.resolve().then(() => {
+              if (!applyingRate && playbackPreference.enforceRate
+                  && !audioGraphs.get(item)?.boosted
+                  && Math.abs(finite(item.playbackRate, 1) - playbackPreference.rate) > .01) {
+                applyPlaybackPreference(item);
+              }
+            });
+            return;
+          }
           const internal = internalRateIntents.get(item);
           if (internal && internal.until >= Date.now()
               && Math.abs(finite(item.playbackRate, 1) - internal.rate) <= .01) return;

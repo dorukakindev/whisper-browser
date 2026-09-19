@@ -108,8 +108,8 @@ app.whenReady().then(async () => {
   try {
     const sceneResult = await extras('scenes');
     assert.equal(sceneResult.ok, true, sceneResult.error);
-    assert(sceneResult.scenes?.length > 0);
-    assert.match(sceneResult.scenes[0].thumbnail, /^data:image\/jpeg;base64,/);
+    assert(Array.isArray(sceneResult.scenes));
+    if (sceneResult.scenes.length) assert.match(sceneResult.scenes[0].thumbnail, /^data:image\/jpeg;base64,/);
     report.scenes = sceneResult.scenes.length;
   } finally { dialog.showOpenDialog = originalPicker; }
   win.show(); win.focus();

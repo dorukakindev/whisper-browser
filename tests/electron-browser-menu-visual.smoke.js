@@ -103,6 +103,7 @@ app.whenReady().then(async () => {
 
   await run('document.querySelector("#browserTranslateMenu summary").click();return true');
   await until(() => run('return document.getElementById("browserTranslateMenu").open'), 'Translation menu');
+  await run('return syncBrowserOcclusion()');
   await wait(350);
   const translated = await captureWindow(win, 'translate-open.png');
   assert(changedPixels(closed, translated) > 500, 'Translation menu is not visibly painted over the browser view');
@@ -115,6 +116,7 @@ app.whenReady().then(async () => {
 
   await run('closeBrowserToolbarMenus();document.querySelector("#browserMoreMenu summary").click();return true');
   await until(() => run('return document.getElementById("browserMoreMenu").open'), 'More menu');
+  await run('return syncBrowserOcclusion()');
   await wait(350);
   const more = await captureWindow(win, 'more-open.png');
   assert(changedPixels(closed, more) > 500, 'More menu is not visibly painted over the browser view');

@@ -25,7 +25,7 @@ app.whenReady().then(async () => {
   await run('await initialSettingsReady; applyUiTheme("dark");');
   const saved = await run(`return window.api.mediaCatalog({action:'save',item:{kind:'series',title:'Benim Başlığım',synopsis:'Elle yazdığım konu',ratings:{personal:'9'},favorite:true}})`);
   assert(saved.ok, saved.error);
-  await run(`document.getElementById('mediaCatalogOpen').click()`); await settled();
+  await run(`window.UiLocale?.set('tr', false);document.getElementById('mediaCatalogOpen').click()`); await settled();
   await click('Diziler');
   await run(`document.querySelector('.mc-card').click()`); await click('Bilgileri eşleştir');
   await run(`const input=document.querySelector('#mediaCatalogRoot input[type=password]');input.value='${'x'.repeat(30)}';input.dispatchEvent(new Event('input',{bubbles:true}));`);

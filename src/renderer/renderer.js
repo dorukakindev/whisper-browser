@@ -6703,10 +6703,33 @@ function closeBrowserAddressResults() {
   browserAddressSearchSeq += 1;
   const panel = $('browserAddressResults');
   panel?.classList.add('hidden');
-  $('browserAddress')?.setAttribute('aria-expanded', 'false');
+  const input = $('browserAddress');
+  input?.setAttribute('aria-expanded', 'false');
+  input?.removeAttribute('aria-activedescendant');
   player.browserAddressResults = [];
   player.browserAddressSelected = -1;
   syncBrowserOcclusion();
+}
+
+function selectBrowserAddressResult(index, { scroll = true } = {}) {
+  const panel = $('browserAddressResults');
+  const input = $('browserAddress');
+  const items = panel ? [...panel.children] : [];
+  if (!items.length) {
+    player.browserAddressSelected = -1;
+    input?.removeAttribute('aria-activedescendant');
+    return;
+  }
+  const selected = Math.max(0, Math.min(items.length - 1, Number(index) || 0));
+  player.browserAddressSelected = selected;
+  items.forEach((item, itemIndex) => {
+    const active = itemIndex === selected;
+    item.classList.toggle('is-selected', active);
+    item.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  const activeItem = items[selected];
+  input?.setAttribute('aria-activedescendant', activeItem.id);
+  if (scroll) activeItem.scrollIntoView({ block: 'nearest' });
 }
 
 function renderBrowserAddressResults(results) {
@@ -6717,20 +6740,23 @@ function renderBrowserAddressResults(results) {
   player.browserAddressSelected = results.length ? 0 : -1;
   panel.replaceChildren();
   for (const [index, result] of results.entries()) {
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
-    button.dataset.addressResult = String(index); button.setAttribute('role', 'option');
-    button.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+    const option = document.createElement('div');
+    option.id = `browser-address-result-${index}`;
+    option.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
+    option.dataset.addressResult = String(index); option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
     const mark = document.createElement('span'); mark.className = 'browser-address-result-mark'; mark.textContent = result.mark || '•';
     const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
     const title = document.createElement('strong'); title.textContent = result.title;
     const detail = document.createElement('small'); detail.textContent = result.detail || '';
     copy.append(title, detail);
     const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = result.kindLabel || '';
-    button.append(mark, copy, kind); panel.appendChild(button);
+    option.append(mark, copy, kind); panel.appendChild(option);
   }
   panel.classList.toggle('hidden', !results.length);
   input.setAttribute('aria-expanded', results.length ? 'true' : 'false');
+  if (results.length) selectBrowserAddressResult(0, { scroll: false });
+  else input.removeAttribute('aria-activedescendant');
   syncBrowserOcclusion();
 }
 
@@ -10532,14 +10558,13 @@ $('browserPiP')?.addEventListener('click', () => {
   }).catch(() => {});
 });
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
-  if (['ArrowDown', 'ArrowUp'].includes(event.key) && player.browserAddressResults.length) {
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && player.browserAddressResults.length) {
     event.preventDefault();
     const length = player.browserAddressResults.length;
-    player.browserAddressSelected = (player.browserAddressSelected + (event.key === 'ArrowDown' ? 1 : -1) + length) % length;
-    [...$('browserAddressResults').children].forEach((item, index) => {
-      item.classList.toggle('is-selected', index === player.browserAddressSelected);
-      item.setAttribute('aria-selected', index === player.browserAddressSelected ? 'true' : 'false');
-    });
+    const selected = event.key === 'Home' ? 0
+      : event.key === 'End' ? length - 1
+        : (player.browserAddressSelected + (event.key === 'ArrowDown' ? 1 : -1) + length) % length;
+    selectBrowserAddressResult(selected);
   } else if (event.key === 'Enter' && !event.isComposing) {
     event.preventDefault();
     if (!$('browserAddressResults')?.classList.contains('hidden') && player.browserAddressSelected >= 0) useBrowserAddressResult(player.browserAddressSelected);
@@ -10552,6 +10577,7 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
     $('browserAddress').select();
     syncBrowserAddressAction();
   }
+  else if (event.key === 'Tab') closeBrowserAddressResults();
 });
 for (const eventName of ['input', 'focus', 'blur']) $('browserAddress')?.addEventListener(eventName, syncBrowserAddressAction);
 $('browserAddress')?.addEventListener('input', () => { clearTimeout(browserAddressSearchTimer); browserAddressSearchTimer = setTimeout(refreshBrowserAddressResults, 130); });
