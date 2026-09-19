@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 15:38 — Sağlayıcıya özel model listeleri ve küçük gerçek bağlantı testi: model kaydet/seç/sil, yeşil-kırmızı durum, EN/TR, güvenli probe IPC, 64 KiB yanıt sınırı; tam paket ve Electron kabulü geçti](docs/devir/2026-09-19-1538.md).
+Güncel çalışma: [2026-09-19 21:34 — Yeni browser/program bug raporları güncel koda göre ayıklandı; 15 doğrulanmış kök neden, kapanmış/yanlış/kanıt bekleyenler ayrı; ürün kodu değişmedi; BROWSER_BUG_REPORT_81.md](docs/devir/2026-09-19-2134.md).
+
+Önceki çalışma: [2026-09-19 15:38 — Sağlayıcıya özel model listeleri ve küçük gerçek bağlantı testi: model kaydet/seç/sil, yeşil-kırmızı durum, EN/TR, güvenli probe IPC, 64 KiB yanıt sınırı; tam paket ve Electron kabulü geçti](docs/devir/2026-09-19-1538.md).
 
 Önceki çalışma: [2026-09-19 15:17 — R82 güvenlik yüzeyi derin denetimi (kod değişikliği yok): B82-01 P3 yeni bulgu — invidious:login şifresi argv'de (WHISPER_YT_* env konvansiyonu ihlali); navigasyon/izin/popup/indirme/webRequest/SID-token/settings yüzeyleri satır satır TEMİZ; B80-01 hâlâ açık (WIP yalnız modelProfiles); PROGRAM_BUG_REPORT_82.md](docs/devir/2026-09-19-1517.md).
 
