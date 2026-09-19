@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 00:10 — R85+resim raporları uygulama turu: sır sızıntısı (env şifre, endpoint sorgu-sırrı, userinfo), arama doğruluğu (TR İ/I, CJK), izin/mediaTypes, yaşam döngüsü, hibrit .bak gizlilik modeli (mirrorBackup), {{ROOT}} taşınabilir paketler, telemetry null/0 ayrımı, locale bağlı biçimler; 14 test dosyası onarıldı; npm test TAM GEÇTİ, 18/20 smoke (2 ortam Viz çökmesi)](docs/devir/2026-09-20-0010.md).
+Güncel çalışma: [2026-09-20 00:40 — R85 uygulama tesliminin salt-okunur doğrulaması; paket genel olarak yararlı fakat tamamlanmamış: video .wbp mutlak yol sızıntısı, pruneTracks referans sırası, .bak fault güvenliği, diagnostic backoff log seli ve transcript intent false-positive; npm test + bridge geçti, Electron smoke kararsız; BROWSER_BUG_REPORT_86.md](docs/devir/2026-09-20-0040.md).
+
+Önceki çalışma: [2026-09-20 00:10 — R85+resim raporları uygulama turu: sır sızıntısı (env şifre, endpoint sorgu-sırrı, userinfo), arama doğruluğu (TR İ/I, CJK), izin/mediaTypes, yaşam döngüsü, hibrit .bak gizlilik modeli (mirrorBackup), {{ROOT}} taşınabilir paketler, telemetry null/0 ayrımı, locale bağlı biçimler; 14 test dosyası onarıldı; npm test TAM GEÇTİ, 18/20 smoke (2 ortam Viz çökmesi)](docs/devir/2026-09-20-0010.md).
 
 Önceki çalışma: [2026-09-19 23:03 — R76–80, R83 ve PROGRAM R79–82 eksiksiz bulgu-bazlı denetimi; 125 numaralı madde/126 karar satırı, R81/R84 düzeltmeleri, tam test + üç 20/20 Electron turu; ürün kodu değişmedi; BROWSER_BUG_REPORT_85.md](docs/devir/2026-09-19-2303.md).
 
