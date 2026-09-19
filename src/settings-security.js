@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
+const { normalizeProviderModelProfiles, serializeProviderModelProfiles } = require('./provider-model-profiles');
 
 const SETTINGS_VERSION = 3;
 const BACKUP_VERSION = 3;
@@ -252,6 +253,14 @@ function sanitizeEndpointGroup(value, label, allowSecrets, existing,
     clean.customBaseUrl = endpointSetting(value.customBaseUrl, `${label} özel endpoint`);
   }
   if (Object.prototype.hasOwnProperty.call(value, 'model')) clean.model = boundedString(value.model, `${label} model`, 300);
+  if (Object.prototype.hasOwnProperty.call(value, 'modelProfiles')) {
+    try {
+      clean.modelProfiles = serializeProviderModelProfiles(
+        normalizeProviderModelProfiles(value.modelProfiles, { strict: true }));
+    } catch (error) {
+      throw new SettingsValidationError(`${label} sağlayıcı model listesi geçersiz: ${error.message}`);
+    }
+  }
   // İçe aktarımda endpoint kimliği değiştiyse mevcut anahtar yeni (muhtemelen
   // saldırganın) endpoint'e Authorization olarak gider; bu durumda sır taşınmaz.
   const secretsInheritable = allowSecrets || !nextIdentity

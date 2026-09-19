@@ -1,5 +1,9 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-19 13:25 — R82 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_82.md](docs/devir/2026-09-19-1325.md).
+Güncel çalışma: [2026-09-19 13:25 — R83 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_83.md](docs/devir/2026-09-19-1325.md).
+
+Önceki çalışma: [2026-09-19 15:38 — Sağlayıcıya özel model listeleri ve küçük gerçek bağlantı testi: model kaydet/seç/sil, yeşil-kırmızı durum, EN/TR, güvenli probe IPC, 64 KiB yanıt sınırı; tam paket ve Electron kabulü geçti](docs/devir/2026-09-19-1538.md).
+
+Önceki çalışma: [2026-09-19 15:17 — R82 güvenlik yüzeyi derin denetimi (kod değişikliği yok): B82-01 P3 yeni bulgu — invidious:login şifresi argv'de (WHISPER_YT_* env konvansiyonu ihlali); navigasyon/izin/popup/indirme/webRequest/SID-token/settings yüzeyleri satır satır TEMİZ; B80-01 hâlâ açık (WIP yalnız modelProfiles); PROGRAM_BUG_REPORT_82.md](docs/devir/2026-09-19-1517.md).
 
 Önceki çalışma: [2026-09-19 14:44 — R81 ikinci tur (kod değişikliği yok): npm test TAM GEÇTİ feed_partial WIP dahil; feed_partial son hâl denetimi N1 latent (tek-satır öneri); R77 SL1-5 doğrulandı — SL1 öksüz modül DOĞRU (üretim kopyası preload inline), SL2 sahte telemetri DOĞRU (4 sabit-0), SL4 üçer kopya, SL5 m[1]) artefaktı; PROGRAM_BUG_REPORT_81 §4](docs/devir/2026-09-19-1444.md).
 

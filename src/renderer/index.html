@@ -740,6 +740,19 @@
                 <span class="field-label">Model</span>
                 <input type="text" id="translateModel" value="gemini-3.8-flash" placeholder="gemini-3.8-flash" list="translationModelSuggestions" />
               </label>
+              <div class="field field-full provider-model-manager">
+                <span class="field-label">Bu sağlayıcıdaki modeller</span>
+                <div class="provider-model-row">
+                  <select id="translateSavedModel" aria-label="Bu sağlayıcıdaki kayıtlı modeller"></select>
+                  <button class="btn btn-secondary btn-sm" id="translateAddModel" type="button">Modeli kaydet</button>
+                  <button class="btn btn-ghost btn-sm" id="translateRemoveModel" type="button">Kaldır</button>
+                </div>
+                <span class="hint">Model adını yukarıya yazıp kaydedin; sağlayıcıya döndüğünüzde bu listeden yeniden seçebilirsiniz.</span>
+              </div>
+              <div class="field field-full provider-probe">
+                <button class="btn btn-secondary btn-sm" id="translateProbeBtn" type="button">Küçük test isteği gönder</button>
+                <output id="translateProbeStatus" class="provider-probe-status" role="status" aria-live="polite">Henüz test edilmedi.</output>
+              </div>
               <label class="field field-full hidden" id="translateCustomUrlField">
                 <span class="field-label">Özel endpoint URL</span>
                 <input type="text" id="translateBaseUrl" placeholder="https://api.example.com/v1" />
@@ -2888,6 +2901,7 @@
   <script src="../browser-settings-registry.js"></script>
   <script src="../browser-skip-segments.js"></script>
   <script src="../provider-api-keys.js"></script>
+  <script src="../provider-model-profiles.js"></script>
   <script src="../subtitle-find-replace.js"></script>
   <script src="queue-lifecycle.js"></script>
   <script src="../renderer-ui-model.js"></script>

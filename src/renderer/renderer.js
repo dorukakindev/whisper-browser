@@ -2165,6 +2165,7 @@ function secretSettingPatch(id, key = 'apiKey') {
 const providerApiKeyProfiles = { translate: {}, manga: {} };
 const activeProviderCredentialScopes = { translate: '', manga: '' };
 const providerApiKeyProfilesEdited = { translate: false, manga: false };
+let providerModelProfiles = {};
 
 function providerCredentialScopeFor(kind) {
   const api = window.WhisperProviderApiKeys;
@@ -2226,6 +2227,102 @@ function providerApiKeyProfilesPatch(kind) {
   return { apiKeyProfiles: serialized === '{}' ? '' : serialized };
 }
 
+function providerSettingText(value) {
+  return window.UiLocale?.t ? window.UiLocale.t(String(value || '')) : String(value || '');
+}
+
+function initializeProviderModelProfiles(settingsGroup = {}) {
+  const api = window.WhisperProviderModels;
+  providerModelProfiles = api
+    ? api.normalizeProviderModelProfiles(settingsGroup.modelProfiles)
+    : {};
+  renderProviderModelChoices();
+}
+
+function providerModelProfilesValue() {
+  const api = window.WhisperProviderModels;
+  return api ? api.serializeProviderModelProfiles(providerModelProfiles) : '';
+}
+
+function renderProviderModelChoices(preferred = $('translateModel')?.value.trim() || '') {
+  const api = window.WhisperProviderModels;
+  const select = $('translateSavedModel');
+  if (!api || !select) return;
+  const scope = providerCredentialScopeFor('translate');
+  const models = api.providerModelsForScope(providerModelProfiles, scope);
+  select.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = providerSettingText('Kayıtlı özel model yok');
+  select.appendChild(placeholder);
+  for (const model of models) {
+    const option = document.createElement('option');
+    option.value = model;
+    option.textContent = model;
+    select.appendChild(option);
+  }
+  select.value = models.includes(preferred) ? preferred : '';
+  $('translateRemoveModel')?.toggleAttribute('disabled', !select.value);
+}
+
+function resetTranslationProviderProbe() {
+  const output = $('translateProbeStatus');
+  if (!output) return;
+  output.dataset.state = 'idle';
+  output.textContent = providerSettingText('Henüz test edilmedi.');
+}
+
+function translationProbeMessage(result) {
+  const messages = {
+    authentication: 'API anahtarı reddedildi.',
+    model_unavailable: 'Seçili model bu sağlayıcıda bulunamadı.',
+    rate_limit: 'Sağlayıcının istek sınırına ulaşıldı.',
+    provider_unavailable: 'Sağlayıcı geçici olarak kullanılamıyor.',
+    endpoint_not_found: 'Endpoint bulunamadı veya uyumlu değil.',
+    timeout: 'İstek zaman aşımına uğradı.',
+    network: 'Sağlayıcıya ağ bağlantısı kurulamadı.',
+    request_rejected: 'Sağlayıcı test isteğini reddetti.',
+    invalid_response: 'Sağlayıcı yanıtı geçersiz.',
+    invalid_config: 'Önce API anahtarı ve model girin.',
+  };
+  return providerSettingText(messages[result?.code] || 'Test isteği gönderilemedi.');
+}
+
+async function testSelectedTranslationProvider() {
+  const button = $('translateProbeBtn');
+  const output = $('translateProbeStatus');
+  if (!button || !output || !window.api.testTranslationProvider) return;
+  const model = $('translateModel')?.value.trim() || '';
+  const apiKey = $('translateApiKey')?.value.trim() || '';
+  if (!model) {
+    output.dataset.state = 'error';
+    output.textContent = providerSettingText('Önce API anahtarı ve model girin.');
+    return;
+  }
+  button.disabled = true;
+  output.dataset.state = 'testing';
+  output.textContent = providerSettingText('Sağlayıcı test ediliyor…');
+  try {
+    const result = await window.api.testTranslationProvider({
+      endpointPreset: $('translateEndpointPreset')?.value || '',
+      customBaseUrl: $('translateBaseUrl')?.value.trim() || '',
+      model,
+      apiKey,
+    });
+    const latency = Number(result?.latencyMs) > 0 ? ` · ${Math.round(result.latencyMs)} ms` : '';
+    const status = Number(result?.status) > 0 ? ` · HTTP ${Math.trunc(result.status)}` : '';
+    output.dataset.state = result?.ok ? 'success' : 'error';
+    output.textContent = (result?.ok
+      ? providerSettingText('Bağlantı ve model çalışıyor.')
+      : translationProbeMessage(result)) + status + latency;
+  } catch (_) {
+    output.dataset.state = 'error';
+    output.textContent = providerSettingText('Test isteği gönderilemedi.');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 document.addEventListener('change', (event) => {
   if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey'].includes(event.target.id)) {
     event.target.dataset.secretEdited = 'true';
@@ -2277,6 +2374,7 @@ function appSettingsPayload() {
       endpointPreset: $('translateEndpointPreset') ? $('translateEndpointPreset').value : '',
       customBaseUrl: $('translateBaseUrl') ? $('translateBaseUrl').value.trim() : '',
       model: $('translateModel') ? $('translateModel').value.trim() : '',
+      modelProfiles: providerModelProfilesValue(),
     },
     manga: {
       ...secretSettingPatch('mangaApiKey'),
@@ -2729,6 +2827,7 @@ function updateTranslateEndpointUI(applyRecommendedModel = false) {
       && (!current || ['gpt-4.1-mini', 'deepseek-chat'].includes(current))) {
     model.value = 'gemini-3.7-flash';
   }
+  renderProviderModelChoices(model.value.trim());
 }
 
 if ($('translateEndpointPreset')) {
@@ -2739,6 +2838,7 @@ if ($('translateEndpointPreset')) {
       activateProviderApiKey('manga');
     }
     if (!_applyingSettings) void saveTranslationProviderSettings();
+    resetTranslationProviderProbe();
   });
   updateTranslateEndpointUI();
 }
@@ -2778,6 +2878,8 @@ $('translateBaseUrl')?.addEventListener('change', () => {
   activateProviderApiKey('translate');
   if ($('mangaEndpointPreset')?.value === 'inherit') activateProviderApiKey('manga');
   void saveTranslationProviderSettings();
+  renderProviderModelChoices();
+  resetTranslationProviderProbe();
 });
 $('mangaBaseUrl')?.addEventListener('change', () => {
   if ($('mangaEndpointPreset')?.value !== 'custom' || _applyingSettings) return;
@@ -2785,6 +2887,44 @@ $('mangaBaseUrl')?.addEventListener('change', () => {
   saveAppSettings();
 });
 $('mangaModel')?.addEventListener('change', saveAppSettings);
+$('translateModel')?.addEventListener('input', () => {
+  renderProviderModelChoices();
+  resetTranslationProviderProbe();
+});
+$('translateApiKey')?.addEventListener('input', resetTranslationProviderProbe);
+$('translateSavedModel')?.addEventListener('change', (event) => {
+  const model = String(event.target.value || '').trim();
+  if (!model) return;
+  $('translateModel').value = model;
+  $('translateRemoveModel')?.removeAttribute('disabled');
+  resetTranslationProviderProbe();
+  scheduleSave();
+});
+$('translateAddModel')?.addEventListener('click', async () => {
+  const api = window.WhisperProviderModels;
+  const model = $('translateModel')?.value.trim() || '';
+  try {
+    providerModelProfiles = api.addProviderModel(
+      providerModelProfiles, providerCredentialScopeFor('translate'), model);
+    renderProviderModelChoices(model);
+    await saveAppSettings();
+  } catch (_) {
+    const output = $('translateProbeStatus');
+    if (output) {
+      output.dataset.state = 'error';
+      output.textContent = providerSettingText('Geçerli bir model adı girin.');
+    }
+  }
+});
+$('translateRemoveModel')?.addEventListener('click', async () => {
+  const api = window.WhisperProviderModels;
+  const model = $('translateSavedModel')?.value || '';
+  providerModelProfiles = api.removeProviderModel(
+    providerModelProfiles, providerCredentialScopeFor('translate'), model);
+  renderProviderModelChoices();
+  await saveAppSettings();
+});
+$('translateProbeBtn')?.addEventListener('click', testSelectedTranslationProvider);
 ['llmApiKey', 'llmBaseUrl', 'llmModel'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('change', saveAppSettings);
@@ -2850,6 +2990,7 @@ const initialSettingsReady = (async () => {
       // halkasını yükle. Eski tek apiKey yalnız seçili sağlayıcıya taşınır.
       initializeProviderApiKeyState('translate', s.translate || {});
       initializeProviderApiKeyState('manga', s.manga || {});
+      initializeProviderModelProfiles(s.translate || {});
       // Preset seçimini geri yükle (değerler zaten ui'dan geldi — yeniden uygulama yok)
       if (s.preset && ($('presetSelect').querySelector(`option[value="${s.preset}"]`))) {
         $('presetSelect').value = s.preset;
@@ -4509,6 +4650,7 @@ $('importSettings').addEventListener('click', async () => {
   }
   initializeProviderApiKeyState('translate', s.translate || {});
   initializeProviderApiKeyState('manga', s.manga || {});
+  initializeProviderModelProfiles(s.translate || {});
   if (window.BrowserWorkflowRecorder) {
     browserWorkflowLibrary = window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(s.browserWorkflows);
   }

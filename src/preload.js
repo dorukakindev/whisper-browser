@@ -224,6 +224,7 @@ contextBridge.exposeInMainWorld('api', {
   cancelModelBenchmark: () => ipcRenderer.invoke('models:benchmark:cancel'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
+  testTranslationProvider: (payload) => ipcRenderer.invoke('translation:probe', payload),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   saveSettingsSync: (s) => ipcRenderer.sendSync('settings:saveSync', s),
   loadQueueState: () => ipcRenderer.invoke('queue:load'),
