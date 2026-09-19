@@ -138,3 +138,48 @@ toplu ek adayı olarak kullanılabilir; CI'a "tabloda olmayan TR UI dizgesi" den
 - `localStorage` erişimi: 61 nokta, **27'si satır-içi korumasız** (try/catch yok;
   fonksiyon-düzeyi sarmalama sınıflandırılmadı). Electron'da kota/devre-dışı kenarı
   nadir → P4 hijyen notu; `safeStorage` sarmalayıcı önerilebilir.
+
+---
+
+# BÖLÜM 4 — İkinci tur: feed_partial son hâl + R77 slop doğrulaması + test koşumu
+
+## 4a. `npm test` bağımsız koşum (çalışma ağacı, feed_partial WIP dahil)
+
+**TAM GEÇTİ** — Node + Python, `EXIT:0` ("Tüm testler geçti"). Paralel oturumun
+commit'lenmemiş `feed_partial` implementasyonu mevcut hâliyle testleri bozmuyor.
+
+## 4b. `feed_partial` implementasyonu — N1 güncellemesi
+
+Yeni diff (`main.js` requestId threading + renderer preview + kısmi-hata yolu)
+§2'deki tasarımı doğruluyor:
+
+- `main.js`: `opts.requestId` alınır, her `invidious:event`'e `{...ev, requestId}`
+  eklenir → renderer kapısı `ev.requestId === stActiveHomeRequestId` çalışır.
+- `stActiveHomeRequestId = section==='home' ? seq : null` → bölüm değişiminde
+  sıfırlanır; eski isteğin event'i süzülür.
+- Kısmi-hata yolu (`catch`): `previewRequestId === seq` ise `showError` yerine
+  "Ek videolar alınamadı…" status'u + preview korunur — iyi UX.
+- **N1 durumu:** hâlâ latent — renderer tarafı "full resolve geldi" bilgisini
+  işaretlemiyor; main emit sırası (partial→resolve) korunduğu sürece sorun yok.
+  `previewRequestId` yeni home render'ında eski seq'de kalır ama seq farklı
+  olduğu için yanlış tetikleme yok. **Küçük öneri:** full render tamamlanınca
+  `grid.dataset.previewRequestId = String(seq)` işaretlensin → geç gelen
+  partial'lar da süzülsün (tek satır).
+
+## 4c. R77 "slop" bulguları (SL1–SL5) doğrulaması
+
+| Bulgu | Karar | Kanıt |
+|---|---|---|
+| SL1 öksüz `browser-link-intent.js` | **DOĞRU** | `isNewTabLinkGesture` yalnız `tests/browser-experience.test.js`'de; üretim kopyası inline `src/browser-preload.js:23`. Test modülü üretimi temsil etmiyor → ayrışırlarsa test yeşil kalırken üretim sapar. **Düzeltme:** preload'un modülü require etmesi (browser-preload require destekliyorsa) ya da inline kopyayı modülden türetmek |
+| SL2 yarı-sahte telemetri | **DOĞRU** | `browserPageResourceTelemetry` (`browser-preload.js:187-200`): `measured:true` döndürüyor ama `resizeObservers/mediaListeners/overlayNodes/pendingFrames` **hepsi sabit 0** — yarısı gerçek ölçüm, yarısı dolgu |
+| SL3 ölü diakritik girdiler | **KISMEN** | `watch-index.js:118,164` FTS5 `tokenize='unicode61 remove_diacritics 2'` canlı sözdizimi; "ölü" iddiasının kastı (hangi girdi ölü) R77 raporunda net değil — doğrulanabilir kısım: konfigürasyon var ve FTS5 düzeyinde aktif. Raporun tam ifadesi ayrıca incelenmeli |
+| SL4 çift normalizeCues/cuesToSrt | **DOĞRU ve eksik** | **Üçer kopya**: `normalizeCues` → `browser-asset-store.js:12`, `browser-subtitles.js:110`, `browser-translation-scheduler.js:10`; `cuesToSrt` → `browser-asset-store.js:56`, `browser-subtitles.js:1894`, `renderer.js:13365`. Ayrışma riski somut |
+| SL5 kök artıkları | **DOĞRU** | `m[1])` — 0 bayt shell-artefaktı kökte duruyor; `.freebuff/` + `_repro/` scratch dizinleri (bunlar bilinçli dışlanan WIP — `m[1])` temizlenebilir) |
+
+## 4d. Ek gözlem
+
+`browser-mini-preload.js` ve `browser-dialogue.js` testsizlik listesinde
+(D81‑04); SL1 örneği gösteriyor ki preload-içi inline kopyalar ile modül
+kopyaları ayrışabiliyor — preload dosyalarında inline-olan her saf fonksiyon
+aynı desenin adayı (genel ders: preload içinde test edilen mantık inline
+bırakılmamalı veya modülden türetilmeli).
