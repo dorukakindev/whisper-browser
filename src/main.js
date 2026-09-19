@@ -13309,8 +13309,11 @@ ipcMain.handle('browser:command', async (event, payload) => {
     } else if (['zoom-in', 'zoom-out', 'zoom-reset', 'zoom-set'].includes(command)) {
       const current = Number(wc.getZoomFactor?.()) || 1;
       const requested = Number(value);
+      if (command === 'zoom-set' && !Number.isFinite(requested)) {
+        return { ok: false, error: 'Geçersiz yakınlaştırma değeri.' };
+      }
       const zoom = command === 'zoom-reset' ? 1
-        : command === 'zoom-set' && Number.isFinite(requested) ? Math.max(0.5, Math.min(3, requested))
+        : command === 'zoom-set' ? Math.max(0.5, Math.min(3, requested))
           : Math.max(0.5, Math.min(3, current + (command === 'zoom-in' ? 0.1 : -0.1)));
       const roundedZoom = Math.round(zoom * 10) / 10;
       wc.setZoomFactor(roundedZoom);

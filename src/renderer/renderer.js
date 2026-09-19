@@ -5484,6 +5484,11 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
     clearTimeout(player.shadowResumeTimer);
     player.shadowResumeTimer = null;
   }
+  // Kendi seek'lerimizi işaretle — A-B döngüsü medya tick'inde "kesiş" ile
+  // "atlama"yı ayıramaz; işaretli pencerede B ötesi varış döngülenmez.
+  if (['seek', 'seek-relative', 'frame-step'].includes(command)) {
+    player._ownSeekAt = Date.now();
+  }
   return window.api.browserCommand(tabId, command, value);
 }
 
@@ -10065,7 +10070,16 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   const t = subtitleSourceTime(Number(time || 0), false);
   const sponsorSeekStarted = applyBrowserSponsorSkip(Number(time || 0), Number(previousTime), paused);
   const previous = Number(previousTime);
+  // B ötesine atlama = döngüden kaçış: ya bizim seek komutumuzdan gelen iniş
+  // (~900 ms pencere) ya da tick aralığını aşan büyük ileri sıçrama (site-içi
+  // seek). Eşik hıza ölçekli: medya poll'u 1 sn, 4x'te doğal adım ~4 sn + jitter —
+  // sabit eşik yüksek hızda gerçek oynatmayı seek sanıp döngüyü kırardı.
+  const ownSeekLanding = Date.now() - Number(player._ownSeekAt || 0) < 900;
+  const naturalStep = Math.max(4.5, (Number(player.browserRate) || 1) * 1.75);
+  const jumpedForward = Number.isFinite(previous) && Number.isFinite(Number(time))
+    && (Number(time) - previous) > naturalStep;
   if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
+      && !player.browserAdPlaying && !ownSeekLanding && !jumpedForward
       && (!Number.isFinite(previous) || previous < player.abB)) {
     player.browserTime = player.abA;
     browserCommand('seek', player.abA).catch(() => {});
@@ -12681,9 +12695,11 @@ function renderCue() {
     if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
     renderActiveCueWord(i, i >= 0 ? player.cues[i] : null, t, overlay);
 
+    // lastT video-zamanında saklanır — altyazı-zamanı + offset geri çevrimi
+    // offset değişiminde "önceki konum"u delta kadar kaydırıyordu.
     applyPlaybackLearningPolicy(video.currentTime,
-      player.lastT === undefined ? NaN : player.lastT + player.offset, video.paused, false);
-    player.lastT = t;
+      player.lastT === undefined ? NaN : player.lastT, video.paused, false);
+    player.lastT = video.currentTime;
   } else {
     // Boş izde eski indeks kalmasın — copyCue gibi tüketiciler stale
     // indeksle player.cues[...] okuyup TypeError yutuyordu.
@@ -15978,6 +15994,7 @@ function resetMediaBoundState(options = {}) {
   player.cancelHoldSpeed?.();
   player.lastT = undefined;
   player._abPrevT = undefined;
+  player._ownSeekAt = 0;
   player.holdingSpeed = false;
   closeTimeline();
   resetEmbeddedSubtitleTracks();
@@ -20568,9 +20585,12 @@ if ($('playerVideo')) {
   });
   // A-B dongusu: B'ye gelince A'ya don. Yalnız B'ye "oynayarak" ulaşınca —
   // kullanıcı B'nin ötesine atlarsa döngüden çıkabilmeli (tarayıcı yoluyla aynı).
+  // Seek tamamlanan timeupdate seeked'den ÖNCE gelir; video.seeking koruması
+  // olmadan B ötesine atlama "kesiş" sanılıp yine A'ya sarılıyordu.
   video.addEventListener('timeupdate', () => {
     const previous = player._abPrevT;
     player._abPrevT = video.currentTime;
+    if (video.seeking) return;
     if (player.abA !== null && player.abB !== null && previous !== undefined
         && previous < player.abB && video.currentTime >= player.abB) {
       video.currentTime = player.abA;
@@ -21668,7 +21688,11 @@ async function saveBrowserQuickEditor() {
 }
 
 async function browserQuickHistory(direction) {
-  if (browserQuickEditor?.busy || player.cueHistoryBusy || quickEditorDirty()) return;
+  if (browserQuickEditor?.busy || player.cueHistoryBusy) return;
+  if (quickEditorDirty()) {
+    updateQuickEditorStatus('Kaydedilmemiş değişiklikler var — önce kaydedin veya “Taslağı sil” ile geri alın.');
+    return;
+  }
   const before = (direction === 'undo' ? player.cueEditUndo : player.cueEditRedo).length;
   await applyCueEditHistory(direction);
   if ((direction === 'undo' ? player.cueEditUndo : player.cueEditRedo).length === before) {
@@ -22384,6 +22408,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function stSelectSection(section) {
   stCurrentSection = section;
   stSearchActive = false;
+  stSearchSeq++;   // uçuştaki arama sayfası gizli grid'e yazmasın
   const results = $('stSearchResults');
   if (results) results.classList.add('hidden');
   const mainGrid = $('stGrid');

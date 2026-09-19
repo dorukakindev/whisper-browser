@@ -58,7 +58,9 @@
     const candidate = normalizeRecords(records)
       .filter(item => (item.scope === 'media' ? item.scopeKey === context.mediaKey
         : item.scopeKey === context.seriesKey) && time >= item.start && time < item.end)
-      .sort((a, b) => a.end - b.end)[0] || null;
+      // Çakışan kayıtlarda autoSkip'li olan kazanır — aksi halde daha kısa bir
+      // autoSkip'siz kayıt, atlanması istenen geniş bölgeyi gölgelerdi.
+      .sort((a, b) => (Number(b.autoSkip) - Number(a.autoSkip)) || (a.end - b.end))[0] || null;
     const suppressedId = candidate && (backwards ? candidate.id : state.suppressedId);
     // Reklam zaman ekseninde kullanıcı atlama kaydı tetiklenmez — kayıtlar içerik
     // zamanına aittir; reklam sırasında ateşlemek ad-block kapalıyken bile reklamı atlatırdı.

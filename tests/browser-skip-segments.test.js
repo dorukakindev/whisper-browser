@@ -44,6 +44,19 @@ const adDecision = api.decideSkip(enabled, { ...matching, currentTime: 20, adPla
 assert.equal(adDecision.candidate.id, intro.id);
 assert.equal(adDecision.shouldSkip, false);
 
+// R73-Y1: çakışan kayıtlarda autoSkip'li aday kazanır — daha kısa bir
+// autoSkip'siz kayıt, atlanması istenen geniş bölgeyi gölgelerdi.
+const overlap = [
+  { id: 'wide-auto', scope: 'series', scopeKey: 'show-a', kind: 'intro', start: 0, end: 60, autoSkip: true },
+  { id: 'short-manual', scope: 'series', scopeKey: 'show-a', kind: 'recap', start: 10, end: 30, autoSkip: false },
+];
+const overlapDecision = api.decideSkip(overlap, matching);
+assert.equal(overlapDecision.candidate.id, 'wide-auto', 'autoSkip kayıt kısa manuel kayda yenilmemeli');
+assert.equal(overlapDecision.shouldSkip, true, 'geniş autoSkip bölgesi atlanmalı');
+// autoSkip'ler eşitse en kısa end kazanır (önceki davranış korunur).
+const overlapBoth = [overlap[0], { ...overlap[1], autoSkip: true }];
+assert.equal(api.decideSkip(overlapBoth, matching).candidate.id, 'short-manual');
+
 const source = fs.readFileSync(path.join(__dirname, '../src/browser-skip-segments.js'), 'utf8');
 const browser = { globalThis: {} };
 vm.runInNewContext(source, browser);
