@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 17:30 — Katalog Parti 13: F18 aşamalı dilim — MODEL_CATALOG kapasite kaydı, boyut/boş-disk raporu, onaylı güvenli önbellek silme; npm test temiz](docs/devir/2026-09-20-1730.md).
+Güncel çalışma: [2026-09-20 17:33 — Katalog Parti 14: kabul matrisi (F20) + servis yetenek matrisi (F04) belgeleri; yalnız belge turu](docs/devir/2026-09-20-1733.md).
+
+Önceki çalışma: [2026-09-20 17:30 — Katalog Parti 13: F18 aşamalı dilim — MODEL_CATALOG kapasite kaydı, boyut/boş-disk raporu, onaylı güvenli önbellek silme; npm test temiz](docs/devir/2026-09-20-1730.md).
 
 Önceki çalışma: [2026-09-20 17:24 — Katalog Parti 12: aynı klipte A/B ASR benchmark'ı (F17) — clipHash saklama, cue sapması + metin farkı, VRAM; npm test temiz](docs/devir/2026-09-20-1724.md).
 
