@@ -33,9 +33,11 @@ async function movieHash(filePath) {
     await handle.read(head, 0, headSize, 0);
     hash = (hash + sumWords(head)) & MASK64;
     if (size > CHUNK) {
-      const tailSize = Math.min(CHUNK, size - CHUNK);
-      const tail = Buffer.alloc(tailSize);
-      await handle.read(tail, 0, tailSize, size - tailSize);
+      // Referans algoritma son 64 KiB'ın tamamını size-CHUNK'tan okur —
+      // dosya 128 KiB'dan küçükse başla çakışan baytlar bilerek iki kez
+      // sayılır. Çakışmayı atlamak referanstan farklı hash üretir.
+      const tail = Buffer.alloc(CHUNK);
+      await handle.read(tail, 0, CHUNK, size - CHUNK);
       hash = (hash + sumWords(tail)) & MASK64;
     }
     return hash.toString(16).padStart(16, '0');

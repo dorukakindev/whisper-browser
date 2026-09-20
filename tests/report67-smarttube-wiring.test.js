@@ -372,7 +372,7 @@ function fakeStorage() {
 // Gerçek kuyruk fonksiyonlarını kaynaktan çıkarıp sahte localStorage + DOM ile
 // kurar — kart düğmesi de aynı bağlamı kullanır.
 function buildQueueHarness() {
-  const calls = { probe: 0 };
+  const calls = { probe: 0, buttons: 0 };
   const store = fakeStorage();
   const player = { openIntent: 7, pendingAutoOpen: null, mediaKey: '' };
   const ctx = vm.createContext({
@@ -380,7 +380,7 @@ function buildQueueHarness() {
     absThumb: (u) => u,
     mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
     queuePlayerProbeFromCard: () => { calls.probe++; },
-    updatePlaylistButtons: () => {},
+    updatePlaylistButtons: () => { calls.buttons++; },
     document: { createElement: (t) => makeFakeEl(t) },
     window: { UiLocale: { t: (s) => s } },
     player,
@@ -895,6 +895,29 @@ test('R68 O10/D3/D-Y10: placeholder + sidebar focus + kart content-visibility', 
   assert.match(CSS, /#stSearchInput::placeholder/);
   assert.match(CSS, /\.st-side-item:focus-visible/);
   assert.match(CSS, /\.st-card \{[\s\S]*?content-visibility: auto/);
+});
+
+// ---------- FULL_REVIEW F1: Sonraki düğmesi bayat disabled ----------
+test('F1a: stQueueToggle düğme durumunu ekleme VE çıkarmada yeniler', () => {
+  const { ctx, calls } = buildQueueHarness();
+  const video = { videoId: 'v1', title: 't', videoThumbnails: [] };
+  const before = calls.buttons;
+  vm.runInContext(`stQueueToggle(${JSON.stringify(video)})`, ctx);
+  assert.strictEqual(calls.buttons, before + 1, 'ekleme updatePlaylistButtons çağırmadı');
+  vm.runInContext(`stQueueToggle(${JSON.stringify(video)})`, ctx);
+  assert.strictEqual(calls.buttons, before + 2, 'çıkarma updatePlaylistButtons çağırmadı');
+});
+
+test('F1b: setMediaKey içinde mediaKey ataması updatePlaylistButtons\'tan ÖNCE', () => {
+  const fn = (RENDERER.match(/function setMediaKey\(key\) \{[\s\S]*?\n\}/) || [])[0];
+  assert.ok(fn, 'setMediaKey bulunamadı');
+  const assign = fn.indexOf('player.mediaKey = nextKey');
+  // Yorumdaki isim değil, gerçek çağrı satırı: girintili `updatePlaylistButtons();`
+  const refresh = fn.indexOf('\n    updatePlaylistButtons();');
+  assert.ok(assign > -1, 'mediaKey ataması yok');
+  assert.ok(refresh > -1, 'updatePlaylistButtons çağrısı yok');
+  assert.ok(assign < refresh,
+    'düğmeler eski mediaKey ile yenileniyor — YouTube geçişinde kuyruklu Next disabled kalır');
 });
 
 // ---------- çalıştır ----------

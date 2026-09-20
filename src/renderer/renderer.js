@@ -16859,6 +16859,9 @@ function setMediaKey(key) {
     $('playerYtInfo')?.classList.add('hidden');
     if (typeof hideUpNextPanel === 'function') hideUpNextPanel();
   }
+  // Medya anahtarı önce atanır: updatePlaylistButtons() ve kuyruk
+  // kapıları (youtube: kontrolü) hep yeni kaynağa göre karar verir.
+  player.mediaKey = nextKey;
   // Yerel playlist yalnızca file: medyasına aittir — YouTube/stream açılınca
   // eski klasör listesi prev/next ve oto-sonraki (ended) üzerinden hortluyordu.
   if (!String(nextKey).startsWith('file:')) {
@@ -16866,7 +16869,6 @@ function setMediaKey(key) {
     player.playlistIndex = -1;
     updatePlaylistButtons();
   }
-  player.mediaKey = nextKey;
   if (player.pendingLibrarySeek && player.pendingLibrarySeek.key !== player.mediaKey) {
     player.pendingLibrarySeek = null;
   }
@@ -23873,6 +23875,7 @@ function stQueueToggle(video) {
   if (i >= 0) {
     stQueue.splice(i, 1);
     saveStQueue();
+    updatePlaylistButtons();
     return false;
   }
   const thumbs = video.videoThumbnails || [];
@@ -23890,6 +23893,7 @@ function stQueueToggle(video) {
   });
   if (stQueue.length > ST_QUEUE_MAX) stQueue.shift();
   saveStQueue();
+  updatePlaylistButtons();
   return true;
 }
 // Akış gerçekten açıldıysa sıranın başındaki kaydı düşür; kart/queue yollarının
