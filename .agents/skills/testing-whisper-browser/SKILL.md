@@ -33,3 +33,12 @@ description: How to launch and drive the whisper-browser Electron app on this Li
 
 ## Fixtures
 - Generate test media with ffmpeg: `ffmpeg -y -f lavfi -i "testsrc=duration=20:size=640x360:rate=25" -f lavfi -i "sine=frequency=440:duration=20" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest /tmp/test-media/alpha.mp4` (use testsrc2/smptebars for visually distinct siblings). Keep them OUTSIDE `/tmp` if you need them across reboots.
+
+## Transcription run + LLM post-process
+- Main-view settings column (left, scrollable): **Basic settings** (Model — pick `tiny` for speed; Motor/engine) and **Advanced settings** (Cihaz = device — default CUDA; pick `CPU` on this GPU-less box or faster-whisper may fail) are separate collapsible cards.
+- The **"LLM correction (DeepSeek/OpenAI)"** card holds `llmPostprocess` checkbox, `llmApiKey` (password/masked), `llmEndpointPreset` (choose **"Custom…"** to reveal the `llmBaseUrl` field), `llmModel`.
+- Input: click the drop-zone → GTK file dialog (accepts audio too, e.g. flac). Output dir defaults to `~/Downloads/Whisper/ÇIKTI/` — the written `.srt` lands there.
+- Run: "Generate subtitles" (`startBtn`) → status pill RUNNING; the LLM stage shows as "LLM düzeltiyor: <model>"; Log panel gets `LLM düzeltme BAŞLIYOR … endpoint …` then `✓ LLM düzeltme TAMAMLANDI — N blok işlendi, M blok düzeltildi`. The Live preview swaps from raw whisper text to the corrected text when the pass completes — that's the discriminating pixel check.
+- **API key persistence caveat on Linux:** the key goes through Electron `safeStorage`; without a freedesktop Secret Service daemon it cannot persist — log warns "API anahtarları güvenli depo kullanılamadığı için kaydedilemedi" and after restart the key field is EMPTY while all other LLM fields survive. On Windows (DPAPI) it should persist. So re-enter the key each session when testing on this box.
+- Type secrets into fields via the computer tool's `${WHISPER_LLM_API_KEY}` placeholder (auto-substituted; password field masks it). Never screenshot or echo the raw value.
+- Backend sanity check without the UI: `backend/venv/bin/python backend/transcribe.py --input <file> --model tiny --device cpu --llm-postprocess true --llm-base-url <url> --llm-model <m>` with `WHISPER_LLM_API_KEY` in env.
