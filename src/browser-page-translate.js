@@ -667,6 +667,7 @@ function pageBlockScanScript(options = {}) {
       candidates.sort((a, b) => Number(b.visible) - Number(a.visible)
         || a.distance - b.distance || a.order - b.order);
       const blocks = [];
+      const replacedIds = [];
       const blockBudget = Math.max(0, state.config.maxBlocks - state.emittedCount);
       const characterBudget = Math.max(0, state.config.maxCharacters - state.emittedCharacters);
       let usedCharacters = 0;
@@ -677,6 +678,9 @@ function pageBlockScanScript(options = {}) {
         const { _group: group, ...serializable } = candidate;
         const previousId = state.latestIdByRoot.get(group.owner);
         const previous = previousId ? state.refs.get(previousId) : null;
+        // Aynı kök yeni hash'le tarandı: eski blok kimliği artık DOM'da yok.
+        // Ana tarafa bildir ki session.blocks/completion eski kimliği saymasın.
+        if (previous && previousId !== candidate.id) replacedIds.push(previousId);
         if (previous) previous.active = false;
         state.refs.set(candidate.id, {
           id: candidate.id, root: group.owner, nodes: group.nodes,
@@ -709,6 +713,7 @@ function pageBlockScanScript(options = {}) {
         stats: { found: candidates.length, discovered: state.knownIds.size + pending,
           pending, offscreen, foundCharacters, selected: blocks.length, selectedCharacters: usedCharacters },
         restoredTranslations,
+        replacedIds,
       };
     };
     state.onVisibilityChange ||= () => {
@@ -856,11 +861,17 @@ function pageApplyScript(payload = {}) {
       ].join('');
       (document.head || document.documentElement).appendChild(sheet);
     }
+    // Bilinen en taze orijinal: sayfa metni kendisi değiştirdiyse observer
+    // originalValues'a güncel metni yazar; ref.originals tarama anında donar.
+    const latestOriginal = (node, fallback) => (
+      state.originalValues?.has?.(node) ? state.originalValues.get(node) : fallback
+    );
     const restoreRef = (ref) => {
       ref.nodes.forEach((node, index) => {
         if (node && node.isConnected !== false) {
-          state.ownWrites?.set(node, ref.originals[index]);
-          node.nodeValue = ref.originals[index];
+          const original = latestOriginal(node, ref.originals[index]);
+          state.ownWrites?.set(node, original);
+          node.nodeValue = original;
         }
       });
     };
@@ -1211,8 +1222,10 @@ function pageVisibilityScript(visible) {
     state.visible = visible;
     const restoreRef = (ref) => ref.nodes.forEach((node, index) => {
       if (node && node.isConnected !== false) {
-        state.ownWrites?.set(node, ref.originals[index]);
-        node.nodeValue = ref.originals[index];
+        const original = state.originalValues?.has?.(node)
+          ? state.originalValues.get(node) : ref.originals[index];
+        state.ownWrites?.set(node, original);
+        node.nodeValue = original;
       }
     });
     const distribute = (ref) => {
@@ -1296,8 +1309,10 @@ function pageExcludeScript(ids = []) {
       ref.active = false;
       ref.nodes.forEach((node, index) => {
         if (node && node.isConnected !== false) {
-          state.ownWrites?.set(node, ref.originals[index]);
-          node.nodeValue = ref.originals[index];
+          const original = state.originalValues?.has?.(node)
+            ? state.originalValues.get(node) : ref.originals[index];
+          state.ownWrites?.set(node, original);
+          node.nodeValue = original;
         }
       });
       ref.overlay?.remove?.(); ref.overlay = null;
@@ -1323,7 +1338,8 @@ function pageRestoreScript() {
         if (!ref.applied) continue;
         ref.nodes.forEach((node, index) => {
           if (!restored.has(node) && node && node.isConnected !== false) {
-            node.nodeValue = ref.originals[index];
+            node.nodeValue = state.originalValues?.has?.(node)
+              ? state.originalValues.get(node) : ref.originals[index];
             restored.add(node);
           }
         });

@@ -468,6 +468,26 @@ test('farklı caption modu ve konuşmacı aynı metin olsa da korunur', () => {
   assert.equal(speakers.length, 2);
 });
 
+test('aynı kimlikli cue kaymış zamanla yeniden gelince eski kopya silinir (S2)', () => {
+  const previous = [
+    { id: 'x', start: 10, end: 10.3, text: 'Evet' },
+    { id: 'y', start: 20, end: 21, text: 'Hayır' },
+  ];
+  const merged = mergeBrowserStreamCues(previous,
+    [{ id: 'x', start: 10.7, end: 11, text: 'Evet' }]);
+  assert.deepEqual(merged.map((cue) => `${cue.id}@${cue.start}`), ['x@10.7', 'y@20'],
+    'aynı kimlik+metin revizyonunda eski zaman damgası ikiz satır bırakmamalı');
+  // Metin değiştiyse iki zaman damgası da korunur (revizyon değil yeni içerik olabilir)
+  const revised = mergeBrowserStreamCues(previous,
+    [{ id: 'x', start: 10.7, end: 11, text: 'Belki' }]);
+  assert.equal(revised.length, 3);
+  // Kimliksiz cue'lar revizyon dedupe'ına hiç girmez (eski davranış korunur)
+  const noId = mergeBrowserStreamCues(
+    [{ start: 10, end: 10.3, text: 'Evet' }],
+    [{ start: 10.7, end: 11, text: 'Evet' }]);
+  assert.equal(noId.length, 2, 'kimliksiz cue kayması ayrı satır olarak korunmalı');
+});
+
 test('HLS reklam veya bölüm discontinuity sınırındaki aynı metin birleşmez', () => {
   const merged = mergeBrowserStreamCues(
     [{ start: 10, end: 12, text: 'Birazdan devam edeceğiz.', discontinuity: 0 }],

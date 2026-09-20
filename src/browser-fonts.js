@@ -7,7 +7,9 @@ function readFonts(files) {
   if (files.length > 24) throw new Error('En fazla 24 font seçilebilir.');
   let total = 0;
   return files.map(file => {
-    const stat = fs.statSync(file); if (!stat.isFile() || stat.size > 8e6 || (total += stat.size) > 24e6) throw new Error('Fontlar toplam en fazla 24 MB, tek dosya 8 MB olabilir.');
+    let stat;
+    try { stat = fs.statSync(file); } catch (_) { throw new Error('Font dosyası okunamadı: ' + path.basename(file)); }
+    if (!stat.isFile() || stat.size > 8e6 || (total += stat.size) > 24e6) throw new Error('Fontlar toplam en fazla 24 MB, tek dosya 8 MB olabilir.');
     const bytes = fs.readFileSync(file), signature = bytes.subarray(0, 4).toString('hex');
     if (!['00010000', '4f54544f', '74746366', '774f4646', '774f4632', '74727565'].includes(signature)) throw new Error('Geçersiz font dosyası: ' + path.basename(file));
     return { name: path.basename(file), base64: bytes.toString('base64') };

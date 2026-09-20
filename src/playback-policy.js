@@ -29,11 +29,13 @@
     const active = cues.find((cue) => currentTime >= cue.start && currentTime < cue.end);
     const next = cues.find((cue) => cue.start > currentTime);
     // Büyük zaman sıçraması kullanıcı seek'idir; cue sonunu doğal oynatmayla
-    // geçti sanıp kullanıcıyı istemsiz duraklatma.
-    const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < 1;
+    // geçti sanıp kullanıcıyı istemsiz duraklatma. Sınır 1.5 sn: tarayıcı
+    // medya ölçümü 1000 ms aralıkla çalışır ve tam sınırda uyanan tick
+    // delta≈1.0 üretip doğal ilerlemeyi yanlışlıkla seek sayıyordu (B83-04).
+    const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < 1.5;
     if (policy === PLAYBACK_POLICIES.loopCue.id && naturalAdvance) {
       const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
-        && currentTime >= cue.end && currentTime - cue.end < 1);
+        && currentTime >= cue.end && currentTime - cue.end < 1.5);
       if (ended) {
         const continuingOverlap = cues.some((cue) => cue.id !== ended.id
           && currentTime >= cue.start && currentTime < cue.end && cue.start < ended.end);
@@ -51,7 +53,7 @@
     }
     if (options.autoPause && naturalAdvance) {
       const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
-        && currentTime >= cue.end && currentTime - cue.end < 1);
+        && currentTime >= cue.end && currentTime - cue.end < 1.5);
       if (ended) {
         // İki konuşmacının cue'ları örtüşüyorsa ilki bitti diye devam eden
         // konuşmanın ortasında durma. Tam sınırda başlayan bir sonraki cue ise
@@ -62,7 +64,7 @@
       }
     }
     if (policy === PLAYBACK_POLICIES.shadowing.id && naturalAdvance && !active) {
-      const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < 1);
+      const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < 1.5);
       if (ended && String(options.lastShadowCueId || '') !== ended.id) {
         const duration = Math.max(0.5, ended.end - ended.start);
         return { type: 'pause-for-shadowing', cueId: ended.id,

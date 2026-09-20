@@ -237,6 +237,7 @@ async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.writeFileSync(path.join(userDataDir, 'settings.json'), JSON.stringify({
     settingsVersion: 3, glossary: [],
+    ui: { browserHardwareAcceleration: false },
     manga: { endpointPreset: 'custom', customBaseUrl: `http://127.0.0.1:${server.address().port}` },
   }));
 
@@ -246,8 +247,16 @@ async function run() {
   // CI/ajan oturumları ELECTRON_RUN_AS_NODE=1 ile gelebiliyor; Electron bunu
   // görürse saf Node olarak açılır ve app undefined kalır.
   delete electronEnv.ELECTRON_RUN_AS_NODE;
+  // Linux'ta Electron altından spawn edilen ikinci Electron örneğinin zygote
+  // süreçleri SIGTRAP ile düşüyor (konteyner kısıtı); renderer/gpu hiç
+  // başlayamıyor. --no-zygote zygote'u tamamen devre dışı bırakır; yalnızca
+  // test çocuğuna uygulanır, ürün kodu ve Windows koşusu etkilenmez.
+  const childLinuxArgs = process.platform === 'linux'
+    ? ['--no-sandbox', '--no-zygote', '--disable-gpu']
+    : [];
   electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
     '--inspect=' + mainInspectPort,
+    ...childLinuxArgs,
     projectRoot,
     '--remote-debugging-port=' + devtoolsPort,
     '--user-data-dir=' + userDataDir,

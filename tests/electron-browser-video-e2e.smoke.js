@@ -68,7 +68,8 @@ app.whenReady().then(async()=>{
  if(process.env.VIDEO_E2E_FEATURES==='1')win.webContents.on('console-message',(_event,details)=>{
   fs.appendFileSync(path.join(out,'renderer-console.log'),String(details.message||details)+'\n');
  });
- const snapshot=async name=>{win.show();win.focus();const [w,h]=win.getContentSize();win.setContentSize(w+1,h);await wait(100);win.setContentSize(w,h);await wait(400);fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());};
+ const rafSettle=()=>run('return await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))))');
+ const snapshot=async name=>{win.show();win.focus();const [w,h]=win.getContentSize();win.setContentSize(w+1,h);await until(()=>win.getContentSize()[0]===w+1,'Yeniden boyut tetik');win.setContentSize(w,h);await until(()=>win.getContentSize()[0]===w,'Yeniden boyut geri');await rafSettle();fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());};
  let initializationTimer;
  try { await Promise.race([run('await initialSettingsReady'),new Promise((_,reject)=>{initializationTimer=setTimeout(()=>reject(Error('Başlangıç ayarları hazır olmadı')),30000)})]); }
  finally { clearTimeout(initializationTimer); }
@@ -130,13 +131,16 @@ app.whenReady().then(async()=>{
   const restored=await until(()=>run(`return player.cues.length===3&&player.cues2.length===3&&browserTabState()?.subtitleSelectionRestored?{url:player.browserPageUrl,mode:currentSubtitleMode(),offset:browserTransformForChannel(false).offsetSeconds}:null`),'Yeniden açılışta çift dil',30000);
   fs.writeFileSync(path.join(out,'mode-trace.json'),JSON.stringify(await run(`return modeTrace`),null,2));assert.equal(restored.mode,'both');assert.equal(restored.offset,.2);
   const restoredPage=webContents.getAllWebContents().find(w=>w.getURL()==='https://video-e2e.test/watch');
-  await restoredPage.executeJavaScript(`document.querySelector('video').currentTime=.8`);await wait(700);
+  await restoredPage.executeJavaScript(`document.querySelector('video').currentTime=.8`);
+  await until(()=>restoredPage.executeJavaScript(`(()=>{const v=document.querySelector('video');return v.readyState>=2&&Math.abs(v.currentTime-.8)<.35})()`),'Geri yüklenen video konumu');
   fs.writeFileSync(path.join(out,'04-restored-video.png'),(await restoredPage.capturePage()).toPNG());
   if(process.env.VIDEO_E2E_NATIVE_FULLSCREEN==='1'){
    const original=await restoredPage.executeJavaScript(`(()=>{const v=document.querySelector('video');v.loop=true;v.play();return {parent:v.parentElement.tagName,style:v.getAttribute('style')||''}})()`,true);
-   await restoredPage.executeJavaScript(`document.querySelector('video').requestFullscreen()`,true);await wait(800);
+   await restoredPage.executeJavaScript(`document.querySelector('video').requestFullscreen()`,true);
+   await until(()=>restoredPage.executeJavaScript(`document.fullscreenElement?.tagName==='VIDEO'&&!!document.getElementById('__whisper_subtitle_toolbar')`),'Tam ekran katmanı');
    assert.equal(await restoredPage.executeJavaScript(`document.querySelector('video').paused`),false,'Tam ekran geçişi oynatmayı kesmemeli');
-   await restoredPage.executeJavaScript(`document.querySelector('video').pause();document.querySelector('video').currentTime=.8`);await wait(300);
+   await restoredPage.executeJavaScript(`document.querySelector('video').pause();document.querySelector('video').currentTime=.8`);
+   await until(()=>restoredPage.executeJavaScript(`(()=>{const v=document.querySelector('video');return v.paused&&Math.abs(v.currentTime-.8)<.35})()`),'Tam ekran konum sabitleme');
    const bounds=await restoredPage.executeJavaScript(`(()=>{const r=document.getElementById('__whisper_browser_subtitles').getBoundingClientRect();return {width:r.width,height:r.height,top:r.top,fullscreen:document.fullscreenElement?.tagName}})()`);
    assert(bounds.width>100&&bounds.height>20,JSON.stringify(bounds));
    const clickControl=async selector=>{
@@ -144,11 +148,13 @@ app.whenReady().then(async()=>{
     restoredPage.focus();
     restoredPage.sendInputEvent({type:'mouseMove',...point});
     restoredPage.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point});
-    restoredPage.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});await wait(400);
+    restoredPage.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});
+    await restoredPage.executeJavaScript(`await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))))`,true);await wait(120);
    };
    await clickControl('#__whisper_subtitle_toolbar > button');
    const scale=await run(`return Number(document.getElementById('browserOverlayScale').value)`);
-   await restoredPage.executeJavaScript(`document.querySelector('[data-action="subtitle-larger"]').click()`);await wait(200);
+   await restoredPage.executeJavaScript(`document.querySelector('[data-action="subtitle-larger"]').click()`);
+   await restoredPage.executeJavaScript(`await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))))`,true);await wait(200);
    assert.equal(await run(`return Number(document.getElementById('browserOverlayScale').value)`),scale,'Sayfa kaynaklı sahte tıklama engellenmeli');
    await clickControl('[data-action="subtitle-larger"]');
    assert.equal(await run(`return Number(document.getElementById('browserOverlayScale').value)`),scale+5);
@@ -166,17 +172,21 @@ app.whenReady().then(async()=>{
    report.push({toolbar:'native click, forged click rejection, scale, hide/show, mode, offset and save passed'});
    fs.writeFileSync(path.join(out,'review-native-fullscreen.png'),(await restoredPage.capturePage()).toPNG());
    fs.writeFileSync(path.join(out,'native-fullscreen-report.json'),JSON.stringify(bounds,null,2));
-   await restoredPage.executeJavaScript(`document.exitFullscreen()`);await wait(300);
+   await restoredPage.executeJavaScript(`document.exitFullscreen()`);
+   await until(()=>restoredPage.executeJavaScript(`!document.fullscreenElement`),'Tam ekran çıkışı');
+   await until(()=>restoredPage.executeJavaScript(`!document.getElementById('__whisper_subtitle_toolbar')`),'Tam ekran katmanı kaldırıldı');
    assert.equal(await restoredPage.executeJavaScript(`!!document.getElementById('__whisper_subtitle_toolbar')`),false);
    const after=await restoredPage.executeJavaScript(`(()=>{const v=document.querySelector('video');return {parent:v.parentElement.tagName,style:v.getAttribute('style')||'',wrappers:document.querySelectorAll('#__whisper_fullscreen_player').length}})()`);
    assert.equal(after.wrappers,0);assert.equal(after.parent,original.parent);assert.equal(after.style,original.style);
    await run(`document.getElementById('browserVideoSubtitles').open=true;await inspectBrowserVideoSubtitles()`);
    assert.match(await run(`return document.getElementById('browserPrimaryFileInfo').textContent`),/Birinci kanal:/);
-   await run(`document.getElementById('browserResetVideoSync').click()`);await wait(300);
+   await run(`document.getElementById('browserResetVideoSync').click()`);
+   await until(()=>run(`return browserTransformForChannel(false).offsetSeconds===0`),'Senkron sıfırlandı');
    assert.equal(await run(`return browserTransformForChannel(false).offsetSeconds`),0);
    const refused=await run(`return await window.api.browserSubtitlePreference({action:'forget',tabId:player.browserActiveTabId,mediaId:'wrong-video'})`);
    assert.equal(refused.ok,false);
-   await run(`document.getElementById('browserForgetSubtitles').click()`);await wait(500);
+   await run(`document.getElementById('browserForgetSubtitles').click()`);
+   await until(()=>run(`return player.cues.length+player.cues2.length===0`),'Altyazılar unutuldu');
    assert.equal(await run(`return player.cues.length+player.cues2.length`),0);
    const prefs=JSON.parse(fs.readFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'browser-subtitle-preferences.json'),'utf8'));
    assert.equal(prefs.items.some(row=>row.url==='https://video-e2e.test/watch'),false);
@@ -193,7 +203,8 @@ app.whenReady().then(async()=>{
  report.push({tracks});
  const en=tracks.find(t=>t.language==='en'),tr=tracks.find(t=>t.language==='tr');assert(en&&tr);
  await run(`document.getElementById('browserTrackSelect').value=${JSON.stringify(en.id)};document.getElementById('browserTrackSelect2').value=${JSON.stringify(tr.id)};await useBrowserTrackPair();setSubtitleMode('both')`);
- await page.executeJavaScript(`document.querySelector('video').currentTime=0.8`);await wait(1200);
+ await page.executeJavaScript(`document.querySelector('video').currentTime=0.8`);
+ await until(()=>page.executeJavaScript(`(()=>{const v=document.querySelector('video');return v.readyState>=2&&Math.abs(v.currentTime-.8)<.35})()`),'Video konumu .8s');
  const overlay=await until(()=>page.executeJavaScript(`(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t.includes('Flowers')&&t.includes('Çiçekler')?t:null})()`),'Çift dil katmanı');
  report.push({overlay});fs.writeFileSync(path.join(out,'progress.json'),JSON.stringify(report,null,2));
  await snapshot('01-dual');
@@ -232,7 +243,7 @@ app.whenReady().then(async()=>{
   win.webContents.send('browser:event',{...context,type:'overlay-style',style:{bottomOffset:31}});
   await until(()=>run(`return effectiveBrowserProfile().values.overlayBottom===31`),'Sürüklenen konumun korunması');
   assert.equal(await run(`return $('browserOverlayBottom').value`),general);
-  await wait(500);
+  await rafSettle();
   await snapshot('browser-bugs');
   fs.writeFileSync(path.join(out,'browser-video.png'),(await page.capturePage()).toPNG());
   fs.writeFileSync(path.join(out,'browser-bugs.json'),JSON.stringify({video:mediaInfo,overlay,message,dragOffset:31,generalPreserved:true,controlledDragEvent:true},null,2));
@@ -243,7 +254,9 @@ app.whenReady().then(async()=>{
   await run(`openCueEditor();browserQuickEditor.rows[0].text.value='Kalıcı kaynak düzeltmesi';browserQuickEditor.rows[1].text.value='Kalıcı ikinci dil düzeltmesi';await saveBrowserQuickEditor();closeBrowserQuickEditor();
     document.getElementById('browserSyncChannel').value='primary';nudgeBrowserSync(.2);saveBrowserSync();
     document.getElementById('browserSyncChannel').value='secondary';nudgeBrowserSync(.4);saveBrowserSync();await browserCommand('seek',2.5);await browserCommand('pause');saveActiveBrowserTabWorkspace();`);
-  await wait(1800);fs.writeFileSync(en.path,original);
+  const sessionFile=path.join(app.getPath('userData'),'browser-session.json');const savedAt=Date.now();
+  await until(()=>{try{return fs.statSync(sessionFile).mtimeMs>=savedAt}catch{return false}},'Oturum durumu diske yazıldı');
+  fs.writeFileSync(en.path,original);
   fs.writeFileSync(path.join(out,'durable-write.json'),JSON.stringify({saved:true,sourceFileRefreshed:true}));app.quit();return;
  }
  if(process.env.VIDEO_E2E_FEATURES==='1'){
@@ -301,7 +314,7 @@ app.whenReady().then(async()=>{
   assert.equal(await run(`return player.cues2[0].text`),originalTranslation);results.aiPreviewSaveUndo=true;
   await run(`document.querySelector('.browser-ai-alternative button').click()`);
   assert.equal(await run(`return player.cues2[0].text`),originalTranslation);results.staleAiRejected=true;
-  win.setContentSize(1000,760);await wait(300);
+  win.setContentSize(1000,760);await until(()=>win.getContentSize()[0]===1000,'Dar pencere');await rafSettle();
   await run(`setPlayerSidebarCollapsed(false);$('browserWatchTools').open=false;$('browserSubtitleReview').open=true;$('browserRemapPanel').open=true;renderBrowserRemap();`);
   await snapshot('features-narrow');
   fs.writeFileSync(path.join(out,'features.json'),JSON.stringify(results,null,2));app.quit();return;

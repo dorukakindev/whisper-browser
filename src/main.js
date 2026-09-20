@@ -295,6 +295,8 @@ const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-eve
 const { BrowserAssetStore } = require('./browser-asset-store');
 const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('./browser-session-package');
 const { WatchIndex } = require('./watch-index');
+const { collectTrackAssetRefs, pruneAndSweepTracks } = require('./browser-asset-gc');
+const { writeJsonAtomic: writeAtomicJson, writeMirroredJsonAtomic } = require('./atomic-json');
 const { runBrowserPageIndexCapture } = require('./browser-page-index');
 const { BrowserNoteStore } = require('./browser-note-store');
 const { validateSubtitleExport } = require('./subtitle-export-validation');
@@ -1766,6 +1768,15 @@ ipcMain.handle('youtube:cancel', async (event) => {
   if (!proc) return { ok: false, error: 'Çalışan YouTube işi yok.' };
   terminateProcessTree(proc, { spawn });
   _ytDevice = null;
+  // Kapanışı kısa süreyle bekle — dönüp döndüğümüzde slot hâlâ doluysa
+  // kullanıcının hemen başlattığı yeni giriş akışı yanlışlıkla
+  // "zaten çalışıyor" reddi yiyordu (N4).
+  if (mediaJobs.youtube === proc) {
+    await new Promise((resolve) => {
+      const t = setTimeout(resolve, 3000);
+      proc.once('close', () => { clearTimeout(t); resolve(); });
+    });
+  }
   return { ok: true };
 });
 
@@ -2385,11 +2396,12 @@ function saveHistory(list, options = {}) {
   try {
     const target = historyPath();
     if (!options.mirrorBackup && fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
-    writeJsonAtomic(target, list.slice(0, HISTORY_LIMIT));
-    // Silme yazımlarında eski kayıtlar .bak'ta kalmasın (R83-34).
-    if (options.mirrorBackup) {
-      try { fs.copyFileSync(target, `${target}.bak`); } catch (_) {}
-    }
+    // Silme yazımlarında eski kayıtlar .bak'ta kalmasın (R83-34): güncel
+    // liste önce yedeğe yazılır — ayna başarısızsa ana dosya hiç değişmez,
+    // sahte başarı ve bellek/disk ayrışması olmaz (R86-03).
+    const trimmed = list.slice(0, HISTORY_LIMIT);
+    if (options.mirrorBackup) writeJsonAtomic(`${target}.bak`, trimmed);
+    writeJsonAtomic(target, trimmed);
     return true;
   } catch (_) {
     return false;
@@ -2521,27 +2533,18 @@ function watchIndex() {
       watchIndexLegacyMigrated = true;
     }
     watchIndexInstance = candidate;
-    for (const row of candidate.pruneTracks()) {
-      if (row.asset_path) browserAssetStore().removeTrack(row.asset_path);
-    }
     // Referans kümesi yalnız watch-index değil: açık sekmeler, kalıcı oturum
-    // ve workspace'lerdeki trackRefs de varlığı canlı tutar (R83-27).
-    const referencedAssets = new Set(candidate.listTrackAssetPaths());
-    const collectTrackRefs = (tabs) => {
-      for (const tab of Array.isArray(tabs) ? tabs : []) {
-        for (const ref of Array.isArray(tab?.trackRefs) ? tab.trackRefs : []) {
-          if (ref?.assetId) referencedAssets.add(String(ref.assetId).toLowerCase());
-        }
-      }
-    };
-    collectTrackRefs([...browserTabs.values()]);
+    // ve workspace'lerdeki trackRefs de varlığı canlı tutar (R83-27). Küme
+    // prune'dan ÖNCE toplanır — yaş eşiğini aşan ama bağlı varlık korunur;
+    // prune ve sweep aynı koruma kümesini kullanır (R86-02).
+    const tabSources = [[...browserTabs.values()]];
     try {
-      collectTrackRefs(readBrowserSessionWithStatus(browserSessionPath(app)).session?.tabs);
+      tabSources.push(readBrowserSessionWithStatus(browserSessionPath(app)).session?.tabs);
     } catch (_) {}
     try {
-      for (const ws of browserPlacesSnapshot()?.workspaces || []) collectTrackRefs(ws?.tabs);
+      for (const ws of browserPlacesSnapshot()?.workspaces || []) tabSources.push(ws?.tabs);
     } catch (_) {}
-    browserAssetStore().sweepOrphans(referencedAssets);
+    pruneAndSweepTracks(candidate, browserAssetStore(), collectTrackAssetRefs(...tabSources));
     return watchIndexInstance;
   } catch (_) {
     try { candidate?.close(); } catch (_) {}
@@ -3599,6 +3602,7 @@ function readBrowserPlaces() {
 }
 
 function writeBrowserPlacesAtomic(places, options = {}) {
+  const io = options.io || fs;
   const primary = browserPlacesPath();
   const backup = `${primary}.bak`;
   if (!options.mirrorBackup) {
@@ -3609,12 +3613,12 @@ function writeBrowserPlacesAtomic(places, options = {}) {
       // Bozuk bir ana dosya sağlam yedeğin üstüne kopyalanmamalı.
     }
   }
-  writeJsonAtomic(primary, places);
   // Silme/temizleme flush'ı sonrası eski geçmiş veya yer imleri yedekte
-  // yaşamaya devam etmesin (R83-34): yedek güncel duruma çekilir.
-  if (options.mirrorBackup) {
-    try { fs.copyFileSync(primary, backup); } catch (_) {}
-  }
+  // yaşamaya devam etmesin (R83-34): yedek güncel duruma çekilir. Ayna önce
+  // yazılır — yedeğe yazılamazsa birincil dosya değişmez, işlem başarısız
+  // raporlanır ve dirty bayrağı korunur (R86-03).
+  if (options.mirrorBackup) writeMirroredJsonAtomic(io, primary, places);
+  else writeAtomicJson(io, primary, places);
 }
 
 function flushBrowserPlaces() {
@@ -4846,8 +4850,8 @@ function browserSubtitlePreferences() {
       readBackup: () => JSON.parse(fs.readFileSync(file + '.bak', 'utf8')),
       write: value => {
         // Yedek yalnız doğrulanmış yeni durumdan üretilir; bozuk ana dosya kopyalanmaz.
-        writeJsonAtomic(file, value);
-        writeJsonAtomic(file + '.bak', value);
+        // Ayna önce yazılır: .bak düşerse birincil dosya eski durumda kalır.
+        writeMirroredJsonAtomic(fs, file, value);
       },
     });
   }
@@ -5983,9 +5987,26 @@ async function startBrowserPageTranslation(tab, options = {}) {
   return runBrowserPageTranslationBlocks(tab, blocks, session, options);
 }
 
+function pruneReplacedBrowserPageBlocks(session, replacedIds) {
+  for (const id of Array.isArray(replacedIds) ? replacedIds : []) {
+    const key = String(id || '');
+    if (!key) continue;
+    session.blocks?.delete(key);
+    session.translations?.delete(key);
+    session.failures?.delete(key);
+    session.deferredBlockIds?.delete(key);
+    session.layoutWarnings?.delete(key);
+    session.excludedBlockIds?.delete(key);
+    session.sectionExcludedBlockIds?.delete(key);
+  }
+}
+
 function acceptDynamicBrowserPageBlocks(tab, payload) {
   const session = tab?.pageTranslateSession;
   if (!session || session.generation !== tab.generation || !payload || payload.bridgeToken !== tab.bridgeToken) return;
+  // SPA aynı blok kökünü yeni metinle yeniden taradığında eski blok kimliği
+  // DOM'dan düşer; completion sayımında hayalet 'bekliyor' olarak kalmasın.
+  pruneReplacedBrowserPageBlocks(session, payload.replacedIds);
   tab.pageTranslateStats = payload.stats || tab.pageTranslateStats;
   const completion = pageTranslationCompletion(session);
   tab.pageTranslateCompletion = completion;
@@ -11359,6 +11380,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.readerActive = false;
     if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
     tab.generation += 1;
+    // Eski belgenin bekleyen yeniden-deneme zamanlayıcısı yeni gezinmeyi
+    // reload ile ezmesin (B83-23): gezinme başlangıcında temizlenir.
+    if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
+    tab.loadRetryTimer = null;
     tab.bridgeToken = randomUUID();
     tab.playbackDiagnostics.reset({ clearCapabilities: true });
     publishBrowserPlaybackDiagnostics(tab);
@@ -11498,9 +11523,13 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       tab.loadError = { kind: 'connection', code, message, url, retry };
       if (retry.action === 'retry' && !tab.loadRetryTimer) {
         tab.loadRetryAttempt = retry.nextAttempt;
+        const retryGeneration = tab.generation;
         tab.loadRetryTimer = setTimeout(() => {
           tab.loadRetryTimer = null;
-          if (tab.closing || tab.view !== view || wc.isDestroyed()) return;
+          // did-start-navigation'dan önce tetiklenirse bile bayat hatanın
+          // yeniden denemesi yeni belgeyi ezmesin: nesil değiştiyse iptal.
+          if (tab.closing || tab.view !== view || wc.isDestroyed()
+              || tab.generation !== retryGeneration) return;
           tab.loadError = null;
           sendBrowserEvent(tab, { type: 'load-retry', attempt: tab.loadRetryAttempt,
             message: `Geçici ağ hatası yeniden deneniyor (${tab.loadRetryAttempt}/3).` });
@@ -11761,15 +11790,22 @@ function resumeRestoredBrowserPage(tab) {
     try {
       const compatibilityMode = browserCompatibilityModeForUrl(url);
       const compatibilityApplied = await setBrowserTabCompatibilityMode(tab, compatibilityMode);
-      if (!compatibilityApplied || tab.compatibilityMode !== compatibilityMode || !requestIsCurrent()) return;
-      if (typeof startBrowserAdblock === 'function') void startBrowserAdblock();
       if (!requestIsCurrent()) return;
+      if (!compatibilityApplied || tab.compatibilityMode !== compatibilityMode) {
+        tab.lifecycle = 'restore_failed';
+        return;
+      }
+      if (typeof startBrowserAdblock === 'function') void startBrowserAdblock();
       await waitForProtectedPlayback(url);
       if (!requestIsCurrent()) return;
       suspendBrowserInstrumentationForNavigation(tab, view);
       await view.webContents.loadURL(url);
     } catch (error) {
       if (browserTabById(tab.id) === tab && !isAbortedBrowserNavigation(error)) {
+        // Sonraki sekme etkinleştirmesi 'restore_failed' kuşağını yeniden
+        // yüklemeyi denesin; 'restoring'de takılı kalan sekme unload kararını
+        // ve oturum görüntüsünü bozuyordu (B83-30).
+        if (requestIsCurrent()) tab.lifecycle = 'restore_failed';
         sendBrowserEvent(tab, { type: 'load-error', loading: false, url,
           message: browserLoadErrorMessage(error.errno, error.code || error.message) });
       }
@@ -14431,6 +14467,7 @@ ipcMain.handle('browser:page:exclusions', async (event, request = {}) => {
     return { ok: false, error: 'Bölüm dışlaması uygulanırken sekme durumu değişti.' };
   }
   const rescanned = normalizePageBlocks(scanPayload?.blocks);
+  pruneReplacedBrowserPageBlocks(session, scanPayload?.replacedIds);
   for (const block of rescanned) session.blocks.set(block.id, block);
   session.sectionExcludedBlockIds = new Set([...session.blocks.values()]
     .filter((block) => nextSections.includes(block.section)).map((block) => block.id));
@@ -14439,7 +14476,13 @@ ipcMain.handle('browser:page:exclusions', async (event, request = {}) => {
     ...[...previousExcluded].filter((id) => !session.sectionExcludedBlockIds.has(id)),
     ...rescanned.map((block) => block.id),
   ])];
+  const exclusionStale = () => tab.pageTranslateSession !== session
+    || session.generation !== tab.generation
+    || !tab.view || tab.view.webContents.isDestroyed();
   if (newlyExcluded.length) await executeBrowserTrustedMain(tab.view, pageExcludeScript(newlyExcluded)).catch(() => []);
+  if (exclusionStale()) {
+    return { ok: false, error: 'Bölüm dışlaması uygulanırken sekme durumu değişti.' };
+  }
   for (const id of newlyExcluded) session.deferredBlockIds?.delete(id);
   session.budgetReached = !!session.deferredBlockIds?.size;
   const translations = newlyIncluded.filter((id) => session.translations.has(id))
@@ -14448,6 +14491,9 @@ ipcMain.handle('browser:page:exclusions', async (event, request = {}) => {
     mode: session.mode, view: session.view, targetLanguage: session.config.targetLanguage,
     memoryVersion: session.memoryVersion, translations,
   })).catch(() => []);
+  if (exclusionStale()) {
+    return { ok: false, error: 'Bölüm dışlaması uygulanırken sekme durumu değişti.' };
+  }
   const pending = newlyIncluded.filter((id) => !session.translations.has(id) && !session.excludedBlockIds?.has(id))
     .map((id) => session.blocks.get(id)).filter(Boolean);
   const completion = pageTranslationCompletion(session); tab.pageTranslateCompletion = completion;
@@ -15251,13 +15297,17 @@ ipcMain.handle('history:authorizeFiles', async (event, recordId) => {
 
 ipcMain.handle('history:remove', async (_event, id) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  saveHistory(loadHistory().filter((h) => h.id !== id), { mirrorBackup: true });
+  if (!saveHistory(loadHistory().filter((h) => h.id !== id), { mirrorBackup: true })) {
+    return { ok: false, error: 'Geçmiş diske kaydedilemedi; yedek yazılamadı.' };
+  }
   return { ok: true };
 });
 
 ipcMain.handle('history:clear', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  saveHistory([], { mirrorBackup: true });
+  if (!saveHistory([], { mirrorBackup: true })) {
+    return { ok: false, error: 'Geçmiş diske kaydedilemedi; yedek yazılamadı.' };
+  }
   return { ok: true };
 });
 
@@ -15394,7 +15444,13 @@ ipcMain.handle('library:annotations:toggle', async (_event, request) => {
     let savedAnnotation = annotation;
     if (request && request.saved === false) {
       const existing = matchingLearningAnnotation(store.list(annotation.mediaId), annotation.type, annotation);
-      savedAnnotation = store.remove(existing?.id || annotation.id) || annotation;
+      const removed = store.remove(existing?.id || annotation.id);
+      // Eşleşen kayıt yokken remove sessizce null döner; istemciye "silindi"
+      // demek diskte duran kaydı gizler — gerçeği bildir (B83-18).
+      if (!removed) {
+        return { ok: true, annotation, saved: true, missing: true, indexAvailable: !!index };
+      }
+      savedAnnotation = removed;
       try { index?.removeAnnotation(existing?.id || annotation.id); } catch (_) {}
     } else {
       savedAnnotation = store.upsert(annotation);
@@ -15684,7 +15740,10 @@ function probeCommand(cmd, cmdArgs) {
     }, 30_000);
     timeoutTimer.unref?.();
     p.on('error', () => finish(null));
-    if (p.stdout) p.stdout.on('data', (d) => { out += d; });
+    // stderr okunmazsa pipe tamponu dolup child'ı kilitleyebilir; stdout da
+    // sınırsız birikmemeli (bozuk bir binary sonsuz çıktı basabilir).
+    if (p.stderr) p.stderr.resume();
+    if (p.stdout) p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
     p.on('close', (code) => {
       if (code !== 0) return finish(null);
       finish((out.split(/\r?\n/)[0] || '').trim() || null);

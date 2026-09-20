@@ -8,9 +8,10 @@ function runtimeRoot(userDataPath) {
 }
 
 function resolveInside(root, relativePath) {
-  if (typeof relativePath !== 'string' || !relativePath || path.isAbsolute(relativePath)) return '';
+  if (typeof relativePath !== 'string' || !relativePath
+    || path.isAbsolute(relativePath) || path.win32.isAbsolute(relativePath)) return '';
   const resolvedRoot = path.resolve(root);
-  const resolved = path.resolve(resolvedRoot, relativePath);
+  const resolved = path.resolve(resolvedRoot, relativePath.replace(/\\/g, path.sep));
   const prefix = resolvedRoot.endsWith(path.sep) ? resolvedRoot : `${resolvedRoot}${path.sep}`;
   return resolved.startsWith(prefix) ? resolved : '';
 }

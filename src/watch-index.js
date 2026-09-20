@@ -21,6 +21,19 @@ function foldSearchText(value) {
   return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
 }
 
+// Budanacak track satırları: en yeni maxTracks korunur, maxAgeMs'den yaşlı
+// olanlar silinir — AMA `keep` kümesindeki (açık sekme/oturum/workspace
+// trackRefs) asset_path'ler yaş sınırını aşsa bile korunur (R86-02).
+function selectPrunableTracks(rows, options = {}) {
+  const maxTracks = Math.max(100, Number(options.maxTracks) || 3000);
+  const maxAgeMs = Math.max(24 * 60 * 60 * 1000, Number(options.maxAgeMs) || 180 * 24 * 60 * 60 * 1000);
+  const cutoff = (Number.isFinite(options.now) ? Number(options.now) : Date.now()) - maxAgeMs;
+  const keep = options.keep instanceof Set ? options.keep : new Set(options.keep || []);
+  return (Array.isArray(rows) ? rows : []).filter((row, index) =>
+    (index >= maxTracks || Number(row.updated_at) < cutoff)
+    && !keep.has(String(row.asset_path || '').toLowerCase()));
+}
+
 function safePageIndexUrl(raw) {
   try {
     const parsed = new URL(String(raw || '').trim());
@@ -269,14 +282,11 @@ class WatchIndex {
   }
 
   pruneTracks(options = {}) {
-    const maxTracks = Math.max(100, Number(options.maxTracks) || 3000);
-    const maxAgeMs = Math.max(24 * 60 * 60 * 1000, Number(options.maxAgeMs) || 180 * 24 * 60 * 60 * 1000);
-    const cutoff = Date.now() - maxAgeMs;
     const rows = this.db.prepare(`
       SELECT id, asset_path, updated_at FROM tracks
       ORDER BY updated_at DESC
     `).all();
-    const removed = rows.filter((row, index) => index >= maxTracks || Number(row.updated_at) < cutoff);
+    const removed = selectPrunableTracks(rows, { ...options, now: Date.now() });
     const remove = this.db.prepare('DELETE FROM tracks WHERE id = ?');
     this.transaction(() => { for (const row of removed) remove.run(String(row.id)); });
     return removed;
@@ -459,4 +469,5 @@ module.exports = {
   foldSearchText,
   ftsQuery,
   safePageIndexUrl,
+  selectPrunableTracks,
 };

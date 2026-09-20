@@ -359,6 +359,11 @@ function createPlaybackDiagnosticTracker(options = {}) {
   // edici olayları düşürüyordu (B83-12).
   let stalledEmits = 0;
   let frameStagnantEmits = 0;
+  // Tavan aşıldıktan sonra bir sonraki emisyonun tabanı: aksi halde 'since'
+  // sabit kalır ve sınır geçildikten sonra her örnekleme yeni kayıt üretir
+  // (R86-04). Emisyon gerçekleşince güncellenir; durum düzelince sıfırlanır.
+  let stalledLastEmitAt = 0;
+  let frameStagnantLastEmitAt = 0;
 
   function record(evidence, at = Date.now()) {
     const diagnostic = classifyPlaybackEvidence(evidence);
@@ -392,6 +397,8 @@ function createPlaybackDiagnosticTracker(options = {}) {
       frameStagnantSince = 0;
       stalledEmits = 0;
       frameStagnantEmits = 0;
+      stalledLastEmitAt = 0;
+      frameStagnantLastEmitAt = 0;
       lastSample = { ...sample, at };
       return emitted;
     }
@@ -407,32 +414,39 @@ function createPlaybackDiagnosticTracker(options = {}) {
     if (progressed) {
       stalledSince = 0;
       stalledEmits = 0;
+      stalledLastEmitAt = 0;
       if (visualVideo && Number.isFinite(frames) && Number.isFinite(priorFrames) && frames <= priorFrames) {
-        if (!frameStagnantSince) { frameStagnantSince = lastSample.at || at; frameStagnantEmits = 0; }
+        if (!frameStagnantSince) { frameStagnantSince = lastSample.at || at; frameStagnantEmits = 0; frameStagnantLastEmitAt = 0; }
       } else {
         frameStagnantSince = 0;
         frameStagnantEmits = 0;
+        frameStagnantLastEmitAt = 0;
       }
     } else if (Number(sample.readyState) < 3 || sample.spinnerVisible === true) {
-      if (!stalledSince) { stalledSince = lastSample ? lastSample.at : at; stalledEmits = 0; }
+      if (!stalledSince) { stalledSince = lastSample ? lastSample.at : at; stalledEmits = 0; stalledLastEmitAt = 0; }
     } else {
       stalledSince = 0;
       stalledEmits = 0;
+      stalledLastEmitAt = 0;
     }
 
     // 'since' sıfırlanmaz — detay birikimli süreyi gösterir; eşik üstel
     // büyür (8→16→32→64→128 sn, 12→24→… sn) ki aynı koşul logu sellemesin.
     const frameThreshold = 8000 * (2 ** Math.min(frameStagnantEmits, 4));
-    if (frameStagnantSince && at - frameStagnantSince >= frameThreshold) {
+    if (frameStagnantSince && at - frameStagnantSince >= frameThreshold
+      && (frameStagnantEmits < 5 || at - frameStagnantLastEmitAt >= 8000 * 16)) {
       const item = record({ kind: 'paint', state: 'black', detail: `${Math.round((at - frameStagnantSince) / 1000)} sn kare yok` }, at);
       if (item) emitted.push(item);
       frameStagnantEmits += 1;
+      frameStagnantLastEmitAt = at;
     }
     const stallThreshold = 12000 * (2 ** Math.min(stalledEmits, 4));
-    if (stalledSince && at - stalledSince >= stallThreshold) {
+    if (stalledSince && at - stalledSince >= stallThreshold
+      && (stalledEmits < 5 || at - stalledLastEmitAt >= 12000 * 16)) {
       const item = record({ kind: 'paint', state: 'stalled', detail: `${Math.round((at - stalledSince) / 1000)} sn ilerleme yok` }, at);
       if (item) emitted.push(item);
       stalledEmits += 1;
+      stalledLastEmitAt = at;
     }
     lastSample = { ...sample, at };
     return emitted;
@@ -448,6 +462,10 @@ function createPlaybackDiagnosticTracker(options = {}) {
       lastSample = null;
       stalledSince = 0;
       frameStagnantSince = 0;
+      stalledEmits = 0;
+      frameStagnantEmits = 0;
+      stalledLastEmitAt = 0;
+      frameStagnantLastEmitAt = 0;
       if (clearCapabilities) capabilities = {};
     },
     setCapabilities(patch) {

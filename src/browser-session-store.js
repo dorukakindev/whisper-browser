@@ -322,13 +322,17 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options 
         }
       } catch (_) {} // Bozuk ana kayıt sağlam yedeğin üstüne yazılmasın.
     }
-    fsModule.renameSync(temp, filePath);
     // Silme/sıfırlama yazımlarında eski sekme durumunun .bak'ta yaşamaya devam
     // etmesi silinen veriyi geri getiriyordu (R83-34): bu yollarda yedek
-    // doğrulanmış güncel duruma çekilir.
+    // doğrulanmış güncel duruma çekilir. Ayna birincil rename'den ÖNCE
+    // yazılır — yedek yazılamazsa ana dosya hiç değişmez, böylece eski
+    // hassas veri yedekte sessizce kalmaz ve API sahte başarı dönmez;
+    // rename hatası da yalnız "yedek yeni, birincil eski" durumunda kalır
+    // ve bir sonraki yükleme birincil dosyadan tutarlı okur (R86-03).
     if (options.mirrorBackup) {
-      try { fsModule.copyFileSync(filePath, `${filePath}.bak`); } catch (_) {}
+      fsModule.copyFileSync(temp, `${filePath}.bak`);
     }
+    fsModule.renameSync(temp, filePath);
     return { ok: true, session };
   } catch (error) {
     try { if (fsModule.existsSync(temp)) fsModule.unlinkSync(temp); } catch (_) {}

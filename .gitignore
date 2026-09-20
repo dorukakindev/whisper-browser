@@ -28,6 +28,9 @@ build/
 .uiprev/
 tests/.extension-probe-data/
 .vscode/
+# Linux doğrulama ortamında Windows-göreli fixture yolları (ör. C:/Windows/Fonts)
+C:/
+
 .idea/
 
 # Çalışma zamanı çıktıları — ASLA depoya girmemeli

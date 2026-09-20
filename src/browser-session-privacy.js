@@ -1,3 +1,9 @@
+// Electron clearData'nın origin-bazlı desteklediği site verisi türleri.
+// 'downloads' bilinçli dışarıda: kullanıcı dosyası, site verisi değil.
+// 'cache' ve 'backgroundFetch' de bilinçli dışarıda: Electron'da bu
+// dataType'lar origin filtresini uygulamaz — site temizliği tüm oturumun
+// HTTP cache'ini/arka plan fetch kayıtlarını siler ve diğer siteleri
+// bozardı. Tam temizlik ancak 'session reset' yolunda yapılır (B83-35 notu).
 const SITE_DATA_TYPES = Object.freeze([
   'cookies',
   'fileSystems',

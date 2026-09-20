@@ -6,6 +6,9 @@ const { gzipSync, gunzipSync } = require('node:zlib');
 const { run } = require('./browser-media-tools');
 const core = require('./workspace-package');
 const VIDEO = /\.(mp4|mkv|avi|webm|mov|m4v|ts)$/i;
+// Manifest ve içe aktarılan katalog kayıtlarında video kaynağının kararlı,
+// paket-içi takma kimliği — mutlak yerel yol asla yazılmaz (R86-01).
+const VIDEO_ALIAS = '{{VIDEO}}/';
 async function python(exe, payload) {
   // Video bytes are streamed by Python; only bounded manifest metadata crosses IPC.
   const data = JSON.parse(await run(exe, [path.join(__dirname, '../backend/workspace_video_package.py')], JSON.stringify(payload), null, 3600000));
@@ -28,16 +31,16 @@ function sources(root) {
 async function exportWithVideos(root, output, values, exe) {
   const videos = sources(root), manifest = path.join(root, randomUUID() + '.wbp'), temp = output + '.' + randomUUID() + '.tmp';
   try {
-    const report = core.exportPackage(root, manifest, values), data = core.readPackage(manifest);
-    // Manifest'e taşınabilir kaynak yazılır: katalog değerleri {{ROOT}}/...
-    // formunda olduğundan içe aktarımda videoMappings bu anahtarla eşleşir ve
-    // paket kaynak makinenin mutlak yolunu ifşa etmez (R83-33). Arşivleme
-    // için gerçek yollar ayrıca `videos` parametresinde gider.
-    const portable = (source) => {
-      const rel = path.relative(root, source).replace(/\\/g, '/');
-      return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? `{{ROOT}}/${rel}` : source;
-    };
-    data.videos = videos.map(v => ({ ...v, source: portable(v.source) }));
+    // Manifest'e taşınabilir kaynak yazılır: video girdileri paket-içi adlarına
+    // (`videos/<sha256>.<ext>`) takma kimlikle bağlanır; kök dışı videolarda
+    // dahi kaynak makinenin mutlak yolu, kullanıcı dizini veya sürücü harfi
+    // pakete yazılmaz (R86-01). `extract()` videoMappings'i bu kimlikten yeni
+    // yerel hedefe çözer; kimliği olmayan eski mutlak-yol girdileri de aynen
+    // eşleştiği için geriye uyumluluk korunur. Arşivleme için gerçek yollar
+    // ayrıca `videos` parametresinde gider ve pakete yazılmaz.
+    const videoAliases = new Map(videos.map(v => [v.source, `${VIDEO_ALIAS}${v.name}`]));
+    const report = core.exportPackage(root, manifest, values, videoAliases), data = core.readPackage(manifest);
+    data.videos = videos.map(v => ({ ...v, source: videoAliases.get(v.source) }));
     fs.writeFileSync(manifest, gzipSync(Buffer.from(JSON.stringify(data))));
     await python(exe, { action: 'write', manifest, videos, output: temp });
     fs.renameSync(temp, output); return { ...report, videos: videos.length };
@@ -67,10 +70,17 @@ async function extract(root, data, exe) {
   const folder = path.join(root, 'workspace-videos', randomUUID());
   const parent = path.dirname(folder); if (fs.existsSync(parent) && fs.lstatSync(parent).isSymbolicLink()) throw new Error('Video hedefi bağlantı olamaz.');
   const videos = data.videos.map(v => ({ ...v, target: path.join(folder, path.basename(v.name)) }));
-  try { await python(exe, { action: 'extract', archive: data.archive.path, videos }); }
+  let result;
+  try { result = await python(exe, { action: 'extract', archive: data.archive.path, videos }); }
   catch (error) { clean(root, folder); throw error; }
+  // Arşivde olmayan video sessizce yanlış dosyaya bağlanmaz: yalnız gerçekten
+  // çıkarılan girdiler eşlenir; kalanlar 'imported' işaretli kalır ve ilk
+  // oynatmada kullanıcıdan yeniden seçim ister (R86-01).
+  const missingNames = new Set(Array.isArray(result?.missing) ? result.missing : []);
+  const extracted = videos.filter(v => !missingNames.has(v.name));
+  data.missingVideos = videos.filter(v => missingNames.has(v.name)).map(v => v.source);
   // These mappings are trusted local extraction results, never archive-provided paths.
-  data.videoMappings = videos.map(v => [v.source, v.target]); return folder;
+  data.videoMappings = extracted.map(v => [v.source, v.target]); return folder;
 }
 function clean(root, folder) {
   if (path.dirname(path.resolve(folder)) !== path.resolve(root, 'workspace-videos')) throw new Error('Video temizleme yolu geçersiz.');

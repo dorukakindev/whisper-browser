@@ -218,7 +218,24 @@ function mergeBrowserStreamCues(previousCues, incomingCues, limit = 20000) {
         && Number(cue.end) <= Number(old.end) + .05) removed.add(cue);
     else removed.add(old);
   }
-  const ordered = [...previous, ...incoming].filter(cue => !removed.has(cue)).sort((a, b) => a.start - b.start || a.end - b.end);
+  // Sağlayıcı aynı kimlikli cue'yu kaymış zamanla yeniden yayınladığında eski
+  // kopya kalıyordu (örn. id=X @10.0–10.3 + id=X @10.7–11.0 aynı metin → ikiz
+  // satır). Kimlik+metin aynıysa gelen (en yeni) revizyon kazanır (B83-S2).
+  const incomingKeys = new Set();
+  for (const cue of incoming) {
+    const id = cue.cueId || cue.id;
+    if (!id) continue;
+    incomingKeys.add(`${id}|${String(cue.text || '').replace(/\s+/g, ' ').trim()}`);
+  }
+  const ordered = [...previous, ...incoming]
+    .filter(cue => !removed.has(cue))
+    .filter((cue) => {
+      if (incoming.includes(cue)) return true;
+      const id = cue.cueId || cue.id;
+      if (!id) return true;
+      return !incomingKeys.has(`${id}|${String(cue.text || '').replace(/\s+/g, ' ').trim()}`);
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
   const merged = [];
   for (const cue of ordered) {
     const last = merged[merged.length - 1];
@@ -1894,7 +1911,16 @@ function cueFingerprint(cues) {
   const hash = crypto.createHash('sha256').update(`${list.length}\n`);
   // Orta satır, yalnız bitiş zamanı ve milisaniye düzeltmeleri de yayını yeniler.
   // Akış halinde hash'le; tüm izin ikinci büyük metin kopyasını oluşturma.
-  for (const cue of list) hash.update(JSON.stringify([Number(cue.start), Number(cue.end), cleanCueText(cue.text)]) + '\n');
+  // Canlı izde her parti tüm arabelleği fingerprint'ler (PF1): cleanCueText
+  // düz metinde zaten kimlik işlevdir; işaretleyici karakter yoksa tam
+  // temizlik zincirini atla. \x00 ayracı metin içinden ayıklanır ki alan
+  // sınırları çakışma yaratmasın.
+  const needsClean = /[<>{&\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/;
+  for (const cue of list) {
+    const raw = String(cue.text || '');
+    const text = needsClean.test(raw) ? cleanCueText(raw) : raw;
+    hash.update(`${Number(cue.start)}\x00${Number(cue.end)}\x00${text.replace(/\x00/g, '')}\x00`);
+  }
   return hash.digest('hex').slice(0, 20);
 }
 

@@ -1,7 +1,9 @@
 'use strict';
 
 const CP1254_FIXUP = { 'Ð': 'Ğ', 'Ý': 'İ', 'Þ': 'Ş', 'ð': 'ğ', 'ý': 'ı', 'þ': 'ş' };
-const MOJIBAKE_MARKERS = ['Ã§', 'Ã¼', 'Ã¶', 'Ä±', 'ÄŸ', 'Ã‡', 'Ãœ', 'Ã–', 'Ä°'];
+// backend/transcribe.py _MOJIBAKE_MARKERS ile birebir aynı liste — iki taraf
+// aynı dosyada aynı onarım kararını versin (B83-37).
+const MOJIBAKE_MARKERS = ['Ã§', 'Ã¼', 'Ã¶', 'Ä±', 'ÄŸ', 'Å', 'Ã‡', 'Ãœ', 'Ã–', 'Ä°', 'Ã¢'];
 
 function markerCount(value, markers = MOJIBAKE_MARKERS) {
   return markers.reduce((sum, marker) => sum + String(value).split(marker).length - 1, 0);
@@ -84,7 +86,10 @@ function decodeSubtitleBuffer(value) {
   const marks = markerCount(text);
   if (marks > 0) {
     const fixed = Buffer.from(text, 'latin1').toString('utf8');
-    if (markerCount(fixed) < marks) {
+    // Onarım gerçek aksanlı metni bozmasın: latin-1→utf-8 çevrimi geçersiz
+    // bayt üretirse (örn. tek başına gerçek 'Å' veya latin-1'de olmayan
+    // harfler) sonuç U+FFFD içerir — böyle bir "onarım" veri kaybıdır.
+    if (!fixed.includes('\uFFFD') && markerCount(fixed) < marks) {
       text = fixed;
       note = 'çift kodlama onarıldı';
     }

@@ -95,7 +95,10 @@ function burninFinalOutputLooksComplete({ size = 0, duration = 0, totalSec = 0,
 }
 
 function burninProcessNameMatches(processName) {
-  return /^ffmpeg(?:\.exe)?$/i.test(path.basename(String(processName || '').trim()));
+  // path.basename POSIX'te ters bölü ayracı tanımaz; süreç adları Windows
+  // biçiminde gelebilir — iki ayıracı da böl.
+  const base = String(processName || '').trim().split(/[\\/]/).pop() || '';
+  return /^ffmpeg(?:\.exe)?$/i.test(base);
 }
 
 function burninRecoveryProcessMatches({ pidAlive = false, processName = '', startedAt = 0,

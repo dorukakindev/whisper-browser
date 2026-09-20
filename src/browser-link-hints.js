@@ -96,8 +96,21 @@ function buildBrowserLinkHintsScript(options = {}) {
     const eventDocuments = [...new Set(roots.map((entry) =>
       entry.root.nodeType === 9 ? entry.root : entry.root.ownerDocument).filter(Boolean))];
     const eventWindows = [...new Set(roots.map((entry) => entry.view).filter(Boolean))];
+    const onMessage = (event) => {
+      // ESC hangi frame'de basılırsa basılsın tüm frame'lerdeki katmanlar
+      // kapansın — frame'ler birbirinin DOM'una erişemez, postMessage köprüsü
+      // gerekir (B83-11). Alıcı frame de aşağıya iletir ki derin ağaçta kök
+      // dışı frame'ler de temizlensin; cleanup dinleyiciyi söktüğü için her
+      // frame en fazla bir kez yayar.
+      if (event?.data?.__whisperLinkHintsCleanup === true) { broadcastCleanup(); cleanup(); }
+    };
+    const broadcastCleanup = () => {
+      try { window.top?.postMessage?.({ __whisperLinkHintsCleanup: true }, '*'); } catch (_) {}
+      try { for (const frame of window.frames || []) frame.postMessage({ __whisperLinkHintsCleanup: true }, '*'); } catch (_) {}
+    };
     const cleanup = () => {
       for (const doc of eventDocuments) doc.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('message', onMessage, true);
       for (const view of eventWindows) {
         view.removeEventListener('scroll', cleanup, true);
         view.removeEventListener('resize', cleanup, true);
@@ -113,7 +126,7 @@ function buildBrowserLinkHintsScript(options = {}) {
       else element.click();
     };
     function onKey(event) {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); cleanup(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); broadcastCleanup(); cleanup(); return; }
       if (event.key === 'Backspace') typed = typed.slice(0, -1);
       else {
         const key = String(event.key || '').toLowerCase();
@@ -127,6 +140,7 @@ function buildBrowserLinkHintsScript(options = {}) {
       else if (!matches.length) { typed = ''; for (const entry of hints) entry.label.style.display = ''; }
     }
     window.__whisperLinkHints = { cleanup };
+    window.addEventListener('message', onMessage, true);
     for (const doc of eventDocuments) doc.addEventListener('keydown', onKey, true);
     for (const view of eventWindows) {
       view.addEventListener('scroll', cleanup, true);

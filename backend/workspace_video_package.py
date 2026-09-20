@@ -24,15 +24,22 @@ def main(req):
                 shutil.copyfileobj(source, target, 1024 * 1024)
             return {}
         total = 0
+        missing = []
         for entry in req['videos']:
-            info = bundle.getinfo(entry['name'])
+            try:
+                info = bundle.getinfo(entry['name'])
+            except KeyError:
+                # Arşivde olmayan video atlanır; sessizce yanlış dosyaya
+                # bağlanmaz — JS tarafı bunları 'missing' olarak raporlar.
+                missing.append(entry['name'])
+                continue
             total += info.file_size
             if total > 100 * 1024 ** 3:
                 raise ValueError('Video paketi 100 GB sınırını aşıyor.')
             os.makedirs(os.path.dirname(entry['target']), exist_ok=True)
             with bundle.open(info) as source, open(entry['target'], 'xb') as target:
                 shutil.copyfileobj(source, target, 1024 * 1024)
-        return {}
+        return {'missing': missing}
 
 
 if __name__ == '__main__':

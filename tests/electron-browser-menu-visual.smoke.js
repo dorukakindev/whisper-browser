@@ -41,6 +41,24 @@ async function captureWindow(win, name) {
   return image;
 }
 
+// Ardışık iki kare piksel olarak sabitlenene kadar bekle — compositor boyaması
+// tamamlanmadan yakalanan tek kare flaky üretir.
+async function captureStableWindow(win, name) {
+  return until(async () => {
+    const a = await captureWindow(win, `${name}.a.png`);
+    const b = await captureWindow(win, name);
+    return changedPixels(a, b) < 40 ? b : null;
+  }, `Kararli pencere karesi (${name})`);
+}
+
+// Verilen piksel koşulu tutana kadar yakalamayı dene.
+async function captureWhen(win, name, predicate, label) {
+  return until(async () => {
+    const image = await captureWindow(win, name);
+    return predicate(image) ? image : null;
+  }, label || `Gorunur pencere durumu (${name})`);
+}
+
 function changedPixels(left, right) {
   assert.deepEqual(left.getSize(), right.getSize(), 'Window capture size changed');
   const a = left.toBitmap(), b = right.toBitmap();
@@ -98,32 +116,32 @@ app.whenReady().then(async () => {
     return fixture && fixture.executeJavaScript('!!document.querySelector("video") && document.title === "Offline video fixture"');
   }, 'Fixture video page');
   await run('closeBrowserToolbarMenus();setBrowserSignalVisible(false,false);return true');
-  await wait(350);
-  const closed = await captureWindow(win, 'closed.png');
+  await until(() => run('return !document.getElementById("browserTranslateMenu").open && !document.getElementById("browserMoreMenu").open'), 'Menüler kapandı');
+  const closed = await captureStableWindow(win, 'closed.png');
 
   await run('document.querySelector("#browserTranslateMenu summary").click();return true');
   await until(() => run('return document.getElementById("browserTranslateMenu").open'), 'Translation menu');
   await run('return syncBrowserOcclusion()');
-  await wait(350);
-  const translated = await captureWindow(win, 'translate-open.png');
-  assert(changedPixels(closed, translated) > 500, 'Translation menu is not visibly painted over the browser view');
   const translationGeometry = await run('const r=document.querySelector("#browserTranslateMenu .browser-menu-popover").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};');
   assert(translationGeometry.width > 100 && translationGeometry.height > 50);
   assert(translationGeometry.y + translationGeometry.height > 200,
     'Translation menu must overlap the native browser surface');
-  assert(menuForegroundPixels(translated, translationGeometry, win.getBounds()) > 100,
-    'The translation menu text was not painted in the window screenshot');
+  const translated = await captureWhen(win, 'translate-open.png',
+    (image) => changedPixels(closed, image) > 500
+      && menuForegroundPixels(image, translationGeometry, win.getBounds()) > 100,
+    'Translation menu painted pixels');
+  assert(changedPixels(closed, translated) > 500, 'Translation menu is not visibly painted over the browser view');
 
   await run('closeBrowserToolbarMenus();document.querySelector("#browserMoreMenu summary").click();return true');
   await until(() => run('return document.getElementById("browserMoreMenu").open'), 'More menu');
   await run('return syncBrowserOcclusion()');
-  await wait(350);
-  const more = await captureWindow(win, 'more-open.png');
-  assert(changedPixels(closed, more) > 500, 'More menu is not visibly painted over the browser view');
   const moreGeometry = await run('const r=document.querySelector("#browserMoreMenu .browser-menu-popover").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};');
   assert(moreGeometry.y + moreGeometry.height > 200);
-  assert(menuForegroundPixels(more, moreGeometry, win.getBounds()) > 100,
-    'The More menu text was not painted in the window screenshot');
+  const more = await captureWhen(win, 'more-open.png',
+    (image) => changedPixels(closed, image) > 500
+      && menuForegroundPixels(image, moreGeometry, win.getBounds()) > 100,
+    'More menu painted pixels');
+  assert(changedPixels(closed, more) > 500, 'More menu is not visibly painted over the browser view');
   console.log(JSON.stringify({ ok: true, translateChangedPixels: changedPixels(closed, translated),
     moreChangedPixels: changedPixels(closed, more), output: out }));
   clearTimeout(watchdog);

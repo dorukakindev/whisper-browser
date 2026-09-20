@@ -36,6 +36,7 @@ class BrowserNoteStore {
   constructor(filePath, options = {}) {
     this.filePath = path.resolve(filePath);
     this.backupPath = `${this.filePath}.bak`;
+    this.io = options.io || fs;
     this.maxNotes = Math.max(100, Number(options.maxNotes) || DEFAULT_MAX_NOTES);
     this.annotations = new Map();
     this.recoveredFromBackup = false;
@@ -98,25 +99,29 @@ class BrowserNoteStore {
   }
 
   flush(options = {}) {
-    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
+    const io = this.io;
+    io.mkdirSync(path.dirname(this.filePath), { recursive: true });
     const suffix = `${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
     const temporary = `${this.filePath}.${suffix}.tmp`;
     try {
-      if (!options.preserveBackup && !options.mirrorBackup && fs.existsSync(this.filePath)) {
-        fs.copyFileSync(this.filePath, this.backupPath);
+      if (!options.preserveBackup && !options.mirrorBackup && io.existsSync(this.filePath)) {
+        io.copyFileSync(this.filePath, this.backupPath);
       }
       const payload = JSON.stringify(this.snapshot(), null, 2);
       if (Buffer.byteLength(payload, 'utf8') > MAX_FILE_BYTES) {
         throw new Error('Not deposu güvenli boyut sınırını aştı; eski notlar silinmedi.');
       }
-      fs.writeFileSync(temporary, payload, { encoding: 'utf8', flush: true });
-      fs.renameSync(temporary, this.filePath);
+      io.writeFileSync(temporary, payload, { encoding: 'utf8', flush: true });
       // mirrorBackup (R83-34): silme yazımında eski nesil yedekte kalmasın —
-      // yedek doğrulanmış güncel duruma çekilir. Diğer yazımlarda .bak bir
-      // önceki geçerli ana dosyayı tutar; yoksa ilk yazımda oluşturulur.
-      if (options.mirrorBackup || !fs.existsSync(this.backupPath)) {
-        fs.copyFileSync(this.filePath, this.backupPath);
+      // yedek doğrulanmış güncel duruma çekilir. Ayna birincil rename'den
+      // ÖNCE kurulur: yedek yazılamazsa ana dosya hiç değişmez, böylece
+      // sahte başarı ve bellek/disk ayrışması olmaz (R86-03). Diğer
+      // yazımlarda .bak bir önceki geçerli ana dosyayı tutar; yoksa ilk
+      // yazımda oluşturulur.
+      if (options.mirrorBackup || !io.existsSync(this.backupPath)) {
+        io.copyFileSync(temporary, this.backupPath);
       }
+      io.renameSync(temporary, this.filePath);
       this.needsLegacyImport = false;
       this.recoveryWriteError = '';
     } catch (error) {

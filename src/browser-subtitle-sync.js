@@ -200,6 +200,10 @@
   function editRecordMatches(record, context) {
     let item;
     try { item = createEditRecord(record); } catch (_) { return false; }
+    return recordFieldsMatch(item, context);
+  }
+
+  function recordFieldsMatch(item, context) {
     return item.mediaId === clean(context?.mediaId, 240)
       && item.variantId === clean(context?.variantId, 180)
       && item.sourceHash === clean(context?.sourceHash, 128)
@@ -208,8 +212,12 @@
   }
 
   function applyEditRecord(modelCue, record, context) {
-    if (!editRecordMatches(record, context)) return { ...modelCue };
-    const item = createEditRecord(record);
+    // Eşleşme kontrolü kaydı zaten normalize eder; normalize edilmiş kaydı
+    // ikinci kez derlemek (throw/catch yolu) kimliksiz edit yığınında ~2x
+    // maliyet üretiyordu (PF2b).
+    let item;
+    try { item = createEditRecord(record); } catch (_) { return { ...modelCue }; }
+    if (!recordFieldsMatch(item, context)) return { ...modelCue };
     return {
       ...modelCue,
       cueId: modelCue.cueId || context.cueId,

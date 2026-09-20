@@ -86,7 +86,16 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   await racing.flush();
   const racedKeys = JSON.parse(fs.readFileSync(racingFile, 'utf8')).entries.map(([key]) => key);
   assert.deepEqual(racedKeys, ['first', 'late']);
-  console.log('browser-translation-cache: 5 test');
+
+  const churnFile = path.join(dir, 'churn.json');
+  for (let i = 0; i < 7; i++) {
+    fs.writeFileSync(churnFile, `{bozuk-${i}`, 'utf8');
+    new PersistentTranslationCache(churnFile, { limit: 10 });
+  }
+  const corruptArchives = fs.readdirSync(dir).filter((name) => name.startsWith('churn.json.corrupt-'));
+  assert(corruptArchives.length >= 1 && corruptArchives.length <= 5,
+    `.corrupt arşivleri sınırda kalmalı, bulundu: ${corruptArchives.length}`);
+  console.log('browser-translation-cache: 6 test');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 } })().catch((error) => { console.error(error); process.exitCode = 1; });

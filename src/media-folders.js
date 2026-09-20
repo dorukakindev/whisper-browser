@@ -7,7 +7,11 @@ const INPUT_FOLDER_NAME = 'GİRDİ';
 const OUTPUT_FOLDER_NAME = 'ÇIKTI';
 
 function defaultMediaFolders(downloadsPath) {
-  if (typeof downloadsPath !== 'string' || !path.isAbsolute(downloadsPath)) {
+  // Windows mutlak yolları (C:\..., \\sunucu\...) test ve içe aktarma
+  // senaryolarında POSIX altında da mutlak sayılır.
+  const absolute = typeof downloadsPath === 'string'
+    && (path.isAbsolute(downloadsPath) || path.win32.isAbsolute(downloadsPath));
+  if (!absolute) {
     throw new TypeError('İndirilenler klasörü mutlak bir yol olmalıdır.');
   }
   const rootDir = path.join(downloadsPath, MEDIA_ROOT_NAME);

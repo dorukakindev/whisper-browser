@@ -49,7 +49,7 @@ function rewrite(value, mappings) {
   }
   return visit(value);
 }
-function exportPackage(root, output, rendererValues = {}) {
+function exportPackage(root, output, rendererValues = {}, externalAliases = null) {
   const files = [], mappings = [], seen = new Set(); let total = 0;
   function add(file, name) {
     if (seen.has(name)) return;
@@ -62,6 +62,10 @@ function exportPackage(root, output, rendererValues = {}) {
       // mappings/sourceRoot içindeki mutlak yollar ifşa olmaz (R83-33).
       const visit = value => {
         if (typeof value === 'string' && path.isAbsolute(value)) {
+          // Pakete giren video kaynakları kararlı takma kimliğe çevrilir;
+          // kaynak makinenin mutlak yolu hiçbir manifest alanına yazılmaz
+          // (R86-01).
+          if (externalAliases && externalAliases.has(value)) return externalAliases.get(value);
           const relative = path.relative(root, value).replace(/\\/g, '/');
           const underRoot = !!relative && !relative.startsWith('..') && !path.isAbsolute(relative);
           if (/\.(srt|vtt|ass|ssa|png|jpe?g|webp)$/i.test(value) && fs.existsSync(value)) {

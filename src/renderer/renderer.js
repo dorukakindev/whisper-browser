@@ -10208,6 +10208,9 @@ function applyBrowserSponsorSkip(time, previousTime, paused = player.browserPaus
     if (time >= item.end) {
       player.browserSponsorSkipped.delete(id);
       player.browserSponsorPrompted?.delete(id);
+      // Biten segmente ait sinyal eylemi bayat kalmasın: görünürde kalan
+      // "Atla/Bu bölümü izle" tıklaması kullanıcıyı bitmiş bölüme geri sarar.
+      if (player.browserSponsorPendingAction === item) player.browserSponsorPendingAction = null;
     }
   }
   const segment = player.browserSponsorSegments.find((item) => time >= item.start && time < item.end
@@ -22756,6 +22759,10 @@ async function renderSmartTubeSection(section, opts = {}) {
     videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
   }
 
+  // Tam akış render edildi: aynı requestId'ye ait GEÇ kalan feed_partial
+  // paketi tamamlanmış ızgarayı kısmi sonuçla ezmesin (kapı yalnız partial
+  // alındığında kapanıyordu; hiç partial gelmezse açık kalıyordu).
+  grid.dataset.previewRequestId = String(seq);
   if (stale()) return;
   // Kaynak doğruluğu: yt-dlp yedeği Invidious gibi gösterilmez
   if (feedData && feedData.degraded) {
@@ -23546,7 +23553,11 @@ function initSmartTube() {
   });
   const close = $('stCloseBrowser');
   if (close) close.addEventListener('click', () => {
-    if (player.mediaKey) setSmartTubeVisible(false);
+    // Medya bittiğinde düğme görünürde kalırsa tıklama hiçbir şey yapmıyordu —
+    // medya anahtarı olmadan da tarama görünümünü kapatmak güvenli (boş sahne
+    // gösterilir; kenar çubuğundan yeniden açılır).
+    setSmartTubeVisible(false);
+    close.classList.add('hidden');
   });
   const searchBtn = $('stSearchBtn');
   if (searchBtn) searchBtn.addEventListener('click', doSmartTubeSearch);

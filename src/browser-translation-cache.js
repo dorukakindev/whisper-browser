@@ -33,6 +33,18 @@ class PersistentTranslationCache {
         const archive = `${filePath}.corrupt-${process.pid}-${Date.now()}`;
         this.fs.renameSync(filePath, archive);
       } catch (_) { /* Kurtarma başarısız olsa bile bellekte temiz cache ile devam et. */ }
+      // Bozuk arşivler teşhis için tutulur ama sınırsız birikmez — dosya adına
+      // yazan zaman damgasına göre en yeni 5 kopya korunur (B83-N3).
+      try {
+        const dir = path.dirname(filePath);
+        const prefix = path.basename(filePath) + '.corrupt-';
+        const archives = this.fs.readdirSync(dir)
+          .filter((name) => name.startsWith(prefix))
+          .sort();
+        for (const stale of archives.slice(0, Math.max(0, archives.length - 5))) {
+          try { this.fs.unlinkSync(path.join(dir, stale)); } catch (_) {}
+        }
+      } catch (_) {}
     };
     try {
       let parsed;

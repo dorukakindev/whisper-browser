@@ -30,14 +30,34 @@
       translation: String(cue?.translation || '').trim().slice(0, 4000),
     })).filter((cue) => cue.text || cue.translation).slice(0, 50000).map((cue,index)=>({...cue,index}));
   }
+  // Tüm-transkript niyeti: kelime-başı kök eşleşmesi 'tamamen', 'tamamla',
+  // 'tamamlamış' gibi ilgisiz çekimleri de pozitif sayıyordu (R86-05).
+  // Kabul, açık çekimli biçim listesiyle sınırlıdır; fold() çıktısı ASCII'dir.
+  const WHOLE_TRANSCRIPT_PHRASES = [
+    'ana fikir', 'ana fikri', 'bastan sona', 'basindan sonuna', 'uctan uca',
+    'tum transkript', 'butun transkript', 'tum video', 'butun video',
+    'tum icerik', 'butun icerik', 'genel ozet', 'tam metin',
+  ];
+  const WHOLE_TRANSCRIPT_WORDS = new Set([
+    // tamamı / tümü / bütünü çekimleri ('tamamen', 'tamamla', 'tamamlamış'
+    // ve söylem belirteci tek başına 'tamam' bilinçli dışarıda).
+    'tamami', 'tamamini', 'tamamin', 'tamamina', 'tamaminda',
+    'tum', 'tumu', 'tumunu', 'tumun', 'tumunun', 'tumune', 'tumunde',
+    'butun', 'butunu', 'butununu', 'butunun', 'butunune', 'butununde',
+    // özet / genel / konu / argüman niyetleri
+    'ozet', 'ozeti', 'ozetini', 'ozetin', 'ozetle', 'ozetler', 'ozetlerini',
+    'ozetleme', 'ozetlemek', 'ozetlemeni', 'ozetleyebilir', 'ozetleyin',
+    'ozetliyor', 'ozetlenen', 'ozetlenmis',
+    'genel', 'geneli', 'genelini', 'genele',
+    'konu', 'konuyu', 'konunun', 'konuya', 'konuda', 'konusu', 'konusunu',
+    'konusma', 'konusmasi', 'konusmayi',
+    'arguman', 'argumani', 'argumanlar', 'argumanlari', 'argumantasyon',
+  ]);
   function wholeTranscriptIntent(question) {
     const folded = fold(question);
     const query = ` ${folded} `;
-    // Çok-kelimeli niyetler tam eşleşme; tek kökler kelime başı önekiyle
-    // ('özetle'→'ozetle', 'bütünün'→'butunun') yakalanır.
-    if (['ana fikir'].some((phrase) => query.includes(` ${phrase} `))) return true;
-    const stems = ['ozet', 'tamam', 'butun', 'genel', 'konu', 'arguman', 'tum'];
-    return folded.split(/\s+/).some((word) => stems.some((stem) => word.startsWith(stem)));
+    if (WHOLE_TRANSCRIPT_PHRASES.some((phrase) => query.includes(` ${phrase} `))) return true;
+    return folded.split(/\s+/).some((word) => WHOLE_TRANSCRIPT_WORDS.has(word));
   }
   function buildTranscriptEvidence(cues, question, options = {}) {
     const rows = normalizedRows(cues);

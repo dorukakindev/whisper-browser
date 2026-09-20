@@ -134,6 +134,13 @@
     ['Geçmişi temizle', 'Clear history'],
     ['İlerleme', 'Progress'],
     ['Hazır', 'Ready'],
+    ['Çalışıyor', 'Running'],
+    ['Tamamlandı', 'Completed'],
+    ['Tamamlandı · süreç kapanıyor', 'Completed · process is closing'],
+    ['İptal edildi', 'Cancelled'],
+    ['İptal edildi.', 'Cancelled.'],
+    ['Hata', 'Error'],
+    ['Kuyruk kaydedilemedi', 'Queue could not be saved'],
     ['İndirme', 'Download'],
     ['Ayırma', 'Extraction'],
     ['Yükleme', 'Loading'],
@@ -1265,7 +1272,10 @@
   const normalize = value => value === 'tr' ? 'tr' : 'en';
   let locale = 'en';
   try { locale = normalize(localStorage.getItem('whisper.uiLocale')); } catch (_) {}
-  const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerMeta,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,[data-ui-untranslated]';
+  // Sekme şeridi, adres önerileri, yer imi/geçmiş/indirme listeleri site
+  // başlıkları ve kullanıcı verisi taşır — sözlükle çakışan bir site başlığı
+  // (ör. 'Ayarlar') arayüz metni sanılıp yeniden yazılmamalı (B83-24).
+  const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerMeta,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,.browser-place-title,.browser-quick-place-title,.history-title,[data-ui-untranslated]';
   const originalText = new WeakMap();
   const originalAttributes = new WeakMap();
 
