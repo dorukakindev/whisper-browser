@@ -24,6 +24,8 @@ const PROFILE_FIELDS = Object.freeze({
   videoBrightness: { type: 'number', min: 0.4, max: 2, precision: 2 },
   videoContrast: { type: 'number', min: 0.4, max: 2, precision: 2 },
   darkMode: { type: 'boolean' },
+  // C03: Nyxt auto-rule — siteye girerken okuma görünümünü kendiliğinden aç
+  readerAuto: { type: 'boolean' },
   normalizeAudio: { type: 'boolean' },
   silenceSpeedEnabled: { type: 'boolean' },
   silenceSpeedRate: { type: 'number', min: 2, max: 8, precision: 1 },

@@ -20,6 +20,10 @@
   }
   function signature(ctx) { return ctx ? `${ctx.tabId}|${ctx.generation}|${ctx.mediaId}` : ''; }
   function current(ctx, seq) { return seq === sequence && signature(context()) === signature(ctx); }
+  function choice(tr, en) { return window.UiLocale?.get?.() === 'tr' ? tr : en; }
+  function subtitleSearchCopy(state) {
+    return window.StatusCopy.subtitleSearch(window.UiLocale?.get?.(), state);
+  }
   function status(message, isError = false) { $('bfStatus').textContent = message; $('bfStatus').classList.toggle('bf-error', isError); }
   function clear(node) { node.replaceChildren(); }
   function node(tag, text, className) {
@@ -89,17 +93,30 @@
     const result = await call('subtitle-search', {
       query: val('bfTitle'), season: val('bfSeason') || undefined, episode: val('bfEpisode') || undefined,
       language: val('bfLanguage') || undefined, release: val('bfRelease') || undefined,
+      mediaPath: player.localPath || undefined,
       config: credentials(),
     });
-    if (!result) return;
-    const list = $('bfSubtitleResults'); clear(list);
+    const list = $('bfSubtitleResults');
+    if (!result) {
+      // E05: başarısızlık ile 'sonuç yok'u ayır — durum çubuğundaki asıl
+      // hata (API/video/bağlam) korunur; liste alanında da boş kalmaz.
+      // Yeniden denemek için arama butonu açık kalır.
+      if (list) { clear(list); list.append(node('p', subtitleSearchCopy({ failed: true }))); }
+      return;
+    }
+    clear(list);
     const rows = Array.isArray(result.results) ? result.results.slice(0, 50) : [];
-    if (!rows.length) { list.append(node('p', 'Eşleşen altyazı bulunamadı. Başlığı veya dili değiştirin.')); return; }
-    list.append(node('p', `${rows.length} aday · puan yalnız başlık, bölüm, dil ve sürüm bilgilerinin eşleşmesidir.`, 'bf-note'));
+    if (!rows.length) { list.append(node('p', subtitleSearchCopy({ visibleCount: 0 }))); return; }
+    const hashed = rows.some((row) => row.hashMatch);
+    list.append(node('p', subtitleSearchCopy({
+      visibleCount: rows.length,
+      totalCount: result.totalCount,
+      hashMatch: hashed,
+    }), 'bf-note'));
     for (const row of rows) {
       const item = node('div', '', 'bf-result');
       item.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));
-      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan`, 'bf-meta'));
+      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan${row.hashMatch ? ' · dosya parmak izi ✓' : ''}`, 'bf-meta'));
       const button = node('button', 'İndir ve aç'); button.type = 'button';
       button.addEventListener('click', async () => {
         const downloaded = await call('subtitle-download', { fileId: row.fileId, config: credentials() });

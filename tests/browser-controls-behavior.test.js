@@ -171,6 +171,7 @@ function extract(start, end, deps = {}) {
     queueBrowserTabTransition: work => work(),
     startBrowserPageTranslation: async (tab, options) => { pageStarts.push({ tab, options }); return { ok: true }; },
     sendBrowserEvent: (tab, event) => browserEvents.push({ tab, event }),
+    browserOmnibox: require('../src/browser-omnibox'),
   });
   const wc = { on(_name, callback) { handler = callback; },
     cut() { actions.push('cut'); }, paste() { actions.push('paste'); }, selectAll() { actions.push('all'); } };
@@ -190,6 +191,8 @@ function extract(start, end, deps = {}) {
   handler({}, { linkURL: 'https://a.test/?sig=a%2Bb', selectionText: 'İstanbul & İzmir #1' });
   menu.find(item => item.label === 'Bağlantı adresini kopyala').click();
   assert.equal(actions.at(-1), 'https://a.test/?sig=a%2Bb');
+  menu.find(item => item.label === 'Bağlantıyı Markdown olarak kopyala').click();
+  assert.equal(actions.at(-1), '[https://a.test/?sig=a%2Bb](https://a.test/?sig=a%2Bb)');
   menu.find(item => item.label === 'Seçili metni ara').click();
   assert.equal(new URL(searches[0]).searchParams.get('q'), 'İstanbul & İzmir #1');
   const translate = menu.find(item => item.label === 'Bu satırı çevir');

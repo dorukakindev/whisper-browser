@@ -891,6 +891,7 @@ function setModalBackgroundInert(modal, inert) {
 function syncBrowserOcclusion() {
   const places = $('browserPlacesPanel');
   const downloads = $('browserDownloadsPanel');
+  const qrPanel = $('browserQrPanel');
   const moreMenu = $('browserMoreMenu');
   const translateMenu = $('browserTranslateMenu');
   const pageQuickMenu = $('browserPageQuickMenu');
@@ -908,6 +909,7 @@ function syncBrowserOcclusion() {
     && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')));
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
+    || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
     || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
@@ -2090,22 +2092,64 @@ $$('.secret-toggle').forEach((button) => {
   });
 });
 
-// yt-dlp güncelleme — YouTube indirme hataları çoğunlukla eski sürümden kaynaklanır
-$('updateYtdlp').addEventListener('click', async () => {
-  const btn = $('updateYtdlp');
-  if (btn.disabled) return;
-  btn.disabled = true;
-  btn.textContent = 'güncelleniyor...';
-  logLine('yt-dlp güvenli, sürümlü runtime alanında güncelleniyor...');
+function runtimeState(id, text, status) {
+  const element = $(id);
+  if (!element) return;
+  element.textContent = text;
+  element.dataset.state = status;
+}
+
+function renderRuntimeStatus(env, modelStatus = modelStatusSnapshot) {
+  const missing = interfaceChoice('Bulunamadı', 'Not found');
+  runtimeState('runtimePython', env?.venv
+    ? (env.pythonVersion || interfaceChoice('Hazır', 'Ready')) : missing, env?.venv ? 'ready' : 'error');
+  runtimeState('runtimeFfmpeg', env?.ffmpeg
+    ? String(env.ffmpegVersion || interfaceChoice('Hazır', 'Ready')).replace(/^ffmpeg version\s+/i, 'ffmpeg ')
+    : missing, env?.ffmpeg ? 'ready' : 'error');
+  const managed = env?.ytDlpManaged ? interfaceChoice(' · doğrulanmış yönetilen sürüm', ' · verified managed runtime') : '';
+  runtimeState('runtimeYtdlp', env?.ytDlpVersion ? `yt-dlp ${env.ytDlpVersion}${managed}` : missing,
+    env?.ytDlpVersion ? (env.ytDlpManaged ? 'ready' : 'warning') : 'error');
+  runtimeState('runtimeGpu', env?.gpu || interfaceChoice('NVIDIA GPU algılanmadı', 'No NVIDIA GPU detected'),
+    env?.gpu ? 'ready' : 'warning');
+  const free = modelStatus?.freeBytes;
+  runtimeState('runtimeDisk', Number.isFinite(Number(free))
+    ? interfaceChoice(`${(free / 1073741824).toFixed(1)} GB boş`, `${(free / 1073741824).toFixed(1)} GB free`)
+    : interfaceChoice('Boş alan ölçülemedi', 'Free space unavailable'), free != null ? 'ready' : 'warning');
+}
+
+async function refreshRuntimeStatus() {
+  for (const id of ['runtimePython', 'runtimeFfmpeg', 'runtimeYtdlp', 'runtimeGpu', 'runtimeDisk']) {
+    runtimeState(id, interfaceChoice('Denetleniyor', 'Checking'), 'loading');
+  }
+  const [env] = await Promise.all([
+    window.api.getEnvInfo().catch(() => null),
+    refreshModelStatus().catch(() => null),
+  ]);
+  renderRuntimeStatus(env, modelStatusSnapshot);
+  return env;
+}
+
+async function runYtdlpUpdate(btn) {
+  const buttons = [$('updateYtdlp'), $('runtimeUpdateYtdlp')].filter(Boolean);
+  if (buttons.some((item) => item.disabled)) return;
+  for (const item of buttons) item.disabled = true;
+  if (btn) btn.textContent = interfaceChoice('güncelleniyor...', 'updating...');
+  logLine(interfaceChoice('yt-dlp güvenli, sürümlü runtime alanında güncelleniyor...', 'Updating yt-dlp in the safe versioned runtime...'));
   try {
     const r = await window.api.updateYtdlp();
     if (r.ok) logLine(`✓ ${r.message}`, 'success');
-    else logLine(`yt-dlp güncellenemedi: ${r.error}`, 'error');
+    else logLine(interfaceChoice(`yt-dlp güncellenemedi: ${r.error}`, `yt-dlp update failed: ${r.error}`), 'error');
+    await refreshRuntimeStatus();
   } finally {
-    btn.disabled = false;
-    btn.textContent = "yt-dlp'yi güncelle";
+    for (const item of buttons) item.disabled = false;
+    if (btn) btn.textContent = window.UiLocale?.t?.("yt-dlp'yi güncelle") || interfaceChoice("yt-dlp'yi güncelle", 'Update yt-dlp');
   }
-});
+}
+
+// yt-dlp güncelleme — YouTube indirme hataları çoğunlukla eski sürümden kaynaklanır
+$('updateYtdlp').addEventListener('click', () => runYtdlpUpdate($('updateYtdlp')));
+$('runtimeUpdateYtdlp')?.addEventListener('click', () => runYtdlpUpdate($('runtimeUpdateYtdlp')));
+$('runtimeRefresh')?.addEventListener('click', () => refreshRuntimeStatus());
 
 // YouTube URL alanında Enter → başlat
 $('youtubeUrl').addEventListener('keydown', (e) => {
@@ -2422,6 +2466,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
+  'stCardScale', 'stCardFontScale',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -2434,7 +2479,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
   'browserRateFightback', 'browserPreservesPitch',
-  'browserDarkMode',
+  'browserDarkMode', 'browserReaderAuto',
   'browserYoutubeAppearance', 'browserYoutubeHideShorts',
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled',
   'browserPageAuto',
@@ -2443,6 +2488,8 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserAdblockEnabled',
   'browserAutoSkipAds',
   'browserPlayerResponseAdPrune',
+  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
+  'browserAutoPip',
 ];
 
 function collectUiSettings() {
@@ -3007,9 +3054,12 @@ const initialSettingsReady = (async () => {
   updateLlmEndpointUI();
 
   // Ortam kontrolü: GPU adı + venv/ffmpeg uyarıları
+  let startupEnv = null;
   try {
     const env = await window.api.getEnvInfo();
+    startupEnv = env;
     if (env) {
+      renderRuntimeStatus(env, modelStatusSnapshot);
       if (env.gpu) {
         // "NVIDIA GeForce RTX 4070 Ti, 12282 MiB" → rozette "RTX 4070 Ti"
         state.gpuName = env.gpu.split(',')[0].trim()
@@ -3036,6 +3086,7 @@ const initialSettingsReady = (async () => {
     }
   } catch (_) {}
   await refreshModelStatus();
+  renderRuntimeStatus(startupEnv, modelStatusSnapshot);
   updateSignalDesk();
 })();
 
@@ -3067,15 +3118,26 @@ function estimateVramMib() {
 
 let modelStatusSnapshot = null;
 let modelBenchmarkRunning = false;
+const interfaceChoice = (tr, en) => window.UiLocale?.get?.() === 'tr' ? tr : en;
 
 function renderSelectedModelStatus() {
   const status = $('modelInstallStatus');
   if (!status) return;
   const selected = $('model')?.value || '';
   const entry = modelStatusSnapshot?.models?.find((item) => item.id === selected);
-  status.textContent = !modelStatusSnapshot ? 'Önbellek denetlenmedi'
-    : entry?.installed ? 'Bu cihazda hazır' : 'İlk kullanımda indirilecek';
+  const mb = (bytes) => bytes ? `${Math.round(bytes / 1048576)} MB` : '';
+  const free = modelStatusSnapshot?.freeBytes ? `${(modelStatusSnapshot.freeBytes / 1073741824).toFixed(1)} GB` : '';
+  status.textContent = !modelStatusSnapshot ? interfaceChoice('Önbellek denetlenmedi', 'Cache not checked')
+    : entry?.installed ? interfaceChoice(`Bu cihazda hazır${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`,
+      `Ready on this device${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`)
+    : entry?.partial ? interfaceChoice(`Yarım indirme${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`,
+      `Incomplete download${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`)
+    : interfaceChoice(`İlk kullanımda indirilecek${entry?.downloadMb ? ` (~${entry.downloadMb} MB)` : ''}`,
+      `Downloads on first use${entry?.downloadMb ? ` (~${entry.downloadMb} MB)` : ''}`);
+  if (free) status.textContent += interfaceChoice(` · ${free} boş`, ` · ${free} free`);
   status.title = entry?.repository || status.textContent;
+  const deleteButton = $('modelCacheDelete');
+  if (deleteButton) deleteButton.disabled = !entry?.cached;
 }
 
 async function refreshModelStatus() {
@@ -3087,6 +3149,29 @@ async function refreshModelStatus() {
 
 if ($('model')?.addEventListener) $('model').addEventListener('change', renderSelectedModelStatus);
 if ($('modelStatusRefresh')?.addEventListener) $('modelStatusRefresh').addEventListener('click', refreshModelStatus);
+// F18: önbellek temizliği — silme onayı native dialog ile main sürecinde sorulur.
+if ($('modelCacheDelete')?.addEventListener) $('modelCacheDelete').addEventListener('click', async () => {
+  const model = $('model')?.value || '';
+  if (!model || !window.api.deleteModel) return;
+  const button = $('modelCacheDelete');
+  if (button) button.disabled = true;
+  try {
+    const result = await window.api.deleteModel(model);
+    if (result?.ok) {
+      addLog(interfaceChoice(
+        `Model önbelleği silindi: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB boşaldı`,
+        `Model cache removed: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB freed`), 'info');
+      modelStatusSnapshot = null;
+      await refreshModelStatus();
+    } else if (result?.canceled) {
+      addLog(interfaceChoice('Önbellek silme vazgeçildi.', 'Cache removal cancelled.'), 'info');
+    } else if (result?.error) {
+      addLog(interfaceChoice(`Önbellek silme başarısız: ${result.error}`, `Cache removal failed: ${result.error}`), 'error');
+    }
+  } finally {
+    renderSelectedModelStatus();
+  }
+});
 if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener('click', async () => {
   const button = $('modelBenchmark');
   if (modelBenchmarkRunning) {
@@ -3094,28 +3179,48 @@ if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener(
     return;
   }
   modelBenchmarkRunning = true;
-  if (button) button.textContent = 'Benchmarkı durdur';
-  if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Dosya seçimi bekleniyor…';
+  if (button) button.textContent = interfaceChoice('Benchmarkı durdur', 'Stop benchmark');
+  if ($('modelInstallStatus')) $('modelInstallStatus').textContent = interfaceChoice('Dosya seçimi bekleniyor…', 'Waiting for file selection…');
+  const compareModel = $('modelBenchmarkCompare')?.value || '';
+  const seconds = Number($('modelBenchmarkSeconds')?.value) || 30;
+  const start = Number($('modelBenchmarkStart')?.value) || 0;
   const result = await window.api.benchmarkModel?.({
     model: $('model')?.value,
     device: $('device')?.value,
     computeType: $('computeType')?.value,
     language: $('language')?.value,
+    seconds,
+    start,
+    // F17: aynı klipte ikinci model — yalnız seçiliyse gönderilir
+    compare: compareModel && compareModel !== $('model')?.value ? { model: compareModel } : undefined,
   }).catch((error) => ({ ok: false, error: error.message }));
   modelBenchmarkRunning = false;
-  if (button) button.textContent = '30 sn benchmark';
+  if (button) button.textContent = interfaceChoice('Benchmark çalıştır', 'Run benchmark');
   if (result?.canceled) {
     renderSelectedModelStatus();
     return;
   }
   if (result?.ok) {
-    const message = `${result.model} · ${result.audioSeconds.toFixed(1)} sn ses · ${result.transcribeSeconds.toFixed(1)} sn işlem · ${result.speedX.toFixed(1)}× gerçek zaman`;
-    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = `${result.speedX.toFixed(1)}× gerçek zaman`;
-    logLine(`Model benchmarkı: ${message}`, 'success');
+    const vramText = result.vramMb == null ? '' : interfaceChoice(
+      ` · VRAM ${Math.round(result.vramMb)} MB${result.vramMeasurement === 'gpu-delta' ? ' (GPU toplam farkı)' : ''}`,
+      ` · VRAM ${Math.round(result.vramMb)} MB${result.vramMeasurement === 'gpu-delta' ? ' (GPU total delta)' : ''}`);
+    const message = interfaceChoice(
+      `${result.model} · ${result.clipStartSeconds || 0}. sn'den ${result.audioSeconds.toFixed(1)} sn ses · ${result.transcribeSeconds.toFixed(1)} sn işlem · ${result.speedX.toFixed(1)}× gerçek zaman${vramText}`,
+      `${result.model} · ${result.audioSeconds.toFixed(1)} s audio from ${result.clipStartSeconds || 0} s · ${result.transcribeSeconds.toFixed(1)} s processing · ${result.speedX.toFixed(1)}× realtime${vramText}`);
+    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = interfaceChoice(`${result.speedX.toFixed(1)}× gerçek zaman`, `${result.speedX.toFixed(1)}× realtime`);
+    logLine(interfaceChoice(`Model benchmarkı: ${message}`, `Model benchmark: ${message}`), 'success');
+    if (result.compare) {
+      const d = result.diff || {};
+      const cueCounts = `${d.matchedCueCount ?? 0} / +${d.primaryUnmatchedCueCount ?? 0} / +${d.compareUnmatchedCueCount ?? 0}`;
+      const compareVram = result.compare.vramMb == null ? '' : ` · VRAM ${Math.round(result.compare.vramMb)} MB${result.compare.vramMeasurement === 'gpu-delta' ? interfaceChoice(' (GPU toplam farkı)', ' (GPU total delta)') : ''}`;
+      logLine(interfaceChoice(
+        `A/B: ${result.model} ${result.speedX.toFixed(1)}× vs ${result.compare.model} ${Number(result.compare.speedX).toFixed(1)}×${compareVram} · cue eşleşen/eşleşmeyen A/B ${cueCounts} · başlangıç sapması ort. ${d.cueStartDriftAvgMs ?? '—'} ms (maks ${d.cueStartDriftMaxMs ?? '—'} ms) · metin farkı %${(100 * (d.textDeviation || 0)).toFixed(1)}${result.historyCount ? ` · bu klipte ${result.historyCount}. kayıt` : ''}`,
+        `A/B: ${result.model} ${result.speedX.toFixed(1)}× vs ${result.compare.model} ${Number(result.compare.speedX).toFixed(1)}×${compareVram} · cues matched/unmatched A/B ${cueCounts} · mean start drift ${d.cueStartDriftAvgMs ?? '—'} ms (max ${d.cueStartDriftMaxMs ?? '—'} ms) · text difference ${(100 * (d.textDeviation || 0)).toFixed(1)}%${result.historyCount ? ` · run ${result.historyCount} for this clip` : ''}`), 'info');
+    }
     await refreshModelStatus();
   } else {
-    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Benchmark tamamlanamadı';
-    logLine(`Model benchmarkı: ${result?.error || 'bilinmeyen hata'}`, 'warn');
+    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = interfaceChoice('Benchmark tamamlanamadı', 'Benchmark failed');
+    logLine(interfaceChoice(`Model benchmarkı: ${result?.error || 'bilinmeyen hata'}`, `Model benchmark: ${result?.error || 'unknown error'}`), 'warn');
   }
 });
 
@@ -4770,7 +4875,7 @@ function setBurninRunningUi() {
   $('burnInBtn').classList.add('hidden');
   $('burnInCancel').classList.remove('hidden');
   $('burninFill').style.width = '0%';
-  $('burninText').textContent = 'Gömülüyor… 0%';
+  $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), { type: 'idle' });
 }
 
 $('burnInBtn').addEventListener('click', async () => {
@@ -4782,15 +4887,23 @@ $('burnInBtn').addEventListener('click', async () => {
   setBurninRunningUi();
 });
 
-$('burnInCancel').addEventListener('click', () => window.api.burnInCancel());
+$('burnInCancel').addEventListener('click', () => {
+  // E06: iptal durumu görünür olsun — FFmpeg kapanana dek metin bekler.
+  $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), { type: 'cancel' });
+  $('burnInCancel').disabled = true;
+  window.api.burnInCancel().finally(() => { $('burnInCancel').disabled = false; });
+});
 
 window.api.onBurnInEvent((ev) => {
-  if (ev.type === 'progress') {
+  if (ev.type === 'start') {
+    $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), ev);
+  } else if (ev.type === 'progress') {
     $('burninFill').style.width = `${ev.percent}%`;
-    $('burninText').textContent = `Gömülüyor… ${ev.percent.toFixed(0)}%`;
+    // E06: aşama + süre görünürlüğü; toplam süre yoksa geçen süre göster.
+    $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), ev);
   } else if (ev.type === 'done') {
     $('burninFill').style.width = '100%';
-    $('burninText').textContent = 'Tamamlandı ✓';
+    $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), ev);
     $('burnInCancel').classList.add('hidden');
     $('burnInBtn').classList.remove('hidden');
     logLine(`Videoya gömüldü: ${ev.file}`, 'success');
@@ -4887,6 +5000,8 @@ const player = {
   playlist: [],       // yerel klasör/çoklu seçim sırası
   playlistIndex: -1,
   autoNext: true,
+  sleepTimerAt: 0,      // epoch ms; 0 = kapalı
+  sleepTimerMode: '',   // '' | 'end' (bölüm sonunda dur)
   watchSession: null,
   watchManualCompletedKey: '',
   watchManualCompleted: null,
@@ -4966,6 +5081,7 @@ const player = {
   browserGpuDiagnostics: null,
   browserCaptureEnabled: true,
   browserPlaces: { history: [], bookmarks: [] },
+  browserOfflineList: [],
   browserJobs: [],
   browserPlaceTab: 'bookmarks',
   browserPlacesSeq: 0,
@@ -4985,6 +5101,7 @@ const player = {
   browserMangaError: '',
   browserMangaAutoUrl: '',
   browserMangaAutoTimer: null,
+  browserReaderAutoTimer: null,
   browserNoTrackTimer: null,
   browserMangaLookaheadBusy: false,
   browserMangaLookaheadTimer: null,
@@ -6110,6 +6227,147 @@ function renderBrowserTabs() {
   updateBrowserPinMenu();
 }
 
+// ----- Sekme bağlam menüsü + hover önizleme (B06) -----
+let browserTabMenuEl = null;
+let browserTabPreviewEl = null;
+let browserTabPreviewTimer = 0;
+
+function closeBrowserTabMenu() {
+  browserTabMenuEl?.remove();
+  browserTabMenuEl = null;
+  document.removeEventListener('mousedown', browserTabMenuOutside, true);
+}
+function browserTabMenuOutside(e) {
+  if (browserTabMenuEl && !browserTabMenuEl.contains(e.target)) closeBrowserTabMenu();
+}
+
+async function duplicateBrowserTab(tab) {
+  if (!tab) return;
+  const created = await createBrowserTab();
+  const url = String(tab.url || '');
+  if (created && url && /^https?:\/\//i.test(url)) {
+    await window.api.navigateBrowser?.(created.id, url).catch(() => null);
+  }
+}
+
+async function closeOtherBrowserTabs(keepId) {
+  for (const t of player.browserTabs.slice()) {
+    if (t.id !== keepId && !t.pinned) await closeBrowserTab(t.id);
+  }
+}
+async function closeRightBrowserTabs(tabId) {
+  const idx = player.browserTabs.findIndex((t) => t.id === tabId);
+  if (idx < 0) return;
+  for (const t of player.browserTabs.slice(idx + 1)) {
+    if (!t.pinned) await closeBrowserTab(t.id);
+  }
+}
+
+function openBrowserTabMenu(tabId, x, y) {
+  const tab = browserTabState(tabId);
+  if (!tab) return;
+  hideBrowserTabPreview();
+  closeBrowserTabMenu();
+  const menu = document.createElement('div');
+  menu.className = 'st-card-menu browser-tab-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', window.UiLocale?.t('Sekme seçenekleri') || 'Sekme seçenekleri');
+  const items = [];
+  const addItem = (label, action, disabled = false) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-card-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = label;
+    if (disabled) { btn.disabled = true; menu.appendChild(btn); return; }
+    btn.addEventListener('click', () => { closeBrowserTabMenu(); action(); });
+    menu.appendChild(btn);
+    items.push(btn);
+  };
+  if (tabId !== player.browserActiveTabId) {
+    addItem(window.UiLocale?.t('Sekmeye geç') || 'Sekmeye geç', () => activateBrowserTabAndFocus(tabId));
+  }
+  addItem(window.UiLocale?.t('Kopyasını aç') || 'Kopyasını aç', () => duplicateBrowserTab(tab));
+  addItem(tab.pinned
+    ? (window.UiLocale?.t('Sabitlemeyi kaldır') || 'Sabitlemeyi kaldır')
+    : (window.UiLocale?.t('Sabitle') || 'Sabitle'), () => toggleBrowserTabPinned(tabId));
+  if (tab.url) {
+    addItem(window.UiLocale?.t('Bağlantıyı kopyala') || 'Bağlantıyı kopyala', async () => {
+      const ok = await window.api.copyText?.(tab.url).catch(() => null);
+      setBrowserSignal(ok === true ? 'Sekme bağlantısı panoya kopyalandı.' : 'Bağlantı kopyalanamadı.', ok === true, { priority: 50, holdMs: 3000 });
+    });
+  }
+  const closableOthers = player.browserTabs.filter((t) => t.id !== tabId && !t.pinned);
+  addItem(window.UiLocale?.t('Diğer sekmeleri kapat') || 'Diğer sekmeleri kapat', () => closeOtherBrowserTabs(tabId), !closableOthers.length);
+  const rightCount = player.browserTabs.slice(player.browserTabs.findIndex((t) => t.id === tabId) + 1).filter((t) => !t.pinned).length;
+  addItem(window.UiLocale?.t('Sağdaki sekmeleri kapat') || 'Sağdaki sekmeleri kapat', () => closeRightBrowserTabs(tabId), !rightCount);
+  addItem(window.UiLocale?.t('Grubu düzenle…') || 'Grubu düzenle…', () => editBrowserTabGroup(tabId));
+  addItem(window.UiLocale?.t('Sekmeyi kapat') || 'Sekmeyi kapat', () => closeBrowserTab(tabId), !!tab.pinned);
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeBrowserTabMenu(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next]?.focus();
+    }
+  });
+  document.body.appendChild(menu);
+  browserTabMenuEl = menu;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
+  setTimeout(() => document.addEventListener('mousedown', browserTabMenuOutside, true), 0);
+  items[0]?.focus();
+}
+
+// Hover önizleme kartı: başlık + URL + durum rozeti (sabit/ses/indiriliyor).
+function hideBrowserTabPreview() {
+  clearTimeout(browserTabPreviewTimer);
+  browserTabPreviewTimer = 0;
+  browserTabPreviewEl?.remove();
+  browserTabPreviewEl = null;
+}
+function showBrowserTabPreview(tabId, anchor) {
+  const tab = browserTabState(tabId);
+  if (!tab || !anchor) return;
+  hideBrowserTabPreview();
+  const card = document.createElement('div');
+  card.className = 'browser-tab-preview';
+  card.setAttribute('role', 'tooltip');
+  const title = document.createElement('div');
+  title.className = 'browser-tab-preview-title';
+  title.textContent = tab.title || window.UiLocale?.t('Yeni sekme') || 'Yeni sekme';
+  const url = document.createElement('div');
+  url.className = 'browser-tab-preview-url';
+  url.textContent = tab.url || '';
+  card.append(title, url);
+  const chips = [];
+  if (tab.pinned) chips.push(window.UiLocale?.t('Sabit') || 'Sabit');
+  if (tab.loading) chips.push(window.UiLocale?.t('Yükleniyor') || 'Yükleniyor');
+  if (tab.tabMuted) chips.push(window.UiLocale?.t('Sessiz') || 'Sessiz');
+  else if (tab.audible) chips.push('♪');
+  if (chips.length) {
+    const row = document.createElement('div');
+    row.className = 'browser-tab-preview-chips';
+    row.textContent = chips.join(' · ');
+    card.appendChild(row);
+  }
+  document.body.appendChild(card);
+  browserTabPreviewEl = card;
+  const rect = anchor.getBoundingClientRect();
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  card.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - cw - 4))}px`;
+  card.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - ch - 4)}px`;
+}
+function scheduleBrowserTabPreview(e) {
+  const item = e.target.closest?.('[data-browser-tab-id]');
+  clearTimeout(browserTabPreviewTimer);
+  if (!item) { hideBrowserTabPreview(); return; }
+  const tabId = item.dataset.browserTabId;
+  browserTabPreviewTimer = setTimeout(() => showBrowserTabPreview(tabId, item), 450);
+}
+
 function updateBrowserPinMenu() {
   const button = $('browserPinActiveTab');
   if (!button) return;
@@ -6230,6 +6488,12 @@ async function activateBrowserTab(tabId) {
   if (!tabId) return null;
   if (player.browserSurface === 'settings') showBrowserWebSurface();
   if (tabId === player.browserActiveTabId) return browserTabState(tabId);
+  // B14 otomatik PiP: ses çalan sekmeden ayrılırken video küçük oynatıcıya
+  // taşınır (opt-in; sekme hedefi ve site kontrolleri değişmez).
+  const leaving = browserTabState();
+  if ($('browserAutoPip')?.checked && leaving && leaving.id !== tabId && leaving.audible && !leaving.closing) {
+    void window.api.browserExtras?.({ action: 'mini-open', tabId: leaving.id, generation: leaving.generation, mediaId: leaving.mediaId || '' }).catch(() => null);
+  }
   await flushWatchState(false, true);
   saveActiveBrowserTabWorkspace();
   const result = await window.api.activateBrowserTab(tabId).catch(() => null);
@@ -6727,8 +6991,12 @@ function renderBrowserQuickPlaces() {
 }
 
 function browserPlaceList() {
-  const places = player.browserPlaces || { history: [], bookmarks: [] };
   const query = String($('browserPlacesSearch')?.value || '').trim().toLocaleLowerCase('tr');
+  if (player.browserPlaceTab === 'offline') {
+    return (Array.isArray(player.browserOfflineList) ? player.browserOfflineList : []).filter(item =>
+      !query || `${item.title || ''} ${item.url || ''}`.toLocaleLowerCase('tr').includes(query));
+  }
+  const places = player.browserPlaces || { history: [], bookmarks: [] };
   const folder = player.browserPlaceTab === 'bookmarks' ? ($('browserPlacesFolder')?.value || '') : '';
   return (Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : []).filter(item => {
     if (folder && item.folder !== folder) return false;
@@ -6789,7 +7057,8 @@ function renderBrowserPlaces() {
     tab.tabIndex = active ? 0 : -1;
   });
   list?.setAttribute('aria-labelledby', player.browserPlaceTab === 'history'
-    ? 'browserPlaceTabHistory' : 'browserPlaceTabBookmarks');
+    ? 'browserPlaceTabHistory' : player.browserPlaceTab === 'offline'
+      ? 'browserPlaceTabOffline' : 'browserPlaceTabBookmarks');
   $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
   list.replaceChildren();
@@ -6802,7 +7071,9 @@ function renderBrowserPlaces() {
     const empty = document.createElement('div');
     empty.className = 'browser-place-empty';
     empty.textContent = filtered ? 'Aramanızla eşleşen kayıt bulunamadı. Aramayı veya klasör filtresini temizleyin.'
-      : player.browserPlaceTab === 'bookmarks' ? 'Henüz yer imi eklenmedi.' : 'Henüz ziyaret edilen site yok.';
+      : player.browserPlaceTab === 'bookmarks' ? 'Henüz yer imi eklenmedi.'
+        : player.browserPlaceTab === 'offline' ? 'Henüz çevrimdışı kopya yok. İçerik menüsünden “Çevrimdışı okuma listesine ekle” ile sayfanın o anki halini saklayabilirsiniz.'
+          : 'Henüz ziyaret edilen site yok.';
     list.appendChild(empty);
     return;
   }
@@ -6812,7 +7083,6 @@ function renderBrowserPlaces() {
     const open = document.createElement('button');
     open.className = 'browser-place-open';
     open.type = 'button';
-    open.dataset.placeOpen = item.url;
     const title = document.createElement('span');
     title.className = 'browser-place-title';
     title.textContent = browserPlaceTitle(item);
@@ -6823,16 +7093,30 @@ function renderBrowserPlaces() {
     const remove = document.createElement('button');
     remove.className = 'btn-icon browser-place-remove';
     remove.type = 'button';
-    remove.dataset.placeRemove = item.url;
-    remove.title = player.browserPlaceTab === 'history' ? 'Geçmişten kaldır' : 'Yer iminden kaldır';
-    remove.setAttribute('aria-label', remove.title);
     remove.appendChild(browserCloseIcon());
-    if (player.browserPlaceTab === 'bookmarks') {
-      const folder = document.createElement('button');
-      folder.type = 'button'; folder.className = 'browser-place-folder'; folder.dataset.placeFolder = item.url;
-      folder.title = item.folder ? `Klasör: ${item.folder}` : 'Klasöre taşı'; folder.textContent = item.folder || 'Klasör';
-      row.append(open, folder, remove);
-    } else row.append(open, remove);
+    if (player.browserPlaceTab === 'offline') {
+      open.dataset.offlineOpen = item.id;
+      remove.dataset.offlineRemove = item.id;
+      remove.title = 'Çevrimdışı kopyayı sil';
+      const refresh = document.createElement('button');
+      refresh.type = 'button';
+      refresh.className = 'browser-place-folder';
+      refresh.dataset.offlineRefresh = item.id;
+      refresh.title = 'Kopyayı canlı sayfadan yenile';
+      refresh.textContent = 'Yenile';
+      row.append(open, refresh, remove);
+    } else {
+      open.dataset.placeOpen = item.url;
+      remove.dataset.placeRemove = item.url;
+      remove.title = player.browserPlaceTab === 'history' ? 'Geçmişten kaldır' : 'Yer iminden kaldır';
+      if (player.browserPlaceTab === 'bookmarks') {
+        const folder = document.createElement('button');
+        folder.type = 'button'; folder.className = 'browser-place-folder'; folder.dataset.placeFolder = item.url;
+        folder.title = item.folder ? `Klasör: ${item.folder}` : 'Klasöre taşı'; folder.textContent = item.folder || 'Klasör';
+        row.append(open, folder, remove);
+      } else row.append(open, remove);
+    }
+    remove.setAttribute('aria-label', remove.title);
     list.appendChild(row);
   });
 }
@@ -6909,6 +7193,16 @@ async function refreshBrowserAddressResults() {
   const results = [];
   const seen = new Set();
   const add = (row) => { const key = `${row.action}:${row.id || row.url || row.title}`; if (!seen.has(key) && results.length < 14) { seen.add(key); results.push(row); } };
+  // Hesap satırı en üste girer: Enter ile sonuç panoya kopyalanır, gezinme için
+  // aşağıdaki Web satırına inilir (Chrome adres çubuğu hesaplayıcı davranışı).
+  const calc = globalThis.BrowserOmnibox?.evaluateArithmetic(query);
+  if (calc !== null && calc !== undefined) {
+    const display = `${query} = ${globalThis.BrowserOmnibox.formatCalcResult(calc)}`;
+    add({ action: 'calc', value: globalThis.BrowserOmnibox.formatCalcResult(calc),
+      title: display, detail: 'Enter: sonucu panoya kopyala', kindLabel: 'Hesap', mark: '=' });
+  }
+  // "!kod sorgu" biçimindeki bang kısayolu doğrudan hedef sitenin aramasına gider.
+  const bang = globalThis.BrowserOmnibox?.resolveBang(query);
   for (const tab of player.browserTabs) {
     if (`${tab.title} ${tab.url}`.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)) add({ action: 'tab', id: tab.id,
       title: browserTabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S' });
@@ -6920,6 +7214,9 @@ async function refreshBrowserAddressResults() {
         title: browserPlaceTitle(item), detail: item.url, kindLabel: label, mark });
     }
   }
+  if (bang) add({ action: 'navigate', url: bang.url,
+    title: bang.query ? `${bang.label} araması: ${bang.query}` : `${bang.label} ana sayfası`,
+    detail: bang.url, kindLabel: 'Kısayol', mark: '!' });
   add({ action: 'navigate', value: query, title: `“${query.slice(0, 120)}” için git veya ara`,
     detail: 'Adresse doğrudan açılır; değilse web araması yapılır.', kindLabel: 'Web', mark: 'A' });
   const seq = ++browserAddressSearchSeq;
@@ -6937,6 +7234,13 @@ async function useBrowserAddressResult(index) {
   const result = player.browserAddressResults[index];
   if (!result) return;
   closeBrowserAddressResults();
+  if (result.action === 'calc') {
+    const copied = await window.api.copyText?.(result.value).catch(() => null);
+    setBrowserSignal(copied === true
+      ? `Sonuç panoya kopyalandı: ${result.value}`
+      : 'Sonuç panoya kopyalanamadı.', copied === true, { priority: 50, holdMs: 3500 });
+    return;
+  }
   if (result.action === 'tab') await activateBrowserTab(result.id);
   else if (result.action === 'unified') await openUnifiedLibraryResult(result.result);
   else {
@@ -6968,6 +7272,7 @@ function browserProfileControls() {
     ['videoBrightness', 'browserVideoBrightness', 'Video parlaklığı (%)', 1, 100],
     ['videoContrast', 'browserVideoContrast', 'Video kontrastı (%)', 1, 100],
     ['darkMode', 'browserDarkMode', 'Koyu sayfa görünümü', false],
+    ['readerAuto', 'browserReaderAuto', 'Okuma görünümünü otomatik aç', false],
     ['normalizeAudio', 'browserNormalizeAudio', 'Konuşma sesi normalleştirme', false],
     ['silenceSpeedEnabled', 'browserSilenceSpeedEnabled', 'Sessizlikte hızlandır', false],
     ['silenceSpeedRate', 'browserSilenceSpeedRate', 'Sessizlik hızı', 3],
@@ -7106,6 +7411,18 @@ async function loadBrowserPlaces() {
   }
 }
 
+// B22 — çevrimdışı okuma listesi (MHTML deposu; yer imlerinden ayrı tutulur)
+let _browserReadingListSeq = 0;
+async function loadBrowserReadingList() {
+  if (!window.api.listBrowserReadingList) return;
+  const seq = ++_browserReadingListSeq;
+  const result = await window.api.listBrowserReadingList().catch(() => null);
+  if (seq === _browserReadingListSeq && result?.ok && Array.isArray(result.entries)) {
+    player.browserOfflineList = result.entries;
+    renderBrowserPlaces();
+  }
+}
+
 function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
@@ -7115,7 +7432,7 @@ function setBrowserPlacesOpen(open) {
   syncBrowserOcclusion();
   $('browserPlacesToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) {
-    loadBrowserPlaces(); renderBrowserPlaces();
+    loadBrowserPlaces(); loadBrowserReadingList(); renderBrowserPlaces();
     requestAnimationFrame(() => $('browserPlacesSearch')?.focus({ preventScroll: true }));
   } else if (panel.contains(document.activeElement)) {
     $('browserPlacesToggle')?.focus({ preventScroll: true });
@@ -8044,6 +8361,13 @@ function renderBrowserTracks(selectedId) {
   }
   const previous = selectedId || select.value;
   const previous2 = select2.value;
+  // Son kullanılan izler (dil+etiket anahtarı) seçicinin üstüne alınır; sıralama
+  // yalnız gösterim düzenidir, model dizisi değişmez.
+  const recency = new Map(browserRecentTrackKeys().map((key, index) => [key, index]));
+  const orderedTracks = recency.size
+    ? [...player.browserTracks].sort((a, b) =>
+        (recency.get(browserTrackRecencyKey(a)) ?? 99) - (recency.get(browserTrackRecencyKey(b)) ?? 99))
+    : player.browserTracks;
   // Yakalanan web izleri yalnızca tarayıcı şeridinde değil, oynatıcı ayar
   // panelindeki genel altyazı seçimlerinde de kullanılabilmeli.
   for (const track of player.browserTracks) {
@@ -8062,7 +8386,7 @@ function renderBrowserTracks(selectedId) {
       empty.value = ''; empty.textContent = 'İkinci iz yok';
       target.prepend(empty);
     }
-    for (const track of player.browserTracks) {
+    for (const track of orderedTracks) {
       let option = [...target.options].find((item) => item.value === String(track.id));
       if (!option) {
         option = document.createElement('option');
@@ -8072,7 +8396,8 @@ function renderBrowserTracks(selectedId) {
       const variant = track.role === 'translation'
         ? [track.provider, track.model].filter(Boolean).join(' / ') : (track.format || track.source || 'web');
       const date = Number(track.updatedAt) ? new Date(Number(track.updatedAt)).toLocaleDateString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) : '';
-      const label = [roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
+      const label = [recency.has(browserTrackRecencyKey(track)) ? '↺' : '',
+        roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
         variant, date, `${track.cueCount} satır`].filter(Boolean).join(' · ');
       if (option.textContent !== label) option.textContent = label;
       option.title = track.sourceMismatch
@@ -8383,6 +8708,7 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
   await loadSubtitle(track.path);
   if (player.subPath !== track.path || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   player.browserLoadedTrackId = track.id;
+  rememberBrowserTrackUse(track);
   setPlayerSidebarCollapsed(false);
   const sourceLanguage = browserTrackSourceLanguage(track);
   setBrowserSignal(translate
@@ -8390,6 +8716,26 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
     : 'Altyazı çalışma alanına yüklendi.', true);
   if (translate) return startBrowserLiveTranslation(track, sourceLanguage);
   return { ok: true };
+}
+
+const BROWSER_RECENT_TRACKS_KEY = 'whisper.browserRecentTracks';
+
+function browserRecentTrackKeys() {
+  try {
+    const list = JSON.parse(localStorage.getItem(BROWSER_RECENT_TRACKS_KEY) || '[]');
+    return Array.isArray(list) ? list.filter((key) => typeof key === 'string' && key).slice(0, 8) : [];
+  } catch (_) { return []; }
+}
+
+function browserTrackRecencyKey(track) {
+  return `${String(track?.language || '').toLowerCase()}|${String(track?.label || track?.source || '').toLowerCase()}`;
+}
+
+function rememberBrowserTrackUse(track) {
+  const key = browserTrackRecencyKey(track);
+  if (!key || key === '|') return;
+  const next = [key, ...browserRecentTrackKeys().filter((item) => item !== key)].slice(0, 8);
+  try { localStorage.setItem(BROWSER_RECENT_TRACKS_KEY, JSON.stringify(next)); } catch (_) {}
 }
 
 async function completeSelectedBrowserTranslation() {
@@ -9931,6 +10277,32 @@ function updateBrowserNavigation(data, options = {}) {
   updateBrowserWhisperActions();
   syncBrowserAddressAction();
   syncBrowserReaderControl(tab);
+  // C03: site kuralı readerAuto — sayfa yüklenince okuma görünümü kendiliğinden
+  // açılır. Döngüye karşı nesil+URL eşlemesi; uyumluluk modunda çalışmaz.
+  if (data.loading === false && data.url && !tab?.readerActive && !tab?.compatibilityMode) {
+    clearTimeout(player.browserReaderAutoTimer);
+    const expectedTabId = player.browserActiveTabId;
+    const expectedGeneration = tab?.generation;
+    const expectedUrl = data.url;
+    player.browserReaderAutoTimer = setTimeout(() => {
+      player.browserReaderAutoTimer = null;
+      const current = browserTabState(expectedTabId);
+      if (player.browserActiveTabId !== expectedTabId || !current
+          || current.generation !== expectedGeneration
+          || player.browserPageUrl !== expectedUrl
+          || current.readerActive || current.compatibilityMode) return;
+      let enabled = false;
+      try { enabled = effectiveBrowserProfile().values.readerAuto === true; } catch (_) {}
+      if (!enabled || !window.api.setBrowserReader) return;
+      void window.api.setBrowserReader(expectedTabId, 'open', current.readerPreferences || {})
+        .then((result) => {
+          if (!result?.ok) return;
+          current.readerActive = !!result.active;
+          current.readerPreferences = result.preferences || current.readerPreferences;
+          if (current.id === player.browserActiveTabId) syncBrowserReaderControl(current);
+        }).catch(() => {});
+    }, 700);
+  }
   if (pageChanged || data.loading === false) void renderBrowserPermissions();
   return true;
 }
@@ -10416,6 +10788,7 @@ function setWorkspaceMode(mode, persist = true) {
       ? player.localPath.split(/[\\/]/).pop() : (player.ytInfo && player.ytInfo.title) || (window.UiLocale?.t('Oynatıcı') || 'Oynatıcı');
     $('playerMeta').textContent = window.UiLocale?.t('Çift dilli izleme ve çalışma alanı') || 'Çift dilli izleme ve çalışma alanı';
   }
+  syncPlayerMediaSession();
   if (persist) {
     try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
   }
@@ -10438,13 +10811,15 @@ function syncBrowserAddressAction() {
 }
 
 async function navigateBrowserFromAddress() {
-  const value = $('browserAddress')?.value.trim();
-  if (!value || !window.api.navigateBrowser) {
+  const rawValue = $('browserAddress')?.value.trim();
+  if (!rawValue || !window.api.navigateBrowser) {
     $('browserAddress')?.focus();
     return null;
   }
   $('browserAddress')?.blur?.();
   closeBrowserAddressResults();
+  // "!kod sorgu" kısayolu daha main sürece ulaşmadan hedef URL'ye çevrilir.
+  const value = globalThis.BrowserOmnibox?.resolveBang?.(rawValue)?.url || rawValue;
   if (player.browserSurface === 'settings') showBrowserWebSurface();
   const navigateSeq = ++player.browserNavigateSeq;
   const tabId = player.browserActiveTabId;
@@ -10511,8 +10886,18 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('contextmenu', (
   const item = event.target.closest('[data-browser-tab-id]');
   if (!item) return;
   event.preventDefault();
-  editBrowserTabGroup(item.dataset.browserTabId);
+  openBrowserTabMenu(item.dataset.browserTabId, event.clientX, event.clientY);
 });
+// B06 hover önizleme: 450ms gecikmeyle sekme bilgi kartı; çıkışta kapanır.
+if ($('browserTabStrip')) {
+  $('browserTabStrip').addEventListener('mouseover', scheduleBrowserTabPreview);
+  $('browserTabStrip').addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget || !e.relatedTarget.closest?.('[data-browser-tab-id]')) hideBrowserTabPreview();
+  });
+  $('browserTabStrip').addEventListener('focusin', scheduleBrowserTabPreview);
+  $('browserTabStrip').addEventListener('focusout', hideBrowserTabPreview);
+  $('browserTabStrip').addEventListener('dragstart', hideBrowserTabPreview);
+}
 let browserDraggedTabId = '';
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dragstart', (event) => {
   const item = event.target.closest('[data-browser-tab-id]');
@@ -10826,10 +11211,32 @@ async function clearBrowserCookieScope(scope) {
 if ($('browserSiteCookiesClear')) $('browserSiteCookiesClear').addEventListener('click', () => clearBrowserCookieScope('site'));
 if ($('browserCookiesClear')) $('browserCookiesClear').addEventListener('click', () => clearBrowserCookieScope('all'));
 document.querySelectorAll('[data-place-tab]').forEach((tab) => tab.addEventListener('click', () => {
-  player.browserPlaceTab = tab.dataset.placeTab === 'history' ? 'history' : 'bookmarks';
+  player.browserPlaceTab = ['history', 'offline'].includes(tab.dataset.placeTab) ? tab.dataset.placeTab : 'bookmarks';
+  if (player.browserPlaceTab === 'offline') loadBrowserReadingList();
   renderBrowserPlaces();
 }));
 if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', async (event) => {
+  const offlineOpen = event.target.closest('[data-offline-open]');
+  if (offlineOpen) {
+    const result = await window.api.openBrowserReadingList?.(player.browserActiveTabId, offlineOpen.dataset.offlineOpen).catch(() => null);
+    if (result?.ok) { setBrowserPlacesOpen(false); return; }
+    if (!result?.aborted) setBrowserSignal(`Çevrimdışı kopya açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  const offlineRefresh = event.target.closest('[data-offline-refresh]');
+  if (offlineRefresh) {
+    const result = await window.api.refreshBrowserReadingList?.(player.browserActiveTabId, offlineRefresh.dataset.offlineRefresh).catch(() => null);
+    if (result?.ok) { setBrowserSignal('Çevrimdışı kopya yenilendi.', true); loadBrowserReadingList(); }
+    else setBrowserSignal(`Kopya yenilenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  const offlineRemove = event.target.closest('[data-offline-remove]');
+  if (offlineRemove) {
+    const result = await window.api.removeBrowserReadingList?.(offlineRemove.dataset.offlineRemove).catch(() => null);
+    if (result?.ok) loadBrowserReadingList();
+    else setBrowserSignal(`Kopya silinemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
   const folder = event.target.closest('[data-place-folder]');
   if (folder) {
     const item = (player.browserPlaces.bookmarks || []).find(entry => entry.url === folder.dataset.placeFolder);
@@ -17848,6 +18255,10 @@ function closePlayer() {
   }
   stopAmbient();
   if (video) video.pause();
+  if (typeof clearPlayerMediaSession === 'function') clearPlayerMediaSession();
+  player.sleepTimerAt = 0;
+  player.sleepTimerMode = '';
+  if ($('sleepTimer')) $('sleepTimer').value = '0';
   flushWatchState(false, true);
   destroyHls();
   disconnectBrowserBoundsObserver();
@@ -18816,6 +19227,152 @@ document.addEventListener('keydown', (event) => {
 if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
   closeBrowserToolbarMenus();
   openBrowserFind();
+});
+function setBrowserQrOpen(open) {
+  const panel = $('browserQrPanel');
+  if (!panel) return;
+  if (open) { setBrowserPlacesOpen(false); setBrowserDownloadsOpen(false); }
+  panel.classList.toggle('hidden', !open);
+  panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  syncBrowserOcclusion();
+  if (!open && panel.contains(document.activeElement)) $('browserMoreMenu')?.querySelector('summary')?.focus({ preventScroll: true });
+}
+
+async function showBrowserQrPanel() {
+  const panel = $('browserQrPanel');
+  const canvas = $('browserQrCanvas');
+  const urlEl = $('browserQrUrl');
+  if (!panel || !canvas || !urlEl) return;
+  const url = player.browserPageUrl || '';
+  urlEl.textContent = url;
+  setBrowserQrOpen(true);
+  if (!url || typeof globalThis.QRCode?.toCanvas !== 'function') {
+    setBrowserSignal('QR kodu için geçerli bir sayfa adresi yok.', false, { priority: 60, holdMs: 4000 });
+    return;
+  }
+  try {
+    await globalThis.QRCode.toCanvas(canvas, url, { errorCorrectionLevel: 'M', margin: 1, width: 168 });
+  } catch {
+    setBrowserSignal('QR kodu üretilemedi.', false, { priority: 60, holdMs: 4000 });
+  }
+}
+
+if ($('browserQrClose')) $('browserQrClose').addEventListener('click', () => setBrowserQrOpen(false));
+$('browserQrPanel')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  event.stopPropagation();
+  setBrowserQrOpen(false);
+});
+if ($('browserQrCopy')) $('browserQrCopy').addEventListener('click', async () => {
+  const url = $('browserQrUrl')?.textContent || '';
+  const copied = url ? await window.api.copyText?.(url).catch(() => null) : null;
+  setBrowserSignal(copied === true ? 'Adres panoya kopyalandı.' : 'Adres kopyalanamadı.', copied === true, { priority: 50, holdMs: 3500 });
+});
+if ($('browserShowQr')) $('browserShowQr').addEventListener('click', () => {
+  closeBrowserToolbarMenus();
+  showBrowserQrPanel();
+});
+if ($('browserCopyPageMarkdown')) $('browserCopyPageMarkdown').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const url = player.browserPageUrl || '';
+  if (!url) { setBrowserSignal('Kopyalanacak sayfa adresi yok.', false, { priority: 60, holdMs: 4000 }); return; }
+  const text = globalThis.BrowserOmnibox?.markdownLink(player.browserPageTitle || url, url) || url;
+  const copied = await window.api.copyText?.(text).catch(() => null);
+  setBrowserSignal(copied === true ? `Markdown bağlantısı kopyalandı: ${text}` : 'Bağlantı kopyalanamadı.', copied === true, { priority: 60, holdMs: 4500 });
+});
+if ($('browserReadLater')) $('browserReadLater').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const button = $('browserReadLater');
+  if (button.disabled) return;
+  button.disabled = true;
+  const result = await window.api.addBrowserReadingList?.(player.browserActiveTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  button.disabled = false;
+  if (result?.ok) {
+    setBrowserSignal(result.refreshed
+      ? 'Çevrimdışı okuma kopyası güncellendi.'
+      : 'Sayfa çevrimdışı okuma listesine eklendi.', true, { priority: 60, holdMs: 4500 });
+    loadBrowserReadingList();
+  } else setBrowserSignal(result?.error || 'Çevrimdışı kopya kaydedilemedi.', false, { priority: 90, holdMs: 6500 });
+});
+// B10 — kozmetik element picker: seçilen öğe önce geçici CSS ile gizlenir,
+// kullanıcı onaylarsa kaynak bazlı kalıcı kurala yazılır (geri alma: iptal).
+if ($('browserElementPick')) $('browserElementPick').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const tabId = player.browserActiveTabId;
+  if (!tabId) return;
+  setBrowserSignal('Sayfada gizlemek istediğin öğeye tıkla (Esc: vazgeç).', true, { priority: 55, holdMs: 8000 });
+  const result = await window.api.browserElementRules?.({ action: 'pick', tabId })
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    if (!result?.cancelled) setBrowserSignal(result?.error || 'Öğe seçilemedi.', false, { priority: 60, holdMs: 4000 });
+    return;
+  }
+  const accepted = await openAppDialog({
+    title: 'Öğe gizlendi',
+    description: `Seçici: ${result.selector}\n\nBu siteye her girişte gizlenmesi için kuralı kaydet; vazgeçersen öğe hemen geri görünür.`,
+    confirmLabel: 'Kalıcı kaydet',
+    intent: 'primary',
+  });
+  if (accepted) {
+    const saved = await window.api.browserElementRules?.({ action: 'save', tabId, selector: result.selector })
+      .catch((error) => ({ ok: false, error: error.message }));
+    setBrowserSignal(saved?.ok ? 'Öğe bu site için kalıcı gizlendi.' : (saved?.error || 'Kural kaydedilemedi.'), !!saved?.ok, { priority: 60, holdMs: 4000 });
+  } else {
+    await window.api.browserElementRules?.({ action: 'undo', tabId }).catch(() => null);
+    setBrowserSignal('Öğe gizleme geri alındı.', true, { priority: 40, holdMs: 2500 });
+  }
+});
+if ($('browserElementClear')) $('browserElementClear').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const tabId = player.browserActiveTabId;
+  if (!tabId) return;
+  const listed = await window.api.browserElementRules?.({ action: 'list', tabId }).catch(() => null);
+  const count = listed?.selectors?.length || 0;
+  if (!listed?.ok || !count) {
+    setBrowserSignal('Bu sitede gizlenen öğe yok.', false, { priority: 50, holdMs: 3000 });
+    return;
+  }
+  const accepted = await openAppDialog({
+    title: 'Gizlenen öğeleri geri yükle',
+    description: `Bu sitede ${count} gizleme kuralı var:\n${listed.selectors.slice(0, 8).join('\n')}${count > 8 ? '\n…' : ''}`,
+    confirmLabel: 'Tümünü kaldır',
+  });
+  if (!accepted) return;
+  const cleared = await window.api.browserElementRules?.({ action: 'clear', tabId }).catch(() => null);
+  setBrowserSignal(cleared?.ok ? 'Gizlenen öğeler geri yüklendi.' : (cleared?.error || 'Kurallar kaldırılamadı.'), !!cleared?.ok, { priority: 60, holdMs: 3500 });
+});
+// A17 — açık sayfa URL'sini harici oynatıcıya ver (yalnız http/https; imzalı
+// akış veya DRM isteği hiçbir zaman buradan çıkmaz).
+for (const [btnId, playerName] of [['browserPlayMpv', 'mpv'], ['browserPlayVlc', 'vlc']]) {
+  const btn = $(btnId);
+  if (!btn) continue;
+  btn.addEventListener('click', async () => {
+    closeBrowserToolbarMenus();
+    const tab = browserTabState();
+    const url = tab?.url || '';
+    if (!/^https?:/i.test(url)) {
+      setBrowserSignal('Bu sekme açık bir http/https sayfası değil.', false, { priority: 60, holdMs: 3500 });
+      return;
+    }
+    await stPlayExternal(playerName, { url });
+  });
+}
+if ($('browserExportPdf')) $('browserExportPdf').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const button = $('browserExportPdf');
+  if (button.disabled) return;
+  button.disabled = true;
+  const result = await window.api.exportBrowserPagePdf?.(player.browserActiveTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  button.disabled = false;
+  if (result?.ok) {
+    setBrowserSignal('Sayfa PDF olarak kaydedildi.', true, { priority: 60, holdMs: 4500 });
+    logLine(`PDF kaydedildi: ${result.path}`, 'success');
+  } else if (!result?.canceled) {
+    setBrowserSignal(result?.error || 'Sayfa PDF olarak kaydedilemedi.', false, { priority: 90, holdMs: 6500 });
+  }
 });
 if ($('browserReopenTab')) $('browserReopenTab').addEventListener('click', () => {
   closeBrowserToolbarMenus();
@@ -20827,12 +21384,14 @@ if ($('playerVideo')) {
     // A-B işaretleri de: metadata'dan önce basılan B, süresizken çizilemeyip
     // sonsuza kayboluyordu.
     renderAbMarkers();
+    syncPlayerMediaSession();
   });
   video.addEventListener('play', () => {
     showControls();
     if (player.ambientOn) startAmbient();
     if (!player.watchSession) beginWatchSession();
     if (player.watchSession) player.watchSession.lastClock = Date.now();
+    syncPlayerMediaSession();
   });
   video.addEventListener('pause', () => {
     interruptHlsStability();
@@ -20843,12 +21402,19 @@ if ($('playerVideo')) {
     savePlayerPosition();
     if (player.watchSession) player.watchSession.lastClock = 0;
     flushWatchState(false, true);
+    syncPlayerMediaSession();
   });
   video.addEventListener('ended', async () => {
     stopPlayerVideoFrameLoop();
     renderCue();
     await flushWatchState(true, true);
-    if (player.autoNext && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    else if (player.sleepTimerMode !== 'end') stAutoRelatedNext();
+    if (player.sleepTimerMode === 'end') {
+      player.sleepTimerMode = '';
+      if ($('sleepTimer')) $('sleepTimer').value = '0';
+      osd('Uyku zamanlayıcısı: bölüm sonunda durduruldu', 5000);
+    }
   });
   video.addEventListener('error', () => {
     const code = video.error?.code;
@@ -20863,6 +21429,21 @@ if ($('playerVideo')) {
 
   $('playPause').addEventListener('click', () => {
     if (video.paused) video.play().catch(() => {}); else video.pause();
+  });
+  const sleepSel = $('sleepTimer');
+  if (sleepSel) sleepSel.addEventListener('change', () => {
+    const value = sleepSel.value;
+    if (value === 'end') {
+      player.sleepTimerAt = 0;
+      player.sleepTimerMode = 'end';
+      osd('Uyku zamanlayıcısı: bu bölüm bitince duraklatılacak');
+    } else {
+      const minutes = Number(value);
+      player.sleepTimerMode = '';
+      player.sleepTimerAt = minutes > 0 ? Date.now() + minutes * 60000 : 0;
+      osd(minutes > 0 ? `Uyku zamanlayıcısı: ${minutes} dakika` : 'Uyku zamanlayıcısı kapalı');
+    }
+    syncPlayerMediaSession();
   });
   $('playerSeek').addEventListener('input', (e) => {
     player.loopCueId = '';
@@ -20993,7 +21574,15 @@ if ($('subtitleModeMenu')) {
     if (player.suppressClick) return;      // 2x basili tutmadan sonra gelen tik
     video.paused ? video.play().catch(() => {}) : video.pause();
   });
-  video.addEventListener('dblclick', () => $('fullscreenBtn').click());
+  // Videoya çift tıkla: YouTube düzeni — orta bölge tam ekran, sol/sağ %30
+  // kenarlar ∓10 sn seek. İki click'in net oynat/duraklat etkisi nötr kalır.
+  video.addEventListener('dblclick', (e) => {
+    const rect = video.getBoundingClientRect();
+    const ratio = rect.width ? (e.clientX - rect.left) / rect.width : .5;
+    if (ratio < 0.3) { video.currentTime -= 10; updateSeekVisuals(); showControls(); osd('-10 sn'); return; }
+    if (ratio > 0.7) { video.currentTime += 10; updateSeekVisuals(); showControls(); osd('+10 sn'); return; }
+    $('fullscreenBtn').click();
+  });
 
   // Zaman çubuğunda imleç: o andaki zaman + o anda ne söyleniyor
   const wrap = $('seekWrap');
@@ -21012,8 +21601,12 @@ if ($('subtitleModeMenu')) {
         : pSecToTime(t);
       tip.style.left = `${ratio * 100}%`;
       tip.classList.remove('hidden');
+      updateSeekThumb(t, ratio, video.duration);
     });
-    wrap.addEventListener('mouseleave', () => $('seekTip').classList.add('hidden'));
+    wrap.addEventListener('mouseleave', () => {
+      $('seekTip').classList.add('hidden');
+      $('seekThumb')?.classList.add('hidden');
+    });
   }
 
   if ($('resumeGo')) {
@@ -21042,6 +21635,98 @@ if ($('subtitleModeMenu')) {
     if (!document.fullscreenElement) stage.requestFullscreen().catch(() => {});
     else document.exitFullscreen().catch(() => {});
   });
+}
+
+// A20/B01: seekbar kare önizlemesi — YouTube storyboard veya yerel ffmpeg
+// sprite'ı. Sprite bilgisi ortak şema: {image|template, columns, rows, count,
+// frameWidth, frameHeight, intervalMs, level?}.
+function pickSeekStoryboard(boards) {
+  const list = (Array.isArray(boards) ? boards : [])
+    .filter((b) => b && b.template && b.count > 0 && b.columns > 0 && b.rows > 0);
+  if (!list.length) return null;
+  // ~160px hedef: en küçük yeterli seviye, yoksa en büyüğü
+  return list.filter((b) => b.width >= 160).sort((a, b) => a.width - b.width)[0]
+    || list.slice().sort((a, b) => b.width - a.width)[0];
+}
+
+async function ensureSeekPreviewSheet() {
+  if (!player.localPath || !window.api.getSeekPreview) return;
+  const key = player.mediaKey;
+  if (!key || player.seekLocalSheets?.has(key) || player.seekLocalBusy) return;
+  const video = $('playerVideo');
+  const duration = video && Number.isFinite(video.duration) ? video.duration : 0;
+  if (!duration) return;
+  player.seekLocalBusy = true;
+  const path = player.localPath;
+  try {
+    const res = await window.api.getSeekPreview(path, duration).catch(() => null);
+    if (res?.ok && res.image && player.localPath === path) {
+      player.seekLocalSheets = player.seekLocalSheets || new Map();
+      if (player.seekLocalSheets.size >= 8) {
+        player.seekLocalSheets.delete(player.seekLocalSheets.keys().next().value);
+      }
+      player.seekLocalSheets.set(key, {
+        image: res.image, columns: res.columns || 10, rows: res.rows || 10,
+        count: res.count || 100, frameWidth: res.frameWidth || 160,
+        // Kare yüksekliği scale=160:-2'den gelir; ilk yüklenen resimde ölçülür.
+        frameHeight: 0,
+        intervalMs: Math.max(1, duration) * 1000 / (res.count || 100),
+      });
+    }
+  } finally { player.seekLocalBusy = false; }
+}
+
+function updateSeekThumb(t, ratio, duration) {
+  const el = $('seekThumb');
+  if (!el) return;
+  let sheet = null;
+  // Invidious/YouTube storyboard — ytInfo hâlâ açık videoya aitse kullan
+  const board = pickSeekStoryboard(player.ytInfo?.storyboards);
+  if (board && (!player.ytInfo?.videoKey || player.ytInfo.videoKey === player.mediaKey)) {
+    const interval = Number(board.intervalMs) > 0
+      ? Number(board.intervalMs) : (duration * 1000) / board.count;
+    sheet = {
+      image: '', columns: board.columns, rows: board.rows, count: board.count,
+      frameWidth: board.width, frameHeight: board.height, intervalMs: interval,
+      urlFor: (page) => board.template.replace('$L', String(board.level || 0)).replace('$N', `M${page}`),
+    };
+  } else if (player.localPath) {
+    sheet = player.seekLocalSheets?.get(player.mediaKey) || null;
+    if (!sheet) { void ensureSeekPreviewSheet(); }
+  }
+  if (!sheet) { el.classList.add('hidden'); return; }
+  const index = Math.max(0, Math.min(sheet.count - 1, Math.floor((t * 1000) / sheet.intervalMs)));
+  const perPage = sheet.columns * sheet.rows;
+  const page = Math.floor(index / perPage);
+  const cell = index % perPage;
+  const col = cell % sheet.columns;
+  const row = Math.floor(cell / sheet.columns);
+  const url = sheet.image || (sheet.urlFor ? sheet.urlFor(page) : '');
+  if (!url) { el.classList.add('hidden'); return; }
+  if (el.dataset.sheetUrl !== url) {
+    el.style.backgroundImage = `url("${url}")`;
+    el.dataset.sheetUrl = url;
+    // Sprite sayfası yeni yüklendiyse doğal ölçüden hücre oranını ölç (yerel).
+    if (!sheet.frameHeight && sheet.image) {
+      const probe = new Image();
+      probe.onload = () => {
+        if (probe.naturalWidth && sheet.columns) {
+          sheet.frameHeight = Math.round(probe.naturalHeight / sheet.rows);
+          sheet.frameWidth = Math.round(probe.naturalWidth / sheet.columns);
+        }
+      };
+      probe.src = sheet.image;
+    }
+  }
+  // Görüntü her zaman 160px genişliğinde; sprite hücre ölçüsü bu orana ölçeklenir.
+  const fh = sheet.frameHeight || Math.round((sheet.frameWidth || 160) * 9 / 16);
+  const scale = 160 / (sheet.frameWidth || 160);
+  const cellH = Math.round(fh * scale);
+  el.style.height = `${cellH}px`;
+  el.style.backgroundSize = `${sheet.columns * 160}px ${sheet.rows * cellH}px`;
+  el.style.backgroundPosition = `-${col * 160}px -${row * cellH}px`;
+  el.style.left = `${ratio * 100}%`;
+  el.classList.remove('hidden');
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -21124,6 +21809,23 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); stUpNextToggle(); return; }
+  // YouTube-paritesi: T sinema (theater) modu — yalnız yerel oynatıcıda;
+  // tarayıcı modunda sinema zaten çıkışa zorlanıyor. K, bu uygulamada kurulu
+  // "cümleyi kaydet" eylemini korur (Boşluk zaten oynat/duraklat).
+  if (e.key === 't' || e.key === 'T') {
+    if (player.workspaceMode !== 'browser') {
+      e.preventDefault();
+      setViewMode(player.viewMode === 'cinema' ? (player.lastSideMode || 'reading') : 'cinema');
+      osd(player.viewMode === 'cinema' ? 'Sinema modu' : 'Sinema modundan çıkıldı');
+    }
+    return;
+  }
+  // I mini oynatıcı: tarayıcıda ayrı küçük pencere, yerelde resim-içinde-resim.
+  if (e.key === 'i' || e.key === 'I') {
+    e.preventDefault();
+    toggleMiniPlayer().catch(() => {});
+    return;
+  }
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
     if ((e.key === ',' || e.key === '.') && player.browserPaused) {
       e.preventDefault();
@@ -21260,6 +21962,85 @@ async function nudgeSpeed(dir) {
   osd(`${target}× hız`);
   showControls();
 }
+
+// Mini oynatıcı (I): tarayıcı modunda sekmeyi ayrı küçük pencereye taşır;
+// yerel videoda resim-içinde-resim kullanır.
+async function toggleMiniPlayer() {
+  if (player.workspaceMode === 'browser') {
+    const tab = browserTabState();
+    if (!tab) { osd('Önce tarayıcıda bir video açın.'); return; }
+    const result = await window.api.browserExtras?.({ action: 'mini-open', tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' })
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) osd(result?.error || 'Küçük oynatıcı açılamadı.');
+    else osd('Küçük oynatıcı açıldı');
+    return;
+  }
+  const video = $('playerVideo');
+  if (!video || !player.mediaKey) { osd('Önce bir video açın.'); return; }
+  try {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture();
+    else if (document.pictureInPictureEnabled) await video.requestPictureInPicture();
+    else { osd('Resim içinde resim bu sürümde kullanılamıyor.'); return; }
+    osd('Mini oynatıcı ' + (document.pictureInPictureElement ? 'açıldı' : 'kapatıldı'));
+  } catch (_) {
+    osd('Resim içinde resim açılamadı; video oynarken deneyin.');
+  }
+}
+
+// OS medya oturumu (A36): donanım/media tuşları ve now-playing kartı.
+// Tarayıcı modunda web sayfasının kendi oturumu bırakılır — bizim handler'lar
+// o sırada yerel videoyu etkilemesin diye durum 'none'a çekilir.
+let _mediaSessionBound = false;
+function syncPlayerMediaSession() {
+  const ms = navigator.mediaSession;
+  if (!ms) return;
+  const video = $('playerVideo');
+  const active = player.workspaceMode !== 'browser' && !!player.mediaKey;
+  try {
+    ms.metadata = active
+      ? new MediaMetadata({ title: $('playerTitle')?.textContent || 'Whisper Player', artist: 'Whisper' })
+      : null;
+    ms.playbackState = active ? (video && !video.paused ? 'playing' : 'paused') : 'none';
+    if (active && video && Number.isFinite(video.duration)) {
+      ms.setPositionState({ duration: video.duration, playbackRate: video.playbackRate || 1, position: video.currentTime || 0 });
+    }
+  } catch (_) { /* bazı değer kombinasyonları (ör. position>duration) reddedilir */ }
+  if (_mediaSessionBound) return;
+  _mediaSessionBound = true;
+  const bind = (action, fn) => { try { ms.setActionHandler(action, fn); } catch (_) {} };
+  bind('play', () => { if (player.workspaceMode !== 'browser') video?.play().catch(() => {}); });
+  bind('pause', () => { if (player.workspaceMode !== 'browser') video?.pause(); });
+  bind('seekbackward', (d) => { if (player.workspaceMode !== 'browser' && video) { video.currentTime -= d.seekOffset || 10; updateSeekVisuals(); } });
+  bind('seekforward', (d) => { if (player.workspaceMode !== 'browser' && video) { video.currentTime += d.seekOffset || 10; updateSeekVisuals(); } });
+  bind('seekto', (d) => { if (player.workspaceMode !== 'browser' && video && d.fastSeek) video.fastSeek(d.seekTime); else if (player.workspaceMode !== 'browser' && video) video.currentTime = d.seekTime; });
+  bind('previoustrack', () => { if (player.workspaceMode !== 'browser') playPlaylistDelta(-1); });
+  bind('nexttrack', () => { if (player.workspaceMode !== 'browser') playPlaylistDelta(1); });
+}
+function clearPlayerMediaSession() {
+  const ms = navigator.mediaSession;
+  if (!ms) return;
+  try { ms.metadata = null; ms.playbackState = 'none'; } catch (_) {}
+}
+
+// Uyku zamanlayıcısı (A38 alt maddesi): süre dolunca oynatma duraklar;
+// 'Bölüm sonunda' seçeneği autoNext'i bir kereye mahsus engeller.
+function sleepTimerLabel() {
+  if (player.sleepTimerMode === 'end') return 'bölüm sonunda';
+  if (!player.sleepTimerAt) return '';
+  const mins = Math.max(0, Math.ceil((player.sleepTimerAt - Date.now()) / 60000));
+  return `${mins} dk`;
+}
+function checkPlayerSleepTimer() {
+  if (!player.sleepTimerAt || Date.now() < player.sleepTimerAt) return;
+  player.sleepTimerAt = 0;
+  player.sleepTimerMode = '';
+  const sel = $('sleepTimer');
+  if (sel) sel.value = '0';
+  if (player.workspaceMode === 'browser') browserCommand('pause').catch(() => {});
+  else $('playerVideo')?.pause();
+  osd('Uyku zamanlayıcısı: oynatma duraklatıldı', 5000);
+}
+setInterval(checkPlayerSleepTimer, 15000);
 
 // Ses cubugu ozel cizildigi icin dolgu yuzdesini CSS'e biz veriyoruz.
 function syncVolumeFill() {
@@ -22417,11 +23198,31 @@ async function fetchInvidiousFeed(kind, force = false, opts = {}) {
   return res.data;
 }
 
-async function searchInvidious(query, page = 1) {
+async function searchInvidious(query, page = 1, opts = {}) {
   if (!query || !query.trim()) return [];
-  const res = await invCall(() => window.api.invidiousSearch(query.trim(), { page }));
+  const call = { page };
+  // A04/A28: features (live|hd|...) ve searchType playlist aramaları aynı IPC'den geçer
+  if (opts.features) call.features = String(opts.features).slice(0, 60);
+  if (opts.searchType) call.searchType = String(opts.searchType).slice(0, 20);
+  const res = await invCall(() => window.api.invidiousSearch(query.trim(), call));
   if (!res || !res.ok || !res.data) return [];
   return res.data.videos || [];
+}
+
+// A28: playlist araması — video sonuçlarından ayrı, aynı 'invidious' işi içinde
+// serileşir; yt-dlp yedeği playlist üretmediğinden hata sessizce boş listeye düşer.
+async function searchInvidiousPlaylists(query) {
+  if (!query || !query.trim()) return [];
+  const res = await invCall(() => window.api.invidiousSearch(query.trim(), { page: 1, searchType: 'playlist' })).catch(() => null);
+  if (!res || !res.ok || !res.data) return [];
+  return res.data.playlists || [];
+}
+
+async function loadInvidiousPlaylist(playlistId, page = 1) {
+  if (!playlistId) return null;
+  const res = await invCall(() => window.api.invidiousPlaylist(playlistId, { page })).catch(() => null);
+  if (!res || !res.ok || !res.data) return null;
+  return res.data;   // { playlistId, title, author, authorId, videoCount, videos }
 }
 
 async function fetchInvidiousSubscriptions(force = false) {
@@ -22608,9 +23409,17 @@ function stSelectSection(section) {
       popular: 'Popüler',
       subscriptions: 'Abonelikler',
       channels: 'Kanallarım',
+      music: 'Müzik',
+      gaming: 'Oyun',
+      news: 'Haberler',
+      live: 'Canlı',
+      history: 'Geçmiş',
+      myplaylists: 'Listelerim',
     };
     title.textContent = labels[section] || section;
   }
+  // A04: bölüm seçimi cihazda kaydedilir — oturum açılışında aynı bölümde devam.
+  try { localStorage.setItem('stSection', section); } catch (_) {}
   renderSmartTubeSection(section);
 }
 
@@ -22668,10 +23477,77 @@ async function renderSmartTubeSection(section, opts = {}) {
   let videos = [];
   let youtubeHomeFallback = false;
   try {
+    // A06: YouTube girişi yoksa Abonelikler bölümü yerel listeyi gösterir —
+    // Invidious oturumu gerektiren uzak akış yerine cihazda tutulan kayıtlar.
+    if (section === 'subscriptions' && !youtubeLoggedIn) {
+      if (stale()) return;
+      renderStSubsPanel(grid);
+      setSmartTubeStatus('');
+      return;
+    }
     if (section === 'channels') {
       const channels = await fetchInvidiousSubscriptions(force).catch(() => null);
       if (stale()) return;
       renderSmartTubeChannels(channels || []);
+      return;
+    }
+    // A04: Geçmiş — watch-library kayıtlarının youtube kimlikli olanları;
+    // yeni kayıt üretmez, mevcut kütüphane verisini kart olarak çizer.
+    if (section === 'history') {
+      if (window.api.listWatchLibrary) {
+        try { watchLibraryCache = (await window.api.listWatchLibrary()) || []; } catch (_) {}
+      }
+      if (stale()) return;
+      grid.innerHTML = '';
+      const seenIds = new Set();
+      let added = 0;
+      const items = watchLibraryCache
+        .filter((it) => it && it.type === 'youtube')
+        .sort((a, b) => Number(b.lastWatched || 0) - Number(a.lastWatched || 0));
+      for (const item of items) {
+        const key = String(item.key || '');
+        const id = key.startsWith('youtube:') ? key.slice(8) : '';
+        if (!id || seenIds.has(id)) continue;
+        seenIds.add(id);
+        const thumb = lastInvidiousInstance
+          ? `${lastInvidiousInstance}/vi/${encodeURIComponent(id)}/mqdefault.jpg` : '';
+        const card = buildSmartTubeCard({
+          videoId: id, title: item.title || '', author: item.channel || '',
+          authorId: '', lengthSeconds: Number(item.duration) || 0,
+          videoThumbnails: thumb ? [{ url: thumb, quality: 'medium' }] : [],
+        });
+        grid.appendChild(card);
+        if (++added >= 60) break;
+      }
+      if (!added) {
+        const emptyMsg = window.UiLocale?.t('İzleme geçmişi boş.') || 'İzleme geçmişi boş.';
+        grid.innerHTML = '';
+        const emp = document.createElement('div');
+        emp.className = 'inv-status';
+        emp.textContent = emptyMsg;
+        grid.appendChild(emp);
+      }
+      setSmartTubeStatus('');
+      return;
+    }
+    // A04: Listelerim — yerel çalma listeleri; uzak istek yok.
+    if (section === 'myplaylists') {
+      renderStMyPlaylists(grid);
+      setSmartTubeStatus('');
+      return;
+    }
+    // A04: Canlı — Invidious features=live araması; oturum gerektirmez.
+    if (section === 'live') {
+      const live = await searchInvidious('live', 1, { features: 'live' }).catch(() => []);
+      if (stale()) return;
+      grid.innerHTML = '';
+      const liveItems = stFilterVideos((live || []).filter((v) => v.liveNow !== false));
+      if (!liveItems.length) {
+        grid.innerHTML = `<div class="inv-status">${window.UiLocale?.t('Canlı yayın bulunamadı.') || 'Canlı yayın bulunamadı.'}</div>`;
+        return;
+      }
+      liveItems.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+      setSmartTubeStatus('');
       return;
     }
     if (section === 'home' && youtubeLoggedIn) {
@@ -22696,6 +23572,13 @@ async function renderSmartTubeSection(section, opts = {}) {
       feedData._youtube = true;
       videos = feedData.videos || [];
     } else if (!feedData) {
+    // A04: müzik/oyun/haberler ayrı yan-çubuk sekmeleri — aynı trend akışını
+    // kategori sekmesi önceden seçili olarak çeker; normalize edilince mevcut
+    // trending kod yolu (chips + tab parametresi) değişmeden kullanılır.
+    if (['music', 'gaming', 'news'].includes(section)) {
+      stTrendTab = section;
+      section = 'trending';
+    }
     const feedOpts = section === 'trending' && stTrendTab ? { tab: stTrendTab } : {};
     feedData = await fetchInvidiousFeed(
       section === 'home' ? 'home' : section, force,
@@ -22767,6 +23650,7 @@ async function renderSmartTubeSection(section, opts = {}) {
       for (const [title, list] of [
         [window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası', queueVideos],
         [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
+        [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', stMostPlayedVideos().slice(0, 12)],
       ]) {
         if (!list.length) continue;
         const sep = document.createElement('div');
@@ -22777,8 +23661,9 @@ async function renderSmartTubeSection(section, opts = {}) {
       }
       grid.prepend(rail);
     }
-    const trendList = dedupe(trending || []);
-    if (trendList.length) {
+    const trendList = stFilterVideos(dedupe(trending || []));
+    // A08: 'Trend rayını gizle' açıksa bölüm başlığıyla birlikte atlanır.
+    if (trendList.length && !$('stHideTrending')?.checked) {
       const sep = document.createElement('div');
       sep.className = 'st-section-title st-grid-row';
       sep.textContent = 'Trend';
@@ -22790,7 +23675,7 @@ async function renderSmartTubeSection(section, opts = {}) {
     // az önce eklenen trend chip'lerini de silerdi. Eski içerik zaten
     // fonksiyon başındaki loader yazımıyla silinmiş durumda.
     grid.querySelector(':scope > .inv-status')?.remove();
-    videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+    stFilterVideos(videos).slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
   }
 
   // Tam akış render edildi: aynı requestId'ye ait GEÇ kalan feed_partial
@@ -22846,7 +23731,7 @@ function buildTrendChips() {
 
 function renderSmartTubeGrid(grid, videos, _sectionLabel) {
   grid.innerHTML = '';
-  videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+  stFilterVideos(videos).slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
 }
 
 function renderSmartTubeChannels(channels) {
@@ -23048,6 +23933,600 @@ function stQueueRailVideos() {
   }));
 }
 
+// ----- Yerel çalma listeleri (A22) -----
+// stQueue ile ayrı sözleşme: kuyruk oturum-odaklı "sırada ne var"dır, çalma
+// listeleri isimli ve kalıcı koleksiyonlardır; iki kavram UI'da ayrı sunulur.
+const ST_PLAYLISTS_KEY = 'stPlaylists';
+const ST_PLAYLISTS_MAX = 30;
+const ST_PLAYLIST_ITEMS_MAX = 200;
+let stPlaylists = loadStPlaylists();
+
+function stNormPlaylistItem(v) {
+  if (!v || typeof v.videoId !== 'string' || !v.videoId) return null;
+  const thumbs = Array.isArray(v.videoThumbnails) ? v.videoThumbnails : [];
+  const tn = thumbs.find((t) => (t.quality || '').toLowerCase() === 'medium')
+           || thumbs.find((t) => (t.quality || '').toLowerCase() === 'hqdefault')
+           || thumbs[0] || null;
+  const thumb = tn ? String(tn.url || '') : String(v.thumb || '');
+  return {
+    videoId: v.videoId,
+    title: String(v.title || ''),
+    author: String(v.author || ''),
+    authorId: String(v.authorId || ''),
+    lengthSeconds: Number(v.lengthSeconds) || 0,
+    thumb: /^https?:\/\//i.test(thumb) ? thumb : '',
+    addedAt: Number(v.addedAt) || Date.now(),
+  };
+}
+function loadStPlaylists() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_PLAYLISTS_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string')
+      .slice(0, ST_PLAYLISTS_MAX)
+      .map((p) => ({
+        id: p.id,
+        name: p.name.slice(0, 60),
+        createdAt: Number(p.createdAt) || 0,
+        items: (Array.isArray(p.items) ? p.items : []).map(stNormPlaylistItem).filter(Boolean).slice(0, ST_PLAYLIST_ITEMS_MAX),
+      }));
+  } catch (_) { return []; }
+}
+function saveStPlaylists() {
+  try { localStorage.setItem(ST_PLAYLISTS_KEY, JSON.stringify(stPlaylists.slice(0, ST_PLAYLISTS_MAX))); } catch (_) {}
+}
+function stPlaylistById(id) { return stPlaylists.find((p) => p.id === id) || null; }
+function stPlaylistCreate(name) {
+  const clean = String(name || '').trim().slice(0, 60);
+  if (!clean || stPlaylists.length >= ST_PLAYLISTS_MAX) return null;
+  const list = { id: `pl${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`, name: clean, createdAt: Date.now(), items: [] };
+  stPlaylists.push(list);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return list;
+}
+function stPlaylistRemove(id) {
+  const i = stPlaylists.findIndex((p) => p.id === id);
+  if (i < 0) return false;
+  stPlaylists.splice(i, 1);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return true;
+}
+function stPlaylistAdd(listId, video) {
+  const list = stPlaylistById(listId);
+  const item = stNormPlaylistItem(video);
+  if (!list || !item) return null;
+  if (list.items.some((v) => v.videoId === item.videoId)) return 'exists';
+  if (list.items.length >= ST_PLAYLIST_ITEMS_MAX) return 'full';
+  list.items.push(item);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return 'added';
+}
+function stPlaylistRemoveItem(listId, videoId) {
+  const list = stPlaylistById(listId);
+  if (!list) return false;
+  const i = list.items.findIndex((v) => v.videoId === videoId);
+  if (i < 0) return false;
+  list.items.splice(i, 1);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return true;
+}
+// "Sıraya ekle": kuyruğun oturum sözleşmesini bozmadan eksik videoları sona ekler.
+function stPlaylistEnqueue(listId) {
+  const list = stPlaylistById(listId);
+  if (!list || !list.items.length) return 0;
+  let added = 0;
+  for (const it of list.items) {
+    if (stQueue.length >= ST_QUEUE_MAX) break;
+    if (!stQueue.some((v) => v.videoId === it.videoId)) { stQueue.push({ ...it }); added++; }
+  }
+  saveStQueue();
+  updatePlaylistButtons();
+  return added;
+}
+// "Oynat": listeyi kuyruğa yükleyip baştan başlatır — kuyruk değiştirilebilir
+// oturum verisi olduğu için mevcut sıranın üzerine yazmak bilinçli sözleşme.
+function stPlaylistPlay(listId) {
+  const list = stPlaylistById(listId);
+  if (!list || !list.items.length) return false;
+  stQueue = list.items.slice(0, ST_QUEUE_MAX).map((v) => ({ ...v }));
+  saveStQueue();
+  updatePlaylistButtons();
+  return stQueuePlayNext();
+}
+function renderStPlaylistPanel() {
+  const box = $('stPlaylistList');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!stPlaylists.length) {
+    const empty = document.createElement('div');
+    empty.className = 'st-hidden-empty';
+    empty.textContent = window.UiLocale?.t('Henüz çalma listesi yok.') || 'Henüz çalma listesi yok.';
+    box.appendChild(empty);
+    return;
+  }
+  for (const list of stPlaylists) {
+    const row = document.createElement('div');
+    row.className = 'st-hidden-row';
+    const name = document.createElement('span');
+    name.className = 'st-hidden-name';
+    name.textContent = `${list.name} (${list.items.length})`;
+    name.title = list.name;
+    row.appendChild(name);
+    const wrap = document.createElement('span');
+    wrap.className = 'st-pl-actions';
+    const mkBtn = (label, attr) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'st-mini-btn';
+      b.textContent = label;
+      b.setAttribute(attr, list.id);
+      wrap.appendChild(b);
+    };
+    mkBtn(window.UiLocale?.t('Oynat') || 'Oynat', 'data-pl-play');
+    mkBtn(window.UiLocale?.t('Sıraya ekle') || 'Sıraya ekle', 'data-pl-enqueue');
+    mkBtn('✕', 'data-pl-remove');
+    row.appendChild(wrap);
+    box.appendChild(row);
+  }
+}
+
+// A04: 'Listelerim' bölümü — display panelindeki satır düzeninin grid sürümü;
+// Oynat/Sıraya ekle/Sil + liste içeriği önizlemesi.
+function renderStMyPlaylists(grid) {
+  grid.innerHTML = '';
+  if (!stPlaylists.length) {
+    const empty = document.createElement('div');
+    empty.className = 'inv-status';
+    empty.textContent = window.UiLocale?.t('Henüz çalma listesi yok — kart menüsündeki "Listeye ekle" ile oluştur.')
+      || 'Henüz çalma listesi yok — kart menüsündeki "Listeye ekle" ile oluştur.';
+    grid.appendChild(empty);
+    return;
+  }
+  for (const list of stPlaylists) {
+    const wrap = document.createElement('div');
+    wrap.className = 'st-pl-sec st-grid-row';
+    const head = document.createElement('div');
+    head.className = 'st-pl-sec-head';
+    const name = document.createElement('span');
+    name.className = 'st-pl-sec-name';
+    name.textContent = `${list.name} (${list.items.length})`;
+    head.appendChild(name);
+    const mkBtn = (label, fn, cls = '') => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `st-mini-btn${cls}`;
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      head.appendChild(b);
+    };
+    mkBtn(window.UiLocale?.t('Oynat') || 'Oynat', () => { if (!stPlaylistPlay(list.id)) osd('Liste boş.'); });
+    mkBtn(window.UiLocale?.t('Sıraya ekle') || 'Sıraya ekle', () => {
+      const n = stPlaylistEnqueue(list.id);
+      osd(n ? `${n} video sıraya eklendi.` : 'Eklenecek video yok.');
+    });
+    mkBtn('✕', () => { stPlaylistRemove(list.id); renderStMyPlaylists(grid); }, ' is-danger');
+    wrap.appendChild(head);
+    if (list.items.length) {
+      const strip = document.createElement('div');
+      strip.className = 'st-pl-sec-strip';
+      for (const it of list.items.slice(0, 10)) {
+        const chip = document.createElement('button');
+        chip.type = 'button'; chip.className = 'st-pl-item';
+        chip.textContent = it.title || it.videoId;
+        chip.title = it.title || it.videoId;
+        chip.addEventListener('click', () => {
+          if (!it.videoId) return;
+          // Kart tıklamasıyla aynı açılış yolu (buildSmartTubeCard open()).
+          const url = `https://www.youtube.com/watch?v=${encodeURIComponent(it.videoId)}`;
+          const box = $('playerYtUrl');
+          if (box) box.value = url;
+          player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: player.openIntent };
+          queuePlayerProbeFromCard();
+          setSmartTubeVisible(false);
+        });
+        strip.appendChild(chip);
+      }
+      wrap.appendChild(strip);
+    }
+    grid.appendChild(wrap);
+  }
+}
+
+// ----- En çok oynatılan + radyo zinciri + karıştırma (A38) -----
+const ST_PLAY_COUNTS_KEY = 'stPlayCounts';
+const ST_PLAY_COUNTS_MAX = 120;
+let stPlayCounts = loadStPlayCounts();
+function loadStPlayCounts() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_PLAY_COUNTS_KEY) || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [id, e] of Object.entries(raw)) {
+      if (!id || !e || typeof e !== 'object') continue;
+      const item = stNormPlaylistItem({ videoId: id, ...e });
+      if (!item) continue;
+      out[id] = { ...item, count: Math.min(Number(e.count) || 0, 9999), lastAt: Number(e.lastAt) || 0 };
+    }
+    return out;
+  } catch (_) { return {}; }
+}
+function saveStPlayCounts() {
+  try { localStorage.setItem(ST_PLAY_COUNTS_KEY, JSON.stringify(stPlayCounts)); } catch (_) {}
+}
+// Akışın gerçekten açıldığı yerde çağrılır (probe başarısı → streamBtn akışı).
+function stBumpPlayCount(info) {
+  const item = stNormPlaylistItem({ videoId: info && (info.videoId || info.id), ...(info || {}) });
+  if (!item) return;
+  const e = stPlayCounts[item.videoId] || { ...item, count: 0 };
+  stPlayCounts[item.videoId] = { ...item, count: (Number(e.count) || 0) + 1, lastAt: Date.now() };
+  // En düşük sayılı kayıtları buda
+  const keys = Object.keys(stPlayCounts);
+  if (keys.length > ST_PLAY_COUNTS_MAX) {
+    keys.sort((a, b) => (stPlayCounts[a].count - stPlayCounts[b].count) || (stPlayCounts[a].lastAt - stPlayCounts[b].lastAt));
+    for (const k of keys.slice(0, keys.length - ST_PLAY_COUNTS_MAX)) delete stPlayCounts[k];
+  }
+  saveStPlayCounts();
+}
+function stMostPlayedVideos() {
+  return Object.values(stPlayCounts)
+    .sort((a, b) => (b.count - a.count) || (b.lastAt - a.lastAt))
+    .map((e) => ({
+      videoId: e.videoId, title: e.title, author: e.author, authorId: e.authorId,
+      lengthSeconds: e.lengthSeconds,
+      videoThumbnails: e.thumb ? [{ url: e.thumb, quality: 'medium' }] : [],
+      _playCount: e.count,
+    }));
+}
+// Radyo zinciri: bitince probe'dan gelen önerilerin ilk gizlenmemişine geçer.
+// Varsayılan kapalı (stAutoRelated onayı); sıra doluyken ya da yerel liste
+// devralacakken devreye girmez.
+function stAutoRelatedNext() {
+  if (!$('stAutoRelated')?.checked) return false;
+  if (stQueue.length) return false;
+  if (player.autoNext && player.playlistIndex >= 0) return false;
+  if (!String(player.mediaKey || '').startsWith('youtube:')) return false;
+  const recs = (player.ytInfo && Array.isArray(player.ytInfo.recommended)) ? player.ytInfo.recommended : [];
+  const next = recs.find((v) => v && v.videoId && !stVideoHidden(v));
+  if (!next) return false;
+  const url = `https://www.youtube.com/watch?v=${encodeURIComponent(next.videoId)}`;
+  const box = $('playerYtUrl');
+  if (box) box.value = url;
+  player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: ++player.openIntent };
+  queuePlayerProbeFromCard();
+  osd(`${window.UiLocale?.t('İlgili videoya geçiliyor') || 'İlgili videoya geçiliyor'}: ${next.title || ''}`, 4000);
+  return true;
+}
+function stQueueShuffle() {
+  if (stQueue.length < 2) return false;
+  for (let i = stQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [stQueue[i], stQueue[j]] = [stQueue[j], stQueue[i]];
+  }
+  saveStQueue();
+  updatePlaylistButtons();
+  osd(window.UiLocale?.t('Sıra karıştırıldı.') || 'Sıra karıştırıldı.', 3000);
+  return true;
+}
+// "Listeye ekle…" seçici menüsü — kart menüsüyle aynı kabuk, farklı içerik.
+function openStPlaylistPicker(video, x, y) {
+  closeStCardMenu();
+  const menu = document.createElement('div');
+  menu.className = 'st-card-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', window.UiLocale?.t('Listeye ekle…') || 'Listeye ekle…');
+  const items = [];
+  for (const list of stPlaylists) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-card-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = `${list.name} (${list.items.length})`;
+    btn.addEventListener('click', () => {
+      closeStCardMenu();
+      const res = stPlaylistAdd(list.id, video);
+      const msg = res === 'added' ? `“${list.name}” ${window.UiLocale?.t('listesine eklendi.') || 'listesine eklendi.'}`
+        : res === 'exists' ? (window.UiLocale?.t('Bu video zaten listede.') || 'Bu video zaten listede.')
+        : (window.UiLocale?.t('Liste dolu.') || 'Liste dolu.');
+      setBrowserSignal(msg, res === 'added', { priority: 50, holdMs: 3000 });
+    });
+    menu.appendChild(btn);
+    items.push(btn);
+  }
+  const row = document.createElement('div');
+  row.className = 'st-pl-new';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 60;
+  input.placeholder = window.UiLocale?.t('Yeni liste adı') || 'Yeni liste adı';
+  const create = document.createElement('button');
+  create.type = 'button';
+  create.className = 'st-mini-btn';
+  create.textContent = window.UiLocale?.t('Oluştur') || 'Oluştur';
+  const doCreate = () => {
+    const list = stPlaylistCreate(input.value);
+    if (!list) {
+      setBrowserSignal(window.UiLocale?.t('Liste adı boş olamaz veya liste sınırı dolu.') || 'Liste adı boş olamaz veya liste sınırı dolu.', false, { priority: 50, holdMs: 3000 });
+      return;
+    }
+    stPlaylistAdd(list.id, video);
+    closeStCardMenu();
+    setBrowserSignal(`“${list.name}” ${window.UiLocale?.t('listesine eklendi.') || 'listesine eklendi.'}`, true, { priority: 50, holdMs: 3000 });
+  };
+  create.addEventListener('click', doCreate);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doCreate(); }
+    e.stopPropagation();
+  });
+  row.appendChild(input);
+  row.appendChild(create);
+  menu.appendChild(row);
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeStCardMenu(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      if (i >= 0) {
+        const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+        items[next]?.focus();
+      }
+    }
+  });
+  document.body.appendChild(menu);
+  stCardMenuEl = menu;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
+  setTimeout(() => document.addEventListener('mousedown', stCardMenuOutside, true), 0);
+  (items[0] || input)?.focus();
+}
+
+// ----- Yerel içerik gizleme (A03) ve sonuç türü filtreleri (A08) -----
+// YouTube'a "ilgilenmiyorum" bildirimi GÖNDERMEZ — yalnız bu cihazdaki
+// SmartTube listelerini filtreler. Geri alma görünüm panelindeki "Gizlenenler"
+// listesinden yapılır; filtre sayısı panel başlığında görünür.
+const ST_HIDDEN_VIDEOS_KEY = 'stHiddenVideos';
+const ST_HIDDEN_CHANNELS_KEY = 'stHiddenChannels';
+const ST_HIDDEN_MAX = 500;
+function loadStHiddenVideos() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_HIDDEN_VIDEOS_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw.filter((v) => typeof v === 'string' && v).slice(0, ST_HIDDEN_MAX) : []);
+  } catch (_) { return new Set(); }
+}
+function loadStHiddenChannels() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_HIDDEN_CHANNELS_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((v) => v && typeof v.authorId === 'string' && v.authorId)
+      .slice(0, ST_HIDDEN_MAX)
+      .map((v) => ({ authorId: v.authorId, author: String(v.author || '') }));
+  } catch (_) { return []; }
+}
+let stHiddenVideos = loadStHiddenVideos();
+let stHiddenChannels = loadStHiddenChannels();
+function saveStHidden() {
+  try {
+    localStorage.setItem(ST_HIDDEN_VIDEOS_KEY, JSON.stringify([...stHiddenVideos].slice(0, ST_HIDDEN_MAX)));
+    localStorage.setItem(ST_HIDDEN_CHANNELS_KEY, JSON.stringify(stHiddenChannels.slice(0, ST_HIDDEN_MAX)));
+  } catch (_) {}
+}
+function stChannelHidden(authorId) {
+  return !!authorId && stHiddenChannels.some((c) => c.authorId === authorId);
+}
+function stIsShort(video) {
+  const type = String(video?.type || '').toLowerCase();
+  return type === 'short' || type === 'shortvideo' || video?.isShort === true
+    || /youtube\.com\/shorts\//i.test(String(video?.url || ''));
+}
+function stVideoHidden(video) {
+  if (!video) return false;
+  if (video.videoId && stHiddenVideos.has(video.videoId)) return true;
+  if (video.authorId && stChannelHidden(video.authorId)) return true;
+  if ($('stHideShorts')?.checked && stIsShort(video)) return true;
+  if ($('stHideLive')?.checked && video.liveNow) return true;
+  if ($('stHideWatched')?.checked && video.videoId) {
+    const w = watchItemByKey(mediaKeyFor('youtube', String(video.videoId)));
+    if (w && (w.completed || watchProgress(w) >= 95)) return true;
+  }
+  return false;
+}
+// Feed/arama sonuçları tek noktadan süzülür; raylar (sıra/devam) kullanıcı
+// verisi olduğu için filtre dışıdır.
+function stFilterVideos(videos) {
+  return (Array.isArray(videos) ? videos : []).filter((v) => !stVideoHidden(v));
+}
+function stHideVideo(video) {
+  const id = String(video?.videoId || '');
+  if (!id) return;
+  stHiddenVideos.add(id);
+  if (stHiddenVideos.size > ST_HIDDEN_MAX) stHiddenVideos.delete(stHiddenVideos.values().next().value);
+  saveStHidden();
+  applyStContentFilters();
+  setBrowserSignal(`Video gizlendi: ${String(video.title || id).slice(0, 80)} — geri almak için kart görünümü ayarlarındaki Gizlenenler listesini kullanın.`, true, { priority: 60, holdMs: 5000 });
+}
+function stHideChannel(video) {
+  const authorId = String(video?.authorId || '');
+  if (!authorId) return;
+  if (!stChannelHidden(authorId)) {
+    stHiddenChannels.push({ authorId, author: String(video?.author || '') });
+    if (stHiddenChannels.length > ST_HIDDEN_MAX) stHiddenChannels.shift();
+    saveStHidden();
+  }
+  applyStContentFilters();
+  setBrowserSignal(`Kanal gizlendi: ${String(video?.author || authorId).slice(0, 80)} — geri almak için kart görünümü ayarlarını açın.`, true, { priority: 60, holdMs: 5000 });
+}
+function stUnhideVideo(id) {
+  stHiddenVideos.delete(String(id || ''));
+  saveStHidden();
+  applyStContentFilters();
+}
+function stUnhideChannel(authorId) {
+  stHiddenChannels = stHiddenChannels.filter((c) => c.authorId !== String(authorId || ''));
+  saveStHidden();
+  applyStContentFilters();
+}
+// Ekrandaki kartları yerinde süzer; ana sayfa yapısal rayları (Trend) için
+// bölüm yeniden çizilir.
+function applyStContentFilters() {
+  document.querySelectorAll('#stGrid .st-card, #stSearchGrid .st-card').forEach((card) => {
+    if (stVideoHidden(card._stVideo)) card.remove();
+  });
+  if (stCurrentSection === 'home' && $('stHideTrending')?.checked) {
+    document.querySelectorAll('#stGrid .st-section-title').forEach((sep) => {
+      if (sep.textContent === 'Trend') {
+        let node = sep.nextElementSibling;
+        const victims = [sep];
+        while (node && !node.classList.contains('st-section-title')) { victims.push(node); node = node.nextElementSibling; }
+        victims.forEach((v) => v.remove());
+      }
+    });
+  }
+  renderStHiddenList();
+}
+// Görünüm panelindeki geri alma listesi — gizli kanallar ve videolar.
+function renderStHiddenList() {
+  const list = $('stHiddenList');
+  const count = $('stHiddenCount');
+  if (!list) return;
+  if (count) count.textContent = stHiddenVideos.size + stHiddenChannels.length
+    ? `(${stHiddenVideos.size + stHiddenChannels.length})` : '';
+  list.replaceChildren();
+  if (!stHiddenVideos.size && !stHiddenChannels.length) {
+    const empty = document.createElement('div');
+    empty.className = 'st-hidden-empty';
+    empty.textContent = window.UiLocale?.t('Gizlenen içerik yok.') || 'Gizlenen içerik yok.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const channel of stHiddenChannels) {
+    const row = document.createElement('div');
+    row.className = 'st-hidden-row';
+    const label = document.createElement('span');
+    label.className = 'st-hidden-name';
+    label.textContent = `${window.UiLocale?.t('Kanal') || 'Kanal'}: ${channel.author || channel.authorId}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'link-btn';
+    remove.dataset.stUnhideChannel = channel.authorId;
+    remove.textContent = window.UiLocale?.t('Geri al') || 'Geri al';
+    row.append(label, remove);
+    list.appendChild(row);
+  }
+  for (const videoId of stHiddenVideos) {
+    const row = document.createElement('div');
+    row.className = 'st-hidden-row';
+    const label = document.createElement('span');
+    label.className = 'st-hidden-name';
+    label.textContent = `${window.UiLocale?.t('Video') || 'Video'}: ${videoId}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'link-btn';
+    remove.dataset.stUnhideVideo = videoId;
+    remove.textContent = window.UiLocale?.t('Geri al') || 'Geri al';
+    row.append(label, remove);
+    list.appendChild(row);
+  }
+}
+
+// ----- Kart bağlam menüsü (A01): sağ tık / ⋯ düğmesi -----
+// Mevcut kart click/klavye akışı değişmez; menü yalnız gerçek işlevler sunar
+// (hesap gerektiren "Watch Later" gibi sahte öğeler yok).
+let stCardMenuEl = null;
+function closeStCardMenu() {
+  stCardMenuEl?.remove();
+  stCardMenuEl = null;
+  document.removeEventListener('mousedown', stCardMenuOutside, true);
+}
+function stCardMenuOutside(e) {
+  if (stCardMenuEl && !stCardMenuEl.contains(e.target)) closeStCardMenu();
+}
+function openStCardMenu(video, x, y, onPlay) {
+  closeStCardMenu();
+  const menu = document.createElement('div');
+  menu.className = 'st-card-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', window.UiLocale?.t('Video seçenekleri') || 'Video seçenekleri');
+  const items = [];
+  const addItem = (label, action) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-card-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = label;
+    btn.addEventListener('click', () => { closeStCardMenu(); action(); });
+    menu.appendChild(btn);
+    items.push(btn);
+  };
+  addItem(window.UiLocale?.t('Oynat') || 'Oynat', () => onPlay?.());
+  if (video.videoId) {
+    const queued = stQueueHas(video.videoId);
+    addItem(window.UiLocale?.t(queued ? 'Sıradan çıkar' : 'Sıraya ekle') || (queued ? 'Sıradan çıkar' : 'Sıraya ekle'), () => {
+      stQueueToggle(video);
+      document.querySelectorAll(`.st-card-queue[data-video-id="${CSS.escape(video.videoId)}"]`).forEach((b) => {
+        const q = stQueueHas(video.videoId);
+        b.classList.toggle('is-queued', q);
+        b.textContent = q ? '✓' : '+';
+      });
+    });
+  }
+  if (video.authorId) {
+    addItem(window.UiLocale?.t('Kanalı aç') || 'Kanalı aç', () => openInvidiousChannelPage(video.authorId));
+    // A06: yerel abonelik — uzak hesaba bildirim göndermez.
+    const on = stIsSubscribed(video.authorId);
+    addItem(window.UiLocale?.t(on ? 'Abonelikten çık' : 'Kanala abone ol') || (on ? 'Abonelikten çık' : 'Kanala abone ol'),
+      () => { stSubToggle({ authorId: video.authorId, author: video.author || '' }); });
+  }
+  if (video.videoId) {
+    addItem(window.UiLocale?.t('Bağlantıyı kopyala') || 'Bağlantıyı kopyala', async () => {
+      const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`;
+      const ok = await window.api.copyText?.(url).catch(() => null);
+      setBrowserSignal(ok === true ? 'Video bağlantısı panoya kopyalandı.' : 'Bağlantı kopyalanamadı.', ok === true, { priority: 50, holdMs: 3500 });
+    });
+    // A17: harici oynatıcıya yalnız açık watch URL'si verilir (imzalı akış asla).
+    addItem(window.UiLocale?.t('mpv ile oynat') || 'mpv ile oynat',
+      () => stPlayExternal('mpv', `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`));
+    addItem(window.UiLocale?.t('VLC ile oynat') || 'VLC ile oynat',
+      () => stPlayExternal('vlc', `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`));
+    addItem(window.UiLocale?.t('Listeye ekle…') || 'Listeye ekle…', () => openStPlaylistPicker(video, x, y));
+    addItem(window.UiLocale?.t('Videoyu gizle') || 'Videoyu gizle', () => stHideVideo(video));
+  }
+  if (video.authorId) {
+    addItem(window.UiLocale?.t('Kanalı gizle') || 'Kanalı gizle', () => stHideChannel(video));
+  }
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeStCardMenu(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next]?.focus();
+    }
+  });
+  document.body.appendChild(menu);
+  stCardMenuEl = menu;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
+  setTimeout(() => document.addEventListener('mousedown', stCardMenuOutside, true), 0);
+  items[0]?.focus();
+}
+
+// A17 — harici oynatıcıya devir: watch URL'si veya yetkili yerel dosya; sonuç
+// sinyal şeridinde gösterilir (oynatıcı yoksa açıklayıcı hata döner).
+async function stPlayExternal(playerName, source) {
+  const res = await window.api.openInExternalPlayer?.(playerName, source)
+    .catch((error) => ({ ok: false, error: error.message }));
+  const label = playerName === 'vlc' ? 'VLC' : 'mpv';
+  setBrowserSignal(
+    res?.ok ? `${label} başlatıldı.` : (res?.error || `${label} açılamadı.`),
+    !!res?.ok, { priority: 60, holdMs: 4000 });
+}
+
 // ----- SmartTube kart (büyük dikey) -----
 // Kart/up-next tıklamasından probe tetikleme: sürüyor olan probe bitene kadar
 // bekle (disabled düğmeye click() sessizce no-op olur ve istek kaybolurdu).
@@ -23069,6 +24548,7 @@ function buildSmartTubeCard(video) {
   const card = document.createElement('div');
   card.className = 'st-card';
   card.tabIndex = 0;
+  card._stVideo = video;   // içerik filtreleri (A03/A08) ve bağlam menüsü için
   card.setAttribute('role', 'button');
   card.setAttribute('aria-label', `${video.title || ''} — ${video.author || ''}`);
   // İzleme kütüphanesindeki ilerleme kartta görünsün; açılışta kaldığı yerden
@@ -23141,6 +24621,7 @@ function buildSmartTubeCard(video) {
       stQueueToggle(video);
       syncQueueBtn();
     };
+    qBtn.setAttribute('data-video-id', video.videoId);
     syncQueueBtn();
     qBtn.addEventListener('click', toggleQueue);
     qBtn.addEventListener('keydown', (e) => {
@@ -23213,6 +24694,33 @@ function buildSmartTubeCard(video) {
       open();
     }
   });
+  // A01 — sağ tık menüsü: kart oynatma davranışını değiştirmeden eylem listesi
+  card.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openStCardMenu(video, e.clientX, e.clientY, open);
+  });
+  // Klavye/fare erişilebilir eşdeğeri: köşedeki ⋯ düğmesi
+  const menuBtn = document.createElement('button');
+  menuBtn.type = 'button';
+  menuBtn.className = 'st-card-menu-btn';
+  menuBtn.textContent = '⋯';
+  const menuLbl = window.UiLocale?.t('Video seçenekleri') || 'Video seçenekleri';
+  menuBtn.title = menuLbl;
+  menuBtn.setAttribute('aria-label', menuLbl);
+  menuBtn.setAttribute('aria-haspopup', 'menu');
+  const openMenu = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const r = menuBtn.getBoundingClientRect();
+    openStCardMenu(video, r.left, r.bottom + 4, open);
+  };
+  menuBtn.addEventListener('click', openMenu);
+  menuBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') openMenu(e);
+    if (e.key === 'ContextMenu') openMenu(e);
+  });
+  thumb.appendChild(menuBtn);
   return card;
 }
 
@@ -23285,6 +24793,9 @@ async function doSmartTubeSearch() {
   if (!q) return;
   const seq = ++stSearchSeq;
   stSearchActive = true;
+  // A28: playlist sonuçları video aramasıyla paralel başlar — ayrı Invidious
+  // isteği; hata/boş sonuç rayı atlar, ana aramayı etkilemez.
+  const plPromise = searchInvidiousPlaylists(q);
   searchGrid.innerHTML = '<div class="inv-status">Aranıyor…</div>';
   results.classList.remove('hidden');
   const mainGrid = $('stGrid');
@@ -23321,8 +24832,154 @@ async function doSmartTubeSearch() {
     searchGrid.appendChild(div);
     return;
   }
+  // Playlist rayı video kartlarının üstünde — en fazla 12 kayıt.
+  const playlists = (await plPromise) || [];
+  if (seq === stSearchSeq && playlists.length) renderStPlaylistRail(searchGrid, playlists.slice(0, 12));
   stAppendSearchResults(videos);
   stUpdateSearchMore();
+}
+
+// A28: arama sonuçları üstünde yatay playlist rayı — kart tıklanınca detay sayfası.
+function renderStPlaylistRail(searchGrid, playlists) {
+  const wrap = document.createElement('div');
+  wrap.className = 'st-pl-rail';
+  for (const pl of playlists) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'st-pl-card';
+    const th = document.createElement('span');
+    th.className = 'st-pl-thumb';
+    const src = absThumb(pl.videoThumbnails);
+    if (src) {
+      const img = document.createElement('img');
+      img.loading = 'lazy'; img.decoding = 'async'; img.alt = '';
+      img.src = src;
+      th.appendChild(img);
+    }
+    const count = document.createElement('span');
+    count.className = 'st-pl-count';
+    count.textContent = `≡ ${pl.videoCount || '?'}`;
+    th.appendChild(count);
+    card.appendChild(th);
+    const title = document.createElement('span');
+    title.className = 'st-pl-title';
+    title.textContent = pl.title || '';
+    card.appendChild(title);
+    if (pl.author) {
+      const au = document.createElement('span');
+      au.className = 'st-pl-author';
+      au.textContent = pl.author;
+      card.appendChild(au);
+    }
+    card.addEventListener('click', () => openInvidiousPlaylistPage(pl.playlistId));
+    wrap.appendChild(card);
+  }
+  searchGrid.appendChild(wrap);
+}
+
+// A28: Invidious playlist detay sayfası — kanal sayfasıyla aynı katman mantığı:
+// stGrid'e çizilir, arama katmanı kaldırılır, sayfalama "Daha fazla" ile büyür.
+async function openInvidiousPlaylistPage(playlistId) {
+  const grid = $('stGrid');
+  if (!grid || !playlistId) return;
+  // Açık arama katmanını kanal sayfasındaki gibi sıfırla (resetSmartTubeSearch
+  // kullanılamaz: stCurrentSection'ı yeniden render edip bu sayfayı siler).
+  stSearchActive = false;
+  stSearchSeq++;
+  stSearchQuery = '';
+  stSearchHasMore = false;
+  if (typeof stSearchSeen !== 'undefined' && stSearchSeen && stSearchSeen.clear) stSearchSeen.clear();
+  $('stSearchResults')?.classList.add('hidden');
+  const searchGridEl = $('stSearchGrid');
+  if (searchGridEl) searchGridEl.innerHTML = '';
+  const inp = $('stSearchInput');
+  if (inp) inp.value = '';
+  grid.classList.remove('hidden');
+  const seq = ++stSectionSeq;
+  grid.innerHTML = '<div class="inv-status">Yükleniyor…</div>';
+
+  let page = 1;
+  const data = await loadInvidiousPlaylist(playlistId, page).catch(() => null);
+  if (seq !== stSectionSeq) return;
+  if (!data) {
+    const title = $('stSectionTitle');
+    if (title) title.textContent = window.UiLocale?.t('Oynatma listesi') || 'Oynatma listesi';
+    grid.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'inv-status';
+    err.textContent = window.UiLocale?.t('Oynatma listesi alınamadı.') || 'Oynatma listesi alınamadı.';
+    grid.appendChild(err);
+    return;
+  }
+
+  const titleEl = $('stSectionTitle');
+  if (titleEl) titleEl.textContent = data.title || (window.UiLocale?.t('Oynatma listesi') || 'Oynatma listesi');
+
+  const head = document.createElement('div');
+  head.className = 'st-channel-head st-grid-row';
+  const back = document.createElement('button');
+  back.className = 'st-back-btn';
+  back.textContent = `← ${window.UiLocale?.t('Ana sayfa') || 'Ana sayfa'}`;
+  back.addEventListener('click', () => stSelectSection('home'));
+  head.appendChild(back);
+  const name = document.createElement('div');
+  name.className = 'st-channel-name';
+  name.textContent = data.title || '';
+  head.appendChild(name);
+  if (data.author) {
+    const au = document.createElement('button');
+    au.type = 'button'; au.className = 'st-mini-btn';
+    au.textContent = data.author;
+    if (data.authorId) au.addEventListener('click', () => openInvidiousChannelPage(data.authorId));
+    else au.disabled = true;
+    head.appendChild(au);
+  }
+  if (data.videoCount) {
+    const vc = document.createElement('div');
+    vc.className = 'st-channel-sub';
+    vc.textContent = `${formatCount(data.videoCount)} ${window.UiLocale?.t('video') || 'video'}`;
+    head.appendChild(vc);
+  }
+  grid.innerHTML = '';
+  grid.appendChild(head);
+
+  const seen = new Set();
+  const appendVideos = (videos) => {
+    let added = 0;
+    for (const v of videos) {
+      const id = v.videoId;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      if (stVideoHidden(v)) continue;
+      grid.appendChild(buildSmartTubeCard(v));
+      added++;
+    }
+    return added;
+  };
+  const addMoreRow = () => {
+    const row = document.createElement('div');
+    row.className = 'st-more-row st-grid-row';
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'st-more-btn';
+    btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…';
+      const next = await loadInvidiousPlaylist(playlistId, ++page).catch(() => null);
+      if (seq !== stSectionSeq) { row.remove(); return; }
+      const got = (next && next.videos) || [];
+      const added = appendVideos(got);
+      // Son sayfa ya da tamamen tekrar eden sayfa — devam düğmesini kaldır.
+      if (!got.length || !added || got.length < 20) { row.remove(); return; }
+      btn.disabled = false;
+      btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+    });
+    row.appendChild(btn);
+    grid.appendChild(row);
+  };
+
+  appendVideos(data.videos || []);
+  if ((data.videos || []).length >= 20) addMoreRow();
 }
 
 // Arama sonuçlarını dedupe ederek grid'e ekle (sayfalama güvenli)
@@ -23336,6 +24993,7 @@ function stAppendSearchResults(videos) {
     const id = v.videoId || v.authorId || v.title;
     if (!id || stSearchSeen.has(id)) continue;
     stSearchSeen.add(id);
+    if (stVideoHidden(v)) continue;   // A03/A08 filtreleri aramada da uygulanır
     searchGrid.appendChild(buildSmartTubeCard(v));
     added++;
   }
@@ -23359,6 +25017,219 @@ function stUpdateSearchMore() {
   btn.addEventListener('click', stSearchLoadMore);
   row.appendChild(btn);
   results.appendChild(row);
+}
+
+// ----- Arama önerileri (A23) -----
+// Invidious /api/v1/search/suggestions — 300ms debounce; uçuştaki istekler
+// seq ile tekilleştirilir (iptal = yeni seq, eski sonuç düşer). Kaynak
+// instance kutunun altında görünür; Esc/blur/dış tık kapatır.
+let stSuggestSeq = 0;
+let stSuggestTimer = null;
+function stHideSuggest() {
+  stSuggestSeq++;
+  clearTimeout(stSuggestTimer);
+  $('stSuggestBox')?.classList.add('hidden');
+}
+function stRenderSuggest(items, instance) {
+  const box = $('stSuggestBox');
+  const inp = $('stSearchInput');
+  if (!box || !inp) return;
+  box.innerHTML = '';
+  if (!items.length) { box.classList.add('hidden'); return; }
+  for (const s of items.slice(0, 8)) {
+    const opt = document.createElement('button');
+    opt.type = 'button';
+    opt.className = 'st-suggest-item';
+    opt.setAttribute('role', 'option');
+    opt.textContent = s;
+    // mousedown önce gelir; input'un blur'u kutuyu kapatmadan seçim çalışsın
+    opt.addEventListener('pointerdown', (e) => e.preventDefault());
+    opt.addEventListener('click', () => {
+      inp.value = s;
+      stHideSuggest();
+      $('stSearchClear')?.classList.remove('hidden');
+      doSmartTubeSearch();
+    });
+    box.appendChild(opt);
+  }
+  if (instance) {
+    const foot = document.createElement('div');
+    foot.className = 'st-suggest-src';
+    foot.textContent = `${window.UiLocale?.t('Öneriler') || 'Öneriler'}: ${instance}`;
+    box.appendChild(foot);
+  }
+  box.classList.remove('hidden');
+}
+async function stFetchSuggest(q) {
+  const seq = ++stSuggestSeq;
+  const res = await window.api.invidiousSuggest?.(q).catch(() => null);
+  // Yazım devam ettiyse/başka öneri istendiyse bu yanıt eski — düşür.
+  if (seq !== stSuggestSeq || ($('stSearchInput')?.value || '').trim() !== q) return;
+  stRenderSuggest(res?.ok ? (res.data?.suggestions || []) : [], res?.data?.instance || '');
+}
+
+// ----- Yerel abonelikler (A06/A07) -----
+// Invidious/YouTube oturumu olmadan çalışır; kimlik = UCID veya @handle,
+// tekilleştirme buna göre. İçe/dışa aktarma parola/oturum taşımaz.
+const ST_SUBS_KEY = 'stSubscriptions';
+const ST_SUBS_MAX = 500;
+let stSubs = [];
+try {
+  const raw = JSON.parse(localStorage.getItem(ST_SUBS_KEY) || '[]');
+  stSubs = Array.isArray(raw) && window.SubscriptionIO
+    ? window.SubscriptionIO.dedupe(raw.map(window.SubscriptionIO.normSub).filter(Boolean))
+    : [];
+} catch (_) { stSubs = []; }
+const saveStSubs = () => {
+  try { localStorage.setItem(ST_SUBS_KEY, JSON.stringify(stSubs.slice(0, ST_SUBS_MAX))); } catch (_) {}
+};
+const stSubKey = (s) => s && (s.authorId || s.handle) || '';
+const stIsSubscribed = (key) => stSubs.some((s) => stSubKey(s) === key);
+function stSubToggle({ authorId = '', handle = '', author = '' }) {
+  const key = authorId || handle;
+  if (!key) return false;
+  const idx = stSubs.findIndex((s) => stSubKey(s) === key);
+  if (idx >= 0) { stSubs.splice(idx, 1); saveStSubs(); return false; }
+  if (stSubs.length >= ST_SUBS_MAX) { osd('Abonelik listesi dolu.'); return true; }
+  stSubs.unshift({ authorId, handle, author: String(author || '').slice(0, 120), group: '' });
+  saveStSubs();
+  return true;
+}
+const stSubGroups = () => [...new Set(stSubs.map((s) => s.group).filter(Boolean))];
+
+function renderStSubsPanel(grid) {
+  grid.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'st-subs-head';
+  const io = window.SubscriptionIO;
+  const mkBtn = (label, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'st-mini-btn'; b.textContent = window.UiLocale?.t(label) || label;
+    b.addEventListener('click', fn);
+    head.appendChild(b);
+  };
+  mkBtn('Kanal ekle', async () => {
+    const v = await openAppDialog({
+      title: 'Kanal ekle',
+      description: 'YouTube kanal URLsi, UC kimliği veya @handle girin.',
+      inputLabel: 'Kanal',
+      confirmLabel: 'Ekle',
+    });
+    if (!v) return;
+    const s = window.SubscriptionIO?.normSub({ url: v.trim(), authorId: /^UC[\w-]{20,24}$/.test(v.trim()) ? v.trim() : '', handle: /^@[\w.-]{2,40}$/.test(v.trim()) ? v.trim() : '' });
+    if (!s) { osd('Kanal tanınamadı.'); return; }
+    if (stIsSubscribed(stSubKey(s))) { osd('Zaten abone.'); return; }
+    stSubToggle(s);
+    renderStSubsPanel(grid);
+  });
+  mkBtn('İçe aktar', async () => {
+    const res = await window.api.importSubscriptions?.().catch(() => null);
+    if (!res?.ok) { if (res && !res.canceled) osd(res.error || 'İçe aktarma başarısız.'); return; }
+    const parsed = io?.parseSubscriptions(res.text, res.fileName || '');
+    if (!parsed?.ok || !parsed.subs.length) { osd(parsed?.error || 'Dosyada kanal bulunamadı.'); return; }
+    let added = 0;
+    for (const s of parsed.subs) {
+      if (!stIsSubscribed(stSubKey(s))) { stSubs.push(s); added++; }
+    }
+    saveStSubs();
+    osd(`${added} kanal içe aktarıldı (${parsed.format}).`);
+    renderStSubsPanel(grid);
+  });
+  mkBtn('Dışa aktar', async () => {
+    if (!stSubs.length) { osd('Liste boş.'); return; }
+    const fmt = await openAppDialog({
+      title: 'Dışa aktarma biçimi',
+      description: 'JSON (gruplar dahil), OPML, CSV veya NewPipe Takeout biçimi.',
+      inputLabel: 'Biçim: json / opml / csv / newpipe',
+      confirmLabel: 'Dışa aktar',
+    });
+    if (!fmt) return;
+    const format = ['json', 'opml', 'csv', 'newpipe'].includes(fmt.trim().toLowerCase()) ? fmt.trim().toLowerCase() : 'json';
+    const out = io.exportSubscriptions(stSubs, stSubGroups(), format);
+    const res = await window.api.exportSubscriptions?.({ text: out.text, fileName: out.fileName }).catch(() => null);
+    if (res?.ok) osd(`Abonelikler kaydedildi: ${res.path}`);
+    else if (!res?.canceled) osd(res?.error || 'Dışa aktarma başarısız.');
+  });
+  grid.appendChild(head);
+
+  const groups = stSubGroups();
+  let activeGroup = grid.dataset.stSubGroup || '';
+  if (groups.length) {
+    const chips = document.createElement('div');
+    chips.className = 'st-chips';
+    chips.setAttribute('role', 'tablist');
+    for (const g of ['', ...groups]) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'st-chip' + (activeGroup === g ? ' is-active' : '');
+      chip.setAttribute('role', 'tab');
+      chip.setAttribute('aria-selected', activeGroup === g ? 'true' : 'false');
+      chip.textContent = g || (window.UiLocale?.t('Tümü') || 'Tümü');
+      chip.addEventListener('click', () => { grid.dataset.stSubGroup = g; renderStSubsPanel(grid); });
+      chips.appendChild(chip);
+    }
+    grid.appendChild(chips);
+  }
+  const list = document.createElement('div');
+  list.className = 'st-sub-list';
+  let shown = 0;
+  for (const s of stSubs) {
+    if (activeGroup && s.group !== activeGroup) continue;
+    shown++;
+    const row = document.createElement('div');
+    row.className = 'st-sub-row';
+    const name = document.createElement('button');
+    name.type = 'button';
+    name.className = 'st-sub-name';
+    name.textContent = s.author || s.authorId || s.handle;
+    if (s.group) {
+      const tag = document.createElement('span');
+      tag.className = 'st-sub-group';
+      tag.textContent = s.group;
+      name.appendChild(tag);
+    }
+    name.addEventListener('click', () => {
+      if (s.authorId) openInvidiousChannelPage(s.authorId);
+      else if (s.handle) navigateBrowser(`https://www.youtube.com/${s.handle}`);
+    });
+    const grp = document.createElement('button');
+    grp.type = 'button'; grp.className = 'st-mini-btn';
+    grp.textContent = window.UiLocale?.t('Grup') || 'Grup';
+    grp.addEventListener('click', async () => {
+      const v = await openAppDialog({
+        title: 'Abonelik grubu',
+        description: 'Boş bırakılırsa grupsuz kalır.',
+        inputLabel: 'Grup adı',
+        inputValue: s.group,
+        confirmLabel: 'Kaydet',
+      });
+      // İptal false döner; boş string "grubu temizle" demektir.
+      if (v === false || v === null || v === undefined) return;
+      s.group = String(v).trim().slice(0, 60);
+      saveStSubs();
+      renderStSubsPanel(grid);
+    });
+    const rm = document.createElement('button');
+    rm.type = 'button'; rm.className = 'st-mini-btn is-danger';
+    rm.textContent = '✕';
+    rm.title = window.UiLocale?.t('Abonelikten çık') || 'Abonelikten çık';
+    rm.addEventListener('click', () => { stSubToggle(s); renderStSubsPanel(grid); });
+    row.append(name, grp, rm);
+    list.appendChild(row);
+  }
+  if (!shown) {
+    const empty = document.createElement('div');
+    empty.className = 'inv-status';
+    empty.textContent = stSubs.length
+      ? 'Bu grupta kanal yok.'
+      : 'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.';
+    list.appendChild(empty);
+  }
+  grid.appendChild(list);
+  const hint = document.createElement('div');
+  hint.className = 'st-subs-hint';
+  hint.textContent = 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
+  grid.appendChild(hint);
 }
 
 async function stSearchLoadMore() {
@@ -23412,6 +25283,113 @@ function resetSmartTubeSearch() {
 }
 
 // ----- Kanal sayfası aç -----
+// A27: kanal sekme tanımları + alt-uç yükleyici
+const ST_CH_TABS = [
+  { id: 'videos', tr: 'Videolar' }, { id: 'shorts', tr: 'Shorts' },
+  { id: 'streams', tr: 'Canlı yayınlar' }, { id: 'podcasts', tr: 'Podcast' },
+  { id: 'releases', tr: 'Sürümler' }, { id: 'courses', tr: 'Eğitimler' },
+  { id: 'playlists', tr: 'Oynatma listeleri' }, { id: 'community', tr: 'Topluluk' },
+  { id: 'channels', tr: 'Kanallar' },
+];
+
+async function loadInvidiousChannelTab(channelId, opts = {}) {
+  const res = await invCall(() => window.api.invidiousChannelTab(channelId, opts)).catch(() => null);
+  if (!res || !res.ok || !res.data) return null;
+  return res.data;
+}
+
+// Sekme içeriğini body'ye çizer; liste sekmeleri "Daha fazla" ile sayfalanır.
+async function renderStChannelTab(channelId, tab, body, getPage, setPage, query = '') {
+  body.innerHTML = '';
+  const loading = document.createElement('div');
+  loading.className = 'inv-status';
+  loading.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…';
+  body.appendChild(loading);
+  const seq = stSectionSeq;   // sayfa değişirse geç sonuç düşsün
+  const data = await loadInvidiousChannelTab(channelId, {
+    tab: tab === 'search' ? 'videos' : tab, page: getPage(), query });
+  if (seq !== stSectionSeq) return;
+  body.innerHTML = '';
+  if (!data) {
+    const e = document.createElement('div');
+    e.className = 'inv-status';
+    e.textContent = window.UiLocale?.t('Sekme içeriği alınamadı (instance desteklemiyor olabilir).')
+      || 'Sekme içeriği alınamadı (instance desteklemiyor olabilir).';
+    body.appendChild(e);
+    return;
+  }
+  const moreBtn = () => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'st-more-btn';
+    btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      setPage(getPage() + 1);
+      const next = await loadInvidiousChannelTab(channelId, {
+        tab: tab === 'search' ? 'videos' : tab, page: getPage(), query });
+      btn.remove();
+      if (!next) return;
+      appendItems(next);
+    });
+    body.appendChild(btn);
+  };
+  const appendItems = (d) => {
+    if (tab === 'community') {
+      for (const c of (d.comments || [])) {
+        const el = document.createElement('div');
+        el.className = 'st-comment';
+        const h = document.createElement('div');
+        h.className = 'st-comment-head';
+        h.textContent = [c.author, c.publishedText, c.likeCount ? `👍 ${formatCount(c.likeCount)}` : ''].filter(Boolean).join(' · ');
+        const tx = document.createElement('div');
+        tx.className = 'st-comment-text';
+        tx.textContent = c.text || '';
+        el.append(h, tx);
+        body.appendChild(el);
+      }
+      if (d.continuation) moreBtn();
+      return;
+    }
+    if (tab === 'channels') {
+      for (const ch of (d.channels || [])) {
+        const row = document.createElement('button');
+        row.type = 'button'; row.className = 'st-sub-row';
+        const nm = document.createElement('span');
+        nm.className = 'st-sub-name';
+        nm.textContent = ch.author || ch.authorId;
+        row.appendChild(nm);
+        if (ch.subCount) {
+          const sc = document.createElement('span');
+          sc.className = 'st-channel-sub';
+          sc.textContent = `${formatCount(ch.subCount)} ${window.UiLocale?.t('abone') || 'abone'}`;
+          row.appendChild(sc);
+        }
+        row.addEventListener('click', () => ch.authorId && openInvidiousChannelPage(ch.authorId));
+        body.appendChild(row);
+      }
+      return;
+    }
+    if (tab === 'playlists') {
+      const pls = (d.playlists || []);
+      if (!pls.length) return;
+      renderStPlaylistRail(body, pls.slice(0, 20));
+      if (d.continuation || pls.length >= 20) moreBtn();
+      return;
+    }
+    // videolar + kanal-içi arama sonuçları
+    const vids = (d.videos || []);
+    for (const v of vids) { if (!stVideoHidden(v)) body.appendChild(buildSmartTubeCard(v)); }
+    if (vids.length >= 20 || d.continuation) moreBtn();
+  };
+  appendItems(data);
+  if (!body.children.length) {
+    const e = document.createElement('div');
+    e.className = 'inv-status';
+    e.textContent = window.UiLocale?.t('Bu sekmede içerik yok.') || 'Bu sekmede içerik yok.';
+    body.appendChild(e);
+  }
+}
+
 async function openInvidiousChannelPage(channelId) {
   const grid = $('stGrid');
   if (!grid || !channelId) return;
@@ -23468,6 +25446,23 @@ async function openInvidiousChannelPage(channelId) {
     subs.textContent = `${formatCount(info.subCount)} ${window.UiLocale?.t('abone') || 'abone'}`;
     head.appendChild(subs);
   }
+  // A06: yerel abone durumu — uzak hesap durumuyla karıştırılmaz.
+  {
+    const subBtn = document.createElement('button');
+    subBtn.type = 'button';
+    subBtn.className = 'st-mini-btn';
+    const syncSubBtn = () => {
+      const on = stIsSubscribed(info.authorId || channelId);
+      subBtn.textContent = window.UiLocale?.t(on ? 'Abonelikten çık' : 'Kanala abone ol') || (on ? 'Abonelikten çık' : 'Kanala abone ol');
+      subBtn.classList.toggle('is-active', on);
+    };
+    syncSubBtn();
+    subBtn.addEventListener('click', () => {
+      stSubToggle({ authorId: info.authorId || channelId, author: info.author || '' });
+      syncSubBtn();
+    });
+    head.appendChild(subBtn);
+  }
   if (info.description) {
     const desc = document.createElement('div');
     desc.className = 'st-channel-desc';
@@ -23476,14 +25471,80 @@ async function openInvidiousChannelPage(channelId) {
   }
   grid.innerHTML = '';
   grid.appendChild(head);
+
+  // A27: kanal sekmeleri — 'videos' başlangıç verisi zaten yüklü; diğerleri
+  // kanal-alt-ucu üzerinden istenir. Desteklemeyen instance'da anlaşılır hata.
+  const tabRow = document.createElement('div');
+  tabRow.className = 'st-chips st-grid-row';
+  tabRow.setAttribute('role', 'tablist');
+  tabRow.setAttribute('aria-label', window.UiLocale?.t('Kanal sekmeleri') || 'Kanal sekmeleri');
+  const tabBody = document.createElement('div');
+  tabBody.className = 'st-ch-body st-grid-row';
+  grid.appendChild(tabRow);
+  grid.appendChild(tabBody);
+
+  let activeTab = 'videos';
+  let tabPage = 1;
+  const renderTabVideos = (list) => {
+    if (!list.length) {
+      const e = document.createElement('div');
+      e.className = 'inv-status';
+      e.textContent = window.UiLocale?.t('Bu sekmede içerik yok.') || 'Bu sekmede içerik yok.';
+      tabBody.appendChild(e);
+      return;
+    }
+    for (const v of list) { if (!stVideoHidden(v)) tabBody.appendChild(buildSmartTubeCard(v)); }
+  };
+  const showTabError = (msg) => {
+    const e = document.createElement('div');
+    e.className = 'inv-status';
+    e.textContent = msg;
+    tabBody.appendChild(e);
+  };
+  const selectTab = (tab) => {
+    if (tab === activeTab && tabBody.children.length) return;
+    activeTab = tab;
+    tabPage = 1;
+    tabRow.querySelectorAll('.st-chip').forEach((c) => {
+      c.classList.toggle('is-active', c.dataset.stChTab === tab);
+      c.setAttribute('aria-selected', c.dataset.stChTab === tab ? 'true' : 'false');
+    });
+    renderStChannelTab(channelId, tab, tabBody, () => tabPage, (p) => { tabPage = p; });
+  };
+  for (const t of ST_CH_TABS) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'st-chip' + (t.id === 'videos' ? ' is-active' : '');
+    chip.dataset.stChTab = t.id;
+    chip.setAttribute('role', 'tab');
+    chip.setAttribute('aria-selected', t.id === 'videos' ? 'true' : 'false');
+    chip.textContent = window.UiLocale?.t(t.tr) || t.tr;
+    chip.addEventListener('click', () => selectTab(t.id));
+    tabRow.appendChild(chip);
+  }
+  // Kanal içi arama — son chip gibi davranan inline alan
+  const chSearch = document.createElement('input');
+  chSearch.type = 'search';
+  chSearch.className = 'st-ch-search';
+  chSearch.placeholder = window.UiLocale?.t('Kanalda ara') || 'Kanalda ara';
+  chSearch.setAttribute('aria-label', window.UiLocale?.t('Kanalda ara') || 'Kanalda ara');
+  chSearch.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = chSearch.value.trim();
+    if (!q) return;
+    renderStChannelTab(channelId, 'search', tabBody, () => tabPage, (p) => { tabPage = p; }, q);
+  });
+  tabRow.appendChild(chSearch);
+
+  // Varsayılan videolar sekmesi — mevcut latestVideos verisi kullanılır (ek istek yok)
   if (!videos.length) {
     const empty = document.createElement('div');
-    empty.className = 'inv-status st-grid-row';
+    empty.className = 'inv-status';
     empty.textContent = window.UiLocale?.t('Kanal videosu bulunamadı.') || 'Kanal videosu bulunamadı.';
-    grid.appendChild(empty);
+    tabBody.appendChild(empty);
   } else {
-    // Kartlar doğrudan ana grid'e — ayrı iç .st-grid wrap'i layout'u eziyordu
-    videos.forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+    renderTabVideos(videos);
   }
 }
 
@@ -23695,6 +25756,16 @@ function initSmartTube() {
   document.querySelectorAll('.st-side-item[data-st-section]').forEach((btn) => {
     btn.addEventListener('click', () => stSelectSection(btn.dataset.stSection));
   });
+  // A04: bölüm kaydı — son açık bölümle devam; bilinmeyen kayıt yok sayılır.
+  try {
+    const saved = localStorage.getItem('stSection');
+    if (['home', 'trending', 'popular', 'subscriptions', 'channels',
+         'music', 'gaming', 'news', 'live', 'history', 'myplaylists'].includes(saved)) {
+      stCurrentSection = saved;
+      document.querySelectorAll('.st-side-item[data-st-section]').forEach((b) =>
+        b.classList.toggle('is-active', b.dataset.stSection === saved));
+    }
+  } catch (_) {}
   const loginBtn = $('stLoginBtn');
   if (loginBtn) loginBtn.addEventListener('click', openInvidiousLogin);
   const logoutBtn = $('stLogoutBtn');
@@ -23759,6 +25830,91 @@ function initSmartTube() {
     if (stSearchActive) doSmartTubeSearch();
     else renderSmartTubeSection(stCurrentSection, { force: true });
   });
+  // Kart görünümü paneli (A10): kart boyutu + yazı ölçeği, TV için ayarlanır.
+  const stDisplayToggle = $('stDisplayToggle');
+  const stDisplayPanel = $('stDisplayPanel');
+  const setStDisplayOpen = (open) => {
+    stDisplayPanel?.classList.toggle('hidden', !open);
+    stDisplayToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  const syncStCardDisplay = () => {
+    const root = $('smarttubeBrowser');
+    if (!root) return;
+    const card = Number($('stCardScale')?.value) || 100;
+    const font = Number($('stCardFontScale')?.value) || 100;
+    root.style.setProperty('--st-card-scale', String(card / 100));
+    root.style.setProperty('--st-card-font', String(font / 100));
+    const cardVal = $('stCardScaleVal');
+    const fontVal = $('stCardFontScaleVal');
+    if (cardVal) cardVal.textContent = `%${card}`;
+    if (fontVal) fontVal.textContent = `%${font}`;
+  };
+  if (stDisplayToggle) stDisplayToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setStDisplayOpen(stDisplayPanel?.classList.contains('hidden'));
+  });
+  document.addEventListener('click', (e) => {
+    if (!stDisplayPanel || stDisplayPanel.classList.contains('hidden')) return;
+    if (stDisplayPanel.contains(e.target) || stDisplayToggle?.contains(e.target)) return;
+    setStDisplayOpen(false);
+  });
+  stDisplayPanel?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setStDisplayOpen(false);
+  });
+  ['stCardScale', 'stCardFontScale'].forEach((id) => {
+    $(id)?.addEventListener('input', syncStCardDisplay);
+  });
+  // A08/A03: filtre kutuları açılınca mevcut kartlar hemen süzülür;
+  // Gizlenenler listesi panelde geri alma sağlar.
+  ['stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending'].forEach((id) => {
+    $(id)?.addEventListener('change', () => applyStContentFilters());
+  });
+  $('stHiddenList')?.addEventListener('click', (e) => {
+    const channelBtn = e.target.closest('[data-st-unhide-channel]');
+    if (channelBtn) { stUnhideChannel(channelBtn.dataset.stUnhideChannel); return; }
+    const videoBtn = e.target.closest('[data-st-unhide-video]');
+    if (videoBtn) stUnhideVideo(videoBtn.dataset.stUnhideVideo);
+  });
+  if (stDisplayToggle) stDisplayToggle.addEventListener('click', () => { renderStHiddenList(); renderStPlaylistPanel(); });
+  // A38: sırayı karıştır + A22: çalma listesi paneli
+  $('stShuffleQueue')?.addEventListener('click', () => {
+    if (!stQueueShuffle()) {
+      setBrowserSignal(window.UiLocale?.t('Karıştırılacak sıra yok.') || 'Karıştırılacak sıra yok.', false, { priority: 50, holdMs: 2500 });
+    }
+  });
+  const plCreate = () => {
+    const input = $('stPlaylistName');
+    const list = stPlaylistCreate(input?.value || '');
+    if (list && input) input.value = '';
+    else if (!list) setBrowserSignal(window.UiLocale?.t('Liste adı boş olamaz veya liste sınırı dolu.') || 'Liste adı boş olamaz veya liste sınırı dolu.', false, { priority: 50, holdMs: 3000 });
+  };
+  $('stPlaylistCreate')?.addEventListener('click', plCreate);
+  $('stPlaylistName')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); plCreate(); }
+    e.stopPropagation();
+  });
+  $('stPlaylistList')?.addEventListener('click', (e) => {
+    const playBtn = e.target.closest('[data-pl-play]');
+    if (playBtn) {
+      if (!stPlaylistPlay(playBtn.dataset.plPlay)) {
+        setBrowserSignal(window.UiLocale?.t('Liste boş.') || 'Liste boş.', false, { priority: 50, holdMs: 2500 });
+      }
+      return;
+    }
+    const enqBtn = e.target.closest('[data-pl-enqueue]');
+    if (enqBtn) {
+      const n = stPlaylistEnqueue(enqBtn.dataset.plEnqueue);
+      setBrowserSignal(`${n} ${window.UiLocale?.t('video sıraya eklendi.') || 'video sıraya eklendi.'}`, true, { priority: 50, holdMs: 3000 });
+      return;
+    }
+    const delBtn = e.target.closest('[data-pl-remove]');
+    if (delBtn) {
+      stPlaylistRemove(delBtn.dataset.plRemove);
+      setBrowserSignal(window.UiLocale?.t('Liste silindi.') || 'Liste silindi.', true, { priority: 50, holdMs: 2500 });
+    }
+  });
+  renderStPlaylistPanel();
+  syncStCardDisplay();
   const close = $('stCloseBrowser');
   if (close) close.addEventListener('click', () => {
     // Medya bittiğinde düğme görünürde kalırsa tıklama hiçbir şey yapmıyordu —
@@ -23776,25 +25932,49 @@ function initSmartTube() {
   };
   if (searchInp) {
     let searchDebounce = null;
+    const hideSuggest = () => { if (typeof stHideSuggest === 'function') stHideSuggest(); };
     searchInp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { clearTimeout(searchDebounce); doSmartTubeSearch(); }
+      if (e.key === 'Enter') { clearTimeout(searchDebounce); hideSuggest(); doSmartTubeSearch(); }
       else if (e.key === 'Escape') {
         // Yayılımı kes — yoksa document handler aramayı sıfırlarken tüm
         // oynatıcı katmanını da (closePlayer) kapatıyordu.
         e.stopPropagation();
         clearTimeout(searchDebounce);
+        hideSuggest();
         resetSmartTubeSearch();
+      } else if (e.key === 'ArrowDown' && typeof $ === 'function') {
+        // Öneri kutusu açıksa ilk maddeye odakla
+        const first = $('stSuggestBox')?.querySelector('.st-suggest-item');
+        if (first && !$('stSuggestBox')?.classList.contains('hidden')) { e.preventDefault(); first.focus(); }
       }
     });
     searchInp.addEventListener('input', () => {
       syncSearchClear();
       // SmartTube canlı arama: yazarken debounce'lu sorgu (Y3) — boşalınca sıfırla
       clearTimeout(searchDebounce);
+      if (typeof stSuggestTimer !== 'undefined') clearTimeout(stSuggestTimer);
       const q = searchInp.value.trim();
-      if (!q) { resetSmartTubeSearch(); return; }
+      if (!q) { hideSuggest(); resetSmartTubeSearch(); return; }
+      // A23: öneri kutusu — canlı aramadan önce açılır
+      stSuggestTimer = setTimeout(() => {
+        if (searchInp.value.trim() === q && q.length >= 2 && typeof stFetchSuggest === 'function') stFetchSuggest(q);
+      }, 300);
       searchDebounce = setTimeout(() => {
         if (searchInp.value.trim() === q) doSmartTubeSearch();
       }, 450);
+    });
+    searchInp.addEventListener('blur', () => { setTimeout(hideSuggest, 150); });
+  }
+  // Öneri kutusunda ok gezinmesi; Esc input'a geri döner.
+  const stSuggestBoxEl = $('stSuggestBox');
+  if (stSuggestBoxEl) {
+    stSuggestBoxEl.addEventListener('keydown', (e) => {
+      const items = [...stSuggestBoxEl.querySelectorAll('.st-suggest-item')];
+      const idx = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' && idx >= 0 && items[idx + 1]) { e.preventDefault(); items[idx + 1].focus(); }
+      else if (e.key === 'ArrowUp' && idx > 0) { e.preventDefault(); items[idx - 1].focus(); }
+      else if (e.key === 'ArrowUp' && idx === 0) { e.preventDefault(); $('stSearchInput')?.focus(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); stHideSuggest(); $('stSearchInput')?.focus(); }
     });
   }
   if (searchClear) {
@@ -24271,6 +26451,7 @@ if ($('playerStream')) {
         player.pendingLibrarySeek.generation = currentGeneration();
       }
       stQueueDequeueIfPlaying(ytKey);
+      stBumpPlayCount(info);
       return;
     }
     if (info.stream && info.stream.url) {
@@ -24289,6 +26470,7 @@ if ($('playerStream')) {
         player.pendingLibrarySeek.generation = currentGeneration();
       }
       stQueueDequeueIfPlaying(ytKey);
+      stBumpPlayCount(info);
       logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
     }
   });

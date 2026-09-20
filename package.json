@@ -20,9 +20,11 @@
   "author": "dorukakindev and Whisper Browser contributors",
   "license": "MIT",
   "devDependencies": {
+    "axe-core": "4.13.0",
     "electron": "https://github.com/castlabs/electron-releases#v43.2.0+wvcus",
     "esbuild": "0.28.2",
     "imsc": "1.1.5",
+    "jsdom": "30.0.1",
     "mp4box": "2.4.1",
     "vtt.js": "0.13.0"
   },
@@ -32,7 +34,8 @@
     "hls.js": "^1.7.1",
     "jassub": "2.5.16",
     "mux.js": "6.3.0",
-    "pdfjs-dist": "6.3.289"
+    "pdfjs-dist": "6.3.289",
+    "qrcode": "^1.5.4"
   },
   "keywords": [
     "whisper",

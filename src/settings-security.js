@@ -32,6 +32,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
+  'stCardScale', 'stCardFontScale',
 ]);
 
 const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
@@ -44,10 +45,12 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'llmPostprocess',
   'llmFixCensorship', 'llmFixHallucination', 'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst',
-  'browserHideSiteCaptions', 'browserRateFightback', 'browserPreservesPitch', 'browserDarkMode',
+  'browserHideSiteCaptions', 'browserRateFightback', 'browserPreservesPitch', 'browserDarkMode', 'browserReaderAuto',
   'browserYoutubeAppearance', 'browserYoutubeHideShorts',
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
   'browserAutoSkipAds', 'browserPlayerResponseAdPrune',
+  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
+  'browserAutoPip',
 ]);
 
 const UI_ENUMS = Object.freeze({
@@ -94,6 +97,7 @@ const UI_NUMERIC_RANGES = Object.freeze({
   browserOverlayGap: [0, 48],
   browserVideoBrightness: [40, 200], browserVideoContrast: [40, 200],
   browserSilenceSpeedRate: [2, 8], browserSilenceThresholdDb: [-70, -20],
+  stCardScale: [60, 160], stCardFontScale: [75, 150],
 });
 
 const ENDPOINT_PRESETS = new Set([

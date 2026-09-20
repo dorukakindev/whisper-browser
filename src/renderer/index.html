@@ -252,7 +252,19 @@
               <div class="model-management-row">
                 <span id="modelInstallStatus" role="status">Önbellek denetlenmedi</span>
                 <button class="link-btn" id="modelStatusRefresh" type="button">Yenile</button>
-                <button class="link-btn" id="modelBenchmark" type="button">30 sn benchmark</button>
+                <button class="link-btn" id="modelCacheDelete" type="button">Önbellekten sil</button>
+                <label class="model-benchmark-field"><span>Klip başlangıcı</span><input id="modelBenchmarkStart" type="number" min="0" max="86400" step="1" value="0" aria-label="Benchmark başlangıcı (saniye)"></label>
+                <label class="model-benchmark-field"><span>Klip süresi</span><select id="modelBenchmarkSeconds" aria-label="Benchmark süresi"><option value="30">30 sn</option><option value="60">60 sn</option><option value="90">90 sn</option><option value="120">120 sn</option></select></label>
+                <button class="link-btn" id="modelBenchmark" type="button">Benchmark çalıştır</button>
+                <select id="modelBenchmarkCompare" title="İkinci modelle aynı klipte A/B ölçümü" aria-label="Karşılaştırma modeli">
+                  <option value="">A/B: yok</option>
+                  <option value="large-v3">vs large-v3</option>
+                  <option value="large-v3-turbo">vs large-v3-turbo</option>
+                  <option value="medium">vs medium</option>
+                  <option value="small">vs small</option>
+                  <option value="base">vs base</option>
+                  <option value="tiny">vs tiny</option>
+                </select>
               </div>
             </div>
 
@@ -349,6 +361,28 @@
               <div class="hint" style="margin-top:6px">
                 <strong>Motor:</strong> <em>faster-whisper</em> dengeli (varsayılan); <em>batched</em> uzun videolarda çok daha hızlı; <em>WhisperX</em> wav2vec2 ile &lt;100ms kelime hizalaması verir (ilk seçimde <code>install-whisperx.bat</code> gerekir). Batch boyutu yalnızca batched/WhisperX'te, sözlük/başlangıç ipucu faster modlarında etkilidir.
               </div>
+            </div>
+          </details>
+
+          <details class="advanced runtime-maintenance" id="runtimeMaintenance">
+            <summary>
+              <span>Çalışma ortamı ve bakım</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="runtime-maintenance-body">
+              <p class="field-hint">Transkripsiyon ve medya araçlarının kullanılabilirliğini burada denetleyebilirsiniz.</p>
+              <dl class="runtime-status-list" id="runtimeStatusList" aria-live="polite">
+                <div><dt>Python ortamı</dt><dd id="runtimePython" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>FFmpeg</dt><dd id="runtimeFfmpeg" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>yt-dlp</dt><dd id="runtimeYtdlp" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>GPU</dt><dd id="runtimeGpu" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>Model diski</dt><dd id="runtimeDisk" data-state="loading">Denetleniyor</dd></div>
+              </dl>
+              <div class="runtime-maintenance-actions">
+                <button class="btn btn-secondary btn-sm" id="runtimeRefresh" type="button">Durumu yenile</button>
+                <button class="btn btn-secondary btn-sm" id="runtimeUpdateYtdlp" type="button">yt-dlp'yi güncelle</button>
+              </div>
+              <p class="field-hint">yt-dlp güncellemesi HTTPS metadata, SHA-256 ve bağımsız import doğrulamasından sonra atomik olarak etkinleşir.</p>
             </div>
           </details>
 
@@ -1127,7 +1161,7 @@
             <div class="browser-address-wrap">
               <span class="browser-security-mark" id="browserSecurityMark" role="img" aria-label="Adres bekleniyor" title="Adres bekleniyor"></span>
               <input type="text" id="browserAddress" autocomplete="off" spellcheck="false"
-                placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama"
+                placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama" role="combobox"
                 aria-autocomplete="list" aria-controls="browserAddressResults" aria-expanded="false" />
               <datalist id="browserAddressSuggestions"></datalist>
               <div class="browser-address-results hidden" id="browserAddressResults" role="listbox" aria-label="Adres ve kütüphane önerileri"></div>
@@ -1282,6 +1316,38 @@
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg></span>
                     <span class="browser-menu-label">PDF aç</span>
                   </button>
+                  <button type="button" role="menuitem" id="browserExportPdf">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M6 20h12"/></svg></span>
+                    <span class="browser-menu-label">Sayfayı PDF olarak kaydet</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserCopyPageMarkdown">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5 5 12l4 7M15 5l4 7-4 7"/></svg></span>
+                    <span class="browser-menu-label">Sayfa bağlantısını Markdown olarak kopyala</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserShowQr">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6H4zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg></span>
+                    <span class="browser-menu-label">Sayfa QR kodunu göster</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserElementPick">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 13h7v7h-7zM17 4l3 3M20 4l-3 3"/></svg></span>
+                    <span class="browser-menu-label">Sayfada öğe gizle…</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserElementClear">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+                    <span class="browser-menu-label">Bu sitede gizlenenleri geri yükle…</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserPlayMpv">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5l12 7-12 7z"/></svg></span>
+                    <span class="browser-menu-label">mpv ile oynat</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserPlayVlc">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l6 10H6zM8 18h8"/></svg></span>
+                    <span class="browser-menu-label">VLC ile oynat</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserReadLater">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v10m0 0 3-3m-3 3-3-3M5 21h14M5 3h14"/></svg></span>
+                    <span class="browser-menu-label">Çevrimdışı okuma listesine ekle</span>
+                  </button>
                   <button type="button" role="menuitem" data-browser-proxy="playerBookmark">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg></span>
                     <span class="browser-menu-label">Bu anı kaydet</span><span class="browser-menu-shortcut">K</span>
@@ -1382,6 +1448,8 @@
                 aria-selected="true" aria-controls="browserPlacesList" tabindex="0">Yer imleri</button>
               <button class="browser-place-tab" id="browserPlaceTabHistory" type="button" data-place-tab="history" role="tab"
                 aria-selected="false" aria-controls="browserPlacesList" tabindex="-1">Geçmiş</button>
+              <button class="browser-place-tab" id="browserPlaceTabOffline" type="button" data-place-tab="offline" role="tab"
+                aria-selected="false" aria-controls="browserPlacesList" tabindex="-1">Çevrimdışı</button>
             </div>
             <div class="browser-place-filters">
               <input type="search" id="browserPlacesSearch" placeholder="Başlık veya adreste ara…" aria-label="Yer imleri ve geçmişte ara" />
@@ -1400,6 +1468,18 @@
                 <button class="btn btn-ghost btn-sm" id="browserWorkspaceOpen" type="button">Sekmelere ekle</button>
                 <button class="btn btn-ghost btn-sm" id="browserWorkspaceRemove" type="button">Kaydı sil</button>
               </div>
+            </div>
+          </section>
+          <section class="browser-places browser-qr hidden" id="browserQrPanel" role="dialog" aria-modal="false"
+            aria-hidden="true" aria-label="Sayfa QR kodu">
+            <div class="browser-places-head">
+              <strong>Sayfa QR kodu</strong>
+              <button class="btn-icon browser-dismiss" id="browserQrClose" type="button" title="Kapat" aria-label="Kapat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+            </div>
+            <div class="browser-qr-body">
+              <canvas id="browserQrCanvas" width="168" height="168" aria-label="Sayfanın QR kodu"></canvas>
+              <p class="browser-qr-url" id="browserQrUrl"></p>
+              <button class="btn btn-ghost btn-sm" id="browserQrCopy" type="button">Adresi kopyala</button>
             </div>
           </section>
 
@@ -1579,7 +1659,9 @@
                   <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" /><span>Sitenin kendi altyazısını gizle</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserRateFightback" /><span>Site hızı sıfırlarsa geri uygula</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserPreservesPitch" checked /><span>Hız değişince ses perdesini koru</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserAutoPip" /><span>Sekme değişince videoyu küçük oynatıcıda sürdür</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserDarkMode" /><span>Bu sayfayı koyu göster</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserReaderAuto" /><span>Bu sitede okuma görünümünü otomatik aç</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserYoutubeAppearance" checked /><span>YouTube özel görünümünü kullan</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserYoutubeHideShorts" checked /><span>YouTube Shorts bölümlerini gizle</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserNormalizeAudio" /><span>Konuşma sesini dinamik olarak dengele</span></label>
@@ -1739,7 +1821,7 @@
           </div>
 
           <div class="browser-view-slot" id="browserViewSlot">
-            <div class="browser-split-divider hidden" id="browserSplitDivider" role="separator" aria-orientation="vertical" aria-label="Bölünmüş görünüm oranını ayarla" tabindex="0"></div>
+            <div class="browser-split-divider hidden" id="browserSplitDivider" role="separator" aria-orientation="vertical" aria-label="Bölünmüş görünüm oranını ayarla" tabindex="0" aria-valuemin="25" aria-valuemax="75" aria-valuenow="50"></div>
             <section class="browser-settings-surface hidden" id="browserSettingsSurface"
               aria-label="Tarayıcı ayarları" aria-hidden="true">
               <header class="browser-settings-surface-head">
@@ -1856,6 +1938,8 @@
                 <kbd>E</kbd><span>Bloğu düzenle</span><kbd>C</kbd><span>Bloğu kopyala</span>
                 <kbd>K</kbd><span>Cümleyi kaydet</span><kbd>W</kbd><span>Seçili kelimeyi kaydet</span>
                 <kbd>B</kbd><span>A-B döngüsü</span><kbd>S</kbd><span>Ekran görüntüsü</span>
+                <kbd>T</kbd><span>Sinema modu</span><kbd>I</kbd><span>Mini oynatıcı</span>
+                <kbd>N</kbd><span>Sıradaki paneli</span><kbd>2× kenar</kbd><span>∓10 sn seek</span>
                 <kbd>?</kbd><span>Bu pencere</span><kbd>Esc</kbd><span>Kapat</span>
               </div>
             </div>
@@ -1899,6 +1983,31 @@
                 <span class="st-side-icon" aria-hidden="true">☷</span>
                 <span class="st-side-label">Kanallarım</span>
               </button>
+              <!-- A04: gerçek bölüm düzeni — trend kategorileri ve yerel listeler ayrı sekme -->
+              <button class="st-side-item" data-st-section="music" title="Müzik">
+                <span class="st-side-icon" aria-hidden="true">♪</span>
+                <span class="st-side-label">Müzik</span>
+              </button>
+              <button class="st-side-item" data-st-section="gaming" title="Oyun">
+                <span class="st-side-icon" aria-hidden="true">✦</span>
+                <span class="st-side-label">Oyun</span>
+              </button>
+              <button class="st-side-item" data-st-section="news" title="Haberler">
+                <span class="st-side-icon" aria-hidden="true">✎</span>
+                <span class="st-side-label">Haberler</span>
+              </button>
+              <button class="st-side-item" data-st-section="live" title="Canlı">
+                <span class="st-side-icon" aria-hidden="true">●</span>
+                <span class="st-side-label">Canlı</span>
+              </button>
+              <button class="st-side-item" data-st-section="history" title="Geçmiş">
+                <span class="st-side-icon" aria-hidden="true">↺</span>
+                <span class="st-side-label">Geçmiş</span>
+              </button>
+              <button class="st-side-item" data-st-section="myplaylists" title="Listelerim">
+                <span class="st-side-icon" aria-hidden="true">≡</span>
+                <span class="st-side-label">Listelerim</span>
+              </button>
               <button class="st-side-item" data-st-action="yt-login" id="stYtLoginBtn" title="YouTube ile giriş (Google hesabı)">
                 <span class="st-side-icon st-yt-icon" aria-hidden="true">▶</span>
                 <span class="st-side-label">YouTube</span>
@@ -1931,6 +2040,40 @@
                   <button class="st-search-btn" id="stSearchBtn" aria-label="Ara">
                     <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
                   </button>
+                  <div class="st-suggest hidden" id="stSuggestBox" role="listbox" aria-label="Arama önerileri"></div>
+                </div>
+                <button class="st-icon-btn" id="stDisplayToggle" title="Kart görünümü ayarları" aria-label="Kart görünümü ayarları" aria-expanded="false" aria-haspopup="dialog">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6"/></svg>
+                </button>
+                <div class="st-display-panel hidden" id="stDisplayPanel" role="dialog" aria-label="Kart görünümü">
+                  <label><span>Kart boyutu <output id="stCardScaleVal">%100</output></span>
+                    <input type="range" id="stCardScale" min="60" max="160" step="5" value="100" /></label>
+                  <label><span>Kart yazısı <output id="stCardFontScaleVal">%100</output></span>
+                    <input type="range" id="stCardFontScale" min="75" max="150" step="5" value="100" /></label>
+                  <p class="st-display-hint">Geniş ekranda büyük kartlar ve yazı için artırın; ayarlar kaydedilir.</p>
+                  <div class="st-display-sep" role="group" aria-label="İçerik filtreleri">
+                    <div class="st-display-group">İçerik filtreleri</div>
+                    <label class="st-display-check"><input type="checkbox" id="stHideShorts" /><span>Shorts kartlarını gizle</span></label>
+                    <label class="st-display-check"><input type="checkbox" id="stHideWatched" /><span>İzlenen videoları gizle</span></label>
+                    <label class="st-display-check"><input type="checkbox" id="stHideLive" /><span>Canlı yayınları gizle</span></label>
+                    <label class="st-display-check"><input type="checkbox" id="stHideTrending" /><span>Ana sayfadaki Trend rayını gizle</span></label>
+                    <p class="st-display-hint">Filtreler yalnız bu cihazda geçerlidir; YouTube'a bildirim göndermez.</p>
+                    <div class="st-hidden-head">Gizlenenler <span class="st-hidden-count" id="stHiddenCount"></span></div>
+                    <div class="st-hidden-list" id="stHiddenList"></div>
+                  </div>
+                  <div class="st-display-sep" role="group" aria-label="Oynatma">
+                    <div class="st-display-group">Oynatma</div>
+                    <label class="st-display-check"><input type="checkbox" id="stAutoRelated" /><span>Bitince ilgili videoya geç (radyo)</span></label>
+                    <button type="button" class="st-mini-btn" id="stShuffleQueue">Sırayı karıştır</button>
+                  </div>
+                  <div class="st-display-sep" role="group" aria-label="Çalma listeleri">
+                    <div class="st-display-group">Çalma listeleri</div>
+                    <div class="st-hidden-list" id="stPlaylistList"></div>
+                    <div class="st-pl-new">
+                      <input type="text" id="stPlaylistName" maxlength="60" placeholder="Yeni liste adı" aria-label="Yeni liste adı" />
+                      <button type="button" class="st-mini-btn" id="stPlaylistCreate">Oluştur</button>
+                    </div>
+                  </div>
                 </div>
                 <button class="st-icon-btn" id="stRefresh" title="Yenile" aria-label="Yenile">
                   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3.5-7.1M21 4v5h-5"/></svg>
@@ -2000,6 +2143,7 @@
               <div class="seek-played" id="seekPlayed"></div>
               <div class="seek-markers" id="seekMarkers"></div>
               <div class="seek-tip hidden" id="seekTip">0:00</div>
+              <div class="seek-thumb hidden" id="seekThumb" aria-hidden="true"></div>
               <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" aria-label="Video konumu"/>
             </div>
             <div class="subtitle-mode-wrap" id="subtitleModeWrap">
@@ -2041,6 +2185,14 @@
               title="Tek tıkla: altyazıyı çıkar, çevir ve izlemeye hazır hale getir">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
             </button>
+            <select id="sleepTimer" class="player-speed sleep-timer" title="Uyku zamanlayıcısı — süre dolunca oynatma duraklar" aria-label="Uyku zamanlayıcısı">
+              <option value="0" selected>Uyku: kapalı</option>
+              <option value="15">15 dk</option>
+              <option value="30">30 dk</option>
+              <option value="45">45 dk</option>
+              <option value="60">60 dk</option>
+              <option value="end">Bölüm sonunda dur</option>
+            </select>
             <button class="btn-icon" id="helpBtn" title="Klavye kısayolları (?)" aria-label="Klavye kısayollarını göster">?</button>
             <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)" aria-label="Tam ekranı aç veya kapat">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -2056,7 +2208,7 @@
             <p class="hint">Görünüm ayarları bu sekmeye uygulanır.</p>
             <div id="browserWatchStyle" class="browser-watch-style"></div>
           </details>
-          <details id="browserFeatures" class="browser-features" role="tabpanel" aria-labelledby="sideTabTools">
+          <details id="browserFeatures" class="browser-features" aria-labelledby="sideTabTools">
             <summary><span>Video araçları</span><span class="bf-summary-hint">Altyazı · senkron · sahne</span></summary>
             <div class="bf-workspace" tabindex="0" role="region" aria-label="Video araçları içeriği">
             <p id="browserFeaturesContext" class="bf-context">Etkin videoyu seçin.</p>
@@ -2897,6 +3049,9 @@
   <script src="../browser-site-profiles.js"></script>
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>
+  <script src="../browser-omnibox.js"></script>
+  <script src="../subscriptions-io.js"></script>
+  <script src="vendor/qrcode.js"></script>
   <script src="../browser-command-palette.js"></script>
   <script src="../browser-settings-registry.js"></script>
   <script src="../browser-skip-segments.js"></script>
@@ -2986,6 +3141,7 @@
 </div>
 
 <script src="ui-locale.js"></script>
+<script src="status-copy.js"></script>
 <script src="renderer.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>

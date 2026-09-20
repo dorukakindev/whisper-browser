@@ -332,7 +332,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   });
   await test('benchmark dosya diyaloğu sırasında başlayan model işi ikinci spawnı engeller', async () => {
     const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
-      modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender } };
+      modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender },
+      loadSettings: () => ({ ui: { uiLocale: 'en' } }) };
     let complete;
     context.dialog = { showOpenDialog: () => new Promise((resolve) => { complete = resolve; }) };
     const sandbox = vm.createContext(context);

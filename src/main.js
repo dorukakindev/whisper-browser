@@ -6,6 +6,7 @@ const dns = require('dns').promises;
 const http = require('http');
 const https = require('https');
 const { isIP } = require('net');
+const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
@@ -15,11 +16,14 @@ const { terminateProcessTree } = require('./process-lifecycle');
 const { createProcessTerminalLatch, isValidOutputNameSuffix } = require('./renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('./pipeline-job');
 const { createWatchLibraryStore } = require('./watch-library-store');
-const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
+const { activeRuntimePath: activeYtdlpRuntimePath, pythonEnvWithRuntime,
+  runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
 const { classifyTranslationHttpFailure } = require('./browser-translation-provider-error');
+const browserOmnibox = require('./browser-omnibox');
+const { BrowserReadingList } = require('./browser-reading-list');
 const { probeTranslationProvider } = require('./translation-provider-probe');
 const {
   isYoutubePlayerResponseUrl,
@@ -290,6 +294,7 @@ const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
 const { buildBrowserLinkHintsScript } = require('./browser-link-hints');
 const { buildDarkReaderCssScript } = require('./browser-dark-mode');
 const { isYoutubePageUrl, youtubeStyleCss } = require('./browser-youtube-style');
+const { BrowserElementRules, validSelector } = require('./browser-element-rules');
 const { CaptionAcquisitionPlan } = require('./browser-acquisition');
 const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-event-envelope');
 const { BrowserAssetStore } = require('./browser-asset-store');
@@ -892,7 +897,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
 // Invidious API için basit wrapper — runMediaCommand'a benzer ama invidious.py kullanır
 const INVIDIOUS_RESULT_TYPES = new Set([
   'probe', 'subs', 'feed', 'search', 'channel', 'login', 'logout', 'downloaded',
-  'comments', 'playlist',
+  'comments', 'playlist', 'suggestions', 'channel_tab',
 ]);
 
 // YouTube OAuth cihaz-akışı sonuç tipleri (backend/youtube.py)
@@ -1461,12 +1466,31 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
   const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['search', '--query', query.trim().slice(0, 100)];
   if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
+  const searchType = String(opts && opts.searchType || 'video').toLowerCase();
+  if (['playlist', 'all'].includes(searchType)) args.push('--search-type', searchType);
+  // A04: yalnız bilinen Invidious özellik süzgeçleri geçer — serbest metin gitmez.
+  const features = String(opts && opts.features || '').toLowerCase()
+    .split(',').map((t) => t.trim())
+    .filter((t) => ['live', 'hd', 'subtitles', 'creative_commons', '3d', '360', 'hdr'].includes(t));
+  if (features.length) args.push('--features', features.join(','));
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
     }
   }, 75_000, invidiousAuthEnv(instance));
+});
+
+// Invidious arama önerileri (A23) — kısa ömürlü, ana arama işiyle çakışmasın
+// diye ayrı job key kullanır (kısa timeout).
+ipcMain.handle('invidious:suggest', async (_e, query, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const q = String(query || '').trim().slice(0, 100);
+  if (!q) return { ok: true, data: { type: 'suggestions', query: '', suggestions: [], instance: '' } };
+  const instance = resolveInvidiousInstance(opts && opts.instance);
+  const args = ['suggest', '--query', q];
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious-suggest', null, 12_000, invidiousAuthEnv(instance));
 });
 
 // Invidious kanal
@@ -1487,6 +1511,34 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
       mainWindow.webContents.send('invidious:event', ev);
     }
   }, 75_000, invidiousAuthEnv(instance));
+});
+
+// A27 — kanal sekmeleri: /channels/:id/<tab> + kanal içi arama
+const INV_CHANNEL_TABS = new Set(['videos', 'shorts', 'streams', 'podcasts',
+  'releases', 'courses', 'playlists', 'community', 'channels']);
+ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const cid = String(channelId || '').trim();
+  if (!/^[A-Za-z0-9_-]{2,40}$/.test(cid)) {
+    return { ok: false, error: 'Geçersiz kanal ID formatı.' };
+  }
+  const o = opts || {};
+  const tab = String(o.tab || 'videos').toLowerCase();
+  const query = String(o.query || '').trim().slice(0, 100);
+  if (!query && !INV_CHANNEL_TABS.has(tab)) {
+    return { ok: false, error: 'Geçersiz kanal sekmesi.' };
+  }
+  const instance = resolveInvidiousInstance(o.instance);
+  const args = ['channel-tab', '--channel-id', cid, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos'];
+  if (query) args.push('--query', query);
+  const page = Math.max(1, parseInt(o.page, 10) || 1);
+  if (page > 1) args.push('--page', String(Math.min(page, 100)));
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  }, 60_000, invidiousAuthEnv(instance));
 });
 
 // Invidious yorumlar — /api/v1/comments/:id (continuation ile sayfalama)
@@ -2583,6 +2635,24 @@ function browserTranslationArchive() {
   return browserTranslationArchiveInstance;
 }
 
+let browserReadingListInstance = null;
+function browserReadingList() {
+  if (!browserReadingListInstance) {
+    browserReadingListInstance = new BrowserReadingList(
+      path.join(app.getPath('userData'), 'OkumaListesi'));
+  }
+  return browserReadingListInstance;
+}
+
+let browserElementRulesInstance = null;
+function browserElementRules() {
+  if (!browserElementRulesInstance) {
+    browserElementRulesInstance = new BrowserElementRules(
+      path.join(app.getPath('userData'), 'element-rules.json'));
+  }
+  return browserElementRulesInstance;
+}
+
 function browserMangaCache() {
   if (!browserMangaCacheInstance) {
     browserMangaCacheInstance = new PersistentTranslationCache(
@@ -3023,6 +3093,8 @@ function createBrowserTabRecord(initial = {}) {
     manifestResourceRecoverySeq: 0,
     manifestResourceAttempts: new Map(),
     pageIndexTimer: null,
+    elementRulesCssKey: '',
+    elementPickCssKey: '',
     darkModeRequestSeq: 0,
     youtubeStyleRequestSeq: 0,
     youtubeStyleGeneration: -1,
@@ -4623,6 +4695,8 @@ function installBrowserContextMenu(tab, wc) {
         click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(linkUrl)).catch((error) =>
           sendBrowserEvent(tab, { type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
       { label: 'Bağlantı adresini kopyala', visible: !!linkUrl, click: () => clipboard.writeText(linkUrl) },
+      { label: 'Bağlantıyı Markdown olarak kopyala', visible: !!linkUrl,
+        click: () => clipboard.writeText(browserOmnibox.markdownLink(params.linkText || linkUrl, linkUrl)) },
       { label: 'Seçili metni ara', visible: !!selection,
         click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`))
           .catch((error) => sendBrowserEvent(tab, { type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
@@ -7322,6 +7396,100 @@ async function applyBrowserYoutubeStyle(tab, options = {}) {
     return { ok: false, error: `YouTube görünümü uygulanamadı: ${error.message}` };
   }
 }
+// B10 — kullanıcı onaylı kozmetik gizleme kuralları: kaynak başına kalıcı
+// seçiciler, her yükleme sonrası yeniden uygulanır. Geçici seçim gizlemesi
+// (elementPickCssKey) kaydedilmeden önce önizleme olarak kalır.
+async function applyBrowserElementRules(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  const selectors = browserElementRules().selectorsFor(wc.getURL());
+  if (tab.elementRulesCssKey) {
+    await wc.removeInsertedCSS(tab.elementRulesCssKey).catch(() => {});
+    tab.elementRulesCssKey = '';
+  }
+  if (!selectors.length) return;
+  const generation = tab.generation;
+  const css = selectors.map((sel) => `${sel}{display:none!important;visibility:hidden!important}`).join('\n');
+  try {
+    const key = await wc.insertCSS(css, { cssOrigin: 'user' });
+    if (tab.generation !== generation || wc.isDestroyed()) {
+      await wc.removeInsertedCSS(key).catch(() => {});
+      return;
+    }
+    tab.elementRulesCssKey = key;
+  } catch (_) {}
+}
+
+// Element picker: sayfada hover vurgusu + tık → seçici; Esc iptal.
+const BROWSER_ELEMENT_PICKER_SCRIPT = `(() => {
+  if (window.__whisperElementPicker) return { ok: false, error: 'Seçici zaten açık.' };
+  return new Promise((resolve) => {
+    window.__whisperElementPicker = true;
+    const HL = '__whisper_pick_hl';
+    const style = document.createElement('style');
+    style.textContent = '.' + HL + '{outline:3px solid #e8590c !important;outline-offset:2px !important;cursor:crosshair !important;}';
+    document.documentElement.appendChild(style);
+    let hl = null;
+    const selectorFor = (el) => {
+      if (!(el instanceof Element) || el === document.documentElement) return '';
+      if (el.id && /^[A-Za-z][\\w:-]*$/.test(el.id)) return '#' + CSS.escape(el.id);
+      const parts = [];
+      let node = el;
+      for (let d = 0; node && node.nodeType === 1 && d < 6; d++) {
+        if (node === document.body || node === document.documentElement) break;
+        let part = String(node.localName || 'div');
+        const cls = [...(node.classList || [])]
+          .filter((c) => /^[\\w-]+$/.test(c) && !String(c).startsWith('__whisper'))
+          .slice(0, 2);
+        if (cls.length) part += '.' + cls.map((c) => CSS.escape(c)).join('.');
+        if (node.parentElement) {
+          const same = [...node.parentElement.children].filter((c) => c.localName === node.localName);
+          if (same.length > 1) part += ':nth-of-type(' + (same.indexOf(node) + 1) + ')';
+        }
+        parts.unshift(part);
+        if (node.parentElement && node.parentElement.id && /^[A-Za-z][\\w:-]*$/.test(node.parentElement.id)) {
+          parts.unshift('#' + CSS.escape(node.parentElement.id));
+          break;
+        }
+        node = node.parentElement;
+      }
+      return parts.join(' > ');
+    };
+    const cleanup = (result) => {
+      window.removeEventListener('mousemove', onMove, true);
+      window.removeEventListener('click', onClick, true);
+      window.removeEventListener('keydown', onKey, true);
+      if (hl) hl.classList.remove(HL);
+      style.remove();
+      window.__whisperElementPicker = false;
+      resolve(result);
+    };
+    const onMove = (e) => {
+      if (hl) hl.classList.remove(HL);
+      hl = document.elementFromPoint(e.clientX, e.clientY);
+      if (hl) hl.classList.add(HL);
+    };
+    const onClick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const sel = hl ? selectorFor(hl) : '';
+      cleanup({ ok: !!sel, selector: sel });
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cleanup({ ok: false, cancelled: true }); }
+    };
+    window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('click', onClick, true);
+    window.addEventListener('keydown', onKey, true);
+  });
+})()`;
+
+async function removeBrowserElementPickCss(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed() || !tab.elementPickCssKey) return;
+  await wc.removeInsertedCSS(tab.elementPickCssKey).catch(() => {});
+  tab.elementPickCssKey = '';
+}
+
 async function captureBrowserFullPage(wc) {
   // Kalıcı altyazı yakalama aynı CDP debugger'ını hazırlıyor olabilir. Onun
   // bağlantısını geçici ekran görüntüsü sahiplenmiş gibi sökmemek için önce
@@ -11415,6 +11583,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.lifecycle = tab.id === browserActiveTabId ? 'active' : 'background';
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     scheduleBrowserPageIndex(tab);
+    // Test harness'larında dilimlenen bu dinleyicide işlev tanımı olmayabilir.
+    if (typeof applyBrowserElementRules === 'function') void applyBrowserElementRules(tab);
     if (tab.compatibilityMode) return;
     // Bazı iç-frame yüklemelerinde Chromium did-start-loading gönderip ana
     // belge için yeni bir dom-ready göndermeyebilir. Bu durumda uyumluluk
@@ -14584,11 +14754,230 @@ ipcMain.handle('browser:capturePage', async (event, request) => {
   return saveBrowserPageCapture(tab, 'Tarayıcı ekran görüntüsünü kaydet', request?.options || {});
 });
 
+// A17 — Harici oynatıcıya devir (mpv/VLC): beyaz liste çözümleme + yalnız
+// açık http/https sayfa URL'si veya yetkili yerel medya dosyası. İmzalı akış
+// URL'si hiçbir zaman renderer'dan buraya taşınmaz; watch URL'si gönderilir.
+const EXTERNAL_PLAYER_SPECS = {
+  mpv: {
+    env: 'WHISPER_MPV_PATH',
+    candidates: process.platform === 'win32'
+      ? ['C:\\Program Files\\mpv\\mpv.exe', 'C:\\Program Files (x86)\\mpv\\mpv.exe']
+      : ['/usr/bin/mpv', '/usr/local/bin/mpv', '/snap/bin/mpv'],
+  },
+  vlc: {
+    env: 'WHISPER_VLC_PATH',
+    candidates: process.platform === 'win32'
+      ? ['C:\\Program Files\\VideoLAN\\VLC\\vlc.exe', 'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe']
+      : ['/usr/bin/vlc', '/usr/local/bin/vlc', '/snap/bin/vlc'],
+  },
+};
+const EXTERNAL_PLAYER_NAMES = Object.keys(EXTERNAL_PLAYER_SPECS);
+function resolveExternalPlayerPath(name) {
+  const spec = EXTERNAL_PLAYER_SPECS[name];
+  if (!spec) return '';
+  const stem = name.toLowerCase();
+  const accept = (p) => {
+    try {
+      if (!p || !fs.existsSync(p)) return '';
+      // Doğrulanmış yol: dosya adı beklenen oynatıcı adıyla başlamalı.
+      return path.basename(p).toLowerCase().startsWith(stem) ? p : '';
+    } catch (_) { return ''; }
+  };
+  const envPath = accept(String(process.env[spec.env] || '').trim());
+  if (envPath) return envPath;
+  for (const c of spec.candidates) { const hit = accept(c); if (hit) return hit; }
+  const probe = process.platform === 'win32' ? 'where.exe' : 'which';
+  const exeName = process.platform === 'win32' ? `${stem}.exe` : stem;
+  try {
+    const out = spawnSync(probe, [exeName], { encoding: 'utf8', timeout: 5000 });
+    for (const line of String(out.stdout || '').split(/\r?\n/)) {
+      const hit = accept(line.trim());
+      if (hit) return hit;
+    }
+  } catch (_) {}
+  return '';
+}
+ipcMain.handle('player:external', async (event, opts) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const o = opts && typeof opts === 'object' ? opts : {};
+  const name = String(o.player || '').toLowerCase();
+  if (!EXTERNAL_PLAYER_NAMES.includes(name)) return { ok: false, error: 'Desteklenmeyen oynatıcı.' };
+  const exe = resolveExternalPlayerPath(name);
+  if (!exe) {
+    return { ok: false, error: `${name} bulunamadı — kurulu değil ya da ${EXTERNAL_PLAYER_SPECS[name].env} tanımlanmadı.` };
+  }
+  let arg = '';
+  if (typeof o.file === 'string' && o.file.trim()) {
+    try { arg = await authorizeMediaFile(o.file); }
+    catch (error) { return { ok: false, error: error.message }; }
+  } else {
+    const mediaUrl = decideUrlPolicy(String(o.url || ''), 'renderer-external');
+    if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol)) {
+      return { ok: false, error: 'Yalnızca http/https sayfa URLsi veya yetkili yerel dosya verilebilir.' };
+    }
+    arg = mediaUrl.url;
+  }
+  try {
+    const child = spawn(exe, [arg], { detached: true, stdio: 'ignore', windowsHide: true });
+    child.on('error', () => {});
+    child.unref();
+    return { ok: true, player: name, path: exe };
+  } catch (_) {
+    return { ok: false, error: 'Oynatıcı başlatılamadı.' };
+  }
+});
+
+// B10 — element picker IPC: 'pick' seçiciyi döndürüp geçici gizleme uygular;
+// kalıcı kayıt yalnız kullanıcı onayıyla 'save' üzerinden yazılır.
+ipcMain.handle('browser:elementRules', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const wc = tab.view?.webContents;
+  if (!wc || wc.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
+  const action = String(request.action || '');
+  const rules = browserElementRules();
+  if (action === 'list') {
+    return { ok: true, url: wc.getURL(), selectors: rules.selectorsFor(wc.getURL()), origins: rules.listOrigins().length };
+  }
+  if (action === 'pick') {
+    await removeBrowserElementPickCss(tab);
+    let result;
+    try {
+      result = await wc.executeJavaScript(BROWSER_ELEMENT_PICKER_SCRIPT, true);
+    } catch (error) { return { ok: false, error: `Seçici çalıştırılamadı: ${error.message}` }; }
+    if (!result || !result.ok) return { ok: false, cancelled: !!(result && result.cancelled), error: result?.error || '' };
+    if (!validSelector(result.selector)) return { ok: false, error: 'Seçici doğrulanamadı.' };
+    try {
+      tab.elementPickCssKey = await wc.insertCSS(
+        `${result.selector}{display:none!important;visibility:hidden!important}`, { cssOrigin: 'user' });
+    } catch (_) {}
+    return { ok: true, selector: result.selector };
+  }
+  if (action === 'undo') {
+    await removeBrowserElementPickCss(tab);
+    return { ok: true };
+  }
+  if (action === 'save') {
+    const res = rules.add(wc.getURL(), request.selector);
+    if (!res.ok) { await removeBrowserElementPickCss(tab); return res; }
+    await removeBrowserElementPickCss(tab);
+    await applyBrowserElementRules(tab);
+    return { ...res, selector: String(request.selector || '').slice(0, 300) };
+  }
+  if (action === 'clear') {
+    const res = rules.clear(wc.getURL());
+    if (!res.ok) return res;
+    await applyBrowserElementRules(tab);
+    return res;
+  }
+  return { ok: false, error: 'Bilinmeyen element kuralı eylemi.' };
+});
+
 ipcMain.handle('browser:archivePage', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   return saveBrowserPageArchive(tab);
+});
+
+// B22 — çevrimdışı okuma listesi: MHTML kopyası kullanıcı dizininde değil,
+// uygulamanın OkumaListesi deposunda tutulur; liste aç/sil/yenile içerir.
+async function saveBrowserPageToReadingList(tab, readingEntry) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed() || typeof wc.savePage !== 'function') {
+    return { ok: false, error: 'Arşivlenecek tarayıcı sayfası bulunamadı.' };
+  }
+  try {
+    await wc.savePage(readingEntry.filePath, 'MHTML');
+  } catch (error) {
+    return { ok: false, error: `Sayfa arşivlenemedi: ${String(error?.message || error)}` };
+  }
+  return browserReadingList().commit(readingEntry.entry);
+}
+
+ipcMain.handle('browser:readingList:add', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const plan = browserReadingList().prepare({
+    url: tab.url || tab.view?.webContents?.getURL?.() || '',
+    title: tab.title || tab.view?.webContents?.getTitle?.() || '',
+  });
+  if (!plan.ok) return plan;
+  return saveBrowserPageToReadingList(tab, { filePath: plan.filePath, entry: plan.entry });
+});
+
+ipcMain.handle('browser:readingList:list', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, entries: browserReadingList().list() };
+});
+
+ipcMain.handle('browser:readingList:remove', (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return browserReadingList().remove(request?.id);
+});
+
+ipcMain.handle('browser:readingList:refresh', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const currentUrl = tab.url || tab.view?.webContents?.getURL?.() || '';
+  const target = browserReadingList().refreshTarget(request?.id, currentUrl);
+  if (!target.ok) return target;
+  const result = await saveBrowserPageToReadingList(tab, { filePath: target.filePath, entry: {
+    ...target.entry, updatedAt: Date.now() } });
+  return result.ok ? { ok: true, entry: result.entry, refreshed: true } : result;
+});
+
+ipcMain.handle('browser:readingList:open', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const found = browserReadingList().get(request?.id);
+  if (!found) return { ok: false, error: 'Kayıt veya arşiv dosyası bulunamadı.' };
+  const view = ensureBrowserView(tab);
+  if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
+  applyBrowserViewBounds(tab, view);
+  browserVisible = true;
+  view.setVisible(!browserModalOccluded);
+  const fileUrl = pathToFileURL(found.filePath).href;
+  try {
+    await view.webContents.loadURL(fileUrl);
+    return { ok: true, url: fileUrl, offline: true, title: found.entry.title };
+  } catch (err) {
+    if (isAbortedBrowserNavigation(err)) return { ok: false, aborted: true };
+    return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message) };
+  }
+});
+
+async function saveBrowserPagePdf(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed() || typeof wc.printToPDF !== 'function') {
+    return { ok: false, error: 'PDF üretilecek tarayıcı sayfası bulunamadı.' };
+  }
+  const selection = await dialog.showSaveDialog(mainWindow, {
+    title: 'Sayfayı PDF olarak kaydet',
+    defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}.pdf`),
+    filters: [{ name: 'PDF belgesi', extensions: ['pdf'] }],
+  });
+  if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
+  const outputPath = selection.filePath.toLowerCase().endsWith('.pdf')
+    ? selection.filePath : `${selection.filePath}.pdf`;
+  try {
+    const data = await wc.printToPDF({ printBackground: true });
+    fs.writeFileSync(outputPath, data);
+    return { ok: true, path: outputPath, format: 'PDF' };
+  } catch (error) {
+    return { ok: false, error: `PDF kaydedilemedi: ${String(error?.message || error)}` };
+  }
+}
+
+ipcMain.handle('browser:exportPagePdf', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  return saveBrowserPagePdf(tab);
 });
 
 ipcMain.handle('browser:pageIndex:setEnabled', (event, request = {}) => {
@@ -15718,6 +16107,7 @@ ipcMain.handle('clipboard:write', (_event, text) => {
 
 // Bir komutu çalıştırıp ilk satırını döndürür (yoksa null) — ortam teşhisi için
 function probeCommand(cmd, cmdArgs) {
+  const options = arguments[2] || {};
   return new Promise((resolve) => {
     let out = '';
     let timeoutTimer = null;
@@ -15730,7 +16120,7 @@ function probeCommand(cmd, cmdArgs) {
       resolve(value);
     };
     try {
-      p = spawn(cmd, cmdArgs, { windowsHide: true });
+      p = spawn(cmd, cmdArgs, { windowsHide: true, env: options.env });
     } catch (_) {
       return finish(null);
     }
@@ -15755,12 +16145,18 @@ function probeCommand(cmd, cmdArgs) {
 ipcMain.handle('app:getEnvInfo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const appDir = app.getAppPath();
+  const pythonPath = resolvePython();
   const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', 'Scripts', 'python.exe'))
             || fs.existsSync(path.join(appDir, 'backend', '.venv', 'Scripts', 'python.exe'));
   const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', 'ffmpeg.exe'));
-  const [ffmpegLine, gpuLine] = await Promise.all([
-    localFfmpeg ? Promise.resolve('local') : probeCommand('ffmpeg', ['-version']),
+  const runtimeRoot = ytdlpRuntimeRoot(app.getPath('userData'));
+  const [pythonLine, ffmpegLine, gpuLine, ytDlpVersion] = await Promise.all([
+    probeCommand(pythonPath, ['--version']),
+    probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', 'ffmpeg.exe') : 'ffmpeg', ['-version']),
     probeCommand('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader']),
+    probeCommand(pythonPath, ['-c', 'from yt_dlp.version import __version__; print(__version__)'], {
+      env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8' }),
+    }),
   ]);
   // "NVIDIA GeForce RTX 4070 Ti, 12282 MiB" → toplam VRAM (MiB)
   let vramMib = null;
@@ -15770,7 +16166,10 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
   }
   const gpuDiagnostics = await collectBrowserGpuDiagnostics('environment-request', 1200);
   return {
-    venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib,
+    venv, pythonVersion: pythonLine || '',
+    ffmpeg: !!ffmpegLine, ffmpegVersion: ffmpegLine || '',
+    ytDlpVersion: ytDlpVersion || '', ytDlpManaged: !!activeYtdlpRuntimePath(runtimeRoot),
+    gpu: gpuLine, vramMib,
     gpuFeatures: gpuDiagnostics.features,
     gpuDiagnostics,
   };
@@ -15781,13 +16180,42 @@ ipcMain.handle('models:status', (event) => {
   return { ok: true, ...scanModelCache(app.getAppPath()) };
 });
 
+// F18: önbellek temizliği — her zaman açık kullanıcı onayı (native dialog),
+// çalışan model/gömme işi varken reddedilir.
+ipcMain.handle('models:delete', async (event, input = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const model = String(input.model || '');
+  const { deleteCachedModel } = require('./model-manager');
+  if (!KNOWN_MODELS.includes(model)) return { ok: false, error: 'Bilinmeyen model kimliği.' };
+  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return { ok: false, error: 'Model işi çalışırken önbellek silinemez.' };
+  }
+  const status = scanModelCache(app.getAppPath());
+  const entry = status.models.find((m) => m.id === model);
+  if (!entry?.cached) return { ok: false, error: 'Model önbellekte bulunamadı.' };
+  const sizeText = entry.sizeBytes ? ` (${Math.round(entry.sizeBytes / 1048576)} MB)` : '';
+  const tr = loadSettings()?.ui?.uiLocale === 'tr';
+  const confirm = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: tr ? 'Model önbelleğini sil' : 'Remove model cache',
+    message: tr ? `"${model}" önbelleğinden silinsin mi?${sizeText}` : `Remove "${model}" from the cache?${sizeText}`,
+    detail: tr ? 'Sonraki kullanımda model yeniden indirilecek. Bu işlem geri alınamaz.' : 'The model will be downloaded again when needed. This cannot be undone.',
+    buttons: tr ? ['Sil', 'Vazgeç'] : ['Remove', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (confirm.response !== 0) return { ok: false, canceled: true };
+  return deleteCachedModel(app.getAppPath(), model);
+});
+
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'GPU kullanan başka bir iş çalışırken benchmark başlatılamaz.' };
   }
   const picked = await dialog.showOpenDialog(mainWindow, {
-    title: 'Model benchmarkı için kısa bir medya dosyası seç',
+    title: loadSettings()?.ui?.uiLocale === 'tr' ? 'Model benchmarkı için kısa bir medya dosyası seç' : 'Choose a media file for the model benchmark',
     properties: ['openFile'],
     filters: [{ name: 'Medya', extensions: ['mp4', 'mkv', 'webm', 'mov', 'avi', 'mp3', 'wav', 'm4a', 'flac', 'ogg'] }],
   });
@@ -15804,12 +16232,25 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     ? String(options.device || ui.device) : 'cuda';
   const computeType = String(options.computeType || ui.computeType || (device === 'cuda' ? 'float16' : 'int8')).slice(0, 32);
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
+  const requestedSeconds = Number(options.seconds);
+  const seconds = Number.isFinite(requestedSeconds) ? Math.max(30, Math.min(120, Math.round(requestedSeconds))) : 30;
+  const requestedStart = Number(options.start);
+  const start = Number.isFinite(requestedStart) ? Math.max(0, Math.min(24 * 60 * 60, requestedStart)) : 0;
   const appDir = app.getAppPath();
   const localFfmpeg = path.join(appDir, 'backend', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
   const args = [path.join(appDir, 'backend', 'model_benchmark.py'), '--input', picked.filePaths[0],
-    '--model', model, '--device', device, '--compute-type', computeType, '--seconds', '30',
+    '--model', model, '--device', device, '--compute-type', computeType,
+    '--seconds', String(seconds), '--start', String(start),
     '--ffmpeg', fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg'];
   if (language && language !== 'auto') args.push('--language', language);
+  // F17: aynı klipte ikinci ayar — yalnız bilinen model kimliği kabul edilir
+  const compare = options.compare && typeof options.compare === 'object' ? options.compare : {};
+  const compareModel = KNOWN_MODELS.includes(compare.model) ? compare.model : '';
+  if (compareModel) {
+    args.push('--compare-model', compareModel,
+      '--compare-device', ['cpu', 'cuda'].includes(compare.device) ? compare.device : device,
+      '--compare-compute-type', String(compare.computeType || computeType).slice(0, 32));
+  }
   const proc = spawn(resolvePython(), args, { cwd: appDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   const job = { proc, canceled: false };
   modelBenchmarkJob = job;
@@ -15840,10 +16281,64 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
       if (modelBenchmarkJob === job) modelBenchmarkJob = null;
       if (job.canceled) return finish({ ok: false, canceled: true });
       const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop() || '';
-      try { finish(JSON.parse(line)); }
-      catch (_) { finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
+      let parsed = null;
+      try { parsed = JSON.parse(line); }
+      catch (_) { return finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
+      // F17: sonucu klip hash'iyle sakla (aynı klip = aynı wav sha256)
+      if (parsed?.ok && parsed.clipHash && typeof recordModelBenchmark === 'function') {
+        try { parsed.historyCount = recordModelBenchmark(parsed); } catch (_) {}
+      }
+      finish(parsed);
     });
   });
+});
+
+// F17: klip başına benchmark geçmişi — aynı klibin ölçümleri birlikte tutulur
+function modelBenchmarkHistoryPath() {
+  return path.join(app.getPath('userData'), 'model-benchmarks.json');
+}
+
+function recordModelBenchmark(result) {
+  const file = modelBenchmarkHistoryPath();
+  let store = {};
+  try { store = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { store = {}; }
+  store = (store && typeof store === 'object' && !Array.isArray(store)) ? store : {};
+  const summary = (run) => run && {
+    model: run.model, device: run.device, computeType: run.computeType,
+    speedX: run.speedX, realtimeFactor: run.realtimeFactor, vramMb: run.vramMb ?? null,
+    vramMeasurement: run.vramMeasurement || 'unavailable',
+    loadSeconds: run.loadSeconds, transcribeSeconds: run.transcribeSeconds,
+    segmentCount: run.segmentCount, language: run.language,
+  };
+  const entry = {
+    at: new Date().toISOString(),
+    clipSeconds: result.audioSeconds,
+    clipStartSeconds: result.clipStartSeconds ?? 0,
+    primary: summary(result),
+    compare: result.compare ? summary(result.compare) : null,
+    diff: result.diff || null,
+  };
+  const key = String(result.clipHash).slice(0, 64);
+  const list = Array.isArray(store[key]) ? store[key] : [];
+  list.push(entry);
+  store[key] = list.slice(-20);
+  const keys = Object.keys(store);
+  if (keys.length > 40) for (const k of keys.slice(0, keys.length - 40)) delete store[k];
+  writeJsonAtomic(file, store);
+  return store[key].length;
+}
+
+ipcMain.handle('models:benchmark:history', (event, input = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const store = JSON.parse(fs.readFileSync(modelBenchmarkHistoryPath(), 'utf8'));
+    const key = String(input.clipHash || '').slice(0, 64);
+    const entries = key ? (Array.isArray(store?.[key]) ? store[key] : [])
+      : Object.values(store || {}).flat().slice(-100);
+    return { ok: true, entries };
+  } catch (_) {
+    return { ok: true, entries: [] };
+  }
 });
 
 ipcMain.handle('models:benchmark:cancel', (event) => {
@@ -15946,6 +16441,48 @@ ipcMain.handle('queue:save', (event, snapshot) => {
 });
 
 // ---- Ayarları dışa/içe aktar ----
+// A07 — abonelik içe/dışa aktarma: içerik renderer'da parse/build edilir,
+// ana süreç yalnız dosya diyaloğu + sınırlı okuma/yazma yapar. Hesap
+// bilgisi veya oturum hiçbir zaman bu dosyalara yazılmaz.
+ipcMain.handle('subscriptions:export', async (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const text = String(payload && payload.text || '');
+  if (!text || text.length > 2 * 1024 * 1024) return { ok: false, error: 'Dışa aktarılacak içerik geçersiz.' };
+  const rawName = path.basename(String(payload && payload.fileName || ''));
+  const fileName = /^whisper-abonelikler\.(json|opml|csv)$|^newpipe_subscriptions\.json$/.test(rawName)
+    ? rawName : 'whisper-abonelikler.json';
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Abonelikleri dışa aktar',
+    defaultPath: fileName,
+    filters: [{ name: 'Abonelik dosyası', extensions: ['json', 'opml', 'csv'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    fs.writeFileSync(result.filePath, text, 'utf8');
+    return { ok: true, path: result.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('subscriptions:import', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Abonelik dosyası içe aktar',
+    properties: ['openFile'],
+    filters: [{ name: 'Abonelik dosyası', extensions: ['json', 'opml', 'csv', 'xml', 'txt'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
+  const filePath = result.filePaths[0];
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > 2 * 1024 * 1024) return { ok: false, error: 'Dosya 2 MB sınırını aşıyor.' };
+    return { ok: true, fileName: path.basename(filePath), text: fs.readFileSync(filePath, 'utf8') };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('settings:export', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showSaveDialog(mainWindow, {
@@ -16291,6 +16828,93 @@ ipcMain.handle('media:waveform', async (_event, filePath) => {
     waveformCache.clear();
     waveformCache.set(stamp, result);
   }
+  return result;
+});
+
+// B01: yerel video için seekbar kare önizlemesi — ffmpeg tek seferde
+// 10x10 tile sprite üretir; medya dosyası başına bir kez (disk önbelleği),
+// iş serileştirilir ve 90 sn'de iptal edilir. Renderer'a data URL gider
+// (img-src CSP'de file: izni yok).
+const seekPreviewCache = new Map();
+const SEEK_PREVIEW_COLS = 10, SEEK_PREVIEW_ROWS = 10, SEEK_PREVIEW_FRAME_W = 160;
+ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  let filePath = request.filePath;
+  try { filePath = authorizeLocalMediaPath(filePath); }
+  catch (error) { return { ok: false, error: error.message }; }
+  const duration = Number(request.duration);
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 8 * 3600) {
+    return { ok: false, error: 'Video süresi geçersiz.' };
+  }
+  let stat;
+  try { stat = fs.statSync(filePath); } catch (error) { return { ok: false, error: error.message }; }
+  const maxFrames = SEEK_PREVIEW_COLS * SEEK_PREVIEW_ROWS;
+  // ~2 saniyede bir kare, üstte 100 kare — scrub çözünürlüğü ile üretim
+  // maliyeti arasındaki denge.
+  const frames = Math.max(1, Math.min(maxFrames, Math.ceil(duration / 2)));
+  const key = createHash('sha256')
+    .update(`${path.resolve(filePath)}|${stat.mtimeMs}|${stat.size}|${frames}`)
+    .digest('hex').slice(0, 24);
+  if (seekPreviewCache.has(key)) return seekPreviewCache.get(key);
+  const dir = path.join(app.getPath('userData'), 'seek-previews');
+  const outPath = path.join(dir, `${key}.jpg`);
+  const loadSprite = () => {
+    try {
+      const buf = fs.readFileSync(outPath);
+      if (!buf.length || buf.length > 8 * 1024 * 1024) {
+        return { ok: false, error: 'Kare önizleme görseli geçersiz.' };
+      }
+      return {
+        ok: true, image: `data:image/jpeg;base64,${buf.toString('base64')}`,
+        columns: SEEK_PREVIEW_COLS, rows: SEEK_PREVIEW_ROWS,
+        count: frames, frameWidth: SEEK_PREVIEW_FRAME_W,
+      };
+    } catch (error) { return { ok: false, error: error.message }; }
+  };
+  if (fs.existsSync(outPath)) {
+    const cached = loadSprite();
+    if (cached.ok) { seekPreviewCache.set(key, cached); return cached; }
+    removeFileQuietly(outPath);
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  const result = await new Promise((resolve) => {
+    if (mediaJobs.seekPreview) {
+      return resolve({ ok: false, error: 'Kare önizleme işi zaten çalışıyor.' });
+    }
+    const args = [
+      '-v', 'error', '-i', filePath,
+      '-vf', `fps=${frames}/${duration},scale=${SEEK_PREVIEW_FRAME_W}:-2,tile=${SEEK_PREVIEW_COLS}x${SEEK_PREVIEW_ROWS}`,
+      '-frames:v', '1', '-q:v', '6', '-y', outPath,
+    ];
+    let proc;
+    let timer;
+    let settled = false;
+    const finish = (value) => {
+      if (!settled) {
+        settled = true; clearTimeout(timer);
+        if (mediaJobs.seekPreview === proc) mediaJobs.seekPreview = null;
+        resolve(value);
+      }
+    };
+    try {
+      proc = spawn(resolveFfTool('ffmpeg'), args, { windowsHide: true });
+      mediaJobs.seekPreview = proc;
+    } catch (err) { return finish({ ok: false, error: err.message }); }
+    proc.on('error', (err) => finish({ ok: false, error: err.message }));
+    timer = setTimeout(() => {
+      terminateProcessTree(proc, { spawn });
+      try { removeFileQuietly(outPath); } catch (_) {}
+      finish({ ok: false, error: 'Kare önizleme 90 saniyede oluşturulamadı.' });
+    }, 90000);
+    timer.unref?.();
+    proc.on('close', (code) => {
+      if (settled) return;
+      if (code === 0 && fs.existsSync(outPath)) return finish(loadSprite());
+      try { removeFileQuietly(outPath); } catch (_) {}
+      finish({ ok: false, error: 'Kare önizleme oluşturulamadı.' });
+    });
+  });
+  if (result.ok) seekPreviewCache.set(key, result);
   return result;
 });
 
@@ -17439,6 +18063,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,
   captureFrame: captureBrowserVideoFrame, restoreLayout: applyBrowserViewsLayout,
   grantSubtitle: file => { subtitleFileAccess.grant(file); trackBrowserSubtitleFile(file); },
+  authorizeMedia: file => authorizeLocalMediaPath(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
 });
 

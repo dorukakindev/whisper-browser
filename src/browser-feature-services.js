@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { createBrowserMediaTools } = require('./browser-media-tools');
 const { createBrowserMiniPlayer } = require('./browser-mini-player');
 const subtitles = require('./browser-subtitle-search');
+const { movieHash } = require('./opensubtitles-hash');
 const skips = require('./browser-skip-segments');
 
 function registerBrowserFeatureServices(deps) {
@@ -311,7 +312,21 @@ function registerBrowserFeatureServices(deps) {
           break;
         }
         case 'semantic-search': result = await tools().semanticSearch({ query: payload.query, cues: payload.cues }, { signal: controller.signal }); break;
-        case 'subtitle-search': result = await subtitles.searchSubtitles(payload, payload.config || {}, { signal: controller.signal }); break;
+        case 'subtitle-search': {
+          // B03: yerel oynatılan dosya için OpenSubtitles moviehash — yalnız
+          // kullanıcının yetkilendirdiği medya; yetki/hatada arama hashsız sürer.
+          const target = { ...payload };
+          delete target.mediaPath;
+          if (typeof payload.mediaPath === 'string' && payload.mediaPath && deps.authorizeMedia) {
+            try {
+              const mediaPath = deps.authorizeMedia(payload.mediaPath);
+              const stat = fs.statSync(mediaPath);
+              target.moviehash = await movieHash(mediaPath);
+              target.filesize = stat.size;
+            } catch { /* yetkisiz dosya ya da okuma hatası — başlıkla aranır */ }
+          }
+          result = await subtitles.searchSubtitles(target, payload.config || {}, { signal: controller.signal }); break;
+        }
         case 'subtitle-download': {
           const output = await subtitles.downloadSubtitle({ fileId: payload.fileId }, payload.config || {}, { signal: controller.signal }); assertCurrent();
           const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });

@@ -157,12 +157,12 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 | E01 | Kapalı içindekiler bağlantısında hover/focus ve otomatik kaydırma affordance'ı | **E** — klavye odağı ve okunabilir durumla. |
 | E02 | Uzun okuyucu metninin 180 karakter eşiğini kullanıcıya açıklama | **E** — teknik sınıra uygun kısa mikro metin. |
 | E03 | Komut paleti `Ctrl+P` kısayolu | **K** — yazdır/PDF ve tarayıcı kısayoluyla çatışma denetimi. |
-| E04 | Durum rozetlerinin hiyerarşisi | **E** — etkin/pasif/hata/yükleniyor durumları renk dışında metinle de anlaşılır olmalı. |
-| E05 | Boş durum metinleri ve yeniden dene geri bildirimi | **E** — özellikle altyazı yok / API hatası / kısmi yakalama ayrımı. |
-| E06 | Burn-in işinde GPU kullanımı ve ilerleme görünürlüğü | **E** — doğrulanmamış GPU kullanımını göstermemek; işlem aşaması ve iptal durumu. |
-| E07 | Bakım ekranı parantezli açıklamaları sadeleştirme | **E** — EN/TR kısa metin ve ekran karşılaştırması. |
-| E08 | Responsive, reader spacing, overlay clipping ve tooltip düzeltmeleri | **E** — gerçek ekran boyutları, zoom/DPI, klavye ve video üstü menü screenshot'larıyla. |
-| E09 | Rapor terminolojisini mevcut HTML/renderer adlarıyla eşitleme | **E** — belge/arayüz bakım işi; ürün özelliği sayılmaz. |
+| E04 | Durum rozetlerinin hiyerarşisi | **V/K** — altyazı arama, burn-in ve çalışma ortamı/bakım durumları renk dışında açık metin ve simge taşır; uygulamanın kalan eski rozetleri ancak ekran-bazlı bir açık bulunursa ele alınır. |
+| E05 | Boş durum metinleri ve yeniden dene geri bildirimi | **V** — altyazı aramasında hata, boş sonuç ve kısmi sonuç ayrıldı; davranış testleri locale-bağımsız saf durum kopyasını doğruluyor. |
+| E06 | Burn-in işinde GPU kullanımı ve ilerleme görünürlüğü | **V** — doğrulanmamış GPU iddiası gösterilmez; aşama, `m:ss/m:ss` süre ve “İptal ediliyor…” durumu görünür. |
+| E07 | Bakım ekranı parantezli açıklamaları sadeleştirme | **V** — çalışma ortamı/bakım paneli kısa EN/TR metin, Python/FFmpeg/yt-dlp/GPU/model diski durumu ve açık eylemlerle gerçek Electron ekranında doğrulandı. |
+| E08 | Responsive, reader spacing, overlay clipping ve tooltip düzeltmeleri | **V/K** — yeni bakım paneli geniş İngilizce ve dar Türkçe gerçek Electron ekranlarında taşmasız doğrulandı; reader/overlay/tooltip kapsamının tamamı için zoom/DPI ve video üstü menü matrisi hâlâ açık. |
+| E09 | Rapor terminolojisini mevcut HTML/renderer adlarıyla eşitleme | **V** — bu katalog ve kabul matrisi güncel `Runtime and maintenance`, model benchmark ve bakım eylemleriyle eşlendi; ürün özelliği değildir. |
 
 ## F. 180 GitHub deposu araştırması — atlanmış strateji önerilerinin tamamı
 
@@ -186,10 +186,10 @@ Kaynak: `docs/GITHUB_BENZER_PROJELER_STRATEJI_RAPORU_2026-09-01.md`. Bu rapor 18
 | F14 | Kullanıcı tetiklemeli sekme/sistem sesi Live Whisper yedeği | **V** — `backend/live_asr.py`, edinme basamağı, stop-drain ve worklet testleri mevcut. Gerçek cihaz/ses yönlendirme matrisi ayrı kabul sınırı. |
 | F15 | Seçili alan/klip için hard-sub OCR | **V** — browser video analysis ve frame/ROI OCR mevcut; sürekli tam-kare OCR varsayılan yapılmaz. |
 | F16 | Opsiyonel yerel çeviri motoru + deneysel eklenti yüzeyi | **K** — localhost sağlayıcı endpoint'i kullanılabiliyor, fakat genel eklenti ABI'si ayrı güvenlik/versiyonlama ürünüdür. Somut yerel motor ve kalite ölçümü olmadan çekirdeğe yeni runtime eklenmez. |
-| F17 | Aynı 30–120 saniyelik klipte iki ASR/model ayarını ölçen kalite karşılaştırması | **E** — RTF/VRAM/cue-zaman farkı ve referans sapmasını aynı klip hash'iyle saklayan dar araç; sırf model sayısını artırmaktan daha değerlidir. |
-| F18 | Model/bağımlılık yöneticisi: boyut, disk, VRAM, devam, checksum, güvenli temizlik, capability registry | **E/K** — kullanıcıya operasyonel değer sağlar; mevcut install akışı ve kilit sürümler korunarak aşamalı yapılmalı. Model silme her zaman açık kullanıcı seçimi olmalı. |
+| F17 | Aynı 30–120 saniyelik klipte iki ASR/model ayarını ölçen kalite karşılaştırması | **V/K** — kullanıcı başlangıç/süre seçer; iki model aynı `clipHash` üzerinde RTF/speed, süreç veya GPU-delta VRAM ve bire-bir zamansal cue eşleştirmesiyle karşılaştırılır. Gerçek CUDA yükleme koşusu yapıldı; konuşma kalitesi kabulü için sesli referans klibi hâlâ gerekir. |
+| F18 | Model/bağımlılık yöneticisi: boyut, disk, VRAM, devam, checksum, güvenli temizlik, capability registry | **V/K** — model kataloğu, kurulu/yarım önbellek ayrımı, disk alanı, kök-içi açık kullanıcı onaylı silme, çalışma sırasında ret ve Python/FFmpeg/yt-dlp/GPU görünürlüğü tamamlandı. yt-dlp güncellemesi HTTPS metadata + SHA-256 + bağımsız import + atomik pointer/rollback kullanır; byte-range indirme devamı iddia edilmez. |
 | F19 | Prime Video, Crunchyroll, BBC iPlayer/ARTE/RaiPlay, Plex/Stremio, Coursera/Udemy, Vimeo adaptör genişlemesi | **K** — genel parser/adaptör yapısı kullanılmalı; bölgesel girişli servis gerçek cihazda doğrulanmadan “destekli” ilan edilmez. |
-| F20 | Tarayıcı/altyazı için tarihli gerçek-site, performans, çeviri ve veri-güvenlik kabul matrisi | **E** — üç içerik/servis, SPA geçişi, seek fırtınası, 30 dakika/10 sekme, 20k cue, cache sıcak-soğuk ve redaction kontrolleri sürüm kapısı olarak tutulmalı. |
+| F20 | Tarayıcı/altyazı için tarihli gerçek-site, performans, çeviri ve veri-güvenlik kabul matrisi | **V/K** — `docs/KABUL_MATRISI_2026-09-20.md` sürüm kapısı olarak mevcut ve otomatik satırlar güncel kanıt taşıyor; giriş/cihaz/uzun-soak isteyen manuel satırlar açıkça bekliyor. |
 
 ### F kaynağındaki açık retler — yanlışlıkla yeniden önerilmeyecek
 

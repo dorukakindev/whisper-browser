@@ -63,6 +63,18 @@ app.setPath('userData', testProfile);
     })`);
     assert.deepEqual(restored, { lang: 'tr', ui: 'tr', playerUi: 'tr' });
     await win.webContents.executeJavaScript(`window.UiLocale.set('en');`);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const englishVisualState = await win.webContents.executeJavaScript(`({
+      locale: window.UiLocale.get(),
+      ui: document.getElementById('uiLocale').value,
+      sourceHeading: document.querySelector('.source-card h2')?.textContent.trim(),
+      progressHeading: document.querySelector('.panel-right > .card:first-child h2')?.textContent.trim(),
+      dropHeading: document.querySelector('#dropZone strong')?.textContent.trim()
+    })`);
+    assert.deepEqual(englishVisualState, {
+      locale: 'en', ui: 'en', sourceHeading: 'Choose a source',
+      progressHeading: 'Progress', dropHeading: 'Drop a video or audio file',
+    });
     const screenshot = path.join(testProfile, 'ui-main-en.png');
     fs.writeFileSync(screenshot, (await win.capturePage()).toPNG());
     const untranslatedMain = await win.webContents.executeJavaScript(`[...document.querySelectorAll('body *')]

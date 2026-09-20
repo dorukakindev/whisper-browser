@@ -5,6 +5,19 @@ const KNOWN_MODELS = Object.freeze([
   'large-v3', 'large-v3-turbo', 'large-v2', 'medium', 'small', 'base', 'tiny',
 ]);
 
+// F18: capability registry — faster-whisper'ın bilinen yaklaşık disk ve VRAM
+// ihtiyaçları (Systran CT2 paketleri). Kullanıcıya boyut göstermek ve
+// silme kararını bilgilendirmek için; indirme akışını değiştirmez.
+const MODEL_CATALOG = Object.freeze({
+  tiny:            { downloadMb: 75,   vramMb: 1024 },
+  base:            { downloadMb: 150,  vramMb: 1024 },
+  small:           { downloadMb: 500,  vramMb: 2048 },
+  medium:          { downloadMb: 1500, vramMb: 5120 },
+  'large-v2':      { downloadMb: 3100, vramMb: 10240 },
+  'large-v3':      { downloadMb: 3100, vramMb: 10240 },
+  'large-v3-turbo':{ downloadMb: 1600, vramMb: 6144 },
+});
+
 function modelCacheRoots(appPath, env = process.env) {
   const values = [
     env.HUGGINGFACE_HUB_CACHE,
@@ -53,21 +66,105 @@ function repositoryMatchesModel(repository, model) {
   return repo.endsWith(`-${normalized}`);
 }
 
+function directorySizeBytes(directory) {
+  let total = 0;
+  try {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const full = path.join(directory, entry.name);
+      try {
+        if (entry.isDirectory() || entry.name === 'snapshots') {
+          // HF repo düzeni: snapshots/<hash>/... + blob'lar; hepsini say
+          total += entry.isDirectory() ? directorySizeBytes(full)
+            : entry.isFile() ? fs.statSync(full).size : 0;
+        } else if (entry.isFile() || entry.isSymbolicLink()) {
+          total += fs.statSync(full).size;
+        }
+      } catch (_) { /* kırık bağlantı */ }
+    }
+  } catch (_) { /* okunamayan kök */ }
+  return total;
+}
+
+function freeBytesFor(root) {
+  let probe = path.resolve(root);
+  try {
+    while (!fs.existsSync(probe)) {
+      const parent = path.dirname(probe);
+      if (parent === probe) return null;
+      probe = parent;
+    }
+    const stats = fs.statfsSync(probe);
+    return Number(stats.bavail) * Number(stats.bsize);
+  } catch (_) { return null; }
+}
+
+function findModelRepository(appPath, model, env = process.env, requireUsable = true) {
+  const normalized = String(model || '').toLowerCase();
+  if (!KNOWN_MODELS.includes(normalized)) return null;
+  for (const root of modelCacheRoots(appPath, env)) {
+    const repo = cachedRepositories(root).find((entry) => repositoryMatchesModel(entry.name, normalized)
+      && (!requireUsable || repositoryHasUsableSnapshot(entry.path)));
+    if (repo) return { root, repo };
+  }
+  return null;
+}
+
 function scanModelCache(appPath, env = process.env) {
   const roots = modelCacheRoots(appPath, env);
   const repositories = roots.flatMap((root) => cachedRepositories(root).map((repo) => ({ root, ...repo })));
+  let freeBytes = null;
+  for (const root of roots) {
+    const free = freeBytesFor(root);
+    if (free != null) { freeBytes = Math.min(freeBytes ?? free, free); }
+  }
   return {
     roots,
+    freeBytes,
     models: KNOWN_MODELS.map((id) => {
-      const match = repositories.find((repo) => repositoryMatchesModel(repo.name, id)
-        && repositoryHasUsableSnapshot(repo.path));
-      return { id, installed: !!match, repository: match?.name || '' };
+      const matches = repositories.filter((repo) => repositoryMatchesModel(repo.name, id));
+      const match = matches.find((repo) => repositoryHasUsableSnapshot(repo.path)) || matches[0];
+      const installed = !!match && repositoryHasUsableSnapshot(match.path);
+      return {
+        id,
+        installed,
+        cached: matches.length > 0,
+        partial: !!match && !installed,
+        repository: match?.name || '',
+        sizeBytes: match ? directorySizeBytes(match.path) : null,
+        ...(MODEL_CATALOG[id] || {}),
+      };
     }),
   };
 }
 
+// F18: güvenli temizlik — yalnız bilinen modelin, bilinen önbellek kökü
+// içindeki deposu silinir. Tamamlanmamış indirmeler de temizlenebilir; gerçek
+// yol çevrelenmesi zorunlu ve model kimliği whitelist dışıysa reddedilir.
+function deleteCachedModel(appPath, model, env = process.env) {
+  const found = findModelRepository(appPath, model, env, false);
+  if (!found) return { ok: false, error: 'Model önbellekte bulunamadı.' };
+  let rootResolved;
+  let repoResolved;
+  try {
+    rootResolved = fs.realpathSync(found.root) + path.sep;
+    repoResolved = fs.realpathSync(found.repo.path);
+  } catch (_) {
+    return { ok: false, error: 'Önbellek yolu doğrulanamadı.' };
+  }
+  if (!repoResolved.startsWith(rootResolved)) {
+    return { ok: false, error: 'Önbellek yolu doğrulanamadı.' };
+  }
+  const freedBytes = directorySizeBytes(repoResolved);
+  fs.rmSync(repoResolved, { recursive: true, force: true });
+  return { ok: true, freedBytes, repository: found.repo.name };
+}
+
 module.exports = {
   KNOWN_MODELS,
+  MODEL_CATALOG,
+  deleteCachedModel,
+  directorySizeBytes,
+  findModelRepository,
   hasModelFiles,
   modelCacheRoots,
   repositoryHasUsableSnapshot,

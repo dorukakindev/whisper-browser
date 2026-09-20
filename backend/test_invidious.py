@@ -585,5 +585,181 @@ class InvidiousHomeProgress(unittest.TestCase):
         self.assertEqual(events[-1][1]["popular"]["videos"][0]["videoId"], "popular")
 
 
+class InvidiousSuggestions(unittest.TestCase):
+    """A23 — /api/v1/search/suggestions sözleşmesi."""
+
+    def test_suggestions_event_and_instance(self):
+        from unittest import mock
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=({"query": "lo", "suggestions": ["lofi", "lofi girl",
+                                                                              "", None, 7]},
+                                             "https://inst.test")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.suggest("lo")
+        self.assertEqual(events[0][0], "suggestions")
+        self.assertEqual(events[0][1]["suggestions"], ["lofi", "lofi girl", "7"])
+        self.assertEqual(events[0][1]["instance"], "https://inst.test")
+
+    def test_empty_query_short_circuits(self):
+        events = []
+        from unittest import mock
+        with mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.suggest("   ")
+        self.assertEqual(events, [("suggestions", {"query": "", "suggestions": [], "instance": ""})])
+
+    def test_list_payload_also_accepted(self):
+        from unittest import mock
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=(["a", "b"], "https://inst.test")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.suggest("x")
+        self.assertEqual(events[0][1]["suggestions"], ["a", "b"])
+
+
+class InvidiousPlaylistSearch(unittest.TestCase):
+    """A28 — type=playlist / features sözleşmesi + playlist şeması."""
+
+    def test_playlist_items_parsed(self):
+        from unittest import mock
+        events = []
+        payload = [
+            {"type": "playlist", "playlistId": "PLabc_-12", "title": "Miks",
+             "author": "Kanal", "authorId": "UCaaaaaaaaaaaaaaaaaaaaaa",
+             "videoCount": 42,
+             "playlistThumbnails": [{"url": "https://i.test/t.jpg", "width": 100, "height": 56}]},
+            {"type": "video", "videoId": "vid12345678", "title": "v"},
+            {"type": "playlist"},   # playlistId'siz düşer
+        ]
+        seen_url = {}
+        def fake_fetch(path, preferred=None, timeout=15):
+            seen_url["path"] = path
+            return payload, "https://inst.test"
+        with mock.patch.object(invidious, "_fetch_with_failover", fake_fetch), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.search("miks", search_type="playlist")
+        self.assertIn("type=playlist", seen_url["path"])
+        ev = next(e for t, e in events if t == "search")
+        self.assertEqual(ev["videos"], [])
+        self.assertEqual(len(ev["playlists"]), 1)
+        pl = ev["playlists"][0]
+        self.assertEqual(pl["playlistId"], "PLabc_-12")
+        self.assertEqual(pl["videoCount"], 42)
+        self.assertEqual(pl["videoThumbnails"][0]["url"], "https://i.test/t.jpg")
+
+    def test_features_live_in_url(self):
+        from unittest import mock
+        seen = {}
+        def fake_fetch(path, preferred=None, timeout=15):
+            seen["path"] = path
+            return [{"type": "video", "videoId": "l1234567890", "title": "x", "liveNow": True}], "i"
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover", fake_fetch), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.search("live", features="live,bogus")
+        self.assertIn("features=live", seen["path"])
+        self.assertNotIn("bogus", seen["path"])   # whitelist dışı süzgeç gitmez
+
+    def test_playlist_emit_fields(self):
+        from unittest import mock
+        events = []
+        payload = {"title": "T", "author": "A", "authorId": "UCx",
+                   "videoCount": 3,
+                   "videos": [{"videoId": "a1234567890", "title": "v1"}]}
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=(payload, "https://inst.test")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.playlist("PLx", page=2)
+        ev = next(e for e in events if e[0] == "playlist")
+        self.assertEqual(ev[0], "playlist")
+        self.assertEqual(ev[1]["videoCount"], 3)
+        self.assertEqual(ev[1]["videos"][0]["videoId"], "a1234567890")
+
+    def test_playlist_id_validated(self):
+        with self.assertRaises(RuntimeError):
+            invidious.playlist("../../etc")
+
+
+class InvidiousProbeStoryboards(unittest.TestCase):
+    """A20 — probe() storyboard alanını normalize eder."""
+
+    def _run(self, storyboards):
+        from unittest import mock
+        payload = {
+            "title": "t", "lengthSeconds": 120,
+            "storyboards": storyboards,
+        }
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               lambda *a, **k: (payload, "i")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.probe("https://youtu.be/a1234567890")
+        return next(e for t, e in events if t == "probe")
+
+    def test_storyboards_parsed_and_filtered(self):
+        ev = self._run([
+            {"templateUrl": "https://i9.ytimg.com/sb/x/storyboard3_L$L/$N.jpg?sigh=k",
+             "width": 80, "height": 45, "count": 100, "interval": 1200,
+             "columns": 10, "rows": 10},
+            {"url": "no-placeholder.jpg", "width": 80, "height": 45, "count": 5},
+            {"templateUrl": "", "width": 0},
+            "bozuk",
+        ])
+        boards = ev["storyboards"]
+        self.assertEqual(len(boards), 1)
+        self.assertEqual(boards[0]["intervalMs"], 1200)
+        self.assertIn("$N", boards[0]["template"])
+        self.assertEqual(boards[0]["columns"], 10)
+
+    def test_no_storyboards_emits_empty_list(self):
+        ev = self._run(None)
+        self.assertEqual(ev["storyboards"], [])
+
+
+class InvidiousChannelTab(unittest.TestCase):
+    """A27 — kanal sekme uçları."""
+
+    def test_tab_paths_and_whitelist(self):
+        from unittest import mock
+        seen = []
+        def fake_fetch(path, preferred=None, timeout=15):
+            seen.append(path)
+            return {"videos": [{"videoId": "a1234567890", "title": "v"}],
+                    "continuation": ""}, "i"
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover", fake_fetch), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.channel_tab("UCaaaaaaaaaaaaaaaaaaaaaa", tab="shorts", page=2)
+            with self.assertRaises(RuntimeError):
+                invidious.channel_tab("UCaaaaaaaaaaaaaaaaaaaaaa", tab="bogus")
+            invidious.channel_tab("UCaaaaaaaaaaaaaaaaaaaaaa", query="içinde")
+        self.assertIn("/shorts?page=2", seen[0])
+        self.assertIn("/search?q=", seen[1])
+        ev = next(e for t, e in events if t == "channel_tab" and e["tab"] == "search")
+        self.assertEqual(ev["query"], "içinde")
+
+    def test_community_and_channels_shapes(self):
+        from unittest import mock
+        events = []
+        def fake_fetch(path, preferred=None, timeout=15):
+            if path.endswith("/community"):
+                return {"comments": [{"author": "a", "content": "<b>merhaba</b>"}]}, "i"
+            return {"channels": [{"authorId": "UCbbbbbbbbbbbbbbbbbbbbbb",
+                                  "author": "Ch", "subCount": 10}]}, "i"
+        with mock.patch.object(invidious, "_fetch_with_failover", fake_fetch), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.channel_tab("UCaaaaaaaaaaaaaaaaaaaaaa", tab="community")
+            invidious.channel_tab("UCaaaaaaaaaaaaaaaaaaaaaa", tab="channels")
+        com = next(e for t, e in events if t == "channel_tab" and e["tab"] == "community")
+        self.assertEqual(com["comments"][0]["text"], "merhaba")   # HTML soyuldu
+        rel = next(e for t, e in events if t == "channel_tab" and e["tab"] == "channels")
+        self.assertEqual(rel["channels"][0]["author"], "Ch")
+
+    def test_bad_channel_id_rejected(self):
+        with self.assertRaises(RuntimeError):
+            invidious.channel_tab("../x", tab="videos")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

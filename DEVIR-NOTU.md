@@ -1,5 +1,37 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
+Güncel çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
+
+Önceki çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
+
+Önceki çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
+
+Önceki çalışma: [2026-09-20 17:33 — Katalog Parti 14: kabul matrisi (F20) + servis yetenek matrisi (F04) belgeleri; yalnız belge turu](docs/devir/2026-09-20-1733.md).
+
+Önceki çalışma: [2026-09-20 17:30 — Katalog Parti 13: F18 aşamalı dilim — MODEL_CATALOG kapasite kaydı, boyut/boş-disk raporu, onaylı güvenli önbellek silme; npm test temiz](docs/devir/2026-09-20-1730.md).
+
+Önceki çalışma: [2026-09-20 17:24 — Katalog Parti 12: aynı klipte A/B ASR benchmark'ı (F17) — clipHash saklama, cue sapması + metin farkı, VRAM; npm test temiz](docs/devir/2026-09-20-1724.md).
+
+Önceki çalışma: [2026-09-20 17:14 — Katalog Parti 11: OpenSubtitles moviehash + dosya boyutu ile kesin altyazı arama (B03); yetkili medya hash'i, sağlayıcı eşleşme rozeti, başlık fallback'i; npm test temiz](docs/devir/2026-09-20-1714.md).
+
+Önceki çalışma: [2026-09-20 17:07 — Katalog Parti 10: seekbar kare önizlemesi — YouTube storyboard (A20) + yerel ffmpeg tile sprite (B01), media:seekPreview IPC + disk önbelleği; npm test temiz](docs/devir/2026-09-20-1707.md).
+
+Önceki çalışma: [2026-09-20 16:56 — Katalog Parti 9: site otomatik kuralı readerAuto (C03) ve axe-core erişilebilirlik regresyon kapısı (C22) + 3 gerçek ihlalin düzeltmesi; npm test temiz](docs/devir/2026-09-20-1656.md).
+
+Önceki çalışma: [2026-09-20 16:48 — Katalog Parti 8: playlist detay sayfası (A28), gerçek bölüm düzeni Canlı/Müzik/Oyun/Haber/Geçmiş/Listelerim (A04), kanal sekmeleri + kanal-içi arama (A27); npm test temiz](docs/devir/2026-09-20-1648.md).
+
+Önceki çalışma: [2026-09-20 16:27 — Katalog Parti 7: Invidious arama önerileri (A23), mpv/VLC'ye güvenli devir (A17), yerel abonelikler+gruplar (A06) ve OPML/CSV/JSON/NewPipe içe-dışa aktarma (A07); npm test temiz](docs/devir/2026-09-20-1627.md).
+
+Önceki çalışma: [2026-09-20 15:57 — Katalog Parti 5b: SmartTube yerel çalma listeleri (kuyruktan ayrı kalıcılık sözleşmesi, seçici menü, panel yönetimi), radyo zinciri onayı, sıra karıştırma, en-çok-oynatılan rayı; npm test temiz](docs/devir/2026-09-20-1557.md).
+
+Önceki çalışma: [2026-09-20 15:48 — Katalog Parti 5a: SmartTube kart bağlam menüsü (Oynat/sıra/kanal/bağlantı/gizle), yerel video+kanal gizleme ve geri alma listesi, Shorts/izlenen/canlı/Trend içerik filtreleri; npm test temiz, yeni ~30 kontrol](docs/devir/2026-09-20-1548.md).
+
+Önceki çalışma: [2026-09-20 15:35 — Katalog Parti 4: çevrimdışı okuma listesi — yönetilen MHTML deposu (userData/OkumaListesi, 200 kayıt, dizin-kaçışı korumalı), yerler paneli Çevrimdışı sekmesi, aç/sil/yenile; npm test temiz](docs/devir/2026-09-20-1535.md).
+
+Önceki çalışma: [2026-09-20 15:24 — Katalog Parti 3: T/I kısayolları + çift-tık kenar seek (A19), navigator.mediaSession entegrasyonu (A36), kontrol çubuğu uyku zamanlayıcısı (A38 alt maddesi); npm test temiz, yeni ~30 kontrol](docs/devir/2026-09-20-1524.md).
+
+Önceki çalışma: [2026-09-20 15:09 — Katalog Parti 2: okuma görünümü TOC scrollspy + odak affordance (E01), 180 karakter mikro metni (E02), son kullanılan altyazı izleri üstte (A09), SmartTube kart boyutu/yazı ölçeği ayarları (A10); npm test temiz, yeni 30+ kontrol; 4 Electron smoke ortam sınırı](docs/devir/2026-09-20-1509.md).
+
+Önceki çalışma: [2026-09-20 14:55 — Katalog E-paketi: adres çubuğu hesaplayıcı + bang kısayolları (C36/B24), Markdown bağlantı kopyası + QR paneli (B21), sayfayı PDF kaydet (B20); npm test temiz, 42 yeni kontrol; 2 Electron smoke ortam sınırı](docs/devir/2026-09-20-1455.md).
 
 Önceki çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
 
