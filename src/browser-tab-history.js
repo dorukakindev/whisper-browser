@@ -2,6 +2,9 @@ const { MAX_ABS_OFFSET_SECONDS } = require('./browser-subtitle-sync');
 const { redactUrlSensitiveParams } = require('./browser-place-url');
 
 const DEFAULT_CLOSED_TAB_LIMIT = 20;
+// HTMLMediaElement zamanları saniyedir; 1000 saatlik sınır uzun yayınları
+// kesmeden bozuk/aşırı kalıcılık girdilerini sınırlar.
+const MAX_MEDIA_TIME_SECONDS = 60 * 60 * 1000;
 
 function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
   const number = Number(value);
@@ -31,8 +34,8 @@ function normalizeClosedBrowserTab(snapshot) {
     mediaId: String(snapshot.mediaId || '').slice(0, 300),
     service: String(snapshot.service || '').slice(0, 64),
     contentId: String(snapshot.contentId || '').slice(0, 300),
-    position: finiteNumber(snapshot.position, 0, 0, 60 * 60 * 1000),
-    duration: finiteNumber(snapshot.duration, 0, 0, 60 * 60 * 1000),
+    position: finiteNumber(snapshot.position, 0, 0, MAX_MEDIA_TIME_SECONDS),
+    duration: finiteNumber(snapshot.duration, 0, 0, MAX_MEDIA_TIME_SECONDS),
     rate: finiteNumber(snapshot.rate, 1, 0.25, 4),
     volume: finiteNumber(snapshot.volume, 1, 0, 1),
     muted: !!snapshot.muted,

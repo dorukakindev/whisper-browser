@@ -8,14 +8,19 @@ function finiteNumber(value, fallback = 0) {
 }
 
 function normalizeCues(rawCues) {
-  return (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => ({
-    id: String(cue && (cue.id ?? cue.index ?? index)),
-    start: Math.max(0, finiteNumber(cue && cue.start)),
-    end: Math.max(0, finiteNumber(cue && cue.end)),
-    text: String(cue && cue.text || '').replace(/\s+/g, ' ').trim(),
-    speaker: String(cue?.speaker || '').replace(/\s+/g, ' ').trim().slice(0, 80),
-    protected: Boolean(cue?.protected) || protectedCue(cue || {}),
-  })).filter((cue) => cue.text && cue.end >= cue.start)
+  return (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
+    const start = Number(cue?.start);
+    const end = Number(cue?.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    return {
+      id: String(cue && (cue.id ?? cue.index ?? index)),
+      start: Math.max(0, start),
+      end: Math.max(0, end),
+      text: String(cue && cue.text || '').replace(/\s+/g, ' ').trim(),
+      speaker: String(cue?.speaker || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+      protected: Boolean(cue?.protected) || protectedCue(cue || {}),
+    };
+  }).filter((cue) => cue && cue.text && cue.end >= cue.start)
     .sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
@@ -173,7 +178,10 @@ function planTranslationWindow(sentences, playhead, options = {}) {
 function distributeTranslation(sentence, translatedText) {
   const pieces = Array.isArray(sentence && sentence.pieces) ? sentence.pieces : [];
   if (!pieces.length) return [];
-  const translation = decodeSentenceTranslation(translatedText, pieces.length);
+  if (!String(translatedText ?? '').trim()) return [];
+  let translation;
+  try { translation = decodeSentenceTranslation(translatedText, pieces.length); }
+  catch (_) { return []; }
   if (translation.parts) return pieces.map((piece, index) => ({ ...piece, text: translation.parts[index] }));
   const normalized = String(translation.text || '').trim();
   if (!normalized) return [];

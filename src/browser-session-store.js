@@ -13,6 +13,9 @@ const MAX_TRACK_REFS = 12;
 const MAX_RECOVERY_JOBS = 50;
 const MAX_SYNC_RECORDS = 24;
 const MAX_SUBTITLE_EDITS = 2000;
+// HTMLMediaElement currentTime/duration değerleri saniyedir. Bu sınır uzun
+// yayınları korurken bozuk veya aşırı kalıcılık girdilerini engeller.
+const MAX_MEDIA_TIME_SECONDS = 60 * 60 * 1000;
 
 function cleanString(value, max = 300) {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -164,6 +167,7 @@ function migrateBrowserSession(raw) {
     source = { ...source, cleanExit: source.cleanExit === true ? true : source.cleanExit === false ? false : null };
     version = 8;
   }
+  source.version = BROWSER_SESSION_VERSION;
   // Yerel oturum gelecekte ek alanlar kazanırsa bilinmeyen alanları izinli
   // şemaya indirerek aç; taşınabilir paket sürümü ayrıca katı doğrulanır.
   return source;
@@ -202,8 +206,8 @@ function normalizeSessionTab(raw) {
     service: identity.service,
     mediaId: identity.key,
     contentId: identity.contentId,
-    position: finiteNumber(raw.position, 0, 0, 60 * 60 * 1000),
-    duration: finiteNumber(raw.duration, 0, 0, 60 * 60 * 1000),
+    position: finiteNumber(raw.position, 0, 0, MAX_MEDIA_TIME_SECONDS),
+    duration: finiteNumber(raw.duration, 0, 0, MAX_MEDIA_TIME_SECONDS),
     rate: finiteNumber(raw.rate, 1, 0.25, 4),
     volume: finiteNumber(raw.volume, 1, 0, 1),
     muted: !!raw.muted,

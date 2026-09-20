@@ -16,7 +16,8 @@
     return [...new Set(fold(value).split(/\s+/).filter((token) => token.length > 1 && !STOP.has(token)))].slice(0, 40);
   }
   function clock(seconds) {
-    const value = Math.max(0, Number(seconds) || 0);
+    const number = Number(seconds);
+    const value = Number.isFinite(number) ? Math.max(0, number) : 0;
     const h = Math.floor(value / 3600); const m = Math.floor(value % 3600 / 60); const s = Math.floor(value % 60);
     return h ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
