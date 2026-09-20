@@ -6942,6 +6942,60 @@ body.modal-open { overflow: hidden; }
 .st-display-panel label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fg); }
 .st-display-panel label span { display: flex; justify-content: space-between; color: var(--muted); }
 .st-display-hint { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.45; }
+.st-display-sep { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; display: flex; flex-direction: column; gap: 6px; }
+.st-display-group { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.st-display-check { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.st-display-check span { display: inline !important; }
+.st-hidden-head { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.st-hidden-list { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
+.st-hidden-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.st-hidden-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+.st-hidden-empty { font-size: 11px; color: var(--muted); }
+.st-card-menu-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.st-card:hover .st-card-menu-btn,
+.st-card:focus-within .st-card-menu-btn { opacity: 1; }
+.st-card-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
+  display: flex;
+  flex-direction: column;
+}
+.st-card-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+}
+.st-card-menu-item:hover,
+.st-card-menu-item:focus-visible { background: var(--accent-soft); }
 .st-brand {
   display: flex;
   align-items: center;

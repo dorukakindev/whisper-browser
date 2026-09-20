@@ -2446,6 +2446,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserAdblockEnabled',
   'browserAutoSkipAds',
   'browserPlayerResponseAdPrune',
+  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending',
 ];
 
 function collectUiSettings() {
@@ -23103,8 +23104,9 @@ async function renderSmartTubeSection(section, opts = {}) {
       }
       grid.prepend(rail);
     }
-    const trendList = dedupe(trending || []);
-    if (trendList.length) {
+    const trendList = stFilterVideos(dedupe(trending || []));
+    // A08: 'Trend rayını gizle' açıksa bölüm başlığıyla birlikte atlanır.
+    if (trendList.length && !$('stHideTrending')?.checked) {
       const sep = document.createElement('div');
       sep.className = 'st-section-title st-grid-row';
       sep.textContent = 'Trend';
@@ -23116,7 +23118,7 @@ async function renderSmartTubeSection(section, opts = {}) {
     // az önce eklenen trend chip'lerini de silerdi. Eski içerik zaten
     // fonksiyon başındaki loader yazımıyla silinmiş durumda.
     grid.querySelector(':scope > .inv-status')?.remove();
-    videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+    stFilterVideos(videos).slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
   }
 
   // Tam akış render edildi: aynı requestId'ye ait GEÇ kalan feed_partial
@@ -23172,7 +23174,7 @@ function buildTrendChips() {
 
 function renderSmartTubeGrid(grid, videos, _sectionLabel) {
   grid.innerHTML = '';
-  videos.slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+  stFilterVideos(videos).slice(0, 30).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
 }
 
 function renderSmartTubeChannels(channels) {
@@ -23374,6 +23376,227 @@ function stQueueRailVideos() {
   }));
 }
 
+// ----- Yerel içerik gizleme (A03) ve sonuç türü filtreleri (A08) -----
+// YouTube'a "ilgilenmiyorum" bildirimi GÖNDERMEZ — yalnız bu cihazdaki
+// SmartTube listelerini filtreler. Geri alma görünüm panelindeki "Gizlenenler"
+// listesinden yapılır; filtre sayısı panel başlığında görünür.
+const ST_HIDDEN_VIDEOS_KEY = 'stHiddenVideos';
+const ST_HIDDEN_CHANNELS_KEY = 'stHiddenChannels';
+const ST_HIDDEN_MAX = 500;
+function loadStHiddenVideos() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_HIDDEN_VIDEOS_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw.filter((v) => typeof v === 'string' && v).slice(0, ST_HIDDEN_MAX) : []);
+  } catch (_) { return new Set(); }
+}
+function loadStHiddenChannels() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_HIDDEN_CHANNELS_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((v) => v && typeof v.authorId === 'string' && v.authorId)
+      .slice(0, ST_HIDDEN_MAX)
+      .map((v) => ({ authorId: v.authorId, author: String(v.author || '') }));
+  } catch (_) { return []; }
+}
+let stHiddenVideos = loadStHiddenVideos();
+let stHiddenChannels = loadStHiddenChannels();
+function saveStHidden() {
+  try {
+    localStorage.setItem(ST_HIDDEN_VIDEOS_KEY, JSON.stringify([...stHiddenVideos].slice(0, ST_HIDDEN_MAX)));
+    localStorage.setItem(ST_HIDDEN_CHANNELS_KEY, JSON.stringify(stHiddenChannels.slice(0, ST_HIDDEN_MAX)));
+  } catch (_) {}
+}
+function stChannelHidden(authorId) {
+  return !!authorId && stHiddenChannels.some((c) => c.authorId === authorId);
+}
+function stIsShort(video) {
+  const type = String(video?.type || '').toLowerCase();
+  return type === 'short' || type === 'shortvideo' || video?.isShort === true
+    || /youtube\.com\/shorts\//i.test(String(video?.url || ''));
+}
+function stVideoHidden(video) {
+  if (!video) return false;
+  if (video.videoId && stHiddenVideos.has(video.videoId)) return true;
+  if (video.authorId && stChannelHidden(video.authorId)) return true;
+  if ($('stHideShorts')?.checked && stIsShort(video)) return true;
+  if ($('stHideLive')?.checked && video.liveNow) return true;
+  if ($('stHideWatched')?.checked && video.videoId) {
+    const w = watchItemByKey(mediaKeyFor('youtube', String(video.videoId)));
+    if (w && (w.completed || watchProgress(w) >= 95)) return true;
+  }
+  return false;
+}
+// Feed/arama sonuçları tek noktadan süzülür; raylar (sıra/devam) kullanıcı
+// verisi olduğu için filtre dışıdır.
+function stFilterVideos(videos) {
+  return (Array.isArray(videos) ? videos : []).filter((v) => !stVideoHidden(v));
+}
+function stHideVideo(video) {
+  const id = String(video?.videoId || '');
+  if (!id) return;
+  stHiddenVideos.add(id);
+  if (stHiddenVideos.size > ST_HIDDEN_MAX) stHiddenVideos.delete(stHiddenVideos.values().next().value);
+  saveStHidden();
+  applyStContentFilters();
+  setBrowserSignal(`Video gizlendi: ${String(video.title || id).slice(0, 80)} — geri almak için kart görünümü ayarlarındaki Gizlenenler listesini kullanın.`, true, { priority: 60, holdMs: 5000 });
+}
+function stHideChannel(video) {
+  const authorId = String(video?.authorId || '');
+  if (!authorId) return;
+  if (!stChannelHidden(authorId)) {
+    stHiddenChannels.push({ authorId, author: String(video?.author || '') });
+    if (stHiddenChannels.length > ST_HIDDEN_MAX) stHiddenChannels.shift();
+    saveStHidden();
+  }
+  applyStContentFilters();
+  setBrowserSignal(`Kanal gizlendi: ${String(video?.author || authorId).slice(0, 80)} — geri almak için kart görünümü ayarlarını açın.`, true, { priority: 60, holdMs: 5000 });
+}
+function stUnhideVideo(id) {
+  stHiddenVideos.delete(String(id || ''));
+  saveStHidden();
+  applyStContentFilters();
+}
+function stUnhideChannel(authorId) {
+  stHiddenChannels = stHiddenChannels.filter((c) => c.authorId !== String(authorId || ''));
+  saveStHidden();
+  applyStContentFilters();
+}
+// Ekrandaki kartları yerinde süzer; ana sayfa yapısal rayları (Trend) için
+// bölüm yeniden çizilir.
+function applyStContentFilters() {
+  document.querySelectorAll('#stGrid .st-card, #stSearchGrid .st-card').forEach((card) => {
+    if (stVideoHidden(card._stVideo)) card.remove();
+  });
+  if (stCurrentSection === 'home' && $('stHideTrending')?.checked) {
+    document.querySelectorAll('#stGrid .st-section-title').forEach((sep) => {
+      if (sep.textContent === 'Trend') {
+        let node = sep.nextElementSibling;
+        const victims = [sep];
+        while (node && !node.classList.contains('st-section-title')) { victims.push(node); node = node.nextElementSibling; }
+        victims.forEach((v) => v.remove());
+      }
+    });
+  }
+  renderStHiddenList();
+}
+// Görünüm panelindeki geri alma listesi — gizli kanallar ve videolar.
+function renderStHiddenList() {
+  const list = $('stHiddenList');
+  const count = $('stHiddenCount');
+  if (!list) return;
+  if (count) count.textContent = stHiddenVideos.size + stHiddenChannels.length
+    ? `(${stHiddenVideos.size + stHiddenChannels.length})` : '';
+  list.replaceChildren();
+  if (!stHiddenVideos.size && !stHiddenChannels.length) {
+    const empty = document.createElement('div');
+    empty.className = 'st-hidden-empty';
+    empty.textContent = window.UiLocale?.t('Gizlenen içerik yok.') || 'Gizlenen içerik yok.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const channel of stHiddenChannels) {
+    const row = document.createElement('div');
+    row.className = 'st-hidden-row';
+    const label = document.createElement('span');
+    label.className = 'st-hidden-name';
+    label.textContent = `${window.UiLocale?.t('Kanal') || 'Kanal'}: ${channel.author || channel.authorId}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'link-btn';
+    remove.dataset.stUnhideChannel = channel.authorId;
+    remove.textContent = window.UiLocale?.t('Geri al') || 'Geri al';
+    row.append(label, remove);
+    list.appendChild(row);
+  }
+  for (const videoId of stHiddenVideos) {
+    const row = document.createElement('div');
+    row.className = 'st-hidden-row';
+    const label = document.createElement('span');
+    label.className = 'st-hidden-name';
+    label.textContent = `${window.UiLocale?.t('Video') || 'Video'}: ${videoId}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'link-btn';
+    remove.dataset.stUnhideVideo = videoId;
+    remove.textContent = window.UiLocale?.t('Geri al') || 'Geri al';
+    row.append(label, remove);
+    list.appendChild(row);
+  }
+}
+
+// ----- Kart bağlam menüsü (A01): sağ tık / ⋯ düğmesi -----
+// Mevcut kart click/klavye akışı değişmez; menü yalnız gerçek işlevler sunar
+// (hesap gerektiren "Watch Later" gibi sahte öğeler yok).
+let stCardMenuEl = null;
+function closeStCardMenu() {
+  stCardMenuEl?.remove();
+  stCardMenuEl = null;
+  document.removeEventListener('mousedown', stCardMenuOutside, true);
+}
+function stCardMenuOutside(e) {
+  if (stCardMenuEl && !stCardMenuEl.contains(e.target)) closeStCardMenu();
+}
+function openStCardMenu(video, x, y, onPlay) {
+  closeStCardMenu();
+  const menu = document.createElement('div');
+  menu.className = 'st-card-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', window.UiLocale?.t('Video seçenekleri') || 'Video seçenekleri');
+  const items = [];
+  const addItem = (label, action) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-card-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = label;
+    btn.addEventListener('click', () => { closeStCardMenu(); action(); });
+    menu.appendChild(btn);
+    items.push(btn);
+  };
+  addItem(window.UiLocale?.t('Oynat') || 'Oynat', () => onPlay?.());
+  if (video.videoId) {
+    const queued = stQueueHas(video.videoId);
+    addItem(window.UiLocale?.t(queued ? 'Sıradan çıkar' : 'Sıraya ekle') || (queued ? 'Sıradan çıkar' : 'Sıraya ekle'), () => {
+      stQueueToggle(video);
+      document.querySelectorAll(`.st-card-queue[data-video-id="${CSS.escape(video.videoId)}"]`).forEach((b) => {
+        const q = stQueueHas(video.videoId);
+        b.classList.toggle('is-queued', q);
+        b.textContent = q ? '✓' : '+';
+      });
+    });
+  }
+  if (video.authorId) {
+    addItem(window.UiLocale?.t('Kanalı aç') || 'Kanalı aç', () => openInvidiousChannelPage(video.authorId));
+  }
+  if (video.videoId) {
+    addItem(window.UiLocale?.t('Bağlantıyı kopyala') || 'Bağlantıyı kopyala', async () => {
+      const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`;
+      const ok = await window.api.copyText?.(url).catch(() => null);
+      setBrowserSignal(ok === true ? 'Video bağlantısı panoya kopyalandı.' : 'Bağlantı kopyalanamadı.', ok === true, { priority: 50, holdMs: 3500 });
+    });
+    addItem(window.UiLocale?.t('Videoyu gizle') || 'Videoyu gizle', () => stHideVideo(video));
+  }
+  if (video.authorId) {
+    addItem(window.UiLocale?.t('Kanalı gizle') || 'Kanalı gizle', () => stHideChannel(video));
+  }
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeStCardMenu(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next]?.focus();
+    }
+  });
+  document.body.appendChild(menu);
+  stCardMenuEl = menu;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
+  setTimeout(() => document.addEventListener('mousedown', stCardMenuOutside, true), 0);
+  items[0]?.focus();
+}
+
 // ----- SmartTube kart (büyük dikey) -----
 // Kart/up-next tıklamasından probe tetikleme: sürüyor olan probe bitene kadar
 // bekle (disabled düğmeye click() sessizce no-op olur ve istek kaybolurdu).
@@ -23395,6 +23618,7 @@ function buildSmartTubeCard(video) {
   const card = document.createElement('div');
   card.className = 'st-card';
   card.tabIndex = 0;
+  card._stVideo = video;   // içerik filtreleri (A03/A08) ve bağlam menüsü için
   card.setAttribute('role', 'button');
   card.setAttribute('aria-label', `${video.title || ''} — ${video.author || ''}`);
   // İzleme kütüphanesindeki ilerleme kartta görünsün; açılışta kaldığı yerden
@@ -23467,6 +23691,7 @@ function buildSmartTubeCard(video) {
       stQueueToggle(video);
       syncQueueBtn();
     };
+    qBtn.setAttribute('data-video-id', video.videoId);
     syncQueueBtn();
     qBtn.addEventListener('click', toggleQueue);
     qBtn.addEventListener('keydown', (e) => {
@@ -23539,6 +23764,33 @@ function buildSmartTubeCard(video) {
       open();
     }
   });
+  // A01 — sağ tık menüsü: kart oynatma davranışını değiştirmeden eylem listesi
+  card.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openStCardMenu(video, e.clientX, e.clientY, open);
+  });
+  // Klavye/fare erişilebilir eşdeğeri: köşedeki ⋯ düğmesi
+  const menuBtn = document.createElement('button');
+  menuBtn.type = 'button';
+  menuBtn.className = 'st-card-menu-btn';
+  menuBtn.textContent = '⋯';
+  const menuLbl = window.UiLocale?.t('Video seçenekleri') || 'Video seçenekleri';
+  menuBtn.title = menuLbl;
+  menuBtn.setAttribute('aria-label', menuLbl);
+  menuBtn.setAttribute('aria-haspopup', 'menu');
+  const openMenu = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const r = menuBtn.getBoundingClientRect();
+    openStCardMenu(video, r.left, r.bottom + 4, open);
+  };
+  menuBtn.addEventListener('click', openMenu);
+  menuBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') openMenu(e);
+    if (e.key === 'ContextMenu') openMenu(e);
+  });
+  thumb.appendChild(menuBtn);
   return card;
 }
 
@@ -23662,6 +23914,7 @@ function stAppendSearchResults(videos) {
     const id = v.videoId || v.authorId || v.title;
     if (!id || stSearchSeen.has(id)) continue;
     stSearchSeen.add(id);
+    if (stVideoHidden(v)) continue;   // A03/A08 filtreleri aramada da uygulanır
     searchGrid.appendChild(buildSmartTubeCard(v));
     added++;
   }
@@ -24119,6 +24372,18 @@ function initSmartTube() {
   ['stCardScale', 'stCardFontScale'].forEach((id) => {
     $(id)?.addEventListener('input', syncStCardDisplay);
   });
+  // A08/A03: filtre kutuları açılınca mevcut kartlar hemen süzülür;
+  // Gizlenenler listesi panelde geri alma sağlar.
+  ['stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending'].forEach((id) => {
+    $(id)?.addEventListener('change', () => applyStContentFilters());
+  });
+  $('stHiddenList')?.addEventListener('click', (e) => {
+    const channelBtn = e.target.closest('[data-st-unhide-channel]');
+    if (channelBtn) { stUnhideChannel(channelBtn.dataset.stUnhideChannel); return; }
+    const videoBtn = e.target.closest('[data-st-unhide-video]');
+    if (videoBtn) stUnhideVideo(videoBtn.dataset.stUnhideVideo);
+  });
+  if (stDisplayToggle) stDisplayToggle.addEventListener('click', renderStHiddenList);
   syncStCardDisplay();
   const close = $('stCloseBrowser');
   if (close) close.addEventListener('click', () => {
