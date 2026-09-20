@@ -4890,6 +4890,8 @@ const player = {
   playlist: [],       // yerel klasör/çoklu seçim sırası
   playlistIndex: -1,
   autoNext: true,
+  sleepTimerAt: 0,      // epoch ms; 0 = kapalı
+  sleepTimerMode: '',   // '' | 'end' (bölüm sonunda dur)
   watchSession: null,
   watchManualCompletedKey: '',
   watchManualCompleted: null,
@@ -10468,6 +10470,7 @@ function setWorkspaceMode(mode, persist = true) {
       ? player.localPath.split(/[\\/]/).pop() : (player.ytInfo && player.ytInfo.title) || (window.UiLocale?.t('Oynatıcı') || 'Oynatıcı');
     $('playerMeta').textContent = window.UiLocale?.t('Çift dilli izleme ve çalışma alanı') || 'Çift dilli izleme ve çalışma alanı';
   }
+  syncPlayerMediaSession();
   if (persist) {
     try { localStorage.setItem('playerWorkspaceMode', mode); } catch (_) {}
   }
@@ -17902,6 +17905,10 @@ function closePlayer() {
   }
   stopAmbient();
   if (video) video.pause();
+  if (typeof clearPlayerMediaSession === 'function') clearPlayerMediaSession();
+  player.sleepTimerAt = 0;
+  player.sleepTimerMode = '';
+  if ($('sleepTimer')) $('sleepTimer').value = '0';
   flushWatchState(false, true);
   destroyHls();
   disconnectBrowserBoundsObserver();
@@ -20949,12 +20956,14 @@ if ($('playerVideo')) {
     // A-B işaretleri de: metadata'dan önce basılan B, süresizken çizilemeyip
     // sonsuza kayboluyordu.
     renderAbMarkers();
+    syncPlayerMediaSession();
   });
   video.addEventListener('play', () => {
     showControls();
     if (player.ambientOn) startAmbient();
     if (!player.watchSession) beginWatchSession();
     if (player.watchSession) player.watchSession.lastClock = Date.now();
+    syncPlayerMediaSession();
   });
   video.addEventListener('pause', () => {
     interruptHlsStability();
@@ -20965,12 +20974,18 @@ if ($('playerVideo')) {
     savePlayerPosition();
     if (player.watchSession) player.watchSession.lastClock = 0;
     flushWatchState(false, true);
+    syncPlayerMediaSession();
   });
   video.addEventListener('ended', async () => {
     stopPlayerVideoFrameLoop();
     renderCue();
     await flushWatchState(true, true);
-    if (player.autoNext && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    if (player.sleepTimerMode === 'end') {
+      player.sleepTimerMode = '';
+      if ($('sleepTimer')) $('sleepTimer').value = '0';
+      osd('Uyku zamanlayıcısı: bölüm sonunda durduruldu', 5000);
+    }
   });
   video.addEventListener('error', () => {
     const code = video.error?.code;
@@ -20985,6 +21000,21 @@ if ($('playerVideo')) {
 
   $('playPause').addEventListener('click', () => {
     if (video.paused) video.play().catch(() => {}); else video.pause();
+  });
+  const sleepSel = $('sleepTimer');
+  if (sleepSel) sleepSel.addEventListener('change', () => {
+    const value = sleepSel.value;
+    if (value === 'end') {
+      player.sleepTimerAt = 0;
+      player.sleepTimerMode = 'end';
+      osd('Uyku zamanlayıcısı: bu bölüm bitince duraklatılacak');
+    } else {
+      const minutes = Number(value);
+      player.sleepTimerMode = '';
+      player.sleepTimerAt = minutes > 0 ? Date.now() + minutes * 60000 : 0;
+      osd(minutes > 0 ? `Uyku zamanlayıcısı: ${minutes} dakika` : 'Uyku zamanlayıcısı kapalı');
+    }
+    syncPlayerMediaSession();
   });
   $('playerSeek').addEventListener('input', (e) => {
     player.loopCueId = '';
@@ -21115,7 +21145,15 @@ if ($('subtitleModeMenu')) {
     if (player.suppressClick) return;      // 2x basili tutmadan sonra gelen tik
     video.paused ? video.play().catch(() => {}) : video.pause();
   });
-  video.addEventListener('dblclick', () => $('fullscreenBtn').click());
+  // Videoya çift tıkla: YouTube düzeni — orta bölge tam ekran, sol/sağ %30
+  // kenarlar ∓10 sn seek. İki click'in net oynat/duraklat etkisi nötr kalır.
+  video.addEventListener('dblclick', (e) => {
+    const rect = video.getBoundingClientRect();
+    const ratio = rect.width ? (e.clientX - rect.left) / rect.width : .5;
+    if (ratio < 0.3) { video.currentTime -= 10; updateSeekVisuals(); showControls(); osd('-10 sn'); return; }
+    if (ratio > 0.7) { video.currentTime += 10; updateSeekVisuals(); showControls(); osd('+10 sn'); return; }
+    $('fullscreenBtn').click();
+  });
 
   // Zaman çubuğunda imleç: o andaki zaman + o anda ne söyleniyor
   const wrap = $('seekWrap');
@@ -21246,6 +21284,23 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleAbLoop(); return; }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); capturePlayerFrame(); return; }
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); stUpNextToggle(); return; }
+  // YouTube-paritesi: T sinema (theater) modu — yalnız yerel oynatıcıda;
+  // tarayıcı modunda sinema zaten çıkışa zorlanıyor. K, bu uygulamada kurulu
+  // "cümleyi kaydet" eylemini korur (Boşluk zaten oynat/duraklat).
+  if (e.key === 't' || e.key === 'T') {
+    if (player.workspaceMode !== 'browser') {
+      e.preventDefault();
+      setViewMode(player.viewMode === 'cinema' ? (player.lastSideMode || 'reading') : 'cinema');
+      osd(player.viewMode === 'cinema' ? 'Sinema modu' : 'Sinema modundan çıkıldı');
+    }
+    return;
+  }
+  // I mini oynatıcı: tarayıcıda ayrı küçük pencere, yerelde resim-içinde-resim.
+  if (e.key === 'i' || e.key === 'I') {
+    e.preventDefault();
+    toggleMiniPlayer().catch(() => {});
+    return;
+  }
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
     if ((e.key === ',' || e.key === '.') && player.browserPaused) {
       e.preventDefault();
@@ -21382,6 +21437,85 @@ async function nudgeSpeed(dir) {
   osd(`${target}× hız`);
   showControls();
 }
+
+// Mini oynatıcı (I): tarayıcı modunda sekmeyi ayrı küçük pencereye taşır;
+// yerel videoda resim-içinde-resim kullanır.
+async function toggleMiniPlayer() {
+  if (player.workspaceMode === 'browser') {
+    const tab = browserTabState();
+    if (!tab) { osd('Önce tarayıcıda bir video açın.'); return; }
+    const result = await window.api.browserExtras?.({ action: 'mini-open', tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' })
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) osd(result?.error || 'Küçük oynatıcı açılamadı.');
+    else osd('Küçük oynatıcı açıldı');
+    return;
+  }
+  const video = $('playerVideo');
+  if (!video || !player.mediaKey) { osd('Önce bir video açın.'); return; }
+  try {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture();
+    else if (document.pictureInPictureEnabled) await video.requestPictureInPicture();
+    else { osd('Resim içinde resim bu sürümde kullanılamıyor.'); return; }
+    osd('Mini oynatıcı ' + (document.pictureInPictureElement ? 'açıldı' : 'kapatıldı'));
+  } catch (_) {
+    osd('Resim içinde resim açılamadı; video oynarken deneyin.');
+  }
+}
+
+// OS medya oturumu (A36): donanım/media tuşları ve now-playing kartı.
+// Tarayıcı modunda web sayfasının kendi oturumu bırakılır — bizim handler'lar
+// o sırada yerel videoyu etkilemesin diye durum 'none'a çekilir.
+let _mediaSessionBound = false;
+function syncPlayerMediaSession() {
+  const ms = navigator.mediaSession;
+  if (!ms) return;
+  const video = $('playerVideo');
+  const active = player.workspaceMode !== 'browser' && !!player.mediaKey;
+  try {
+    ms.metadata = active
+      ? new MediaMetadata({ title: $('playerTitle')?.textContent || 'Whisper Player', artist: 'Whisper' })
+      : null;
+    ms.playbackState = active ? (video && !video.paused ? 'playing' : 'paused') : 'none';
+    if (active && video && Number.isFinite(video.duration)) {
+      ms.setPositionState({ duration: video.duration, playbackRate: video.playbackRate || 1, position: video.currentTime || 0 });
+    }
+  } catch (_) { /* bazı değer kombinasyonları (ör. position>duration) reddedilir */ }
+  if (_mediaSessionBound) return;
+  _mediaSessionBound = true;
+  const bind = (action, fn) => { try { ms.setActionHandler(action, fn); } catch (_) {} };
+  bind('play', () => { if (player.workspaceMode !== 'browser') video?.play().catch(() => {}); });
+  bind('pause', () => { if (player.workspaceMode !== 'browser') video?.pause(); });
+  bind('seekbackward', (d) => { if (player.workspaceMode !== 'browser' && video) { video.currentTime -= d.seekOffset || 10; updateSeekVisuals(); } });
+  bind('seekforward', (d) => { if (player.workspaceMode !== 'browser' && video) { video.currentTime += d.seekOffset || 10; updateSeekVisuals(); } });
+  bind('seekto', (d) => { if (player.workspaceMode !== 'browser' && video && d.fastSeek) video.fastSeek(d.seekTime); else if (player.workspaceMode !== 'browser' && video) video.currentTime = d.seekTime; });
+  bind('previoustrack', () => { if (player.workspaceMode !== 'browser') playPlaylistDelta(-1); });
+  bind('nexttrack', () => { if (player.workspaceMode !== 'browser') playPlaylistDelta(1); });
+}
+function clearPlayerMediaSession() {
+  const ms = navigator.mediaSession;
+  if (!ms) return;
+  try { ms.metadata = null; ms.playbackState = 'none'; } catch (_) {}
+}
+
+// Uyku zamanlayıcısı (A38 alt maddesi): süre dolunca oynatma duraklar;
+// 'Bölüm sonunda' seçeneği autoNext'i bir kereye mahsus engeller.
+function sleepTimerLabel() {
+  if (player.sleepTimerMode === 'end') return 'bölüm sonunda';
+  if (!player.sleepTimerAt) return '';
+  const mins = Math.max(0, Math.ceil((player.sleepTimerAt - Date.now()) / 60000));
+  return `${mins} dk`;
+}
+function checkPlayerSleepTimer() {
+  if (!player.sleepTimerAt || Date.now() < player.sleepTimerAt) return;
+  player.sleepTimerAt = 0;
+  player.sleepTimerMode = '';
+  const sel = $('sleepTimer');
+  if (sel) sel.value = '0';
+  if (player.workspaceMode === 'browser') browserCommand('pause').catch(() => {});
+  else $('playerVideo')?.pause();
+  osd('Uyku zamanlayıcısı: oynatma duraklatıldı', 5000);
+}
+setInterval(checkPlayerSleepTimer, 15000);
 
 // Ses cubugu ozel cizildigi icin dolgu yuzdesini CSS'e biz veriyoruz.
 function syncVolumeFill() {

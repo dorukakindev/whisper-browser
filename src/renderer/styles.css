@@ -1216,6 +1216,7 @@
   cursor: pointer;
 }
 .player-speed option { background: var(--bg-1); color: var(--text); }
+.sleep-timer { max-width: 128px; }
 
 /* --- zaman cubugu: tampon + oynanan + isaretler + imlecte zaman balonu --- */
 .seek-wrap {

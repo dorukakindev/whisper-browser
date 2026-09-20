@@ -1880,6 +1880,8 @@
                 <kbd>E</kbd><span>Bloğu düzenle</span><kbd>C</kbd><span>Bloğu kopyala</span>
                 <kbd>K</kbd><span>Cümleyi kaydet</span><kbd>W</kbd><span>Seçili kelimeyi kaydet</span>
                 <kbd>B</kbd><span>A-B döngüsü</span><kbd>S</kbd><span>Ekran görüntüsü</span>
+                <kbd>T</kbd><span>Sinema modu</span><kbd>I</kbd><span>Mini oynatıcı</span>
+                <kbd>N</kbd><span>Sıradaki paneli</span><kbd>2× kenar</kbd><span>∓10 sn seek</span>
                 <kbd>?</kbd><span>Bu pencere</span><kbd>Esc</kbd><span>Kapat</span>
               </div>
             </div>
@@ -2075,6 +2077,14 @@
               title="Tek tıkla: altyazıyı çıkar, çevir ve izlemeye hazır hale getir">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
             </button>
+            <select id="sleepTimer" class="player-speed sleep-timer" title="Uyku zamanlayıcısı — süre dolunca oynatma duraklar" aria-label="Uyku zamanlayıcısı">
+              <option value="0" selected>Uyku: kapalı</option>
+              <option value="15">15 dk</option>
+              <option value="30">30 dk</option>
+              <option value="45">45 dk</option>
+              <option value="60">60 dk</option>
+              <option value="end">Bölüm sonunda dur</option>
+            </select>
             <button class="btn-icon" id="helpBtn" title="Klavye kısayolları (?)" aria-label="Klavye kısayollarını göster">?</button>
             <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)" aria-label="Tam ekranı aç veya kapat">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
