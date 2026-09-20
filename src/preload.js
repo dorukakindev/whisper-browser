@@ -199,6 +199,8 @@ contextBridge.exposeInMainWorld('api', {
   openBrowserReadingList: (tabId, id) => ipcRenderer.invoke('browser:readingList:open', { tabId, id }),
   browserElementRules: (payload) => ipcRenderer.invoke('browser:elementRules', payload),
   openInExternalPlayer: (player, source) => ipcRenderer.invoke('player:external', { player, ...(source || {}) }),
+  importSubscriptions: () => ipcRenderer.invoke('subscriptions:import'),
+  exportSubscriptions: (payload) => ipcRenderer.invoke('subscriptions:export', payload || {}),
   setBrowserPageIndexEnabled: (enabled) => ipcRenderer.invoke('browser:pageIndex:setEnabled', { enabled: enabled === true }),
   clearBrowserPageIndex: () => ipcRenderer.invoke('browser:pageIndex:clear'),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),

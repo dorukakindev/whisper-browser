@@ -23217,6 +23217,14 @@ async function renderSmartTubeSection(section, opts = {}) {
   let videos = [];
   let youtubeHomeFallback = false;
   try {
+    // A06: YouTube girişi yoksa Abonelikler bölümü yerel listeyi gösterir —
+    // Invidious oturumu gerektiren uzak akış yerine cihazda tutulan kayıtlar.
+    if (section === 'subscriptions' && !youtubeLoggedIn) {
+      if (stale()) return;
+      renderStSubsPanel(grid);
+      setSmartTubeStatus('');
+      return;
+    }
     if (section === 'channels') {
       const channels = await fetchInvidiousSubscriptions(force).catch(() => null);
       if (stale()) return;
@@ -24080,6 +24088,10 @@ function openStCardMenu(video, x, y, onPlay) {
   }
   if (video.authorId) {
     addItem(window.UiLocale?.t('Kanalı aç') || 'Kanalı aç', () => openInvidiousChannelPage(video.authorId));
+    // A06: yerel abonelik — uzak hesaba bildirim göndermez.
+    const on = stIsSubscribed(video.authorId);
+    addItem(window.UiLocale?.t(on ? 'Abonelikten çık' : 'Kanala abone ol') || (on ? 'Abonelikten çık' : 'Kanala abone ol'),
+      () => { stSubToggle({ authorId: video.authorId, author: video.author || '' }); });
   }
   if (video.videoId) {
     addItem(window.UiLocale?.t('Bağlantıyı kopyala') || 'Bağlantıyı kopyala', async () => {
@@ -24519,6 +24531,170 @@ async function stFetchSuggest(q) {
   stRenderSuggest(res?.ok ? (res.data?.suggestions || []) : [], res?.data?.instance || '');
 }
 
+// ----- Yerel abonelikler (A06/A07) -----
+// Invidious/YouTube oturumu olmadan çalışır; kimlik = UCID veya @handle,
+// tekilleştirme buna göre. İçe/dışa aktarma parola/oturum taşımaz.
+const ST_SUBS_KEY = 'stSubscriptions';
+const ST_SUBS_MAX = 500;
+let stSubs = [];
+try {
+  const raw = JSON.parse(localStorage.getItem(ST_SUBS_KEY) || '[]');
+  stSubs = Array.isArray(raw) && window.SubscriptionIO
+    ? window.SubscriptionIO.dedupe(raw.map(window.SubscriptionIO.normSub).filter(Boolean))
+    : [];
+} catch (_) { stSubs = []; }
+const saveStSubs = () => {
+  try { localStorage.setItem(ST_SUBS_KEY, JSON.stringify(stSubs.slice(0, ST_SUBS_MAX))); } catch (_) {}
+};
+const stSubKey = (s) => s && (s.authorId || s.handle) || '';
+const stIsSubscribed = (key) => stSubs.some((s) => stSubKey(s) === key);
+function stSubToggle({ authorId = '', handle = '', author = '' }) {
+  const key = authorId || handle;
+  if (!key) return false;
+  const idx = stSubs.findIndex((s) => stSubKey(s) === key);
+  if (idx >= 0) { stSubs.splice(idx, 1); saveStSubs(); return false; }
+  if (stSubs.length >= ST_SUBS_MAX) { osd('Abonelik listesi dolu.'); return true; }
+  stSubs.unshift({ authorId, handle, author: String(author || '').slice(0, 120), group: '' });
+  saveStSubs();
+  return true;
+}
+const stSubGroups = () => [...new Set(stSubs.map((s) => s.group).filter(Boolean))];
+
+function renderStSubsPanel(grid) {
+  grid.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'st-subs-head';
+  const io = window.SubscriptionIO;
+  const mkBtn = (label, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'st-mini-btn'; b.textContent = window.UiLocale?.t(label) || label;
+    b.addEventListener('click', fn);
+    head.appendChild(b);
+  };
+  mkBtn('Kanal ekle', async () => {
+    const v = await openAppDialog({
+      title: 'Kanal ekle',
+      description: 'YouTube kanal URLsi, UC kimliği veya @handle girin.',
+      inputLabel: 'Kanal',
+      confirmLabel: 'Ekle',
+    });
+    if (!v) return;
+    const s = window.SubscriptionIO?.normSub({ url: v.trim(), authorId: /^UC[\w-]{20,24}$/.test(v.trim()) ? v.trim() : '', handle: /^@[\w.-]{2,40}$/.test(v.trim()) ? v.trim() : '' });
+    if (!s) { osd('Kanal tanınamadı.'); return; }
+    if (stIsSubscribed(stSubKey(s))) { osd('Zaten abone.'); return; }
+    stSubToggle(s);
+    renderStSubsPanel(grid);
+  });
+  mkBtn('İçe aktar', async () => {
+    const res = await window.api.importSubscriptions?.().catch(() => null);
+    if (!res?.ok) { if (res && !res.canceled) osd(res.error || 'İçe aktarma başarısız.'); return; }
+    const parsed = io?.parseSubscriptions(res.text, res.fileName || '');
+    if (!parsed?.ok || !parsed.subs.length) { osd(parsed?.error || 'Dosyada kanal bulunamadı.'); return; }
+    let added = 0;
+    for (const s of parsed.subs) {
+      if (!stIsSubscribed(stSubKey(s))) { stSubs.push(s); added++; }
+    }
+    saveStSubs();
+    osd(`${added} kanal içe aktarıldı (${parsed.format}).`);
+    renderStSubsPanel(grid);
+  });
+  mkBtn('Dışa aktar', async () => {
+    if (!stSubs.length) { osd('Liste boş.'); return; }
+    const fmt = await openAppDialog({
+      title: 'Dışa aktarma biçimi',
+      description: 'JSON (gruplar dahil), OPML, CSV veya NewPipe Takeout biçimi.',
+      inputLabel: 'Biçim: json / opml / csv / newpipe',
+      confirmLabel: 'Dışa aktar',
+    });
+    if (!fmt) return;
+    const format = ['json', 'opml', 'csv', 'newpipe'].includes(fmt.trim().toLowerCase()) ? fmt.trim().toLowerCase() : 'json';
+    const out = io.exportSubscriptions(stSubs, stSubGroups(), format);
+    const res = await window.api.exportSubscriptions?.({ text: out.text, fileName: out.fileName }).catch(() => null);
+    if (res?.ok) osd(`Abonelikler kaydedildi: ${res.path}`);
+    else if (!res?.canceled) osd(res?.error || 'Dışa aktarma başarısız.');
+  });
+  grid.appendChild(head);
+
+  const groups = stSubGroups();
+  let activeGroup = grid.dataset.stSubGroup || '';
+  if (groups.length) {
+    const chips = document.createElement('div');
+    chips.className = 'st-chips';
+    chips.setAttribute('role', 'tablist');
+    for (const g of ['', ...groups]) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'st-chip' + (activeGroup === g ? ' is-active' : '');
+      chip.setAttribute('role', 'tab');
+      chip.setAttribute('aria-selected', activeGroup === g ? 'true' : 'false');
+      chip.textContent = g || (window.UiLocale?.t('Tümü') || 'Tümü');
+      chip.addEventListener('click', () => { grid.dataset.stSubGroup = g; renderStSubsPanel(grid); });
+      chips.appendChild(chip);
+    }
+    grid.appendChild(chips);
+  }
+  const list = document.createElement('div');
+  list.className = 'st-sub-list';
+  let shown = 0;
+  for (const s of stSubs) {
+    if (activeGroup && s.group !== activeGroup) continue;
+    shown++;
+    const row = document.createElement('div');
+    row.className = 'st-sub-row';
+    const name = document.createElement('button');
+    name.type = 'button';
+    name.className = 'st-sub-name';
+    name.textContent = s.author || s.authorId || s.handle;
+    if (s.group) {
+      const tag = document.createElement('span');
+      tag.className = 'st-sub-group';
+      tag.textContent = s.group;
+      name.appendChild(tag);
+    }
+    name.addEventListener('click', () => {
+      if (s.authorId) openInvidiousChannelPage(s.authorId);
+      else if (s.handle) navigateBrowser(`https://www.youtube.com/${s.handle}`);
+    });
+    const grp = document.createElement('button');
+    grp.type = 'button'; grp.className = 'st-mini-btn';
+    grp.textContent = window.UiLocale?.t('Grup') || 'Grup';
+    grp.addEventListener('click', async () => {
+      const v = await openAppDialog({
+        title: 'Abonelik grubu',
+        description: 'Boş bırakılırsa grupsuz kalır.',
+        inputLabel: 'Grup adı',
+        inputValue: s.group,
+        confirmLabel: 'Kaydet',
+      });
+      // İptal false döner; boş string "grubu temizle" demektir.
+      if (v === false || v === null || v === undefined) return;
+      s.group = String(v).trim().slice(0, 60);
+      saveStSubs();
+      renderStSubsPanel(grid);
+    });
+    const rm = document.createElement('button');
+    rm.type = 'button'; rm.className = 'st-mini-btn is-danger';
+    rm.textContent = '✕';
+    rm.title = window.UiLocale?.t('Abonelikten çık') || 'Abonelikten çık';
+    rm.addEventListener('click', () => { stSubToggle(s); renderStSubsPanel(grid); });
+    row.append(name, grp, rm);
+    list.appendChild(row);
+  }
+  if (!shown) {
+    const empty = document.createElement('div');
+    empty.className = 'inv-status';
+    empty.textContent = stSubs.length
+      ? 'Bu grupta kanal yok.'
+      : 'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.';
+    list.appendChild(empty);
+  }
+  grid.appendChild(list);
+  const hint = document.createElement('div');
+  hint.className = 'st-subs-hint';
+  hint.textContent = 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
+  grid.appendChild(hint);
+}
+
 async function stSearchLoadMore() {
   const searchGrid = $('stSearchGrid');
   if (!searchGrid || stSearchLoading || !stSearchHasMore) return;
@@ -24625,6 +24801,23 @@ async function openInvidiousChannelPage(channelId) {
     subs.className = 'st-channel-sub';
     subs.textContent = `${formatCount(info.subCount)} ${window.UiLocale?.t('abone') || 'abone'}`;
     head.appendChild(subs);
+  }
+  // A06: yerel abone durumu — uzak hesap durumuyla karıştırılmaz.
+  {
+    const subBtn = document.createElement('button');
+    subBtn.type = 'button';
+    subBtn.className = 'st-mini-btn';
+    const syncSubBtn = () => {
+      const on = stIsSubscribed(info.authorId || channelId);
+      subBtn.textContent = window.UiLocale?.t(on ? 'Abonelikten çık' : 'Kanala abone ol') || (on ? 'Abonelikten çık' : 'Kanala abone ol');
+      subBtn.classList.toggle('is-active', on);
+    };
+    syncSubBtn();
+    subBtn.addEventListener('click', () => {
+      stSubToggle({ authorId: info.authorId || channelId, author: info.author || '' });
+      syncSubBtn();
+    });
+    head.appendChild(subBtn);
   }
   if (info.description) {
     const desc = document.createElement('div');
@@ -25019,16 +25212,17 @@ function initSmartTube() {
   };
   if (searchInp) {
     let searchDebounce = null;
+    const hideSuggest = () => { if (typeof stHideSuggest === 'function') stHideSuggest(); };
     searchInp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { clearTimeout(searchDebounce); stHideSuggest(); doSmartTubeSearch(); }
+      if (e.key === 'Enter') { clearTimeout(searchDebounce); hideSuggest(); doSmartTubeSearch(); }
       else if (e.key === 'Escape') {
         // Yayılımı kes — yoksa document handler aramayı sıfırlarken tüm
         // oynatıcı katmanını da (closePlayer) kapatıyordu.
         e.stopPropagation();
         clearTimeout(searchDebounce);
-        stHideSuggest();
+        hideSuggest();
         resetSmartTubeSearch();
-      } else if (e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowDown' && typeof $ === 'function') {
         // Öneri kutusu açıksa ilk maddeye odakla
         const first = $('stSuggestBox')?.querySelector('.st-suggest-item');
         if (first && !$('stSuggestBox')?.classList.contains('hidden')) { e.preventDefault(); first.focus(); }
@@ -25038,18 +25232,18 @@ function initSmartTube() {
       syncSearchClear();
       // SmartTube canlı arama: yazarken debounce'lu sorgu (Y3) — boşalınca sıfırla
       clearTimeout(searchDebounce);
-      clearTimeout(stSuggestTimer);
+      if (typeof stSuggestTimer !== 'undefined') clearTimeout(stSuggestTimer);
       const q = searchInp.value.trim();
-      if (!q) { stHideSuggest(); resetSmartTubeSearch(); return; }
+      if (!q) { hideSuggest(); resetSmartTubeSearch(); return; }
       // A23: öneri kutusu — canlı aramadan önce açılır
       stSuggestTimer = setTimeout(() => {
-        if (searchInp.value.trim() === q && q.length >= 2) stFetchSuggest(q);
+        if (searchInp.value.trim() === q && q.length >= 2 && typeof stFetchSuggest === 'function') stFetchSuggest(q);
       }, 300);
       searchDebounce = setTimeout(() => {
         if (searchInp.value.trim() === q) doSmartTubeSearch();
       }, 450);
     });
-    searchInp.addEventListener('blur', () => { setTimeout(stHideSuggest, 150); });
+    searchInp.addEventListener('blur', () => { setTimeout(hideSuggest, 150); });
   }
   // Öneri kutusunda ok gezinmesi; Esc input'a geri döner.
   const stSuggestBoxEl = $('stSuggestBox');

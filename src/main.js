@@ -14753,7 +14753,7 @@ function resolveExternalPlayerPath(name) {
   const probe = process.platform === 'win32' ? 'where.exe' : 'which';
   const exeName = process.platform === 'win32' ? `${stem}.exe` : stem;
   try {
-    const out = rawSpawnSync(probe, [exeName], { encoding: 'utf8', timeout: 5000 });
+    const out = spawnSync(probe, [exeName], { encoding: 'utf8', timeout: 5000 });
     for (const line of String(out.stdout || '').split(/\r?\n/)) {
       const hit = accept(line.trim());
       if (hit) return hit;
@@ -14782,7 +14782,7 @@ ipcMain.handle('player:external', async (event, opts) => {
     arg = mediaUrl.url;
   }
   try {
-    const child = rawSpawn(exe, [arg], { detached: true, stdio: 'ignore', windowsHide: true });
+    const child = spawn(exe, [arg], { detached: true, stdio: 'ignore', windowsHide: true });
     child.on('error', () => {});
     child.unref();
     return { ok: true, player: name, path: exe };
@@ -16299,6 +16299,48 @@ ipcMain.handle('queue:save', (event, snapshot) => {
 });
 
 // ---- Ayarları dışa/içe aktar ----
+// A07 — abonelik içe/dışa aktarma: içerik renderer'da parse/build edilir,
+// ana süreç yalnız dosya diyaloğu + sınırlı okuma/yazma yapar. Hesap
+// bilgisi veya oturum hiçbir zaman bu dosyalara yazılmaz.
+ipcMain.handle('subscriptions:export', async (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const text = String(payload && payload.text || '');
+  if (!text || text.length > 2 * 1024 * 1024) return { ok: false, error: 'Dışa aktarılacak içerik geçersiz.' };
+  const rawName = path.basename(String(payload && payload.fileName || ''));
+  const fileName = /^whisper-abonelikler\.(json|opml|csv)$|^newpipe_subscriptions\.json$/.test(rawName)
+    ? rawName : 'whisper-abonelikler.json';
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Abonelikleri dışa aktar',
+    defaultPath: fileName,
+    filters: [{ name: 'Abonelik dosyası', extensions: ['json', 'opml', 'csv'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    fs.writeFileSync(result.filePath, text, 'utf8');
+    return { ok: true, path: result.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('subscriptions:import', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Abonelik dosyası içe aktar',
+    properties: ['openFile'],
+    filters: [{ name: 'Abonelik dosyası', extensions: ['json', 'opml', 'csv', 'xml', 'txt'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
+  const filePath = result.filePaths[0];
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > 2 * 1024 * 1024) return { ok: false, error: 'Dosya 2 MB sınırını aşıyor.' };
+    return { ok: true, fileName: path.basename(filePath), text: fs.readFileSync(filePath, 'utf8') };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('settings:export', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showSaveDialog(mainWindow, {
