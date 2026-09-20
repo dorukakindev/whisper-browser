@@ -21493,8 +21493,12 @@ if ($('subtitleModeMenu')) {
         : pSecToTime(t);
       tip.style.left = `${ratio * 100}%`;
       tip.classList.remove('hidden');
+      updateSeekThumb(t, ratio, video.duration);
     });
-    wrap.addEventListener('mouseleave', () => $('seekTip').classList.add('hidden'));
+    wrap.addEventListener('mouseleave', () => {
+      $('seekTip').classList.add('hidden');
+      $('seekThumb')?.classList.add('hidden');
+    });
   }
 
   if ($('resumeGo')) {
@@ -21523,6 +21527,98 @@ if ($('subtitleModeMenu')) {
     if (!document.fullscreenElement) stage.requestFullscreen().catch(() => {});
     else document.exitFullscreen().catch(() => {});
   });
+}
+
+// A20/B01: seekbar kare önizlemesi — YouTube storyboard veya yerel ffmpeg
+// sprite'ı. Sprite bilgisi ortak şema: {image|template, columns, rows, count,
+// frameWidth, frameHeight, intervalMs, level?}.
+function pickSeekStoryboard(boards) {
+  const list = (Array.isArray(boards) ? boards : [])
+    .filter((b) => b && b.template && b.count > 0 && b.columns > 0 && b.rows > 0);
+  if (!list.length) return null;
+  // ~160px hedef: en küçük yeterli seviye, yoksa en büyüğü
+  return list.filter((b) => b.width >= 160).sort((a, b) => a.width - b.width)[0]
+    || list.slice().sort((a, b) => b.width - a.width)[0];
+}
+
+async function ensureSeekPreviewSheet() {
+  if (!player.localPath || !window.api.getSeekPreview) return;
+  const key = player.mediaKey;
+  if (!key || player.seekLocalSheets?.has(key) || player.seekLocalBusy) return;
+  const video = $('playerVideo');
+  const duration = video && Number.isFinite(video.duration) ? video.duration : 0;
+  if (!duration) return;
+  player.seekLocalBusy = true;
+  const path = player.localPath;
+  try {
+    const res = await window.api.getSeekPreview(path, duration).catch(() => null);
+    if (res?.ok && res.image && player.localPath === path) {
+      player.seekLocalSheets = player.seekLocalSheets || new Map();
+      if (player.seekLocalSheets.size >= 8) {
+        player.seekLocalSheets.delete(player.seekLocalSheets.keys().next().value);
+      }
+      player.seekLocalSheets.set(key, {
+        image: res.image, columns: res.columns || 10, rows: res.rows || 10,
+        count: res.count || 100, frameWidth: res.frameWidth || 160,
+        // Kare yüksekliği scale=160:-2'den gelir; ilk yüklenen resimde ölçülür.
+        frameHeight: 0,
+        intervalMs: Math.max(1, duration) * 1000 / (res.count || 100),
+      });
+    }
+  } finally { player.seekLocalBusy = false; }
+}
+
+function updateSeekThumb(t, ratio, duration) {
+  const el = $('seekThumb');
+  if (!el) return;
+  let sheet = null;
+  // Invidious/YouTube storyboard — ytInfo hâlâ açık videoya aitse kullan
+  const board = pickSeekStoryboard(player.ytInfo?.storyboards);
+  if (board && (!player.ytInfo?.videoKey || player.ytInfo.videoKey === player.mediaKey)) {
+    const interval = Number(board.intervalMs) > 0
+      ? Number(board.intervalMs) : (duration * 1000) / board.count;
+    sheet = {
+      image: '', columns: board.columns, rows: board.rows, count: board.count,
+      frameWidth: board.width, frameHeight: board.height, intervalMs: interval,
+      urlFor: (page) => board.template.replace('$L', String(board.level || 0)).replace('$N', `M${page}`),
+    };
+  } else if (player.localPath) {
+    sheet = player.seekLocalSheets?.get(player.mediaKey) || null;
+    if (!sheet) { void ensureSeekPreviewSheet(); }
+  }
+  if (!sheet) { el.classList.add('hidden'); return; }
+  const index = Math.max(0, Math.min(sheet.count - 1, Math.floor((t * 1000) / sheet.intervalMs)));
+  const perPage = sheet.columns * sheet.rows;
+  const page = Math.floor(index / perPage);
+  const cell = index % perPage;
+  const col = cell % sheet.columns;
+  const row = Math.floor(cell / sheet.columns);
+  const url = sheet.image || (sheet.urlFor ? sheet.urlFor(page) : '');
+  if (!url) { el.classList.add('hidden'); return; }
+  if (el.dataset.sheetUrl !== url) {
+    el.style.backgroundImage = `url("${url}")`;
+    el.dataset.sheetUrl = url;
+    // Sprite sayfası yeni yüklendiyse doğal ölçüden hücre oranını ölç (yerel).
+    if (!sheet.frameHeight && sheet.image) {
+      const probe = new Image();
+      probe.onload = () => {
+        if (probe.naturalWidth && sheet.columns) {
+          sheet.frameHeight = Math.round(probe.naturalHeight / sheet.rows);
+          sheet.frameWidth = Math.round(probe.naturalWidth / sheet.columns);
+        }
+      };
+      probe.src = sheet.image;
+    }
+  }
+  // Görüntü her zaman 160px genişliğinde; sprite hücre ölçüsü bu orana ölçeklenir.
+  const fh = sheet.frameHeight || Math.round((sheet.frameWidth || 160) * 9 / 16);
+  const scale = 160 / (sheet.frameWidth || 160);
+  const cellH = Math.round(fh * scale);
+  el.style.height = `${cellH}px`;
+  el.style.backgroundSize = `${sheet.columns * 160}px ${sheet.rows * cellH}px`;
+  el.style.backgroundPosition = `-${col * 160}px -${row * cellH}px`;
+  el.style.left = `${ratio * 100}%`;
+  el.classList.remove('hidden');
 }
 
 document.addEventListener('visibilitychange', () => {

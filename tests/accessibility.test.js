@@ -22,7 +22,8 @@ const INDEX = path.join(__dirname, '..', 'src', 'renderer', 'index.html');
 
 // Mevcut borç: landmark dışında kalan içerik düğümleri. Yeni ihlal eklenemez.
 const ALLOWED_RULES = new Set(['region']);
-const REGION_BASELINE = 35;
+// Parti 10: seekThumb seekWrap'i bölerek #seekTip+#playerSeek'i ayrı düğüm saydırdı (+1).
+const REGION_BASELINE = 36;
 
 // jsdom gerçek boyama yapmadığı için bu kurallar anlamlı sonuç üretmez.
 const DISABLED_RULES = ['color-contrast', 'color-contrast-enhanced'];

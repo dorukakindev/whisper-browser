@@ -1274,6 +1274,21 @@
   text-overflow: ellipsis;
 }
 
+/* A20/B01: seekbar kare önizlemesi — tooltip üstünde sprite hücresi */
+.seek-thumb {
+  position: absolute;
+  bottom: 42px;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 90px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 0, 0, .5);
+  background-color: rgba(0, 0, 0, .85);
+  background-repeat: no-repeat;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+}
+
 /* Native range ustte ve seffaf: surukleme/klavye onun isi, gorsel altta cizilir */
 .player-seek {
   position: absolute;

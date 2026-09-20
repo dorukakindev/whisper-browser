@@ -120,4 +120,29 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(locale, /\['Bu sitede okuma görünümünü otomatik aç', /, 'locale');
 }
 
+// --- A20 + B01 — seekbar kare önizlemesi ---
+{
+  const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const html = readRel('src/renderer/index.html');
+  const css = readRel('src/renderer/styles.css');
+  assert.ok(backend.includes('storyboards'), 'backend storyboard alanı');
+  assert.match(backend, /templateUrl.*url/, 'template fallback');
+  assert.match(backend, /intervalMs/, 'interval normalize');
+  assert.match(main, /media:seekPreview/, 'IPC kanalı');
+  assert.match(main, /authorizeLocalMediaPath\(filePath\)/, 'dosya yetkisi');
+  assert.match(main, /mediaJobs\.seekPreview/, 'iş serileştirme');
+  assert.match(main, /terminateProcessTree\(proc/, 'zaman aşımı iptali');
+  assert.match(main, /seek-previews/, 'disk önbelleği');
+  assert.match(main, /data:image\/jpeg;base64/, 'CSP-uyumlu data URL');
+  assert.match(preload, /getSeekPreview/, 'preload köprüsü');
+  assert.match(html, /id="seekThumb"/, 'önizleme kutusu');
+  assert.match(css, /\.seek-thumb/, 'stil');
+  assert.match(renderer, /function updateSeekThumb/, 'hover render');
+  assert.match(renderer, /function pickSeekStoryboard/, 'seviye seçimi');
+  assert.match(renderer, /ensureSeekPreviewSheet/, 'yerel sprite yükleyici');
+  assert.match(renderer, /replace\('\$L'/, 'template $L değişimi');
+  assert.match(renderer, /replace\('\$N', `M\$\{page\}`/, 'template $N değişimi');
+  assert.match(renderer, /player\.ytInfo\.videoKey === player\.mediaKey/, 'yanlış videoya sprite sızmaz');
+}
+
 console.log('browser-parti7.test.js OK');

@@ -681,6 +681,42 @@ class InvidiousPlaylistSearch(unittest.TestCase):
             invidious.playlist("../../etc")
 
 
+class InvidiousProbeStoryboards(unittest.TestCase):
+    """A20 — probe() storyboard alanını normalize eder."""
+
+    def _run(self, storyboards):
+        from unittest import mock
+        payload = {
+            "title": "t", "lengthSeconds": 120,
+            "storyboards": storyboards,
+        }
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               lambda *a, **k: (payload, "i")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.probe("https://youtu.be/a1234567890")
+        return next(e for t, e in events if t == "probe")
+
+    def test_storyboards_parsed_and_filtered(self):
+        ev = self._run([
+            {"templateUrl": "https://i9.ytimg.com/sb/x/storyboard3_L$L/$N.jpg?sigh=k",
+             "width": 80, "height": 45, "count": 100, "interval": 1200,
+             "columns": 10, "rows": 10},
+            {"url": "no-placeholder.jpg", "width": 80, "height": 45, "count": 5},
+            {"templateUrl": "", "width": 0},
+            "bozuk",
+        ])
+        boards = ev["storyboards"]
+        self.assertEqual(len(boards), 1)
+        self.assertEqual(boards[0]["intervalMs"], 1200)
+        self.assertIn("$N", boards[0]["template"])
+        self.assertEqual(boards[0]["columns"], 10)
+
+    def test_no_storyboards_emits_empty_list(self):
+        ev = self._run(None)
+        self.assertEqual(ev["storyboards"], [])
+
+
 class InvidiousChannelTab(unittest.TestCase):
     """A27 — kanal sekme uçları."""
 

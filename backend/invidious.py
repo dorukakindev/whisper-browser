@@ -286,6 +286,29 @@ def probe(url, instance=None):
     # renderer yt-dlp probe'uyla aynı şemayı bekler: heights=[1080, 720, ...]).
     heights = sorted({s["height"] for s in progressive + video_streams if s["height"]}, reverse=True)
 
+    # A20: seekbar kare önizlemesi — YouTube storyboard sprite'ları.
+    # template içindeki $L seviye indeksi, $N sayfa indeksi (M0, M1...) ile
+    # değiştirilir; interval milisaniyedir (0 gelirse renderer süreye böler).
+    storyboards = []
+    for idx, sb in enumerate(data.get("storyboards") or []):
+        if not isinstance(sb, dict):
+            continue
+        template = sb.get("templateUrl") or sb.get("url") or ""
+        width, height = _to_int(sb.get("width")), _to_int(sb.get("height"))
+        count = _to_int(sb.get("count"))
+        if not template or "$N" not in template or not width or not height or not count:
+            continue
+        storyboards.append({
+            "template": template,
+            "level": idx,
+            "width": width,
+            "height": height,
+            "count": count,
+            "intervalMs": _to_int(sb.get("interval")),
+            "columns": _to_int(sb.get("columns"), 10) or 10,
+            "rows": _to_int(sb.get("rows"), 10) or 10,
+        })
+
     # Doğrudan oynatılabilir progressive akış — {url, height, audioLang} şeması
     stream_obj = None
     if progressive:
@@ -310,6 +333,7 @@ def probe(url, instance=None):
         audioLangs=audio_langs,
         duration=float(data.get("lengthSeconds") or 0),
         thumbnail=_pick_thumbnail(inst, data.get("videoThumbnails") or []),
+        storyboards=storyboards,
         videoStreams=video_streams,
         audioStreams=audio_streams,
         isLive=bool(data.get("liveNow")),

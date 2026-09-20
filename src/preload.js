@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld('api', {
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),
   getWaveform: (path) => ipcRenderer.invoke('media:waveform', path),
+  getSeekPreview: (filePath, duration) => ipcRenderer.invoke('media:seekPreview', { filePath, duration }),
   startWatchFolder: (dir, options) => ipcRenderer.invoke('watch:start', dir, options),
   stopWatchFolder: () => ipcRenderer.invoke('watch:stop'),
   reportWatchFile: (filePath, status) => ipcRenderer.invoke('watch:report', filePath, status),

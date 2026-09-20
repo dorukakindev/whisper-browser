@@ -16724,6 +16724,93 @@ ipcMain.handle('media:waveform', async (_event, filePath) => {
   return result;
 });
 
+// B01: yerel video için seekbar kare önizlemesi — ffmpeg tek seferde
+// 10x10 tile sprite üretir; medya dosyası başına bir kez (disk önbelleği),
+// iş serileştirilir ve 90 sn'de iptal edilir. Renderer'a data URL gider
+// (img-src CSP'de file: izni yok).
+const seekPreviewCache = new Map();
+const SEEK_PREVIEW_COLS = 10, SEEK_PREVIEW_ROWS = 10, SEEK_PREVIEW_FRAME_W = 160;
+ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  let filePath = request.filePath;
+  try { filePath = authorizeLocalMediaPath(filePath); }
+  catch (error) { return { ok: false, error: error.message }; }
+  const duration = Number(request.duration);
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 8 * 3600) {
+    return { ok: false, error: 'Video süresi geçersiz.' };
+  }
+  let stat;
+  try { stat = fs.statSync(filePath); } catch (error) { return { ok: false, error: error.message }; }
+  const maxFrames = SEEK_PREVIEW_COLS * SEEK_PREVIEW_ROWS;
+  // ~2 saniyede bir kare, üstte 100 kare — scrub çözünürlüğü ile üretim
+  // maliyeti arasındaki denge.
+  const frames = Math.max(1, Math.min(maxFrames, Math.ceil(duration / 2)));
+  const key = createHash('sha256')
+    .update(`${path.resolve(filePath)}|${stat.mtimeMs}|${stat.size}|${frames}`)
+    .digest('hex').slice(0, 24);
+  if (seekPreviewCache.has(key)) return seekPreviewCache.get(key);
+  const dir = path.join(app.getPath('userData'), 'seek-previews');
+  const outPath = path.join(dir, `${key}.jpg`);
+  const loadSprite = () => {
+    try {
+      const buf = fs.readFileSync(outPath);
+      if (!buf.length || buf.length > 8 * 1024 * 1024) {
+        return { ok: false, error: 'Kare önizleme görseli geçersiz.' };
+      }
+      return {
+        ok: true, image: `data:image/jpeg;base64,${buf.toString('base64')}`,
+        columns: SEEK_PREVIEW_COLS, rows: SEEK_PREVIEW_ROWS,
+        count: frames, frameWidth: SEEK_PREVIEW_FRAME_W,
+      };
+    } catch (error) { return { ok: false, error: error.message }; }
+  };
+  if (fs.existsSync(outPath)) {
+    const cached = loadSprite();
+    if (cached.ok) { seekPreviewCache.set(key, cached); return cached; }
+    removeFileQuietly(outPath);
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  const result = await new Promise((resolve) => {
+    if (mediaJobs.seekPreview) {
+      return resolve({ ok: false, error: 'Kare önizleme işi zaten çalışıyor.' });
+    }
+    const args = [
+      '-v', 'error', '-i', filePath,
+      '-vf', `fps=${frames}/${duration},scale=${SEEK_PREVIEW_FRAME_W}:-2,tile=${SEEK_PREVIEW_COLS}x${SEEK_PREVIEW_ROWS}`,
+      '-frames:v', '1', '-q:v', '6', '-y', outPath,
+    ];
+    let proc;
+    let timer;
+    let settled = false;
+    const finish = (value) => {
+      if (!settled) {
+        settled = true; clearTimeout(timer);
+        if (mediaJobs.seekPreview === proc) mediaJobs.seekPreview = null;
+        resolve(value);
+      }
+    };
+    try {
+      proc = spawn(resolveFfTool('ffmpeg'), args, { windowsHide: true });
+      mediaJobs.seekPreview = proc;
+    } catch (err) { return finish({ ok: false, error: err.message }); }
+    proc.on('error', (err) => finish({ ok: false, error: err.message }));
+    timer = setTimeout(() => {
+      terminateProcessTree(proc, { spawn });
+      try { removeFileQuietly(outPath); } catch (_) {}
+      finish({ ok: false, error: 'Kare önizleme 90 saniyede oluşturulamadı.' });
+    }, 90000);
+    timer.unref?.();
+    proc.on('close', (code) => {
+      if (settled) return;
+      if (code === 0 && fs.existsSync(outPath)) return finish(loadSprite());
+      try { removeFileQuietly(outPath); } catch (_) {}
+      finish({ ok: false, error: 'Kare önizleme oluşturulamadı.' });
+    });
+  });
+  if (result.ok) seekPreviewCache.set(key, result);
+  return result;
+});
+
 // ---- Altyazı zaman kaydırma (SRT/VTT) ----
 function shiftTimecodes(text, offsetSec) {
   const newline = String(text).includes('\r\n') ? '\r\n' : '\n';
