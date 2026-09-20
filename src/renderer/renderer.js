@@ -4971,6 +4971,7 @@ const player = {
   browserGpuDiagnostics: null,
   browserCaptureEnabled: true,
   browserPlaces: { history: [], bookmarks: [] },
+  browserOfflineList: [],
   browserJobs: [],
   browserPlaceTab: 'bookmarks',
   browserPlacesSeq: 0,
@@ -6732,8 +6733,12 @@ function renderBrowserQuickPlaces() {
 }
 
 function browserPlaceList() {
-  const places = player.browserPlaces || { history: [], bookmarks: [] };
   const query = String($('browserPlacesSearch')?.value || '').trim().toLocaleLowerCase('tr');
+  if (player.browserPlaceTab === 'offline') {
+    return (Array.isArray(player.browserOfflineList) ? player.browserOfflineList : []).filter(item =>
+      !query || `${item.title || ''} ${item.url || ''}`.toLocaleLowerCase('tr').includes(query));
+  }
+  const places = player.browserPlaces || { history: [], bookmarks: [] };
   const folder = player.browserPlaceTab === 'bookmarks' ? ($('browserPlacesFolder')?.value || '') : '';
   return (Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : []).filter(item => {
     if (folder && item.folder !== folder) return false;
@@ -6794,7 +6799,8 @@ function renderBrowserPlaces() {
     tab.tabIndex = active ? 0 : -1;
   });
   list?.setAttribute('aria-labelledby', player.browserPlaceTab === 'history'
-    ? 'browserPlaceTabHistory' : 'browserPlaceTabBookmarks');
+    ? 'browserPlaceTabHistory' : player.browserPlaceTab === 'offline'
+      ? 'browserPlaceTabOffline' : 'browserPlaceTabBookmarks');
   $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
   list.replaceChildren();
@@ -6807,7 +6813,9 @@ function renderBrowserPlaces() {
     const empty = document.createElement('div');
     empty.className = 'browser-place-empty';
     empty.textContent = filtered ? 'Aramanızla eşleşen kayıt bulunamadı. Aramayı veya klasör filtresini temizleyin.'
-      : player.browserPlaceTab === 'bookmarks' ? 'Henüz yer imi eklenmedi.' : 'Henüz ziyaret edilen site yok.';
+      : player.browserPlaceTab === 'bookmarks' ? 'Henüz yer imi eklenmedi.'
+        : player.browserPlaceTab === 'offline' ? 'Henüz çevrimdışı kopya yok. İçerik menüsünden “Çevrimdışı okuma listesine ekle” ile sayfanın o anki halini saklayabilirsiniz.'
+          : 'Henüz ziyaret edilen site yok.';
     list.appendChild(empty);
     return;
   }
@@ -6817,7 +6825,6 @@ function renderBrowserPlaces() {
     const open = document.createElement('button');
     open.className = 'browser-place-open';
     open.type = 'button';
-    open.dataset.placeOpen = item.url;
     const title = document.createElement('span');
     title.className = 'browser-place-title';
     title.textContent = browserPlaceTitle(item);
@@ -6828,16 +6835,30 @@ function renderBrowserPlaces() {
     const remove = document.createElement('button');
     remove.className = 'btn-icon browser-place-remove';
     remove.type = 'button';
-    remove.dataset.placeRemove = item.url;
-    remove.title = player.browserPlaceTab === 'history' ? 'Geçmişten kaldır' : 'Yer iminden kaldır';
-    remove.setAttribute('aria-label', remove.title);
     remove.appendChild(browserCloseIcon());
-    if (player.browserPlaceTab === 'bookmarks') {
-      const folder = document.createElement('button');
-      folder.type = 'button'; folder.className = 'browser-place-folder'; folder.dataset.placeFolder = item.url;
-      folder.title = item.folder ? `Klasör: ${item.folder}` : 'Klasöre taşı'; folder.textContent = item.folder || 'Klasör';
-      row.append(open, folder, remove);
-    } else row.append(open, remove);
+    if (player.browserPlaceTab === 'offline') {
+      open.dataset.offlineOpen = item.id;
+      remove.dataset.offlineRemove = item.id;
+      remove.title = 'Çevrimdışı kopyayı sil';
+      const refresh = document.createElement('button');
+      refresh.type = 'button';
+      refresh.className = 'browser-place-folder';
+      refresh.dataset.offlineRefresh = item.id;
+      refresh.title = 'Kopyayı canlı sayfadan yenile';
+      refresh.textContent = 'Yenile';
+      row.append(open, refresh, remove);
+    } else {
+      open.dataset.placeOpen = item.url;
+      remove.dataset.placeRemove = item.url;
+      remove.title = player.browserPlaceTab === 'history' ? 'Geçmişten kaldır' : 'Yer iminden kaldır';
+      if (player.browserPlaceTab === 'bookmarks') {
+        const folder = document.createElement('button');
+        folder.type = 'button'; folder.className = 'browser-place-folder'; folder.dataset.placeFolder = item.url;
+        folder.title = item.folder ? `Klasör: ${item.folder}` : 'Klasöre taşı'; folder.textContent = item.folder || 'Klasör';
+        row.append(open, folder, remove);
+      } else row.append(open, remove);
+    }
+    remove.setAttribute('aria-label', remove.title);
     list.appendChild(row);
   });
 }
@@ -7131,6 +7152,18 @@ async function loadBrowserPlaces() {
   }
 }
 
+// B22 — çevrimdışı okuma listesi (MHTML deposu; yer imlerinden ayrı tutulur)
+let _browserReadingListSeq = 0;
+async function loadBrowserReadingList() {
+  if (!window.api.listBrowserReadingList) return;
+  const seq = ++_browserReadingListSeq;
+  const result = await window.api.listBrowserReadingList().catch(() => null);
+  if (seq === _browserReadingListSeq && result?.ok && Array.isArray(result.entries)) {
+    player.browserOfflineList = result.entries;
+    renderBrowserPlaces();
+  }
+}
+
 function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
@@ -7140,7 +7173,7 @@ function setBrowserPlacesOpen(open) {
   syncBrowserOcclusion();
   $('browserPlacesToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) {
-    loadBrowserPlaces(); renderBrowserPlaces();
+    loadBrowserPlaces(); loadBrowserReadingList(); renderBrowserPlaces();
     requestAnimationFrame(() => $('browserPlacesSearch')?.focus({ preventScroll: true }));
   } else if (panel.contains(document.activeElement)) {
     $('browserPlacesToggle')?.focus({ preventScroll: true });
@@ -10883,10 +10916,32 @@ async function clearBrowserCookieScope(scope) {
 if ($('browserSiteCookiesClear')) $('browserSiteCookiesClear').addEventListener('click', () => clearBrowserCookieScope('site'));
 if ($('browserCookiesClear')) $('browserCookiesClear').addEventListener('click', () => clearBrowserCookieScope('all'));
 document.querySelectorAll('[data-place-tab]').forEach((tab) => tab.addEventListener('click', () => {
-  player.browserPlaceTab = tab.dataset.placeTab === 'history' ? 'history' : 'bookmarks';
+  player.browserPlaceTab = ['history', 'offline'].includes(tab.dataset.placeTab) ? tab.dataset.placeTab : 'bookmarks';
+  if (player.browserPlaceTab === 'offline') loadBrowserReadingList();
   renderBrowserPlaces();
 }));
 if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', async (event) => {
+  const offlineOpen = event.target.closest('[data-offline-open]');
+  if (offlineOpen) {
+    const result = await window.api.openBrowserReadingList?.(player.browserActiveTabId, offlineOpen.dataset.offlineOpen).catch(() => null);
+    if (result?.ok) { setBrowserPlacesOpen(false); return; }
+    if (!result?.aborted) setBrowserSignal(`Çevrimdışı kopya açılamadı: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  const offlineRefresh = event.target.closest('[data-offline-refresh]');
+  if (offlineRefresh) {
+    const result = await window.api.refreshBrowserReadingList?.(player.browserActiveTabId, offlineRefresh.dataset.offlineRefresh).catch(() => null);
+    if (result?.ok) { setBrowserSignal('Çevrimdışı kopya yenilendi.', true); loadBrowserReadingList(); }
+    else setBrowserSignal(`Kopya yenilenemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
+  const offlineRemove = event.target.closest('[data-offline-remove]');
+  if (offlineRemove) {
+    const result = await window.api.removeBrowserReadingList?.(offlineRemove.dataset.offlineRemove).catch(() => null);
+    if (result?.ok) loadBrowserReadingList();
+    else setBrowserSignal(`Kopya silinemedi: ${(result && result.error) || 'bilinmeyen hata'}`, false);
+    return;
+  }
   const folder = event.target.closest('[data-place-folder]');
   if (folder) {
     const item = (player.browserPlaces.bookmarks || []).find(entry => entry.url === folder.dataset.placeFolder);
@@ -18930,6 +18985,21 @@ if ($('browserCopyPageMarkdown')) $('browserCopyPageMarkdown').addEventListener(
   const text = globalThis.BrowserOmnibox?.markdownLink(player.browserPageTitle || url, url) || url;
   const copied = await window.api.copyText?.(text).catch(() => null);
   setBrowserSignal(copied === true ? `Markdown bağlantısı kopyalandı: ${text}` : 'Bağlantı kopyalanamadı.', copied === true, { priority: 60, holdMs: 4500 });
+});
+if ($('browserReadLater')) $('browserReadLater').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const button = $('browserReadLater');
+  if (button.disabled) return;
+  button.disabled = true;
+  const result = await window.api.addBrowserReadingList?.(player.browserActiveTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  button.disabled = false;
+  if (result?.ok) {
+    setBrowserSignal(result.refreshed
+      ? 'Çevrimdışı okuma kopyası güncellendi.'
+      : 'Sayfa çevrimdışı okuma listesine eklendi.', true, { priority: 60, holdMs: 4500 });
+    loadBrowserReadingList();
+  } else setBrowserSignal(result?.error || 'Çevrimdışı kopya kaydedilemedi.', false, { priority: 90, holdMs: 6500 });
 });
 if ($('browserExportPdf')) $('browserExportPdf').addEventListener('click', async () => {
   closeBrowserToolbarMenus();

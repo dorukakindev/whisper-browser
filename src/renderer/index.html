@@ -1291,8 +1291,12 @@
                     <span class="browser-menu-label">Sayfa bağlantısını Markdown olarak kopyala</span>
                   </button>
                   <button type="button" role="menuitem" id="browserShowQr">
-                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg></span>
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6H4zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg></span>
                     <span class="browser-menu-label">Sayfa QR kodunu göster</span>
+                  </button>
+                  <button type="button" role="menuitem" id="browserReadLater">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v10m0 0 3-3m-3 3-3-3M5 21h14M5 3h14"/></svg></span>
+                    <span class="browser-menu-label">Çevrimdışı okuma listesine ekle</span>
                   </button>
                   <button type="button" role="menuitem" data-browser-proxy="playerBookmark">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg></span>
@@ -1394,6 +1398,8 @@
                 aria-selected="true" aria-controls="browserPlacesList" tabindex="0">Yer imleri</button>
               <button class="browser-place-tab" id="browserPlaceTabHistory" type="button" data-place-tab="history" role="tab"
                 aria-selected="false" aria-controls="browserPlacesList" tabindex="-1">Geçmiş</button>
+              <button class="browser-place-tab" id="browserPlaceTabOffline" type="button" data-place-tab="offline" role="tab"
+                aria-selected="false" aria-controls="browserPlacesList" tabindex="-1">Çevrimdışı</button>
             </div>
             <div class="browser-place-filters">
               <input type="search" id="browserPlacesSearch" placeholder="Başlık veya adreste ara…" aria-label="Yer imleri ve geçmişte ara" />

@@ -6,6 +6,7 @@ const dns = require('dns').promises;
 const http = require('http');
 const https = require('https');
 const { isIP } = require('net');
+const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
 const { createHash, randomUUID } = require('crypto');
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
@@ -21,6 +22,7 @@ const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
 const { classifyTranslationHttpFailure } = require('./browser-translation-provider-error');
 const browserOmnibox = require('./browser-omnibox');
+const { BrowserReadingList } = require('./browser-reading-list');
 const { probeTranslationProvider } = require('./translation-provider-probe');
 const {
   isYoutubePlayerResponseUrl,
@@ -2582,6 +2584,15 @@ function browserTranslationArchive() {
     browserTranslationArchiveInstance = new BrowserTranslationArchive(browserTranslationArchivePath());
   }
   return browserTranslationArchiveInstance;
+}
+
+let browserReadingListInstance = null;
+function browserReadingList() {
+  if (!browserReadingListInstance) {
+    browserReadingListInstance = new BrowserReadingList(
+      path.join(app.getPath('userData'), 'OkumaListesi'));
+  }
+  return browserReadingListInstance;
 }
 
 function browserMangaCache() {
@@ -14592,6 +14603,76 @@ ipcMain.handle('browser:archivePage', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   return saveBrowserPageArchive(tab);
+});
+
+// B22 — çevrimdışı okuma listesi: MHTML kopyası kullanıcı dizininde değil,
+// uygulamanın OkumaListesi deposunda tutulur; liste aç/sil/yenile içerir.
+async function saveBrowserPageToReadingList(tab, readingEntry) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed() || typeof wc.savePage !== 'function') {
+    return { ok: false, error: 'Arşivlenecek tarayıcı sayfası bulunamadı.' };
+  }
+  try {
+    await wc.savePage(readingEntry.filePath, 'MHTML');
+  } catch (error) {
+    return { ok: false, error: `Sayfa arşivlenemedi: ${String(error?.message || error)}` };
+  }
+  return browserReadingList().commit(readingEntry.entry);
+}
+
+ipcMain.handle('browser:readingList:add', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const plan = browserReadingList().prepare({
+    url: tab.url || tab.view?.webContents?.getURL?.() || '',
+    title: tab.title || tab.view?.webContents?.getTitle?.() || '',
+  });
+  if (!plan.ok) return plan;
+  return saveBrowserPageToReadingList(tab, { filePath: plan.filePath, entry: plan.entry });
+});
+
+ipcMain.handle('browser:readingList:list', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, entries: browserReadingList().list() };
+});
+
+ipcMain.handle('browser:readingList:remove', (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return browserReadingList().remove(request?.id);
+});
+
+ipcMain.handle('browser:readingList:refresh', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const currentUrl = tab.url || tab.view?.webContents?.getURL?.() || '';
+  const target = browserReadingList().refreshTarget(request?.id, currentUrl);
+  if (!target.ok) return target;
+  const result = await saveBrowserPageToReadingList(tab, { filePath: target.filePath, entry: {
+    ...target.entry, updatedAt: Date.now() } });
+  return result.ok ? { ok: true, entry: result.entry, refreshed: true } : result;
+});
+
+ipcMain.handle('browser:readingList:open', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const found = browserReadingList().get(request?.id);
+  if (!found) return { ok: false, error: 'Kayıt veya arşiv dosyası bulunamadı.' };
+  const view = ensureBrowserView(tab);
+  if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
+  applyBrowserViewBounds(tab, view);
+  browserVisible = true;
+  view.setVisible(!browserModalOccluded);
+  const fileUrl = pathToFileURL(found.filePath).href;
+  try {
+    await view.webContents.loadURL(fileUrl);
+    return { ok: true, url: fileUrl, offline: true, title: found.entry.title };
+  } catch (err) {
+    if (isAbortedBrowserNavigation(err)) return { ok: false, aborted: true };
+    return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message) };
+  }
 });
 
 async function saveBrowserPagePdf(tab) {
