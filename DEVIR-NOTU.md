@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
+Güncel çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
+
+Önceki çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
 
 Önceki çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
 

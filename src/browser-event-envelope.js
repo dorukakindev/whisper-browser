@@ -6,12 +6,13 @@ function cleanString(value, max = 240) {
 }
 
 function normalizeBrowserEventContext(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
   return {
-    tabId: cleanString(raw.tabId, 128),
-    generation: Math.max(0, Math.trunc(Number(raw.generation) || 0)),
-    mediaId: cleanString(raw.mediaId, 240),
-    acquisitionId: cleanString(raw.acquisitionId, 160),
-    operationId: cleanString(raw.operationId, 160),
+    tabId: cleanString(source.tabId, 128),
+    generation: Math.max(0, Math.trunc(Number(source.generation) || 0)),
+    mediaId: cleanString(source.mediaId, 240),
+    acquisitionId: cleanString(source.acquisitionId, 160),
+    operationId: cleanString(source.operationId, 160),
   };
 }
 

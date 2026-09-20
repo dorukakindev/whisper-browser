@@ -30,7 +30,8 @@ function redactExport(value) {
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value)
     .filter(([key]) => !['__proto__', 'constructor', 'prototype'].includes(key)
-      && !/(?:api[_-]?key|token|password|passwd|secret|authorization|cookie|credential)$/i.test(key))
+      && !/(?:api[_-]?key|password|passwd|secret|authorization|credential)/i.test(key)
+      && !/(?:token|cookie)$/i.test(key))
     .map(([key, child]) => [key, redactExport(child)]));
 }
 
