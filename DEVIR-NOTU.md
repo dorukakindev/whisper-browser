@@ -1,7 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 16:27 — Katalog Parti 7: Invidious arama önerileri (A23), mpv/VLC'ye güvenli devir (A17), yerel abonelikler+gruplar (A06) ve OPML/CSV/JSON/NewPipe içe-dışa aktarma (A07); npm test temiz](docs/devir/2026-09-20-1627.md).
+Güncel çalışma: [2026-09-20 16:48 — Katalog Parti 8: playlist detay sayfası (A28), gerçek bölüm düzeni Canlı/Müzik/Oyun/Haber/Geçmiş/Listelerim (A04), kanal sekmeleri + kanal-içi arama (A27); npm test temiz](docs/devir/2026-09-20-1648.md).
 
-Önceki çalışma: [2026-09-20 16:10 — Katalog Parti 6: sekme şeridi menüsü + 450ms hover önizleme kartı (B06), onaylı element picker + kaynak-bazlı kalıcı kurallar (B10), opt-in otomatik PiP (B14); npm test temiz, ~40 yeni kontrol](docs/devir/2026-09-20-1610.md).
+Önceki çalışma: [2026-09-20 16:27 — Katalog Parti 7: Invidious arama önerileri (A23), mpv/VLC'ye güvenli devir (A17), yerel abonelikler+gruplar (A06) ve OPML/CSV/JSON/NewPipe içe-dışa aktarma (A07); npm test temiz](docs/devir/2026-09-20-1627.md).
 
 Önceki çalışma: [2026-09-20 15:57 — Katalog Parti 5b: SmartTube yerel çalma listeleri (kuyruktan ayrı kalıcılık sözleşmesi, seçici menü, panel yönetimi), radyo zinciri onayı, sıra karıştırma, en-çok-oynatılan rayı; npm test temiz](docs/devir/2026-09-20-1557.md).
 
