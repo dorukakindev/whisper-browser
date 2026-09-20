@@ -104,4 +104,20 @@ assert.match(renderer, /Kanalda ara/, 'kanal-içi arama alanı');
 assert.match(locale, /\['Topluluk', /, 'locale Topluluk');
 assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
 
+// --- C03 — site otomatik kuralı: readerAuto ---
+{
+  const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const profiles = readRel('src/browser-site-profiles.js');
+  const html = readRel('src/renderer/index.html');
+  const sec = readRel('src/settings-security.js');
+  assert.match(profiles, /readerAuto:\s*\{ type: 'boolean' \}/, 'profil alanı');
+  assert.match(html, /id="browserReaderAuto"/, 'ayar kutusu');
+  assert.match(renderer, /'browserReaderAuto'/, 'kalıcı kontrol');
+  assert.ok(sec.includes("'browserReaderAuto'"), 'settings-security listesi');
+  assert.match(renderer, /browserReaderAutoTimer/, 'gecikmeli uygulama');
+  assert.match(renderer, /setBrowserReader\(expectedTabId, 'open'/, 'reader açma çağrısı');
+  assert.match(renderer, /generation !== expectedGeneration/, 'döngü/eski gezinme koruması');
+  assert.match(locale, /\['Bu sitede okuma görünümünü otomatik aç', /, 'locale');
+}
+
 console.log('browser-parti7.test.js OK');

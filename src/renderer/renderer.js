@@ -2437,7 +2437,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'llmFixPunctuation', 'llmFixConsistency',
   'browserMangaAuto', 'browserMangaVertical', 'browserMangaSfx', 'browserOverlaySourceFirst', 'browserHideSiteCaptions',
   'browserRateFightback', 'browserPreservesPitch',
-  'browserDarkMode',
+  'browserDarkMode', 'browserReaderAuto',
   'browserYoutubeAppearance', 'browserYoutubeHideShorts',
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled',
   'browserPageAuto',
@@ -4993,6 +4993,7 @@ const player = {
   browserMangaError: '',
   browserMangaAutoUrl: '',
   browserMangaAutoTimer: null,
+  browserReaderAutoTimer: null,
   browserNoTrackTimer: null,
   browserMangaLookaheadBusy: false,
   browserMangaLookaheadTimer: null,
@@ -7163,6 +7164,7 @@ function browserProfileControls() {
     ['videoBrightness', 'browserVideoBrightness', 'Video parlaklığı (%)', 1, 100],
     ['videoContrast', 'browserVideoContrast', 'Video kontrastı (%)', 1, 100],
     ['darkMode', 'browserDarkMode', 'Koyu sayfa görünümü', false],
+    ['readerAuto', 'browserReaderAuto', 'Okuma görünümünü otomatik aç', false],
     ['normalizeAudio', 'browserNormalizeAudio', 'Konuşma sesi normalleştirme', false],
     ['silenceSpeedEnabled', 'browserSilenceSpeedEnabled', 'Sessizlikte hızlandır', false],
     ['silenceSpeedRate', 'browserSilenceSpeedRate', 'Sessizlik hızı', 3],
@@ -10167,6 +10169,32 @@ function updateBrowserNavigation(data, options = {}) {
   updateBrowserWhisperActions();
   syncBrowserAddressAction();
   syncBrowserReaderControl(tab);
+  // C03: site kuralı readerAuto — sayfa yüklenince okuma görünümü kendiliğinden
+  // açılır. Döngüye karşı nesil+URL eşlemesi; uyumluluk modunda çalışmaz.
+  if (data.loading === false && data.url && !tab?.readerActive && !tab?.compatibilityMode) {
+    clearTimeout(player.browserReaderAutoTimer);
+    const expectedTabId = player.browserActiveTabId;
+    const expectedGeneration = tab?.generation;
+    const expectedUrl = data.url;
+    player.browserReaderAutoTimer = setTimeout(() => {
+      player.browserReaderAutoTimer = null;
+      const current = browserTabState(expectedTabId);
+      if (player.browserActiveTabId !== expectedTabId || !current
+          || current.generation !== expectedGeneration
+          || player.browserPageUrl !== expectedUrl
+          || current.readerActive || current.compatibilityMode) return;
+      let enabled = false;
+      try { enabled = effectiveBrowserProfile().values.readerAuto === true; } catch (_) {}
+      if (!enabled || !window.api.setBrowserReader) return;
+      void window.api.setBrowserReader(expectedTabId, 'open', current.readerPreferences || {})
+        .then((result) => {
+          if (!result?.ok) return;
+          current.readerActive = !!result.active;
+          current.readerPreferences = result.preferences || current.readerPreferences;
+          if (current.id === player.browserActiveTabId) syncBrowserReaderControl(current);
+        }).catch(() => {});
+    }, 700);
+  }
   if (pageChanged || data.loading === false) void renderBrowserPermissions();
   return true;
 }

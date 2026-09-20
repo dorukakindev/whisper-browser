@@ -1127,7 +1127,7 @@
             <div class="browser-address-wrap">
               <span class="browser-security-mark" id="browserSecurityMark" role="img" aria-label="Adres bekleniyor" title="Adres bekleniyor"></span>
               <input type="text" id="browserAddress" autocomplete="off" spellcheck="false"
-                placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama"
+                placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama" role="combobox"
                 aria-autocomplete="list" aria-controls="browserAddressResults" aria-expanded="false" />
               <datalist id="browserAddressSuggestions"></datalist>
               <div class="browser-address-results hidden" id="browserAddressResults" role="listbox" aria-label="Adres ve kütüphane önerileri"></div>
@@ -1627,6 +1627,7 @@
                   <label class="browser-view-switch"><input type="checkbox" id="browserPreservesPitch" checked /><span>Hız değişince ses perdesini koru</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserAutoPip" /><span>Sekme değişince videoyu küçük oynatıcıda sürdür</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserDarkMode" /><span>Bu sayfayı koyu göster</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserReaderAuto" /><span>Bu sitede okuma görünümünü otomatik aç</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserYoutubeAppearance" checked /><span>YouTube özel görünümünü kullan</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserYoutubeHideShorts" checked /><span>YouTube Shorts bölümlerini gizle</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserNormalizeAudio" /><span>Konuşma sesini dinamik olarak dengele</span></label>
@@ -1786,7 +1787,7 @@
           </div>
 
           <div class="browser-view-slot" id="browserViewSlot">
-            <div class="browser-split-divider hidden" id="browserSplitDivider" role="separator" aria-orientation="vertical" aria-label="Bölünmüş görünüm oranını ayarla" tabindex="0"></div>
+            <div class="browser-split-divider hidden" id="browserSplitDivider" role="separator" aria-orientation="vertical" aria-label="Bölünmüş görünüm oranını ayarla" tabindex="0" aria-valuemin="25" aria-valuemax="75" aria-valuenow="50"></div>
             <section class="browser-settings-surface hidden" id="browserSettingsSurface"
               aria-label="Tarayıcı ayarları" aria-hidden="true">
               <header class="browser-settings-surface-head">
@@ -2172,7 +2173,7 @@
             <p class="hint">Görünüm ayarları bu sekmeye uygulanır.</p>
             <div id="browserWatchStyle" class="browser-watch-style"></div>
           </details>
-          <details id="browserFeatures" class="browser-features" role="tabpanel" aria-labelledby="sideTabTools">
+          <details id="browserFeatures" class="browser-features" aria-labelledby="sideTabTools">
             <summary><span>Video araçları</span><span class="bf-summary-hint">Altyazı · senkron · sahne</span></summary>
             <div class="bf-workspace" tabindex="0" role="region" aria-label="Video araçları içeriği">
             <p id="browserFeaturesContext" class="bf-context">Etkin videoyu seçin.</p>

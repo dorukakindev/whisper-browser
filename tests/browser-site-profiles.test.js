@@ -122,4 +122,19 @@ test('profil paketinde yalnız izinli ayarlar kalır ve import aynı değerleri 
   const restored = inspectBrowserSessionPackage(JSON.parse(JSON.stringify(bundle)));
   assert.deepEqual(restored.places.siteProfiles['https://site.test:8443'], { targetLanguage: 'tr', overlayBottom: 0, hideSiteCaptions: false });
 });
+test('C03: readerAuto boolean profil alanı olarak doğrulanır ve katmanlarda en özgül kazanır', () => {
+  const site = withBrowserSiteProfileField({}, 'https://blog.test/yazi', 'readerAuto', true);
+  assert.equal(site.ok, true);
+  assert.equal(site.profile.readerAuto, true);
+  assert.equal(withBrowserSiteProfileField({}, 'https://blog.test', 'readerAuto', 'yes').ok, false);
+  const path = require('../src/browser-site-profiles').withBrowserPathProfileField({}, 'https://blog.test/yazi', 'readerAuto', false);
+  assert.equal(path.ok, true);
+  const eff = resolveEffectiveBrowserSettings({
+    defaults: { readerAuto: false }, general: {}, profile: { 'x': 1 } && site.profile,
+    pathProfile: path.profile, tab: {},
+  });
+  assert.equal(eff.values.readerAuto, false);
+  assert.equal(eff.sources.readerAuto, 'path');
+});
+
 console.log(`browser-site-profiles: ${passed} test`);

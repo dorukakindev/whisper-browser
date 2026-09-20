@@ -454,6 +454,8 @@
     ['Site hızı sıfırlarsa geri uygula', 'Restore speed if the site resets it'],
     ['Hız değişince ses perdesini koru', 'Preserve pitch when speed changes'],
     ['Bu sayfayı koyu göster', 'Darken this page'],
+    ['Bu sitede okuma görünümünü otomatik aç', 'Always open reader mode on this site'],
+    ['Okuma görünümünü otomatik aç', 'Open reader mode automatically'],
     ['YouTube özel görünümünü kullan', 'Use custom YouTube appearance'],
     ['YouTube Shorts bölümlerini gizle', 'Hide YouTube Shorts sections'],
     ['Konuşma sesini dinamik olarak dengele', 'Dynamically normalize speech volume'],
