@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 17:07 — Katalog Parti 10: seekbar kare önizlemesi — YouTube storyboard (A20) + yerel ffmpeg tile sprite (B01), media:seekPreview IPC + disk önbelleği; npm test temiz](docs/devir/2026-09-20-1707.md).
+Güncel çalışma: [2026-09-20 17:14 — Katalog Parti 11: OpenSubtitles moviehash + dosya boyutu ile kesin altyazı arama (B03); yetkili medya hash'i, sağlayıcı eşleşme rozeti, başlık fallback'i; npm test temiz](docs/devir/2026-09-20-1714.md).
+
+Önceki çalışma: [2026-09-20 17:07 — Katalog Parti 10: seekbar kare önizlemesi — YouTube storyboard (A20) + yerel ffmpeg tile sprite (B01), media:seekPreview IPC + disk önbelleği; npm test temiz](docs/devir/2026-09-20-1707.md).
 
 Önceki çalışma: [2026-09-20 16:56 — Katalog Parti 9: site otomatik kuralı readerAuto (C03) ve axe-core erişilebilirlik regresyon kapısı (C22) + 3 gerçek ihlalin düzeltmesi; npm test temiz](docs/devir/2026-09-20-1656.md).
 
