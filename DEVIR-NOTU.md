@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 15:09 — Katalog Parti 2: okuma görünümü TOC scrollspy + odak affordance (E01), 180 karakter mikro metni (E02), son kullanılan altyazı izleri üstte (A09), SmartTube kart boyutu/yazı ölçeği ayarları (A10); npm test temiz, yeni 30+ kontrol; 4 Electron smoke ortam sınırı](docs/devir/2026-09-20-1509.md).
+Güncel çalışma: [2026-09-20 15:24 — Katalog Parti 3: T/I kısayolları + çift-tık kenar seek (A19), navigator.mediaSession entegrasyonu (A36), kontrol çubuğu uyku zamanlayıcısı (A38 alt maddesi); npm test temiz, yeni ~30 kontrol](docs/devir/2026-09-20-1524.md).
+
+Önceki çalışma: [2026-09-20 15:09 — Katalog Parti 2: okuma görünümü TOC scrollspy + odak affordance (E01), 180 karakter mikro metni (E02), son kullanılan altyazı izleri üstte (A09), SmartTube kart boyutu/yazı ölçeği ayarları (A10); npm test temiz, yeni 30+ kontrol; 4 Electron smoke ortam sınırı](docs/devir/2026-09-20-1509.md).
 
 Önceki çalışma: [2026-09-20 14:55 — Katalog E-paketi: adres çubuğu hesaplayıcı + bang kısayolları (C36/B24), Markdown bağlantı kopyası + QR paneli (B21), sayfayı PDF kaydet (B20); npm test temiz, 42 yeni kontrol; 2 Electron smoke ortam sınırı](docs/devir/2026-09-20-1455.md).
 
