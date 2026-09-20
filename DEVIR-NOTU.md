@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
+Güncel çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
+
+Önceki çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
 
 Önceki çalışma: [2026-09-20 17:33 — Katalog Parti 14: kabul matrisi (F20) + servis yetenek matrisi (F04) belgeleri; yalnız belge turu](docs/devir/2026-09-20-1733.md).
 

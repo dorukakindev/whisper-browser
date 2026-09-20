@@ -23,7 +23,7 @@ gerçek-site/cihaz gerektirenler manuel koşuyla kanıtlanır.
 | P-2 | 20k cue kütüphane | Arama ve scroll akıcı; `watch-library-subtitle-performance` eşikleri | CI ✓ (10k kayıt, warm < 3 ms) |
 | P-3 | Önbellek sıcak/soğuk: ilk açılış vs ikinci açılış | Soğuk açılışta kilitlenme yok; sıcakta arama belirgin hızlı | CI ✓ (perf metrikleri) |
 | P-4 | Bellek: 10 sekme + 1 saat oynatma | Renderer heap büyümesi sınırlı; sekme kapatınca düşer | bekliyor |
-| P-5 | Benchmark: `models:benchmark` 30–120 sn klip | NDJSON sözleşmesi, RTF/speedX raporu, timeout | CI ✓ (`test_model_benchmark.py`) |
+| P-5 | Benchmark: `models:benchmark` 30–120 sn klip | Aynı kaynakta kullanıcı-seçimli başlangıç/süre, NDJSON sözleşmesi, RTF/speedX, süreç/GPU-delta VRAM, timeout | CI ✓ (`test_model_benchmark.py`); CUDA tiny/small 40 sn sentetik kaynakta 5–35 sn aynı klip koşusu ✓ |
 
 ## Ç. Çeviri kalite/güvenilirlik
 
@@ -31,7 +31,7 @@ gerçek-site/cihaz gerektirenler manuel koşuyla kanıtlanır.
 | --- | --- | --- | --- |
 | Ç-1 | Cümle çeviri boru hattı | Anlam kapısı + kaynak-yankısı ret + kurtarma yolu | CI ✓ (192 çeviri testi) |
 | Ç-2 | Canlı zamanlayıcı | Oynatma kafası önünde cümle-bazlı plan; seek/revision güvenli | CI ✓ (`browser-translation-scheduler`) |
-| Ç-3 | Aynı klip A/B ASR (F17) | İki model aynı clipHash'te; cue sapması + metin farkı raporlanır | CI ✓ (`test_model_benchmark.py`); gerçek model koşusu bekliyor |
+| Ç-3 | Aynı klip A/B ASR (F17) | İki model aynı clipHash'te; bire-bir zamansal cue eşleştirmesi, eşleşmeyen cue ve metin farkı raporlanır | CI ✓ (`test_model_benchmark.py`); CUDA model yükleme/ölçüm ✓, sesli referansla kalite kıyası bekliyor |
 
 ## V. Veri güvenliği / redaction
 
