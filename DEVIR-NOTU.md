@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 17:24 — Katalog Parti 12: aynı klipte A/B ASR benchmark'ı (F17) — clipHash saklama, cue sapması + metin farkı, VRAM; npm test temiz](docs/devir/2026-09-20-1724.md).
+Güncel çalışma: [2026-09-20 17:30 — Katalog Parti 13: F18 aşamalı dilim — MODEL_CATALOG kapasite kaydı, boyut/boş-disk raporu, onaylı güvenli önbellek silme; npm test temiz](docs/devir/2026-09-20-1730.md).
+
+Önceki çalışma: [2026-09-20 17:24 — Katalog Parti 12: aynı klipte A/B ASR benchmark'ı (F17) — clipHash saklama, cue sapması + metin farkı, VRAM; npm test temiz](docs/devir/2026-09-20-1724.md).
 
 Önceki çalışma: [2026-09-20 17:14 — Katalog Parti 11: OpenSubtitles moviehash + dosya boyutu ile kesin altyazı arama (B03); yetkili medya hash'i, sağlayıcı eşleşme rozeti, başlık fallback'i; npm test temiz](docs/devir/2026-09-20-1714.md).
 
