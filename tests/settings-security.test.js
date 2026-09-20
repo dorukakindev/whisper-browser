@@ -291,6 +291,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserOverlayGap: '24',
     browserVideoBrightness: '115', browserVideoContrast: '90',
     browserSilenceSpeedRate: '3', browserSilenceThresholdDb: '-45',
+    stCardScale: '120', stCardFontScale: '110',
   };
   const ui = Object.fromEntries(PERSIST_VALUE_CONTROLS.map((id) => [
     id, enumValues[id] ?? numericValues[id] ?? (id.endsWith('BaseUrl') ? '' : `değer-${id}`),

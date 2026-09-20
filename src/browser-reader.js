@@ -86,13 +86,13 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
     };
     const article = copy(candidate);
     const textLength = String(candidate.innerText || '').trim().length;
-    if (!article || textLength < 180) return { ok: false, active: false, error: 'Bu sayfada yeterli makale metni bulunamadi.' };
+    if (!article || textLength < 180) return { ok: false, active: false, error: 'Yeterli makale metni bulunamadi; okuma gorunumu en az 180 karakterlik metin ister.' };
     const host = document.createElement('div');
     host.id = 'whisper-reader-host';
     host.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0b0f13;color:#e8e4dc;overflow:auto;color-scheme:dark;';
     const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
-    style.textContent = ':host{all:initial}.shell{min-height:100%;background:#0b0f13;color:#e8e4dc;font-family:Georgia,Cambria,serif}.bar{position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:10px;padding:10px 18px;background:rgba(11,15,19,.96);border-bottom:1px solid #2a3038;font:13px Segoe UI,sans-serif}.bar strong{color:#d5a35c;margin-right:auto;letter-spacing:.04em}.bar button{border:1px solid #3a414b;background:#171c22;color:#e8e4dc;border-radius:6px;padding:6px 10px;cursor:pointer}.bar button:hover{border-color:#d5a35c}.layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:36px;max-width:calc(var(--reader-width) + 280px);margin:0 auto;padding:54px 28px 90px}.article{max-width:var(--reader-width);font-size:var(--reader-font);line-height:var(--reader-line)}h1{font-size:2.25em;line-height:1.12;margin:0 0 12px;color:#fff}h2,h3,h4{scroll-margin-top:72px;color:#f2eee7;line-height:1.25;margin:1.7em 0 .5em}p,li{margin:.8em 0}blockquote{border-left:3px solid #d5a35c;margin:1.3em 0;padding:.2em 1.1em;color:#c9c5bd}pre{overflow:auto;padding:14px;background:#12171d;border:1px solid #2a3038;border-radius:8px}code{font-family:Consolas,monospace}img{display:block;max-width:100%;height:auto;margin:1.4em auto;border-radius:7px}a{color:#72c7d5}.meta{font:13px Segoe UI,sans-serif;color:#9ca5ae;margin-bottom:32px}.toc{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;border-left:1px solid #2a3038;padding-left:18px;font:13px/1.45 Segoe UI,sans-serif}.toc strong{display:block;color:#d5a35c;margin-bottom:10px}.toc a{display:block;color:#aeb5bd;text-decoration:none;padding:4px 0}.toc a:hover{color:#fff}@media(max-width:880px){.layout{display:block}.toc{display:none}}';
+    style.textContent = ':host{all:initial}.shell{min-height:100%;background:#0b0f13;color:#e8e4dc;font-family:Georgia,Cambria,serif}.bar{position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:10px;padding:10px 18px;background:rgba(11,15,19,.96);border-bottom:1px solid #2a3038;font:13px Segoe UI,sans-serif}.bar strong{color:#d5a35c;margin-right:auto;letter-spacing:.04em}.bar button{border:1px solid #3a414b;background:#171c22;color:#e8e4dc;border-radius:6px;padding:6px 10px;cursor:pointer}.bar button:hover{border-color:#d5a35c}.layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:36px;max-width:calc(var(--reader-width) + 280px);margin:0 auto;padding:54px 28px 90px}.article{max-width:var(--reader-width);font-size:var(--reader-font);line-height:var(--reader-line)}h1{font-size:2.25em;line-height:1.12;margin:0 0 12px;color:#fff}h2,h3,h4{scroll-margin-top:72px;color:#f2eee7;line-height:1.25;margin:1.7em 0 .5em}p,li{margin:.8em 0}blockquote{border-left:3px solid #d5a35c;margin:1.3em 0;padding:.2em 1.1em;color:#c9c5bd}pre{overflow:auto;padding:14px;background:#12171d;border:1px solid #2a3038;border-radius:8px}code{font-family:Consolas,monospace}img{display:block;max-width:100%;height:auto;margin:1.4em auto;border-radius:7px}a{color:#72c7d5}.meta{font:13px Segoe UI,sans-serif;color:#9ca5ae;margin-bottom:32px}.toc{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;border-left:1px solid #2a3038;padding-left:18px;font:13px/1.45 Segoe UI,sans-serif}.toc strong{display:block;color:#d5a35c;margin-bottom:10px}.toc a{display:block;color:#aeb5bd;text-decoration:none;padding:4px 0}.toc a:hover{color:#fff}.toc a:focus-visible{outline:2px solid #d5a35c;outline-offset:2px;color:#fff;border-radius:3px}.toc a[aria-current='true']{color:#fff;font-weight:600}.toc a[aria-current='true']::before{content:'\\2022 ';color:#d5a35c}@media(max-width:880px){.layout{display:block}.toc{display:none}}';
     const shell = document.createElement('div'); shell.className = 'shell';
     const bar = document.createElement('div'); bar.className = 'bar';
     const brand = document.createElement('strong'); brand.textContent = 'OKUMA GORUNUMU';
@@ -110,7 +110,23 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
     const toc = document.createElement('nav'); toc.className = 'toc'; toc.setAttribute('aria-label', 'Icindekiler');
     const tocTitle = document.createElement('strong'); tocTitle.textContent = 'ICINDEKILER'; toc.appendChild(tocTitle);
     const headings = [...body.querySelectorAll('h2,h3')].slice(0, 80);
-    headings.forEach((heading, index) => { const id = 'whisper-reader-heading-' + index; heading.id = id; const link = document.createElement('a'); link.href = '#' + id; link.textContent = String(heading.textContent || '').trim().slice(0, 160); link.addEventListener('click', (event) => { event.preventDefault(); heading.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); toc.appendChild(link); });
+    const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tocLinks = [];
+    headings.forEach((heading, index) => { const id = 'whisper-reader-heading-' + index; heading.id = id; const link = document.createElement('a'); link.href = '#' + id; link.textContent = String(heading.textContent || '').trim().slice(0, 160); link.addEventListener('click', (event) => { event.preventDefault(); heading.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' }); }); tocLinks.push({ heading, link }); toc.appendChild(link); });
+    if (tocLinks.length > 1) {
+      // Okunan bolumu icindekilerde isaretle ve uzun listelerde baglantiyi
+      // gorunur tut (otomatik kaydirma); rAF ile scroll dinleyicisi seyrek calisir.
+      let tocTick = false;
+      const syncToc = () => { tocTick = false;
+        let current = tocLinks[0];
+        for (const item of tocLinks) { if (item.heading.getBoundingClientRect().top <= 96) current = item; else break; }
+        for (const item of tocLinks) item.link.setAttribute('aria-current', item === current ? 'true' : 'false');
+        const linkBox = current.link.getBoundingClientRect(); const tocBox = toc.getBoundingClientRect();
+        if (linkBox.top < tocBox.top || linkBox.bottom > tocBox.bottom) toc.scrollTop = linkBox.top - tocBox.top + toc.scrollTop - (toc.clientHeight / 2) + (linkBox.height / 2);
+      };
+      host.addEventListener('scroll', () => { if (!tocTick) { tocTick = true; requestAnimationFrame(syncToc); } }, { passive: true });
+      syncToc();
+    }
     layout.append(body, toc); shell.append(bar, layout); shadow.append(style, shell); document.documentElement.appendChild(host);
     const state = { fontSize: requested.fontSize, lineHeight: requested.lineHeight, width: requested.width };
     const apply = () => { shell.style.setProperty('--reader-font', state.fontSize + 'px'); shell.style.setProperty('--reader-line', String(state.lineHeight)); shell.style.setProperty('--reader-width', state.width + 'px'); };

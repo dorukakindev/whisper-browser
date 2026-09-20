@@ -2424,6 +2424,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
+  'stCardScale', 'stCardFontScale',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -8066,6 +8067,13 @@ function renderBrowserTracks(selectedId) {
   }
   const previous = selectedId || select.value;
   const previous2 = select2.value;
+  // Son kullanılan izler (dil+etiket anahtarı) seçicinin üstüne alınır; sıralama
+  // yalnız gösterim düzenidir, model dizisi değişmez.
+  const recency = new Map(browserRecentTrackKeys().map((key, index) => [key, index]));
+  const orderedTracks = recency.size
+    ? [...player.browserTracks].sort((a, b) =>
+        (recency.get(browserTrackRecencyKey(a)) ?? 99) - (recency.get(browserTrackRecencyKey(b)) ?? 99))
+    : player.browserTracks;
   // Yakalanan web izleri yalnızca tarayıcı şeridinde değil, oynatıcı ayar
   // panelindeki genel altyazı seçimlerinde de kullanılabilmeli.
   for (const track of player.browserTracks) {
@@ -8084,7 +8092,7 @@ function renderBrowserTracks(selectedId) {
       empty.value = ''; empty.textContent = 'İkinci iz yok';
       target.prepend(empty);
     }
-    for (const track of player.browserTracks) {
+    for (const track of orderedTracks) {
       let option = [...target.options].find((item) => item.value === String(track.id));
       if (!option) {
         option = document.createElement('option');
@@ -8094,7 +8102,8 @@ function renderBrowserTracks(selectedId) {
       const variant = track.role === 'translation'
         ? [track.provider, track.model].filter(Boolean).join(' / ') : (track.format || track.source || 'web');
       const date = Number(track.updatedAt) ? new Date(Number(track.updatedAt)).toLocaleDateString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) : '';
-      const label = [roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
+      const label = [recency.has(browserTrackRecencyKey(track)) ? '↺' : '',
+        roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
         variant, date, `${track.cueCount} satır`].filter(Boolean).join(' · ');
       if (option.textContent !== label) option.textContent = label;
       option.title = track.sourceMismatch
@@ -8405,6 +8414,7 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
   await loadSubtitle(track.path);
   if (player.subPath !== track.path || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   player.browserLoadedTrackId = track.id;
+  rememberBrowserTrackUse(track);
   setPlayerSidebarCollapsed(false);
   const sourceLanguage = browserTrackSourceLanguage(track);
   setBrowserSignal(translate
@@ -8412,6 +8422,26 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
     : 'Altyazı çalışma alanına yüklendi.', true);
   if (translate) return startBrowserLiveTranslation(track, sourceLanguage);
   return { ok: true };
+}
+
+const BROWSER_RECENT_TRACKS_KEY = 'whisper.browserRecentTracks';
+
+function browserRecentTrackKeys() {
+  try {
+    const list = JSON.parse(localStorage.getItem(BROWSER_RECENT_TRACKS_KEY) || '[]');
+    return Array.isArray(list) ? list.filter((key) => typeof key === 'string' && key).slice(0, 8) : [];
+  } catch (_) { return []; }
+}
+
+function browserTrackRecencyKey(track) {
+  return `${String(track?.language || '').toLowerCase()}|${String(track?.label || track?.source || '').toLowerCase()}`;
+}
+
+function rememberBrowserTrackUse(track) {
+  const key = browserTrackRecencyKey(track);
+  if (!key || key === '|') return;
+  const next = [key, ...browserRecentTrackKeys().filter((item) => item !== key)].slice(0, 8);
+  try { localStorage.setItem(BROWSER_RECENT_TRACKS_KEY, JSON.stringify(next)); } catch (_) {}
 }
 
 async function completeSelectedBrowserTranslation() {
@@ -23851,6 +23881,41 @@ function initSmartTube() {
     if (stSearchActive) doSmartTubeSearch();
     else renderSmartTubeSection(stCurrentSection, { force: true });
   });
+  // Kart görünümü paneli (A10): kart boyutu + yazı ölçeği, TV için ayarlanır.
+  const stDisplayToggle = $('stDisplayToggle');
+  const stDisplayPanel = $('stDisplayPanel');
+  const setStDisplayOpen = (open) => {
+    stDisplayPanel?.classList.toggle('hidden', !open);
+    stDisplayToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  const syncStCardDisplay = () => {
+    const root = $('smarttubeBrowser');
+    if (!root) return;
+    const card = Number($('stCardScale')?.value) || 100;
+    const font = Number($('stCardFontScale')?.value) || 100;
+    root.style.setProperty('--st-card-scale', String(card / 100));
+    root.style.setProperty('--st-card-font', String(font / 100));
+    const cardVal = $('stCardScaleVal');
+    const fontVal = $('stCardFontScaleVal');
+    if (cardVal) cardVal.textContent = `%${card}`;
+    if (fontVal) fontVal.textContent = `%${font}`;
+  };
+  if (stDisplayToggle) stDisplayToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setStDisplayOpen(stDisplayPanel?.classList.contains('hidden'));
+  });
+  document.addEventListener('click', (e) => {
+    if (!stDisplayPanel || stDisplayPanel.classList.contains('hidden')) return;
+    if (stDisplayPanel.contains(e.target) || stDisplayToggle?.contains(e.target)) return;
+    setStDisplayOpen(false);
+  });
+  stDisplayPanel?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setStDisplayOpen(false);
+  });
+  ['stCardScale', 'stCardFontScale'].forEach((id) => {
+    $(id)?.addEventListener('input', syncStCardDisplay);
+  });
+  syncStCardDisplay();
   const close = $('stCloseBrowser');
   if (close) close.addEventListener('click', () => {
     // Medya bittiğinde düğme görünürde kalırsa tıklama hiçbir şey yapmıyordu —
