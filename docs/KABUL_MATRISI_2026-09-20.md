@@ -24,6 +24,7 @@ gerçek-site/cihaz gerektirenler manuel koşuyla kanıtlanır.
 | P-3 | Önbellek sıcak/soğuk: ilk açılış vs ikinci açılış | Soğuk açılışta kilitlenme yok; sıcakta arama belirgin hızlı | CI ✓ (perf metrikleri) |
 | P-4 | Bellek: 10 sekme + 1 saat oynatma | Renderer heap büyümesi sınırlı; sekme kapatınca düşer | bekliyor |
 | P-5 | Benchmark: `models:benchmark` 30–120 sn klip | Aynı kaynakta kullanıcı-seçimli başlangıç/süre, NDJSON sözleşmesi, RTF/speedX, süreç/GPU-delta VRAM, timeout | CI ✓ (`test_model_benchmark.py`); CUDA tiny/small 40 sn sentetik kaynakta 5–35 sn aynı klip koşusu ✓ |
+| P-6 | Windows paketleme ve açılış smoke | Üretilen uygulama 6 sn boyunca sağlıklı kalır; üretim bağımlılık ağacında yasaklı copyleft yok | yerel ✓ (`package:win`, `smoke:package:win`, `audit:licenses`); yeni makinede Python/GPU kurulumu `install.bat` gerektirir |
 
 ## Ç. Çeviri kalite/güvenilirlik
 
@@ -49,6 +50,15 @@ gerçek-site/cihaz gerektirenler manuel koşuyla kanıtlanır.
 | --- | --- | --- | --- |
 | E-1 | axe-core ana ekran | Yeni kural ihlali 0; region borcu ≤ baseline (36) | CI ✓ (`accessibility.test.js`) |
 | E-2 | Klavye tam turu | Tüm ana eylemler fare olmadan | bekliyor (manuel) |
+| E-3 | Pencere/ölçek matrisi | Menü, çekmece, reader ve video üstü kontrol viewport dışına taşmaz; reader kapanınca sayfa overflow'u geri gelir | Electron ✓: 1280×820@100%, 1024×720@125%, 760×700@150% (`electron-ui-scale-matrix.smoke.js`) |
+
+## Kamu deposu / tedarik zinciri
+
+| No | Kontrol | Geçme ölçütü | Son koşu |
+| --- | --- | --- | --- |
+| K-1 | Tam Git geçmişi gizlilik taraması | Gerçek anahtar/kimlik bilgisi bulgusu 0; uyarılar tek tek sınıflanır | ✓ `audit:public-history`; 0 secret, 5 belgeli yol uyarısı |
+| K-2 | Üretim lisans kapısı | Paket ağacındaki lisanslar izin verilen kümede; prod lock copyleft bulgusu 0 | ✓ 80 paket; Apache-2.0/BSD-2-Clause/ISC/MIT/MPL-2.0 |
+| K-3 | CI platform matrisi | Ubuntu ve Windows `npm test` + syntax adımları yeşil | ✓ [run 35531298678](https://github.com/dorukakindev/whisper-browser/actions/runs/35531298678), iki iş de başarılı |
 
 ## Kullanım
 
