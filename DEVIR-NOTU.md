@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 15:48 — Katalog Parti 5a: SmartTube kart bağlam menüsü (Oynat/sıra/kanal/bağlantı/gizle), yerel video+kanal gizleme ve geri alma listesi, Shorts/izlenen/canlı/Trend içerik filtreleri; npm test temiz, yeni ~30 kontrol](docs/devir/2026-09-20-1548.md).
+Güncel çalışma: [2026-09-20 15:57 — Katalog Parti 5b: SmartTube yerel çalma listeleri (kuyruktan ayrı kalıcılık sözleşmesi, seçici menü, panel yönetimi), radyo zinciri onayı, sıra karıştırma, en-çok-oynatılan rayı; npm test temiz](docs/devir/2026-09-20-1557.md).
+
+Önceki çalışma: [2026-09-20 15:48 — Katalog Parti 5a: SmartTube kart bağlam menüsü (Oynat/sıra/kanal/bağlantı/gizle), yerel video+kanal gizleme ve geri alma listesi, Shorts/izlenen/canlı/Trend içerik filtreleri; npm test temiz, yeni ~30 kontrol](docs/devir/2026-09-20-1548.md).
 
 Önceki çalışma: [2026-09-20 15:35 — Katalog Parti 4: çevrimdışı okuma listesi — yönetilen MHTML deposu (userData/OkumaListesi, 200 kayıt, dizin-kaçışı korumalı), yerler paneli Çevrimdışı sekmesi, aç/sil/yenile; npm test temiz](docs/devir/2026-09-20-1535.md).
 
