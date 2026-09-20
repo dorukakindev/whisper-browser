@@ -233,6 +233,7 @@ contextBridge.exposeInMainWorld('api', {
   getPaths: () => ipcRenderer.invoke('app:getPaths'),
   getEnvInfo: () => ipcRenderer.invoke('app:getEnvInfo'),
   getModelStatus: () => ipcRenderer.invoke('models:status'),
+  deleteModel: (model) => ipcRenderer.invoke('models:delete', { model }),
   benchmarkModel: (options) => ipcRenderer.invoke('models:benchmark', options),
   modelBenchmarkHistory: (input) => ipcRenderer.invoke('models:benchmark:history', input),
   cancelModelBenchmark: () => ipcRenderer.invoke('models:benchmark:cancel'),

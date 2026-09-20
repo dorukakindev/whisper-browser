@@ -3078,9 +3078,13 @@ function renderSelectedModelStatus() {
   if (!status) return;
   const selected = $('model')?.value || '';
   const entry = modelStatusSnapshot?.models?.find((item) => item.id === selected);
+  const mb = (bytes) => bytes ? `${Math.round(bytes / 1048576)} MB` : '';
   status.textContent = !modelStatusSnapshot ? 'Önbellek denetlenmedi'
-    : entry?.installed ? 'Bu cihazda hazır' : 'İlk kullanımda indirilecek';
+    : entry?.installed ? `Bu cihazda hazır${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`
+    : `İlk kullanımda indirilecek${entry?.downloadMb ? ` (~${entry.downloadMb} MB)` : ''}`;
   status.title = entry?.repository || status.textContent;
+  const deleteButton = $('modelCacheDelete');
+  if (deleteButton) deleteButton.disabled = !entry?.installed;
 }
 
 async function refreshModelStatus() {
@@ -3092,6 +3096,27 @@ async function refreshModelStatus() {
 
 if ($('model')?.addEventListener) $('model').addEventListener('change', renderSelectedModelStatus);
 if ($('modelStatusRefresh')?.addEventListener) $('modelStatusRefresh').addEventListener('click', refreshModelStatus);
+// F18: önbellek temizliği — silme onayı native dialog ile main sürecinde sorulur.
+if ($('modelCacheDelete')?.addEventListener) $('modelCacheDelete').addEventListener('click', async () => {
+  const model = $('model')?.value || '';
+  if (!model || !window.api.deleteModel) return;
+  const button = $('modelCacheDelete');
+  if (button) button.disabled = true;
+  try {
+    const result = await window.api.deleteModel(model);
+    if (result?.ok) {
+      addLog(`Model önbelleği silindi: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB boşaldı`, 'info');
+      modelStatusSnapshot = null;
+      await refreshModelStatus();
+    } else if (result?.canceled) {
+      addLog('Önbellek silme vazgeçildi.', 'info');
+    } else if (result?.error) {
+      addLog(`Önbellek silme başarısız: ${result.error}`, 'error');
+    }
+  } finally {
+    renderSelectedModelStatus();
+  }
+});
 if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener('click', async () => {
   const button = $('modelBenchmark');
   if (modelBenchmarkRunning) {

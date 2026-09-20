@@ -181,4 +181,22 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(renderer, /compareModel/, 'renderer karşılaştırma gönderimi');
 }
 
+// --- F18 — model önbelleği temizliği + capability registry ---
+{
+  const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const mm = readRel('src/model-manager.js');
+  const html = readRel('src/renderer/index.html');
+  assert.match(mm, /MODEL_CATALOG/, 'kapasite kaydı');
+  assert.match(mm, /deleteCachedModel/, 'güvenli silme');
+  assert.match(mm, /startsWith\(rootResolved\)/, 'yol çevrelenmesi');
+  assert.match(mm, /statfsSync/, 'boş disk raporu');
+  assert.match(mm, /sizeBytes/, 'kurulu boyut raporu');
+  assert.match(main, /models:delete/, 'silme kanalı');
+  assert.match(main, /dialog\.showMessageBox/, 'açık kullanıcı onayı');
+  assert.match(main, /modelBenchmarkJob \|\| modelProcesses\.size/, 'iş çalışırken reddetme');
+  assert.match(preload, /deleteModel/, 'preload köprüsü');
+  assert.match(html, /id="modelCacheDelete"/, 'silme düğmesi');
+  assert.match(renderer, /modelCacheDelete/, 'renderer silme akışı');
+}
+
 console.log('browser-parti7.test.js OK');

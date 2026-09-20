@@ -16169,6 +16169,34 @@ ipcMain.handle('models:status', (event) => {
   return { ok: true, ...scanModelCache(app.getAppPath()) };
 });
 
+// F18: önbellek temizliği — her zaman açık kullanıcı onayı (native dialog),
+// çalışan model/gömme işi varken reddedilir.
+ipcMain.handle('models:delete', async (event, input = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const model = String(input.model || '');
+  const { deleteCachedModel } = require('./model-manager');
+  if (!KNOWN_MODELS.includes(model)) return { ok: false, error: 'Bilinmeyen model kimliği.' };
+  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return { ok: false, error: 'Model işi çalışırken önbellek silinemez.' };
+  }
+  const status = scanModelCache(app.getAppPath());
+  const entry = status.models.find((m) => m.id === model);
+  if (!entry?.installed) return { ok: false, error: 'Model önbellekte yüklü değil.' };
+  const sizeText = entry.sizeBytes ? ` (${Math.round(entry.sizeBytes / 1048576)} MB)` : '';
+  const confirm = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Model önbelleğini sil',
+    message: `"${model}" önbelleğinden silinsin mi?${sizeText}`,
+    detail: 'Sonraki kullanımda model yeniden indirilecek. Bu işlem geri alınamaz.',
+    buttons: ['Sil', 'Vazgeç'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (confirm.response !== 0) return { ok: false, canceled: true };
+  return deleteCachedModel(app.getAppPath(), model);
+});
+
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
