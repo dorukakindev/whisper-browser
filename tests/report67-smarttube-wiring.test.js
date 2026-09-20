@@ -19,6 +19,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 const RENDERER = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js'), 'utf8');
@@ -303,14 +304,96 @@ test('main.js+preload: comments/playlist IPC uçtan uca', () => {
   assert.match(PRELOAD, /invidiousPlaylist:.*'invidious:playlist'/);
 });
 
-test('renderer: kart kanal linki oynatmayı tetiklemez (stopPropagation)', () => {
-  const card = RENDERER.match(/function buildSmartTubeCard[\s\S]*?return card;\n}/);
-  assert.ok(card, 'buildSmartTubeCard yok');
-  assert.match(card[0], /st-card-author/);
-  assert.match(card[0], /openInvidiousChannelPage\(video\.authorId\)/);
-  const goChannel = card[0].match(/const goChannel[\s\S]*?};/);
-  assert.ok(goChannel && /stopPropagation/.test(goChannel[0]),
-    'kanal tıklaması kart oynatmayı da tetikler');
+// Kaynak deseni kırılganlığından (CRLF/satır kayması) bağımsız olması için kart
+// davranışı gerçekten çalıştırılır: kanal düğmesi click/Enter karttaki oynatıcıyı
+// tetiklememeli, kart kendi click/Space'inde oynatmalı.
+function makeFakeEl(tag) {
+  const el = {
+    tagName: String(tag || 'div').toUpperCase(),
+    className: '',
+    children: [],
+    parent: null,
+    listeners: {},
+    attrs: {},
+    style: {},
+    appendChild(c) { c.parent = el; el.children.push(c); return c; },
+    addEventListener(t, f) { (el.listeners[t] = el.listeners[t] || []).push(f); },
+    setAttribute(k, v) { el.attrs[k] = String(v); },
+  };
+  return el;
+}
+
+function dispatchBubbling(el, type, props) {
+  const e = Object.assign({
+    _stopped: false,
+    _defaultPrevented: false,
+    stopPropagation() { e._stopped = true; },
+    preventDefault() { e._defaultPrevented = true; },
+  }, props);
+  for (let n = el; n && !e._stopped; n = n.parent) {
+    for (const f of n.listeners[type] || []) f.call(n, e);
+  }
+  return e;
+}
+
+function findByClass(el, cls) {
+  const hit = [];
+  (function walk(n) {
+    if ((n.className || '').split(' ').includes(cls)) hit.push(n);
+    for (const c of n.children || []) walk(c);
+  })(el);
+  return hit;
+}
+
+test('renderer: kart kanal linki oynatmayı tetiklemez (davranış)', () => {
+  const src = (RENDERER.match(/function buildSmartTubeCard\(video\) \{[\s\S]*?return card;\s*\}/) || [])[0];
+  assert.ok(src, 'buildSmartTubeCard yok');
+  const calls = { channel: [], probe: 0, hide: 0 };
+  const player = { openIntent: 'play', pendingAutoOpen: null };
+  const ctx = vm.createContext({
+    document: { createElement: (t) => makeFakeEl(t) },
+    window: { UiLocale: { t: (s) => s } },
+    absThumb: (u) => u,
+    formatCount: () => '5',
+    openInvidiousChannelPage: (id) => calls.channel.push(id),
+    queuePlayerProbeFromCard: () => { calls.probe++; },
+    setSmartTubeVisible: () => { calls.hide++; },
+    mediaKeyFor: () => 'mk',
+    player,
+    $: () => null,
+  });
+  const buildSmartTubeCard = vm.runInContext(src + '\nbuildSmartTubeCard;', ctx);
+  const video = {
+    title: 't', author: 'a', authorId: 'UA', videoId: 'v1',
+    lengthSeconds: 62, viewCount: 5,
+    videoThumbnails: [{ url: 'http://x/t.jpg', quality: 'medium' }],
+  };
+  const card = buildSmartTubeCard(video);
+  const author = findByClass(card, 'st-card-author')[0];
+  assert.ok(author, 'kanal butonu yok');
+
+  dispatchBubbling(author, 'click');
+  assert.deepStrictEqual(calls.channel, ['UA']);
+  assert.strictEqual(calls.probe, 0, 'kanal tıklaması kartı oynattı');
+  assert.strictEqual(calls.hide, 0);
+
+  dispatchBubbling(author, 'keydown', { key: 'Enter' });
+  assert.deepStrictEqual(calls.channel, ['UA', 'UA']);
+  assert.strictEqual(calls.probe, 0, 'kanal Enter\'i kartı oynattı');
+
+  // Ok tuşları kabarcıklanıp grid gezinmesine gitmeli — durdurulmamalı
+  const arrow = dispatchBubbling(author, 'keydown', { key: 'ArrowRight' });
+  assert.strictEqual(arrow._stopped, false, 'ok tuşu yayılımı kesildi');
+  assert.strictEqual(calls.channel.length, 2);
+
+  dispatchBubbling(card, 'click');
+  assert.strictEqual(calls.probe, 1, 'kart tıklaması oynatmadı');
+  assert.strictEqual(calls.hide, 1);
+  assert.ok(player.pendingAutoOpen && player.pendingAutoOpen.key === 'mk');
+
+  const space = dispatchBubbling(card, 'keydown', { key: ' ' });
+  assert.strictEqual(calls.probe, 2, 'kart Space\'i oynatmadı');
+  assert.strictEqual(space._defaultPrevented, true);
 });
 
 test('renderer: arama sayfalama dedupe + yarış korumalı', () => {
@@ -544,9 +627,65 @@ test('R68 D-D7: absThumb yalnız http(s) kabul eder (şema beyaz liste)', () => 
   assert.match(fn[0], /\^https\?:/, 'javascript:/data: şemaları geçiyor — img enjeksiyonu');
 });
 
-test('R68 Y3: arama input\'u debounce\'lu canlı sorgu yapar', () => {
-  assert.match(RENDERER, /searchDebounce/);
-  assert.match(RENDERER, /setTimeout\([\s\S]{0,80}450\)/);
+test('R68 Y3: arama input\'u debounce\'lu canlı sorgu yapar (davranış, sahte saat)', () => {
+  const blk = (RENDERER.match(/\n  if \(searchInp\) \{[\s\S]*?\n  \}/) || [])[0];
+  assert.ok(blk, 'searchInp dinleyici bloğu yok');
+  let now = 0;
+  const timers = [];
+  const setTimeout = (cb, ms) => { const t = { cb, at: now + ms, dead: false }; timers.push(t); return t; };
+  const clearTimeout = (t) => { if (t) t.dead = true; };
+  const advance = (ms) => {
+    now += ms;
+    for (;;) {
+      const due = timers.filter((t) => !t.dead && !t.ran && t.at <= now)
+        .sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      due.ran = true;
+      due.cb();
+    }
+  };
+  const inp = makeFakeEl('input');
+  inp.value = '';
+  const searchCalls = [];
+  let resets = 0;
+  const wire = new Function(
+    'searchInp', 'syncSearchClear', 'doSmartTubeSearch', 'resetSmartTubeSearch',
+    'setTimeout', 'clearTimeout', blk);
+  wire(inp, () => {}, () => searchCalls.push(inp.value), () => { resets++; }, setTimeout, clearTimeout);
+
+  inp.value = 'dizi önerisi';
+  dispatchBubbling(inp, 'input');
+  advance(449);
+  assert.strictEqual(searchCalls.length, 0, 'debounce beklemeden sorgu attı');
+  advance(1);
+  assert.deepStrictEqual(searchCalls, ['dizi önerisi'], '450ms dolunca sorgu atmadı');
+
+  inp.value = 'dizi öneri';
+  dispatchBubbling(inp, 'input');
+  advance(449);
+  assert.strictEqual(searchCalls.length, 1, 'eski timer iptal edilmedi');
+  advance(1);
+  assert.strictEqual(searchCalls.length, 2, 'yeni sorgu zamanında atılmadı');
+  assert.strictEqual(searchCalls[1], 'dizi öneri');
+
+  inp.value = 'değişen';
+  dispatchBubbling(inp, 'input');
+  inp.value = 'değişti!';
+  advance(1000);
+  assert.strictEqual(searchCalls.length, 2, 'bayat sorgu bekçisi çalışmadı');
+
+  inp.value = '';
+  dispatchBubbling(inp, 'input');
+  assert.strictEqual(resets, 1, 'boş input sıfırlamadı');
+  advance(1000);
+  assert.strictEqual(searchCalls.length, 2, 'boş input sorgu attı');
+
+  inp.value = 'hızlı';
+  dispatchBubbling(inp, 'input');
+  dispatchBubbling(inp, 'keydown', { key: 'Enter' });
+  assert.strictEqual(searchCalls.length, 3, 'Enter anında sorgu atmadı');
+  advance(1000);
+  assert.strictEqual(searchCalls.length, 3, 'Enter sonrası bekleyen timer tekrar sorgu attı');
 });
 
 test('R68 D-O6: yorumlar 200 düğümde kesilir (DOM birikimi yok)', () => {
