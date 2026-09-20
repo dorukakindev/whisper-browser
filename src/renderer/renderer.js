@@ -2446,7 +2446,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserAdblockEnabled',
   'browserAutoSkipAds',
   'browserPlayerResponseAdPrune',
-  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending',
+  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
 ];
 
 function collectUiSettings() {
@@ -21052,6 +21052,7 @@ if ($('playerVideo')) {
     renderCue();
     await flushWatchState(true, true);
     if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    else if (player.sleepTimerMode !== 'end') stAutoRelatedNext();
     if (player.sleepTimerMode === 'end') {
       player.sleepTimerMode = '';
       if ($('sleepTimer')) $('sleepTimer').value = '0';
@@ -23094,6 +23095,7 @@ async function renderSmartTubeSection(section, opts = {}) {
       for (const [title, list] of [
         [window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası', queueVideos],
         [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
+        [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', stMostPlayedVideos().slice(0, 12)],
       ]) {
         if (!list.length) continue;
         const sep = document.createElement('div');
@@ -23376,6 +23378,296 @@ function stQueueRailVideos() {
   }));
 }
 
+// ----- Yerel çalma listeleri (A22) -----
+// stQueue ile ayrı sözleşme: kuyruk oturum-odaklı "sırada ne var"dır, çalma
+// listeleri isimli ve kalıcı koleksiyonlardır; iki kavram UI'da ayrı sunulur.
+const ST_PLAYLISTS_KEY = 'stPlaylists';
+const ST_PLAYLISTS_MAX = 30;
+const ST_PLAYLIST_ITEMS_MAX = 200;
+let stPlaylists = loadStPlaylists();
+
+function stNormPlaylistItem(v) {
+  if (!v || typeof v.videoId !== 'string' || !v.videoId) return null;
+  const thumbs = Array.isArray(v.videoThumbnails) ? v.videoThumbnails : [];
+  const tn = thumbs.find((t) => (t.quality || '').toLowerCase() === 'medium')
+           || thumbs.find((t) => (t.quality || '').toLowerCase() === 'hqdefault')
+           || thumbs[0] || null;
+  const thumb = tn ? String(tn.url || '') : String(v.thumb || '');
+  return {
+    videoId: v.videoId,
+    title: String(v.title || ''),
+    author: String(v.author || ''),
+    authorId: String(v.authorId || ''),
+    lengthSeconds: Number(v.lengthSeconds) || 0,
+    thumb: /^https?:\/\//i.test(thumb) ? thumb : '',
+    addedAt: Number(v.addedAt) || Date.now(),
+  };
+}
+function loadStPlaylists() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_PLAYLISTS_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string')
+      .slice(0, ST_PLAYLISTS_MAX)
+      .map((p) => ({
+        id: p.id,
+        name: p.name.slice(0, 60),
+        createdAt: Number(p.createdAt) || 0,
+        items: (Array.isArray(p.items) ? p.items : []).map(stNormPlaylistItem).filter(Boolean).slice(0, ST_PLAYLIST_ITEMS_MAX),
+      }));
+  } catch (_) { return []; }
+}
+function saveStPlaylists() {
+  try { localStorage.setItem(ST_PLAYLISTS_KEY, JSON.stringify(stPlaylists.slice(0, ST_PLAYLISTS_MAX))); } catch (_) {}
+}
+function stPlaylistById(id) { return stPlaylists.find((p) => p.id === id) || null; }
+function stPlaylistCreate(name) {
+  const clean = String(name || '').trim().slice(0, 60);
+  if (!clean || stPlaylists.length >= ST_PLAYLISTS_MAX) return null;
+  const list = { id: `pl${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`, name: clean, createdAt: Date.now(), items: [] };
+  stPlaylists.push(list);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return list;
+}
+function stPlaylistRemove(id) {
+  const i = stPlaylists.findIndex((p) => p.id === id);
+  if (i < 0) return false;
+  stPlaylists.splice(i, 1);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return true;
+}
+function stPlaylistAdd(listId, video) {
+  const list = stPlaylistById(listId);
+  const item = stNormPlaylistItem(video);
+  if (!list || !item) return null;
+  if (list.items.some((v) => v.videoId === item.videoId)) return 'exists';
+  if (list.items.length >= ST_PLAYLIST_ITEMS_MAX) return 'full';
+  list.items.push(item);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return 'added';
+}
+function stPlaylistRemoveItem(listId, videoId) {
+  const list = stPlaylistById(listId);
+  if (!list) return false;
+  const i = list.items.findIndex((v) => v.videoId === videoId);
+  if (i < 0) return false;
+  list.items.splice(i, 1);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return true;
+}
+// "Sıraya ekle": kuyruğun oturum sözleşmesini bozmadan eksik videoları sona ekler.
+function stPlaylistEnqueue(listId) {
+  const list = stPlaylistById(listId);
+  if (!list || !list.items.length) return 0;
+  let added = 0;
+  for (const it of list.items) {
+    if (stQueue.length >= ST_QUEUE_MAX) break;
+    if (!stQueue.some((v) => v.videoId === it.videoId)) { stQueue.push({ ...it }); added++; }
+  }
+  saveStQueue();
+  updatePlaylistButtons();
+  return added;
+}
+// "Oynat": listeyi kuyruğa yükleyip baştan başlatır — kuyruk değiştirilebilir
+// oturum verisi olduğu için mevcut sıranın üzerine yazmak bilinçli sözleşme.
+function stPlaylistPlay(listId) {
+  const list = stPlaylistById(listId);
+  if (!list || !list.items.length) return false;
+  stQueue = list.items.slice(0, ST_QUEUE_MAX).map((v) => ({ ...v }));
+  saveStQueue();
+  updatePlaylistButtons();
+  return stQueuePlayNext();
+}
+function renderStPlaylistPanel() {
+  const box = $('stPlaylistList');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!stPlaylists.length) {
+    const empty = document.createElement('div');
+    empty.className = 'st-hidden-empty';
+    empty.textContent = window.UiLocale?.t('Henüz çalma listesi yok.') || 'Henüz çalma listesi yok.';
+    box.appendChild(empty);
+    return;
+  }
+  for (const list of stPlaylists) {
+    const row = document.createElement('div');
+    row.className = 'st-hidden-row';
+    const name = document.createElement('span');
+    name.className = 'st-hidden-name';
+    name.textContent = `${list.name} (${list.items.length})`;
+    name.title = list.name;
+    row.appendChild(name);
+    const wrap = document.createElement('span');
+    wrap.className = 'st-pl-actions';
+    const mkBtn = (label, attr) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'st-mini-btn';
+      b.textContent = label;
+      b.setAttribute(attr, list.id);
+      wrap.appendChild(b);
+    };
+    mkBtn(window.UiLocale?.t('Oynat') || 'Oynat', 'data-pl-play');
+    mkBtn(window.UiLocale?.t('Sıraya ekle') || 'Sıraya ekle', 'data-pl-enqueue');
+    mkBtn('✕', 'data-pl-remove');
+    row.appendChild(wrap);
+    box.appendChild(row);
+  }
+}
+
+// ----- En çok oynatılan + radyo zinciri + karıştırma (A38) -----
+const ST_PLAY_COUNTS_KEY = 'stPlayCounts';
+const ST_PLAY_COUNTS_MAX = 120;
+let stPlayCounts = loadStPlayCounts();
+function loadStPlayCounts() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_PLAY_COUNTS_KEY) || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [id, e] of Object.entries(raw)) {
+      if (!id || !e || typeof e !== 'object') continue;
+      const item = stNormPlaylistItem({ videoId: id, ...e });
+      if (!item) continue;
+      out[id] = { ...item, count: Math.min(Number(e.count) || 0, 9999), lastAt: Number(e.lastAt) || 0 };
+    }
+    return out;
+  } catch (_) { return {}; }
+}
+function saveStPlayCounts() {
+  try { localStorage.setItem(ST_PLAY_COUNTS_KEY, JSON.stringify(stPlayCounts)); } catch (_) {}
+}
+// Akışın gerçekten açıldığı yerde çağrılır (probe başarısı → streamBtn akışı).
+function stBumpPlayCount(info) {
+  const item = stNormPlaylistItem({ videoId: info && (info.videoId || info.id), ...(info || {}) });
+  if (!item) return;
+  const e = stPlayCounts[item.videoId] || { ...item, count: 0 };
+  stPlayCounts[item.videoId] = { ...item, count: (Number(e.count) || 0) + 1, lastAt: Date.now() };
+  // En düşük sayılı kayıtları buda
+  const keys = Object.keys(stPlayCounts);
+  if (keys.length > ST_PLAY_COUNTS_MAX) {
+    keys.sort((a, b) => (stPlayCounts[a].count - stPlayCounts[b].count) || (stPlayCounts[a].lastAt - stPlayCounts[b].lastAt));
+    for (const k of keys.slice(0, keys.length - ST_PLAY_COUNTS_MAX)) delete stPlayCounts[k];
+  }
+  saveStPlayCounts();
+}
+function stMostPlayedVideos() {
+  return Object.values(stPlayCounts)
+    .sort((a, b) => (b.count - a.count) || (b.lastAt - a.lastAt))
+    .map((e) => ({
+      videoId: e.videoId, title: e.title, author: e.author, authorId: e.authorId,
+      lengthSeconds: e.lengthSeconds,
+      videoThumbnails: e.thumb ? [{ url: e.thumb, quality: 'medium' }] : [],
+      _playCount: e.count,
+    }));
+}
+// Radyo zinciri: bitince probe'dan gelen önerilerin ilk gizlenmemişine geçer.
+// Varsayılan kapalı (stAutoRelated onayı); sıra doluyken ya da yerel liste
+// devralacakken devreye girmez.
+function stAutoRelatedNext() {
+  if (!$('stAutoRelated')?.checked) return false;
+  if (stQueue.length) return false;
+  if (player.autoNext && player.playlistIndex >= 0) return false;
+  if (!String(player.mediaKey || '').startsWith('youtube:')) return false;
+  const recs = (player.ytInfo && Array.isArray(player.ytInfo.recommended)) ? player.ytInfo.recommended : [];
+  const next = recs.find((v) => v && v.videoId && !stVideoHidden(v));
+  if (!next) return false;
+  const url = `https://www.youtube.com/watch?v=${encodeURIComponent(next.videoId)}`;
+  const box = $('playerYtUrl');
+  if (box) box.value = url;
+  player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: ++player.openIntent };
+  queuePlayerProbeFromCard();
+  osd(`${window.UiLocale?.t('İlgili videoya geçiliyor') || 'İlgili videoya geçiliyor'}: ${next.title || ''}`, 4000);
+  return true;
+}
+function stQueueShuffle() {
+  if (stQueue.length < 2) return false;
+  for (let i = stQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [stQueue[i], stQueue[j]] = [stQueue[j], stQueue[i]];
+  }
+  saveStQueue();
+  updatePlaylistButtons();
+  osd(window.UiLocale?.t('Sıra karıştırıldı.') || 'Sıra karıştırıldı.', 3000);
+  return true;
+}
+// "Listeye ekle…" seçici menüsü — kart menüsüyle aynı kabuk, farklı içerik.
+function openStPlaylistPicker(video, x, y) {
+  closeStCardMenu();
+  const menu = document.createElement('div');
+  menu.className = 'st-card-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', window.UiLocale?.t('Listeye ekle…') || 'Listeye ekle…');
+  const items = [];
+  for (const list of stPlaylists) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-card-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = `${list.name} (${list.items.length})`;
+    btn.addEventListener('click', () => {
+      closeStCardMenu();
+      const res = stPlaylistAdd(list.id, video);
+      const msg = res === 'added' ? `“${list.name}” ${window.UiLocale?.t('listesine eklendi.') || 'listesine eklendi.'}`
+        : res === 'exists' ? (window.UiLocale?.t('Bu video zaten listede.') || 'Bu video zaten listede.')
+        : (window.UiLocale?.t('Liste dolu.') || 'Liste dolu.');
+      setBrowserSignal(msg, res === 'added', { priority: 50, holdMs: 3000 });
+    });
+    menu.appendChild(btn);
+    items.push(btn);
+  }
+  const row = document.createElement('div');
+  row.className = 'st-pl-new';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 60;
+  input.placeholder = window.UiLocale?.t('Yeni liste adı') || 'Yeni liste adı';
+  const create = document.createElement('button');
+  create.type = 'button';
+  create.className = 'st-mini-btn';
+  create.textContent = window.UiLocale?.t('Oluştur') || 'Oluştur';
+  const doCreate = () => {
+    const list = stPlaylistCreate(input.value);
+    if (!list) {
+      setBrowserSignal(window.UiLocale?.t('Liste adı boş olamaz veya liste sınırı dolu.') || 'Liste adı boş olamaz veya liste sınırı dolu.', false, { priority: 50, holdMs: 3000 });
+      return;
+    }
+    stPlaylistAdd(list.id, video);
+    closeStCardMenu();
+    setBrowserSignal(`“${list.name}” ${window.UiLocale?.t('listesine eklendi.') || 'listesine eklendi.'}`, true, { priority: 50, holdMs: 3000 });
+  };
+  create.addEventListener('click', doCreate);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doCreate(); }
+    e.stopPropagation();
+  });
+  row.appendChild(input);
+  row.appendChild(create);
+  menu.appendChild(row);
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeStCardMenu(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      if (i >= 0) {
+        const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+        items[next]?.focus();
+      }
+    }
+  });
+  document.body.appendChild(menu);
+  stCardMenuEl = menu;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
+  setTimeout(() => document.addEventListener('mousedown', stCardMenuOutside, true), 0);
+  (items[0] || input)?.focus();
+}
+
 // ----- Yerel içerik gizleme (A03) ve sonuç türü filtreleri (A08) -----
 // YouTube'a "ilgilenmiyorum" bildirimi GÖNDERMEZ — yalnız bu cihazdaki
 // SmartTube listelerini filtreler. Geri alma görünüm panelindeki "Gizlenenler"
@@ -23574,6 +23866,7 @@ function openStCardMenu(video, x, y, onPlay) {
       const ok = await window.api.copyText?.(url).catch(() => null);
       setBrowserSignal(ok === true ? 'Video bağlantısı panoya kopyalandı.' : 'Bağlantı kopyalanamadı.', ok === true, { priority: 50, holdMs: 3500 });
     });
+    addItem(window.UiLocale?.t('Listeye ekle…') || 'Listeye ekle…', () => openStPlaylistPicker(video, x, y));
     addItem(window.UiLocale?.t('Videoyu gizle') || 'Videoyu gizle', () => stHideVideo(video));
   }
   if (video.authorId) {
@@ -24383,7 +24676,45 @@ function initSmartTube() {
     const videoBtn = e.target.closest('[data-st-unhide-video]');
     if (videoBtn) stUnhideVideo(videoBtn.dataset.stUnhideVideo);
   });
-  if (stDisplayToggle) stDisplayToggle.addEventListener('click', renderStHiddenList);
+  if (stDisplayToggle) stDisplayToggle.addEventListener('click', () => { renderStHiddenList(); renderStPlaylistPanel(); });
+  // A38: sırayı karıştır + A22: çalma listesi paneli
+  $('stShuffleQueue')?.addEventListener('click', () => {
+    if (!stQueueShuffle()) {
+      setBrowserSignal(window.UiLocale?.t('Karıştırılacak sıra yok.') || 'Karıştırılacak sıra yok.', false, { priority: 50, holdMs: 2500 });
+    }
+  });
+  const plCreate = () => {
+    const input = $('stPlaylistName');
+    const list = stPlaylistCreate(input?.value || '');
+    if (list && input) input.value = '';
+    else if (!list) setBrowserSignal(window.UiLocale?.t('Liste adı boş olamaz veya liste sınırı dolu.') || 'Liste adı boş olamaz veya liste sınırı dolu.', false, { priority: 50, holdMs: 3000 });
+  };
+  $('stPlaylistCreate')?.addEventListener('click', plCreate);
+  $('stPlaylistName')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); plCreate(); }
+    e.stopPropagation();
+  });
+  $('stPlaylistList')?.addEventListener('click', (e) => {
+    const playBtn = e.target.closest('[data-pl-play]');
+    if (playBtn) {
+      if (!stPlaylistPlay(playBtn.dataset.plPlay)) {
+        setBrowserSignal(window.UiLocale?.t('Liste boş.') || 'Liste boş.', false, { priority: 50, holdMs: 2500 });
+      }
+      return;
+    }
+    const enqBtn = e.target.closest('[data-pl-enqueue]');
+    if (enqBtn) {
+      const n = stPlaylistEnqueue(enqBtn.dataset.plEnqueue);
+      setBrowserSignal(`${n} ${window.UiLocale?.t('video sıraya eklendi.') || 'video sıraya eklendi.'}`, true, { priority: 50, holdMs: 3000 });
+      return;
+    }
+    const delBtn = e.target.closest('[data-pl-remove]');
+    if (delBtn) {
+      stPlaylistRemove(delBtn.dataset.plRemove);
+      setBrowserSignal(window.UiLocale?.t('Liste silindi.') || 'Liste silindi.', true, { priority: 50, holdMs: 2500 });
+    }
+  });
+  renderStPlaylistPanel();
   syncStCardDisplay();
   const close = $('stCloseBrowser');
   if (close) close.addEventListener('click', () => {
@@ -24897,6 +25228,7 @@ if ($('playerStream')) {
         player.pendingLibrarySeek.generation = currentGeneration();
       }
       stQueueDequeueIfPlaying(ytKey);
+      stBumpPlayCount(info);
       return;
     }
     if (info.stream && info.stream.url) {
@@ -24915,6 +25247,7 @@ if ($('playerStream')) {
         player.pendingLibrarySeek.generation = currentGeneration();
       }
       stQueueDequeueIfPlaying(ytKey);
+      stBumpPlayCount(info);
       logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
     }
   });

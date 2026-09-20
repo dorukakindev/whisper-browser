@@ -6996,6 +6996,28 @@ body.modal-open { overflow: hidden; }
 }
 .st-card-menu-item:hover,
 .st-card-menu-item:focus-visible { background: var(--accent-soft); }
+.st-mini-btn {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 11px;
+  cursor: pointer;
+}
+.st-mini-btn:hover { background: var(--accent-soft); }
+.st-pl-new { display: flex; gap: 6px; margin-top: 6px; }
+.st-pl-new input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+}
+.st-pl-actions { display: inline-flex; gap: 4px; flex: none; }
 .st-brand {
   display: flex;
   align-items: center;

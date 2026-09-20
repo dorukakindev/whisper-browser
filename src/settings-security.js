@@ -49,7 +49,7 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'browserYoutubeAppearance', 'browserYoutubeHideShorts',
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
   'browserAutoSkipAds', 'browserPlayerResponseAdPrune',
-  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending',
+  'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
 ]);
 
 const UI_ENUMS = Object.freeze({
