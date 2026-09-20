@@ -320,6 +320,20 @@ function makeFakeEl(tag) {
     addEventListener(t, f) { (el.listeners[t] = el.listeners[t] || []).push(f); },
     setAttribute(k, v) { el.attrs[k] = String(v); },
   };
+  el.classList = {
+    _set: () => new Set(el.className.split(' ').filter(Boolean)),
+    _sync(s) { el.className = [...s].join(' '); },
+    add(c) { const s = el.classList._set(); s.add(c); el.classList._sync(s); },
+    remove(c) { const s = el.classList._set(); s.delete(c); el.classList._sync(s); },
+    toggle(c, on) {
+      const s = el.classList._set();
+      const want = on === undefined ? !s.has(c) : !!on;
+      if (want) s.add(c); else s.delete(c);
+      el.classList._sync(s);
+      return want;
+    },
+    contains(c) { return el.classList._set().has(c); },
+  };
   return el;
 }
 
@@ -345,10 +359,44 @@ function findByClass(el, cls) {
   return hit;
 }
 
-function buildCardHarness(watchItem) {
-  const calls = { channel: [], probe: 0, hide: 0 };
-  const player = { openIntent: 'play', pendingAutoOpen: null, pendingLibrarySeek: null };
+function fakeStorage() {
+  const m = new Map();
+  return {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => m.set(k, String(v)),
+    removeItem: (k) => m.delete(k),
+    _map: m,
+  };
+}
+
+// Gerçek kuyruk fonksiyonlarını kaynaktan çıkarıp sahte localStorage + DOM ile
+// kurar — kart düğmesi de aynı bağlamı kullanır.
+function buildQueueHarness() {
+  const calls = { probe: 0 };
+  const store = fakeStorage();
+  const player = { openIntent: 7, pendingAutoOpen: null, mediaKey: '' };
   const ctx = vm.createContext({
+    localStorage: store,
+    absThumb: (u) => u,
+    mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    queuePlayerProbeFromCard: () => { calls.probe++; },
+    updatePlaylistButtons: () => {},
+    document: { createElement: (t) => makeFakeEl(t) },
+    window: { UiLocale: { t: (s) => s } },
+    player,
+    $: () => null,
+    Date,
+  });
+  const src = (RENDERER.match(/const ST_QUEUE_KEY[\s\S]*?function stQueueRailVideos[\s\S]*?\n\}/) || [])[0];
+  assert.ok(src, 'kuyruk yardımcı bloğu yok');
+  vm.runInContext(src, ctx);
+  return { ctx, store, player, calls };
+}
+
+function buildCardHarness(watchItem, extraCtx = {}) {
+  const calls = { channel: [], probe: 0, hide: 0, queueToggles: [] };
+  const player = { openIntent: 'play', pendingAutoOpen: null, pendingLibrarySeek: null };
+  const ctx = vm.createContext(Object.assign({
     document: { createElement: (t) => makeFakeEl(t) },
     window: { UiLocale: { t: (s) => s } },
     absThumb: (u) => u,
@@ -359,9 +407,11 @@ function buildCardHarness(watchItem) {
     mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
     watchItemByKey: () => watchItem || null,
     watchProgress: (it) => (Number(it.duration) ? (Number(it.position) / Number(it.duration)) * 100 : 0),
+    stQueueHas: () => false,
+    stQueueToggle: () => false,
     player,
     $: () => null,
-  });
+  }, extraCtx));
   const src = (RENDERER.match(/function buildSmartTubeCard\(video\) \{[\s\S]*?return card;\s*\}/) || [])[0];
   assert.ok(src, 'buildSmartTubeCard yok');
   return { calls, player, build: vm.runInContext(src + '\nbuildSmartTubeCard;', ctx) };
@@ -460,6 +510,76 @@ test('renderer: devam rayı kimliği eşler, sıralar, tekilleştirir (davranı�
   // Instance yoksa küçük resim basılmaz
   ctx.lastInvidiousInstance = '';
   assert.strictEqual(fn()[0].videoThumbnails.length, 0, 'instancesız doğrudan thumb isteği');
+});
+
+test('renderer: kuyruk ekle/çıkar/kalıcılık/güvenli-thumb (davranış)', () => {
+  const { ctx, store } = buildQueueHarness();
+  const v = (id) => ({ videoId: id, title: 'T' + id, videoThumbnails: [{ url: 'https://i/t.jpg', quality: 'medium' }] });
+  assert.strictEqual(ctx.stQueueToggle(v('a')), true);
+  assert.strictEqual(ctx.stQueueToggle(v('b')), true);
+  assert.ok(ctx.stQueueHas('a') && ctx.stQueueHas('b'));
+  assert.strictEqual(JSON.parse(store.getItem('stPlayQueue')).length, 2, 'kalıcı depo yazılmadı');
+  assert.strictEqual(ctx.stQueueToggle(v('a')), false, 'ikinci toggle çıkarmadı');
+  assert.ok(!ctx.stQueueHas('a') && ctx.stQueueHas('b'));
+  // Bozuk/boş kayıt ve güvensiz thumbnail şeması temizlenir
+  store.setItem('stPlayQueue', JSON.stringify([
+    { videoId: 'x', thumb: 'javascript:alert(1)', title: 't' },
+    { videoId: '' }, null,
+  ]));
+  const loaded = ctx.loadStQueue();
+  assert.strictEqual(loaded.length, 1, 'geçersiz kayıtlar elenmedi');
+  assert.strictEqual(loaded[0].thumb, '', 'güvensiz thumbnail şeması kalıcıda tutuldu');
+  assert.strictEqual(loaded[0].videoId, 'x');
+});
+
+test('renderer: kuyruk playNext + dequeue yalnız açılan kimlikte (davranış)', () => {
+  const { ctx, player, calls } = buildQueueHarness();
+  assert.strictEqual(ctx.stQueuePlayNext(), false, 'boş kuyruk oynatmamalı');
+  ctx.stQueueToggle({ videoId: 'n1', videoThumbnails: [] });
+  ctx.stQueueToggle({ videoId: 'n2', videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueuePlayNext(), true);
+  assert.strictEqual(calls.probe, 1, 'probe tetiklenmedi');
+  assert.strictEqual(player.pendingAutoOpen.key, 'youtube:https://www.youtube.com/watch?v=n1');
+  assert.strictEqual(player.pendingAutoOpen.intent, 8);
+  // Probe başarısızsa sıra korunur; yalnızca gerçekten açılan baş kayıt düşer
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:other'), false);
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), false, 'baştaki değilse düşmemeli');
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n1'), true);
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n1'), false, 'tekrar düşmez');
+  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'n2');
+});
+
+test('renderer: kart kuyruk düğmesi oynatmadan ekle/çıkar (davranış)', () => {
+  const state = { inQ: false, count: 0 };
+  const h = buildCardHarness(null, {
+    stQueueHas: () => state.inQ,
+    stQueueToggle: () => { state.count++; state.inQ = !state.inQ; return state.inQ; },
+  });
+  const card = h.build(CARD_VIDEO);
+  const qBtn = findByClass(card, 'st-card-queue')[0];
+  assert.ok(qBtn, 'kuyruk düğmesi yok');
+  assert.strictEqual(qBtn.textContent, '+');
+  dispatchBubbling(qBtn, 'click');
+  assert.strictEqual(state.inQ, true);
+  assert.strictEqual(qBtn.textContent, '✓');
+  assert.ok(qBtn.classList.contains('is-queued'));
+  assert.strictEqual(h.calls.probe, 0, 'kuyruk düğmesi kartı oynattı');
+  const ev = dispatchBubbling(qBtn, 'keydown', { key: 'Enter' });
+  assert.strictEqual(state.inQ, false);
+  assert.strictEqual(ev._stopped, true);
+  assert.strictEqual(ev._defaultPrevented, true, 'Enter native click engellenmeli — çift toggle olur');
+});
+
+test('renderer: ended ve Next düğmesi kuyruk akışına bağlı (kaynak sözleşmesi)', () => {
+  const ended = (RENDERER.match(/video\.addEventListener\('ended'[\s\S]*?\}\);/) || [])[0];
+  assert.ok(ended && /stQueueAutoNext\(\)/.test(ended), 'ended → stQueueAutoNext yok');
+  assert.ok(/function stQueueAutoNext[\s\S]*?stQueuePlayNext\(\)/.test(RENDERER), 'stQueueAutoNext sırayı oynatmıyor');
+  assert.ok(/autoNext/.test(ended), 'autoNext saygısı düştü');
+  assert.match(RENDERER, /playerNextMedia'\)\.addEventListener[\s\S]*?stQueuePlayNext\(\)/);
+  // Dequeue yalnız akış açılış noktalarında — probe değil
+  const stream = (RENDERER.match(/playerStream'\)\.addEventListener\('click'[\s\S]*?\}\);/) || [])[0];
+  assert.ok(stream && (stream.match(/stQueueDequeueIfPlaying\(ytKey\)/g) || []).length === 2,
+    'hls+progressive her iki açılış kolunda dequeue yok');
 });
 
 test('renderer: arama sayfalama dedupe + yarış korumalı', () => {

@@ -7052,6 +7052,28 @@ body.modal-open { overflow: hidden; }
   bottom: 0;
   border-radius: 0;
 }
+.st-card-queue {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.st-card:hover .st-card-queue,
+.st-card:focus-within .st-card-queue,
+.st-card-queue.is-queued { opacity: 1; }
+.st-card-queue.is-queued { background: var(--accent); color: var(--accent-contrast); }
 .st-card-body {
   padding: 11px 2px 12px;
   display: flex;

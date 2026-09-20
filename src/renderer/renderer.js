@@ -14704,7 +14704,10 @@ function updatePlaylistButtons() {
   const prev = $('playerPrevMedia');
   const next = $('playerNextMedia');
   if (prev) prev.disabled = player.playlistIndex <= 0;
-  if (next) next.disabled = player.playlistIndex < 0 || player.playlistIndex >= player.playlist.length - 1;
+  // YouTube'da "sonraki" kullanıcı sırasının başıdır — liste boşken kapalı.
+  const ytQueued = String(player.mediaKey || '').startsWith('youtube:') && stQueue.length > 0;
+  if (next) next.disabled = ytQueued ? false
+    : (player.playlistIndex < 0 || player.playlistIndex >= player.playlist.length - 1);
 }
 
 async function openLocalMedia(filePath, seconds, explicitFiles) {
@@ -20845,7 +20848,7 @@ if ($('playerVideo')) {
     stopPlayerVideoFrameLoop();
     renderCue();
     await flushWatchState(true, true);
-    if (player.autoNext && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    if (player.autoNext && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
   });
   video.addEventListener('error', () => {
     const code = video.error?.code;
@@ -21307,7 +21310,13 @@ if ($('playerPickFolder')) {
 }
 
 if ($('playerPrevMedia')) $('playerPrevMedia').addEventListener('click', () => playPlaylistDelta(-1));
-if ($('playerNextMedia')) $('playerNextMedia').addEventListener('click', () => playPlaylistDelta(1));
+if ($('playerNextMedia')) $('playerNextMedia').addEventListener('click', () => {
+  if (String(player.mediaKey || '').startsWith('youtube:') && stQueue.length) {
+    stQueuePlayNext();
+    return;
+  }
+  playPlaylistDelta(1);
+});
 if ($('playerAutoNext')) {
   player.autoNext = $('playerAutoNext').checked;
   $('playerAutoNext').addEventListener('change', (e) => {
@@ -22740,24 +22749,32 @@ async function renderSmartTubeSection(section, opts = {}) {
       if (stale()) return;
     }
     const continueVideos = stContinueWatchingVideos();
-    const continueIds = new Set(continueVideos.map((v) => v.videoId));
+    const queueVideos = stQueueRailVideos();
+    const railIds = new Set([...continueVideos, ...queueVideos].map((v) => v.videoId));
     const trending = feedData._trending || [];
     if (stale()) return;
     const seen = new Set();
     const dedupe = (list) => list.filter((v) => {
       const id = v.videoId || v.title;
-      if (!id || seen.has(id) || continueIds.has(id)) return false;
+      if (!id || seen.has(id) || railIds.has(id)) return false;
       seen.add(id);
       return true;
     });
     renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
-    if (continueVideos.length) {
+    if (queueVideos.length || continueVideos.length) {
       const rail = document.createDocumentFragment();
-      const sep = document.createElement('div');
-      sep.className = 'st-section-title st-grid-row';
-      sep.textContent = window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et';
-      rail.appendChild(sep);
-      continueVideos.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
+      // Kullanıcı sırası en üstte, pasif devam kayıtları altında
+      for (const [title, list] of [
+        [window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası', queueVideos],
+        [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
+      ]) {
+        if (!list.length) continue;
+        const sep = document.createElement('div');
+        sep.className = 'st-section-title st-grid-row';
+        sep.textContent = title;
+        rail.appendChild(sep);
+        list.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
+      }
       grid.prepend(rail);
     }
     const trendList = dedupe(trending || []);
@@ -22936,6 +22953,101 @@ function stContinueWatchingVideos() {
   return out;
 }
 
+// ----- Kullanıcı yönetimli oynatma sırası (SmartTube "Sıraya ekle") -----
+// localStorage'da kalıcı; sıradaki video başarıyla AÇILINCA sıradan düşer —
+// başarısız probe sırayı korur (kullanıcı tekrar deneyebilsin diye).
+const ST_QUEUE_KEY = 'stPlayQueue';
+const ST_QUEUE_MAX = 50;
+let stQueue = loadStQueue();
+function loadStQueue() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ST_QUEUE_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((v) => v && typeof v.videoId === 'string' && v.videoId)
+      .slice(0, ST_QUEUE_MAX)
+      .map((v) => ({
+        videoId: v.videoId,
+        title: String(v.title || ''),
+        author: String(v.author || ''),
+        authorId: String(v.authorId || ''),
+        lengthSeconds: Number(v.lengthSeconds) || 0,
+        thumb: /^https?:\/\//i.test(String(v.thumb || '')) ? String(v.thumb) : '',
+        addedAt: Number(v.addedAt) || 0,
+      }));
+  } catch (_) { return []; }
+}
+function saveStQueue() {
+  try { localStorage.setItem(ST_QUEUE_KEY, JSON.stringify(stQueue.slice(0, ST_QUEUE_MAX))); } catch (_) {}
+}
+function stQueueHas(videoId) { return stQueue.some((v) => v.videoId === videoId); }
+function stQueueToggle(video) {
+  const id = String((video && video.videoId) || '');
+  if (!id) return false;
+  const i = stQueue.findIndex((v) => v.videoId === id);
+  if (i >= 0) {
+    stQueue.splice(i, 1);
+    saveStQueue();
+    return false;
+  }
+  const thumbs = video.videoThumbnails || [];
+  const tn = thumbs.find((t) => (t.quality || '').toLowerCase() === 'medium')
+           || thumbs.find((t) => (t.quality || '').toLowerCase() === 'hqdefault')
+           || thumbs[0] || null;
+  stQueue.push({
+    videoId: id,
+    title: String(video.title || ''),
+    author: String(video.author || ''),
+    authorId: String(video.authorId || ''),
+    lengthSeconds: Number(video.lengthSeconds) || 0,
+    thumb: tn ? absThumb(tn.url) : '',
+    addedAt: Date.now(),
+  });
+  if (stQueue.length > ST_QUEUE_MAX) stQueue.shift();
+  saveStQueue();
+  return true;
+}
+// Akış gerçekten açıldıysa sıranın başındaki kaydı düşür; kart/queue yollarının
+// hepsi aynı youtube:<id> anahtarını ürettiği için kimlik eşleşmesi güvenli.
+function stQueueDequeueIfPlaying(key) {
+  const id = String(key || '').startsWith('youtube:') ? key.slice(8) : '';
+  if (id && stQueue.length && stQueue[0].videoId === id) {
+    stQueue.shift();
+    saveStQueue();
+    updatePlaylistButtons();
+    return true;
+  }
+  return false;
+}
+// Kuyruğun başındaki videoyu kart açılışıyla AYNI probe/auto-open akışından
+// başlatır; eleman burada düşmez — probe başarısız olursa sıra korunur.
+// Otomatik-sonraki kapısı: yalnız YouTube medyasında ve dolu sırada devralır
+function stQueueAutoNext() {
+  return stQueue.length && String(player.mediaKey || '').startsWith('youtube:') ? stQueuePlayNext() : false;
+}
+
+function stQueuePlayNext() {
+  const item = stQueue[0];
+  if (!item) return false;
+  const url = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId)}`;
+  const box = $('playerYtUrl');
+  if (box) box.value = url;
+  const intent = ++player.openIntent;
+  player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent };
+  queuePlayerProbeFromCard();
+  return true;
+}
+function stQueueRailVideos() {
+  return stQueue.map((v) => ({
+    videoId: v.videoId,
+    title: v.title,
+    author: v.author,
+    authorId: v.authorId,
+    lengthSeconds: v.lengthSeconds,
+    videoThumbnails: v.thumb ? [{ url: v.thumb, quality: 'medium' }] : [],
+  }));
+}
+
 // ----- SmartTube kart (büyük dikey) -----
 // Kart/up-next tıklamasından probe tetikleme: sürüyor olan probe bitene kadar
 // bekle (disabled düğmeye click() sessizce no-op olur ve istek kaybolurdu).
@@ -23006,6 +23118,35 @@ function buildSmartTubeCard(video) {
     fill.style.width = `${Math.round(watchPct)}%`;
     bar.appendChild(fill);
     thumb.appendChild(bar);
+  }
+  // Sıraya ekle/çıkar düğmesi — kartı oynatmadan kuyruğu yönetir
+  if (video.videoId) {
+    const qBtn = document.createElement('button');
+    qBtn.type = 'button';
+    qBtn.className = 'st-card-queue';
+    const syncQueueBtn = () => {
+      const q = stQueueHas(video.videoId);
+      qBtn.classList.toggle('is-queued', q);
+      qBtn.textContent = q ? '✓' : '+';
+      const lbl = (window.UiLocale?.t(q ? 'Sıradan çıkar' : 'Sıraya ekle'))
+        || (q ? 'Sıradan çıkar' : 'Sıraya ekle');
+      qBtn.title = lbl;
+      qBtn.setAttribute('aria-label', lbl);
+    };
+    const toggleQueue = (e) => {
+      e.stopPropagation();
+      // Enter keydown'da preventDefault, <button>'ın native click'ini engeller —
+      // yoksa toggle iki kez çalışır.
+      e.preventDefault();
+      stQueueToggle(video);
+      syncQueueBtn();
+    };
+    syncQueueBtn();
+    qBtn.addEventListener('click', toggleQueue);
+    qBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') toggleQueue(e);
+    });
+    thumb.appendChild(qBtn);
   }
   card.appendChild(thumb);
 
@@ -24129,6 +24270,7 @@ if ($('playerStream')) {
       if (player.pendingLibrarySeek && player.pendingLibrarySeek.key === player.mediaKey) {
         player.pendingLibrarySeek.generation = currentGeneration();
       }
+      stQueueDequeueIfPlaying(ytKey);
       return;
     }
     if (info.stream && info.stream.url) {
@@ -24146,6 +24288,7 @@ if ($('playerStream')) {
       if (player.pendingLibrarySeek && player.pendingLibrarySeek.key === player.mediaKey) {
         player.pendingLibrarySeek.generation = currentGeneration();
       }
+      stQueueDequeueIfPlaying(ytKey);
       logLine(`Yayın açıldı (${info.stream.height}p) — bağlantı geçici, kopabilir.`, 'info');
     }
   });
