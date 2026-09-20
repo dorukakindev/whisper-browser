@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 00:40 — R85 uygulama tesliminin salt-okunur doğrulaması; paket genel olarak yararlı fakat tamamlanmamış: video .wbp mutlak yol sızıntısı, pruneTracks referans sırası, .bak fault güvenliği, diagnostic backoff log seli ve transcript intent false-positive; npm test + bridge geçti, Electron smoke kararsız; BROWSER_BUG_REPORT_86.md](docs/devir/2026-09-20-0040.md).
+Güncel çalışma: [2026-09-20 00:08 — R86-01–05 düzeltmeleri + R85 kuyruk doğrulaması: tüm satırlar yeniden doğrulandı; 30+ gerçek düzeltme/iyileştirme (P79-04 kalıcı semantic işçi 6sn→12ms, PF1 fingerprint 45→8.4ms, S2/N1/N2/N4 yarışları, mojibake paritesi), belgeli kararlar ve FP notları; npm test temiz (2 ortam sınırı), 4×20/20 smoke; BROWSER_BUG_REPORT_87.md](docs/devir/2026-09-20-0008.md).
+
+Önceki çalışma: [2026-09-20 00:40 — R85 uygulama tesliminin salt-okunur doğrulaması; paket genel olarak yararlı fakat tamamlanmamış: video .wbp mutlak yol sızıntısı, pruneTracks referans sırası, .bak fault güvenliği, diagnostic backoff log seli ve transcript intent false-positive; npm test + bridge geçti, Electron smoke kararsız; BROWSER_BUG_REPORT_86.md](docs/devir/2026-09-20-0040.md).
 
 Önceki çalışma: [2026-09-20 00:10 — R85+resim raporları uygulama turu: sır sızıntısı (env şifre, endpoint sorgu-sırrı, userinfo), arama doğruluğu (TR İ/I, CJK), izin/mediaTypes, yaşam döngüsü, hibrit .bak gizlilik modeli (mirrorBackup), {{ROOT}} taşınabilir paketler, telemetry null/0 ayrımı, locale bağlı biçimler; 14 test dosyası onarıldı; npm test TAM GEÇTİ, 18/20 smoke (2 ortam Viz çökmesi)](docs/devir/2026-09-20-0010.md).
 
