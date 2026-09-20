@@ -7018,6 +7018,21 @@ body.modal-open { overflow: hidden; }
   font-size: 12px;
 }
 .st-pl-actions { display: inline-flex; gap: 4px; flex: none; }
+.browser-tab-preview {
+  position: fixed;
+  z-index: 9998;
+  max-width: 320px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
+  pointer-events: none;
+}
+.browser-tab-preview-title { font-size: 12px; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-tab-preview-url { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
+.browser-tab-preview-chips { margin-top: 4px; font-size: 11px; color: var(--accent); }
+.browser-tab-menu { min-width: 210px; }
 .st-brand {
   display: flex;
   align-items: center;

@@ -196,6 +196,7 @@ contextBridge.exposeInMainWorld('api', {
   removeBrowserReadingList: (id) => ipcRenderer.invoke('browser:readingList:remove', { id }),
   refreshBrowserReadingList: (tabId, id) => ipcRenderer.invoke('browser:readingList:refresh', { tabId, id }),
   openBrowserReadingList: (tabId, id) => ipcRenderer.invoke('browser:readingList:open', { tabId, id }),
+  browserElementRules: (payload) => ipcRenderer.invoke('browser:elementRules', payload),
   setBrowserPageIndexEnabled: (enabled) => ipcRenderer.invoke('browser:pageIndex:setEnabled', { enabled: enabled === true }),
   clearBrowserPageIndex: () => ipcRenderer.invoke('browser:pageIndex:clear'),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),

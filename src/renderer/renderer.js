@@ -2447,6 +2447,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserAutoSkipAds',
   'browserPlayerResponseAdPrune',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
+  'browserAutoPip',
 ];
 
 function collectUiSettings() {
@@ -6117,6 +6118,147 @@ function renderBrowserTabs() {
   updateBrowserPinMenu();
 }
 
+// ----- Sekme bağlam menüsü + hover önizleme (B06) -----
+let browserTabMenuEl = null;
+let browserTabPreviewEl = null;
+let browserTabPreviewTimer = 0;
+
+function closeBrowserTabMenu() {
+  browserTabMenuEl?.remove();
+  browserTabMenuEl = null;
+  document.removeEventListener('mousedown', browserTabMenuOutside, true);
+}
+function browserTabMenuOutside(e) {
+  if (browserTabMenuEl && !browserTabMenuEl.contains(e.target)) closeBrowserTabMenu();
+}
+
+async function duplicateBrowserTab(tab) {
+  if (!tab) return;
+  const created = await createBrowserTab();
+  const url = String(tab.url || '');
+  if (created && url && /^https?:\/\//i.test(url)) {
+    await window.api.navigateBrowser?.(created.id, url).catch(() => null);
+  }
+}
+
+async function closeOtherBrowserTabs(keepId) {
+  for (const t of player.browserTabs.slice()) {
+    if (t.id !== keepId && !t.pinned) await closeBrowserTab(t.id);
+  }
+}
+async function closeRightBrowserTabs(tabId) {
+  const idx = player.browserTabs.findIndex((t) => t.id === tabId);
+  if (idx < 0) return;
+  for (const t of player.browserTabs.slice(idx + 1)) {
+    if (!t.pinned) await closeBrowserTab(t.id);
+  }
+}
+
+function openBrowserTabMenu(tabId, x, y) {
+  const tab = browserTabState(tabId);
+  if (!tab) return;
+  hideBrowserTabPreview();
+  closeBrowserTabMenu();
+  const menu = document.createElement('div');
+  menu.className = 'st-card-menu browser-tab-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', window.UiLocale?.t('Sekme seçenekleri') || 'Sekme seçenekleri');
+  const items = [];
+  const addItem = (label, action, disabled = false) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-card-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = label;
+    if (disabled) { btn.disabled = true; menu.appendChild(btn); return; }
+    btn.addEventListener('click', () => { closeBrowserTabMenu(); action(); });
+    menu.appendChild(btn);
+    items.push(btn);
+  };
+  if (tabId !== player.browserActiveTabId) {
+    addItem(window.UiLocale?.t('Sekmeye geç') || 'Sekmeye geç', () => activateBrowserTabAndFocus(tabId));
+  }
+  addItem(window.UiLocale?.t('Kopyasını aç') || 'Kopyasını aç', () => duplicateBrowserTab(tab));
+  addItem(tab.pinned
+    ? (window.UiLocale?.t('Sabitlemeyi kaldır') || 'Sabitlemeyi kaldır')
+    : (window.UiLocale?.t('Sabitle') || 'Sabitle'), () => toggleBrowserTabPinned(tabId));
+  if (tab.url) {
+    addItem(window.UiLocale?.t('Bağlantıyı kopyala') || 'Bağlantıyı kopyala', async () => {
+      const ok = await window.api.copyText?.(tab.url).catch(() => null);
+      setBrowserSignal(ok === true ? 'Sekme bağlantısı panoya kopyalandı.' : 'Bağlantı kopyalanamadı.', ok === true, { priority: 50, holdMs: 3000 });
+    });
+  }
+  const closableOthers = player.browserTabs.filter((t) => t.id !== tabId && !t.pinned);
+  addItem(window.UiLocale?.t('Diğer sekmeleri kapat') || 'Diğer sekmeleri kapat', () => closeOtherBrowserTabs(tabId), !closableOthers.length);
+  const rightCount = player.browserTabs.slice(player.browserTabs.findIndex((t) => t.id === tabId) + 1).filter((t) => !t.pinned).length;
+  addItem(window.UiLocale?.t('Sağdaki sekmeleri kapat') || 'Sağdaki sekmeleri kapat', () => closeRightBrowserTabs(tabId), !rightCount);
+  addItem(window.UiLocale?.t('Grubu düzenle…') || 'Grubu düzenle…', () => editBrowserTabGroup(tabId));
+  addItem(window.UiLocale?.t('Sekmeyi kapat') || 'Sekmeyi kapat', () => closeBrowserTab(tabId), !!tab.pinned);
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeBrowserTabMenu(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next]?.focus();
+    }
+  });
+  document.body.appendChild(menu);
+  browserTabMenuEl = menu;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
+  setTimeout(() => document.addEventListener('mousedown', browserTabMenuOutside, true), 0);
+  items[0]?.focus();
+}
+
+// Hover önizleme kartı: başlık + URL + durum rozeti (sabit/ses/indiriliyor).
+function hideBrowserTabPreview() {
+  clearTimeout(browserTabPreviewTimer);
+  browserTabPreviewTimer = 0;
+  browserTabPreviewEl?.remove();
+  browserTabPreviewEl = null;
+}
+function showBrowserTabPreview(tabId, anchor) {
+  const tab = browserTabState(tabId);
+  if (!tab || !anchor) return;
+  hideBrowserTabPreview();
+  const card = document.createElement('div');
+  card.className = 'browser-tab-preview';
+  card.setAttribute('role', 'tooltip');
+  const title = document.createElement('div');
+  title.className = 'browser-tab-preview-title';
+  title.textContent = tab.title || window.UiLocale?.t('Yeni sekme') || 'Yeni sekme';
+  const url = document.createElement('div');
+  url.className = 'browser-tab-preview-url';
+  url.textContent = tab.url || '';
+  card.append(title, url);
+  const chips = [];
+  if (tab.pinned) chips.push(window.UiLocale?.t('Sabit') || 'Sabit');
+  if (tab.loading) chips.push(window.UiLocale?.t('Yükleniyor') || 'Yükleniyor');
+  if (tab.tabMuted) chips.push(window.UiLocale?.t('Sessiz') || 'Sessiz');
+  else if (tab.audible) chips.push('♪');
+  if (chips.length) {
+    const row = document.createElement('div');
+    row.className = 'browser-tab-preview-chips';
+    row.textContent = chips.join(' · ');
+    card.appendChild(row);
+  }
+  document.body.appendChild(card);
+  browserTabPreviewEl = card;
+  const rect = anchor.getBoundingClientRect();
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  card.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - cw - 4))}px`;
+  card.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - ch - 4)}px`;
+}
+function scheduleBrowserTabPreview(e) {
+  const item = e.target.closest?.('[data-browser-tab-id]');
+  clearTimeout(browserTabPreviewTimer);
+  if (!item) { hideBrowserTabPreview(); return; }
+  const tabId = item.dataset.browserTabId;
+  browserTabPreviewTimer = setTimeout(() => showBrowserTabPreview(tabId, item), 450);
+}
+
 function updateBrowserPinMenu() {
   const button = $('browserPinActiveTab');
   if (!button) return;
@@ -6237,6 +6379,12 @@ async function activateBrowserTab(tabId) {
   if (!tabId) return null;
   if (player.browserSurface === 'settings') showBrowserWebSurface();
   if (tabId === player.browserActiveTabId) return browserTabState(tabId);
+  // B14 otomatik PiP: ses çalan sekmeden ayrılırken video küçük oynatıcıya
+  // taşınır (opt-in; sekme hedefi ve site kontrolleri değişmez).
+  const leaving = browserTabState();
+  if ($('browserAutoPip')?.checked && leaving && leaving.id !== tabId && leaving.audible && !leaving.closing) {
+    void window.api.browserExtras?.({ action: 'mini-open', tabId: leaving.id, generation: leaving.generation, mediaId: leaving.mediaId || '' }).catch(() => null);
+  }
   await flushWatchState(false, true);
   saveActiveBrowserTabWorkspace();
   const result = await window.api.activateBrowserTab(tabId).catch(() => null);
@@ -10602,8 +10750,18 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('contextmenu', (
   const item = event.target.closest('[data-browser-tab-id]');
   if (!item) return;
   event.preventDefault();
-  editBrowserTabGroup(item.dataset.browserTabId);
+  openBrowserTabMenu(item.dataset.browserTabId, event.clientX, event.clientY);
 });
+// B06 hover önizleme: 450ms gecikmeyle sekme bilgi kartı; çıkışta kapanır.
+if ($('browserTabStrip')) {
+  $('browserTabStrip').addEventListener('mouseover', scheduleBrowserTabPreview);
+  $('browserTabStrip').addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget || !e.relatedTarget.closest?.('[data-browser-tab-id]')) hideBrowserTabPreview();
+  });
+  $('browserTabStrip').addEventListener('focusin', scheduleBrowserTabPreview);
+  $('browserTabStrip').addEventListener('focusout', hideBrowserTabPreview);
+  $('browserTabStrip').addEventListener('dragstart', hideBrowserTabPreview);
+}
 let browserDraggedTabId = '';
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dragstart', (event) => {
   const item = event.target.closest('[data-browser-tab-id]');
@@ -19001,6 +19159,53 @@ if ($('browserReadLater')) $('browserReadLater').addEventListener('click', async
       : 'Sayfa çevrimdışı okuma listesine eklendi.', true, { priority: 60, holdMs: 4500 });
     loadBrowserReadingList();
   } else setBrowserSignal(result?.error || 'Çevrimdışı kopya kaydedilemedi.', false, { priority: 90, holdMs: 6500 });
+});
+// B10 — kozmetik element picker: seçilen öğe önce geçici CSS ile gizlenir,
+// kullanıcı onaylarsa kaynak bazlı kalıcı kurala yazılır (geri alma: iptal).
+if ($('browserElementPick')) $('browserElementPick').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const tabId = player.browserActiveTabId;
+  if (!tabId) return;
+  setBrowserSignal('Sayfada gizlemek istediğin öğeye tıkla (Esc: vazgeç).', true, { priority: 55, holdMs: 8000 });
+  const result = await window.api.browserElementRules?.({ action: 'pick', tabId })
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) {
+    if (!result?.cancelled) setBrowserSignal(result?.error || 'Öğe seçilemedi.', false, { priority: 60, holdMs: 4000 });
+    return;
+  }
+  const accepted = await openAppDialog({
+    title: 'Öğe gizlendi',
+    description: `Seçici: ${result.selector}\n\nBu siteye her girişte gizlenmesi için kuralı kaydet; vazgeçersen öğe hemen geri görünür.`,
+    confirmLabel: 'Kalıcı kaydet',
+    intent: 'primary',
+  });
+  if (accepted) {
+    const saved = await window.api.browserElementRules?.({ action: 'save', tabId, selector: result.selector })
+      .catch((error) => ({ ok: false, error: error.message }));
+    setBrowserSignal(saved?.ok ? 'Öğe bu site için kalıcı gizlendi.' : (saved?.error || 'Kural kaydedilemedi.'), !!saved?.ok, { priority: 60, holdMs: 4000 });
+  } else {
+    await window.api.browserElementRules?.({ action: 'undo', tabId }).catch(() => null);
+    setBrowserSignal('Öğe gizleme geri alındı.', true, { priority: 40, holdMs: 2500 });
+  }
+});
+if ($('browserElementClear')) $('browserElementClear').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const tabId = player.browserActiveTabId;
+  if (!tabId) return;
+  const listed = await window.api.browserElementRules?.({ action: 'list', tabId }).catch(() => null);
+  const count = listed?.selectors?.length || 0;
+  if (!listed?.ok || !count) {
+    setBrowserSignal('Bu sitede gizlenen öğe yok.', false, { priority: 50, holdMs: 3000 });
+    return;
+  }
+  const accepted = await openAppDialog({
+    title: 'Gizlenen öğeleri geri yükle',
+    description: `Bu sitede ${count} gizleme kuralı var:\n${listed.selectors.slice(0, 8).join('\n')}${count > 8 ? '\n…' : ''}`,
+    confirmLabel: 'Tümünü kaldır',
+  });
+  if (!accepted) return;
+  const cleared = await window.api.browserElementRules?.({ action: 'clear', tabId }).catch(() => null);
+  setBrowserSignal(cleared?.ok ? 'Gizlenen öğeler geri yüklendi.' : (cleared?.error || 'Kurallar kaldırılamadı.'), !!cleared?.ok, { priority: 60, holdMs: 3500 });
 });
 if ($('browserExportPdf')) $('browserExportPdf').addEventListener('click', async () => {
   closeBrowserToolbarMenus();

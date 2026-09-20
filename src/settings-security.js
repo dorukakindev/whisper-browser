@@ -50,6 +50,7 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
   'browserAutoSkipAds', 'browserPlayerResponseAdPrune',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
+  'browserAutoPip',
 ]);
 
 const UI_ENUMS = Object.freeze({

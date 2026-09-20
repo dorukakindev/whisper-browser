@@ -293,6 +293,7 @@ const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
 const { buildBrowserLinkHintsScript } = require('./browser-link-hints');
 const { buildDarkReaderCssScript } = require('./browser-dark-mode');
 const { isYoutubePageUrl, youtubeStyleCss } = require('./browser-youtube-style');
+const { BrowserElementRules, validSelector } = require('./browser-element-rules');
 const { CaptionAcquisitionPlan } = require('./browser-acquisition');
 const { createBrowserEventEnvelope, nextAcquisitionId } = require('./browser-event-envelope');
 const { BrowserAssetStore } = require('./browser-asset-store');
@@ -2595,6 +2596,15 @@ function browserReadingList() {
   return browserReadingListInstance;
 }
 
+let browserElementRulesInstance = null;
+function browserElementRules() {
+  if (!browserElementRulesInstance) {
+    browserElementRulesInstance = new BrowserElementRules(
+      path.join(app.getPath('userData'), 'element-rules.json'));
+  }
+  return browserElementRulesInstance;
+}
+
 function browserMangaCache() {
   if (!browserMangaCacheInstance) {
     browserMangaCacheInstance = new PersistentTranslationCache(
@@ -3035,6 +3045,8 @@ function createBrowserTabRecord(initial = {}) {
     manifestResourceRecoverySeq: 0,
     manifestResourceAttempts: new Map(),
     pageIndexTimer: null,
+    elementRulesCssKey: '',
+    elementPickCssKey: '',
     darkModeRequestSeq: 0,
     youtubeStyleRequestSeq: 0,
     youtubeStyleGeneration: -1,
@@ -7336,6 +7348,100 @@ async function applyBrowserYoutubeStyle(tab, options = {}) {
     return { ok: false, error: `YouTube görünümü uygulanamadı: ${error.message}` };
   }
 }
+// B10 — kullanıcı onaylı kozmetik gizleme kuralları: kaynak başına kalıcı
+// seçiciler, her yükleme sonrası yeniden uygulanır. Geçici seçim gizlemesi
+// (elementPickCssKey) kaydedilmeden önce önizleme olarak kalır.
+async function applyBrowserElementRules(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  const selectors = browserElementRules().selectorsFor(wc.getURL());
+  if (tab.elementRulesCssKey) {
+    await wc.removeInsertedCSS(tab.elementRulesCssKey).catch(() => {});
+    tab.elementRulesCssKey = '';
+  }
+  if (!selectors.length) return;
+  const generation = tab.generation;
+  const css = selectors.map((sel) => `${sel}{display:none!important;visibility:hidden!important}`).join('\n');
+  try {
+    const key = await wc.insertCSS(css, { cssOrigin: 'user' });
+    if (tab.generation !== generation || wc.isDestroyed()) {
+      await wc.removeInsertedCSS(key).catch(() => {});
+      return;
+    }
+    tab.elementRulesCssKey = key;
+  } catch (_) {}
+}
+
+// Element picker: sayfada hover vurgusu + tık → seçici; Esc iptal.
+const BROWSER_ELEMENT_PICKER_SCRIPT = `(() => {
+  if (window.__whisperElementPicker) return { ok: false, error: 'Seçici zaten açık.' };
+  return new Promise((resolve) => {
+    window.__whisperElementPicker = true;
+    const HL = '__whisper_pick_hl';
+    const style = document.createElement('style');
+    style.textContent = '.' + HL + '{outline:3px solid #e8590c !important;outline-offset:2px !important;cursor:crosshair !important;}';
+    document.documentElement.appendChild(style);
+    let hl = null;
+    const selectorFor = (el) => {
+      if (!(el instanceof Element) || el === document.documentElement) return '';
+      if (el.id && /^[A-Za-z][\\w:-]*$/.test(el.id)) return '#' + CSS.escape(el.id);
+      const parts = [];
+      let node = el;
+      for (let d = 0; node && node.nodeType === 1 && d < 6; d++) {
+        if (node === document.body || node === document.documentElement) break;
+        let part = String(node.localName || 'div');
+        const cls = [...(node.classList || [])]
+          .filter((c) => /^[\\w-]+$/.test(c) && !String(c).startsWith('__whisper'))
+          .slice(0, 2);
+        if (cls.length) part += '.' + cls.map((c) => CSS.escape(c)).join('.');
+        if (node.parentElement) {
+          const same = [...node.parentElement.children].filter((c) => c.localName === node.localName);
+          if (same.length > 1) part += ':nth-of-type(' + (same.indexOf(node) + 1) + ')';
+        }
+        parts.unshift(part);
+        if (node.parentElement && node.parentElement.id && /^[A-Za-z][\\w:-]*$/.test(node.parentElement.id)) {
+          parts.unshift('#' + CSS.escape(node.parentElement.id));
+          break;
+        }
+        node = node.parentElement;
+      }
+      return parts.join(' > ');
+    };
+    const cleanup = (result) => {
+      window.removeEventListener('mousemove', onMove, true);
+      window.removeEventListener('click', onClick, true);
+      window.removeEventListener('keydown', onKey, true);
+      if (hl) hl.classList.remove(HL);
+      style.remove();
+      window.__whisperElementPicker = false;
+      resolve(result);
+    };
+    const onMove = (e) => {
+      if (hl) hl.classList.remove(HL);
+      hl = document.elementFromPoint(e.clientX, e.clientY);
+      if (hl) hl.classList.add(HL);
+    };
+    const onClick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const sel = hl ? selectorFor(hl) : '';
+      cleanup({ ok: !!sel, selector: sel });
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cleanup({ ok: false, cancelled: true }); }
+    };
+    window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('click', onClick, true);
+    window.addEventListener('keydown', onKey, true);
+  });
+})()`;
+
+async function removeBrowserElementPickCss(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed() || !tab.elementPickCssKey) return;
+  await wc.removeInsertedCSS(tab.elementPickCssKey).catch(() => {});
+  tab.elementPickCssKey = '';
+}
+
 async function captureBrowserFullPage(wc) {
   // Kalıcı altyazı yakalama aynı CDP debugger'ını hazırlıyor olabilir. Onun
   // bağlantısını geçici ekran görüntüsü sahiplenmiş gibi sökmemek için önce
@@ -11429,6 +11535,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.lifecycle = tab.id === browserActiveTabId ? 'active' : 'background';
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     scheduleBrowserPageIndex(tab);
+    // Test harness'larında dilimlenen bu dinleyicide işlev tanımı olmayabilir.
+    if (typeof applyBrowserElementRules === 'function') void applyBrowserElementRules(tab);
     if (tab.compatibilityMode) return;
     // Bazı iç-frame yüklemelerinde Chromium did-start-loading gönderip ana
     // belge için yeni bir dom-ready göndermeyebilir. Bu durumda uyumluluk
@@ -14596,6 +14704,53 @@ ipcMain.handle('browser:capturePage', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   return saveBrowserPageCapture(tab, 'Tarayıcı ekran görüntüsünü kaydet', request?.options || {});
+});
+
+// B10 — element picker IPC: 'pick' seçiciyi döndürüp geçici gizleme uygular;
+// kalıcı kayıt yalnız kullanıcı onayıyla 'save' üzerinden yazılır.
+ipcMain.handle('browser:elementRules', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const wc = tab.view?.webContents;
+  if (!wc || wc.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
+  const action = String(request.action || '');
+  const rules = browserElementRules();
+  if (action === 'list') {
+    return { ok: true, url: wc.getURL(), selectors: rules.selectorsFor(wc.getURL()), origins: rules.listOrigins().length };
+  }
+  if (action === 'pick') {
+    await removeBrowserElementPickCss(tab);
+    let result;
+    try {
+      result = await wc.executeJavaScript(BROWSER_ELEMENT_PICKER_SCRIPT, true);
+    } catch (error) { return { ok: false, error: `Seçici çalıştırılamadı: ${error.message}` }; }
+    if (!result || !result.ok) return { ok: false, cancelled: !!(result && result.cancelled), error: result?.error || '' };
+    if (!validSelector(result.selector)) return { ok: false, error: 'Seçici doğrulanamadı.' };
+    try {
+      tab.elementPickCssKey = await wc.insertCSS(
+        `${result.selector}{display:none!important;visibility:hidden!important}`, { cssOrigin: 'user' });
+    } catch (_) {}
+    return { ok: true, selector: result.selector };
+  }
+  if (action === 'undo') {
+    await removeBrowserElementPickCss(tab);
+    return { ok: true };
+  }
+  if (action === 'save') {
+    const res = rules.add(wc.getURL(), request.selector);
+    if (!res.ok) { await removeBrowserElementPickCss(tab); return res; }
+    await removeBrowserElementPickCss(tab);
+    await applyBrowserElementRules(tab);
+    return { ...res, selector: String(request.selector || '').slice(0, 300) };
+  }
+  if (action === 'clear') {
+    const res = rules.clear(wc.getURL());
+    if (!res.ok) return res;
+    await applyBrowserElementRules(tab);
+    return res;
+  }
+  return { ok: false, error: 'Bilinmeyen element kuralı eylemi.' };
 });
 
 ipcMain.handle('browser:archivePage', async (event, request) => {
