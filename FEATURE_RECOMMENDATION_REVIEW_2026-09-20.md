@@ -1,5 +1,7 @@
 # Feature recommendations: current-code decision review (2026-09-20)
 
+**Superseded as a complete inventory:** this file is only the earlier short decision summary. The user-requested unranked, item-by-item catalogue is [FEATURE_RECOMMENDATION_CATALOG_2026-09-20.md](FEATURE_RECOMMENDATION_CATALOG_2026-09-20.md). Do not use the short priority table below as the complete proposal list.
+
 Scope: feature ideas, not bug triage or implementation. Baseline: `master` at `1dcb2d5b34fc768957b9dcee99e9a8b129dae5c5`. This is a source/contract review; no Electron UI run, authenticated site trial, provider request, or new product test was performed. Existing untracked work was left untouched. A missing symbol is evidence of an implementation gap only where the surrounding call path was inspected; it is not proof of user demand or that an upstream API works on every instance.
 
 ## Inventory and how to read it
