@@ -92,12 +92,20 @@
       mediaPath: player.localPath || undefined,
       config: credentials(),
     });
-    if (!result) return;
-    const list = $('bfSubtitleResults'); clear(list);
+    const list = $('bfSubtitleResults');
+    if (!result) {
+      // E05: başarısızlık ile 'sonuç yok'u ayır — durum çubuğundaki asıl
+      // hata (API/video/bağlam) korunur; liste alanında da boş kalmaz.
+      // Yeniden denemek için arama butonu açık kalır.
+      if (list) { clear(list); list.append(node('p', 'Arama tamamlanamadı — ayrıntı üstteki durumda. Yeniden deneyebilirsiniz.')); }
+      return;
+    }
+    clear(list);
     const rows = Array.isArray(result.results) ? result.results.slice(0, 50) : [];
     if (!rows.length) { list.append(node('p', 'Eşleşen altyazı bulunamadı. Başlığı veya dili değiştirin.')); return; }
     const hashed = rows.some((row) => row.hashMatch);
-    list.append(node('p', `${rows.length} aday · puan yalnız başlık, bölüm, dil ve sürüm bilgilerinin eşleşmesidir.${hashed ? ' Dosya parmak izi eşleşenler en üstte.' : ''}`, 'bf-note'));
+    const partial = Number(result.totalCount) > rows.length;
+    list.append(node('p', `${rows.length} aday${partial ? ` (toplam ${result.totalCount} sonucun ilk bölümü — aramayı daraltın)` : ''} · puan yalnız başlık, bölüm, dil ve sürüm bilgilerinin eşleşmesidir.${hashed ? ' Dosya parmak izi eşleşenler en üstte.' : ''}`, 'bf-note'));
     for (const row of rows) {
       const item = node('div', '', 'bf-result');
       item.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));

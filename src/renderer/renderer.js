@@ -4819,12 +4819,27 @@ $('burnInBtn').addEventListener('click', async () => {
   setBurninRunningUi();
 });
 
-$('burnInCancel').addEventListener('click', () => window.api.burnInCancel());
+$('burnInCancel').addEventListener('click', () => {
+  // E06: iptal durumu görünür olsun — FFmpeg kapanana dek metin bekler.
+  $('burninText').textContent = 'İptal ediliyor…';
+  $('burnInCancel').disabled = true;
+  window.api.burnInCancel().finally(() => { $('burnInCancel').disabled = false; });
+});
+
+const _burninClock = (sec) => {
+  const s = Math.max(0, Math.floor(Number(sec) || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
 
 window.api.onBurnInEvent((ev) => {
-  if (ev.type === 'progress') {
+  if (ev.type === 'start') {
+    $('burninText').textContent = 'Gömme hazırlanıyor…';
+  } else if (ev.type === 'progress') {
     $('burninFill').style.width = `${ev.percent}%`;
-    $('burninText').textContent = `Gömülüyor… ${ev.percent.toFixed(0)}%`;
+    // E06: aşama + süre görünürlüğü; toplam süre yoksa geçen süre göster.
+    $('burninText').textContent = Number(ev.total) > 0
+      ? `Gömülüyor… ${ev.percent.toFixed(0)}% · ${_burninClock(ev.current)} / ${_burninClock(ev.total)}`
+      : `Gömülüyor… ${_burninClock(ev.current)}`;
   } else if (ev.type === 'done') {
     $('burninFill').style.width = '100%';
     $('burninText').textContent = 'Tamamlandı ✓';

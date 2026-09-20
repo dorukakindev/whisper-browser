@@ -199,4 +199,15 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(renderer, /modelCacheDelete/, 'renderer silme akışı');
 }
 
+// --- E05/E06 — boş durum ayrımı + burn-in aşama/iptal görünürlüğü ---
+{
+  const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const bf = readRel('src/renderer/browser-features.js');
+  assert.match(bf, /Arama tamamlanamadı/, 'API hatası ayrımı liste alanında');
+  assert.match(bf, /totalCount/, 'kısmi liste göstergesi');
+  assert.match(renderer, /İptal ediliyor…/, 'burn-in iptal durumu');
+  assert.match(renderer, /Gömme hazırlanıyor…/, 'burn-in başlangıç aşaması');
+  assert.match(renderer, /_burninClock\(ev\.total\)/, 'burn-in süre göstergesi');
+}
+
 console.log('browser-parti7.test.js OK');
