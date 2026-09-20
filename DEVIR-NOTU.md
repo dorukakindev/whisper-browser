@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
+Güncel çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
+
+Önceki çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
 
 Önceki çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
 
