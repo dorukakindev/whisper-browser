@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 17:33 — Katalog Parti 14: kabul matrisi (F20) + servis yetenek matrisi (F04) belgeleri; yalnız belge turu](docs/devir/2026-09-20-1733.md).
+Güncel çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
+
+Önceki çalışma: [2026-09-20 17:33 — Katalog Parti 14: kabul matrisi (F20) + servis yetenek matrisi (F04) belgeleri; yalnız belge turu](docs/devir/2026-09-20-1733.md).
 
 Önceki çalışma: [2026-09-20 17:30 — Katalog Parti 13: F18 aşamalı dilim — MODEL_CATALOG kapasite kaydı, boyut/boş-disk raporu, onaylı güvenli önbellek silme; npm test temiz](docs/devir/2026-09-20-1730.md).
 
