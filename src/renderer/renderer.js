@@ -22733,16 +22733,33 @@ async function renderSmartTubeSection(section, opts = {}) {
     if (heading) heading.textContent = feedData._youtube
       ? (window.UiLocale?.t('Senin için') || 'Senin için')
       : (window.UiLocale?.t('Ana sayfa') || 'Ana sayfa');
+    // İlerleme çubuğu ve devam rayı taze kayıtları görsün — kütüphane cache'i
+    // uygulama açıldığından beri hiç okunmamış olabilir.
+    if (window.api.listWatchLibrary) {
+      try { watchLibraryCache = (await window.api.listWatchLibrary()) || []; } catch (_) {}
+      if (stale()) return;
+    }
+    const continueVideos = stContinueWatchingVideos();
+    const continueIds = new Set(continueVideos.map((v) => v.videoId));
     const trending = feedData._trending || [];
     if (stale()) return;
     const seen = new Set();
     const dedupe = (list) => list.filter((v) => {
       const id = v.videoId || v.title;
-      if (!id || seen.has(id)) return false;
+      if (!id || seen.has(id) || continueIds.has(id)) return false;
       seen.add(id);
       return true;
     });
     renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
+    if (continueVideos.length) {
+      const rail = document.createDocumentFragment();
+      const sep = document.createElement('div');
+      sep.className = 'st-section-title st-grid-row';
+      sep.textContent = window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et';
+      rail.appendChild(sep);
+      continueVideos.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
+      grid.prepend(rail);
+    }
     const trendList = dedupe(trending || []);
     if (trendList.length) {
       const sep = document.createElement('div');
@@ -22887,6 +22904,38 @@ function absThumb(url) {
   return /^https?:\/\//i.test(url) ? url : '';
 }
 
+// İzleme kütüphanesindeki yarım kalmış YouTube kayıtları → SmartTube ana
+// sayfasının "İzlemeye devam et" rayı için kart girdisi. Küçük resim yalnızca
+// Invidious vekil yoluyla çekilir (kayıtlarda thumbnail saklanmıyor).
+function stContinueWatchingVideos() {
+  const out = [];
+  const seenIds = new Set();
+  const items = watchLibraryCache
+    .filter((it) => it && it.type === 'youtube' && !it.completed && watchProgress(it) > 0)
+    .sort((a, b) => Number(b.lastWatched || 0) - Number(a.lastWatched || 0));
+  for (const item of items) {
+    // Yalnız kanonik 'youtube:<id>' anahtarı — kart açılışı aynı anahtarı
+    // üretir; kırık/legacy anahtarlı kayıt rayda görünse de resume eşleşmezdi.
+    const key = String(item.key || '');
+    const id = key.startsWith('youtube:') ? key.slice(8) : '';
+    if (!id || seenIds.has(id)) continue;
+    seenIds.add(id);
+    const thumb = lastInvidiousInstance
+      ? `${lastInvidiousInstance}/vi/${encodeURIComponent(id)}/mqdefault.jpg`
+      : '';
+    out.push({
+      videoId: id,
+      title: item.title || '',
+      author: '',
+      authorId: '',
+      lengthSeconds: Number(item.duration) || 0,
+      videoThumbnails: thumb ? [{ url: thumb, quality: 'medium' }] : [],
+    });
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
 // ----- SmartTube kart (büyük dikey) -----
 // Kart/up-next tıklamasından probe tetikleme: sürüyor olan probe bitene kadar
 // bekle (disabled düğmeye click() sessizce no-op olur ve istek kaybolurdu).
@@ -22910,6 +22959,11 @@ function buildSmartTubeCard(video) {
   card.tabIndex = 0;
   card.setAttribute('role', 'button');
   card.setAttribute('aria-label', `${video.title || ''} — ${video.author || ''}`);
+  // İzleme kütüphanesindeki ilerleme kartta görünsün; açılışta kaldığı yerden
+  // sürsün (pendingLibrarySeek akış açılınca uygulanır).
+  const ytKey = video.videoId ? mediaKeyFor('youtube', String(video.videoId)) : '';
+  const watch = ytKey ? watchItemByKey(ytKey) : null;
+  const watchPct = watch ? (watch.completed ? 100 : watchProgress(watch)) : 0;
 
   const thumbs = video.videoThumbnails || [];
   const tn = thumbs.find((t) => (t.quality || '').toLowerCase() === 'medium')
@@ -22944,6 +22998,14 @@ function buildSmartTubeCard(video) {
       ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${m}:${String(s).padStart(2, '0')}`;
     thumb.appendChild(dur);
+  }
+  if (watchPct > 0) {
+    const bar = document.createElement('div');
+    bar.className = 'watch-progress st-card-progress';
+    const fill = document.createElement('i');
+    fill.style.width = `${Math.round(watchPct)}%`;
+    bar.appendChild(fill);
+    thumb.appendChild(bar);
   }
   card.appendChild(thumb);
 
@@ -22991,6 +23053,11 @@ function buildSmartTubeCard(video) {
     const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId || '')}`;
     const box = $('playerYtUrl');
     if (box) box.value = url;
+    if (watch && !watch.completed && Number(watch.position) > 0) {
+      player.pendingLibrarySeek = {
+        key: ytKey, generation: null, seconds: Number(watch.position) || 0,
+      };
+    }
     // Tek tık = oynat (SmartTube davranışı): probe bitince akış otomatik başlar
     player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: player.openIntent };
     queuePlayerProbeFromCard();

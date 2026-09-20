@@ -1177,6 +1177,7 @@
     // SmartTube / Invidious
     ['Ana sayfa', 'Home'],
     ['Senin için', 'For you'],
+    ['İzlemeye devam et', 'Continue watching'],
     ['YouTube kişisel akışı alınamadı; genel akış gösteriliyor.', 'YouTube personal feed unavailable; showing the public feed.'],
     ['Trend', 'Trending'],
     ['Popüler', 'Popular'],

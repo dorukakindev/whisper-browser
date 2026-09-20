@@ -345,11 +345,9 @@ function findByClass(el, cls) {
   return hit;
 }
 
-test('renderer: kart kanal linki oynatmayı tetiklemez (davranış)', () => {
-  const src = (RENDERER.match(/function buildSmartTubeCard\(video\) \{[\s\S]*?return card;\s*\}/) || [])[0];
-  assert.ok(src, 'buildSmartTubeCard yok');
+function buildCardHarness(watchItem) {
   const calls = { channel: [], probe: 0, hide: 0 };
-  const player = { openIntent: 'play', pendingAutoOpen: null };
+  const player = { openIntent: 'play', pendingAutoOpen: null, pendingLibrarySeek: null };
   const ctx = vm.createContext({
     document: { createElement: (t) => makeFakeEl(t) },
     window: { UiLocale: { t: (s) => s } },
@@ -358,17 +356,26 @@ test('renderer: kart kanal linki oynatmayı tetiklemez (davranış)', () => {
     openInvidiousChannelPage: (id) => calls.channel.push(id),
     queuePlayerProbeFromCard: () => { calls.probe++; },
     setSmartTubeVisible: () => { calls.hide++; },
-    mediaKeyFor: () => 'mk',
+    mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    watchItemByKey: () => watchItem || null,
+    watchProgress: (it) => (Number(it.duration) ? (Number(it.position) / Number(it.duration)) * 100 : 0),
     player,
     $: () => null,
   });
-  const buildSmartTubeCard = vm.runInContext(src + '\nbuildSmartTubeCard;', ctx);
-  const video = {
-    title: 't', author: 'a', authorId: 'UA', videoId: 'v1',
-    lengthSeconds: 62, viewCount: 5,
-    videoThumbnails: [{ url: 'http://x/t.jpg', quality: 'medium' }],
-  };
-  const card = buildSmartTubeCard(video);
+  const src = (RENDERER.match(/function buildSmartTubeCard\(video\) \{[\s\S]*?return card;\s*\}/) || [])[0];
+  assert.ok(src, 'buildSmartTubeCard yok');
+  return { calls, player, build: vm.runInContext(src + '\nbuildSmartTubeCard;', ctx) };
+}
+
+const CARD_VIDEO = {
+  title: 't', author: 'a', authorId: 'UA', videoId: 'v1',
+  lengthSeconds: 62, viewCount: 5,
+  videoThumbnails: [{ url: 'http://x/t.jpg', quality: 'medium' }],
+};
+
+test('renderer: kart kanal linki oynatmayı tetiklemez (davranış)', () => {
+  const { calls, player, build } = buildCardHarness(null);
+  const card = build(CARD_VIDEO);
   const author = findByClass(card, 'st-card-author')[0];
   assert.ok(author, 'kanal butonu yok');
 
@@ -389,11 +396,70 @@ test('renderer: kart kanal linki oynatmayı tetiklemez (davranış)', () => {
   dispatchBubbling(card, 'click');
   assert.strictEqual(calls.probe, 1, 'kart tıklaması oynatmadı');
   assert.strictEqual(calls.hide, 1);
-  assert.ok(player.pendingAutoOpen && player.pendingAutoOpen.key === 'mk');
+  assert.ok(player.pendingAutoOpen && player.pendingAutoOpen.key === 'youtube:https://www.youtube.com/watch?v=v1');
+  assert.strictEqual(player.pendingLibrarySeek, null, 'kayıtsız kart seek istememeli');
 
   const space = dispatchBubbling(card, 'keydown', { key: ' ' });
   assert.strictEqual(calls.probe, 2, 'kart Space\'i oynatmadı');
   assert.strictEqual(space._defaultPrevented, true);
+});
+
+test('renderer: kart izleme ilerlemesi çubuğu + kaldığı yerden devam (davranış)', () => {
+  // Yarım kalmış kayıt: çubuk %50, tık pendingLibrarySeek kurar
+  const item = { key: 'youtube:v1', type: 'youtube', position: 300, duration: 600, completed: false };
+  let h = buildCardHarness(item);
+  let card = h.build(CARD_VIDEO);
+  const bar = findByClass(card, 'st-card-progress')[0];
+  assert.ok(bar, 'ilerleme çubuğu yok');
+  assert.strictEqual(bar.children[0] && bar.children[0].style.width, '50%');
+  dispatchBubbling(card, 'click');
+  assert.ok(h.player.pendingLibrarySeek, 'devam seek\'i kurulmadı');
+  assert.strictEqual(h.player.pendingLibrarySeek.key, 'youtube:v1');
+  assert.strictEqual(h.player.pendingLibrarySeek.seconds, 300);
+
+  // Tamamlanmış kayıt: %100 çubuk, seek YOK (baştan başlar)
+  h = buildCardHarness({ key: 'youtube:v1', type: 'youtube', position: 600, duration: 600, completed: true });
+  card = h.build(CARD_VIDEO);
+  const full = findByClass(card, 'st-card-progress')[0];
+  assert.ok(full, 'izlenmiş kartta çubuk yok');
+  assert.strictEqual(full.children[0].style.width, '100%');
+  dispatchBubbling(card, 'click');
+  assert.strictEqual(h.player.pendingLibrarySeek, null, 'bitmiş video seek istememeli');
+
+  // Kayıt yok / sıfır ilerleme: çubuk ve seek yok
+  h = buildCardHarness({ key: 'youtube:v1', type: 'youtube', position: 0, duration: 600, completed: false });
+  card = h.build(CARD_VIDEO);
+  assert.strictEqual(findByClass(card, 'st-card-progress').length, 0, 'sıfır ilerlemede çubuk çizildi');
+});
+
+test('renderer: devam rayı kimliği eşler, sıralar, tekilleştirir (davranış)', () => {
+  const src = (RENDERER.match(/function stContinueWatchingVideos\(\) \{[\s\S]*?\n\}/) || [])[0];
+  assert.ok(src, 'stContinueWatchingVideos yok');
+  const ctx = vm.createContext({
+    watchLibraryCache: [
+      { key: 'youtube:b', type: 'youtube', title: 'B', position: 10, duration: 100, lastWatched: 200 },
+      { key: 'youtube:a', type: 'youtube', title: 'A', position: 50, duration: 100, lastWatched: 300 },
+      { key: 'youtube:a', type: 'youtube', title: 'A2', position: 60, duration: 100, lastWatched: 400 },
+      { key: 'youtube:done', type: 'youtube', title: 'D', position: 90, duration: 90, completed: true, lastWatched: 500 },
+      { key: 'youtube:zero', type: 'youtube', title: 'Z', position: 0, duration: 100, lastWatched: 600 },
+      { key: 'file:/x.mp4', type: 'local', title: 'L', position: 10, duration: 100, lastWatched: 700 },
+      { key: 'weird', type: 'youtube', title: 'W', position: 10, duration: 100, lastWatched: 100, sourceRef: 'https://youtu.be/wid123' },
+    ],
+    watchProgress: (it) => (Number(it.duration) ? (Number(it.position) / Number(it.duration)) * 100 : 0),
+    youtubeVideoId: (u) => (String(u).match(/youtu\.be\/([\w-]+)/) || [])[1] || '',
+    lastInvidiousInstance: 'https://inv.example',
+  });
+  const fn = vm.runInContext(src + '\nstContinueWatchingVideos;', ctx);
+  const out = fn();
+  // Sıra lastWatched desc: A2/a tekilleşir (ilk görülen alınır); 'weird'
+  // kanonik olmayan anahtarıyla düşer; 'done'/'zero'/yerel kayıtlar elenir.
+  assert.strictEqual(out.map((v) => v.videoId).join(','), 'a,b');
+  assert.strictEqual(out[0].title, 'A2', 'en taze kayıt aynı kimlik için tutulmalı');
+  assert.ok(out[0].videoThumbnails[0].url.startsWith('https://inv.example/vi/a/'),
+    'küçük resim Invidious vekili üzerinden değil');
+  // Instance yoksa küçük resim basılmaz
+  ctx.lastInvidiousInstance = '';
+  assert.strictEqual(fn()[0].videoThumbnails.length, 0, 'instancesız doğrudan thumb isteği');
 });
 
 test('renderer: arama sayfalama dedupe + yarış korumalı', () => {
