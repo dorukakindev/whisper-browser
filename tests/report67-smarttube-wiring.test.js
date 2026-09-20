@@ -897,6 +897,89 @@ test('R68 O10/D3/D-Y10: placeholder + sidebar focus + kart content-visibility', 
   assert.match(CSS, /\.st-card \{[\s\S]*?content-visibility: auto/);
 });
 
+// ---------- F1: kuyruk/Sonraki düğmesi tazeliği (FULL_REVIEW 2026-09-20) ----------
+// stQueueToggle kuyruğu değiştirir ama düğmeleri tazelemezdi; setMediaKey de
+// güncellemeyi mediaKey atanmadan ÖNCE yapıyordu → bayat disabled durumu.
+
+function buildMediaKeyHarness() {
+  const buttons = {
+    playerPrevMedia: { disabled: false },
+    playerNextMedia: { disabled: true },
+  };
+  const calls = { update: 0 };
+  const player = {
+    openIntent: 1, generation: 0, mediaKey: 'file:/a.mkv',
+    playlist: ['a', 'b'], playlistIndex: 0,
+    pendingLibrarySeek: null, pendingSubs: null, ytInfo: null,
+    originalUrl: '', localPath: '', isLive: true, playbackAudioLang: 'x',
+    resumeOffered: true, watchSession: {}, watchManualCompletedKey: 'k',
+    watchManualCompleted: true, watchRemovedKey: 'k',
+    hlsRecovery: { sourceChanged() {} },
+  };
+  const ctx = vm.createContext({
+    player,
+    localStorage: fakeStorage(),
+    $: (id) => buttons[id] || null,
+    closeTimeline() {}, flushWatchState() {}, resetMediaBoundState() {},
+    loadSavedCues() {}, loadSavedWords() {}, updateCueMeta() {},
+    syncPlayerSourceQuick() {}, syncSubtitlePrimaryAction() {},
+    aiChatCtxLabel() {}, currentGeneration: () => player.generation,
+    absThumb: (u) => u, mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    queuePlayerProbeFromCard() {},
+    updatePlaylistButtons() {},
+    document: { createElement: (t) => makeFakeEl(t) },
+    window: { UiLocale: { t: (s) => s } },
+    setTimeout, Date,
+  });
+  const qsrc = (RENDERER.match(/const ST_QUEUE_KEY[\s\S]*?function stQueueRailVideos[\s\S]*?\n\}/) || [])[0];
+  const upsrc = (RENDERER.match(/function updatePlaylistButtons\(\) \{[\s\S]*?\n\}/) || [])[0];
+  const smk = (RENDERER.match(/function setMediaKey\(key\) \{[\s\S]*?\n\}/) || [])[0];
+  assert.ok(qsrc && upsrc && smk, 'kuyruk/updatePlaylistButtons/setMediaKey blokları çıkarılamadı');
+  vm.runInContext(qsrc, ctx);
+  ctx.updatePlaylistButtons = vm.runInContext(`(${upsrc})`, ctx);
+  vm.runInContext(smk, ctx);
+  return { ctx, player, buttons, calls };
+}
+
+test('F1: stQueueToggle Sonraki düğmesini tazeler (davranış)', () => {
+  const calls = { update: 0 };
+  const store = fakeStorage();
+  const ctx = vm.createContext({
+    localStorage: store,
+    absThumb: (u) => u,
+    mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    queuePlayerProbeFromCard() {},
+    updatePlaylistButtons: () => { calls.update++; },
+    document: { createElement: (t) => makeFakeEl(t) },
+    window: { UiLocale: { t: (s) => s } },
+    player: { openIntent: 1, pendingAutoOpen: null, mediaKey: '' },
+    $: () => null,
+    Date,
+  });
+  const src = (RENDERER.match(/const ST_QUEUE_KEY[\s\S]*?function stQueueRailVideos[\s\S]*?\n\}/) || [])[0];
+  vm.runInContext(src, ctx);
+  const v = (id) => ({ videoId: id, title: 'T' + id, videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueueToggle(v('a')), true);
+  assert.strictEqual(calls.update, 1, 'ekleme düğme durumunu tazelemedi');
+  assert.strictEqual(ctx.stQueueToggle(v('a')), false);
+  assert.strictEqual(calls.update, 2, 'çıkarma düğme durumunu tazelemedi');
+});
+
+test('F1: setMediaKey Sonraki düğmesini YENİ anahtarla hesaplar (davranış)', () => {
+  const { ctx, player, buttons } = buildMediaKeyHarness();
+  ctx.stQueueToggle({ videoId: 'v1', title: 't', videoThumbnails: [] });
+  // file → youtube: güncelleme yeni mediaKey ile koşmalı — kuyruk doluyken
+  // Sonraki açık kalmalı (eski 'file:' anahtarıyla hesaplanırsa kapalı kalırdı).
+  ctx.setMediaKey('youtube:v1');
+  assert.strictEqual(player.mediaKey, 'youtube:v1');
+  assert.strictEqual(buttons.playerNextMedia.disabled, false,
+    'kuyruk dolu YouTube medyasında Sonraki kapalı kaldı');
+  // youtube → file: kuyruk bakliyken yerel playlist boş → Sonraki kapalı.
+  ctx.setMediaKey('file:/b.mkv');
+  assert.strictEqual(buttons.playerNextMedia.disabled, true,
+    'yerel dosyada Sonraki kuyruk yüzünden açık kaldı');
+});
+
 // ---------- çalıştır ----------
 let failed = 0;
 for (const t of tests) {
