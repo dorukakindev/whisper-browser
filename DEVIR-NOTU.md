@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
+Güncel çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
+
+Önceki çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
 
 Önceki çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
 
