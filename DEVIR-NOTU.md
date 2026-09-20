@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 16:48 — Katalog Parti 8: playlist detay sayfası (A28), gerçek bölüm düzeni Canlı/Müzik/Oyun/Haber/Geçmiş/Listelerim (A04), kanal sekmeleri + kanal-içi arama (A27); npm test temiz](docs/devir/2026-09-20-1648.md).
+Güncel çalışma: [2026-09-20 16:56 — Katalog Parti 9: site otomatik kuralı readerAuto (C03) ve axe-core erişilebilirlik regresyon kapısı (C22) + 3 gerçek ihlalin düzeltmesi; npm test temiz](docs/devir/2026-09-20-1656.md).
+
+Önceki çalışma: [2026-09-20 16:48 — Katalog Parti 8: playlist detay sayfası (A28), gerçek bölüm düzeni Canlı/Müzik/Oyun/Haber/Geçmiş/Listelerim (A04), kanal sekmeleri + kanal-içi arama (A27); npm test temiz](docs/devir/2026-09-20-1648.md).
 
 Önceki çalışma: [2026-09-20 16:27 — Katalog Parti 7: Invidious arama önerileri (A23), mpv/VLC'ye güvenli devir (A17), yerel abonelikler+gruplar (A06) ve OPML/CSV/JSON/NewPipe içe-dışa aktarma (A07); npm test temiz](docs/devir/2026-09-20-1627.md).
 
