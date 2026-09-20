@@ -7116,6 +7116,56 @@ body.modal-open { overflow: hidden; }
   border-radius: 999px; padding: 1px 7px; flex: none;
 }
 .st-subs-hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted); padding: 4px 2px; }
+/* A28: arama üstü yatay playlist rayı */
+.st-pl-rail {
+  grid-column: 1 / -1; display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px;
+}
+.st-pl-card {
+  flex: 0 0 180px; display: flex; flex-direction: column; gap: 4px; text-align: left;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px; cursor: pointer; color: var(--fg);
+}
+.st-pl-card:hover, .st-pl-card:focus-visible { border-color: var(--accent); }
+.st-pl-thumb {
+  position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden;
+  background: var(--bg-sunken); display: block;
+}
+.st-pl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-pl-count {
+  position: absolute; right: 4px; bottom: 4px; font-size: 10px;
+  background: rgba(0,0,0,.75); color: #fff; padding: 1px 6px; border-radius: 4px;
+}
+.st-pl-title {
+  font-size: 12px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.st-pl-author { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A04: Listelerim bölümü */
+.st-pl-sec {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.st-pl-sec-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-pl-sec-name { font-weight: 600; font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-pl-sec-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.st-pl-item {
+  flex: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; padding: 4px 10px; border-radius: 999px;
+  background: var(--bg-sunken); border: 1px solid var(--border); color: var(--fg); cursor: pointer;
+}
+.st-pl-item:hover, .st-pl-item:focus-visible { border-color: var(--accent); color: var(--accent); }
+/* A27: kanal sekme gövdesi + kanal-içi arama kutusu */
+.st-ch-body { display: contents; }
+.st-ch-body > .st-comment,
+.st-ch-body > .st-sub-row,
+.st-ch-body > .inv-status,
+.st-ch-body > .st-more-btn { grid-column: 1 / -1; }
+.st-ch-search {
+  flex: 0 1 160px; min-width: 120px; padding: 5px 12px; font-size: 12px;
+  background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--fg);
+}
+.st-ch-search:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 #stSearchInput {
   flex: 1;
   padding: 8px 14px;

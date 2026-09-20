@@ -54,4 +54,54 @@ assert.ok(indexHtml.includes('id="browserPlayMpv"'), 'tarayıcı menüsü mpv');
 assert.ok(indexHtml.includes('id="browserPlayVlc"'), 'tarayıcı menüsü vlc');
 assert.match(renderer, /youtube\.com\/watch\?v=/, 'watch URL gönderilir (imzalı akış değil)');
 
+// --- A28 — playlist detay sayfası + arama sonucu rayı ---
+assert.ok(backend.includes('"video", "playlist", "all"'), 'playlist arama tipi whitelist');
+assert.match(backend, /type=\{st\}/, 'arama tipi URL parametresi');
+assert.match(backend, /_parse_playlist_item/, 'playlist şema ayrıştırıcı');
+assert.match(backend, /playlists=playlists/, 'playlists alanı emit edilir');
+assert.match(backend, /--search-type/, 'CLI search-type');
+assert.match(backend, /--features/, 'CLI features');
+assert.match(backend, /&features=\{ft\}/, 'features URL parametresi');
+assert.match(main, /--search-type', searchType/, 'main searchType geçişi');
+assert.match(main, /--features'/, 'main features geçişi');
+assert.match(main, /'invidious:playlist'/, 'playlist IPC var');
+assert.match(preload, /invidiousPlaylist/, 'preload playlist köprüsü');
+assert.match(renderer, /searchInvidiousPlaylists/, 'renderer playlist araması');
+assert.match(renderer, /renderStPlaylistRail/, 'arama üstü playlist rayı');
+assert.match(renderer, /openInvidiousPlaylistPage/, 'detay sayfası');
+assert.match(renderer, /loadInvidiousPlaylist\(playlistId, \+\+page\)/, 'sayfalama');
+assert.match(locale, /\['Oynatma listesi', /, 'locale çifti');
+
+// --- A04 — gerçek bölüm/sekme düzeni ---
+for (const s of ['music', 'gaming', 'news', 'live', 'history', 'myplaylists']) {
+  assert.ok(indexHtml.includes(`data-st-section="${s}"`), `yan çubuk sekmesi: ${s}`);
+}
+assert.match(renderer, /section === 'history'/, 'geçmiş bölümü');
+assert.match(renderer, /section === 'myplaylists'/, 'listelerim bölümü');
+assert.match(renderer, /section === 'live'/, 'canlı bölümü');
+assert.match(renderer, /features: 'live'/, 'canlı süzgeci');
+assert.match(renderer, /renderStMyPlaylists/, 'liste paneli');
+assert.match(renderer, /localStorage\.setItem\('stSection'/, 'bölüm seçimi kaydedilir');
+assert.match(renderer, /localStorage\.getItem\('stSection'/, 'bölüm geri yüklenir');
+assert.match(renderer, /type === 'youtube'/, 'geçmiş yalnız youtube kayıtları — çift kayıt yok');
+assert.match(locale, /\['Canlı', /, 'locale Canlı');
+assert.match(locale, /\['Listelerim', /, 'locale Listelerim');
+
+// --- A27 — kanal sekmeleri ---
+assert.ok(backend.includes('CHANNEL_TABS'), 'backend sekme whitelist');
+assert.match(backend, /channel_tab/, 'channel_tab fonksiyonu');
+assert.match(backend, /"channel-tab"/, 'CLI komutu');
+assert.match(backend, /\/search\?q=/, 'kanal içi arama ucu');
+assert.ok(backend.includes('"channel-tab"'), 'choices listesi');
+assert.ok(main.includes("'channel_tab'"), 'sonuç tipi kayıtlı');
+assert.match(main, /invidious:channelTab/, 'IPC handler');
+assert.match(main, /INV_CHANNEL_TABS/, 'sekme whitelist');
+assert.match(preload, /invidiousChannelTab/, 'preload köprüsü');
+assert.match(renderer, /ST_CH_TABS/, 'sekme tanımları');
+assert.match(renderer, /renderStChannelTab/, 'sekme render');
+assert.match(renderer, /loadInvidiousChannelTab/, 'sekme yükleyici');
+assert.match(renderer, /Kanalda ara/, 'kanal-içi arama alanı');
+assert.match(locale, /\['Topluluk', /, 'locale Topluluk');
+assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
+
 console.log('browser-parti7.test.js OK');

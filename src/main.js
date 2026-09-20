@@ -896,7 +896,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
 // Invidious API için basit wrapper — runMediaCommand'a benzer ama invidious.py kullanır
 const INVIDIOUS_RESULT_TYPES = new Set([
   'probe', 'subs', 'feed', 'search', 'channel', 'login', 'logout', 'downloaded',
-  'comments', 'playlist', 'suggestions',
+  'comments', 'playlist', 'suggestions', 'channel_tab',
 ]);
 
 // YouTube OAuth cihaz-akışı sonuç tipleri (backend/youtube.py)
@@ -1465,6 +1465,13 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
   const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['search', '--query', query.trim().slice(0, 100)];
   if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
+  const searchType = String(opts && opts.searchType || 'video').toLowerCase();
+  if (['playlist', 'all'].includes(searchType)) args.push('--search-type', searchType);
+  // A04: yalnız bilinen Invidious özellik süzgeçleri geçer — serbest metin gitmez.
+  const features = String(opts && opts.features || '').toLowerCase()
+    .split(',').map((t) => t.trim())
+    .filter((t) => ['live', 'hd', 'subtitles', 'creative_commons', '3d', '360', 'hdr'].includes(t));
+  if (features.length) args.push('--features', features.join(','));
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1503,6 +1510,34 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
       mainWindow.webContents.send('invidious:event', ev);
     }
   }, 75_000, invidiousAuthEnv(instance));
+});
+
+// A27 — kanal sekmeleri: /channels/:id/<tab> + kanal içi arama
+const INV_CHANNEL_TABS = new Set(['videos', 'shorts', 'streams', 'podcasts',
+  'releases', 'courses', 'playlists', 'community', 'channels']);
+ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const cid = String(channelId || '').trim();
+  if (!/^[A-Za-z0-9_-]{2,40}$/.test(cid)) {
+    return { ok: false, error: 'Geçersiz kanal ID formatı.' };
+  }
+  const o = opts || {};
+  const tab = String(o.tab || 'videos').toLowerCase();
+  const query = String(o.query || '').trim().slice(0, 100);
+  if (!query && !INV_CHANNEL_TABS.has(tab)) {
+    return { ok: false, error: 'Geçersiz kanal sekmesi.' };
+  }
+  const instance = resolveInvidiousInstance(o.instance);
+  const args = ['channel-tab', '--channel-id', cid, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos'];
+  if (query) args.push('--query', query);
+  const page = Math.max(1, parseInt(o.page, 10) || 1);
+  if (page > 1) args.push('--page', String(Math.min(page, 100)));
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious', (ev) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('invidious:event', ev);
+    }
+  }, 60_000, invidiousAuthEnv(instance));
 });
 
 // Invidious yorumlar — /api/v1/comments/:id (continuation ile sayfalama)

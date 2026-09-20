@@ -807,23 +807,74 @@ def feed_subscriptions(instance=None):
 
 
 # ===== Arama =====
-def search(query, page=1, instance=None):
-    """Invidious arama — instance failover + yt-dlp yedek."""
+def _parse_playlist_item(p):
+    """Invidious arama sonucu playlist objesini ortak şemaya çevirir."""
+    thumbs = []
+    for t in p.get("playlistThumbnails") or []:
+        url = t.get("url")
+        if url:
+            thumbs.append({
+                "quality": str(t.get("height") or ""),
+                "url": url,
+                "width": int(t.get("width") or 0),
+                "height": int(t.get("height") or 0),
+            })
+    if not thumbs:
+        # Bazı instance'lar sadece ilk videonun kapağını taşır.
+        for v in p.get("videos") or []:
+            if isinstance(v, dict) and v.get("videoThumbnails"):
+                thumbs = [
+                    {"quality": str(t.get("height") or ""), "url": t.get("url") or "",
+                     "width": int(t.get("width") or 0), "height": int(t.get("height") or 0)}
+                    for t in v["videoThumbnails"] if isinstance(t, dict) and t.get("url")
+                ]
+                break
+    return {
+        "type": "playlist",
+        "playlistId": p.get("playlistId", ""),
+        "title": p.get("title", ""),
+        "author": p.get("author", ""),
+        "authorId": p.get("authorId", ""),
+        "videoCount": _to_int(p.get("videoCount"), 0),
+        "videoThumbnails": thumbs,
+    }
+
+
+def search(query, page=1, instance=None, search_type="video", features=""):
+    """Invidious arama — instance failover + yt-dlp yedek (video için).
+
+    search_type='playlist' playlist sonuçlarını döndürür; 'all' ikisini birden.
+    features='live' vb. Invidious arama süzgecini ekler (Canlı sekmesi).
+    yt-dlp yedeği yalnız video üretir — playlist/features araması Invidious ister.
+    """
+    st = (search_type or "video").strip().lower()
+    if st not in ("video", "playlist", "all"):
+        st = "video"
+    ft = ",".join(t for t in (features or "").split(",")
+                 if t.strip() in ("live", "hd", "subtitles", "creative_commons", "3d", "360", "hdr"))
     try:
-        log(f"Invidious search: {query!r}")
+        log(f"Invidious search: {query!r} type={st} features={ft}")
         q = urllib_parse.quote(query)
+        feat = f"&features={ft}" if ft else ""
         data, inst = _fetch_with_failover(
-            f"/api/v1/search?q={q}&page={_to_int(page, 1)}&type=video",
+            f"/api/v1/search?q={q}&page={_to_int(page, 1)}&type={st}{feat}",
             preferred=instance, timeout=15)
         videos = []
+        playlists = []
         for v in (data or []):
             if not isinstance(v, dict):
                 continue
-            if v.get("type") not in (None, "video"):
-                continue
-            videos.append(_parse_video_item(v))
-        if videos:
-            emit("search", query=query, page=_to_int(page, 1), videos=videos, instance=inst)
+            t = v.get("type")
+            if t in (None, "video"):
+                if st != "playlist":
+                    videos.append(_parse_video_item(v))
+            elif t == "playlist":
+                item = _parse_playlist_item(v)
+                if item["playlistId"]:
+                    playlists.append(item)
+        if videos or playlists:
+            emit("search", query=query, page=_to_int(page, 1),
+                 videos=videos, playlists=playlists, instance=inst)
             return
         raise RuntimeError("Invidious arama boş")
     except Exception as primary:
@@ -866,6 +917,46 @@ def channel(channel_id, instance=None):
     }
     videos = [_parse_video_item(v) for v in (data.get("latestVideos") or [])]
     emit("channel", info=info, videos=videos, instance=inst)
+
+
+# A27 — kanal sekmeleri: videos/shorts/streams/podcasts/releases/courses/
+# playlists/community/related(channels)/kanal-içi arama.
+CHANNEL_TABS = ("videos", "shorts", "streams", "podcasts", "releases",
+                "courses", "playlists", "community", "channels")
+
+def channel_tab(channel_id, tab="videos", page=1, query="", instance=None):
+    """Kanal alt-uçları — /api/v1/channels/:id/<tab> ve /search."""
+    cid = (channel_id or "").strip()
+    if not cid or len(cid) > 40 or not all(ch.isalnum() or ch in "-_" for ch in cid):
+        raise RuntimeError(f"Geçersiz kanal ID: {channel_id!r}")
+    t = (tab or "videos").strip().lower()
+    q = (query or "").strip()[:100]
+    if q:
+        t = "search"
+        path = f"/api/v1/channels/{urllib_parse.quote(cid)}/search?q={urllib_parse.quote(q)}&page={_to_int(page, 1)}"
+    elif t == "community":
+        path = f"/api/v1/channels/{urllib_parse.quote(cid)}/community"
+    elif t == "channels":
+        path = f"/api/v1/channels/{urllib_parse.quote(cid)}/channels"
+    elif t in CHANNEL_TABS:
+        path = f"/api/v1/channels/{urllib_parse.quote(cid)}/{t}?page={_to_int(page, 1)}"
+    else:
+        raise RuntimeError(f"Geçersiz kanal sekmesi: {tab!r}")
+    data, inst = _fetch_with_failover(path, preferred=instance, timeout=15)
+    if not isinstance(data, dict):
+        raise RuntimeError("Kanal sekmesi yanıtı beklenmeyen biçimde")
+    emit("channel_tab", channelId=cid, tab=t, query=q,
+         videos=[_parse_video_item(v) for v in (data.get("videos") or []) if isinstance(v, dict)],
+         playlists=[_parse_playlist_item(p) for p in (data.get("playlists") or [])
+                    if isinstance(p, dict) and p.get("playlistId")],
+         channels=[{"authorId": c.get("authorId") or "",
+                    "author": c.get("author") or "",
+                    "authorThumbnails": c.get("authorThumbnails") or [],
+                    "subCount": _to_int(c.get("subCount"), 0)}
+                   for c in (data.get("channels") or []) if isinstance(c, dict)],
+         comments=[_parse_comment(c) for c in (data.get("comments") or []) if isinstance(c, dict)],
+         continuation=data.get("continuation") or "",
+         instance=inst)
 
 
 # ===== Yorumlar =====
@@ -934,7 +1025,7 @@ def main():
     ap.add_argument("command", choices=[
         "probe", "subs", "login", "logout",
         "popular", "trending", "subscriptions", "home",
-        "search", "suggest", "channel", "comments", "playlist",
+        "search", "suggest", "channel", "channel-tab", "comments", "playlist",
     ])
     ap.add_argument("--url", default="", help="YouTube URL veya video ID")
     ap.add_argument("--lang", default="en", help="Altyazı dili kodu")
@@ -945,9 +1036,11 @@ def main():
     ap.add_argument("--password", default="", help="Invidious şifresi — argv'de görünür; env WHISPER_INVIDIOUS_PASSWORD tercih edilir")
     ap.add_argument("--query", default="", help="Arama terimi")
     ap.add_argument("--page", default="1", help="Arama sayfası")
+    ap.add_argument("--search-type", default="video", help="video|playlist|all")
+    ap.add_argument("--features", default="", help="Arama süzgeci: live,hd,subtitles,...")
     ap.add_argument("--channel-id", default="", help="Invidious kanal ID (UCID)")
     ap.add_argument("--sid", default="", help="Invidious SID cookie (env WHISPER_INVIDIOUS_SID da kabul)")
-    ap.add_argument("--tab", default="", help="Trend kategorisi: music|gaming|news|movies")
+    ap.add_argument("--tab", default="", help="Trend kategorisi: music|gaming|news|movies; channel-tab: videos|shorts|streams|podcasts|releases|courses|playlists|community|channels")
     ap.add_argument("--playlist-id", default="", help="Invidious playlist ID (PLID)")
     ap.add_argument("--continuation", default="", help="Yorum sayfalama continuation token'ı")
     args = ap.parse_args()
@@ -981,11 +1074,15 @@ def main():
         elif args.command == "home":
             feed_home(instance)
         elif args.command == "search":
-            search(args.query, args.page, instance)
+            search(args.query, args.page, instance, search_type=args.search_type,
+                   features=args.features)
         elif args.command == "suggest":
             suggest(args.query, instance)
         elif args.command == "channel":
             channel(args.channel_id, instance)
+        elif args.command == "channel-tab":
+            channel_tab(args.channel_id, tab=args.tab, page=_to_int(args.page, 1),
+                        query=args.query, instance=instance)
         elif args.command == "comments":
             comments(args.url, instance, continuation=args.continuation.strip())
         elif args.command == "playlist":

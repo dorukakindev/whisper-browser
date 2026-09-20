@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld('api', {
   invidiousSearch: (query, opts) => ipcRenderer.invoke('invidious:search', query, opts || {}),
   invidiousSuggest: (query, opts) => ipcRenderer.invoke('invidious:suggest', query, opts || {}),
   invidiousChannel: (channelId, opts) => ipcRenderer.invoke('invidious:channel', channelId, opts || {}),
+  invidiousChannelTab: (channelId, opts) => ipcRenderer.invoke('invidious:channelTab', channelId, opts || {}),
   invidiousComments: (url, opts) => ipcRenderer.invoke('invidious:comments', url, opts || {}),
   invidiousPlaylist: (playlistId, opts) => ipcRenderer.invoke('invidious:playlist', playlistId, opts || {}),
   invidiousLogin: (username, password, instance) => ipcRenderer.invoke('invidious:login', { username, password, instance }),
