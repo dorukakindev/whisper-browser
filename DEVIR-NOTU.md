@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
+Güncel çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
+
+Önceki çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
 
 Önceki çalışma: [2026-09-20 13:35 — R75/R76 ve diğer özellik önerilerinin güncel kodla karar incelemesi; uygulanacak/ertelenecek/reddedilecekler, ürün kodu değişmedi](docs/devir/2026-09-20-1335.md).
 
