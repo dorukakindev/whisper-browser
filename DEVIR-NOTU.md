@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 13:35 — R75/R76 ve diğer özellik önerilerinin güncel kodla karar incelemesi; uygulanacak/ertelenecek/reddedilecekler, ürün kodu değişmedi](docs/devir/2026-09-20-1335.md).
+Güncel çalışma: [2026-09-20 14:05 — R89 bağımsız denetim turu: 17500 satırlık main.js + backend + modüller satır satır, npm test PASS (exit_code:0, 86 sn); 4 yeni bulgu (B89-01 P3: browser:trusted-bridge aktif-sekme kontrolü eksiklik +P2: page-action/blocks token koruması yeterli, B89-02 P3: redactForBackup URL ad sızıntısı, B89-03 P3: probeCommand/ndJSON stderr farkı, B89-04 P3: invidious SID stdout sızıntısı latent); B80-01/B82-01/B83-13/14 doğrulandı; ürün kodu değişmedi; PROGRAM_BUG_REPORT_89.md](docs/devir/2026-09-20-1405.md).
+
+Önceki çalışma: [2026-09-20 14:00 — R75/R76, yedi şartname, servis ve kozmetik önerilerinin önceliksiz tam kataloğu; önceki kısa özetin kapsam düzeltmesi, ürün kodu değişmedi](docs/devir/2026-09-20-1400.md).
 
 Önceki çalışma: [2026-09-20 09:55 — R88'in iki kaynak-sözleşmesi testi davranış testine çevrildi (mini-DOM baloncuklanma + sahte saat); report67 66/66, npm test yalnız fts5 ortam sınırı; ürün kodu değişmedi; BROWSER_BUG_REPORT_88 RESOLVED](docs/devir/2026-09-20-0955.md).
 
