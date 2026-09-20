@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 13:35 — R75/R76 ve diğer özellik önerilerinin güncel kodla karar incelemesi; uygulanacak/ertelenecek/reddedilecekler, ürün kodu değişmedi](docs/devir/2026-09-20-1335.md).
+Güncel çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
+
+Önceki çalışma: [2026-09-20 13:35 — R75/R76 ve diğer özellik önerilerinin güncel kodla karar incelemesi; uygulanacak/ertelenecek/reddedilecekler, ürün kodu değişmedi](docs/devir/2026-09-20-1335.md).
 
 Önceki çalışma: [2026-09-20 09:55 — R88'in iki kaynak-sözleşmesi testi davranış testine çevrildi (mini-DOM baloncuklanma + sahte saat); report67 66/66, npm test yalnız fts5 ortam sınırı; ürün kodu değişmedi; BROWSER_BUG_REPORT_88 RESOLVED](docs/devir/2026-09-20-0955.md).
 
