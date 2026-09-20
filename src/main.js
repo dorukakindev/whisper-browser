@@ -896,7 +896,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
 // Invidious API için basit wrapper — runMediaCommand'a benzer ama invidious.py kullanır
 const INVIDIOUS_RESULT_TYPES = new Set([
   'probe', 'subs', 'feed', 'search', 'channel', 'login', 'logout', 'downloaded',
-  'comments', 'playlist',
+  'comments', 'playlist', 'suggestions',
 ]);
 
 // YouTube OAuth cihaz-akışı sonuç tipleri (backend/youtube.py)
@@ -1471,6 +1471,18 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
       mainWindow.webContents.send('invidious:event', ev);
     }
   }, 75_000, invidiousAuthEnv(instance));
+});
+
+// Invidious arama önerileri (A23) — kısa ömürlü, ana arama işiyle çakışmasın
+// diye ayrı job key kullanır (kısa timeout).
+ipcMain.handle('invidious:suggest', async (_e, query, opts) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const q = String(query || '').trim().slice(0, 100);
+  if (!q) return { ok: true, data: { type: 'suggestions', query: '', suggestions: [], instance: '' } };
+  const instance = resolveInvidiousInstance(opts && opts.instance);
+  const args = ['suggest', '--query', q];
+  if (instance) args.push('--instance', instance);
+  return runInvidiousCommand(args, 'invidious-suggest', null, 12_000, invidiousAuthEnv(instance));
 });
 
 // Invidious kanal
@@ -14704,6 +14716,79 @@ ipcMain.handle('browser:capturePage', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   return saveBrowserPageCapture(tab, 'Tarayıcı ekran görüntüsünü kaydet', request?.options || {});
+});
+
+// A17 — Harici oynatıcıya devir (mpv/VLC): beyaz liste çözümleme + yalnız
+// açık http/https sayfa URL'si veya yetkili yerel medya dosyası. İmzalı akış
+// URL'si hiçbir zaman renderer'dan buraya taşınmaz; watch URL'si gönderilir.
+const EXTERNAL_PLAYER_SPECS = {
+  mpv: {
+    env: 'WHISPER_MPV_PATH',
+    candidates: process.platform === 'win32'
+      ? ['C:\\Program Files\\mpv\\mpv.exe', 'C:\\Program Files (x86)\\mpv\\mpv.exe']
+      : ['/usr/bin/mpv', '/usr/local/bin/mpv', '/snap/bin/mpv'],
+  },
+  vlc: {
+    env: 'WHISPER_VLC_PATH',
+    candidates: process.platform === 'win32'
+      ? ['C:\\Program Files\\VideoLAN\\VLC\\vlc.exe', 'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe']
+      : ['/usr/bin/vlc', '/usr/local/bin/vlc', '/snap/bin/vlc'],
+  },
+};
+const EXTERNAL_PLAYER_NAMES = Object.keys(EXTERNAL_PLAYER_SPECS);
+function resolveExternalPlayerPath(name) {
+  const spec = EXTERNAL_PLAYER_SPECS[name];
+  if (!spec) return '';
+  const stem = name.toLowerCase();
+  const accept = (p) => {
+    try {
+      if (!p || !fs.existsSync(p)) return '';
+      // Doğrulanmış yol: dosya adı beklenen oynatıcı adıyla başlamalı.
+      return path.basename(p).toLowerCase().startsWith(stem) ? p : '';
+    } catch (_) { return ''; }
+  };
+  const envPath = accept(String(process.env[spec.env] || '').trim());
+  if (envPath) return envPath;
+  for (const c of spec.candidates) { const hit = accept(c); if (hit) return hit; }
+  const probe = process.platform === 'win32' ? 'where.exe' : 'which';
+  const exeName = process.platform === 'win32' ? `${stem}.exe` : stem;
+  try {
+    const out = rawSpawnSync(probe, [exeName], { encoding: 'utf8', timeout: 5000 });
+    for (const line of String(out.stdout || '').split(/\r?\n/)) {
+      const hit = accept(line.trim());
+      if (hit) return hit;
+    }
+  } catch (_) {}
+  return '';
+}
+ipcMain.handle('player:external', async (event, opts) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const o = opts && typeof opts === 'object' ? opts : {};
+  const name = String(o.player || '').toLowerCase();
+  if (!EXTERNAL_PLAYER_NAMES.includes(name)) return { ok: false, error: 'Desteklenmeyen oynatıcı.' };
+  const exe = resolveExternalPlayerPath(name);
+  if (!exe) {
+    return { ok: false, error: `${name} bulunamadı — kurulu değil ya da ${EXTERNAL_PLAYER_SPECS[name].env} tanımlanmadı.` };
+  }
+  let arg = '';
+  if (typeof o.file === 'string' && o.file.trim()) {
+    try { arg = await authorizeMediaFile(o.file); }
+    catch (error) { return { ok: false, error: error.message }; }
+  } else {
+    const mediaUrl = decideUrlPolicy(String(o.url || ''), 'renderer-external');
+    if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol)) {
+      return { ok: false, error: 'Yalnızca http/https sayfa URLsi veya yetkili yerel dosya verilebilir.' };
+    }
+    arg = mediaUrl.url;
+  }
+  try {
+    const child = rawSpawn(exe, [arg], { detached: true, stdio: 'ignore', windowsHide: true });
+    child.on('error', () => {});
+    child.unref();
+    return { ok: true, player: name, path: exe };
+  } catch (_) {
+    return { ok: false, error: 'Oynatıcı başlatılamadı.' };
+  }
 });
 
 // B10 — element picker IPC: 'pick' seçiciyi döndürüp geçici gizleme uygular;

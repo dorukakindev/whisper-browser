@@ -585,5 +585,38 @@ class InvidiousHomeProgress(unittest.TestCase):
         self.assertEqual(events[-1][1]["popular"]["videos"][0]["videoId"], "popular")
 
 
+class InvidiousSuggestions(unittest.TestCase):
+    """A23 — /api/v1/search/suggestions sözleşmesi."""
+
+    def test_suggestions_event_and_instance(self):
+        from unittest import mock
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=({"query": "lo", "suggestions": ["lofi", "lofi girl",
+                                                                              "", None, 7]},
+                                             "https://inst.test")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.suggest("lo")
+        self.assertEqual(events[0][0], "suggestions")
+        self.assertEqual(events[0][1]["suggestions"], ["lofi", "lofi girl", "7"])
+        self.assertEqual(events[0][1]["instance"], "https://inst.test")
+
+    def test_empty_query_short_circuits(self):
+        events = []
+        from unittest import mock
+        with mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.suggest("   ")
+        self.assertEqual(events, [("suggestions", {"query": "", "suggestions": [], "instance": ""})])
+
+    def test_list_payload_also_accepted(self):
+        from unittest import mock
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               return_value=(["a", "b"], "https://inst.test")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.suggest("x")
+        self.assertEqual(events[0][1]["suggestions"], ["a", "b"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

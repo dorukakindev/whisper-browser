@@ -19207,6 +19207,22 @@ if ($('browserElementClear')) $('browserElementClear').addEventListener('click',
   const cleared = await window.api.browserElementRules?.({ action: 'clear', tabId }).catch(() => null);
   setBrowserSignal(cleared?.ok ? 'Gizlenen öğeler geri yüklendi.' : (cleared?.error || 'Kurallar kaldırılamadı.'), !!cleared?.ok, { priority: 60, holdMs: 3500 });
 });
+// A17 — açık sayfa URL'sini harici oynatıcıya ver (yalnız http/https; imzalı
+// akış veya DRM isteği hiçbir zaman buradan çıkmaz).
+for (const [btnId, playerName] of [['browserPlayMpv', 'mpv'], ['browserPlayVlc', 'vlc']]) {
+  const btn = $(btnId);
+  if (!btn) continue;
+  btn.addEventListener('click', async () => {
+    closeBrowserToolbarMenus();
+    const tab = browserTabState();
+    const url = tab?.url || '';
+    if (!/^https?:/i.test(url)) {
+      setBrowserSignal('Bu sekme açık bir http/https sayfası değil.', false, { priority: 60, holdMs: 3500 });
+      return;
+    }
+    await stPlayExternal(playerName, { url });
+  });
+}
 if ($('browserExportPdf')) $('browserExportPdf').addEventListener('click', async () => {
   closeBrowserToolbarMenus();
   const button = $('browserExportPdf');
@@ -24071,6 +24087,11 @@ function openStCardMenu(video, x, y, onPlay) {
       const ok = await window.api.copyText?.(url).catch(() => null);
       setBrowserSignal(ok === true ? 'Video bağlantısı panoya kopyalandı.' : 'Bağlantı kopyalanamadı.', ok === true, { priority: 50, holdMs: 3500 });
     });
+    // A17: harici oynatıcıya yalnız açık watch URL'si verilir (imzalı akış asla).
+    addItem(window.UiLocale?.t('mpv ile oynat') || 'mpv ile oynat',
+      () => stPlayExternal('mpv', `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`));
+    addItem(window.UiLocale?.t('VLC ile oynat') || 'VLC ile oynat',
+      () => stPlayExternal('vlc', `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`));
     addItem(window.UiLocale?.t('Listeye ekle…') || 'Listeye ekle…', () => openStPlaylistPicker(video, x, y));
     addItem(window.UiLocale?.t('Videoyu gizle') || 'Videoyu gizle', () => stHideVideo(video));
   }
@@ -24093,6 +24114,17 @@ function openStCardMenu(video, x, y, onPlay) {
   menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
   setTimeout(() => document.addEventListener('mousedown', stCardMenuOutside, true), 0);
   items[0]?.focus();
+}
+
+// A17 — harici oynatıcıya devir: watch URL'si veya yetkili yerel dosya; sonuç
+// sinyal şeridinde gösterilir (oynatıcı yoksa açıklayıcı hata döner).
+async function stPlayExternal(playerName, source) {
+  const res = await window.api.openInExternalPlayer?.(playerName, source)
+    .catch((error) => ({ ok: false, error: error.message }));
+  const label = playerName === 'vlc' ? 'VLC' : 'mpv';
+  setBrowserSignal(
+    res?.ok ? `${label} başlatıldı.` : (res?.error || `${label} açılamadı.`),
+    !!res?.ok, { priority: 60, holdMs: 4000 });
 }
 
 // ----- SmartTube kart (büyük dikey) -----
@@ -24436,6 +24468,55 @@ function stUpdateSearchMore() {
   btn.addEventListener('click', stSearchLoadMore);
   row.appendChild(btn);
   results.appendChild(row);
+}
+
+// ----- Arama önerileri (A23) -----
+// Invidious /api/v1/search/suggestions — 300ms debounce; uçuştaki istekler
+// seq ile tekilleştirilir (iptal = yeni seq, eski sonuç düşer). Kaynak
+// instance kutunun altında görünür; Esc/blur/dış tık kapatır.
+let stSuggestSeq = 0;
+let stSuggestTimer = null;
+function stHideSuggest() {
+  stSuggestSeq++;
+  clearTimeout(stSuggestTimer);
+  $('stSuggestBox')?.classList.add('hidden');
+}
+function stRenderSuggest(items, instance) {
+  const box = $('stSuggestBox');
+  const inp = $('stSearchInput');
+  if (!box || !inp) return;
+  box.innerHTML = '';
+  if (!items.length) { box.classList.add('hidden'); return; }
+  for (const s of items.slice(0, 8)) {
+    const opt = document.createElement('button');
+    opt.type = 'button';
+    opt.className = 'st-suggest-item';
+    opt.setAttribute('role', 'option');
+    opt.textContent = s;
+    // mousedown önce gelir; input'un blur'u kutuyu kapatmadan seçim çalışsın
+    opt.addEventListener('pointerdown', (e) => e.preventDefault());
+    opt.addEventListener('click', () => {
+      inp.value = s;
+      stHideSuggest();
+      $('stSearchClear')?.classList.remove('hidden');
+      doSmartTubeSearch();
+    });
+    box.appendChild(opt);
+  }
+  if (instance) {
+    const foot = document.createElement('div');
+    foot.className = 'st-suggest-src';
+    foot.textContent = `${window.UiLocale?.t('Öneriler') || 'Öneriler'}: ${instance}`;
+    box.appendChild(foot);
+  }
+  box.classList.remove('hidden');
+}
+async function stFetchSuggest(q) {
+  const seq = ++stSuggestSeq;
+  const res = await window.api.invidiousSuggest?.(q).catch(() => null);
+  // Yazım devam ettiyse/başka öneri istendiyse bu yanıt eski — düşür.
+  if (seq !== stSuggestSeq || ($('stSearchInput')?.value || '').trim() !== q) return;
+  stRenderSuggest(res?.ok ? (res.data?.suggestions || []) : [], res?.data?.instance || '');
 }
 
 async function stSearchLoadMore() {
@@ -24939,24 +25020,47 @@ function initSmartTube() {
   if (searchInp) {
     let searchDebounce = null;
     searchInp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { clearTimeout(searchDebounce); doSmartTubeSearch(); }
+      if (e.key === 'Enter') { clearTimeout(searchDebounce); stHideSuggest(); doSmartTubeSearch(); }
       else if (e.key === 'Escape') {
         // Yayılımı kes — yoksa document handler aramayı sıfırlarken tüm
         // oynatıcı katmanını da (closePlayer) kapatıyordu.
         e.stopPropagation();
         clearTimeout(searchDebounce);
+        stHideSuggest();
         resetSmartTubeSearch();
+      } else if (e.key === 'ArrowDown') {
+        // Öneri kutusu açıksa ilk maddeye odakla
+        const first = $('stSuggestBox')?.querySelector('.st-suggest-item');
+        if (first && !$('stSuggestBox')?.classList.contains('hidden')) { e.preventDefault(); first.focus(); }
       }
     });
     searchInp.addEventListener('input', () => {
       syncSearchClear();
       // SmartTube canlı arama: yazarken debounce'lu sorgu (Y3) — boşalınca sıfırla
       clearTimeout(searchDebounce);
+      clearTimeout(stSuggestTimer);
       const q = searchInp.value.trim();
-      if (!q) { resetSmartTubeSearch(); return; }
+      if (!q) { stHideSuggest(); resetSmartTubeSearch(); return; }
+      // A23: öneri kutusu — canlı aramadan önce açılır
+      stSuggestTimer = setTimeout(() => {
+        if (searchInp.value.trim() === q && q.length >= 2) stFetchSuggest(q);
+      }, 300);
       searchDebounce = setTimeout(() => {
         if (searchInp.value.trim() === q) doSmartTubeSearch();
       }, 450);
+    });
+    searchInp.addEventListener('blur', () => { setTimeout(stHideSuggest, 150); });
+  }
+  // Öneri kutusunda ok gezinmesi; Esc input'a geri döner.
+  const stSuggestBoxEl = $('stSuggestBox');
+  if (stSuggestBoxEl) {
+    stSuggestBoxEl.addEventListener('keydown', (e) => {
+      const items = [...stSuggestBoxEl.querySelectorAll('.st-suggest-item')];
+      const idx = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' && idx >= 0 && items[idx + 1]) { e.preventDefault(); items[idx + 1].focus(); }
+      else if (e.key === 'ArrowUp' && idx > 0) { e.preventDefault(); items[idx - 1].focus(); }
+      else if (e.key === 'ArrowUp' && idx === 0) { e.preventDefault(); $('stSearchInput')?.focus(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); stHideSuggest(); $('stSearchInput')?.focus(); }
     });
   }
   if (searchClear) {

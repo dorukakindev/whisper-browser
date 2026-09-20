@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('api', {
   // Invidious ana sayfa + auth (SmartTube tarzı)
   invidiousFeed: (kind, opts) => ipcRenderer.invoke('invidious:feed', kind, opts || {}),
   invidiousSearch: (query, opts) => ipcRenderer.invoke('invidious:search', query, opts || {}),
+  invidiousSuggest: (query, opts) => ipcRenderer.invoke('invidious:suggest', query, opts || {}),
   invidiousChannel: (channelId, opts) => ipcRenderer.invoke('invidious:channel', channelId, opts || {}),
   invidiousComments: (url, opts) => ipcRenderer.invoke('invidious:comments', url, opts || {}),
   invidiousPlaylist: (playlistId, opts) => ipcRenderer.invoke('invidious:playlist', playlistId, opts || {}),
@@ -197,6 +198,7 @@ contextBridge.exposeInMainWorld('api', {
   refreshBrowserReadingList: (tabId, id) => ipcRenderer.invoke('browser:readingList:refresh', { tabId, id }),
   openBrowserReadingList: (tabId, id) => ipcRenderer.invoke('browser:readingList:open', { tabId, id }),
   browserElementRules: (payload) => ipcRenderer.invoke('browser:elementRules', payload),
+  openInExternalPlayer: (player, source) => ipcRenderer.invoke('player:external', { player, ...(source || {}) }),
   setBrowserPageIndexEnabled: (enabled) => ipcRenderer.invoke('browser:pageIndex:setEnabled', { enabled: enabled === true }),
   clearBrowserPageIndex: () => ipcRenderer.invoke('browser:pageIndex:clear'),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),

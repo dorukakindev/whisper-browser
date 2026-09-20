@@ -833,6 +833,21 @@ def search(query, page=1, instance=None):
         emit("search", query=query, page=int(page), videos=videos, instance="yt-dlp:ytdlp_search")
 
 
+def suggest(query, instance=None):
+    """Arama önerileri — /api/v1/search/suggestions?q=..."""
+    q = (query or "").strip()[:100]
+    if not q:
+        emit("suggestions", query="", suggestions=[], instance="")
+        return
+    data, inst = _fetch_with_failover(
+        f"/api/v1/search/suggestions?q={urllib_parse.quote(q)}",
+        preferred=instance, timeout=8)
+    items = data.get("suggestions") if isinstance(data, dict) else data
+    out = [str(s).strip()[:120] for s in (items or [])
+           if str(s or "").strip()][:10]
+    emit("suggestions", query=q, suggestions=out, instance=inst)
+
+
 # ===== Kanal =====
 def channel(channel_id, instance=None):
     """Kanal bilgisi + son videolar — instance failover."""
@@ -919,7 +934,7 @@ def main():
     ap.add_argument("command", choices=[
         "probe", "subs", "login", "logout",
         "popular", "trending", "subscriptions", "home",
-        "search", "channel", "comments", "playlist",
+        "search", "suggest", "channel", "comments", "playlist",
     ])
     ap.add_argument("--url", default="", help="YouTube URL veya video ID")
     ap.add_argument("--lang", default="en", help="Altyazı dili kodu")
@@ -967,6 +982,8 @@ def main():
             feed_home(instance)
         elif args.command == "search":
             search(args.query, args.page, instance)
+        elif args.command == "suggest":
+            suggest(args.query, instance)
         elif args.command == "channel":
             channel(args.channel_id, instance)
         elif args.command == "comments":
