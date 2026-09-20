@@ -20,6 +20,7 @@ const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
 const { classifyTranslationHttpFailure } = require('./browser-translation-provider-error');
+const browserOmnibox = require('./browser-omnibox');
 const { probeTranslationProvider } = require('./translation-provider-probe');
 const {
   isYoutubePlayerResponseUrl,
@@ -4623,6 +4624,8 @@ function installBrowserContextMenu(tab, wc) {
         click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(linkUrl)).catch((error) =>
           sendBrowserEvent(tab, { type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
       { label: 'Bağlantı adresini kopyala', visible: !!linkUrl, click: () => clipboard.writeText(linkUrl) },
+      { label: 'Bağlantıyı Markdown olarak kopyala', visible: !!linkUrl,
+        click: () => clipboard.writeText(browserOmnibox.markdownLink(params.linkText || linkUrl, linkUrl)) },
       { label: 'Seçili metni ara', visible: !!selection,
         click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`))
           .catch((error) => sendBrowserEvent(tab, { type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
@@ -14589,6 +14592,35 @@ ipcMain.handle('browser:archivePage', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   return saveBrowserPageArchive(tab);
+});
+
+async function saveBrowserPagePdf(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed() || typeof wc.printToPDF !== 'function') {
+    return { ok: false, error: 'PDF üretilecek tarayıcı sayfası bulunamadı.' };
+  }
+  const selection = await dialog.showSaveDialog(mainWindow, {
+    title: 'Sayfayı PDF olarak kaydet',
+    defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}.pdf`),
+    filters: [{ name: 'PDF belgesi', extensions: ['pdf'] }],
+  });
+  if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
+  const outputPath = selection.filePath.toLowerCase().endsWith('.pdf')
+    ? selection.filePath : `${selection.filePath}.pdf`;
+  try {
+    const data = await wc.printToPDF({ printBackground: true });
+    fs.writeFileSync(outputPath, data);
+    return { ok: true, path: outputPath, format: 'PDF' };
+  } catch (error) {
+    return { ok: false, error: `PDF kaydedilemedi: ${String(error?.message || error)}` };
+  }
+}
+
+ipcMain.handle('browser:exportPagePdf', async (event, request) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeRequestedBrowserTab(request && request.tabId);
+  if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  return saveBrowserPagePdf(tab);
 });
 
 ipcMain.handle('browser:pageIndex:setEnabled', (event, request = {}) => {

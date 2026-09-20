@@ -891,6 +891,7 @@ function setModalBackgroundInert(modal, inert) {
 function syncBrowserOcclusion() {
   const places = $('browserPlacesPanel');
   const downloads = $('browserDownloadsPanel');
+  const qrPanel = $('browserQrPanel');
   const moreMenu = $('browserMoreMenu');
   const translateMenu = $('browserTranslateMenu');
   const pageQuickMenu = $('browserPageQuickMenu');
@@ -908,6 +909,7 @@ function syncBrowserOcclusion() {
     && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')));
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
+    || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
     || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
@@ -6909,6 +6911,16 @@ async function refreshBrowserAddressResults() {
   const results = [];
   const seen = new Set();
   const add = (row) => { const key = `${row.action}:${row.id || row.url || row.title}`; if (!seen.has(key) && results.length < 14) { seen.add(key); results.push(row); } };
+  // Hesap satırı en üste girer: Enter ile sonuç panoya kopyalanır, gezinme için
+  // aşağıdaki Web satırına inilir (Chrome adres çubuğu hesaplayıcı davranışı).
+  const calc = globalThis.BrowserOmnibox?.evaluateArithmetic(query);
+  if (calc !== null && calc !== undefined) {
+    const display = `${query} = ${globalThis.BrowserOmnibox.formatCalcResult(calc)}`;
+    add({ action: 'calc', value: globalThis.BrowserOmnibox.formatCalcResult(calc),
+      title: display, detail: 'Enter: sonucu panoya kopyala', kindLabel: 'Hesap', mark: '=' });
+  }
+  // "!kod sorgu" biçimindeki bang kısayolu doğrudan hedef sitenin aramasına gider.
+  const bang = globalThis.BrowserOmnibox?.resolveBang(query);
   for (const tab of player.browserTabs) {
     if (`${tab.title} ${tab.url}`.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)) add({ action: 'tab', id: tab.id,
       title: browserTabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S' });
@@ -6920,6 +6932,9 @@ async function refreshBrowserAddressResults() {
         title: browserPlaceTitle(item), detail: item.url, kindLabel: label, mark });
     }
   }
+  if (bang) add({ action: 'navigate', url: bang.url,
+    title: bang.query ? `${bang.label} araması: ${bang.query}` : `${bang.label} ana sayfası`,
+    detail: bang.url, kindLabel: 'Kısayol', mark: '!' });
   add({ action: 'navigate', value: query, title: `“${query.slice(0, 120)}” için git veya ara`,
     detail: 'Adresse doğrudan açılır; değilse web araması yapılır.', kindLabel: 'Web', mark: 'A' });
   const seq = ++browserAddressSearchSeq;
@@ -6937,6 +6952,13 @@ async function useBrowserAddressResult(index) {
   const result = player.browserAddressResults[index];
   if (!result) return;
   closeBrowserAddressResults();
+  if (result.action === 'calc') {
+    const copied = await window.api.copyText?.(result.value).catch(() => null);
+    setBrowserSignal(copied === true
+      ? `Sonuç panoya kopyalandı: ${result.value}`
+      : 'Sonuç panoya kopyalanamadı.', copied === true, { priority: 50, holdMs: 3500 });
+    return;
+  }
   if (result.action === 'tab') await activateBrowserTab(result.id);
   else if (result.action === 'unified') await openUnifiedLibraryResult(result.result);
   else {
@@ -10438,13 +10460,15 @@ function syncBrowserAddressAction() {
 }
 
 async function navigateBrowserFromAddress() {
-  const value = $('browserAddress')?.value.trim();
-  if (!value || !window.api.navigateBrowser) {
+  const rawValue = $('browserAddress')?.value.trim();
+  if (!rawValue || !window.api.navigateBrowser) {
     $('browserAddress')?.focus();
     return null;
   }
   $('browserAddress')?.blur?.();
   closeBrowserAddressResults();
+  // "!kod sorgu" kısayolu daha main sürece ulaşmadan hedef URL'ye çevrilir.
+  const value = globalThis.BrowserOmnibox?.resolveBang?.(rawValue)?.url || rawValue;
   if (player.browserSurface === 'settings') showBrowserWebSurface();
   const navigateSeq = ++player.browserNavigateSeq;
   const tabId = player.browserActiveTabId;
@@ -18816,6 +18840,74 @@ document.addEventListener('keydown', (event) => {
 if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
   closeBrowserToolbarMenus();
   openBrowserFind();
+});
+function setBrowserQrOpen(open) {
+  const panel = $('browserQrPanel');
+  if (!panel) return;
+  if (open) { setBrowserPlacesOpen(false); setBrowserDownloadsOpen(false); }
+  panel.classList.toggle('hidden', !open);
+  panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  syncBrowserOcclusion();
+  if (!open && panel.contains(document.activeElement)) $('browserMoreMenu')?.querySelector('summary')?.focus({ preventScroll: true });
+}
+
+async function showBrowserQrPanel() {
+  const panel = $('browserQrPanel');
+  const canvas = $('browserQrCanvas');
+  const urlEl = $('browserQrUrl');
+  if (!panel || !canvas || !urlEl) return;
+  const url = player.browserPageUrl || '';
+  urlEl.textContent = url;
+  setBrowserQrOpen(true);
+  if (!url || typeof globalThis.QRCode?.toCanvas !== 'function') {
+    setBrowserSignal('QR kodu için geçerli bir sayfa adresi yok.', false, { priority: 60, holdMs: 4000 });
+    return;
+  }
+  try {
+    await globalThis.QRCode.toCanvas(canvas, url, { errorCorrectionLevel: 'M', margin: 1, width: 168 });
+  } catch {
+    setBrowserSignal('QR kodu üretilemedi.', false, { priority: 60, holdMs: 4000 });
+  }
+}
+
+if ($('browserQrClose')) $('browserQrClose').addEventListener('click', () => setBrowserQrOpen(false));
+$('browserQrPanel')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  event.stopPropagation();
+  setBrowserQrOpen(false);
+});
+if ($('browserQrCopy')) $('browserQrCopy').addEventListener('click', async () => {
+  const url = $('browserQrUrl')?.textContent || '';
+  const copied = url ? await window.api.copyText?.(url).catch(() => null) : null;
+  setBrowserSignal(copied === true ? 'Adres panoya kopyalandı.' : 'Adres kopyalanamadı.', copied === true, { priority: 50, holdMs: 3500 });
+});
+if ($('browserShowQr')) $('browserShowQr').addEventListener('click', () => {
+  closeBrowserToolbarMenus();
+  showBrowserQrPanel();
+});
+if ($('browserCopyPageMarkdown')) $('browserCopyPageMarkdown').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const url = player.browserPageUrl || '';
+  if (!url) { setBrowserSignal('Kopyalanacak sayfa adresi yok.', false, { priority: 60, holdMs: 4000 }); return; }
+  const text = globalThis.BrowserOmnibox?.markdownLink(player.browserPageTitle || url, url) || url;
+  const copied = await window.api.copyText?.(text).catch(() => null);
+  setBrowserSignal(copied === true ? `Markdown bağlantısı kopyalandı: ${text}` : 'Bağlantı kopyalanamadı.', copied === true, { priority: 60, holdMs: 4500 });
+});
+if ($('browserExportPdf')) $('browserExportPdf').addEventListener('click', async () => {
+  closeBrowserToolbarMenus();
+  const button = $('browserExportPdf');
+  if (button.disabled) return;
+  button.disabled = true;
+  const result = await window.api.exportBrowserPagePdf?.(player.browserActiveTabId)
+    .catch((error) => ({ ok: false, error: error.message }));
+  button.disabled = false;
+  if (result?.ok) {
+    setBrowserSignal('Sayfa PDF olarak kaydedildi.', true, { priority: 60, holdMs: 4500 });
+    logLine(`PDF kaydedildi: ${result.path}`, 'success');
+  } else if (!result?.canceled) {
+    setBrowserSignal(result?.error || 'Sayfa PDF olarak kaydedilemedi.', false, { priority: 90, holdMs: 6500 });
+  }
 });
 if ($('browserReopenTab')) $('browserReopenTab').addEventListener('click', () => {
   closeBrowserToolbarMenus();

@@ -4690,6 +4690,10 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-place-tab:hover { color: #d6d6d9; background: var(--bg-3); }
 .browser-place-tab.active { color: #1c160c; background: var(--player-amber); }
 .browser-places-list { display: flex; flex-direction: column; gap: 5px; margin-top: 9px; }
+.browser-qr { width: min(240px, calc(100% - 20px)); }
+.browser-qr-body { display: flex; flex-direction: column; align-items: center; gap: 9px; margin-top: 10px; }
+.browser-qr-body canvas { padding: 7px; border-radius: 8px; background: #fff; }
+.browser-qr-url { margin: 0; max-width: 100%; color: var(--text-muted); font-family: Consolas, "Cascadia Mono", monospace; font-size: 9px; overflow-wrap: anywhere; user-select: text; }
 .browser-place-empty { padding: 18px 8px; color: var(--text-muted); text-align: center; font-size: 11px; }
 .browser-place-row { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 8px; background: var(--bg-2); }
 .browser-place-row:hover { border-color: #3c3425; background: #1e1d1a; }

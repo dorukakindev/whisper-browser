@@ -190,6 +190,7 @@ contextBridge.exposeInMainWorld('api', {
   exportPdfTranslation: (pdfHash, format, targetLanguage, model) => ipcRenderer.invoke('pdf:export', { pdfHash, format, targetLanguage, model }),
   captureBrowserPage: (tabId, options = {}) => ipcRenderer.invoke('browser:capturePage', { tabId, options }),
   archiveBrowserPage: (tabId) => ipcRenderer.invoke('browser:archivePage', { tabId }),
+  exportBrowserPagePdf: (tabId) => ipcRenderer.invoke('browser:exportPagePdf', { tabId }),
   setBrowserPageIndexEnabled: (enabled) => ipcRenderer.invoke('browser:pageIndex:setEnabled', { enabled: enabled === true }),
   clearBrowserPageIndex: () => ipcRenderer.invoke('browser:pageIndex:clear'),
   startBrowserTranslation: (tabId, payload) => ipcRenderer.invoke('browser:translation:start', { ...payload, tabId }),
