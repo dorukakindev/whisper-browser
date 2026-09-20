@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 22:17 — kozmetik/öneri kataloğu kapanışı, responsive reader+overlay ölçek matrisi, Windows paket/lisans/geçmiş denetimi, çapraz-platform yeşil CI ve GitHub güvenlik kapıları](docs/devir/2026-09-20-2217.md).
+Güncel çalışma: [2026-09-20 22:19 — bug_catcher turu: kuyruklu YouTube'da bayat "Sonraki" düğmesi (F1) + OpenSubtitles moviehash tail-overlap düzeltmesi, yeni paket yüzeyi denetimi; hedefli testler yeşil](docs/devir/2026-09-20-2219.md).
+
+Önceki çalışma: [2026-09-20 22:17 — kozmetik/öneri kataloğu kapanışı, responsive reader+overlay ölçek matrisi, Windows paket/lisans/geçmiş denetimi, çapraz-platform yeşil CI ve GitHub güvenlik kapıları](docs/devir/2026-09-20-2217.md).
 
 Önceki çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
 
