@@ -16198,6 +16198,14 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     '--model', model, '--device', device, '--compute-type', computeType, '--seconds', '30',
     '--ffmpeg', fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg'];
   if (language && language !== 'auto') args.push('--language', language);
+  // F17: aynı klipte ikinci ayar — yalnız bilinen model kimliği kabul edilir
+  const compare = options.compare && typeof options.compare === 'object' ? options.compare : {};
+  const compareModel = KNOWN_MODELS.includes(compare.model) ? compare.model : '';
+  if (compareModel) {
+    args.push('--compare-model', compareModel,
+      '--compare-device', ['cpu', 'cuda'].includes(compare.device) ? compare.device : device,
+      '--compare-compute-type', String(compare.computeType || computeType).slice(0, 32));
+  }
   const proc = spawn(resolvePython(), args, { cwd: appDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   const job = { proc, canceled: false };
   modelBenchmarkJob = job;
@@ -16228,10 +16236,62 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
       if (modelBenchmarkJob === job) modelBenchmarkJob = null;
       if (job.canceled) return finish({ ok: false, canceled: true });
       const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop() || '';
-      try { finish(JSON.parse(line)); }
-      catch (_) { finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
+      let parsed = null;
+      try { parsed = JSON.parse(line); }
+      catch (_) { return finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
+      // F17: sonucu klip hash'iyle sakla (aynı klip = aynı wav sha256)
+      if (parsed?.ok && parsed.clipHash && typeof recordModelBenchmark === 'function') {
+        try { parsed.historyCount = recordModelBenchmark(parsed); } catch (_) {}
+      }
+      finish(parsed);
     });
   });
+});
+
+// F17: klip başına benchmark geçmişi — aynı klibin ölçümleri birlikte tutulur
+function modelBenchmarkHistoryPath() {
+  return path.join(app.getPath('userData'), 'model-benchmarks.json');
+}
+
+function recordModelBenchmark(result) {
+  const file = modelBenchmarkHistoryPath();
+  let store = {};
+  try { store = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { store = {}; }
+  store = (store && typeof store === 'object' && !Array.isArray(store)) ? store : {};
+  const summary = (run) => run && {
+    model: run.model, device: run.device, computeType: run.computeType,
+    speedX: run.speedX, realtimeFactor: run.realtimeFactor, vramMb: run.vramMb ?? null,
+    loadSeconds: run.loadSeconds, transcribeSeconds: run.transcribeSeconds,
+    segmentCount: run.segmentCount, language: run.language,
+  };
+  const entry = {
+    at: new Date().toISOString(),
+    clipSeconds: result.audioSeconds,
+    primary: summary(result),
+    compare: result.compare ? summary(result.compare) : null,
+    diff: result.diff || null,
+  };
+  const key = String(result.clipHash).slice(0, 64);
+  const list = Array.isArray(store[key]) ? store[key] : [];
+  list.push(entry);
+  store[key] = list.slice(-20);
+  const keys = Object.keys(store);
+  if (keys.length > 40) for (const k of keys.slice(0, keys.length - 40)) delete store[k];
+  writeJsonAtomic(file, store);
+  return store[key].length;
+}
+
+ipcMain.handle('models:benchmark:history', (event, input = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const store = JSON.parse(fs.readFileSync(modelBenchmarkHistoryPath(), 'utf8'));
+    const key = String(input.clipHash || '').slice(0, 64);
+    const entries = key ? (Array.isArray(store?.[key]) ? store[key] : [])
+      : Object.values(store || {}).flat().slice(-100);
+    return { ok: true, entries };
+  } catch (_) {
+    return { ok: true, entries: [] };
+  }
 });
 
 ipcMain.handle('models:benchmark:cancel', (event) => {

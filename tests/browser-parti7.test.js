@@ -162,4 +162,23 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(readRel('src/main.js'), /authorizeMedia: file => authorizeLocalMediaPath/, 'dep enjeksiyonu');
 }
 
+// --- F17 — aynı klipte A/B ASR benchmark'ı ---
+{
+  const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const py = readRel('backend/model_benchmark.py');
+  const html = readRel('src/renderer/index.html');
+  assert.match(py, /--compare-model/, 'ikinci ayar argümanı');
+  assert.match(py, /clip_hash = hashlib\.sha256/, 'klip hash (wav sha256)');
+  assert.match(py, /cueStartDriftAvgMs/, 'cue zaman sapması');
+  assert.match(py, /textDeviation/, 'referans metin sapması');
+  assert.match(py, /vramMb/, 'VRAM metriği');
+  assert.match(py, /max\(30\.0, min\(120\.0/, '30–120 sn klip sınırı');
+  assert.match(main, /--compare-model/, 'IPC argüman geçişi');
+  assert.match(main, /recordModelBenchmark/, 'klip-hash kaydı');
+  assert.match(main, /models:benchmark:history/, 'geçmiş kanalı');
+  assert.match(preload, /modelBenchmarkHistory/, 'preload köprüsü');
+  assert.match(html, /id="modelBenchmarkCompare"/, 'A/B seçici');
+  assert.match(renderer, /compareModel/, 'renderer karşılaştırma gönderimi');
+}
+
 console.log('browser-parti7.test.js OK');

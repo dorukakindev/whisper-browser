@@ -3101,11 +3101,14 @@ if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener(
   modelBenchmarkRunning = true;
   if (button) button.textContent = 'Benchmarkı durdur';
   if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Dosya seçimi bekleniyor…';
+  const compareModel = $('modelBenchmarkCompare')?.value || '';
   const result = await window.api.benchmarkModel?.({
     model: $('model')?.value,
     device: $('device')?.value,
     computeType: $('computeType')?.value,
     language: $('language')?.value,
+    // F17: aynı klipte ikinci model — yalnız seçiliyse gönderilir
+    compare: compareModel && compareModel !== $('model')?.value ? { model: compareModel } : undefined,
   }).catch((error) => ({ ok: false, error: error.message }));
   modelBenchmarkRunning = false;
   if (button) button.textContent = '30 sn benchmark';
@@ -3117,6 +3120,10 @@ if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener(
     const message = `${result.model} · ${result.audioSeconds.toFixed(1)} sn ses · ${result.transcribeSeconds.toFixed(1)} sn işlem · ${result.speedX.toFixed(1)}× gerçek zaman`;
     if ($('modelInstallStatus')) $('modelInstallStatus').textContent = `${result.speedX.toFixed(1)}× gerçek zaman`;
     logLine(`Model benchmarkı: ${message}`, 'success');
+    if (result.compare) {
+      const d = result.diff || {};
+      logLine(`A/B: ${result.model} ${result.speedX.toFixed(1)}× vs ${result.compare.model} ${Number(result.compare.speedX).toFixed(1)}× · cue sapması ort. ${d.cueStartDriftAvgMs ?? '—'} ms (maks ${d.cueStartDriftMaxMs ?? '—'} ms) · metin farkı %${(100 * (d.textDeviation || 0)).toFixed(1)}${result.historyCount ? ` · bu klipte ${result.historyCount}. kayıt` : ''}`, 'info');
+    }
     await refreshModelStatus();
   } else {
     if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Benchmark tamamlanamadı';

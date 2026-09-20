@@ -234,6 +234,7 @@ contextBridge.exposeInMainWorld('api', {
   getEnvInfo: () => ipcRenderer.invoke('app:getEnvInfo'),
   getModelStatus: () => ipcRenderer.invoke('models:status'),
   benchmarkModel: (options) => ipcRenderer.invoke('models:benchmark', options),
+  modelBenchmarkHistory: (input) => ipcRenderer.invoke('models:benchmark:history', input),
   cancelModelBenchmark: () => ipcRenderer.invoke('models:benchmark:cancel'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   loadSettings: () => ipcRenderer.invoke('settings:load'),

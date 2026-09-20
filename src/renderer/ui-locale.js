@@ -49,6 +49,8 @@
     ['Geri yükle', 'Restore'],
     ['Model, motor, dil, görev ve çıktı', 'Model, engine, language, task and output'],
     ['Önbellek denetlenmedi', 'Cache not checked'],
+    ['Karşılaştırma modeli', 'Comparison model'],
+    ['İkinci modelle aynı klipte A/B ölçümü', 'A/B measurement on the same clip with a second model'],
     ['Otomatik algıla', 'Detect automatically'],
     ['Türkçe', 'Turkish'],
     ['İngilizce', 'English'],
