@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 14:55 — Katalog E-paketi: adres çubuğu hesaplayıcı + bang kısayolları (C36/B24), Markdown bağlantı kopyası + QR paneli (B21), sayfayı PDF kaydet (B20); npm test temiz, 42 yeni kontrol; 2 Electron smoke ortam sınırı](docs/devir/2026-09-20-1455.md).
+Güncel çalışma: [2026-09-20 15:09 — Katalog Parti 2: okuma görünümü TOC scrollspy + odak affordance (E01), 180 karakter mikro metni (E02), son kullanılan altyazı izleri üstte (A09), SmartTube kart boyutu/yazı ölçeği ayarları (A10); npm test temiz, yeni 30+ kontrol; 4 Electron smoke ortam sınırı](docs/devir/2026-09-20-1509.md).
+
+Önceki çalışma: [2026-09-20 14:55 — Katalog E-paketi: adres çubuğu hesaplayıcı + bang kısayolları (C36/B24), Markdown bağlantı kopyası + QR paneli (B21), sayfayı PDF kaydet (B20); npm test temiz, 42 yeni kontrol; 2 Electron smoke ortam sınırı](docs/devir/2026-09-20-1455.md).
 
 Önceki çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
 
