@@ -9,8 +9,8 @@ The repository is already public. This list now tracks outstanding publication a
 - [x] Build and smoke-test a Windows artifact. `package:win` produced a 487.5 MiB unpacked app and `smoke:package:win` kept it healthy for six seconds. The package intentionally requires `install.bat` for Python/GPU runtime setup on a new machine.
 - [x] Verify every bundled dependency license in the produced artifact. `audit:licenses` found only Apache-2.0, BSD-2-Clause, ISC, MIT, and MPL-2.0; production lock copyleft findings: 0.
 - [x] Enable GitHub private vulnerability reporting and branch protection. `master` requires the Windows and Ubuntu test jobs, blocks force-push/deletion, and requires resolved conversations.
-- [x] Review the latest pre-release GitHub Actions failure. It contained cross-platform test-runtime gaps, not product regressions or printed credentials; the paths and dependency setup are now explicit in CI. Older public logs remain covered by the no-secret history policy and must be rechecked if a credential incident is reported.
-- [ ] Create a current beta tag and release notes; treat v1.1-browser-hardening as historical.
+- [x] Review all available historical GitHub Actions logs: 177/177 archives scanned, zero provider-key prefix, GitHub-token shape, or personal profile path. Generic matches were all the source identifier `current.translateApiKey`, not values.
+- [x] Create the current `v0.9.0-beta.1` prerelease and release notes; treat `v1.1-browser-hardening` as historical. The 190.8 MiB Windows ZIP is attached with SHA-256 in the release notes.
 - [x] Add representative product screenshots that contain no personal data. The current README also links to a credited real-video tour; review the media again before each release.
 - [x] Set an English repository description and discoverability topics; verify them through GitHub's public repository API.
 

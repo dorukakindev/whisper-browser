@@ -12,6 +12,10 @@ prints candidate secret values.
 - History rewrite required: **no**. No credential or private browser record was
   found, so rewriting already-published Git history would create more risk than
   it removes.
+- GitHub Actions history: **177/177** available log archives scanned. No shared
+  provider-key prefix, GitHub token shape, or personal Windows profile path was
+  present. Thirty runs matched one generic rule; every match had the same hash
+  and was traced to the source identifier `current.translateApiKey`, not a value.
 
 The five warnings are documentation evidence: two synthetic redaction examples,
 one generic AppData placeholder, one configured `Downloads/Whisper` location,
@@ -28,4 +32,3 @@ npm run audit:public-history
 
 Any future secret finding blocks a release. Rotate/revoke the credential first;
 history rewriting is an incident response decision, never an automatic cleanup.
-
