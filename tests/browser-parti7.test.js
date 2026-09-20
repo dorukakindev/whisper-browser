@@ -170,15 +170,24 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(py, /--compare-model/, 'ikinci ayar argümanı');
   assert.match(py, /clip_hash = hashlib\.sha256/, 'klip hash (wav sha256)');
   assert.match(py, /cueStartDriftAvgMs/, 'cue zaman sapması');
+  assert.match(py, /primaryUnmatchedCueCount/, 'farklı segmentasyonda eşleşmeyen A cue sayısı');
+  assert.match(py, /compareUnmatchedCueCount/, 'farklı segmentasyonda eşleşmeyen B cue sayısı');
   assert.match(py, /textDeviation/, 'referans metin sapması');
   assert.match(py, /vramMb/, 'VRAM metriği');
+  assert.match(py, /nvidia-smi/, 'CTranslate2 için süreç VRAM ölçümü');
+  assert.doesNotMatch(py, /torch\.cuda\.max_memory_allocated/, 'PyTorch dışı motor için yanıltıcı VRAM sayacı yok');
   assert.match(py, /max\(30\.0, min\(120\.0/, '30–120 sn klip sınırı');
   assert.match(main, /--compare-model/, 'IPC argüman geçişi');
+  assert.match(main, /'--seconds', String\(seconds\)/, 'seçilen klip süresi backend\'e gider');
+  assert.match(main, /'--start', String\(start\)/, 'seçilen klip başlangıcı backend\'e gider');
   assert.match(main, /recordModelBenchmark/, 'klip-hash kaydı');
   assert.match(main, /models:benchmark:history/, 'geçmiş kanalı');
   assert.match(preload, /modelBenchmarkHistory/, 'preload köprüsü');
   assert.match(html, /id="modelBenchmarkCompare"/, 'A/B seçici');
+  assert.match(html, /id="modelBenchmarkStart"/, 'klip başlangıç seçici');
+  assert.match(html, /id="modelBenchmarkSeconds"/, '30–120 sn süre seçici');
   assert.match(renderer, /compareModel/, 'renderer karşılaştırma gönderimi');
+  assert.match(renderer, /clipStartSeconds/, 'başlangıç geçmiş ve sonuç görünümünde korunur');
 }
 
 // --- F18 — model önbelleği temizliği + capability registry ---
@@ -188,7 +197,7 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   const html = readRel('src/renderer/index.html');
   assert.match(mm, /MODEL_CATALOG/, 'kapasite kaydı');
   assert.match(mm, /deleteCachedModel/, 'güvenli silme');
-  assert.match(mm, /startsWith\(rootResolved\)/, 'yol çevrelenmesi');
+  assert.match(mm, /realpathSync\(found\.repo\.path\)/, 'junction ve symlink sonrası gerçek yol doğrulaması');
   assert.match(mm, /statfsSync/, 'boş disk raporu');
   assert.match(mm, /sizeBytes/, 'kurulu boyut raporu');
   assert.match(main, /models:delete/, 'silme kanalı');
@@ -197,17 +206,26 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(preload, /deleteModel/, 'preload köprüsü');
   assert.match(html, /id="modelCacheDelete"/, 'silme düğmesi');
   assert.match(renderer, /modelCacheDelete/, 'renderer silme akışı');
+  assert.match(html, /id="runtimeMaintenance"/, 'bağımlılık ve bakım panosu');
+  assert.match(html, /id="runtimePython"[\s\S]*id="runtimeFfmpeg"[\s\S]*id="runtimeYtdlp"[\s\S]*id="runtimeGpu"[\s\S]*id="runtimeDisk"/, 'çalışma ortamı durum satırları');
+  assert.match(main, /pythonVersion:[\s\S]*ffmpegVersion:[\s\S]*ytDlpVersion:/, 'ortam sürümleri IPC yanıtı');
+  assert.match(main, /ytDlpManaged:/, 'doğrulanmış yönetilen yt-dlp kaynağı');
+  assert.match(renderer, /element\.dataset\.state = status/, 'durumlar renk dışında simge ve metin taşır');
+  assert.match(renderer, /verified managed runtime/, 'yönetilen runtime açıklaması');
 }
 
 // --- E05/E06 — boş durum ayrımı + burn-in aşama/iptal görünürlüğü ---
 {
   const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
   const bf = readRel('src/renderer/browser-features.js');
-  assert.match(bf, /Arama tamamlanamadı/, 'API hatası ayrımı liste alanında');
+  const statusCopy = readRel('src/renderer/status-copy.js');
+  assert.match(bf, /subtitleSearchCopy\(\{ failed: true \}\)/, 'API hatası davranış kopyasına gider');
   assert.match(bf, /totalCount/, 'kısmi liste göstergesi');
-  assert.match(renderer, /İptal ediliyor…/, 'burn-in iptal durumu');
-  assert.match(renderer, /Gömme hazırlanıyor…/, 'burn-in başlangıç aşaması');
-  assert.match(renderer, /_burninClock\(ev\.total\)/, 'burn-in süre göstergesi');
+  assert.match(statusCopy, /Search failed/, 'İngilizce altyazı arama hata durumu');
+  assert.match(statusCopy, /No matching subtitles found/, 'İngilizce boş sonuç durumu');
+  assert.match(renderer, /type: 'cancel'/, 'burn-in iptal durumu');
+  assert.match(statusCopy, /Preparing subtitle embed/, 'İngilizce burn-in başlangıç aşaması');
+  assert.match(statusCopy, /clock\(event\.total\)/, 'burn-in süre göstergesi');
 }
 
 console.log('browser-parti7.test.js OK');

@@ -86,18 +86,24 @@ function directorySizeBytes(directory) {
 }
 
 function freeBytesFor(root) {
+  let probe = path.resolve(root);
   try {
-    const stats = fs.statfsSync(root);
+    while (!fs.existsSync(probe)) {
+      const parent = path.dirname(probe);
+      if (parent === probe) return null;
+      probe = parent;
+    }
+    const stats = fs.statfsSync(probe);
     return Number(stats.bavail) * Number(stats.bsize);
   } catch (_) { return null; }
 }
 
-function findModelRepository(appPath, model, env = process.env) {
+function findModelRepository(appPath, model, env = process.env, requireUsable = true) {
   const normalized = String(model || '').toLowerCase();
   if (!KNOWN_MODELS.includes(normalized)) return null;
   for (const root of modelCacheRoots(appPath, env)) {
     const repo = cachedRepositories(root).find((entry) => repositoryMatchesModel(entry.name, normalized)
-      && repositoryHasUsableSnapshot(entry.path));
+      && (!requireUsable || repositoryHasUsableSnapshot(entry.path)));
     if (repo) return { root, repo };
   }
   return null;
@@ -115,11 +121,14 @@ function scanModelCache(appPath, env = process.env) {
     roots,
     freeBytes,
     models: KNOWN_MODELS.map((id) => {
-      const match = repositories.find((repo) => repositoryMatchesModel(repo.name, id)
-        && repositoryHasUsableSnapshot(repo.path));
+      const matches = repositories.filter((repo) => repositoryMatchesModel(repo.name, id));
+      const match = matches.find((repo) => repositoryHasUsableSnapshot(repo.path)) || matches[0];
+      const installed = !!match && repositoryHasUsableSnapshot(match.path);
       return {
         id,
-        installed: !!match,
+        installed,
+        cached: matches.length > 0,
+        partial: !!match && !installed,
         repository: match?.name || '',
         sizeBytes: match ? directorySizeBytes(match.path) : null,
         ...(MODEL_CATALOG[id] || {}),
@@ -129,14 +138,20 @@ function scanModelCache(appPath, env = process.env) {
 }
 
 // F18: güvenli temizlik — yalnız bilinen modelin, bilinen önbellek kökü
-// içindeki, kullanılabilir anlık görüntülü deposu silinir. Yol çevrelenmesi
-// zorunlu; model kimliği whitelist dışıysa reddedilir.
+// içindeki deposu silinir. Tamamlanmamış indirmeler de temizlenebilir; gerçek
+// yol çevrelenmesi zorunlu ve model kimliği whitelist dışıysa reddedilir.
 function deleteCachedModel(appPath, model, env = process.env) {
-  const found = findModelRepository(appPath, model, env);
+  const found = findModelRepository(appPath, model, env, false);
   if (!found) return { ok: false, error: 'Model önbellekte bulunamadı.' };
-  const rootResolved = path.resolve(found.root) + path.sep;
-  const repoResolved = path.resolve(found.repo.path);
-  if (!repoResolved.startsWith(rootResolved) || repoResolved === path.resolve(found.root)) {
+  let rootResolved;
+  let repoResolved;
+  try {
+    rootResolved = fs.realpathSync(found.root) + path.sep;
+    repoResolved = fs.realpathSync(found.repo.path);
+  } catch (_) {
+    return { ok: false, error: 'Önbellek yolu doğrulanamadı.' };
+  }
+  if (!repoResolved.startsWith(rootResolved)) {
     return { ok: false, error: 'Önbellek yolu doğrulanamadı.' };
   }
   const freedBytes = directorySizeBytes(repoResolved);

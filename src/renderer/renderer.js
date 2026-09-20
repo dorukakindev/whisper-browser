@@ -2092,22 +2092,64 @@ $$('.secret-toggle').forEach((button) => {
   });
 });
 
-// yt-dlp güncelleme — YouTube indirme hataları çoğunlukla eski sürümden kaynaklanır
-$('updateYtdlp').addEventListener('click', async () => {
-  const btn = $('updateYtdlp');
-  if (btn.disabled) return;
-  btn.disabled = true;
-  btn.textContent = 'güncelleniyor...';
-  logLine('yt-dlp güvenli, sürümlü runtime alanında güncelleniyor...');
+function runtimeState(id, text, status) {
+  const element = $(id);
+  if (!element) return;
+  element.textContent = text;
+  element.dataset.state = status;
+}
+
+function renderRuntimeStatus(env, modelStatus = modelStatusSnapshot) {
+  const missing = interfaceChoice('Bulunamadı', 'Not found');
+  runtimeState('runtimePython', env?.venv
+    ? (env.pythonVersion || interfaceChoice('Hazır', 'Ready')) : missing, env?.venv ? 'ready' : 'error');
+  runtimeState('runtimeFfmpeg', env?.ffmpeg
+    ? String(env.ffmpegVersion || interfaceChoice('Hazır', 'Ready')).replace(/^ffmpeg version\s+/i, 'ffmpeg ')
+    : missing, env?.ffmpeg ? 'ready' : 'error');
+  const managed = env?.ytDlpManaged ? interfaceChoice(' · doğrulanmış yönetilen sürüm', ' · verified managed runtime') : '';
+  runtimeState('runtimeYtdlp', env?.ytDlpVersion ? `yt-dlp ${env.ytDlpVersion}${managed}` : missing,
+    env?.ytDlpVersion ? (env.ytDlpManaged ? 'ready' : 'warning') : 'error');
+  runtimeState('runtimeGpu', env?.gpu || interfaceChoice('NVIDIA GPU algılanmadı', 'No NVIDIA GPU detected'),
+    env?.gpu ? 'ready' : 'warning');
+  const free = modelStatus?.freeBytes;
+  runtimeState('runtimeDisk', Number.isFinite(Number(free))
+    ? interfaceChoice(`${(free / 1073741824).toFixed(1)} GB boş`, `${(free / 1073741824).toFixed(1)} GB free`)
+    : interfaceChoice('Boş alan ölçülemedi', 'Free space unavailable'), free != null ? 'ready' : 'warning');
+}
+
+async function refreshRuntimeStatus() {
+  for (const id of ['runtimePython', 'runtimeFfmpeg', 'runtimeYtdlp', 'runtimeGpu', 'runtimeDisk']) {
+    runtimeState(id, interfaceChoice('Denetleniyor', 'Checking'), 'loading');
+  }
+  const [env] = await Promise.all([
+    window.api.getEnvInfo().catch(() => null),
+    refreshModelStatus().catch(() => null),
+  ]);
+  renderRuntimeStatus(env, modelStatusSnapshot);
+  return env;
+}
+
+async function runYtdlpUpdate(btn) {
+  const buttons = [$('updateYtdlp'), $('runtimeUpdateYtdlp')].filter(Boolean);
+  if (buttons.some((item) => item.disabled)) return;
+  for (const item of buttons) item.disabled = true;
+  if (btn) btn.textContent = interfaceChoice('güncelleniyor...', 'updating...');
+  logLine(interfaceChoice('yt-dlp güvenli, sürümlü runtime alanında güncelleniyor...', 'Updating yt-dlp in the safe versioned runtime...'));
   try {
     const r = await window.api.updateYtdlp();
     if (r.ok) logLine(`✓ ${r.message}`, 'success');
-    else logLine(`yt-dlp güncellenemedi: ${r.error}`, 'error');
+    else logLine(interfaceChoice(`yt-dlp güncellenemedi: ${r.error}`, `yt-dlp update failed: ${r.error}`), 'error');
+    await refreshRuntimeStatus();
   } finally {
-    btn.disabled = false;
-    btn.textContent = "yt-dlp'yi güncelle";
+    for (const item of buttons) item.disabled = false;
+    if (btn) btn.textContent = window.UiLocale?.t?.("yt-dlp'yi güncelle") || interfaceChoice("yt-dlp'yi güncelle", 'Update yt-dlp');
   }
-});
+}
+
+// yt-dlp güncelleme — YouTube indirme hataları çoğunlukla eski sürümden kaynaklanır
+$('updateYtdlp').addEventListener('click', () => runYtdlpUpdate($('updateYtdlp')));
+$('runtimeUpdateYtdlp')?.addEventListener('click', () => runYtdlpUpdate($('runtimeUpdateYtdlp')));
+$('runtimeRefresh')?.addEventListener('click', () => refreshRuntimeStatus());
 
 // YouTube URL alanında Enter → başlat
 $('youtubeUrl').addEventListener('keydown', (e) => {
@@ -3012,9 +3054,12 @@ const initialSettingsReady = (async () => {
   updateLlmEndpointUI();
 
   // Ortam kontrolü: GPU adı + venv/ffmpeg uyarıları
+  let startupEnv = null;
   try {
     const env = await window.api.getEnvInfo();
+    startupEnv = env;
     if (env) {
+      renderRuntimeStatus(env, modelStatusSnapshot);
       if (env.gpu) {
         // "NVIDIA GeForce RTX 4070 Ti, 12282 MiB" → rozette "RTX 4070 Ti"
         state.gpuName = env.gpu.split(',')[0].trim()
@@ -3041,6 +3086,7 @@ const initialSettingsReady = (async () => {
     }
   } catch (_) {}
   await refreshModelStatus();
+  renderRuntimeStatus(startupEnv, modelStatusSnapshot);
   updateSignalDesk();
 })();
 
@@ -3072,6 +3118,7 @@ function estimateVramMib() {
 
 let modelStatusSnapshot = null;
 let modelBenchmarkRunning = false;
+const interfaceChoice = (tr, en) => window.UiLocale?.get?.() === 'tr' ? tr : en;
 
 function renderSelectedModelStatus() {
   const status = $('modelInstallStatus');
@@ -3079,12 +3126,18 @@ function renderSelectedModelStatus() {
   const selected = $('model')?.value || '';
   const entry = modelStatusSnapshot?.models?.find((item) => item.id === selected);
   const mb = (bytes) => bytes ? `${Math.round(bytes / 1048576)} MB` : '';
-  status.textContent = !modelStatusSnapshot ? 'Önbellek denetlenmedi'
-    : entry?.installed ? `Bu cihazda hazır${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`
-    : `İlk kullanımda indirilecek${entry?.downloadMb ? ` (~${entry.downloadMb} MB)` : ''}`;
+  const free = modelStatusSnapshot?.freeBytes ? `${(modelStatusSnapshot.freeBytes / 1073741824).toFixed(1)} GB` : '';
+  status.textContent = !modelStatusSnapshot ? interfaceChoice('Önbellek denetlenmedi', 'Cache not checked')
+    : entry?.installed ? interfaceChoice(`Bu cihazda hazır${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`,
+      `Ready on this device${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`)
+    : entry?.partial ? interfaceChoice(`Yarım indirme${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`,
+      `Incomplete download${entry.sizeBytes ? ` · ${mb(entry.sizeBytes)}` : ''}`)
+    : interfaceChoice(`İlk kullanımda indirilecek${entry?.downloadMb ? ` (~${entry.downloadMb} MB)` : ''}`,
+      `Downloads on first use${entry?.downloadMb ? ` (~${entry.downloadMb} MB)` : ''}`);
+  if (free) status.textContent += interfaceChoice(` · ${free} boş`, ` · ${free} free`);
   status.title = entry?.repository || status.textContent;
   const deleteButton = $('modelCacheDelete');
-  if (deleteButton) deleteButton.disabled = !entry?.installed;
+  if (deleteButton) deleteButton.disabled = !entry?.cached;
 }
 
 async function refreshModelStatus() {
@@ -3105,13 +3158,15 @@ if ($('modelCacheDelete')?.addEventListener) $('modelCacheDelete').addEventListe
   try {
     const result = await window.api.deleteModel(model);
     if (result?.ok) {
-      addLog(`Model önbelleği silindi: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB boşaldı`, 'info');
+      addLog(interfaceChoice(
+        `Model önbelleği silindi: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB boşaldı`,
+        `Model cache removed: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB freed`), 'info');
       modelStatusSnapshot = null;
       await refreshModelStatus();
     } else if (result?.canceled) {
-      addLog('Önbellek silme vazgeçildi.', 'info');
+      addLog(interfaceChoice('Önbellek silme vazgeçildi.', 'Cache removal cancelled.'), 'info');
     } else if (result?.error) {
-      addLog(`Önbellek silme başarısız: ${result.error}`, 'error');
+      addLog(interfaceChoice(`Önbellek silme başarısız: ${result.error}`, `Cache removal failed: ${result.error}`), 'error');
     }
   } finally {
     renderSelectedModelStatus();
@@ -3124,35 +3179,48 @@ if ($('modelBenchmark')?.addEventListener) $('modelBenchmark').addEventListener(
     return;
   }
   modelBenchmarkRunning = true;
-  if (button) button.textContent = 'Benchmarkı durdur';
-  if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Dosya seçimi bekleniyor…';
+  if (button) button.textContent = interfaceChoice('Benchmarkı durdur', 'Stop benchmark');
+  if ($('modelInstallStatus')) $('modelInstallStatus').textContent = interfaceChoice('Dosya seçimi bekleniyor…', 'Waiting for file selection…');
   const compareModel = $('modelBenchmarkCompare')?.value || '';
+  const seconds = Number($('modelBenchmarkSeconds')?.value) || 30;
+  const start = Number($('modelBenchmarkStart')?.value) || 0;
   const result = await window.api.benchmarkModel?.({
     model: $('model')?.value,
     device: $('device')?.value,
     computeType: $('computeType')?.value,
     language: $('language')?.value,
+    seconds,
+    start,
     // F17: aynı klipte ikinci model — yalnız seçiliyse gönderilir
     compare: compareModel && compareModel !== $('model')?.value ? { model: compareModel } : undefined,
   }).catch((error) => ({ ok: false, error: error.message }));
   modelBenchmarkRunning = false;
-  if (button) button.textContent = '30 sn benchmark';
+  if (button) button.textContent = interfaceChoice('Benchmark çalıştır', 'Run benchmark');
   if (result?.canceled) {
     renderSelectedModelStatus();
     return;
   }
   if (result?.ok) {
-    const message = `${result.model} · ${result.audioSeconds.toFixed(1)} sn ses · ${result.transcribeSeconds.toFixed(1)} sn işlem · ${result.speedX.toFixed(1)}× gerçek zaman`;
-    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = `${result.speedX.toFixed(1)}× gerçek zaman`;
-    logLine(`Model benchmarkı: ${message}`, 'success');
+    const vramText = result.vramMb == null ? '' : interfaceChoice(
+      ` · VRAM ${Math.round(result.vramMb)} MB${result.vramMeasurement === 'gpu-delta' ? ' (GPU toplam farkı)' : ''}`,
+      ` · VRAM ${Math.round(result.vramMb)} MB${result.vramMeasurement === 'gpu-delta' ? ' (GPU total delta)' : ''}`);
+    const message = interfaceChoice(
+      `${result.model} · ${result.clipStartSeconds || 0}. sn'den ${result.audioSeconds.toFixed(1)} sn ses · ${result.transcribeSeconds.toFixed(1)} sn işlem · ${result.speedX.toFixed(1)}× gerçek zaman${vramText}`,
+      `${result.model} · ${result.audioSeconds.toFixed(1)} s audio from ${result.clipStartSeconds || 0} s · ${result.transcribeSeconds.toFixed(1)} s processing · ${result.speedX.toFixed(1)}× realtime${vramText}`);
+    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = interfaceChoice(`${result.speedX.toFixed(1)}× gerçek zaman`, `${result.speedX.toFixed(1)}× realtime`);
+    logLine(interfaceChoice(`Model benchmarkı: ${message}`, `Model benchmark: ${message}`), 'success');
     if (result.compare) {
       const d = result.diff || {};
-      logLine(`A/B: ${result.model} ${result.speedX.toFixed(1)}× vs ${result.compare.model} ${Number(result.compare.speedX).toFixed(1)}× · cue sapması ort. ${d.cueStartDriftAvgMs ?? '—'} ms (maks ${d.cueStartDriftMaxMs ?? '—'} ms) · metin farkı %${(100 * (d.textDeviation || 0)).toFixed(1)}${result.historyCount ? ` · bu klipte ${result.historyCount}. kayıt` : ''}`, 'info');
+      const cueCounts = `${d.matchedCueCount ?? 0} / +${d.primaryUnmatchedCueCount ?? 0} / +${d.compareUnmatchedCueCount ?? 0}`;
+      const compareVram = result.compare.vramMb == null ? '' : ` · VRAM ${Math.round(result.compare.vramMb)} MB${result.compare.vramMeasurement === 'gpu-delta' ? interfaceChoice(' (GPU toplam farkı)', ' (GPU total delta)') : ''}`;
+      logLine(interfaceChoice(
+        `A/B: ${result.model} ${result.speedX.toFixed(1)}× vs ${result.compare.model} ${Number(result.compare.speedX).toFixed(1)}×${compareVram} · cue eşleşen/eşleşmeyen A/B ${cueCounts} · başlangıç sapması ort. ${d.cueStartDriftAvgMs ?? '—'} ms (maks ${d.cueStartDriftMaxMs ?? '—'} ms) · metin farkı %${(100 * (d.textDeviation || 0)).toFixed(1)}${result.historyCount ? ` · bu klipte ${result.historyCount}. kayıt` : ''}`,
+        `A/B: ${result.model} ${result.speedX.toFixed(1)}× vs ${result.compare.model} ${Number(result.compare.speedX).toFixed(1)}×${compareVram} · cues matched/unmatched A/B ${cueCounts} · mean start drift ${d.cueStartDriftAvgMs ?? '—'} ms (max ${d.cueStartDriftMaxMs ?? '—'} ms) · text difference ${(100 * (d.textDeviation || 0)).toFixed(1)}%${result.historyCount ? ` · run ${result.historyCount} for this clip` : ''}`), 'info');
     }
     await refreshModelStatus();
   } else {
-    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = 'Benchmark tamamlanamadı';
-    logLine(`Model benchmarkı: ${result?.error || 'bilinmeyen hata'}`, 'warn');
+    if ($('modelInstallStatus')) $('modelInstallStatus').textContent = interfaceChoice('Benchmark tamamlanamadı', 'Benchmark failed');
+    logLine(interfaceChoice(`Model benchmarkı: ${result?.error || 'bilinmeyen hata'}`, `Model benchmark: ${result?.error || 'unknown error'}`), 'warn');
   }
 });
 
@@ -4807,7 +4875,7 @@ function setBurninRunningUi() {
   $('burnInBtn').classList.add('hidden');
   $('burnInCancel').classList.remove('hidden');
   $('burninFill').style.width = '0%';
-  $('burninText').textContent = 'Gömülüyor… 0%';
+  $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), { type: 'idle' });
 }
 
 $('burnInBtn').addEventListener('click', async () => {
@@ -4821,28 +4889,21 @@ $('burnInBtn').addEventListener('click', async () => {
 
 $('burnInCancel').addEventListener('click', () => {
   // E06: iptal durumu görünür olsun — FFmpeg kapanana dek metin bekler.
-  $('burninText').textContent = 'İptal ediliyor…';
+  $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), { type: 'cancel' });
   $('burnInCancel').disabled = true;
   window.api.burnInCancel().finally(() => { $('burnInCancel').disabled = false; });
 });
 
-const _burninClock = (sec) => {
-  const s = Math.max(0, Math.floor(Number(sec) || 0));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-};
-
 window.api.onBurnInEvent((ev) => {
   if (ev.type === 'start') {
-    $('burninText').textContent = 'Gömme hazırlanıyor…';
+    $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), ev);
   } else if (ev.type === 'progress') {
     $('burninFill').style.width = `${ev.percent}%`;
     // E06: aşama + süre görünürlüğü; toplam süre yoksa geçen süre göster.
-    $('burninText').textContent = Number(ev.total) > 0
-      ? `Gömülüyor… ${ev.percent.toFixed(0)}% · ${_burninClock(ev.current)} / ${_burninClock(ev.total)}`
-      : `Gömülüyor… ${_burninClock(ev.current)}`;
+    $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), ev);
   } else if (ev.type === 'done') {
     $('burninFill').style.width = '100%';
-    $('burninText').textContent = 'Tamamlandı ✓';
+    $('burninText').textContent = window.StatusCopy.burnIn(window.UiLocale?.get?.(), ev);
     $('burnInCancel').classList.add('hidden');
     $('burnInBtn').classList.remove('hidden');
     logLine(`Videoya gömüldü: ${ev.file}`, 'success');

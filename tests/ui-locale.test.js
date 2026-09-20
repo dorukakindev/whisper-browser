@@ -21,7 +21,7 @@ assert.match(html, /<html lang="en">/);
 assert.match(html, /id="openPlayer"[^>]*>BROWSER<\/button>/);
 assert.match(html, /id="uiLocale"/);
 assert.match(html, /id="playerUiLocale"/);
-assert.match(html, /<script src="ui-locale\.js"><\/script>\s*<script src="renderer\.js"><\/script>/);
+assert.match(html, /<script src="ui-locale\.js"><\/script>\s*<script src="status-copy\.js"><\/script>\s*<script src="renderer\.js"><\/script>/);
 const localized = new Map(entries);
 const staticCopy = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
 const untranslated = new Set();

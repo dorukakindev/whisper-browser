@@ -55,6 +55,50 @@ test('önbellek taraması boyut, katalog ve boş disk bilgisi taşır', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('henüz oluşmamış önbellek kökünde üst dizinden boş disk ölçülür', () => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-model-parent-'));
+  const missing = path.join(parent, 'not-created', 'hub');
+  const result = scanModelCache('', { HUGGINGFACE_HUB_CACHE: missing });
+  assert(typeof result.freeBytes === 'number' && result.freeBytes > 0);
+  fs.rmSync(parent, { recursive: true, force: true });
+});
+
+test('yarım model indirmesi görünür ve açıkça temizlenebilir', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-model-partial-'));
+  const repo = path.join(root, 'models--Systran--faster-whisper-small');
+  fs.mkdirSync(path.join(repo, 'blobs'), { recursive: true });
+  fs.writeFileSync(path.join(repo, 'blobs', 'partial'), 'incomplete');
+  const env = { HUGGINGFACE_HUB_CACHE: root };
+  const entry = scanModelCache('', env).models.find((item) => item.id === 'small');
+  assert.equal(entry.installed, false);
+  assert.equal(entry.cached, true);
+  assert.equal(entry.partial, true);
+  const result = deleteCachedModel('', 'small', env);
+  assert.equal(result.ok, true);
+  assert.equal(fs.existsSync(repo), false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('başka kökteki sağlam model daha önceki yarım kopyaya tercih edilir', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-model-multi-'));
+  const first = path.join(temp, 'first');
+  const second = path.join(temp, 'second');
+  fs.mkdirSync(path.join(first, 'models--Systran--faster-whisper-small', 'snapshots', 'partial'), { recursive: true });
+  const usable = path.join(second, 'models--Systran--faster-whisper-small', 'snapshots', 'complete');
+  fs.mkdirSync(usable, { recursive: true });
+  for (const name of ['config.json', 'model.bin', 'tokenizer.json']) {
+    fs.writeFileSync(path.join(usable, name), name);
+  }
+  const status = scanModelCache('', {
+    HUGGINGFACE_HUB_CACHE: first,
+    TRANSFORMERS_CACHE: second,
+  });
+  const small = status.models.find((entry) => entry.id === 'small');
+  assert.equal(small.installed, true);
+  assert.equal(small.partial, false);
+  fs.rmSync(temp, { recursive: true, force: true });
+});
+
 test('deleteCachedModel yalnız kurulu modeli, yalnız önbellek kökü içinde siler', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-model-cache-'));
   const env = { HUGGINGFACE_HUB_CACHE: root };

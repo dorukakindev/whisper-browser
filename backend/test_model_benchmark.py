@@ -47,9 +47,9 @@ def _fake_whisper(segments_map):
 
 
 class ModelBenchmarkCompare(unittest.TestCase):
-    def _run(self, tmp, extra_args, segments_map):
+    def _run(self, tmp, extra_args, segments_map, source_seconds=35.0):
         wav = os.path.join(tmp, "clip.wav")
-        _sine_wav(wav)
+        _sine_wav(wav, source_seconds)
         events = []
         with mock.patch.dict(sys.modules, {"faster_whisper": _fake_whisper(segments_map)}):
             old = model_benchmark.emit
@@ -76,6 +76,9 @@ class ModelBenchmarkCompare(unittest.TestCase):
             self.assertEqual(result["compare"]["model"], "tiny")
             self.assertAlmostEqual(result["diff"]["cueStartDriftAvgMs"], 150.0)
             self.assertGreater(result["diff"]["textDeviation"], 0)
+            self.assertEqual(result["diff"]["matchedCueCount"], 2)
+            self.assertEqual(result["diff"]["primaryUnmatchedCueCount"], 0)
+            self.assertEqual(result["diff"]["compareUnmatchedCueCount"], 0)
             self.assertNotIn("segments", result["compare"])
             self.assertNotIn("segments", result)
 
@@ -94,6 +97,45 @@ class ModelBenchmarkCompare(unittest.TestCase):
             [a] = self._run(tmp, [], {"small": [_Seg(0.0, "x")]})
             [b] = self._run(tmp, [], {"small": [_Seg(0.0, "x")]})
             self.assertEqual(a["clipHash"], b["clipHash"])
+
+    def test_start_and_duration_select_the_requested_clip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            [result] = self._run(
+                tmp, ["--start", "10", "--seconds", "60"],
+                {"small": [_Seg(0.0, "x")]}, source_seconds=80.0)
+            self.assertAlmostEqual(result["clipStartSeconds"], 10.0)
+            self.assertGreater(result["audioSeconds"], 59.0)
+            self.assertLessEqual(result["audioSeconds"], 60.1)
+
+    def test_alignment_reports_segmentation_mismatch(self):
+        primary = [{"start": 0.0}, {"start": 3.0}, {"start": 30.0}]
+        compare = [{"start": 0.1}, {"start": 3.2}]
+        drifts, primary_unmatched, compare_unmatched = model_benchmark.align_segment_starts(primary, compare)
+        self.assertEqual(len(drifts), 2)
+        self.assertEqual(primary_unmatched, 1)
+        self.assertEqual(compare_unmatched, 0)
+
+    def test_nvidia_smi_parser_measures_current_process(self):
+        completed = types.SimpleNamespace(stdout="100, 512\n200, 1024\n100, 64\n")
+        runner = mock.Mock(return_value=completed)
+        self.assertEqual(model_benchmark.query_process_vram_mib(100, runner), 576.0)
+        runner.assert_called_once()
+
+    def test_vram_sampler_takes_final_sample_for_fast_models(self):
+        values = iter([None, 768.0])
+        sampler = model_benchmark.VramSampler(
+            query=lambda: next(values, 768.0), global_query=lambda: 100.0, interval=60)
+        sampler.start()
+        self.assertEqual(sampler.stop(), 768.0)
+        self.assertEqual(sampler.scope, "process")
+
+    def test_vram_sampler_uses_labelled_gpu_delta_on_wddm(self):
+        totals = iter([1000.0, 1256.0, 1256.0])
+        sampler = model_benchmark.VramSampler(
+            query=lambda: None, global_query=lambda: next(totals, 1256.0), interval=60)
+        sampler.start()
+        self.assertEqual(sampler.stop(), 256.0)
+        self.assertEqual(sampler.scope, "gpu-delta")
 
 
 if __name__ == "__main__":

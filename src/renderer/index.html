@@ -253,7 +253,9 @@
                 <span id="modelInstallStatus" role="status">Önbellek denetlenmedi</span>
                 <button class="link-btn" id="modelStatusRefresh" type="button">Yenile</button>
                 <button class="link-btn" id="modelCacheDelete" type="button">Önbellekten sil</button>
-                <button class="link-btn" id="modelBenchmark" type="button">30 sn benchmark</button>
+                <label class="model-benchmark-field"><span>Klip başlangıcı</span><input id="modelBenchmarkStart" type="number" min="0" max="86400" step="1" value="0" aria-label="Benchmark başlangıcı (saniye)"></label>
+                <label class="model-benchmark-field"><span>Klip süresi</span><select id="modelBenchmarkSeconds" aria-label="Benchmark süresi"><option value="30">30 sn</option><option value="60">60 sn</option><option value="90">90 sn</option><option value="120">120 sn</option></select></label>
+                <button class="link-btn" id="modelBenchmark" type="button">Benchmark çalıştır</button>
                 <select id="modelBenchmarkCompare" title="İkinci modelle aynı klipte A/B ölçümü" aria-label="Karşılaştırma modeli">
                   <option value="">A/B: yok</option>
                   <option value="large-v3">vs large-v3</option>
@@ -359,6 +361,28 @@
               <div class="hint" style="margin-top:6px">
                 <strong>Motor:</strong> <em>faster-whisper</em> dengeli (varsayılan); <em>batched</em> uzun videolarda çok daha hızlı; <em>WhisperX</em> wav2vec2 ile &lt;100ms kelime hizalaması verir (ilk seçimde <code>install-whisperx.bat</code> gerekir). Batch boyutu yalnızca batched/WhisperX'te, sözlük/başlangıç ipucu faster modlarında etkilidir.
               </div>
+            </div>
+          </details>
+
+          <details class="advanced runtime-maintenance" id="runtimeMaintenance">
+            <summary>
+              <span>Çalışma ortamı ve bakım</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="runtime-maintenance-body">
+              <p class="field-hint">Transkripsiyon ve medya araçlarının kullanılabilirliğini burada denetleyebilirsiniz.</p>
+              <dl class="runtime-status-list" id="runtimeStatusList" aria-live="polite">
+                <div><dt>Python ortamı</dt><dd id="runtimePython" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>FFmpeg</dt><dd id="runtimeFfmpeg" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>yt-dlp</dt><dd id="runtimeYtdlp" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>GPU</dt><dd id="runtimeGpu" data-state="loading">Denetleniyor</dd></div>
+                <div><dt>Model diski</dt><dd id="runtimeDisk" data-state="loading">Denetleniyor</dd></div>
+              </dl>
+              <div class="runtime-maintenance-actions">
+                <button class="btn btn-secondary btn-sm" id="runtimeRefresh" type="button">Durumu yenile</button>
+                <button class="btn btn-secondary btn-sm" id="runtimeUpdateYtdlp" type="button">yt-dlp'yi güncelle</button>
+              </div>
+              <p class="field-hint">yt-dlp güncellemesi HTTPS metadata, SHA-256 ve bağımsız import doğrulamasından sonra atomik olarak etkinleşir.</p>
             </div>
           </details>
 
@@ -3117,6 +3141,7 @@
 </div>
 
 <script src="ui-locale.js"></script>
+<script src="status-copy.js"></script>
 <script src="renderer.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>

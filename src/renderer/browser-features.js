@@ -20,6 +20,10 @@
   }
   function signature(ctx) { return ctx ? `${ctx.tabId}|${ctx.generation}|${ctx.mediaId}` : ''; }
   function current(ctx, seq) { return seq === sequence && signature(context()) === signature(ctx); }
+  function choice(tr, en) { return window.UiLocale?.get?.() === 'tr' ? tr : en; }
+  function subtitleSearchCopy(state) {
+    return window.StatusCopy.subtitleSearch(window.UiLocale?.get?.(), state);
+  }
   function status(message, isError = false) { $('bfStatus').textContent = message; $('bfStatus').classList.toggle('bf-error', isError); }
   function clear(node) { node.replaceChildren(); }
   function node(tag, text, className) {
@@ -97,15 +101,18 @@
       // E05: başarısızlık ile 'sonuç yok'u ayır — durum çubuğundaki asıl
       // hata (API/video/bağlam) korunur; liste alanında da boş kalmaz.
       // Yeniden denemek için arama butonu açık kalır.
-      if (list) { clear(list); list.append(node('p', 'Arama tamamlanamadı — ayrıntı üstteki durumda. Yeniden deneyebilirsiniz.')); }
+      if (list) { clear(list); list.append(node('p', subtitleSearchCopy({ failed: true }))); }
       return;
     }
     clear(list);
     const rows = Array.isArray(result.results) ? result.results.slice(0, 50) : [];
-    if (!rows.length) { list.append(node('p', 'Eşleşen altyazı bulunamadı. Başlığı veya dili değiştirin.')); return; }
+    if (!rows.length) { list.append(node('p', subtitleSearchCopy({ visibleCount: 0 }))); return; }
     const hashed = rows.some((row) => row.hashMatch);
-    const partial = Number(result.totalCount) > rows.length;
-    list.append(node('p', `${rows.length} aday${partial ? ` (toplam ${result.totalCount} sonucun ilk bölümü — aramayı daraltın)` : ''} · puan yalnız başlık, bölüm, dil ve sürüm bilgilerinin eşleşmesidir.${hashed ? ' Dosya parmak izi eşleşenler en üstte.' : ''}`, 'bf-note'));
+    list.append(node('p', subtitleSearchCopy({
+      visibleCount: rows.length,
+      totalCount: result.totalCount,
+      hashMatch: hashed,
+    }), 'bf-note'));
     for (const row of rows) {
       const item = node('div', '', 'bf-result');
       item.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));

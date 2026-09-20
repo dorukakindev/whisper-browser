@@ -16,7 +16,8 @@ const { terminateProcessTree } = require('./process-lifecycle');
 const { createProcessTerminalLatch, isValidOutputNameSuffix } = require('./renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('./pipeline-job');
 const { createWatchLibraryStore } = require('./watch-library-store');
-const { pythonEnvWithRuntime, runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
+const { activeRuntimePath: activeYtdlpRuntimePath, pythonEnvWithRuntime,
+  runtimeRoot: ytdlpRuntimeRoot } = require('./ytdlp-runtime');
 const { createBrowserPageFind } = require('./browser-page-find');
 const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
@@ -16106,6 +16107,7 @@ ipcMain.handle('clipboard:write', (_event, text) => {
 
 // Bir komutu çalıştırıp ilk satırını döndürür (yoksa null) — ortam teşhisi için
 function probeCommand(cmd, cmdArgs) {
+  const options = arguments[2] || {};
   return new Promise((resolve) => {
     let out = '';
     let timeoutTimer = null;
@@ -16118,7 +16120,7 @@ function probeCommand(cmd, cmdArgs) {
       resolve(value);
     };
     try {
-      p = spawn(cmd, cmdArgs, { windowsHide: true });
+      p = spawn(cmd, cmdArgs, { windowsHide: true, env: options.env });
     } catch (_) {
       return finish(null);
     }
@@ -16143,12 +16145,18 @@ function probeCommand(cmd, cmdArgs) {
 ipcMain.handle('app:getEnvInfo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const appDir = app.getAppPath();
+  const pythonPath = resolvePython();
   const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', 'Scripts', 'python.exe'))
             || fs.existsSync(path.join(appDir, 'backend', '.venv', 'Scripts', 'python.exe'));
   const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', 'ffmpeg.exe'));
-  const [ffmpegLine, gpuLine] = await Promise.all([
-    localFfmpeg ? Promise.resolve('local') : probeCommand('ffmpeg', ['-version']),
+  const runtimeRoot = ytdlpRuntimeRoot(app.getPath('userData'));
+  const [pythonLine, ffmpegLine, gpuLine, ytDlpVersion] = await Promise.all([
+    probeCommand(pythonPath, ['--version']),
+    probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', 'ffmpeg.exe') : 'ffmpeg', ['-version']),
     probeCommand('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader']),
+    probeCommand(pythonPath, ['-c', 'from yt_dlp.version import __version__; print(__version__)'], {
+      env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8' }),
+    }),
   ]);
   // "NVIDIA GeForce RTX 4070 Ti, 12282 MiB" → toplam VRAM (MiB)
   let vramMib = null;
@@ -16158,7 +16166,10 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
   }
   const gpuDiagnostics = await collectBrowserGpuDiagnostics('environment-request', 1200);
   return {
-    venv, ffmpeg: !!ffmpegLine, gpu: gpuLine, vramMib,
+    venv, pythonVersion: pythonLine || '',
+    ffmpeg: !!ffmpegLine, ffmpegVersion: ffmpegLine || '',
+    ytDlpVersion: ytDlpVersion || '', ytDlpManaged: !!activeYtdlpRuntimePath(runtimeRoot),
+    gpu: gpuLine, vramMib,
     gpuFeatures: gpuDiagnostics.features,
     gpuDiagnostics,
   };
@@ -16181,14 +16192,15 @@ ipcMain.handle('models:delete', async (event, input = {}) => {
   }
   const status = scanModelCache(app.getAppPath());
   const entry = status.models.find((m) => m.id === model);
-  if (!entry?.installed) return { ok: false, error: 'Model önbellekte yüklü değil.' };
+  if (!entry?.cached) return { ok: false, error: 'Model önbellekte bulunamadı.' };
   const sizeText = entry.sizeBytes ? ` (${Math.round(entry.sizeBytes / 1048576)} MB)` : '';
+  const tr = loadSettings()?.ui?.uiLocale === 'tr';
   const confirm = await dialog.showMessageBox(mainWindow, {
     type: 'warning',
-    title: 'Model önbelleğini sil',
-    message: `"${model}" önbelleğinden silinsin mi?${sizeText}`,
-    detail: 'Sonraki kullanımda model yeniden indirilecek. Bu işlem geri alınamaz.',
-    buttons: ['Sil', 'Vazgeç'],
+    title: tr ? 'Model önbelleğini sil' : 'Remove model cache',
+    message: tr ? `"${model}" önbelleğinden silinsin mi?${sizeText}` : `Remove "${model}" from the cache?${sizeText}`,
+    detail: tr ? 'Sonraki kullanımda model yeniden indirilecek. Bu işlem geri alınamaz.' : 'The model will be downloaded again when needed. This cannot be undone.',
+    buttons: tr ? ['Sil', 'Vazgeç'] : ['Remove', 'Cancel'],
     defaultId: 1,
     cancelId: 1,
     noLink: true,
@@ -16203,7 +16215,7 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     return { ok: false, error: 'GPU kullanan başka bir iş çalışırken benchmark başlatılamaz.' };
   }
   const picked = await dialog.showOpenDialog(mainWindow, {
-    title: 'Model benchmarkı için kısa bir medya dosyası seç',
+    title: loadSettings()?.ui?.uiLocale === 'tr' ? 'Model benchmarkı için kısa bir medya dosyası seç' : 'Choose a media file for the model benchmark',
     properties: ['openFile'],
     filters: [{ name: 'Medya', extensions: ['mp4', 'mkv', 'webm', 'mov', 'avi', 'mp3', 'wav', 'm4a', 'flac', 'ogg'] }],
   });
@@ -16220,10 +16232,15 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     ? String(options.device || ui.device) : 'cuda';
   const computeType = String(options.computeType || ui.computeType || (device === 'cuda' ? 'float16' : 'int8')).slice(0, 32);
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
+  const requestedSeconds = Number(options.seconds);
+  const seconds = Number.isFinite(requestedSeconds) ? Math.max(30, Math.min(120, Math.round(requestedSeconds))) : 30;
+  const requestedStart = Number(options.start);
+  const start = Number.isFinite(requestedStart) ? Math.max(0, Math.min(24 * 60 * 60, requestedStart)) : 0;
   const appDir = app.getAppPath();
   const localFfmpeg = path.join(appDir, 'backend', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
   const args = [path.join(appDir, 'backend', 'model_benchmark.py'), '--input', picked.filePaths[0],
-    '--model', model, '--device', device, '--compute-type', computeType, '--seconds', '30',
+    '--model', model, '--device', device, '--compute-type', computeType,
+    '--seconds', String(seconds), '--start', String(start),
     '--ffmpeg', fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg'];
   if (language && language !== 'auto') args.push('--language', language);
   // F17: aynı klipte ikinci ayar — yalnız bilinen model kimliği kabul edilir
@@ -16289,12 +16306,14 @@ function recordModelBenchmark(result) {
   const summary = (run) => run && {
     model: run.model, device: run.device, computeType: run.computeType,
     speedX: run.speedX, realtimeFactor: run.realtimeFactor, vramMb: run.vramMb ?? null,
+    vramMeasurement: run.vramMeasurement || 'unavailable',
     loadSeconds: run.loadSeconds, transcribeSeconds: run.transcribeSeconds,
     segmentCount: run.segmentCount, language: run.language,
   };
   const entry = {
     at: new Date().toISOString(),
     clipSeconds: result.audioSeconds,
+    clipStartSeconds: result.clipStartSeconds ?? 0,
     primary: summary(result),
     compare: result.compare ? summary(result.compare) : null,
     diff: result.diff || null,
