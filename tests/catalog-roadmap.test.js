@@ -10,8 +10,11 @@ const { createMetadataClient, scanFolder } = require('../src/catalog-discovery')
 const { decode, preview } = require('../src/subtitle-encoding-preview');
 const { readFonts, extractFonts } = require('../src/browser-fonts');
 const { spawnSync } = require('node:child_process');
+const { findTestPython } = require('./python-runtime');
+const { findMediaTool } = require('./media-runtime');
 const root = path.resolve('.uiprev/roadmap-tests/' + Date.now()); fs.mkdirSync(root, { recursive: true });
-const python = path.resolve('backend/venv/Scripts/python.exe'), ffmpeg = path.resolve('backend/bin/ffmpeg.exe');
+const python = findTestPython(), ffmpeg = findMediaTool('ffmpeg'), ffprobe = findMediaTool('ffprobe');
+assert(python && ffmpeg && ffprobe, 'Python, FFmpeg ve ffprobe test çalışma zamanı bulunamadı.');
 async function main() {
   const source = path.join(root, 'source'), target = path.join(root, 'restored'); fs.mkdirSync(source); fs.mkdirSync(target);
   const store = createMediaCatalogStore({ filePath: path.join(source, 'media-catalog.json') });
@@ -67,7 +70,7 @@ async function main() {
   assert.throws(() => readFonts([sub]));
   const mkv = path.join(root, 'font.mkv');
   assert.equal(spawnSync(ffmpeg, ['-v', 'error', '-i', video, '-c', 'copy', '-attach', font, '-metadata:s:t', 'mimetype=font/woff2', '-y', mkv], { windowsHide: true }).status, 0);
-  const fonts = await extractFonts(mkv, ffmpeg, path.resolve('backend/bin/ffprobe.exe')); assert.equal(fonts.length, 1); assert.equal(fonts[0].base64, fs.readFileSync(font).toString('base64'));
+  const fonts = await extractFonts(mkv, ffmpeg, ffprobe); assert.equal(fonts.length, 1); assert.equal(fonts[0].base64, fs.readFileSync(font).toString('base64'));
   console.log('roadmap: folder, provider contract, calendar, package secrets/sync/edit/video roundtrip, >5 MB manifest, traversal, encoding and MKV fonts passed');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

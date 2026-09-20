@@ -414,13 +414,13 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         toolbar.id = '__whisper_subtitle_toolbar';
         toolbar.setAttribute('role', 'toolbar');
         toolbar.setAttribute('aria-label', 'Tam ekran altyazı kontrolleri');
-        toolbar.style.cssText = 'position:fixed;inset:16px 16px auto auto;margin:0;padding:8px;border:1px solid #65533c;border-radius:10px;background:#191c20;color:#eee;z-index:2147483647;font:13px Segoe UI,sans-serif;max-width:calc(100vw - 48px);';
+        toolbar.style.cssText = 'position:fixed;inset:clamp(8px,2vw,16px) clamp(8px,2vw,16px) auto auto;box-sizing:border-box;margin:0;padding:8px;border:1px solid #65533c;border-radius:10px;background:#191c20;color:#eee;z-index:2147483647;font:13px Segoe UI,sans-serif;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;overscroll-behavior:contain;';
         const toggle = document.createElement('button');
         toggle.textContent = 'Altyazı ayarları';
         toggle.setAttribute('aria-expanded', 'false');
         toggle.style.cssText = 'background:transparent;color:#d5a35c;border:0;padding:6px;cursor:pointer;font:inherit;';
         const controls = document.createElement('div');
-        controls.style.cssText = 'display:none;flex-wrap:wrap;gap:6px;max-width:430px;padding-top:6px;';
+        controls.style.cssText = 'display:none;flex-wrap:wrap;gap:6px;width:min(430px,calc(100vw - 34px));max-width:100%;padding-top:6px;';
         const expand = open => { controls.style.display = open ? 'flex' : 'none'; toggle.setAttribute('aria-expanded', String(open)); };
         toggle.addEventListener('click', event => { if (event.isTrusted) expand(true); });
         toolbar.addEventListener('mouseenter', () => expand(true));

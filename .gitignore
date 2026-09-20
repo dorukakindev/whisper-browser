@@ -21,6 +21,7 @@ backend/bin/
 out/
 dist/
 build/
+artifacts/
 
 # Ajan/editör yerel dosyaları
 .claude/

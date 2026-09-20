@@ -5,5 +5,7 @@ LGPL-2.1-or-later AND (FTL OR GPL-2.0-or-later) AND MIT AND MIT-Modern-Variant A
 
 JASSUB paketinin sağladığı üst düzey lisans JASSUB-LICENSE.txt içinde korunur.
 Bundled worker/WASM/font bileşenleri yalnız MIT kapsamında değildir.
+Electron 43 yerel requestVideoFrameCallback sağladığı için JASSUB build-time
+rvfc-polyfill bağımlılığı bu dağıtım paketine dahil edilmez.
 Üçüncü taraf metinler ve kesin kaynak kimlikleri third-party-licenses/ dizinindedir.
 Upstream kaynak: https://github.com/ThaUnknown/jassub

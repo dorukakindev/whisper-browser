@@ -1,10 +1,12 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const { createBrowserAlignment } = require('../src/browser-alignment');
-const pythonPath = path.resolve(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe');
-const ffmpegPath = path.resolve(__dirname, '..', 'backend', 'bin', 'ffmpeg.exe');
+const { findTestPython } = require('./python-runtime');
+const { findMediaTool } = require('./media-runtime');
+const pythonPath = findTestPython();
+const ffmpegPath = findMediaTool('ffmpeg');
+assert(pythonPath && ffmpegPath, 'Python ve FFmpeg test çalışma zamanı bulunamadı.');
 const alignment = createBrowserAlignment({ pythonPath, ffmpegPath });
 
 async function run() {

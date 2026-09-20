@@ -31,6 +31,14 @@ assert.match(readerScript, /event\.preventDefault\(\); heading\.scrollIntoView/,
   'kapalı shadow root içindekiler bağlantısı dış sayfanın hash rotasını değiştirmemeli');
 assert.match(readerScript, /readability-heuristic/);
 assert.match(readerScript, /readerComparison/);
+assert.match(readerScript, /document\.documentElement\.style\.overflow = 'hidden'/,
+  'okuma katmanı açıkken alttaki sayfanın yatay kaydırması kilitlenmeli');
+assert.match(readerScript, /document\.documentElement\.style\.overflow = previousOverflow\.root/,
+  'okuma katmanı kapanırken sayfanın önceki overflow değeri geri yüklenmeli');
+assert.match(readerScript, /normalizeHeading\(copiedTitle\.textContent\) === normalizeHeading\(title\)/,
+  'kopyalanan makale h1 ile üretilen başlık aynıysa çift başlık kaldırılmalı');
+assert.match(readerScript, /\.shell,\.shell \*,\.shell \*::before,\.shell \*::after\{box-sizing:border-box\}/,
+  'reader içeriği zoom ve dar genişlikte kutu hesabını taşırmamalı');
 
 assert.deepEqual(normalizeTabGroup({ name: '  Ders   notları  ', color: 'cyan' }),
   { name: 'Ders notları', color: 'cyan' });
