@@ -145,4 +145,21 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(renderer, /player\.ytInfo\.videoKey === player\.mediaKey/, 'yanlış videoya sprite sızmaz');
 }
 
+// --- B03 — OpenSubtitles moviehash wiring ---
+{
+  const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  const search = readRel('src/browser-subtitle-search.js');
+  const features = readRel('src/browser-feature-services.js');
+  const bf = readRel('src/renderer/browser-features.js');
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'src', 'opensubtitles-hash.js')), 'hash modülü');
+  assert.match(search, /moviehash/, 'sorgu parametresi');
+  assert.match(search, /moviehash_match === true/, 'sağlayıcı eşleşme bayrağı');
+  assert.match(features, /authorizeMedia\(payload\.mediaPath\)/, 'medya yetkisi');
+  assert.match(features, /movieHash\(mediaPath\)/, 'hash hesaplama');
+  assert.match(features, /delete target\.mediaPath/, 'iç yol sağlayıcıya sızmaz');
+  assert.match(bf, /mediaPath: player\.localPath/, 'yerel dosya yolu gönderimi');
+  assert.match(bf, /hashMatch/, 'parmak izi rozeti');
+  assert.match(readRel('src/main.js'), /authorizeMedia: file => authorizeLocalMediaPath/, 'dep enjeksiyonu');
+}
+
 console.log('browser-parti7.test.js OK');

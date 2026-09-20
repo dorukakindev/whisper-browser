@@ -17956,6 +17956,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,
   captureFrame: captureBrowserVideoFrame, restoreLayout: applyBrowserViewsLayout,
   grantSubtitle: file => { subtitleFileAccess.grant(file); trackBrowserSubtitleFile(file); },
+  authorizeMedia: file => authorizeLocalMediaPath(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
 });
 

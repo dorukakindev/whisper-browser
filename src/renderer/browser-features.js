@@ -89,17 +89,19 @@
     const result = await call('subtitle-search', {
       query: val('bfTitle'), season: val('bfSeason') || undefined, episode: val('bfEpisode') || undefined,
       language: val('bfLanguage') || undefined, release: val('bfRelease') || undefined,
+      mediaPath: player.localPath || undefined,
       config: credentials(),
     });
     if (!result) return;
     const list = $('bfSubtitleResults'); clear(list);
     const rows = Array.isArray(result.results) ? result.results.slice(0, 50) : [];
     if (!rows.length) { list.append(node('p', 'Eşleşen altyazı bulunamadı. Başlığı veya dili değiştirin.')); return; }
-    list.append(node('p', `${rows.length} aday · puan yalnız başlık, bölüm, dil ve sürüm bilgilerinin eşleşmesidir.`, 'bf-note'));
+    const hashed = rows.some((row) => row.hashMatch);
+    list.append(node('p', `${rows.length} aday · puan yalnız başlık, bölüm, dil ve sürüm bilgilerinin eşleşmesidir.${hashed ? ' Dosya parmak izi eşleşenler en üstte.' : ''}`, 'bf-note'));
     for (const row of rows) {
       const item = node('div', '', 'bf-result');
       item.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));
-      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan`, 'bf-meta'));
+      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan${row.hashMatch ? ' · dosya parmak izi ✓' : ''}`, 'bf-meta'));
       const button = node('button', 'İndir ve aç'); button.type = 'button';
       button.addEventListener('click', async () => {
         const downloaded = await call('subtitle-download', { fileId: row.fileId, config: credentials() });

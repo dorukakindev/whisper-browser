@@ -112,6 +112,8 @@ function scoreCandidate(candidate, target) {
   const a = candidate.attributes || {};
   const feature = a.feature_details || {};
   let score = 0;
+  // B03: sağlayıcı dosya parmak izi eşleşmesini bildirdiğinde en güçlü sinyal
+  if (a.moviehash_match === true) score += 100;
   const title = normalized(feature.title);
   const query = normalized(target.query);
   if (query && title === query) score += 50;
@@ -132,13 +134,26 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
     || ['season', 'episode'].some(key => target[key] != null && (!Number.isInteger(Number(target[key])) || Number(target[key]) < 0 || Number(target[key]) > 10000))) {
     throw problem('Arama başlığı, dil veya bölüm bilgisi geçersiz.', 'INVALID_INPUT');
   }
+  // B03: moviehash yalnızca 16-hex parmak izi; filesize isteğe bağlı bilgi.
+  const moviehash = /^[0-9a-f]{16}$/i.test(String(target.moviehash || '')) ? String(target.moviehash).toLowerCase() : '';
+  if (target.moviehash != null && !moviehash) throw problem('Dosya parmak izi (moviehash) geçersiz.', 'INVALID_INPUT');
+  if (target.filesize != null && (!Number.isSafeInteger(Number(target.filesize)) || Number(target.filesize) < 0)) {
+    throw problem('Dosya boyutu geçersiz.', 'INVALID_INPUT');
+  }
   signal = AbortSignal.any([signal, AbortSignal.timeout(45000)].filter(Boolean));
   const params = new URLSearchParams({ query: target.query.trim() });
+  if (moviehash) params.set('moviehash', moviehash);
   if (target.season != null) params.set('season_number', String(target.season));
   if (target.episode != null) params.set('episode_number', String(target.episode));
   if (target.language) params.set('languages', String(target.language));
-  const payload = await request(`/subtitles?${params}`, { method: 'GET' }, config, signal);
+  let payload = await request(`/subtitles?${params}`, { method: 'GET' }, config, signal);
   if (!Array.isArray(payload.data)) throw problem('OpenSubtitles arama yanıtı eksik.', 'INVALID_RESPONSE');
+  // B03: parmak izi hiç eşleşme vermediyse salt başlık sorgusuna düş
+  if (moviehash && payload.data.length === 0) {
+    params.delete('moviehash');
+    payload = await request(`/subtitles?${params}`, { method: 'GET' }, config, signal);
+    if (!Array.isArray(payload.data)) throw problem('OpenSubtitles arama yanıtı eksik.', 'INVALID_RESPONSE');
+  }
   const results = payload.data.map((item) => {
     const a = item.attributes || {};
     const feature = a.feature_details || {};
@@ -156,6 +171,7 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
       fileName: file.file_name || '',
       hearingImpaired: Boolean(a.hearing_impaired),
       downloadCount: Number(a.download_count) || 0,
+      hashMatch: a.moviehash_match === true,
       matchScore: scoreCandidate(item, target),
     };
   }).filter((item) => item.fileId != null);
