@@ -228,6 +228,45 @@ class Browse(unittest.TestCase):
         self.assertEqual(payload["continuation"], "C9")
         self.assertNotIn("browseId", payload)
 
+    def test_browse_parses_lockup_view_model(self):
+        """Yeni InnerTube kart formatı (kişisel akışlar bunu kullanır)."""
+        payload = {"contents": {"x": [
+            {"lockupViewModel": {
+                "contentId": "LV1",
+                "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                "content": {"image": {"collectionThumbnailViewModel": {
+                    "primaryThumbnail": {"thumbnailViewModel": {"image": {
+                        "sources": [{"url": "https://i/96.jpg", "width": 96},
+                                    {"url": "https://i/320.jpg", "width": 320}]}}}}}},
+                "metadata": {"lockupMetadataViewModel": {
+                    "title": {"content": "Kilit video"},
+                    "metadata": {"contentMetadataViewModel": {
+                        "metadataRows": [
+                            {"metadataParts": [{"text": {"content": "Kanal X"}}]},
+                            {"metadataParts": [
+                                {"text": {"content": "12K views"}},
+                                {"text": {"content": "3 days ago"}}]},
+                        ]}}}},
+                "rendererContext": {"commandContext": {"onTap": {
+                    "innertubeCommand": {"watchEndpoint": {"videoId": "LV1"}}}}},
+            }},
+            {"lockupViewModel": {"contentType": "LOCKUP_CONTENT_TYPE_PODCAST"}},
+            {"lockupViewModel": {}},  # id'siz — atlanmalı
+        ]}}
+        with patch.dict(os.environ, {"WHISPER_YT_ACCESS_TOKEN": "AT"}, clear=False), \
+             patch.object(youtube, "_get_innertube_key", return_value="KEY"), \
+             patch.object(youtube, "_post_json", return_value=(payload, None)):
+            events = _capture_emit(youtube.browse, "FEwhat_to_watch")
+        feed = [e for e in events if e["type"] == "feed"][0]
+        vids = feed["videos"]
+        self.assertEqual(len(vids), 1)
+        self.assertEqual(vids[0]["videoId"], "LV1")
+        self.assertEqual(vids[0]["title"], "Kilit video")
+        self.assertEqual(vids[0]["author"], "Kanal X")
+        self.assertEqual(vids[0]["viewCount"], 12)  # "12K" → sayı kısmı
+        self.assertEqual(vids[0]["publishedText"], "3 days ago")
+        self.assertEqual(vids[0]["videoThumbnails"][0]["url"], "https://i/320.jpg")
+
 
 class MainDispatch(unittest.TestCase):
     def test_invalid_browse_id_rejected(self):

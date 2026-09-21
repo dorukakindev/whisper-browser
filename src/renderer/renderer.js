@@ -23598,6 +23598,9 @@ async function renderSmartTubeSection(section, opts = {}) {
     }
     }
     if (!videos.length) {
+      // Ana sayfa hiçbir zaman bomboş kalmasın — yerel raylar + giriş CTA.
+      if (section === 'home' && stRenderHomeFallback(grid,
+          window.UiLocale?.t('İçerik alınamadı — günlük kayıtlarına bak.') || 'İçerik alınamadı — günlük kayıtlarına bak.')) return;
       showError('İçerik alınamadı — günlük kayıtlarına bak.');
       return;
     }
@@ -23607,6 +23610,12 @@ async function renderSmartTubeSection(section, opts = {}) {
       setSmartTubeStatus(window.UiLocale?.t('Ek videolar alınamadı; gösterilenleri izleyebilir veya yeniden deneyebilirsiniz.')
         || 'Ek videolar alınamadı; gösterilenleri izleyebilir veya yeniden deneyebilirsiniz.');
       logLine(`SmartTube feed kısmi sonuç: ${msg}`, 'warn');
+      return;
+    }
+    if (section === 'home') {
+      // Akış hatası ana sayfayı silmesin — yerel raylar + yeniden dene/giriş.
+      logLine(`SmartTube feed hata: ${msg}`, 'error');
+      stRenderHomeFallback(grid, `Akış alınamadı: ${msg}`);
       return;
     }
     showError(/giriş|login|401|unauthor/i.test(msg)
@@ -23645,42 +23654,23 @@ async function renderSmartTubeSection(section, opts = {}) {
       seen.add(id);
       return true;
     });
-    renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
-    if (queueVideos.length || continueVideos.length) {
-      const rail = document.createDocumentFragment();
-      // Kuyruk rayı ayrı kapta — dequeue/toggle sonrası stRefreshQueueRail
-      // yalnız burayı yeniden kurar (display:contents grid'i bozmaz).
-      if (queueVideos.length) {
-        const wrap = document.createElement('div');
-        wrap.className = 'st-queue-rail';
+    try {
+      renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
+      const homeRail = stHomeRailsFragment(queueVideos, continueVideos);
+      if (homeRail) grid.prepend(homeRail);
+      const trendList = stFilterVideos(dedupe(trending || []));
+      // A08: 'Trend rayını gizle' açıksa bölüm başlığıyla birlikte atlanır.
+      if (trendList.length && !$('stHideTrending')?.checked) {
         const sep = document.createElement('div');
         sep.className = 'st-section-title st-grid-row';
-        sep.textContent = window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası';
-        wrap.appendChild(sep);
-        queueVideos.forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
-        rail.appendChild(wrap);
+        sep.textContent = 'Trend';
+        grid.appendChild(sep);
+        trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
       }
-      for (const [title, list] of [
-        [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
-        [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', stMostPlayedVideos().slice(0, 12)],
-      ]) {
-        if (!list.length) continue;
-        const sep = document.createElement('div');
-        sep.className = 'st-section-title st-grid-row';
-        sep.textContent = title;
-        rail.appendChild(sep);
-        list.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
-      }
-      grid.prepend(rail);
-    }
-    const trendList = stFilterVideos(dedupe(trending || []));
-    // A08: 'Trend rayını gizle' açıksa bölüm başlığıyla birlikte atlanır.
-    if (trendList.length && !$('stHideTrending')?.checked) {
-      const sep = document.createElement('div');
-      sep.className = 'st-section-title st-grid-row';
-      sep.textContent = 'Trend';
-      grid.appendChild(sep);
-      trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+    } catch (renderErr) {
+      // Render aşaması hatası grid'i sessizce boş bırakmasın.
+      logLine(`SmartTube ana sayfa render hatası: ${renderErr && renderErr.message || renderErr}`, 'error');
+      stRenderHomeFallback(grid, 'Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.');
     }
   } else {
     // Yalnız "Yükleniyor…" yer tutucusunu kaldır — innerHTML='' yazsaydık
@@ -23989,6 +23979,71 @@ function stQueueRailVideos() {
     lengthSeconds: v.lengthSeconds,
     videoThumbnails: v.thumb ? [{ url: v.thumb, quality: 'medium' }] : [],
   }));
+}
+
+// Ana sayfa üst rayları (kuyruk + devam + en çok oynatılan) — tamamen yerel
+// veri; uzak akıştan bağımsız, bu yüzden feed çöktüğünde de görünürler
+// (SmartTube'da girişsiz ana sayfa hiçbir zaman boş kalmaz).
+function stHomeRailsFragment(queueVideos, continueVideos) {
+  const mostPlayed = stMostPlayedVideos().slice(0, 12);
+  if (!queueVideos.length && !continueVideos.length && !mostPlayed.length) return null;
+  const rail = document.createDocumentFragment();
+  // Kuyruk rayı ayrı kapta — dequeue/toggle sonrası stRefreshQueueRail
+  // yalnız burayı yeniden kurar (display:contents grid'i bozmaz).
+  if (queueVideos.length) {
+    const wrap = document.createElement('div');
+    wrap.className = 'st-queue-rail';
+    const sep = document.createElement('div');
+    sep.className = 'st-section-title st-grid-row';
+    sep.textContent = window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası';
+    wrap.appendChild(sep);
+    queueVideos.forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+    rail.appendChild(wrap);
+  }
+  for (const [title, list] of [
+    [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
+    [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', mostPlayed],
+  ]) {
+    if (!list.length) continue;
+    const sep = document.createElement('div');
+    sep.className = 'st-section-title st-grid-row';
+    sep.textContent = title;
+    rail.appendChild(sep);
+    list.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
+  }
+  return rail;
+}
+
+// Uzak akış tamamen gelmediğinde ana sayfa: yerel raylar + hata satırı +
+// YouTube giriş CTA'sı + yeniden dene (SmartTube girişsiz ekranı gibi).
+function stRenderHomeFallback(grid, msg) {
+  grid.innerHTML = '';
+  const rail = stHomeRailsFragment(stQueueRailVideos(), stContinueWatchingVideos());
+  if (rail) grid.appendChild(rail);
+  const box = document.createElement('div');
+  box.className = 'inv-status st-grid-row st-home-fallback';
+  const line = document.createElement('div');
+  line.textContent = String(msg || 'Akış şu an alınamıyor.');
+  box.appendChild(line);
+  const actions = document.createElement('div');
+  actions.className = 'st-home-fallback-actions';
+  if (!youtubeLoggedIn) {
+    const login = document.createElement('button');
+    login.type = 'button';
+    login.className = 'btn btn-primary btn-sm';
+    login.textContent = window.UiLocale?.t('YouTube ile giriş') || 'YouTube ile giriş';
+    login.addEventListener('click', () => openYoutubeLogin());
+    actions.appendChild(login);
+  }
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'btn btn-secondary btn-sm';
+  retry.textContent = window.UiLocale?.t('Tekrar dene') || 'Tekrar dene';
+  retry.addEventListener('click', () => renderSmartTubeSection('home', { force: true }));
+  actions.appendChild(retry);
+  box.appendChild(actions);
+  grid.appendChild(box);
+  return true;
 }
 
 // ----- Yerel çalma listeleri (A22) -----
