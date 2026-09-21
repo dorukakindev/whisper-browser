@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Desktop YouTube sign-in via Google's recommended installed-app flow: "Authorize in browser" opens system browser with PKCE + loopback redirect; device code remains only for "TVs and Limited Input" clients.
 - SmartTube section: QR-assisted device-code sign-in using a user-configured OAuth client; account setup and real personalized feeds require live acceptance (#9).
 - SmartTube queue rail on the home grid with local continue/most-played rails (#9).
 - InnerTube `lockupViewModel` card parsing for signed-in personalized feeds (#11).
@@ -21,6 +22,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Browser media tools (intro detection, OCR, semantic search, scene strips) no longer report "not found" on Linux when ffmpeg/python resolve via PATH.
+- Startup environment check no longer shows a false "Python venv not found" warning on Linux; backend/bin ffmpeg detection is platform-aware.
+- SmartTube subscription empty-state, hint, and device-code error strings now translate to English.
+- HLS playback runs the hls.js demuxer in a worker again (CSP worker-src), restoring streaming throughput.
+- YouTube client ID is repopulated when returning to the client form after a bounced sign-in (secret never echoed).
 - Restored read-only YouTube OAuth scope, removed an unrelated application's embedded OAuth client, and cleared old tokens when changing clients.
 - Corrected SmartTube compact view counts and channel identity extraction for lockup cards.
 - SmartTube home no longer renders blank on feed errors; a local-rails fallback with sign-in and retry actions is shown instead (#11).

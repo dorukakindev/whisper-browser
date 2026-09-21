@@ -2,6 +2,7 @@
 // node_modules/.bin/electron tests/electron-browser-analysis.smoke.js --disable-gpu
 'use strict';
 const { app, BrowserWindow, webContents, session, dialog } = require('electron');
+const { findMediaTool } = require('./media-runtime');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -11,7 +12,7 @@ const out = path.join(root, '.uiprev', 'browser-analysis-smoke');
 fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${process.pid}-${Date.now()}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
-const ffmpeg = path.join(root, 'backend', 'bin', 'ffmpeg.exe');
+const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
 const video = path.join(out, 'episode-a.mp4');
 const other = path.join(out, 'episode-b.mp4');
 if (!fs.existsSync(video)) {

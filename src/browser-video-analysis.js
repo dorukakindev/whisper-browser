@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { withoutSecretEnv } = require('./settings-security');
 
 function run(executable, args, input, signal, timeoutMs = 120000) {
@@ -30,8 +30,21 @@ function run(executable, args, input, signal, timeoutMs = 120000) {
 
 function createBrowserVideoAnalysis({ pythonPath, ffmpegPath, ffprobePath } = {}) {
   const script = path.join(__dirname, '..', 'backend', 'browser_video_analysis.py');
+  // Araç mutlak yolsa varlığını, çıplak komut adıysa (PATH'ten çözülen
+  // 'python3'/'ffmpeg' gibi) gerçekten başlatılabildiğini doğrula.
+  const toolAvailable = (tool) => {
+    if (typeof tool !== 'string' || !tool) return false;
+    if (path.isAbsolute(tool) || tool.includes('/') || tool.includes('\\')) return fs.existsSync(tool);
+    for (const flag of ['--version', '-version']) {
+      try {
+        const probe = spawnSync(tool, [flag], { windowsHide: true, stdio: 'ignore', timeout: 5000 });
+        if (!probe.error && probe.status === 0) return true;
+      } catch (_) {}
+    }
+    return false;
+  };
   const checkTools = () => {
-    if (![pythonPath, ffmpegPath, ffprobePath].every(file => typeof file === 'string' && fs.existsSync(file))) throw new Error('Python, FFmpeg veya ffprobe bulunamadı.');
+    if (![pythonPath, ffmpegPath, ffprobePath].every(toolAvailable)) throw new Error('Python, FFmpeg veya ffprobe bulunamadı.');
   };
   const checkVideo = (file) => {
     if (typeof file !== 'string' || !fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error('Erişilebilir yerel video bulunamadı.');
