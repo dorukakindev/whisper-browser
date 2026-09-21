@@ -23648,9 +23648,19 @@ async function renderSmartTubeSection(section, opts = {}) {
     renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
     if (queueVideos.length || continueVideos.length) {
       const rail = document.createDocumentFragment();
-      // Kullanıcı sırası en üstte, pasif devam kayıtları altında
+      // Kuyruk rayı ayrı kapta — dequeue/toggle sonrası stRefreshQueueRail
+      // yalnız burayı yeniden kurar (display:contents grid'i bozmaz).
+      if (queueVideos.length) {
+        const wrap = document.createElement('div');
+        wrap.className = 'st-queue-rail';
+        const sep = document.createElement('div');
+        sep.className = 'st-section-title st-grid-row';
+        sep.textContent = window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası';
+        wrap.appendChild(sep);
+        queueVideos.forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+        rail.appendChild(wrap);
+      }
       for (const [title, list] of [
-        [window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası', queueVideos],
         [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
         [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', stMostPlayedVideos().slice(0, 12)],
       ]) {
@@ -23891,22 +23901,46 @@ function stQueueToggle(video) {
     thumb: tn ? absThumb(tn.url) : '',
     addedAt: Date.now(),
   });
-  if (stQueue.length > ST_QUEUE_MAX) stQueue.shift();
+  if (stQueue.length > ST_QUEUE_MAX) {
+    const dropped = stQueue.shift();
+    // Kapasite taşması sessiz kayıp olmasın — hangi kaydın düştüğü görünsün.
+    logLine(`Oynatma sırası dolu (${ST_QUEUE_MAX}) — en eski kayıt düştü: ${dropped.title || dropped.videoId}`, 'warn');
+  }
   saveStQueue();
   updatePlaylistButtons();
+  stRefreshQueueRail();
   return true;
 }
-// Akış gerçekten açıldıysa sıranın başındaki kaydı düşür; kart/queue yollarının
-// hepsi aynı youtube:<id> anahtarını ürettiği için kimlik eşleşmesi güvenli.
+// Akış gerçekten açıldıysa kaydı sıranın herhangi bir konumundan düşür —
+// ortadaki videoyu karttan elle açan kullanıcı auto-next'te aynı videoyu
+// tekrar görmek istemez. Kimlik eşleşmesi youtube:<id> anahtarıyla güvenli.
 function stQueueDequeueIfPlaying(key) {
   const id = String(key || '').startsWith('youtube:') ? key.slice(8) : '';
-  if (id && stQueue.length && stQueue[0].videoId === id) {
-    stQueue.shift();
+  const i = id ? stQueue.findIndex((v) => v.videoId === id) : -1;
+  if (i >= 0) {
+    stQueue.splice(i, 1);
     saveStQueue();
     updatePlaylistButtons();
+    stRefreshQueueRail();
     return true;
   }
   return false;
+}
+
+// Ana sayfadaki "Oynatma sırası" rayını açılan/değişen kuyrukla tazele —
+// ray grid içinde display:contents kabı olduğundan yalnız kendi kartlarını
+// yeniden kurar; feed yeniden çekilmez, yükleniyor ekranı çıkmaz.
+function stRefreshQueueRail() {
+  const rail = document.querySelector('#stGrid .st-queue-rail');
+  if (!rail) return;
+  const items = stQueueRailVideos();
+  rail.innerHTML = '';
+  if (!items.length) { rail.remove(); return; }
+  const sep = document.createElement('div');
+  sep.className = 'st-section-title st-grid-row';
+  sep.textContent = window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası';
+  rail.appendChild(sep);
+  items.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
 }
 // Kuyruğun başındaki videoyu kart açılışıyla AYNI probe/auto-open akışından
 // başlatır; eleman burada düşmez — probe başarısız olursa sıra korunur.
@@ -25664,26 +25698,10 @@ function openYoutubeLogin() {
     if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
     _ytShowView('ytLoggedView');
   } else {
-    // Kayıtlı istemcide her girişte kurulum formuna döndürme. Kod görünümünü
-    // hemen aç; asıl Google onayı yalnız kullanıcı cihazında gerçekleşir.
-    const openingGen = ++_ytFlowGen;
-    _ytShowView('ytDeviceView');
-    const pollStatus = $('ytPollStatus');
-    if (pollStatus) pollStatus.textContent = window.UiLocale?.t('İstemci bilgisi kontrol ediliyor…') || 'İstemci bilgisi kontrol ediliyor…';
-    window.api.youtubeSession().then((res) => {
-      if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
-      if (res && res.ok && res.data && res.data.hasClient) {
-        startYoutubeDeviceFlow();
-      } else {
-        _ytShowView('ytClientView');
-        $('ytClientId')?.focus();
-      }
-    }).catch(() => {
-      if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
-      _ytShowView('ytClientView');
-      ytModalError('YouTube oturumu kontrol edilemedi. Yeniden deneyin.');
-      $('ytClientId')?.focus();
-    });
+    // Yerleşik YouTube TV istemcisiyle sıfır kurulum — SmartTube gibi kod
+    // görünümü hemen açılır; asıl Google onayı yalnız kullanıcı cihazında
+    // gerçekleşir. deviceCode başarısız olursa akış kendisi istemci formuna düşer.
+    startYoutubeDeviceFlow();
   }
   dlg.classList.remove('hidden');
   const focusTarget = youtubeLoggedIn ? $('ytLoggedClose') : $('ytDeviceCancel');
@@ -25725,14 +25743,25 @@ async function startYoutubeDeviceFlow() {
     return;
   }
   if (codeEl) codeEl.textContent = res.data.user_code || '----';
+  const vurl = res.data.verification_url || 'https://www.google.com/device';
   const link = $('ytVerificationUrl');
   if (link) {
-    const vurl = res.data.verification_url || 'https://www.google.com/device';
     link.textContent = vurl.replace(/^https?:\/\//, '');
     link.href = vurl;
     link.onclick = (e) => { e.preventDefault(); window.api.openExternal(vurl); };
   }
   if (status) status.textContent = 'Onay bekleniyor…';
+  // SmartTube gibi telefona okutulabilir QR — kod linki zaten taşıyor.
+  const qrCanvas = $('ytQrCanvas');
+  if (qrCanvas) {
+    if (typeof globalThis.QRCode?.toCanvas === 'function' && res.data.verification_url) {
+      qrCanvas.classList.remove('hidden');
+      globalThis.QRCode.toCanvas(qrCanvas, vurl, { errorCorrectionLevel: 'M', margin: 1, width: 150 })
+        .catch(() => { qrCanvas.classList.add('hidden'); });
+    } else {
+      qrCanvas.classList.add('hidden');
+    }
+  }
   try {
     const pr = await window.api.youtubePoll();
     if (gen !== _ytFlowGen) return;                 // modal kapanmış — sonucu uygulama

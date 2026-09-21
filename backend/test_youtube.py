@@ -48,9 +48,11 @@ class DeviceCode(unittest.TestCase):
         # device_code ana süreçte kalması gereken alan — emit'te var ama
         # renderer'a iletilmez (main.js tarafı filtreler)
         self.assertEqual(ev["device_code"], "DC-SECRET")
-        # scope youtube.readonly gönderilmiş olmalı
+        # InnerTube'un kabul ettiği kapsam gönderilmiş olmalı (youtube —
+        # readonly youtubei/browse Bearer'da güvenilir çalışmıyor)
         fields = m.call_args[0][1]
-        self.assertIn("youtube.readonly", fields["scope"])
+        self.assertEqual(fields["scope"],
+                         "https://www.googleapis.com/auth/youtube")
 
     def test_device_code_error_raises(self):
         with patch.object(youtube, "_post_form",

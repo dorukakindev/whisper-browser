@@ -3089,14 +3089,15 @@
 <!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
 <div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
   <div class="modal-content" style="max-width:460px">
-    <!-- Görünüm 1: OAuth client bilgileri (ilk kurulum) -->
+    <!-- Görünüm 1: OAuth client bilgileri (gelişmiş — yerleşik YouTube TV istemcisi varsayılan) -->
     <div id="ytClientView">
-      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
+      <h3 id="ytLoginTitle">YouTube ile giriş — gelişmiş</h3>
       <p class="small-muted">
-        Cihaz koduyla giriş için bir kerelik kurulum gerekir: Google Cloud'da
-        "TV ve sınırlı girişli cihazlar" tipinde OAuth istemcisi oluştur,
-        YouTube Data API v3'ü etkinleştir ve Client ID ile Secret'i gir.
-        Bu bilgiler cihazda güvenli depoda tutulur. Bu, SmartTube hesabını içe aktarmaz.
+        Normalde gerek yok: giriş, SmartTube'un kullandığı yerleşik YouTube TV
+        istemcisiyle otomatik çalışır. Yalnızca kendi Google Cloud OAuth
+        istemcini ("TV ve sınırlı girişli cihazlar" tipi, YouTube Data API v3
+        etkin) kullanmak istersen gir. Uyarı: kendi istemcin InnerTube
+        kişisel akışında çalışmayabilir — yerleşik TV istemcisi önerilir.
       </p>
       <label class="field">
         <span class="field-label">Client ID</span>
@@ -3116,8 +3117,9 @@
     <!-- Görünüm 2: cihaz kodu — kullanıcı google.com/device'ta onaylar -->
     <div id="ytDeviceView" class="hidden">
       <h3>YouTube onayı bekleniyor</h3>
-      <p class="small-muted">Telefonda veya bilgisayarda aşağıdaki adresi aç ve kodu gir:</p>
+      <p class="small-muted">Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:</p>
       <div class="yt-device-code-wrap">
+        <canvas id="ytQrCanvas" class="yt-qr-canvas hidden" width="150" height="150" aria-label="QR kod"></canvas>
         <a href="#" id="ytVerificationUrl" class="yt-verification-url">google.com/device</a>
         <div class="yt-user-code" id="ytUserCode">----</div>
         <button class="btn btn-secondary btn-sm" id="ytCopyCode" type="button">Kodu kopyala</button>

@@ -964,6 +964,18 @@ const youtubeSession = {
 };
 let _ytDevice = null;   // {deviceCode, interval, expiresAt} — poll devam ederken
 
+// SmartTube'un gömülü YouTube TV (TVHTML5) OAuth istemcisi — cihaz-kodu
+// akışı istemcileri gizli değer saklayamaz; bu çift her kurulumda açıkça
+// gömülüdür (yt-dlp ve ytmusicapi aynısını kullanır, youtube.com/tv'den
+// alınmıştır). InnerTube (youtubei/v1/browse) yalnız bu istemcinin
+// token'ını kabul eder — kullanıcının kendi "masaüstü uygulaması" OAuth
+// istemcisi Data API'de çalışsa bile youtubei'de reddedilir. Kullanıcı
+// youtube:setClient ile yine de kendi istemcisini koyabilir.
+const YT_BUILTIN_CLIENT_ID = '861556708454-d6dlm3lh05idd8npek18k6be8ba3oc68.apps.googleusercontent.com';
+const YT_BUILTIN_CLIENT_SECRET = 'SboVhoG9s0rNafixCSGGKXAT';
+const ytClientId = () => youtubeSession.clientId || YT_BUILTIN_CLIENT_ID;
+const ytClientSecret = () => youtubeSession.clientSecret || YT_BUILTIN_CLIENT_SECRET;
+
 let youtubeSessionStore = null;
 function getYoutubeSessionStore() {
   if (!youtubeSessionStore) {
@@ -1003,7 +1015,7 @@ function restoreYoutubeSession() {
 
 function youtubeAuthEnv() {
   const env = {};
-  if (youtubeSession.clientSecret) env.WHISPER_YT_CLIENT_SECRET = youtubeSession.clientSecret;
+  env.WHISPER_YT_CLIENT_SECRET = ytClientSecret();
   if (youtubeSession.refreshToken) env.WHISPER_YT_REFRESH_TOKEN = youtubeSession.refreshToken;
   if (youtubeSession.accessToken) env.WHISPER_YT_ACCESS_TOKEN = youtubeSession.accessToken;
   if (_ytDevice && _ytDevice.deviceCode) env.WHISPER_YT_DEVICE_CODE = _ytDevice.deviceCode;
@@ -1097,11 +1109,11 @@ async function ensureYoutubeAccessToken() {
   if (youtubeSession.accessToken && Date.now() < youtubeSession.expiresAt - 60_000) {
     return youtubeSession.accessToken;
   }
-  if (!youtubeSession.clientId) return null;
+  const cid = ytClientId();
   if (_ytRefreshInFlight) return _ytRefreshInFlight;
   _ytRefreshInFlight = (async () => {
     const res = await runYoutubeCommand(
-      ['refresh', '--client-id', youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
+      ['refresh', '--client-id', cid], null, 45_000, youtubeAuthEnv());
     if (res && res.ok && res.data && res.data.access_token) {
       youtubeSession.accessToken = res.data.access_token;
       youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
@@ -1693,7 +1705,10 @@ ipcMain.handle('youtube:session', async (_e) => {
     loggedIn: !!youtubeSession.refreshToken,
     userName: youtubeSession.userName,
     userEmail: youtubeSession.userEmail,
-    hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
+    // Yerleşik TVHTML5 istemcisi her zaman var — hasClient girişi engellemez;
+    // usingBuiltin özel istemci KAYITLI olmadığını bildirir (UI "gelişmiş" gösterir).
+    hasClient: true,
+    usingBuiltin: !youtubeSession.clientId,
     pendingCode: !!(_ytDevice && _ytDevice.deviceCode),
   } };
 });
@@ -1717,11 +1732,9 @@ ipcMain.handle('youtube:setClient', async (_e, opts) => {
 
 ipcMain.handle('youtube:deviceCode', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (!youtubeSession.clientId || !youtubeSession.clientSecret) {
-    return { ok: false, error: 'Önce OAuth Client ID + Secret kaydedin.' };
-  }
+  // Yerleşik YouTube TV istemcisi varsayılan — kayıtlı özel istemci varsa o kazanır.
   const res = await runYoutubeCommand(
-    ['device_code', '--client-id', youtubeSession.clientId], null, 30_000);
+    ['device_code', '--client-id', ytClientId()], null, 30_000);
   if (!res || !res.ok || !res.data) return res || { ok: false, error: 'Cihaz kodu alınamadı.' };
   _ytDevice = {
     deviceCode: res.data.device_code,
@@ -1750,7 +1763,7 @@ ipcMain.handle('youtube:poll', async (_e) => {
   }
   const remaining = Math.max(60, Math.floor((_ytDevice.expiresAt - Date.now()) / 1000));
   const res = await runYoutubeCommand(
-    ['poll', '--client-id', youtubeSession.clientId,
+    ['poll', '--client-id', ytClientId(),
      '--expires-in', String(remaining), '--interval', String(_ytDevice.interval)],
     (ev) => {
       // Sızıntı koruması: 'login'/'token' emit'leri access/refresh token taşır;

@@ -63,7 +63,7 @@ test('R70-03: youtube:session cevabı token/secret içermez', () => {
   assert.ok(ret, 'session cevabı bulunamadı');
   // Dönen ANAHTARLAR güvenli kümede olmalı (değer referansları değil)
   const keys = [...ret[1].matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
-  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode']);
+  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode', 'usingBuiltin']);
   for (const k of keys) {
     assert.ok(safe.has(k), `session cevabı beklenmeyen alan dönüyor: ${k}`);
   }
@@ -209,8 +209,9 @@ test('R70-13: backend yalnız HTTPS Google/YouTube endpoint\'leri kullanır', ()
     assert.ok(/googleapis\.com|youtube\.com|ytimg\.com|google\.com/.test(u),
       `beklenmeyen endpoint: ${u}`);
   }
-  // scope salt-okuma
-  assert.match(YT_PY, /auth\/youtube\.readonly/);
+  // scope: InnerTube'un kabul ettiği youtube kapsamı (readonly youtubei'de
+  // güvenilir çalışmıyor — SmartTube/ytmusicapi aynı kapsamı kullanır)
+  assert.match(YT_PY, /auth\/youtube["']/);
 });
 
 test('R70-13b: backend NDJSON emit kilit altında (thread-güvenli)', () => {

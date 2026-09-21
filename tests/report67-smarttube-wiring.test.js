@@ -372,7 +372,7 @@ function fakeStorage() {
 // Gerçek kuyruk fonksiyonlarını kaynaktan çıkarıp sahte localStorage + DOM ile
 // kurar — kart düğmesi de aynı bağlamı kullanır.
 function buildQueueHarness() {
-  const calls = { probe: 0 };
+  const calls = { probe: 0, log: [] };
   const store = fakeStorage();
   const player = { openIntent: 7, pendingAutoOpen: null, mediaKey: '' };
   const ctx = vm.createContext({
@@ -380,9 +380,10 @@ function buildQueueHarness() {
     absThumb: (u) => u,
     mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
     watchItemByKey: () => null,
+    logLine: (m, l) => calls.log.push(`${l || 'info'}:${m}`),
     queuePlayerProbeFromCard: () => { calls.probe++; },
     updatePlaylistButtons: () => {},
-    document: { createElement: (t) => makeFakeEl(t) },
+    document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
     window: { UiLocale: { t: (s) => s } },
     player,
     $: () => null,
@@ -533,21 +534,80 @@ test('renderer: kuyruk ekle/çıkar/kalıcılık/güvenli-thumb (davranış)', (
   assert.strictEqual(loaded[0].videoId, 'x');
 });
 
-test('renderer: kuyruk playNext + dequeue yalnız açılan kimlikte (davranış)', () => {
+test('renderer: kuyruk playNext + dequeue eşleşen kimliği her konumdan düşürür (davranış)', () => {
   const { ctx, player, calls } = buildQueueHarness();
   assert.strictEqual(ctx.stQueuePlayNext(), false, 'boş kuyruk oynatmamalı');
   ctx.stQueueToggle({ videoId: 'n1', videoThumbnails: [] });
   ctx.stQueueToggle({ videoId: 'n2', videoThumbnails: [] });
+  ctx.stQueueToggle({ videoId: 'n3', videoThumbnails: [] });
   assert.strictEqual(ctx.stQueuePlayNext(), true);
   assert.strictEqual(calls.probe, 1, 'probe tetiklenmedi');
   assert.strictEqual(player.pendingAutoOpen.key, 'youtube:https://www.youtube.com/watch?v=n1');
   assert.strictEqual(player.pendingAutoOpen.intent, 8);
-  // Probe başarısızsa sıra korunur; yalnızca gerçekten açılan baş kayıt düşer
+  // Probe başarısızsa sıra korunur; açılan kayıt her konumdan düşer (F3)
   assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:other'), false);
-  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), false, 'baştaki değilse düşmemeli');
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), true, 'ortadaki kayıt düşmeli');
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), false, 'tekrar düşmez');
+  assert.deepStrictEqual([...ctx.stQueueRailVideos()].map((v) => v.videoId), ['n1', 'n3']);
   assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n1'), true);
-  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n1'), false, 'tekrar düşmez');
-  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'n2');
+  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'n3');
+});
+
+test('renderer: kuyruk kapasite taşmasında düşen kayıt loglanır (F4, davranış)', () => {
+  const { ctx, calls } = buildQueueHarness();
+  for (let i = 0; i < 50; i++) ctx.stQueueToggle({ videoId: `v${i}`, title: `T${i}`, videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueueRailVideos().length, 50);
+  ctx.stQueueToggle({ videoId: 'v50', title: 'yeni', videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueueRailVideos().length, 50, 'kapasite aşıldı');
+  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'v1', 'en eski kayıt düşmeli');
+  assert.ok(calls.log.some((l) => l.startsWith('warn:') && l.includes('T0')),
+    'düşen kayıt kullanıcıya bildirilmedi');
+});
+
+// ---------- Gömülü YouTube TV istemcisi (sıfır-konfig cihaz girişi) ----------
+test('main: yerleşik TVHTML5 istemcisi + hasClient her zaman true (sözleşme)', () => {
+  assert.match(MAIN, /YT_BUILTIN_CLIENT_ID = '861556708454-[A-Za-z0-9._-]+\.apps\.googleusercontent\.com'/,
+    'yerleşik YouTube TV client id yok');
+  assert.match(MAIN, /YT_BUILTIN_CLIENT_SECRET = '[A-Za-z0-9._-]{10,}'/,
+    'yerleşik client secret yok');
+  // deviceCode artık kayıtlı istemci şartı aramıyor
+  const dc = (MAIN.match(/ipcMain\.handle\('youtube:deviceCode'[\s\S]*?\n\}\);/) || [])[0];
+  assert.ok(dc, 'youtube:deviceCode handler yok');
+  assert.ok(!/Önce OAuth Client ID/.test(dc), 'deviceCode hâlâ manuel istemci şartı koşuyor');
+  assert.ok(/ytClientId\(\)/.test(dc), 'deviceCode yerleşik fallback kullanmıyor');
+  // Session durumu yerleşik istemciyi bildiriyor
+  assert.match(MAIN, /hasClient: true/);
+  assert.match(MAIN, /usingBuiltin: !youtubeSession\.clientId/);
+  // poll + refresh de fallback'i kullanıyor
+  assert.match(MAIN, /\['poll', '--client-id', ytClientId\(\)/);
+  assert.match(MAIN, /\['refresh', '--client-id', cid\]/);
+});
+
+test('backend: youtube.py InnerTube-kabul scope + TVHTML5 device akışı (sözleşme)', () => {
+  const PY = fs.readFileSync(path.join(ROOT, 'backend', 'youtube.py'), 'utf8');
+  assert.match(PY, /OAUTH_SCOPE = "https:\/\/www\.googleapis\.com\/auth\/youtube"/,
+    'InnerTube için youtube kapsamı yok (readonly youtubei\'de reddedilir)');
+  assert.match(PY, /oauth2\.googleapis\.com\/device\/code/);
+  assert.match(PY, /grant_type.*device_code/);
+});
+
+test('renderer: giriş modalı kod görünümü doğrudan açıyor + QR çiziyor (sözleşme)', () => {
+  // openYoutubeLogin artık oturum-yokken doğrudan cihaz akışına gidiyor
+  const open = (RENDERER.match(/function openYoutubeLogin\(\) \{[\s\S]*?dlg\.classList\.remove\('hidden'\);/) || [])[0];
+  assert.ok(open, 'openYoutubeLogin bulunamadı');
+  assert.ok(/startYoutubeDeviceFlow\(\)/.test(open), 'giriş hâlâ manuel istemci formuna düşüyor');
+  // QR canvas markup + çizim
+  assert.ok(HTML.includes('id="ytQrCanvas"'), 'QR canvas yok');
+  const flow = (RENDERER.match(/async function startYoutubeDeviceFlow[\s\S]*?youtubePoll\(\)/) || [])[0];
+  assert.ok(flow, 'startYoutubeDeviceFlow bulunamadı');
+  assert.ok(/QRCode\.toCanvas\(qrCanvas/.test(flow), 'QR çizimi cihaz akışına bağlanmadı');
+});
+
+test('renderer: kuyruk rayı display:contents kabı + tazeleme (sözleşme)', () => {
+  assert.match(RENDERER, /className = 'st-queue-rail'/, 'kuyruk rayı kabı yok');
+  assert.match(RENDERER, /function stRefreshQueueRail\(\)/, 'ray tazeleme fonksiyonu yok');
+  const CSS = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles.css'), 'utf8');
+  assert.match(CSS, /\.st-queue-rail\s*\{\s*display:\s*contents/, 'display:contents kuralı eksik');
 });
 
 test('renderer: kart kuyruk düğmesi oynatmadan ekle/çıkar (davranış)', () => {
@@ -928,7 +988,8 @@ function buildMediaKeyHarness() {
     absThumb: (u) => u, mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
     queuePlayerProbeFromCard() {},
     updatePlaylistButtons() {},
-    document: { createElement: (t) => makeFakeEl(t) },
+    watchItemByKey: () => null, logLine() {},
+    document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
     window: { UiLocale: { t: (s) => s } },
     setTimeout, Date,
   });
@@ -951,7 +1012,8 @@ test('F1: stQueueToggle Sonraki düğmesini tazeler (davranış)', () => {
     mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
     queuePlayerProbeFromCard() {},
     updatePlaylistButtons: () => { calls.update++; },
-    document: { createElement: (t) => makeFakeEl(t) },
+    watchItemByKey: () => null, logLine() {},
+    document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
     window: { UiLocale: { t: (s) => s } },
     player: { openIntent: 1, pendingAutoOpen: null, mediaKey: '' },
     $: () => null,

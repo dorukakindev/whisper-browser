@@ -7636,6 +7636,14 @@ body.modal-open { overflow: hidden; }
   letter-spacing: 4px;
   color: var(--fg);
 }
+.yt-qr-canvas {
+  display: block;
+  margin: 0 auto 10px;
+  background: #fff;
+  border-radius: 6px;
+}
+/* Kuyruk rayı grid içinde şeffaf kab — çocukları .st-grid hücresi kalır */
+.st-queue-rail { display: contents; }
 #ytCopyCode { margin-top: 14px; }
 
 /* Arama temizle düğmesi — input'un iç sağında (O6) */
