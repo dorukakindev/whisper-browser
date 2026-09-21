@@ -1431,11 +1431,13 @@
     ['İstemci bilgisi kontrol ediliyor…', 'Checking OAuth client…'],
     ['Cihaz kodu alınıyor…', 'Requesting device code…'],
     ['Kod kopyalandı. Google onayı bekleniyor…', 'Code copied. Waiting for Google approval…'],
-    ['Cihaz koduyla giriş için bir kerelik kurulum gerekir: Google Cloud\'da "TV ve sınırlı girişli cihazlar" tipinde OAuth istemcisi oluştur, YouTube Data API v3\'ü etkinleştir ve Client ID ile Secret\'i gir. Bu bilgiler cihazda güvenli depoda tutulur. Bu, SmartTube hesabını içe aktarmaz.', 'Device-code sign-in requires one-time setup: create a "TVs and limited-input devices" OAuth client in Google Cloud, enable YouTube Data API v3, and enter its Client ID and Secret. These credentials are stored securely on this device. This does not import a SmartTube account.'],
+    ['Onay bekleniyor…', 'Waiting for approval…'],
+    ['Kaydet ve devam et', 'Save and continue'],
+    ['Normalde gerek yok: giriş, SmartTube\'un kullandığı yerleşik YouTube TV istemcisiyle otomatik çalışır. Yalnızca kendi Google Cloud OAuth istemcini ("TV ve sınırlı girişli cihazlar" tipi, YouTube Data API v3 etkin) kullanmak istersen gir. Uyarı: kendi istemcin InnerTube kişisel akışında çalışmayabilir — yerleşik TV istemcisi önerilir.', 'Usually not needed: sign-in works automatically with the embedded YouTube TV client that SmartTube uses. Only enter your own Google Cloud OAuth client ("TVs and limited-input devices" type, YouTube Data API v3 enabled) if you want to use it. Warning: a custom client may not work with the InnerTube personal feed — the embedded TV client is recommended.'],
     ['Göster', 'Show'],
     ['Şifreyi göster', 'Show password'],
-    ['Telefonda veya bilgisayarda aşağıdaki adresi aç ve kodu gir:', 'Open the address below on your phone or computer and enter the code:'],
-    [`Gerçek YouTube hesabınla giriş — SmartTube'un kullandığı yöntem. Bir kerelik kurulum: Google Cloud'da "TV ve sınırlı girişli cihazlar" tipinde OAuth client oluştur (YouTube Data API v3 etkin), Client ID + Secret'i buraya gir. Bilgiler işletim sistemi güvenli deposunda saklanır.`, 'Sign in with your real YouTube account — the method SmartTube uses. One-time setup: create an OAuth client of type "TVs and limited-input devices" in Google Cloud (YouTube Data API v3 enabled) and enter the Client ID + Secret here. Credentials are stored in the OS secure store.'],
+    ["Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:", 'Scan the QR code on your phone or open the address below on a computer and enter the code:'],
+    ['YouTube ile giriş — gelişmiş', 'Sign in with YouTube — advanced'],
   ];
 
   const toEnglish = new Map(entries);
