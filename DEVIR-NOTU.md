@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-21 16:17 — Kapsamlı entegrasyon/regresyon turu (matris A–G): PKCE+loopback OAuth akışı, Linux araç/venv tespiti, CSP worker-src, i18n eksikleri; BROWSER_BUG_REPORT_95](docs/devir/2026-09-21-1617.md).
+Güncel çalışma: [2026-09-21 19:05 — Browser Subtitle Reliability Gauntlet: `data:` <track> streamKey çakışması düzeltildi (F-96-1), protokol fixture lab + zaman değişmezleri + eksiksizlik + çeviri maliyeti + gerçek-Electron kabulü + ≥30 dk soak; BROWSER_BUG_REPORT_96](docs/devir/2026-09-21-1905.md).
+
+Önceki çalışma: [2026-09-21 16:17 — Kapsamlı entegrasyon/regresyon turu (matris A–G): PKCE+loopback OAuth akışı, Linux araç/venv tespiti, CSP worker-src, i18n eksikleri; BROWSER_BUG_REPORT_95](docs/devir/2026-09-21-1617.md).
 
 Önceki çalışma: [2026-09-21 13:57 — Devin cloud değişiklikleri güvenlik ve gerçek Electron smoke denetimi; dar YouTube OAuth yetkisi, token/istemci izolasyonu ve SmartTube ayrıştırma düzeltmeleri](docs/devir/2026-09-21-1357.md).
 
