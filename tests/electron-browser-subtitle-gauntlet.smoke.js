@@ -7,13 +7,17 @@
 // Çalıştırma: node_modules/.bin/electron tests/electron-browser-subtitle-gauntlet.smoke.js
 
 const { app, BrowserWindow, webContents, session } = require('electron');
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const path = require('path');
 const assert = require('node:assert/strict');
 const dns = require('dns');
+const {
+  assertCeaPlan, assertCeaComplete, assertOverlayModes, assertSeekCue,
+  assertLocaleLabels, assertReloadTracks,
+} = require('./browser-subtitle-gauntlet-acceptance');
 
 const root = path.resolve(__dirname, '..');
 const out = path.resolve(process.env.GAUNTLET_OUT || path.join(root, '.uiprev', 'subtitle-gauntlet'));
@@ -84,8 +88,14 @@ fs.mkdirSync(certDir, { recursive: true });
 const keyPath = path.join(certDir, 'key.pem');
 const certPath = path.join(certDir, 'cert.pem');
 if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-  execSync(`openssl req -x509 -newkey rsa:2048 -nodes -keyout "${keyPath}" -out "${certPath}" `
-    + '-days 2 -subj "/CN=gauntlet.test" -addext "subjectAltName=DNS:gauntlet.test" 2>/dev/null');
+  const cert = spawnSync(process.env.OPENSSL_BIN || 'openssl', [
+    'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath,
+    '-out', certPath, '-days', '2', '-subj', '/CN=gauntlet.test',
+    '-addext', 'subjectAltName=DNS:gauntlet.test',
+  ], { encoding: 'utf8' });
+  if (cert.error || cert.status !== 0) {
+    throw new Error(`Fixture TLS sertifikası üretilemedi: ${cert.error?.message || cert.stderr || cert.status}`);
+  }
 }
 const fixtureTls = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
 
@@ -106,6 +116,8 @@ const providerReady = new Promise((resolve, reject) => {
     fs.writeFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, 'settings.json'),
       JSON.stringify({
         settingsVersion: 3,
+        inputDir: path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, 'GİRDİ'),
+        outputDir: path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, 'ÇIKTI'),
         translate: { endpointPreset: 'custom', customBaseUrl: `http://127.0.0.1:${providerPort}/v1`,
           model: 'gauntlet-model', apiKey: '' },
         ui: { translateTo: 'tr', translateWorkers: '1', uiLocale: 'tr' },
@@ -119,7 +131,15 @@ async function until(fn, label, timeout = 25000) {
   const end = Date.now() + timeout;
   let last;
   while (Date.now() < end) {
-    last = await fn();
+    // Electron renderer'ı kilitlenirse tek bir executeJavaScript Promise'i
+    // sonsuza dek beklememeli; toplam kabul süresi yine yukarıdaki sınırdır.
+    let timer;
+    try {
+      last = await Promise.race([
+        Promise.resolve().then(fn),
+        new Promise((resolve) => { timer = setTimeout(resolve, Math.min(5000, end - Date.now()), null); }),
+      ]);
+    } finally { clearTimeout(timer); }
     if (last) return last;
     await wait(200);
   }
@@ -169,8 +189,17 @@ const dashMpd = '<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaP
 const dashSeg = (text) => `<tt xmlns="http://www.w3.org/ns/ttml"><body><div><p begin="0s" end="4s">${text}</p></div></body></tt>`;
 
 let report = {};
+const watchdog = setTimeout(() => {
+  const error = new Error('Electron gauntlet 180 saniyelik güvenlik sınırını aştı');
+  try { fs.writeFileSync(path.join(out, 'error.txt'), error.stack); } catch (_) {}
+  console.error(error);
+  app.exit(1);
+}, 180000);
+watchdog.unref();
 app.whenReady().then(async () => {
+  console.log('[gauntlet] Electron hazır');
   await providerReady;
+  console.log('[gauntlet] Sahte sağlayıcı hazır');
   report = {};
   report.providerBaseUrl = `http://127.0.0.1:${providerPort}/v1`;
   const fixtureBodies = {
@@ -204,6 +233,7 @@ app.whenReady().then(async () => {
     fixtureServer.once('error', reject);
     fixtureServer.listen(GAUNTLET_HTTPS_PORT, '127.0.0.1', resolve);
   });
+  console.log('[gauntlet] HTTPS fixture hazır');
   ses.setCertificateVerifyProc((request, callback) => {
     if (request.hostname === 'gauntlet.test') return callback(0);
     return callback(-3); // Chromium varsayılan doğrulaması
@@ -218,18 +248,38 @@ app.whenReady().then(async () => {
 
   const win = await until(() => BrowserWindow.getAllWindows().find((w) =>
     w.webContents.getURL().includes('index.html') && !w.webContents.isLoading()), 'Ana pencere');
-  const run = (code) => win.webContents.executeJavaScript(`(async()=>{${code}})()`, true);
+  win.show();
+  win.focus();
+  console.log('[gauntlet] Ana pencere hazır');
+  const run = async (code) => {
+    let timer;
+    try {
+      return await Promise.race([
+        win.webContents.executeJavaScript(`(async()=>{${code}})()`, true),
+        new Promise((_, reject) => { timer = setTimeout(() =>
+          reject(new Error(`Renderer isteği zaman aşımı: ${code.slice(0, 90)}`)), 15000); }),
+      ]);
+    } finally { clearTimeout(timer); }
+  };
   await until(() => run('return typeof initialSettingsReady!=="undefined"?await initialSettingsReady.then(()=>true):false'), 'Ayarlar');
+  console.log('[gauntlet] Ayarlar hazır');
   const shot = async (name) => fs.writeFileSync(path.join(out, `${name}.png`),
     (await win.webContents.capturePage()).toPNG());
+  const seekAndHold = async (view, second) => {
+    await view.executeJavaScript(`(()=>{const v=document.querySelector('video');v.pause();v.currentTime=${second};return true})()`);
+    await until(() => view.executeJavaScript(`(()=>{const v=document.querySelector('video');
+      return v&&v.paused&&Math.abs(v.currentTime-${second})<0.2?true:null})()`),
+    `Video ${second}. saniyeye seek`, 15000);
+  };
 
-  await run(`openPlayer();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-    setWorkspaceMode('browser', false);return true`);
+  await run(`openPlayer();setWorkspaceMode('browser', false);return true`);
+  console.log('[gauntlet] Browser çalışma alanı açıldı');
   await until(() => run('return !player.browserWorkspaceShowBusy && player.browserActiveTabId'), 'Tarayıcı sekmesi');
 
   const nav = await run(`document.getElementById('browserAddress').value='https://gauntlet.test/watch';
     return await navigateBrowserFromAddress()`);
   assert.equal(nav.ok, true, JSON.stringify(nav));
+  console.log('[gauntlet] Fixture sayfasına gidildi');
   const videoPage = await until(() => webContents.getAllWebContents()
     .find((w) => w.getURL() === 'https://gauntlet.test/watch'), 'Fixture sayfa');
   // Erken textTrack dökümü: hangi iz hangi cue'yu taşıyor (karışma teşhisi).
@@ -250,20 +300,21 @@ app.whenReady().then(async () => {
     return v?[...v.textTracks].map(t=>({kind:t.kind,label:t.label,lang:t.language,mode:t.mode,
       cues:[...(t.cues||[])].map(c=>c.startTime+'-'+c.endTime+':'+String(c.text||'').slice(0,30))})):null})()`);
   const ceaPlan = await until(() => run(`const c=player.browserCeaCapture||browserTabState()?.ceaCapture;
-    return c && (c.available||c.state)?c:null`), 'CEA yakalama planı', 15000)
-    .catch(() => null);
-  report.ceaPlan = ceaPlan || 'yok';
+    return c && c.available?c:null`), 'CEA yakalama planı', 15000);
+  report.ceaPlan = ceaPlan;
+  assertCeaPlan(ceaPlan);
+  console.log('[gauntlet] CEA planı doğrulandı');
   await shot('01-tracks');
 
   // ── Tüm altyazıyı getir (gerçek CEA fMP4 yakalama) ─────────────────────
   const captureResult = await run(`return await window.api.captureFullBrowserSubtitle(player.browserActiveTabId,'start')`);
   report.captureStart = captureResult;
-  if (captureResult?.ok !== false) {
-    const done = await until(() => run(`const c=browserTabState()?.ceaCapture||player.browserCeaCapture;
-      return c && ['complete','partial','error'].includes(c.state)?c:null`), 'CEA yakalama tamamlanma', 60000)
-      .catch(() => null);
-    report.ceaCapture = done || 'timeout';
-  }
+  assert.equal(captureResult?.ok, true, 'CEA tam yakalama başlatılamadı');
+  const done = await until(() => run(`const c=browserTabState()?.ceaCapture||player.browserCeaCapture;
+    return c && ['complete','partial','error'].includes(c.state)?c:null`), 'CEA yakalama tamamlanma', 60000);
+  report.ceaCapture = done;
+  assertCeaComplete(captureResult, done);
+  console.log('[gauntlet] CEA tam yakalama doğrulandı');
   await shot('02-cea-capture');
 
   // ── İzi seç ve çevir (sahte sağlayıcı, gerçek hattı) ───────────────────
@@ -295,31 +346,74 @@ app.whenReady().then(async () => {
   const trCueSample = await run(`return [...(player.browserLiveTranslations||new Map()).values()].slice(0,3).map(c=>c.text)`);
   report.trCueSample = trCueSample;
   assert(trCueSample.every((t) => /^TR:/.test(t)), `çeviri sağlayıcıdan gelmedi: ${trCueSample}`);
+  console.log('[gauntlet] Çeviri doğrulandı');
   await shot('03-translated');
 
+  // Tamamlanan çeviri otomatik olarak birincil kanala yüklenebilir. Çift dil
+  // kabulünde kaynak + çeviri izlerini açıkça eşleştir; boş kaynak modunu
+  // çeviri başarısı sanma.
+  const translationTrack = await until(() => run(`const t=(player.browserTracks||[])
+    .find(t=>t.role==='translation'&&(t.cueCount||0)>=3);return t?{id:t.id,cueCount:t.cueCount}:null`),
+  'Kalıcı çeviri izi');
+  report.translationTrack = translationTrack;
+  const paired = await run(`document.getElementById('browserTrackSelect').value=${JSON.stringify(source.id)};
+    document.getElementById('browserTrackSelect2').value=${JSON.stringify(translationTrack.id)};
+    await useBrowserTrackPair();
+    return {source:browserSubtitleRoleCues().source.length,
+      translation:browserSubtitleRoleCues().translation.length}`);
+  report.paired = paired;
+  assert(paired.source >= 3 && paired.translation >= 3,
+    `Kaynak+çeviri eşleştirilemedi: ${JSON.stringify(paired)}`);
+  console.log('[gauntlet] Kaynak+çeviri eşleştirildi');
+
   // Görünüm modları: kaynak / ikisi / çeviri. Overlay yalnız aktif cue varken
-  // dolu — videoyu bilinen cue penceresine sar ve oynat.
-  await videoPage.executeJavaScript(`(()=>{const v=document.querySelector('video');v.currentTime=1.0;return v.play().catch(()=>{})})()`);
+  // dolu — videoyu bilinen cue penceresinde tut.
+  await seekAndHold(videoPage, 1);
   await run(`return setSubtitleMode('source')`);
-  const sourceOnly = await until(() => videoPage.executeJavaScript(
-    `(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t||null})()`), 'Kaynak katmanı');
+  const overlaySnapshot = `(()=>{const root=document.getElementById('__whisper_browser_subtitles');
+    if(!root)return null;const part=(kind)=>{const e=root.querySelector('[data-kind="'+kind+'"]');
+      return {text:e?.textContent||'',visible:!!e&&getComputedStyle(e).display!=='none'};};
+    return {source:part('source'),translation:part('translation')};})()`;
+  let sourceOnly;
+  try {
+    sourceOnly = await until(() => videoPage.executeJavaScript(overlaySnapshot).then((snap) =>
+      snap?.source?.visible ? snap : null), 'Kaynak katmanı');
+  } catch (error) {
+    report.sourceModeDebug = {
+      overlay: await videoPage.executeJavaScript(overlaySnapshot).catch(() => null),
+      video: await videoPage.executeJavaScript(`(()=>{const v=document.querySelector('video');
+        const r=v?.getBoundingClientRect();return {hidden:document.hidden,time:v?.currentTime,
+          paused:v?.paused,readyState:v?.readyState,rect:r?{width:r.width,height:r.height}:null,
+          rootDisplay:document.getElementById('__whisper_browser_subtitles')?.style.display,
+          controller:window.__whisperBrowserOverlayController?.diagnostics?.()}})()`).catch(() => null),
+      renderer: await run(`return {mode:browserSubtitleMode(),roles:browserSubtitleRoleCues(),
+        loaded:player.browserLoadedTrackId,secondary:player.browserLoadedTrackId2,
+        subPath:player.subPath,sub2Path:player.sub2Path,cues:player.cues.length,cues2:player.cues2.length}`)
+        .catch(() => null),
+    };
+    throw error;
+  }
   await run(`return setSubtitleMode('both')`);
-  await videoPage.executeJavaScript(`(()=>{const v=document.querySelector('video');v.currentTime=1.0;return v.play().catch(()=>{})})()`);
-  const both = await until(() => videoPage.executeJavaScript(
-    `(()=>{const el=document.getElementById('__whisper_browser_subtitles');return el&&el.textContent.includes('TR:')?el.textContent:null})()`),
-    'Çift dil katmanı');
-  report.views = { sourceOnly: !!sourceOnly, both: !!both };
+  await seekAndHold(videoPage, 1);
+  const both = await until(() => videoPage.executeJavaScript(overlaySnapshot).then((snap) =>
+    snap?.source?.visible && snap.translation?.visible ? snap : null), 'Çift dil katmanı');
+  report.views = { sourceOnly, both };
+  assertOverlayModes(sourceOnly, both);
   await shot('04-both-views');
   await run(`return setSubtitleMode('translation')`);
 
   // Seek: video zamanına göre doğru cue gösterilmeli.
-  await videoPage.executeJavaScript(`document.querySelector('video').currentTime=5`);
-  await wait(600);
-  const seekCue = await videoPage.executeJavaScript(
-    `(()=>{const t=document.getElementById('__whisper_browser_subtitles')?.textContent||'';return t})()`);
+  await seekAndHold(videoPage, 5);
+  const overlayText = `(()=>document.getElementById('__whisper_browser_subtitles')?.textContent||'')()`;
+  const seekCue = await until(() => videoPage.executeJavaScript(overlayText).then((text) =>
+    text?.includes('·p1') ? text : null), '5. saniye çeviri cue');
   report.seek = { at5: seekCue };
-  await videoPage.executeJavaScript(`document.querySelector('video').currentTime=0.5`);
-  await wait(600);
+  assertSeekCue(seekCue, 1);
+  await seekAndHold(videoPage, 0.5);
+  const seekBackCue = await until(() => videoPage.executeJavaScript(overlayText).then((text) =>
+    text?.includes('·p0') ? text : null), '0.5. saniye çeviri cue');
+  report.seek.at0_5 = seekBackCue;
+  assertSeekCue(seekBackCue, 0);
 
   // EN/TR arayüz geçişi + ölçek.
   await run(`window.UiLocale&&UiLocale.set('en');const c=document.getElementById('uiLocale');if(c){c.value='en';c.dispatchEvent(new Event('change',{bubbles:true}));}return true`);
@@ -329,6 +423,9 @@ app.whenReady().then(async () => {
   await shot('05-en');
   await run(`window.UiLocale&&UiLocale.set('tr');const c=document.getElementById('uiLocale');if(c){c.value='tr';c.dispatchEvent(new Event('change',{bubbles:true}));}return true`);
   await wait(400);
+  const trLabel = await run(`const b=document.getElementById('browserTrackCaptureFull');return b?b.textContent:''`);
+  report.localeTr = trLabel;
+  assertLocaleLabels(enLabel, trLabel);
   for (const scale of [100, 125, 150]) {
     await run(`document.body.style.zoom=${scale / 100};return true`);
     await wait(250);
@@ -339,17 +436,29 @@ app.whenReady().then(async () => {
   // Sekme yeniden yükleme: izler/çeviri korunur.
   await videoPage.reload();
   await until(() => videoPage.executeJavaScript('document.readyState==="complete"'), 'Sayfa yenilendi');
-  await wait(1500);
-  const tracksAfterReload = await run(`return (player.browserTracks||[]).length`);
+  const tracksAfterReload = await until(() => run(`const list=player.browserTracks||[];
+    return list.some(t=>t.role!=='translation'&&(t.cueCount||0)>=3)?list:null`),
+  'Yenileme sonrası kaynak iz');
   report.tracksAfterReload = tracksAfterReload;
+  assertReloadTracks(tracksAfterReload);
 
   report.ok = true;
+  clearTimeout(watchdog);
   fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 2));
-  console.log(JSON.stringify(report, null, 2));
+  console.log('[gauntlet] PASS', JSON.stringify({
+    cea: report.ceaCapture?.state, translatedCues: report.translation?.state?.liveTranslations,
+    providerRequests: report.translation?.providerRequests,
+    sourceVisible: report.views?.sourceOnly?.source?.visible,
+    bothVisible: report.views?.both?.source?.visible && report.views?.both?.translation?.visible,
+    seekForward: report.seek?.at5, seekBack: report.seek?.at0_5,
+    localeEn: report.localeEn, localeTr: report.localeTr,
+    tracksAfterReload: report.tracksAfterReload?.length,
+  }));
   providerServer.close();
   fixtureServer.close();
   app.exit(0);
 }).catch((error) => {
+  clearTimeout(watchdog);
   fs.writeFileSync(path.join(out, 'error.txt'), String(error && error.stack || error));
   try { fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 2)); } catch (_) {}
   console.error(error);
