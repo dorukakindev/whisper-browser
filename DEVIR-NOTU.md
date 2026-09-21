@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-21 04:32 — SmartTube girişi sıfır-kuruluma geçti: gömülü YouTube TV (TVHTML5) istemcisiyle google.com/device kodu + QR; InnerTube scope düzeltmesi; kuyruk F3/F4/F5 (any-position dequeue, kapasite logu, ray tazeleme)](docs/devir/2026-09-21-0432.md).
+Güncel çalışma: [2026-09-21 05:58 — SmartTube ana sayfa boş-kalma düzeltmesi: akış hatasında yerel raylar + giriş CTA'sı (stRenderHomeFallback), render fazı try/catch, InnerTube lockupViewModel ayrıştırma](docs/devir/2026-09-21-0558.md).
+
+Önceki çalışma: [2026-09-21 04:32 — SmartTube girişi sıfır-kuruluma geçti: gömülü YouTube TV (TVHTML5) istemcisiyle google.com/device kodu + QR; InnerTube scope düzeltmesi; kuyruk F3/F4/F5 (any-position dequeue, kapasite logu, ray tazeleme)](docs/devir/2026-09-21-0432.md).
 
 Önceki çalışma: [2026-09-21 04:10 — F2 düzeltmesi: kuyruk otomatik/Sonraki geçişi yarım kalmış videoda kaldığı saniyeden devam ediyor (pendingLibrarySeek); npm test temiz](docs/devir/2026-09-21-0410.md).
 

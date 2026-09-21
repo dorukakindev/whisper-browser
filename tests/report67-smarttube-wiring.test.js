@@ -615,6 +615,43 @@ test('F5b: boş kuyrukla render sonrası ilk ekleme rayı oluşturur; diğer bö
   assert.strictEqual(findByClass(rail(), 'st-card').length, 1);
 });
 
+test('F5c: ana sayfa akışı boşta boş grid bırakmaz — raylar + giriş CTA + retry (davranış)', () => {
+  const grid = makeFakeEl('div');
+  const calls = { login: 0, rerender: [] };
+  const ctx = vm.createContext({
+    document: { createElement: (t) => makeFakeEl(t), createDocumentFragment: () => makeFakeEl('frag') },
+    window: { UiLocale: { t: (s) => s } },
+    youtubeLoggedIn: false,
+    openYoutubeLogin: () => { calls.login++; },
+    renderSmartTubeSection: (s, o) => { calls.rerender.push([s, o && o.force]); },
+    stQueueRailVideos: () => [{ videoId: 'q1', title: 'Q', author: '', authorId: '', lengthSeconds: 0, videoThumbnails: [] }],
+    stContinueWatchingVideos: () => [{ videoId: 'c1', title: 'C', author: '', authorId: '', lengthSeconds: 0, videoThumbnails: [] }],
+    stMostPlayedVideos: () => [],
+    buildSmartTubeCard: (v) => { const e = makeFakeEl('div'); e.className = 'st-card'; return e; },
+  });
+  const src = (RENDERER.match(/function stHomeRailsFragment[\s\S]*?function stRenderHomeFallback[\s\S]*?\n\}/) || [])[0];
+  assert.ok(src, 'ana sayfa fallback yardımcıları yok');
+  vm.runInContext(src, ctx);
+
+  assert.strictEqual(ctx.stRenderHomeFallback(grid, 'Akış alınamadı'), true);
+  assert.ok(findByClass(grid, 'st-queue-rail').length, 'kuyruk rayı render edilmedi');
+  assert.strictEqual(findByClass(grid, 'st-card').length, 2, 'yerel kartlar eksik');
+  const box = findByClass(grid, 'st-home-fallback')[0];
+  assert.ok(box, 'fallback hata kutusu yok');
+  const btns = findByClass(box, 'btn');
+  assert.strictEqual(btns.length, 2, 'giriş + tekrar dene düğmeleri eksik');
+  dispatchBubbling(btns[0], 'click');
+  assert.strictEqual(calls.login, 1, 'giriş düğmesi openYoutubeLogin çağırmadı');
+  dispatchBubbling(btns[1], 'click');
+  assert.deepStrictEqual(calls.rerender, [['home', true]], 'retry home force render yapmadı');
+
+  // Girişliyken CTA düğmesi gösterilmez
+  const grid2 = makeFakeEl('div');
+  ctx.youtubeLoggedIn = true;
+  ctx.stRenderHomeFallback(grid2, 'x');
+  assert.strictEqual(findByClass(grid2, 'btn').length, 1, 'girişli durumda login düğmesi olmamalı');
+});
+
 // ---------- Gömülü YouTube TV istemcisi (sıfır-konfig cihaz girişi) ----------
 test('main: yerleşik TVHTML5 istemcisi + hasClient her zaman true (sözleşme)', () => {
   assert.match(MAIN, /YT_BUILTIN_CLIENT_ID = '861556708454-[A-Za-z0-9._-]+\.apps\.googleusercontent\.com'/,

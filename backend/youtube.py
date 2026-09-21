@@ -330,6 +330,92 @@ def _vr_to_card(vr):
     }
 
 
+def _lockup_to_card(lv):
+    """Yeni InnerTube lockupViewModel kartı → aynı SmartTube şeması.
+
+    Kişisel akışlar (FEwhat_to_watch vb.) 2025'ten beri videoRenderer yerine
+    lockupViewModel döndürebiliyor — ayrıştırılmazsa girişli ana sayfa boş
+    gelir. Alan adları yt-dlp'nin aynı dönemki uyarlamasına dayanır; eksik
+    alanlar yumuşak düşer.
+    """
+    ctype = lv.get("contentType")
+    if ctype and ctype != "LOCKUP_CONTENT_TYPE_VIDEO":
+        return None
+    vid = lv.get("contentId") or ""
+    if not vid:
+        try:
+            vid = (lv["rendererContext"]["commandContext"]["onTap"]
+                   ["innertubeCommand"]["watchEndpoint"]["videoId"]) or ""
+        except Exception:
+            vid = ""
+    if not vid:
+        return None
+    meta = ((lv.get("metadata") or {}).get("lockupMetadataViewModel") or {})
+    title = (meta.get("title") or {}).get("content") or ""
+    # metadataRows: [0] genelde kanal adı, [1] "x views · y ago"
+    author, author_id, published, views = "", "", "", 0
+    rows = (((meta.get("metadata") or {}).get("contentMetadataViewModel") or {})
+            .get("metadataRows") or [])
+    texts = []
+    for row in rows:
+        for part in (row.get("metadataParts") or []):
+            t = ((part.get("text") or {}).get("content") or "").strip()
+            if t:
+                texts.append(t)
+    if texts:
+        author = texts[0]
+        for t in texts[1:]:
+            if re.search(r"izlenme|views?", t, re.I):
+                views = _view_count(t)
+            elif re.search(r"(önce|ago)", t, re.I):
+                published = t
+    # authorId: kanal avatarı/üst veri içindeki browseEndpoint
+    for node in _walk(meta):
+        ep = node.get("commandRuns") or node.get("onTap")
+        try:
+            bid = (node["onTap"]["innertubeCommand"]["browseEndpoint"]["browseId"])
+            if isinstance(bid, str) and bid.startswith("UC"):
+                author_id = bid
+                break
+        except Exception:
+            pass
+        if ep:
+            break
+    thumb_url = ""
+    for node in _walk(lv):
+        sources = None
+        tvm = node.get("thumbnailViewModel")
+        if isinstance(tvm, dict):
+            sources = ((tvm.get("image") or {}).get("sources")) or []
+        elif isinstance(node.get("sources"), list):
+            sources = node["sources"]
+        if sources:
+            mid = [s for s in sources if 240 <= (s.get("width") or 0) <= 480]
+            pick = mid[0] if mid else sources[-1]
+            thumb_url = pick.get("url", "")
+            if thumb_url:
+                break
+    length = 0
+    for node in _walk(lv):
+        badge = node.get("badgeViewModel") or {}
+        txt = ((badge.get("text") or ""))
+        if re.fullmatch(r"\d{1,2}:\d{2}(:\d{2})?", str(txt)):
+            length = _length_seconds(str(txt))
+            break
+    return {
+        "videoId": vid,
+        "title": title,
+        "author": author,
+        "authorId": author_id,
+        "publishedText": published,
+        "lengthSeconds": length,
+        "viewCount": views,
+        "videoThumbnails": ([{"url": thumb_url, "quality": "medium"}]
+                            if thumb_url else []),
+        "liveNow": False,
+    }
+
+
 def browse(browse_id, continuation=""):
     """youtubei/v1/browse — kişisel feed (FEsubscriptions vb.)."""
     token = os.environ.get("WHISPER_YT_ACCESS_TOKEN", "")
@@ -350,6 +436,12 @@ def browse(browse_id, continuation=""):
         vr = node.get("videoRenderer")
         if isinstance(vr, dict):
             card = _vr_to_card(vr)
+            if card:
+                videos.append(card)
+            continue
+        lv = node.get("lockupViewModel")
+        if isinstance(lv, dict):
+            card = _lockup_to_card(lv)
             if card:
                 videos.append(card)
             continue
