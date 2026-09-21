@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { createBrowserVideoAnalysis } = require('../src/browser-video-analysis');
 const { findTestPython } = require('./python-runtime');
 const { findMediaTool } = require('./media-runtime');
@@ -15,6 +15,19 @@ async function main() {
   const ffmpegPath = findMediaTool('ffmpeg');
   const ffprobePath = findMediaTool('ffprobe');
   assert(pythonPath && ffmpegPath && ffprobePath, 'Python, FFmpeg ve ffprobe test çalışma zamanı bulunamadı.');
+  // PATH'ten gelen çıplak komut adları (ör. 'python3', 'ffmpeg') araç-kontrolünde
+  // "bulunamadı" sanılmamalı — Linux'ta resolvePython/resolveFfTool tam bunu döndürür.
+  const bare = (name, flag) => {
+    try { return spawnSync(name, [flag], { stdio: 'ignore', windowsHide: true, timeout: 5000 }).status === 0 ? name : null; }
+    catch { return null; }
+  };
+  const barePython = bare('python3', '--version') || bare('python', '--version');
+  const bareFfmpeg = bare('ffmpeg', '-version');
+  const bareFfprobe = bare('ffprobe', '-version');
+  if (barePython && bareFfmpeg && bareFfprobe) {
+    const bareTool = createBrowserVideoAnalysis({ pythonPath: barePython, ffmpegPath: bareFfmpeg, ffprobePath: bareFfprobe });
+    await assert.rejects(() => bareTool.detectIntro({ videoPaths: ['/tmp/yok.mp4'] }), /2–4/, 'PATH araçları yanlışlıkla eksik sayıldı');
+  }
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-analysis-test-'));
   try {
     const fixture = `from PIL import Image,ImageDraw,ImageFont\nimport numpy as np,wave,os\nfrom pathlib import Path\np=${JSON.stringify(temp)}\nfonts=[Path('C:/Windows/Fonts/arial.ttf'),Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')]\nfont_path=next((x for x in fonts if x.exists()),None)\nfont=ImageFont.truetype(str(font_path),54) if font_path else ImageFont.load_default()\nim=Image.new('RGB',(640,180),'white'); d=ImageDraw.Draw(im); d.text((40,40),'HELLO VIDEO',fill='black',font=font); im.save(os.path.join(p,'text.png'))\nsr=8000;t=np.arange(sr*12)/sr; melody=np.sin(2*np.pi*(220+55*np.floor(t/1.5))*t)*0.5\nfor i in (0,1):\n tail=np.sin(2*np.pi*(700+i*220)*np.arange(sr*3)/sr)*0.5; data=np.concatenate([melody,tail]); w=wave.open(os.path.join(p,f'a{i}.wav'),'wb');w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes((data*30000).astype('<i2').tobytes());w.close()\n`;

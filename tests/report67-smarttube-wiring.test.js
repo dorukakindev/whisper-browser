@@ -677,7 +677,9 @@ test('renderer: giriş modalı istemciyi doğrulayıp QR çiziyor', () => {
   assert.ok(open, 'openYoutubeLogin bulunamadı');
   assert.match(open, /window\.api\.youtubeSession\(\)/);
   assert.match(open, /res\.data\.hasClient/);
-  assert.match(open, /startYoutubeDeviceFlow\(\)/);
+  // İstemci varsa artık otomatik cihaz akışı değil, yöntem seçimi gelir
+  assert.match(open, /_ytShowAuthChoice\(\)/);
+  assert.ok(!/startYoutubeDeviceFlow\(\)/.test(open), 'modal açılışında cihaz akışı otomatik başlamamalı');
   // QR canvas markup + çizim
   assert.ok(HTML.includes('id="ytQrCanvas"'), 'QR canvas yok');
   const flow = (RENDERER.match(/async function startYoutubeDeviceFlow[\s\S]*?youtubePoll\(\)/) || [])[0];
