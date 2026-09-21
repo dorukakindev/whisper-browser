@@ -10291,10 +10291,15 @@ function browserTrackProbeScriptWithMode(force = false) {
           && previousPrefixFingerprint === previous.fingerprint) emitted = list.slice(previous.length);
       probeState.seen.set(track, { length: list.length, fingerprint });
       const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
+      // hls.js gibi oynatıcılar izleri src="data:…" olan sentetik <track>
+      // elementleriyle oluşturur. İz başına aynı gövdeyi taşıyan data: URL'i ağ
+      // kimliği değildir; streamKey'e verilirse farklı izler tek buffer'da
+      // birleşir. Ağ kimliği taşımayan src'ler DOM kimliği yedeğine düşer.
+      const elementSrc = element ? (element.src || '') : '';
       tracks.push({
         language: track.language || '', label: track.label || track.language || 'HTML5 altyazı',
         kind: track.kind || '', trackId: track.id || '',
-        sourceUrl: element ? (element.src || '') : '',
+        sourceUrl: /^data:/i.test(elementSrc) ? '' : elementSrc,
         cues: emitted.map(c => ({ start: c.startTime, end: c.endTime, text: c.text || '' }))
       });
     }
@@ -12593,7 +12598,10 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
   browserVisible = true;
   view.setVisible(true);
   if (!browserTrackTimer || !browserCaptureTimer || !browserMediaTimer) startBrowserPolling();
-  const pageUrl = `${fixtureRoot}/page?cycle=${cycle}`;
+  // Tek sayımlı döngüler gerçek hls.js video sayfasını yükler: gerçek oynatma,
+  // textTrack cue üretimi, seek ve kalite değişimi bu yoldan çalışır.
+  const videoCycle = cycle % 2 === 0;
+  const pageUrl = `${fixtureRoot}/${videoCycle ? 'video' : 'page'}?cycle=${cycle}`;
   await view.webContents.loadURL(pageUrl);
   const instrumentation = await prepareBrowserPageInstrumentation(tab);
   if (instrumentation.stale || instrumentation.active) {
@@ -12607,11 +12615,61 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
       + '.then((response) => response.text()).then(() => true)', true
   );
   let lastFlush = null;
-  for (let attempt = 0; attempt < 40; attempt++) {
+  const flushAttempts = videoCycle ? 160 : 40;
+  for (let attempt = 0; attempt < flushAttempts; attempt++) {
     await resourceSoakSleep(25);
     lastFlush = await flushBrowserCaptureQueue({ force: true, installHook: true });
     flushBrowserTrackPublications(true);
     if (resourceSoakPublicationCount > publicationsBefore) break;
+  }
+  // Soak ops: seek, kalite değişimi, offline/online, 403, çeviri başlat+iptal.
+  if (videoCycle) {
+    try {
+      await view.webContents.executeJavaScript(
+        `(()=>{const v=document.querySelector('video');
+          if(v&&isFinite(v.duration)&&v.duration>4)v.currentTime=Math.min(v.duration-2,${1 + (Math.abs(cycle) % 6)});
+          if(window.__gauntletHls)window.__gauntletHls.currentLevel=(${Math.abs(cycle)} % 3 === 0)?0:-1;
+          return true})()`, true);
+    } catch (_) {}
+  }
+  // Offline/403 op'ları metin döngülerine denk getirilir: video döngüsündeki
+  // hls.js istemcisi sayfa-bazlı olduğundan op'u orada çalıştırmak sonraki
+  // video döngülerinin ağ durumunu kirletir.
+  if (cycle > 0 && cycle % 20 === 9) {
+    try {
+      await view.webContents.session.enableNetworkEmulation({ offline: true });
+      await resourceSoakSleep(150);
+      await view.webContents.session.enableNetworkEmulation({ offline: false });
+    } catch (_) {}
+  }
+  if (cycle > 0 && cycle % 12 === 11) {
+    try {
+      await view.webContents.executeJavaScript(
+        `fetch(${JSON.stringify(`${fixtureRoot}/captions-403.vtt?cycle=${cycle}`)})
+          .then(()=>true).catch(()=>true)`, true);
+    } catch (_) {}
+  }
+  if (cycle > 0 && cycle % 25 === 0 && mainWindow && !mainWindow.isDestroyed()) {
+    // Çeviri başlat → kısa süre çalıştır → kullanıcı iptali; geç gelen cevabın
+    // yazılmaması üretim kodundaki iptal korumasını zorlar.
+    try {
+      const started = await mainWindow.webContents.executeJavaScript(
+        `(async()=>{const t=(player.browserTracks||[]).find(x=>x.role!=='translation'&&(x.cueCount||0)>=1);
+          if(!t)return 'notrack'; useBrowserTrack(true,t.id); return 'started'})()`, true);
+      if (started === 'started') {
+        await resourceSoakSleep(900);
+        await mainWindow.webContents.executeJavaScript(
+          `window.api.stopBrowserTranslation(player.browserActiveTabId)`, true);
+      }
+    } catch (_) {}
+  }
+  if (videoCycle) {
+    // Döngüler arasında oynatımı durdur: sonraki sayfa yükü ve hibernasyon
+    // "sekmede ses/video oynuyor" korumasına takılmasın.
+    try {
+      await view.webContents.executeJavaScript(
+        `(()=>{const v=document.querySelector('video');if(v&&!v.paused)v.pause();return true})()`, true);
+    } catch (_) {}
   }
   upsertWatchItem({
     key: `soak:${cycle % 32}`,
@@ -12638,7 +12696,9 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
   const captured = resourceSoakPublicationCount > publicationsBefore;
   if (!captured) {
     console.warn(`[resource-soak] ${cycle}. döngü yakalanamadı:`,
-      JSON.stringify({ lastFlush, diagnostics: browserDiagnostics?.counts || null }));
+      JSON.stringify({ lastFlush, diagnostics: browserDiagnostics?.counts || null,
+        recent: (browserDiagnostics?.recent || []).slice(0, 8)
+          .map((e) => `${e.strategy}:${e.outcome}:${e.detail}`) }));
   }
   return captured;
 }
@@ -12658,6 +12718,15 @@ async function resourceSoakHibernationSession(count, fixtureRoot) {
   const attempts = Math.max(0, Math.trunc(Number(count) || 0));
   if (!attempts) return { attempts: 0, successes: 0 };
   const target = activeBrowserTab(true);
+  // Hedef sekmeyi düz fixture sayfasına taşı: video sayfasında kalan pending
+  // altyazı yanıtları ve autoplay, unload korumalarını tetikler; koruma
+  // davranışı video döngülerinde zaten kanıtlanıyor, burada unload döngüsü
+  // ölçülür.
+  try {
+    const targetView = ensureBrowserView(target);
+    await targetView.webContents.loadURL(`${fixtureRoot}/page?cycle=hibernate`);
+    await resourceSoakSleep(200);
+  } catch (_) {}
   const anchorUrl = `${fixtureRoot}/page?cycle=hibernate-anchor`;
   const anchor = createBrowserTabRecord({ restoredUrl: anchorUrl, restoredTitle: 'Soak hibernasyon sabitleyicisi' });
   const anchorView = ensureBrowserView(anchor);
@@ -12667,6 +12736,16 @@ async function resourceSoakHibernationSession(count, fixtureRoot) {
   let successes = 0;
   try {
     for (let cycle = 1; cycle <= attempts; cycle++) {
+      // Uyanan video sekmesi autoplay ile yeniden oynatabilir; unload'un
+      // "ses/video oynuyor" korumasına takılmaması için önce duraklat.
+      try {
+        const wc = target.view?.webContents;
+        if (wc && !wc.isDestroyed()) {
+          await wc.executeJavaScript(
+            `[...document.querySelectorAll('video,audio')].forEach(m=>{try{m.pause()}catch(_){}})`, true);
+          await resourceSoakSleep(80);
+        }
+      } catch (_) {}
       const unloaded = await unloadBrowserTab(target.id);
       if (!unloaded?.ok) {
         throw new Error(`Hibernasyon ${cycle}/${attempts} başarısız: ${unloaded?.error || unloaded?.reason || 'bilinmeyen hata'}`);
@@ -12715,9 +12794,27 @@ async function runResourceSoakSession() {
   const samples = [await collectResourceSoakSnapshot('start', 0)];
   resourceSoakTracker?.resetPeaks();
   const checkpoint = Math.max(1, Math.floor(cycles / 4));
+  // Uygulama yenileme op'u: döngünün ortasında renderer tamamen yeniden
+  // yüklenir; renderer-dinleyici/heap ölçümleri yeniden başlar, main-süreç
+  // ölçümleri sürekli kalır. Rapor bu sınırı 'postreload' örneğiyle işaretler.
+  const reloadAt = Number(process.env.WHISPER_RESOURCE_SOAK_RELOAD_AT) || Math.floor(cycles / 2);
   for (let cycle = 1; cycle <= cycles; cycle++) {
     captureAttempts++;
     if (await resourceSoakCycle(cycle, fixtureRoot)) captureSuccesses++;
+    if (cycle === reloadAt) {
+      mainWindow.webContents.reload();
+      await resourceSoakSleep(400);
+      const deadline = Date.now() + 30000;
+      while (Date.now() < deadline && mainWindow.webContents.isLoading()) {
+        await resourceSoakSleep(150);
+      }
+      await resourceSoakSleep(800);
+      await mainWindow.webContents.executeJavaScript(
+        "document.getElementById('workspaceBrowserMode')?.click(); true", true).catch(() => {});
+      await resourceSoakSleep(300);
+      samples.push(await collectResourceSoakSnapshot(`postreload-${cycle}`, cycle));
+      console.log(`[resource-soak] ${cycle}/${cycles} · uygulama yenilendi · yakalama ${captureSuccesses}/${captureAttempts}`);
+    }
     const isFinal = cycle === cycles;
     if (cycle % checkpoint === 0 || isFinal) {
       if (isFinal) await resourceSoakSleep(500);
