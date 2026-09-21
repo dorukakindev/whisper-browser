@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 00:48 — PR #16 gauntlet kabul testi yanlış-pozitif kapılarının kapatılması ve gerçek Windows Electron doğrulaması; BROWSER_BUG_REPORT_97](docs/devir/2026-09-22-0048.md).
+Güncel çalışma: [2026-09-22 01:10 — PR #16'nın CI ve fast-forward doğrulamasıyla `master` dalına birleştirilmesi](docs/devir/2026-09-22-0110.md).
+
+Önceki çalışma: [2026-09-22 00:48 — PR #16 gauntlet kabul testi yanlış-pozitif kapılarının kapatılması ve gerçek Windows Electron doğrulaması; BROWSER_BUG_REPORT_97](docs/devir/2026-09-22-0048.md).
 
 Önceki çalışma: [2026-09-21 19:05 — Browser Subtitle Reliability Gauntlet: `data:` <track> streamKey çakışması düzeltildi (F-96-1), protokol fixture lab + zaman değişmezleri + eksiksizlik + çeviri maliyeti + gerçek-Electron kabulü + ≥30 dk soak; BROWSER_BUG_REPORT_96](docs/devir/2026-09-21-1905.md).
 
