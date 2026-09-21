@@ -26,6 +26,9 @@ description: How to launch and drive the whisper-browser Electron app on this Li
 - Shows only when `!player.mediaKey` (init / `showHomeWhenNoVideo`). While a YouTube video is loaded it is hidden; there is NO direct in-player "reopen SmartTube" button — the only reliable opener is the settings-drawer YouTube tab → **Source → Invidious** (calls `setSmartTubeVisible(true)` when no media), or close+reopen the player layer with no media.
 - Card queue buttons (`+`) are hover-only and hard to hit. Use **right-click on a card** → context menu → *Add to queue* (`Sıraya ekle`) — position-insensitive and reliable. Re-open the menu to confirm: it flips to *Remove from queue* when queued.
 - A populated queue renders a "PLAY QUEUE" rail at the top of the HOME grid after a section re-render.
+- **Queue ground truth = renderer localStorage `stPlayQueue`** — readable from Electron's leveldb: `~/.config/whisper-browser/"Local Storage"/leveldb/*.log`. Records are `<key><varint-len><flag-byte><value>`; flag `1`=latin-1/`0`=utf-16le; the JSON array lists `videoId` per item — parse it to count queue items exactly (faint/blank thumbs make pixel-counting unreliable).
+- **Ghost-card caveat:** the rail may show cards whose videos are no longer queued (remove path doesn't refresh the rail on PR #9 branch). To tell a live queued card from a ghost: right-click it — queued shows "Sıradan çıkar", ghost shows "Sıraya ekle".
+- Main-view **Log panel** ("Günlük" card, `panel-right`) is only reachable when the player layer is hidden — exit via the back button at top-left (~x=20,y=62).
 
 ## Network reality on this box
 - Invidious feed endpoints (home/popular/trending) work → cards populate (thumbnails may be blank — cosmetic).
