@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- SmartTube section: zero-config sign-in via YouTube TV device-code flow with QR code, matching the SmartTube TV experience (#9).
+- SmartTube section: QR-assisted device-code sign-in using a user-configured OAuth client; account setup and real personalized feeds require live acceptance (#9).
 - SmartTube queue rail on the home grid with local continue/most-played rails (#9).
 - InnerTube `lockupViewModel` card parsing for signed-in personalized feeds (#11).
 - Real-UI screenshot gallery and a short English-captioned product tour.
@@ -21,6 +21,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Restored read-only YouTube OAuth scope, removed an unrelated application's embedded OAuth client, and cleared old tokens when changing clients.
+- Corrected SmartTube compact view counts and channel identity extraction for lockup cards.
 - SmartTube home no longer renders blank on feed errors; a local-rails fallback with sign-in and retry actions is shown instead (#11).
 - Queue auto-advance and the Next button now resume a partially watched video from its saved position instead of restarting it (#8).
 - SmartTube overlay re-opens after a failed card probe instead of leaving a black stage (#7).

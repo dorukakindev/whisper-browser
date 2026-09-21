@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-21 13:13 — PR dokümantasyon altyapısı: template genişletildi (What/Why/How/Tests/Risks/Links), CHANGELOG Keep-a-Changelog'a çevrildi + #2/#5/#7/#8/#9/#11 geriye dönük işlendi, CONTRIBUTING'e changelog kuralı](docs/devir/2026-09-21-1313.md).
+Güncel çalışma: [2026-09-21 13:57 — Devin cloud değişiklikleri güvenlik ve gerçek Electron smoke denetimi; dar YouTube OAuth yetkisi, token/istemci izolasyonu ve SmartTube ayrıştırma düzeltmeleri](docs/devir/2026-09-21-1357.md).
+
+Önceki çalışma: [2026-09-21 13:13 — PR dokümantasyon altyapısı: template genişletildi (What/Why/How/Tests/Risks/Links), CHANGELOG Keep-a-Changelog'a çevrildi + #2/#5/#7/#8/#9/#11 geriye dönük işlendi, CONTRIBUTING'e changelog kuralı](docs/devir/2026-09-21-1313.md).
 
 Önceki çalışma: [2026-09-21 05:58 — SmartTube ana sayfa boş-kalma düzeltmesi: akış hatasında yerel raylar + giriş CTA'sı (stRenderHomeFallback), render fazı try/catch, InnerTube lockupViewModel ayrıştırma](docs/devir/2026-09-21-0558.md).
 
