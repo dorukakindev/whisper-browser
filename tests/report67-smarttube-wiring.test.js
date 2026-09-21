@@ -379,6 +379,7 @@ function buildQueueHarness() {
     localStorage: store,
     absThumb: (u) => u,
     mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    watchItemByKey: () => null,
     queuePlayerProbeFromCard: () => { calls.probe++; },
     updatePlaylistButtons: () => {},
     document: { createElement: (t) => makeFakeEl(t) },
@@ -1024,6 +1025,59 @@ test('F-6: başarısız kart probe\'u pendingAutoOpen varken SmartTube\'u geri a
   {
     const { calls } = run({ key: 'youtube:v1', intent: 3 }, null, 'bilinmeyen hata');
     assert.deepStrictEqual(calls.overlay, [true], 'res=null kart probe\'u siyah sahnede bıraktı');
+  }
+});
+
+// ---------- F2: sıradan otomatik geçiş kaldığı yerden devam etmeli ----------
+test('F2: stQueuePlayNext yarım kalmış kayda pendingLibrarySeek kurar (davranış)', () => {
+  const src = (RENDERER.match(/function stQueuePlayNext\(\) \{[\s\S]*?\n\}/) || [])[0];
+  assert.ok(src, 'stQueuePlayNext bulunamadı');
+
+  const run = (watch) => {
+    const calls = { probe: 0 };
+    const player = { openIntent: 0, pendingAutoOpen: null, pendingLibrarySeek: null };
+    const box = { value: '' };
+    const ctx = vm.createContext({
+      stQueue: [{ videoId: 'v9', title: 't' }],
+      player,
+      $: (id) => (id === 'playerYtUrl' ? box : null),
+      mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+      watchItemByKey: () => watch,
+      queuePlayerProbeFromCard: () => { calls.probe++; },
+      setSmartTubeVisible: () => {},
+    });
+    vm.runInContext(src + '\nstQueuePlayNext;', ctx).call(ctx);
+    return { calls, player, box };
+  };
+
+  // Yarım kalmış kayıt → seek kurulur (kart tıklamasıyla aynı)
+  {
+    const { calls, player } = run({ key: 'x', position: 300, duration: 600, completed: false });
+    assert.strictEqual(calls.probe, 1);
+    assert.ok(player.pendingAutoOpen, 'otomatik açılış niyeti kurulmadı');
+    assert.ok(player.pendingLibrarySeek, 'devam seek\'i kurulmadı');
+    assert.strictEqual(player.pendingLibrarySeek.seconds, 300);
+    assert.strictEqual(player.pendingLibrarySeek.key, player.pendingAutoOpen.key);
+  }
+  // Tamamlanmış kayıt → seek yok (baştan başlar)
+  {
+    const { player } = run({ key: 'x', position: 590, duration: 600, completed: true });
+    assert.strictEqual(player.pendingLibrarySeek, null, 'tamamlanmış kayda seek kuruldu');
+  }
+  // Kayıt yok → seek yok
+  {
+    const { player } = run(null);
+    assert.strictEqual(player.pendingLibrarySeek, null, 'kayıtsız videoya seek kuruldu');
+  }
+  // Boş kuyruk → false, hiçbir şey kurulmaz
+  {
+    const player = { openIntent: 0, pendingAutoOpen: null, pendingLibrarySeek: null };
+    const ctx = vm.createContext({
+      stQueue: [], player, $: () => null,
+      mediaKeyFor: (k, r) => `${k}:${r}`,
+      watchItemByKey: () => null, queuePlayerProbeFromCard: () => {},
+    });
+    assert.strictEqual(vm.runInContext(src + '\nstQueuePlayNext;', ctx).call(ctx), false);
   }
 });
 
