@@ -8287,6 +8287,7 @@ function normalizeBrowserCeaCaptureState(event) {
     retryRound: Math.max(0, Number(event.retryRound) || 0),
     planComplete: event.planComplete !== false,
     planReason: String(event.planReason || ''),
+    complete: event.complete === true,
     plannedDuration: Math.max(0, Number(event.plannedDuration) || 0),
     expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
     durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
