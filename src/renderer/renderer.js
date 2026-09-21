@@ -26318,8 +26318,12 @@ if ($('playerProbe')) {
       logLine(`Video bilgisi alınamadı: ${message}`, 'error');
       // Bekleyen otomatik-açma niyetini de düşür — başarısız probe'da silahlanmış
       // kalıp sonraki manuel probe'da beklenmedik oynatma tetikliyordu.
+      const hadAutoOpen = !!player.pendingAutoOpen;
       player.pendingAutoOpen = null;
       if (/oturum|tarayıcı/i.test(message)) toggleDrawerAt(null, '#playerCookieBrowser');
+      // Kart kaynaklı otomatik açılış sert hatayla düştüyse kullanıcıyı boş
+      // siyah sahnede bırakma — akış-yok dalıyla aynı şekilde tarayıcıyı geri aç.
+      if (hadAutoOpen) setSmartTubeVisible(true);
       return;
     }
     const info = res.data;

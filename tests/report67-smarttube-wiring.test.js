@@ -980,6 +980,53 @@ test('F1: setMediaKey Sonraki düğmesini YENİ anahtarla hesaplar (davranış)'
     'yerel dosyada Sonraki kuyruk yüzünden açık kaldı');
 });
 
+// ---------- siyah sahne: kart probe'u sert hatada overlay'i geri açmalı ----------
+test('F-6: başarısız kart probe\'u pendingAutoOpen varken SmartTube\'u geri açar (davranış)', () => {
+  const src = (RENDERER.match(
+    /if \(!res \|\| !res\.ok\) \{\s*\n\s*const message = friendlyYoutubeError[\s\S]*?\n    \}/
+  ) || [])[0];
+  assert.ok(src, 'playerProbe hata dalı bulunamadı');
+  assert.ok(/pendingAutoOpen = null;[\s\S]*?setSmartTubeVisible\(true\)/.test(src),
+    'hata dalı otomatik-açılışta overlay\'i geri açmıyor');
+
+  const run = (pendingAutoOpen, res, message) => {
+    const calls = { log: [], drawer: [], overlay: [] };
+    const player = { pendingAutoOpen };
+    const ctx = vm.createContext({
+      friendlyYoutubeError: () => message,
+      logLine: (m) => calls.log.push(m),
+      toggleDrawerAt: (_btn, sel) => calls.drawer.push(sel),
+      setSmartTubeVisible: (v) => calls.overlay.push(v),
+    });
+    vm.runInContext(`(function (player, res) {\n${src}\n})`, ctx)(player, res);
+    return { calls, player };
+  };
+
+  // Kart kaynaklı otomatik açılış + sert hata → overlay geri açılır, niyet düşer
+  {
+    const { calls, player } = run({ key: 'youtube:v1', intent: 1 }, { ok: false, error: 'x' }, 'ağ hatası');
+    assert.strictEqual(player.pendingAutoOpen, null);
+    assert.deepStrictEqual(calls.overlay, [true], 'kart probe hatası overlay\'i geri açmadı');
+    assert.deepStrictEqual(calls.drawer, [], 'oturumsuz hata çekmece açmamalı');
+  }
+  // Elle "Bilgi al" hatası (otomatik niyet yok) → overlay açılmaz
+  {
+    const { calls } = run(null, { ok: false, error: 'x' }, 'ağ hatası');
+    assert.deepStrictEqual(calls.overlay, [], 'manuel probe hatası overlay açmamalı');
+  }
+  // Oturum-doğrulama hatası → hem çekmece hem (kart yolundaysa) overlay
+  {
+    const { calls } = run({ key: 'youtube:v1', intent: 2 }, { ok: false, error: 'x' }, 'oturum doğrulaması istedi');
+    assert.deepStrictEqual(calls.drawer, ['#playerCookieBrowser']);
+    assert.deepStrictEqual(calls.overlay, [true]);
+  }
+  // res=null (IPC çağrısı attı) kart yolunda → yine overlay geri açılır
+  {
+    const { calls } = run({ key: 'youtube:v1', intent: 3 }, null, 'bilinmeyen hata');
+    assert.deepStrictEqual(calls.overlay, [true], 'res=null kart probe\'u siyah sahnede bıraktı');
+  }
+});
+
 // ---------- çalıştır ----------
 let failed = 0;
 for (const t of tests) {
