@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-21 05:58 — SmartTube ana sayfa boş-kalma düzeltmesi: akış hatasında yerel raylar + giriş CTA'sı (stRenderHomeFallback), render fazı try/catch, InnerTube lockupViewModel ayrıştırma](docs/devir/2026-09-21-0558.md).
+Güncel çalışma: [2026-09-21 13:13 — PR dokümantasyon altyapısı: template genişletildi (What/Why/How/Tests/Risks/Links), CHANGELOG Keep-a-Changelog'a çevrildi + #2/#5/#7/#8/#9/#11 geriye dönük işlendi, CONTRIBUTING'e changelog kuralı](docs/devir/2026-09-21-1313.md).
+
+Önceki çalışma: [2026-09-21 05:58 — SmartTube ana sayfa boş-kalma düzeltmesi: akış hatasında yerel raylar + giriş CTA'sı (stRenderHomeFallback), render fazı try/catch, InnerTube lockupViewModel ayrıştırma](docs/devir/2026-09-21-0558.md).
 
 Önceki çalışma: [2026-09-21 04:32 — SmartTube girişi sıfır-kuruluma geçti: gömülü YouTube TV (TVHTML5) istemcisiyle google.com/device kodu + QR; InnerTube scope düzeltmesi; kuyruk F3/F4/F5 (any-position dequeue, kapasite logu, ray tazeleme)](docs/devir/2026-09-21-0432.md).
 
