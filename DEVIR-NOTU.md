@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-20 23:15 — F1 Major düzeltmesi: kuyruk toggle ve medya geçişinde Sonraki düğmesi tazeleniyor; report67 davranış testleri 74/74](docs/devir/2026-09-20-2315.md).
+Güncel çalışma: [2026-09-21 03:08 — translation_refresh'e index alanı: refine 2. geçişinin revize metni canlı önizlemeye ulaşıyor; YouTube→transcribe→TR çeviri (shuaiapi/claude-sonnet-5) uçtan uca doğrulandı; npm test temiz](docs/devir/2026-09-21-0308.md).
+
+Önceki çalışma: [2026-09-20 23:15 — F1 Major düzeltmesi: kuyruk toggle ve medya geçişinde Sonraki düğmesi tazeleniyor; report67 davranış testleri 74/74](docs/devir/2026-09-20-2315.md).
 
 Önceki çalışma: [2026-09-20 22:17 — kozmetik/öneri kataloğu kapanışı, responsive reader+overlay ölçek matrisi, Windows paket/lisans/geçmiş denetimi, çapraz-platform yeşil CI ve GitHub güvenlik kapıları](docs/devir/2026-09-20-2217.md).
 

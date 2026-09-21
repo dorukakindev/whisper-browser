@@ -3461,7 +3461,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
              total=len(entries), stage="translate")
         ready = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
         emit("translation_refresh", segments=[
-            {"start": s, "end": e, "text": t} for s, e, t in ready
+            {"index": i, "start": s, "end": e, "text": t} for i, (s, e, t) in enumerate(ready)
         ])
         if status_out is not None:
             status_out["completed"] = list(range(len(entries)))
@@ -3945,7 +3945,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
     result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
     emit("translation_refresh", segments=[
-        {"start": s, "end": e, "text": t} for s, e, t in result
+        {"index": i, "start": s, "end": e, "text": t} for i, (s, e, t) in enumerate(result)
     ])
     if status_out is not None:
         status_out["completed"] = sorted(set(cached_idx).union(done_idx))
@@ -6169,7 +6169,8 @@ def transcribe(args):
                 # eşlemesini değiştirip oynatıcı/yeniden-deneme kimliğini bozuyordu.
                 if translated:
                     emit("translation_refresh", segments=[
-                        {"start": s, "end": e, "text": t} for s, e, t in translated
+                        {"index": i, "start": s, "end": e, "text": t}
+                        for i, (s, e, t) in enumerate(translated)
                     ])
             except Exception as e:
                 log(f"Ceviri basarisiz: {e}", "warn")
