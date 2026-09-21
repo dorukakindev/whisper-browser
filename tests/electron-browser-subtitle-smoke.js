@@ -152,7 +152,7 @@ async function run() {
   const devtoolsPort = 20000 + Math.floor(Math.random() * 1000);
   const mainDevtoolsPort = 22000 + Math.floor(Math.random() * 1000);
   const diagnosticsOutputPath = path.join(userDataDir, 'actual-browser-diagnostics.json');
-  electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
+  electronProcess = spawn(process.execPath, [
     `--inspect=${mainDevtoolsPort}`, projectRoot,
     `--remote-debugging-port=${devtoolsPort}`, `--user-data-dir=${userDataDir}`,
   ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore', env: { ...process.env, WHISPER_RESOURCE_SOAK_USER_DATA: userDataDir } });

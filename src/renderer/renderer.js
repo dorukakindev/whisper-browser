@@ -15884,7 +15884,7 @@ function showBrowserErrorSurface(error) {
     : (crashed ? 'Sekme çöktü' : 'Sayfa açılamadı');
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
-  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? 'Sekmeyi yeniden yükle' : 'Tekrar dene';
+  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
 }
 
 async function askExplain(kind, index, word) {
@@ -23598,6 +23598,9 @@ async function renderSmartTubeSection(section, opts = {}) {
     }
     }
     if (!videos.length) {
+      // Ana sayfa hiçbir zaman bomboş kalmasın — yerel raylar + giriş CTA.
+      if (section === 'home' && stRenderHomeFallback(grid,
+          window.UiLocale?.t('İçerik alınamadı — günlük kayıtlarına bak.') || 'İçerik alınamadı — günlük kayıtlarına bak.')) return;
       showError('İçerik alınamadı — günlük kayıtlarına bak.');
       return;
     }
@@ -23607,6 +23610,13 @@ async function renderSmartTubeSection(section, opts = {}) {
       setSmartTubeStatus(window.UiLocale?.t('Ek videolar alınamadı; gösterilenleri izleyebilir veya yeniden deneyebilirsiniz.')
         || 'Ek videolar alınamadı; gösterilenleri izleyebilir veya yeniden deneyebilirsiniz.');
       logLine(`SmartTube feed kısmi sonuç: ${msg}`, 'warn');
+      return;
+    }
+    if (section === 'home') {
+      // Akış hatası ana sayfayı silmesin — yerel raylar + yeniden dene/giriş.
+      logLine(`SmartTube feed hata: ${msg}`, 'error');
+      stRenderHomeFallback(grid,
+        `${window.UiLocale?.t('Akış alınamadı') || 'Akış alınamadı'}: ${msg}`);
       return;
     }
     showError(/giriş|login|401|unauthor/i.test(msg)
@@ -23645,32 +23655,25 @@ async function renderSmartTubeSection(section, opts = {}) {
       seen.add(id);
       return true;
     });
-    renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
-    if (queueVideos.length || continueVideos.length) {
-      const rail = document.createDocumentFragment();
-      // Kullanıcı sırası en üstte, pasif devam kayıtları altında
-      for (const [title, list] of [
-        [window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası', queueVideos],
-        [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
-        [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', stMostPlayedVideos().slice(0, 12)],
-      ]) {
-        if (!list.length) continue;
+    try {
+      renderSmartTubeGrid(grid, dedupe(videos).slice(0, 24), 'Popüler');
+      const homeRail = stHomeRailsFragment(queueVideos, continueVideos);
+      if (homeRail) grid.prepend(homeRail);
+      const trendList = stFilterVideos(dedupe(trending || []));
+      // A08: 'Trend rayını gizle' açıksa bölüm başlığıyla birlikte atlanır.
+      if (trendList.length && !$('stHideTrending')?.checked) {
         const sep = document.createElement('div');
         sep.className = 'st-section-title st-grid-row';
-        sep.textContent = title;
-        rail.appendChild(sep);
-        list.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
+        sep.textContent = 'Trend';
+        grid.appendChild(sep);
+        trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
       }
-      grid.prepend(rail);
-    }
-    const trendList = stFilterVideos(dedupe(trending || []));
-    // A08: 'Trend rayını gizle' açıksa bölüm başlığıyla birlikte atlanır.
-    if (trendList.length && !$('stHideTrending')?.checked) {
-      const sep = document.createElement('div');
-      sep.className = 'st-section-title st-grid-row';
-      sep.textContent = 'Trend';
-      grid.appendChild(sep);
-      trendList.slice(0, 18).forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+    } catch (renderErr) {
+      // Render aşaması hatası grid'i sessizce boş bırakmasın.
+      logLine(`SmartTube ana sayfa render hatası: ${renderErr && renderErr.message || renderErr}`, 'error');
+      stRenderHomeFallback(grid,
+        window.UiLocale?.t('Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.')
+        || 'Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.');
     }
   } else {
     // Yalnız "Yükleniyor…" yer tutucusunu kaldır — innerHTML='' yazsaydık
@@ -23876,6 +23879,7 @@ function stQueueToggle(video) {
     stQueue.splice(i, 1);
     saveStQueue();
     updatePlaylistButtons();
+    stRefreshQueueRail();
     return false;
   }
   const thumbs = video.videoThumbnails || [];
@@ -23891,22 +23895,56 @@ function stQueueToggle(video) {
     thumb: tn ? absThumb(tn.url) : '',
     addedAt: Date.now(),
   });
-  if (stQueue.length > ST_QUEUE_MAX) stQueue.shift();
+  if (stQueue.length > ST_QUEUE_MAX) {
+    const dropped = stQueue.shift();
+    // Kapasite taşması sessiz kayıp olmasın — hangi kaydın düştüğü görünsün.
+    logLine(`Oynatma sırası dolu (${ST_QUEUE_MAX}) — en eski kayıt düştü: ${dropped.title || dropped.videoId}`, 'warn');
+  }
   saveStQueue();
   updatePlaylistButtons();
+  stRefreshQueueRail();
   return true;
 }
-// Akış gerçekten açıldıysa sıranın başındaki kaydı düşür; kart/queue yollarının
-// hepsi aynı youtube:<id> anahtarını ürettiği için kimlik eşleşmesi güvenli.
+// Akış gerçekten açıldıysa kaydı sıranın herhangi bir konumundan düşür —
+// ortadaki videoyu karttan elle açan kullanıcı auto-next'te aynı videoyu
+// tekrar görmek istemez. Kimlik eşleşmesi youtube:<id> anahtarıyla güvenli.
 function stQueueDequeueIfPlaying(key) {
   const id = String(key || '').startsWith('youtube:') ? key.slice(8) : '';
-  if (id && stQueue.length && stQueue[0].videoId === id) {
-    stQueue.shift();
+  const i = id ? stQueue.findIndex((v) => v.videoId === id) : -1;
+  if (i >= 0) {
+    stQueue.splice(i, 1);
     saveStQueue();
     updatePlaylistButtons();
+    stRefreshQueueRail();
     return true;
   }
   return false;
+}
+
+// Ana sayfadaki "Oynatma sırası" rayını açılan/değişen kuyrukla tazele —
+// ray grid içinde display:contents kabı olduğundan yalnız kendi kartlarını
+// yeniden kurar; feed yeniden çekilmez, yükleniyor ekranı çıkmaz.
+function stRefreshQueueRail() {
+  const grid = $('stGrid');
+  if (!grid) return;
+  const items = stQueueRailVideos();
+  let rail = grid.querySelector('.st-queue-rail');
+  if (!rail) {
+    // Ray yalnız ana sayfa render'ında kuruluyor — boş kuyrukta oluşmadığı
+    // için ilk ekleme burada yaratır. Diğer bölümlerde (arama/kanal) kuyruk
+    // sessizce yazılır; ray bir sonraki ana sayfa render'ında çıkar.
+    if (!items.length || stCurrentSection !== 'home') return;
+    rail = document.createElement('div');
+    rail.className = 'st-queue-rail';
+    grid.prepend(rail);
+  }
+  rail.innerHTML = '';
+  if (!items.length) { rail.remove(); return; }
+  const sep = document.createElement('div');
+  sep.className = 'st-section-title st-grid-row';
+  sep.textContent = window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası';
+  rail.appendChild(sep);
+  items.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
 }
 // Kuyruğun başındaki videoyu kart açılışıyla AYNI probe/auto-open akışından
 // başlatır; eleman burada düşmez — probe başarısız olursa sıra korunur.
@@ -23944,6 +23982,71 @@ function stQueueRailVideos() {
     lengthSeconds: v.lengthSeconds,
     videoThumbnails: v.thumb ? [{ url: v.thumb, quality: 'medium' }] : [],
   }));
+}
+
+// Ana sayfa üst rayları (kuyruk + devam + en çok oynatılan) — tamamen yerel
+// veri; uzak akıştan bağımsız, bu yüzden feed çöktüğünde de görünürler
+// (SmartTube'da girişsiz ana sayfa hiçbir zaman boş kalmaz).
+function stHomeRailsFragment(queueVideos, continueVideos) {
+  const mostPlayed = stMostPlayedVideos().slice(0, 12);
+  if (!queueVideos.length && !continueVideos.length && !mostPlayed.length) return null;
+  const rail = document.createDocumentFragment();
+  // Kuyruk rayı ayrı kapta — dequeue/toggle sonrası stRefreshQueueRail
+  // yalnız burayı yeniden kurar (display:contents grid'i bozmaz).
+  if (queueVideos.length) {
+    const wrap = document.createElement('div');
+    wrap.className = 'st-queue-rail';
+    const sep = document.createElement('div');
+    sep.className = 'st-section-title st-grid-row';
+    sep.textContent = window.UiLocale?.t('Oynatma sırası') || 'Oynatma sırası';
+    wrap.appendChild(sep);
+    queueVideos.forEach((v) => wrap.appendChild(buildSmartTubeCard(v)));
+    rail.appendChild(wrap);
+  }
+  for (const [title, list] of [
+    [window.UiLocale?.t('İzlemeye devam et') || 'İzlemeye devam et', continueVideos],
+    [window.UiLocale?.t('En çok oynatılan') || 'En çok oynatılan', mostPlayed],
+  ]) {
+    if (!list.length) continue;
+    const sep = document.createElement('div');
+    sep.className = 'st-section-title st-grid-row';
+    sep.textContent = title;
+    rail.appendChild(sep);
+    list.forEach((v) => rail.appendChild(buildSmartTubeCard(v)));
+  }
+  return rail;
+}
+
+// Uzak akış tamamen gelmediğinde ana sayfa: yerel raylar + hata satırı +
+// YouTube giriş CTA'sı + yeniden dene (SmartTube girişsiz ekranı gibi).
+function stRenderHomeFallback(grid, msg) {
+  grid.innerHTML = '';
+  const rail = stHomeRailsFragment(stQueueRailVideos(), stContinueWatchingVideos());
+  if (rail) grid.appendChild(rail);
+  const box = document.createElement('div');
+  box.className = 'inv-status st-grid-row st-home-fallback';
+  const line = document.createElement('div');
+  line.textContent = String(msg || 'Akış şu an alınamıyor.');
+  box.appendChild(line);
+  const actions = document.createElement('div');
+  actions.className = 'st-home-fallback-actions';
+  if (!youtubeLoggedIn) {
+    const login = document.createElement('button');
+    login.type = 'button';
+    login.className = 'btn btn-primary btn-sm';
+    login.textContent = window.UiLocale?.t('YouTube ile giriş') || 'YouTube ile giriş';
+    login.addEventListener('click', () => openYoutubeLogin());
+    actions.appendChild(login);
+  }
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'btn btn-secondary btn-sm';
+  retry.textContent = window.UiLocale?.t('Tekrar dene') || 'Tekrar dene';
+  retry.addEventListener('click', () => renderSmartTubeSection('home', { force: true }));
+  actions.appendChild(retry);
+  box.appendChild(actions);
+  grid.appendChild(box);
+  return true;
 }
 
 // ----- Yerel çalma listeleri (A22) -----
@@ -25234,14 +25337,16 @@ function renderStSubsPanel(grid) {
     const empty = document.createElement('div');
     empty.className = 'inv-status';
     empty.textContent = stSubs.length
-      ? 'Bu grupta kanal yok.'
-      : 'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.';
+      ? (window.UiLocale?.t('Bu grupta kanal yok.') || 'Bu grupta kanal yok.')
+      : (window.UiLocale?.t('Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.')
+        || 'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.');
     list.appendChild(empty);
   }
   grid.appendChild(list);
   const hint = document.createElement('div');
   hint.className = 'st-subs-hint';
-  hint.textContent = 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
+  hint.textContent = window.UiLocale?.t('Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.')
+    || 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
   grid.appendChild(hint);
 }
 
@@ -25626,18 +25731,36 @@ async function restoreYoutubeSession() {
   refreshYoutubeAuthUI();
 }
 
-function _ytShowView(id) {
-  ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
-    const el = $(v);
-    if (el) el.classList.toggle('hidden', v !== id);
-  });
-}
-
 let _ytLoginModalBound = false;
 // Akış kuşağı: modal her kapanışta artar; sürüyor olan await'ler döndüğünde
 // kuşak değiştiyse sonuç uygulanmaz. Eskiden İptal/kapat yalnızca gizliyordu —
 // 30 dk'lık poll arka planda sürüp _ytPolling sonsuza takılı kalabiliyordu.
 let _ytFlowGen = 0;
+let _ytBrowserFlow = false;   // loopback (tarayıcı) akışı sürüyor
+let _ytSavedClientId = '';    // istemci görünümüne dönüşte ID'yi geri doldurur (secret asla)
+
+function _ytShowView(id) {
+  ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
+    const el = $(v);
+    if (el) el.classList.toggle('hidden', v !== id);
+  });
+  if (id === 'ytClientView') {
+    const cid = $('ytClientId');
+    if (cid && !cid.value && _ytSavedClientId) cid.value = _ytSavedClientId;
+  }
+}
+
+// Akış seçim ekranı: cihaz kodu bloğu ancak kullanıcı isteyince açılır;
+// önerilen yol tarayıcı yetkilendirmesi (desktop loopback).
+function _ytShowAuthChoice() {
+  _ytShowView('ytDeviceView');
+  const block = $('ytDeviceCodeBlock');
+  if (block && !_ytPolling) block.classList.add('hidden');
+  const status = $('ytPollStatus');
+  if (status && !_ytPolling && !_ytBrowserFlow) {
+    status.textContent = window.UiLocale?.t('Giriş yöntemini seçin.') || 'Giriş yöntemini seçin.';
+  }
+}
 
 function ytModalError(msg) {
   const el = $('ytModalStatus');
@@ -25664,8 +25787,6 @@ function openYoutubeLogin() {
     if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
     _ytShowView('ytLoggedView');
   } else {
-    // Kayıtlı istemcide her girişte kurulum formuna döndürme. Kod görünümünü
-    // hemen aç; asıl Google onayı yalnız kullanıcı cihazında gerçekleşir.
     const openingGen = ++_ytFlowGen;
     _ytShowView('ytDeviceView');
     const pollStatus = $('ytPollStatus');
@@ -25673,8 +25794,10 @@ function openYoutubeLogin() {
     window.api.youtubeSession().then((res) => {
       if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
       if (res && res.ok && res.data && res.data.hasClient) {
-        startYoutubeDeviceFlow();
+        _ytSavedClientId = res.data.clientId || '';
+        _ytShowAuthChoice();
       } else {
+        if (res && res.ok && res.data) _ytSavedClientId = res.data.clientId || '';
         _ytShowView('ytClientView');
         $('ytClientId')?.focus();
       }
@@ -25694,8 +25817,9 @@ function closeYoutubeLogin() {
   const dlg = $('youtubeLoginModal');
   if (dlg) dlg.classList.add('hidden');
   _ytFlowGen++;                                     // süren akışı geçersiz kıl
-  if (_ytPolling) {                                 // poll sürüyorsa main'de de iptal et
+  if (_ytPolling || _ytBrowserFlow) {               // süren akış varsa main'de de iptal et
     _ytPolling = false;
+    _ytBrowserFlow = false;
     window.api.youtubeCancel().catch(() => {});
   }
   // Secret kapanışta DOM'da kalmasın (Invidious modalıyla aynı sözleşme)
@@ -25707,9 +25831,15 @@ function closeYoutubeLogin() {
 
 async function startYoutubeDeviceFlow() {
   if (_ytPolling) return;
+  if (_ytBrowserFlow) {                           // süren tarayıcı akışını durdur
+    _ytBrowserFlow = false;
+    window.api.youtubeCancel().catch(() => {});
+  }
   _ytPolling = true;                                // deviceCode await'i de kapsar
   const gen = ++_ytFlowGen;
   _ytShowView('ytDeviceView');
+  const codeBlock = $('ytDeviceCodeBlock');
+  if (codeBlock) codeBlock.classList.remove('hidden');
   const status = $('ytPollStatus');
   const codeEl = $('ytUserCode');
   if (codeEl) codeEl.textContent = '----';
@@ -25721,18 +25851,29 @@ async function startYoutubeDeviceFlow() {
   if (!res || !res.ok) {
     _ytPolling = false;
     _ytShowView('ytClientView');
-    ytModalError(res && res.error ? res.error : 'Cihaz kodu alınamadı');
+    ytModalError(res && res.error ? res.error : (window.UiLocale?.t('Cihaz kodu alınamadı') || 'Cihaz kodu alınamadı'));
     return;
   }
   if (codeEl) codeEl.textContent = res.data.user_code || '----';
+  const vurl = res.data.verification_url || 'https://www.google.com/device';
   const link = $('ytVerificationUrl');
   if (link) {
-    const vurl = res.data.verification_url || 'https://www.google.com/device';
     link.textContent = vurl.replace(/^https?:\/\//, '');
     link.href = vurl;
     link.onclick = (e) => { e.preventDefault(); window.api.openExternal(vurl); };
   }
-  if (status) status.textContent = 'Onay bekleniyor…';
+  if (status) status.textContent = window.UiLocale?.t('Onay bekleniyor…') || 'Onay bekleniyor…';
+  // SmartTube gibi telefona okutulabilir QR — kod linki zaten taşıyor.
+  const qrCanvas = $('ytQrCanvas');
+  if (qrCanvas) {
+    if (typeof globalThis.QRCode?.toCanvas === 'function' && res.data.verification_url) {
+      qrCanvas.classList.remove('hidden');
+      globalThis.QRCode.toCanvas(qrCanvas, vurl, { errorCorrectionLevel: 'M', margin: 1, width: 150 })
+        .catch(() => { qrCanvas.classList.add('hidden'); });
+    } else {
+      qrCanvas.classList.add('hidden');
+    }
+  }
   try {
     const pr = await window.api.youtubePoll();
     if (gen !== _ytFlowGen) return;                 // modal kapanmış — sonucu uygulama
@@ -25750,6 +25891,41 @@ async function startYoutubeDeviceFlow() {
     }
   } finally {
     if (gen === _ytFlowGen) _ytPolling = false;
+  }
+}
+
+// Google'ın masaüstü uygulamalar için önerdiği akış: sistem tarayıcısı +
+// loopback (PKCE). main.js tarafında 127.0.0.1 dinleyicisi kurulur.
+async function startYoutubeBrowserFlow() {
+  if (_ytBrowserFlow) return;
+  if (_ytPolling) {                               // süren cihaz-kodu poll'unu durdur
+    _ytPolling = false;
+    window.api.youtubeCancel().catch(() => {});
+  }
+  _ytBrowserFlow = true;
+  const gen = ++_ytFlowGen;
+  _ytShowView('ytDeviceView');
+  const status = $('ytPollStatus');
+  if (status) {
+    status.textContent = window.UiLocale?.t('Tarayıcıda Google onayı bekleniyor…')
+      || 'Tarayıcıda Google onayı bekleniyor…';
+  }
+  try {
+    const pr = await window.api.youtubeAuthCode();
+    if (gen !== _ytFlowGen) return;               // modal kapanmış — sonucu uygulama
+    if (pr && pr.ok) {
+      youtubeLoggedIn = true;
+      youtubeUserName = pr.data.userName || 'YouTube';
+      refreshYoutubeAuthUI();
+      _ytBrowserFlow = false;
+      closeYoutubeLogin();
+      osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
+      if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
+    } else if (status) {
+      status.textContent = (pr && pr.error) ? pr.error : 'Giriş tamamlanamadı.';
+    }
+  } finally {
+    if (gen === _ytFlowGen) _ytBrowserFlow = false;
   }
 }
 
@@ -25801,22 +25977,29 @@ function initSmartTube() {
         ytModalError(r && r.error ? r.error : 'Client kaydedilemedi');
         return;
       }
+      if (cid) _ytSavedClientId = cid;
     }
-    startYoutubeDeviceFlow();
+    _ytShowAuthChoice();
   });
   const ytClientCancel = $('ytClientCancel');
   if (ytClientCancel) ytClientCancel.addEventListener('click', closeYoutubeLogin);
+  const ytBrowserAuth = $('ytBrowserAuth');
+  if (ytBrowserAuth) ytBrowserAuth.addEventListener('click', startYoutubeBrowserFlow);
+  const ytDeviceCodeStart = $('ytDeviceCodeStart');
+  if (ytDeviceCodeStart) ytDeviceCodeStart.addEventListener('click', startYoutubeDeviceFlow);
   const ytDeviceCancel = $('ytDeviceCancel');
   if (ytDeviceCancel) ytDeviceCancel.addEventListener('click', () => {
     window.api.youtubeCancel().catch(() => {});
     _ytPolling = false;
+    _ytBrowserFlow = false;
     closeYoutubeLogin();
   });
   const ytChangeClient = $('ytChangeClient');
   if (ytChangeClient) ytChangeClient.addEventListener('click', () => {
     _ytFlowGen++;
-    if (_ytPolling) window.api.youtubeCancel().catch(() => {});
+    if (_ytPolling || _ytBrowserFlow) window.api.youtubeCancel().catch(() => {});
     _ytPolling = false;
+    _ytBrowserFlow = false;
     _ytShowView('ytClientView');
     ytModalError('');
     $('ytClientId')?.focus();

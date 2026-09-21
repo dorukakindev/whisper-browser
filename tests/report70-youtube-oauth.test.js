@@ -39,7 +39,8 @@ function handlerBody(name) {
 // ---------- R70-01: tüm handler'lar yetki kontrolünde ----------
 test('R70-01: youtube:* handler\'ları authorizedBrowserSender kontrolünde', () => {
   for (const h of ['youtube:session', 'youtube:setClient', 'youtube:deviceCode',
-                   'youtube:poll', 'youtube:browse', 'youtube:logout', 'youtube:cancel']) {
+                   'youtube:authCode', 'youtube:poll', 'youtube:browse',
+                   'youtube:logout', 'youtube:cancel']) {
     const body = handlerBody(h);
     assert.ok(/authorizedBrowserSender\(/.test(body), `${h} yetki kontrolü eksik`);
   }
@@ -48,8 +49,8 @@ test('R70-01: youtube:* handler\'ları authorizedBrowserSender kontrolünde', ()
 // ---------- R70-02: preload köprüsü ----------
 test('R70-02: preload YouTube köprü metotları mevcut', () => {
   for (const m of ['youtubeSession', 'youtubeSetClient', 'youtubeDeviceCode',
-                   'youtubePoll', 'youtubeBrowse', 'youtubeLogout', 'youtubeCancel',
-                   'onYoutubeEvent']) {
+                   'youtubeAuthCode', 'youtubePoll', 'youtubeBrowse',
+                   'youtubeLogout', 'youtubeCancel', 'onYoutubeEvent']) {
     assert.ok(PRELOAD.includes(`${m}:`), `preload eksik: ${m}`);
   }
   assert.match(PRELOAD, /ipcRenderer\.invoke\('youtube:setClient'/);
@@ -63,7 +64,7 @@ test('R70-03: youtube:session cevabı token/secret içermez', () => {
   assert.ok(ret, 'session cevabı bulunamadı');
   // Dönen ANAHTARLAR güvenli kümede olmalı (değer referansları değil)
   const keys = [...ret[1].matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
-  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode']);
+  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode', 'usingBuiltin', 'clientId']);
   for (const k of keys) {
     assert.ok(safe.has(k), `session cevabı beklenmeyen alan dönüyor: ${k}`);
   }
@@ -209,8 +210,74 @@ test('R70-13: backend yalnız HTTPS Google/YouTube endpoint\'leri kullanır', ()
     assert.ok(/googleapis\.com|youtube\.com|ytimg\.com|google\.com/.test(u),
       `beklenmeyen endpoint: ${u}`);
   }
-  // scope salt-okuma
-  assert.match(YT_PY, /auth\/youtube\.readonly/);
+  assert.match(YT_PY, /auth\/youtube\.readonly["']/);
+});
+
+test('R70-14: istemci değişimi eski tokenları kullanmaz', () => {
+  const setClient = MAIN.match(/ipcMain\.handle\('youtube:setClient'[\s\S]*?\n\}\);/);
+  assert.ok(setClient, 'youtube:setClient handler yok');
+  assert.match(setClient[0], /id !== youtubeSession\.clientId \|\| secret !== youtubeSession\.clientSecret/);
+  assert.match(setClient[0], /youtubeSession\.refreshToken = ''/);
+  assert.match(setClient[0], /youtubeSession\.accessToken = ''/);
+  const ensure = MAIN.match(/async function ensureYoutubeAccessToken\(\)[\s\S]*?\n\}/);
+  assert.ok(ensure, 'ensureYoutubeAccessToken yok');
+  assert.match(ensure[0], /if \(!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret\) return null/);
+});
+
+// ---------- R70-15: loopback (tarayıcı) akışı — masaüstü için önerilen yol ----------
+test('R70-15: youtube:authCode PKCE + loopback + state doğrular', () => {
+  const body = handlerBody('youtube:authCode');
+  // PKCE: verifier üretilir, challenge SHA-256 S256 gönderilir.
+  assert.match(body, /randomBytes\(48\)\.toString\('base64url'\)/);
+  assert.match(body, /createHash\('sha256'\)\.update\(verifier\)\.digest\('base64url'\)/);
+  assert.match(body, /code_challenge_method:\s*'S256'/);
+  // Loopback yalnız 127.0.0.1 üzerinde dinler; redirect_uri taşınır.
+  assert.match(body, /server\.listen\(0,\s*'127\.0\.0\.1',/);
+  assert.match(body, /127\.0\.0\.1:\$\{port\}\/oauth2callback/);
+  // CSRF koruması: dönen state üretilen state ile karşılaştırılır.
+  assert.match(body, /cbState !== state/);
+  // Gizli değerler env üzerinden gider, argv'de değil.
+  assert.match(body, /WHISPER_YT_AUTH_CODE/);
+  assert.match(body, /WHISPER_YT_CODE_VERIFIER/);
+  assert.ok(!/args\.push\([^)]*verifier/i.test(body), 'verifier argv\'ye sızıyor');
+  // access_type=offline → refresh_token; kullanıcı onayı zorlanır.
+  assert.match(body, /access_type:\s*'offline'/);
+  // Başarı cevabı renderer'a yalnız gösterim alanları döner.
+  const ret = body.match(/return \{ ok: true, data: \{[^}]*\} \}/g) || [];
+  assert.ok(ret.length >= 1, 'authCode başarı cevabı yok');
+  assert.ok(!/token|secret/i.test(ret[0]), `authCode cevabı token sızdırıyor: ${ret[0]}`);
+});
+
+test('R70-15b: authCode ve cancel/logout akışı temizler', () => {
+  assert.match(handlerBody('youtube:cancel'), /_ytAbortAuthFlow\(/);
+  assert.match(handlerBody('youtube:logout'), /_ytAbortAuthFlow\(/);
+});
+
+test('R70-15c: main.js scope sabiti backend ile aynı', () => {
+  const m = MAIN.match(/YT_OAUTH_SCOPE\s*=\s*'([^']+)'/);
+  assert.ok(m, 'YT_OAUTH_SCOPE yok');
+  const py = YT_PY.match(/OAUTH_SCOPE\s*=\s*"([^"]+)"/);
+  assert.ok(py, 'backend OAUTH_SCOPE yok');
+  assert.equal(m[1], py[1]);
+  assert.equal(m[1], 'https://www.googleapis.com/auth/youtube.readonly');
+});
+
+test('R70-15d: backend exchange_code authorization_code grant gönderir', () => {
+  const fn = YT_PY.match(/def exchange_code\(client_id\):[\s\S]*?\ndef /);
+  assert.ok(fn, 'exchange_code fonksiyonu yok');
+  assert.match(fn[0], /grant_type.*authorization_code/);
+  assert.match(fn[0], /code_verifier/);
+  assert.match(fn[0], /redirect_uri/);
+  assert.match(fn[0], /emit\("login"/);
+});
+
+test('R70-15e: renderer akış seçimi ve tarayıcı düğmesi bağlı', () => {
+  assert.ok(HTML.includes('id="ytBrowserAuth"'), 'ytBrowserAuth butonu yok');
+  assert.ok(HTML.includes('id="ytDeviceCodeStart"'), 'ytDeviceCodeStart butonu yok');
+  assert.match(RENDERER, /function startYoutubeBrowserFlow\(\)/);
+  assert.match(RENDERER, /window\.api\.youtubeAuthCode\(\)/);
+  assert.match(RENDERER, /ytBrowserAuth.*addEventListener\('click', startYoutubeBrowserFlow\)/);
+  assert.match(RENDERER, /ytDeviceCodeStart.*addEventListener\('click', startYoutubeDeviceFlow\)/);
 });
 
 test('R70-13b: backend NDJSON emit kilit altında (thread-güvenli)', () => {

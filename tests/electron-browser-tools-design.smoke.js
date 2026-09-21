@@ -1,5 +1,6 @@
 'use strict';
 const { app, BrowserWindow, webContents, session, dialog } = require('electron');
+const { findMediaTool } = require('./media-runtime');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -10,7 +11,7 @@ const out = path.join(root, '.uiprev', 'browser-tools-design');
 fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${process.pid}-${Date.now()}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
-const ffmpeg = path.join(root, 'backend', 'bin', 'ffmpeg.exe');
+const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
 const video = path.join(out, 'episode.mp4');
 const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
   'color=c=navy:s=320x180:r=6:d=42', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=8000:duration=42',

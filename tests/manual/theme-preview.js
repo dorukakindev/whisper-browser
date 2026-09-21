@@ -163,7 +163,7 @@ async function jobsSurfaceMetrics(client) {
 async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.mkdirSync(outputDir, { recursive: true });
-  electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
+  electronProcess = spawn(process.execPath, [
     projectRoot, `--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`,
   ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore' });
   const targets = await waitFor(async () => {

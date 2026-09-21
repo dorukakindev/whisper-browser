@@ -7636,6 +7636,30 @@ body.modal-open { overflow: hidden; }
   letter-spacing: 4px;
   color: var(--fg);
 }
+.yt-qr-canvas {
+  display: block;
+  margin: 0 auto 10px;
+  background: #fff;
+  border-radius: 6px;
+}
+/* Kuyruk rayı grid içinde şeffaf kab — çocukları .st-grid hücresi kalır */
+.st-queue-rail { display: contents; }
+
+/* Ana sayfa akışı gelmediğinde: yerel raylar + hata + giriş/deneme CTA */
+.st-home-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  text-align: center;
+}
+.st-home-fallback-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 #ytCopyCode { margin-top: 14px; }
 
 /* Arama temizle düğmesi — input'un iç sağında (O6) */

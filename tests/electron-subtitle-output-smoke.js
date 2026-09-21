@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { findMediaTool } = require('./media-runtime');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -43,7 +44,7 @@ async function run() {
     '\uFEFF1\n00:00:00,000 --> 00:00:02,000\nHello world.\n', 'utf8');
   fs.writeFileSync(translationPath,
     '\uFEFF1\n00:00:00,000 --> 00:00:02,000\nMerhaba dünya.\n', 'utf8');
-  const mediaFixture = spawnSync('ffmpeg.exe', [
+  const mediaFixture = spawnSync(findMediaTool('ffmpeg') || 'ffmpeg', [
     '-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=7',
     '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000',
@@ -59,7 +60,7 @@ async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   const port = 19000 + Math.floor(Math.random() * 1000);
   const mainInspectPort = 21000 + Math.floor(Math.random() * 1000);
-  const executable = path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe');
+  const executable = process.execPath;
   electronProcess = spawn(executable, [
     '--disable-background-media-suspend',
     '--disable-renderer-backgrounding',

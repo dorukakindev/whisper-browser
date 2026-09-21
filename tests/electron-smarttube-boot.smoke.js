@@ -268,7 +268,9 @@ async function main() {
     // st-grid-row sınıfı veya inline style — computed ile doğrula
     out.channelHead = !!head && getComputedStyle(head).gridColumn === '1 / -1';
     out.channelNoNested = grid.querySelectorAll(':scope > .st-grid').length === 0;
-    out.channelCards = grid.querySelectorAll(':scope > .st-card').length;
+    // Kanal sekmeleri kartları ayrı tabBody içinde tutuyor; eski doğrudan
+    // grid-çocuğu seçicisi A27 sonrası yanlış sıfır döndürüyordu.
+    out.channelCards = grid.querySelectorAll(':scope > .st-ch-body > .st-card').length;
 
     // 6) Kırpık ipucu — hint rect'i stage içinde kalmalı
     const hint = document.getElementById('subHiddenHint');
@@ -334,25 +336,42 @@ async function main() {
   assert(feat.ytPlayerCleanup === true, 'çıkışta oynatıcı OAuth durumu temizlenmedi');
   assert(failed.length === 0, `özellik probları: ${failed.join(', ')}`);
 
-  // Kayıtlı istemciyle giriş formu tekrar gösterilmeden cihaz koduna geçmeli.
+  // Kayıtlı istemciyle giriş formu tekrar gösterilmeden yöntem seçimine geçmeli;
+  // cihaz kodu ancak "Cihaz kodu üret" seçilince başlar.
   await win.webContents.executeJavaScript('openYoutubeLogin()', true);
   await delay(250);
-  const deviceFlow = await win.webContents.executeJavaScript(`(() => {
+  const choice = await win.webContents.executeJavaScript(`(() => {
     const dlg = document.getElementById('youtubeLoginModal');
-    const code = document.getElementById('ytUserCode');
     const view = document.getElementById('ytDeviceView');
     const client = document.getElementById('ytClientView');
-    document.getElementById('ytCopyCode').click();
+    const block = document.getElementById('ytDeviceCodeBlock');
     return {
       modalOpen: !dlg.classList.contains('hidden'),
       deviceVisible: !view.classList.contains('hidden'),
       clientHidden: client.classList.contains('hidden'),
+      browserBtn: !!document.getElementById('ytBrowserAuth'),
+      deviceBtn: !!document.getElementById('ytDeviceCodeStart'),
+      blockHidden: block.classList.contains('hidden'),
+      code: document.getElementById('ytUserCode').textContent,
+    };
+  })()`, true);
+  assert(choice.modalOpen && choice.deviceVisible && choice.clientHidden && choice.browserBtn && choice.deviceBtn && choice.blockHidden && choice.code === '----',
+    `giriş yöntemi seçimi beklenen durumda değil: ${JSON.stringify(choice)}`);
+  await win.webContents.executeJavaScript("document.getElementById('ytDeviceCodeStart').click()", true);
+  await delay(300);
+  const deviceFlow = await win.webContents.executeJavaScript(`(() => {
+    const code = document.getElementById('ytUserCode');
+    const block = document.getElementById('ytDeviceCodeBlock');
+    document.getElementById('ytCopyCode').click();
+    return {
+      deviceVisible: !document.getElementById('ytDeviceView').classList.contains('hidden'),
+      blockVisible: !block.classList.contains('hidden'),
       code: code.textContent,
     };
   })()`, true);
   await delay(100);
-  assert(deviceFlow.modalOpen && deviceFlow.deviceVisible && deviceFlow.clientHidden,
-    'kayıtlı istemci doğrudan cihaz kodu ekranına geçmedi');
+  assert(deviceFlow.deviceVisible && deviceFlow.blockVisible,
+    'cihaz kodu seçimi bloğu açmadı');
   assert(deviceFlow.code === 'ABCD-EFGH', `yanlış cihaz kodu: ${deviceFlow.code}`);
   assert(copiedCode === 'ABCD-EFGH', 'cihaz kodu panoya kopyalanmadı');
   await delay(800);
@@ -367,12 +386,17 @@ async function main() {
   // İlk kod isteği geç döndüğünde eski kuşak, yeni kuşağın poll'unu iptal etmemeli.
   slowNextDeviceCode = true;
   await win.webContents.executeJavaScript('youtubeLoggedIn = false; refreshYoutubeAuthUI(); openYoutubeLogin()', true);
-  await delay(70);
+  await delay(150);   // session kontrolü → yöntem seçimi
+  await win.webContents.executeJavaScript("document.getElementById('ytDeviceCodeStart').click()", true);
+  await delay(50);    // gen1 yavaş istek uçuşta
   await win.webContents.executeJavaScript('closeYoutubeLogin(); openYoutubeLogin()', true);
+  await delay(150);   // gen1 iptal + yeni modal → seçim ekranı
+  await win.webContents.executeJavaScript("document.getElementById('ytDeviceCodeStart').click()", true);
   await delay(450);
   const raceView = await win.webContents.executeJavaScript(`(() => ({
     code: document.getElementById('ytUserCode').textContent,
-    visible: !document.getElementById('ytDeviceView').classList.contains('hidden'),
+    visible: !document.getElementById('ytDeviceView').classList.contains('hidden')
+      && !document.getElementById('ytDeviceCodeBlock').classList.contains('hidden'),
   }))()`, true);
   assert(raceView.visible && raceView.code === 'ABCD-EFGH', 'yeni cihaz kodu eski kuşakta kayboldu');
   assert(deviceCancelCount === 1, `bayat cihaz kodu yeni akışı iptal etti: ${deviceCancelCount}`);
@@ -385,10 +409,12 @@ async function main() {
     youtubeLoggedIn = false;
     await renderSmartTubeSection('home', { force: true });
     const failed = document.getElementById('stGrid').textContent.includes('mock feed unavailable');
-    const retry = document.querySelector('#stGrid .st-feed-retry');
+    const retry = document.querySelector('#stGrid .st-home-fallback .btn-secondary');
     if (retry) retry.click();
     await new Promise(resolve => setTimeout(resolve, 200));
-    return { failed, retryVisible: !!retry, recovered: document.querySelectorAll('#stGrid > .st-card').length >= 6 };
+    return { failed, retryVisible: !!retry, recovered: document.querySelectorAll('#stGrid > .st-card').length >= 6,
+      text: document.getElementById('stGrid').textContent.slice(0, 240),
+      section: stCurrentSection, seq: stSectionSeq };
   })()`, true);
   assert(feedRecovery.failed && feedRecovery.retryVisible && feedRecovery.recovered,
     `feed retry did not recover: ${JSON.stringify(feedRecovery)}`);
