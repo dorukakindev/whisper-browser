@@ -1,5 +1,23 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
+Güncel çalışma: [2026-09-21 13:57 — Devin cloud değişiklikleri güvenlik ve gerçek Electron smoke denetimi; dar YouTube OAuth yetkisi, token/istemci izolasyonu ve SmartTube ayrıştırma düzeltmeleri](docs/devir/2026-09-21-1357.md).
+
+Önceki çalışma: [2026-09-21 13:13 — PR dokümantasyon altyapısı: template genişletildi (What/Why/How/Tests/Risks/Links), CHANGELOG Keep-a-Changelog'a çevrildi + #2/#5/#7/#8/#9/#11 geriye dönük işlendi, CONTRIBUTING'e changelog kuralı](docs/devir/2026-09-21-1313.md).
+
+Önceki çalışma: [2026-09-21 05:58 — SmartTube ana sayfa boş-kalma düzeltmesi: akış hatasında yerel raylar + giriş CTA'sı (stRenderHomeFallback), render fazı try/catch, InnerTube lockupViewModel ayrıştırma](docs/devir/2026-09-21-0558.md).
+
+Önceki çalışma: [2026-09-21 04:32 — SmartTube girişi sıfır-kuruluma geçti: gömülü YouTube TV (TVHTML5) istemcisiyle google.com/device kodu + QR; InnerTube scope düzeltmesi; kuyruk F3/F4/F5 (any-position dequeue, kapasite logu, ray tazeleme)](docs/devir/2026-09-21-0432.md).
+
+Önceki çalışma: [2026-09-21 04:10 — F2 düzeltmesi: kuyruk otomatik/Sonraki geçişi yarım kalmış videoda kaldığı saniyeden devam ediyor (pendingLibrarySeek); npm test temiz](docs/devir/2026-09-21-0410.md).
+
+Önceki çalışma: [2026-09-21 03:43 — siyah sahne düzeltmesi: başarısız kart probe'unda SmartTube overlay'i geri açılıyor; F-6 davranış testi, npm test temiz](docs/devir/2026-09-21-0343.md).
+
+Önceki çalışma: [2026-09-21 03:08 — translation_refresh'e index alanı: refine 2. geçişinin revize metni canlı önizlemeye ulaşıyor; YouTube→transcribe→TR çeviri (shuaiapi/claude-sonnet-5) uçtan uca doğrulandı; npm test temiz](docs/devir/2026-09-21-0308.md).
+
+Önceki çalışma: [2026-09-20 23:15 — F1 Major düzeltmesi: kuyruk toggle ve medya geçişinde Sonraki düğmesi tazeleniyor; report67 davranış testleri 74/74](docs/devir/2026-09-20-2315.md).
+
+Önceki çalışma: [2026-09-20 22:17 — kozmetik/öneri kataloğu kapanışı, responsive reader+overlay ölçek matrisi, Windows paket/lisans/geçmiş denetimi, çapraz-platform yeşil CI ve GitHub güvenlik kapıları](docs/devir/2026-09-20-2217.md).
+
+Önceki çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
 
 Önceki çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
 

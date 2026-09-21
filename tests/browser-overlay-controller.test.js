@@ -119,6 +119,13 @@ test('satır ayırıcı karakterleri silmeden JavaScript içinde güvenle escape
   assert(!escaped.includes(`a\u2028b`));
 });
 
+test('fullscreen araç çubuğu zoom ve dar görünümde viewport dışına taşmaz', () => {
+  assert.match(script, /max-width:calc\(100vw - 16px\)/);
+  assert.match(script, /max-height:calc\(100vh - 16px\)/);
+  assert.match(script, /overflow:auto;overscroll-behavior:contain/);
+  assert.match(script, /width:min\(430px,calc\(100vw - 34px\)\);max-width:100%/);
+});
+
 test('R51-77: JASSUB canvas aktifken DOM altyazı kutusu çizilmez ve geri döner', () => {
   // Aynı video üzerinde ASS canvas + DOM overlay aynı z-index'te çift metin
   // çiziyordu. render() artık __whisperAssState varlığında cue kutusunu gizler;

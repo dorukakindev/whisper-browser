@@ -5,12 +5,14 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { previewNmdbImport, episodeFromName, mapWorks } = require('../src/nmdb-catalog-import');
+const { findTestPython } = require('./python-runtime');
 
 async function main() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-nmdb-import-'));
   try {
     const dbPath = path.join(dir, 'synthetic.sqlite');
-    const pythonPath = path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe');
+    const pythonPath = findTestPython();
+    assert(pythonPath, 'Python test çalışma zamanı bulunamadı.');
     const create = String.raw`
 import sqlite3, sys
 db = sqlite3.connect(sys.argv[1])

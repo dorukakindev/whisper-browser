@@ -1,6 +1,6 @@
 # Öneri raporları tam kataloğu — 20.09.2026
 
-Bu belge [önceki kısa karar özetinin](FEATURE_RECOMMENDATION_REVIEW_2026-09-20.md) yerine geçer. **Öncelik sırası değildir.** Kullanıcının istediği gibi önerileri kaynağındaki ayrıntıyı kaybetmeden görünür kılar. Bu belge ürün özelliği uygulamaz. Son eşzamanlı ürün commit'i: `2b67ea34` (SmartTube oynatma sırası); katalog senkronizasyon tabanı `master`: `f90a5b4`.
+Bu belge [önceki kısa karar özetinin](FEATURE_RECOMMENDATION_REVIEW_2026-09-20.md) yerine geçer. **Öncelik sırası değildir.** Kullanıcının istediği gibi önerileri kaynağındaki ayrıntıyı kaybetmeden görünür kılar. Durumlar 20 Eylül uygulama partileri ve kamu sürümü kapıları sonrasında yeniden eşlenmiştir; tarihsel commit ve kanıt ayrıntıları `docs/devir/` notlarındadır.
 
 İncelenen öneri belgeleri: `BROWSER_FEATURE_RESEARCH_75.md`, `BROWSER_FEATURE_RESEARCH_76.md` (derin genişleme dâhil), `FEATURE_BLUEPRINTS.md` (BP01–07), `BROWSER-KOZMETIK-ONERILER-RAPORU-2026-09-11.md`, `docs/streaming-subtitle-research-2026-09-14.md` ve 180 depolu `docs/GITHUB_BENZER_PROJELER_STRATEJI_RAPORU_2026-09-01.md`. `TUM-ONERILER-UYGULAMA-DOGRULAMA-2026-09-12.md` eski önerilerin kapanış kaydı olarak, `ENTEGRASYON-PLANI.md` tarihsel entegrasyon görevi olarak okundu; bunlardan kapanmış işleri yeni özellik gibi tekrar önermiyorum.
 
@@ -10,34 +10,34 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 
 | No | Öneri | Karar ve somut sınır |
 | --- | --- | --- |
-| A01 | SmartTube kartında sağ-tık/uzun-bas menüsü (sonra oynat, kuyruğa ekle, kanalı aç, paylaş, yerel gizle, Watch Later) | **E** — mevcut kart click/klavye davranışını bozmadan ayrı menü; hesap gerektiren aksiyonlar menüye sahte işlev olarak konmaz. |
+| A01 | SmartTube kartında sağ-tık/uzun-bas menüsü (sonra oynat, kuyruğa ekle, kanalı aç, paylaş, yerel gizle, Watch Later) | **V** — yerel ve dürüst kapsamlı kart menüsü eklendi; oynat/sıra/kanal/bağlantı/gizle var, hesap gerektiren sahte Watch Later yok. |
 | A02 | Kullanıcının yönettiği oynatma kuyruğu (Play Next, sona ekle, sırala, çıkar, sonraki video, yeniden açılışta toparla) | **V** — `2b67ea3` ile kalıcı SmartTube sırası ve ended/Next bağlantısı eklendi. Yeni iş ancak sıralama/çıkarma/yarış kabulünde somut açık varsa. |
-| A03 | “İlgilenmiyorum / bu kanalı gösterme” yerel filtreleri | **E** — YouTube hesabına geri bildirim gönderiyormuş gibi gösterilmez; geri alma ve görünür filtre durumu gerekir. |
-| A04 | History, Playlists, Live, Music/Gaming/News için gerçek bölüm/sekme düzeni | **E** — mevcut trend çipleri ve watch-library geçmişiyle çift kayıt yapılmaz; bölüm seçimi/kaydı test edilir. |
+| A03 | “İlgilenmiyorum / bu kanalı gösterme” yerel filtreleri | **V** — yerel video/kanal gizleme, görünür geri alma listesiyle eklendi; YouTube hesabına geri bildirim iddiası yok. |
+| A04 | History, Playlists, Live, Music/Gaming/News için gerçek bölüm/sekme düzeni | **V** — Canlı/Müzik/Oyun/Haber/Geçmiş/Listelerim bölümleri ve boş/hata durumları eklendi. |
 | A05 | Yatay raf, çoklu grid ve Shorts dikey grid kart yerleşimleri | **K** — önce ekran ölçüsü/klavye gezinmesi ve mevcut grid performansı; TV görünümü için anlamlı olabilir. |
-| A06 | Yerel abonelikler ve abonelik grupları, kenar çubuğuna sabitleme | **E** — Invidious oturumu olmasa çalışır; kanal ID tekilleştirme, profil/grup ve import/export birlikte. |
-| A07 | OPML/CSV/JSON/NewPipe Takeout abonelik içe-dışa aktarma | **E** — biçimler ayrı doğrulanır; hesap parolası/oturum dışa aktarılmaz. |
-| A08 | SmartTube sonuçlarında Shorts/izlenen/live/trending/yorum/önerilenleri kullanıcıya göre gizleme | **E** — ayar bazlı, geri alınabilir. YouTube sayfasındaki mevcut Hide Shorts CSS ile karıştırılmamalı. |
-| A09 | Altyazı seçicisinde son kullanılan dil/izleri üste alma | **E** — mevcut `lastCaptionPrefs` kullanılarak; zorunlu/SDH ve otomatik iz yanlış seçilmez. |
-| A10 | Kart boyutu, yazı ölçeği ve geniş TV grid ayarı | **E** — gerçek pencere/DPI testleriyle; salt kozmetik ama somut. |
+| A06 | Yerel abonelikler ve abonelik grupları, kenar çubuğuna sabitleme | **V** — oturumsuz yerel abonelikler, kanal kimliği tekilleştirme ve gruplar eklendi. |
+| A07 | OPML/CSV/JSON/NewPipe Takeout abonelik içe-dışa aktarma | **V** — dört biçim doğrulamalı ve oturum/parola dışlamalı içe-dışa aktarım mevcut. |
+| A08 | SmartTube sonuçlarında Shorts/izlenen/live/trending/yorum/önerilenleri kullanıcıya göre gizleme | **V** — geri alınabilir Shorts/izlenen/canlı/trend filtreleri eklendi; desteklenmeyen yorum/önerilen filtresi iddia edilmiyor. |
+| A09 | Altyazı seçicisinde son kullanılan dil/izleri üste alma | **V** — son seçim tercihleri zorunlu/SDH ve otomatik iz ayrımını koruyarak sıralamaya bağlandı. |
+| A10 | Kart boyutu, yazı ölçeği ve geniş TV grid ayarı | **V** — kart ve metin ölçeği ayarları kalıcı, responsive matrisle korunuyor. |
 | A11 | Canlı sohbet paneli | **B** — canlı yayın kullanım kanıtı ve kaynak/yenileme maliyeti gerekiyor. |
 | A12 | SponsorBlock segmentlerini tüketme | **V** — mevcut; yeniden entegrasyon değil. Segment gönderimi/RYD oy gönderimi önerilmez. |
 | A13 | Kart thumbnail'ında izleme ilerleme çubuğu ve tamamlandı rozeti | **V** — `fc42b40` ile kart ilerlemesi ve ana sayfada “İzlemeye devam et” rayı eklendi. Tamamlandı rozeti ayrı eksikse yalnız o dar parça ölçülür. |
 | A14 | SABR/YouTube oynatma kırılmasına karşı probe/fallback izleme | **K** — gerçek kırılma oranı ve sürüm fixtürü olmadan yeni akış motoru eklenmez. |
 | A15 | DeArrow alternatif başlık/thumbnail + “orijinali göster” | **K** — açık opt-in, tekil istek/caching ve üçüncü tarafa video ID gönderimi bildirimi. |
 | A16 | Video kare ekran görüntüsü | **V** — mevcut video/altyazılı kompozit yolu önce tekrar doğrulanır. |
-| A17 | Yerel veya açık URL'yi mpv/VLC'ye verme | **E** — doğrulanmış oynatıcı yolu ve yalnız yetkili/açık kaynak; imzalı/DRM URL'yi sızdıran genel menü değil. |
+| A17 | Yerel veya açık URL'yi mpv/VLC'ye verme | **V** — doğrulanmış oynatıcı ve yetkili/açık kaynak sınırıyla mevcut; imzalı/DRM adresi genel menüye verilmez. |
 | A18 | Kanal community/post görünümü | **K** — kanal sekmesiyle birlikte, eksik instance'da düzgün boş durum. |
-| A19 | YouTube-parite kısayolları `t`, `i`, `k`; çift-tıklama/dokunma seek | **E** — mevcut kısayol haritası ve sayfadaki input odaklarıyla çakışma testi. |
-| A20 | YouTube storyboard sprite ile seekbar kare önizlemesi | **E** — [Invidious video API](https://docs.invidious.io/api/) metadata'sı kaynak olabilir; yoksa zaman/cue tooltip'i kalır, sprite/cache sınırlandırılır. |
+| A19 | YouTube-parite kısayolları `t`, `i`, `k`; çift-tıklama/dokunma seek | **V** — odak çakışma kapılarıyla kısayollar ve kenar çift-tık seek mevcut. |
+| A20 | YouTube storyboard sprite ile seekbar kare önizlemesi | **V** — Invidious storyboard ve sınırlı disk önbelleğiyle mevcut; metadata yoksa güvenli fallback kullanılıyor. |
 | A21 | Yalnız-ses/arka plan oynatma | **K** — mevcut video/sekme lifecycle ve ses odağıyla davranış netleştirilmeli. |
-| A22 | Yerel çalma listeleri ve Enqueue | **E** — oynatma kuyruğu ile farklı kalıcılık sözleşmesi; iki kavram UI'da ayrılır. |
-| A23 | Invidious arama önerileri | **E** — [resmî endpoint](https://docs.invidious.io/api/) var; debounce, iptal, isteğin uzak instance'a gittiği görünür olmalı. |
+| A22 | Yerel çalma listeleri ve Enqueue | **V** — kuyruktan ayrı kalıcılık ve panel yönetimiyle yerel listeler mevcut. |
+| A23 | Invidious arama önerileri | **V** — debounce, iptal ve bayat-sorgu korumasıyla mevcut. |
 | A24 | Invidious `captions?tlang=` üzerinden otomatik çeviri | **K** — [API bunu desteklediğini söylüyor](https://docs.invidious.io/api/), fakat kalite/zaman eşleşmesi kanıtlanmadan LLM çevirisinin yerine otomatik konmaz; servis çevirisi diye etiketlenir. |
 | A25 | Invidious transcript endpoint'inden metin edinme | **K** — mevcut altyazı/transcript paneli ve cue kimliklerini bozmadan yalnız kaynak alternatifi olarak. |
 | A26 | Clips ve hashtag sayfası | **B** — video/altyazı iş akışına sınırlı katkı. |
-| A27 | Kanal sekmeleri: videos, shorts, streams, podcasts, releases, courses, playlists, community, related channels, kanal içi arama | **E** — tek kanal sayfası kapsamında, desteklenmeyen endpoint/instance fallback'iyle. |
-| A28 | Playlist detay sayfası ve arama sonuçlarından playlist açma | **E** — backend `playlist()` mevcut; UI ve sayfalama eksikliği ayrıca test edilir. |
+| A27 | Kanal sekmeleri: videos, shorts, streams, podcasts, releases, courses, playlists, community, related channels, kanal içi arama | **V** — desteklenen kanal sekmeleri ve kanal içi arama fallback'li UI'ya bağlandı; instance'ın sunmadığı sekmeler boş durum verir. |
+| A28 | Playlist detay sayfası ve arama sonuçlarından playlist açma | **V** — playlist detay görünümü ve arama sonucu bağlantısı mevcut. |
 | A29 | Invidious `hl` ile yerelleştirilmiş API alanları | **K** — kaynak başlık/altyazı ve UI locale birbirine karıştırılmamalı. |
 | A30 | Auth history, playlists, feed, notifications ve watched işaretleme | **K** — yalnız kullanıcı hesabı açıkça bağlanınca; yerel geçmişten ayrı tut. |
 | A31 | Piped hesapsız çok-kanallı feed ve arama önerisi yedeği | **K** — örnek instance güvenilirliği, şema ve veri sızıntısı ölçülmeli. |
@@ -45,9 +45,9 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 | A33 | Piped SponsorBlock/RYD passthrough | **B** — mevcut kaynaklar çalışırken çoğaltma. |
 | A34 | Return YouTube Dislike sayısı/puanı | **K** — yalnız detayda, opt-in ve video-ID başına tek istek; oylama göndermek **R**. |
 | A35 | YouTube.js ile auth gerektiren playlist, beğeni, abonelik, geçmiş, yanıt ve live chat | **K** — [proje MIT ve etkin](https://github.com/LuanRT/YouTube.js/) ama InnerTube özel API ve kimlik köprüsü ağır; ayrı güvenlik/oturum deneyi gerekir. |
-| A36 | `navigator.mediaSession` oynatma tuşları/OS now-playing/seek | **E** — yerel oynatıcı ile web sayfasının medya oturumu çakışmamalı; aktif kaynak ve kapanış temizliği. |
+| A36 | `navigator.mediaSession` oynatma tuşları/OS now-playing/seek | **V** — aktif kaynak ve kapanış temizliğiyle oynat/seek bağlantısı mevcut. |
 | A37 | Windows thumbar butonları ve görev çubuğu ilerlemesi | **K** — `setProgressBar` kodda kısmen kullanılıyor; önce mevcut kullanım/Windows smoke'u, sonra oynatma/iş ilerlemesi ayrımı. |
-| A38 | Uyku zamanlayıcısı, radio/related-video zinciri, shuffle-all, most-played sıralaması | **E** — her biri ayrı görünür kontrol; otomatik video zinciri varsayılan kapalı. |
+| A38 | Uyku zamanlayıcısı, radio/related-video zinciri, shuffle-all, most-played sıralaması | **V** — ayrı kontroller mevcut; radyo zinciri onaylı ve varsayılan kapalı. |
 | A39 | Canlı sohbet polling, cookie rotation, bildirim kutusu parser'ı | **B** — servis bakım/hesap riski; kullanıcı senaryosu çıkarsa tekrar bak. |
 | A40 | Materialious/ViewTube/Clipious görünüm desenleri ve watch-party | **K** — bölüm/altyazı kartı fikirleri alınabilir; doğrudan kod portu ve watch-party şimdilik yok. |
 
@@ -55,30 +55,30 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 
 | No | Öneri | Karar ve somut sınır |
 | --- | --- | --- |
-| B01 | Yerel videoda seekbar görseli: ffmpeg tek kare veya Jellyfin tile-sprite / thumbfast deseni | **E** — mevcut browser-reference thumbnail'ı yerel oynatıcıya doğrudan bağlı değil; yetkili dosya IPC'si, iptal/önbellek, zoom ve scrub performansı gerekir. |
+| B01 | Yerel videoda seekbar görseli: ffmpeg tek kare veya Jellyfin tile-sprite / thumbfast deseni | **V** — yetkili dosya IPC'si, iptal ve önbellekle ffmpeg tile-sprite önizlemesi bağlı. |
 | B02 | Chapter adı/sessizlik/siyah kareyle intro-jenerik algılama | **K** — chapter/SponsorBlock zaten var; önce yanlış atlama korpusu, sonra açık onaylı öneri. Chromaprint'i özel build kanıtı olmadan ekleme. |
-| B03 | OpenSubtitles moviehash + dosya boyutu ile daha kesin altyazı arama | **E** — dosya yetkisi ve doğru sürüm/rank doğrulamasıyla; genel çok-sağlayıcılı `subliminal` **K**. |
+| B03 | OpenSubtitles moviehash + dosya boyutu ile daha kesin altyazı arama | **V** — yetkili medya hash'i, boyut ve eşleşme rozetiyle mevcut; çok-sağlayıcılı subliminal eklenmedi. |
 | B04 | Gizli sekme | **K** — in-memory partition ve oturum/indirilenler/yer imleri/DRM sınırları tasarlanmalı. |
 | B05 | Konteyner sekmeleri, site başına proxy/Tor | **B** — SSO/DRM/izin etkisi yüksek; sırf tarayıcı-paritesi için değil. |
-| B06 | Sekme hover önizleme kartları ve duplicate/close-others/close-right/copy-URL menüsü | **E** — mevcut sekme yaşam döngüsüne ve klavye/a11y akışına uyarlanabilir. |
+| B06 | Sekme hover önizleme kartları ve duplicate/close-others/close-right/copy-URL menüsü | **V** — gecikmeli hover kartı ve sekme bağlam menüsü yaşam döngüsü/a11y testleriyle mevcut. |
 | B07 | Siteyi ayrı pencere/SSB olarak açma | **K** — BrowserWindow çoğalması, profil/izin ve geri-dönüş davranışı ölçülmeli. |
 | B08 | ClearURLs/De-AMP/temiz link kopyalama ve yönlendirme çözme | **K** — küçük, açık kural listesi + istisnalar; imzalı/ödeme/oturum URL'lerini bozmama testi. Tam uzak kural kataloğu ayrıca lisans/mahremiyet incelemesi. |
 | B09 | Çerez onayını otomatik-ret | **K** — üçüncü taraf kural lisansı ve sitenin işlevini bozma/yanlış tıklama testleri olmadan genel enjeksiyon yok. |
-| B10 | Kozmetik element picker | **E** — mevcut uygulayıcıya UI eklemek; seçici yalnız kullanıcının onayıyla saklanır, geri alma var. |
+| B10 | Kozmetik element picker | **V** — açık kullanıcı onayı, kaynak-başına kalıcılık ve geri alma ile mevcut. |
 | B11 | Site profiliyle JS/resim/büyük medya kapatma | **K** — video/altyazı keşfini bozacağından açık site istisnası ve görünür durum gerekli. |
 | B12 | Üçüncü taraf Cookie/Referer/ETag kırpma, Privacy-Badger sezgisi, uMatrix-lite, Lightbeam grafiği | **B** — karmaşık mahremiyet motoru ve streaming uyumluluk maliyeti; somut izleyici sorunu ölçülmeden değil. |
 | B13 | DLNA/Chromecast ve Remote Playback probe'u | **K** — önce Electron'da açık yerel medya ile yetenek testi; [W3C API tanımı](https://www.w3.org/TR/remote-playback/) derli Cast servisinin kanıtı değildir. DLNA için eşleme/altyazı yetkisi gerekir. |
-| B14 | Otomatik PiP ve sinema/odak modu | **E** — mevcut mini-player üzerinden opt-in; site kontrollerini örtmemeli. |
+| B14 | Otomatik PiP ve sinema/odak modu | **V** — opt-in otomatik PiP ve sinema modu mevcut; sekme/video yaşam döngüsüne bağlı. |
 | B15 | Video parlaklık/kontrast/saturation ve ses yükseltme | **V/K** — parlaklık/kontrast ve normalleştirme mevcut; yeni saturation/gain yalnız CORS/ses güvenliği testiyle. |
 | B16 | Sekme sesini WAV'e veya video+sesini WebM'e kaydetme | **K** — mevcut PCM/capture parçaları, ama rıza/DRM/depoya sızma ve dosya boyutu sınırları tasarlanmalı. |
 | B17 | TV/gamepad için uzamsal gezinme ve ekran klavyesi | **K** — SmartTube grid gezinmesi var; genel web sayfası değil. Kumanda hedefi netleşirse. |
 | B18 | Whisper ile adres/arama alanına sesli giriş | **K** — hazır ASR hattının mikrofon izni ve hedef alanı açık gösterilerek. |
 | B19 | Reader/seçim TTS (`speechSynthesis` veya güncel yerel motor) | **K** — okuma kullanımı doğrulanırsa; arşivli eski Piper doğrudan bağımlılık yapılmaz. |
-| B20 | Web sayfasını PDF'e kaydetme | **E** — MHTML'den ayrı çıktı, dosya seçimi ve gizli sayfa verisi uyarısı. |
-| B21 | Sayfa bağlantısını QR gösterme; Markdown olarak kopyalama | **E** — basit paylaşım/araştırma aracı; URL/userinfo temizliği ve clipboard testi. |
-| B22 | Çevrimdışı okuma listesi (MHTML + sayfa indeksi) | **E** — mevcut iki parçayı birleştirme, silme/yenileme ve arşiv kapsamı belli olsun. |
+| B20 | Web sayfasını PDF'e kaydetme | **V** — MHTML'den ayrı, seçici ve veri uyarılı PDF çıktısı mevcut. |
+| B21 | Sayfa bağlantısını QR gösterme; Markdown olarak kopyalama | **V** — userinfo temizliği ve clipboard sözleşmesiyle mevcut. |
+| B22 | Çevrimdışı okuma listesi (MHTML + sayfa indeksi) | **V** — yönetilen MHTML deposu, aç/sil/yenile ve yerler paneliyle mevcut. |
 | B23 | Mobil görünüm/cihaz emülasyonu | **K** — site oynatıcı ve oturum etkisi için site bazlı, kolay geri alma. |
-| B24 | Adres çubuğu arama kısayolları (DDG bangs, `!yt`) | **E** — açık eşleme, arama verisinin hedef servise gidişi görünür. |
+| B24 | Adres çubuğu arama kısayolları (DDG bangs, `!yt`) | **V** — açık eşlemeli bang kısayolları mevcut. |
 | B25 | Userscript yöneticisi ve GM_* yetkileri; pre-nav script | **K** — yalnız açık kullanıcı yüklemesi, `@match` sınırı, izole dünya, izin modeli ve `GM_xmlhttpRequest` için güçlü yetki duvarı. Genel CORS bypass varsayılan olamaz. |
 | B26 | Tam Chrome eklentileri, şifre kasası | **B/R** — Electron tam Chrome uyumluluğu hedefi değil; kimlik bilgisi kasası güvenlik ürünüdür, bu uygulamanın çekirdeği değil. |
 | B27 | Otomatik güncelleme, EVS üretim imzası, youtube.com/tv deneyi | **K** — güncelleme imza/geri alma/dağıtım kanalıyla; EVS gerçek dağıtım sözleşmesiyle; TV sitesi UA hilesi deneysel. |
@@ -89,7 +89,7 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 | --- | --- | --- |
 | C01 | Vieb pointer-mode, çok-sekmeli arama, marks/historyswipe/visual mode | **K** — klavye kullanıcısı için işlevli; link-hints/split mevcut, tekrar etmeyip yeni etkileşimleri ayrı test et. |
 | C02 | Vieb erwic/site-pencereleri, userAgentData override, linkedom reader ayrıştırma | **B** — ilki profil karmaşıklığı; spoof site bozabilir; reader değiştirmek için ölçülmüş darboğaz gerekir. |
-| C03 | Nyxt auto-rules: siteye göre reader/dark/çeviri/zoom birleşik eylemleri | **E** — mevcut site profiline sınırlı deklaratif kural olarak; döngü/çakışma ve en özgül kural sözleşmesi. |
+| C03 | Nyxt auto-rules: siteye göre reader/dark/çeviri/zoom birleşik eylemleri | **V** — site profilinde `readerAuto` ve en özgül kural sözleşmesi mevcut; genel betik otomasyonu değil. |
 | C04 | Nyxt dallanan geçmiş ağacı, yer imi etiketleri, clipboard ring | **K** — düz geri/ileri ve mevcut geçmişten farklı UX; veri şeması/geri uyum ölçülür. |
 | C05 | qutebrowser quickmarks, domain ayar döngüsü, hint filtreleri, lazy-load | **K** — mevcut komut paleti/link-hints/hibernation ile farkı netleştir. |
 | C06 | Textarea'yı uygulama editöründe açıp geri yazma | **K** — sayfa kimliği/DOM değiştirme yarışı ve hassas form metni mahremiyeti. |
@@ -108,7 +108,7 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 | C19 | aria2 devam-edebilir indirme | **K** — mevcut indirme başarısızlığı ve çok büyük dosya ölçümü varsa, yeni binary/lisans yönetimiyle. |
 | C20 | WebTorrent/Magnet akışı | **R** — ürün ve destek kapsamını gereksiz büyütür. |
 | C21 | Playwright Electron E2E; görsel snapshot | **K** — mevcut gerçek Electron smoke'un kapsayamadığı belirli UI yarışı/farkı için hedefli senaryo, bağımlılık olsun diye değil. |
-| C22 | axe-core/pa11y erişilebilirlik testi | **E** — mevcut ARIA/klavye davranışını regresyonla korumak için; gerçek odak akışı ayrıca el ile incelenir. |
+| C22 | axe-core/pa11y erişilebilirlik testi | **V** — axe-core regresyon kapısı ve davranışsal klavye/odak testleri mevcut; tam manuel tur kabul matrisinde ayrıca izleniyor. |
 | C23 | knip/madge/dependency-cruiser kod ve modül grafiği | **K** — rapor çıktısı önce yanlış-pozitif süzgecinden geçmeli; yeni CI kapısı için kanıt gerekir. |
 | C24 | eruda/vConsole sayfa içi debug paneli | **B** — yalnız geliştirici test profilinde; yabancı sayfaya varsayılan script enjekte edilmez. |
 | C25 | imsc gelişmiş TTML/IMSC render, vtt.js parser referansı | **K/V** — temel TTML/stpp parser zaten var; yalnız stil/konum/IMSC gerçek fixture'ında eksiğin kanıtı olursa. |
@@ -122,7 +122,7 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 | C33 | `getVideoPlaybackQuality`/rVFC “stats for nerds” ve kare-kare ilerleme | **E/V** — frame-step yerel oynatıcıda mevcut; site videosu ve tanı overlay'i ayrı, gerçek ölçümle. |
 | C34 | Speculation Rules prefetch, ambient video blur | **B** — birincisi gereksiz ağ/gizlilik, ikincisi kozmetik ve GPU maliyeti. |
 | C35 | Sekme auto-refresh, multi-highlight, form recovery | **K** — her biri ayrı kullanıcı verisi/zamanlayıcı sözleşmesi; form metni varsayılan saklanmaz. |
-| C36 | Omnibox hesaplayıcı, Markdown bağlantı kopyası, hover-zoom görsel | **E/K** — hesaplayıcı ve kopya küçük; hover-zoom sayfa tıklama/mahremiyet etkisi nedeniyle koşullu. |
+| C36 | Omnibox hesaplayıcı, Markdown bağlantı kopyası, hover-zoom görsel | **V/K** — hesaplayıcı ve Markdown kopya mevcut; hover-zoom etkileşim/mahremiyet nedeniyle koşullu kalıyor. |
 | C37 | HTTPS-First ve WebRTC yerel IP kısıtı | **K** — kırılan siteler için açık geri alma ve hedef tarayıcı testi. |
 | C38 | Fingerprint gürültüsü, canvas/audio/timezone/locale spoof | **R** — bot/DRM/oturum sorunları ve yanlış güvenlik hissi. |
 | C39 | DDG Fire Button (oturum/veri silme) | **K** — hedefleri tek tek gösterip onaylatan, geri alınamayan işlem uyarılı tasarım; tek-tık kör silme olmaz. |
@@ -141,7 +141,7 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 | No | Madde | Karar |
 | --- | --- | --- |
 | D01 | BP-01 sekme dondurma | **K** — C11; mevcut unload yerine üstün olduğu iddiası kanıtlanmadı. |
-| D02 | BP-02 seekbar hover önizleme | **E** — B01/A20; şartnamedeki “sadece UI bağlantısı” eksik, yerel oynatıcı dosya-yetki yolu ayrıca gerekir. |
+| D02 | BP-02 seekbar hover önizleme | **V** — A20/B01 kapsamında YouTube storyboard ve yetkili yerel tile-sprite yolu tamamlandı. |
 | D03 | BP-03 userscript + GM_* | **K** — B25; en ağır güven sınırı `GM_xmlhttpRequest`. |
 | D04 | BP-04 TTML/DFXP | **V** — `src/browser-subtitles.js` XML süre/paragraf/span ve `parseMp4Stpp`, `src/browser-dash-capture.js` statik parça yolu mevcut. Yalnız eksik biçim fixture'ı. |
 | D05 | BP-05 semantik sayfa geçmişi | **K** — C08; FTS mevcut, semantik cue işçisi mevcut, sayfa embedding'i değil. |
@@ -154,14 +154,14 @@ Etiketler: **E** = ürüne uygun, bağımsız iş olarak eklemeyi öneririm; **K
 
 | No | Öneri | Karar |
 | --- | --- | --- |
-| E01 | Kapalı içindekiler bağlantısında hover/focus ve otomatik kaydırma affordance'ı | **E** — klavye odağı ve okunabilir durumla. |
-| E02 | Uzun okuyucu metninin 180 karakter eşiğini kullanıcıya açıklama | **E** — teknik sınıra uygun kısa mikro metin. |
+| E01 | Kapalı içindekiler bağlantısında hover/focus ve otomatik kaydırma affordance'ı | **V** — klavye odağı ve scrollspy ile mevcut. |
+| E02 | Uzun okuyucu metninin 180 karakter eşiğini kullanıcıya açıklama | **V** — iki dilli kısa mikro metin mevcut. |
 | E03 | Komut paleti `Ctrl+P` kısayolu | **K** — yazdır/PDF ve tarayıcı kısayoluyla çatışma denetimi. |
 | E04 | Durum rozetlerinin hiyerarşisi | **V/K** — altyazı arama, burn-in ve çalışma ortamı/bakım durumları renk dışında açık metin ve simge taşır; uygulamanın kalan eski rozetleri ancak ekran-bazlı bir açık bulunursa ele alınır. |
 | E05 | Boş durum metinleri ve yeniden dene geri bildirimi | **V** — altyazı aramasında hata, boş sonuç ve kısmi sonuç ayrıldı; davranış testleri locale-bağımsız saf durum kopyasını doğruluyor. |
 | E06 | Burn-in işinde GPU kullanımı ve ilerleme görünürlüğü | **V** — doğrulanmamış GPU iddiası gösterilmez; aşama, `m:ss/m:ss` süre ve “İptal ediliyor…” durumu görünür. |
 | E07 | Bakım ekranı parantezli açıklamaları sadeleştirme | **V** — çalışma ortamı/bakım paneli kısa EN/TR metin, Python/FFmpeg/yt-dlp/GPU/model diski durumu ve açık eylemlerle gerçek Electron ekranında doğrulandı. |
-| E08 | Responsive, reader spacing, overlay clipping ve tooltip düzeltmeleri | **V/K** — yeni bakım paneli geniş İngilizce ve dar Türkçe gerçek Electron ekranlarında taşmasız doğrulandı; reader/overlay/tooltip kapsamının tamamı için zoom/DPI ve video üstü menü matrisi hâlâ açık. |
+| E08 | Responsive, reader spacing, overlay clipping ve tooltip düzeltmeleri | **V** — reader/overlay taşmaları düzeltildi; 1280×820@100%, 1024×720@125% ve 760×700@150% gerçek Electron matrisi menü, çekmece, reader ve overflow sözleşmesini doğruluyor. |
 | E09 | Rapor terminolojisini mevcut HTML/renderer adlarıyla eşitleme | **V** — bu katalog ve kabul matrisi güncel `Runtime and maintenance`, model benchmark ve bakım eylemleriyle eşlendi; ürün özelliği değildir. |
 
 ## F. 180 GitHub deposu araştırması — atlanmış strateji önerilerinin tamamı
@@ -173,7 +173,7 @@ Kaynak: `docs/GITHUB_BENZER_PROJELER_STRATEJI_RAPORU_2026-09-01.md`. Bu rapor 18
 | F01 | Kalıcı browser oturumu + kanonik medya kimliği | **V** — `src/browser-session-store.js`, workspace/session IPC'leri ve geri yükleme regresyonları var. Yeni iş ancak belirli servis kimliği veya geri yükleme vakası bozuksa açılır. |
 | F02 | Oynatma kafasının önünde cümle tabanlı web çeviri zamanlayıcısı | **V** — `src/browser-translation-scheduler.js` ve seek/revision/provider hata testleri mevcut. Bellek sızıntısı varsayımı ayrıca doğrulanmış bir açık değildir. |
 | F03 | Görünür caption edinme merdiveni | **V** — `src/browser-acquisition.js` hazır iz → ağ/manifest → saklanan/elle verilen → Live ASR/OCR basamaklarını modelliyor. UI'da belirli bir basamak anlaşılmıyorsa mikrocopy/teşhis işi açılabilir. |
-| F04 | Servis yetenek matrisi: giriş, oynatma, caption, iki iz, overlay, çeviri, son doğrulama | **E/K** — edinme/adaptör altyapısı var; tarihli gerçek-site matrisi sürekli bakım belgesi olarak değerli. Giriş gerektiren servisler “kod var” diye doğrulandı sayılmaz. |
+| F04 | Servis yetenek matrisi: giriş, oynatma, caption, iki iz, overlay, çeviri, son doğrulama | **V/K** — tarihli yetenek matrisi mevcut; giriş gerektiren gerçek-site satırları kod var diye doğrulandı sayılmıyor. |
 | F05 | Browser mimarisini küçük servis sınırlarına ayırma ve ortak olay zarfı | **V/K** — session, acquisition, adapter, overlay, asset, diagnostics, scheduler gibi modüller ayrılmış. Toplu yeniden yazım yok; yalnız ölçülmüş monolitik bağımlılıklar küçük adımlarla çıkarılır. |
 | F06 | API/HF anahtarlarını OS güvenli deposuna taşıma | **V** — `src/secret-store.js`, `src/settings-security.js` ve Electron `safeStorage` entegrasyonu mevcut; export/redaction/göç testleri var. |
 | F07 | Overlay ve medya gözlem yaşam döngüsü; görünmez/kapalıyken pahalı döngüyü durdurma | **V/K** — controller/lifecycle testleri ve kaynak bütçeleri var. Genel refactor değil, gerçek uzun-oturum CPU/observer büyümesi bulunursa hedefli düzeltme. |

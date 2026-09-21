@@ -1094,10 +1094,12 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
 let _ytRefreshInFlight = null;
 async function ensureYoutubeAccessToken() {
   if (!youtubeSession.refreshToken) return null;
+  // Önceki sürümün gömülü üçüncü taraf istemcisiyle alınmış token'ı,
+  // kullanıcı kendi istemcisini kaydedene kadar hiçbir ağ isteğinde kullanma.
+  if (!youtubeSession.clientId || !youtubeSession.clientSecret) return null;
   if (youtubeSession.accessToken && Date.now() < youtubeSession.expiresAt - 60_000) {
     return youtubeSession.accessToken;
   }
-  if (!youtubeSession.clientId) return null;
   if (_ytRefreshInFlight) return _ytRefreshInFlight;
   _ytRefreshInFlight = (async () => {
     const res = await runYoutubeCommand(
@@ -1690,7 +1692,7 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
 ipcMain.handle('youtube:session', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, data: {
-    loggedIn: !!youtubeSession.refreshToken,
+    loggedIn: !!(youtubeSession.refreshToken && youtubeSession.clientId && youtubeSession.clientSecret),
     userName: youtubeSession.userName,
     userEmail: youtubeSession.userEmail,
     hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
@@ -1709,6 +1711,15 @@ ipcMain.handle('youtube:setClient', async (_e, opts) => {
   if (!/^[A-Za-z0-9._-]{10,200}$/.test(secret)) {
     return { ok: false, error: 'Geçersiz Client Secret biçimi.' };
   }
+  if (id !== youtubeSession.clientId || secret !== youtubeSession.clientSecret) {
+    // OAuth refresh/access token'ları belirli bir istemciye aittir; başka
+    // istemciyle devam etmek hem yanlış oturum hem de geniş kapsam kalıntısıdır.
+    youtubeSession.refreshToken = '';
+    youtubeSession.accessToken = '';
+    youtubeSession.expiresAt = 0;
+    youtubeSession.userName = '';
+    youtubeSession.userEmail = '';
+  }
   youtubeSession.clientId = id;
   youtubeSession.clientSecret = secret;
   persistYoutubeSession();
@@ -1718,7 +1729,7 @@ ipcMain.handle('youtube:setClient', async (_e, opts) => {
 ipcMain.handle('youtube:deviceCode', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!youtubeSession.clientId || !youtubeSession.clientSecret) {
-    return { ok: false, error: 'Önce OAuth Client ID + Secret kaydedin.' };
+    return { ok: false, error: 'Önce kendi OAuth Client ID + Secret bilgilerinizi kaydedin.' };
   }
   const res = await runYoutubeCommand(
     ['device_code', '--client-id', youtubeSession.clientId], null, 30_000);

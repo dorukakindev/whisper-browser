@@ -317,9 +317,20 @@ function makeFakeEl(tag) {
     attrs: {},
     style: {},
     appendChild(c) { c.parent = el; el.children.push(c); return c; },
+    prepend(c) { c.parent = el; el.children.unshift(c); return c; },
+    remove() {
+      if (el.parent) { el.parent.children = el.parent.children.filter((x) => x !== el); el.parent = null; }
+    },
+    querySelector(sel) {
+      return sel.startsWith('.') ? (findByClass(el, sel.slice(1))[0] || null) : null;
+    },
     addEventListener(t, f) { (el.listeners[t] = el.listeners[t] || []).push(f); },
     setAttribute(k, v) { el.attrs[k] = String(v); },
   };
+  Object.defineProperty(el, 'innerHTML', {
+    get() { return ''; },
+    set(v) { if (v === '') el.children = []; },
+  });
   el.classList = {
     _set: () => new Set(el.className.split(' ').filter(Boolean)),
     _sync(s) { el.className = [...s].join(' '); },
@@ -372,16 +383,18 @@ function fakeStorage() {
 // Gerçek kuyruk fonksiyonlarını kaynaktan çıkarıp sahte localStorage + DOM ile
 // kurar — kart düğmesi de aynı bağlamı kullanır.
 function buildQueueHarness() {
-  const calls = { probe: 0 };
+  const calls = { probe: 0, log: [] };
   const store = fakeStorage();
   const player = { openIntent: 7, pendingAutoOpen: null, mediaKey: '' };
   const ctx = vm.createContext({
     localStorage: store,
     absThumb: (u) => u,
     mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    watchItemByKey: () => null,
+    logLine: (m, l) => calls.log.push(`${l || 'info'}:${m}`),
     queuePlayerProbeFromCard: () => { calls.probe++; },
     updatePlaylistButtons: () => {},
-    document: { createElement: (t) => makeFakeEl(t) },
+    document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
     window: { UiLocale: { t: (s) => s } },
     player,
     $: () => null,
@@ -532,21 +545,151 @@ test('renderer: kuyruk ekle/çıkar/kalıcılık/güvenli-thumb (davranış)', (
   assert.strictEqual(loaded[0].videoId, 'x');
 });
 
-test('renderer: kuyruk playNext + dequeue yalnız açılan kimlikte (davranış)', () => {
+test('renderer: kuyruk playNext + dequeue eşleşen kimliği her konumdan düşürür (davranış)', () => {
   const { ctx, player, calls } = buildQueueHarness();
   assert.strictEqual(ctx.stQueuePlayNext(), false, 'boş kuyruk oynatmamalı');
   ctx.stQueueToggle({ videoId: 'n1', videoThumbnails: [] });
   ctx.stQueueToggle({ videoId: 'n2', videoThumbnails: [] });
+  ctx.stQueueToggle({ videoId: 'n3', videoThumbnails: [] });
   assert.strictEqual(ctx.stQueuePlayNext(), true);
   assert.strictEqual(calls.probe, 1, 'probe tetiklenmedi');
   assert.strictEqual(player.pendingAutoOpen.key, 'youtube:https://www.youtube.com/watch?v=n1');
   assert.strictEqual(player.pendingAutoOpen.intent, 8);
-  // Probe başarısızsa sıra korunur; yalnızca gerçekten açılan baş kayıt düşer
+  // Probe başarısızsa sıra korunur; açılan kayıt her konumdan düşer (F3)
   assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:other'), false);
-  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), false, 'baştaki değilse düşmemeli');
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), true, 'ortadaki kayıt düşmeli');
+  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n2'), false, 'tekrar düşmez');
+  assert.deepStrictEqual([...ctx.stQueueRailVideos()].map((v) => v.videoId), ['n1', 'n3']);
   assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n1'), true);
-  assert.strictEqual(ctx.stQueueDequeueIfPlaying('youtube:n1'), false, 'tekrar düşmez');
-  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'n2');
+  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'n3');
+});
+
+test('renderer: kuyruk kapasite taşmasında düşen kayıt loglanır (F4, davranış)', () => {
+  const { ctx, calls } = buildQueueHarness();
+  for (let i = 0; i < 50; i++) ctx.stQueueToggle({ videoId: `v${i}`, title: `T${i}`, videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueueRailVideos().length, 50);
+  ctx.stQueueToggle({ videoId: 'v50', title: 'yeni', videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueueRailVideos().length, 50, 'kapasite aşıldı');
+  assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'v1', 'en eski kayıt düşmeli');
+  assert.ok(calls.log.some((l) => l.startsWith('warn:') && l.includes('T0')),
+    'düşen kayıt kullanıcıya bildirilmedi');
+});
+
+test('F5a: elle çıkarma rayı tazeler — ghost kart ve boş başlık kalmaz (davranış)', () => {
+  const grid = makeFakeEl('div');
+  const { ctx } = buildQueueHarness();
+  ctx.$ = (id) => (id === 'stGrid' ? grid : null);
+  ctx.stCurrentSection = 'home';
+  ctx.buildSmartTubeCard = (v) => { const e = makeFakeEl('div'); e.className = 'st-card'; e.dataset = { vid: v.videoId }; return e; };
+  const rail = () => findByClass(grid, 'st-queue-rail')[0] || null;
+  const railCards = () => (rail() ? findByClass(rail(), 'st-card').map((c) => c.dataset.vid) : []);
+
+  ctx.stQueueToggle({ videoId: 'a1', title: 'A1', videoThumbnails: [] });
+  ctx.stQueueToggle({ videoId: 'a2', title: 'A2', videoThumbnails: [] });
+  assert.deepStrictEqual(railCards().sort(), ['a1', 'a2'], 'eklemeler rayda görünmeli');
+  ctx.stQueueToggle({ videoId: 'a1' });
+  assert.deepStrictEqual(railCards(), ['a2'], 'çıkarılan kart rayda ghost kaldı');
+  ctx.stQueueToggle({ videoId: 'a2' });
+  assert.strictEqual(rail(), null, 'kuyruk boşalınca ray kaldırılmalı');
+});
+
+test('F5b: boş kuyrukla render sonrası ilk ekleme rayı oluşturur; diğer bölümde oluşturmaz (davranış)', () => {
+  const grid = makeFakeEl('div');
+  const { ctx } = buildQueueHarness();
+  ctx.$ = (id) => (id === 'stGrid' ? grid : null);
+  ctx.buildSmartTubeCard = (v) => { const e = makeFakeEl('div'); e.className = 'st-card'; return e; };
+  const rail = () => findByClass(grid, 'st-queue-rail')[0] || null;
+
+  // Arama gibi home dışı bölümde ekleme: kuyruk yazılır ama ray kurulmaz
+  ctx.stCurrentSection = 'search';
+  ctx.stQueueToggle({ videoId: 's1', title: 'S1', videoThumbnails: [] });
+  assert.ok(ctx.stQueueHas('s1'));
+  assert.strictEqual(rail(), null, 'home dışı bölümde ray oluşturulmamalı');
+  ctx.stQueueToggle({ videoId: 's1' }); // geri al
+
+  // Home render'ı boş kuyrukla ray kurmadı — ilk ekleme rayı yaratmalı
+  ctx.stCurrentSection = 'home';
+  ctx.stQueueToggle({ videoId: 'h1', title: 'H1', videoThumbnails: [] });
+  assert.ok(rail(), 'ilk ekleme rayı oluşturmadı');
+  assert.strictEqual(findByClass(rail(), 'st-section-title').length, 1, 'başlık yok');
+  assert.strictEqual(findByClass(rail(), 'st-card').length, 1);
+});
+
+test('F5c: ana sayfa akışı boşta boş grid bırakmaz — raylar + giriş CTA + retry (davranış)', () => {
+  const grid = makeFakeEl('div');
+  const calls = { login: 0, rerender: [] };
+  const ctx = vm.createContext({
+    document: { createElement: (t) => makeFakeEl(t), createDocumentFragment: () => makeFakeEl('frag') },
+    window: { UiLocale: { t: (s) => s } },
+    youtubeLoggedIn: false,
+    openYoutubeLogin: () => { calls.login++; },
+    renderSmartTubeSection: (s, o) => { calls.rerender.push([s, o && o.force]); },
+    stQueueRailVideos: () => [{ videoId: 'q1', title: 'Q', author: '', authorId: '', lengthSeconds: 0, videoThumbnails: [] }],
+    stContinueWatchingVideos: () => [{ videoId: 'c1', title: 'C', author: '', authorId: '', lengthSeconds: 0, videoThumbnails: [] }],
+    stMostPlayedVideos: () => [],
+    buildSmartTubeCard: (v) => { const e = makeFakeEl('div'); e.className = 'st-card'; return e; },
+  });
+  const src = (RENDERER.match(/function stHomeRailsFragment[\s\S]*?function stRenderHomeFallback[\s\S]*?\n\}/) || [])[0];
+  assert.ok(src, 'ana sayfa fallback yardımcıları yok');
+  vm.runInContext(src, ctx);
+
+  assert.strictEqual(ctx.stRenderHomeFallback(grid, 'Akış alınamadı'), true);
+  assert.ok(findByClass(grid, 'st-queue-rail').length, 'kuyruk rayı render edilmedi');
+  assert.strictEqual(findByClass(grid, 'st-card').length, 2, 'yerel kartlar eksik');
+  const box = findByClass(grid, 'st-home-fallback')[0];
+  assert.ok(box, 'fallback hata kutusu yok');
+  const btns = findByClass(box, 'btn');
+  assert.strictEqual(btns.length, 2, 'giriş + tekrar dene düğmeleri eksik');
+  dispatchBubbling(btns[0], 'click');
+  assert.strictEqual(calls.login, 1, 'giriş düğmesi openYoutubeLogin çağırmadı');
+  dispatchBubbling(btns[1], 'click');
+  assert.deepStrictEqual(calls.rerender, [['home', true]], 'retry home force render yapmadı');
+
+  // Girişliyken CTA düğmesi gösterilmez
+  const grid2 = makeFakeEl('div');
+  ctx.youtubeLoggedIn = true;
+  ctx.stRenderHomeFallback(grid2, 'x');
+  assert.strictEqual(findByClass(grid2, 'btn').length, 1, 'girişli durumda login düğmesi olmamalı');
+});
+
+// ---------- Hesap yetkisi: uygulama başka bir ürünün OAuth kimliğini kullanmaz ----------
+test('main: cihaz kodu yalnız kayıtlı kullanıcı istemcisiyle başlar', () => {
+  assert.doesNotMatch(MAIN, /YT_BUILTIN_CLIENT_(?:ID|SECRET)/,
+    'başka uygulamanın OAuth kimliği gömülmemeli');
+  const dc = (MAIN.match(/ipcMain\.handle\('youtube:deviceCode'[\s\S]*?\n\}\);/) || [])[0];
+  assert.ok(dc, 'youtube:deviceCode handler yok');
+  assert.match(dc, /!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret/);
+  assert.match(dc, /\['device_code', '--client-id', youtubeSession\.clientId\]/);
+  assert.match(MAIN, /hasClient: !!\(youtubeSession\.clientId && youtubeSession\.clientSecret\)/);
+  assert.match(MAIN, /\['poll', '--client-id', youtubeSession\.clientId/);
+  assert.match(MAIN, /\['refresh', '--client-id', youtubeSession\.clientId\]/);
+});
+
+test('backend: YouTube salt-okuma kapsamı ve cihaz akışı', () => {
+  const PY = fs.readFileSync(path.join(ROOT, 'backend', 'youtube.py'), 'utf8');
+  assert.match(PY, /OAUTH_SCOPE = "https:\/\/www\.googleapis\.com\/auth\/youtube\.readonly"/);
+  assert.match(PY, /oauth2\.googleapis\.com\/device\/code/);
+  assert.match(PY, /grant_type.*device_code/);
+});
+
+test('renderer: giriş modalı istemciyi doğrulayıp QR çiziyor', () => {
+  const open = (RENDERER.match(/function openYoutubeLogin\(\) \{[\s\S]*?dlg\.classList\.remove\('hidden'\);/) || [])[0];
+  assert.ok(open, 'openYoutubeLogin bulunamadı');
+  assert.match(open, /window\.api\.youtubeSession\(\)/);
+  assert.match(open, /res\.data\.hasClient/);
+  assert.match(open, /startYoutubeDeviceFlow\(\)/);
+  // QR canvas markup + çizim
+  assert.ok(HTML.includes('id="ytQrCanvas"'), 'QR canvas yok');
+  const flow = (RENDERER.match(/async function startYoutubeDeviceFlow[\s\S]*?youtubePoll\(\)/) || [])[0];
+  assert.ok(flow, 'startYoutubeDeviceFlow bulunamadı');
+  assert.ok(/QRCode\.toCanvas\(qrCanvas/.test(flow), 'QR çizimi cihaz akışına bağlanmadı');
+});
+
+test('renderer: kuyruk rayı display:contents kabı + tazeleme (sözleşme)', () => {
+  assert.match(RENDERER, /className = 'st-queue-rail'/, 'kuyruk rayı kabı yok');
+  assert.match(RENDERER, /function stRefreshQueueRail\(\)/, 'ray tazeleme fonksiyonu yok');
+  const CSS = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles.css'), 'utf8');
+  assert.match(CSS, /\.st-queue-rail\s*\{\s*display:\s*contents/, 'display:contents kuralı eksik');
 });
 
 test('renderer: kart kuyruk düğmesi oynatmadan ekle/çıkar (davranış)', () => {
@@ -895,6 +1038,191 @@ test('R68 O10/D3/D-Y10: placeholder + sidebar focus + kart content-visibility', 
   assert.match(CSS, /#stSearchInput::placeholder/);
   assert.match(CSS, /\.st-side-item:focus-visible/);
   assert.match(CSS, /\.st-card \{[\s\S]*?content-visibility: auto/);
+});
+
+// ---------- F1: kuyruk/Sonraki düğmesi tazeliği (FULL_REVIEW 2026-09-20) ----------
+// stQueueToggle kuyruğu değiştirir ama düğmeleri tazelemezdi; setMediaKey de
+// güncellemeyi mediaKey atanmadan ÖNCE yapıyordu → bayat disabled durumu.
+
+function buildMediaKeyHarness() {
+  const buttons = {
+    playerPrevMedia: { disabled: false },
+    playerNextMedia: { disabled: true },
+  };
+  const calls = { update: 0 };
+  const player = {
+    openIntent: 1, generation: 0, mediaKey: 'file:/a.mkv',
+    playlist: ['a', 'b'], playlistIndex: 0,
+    pendingLibrarySeek: null, pendingSubs: null, ytInfo: null,
+    originalUrl: '', localPath: '', isLive: true, playbackAudioLang: 'x',
+    resumeOffered: true, watchSession: {}, watchManualCompletedKey: 'k',
+    watchManualCompleted: true, watchRemovedKey: 'k',
+    hlsRecovery: { sourceChanged() {} },
+  };
+  const ctx = vm.createContext({
+    player,
+    localStorage: fakeStorage(),
+    $: (id) => buttons[id] || null,
+    closeTimeline() {}, flushWatchState() {}, resetMediaBoundState() {},
+    loadSavedCues() {}, loadSavedWords() {}, updateCueMeta() {},
+    syncPlayerSourceQuick() {}, syncSubtitlePrimaryAction() {},
+    aiChatCtxLabel() {}, currentGeneration: () => player.generation,
+    absThumb: (u) => u, mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    queuePlayerProbeFromCard() {},
+    updatePlaylistButtons() {},
+    watchItemByKey: () => null, logLine() {},
+    document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
+    window: { UiLocale: { t: (s) => s } },
+    setTimeout, Date,
+  });
+  const qsrc = (RENDERER.match(/const ST_QUEUE_KEY[\s\S]*?function stQueueRailVideos[\s\S]*?\n\}/) || [])[0];
+  const upsrc = (RENDERER.match(/function updatePlaylistButtons\(\) \{[\s\S]*?\n\}/) || [])[0];
+  const smk = (RENDERER.match(/function setMediaKey\(key\) \{[\s\S]*?\n\}/) || [])[0];
+  assert.ok(qsrc && upsrc && smk, 'kuyruk/updatePlaylistButtons/setMediaKey blokları çıkarılamadı');
+  vm.runInContext(qsrc, ctx);
+  ctx.updatePlaylistButtons = vm.runInContext(`(${upsrc})`, ctx);
+  vm.runInContext(smk, ctx);
+  return { ctx, player, buttons, calls };
+}
+
+test('F1: stQueueToggle Sonraki düğmesini tazeler (davranış)', () => {
+  const calls = { update: 0 };
+  const store = fakeStorage();
+  const ctx = vm.createContext({
+    localStorage: store,
+    absThumb: (u) => u,
+    mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+    queuePlayerProbeFromCard() {},
+    updatePlaylistButtons: () => { calls.update++; },
+    watchItemByKey: () => null, logLine() {},
+    document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
+    window: { UiLocale: { t: (s) => s } },
+    player: { openIntent: 1, pendingAutoOpen: null, mediaKey: '' },
+    $: () => null,
+    Date,
+  });
+  const src = (RENDERER.match(/const ST_QUEUE_KEY[\s\S]*?function stQueueRailVideos[\s\S]*?\n\}/) || [])[0];
+  vm.runInContext(src, ctx);
+  const v = (id) => ({ videoId: id, title: 'T' + id, videoThumbnails: [] });
+  assert.strictEqual(ctx.stQueueToggle(v('a')), true);
+  assert.strictEqual(calls.update, 1, 'ekleme düğme durumunu tazelemedi');
+  assert.strictEqual(ctx.stQueueToggle(v('a')), false);
+  assert.strictEqual(calls.update, 2, 'çıkarma düğme durumunu tazelemedi');
+});
+
+test('F1: setMediaKey Sonraki düğmesini YENİ anahtarla hesaplar (davranış)', () => {
+  const { ctx, player, buttons } = buildMediaKeyHarness();
+  ctx.stQueueToggle({ videoId: 'v1', title: 't', videoThumbnails: [] });
+  // file → youtube: güncelleme yeni mediaKey ile koşmalı — kuyruk doluyken
+  // Sonraki açık kalmalı (eski 'file:' anahtarıyla hesaplanırsa kapalı kalırdı).
+  ctx.setMediaKey('youtube:v1');
+  assert.strictEqual(player.mediaKey, 'youtube:v1');
+  assert.strictEqual(buttons.playerNextMedia.disabled, false,
+    'kuyruk dolu YouTube medyasında Sonraki kapalı kaldı');
+  // youtube → file: kuyruk bakliyken yerel playlist boş → Sonraki kapalı.
+  ctx.setMediaKey('file:/b.mkv');
+  assert.strictEqual(buttons.playerNextMedia.disabled, true,
+    'yerel dosyada Sonraki kuyruk yüzünden açık kaldı');
+});
+
+// ---------- siyah sahne: kart probe'u sert hatada overlay'i geri açmalı ----------
+test('F-6: başarısız kart probe\'u pendingAutoOpen varken SmartTube\'u geri açar (davranış)', () => {
+  const src = (RENDERER.match(
+    /if \(!res \|\| !res\.ok\) \{\s*\n\s*const message = friendlyYoutubeError[\s\S]*?\n    \}/
+  ) || [])[0];
+  assert.ok(src, 'playerProbe hata dalı bulunamadı');
+  assert.ok(/pendingAutoOpen = null;[\s\S]*?setSmartTubeVisible\(true\)/.test(src),
+    'hata dalı otomatik-açılışta overlay\'i geri açmıyor');
+
+  const run = (pendingAutoOpen, res, message) => {
+    const calls = { log: [], drawer: [], overlay: [] };
+    const player = { pendingAutoOpen };
+    const ctx = vm.createContext({
+      friendlyYoutubeError: () => message,
+      logLine: (m) => calls.log.push(m),
+      toggleDrawerAt: (_btn, sel) => calls.drawer.push(sel),
+      setSmartTubeVisible: (v) => calls.overlay.push(v),
+    });
+    vm.runInContext(`(function (player, res) {\n${src}\n})`, ctx)(player, res);
+    return { calls, player };
+  };
+
+  // Kart kaynaklı otomatik açılış + sert hata → overlay geri açılır, niyet düşer
+  {
+    const { calls, player } = run({ key: 'youtube:v1', intent: 1 }, { ok: false, error: 'x' }, 'ağ hatası');
+    assert.strictEqual(player.pendingAutoOpen, null);
+    assert.deepStrictEqual(calls.overlay, [true], 'kart probe hatası overlay\'i geri açmadı');
+    assert.deepStrictEqual(calls.drawer, [], 'oturumsuz hata çekmece açmamalı');
+  }
+  // Elle "Bilgi al" hatası (otomatik niyet yok) → overlay açılmaz
+  {
+    const { calls } = run(null, { ok: false, error: 'x' }, 'ağ hatası');
+    assert.deepStrictEqual(calls.overlay, [], 'manuel probe hatası overlay açmamalı');
+  }
+  // Oturum-doğrulama hatası → hem çekmece hem (kart yolundaysa) overlay
+  {
+    const { calls } = run({ key: 'youtube:v1', intent: 2 }, { ok: false, error: 'x' }, 'oturum doğrulaması istedi');
+    assert.deepStrictEqual(calls.drawer, ['#playerCookieBrowser']);
+    assert.deepStrictEqual(calls.overlay, [true]);
+  }
+  // res=null (IPC çağrısı attı) kart yolunda → yine overlay geri açılır
+  {
+    const { calls } = run({ key: 'youtube:v1', intent: 3 }, null, 'bilinmeyen hata');
+    assert.deepStrictEqual(calls.overlay, [true], 'res=null kart probe\'u siyah sahnede bıraktı');
+  }
+});
+
+// ---------- F2: sıradan otomatik geçiş kaldığı yerden devam etmeli ----------
+test('F2: stQueuePlayNext yarım kalmış kayda pendingLibrarySeek kurar (davranış)', () => {
+  const src = (RENDERER.match(/function stQueuePlayNext\(\) \{[\s\S]*?\n\}/) || [])[0];
+  assert.ok(src, 'stQueuePlayNext bulunamadı');
+
+  const run = (watch) => {
+    const calls = { probe: 0 };
+    const player = { openIntent: 0, pendingAutoOpen: null, pendingLibrarySeek: null };
+    const box = { value: '' };
+    const ctx = vm.createContext({
+      stQueue: [{ videoId: 'v9', title: 't' }],
+      player,
+      $: (id) => (id === 'playerYtUrl' ? box : null),
+      mediaKeyFor: (kind, ref) => `${kind}:${ref}`,
+      watchItemByKey: () => watch,
+      queuePlayerProbeFromCard: () => { calls.probe++; },
+      setSmartTubeVisible: () => {},
+    });
+    vm.runInContext(src + '\nstQueuePlayNext;', ctx).call(ctx);
+    return { calls, player, box };
+  };
+
+  // Yarım kalmış kayıt → seek kurulur (kart tıklamasıyla aynı)
+  {
+    const { calls, player } = run({ key: 'x', position: 300, duration: 600, completed: false });
+    assert.strictEqual(calls.probe, 1);
+    assert.ok(player.pendingAutoOpen, 'otomatik açılış niyeti kurulmadı');
+    assert.ok(player.pendingLibrarySeek, 'devam seek\'i kurulmadı');
+    assert.strictEqual(player.pendingLibrarySeek.seconds, 300);
+    assert.strictEqual(player.pendingLibrarySeek.key, player.pendingAutoOpen.key);
+  }
+  // Tamamlanmış kayıt → seek yok (baştan başlar)
+  {
+    const { player } = run({ key: 'x', position: 590, duration: 600, completed: true });
+    assert.strictEqual(player.pendingLibrarySeek, null, 'tamamlanmış kayda seek kuruldu');
+  }
+  // Kayıt yok → seek yok
+  {
+    const { player } = run(null);
+    assert.strictEqual(player.pendingLibrarySeek, null, 'kayıtsız videoya seek kuruldu');
+  }
+  // Boş kuyruk → false, hiçbir şey kurulmaz
+  {
+    const player = { openIntent: 0, pendingAutoOpen: null, pendingLibrarySeek: null };
+    const ctx = vm.createContext({
+      stQueue: [], player, $: () => null,
+      mediaKeyFor: (k, r) => `${k}:${r}`,
+      watchItemByKey: () => null, queuePlayerProbeFromCard: () => {},
+    });
+    assert.strictEqual(vm.runInContext(src + '\nstQueuePlayNext;', ctx).call(ctx), false);
+  }
 });
 
 // ---------- çalıştır ----------

@@ -125,7 +125,12 @@ class RealDriver {
 
   npmInvocation() {
     if (this.platform !== 'win32') return { command: 'npm', prefix: [] };
-    const cli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    const configured = String(process.env.npm_execpath || '').trim();
+    const candidates = [configured,
+      path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+      path.join(path.dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')]
+      .filter(Boolean);
+    const cli = candidates.find(candidate => fs.existsSync(candidate));
     if (!fs.existsSync(cli)) throw new InstallError('NPM_MISSING', `npm CLI bulunamadi: ${cli}`);
     return { command: process.execPath, prefix: [cli] };
   }

@@ -6,9 +6,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createBrowserReferenceMedia } = require('../src/browser-reference-media');
+const { findMediaTool } = require('./media-runtime');
 
-const ffmpegPath = path.resolve(__dirname, '..', 'backend', 'bin', 'ffmpeg.exe');
-const ffprobePath = path.resolve(__dirname, '..', 'backend', 'bin', 'ffprobe.exe');
+const ffmpegPath = findMediaTool('ffmpeg');
+const ffprobePath = findMediaTool('ffprobe');
+assert(ffmpegPath && ffprobePath, 'FFmpeg ve ffprobe test çalışma zamanı bulunamadı.');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-reference-media-'));
 const videoPath = path.join(temp, 'reference.mp4');
 const generated = spawnSync(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y',

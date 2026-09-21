@@ -6,15 +6,18 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { createBrowserVideoAnalysis } = require('../src/browser-video-analysis');
+const { findTestPython } = require('./python-runtime');
+const { findMediaTool } = require('./media-runtime');
 
 async function main() {
   const root = path.resolve(__dirname, '..');
-  const pythonPath = path.join(root, 'backend', 'venv', 'Scripts', 'python.exe');
-  const ffmpegPath = path.join(root, 'backend', 'bin', 'ffmpeg.exe');
-  const ffprobePath = path.join(root, 'backend', 'bin', 'ffprobe.exe');
+  const pythonPath = findTestPython();
+  const ffmpegPath = findMediaTool('ffmpeg');
+  const ffprobePath = findMediaTool('ffprobe');
+  assert(pythonPath && ffmpegPath && ffprobePath, 'Python, FFmpeg ve ffprobe test çalışma zamanı bulunamadı.');
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-analysis-test-'));
   try {
-    const fixture = `from PIL import Image,ImageDraw,ImageFont\nimport numpy as np,wave,os\np=${JSON.stringify(temp)}\nim=Image.new('RGB',(640,180),'white'); d=ImageDraw.Draw(im); d.text((40,40),'HELLO VIDEO',fill='black',font=ImageFont.truetype('C:/Windows/Fonts/arial.ttf',54)); im.save(os.path.join(p,'text.png'))\nsr=8000;t=np.arange(sr*12)/sr; melody=np.sin(2*np.pi*(220+55*np.floor(t/1.5))*t)*0.5\nfor i in (0,1):\n tail=np.sin(2*np.pi*(700+i*220)*np.arange(sr*3)/sr)*0.5; data=np.concatenate([melody,tail]); w=wave.open(os.path.join(p,f'a{i}.wav'),'wb');w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes((data*30000).astype('<i2').tobytes());w.close()\n`;
+    const fixture = `from PIL import Image,ImageDraw,ImageFont\nimport numpy as np,wave,os\nfrom pathlib import Path\np=${JSON.stringify(temp)}\nfonts=[Path('C:/Windows/Fonts/arial.ttf'),Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')]\nfont_path=next((x for x in fonts if x.exists()),None)\nfont=ImageFont.truetype(str(font_path),54) if font_path else ImageFont.load_default()\nim=Image.new('RGB',(640,180),'white'); d=ImageDraw.Draw(im); d.text((40,40),'HELLO VIDEO',fill='black',font=font); im.save(os.path.join(p,'text.png'))\nsr=8000;t=np.arange(sr*12)/sr; melody=np.sin(2*np.pi*(220+55*np.floor(t/1.5))*t)*0.5\nfor i in (0,1):\n tail=np.sin(2*np.pi*(700+i*220)*np.arange(sr*3)/sr)*0.5; data=np.concatenate([melody,tail]); w=wave.open(os.path.join(p,f'a{i}.wav'),'wb');w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes((data*30000).astype('<i2').tobytes());w.close()\n`;
     execFileSync(pythonPath, ['-c', fixture], { windowsHide: true });
     const videos = [];
     for (let i = 0; i < 2; i++) {

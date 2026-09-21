@@ -63,7 +63,7 @@ test('R70-03: youtube:session cevabı token/secret içermez', () => {
   assert.ok(ret, 'session cevabı bulunamadı');
   // Dönen ANAHTARLAR güvenli kümede olmalı (değer referansları değil)
   const keys = [...ret[1].matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
-  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode']);
+  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode', 'usingBuiltin']);
   for (const k of keys) {
     assert.ok(safe.has(k), `session cevabı beklenmeyen alan dönüyor: ${k}`);
   }
@@ -209,8 +209,18 @@ test('R70-13: backend yalnız HTTPS Google/YouTube endpoint\'leri kullanır', ()
     assert.ok(/googleapis\.com|youtube\.com|ytimg\.com|google\.com/.test(u),
       `beklenmeyen endpoint: ${u}`);
   }
-  // scope salt-okuma
-  assert.match(YT_PY, /auth\/youtube\.readonly/);
+  assert.match(YT_PY, /auth\/youtube\.readonly["']/);
+});
+
+test('R70-14: istemci değişimi eski tokenları kullanmaz', () => {
+  const setClient = MAIN.match(/ipcMain\.handle\('youtube:setClient'[\s\S]*?\n\}\);/);
+  assert.ok(setClient, 'youtube:setClient handler yok');
+  assert.match(setClient[0], /id !== youtubeSession\.clientId \|\| secret !== youtubeSession\.clientSecret/);
+  assert.match(setClient[0], /youtubeSession\.refreshToken = ''/);
+  assert.match(setClient[0], /youtubeSession\.accessToken = ''/);
+  const ensure = MAIN.match(/async function ensureYoutubeAccessToken\(\)[\s\S]*?\n\}/);
+  assert.ok(ensure, 'ensureYoutubeAccessToken yok');
+  assert.match(ensure[0], /if \(!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret\) return null/);
 });
 
 test('R70-13b: backend NDJSON emit kilit altında (thread-güvenli)', () => {

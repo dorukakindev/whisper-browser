@@ -190,6 +190,28 @@ try {
     assert.equal(safePageIndexUrl('file:///secret'), '');
   });
 
+  // Upstream Node builds do not all compile the experimental node:sqlite
+  // module with FTS5. Asset-store and pure search contracts above still run;
+  // the actual WatchIndex integration remains mandatory wherever FTS5 exists
+  // (including the supported Electron runtime).
+  const FtsDatabase = databaseConstructor();
+  let hasFts5 = false;
+  if (FtsDatabase) {
+    const probe = new FtsDatabase(':memory:');
+    try {
+      probe.exec('CREATE VIRTUAL TABLE fts_probe USING fts5(value)');
+      hasFts5 = true;
+    } catch (_) {
+      hasFts5 = false;
+    } finally {
+      probe.close();
+    }
+  }
+  if (!hasFts5) {
+    console.log(`watch-index-assets: ${passed} test; WatchIndex FTS5 entegrasyonu bu Node derlemesinde desteklenmiyor`);
+    process.exit(0);
+  }
+
   const index = new WatchIndex(path.join(dir, 'watch.db'));
   try {
     test('medya, iz ve cue ilişkisi FTS indeksine yazılır', () => {
