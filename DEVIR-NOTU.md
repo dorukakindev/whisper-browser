@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-21 03:43 — siyah sahne düzeltmesi: başarısız kart probe'unda SmartTube overlay'i geri açılıyor; F-6 davranış testi, npm test temiz](docs/devir/2026-09-21-0343.md).
+Güncel çalışma: [2026-09-21 04:10 — F2 düzeltmesi: kuyruk otomatik/Sonraki geçişi yarım kalmış videoda kaldığı saniyeden devam ediyor (pendingLibrarySeek); npm test temiz](docs/devir/2026-09-21-0410.md).
+
+Önceki çalışma: [2026-09-21 03:43 — siyah sahne düzeltmesi: başarısız kart probe'unda SmartTube overlay'i geri açılıyor; F-6 davranış testi, npm test temiz](docs/devir/2026-09-21-0343.md).
 
 Önceki çalışma: [2026-09-21 03:08 — translation_refresh'e index alanı: refine 2. geçişinin revize metni canlı önizlemeye ulaşıyor; YouTube→transcribe→TR çeviri (shuaiapi/claude-sonnet-5) uçtan uca doğrulandı; npm test temiz](docs/devir/2026-09-21-0308.md).
 

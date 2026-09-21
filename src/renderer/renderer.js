@@ -23922,7 +23922,16 @@ function stQueuePlayNext() {
   const box = $('playerYtUrl');
   if (box) box.value = url;
   const intent = ++player.openIntent;
-  player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent };
+  const ytKey = mediaKeyFor('youtube', url);
+  // Kart tıklamasıyla aynı davranış: yarım kalmış izleme kaydı varsa
+  // kaldığı saniyeden sürsün (seek akış açılınca uygulanır).
+  const watch = watchItemByKey(ytKey);
+  if (watch && !watch.completed && Number(watch.position) > 0) {
+    player.pendingLibrarySeek = {
+      key: ytKey, generation: null, seconds: Number(watch.position) || 0,
+    };
+  }
+  player.pendingAutoOpen = { key: ytKey, intent };
   queuePlayerProbeFromCard();
   return true;
 }
