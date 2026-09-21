@@ -25337,14 +25337,16 @@ function renderStSubsPanel(grid) {
     const empty = document.createElement('div');
     empty.className = 'inv-status';
     empty.textContent = stSubs.length
-      ? 'Bu grupta kanal yok.'
-      : 'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.';
+      ? (window.UiLocale?.t('Bu grupta kanal yok.') || 'Bu grupta kanal yok.')
+      : (window.UiLocale?.t('Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.')
+        || 'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.');
     list.appendChild(empty);
   }
   grid.appendChild(list);
   const hint = document.createElement('div');
   hint.className = 'st-subs-hint';
-  hint.textContent = 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
+  hint.textContent = window.UiLocale?.t('Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.')
+    || 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
   grid.appendChild(hint);
 }
 
@@ -25729,18 +25731,36 @@ async function restoreYoutubeSession() {
   refreshYoutubeAuthUI();
 }
 
-function _ytShowView(id) {
-  ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
-    const el = $(v);
-    if (el) el.classList.toggle('hidden', v !== id);
-  });
-}
-
 let _ytLoginModalBound = false;
 // Akış kuşağı: modal her kapanışta artar; sürüyor olan await'ler döndüğünde
 // kuşak değiştiyse sonuç uygulanmaz. Eskiden İptal/kapat yalnızca gizliyordu —
 // 30 dk'lık poll arka planda sürüp _ytPolling sonsuza takılı kalabiliyordu.
 let _ytFlowGen = 0;
+let _ytBrowserFlow = false;   // loopback (tarayıcı) akışı sürüyor
+let _ytSavedClientId = '';    // istemci görünümüne dönüşte ID'yi geri doldurur (secret asla)
+
+function _ytShowView(id) {
+  ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
+    const el = $(v);
+    if (el) el.classList.toggle('hidden', v !== id);
+  });
+  if (id === 'ytClientView') {
+    const cid = $('ytClientId');
+    if (cid && !cid.value && _ytSavedClientId) cid.value = _ytSavedClientId;
+  }
+}
+
+// Akış seçim ekranı: cihaz kodu bloğu ancak kullanıcı isteyince açılır;
+// önerilen yol tarayıcı yetkilendirmesi (desktop loopback).
+function _ytShowAuthChoice() {
+  _ytShowView('ytDeviceView');
+  const block = $('ytDeviceCodeBlock');
+  if (block && !_ytPolling) block.classList.add('hidden');
+  const status = $('ytPollStatus');
+  if (status && !_ytPolling && !_ytBrowserFlow) {
+    status.textContent = window.UiLocale?.t('Giriş yöntemini seçin.') || 'Giriş yöntemini seçin.';
+  }
+}
 
 function ytModalError(msg) {
   const el = $('ytModalStatus');
@@ -25774,8 +25794,10 @@ function openYoutubeLogin() {
     window.api.youtubeSession().then((res) => {
       if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
       if (res && res.ok && res.data && res.data.hasClient) {
-        startYoutubeDeviceFlow();
+        _ytSavedClientId = res.data.clientId || '';
+        _ytShowAuthChoice();
       } else {
+        if (res && res.ok && res.data) _ytSavedClientId = res.data.clientId || '';
         _ytShowView('ytClientView');
         $('ytClientId')?.focus();
       }
@@ -25795,8 +25817,9 @@ function closeYoutubeLogin() {
   const dlg = $('youtubeLoginModal');
   if (dlg) dlg.classList.add('hidden');
   _ytFlowGen++;                                     // süren akışı geçersiz kıl
-  if (_ytPolling) {                                 // poll sürüyorsa main'de de iptal et
+  if (_ytPolling || _ytBrowserFlow) {               // süren akış varsa main'de de iptal et
     _ytPolling = false;
+    _ytBrowserFlow = false;
     window.api.youtubeCancel().catch(() => {});
   }
   // Secret kapanışta DOM'da kalmasın (Invidious modalıyla aynı sözleşme)
@@ -25808,9 +25831,15 @@ function closeYoutubeLogin() {
 
 async function startYoutubeDeviceFlow() {
   if (_ytPolling) return;
+  if (_ytBrowserFlow) {                           // süren tarayıcı akışını durdur
+    _ytBrowserFlow = false;
+    window.api.youtubeCancel().catch(() => {});
+  }
   _ytPolling = true;                                // deviceCode await'i de kapsar
   const gen = ++_ytFlowGen;
   _ytShowView('ytDeviceView');
+  const codeBlock = $('ytDeviceCodeBlock');
+  if (codeBlock) codeBlock.classList.remove('hidden');
   const status = $('ytPollStatus');
   const codeEl = $('ytUserCode');
   if (codeEl) codeEl.textContent = '----';
@@ -25822,7 +25851,7 @@ async function startYoutubeDeviceFlow() {
   if (!res || !res.ok) {
     _ytPolling = false;
     _ytShowView('ytClientView');
-    ytModalError(res && res.error ? res.error : 'Cihaz kodu alınamadı');
+    ytModalError(res && res.error ? res.error : (window.UiLocale?.t('Cihaz kodu alınamadı') || 'Cihaz kodu alınamadı'));
     return;
   }
   if (codeEl) codeEl.textContent = res.data.user_code || '----';
@@ -25862,6 +25891,41 @@ async function startYoutubeDeviceFlow() {
     }
   } finally {
     if (gen === _ytFlowGen) _ytPolling = false;
+  }
+}
+
+// Google'ın masaüstü uygulamalar için önerdiği akış: sistem tarayıcısı +
+// loopback (PKCE). main.js tarafında 127.0.0.1 dinleyicisi kurulur.
+async function startYoutubeBrowserFlow() {
+  if (_ytBrowserFlow) return;
+  if (_ytPolling) {                               // süren cihaz-kodu poll'unu durdur
+    _ytPolling = false;
+    window.api.youtubeCancel().catch(() => {});
+  }
+  _ytBrowserFlow = true;
+  const gen = ++_ytFlowGen;
+  _ytShowView('ytDeviceView');
+  const status = $('ytPollStatus');
+  if (status) {
+    status.textContent = window.UiLocale?.t('Tarayıcıda Google onayı bekleniyor…')
+      || 'Tarayıcıda Google onayı bekleniyor…';
+  }
+  try {
+    const pr = await window.api.youtubeAuthCode();
+    if (gen !== _ytFlowGen) return;               // modal kapanmış — sonucu uygulama
+    if (pr && pr.ok) {
+      youtubeLoggedIn = true;
+      youtubeUserName = pr.data.userName || 'YouTube';
+      refreshYoutubeAuthUI();
+      _ytBrowserFlow = false;
+      closeYoutubeLogin();
+      osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
+      if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
+    } else if (status) {
+      status.textContent = (pr && pr.error) ? pr.error : 'Giriş tamamlanamadı.';
+    }
+  } finally {
+    if (gen === _ytFlowGen) _ytBrowserFlow = false;
   }
 }
 
@@ -25913,22 +25977,29 @@ function initSmartTube() {
         ytModalError(r && r.error ? r.error : 'Client kaydedilemedi');
         return;
       }
+      if (cid) _ytSavedClientId = cid;
     }
-    startYoutubeDeviceFlow();
+    _ytShowAuthChoice();
   });
   const ytClientCancel = $('ytClientCancel');
   if (ytClientCancel) ytClientCancel.addEventListener('click', closeYoutubeLogin);
+  const ytBrowserAuth = $('ytBrowserAuth');
+  if (ytBrowserAuth) ytBrowserAuth.addEventListener('click', startYoutubeBrowserFlow);
+  const ytDeviceCodeStart = $('ytDeviceCodeStart');
+  if (ytDeviceCodeStart) ytDeviceCodeStart.addEventListener('click', startYoutubeDeviceFlow);
   const ytDeviceCancel = $('ytDeviceCancel');
   if (ytDeviceCancel) ytDeviceCancel.addEventListener('click', () => {
     window.api.youtubeCancel().catch(() => {});
     _ytPolling = false;
+    _ytBrowserFlow = false;
     closeYoutubeLogin();
   });
   const ytChangeClient = $('ytChangeClient');
   if (ytChangeClient) ytChangeClient.addEventListener('click', () => {
     _ytFlowGen++;
-    if (_ytPolling) window.api.youtubeCancel().catch(() => {});
+    if (_ytPolling || _ytBrowserFlow) window.api.youtubeCancel().catch(() => {});
     _ytPolling = false;
+    _ytBrowserFlow = false;
     _ytShowView('ytClientView');
     ytModalError('');
     $('ytClientId')?.focus();

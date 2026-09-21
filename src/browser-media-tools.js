@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { withoutSecretEnv } = require('./settings-security');
 
 function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine = null) {
@@ -47,6 +47,19 @@ function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine =
     child.stdin.end(input);
   });
 }
+
+// PATH'ten çözülen araçlar dosya yolu değildir; existsSync onları bulamaz.
+const toolAvailable = (tool) => {
+  if (typeof tool !== 'string' || !tool) return false;
+  if (path.isAbsolute(tool) || tool.includes('/') || tool.includes('\\')) return fs.existsSync(tool);
+  for (const flag of ['--version', '-version']) {
+    try {
+      const probe = spawnSync(tool, [flag], { windowsHide: true, stdio: 'ignore', timeout: 5000 });
+      if (!probe.error && probe.status === 0) return true;
+    } catch (_) {}
+  }
+  return false;
+};
 
 function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendScriptPath } = {}) {
   const script = backendScriptPath || path.join(__dirname, '..', 'backend', 'browser_media_tools.py');
@@ -169,7 +182,7 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
       return pythonServe('semantic', { query, cues, limit }, signal, 300000);
     },
     async sceneStrip({ videoPath, outputDir, threshold = 0.35, maxScenes = 24 } = {}, { signal } = {}) {
-      if (!ffmpegPath || !ffprobePath || !fs.existsSync(ffmpegPath) || !fs.existsSync(ffprobePath)) throw new Error('FFmpeg ve ffprobe bulunamadı.');
+      if (!toolAvailable(ffmpegPath) || !toolAvailable(ffprobePath)) throw new Error('FFmpeg ve ffprobe bulunamadı.');
       if (typeof videoPath !== 'string' || !fs.existsSync(videoPath) || !fs.statSync(videoPath).isFile()) throw new Error('Erişilebilir yerel video bulunamadı.');
       if (typeof outputDir !== 'string' || !path.isAbsolute(outputDir)) throw new Error('Sahne çıktı klasörü geçersiz.');
       if (!Number.isFinite(threshold) || threshold < 0.1 || threshold > 0.9 || !Number.isInteger(maxScenes) || maxScenes < 1 || maxScenes > 48) throw new Error('Sahne algılama sınırları geçersiz.');

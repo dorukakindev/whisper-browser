@@ -8,7 +8,7 @@ const https = require('https');
 const { isIP } = require('net');
 const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
-const { createHash, randomUUID } = require('crypto');
+const { createHash, randomUUID, randomBytes } = require('crypto');
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
@@ -1688,6 +1688,124 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
 // Akış: setClient → deviceCode (kod gösterilir) → poll (arka planda yoklar)
 // → login: refresh_token safeStorage'a, access_token belleğe.
 // Renderer'a asla token/secret/device_code dönmez.
+// Masaüstü için Google'ın önerdiği akış device_code DEĞİL sistem-tarayıcılı
+// loopback (RFC 8252): youtube:authCode PKCE + 127.0.0.1 dinleyicisi kurar.
+// Device-code akışı korunuyor ama yalnız "TVs and Limited Input" tipindeki
+// kullanıcı istemcilerinde çalışır — Google diğer tiplere bu grant'i kapalı.
+
+// backend/youtube.py OAUTH_SCOPE ile birebir aynı kalmalı (rapor70 testi).
+const YT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+
+let _ytAuthFlow = null;   // {server, timer, reject} — loopback dinlerken
+
+function _ytAbortAuthFlow(message) {
+  if (!_ytAuthFlow) return false;
+  const flow = _ytAuthFlow;
+  _ytAuthFlow = null;
+  try { clearTimeout(flow.timer); } catch (_) {}
+  try { flow.server.close(); } catch (_) {}
+  try { flow.reject(new Error(message)); } catch (_) {}
+  return true;
+}
+
+ipcMain.handle('youtube:authCode', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!youtubeSession.clientId || !youtubeSession.clientSecret) {
+    return { ok: false, error: 'Önce kendi OAuth Client ID + Secret bilgilerinizi kaydedin.' };
+  }
+  if (_ytAuthFlow) return { ok: false, error: 'Zaten süren bir giriş akışı var.' };
+
+  const verifier = randomBytes(48).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const state = randomBytes(18).toString('base64url');
+
+  let code;
+  let redirectUri = '';
+  try {
+    code = await new Promise((resolve, reject) => {
+      const cleanup = (err, value) => {
+        clearTimeout(timer);
+        try { server.close(); } catch (_) {}
+        _ytAuthFlow = null;
+        if (err) reject(err); else resolve(value);
+      };
+      const server = http.createServer((req, res) => {
+        let u;
+        try { u = new URL(req.url, 'http://127.0.0.1'); } catch (_) { u = null; }
+        if (!u || u.pathname !== '/oauth2callback') {
+          res.statusCode = 404; res.end(); return;
+        }
+        const err = u.searchParams.get('error');
+        const cbCode = u.searchParams.get('code');
+        const cbState = u.searchParams.get('state');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        if (err) {
+          res.end('<h3>Yetkilendirme iptal edildi.</h3><p>Whisper Browser penceresine dönebilirsiniz.</p>');
+          cleanup(err === 'access_denied'
+            ? new Error('Kullanıcı erişimi reddetti.') : new Error(`Yetkilendirme hatası: ${err}`));
+          return;
+        }
+        if (!cbCode || cbState !== state) {
+          res.statusCode = 400;
+          res.end('<h3>Geçersiz yanıt.</h3>');
+          cleanup(new Error('Yetkilendirme yanıtı doğrulanamadı (state uyuşmadı).'));
+          return;
+        }
+        res.end('<h3>Giriş tamamlandı.</h3><p>Whisper Browser penceresine dönebilirsiniz.</p>');
+        cleanup(null, cbCode);
+      });
+      const timer = setTimeout(() => {
+        cleanup(new Error('Tarayıcı onayı süresi doldu — yeniden deneyin.'));
+      }, 600_000);
+      _ytAuthFlow = { server, timer, reject: (e) => cleanup(e) };
+      server.on('error', (err) => {
+        cleanup(new Error(`Loopback dinleyicisi açılamadı: ${err.message || err}`));
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const port = server.address().port;
+        redirectUri = `http://127.0.0.1:${port}/oauth2callback`;
+        const params = new URLSearchParams({
+          client_id: youtubeSession.clientId,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: YT_OAUTH_SCOPE,
+          access_type: 'offline',
+          prompt: 'consent',
+          state,
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+        });
+        const opened = openExternalByPolicy(
+          `https://accounts.google.com/o/oauth2/v2/auth?${params}`, 'renderer-external');
+        Promise.resolve(opened).then((ok) => {
+          if (!ok) cleanup(new Error('Sistem tarayıcısı açılamadı.'));
+        }).catch(() => cleanup(new Error('Sistem tarayıcısı açılamadı.')));
+      });
+    });
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'Giriş akışı tamamlanamadı.' };
+  }
+  const res = await runYoutubeCommand(
+    ['exchange_code', '--client-id', youtubeSession.clientId], null, 45_000,
+    { ...youtubeAuthEnv(),
+      WHISPER_YT_AUTH_CODE: code,
+      WHISPER_YT_CODE_VERIFIER: verifier,
+      WHISPER_YT_REDIRECT_URI: redirectUri || '' });
+  if (res && res.ok && res.data && res.data.refresh_token) {
+    youtubeSession.refreshToken = res.data.refresh_token;
+    youtubeSession.accessToken = res.data.access_token || '';
+    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
+    youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
+    youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
+    persistYoutubeSession();
+    return { ok: true, data: { loggedIn: true, userName: youtubeSession.userName,
+                               userEmail: youtubeSession.userEmail } };
+  }
+  if (res && res.ok && res.data) {
+    return { ok: false, error: 'YouTube refresh token döndürmedi — yeniden deneyin.' };
+  }
+  return res || { ok: false, error: 'Token değişimi tamamlanamadı.' };
+});
 
 ipcMain.handle('youtube:session', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
@@ -1696,6 +1814,7 @@ ipcMain.handle('youtube:session', async (_e) => {
     userName: youtubeSession.userName,
     userEmail: youtubeSession.userEmail,
     hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
+    clientId: youtubeSession.clientId || '',
     pendingCode: !!(_ytDevice && _ytDevice.deviceCode),
   } };
 });
@@ -1813,6 +1932,7 @@ ipcMain.handle('youtube:logout', async (_e) => {
   // Uçuştaki poll'u öldür — yoksa çıkış sonrası gelen başarı sonucu oturumu
   // diske geri yazıyor ve mediaJobs slot'u revoke'u da kilitliyordu.
   if (mediaJobs.youtube) terminateProcessTree(mediaJobs.youtube, { spawn });
+  _ytAbortAuthFlow('Oturum kapatıldı.');
   // Revoke en-iyi-çaba — takılmasın diye kısa timeout; başarısızsa da temizleriz.
   await runYoutubeCommand(['revoke'], null, 15_000, youtubeAuthEnv()).catch(() => null);
   youtubeSession.refreshToken = '';
@@ -1827,8 +1947,12 @@ ipcMain.handle('youtube:logout', async (_e) => {
 
 ipcMain.handle('youtube:cancel', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  // Tarayıcı-onaylı loopback akışında python süreci henüz yok — önce onu durdur.
+  const authAborted = _ytAbortAuthFlow('Giriş akışı iptal edildi.');
   const proc = mediaJobs.youtube;
-  if (!proc) return { ok: false, error: 'Çalışan YouTube işi yok.' };
+  if (!proc) return authAborted
+    ? { ok: true }
+    : { ok: false, error: 'Çalışan YouTube işi yok.' };
   terminateProcessTree(proc, { spawn });
   _ytDevice = null;
   // Kapanışı kısa süreyle bekle — dönüp döndüğümüzde slot hâlâ doluysa
@@ -16157,13 +16281,15 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const appDir = app.getAppPath();
   const pythonPath = resolvePython();
-  const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', 'Scripts', 'python.exe'))
-            || fs.existsSync(path.join(appDir, 'backend', '.venv', 'Scripts', 'python.exe'));
-  const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', 'ffmpeg.exe'));
+  const venvPy = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python';
+  const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', venvPy))
+            || fs.existsSync(path.join(appDir, 'backend', '.venv', venvPy));
+  const ffExe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+  const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', ffExe));
   const runtimeRoot = ytdlpRuntimeRoot(app.getPath('userData'));
   const [pythonLine, ffmpegLine, gpuLine, ytDlpVersion] = await Promise.all([
     probeCommand(pythonPath, ['--version']),
-    probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', 'ffmpeg.exe') : 'ffmpeg', ['-version']),
+    probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', ffExe) : 'ffmpeg', ['-version']),
     probeCommand('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader']),
     probeCommand(pythonPath, ['-c', 'from yt_dlp.version import __version__; print(__version__)'], {
       env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8' }),
@@ -16653,7 +16779,8 @@ ipcMain.handle('settings:import', async (event) => {
 
 // ffmpeg/ffprobe yolu: önce backend/bin, sonra PATH
 function resolveFfTool(name) {
-  const local = path.join(app.getAppPath(), 'backend', 'bin', `${name}.exe`);
+  const exeName = process.platform === 'win32' ? `${name}.exe` : name;
+  const local = path.join(app.getAppPath(), 'backend', 'bin', exeName);
   return fs.existsSync(local) ? local : name;
 }
 

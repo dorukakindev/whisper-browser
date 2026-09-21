@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('api', {
   youtubeSession: () => ipcRenderer.invoke('youtube:session'),
   youtubeSetClient: (clientId, clientSecret) => ipcRenderer.invoke('youtube:setClient', { clientId, clientSecret }),
   youtubeDeviceCode: () => ipcRenderer.invoke('youtube:deviceCode'),
+  youtubeAuthCode: () => ipcRenderer.invoke('youtube:authCode'),
   youtubePoll: () => ipcRenderer.invoke('youtube:poll'),
   youtubeBrowse: (browseId, opts) => ipcRenderer.invoke('youtube:browse', browseId, opts || {}),
   youtubeLogout: () => ipcRenderer.invoke('youtube:logout'),
