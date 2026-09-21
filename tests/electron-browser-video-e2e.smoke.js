@@ -4,7 +4,9 @@
 // Yeniden açılış: aynı VIDEO_E2E_PROFILE ile VIDEO_E2E_RESTORE=1 kullanın.
 // Çıktılar .uiprev/video-e2e/ altında. Canlı AI sağlayıcısı bu testin kapsamında değil.
 const {app,BrowserWindow,webContents,session,dialog,ipcMain}=require('electron');
+const { findMediaTool } = require('./media-runtime');
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const { spawnSync } = require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const out=path.resolve(process.env.VIDEO_E2E_OUT || path.join(root,'.uiprev','video-e2e'));fs.mkdirSync(out,{recursive:true});
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.resolve(process.env.VIDEO_E2E_PROFILE||path.join(out,'profile-'+process.pid));
@@ -47,7 +49,13 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const report=[];
 async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(Date.now()<end){last=await fn();if(last)return last;await wait(200)}throw Error(label+' zaman aşımı: '+JSON.stringify(last));}
 app.whenReady().then(async()=>{
- const media=fs.readFileSync(process.env.WHISPER_E2E_VIDEO || path.join(root,'.uiprev','flower.mp4'));
+ const mediaPath=process.env.WHISPER_E2E_VIDEO || path.join(root,'.uiprev','flower.mp4');
+ if(!fs.existsSync(mediaPath)){
+  const ffmpeg=findMediaTool('ffmpeg')||'ffmpeg';
+  const made=spawnSync(ffmpeg,['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','testsrc=duration=8:size=640x360:rate=24','-f','lavfi','-i','sine=frequency=440:duration=8','-c:v','libx264','-c:a','aac','-pix_fmt','yuv420p',mediaPath],{windowsHide:true});
+  assert.equal(made.status,0,'E2E video fixture üretilemedi: '+String(made.stderr));
+ }
+ const media=fs.readFileSync(mediaPath);
  const captions={en:['Flowers move in the wind.','Look at the garden.','A quiet moment in nature.'],tr:['Çiçekler rüzgârda hareket ediyor.','Bahçeye bak.','Doğada sakin bir an.']};
  const times=['00:00:00.000 --> 00:00:01.800','00:00:01.800 --> 00:00:03.500','00:00:03.500 --> 00:00:05.100'];
  const vtt=lang=>'WEBVTT\n\n'+captions[lang].map((s,i)=>times[i]+'\n'+s).join('\n\n')+'\n';

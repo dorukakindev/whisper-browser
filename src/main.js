@@ -8,7 +8,7 @@ const https = require('https');
 const { isIP } = require('net');
 const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
-const { createHash, randomUUID } = require('crypto');
+const { createHash, randomUUID, randomBytes } = require('crypto');
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
@@ -1688,6 +1688,124 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
 // Akış: setClient → deviceCode (kod gösterilir) → poll (arka planda yoklar)
 // → login: refresh_token safeStorage'a, access_token belleğe.
 // Renderer'a asla token/secret/device_code dönmez.
+// Masaüstü için Google'ın önerdiği akış device_code DEĞİL sistem-tarayıcılı
+// loopback (RFC 8252): youtube:authCode PKCE + 127.0.0.1 dinleyicisi kurar.
+// Device-code akışı korunuyor ama yalnız "TVs and Limited Input" tipindeki
+// kullanıcı istemcilerinde çalışır — Google diğer tiplere bu grant'i kapalı.
+
+// backend/youtube.py OAUTH_SCOPE ile birebir aynı kalmalı (rapor70 testi).
+const YT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+
+let _ytAuthFlow = null;   // {server, timer, reject} — loopback dinlerken
+
+function _ytAbortAuthFlow(message) {
+  if (!_ytAuthFlow) return false;
+  const flow = _ytAuthFlow;
+  _ytAuthFlow = null;
+  try { clearTimeout(flow.timer); } catch (_) {}
+  try { flow.server.close(); } catch (_) {}
+  try { flow.reject(new Error(message)); } catch (_) {}
+  return true;
+}
+
+ipcMain.handle('youtube:authCode', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!youtubeSession.clientId || !youtubeSession.clientSecret) {
+    return { ok: false, error: 'Önce kendi OAuth Client ID + Secret bilgilerinizi kaydedin.' };
+  }
+  if (_ytAuthFlow) return { ok: false, error: 'Zaten süren bir giriş akışı var.' };
+
+  const verifier = randomBytes(48).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const state = randomBytes(18).toString('base64url');
+
+  let code;
+  let redirectUri = '';
+  try {
+    code = await new Promise((resolve, reject) => {
+      const cleanup = (err, value) => {
+        clearTimeout(timer);
+        try { server.close(); } catch (_) {}
+        _ytAuthFlow = null;
+        if (err) reject(err); else resolve(value);
+      };
+      const server = http.createServer((req, res) => {
+        let u;
+        try { u = new URL(req.url, 'http://127.0.0.1'); } catch (_) { u = null; }
+        if (!u || u.pathname !== '/oauth2callback') {
+          res.statusCode = 404; res.end(); return;
+        }
+        const err = u.searchParams.get('error');
+        const cbCode = u.searchParams.get('code');
+        const cbState = u.searchParams.get('state');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        if (err) {
+          res.end('<h3>Yetkilendirme iptal edildi.</h3><p>Whisper Browser penceresine dönebilirsiniz.</p>');
+          cleanup(err === 'access_denied'
+            ? new Error('Kullanıcı erişimi reddetti.') : new Error(`Yetkilendirme hatası: ${err}`));
+          return;
+        }
+        if (!cbCode || cbState !== state) {
+          res.statusCode = 400;
+          res.end('<h3>Geçersiz yanıt.</h3>');
+          cleanup(new Error('Yetkilendirme yanıtı doğrulanamadı (state uyuşmadı).'));
+          return;
+        }
+        res.end('<h3>Giriş tamamlandı.</h3><p>Whisper Browser penceresine dönebilirsiniz.</p>');
+        cleanup(null, cbCode);
+      });
+      const timer = setTimeout(() => {
+        cleanup(new Error('Tarayıcı onayı süresi doldu — yeniden deneyin.'));
+      }, 600_000);
+      _ytAuthFlow = { server, timer, reject: (e) => cleanup(e) };
+      server.on('error', (err) => {
+        cleanup(new Error(`Loopback dinleyicisi açılamadı: ${err.message || err}`));
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const port = server.address().port;
+        redirectUri = `http://127.0.0.1:${port}/oauth2callback`;
+        const params = new URLSearchParams({
+          client_id: youtubeSession.clientId,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: YT_OAUTH_SCOPE,
+          access_type: 'offline',
+          prompt: 'consent',
+          state,
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+        });
+        const opened = openExternalByPolicy(
+          `https://accounts.google.com/o/oauth2/v2/auth?${params}`, 'renderer-external');
+        Promise.resolve(opened).then((ok) => {
+          if (!ok) cleanup(new Error('Sistem tarayıcısı açılamadı.'));
+        }).catch(() => cleanup(new Error('Sistem tarayıcısı açılamadı.')));
+      });
+    });
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'Giriş akışı tamamlanamadı.' };
+  }
+  const res = await runYoutubeCommand(
+    ['exchange_code', '--client-id', youtubeSession.clientId], null, 45_000,
+    { ...youtubeAuthEnv(),
+      WHISPER_YT_AUTH_CODE: code,
+      WHISPER_YT_CODE_VERIFIER: verifier,
+      WHISPER_YT_REDIRECT_URI: redirectUri || '' });
+  if (res && res.ok && res.data && res.data.refresh_token) {
+    youtubeSession.refreshToken = res.data.refresh_token;
+    youtubeSession.accessToken = res.data.access_token || '';
+    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
+    youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
+    youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
+    persistYoutubeSession();
+    return { ok: true, data: { loggedIn: true, userName: youtubeSession.userName,
+                               userEmail: youtubeSession.userEmail } };
+  }
+  if (res && res.ok && res.data) {
+    return { ok: false, error: 'YouTube refresh token döndürmedi — yeniden deneyin.' };
+  }
+  return res || { ok: false, error: 'Token değişimi tamamlanamadı.' };
+});
 
 ipcMain.handle('youtube:session', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
@@ -1696,6 +1814,7 @@ ipcMain.handle('youtube:session', async (_e) => {
     userName: youtubeSession.userName,
     userEmail: youtubeSession.userEmail,
     hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
+    clientId: youtubeSession.clientId || '',
     pendingCode: !!(_ytDevice && _ytDevice.deviceCode),
   } };
 });
@@ -1813,6 +1932,7 @@ ipcMain.handle('youtube:logout', async (_e) => {
   // Uçuştaki poll'u öldür — yoksa çıkış sonrası gelen başarı sonucu oturumu
   // diske geri yazıyor ve mediaJobs slot'u revoke'u da kilitliyordu.
   if (mediaJobs.youtube) terminateProcessTree(mediaJobs.youtube, { spawn });
+  _ytAbortAuthFlow('Oturum kapatıldı.');
   // Revoke en-iyi-çaba — takılmasın diye kısa timeout; başarısızsa da temizleriz.
   await runYoutubeCommand(['revoke'], null, 15_000, youtubeAuthEnv()).catch(() => null);
   youtubeSession.refreshToken = '';
@@ -1827,8 +1947,12 @@ ipcMain.handle('youtube:logout', async (_e) => {
 
 ipcMain.handle('youtube:cancel', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  // Tarayıcı-onaylı loopback akışında python süreci henüz yok — önce onu durdur.
+  const authAborted = _ytAbortAuthFlow('Giriş akışı iptal edildi.');
   const proc = mediaJobs.youtube;
-  if (!proc) return { ok: false, error: 'Çalışan YouTube işi yok.' };
+  if (!proc) return authAborted
+    ? { ok: true }
+    : { ok: false, error: 'Çalışan YouTube işi yok.' };
   terminateProcessTree(proc, { spawn });
   _ytDevice = null;
   // Kapanışı kısa süreyle bekle — dönüp döndüğümüzde slot hâlâ doluysa
@@ -10167,10 +10291,15 @@ function browserTrackProbeScriptWithMode(force = false) {
           && previousPrefixFingerprint === previous.fingerprint) emitted = list.slice(previous.length);
       probeState.seen.set(track, { length: list.length, fingerprint });
       const element = [...video.querySelectorAll('track')].find((candidate) => candidate.track === track);
+      // hls.js gibi oynatıcılar izleri src="data:…" olan sentetik <track>
+      // elementleriyle oluşturur. İz başına aynı gövdeyi taşıyan data: URL'i ağ
+      // kimliği değildir; streamKey'e verilirse farklı izler tek buffer'da
+      // birleşir. Ağ kimliği taşımayan src'ler DOM kimliği yedeğine düşer.
+      const elementSrc = element ? (element.src || '') : '';
       tracks.push({
         language: track.language || '', label: track.label || track.language || 'HTML5 altyazı',
         kind: track.kind || '', trackId: track.id || '',
-        sourceUrl: element ? (element.src || '') : '',
+        sourceUrl: /^data:/i.test(elementSrc) ? '' : elementSrc,
         cues: emitted.map(c => ({ start: c.startTime, end: c.endTime, text: c.text || '' }))
       });
     }
@@ -12469,7 +12598,10 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
   browserVisible = true;
   view.setVisible(true);
   if (!browserTrackTimer || !browserCaptureTimer || !browserMediaTimer) startBrowserPolling();
-  const pageUrl = `${fixtureRoot}/page?cycle=${cycle}`;
+  // Tek sayımlı döngüler gerçek hls.js video sayfasını yükler: gerçek oynatma,
+  // textTrack cue üretimi, seek ve kalite değişimi bu yoldan çalışır.
+  const videoCycle = cycle % 2 === 0;
+  const pageUrl = `${fixtureRoot}/${videoCycle ? 'video' : 'page'}?cycle=${cycle}`;
   await view.webContents.loadURL(pageUrl);
   const instrumentation = await prepareBrowserPageInstrumentation(tab);
   if (instrumentation.stale || instrumentation.active) {
@@ -12483,11 +12615,61 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
       + '.then((response) => response.text()).then(() => true)', true
   );
   let lastFlush = null;
-  for (let attempt = 0; attempt < 40; attempt++) {
+  const flushAttempts = videoCycle ? 160 : 40;
+  for (let attempt = 0; attempt < flushAttempts; attempt++) {
     await resourceSoakSleep(25);
     lastFlush = await flushBrowserCaptureQueue({ force: true, installHook: true });
     flushBrowserTrackPublications(true);
     if (resourceSoakPublicationCount > publicationsBefore) break;
+  }
+  // Soak ops: seek, kalite değişimi, offline/online, 403, çeviri başlat+iptal.
+  if (videoCycle) {
+    try {
+      await view.webContents.executeJavaScript(
+        `(()=>{const v=document.querySelector('video');
+          if(v&&isFinite(v.duration)&&v.duration>4)v.currentTime=Math.min(v.duration-2,${1 + (Math.abs(cycle) % 6)});
+          if(window.__gauntletHls)window.__gauntletHls.currentLevel=(${Math.abs(cycle)} % 3 === 0)?0:-1;
+          return true})()`, true);
+    } catch (_) {}
+  }
+  // Offline/403 op'ları metin döngülerine denk getirilir: video döngüsündeki
+  // hls.js istemcisi sayfa-bazlı olduğundan op'u orada çalıştırmak sonraki
+  // video döngülerinin ağ durumunu kirletir.
+  if (cycle > 0 && cycle % 20 === 9) {
+    try {
+      await view.webContents.session.enableNetworkEmulation({ offline: true });
+      await resourceSoakSleep(150);
+      await view.webContents.session.enableNetworkEmulation({ offline: false });
+    } catch (_) {}
+  }
+  if (cycle > 0 && cycle % 12 === 11) {
+    try {
+      await view.webContents.executeJavaScript(
+        `fetch(${JSON.stringify(`${fixtureRoot}/captions-403.vtt?cycle=${cycle}`)})
+          .then(()=>true).catch(()=>true)`, true);
+    } catch (_) {}
+  }
+  if (cycle > 0 && cycle % 25 === 0 && mainWindow && !mainWindow.isDestroyed()) {
+    // Çeviri başlat → kısa süre çalıştır → kullanıcı iptali; geç gelen cevabın
+    // yazılmaması üretim kodundaki iptal korumasını zorlar.
+    try {
+      const started = await mainWindow.webContents.executeJavaScript(
+        `(async()=>{const t=(player.browserTracks||[]).find(x=>x.role!=='translation'&&(x.cueCount||0)>=1);
+          if(!t)return 'notrack'; useBrowserTrack(true,t.id); return 'started'})()`, true);
+      if (started === 'started') {
+        await resourceSoakSleep(900);
+        await mainWindow.webContents.executeJavaScript(
+          `window.api.stopBrowserTranslation(player.browserActiveTabId)`, true);
+      }
+    } catch (_) {}
+  }
+  if (videoCycle) {
+    // Döngüler arasında oynatımı durdur: sonraki sayfa yükü ve hibernasyon
+    // "sekmede ses/video oynuyor" korumasına takılmasın.
+    try {
+      await view.webContents.executeJavaScript(
+        `(()=>{const v=document.querySelector('video');if(v&&!v.paused)v.pause();return true})()`, true);
+    } catch (_) {}
   }
   upsertWatchItem({
     key: `soak:${cycle % 32}`,
@@ -12514,7 +12696,9 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
   const captured = resourceSoakPublicationCount > publicationsBefore;
   if (!captured) {
     console.warn(`[resource-soak] ${cycle}. döngü yakalanamadı:`,
-      JSON.stringify({ lastFlush, diagnostics: browserDiagnostics?.counts || null }));
+      JSON.stringify({ lastFlush, diagnostics: browserDiagnostics?.counts || null,
+        recent: (browserDiagnostics?.recent || []).slice(0, 8)
+          .map((e) => `${e.strategy}:${e.outcome}:${e.detail}`) }));
   }
   return captured;
 }
@@ -12534,6 +12718,15 @@ async function resourceSoakHibernationSession(count, fixtureRoot) {
   const attempts = Math.max(0, Math.trunc(Number(count) || 0));
   if (!attempts) return { attempts: 0, successes: 0 };
   const target = activeBrowserTab(true);
+  // Hedef sekmeyi düz fixture sayfasına taşı: video sayfasında kalan pending
+  // altyazı yanıtları ve autoplay, unload korumalarını tetikler; koruma
+  // davranışı video döngülerinde zaten kanıtlanıyor, burada unload döngüsü
+  // ölçülür.
+  try {
+    const targetView = ensureBrowserView(target);
+    await targetView.webContents.loadURL(`${fixtureRoot}/page?cycle=hibernate`);
+    await resourceSoakSleep(200);
+  } catch (_) {}
   const anchorUrl = `${fixtureRoot}/page?cycle=hibernate-anchor`;
   const anchor = createBrowserTabRecord({ restoredUrl: anchorUrl, restoredTitle: 'Soak hibernasyon sabitleyicisi' });
   const anchorView = ensureBrowserView(anchor);
@@ -12543,6 +12736,16 @@ async function resourceSoakHibernationSession(count, fixtureRoot) {
   let successes = 0;
   try {
     for (let cycle = 1; cycle <= attempts; cycle++) {
+      // Uyanan video sekmesi autoplay ile yeniden oynatabilir; unload'un
+      // "ses/video oynuyor" korumasına takılmaması için önce duraklat.
+      try {
+        const wc = target.view?.webContents;
+        if (wc && !wc.isDestroyed()) {
+          await wc.executeJavaScript(
+            `[...document.querySelectorAll('video,audio')].forEach(m=>{try{m.pause()}catch(_){}})`, true);
+          await resourceSoakSleep(80);
+        }
+      } catch (_) {}
       const unloaded = await unloadBrowserTab(target.id);
       if (!unloaded?.ok) {
         throw new Error(`Hibernasyon ${cycle}/${attempts} başarısız: ${unloaded?.error || unloaded?.reason || 'bilinmeyen hata'}`);
@@ -12591,9 +12794,27 @@ async function runResourceSoakSession() {
   const samples = [await collectResourceSoakSnapshot('start', 0)];
   resourceSoakTracker?.resetPeaks();
   const checkpoint = Math.max(1, Math.floor(cycles / 4));
+  // Uygulama yenileme op'u: döngünün ortasında renderer tamamen yeniden
+  // yüklenir; renderer-dinleyici/heap ölçümleri yeniden başlar, main-süreç
+  // ölçümleri sürekli kalır. Rapor bu sınırı 'postreload' örneğiyle işaretler.
+  const reloadAt = Number(process.env.WHISPER_RESOURCE_SOAK_RELOAD_AT) || Math.floor(cycles / 2);
   for (let cycle = 1; cycle <= cycles; cycle++) {
     captureAttempts++;
     if (await resourceSoakCycle(cycle, fixtureRoot)) captureSuccesses++;
+    if (cycle === reloadAt) {
+      mainWindow.webContents.reload();
+      await resourceSoakSleep(400);
+      const deadline = Date.now() + 30000;
+      while (Date.now() < deadline && mainWindow.webContents.isLoading()) {
+        await resourceSoakSleep(150);
+      }
+      await resourceSoakSleep(800);
+      await mainWindow.webContents.executeJavaScript(
+        "document.getElementById('workspaceBrowserMode')?.click(); true", true).catch(() => {});
+      await resourceSoakSleep(300);
+      samples.push(await collectResourceSoakSnapshot(`postreload-${cycle}`, cycle));
+      console.log(`[resource-soak] ${cycle}/${cycles} · uygulama yenilendi · yakalama ${captureSuccesses}/${captureAttempts}`);
+    }
     const isFinal = cycle === cycles;
     if (cycle % checkpoint === 0 || isFinal) {
       if (isFinal) await resourceSoakSleep(500);
@@ -16157,13 +16378,15 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const appDir = app.getAppPath();
   const pythonPath = resolvePython();
-  const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', 'Scripts', 'python.exe'))
-            || fs.existsSync(path.join(appDir, 'backend', '.venv', 'Scripts', 'python.exe'));
-  const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', 'ffmpeg.exe'));
+  const venvPy = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python';
+  const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', venvPy))
+            || fs.existsSync(path.join(appDir, 'backend', '.venv', venvPy));
+  const ffExe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+  const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', ffExe));
   const runtimeRoot = ytdlpRuntimeRoot(app.getPath('userData'));
   const [pythonLine, ffmpegLine, gpuLine, ytDlpVersion] = await Promise.all([
     probeCommand(pythonPath, ['--version']),
-    probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', 'ffmpeg.exe') : 'ffmpeg', ['-version']),
+    probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', ffExe) : 'ffmpeg', ['-version']),
     probeCommand('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader']),
     probeCommand(pythonPath, ['-c', 'from yt_dlp.version import __version__; print(__version__)'], {
       env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8' }),
@@ -16653,7 +16876,8 @@ ipcMain.handle('settings:import', async (event) => {
 
 // ffmpeg/ffprobe yolu: önce backend/bin, sonra PATH
 function resolveFfTool(name) {
-  const local = path.join(app.getAppPath(), 'backend', 'bin', `${name}.exe`);
+  const exeName = process.platform === 'win32' ? `${name}.exe` : name;
+  const local = path.join(app.getAppPath(), 'backend', 'bin', exeName);
   return fs.existsSync(local) ? local : name;
 }
 

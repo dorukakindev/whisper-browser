@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow } = require('electron');
+const { findMediaTool } = require('./media-runtime');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,7 +15,7 @@ async function main() {
   fs.mkdirSync(preview, { recursive: true });
   const fixture = path.join(preview, 'browser-audio-fixture.mp4');
   const page = path.join(preview, 'browser-audio-fixture.html');
-  const ffmpeg = path.resolve(__dirname, '..', 'backend', 'bin', 'ffmpeg.exe');
+  const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
   const generated = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1',
     '-f', 'lavfi', '-i', 'anullsrc=channel_layout=mono:sample_rate=48000:duration=2',

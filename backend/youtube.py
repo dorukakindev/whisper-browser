@@ -200,6 +200,39 @@ def refresh(client_id):
          expires_in=data.get("expires_in", 3600))
 
 
+def exchange_code(client_id):
+    """Loopback auth-code akışı: sistem tarayıcısından dönen kod + PKCE
+    verifier ile token değişimi (masaüstü uygulamalar için Google'ın
+    önerdiği akış; device_code akışı yalnız TV/sınırlı-girdi istemcilerine
+    açıktır)."""
+    client_secret = os.environ.get("WHISPER_YT_CLIENT_SECRET", "")
+    code = os.environ.get("WHISPER_YT_AUTH_CODE", "")
+    verifier = os.environ.get("WHISPER_YT_CODE_VERIFIER", "")
+    redirect_uri = os.environ.get("WHISPER_YT_REDIRECT_URI", "")
+    if not code or not verifier or not redirect_uri:
+        raise RuntimeError("Yetkilendirme kodu eksik — akışı yeniden başlatın.")
+    data, err = _post_form(OAUTH_TOKEN, {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": code,
+        "code_verifier": verifier,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    })
+    if err or not data or not data.get("access_token"):
+        code_err = (err or {}).get("error", "")
+        if code_err in ("invalid_grant", "unauthorized_client"):
+            raise RuntimeError("Yetkilendirme kodu reddedildi — yeniden giriş deneyin.")
+        raise RuntimeError(f"Token değişimi hatası: {code_err or err}")
+    user = _fetch_me(data["access_token"]) or {}
+    emit("login",
+         access_token=data["access_token"],
+         refresh_token=data.get("refresh_token", ""),
+         expires_in=data.get("expires_in", 3600),
+         user_name=user.get("name", ""),
+         user_email=user.get("email", ""))
+
+
 def revoke():
     token = os.environ.get("WHISPER_YT_ACCESS_TOKEN", "") \
         or os.environ.get("WHISPER_YT_REFRESH_TOKEN", "")
@@ -457,6 +490,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("command", choices=[
         "device_code", "poll", "refresh", "browse", "me", "revoke",
+        "exchange_code",
     ])
     ap.add_argument("--client-id", default="")
     ap.add_argument("--browse-id", default="FEsubscriptions")
@@ -484,6 +518,10 @@ def main():
             if bid not in allowed_browse:
                 raise RuntimeError(f"Desteklenmeyen browse_id: {bid}")
             browse(bid, continuation=args.continuation)
+        elif args.command == "exchange_code":
+            if not args.client_id:
+                raise RuntimeError("--client-id gerekli.")
+            exchange_code(args.client_id)
         elif args.command == "me":
             token = os.environ.get("WHISPER_YT_ACCESS_TOKEN", "")
             user = _fetch_me(token) if token else None

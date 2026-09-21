@@ -1,4 +1,10 @@
-Güncel çalışma: [2026-09-21 13:57 — Devin cloud değişiklikleri güvenlik ve gerçek Electron smoke denetimi; dar YouTube OAuth yetkisi, token/istemci izolasyonu ve SmartTube ayrıştırma düzeltmeleri](docs/devir/2026-09-21-1357.md).
+Güncel çalışma: [2026-09-22 00:48 — PR #16 gauntlet kabul testi yanlış-pozitif kapılarının kapatılması ve gerçek Windows Electron doğrulaması; BROWSER_BUG_REPORT_97](docs/devir/2026-09-22-0048.md).
+
+Önceki çalışma: [2026-09-21 19:05 — Browser Subtitle Reliability Gauntlet: `data:` <track> streamKey çakışması düzeltildi (F-96-1), protokol fixture lab + zaman değişmezleri + eksiksizlik + çeviri maliyeti + gerçek-Electron kabulü + ≥30 dk soak; BROWSER_BUG_REPORT_96](docs/devir/2026-09-21-1905.md).
+
+Önceki çalışma: [2026-09-21 16:17 — Kapsamlı entegrasyon/regresyon turu (matris A–G): PKCE+loopback OAuth akışı, Linux araç/venv tespiti, CSP worker-src, i18n eksikleri; BROWSER_BUG_REPORT_95](docs/devir/2026-09-21-1617.md).
+
+Önceki çalışma: [2026-09-21 13:57 — Devin cloud değişiklikleri güvenlik ve gerçek Electron smoke denetimi; dar YouTube OAuth yetkisi, token/istemci izolasyonu ve SmartTube ayrıştırma düzeltmeleri](docs/devir/2026-09-21-1357.md).
 
 Önceki çalışma: [2026-09-21 13:13 — PR dokümantasyon altyapısı: template genişletildi (What/Why/How/Tests/Risks/Links), CHANGELOG Keep-a-Changelog'a çevrildi + #2/#5/#7/#8/#9/#11 geriye dönük işlendi, CONTRIBUTING'e changelog kuralı](docs/devir/2026-09-21-1313.md).
 

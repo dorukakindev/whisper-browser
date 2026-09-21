@@ -12,6 +12,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const { findMediaTool } = require('./media-runtime');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
@@ -149,7 +150,7 @@ async function pageTarget(devtoolsPort, url) {
 async function run() {
   const projectRoot = path.resolve(__dirname, '..');
   fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-a3-'));
-  const ffmpeg = path.join(projectRoot, 'backend', 'bin', 'ffmpeg.exe');
+  const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
   const videoFixture = path.join(fixtureDir, 'timeline.mp4');
   const imageFixture = path.join(fixtureDir, 'manga.png');
   const madeVideo = spawnSync(ffmpeg, [
@@ -254,7 +255,7 @@ async function run() {
   const childLinuxArgs = process.platform === 'linux'
     ? ['--no-sandbox', '--no-zygote', '--disable-gpu']
     : [];
-  electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
+  electronProcess = spawn(process.execPath, [
     '--inspect=' + mainInspectPort,
     ...childLinuxArgs,
     projectRoot,

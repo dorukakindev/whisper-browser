@@ -1437,10 +1437,20 @@
     ['Sekmeyi yeniden yükle', 'Reload the tab'],
     ['Akış alınamadı', 'Feed unavailable'],
     ['Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.', 'Error rendering home — local records and retry below.'],
-    ['Cihaz koduyla giriş için kendi Google Cloud OAuth istemcinizi kaydedin. Uygulama salt-okuma izni ister. Kişisel InnerTube akışı bu istemciyi kabul etmeyebilir; girişin başarılı olması akışın çalıştığını kanıtlamaz.', 'To sign in with a device code, save your own Google Cloud OAuth client. The app requests read-only access. The personal InnerTube feed may reject this client; successful sign-in does not prove the feed works.'],
     ['Göster', 'Show'],
     ['Şifreyi göster', 'Show password'],
     ["Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:", 'Scan the QR code on your phone or open the address below on a computer and enter the code:'],
+    ['Tarayıcıda yetkilendir', 'Authorize in browser'],
+    ['Cihaz kodu üret', 'Generate device code'],
+    ['Giriş yöntemini seçin.', 'Choose a sign-in method.'],
+    ['Tarayıcıda Google onayı bekleniyor…', 'Waiting for Google approval in the browser…'],
+    ["Masaüstü uygulamaları için Google'ın önerdiği yol: sistem tarayıcınızda Google onayı.", "Google's recommended path for desktop apps: approve in your system browser."],
+    ['Alternatif: Google Cloud\'da "TVs and Limited Input" tipi istemciniz varsa cihaz koduyla giriş.', 'Alternative: if your Google Cloud client is of the "TVs and Limited Input" type, sign in with a device code.'],
+    ['Cihaz kodu alınamadı', 'Device code request failed'],
+    ['Bu grupta kanal yok.', 'No channels in this group.'],
+    ['Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.', 'Local subscription list is empty — subscribe from a card menu or import from file.'],
+    ['Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.', 'The list stays on this device; it is not uploaded to a YouTube/Invidious account.'],
+    ['Kendi Google Cloud OAuth istemcinizi kaydedin: "Desktop app" tipi istemci tarayıcı akışını, "TVs and Limited Input" tipi cihaz kodu akışını kullanır. Uygulama yalnız salt-okuma izni ister. Kişisel InnerTube akışı bu istemciyi kabul etmeyebilir; girişin başarılı olması akışın çalıştığını kanıtlamaz.', 'Save your own Google Cloud OAuth client: a "Desktop app" client uses the browser flow, a "TVs and Limited Input" client uses the device-code flow. The app requests read-only access. The personal InnerTube feed may reject this client; successful sign-in does not prove the feed works.'],
   ];
 
   const toEnglish = new Map(entries);

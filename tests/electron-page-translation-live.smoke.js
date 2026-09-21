@@ -132,7 +132,7 @@ async function run() {
 
   const rendererPort = 26000 + Math.floor(Math.random() * 1000);
   const mainPort = 28000 + Math.floor(Math.random() * 1000);
-  child = spawn(path.join(root, 'node_modules', 'electron', 'dist', 'electron.exe'), [
+  child = spawn(process.execPath, [
     `--inspect=${mainPort}`, root, `--remote-debugging-port=${rendererPort}`, `--user-data-dir=${tempProfile}`,
   ], {
     cwd: root, windowsHide: true, stdio: 'ignore',

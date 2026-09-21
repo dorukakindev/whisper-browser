@@ -305,7 +305,7 @@ async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   const devtoolsPort = 22000 + Math.floor(Math.random() * 1000);
   const mainInspectPort = 24000 + Math.floor(Math.random() * 1000);
-  electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
+  electronProcess = spawn(process.execPath, [
     '--inspect=' + mainInspectPort,
     projectRoot,
     '--remote-debugging-port=' + devtoolsPort,

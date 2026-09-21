@@ -111,6 +111,48 @@ class Poll(unittest.TestCase):
                 _capture_emit(youtube.poll, "CID")
 
 
+class ExchangeCode(unittest.TestCase):
+    """Loopback (tarayıcı) akışı — masaüstü uygulamalar için önerilen yol."""
+
+    def _env(self):
+        return {"WHISPER_YT_CLIENT_SECRET": "SEC",
+                "WHISPER_YT_AUTH_CODE": "CODE-1",
+                "WHISPER_YT_CODE_VERIFIER": "VER-1",
+                "WHISPER_YT_REDIRECT_URI": "http://127.0.0.1:4321/oauth2callback"}
+
+    def test_exchange_code_sends_pkce_and_emits_login(self):
+        with patch.dict(os.environ, self._env(), clear=False), \
+             patch.object(youtube, "_post_form",
+                          return_value=({"access_token": "AT", "refresh_token": "RT",
+                                         "expires_in": 3600}, None)) as m, \
+             patch.object(youtube, "_fetch_me", return_value={"name": "Kanal"}):
+            events = _capture_emit(youtube.exchange_code, "CID")
+        fields = m.call_args[0][1]
+        self.assertEqual(fields["grant_type"], "authorization_code")
+        self.assertEqual(fields["code"], "CODE-1")
+        self.assertEqual(fields["code_verifier"], "VER-1")
+        self.assertEqual(fields["redirect_uri"], "http://127.0.0.1:4321/oauth2callback")
+        self.assertEqual(fields["client_secret"], "SEC")
+        login = [e for e in events if e["type"] == "login"]
+        self.assertEqual(len(login), 1)
+        self.assertEqual(login[0]["refresh_token"], "RT")
+
+    def test_exchange_code_missing_env_raises(self):
+        env = {k: v for k, v in os.environ.items()
+               if not k.startswith("WHISPER_YT_")}
+        with patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(RuntimeError):
+                _capture_emit(youtube.exchange_code, "CID")
+
+    def test_exchange_code_invalid_grant_raises(self):
+        with patch.dict(os.environ, self._env(), clear=False), \
+             patch.object(youtube, "_post_form",
+                          return_value=(None, {"error": "invalid_grant"})):
+            with self.assertRaises(RuntimeError) as cm:
+                _capture_emit(youtube.exchange_code, "CID")
+        self.assertIn("reddedildi", str(cm.exception))
+
+
 class Refresh(unittest.TestCase):
     def test_refresh_emits_token(self):
         with patch.dict(os.environ,

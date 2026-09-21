@@ -1,5 +1,7 @@
 'use strict';
 const { app, BrowserWindow, dialog } = require('electron');
+const { findMediaTool } = require('./media-runtime');
+const { findTestPython } = require('./python-runtime');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -11,7 +13,7 @@ fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${Date.now()}-${process.pid}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
 const video = path.join(out, 'catalog-film.mp4');
-const ffmpeg = path.join(root, 'backend', 'bin', 'ffmpeg.exe');
+const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
 const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i',
   'color=c=blue:s=320x180:r=12:d=8', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=8',
   '-c:v', 'mpeg4', '-c:a', 'aac', video], { windowsHide: true });
@@ -21,7 +23,7 @@ const posterMade = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y'
   '-frames:v', '1', poster], { windowsHide: true });
 assert.equal(posterMade.status, 0, String(posterMade.stderr));
 const db = path.join(out, `synthetic-nmdb-${Date.now()}-${process.pid}.sqlite`);
-const python = path.join(root, 'backend', 'venv', 'Scripts', 'python.exe');
+const python = findTestPython() || 'python3';
 const createDb = String.raw`
 import sqlite3, sys
 db=sqlite3.connect(sys.argv[1]); db.executescript('''

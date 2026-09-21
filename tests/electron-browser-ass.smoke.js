@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, protocol, session } = require('electron');
+const { findMediaTool } = require('./media-runtime');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -17,7 +18,7 @@ async function main() {
   const video = path.resolve(__dirname, '..', '.uiprev', 'browser-media-scene-test.mp4');
   if (!fs.existsSync(video)) {
     fs.mkdirSync(path.dirname(video), { recursive: true });
-    const ffmpeg = path.resolve(__dirname, '..', 'backend', 'bin', 'ffmpeg.exe');
+    const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
     const result = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=24:duration=4', '-y', video], { windowsHide: true });
     if (result.status !== 0) throw new Error(`Test videosu üretilemedi: ${result.stderr?.toString() || 'FFmpeg eksik.'}`);
   }
