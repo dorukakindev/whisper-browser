@@ -13,7 +13,7 @@ description: How to launch and drive the whisper-browser Electron app on this Li
 
 ## Reaching the player
 - Main view → **BROWSER** button (top bar) opens `playerLayer` in the *browser* workspace (embedded webview).
-- Workspace tabs at top-left of the player head: **Oynatıcı** (player) / **Tarayıcı** (browser). Click Oynatıcı for the video stage.
+- Workspace tabs are "Player"/"Browser" pills in the player head (EN) / Oynatıcı/Tarayıcı (TR). Click the pill CENTER — in the current layout the "Player" pill center is ~x=750,y=65; clicking ~770+ lands in the gap and does nothing.
 - Settings drawer: gear icon in the player head (far right of header). It contains the **Kaynak → Local file** tab with **Choose video** (multi-select → playlist = selected files only) and **Choose folder** (playlist = ALL media files in that folder, via `dialog:openFolders`).
 
 ## Player transport / playlist model
