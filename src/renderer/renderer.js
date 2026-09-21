@@ -23886,6 +23886,7 @@ function stQueueToggle(video) {
     stQueue.splice(i, 1);
     saveStQueue();
     updatePlaylistButtons();
+    stRefreshQueueRail();
     return false;
   }
   const thumbs = video.videoThumbnails || [];
@@ -23931,9 +23932,19 @@ function stQueueDequeueIfPlaying(key) {
 // ray grid içinde display:contents kabı olduğundan yalnız kendi kartlarını
 // yeniden kurar; feed yeniden çekilmez, yükleniyor ekranı çıkmaz.
 function stRefreshQueueRail() {
-  const rail = document.querySelector('#stGrid .st-queue-rail');
-  if (!rail) return;
+  const grid = $('stGrid');
+  if (!grid) return;
   const items = stQueueRailVideos();
+  let rail = grid.querySelector('.st-queue-rail');
+  if (!rail) {
+    // Ray yalnız ana sayfa render'ında kuruluyor — boş kuyrukta oluşmadığı
+    // için ilk ekleme burada yaratır. Diğer bölümlerde (arama/kanal) kuyruk
+    // sessizce yazılır; ray bir sonraki ana sayfa render'ında çıkar.
+    if (!items.length || stCurrentSection !== 'home') return;
+    rail = document.createElement('div');
+    rail.className = 'st-queue-rail';
+    grid.prepend(rail);
+  }
   rail.innerHTML = '';
   if (!items.length) { rail.remove(); return; }
   const sep = document.createElement('div');
@@ -25750,7 +25761,7 @@ async function startYoutubeDeviceFlow() {
     link.href = vurl;
     link.onclick = (e) => { e.preventDefault(); window.api.openExternal(vurl); };
   }
-  if (status) status.textContent = 'Onay bekleniyor…';
+  if (status) status.textContent = window.UiLocale?.t('Onay bekleniyor…') || 'Onay bekleniyor…';
   // SmartTube gibi telefona okutulabilir QR — kod linki zaten taşıyor.
   const qrCanvas = $('ytQrCanvas');
   if (qrCanvas) {

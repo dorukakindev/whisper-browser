@@ -317,9 +317,20 @@ function makeFakeEl(tag) {
     attrs: {},
     style: {},
     appendChild(c) { c.parent = el; el.children.push(c); return c; },
+    prepend(c) { c.parent = el; el.children.unshift(c); return c; },
+    remove() {
+      if (el.parent) { el.parent.children = el.parent.children.filter((x) => x !== el); el.parent = null; }
+    },
+    querySelector(sel) {
+      return sel.startsWith('.') ? (findByClass(el, sel.slice(1))[0] || null) : null;
+    },
     addEventListener(t, f) { (el.listeners[t] = el.listeners[t] || []).push(f); },
     setAttribute(k, v) { el.attrs[k] = String(v); },
   };
+  Object.defineProperty(el, 'innerHTML', {
+    get() { return ''; },
+    set(v) { if (v === '') el.children = []; },
+  });
   el.classList = {
     _set: () => new Set(el.className.split(' ').filter(Boolean)),
     _sync(s) { el.className = [...s].join(' '); },
@@ -562,6 +573,46 @@ test('renderer: kuyruk kapasite taşmasında düşen kayıt loglanır (F4, davra
   assert.strictEqual(ctx.stQueueRailVideos()[0].videoId, 'v1', 'en eski kayıt düşmeli');
   assert.ok(calls.log.some((l) => l.startsWith('warn:') && l.includes('T0')),
     'düşen kayıt kullanıcıya bildirilmedi');
+});
+
+test('F5a: elle çıkarma rayı tazeler — ghost kart ve boş başlık kalmaz (davranış)', () => {
+  const grid = makeFakeEl('div');
+  const { ctx } = buildQueueHarness();
+  ctx.$ = (id) => (id === 'stGrid' ? grid : null);
+  ctx.stCurrentSection = 'home';
+  ctx.buildSmartTubeCard = (v) => { const e = makeFakeEl('div'); e.className = 'st-card'; e.dataset = { vid: v.videoId }; return e; };
+  const rail = () => findByClass(grid, 'st-queue-rail')[0] || null;
+  const railCards = () => (rail() ? findByClass(rail(), 'st-card').map((c) => c.dataset.vid) : []);
+
+  ctx.stQueueToggle({ videoId: 'a1', title: 'A1', videoThumbnails: [] });
+  ctx.stQueueToggle({ videoId: 'a2', title: 'A2', videoThumbnails: [] });
+  assert.deepStrictEqual(railCards().sort(), ['a1', 'a2'], 'eklemeler rayda görünmeli');
+  ctx.stQueueToggle({ videoId: 'a1' });
+  assert.deepStrictEqual(railCards(), ['a2'], 'çıkarılan kart rayda ghost kaldı');
+  ctx.stQueueToggle({ videoId: 'a2' });
+  assert.strictEqual(rail(), null, 'kuyruk boşalınca ray kaldırılmalı');
+});
+
+test('F5b: boş kuyrukla render sonrası ilk ekleme rayı oluşturur; diğer bölümde oluşturmaz (davranış)', () => {
+  const grid = makeFakeEl('div');
+  const { ctx } = buildQueueHarness();
+  ctx.$ = (id) => (id === 'stGrid' ? grid : null);
+  ctx.buildSmartTubeCard = (v) => { const e = makeFakeEl('div'); e.className = 'st-card'; return e; };
+  const rail = () => findByClass(grid, 'st-queue-rail')[0] || null;
+
+  // Arama gibi home dışı bölümde ekleme: kuyruk yazılır ama ray kurulmaz
+  ctx.stCurrentSection = 'search';
+  ctx.stQueueToggle({ videoId: 's1', title: 'S1', videoThumbnails: [] });
+  assert.ok(ctx.stQueueHas('s1'));
+  assert.strictEqual(rail(), null, 'home dışı bölümde ray oluşturulmamalı');
+  ctx.stQueueToggle({ videoId: 's1' }); // geri al
+
+  // Home render'ı boş kuyrukla ray kurmadı — ilk ekleme rayı yaratmalı
+  ctx.stCurrentSection = 'home';
+  ctx.stQueueToggle({ videoId: 'h1', title: 'H1', videoThumbnails: [] });
+  assert.ok(rail(), 'ilk ekleme rayı oluşturmadı');
+  assert.strictEqual(findByClass(rail(), 'st-section-title').length, 1, 'başlık yok');
+  assert.strictEqual(findByClass(rail(), 'st-card').length, 1);
 });
 
 // ---------- Gömülü YouTube TV istemcisi (sıfır-konfig cihaz girişi) ----------

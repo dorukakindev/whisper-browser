@@ -1431,6 +1431,8 @@
     ['İstemci bilgisi kontrol ediliyor…', 'Checking OAuth client…'],
     ['Cihaz kodu alınıyor…', 'Requesting device code…'],
     ['Kod kopyalandı. Google onayı bekleniyor…', 'Code copied. Waiting for Google approval…'],
+    ['Onay bekleniyor…', 'Waiting for approval…'],
+    ['Kaydet ve devam et', 'Save and continue'],
     ['Normalde gerek yok: giriş, SmartTube\'un kullandığı yerleşik YouTube TV istemcisiyle otomatik çalışır. Yalnızca kendi Google Cloud OAuth istemcini ("TV ve sınırlı girişli cihazlar" tipi, YouTube Data API v3 etkin) kullanmak istersen gir. Uyarı: kendi istemcin InnerTube kişisel akışında çalışmayabilir — yerleşik TV istemcisi önerilir.', 'Usually not needed: sign-in works automatically with the embedded YouTube TV client that SmartTube uses. Only enter your own Google Cloud OAuth client ("TVs and limited-input devices" type, YouTube Data API v3 enabled) if you want to use it. Warning: a custom client may not work with the InnerTube personal feed — the embedded TV client is recommended.'],
     ['Göster', 'Show'],
     ['Şifreyi göster', 'Show password'],
