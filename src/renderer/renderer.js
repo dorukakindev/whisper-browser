@@ -15884,7 +15884,7 @@ function showBrowserErrorSurface(error) {
     : (crashed ? 'Sekme çöktü' : 'Sayfa açılamadı');
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
-  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? 'Sekmeyi yeniden yükle' : 'Tekrar dene';
+  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
 }
 
 async function askExplain(kind, index, word) {
@@ -23615,7 +23615,8 @@ async function renderSmartTubeSection(section, opts = {}) {
     if (section === 'home') {
       // Akış hatası ana sayfayı silmesin — yerel raylar + yeniden dene/giriş.
       logLine(`SmartTube feed hata: ${msg}`, 'error');
-      stRenderHomeFallback(grid, `Akış alınamadı: ${msg}`);
+      stRenderHomeFallback(grid,
+        `${window.UiLocale?.t('Akış alınamadı') || 'Akış alınamadı'}: ${msg}`);
       return;
     }
     showError(/giriş|login|401|unauthor/i.test(msg)
@@ -23670,7 +23671,9 @@ async function renderSmartTubeSection(section, opts = {}) {
     } catch (renderErr) {
       // Render aşaması hatası grid'i sessizce boş bırakmasın.
       logLine(`SmartTube ana sayfa render hatası: ${renderErr && renderErr.message || renderErr}`, 'error');
-      stRenderHomeFallback(grid, 'Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.');
+      stRenderHomeFallback(grid,
+        window.UiLocale?.t('Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.')
+        || 'Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.');
     }
   } else {
     // Yalnız "Yükleniyor…" yer tutucusunu kaldır — innerHTML='' yazsaydık
