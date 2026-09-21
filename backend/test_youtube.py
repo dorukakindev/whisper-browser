@@ -48,11 +48,10 @@ class DeviceCode(unittest.TestCase):
         # device_code ana süreçte kalması gereken alan — emit'te var ama
         # renderer'a iletilmez (main.js tarafı filtreler)
         self.assertEqual(ev["device_code"], "DC-SECRET")
-        # InnerTube'un kabul ettiği kapsam gönderilmiş olmalı (youtube —
-        # readonly youtubei/browse Bearer'da güvenilir çalışmıyor)
+        # Salt-okuma uygulaması hesap yönetme izni istememeli.
         fields = m.call_args[0][1]
         self.assertEqual(fields["scope"],
-                         "https://www.googleapis.com/auth/youtube")
+                         "https://www.googleapis.com/auth/youtube.readonly")
 
     def test_device_code_error_raises(self):
         with patch.object(youtube, "_post_form",
@@ -242,7 +241,11 @@ class Browse(unittest.TestCase):
                     "title": {"content": "Kilit video"},
                     "metadata": {"contentMetadataViewModel": {
                         "metadataRows": [
-                            {"metadataParts": [{"text": {"content": "Kanal X"}}]},
+                            {"metadataParts": [
+                                {"text": {"content": "Kanal X"},
+                                 "onTap": {"innertubeCommand": {"watchEndpoint": {"videoId": "LV1"}}}},
+                                {"onTap": {"innertubeCommand": {"browseEndpoint": {"browseId": "UCchannel"}}}},
+                            ]},
                             {"metadataParts": [
                                 {"text": {"content": "12K views"}},
                                 {"text": {"content": "3 days ago"}}]},
@@ -263,7 +266,8 @@ class Browse(unittest.TestCase):
         self.assertEqual(vids[0]["videoId"], "LV1")
         self.assertEqual(vids[0]["title"], "Kilit video")
         self.assertEqual(vids[0]["author"], "Kanal X")
-        self.assertEqual(vids[0]["viewCount"], 12)  # "12K" → sayı kısmı
+        self.assertEqual(vids[0]["viewCount"], 12000)
+        self.assertEqual(vids[0]["authorId"], "UCchannel")
         self.assertEqual(vids[0]["publishedText"], "3 days ago")
         self.assertEqual(vids[0]["videoThumbnails"][0]["url"], "https://i/320.jpg")
 

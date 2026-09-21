@@ -3089,15 +3089,13 @@
 <!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
 <div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
   <div class="modal-content" style="max-width:460px">
-    <!-- Görünüm 1: OAuth client bilgileri (gelişmiş — yerleşik YouTube TV istemcisi varsayılan) -->
+    <!-- Görünüm 1: kullanıcının kendi OAuth istemcisi -->
     <div id="ytClientView">
-      <h3 id="ytLoginTitle">YouTube ile giriş — gelişmiş</h3>
+      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
       <p class="small-muted">
-        Normalde gerek yok: giriş, SmartTube'un kullandığı yerleşik YouTube TV
-        istemcisiyle otomatik çalışır. Yalnızca kendi Google Cloud OAuth
-        istemcini ("TV ve sınırlı girişli cihazlar" tipi, YouTube Data API v3
-        etkin) kullanmak istersen gir. Uyarı: kendi istemcin InnerTube
-        kişisel akışında çalışmayabilir — yerleşik TV istemcisi önerilir.
+        Cihaz koduyla giriş için kendi Google Cloud OAuth istemcinizi kaydedin.
+        Uygulama salt-okuma izni ister. Kişisel InnerTube akışı bu istemciyi
+        kabul etmeyebilir; girişin başarılı olması akışın çalıştığını kanıtlamaz.
       </p>
       <label class="field">
         <span class="field-label">Client ID</span>

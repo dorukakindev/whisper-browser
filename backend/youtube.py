@@ -39,11 +39,8 @@ YTV3_CHANNELS = "https://www.googleapis.com/youtube/v3/channels"
 YTI_BROWSE = "https://www.youtube.com/youtubei/v1/browse"
 YOUTUBE_HOME = "https://www.youtube.com/"
 
-# SmartTube/ytmusicapi'nin InnerTube ile kanıtlanmış kapsamı. youtube.readonly
-# Data API'de yeterli olsa da youtubei/browse Bearer kabulü TVHTML5 istemcisi +
-# bu kapsamla doğrulanmış durumda; yazma çağrısı yapmıyoruz, kapsam yalnızca
-# InnerTube'un token'ı kabul etmesi için gerekiyor.
-OAUTH_SCOPE = "https://www.googleapis.com/auth/youtube"
+# Uygulama yalnız hesap verilerini okur; yönetim/yazma kapsamı istemez.
+OAUTH_SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
 
 # youtube.com HTML'inden çıkarılamazsa bilinen genel web istemcisi anahtarı.
 INNERTUBE_KEY_FALLBACK = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
@@ -292,6 +289,10 @@ def _length_seconds(text):
 
 
 def _view_count(text):
+    compact = re.search(r"(\d+(?:[.,]\d+)?)\s*([KkMm])\b", text or "")
+    if compact:
+        multiplier = 1000 if compact.group(2).lower() == "k" else 1000000
+        return round(float(compact.group(1).replace(",", ".")) * multiplier)
     digits = re.sub(r"[^\d]", "", text or "")
     return int(digits) if digits else 0
 
@@ -371,7 +372,6 @@ def _lockup_to_card(lv):
                 published = t
     # authorId: kanal avatarı/üst veri içindeki browseEndpoint
     for node in _walk(meta):
-        ep = node.get("commandRuns") or node.get("onTap")
         try:
             bid = (node["onTap"]["innertubeCommand"]["browseEndpoint"]["browseId"])
             if isinstance(bid, str) and bid.startswith("UC"):
@@ -379,8 +379,6 @@ def _lockup_to_card(lv):
                 break
         except Exception:
             pass
-        if ep:
-            break
     thumb_url = ""
     for node in _walk(lv):
         sources = None

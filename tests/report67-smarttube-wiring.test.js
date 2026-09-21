@@ -652,38 +652,32 @@ test('F5c: ana sayfa akışı boşta boş grid bırakmaz — raylar + giriş CTA
   assert.strictEqual(findByClass(grid2, 'btn').length, 1, 'girişli durumda login düğmesi olmamalı');
 });
 
-// ---------- Gömülü YouTube TV istemcisi (sıfır-konfig cihaz girişi) ----------
-test('main: yerleşik TVHTML5 istemcisi + hasClient her zaman true (sözleşme)', () => {
-  assert.match(MAIN, /YT_BUILTIN_CLIENT_ID = '861556708454-[A-Za-z0-9._-]+\.apps\.googleusercontent\.com'/,
-    'yerleşik YouTube TV client id yok');
-  assert.match(MAIN, /YT_BUILTIN_CLIENT_SECRET = '[A-Za-z0-9._-]{10,}'/,
-    'yerleşik client secret yok');
-  // deviceCode artık kayıtlı istemci şartı aramıyor
+// ---------- Hesap yetkisi: uygulama başka bir ürünün OAuth kimliğini kullanmaz ----------
+test('main: cihaz kodu yalnız kayıtlı kullanıcı istemcisiyle başlar', () => {
+  assert.doesNotMatch(MAIN, /YT_BUILTIN_CLIENT_(?:ID|SECRET)/,
+    'başka uygulamanın OAuth kimliği gömülmemeli');
   const dc = (MAIN.match(/ipcMain\.handle\('youtube:deviceCode'[\s\S]*?\n\}\);/) || [])[0];
   assert.ok(dc, 'youtube:deviceCode handler yok');
-  assert.ok(!/Önce OAuth Client ID/.test(dc), 'deviceCode hâlâ manuel istemci şartı koşuyor');
-  assert.ok(/ytClientId\(\)/.test(dc), 'deviceCode yerleşik fallback kullanmıyor');
-  // Session durumu yerleşik istemciyi bildiriyor
-  assert.match(MAIN, /hasClient: true/);
-  assert.match(MAIN, /usingBuiltin: !youtubeSession\.clientId/);
-  // poll + refresh de fallback'i kullanıyor
-  assert.match(MAIN, /\['poll', '--client-id', ytClientId\(\)/);
-  assert.match(MAIN, /\['refresh', '--client-id', cid\]/);
+  assert.match(dc, /!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret/);
+  assert.match(dc, /\['device_code', '--client-id', youtubeSession\.clientId\]/);
+  assert.match(MAIN, /hasClient: !!\(youtubeSession\.clientId && youtubeSession\.clientSecret\)/);
+  assert.match(MAIN, /\['poll', '--client-id', youtubeSession\.clientId/);
+  assert.match(MAIN, /\['refresh', '--client-id', youtubeSession\.clientId\]/);
 });
 
-test('backend: youtube.py InnerTube-kabul scope + TVHTML5 device akışı (sözleşme)', () => {
+test('backend: YouTube salt-okuma kapsamı ve cihaz akışı', () => {
   const PY = fs.readFileSync(path.join(ROOT, 'backend', 'youtube.py'), 'utf8');
-  assert.match(PY, /OAUTH_SCOPE = "https:\/\/www\.googleapis\.com\/auth\/youtube"/,
-    'InnerTube için youtube kapsamı yok (readonly youtubei\'de reddedilir)');
+  assert.match(PY, /OAUTH_SCOPE = "https:\/\/www\.googleapis\.com\/auth\/youtube\.readonly"/);
   assert.match(PY, /oauth2\.googleapis\.com\/device\/code/);
   assert.match(PY, /grant_type.*device_code/);
 });
 
-test('renderer: giriş modalı kod görünümü doğrudan açıyor + QR çiziyor (sözleşme)', () => {
-  // openYoutubeLogin artık oturum-yokken doğrudan cihaz akışına gidiyor
+test('renderer: giriş modalı istemciyi doğrulayıp QR çiziyor', () => {
   const open = (RENDERER.match(/function openYoutubeLogin\(\) \{[\s\S]*?dlg\.classList\.remove\('hidden'\);/) || [])[0];
   assert.ok(open, 'openYoutubeLogin bulunamadı');
-  assert.ok(/startYoutubeDeviceFlow\(\)/.test(open), 'giriş hâlâ manuel istemci formuna düşüyor');
+  assert.match(open, /window\.api\.youtubeSession\(\)/);
+  assert.match(open, /res\.data\.hasClient/);
+  assert.match(open, /startYoutubeDeviceFlow\(\)/);
   // QR canvas markup + çizim
   assert.ok(HTML.includes('id="ytQrCanvas"'), 'QR canvas yok');
   const flow = (RENDERER.match(/async function startYoutubeDeviceFlow[\s\S]*?youtubePoll\(\)/) || [])[0];

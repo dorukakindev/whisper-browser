@@ -25767,10 +25767,24 @@ function openYoutubeLogin() {
     if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
     _ytShowView('ytLoggedView');
   } else {
-    // Yerleşik YouTube TV istemcisiyle sıfır kurulum — SmartTube gibi kod
-    // görünümü hemen açılır; asıl Google onayı yalnız kullanıcı cihazında
-    // gerçekleşir. deviceCode başarısız olursa akış kendisi istemci formuna düşer.
-    startYoutubeDeviceFlow();
+    const openingGen = ++_ytFlowGen;
+    _ytShowView('ytDeviceView');
+    const pollStatus = $('ytPollStatus');
+    if (pollStatus) pollStatus.textContent = window.UiLocale?.t('İstemci bilgisi kontrol ediliyor…') || 'İstemci bilgisi kontrol ediliyor…';
+    window.api.youtubeSession().then((res) => {
+      if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
+      if (res && res.ok && res.data && res.data.hasClient) {
+        startYoutubeDeviceFlow();
+      } else {
+        _ytShowView('ytClientView');
+        $('ytClientId')?.focus();
+      }
+    }).catch(() => {
+      if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
+      _ytShowView('ytClientView');
+      ytModalError('YouTube oturumu kontrol edilemedi. Yeniden deneyin.');
+      $('ytClientId')?.focus();
+    });
   }
   dlg.classList.remove('hidden');
   const focusTarget = youtubeLoggedIn ? $('ytLoggedClose') : $('ytDeviceCancel');

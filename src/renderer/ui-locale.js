@@ -1437,11 +1437,10 @@
     ['Sekmeyi yeniden yükle', 'Reload the tab'],
     ['Akış alınamadı', 'Feed unavailable'],
     ['Ana sayfa çizilirken hata — yerel kayıtlar ve yeniden deneme aşağıda.', 'Error rendering home — local records and retry below.'],
-    ['Normalde gerek yok: giriş, SmartTube\'un kullandığı yerleşik YouTube TV istemcisiyle otomatik çalışır. Yalnızca kendi Google Cloud OAuth istemcini ("TV ve sınırlı girişli cihazlar" tipi, YouTube Data API v3 etkin) kullanmak istersen gir. Uyarı: kendi istemcin InnerTube kişisel akışında çalışmayabilir — yerleşik TV istemcisi önerilir.', 'Usually not needed: sign-in works automatically with the embedded YouTube TV client that SmartTube uses. Only enter your own Google Cloud OAuth client ("TVs and limited-input devices" type, YouTube Data API v3 enabled) if you want to use it. Warning: a custom client may not work with the InnerTube personal feed — the embedded TV client is recommended.'],
+    ['Cihaz koduyla giriş için kendi Google Cloud OAuth istemcinizi kaydedin. Uygulama salt-okuma izni ister. Kişisel InnerTube akışı bu istemciyi kabul etmeyebilir; girişin başarılı olması akışın çalıştığını kanıtlamaz.', 'To sign in with a device code, save your own Google Cloud OAuth client. The app requests read-only access. The personal InnerTube feed may reject this client; successful sign-in does not prove the feed works.'],
     ['Göster', 'Show'],
     ['Şifreyi göster', 'Show password'],
     ["Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:", 'Scan the QR code on your phone or open the address below on a computer and enter the code:'],
-    ['YouTube ile giriş — gelişmiş', 'Sign in with YouTube — advanced'],
   ];
 
   const toEnglish = new Map(entries);

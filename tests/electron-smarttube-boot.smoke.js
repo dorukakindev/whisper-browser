@@ -268,7 +268,9 @@ async function main() {
     // st-grid-row sınıfı veya inline style — computed ile doğrula
     out.channelHead = !!head && getComputedStyle(head).gridColumn === '1 / -1';
     out.channelNoNested = grid.querySelectorAll(':scope > .st-grid').length === 0;
-    out.channelCards = grid.querySelectorAll(':scope > .st-card').length;
+    // Kanal sekmeleri kartları ayrı tabBody içinde tutuyor; eski doğrudan
+    // grid-çocuğu seçicisi A27 sonrası yanlış sıfır döndürüyordu.
+    out.channelCards = grid.querySelectorAll(':scope > .st-ch-body > .st-card').length;
 
     // 6) Kırpık ipucu — hint rect'i stage içinde kalmalı
     const hint = document.getElementById('subHiddenHint');
@@ -385,10 +387,12 @@ async function main() {
     youtubeLoggedIn = false;
     await renderSmartTubeSection('home', { force: true });
     const failed = document.getElementById('stGrid').textContent.includes('mock feed unavailable');
-    const retry = document.querySelector('#stGrid .st-feed-retry');
+    const retry = document.querySelector('#stGrid .st-home-fallback .btn-secondary');
     if (retry) retry.click();
     await new Promise(resolve => setTimeout(resolve, 200));
-    return { failed, retryVisible: !!retry, recovered: document.querySelectorAll('#stGrid > .st-card').length >= 6 };
+    return { failed, retryVisible: !!retry, recovered: document.querySelectorAll('#stGrid > .st-card').length >= 6,
+      text: document.getElementById('stGrid').textContent.slice(0, 240),
+      section: stCurrentSection, seq: stSectionSeq };
   })()`, true);
   assert(feedRecovery.failed && feedRecovery.retryVisible && feedRecovery.recovered,
     `feed retry did not recover: ${JSON.stringify(feedRecovery)}`);
