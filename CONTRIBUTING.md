@@ -10,6 +10,8 @@ Before a pull request, run focused tests plus:
     node --check src/renderer/renderer.js
     python -m py_compile backend/transcribe.py backend/media.py
 
+For user-visible changes, add an entry under the `Unreleased` section of CHANGELOG.md (Keep a Changelog format: Added / Changed / Deprecated / Removed / Fixed / Security).
+
 Use npm run test:electron-bridge for IPC/browser changes. Document checks not run. Provide English and Turkish for new user-facing copy without translating user content; preserve context isolation, validate privileged IPC, synchronize backend option contracts, keep secrets out of argv/logs, preserve cue identity/timing, use atomic subtitle writes, and add regression tests.
 
 Do not commit media, models, keys, logs, profiles, generated output, or personal audit data.

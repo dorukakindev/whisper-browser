@@ -4,6 +4,7 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { findMediaTool } = require('./media-runtime');
 // CI/ajan oturumları ELECTRON_RUN_AS_NODE=1 ile gelebiliyor; o zaman electron
 // binary saf Node gibi davranır ve require('electron') API yerine yol döner.
 // Sızan değişkeni temizleyip kendini yeniden başlat.
@@ -31,7 +32,8 @@ async function run() {
   let server = null;
   const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-electron-media-'));
   const videoFixture = path.join(fixtureDir, 'timeline.mp4');
-  const ffmpeg = path.resolve(__dirname, '..', 'backend', 'bin', 'ffmpeg.exe');
+  const ffmpeg = findMediaTool('ffmpeg');
+  assert.ok(ffmpeg, 'Gerçek video fixture üretilemedi: FFmpeg bulunamadı.');
   const made = spawnSync(ffmpeg, [
     '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
     'testsrc2=size=160x90:rate=24:duration=4',

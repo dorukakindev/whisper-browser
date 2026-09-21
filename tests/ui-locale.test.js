@@ -13,6 +13,19 @@ assert.equal(translate('Some user subtitle text', 'en'), 'Some user subtitle tex
 assert.equal(translate('Media library', 'tr'), 'Arşiv');
 assert.equal(translate('BROWSER', 'tr'), 'BROWSER');
 
+// R95: SmartTube giriş/abonelik paneli dinamik metinleri sözlükte olmalı
+for (const key of [
+  'Tarayıcıda yetkilendir',
+  'Cihaz kodu üret',
+  'Cihaz kodu alınamadı',
+  'Bu grupta kanal yok.',
+  'Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.',
+  'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.',
+]) {
+  const en = translate(key, 'en');
+  assert.notEqual(en, key, `Çeviri eksik: ${key}`);
+}
+
 const originals = entries.map(([source]) => source);
 assert.equal(new Set(originals).size, originals.length, 'Each Turkish UI key must be unique');
 

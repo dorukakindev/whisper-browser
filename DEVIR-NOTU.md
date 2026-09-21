@@ -1,4 +1,16 @@
-Güncel çalışma: [2026-09-21 04:32 — SmartTube girişi sıfır-kuruluma geçti: gömülü YouTube TV (TVHTML5) istemcisiyle google.com/device kodu + QR; InnerTube scope düzeltmesi; kuyruk F3/F4/F5 (any-position dequeue, kapasite logu, ray tazeleme)](docs/devir/2026-09-21-0432.md).
+Güncel çalışma: [2026-09-22 00:48 — PR #16 gauntlet kabul testi yanlış-pozitif kapılarının kapatılması ve gerçek Windows Electron doğrulaması; BROWSER_BUG_REPORT_97](docs/devir/2026-09-22-0048.md).
+
+Önceki çalışma: [2026-09-21 19:05 — Browser Subtitle Reliability Gauntlet: `data:` <track> streamKey çakışması düzeltildi (F-96-1), protokol fixture lab + zaman değişmezleri + eksiksizlik + çeviri maliyeti + gerçek-Electron kabulü + ≥30 dk soak; BROWSER_BUG_REPORT_96](docs/devir/2026-09-21-1905.md).
+
+Önceki çalışma: [2026-09-21 16:17 — Kapsamlı entegrasyon/regresyon turu (matris A–G): PKCE+loopback OAuth akışı, Linux araç/venv tespiti, CSP worker-src, i18n eksikleri; BROWSER_BUG_REPORT_95](docs/devir/2026-09-21-1617.md).
+
+Önceki çalışma: [2026-09-21 13:57 — Devin cloud değişiklikleri güvenlik ve gerçek Electron smoke denetimi; dar YouTube OAuth yetkisi, token/istemci izolasyonu ve SmartTube ayrıştırma düzeltmeleri](docs/devir/2026-09-21-1357.md).
+
+Önceki çalışma: [2026-09-21 13:13 — PR dokümantasyon altyapısı: template genişletildi (What/Why/How/Tests/Risks/Links), CHANGELOG Keep-a-Changelog'a çevrildi + #2/#5/#7/#8/#9/#11 geriye dönük işlendi, CONTRIBUTING'e changelog kuralı](docs/devir/2026-09-21-1313.md).
+
+Önceki çalışma: [2026-09-21 05:58 — SmartTube ana sayfa boş-kalma düzeltmesi: akış hatasında yerel raylar + giriş CTA'sı (stRenderHomeFallback), render fazı try/catch, InnerTube lockupViewModel ayrıştırma](docs/devir/2026-09-21-0558.md).
+
+Önceki çalışma: [2026-09-21 04:32 — SmartTube girişi sıfır-kuruluma geçti: gömülü YouTube TV (TVHTML5) istemcisiyle google.com/device kodu + QR; InnerTube scope düzeltmesi; kuyruk F3/F4/F5 (any-position dequeue, kapasite logu, ray tazeleme)](docs/devir/2026-09-21-0432.md).
 
 Önceki çalışma: [2026-09-21 04:10 — F2 düzeltmesi: kuyruk otomatik/Sonraki geçişi yarım kalmış videoda kaldığı saniyeden devam ediyor (pendingLibrarySeek); npm test temiz](docs/devir/2026-09-21-0410.md).
 

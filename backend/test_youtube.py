@@ -48,11 +48,10 @@ class DeviceCode(unittest.TestCase):
         # device_code ana süreçte kalması gereken alan — emit'te var ama
         # renderer'a iletilmez (main.js tarafı filtreler)
         self.assertEqual(ev["device_code"], "DC-SECRET")
-        # InnerTube'un kabul ettiği kapsam gönderilmiş olmalı (youtube —
-        # readonly youtubei/browse Bearer'da güvenilir çalışmıyor)
+        # Salt-okuma uygulaması hesap yönetme izni istememeli.
         fields = m.call_args[0][1]
         self.assertEqual(fields["scope"],
-                         "https://www.googleapis.com/auth/youtube")
+                         "https://www.googleapis.com/auth/youtube.readonly")
 
     def test_device_code_error_raises(self):
         with patch.object(youtube, "_post_form",
@@ -110,6 +109,48 @@ class Poll(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True):
             with self.assertRaises(RuntimeError):
                 _capture_emit(youtube.poll, "CID")
+
+
+class ExchangeCode(unittest.TestCase):
+    """Loopback (tarayıcı) akışı — masaüstü uygulamalar için önerilen yol."""
+
+    def _env(self):
+        return {"WHISPER_YT_CLIENT_SECRET": "SEC",
+                "WHISPER_YT_AUTH_CODE": "CODE-1",
+                "WHISPER_YT_CODE_VERIFIER": "VER-1",
+                "WHISPER_YT_REDIRECT_URI": "http://127.0.0.1:4321/oauth2callback"}
+
+    def test_exchange_code_sends_pkce_and_emits_login(self):
+        with patch.dict(os.environ, self._env(), clear=False), \
+             patch.object(youtube, "_post_form",
+                          return_value=({"access_token": "AT", "refresh_token": "RT",
+                                         "expires_in": 3600}, None)) as m, \
+             patch.object(youtube, "_fetch_me", return_value={"name": "Kanal"}):
+            events = _capture_emit(youtube.exchange_code, "CID")
+        fields = m.call_args[0][1]
+        self.assertEqual(fields["grant_type"], "authorization_code")
+        self.assertEqual(fields["code"], "CODE-1")
+        self.assertEqual(fields["code_verifier"], "VER-1")
+        self.assertEqual(fields["redirect_uri"], "http://127.0.0.1:4321/oauth2callback")
+        self.assertEqual(fields["client_secret"], "SEC")
+        login = [e for e in events if e["type"] == "login"]
+        self.assertEqual(len(login), 1)
+        self.assertEqual(login[0]["refresh_token"], "RT")
+
+    def test_exchange_code_missing_env_raises(self):
+        env = {k: v for k, v in os.environ.items()
+               if not k.startswith("WHISPER_YT_")}
+        with patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(RuntimeError):
+                _capture_emit(youtube.exchange_code, "CID")
+
+    def test_exchange_code_invalid_grant_raises(self):
+        with patch.dict(os.environ, self._env(), clear=False), \
+             patch.object(youtube, "_post_form",
+                          return_value=(None, {"error": "invalid_grant"})):
+            with self.assertRaises(RuntimeError) as cm:
+                _capture_emit(youtube.exchange_code, "CID")
+        self.assertIn("reddedildi", str(cm.exception))
 
 
 class Refresh(unittest.TestCase):
@@ -227,6 +268,50 @@ class Browse(unittest.TestCase):
         payload = m.call_args[0][1]
         self.assertEqual(payload["continuation"], "C9")
         self.assertNotIn("browseId", payload)
+
+    def test_browse_parses_lockup_view_model(self):
+        """Yeni InnerTube kart formatı (kişisel akışlar bunu kullanır)."""
+        payload = {"contents": {"x": [
+            {"lockupViewModel": {
+                "contentId": "LV1",
+                "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+                "content": {"image": {"collectionThumbnailViewModel": {
+                    "primaryThumbnail": {"thumbnailViewModel": {"image": {
+                        "sources": [{"url": "https://i/96.jpg", "width": 96},
+                                    {"url": "https://i/320.jpg", "width": 320}]}}}}}},
+                "metadata": {"lockupMetadataViewModel": {
+                    "title": {"content": "Kilit video"},
+                    "metadata": {"contentMetadataViewModel": {
+                        "metadataRows": [
+                            {"metadataParts": [
+                                {"text": {"content": "Kanal X"},
+                                 "onTap": {"innertubeCommand": {"watchEndpoint": {"videoId": "LV1"}}}},
+                                {"onTap": {"innertubeCommand": {"browseEndpoint": {"browseId": "UCchannel"}}}},
+                            ]},
+                            {"metadataParts": [
+                                {"text": {"content": "12K views"}},
+                                {"text": {"content": "3 days ago"}}]},
+                        ]}}}},
+                "rendererContext": {"commandContext": {"onTap": {
+                    "innertubeCommand": {"watchEndpoint": {"videoId": "LV1"}}}}},
+            }},
+            {"lockupViewModel": {"contentType": "LOCKUP_CONTENT_TYPE_PODCAST"}},
+            {"lockupViewModel": {}},  # id'siz — atlanmalı
+        ]}}
+        with patch.dict(os.environ, {"WHISPER_YT_ACCESS_TOKEN": "AT"}, clear=False), \
+             patch.object(youtube, "_get_innertube_key", return_value="KEY"), \
+             patch.object(youtube, "_post_json", return_value=(payload, None)):
+            events = _capture_emit(youtube.browse, "FEwhat_to_watch")
+        feed = [e for e in events if e["type"] == "feed"][0]
+        vids = feed["videos"]
+        self.assertEqual(len(vids), 1)
+        self.assertEqual(vids[0]["videoId"], "LV1")
+        self.assertEqual(vids[0]["title"], "Kilit video")
+        self.assertEqual(vids[0]["author"], "Kanal X")
+        self.assertEqual(vids[0]["viewCount"], 12000)
+        self.assertEqual(vids[0]["authorId"], "UCchannel")
+        self.assertEqual(vids[0]["publishedText"], "3 days ago")
+        self.assertEqual(vids[0]["videoThumbnails"][0]["url"], "https://i/320.jpg")
 
 
 class MainDispatch(unittest.TestCase):

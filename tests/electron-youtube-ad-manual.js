@@ -299,7 +299,7 @@ async function run() {
     path.join(projectRoot, 'backend', 'bin'),
   ].filter((entry) => fs.existsSync(entry));
   const env = { ...process.env, PATH: pathEntries.concat(process.env.PATH || '').join(path.delimiter) };
-  electronProcess = spawn(path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'), [
+  electronProcess = spawn(process.execPath, [
     projectRoot,
     '--remote-debugging-port=' + devtoolsPort,
     '--user-data-dir=' + userDataDir,

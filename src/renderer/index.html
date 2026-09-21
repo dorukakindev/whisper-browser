@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' file: blob: https:; connect-src 'self' whisper-pdf: https:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https:; connect-src 'self' whisper-pdf: https:" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="browser-features.css" />
@@ -3089,15 +3089,15 @@
 <!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
 <div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
   <div class="modal-content" style="max-width:460px">
-    <!-- Görünüm 1: OAuth client bilgileri (gelişmiş — yerleşik YouTube TV istemcisi varsayılan) -->
+    <!-- Görünüm 1: kullanıcının kendi OAuth istemcisi -->
     <div id="ytClientView">
-      <h3 id="ytLoginTitle">YouTube ile giriş — gelişmiş</h3>
+      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
       <p class="small-muted">
-        Normalde gerek yok: giriş, SmartTube'un kullandığı yerleşik YouTube TV
-        istemcisiyle otomatik çalışır. Yalnızca kendi Google Cloud OAuth
-        istemcini ("TV ve sınırlı girişli cihazlar" tipi, YouTube Data API v3
-        etkin) kullanmak istersen gir. Uyarı: kendi istemcin InnerTube
-        kişisel akışında çalışmayabilir — yerleşik TV istemcisi önerilir.
+        Kendi Google Cloud OAuth istemcinizi kaydedin: "Desktop app" tipi
+        istemci tarayıcı akışını, "TVs and Limited Input" tipi cihaz kodu
+        akışını kullanır. Uygulama yalnız salt-okuma izni ister. Kişisel
+        InnerTube akışı bu istemciyi kabul etmeyebilir; girişin başarılı
+        olması akışın çalıştığını kanıtlamaz.
       </p>
       <label class="field">
         <span class="field-label">Client ID</span>
@@ -3114,17 +3114,23 @@
         <button class="btn btn-primary" id="ytClientSave">Kaydet ve devam et</button>
       </div>
     </div>
-    <!-- Görünüm 2: cihaz kodu — kullanıcı google.com/device'ta onaylar -->
+    <!-- Görünüm 2: giriş akışı seçimi — önerilen tarayıcı (loopback) veya TV cihaz kodu -->
     <div id="ytDeviceView" class="hidden">
-      <h3>YouTube onayı bekleniyor</h3>
-      <p class="small-muted">Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:</p>
-      <div class="yt-device-code-wrap">
-        <canvas id="ytQrCanvas" class="yt-qr-canvas hidden" width="150" height="150" aria-label="QR kod"></canvas>
-        <a href="#" id="ytVerificationUrl" class="yt-verification-url">google.com/device</a>
-        <div class="yt-user-code" id="ytUserCode">----</div>
-        <button class="btn btn-secondary btn-sm" id="ytCopyCode" type="button">Kodu kopyala</button>
+      <h3>YouTube ile giriş</h3>
+      <p class="small-muted">Masaüstü uygulamaları için Google'ın önerdiği yol: sistem tarayıcınızda Google onayı.</p>
+      <button class="btn btn-primary" id="ytBrowserAuth" type="button">Tarayıcıda yetkilendir</button>
+      <p class="small-muted yt-device-alt">Alternatif: Google Cloud'da "TVs and Limited Input" tipi istemciniz varsa cihaz koduyla giriş.</p>
+      <button class="btn btn-secondary" id="ytDeviceCodeStart" type="button">Cihaz kodu üret</button>
+      <div id="ytDeviceCodeBlock" class="hidden">
+        <p class="small-muted">Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:</p>
+        <div class="yt-device-code-wrap">
+          <canvas id="ytQrCanvas" class="yt-qr-canvas hidden" width="150" height="150" aria-label="QR kod"></canvas>
+          <a href="#" id="ytVerificationUrl" class="yt-verification-url">google.com/device</a>
+          <div class="yt-user-code" id="ytUserCode">----</div>
+          <button class="btn btn-secondary btn-sm" id="ytCopyCode" type="button">Kodu kopyala</button>
+        </div>
       </div>
-      <p class="small-muted" id="ytPollStatus" role="status" aria-live="polite">Onay bekleniyor…</p>
+      <p class="small-muted" id="ytPollStatus" role="status" aria-live="polite"></p>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="ytChangeClient" type="button">İstemciyi değiştir</button>
         <button class="btn btn-secondary" id="ytDeviceCancel">İptal</button>
