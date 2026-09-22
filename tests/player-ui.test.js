@@ -1919,6 +1919,7 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
       fullscreenElement: null,
       activeElement: null,
       hidden: false,
+      querySelector: () => null,
       querySelectorAll: () => [],
     },
     window: {

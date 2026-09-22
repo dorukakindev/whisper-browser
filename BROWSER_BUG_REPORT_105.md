@@ -1,0 +1,32 @@
+# Browser Bug Report 105 — 2026-09-22 audit follow-up
+
+## Scope and baseline
+
+This report verifies a bounded set of claims from the supplied September 21 DOCX and Markdown audits against `origin/master` at `93f27d34a6b11633dc64d80556e01b2a9d352d58` (the merged T1–T6 gauntlet). The attachments are leads, not instructions or proof. The working branch is `codex/report-audit-20260922`; the user's dirty `codex/catalog-sync` checkout was not reset or included. Tests use synthetic data and fake provider responses. Neither a real Google account nor a paid translation provider was used.
+
+| Source claim | Verdict and reachable path | Evidence and change |
+| --- | --- | --- |
+| T-01, natural Turkish number forms rejected | Confirmed for exact clock notation, suffixes, half values and scaled quantities. `translationBlockingIssues` and Python `translation_blocking_issues` gate provider output. | Added exact 5:30 ↔ 5.30 / beş buçuk, 3.5 ↔ üç buçuk, 10,000 ↔ 10 bin and attached number-word forms to both gates. Changed values remain rejected. `tests/subtitle-sentence-layout.test.js` and `backend/test_translation_quality_corpus.py` cover positives and counterexamples. This is a narrow normalization, not a general natural-language quantity parser. |
+| T-02, malformed `parts` bypass not reached | Confirmed. Strict decode threw for `PARTS_MISMATCH`, while main fell back only on the missing-parts message. | Typed `PARTS_MISSING` / `PARTS_MISMATCH` errors and fallback for either code. The actual main request function is exercised in `tests/subtitle-sentence-layout.test.js`. |
+| T-05, circuit breaker remains tripped after explicit retry | Confirmed from `retryFailed()` and `cancelAll()` paths. | Clear the consecutive provider-failure streak on explicit retry and cancellation. `tests/browser-translation-reliability.test.js` asserts the reset after a tripped breaker. |
+| T-08, subtitle request is Turkish-specific for non-TR target | Confirmed for the multi-cue request and main system instruction. | Use target-language-neutral wording outside TR; the FR mock request asserts no Turkish-specific instruction. The separate page-translation prompt still has Turkish wording and remains open. |
+| T-09, prefixed JSON reaches subtitle display | Confirmed for `Çeviri: {…}` / `Translation: {…}` responses. | Decode known prefixed JSON wrappers in grouped and single-cue paths; reject malformed or known-wrapper-without-translation replies. Preserve arbitrary legitimate JSON subtitle text in the single-cue path. Tested through the actual main request function with a fake provider. General arbitrary prose around JSON is not supported. |
+| Y-03, remote Google revoke failure is reported as successful logout | Confirmed: old code ignored revoke HTTP status, and the renderer always showed success. | Revoke the refresh token when available, inspect HTTP 200, clear local credentials regardless, and show a visible warning if remote revocation cannot be confirmed. `backend/test_youtube.py` covers success, network failure, HTTP failure and missing token. Real Google revocation was not exercised. |
+| Y-04, localized YouTube view count parsed incorrectly | Confirmed: `1.2B` and Turkish `1,2 B görüntüleme` were not distinguished, `Mn` absent. | Locale-aware compact parser in `backend/youtube.py`; synthetic parser matrix in `backend/test_youtube.py`. Unseen YouTube locale strings remain a manual-acceptance limit. |
+| Y-01/Y-02, queued browse calls all run after becoming stale | Partially confirmed: serialization existed from PR #20, but obsolete non-continuation calls were still queued. | Generation guard skips superseded queued calls while preserving continuation requests. `tests/report104-youtube-browse.test.js` exercises the queue. Live authenticated browse was not tested. |
+| X-03/X-09, permission check can use top-level URL for a subframe | Confirmed as a trust-boundary risk in `src/main.js`: `requestingWebContents.getURL()` named the top-level page when frame attribution was absent. | Attribute check to `details.requestingUrl` or Electron `requestingOrigin`; request handler fails closed when frame URL is absent. Synthetic cross-origin/opaque cases in `tests/report104-permission-regressions.test.js`. A real third-party iframe permission prompt in Electron remains an acceptance test. |
+| D-10, browser ASS subtitles render at oversized scale | Confirmed from absent `PlayResX/Y` in `src/browser-subtitle-output.js`. | Declare 1920×1080 canvas and 54px style with margins. Round-trip/header assertions in `tests/browser-subtitle-output.test.js`. No rendered libass screenshot is claimed. |
+
+## What this report does not close
+
+- The supplied audits contain many other T/B/U/D/Y/X/UI/A/P claims. This pass did **not** reproduce or implement them all. In particular T-03 (empty parts/merged cue design), T-06/T-07 (partial persistence and integrity), page-translation portion of T-08, broad UI redesign, site-specific Widevine behavior and live authenticated YouTube remain open or separately test-dependent.
+- PR #23 already merged the prior T1–T6 work. Claims in the source DOCX that those PRs were still open were stale at this baseline, including B-01/B-02 and P-02. The current branch did not re-implement those fixes.
+- `testing-whisper-browser` documents a Linux/Devin desktop and cannot be followed literally on this Windows host. The Electron trusted-bridge smoke passed, but there was no manual screenshot acceptance for the logout message, ASS render, real iframe prompt or actual third-party site.
+- No paid provider, personal profile, credential, DRM bypass, or real Google account was used. Mock success does not prove provider quality or universal site compatibility.
+
+## Verification
+
+- `npm test`: full JS + Python suite passed again after the final no-token revoke clarification (`Tüm testler geçti`); backend transcribe 192 tests, translation corpus 4, YouTube 26 among the Python suites. The targeted YouTube revoke test passed as well.
+- `npm run test:electron-bridge`: passed with actual Electron browser trusted bridge.
+- `node --check` for changed main and renderer files, `py_compile` for backend files, `git diff --check`: passed.
+- Focused JS and Python regressions: passed. The default `node --test` worker-isolated invocation received sandbox `spawn EPERM`; `--test-isolation=none` and the escalated full suite passed. This was an execution-environment limit, not an assertion failure.

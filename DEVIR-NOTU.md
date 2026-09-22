@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 12:55 — R104 ekli denetimlerden doğrulanan sayı/çeviri, YouTube, izin kökeni ve ASS düzeltmeleri; açık sınırlar korundu](docs/devir/2026-09-22-1255.md).
+Güncel çalışma: [2026-09-22 12:55 — R105 ekli denetimlerden doğrulanan sayı/çeviri, YouTube, izin kökeni ve ASS düzeltmeleri; PR #24 ile yerel bütünleştirme](docs/devir/2026-09-22-1255.md).
+
+Önceki çalışma: [2026-09-22 05:13 — Gece denetim turu (A–G kuyruğu): dört gerçek bug — SmartTube arama/sekme hata görünürlüğü (F-104-1/2/3), player katmanında dialog Escape (F-104-4); gerçek-Electron kullanım matrisi smoke'u; BROWSER_BUG_REPORT_104](docs/devir/2026-09-22-0513.md).
 
 Önceki çalışma: [2026-09-22 04:15 — T6 temiz-makine kurulum gauntlet'i: install.sh/start.sh, venv console-script onarımı (F-103-1), requirements-ci py3.10 marker'ları, CI'da gerçek Electron bridge; BROWSER_BUG_REPORT_103](docs/devir/2026-09-22-0415.md).
 
