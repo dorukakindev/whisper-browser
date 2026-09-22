@@ -1,6 +1,6 @@
 # Tarayıcı · Çeviri · Kozmetik Denetimi — 2026-09-22
 
-Dal: `fix/browser-translate-cosmetic-audit-2026-09-22` (taban: `5dffbe8`, `origin/master` #24)
+Dal: `fix/browser-translate-cosmetic-audit-2026-09-22` (taban: `583b15a`, `origin/master` #25)
 
 Kapsam: yerleşik tarayıcı kabuğu (adres çubuğu, sekmeler, arama filtreleri, site/sayfa ayarları),
 çeviri boru hattı (altyazı LLM çevirisi, çeviri belleği, yalnız-çeviri modu, sayfa çevirisi,
@@ -17,7 +17,7 @@ testi var. Bu testler düzeltme öncesi kodda **başarısız**, sonrasında **ge
 
 | Paket | Sonuç |
 |---|---|
-| Node `tests/*.test.js` | **249/257 geçti** (taban `5dffbe8`: 243/251) |
+| Node `tests/*.test.js` | **251/259 geçti** (kalan 8 dosya tabandaki ortam hatalarıyla aynı) |
 | Python `backend/test_*.py` | **21/24 geçti** |
 
 Başarısız olan 8 Node ve 3 Python dosyasının hepsi ortam kaynaklı (liste tabanla birebir aynı). Tabanda da aynı şekilde
@@ -50,7 +50,7 @@ npm run test:electron
 | Ç3 | Yüksek | Bulanık çeviri belleği "possible→impossible", "legal→illegal" gibi anlamı tersine çeviren ekleri yazım varyantı sayıyordu. Kullanıcı kaynağı düzeltip yeniden çevirse bile eski ("mümkün") çeviri geri geliyordu. | Sözcüğün başına ya da sonuna tam harf eklenmişse eşleşme reddedilir. |
 | Ç4 | Orta-Yüksek | Yalnız-çeviri çıktı adı her 2–3 harfli son parçayı dil kodu sanıyordu. Örnek: `Dune.Part.Two.srt → Dune.Part.tr.srt`. Part One ile Part Two aynı dosyaya yazılıp birbirini eziyordu. | `split_subtitle_language_suffix()` yalnız bilinen dil kodlarını kaldırır ve `forced`/`sdh` niteleyicilerini korur. Renderer'daki dil rozeti de aynı kümeyi kullanır. |
 | Ç5 | Orta | Devre kesici açıldıktan sonra "Başarısızları yeniden dene" tüm izi (200 cümle → 200 istek) kuyruğa alıyordu. | Hiç denenmemiş cümleler `deferred` işaretlenir. Yeniden denemede yalnız oynatma penceresi yeniden planlanır, gerçekten düşmüş cümleler ise kuyruğa girer. |
-| Ç6 | Orta | Yeniden denemeden sonra tek bir geçici 503 devreyi yeniden açıyordu, çünkü sayaç sıfırlanmıyordu. | `retryFailed()` içinde `consecutiveProviderFailures = 0` yapılır. |
+| Ç6 | Orta | Yeniden denemeden sonra tek bir geçici 503 devreyi yeniden açıyordu, çünkü sayaç sıfırlanmıyordu. | `retryFailed()` içinde `consecutiveProviderFailures = 0` yapılır. Aynı düzeltme paralel olarak #25'te (T-05) de geldi; rebase'de birleştirildi. |
 | Ç7 | Orta | Arapça/İbranice PDF satırlarında sözcük sırası ters çıkıyordu. | Satırdaki öğelerin çoğunluğu `dir==='rtl'` ise birleştirme azalan X sırasıyla yapılır. |
 | Ç8 | Düşük | ASS girdisinde `\h` karakteri metne ve modele "Mr.\hSmith" olarak sızıyordu. | `\h` bölünmez boşluğa (U+00A0) çevrilir. |
 | Ç9 | Düşük | Sağdan sola hedef dilde sayfa çeviri katmanında `dir` özniteliği yoktu. | `ar/fa/he/ur…` için `dir="rtl"`, diğer diller için `dir="auto"` verilir. |
