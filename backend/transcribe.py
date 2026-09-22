@@ -38,7 +38,8 @@ from pipeline_control import (
     recover_output_transactions,
 )
 from pathlib import Path
-from subtitle_sdh import is_structural_sdh_cue, strip_sdh_descriptors
+from subtitle_sdh import (is_structural_sdh_cue, restore_sdh_markers,
+                          strip_sdh_descriptors)
 from series_memory import SeriesMemory
 from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
@@ -591,7 +592,27 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         return " ".join(text.split())
 
     if wrap_mode == "sentence":
-        # Sadece cümle sonu noktalamalarda satır kır — cümleyi asla kesme
+        # Sadece cümle sonu noktalamalarda satır kır — cümleyi asla kesme.
+        # Üst katmanın (insert_sentence_breaks) koyduğu açık \n'ler anlamsal
+        # cümle sınırıdır: max_lines sınırı onları yeniden birleştirmez,
+        # yalnızca her satır kendi içinde sarılır.
+        explicit = [ln for ln in text.split("\n") if ln.strip()]
+        if len(explicit) > 1:
+            lines = []
+            for ln in explicit:
+                words = ln.split()
+                sub, current = [], []
+                for w in words:
+                    current.append(w)
+                    terminal = w.rstrip('"\'”’»)]}')
+                    if (terminal.endswith(tuple(PUNCT_END))
+                            and not is_abbreviation(w) and len(current) < len(words)):
+                        sub.append(" ".join(current))
+                        current = []
+                if current:
+                    sub.append(" ".join(current))
+                lines.extend(sub or [ln])
+            return "\n".join(lines)
         words = text.split()
         if not words:
             return text
@@ -7024,6 +7045,13 @@ def translate_existing_subtitle(args):
         translated = [(entry[0], entry[1], translated_map.get(index,
                     existing_for(entry, index) or entry[2]))
                       for index, entry in enumerate(entries)]
+    if translated:
+        # Model girdisinden çıkarılan satır içi SDH işaretleri çeviri
+        # metninde kaybolmasın: eksik olanlar cue başına geri konur.
+        translated = [(start, end,
+                       restore_sdh_markers(orig_text, translated_text))
+                      for (start, end, orig_text), (_s, _e, translated_text)
+                      in zip(entries, translated)]
     # Var olan altyazı çevirisinde cue sınırları ve zamanları birebir korunur;
     # metin-birleştirme kaynak/çeviri eşlemesini ve kısmi devamı bozar.
     if not translated:

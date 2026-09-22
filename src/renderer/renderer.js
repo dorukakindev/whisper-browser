@@ -3397,6 +3397,12 @@ $('cancelBtn').addEventListener('click', async () => {
     // kaydedildi → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
     state.cancelled = false;
     if (aiJob && player.job === aiJob) {player.job = null;state.activeJobId=null;updateAiChatActions();}
+    // Backend canlı süreç bilmiyorken ölü bir oynatıcı işi kartı "çalışıyor"
+    // kalmasın: normal iptal-temizlik yolunu yerel olarak uygula.
+    if (player.job && player.job.running && !player.job.cancelled) {
+      player.job.cancelled = true;
+      playerJobEvent({ type: 'exit' });
+    }
     finishRun(false);
   }
 });
@@ -3776,6 +3782,27 @@ function playerJobEvent(event) {
     if (player.job === job) player.job = null;
     aiChatCtxLabel();
     updateMakeTransState();
+    return true;
+  }
+
+  if (event.type === 'exit') {
+    // 'done' görmeden gelen exit (iptal, öldürme veya çökme): kartı ölü uçta
+    // bırakma — süreç artık yok, kartın "çalışıyor" kalması yeni iş başlatmayı
+    // ve arayüz durumunu kilitler.
+    job.running = false;
+    job.awaitingExit = false;
+    job.exitSeen = true;
+    state.running = false;
+    state.aiJob = false;
+    state.cancelled = false;
+    state.forceTranslate = false;
+    if (player.job === job) player.job = null;
+    txt.textContent = 'Altyazı işi tamamlanmadan kapandı.';
+    setTimeout(() => bar.classList.add('hidden'), 4000);
+    logLine('Altyazı işi tamamlanmadan kapandı; çıktı üretilmedi.', 'warn');
+    aiChatCtxLabel();
+    updateMakeTransState();
+    updateBrowserWhisperActions();
     return true;
   }
 
@@ -24966,7 +24993,11 @@ async function doSmartTubeSearch() {
   }
   // Playlist rayı video kartlarının üstünde — en fazla 12 kayıt.
   const playlists = (await plPromise) || [];
-  if (seq === stSearchSeq && playlists.length) renderStPlaylistRail(searchGrid, playlists.slice(0, 12));
+  if (seq === stSearchSeq && playlists.length) {
+    // Ray çizimi bozulursa video sonuçları yine basılsın — ray yardımcı
+    // öğedir, ana aramayı etkilememeli.
+    try { renderStPlaylistRail(searchGrid, playlists.slice(0, 12)); } catch (e) { /* rail optional */ }
+  }
   stAppendSearchResults(videos);
   stUpdateSearchMore();
 }
@@ -24981,7 +25012,10 @@ function renderStPlaylistRail(searchGrid, playlists) {
     card.className = 'st-pl-card';
     const th = document.createElement('span');
     th.className = 'st-pl-thumb';
-    const src = absThumb(pl.videoThumbnails);
+    const plThumbs = Array.isArray(pl.videoThumbnails) ? pl.videoThumbnails : [];
+    const plTn = plThumbs.find((t) => (t && (t.quality || '').toLowerCase() === 'medium'))
+               || plThumbs[0] || null;
+    const src = plTn && plTn.url ? absThumb(plTn.url) : '';
     if (src) {
       const img = document.createElement('img');
       img.loading = 'lazy'; img.decoding = 'async'; img.alt = '';

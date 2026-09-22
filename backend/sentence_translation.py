@@ -105,16 +105,31 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
 
 
 # Parça SONUNDA duramayan Türkçe sözcükler: bunlarla biten parça ya ek/bağlaç
-# ortasından kesilmiştir ("...değil" + "mi", "...zorunda" + "kaldı") ya da doğal
-# bir durak değildir. Son parça (grubun cümle sonu) denetlenmez. Edatlar
-# (için/gibi/kadar/ile/beri/göre/dolayı/yüzünden), soru eki (mi/mı/mu/mü) ve
-# 'de/da/ya/ki' sonda DOĞAL cümlecik kapanışıdır ("X için,", "Doğru mu?",
-# "gördüm ki.") — sarkık listesine konmazlar; aksi halde doğru altcümle
-# kesimini yanlış-pozitifle bloklarlar.
+# ortasından kesilmiştir ya da doğal bir durak değildir. Son parça (grubun
+# cümle sonu) denetlenmez. Edatlar (için/gibi/kadar/ile/beri/göre/dolayı/
+# yüzünden), soru eki (mi/mı/mu/mü) ve 'de/da/ya/ki' sonda DOĞAL cümlecik
+# kapanışıdır ("X için,", "Doğru mu?", "gördüm ki.") — sarkık listesine
+# konmazlar; aksi halde doğru altcümle kesimini yanlış-pozitifle bloklarlar.
+# Gösterme/zamir sonları ('kişi o.', 'işte bu', 'sanki şu') meşru cümlecik
+# kapanışıdır — koşulsuz sarkık sayılmazlar.
 _DANGLING_TAIL = frozenset(
-    "ve veya yahut ne hem diye değil degil emin zorunda hâlâ hala ama fakat "
-    "ancak çünkü cunku eğer eger madem hatta bile ise sanki adeta her bir bu "
-    "şu su o".split())
+    "ve veya yahut ne hem diye hâlâ hala ama fakat "
+    "ancak çünkü cunku eğer eger madem hatta ise sanki adeta her bir".split())
+
+# Çift-bileşenli yapılar: sonda kalabilirler ama eşleri SONRAKİ parçanın
+# başlangıcında ise kesim bileşik yapıyı bölmüştür ('değil|mi', 'emin|misin',
+# 'zorunda|kaldı'). Eş gelmiyorsa sözcük meşru cümlecik sonudur — 'Bu doğru
+# değil,' ve 'bunu ben bile' reddedilmez; yanlış-pozitif ek API maliyeti
+# üretmez.
+_PAIR_MATES = {
+    "değil": frozenset("mi mı mu mü miyim miyiz misin misiniz miydi miydim".split()),
+    "degil": frozenset("mi mı mu mü miyim miyiz misin misiniz miydi miydim".split()),
+    "emin": frozenset("misin misiniz miyim miyiz miydi miydim".split()),
+    "zorunda": frozenset(
+        "kaldı kaldım kaldık kalmış kalmışım kalacak kalacağım "
+        "yım yim yum yüm ım im um üm ydım ydim ydum ydüm idim ıdım udum üdüm "
+        "olmalı olmalıyım".split()),
+}
 
 
 def part_tail_issue(translated_parts, target_lang="tr"):
@@ -126,6 +141,11 @@ def part_tail_issue(translated_parts, target_lang="tr"):
         last = tail.split()[-1].lower() if tail else ""
         if last in _DANGLING_TAIL:
             return f"acik_baglanti:{index}"
+        if last in _PAIR_MATES:
+            nxt = normalized_text(translated_parts[index + 1]).lstrip('"\'“”‘’([{«')
+            first = (nxt.split() or [""])[0].rstrip(',;:!?….').lower()
+            if first in _PAIR_MATES[last]:
+                return f"acik_baglanti:{index}"
     return ""
 
 
@@ -209,31 +229,123 @@ def _common_prefix_len(a, b):
 _NAME_CAPITALIZED = re.compile(r"\b[A-ZÇĞİÖŞÜ][\wçğıöşü\-]+")
 
 
+_NAME_CANON_MAP = str.maketrans({
+    "ç": "c", "ğ": "g", "ş": "s", "ı": "i", "ö": "o", "ü": "u",
+    "â": "a", "î": "i", "û": "u", "'": "", "’": "", "-": "",
+})
+_NAME_CANON_PAIRS = (
+    ("ph", "f"), ("th", "t"), ("ck", "k"), ("qu", "k"), ("sch", "s"),
+    ("x", "ks"), ("w", "v"), ("ae", "e"), ("oe", "o"), ("ue", "u"),
+)
+# Son-harf yumuşama/sertleşme çekimleri: 'Ahmed'i'↔'Ahmet', 'kitabı'↔'kitap'.
+_NAME_FINAL_MUTATION = (frozenset("td"), frozenset("pb"), frozenset("cg"),
+                        frozenset("kğ"))
+
+
+def _canon_name(token):
+    """Adı yazım/vurgu birimine indir: diakritikler, transliterasyon çiftleri
+    (ph→f, th→t, w→v) ve Türkçe harf katlaması. 'Persephone'↔'Persefone' gibi
+    sistematik yerelleştirme aynı biçime düşer; 'Lawson'↔'Larson' düşmez."""
+    text = unicodedata.normalize("NFKD", str(token or "")).casefold()
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = text.translate(_NAME_CANON_MAP)
+    for old, new in _NAME_CANON_PAIRS:
+        text = text.replace(old, new)
+    return re.sub(r"[^a-z0-9]", "", text)
+
+
+def _same_name(left, right):
+    """İki tokenın aynı adın biçimleri olması: kanon eşitlik ya da yalnız
+    son-harf yumuşama/sertleşme farkı."""
+    canon_l, canon_r = _canon_name(left), _canon_name(right)
+    if canon_l and canon_l == canon_r:
+        return True
+    if len(canon_l) >= 3 and len(canon_r) >= 3 and canon_l[:-1] == canon_r[:-1]:
+        return any(canon_l[-1] in cls and canon_r[-1] in cls
+                   for cls in _NAME_FINAL_MUTATION)
+    return False
+
+
 def _name_preserved(name, translated):
     """Özel adın hedef parçada yazımıyla veya çekimli yerel biçimiyle bulunması.
 
-    Tam eşleşme en hızlı yoldur; 'Lizbon'dan' gibi Türkçe ekli yerelleştirmede
-    kök + 'ek biçiminde aranır (ilk iki harf + ≤2 edit mesafesi). Unvan çekimi
-    gibi apostrofsuz biçimler ('Majesty'→'Majesteleri') büyük harfli hedef
-    tokenında ≥%70 ortak önekle kabul edilir. Çıplak bulanık eşleşme kasıtlı
-    yok: 'Larson' gibi ad-bozması kusurlar yakalansın diye.
+    Tam eşleşme en hızlı yoldur; 'Lizbon'dan' gibi Türkçe ekli biçimde kök
+    aranır. Kök karşılaştırması kanon biçimdedir: sistematik transliterasyon
+    ('Persefone'↔'Persephone') ve çekim mutasyonları ('Ahmed'i'↔'Ahmet')
+    geçer, bulanık yakınlık geçmez — 'Larson' 'Lawson' sayılmaz. Unvan
+    çekimi gibi apostrofsuz biçimler ('Majesty'→'Majesteleri') büyük harfli
+    hedef tokenında ≥%70 ortak önekle kabul edilir.
     """
     translated = str(translated or '')
     if name in translated:
         return True
-    head = name[:2].lower()
     for match in _NAME_INFLECTED.finditer(translated):
         stem = match.group(1)
-        if len(stem) >= 3 and stem[:2].lower() == head \
-                and _edit_distance(stem.lower(), name.lower()) <= 2:
+        if len(stem) >= 3 and _same_name(stem, name):
+            return True
+    # Ekli kökte uyumlu yerelleştirme toleransı ('Lizbon'dan'↔'Lisbon'):
+    # kanon biçimde ≤2 edit. 'Larson'↔'Lawson' gibi farklı-ad takası ekli
+    # kökte ayırt edilemez — sınır raporda belgelenir.
+    for match in _NAME_INFLECTED.finditer(translated):
+        stem = match.group(1)
+        if (len(stem) >= 3 and stem[:2].lower() == name[:2].lower()
+                and _edit_distance(_canon_name(stem), _canon_name(name)) <= 2):
             return True
     threshold = math.ceil(len(name) * 0.7)
     for match in _NAME_CAPITALIZED.finditer(translated):
         token = match.group(0)
+        if _same_name(token, name):
+            return True
         if len(token) >= len(name) \
                 and _common_prefix_len(token, name) >= threshold:
             return True
     return False
+
+
+# Cümle-ilk büyük harf yalnız başına ad kanıtı değildir — sık cümle
+# başlangıcı işlev sözcükleri ad-swap denetimini tetiklemesin ('The
+# package…' → 'Paket Dr. Chen…' örneğinde 'the'↔'dr' sahte eşleşmesi).
+_INITIAL_STOPWORDS = frozenset(
+    "the a an this that these those it its he she we they you i me my our "
+    "your his her their there here but so and or nor if then than when "
+    "while because since as for to in on at by with from of about over "
+    "under again once already now still just also not no yes who what "
+    "which where why how mr mrs ms dr st".split())
+
+
+def _initial_name_swap(source, translated):
+    """Cümle-ilk adın benzer-yazımla takas edilmesini yakala.
+
+    Cümle-ilk büyük harfli token normal kelime de olabilir; varlığı
+    zorlanmaz. Ama hedefte ada yakın-yazımlı (≤2 kanon edit ya da ≥3 ortak
+    önek) farklı bir büyük harfli token varsa ad bozulmuş demektir —
+    'Lawson'→'Larson' yakalanır, 'Suddenly'→'Aniden' sayılmaz."""
+    words = normalized_text(source).split()
+    if not words:
+        return ""
+    first = words[0].strip("\"'“”‘’([{«")
+    if len(first) < 3 or not first[0].isupper():
+        return ""
+    lowered = first.lower().rstrip(".?!,;:!…")
+    if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
+            or lowered in _INITIAL_STOPWORDS:
+        return ""
+    if _name_preserved(first, translated):
+        return ""
+    canon_first = _canon_name(first)
+    if not canon_first:
+        return ""
+    for match in _NAME_CAPITALIZED.finditer(str(translated or "")):
+        token = match.group(0)
+        if (_edit_distance(_canon_name(token), canon_first) <= 2
+                or _common_prefix_len(token, first) >= 3):
+            return "ozel_ad_bozulma"
+    for match in _NAME_INFLECTED.finditer(str(translated or "")):
+        token = match.group(1)
+        if (_edit_distance(_canon_name(token), canon_first) <= 2
+                or _common_prefix_len(token, first) >= 3):
+            return "ozel_ad_bozulma"
+    return ""
 
 
 def _proper_names(text):
@@ -260,6 +372,75 @@ def _proper_names(text):
     return names
 
 
+def _name_run_size(name, source):
+    """`name`in içinde bulunduğu bitişik büyük harfli serinin uzunluğu.
+
+    'French Revolution' gibi ≥2 tokenlık adlı-varlık öbekleri Türkçede
+    birleşik yerelleşir ('Fransız Devrimi') — tek tek eşleştirilemez."""
+    words = normalized_text(source).split()
+    tokens = [w.strip("\"'“”‘’([{«") for w in words]
+    caps = [bool(t) and _NAME_TOKEN.match(t) is not None and t[0].isupper()
+            for t in tokens]
+    best = 0
+    run = 0
+    for i, (t, c) in enumerate(zip(tokens, caps)):
+        if c:
+            run += 1
+        else:
+            run = 0
+        if c and t.rstrip(".") == name:
+            # bu ada ait seriyi ölç
+            j = i
+            while j >= 0 and caps[j]:
+                j -= 1
+            left = j + 1
+            j = i
+            while j < len(caps) and caps[j]:
+                j += 1
+            best = max(best, j - left)
+            run = 0
+    return best
+
+
+def _has_capitalized(text):
+    """Hedefte ilk kelime DIŞINDA büyük harfli ya da ekli-ad tokenı var mı.
+
+    İlk token her zaman büyük harfli olabilir — sayılmaz; ad-öbeği
+    yerelleştirmesi ancak ikinci+ konumdaki büyük harfle kanıtlanır."""
+    text = str(text or "")
+    if _NAME_INFLECTED.search(text):
+        return True
+    for match in _NAME_CAPITALIZED.finditer(text):
+        if text[:match.start()].strip():
+            return True
+    return False
+
+
+def _near_name_token(name, translated):
+    """Hedefte ada benzer ama aynı olmayan büyük harfli token var mı.
+
+    'Larson'↔'Lawson' gibi ≤2 kanon edit ya da ≥3 ortak önekli farklı yazım
+    takas yakalar; 'Fransız'↔'French' gibi büyük farklar yakalanmaz."""
+    canon_name = _canon_name(name)
+    if not canon_name:
+        return False
+    for match in _NAME_CAPITALIZED.finditer(str(translated or "")):
+        token = match.group(0)
+        if _same_name(token, name):
+            continue
+        if (_edit_distance(_canon_name(token), canon_name) <= 2
+                or _common_prefix_len(token, name) >= 3):
+            return True
+    for match in _NAME_INFLECTED.finditer(str(translated or "")):
+        stem = match.group(1)
+        if _same_name(stem, name):
+            continue
+        if (_edit_distance(_canon_name(stem), canon_name) <= 2
+                or _common_prefix_len(stem, name) >= 3):
+            return True
+    return False
+
+
 def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
     """Sayı/para/birim/tarih/SDH/özel adın kaynak ID'sinden başka cue'ya kaymasını yakala.
 
@@ -269,22 +450,64 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
     ve özel ad yerelleşebilir, işaret türü ve ad kökü korunur.
     """
     for index, (source, translated) in enumerate(zip(source_parts, translated_parts)):
+        # Sınırda bölünmüş sayı: parça rakamla bitip sonraki parça rakamla
+        # başlıyorsa ikisi tek sayının yarısıdır ('3,' + '000'→'3.000') —
+        # kuyruk tokenını bu parçada aramak doğru çeviriyi bile reddeder.
+        # Yarımlar ancak diğer yarıda rakam varsa atlanır — aksi halde
+        # '3,000'→'madeni para' gibi gerçek sayı kaybı kaçar.
+        next_has_digit = (index + 1 < len(translated_parts)
+                          and bool(re.search(r"\d", str(translated_parts[index + 1]))))
+        prev_has_digit = (index > 0
+                          and bool(re.search(r"\d", str(translated_parts[index - 1]))))
+        skip_last_number = (
+            index + 1 < len(source_parts)
+            and bool(re.search(r"[\d][,\.\s]*$", normalized_text(source)))
+            and bool(re.match(r"^\s*[\d]", normalized_text(source_parts[index + 1])))
+            and (next_has_digit or bool(re.search(r"\d", str(translated)))))
+        skip_first_number = (
+            index > 0
+            and bool(re.match(r"^\s*[\d]", normalized_text(source)))
+            and bool(re.search(r"[\d][,\.\s]*$", normalized_text(source_parts[index - 1])))
+            and (prev_has_digit or bool(re.search(r"\d", str(translated)))))
         for token in _number_tokens(str(source)):
+            if skip_last_number and token:
+                words = normalized_text(source).rstrip(',;:').split()
+                if words and words[-1].startswith(token):
+                    continue
+            if skip_first_number and token:
+                words = normalized_text(source).split()
+                if words and words[0].startswith(token):
+                    continue
             if not _number_preserved(token, str(translated), target_lang):
                 return f"sayi_kaydi:{index}"
         for issue, patterns in (
                 ('currency', _CURRENCY_PATTERNS),
-                ('unit', _UNIT_PATTERNS),
                 ('date', _MONTH_PATTERNS)):
             if not _semantic_markers(source, patterns).issubset(
                     _semantic_markers(translated, patterns)):
                 return f"{issue}_kaydi:{index}"
+        if not _unit_markers(source).issubset(_unit_markers(translated)):
+            return f"unit_kaydi:{index}"
         sdh_kind = _sdh_issue(source, translated)
         if sdh_kind:
             return f"sdh_kaydi:{index}:{sdh_kind}"
         for name in _proper_names(str(source)):
-            if not _name_preserved(name, str(translated)):
-                return f"ozel_ad_kaydi:{index}"
+            if _name_preserved(name, str(translated)):
+                continue
+            # ≥2 tokenlık adlı-varlık öbeği ('French Revolution'→'Fransız
+            # Devrimi'): hedefte en az bir ad kalıntısı varsa yerelleştirme
+            # sayılır; öbek tümüyle silindiyse ('the revolution'→'devrim')
+            # eksiklik olarak kalır. Öbek içinde ada yakın-yazımlı farklı
+            # token varsa ('Detective Lawson'→'Dedektif Larson') yine ret.
+            if _name_run_size(name, str(source)) >= 2:
+                if _near_name_token(name, translated):
+                    return f"ozel_ad_bozulma:{index}"
+                if _has_capitalized(translated):
+                    continue
+            return f"ozel_ad_kaydi:{index}"
+        name_swap = _initial_name_swap(source, translated)
+        if name_swap:
+            return f"{name_swap}:{index}"
     return ""
 
 
@@ -355,12 +578,15 @@ _TARGET_MODAL = re.compile(
     re.I,
 )
 
+# ISO para kodları (USD/TRY/TL/JPY) büyük harfle kalır: 'try' fiili veya 'tl'
+# kısaltması para birimi sayılmaz. Sözcük biçimleri (dollar/lira/pound/yen)
+# büyük-küçük harfe duyarsız — 'Pounds' cümle başında da yakalanır.
 _CURRENCY_PATTERNS = {
-    'usd': re.compile(r'(?:US\$|\$|(?<!\w)(?:USD|dollars?|dolar\w*)(?!\w))', re.I),
-    'eur': re.compile(r'(?:€|(?<!\w)(?:EUR|euros?|avro\w*)(?!\w))', re.I),
-    'gbp': re.compile(r'(?:£|(?<!\w)(?:GBP|pounds?|sterlin\w*)(?!\w))', re.I),
-    'try': re.compile(r'(?<!\w)(?:₺|TRY|TL|lira\w*)(?!\w)', re.I),
-    'jpy': re.compile(r'(?<!\w)(?:¥|JPY|yen)(?!\w)', re.I),
+    'usd': re.compile(r'(?:US\$|\$|(?<!\w)(?:USD|(?i:dollars?|dolar\w*))(?!\w))'),
+    'eur': re.compile(r'(?:€|(?<!\w)(?:EUR|(?i:euros?|avro\w*))(?!\w))'),
+    'gbp': re.compile(r'(?:£|(?<!\w)(?:GBP|(?i:pounds?|sterlin\w*))(?!\w))'),
+    'try': re.compile(r'(?:₺|(?<!\w)(?:TRY|TL|(?i:lira\w*))(?!\w))'),
+    'jpy': re.compile(r'(?<!\w)(?:¥|JPY|(?i:yen))(?!\w)'),
 }
 _UNIT_PATTERNS = {
     'km': re.compile(r'(?<!\w)(?:km|kilometers?|kilometre\w*)(?!\w)', re.I),
@@ -442,6 +668,40 @@ _TR_NUMBER_CONT = re.compile(
     r'^\s+(?:' + '|'.join(sorted(_TR_NUMBER_WORDS, key=len, reverse=True)) + r')\b', re.I)
 
 
+_EN_NUMBER_WORDS = ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
+                    'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
+                    'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'thirty',
+                    'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred',
+                    'thousand', 'million', 'billion', 'half', 'quarter', 'dozen', 'pair',
+                    'couple', 'few', 'several')
+_QUANTITY_WORDS = _EN_NUMBER_WORDS + _TR_NUMBER_WORDS + ('yarım', 'çeyrek', 'düzine')
+_QUANTITY_BEFORE = re.compile(
+    r'(?:\d[\d.,]*|(?:' + '|'.join(sorted(_QUANTITY_WORDS, key=len, reverse=True))
+    + r'))[\s\W]{0,5}$', re.I)
+_QUANTITY_AFTER = re.compile(
+    r'^\W{0,4}\s*(?:\d[\d.,]*|(?:' + '|'.join(sorted(_QUANTITY_WORDS, key=len, reverse=True))
+    + r'))\b', re.I)
+
+
+def _unit_markers(text):
+    """Ölçü birimi işaretlerini yalnızca nicelik bağlamında say.
+
+    'Second.' cümle başında sıra sayısıdır (İkinci.), '3 seconds' birimdir.
+    'Wait a second' gibi belirtisiz kullanımlar ('a/an' nicelik sayılmaz)
+    dakika gibi doğal karşılığa çevrilebilir — sert ret üretmez.
+    """
+    text = str(text or '')
+    markers = set()
+    for name, pattern in _UNIT_PATTERNS.items():
+        for match in pattern.finditer(text):
+            before = text[max(0, match.start() - 30):match.start()]
+            after = text[match.end():match.end() + 20]
+            if _QUANTITY_BEFORE.search(before) or _QUANTITY_AFTER.match(after):
+                markers.add(name)
+                break
+    return markers
+
+
 def _turkish_number_phrase_match(translated, phrase):
     suffix = r"(?:['’]?(?:[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n))?"
     text = str(translated or '')
@@ -521,12 +781,15 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
         issues.append('negation_missing')
     if _SOURCE_MODAL.search(source) and not _TARGET_MODAL.search(translated):
         issues.append('modal_missing')
-    for issue, patterns in (
-            ('currency_mismatch', _CURRENCY_PATTERNS),
-            ('unit_mismatch', _UNIT_PATTERNS),
-            ('date_mismatch', _MONTH_PATTERNS)):
-        source_markers = _semantic_markers(source, patterns)
-        if source_markers and not source_markers.issubset(_semantic_markers(translated, patterns)):
+    marker_checks = [
+        ('currency_mismatch', _semantic_markers(source, _CURRENCY_PATTERNS),
+         _semantic_markers(translated, _CURRENCY_PATTERNS)),
+        ('unit_mismatch', _unit_markers(source), _unit_markers(translated)),
+        ('date_mismatch', _semantic_markers(source, _MONTH_PATTERNS),
+         _semantic_markers(translated, _MONTH_PATTERNS)),
+    ]
+    for issue, source_markers, translated_markers in marker_checks:
+        if source_markers and not source_markers.issubset(translated_markers):
             issues.append(issue)
     return issues
 

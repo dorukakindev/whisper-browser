@@ -1438,6 +1438,30 @@ test('oynatıcı işi olayları ana transkripsiyon ekranına sızmıyor', () => 
   assert(/job\.cancelled/.test(body), 'iptal sonrası geç olay koruması yok');
 });
 
+test('done görmeden gelen exit oynatıcı işini terminal duruma indiriyor', () => {
+  const i = js.indexOf('function playerJobEvent');
+  const body = js.slice(i, js.indexOf('window.api.onEvent', i));
+  // awaitingExit sonrası ayrı bir yakalama dalı olmalı: iptal/çökme/öldürmede
+  // 'exit' tek olaydır; eskiden `return event.type !== 'log'` onu yutuyordu ve
+  // kart sonsuza kadar "çalışıyor" kalıyordu.
+  const m = body.match(/event\.type === 'exit' && job\.awaitingExit[\s\S]*?return true;\s*\}\s*\n(\s*)if \(event\.type === 'exit'\) \{/);
+  assert(m, 'done görmemiş iş için exit yakalama dalı yok');
+  const block = body.slice(m.index, m.index + 1500);
+  assert(/job\.running = false/.test(block), 'pre-done exit job.running sıfırlamıyor');
+  assert(/player\.job = null/.test(block), 'pre-done exit player.job bırakmıyor');
+  assert(/state\.running = false/.test(block), 'pre-done exit state.running sıfırlamıyor');
+  assert(/return true/.test(block), 'pre-done exit ana akışa sızıyor');
+});
+
+test('backend iş bilmezken ölü oynatıcı kartı iptal yolunda temizleniyor', () => {
+  const i = js.indexOf("$('cancelBtn').addEventListener('click'");
+  assert(i > 0, 'cancelBtn dinleyicisi yok');
+  const body = js.slice(i, i + 5000);
+  assert(/player\.job\.cancelled = true/.test(body)
+    && /playerJobEvent\(\{ type: 'exit' \}\)/.test(body),
+    'canlı süreç yokken stale player.job kartı temizlenmiyor');
+});
+
 test('kısa video başlangıçta tamamlanmış sayılmıyor', () => {
   const start = js.indexOf('function watchCompletionReached');
   const end = js.indexOf('function watchItemByKey', start);
@@ -2004,6 +2028,54 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
     preventDefault: () => {},
     target: { tagName: 'DIV', isContentEditable: false, closest: () => null } });
   assert(mainCalls.some(([n]) => n === 'cancelBtn'), 'düz hedefte Escape işi iptal etmedi');
+});
+
+test('playlist rayı Invidious thumbnail dizisiyle çöküp tüm sonuç gridini boş bırakmıyor', () => {
+  // BUG-109-09: renderStPlaylistRail, absThumb'a pl.videoThumbnails DİZİSİNİ
+  // veriyordu (dizide startsWith yok) → TypeError doSmartTubeSearch içinde
+  // innerHTML='' sonrası fırlıyor, 20 geçerli video sonucuyla birlikte
+  // grid tamamen boş ve HATASIZ kalıyordu. Gerçek Invidious'ta playlist
+  // döndüren her arama boş ekran gösteriyordu.
+  const vm = require('vm');
+  const railSrc = js.slice(js.indexOf('function renderStPlaylistRail'));
+  const railEnd = railSrc.indexOf('\n}') + 2;
+  const created = [];
+  const mk = (tag) => {
+    const el = { tag, children: [], attrs: {}, listeners: {},
+      appendChild(c) { this.children.push(c); }, setAttribute(k, v) { this.attrs[k] = v; },
+      addEventListener(t, fn) { this.listeners[t] = fn; } };
+    created.push(el); return el;
+  };
+  const ctx = vm.createContext({
+    document: { createElement: (t) => mk(t) },
+    absThumb: (url) => {
+      if (!url || typeof url !== 'string' || !url.startsWith) return '';
+      return /^https?:\/\//i.test(url) ? url : '';
+    },
+    openInvidiousPlaylistPage: () => {},
+  });
+  vm.runInContext(railSrc.slice(0, railEnd), ctx);
+  const grid = mk('div');
+  const playlists = [
+    { type: 'playlist', playlistId: 'PL1', title: 'Lofi Mix', author: 'A', videoCount: 65,
+      videoThumbnails: [{ quality: 'medium', url: 'https://i.example/a.jpg', width: 336, height: 188 }] },
+    { type: 'playlist', playlistId: 'PL2', title: 'No thumbs', videoCount: 3, videoThumbnails: [] },
+  ];
+  let threw = null;
+  try { ctx.renderStPlaylistRail(grid, playlists); } catch (e) { threw = e; }
+  assert(!threw, 'ray çizimi thumbnail dizisinde fırladı: ' + threw);
+  assert(grid.children.length === 1, 'ray kapsayıcısı gride eklenmedi');
+  const cards = grid.children[0].children;
+  assert(cards.length === 2, 'rayda 2 playlist kartı bekleniyor, ' + cards.length);
+  const img = cards[0].children.flatMap((c) => c.children).find((c) => c.tag === 'img');
+  assert(img && img.src === 'https://i.example/a.jpg',
+    'ray thumbnail img src seçilen entry url olmalı, bulunan: ' + (img && img.src));
+
+  // Çağrı tarafı: ray çizim hatası video sonuçlarını da götürmemeli.
+  const searchSrc = js.slice(js.indexOf('async function doSmartTubeSearch'));
+  const site = searchSrc.slice(0, searchSrc.indexOf('function renderStPlaylistRail'));
+  assert(/try\s*\{[\s\S]*?renderStPlaylistRail[\s\S]*?\}\s*catch/.test(site),
+    'renderStPlaylistRail çağrısı try/catch ile korunmuyor');
 });
 
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);
