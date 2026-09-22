@@ -35,6 +35,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - Reading-list and element-rules index writes no longer leave orphaned `.tmp` files on write/rename failure (F-102-1).
 - Restored browser tab loading no longer throws an unhandled rejection when its webContents is destroyed mid-flight (F-102-2).
 - `install.bat`/`install.sh` installs no longer leave broken console scripts (`pip`, `yt-dlp`, `evs-vmp`, ct2-*): entry points are regenerated after the venv swap (F-103-1).
+- SmartTube search no longer shows a misleading "no results" empty state on network/5xx failures — errors surface as visible status with a retry action (F-104-1).
+- SmartTube channels/live sections no longer collapse transient errors into a fake empty/sign-in state, and search "Load more" no longer dies silently after one failed page (F-104-2/3).
+- `<dialog>` elements opened from the player layer now close on Escape: the global keydown handler no longer preempts the dialog's native cancel (F-104-4).
 - `requirements-ci.txt` resolves on stock Ubuntu 22.04 Python 3.10 via version markers; CI pins on 3.11 unchanged.
 - Browser subtitle capture no longer merges separate text tracks into one published stream when players materialize tracks via `data:` `<track>` elements (hls.js); each track now keeps its own stream identity, ending cross-track cue contamination and silent cue loss.
 - Browser media tools (intro detection, OCR, semantic search, scene strips) no longer report "not found" on Linux when ffmpeg/python resolve via PATH.

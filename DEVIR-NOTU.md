@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 04:15 — T6 temiz-makine kurulum gauntlet'i: install.sh/start.sh, venv console-script onarımı (F-103-1), requirements-ci py3.10 marker'ları, CI'da gerçek Electron bridge; BROWSER_BUG_REPORT_103](docs/devir/2026-09-22-0415.md).
+Güncel çalışma: [2026-09-22 05:13 — Gece denetim turu (A–G kuyruğu): dört gerçek bug — SmartTube arama/sekme hata görünürlüğü (F-104-1/2/3), player katmanında dialog Escape (F-104-4); gerçek-Electron kullanım matrisi smoke'u; BROWSER_BUG_REPORT_104](docs/devir/2026-09-22-0513.md).
+
+Önceki çalışma: [2026-09-22 04:15 — T6 temiz-makine kurulum gauntlet'i: install.sh/start.sh, venv console-script onarımı (F-103-1), requirements-ci py3.10 marker'ları, CI'da gerçek Electron bridge; BROWSER_BUG_REPORT_103](docs/devir/2026-09-22-0415.md).
 
 Önceki çalışma: [2026-09-22 03:42 — T5 çökme/bütünlük/perf gauntlet'i: fs enjeksiyon dikiği, yetim .tmp temizliği (F-102-1), destroyed-webContents guard (F-102-2), hasarlı-profil Electron smoke + 10k-cue perf ölçümü; BROWSER_BUG_REPORT_102](docs/devir/2026-09-22-0342.md).
 
