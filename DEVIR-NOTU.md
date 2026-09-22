@@ -1,4 +1,8 @@
-Güncel çalışma: [2026-09-22 15:35 — F-106-5: --bg-card/--bg-elev tanımsız yüzey token'ları (şeffaf sağ-tık menüsü/plakalar) köprüye eklendi; .st-upnext açık temada dark-on-dark'tı, yerel sabit token körlemesiyle düzeltildi; tema QA kanıtlı; BROWSER_BUG_REPORT_107](docs/devir/2026-09-22-1535.md).
+Güncel çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
+
+Önceki çalışma: [2026-09-22 16:44 — TR çeviri sentence-group dağıtım kapıları: erken-sonu kapısı iç-cümle kotalı hale geldi ("Bekle." artık kabul), parça başına sayı/özel-ad/SDH demirleme + açık bağlantı + tekrar kapıları, sertleştirilmiş son kurtarma promptu, cue içi ikinci cümleye gerçek \n; 24 yeni test, canlı koşu kanıtlı; BROWSER_BUG_REPORT_108](docs/devir/2026-09-22-1644.md).
+
+Önceki çalışma: [2026-09-22 15:35 — F-106-5: --bg-card/--bg-elev tanımsız yüzey token'ları (şeffaf sağ-tık menüsü/plakalar) köprüye eklendi; .st-upnext açık temada dark-on-dark'tı, yerel sabit token körlemesiyle düzeltildi; tema QA kanıtlı; BROWSER_BUG_REPORT_107](docs/devir/2026-09-22-1535.md).
 
 Önceki çalışma: [2026-09-22 15:00 — F-106-4: tanımsız palet değişkenleri (--fg/--muted/--bg/--bg-sunken) tüm SmartTube kromunu açık temada görünmez kılıyordu; html'e kanonik-token köprüsü eklendi, başlık/sidebar kontrastı geri döndü; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1500.md).
 

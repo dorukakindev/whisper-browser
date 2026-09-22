@@ -43,22 +43,277 @@ def sentence_parts_match(whole, parts):
     return False
 
 
-def sentence_part_boundary_issue(source_parts, translated_parts):
-    """Hedefin cümleyi kaynak cue'dan daha erken kapatmasını engelle.
+_END_RUN = re.compile(r'[.!?…]+[\"\'”’)}\]]*')
 
-    Bir cümle grubu içinde sözcük dizimi değişebilir; ancak nokta/soru/ünlem
-    başka cue'ya taşındığında oynatıcı bir yüklemi erken bitmiş gösterip kalan
-    anlamı sonraki zaman aralığına iter. Kaynakta devam eden, son olmayan bir
-    parçanın hedef karşılığı gerçek bir cümle sonuyla kapanamaz.
+
+def _numeric_separator(text, match):
+    """'3.000' / '2.4' / 'v1.2' — iki rakam arasındaki nokta cümle sonu değildir.
+
+    Türkçe binlik ayraç ve ondalık nokta ('Kasada 3.000 sikke vardı.') satır
+    sonu ekleme ve cümle-sonu kotasını kandırıyordu: '3.' gerçek bitiş sanılıp
+    sayının ortasına `\n` konuyordu.
+    """
+    i = match.start() - 1
+    while i >= 0 and text[i] in "\"'”’)}] ":
+        i -= 1
+    prev = text[i] if i >= 0 else ""
+    j = match.end()
+    while j < len(text) and text[j] in "\"'”’)}] ":
+        j += 1
+    nxt = text[j] if j < len(text) else ""
+    return prev.isdigit() and nxt.isdigit()
+
+
+def sentence_end_count(text):
+    """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz)."""
+    text = normalized_text(text)
+    return sum(1 for match in _END_RUN.finditer(text)
+               if not _numeric_separator(text, match)
+               and sentence_ended(text[:match.end()]))
+
+
+def internal_sentence_end_count(text):
+    """Parça İÇİNDE tamamlanan cümle sayısı (parçanın kendi sonu hariç).
+
+    "Wait. Are you sure" gibi gövdesinde tam cümle barındıran parçaların
+    hedef karşılığı da bir cümleyle kapanabilir ("Bekle.") — bu kota olmadan
+    istenen davranış kalite kapısında reddediliyordu.
+    """
+    text = normalized_text(text)
+    return sum(1 for match in _END_RUN.finditer(text)
+               if not _numeric_separator(text, match)
+               and sentence_ended(text[:match.end()])
+               and normalized_text(text[match.end():]))
+
+
+def sentence_part_boundary_issue(source_parts, translated_parts):
+    """Hedefin cümleyi kaynak cue'da olandan fazla cümleyle kapatmasını engelle.
+
+    Kota = kaynak parçanın içerdiği toplam tam cümle sayısı. Böylece gövdesinde
+    "Wait." gibi tamamlanmış cümle taşıyan bir parçanın Türkçe karşılığı
+    "Bekle." ile bitebilir; ancak kaynakta devam eden parça hedef parçada
+    ekstra cümle sonu taşıyamaz (yüklem erken bitmiş gibi görünürdü).
     """
     if (not isinstance(source_parts, (list, tuple))
             or not isinstance(translated_parts, (list, tuple))
             or len(source_parts) != len(translated_parts)):
         return "cue_siniri_gecersiz"
     for index in range(max(0, len(source_parts) - 1)):
-        if not sentence_ended(source_parts[index]) and sentence_ended(translated_parts[index]):
+        if sentence_end_count(translated_parts[index]) > sentence_end_count(source_parts[index]):
             return f"erken_cumle_sonu:{index}"
     return ""
+
+
+# Parça SONUNDA duramayan Türkçe sözcükler: bunlarla biten parça ya ek/bağlaç
+# ortasından kesilmiştir ("...değil" + "mi", "...zorunda" + "kaldı") ya da doğal
+# bir durak değildir. Son parça (grubun cümle sonu) denetlenmez. Edatlar
+# (için/gibi/kadar/ile/beri/göre/dolayı/yüzünden), soru eki (mi/mı/mu/mü) ve
+# 'de/da/ya/ki' sonda DOĞAL cümlecik kapanışıdır ("X için,", "Doğru mu?",
+# "gördüm ki.") — sarkık listesine konmazlar; aksi halde doğru altcümle
+# kesimini yanlış-pozitifle bloklarlar.
+_DANGLING_TAIL = frozenset(
+    "ve veya yahut ne hem diye değil degil emin zorunda hâlâ hala ama fakat "
+    "ancak çünkü cunku eğer eger madem hatta bile ise sanki adeta her bir bu "
+    "şu su o".split())
+
+
+def part_tail_issue(translated_parts, target_lang="tr"):
+    """Türkçe hedef parçanın ek/bağlaç/birleşik anlam yapısı ortasından kesilmesini yakala."""
+    if str(target_lang or "").lower().split("-")[0] != "tr":
+        return ""
+    for index in range(max(0, len(translated_parts) - 1)):
+        tail = normalized_text(translated_parts[index]).rstrip('…,.!?;:"\'”’)]}')
+        last = tail.split()[-1].lower() if tail else ""
+        if last in _DANGLING_TAIL:
+            return f"acik_baglanti:{index}"
+    return ""
+
+
+def part_repetition_issue(source_parts, translated_parts):
+    """Farklı kaynak parçalara aynı hedef parça döndürülmesini yakala."""
+    previous_source = previous_target = None
+    for index, (source, translated) in enumerate(zip(source_parts, translated_parts)):
+        source_n, translated_n = normalized_text(source), normalized_text(translated)
+        if (translated_n and previous_target and translated_n == previous_target
+                and source_n != previous_source):
+            return f"tekrarli_part:{index}"
+        previous_source, previous_target = source_n, translated_n
+    return ""
+
+
+_NAME_TOKEN = re.compile(r"[A-Za-zÇĞİÖŞÜçğıöşüΑ-Ωα-ωА-Яа-я][\w'’.\-]*", re.UNICODE)
+
+# Gün/ay adları özel ad sayılmaz: meşru yerelleştirme (Tuesday→Salı) tarih
+# denetimi katmanında zaten korunur; burada zorlamak yerelleştirmeyi bloklar.
+_WEEKDAY_MONTH = frozenset(
+    "monday tuesday wednesday thursday friday saturday sunday "
+    "january february march april may june july august september october "
+    "november december".split())
+# Satır başındaki SDH/konuşmacı işaretleri taranıp ad-sayacı kandırılmaz:
+# "[distorted] Run!" ve "MAN: Hold your fire!" örneklerinde ilk gerçek kelime
+# cümle-ilk sayılmalı, özel ad değil.
+_LEADING_MARKERS = re.compile(
+    r"^(?:\s*(?:\[[^\[\]]{0,60}\]|\([^\(\)]{0,60}\)|[♪♫]+|[A-ZÇĞİÖŞÜ]{2,}:))+\s*")
+# Hedef parçada SDH "tür" araması: içerik yerelleşebilir ([GUNFIRE]→[SİLAH
+# SESLERİ]) ama işaret türü aynı cue'da kalmalı; işaretin bütünüyle düşmesi
+# (köşeli parantezsiz düz metin) kusurdur.
+_SDH_KIND = (
+    ('bracket', re.compile(r"\[[^\[\]]+\]")),
+    ('paren', re.compile(r"\([^\(\)]+\)")),
+    ('music', re.compile(r"[♪♫]")),
+    ('speaker', re.compile(r"^\s*[A-ZÇĞİÖŞÜ]{2,}\s*:")),
+)
+_SPEAKER_TARGET = re.compile(r"^\s*\S{1,20}:")
+
+
+def _sdh_issue(source, translated):
+    """Kaynak parçadaki SDH işaret türlerinin hedef parçada olup olmadığını denetle."""
+    source = str(source or '')
+    translated = str(translated or '')
+    for kind, pattern in _SDH_KIND:
+        if not pattern.search(source):
+            continue
+        if kind == 'speaker':
+            if not _SPEAKER_TARGET.match(translated):
+                return 'speaker'
+        elif not pattern.search(translated):
+            return kind
+    return ""
+
+
+def _edit_distance(a, b):
+    """Kısa adlar için Levenshtein (özel-ad transliterasyonu kabulünde)."""
+    if len(a) < len(b):
+        a, b = b, a
+    previous = list(range(len(b) + 1))
+    for i, char_a in enumerate(a, 1):
+        current = [i]
+        for j, char_b in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[-1] + 1,
+                               previous[j - 1] + (char_a != char_b)))
+        previous = current
+    return previous[-1]
+
+
+_NAME_INFLECTED = re.compile(r"([A-Za-zÇĞİÖŞÜçğıöşüΑ-Ωα-ωА-Яа-я][\w\-]*)['’]([a-zçğıöşü]{1,6})\b")
+
+
+def _common_prefix_len(a, b):
+    limit = min(len(a), len(b))
+    index = 0
+    while index < limit and a[index].lower() == b[index].lower():
+        index += 1
+    return index
+
+
+_NAME_CAPITALIZED = re.compile(r"\b[A-ZÇĞİÖŞÜ][\wçğıöşü\-]+")
+
+
+def _name_preserved(name, translated):
+    """Özel adın hedef parçada yazımıyla veya çekimli yerel biçimiyle bulunması.
+
+    Tam eşleşme en hızlı yoldur; 'Lizbon'dan' gibi Türkçe ekli yerelleştirmede
+    kök + 'ek biçiminde aranır (ilk iki harf + ≤2 edit mesafesi). Unvan çekimi
+    gibi apostrofsuz biçimler ('Majesty'→'Majesteleri') büyük harfli hedef
+    tokenında ≥%70 ortak önekle kabul edilir. Çıplak bulanık eşleşme kasıtlı
+    yok: 'Larson' gibi ad-bozması kusurlar yakalansın diye.
+    """
+    translated = str(translated or '')
+    if name in translated:
+        return True
+    head = name[:2].lower()
+    for match in _NAME_INFLECTED.finditer(translated):
+        stem = match.group(1)
+        if len(stem) >= 3 and stem[:2].lower() == head \
+                and _edit_distance(stem.lower(), name.lower()) <= 2:
+            return True
+    threshold = math.ceil(len(name) * 0.7)
+    for match in _NAME_CAPITALIZED.finditer(translated):
+        token = match.group(0)
+        if len(token) >= len(name) \
+                and _common_prefix_len(token, name) >= threshold:
+            return True
+    return False
+
+
+def _proper_names(text):
+    """Cümle başında OLMAYAN büyük harfli tokenlar — özel ad adayı.
+
+    Cümle-ilk tokenı, kısaltmalar (Dr., Mr.), gün/ay adları ve satır başı
+    SDH/konuşmacı işaretinden hemen sonra gelen ilk gerçek kelime atlanır.
+    """
+    text = normalized_text(text)
+    prefix = _LEADING_MARKERS.match(text)
+    body = text[prefix.end():] if prefix else text
+    words = body.split()
+    names = []
+    for index, word in enumerate(words):
+        candidate = word.strip("\"'“”‘’([{«")
+        if not _NAME_TOKEN.match(candidate) or not candidate[0].isupper():
+            continue
+        lowered = candidate.lower().rstrip(".")
+        if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH:
+            continue
+        sentence_initial = index == 0 or sentence_ended(" ".join(words[:index]))
+        if not sentence_initial and len(candidate.rstrip(".")) >= 2:
+            names.append(candidate.rstrip("."))
+    return names
+
+
+def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
+    """Sayı/para/birim/tarih/SDH/özel adın kaynak ID'sinden başka cue'ya kaymasını yakala.
+
+    Model gruba bütün cümle kurarken bilgiyi doğal yerleşim için başka ID'ye
+    taşıyabilir; altyazıda bu, bilginin konuşma anından kopması demektir.
+    Yalnızca yapısal işaretler denetlenir — anlam serbest kalmalı; SDH içeriği
+    ve özel ad yerelleşebilir, işaret türü ve ad kökü korunur.
+    """
+    for index, (source, translated) in enumerate(zip(source_parts, translated_parts)):
+        for token in _number_tokens(str(source)):
+            if not _number_preserved(token, str(translated), target_lang):
+                return f"sayi_kaydi:{index}"
+        for issue, patterns in (
+                ('currency', _CURRENCY_PATTERNS),
+                ('unit', _UNIT_PATTERNS),
+                ('date', _MONTH_PATTERNS)):
+            if not _semantic_markers(source, patterns).issubset(
+                    _semantic_markers(translated, patterns)):
+                return f"{issue}_kaydi:{index}"
+        sdh_kind = _sdh_issue(source, translated)
+        if sdh_kind:
+            return f"sdh_kaydi:{index}:{sdh_kind}"
+        for name in _proper_names(str(source)):
+            if not _name_preserved(name, str(translated)):
+                return f"ozel_ad_kaydi:{index}"
+    return ""
+
+
+def insert_sentence_breaks(text):
+    """Cue içinde ikinci cümle varsa araya gerçek satır sonu koy.
+
+    'Bekle. Emin misin' gibi tek satıra yapışan ikili cümlelerde ikinci cümle
+    yeni görsel satırdan başlar; '...Dr. Lawson' gibi kısaltmalar bölünmez.
+    Dosya yazımındaki wrap_text de aynı kuralı uygular — buradaki ekleme
+    canlı panel/önizleme metninin de aynı davranması içindir.
+    """
+    text = normalized_text(text)
+    out = []
+    cursor = 0
+    for match in _END_RUN.finditer(text):
+        end = match.end()
+        if _numeric_separator(text, match):
+            continue
+        if not normalized_text(text[end:]):
+            continue
+        if sentence_ended(text[:end]):
+            out.append(text[cursor:end] + "\n")
+            cursor = end
+            while cursor < len(text) and text[cursor] in " \t\n":
+                cursor += 1
+    if not out:
+        return text
+    out.append(text[cursor:])
+    return "".join(out)
 
 
 def sentence_ended(text):
@@ -357,7 +612,11 @@ def validate_sentence_parts(whole, parts, count):
     # yineleme yerleştirme aşamasında sessizce kabul edilmesin.
     if not sentence_parts_match(whole, parts):
         return None
-    return {"text": normalized_text(whole), "parts": [part.strip() for part in parts]}
+    # Aynı cue içinde iki cümle kalıyorsa ikinci cümle gerçek satır sonundan
+    # başlar ("Cumle1. Cumle2" tek satıra yapışmaz). Boşluk-normalize eşleşme
+    # \n'yi etkilemez; önbellek/refine/canlı panel aynı değeri paylaşır.
+    return {"text": normalized_text(whole),
+            "parts": [insert_sentence_breaks(part) for part in parts]}
 
 
 def sentence_reply_issue(data, ids):
