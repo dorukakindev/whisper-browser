@@ -1,3 +1,4 @@
+# Devir notları indeksi
 Güncel çalışma: [2026-09-22 04:15 — T6 temiz-makine kurulum gauntlet'i: install.sh/start.sh, venv console-script onarımı (F-103-1), requirements-ci py3.10 marker'ları, CI'da gerçek Electron bridge; BROWSER_BUG_REPORT_103](docs/devir/2026-09-22-0415.md).
 
 Önceki çalışma: [2026-09-22 03:42 — T5 çökme/bütünlük/perf gauntlet'i: fs enjeksiyon dikiği, yetim .tmp temizliği (F-102-1), destroyed-webContents guard (F-102-2), hasarlı-profil Electron smoke + 10k-cue perf ölçümü; BROWSER_BUG_REPORT_102](docs/devir/2026-09-22-0342.md).
@@ -39,6 +40,8 @@ Güncel çalışma: [2026-09-22 04:15 — T6 temiz-makine kurulum gauntlet'i: in
 Önceki çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
 
 Önceki çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
+
+Önceki çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
 
 Önceki çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
 
