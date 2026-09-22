@@ -6,11 +6,15 @@ Kullanıcı raporu (2026-09-22): "oynatıcı kısmının ana ekranında youtube 
 
 ### F-106-1 — SmartTube kart thumbnail'ları iki bağımsız nedenden hiç görünmüyor
 
-**Kök neden A (render):** `.st-card-thumb` `aspect-ratio: 16/9` kullanıyor ve `.st-card` `display:flex; flex-direction:column` içinde bir flex item. Chromium'nun flex algoritması, `flex-basis:auto` item'ın hypothetical main size'ını çözerken cross eksen (width) henüz kesin değilse aspect-ratio'yu uygulayamıyor ve içeriğin (img `height:100%` → belirsiz yüksekliğe yüzde → 0 katkı) toplamına düşüyor → div yüksekliği **0**. Grid item'da aynı aspect-ratio normal çalışır (sütun genişliği baştan tanımlı). Canlı renderer'da CDP ile doğrulandı: `thumb.getBoundingClientRect().height === 0`, aynı dokümanda standalone div ile aynı aspect-ratio → 168.75px, `display:grid` verilen kartta → 172.125px. `content-visibility` ile ilgisi yok (CV'yi kaldırmak çözmedi).
+**Kök neden A (render — üç katman):** Kartların tamamen görünmez olmasının altında üst üste üç Chromium boyutlandırma tuzağı vardı; ilk ikisi tek başına da kartı öldürüyordu:
 
-`.st-card` tasarım gereği `background: transparent; border: transparent` — thumbnail olmadan kartta görünen tek şey soluk başlık metni, yani "hiçbir şey görünmüyor" birebir bu semptom.
+1. `.st-card-thumb`'ın `aspect-ratio:16/9`'u, `.st-card` `display:flex; flex-direction:column` içindeki flex item'da hypothetical main size çözülürken cross eksen (width) henüz kesin olmadığından **0px**'e çöküyordu. İlk denemede `.st-card`→`display:grid` iç thumb'ı kurtardı (172px) ama kart bu kez dış grid'in implicit satırında ~57px letterbox'a sıkıştı.
+2. Asıl derin neden: `.st-card`'daki **`overflow:hidden`**, kartı sanal scroll kabı yapar; grid item'ın auto-track yükseklik katkısı Chromium'da o zaman ~min-content'e (ölçüm: 25px) düşer. E2E ajanının CDP bisect'i kanıtladı: `overflow:clip` ile katkı normale döner (kart 252px), `display:block`/`content-visibility` kapalıyken bile `hidden` kaldıkça çöküş sürer.
+3. `aspect-ratio`'nun grid item'da da auto-track'e katkı üretemediği görüldü (satır "0px 80px") — thumb için `padding-top:56.25%` (klasik, genişlikten çözülen oran) kalıcı çözüm.
 
-**Düzeltme:** `.st-card` → `display:grid` (auto satırlar; body hâlâ kendi içinde flex-column). Kartın dış görünümü değişmez; yalnızca çocuk eksen çözümü değişir. `styles.css` içine Türkçe neden açıklaması eklendi.
+`.st-card` tasarım gereği `background:transparent; border:transparent` — thumbnail + başlık olmadan "hiçbir şey görünmüyor" birebir bu semptomdu.
+
+**Düzeltme:** `.st-card` → `display:grid` + `overflow:clip` (köşe kesimi korunur, scroll-kabı olmaz); `.st-card-thumb` → `height:0; padding-top:56.25%` + img `position:absolute; inset:0` (16:9 her sütun genişliğinde kesin). Canlı ölçüm: kart 252.25px, thumb 170.25px, `grid-template-rows:"170px 80px"`, başlık görünür — HOME + TRENDING tam kartlarla render ediliyor.
 
 **Kök neden B (veri):** Tüm thumbnail'lar Invidious instance'ının `/vi/<id>/mqdefault.jpg` proxy yoluyla geliyordu. Ölçüm (2026-09-22): `invidious.f5.si/api/v1/popular` veri döndürürken `…/vi/…/mqdefault.jpg` **HTTP 200 text/html** döndürüyor (bozuk proxy — img'e HTML basılıyor). Üstelik feed'i veren instance ile resmi vekilleyen instance aynı değilse uç çeşitli. `_check_instance` `/api/v1/stats`'e bakıyordu — 200 verse bile `/vi/` bozuk kalıyor (sağlık kontrolü yanlış-pozitif).
 
@@ -38,10 +42,10 @@ Eski akış Google Cloud OAuth client id+secret girilmesini şart koşuyordu (`y
 
 - `npx mocha tests/report70-youtube-oauth.test.js tests/report65-invidious-bridge.test.js tests/report104-youtube-browse.test.js` → **25/25 geçti**. Üç test kasıtlı değişiklik yüzünden güncellendi: R70-03 session cevabına `deviceCapable`/`authMode` eklemek yerine whitelist korundu (alanlar kaldırıldı); R70-13 endpoint taramasına `http://gdata.youtube.com` scope-URI istisnası (ağ uç değil, Google'ın sabit scope kimliği); R70-14 refresh kapısı regex'i tvMode koşuluna güncellendi (invariant korundu: custom modda creds yoksa ağ yok).
 - `node --check src/main.js src/preload.js src/renderer/renderer.js`, `py_compile backend/youtube.py backend/invidious.py` → temiz.
-- Görsel: HOME + TRENDING thumbnail'ları gerçek uygulamada render edildi (DevTools `naturalWidth=320` doğrulaması + ekran görüntüsü).
+- Görsel: HOME + TRENDING thumbnail'ları gerçek uygulamada render edildi (DevTools `naturalWidth=320` + ekran görüntüsü). E2E turu (gerçek Electron): TRENDING refetch→30 kart+görsel 3.4s; cihaz kodu akışı QR+`google.com/device`+gerçek kodlar (GWK-KLR-PPNX, SVC-NZP-FJG); kuyruk rayı + menü çevirisi doğru; kartlar son CSS ile 252px tam boy.
 
 ## Sınırlar
 
 - Gerçek Google hesap onayı yapılmadı (kullanıcı cihaz kodunu girene kadar akış durur). Device-code grant'ın kabulü kanıtlandı; token takası kullanıcı onayına bağlı.
 - Invidious instance listesi hâlâ kamu ağına bağımlı; f5.si de ölebilir — kullanıcı "direkt YouTube da olur" dedi, feed hâlâ Invidious + yt-dlp fallback zincirinde (çalışıyor).
-- Bu rapordaki flex×aspect-ratio davranışı bu makinedeki Chromium sürümünde canlı ölçüldü; eski/derlenmiş başka Electron sürümlerinde davranış farklı olabilir.
+- Bu rapordaki Chromium boyutlandırma davranışları (aspect-ratio×flex/grid, overflow:hidden grid-katkısı) bu makinedeki sürümde canlı ölçüldü; eski/derlenmiş başka Electron sürümlerinde farklı olabilir. `overflow:clip` Chromium ≥90 ister — paketli Electron'ın çekirdeği bunun üstünde.

@@ -7266,14 +7266,15 @@ body.modal-open { overflow: hidden; }
 
 /* SmartTube kart (büyük, dikey) */
 .st-card {
-  /* flex-column 子に aspect-ratio を使うと Chromium の flex 解決で高さ 0 に
-     潰れる（cross サイズ未確定時に main が 0 計算される）。grid なら
-     カラム幅が即定義済みで 16:9 が正しく解決する。 */
   display: grid;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
-  overflow: hidden;
+  /* overflow:hidden kullanma: non-visible overflow kartı sanal scroll
+     kabı yapar ve Chromium grid item'ın auto-track katkısını min-content'e
+     (~25px) düşürür — kart başlığıyla birlikte çöker (F-106-1a). 'clip'
+     aynı köşe kesimini scroll-container oluşturmadan verir. */
+  overflow: clip;
   cursor: pointer;
   transition: transform .12s, border-color .12s;
   /* Uzun grid'lerde ekran dışı kartlar çizilmesin (D-Y10) */
@@ -7288,12 +7289,19 @@ body.modal-open { overflow: hidden; }
   outline-offset: 2px;
 }
 .st-card-thumb {
-  aspect-ratio: 16 / 9;
+  /* aspect-ratio kullanma: Chromium'da grid item'ın auto-track katkısı
+     width'ten türetilemiyor ve satır 0px'e çöküyor (F-106-1a). padding-top
+     yüzdesi her zaman containing-block genişliğinden çözüldüğü için
+     16:9 = 56.25% güvenilir; içerik sıfır + padding = gerçek yükseklik. */
+  height: 0;
+  padding-top: 56.25%;
   background: var(--bg-sunken);
   position: relative;
   overflow: hidden;
 }
 .st-card-thumb img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
