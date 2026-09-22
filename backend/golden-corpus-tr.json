@@ -1,0 +1,668 @@
+{
+  "license": "Hand-authored synthetic EN→TR cue pairs written for this project's regression suite. No subtitle content copied from any film/show; all lines are invented for the corpus. Free to use within the project (CC0-equivalent).",
+  "version": 1,
+  "notes": "Each entry: category, source cue(s), golden target, defect variant, and detection expectation. 'parts' marks a multi-cue sentence group (sentence spans cue boundary). 'detection' = which deterministic check must catch the defect: blocking=translation_blocking_issues (hard gate), meaning=translation_meaning_issues (advisory gate), boundary=sentence_part_boundary_issue, names=proper-name token check, register=address-formality marker check, sdh=SDH marker preservation, budget=char-budget overflow, context=cache-key separation, none=not deterministically detectable (honest gap).",
+  "entries": [
+    {
+      "id": "pn-01",
+      "category": "proper_names",
+      "start": 0.0,
+      "end": 2.0,
+      "source": "Detective Lawson entered the precinct.",
+      "names": [
+        "Lawson"
+      ],
+      "target": "Dedektif Lawson karakola girdi.",
+      "defect": "Dedektif Larson karakola girdi.",
+      "detection": "names"
+    },
+    {
+      "id": "pn-02",
+      "category": "proper_names",
+      "start": 3.0,
+      "end": 5.0,
+      "source": "Meet me at Winterfell before dawn.",
+      "names": [
+        "Winterfell"
+      ],
+      "target": "Şafaktan önce Winterfell'de buluşalım.",
+      "defect": "Şafaktan önce Winterhaven'de buluşalım.",
+      "detection": "names"
+    },
+    {
+      "id": "pn-03",
+      "category": "proper_names",
+      "start": 6.0,
+      "end": 8.0,
+      "source": "Maria left Lisbon on Tuesday.",
+      "names": [
+        "Maria",
+        "Lisbon"
+      ],
+      "target": "Maria Salı günü Lizbon'dan ayrıldı.",
+      "defect": "Maria Salı günü İstanbul'dan ayrıldı.",
+      "detection": "names",
+      "name_map": {
+        "Lisbon": "Lizbon"
+      }
+    },
+    {
+      "id": "pn-04",
+      "category": "proper_names",
+      "start": 9.0,
+      "end": 11.0,
+      "source": "The package arrived for Dr. Chen.",
+      "names": [
+        "Chen"
+      ],
+      "target": "Paket Dr. Chen için geldi.",
+      "defect": "Paket Dr. Shen için geldi.",
+      "detection": "names"
+    },
+    {
+      "id": "pn-05",
+      "category": "proper_names",
+      "start": 12.0,
+      "end": 14.0,
+      "source": "The theorem belongs to Einstein.",
+      "names": [
+        "Einstein"
+      ],
+      "target": "Teorem Einstein'a ait.",
+      "defect": "Teorem Bohr'a ait.",
+      "detection": "names"
+    },
+    {
+      "id": "pn-06",
+      "category": "proper_names",
+      "start": 15.0,
+      "end": 17.0,
+      "source": "Kerem called the office in Ankara.",
+      "names": [
+        "Kerem",
+        "Ankara"
+      ],
+      "target": "Kerem Ankara'daki ofisi aradı.",
+      "defect": "Kerem İstanbul'daki ofisi aradı.",
+      "detection": "names"
+    },
+    {
+      "id": "num-01",
+      "category": "numbers",
+      "start": 20.0,
+      "end": 22.0,
+      "source": "The crate contains 12 samples.",
+      "target": "Sandıkta 12 numune var.",
+      "defect": "Sandıkta numuneler var.",
+      "detection": "blocking"
+    },
+    {
+      "id": "num-02",
+      "category": "numbers",
+      "start": 23.0,
+      "end": 25.0,
+      "source": "Flight 815 has landed.",
+      "target": "815 sefer sayılı uçak indi.",
+      "defect": "Uçak indi.",
+      "detection": "blocking"
+    },
+    {
+      "id": "num-03",
+      "category": "numbers",
+      "start": 26.0,
+      "end": 28.0,
+      "source": "The report covers 2026.",
+      "target": "Rapor 2026'yı kapsıyor.",
+      "defect": "Rapor bu yılı kapsıyor.",
+      "detection": "blocking"
+    },
+    {
+      "id": "num-04",
+      "category": "numbers",
+      "start": 29.0,
+      "end": 31.0,
+      "source": "Only 5% remained.",
+      "target": "Yalnızca %5 kaldı.",
+      "defect": "Çok azı kaldı.",
+      "detection": "blocking"
+    },
+    {
+      "id": "num-05",
+      "category": "numbers",
+      "start": 32.0,
+      "end": 34.0,
+      "source": "The vault held 3,000 coins.",
+      "target": "Kasada 3.000 sikke vardı.",
+      "defect": "Kasada 4000 sikke vardı.",
+      "detection": "blocking"
+    },
+    {
+      "id": "num-06",
+      "category": "numbers",
+      "start": 35.0,
+      "end": 37.0,
+      "source": "We need 40 bags.",
+      "target": "Kırk çuval gerekiyor.",
+      "defect": "Kırk beş çuval gerekiyor.",
+      "detection": "blocking"
+    },
+    {
+      "id": "neg-01",
+      "category": "negation",
+      "start": 40.0,
+      "end": 42.0,
+      "source": "I don't know the answer.",
+      "target": "Cevabı bilmiyorum.",
+      "defect": "Cevabı biliyorum.",
+      "detection": "meaning"
+    },
+    {
+      "id": "neg-02",
+      "category": "negation",
+      "start": 43.0,
+      "end": 45.0,
+      "source": "She never opened the case.",
+      "target": "Kasayı asla açmadı.",
+      "defect": "Kasayı açtı.",
+      "detection": "meaning"
+    },
+    {
+      "id": "neg-03",
+      "category": "negation",
+      "start": 46.0,
+      "end": 48.0,
+      "source": "No passenger complained.",
+      "target": "Hiçbir yolcu şikâyet etmedi.",
+      "defect": "Yolcular şikâyet etti.",
+      "detection": "meaning"
+    },
+    {
+      "id": "neg-04",
+      "category": "negation",
+      "start": 49.0,
+      "end": 51.0,
+      "source": "They cannot enter tonight.",
+      "target": "Bu gece giremezler.",
+      "defect": "Bu gece girebilirler.",
+      "detection": "meaning"
+    },
+    {
+      "id": "neg-05",
+      "category": "negation",
+      "start": 52.0,
+      "end": 54.0,
+      "source": "Nobody heard the alarm.",
+      "target": "Kimse alarmı duymadı.",
+      "defect": "Herkes alarmı duydu.",
+      "detection": "meaning"
+    },
+    {
+      "id": "neg-06",
+      "category": "negation",
+      "start": 55.0,
+      "end": 57.0,
+      "source": "The bag is not mine.",
+      "target": "Çanta benim değil.",
+      "defect": "Çanta benim.",
+      "detection": "meaning"
+    },
+    {
+      "id": "pro-01",
+      "category": "pronouns",
+      "start": 60.0,
+      "end": 62.0,
+      "source": "He told her the truth.",
+      "target": "Ona doğruyu söyledi.",
+      "defect": "Ondan doğruyu öğrendi.",
+      "detection": "none"
+    },
+    {
+      "id": "pro-02",
+      "category": "pronouns",
+      "start": 63.0,
+      "end": 65.0,
+      "source": "She opened the door for him.",
+      "target": "Onun için kapıyı açtı.",
+      "defect": "Kapıyı açtı.",
+      "detection": "none"
+    },
+    {
+      "id": "pro-03",
+      "category": "pronouns",
+      "start": 66.0,
+      "end": 68.0,
+      "source": "I gave it to them yesterday.",
+      "target": "Onu dün onlara verdim.",
+      "defect": "Onu dün sana verdim.",
+      "detection": "none"
+    },
+    {
+      "id": "pro-04",
+      "category": "pronouns",
+      "start": 69.0,
+      "end": 71.0,
+      "source": "We saw you at the gate.",
+      "target": "Seni kapıda gördük.",
+      "defect": "Kapıda görüldü.",
+      "detection": "none"
+    },
+    {
+      "id": "adr-01",
+      "category": "address_register",
+      "register": "formal",
+      "start": 80.0,
+      "end": 82.0,
+      "source": "Could you please sign here, sir?",
+      "target": "Burayı imzalayabilir misiniz, efendim?",
+      "defect": "Burayı imzalar mısın?",
+      "detection": "register",
+      "register_markers": [
+        "misiniz\\b",
+        "efendim"
+      ]
+    },
+    {
+      "id": "adr-02",
+      "category": "address_register",
+      "register": "informal",
+      "start": 83.0,
+      "end": 85.0,
+      "source": "You need to see this, kid.",
+      "target": "Bunu görmelisin, evlat.",
+      "defect": "Bunu görmek zorundasınız, efendim.",
+      "detection": "register",
+      "register_markers": [
+        "görmelisin\\b",
+        "evlat\\b"
+      ]
+    },
+    {
+      "id": "adr-03",
+      "category": "address_register",
+      "register": "formal",
+      "start": 86.0,
+      "end": 88.0,
+      "source": "Tell me your name, officer.",
+      "target": "Adınızı söyler misiniz, memur bey?",
+      "defect": "Adını söyler misin?",
+      "detection": "register",
+      "register_markers": [
+        "misiniz\\b",
+        "Adınızı\\b",
+        "bey\\b"
+      ]
+    },
+    {
+      "id": "adr-04",
+      "category": "address_register",
+      "register": "informal",
+      "start": 89.0,
+      "end": 91.0,
+      "source": "Can you keep a secret, buddy?",
+      "target": "Bir sır saklayabilir misin, dostum?",
+      "defect": "Bir sır saklayabilir misiniz, efendim?",
+      "detection": "register",
+      "register_markers": [
+        "misin\\b",
+        "dostum\\b"
+      ]
+    },
+    {
+      "id": "adr-05",
+      "category": "address_register",
+      "register": "formal",
+      "start": 92.0,
+      "end": 94.0,
+      "source": "You must come with us, Mrs. Aydın.",
+      "target": "Bizimle gelmelisiniz, Aydın Hanım.",
+      "defect": "Bizimle gelmelisin, Aydın.",
+      "detection": "register",
+      "register_markers": [
+        "melisiniz\\b",
+        "Hanım\\b"
+      ]
+    },
+    {
+      "id": "sb-01",
+      "category": "sentence_boundary",
+      "start": 100.0,
+      "end": 101.5,
+      "parts": [
+        {
+          "source": "I was going to tell you",
+          "target": "Sana söyleyecektim"
+        },
+        {
+          "source": "but the call came in.",
+          "target": "ama telefon geldi."
+        }
+      ],
+      "defect_parts": [
+        "Sana söyleyecektim.",
+        "Ama telefon geldi."
+      ],
+      "detection": "boundary"
+    },
+    {
+      "id": "sb-02",
+      "category": "sentence_boundary",
+      "start": 103.0,
+      "end": 104.5,
+      "parts": [
+        {
+          "source": "Because the storm knocked the power out,",
+          "target": "Fırtına elektrikleri kestiği için,"
+        },
+        {
+          "source": "we stayed inside.",
+          "target": "içeride kaldık."
+        }
+      ],
+      "defect_parts": [
+        "Fırtına elektrikleri kesti.",
+        "İçeride kaldık."
+      ],
+      "detection": "boundary"
+    },
+    {
+      "id": "sb-03",
+      "category": "sentence_boundary",
+      "start": 106.0,
+      "end": 107.5,
+      "parts": [
+        {
+          "source": "If you see him,",
+          "target": "Onu görürsen,"
+        },
+        {
+          "source": "tell him I called.",
+          "target": "aradığımı söyle."
+        }
+      ],
+      "defect_parts": [
+        "Onu görürsen.",
+        "Aradığımı söyle."
+      ],
+      "detection": "boundary"
+    },
+    {
+      "id": "sb-04",
+      "category": "sentence_boundary",
+      "start": 109.0,
+      "end": 110.5,
+      "parts": [
+        {
+          "source": "The plan worked,",
+          "target": "Plan işe yaradı,"
+        },
+        {
+          "source": "so we left early.",
+          "target": "bu yüzden erken çıktık."
+        }
+      ],
+      "defect_parts": [
+        "Plan işe yaradı.",
+        "Bu yüzden erken çıktık."
+      ],
+      "detection": "boundary"
+    },
+    {
+      "id": "sdh-01",
+      "category": "sdh",
+      "start": 120.0,
+      "end": 122.0,
+      "source": "[GUNFIRE]",
+      "target": "[SİLAH SESLERİ]",
+      "defect": "Silah sesleri",
+      "detection": "sdh"
+    },
+    {
+      "id": "sdh-02",
+      "category": "sdh",
+      "start": 123.0,
+      "end": 125.0,
+      "source": "MAN: Hold your fire!",
+      "target": "ADAM: Ateş etmeyin!",
+      "defect": "Ateş etmeyin!",
+      "detection": "sdh"
+    },
+    {
+      "id": "sdh-03",
+      "category": "sdh",
+      "start": 126.0,
+      "end": 128.0,
+      "source": "[distorted] Run!",
+      "target": "[bozuk] Kaçın!",
+      "defect": "Kaçın!",
+      "detection": "sdh"
+    },
+    {
+      "id": "sdh-04",
+      "category": "sdh",
+      "start": 129.0,
+      "end": 131.0,
+      "source": "(glass shatters)",
+      "target": "(cam kırılır)",
+      "defect": "Cam kırılır",
+      "detection": "sdh"
+    },
+    {
+      "id": "sdh-05",
+      "category": "sdh",
+      "start": 132.0,
+      "end": 134.0,
+      "source": "♪ Fire on the mountain ♪",
+      "target": "♪ Dağda yangın ♪",
+      "defect": "Dağda yangın",
+      "detection": "sdh"
+    },
+    {
+      "id": "cps-01",
+      "category": "cps_budget",
+      "start": 140.0,
+      "end": 142.0,
+      "source": "Quick, get in!",
+      "target": "Çabuk, bin!",
+      "defect": "Çabuk, hemen araca binmeniz gerekiyor aksi halde geç kalacağız.",
+      "detection": "budget"
+    },
+    {
+      "id": "cps-02",
+      "category": "cps_budget",
+      "start": 143.0,
+      "end": 146.5,
+      "source": "The car won't start because the battery died.",
+      "target": "Araba çalışmıyor, akü bitti.",
+      "defect": "Araba çalışmıyor çünkü aküsü tamamen bitmiş durumda ve şarj edilmesi gerekiyor.",
+      "detection": "budget"
+    },
+    {
+      "id": "cps-03",
+      "category": "cps_budget",
+      "start": 147.0,
+      "end": 148.0,
+      "source": "Stop!",
+      "target": "Dur!",
+      "defect": "Lütfen hemen durmanızı rica ediyorum efendim.",
+      "detection": "budget"
+    },
+    {
+      "id": "cps-04",
+      "category": "cps_budget",
+      "start": 149.0,
+      "end": 151.8,
+      "source": "Everybody inside the shelter now.",
+      "target": "Herkes hemen sığınağa girsin.",
+      "defect": "Burada bulunan herkesin derhal sığınağa girmesi gerekmektedir, lütfen acele edin.",
+      "detection": "budget"
+    },
+    {
+      "id": "ctx-a1",
+      "category": "context",
+      "start": 158.0,
+      "end": 159.4,
+      "source": "Which way at the fork?",
+      "target": "Yol ayrımında hangi tarafa?",
+      "detection": "none"
+    },
+    {
+      "id": "ctx-01",
+      "category": "context",
+      "start": 160.0,
+      "end": 161.0,
+      "source": "Right.",
+      "context_before": [
+        "Which way at the fork?"
+      ],
+      "target": "Sağa.",
+      "defect": "Doğru.",
+      "detection": "context"
+    },
+    {
+      "id": "ctx-a2",
+      "category": "context",
+      "start": 162.0,
+      "end": 162.8,
+      "source": "The lift is jammed again.",
+      "target": "Asansör yine bozuldu.",
+      "detection": "none"
+    },
+    {
+      "id": "ctx-02",
+      "category": "context",
+      "start": 163.0,
+      "end": 164.0,
+      "source": "Right.",
+      "context_before": [
+        "The lift is jammed again."
+      ],
+      "target": "Doğru.",
+      "defect": "Sağa.",
+      "detection": "context"
+    },
+    {
+      "id": "ctx-a3",
+      "category": "context",
+      "start": 165.0,
+      "end": 165.9,
+      "source": "I already ate.",
+      "target": "Ben zaten yedim.",
+      "detection": "none"
+    },
+    {
+      "id": "ctx-03",
+      "category": "context",
+      "start": 166.0,
+      "end": 167.5,
+      "source": "You?",
+      "context_before": [
+        "I already ate."
+      ],
+      "target": "Ya sen?",
+      "defect": "Siz?",
+      "detection": "context"
+    },
+    {
+      "id": "ctx-a4",
+      "category": "context",
+      "start": 168.0,
+      "end": 168.9,
+      "source": "Your Majesty already spoke.",
+      "target": "Majesteleri çoktan konuştu.",
+      "detection": "none"
+    },
+    {
+      "id": "ctx-04",
+      "category": "context",
+      "start": 169.0,
+      "end": 170.5,
+      "source": "You?",
+      "context_before": [
+        "Your Majesty already spoke."
+      ],
+      "target": "Ya siz?",
+      "defect": "Ya sen?",
+      "detection": "context"
+    },
+    {
+      "id": "mod-01",
+      "category": "modal",
+      "start": 180.0,
+      "end": 182.0,
+      "source": "You must show your passport.",
+      "target": "Pasaportunuzu göstermek zorundasınız.",
+      "defect": "Pasaportunuzu gösterdiniz.",
+      "detection": "meaning"
+    },
+    {
+      "id": "mod-02",
+      "category": "modal",
+      "start": 183.0,
+      "end": 185.0,
+      "source": "It might rain tonight.",
+      "target": "Bu gece yağmur yağabilir.",
+      "defect": "Bu gece yağmur yağdı.",
+      "detection": "meaning"
+    },
+    {
+      "id": "cur-01",
+      "category": "currency",
+      "start": 190.0,
+      "end": 192.0,
+      "source": "He paid $45.",
+      "target": "45 dolar ödedi.",
+      "defect": "45 lira ödedi.",
+      "detection": "meaning"
+    },
+    {
+      "id": "cur-02",
+      "category": "currency",
+      "start": 193.0,
+      "end": 195.0,
+      "source": "The ticket costs 30 euros.",
+      "target": "Bilet 30 avro.",
+      "defect": "Bilet 30 dolar.",
+      "detection": "meaning"
+    },
+    {
+      "id": "unt-01",
+      "category": "unit",
+      "start": 200.0,
+      "end": 202.0,
+      "source": "The border is 12 km away.",
+      "target": "Sınır 12 kilometre uzakta.",
+      "defect": "Sınır 12 metre uzakta.",
+      "detection": "meaning"
+    },
+    {
+      "id": "unt-02",
+      "category": "unit",
+      "start": 203.0,
+      "end": 205.0,
+      "source": "We walked 5 miles.",
+      "target": "5 mil yürüdük.",
+      "defect": "5 kilometre yürüdük.",
+      "detection": "meaning"
+    },
+    {
+      "id": "dat-01",
+      "category": "date",
+      "start": 210.0,
+      "end": 212.0,
+      "source": "The hearing is on January 12.",
+      "target": "Duruşma 12 Ocak'ta.",
+      "defect": "Duruşma 12 Şubat'ta.",
+      "detection": "meaning"
+    },
+    {
+      "id": "dat-02",
+      "category": "date",
+      "start": 213.0,
+      "end": 215.0,
+      "source": "The permit expires in March.",
+      "target": "İzin Mart'ta bitiyor.",
+      "defect": "İzin Nisan'da bitiyor.",
+      "detection": "meaning"
+    }
+  ]
+}

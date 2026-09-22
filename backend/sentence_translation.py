@@ -176,6 +176,13 @@ def _turkish_integer_words(value):
     return ''
 
 
+_TR_NUMBER_WORDS = tuple(
+    word for word in _TR_ONES + _TR_TENS + ('yüz', 'bin', 'milyon', 'milyar',
+                                            'buçuk', 'virgül') if word)
+_TR_NUMBER_CONT = re.compile(
+    r'^\s+(?:' + '|'.join(sorted(_TR_NUMBER_WORDS, key=len, reverse=True)) + r')\b', re.I)
+
+
 def _number_preserved(token, translated, target_lang):
     if token in _number_tokens(translated):
         return True
@@ -188,7 +195,15 @@ def _number_preserved(token, translated, target_lang):
     if not value.is_integer():
         return False
     words = _turkish_integer_words(int(value))
-    return bool(words and re.search(r'(?<!\w)' + re.escape(words) + r'(?!\w)', normalized_text(translated), re.I))
+    if not words:
+        return False
+    for match in re.finditer(r'(?<!\w)' + re.escape(words) + r'(?!\w)',
+                             normalized_text(translated), re.I):
+        # "kırk beş" gibi birleşik sayı öbeğinin ilk parçası 40 değil 45 demektir;
+        # hemen ardından gelen sayı kelimesi değeri değiştirir.
+        if not _TR_NUMBER_CONT.match(normalized_text(translated)[match.end():]):
+            return True
+    return False
 
 
 def translation_meaning_issues(source_text, translated_text, target_lang='tr'):

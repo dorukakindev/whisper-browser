@@ -99,9 +99,13 @@ function summarizeTranslationIntegrity({
               ? source.length + ' kaynak altyazıdan ' + missingCueIds.length + ' tanesinin çeviri çıktısı eksik.'
               : status === 'idle' ? 'Henüz çevrilecek kaynak altyazı yok.' : 'Çeviri başlamayı bekliyor.';
 
+  const stats = state && typeof state.stats === 'object' ? state.stats : null;
   return {
     status, reason, sourceCues: source.length, totalSentences, submittedSentences,
     completedSentences, queuedSentences, pendingSentences, failedSentences,
+    providerRequests: Math.max(0, Math.trunc(Number(stats?.providerRequests) || 0)),
+    cacheHits: Math.max(0, Math.trunc(Number(stats?.cacheHits) || 0)),
+    cacheMisses: Math.max(0, Math.trunc(Number(stats?.cacheMisses) || 0)),
     capturedRanges: captureRows.reduce((sum, row) => sum + (Array.isArray(row?.ranges) ? row.ranges.length : 0), 0),
     captureMissingRanges: captureMissingRanges.slice(0, 100),
     translatedCues: translatedIds.size, missingCues: missingCueIds.length,
