@@ -49,17 +49,17 @@ class BrowserNoteStore {
   }
 
   readDocument(candidate) {
-    if (!fs.existsSync(candidate)) return null;
-    const stat = fs.statSync(candidate);
+    if (!this.io.existsSync(candidate)) return null;
+    const stat = this.io.statSync(candidate);
     if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return null;
-    const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+    const parsed = JSON.parse(this.io.readFileSync(candidate, 'utf8'));
     return validDocument(parsed) ? parsed : null;
   }
 
   load() {
     if (this.loaded) return;
-    const hadPrimary = fs.existsSync(this.filePath);
-    const hadBackup = fs.existsSync(this.backupPath);
+    const hadPrimary = this.io.existsSync(this.filePath);
+    const hadBackup = this.io.existsSync(this.backupPath);
     let document = null;
     try { document = this.readDocument(this.filePath); } catch (_) {}
     if (!document) {
@@ -125,7 +125,7 @@ class BrowserNoteStore {
       this.needsLegacyImport = false;
       this.recoveryWriteError = '';
     } catch (error) {
-      try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch (_) {}
+      try { if (io.existsSync(temporary)) io.unlinkSync(temporary); } catch (_) {}
       throw error;
     }
   }

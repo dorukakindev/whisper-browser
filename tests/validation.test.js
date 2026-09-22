@@ -245,7 +245,7 @@ t('ana pencere güvenliği açık ve IPC yalnız ana frame kabul ediyor', () => 
 t('kapanış, manga ağ hataları ve atomik altyazı yazımı güvenli toparlanır', () => {
   const atomic = msrc.slice(msrc.indexOf('function writeSubtitleAtomic'),
     msrc.indexOf('function writeJsonAtomic'));
-  ok(/catch \(error\)[\s\S]*fs\.unlinkSync\(tmp\)/.test(atomic),
+  ok(/catch \(error\)[\s\S]*io\.unlinkSync\(tmp\)/.test(atomic),
     'başarısız altyazı rename işleminden sonra .tmp temizlenmiyor');
   const beforeQuit = msrc.slice(msrc.indexOf("app.on('before-quit'"),
     msrc.indexOf("app.on('window-all-closed'"));

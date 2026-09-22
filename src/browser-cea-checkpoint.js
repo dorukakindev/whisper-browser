@@ -59,31 +59,31 @@ function normalizeTracks(tracks) {
   })).filter((entry) => entry.instreamId && entry.cues.length);
 }
 
-function saveCeaCheckpoint(root, id, tracks, progress = 0, now = Date.now()) {
+function saveCeaCheckpoint(root, id, tracks, progress = 0, now = Date.now(), fsImpl = fs) {
   const records = normalizeTracks(tracks);
   if (!records.length) return false;
   const target = checkpointPath(root, id);
   const payload = JSON.stringify({ version: VERSION, id, updatedAt: now,
     completedSegments: Math.max(0, Math.floor(Number(progress) || 0)), tracks: records });
   if (Buffer.byteLength(payload) > MAX_BYTES) return false;
-  fs.mkdirSync(root, { recursive: true });
+  fsImpl.mkdirSync(root, { recursive: true });
   const temporary = `${target}.${process.pid}.tmp`;
   try {
-    fs.writeFileSync(temporary, payload, { encoding: 'utf8', flag: 'w' });
-    fs.renameSync(temporary, target);
+    fsImpl.writeFileSync(temporary, payload, { encoding: 'utf8', flag: 'w' });
+    fsImpl.renameSync(temporary, target);
   } catch (error) {
-    try { fs.unlinkSync(temporary); } catch (_) {}
+    try { fsImpl.unlinkSync(temporary); } catch (_) {}
     throw error;
   }
   return true;
 }
 
-function loadCeaCheckpoint(root, id, now = Date.now()) {
+function loadCeaCheckpoint(root, id, now = Date.now(), fsImpl = fs) {
   const target = checkpointPath(root, id);
   let data;
   try {
-    if (fs.statSync(target).size > MAX_BYTES) return null;
-    data = JSON.parse(fs.readFileSync(target, 'utf8'));
+    if (fsImpl.statSync(target).size > MAX_BYTES) return null;
+    data = JSON.parse(fsImpl.readFileSync(target, 'utf8'));
   } catch (_) { return null; }
   if (data?.version !== VERSION || data.id !== id
       || !Number.isFinite(Number(data.updatedAt))

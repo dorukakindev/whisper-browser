@@ -48,8 +48,12 @@ class BrowserElementRules {
     const dir = path.dirname(this.filePath);
     this.fs.mkdirSync(dir, { recursive: true });
     const temp = `${this.filePath}.tmp`;
-    this.fs.writeFileSync(temp, `${JSON.stringify({ version: 1, origins: Object.fromEntries(entries) }, null, 2)}\n`);
-    this.fs.renameSync(temp, this.filePath);
+    try {
+      this.fs.writeFileSync(temp, `${JSON.stringify({ version: 1, origins: Object.fromEntries(entries) }, null, 2)}\n`);
+      this.fs.renameSync(temp, this.filePath);
+    } finally {
+      try { if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp); } catch (_) {}
+    }
     return entries.length;
   }
 
