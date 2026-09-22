@@ -21755,6 +21755,9 @@ document.addEventListener('keydown', (e) => {
   const modifier = e.ctrlKey || e.metaKey;
   const video = $('playerVideo');
   if (e.key === 'Escape') {
+    // Açık bir modal <dialog> varken Escape ona ait — hedef nerede olursa
+    // olsun preventDefault() native cancel'i öldürüyordu.
+    if (document.querySelector('dialog[open]')) return;
     e.preventDefault();
     if (player.editing) { closeCueEditor(); return; }
     const subMenu = $('subtitleModeMenu');
@@ -23213,7 +23216,13 @@ async function searchInvidious(query, page = 1, opts = {}) {
   if (opts.features) call.features = String(opts.features).slice(0, 60);
   if (opts.searchType) call.searchType = String(opts.searchType).slice(0, 20);
   const res = await invCall(() => window.api.invidiousSearch(query.trim(), call));
-  if (!res || !res.ok || !res.data) return [];
+  if (!res || !res.ok || !res.data) {
+    // fetchInvidiousFeed ile aynı sözleşme: hata boş diziye düşürülmez —
+    // ölü instance/zaman aşımı gerçek "sonuç yok"tan ayrılsın diye throw edilir.
+    const reason = (res && res.error) || 'bilinmeyen';
+    logLine(`Invidious arama alınamadı: ${reason}`, 'error');
+    throw new Error(reason);
+  }
   return res.data.videos || [];
 }
 
@@ -23494,7 +23503,10 @@ async function renderSmartTubeSection(section, opts = {}) {
       return;
     }
     if (section === 'channels') {
-      const channels = await fetchInvidiousSubscriptions(force).catch(() => null);
+      // fetchInvidiousSubscriptions giriş-sınıfı hataları zaten null'a indirir;
+      // kalan ağ/5xx hatalarını burada yutmak ölü instance'ı "abonelik yok"muş
+      // gibi gösterir — diğer bölümler gibi showError + retry'ye bırak.
+      const channels = await fetchInvidiousSubscriptions(force);
       if (stale()) return;
       renderSmartTubeChannels(channels || []);
       return;
@@ -23545,8 +23557,9 @@ async function renderSmartTubeSection(section, opts = {}) {
       return;
     }
     // A04: Canlı — Invidious features=live araması; oturum gerektirmez.
+    // Hata yutulmaz: ölü instance "canlı yayın yok" gibi görünmesin, showError + retry.
     if (section === 'live') {
-      const live = await searchInvidious('live', 1, { features: 'live' }).catch(() => []);
+      const live = await searchInvidious('live', 1, { features: 'live' });
       if (stale()) return;
       grid.innerHTML = '';
       const liveItems = stFilterVideos((live || []).filter((v) => v.liveNow !== false));
@@ -25366,14 +25379,23 @@ async function stSearchLoadMore() {
   const btn = $('stSearchResults')?.querySelector('.st-more-btn');
   if (btn) { btn.disabled = true; btn.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…'; }
   let videos = [];
+  let loadError = '';
   try {
     videos = await searchInvidious(q, page);
-  } catch {
-    videos = [];
+  } catch (e) {
+    loadError = (e && e.message) || 'arama hatası';
   }
   stSearchLoading = false;
   // Arama değiştiyse/sıfırlandıysa eski sayfayı ekleme
   if (seq !== stSearchSeq || !stSearchActive || stSearchQuery !== q) return;
+  if (loadError) {
+    // Geçici ağ/5xx hatası "daha fazla sonuç yok" gibi görünmesin: butonu
+    // etkin bırakıp hatayı göster — kullanıcı aynı butonla tekrar deneyebilir.
+    stUpdateSearchMore();
+    const errBtn = $('stSearchResults')?.querySelector('.st-more-btn');
+    if (errBtn) errBtn.textContent = `${window.UiLocale?.t('Tekrar dene') || 'Tekrar dene'}: ${loadError}`;
+    return;
+  }
   if (!videos.length) {
     stSearchHasMore = false;
     stUpdateSearchMore();
@@ -25936,14 +25958,22 @@ async function startYoutubeBrowserFlow() {
 }
 
 async function doYoutubeLogout() {
-  try { await window.api.youtubeLogout(); } catch (_) {}
+  let result;
+  try { result = await window.api.youtubeLogout(); } catch (_) {}
+  if (!result?.ok) {
+    osd(window.UiLocale?.t(result?.error || 'YouTube oturumu kapatılamadı.')
+      || result?.error || 'YouTube oturumu kapatılamadı.', 6000);
+    return;
+  }
   _ytFlowGen++;            // sürüyor olabilecek akışın sonucunu düşür
   _ytPolling = false;
   youtubeLoggedIn = false;
   youtubeUserName = '';
   refreshYoutubeAuthUI();
   closeYoutubeLogin();
-  osd('YouTube oturumu kapatıldı');
+  const message = result.remoteOk ? 'YouTube oturumu kapatıldı'
+    : 'Yerel YouTube oturumu kapatıldı; Google erişimi kaldırılamadı. Google hesap izinlerinden erişimi kaldırın.';
+  osd(window.UiLocale?.t(message) || message, result.remoteOk ? 1800 : 8000);
   if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
 }
 

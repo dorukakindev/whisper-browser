@@ -32,6 +32,8 @@ assert.equal(parsedVtt[0].text, cues[0].text);
 assert.equal(parsedVtt[1].text, cues[1].text);
 
 const ass = cuesToAss([{ start: 1, end: 2, text: 'Virgül, süslü {metin}\nalt satır' }]);
+assert.match(ass, /PlayResX: 1920\r\nPlayResY: 1080/, 'ASS export must specify its design resolution');
+assert.match(ass, /Style: Default,Segoe UI,54,/, 'ASS export must use a video-scaled font');
 assert.match(ass, /Dialogue: 0,0:00:01\.00,0:00:02\.00/);
 assert.match(ass, /Virgül, süslü \\\{⁠metin\\\}⁠\\Nalt satır/);
 

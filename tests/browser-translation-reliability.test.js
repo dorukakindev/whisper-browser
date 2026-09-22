@@ -25,6 +25,10 @@ const tick=()=>new Promise(r=>setTimeout(r,10));
  assert.equal(storm,4,'Eşik sonrası kalan cümleler denenmemeli');
  assert.equal(trip.snapshot().failures.length,6,'Tüm cümleler sonuçsuz işaretlenmeli');
  assert.ok(trip.providerFailure.includes('arka arkaya'));
+ assert.equal(trip.retryFailed(),6,'Kullanıcı tripped işleri yeniden kuyruğa alabilmeli');
+ assert.equal(trip.consecutiveProviderFailures,0,'Yeniden dene önceki hata serisini taşımamalı');
+ trip.cancelAll();
+ assert.equal(trip.consecutiveProviderFailures,0,'İptal yeni oturuma hata serisi taşımamalı');
  // Başarı ardışık sayacı sıfırlar: kesikli hatalar devre kesiciyi tetiklemez.
  let flaky=0;
  const mixed=new BrowserTranslationScheduler({maxConcurrent:1,maxAttempts:1,providerFailureThreshold:3,translate:async()=>{flaky++;if(flaky%2)throw Object.assign(new Error('HTTP 503'),{httpStatus:503});return JSON.stringify({text:'Merhaba.'});}});

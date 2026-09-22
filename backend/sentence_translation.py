@@ -76,7 +76,7 @@ def sentence_ended(text):
     return not (initialism or initial or (last.endswith('.') and last[:-1].lower() in ABBREVIATIONS))
 
 
-_NUMBER_TOKEN = re.compile(r'(?<![\w])(?:\d+(?:[.,]\d+)?%?|\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?)(?![\w])')
+_NUMBER_TOKEN = re.compile(r'(?<![\w])(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)(?:%)?(?![\w])')
 _SOURCE_NEGATION = re.compile(
     r"\b(?:not|never|no|none|nobody|nothing|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b",
     re.I,
@@ -144,6 +144,10 @@ def _semantic_markers(text, patterns):
 def _number_tokens(text):
     def canonical(token):
         token = token.replace('%', '')
+        if '.' in token and ',' in token:
+            decimal = '.' if token.rfind('.') > token.rfind(',') else ','
+            grouping = ',' if decimal == '.' else '.'
+            return token.replace(grouping, '').replace(decimal, '.')
         if re.fullmatch(r'\d{1,3}(?:[.,]\d{3})+', token):
             return token.replace('.', '').replace(',', '')
         return token.replace(',', '.')
@@ -183,6 +187,17 @@ _TR_NUMBER_CONT = re.compile(
     r'^\s+(?:' + '|'.join(sorted(_TR_NUMBER_WORDS, key=len, reverse=True)) + r')\b', re.I)
 
 
+def _turkish_number_phrase_match(translated, phrase):
+    suffix = r"(?:['’]?(?:[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n))?"
+    text = str(translated or '')
+    for match in re.finditer(r'(?<!\w)' + re.escape(phrase).replace(r'\ ', r'\s+')
+                             + suffix + r'(?!\w)', text, re.I):
+        # A following number word may change the value of the matched phrase.
+        if not _TR_NUMBER_CONT.match(text[match.end():]):
+            return match
+    return None
+
+
 def _number_preserved(token, translated, target_lang):
     if token in _number_tokens(translated):
         return True
@@ -192,18 +207,20 @@ def _number_preserved(token, translated, target_lang):
         value = float(token)
     except ValueError:
         return False
-    if not value.is_integer():
-        return False
-    words = _turkish_integer_words(int(value))
+    # Turkish subtitle style may spell an exact source quantity as a scaled
+    # expression (10000 -> 10 bin). A changed coefficient must still fail.
+    for coefficient, scale in re.findall(
+            r'(?<!\d)(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\w)',
+            translated, re.I):
+        multiplier = {'bin': 1000, 'milyon': 1000000, 'milyar': 1000000000}[scale.lower()]
+        if float(coefficient.replace(',', '.')) * multiplier == value:
+            return True
+    words = (_turkish_integer_words(int(value)) if value.is_integer()
+             else f'{_turkish_integer_words(int(value))} buçuk'
+             if value >= 0 and value % 1 == 0.5 else '')
     if not words:
         return False
-    for match in re.finditer(r'(?<!\w)' + re.escape(words) + r'(?!\w)',
-                             normalized_text(translated), re.I):
-        # "kırk beş" gibi birleşik sayı öbeğinin ilk parçası 40 değil 45 demektir;
-        # hemen ardından gelen sayı kelimesi değeri değiştirir.
-        if not _TR_NUMBER_CONT.match(normalized_text(translated)[match.end():]):
-            return True
-    return False
+    return bool(_turkish_number_phrase_match(translated, words))
 
 
 def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
@@ -216,11 +233,34 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     source = normalized_text(source_text)
     translated = normalized_text(translated_text)
     issues = []
-    source_numbers = _number_tokens(source)
+    source_numbers_text, translated_numbers_text = source, translated
+    if str(target_lang or '').lower().split('-')[0] == 'tr':
+        # 5:30 and 5.30 are the same clock time in these subtitles. Compare
+        # whole clock expressions so a changed minute cannot pass as two
+        # independently preserved number tokens.
+        clocks = list(re.finditer(r'(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)', source))
+        for clock in clocks:
+            hour, minute = int(clock.group(1)), clock.group(2)
+            target_clock = re.search(
+                rf'(?<!\d)0?{hour}[:.]{minute}(?!\d)', translated_numbers_text)
+            if target_clock:
+                translated_numbers_text = (
+                    translated_numbers_text[:target_clock.start()] + ' '
+                    + translated_numbers_text[target_clock.end():])
+            elif minute == '30' and (word_match := _turkish_number_phrase_match(
+                    translated_numbers_text, f'{_turkish_integer_words(hour)} buçuk')):
+                translated_numbers_text = (
+                    translated_numbers_text[:word_match.start()] + ' '
+                    + translated_numbers_text[word_match.end():])
+            else:
+                issues.append('number_mismatch')
+        source_numbers_text = re.sub(
+            r'(?<!\d)\d{1,2}:[0-5]\d(?!\d)', ' ', source_numbers_text)
+    source_numbers = _number_tokens(source_numbers_text)
     if source_numbers:
         missing = [token for token in source_numbers
-                   if not _number_preserved(token, translated, target_lang)]
-        if missing:
+                   if not _number_preserved(token, translated_numbers_text, target_lang)]
+        if missing and 'number_mismatch' not in issues:
             issues.append('number_mismatch')
     if _SOURCE_NEGATION.search(source) and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')

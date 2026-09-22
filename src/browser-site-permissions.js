@@ -13,6 +13,14 @@ function permissionOrigin(raw) {
   } catch (_) { return ''; }
 }
 
+function browserPermissionRequesterUrl(requestingOrigin, details = {}, allowOriginFallback = false) {
+  const frameUrl = String(details?.requestingUrl || '');
+  // An opaque or invalid frame URL must not inherit its embedding page's grant.
+  if (frameUrl) return permissionOrigin(frameUrl) ? frameUrl : '';
+  const origin = allowOriginFallback ? String(requestingOrigin || '') : '';
+  return permissionOrigin(origin) ? origin : '';
+}
+
 function normalizePermissionName(value) {
   const name = String(value || '').slice(0, 80);
   return SUPPORTED_BROWSER_PERMISSIONS.includes(name) ? name : '';
@@ -86,6 +94,7 @@ function withBrowserPermission(sitePermissions, rawUrl, permission, decision, no
 }
 
 module.exports = { MAX_PERMISSION_ORIGINS, SUPPORTED_BROWSER_PERMISSIONS,
+  browserPermissionRequesterUrl,
   browserMediaPermissionDecision, browserMediaTypesFor, browserPermissionDecision,
   normalizeBrowserSitePermissions, normalizePermissionName,
   permissionOrigin, withBrowserPermission };
