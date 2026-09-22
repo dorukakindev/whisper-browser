@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 20:10 — BROWSER_BUG_REPORT_109 A–N gauntlet'i: gerçek Electron + fixture sunucu + CDP; BUG-109-08 ölü-iş kartı ve BUG-109-09 SmartTube arama çöküşü bulundu+düzeltildi (kırmızı→yeşil); H10 browser-iz çevirisi uçtan uca canlı kanıtlı](docs/devir/2026-09-22-2010.md).
+Güncel çalışma: [2026-09-23 02:50 — R110-01 SDH işaret kaybı düzeltmesinin master'a hedefli aktarımı](docs/devir/2026-09-23-0250.md).
+
+Önceki çalışma: [2026-09-22 20:10 — BROWSER_BUG_REPORT_109 A–N gauntlet'i: gerçek Electron + fixture sunucu + CDP; BUG-109-08 ölü-iş kartı ve BUG-109-09 SmartTube arama çöküşü bulundu+düzeltildi (kırmızı→yeşil); H10 browser-iz çevirisi uçtan uca canlı kanıtlı](docs/devir/2026-09-22-2010.md).
 
 Önceki çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
 
