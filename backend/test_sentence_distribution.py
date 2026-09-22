@@ -221,6 +221,23 @@ def test_number_and_unit_stay_in_source_cue():
         ["Yol", "aldık. Seksen kilometre."], "tr") == ""
 
 
+def test_unit_marker_requires_quantity():
+    # Sıra sayısı "Second." birim değildir; "İkinci." meşru çeviri kabul edilir.
+    assert part_anchor_issue(["Second."], ["İkinci."], "tr") == ""
+    # Niceliksiz "wait a second" doğal karşılığa çevrilebilir.
+    assert part_anchor_issue(
+        ["Wait a second."], ["Bir dakika bekle."], "tr") == ""
+    # Nicelikli birim yine zorunlu: birim türü değişimi reddedilir.
+    assert part_anchor_issue(
+        ["3 seconds left."], ["3 dakika kaldı."], "tr").startswith("unit_kaydi")
+    assert part_anchor_issue(
+        ["He ran 80 kilometers."], ["80 mil koştu."], "tr").startswith("unit_kaydi")
+    assert part_anchor_issue(
+        ["It takes 2 hours."], ["İki saat sürer."], "tr") == ""
+    assert part_anchor_issue(
+        ["She waited 5 minutes."], ["5 dakika bekledi."], "tr") == ""
+
+
 def test_numbers_across_cue_boundary_rejected():
     assert part_anchor_issue(
         ["It is", "1,200 dollars."],
@@ -287,7 +304,7 @@ def test_name_anchor_accepts_inflection_and_rejects_substitution():
     # Ad bozması / düşmesi hâlâ bloklanır.
     assert part_anchor_issue(
         ["Detective Lawson entered the precinct."],
-        ["Dedektif Larson karakola girdi."], "tr").startswith("ozel_ad_kaydi")
+        ["Dedektif Larson karakola girdi."], "tr").startswith("ozel_ad_")
     assert part_anchor_issue(
         ["Meet me at Winterfell before dawn."],
         ["Şafaktan önce Winterhaven'da buluşalım."], "tr").startswith("ozel_ad_kaydi")
@@ -416,6 +433,100 @@ def _run():
             failed += 1
     print(f"\n{passed} geçti, {failed} başarısız ({len(tests)} test)")
     return failed == 0
+
+
+
+
+def test_tail_gate_mate_verification():
+    """B20: 'değil,'/'bile' meşru cümlecik sonları koşulsuz reddedilmemeli;
+    'değil|mi', 'emin|misin', 'zorunda|kaldı' çift-kesimleri hâlâ yakalanmalı."""
+    import sentence_translation as ST
+    # meşru sonlar — ret YOK
+    assert not ST.part_tail_issue(["Bu doğru değil,", "sen de biliyorsun."], "tr")
+    assert not ST.part_tail_issue(["Bunu ben bile", "yapabilirim."], "tr")
+    assert not ST.part_tail_issue(["Aradığımız kişi o.", "Geç oldu."], "tr")
+    # kötü çift-kesimler — ret VAR
+    assert ST.part_tail_issue(["Bu doğru değil", "mi?"], "tr")
+    assert ST.part_tail_issue(["O emin", "misin?"], "tr")
+    assert ST.part_tail_issue(["Kaçmak zorunda", "kaldım."], "tr")
+    # bağlaç-sarkık hâlâ koşulsuz ret
+    assert ST.part_tail_issue(["Gitmek istiyorum ve", "orada kalacağım."], "tr")
+
+
+def test_currency_code_case_sensitivity():
+    """C-try: 'try' fiili ₺/TRY kodu sayılmamalı; gerçek kod/simgeler korunur."""
+    import sentence_translation as ST
+    assert not ST.part_anchor_issue(["we could try again."], ["tekrar deneyebiliriz."], "tr")
+    assert ST.part_anchor_issue(["It costs 50 TRY."], ["50 dolara mal oldu."], "tr")
+    assert ST.part_anchor_issue(["It costs ₺50."], ["50 dolara mal oldu."], "tr")
+
+
+def test_name_near_miss_swap_rejected():
+    """C12/C18: cümle-ilk adın benzer-yazım takası ve orta-cümle
+    'Larson'≈'Lawson' kabulü yakalanmalı; meşru çekimler geçmeli."""
+    import sentence_translation as ST
+    issue = ST.part_anchor_issue(["Lawson won the case."], ["Larson davayı kazandı."], "tr")
+    assert issue and "ozel_ad" in issue, issue
+    # orta-cümle benzer-yazım (yalın yanlış ad yakalanır; 'Larson'la' ekli
+    # biçimi 'Lizbon'dan' yerelleştirmesiyle ayrıştırılamaz — belgelenmiş sınır)
+    assert ST.part_anchor_issue(["He met Lawson there."], ["Larson geldi."], "tr")
+    assert not ST.part_anchor_issue(["He met Lawson there."], ["Larson'la buluştu."], "tr")
+    # meşru çekim / transliterasyon / normal metin
+    assert not ST.part_anchor_issue(["He met Lawson there."], ["Lawson'la buluştu."], "tr")
+    assert not ST.part_anchor_issue(["Persephone descended."], ["Persefone yeraltına indi."], "tr")
+    assert not ST.part_anchor_issue(["Suddenly he ran."], ["Aniden koştu."], "tr")
+    assert not ST.part_anchor_issue(["Tuesday came."], ["Salı geldi."], "tr")
+
+
+def test_named_entity_phrase_localization():
+    """C13/B16: ≥2 tokenlık adlı-varlık öbeği birleşik yerelleşebilir
+    ('French Revolution'→'Fransız Devrimi'); öbeğin tümüyle düşmesi ret."""
+    import sentence_translation as ST
+    assert not ST.part_anchor_issue(
+        ["Today we will examine", "the causes of the French Revolution."],
+        ["Bugün inceleyeceğimiz konu:", "Fransız Devrimi'nin nedenleri."], "tr")
+    # öbek tümüyle düşmüşse bloklanır
+    assert ST.part_anchor_issue(
+        ["the causes of the French Revolution."],
+        ["devrimin nedenleri."], "tr")
+
+
+def test_boundary_split_number_halves_skipped():
+    """C4/c01b: cue sınırında ikiye bölünmüş sayı ('3,' + '000'→'3.000')
+    per-parça demirlemeyi bozmamalı; rakamın tümüyle düşmesi ret."""
+    import sentence_translation as ST
+    assert not ST.part_anchor_issue(
+        ["He counted 3,", "000 coins in total."],
+        ["Toplam", "3.000 madeni para saydı."], "tr")
+    assert ST.part_anchor_issue(
+        ["He counted 3,", "000 coins in total."],
+        ["Toplam", "madeni para saydı."], "tr")
+
+
+def test_wrap_preserves_explicit_sentence_breaks():
+    """D1: insert_sentence_breaks'in koyduğu \\n, wrap_text'in max_lines
+    sınırında yeniden birleştirilmemeli."""
+    out = T.wrap_text("Dur.\nBak.\nDikkatli dinle.", 42, 2, language="tr",
+                      wrap_mode="sentence")
+    assert out == "Dur.\nBak.\nDikkatli dinle.", repr(out)
+    # açık \n yoksa eski davranış (max_lines birleşimi) korunur
+    out2 = T.wrap_text("Dur. Bak. Dikkatli dinle.", 42, 2, language="tr",
+                       wrap_mode="sentence")
+    assert out2.count("\n") == 1, repr(out2)
+
+
+def test_sdh_markers_restored_after_strip():
+    """C14/C16: model girdisinden çıkarılan SDH işaretleri çevrilmiş
+    cue'da kaybolmamalı."""
+    from subtitle_sdh import sdh_markers_removed, restore_sdh_markers
+    orig = "[music] [applause] Thank you."
+    assert sdh_markers_removed(orig) == ["[music]", "[applause]"]
+    # model marker'ı hiç görmedi → ikisi de geri konur
+    assert restore_sdh_markers(orig, "Teşekkürler.") == "[music] [applause] Teşekkürler."
+    # model marker'ı çevirdiyse → yalnız eksik sayıda geri konur
+    assert restore_sdh_markers(orig, "[alkış] Teşekkürler.") == "[music] [alkış] Teşekkürler."
+    # strip edilmeyen cue → dokunma
+    assert restore_sdh_markers("[GUNFIRE] Run!", "Kaç!") == "Kaç!"
 
 
 if __name__ == "__main__":
