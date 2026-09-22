@@ -38,6 +38,14 @@ Eski akış Google Cloud OAuth client id+secret girilmesini şart koşuyordu (`y
 
 **Doğrulama:** Canlı uygulamada modal açıldı → TV client gerçek `device_code` üretti (QR + `www.google.com/device` + `DKH-YHH-FSHS` kullanıcı kodu), "Waiting for approval…" poll'u döndü, Cancel temiz kapattı. Gerçek Google onayına kadar uçtan-uca login bu oturumda yapılmadı (hesap gerektirir) — UI + device-code grant kanıtlandı.
 
+### F-106-4 — Tanımsız palet değişkenleri tüm SmartTube kromunu açık temada görünmez kılıyor
+
+Kartlar F-106-1 düzeltmesinden sonra doğru boyuta geldi ama kullanıcı "altında video başlığı bile yazmıyor" diye bildirdi. CDP ölçümü: `color: rgb(240,240,242)` başlık metni `rgb(247,244,237)` krem zemin üstünde — neredeyse görünmez.
+
+**Kök neden:** `.st-*`/`.inv-*`/`.yt-*` katmanları dosyada 47+ yerde `var(--fg)`, `var(--muted)`, `var(--bg)`, `var(--bg-sunken)` kullanıyor ama bu adlar **hiçbir yerde tanımlı değil** — palet refaktöründe kanonik token'lara (`--text`, `--text-muted`, `--bg-1`, `--bg-3`) taşınırken bu blok atlanmış. Tanımsız `var()` geçersiz sayılıp `inherit`'e düşer; SmartTube katmanının atası player-stage'in koyu-zeminli metin rengini (rgb 240,240,242) miras alıyordu. Koyu temada tesadüfen okunaklı kalıyordu (açık metin koyu zeminde) — hata ancak açık temada fark ediliyordu. Yan etki: sidebar etiketleri (TRENDING, POPULAR…), öneri listesi, Invidious login modalı metni, `--bg`/`--bg-sunken` zeminleri (transparan render) da aynı sebepten silikti/görünmezdi.
+
+**Düzeltme:** `:root`'a köprü alias bloğu — `--fg: var(--text)`, `--muted: var(--text-muted)`, `--bg: var(--bg-1)`, `--bg-sunken: var(--bg-3)`. `var()` kullanım yerinde çözüldüğü için `html[data-theme="light"]` geçersiz kılmaları otomatik doğru değer verir. Doğrulama (canlı): başlık `rgb(40,35,31)` on `rgb(247,244,237)` — tam kontrast; sidebar + tüm krom etiketleri geri döndü. Not: file:// stylesheet'i normal `location.reload()` bellek önbelleğinden getirebiliyor; doğrulamada `?r=` query-bust ile taze yükleme kullanıldı.
+
 ## Testler
 
 - `npx mocha tests/report70-youtube-oauth.test.js tests/report65-invidious-bridge.test.js tests/report104-youtube-browse.test.js` → **25/25 geçti**. Üç test kasıtlı değişiklik yüzünden güncellendi: R70-03 session cevabına `deviceCapable`/`authMode` eklemek yerine whitelist korundu (alanlar kaldırıldı); R70-13 endpoint taramasına `http://gdata.youtube.com` scope-URI istisnası (ağ uç değil, Google'ın sabit scope kimliği); R70-14 refresh kapısı regex'i tvMode koşuluna güncellendi (invariant korundu: custom modda creds yoksa ağ yok).

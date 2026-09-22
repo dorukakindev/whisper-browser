@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 13:27 — SmartTube ana ekran thumbnail görünmezliği (flex×aspect-ratio çöküşü + Invidious /vi/ proxy bozuk) düzeltildi, sıfır-kurulum YouTube TV cihaz-kodu girişi eklendi; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1327.md).
+Güncel çalışma: [2026-09-22 15:00 — F-106-4: tanımsız palet değişkenleri (--fg/--muted/--bg/--bg-sunken) tüm SmartTube kromunu açık temada görünmez kılıyordu; html'e kanonik-token köprüsü eklendi, başlık/sidebar kontrastı geri döndü; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1500.md).
+
+Önceki çalışma: [2026-09-22 13:27 — SmartTube ana ekran thumbnail görünmezliği (flex×aspect-ratio çöküşü + Invidious /vi/ proxy bozuk) düzeltildi, sıfır-kurulum YouTube TV cihaz-kodu girişi eklendi; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1327.md).
 
 Önceki çalışma: [2026-09-22 13:31 — PR #24 ile R105 düzeltmelerinin yerel bütünleştirmesi; çift R104 adı ayrıldı, birleşik testler geçti](docs/devir/2026-09-22-1331.md).
 
