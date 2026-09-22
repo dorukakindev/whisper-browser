@@ -29,7 +29,7 @@ import time
 import argparse
 import threading
 from urllib.request import Request, urlopen
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.error import HTTPError, URLError
 
 OAUTH_DEVICE = "https://oauth2.googleapis.com/device/code"
@@ -55,6 +55,28 @@ _YP = {
 }
 
 _emit_lock = threading.Lock()
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _endpoint(default):
+    """E2E test hook'u: WHISPER_YT_TEST_BASE tanımlıysa ve **yalnızca**
+    loopback'e işaret ediyorsa varsayılan endpoint'i onun path'iyle
+    değiştirir. Aksi halde prod URL'si aynen kalır — keyfi host'a token
+    akışını yönlendirme (kimlik avı) kabul edilmez."""
+    base = os.environ.get("WHISPER_YT_TEST_BASE", "").strip().rstrip("/")
+    if not base:
+        return default
+    try:
+        u = urlparse(base)
+    except Exception:
+        return default
+    if u.scheme not in ("http", "https") or u.hostname not in _LOOPBACK_HOSTS:
+        return default
+    return base + (urlparse(default).path or "/")
+
+
+
 
 
 def emit(ev_type, **kwargs):
@@ -108,7 +130,7 @@ def _post_json(url, payload, access_token="", timeout=20):
 
 def device_code(client_id):
     """Adım 1 — cihaz kodu üretir; kullanıcı kodu ekrana basılır."""
-    data, err = _post_form(OAUTH_DEVICE, {
+    data, err = _post_form(_endpoint(OAUTH_DEVICE), {
         "client_id": client_id,
         "scope": OAUTH_SCOPE,
     })
@@ -134,7 +156,7 @@ def poll(client_id, expires_in=1800, interval=5):
     net_errors = 0
     while time.time() < deadline:
         time.sleep(delay)
-        data, err = _post_form(OAUTH_TOKEN, {
+        data, err = _post_form(_endpoint(OAUTH_TOKEN), {
             "client_id": client_id,
             "client_secret": client_secret,
             "device_code": device,
@@ -184,7 +206,7 @@ def refresh(client_id):
     refresh_token = os.environ.get("WHISPER_YT_REFRESH_TOKEN", "")
     if not refresh_token:
         raise RuntimeError("Refresh token yok — yeniden giriş gerekli.")
-    data, err = _post_form(OAUTH_TOKEN, {
+    data, err = _post_form(_endpoint(OAUTH_TOKEN), {
         "client_id": client_id,
         "client_secret": client_secret,
         "refresh_token": refresh_token,
@@ -211,7 +233,7 @@ def exchange_code(client_id):
     redirect_uri = os.environ.get("WHISPER_YT_REDIRECT_URI", "")
     if not code or not verifier or not redirect_uri:
         raise RuntimeError("Yetkilendirme kodu eksik — akışı yeniden başlatın.")
-    data, err = _post_form(OAUTH_TOKEN, {
+    data, err = _post_form(_endpoint(OAUTH_TOKEN), {
         "client_id": client_id,
         "client_secret": client_secret,
         "code": code,
@@ -237,13 +259,13 @@ def revoke():
     token = os.environ.get("WHISPER_YT_ACCESS_TOKEN", "") \
         or os.environ.get("WHISPER_YT_REFRESH_TOKEN", "")
     if token:
-        _post_form(OAUTH_REVOKE, {"token": token}, timeout=10)
+        _post_form(_endpoint(OAUTH_REVOKE), {"token": token}, timeout=10)
     emit("revoked")
 
 
 def _fetch_me(access_token):
     """Kanal adı/e-posta görünümü — youtube.readonly scope yeterli."""
-    req = Request(f"{YTV3_CHANNELS}?part=snippet&mine=true",
+    req = Request(f"{_endpoint(YTV3_CHANNELS)}?part=snippet&mine=true",
                   headers={"Authorization": f"Bearer {access_token}",
                            "Accept": "application/json"})
     try:
@@ -269,7 +291,7 @@ def _get_innertube_key():
     if _innertube_key:
         return _innertube_key
     try:
-        req = Request(YOUTUBE_HOME, headers={"User-Agent": _UA})
+        req = Request(_endpoint(YOUTUBE_HOME), headers={"User-Agent": _UA})
         with urlopen(req, timeout=10) as r:
             html = r.read().decode("utf-8", "replace")
         m = re.search(r'"INNERTUBE_API_KEY":"([^"]+)"', html)
@@ -458,7 +480,7 @@ def browse(browse_id, continuation=""):
         ctx["continuation"] = continuation
     else:
         ctx["browseId"] = browse_id
-    data, err = _post_json(f"{YTI_BROWSE}?key={key}", ctx, access_token=token)
+    data, err = _post_json(f"{_endpoint(YTI_BROWSE)}?key={key}", ctx, access_token=token)
     if err or not data:
         raise RuntimeError(f"YouTube feed alınamadı: {err}")
     videos = []

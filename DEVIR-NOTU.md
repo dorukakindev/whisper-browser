@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korpus + sağlayıcı sayaçları; TR birleşik sayı kapısı düzeltmesi (F-100-1); BROWSER_BUG_REPORT_100](docs/devir/2026-09-22-0300.md).
+Güncel çalışma: [2026-09-22 03:20 — T4 SmartTube/YouTube OAuth uçtan uca dayanıklılık: sahte OAuth+YouTube sunucusu + gerçek Electron; F-101-1 eşzamanlı browse reddi düzeltildi; BROWSER_BUG_REPORT_101](docs/devir/2026-09-22-0320.md).
+
+Önceki çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korpus + sağlayıcı sayaçları; TR birleşik sayı kapısı düzeltmesi (F-100-1); BROWSER_BUG_REPORT_100](docs/devir/2026-09-22-0300.md).
 
 Önceki çalışma: [2026-09-22 02:36 — T2 tam-yakalama eksiksizliği: `ceaCaptureSegmentIdentity` seq-ankerli kimliğe geçti (F-99-1 DISC-insertion defter bozulması), renderer `complete` sözleşmesi (F-99-2); 30 dk'lık büyüyen playlist node testi + gerçek Electron uçtan-uca smoke; BROWSER_BUG_REPORT_99](docs/devir/2026-09-22-0236.md).
 
@@ -66,19 +68,19 @@ Güncel çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korp
 
 Önceki çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
 
-Önceki çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
-
 Önceki çalışma: [2026-09-20 13:35 — R75/R76 ve diğer özellik önerilerinin güncel kodla karar incelemesi; uygulanacak/ertelenecek/reddedilecekler, ürün kodu değişmedi](docs/devir/2026-09-20-1335.md).
-
-Önceki çalışma: [2026-09-20 09:55 — R88'in iki kaynak-sözleşmesi testi davranış testine çevrildi (mini-DOM baloncuklanma + sahte saat); report67 66/66, npm test yalnız fts5 ortam sınırı; ürün kodu değişmedi; BROWSER_BUG_REPORT_88 RESOLVED](docs/devir/2026-09-20-0955.md).
 
 Önceki çalışma: [2026-09-20 12:42 — SmartTube report67 testlerindeki iki yanlış pozitifin salt-okunur ayıklanması; R86 44/44, tam paket 1 başarısız dosya; BROWSER_BUG_REPORT_88.md](docs/devir/2026-09-20-1242.md).
 
-Önceki çalışma: [2026-09-20 00:08 — R86-01–05 düzeltmeleri + R85 kuyruk doğrulaması: tüm satırlar yeniden doğrulandı; 30+ gerçek düzeltme/iyileştirme (P79-04 kalıcı semantic işçi 6sn→12ms, PF1 fingerprint 45→8.4ms, S2/N1/N2/N4 yarışları, mojibake paritesi), belgeli kararlar ve FP notları; npm test temiz (2 ortam sınırı), 4×20/20 smoke; BROWSER_BUG_REPORT_87.md](docs/devir/2026-09-20-0008.md).
+Önceki çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
+
+Önceki çalışma: [2026-09-20 09:55 — R88'in iki kaynak-sözleşmesi testi davranış testine çevrildi (mini-DOM baloncuklanma + sahte saat); report67 66/66, npm test yalnız fts5 ortam sınırı; ürün kodu değişmedi; BROWSER_BUG_REPORT_88 RESOLVED](docs/devir/2026-09-20-0955.md).
 
 Önceki çalışma: [2026-09-20 00:40 — R85 uygulama tesliminin salt-okunur doğrulaması; paket genel olarak yararlı fakat tamamlanmamış: video .wbp mutlak yol sızıntısı, pruneTracks referans sırası, .bak fault güvenliği, diagnostic backoff log seli ve transcript intent false-positive; npm test + bridge geçti, Electron smoke kararsız; BROWSER_BUG_REPORT_86.md](docs/devir/2026-09-20-0040.md).
 
 Önceki çalışma: [2026-09-20 00:10 — R85+resim raporları uygulama turu: sır sızıntısı (env şifre, endpoint sorgu-sırrı, userinfo), arama doğruluğu (TR İ/I, CJK), izin/mediaTypes, yaşam döngüsü, hibrit .bak gizlilik modeli (mirrorBackup), {{ROOT}} taşınabilir paketler, telemetry null/0 ayrımı, locale bağlı biçimler; 14 test dosyası onarıldı; npm test TAM GEÇTİ, 18/20 smoke (2 ortam Viz çökmesi)](docs/devir/2026-09-20-0010.md).
+
+Önceki çalışma: [2026-09-20 00:08 — R86-01–05 düzeltmeleri + R85 kuyruk doğrulaması: tüm satırlar yeniden doğrulandı; 30+ gerçek düzeltme/iyileştirme (P79-04 kalıcı semantic işçi 6sn→12ms, PF1 fingerprint 45→8.4ms, S2/N1/N2/N4 yarışları, mojibake paritesi), belgeli kararlar ve FP notları; npm test temiz (2 ortam sınırı), 4×20/20 smoke; BROWSER_BUG_REPORT_87.md](docs/devir/2026-09-20-0008.md).
 
 Önceki çalışma: [2026-09-19 23:03 — R76–80, R83 ve PROGRAM R79–82 eksiksiz bulgu-bazlı denetimi; 125 numaralı madde/126 karar satırı, R81/R84 düzeltmeleri, tam test + üç 20/20 Electron turu; ürün kodu değişmedi; BROWSER_BUG_REPORT_85.md](docs/devir/2026-09-19-2303.md).
 
@@ -86,14 +88,11 @@ Güncel çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korp
 
 Önceki çalışma: [2026-09-19 21:34 — Yeni browser/program bug raporları güncel koda göre ayıklandı; 15 doğrulanmış kök neden, kapanmış/yanlış/kanıt bekleyenler ayrı; ürün kodu değişmedi; BROWSER_BUG_REPORT_81.md](docs/devir/2026-09-19-2134.md).
 
-
-Önceki çalışma: [2026-09-19 14:51 — R83 derin tur 2 (kod değişikliği yok): 6 çapraz-kesim küme + ampirik kanıt — +21 bulgu (1×P1 arşiv regex token sızıntısı, 8×P2 bayatlık/kalibrasyon/saklama, 12×P3); toplam 39 bulgu; Chromium 137 CDP repro'ları + Node kanıtları + 140/143 browser testi; BROWSER_BUG_REPORT_83.md BÖLÜM 2](docs/devir/2026-09-19-1451.md).
-
-Önceki çalışma: [2026-09-19 13:25 — R83 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_83.md](docs/devir/2026-09-19-1325.md).
-
 Önceki çalışma: [2026-09-19 15:38 — Sağlayıcıya özel model listeleri ve küçük gerçek bağlantı testi: model kaydet/seç/sil, yeşil-kırmızı durum, EN/TR, güvenli probe IPC, 64 KiB yanıt sınırı; tam paket ve Electron kabulü geçti](docs/devir/2026-09-19-1538.md).
 
 Önceki çalışma: [2026-09-19 15:17 — R82 güvenlik yüzeyi derin denetimi (kod değişikliği yok): B82-01 P3 yeni bulgu — invidious:login şifresi argv'de (WHISPER_YT_* env konvansiyonu ihlali); navigasyon/izin/popup/indirme/webRequest/SID-token/settings yüzeyleri satır satır TEMİZ; B80-01 hâlâ açık (WIP yalnız modelProfiles); PROGRAM_BUG_REPORT_82.md](docs/devir/2026-09-19-1517.md).
+
+Önceki çalışma: [2026-09-19 14:51 — R83 derin tur 2 (kod değişikliği yok): 6 çapraz-kesim küme + ampirik kanıt — +21 bulgu (1×P1 arşiv regex token sızıntısı, 8×P2 bayatlık/kalibrasyon/saklama, 12×P3); toplam 39 bulgu; Chromium 137 CDP repro'ları + Node kanıtları + 140/143 browser testi; BROWSER_BUG_REPORT_83.md BÖLÜM 2](docs/devir/2026-09-19-1451.md).
 
 Önceki çalışma: [2026-09-19 14:44 — R81 ikinci tur (kod değişikliği yok): npm test TAM GEÇTİ feed_partial WIP dahil; feed_partial son hâl denetimi N1 latent (tek-satır öneri); R77 SL1-5 doğrulandı — SL1 öksüz modül DOĞRU (üretim kopyası preload inline), SL2 sahte telemetri DOĞRU (4 sabit-0), SL4 üçer kopya, SL5 m[1]) artefaktı; PROGRAM_BUG_REPORT_81 §4](docs/devir/2026-09-19-1444.md).
 
@@ -105,9 +104,11 @@ Güncel çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korp
 
 Önceki çalışma: [2026-09-19 13:34 — R79 SmartTube-style oynatıcı ve YouTube cihaz kodu girişi: kayıtlı istemciyle doğrudan kod, güvenli kuşak iptali, kişisel ana akış ve TV ölçekli görünüm; mock Electron + tam paket yeşil](docs/devir/2026-09-19-1334.md).
 
-Önceki çalışma: [2026-09-19 13:10 — R77 salt-okunur browser test+denetim turu (kod değişikliği yok): npm test + electron-bridge geçti; --all smoke setinde 3 flaky düşüş; arama modüllerinde gerçek-koşu doğrulamalı 8 bulgu — F1 P1: transcript-search fold() İ→ı katlaması (Türkçe sorgu eşleşmiyor), F2 İngilizce I→ı, F3 CJK siliniyor, F4 subtitle-search İ normalizasyonu (+50 iddiası çürütüldü), F5–F8 P3; K1/K2 kenar bulguları + T1–T3 test hijyeni; _repro/r76-transcript-search-verify.js 18 PASS; slop taraması: SL1 öksüz browser-link-intent.js (üretim kopyası preload içinde), SL2 yarı sahte telemetri (4 sabit-0 alan), SL3 ölü diakritik girdiler, SL4 çift normalizeCues/cuesToSrt, SL5 kök artıkları; temiz: TODO/debugger/@ts-ignore/.skip hepsi 0; BROWSER_BUG_REPORT_76.md; performans turu: PF1 P1 canlı yakalama: batch ~49 ms + yayın zinciri 101,6 ms/650ms (aynı 20k cue 3x sıralanıp 2x diske yazılıyor) = ~%20 çekirdek + 5,5 MB/sn disk; bellek kaçağı yok (GC platosu); PF2 oturum kaydı mutlu yol 195 ms + 40,3 MB/tur (tavan), PF2b karantina yolu 306 ms, PF3 elelenenler — _repro/r77-perf-*.js](docs/devir/2026-09-19-1310.md).
+Önceki çalışma: [2026-09-19 13:25 — R83 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_83.md](docs/devir/2026-09-19-1325.md).
 
 Önceki çalışma: [2026-09-19 13:11 — R76 tarayıcı-tarafı GitHub özellik araştırması (kod değişikliği yok): 15+ repo — trickplay, incognito/konteyner sekmeler, ClearURLs, DLNA cast, userscript yöneticisi, Whisper sesli giriş, moviehash+subliminal, intro atlama, lite-mode, electron-updater; BROWSER_FEATURE_RESEARCH_76.md](docs/devir/2026-09-19-1311.md).
+
+Önceki çalışma: [2026-09-19 13:10 — R77 salt-okunur browser test+denetim turu (kod değişikliği yok): npm test + electron-bridge geçti; --all smoke setinde 3 flaky düşüş; arama modüllerinde gerçek-koşu doğrulamalı 8 bulgu — F1 P1: transcript-search fold() İ→ı katlaması (Türkçe sorgu eşleşmiyor), F2 İngilizce I→ı, F3 CJK siliniyor, F4 subtitle-search İ normalizasyonu (+50 iddiası çürütüldü), F5–F8 P3; K1/K2 kenar bulguları + T1–T3 test hijyeni; _repro/r76-transcript-search-verify.js 18 PASS; slop taraması: SL1 öksüz browser-link-intent.js (üretim kopyası preload içinde), SL2 yarı sahte telemetri (4 sabit-0 alan), SL3 ölü diakritik girdiler, SL4 çift normalizeCues/cuesToSrt, SL5 kök artıkları; temiz: TODO/debugger/@ts-ignore/.skip hepsi 0; BROWSER_BUG_REPORT_76.md; performans turu: PF1 P1 canlı yakalama: batch ~49 ms + yayın zinciri 101,6 ms/650ms (aynı 20k cue 3x sıralanıp 2x diske yazılıyor) = ~%20 çekirdek + 5,5 MB/sn disk; bellek kaçağı yok (GC platosu); PF2 oturum kaydı mutlu yol 195 ms + 40,3 MB/tur (tavan), PF2b karantina yolu 306 ms, PF3 elelenenler — _repro/r77-perf-*.js](docs/devir/2026-09-19-1310.md).
 
 Önceki çalışma: [2026-09-19 12:50 — R75 GitHub özellik araştırması (kod değişikliği yok): 12+ repo kaynak incelemesi — kullanılmayan Invidious uçları (storyboard/suggestions/tlang/kanal sekmeleri), SmartTube parite boşlukları (bağlam menüsü, oynatma kuyruğu, yerel abonelik), RYD/DeArrow/YouTube.js/Piped/MediaSession envanteri; BROWSER_FEATURE_RESEARCH_75.md](docs/devir/2026-09-19-1250.md).
 
@@ -129,9 +130,9 @@ Güncel çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korp
 
 Önceki çalışma: [2026-09-18 18:52 — R68 84 bulgu doğrulaması: 30 gerçek düzeltildi, 36 FP; SID kalıcılık+güvenlik, birleşik feed, yaşam döngüsü (66/66 wiring + smoke kanıtlı)](docs/devir/2026-09-18-1852.md).
 
-Önceki çalışma: [2026-09-18 16:52 — R67 iş listesi uygulandı: chip'ler, roving grid, up-next, yorumlar, sayfalama (smoke+wiring kanıtlı)](docs/devir/2026-09-18-1652.md).
-
 Önceki çalışma: [2026-09-18 17:30 — R67 onarımları + SmartTube oynatıcı uçtan uca çalışır (TDZ boot-smoke kanıtlı)](docs/devir/2026-09-18-1730.md).
+
+Önceki çalışma: [2026-09-18 16:52 — R67 iş listesi uygulandı: chip'ler, roving grid, up-next, yorumlar, sayfalama (smoke+wiring kanıtlı)](docs/devir/2026-09-18-1652.md).
 
 Önceki çalışma: [2026-09-18 13:30 — SmartTube tarzı: ana sayfa, auth, arama, kanal, download_stream](docs/devir/2026-09-18-1330.md).
 
@@ -224,8 +225,11 @@ Güncel çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korp
 Önceki çalışma: [2026-09-15 15:48 — düşmanca sayfa denetimi + backend kodlama bug'ları, B51–B70 (rapor 30)](docs/devir/2026-09-15-1548.md).
 
 Önceki çalışma: [2026-09-15 15:22 — real-video subtitle translation demo](docs/devir/2026-09-15-1522.md).
+
 Önceki çalışma: [2026-09-15 14:50 — English screenshot gallery and product tour](docs/devir/2026-09-15-1450.md).
+
 Önceki çalışma: [2026-09-15 14:30 — English public documentation and release hygiene](docs/devir/2026-09-15-1430.md).
+
 Önceki çalışma: [2026-09-15 13:59 — yeni browser özellikleri + katalog denetimi, 8 bulgu (rapor 30)](docs/devir/2026-09-15-1359.md). Önceki kayıtlar aşağıda korunmuştur.
 
 Önceki çalışma: [2026-09-15 12:59 — paralel denetim turu, üç P1 bulgu (rapor 29)](docs/devir/2026-09-15-1259.md).
