@@ -1909,22 +1909,43 @@ ipcMain.handle('youtube:poll', async (_e) => {
   return res || { ok: false, error: 'Onay tamamlanamadı.' };
 });
 
+// Eşzamanlı youtube:browse çağrıları (ör. giriş-sonrası ana sayfa re-render'ı
+// + kullanıcının aynı anda tıkladığı bölüm) tek-slot mediaJobs.youtube'a
+// çarpıyordu; ikinci istek 'zaten çalışıyor' ile anında reddedilip bölüm
+// "feed alınamadı" ile kalıyordu. Browse kısa ve idempotent — zincirle ve
+// uçuştaki refresh/poll bitene dek sınırlı bekle.
+let _ytBrowseTail = Promise.resolve();
+function ytBrowseSerialized(fn) {
+  const job = _ytBrowseTail.then(fn);
+  _ytBrowseTail = job.catch(() => {});
+  return job;
+}
+
 ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const allowed = new Set(['FEsubscriptions', 'FEwhat_to_watch', 'FElibrary',
                            'FEhistory', 'VLWL', 'VLLL']);
   const bid = String(browseId || '').trim();
   if (!allowed.has(bid)) return { ok: false, error: `Geçersiz browse_id: ${bid}` };
-  const token = await ensureYoutubeAccessToken();
-  if (!token) return { ok: false, error: 'YouTube oturumu yok — önce giriş yapın.' };
-  const args = ['browse', '--browse-id', bid];
-  const cont = String(opts && opts.continuation || '').trim();
-  if (cont) args.push('--continuation', cont.slice(0, 2000));
-  return runYoutubeCommand(args, (ev) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('youtube:event', ev);
+  return ytBrowseSerialized(async () => {
+    const token = await ensureYoutubeAccessToken();
+    if (!token) return { ok: false, error: 'YouTube oturumu yok — önce giriş yapın.' };
+    const deadline = Date.now() + 10_000;
+    while (mediaJobs.youtube && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 150));
     }
-  }, 60_000, youtubeAuthEnv());
+    if (mediaJobs.youtube) {
+      return { ok: false, error: 'Bir YouTube işi zaten çalışıyor.' };
+    }
+    const args = ['browse', '--browse-id', bid];
+    const cont = String(opts && opts.continuation || '').trim();
+    if (cont) args.push('--continuation', cont.slice(0, 2000));
+    return runYoutubeCommand(args, (ev) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('youtube:event', ev);
+      }
+    }, 60_000, youtubeAuthEnv());
+  });
 });
 
 ipcMain.handle('youtube:logout', async (_e) => {
