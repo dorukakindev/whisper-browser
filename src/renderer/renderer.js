@@ -24993,7 +24993,11 @@ async function doSmartTubeSearch() {
   }
   // Playlist rayı video kartlarının üstünde — en fazla 12 kayıt.
   const playlists = (await plPromise) || [];
-  if (seq === stSearchSeq && playlists.length) renderStPlaylistRail(searchGrid, playlists.slice(0, 12));
+  if (seq === stSearchSeq && playlists.length) {
+    // Ray çizimi bozulursa video sonuçları yine basılsın — ray yardımcı
+    // öğedir, ana aramayı etkilememeli.
+    try { renderStPlaylistRail(searchGrid, playlists.slice(0, 12)); } catch (e) { /* rail optional */ }
+  }
   stAppendSearchResults(videos);
   stUpdateSearchMore();
 }
@@ -25008,7 +25012,10 @@ function renderStPlaylistRail(searchGrid, playlists) {
     card.className = 'st-pl-card';
     const th = document.createElement('span');
     th.className = 'st-pl-thumb';
-    const src = absThumb(pl.videoThumbnails);
+    const plThumbs = Array.isArray(pl.videoThumbnails) ? pl.videoThumbnails : [];
+    const plTn = plThumbs.find((t) => (t && (t.quality || '').toLowerCase() === 'medium'))
+               || plThumbs[0] || null;
+    const src = plTn && plTn.url ? absThumb(plTn.url) : '';
     if (src) {
       const img = document.createElement('img');
       img.loading = 'lazy'; img.decoding = 'async'; img.alt = '';

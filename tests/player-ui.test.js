@@ -2030,6 +2030,54 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
   assert(mainCalls.some(([n]) => n === 'cancelBtn'), 'düz hedefte Escape işi iptal etmedi');
 });
 
+test('playlist rayı Invidious thumbnail dizisiyle çöküp tüm sonuç gridini boş bırakmıyor', () => {
+  // BUG-109-09: renderStPlaylistRail, absThumb'a pl.videoThumbnails DİZİSİNİ
+  // veriyordu (dizide startsWith yok) → TypeError doSmartTubeSearch içinde
+  // innerHTML='' sonrası fırlıyor, 20 geçerli video sonucuyla birlikte
+  // grid tamamen boş ve HATASIZ kalıyordu. Gerçek Invidious'ta playlist
+  // döndüren her arama boş ekran gösteriyordu.
+  const vm = require('vm');
+  const railSrc = js.slice(js.indexOf('function renderStPlaylistRail'));
+  const railEnd = railSrc.indexOf('\n}') + 2;
+  const created = [];
+  const mk = (tag) => {
+    const el = { tag, children: [], attrs: {}, listeners: {},
+      appendChild(c) { this.children.push(c); }, setAttribute(k, v) { this.attrs[k] = v; },
+      addEventListener(t, fn) { this.listeners[t] = fn; } };
+    created.push(el); return el;
+  };
+  const ctx = vm.createContext({
+    document: { createElement: (t) => mk(t) },
+    absThumb: (url) => {
+      if (!url || typeof url !== 'string' || !url.startsWith) return '';
+      return /^https?:\/\//i.test(url) ? url : '';
+    },
+    openInvidiousPlaylistPage: () => {},
+  });
+  vm.runInContext(railSrc.slice(0, railEnd), ctx);
+  const grid = mk('div');
+  const playlists = [
+    { type: 'playlist', playlistId: 'PL1', title: 'Lofi Mix', author: 'A', videoCount: 65,
+      videoThumbnails: [{ quality: 'medium', url: 'https://i.example/a.jpg', width: 336, height: 188 }] },
+    { type: 'playlist', playlistId: 'PL2', title: 'No thumbs', videoCount: 3, videoThumbnails: [] },
+  ];
+  let threw = null;
+  try { ctx.renderStPlaylistRail(grid, playlists); } catch (e) { threw = e; }
+  assert(!threw, 'ray çizimi thumbnail dizisinde fırladı: ' + threw);
+  assert(grid.children.length === 1, 'ray kapsayıcısı gride eklenmedi');
+  const cards = grid.children[0].children;
+  assert(cards.length === 2, 'rayda 2 playlist kartı bekleniyor, ' + cards.length);
+  const img = cards[0].children.flatMap((c) => c.children).find((c) => c.tag === 'img');
+  assert(img && img.src === 'https://i.example/a.jpg',
+    'ray thumbnail img src seçilen entry url olmalı, bulunan: ' + (img && img.src));
+
+  // Çağrı tarafı: ray çizim hatası video sonuçlarını da götürmemeli.
+  const searchSrc = js.slice(js.indexOf('async function doSmartTubeSearch'));
+  const site = searchSrc.slice(0, searchSrc.indexOf('function renderStPlaylistRail'));
+  assert(/try\s*\{[\s\S]*?renderStPlaylistRail[\s\S]*?\}\s*catch/.test(site),
+    'renderStPlaylistRail çağrısı try/catch ile korunmuyor');
+});
+
 console.log(`\n${pass} geçti, ${failures.length} başarısız (${pass + failures.length} test)`);
 if (failures.length) {
   console.error('\nBaşarısız:');
