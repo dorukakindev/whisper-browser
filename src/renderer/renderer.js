@@ -23529,8 +23529,7 @@ async function renderSmartTubeSection(section, opts = {}) {
         const id = key.startsWith('youtube:') ? key.slice(8) : '';
         if (!id || seenIds.has(id)) continue;
         seenIds.add(id);
-        const thumb = lastInvidiousInstance
-          ? `${lastInvidiousInstance}/vi/${encodeURIComponent(id)}/mqdefault.jpg` : '';
+        const thumb = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
         const card = buildSmartTubeCard({
           videoId: id, title: item.title || '', author: item.channel || '',
           authorId: '', lengthSeconds: Number(item.duration) || 0,
@@ -23846,9 +23845,7 @@ function stContinueWatchingVideos() {
     const id = key.startsWith('youtube:') ? key.slice(8) : '';
     if (!id || seenIds.has(id)) continue;
     seenIds.add(id);
-    const thumb = lastInvidiousInstance
-      ? `${lastInvidiousInstance}/vi/${encodeURIComponent(id)}/mqdefault.jpg`
-      : '';
+    const thumb = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
     out.push({
       videoId: id,
       title: item.title || '',
@@ -25825,15 +25822,17 @@ function openYoutubeLogin() {
         _ytSavedClientId = res.data.clientId || '';
         _ytShowAuthChoice();
       } else {
+        // Kendi istemcisi yok — gömülü YouTube TV (TVHTML5) istemcisiyle
+        // sıfır-kurulum cihaz kodu akışını hemen başlat ("İstemciyi değiştir"
+        // ile kendi istemcisi ekranı hâlâ erişilebilir).
         if (res && res.ok && res.data) _ytSavedClientId = res.data.clientId || '';
-        _ytShowView('ytClientView');
-        $('ytClientId')?.focus();
+        startYoutubeDeviceFlow();
       }
     }).catch(() => {
       if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
-      _ytShowView('ytClientView');
-      ytModalError('YouTube oturumu kontrol edilemedi. Yeniden deneyin.');
-      $('ytClientId')?.focus();
+      _ytShowView('ytDeviceView');
+      const status = $('ytPollStatus');
+      if (status) status.textContent = 'YouTube oturumu kontrol edilemedi. Yeniden deneyin.';
     });
   }
   dlg.classList.remove('hidden');
@@ -25878,8 +25877,12 @@ async function startYoutubeDeviceFlow() {
   if (gen !== _ytFlowGen) return;
   if (!res || !res.ok) {
     _ytPolling = false;
-    _ytShowView('ytClientView');
-    ytModalError(res && res.error ? res.error : (window.UiLocale?.t('Cihaz kodu alınamadı') || 'Cihaz kodu alınamadı'));
+    if (codeBlock) codeBlock.classList.add('hidden');
+    // İstemci ekranına düşme — TV akışı hatası cihaz görünümünde kalır;
+    // kendi istemcisi "İstemciyi değiştir" ile hâlâ açılabilir.
+    if (status) status.textContent = res && res.error
+      ? res.error
+      : (window.UiLocale?.t('Cihaz kodu alınamadı') || 'Cihaz kodu alınamadı');
     return;
   }
   if (codeEl) codeEl.textContent = res.data.user_code || '----';

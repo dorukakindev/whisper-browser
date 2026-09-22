@@ -1,6 +1,14 @@
-Güncel çalışma: [2026-09-22 13:31 — PR #24 ile R105 düzeltmelerinin yerel bütünleştirmesi; çift R104 adı ayrıldı, birleşik testler geçti](docs/devir/2026-09-22-1331.md).
+Güncel çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
 
-Önceki çalışma: [2026-09-22 12:55 — R105 ekli denetimlerden doğrulanan sayı/çeviri, YouTube, izin kökeni ve ASS düzeltmeleri](docs/devir/2026-09-22-1255.md).
+Önceki çalışma: [2026-09-22 16:44 — TR çeviri sentence-group dağıtım kapıları: erken-sonu kapısı iç-cümle kotalı hale geldi ("Bekle." artık kabul), parça başına sayı/özel-ad/SDH demirleme + açık bağlantı + tekrar kapıları, sertleştirilmiş son kurtarma promptu, cue içi ikinci cümleye gerçek \n; 24 yeni test, canlı koşu kanıtlı; BROWSER_BUG_REPORT_108](docs/devir/2026-09-22-1644.md).
+
+Önceki çalışma: [2026-09-22 15:35 — F-106-5: --bg-card/--bg-elev tanımsız yüzey token'ları (şeffaf sağ-tık menüsü/plakalar) köprüye eklendi; .st-upnext açık temada dark-on-dark'tı, yerel sabit token körlemesiyle düzeltildi; tema QA kanıtlı; BROWSER_BUG_REPORT_107](docs/devir/2026-09-22-1535.md).
+
+Önceki çalışma: [2026-09-22 15:00 — F-106-4: tanımsız palet değişkenleri (--fg/--muted/--bg/--bg-sunken) tüm SmartTube kromunu açık temada görünmez kılıyordu; html'e kanonik-token köprüsü eklendi, başlık/sidebar kontrastı geri döndü; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1500.md).
+
+Önceki çalışma: [2026-09-22 13:27 — SmartTube ana ekran thumbnail görünmezliği (flex×aspect-ratio çöküşü + Invidious /vi/ proxy bozuk) düzeltildi, sıfır-kurulum YouTube TV cihaz-kodu girişi eklendi; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1327.md).
+
+Önceki çalışma: [2026-09-22 13:31 — PR #24 ile R105 düzeltmelerinin yerel bütünleştirmesi; çift R104 adı ayrıldı, birleşik testler geçti](docs/devir/2026-09-22-1331.md).
 
 Önceki çalışma: [2026-09-22 05:13 — Gece denetim turu (A–G kuyruğu): dört gerçek bug — SmartTube arama/sekme hata görünürlüğü (F-104-1/2/3), player katmanında dialog Escape (F-104-4); gerçek-Electron kullanım matrisi smoke'u; BROWSER_BUG_REPORT_104](docs/devir/2026-09-22-0513.md).
 

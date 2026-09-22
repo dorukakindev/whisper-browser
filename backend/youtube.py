@@ -42,6 +42,16 @@ YOUTUBE_HOME = "https://www.youtube.com/"
 # Uygulama yalnız hesap verilerini okur; yönetim/yazma kapsamı istemez.
 OAUTH_SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
 
+# YouTube TV (TVHTML5) istemcisi — youtube.com/tv'den gömülü kamu kimliği.
+# SmartTube ve yt-dlp'nin aynı şekilde kullandığı istemci; kullanıcıdan kendi
+# Google Cloud OAuth istemcisini kaydetmesini istemeden cihaz-kodu akışını
+# sıfır-kurulum sunar (kullanıcının istediği "youtube tv auth" deneyimi).
+# Kendi istemcisiyle giriş her zaman desteklenmeye devam eder (üstün seçenek).
+TV_CLIENT_ID = "861556708454-d6dlm3lh05idd8npek18k6be8ba3oc68.apps.googleusercontent.com"
+TV_CLIENT_SECRET = "SboVhoG9s0rNafixCSGGKXAT"
+TV_SCOPE = ("http://gdata.youtube.com "
+            "https://www.googleapis.com/auth/youtube-paid-content")
+
 # youtube.com HTML'inden çıkarılamazsa bilinen genel web istemcisi anahtarı.
 INNERTUBE_KEY_FALLBACK = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
 INNERTUBE_CLIENT = {"clientName": "WEB", "clientVersion": "2.20250101.00.00"}
@@ -128,11 +138,11 @@ def _post_json(url, payload, access_token="", timeout=20):
 
 # ---------------------------------------------------------------- OAuth akışı
 
-def device_code(client_id):
+def device_code(client_id, scope=OAUTH_SCOPE):
     """Adım 1 — cihaz kodu üretir; kullanıcı kodu ekrana basılır."""
     data, err = _post_form(_endpoint(OAUTH_DEVICE), {
         "client_id": client_id,
-        "scope": OAUTH_SCOPE,
+        "scope": scope,
     })
     if err or not data:
         raise RuntimeError("Cihaz kodu alınamadı: "
@@ -147,7 +157,8 @@ def device_code(client_id):
 
 def poll(client_id, expires_in=1800, interval=5):
     """Adım 2 — kullanıcı onaylayana dek token endpoint'ini yoklar."""
-    client_secret = os.environ.get("WHISPER_YT_CLIENT_SECRET", "")
+    client_secret = os.environ.get("WHISPER_YT_CLIENT_SECRET", "") \
+        or (TV_CLIENT_SECRET if client_id == TV_CLIENT_ID else "")
     device = os.environ.get("WHISPER_YT_DEVICE_CODE", "")
     if not device:
         raise RuntimeError("Device code eksik — önce device_code çalıştırın.")
@@ -202,7 +213,8 @@ def poll(client_id, expires_in=1800, interval=5):
 
 def refresh(client_id):
     """access_token yeniler; refresh_token env'den."""
-    client_secret = os.environ.get("WHISPER_YT_CLIENT_SECRET", "")
+    client_secret = os.environ.get("WHISPER_YT_CLIENT_SECRET", "") \
+        or (TV_CLIENT_SECRET if client_id == TV_CLIENT_ID else "")
     refresh_token = os.environ.get("WHISPER_YT_REFRESH_TOKEN", "")
     if not refresh_token:
         raise RuntimeError("Refresh token yok — yeniden giriş gerekli.")
@@ -539,17 +551,25 @@ def main():
     # Browse ID beyaz liste — rastgele içerik yerine bilinen kişisel akışlar
     allowed_browse = {"FEsubscriptions", "FEwhat_to_watch", "FElibrary",
                       "FEhistory", "VLWL", "VLLL"}
+
+    def _resolve_client(arg):
+        """'tv' sentinele gömülü YouTube TV istemcisini çözer; boş hata verir."""
+        if arg == "tv":
+            return TV_CLIENT_ID, TV_SCOPE
+        if not arg:
+            raise RuntimeError("--client-id gerekli.")
+        return arg, OAUTH_SCOPE
+
     try:
         if args.command == "device_code":
-            if not args.client_id:
-                raise RuntimeError("--client-id gerekli.")
-            device_code(args.client_id)
+            cid, scope = _resolve_client(args.client_id)
+            device_code(cid, scope=scope)
         elif args.command == "poll":
-            if not args.client_id:
-                raise RuntimeError("--client-id gerekli.")
-            poll(args.client_id, expires_in=args.expires_in, interval=args.interval)
+            cid, _ = _resolve_client(args.client_id)
+            poll(cid, expires_in=args.expires_in, interval=args.interval)
         elif args.command == "refresh":
-            refresh(args.client_id)
+            cid, _ = _resolve_client(args.client_id)
+            refresh(cid)
         elif args.command == "browse":
             bid = args.browse_id.strip()
             if bid not in allowed_browse:
