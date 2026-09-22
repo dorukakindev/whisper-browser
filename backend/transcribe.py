@@ -38,7 +38,8 @@ from pipeline_control import (
     recover_output_transactions,
 )
 from pathlib import Path
-from subtitle_sdh import is_structural_sdh_cue, strip_sdh_descriptors
+from subtitle_sdh import (is_structural_sdh_cue, restore_sdh_markers,
+                          strip_sdh_descriptors)
 from series_memory import SeriesMemory
 from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
@@ -46,6 +47,7 @@ from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sent
                                   pack_sentence_groups, accept_sentence_reply,
                                   sentence_reply_issue, sentence_part_boundary_issue,
                                   reply_id_range_issue,
+                                  part_tail_issue, part_repetition_issue, part_anchor_issue,
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
                                   translation_blocking_issues)
@@ -624,7 +626,27 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         return " ".join(text.split())
 
     if wrap_mode == "sentence":
-        # Sadece cümle sonu noktalamalarda satır kır — cümleyi asla kesme
+        # Sadece cümle sonu noktalamalarda satır kır — cümleyi asla kesme.
+        # Üst katmanın (insert_sentence_breaks) koyduğu açık \n'ler anlamsal
+        # cümle sınırıdır: max_lines sınırı onları yeniden birleştirmez,
+        # yalnızca her satır kendi içinde sarılır.
+        explicit = [ln for ln in text.split("\n") if ln.strip()]
+        if len(explicit) > 1:
+            lines = []
+            for ln in explicit:
+                words = ln.split()
+                sub, current = [], []
+                for w in words:
+                    current.append(w)
+                    terminal = w.rstrip('"\'”’»)]}')
+                    if (terminal.endswith(tuple(PUNCT_END))
+                            and not is_abbreviation(w) and len(current) < len(words)):
+                        sub.append(" ".join(current))
+                        current = []
+                if current:
+                    sub.append(" ".join(current))
+                lines.extend(sub or [ln])
+            return "\n".join(lines)
         words = text.split()
         if not words:
             return text
@@ -2844,10 +2866,16 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Bir grupteki ve ayni partideki komsu bloklari, tek bloklu gruplar dahil, kesintisiz bir",
         "  konusma akisi gibi birlikte oku. Bu yalniz anlama/terim/zamir baglamidir; blok sahipligini degistirmez.",
         "- Yalniz ayni grup icinde yeniden sirala. GRUPLAR ARASINDA anlam tasima; baglam bilgisini erkene cekme.",
-        "- SAYI, TARIH, MIKTAR, KOD ve OZEL AD kaynakta hangi ID'deyse ceviride de o ID'nin",
+        "- SAYI, TARIH, MIKTAR, KOD, OZEL AD ve [...] SDH isareti kaynakta hangi ID'deyse ceviride de o ID'nin",
         "  items metninde kalmalidir. Ayni cumlede bile baska ID'ye tasima; diger sozcukleri bunlarin etrafinda dogal kur.",
         "- Kaynak grubun son parcasi disindaki bir ID cumleyi bitirmiyorsa hedef karsiligi da",
         "  nokta/soru/unlemle cumleyi erken BITIREMEZ. Yuklemi veya kalan anlami sonraki ID'ye tasima.",
+        "- Tek istisna: kaynak parca KENDI ICINDE tam bir cumle barindiriyorsa ('Wait. Are you sure')",
+        "  hedef karsiligi o tam cumleyle bitebilir ('Bekle.') — fazladan cumle kapatma yok.",
+        "- Parcayi 've', 'ile', 'de', 'mi', 'degil', 'zorunda', 'emin' gibi devam zorunlu bir",
+        "  sozcukle BITIRME; ek veya baglac ortasindan kesme, dogal durak sec.",
+        "- Ayni blok icinde iki cumle kaliyorsa ikinci cumleyi satir sonu (\\n) ile yeni",
+        "  gorsel satirdan baslat; 'Cumle1. Cumle2' tek satira yapismasin.",
         "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme.",
         "- Blok ekleme, silme veya birlestirme YAPMA. Girdideki her ID icin tam bir cikti ver.",
         "- Konusmaci tiresi (-), muzik isareti ve koseli parantezli efektler korunur.",
@@ -3428,6 +3456,29 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                            "max": [translation_char_budget(entries[i], args) for i in group]},
                           ensure_ascii=False, sort_keys=True)
 
+    def part_gate_issue(group, parts):
+        """Parça seviyesi kalite kapıları — tek noktadan tüm kabul yollarına.
+
+        1) cue sınırı: hedef parça kaynakta olandan fazla cümleyle kapanamaz
+           (kaynak parça içinde tam cümle varsa o kadarına izin verilir).
+        2) tekrar: farklı kaynak parçalara aynı hedef metin dönemez.
+        3) açık bağlantı: TR parça 'değil/mi/zorunda/ve…' gibi devam zorunlu
+           sözcükle bitmemeli (ek/bağlaç ortasından kesme).
+        4) demirleme: sayı, para/birim/tarih, SDH işareti ve özel ad kaynak
+           parçanın ID'sinde kalmalı.
+        """
+        source_parts = [entries[index][2] for index in group]
+        for check in (
+            lambda: sentence_part_boundary_issue(source_parts, parts),
+            lambda: part_repetition_issue(source_parts, parts),
+            lambda: part_tail_issue(parts, target),
+            lambda: part_anchor_issue(source_parts, parts, target),
+        ):
+            issue = check()
+            if issue:
+                return issue
+        return ""
+
     def translation_payload(chunk_idx, refine=False):
         positions = {index: pos for pos, index in enumerate(chunk_idx)}
         items = []
@@ -3484,9 +3535,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)
                 if record:
                     log(f"Bulanık çeviri hafızası eşleşti (%{fuzzy['ratio'] * 100:.1f}).")
-        boundary_issue = sentence_part_boundary_issue(
-            [entries[i][2] for i in group], record['parts']) if record else ""
-        if record and not boundary_issue and not translation_blocking_issues(
+        gate_issue = part_gate_issue(group, record['parts']) if record else ""
+        if record and not gate_issue and not translation_blocking_issues(
                 ' '.join(entries[i][2] for i in group), record['text'], target):
             for i, part in zip(group, record['parts']):
                 out_texts[i] = part
@@ -3568,14 +3618,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
-    def task_once(chunk_idx, phase="batch"):
+    def task_once(chunk_idx, phase="batch", prompt_suffix=""):
         with lock:
             translation_metrics["requests"] += 1
             metric_key = "fallback_requests" if phase == "fallback" else "batch_requests"
             translation_metrics[metric_key] += 1
         payload = translation_payload(chunk_idx)
 
-        resp, used_url = call_api_with(system_prompt, payload)
+        resp, used_url = call_api_with(system_prompt + prompt_suffix, payload)
         with lock:
             if route_state["preferred"] != used_url:
                 route_state["preferred"] = used_url
@@ -3602,10 +3652,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 rejected["bilinmeyen_yapisal_ret"] = rejected.get(
                     "bilinmeyen_yapisal_ret", 0) + 1
                 continue
-            boundary_issue = sentence_part_boundary_issue(
-                [entries[index][2] for index in group], record['parts'])
-            if boundary_issue:
-                key = "cue_siniri_" + boundary_issue
+            gate_issue = part_gate_issue(group, record['parts'])
+            if gate_issue:
+                key = "part_kapisi_" + gate_issue
                 rejected[key] = rejected.get(key, 0) + 1
                 continue
             # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
@@ -3655,6 +3704,20 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
         return filled
 
+    RESCUE_SUFFIX = (
+        "\n\n## SON DENEME - DAGITIM KURALLARI (kesin uy)\n"
+        "- Onceki yanit kalite kapisina takildi; bu kez dagitimi soyle kur:\n"
+        "- Hedef parca, kaynak parcada gorulenden FAZLA cumleyle KAPANAMAZ. Kaynak\n"
+        "  parca kendi icinde tam cumle barindiriyorsa ('Wait. Are you sure')\n"
+        "  hedef karsiligi da o tam cumleyle bitebilir ('Bekle.').\n"
+        "- Sayi, miktar, para birimi, tarih, ozel ad ve [..] SDH isareti hangi\n"
+        "  ID'deyse AYNI ID'nin items metninde kalir; baska ID'ye tasima.\n"
+        "- Parcayi 've', 'ile', 'de', 'mi', 'degil', 'zorunda', 'emin' gibi devam\n"
+        "  zorunlu bir sozcukle BITIRME; ek veya baglac ortasindan kesme.\n"
+        "- Ayni blokta ikinci cumle kaliyorsa araya satir sonu (\\n) koy.\n"
+        "- Dagitim emin degilse TAM ceviriyi kur ve parcalari dogal duraklardan bol."
+    )
+
     def retry_groups_once(groups_to_retry, *, batched=True):
         """Eksik grupları önce ikili küçük paket, gerekirse tek grup olarak kurtar."""
         recovered = 0
@@ -3679,45 +3742,64 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             "status", stage="translate",
             text=f"Çeviri kurtarılıyor: 0/{len(groups_to_retry)} cümle grubu",
         )
-        completed_groups = 0
-        for bundle_groups, bundle in bundles:
+        def rescue_group(group):
+            """Tek grup: normal kurtarma → yanıt kalite kapısında kalırsa
+            dağıtım kuralları açıkça eklenmiş ikinci (son) deneme."""
+            nonlocal recovered
+            first_reason = ""
             try:
-                recovered += task_once(bundle, phase="fallback")
-                missing_after_bundle = [
-                    group for group in bundle_groups
-                    if not all(index in done_idx for index in group)
-                ]
-                for group in missing_after_bundle:
-                    try:
-                        recovered += task_once(group, phase="fallback")
-                    except Exception as single_error:
-                        single_reason = classify_translation_error(single_error)
-                        with lock:
-                            for index in group:
-                                if index not in done_idx:
-                                    failure_by_index.setdefault(index, single_reason)
-            except Exception as retry_error:
-                reason = classify_translation_error(retry_error)
-                if reason in {"invalid_response", "empty_response"} and len(bundle_groups) > 1:
-                    log(
-                        f"Çeviri küçük paketi {bundle[0]}-{bundle[-1]} de geçersiz "
-                        f"({retry_error}); tek gruplara ayrılıyor.",
-                        "warn",
-                    )
-                    for group in bundle_groups:
-                        try:
-                            recovered += task_once(group, phase="fallback")
-                        except Exception as single_error:
-                            single_reason = classify_translation_error(single_error)
-                            with lock:
-                                for index in group:
-                                    if index not in done_idx:
-                                        failure_by_index.setdefault(index, single_reason)
-                else:
+                recovered += task_once(group, phase="fallback")
+            except Exception as first_error:
+                first_reason = classify_translation_error(first_error)
+            if all(index in done_idx for index in group):
+                return
+            # Aynı promptu tekrarlamak aynı dağıtımı üretir; yanıt yapısal/kalite
+            # kapısında kaldıysa son denemeye dağıtım kuralları eklenir. Ağ/kimlik
+            # hatasında ek deneme anlamsızdır, doğrudan başarısız işaretlenir.
+            if first_reason in {"", "invalid_response", "empty_response"}:
+                try:
+                    recovered += task_once(group, phase="fallback",
+                                           prompt_suffix=RESCUE_SUFFIX)
+                except Exception as second_error:
+                    reason = classify_translation_error(second_error)
                     with lock:
-                        for index in bundle:
+                        for index in group:
                             if index not in done_idx:
                                 failure_by_index.setdefault(index, reason)
+                    return
+            with lock:
+                for index in group:
+                    if index not in done_idx:
+                        failure_by_index.setdefault(index, first_reason or "invalid_response")
+
+        completed_groups = 0
+        for bundle_groups, bundle in bundles:
+            if len(bundle_groups) == 1:
+                rescue_group(bundle_groups[0])
+            else:
+                try:
+                    recovered += task_once(bundle, phase="fallback")
+                    missing_after_bundle = [
+                        group for group in bundle_groups
+                        if not all(index in done_idx for index in group)
+                    ]
+                    for group in missing_after_bundle:
+                        rescue_group(group)
+                except Exception as retry_error:
+                    reason = classify_translation_error(retry_error)
+                    if reason in {"invalid_response", "empty_response"}:
+                        log(
+                            f"Çeviri küçük paketi {bundle[0]}-{bundle[-1]} de geçersiz "
+                            f"({retry_error}); tek gruplara ayrılıyor.",
+                            "warn",
+                        )
+                        for group in bundle_groups:
+                            rescue_group(group)
+                    else:
+                        with lock:
+                            for index in bundle:
+                                if index not in done_idx:
+                                    failure_by_index.setdefault(index, reason)
             completed_groups += len(bundle_groups)
             log(
                 f"Çeviri kurtarma ilerlemesi: {completed_groups}/{len(groups_to_retry)} "
@@ -3926,10 +4008,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 record = accept_sentence_reply(data, row['ids'])
                 if not record:
                     continue
-                boundary_issue = sentence_part_boundary_issue(
-                    [entries[index][2] for index in group], record['parts'])
-                if boundary_issue:
-                    key = "cue_boundary:" + boundary_issue
+                gate_issue = part_gate_issue(group, record['parts'])
+                if gate_issue:
+                    key = "part_kapisi:" + gate_issue
                     rejected[key] = rejected.get(key, 0) + len(group)
                     continue
                 if translation_is_source_echo(row['source'], record['text']):
@@ -7045,6 +7126,13 @@ def translate_existing_subtitle(args):
         translated = [(entry[0], entry[1], translated_map.get(index,
                     existing_for(entry, index) or entry[2]))
                       for index, entry in enumerate(entries)]
+    if translated:
+        # Model girdisinden çıkarılan satır içi SDH işaretleri çeviri
+        # metninde kaybolmasın: eksik olanlar cue başına geri konur.
+        translated = [(start, end,
+                       restore_sdh_markers(orig_text, translated_text))
+                      for (start, end, orig_text), (_s, _e, translated_text)
+                      in zip(entries, translated)]
     # Var olan altyazı çevirisinde cue sınırları ve zamanları birebir korunur;
     # metin-birleştirme kaynak/çeviri eşlemesini ve kısmi devamı bozar.
     if not translated:

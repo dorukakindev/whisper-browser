@@ -2867,8 +2867,9 @@ def test_sentence_translation_failed_groups_never_reach_refine():
         return reply
     result, seen, _, _ = _sentence_translate(source, _TrArgs(translate_refine=True, translate_cache=False), answer)
     assert result[:3] == _SENTENCE_SOURCE
-    assert len(seen) == 3
-    assert [item['src'] for item in seen[2][0]['items']] == ['Goodbye.']
+    # toplu + tekil kurtarma + sertleştirilmiş son deneme + refine = 4 istek
+    assert len(seen) == 4
+    assert [item['src'] for item in seen[3][0]['items']] == ['Goodbye.']
 
 
 def test_translate_existing_without_metadata_retries_source_echo_only():

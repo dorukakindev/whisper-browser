@@ -96,3 +96,58 @@ def strip_sdh_descriptors(text):
         value = value[:start] + value[end:]
     value = re.sub(r"[ \t]+", " ", value)
     return value.strip()
+
+
+def _sdh_spans(value):
+    """strip_sdh_descriptors ile aynı tarama: güvenli SDH grubu konumları."""
+    stack, spans, start = [], [], None
+    pairs = {"]": "[", ")": "("}
+    for index, char in enumerate(value):
+        if char == "\n":
+            stack, start = [], None
+        elif char in "[(":
+            if not stack:
+                start = index
+            stack.append(char)
+        elif char in "])" and stack:
+            if stack[-1] != pairs[char]:
+                stack, start = [], None
+                continue
+            stack.pop()
+            if not stack and start is not None:
+                descriptor = value[start + 1:index]
+                if (len(descriptor) <= 160
+                        and not any(c in descriptor for c in "[]()")
+                        and is_sdh_descriptor(descriptor)):
+                    spans.append((start, index + 1))
+                start = None
+    return spans
+
+
+def sdh_markers_removed(text):
+    """strip_sdh_descriptors'in sileceği işaretleri köşeli/parantezli
+    biçimleriyle sıralı döndürür."""
+    value = str(text or "")
+    return [value[s:e] for s, e in _sdh_spans(value)]
+
+
+_MARKER_GROUP = re.compile(r"\[[^\]\n]{1,160}\]|\([^\)\n]{1,160}\)|[♪♫♬♩]+")
+
+
+def restore_sdh_markers(source_text, translated_text):
+    """Çıkarılan SDH işaretlerini çevrilmiş cue'ya geri koy.
+
+    Model girdisinden güvenle çıkarılan betimlemeler çeviri çıktısında
+    eksikse sayıca cue başına eklenir — konum birebir korunamaz ama işaret
+    varlığı ve sırası korunur. Modelin kendisi işaret çevirdiyse ([alkış])
+    o varlık sayısına katılır; tekrar eklenmez.
+    """
+    removed = sdh_markers_removed(source_text)
+    text = str(translated_text or "").strip()
+    if not removed or not text:
+        return text
+    present = len(_MARKER_GROUP.findall(text))
+    missing = removed[:max(0, len(removed) - present)]
+    if not missing:
+        return text
+    return (" ".join(missing) + " " + text).strip()
