@@ -397,6 +397,9 @@ class BrowserTranslationScheduler {
       .map(([sentenceId]) => sentenceId);
     if (!failedIds.length) return 0;
     this.providerFailure = '';
+    // A deliberate retry begins a new failure streak; a stale tripped count
+    // would reopen the breaker after one transient 5xx response.
+    this.consecutiveProviderFailures = 0;
     for (const sentenceId of failedIds) this.failures.delete(sentenceId);
     // Hata kullanicinin mevcut pencere kapsami disinda olsa bile yeniden
     // denenebilmeli; ancak bu eylem acik bir "tum izi cevir" talebi degildir.
@@ -600,6 +603,7 @@ class BrowserTranslationScheduler {
 
   cancelAll(reason = 'İptal edildi.') {
     this.providerFailure = '';
+    this.consecutiveProviderFailures = 0;
     this.queue = [];
     for (const job of this.pending.values()) job.controller.abort(reason);
     this.pending.clear();

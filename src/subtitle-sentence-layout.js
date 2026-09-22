@@ -75,19 +75,47 @@ function turkishIntegerWords(value) {
   }
   return '';
 }
+function turkishNumberPhrasePattern(phrase) {
+  const suffix = '[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n';
+  return new RegExp(`(?:^|\\s)${phrase.replace(/ /g, '\\s+')}(?:'?(?:${suffix}))?(?=$|[\\s.,!?;:])`, 'giu');
+}
 function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const issues = [];
-  const sourceNumbers = numberTokens(source);
-  const translatedNumbers = numberTokens(translated);
+  const turkishTarget = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr';
+  let sourceForNumbers = String(source || '');
+  let targetForNumbers = String(translated || '');
+  if (turkishTarget) {
+    // Subtitle style commonly writes 5:30 as 5.30. Remove only matched clock
+    // pairs; an altered minute remains a blocking mismatch.
+    const clocks = [...sourceForNumbers.matchAll(/(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)/gu)];
+    for (const clock of clocks) {
+      const hour = Number(clock[1]);
+      const equivalent = new RegExp(`(?<!\\d)0?${hour}[:.]${clock[2]}(?!\\d)`, 'u');
+      if (equivalent.test(targetForNumbers)) targetForNumbers = targetForNumbers.replace(equivalent, ' ');
+      else if (clock[2] === '30' && turkishIntegerWords(hour)) {
+        const words = `${turkishIntegerWords(hour)} buçuk`;
+        const pattern = turkishNumberPhrasePattern(words);
+        if (pattern.test(targetForNumbers.toLocaleLowerCase('tr'))) targetForNumbers = targetForNumbers.replace(pattern, ' ');
+        else issues.push('number_mismatch');
+      }
+      else issues.push('number_mismatch');
+    }
+    sourceForNumbers = sourceForNumbers.replace(/(?<!\d)\d{1,2}:[0-5]\d(?!\d)/gu, ' ');
+  }
+  const sourceNumbers = numberTokens(sourceForNumbers);
+  const translatedNumbers = numberTokens(targetForNumbers);
+  const scaledNumbers = turkishTarget ? [...targetForNumbers.matchAll(/(?<!\d)(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\p{L})/giu)]
+    .map((match) => Number(match[1].replace(',', '.')) * { bin: 1000, milyon: 1000000, milyar: 1000000000 }[match[2].toLocaleLowerCase('tr')]) : [];
   const normalizedTranslation = normalizeText(translated).toLocaleLowerCase('tr');
   if (sourceNumbers.some((token) => {
     if (translatedNumbers.includes(token)) return false;
     const numeric = Number(token.replace(/^-|%$/g, ''));
-    const words = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr' && Number.isInteger(numeric)
-      ? turkishIntegerWords(numeric) : '';
+    if (!token.includes('%') && scaledNumbers.includes(numeric)) return false;
+    const words = turkishTarget && Number.isInteger(numeric) ? turkishIntegerWords(numeric)
+      : turkishTarget && numeric % 1 === 0.5 ? `${turkishIntegerWords(Math.floor(numeric))} buçuk` : '';
     if (!words) return true;
     const phrase = [token.endsWith('%') ? 'yüzde' : '', token.startsWith('-') ? 'eksi' : '', words].filter(Boolean).join(' ');
-    const pattern = new RegExp(`(?:^|\\s)${phrase.replace(/ /g, '\\s+')}(?:$|[\\s.,!?;:])`, 'giu');
+    const pattern = turkishNumberPhrasePattern(phrase);
     // "kırk beş" gibi birleşik sayı öbeği: 'kırk' tek başına eşleşir ama değer 45'tir;
     // hemen ardından gelen sayı kelimesi değeri değiştirir.
     let match;
@@ -146,11 +174,16 @@ function validParts(text, parts, count) {
 function decodeSentenceTranslation(raw, count, requireParts = false) {
   if (typeof raw === 'string') {
     const value = raw.trim().replace(/^```(?:json|text)?\s*|\s*```$/gi, '').trim();
+    const wrapped = value.match(/^(?:çeviri|translation|response|yanıt)\s*:\s*(\{[\s\S]*\})$/iu);
+    if (/^(?:çeviri|translation|response|yanıt)\s*:\s*\{/iu.test(value) && !wrapped) {
+      throw new Error('Cümle çevirisinin JSON yanıtı okunamadı.');
+    }
+    const candidate = wrapped ? wrapped[1] : value;
     // JSON arrays are not subtitle text. Keep ordinary SDH such as [MÜZİK].
-    const arrayLike = /^\[\s*(?:["{\[\]\d-]|true\b|false\b|null\b)/u.test(value);
-    if (/^\{/.test(value) || arrayLike) {
+    const arrayLike = /^\[\s*(?:["{\[\]\d-]|true\b|false\b|null\b)/u.test(candidate);
+    if (/^\{/.test(candidate) || arrayLike) {
       // A malformed JSON reply is not subtitle text and must not reach the screen.
-      try { raw = JSON.parse(value); }
+      try { raw = JSON.parse(candidate); }
       catch (_) { throw new Error('Cümle çevirisinin JSON yanıtı okunamadı.'); }
     } else raw = { text: value };
   }
@@ -162,18 +195,23 @@ function decodeSentenceTranslation(raw, count, requireParts = false) {
   }
   if (raw.parts != null && !validParts(raw.text, raw.parts, count)) {
     if (requireParts) {
-      throw new Error('Çeviri parçaları tam cümleyle eşleşmiyor; cümle uygulanmadı.');
+      const error = new Error('Çeviri parçaları tam cümleyle eşleşmiyor; cümle uygulanmadı.');
+      error.code = 'PARTS_MISMATCH';
+      throw error;
     }
     raw = { ...raw, parts: null };
   }
   if (requireParts && count > 1 && !raw.parts) {
-    throw new Error('Çeviri servisi cümlenin zaman bloklarına ayrılmış halini göndermedi.');
+    const error = new Error('Çeviri servisi cümlenin zaman bloklarına ayrılmış halini göndermedi.');
+    error.code = 'PARTS_MISSING';
+    throw error;
   }
   return { text: normalizeText(raw.text), parts: raw.parts?.map(normalizeText) || null };
 }
 
-function sentenceTranslationRequest(sentence) {
+function sentenceTranslationRequest(sentence, targetLanguage = 'tr') {
   const pieces = sentence.pieces || [];
+  const turkishTarget = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr';
   const contextRows = (value, edge) => {
     const rows = Array.isArray(value) ? value : value ? [value] : [];
     const bounded = rows.map((row) => typeof row === 'string'
@@ -192,8 +230,8 @@ function sentenceTranslationRequest(sentence) {
       'Sonra yalnız bu cümlenin çevirisini parts içindeki süreleri gözeterek aynı sayıda sıralı parçaya ayır.',
       'Kaynak parçalarını ayrı ayrı çevirmek zorunda değilsin; hedef dilin doğal söz dizimini kullan.',
       'Tek parçalı cümlelerde bile context_before, context_after ve komşu replikleri kesintisiz konuşma akışı gibi birlikte anla; yalnız çevrilecek metni döndür.',
-      'Sayı, tarih, miktar, kod ve özel adları eksiksiz koru. Doğal Türkçe söz dizimi gerektiriyorsa bunları aynı cümle grubundaki komşu part içine taşıyabilirsin; başka cümleye veya başka olaya taşıma.',
-      'parts zaman sırasını izlemeli ve söylenen düşüncenin ekrandaki yakınlığını korumalı; mekanik kaynak-cue sahipliği uğruna bozuk Türkçe üretme.',
+      `Sayı, tarih, miktar, kod ve özel adları eksiksiz koru. ${turkishTarget ? 'Doğal Türkçe söz dizimi' : 'Hedef dilin doğal söz dizimi'} gerektiriyorsa bunları aynı cümle grubundaki komşu part içine taşıyabilirsin; başka cümleye veya başka olaya taşıma.`,
+      `parts zaman sırasını izlemeli ve söylenen düşüncenin ekrandaki yakınlığını korumalı; mekanik kaynak-cue sahipliği uğruna bozuk ${turkishTarget ? 'Türkçe' : 'hedef dil'} üretme.`,
       'Anlamı başka cümleye taşıma; sonraki bağlamın bilgisini erkene çekme. Hiçbir bilgiyi ekleme, silme veya yineleme.',
       'Sözcük öbeklerini mümkünse bölme. Karakter bütçesi yol göstericidir; sığdırmak için anlamı silme.',
       'Çıktıdan önce sessizce denetle: özne-yüklem uyumu, tamlamalar, zamir göndergeleri, yarım yüklem, yinelenen bağlaç/soru sözcüğü ve harfiyen çevrilmiş deyim kalmasın.',

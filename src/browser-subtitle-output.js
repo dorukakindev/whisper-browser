@@ -23,10 +23,10 @@ function escapeAssText(value) {
 
 function cuesToAss(cues) {
   const list = normalizeCues(cues);
-  const header = '[Script Info]\r\nScriptType: v4.00+\r\nWrapStyle: 0\r\nScaledBorderAndShadow: yes\r\n\r\n'
+  const header = '[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 1920\r\nPlayResY: 1080\r\nWrapStyle: 0\r\nScaledBorderAndShadow: yes\r\n\r\n'
     + '[V4+ Styles]\r\n'
     + 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\n'
-    + 'Style: Default,Segoe UI,42,&H00FFFFFF,&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,40,40,35,1\r\n\r\n'
+    + 'Style: Default,Segoe UI,54,&H00FFFFFF,&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,70,70,60,1\r\n\r\n'
     + '[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\n';
   return header + list.map((cue) => `Dialogue: 0,${assTime(cue.start)},${assTime(cue.end)},Default,,0,0,0,,${escapeAssText(cue.text)}`)
     .join('\r\n') + (list.length ? '\r\n' : '');
