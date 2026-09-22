@@ -346,6 +346,17 @@ app.whenReady().then(async () => {
   const trCueSample = await run(`return [...(player.browserLiveTranslations||new Map()).values()].slice(0,3).map(c=>c.text)`);
   report.trCueSample = trCueSample;
   assert(trCueSample.every((t) => /^TR:/.test(t)), `çeviri sağlayıcıdan gelmedi: ${trCueSample}`);
+  // T3: maliyet sayaçları kalıcı tanı kanalında (diagnostics.translation)
+  // görünür ve sağlayıcı istek sayısıyla tutarlı olmalı. Snapshot IPC'si
+  // çeviri izi yüklendikten sonra scheduler'ı bırakır; tanı nesnesi kalır.
+  const trDiag = await run(`return (browserTabState()?.diagnostics?.translation) || {}`);
+  report.translation.diagStats = {
+    providerRequests: trDiag.providerRequests, cacheHits: trDiag.cacheHits,
+    cacheMisses: trDiag.cacheMisses };
+  assert.equal(Number(trDiag.providerRequests || 0), providerStats.requests,
+    `tanı sayacı sağlayıcı isteğiyle uyuşmuyor: ${JSON.stringify(trDiag)} vs ${providerStats.requests}`);
+  assert.equal(Number(trDiag.cacheMisses || 0), Number(trDiag.providerRequests || 0),
+    'ilk turda her sorgulama önbellek ıskası ve her ıskak tek istek olmalı');
   console.log('[gauntlet] Çeviri doğrulandı');
   await shot('03-translated');
 

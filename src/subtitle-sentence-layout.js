@@ -57,6 +57,8 @@ function numberTokens(text) {
 }
 const TR_ONES = ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
 const TR_TENS = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+const TR_NUMBER_WORDS = new Set(
+  [...TR_ONES, ...TR_TENS, 'yüz', 'bin', 'milyon', 'milyar', 'buçuk', 'virgül'].filter(Boolean));
 function turkishIntegerWords(value) {
   value = Number(value);
   if (!Number.isSafeInteger(value) || value < 0 || value > 999999999) return '';
@@ -83,8 +85,18 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
     const numeric = Number(token.replace(/^-|%$/g, ''));
     const words = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr' && Number.isInteger(numeric)
       ? turkishIntegerWords(numeric) : '';
+    if (!words) return true;
     const phrase = [token.endsWith('%') ? 'yüzde' : '', token.startsWith('-') ? 'eksi' : '', words].filter(Boolean).join(' ');
-    return !words || !new RegExp(`(?:^|\\s)${phrase.replace(/ /g, '\\s+')}(?:$|[\\s.,!?;:])`, 'iu').test(normalizedTranslation);
+    const pattern = new RegExp(`(?:^|\\s)${phrase.replace(/ /g, '\\s+')}(?:$|[\\s.,!?;:])`, 'giu');
+    // "kırk beş" gibi birleşik sayı öbeği: 'kırk' tek başına eşleşir ama değer 45'tir;
+    // hemen ardından gelen sayı kelimesi değeri değiştirir.
+    let match;
+    while ((match = pattern.exec(normalizedTranslation)) !== null) {
+      const rest = normalizedTranslation.slice(pattern.lastIndex).replace(/^\s+/u, '');
+      const next = (rest.match(/^[\p{L}]+/u) || [''])[0];
+      if (!TR_NUMBER_WORDS.has(next)) return false;
+    }
+    return true;
   })) issues.push('number_mismatch');
   if (SOURCE_NEGATION.test(normalizeText(source).replace(/[‘’]/g, "'")) && !TARGET_NEGATION.test(normalizeText(translated))) {
     issues.push('negation_missing');
